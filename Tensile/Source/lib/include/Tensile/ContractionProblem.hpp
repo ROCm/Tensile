@@ -24,10 +24,12 @@
 
 #pragma once
 
-#include <Tensile/ContractionProblem_fwd.hpp>
-#include <Tensile/ContractionSolution_fwd.hpp>
+#include <Tensile/ArithmeticUnitTypes.hpp>
 #include <Tensile/KernelLanguageTypes.hpp>
 #include <Tensile/Tensile.hpp>
+
+#include <Tensile/ContractionProblem_fwd.hpp>
+#include <Tensile/ContractionSolution_fwd.hpp>
 
 #include <Tensile/TensorDescriptor.hpp>
 #include <Tensile/TensorOps.hpp>
@@ -338,6 +340,15 @@ namespace Tensile
             return m_highPrecisionAccumulate;
         }
 
+        void setArithmeticUnit(ArithmeticUnit value)
+        {
+            m_arithmeticUnit = value;
+        }
+        ArithmeticUnit arithmeticUnit() const
+        {
+            return m_arithmeticUnit;
+        }
+
         void setKernelLanguage(KernelLanguage value)
         {
             m_kernelLanguage = value;
@@ -345,269 +356,271 @@ namespace Tensile
         KernelLanguage kernelLanguage() const
         {
             return m_kernelLanguage;
-            void setDeterministicMode(bool value)
-            {
-                m_deterministicMode = value;
-            }
-            bool deterministicMode() const
-            {
-                return m_deterministicMode;
-            }
+        }
 
-            /// Largest of the free and bound indices.  Does not include batch size.
-            size_t maxProblemSize() const
-            {
-                return m_maxProblemSize;
-            }
-
-            /// Allocated elements excluding batch dimensions
-            /// Used in assembly kernels to determine buffer limits, if batch dimes not
-            /// packed
-            size_t allocatedElementsNonBatchA() const
-            {
-                return m_allocatedElementsNonBatchA;
-            }
-            size_t allocatedElementsNonBatchB() const
-            {
-                return m_allocatedElementsNonBatchB;
-            }
-
-            size_t flopsPerMac() const;
-            size_t flopCount() const;
-
-            TensorDescriptor const& a() const
-            {
-                return m_a;
-            }
-            TensorDescriptor const& b() const
-            {
-                return m_b;
-            }
-            TensorDescriptor const& c() const
-            {
-                return m_c;
-            }
-            TensorDescriptor const& d() const
-            {
-                return m_d;
-            }
-
-            TensorOps const& aOps() const
-            {
-                return m_aOps;
-            }
-            TensorOps const& bOps() const
-            {
-                return m_bOps;
-            }
-            TensorOps const& cOps() const
-            {
-                return m_cOps;
-            }
-            TensorOps const& dOps() const
-            {
-                return m_dOps;
-            }
-
-            FreeIndices const& freeIndicesA() const
-            {
-                return m_freeIndicesA;
-            }
-            FreeIndices const& freeIndicesB() const
-            {
-                return m_freeIndicesB;
-            }
-            FreeIndices const& freeIndices() const
-            {
-                return m_freeIndices;
-            }
-            BatchIndices const& batchIndices() const
-            {
-                return m_batchIndices;
-            }
-            BoundIndices const& boundIndices() const
-            {
-                return m_boundIndices;
-            }
-
-            ZeroPads const& aZeroPad() const
-            {
-                return m_aZeroPads;
-            }
-            ZeroPads const& bZeroPad() const
-            {
-                return m_bZeroPads;
-            }
-
-            void addAZeroPad(const ZeroPad& zp);
-            void addBZeroPad(const ZeroPad& zp);
-
-            bool transposeC01() const
-            {
-                return m_transposeC01;
-            };
-
-            double beta() const
-            {
-                return m_beta;
-            }
-
-            std::string const& aNames() const
-            {
-                return m_aNames;
-            }
-            std::string const& bNames() const
-            {
-                return m_bNames;
-            }
-            std::string const& cNames() const
-            {
-                return m_cNames;
-            }
-            std::string const& dNames() const
-            {
-                return m_dNames;
-            }
-            std::string const& sumNames() const
-            {
-                return m_sumNames;
-            }
-
-            bool transA() const
-            {
-                return m_aNames == "lik";
-            }
-            bool transB() const
-            {
-                return m_bNames == "jlk";
-            }
-
-            std::string        operationName() const;
-            std::string const& operationIdentifier() const
-            {
-                return m_operationIdentifier;
-            }
-            std::string operationDescription() const
-            {
-                return getOperationDescription();
-            }
-
-        private:
-            TensorDescriptor m_a;
-            TensorDescriptor m_b;
-            TensorDescriptor m_c;
-            TensorDescriptor m_d;
-            TensorOps        m_aOps;
-            TensorOps        m_bOps;
-            TensorOps        m_cOps;
-            TensorOps        m_dOps;
-
-            std::string m_aNames;
-            std::string m_bNames;
-            std::string m_cNames;
-            std::string m_dNames;
-            std::string m_sumNames;
-            std::string m_operationIdentifier;
-
-            bool           m_transA;
-            bool           m_transB;
-            bool           m_highPrecisionAccumulate = false;
-            bool           m_deterministicMode       = false;
-            KernelLanguage m_kernelLanguage          = KernelLanguage::Any;
-
-            FreeIndices  m_freeIndicesA; //< in same order as IndexAssignmentsA
-            FreeIndices  m_freeIndicesB; //< in same order as IndexAssignmentsB
-            FreeIndices  m_freeIndices;
-            BatchIndices m_batchIndices;
-            BoundIndices m_boundIndices;
-
-            ZeroPads m_aZeroPads;
-            ZeroPads m_bZeroPads;
-
-            std::vector<size_t> m_freeSizesA;
-            std::vector<size_t> m_freeSizesB;
-            std::vector<size_t> m_batchSizes;
-            std::vector<size_t> m_boundSizes;
-
-            std::vector<size_t> m_problemSizes;
-            std::vector<size_t> m_problemStrides;
-
-            bool   m_transposeC01;
-            double m_beta;
-
-            size_t m_maxProblemSize = 1;
-
-            size_t m_allocatedElementsNonBatchA;
-            size_t m_allocatedElementsNonBatchB;
-
-            void normalize();
-            void consistencyCheck() const;
-
-            void getIndexNames(std::string & aNames,
-                               std::string & bNames,
-                               std::string & cNames,
-                               std::string & dNames,
-                               std::string & sumNames) const;
-
-            std::string getOperationIdentifier() const;
-            std::string getOperationDescription() const;
-        };
-
-        struct TENSILE_API ContractionInputs : public ProblemInputs
+        void setDeterministicMode(bool value)
         {
-            ContractionInputs();
-            virtual ~ContractionInputs();
+            m_deterministicMode = value;
+        }
+        bool deterministicMode() const
+        {
+            return m_deterministicMode;
+        }
+
+        /// Largest of the free and bound indices.  Does not include batch size.
+        size_t maxProblemSize() const
+        {
+            return m_maxProblemSize;
+        }
+
+        /// Allocated elements excluding batch dimensions
+        /// Used in assembly kernels to determine buffer limits, if batch dimes not
+        /// packed
+        size_t allocatedElementsNonBatchA() const
+        {
+            return m_allocatedElementsNonBatchA;
+        }
+        size_t allocatedElementsNonBatchB() const
+        {
+            return m_allocatedElementsNonBatchB;
+        }
+
+        size_t flopsPerMac() const;
+        size_t flopCount() const;
+
+        TensorDescriptor const& a() const
+        {
+            return m_a;
+        }
+        TensorDescriptor const& b() const
+        {
+            return m_b;
+        }
+        TensorDescriptor const& c() const
+        {
+            return m_c;
+        }
+        TensorDescriptor const& d() const
+        {
+            return m_d;
+        }
+
+        TensorOps const& aOps() const
+        {
+            return m_aOps;
+        }
+        TensorOps const& bOps() const
+        {
+            return m_bOps;
+        }
+        TensorOps const& cOps() const
+        {
+            return m_cOps;
+        }
+        TensorOps const& dOps() const
+        {
+            return m_dOps;
+        }
+
+        FreeIndices const& freeIndicesA() const
+        {
+            return m_freeIndicesA;
+        }
+        FreeIndices const& freeIndicesB() const
+        {
+            return m_freeIndicesB;
+        }
+        FreeIndices const& freeIndices() const
+        {
+            return m_freeIndices;
+        }
+        BatchIndices const& batchIndices() const
+        {
+            return m_batchIndices;
+        }
+        BoundIndices const& boundIndices() const
+        {
+            return m_boundIndices;
+        }
+
+        ZeroPads const& aZeroPad() const
+        {
+            return m_aZeroPads;
+        }
+        ZeroPads const& bZeroPad() const
+        {
+            return m_bZeroPads;
+        }
+
+        void addAZeroPad(const ZeroPad& zp);
+        void addBZeroPad(const ZeroPad& zp);
+
+        bool transposeC01() const
+        {
+            return m_transposeC01;
         };
 
-        /**
+        double beta() const
+        {
+            return m_beta;
+        }
+
+        std::string const& aNames() const
+        {
+            return m_aNames;
+        }
+        std::string const& bNames() const
+        {
+            return m_bNames;
+        }
+        std::string const& cNames() const
+        {
+            return m_cNames;
+        }
+        std::string const& dNames() const
+        {
+            return m_dNames;
+        }
+        std::string const& sumNames() const
+        {
+            return m_sumNames;
+        }
+
+        bool transA() const
+        {
+            return m_aNames == "lik";
+        }
+        bool transB() const
+        {
+            return m_bNames == "jlk";
+        }
+
+        std::string        operationName() const;
+        std::string const& operationIdentifier() const
+        {
+            return m_operationIdentifier;
+        }
+        std::string operationDescription() const
+        {
+            return getOperationDescription();
+        }
+
+    private:
+        TensorDescriptor m_a;
+        TensorDescriptor m_b;
+        TensorDescriptor m_c;
+        TensorDescriptor m_d;
+        TensorOps        m_aOps;
+        TensorOps        m_bOps;
+        TensorOps        m_cOps;
+        TensorOps        m_dOps;
+
+        std::string m_aNames;
+        std::string m_bNames;
+        std::string m_cNames;
+        std::string m_dNames;
+        std::string m_sumNames;
+        std::string m_operationIdentifier;
+
+        bool           m_transA;
+        bool           m_transB;
+        bool           m_highPrecisionAccumulate = false;
+        bool           m_deterministicMode       = false;
+        ArithmeticUnit m_arithmeticUnit          = ArithmeticUnit::Any;
+        KernelLanguage m_kernelLanguage          = KernelLanguage::Any;
+
+        FreeIndices  m_freeIndicesA; //< in same order as IndexAssignmentsA
+        FreeIndices  m_freeIndicesB; //< in same order as IndexAssignmentsB
+        FreeIndices  m_freeIndices;
+        BatchIndices m_batchIndices;
+        BoundIndices m_boundIndices;
+
+        ZeroPads m_aZeroPads;
+        ZeroPads m_bZeroPads;
+
+        std::vector<size_t> m_freeSizesA;
+        std::vector<size_t> m_freeSizesB;
+        std::vector<size_t> m_batchSizes;
+        std::vector<size_t> m_boundSizes;
+
+        std::vector<size_t> m_problemSizes;
+        std::vector<size_t> m_problemStrides;
+
+        bool   m_transposeC01;
+        double m_beta;
+
+        size_t m_maxProblemSize = 1;
+
+        size_t m_allocatedElementsNonBatchA;
+        size_t m_allocatedElementsNonBatchB;
+
+        void normalize();
+        void consistencyCheck() const;
+
+        void getIndexNames(std::string& aNames,
+                           std::string& bNames,
+                           std::string& cNames,
+                           std::string& dNames,
+                           std::string& sumNames) const;
+
+        std::string getOperationIdentifier() const;
+        std::string getOperationDescription() const;
+    };
+
+    struct TENSILE_API ContractionInputs : public ProblemInputs
+    {
+        ContractionInputs();
+        virtual ~ContractionInputs();
+    };
+
+    /**
  * Contains actual pointer and argument values for a particular set of
  * inputs.
  */
-        template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
-        struct TENSILE_API TypedContractionInputs : public ContractionInputs
-        {
-            using AType     = A;
-            using BType     = B;
-            using CType     = C;
-            using DType     = D;
-            using AlphaType = Alpha;
-            using BetaType  = Beta;
+    template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
+    struct TENSILE_API TypedContractionInputs : public ContractionInputs
+    {
+        using AType     = A;
+        using BType     = B;
+        using CType     = C;
+        using DType     = D;
+        using AlphaType = Alpha;
+        using BetaType  = Beta;
 
-            TypedContractionInputs();
-            TypedContractionInputs(
-                A const* _a, B const* _b, C const* _c, D* _d, Alpha _alpha, Beta _beta);
-            ~TypedContractionInputs();
+        TypedContractionInputs();
+        TypedContractionInputs(
+            A const* _a, B const* _b, C const* _c, D* _d, Alpha _alpha, Beta _beta);
+        ~TypedContractionInputs();
 
-            A const* a = nullptr;
-            B const* b = nullptr;
-            C const* c = nullptr;
-            D*       d = nullptr;
+        A const* a = nullptr;
+        B const* b = nullptr;
+        C const* c = nullptr;
+        D*       d = nullptr;
 
-            Alpha alpha = static_cast<Alpha>(0);
-            Beta  beta  = static_cast<Beta>(0);
-        };
+        Alpha alpha = static_cast<Alpha>(0);
+        Beta  beta  = static_cast<Beta>(0);
+    };
 
-        using BFloat16ContractionInputs
-            = TypedContractionInputs<BFloat16, BFloat16, BFloat16, BFloat16, float, float>;
+    using BFloat16ContractionInputs
+        = TypedContractionInputs<BFloat16, BFloat16, BFloat16, BFloat16, float, float>;
 
-        TENSILE_API std::ostream& operator<<(std::ostream&             stream,
-                                             ContractionProblem const& contraction);
+    TENSILE_API std::ostream& operator<<(std::ostream&             stream,
+                                         ContractionProblem const& contraction);
 
-        TENSILE_API std::ostream& operator<<(std::ostream&                        stream,
-                                             ContractionProblem::FreeIndex const& free);
-        TENSILE_API std::ostream& operator<<(std::ostream&                         stream,
-                                             ContractionProblem::BatchIndex const& batch);
-        TENSILE_API std::ostream& operator<<(std::ostream&                         stream,
-                                             ContractionProblem::BoundIndex const& bound);
+    TENSILE_API std::ostream& operator<<(std::ostream&                        stream,
+                                         ContractionProblem::FreeIndex const& free);
+    TENSILE_API std::ostream& operator<<(std::ostream&                         stream,
+                                         ContractionProblem::BatchIndex const& batch);
+    TENSILE_API std::ostream& operator<<(std::ostream&                         stream,
+                                         ContractionProblem::BoundIndex const& bound);
 
-        TENSILE_API std::istream& operator>>(std::istream&                  stream,
-                                             ContractionProblem::FreeIndex& free);
-        TENSILE_API std::istream& operator>>(std::istream&                   stream,
-                                             ContractionProblem::BatchIndex& batch);
-        TENSILE_API std::istream& operator>>(std::istream&                   stream,
-                                             ContractionProblem::BoundIndex& bound);
+    TENSILE_API std::istream& operator>>(std::istream& stream, ContractionProblem::FreeIndex& free);
+    TENSILE_API std::istream& operator>>(std::istream&                   stream,
+                                         ContractionProblem::BatchIndex& batch);
+    TENSILE_API std::istream& operator>>(std::istream&                   stream,
+                                         ContractionProblem::BoundIndex& bound);
 
-        /**
+    /**
  * @}
  */
-    } // namespace Tensile
+} // namespace Tensile

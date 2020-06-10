@@ -105,6 +105,7 @@ add_subdirectory(testlib)
 
 set(test_sources ${test_sources}
     test.cpp
+    ArithmeticUnitPredicate_test.cpp
     CachingLibrary_test.cpp
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp

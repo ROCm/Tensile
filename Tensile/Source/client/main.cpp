@@ -24,6 +24,7 @@
  *
  *******************************************************************************/
 
+#include <Tensile/ArithmeticUnitTypes.hpp>
 #include <Tensile/Contractions.hpp>
 #include <Tensile/EmbeddedLibrary.hpp>
 #include <Tensile/MasterSolutionLibrary.hpp>
@@ -112,6 +113,7 @@ namespace Tensile
                 ("kernel-language",          po::value<KernelLanguage>()->default_value(KernelLanguage::Any), "Select kernel language.")
                 ("deterministic-mode",       po::value<bool>()->default_value(false), "Enforce deterministic summation patterns"
                                                                                       "by not splitting U among workgroups")
+                ("arithmetic-unit",          po::value<ArithmeticUnit>()->default_value(ArithmeticUnit::Any), "Select arithmetic unit.")
 
                 ("init-a",                   po::value<InitMode>()->default_value(InitMode::Random), "Initialization for A")
                 ("init-b",                   po::value<InitMode>()->default_value(InitMode::Random), "Initialization for B")

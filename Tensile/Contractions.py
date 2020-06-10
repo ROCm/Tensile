@@ -315,6 +315,15 @@ class ProblemPredicate(Properties.Predicate):
         if 'GlobalSplitU' in state and state['GlobalSplitU'] > 1:
             rv += [cls("DeterministicMode", value = False)]
 
+        if ("MatrixInstruction" in state and state["MatrixInstruction"]) or \
+           ("EnableMatrixInstruction" in state and state["EnableMatrixInstruction"] is True):
+            rv += [ super().Or( \
+                [ cls("ArithmeticUnit", value = "Any"), \
+                  cls("ArithmeticUnit", value = "MFMA") ] ) ]
+        else:
+            rv += [ super().Or( \
+                [ cls("ArithmeticUnit", value = "Any"), \
+                  cls("ArithmeticUnit", value = "VALU") ] ) ]
 
         return rv
 
