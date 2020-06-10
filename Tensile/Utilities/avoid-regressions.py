@@ -98,6 +98,7 @@ def avoidRegressions():
                                     isOld = True
                                     if incEff < origEff and forceMerge == "false":
                                         print(origSize, " already exists but has regressed in performance. Kernel is unchanged")
+                                        print("Old Efficiency: ", origEff, "New efficiency: ", incEff)
                                     else:
                                         if incIndex in improvedKernels.keys():
                                             print(origSize, " already exists and has improved in performance, and uses a previously known kernel.")
