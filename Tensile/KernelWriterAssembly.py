@@ -2739,6 +2739,8 @@ class KernelWriterAssembly(KernelWriter):
         msg = "half store requires at lesat two elements per batch"
       elif self.overflowedResources == 4:
         msg = "Occupancy limit"
+      elif self.overflowedResources == 5:
+        msg = "reading and writing LDS at same time require 2 LDS buffer"
       else:
         msg = "unknown"
 
@@ -6659,6 +6661,8 @@ class KernelWriterAssembly(KernelWriter):
   def localWriteSwapOffsets(self, kernel, tP):
     if not self.do["LocalWrite"]: return ""
     kStr = ""
+    if kernel["1LDSBuffer"]:
+      return kStr
     tc = tP["tensorChar"]
 #fixme-iui  need to use wrapping increment for double or triple buffering:
     if kernel["ExpandPointerSwap"]:
@@ -6687,6 +6691,8 @@ class KernelWriterAssembly(KernelWriter):
   def localWriteResetOffsets(self, kernel, tP):
     if not self.do["LocalWrite"]: return ""
     kStr = ""
+    if kernel["1LDSBuffer"]:
+      return kStr
     resetMask = hex(kernel["LdsOffsetA_Blk"]*tP["bpe"]-1 | self.LdsOOB)
     tc = tP["tensorChar"]
     if kernel["ExpandPointerSwap"]:
@@ -7011,7 +7017,8 @@ class KernelWriterAssembly(KernelWriter):
     tc=tP["tensorChar"]
     if not self.do["LocalRead%s"%tc]: return ""
     kStr = ""
-
+    if kernel["1LDSBuffer"]:
+      return kStr
     if internalPointerSwap:
       tP["localReadSwapByteOffset"] = 0 if tP["localReadSwapByteOffset"] else kernel["LdsOffsetA_Blk"]*tP["bpe"]
       kStr += self.comment("local read swap internal offset -> %u" % tP["localReadSwapByteOffset"])

@@ -115,7 +115,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # number of mfma between last localWrite and barrier
       numMfmaBetweenLWandBarrier = 1 if kernel["MatrixInstM"] == 32 else 2
       # number of global read instructions between 2 mfma
-      self.numGlobalReadInsPerMfma = 2 if kernel["MatrixInstM"] == 32 and not kernel["ProblemType"]["TLUA"] and not kernel["ProblemType"]["TLUB"] and kernel["TransposeLDS"] else 1
+      self.numGlobalReadInsPerMfma = 2 if kernel["MatrixInstM"] == 32 and not kernel["ProblemType"]["TLUA"] and not kernel["ProblemType"]["TLUB"] and kernel["TransposeLDS"] and not kernel["1LDSBuffer"] else 1
       MatrixInstructionLatency = kernel["MatrixInstM"] // 2 - 2
       LocalWriteLatency = tensorParametersA["localWriteInstruction"].IssueLatency*2
       numReadPerVectorA = tensorParametersA["bpe"] * kernel["LocalReadVectorWidth"] // int(tensorParametersA["localReadInstruction"].blockWidth * 4)
@@ -204,6 +204,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadACode.footer)
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadBCode.footer)
 
+    if kernel["1LDSBuffer"]:
+      barrier = Code.Module()
+      barrier.addInst("s_waitcnt lgkmcnt(0)","")
+      barrier.addInst("s_barrier","")
+      self.localWriteACode.items()[0].items().insert(0,barrier)
     # Now schedule the writes:
     if not self.scheduleLocalWrite:
       # if no scheduleLocalWrite - just add writes to localWritelocalWriteEndIter
@@ -536,6 +541,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
                   skipLocalWriteWaitcnt += writeItem.countType(Code.LocalWriteInst)
                 if not localReadItems:
                   self.perIterLocalWriteCanSkip[iteration] += writeItem.countType(Code.LocalWriteInst)
+                if readsPerIter and kernel["1LDSBuffer"]:
+                  self.overflowedResources = 5
           if i == numMfmaPerIter - 1:
             while globalReadCode.items():
               iterCode.addCode(globalReadCode.items().pop(0))

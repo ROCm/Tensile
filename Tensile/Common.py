@@ -283,6 +283,17 @@ validParameters = {
     "PrefetchGlobalRead":         [ False, True ], # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
     "PrefetchLocalRead":          list(range(128+1)), # prefetch / double-buffer reads from lds (or 2 for triple-buffer, 3 for quad-buffer).  Increases size of ValuA/ValuB registers.
 
+    # We use double LDS buffer when PrefetchGlobalRead. 
+    # While it reads data from LDS[0]/[1], it prefetch global data and writes to LDS[1]/[0]
+    # If we can make sure all data are read from LDS to register before writing data to LDS, we can use 1 LDS buffer to save LDS memory.
+    # this can help to generate Kernel that LDS usage originally exceed MaxLDS if using double LDS buffer,
+    # or help to increase Occupancy.
+    #     1 means: Force to use 1 LDS Buffer even with PrefetchGlobalRead
+    #    -1 means: generator will use 1 LDS buffer only when LDS exceed MaxLDS
+    # Currently only support TN+TLDS+wider_local_read
+    # TODO: optimize scheduling to support more cases.
+    "1LDSBuffer": [-1 ,0, 1],
+
     # Split the unroll summation into multiple sections and combine the sections
     # GSU applies only to the unroll summation dimension
     "GlobalSplitU":               list(range(1, 1024+1)),
@@ -925,6 +936,7 @@ defaultBenchmarkCommonParameters = [
     {"ThreadTile":                [ [4,4] ] },
     {"MatrixInstruction":         [ [] ] },
     {"DisableVgprOverlapping":    [ False ] },
+    {"1LDSBuffer":                [ 0 ] },
     {"DisableAtomicFail":         [ 0 ] },
     {"DisableKernelPieces":       [ 0 ] },
     {"DepthU":                    [ -1 ] },

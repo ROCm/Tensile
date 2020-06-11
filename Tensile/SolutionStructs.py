@@ -2785,6 +2785,21 @@ class Solution:
     #print("ldsNumElementsAlignedB", ldsNumElementsAlignedB)
     #print("ldsNumElementsAB", ldsNumElementsAB)
 
+
+    if state["1LDSBuffer"] == -1:
+      if ldsNumElementsAB * state["ProblemType"]["DataType"].numBytes() > globalParameters["MaxLDS"]:
+        state["1LDSBuffer"] = 1
+      else:
+        state["1LDSBuffer"] = 0
+
+    if state["1LDSBuffer"]:
+      if not state["PrefetchGlobalRead"]:
+        reject(state, "PGR=0 already use 1 LDS buffer only")
+      if not state["LocalReadVectorWidth"] > state["ProblemType"]["DataType"].numMIInput():
+        reject(state, "(currently) require wider localread to avoid reading and writing same LDS buffer at same time")
+      state["LdsOffsetB"] = ldsNumElementsAlignedA
+      ldsNumElementsAB = ldsNumElementsAlignedA + ldsNumElementsB
+
     # lds size is the greater of the two
     ldsNumElements = max(ldsNumElementsAB, ldsNumElementsReduction, ldsNumElementsOccupancy)
 
