@@ -190,8 +190,8 @@ if os.name == "nt":
 else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
-globalParameters["CodeObjectVersion"] = "V2"
-globalParameters["CxxCompiler"] = "hcc"
+globalParameters["CodeObjectVersion"] = "V3"
+globalParameters["CxxCompiler"] = "hipcc"
 globalParameters["Architecture"] = "all"
 
 # might be deprecated
