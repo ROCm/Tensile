@@ -35,7 +35,6 @@ def fixSizeInconsistencies(sizes, fileType):
             else:
                 sizes[i][0] = currSize
     if len(duplicates) > 0:
-        isFirst = True
         for i in duplicates:
             sizes.pop(i)
         print(len(duplicates), "duplicate size(s) removed from ", fileType, " logic file")
@@ -49,6 +48,34 @@ def addKernel(incData, origData, improvedKernels, incIndex, currIndex):
     origData[5].append(improvedKernels[incIndex])
     return [incData, origData, improvedKernels, incIndex, currIndex]
 
+def removeUnusedKernels(origData):
+    unusedKernels = list()
+    for i in range(0,len(origData[5])):
+        kernelIndex = origData[5][i]["SolutionIndex"]
+        isUsed = False
+        for item in range(0,len(origData[7])):
+            index = origData[7][item][1][0]
+            if index == kernelIndex:
+                isUsed = True
+                break
+        if isUsed == False:
+            uIndex = i-len(unusedKernels)
+            if uIndex not in unusedKernels: 
+                unusedKernels.append(uIndex)
+    
+    for i in unusedKernels:
+        origData[5].pop(i)    
+    for i in range(0,len(origData[5])):
+        oldSolIndex = origData[5][i]["SolutionIndex"]
+        origData[5][i]["SolutionIndex"] = i
+        for item in range(0,len(origData[7])):
+            index = origData[7][item][1][0]
+            if index == oldSolIndex:
+                origData[7][item][1][0] = i
+
+    print("Removed ",len(unusedKernels), " unused kernels from output logic file")
+    return origData
+            
 def avoidRegressions():
 
     userArgs = sys.argv[1:]
@@ -76,21 +103,23 @@ def avoidRegressions():
                     print("Logic file: ", logicFile)
                     with open(g) as origFile:
                         origData = yaml.safe_load(origFile)
-                        currIndex = len(origData[5])
                         numSizes = len(origData[7])
                         incNumSizes = len(incData[7])
                         print(numSizes, " sizes in original logic file")
                         print(incNumSizes, " sizes in tuned logic file")
+                        print(len(origData[5]), " kernels in original logic file")
+                        print(len(incData[5]), " kernels in tuned logic file")
                         [origData[7], numSizes] = fixSizeInconsistencies(origData[7], "original")
                         origData[5] = fixSolutionIndexBug(origData[5])
                         [incData[7], incNumSizes] = fixSizeInconsistencies(incData[7], "incremental")
                         incData[5] = fixSolutionIndexBug(incData[5])
+                        currIndex = len(origData[5])
                         for i in range(0,len(incData[7])):
                             incSize = incData[7][i][0]
                             incIndex = incData[7][i][1][0]
                             incEff = incData[7][i][1][1]
                             isOld = False
-                            for j in range(0,numSizes):
+                            for j in range(0,len(origData[7])):
                                 origSize = origData[7][j][0]
                                 origIndex = origData[7][j][1][0]
                                 origEff = origData[7][j][1][1]
@@ -117,6 +146,7 @@ def avoidRegressions():
                                     [incData, origData, improvedKernels, incIndex, currIndex] = addKernel(incData, origData, improvedKernels, incIndex, currIndex)
                                 origData[7].append([incSize,[improvedKernels[incIndex]["SolutionIndex"], incEff]])
                         print(len(origData[7])-numSizes, " sizes and ", len(improvedKernels.keys())," kernels have been added to ", logicFile)
+                        origData = removeUnusedKernels(origData)
                     with open(outputPath+'/'+logicFile, "w") as outFile:
                         yaml.safe_dump(origData,outFile,default_flow_style=None)
 
