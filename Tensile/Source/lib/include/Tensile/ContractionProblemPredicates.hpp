@@ -513,8 +513,17 @@ namespace Tensile
                 enum
                 {
                     HasIndex = false,
-                    HasValue = false
+                    HasValue = true
                 };
+
+                bool value;
+
+                CDStridesEqual() = default;
+                CDStridesEqual(bool value)
+                    : value(value)
+                {
+                }
+
                 static std::string Type()
                 {
                     return "CDStridesEqual";
@@ -522,7 +531,7 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.c().strides() == problem.d().strides();
+                    return value == (problem.c().strides() == problem.d().strides());
                 }
             };
 
