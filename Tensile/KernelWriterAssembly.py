@@ -10782,7 +10782,10 @@ class KernelWriterAssembly(KernelWriter):
                 dst, src0, src1, \
                 comment)
     else:
-      assert(0) # no double GSU yet
+       #support for double
+      kStr += inst("v_add_f64", \
+                 dst, src0, src1, \
+                 comment)
 
     return kStr
 
@@ -10961,7 +10964,8 @@ class KernelWriterAssembly(KernelWriter):
           else:
             addr0 = vgpr(addr,2)
             addr1 = ""
-          kStr += self.chooseGlobalRead(useBuffer, bpm, dataV+1, \
+          vgprIdx = 1*(bpm//4)      # index for vgprSrcs
+          kStr += self.chooseGlobalRead(useBuffer, bpm, dataV+vgprIdx, \
                     addr0, addr1, soffset=0, offset=addrCalc.globalOffset, extraFields="",
                     comment="load C (atomic) bpm=%u vaw=%u"%(bpm,atomicW)).toStr()
       elif beta:
@@ -11089,10 +11093,14 @@ class KernelWriterAssembly(KernelWriter):
         for avi in range(0, gwvw//atomicW):
           dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
           sumIdxV = ss.elementSumIdx[elementIdx] + avi
+          vgprCnt = 2 if kernel["ProblemType"]["DataType"].isDouble() else 1
           if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():  sumIdxV //= 2
+          if kernel["ProblemType"]["DataType"].isDouble(): sumIdxV = sumIdxV * 2
+          bpm = self.bpeCexternal * atomicW
+          vgprIdx = 1*(bpm//4)
           # for atomic, data[1] = original c, data[0] = new c
           kStr += self.chooseAddForAtomic(kernel, \
-                    vgpr(dataV+0), vgpr(dataV+1), vgpr("ValuC+%u"%sumIdxV), \
+                    vgpr(dataV+0,vgprCnt), vgpr(dataV+1*vgprIdx,vgprCnt), vgpr("ValuC+%u"%sumIdxV,vgprCnt), \
                     "desired value avi=%u"%avi)
 
           # attempt write
@@ -11100,12 +11108,20 @@ class KernelWriterAssembly(KernelWriter):
           if self.do["GlobalWrite"]:
             bps = kernel["ProblemType"]["DataType"].numBytes()
             if kernel["BufferStore"]:
-              kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
-                  (vgpr(dataV,2), \
-                   vgpr(addrCalc.addrVgpr,1), \
-                   sgpr("SrdD", 4),  \
-                   "0 offen offset:%u glc" % addrCalc.globalOffset, \
-                   "attempt write avi=%u"%(avi), self.endLine )
+              if kernel["ProblemType"]["DataType"].isDouble():
+                kStr += "buffer_atomic_cmpswap_x2 %s, %s, %s %s    // %s%s" % \
+                    (vgpr(dataV,4), \
+                    vgpr(addrCalc.addrVgpr,1), \
+                    sgpr("SrdD", 4),  \
+                    "0 offen offset:%u glc" % addrCalc.globalOffset, \
+                    "attempt write avi=%u"%(avi), self.endLine )
+              else:
+                kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
+                    (vgpr(dataV,2), \
+                    vgpr(addrCalc.addrVgpr,1), \
+                    sgpr("SrdD", 4),  \
+                    "0 offen offset:%u glc" % addrCalc.globalOffset, \
+                    "attempt write avi=%u"%(avi), self.endLine )
             else:
               kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
                   (vgpr(atomicDestVgpr), vgpr(addrCalc.addrVgpr,2), \
@@ -11140,11 +11156,19 @@ class KernelWriterAssembly(KernelWriter):
             # need to apply element mask before comparison
             # so that all valid lanes are doing the cmp
             if avi == 0:
-              kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(atomicDestVgpr), \
-                  vgpr(dataV+1), "c read during atomic == c read during prior load (avi=%u, first)"%avi )
+              if kernel["ProblemType"]["DataType"].isDouble():
+                kStr += inst("v_cmp_ne_u64", sgpr(tmpS01,2), vgpr(atomicDestVgpr,2), \
+                    vgpr(dataV+2,2), "c read during atomic == c read during prior load (avi=%u, first)"%avi )
+              else:
+                kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(atomicDestVgpr), \
+                    vgpr(dataV+1), "c read during atomic == c read during prior load (avi=%u, first)"%avi )
             else:
-              kStr += inst("v_cmp_ne_u32", sgpr(tmpS23,2), vgpr(atomicDestVgpr), \
-                  vgpr(dataV+1), "c read during atomic == c read during prior load (avi=%u)"%avi )
+              if kernel["ProblemType"]["DataType"].isDouble():
+                kStr += inst("v_cmp_ne_u64", sgpr(tmpS23,2), vgpr(atomicDestVgpr,2), \
+                    vgpr(dataV+2,2), "c read during atomic != c read during prior load" )
+              else:
+                kStr += inst("v_cmp_ne_u32", sgpr(tmpS23,2), vgpr(atomicDestVgpr), \
+                    vgpr(dataV+1), "c read during atomic == c read during prior load (avi=%u)"%avi )
               kStr += inst("s_or_b64", sgpr(tmpS01,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "combine with tmp mask")
 
           if kernel["DisableAtomicFail"]:
@@ -11159,8 +11183,12 @@ class KernelWriterAssembly(KernelWriter):
             if kernel["DisableAtomicFail"]:
               kStr += inst("s_mov_b64",  sgpr(mask,2), 0, "DisableAtomicFail, force 0" )
             else:
-              kStr += inst("v_cmp_ne_u32", sgpr(mask,2), vgpr(atomicDestVgpr), \
-                  vgpr(dataV+1), "c read during atomic != c read during prior load" )
+              if kernel["ProblemType"]["DataType"].isDouble():
+                kStr += inst("v_cmp_ne_u64", sgpr(mask,2), vgpr(atomicDestVgpr,2), \
+                    vgpr(dataV+2,2), "c read during atomic != c read during prior load" )
+              else:
+                kStr += inst("v_cmp_ne_u32", sgpr(mask,2), vgpr(atomicDestVgpr), \
+                    vgpr(dataV+1), "c read during atomic != c read during prior load" )
 
       # or masks together to check early exit
       kStr += self.comment("or masks to check for exit")
@@ -11182,28 +11210,44 @@ class KernelWriterAssembly(KernelWriter):
         addr = ss.elementAddr[elementIdx].addrVgpr
         mask = ss.elementMask[elementIdx]
         bps = kernel["ProblemType"]["DataType"].numBytes()
+        vgprCnt = 2 if kernel["ProblemType"]["DataType"].isDouble() else 1   # number of registers for f32/f64
+        bpm = self.bpeCexternal * atomicW
+        vgprIdx = 1*(bpm//4)   # index register 
 
         for avi in range(0, gwvw//atomicW):
           dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
           atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
           sumIdxV = ss.elementSumIdx[elementIdx] + avi
           if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():  sumIdxV //= 2
+          if kernel["ProblemType"]["DataType"].isDouble():  sumIdxV =  sumIdxV * 2
 
           # apply mask for element
           kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "must try again" )
-          kStr += inst("v_mov_b32", vgpr(dataV+1), vgpr(atomicDestVgpr), "dataV+1 = tmp (new original C)" )
+          if kernel["ProblemType"]["DataType"].isDouble():
+            kStr += inst("v_mov_b32", vgpr(dataV+2), vgpr(atomicDestVgpr), "dataV+2 = tmp (new original C)" )
+            kStr += inst("v_mov_b32", vgpr(dataV+3), vgpr(atomicDestVgpr+1), "dataV+3 = tmp (new original C)" )
+          else:
+            kStr += inst("v_mov_b32", vgpr(dataV+1), vgpr(atomicDestVgpr), "dataV+1 = tmp (new original C)" )
           kStr += self.chooseAddForAtomic(kernel, \
-                    vgpr(dataV+0), vgpr(dataV+1), vgpr("ValuC+%u"%sumIdxV), \
+                    vgpr(dataV+0,vgprCnt), vgpr(dataV+1*vgprIdx,vgprCnt), vgpr("ValuC+%u"%sumIdxV,vgprCnt), \
                     "newC = rC + originalC")
           if self.do["GlobalWrite"]:
             if kernel["BufferStore"]:
               # Using no-ret version here?
-              kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
-                  (vgpr(dataV,2), \
+              if kernel["ProblemType"]["DataType"].isDouble():
+                kStr += "buffer_atomic_cmpswap_x2 %s, %s, %s %s    // %s%s" % \
+                  (vgpr(dataV,4), \
                    vgpr(addr,1), \
                    sgpr("SrdD", 4), \
                    "0 offen offset:%u glc" % (addrCalc.globalOffset), \
                    "try again", self.endLine )
+              else:
+                kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
+                    (vgpr(dataV,2), \
+                     vgpr(addr,1), \
+                     sgpr("SrdD", 4), \
+                     "0 offen offset:%u glc" % (addrCalc.globalOffset), \
+                     "try again", self.endLine )
             else:
               kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(atomicDestVgpr), \
                   vgpr(addr,2), vgpr(dataV,2), "glc", "try again", self.endLine)
@@ -11227,8 +11271,12 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "must try again" )
 
           # compare success
-          kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(data+1), vgpr(atomicDestVgpr), \
-              "c read during atomic == c read during prior load" )
+          if kernel["ProblemType"]["DataType"].isDouble():
+            kStr += inst("v_cmp_ne_u64", sgpr(tmpS01,2), vgpr(data+2,2), vgpr(atomicDestVgpr,2), \
+                "c read during atomic != c read during prior load" )
+          else:
+            kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(data+1), vgpr(atomicDestVgpr), \
+                "c read during atomic == c read during prior load" )
           # update element mask
           kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
 
