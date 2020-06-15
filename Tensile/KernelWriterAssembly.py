@@ -10964,7 +10964,9 @@ class KernelWriterAssembly(KernelWriter):
           else:
             addr0 = vgpr(addr,2)
             addr1 = ""
-          vgprIdx = 1*(bpm//4)      # index for vgprSrcs
+          # Calculate vgpr Indx for 32-bit/64-bit instruction
+          # DGEMM use SRCS[2] register
+          vgprIdx = 1*(bpm//4)      
           kStr += self.chooseGlobalRead(useBuffer, bpm, dataV+vgprIdx, \
                     addr0, addr1, soffset=0, offset=addrCalc.globalOffset, extraFields="",
                     comment="load C (atomic) bpm=%u vaw=%u"%(bpm,atomicW)).toStr()
@@ -11093,10 +11095,14 @@ class KernelWriterAssembly(KernelWriter):
         for avi in range(0, gwvw//atomicW):
           dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
           sumIdxV = ss.elementSumIdx[elementIdx] + avi
+          ## number of src[s]/dsst[s] register for DGEMM / SGEMM HGEMM
           vgprCnt = 2 if kernel["ProblemType"]["DataType"].isDouble() else 1
           if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():  sumIdxV //= 2
+          #
           if kernel["ProblemType"]["DataType"].isDouble(): sumIdxV = sumIdxV * 2
           bpm = self.bpeCexternal * atomicW
+          # Calculate vgpr Indx for 32-bit/64-bit instruction
+          # DGEMM use SRCS[2] register
           vgprIdx = 1*(bpm//4)
           # for atomic, data[1] = original c, data[0] = new c
           kStr += self.chooseAddForAtomic(kernel, \
@@ -11108,6 +11114,7 @@ class KernelWriterAssembly(KernelWriter):
           if self.do["GlobalWrite"]:
             bps = kernel["ProblemType"]["DataType"].numBytes()
             if kernel["BufferStore"]:
+              # use cmpswap_x2 for DGEMM in CAS loop
               if kernel["ProblemType"]["DataType"].isDouble():
                 kStr += "buffer_atomic_cmpswap_x2 %s, %s, %s %s    // %s%s" % \
                     (vgpr(dataV,4), \
@@ -11116,6 +11123,7 @@ class KernelWriterAssembly(KernelWriter):
                     "0 offen offset:%u glc" % addrCalc.globalOffset, \
                     "attempt write avi=%u"%(avi), self.endLine )
               else:
+              # use cmpswap for SGEMM in CAS loop
                 kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
                     (vgpr(dataV,2), \
                     vgpr(addrCalc.addrVgpr,1), \
@@ -11156,6 +11164,7 @@ class KernelWriterAssembly(KernelWriter):
             # need to apply element mask before comparison
             # so that all valid lanes are doing the cmp
             if avi == 0:
+              # use u64 for DGEMM
               if kernel["ProblemType"]["DataType"].isDouble():
                 kStr += inst("v_cmp_ne_u64", sgpr(tmpS01,2), vgpr(atomicDestVgpr,2), \
                     vgpr(dataV+2,2), "c read during atomic == c read during prior load (avi=%u, first)"%avi )
@@ -11224,6 +11233,7 @@ class KernelWriterAssembly(KernelWriter):
           # apply mask for element
           kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "must try again" )
           if kernel["ProblemType"]["DataType"].isDouble():
+            #64-bit C val move by 2 32-bit instructions
             kStr += inst("v_mov_b32", vgpr(dataV+2), vgpr(atomicDestVgpr), "dataV+2 = tmp (new original C)" )
             kStr += inst("v_mov_b32", vgpr(dataV+3), vgpr(atomicDestVgpr+1), "dataV+3 = tmp (new original C)" )
           else:
@@ -11234,6 +11244,7 @@ class KernelWriterAssembly(KernelWriter):
           if self.do["GlobalWrite"]:
             if kernel["BufferStore"]:
               # Using no-ret version here?
+              # cmpswap_x2 for DGEMM
               if kernel["ProblemType"]["DataType"].isDouble():
                 kStr += "buffer_atomic_cmpswap_x2 %s, %s, %s %s    // %s%s" % \
                   (vgpr(dataV,4), \
