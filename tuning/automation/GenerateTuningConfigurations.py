@@ -244,7 +244,7 @@ def generateMfmaScheme():
             "FractionalLoad": [1],
             "PrefetchLocalRead": [True],
             "PrefetchGlobalRead": [True],
-            "ScheduleIterAlg": = [1,3],
+            "ScheduleIterAlg": [1,3],
             "DisableVgprOverlapping": [True,False],
             "WaveSeparateGlobalReadA": [True,False],
             "WaveSeparateGlobalReadB": [True,False],
@@ -496,7 +496,7 @@ mkdir results%s
 
 for NAME in%s
 do
-./${NAME}.sh > results%s/${NAME}.1 2>&1
+./rocblas-bench --yaml ${NAME}.sh 2>&1 | tee results%s/${NAME}.1
 done
 """
     runallContent = runallTemplate % (count, scriptNames, count)
@@ -521,11 +521,9 @@ def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", pr
     outputFileName2 = GetOutputFileName(scriptPath, namePart+"-strided", "sh")
     outputFileName3 = GetOutputFileName(scriptPath, namePart+"-all", "sh")
     outputFileName4 = GetOutputFileName(scriptPath, namePart+"-verify", "sh")
+    outputFileName5 = GetOutputFileName(scriptPath, namePart+"-yaml", "sh")
 
-    if probDef != "gemm":
-        scriptFileNames.append(outputFileName2)
-    if probDef != "batch":
-        scriptFileNames.append(outputFileName)
+    scriptFileNames.append(outputFileName5)
     count = 0
 
     for key in keys:
@@ -535,10 +533,14 @@ def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", pr
         else:
             lineDefinitions = problemMapper[key]
         lines = ["#!/bin/bash",""]
+        yamlLines = []
         for problemDefinition in lineDefinitions:
             rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition,disableStrides,initialization)
+            yaml_call = ConvertToYAML(problemDefinition,disableStrides)
             lines.append(rocblas_call)
+            yamlLines.append(yaml_call)
         noiterlines = removeIter(lines)
+        WriteScriptYAML(outputFileName5,yamlLines)
         with open(outputFileName, 'a') as f, open(outputFileName2, 'a') as g, open(outputFileName3, 'a') as h:
             for line in lines:
                 if "strided" in line:
@@ -593,11 +595,9 @@ def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", p
     outputFileName2 = GetOutputFileName(scriptPath, namePart+"-strided", "sh")
     outputFileName3 = GetOutputFileName(scriptPath, namePart+"-all", "sh")
     outputFileName4 = GetOutputFileName(scriptPath, namePart+"-verify", "sh")
+    outputFileName5 = GetOutputFileName(scriptPath, namePart+"-yaml", "sh")
 
-    if probDef != "gemm":
-        scriptFileNames.append(outputFileName2)
-    if probDef != "batch":
-        scriptFileNames.append(outputFileName)
+    scriptFileNames.append(outputFileName5)
     count = 0
 
     for key in keys:
@@ -607,10 +607,14 @@ def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", p
         else:
             lineDefinitions = problemMapper[key]
         lines = ["#!/bin/bash",""]
+        yamlLines = []
         for problemDefinition in lineDefinitions:
             rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition,disableStrides,initialization)
             lines.append(rocblas_call)
+            yaml_call = ConvertToYAML(problemDefinition,disableStrides)
+            yamlLines.append(yaml_call)
         noiterlines = removeIter(lines)
+        WriteScriptYAML(outputFileName5,yamlLines)
         with open(outputFileName, 'a') as f, open(outputFileName2, 'a') as g, open(outputFileName3, 'a') as h:
             for line in lines:
                 if "strided" in line:
