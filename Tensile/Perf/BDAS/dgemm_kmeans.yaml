@@ -1,4 +1,5 @@
 # A config to generate a fast kernel(s) for  BDAS workload problem sizes
+#  kmeans workload
 
 GlobalParameters:
   MinimumRequiredVersion: 4.4.0
@@ -7,11 +8,11 @@ GlobalParameters:
   ForceRedoLibraryLogic: True
   ForceRedoLibraryClient: True
   CMakeBuildType: Release
-  EnqueuesPerSync: 3
-  NumBenchmarks: 3
+  EnqueuesPerSync: 1
+  NumBenchmarks: 1
   SyncsPerBenchmark: 1
   LibraryPrintDebug: False
-  NumElementsToValidate: -1 
+  NumElementsToValidate: 0
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
@@ -53,7 +54,6 @@ BenchmarkProblems:
           #- [ 4, 1 ]
           #- [ 4, 1 ]
           #- [ 2, 2 ]
-          - [ 2, 9 ]
           - [ 1, 9 ]
           #- [ 2, 4 ]
           #- [ 8, 4 ]
@@ -64,17 +64,16 @@ BenchmarkProblems:
         - WorkGroup:
           #- [ 16, 4, 4 ]
           - [ 64, 1, 4 ]
-          - [ 256, 1, 1 ]
         - WorkGroupMapping: [1]
         #- AssertFree0ElementMultiple: [2]
         - GlobalSplitU: [16,32]
-        - DepthU: [ 8 ]
-        - VectorWidth: [2]
+        - DepthU: [ 8,16 ]
+        - VectorWidth: [1]
         - FractionalLoad: [1]
         #- VectorAtomicWidth: [1]
         - GlobalReadVectorWidth: [2,4]
         - OptNoLoadLoop: [2]
-        - StaggerUStride: [256]
+        - StaggerUStride: [256,512,1024]
         - StaggerUMapping: [0]
         #- ReplacementKernel: [True,False]
       BenchmarkForkParameters:
