@@ -1089,6 +1089,7 @@ label_0001:
 /* Unroll Loop 1/2 - Begin                */
 /******************************************/
 
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //4sync for global read
 
 s_cmp_eq_i32 s[sgprLoopCounters+0], -1             // is this the last iteration
@@ -1246,6 +1247,7 @@ s_cbranch_scc1 label_0003                          // exit LoopL
 /* Unroll Loop 2/2 - Begin                */
 /******************************************/
 
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //4sync for global read
 
 s_cmp_eq_i32 s[sgprLoopCounters+0], -1             // is this the last iteration
@@ -1516,7 +1518,8 @@ s_mov_b32       s87, s[sgprSrdD+0]
 s_mov_b32       s88, s[sgprSrdD+1]
 
 
-s_waitcnt lgkmcnt(0)                               // 1wait for local write
+//s_waitcnt lgkmcnt(0)                               // 1wait for local write
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //4sync for global read
 
 /* iter 0,1 */
@@ -1844,7 +1847,8 @@ s_cbranch_scc1 label_1002                            // wg1 < nwg1-1 so skip rMT
 
 /******************************************/
 
-s_waitcnt lgkmcnt(0)                                 // 1wait for local write
+//s_waitcnt lgkmcnt(0)                                 // 1wait for local write
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //4sync for global read
 
 /* iter 0 */
@@ -1959,7 +1963,8 @@ s_mov_b32       s87, s[sgprSrdD+0]
 s_mov_b32       s88, s[sgprSrdD+1]
 
 
-s_waitcnt lgkmcnt(0)                               // 1wait for local write
+//s_waitcnt lgkmcnt(0)                               // 1wait for local write
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //4sync for global read
 
 /* iter 0,1 */
@@ -2261,7 +2266,8 @@ label_1002:
 /******************************************/
 //branch logic gets executed for edge MT to use legacy alph_beta code
 
-s_waitcnt lgkmcnt(0)                                 // 1wait for local write
+//s_waitcnt lgkmcnt(0)                                 // 1wait for local write
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //4sync for global read
 
 /* iter 0 */
@@ -2351,7 +2357,8 @@ s_waitcnt lgkmcnt(0)                               // 6wait for local read old=2
 MAC_6x4_X0
 
 
-s_waitcnt lgkmcnt(0)                               // 1wait for local write
+//s_waitcnt lgkmcnt(0)                               // 1wait for local write
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //4sync for global read
 
 
@@ -2438,7 +2445,8 @@ s_branch label_0004
 
 label_1003:
 
-s_waitcnt lgkmcnt(0)                               // 1wait for local write
+//s_waitcnt lgkmcnt(0)                               // 1wait for local write
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //4sync for global read
 
 
@@ -2535,8 +2543,9 @@ s_cmp_eq_i32 s[sgprLoopCounters+0], -1             // is this the last iteration
 s_cmov_b32 s[sgprSrdA+2], 0                        // Set limit to 0 for last iteration
 s_cmov_b32 s[sgprSrdB+2], 0                        // Set limit to 0 for last iteration
 
-s_waitcnt lgkmcnt(0)                               // 1wait for local write
+//s_waitcnt lgkmcnt(0)                               // 1wait for local write
 
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //4sync for global read
 
 /* iter 0 */
@@ -2677,8 +2686,9 @@ buffer_load_dwordx2 v[vgprG2LB+0+0:vgprG2LB+0+0+1], v[vgprGlobalReadOffsetB+0], 
 buffer_load_dwordx2 v[vgprG2LB+0+2:vgprG2LB+0+2+1], v[vgprGlobalReadOffsetB+0], s[sgprSrdB:sgprSrdB+3], 0, offen offset:8 // load one buffer value
 _v_add_co_u32 v[vgprGlobalReadOffsetB+0], vcc, v[vgprGlobalReadOffsetB+0], 8 // graOffset += 1 * bpe
 
-s_waitcnt vmcnt(0)                                 // 2wait for global read
+//s_waitcnt vmcnt(0)                                 // 2wait for global read
 
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //
 
 /* local write init pointers a */
@@ -2700,8 +2710,9 @@ ds_write_b128 v[vgprLocalWriteAddrA], v[vgprG2LA+0:vgprG2LA+0+3] offset:0 // lwo
 
 ds_write_b128 v[vgprLocalWriteAddrB], v[vgprG2LB+0:vgprG2LB+0+3] offset:0 // lwoB_0_0_0_0 = (0*LSCB) + (0*LSPB)(*MT1J+PAD) = 0
 
-s_waitcnt lgkmcnt(0)                               // 5wait for local write
+//s_waitcnt lgkmcnt(0)                               // 5wait for local write
 
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //
 
 
