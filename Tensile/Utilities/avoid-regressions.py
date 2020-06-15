@@ -80,10 +80,10 @@ def avoidRegressions():
 
     userArgs = sys.argv[1:]
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("original_dir", help="the library logic directory without tuned sizes")
-    argParser.add_argument("incremental_dir", help="the incremental logic directory")
-    argParser.add_argument("output_dir", help="the output logic directory")
-    argParser.add_argument("force_merge", help="merge previously known sizes unconditionally", nargs='?', default="false")
+    argParser.add_argument("original_dir", help="The library logic directory without tuned sizes")
+    argParser.add_argument("incremental_dir", help="The incremental logic directory")
+    argParser.add_argument("output_dir", help="The output logic directory")
+    argParser.add_argument("force_merge", help="Merge previously known sizes unconditionally. Default behavior if not arcturus", nargs='?', default="true")
 
     args = argParser.parse_args(userArgs)
     originalFiles = allFiles(args.original_dir)
@@ -94,6 +94,8 @@ def avoidRegressions():
 
     for f in incrementalFiles:
         with open(f) as incFile:
+            if "arcturus" in incFile:
+                forceMerge = "false"
             incData = yaml.safe_load(incFile)
             improvedKernels = dict()
             for g in originalFiles:
