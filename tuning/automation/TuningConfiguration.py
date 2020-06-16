@@ -96,6 +96,8 @@ defaultHeader["SleepPercent"] = 50
 defaultHeader["DataInitTypeBeta"] = 0
 defaultHeader["SolutionSelectionAlg"] = 1
 defaultHeader["PrintWinnersOnly"] = 1
+defaultHeader["PrintSolutionRejectionReason"] = True
+defaultHeader["YAML"] = True
 defaultHeader["DataInitTypeAB"] = 0
 defaultHeader["NewClient"] = 2
 
