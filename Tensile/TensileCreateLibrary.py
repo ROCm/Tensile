@@ -275,6 +275,7 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
       #print "*** warning: invalid kernel#%s"%kernelName
 
     # Don't create a file for empty kernels.
+    #####
     if len(src.strip()) == 0 and globalParameters["NewClient"] > 1:
       continue
 
@@ -991,7 +992,12 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
   # Build a list of lib names from source
   cxxCompiler = globalParameters["CxxCompiler"]
   if not globalParameters["MergeFiles"]:
-    for kernelName in (sourceKernelNames + asmKernelNames + betaKernelNames):
+
+    allSources = sourceKernelNames + betaKernelNames
+    if globalParameters["NewClient"] > 1:
+      allSources += asmKernelNames
+
+    for kernelName in (allSources):
       # Hcc compiler expects to have a different extension than hipclang.
       # Hcc compiler also makes one file per architecture
       if (cxxCompiler == 'hcc' or cxxCompiler == 'hipcc'):
