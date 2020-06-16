@@ -105,15 +105,12 @@ add_subdirectory(testlib)
 
 set(test_sources ${test_sources}
     test.cpp
-    ArithmeticUnitPredicate_test.cpp
     CachingLibrary_test.cpp
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp
     DataTypes_test.cpp
-    DeterministicModePredicate_test.cpp
     EmbeddedData_test.cpp
     KernelArguments_test.cpp
-    KernelLanguagePredicate_test.cpp
     ProjectedPerformance_test.cpp
     TensorDescriptor_test.cpp
     TestData_test.cpp
@@ -125,6 +122,9 @@ if(TENSILE_USE_LLVM)
 
     set(test_sources ${test_sources}
         ContractionLibraryLoading_test.cpp
+        llvm/ArithmeticUnitPredicate_test.cpp
+        llvm/DeterministicModePredicate_test.cpp
+        llvm/KernelLanguagePredicate_test.cpp
         llvm/LLVMYAMLContraction_test.cpp
         llvm/LibraryPerformance_test.cpp
         )
