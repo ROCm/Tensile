@@ -245,10 +245,10 @@ def generateMfmaScheme():
             "PrefetchLocalRead": [True],
             "PrefetchGlobalRead": [True],
             "ScheduleIterAlg": [1,3],
-            "DisableVgprOverlapping": [True,False],
+            "DisableVgprOverlapping": [False],
             "WaveSeparateGlobalReadA": [True,False],
             "WaveSeparateGlobalReadB": [True,False],
-            "InnerUnroll": [1,2,4],
+            "InnerUnroll": [1,2],
             "OptNoLoadLoop": [0,1,2],
             "StoreVectorWidth": [-1],
             "TransposeLDS": [1],
@@ -309,14 +309,14 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
             
             benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
             appendMatrixInstructions(benchmarkGroup, [[16, 16, 1, 4]])
-            appendThreadTiles(benchmarkGroup, [[2,48],[3,16],[3,32],[4,16],[6,16],[3,128]])
+            appendThreadTiles(benchmarkGroup, [[2,32],[2,16],[1,32],[4,16],[2,48],[6,16]])
             appendWorkGroups(benchmarkGroup, [[64,4,1],[32,8,1]])
             appendSizes(benchmarkGroup,sizeList,tileAware)
             problemGroup.append(benchmarkGroup)
             
             benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
             appendMatrixInstructions(benchmarkGroup, [[32, 32, 2, 1]])
-            appendThreadTiles(benchmarkGroup, [[2,32],[3,32],[4,32],[6,32],[2,64]])
+            appendThreadTiles(benchmarkGroup, [[2,32],[1,64],[4,32],[6,32],[2,64]])
             appendWorkGroups(benchmarkGroup, [[16,16,1],[64,4,1],[32,8,1]])
             appendSizes(benchmarkGroup,sizeList,tileAware)
             problemGroup.append(benchmarkGroup)
