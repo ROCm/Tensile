@@ -13,7 +13,7 @@ GlobalParameters:
   NumBenchmarks: 1
   SyncsPerBenchmark: 1
   LibraryPrintDebug: False
-  NumElementsToValidate: -1 
+  NumElementsToValidate: 100 
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
@@ -51,19 +51,8 @@ BenchmarkProblems:
         - PrefetchLocalRead: [True]
         - PrefetchGlobalRead: [True]
         - ThreadTile:
-          #- [ 1, 1 ]
-          #- [ 4, 1 ]
-          #- [ 4, 1 ]
-          #- [ 2, 2 ]
           - [ 4, 8 ]
-          #- [ 2, 4 ]
-          #- [ 8, 4 ]
-          #- [ 6, 5 ]
-          #- [ 4, 5 ]
-          #- [ 2, 5 ]
-                #- [ 2, 25 ]
         - WorkGroup:
-          #- [ 16, 4, 4 ]
           - [ 32, 16, 1 ]
         - WorkGroupMapping: [1]
         #- AssertFree0ElementMultiple: [2]
@@ -71,25 +60,19 @@ BenchmarkProblems:
         - DepthU: [ 8 ]
         - VectorWidth: [2]
         - FractionalLoad: [1]
-        #- VectorAtomicWidth: [1]
         - GlobalReadVectorWidth: [2,4]
         - OptNoLoadLoop: [2]
         - StaggerUStride: [256]
         - StaggerUMapping: [0]
-        #- ReplacementKernel: [True,False]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          #- Range: [ [5760], [5760], [1], [5760] ]
-         # - Exact: [ 1000000, 250, 1, 250 ]
-          #- Exact: [ 500000, 500000, 1, 250 ]
-          #- Exact: [ 250, 9, 1, 500000 ]
           - Exact: [ 250, 250, 1, 500000,266,266,500016,500032 ]
-          #- Exact: [ 1000000, 10, 1, 250 ]
 
 ########################################
 LibraryLogic:
-    ScheduleName: "arcturus"
-    DeviceNames: ["Device 7380", "Device 7388", "Device 738c", "Device 7390"]
+    ScheduleName: "vega20"
+    DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7", "Device 66af", "Vega 20"]
+    ArchitectureName: "gfx906"
