@@ -1657,6 +1657,9 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("SrdD", 4, 4)
       self.defineSgpr("SrdC", 4, 4)
 
+    ###################################
+    # Get kernel argument start here
+    self.defineSgpr("Tensor2dSizeA", 2,4)
     # fill empty Sgpr slot caused by Sgpr alignment,
     # because we need following defineSgpr use continous sgpr
     SgprSlot = []
@@ -1667,10 +1670,6 @@ class KernelWriterAssembly(KernelWriter):
         self.sgprPool.checkIn(tempSgpr)
         break
       SgprSlot.append(tempSgpr)
-
-    ###################################
-    # Get kernel argument start here
-    self.defineSgpr("Tensor2dSizeA", 2,4)
     self.defineSgpr("Tensor2dSizeB", 2,2)
     self.defineSgpr("AddressD", numSgprAddressD)
     self.defineSgpr("AddressC", numSgprAddressC)
