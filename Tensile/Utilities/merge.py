@@ -75,7 +75,15 @@ def removeUnusedKernels(origData):
 
     print("Removed ",len(unusedKernels), " unused kernels from output logic file")
     return origData
-            
+
+def loadData(filename):
+    try:
+        stream = open(filename, "r")
+    except IOError:
+        printExit("Cannot open file: ", filename)
+    data = yaml.load(stream, yaml.SafeLoader)
+    return data
+
 def avoidRegressions():
 
     userArgs = sys.argv[1:]
@@ -96,7 +104,7 @@ def avoidRegressions():
         with open(f) as incFile:
             if "arcturus" in incFile:
                 forceMerge = "false"
-            incData = yaml.safe_load(incFile)
+            incData = loadData(f)
             improvedKernels = dict()
             for g in originalFiles:
                 fileSplit = g.split('/')
@@ -104,7 +112,7 @@ def avoidRegressions():
                 if logicFile in f:
                     print("Logic file: ", logicFile)
                     with open(g) as origFile:
-                        origData = yaml.safe_load(origFile)
+                        origData = loadData(g)
                         numSizes = len(origData[7])
                         incNumSizes = len(incData[7])
                         print(numSizes, " sizes in original logic file")
