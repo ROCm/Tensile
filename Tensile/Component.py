@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (C) 2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2020 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -72,7 +72,7 @@ def PartialMatch(pattern, obj):
     for key, value in pattern.items():
         if key not in obj:
             return False
-        
+
         objValue = obj[key]
         if isinstance(value, collections.abc.Mapping) and \
            isinstance(objValue, collections.abc.Mapping):

@@ -31,7 +31,7 @@ from .Common import globalParameters, print1, ensurePath, \
 from . import BenchmarkProblems
 from . import ClientWriter
 from . import LibraryLogic
-from . import YAMLIO
+from . import LibraryIO
 from . import __version__
 
 ###############################################################################
@@ -121,7 +121,7 @@ def Tensile(userArgs):
   argParser.add_argument("--runtime-language", dest="RuntimeLanguage", \
       choices=["HIP", "OCL"], help="override which runtime language to use")
   argParser.add_argument("--code-object-version", dest="CodeObjectVersion", \
-      choices=["V2", "V3"], help="HSA code-object version")
+      choices=["V2", "V3"], default="V3", help="HSA code-object version")
   argParser.add_argument("-v", "--verbose", action="store_true", \
       help="set PrintLevel=2")
   argParser.add_argument("--debug", dest="debug", action="store_true", \
@@ -131,7 +131,7 @@ def Tensile(userArgs):
   argParser.add_argument("--no-merge-files", dest="noMergeFiles", action="store_true", \
       help="kernels and solutions written to individual files")
   argParser.add_argument("--cxx-compiler", dest="CxxCompiler", choices=["hcc", "hipcc"], \
-      action="store", default="hcc", help="select which compiler to use")
+      action="store", default="hipcc", help="select which compiler to use")
   argParser.add_argument("--client-build-path", default=None)
   argParser.add_argument("--client-lock", default=None)
 
@@ -157,7 +157,7 @@ def Tensile(userArgs):
       globalParameters[key] = defaultGlobalParameters[key]
 
   # read config
-  config = YAMLIO.readConfig( configPath )
+  config = LibraryIO.readConfig( configPath )
   globalParameters["ConfigPath"] = configPath
 
   # assign global parameters

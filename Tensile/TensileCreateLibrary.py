@@ -26,8 +26,8 @@ if __name__ == "__main__":
 
 from . import Common
 from . import EmbeddedData
+from . import LibraryIO
 from . import Utils
-from . import YAMLIO
 from .Common import globalParameters, HR, print1, print2, printExit, ensurePath, \
                    CHeader, CMakeHeader, assignGlobalParameters, \
                    listToInitializer
@@ -1004,8 +1004,8 @@ def TensileCreateLibrary():
   argParser.add_argument("LogicPath",       help="Path to LibraryLogic.yaml files.")
   argParser.add_argument("OutputPath",      help="Where to write library files?")
   argParser.add_argument("RuntimeLanguage", help="Which runtime language?", choices=["OCL", "HIP", "HSA"])
-  argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hcc", "hipcc"],       action="store", default="hcc")
-  argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["V2", "V3"], action="store", default="V2")
+  argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hcc", "hipcc"],       action="store", default="hipcc")
+  argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["V2", "V3"], action="store", default="V3")
   argParser.add_argument("--architecture",           dest="Architecture",      choices=["all", "gfx000", "gfx803", "gfx900", "gfx906", "gfx908"], action="store", default="all")
   argParser.add_argument("--merge-files",            dest="MergeFiles",        action="store_true")
   argParser.add_argument("--no-merge-files",         dest="MergeFiles",        action="store_false")
@@ -1023,6 +1023,7 @@ def TensileCreateLibrary():
   argParser.add_argument("--embed-library-key",      dest="EmbedLibraryKey", default=None,
                          help="Access key for embedding library files.")
   argParser.add_argument("--version", help="Version string to embed into library file.")
+  argParser.add_argument("--yaml", action="store_true", help="Use YAML format for writing")
   args = argParser.parse_args()
 
   logicPath = args.LogicPath
@@ -1080,7 +1081,7 @@ def TensileCreateLibrary():
   solutions = []
   logicData = {} # keys are problemTypes, values are schedules
 
-  libraries = Common.ParallelMap(YAMLIO.readLibraryLogicForSchedule, logicFiles, "Reading logic files")
+  libraries = Common.ParallelMap(LibraryIO.readLibraryLogicForSchedule, logicFiles, "Reading logic files")
 
   masterLibraries = {}
   fullMasterLibrary = None
@@ -1184,17 +1185,20 @@ def TensileCreateLibrary():
              if globalParameters["AsmCaps"][arch]["SupportedISA"]]
   newLibraryDir = ensurePath(os.path.join(outputPath, 'library'))
 
+  libraryWriter = LibraryIO.configWriter(args.yaml)
+  tensileLibraryFilename = "TensileLibrary.yaml" if args.yaml or globalParameters["YAML"] \
+                           else "TensileLibrary.dat"
   if globalParameters["PackageLibrary"]:
     for archName, newMasterLibrary in masterLibraries.items():
       if (archName in archs):
         archPath = ensurePath(os.path.join(newLibraryDir, archName))
-        masterFile = os.path.join(archPath, "TensileLibrary.yaml")
+        masterFile = os.path.join(archPath, tensileLibraryFilename)
         newMasterLibrary.applyNaming(kernelMinNaming)
-        YAMLIO.write(masterFile, Utils.state(newMasterLibrary))
+        libraryWriter.write(masterFile, Utils.state(newMasterLibrary))
   else:
-    masterFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")
+    masterFile = os.path.join(newLibraryDir, tensileLibraryFilename)
     fullMasterLibrary.applyNaming(kernelMinNaming)
-    YAMLIO.write(masterFile, Utils.state(fullMasterLibrary))
+    libraryWriter.write(masterFile, Utils.state(fullMasterLibrary))
 
   theMasterLibrary = fullMasterLibrary
   if globalParameters["PackageLibrary"]:

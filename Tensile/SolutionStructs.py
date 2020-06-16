@@ -2664,10 +2664,22 @@ class Solution:
       return
 
     if state["LdsPadA"] == -1:
-      state["LdsPadA"] = 0 if state["ProblemType"]["TLUA"] else state["VectorWidth"]
+      if state["ProblemType"]["TLUA"]:
+        state["LdsPadA"] = 0
+      else:
+        if state["MatrixInstruction"] and state["TransposeLDS"]:
+          state["LdsPadA"] = max(state["GlobalReadVectorWidth"],state["ProblemType"]["DataType"].numMIInput())
+        else:
+          state["LdsPadA"] = state["VectorWidth"]
       assert(state["LdsPadA"] >= 0)
     if state["LdsPadB"] == -1:
-      state["LdsPadB"] = 0 if state["ProblemType"]["TLUB"] else state["VectorWidth"]
+      if state["ProblemType"]["TLUB"]:
+        state["LdsPadB"] = 0
+      else:
+        if state["MatrixInstruction"] and state["TransposeLDS"]:
+          state["LdsPadB"] = max(state["GlobalReadVectorWidth"],state["ProblemType"]["DataType"].numMIInput())
+        else:
+          state["LdsPadB"] = state["VectorWidth"]
       assert(state["LdsPadB"] >= 0)
 
     if (state["UnrollMajorLDSA"] or state["UnrollMajorLDSB"]) and (not state["EnableMatrixInstruction"]):

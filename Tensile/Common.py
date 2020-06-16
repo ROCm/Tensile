@@ -108,6 +108,7 @@ globalParameters["UnrollLoopEfficiencyEnable"] = False   # if True split(S) MAC&
 ########################################
 globalParameters["CMakeBuildType"] = "Release"            # whether benchmark clients and library client should be release or debug
 globalParameters["PrintSolutionRejectionReason"] = False  # when a solution is marked as invalid, print why
+globalParameters["YAML"] = False                          # whether to use the YAML backend (as opposed to the MessagePack backend)
 
 # how to initialize tensor data
 # serial-in-u will use a sequence that increments in the K dimension
@@ -189,8 +190,8 @@ if os.name == "nt":
 else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
-globalParameters["CodeObjectVersion"] = "V2"
-globalParameters["CxxCompiler"] = "hcc"
+globalParameters["CodeObjectVersion"] = "V3"
+globalParameters["CxxCompiler"] = "hipcc"
 globalParameters["Architecture"] = "all"
 
 # might be deprecated
@@ -770,6 +771,7 @@ validParameters = {
     # integer ammount of padding to put into LDS, in 2016 this didn't seem to help performance, profilers were showing that channel conflicts weren't really hurting
     # performance so this has been deprecated and probably doesn't work
     # -1 means use same padding as the VectorWidth if TLU=0 else 0.  (Padding only helps when transpose is required)
+    # With MatrixInstruciton: -1 means max(GRVW,MIInput) if TLU=0
     "LdsPadA":                     [ -1, 0, 1, 2, 3, 4, 8],
     "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8],
 

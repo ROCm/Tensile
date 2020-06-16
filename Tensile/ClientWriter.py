@@ -22,7 +22,7 @@
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer, ClientExecutionLock
 from . import ClientExecutable
 from . import Common
-from . import YAMLIO
+from . import LibraryIO
 
 import os
 import subprocess
@@ -98,7 +98,7 @@ def main( config ):
   for logicFileName in logicFiles:
     (scheduleName, deviceNames, problemType, solutionsForType, \
         indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) \
-        = YAMLIO.readLibraryLogicForSchedule(logicFileName)
+        = LibraryIO.readLibraryLogicForSchedule(logicFileName)
     if problemType["DataType"].isHalf():
         enableHalf = True
     functions.append((scheduleName, problemType))
@@ -559,7 +559,8 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
             f.write("{}={}\n".format(key, value))
 
         sourceDir = os.path.join(stepBaseDir, "source")
-        libraryFile = os.path.join(sourceDir, "library", "TensileLibrary.yaml")
+        libraryFilename = "TensileLibrary.yaml" if globalParameters["YAML"] else "TensileLibrary.dat"
+        libraryFile = os.path.join(sourceDir, "library", libraryFilename)
         param("library-file", libraryFile)
 
         currentGFXName = Common.gfxName(globalParameters["CurrentISA"])
