@@ -39,7 +39,7 @@ HELP_STR="
     [--one-type]            Optional. Only tune one matrix type (nn, nt, or tn)
     [--omit-type]           Optional. Ignore one matrix type when tuning (nn, nt, or tn)
     [--problem-definition]  Optional. Specify gemm, strided batched, or both sizes (gemm, batch, or both, default=both)
-    [--hip-clang]           Optional. Use hip-clang compiler (default=false)
+    [--hcc]                 Optional. Use hcc compiler (default=false)
     [--rocm-path]           Optional. Define ROCM_PATH, the location of the rocm stack (default=/opt/rocm)
 "
 HELP=false
@@ -60,10 +60,10 @@ ROCBLAS_ORGANIZATION=ROCmSoftwarePlatform
 ROCBLAS_BRANCH=develop
 TENSILE_BRANCH=develop
 PUBLIC=false
-HIP_CLANG=false
+HCC=false
 ROCM_PATH=/opt/rocm
 
-OPTS=`getopt -o hg:z:y:o:f:rmctsi:u:b:p --long help,gpu:,log:,network:,data-type:,output-dir:,sclk:,rk,mfma,count,tile-aware,disable-strides,initialization:,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition:,hip-clang,rocm-path: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hg:z:y:o:f:rmctsi:u:b:p --long help,gpu:,log:,network:,data-type:,output-dir:,sclk:,rk,mfma,count,tile-aware,disable-strides,initialization:,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition:,hcc,rocm-path: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -93,7 +93,7 @@ while true; do
         --one-type )                TUNE_TYPE="$2"; shift 2;;
         --omit-type )               OMIT_TYPE="$2"; shift 2;;
         --problem-definition )      PROBLEM_DEFINITION="$2"; shift 2;;
-        --hip-clang )               HIP_CLANG=true; shift ;;
+        --hcc )                     HCC=true; shift ;;
         --rocm-path )               ROCM_PATH="$2"; shift 2;;
         -- ) shift; break ;;
         * ) break ;;
@@ -138,13 +138,15 @@ else
     GPU=mi60
 fi
 
-if [[ "${HIP_CLANG}" == true ]]; then
-    TENSILE_COMPILER=hipcc
-    ROCBLAS_COMPILER=hip-clang
+if [[ "${HCC}" == true ]]; then
+    TENSILE_COMPILER=hcc
+    CODE_OBJECT_VERSION=V2
+    ROCBLAS_COMPILER=no-hip-clang
     export PATH=${ROCM_PATH}/bin:${ROCM_PATH}/hip/bin:${ROCM_PATH}/llvm/bin:${PATH}
 else
-    TENSILE_COMPILER=hcc
-    ROCBLAS_COMPILER=no-hip-clang
+    TENSILE_COMPILER=hipcc
+    CODE_OBJECT_VERSION=V3
+    ROCBLAS_COMPILER=hip-clang
     export PATH=${PATH}:${ROCM_PATH}/bin:${ROCM_PATH}/hip/bin:${ROCM_PATH}/hcc/bin
 fi
 
@@ -177,10 +179,11 @@ run_tune_nn () {
     pushd ${NN}
     echo "#!/bin/sh" > tune.sh
     echo "touch time.begin" >> tune.sh
-    echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_nn_${OUTPUT_DIR}.yaml ./ --cxx-compiler=${TENSILE_COMPILER} 2>&1 | tee make.out" >> tune.sh
+    echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_nn_${OUTPUT_DIR}.yaml ./ --cxx-compiler=${TENSILE_COMPILER} --code-object-version=${CODE_OBJECT_VERSION} 2>&1 | tee tensile-nn.out" >> tune.sh
     echo "touch time.end" >> tune.sh
     chmod 755 tune.sh
     ./tune.sh
+    cp tensile-nn.out ../../logs 
     popd
 
     cp ${NN}/3_LibraryLogic/* exact/
@@ -194,10 +197,11 @@ run_tune_nt () {
     pushd ${NT}
     echo "#!/bin/sh" > tune.sh
     echo "touch time.begin" >> tune.sh
-    echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_nt_${OUTPUT_DIR}.yaml ./ --cxx-compiler=${TENSILE_COMPILER} 2>&1 | tee make.out" >> tune.sh
+    echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_nt_${OUTPUT_DIR}.yaml ./ --cxx-compiler=${TENSILE_COMPILER} --code-object-version=${CODE_OBJECT_VERSION} 2>&1 | tee tensile-nt.out" >> tune.sh
     echo "touch time.end" >> tune.sh
     chmod 755 tune.sh
     ./tune.sh
+    cp tensile-nt.out ../../logs 
     popd
 
     cp ${NT}/3_LibraryLogic/* exact/
@@ -211,10 +215,11 @@ run_tune_tn () {
     pushd ${TN}
     echo "#!/bin/sh" > tune.sh
     echo "touch time.begin" >> tune.sh
-    echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_tn_${OUTPUT_DIR}.yaml ./ --cxx-compiler=${TENSILE_COMPILER} 2>&1 | tee make.out" >> tune.sh
+    echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_tn_${OUTPUT_DIR}.yaml ./ --cxx-compiler=${TENSILE_COMPILER} --code-object-version=${CODE_OBJECT_VERSION} 2>&1 | tee tensile-tn.out" >> tune.sh
     echo "touch time.end" >> tune.sh
     chmod 755 tune.sh
     ./tune.sh
+    cp tensile-tn.out ../../logs 
     popd
 
     cp ${TN}/3_LibraryLogic/* exact/
@@ -270,6 +275,7 @@ chmod 755 scripts/*
 chmod 755 scripts2/*
 git clone https://github.com/${ORGANIZATION}/Tensile.git -b ${TENSILE_BRANCH}
 
+mkdir logs
 pushd Tensile
 run_tune_all_scripts
 popd
@@ -288,7 +294,7 @@ DIR=archive
 if [[ "${LIBRARY}" == arcturus ]]; then
     DIR=asm_full
 fi
-python Tensile/Tensile/Utilities/merge_rocblas_yaml_files.py rocBLAS/library/src/blas3/Tensile/Logic/${DIR} library/exact library/merge
+python Tensile/Tensile/Utilities/merge.py rocBLAS/library/src/blas3/Tensile/Logic/${DIR} library/exact library/merge 2>&1 | tee logs/log-merge-script
 
 if [[ "${LIBRARY}" != arcturus ]]; then
     python rocBLAS/library/src/blas3/Tensile/Logic/archive/massage.py library/merge library/massage
@@ -299,6 +305,7 @@ mkdir packages/library
 mkdir packages/client
 pushd rocBLAS
 ./install.sh -c --build_dir reference-build --${ROCBLAS_COMPILER} 2>&1 | tee log-reference-build
+cp log-reference-build ../logs
 pushd reference-build/release
 popd
 
@@ -310,6 +317,7 @@ else
     cp ../library/merge/* library/src/blas3/Tensile/Logic/asm_full
 fi
 ./install.sh -c --build_dir tuned-build --${ROCBLAS_COMPILER} 2>&1 | tee log-tuned-build
+cp log-tuned-build ../logs
 pushd tuned-build/release
 make_packages
 popd
@@ -320,7 +328,8 @@ pushd reference-build/release/clients/staging
 ./doit_all1.sh
 find results1 -name \*.1 -exec sed -i "s/4t/t/g" {} \;
 find results1 -name \*.1 -exec sed -i "s/4r/r/g" {} \;
-./*verify.sh 2>&1 | tee log-verification-build
+./*verify.sh 2>&1 | tee log-verification-reference-build
+cp log-verification-reference-build ../../../../../logs
 popd
 
 pushd tuned-build/release/clients/staging
@@ -328,6 +337,7 @@ pushd tuned-build/release/clients/staging
 find results1 -name \*.1 -exec sed -i "s/4t/t/g" {} \;
 find results1 -name \*.1 -exec sed -i "s/4r/r/g" {} \;
 ./*verify.sh 2>&1 | tee log-verification-tuned-build
+cp log-verification-tuned-build ../../../../../logs
 popd
 
 mv ../scripts/*-all.sh scripts/performance/${OUTPUT_DIR}${NUM}.sh
