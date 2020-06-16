@@ -994,7 +994,7 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
   if not globalParameters["MergeFiles"]:
 
     allSources = sourceKernelNames + betaKernelNames
-    if globalParameters["NewClient"] > 1:
+    if globalParameters["NewClient"] <= 1:
       allSources += asmKernelNames
 
     for kernelName in (allSources):
