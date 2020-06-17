@@ -119,12 +119,10 @@ class RegisterPool:
 
   ########################################
   # Init
-  # reservedAtEnd: reserve a register at the end of the poool, used for vserial
   # defaultPreventOverflow: control behavior of checkout and checkoutAligned when preventOverflow is not explicitly specificed.
-  def __init__(self, size, type, reservedAtEnd, defaultPreventOverflow, printRP=0):
+  def __init__(self, size, type, defaultPreventOverflow, printRP=0):
     self.printRP=printRP
     self.type = type
-    self.reservedAtEnd = reservedAtEnd
     self.defaultPreventOverflow = defaultPreventOverflow
     self.pool = [self.Register(RegisterPool.Status.Unavailable, "init") for i in range(0,size)]
     self.checkOutSize = {}
@@ -301,7 +299,7 @@ class RegisterPool:
   ########################################
   # Size
   def size(self):
-    return len(self.pool) #+ self.reservedAtEnd
+    return len(self.pool)
 
 
   ########################################
@@ -1541,7 +1539,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ####################################
     # num sgprs: initial kernel state
-    self.sgprPool = RegisterPool(0, 's', 0, defaultPreventOverflow=True, printRP=0)
+    self.sgprPool = RegisterPool(0, 's', defaultPreventOverflow=True, printRP=0)
     numSgprAddressD = self.rpga # til end
     numSgprAddressC = self.rpga # til end
     numSgprAddressA = self.rpga # til read offsets
@@ -1858,7 +1856,7 @@ class KernelWriterAssembly(KernelWriter):
     # Register Pools
     ########################################
     #print "TotalVgprs", self.totalVgprs
-    self.vgprPool = RegisterPool(max(self.totalVgprs, self.totalAgprs), 'v', reservedAtEnd=1, defaultPreventOverflow=False,
+    self.vgprPool = RegisterPool(max(self.totalVgprs, self.totalAgprs), 'v', defaultPreventOverflow=False,
                                  printRP=self.db["PrintRP"])
     #print self.vgprPool.state()
     self.savedVgprPool = None
@@ -1886,7 +1884,7 @@ class KernelWriterAssembly(KernelWriter):
         self.numVgprValuC, "ValuC-Block") # Add as available
     #print self.vgprPool.state()
 
-    self.agprPool = RegisterPool(self.totalAgprs, 'a', 0, defaultPreventOverflow=False, printRP=0)
+    self.agprPool = RegisterPool(self.totalAgprs, 'a', defaultPreventOverflow=False, printRP=0)
     # C regs are not used during initialization so mark them as available -
     # we will claim then just before the start of the unroll loop:
     self.agprPool.add(0, self.totalAgprs, "ValuC-Block")
