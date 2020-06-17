@@ -414,15 +414,17 @@ class LogicAnalyzer:
     # column indices
     csvFile = csv.reader(dataFile)
     problemSizeStartIdx = 1
+    # notice that for OperationType != GEMM, the numIndices = 0
     totalSizeIdx = problemSizeStartIdx + self.numIndices
-    solutionStartIdx = totalSizeIdx + 1
-    rowLength = solutionStartIdx + numSolutions
 
     # iterate over rows
     rowIdx = 0
     for row in csvFile:
       rowIdx+=1
       if rowIdx == 1:
+        # get the length of each row, and derive the first column of the solution instead of using wrong "solutionStartIdx = totalSizeIdx + 1"
+        rowLength = len(row)
+        solutionStartIdx = rowLength - numSolutions        
         continue
       else:
         #if len(row) < rowLength:
