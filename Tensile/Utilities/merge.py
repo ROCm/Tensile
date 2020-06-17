@@ -80,7 +80,9 @@ def loadData(filename):
     try:
         stream = open(filename, "r")
     except IOError:
-        printExit("Cannot open file: ", filename)
+        print("Cannot open file: ", filename)
+        sys.stdout.flush()
+        sys.exit(-1)
     data = yaml.load(stream, yaml.SafeLoader)
     return data
 
@@ -100,19 +102,19 @@ def avoidRegressions():
     forceMerge = args.force_merge
     ensurePath(outputPath)
 
-    for f in incrementalFiles:
-        with open(f) as incFile:
+    for incFile in incrementalFiles:
+        with open(incFile):
             if "arcturus" in incFile:
                 forceMerge = "false"
-            incData = loadData(f)
+            incData = loadData(incFile)
             improvedKernels = dict()
-            for g in originalFiles:
-                fileSplit = g.split('/')
+            for origFile in originalFiles:
+                fileSplit = origFile.split('/')
                 logicFile = fileSplit[len(fileSplit)-1]
-                if logicFile in f:
+                if logicFile in incFile:
                     print("Logic file: ", logicFile)
-                    with open(g) as origFile:
-                        origData = loadData(g)
+                    with open(origFile):
+                        origData = loadData(origFile)
                         numSizes = len(origData[7])
                         incNumSizes = len(incData[7])
                         print(numSizes, " sizes in original logic file")
@@ -131,7 +133,6 @@ def avoidRegressions():
                             isOld = False
                             for j in range(0,len(origData[7])):
                                 origSize = origData[7][j][0]
-                                origIndex = origData[7][j][1][0]
                                 origEff = origData[7][j][1][1]
                                 if incSize == origSize:
                                     isOld = True
