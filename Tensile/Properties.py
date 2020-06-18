@@ -53,7 +53,8 @@ class Property:
 
 class Predicate(Property):
     @classmethod
-    def FromOriginalState(cls, d, morePreds=[]):
+    def FromOriginalState(cls, d, morePreds=None):
+        if morePreds is None: morePreds = []
         predicates = [p for p in map(cls.FromOriginalKeyPair, d.items()) if p is not None] + morePreds
         return cls.And(predicates)
 
