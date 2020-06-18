@@ -52,17 +52,18 @@ BenchmarkProblems:
         - PrefetchGlobalRead: [True]
         - ThreadTile:
           - [ 4, 8 ]
+          - [ 4, 4 ]
         - WorkGroup:
           - [ 32, 16, 1 ]
         - WorkGroupMapping: [1]
         #- AssertFree0ElementMultiple: [2]
-        - GlobalSplitU: [16]
-        - DepthU: [ 8 ]
+        - GlobalSplitU: [16,32]
+        - DepthU: [ 8,16,32 ]
         - VectorWidth: [2]
         - FractionalLoad: [1]
         - GlobalReadVectorWidth: [2,4]
         - OptNoLoadLoop: [2]
-        - StaggerUStride: [256]
+        - StaggerUStride: [256,512]
         - StaggerUMapping: [0]
       BenchmarkForkParameters:
       JoinParameters:
@@ -70,9 +71,3 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [ 250, 250, 1, 500000,266,266,500016,500032 ]
-
-########################################
-LibraryLogic:
-    ScheduleName: "vega20"
-    DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7", "Device 66af", "Vega 20"]
-    ArchitectureName: "gfx906"
