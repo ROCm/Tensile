@@ -68,6 +68,10 @@ include("${Tensile_ROOT}/Source/TensileCreateLibrary.cmake")
 function(TensileCreateLibraryFiles
         Tensile_LOGIC_PATH Tensile_OUTPUT_PATH)
 
+  if(NOT TENSILE_NEW_CLIENT)
+    message(FATAL_ERROR "TensileCreateLibraryFiles function should only be called for new client.")
+  endif()
+
   # Tensile_ROOT can be specified instead of using the installed path.
   set(options NO_MERGE_FILES SHORT_FILE_NAMES PRINT_DEBUG GENERATE_PACKAGE)
   set(oneValueArgs TENSILE_ROOT EMBED_LIBRARY EMBED_KEY VAR_PREFIX CODE_OBJECT_VERSION COMPILER ARCHITECTURE)
@@ -77,7 +81,7 @@ function(TensileCreateLibraryFiles
   set(Script "${Tensile_ROOT}/bin/TensileCreateLibrary")
   message(STATUS "Tensile script: ${Script}")
 
-  set(Options "")
+  set(Options "--new-client-only")
 
   if(Tensile_NO_MERGE_FILES)
     set(Options ${Options} "--no-merge-files")
@@ -140,47 +144,28 @@ function(TensileCreateLibraryFiles
           set(Tensile_VAR_PREFIX TENSILE)
       endif()
 
-      if(TENSILE_NEW_CLIENT)
-          # Create the manifest file of the output libraries.
-          set(CommandLine ${CommandLine} "--new-client-only")
-          set(Tensile_CREATE_MANIFEST_COMMAND ${CommandLine} "--generate-manifest-and-exit")
-          set(Tensile_MANIFEST_FILE_PATH "${Tensile_OUTPUT_PATH}/library/TensileManifest.txt")
+      # Create the manifest file of the output libraries.
+      set(Tensile_CREATE_MANIFEST_COMMAND ${CommandLine} "--generate-manifest-and-exit")
+      set(Tensile_MANIFEST_FILE_PATH "${Tensile_OUTPUT_PATH}/library/TensileManifest.txt")
 
-          execute_process(
-            COMMAND ${Tensile_CREATE_MANIFEST_COMMAND}
-            RESULT_VARIABLE Tensile_CREATE_MANIFEST_RESULT)
+      execute_process(
+        COMMAND ${Tensile_CREATE_MANIFEST_COMMAND}
+        RESULT_VARIABLE Tensile_CREATE_MANIFEST_RESULT)
 
-          if(Tensile_CREATE_MANIFEST_RESULT OR (NOT EXISTS ${Tensile_MANIFEST_FILE_PATH}))
-            message(FATAL_ERROR "Error creating Tensile library: ${Tensile_CREATE_MANIFEST_RESULT}")
-          endif()
-
-          # Defer the actual call of the TensileCreateLibraries to 'make' time as needed
-          file(STRINGS ${Tensile_MANIFEST_FILE_PATH} Tensile_MANIFEST_CONTENTS)
-          add_custom_command(
-            COMMENT "Generating Tensile Libraries"
-            OUTPUT ${Tensile_EMBED_LIBRARY_SOURCE};${Tensile_MANIFEST_CONTENTS}
-            COMMAND ${CommandLine}
-          )
-
-          set("${Tensile_VAR_PREFIX}_ALL_FILES" ${Tensile_MANIFEST_CONTENTS} PARENT_SCOPE)
-
-      else() # Old client
-          execute_process(COMMAND ${CommandLine} RESULT_VARIABLE CommandResult)
-          if(CommandResult)
-            message(FATAL_ERROR "Error creating Tensile library: ${CommandResult}")
-          endif()
-
-          file(GLOB CodeObjects "${Tensile_OUTPUT_PATH}/library/*.co")
-          file(GLOB HSACodeObjects "${Tensile_OUTPUT_PATH}/library/*.hsaco")
-          if(Tensile_YAML)
-            set(LibraryFile "${Tensile_OUTPUT_PATH}/library/TensileLibrary.yaml")
-          else()
-            set(LibraryFile "${Tensile_OUTPUT_PATH}/library/TensileLibrary.dat")
-          endif()
-
-          set("${Tensile_VAR_PREFIX}_ALL_FILES" ${CodeObjects} ${HSACodeObjects} ${LibraryFile} PARENT_SCOPE)
-
+      if(Tensile_CREATE_MANIFEST_RESULT OR (NOT EXISTS ${Tensile_MANIFEST_FILE_PATH}))
+        message(FATAL_ERROR "Error creating Tensile library: ${Tensile_CREATE_MANIFEST_RESULT}")
       endif()
+
+      # Defer the actual call of the TensileCreateLibraries to 'make' time as needed.
+      # Read the manifest file and declare the files as expected output.
+      file(STRINGS ${Tensile_MANIFEST_FILE_PATH} Tensile_MANIFEST_CONTENTS)
+      add_custom_command(
+        COMMENT "Generating Tensile Libraries"
+        OUTPUT ${Tensile_EMBED_LIBRARY_SOURCE};${Tensile_MANIFEST_CONTENTS}
+        COMMAND ${CommandLine}
+      )
+
+      set("${Tensile_VAR_PREFIX}_ALL_FILES" ${Tensile_MANIFEST_CONTENTS} PARENT_SCOPE)
 
   endif()
 
