@@ -66,6 +66,15 @@ class Predicate(Property):
             return predicates[0]
         return cls('And', value=predicates)
 
+    @classmethod
+    def Or(cls, predicates):
+        predicates = tuple(predicates)
+        if len(predicates) == 0:
+            return cls('TruePred')
+        if len(predicates) == 1:
+            return predicates[0]
+        return cls('Or', value=predicates)
+
     def __lt__(self, other):
         # Ensure TruePred appears last.
         if other.tag == 'TruePred':

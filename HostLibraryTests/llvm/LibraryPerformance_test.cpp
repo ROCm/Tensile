@@ -233,7 +233,7 @@ std::vector<LibraryPerformanceTest::ParamType> GetParams()
     rv.push_back(std::make_tuple(
         AMDGPU(AMDGPU::Processor::gfx908, 64, "Arcturus"), "rocBLAS_Full", false, true));
     rv.push_back(std::make_tuple(
-        AMDGPU(AMDGPU::Processor::gfx1010, 40, "Navi"), "KernelsLiteNavi", true, true));
+        AMDGPU(AMDGPU::Processor::gfx1010, 40, "Navi"), "KernelsLiteNavi", true, false));
 
     return rv;
 }
