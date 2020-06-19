@@ -9125,7 +9125,7 @@ class KernelWriterAssembly(KernelWriter):
     elements    = []
     vectorwidth = 0
 
-    if edge and not kernel["StoreRemapVectorWidth"]:
+    if edge:
       vectorwidth = kernel["StoreVectorWidth"] if kernel["_VectorStore"] else 1
       vectorwidth = min(vectorwidth, self.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
     else:
@@ -9175,19 +9175,22 @@ class KernelWriterAssembly(KernelWriter):
     rpv = kernel["ProblemType"]["DataType"].numRegisters() * ss.cfg.gwvw
 
     addr0 = vgpr(self.storeRemapLW)
-    offset =  addrCalc.globalOffset
+    offset =  addrCalc.coordOffset0 * self.bpeCexternal
 
-    # only consider store with vector4
-    # bps==8 is for bf16 and fp16
-    # bps==16 is for fp32
-    if bps==8:
+    if bps==2:
+      kStr += inst("ds_write_b16", addr0, vgpr(sumIdx, rpv*2), \
+                 "offset:%u"%offset, "storeRemap lw")
+    elif bps==4:
+      kStr += inst("ds_write_b32", addr0, vgpr(sumIdx, rpv), \
+                 "offset:%u"%offset, "storeRemap lw")
+    elif bps==8:
       kStr += inst("ds_write_b64", addr0, vgpr(sumIdx, rpv), \
                  "offset:%u"%offset, "storeRemap lw")
     elif bps==16:
       kStr += inst("ds_write_b128", addr0, vgpr(sumIdx, rpv), \
                  "offset:%u"%offset, "storeRemap lw")
     else:
-       assert ("StoreRemap: bad bps! only support vector4 local write")
+       assert ("StoreRemap: bad bps!")
 
     return kStr
 
@@ -9602,7 +9605,6 @@ class KernelWriterAssembly(KernelWriter):
           self.optSrdIncForRow = 1
 
       if kernel["StoreRemapVectorWidth"]:
-        self.optSingleColVgpr = 1
         self.optSrdIncForRow = 1
 
       if kernel["ProblemType"]["UseInitialStridesCD"]:
@@ -9865,17 +9867,6 @@ class KernelWriterAssembly(KernelWriter):
           % (d1,vc1,d0,vc0))
       if ss.optSingleColVgpr:
         self.coord0Vgpr = kw.coord0
-        # StoreRemap: even in SignalColVgpr, increasing coord1 is neccesary for shiftPtr correction
-        if kernel["StoreRemapVectorWidth"] and edge and self.newCoord1 and self.rowInc:
-          if self.rowInc <= 64:
-            kStr += inst("_v_add_co_u32", vgpr(self.coord1Vgpr), "vcc", \
-                      vgpr(self.kernelWriter.coord1), self.rowInc, \
-                      "coord1.1: coord1Vgpr += d1*sg1*VW + vc1")
-          else:
-            kStr += inst("s_mov_b32", sgpr(tmpS01), self.rowInc, "rowInc d1=%u vc1=%u"%(d0, vc0))
-            kStr += inst("_v_add_co_u32", vgpr(self.coord1Vgpr), "vcc", \
-                      vgpr(self.kernelWriter.coord1), sgpr(tmpS01), \
-                      "coord1.2: coord1 += d1*sg1*VW + vc1")
       elif not ss.optSharedColVgpr or (d1 == vc1 == 0):
         # not share mode or first row always does the address calc math:
 
@@ -10129,7 +10120,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # Now do the edge check and compute the address in bytes:
       if kernel["BufferStore"]:
-        if edge and not kernel["StoreRemapVectorWidth"]:
+        if edge and (not kernel["StoreRemapVectorWidth"] or (kernel["StoreRemapVectorWidth"] and beta)):
           # Set address to -1 if OOB on either dimension
           # and only check the x/coord0 index here, save a couple inst
           sizeBoundary = [0,0]
@@ -10429,7 +10420,11 @@ class KernelWriterAssembly(KernelWriter):
       for edge in edges:
         kStr += "%s:%s"%(writeLabels[beta][edge], self.endLine)
 
-        edgeI = edge
+        # for storeRemap edge case, non-beta still can enable vector stores
+        if kernel["StoreRemapVectorWidth"] and not beta:
+          edgeI = False
+        else:
+          edgeI = edge
         #edgeI = True  # set to True to disable vector stores
         gwvw = vectorWidths[edgeI]
         #print "globalWriteElements: edge=", edge, "beta=", beta, "atomic=", atomic
