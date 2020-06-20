@@ -132,6 +132,8 @@ def Tensile(userArgs):
       help="kernels and solutions written to individual files")
   argParser.add_argument("--cxx-compiler", dest="CxxCompiler", choices=["hcc", "hipcc"], \
       action="store", default="hipcc", help="select which compiler to use")
+  argParser.add_argument("--library-format", dest="LibraryFormat", choices=["yaml", "msgpack"], \
+      action="store", default="yaml", help="select which library format to use")
   argParser.add_argument("--client-build-path", default=None)
   argParser.add_argument("--client-lock", default=None)
 
@@ -153,6 +155,8 @@ def Tensile(userArgs):
   for key in defaultGlobalParameters:
     if args.CxxCompiler:
       globalParameters['CxxCompiler'] = args.CxxCompiler
+    elif args.LibraryFormat:
+      globalParameters['LibraryFormat'] = args.LibraryFormat
     else:
       globalParameters[key] = defaultGlobalParameters[key]
 
@@ -197,6 +201,8 @@ def Tensile(userArgs):
     globalParameters['CxxCompiler'] = args.CxxCompiler
     if globalParameters['CxxCompiler'] == "hipcc" and not args.CodeObjectVersion:
       globalParameters["CodeObjectVersion"] = "V3"
+  if args.LibraryFormat:
+    globalParameters['LibraryFormat'] = args.LibraryFormat
   print1("")
   if args.client_build_path:
     globalParameters["ClientBuildPath"] = args.client_build_path

@@ -70,7 +70,7 @@ function(TensileCreateLibraryFiles
 
   # Tensile_ROOT can be specified instead of using the installed path.
   set(options NO_MERGE_FILES SHORT_FILE_NAMES PRINT_DEBUG GENERATE_PACKAGE)
-  set(oneValueArgs TENSILE_ROOT EMBED_LIBRARY EMBED_KEY VAR_PREFIX CODE_OBJECT_VERSION COMPILER ARCHITECTURE)
+  set(oneValueArgs TENSILE_ROOT EMBED_LIBRARY EMBED_KEY VAR_PREFIX CODE_OBJECT_VERSION COMPILER ARCHITECTURE LIBRARY_FORMAT)
   set(multiValueArgs "")
   cmake_parse_arguments(Tensile "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -121,8 +121,12 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--architecture=${Tensile_ARCHITECTURE}")
   endif()
 
-  if(Tensile_YAML)
-    set(Options ${Options} "--yaml")
+  if(Tensile_LIBRARY_FORMAT)
+    set(Options ${Options} "--library-format=${Tensile_LIBRARY_FORMAT}")
+    if(Tensile_LIBRARY_FORMAT MATCHES "yaml")
+        target_compile_definitions( Tensile PUBLIC -DTENSILE_YAML=1)
+        target_compile_definitions( TensileHost PUBLIC -DTENSILE_YAML=1)
+    endif()
   endif()
 
   set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
@@ -144,7 +148,7 @@ function(TensileCreateLibraryFiles
   file(GLOB CodeObjects "${Tensile_OUTPUT_PATH}/library/*.co")
   file(GLOB HSACodeObjects "${Tensile_OUTPUT_PATH}/library/*.hsaco")
 
-  if(Tensile_YAML)
+  if(Tensile_LIBRARY_FORMAT MATCHES "yaml")
     set(LibraryFile "${Tensile_OUTPUT_PATH}/library/TensileLibrary.yaml")
   else()
     set(LibraryFile "${Tensile_OUTPUT_PATH}/library/TensileLibrary.dat")
