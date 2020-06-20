@@ -90,3 +90,37 @@ def pytest_collection_modifyitems(items):
         components = relpath.split(os.path.sep)
         if len(components) > 0 and len(components[0]) > 0:
             item.add_marker(getattr(pytest.mark, components[0]))
+
+@pytest.fixture
+def useGlobalParameters(tensile_args):
+    from Tensile import Common
+    from Tensile import Tensile
+    import argparse
+
+    class gpUpdater:
+        def __init__(self, **params):
+            self.additionalParams = params
+
+        def __enter__(self):
+            argParser = argparse.ArgumentParser()
+            Tensile.addCommonArguments(argParser)
+            args = argParser.parse_args(tensile_args)
+
+            Common.restoreDefaultGlobalParameters()
+            if args.CxxCompiler:
+                Common.globalParameters["CxxCompiler"] = args.CxxCompiler
+
+            Common.assignGlobalParameters({})
+
+            overrideParameters = Tensile.argUpdatedGlobalParameters(args)
+            for key, value in overrideParameters.items():
+                Common.globalParameters[key] = value
+
+            for key, value in self.additionalParams.items():
+                Common.globalParameters[key] = value
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            Common.restoreDefaultGlobalParameters()
+
+    return gpUpdater
+

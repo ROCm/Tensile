@@ -105,7 +105,6 @@ add_subdirectory(testlib)
 
 set(test_sources ${test_sources}
     test.cpp
-
     CachingLibrary_test.cpp
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp
@@ -123,6 +122,9 @@ if(TENSILE_USE_LLVM)
 
     set(test_sources ${test_sources}
         ContractionLibraryLoading_test.cpp
+        llvm/ArithmeticUnitPredicate_test.cpp
+        llvm/DeterministicModePredicate_test.cpp
+        llvm/KernelLanguagePredicate_test.cpp
         llvm/LLVMYAMLContraction_test.cpp
         llvm/LibraryPerformance_test.cpp
         )
@@ -164,7 +166,9 @@ if(TENSILE_USE_LLVM)
 endif()
 
 if(TENSILE_USE_HIP)
+    target_link_libraries(TensileTests PRIVATE "-Xlinker --whole-archive")
     target_link_libraries(TensileTests PUBLIC ${HIP_TEST_LIBRARIES})
+    target_link_libraries(TensileTests PRIVATE "-Xlinker --no-whole-archive")
     foreach(arch IN LISTS TENSILE_GPU_ARCHS)
         target_link_libraries(TensileTests PRIVATE "--amdgpu-target=${arch}")
     endforeach(arch)

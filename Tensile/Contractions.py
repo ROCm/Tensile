@@ -301,7 +301,31 @@ class ProblemPredicate(Properties.Predicate):
                 rv += [cls('LeadingFreeSizesGreaterOrEqual', value=state['GlobalReadVectorWidth'])]
 
         if "LdcEqualsLdd" not in state or state["LdcEqualsLdd"] == True:
-            rv += [cls("CDStridesEqual")]
+            rv += [cls("CDStridesEqual", value = True)]
+        else:
+            rv += [cls("CDStridesEqual", value = False)]
+
+        if "KernelLanguage" in state and state["KernelLanguage"] == "Assembly":
+            rv += [ super().Or( \
+                [ cls("KernelLanguage", value = "Any"), \
+                  cls("KernelLanguage", value = "Assembly") ] ) ]
+        elif "KernelLanguage" in state and state["KernelLanguage"] == "Source":
+            rv += [ super().Or( \
+                [ cls("KernelLanguage", value = "Any"), \
+                  cls("KernelLanguage", value = "Source") ] ) ]
+
+        if 'GlobalSplitU' in state and state['GlobalSplitU'] > 1:
+            rv += [cls("DeterministicMode", value = False)]
+
+        if ("MatrixInstruction" in state and state["MatrixInstruction"]) or \
+           ("EnableMatrixInstruction" in state and state["EnableMatrixInstruction"] is True):
+            rv += [ super().Or( \
+                [ cls("ArithmeticUnit", value = "Any"), \
+                  cls("ArithmeticUnit", value = "MFMA") ] ) ]
+        else:
+            rv += [ super().Or( \
+                [ cls("ArithmeticUnit", value = "Any"), \
+                  cls("ArithmeticUnit", value = "VALU") ] ) ]
 
         return rv
 

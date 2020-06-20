@@ -68,7 +68,10 @@ import abc
 import collections
 import inspect
 
-def PartialMatch(pattern, obj):
+def PartialMatch(pattern, obj, debug=False, level=0):
+    indent = "    " * level
+    if debug and level == 0:
+        print("")
     for key, value in pattern.items():
         if key not in obj:
             return False
@@ -76,13 +79,21 @@ def PartialMatch(pattern, obj):
         objValue = obj[key]
         if isinstance(value, collections.abc.Mapping) and \
            isinstance(objValue, collections.abc.Mapping):
-           if not PartialMatch(value, objValue):
+           if debug: print("{indent}{key}".format(indent=indent, key=key))
+           if not PartialMatch(value, objValue, debug, level+1):
                return False
         elif hasattr(value, "__call__"):
-            return value(objValue)
+            if not value(objValue):
+                if debug:
+                    print("{indent}{key}({objValue}) == False ({value})".format(indent=indent, value=value, objValue=objValue, key=key))
+                return False
         elif value != objValue:
+            if debug:
+                print("{indent}{value} != {objValue}".format(indent=indent, value=value, objValue=objValue))
             return False
 
+    if debug:
+        print("{indent}: True".format(indent=indent))
     return True
 
 class ComponentMeta(abc.ABCMeta):
@@ -105,7 +116,7 @@ class Component(metaclass=ComponentMeta):
     """
 
     @classmethod
-    def matches(cls, writer):
+    def matches(cls, writer, debug=False):
         if hasattr(cls, "versions"):
             if not writer.version in cls.versions:
                 return False
@@ -113,7 +124,7 @@ class Component(metaclass=ComponentMeta):
         attrs = ["asmCaps", "archCaps", "kernel"]
         for attr in attrs:
             if hasattr(cls, attr):
-                if not PartialMatch(getattr(cls, attr), getattr(writer, attr)):
+                if not PartialMatch(getattr(cls, attr), getattr(writer, attr), debug):
                     return False
 
         return True
@@ -121,7 +132,7 @@ class Component(metaclass=ComponentMeta):
     @classmethod
     def findAll(cls, writer, *args, **kwargs):
         found = []
-        for key, impl in cls.implementations.items():
+        for _, impl in cls.implementations.items():
             if inspect.isabstract(impl):
                 found += impl.findAll(writer, *args, **kwargs)
             elif impl.matches(writer, *args, **kwargs):
