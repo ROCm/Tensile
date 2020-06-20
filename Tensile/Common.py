@@ -108,7 +108,7 @@ globalParameters["UnrollLoopEfficiencyEnable"] = False   # if True split(S) MAC&
 ########################################
 globalParameters["CMakeBuildType"] = "Release"            # whether benchmark clients and library client should be release or debug
 globalParameters["PrintSolutionRejectionReason"] = False  # when a solution is marked as invalid, print why
-globalParameters["YAML"] = False                          # whether to use the YAML backend (as opposed to the MessagePack backend)
+globalParameters["LibraryFormat"] = "yaml"                # set library backend (either yaml or msgpack)
 
 # how to initialize tensor data
 # serial-in-u will use a sequence that increments in the K dimension
@@ -164,7 +164,7 @@ globalParameters["MergeFiles"] = True             # F=store every solution and k
 globalParameters["MaxFileName"] = 128 # If a file name would be longer than this, shorten it with a hash.
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (10,1,0), (10,1,1)]             # assembly kernels writer supports these architectures
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
-globalParameters["NewClient"] = 1                                 # 1=Run old+new client, 2=run new client only (All In)
+globalParameters["NewClient"] = 2                                 # 1=Run old+new client, 2=run new client only (All In)
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
