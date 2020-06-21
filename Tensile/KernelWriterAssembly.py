@@ -348,6 +348,7 @@ class RegisterPool:
           print(self.state())
         raise RuntimeError("RegisterPool::checkFinalState: temp (%s, '%s') was never checked in." \
             %(si, self.pool[si].tag))
+    print2("total vgpr count: %u\n"%self.size())
 
   ########################################
   # State
@@ -690,6 +691,10 @@ class KernelWriterAssembly(KernelWriter):
       self.labels[name] = "%s_%u" % (name, len(self.labels))
     return self.labels[name]
 
+  ########################################
+  # return label name that is always unique
+  # useful when trying to re-use subroutines that create labels
+  ########################################
   def getNamedLabelUnique(self, name):
     key = name + "_" + str(len(self.labels))
     self.labels[key] = key
@@ -1860,6 +1865,7 @@ class KernelWriterAssembly(KernelWriter):
                                  printRP=self.db["PrintRP"])
     #print self.vgprPool.state()
     self.savedVgprPool = None
+    self.savedSgprPool = None
 
     # C regs are not used during initialization so mark them as available -
     # we will claim then just before the start of the unroll loop:
@@ -5364,7 +5370,7 @@ class KernelWriterAssembly(KernelWriter):
   def endSummation(self, kernel):
     kStr = ""
 
-    kStr += "%s:\n" % self.getNamedLabel("Summation_End")
+    kStr += "%s:\n" % self.getNamedLabelUnique("Summation_End")
 
     if self.overlapVgprC:
       # After summation loop, valuC is due for Acc->Arch read and is thus locked out.
@@ -5754,11 +5760,17 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cbranch_scc0 %s"%skipOptNLL, \
           "skip if tail loop required")
 
-      # OptNLL has no tail loop so can reclaim some regs here -
-      # we need these to do the address calcs for the stores, etc
       # save the vgprPool for generating the normal path.
+      # dump the 'dirty' pool upon s_endpgm and swap back the 'clean' pool
+      # so we can avoid explicit vgpr check-in/out
       self.savedVgprPool = deepcopy(self.vgprPool)
+      self.savedSgprPool = deepcopy(self.sgprPool)
 
+      # comment out the following codes that attempt to reduce vgpr consumption
+      # however, the kernel vgpr count is governed by peak vgpr consumption so saving
+      # a few here shouldn't affect kernel's overall vgpr consumption.
+      # the following code is for reference and will be removed in the future
+      """
       if self.overlapVgprC:
         return kStr # exit early since they are already in the pool
 
@@ -5782,6 +5794,7 @@ class KernelWriterAssembly(KernelWriter):
         added.append(self.vgprPool.addRange(self.startVgprGlobalReadAddressesA, \
             self.startVgprGlobalReadAddressesB, "startOptNLL"))
       kStr += self.comment("reclaim VGPRS: " + ", ".join(added))
+      """
 
     return kStr
 
@@ -5792,25 +5805,15 @@ class KernelWriterAssembly(KernelWriter):
     if not prefetch:
       if isOptNLL:
         kStr += self.comment1("Stores for OptNLL")
-        self.getNamedLabel("Summation_End")
-
-        # add copyback if required
-        if kernel["EnableMatrixInstruction"]:
-          instCycles = kernel["MatrixInstM"] // 2 # 32x32 is 64 cycles, 16x16 is 32 cycles, 4x4 is 8 cycles
-          kStr += "s_nop %u\n" % instCycles
-          ##for i in range(0, self.totalAgprs):
-          ##  kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%i), "acc%u"%i, "copy areg to vreg")
-          kStr += self.MapAcctoArchRegs(kernel,option=0) # begin locking c-tile vregs from register pool
+        kStr += self.endSummation(kernel)
 
         # perhaps could work with LSU>1 by adding other indices here, but not tested
-        # had to move it below MapAcctoArchRegs(), else computeStoreVgprs() will check out c-tile vregs as
-        # temp vregs which soon gets utilized by c-tile and guarantees aliasing troubles
         assert (kernel["LocalSplitU"] == 1)
         kStr += self.notLocalSplitUGlobalWriteIndices(kernel)
 
         # add stores for opt NLL
         (fullVw, elements) = self.notLocalFullTileElements(kernel, False)
-        kStr += self.globalWriteElements(kernel, [fullVw], [elements], betas=[False], edges=[False])
+        kStr += self.globalWriteElements(kernel, [fullVw], [elements], applyAlpha=False, betas=[False], edges=[False])
 
         self.cleanupGlobalWrite(kernel)
         kStr += "\n"
@@ -5822,6 +5825,7 @@ class KernelWriterAssembly(KernelWriter):
       else:
         label = self.getLabelNum("PrefetchGlobalLastIterEnd")
         kStr += "label_%04u:%s" % (label, self.endLine)
+    # swap back vgpr pool if any
     if self.savedVgprPool != None:
       # in case pool size in current path is larger than pool size in main path
       # and it will miss allocate vgpr since allocating vgpr is based on pool size in main path
@@ -5832,6 +5836,17 @@ class KernelWriterAssembly(KernelWriter):
           self.savedVgprPool.pool.append(self.savedVgprPool.Register(RegisterPool.Status.Available,"restore vgprPool"))
       self.vgprPool = self.savedVgprPool # restore vgprPool before alternate path
       self.savedVgprPool = None
+    # swap back sgpr pool if any
+    if self.savedSgprPool != None:
+      # in case pool size in current path is larger than pool size in main path
+      # and it will miss allocate vgpr since allocating vgpr is based on pool size in main path
+      oldSize = self.savedSgprPool.size()
+      newSize = self.sgprPool.size()
+      if newSize > self.savedSgprPool.size():
+        for i in range(oldSize-1,newSize):
+          self.savedSgprPool.pool.append(self.savedSgprPool.Register(RegisterPool.Status.Available,"restore sgprPool"))
+      self.sgprPool = self.savedSgprPool # restore vgprPool before alternate path
+      self.savedSgprPool = None
     return kStr
 
   ##############################################################################
@@ -9696,7 +9711,10 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Global Write Elements
   ##############################################################################
-  def globalWriteElements(self, kernel, vectorWidths, elements, betas=None, edges=None):
+  def globalWriteElements(self, kernel, vectorWidths, elements,
+                          applyAlpha=True, # defaults to generating *=alpha codes
+                          betas=None, # if left unspecified, then let global parameter decide
+                          edges=None):
     if not self.do["PostLoop"]: return ""
     kStr = ""
     atomic = kernel["GlobalSplitU"] > 1
@@ -9925,7 +9943,7 @@ class KernelWriterAssembly(KernelWriter):
         # check best numElementsPerBatch to handle a column block
         # elements of column block must be multiple size of numElementsPerBatch
         if kernel["StoreRemapVectorWidth"]:
-          firstRow = [e for e in elements[edgeI] if e[0]==0 and e[2]==0]
+          firstRow = [e for e in elements[edgeI] if e[0]==0 and e[2]==0] # format for element = (tt1, tt0, vc1, vc0)
           # find the largest factor and smaller than numElementPerBatch
           nBatchesPerRow = 1
           for d in range(1, len(firstRow)+1):
@@ -9970,7 +9988,7 @@ class KernelWriterAssembly(KernelWriter):
             #Indication if this batch is last batch for this column block shape
             self.StoreRemapLastBatch = 1 if (batchIdx+1) % nBatchesPerRow == 0 else 0
 
-          kStr += self.globalWriteBatch(kernel, self.ss, batchIdx, beta, edge, atomic, gwvw, atomicW, \
+          kStr += self.globalWriteBatch(kernel, self.ss, batchIdx, applyAlpha, beta, edge, atomic, gwvw, atomicW, \
               elementsThisBatch, self.coord0, self.coord1, self.addrD, self.addrC, \
               tmpVgpr, \
               elementSgprs, tmpSgpr, codeAccVgprRead)
@@ -10228,9 +10246,9 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Global Write Batch
   ##############################################################################
-  def globalWriteBatch(self, kernel, ss, batchIdx, beta, edge, atomic, gwvw, atomicW, \
-      batchElements, coord0, coord1, addrD, addrC,  \
-      tmpVgpr, batchElementSgprs, tmpSgpr, codeAccVgprRead=None):
+  def globalWriteBatch(self, kernel, ss, batchIdx, applyAlpha, beta, edge, atomic, gwvw, atomicW, \
+      batchElements, coord0, coord1, addrD, addrC, \
+      tmpVgpr, batchElementSgprs, tmpSgpr, codeAccVgprRead):
     kStr = ""
 
     kStr += self.comment1("optSingleColVgpr=%u optSharedColVgpr=%u optSharedMask=%u optSrdIncForRow=%u" % \
@@ -10390,7 +10408,7 @@ class KernelWriterAssembly(KernelWriter):
                     extraFields=extraFields, \
                     comment="load C for beta calc").toStr()
 
-      if kernel["InterleaveAlpha"]:
+      if kernel["InterleaveAlpha"] and applyAlpha:
         kStr += self.applyAlpha(kernel, gwvw, ss.elementSumIdx, elementIdx, tmpS01)
 
       if not kernel["LdcEqualsLdd"]:
@@ -10410,7 +10428,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # rC *= alpha
-    if not kernel["InterleaveAlpha"]:
+    if not kernel["InterleaveAlpha"] and applyAlpha:
       kStr += self.comment("rC *= alpha batchEements=%s"%batchElements)
       for elementIdx in range(0, len(batchElements)):
         kStr += self.applyAlpha(kernel, gwvw, ss.elementSumIdx, elementIdx, tmpS01)
