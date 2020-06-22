@@ -101,8 +101,8 @@ if(TENSILE_USE_HIP)
 
 endif()
 
-if(Tensile_YAML)
-    target_compile_definitions(TensileHost PUBLIC TENSILE_YAML)
+if(Tensile_LIBRARY_FORMAT MATCHES "yaml")
+    target_compile_definitions(TensileHost PUBLIC -DTENSILE_YAML=1)
 endif()
 
 if(false)

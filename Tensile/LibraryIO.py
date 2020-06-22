@@ -171,8 +171,8 @@ def readLibraryLogicForSchedule( filename ):
 # Data-specific writers
 ################################################################################
 
-def configWriter(isYaml = True):
-  return YAMLWriter() if isYaml else MessagePackWriter()
+def configWriter(libraryFormat = "yaml"):
+  return YAMLWriter() if libraryFormat == "yaml" else MessagePackWriter()
 
 class Writer:
   def write(self, filename, data):

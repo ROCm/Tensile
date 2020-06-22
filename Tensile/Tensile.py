@@ -118,6 +118,8 @@ def addCommonArguments(argParser):
       help="kernels and solutions written to individual files")
   argParser.add_argument("--cxx-compiler", dest="CxxCompiler", choices=["hcc", "hipcc"], \
       action="store", default="hipcc", help="select which compiler to use")
+  argParser.add_argument("--library-format", dest="LibraryFormat", choices=["yaml", "msgpack"], \
+      action="store", default="yaml", help="select which library format to use")
   argParser.add_argument("--client-build-path", default=None)
   argParser.add_argument("--client-lock", default=None)
 
@@ -205,9 +207,11 @@ def Tensile(userArgs):
   print1("# Restoring default globalParameters")
   restoreDefaultGlobalParameters()
 
-  # CxxCompiler needs to be updated before assignGlobalParameters.
+  # CxxCompiler and LibraryFormat needs to be updated before assignGlobalParameters.
   if args.CxxCompiler:
     globalParameters['CxxCompiler'] = args.CxxCompiler
+  if args.LibraryFormat:
+      globalParameters['LibraryFormat'] = args.LibraryFormat
 
   # read config
   config = LibraryIO.readConfig( configPath )
