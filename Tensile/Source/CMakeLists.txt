@@ -195,11 +195,6 @@ else()
     endif()
 
     ###############################################################################
-    if( Tensile_LIBRARY_FORMAT MATCHES "yaml" )
-      target_compile_definitions( ${ClientName} PUBLIC -DTENSILE_YAML=1)
-    endif()
-
-    ###############################################################################
     # Create Tensile Library
     if(NOT Tensile_CLIENT_BENCHMARK)
       set( PACKAGE_TENSILE_LIBRARY OFF )
