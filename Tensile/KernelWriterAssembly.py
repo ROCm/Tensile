@@ -5833,18 +5833,13 @@ class KernelWriterAssembly(KernelWriter):
           addrCalc = ss.elementAddr[elementIdx]
           sumIdx = ss.elementSumIdx[elementIdx]
 
-          if kernel["StoreRemapVectorWidth"] and elementIdx == 0:
-            self.storeRemapStartSumIdx = sumIdx
-
           if ss.optSrdIncForRow and addrCalc.rowInc and kernel["StoreRemapVectorWidth"]:
             kStr += self.comment("StoreRemap: handle local read and global write")
-            self.storeRemapEndSumIdx = sumIdx
             kStr += self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpSgpr, edge=False)
             kStr += addrCalc.incrementToNextRow(kernel, "D", ss, tmpSgpr)
             kStr += inst("v_mov_b32", vgpr(tmpVgpr), addrCalc.rowInc, "set shift rows")
             kStr += inst("v_add_u32", vgpr(self.storeRemapCoord1), vgpr(self.storeRemapCoord1), vgpr(tmpVgpr), \
                 "shift storeRemap coord1")
-            self.storeRemapStartSumIdx = sumIdx
 
           # pack stores, beta and non-beta reach here:
           for vi in range(0, fullVw):
@@ -5876,7 +5871,6 @@ class KernelWriterAssembly(KernelWriter):
             kStr += self.storeRemapAddLocalWrite(kernel, ss, addrCalc, sumIdx)
             if elementIdx == (len(elements)-1):
               kStr += self.comment("StoreRemap: last local read and global write")
-              self.storeRemapEndSumIdx = sumIdx+fullVw
               kStr += self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpSgpr, edge=False)
 
         if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
@@ -8603,18 +8597,16 @@ class KernelWriterAssembly(KernelWriter):
     kStr += "\n"
 
     gwvw = kernel["StoreRemapVectorWidth"]
-    startIdx = self.storeRemapStartSumIdx
-    endIdx = self.storeRemapEndSumIdx
+    nElements = kernel["MacroTile0"]*kernel["MatrixInstN"]//kernel["MIWaveGroup"][0]//globalParameters["WavefrontWidth"]
     bpe = kernel["ProblemType"]["DataType"].numBytes()
     bps = kernel["ProblemType"]["DataType"].numBytes() * gwvw
     rpe = kernel["ProblemType"]["DataType"].numRegisters()
     rpv = kernel["ProblemType"]["DataType"].numRegisters() * gwvw
 
     src = vgpr(self.storeRemapLR)
-    for i in range (startIdx, endIdx, gwvw):
-      offset = self.storeRemapLrOffset * kernel["ProblemType"]["DataType"].numBytes() \
-          * ((i-startIdx)//gwvw)
-      dst = vgpr((i-startIdx), rpv)
+    for i in range (0, nElements, gwvw):
+      offset = self.storeRemapLrOffset * bpe * (i//gwvw)
+      dst = vgpr(i, rpv)
       if bps==4:
         kStr += inst("ds_read_b32", dst, src, "offset:%u"%offset, "storeRemap lr")
       elif bps==8:
@@ -8639,29 +8631,29 @@ class KernelWriterAssembly(KernelWriter):
     addr0 = vgpr(vTmp)
 
     if not edge:
-      for i in range (startIdx, endIdx, gwvw):
-        if i == startIdx:
+      for i in range (0, nElements, gwvw):
+        if i == 0:
           kStr += inst("v_mov_b32", addr0, vgpr(self.storeRemapOffsetCoord1), "coord1")
         else:
-          currentStep = (i-startIdx)//gwvw
+          currentStep = i//gwvw
           kStr += inst("v_add_u32", addr0, vgpr(self.storeRemapOffsetCoord1), self.storeRemapNCPL * currentStep , "coord1 += nColPerLoad")
 
         kStr += inst("v_mul_lo_u32", addr0, addr0, sgpr(strideC1), "coord1 offset =  coord1 * StrideC")
         kStr += inst("_v_add_lshl_u32", addr0, addr0,  vgpr(self.storeRemapCoord0), hex(log2(bpe)), "global write C address")
 
-        lgkmcnt = min((endIdx-i)//gwvw - 1, 15)
+        lgkmcnt = min((nElements-i)//gwvw - 1, 15)
         kStr += inst("s_waitcnt", "lgkmcnt(%u)"% lgkmcnt, "wait for LDS read" )
 
-        kStr += self.chooseGlobalWrite(True, bps, (i-startIdx), rpv, addr0, addr1, 0, ntStr)
+        kStr += self.chooseGlobalWrite(True, bps, i, rpv, addr0, addr1, 0, ntStr)
     else:
       tmpS23 = tmpS01+2
       coord0 = tmpVgpr
       coord1 = coord0+1
-      for i in range (startIdx, endIdx, gwvw):
+      for i in range (0, nElements, gwvw):
         for vi in range (0,gwvw):
 
           if vi == 0:
-            lgkmcnt = min((endIdx-i)//gwvw - 1, 15)
+            lgkmcnt = min((nElements-i)//gwvw - 1, 15)
             kStr += inst("s_waitcnt", "lgkmcnt(%u)"% lgkmcnt, "wait for LDS read" )
 
           sizeBoundary = [0,0]
@@ -8671,7 +8663,7 @@ class KernelWriterAssembly(KernelWriter):
           sizeBoundary[1] = \
               sgpr("PackedSize1") if len(kernel["PackedC1IndicesX"]) > 1 \
               else self.sizeRef(kernel["ProblemType"]["Index1"])
-          currentStep = (i-startIdx)//gwvw
+          currentStep = i//gwvw
 
           # calculate global coordination
           kStr += inst("v_add_u32", vgpr(coord1), vgpr(self.storeRemapCoord1), self.storeRemapNCPL * currentStep , "coord1 += nColPerLoad")
@@ -8687,7 +8679,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("_v_add_lshl_u32", addr0, addr0,  vgpr(coord0), hex(log2(bpe)), "scale to BPE")
           kStr += inst("v_cndmask_b32", addr0, -1, addr0, sgpr(tmpS23,2), "clip if OOB. offset" )
 
-          sumIdx = (i-startIdx)+ int(vi*rpe)
+          sumIdx = i + int(vi*rpe)
           kStr += self.chooseGlobalWrite(True, bpe, sumIdx, rpe, addr0, addr1, 0, ntStr, hi16=vi%2)
 
     kStr += "\n"
@@ -9963,14 +9955,17 @@ class KernelWriterAssembly(KernelWriter):
           firstRow = [e for e in elements[edgeI] if e[0]==0 and e[2]==0]
           numElementsPerBatch=min(len(firstRow),numElementsPerBatch)
 
-        # hack to avoid modifing local write address across rows to support shiftPtr in storeRemap
-        if kernel["StoreRemapVectorWidth"] and edge and not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB:
+        # check best numElementsPerBatch to handle a column block
+        # elements of column block must be multiple size of numElementsPerBatch
+        if kernel["StoreRemapVectorWidth"]:
           firstRow = [e for e in elements[edgeI] if e[0]==0 and e[2]==0]
           # find the largest factor and smaller than numElementPerBatch
+          nBatchesPerRow = 1
           for d in range(1, len(firstRow)+1):
             largestFactor = len(firstRow)//d
             if len(firstRow)%d == 0 and largestFactor <= numElementsPerBatch:
               numElementsPerBatch = largestFactor
+              nBatchesPerRow = d
               break
 
         # if no atomics and no edge, then write whole vectors
@@ -10005,11 +10000,8 @@ class KernelWriterAssembly(KernelWriter):
           # VGPRS.  We do not want to accidentally overflow and grow the pool here:
 
           if kernel["StoreRemapVectorWidth"]:
-            #Indication if this batch last batch
-            self.StoreRemapLastBatch = 1 if batchIdx == (numBatches-1) else 0
-            #Reset Start Sum index when first batch
-            if batchIdx == 0:
-              self.storeRemapStartSumIdx = 0
+            #Indication if this batch is last batch for this column block shape
+            self.StoreRemapLastBatch = 1 if (batchIdx+1) % nBatchesPerRow == 0 else 0
 
           kStr += self.globalWriteBatch(kernel, self.ss, batchIdx, beta, edge, atomic, gwvw, atomicW, \
               elementsThisBatch, self.coord0, self.coord1, self.addrD, self.addrC, \
@@ -10767,14 +10759,10 @@ class KernelWriterAssembly(KernelWriter):
         # Already write wave column block into LDS
         # Now read lds data back to registers and write to global memroy
         if ss.optSrdIncForRow and addrCalc.rowInc and kernel["StoreRemapVectorWidth"] > 0:
-          kStr += self.comment("StoreRemap: process local read and global write")
-          self.storeRemapEndSumIdx = sumIdx
-          kStr += self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpS01, edge)
+          kStr += self.comment("StoreRemap: shift coord1 address")
           kStr += addrCalc.incrementToNextRow(kernel, "D", ss, tmpS01)
           kStr += inst("v_mov_b32", vgpr(tmpVgpr), addrCalc.rowInc, "set shift rows")
           kStr += inst("v_add_u32", vgpr(self.storeRemapCoord1), vgpr(self.storeRemapCoord1), vgpr(tmpVgpr), "shift storeRemap coord1")
-          self.storeRemapStartSumIdx = sumIdx
-          storesIssued += 1
 
         # apply in-bounds exec mask
         if edge and not kernel["BufferStore"]:
@@ -10904,10 +10892,10 @@ class KernelWriterAssembly(KernelWriter):
           storesIssued += 1
         else:
           kStr += self.storeRemapAddLocalWrite(kernel, ss, addrCalc, sumIdx)
-          # Handle last wave column block
+          # Column Block Shape has been written to LDS
+          # Now read back and write out to global memory
           if self.StoreRemapLastBatch == 1 and (elementIdx == len(batchElements)-1):
-            kStr += self.comment("last local read and global write")
-            self.storeRemapEndSumIdx = sumIdx+gwvw
+            kStr += self.comment("Handle local read and global write")
             kStr += self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpS01, edge)
             storesIssued += 1
 
