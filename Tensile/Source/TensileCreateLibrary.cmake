@@ -177,8 +177,4 @@ function(TensileCreateLibraryCmake
     endif()
   endif()
 
-  if(Tensile_LIBRARY_FORMAT MATCHES "yaml")
-      target_compile_definitions( Tensile PUBLIC -DTENSILE_YAML=1)
-  endif()
-
 endfunction()
