@@ -108,7 +108,7 @@ globalParameters["UnrollLoopEfficiencyEnable"] = False   # if True split(S) MAC&
 ########################################
 globalParameters["CMakeBuildType"] = "Release"            # whether benchmark clients and library client should be release or debug
 globalParameters["PrintSolutionRejectionReason"] = False  # when a solution is marked as invalid, print why
-globalParameters["YAML"] = False                          # whether to use the YAML backend (as opposed to the MessagePack backend)
+globalParameters["LibraryFormat"] = "yaml"                # set library backend (either yaml or msgpack)
 
 # how to initialize tensor data
 # serial-in-u will use a sequence that increments in the K dimension
