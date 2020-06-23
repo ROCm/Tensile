@@ -2063,6 +2063,14 @@ class Solution:
     state["UnrollMajorLDSA"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUA"])
     state["UnrollMajorLDSB"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUB"])
 
+    if state["LdsBlockSizePerPad"] == -1:
+      if state["MatrixInstruction"] and state["TransposeLDS"]:
+        state["LdsBlockSizePerPad"] = 128
+        if state["DepthU"]*state["ProblemType"]["DataType"].numBytes() > state["LdsBlockSizePerPad"]:
+          state["LdsBlockSizePerPad"] = int(2**(math.ceil(math.log(state["DepthU"]*state["ProblemType"]["DataType"].numBytes(), 2))))
+      else:
+        state["LdsBlockSizePerPad"] = 0
+
     state["LdsBlockSizePerPadA"] = state["LdsBlockSizePerPad"] if state["UnrollMajorLDSA"] else 0
     state["LdsBlockSizePerPadB"] = state["LdsBlockSizePerPad"] if state["UnrollMajorLDSB"] else 0
 
@@ -2173,15 +2181,17 @@ class Solution:
         reject(state, "Matrix instructions for half types are natively accumulated" + \
          " in fp32 precision. Please add the following config:" + \
          "\n - HighPrecisionAccumulate: True")
-      if state["LdsBlockSizePerPadA"] != 0 and state["UnrollMajorLDSA"] == False:
-        reject(state, "didn't support LdsBlockSizePerPadA on tile major LDS yet")
-        if state["LdsBlockSizePerPadA"] < state["DepthU"]:
-          reject(state, "reject: DepthU %u > LdsBlockSizePerPadA %u" % (state["DepthU"], state["LdsBlockSizePerPad"]))
+      if state["LdsBlockSizePerPadA"]:
+        if not state["UnrollMajorLDSA"]:
+          reject(state, "didn't support LdsBlockSizePerPadA on tile major LDS yet")
+        if state["LdsBlockSizePerPadA"] < state["DepthU"]*state["ProblemType"]["DataType"].numBytes():
+          reject(state, "reject: DepthU %u x bpe > LdsBlockSizePerPadA %u" % (state["DepthU"], state["LdsBlockSizePerPad"]))
 
-      if state["LdsBlockSizePerPadB"] != 0 and state["UnrollMajorLDSB"] == False:
-        reject(state, "didn't support LdsBlockSizePerPadB on tile major LDS yet")
-        if state["LdsBlockSizePerPadB"] < state["DepthU"]:
-          reject(state, "reject: DepthU %u > LdsBlockSizePerPadB %u" % (state["DepthU"], state["LdsBlockSizePerPad"]))
+      if state["LdsBlockSizePerPadB"]:
+        if not state["UnrollMajorLDSB"]:
+          reject(state, "didn't support LdsBlockSizePerPadB on tile major LDS yet")
+        if state["LdsBlockSizePerPadB"] < state["DepthU"]*state["ProblemType"]["DataType"].numBytes():
+          reject(state, "reject: DepthU %u x bpe > LdsBlockSizePerPadB %u" % (state["DepthU"], state["LdsBlockSizePerPad"]))
     else:
       if state["UnrollMajorLDSA"] or state["UnrollMajorLDSB"]:
         reject(state, "didn't support UnrollMajorLDS in VALU mode yet")
@@ -2684,18 +2694,6 @@ class Solution:
 
     if (state["UnrollMajorLDSA"] or state["UnrollMajorLDSB"]) and (not state["EnableMatrixInstruction"]):
         reject(state, "UnrollMajorLDS Supports only in EnableMatrixInstruction=1")
-
-    if state["LdsBlockSizePerPadA"] == -1:
-      if state["EnableMatrixInstruction"] and state["UnrollMajorLDSA"]:
-        state["LdsBlockSizePerPadA"] = 256
-      else:
-        state["LdsBlockSizePerPadA"] = 0
-
-    if state["LdsBlockSizePerPadB"] == -1:
-      if state["EnableMatrixInstruction"] and state["UnrollMajorLDSB"]:
-        state["LdsBlockSizePerPadA"] = 256
-      else:
-        state["LdsBlockSizePerPadB"] = 0
 
     if state["LocalReadVectorWidth"] != -1:
       if (state["UnrollMajorLDSA"] == False or state["UnrollMajorLDSB"] == False):
