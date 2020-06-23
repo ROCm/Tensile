@@ -103,14 +103,23 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     lastLoadIter = 0
     if kernel["EnableMatrixInstruction"] and kernel["ScheduleIterAlg"] == 3:
+      numMfmaPerIter = kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] * kernel["InnerUnroll"]
       # Can locally overrid these ######
       # number of mfma between last localWrite and barrier
       numMfmaBetweenLWandBarrier = 1 if kernel["MatrixInstM"] == 32 else 2
-      # number of instructions between 2 mfma, currently we insert 2 instructions only when TN+TLDS, because NT and NN have too many instructions between mfma
+      # number of global read instructions between 2 mfma
       self.numGlobalReadInsPerMfma = 2 if kernel["MatrixInstM"] == 32 and not kernel["ProblemType"]["TLUA"] and not kernel["ProblemType"]["TLUB"] and kernel["TransposeLDS"] else 1
-      self.numLocalWriteModPerMfma = 2 if kernel["MatrixInstM"] == 32 and not kernel["ProblemType"]["TLUA"] and not kernel["ProblemType"]["TLUB"] and kernel["TransposeLDS"] else 1
+      MatrixInstructionLatency = kernel["MatrixInstM"] // 2 - 2
+      LocalWriteLatency = tensorParametersA["localWriteInstruction"].IssueLatency*2
+      numReadPerVectorA = tensorParametersA["bpe"] * kernel["ProblemType"]["DataType"].numMIInput() // int(tensorParametersA["localReadInstruction"].blockWidth * 4)
+      numReadPerVectorB = tensorParametersB["bpe"] * kernel["ProblemType"]["DataType"].numMIInput() // int(tensorParametersB["localReadInstruction"].blockWidth * 4)
+      numA = kernel["InnerUnroll"]*(kernel["MIWaveTile"][0] * numReadPerVectorA) // tensorParametersA["localReadInstruction"].numOffsets
+      numB = kernel["InnerUnroll"]*(kernel["MIWaveTile"][1] * numReadPerVectorB) // tensorParametersB["localReadInstruction"].numOffsets
+      readsPerIter = numA + numB
+      readsLatency = roundUp(readsPerIter / numMfmaPerIter)*2
+      # number of local write instructions between 2 mfma
+      self.numLocalWriteModPerMfma = max((MatrixInstructionLatency - readsLatency)//(LocalWriteLatency+1),1)
       ##################################
-      numMfmaPerIter = kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] * kernel["InnerUnroll"]
       numGlobalReadInsPerIter = numMfmaPerIter * self.numGlobalReadInsPerMfma
       numLocalWriteModPerIter = numMfmaPerIter * self.numLocalWriteModPerMfma
       # if numGlobalReadInsPerMfma>1, we still want to schedule only 1 GlobalReadIncCode per mfma
