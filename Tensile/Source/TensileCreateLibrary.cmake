@@ -30,6 +30,7 @@ function(TensileCreateLibraryCmake
     Tensile_COMPILER
     Tensile_CODE_OBJECT_VERSION
     Tensile_ARCHITECTURE
+    Tensile_LIBRARY_FORMAT
     Tensile_MERGE_FILES
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG )
@@ -49,6 +50,7 @@ function(TensileCreateLibraryCmake
   message(STATUS "Tensile_CODE_OBJECT_VERSION from TensileCreateLibraryCmake : ${Tensile_CODE_OBJECT_VERSION}")
   message(STATUS "Tensile_COMPILER            from TensileCreateLibraryCmake : ${Tensile_COMPILER}")
   message(STATUS "Tensile_ARCHITECTURE        from TensileCreateLibraryCmake : ${Tensile_ARCHITECTURE}")
+  message(STATUS "Tensile_LIBRARY_FORMAT      from TensileCreateLibraryCmake : ${Tensile_LIBRARY_FORMAT}")
 
   execute_process(COMMAND chmod 755 ${Tensile_ROOT}/bin/TensileCreateLibrary)
   execute_process(COMMAND chmod 755 ${Tensile_ROOT}/bin/Tensile)
@@ -85,13 +87,10 @@ function(TensileCreateLibraryCmake
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-library-print-debug")
   endif()
 
-  if(${Tensile_YAML})
-    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--yaml")
-  endif()
-
   set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--architecture=${Tensile_ARCHITECTURE}")
   set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--code-object-version=${Tensile_CODE_OBJECT_VERSION}")
   set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--cxx-compiler=${Tensile_COMPILER}")
+  set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--library-format=${Tensile_LIBRARY_FORMAT}")
 
   # TensileLibraryWriter positional arguments
   set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND}

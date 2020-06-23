@@ -1023,12 +1023,14 @@ def TensileCreateLibrary():
   argParser.add_argument("--embed-library-key",      dest="EmbedLibraryKey", default=None,
                          help="Access key for embedding library files.")
   argParser.add_argument("--version", help="Version string to embed into library file.")
-  argParser.add_argument("--yaml", action="store_true", help="Use YAML format for writing")
+  argParser.add_argument("--library-format", dest="LibraryFormat", choices=["yaml", "msgpack"], \
+      action="store", default="msgpack", help="select which library format to use")
   args = argParser.parse_args()
 
   logicPath = args.LogicPath
   outputPath = args.OutputPath
   CxxCompiler = args.CxxCompiler
+  libraryFormat = args.LibraryFormat
   print2("OutputPath: %s" % outputPath)
   ensurePath(outputPath)
   arguments = {}
@@ -1041,6 +1043,7 @@ def TensileCreateLibrary():
   arguments["LibraryPrintDebug"] = args.LibraryPrintDebug
   arguments["CodeFromFiles"] = False
   arguments["EmbedLibrary"] = args.EmbedLibrary
+  arguments["LibraryFormat"] = args.LibraryFormat
   if args.no_enumerate:
     arguments["ROCmAgentEnumeratorPath"] = False
   arguments["PackageLibrary"] = args.PackageLibrary
@@ -1053,6 +1056,7 @@ def TensileCreateLibrary():
   print1("# CodeObjectVersion from TensileCreateLibrary: %s" % arguments["CodeObjectVersion"])
   print1("# CxxCompiler       from TensileCreateLibrary: %s" % CxxCompiler)
   print1("# Architecture      from TensileCreateLibrary: %s" % arguments["Architecture"])
+  print1("# LibraryFormat     from TensileCreateLibrary: %s" % libraryFormat)
 
   if not os.path.exists(logicPath):
     printExit("LogicPath %s doesn't exist" % logicPath)
@@ -1185,8 +1189,8 @@ def TensileCreateLibrary():
              if globalParameters["AsmCaps"][arch]["SupportedISA"]]
   newLibraryDir = ensurePath(os.path.join(outputPath, 'library'))
 
-  libraryWriter = LibraryIO.configWriter(args.yaml)
-  tensileLibraryFilename = "TensileLibrary.yaml" if args.yaml or globalParameters["YAML"] \
+  libraryWriter = LibraryIO.configWriter(args.LibraryFormat)
+  tensileLibraryFilename = "TensileLibrary.yaml" if args.LibraryFormat == "yaml" \
                            else "TensileLibrary.dat"
   if globalParameters["PackageLibrary"]:
     for archName, newMasterLibrary in masterLibraries.items():

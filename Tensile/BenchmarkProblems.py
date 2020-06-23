@@ -520,12 +520,12 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
       globalParameters["WorkingPath"], globalParameters["CxxCompiler"], [problemType], solutions, kernels, kernelsBetaOnly, \
       solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
 
-  newLibraryFilename = "TensileLibrary.yaml" if globalParameters["YAML"] else "TensileLibrary.dat"
+  newLibraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
   newLibraryDir = ensurePath(os.path.join(globalParameters["WorkingPath"], 'library'))
   newLibraryFile = os.path.join(newLibraryDir, newLibraryFilename)
   newLibrary = SolutionLibrary.MasterSolutionLibrary.BenchmarkingLibrary(solutions)
   newLibrary.applyNaming(kernelMinNaming)
-  LibraryIO.configWriter(globalParameters["YAML"]).write(newLibraryFile, Utils.state(newLibrary))
+  LibraryIO.configWriter(globalParameters["LibraryFormat"]).write(newLibraryFile, Utils.state(newLibrary))
 
   codeObjectFiles = [os.path.relpath(f, globalParameters["WorkingPath"]) for f in codeObjectFiles]
 
