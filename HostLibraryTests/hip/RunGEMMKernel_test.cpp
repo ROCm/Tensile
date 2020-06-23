@@ -579,7 +579,14 @@ std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
 
         for(auto file : envDir.glob("*.hsaco"))
         {
-            adapter->loadCodeObjectFile(file.native());
+            try
+            {
+                adapter->loadCodeObjectFile(file.native());
+            }
+            catch(std::logic_error & exc)
+            {
+                std::cout << "Logic error for file " << file.native() << std::endl;
+            }
         }
 
         rv.emplace_back(library, adapter, false);
