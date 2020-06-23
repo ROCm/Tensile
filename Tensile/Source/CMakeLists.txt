@@ -84,9 +84,6 @@ if(TENSILE_NEW_CLIENT)
     endif()
 
     export(TARGETS TensileHost NAMESPACE Tensile:: FILE TensileExports.cmake)
-    if(Tensile_LIBRARY_FORMAT MATCHES "yaml")
-      target_compile_definitions( TensileHost PUBLIC -DTENSILE_YAML=1)
-    endif()
 
 else()
 
@@ -195,10 +192,6 @@ else()
       if( Tensile_ENABLE_HALF )
         target_compile_definitions( ${ClientName} PUBLIC  -DTensile_ENABLE_HALF )
       endif()
-    endif()
-
-    if(Tensile_LIBRARY_FORMAT MATCHES "yaml")
-      target_compile_definitions( ${ClientName} PUBLIC -DTENSILE_YAML=1)
     endif()
 
     ###############################################################################
