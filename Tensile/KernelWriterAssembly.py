@@ -1702,14 +1702,16 @@ class KernelWriterAssembly(KernelWriter):
     for idxChar in kernel["PackedC1IdxChars"][:-1]:
       self.defineSgpr("MagicNumberSize%s"%idxChar, 1)
       self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
-    for tc in ('A', 'B'):
-      for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
-        (freeDim, sumDim, padStart, padEnd) = zp
-        freeDimChar = globalParameters["IndexChars"][freeDim]
-        sumDimChar  = globalParameters["IndexChars"][sumDim]
-        # These will eventually be read as kernel args:
-        self.defineSgpr("PadStart%s%s%s"%(tc, freeDimChar, sumDimChar),1)
-        self.defineSgpr("PadEnd%s%s%s"%(tc, freeDimChar, sumDimChar),1)
+    for idx in kernel["ProblemType"]["IndicesSummation"]:
+      for tc in ('A','B'):
+        for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
+          (freeDim, sumDim, padStart, padEnd) = zp
+          if sumDim == idx:
+            freeDimChar = globalParameters["IndexChars"][freeDim]
+            sumDimChar  = globalParameters["IndexChars"][sumDim]
+            # These will eventually be read as kernel args:
+            self.defineSgpr("PadStart%s%s%s"%(tc, freeDimChar, sumDimChar),1)
+            self.defineSgpr("PadEnd%s%s%s"%(tc, freeDimChar, sumDimChar),1)
     self.defineSgpr("OrigStaggerUIter", 1)  # Original stagger register.  Only needed for Persistent
     self.defineSgpr("NumWorkGroups0", 1)
     self.defineSgpr("NumWorkGroups1", 1)
