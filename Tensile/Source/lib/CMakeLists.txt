@@ -40,7 +40,6 @@ set(tensile_sources  ${tensile_sources}
     source/EmbeddedLibrary.cpp
     source/KernelArguments.cpp
     source/KernelLanguageTypes.cpp
-    source/MessagePack.cpp
     source/TensorDescriptor.cpp
     source/TensorOps.cpp
     source/Tensile.cpp
