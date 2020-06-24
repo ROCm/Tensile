@@ -169,18 +169,18 @@ namespace Tensile
             dim3 threadTile;
             dim3 macroTile;
 
-            size_t staggerU;
-            size_t depthU;
-            size_t globalSplitU;
-            size_t staggerStrideShift;
-            int    workGroupMapping;
+            size_t staggerU           = 0;
+            size_t depthU             = 0;
+            size_t globalSplitU       = 0;
+            size_t staggerStrideShift = 0;
+            int    workGroupMapping   = 0;
 
-            size_t packBatchDims;
+            size_t packBatchDims     = 0;
             int    packSummationDims = 0;
             int    magicDivAlg       = 1;
-            size_t persistentKernel;
+            size_t persistentKernel  = 0;
 
-            bool sourceKernel;
+            bool sourceKernel = false;
         };
 
         struct ProblemType
@@ -196,7 +196,7 @@ namespace Tensile
             bool        useInitialStridesCD     = false;
         };
 
-        int         index;
+        int         index = 0;
         std::string kernelName;
         bool        debugKernel = false;
 
