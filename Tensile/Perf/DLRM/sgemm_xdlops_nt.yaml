@@ -513,7 +513,6 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [ 1024,1024,1,200,1056,1056,1088,232]
 
-
 ########################################
 LibraryLogic:
     ScheduleName: "arcturus"
