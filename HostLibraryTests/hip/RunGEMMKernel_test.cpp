@@ -585,7 +585,6 @@ std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
             }
             catch(std::logic_error & exc)
             {
-                std::cout << "Logic error for file " << file.native() << std::endl;
             }
         }
 
