@@ -143,7 +143,7 @@ add_executable(TensileTests ${test_sources})
 
 if(NOT TENSILE_DISABLE_CTEST)
     if(GTEST_INTEGRATION)
-        gtest_discover_tests(TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+        gtest_discover_tests(TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR} TIMEOUT 60)
     else()
         add_test(NAME TensileHostLibraryTests COMMAND TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
     endif()
