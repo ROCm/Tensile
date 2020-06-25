@@ -72,7 +72,7 @@ BenchmarkProblems:
           - [ 8, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - DepthU: [ 16,8,24,32 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - DisableVgprOverlapping: [False]
         - WaveSeparateGlobalReadA: [True,False]
@@ -109,7 +109,7 @@ BenchmarkProblems:
           - [ 4, 64 ]
         - WorkGroup:
           - [ 32, 8, 1 ]
-        - DepthU: [ 16,8,24,32 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
         - DisableVgprOverlapping: [True,False]
@@ -145,7 +145,7 @@ BenchmarkProblems:
           - [ 1, 128 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - DepthU: [ 16,8,24,32 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
         - DisableVgprOverlapping: [True,False]
@@ -186,7 +186,7 @@ BenchmarkProblems:
           - [ 1, 32 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - DepthU: [ 16,8,24,32 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
         - DisableVgprOverlapping: [True,False]
@@ -222,7 +222,7 @@ BenchmarkProblems:
           - [ 2, 32 ]
         - WorkGroup:
           - [ 32, 8, 1 ]
-        - DepthU: [ 16,8,24,32 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
         - DisableVgprOverlapping: [True,False]
@@ -266,7 +266,7 @@ BenchmarkProblems:
           - [ 1, 64 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - DepthU: [ 16,8,24,32 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
         - DisableVgprOverlapping: [True,False]
@@ -308,7 +308,7 @@ BenchmarkProblems:
           - [ 1, 64 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - DepthU: [ 16,8,24,32 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
         - DisableVgprOverlapping: [True,False]
@@ -345,7 +345,7 @@ BenchmarkProblems:
           - [ 1, 32 ]
         - WorkGroup:
           - [ 32, 8, 1 ]
-        - DepthU: [ 16,8,24,32 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
         - DisableVgprOverlapping: [True,False]
@@ -381,7 +381,7 @@ BenchmarkProblems:
           - [ 8, 16 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - DepthU: [ 16,24,32 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - GlobalSplitU: [4,8,12,15,16]
         - DisableVgprOverlapping: [False]
@@ -399,6 +399,7 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [ 256,128,1,32768,256,256,288,160]
           - Exact: [ 512,256,1,32768,512,512,544,288]
+          - Exact: [ 1024,1024,1,32768,1056,1056,1024,1024]
           - Exact: [ 1024,512,1,32768,1056,1056,1024,544]
           - Exact: [ 479,1024,1,32768,512,512,512,1056]
 
@@ -419,7 +420,7 @@ BenchmarkProblems:
           - [ 8, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - DepthU: [ 16,24,32 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - GlobalSplitU: [4,8,12,15,16]
         - DisableVgprOverlapping: [True,False]
@@ -437,6 +438,7 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [ 1024,512,1,32768,1056,1056,1024,544]
           - Exact: [ 256,128,1,32768,256,256,288,160]
+          - Exact: [ 1024,1024,1,32768,1056,1056,1024,1024]
           - Exact: [ 512,256,1,32768,512,512,544,288]
           - Exact: [ 479,1024,1,32768,512,512,512,1056]
 
@@ -456,7 +458,7 @@ BenchmarkProblems:
           - [ 1, 16 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - DepthU: [ 16,24,32 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - GlobalSplitU: [4,8,12,15,16]
         - DisableVgprOverlapping: [True,False]
@@ -474,6 +476,7 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [ 1024,512,1,32768,1056,1056,1024,544]
           - Exact: [ 256,128,1,32768,256,256,288,160]
+          - Exact: [ 1024,1024,1,32768,1056,1056,1024,1024]
           - Exact: [ 512,256,1,32768,512,512,544,288]
           - Exact: [ 479,1024,1,32768,512,512,512,1056]
 
@@ -507,6 +510,37 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [ 13,512,1,32768,45,45,77,544]
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - PrefetchLocalRead: [True]
+        - PrefetchGlobalRead: [True]
+      ForkParameters:
+        - ThreadTile:
+          - [ 1, 1 ]
+        - WorkGroup:
+          - [ 256, 1, 1 ]
+          - [ 128, 2, 1 ]
+          - [ 64, 4, 1 ]
+        - WorkGroupMapping: [1]
+        - DepthU: [ 16,32,64 ]
+        - FractionalLoad: [1]
+        - VectorWidth: [-1]
+        - MacroTileShapeMax: [256]
+        - GlobalReadVectorWidth: [-1]
+        - GlobalSplitU: [32,64]
+        - InnerUnroll: [1]
+        - ScheduleIterAlg: [1]
+        - OptNoLoadLoop: [1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 256,1,1,32768,256,256,256,1]
 
 ########################################
 LibraryLogic:

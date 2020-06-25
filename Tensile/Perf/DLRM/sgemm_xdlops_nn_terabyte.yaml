@@ -39,7 +39,7 @@ GlobalParameters:
 BenchmarkProblems:
 
   ########################################
-  # NT - 
+  # NN - 
   ########################################
   -
     - # ProblemType
@@ -51,7 +51,7 @@ BenchmarkProblems:
       Batched: True
 
   ########################################
-  # NT - standard 1Blocks/Inst
+  # NN - standard 1Blocks/Inst
   #    - DLRM dataset
   ########################################
 
@@ -72,7 +72,7 @@ BenchmarkProblems:
           - [ 8, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - DepthU: [ 16,8 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - DisableVgprOverlapping: [True,False]
         - WaveSeparateGlobalReadA: [True,False]
@@ -111,7 +111,7 @@ BenchmarkProblems:
           - [ 4, 64 ]
         - WorkGroup:
           - [ 32, 8, 1 ]
-        - DepthU: [ 16,8,24,32 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
         - DisableVgprOverlapping: [True,False]
@@ -144,12 +144,13 @@ BenchmarkProblems:
         - MatrixInstruction:
           - [16, 16, 4, 1]
         - ThreadTile:
-          - [ 1, 16 ]
-          - [ 2, 16 ]
-          - [ 1, 32 ]
+          - [ 1, 64 ]
+          - [ 2, 64 ]
+          - [ 1, 64 ]
+          - [ 2, 128 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - DepthU: [ 16,8,24,32 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
         - DisableVgprOverlapping: [True,False]
@@ -172,7 +173,7 @@ BenchmarkProblems:
           - Exact: [ 479,32768,1,1024,544,544,512,1024]
 
   ########################################
-  # NT - standard 4Blocks/Inst
+  # NN - standard 4Blocks/Inst
   #    - DLRM dataset
   ########################################
 
@@ -187,10 +188,15 @@ BenchmarkProblems:
         - MatrixInstruction:
           - [16, 16, 1, 4]
         - ThreadTile:
+          - [ 1, 16 ]
+          - [ 1, 32 ]
+          - [ 1, 32 ]
+          - [ 2, 32 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - DepthU: [ 16,8 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
+        - FractionalLoad: [1,0]
         - DisableVgprOverlapping: [True,False]
         - WaveSeparateGlobalReadA: [True,False]
         - WaveSeparateGlobalReadB: [True,False]
@@ -224,9 +230,10 @@ BenchmarkProblems:
           - [ 2, 16 ]
           - [ 4, 16 ]
           - [ 2, 32 ]
+          - [ 4, 32 ]
         - WorkGroup:
           - [ 32, 8, 1 ]
-        - DepthU: [ 8,16 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
         - DisableVgprOverlapping: [True,False]
@@ -249,7 +256,7 @@ BenchmarkProblems:
           - Exact: [ 479,32768,1,1024,544,544,512,1024]
 
   ########################################
-  # NT - standard 2Blocks/Inst
+  # NN - standard 2Blocks/Inst
   #    - medium_4 dataset
   ########################################
 
@@ -269,7 +276,7 @@ BenchmarkProblems:
           - [ 1, 32 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - DepthU: [ 16,8,24,32 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
         - DisableVgprOverlapping: [True,False]
@@ -292,7 +299,7 @@ BenchmarkProblems:
           - Exact: [ 479,32768,1,1024,544,544,512,1024]
 
   ########################################
-  # NT - standard 1Blocks/Inst
+  # NN - standard 1Blocks/Inst
   #    - 32x32x1x2
   #    - medium_4 dataset
   ########################################
@@ -312,7 +319,7 @@ BenchmarkProblems:
           - [ 1, 128 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - DepthU: [ 16,8,24,32 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
         - DisableVgprOverlapping: [True,False]
@@ -335,7 +342,7 @@ BenchmarkProblems:
           - Exact: [ 479,32768,1,1024,544,544,512,1024]
 
   ########################################
-  # NT - standard 2Blocks/Inst
+  # NN - standard 2Blocks/Inst
   #    - 32x32x1x2
   #    - medium_4 dataset
 
@@ -354,7 +361,7 @@ BenchmarkProblems:
           - [ 2, 32 ]
         - WorkGroup:
           - [ 64, 4, 1 ]
-        - DepthU: [ 16,8,24,32 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
         - DisableVgprOverlapping: [True,False]
@@ -392,7 +399,7 @@ BenchmarkProblems:
           - [ 2, 64 ]
         - WorkGroup:
           - [ 32, 8, 1 ]
-        - DepthU: [ 16,8,24,32 ]
+        - DepthU: [ 16,8,32 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
         - DisableVgprOverlapping: [True,False]
@@ -431,7 +438,7 @@ BenchmarkProblems:
           - [ 4, 64 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - DepthU: [ 8,16,24,32 ]
+        - DepthU: [ 8,16,32 ]
         - VectorWidth: [4,2]
         - FractionalLoad: [1,0]
         - DisableVgprOverlapping: [True,False]
