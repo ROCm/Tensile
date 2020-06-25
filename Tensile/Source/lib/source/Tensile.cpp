@@ -54,13 +54,14 @@ namespace Tensile
         LoadLibraryFile(std::string const& filename)
     {
         std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> rv;
-        #ifdef TENSILE_YAML
-        rv = LLVMLoadLibraryFile<MyProblem, MySolution>(filename);
-        if(rv) return rv;
-        #endif
 
         #ifdef TENSILE_MSGPACK
         rv = MessagePackLoadLibraryFile<MyProblem, MySolution>(filename);
+        if(rv) return rv;
+        #endif
+
+        #ifdef TENSILE_YAML
+        rv = LLVMLoadLibraryFile<MyProblem, MySolution>(filename);
         if(rv) return rv;
         #endif
 
@@ -74,13 +75,13 @@ namespace Tensile
     {
         std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> rv;
 
-        #ifdef TENSILE_YAML
-        rv = LLVMLoadLibraryData<MyProblem, MySolution>(data);
+        #ifdef TENSILE_MSGPACK
+        rv = MessagePackLoadLibraryData<MyProblem, MySolution>(data);
         if(rv) return rv;
         #endif
 
-        #ifdef TENSILE_MSGPACK
-        rv = MessagePackLoadLibraryData<MyProblem, MySolution>(data);
+        #ifdef TENSILE_YAML
+        rv = LLVMLoadLibraryData<MyProblem, MySolution>(data);
         if(rv) return rv;
         #endif
 

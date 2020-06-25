@@ -24,7 +24,7 @@
  *
  *******************************************************************************/
 
-#include <Tensile/Serialization/MessagePack.hpp>
+#include <Tensile/msgpack/MessagePack.hpp>
 #include <fstream>
 
 namespace Tensile
@@ -33,7 +33,8 @@ namespace Tensile
     {
         std::map<std::string, msgpack::object> objectToMap(msgpack::object& object)
         {
-            assert(object.type == msgpack::type::object_type::MAP);
+            if(object.type != msgpack::type::object_type::MAP)
+                throw std::runtime_error(concatenate("Expected MAP, found ", object.type));
 
             std::map<std::string, msgpack::object> result;
             for(uint32_t i = 0; i < object.via.map.size; i++)
@@ -68,26 +69,47 @@ namespace Tensile
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
         MessagePackLoadLibraryFile(std::string const& filename)
     {
-        std::ifstream        in(filename, std::ios::in | std::ios::binary);
-        std::vector<uint8_t> data((std::istreambuf_iterator<char>(in)),
-                                  std::istreambuf_iterator<char>());
+        try
+        {
+            std::ifstream        in(filename, std::ios::in | std::ios::binary);
+            std::vector<uint8_t> data((std::istreambuf_iterator<char>(in)),
+                                    std::istreambuf_iterator<char>());
 
-        return MessagePackLoadLibraryData<MyProblem, MySolution>(data);
+            return MessagePackLoadLibraryData<MyProblem, MySolution>(data);
+        }
+        catch(std::runtime_error const& exc)
+        {
+            if(Debug::Instance().printDataInit())
+                std::cout << "Error loading " << filename << "(msgpack):" << std::endl << exc.what() << std::endl;
+
+            return nullptr;
+        }
     }
 
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
         MessagePackLoadLibraryData(std::vector<uint8_t> const& data)
     {
-        std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
+        try
+        {
+            std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
-        auto result = msgpack::unpack((const char*)data.data(), data.size());
-        Serialization::MessagePackInput min(result.get());
+            auto result = msgpack::unpack((const char*)data.data(), data.size());
+            Serialization::MessagePackInput min(result.get());
 
-        Serialization::PointerMappingTraits<Tensile::MasterContractionLibrary,
-                                            Serialization::MessagePackInput>::mapping(min, rv);
+            Serialization::PointerMappingTraits<Tensile::MasterContractionLibrary,
+                                                Serialization::MessagePackInput>::mapping(min, rv);
 
-        return rv;
+            return rv;
+        }
+        catch(std::runtime_error const& exc)
+        {
+            if(Debug::Instance().printDataInit())
+                std::cout << "Error loading msgpack data:" << std::endl << exc.what() << std::endl;
+
+            return nullptr;
+        }
+
     }
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
