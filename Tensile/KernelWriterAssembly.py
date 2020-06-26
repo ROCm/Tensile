@@ -8551,10 +8551,14 @@ class KernelWriterAssembly(KernelWriter):
     rpe = kernel["ProblemType"]["DataType"].numRegisters()
     rpv = kernel["ProblemType"]["DataType"].numRegisters() * gwvw
 
+    # num registers to check out
+    storeRegs = []
+    for i in range(0, nElements, gwvw):
+      storeRegs.append(self.vgprPool.checkOut(int(rpv), "store element c"))
     src = vgpr(self.storeRemapLR)
-    for i in range (0, nElements, gwvw):
+    for rIdx, i in enumerate(range(0, nElements, gwvw)):
       offset = self.storeRemapLrOffset * bpe * (i//gwvw)
-      dst = vgpr(i, rpv)
+      dst = vgpr(storeRegs[rIdx], rpv)
       if bps==4:
         kStr += inst("ds_read_b32", dst, src, "offset:%u"%offset, "storeRemap lr")
       elif bps==8:
@@ -8579,7 +8583,7 @@ class KernelWriterAssembly(KernelWriter):
     addr0 = vgpr(vTmp)
 
     if not edge:
-      for i in range (0, nElements, gwvw):
+      for rIdx, i in enumerate(range(0, nElements, gwvw)):
         if i == 0:
           kStr += inst("v_mov_b32", addr0, vgpr(self.storeRemapOffsetCoord1), "coord1")
         else:
@@ -8592,12 +8596,12 @@ class KernelWriterAssembly(KernelWriter):
         lgkmcnt = min((nElements-i)//gwvw - 1, 15)
         kStr += inst("s_waitcnt", "lgkmcnt(%u)"% lgkmcnt, "wait for LDS read" )
 
-        kStr += self.chooseGlobalWrite(True, bps, i, rpv, addr0, addr1, 0, ntStr)
+        kStr += self.chooseGlobalWrite(True, bps, storeRegs[rIdx], rpv, addr0, addr1, 0, ntStr)
     else:
       tmpS23 = tmpS01+2
       coord0 = tmpVgpr
       coord1 = coord0+1
-      for i in range (0, nElements, gwvw):
+      for rIdx, i in enumerate(range(0, nElements, gwvw)):
         for vi in range (0,gwvw):
 
           if vi == 0:
@@ -8627,11 +8631,13 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("_v_add_lshl_u32", addr0, addr0,  vgpr(coord0), hex(log2(bpe)), "scale to BPE")
           kStr += inst("v_cndmask_b32", addr0, -1, addr0, sgpr(tmpS23,2), "clip if OOB. offset" )
 
-          sumIdx = i + int(vi*rpe)
+          sumIdx = storeRegs[rIdx] + int(vi*rpe)
           kStr += self.chooseGlobalWrite(True, bpe, sumIdx, rpe, addr0, addr1, 0, ntStr, hi16=vi%2)
 
     kStr += "\n"
     self.vgprPool.checkIn(vTmp)
+    for v in storeRegs:
+      self.vgprPool.checkIn(v)
 
     #Data exchange between different waves
     #Make sure LDS reads are finished of all waves
@@ -9856,6 +9862,8 @@ class KernelWriterAssembly(KernelWriter):
         # Before growing the pool, see if we can shrink the write vector width instead?
         # TODO : the vgprSerial is needed for-ever and if we grow here will split the
         # range of the tmps.  Maybe want to move vgprSerial to first vgpr?
+
+        # TODO: Minimum elems for StoreRemap
         minElements = 2 if (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) else 1
         minNeeded = minElements*numVgprsPerElement
         shrinkDb = 0
@@ -10887,17 +10895,11 @@ class KernelWriterAssembly(KernelWriter):
         if not kernel["StoreRemapVectorWidth"]:
           kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpS01, edge)
           storesIssued += 1
+
         else:
           kStr += self.storeRemapAddLocalWrite(kernel, ss, addrCalc, sumIdx)
           # Column Block Shape has been written to LDS
           # Now read back and write out to global memory
-          if self.StoreRemapLastBatch == 1 and (elementIdx == len(batchElements)-1):
-            kStr += self.comment("Handle local read and global write")
-            kStr += self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpS01, edge)
-            storesIssued += 1
-
-      if self.serializedStore:
-        kStr += inst("s_nop 0", "1 wait state required when next inst writes vgprs held by previous dwordx4 store inst")
 
       if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
         self.vgprPool.checkIn(vgprBf16Temp)
@@ -10977,7 +10979,14 @@ class KernelWriterAssembly(KernelWriter):
 
     self.ss.firstBatch = False
     self.ss.checkInTempVgprC()
+    if kernel["StoreRemapVectorWidth"]:
+      if self.StoreRemapLastBatch == 1:
+        kStr += self.comment("Handle local read and global write")
+        kStr += self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpS01, edge)
+        storesIssued += 1
 
+    if self.serializedStore:
+      kStr += inst("s_nop 0", "1 wait state required when next inst writes vgprs held by previous dwordx4 store inst")
     return kStr
 
   ##############################################################################
