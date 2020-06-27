@@ -57,6 +57,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
     Architectural capabilities for the current ISA version.
     """
     return globalParameters["ArchCaps"][self.version]
+  
+  @property
+  def globalParams(self):
+    """
+    Global parameters for current configuration.
+    """
+    return globalParameters
 
   ##############################################################################
   # makeSchedule:  Schedule work into interations.

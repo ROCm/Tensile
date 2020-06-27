@@ -121,7 +121,7 @@ class Component(metaclass=ComponentMeta):
             if not writer.version in cls.versions:
                 return False
 
-        attrs = ["asmCaps", "archCaps", "kernel"]
+        attrs = ["asmCaps", "archCaps", "kernel", "globalParams"]
         for attr in attrs:
             if hasattr(cls, attr):
                 if not PartialMatch(getattr(cls, attr), getattr(writer, attr), debug):
@@ -184,6 +184,12 @@ class Component(metaclass=ComponentMeta):
 class MAC(Component):
     """
     Multiply-accumulate block.
+    """
+    pass
+
+class Signature(Component):
+    """
+    Function signature block.
     """
     pass
 
