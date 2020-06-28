@@ -5391,6 +5391,18 @@ class KernelWriterAssembly(KernelWriter):
       #                                  startVgprReuse ^
       vbegin = self.numVgprValuC
       vsize = max(0, self.lastVgprForReads-self.numVgprValuC)
+
+      # remove the C regs from the pool since we are about to write them here:
+      # lastValuAB, lastVgprForReads have already been removed prior to hitting this function
+      # we are removing the last remainder (4th segment) of the valuC from register pool
+      # |<-------------- valuC -------------->|
+      # |xxxxxxxxxxxx|xxxxxxxxxxx|xx|xxxxxxxxx|
+      #   lastValuAB ^           ^  ^         ^
+      #         lastVgprForReads ^  ^         ^
+      #              startVgprReuse ^         ^
+      #                             lastValuC ^
+      kStr += self.comment1("endSummation: remove C-tile [%u, %u) from pool"%(self.startVgprReuse, self.startVgprReuse+max(0, self.numVgprValuC-self.startVgprReuse)))
+      self.vgprPool.remove(self.startVgprReuse, max(0, self.numVgprValuC-self.startVgprReuse), "ValuC")
     else:
       vbegin = self.startVgprValuA
       vsize = self.lastVgprForReads - self.startVgprValuA
@@ -7633,12 +7645,12 @@ class KernelWriterAssembly(KernelWriter):
     eReg = self.vgprPool.checkOut(1)
     kStr += vectorStaticRemainder(dummy, eReg, wgMT, numContinuousOutput, tmpVgpr, tmpSgpr)
 
-    # mRge : decide which thread have to deal with this M-size
+    # mReg : decide which thread have to deal with this M-size
     mReg = self.vgprPool.checkOut(1)
     kStr += vectorStaticDivide(mReg, wgMT, numContinuousOutput, tmpVgpr, tmpSgpr)
     kStr += vectorStaticRemainder(dummy, mReg, mReg, numOutputThreads0, tmpVgpr, tmpSgpr)
 
-    # mRge : thread group id [0-31] or [32-63] for mfma 32x32x2
+    # tReg : thread group id [0-31] or [32-63] for mfma 32x32x2
     tReg = self.vgprPool.checkOut(1)
     kStr += vectorStaticDivide(tReg, "Serial", kernel["MatrixInstN"], tmpVgpr, tmpSgpr)
     kStr += vectorStaticRemainder(dummy, tReg, tReg, numOutputThreads0, tmpVgpr, tmpSgpr)
@@ -7652,6 +7664,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cbranch_vccnz label_%04u" % svrLabels[(r-1)], "shift d%u r=%u"%(tP["idx"], r))
     kStr += inst("s_branch label_%04u"%svrLabels[glvw-1], "no shifting" )
     self.vgprPool.checkIn(rReg)
+
+    _, arch2acc = self.AccToArchMapper(kernel)
 
     # blocks for handle M_szie % vector width
     for r in range(1, glvw):
@@ -7690,7 +7704,12 @@ class KernelWriterAssembly(KernelWriter):
               for shiftIdx in range(0, r):
                 dstVgpr = subTile1Idx * numOutputElements + packIdx * numContinuousOutput + outIdx * glvw + shiftIdx
                 srcVgpr = subTile1Idx * numOutputElements + packIdx * numContinuousOutput + outIdx * glvw + shiftIdx + (glvw - r)
-                kStr += inst("v_mov_b32", vgpr(dstVgpr), vgpr(srcVgpr), "")
+                if self.serializedStore:
+                  kStr += inst("v_accvgpr_read_b32", vgpr(tmpVgpr), accvgpr(arch2acc[srcVgpr]), "")
+                  kStr += inst("s_nop", "1", "v_accvgpr read vgpr after write vgpr: 2 wait states")
+                  kStr += inst("v_accvgpr_write_b32", accvgpr(arch2acc[dstVgpr]), vgpr(tmpVgpr), "acc%u = acc%u"%(arch2acc[dstVgpr], arch2acc[srcVgpr]))
+                else:
+                  kStr += inst("v_mov_b32", vgpr(dstVgpr), vgpr(srcVgpr), "")
 
           # end shift reset mask and jump out
           kStr += inst("s_mov_b64", sgpr(tmpSgpr,2), "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
@@ -7707,7 +7726,6 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(eReg)
     self.vgprPool.checkIn(mReg)
     self.vgprPool.checkIn(tReg)
-
     return kStr
 
 
@@ -11217,6 +11235,35 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(tmpAddr)
     return kStr
 
+  ##############################################################################
+  # AccToArchMapper
+  # Provides forward (acc2arch) and backward (arch2acc) index transformation
+  #  - Forward transformation is currently used for acc->vgpr copying
+  #  - Backward transformation is used in ShiftVectorComponent() to map logical
+  #    C-tile index back to original acc index
+  ##############################################################################
+  def AccToArchMapper(self, kernel):
+    acc2arch = dict()
+    arch2acc = dict()
+
+    if kernel["MatrixInstM"] == 4:
+      numInst = kernel["MIOutputVectorWidth"] * kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1]
+      for i in range(0, numInst):
+        acc2arch[i] = i
+        arch2acc[i] = i
+    else:
+      OutputsPerMFMA1B = kernel["MatrixInstM"] * kernel["MatrixInstN"] // globalParameters["WavefrontWidth"]
+      for wgIdx1 in range(0, kernel["MIWaveTile"][1]):
+        for wgIdx0 in range(0, kernel["MIWaveTile"][0]):
+          for bIdx1 in range(0, kernel["MatrixInstBN"]):
+            for bIdx0 in range(0, kernel["MatrixInstBM"]):
+              for tIdx in range(0, OutputsPerMFMA1B):
+                src = tIdx + OutputsPerMFMA1B * (bIdx0 + kernel["MatrixInstBM"] * (bIdx1 + kernel["MatrixInstBN"] * (wgIdx0 + kernel["MIWaveTile"][0] * wgIdx1)))
+                dst = tIdx + OutputsPerMFMA1B * (bIdx0 + kernel["MatrixInstBM"] * (wgIdx0 + kernel["MIWaveTile"][0] * (bIdx1 + kernel["MatrixInstBN"] * wgIdx1)))
+                acc2arch[src] = dst
+                arch2acc[dst] = src
+
+    return acc2arch, arch2acc
 
   ##############################################################################
   # MapAcctoArch
@@ -11230,39 +11277,16 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     kStr += self.comment("Mapping of Acc register -> C Vgpr register")
 
-    # remove the C regs from the pool since we are about to write them here:
-    # lastValuAB, lastVgprForReads have already been removed prior to hitting this function
-    # we are removing the last remainder (4th segment) of the valuC from register pool
-    if self.overlapVgprC:
-      # |<-------------- valuC -------------->|
-      # |xxxxxxxxxxxx|xxxxxxxxxxx|xx|xxxxxxxxx|
-      #   lastValuAB ^           ^  ^         ^
-      #         lastVgprForReads ^  ^         ^
-      #              startVgprReuse ^         ^
-      #                             lastValuC ^
-      kStr += self.comment("remove the rest of C-tile [%u, %u) from pool"%(self.startVgprReuse, self.startVgprReuse+max(0, self.numVgprValuC-self.startVgprReuse)))
-      self.vgprPool.remove(self.startVgprReuse, max(0, self.numVgprValuC-self.startVgprReuse), "ValuC")
+    acc2arch, _ = self.AccToArchMapper(kernel)
 
     self.codeAccVgprRead = Code.Module("AccVgprRead")
+    self.codeAccVgprRead.itemList = [None] * len(acc2arch)
 
-    if kernel["MatrixInstM"] == 4:
-      numInst = kernel["MIOutputVectorWidth"] * kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1]
-      self.codeAccVgprRead.itemList = [None] * numInst
-      for i in range(0, numInst):
-        self.codeAccVgprRead.itemList[i] = Code.Inst("v_accvgpr_read_b32", vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u"%dst), "acc%u"%i, "copy areg to vreg[%u]"%i)
-    else:
-      OutputsPerMFMA1B = kernel["MatrixInstM"] * kernel["MatrixInstN"] // globalParameters["WavefrontWidth"]
-
-      numInst = kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] * OutputsPerMFMA1B * kernel["MatrixInstBN"] * kernel["MatrixInstBM"]
-      self.codeAccVgprRead.itemList = [None] * numInst
-      for wgIdx1 in range(0, kernel["MIWaveTile"][1]):
-        for wgIdx0 in range(0, kernel["MIWaveTile"][0]):
-          for bIdx1 in range(0, kernel["MatrixInstBN"]):
-            for bIdx0 in range(0, kernel["MatrixInstBM"]):
-              for tIdx in range(0, OutputsPerMFMA1B):
-                src = tIdx + OutputsPerMFMA1B * (bIdx0 + kernel["MatrixInstBM"] * (bIdx1 + kernel["MatrixInstBN"] * (wgIdx0 + kernel["MIWaveTile"][0] * wgIdx1)))
-                dst = tIdx + OutputsPerMFMA1B * (bIdx0 + kernel["MatrixInstBM"] * (wgIdx0 + kernel["MIWaveTile"][0] * (bIdx1 + kernel["MatrixInstBN"] * wgIdx1)))
-                self.codeAccVgprRead.itemList[dst] = Code.Inst("v_accvgpr_read_b32", vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u"%dst), "acc%u"%src, "copy areg to vreg[%u]"%dst)
+    for i, e in enumerate(acc2arch):
+       self.codeAccVgprRead.itemList[acc2arch[i]] = Code.Inst("v_accvgpr_read_b32", \
+                                                    vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % acc2arch[i]),
+                                                    "acc%u" % i,
+                                                    "copy areg to vreg[%u]"%acc2arch[i])
 
     return kStr if self.serializedStore else kStr+str(self.codeAccVgprRead)
 
@@ -11667,6 +11691,8 @@ def vgpr(*args):
   return gpr("v", args)
 def sgpr(*args):
   return gpr("s", args)
+def accvgpr(*args):
+  return gpr("acc", args)
 
 ########################################
 # Log 2
