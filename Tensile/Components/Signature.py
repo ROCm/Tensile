@@ -342,7 +342,7 @@ class SignatureCOV3(Signature):
         kernArgReg += kernel["ProblemType"]["NumIndicesC"]
         if globalParameters["DebugKernel"]:
             kernArgReg += writer.rpga # debug buffer
-        kernArgBytes = kernArgReg * 4 # bytes/reg
+        # kernArgBytes = kernArgReg * 4 # bytes/reg
 
         # register allocation
         totalVgprs = writer.vgprPool.size()
@@ -386,7 +386,7 @@ class SignatureCOV3(Signature):
         cptValueType = getCptValueType(kernel, "V3")
         cptByte = getCptByte(kernel)
         cptSize = getCptSize(kernel)
-        cptAlign = getCptAlign(kernel)
+        # cptAlign = getCptAlign(kernel)
 
         # Codeobject V3 metadata
         kStr += ".amdgpu_metadata\n"
