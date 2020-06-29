@@ -878,7 +878,7 @@ def ConvertToYAML(problemDefinition,disableStrides="false"):
                 value += "_strided_batched"
         if ("ld" in param or "stride" in param) and int(value) == 0:
             value = GetStride(problemDefinition,param)
-        if ("call_count" not in modKey) or ("iters" not in modKey):
+        if ("call_count" not in modKey) and ("iters" not in modKey):
             rocblas_call += "%s: %s, " % (modKey,value)
         else:
             rocblas_call +=  "%s: %s " % (modKey, value)

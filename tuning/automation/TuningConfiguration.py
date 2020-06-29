@@ -93,7 +93,7 @@ defaultHeader["Device"] = 0
 defaultHeader["KernelTime"] = True
 defaultHeader["PinClocks"] = False
 defaultHeader["SleepPercent"] = 50
-defaultHeader["DataInitTypeBeta"] = 0
+defaultHeader["DataInitTypeBeta"] = 1
 defaultHeader["SolutionSelectionAlg"] = 1
 defaultHeader["PrintWinnersOnly"] = 1
 defaultHeader["PrintSolutionRejectionReason"] = True
@@ -240,7 +240,7 @@ def generateProblemType(initialParams, tileAware= "true"):
     return problemType
 
 
-arcturusLibraryLogic={'ArchitectureName': 'gfx908', 'DeviceNames': ['Device 7380', 'Device 7388', 'Device 738c', 'Device 7390', 'Device 731f'], 'ScheduleName': 'arcturus'}
+arcturusLibraryLogic={'ArchitectureName': 'gfx908', 'DeviceNames': ['Device 7380', 'Device 7388', 'Device 738c', 'Device 7390'], 'ScheduleName': 'arcturus'}
 vega20LibraryLogic={'ArchitectureName': 'gfx906', 'DeviceNames': ['Device 66a0', 'Device 66a1', 'Device 66a7', 'Device 66af', 'Vega 20'], 'ScheduleName': 'vega20'}
 vega10LibraryLogic={'ArchitectureName': 'gfx900', 'DeviceNames': ['Device 6863', 'Device 6862', 'Device 687f', 'Device 6860', 'Device 6861', 'Vega 10 XTX [Radeon Vega Frontier Edition]', 'Vega [Radeon RX Vega]'], 'ScheduleName': 'vega10'}
 mi25LibraryLogic={'ArchitectureName': 'gfx900', 'DeviceNames': ['Device 6860'], 'ScheduleName': 'mi25'}
