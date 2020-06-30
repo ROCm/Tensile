@@ -79,7 +79,11 @@ target_include_directories(TensileHost INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/in
 
 if(Tensile_LIBRARY_FORMAT MATCHES "msgpack")
     find_package(msgpack)
-    target_link_libraries(TensileHost PRIVATE msgpackc.a)
+    if(TARGET msgpackc-static)
+        target_link_libraries(TensileHost PRIVATE msgpackc-static)
+    else()
+        target_link_libraries(TensileHost PRIVATE msgpackc)
+    endif()
 endif()
 
 if(TENSILE_USE_LLVM)
