@@ -91,7 +91,7 @@ def getCptAlign(kernel):
     return str(getCptByte(kernel))
 
 class SignatureCOV2(Signature):
-    globalParams = {"CodeObjectVersion": "V2"}
+    kernel = {"CodeObjectVersion": "V2"}
 
     def __call__(self, writer):
         kernel = writer.kernel
@@ -299,7 +299,7 @@ class SignatureCOV2(Signature):
 
 
 class SignatureCOV3(Signature):
-    globalParams = {"CodeObjectVersion": "V3"}
+    kernel = {"CodeObjectVersion": "V3"}
 
     def __call__(self, writer):
         kernel = writer.kernel

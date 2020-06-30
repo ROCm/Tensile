@@ -121,7 +121,7 @@ class Component(metaclass=ComponentMeta):
             if not writer.version in cls.versions:
                 return False
 
-        attrs = ["asmCaps", "archCaps", "kernel", "globalParams"]
+        attrs = ["asmCaps", "archCaps", "kernel"]
         for attr in attrs:
             if hasattr(cls, attr):
                 if not PartialMatch(getattr(cls, attr), getattr(writer, attr), debug):
