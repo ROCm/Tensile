@@ -24,6 +24,7 @@
  *
  *******************************************************************************/
 
+#include <Tensile/ArithmeticUnitTypes.hpp>
 #include <Tensile/Contractions.hpp>
 #include <Tensile/EmbeddedLibrary.hpp>
 #include <Tensile/MasterSolutionLibrary.hpp>
@@ -109,6 +110,10 @@ namespace Tensile
                 ("alpha-type",               po::value<DataType>()->default_value(DataType::Count), "alpha data type")
                 ("beta-type",                po::value<DataType>()->default_value(DataType::Count), "beta data type")
                 ("high-precision-accumulate", po::value<bool>()->default_value(false), "Use high-precision accumulate.")
+                ("kernel-language",          po::value<KernelLanguage>()->default_value(KernelLanguage::Any), "Select kernel language.")
+                ("deterministic-mode",       po::value<bool>()->default_value(false), "Enforce deterministic summation patterns"
+                                                                                      "by not splitting U among workgroups")
+                ("arithmetic-unit",          po::value<ArithmeticUnit>()->default_value(ArithmeticUnit::Any), "Select arithmetic unit.")
 
                 ("init-a",                   po::value<InitMode>()->default_value(InitMode::Random), "Initialization for A")
                 ("init-b",                   po::value<InitMode>()->default_value(InitMode::Random), "Initialization for B")

@@ -26,7 +26,9 @@
 
 #pragma once
 
+#include <Tensile/ArithmeticUnitTypes.hpp>
 #include <Tensile/ContractionProblem.hpp>
+#include <Tensile/KernelLanguageTypes.hpp>
 #include <Tensile/Predicates.hpp>
 
 #include <array>
@@ -511,8 +513,17 @@ namespace Tensile
                 enum
                 {
                     HasIndex = false,
-                    HasValue = false
+                    HasValue = true
                 };
+
+                bool value;
+
+                CDStridesEqual() = default;
+                CDStridesEqual(bool value)
+                    : value(value)
+                {
+                }
+
                 static std::string Type()
                 {
                     return "CDStridesEqual";
@@ -520,7 +531,7 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.c().strides() == problem.d().strides();
+                    return value == (problem.c().strides() == problem.d().strides());
                 }
             };
 
@@ -606,6 +617,80 @@ namespace Tensile
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     return problem.highPrecisionAccumulate() == value;
+                }
+            };
+
+            struct KernelLanguageEqual
+                : public Predicate_CRTP<KernelLanguageEqual, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                KernelLanguage value;
+
+                KernelLanguageEqual() = default;
+
+                static std::string Type()
+                {
+                    return "KernelLanguage";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.kernelLanguage() == value;
+                }
+            };
+
+            struct DeterministicModeEqual
+                : public Predicate_CRTP<DeterministicModeEqual, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                bool value;
+
+                DeterministicModeEqual() = default;
+                DeterministicModeEqual(bool value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "DeterministicMode";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.deterministicMode() == value;
+                }
+            };
+
+            struct ArithmeticUnitEqual
+                : public Predicate_CRTP<ArithmeticUnitEqual, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+
+                ArithmeticUnit value;
+
+                ArithmeticUnitEqual() = default;
+
+                static std::string Type()
+                {
+                    return "ArithmeticUnit";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.arithmeticUnit() == value;
                 }
             };
 

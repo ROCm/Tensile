@@ -12,13 +12,13 @@
 
 .amdgcn_target "amdgcn-amd-amdhsa--gfx908+sram-ecc"
 .text
-.protected Cijk_Ailk_Bjlk_DB_MT48x64x4_SE_APM1_AF0EM1_AF1EM1_AMAS3_ASBE01_ASEM1_BL1_DTL0_EPS1_FL1_GRVW2_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR0_RK1_SIA1_SU0_SUM0_SUS256_SRVW0_SNLL0_TT6_4_TLDS0_USFGRO0_VAW1_VS1_VW2_WSGRA0_WSGRB0_WG8_16_1_WGM4
-.globl Cijk_Ailk_Bjlk_DB_MT48x64x4_SE_APM1_AF0EM1_AF1EM1_AMAS3_ASBE01_ASEM1_BL1_DTL0_EPS1_FL1_GRVW2_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR0_RK1_SIA1_SU0_SUM0_SUS256_SRVW0_SNLL0_TT6_4_TLDS0_USFGRO0_VAW1_VS1_VW2_WSGRA0_WSGRB0_WG8_16_1_WGM4
+.protected Cijk_Ailk_Bjlk_DB_MT48x64x4_SE_APM1_AF0EM1_AF1EM1_AMAS3_ASBE01_ASEM1_BL1_DTL0_DVO0_EPS1_FL1_GRVW2_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR0_RK1_SIA1_SU0_SUM0_SUS256_SRVW0_SVW4_SNLL0_TT6_4_TLDS0_USFGRO0_VAW1_VS1_VW2_WSGRA0_WSGRB0_WG8_16_1_WGM4
+.globl Cijk_Ailk_Bjlk_DB_MT48x64x4_SE_APM1_AF0EM1_AF1EM1_AMAS3_ASBE01_ASEM1_BL1_DTL0_DVO0_EPS1_FL1_GRVW2_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR0_RK1_SIA1_SU0_SUM0_SUS256_SRVW0_SVW4_SNLL0_TT6_4_TLDS0_USFGRO0_VAW1_VS1_VW2_WSGRA0_WSGRB0_WG8_16_1_WGM4
 .p2align 8
-.type Cijk_Ailk_Bjlk_DB_MT48x64x4_SE_APM1_AF0EM1_AF1EM1_AMAS3_ASBE01_ASEM1_BL1_DTL0_EPS1_FL1_GRVW2_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR0_RK1_SIA1_SU0_SUM0_SUS256_SRVW0_SNLL0_TT6_4_TLDS0_USFGRO0_VAW1_VS1_VW2_WSGRA0_WSGRB0_WG8_16_1_WGM4,@function
+.type Cijk_Ailk_Bjlk_DB_MT48x64x4_SE_APM1_AF0EM1_AF1EM1_AMAS3_ASBE01_ASEM1_BL1_DTL0_DVO0_EPS1_FL1_GRVW2_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR0_RK1_SIA1_SU0_SUM0_SUS256_SRVW0_SVW4_SNLL0_TT6_4_TLDS0_USFGRO0_VAW1_VS1_VW2_WSGRA0_WSGRB0_WG8_16_1_WGM4,@function
 .section .rodata,#alloc
 .p2align 6
-.amdhsa_kernel Cijk_Ailk_Bjlk_DB_MT48x64x4_SE_APM1_AF0EM1_AF1EM1_AMAS3_ASBE01_ASEM1_BL1_DTL0_EPS1_FL1_GRVW2_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR0_RK1_SIA1_SU0_SUM0_SUS256_SRVW0_SNLL0_TT6_4_TLDS0_USFGRO0_VAW1_VS1_VW2_WSGRA0_WSGRB0_WG8_16_1_WGM4
+.amdhsa_kernel Cijk_Ailk_Bjlk_DB_MT48x64x4_SE_APM1_AF0EM1_AF1EM1_AMAS3_ASBE01_ASEM1_BL1_DTL0_DVO0_EPS1_FL1_GRVW2_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR0_RK1_SIA1_SU0_SUM0_SUS256_SRVW0_SVW4_SNLL0_TT6_4_TLDS0_USFGRO0_VAW1_VS1_VW2_WSGRA0_WSGRB0_WG8_16_1_WGM4
   .amdhsa_user_sgpr_kernarg_segment_ptr 1
   .amdhsa_next_free_vgpr 84 // vgprs
   .amdhsa_next_free_sgpr 98 // sgprs
@@ -37,8 +37,8 @@ amdhsa.version:
   - 1
   - 0
 amdhsa.kernels:
-  - .name: Cijk_Ailk_Bjlk_DB_MT48x64x4_SE_APM1_AF0EM1_AF1EM1_AMAS3_ASBE01_ASEM1_BL1_DTL0_EPS1_FL1_GRVW2_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR0_RK1_SIA1_SU0_SUM0_SUS256_SRVW0_SNLL0_TT6_4_TLDS0_USFGRO0_VAW1_VS1_VW2_WSGRA0_WSGRB0_WG8_16_1_WGM4
-    .symbol: 'Cijk_Ailk_Bjlk_DB_MT48x64x4_SE_APM1_AF0EM1_AF1EM1_AMAS3_ASBE01_ASEM1_BL1_DTL0_EPS1_FL1_GRVW2_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR0_RK1_SIA1_SU0_SUM0_SUS256_SRVW0_SNLL0_TT6_4_TLDS0_USFGRO0_VAW1_VS1_VW2_WSGRA0_WSGRB0_WG8_16_1_WGM4.kd'
+  - .name: Cijk_Ailk_Bjlk_DB_MT48x64x4_SE_APM1_AF0EM1_AF1EM1_AMAS3_ASBE01_ASEM1_BL1_DTL0_DVO0_EPS1_FL1_GRVW2_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR0_RK1_SIA1_SU0_SUM0_SUS256_SRVW0_SVW4_SNLL0_TT6_4_TLDS0_USFGRO0_VAW1_VS1_VW2_WSGRA0_WSGRB0_WG8_16_1_WGM4
+    .symbol: 'Cijk_Ailk_Bjlk_DB_MT48x64x4_SE_APM1_AF0EM1_AF1EM1_AMAS3_ASBE01_ASEM1_BL1_DTL0_DVO0_EPS1_FL1_GRVW2_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR0_RK1_SIA1_SU0_SUM0_SUS256_SRVW0_SVW4_SNLL0_TT6_4_TLDS0_USFGRO0_VAW1_VS1_VW2_WSGRA0_WSGRB0_WG8_16_1_WGM4.kd'
     .group_segment_fixed_size:   7680
     .language:                   OpenCL C
     .language_version:
@@ -210,7 +210,7 @@ amdhsa.kernels:
     .kernarg_segment_size:       160
 ...
 .end_amdgpu_metadata
-Cijk_Ailk_Bjlk_DB_MT48x64x4_SE_APM1_AF0EM1_AF1EM1_AMAS3_ASBE01_ASEM1_BL1_DTL0_EPS1_FL1_GRVW2_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR0_RK1_SIA1_SU0_SUM0_SUS256_SRVW0_SNLL0_TT6_4_TLDS0_USFGRO0_VAW1_VS1_VW2_WSGRA0_WSGRB0_WG8_16_1_WGM4:
+Cijk_Ailk_Bjlk_DB_MT48x64x4_SE_APM1_AF0EM1_AF1EM1_AMAS3_ASBE01_ASEM1_BL1_DTL0_DVO0_EPS1_FL1_GRVW2_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_NLCA1_NLCB1_ONLL1_PBD0_PK0_PGR1_PLR0_RK1_SIA1_SU0_SUM0_SUS256_SRVW0_SVW4_SNLL0_TT6_4_TLDS0_USFGRO0_VAW1_VS1_VW2_WSGRA0_WSGRB0_WG8_16_1_WGM4:
 
 /******************************************/
 /* Optimizations and Config:              */
@@ -1090,6 +1090,7 @@ label_0001:
 /* Unroll Loop 1/2 - Begin                */
 /******************************************/
 
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //4sync for global read
 
 s_cmp_eq_i32 s[sgprLoopCounters+0], -1             // is this the last iteration
@@ -1247,6 +1248,7 @@ s_cbranch_scc1 label_0003                          // exit LoopL
 /* Unroll Loop 2/2 - Begin                */
 /******************************************/
 
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //4sync for global read
 
 s_cmp_eq_i32 s[sgprLoopCounters+0], -1             // is this the last iteration
@@ -1517,7 +1519,8 @@ s_mov_b32       s87, s[sgprSrdD+0]
 s_mov_b32       s88, s[sgprSrdD+1]
 
 
-s_waitcnt lgkmcnt(0)                               // 1wait for local write
+//s_waitcnt lgkmcnt(0)                               // 1wait for local write
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //4sync for global read
 
 /* iter 0,1 */
@@ -1845,7 +1848,8 @@ s_cbranch_scc1 label_1002                            // wg1 < nwg1-1 so skip rMT
 
 /******************************************/
 
-s_waitcnt lgkmcnt(0)                                 // 1wait for local write
+//s_waitcnt lgkmcnt(0)                                 // 1wait for local write
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //4sync for global read
 
 /* iter 0 */
@@ -1960,7 +1964,8 @@ s_mov_b32       s87, s[sgprSrdD+0]
 s_mov_b32       s88, s[sgprSrdD+1]
 
 
-s_waitcnt lgkmcnt(0)                               // 1wait for local write
+//s_waitcnt lgkmcnt(0)                               // 1wait for local write
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //4sync for global read
 
 /* iter 0,1 */
@@ -2262,7 +2267,8 @@ label_1002:
 /******************************************/
 //branch logic gets executed for edge MT to use legacy alph_beta code
 
-s_waitcnt lgkmcnt(0)                                 // 1wait for local write
+//s_waitcnt lgkmcnt(0)                                 // 1wait for local write
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //4sync for global read
 
 /* iter 0 */
@@ -2352,7 +2358,8 @@ s_waitcnt lgkmcnt(0)                               // 6wait for local read old=2
 MAC_6x4_X0
 
 
-s_waitcnt lgkmcnt(0)                               // 1wait for local write
+//s_waitcnt lgkmcnt(0)                               // 1wait for local write
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //4sync for global read
 
 
@@ -2439,7 +2446,8 @@ s_branch label_0004
 
 label_1003:
 
-s_waitcnt lgkmcnt(0)                               // 1wait for local write
+//s_waitcnt lgkmcnt(0)                               // 1wait for local write
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //4sync for global read
 
 
@@ -2536,8 +2544,9 @@ s_cmp_eq_i32 s[sgprLoopCounters+0], -1             // is this the last iteration
 s_cmov_b32 s[sgprSrdA+2], 0                        // Set limit to 0 for last iteration
 s_cmov_b32 s[sgprSrdB+2], 0                        // Set limit to 0 for last iteration
 
-s_waitcnt lgkmcnt(0)                               // 1wait for local write
+//s_waitcnt lgkmcnt(0)                               // 1wait for local write
 
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //4sync for global read
 
 /* iter 0 */
@@ -2678,8 +2687,9 @@ buffer_load_dwordx2 v[vgprG2LB+0+0:vgprG2LB+0+0+1], v[vgprGlobalReadOffsetB+0], 
 buffer_load_dwordx2 v[vgprG2LB+0+2:vgprG2LB+0+2+1], v[vgprGlobalReadOffsetB+0], s[sgprSrdB:sgprSrdB+3], 0, offen offset:8 // load one buffer value
 _v_add_co_u32 v[vgprGlobalReadOffsetB+0], vcc, v[vgprGlobalReadOffsetB+0], 8 // graOffset += 1 * bpe
 
-s_waitcnt vmcnt(0)                                 // 2wait for global read
+//s_waitcnt vmcnt(0)                                 // 2wait for global read
 
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //
 
 /* local write init pointers a */
@@ -2701,8 +2711,9 @@ ds_write_b128 v[vgprLocalWriteAddrA], v[vgprG2LA+0:vgprG2LA+0+3] offset:0 // lwo
 
 ds_write_b128 v[vgprLocalWriteAddrB], v[vgprG2LB+0:vgprG2LB+0+3] offset:0 // lwoB_0_0_0_0 = (0*LSCB) + (0*LSPB)(*MT1J+PAD) = 0
 
-s_waitcnt lgkmcnt(0)                               // 5wait for local write
+//s_waitcnt lgkmcnt(0)                               // 5wait for local write
 
+s_waitcnt lgkmcnt(0) & vmcnt(0)                    // force waitcnt0
 s_barrier //
 
 

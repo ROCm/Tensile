@@ -24,6 +24,8 @@
 
 #pragma once
 
+#include <Tensile/ArithmeticUnitTypes.hpp>
+#include <Tensile/KernelLanguageTypes.hpp>
 #include <Tensile/Tensile.hpp>
 
 #include <Tensile/ContractionProblem_fwd.hpp>
@@ -338,6 +340,33 @@ namespace Tensile
             return m_highPrecisionAccumulate;
         }
 
+        void setArithmeticUnit(ArithmeticUnit value)
+        {
+            m_arithmeticUnit = value;
+        }
+        ArithmeticUnit arithmeticUnit() const
+        {
+            return m_arithmeticUnit;
+        }
+
+        void setKernelLanguage(KernelLanguage value)
+        {
+            m_kernelLanguage = value;
+        }
+        KernelLanguage kernelLanguage() const
+        {
+            return m_kernelLanguage;
+        }
+
+        void setDeterministicMode(bool value)
+        {
+            m_deterministicMode = value;
+        }
+        bool deterministicMode() const
+        {
+            return m_deterministicMode;
+        }
+
         /// Largest of the free and bound indices.  Does not include batch size.
         size_t maxProblemSize() const
         {
@@ -493,9 +522,12 @@ namespace Tensile
         std::string m_sumNames;
         std::string m_operationIdentifier;
 
-        bool m_transA;
-        bool m_transB;
-        bool m_highPrecisionAccumulate = false;
+        bool           m_transA;
+        bool           m_transB;
+        bool           m_highPrecisionAccumulate = false;
+        bool           m_deterministicMode       = false;
+        ArithmeticUnit m_arithmeticUnit          = ArithmeticUnit::Any;
+        KernelLanguage m_kernelLanguage          = KernelLanguage::Any;
 
         FreeIndices  m_freeIndicesA; //< in same order as IndexAssignmentsA
         FreeIndices  m_freeIndicesB; //< in same order as IndexAssignmentsB

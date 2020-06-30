@@ -30,6 +30,7 @@
 #include <Tensile/ContractionSolution.hpp>
 
 #ifdef TENSILE_DEFAULT_SERIALIZATION
+#include <Tensile/Serialization/MessagePack.hpp>
 #include <Tensile/llvm/Loading.hpp>
 #endif
 
@@ -47,10 +48,28 @@ namespace Tensile
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
         LoadLibraryFile(std::string const& filename)
     {
+#ifdef TENSILE_YAML
         return LLVMLoadLibraryFile<MyProblem, MySolution>(filename);
+#else
+        return MessagePackLoadLibraryFile<MyProblem, MySolution>(filename);
+#endif
+    }
+
+    template <typename MyProblem, typename MySolution>
+    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
+        LoadLibraryData(std::vector<uint8_t> const& data)
+    {
+#ifdef TENSILE_YAML
+        return LLVMLoadLibraryData<MyProblem, MySolution>(data);
+#else
+        return MessagePackLoadLibraryData<MyProblem, MySolution>(data);
+#endif
     }
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
         LoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename);
+
+    template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
+        LoadLibraryData<ContractionProblem, ContractionSolution>(std::vector<uint8_t> const& data);
 #endif
 } // namespace Tensile
