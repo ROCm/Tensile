@@ -77,8 +77,10 @@ add_library (TensileHost STATIC ${tensile_sources})
 
 target_include_directories(TensileHost INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-find_package(msgpack)
-target_link_libraries(TensileHost PUBLIC msgpackc)
+if(Tensile_LIBRARY_FORMAT MATCHES "msgpack")
+    find_package(msgpack)
+    target_link_libraries(TensileHost PRIVATE msgpackc.a)
+endif()
 
 if(TENSILE_USE_LLVM)
     target_compile_definitions(TensileHost PUBLIC TENSILE_DEFAULT_SERIALIZATION)
