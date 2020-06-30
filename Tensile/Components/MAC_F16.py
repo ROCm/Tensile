@@ -19,8 +19,57 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from ..Component import MAC
+from ..Component import Component, MAC
 from ..DataType import DataType
+
+class MAC_Plain(MAC):
+    """
+    Plain MAC instruction implementation
+    """
+    asmCaps = {"v_mac_f16": True,
+               "v_pk_fma_f16": False,
+               "v_fma_f16": False}
+    #archCaps = {}
+    kernel = {"ProblemType": {"DataType": DataType(DataType.half),
+                              "HighPrecisionAccumulate": False}}
+
+    def __call__(self, writer, m, innerUnroll):
+        kernel = writer.kernel
+
+        kStr = self.commentHeader()
+
+        priority = Component.Priority.find(writer)
+
+        vars = {}
+
+        vars["m"] = m
+        vars["kernel"] = kernel
+        vars["endLine"] = writer.endLine
+
+        vars["ThreadTile0"] = kernel["ThreadTile0"]
+        vars["ThreadTile1"] = kernel["ThreadTile1"]
+
+        vars["Half_ThreadTile0"] = kernel["ThreadTile0"] // 2
+        vars["Half_ThreadTile1"] = kernel["ThreadTile1"] // 2
+
+        for blockB in range(0, kernel["ThreadTile1"]//2):
+            for blockA in range(0, kernel["ThreadTile0"]//2):
+                for b in range(blockB*2, (blockB+1)*2):
+                    for a in range(blockA*2, (blockA+1)*2):
+                        for iui in range(0, innerUnroll):
+                            vars["blockA"] = blockA
+                            vars["blockB"] = blockB
+                            vars["iui"] = iui
+
+                            vars["cStr"] = "v[vgprValuC+{blockA}+{blockB}*{ThreadTile0}+0]".format_map(vars)
+                            vars["aStr"] = "v[vgprValuA_X{m}_I{iui}+{blockA}]".format_map(vars)
+                            vars["bStr"] = "v[vgprValuB_X{m}_I{iui}+{blockB}]".format_map(vars)
+                            kStr += "v_mac_f16 {cStr}, {aStr}, {bStr}{endLine}".format_map(vars)
+                            kStr += priority(writer, 1, "Raise priority while processing macs")
+
+        kStr += priority(writer, 0, "Reset priority after macs")
+        return kStr
+
 
 class FMA_NonPacked(MAC):
     asmCaps = {"v_fma_f16": True,
@@ -33,90 +82,98 @@ class FMA_NonPacked(MAC):
         kernel = writer.kernel
 
         kStr = self.commentHeader()
-        beAggressive = kernel["AggressivePerfMode"]
+        priority = Component.Priority.find(writer)
 
-        doOnce = False
+        vars = {}
+
+        vars["m"] = m
+        vars["kernel"] = kernel
+        vars["endLine"] = writer.endLine
+
+        vars["ThreadTile0"] = kernel["ThreadTile0"]
+        vars["ThreadTile1"] = kernel["ThreadTile1"]
+
+        vars["Half_ThreadTile0"] = kernel["ThreadTile0"] // 2
+        vars["Half_ThreadTile1"] = kernel["ThreadTile1"] // 2
 
         for blockB in range(0, kernel["ThreadTile1"]//2):
             for blockA in range(0, kernel["ThreadTile0"]//2):
                 for iui in range(0, innerUnroll):
-                    cStr1 = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
-                    cStr2 = "v[%s+%u+%u*%u+%u]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
-                    aStr = "v[%s+%u]" % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
-                    bStr = "v[%s+%u]" % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
-                    kStr += "v_fma_f16 %s, %s, %s, %s op_sel:[0,0,0,0] %s" % (cStr1, aStr, bStr, cStr1, writer.endLine)
-                    kStr += "v_fma_f16 %s, %s, %s, %s op_sel:[0,1,0,0] %s" % (cStr2, aStr, bStr, cStr2, writer.endLine)
-                    if beAggressive and not doOnce:
-                        kStr += "s_setprio 1 // Raise priority while processing macs%s" % writer.endLine
-                        doOnce = True
-                    kStr += "v_fma_f16 %s, %s, %s, %s op_sel:[1,0,1,1] %s" % (cStr1, aStr, bStr, cStr1, writer.endLine)
-                    kStr += "v_fma_f16 %s, %s, %s, %s op_sel:[1,1,1,1] %s" % (cStr2, aStr, bStr, cStr2, writer.endLine)
+                    vars["blockA"] = blockA
+                    vars["blockB"] = blockB
+                    vars["iui"] = iui
 
-        if beAggressive:
-            kStr += "s_setprio 0 // Reset priority after macs %s" % writer.endLine
+                    vars["cIdxExpr0"] = "{blockA} + {blockB}*{ThreadTile0} + 0".format_map(vars)
+                    vars["cIdxVal0"] = eval(vars["cIdxExpr0"])
+                    vars["cStr0"] = "v[vgprValuC + {cIdxExpr0}]".format_map(vars)
 
+                    # /2 b/c of 2 f16's per 32-bit vgpr
+                    vars["cIdxExpr1"] = "{blockA} + {blockB}*{ThreadTile0} + {Half_ThreadTile0}".format_map(vars)
+                    vars["cIdxVal1"] = eval(vars["cIdxExpr1"])
+                    vars["cStr1"] = "v[vgprValuC + {cIdxExpr1}]".format_map(vars)
+
+                    vars["aStr"] = "v[vgprValuA_X{m}_I{iui} + {blockA}]".format_map(vars)
+                    vars["bStr"] = "v[vgprValuB_X{m}_I{iui} + {blockB}]".format_map(vars)
+
+                    kStr += "v_fma_f16 {cStr0}, {aStr}, {bStr}, {cStr0} op_sel:[0,0,0,0] // {cIdxExpr0}{endLine}".format_map(vars)
+                    kStr += priority(writer, 1, "Raise priority while processing macs")
+                    kStr += "v_fma_f16 {cStr1}, {aStr}, {bStr}, {cStr1} op_sel:[0,1,0,0] // {cIdxExpr1}{endLine}".format_map(vars)
+                    kStr += "v_fma_f16 {cStr0}, {aStr}, {bStr}, {cStr0} op_sel:[1,0,1,1] // {cIdxExpr0}{endLine}".format_map(vars)
+                    kStr += "v_fma_f16 {cStr1}, {aStr}, {bStr}, {cStr1} op_sel:[1,1,1,1] // {cIdxExpr1}{endLine}".format_map(vars)
+
+        kStr += priority(writer, 0, "Reset priority after macs")
         return kStr
 
-class FMA_HPA_MAD_MIX(MAC):
-    asmCaps = {"v_mad_mix_f32": True}
+class FMA_Packed(MAC):
+    asmCaps = {"v_pk_fma_f16": True}
     #archCaps = {}
     kernel = {"ProblemType": {"DataType": DataType(DataType.half),
-                              "HighPrecisionAccumulate": True},
-              "LocalDotLayout": lambda ldl: ldl > 1
-             }
+                              "HighPrecisionAccumulate": False}}
 
     def __call__(self, writer, m, innerUnroll):
         kernel = writer.kernel
 
         kStr = self.commentHeader()
-        beAggressive = kernel["AggressivePerfMode"]
+        priority = Component.Priority.find(writer)
 
-        doOnce = False
+        vars = {}
+
+        vars["m"] = m
+        vars["kernel"] = kernel
+        vars["endLine"] = writer.endLine
+
+        vars["ThreadTile0"] = kernel["ThreadTile0"]
+        vars["ThreadTile1"] = kernel["ThreadTile1"]
+
+        vars["Half_ThreadTile0"] = kernel["ThreadTile0"] // 2
+        vars["Half_ThreadTile1"] = kernel["ThreadTile1"] // 2
 
         for blockB in range(0, kernel["ThreadTile1"]//2):
             for blockA in range(0, kernel["ThreadTile0"]//2):
-                # we treat HighPrecisionAccumulate as expanded packed math
-                if kernel["LocalDotLayout"] > 1 and innerUnroll == 2:    # Only supports LocalDotLayout == 2 for now
-                    cStr = "v[%s+%u*2+%u*%u*2+0*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
-                    cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 0
-                    aStr = "v[%s+%u]" % ("vgprValuA_X%u_I0"%m, blockA)
-                    bStr = "v[%s+%u]" % ("vgprValuB_X%u_I0"%m, blockB)
-                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u] %s" % (cStr, aStr, bStr, cStr, cidx, writer.endLine)
-                    if beAggressive and not doOnce:
-                        kStr += "s_setprio 1 // Raise priority while processing macs%s" % writer.endLine
-                        doOnce = True
-                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //ValuC[%u] %s" % (cStr, aStr, bStr, cStr, cidx, writer.endLine)
-                    cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 1
-                    aStr = "v[%s+%u]" \
-                        % ("vgprValuA_X%u_I1"%m, blockA)
-                    bStr = "v[%s+%u]" \
-                        % ("vgprValuB_X%u_I0"%m, blockB)
-                    cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
-                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, writer.endLine)
-                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, writer.endLine)
-                    cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 0
-                    aStr = "v[%s+%u]" \
-                        % ("vgprValuA_X%u_I0"%m, blockA)
-                    bStr = "v[%s+%u]" \
-                        % ("vgprValuB_X%u_I1"%m, blockB)
-                    cStr = "v[%s+%u*2+%u*%u*2+%u*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
-                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, writer.endLine)
-                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, writer.endLine)
-                    cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 1
-                    aStr = "v[%s+%u]" \
-                        % ("vgprValuA_X%u_I1"%m, blockA)
-                    bStr = "v[%s+%u]" \
-                        % ("vgprValuB_X%u_I1"%m, blockB)
-                    cStr = "v[%s+%u*2+%u*%u*2+%u*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
-                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, writer.endLine)
-                    kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, writer.endLine)
-                    #kStr += writer.bomb(-13)
-                    """
-                    ignore this, not quite correct for mixed precision
-                    D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
-                    D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
-                    C[0] = A[0]*B[0]+D[0]
-                    C[1] = A[1]*B[1]+D[1]
-                    """
+                for iui in range(0, innerUnroll):
+                    vars["blockA"] = blockA
+                    vars["blockB"] = blockB
+                    vars["iui"] = iui
 
+                    vars["cIdxExpr"] = "{blockA} + {blockB}*{ThreadTile0} + 0".format_map(vars)
+                    vars["cIdxVal"] = eval(vars["cIdxExpr"])
+
+                    # /2 b/c of 2 f16's per 32-bit vgpr
+                    vars["cStr"] = "v[vgprValuC + {cIdxExpr}]".format_map(vars)
+
+                    vars["aStr"] = "v[vgprValuA_X{m}_I{iui} + {blockA}]".format_map(vars)
+                    vars["bStr"] = "v[vgprValuB_X{m}_I{iui} + {blockB}]".format_map(vars)
+
+                    kStr += "v_pk_fma_f16 {cStr}, {aStr}, {bStr}, {cStr} op_sel:[0,0,0] op_sel_hi:[1,0,1] // {cIdxVal}{endLine}".format_map(vars)
+
+                    kStr += priority(writer, 1, "Raise priority while processing macs")
+
+                    vars["cIdxExpr"] = "{blockA} + {blockB}*{ThreadTile0} + {Half_ThreadTile0}".format_map(vars)
+                    vars["cIdxVal"] = eval(vars["cIdxExpr"])
+
+                    vars["cStr"] = "v[vgprValuC + {cIdxExpr}]".format_map(vars)
+
+                    kStr += "v_pk_fma_f16 {cStr}, {aStr}, {bStr}, {cStr} op_sel:[0,1,0] op_sel_hi:[1,1,1] // {cIdxVal}{endLine}".format_map(vars)
+
+        kStr += priority(writer, 0, "Reset priority after macs")
         return kStr

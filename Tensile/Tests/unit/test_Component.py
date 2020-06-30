@@ -46,6 +46,12 @@ def test_PartialMatch():
     assert not Component.PartialMatch({'bar': lambda x: x < 10}, a)
     assert Component.PartialMatch({'bar': lambda x: x > 10}, a)
 
+    shouldMatch = lambda obj: obj['foo'] and obj['bar'] > 20
+    shouldNotMatch = lambda obj: obj['foo'] and obj['bar'] < 20
+
+    assert Component.PartialMatch(shouldMatch, a)
+    assert not Component.PartialMatch(shouldNotMatch, a)
+
 class MockWriter:
     def __init__(self, **kwargs):
         defaultArgs = {'endLine': '\n'}
@@ -63,7 +69,9 @@ def vega10():
         'asmCaps': {'v_fma_f16': False,
                    'v_pk_fma_f16': True,
                    'v_dot2c_f32_f16': False,
-                   "v_mad_mix_f32": True}
+                   'v_dot2_f32_f16': False,
+                   "v_mad_mix_f32": True,
+                   "v_fma_mix_f32": False}
     }
 
 @pytest.fixture
@@ -72,7 +80,9 @@ def navi10():
         'asmCaps': {'v_fma_f16': True,
                    'v_pk_fma_f16': False,
                    'v_dot2c_f32_f16': False,
-                   "v_mad_mix_f32": False}
+                   'v_dot2_f32_f16': False,
+                   "v_mad_mix_f32": False,
+                   "v_fma_mix_f32": True}
     }
 
 @pytest.fixture
@@ -81,7 +91,9 @@ def navi12():
         'asmCaps': {'v_fma_f16': False,
                    'v_pk_fma_f16': False,
                    'v_dot2c_f32_f16': True,
-                   "v_mad_mix_f32": False}
+                   'v_dot2_f32_f16': True,
+                   "v_mad_mix_f32": False,
+                   "v_fma_mix_f32": True}
     }
 
 @pytest.fixture
@@ -90,6 +102,8 @@ def f16():
         'kernel': {"ProblemType": {"DataType": DataType(DataType.half),
                                    "HighPrecisionAccumulate": False},
                    "AggressivePerfMode": True,
+                   "LocalDotLayout": 1,
+                   "InnerUnroll": 1,
                    "ThreadTile0": 4,
                    "ThreadTile1": 4}
     }
@@ -100,7 +114,20 @@ def f16_hpa():
         'kernel': {"ProblemType": {"DataType": DataType(DataType.half),
                                    "HighPrecisionAccumulate": True},
                    "AggressivePerfMode": True,
+                   "LocalDotLayout": 1,
+                   "InnerUnroll": 1,
+                   "ThreadTile0": 4,
+                   "ThreadTile1": 4}
+    }
+
+@pytest.fixture
+def f16_hpa_ldl():
+    return {
+        'kernel': {"ProblemType": {"DataType": DataType(DataType.half),
+                                   "HighPrecisionAccumulate": True},
+                   "AggressivePerfMode": True,
                    "LocalDotLayout": 2,
+                   "InnerUnroll": 2,
                    "ThreadTile0": 4,
                    "ThreadTile1": 4}
     }
@@ -120,11 +147,6 @@ def test_find(navi10, f16):
     found = Component.MAC.find(writer)
     assert isinstance(found, Components.MAC_F16.FMA_NonPacked)
 
-    found = Component.Component.find(writer)
-    assert isinstance(found, Components.MAC_F16.FMA_NonPacked)
-
-# Currently being worked on.
-@pytest.mark.xfail
 def test_find2(vega10, f16_hpa):
     writer = MockWriter(**vega10, **f16_hpa)
 
@@ -140,3 +162,15 @@ def test_MAC_F16_FMA_NonPacked(navi10, f16):
 
 def test_componentPath():
     assert Components.MAC_F16.FMA_NonPacked.componentPath() == ["Component", "MAC", "FMA_NonPacked"]
+
+def test_find_macs(useGlobalParameters, f16, f16_hpa, f16_hpa_ldl):
+    with useGlobalParameters() as globals:
+        for dtype in [f16, f16_hpa, f16_hpa_ldl]:
+            for arch in globals["SupportedISA"]:
+                writer = MockWriter(asmCaps=globals["AsmCaps"][arch], archCaps=globals["ArchCaps"][arch], **dtype)
+
+                found = Component.MAC.find(writer, True)
+                # No HPA on 803, every other combination should work though.
+                if arch != (8,0,3) or (dtype != f16_hpa and dtype != f16_hpa_ldl):
+                    assert isinstance(found, Component.MAC)
+                print(dtype, arch, found)
