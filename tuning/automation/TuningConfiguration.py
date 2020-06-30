@@ -97,7 +97,6 @@ defaultHeader["DataInitTypeBeta"] = 1
 defaultHeader["SolutionSelectionAlg"] = 1
 defaultHeader["PrintWinnersOnly"] = 1
 defaultHeader["PrintSolutionRejectionReason"] = True
-defaultHeader["YAML"] = True
 defaultHeader["DataInitTypeAB"] = 0
 defaultHeader["NewClient"] = 2
 

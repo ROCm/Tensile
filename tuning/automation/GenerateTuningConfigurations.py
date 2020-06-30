@@ -292,9 +292,7 @@ def determineGSU(sizeList, mfma):
             if 32 not in gsuVals:
                 gsuVals.append(32)
     gsuVals.sort()
-    if len(gsuVals) > 1 and gsuVals[1] != 2:
-        gsuVals.remove(1)
-    return [gsuSizes,gsuVals] 
+    return [gsuSizes,gsuVals]
 
 def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware="false",mfma="false",rk="false"):
     _ , transposeA, transposeB, dType = problemKey
@@ -349,21 +347,21 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
             appendWorkGroups(benchmarkGroup, [[16,16,1],[64,4,1],[32,8,1]])
             appendSizes(benchmarkGroup,gsuSizeList,tileAware)
             problemGroup.append(benchmarkGroup)
-            
+
             benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
             appendMatrixInstructions(benchmarkGroup, [[16, 16, 1, 4]])
             appendThreadTiles(benchmarkGroup, [[2,32],[2,16],[1,32],[4,16],[2,48],[6,16]])
             appendWorkGroups(benchmarkGroup, [[64,4,1],[32,8,1]])
             appendSizes(benchmarkGroup,gsuSizeList,tileAware)
             problemGroup.append(benchmarkGroup)
-            
+
             benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
             appendMatrixInstructions(benchmarkGroup, [[32, 32, 2, 1]])
             appendThreadTiles(benchmarkGroup, [[2,32],[1,64],[4,32],[6,32],[2,64]])
             appendWorkGroups(benchmarkGroup, [[16,16,1],[64,4,1],[32,8,1]])
             appendSizes(benchmarkGroup,gsuSizeList,tileAware)
             problemGroup.append(benchmarkGroup)
-            
+
             benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
             appendMatrixInstructions(benchmarkGroup, [[32, 32, 1, 2]])
             appendThreadTiles(benchmarkGroup, [[1,32],[2,32],[3,32],[1,64]])
@@ -378,21 +376,21 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
         appendWorkGroups(benchmarkGroup, [[16,16,1],[64,4,1],[32,8,1]])
         appendSizes(benchmarkGroup,sizeList,tileAware)
         problemGroup.append(benchmarkGroup)
-        
+
         benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
         appendMatrixInstructions(benchmarkGroup, [[16, 16, 1, 4]])
         appendThreadTiles(benchmarkGroup, [[2,32],[2,16],[1,32],[4,16],[2,48],[6,16]])
         appendWorkGroups(benchmarkGroup, [[64,4,1],[32,8,1]])
         appendSizes(benchmarkGroup,sizeList,tileAware)
         problemGroup.append(benchmarkGroup)
-        
+
         benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
         appendMatrixInstructions(benchmarkGroup, [[32, 32, 2, 1]])
         appendThreadTiles(benchmarkGroup, [[2,32],[1,64],[4,32],[6,32],[2,64]])
         appendWorkGroups(benchmarkGroup, [[16,16,1],[64,4,1],[32,8,1]])
         appendSizes(benchmarkGroup,sizeList,tileAware)
         problemGroup.append(benchmarkGroup)
-        
+
         benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
         appendMatrixInstructions(benchmarkGroup, [[32, 32, 1, 2]])
         appendThreadTiles(benchmarkGroup, [[1,32],[2,32],[3,32],[1,64]])
@@ -462,7 +460,7 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
                 appendSizes(benchmarkGroup,gsuSizeList,tileAware)
 
             problemGroup.append(benchmarkGroup)
-        
+
         if dType == "h":
             scheme["AssertSummationElementMultiple"] = [2]
             scheme["AssertFree0ElementMultiple"] = [2]
