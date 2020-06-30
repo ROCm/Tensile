@@ -1361,12 +1361,8 @@ def TensileCreateLibrary():
   sanityCheck0 = set(codeObjectFiles) - set(sourceLibPaths + asmLibPaths)
   sanityCheck1 = set(sourceLibPaths + asmLibPaths) - set(codeObjectFiles)
 
-  if len(sanityCheck0) > 0:
-    print1("Warning: Manifest is missing library files: {}".format(sanityCheck0))
-
-  if len(sanityCheck1) > 0:
-    print1("Warning: Manifest has unexpected library files: {}".format(sanityCheck1))
-
+  assert len(sanityCheck0) == 0, "Unexpected code object files: {}".format(sanityCheck0)
+  assert len(sanityCheck1) == 0, "Missing expected code object files: {}".format(sanityCheck1)
 
   if globalParameters["LegacyComponents"]:
     # write logic
