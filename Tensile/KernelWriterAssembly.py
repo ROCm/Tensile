@@ -1925,28 +1925,6 @@ class KernelWriterAssembly(KernelWriter):
   def macroRegister(self, name, value):
     return ".set %s, %s%s" % (name, value, self.endLine)
 
-  def v2Argument(self, name, size, align, valueKind, valueType, AddrSpaceQual = None):
-    kStr = ""
-    kStr += "      - Name:            %s\n" % name
-    kStr += "        Size:            %s\n" % size
-    kStr += "        Align:           %s\n" % align
-    kStr += "        ValueKind:       %s\n" % valueKind
-    kStr += "        ValueType:       %s\n" % valueType
-    if AddrSpaceQual != None:
-      kStr += "        AddrSpaceQual:   %s\n" % AddrSpaceQual
-    return kStr
-
-  def v3Argument(self, name, size, offset, valueKind, valueType, AddrSpaceQual = None):
-    kStr = ""
-    kStr += "      - .name:            %s\n" % name
-    kStr += "        .size:            %s\n" % size
-    kStr += "        .offset:          %s\n" % offset
-    kStr += "        .value_kind:      %s\n" % valueKind
-    kStr += "        .value_type:      %s\n" % valueType
-    if AddrSpaceQual != None:
-      kStr += "        .address_space:   %s\n" % AddrSpaceQual
-    return kStr
-
   ##############################################################################
   # Function Prefix
   ##############################################################################
