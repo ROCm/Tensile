@@ -226,7 +226,6 @@ def generateDefaultScheme():
             "DepthU": [16,24,32],
             "VectorWidth": [-1],
             "GlobalSplitU": [1],
-            "GlobalReadVectorWidth": [-1],
             "FractionalLoad": [1],
             "PrefetchLocalRead": [True],
             "PrefetchGlobalRead": [True]}
@@ -241,20 +240,16 @@ def generateMfmaScheme():
             "DepthU": [16,24,32],
             "VectorWidth": [2,4],
             "GlobalSplitU": [1],
-            "GlobalReadVectorWidth": [-1],
             "FractionalLoad": [1],
             "PrefetchLocalRead": [True],
             "PrefetchGlobalRead": [True],
             "ScheduleIterAlg": [1,3],
-            "DisableVgprOverlapping": [False],
+            "DisableVgprOverlapping": [True,False],
             "WaveSeparateGlobalReadA": [True,False],
             "WaveSeparateGlobalReadB": [True,False],
             "InnerUnroll": [1,2],
             "OptNoLoadLoop": [0,1,2],
-            "StoreVectorWidth": [-1],
-            "TransposeLDS": [1],
-            "StoreRemapVectorWidth": [4],
-            "DirectToLds": [0]}
+            "StoreRemapVectorWidth": [4]}
 
     return scheme
 
@@ -408,12 +403,15 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
             if dType == "h":
                 gsuScheme["AssertSummationElementMultiple"] = [2]
                 gsuScheme["AssertFree0ElementMultiple"] = [2]
+            elif dType == "d":
+                gsuScheme["DepthU"] = [4,8]
+                gsuScheme["PrefetchLocalRead"] = [True,False]
 
             if sizeKey == "batch":
                 if dType == "d":
                     benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                    appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
+                    appendWorkGroups(benchmarkGroup, [[16,8,1],[8,16,1]])
                 else:
                     benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
@@ -423,7 +421,7 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
                 if dType == "d":
                     benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                    appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
+                    appendWorkGroups(benchmarkGroup, [[16,8,1],[8,16,1]])
                 else:
                     benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[2,2],[4,2],[2,4],[4,4]])
@@ -433,7 +431,7 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
                 if dType == "d":
                     benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                    appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
+                    appendWorkGroups(benchmarkGroup, [[16,8,1],[8,16,1]])
                 else:
                     benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
@@ -443,7 +441,7 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
                 if dType == "d":
                     benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                    appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
+                    appendWorkGroups(benchmarkGroup, [[16,8,1],[8,16,1]])
                 else:
                     benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
@@ -453,7 +451,7 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
                 if dType == "d":
                     benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                    appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[32,16,1],[16,32,1]])
+                    appendWorkGroups(benchmarkGroup, [[16,8,1],[8,16,1]])
                 else:
                     benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[4,4],[6,4],[4,6],[4,8],[8,4],[8,8]])
@@ -466,12 +464,15 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
             if dType == "h":
                 scheme["AssertSummationElementMultiple"] = [2]
                 scheme["AssertFree0ElementMultiple"] = [2]
+            elif dType == "d":
+                scheme["DepthU"] = [4,8]
+                scheme["PrefetchLocalRead"] = [True,False]
 
             if sizeKey == "batch":
                 if dType == "d":
                     benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                    appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
+                    appendWorkGroups(benchmarkGroup,[[16,8,1],[8,16,1]])
                 else:
                     benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
@@ -481,7 +482,7 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
                 if dType == "d":
                     benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                    appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
+                    appendWorkGroups(benchmarkGroup, [[16,8,1],[8,16,1]])
                 else:
                     benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[2,2],[4,2],[2,4],[4,4]])
@@ -491,7 +492,7 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
                 if dType == "d":
                     benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                    appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
+                    appendWorkGroups(benchmarkGroup, [[16,8,1],[8,16,1]])
                 else:
                     benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
@@ -501,7 +502,7 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
                 if dType == "d":
                     benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                    appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
+                    appendWorkGroups(benchmarkGroup, [[16,8,1],[8,16,1]])
                 else:
                     benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
@@ -511,7 +512,7 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
                 if dType == "d":
                     benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                    appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[32,16,1],[16,32,1]])
+                    appendWorkGroups(benchmarkGroup, [[16,8,1],[8,16,1]])
                 else:
                     benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
                     appendThreadTiles(benchmarkGroup, [[4,4],[6,4],[4,6],[4,8],[8,4],[8,8]])
