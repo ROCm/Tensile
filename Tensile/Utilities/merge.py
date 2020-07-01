@@ -60,11 +60,11 @@ def removeUnusedKernels(origData):
                 break
         if isUsed == False:
             uIndex = i-len(unusedKernels)
-            if uIndex not in unusedKernels: 
+            if uIndex not in unusedKernels:
                 unusedKernels.append(uIndex)
-    
+
     for i in unusedKernels:
-        origData[5].pop(i)    
+        origData[5].pop(i)
     for i in range(0,len(origData[5])):
         oldSolIndex = origData[5][i]["SolutionIndex"]
         origData[5][i]["SolutionIndex"] = i

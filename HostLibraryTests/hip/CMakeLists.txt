@@ -11,15 +11,17 @@ TensileCreateLibraryFiles(
     TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
     EMBED_LIBRARY test_kernels_lite
     EMBED_KEY     kernels_lite
-    VAR_PREFIX LITE NO_MERGE_FILES
+    VAR_PREFIX LITE
+    NO_MERGE_FILES
     COMPILER ${COMPILER}
     CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
     )
 
-message("LITE_ALL_FILES: ${LITE_ALL_FILES}")
-
-file(MAKE_DIRECTORY "${TEST_DATA_DIR}/kernels_lite")
-file(COPY ${LITE_ALL_FILES} DESTINATION "${TEST_DATA_DIR}/kernels_lite")
+TensileCreateCopyTarget(
+    copy_kernels_lite
+    "${LITE_ALL_FILES}"
+    ${TEST_DATA_DIR}/kernels_lite
+    )
 
 TensileCreateLibraryFiles(
     "${CMAKE_CURRENT_SOURCE_DIR}/../configs/lite_configs_mixed"
@@ -33,10 +35,12 @@ TensileCreateLibraryFiles(
     CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
     )
 
-file(MAKE_DIRECTORY "${TEST_DATA_DIR}/kernels_lite_mixed")
-file(COPY ${LITE_MIXED_ALL_FILES} DESTINATION "${TEST_DATA_DIR}/kernels_lite_mixed")
+TensileCreateCopyTarget(
+    copy_kernels_lite_mixed
+    "${LITE_MIXED_ALL_FILES}"
+    ${TEST_DATA_DIR}/kernels_lite_mixed
+    )
 
-# Link a second copy of the lite_configs library to test that there are no issues with duplicate symbols.
 TensileCreateLibraryFiles(
     "${CMAKE_CURRENT_SOURCE_DIR}/../configs/lite_configs"
     "${CMAKE_CURRENT_BINARY_DIR}/test_kernels_lite_2"
@@ -49,8 +53,11 @@ TensileCreateLibraryFiles(
     CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
     )
 
-file(MAKE_DIRECTORY "${TEST_DATA_DIR}/kernels_lite_2")
-file(COPY ${LITE_2_ALL_FILES} DESTINATION "${TEST_DATA_DIR}/kernels_lite_2")
+TensileCreateCopyTarget(
+    copy_kernels_lite_2
+    "${LITE_2_ALL_FILES}"
+    ${TEST_DATA_DIR}/kernels_lite_2
+    )
 
 TensileCreateLibraryFiles(
     "${CMAKE_CURRENT_SOURCE_DIR}/../configs/tile_aware_selection"
@@ -63,9 +70,11 @@ TensileCreateLibraryFiles(
     CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
     )
 
-file(MAKE_DIRECTORY "${TEST_DATA_DIR}/tile_aware_selection")
-file(COPY "${CMAKE_CURRENT_BINARY_DIR}/test_tile_aware_selection/library" DESTINATION "${TEST_DATA_DIR}/tile_aware_selection")
-#file(COPY ${TILE_AWARE_SELECTION_ALL_FILES} DESTINATION "${TEST_DATA_DIR}/tile_aware_selection")
+TensileCreateCopyTarget(
+    copy_kernels_tile_aware_selection
+    "${TENSILE_ALL_FILES}"
+    ${TEST_DATA_DIR}/tile_aware_selection/library
+    )
 
 set(test_yaml rocblas_sgemm_asm_single_kernel.yaml)
 file(COPY ${test_yaml} DESTINATION .)
@@ -85,4 +94,14 @@ set(HIP_TEST_LIBRARIES
     test_kernels_lite_mixed
     test_tile_aware_selection
     TensileClient PARENT_SCOPE)
+
+# Make sure that the TensileTests depends on targets below.
+# Otherwise the TensileTests executable will segfault out.
+set(HIP_TEST_COPY_TARGET_DEPS
+    copy_kernels_lite
+    copy_kernels_lite_2
+    copy_kernels_lite_mixed
+    copy_kernels_tile_aware_selection
+    PARENT_SCOPE
+)
 

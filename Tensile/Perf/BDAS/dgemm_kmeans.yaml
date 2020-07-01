@@ -12,7 +12,7 @@ GlobalParameters:
   NumBenchmarks: 1
   SyncsPerBenchmark: 1
   LibraryPrintDebug: False
-  NumElementsToValidate: 100 
+  NumElementsToValidate: 100
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
@@ -36,7 +36,7 @@ BenchmarkProblems:
       OperationType: GEMM
       DataType: d
       TransposeA: True
-      TransposeB: False 
+      TransposeB: False
       UseBeta: True
       Batched: True
 

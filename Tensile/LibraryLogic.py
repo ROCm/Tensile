@@ -424,7 +424,7 @@ class LogicAnalyzer:
       if rowIdx == 1:
         # get the length of each row, and derive the first column of the solution instead of using wrong "solutionStartIdx = totalSizeIdx + 1"
         rowLength = len(row)
-        solutionStartIdx = rowLength - numSolutions        
+        solutionStartIdx = rowLength - numSolutions
         continue
       else:
         #if len(row) < rowLength:

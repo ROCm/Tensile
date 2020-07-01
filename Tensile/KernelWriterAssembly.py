@@ -10962,7 +10962,7 @@ class KernelWriterAssembly(KernelWriter):
             addr1 = ""
           # Calculate vgpr Indx for 32-bit/64-bit instruction
           # DGEMM use SRCS[2] register
-          vgprIdx = 1*(bpm//4)      
+          vgprIdx = 1*(bpm//4)
           kStr += self.chooseGlobalRead(useBuffer, bpm, dataV+vgprIdx, \
                     addr0, addr1, soffset=0, offset=addrCalc.globalOffset, extraFields="",
                     comment="load C (atomic) bpm=%u vaw=%u"%(bpm,atomicW)).toStr()
@@ -11217,7 +11217,7 @@ class KernelWriterAssembly(KernelWriter):
         bps = kernel["ProblemType"]["DataType"].numBytes()
         vgprCnt = 2 if kernel["ProblemType"]["DataType"].isDouble() else 1   # number of registers for f32/f64
         bpm = self.bpeCexternal * atomicW
-        vgprIdx = 1*(bpm//4)   # index register 
+        vgprIdx = 1*(bpm//4)   # index register
 
         for avi in range(0, gwvw//atomicW):
           dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
