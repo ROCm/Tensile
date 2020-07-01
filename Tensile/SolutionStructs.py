@@ -2697,12 +2697,12 @@ class Solution:
 
     # Default LocalReadVectorWidth
     if state["LocalReadVectorWidth"] == -1:
-      if state["MatrixInstruction"]:
+      if state["EnableMatrixInstruction"]:
         state["LocalReadVectorWidth"] = state["ProblemType"]["DataType"].numMIInput()
       else:
         state["LocalReadVectorWidth"] = state["VectorWidth"]
     else:
-      if not state["MatrixInstruction"]:
+      if not state["EnableMatrixInstruction"]:
         reject(state, "LocalReadVectorWidth requires MatrixInstruction")
       if not state["TransposeLDS"]:
         reject(state, "LocalReadVectorWidth requires TransposeLDS=1")
@@ -2715,7 +2715,7 @@ class Solution:
       if state["ProblemType"]["TLUA"]:
         state["LdsPadA"] = 0
       else:
-        if state["MatrixInstruction"] and state["TransposeLDS"]:
+        if state["EnableMatrixInstruction"] and state["TransposeLDS"]:
           state["LdsPadA"] = max(state["GlobalReadVectorWidth"],state["LocalReadVectorWidth"])
         else:
           state["LdsPadA"] = state["VectorWidth"]
@@ -2724,7 +2724,7 @@ class Solution:
       if state["ProblemType"]["TLUB"]:
         state["LdsPadB"] = 0
       else:
-        if state["MatrixInstruction"] and state["TransposeLDS"]:
+        if state["EnableMatrixInstruction"] and state["TransposeLDS"]:
           state["LdsPadB"] = max(state["GlobalReadVectorWidth"],state["LocalReadVectorWidth"])
         else:
           state["LdsPadB"] = state["VectorWidth"]
@@ -2903,11 +2903,11 @@ class Solution:
       reject(state, "ScheduleIterAlg 2 only work with EPS1_SGR1, LoopIter=1")
 
     if state["TransposeLDS"] == 1:
-      if not state["MatrixInstruction"]:
+      if not state["EnableMatrixInstruction"]:
         reject(state, "TransposeLds Supports only in MatrixInstruction=1")
       if state["ProblemType"]["TLUA"] and state["ProblemType"]["TLUB"]:
           reject(state, "TransposeLds requires TLUA=0 or TLUB=0")
-      if state["MatrixInstruction"]:
+      if state["EnableMatrixInstruction"]:
         # enable widerLocalRead
         if state["LocalReadVectorWidth"] > state["ProblemType"]["DataType"].numMIInput():
           # not support 1 block MI
