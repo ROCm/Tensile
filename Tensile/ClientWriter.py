@@ -191,6 +191,7 @@ def getBuildOldClientScript(libraryLogicPath, forBenchmark):
   runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
   runScriptFile.write(" -DTensile_COMPILER=%s" % globalParameters["CxxCompiler"])
   runScriptFile.write(" -DTensile_ARCHITECTURE=%s" % globalParameters["Architecture"])
+  runScriptFile.write(" -DTensile_LIBRARY_FORMAT=%s" % globalParameters["LibraryFormat"])
   if globalParameters["EnableHalf"]:
     runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
   if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
@@ -256,9 +257,14 @@ def getBuildNewClientLibraryScript(buildPath, libraryLogicPath, forBenchmark):
   else:
     callCreateLibraryCmd += " --no-library-print-debug"
 
+  # Function won't get called if NewClient !=2, but don't want to make assumption
+  if "NewClient" in globalParameters and globalParameters["NewClient"] == 2:
+      callCreateLibraryCmd += " --new-client-only"
+
   callCreateLibraryCmd += " --architecture=" + globalParameters["Architecture"]
   callCreateLibraryCmd += " --code-object-version=" + globalParameters["CodeObjectVersion"]
   callCreateLibraryCmd += " --cxx-compiler=" + globalParameters["CxxCompiler"]
+  callCreateLibraryCmd += " --library-format=" + globalParameters["LibraryFormat"]
 
   callCreateLibraryCmd += " %s" % libraryLogicPath
   callCreateLibraryCmd += " %s" % buildPath #" ../source"
@@ -559,7 +565,7 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
             f.write("{}={}\n".format(key, value))
 
         sourceDir = os.path.join(stepBaseDir, "source")
-        libraryFilename = "TensileLibrary.yaml" if globalParameters["YAML"] else "TensileLibrary.dat"
+        libraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
         libraryFile = os.path.join(sourceDir, "library", libraryFilename)
         param("library-file", libraryFile)
 

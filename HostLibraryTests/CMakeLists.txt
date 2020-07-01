@@ -105,7 +105,6 @@ add_subdirectory(testlib)
 
 set(test_sources ${test_sources}
     test.cpp
-
     CachingLibrary_test.cpp
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp
@@ -123,6 +122,9 @@ if(TENSILE_USE_LLVM)
 
     set(test_sources ${test_sources}
         ContractionLibraryLoading_test.cpp
+        llvm/ArithmeticUnitPredicate_test.cpp
+        llvm/DeterministicModePredicate_test.cpp
+        llvm/KernelLanguagePredicate_test.cpp
         llvm/LLVMYAMLContraction_test.cpp
         llvm/LibraryPerformance_test.cpp
         )
@@ -141,7 +143,7 @@ add_executable(TensileTests ${test_sources})
 
 if(NOT TENSILE_DISABLE_CTEST)
     if(GTEST_INTEGRATION)
-        gtest_discover_tests(TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+        gtest_discover_tests(TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR} TIMEOUT 60)
     else()
         add_test(NAME TensileHostLibraryTests COMMAND TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
     endif()
@@ -164,7 +166,13 @@ if(TENSILE_USE_LLVM)
 endif()
 
 if(TENSILE_USE_HIP)
+
+    # Make sure the testing libraries get copied to avoid segfaults in test runs.
+    add_dependencies(TensileTests ${HIP_TEST_COPY_TARGET_DEPS})
+
+    target_link_libraries(TensileTests PRIVATE "-Xlinker --whole-archive")
     target_link_libraries(TensileTests PUBLIC ${HIP_TEST_LIBRARIES})
+    target_link_libraries(TensileTests PRIVATE "-Xlinker --no-whole-archive")
     foreach(arch IN LISTS TENSILE_GPU_ARCHS)
         target_link_libraries(TensileTests PRIVATE "--amdgpu-target=${arch}")
     endforeach(arch)

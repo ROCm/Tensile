@@ -1,7 +1,7 @@
 # A config to generate a fast kernel(s) for  TRANSFORMER model GEMM problem sizes
 # problem sizes comes from Kaggle and Medium_4 data sets
 # update parameters to produce best kernel(S)
-# to keep number of kernel produced minimum 
+# to keep number of kernel produced minimum
 #   1) add new sections if certain paramters are more conducive to certain problem sizes
 #   2) create separate sections for replacement kernel(s)
 
@@ -39,13 +39,13 @@ GlobalParameters:
 BenchmarkProblems:
 
   ########################################
-  # NT - 
+  # NT -
   ########################################
   -
     - # ProblemType
       OperationType: GEMM
       DataType: s
-      TransposeA: False 
+      TransposeA: False
       TransposeB: True
       UseBeta: True
       Batched: True
@@ -73,7 +73,7 @@ BenchmarkProblems:
           - [ 16, 16, 1 ]
         - DepthU: [ 16,8 ]
         - VectorWidth: [4,2]
-        - DisableVgprOverlapping: [True,False]
+        - DisableVgprOverlapping: [False]
         - WaveSeparateGlobalReadA: [True,False]
         - WaveSeparateGlobalReadB: [True,False]
         - GlobalReadVectorWidth: [4]
@@ -110,8 +110,7 @@ BenchmarkProblems:
           - [ 32, 8, 1 ]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
-        - FractionalLoad: [1,0]
-        - DisableVgprOverlapping: [True,False]
+        - DisableVgprOverlapping: [False]
         - WaveSeparateGlobalReadA: [True,False]
         - WaveSeparateGlobalReadB: [True,False]
         - GlobalReadVectorWidth: [4]
@@ -148,8 +147,7 @@ BenchmarkProblems:
           - [ 64, 4, 1 ]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
-        - FractionalLoad: [1,0]
-        - DisableVgprOverlapping: [True,False]
+        - DisableVgprOverlapping: [False]
         - WaveSeparateGlobalReadA: [True,False]
         - WaveSeparateGlobalReadB: [True,False]
         - GlobalReadVectorWidth: [4]
@@ -193,7 +191,7 @@ BenchmarkProblems:
           - [ 64, 4, 1 ]
         - DepthU: [ 16,8 ]
         - VectorWidth: [4,2]
-        - DisableVgprOverlapping: [True,False]
+        - DisableVgprOverlapping: [False]
         - WaveSeparateGlobalReadA: [True,False]
         - WaveSeparateGlobalReadB: [True,False]
         - GlobalReadVectorWidth: [4]
@@ -229,8 +227,7 @@ BenchmarkProblems:
           - [ 32, 8, 1 ]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
-        - FractionalLoad: [1,0]
-        - DisableVgprOverlapping: [True,False]
+        - DisableVgprOverlapping: [False]
         - WaveSeparateGlobalReadA: [True,False]
         - WaveSeparateGlobalReadB: [True,False]
         - GlobalReadVectorWidth: [4]
@@ -270,8 +267,7 @@ BenchmarkProblems:
           - [ 32, 8, 1 ]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
-        - FractionalLoad: [1,0]
-        - DisableVgprOverlapping: [True,False]
+        - DisableVgprOverlapping: [False]
         - WaveSeparateGlobalReadA: [True,False]
         - WaveSeparateGlobalReadB: [True,False]
         - GlobalReadVectorWidth: [4]
@@ -308,8 +304,7 @@ BenchmarkProblems:
           - [ 64, 4, 1 ]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
-        - FractionalLoad: [1,0]
-        - DisableVgprOverlapping: [True,False]
+        - DisableVgprOverlapping: [False]
         - WaveSeparateGlobalReadA: [True,False]
         - WaveSeparateGlobalReadB: [True,False]
         - GlobalReadVectorWidth: [4]
@@ -354,8 +349,7 @@ BenchmarkProblems:
           - [ 64, 4, 1 ]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
-        - FractionalLoad: [1,0]
-        - DisableVgprOverlapping: [True,False]
+        - DisableVgprOverlapping: [False]
         - WaveSeparateGlobalReadA: [True,False]
         - WaveSeparateGlobalReadB: [True,False]
         - GlobalReadVectorWidth: [4]
@@ -395,8 +389,7 @@ BenchmarkProblems:
           - [ 64, 4, 1 ]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
-        - FractionalLoad: [1,0]
-        - DisableVgprOverlapping: [True,False]
+        - DisableVgprOverlapping: [False]
         - WaveSeparateGlobalReadA: [True,False]
         - WaveSeparateGlobalReadB: [True,False]
         - GlobalReadVectorWidth: [4]
@@ -435,8 +428,7 @@ BenchmarkProblems:
           - [ 16, 16, 1 ]
         - DepthU: [ 8,16 ]
         - VectorWidth: [4,2]
-        - FractionalLoad: [1,0]
-        - DisableVgprOverlapping: [True,False]
+        - DisableVgprOverlapping: [False]
         - WaveSeparateGlobalReadA: [True,False]
         - WaveSeparateGlobalReadB: [True,False]
         - GlobalReadVectorWidth: [4]
@@ -468,11 +460,10 @@ BenchmarkProblems:
           - [ 2, 32 ]
         - WorkGroup:
           - [ 32, 8, 1 ]
-        - DepthU: [ 8,16 ]
+        - DepthU: [ 8,16,32 ]
         - GlobalSplitU: [1,2,4]
         - VectorWidth: [4,2]
-        - FractionalLoad: [1,0]
-        - DisableVgprOverlapping: [True,False]
+        - DisableVgprOverlapping: [False]
         - WaveSeparateGlobalReadA: [True,False]
         - WaveSeparateGlobalReadB: [True,False]
         - GlobalReadVectorWidth: [4]

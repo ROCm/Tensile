@@ -260,7 +260,7 @@ class WaitCnt (Module):
 
     if len(main_args) > 0:
       rv.addInst("s_waitcnt", *main_args, self.comment)
-      if wait_store and self.version == (10,1,0) and self.vmcnt != -1:
+      if wait_store and self.version[0] == 10 and self.vmcnt != -1:
         rv.addInst("s_waitcnt_vscnt", "null", self.vmcnt, "writes")
     else:
       rv.addComment0(self.comment)
@@ -657,7 +657,7 @@ class SrdUpperValue9XX(BitfieldUnion):
   def default(cls):
     return cls(fields=SrdUpperFields9XX.default())
 
-class SrdUpperFields1010(BitfieldStructure):
+class SrdUpperFields10XX(BitfieldStructure):
   _fields_ = [("dst_sel_x",      ctypes.c_uint, 3),
               ("dst_sel_y",      ctypes.c_uint, 3),
               ("dst_sel_z",      ctypes.c_uint, 3),
@@ -678,17 +678,17 @@ class SrdUpperFields1010(BitfieldStructure):
                resource_level = 1,
                oob_select     = 3)
 
-class SrdUpperValue1010(BitfieldUnion):
-  _fields_ = [("fields", SrdUpperFields1010), ("value", ctypes.c_uint32)]
+class SrdUpperValue10XX(BitfieldUnion):
+  _fields_ = [("fields", SrdUpperFields10XX), ("value", ctypes.c_uint32)]
 
   @classmethod
   def default(cls):
-    return cls(fields=SrdUpperFields1010.default())
+    return cls(fields=SrdUpperFields10XX.default())
 
 
 def SrdUpperValue(isa):
-  if isa == (10,1,0):
-    return SrdUpperValue1010.default()
+  if isa[0] == 10:
+    return SrdUpperValue10XX.default()
   else:
     return SrdUpperValue9XX.default()
 

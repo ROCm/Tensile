@@ -1761,7 +1761,7 @@ class Solution:
   #  state[GlobalLoadVectorWidth*]
   #  state[NumLoads*] # only used in SolutionStructs, with classic alg
   @staticmethod
-  def setGlobalLoadVectorWidth(state, tc, totalVectors):
+  def setGlobalLoadVectorWidth(state, tc, totalVectors, grvw):
     validDepthU = True
     if totalVectors < state["NumThreads"]:
       # Try to reduce size of vector so every thread has a load to do
@@ -1775,9 +1775,9 @@ class Solution:
           reject(None, "pv %u * totalVectors %u != NumThreads %u" \
               % (pv, totalVectors, state["NumThreads"]))
           validDepthU = False
-        if state["GlobalReadVectorWidth"] % pv != 0:
+        if grvw % pv != 0:
           reject(None, "GlobalReadVectorWidth %u %% pv %u != 0" \
-              % (state["GlobalReadVectorWidth"], pv))
+              % (grvw, pv))
           validDepthU = False
     else:
       pv = 1 # no partial vector required
@@ -1787,7 +1787,7 @@ class Solution:
               % (totalVectors, state["NumThreads"]))
           validDepthU = False
 
-    state["GlobalLoadVectorWidth%s"%tc] = state["GlobalReadVectorWidth"]//pv
+    state["GlobalLoadVectorWidth%s"%tc] = grvw//pv
 
     # NumLoads is NOT used on the fractional path
     # NumLoads is number of vector loads per-thread
@@ -2408,8 +2408,10 @@ class Solution:
           and state["LoopTail"]:
         reject(state, "GlobalSplitU and LoopTail require SummationAssignmentRoundRobin=True since strongly breaks Tensile kernel architecture")
         return
+      # added GSU support for DGEMM
       supported = \
         state["ProblemType"]["DataType"].isSingle() or \
+        state["ProblemType"]["DataType"].isDouble() or \
         state["ProblemType"]["DestDataType"].isInt32() or \
         (state["KernelLanguage"] == "Assembly" and \
          (state["ProblemType"]["DataType"].isHalf() and \
@@ -2499,10 +2501,18 @@ class Solution:
       else:
         tva = totalElementsA // state["GlobalReadVectorWidth"]
         tvb = totalElementsB // state["GlobalReadVectorWidth"]
-        if not Solution.setGlobalLoadVectorWidth(state, "A", tva):
+        if not Solution.setGlobalLoadVectorWidth(state, "A", tva, state["GlobalReadVectorWidth"]):
           validDepthU = False
-        if not Solution.setGlobalLoadVectorWidth(state, "B", tvb):
+        if not Solution.setGlobalLoadVectorWidth(state, "B", tvb, state["GlobalReadVectorWidth"]):
           validDepthU = False
+
+        if state["EnableMatrixInstruction"] and state["GlobalLoadVectorWidthA"]:
+          partialA = state["ProblemType"]["TLUA"] and (state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"] != 0)
+          if partialA and state["GlobalLoadVectorWidthA"] > state["MIOutputVectorWidth"]:
+            #reduce GLVA if GLVA larger than MIOVW
+            tva = totalElementsA // state["MIOutputVectorWidth"]
+            if not Solution.setGlobalLoadVectorWidth(state, "A", tva, state["MIOutputVectorWidth"]):
+              validDepthU = False
 
       if validDepthU and state["KernelLanguage"] == "Assembly" \
          and (state["ProblemType"]["DataType"].isHalf() \
@@ -2958,14 +2968,14 @@ class Solution:
       cont1 = not state["GuaranteeNoPartialA"]
       cont2 = ((state["MIOutputVectorWidth"] % state["GlobalLoadVectorWidthA"]) != 0)
       if cont1 and cont2:
-        reject(state, "GlobalLoadVectorWidthA %u %% MIOutputVectorWidth %u must be 0" % \
-          (state["GlobalLoadVectorWidthA"], state["MIOutputVectorWidth"]))
+        reject(state, "MIOutputVectorWidth %u %% GlobalLoadVectorWidthA %u must be 0" % \
+          (state["MIOutputVectorWidth"], state["GlobalLoadVectorWidthA"]))
 
       cont1 = not state["GuaranteeNoPartialB"]
-      cont2 = ((state["MIOutputVectorWidth"] % state["GlobalLoadVectorWidthB"]) != 0)
+      cont2 = ((state["MatrixInstN"] % state["GlobalLoadVectorWidthB"]) != 0)
       if cont1 and cont2:
-        reject(state, "GlobalLoadVectorWidthB %u %% MIOutputVectorWidth %u must be 0" % \
-          (state["GlobalLoadVectorWidthB"], state["MIOutputVectorWidth"]))
+        reject(state, "MatrixInstN %u %% GlobalLoadVectorWidthB %u must be 0" % \
+          (state["MatrixInstN"], state["GlobalLoadVectorWidthB"]))
     else:
       if not bufferLoad or not state["GuaranteeNoPartialA"]:
         # Restrict GRVW/VW combos so shift-ptr logic will work
