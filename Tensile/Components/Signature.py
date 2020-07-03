@@ -213,7 +213,7 @@ class SignatureCOV2(Signature):
         dstValueType = getDstValueType(kernel, "V2")
         cptValueType = getCptValueType(kernel, "V2")
         cptByte = getCptByte(kernel)
-        cptSize = getCptSize(kernel)
+        # cptSize = getCptSize(kernel)
         cptAlign = getCptAlign(kernel)
 
         # Codeobject V2 metadata
@@ -400,7 +400,7 @@ class SignatureCOV3(Signature):
         dstValueType = getDstValueType(kernel, "V3")
         cptValueType = getCptValueType(kernel, "V3")
         cptByte = getCptByte(kernel)
-        cptSize = getCptSize(kernel)
+        # cptSize = getCptSize(kernel)
         # cptAlign = getCptAlign(kernel)
 
         # Codeobject V3 metadata
