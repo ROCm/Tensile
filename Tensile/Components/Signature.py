@@ -239,17 +239,10 @@ class SignatureCOV2(Signature):
         kStr += self.v2Argument(                               'A',     '8',      '8', "GlobalBuffer", srcValueType, "Generic"); ka_size += 8
         kStr += self.v2Argument(                               'B',     '8',      '8', "GlobalBuffer", srcValueType, "Generic"); ka_size += 8
 
-        useF64 = kernel["ProblemType"]["DataType"].isDouble() or \
-            kernel["ProblemType"]["DataType"].isSingleComplex() or \
-            kernel["ProblemType"]["DataType"].isDoubleComplex()
-        if not useF64:
-            kStr += self.v2Argument(                         "alpha",     '4',      '4',      "ByValue", cptValueType); ka_size += 4
-            if kernel["ProblemType"]["UseBeta"]:
-                kStr += self.v2Argument(                        "beta",     '4',      '4',      "ByValue", cptValueType); ka_size += 4
-        else:
-            kStr += self.v2Argument(                         "alpha", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += cptByte
-            if kernel["ProblemType"]["UseBeta"]:
-                kStr += self.v2Argument(                        "beta", cptSize, cptAlign,      "ByValue", cptValueType); ka_size += cptByte
+        useSize = max(4, cptByte)
+        useAlign = max(4, cptAlign)
+        alphaBeta = "beta" if kernel["ProblemType"]["UseBeta"] else "alpha"
+        kStr += self.v2Argument(                           alphaBeta, useSize, useAlign,      "ByValue", cptValueType); ka_size += useSize
 
         for i in range(0, writer.numSgprStridesD):
             kStr += self.v2Argument(                   "strideD%u"%i,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
@@ -438,17 +431,9 @@ class SignatureCOV3(Signature):
         kStr += self.v3Argument(                               'A',     '8', offset, "global_buffer", srcValueType, "generic"); offset += 8
         kStr += self.v3Argument(                               'B',     '8', offset, "global_buffer", srcValueType, "generic"); offset += 8
 
-        useF64 = kernel["ProblemType"]["DataType"].isDouble() or \
-            kernel["ProblemType"]["DataType"].isSingleComplex() or \
-            kernel["ProblemType"]["DataType"].isDoubleComplex()
-        if not useF64:
-            kStr += self.v3Argument(                         "alpha",       4, offset,      "by_value", cptValueType); offset += 4
-            if kernel["ProblemType"]["UseBeta"]:
-                kStr += self.v3Argument(                        "beta",       4, offset,      "by_value", cptValueType); offset += 4
-        else:
-            kStr += self.v3Argument(                         "alpha", cptSize, offset,      "by_value", cptValueType); offset += cptByte
-            if kernel["ProblemType"]["UseBeta"]:
-                kStr += self.v3Argument(                        "beta", cptSize, offset,      "by_value", cptValueType); offset += cptByte
+        useSize = max(4, cptByte)
+        alphaBeta = "beta" if kernel["ProblemType"]["UseBeta"] else "alpha"
+        kStr += self.v3Argument(                           alphaBeta, useSize, offset,      "by_value", cptValueType); offset += useSize
 
         for i in range(0, writer.numSgprStridesD):
             kStr += self.v3Argument(                   "strideD%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
