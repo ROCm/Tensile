@@ -1618,6 +1618,12 @@ class Solution:
       else:
         self._state['ISA'] = [0,0,0]
 
+    if "CodeObjectVersion" not in self._state:
+      if "CodeObjectVersion" in config:
+        self._state["CodeObjectVersion"] = config["CodeObjectVersion"]
+      else:
+        self._state["CodeObjectVersion"] = globalParameters["CodeObjectVersion"]
+
     # assign parameters without defaults
     for key in config:
       if key != "ProblemType" and key not in self._state:
