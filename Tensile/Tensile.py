@@ -211,7 +211,7 @@ def Tensile(userArgs):
   if args.CxxCompiler:
     globalParameters['CxxCompiler'] = args.CxxCompiler
   if args.LibraryFormat:
-      globalParameters['LibraryFormat'] = args.LibraryFormat
+    globalParameters['LibraryFormat'] = args.LibraryFormat
 
   # read config
   config = LibraryIO.readConfig( configPath )

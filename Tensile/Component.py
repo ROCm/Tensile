@@ -72,25 +72,28 @@ def PartialMatch(pattern, obj, debug=False, level=0):
     indent = "    " * level
     if debug and level == 0:
         print("")
-    for key, value in pattern.items():
-        if key not in obj:
-            return False
-
-        objValue = obj[key]
-        if isinstance(value, collections.abc.Mapping) and \
-           isinstance(objValue, collections.abc.Mapping):
-           if debug: print("{indent}{key}".format(indent=indent, key=key))
-           if not PartialMatch(value, objValue, debug, level+1):
-               return False
-        elif hasattr(value, "__call__"):
-            if not value(objValue):
-                if debug:
-                    print("{indent}{key}({objValue}) == False ({value})".format(indent=indent, value=value, objValue=objValue, key=key))
-                return False
-        elif value != objValue:
+    if hasattr(pattern, "__call__"):
+        if not pattern(obj):
             if debug:
-                print("{indent}{value} != {objValue}".format(indent=indent, value=value, objValue=objValue))
+                print("{indent}call({obj}) == False".format(indent=indent, obj=obj))
             return False
+    elif isinstance(pattern, collections.abc.Mapping) and \
+         isinstance(obj, collections.abc.Mapping):
+        for key, value in pattern.items():
+            if key not in obj:
+                if debug:
+                    print("{indent}{key} not in object.".format(indent=indent, key=key))
+                return False
+
+            if debug:
+                print("{indent} recursing into {key}".format(indent=indent, key=key))
+            if not PartialMatch(value, obj[key], debug, level+1):
+                return False
+
+    elif pattern != obj:
+        if debug:
+            print("{indent}{pattern} != {obj}".format(indent=indent, pattern=pattern, obj=obj))
+        return False
 
     if debug:
         print("{indent}: True".format(indent=indent))
@@ -130,19 +133,29 @@ class Component(metaclass=ComponentMeta):
         return True
 
     @classmethod
-    def findAll(cls, writer, *args, **kwargs):
+    def findAll(cls, writer, debug=False, *args, **kwargs):
         found = []
-        for _, impl in cls.implementations.items():
+        for name, impl in cls.implementations.items():
+            if debug:
+                print(name)
             if inspect.isabstract(impl):
-                found += impl.findAll(writer, *args, **kwargs)
-            elif impl.matches(writer, *args, **kwargs):
+                foundHere = impl.findAll(writer, debug, *args, **kwargs)
+                if debug:
+                    print(name, ": found ", foundHere)
+                found += foundHere
+            elif impl.matches(writer, debug, *args, **kwargs):
+                if debug:
+                    print(name, ": found impl")
                 found.append(impl)
+            else:
+                if debug:
+                    print(name, "mismatch!")
 
         return found
 
     @classmethod
-    def find(cls, writer, *args, **kwargs):
-        found = cls.findAll(writer, *args, **kwargs)
+    def find(cls, writer, debug=False, *args, **kwargs):
+        found = cls.findAll(writer, debug, *args, **kwargs)
 
         if len(found) == 0:
             return None

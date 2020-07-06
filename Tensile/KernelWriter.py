@@ -57,7 +57,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     Architectural capabilities for the current ISA version.
     """
     return globalParameters["ArchCaps"][self.version]
-  
+
   @property
   def globalParams(self):
     """

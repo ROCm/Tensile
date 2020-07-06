@@ -59,7 +59,7 @@ def getSrcValueType(kernel, cov):
     if cov == "V3":
         srcValueType = srcValueType.lower()
     return srcValueType
-    
+
 def getDstValueType(kernel, cov):
     dstValueType = dstValueTypeDict[kernel["ProblemType"]["DataType"].toNameAbbrev()]
     if kernel["ProblemType"]["DataType"].isHalf() and not kernel["ProblemType"]["HighPrecisionAccumulate"]:

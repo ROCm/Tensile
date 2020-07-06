@@ -559,7 +559,7 @@ class KernelWriterAssembly(KernelWriter):
       rv += ['-mno-code-object-v3' if globalParameters["CodeObjectVersion"] == "V2" else '-mcode-object-v3']
 
     rv += ['-mcpu=gfx' + ''.join(map(str,isa))]
-    if isa == (10,1,0):
+    if isa[0] == 10:
       rv += ['-mwavefrontsize64']
 
     rv += moreArgs
@@ -940,8 +940,8 @@ class KernelWriterAssembly(KernelWriter):
       print("warning: ISA:", self.version, " is not supported; overriding with ", defaultIsa)
       self.version = defaultIsa
 
-    if kernel["EnableMatrixInstruction"] and not self.version == (9,0,8):
-      printExit("MatrixInstruction not supported for {0}".format(self.version))
+    if kernel["EnableMatrixInstruction"] and not self.asmCaps["HasMFMA"]:
+      raise RuntimeError("MatrixInstruction not supported for {0}".format(self.version))
 
     self.AsmBugs = {}
     self.AsmBugs["ExplicitCO"] = globalParameters["AsmCaps"][self.version]["HasExplicitCO"]
@@ -1053,11 +1053,12 @@ class KernelWriterAssembly(KernelWriter):
     self.memoryInstructions[(9,0,6)] = self.memoryInstructions[(9,0,0)]
     self.memoryInstructions[(9,0,8)] = self.memoryInstructions[(9,0,0)]
     self.memoryInstructions[(10,1,0)] = self.memoryInstructions[(9,0,0)]
+    self.memoryInstructions[(10,1,1)] = self.memoryInstructions[(9,0,0)]
 
-    if self.version == (9,0,0):
-      self.mixinst = "v_mad_mix_f32"
-    elif self.version == (9,0,6) or self.version == (9,0,8):
+    if self.asmCaps["v_fma_mix_f32"]:
       self.mixinst = "v_fma_mix_f32"
+    elif self.asmCaps["v_mad_mix_f32"]:
+      self.mixinst = "v_mad_mix_f32"
     else:
       self.mixinst = "NOT_SUPPORTED"
 
@@ -1944,255 +1945,9 @@ class KernelWriterAssembly(KernelWriter):
 
     doOnce = False
     macIdx = 0
-    # half precision
-    if kernel["ProblemType"]["DataType"].isHalf():
-      for blockB in range(0, kernel["ThreadTile1"]//2):
-        for blockA in range(0, kernel["ThreadTile0"]//2):
-          if self.version == (8,0,3):
-            for b in range(blockB*2, (blockB+1)*2):
-              for a in range(blockA*2, (blockA+1)*2):
-                for iui in range(0, innerUnroll):
-                  # v_mac_f16 or v_fma_f16
-                  cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"])
-                  aStr = "v[%s+%u]" \
-                      % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
-                  bStr = "v[%s+%u]" \
-                      % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
-                  kStr += "v_mac_f16 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine) # FIXME op_sel
-                  if beAggressive and not doOnce:
-                    kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
-                    doOnce = True
-          elif self.version == (9,0,0):
-            if kernel["ProblemType"]["HighPrecisionAccumulate"]:
-              # we treat HighPrecisionAccumulate as expanded packed math
-              b = blockB*2
-              a = blockA*2
-              if kernel["LocalDotLayout"] > 1 and innerUnroll == 2:    # Only supports LocalDotLayout == 2 for now
-                cStr = "v[%s+%u*2+%u*%u*2+0*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
-                cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 0
-                aStr = "v[%s+%u]" \
-                    % ("vgprValuA_X%u_I0"%m, blockA)
-                bStr = "v[%s+%u]" \
-                    % ("vgprValuB_X%u_I0"%m, blockB)
-                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u] %s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                if beAggressive and not doOnce:
-                  kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
-                  doOnce = True
-                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //ValuC[%u] %s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 1
-                aStr = "v[%s+%u]" \
-                    % ("vgprValuA_X%u_I1"%m, blockA)
-                bStr = "v[%s+%u]" \
-                    % ("vgprValuB_X%u_I0"%m, blockB)
-                cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
-                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 0
-                aStr = "v[%s+%u]" \
-                    % ("vgprValuA_X%u_I0"%m, blockA)
-                bStr = "v[%s+%u]" \
-                    % ("vgprValuB_X%u_I1"%m, blockB)
-                cStr = "v[%s+%u*2+%u*%u*2+%u*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
-                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 1
-                aStr = "v[%s+%u]" \
-                    % ("vgprValuA_X%u_I1"%m, blockA)
-                bStr = "v[%s+%u]" \
-                    % ("vgprValuB_X%u_I1"%m, blockB)
-                cStr = "v[%s+%u*2+%u*%u*2+%u*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
-                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                #kStr += self.bomb(-13)
-                """
-                ignore this, not quite correct for mixed precision
-                D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
-                D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
-                C[0] = A[0]*B[0]+D[0]
-                C[1] = A[1]*B[1]+D[1]
-                """
-              else:
-                for iui in range(0, innerUnroll):
-                  cStr = "v[%s+%u*2+%u*%u*2+0*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
-                  cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 0
-                  aStr = "v[%s+%u]" \
-                      % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
-                  bStr = "v[%s+%u]" \
-                      % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
-                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u] iui=%u%s" % (cStr, aStr, bStr, cStr, cidx, iui, self.endLine)
-                  if beAggressive and not doOnce:
-                    kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
-                    doOnce = True
-                  cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 1
-                  cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
-                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                  cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 0
-                  cStr = "v[%s+%u*2+%u*%u*2+%u*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
-                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                  cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 1
-                  cStr = "v[%s+%u*2+%u*%u*2+%u*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
-                  kStr += "v_mad_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                  """
-                  ignore this, not quite correct for mixed precision
-                  D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
-                  D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
-                  C[0] = A[0]*B[0]+D[0]
-                  C[1] = A[1]*B[1]+D[1]
-                  """
-            else: # 900 Non-HPA
-              b = blockB*2
-              a = blockA*2
-              for iui in range(0, innerUnroll):
-                cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
-                aStr = "v[%s+%u]" \
-                    % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
-                bStr = "v[%s+%u]" \
-                    % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
-                kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,0,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
-                if beAggressive and not doOnce:
-                  kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
-                  doOnce = True
-                cStr = "v[%s+%u+%u*%u+%u]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
-                kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,1,0] op_sel_hi:[1,1,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
-                """
-                D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
-                D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
-                C[0] = A[0]*B[0]+D[0]
-                C[1] = A[1]*B[1]+D[1]
-                """
-          elif self.version == (9,0,6) or self.version == (9,0,8):
-            if kernel["ProblemType"]["HighPrecisionAccumulate"]:
-              # we treat HighPrecisionAccumulate as expanded packed math
-              b = blockB*2
-              a = blockA*2
-              if kernel["LocalDotLayout"] > 1 and innerUnroll == 2:    # Only supports LocalDotLayout == 2 for now
-                cStr = "v[%s+%u*2+%u*%u*2+0*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
-                cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 0
-                aStr = "v[%s+%u]" \
-                    % ("vgprValuA_X%u_I0"%m, blockA)
-                bStr = "v[%s+%u]" \
-                    % ("vgprValuB_X%u_I0"%m, blockB)
-                kStr += "v_dot2_f32_f16 %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //ValuC[%u] %s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                if beAggressive and not doOnce:
-                  kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
-                  doOnce = True
-                cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 1
-                aStr = "v[%s+%u]" \
-                    % ("vgprValuA_X%u_I1"%m, blockA)
-                bStr = "v[%s+%u]" \
-                    % ("vgprValuB_X%u_I0"%m, blockB)
-                cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
-                kStr += "v_dot2_f32_f16 %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 0
-                aStr = "v[%s+%u]" \
-                    % ("vgprValuA_X%u_I0"%m, blockA)
-                bStr = "v[%s+%u]" \
-                    % ("vgprValuB_X%u_I1"%m, blockB)
-                cStr = "v[%s+%u*2+%u*%u*2+%u*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
-                kStr += "v_dot2_f32_f16 %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 1
-                aStr = "v[%s+%u]" \
-                    % ("vgprValuA_X%u_I1"%m, blockA)
-                bStr = "v[%s+%u]" \
-                    % ("vgprValuB_X%u_I1"%m, blockB)
-                cStr = "v[%s+%u*2+%u*%u*2+%u*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
-                kStr += "v_dot2_f32_f16 %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                #kStr += self.bomb(-13)
-                """
-                ignore this, not quite correct for mixed precision
-                D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
-                D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
-                C[0] = A[0]*B[0]+D[0]
-                C[1] = A[1]*B[1]+D[1]
-                """
-              else:
-                for iui in range(0, innerUnroll):
-                  cStr = "v[%s+%u*2+%u*%u*2+0*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
-                  cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 0
-                  aStr = "v[%s+%u]" \
-                      % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
-                  bStr = "v[%s+%u]" \
-                      % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
-                  kStr += "v_fma_mix_f32 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,1,0] //ValuC[%u] iui=%u%s" % (cStr, aStr, bStr, cStr, cidx, iui, self.endLine)
-                  if beAggressive and not doOnce:
-                    kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
-                    doOnce = True
-                  cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + 1
-                  cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # *2 b/c of fp32
-                  kStr += "v_fma_mix_f32 %s, %s, %s, %s op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                  cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 0
-                  cStr = "v[%s+%u*2+%u*%u*2+%u*2+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
-                  kStr += "v_fma_mix_f32 %s, %s, %s, %s op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                  cidx = blockA*2 + blockB*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 1
-                  cStr = "v[%s+%u*2+%u*%u*2+%u*2+1]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
-                  kStr += "v_fma_mix_f32 %s, %s, %s, %s op_sel:[1,1,0] op_sel_hi:[1,1,0] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-                  """
-                  ignore this, not quite correct for mixed precision
-                  D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
-                  D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
-                  C[0] = A[0]*B[0]+D[0]
-                  C[1] = A[1]*B[1]+D[1]
-                  """
-                #kStr += self.bomb(-13)
-            else: # 906, 908 Non-HPA
-              b = blockB*2
-              a = blockA*2
-              for iui in range(0, innerUnroll):
-                cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
-                aStr = "v[%s+%u]" \
-                    % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
-                bStr = "v[%s+%u]" \
-                    % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
-                kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,0,0] op_sel_hi:[1,0,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
-                if beAggressive and not doOnce:
-                  kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
-                  doOnce = True
-                cStr = "v[%s+%u+%u*%u+%u]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
-                kStr += "v_pk_fma_f16 %s, %s, %s, %s op_sel:[0,1,0] op_sel_hi:[1,1,1]%s" % (cStr, aStr, bStr, cStr, self.endLine)
-                """
-                D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
-                D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
-                C[0] = A[0]*B[0]+D[0]
-                C[1] = A[1]*B[1]+D[1]
-                """
-          elif self.version == (10,1,0):
-            if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-              for iui in range(0, innerUnroll):
-                cStr1 = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"]) # /2 b/c of 2 f16's per 32-bit vgpr
-                cStr2 = "v[%s+%u+%u*%u+%u]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
-                aStr = "v[%s+%u]" \
-                    % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
-                bStr = "v[%s+%u]" \
-                    % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
-                kStr += "v_fma_f16 %s, %s, %s, %s op_sel:[0,0,0,0] %s" % (cStr1, aStr, bStr, cStr1, self.endLine)
-                kStr += "v_fma_f16 %s, %s, %s, %s op_sel:[0,1,0,0] %s" % (cStr2, aStr, bStr, cStr2, self.endLine)
-                if beAggressive and not doOnce:
-                  kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
-                  doOnce = True
-                kStr += "v_fma_f16 %s, %s, %s, %s op_sel:[1,0,1,1] %s" % (cStr1, aStr, bStr, cStr1, self.endLine)
-                kStr += "v_fma_f16 %s, %s, %s, %s op_sel:[1,1,1,1] %s" % (cStr2, aStr, bStr, cStr2, self.endLine)
-              #for b in range(blockB*2, (blockB+1)*2):
-              #  for a in range(blockA*2, (blockA+1)*2):
-              #    for iui in range(0, innerUnroll):
-              #      # v_mac_f16 or v_fma_f16
-              #      cStr = "v[%s+%u+%u*%u+0]" % ("vgprValuC", blockA, blockB, kernel["ThreadTile0"])
-              #      aStr = "v[%s+%u]" \
-              #          % ("vgprValuA_X%u_I%u"%(m,iui), blockA)
-              #      bStr = "v[%s+%u]" \
-              #          % ("vgprValuB_X%u_I%u"%(m,iui), blockB)
-              #      kStr += "v_fma_f16 %s, %s, %s, %s%s" % (cStr, cStr, aStr, bStr, self.endLine) # FIXME op_sel
-              #      if beAggressive and not doOnce:
-              #        kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
-              #        doOnce = True
-            else: # 1010 Non-HPA
-              raise NotImplementedError("Half-precision not supported without HPA for 1010")
-          else:
-            printExit("Half-precision not supported for arch=%u" % self.version )
-      if beAggressive:
-        kStr += "s_setprio 0 // Reset priority after macs%s" % self.endLine
-
+    # half precision is entirely in component system.
     # bfloat16
-    elif kernel["ProblemType"]["DataType"].isBFloat16():
+    if kernel["ProblemType"]["DataType"].isBFloat16():
       if self.version == (9,0,8) and kernel["ProblemType"]["HighPrecisionAccumulate"]:
         for iui in range(0, innerUnroll):
           for blockA in range(kernel["ThreadTile0"]//2-1, -1, -1):
@@ -10196,7 +9951,7 @@ class KernelWriterAssembly(KernelWriter):
   # rpv = regs per vector
     rpv = bpl/4.0
 
-    if self.version == (10,1,0):
+    if self.version[0] == 10:
       extraFields += " glc, slc, dlc"
 
     if useBuffer:
