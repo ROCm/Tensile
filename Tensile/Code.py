@@ -563,7 +563,6 @@ class  MacInst (Inst):
               C[1] = A[1]*B[1]+D[1]
               """
         else:
-          import pdb; pdb.set_trace()
           raise NotImplementedError("Half-precision not supported for arch=%u" % self.version )
 
       # integer i8

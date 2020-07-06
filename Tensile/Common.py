@@ -1408,7 +1408,7 @@ def assignGlobalParameters( config ):
   # Minimum Required Version
   if "MinimumRequiredVersion" in config:
     if not versionIsCompatible(config["MinimumRequiredVersion"]):
-      printExit("Benchmark.yaml file requires version=%s is not compatible with current Tensile version=%s" \
+      printExit("Config file requires version=%s is not compatible with current Tensile version=%s" \
           % (config["MinimumRequiredVersion"], __version__) )
 
   # User-specified global parameters
