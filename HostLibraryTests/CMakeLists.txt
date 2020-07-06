@@ -166,6 +166,10 @@ if(TENSILE_USE_LLVM)
 endif()
 
 if(TENSILE_USE_HIP)
+
+    # Make sure the testing libraries get copied to avoid segfaults in test runs.
+    add_dependencies(TensileTests ${HIP_TEST_COPY_TARGET_DEPS})
+
     target_link_libraries(TensileTests PRIVATE "-Xlinker --whole-archive")
     target_link_libraries(TensileTests PUBLIC ${HIP_TEST_LIBRARIES})
     target_link_libraries(TensileTests PRIVATE "-Xlinker --no-whole-archive")

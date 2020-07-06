@@ -257,6 +257,10 @@ def getBuildNewClientLibraryScript(buildPath, libraryLogicPath, forBenchmark):
   else:
     callCreateLibraryCmd += " --no-library-print-debug"
 
+  # Function won't get called if NewClient !=2, but don't want to make assumption
+  if "NewClient" in globalParameters and globalParameters["NewClient"] == 2:
+      callCreateLibraryCmd += " --new-client-only"
+
   callCreateLibraryCmd += " --architecture=" + globalParameters["Architecture"]
   callCreateLibraryCmd += " --code-object-version=" + globalParameters["CodeObjectVersion"]
   callCreateLibraryCmd += " --cxx-compiler=" + globalParameters["CxxCompiler"]

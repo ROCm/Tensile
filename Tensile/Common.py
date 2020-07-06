@@ -776,11 +776,11 @@ validParameters = {
     "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8],
 
     # Padding boundary for LDS. defines block-size for pad insertion. for every 'LdsBlockSizePerPad' bytes, LDS padding (pad value from LdsPad parameter)
-    # is added (readOffset aware of the pad and adjusts offset value based on this parameter value).good rule of thumb is LdsBlockSizePerPad >= unrollDepth * BPE
-    # optimized value is 128
+    # is added (readOffset aware of the pad and adjusts offset value based on this parameter value).
+    # Only support LdsBlockSizePerPad >= unrollDepth * BPE
     # 0 means disable LdsBlockSizePerPad,
-    # -1 means value is determined by Tensile logic
-    "LdsBlockSizePerPad":          [-1, 0, 64, 128, 256],
+    # -1 means round up to nearest power of 2 begin with 128
+    "LdsBlockSizePerPad":          [-1, 0, 64, 128, 256, 512],
 
     #Transpose LDS format. Local store in Coalsced dimension , same as optimized global fetch dimension . applicable only in TLU=0 case for miSIMD(s)
     "TransposeLDS":                [-1, 1, 0],

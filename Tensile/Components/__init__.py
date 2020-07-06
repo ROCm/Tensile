@@ -6,4 +6,5 @@ __all__ = [
     "MAC_F16",
     "MAC_F16_HPA",
     "Priority",
+    "Signature",
     ]
