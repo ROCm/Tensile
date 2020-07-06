@@ -1618,6 +1618,12 @@ class Solution:
       else:
         self._state['ISA'] = [0,0,0]
 
+    if "CodeObjectVersion" not in self._state:
+      if "CodeObjectVersion" in config:
+        self._state["CodeObjectVersion"] = config["CodeObjectVersion"]
+      else:
+        self._state["CodeObjectVersion"] = globalParameters["CodeObjectVersion"]
+
     # assign parameters without defaults
     for key in config:
       if key != "ProblemType" and key not in self._state:
@@ -2063,6 +2069,14 @@ class Solution:
     state["UnrollMajorLDSA"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUA"])
     state["UnrollMajorLDSB"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUB"])
 
+    if state["LdsBlockSizePerPad"] == -1:
+      if state["MatrixInstruction"] and state["TransposeLDS"]:
+        state["LdsBlockSizePerPad"] = 128
+        if state["DepthU"]*state["ProblemType"]["DataType"].numBytes() > state["LdsBlockSizePerPad"]:
+          state["LdsBlockSizePerPad"] = int(2**(math.ceil(math.log(state["DepthU"]*state["ProblemType"]["DataType"].numBytes(), 2))))
+      else:
+        state["LdsBlockSizePerPad"] = 0
+
     state["LdsBlockSizePerPadA"] = state["LdsBlockSizePerPad"] if state["UnrollMajorLDSA"] else 0
     state["LdsBlockSizePerPadB"] = state["LdsBlockSizePerPad"] if state["UnrollMajorLDSB"] else 0
 
@@ -2173,15 +2187,17 @@ class Solution:
         reject(state, "Matrix instructions for half types are natively accumulated" + \
          " in fp32 precision. Please add the following config:" + \
          "\n - HighPrecisionAccumulate: True")
-      if state["LdsBlockSizePerPadA"] != 0 and state["UnrollMajorLDSA"] == False:
-        reject(state, "didn't support LdsBlockSizePerPadA on tile major LDS yet")
-        if state["LdsBlockSizePerPadA"] < state["DepthU"]:
-          reject(state, "reject: DepthU %u > LdsBlockSizePerPadA %u" % (state["DepthU"], state["LdsBlockSizePerPad"]))
+      if state["LdsBlockSizePerPadA"]:
+        if not state["UnrollMajorLDSA"]:
+          reject(state, "didn't support LdsBlockSizePerPadA on tile major LDS yet")
+        if state["LdsBlockSizePerPadA"] < state["DepthU"]*state["ProblemType"]["DataType"].numBytes():
+          reject(state, "reject: DepthU %u x bpe > LdsBlockSizePerPadA %u" % (state["DepthU"], state["LdsBlockSizePerPad"]))
 
-      if state["LdsBlockSizePerPadB"] != 0 and state["UnrollMajorLDSB"] == False:
-        reject(state, "didn't support LdsBlockSizePerPadB on tile major LDS yet")
-        if state["LdsBlockSizePerPadB"] < state["DepthU"]:
-          reject(state, "reject: DepthU %u > LdsBlockSizePerPadB %u" % (state["DepthU"], state["LdsBlockSizePerPad"]))
+      if state["LdsBlockSizePerPadB"]:
+        if not state["UnrollMajorLDSB"]:
+          reject(state, "didn't support LdsBlockSizePerPadB on tile major LDS yet")
+        if state["LdsBlockSizePerPadB"] < state["DepthU"]*state["ProblemType"]["DataType"].numBytes():
+          reject(state, "reject: DepthU %u x bpe > LdsBlockSizePerPadB %u" % (state["DepthU"], state["LdsBlockSizePerPad"]))
     else:
       if state["UnrollMajorLDSA"] or state["UnrollMajorLDSB"]:
         reject(state, "didn't support UnrollMajorLDS in VALU mode yet")
@@ -2695,18 +2711,6 @@ class Solution:
     if (state["UnrollMajorLDSA"] or state["UnrollMajorLDSB"]) and (not state["EnableMatrixInstruction"]):
         reject(state, "UnrollMajorLDS Supports only in EnableMatrixInstruction=1")
 
-    if state["LdsBlockSizePerPadA"] == -1:
-      if state["EnableMatrixInstruction"] and state["UnrollMajorLDSA"]:
-        state["LdsBlockSizePerPadA"] = 256
-      else:
-        state["LdsBlockSizePerPadA"] = 0
-
-    if state["LdsBlockSizePerPadB"] == -1:
-      if state["EnableMatrixInstruction"] and state["UnrollMajorLDSB"]:
-        state["LdsBlockSizePerPadA"] = 256
-      else:
-        state["LdsBlockSizePerPadB"] = 0
-
     if state["LocalReadVectorWidth"] != -1:
       if (state["UnrollMajorLDSA"] == False or state["UnrollMajorLDSB"] == False):
         reject(state, "LocalReadVectorWidth requires UnrollMajorLDS=1")
@@ -2770,16 +2774,19 @@ class Solution:
     if state["StoreRemapVectorWidth"]:
       if not state["EnableMatrixInstruction"]:
         reject(state, "storeRemap only support MaxtrixInstruction kernel")
+        return
       if state["PersistentKernel"]:
         reject(state, "storeRemap doesn't support persist kernel yet")
+        return
       if state["GlobalSplitU"] > 1:
         reject(state, "storeRemap doesn't support GlobalSplitU yet")
+        return
       if packedC0 or packedC1:
         reject(state, "storeRemap doesn't support packedC0 and packedC1 yet")
-      if state["MIWaveGroup"][0] > 1:
-        reject(state, "storeRemap doesn't support MI wave group in M direction yet")
+        return
       if state["MatrixInstBN"] > 1 and state["MatrixInstN"] == 4:
         reject(state, "storeRemap doesn't support MI4x4 multi blocks in N direction yet")
+        return
 
       srMinVw = 1
       srMaxVw = 8
@@ -2789,13 +2796,18 @@ class Solution:
         srMinVw = 2
       if srMinVw > state["StoreRemapVectorWidth"] or srMaxVw < state["StoreRemapVectorWidth"]:
         reject(state, "StoreRemapVectorWidth %u is not allowed for this data type" % state["StoreRemapVectorWidth"])
+        return
 
-      if state["MacroTile0"]*state["MatrixInstN"] < state["StoreRemapVectorWidth"]*globalParameters["WavefrontWidth"]:
-        reject(state, "storeRemap: number of lds elements less than per wave local read elements. Please use smaller StoreRemapVectorWidth")
-      wavefronts = state["NumThreads"] // globalParameters["WavefrontWidth"]
+      if state["StoreRemapVectorWidth"] * globalParameters["WavefrontWidth"] < state["MacroTile0"]:
+        reject(state, "storeRemap: Per wave single global write instruction doesn't enough to write one M column." + \
+               " Please use larger StoreRemapVectorWidth.")
+        return
+      if (state["MacroTile0"]*state["MatrixInstN"])//state["MIWaveGroup"][0] < state["StoreRemapVectorWidth"]*globalParameters["WavefrontWidth"]:
+        reject(state, "storeRemap: number elements of lds less than per wave per local read elements." + \
+               " Please use smaller StoreRemapVectorWidth.")
+        return
       ldsRemapPad = max(state["StoreRemapVectorWidth"],state["MIOutputVectorWidth"])
-      ldsNumElementsPerWave = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"]
-      ldsNumElementsRemapC = ldsNumElementsPerWave * wavefronts
+      ldsNumElementsRemapC = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"] * state["MIWaveGroup"][1]
       #print("ldsNumElementsRemapC=%u" % ldsNumElementsRemapC)
       ldsNumElements = max(ldsNumElements, ldsNumElementsRemapC)
 

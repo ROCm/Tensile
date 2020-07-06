@@ -563,7 +563,7 @@ class  MacInst (Inst):
               C[1] = A[1]*B[1]+D[1]
               """
         else:
-          printExit("Half-precision not supported for arch=%u" % self.version )
+          raise NotImplementedError("Half-precision not supported for arch=%u" % self.version )
 
       # integer i8
       elif self.kernel["ProblemType"]["DataType"].isInt8x4():

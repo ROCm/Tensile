@@ -119,6 +119,8 @@ def useGlobalParameters(tensile_args):
             for key, value in self.additionalParams.items():
                 Common.globalParameters[key] = value
 
+            return Common.globalParameters
+
         def __exit__(self, exc_type, exc_value, traceback):
             Common.restoreDefaultGlobalParameters()
 

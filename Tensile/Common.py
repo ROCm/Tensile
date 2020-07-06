@@ -776,11 +776,11 @@ validParameters = {
     "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8],
 
     # Padding boundary for LDS. defines block-size for pad insertion. for every 'LdsBlockSizePerPad' bytes, LDS padding (pad value from LdsPad parameter)
-    # is added (readOffset aware of the pad and adjusts offset value based on this parameter value).good rule of thumb is LdsBlockSizePerPad >= unrollDepth * BPE
-    # optimized value is 128
+    # is added (readOffset aware of the pad and adjusts offset value based on this parameter value).
+    # Only support LdsBlockSizePerPad >= unrollDepth * BPE
     # 0 means disable LdsBlockSizePerPad,
-    # -1 means value is determined by Tensile logic
-    "LdsBlockSizePerPad":          [-1, 0, 64, 128, 256],
+    # -1 means round up to nearest power of 2 begin with 128
+    "LdsBlockSizePerPad":          [-1, 0, 64, 128, 256, 512],
 
     #Transpose LDS format. Local store in Coalsced dimension , same as optimized global fetch dimension . applicable only in TLU=0 case for miSIMD(s)
     "TransposeLDS":                [-1, 1, 0],
@@ -1264,11 +1264,15 @@ def GetAsmCaps(isaVersion):
   rv["HasSMulHi"]       = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
   rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "", False, "-mno-code-object-v3")
 
+  rv["HasMFMA"]         = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
+
+  rv["v_mac_f16"]       = tryAssembler(isaVersion, "v_mac_f16 v47, v36, v34")
   rv["v_fma_f16"]       = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
   rv["v_pk_fma_f16"]    = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0]")
   rv["v_mad_mix_f32"]   = tryAssembler(isaVersion, "v_mad_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
   rv["v_fma_mix_f32"]   = tryAssembler(isaVersion, "v_fma_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
 
+  rv["v_dot2_f32_f16"]  = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
   rv["v_dot2c_f32_f16"] = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34")
 
   if tryAssembler(isaVersion, "s_waitcnt vmcnt(63)"):
@@ -1404,7 +1408,7 @@ def assignGlobalParameters( config ):
   # Minimum Required Version
   if "MinimumRequiredVersion" in config:
     if not versionIsCompatible(config["MinimumRequiredVersion"]):
-      printExit("Benchmark.yaml file requires version=%s is not compatible with current Tensile version=%s" \
+      printExit("Config file requires version=%s is not compatible with current Tensile version=%s" \
           % (config["MinimumRequiredVersion"], __version__) )
 
   # User-specified global parameters
