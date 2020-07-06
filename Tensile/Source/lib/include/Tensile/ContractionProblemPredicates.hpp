@@ -29,6 +29,7 @@
 #include <Tensile/ArithmeticUnitTypes.hpp>
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/KernelLanguageTypes.hpp>
+#include <Tensile/ContractionSolution.hpp>
 #include <Tensile/Predicates.hpp>
 
 #include <array>
@@ -777,10 +778,10 @@ namespace Tensile
                     HasIndex = false,
                     HasValue = true
                 };
-                size_t value;
+                BufferLoadCheckPacket value;
 
                 BufferLoadOffsetLimitCheck() = default;
-                BufferLoadOffsetLimitCheck(size_t value)
+                BufferLoadOffsetLimitCheck(BufferLoadCheckPacket value)
                     : value(value)
                 {
                 }
@@ -793,52 +794,33 @@ namespace Tensile
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     const uint64_t TWO_POW_32 = 4294967296;
-
-                    // Decode the value into four information:                    
-                    // |-- (ShiftPtrElemB) 4-bit --|--(ShiftPtrElemA) 4-bit--|--(DU/MT0 elem) 11-bit--|--(DU/MT1 elem)11-bit--|
-                    // See Contraction.py: CompoundPredicates for more details
-                    size_t DU_OR_MT0            =  value        & 0b11111111111;
-                    size_t DU_OR_MT1            = (value >> 11) & 0b11111111111;
-                    size_t ShiftPtrPadElementA  = (value >> 22) & 0b1111;
-                    size_t ShiftPtrPadElementB  = (value >> 26);
-
-                    return ( problem.a().strides()[1] * DU_OR_MT0 + ShiftPtrPadElementA ) * problem.a().elementBytes() < TWO_POW_32 
-                        && ( problem.b().strides()[1] * DU_OR_MT1 + ShiftPtrPadElementB ) * problem.b().elementBytes() < TWO_POW_32;
+                    return ( problem.a().strides()[1] * value.depthUorMT0 + value.shiftPtrElemA ) * problem.a().elementBytes() < TWO_POW_32 
+                        && ( problem.b().strides()[1] * value.depthUorMT1 + value.shiftPtrElemB ) * problem.b().elementBytes() < TWO_POW_32;
                 }
 
                 virtual std::string toString() const override
                 {
-                    size_t DU_OR_MT0            =  value        & 0b11111111111;
-                    size_t DU_OR_MT1            = (value >> 11) & 0b11111111111;
-                    size_t ShiftPtrPadElementA  = (value >> 22) & 0b1111;
-                    size_t ShiftPtrPadElementB  = (value >> 26);
-
                     return concatenate(this->type(),
                                        "(DU/MT0:",
-                                       DU_OR_MT0,
+                                       value.depthUorMT0,
                                        ", DU/MT1:",
-                                       DU_OR_MT1,
+                                       value.depthUorMT1,
                                        ", ShiftPtrPadElementA:",
-                                       ShiftPtrPadElementA,
+                                       value.shiftPtrElemA,
                                        ", ShiftPtrPadElementB:",
-                                       ShiftPtrPadElementB,
+                                       value.shiftPtrElemB,
                                        ")");
                 }
 
                 virtual bool debugEval(ContractionProblem const& problem,
                                        std::ostream&             stream) const override
                 {
-                    size_t DU_OR_MT0            =  value        & 0b11111111111;
-                    size_t DU_OR_MT1            = (value >> 11) & 0b11111111111;
-                    size_t ShiftPtrPadElementA  = (value >> 22) & 0b1111;
-                    size_t ShiftPtrPadElementB  = (value >> 26);
-
                     bool rv = (*this)(problem);
 
                     stream << *this << ": ("
-                           << " (" << problem.a().strides()[1] << " * " << DU_OR_MT0 << " + " << ShiftPtrPadElementA << ") * " << problem.a().elementBytes()
+                           << " (" << problem.a().strides()[1] << " * " << value.depthUorMT0 << " + " << value.shiftPtrElemA << ") * " << problem.a().elementBytes()
                            << " < 4294967296 && "
-                           << " (" << problem.b().strides()[1] << " * " << DU_OR_MT1 << " + " << ShiftPtrPadElementB << ") * " << problem.b().elementBytes()
+                           << " (" << problem.b().strides()[1] << " * " << value.depthUorMT1 << " + " << value.shiftPtrElemB << ") * " << problem.b().elementBytes()
                            << " < 4294967296" 
                            << ") == " << rv;
 

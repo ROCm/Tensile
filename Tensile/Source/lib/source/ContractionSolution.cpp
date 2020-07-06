@@ -880,4 +880,13 @@ namespace Tensile
                       << " staticModel=[ " << pp.staticModel << " ]";
     }
 
+    std::ostream& operator<<(std::ostream& stream, BufferLoadCheckPacket const& st)
+    {
+        return stream << " shiftPtrElemA=" << st.shiftPtrElemA
+                      << " shiftPtrElemB=" << st.shiftPtrElemB
+                      << " depthUorMT0=" << st.depthUorMT0
+                      << " depthUorMT1=" << st.depthUorMT1;
+    }
+
+
 } // namespace Tensile
