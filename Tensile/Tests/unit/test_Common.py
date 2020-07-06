@@ -36,5 +36,25 @@ def test_gfxArch():
 
     assert Common.gfxArch('blah gfx900 stuff') == (9,0,0)
 
+def test_paths():
+    workingPathName = "working/path"
+    Common.globalParameters["WorkingPath"] = workingPathName
+    expectedWorkingPath = "working/path"
+    assert Common.globalParameters["WorkingPath"] == expectedWorkingPath
+
+    recurrsiveWorkingPath = "next1"
+    expectedRecurrsiveWorkingPath = "working/path/next1"
+    Common.pushWorkingPath (recurrsiveWorkingPath)
+    assert Common.globalParameters["WorkingPath"] == expectedRecurrsiveWorkingPath
+    Common.popWorkingPath()
+    assert Common.globalParameters["WorkingPath"] == expectedWorkingPath
+
+    settedWorkingPath = "working/path/set1"
+    expectedSettedWorkingPath = "working/path/set1"
+    Common.setWorkingPath (settedWorkingPath)
+    assert Common.globalParameters["WorkingPath"] == expectedSettedWorkingPath
+    Common.popWorkingPath()
+    assert Common.globalParameters["WorkingPath"] == expectedWorkingPath
+
 
 

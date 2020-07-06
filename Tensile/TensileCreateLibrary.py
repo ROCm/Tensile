@@ -29,12 +29,13 @@ from . import EmbeddedData
 from . import LibraryIO
 from . import Utils
 from .Common import globalParameters, HR, print1, print2, printExit, ensurePath, \
-                   CHeader, CMakeHeader, assignGlobalParameters, \
-                   listToInitializer
+    CHeader, CMakeHeader, assignGlobalParameters, listToInitializer, defaultSolution, \
+    defaultBenchmarkCommonParameters, hasParam
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .KernelWriter import KernelWriter
-from .SolutionStructs import Solution
+from .SolutionLibrary import MasterSolutionLibrary
+from .SolutionStructs import Solution, ProblemType
 from .SolutionWriter import SolutionWriter
 
 import argparse
@@ -45,7 +46,7 @@ import shutil
 import subprocess
 import sys
 import time
-from copy import deepcopy
+from copy import deepcopy, copy
 
 ################################################################################
 def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
@@ -911,8 +912,182 @@ def writeSolutionCall(solutionName, problemType):
   s += ", stream, numInputEvents, inputEvents, outputEvent )"
   return s
 
+##############################################################################
+# forkHardcodedParameters
+##############################################################################
+def forkHardcodedParameters( basePermutation, update ):
+  updatedHardcodedParameters = []
+  #for oldPermutation in hardcodedParameters:
+  for newPermutation in update:
+    permutation = {}
+    permutation.update(basePermutation)
+    permutation.update(newPermutation)
+    updatedHardcodedParameters.append(permutation)
+  return updatedHardcodedParameters
 
+##############################################################################
+# assigenParameters
+##############################################################################
+def assigenParameters(problemTypeConfig, configBenchmarkCommonParameters, configForkParameters):
 
+  #hardcodedParametersSets = [{}]
+
+  problemTypeObj = ProblemType(problemTypeConfig)
+  globalParameters["EnableHalf"] = problemTypeObj["DataType"].isHalf()
+  initialSolutionParameters = { "ProblemType": problemTypeConfig }
+  initialSolutionParameters.update(defaultSolution)
+
+  hardcodedParameters = []
+  #for problemSizeGroupConfig in problemSizeGroupConfigs:
+
+  #configBenchmarkCommonParameters = deepcopy(problemSizeGroupConfig["BenchmarkCommonParameters"])
+  #configForkParameters = deepcopy(problemSizeGroupConfig["ForkParameters"])
+
+  benchmarkCommonParameters = []
+  for paramDict in defaultBenchmarkCommonParameters:
+    for paramName in paramDict:
+      if not hasParam( paramName, [ configBenchmarkCommonParameters, configForkParameters ]) \
+          or paramName == "ProblemSizes":
+        benchmarkCommonParameters.append(paramDict)
+  if configBenchmarkCommonParameters != None:
+    for paramDict in configBenchmarkCommonParameters:
+      benchmarkCommonParameters.append(paramDict)
+
+  for stepList in [benchmarkCommonParameters, configForkParameters]:
+    for paramDict in copy(stepList):
+      for paramName in copy(paramDict):
+        paramValues = paramDict[paramName]
+        if paramValues == None:
+          printExit("You must specify value for parameters \"%s\"" % paramName )
+        if len(paramValues) < 2 and paramName != "ProblemSizes":
+          paramDict.pop(paramName)
+          initialSolutionParameters[paramName] = paramValues[0]
+          if len(paramDict) == 0:
+            stepList.remove(paramDict)
+
+  totalPermutations = 1
+  for param in configForkParameters:
+    for name in param: # only 1
+      values = param[name]
+      totalPermutations *= len(values)
+  forkPermutations = []
+  for i in range(0, totalPermutations):
+    forkPermutations.append({})
+    pIdx = i
+    for param in configForkParameters:
+      for name in param:
+        values = param[name]
+        valueIdx = pIdx % len(values)
+        forkPermutations[i][name] = values[valueIdx]
+        pIdx //= len(values)
+  if len(forkPermutations) > 0:
+    hardcodedParameters = forkHardcodedParameters(initialSolutionParameters, forkPermutations)
+
+  return (problemTypeObj, hardcodedParameters, initialSolutionParameters)
+
+def generateSolutions (problemType, hardcodedParameters, initialSolutionParameters):
+  numHardcoded = len(hardcodedParameters)
+
+  ############################################################################
+  # Enumerate Benchmark Permutations
+  ############################################################################
+  solutions = []
+
+  ############################################################################
+  # Enumerate Solutions = Hardcoded * Benchmark
+  ############################################################################
+  print1("# Enumerating Solutions")
+  solutionSet = set() 
+  PrintSolutionRejectionReason = globalParameters["PrintSolutionRejectionReason"]
+  for hardcodedIdx in range(0, numHardcoded):
+    solutions.append([])
+    hardcodedParamDict = hardcodedParameters[hardcodedIdx]
+    
+    solution = {"ProblemType": deepcopy(problemType.state)}
+    solution.update(initialSolutionParameters)
+    solution.update(hardcodedParamDict)
+
+    # append default parameters where necessary
+    #for initialSolutionParameterName in initialSolutionParameters:
+    #  if initialSolutionParameterName not in solution:
+    #    solution[initialSolutionParameterName] = \
+    #        initialSolutionParameters[initialSolutionParameterName]
+    # TODO check if solution matches problem size for exact tile kernels
+    solutionObject = Solution(solution)
+    if solutionObject["Valid"]:
+      if solutionObject not in solutionSet:
+        solutionSet.add(solutionObject)
+        solutions[hardcodedIdx].append(solutionObject)
+    else:
+      if PrintSolutionRejectionReason:
+        print1("rejecting solution %s" % str(solutionObject))
+    #if globalParameters["PrintLevel"] >= 1:
+    #  progressBar.increment()
+
+  # remove hardcoded that don't have any valid benchmarks
+  #######
+  #removeHardcoded = []
+  #for hardcodedIdx in range(0, numHardcoded):
+  #  if len(solutions[hardcodedIdx]) == 0:
+  #    hardcodedParamDict = hardcodedParameters[hardcodedIdx]
+  #    removeHardcoded.append(hardcodedParamDict)
+
+  #for hardcodedParam in removeHardcoded:
+  #  hardcodedParameters.remove(hardcodedParam)
+  solutionList = list (solutionSet)
+
+  return solutionList
+
+##############################################################################
+# Min Naming / Solution and Kernel Writers
+##############################################################################
+def getSolutionAndKernelWriters(solutions, kernels):
+
+  # if any kernels are assembly, append every ISA supported
+  if globalParameters["ShortNames"] and not globalParameters["MergeFiles"]:
+    solutionSerialNaming = Solution.getSerialNaming(solutions)
+    kernelSerialNaming = Solution.getSerialNaming(kernels)
+  else:
+    solutionSerialNaming = None
+    kernelSerialNaming = None
+  solutionMinNaming = Solution.getMinNaming(solutions)
+  kernelMinNaming = Solution.getMinNaming(kernels)
+  solutionWriter = SolutionWriter( \
+      solutionMinNaming, solutionSerialNaming, \
+      kernelMinNaming, kernelSerialNaming)
+  kernelWriterSource = KernelWriterSource( \
+      kernelMinNaming, kernelSerialNaming)
+  kernelWriterAssembly = KernelWriterAssembly( \
+      kernelMinNaming, kernelSerialNaming)
+
+  return (solutionWriter, kernelWriterSource, kernelWriterAssembly, kernelMinNaming, solutionMinNaming)
+
+################################################################################
+# copy static cpp files and headers
+################################################################################
+def copyStaticFiles(outputPath):
+  if globalParameters["LegacyComponents"]:
+    libraryStaticFiles = [
+      "SolutionMapper.h",
+      "TensileTypes.h",
+      "tensile_bfloat16.h",
+      "KernelHeader.h",
+      "SolutionHelper.cpp",
+      "SolutionHelper.h",
+      "Tools.cpp",
+      "Tools.h" ]
+  else:
+    libraryStaticFiles = [
+      "TensileTypes.h",
+      "tensile_bfloat16.h",
+      "KernelHeader.h" ]
+
+  for fileName in libraryStaticFiles:
+    # copy file
+    shutil.copy( os.path.join(globalParameters["SourcePath"], fileName), \
+        outputPath )
+
+  return libraryStaticFiles
 
 ################################################################################
 # Write CMake
@@ -970,20 +1145,76 @@ def writeCMake(outputPath, solutions, kernels, libraryStaticFiles, clientName ):
 
   generatedFile.write("set( TensileClient_SOURCE\n")
   for fileName in libraryStaticFiles:
-    # copy file
-    shutil.copy( os.path.join(globalParameters["SourcePath"], fileName), \
-        outputPath )
-    # add file to cmake
     generatedFile.write("  ${CMAKE_SOURCE_DIR}/%s\n" % fileName)
   generatedFile.write("  )\n\n")
 
-  #for fileName in libraryStaticFiles:
-    # copy file
-  #  shutil.copy( os.path.join(globalParameters["SourcePath"], fileName), \
-  #      outputPath )
-    # close generated cmake
   generatedFile.close()
 
+################################################################################
+# Generate Kernel Objects From Solutions
+################################################################################
+def generateKernelObjectsFromSolutions(solutions):
+  # create solution writer and kernel writer
+  kernels = []
+  kernelsBetaOnly = []
+  for solution in solutions:
+    solutionKernels = solution.getKernels()
+    for kernel in solutionKernels:
+      if kernel not in kernels:
+        kernels.append(kernel)
+    solutionKernelsBetaOnly = solution.getKernelsBetaOnly()
+    for kernel in solutionKernelsBetaOnly:
+      if KernelWriter.getKernelNameBetaOnly(kernel) not in \
+          [KernelWriter.getKernelNameBetaOnly(k) for k in kernelsBetaOnly]:
+        kernelsBetaOnly.append(kernel)
+
+  return (kernels, kernelsBetaOnly)
+
+################################################################################
+# Write Benchmark Client Files
+################################################################################
+def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, cxxCompiler):
+
+  copyStaticFiles(libraryWorkingPath)
+
+  kernels, kernelsBetaOnly = generateKernelObjectsFromSolutions(solutions)
+  solutionWriter, kernelWriterSource, kernelWriterAssembly, \
+    kernelMinNaming, _ = getSolutionAndKernelWriters(solutions, kernels)
+
+  # write solution, kernels and CMake
+  problemType = solutions[0]["ProblemType"]
+  codeObjectFiles = writeSolutionsAndKernels( \
+    libraryWorkingPath, cxxCompiler, [problemType], solutions, kernels, kernelsBetaOnly, \
+    solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
+    
+  newLibraryDir = ensurePath(os.path.join(libraryWorkingPath, 'library'))
+  newLibraryFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")
+  newLibrary = MasterSolutionLibrary.BenchmarkingLibrary(solutions)
+  newLibrary.applyNaming(kernelMinNaming)
+
+  LibraryIO.YAMLWriter().write(newLibraryFile, Utils.state(newLibrary))
+
+  return (codeObjectFiles, newLibrary)
+
+def WriteClientLibraryFromSolutions(solutionList, tensileSourcePath, libraryWorkingPath):
+
+  firstSolution = deepcopy(solutionList[0])
+  problemType = firstSolution["ProblemType"].state
+  problemType["DataType"] = problemType["DataType"].value
+  problemType["DestDataType"] = problemType["DestDataType"].value
+  problemType["ComputeDataType"] = problemType["ComputeDataType"].value
+  cxxCompiler = globalParameters["CxxCompiler"]
+ 
+  effectiveWorkingPath = os.path.join(libraryWorkingPath, "library") 
+  ensurePath(effectiveWorkingPath)
+  mataDataFilePath = os.path.join(effectiveWorkingPath, 'metadata.yaml')
+
+  metaData = {"ProblemType":problemType}
+  
+  LibraryIO.YAMLWriter().write(mataDataFilePath, metaData)
+  codeObjectFiles, newLibrary = writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutionList, cxxCompiler )
+
+  return (codeObjectFiles, newLibrary)
 
 
 ################################################################################
@@ -1121,54 +1352,13 @@ def TensileCreateLibrary():
         masterLibraries[architectureName] = deepcopy(newLibrary)
         masterLibraries[architectureName].version = args.version
 
-  # create solution writer and kernel writer
-  kernels = []
-  kernelsBetaOnly = []
-  for solution in solutions:
-    solutionKernels = solution.getKernels()
-    for kernel in solutionKernels:
-      if kernel not in kernels:
-        kernels.append(kernel)
-    solutionKernelsBetaOnly = solution.getKernelsBetaOnly()
-    for kernel in solutionKernelsBetaOnly:
-      if KernelWriter.getKernelNameBetaOnly(kernel) not in \
-          [KernelWriter.getKernelNameBetaOnly(k) for k in kernelsBetaOnly]:
-        kernelsBetaOnly.append(kernel)
-
+  kernels, kernelsBetaOnly = generateKernelObjectsFromSolutions(solutions)
   # if any kernels are assembly, append every ISA supported
 
-  if globalParameters["ShortNames"] and not globalParameters["MergeFiles"]:
-    solutionSerialNaming = Solution.getSerialNaming(solutions)
-    kernelSerialNaming = Solution.getSerialNaming(kernels)
-  else:
-    solutionSerialNaming = None
-    kernelSerialNaming = None
-  solutionMinNaming = Solution.getMinNaming(solutions)
-  kernelMinNaming = Solution.getMinNaming(kernels)
-  solutionWriter = SolutionWriter( \
-      solutionMinNaming, solutionSerialNaming, \
-      kernelMinNaming, kernelSerialNaming)
-  kernelWriterSource = KernelWriterSource( \
-      kernelMinNaming, kernelSerialNaming)
-  kernelWriterAssembly = KernelWriterAssembly( \
-      kernelMinNaming, kernelSerialNaming)
+  solutionWriter, kernelWriterSource, kernelWriterAssembly, \
+    kernelMinNaming, _ = getSolutionAndKernelWriters(solutions, kernels)
 
-
-  if globalParameters["LegacyComponents"]:
-    libraryStaticFiles = [
-      "SolutionMapper.h",
-      "TensileTypes.h",
-      "tensile_bfloat16.h",
-      "KernelHeader.h",
-      "SolutionHelper.cpp",
-      "SolutionHelper.h",
-      "Tools.cpp",
-      "Tools.h" ]
-  else:
-    libraryStaticFiles = [
-      "TensileTypes.h",
-      "tensile_bfloat16.h",
-      "KernelHeader.h" ]
+  libraryStaticFiles = copyStaticFiles(outputPath)
 
   # write cmake
   clientName = "LibraryClient"

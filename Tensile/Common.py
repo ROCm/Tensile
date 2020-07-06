@@ -45,6 +45,7 @@ ParallelMap = Parallel.ParallelMap
 # Global Parameters
 ################################################################################
 globalParameters = OrderedDict()
+workingDirectoryStack = []
 
 ########################################
 # common
@@ -1525,6 +1526,16 @@ def assignParameterRequired(destinationDictionary, key, sourceDictionary):
 # Push / Pop Working Path
 # store a WorkingPath where to write files (like benchmark files)
 ################################################################################
+def ensurePath( path ):
+  try:
+    os.makedirs(path)
+  except OSError:
+    pass
+  return path
+def setWorkingPath( fullPathName ):
+  # Warning: this is not thread-safe, modifies the global WorkingPath!
+  workingDirectoryStack.append(globalParameters["WorkingPath"])
+  globalParameters["WorkingPath"] = ensurePath(fullPathName)
 def pushWorkingPath( foldername ):
   # Warning: this is not thread-safe, modifies the global WorkingPath!
   globalParameters["WorkingPath"] = \
@@ -1532,14 +1543,11 @@ def pushWorkingPath( foldername ):
   return ensurePath( globalParameters["WorkingPath"] )
 def popWorkingPath():
   # Warning: this is not thread-safe, modifies the global WorkingPath!
-  globalParameters["WorkingPath"] = \
+  if len(workingDirectoryStack) == 0:
+    globalParameters["WorkingPath"] = \
       os.path.split(globalParameters["WorkingPath"])[0]
-def ensurePath( path ):
-  try:
-    os.makedirs(path)
-  except OSError:
-    pass
-  return path
+  else:
+    globalParameters["WorkingPath"] = workingDirectoryStack.pop()
 
 def roundUp(f):
   return (int)(math.ceil(f))
