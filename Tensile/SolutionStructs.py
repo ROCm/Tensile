@@ -2768,16 +2768,19 @@ class Solution:
     if state["StoreRemapVectorWidth"]:
       if not state["EnableMatrixInstruction"]:
         reject(state, "storeRemap only support MaxtrixInstruction kernel")
+        return
       if state["PersistentKernel"]:
         reject(state, "storeRemap doesn't support persist kernel yet")
+        return
       if state["GlobalSplitU"] > 1:
         reject(state, "storeRemap doesn't support GlobalSplitU yet")
+        return
       if packedC0 or packedC1:
         reject(state, "storeRemap doesn't support packedC0 and packedC1 yet")
-      if state["MIWaveGroup"][0] > 1:
-        reject(state, "storeRemap doesn't support MI wave group in M direction yet")
+        return
       if state["MatrixInstBN"] > 1 and state["MatrixInstN"] == 4:
         reject(state, "storeRemap doesn't support MI4x4 multi blocks in N direction yet")
+        return
 
       srMinVw = 1
       srMaxVw = 8
@@ -2787,13 +2790,18 @@ class Solution:
         srMinVw = 2
       if srMinVw > state["StoreRemapVectorWidth"] or srMaxVw < state["StoreRemapVectorWidth"]:
         reject(state, "StoreRemapVectorWidth %u is not allowed for this data type" % state["StoreRemapVectorWidth"])
+        return
 
-      if state["MacroTile0"]*state["MatrixInstN"] < state["StoreRemapVectorWidth"]*globalParameters["WavefrontWidth"]:
-        reject(state, "storeRemap: number of lds elements less than per wave local read elements. Please use smaller StoreRemapVectorWidth")
-      wavefronts = state["NumThreads"] // globalParameters["WavefrontWidth"]
+      if state["StoreRemapVectorWidth"] * globalParameters["WavefrontWidth"] < state["MacroTile0"]:
+        reject(state, "storeRemap: Per wave single global write instruction doesn't enough to write one M column." + \
+               " Please use larger StoreRemapVectorWidth.")
+        return
+      if (state["MacroTile0"]*state["MatrixInstN"])//state["MIWaveGroup"][0] < state["StoreRemapVectorWidth"]*globalParameters["WavefrontWidth"]:
+        reject(state, "storeRemap: number elements of lds less than per wave per local read elements." + \
+               " Please use smaller StoreRemapVectorWidth.")
+        return
       ldsRemapPad = max(state["StoreRemapVectorWidth"],state["MIOutputVectorWidth"])
-      ldsNumElementsPerWave = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"]
-      ldsNumElementsRemapC = ldsNumElementsPerWave * wavefronts
+      ldsNumElementsRemapC = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"] * state["MIWaveGroup"][1]
       #print("ldsNumElementsRemapC=%u" % ldsNumElementsRemapC)
       ldsNumElements = max(ldsNumElements, ldsNumElementsRemapC)
 
