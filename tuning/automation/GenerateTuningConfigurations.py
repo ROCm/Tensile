@@ -296,148 +296,125 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
     benchmarkGroup = None
     gsuSizeList = list()
     gsuVals = list()
-    scheme = generateDefaultScheme() if mfma == "false" else generateMfmaScheme()
-    gsuScheme = generateDefaultScheme() if mfma == "false" else generateMfmaScheme()
     [gsuSizeList,gsuVals] = determineGSU(sizeList,mfma)
     sizeList = [size for size in sizeList if size not in gsuSizeList]
     
     if rk == "true" and transposeType == "tn":
-        addRkGroup(problemGroup,sizeList,gsuSizeList,scheme,tileAware)
+        addRkGroup(problemGroup,sizeList,gsuSizeList,tileAware)
     elif mfma == "true" and dType == "s":
-        addMfmaGroup(problemGroup,sizeList,gsuSizeList,gsuVals,scheme,gsuScheme,tileAware,transposeType)
+        addMfmaGroup(problemGroup,dType,sizeList,gsuSizeList,gsuVals,tileAware,transposeType)
     else:
-        addGroup(problemGroup,sizeKey,sizeList,gsuSizeList,gsuVals,scheme,gsuScheme,tileAware,transposeType)
+        addGroup(problemGroup,dType,sizeKey,sizeList,gsuSizeList,gsuVals,tileAware,transposeType)
         
-def addGroup(problemGroup,sizeKey,sizeList,gsuSizeList,gsuVals,scheme,gsuScheme,tileAware,transposeType):
-    if len(gsuSizeList) > 0:
-        gsuScheme = generateDefaultScheme()
-        gsuScheme["GlobalSplitU"] = gsuVals
-        if dType == "h":
-            gsuScheme["AssertSummationElementMultiple"] = [2]
-            gsuScheme["AssertFree0ElementMultiple"] = [2]
-        elif dType == "d":
-            gsuScheme["DepthU"] = [4,8]
-            gsuScheme["PrefetchLocalRead"] = [True,False]
-            gsuScheme["StaggerU"] = [0,32]
+def addGroup(problemGroup,dType,sizeKey,sizeList,gsuSizeList,gsuVals,tileAware,transposeType):
+    masterList = [sizeList,gsuSizeList]
+    for currList in masterList:
+        if len(currList) > 0:
+            scheme = generateDefaultScheme()
+            scheme["GlobalSplitU"] = gsuVals if currList == gsuSizeList else [1]
+            scheme["TransposeLDS"] = [0,1] if transposeType == "tn" else [0]
+            if dType == "h":
+                scheme["AssertSummationElementMultiple"] = [2]
+                scheme["AssertFree0ElementMultiple"] = [2]
+            elif dType == "d":
+                scheme["DepthU"] = [4,8]
+                scheme["PrefetchLocalRead"] = [True,False]
+                scheme["SuppressNoLoadLoop"] = [True,False]
+                scheme["StaggerU"] = [0,32]
 
-        if sizeKey == "batch":
-            if dType == "d":
-                benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
-            else:
-                benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,2],[8,16,2],[4,16,4],[16,4,4],[8,8,4]])
-            appendSizes(benchmarkGroup,gsuSizeList,tileAware)
-        elif sizeKey == "tiny":
-            if dType == "d":
-                benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
-            else:
-                benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[2,2],[4,2],[2,4],[4,4]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[32,8,4],[8,32,4],[8,8,4]])
-            appendSizes(benchmarkGroup,gsuSizeList,tileAware)
-        elif sizeKey == "small":
-            if dType == "d":
-                benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
-            else:
-                benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[4,16,4],[16,4,4],[8,8,4]])
-            appendSizes(benchmarkGroup,gsuSizeList,tileAware)
-        elif sizeKey == "medium":
-            if dType == "d":
-                benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
-            else:
-                benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[8,8,4]])
-            appendSizes(benchmarkGroup,gsuSizeList,tileAware)
-        else: #sizeKey == "large"
-            if dType == "d":
-                benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
-            else:
-                benchmarkGroup = generateBenchmarkGroupFromScheme(gsuScheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[4,4],[6,4],[4,6],[4,8],[8,4],[8,8]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,2],[8,16,2],[8,8,4]])
-            appendSizes(benchmarkGroup,gsuSizeList,tileAware)
+            if sizeKey == "batch":
+                if dType == "d":
+                    benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
+                    appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
+                    appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
+                else:
+                    benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
+                    appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
+                    appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,2],[8,16,2],[4,16,4],[16,4,4],[8,8,4]])
+                appendSizes(benchmarkGroup,currList,tileAware)
+            elif sizeKey == "tiny":
+                if dType == "d":
+                    benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
+                    appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
+                    appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
+                else:
+                    benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
+                    appendThreadTiles(benchmarkGroup, [[2,2],[4,2],[2,4],[4,4]])
+                    appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[32,8,4],[8,32,4],[8,8,4]])
+                appendSizes(benchmarkGroup,currList,tileAware)
+            elif sizeKey == "small":
+                if dType == "d":
+                    benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
+                    appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
+                    appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
+                else:
+                    benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
+                    appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
+                    appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[4,16,4],[16,4,4],[8,8,4]])
+                appendSizes(benchmarkGroup,currList,tileAware)
+            elif sizeKey == "medium":
+                if dType == "d":
+                    benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
+                    appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
+                    appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
+                else:
+                    benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
+                    appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
+                    appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[8,8,4]])
+                appendSizes(benchmarkGroup,currList,tileAware)
+            else: #sizeKey == "large"
+                if dType == "d":
+                    benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
+                    appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
+                    appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
+                else:
+                    benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
+                    appendThreadTiles(benchmarkGroup, [[4,4],[6,4],[4,6],[4,8],[8,4],[8,8]])
+                    appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,2],[8,16,2],[8,8,4]])
+                appendSizes(benchmarkGroup,currList,tileAware)
 
-        problemGroup.append(benchmarkGroup)
+            problemGroup.append(benchmarkGroup)
 
-    if len(sizeList) > 0:
-        if dType == "h":
-            scheme["AssertSummationElementMultiple"] = [2]
-            scheme["AssertFree0ElementMultiple"] = [2]
-        elif dType == "d":
-            scheme["DepthU"] = [4,8]
-            scheme["PrefetchLocalRead"] = [True,False]
-            gsuScheme["StaggerU"] = [0,32]
+def addMfmaGroup(problemGroup,dType,sizeList,gsuSizeList,gsuVals,tileAware,transposeType):
+    masterList = [sizeList,gsuSizeList]
+    for currList in masterList:
+        if len(currList) > 0:
+            scheme = generateMfmaScheme()
+            scheme["GlobalSplitU"] = gsuVals if currList == gsuSizeList else [1]
+            scheme["TransposeLDS"] = [0,1] if transposeType == "tn" else [0]
+            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
+            appendMatrixInstructions(benchmarkGroup, [[16, 16, 4, 1]])
+            appendThreadTiles(benchmarkGroup, [[4,16],[4,32],[8,16],[8,32],[12,16]])
+            appendWorkGroups(benchmarkGroup, [[16,16,1],[64,4,1],[32,8,1]])
+            appendSizes(benchmarkGroup, currList,tileAware)
+            problemGroup.append(benchmarkGroup)
 
-        if sizeKey == "batch":
-            if dType == "d":
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
-            else:
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,2],[8,16,2],[4,16,4],[16,4,4],[8,8,4]])
-            appendSizes(benchmarkGroup,sizeList,tileAware)
-        elif sizeKey == "tiny":
-            if dType == "d":
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
-            else:
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[2,2],[4,2],[2,4],[4,4]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[32,8,4],[8,32,4],[8,8,4]])
-            appendSizes(benchmarkGroup,sizeList,tileAware)
-        elif sizeKey == "small":
-            if dType == "d":
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
-            else:
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[4,16,4],[16,4,4],[8,8,4]])
-            appendSizes(benchmarkGroup,sizeList,tileAware)
-        elif sizeKey == "medium":
-            if dType == "d":
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
-            else:
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[4,4],[4,6],[6,4],[4,8],[8,4],[8,8]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[8,16,2],[16,8,2],[8,8,4]])
-            appendSizes(benchmarkGroup,sizeList,tileAware)
-        else: #sizeKey == "large"
-            if dType == "d":
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[6,6],[6,4],[4,6],[8,4],[4,4],[4,8]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,1],[8,16,1],[16,32,1],[32,16,1]])
-            else:
-                benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-                appendThreadTiles(benchmarkGroup, [[4,4],[6,4],[4,6],[4,8],[8,4],[8,8]])
-                appendWorkGroups(benchmarkGroup, [[16,16,1],[16,8,2],[8,16,2],[8,8,4]])
-            appendSizes(benchmarkGroup,sizeList,tileAware)
+            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
+            appendMatrixInstructions(benchmarkGroup, [[16, 16, 1, 4]])
+            appendThreadTiles(benchmarkGroup, [[2,32],[2,16],[1,32],[4,16],[2,48],[6,16]])
+            appendWorkGroups(benchmarkGroup, [[64,4,1],[32,8,1]])
+            appendSizes(benchmarkGroup,currList,tileAware)
+            problemGroup.append(benchmarkGroup)
 
-        problemGroup.append(benchmarkGroup)
+            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
+            appendMatrixInstructions(benchmarkGroup, [[32, 32, 2, 1]])
+            appendThreadTiles(benchmarkGroup, [[2,32],[1,64],[4,32],[6,32],[2,64]])
+            appendWorkGroups(benchmarkGroup, [[16,16,1],[64,4,1],[32,8,1]])
+            appendSizes(benchmarkGroup,currList,tileAware)
+            problemGroup.append(benchmarkGroup)
 
-def addRkGroup(problemGroup,sizeList,gsuSizeList,scheme,tileAware):
+            benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
+            appendMatrixInstructions(benchmarkGroup, [[32, 32, 1, 2]])
+            appendThreadTiles(benchmarkGroup, [[1,32],[2,32],[3,32],[1,64]])
+            appendWorkGroups(benchmarkGroup, [[16,16,1],[32,8,1],[64,4,1]])
+            appendSizes(benchmarkGroup,currList,tileAware)
+            problemGroup.append(benchmarkGroup)
+
+def addRkGroup(problemGroup,sizeList,gsuSizeList,tileAware):
+    scheme = generateDefaultScheme()
     scheme["GlobalSplitU"] = [1,3]
     scheme["ReplacementKernel"] = [True]
+    scheme["TransposeLDS"] = [0,1]
     sizeList = sizeList + gsuSizeList
     benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
     appendThreadTiles(benchmarkGroup, [[8,2],[8,4],[2,8],[4,8],[16,2],[16,4],[16,8],[2,16],[4,16],[8,16]])
@@ -462,71 +439,6 @@ def addRkGroup(problemGroup,sizeList,gsuSizeList,scheme,tileAware):
     appendWorkGroups(benchmarkGroup, [[16,16,1]])
     appendSizes(benchmarkGroup,sizeList,tileAware,False,"true")
     problemGroup.append(benchmarkGroup)
-
-def addMfmaGroup(problemGroup,sizeList,gsuSizeList,gsuVals,scheme,gsuScheme,tileAware,transposeType):
-    matrixInstruction = [[16, 16, 4, 1],[16, 16, 1, 4],[32, 32, 1, 2],[32,32,2,1]]
-    
-
-    if len(gsuSizeList) > 0:
-        gsuScheme = generateDefaultScheme()
-        gsuScheme["GlobalSplitU"] = gsuVals
-        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-        appendMatrixInstructions(benchmarkGroup, [[16, 16, 4, 1]])
-        appendThreadTiles(benchmarkGroup, [[4,16],[4,32],[8,16],[8,32],[12,16]])
-        appendWorkGroups(benchmarkGroup, [[16,16,1],[64,4,1],[32,8,1]])
-        appendSizes(benchmarkGroup,gsuSizeList,tileAware)
-        problemGroup.append(benchmarkGroup)
-
-        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-        appendMatrixInstructions(benchmarkGroup, [[16, 16, 1, 4]])
-        appendThreadTiles(benchmarkGroup, [[2,32],[2,16],[1,32],[4,16],[2,48],[6,16]])
-        appendWorkGroups(benchmarkGroup, [[64,4,1],[32,8,1]])
-        appendSizes(benchmarkGroup,gsuSizeList,tileAware)
-        problemGroup.append(benchmarkGroup)
-
-        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-        appendMatrixInstructions(benchmarkGroup, [[32, 32, 2, 1]])
-        appendThreadTiles(benchmarkGroup, [[2,32],[1,64],[4,32],[6,32],[2,64]])
-        appendWorkGroups(benchmarkGroup, [[16,16,1],[64,4,1],[32,8,1]])
-        appendSizes(benchmarkGroup,gsuSizeList,tileAware)
-        problemGroup.append(benchmarkGroup)
-
-        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-        appendMatrixInstructions(benchmarkGroup, [[32, 32, 1, 2]])
-        appendThreadTiles(benchmarkGroup, [[1,32],[2,32],[3,32],[1,64]])
-        appendWorkGroups(benchmarkGroup, [[16,16,1],[32,8,1],[64,4,1]])
-        appendSizes(benchmarkGroup,gsuSizeList,tileAware)
-        problemGroup.append(benchmarkGroup)
-
-    if len(sizeList) > 0:
-        scheme = generateMfmaScheme()
-        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-        appendMatrixInstructions(benchmarkGroup, [[16, 16, 4, 1]])
-        appendThreadTiles(benchmarkGroup, [[4,16],[4,32],[8,16],[8,32],[12,16]])
-        appendWorkGroups(benchmarkGroup, [[16,16,1],[64,4,1],[32,8,1]])
-        appendSizes(benchmarkGroup,sizeList,tileAware)
-        problemGroup.append(benchmarkGroup)
-
-        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-        appendMatrixInstructions(benchmarkGroup, [[16, 16, 1, 4]])
-        appendThreadTiles(benchmarkGroup, [[2,32],[2,16],[1,32],[4,16],[2,48],[6,16]])
-        appendWorkGroups(benchmarkGroup, [[64,4,1],[32,8,1]])
-        appendSizes(benchmarkGroup,sizeList,tileAware)
-        problemGroup.append(benchmarkGroup)
-
-        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-        appendMatrixInstructions(benchmarkGroup, [[32, 32, 2, 1]])
-        appendThreadTiles(benchmarkGroup, [[2,32],[1,64],[4,32],[6,32],[2,64]])
-        appendWorkGroups(benchmarkGroup, [[16,16,1],[64,4,1],[32,8,1]])
-        appendSizes(benchmarkGroup,sizeList,tileAware)
-        problemGroup.append(benchmarkGroup)
-
-        benchmarkGroup = generateBenchmarkGroupFromScheme(scheme,tileAware)
-        appendMatrixInstructions(benchmarkGroup, [[32, 32, 1, 2]])
-        appendThreadTiles(benchmarkGroup, [[1,32],[2,32],[3,32],[1,64]])
-        appendWorkGroups(benchmarkGroup, [[16,16,1],[32,8,1],[64,4,1]])
-        appendSizes(benchmarkGroup,sizeList,tileAware)
-        problemGroup.append(benchmarkGroup)
 
 def OutputConfigs(problemMapper, configPath, outputName, library, tileAware, mfma, rk, disableStrides):
 
