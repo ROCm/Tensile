@@ -2208,6 +2208,9 @@ class Solution:
       if state["ThreadTile0"] > 16 or state["ThreadTile1"] > 16:
         reject(state, "Invalid value for ThreadTile")
 
+      if state["ScheduleIterAlg"] == 2 or state["ScheduleIterAlg"] == 3:
+        reject(state, "SIA2 and SIA3 only support MatrixInstruction")
+
     if state["ProblemType"]["Tensor0"]==0:
       state["ThreadTileA"] = state["ThreadTile0"]
       state["ThreadTileB"] = state["ThreadTile1"]
