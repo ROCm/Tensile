@@ -1,0 +1,286 @@
+GlobalParameters:
+  MinimumRequiredVersion: 4.1.0
+  NumElementsToValidate: 0
+  ValidationMaxToPrint: 16
+  PinClocks: False
+  # SleepPercent: 0
+  EnqueuesPerSync: 1
+  KernelTime: True
+  NewClient: 2
+  # this is for convolution so can use alpha 1, beta 0
+  DataInitTypeAlpha: 1
+  DataInitTypeBeta: 0
+  LegacyComponents: False
+  PrintConvolutionUsage: 0
+  PrintSolutionRejectionReason: 0
+
+BenchmarkProblems:
+  -
+    - # ProblemType      
+      # OperationType: ConvolutionBackwardData
+      OperationType: GEMM
+      DataType: B
+      DestDataType: B
+      ComputeDataType: s
+      HighPrecisionAccumulate: True
+      TransposeA: False
+      TransposeB: True
+      UseBeta: True
+      Batched: True
+      # ConvolutionConfig:
+      # - Dilation: 1x1
+      # - Filter: 1x1
+      # - Stride: 1x1
+      # - TensorAFormat: NCHW
+      #TileAwareSelection: True
+    -
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+      ForkParameters:
+        - MatrixInstruction:
+          - [32, 32, 2, 2]
+          - [32, 32, 4, 1]
+          - [16, 16, 2, 4]
+          - [16, 16, 8, 1]
+        - ThreadTile:
+          - [ 1, 16 ]
+          - [ 2, 16 ]
+          - [ 1, 32 ]
+          - [ 2, 32 ]
+          - [ 2, 64 ]
+        - WorkGroup:
+          - [ 128, 2, 1 ]
+          - [ 64, 4, 1 ]
+          - [ 32, 8, 1 ]
+          - [ 16, 16, 1 ]
+        - PrefetchGlobalRead: [1]
+        - PrefetchLocalRead: [1]
+        - DepthU: [32,64]
+        - VectorWidth: [2]
+        - GlobalReadVectorWidth: [2,4,8]
+        - SuppressNoLoadLoop: [0]
+        - OptNoLoadLoop: [1]
+        - ScheduleLocalWrite: [1]
+        - ScheduleGlobalRead: [1]
+        - ScheduleIterAlg: [3]
+        - InnerUnroll: [1]
+        - ExpandPointerSwap: [1]
+        # - TransposeLDS: [1]
+        # - LdsBlockSizePerPad: [-1]
+        # - LdsPadA: [-1]
+        # - LdsPadB: [-1]
+        - StoreRemapVectorWidth: [0,4]
+        # - WaveSeparateGlobalReadA: [0,1]
+        # - WaveSeparateGlobalReadB: [0,1]
+        # - StaggerUMapping: [0]
+        - StaggerU: [0]
+        - WorkGroupMapping: [1,4,10]
+        - PackBatchDims: [0,1]
+        - FractionalLoad: [1]
+        - AssertFree0ElementMultiple: [1,4,8]
+      BenchmarkForkParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+# inception 1x1 convs:        
+          - Range: [[64],[1280],[64],[192]]
+          - Range: [[64],[1280],[64],[320]]
+          - Range: [[64],[1280],[64],[384]]
+          - Range: [[64],[1280],[64],[448]]
+          - Range: [[64],[2048],[64],[192]]
+          - Range: [[64],[2048],[64],[320]]
+          - Range: [[64],[2048],[64],[384]]
+          - Range: [[64],[2048],[64],[448]]
+          # odd M
+          - Range: [[1225],[192],[64],[32]]
+          - Range: [[1225],[192],[64],[48]]
+          - Range: [[1225],[192],[64],[64]]
+          - Range: [[1225],[256],[64],[48]]
+          - Range: [[1225],[256],[64],[64]]
+          - Range: [[1225],[288],[64],[48]]
+          - Range: [[1225],[288],[64],[64]]
+          - Range: [[5329],[64],[64],[80]]
+          - Range: [[289],[768],[64],[128]]
+          - Range: [[289],[768],[64],[160]]
+          - Range: [[289],[768],[64],[192]]
+          # batch 32
+          - Range: [[64],[1280],[32],[192]]
+          - Range: [[64],[1280],[32],[320]]
+          - Range: [[64],[1280],[32],[384]]
+          - Range: [[64],[1280],[32],[448]]
+          - Range: [[64],[2048],[32],[192]]
+          - Range: [[64],[2048],[32],[320]]
+          - Range: [[64],[2048],[32],[384]]
+          - Range: [[64],[2048],[32],[448]]
+          # odd M
+          - Range: [[1225],[192],[32],[32]]
+          - Range: [[1225],[192],[32],[48]]
+          - Range: [[1225],[192],[32],[64]]
+          - Range: [[1225],[256],[32],[48]]
+          - Range: [[1225],[256],[32],[64]]
+          - Range: [[1225],[288],[32],[48]]
+          - Range: [[1225],[288],[32],[64]]
+          - Range: [[5329],[64],[32],[80]]
+          - Range: [[289],[768],[32],[128]]
+          - Range: [[289],[768],[32],[160]]
+          - Range: [[289],[768],[32],[192]]
+# resnet50          
+          - Range: [[3136],[64],[64],[256]]
+          - Range: [[3136],[64],[64],[64]]
+          - Range: [[3136],[256],[64],[64]]
+          - Range: [[784],[128],[64],[512]]
+          - Range: [[784],[512],[64],[128]]
+          - Range: [[196],[256],[64],[1024]]
+          - Range: [[196],[1024],[64],[256]]
+          # odd M
+          - Range: [[49],[512],[64],[2048]]
+          - Range: [[49],[2048],[64],[512]]
+          # batch 32
+          - Range: [[3136],[64],[32],[256]]
+          - Range: [[3136],[64],[32],[64]]
+          - Range: [[3136],[256],[32],[64]]
+          - Range: [[784],[128],[32],[512]]
+          - Range: [[784],[512],[32],[128]]
+          - Range: [[196],[256],[32],[1024]]
+          - Range: [[196],[1024],[32],[256]]
+          # odd M
+          - Range: [[49],[512],[32],[2048]]
+          - Range: [[49],[2048],[32],[512]]
+# resnext:
+          - Range: [[3136],[64],[64],[128]]
+          - Range: [[3136],[64],[64],[256]]
+          - Range: [[3136],[128],[64],[256]]
+          - Range: [[784],[256],[64],[512]]
+          - Range: [[3136],[256],[64],[128]]
+          - Range: [[3136],[256],[64],[256]]
+          - Range: [[196],[512],[64],[1024]]
+          - Range: [[784],[512],[64],[256]]
+          - Range: [[784],[512],[64],[512]]
+          - Range: [[196],[1024],[64],[512]]
+          - Range: [[196],[1024],[64],[1024]]
+          # odd M
+          - Range: [[49],[1024],[64],[2048]]
+          - Range: [[49],[2048],[64],[1024]]
+          # batch 32
+          - Range: [[3136],[64],[32],[128]]
+          - Range: [[3136],[64],[32],[256]]
+          - Range: [[3136],[128],[32],[256]]
+          - Range: [[784],[256],[32],[512]]
+          - Range: [[3136],[256],[32],[128]]
+          - Range: [[3136],[256],[32],[256]]
+          - Range: [[196],[512],[32],[1024]]
+          - Range: [[784],[512],[32],[256]]
+          - Range: [[784],[512],[32],[512]]
+          - Range: [[196],[1024],[32],[512]]
+          - Range: [[196],[1024],[32],[1024]]
+          # odd M
+          - Range: [[49],[1024],[32],[2048]]
+          - Range: [[49],[2048],[32],[1024]]
+
+# # inception 1x1 convs:
+#           - Conv: { n: 64, c: 1280, h: 8, w: 8, k: 192, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 1280, h: 8, w: 8, k: 320, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 1280, h: 8, w: 8, k: 384, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 1280, h: 8, w: 8, k: 448, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 2048, h: 8, w: 8, k: 192, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 2048, h: 8, w: 8, k: 320, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 2048, h: 8, w: 8, k: 384, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 2048, h: 8, w: 8, k: 448, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           # odd M
+#           - Conv: { n: 64, c: 192, h: 35, w: 35, k: 32, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 192, h: 35, w: 35, k: 48, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 192, h: 35, w: 35, k: 64, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 256, h: 35, w: 35, k: 48, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 256, h: 35, w: 35, k: 64, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 288, h: 35, w: 35, k: 48, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 288, h: 35, w: 35, k: 64, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 64, h: 73, w: 73, k: 80, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 768, h: 17, w: 17, k: 128, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 768, h: 17, w: 17, k: 160, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 768, h: 17, w: 17, k: 192, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+
+#           # batch 32
+#           - Conv: { n: 32, c: 1280, h: 8, w: 8, k: 192, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 1280, h: 8, w: 8, k: 320, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 1280, h: 8, w: 8, k: 384, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 1280, h: 8, w: 8, k: 448, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 2048, h: 8, w: 8, k: 192, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 2048, h: 8, w: 8, k: 320, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 2048, h: 8, w: 8, k: 384, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 2048, h: 8, w: 8, k: 448, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           # odd M
+#           - Conv: { n: 32, c: 192, h: 35, w: 35, k: 32, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 192, h: 35, w: 35, k: 48, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 192, h: 35, w: 35, k: 64, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 256, h: 35, w: 35, k: 48, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 256, h: 35, w: 35, k: 64, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 288, h: 35, w: 35, k: 48, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 288, h: 35, w: 35, k: 64, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 64, h: 73, w: 73, k: 80, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 768, h: 17, w: 17, k: 128, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 768, h: 17, w: 17, k: 160, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 768, h: 17, w: 17, k: 192, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+# # resnet50
+#           - Conv: { n: 64, c: 64, h: 56, w: 56, k: 256, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 64, h: 56, w: 56, k: 64, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 256, h: 56, w: 56, k: 64, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 128, h: 28, w: 28, k: 512, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 512, h: 28, w: 28, k: 128, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 256, h: 14, w: 14, k: 1024, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 1024, h: 14, w: 14, k: 256, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           # odd M
+#           - Conv: { n: 64, c: 512, h: 7, w: 7, k: 2048, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 2048, h: 7, w: 7, k: 512, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+          
+#           # batch 32
+#           - Conv: { n: 32, c: 64, h: 56, w: 56, k: 256, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 64, h: 56, w: 56, k: 64, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 256, h: 56, w: 56, k: 64, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 128, h: 28, w: 28, k: 512, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 512, h: 28, w: 28, k: 128, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 256, h: 14, w: 14, k: 1024, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 1024, h: 14, w: 14, k: 256, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           # odd M
+#           - Conv: { n: 32, c: 512, h: 7, w: 7, k: 2048, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 2048, h: 7, w: 7, k: 512, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+
+# # resnext:
+#           - Conv: { n: 64, c: 64, h: 56, w: 56, k: 128, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 64, h: 56, w: 56, k: 256, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 128, h: 56, w: 56, k: 256, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 256, h: 28, w: 28, k: 512, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 256, h: 56, w: 56, k: 128, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 256, h: 56, w: 56, k: 256, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 512, h: 14, w: 14, k: 1024, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 512, h: 28, w: 28, k: 256, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 512, h: 28, w: 28, k: 512, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }          
+#           - Conv: { n: 64, c: 1024, h: 14, w: 14, k: 512, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 1024, h: 14, w: 14, k: 1024, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           # odd M
+#           - Conv: { n: 64, c: 1024, h: 7, w: 7, k: 2048, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 64, c: 2048, h: 7, w: 7, k: 1024, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+
+#           # batch 32
+#           - Conv: { n: 32, c: 64, h: 56, w: 56, k: 128, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 64, h: 56, w: 56, k: 256, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 128, h: 56, w: 56, k: 256, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 256, h: 28, w: 28, k: 512, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 256, h: 56, w: 56, k: 128, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 256, h: 56, w: 56, k: 256, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 512, h: 14, w: 14, k: 1024, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 512, h: 28, w: 28, k: 256, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 512, h: 28, w: 28, k: 512, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }          
+#           - Conv: { n: 32, c: 1024, h: 14, w: 14, k: 512, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 1024, h: 14, w: 14, k: 1024, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           # odd M
+#           - Conv: { n: 32, c: 1024, h: 7, w: 7, k: 2048, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }
+#           - Conv: { n: 32, c: 2048, h: 7, w: 7, k: 1024, y: 1, x: 1, p: 0, q: 0, u: 1, v: 1, l: 1, j: 1 }  
+
+LibraryLogic:
+  ScheduleName: "arcturus"
+  DeviceNames: ["Device 7380", "Device 7388", "Device 738c", "Device 7390"]
+  ArchitectureName: "gfx908"
+
+# LibraryClient:
