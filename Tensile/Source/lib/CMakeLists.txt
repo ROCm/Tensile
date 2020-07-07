@@ -50,7 +50,13 @@ set(tensile_sources  ${tensile_sources}
 if(TENSILE_USE_LLVM)
     find_package(LLVM 6.0 QUIET CONFIG)
     if(NOT LLVM_FOUND)
-        find_package(LLVM REQUIRED CONFIG)
+        find_package(LLVM 7.0 QUIET CONFIG)
+        if(NOT LLVM_FOUND)
+            find_package(LLVM 9.0 QUIET CONFIG)
+            if(NOT LLVM_FOUND)
+                find_package(LLVM REQUIRED CONFIG)
+            endif()
+        endif()
     endif()
     set(tensile_sources ${tensile_sources}
         source/llvm/YAML.cpp
@@ -71,8 +77,14 @@ add_library (TensileHost STATIC ${tensile_sources})
 
 target_include_directories(TensileHost INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-find_package(msgpack)
-target_link_libraries(TensileHost PUBLIC msgpackc)
+if(Tensile_LIBRARY_FORMAT MATCHES "msgpack")
+    find_package(msgpack)
+    if(TARGET msgpackc-static)
+        target_link_libraries(TensileHost PRIVATE msgpackc-static)
+    else()
+        target_link_libraries(TensileHost PRIVATE msgpackc)
+    endif()
+endif()
 
 if(TENSILE_USE_LLVM)
     target_compile_definitions(TensileHost PUBLIC TENSILE_DEFAULT_SERIALIZATION)

@@ -281,8 +281,44 @@ validParameters = {
     "WaveSeparateGlobalReadA":    [ 0, 1 ],
     "WaveSeparateGlobalReadB":    [ 0, 1 ],
 
-    "PrefetchGlobalRead":         [ False, True ], # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
-    "PrefetchLocalRead":          [ 0,1,2,3], # prefetch / double-buffer reads from lds (or 2 for triple-buffer, 3 for quad-buffer).  Increases size of ValuA/ValuB registers.
+    # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
+    "PrefetchGlobalRead":         [ False, True ],
+
+    # number of iteration prefetch local reads from lds to VGPRs buffer = PLR % LoopIter
+    # number of VGPRs buffer = min(PLR,LoopIters)
+    # LoopIters = DepthU / LocalSplitU
+    # (LoopIters /= MatrixInstruction_K)
+    # ex. MT64x128x16_MI32x32x4x2_PLR1, we'll have 4 LoopIters, prefetch read 1 iteration, with 2 VGPRs buffer
+    #     befor loop:       plr[0]
+    #           loop: iter0:plr[1] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[0], iter3:plr[0] MAC_r[1]
+    #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[0], iter3:       MAC_r[1]
+    #
+    # ex. MT64x128x16_MI32x32x4x2_PLR3, we'll have 4 LoopIterss, prefetch read 3 iteration, with 4 VGPRs buffer
+    #     befor loop:       plr[0] plr[1] plr[2]
+    #           loop: iter0:plr[3] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[2], iter3:plr[2] MAC_r[3]
+    #   no load loop: iter0:plr[3] MAC_r[0], iter1:       MAC_r[1], iter2:       MAC_r[2], iter3:       MAC_r[3]
+    #
+    # ex. MT64x128x16_MI32x32x4x2_PLR5, we'll have 4 LoopIterss, prefetch read 5%4=1 iteration, with 4 VGPRs buffer
+    #     befor loop:       plr[0]
+    #           loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:plr[0] MAC_r[3]
+    #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:       MAC_r[3]
+    #
+    # ex. MT64x128x16_MI32x32x4x2_PLR5_LRVW8, we'll have 4 LoopIterss, prefetch read 5%4=1 iteration, with 4 VGPRs buffer, each read read 2 iterations
+    #     befor loop:       plr[0:1]
+    #           loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:plr[0:1] MAC_r[3]
+    #   no load loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:         MAC_r[3]
+    "PrefetchLocalRead":          list(range(128+1)),
+
+    # We use double LDS buffer when PrefetchGlobalRead. 
+    # While it reads data from LDS[0]/[1], it prefetch global data and writes to LDS[1]/[0]
+    # If we can make sure all data are read from LDS to register before writing data to LDS, we can use 1 LDS buffer to save LDS memory.
+    # this can help to generate Kernel that LDS usage originally exceed MaxLDS if using double LDS buffer,
+    # or help to increase Occupancy.
+    #     1 means: Force to use 1 LDS Buffer even with PrefetchGlobalRead
+    #    -1 means: generator will use 1 LDS buffer only when LDS exceed MaxLDS
+    # Currently only support TN+TLDS+wider_local_read
+    # TODO: optimize scheduling to support more cases.
+    "1LDSBuffer": [-1 ,0, 1],
 
     # Split the unroll summation into multiple sections and combine the sections
     # GSU applies only to the unroll summation dimension
@@ -777,11 +813,11 @@ validParameters = {
     "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8],
 
     # Padding boundary for LDS. defines block-size for pad insertion. for every 'LdsBlockSizePerPad' bytes, LDS padding (pad value from LdsPad parameter)
-    # is added (readOffset aware of the pad and adjusts offset value based on this parameter value).good rule of thumb is LdsBlockSizePerPad >= unrollDepth * BPE
-    # optimized value is 128
+    # is added (readOffset aware of the pad and adjusts offset value based on this parameter value).
+    # Only support LdsBlockSizePerPad >= unrollDepth * BPE
     # 0 means disable LdsBlockSizePerPad,
-    # -1 means value is determined by Tensile logic
-    "LdsBlockSizePerPad":          [-1, 0, 64, 128, 256],
+    # -1 means round up to nearest power of 2 begin with 128
+    "LdsBlockSizePerPad":          [-1, 0, 64, 128, 256, 512],
 
     #Transpose LDS format. Local store in Coalsced dimension , same as optimized global fetch dimension . applicable only in TLU=0 case for miSIMD(s)
     "TransposeLDS":                [-1, 1, 0],
@@ -926,6 +962,7 @@ defaultBenchmarkCommonParameters = [
     {"ThreadTile":                [ [4,4] ] },
     {"MatrixInstruction":         [ [] ] },
     {"DisableVgprOverlapping":    [ False ] },
+    {"1LDSBuffer":                [ 0 ] },
     {"DisableAtomicFail":         [ 0 ] },
     {"DisableKernelPieces":       [ 0 ] },
     {"DepthU":                    [ -1 ] },
@@ -1265,11 +1302,15 @@ def GetAsmCaps(isaVersion):
   rv["HasSMulHi"]       = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
   rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "", False, "-mno-code-object-v3")
 
+  rv["HasMFMA"]         = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
+
+  rv["v_mac_f16"]       = tryAssembler(isaVersion, "v_mac_f16 v47, v36, v34")
   rv["v_fma_f16"]       = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
   rv["v_pk_fma_f16"]    = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0]")
   rv["v_mad_mix_f32"]   = tryAssembler(isaVersion, "v_mad_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
   rv["v_fma_mix_f32"]   = tryAssembler(isaVersion, "v_fma_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
 
+  rv["v_dot2_f32_f16"]  = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
   rv["v_dot2c_f32_f16"] = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34")
 
   if tryAssembler(isaVersion, "s_waitcnt vmcnt(63)"):
@@ -1405,7 +1446,7 @@ def assignGlobalParameters( config ):
   # Minimum Required Version
   if "MinimumRequiredVersion" in config:
     if not versionIsCompatible(config["MinimumRequiredVersion"]):
-      printExit("Benchmark.yaml file requires version=%s is not compatible with current Tensile version=%s" \
+      printExit("Config file requires version=%s is not compatible with current Tensile version=%s" \
           % (config["MinimumRequiredVersion"], __version__) )
 
   # User-specified global parameters
