@@ -64,9 +64,10 @@ def test_assigenParameters():
 def test_generateSolutions():
 
     scriptDir = os.path.dirname(os.path.realpath(__file__))
-    problemTypeFilePath = os.path.join(scriptDir, "test_data", "problemType.yaml")
-    hardcodedParametersFilePath = os.path.join(scriptDir, "test_data", "hardcodedParameters.yaml")
-    initialSolutionParametersFilePath = os.path.join(scriptDir, "test_data", "initialSolutionParameters.yaml")
+    dataDir = os.path.realpath(os.path.join(scriptDir, "..", "test_data", "unit"))
+    problemTypeFilePath = os.path.join(dataDir, "library_data", "problemType.yaml")
+    hardcodedParametersFilePath = os.path.join(dataDir, "library_data", "hardcodedParameters.yaml")
+    initialSolutionParametersFilePath = os.path.join(dataDir, "library_data", "initialSolutionParameters.yaml")
 
     problemType = LibraryIO.readConfig(problemTypeFilePath)["ProblemType"]
     problemTypeObject = TensileCreateLibrary.ProblemType(problemType)
@@ -82,7 +83,8 @@ def test_loadSolutions(caplog):
     mylogger.debug("this is a test of debug log")
     mylogger.info("this is some info")
     scriptDir = os.path.dirname(os.path.realpath(__file__))
-    solutionsFilePath = os.path.join(scriptDir, "solutions", "solutions_nn_3.yaml")
+    dataDir = os.path.realpath(os.path.join(scriptDir, "..", "test_data", "unit"))
+    solutionsFilePath = os.path.join(dataDir, "solutions", "solutions_nn_3.yaml")
 
     fileSolutions = LibraryIO.readSolutions(solutionsFilePath)
     solutions = fileSolutions[1]
@@ -129,7 +131,8 @@ def test_WriteClientLibraryFromSolutions(tmpdir):
     libraryWorkingPath = tmpdir.mkdir("lib")
 
     scriptDir = os.path.dirname(os.path.realpath(__file__))
-    solutionsFilePath = os.path.join(scriptDir, "solutions", "solutions_nn_3.yaml")
+    dataDir = os.path.realpath(os.path.join(scriptDir, "..", "test_data", "unit"))
+    solutionsFilePath = os.path.join(dataDir, "solutions", "solutions_nn_3.yaml")
 
     fileSolutions = LibraryIO.readSolutions(solutionsFilePath)
     solutions = fileSolutions[1]
@@ -180,7 +183,8 @@ def test_CreateBenchmarkClientPrametersForSizes(tmpdir):
     dataWorkingPath = tmpdir.mkdir("Data")
     configWorkingPath = tmpdir.mkdir("run_configs")
     scriptDir = os.path.dirname(os.path.realpath(__file__))
-    testDataPath = os.path.join(scriptDir, "test_data")
+    dataDir = os.path.realpath(os.path.join(scriptDir, "..", "test_data", "unit"))
+    testDataPath = os.path.join(dataDir, "library_data")
     libraryPath = os.path.join(testDataPath, "library")
     metadataFilepath = os.path.join(libraryPath, "metadata.yaml")
 
