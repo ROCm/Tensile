@@ -1100,7 +1100,7 @@ def copyStaticFiles(outputPath):
     shutil.copy( os.path.join(globalParameters["SourcePath"], fileName), \
         outputPath )
 
-  return libraryFilename
+  return libraryStaticFiles
 
 def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembly, solutions, kernels, betaOnlyKernels):
 
