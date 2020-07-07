@@ -8,7 +8,7 @@ function extract_sizes() {
   local EXTRACT_SIZE_PATH=`pwd`
   popd > /dev/null
 
-  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION}  ${INITIALIZATION}"
+  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION}  ${INITIALIZATION} ${TENSILE_CLIENT}"
 
   ${EXTRACT_EXE}
 
@@ -23,7 +23,7 @@ function extract_network_sizes() {
   local EXTRACT_SIZE_PATH=`pwd`
   popd > /dev/null
 
-  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_DIR} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION} ${INITIALIZATION}"
+  EXTRACT_EXE="python ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_DIR} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION} ${INITIALIZATION} ${TENSILE_CLIENT}"
 
   ${EXTRACT_EXE}
 
@@ -76,8 +76,9 @@ function provision_tensile() {
 
 }
 
-HELP_STR="usage: $0 [-w|--working-path <path>] [-z | --size-log <logfile path>] [-f|--tensile-fork <username>] [-b|--branch <branch>] [-c <github commit id>] [-t|--tag <github tag>] [--rocblas-fork <username>] [-o|--output <configuration filename>] [-y | --type <data type>] [-l | --library <library/schedule>] [-m | --mfma] [-r | --rk] [-s | --disable-strides] [--problem-definition <gemm/batch/both] [-n] [[-h|--help]"
+HELP_STR="usage: $0 [-w|--working-path <path>] [-z | --size-log <logfile path>] [-f|--tensile-fork <username>] [-b|--branch <branch>] [-c <github commit id>] [-t|--tag <github tag>] [--rocblas-fork <username>] [-o|--output <configuration filename>] [-y | --type <data type>] [-l | --library <library/schedule>] [-m | --mfma] [-r | --rk] [-s | --disable-strides] [--problem-definition <gemm/batch/both] [--client <new/old/both>] [-n] [[-h|--help]"
 HELP=false
+TENSILE_CLIENT=new
 SUPPRESS_TENSILE=false
 TENSILE_FORK='ROCmSoftwarePlatform'
 ROCBLAS_FORK='ROCmSoftwarePlatform'
@@ -90,7 +91,7 @@ DISABLE_STRIDES=false
 PROBLEM_DEFINITION=both
 INITIALIZATION=rand_int
 
-OPTS=`getopt -o hw:z:d:n:t:f:b:c:o:y:l:amrsi: --long help,working-path:,size-log:,log-dir:,tag:,tensile-fork:,rocblas-fork:,branch:,commit:,output:,type:,library:,tile-aware,mfma,rk,problem-definition:,disable-strides,initialization:,no-tensile,id: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hw:z:d:n:t:f:b:c:o:y:l:amrsi: --long help,working-path:,size-log:,log-dir:,tag:,tensile-fork:,rocblas-fork:,branch:,commit:,output:,type:,library:,client:,tile-aware,mfma,rk,problem-definition:,disable-strides,initialization:,no-tensile,id: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -103,6 +104,7 @@ while true; do
     -z | --size-log )       SIZE_LOG="$2"; shift 2;;
     -d | --log-dir )        SIZE_DIR="$2"; shift 2;;
     -n | --network )        NETWORK="$2"; shift 2;;
+    --client )              TENSILE_CLIENT="$2"; shift 2;;    
     -t | --tag )            TAG="$2"; shift 3;;
     -f | --tensile-fork)    TENSILE_FORK="$2"; shift 2;;
     --rocblas-fork)         ROCBLAS_FORK="$2"; shift 2;;
@@ -153,6 +155,11 @@ if [ -z ${CONFIGURATION_TYPE+foo} ]; then
    exit 2
 fi
 
+if [[ "${TENSILE_CLIENT}" != both && "${TENSILE_CLIENT}" != old ]]; then
+    printf "Setting Tensile Client to new\n"
+    TENSILE_CLIENT=new
+fi
+
 #determining the full path of tools root
 TOOLS_ROOT=`dirname "$0"`
 TOOLS_ROOT=`( cd "${TOOLS_ROOT}" && cd .. && pwd )`
@@ -190,5 +197,4 @@ if ${SUPPRESS_TENSILE} ; then
 else
   provision_tensile
 fi
-
 
