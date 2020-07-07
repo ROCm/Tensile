@@ -98,8 +98,6 @@ function(TensileCreateLibraryFiles
 
   set(Options "--new-client-only")
 
-  set(Options ${Options} "--new-client-only")
-
   if(Tensile_MERGE_FILES)
     set(Options ${Options} "--merge-files")
   else()
