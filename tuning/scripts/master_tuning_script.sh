@@ -24,6 +24,7 @@ HELP_STR="
     [-f|--sclk]             Frequency of sclk in MHz
     [-z|--log]              Pass in log file with rocblas-bench calls, or directory of log files if using network tuning
     [-n|--network]          Optional. String to search for in filenames in log directory
+    [--client]              Optional. Choose Tensile client version. (new, old, both, default=new)
     [-m|--mfma]             Optional. Use MFMA kernels (default=false)
     [-r|--rk]               Optional. Use replacement kernels (sgemm only, default=false)
     [-c|--count]            Optional. Sets all cases where count=1 to count=10 (default=false)
@@ -43,6 +44,7 @@ HELP_STR="
     [--rocm-path]           Optional. Define ROCM_PATH, the location of the rocm stack (default=/opt/rocm)
 "
 HELP=false
+TENSILE_CLIENT=new
 COUNT=false
 TILE_AWARE=false
 MFMA=false
@@ -63,7 +65,7 @@ PUBLIC=false
 HCC=false
 ROCM_PATH=/opt/rocm
 
-OPTS=`getopt -o hg:z:y:o:f:rmctsi:u:b:p --long help,gpu:,log:,network:,data-type:,output-dir:,sclk:,rk,mfma,count,tile-aware,disable-strides,initialization:,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition:,hcc,rocm-path: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hg:z:y:o:f:rmctsi:u:b:p --long help,gpu:,log:,network:,data-type:,output-dir:,sclk:,client:,rk,mfma,count,tile-aware,disable-strides,initialization:,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition:,hcc,rocm-path: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -89,6 +91,7 @@ while true; do
         -b | --branch )             TENSILE_BRANCH="$2"; shift 2;;
         --rocblas-branch )          ROCBLAS_BRANCH="$2"; shift 2;;
         -p | --public )             PUBLIC=true; shift ;;
+        --client)                   TENSILE_CLIENT="$2"; shift 2;;
         --number )                  NUM="$2"; shift 2;;
         --one-type )                TUNE_TYPE="$2"; shift 2;;
         --omit-type )               OMIT_TYPE="$2"; shift 2;;
@@ -136,6 +139,11 @@ elif [[ "${GPU}" == mi50 || "${GPU}" == r7 ]]; then
 else
     printf "Assuming vega20 gpu library\n"
     GPU=mi60
+fi
+
+if [[ "${TENSILE_CLIENT}" != both && "${TENSILE_CLIENT}" != old ]]; then
+    printf "Setting Tensile Client to new\n"
+    TENSILE_CLIENT=new
 fi
 
 if [[ "${HCC}" == true ]]; then
@@ -263,9 +271,9 @@ make_packages()
 mkdir ${OUTPUT_DIR}
 EXTRACT_SIZE_PATH=`pwd`/${OUTPUT_DIR}
 if [ -z ${NETWORK+foo} ]; then
-    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION} ${INITIALIZATION}
+    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION} ${INITIALIZATION} ${TENSILE_CLIENT}
 else
-    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION} ${INITIALIZATION}
+    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION} ${INITIALIZATION} ${TENSILE_CLIENT}
 fi
 
 pushd ${OUTPUT_DIR}

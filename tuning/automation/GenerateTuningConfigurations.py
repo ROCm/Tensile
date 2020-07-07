@@ -440,11 +440,12 @@ def addRkGroup(problemGroup,sizeList,gsuSizeList,tileAware):
     appendSizes(benchmarkGroup,sizeList,tileAware,False,"true")
     problemGroup.append(benchmarkGroup)
 
-def OutputConfigs(problemMapper, configPath, outputName, library, tileAware, mfma, rk, disableStrides):
+def OutputConfigs(problemMapper, configPath, outputName, library, tileAware, mfma, rk, disableStrides, client):
 
     keys = list(problemMapper.keys())
 
     configDefs = {}
+    initBetaVal = 0
 
     for key in keys:
         lineDefinitions = problemMapper[key]
@@ -458,6 +459,8 @@ def OutputConfigs(problemMapper, configPath, outputName, library, tileAware, mfm
             if sizeKey not in sizeMapper:
                 sizeMapper[sizeKey] = []
             sizeMapper[sizeKey].append(size)
+            if "'beta': 1" in str(problemDefinition):
+                initBetaVal = 1
 
         problemType = GetProblemType(key,tileAware)
         dataType = problemType["DataType"].lower()
@@ -475,6 +478,12 @@ def OutputConfigs(problemMapper, configPath, outputName, library, tileAware, mfm
         newConfig = None
         problemGroup = None
 
+        clientMapper = {"old": 0, "both": 1, "new": 2}
+        clientVal = 2
+        for clientType in clientMapper:
+            if clientType == client:
+                clientVal = clientMapper[clientType]
+
         if configurationFilePath in configDefs:
             newConfig = configDefs[configurationFilePath]
             problemGroup = newConfig.benchmarkProblems[0]
@@ -483,6 +492,8 @@ def OutputConfigs(problemMapper, configPath, outputName, library, tileAware, mfm
             newConfig.globalParameters = deepcopy(defaultHeader)
             if rk:
                 newConfig.globalParameters["MergeFiles"] = True
+            newConfig.globalParameters["NewClient"] = clientVal
+            newConfig.globalParameters["DataInitTypeBeta"] = initBetaVal
             newConfig.libraryLogic = deepcopy(libraryLogicMapper[library])
             newConfig.libraryClient = True
             problemGroup = [problemType]
@@ -703,7 +714,7 @@ def RunMain():
 
     argParser = argparse.ArgumentParser()
 
-    if len(sys.argv) <= 11:
+    if len(sys.argv) <= 12:
         argParser.add_argument("input_file_name", help="configuration file path")
     else:
         argParser.add_argument("input_logs", help="the input path for log files")
@@ -718,6 +729,7 @@ def RunMain():
     argParser.add_argument("disable_strides", help="true/false disable strides", default="false")
     argParser.add_argument("problem_definition", help="gemm, batch, or both", default="both")
     argParser.add_argument("initialization", help="rand_int or trig_float", default="rand_int")
+    argParser.add_argument("client", help="set Tensile client to new, old, or both", default="new")
 
     args = argParser.parse_args(userArgs)
     outputPath = args.output_path
@@ -729,8 +741,9 @@ def RunMain():
     disableStrides = args.disable_strides
     probDefinition = args.problem_definition
     initialization = args.initialization
+    client = args.client
 
-    if len(sys.argv) <= 11:
+    if len(sys.argv) <= 12:
         inputFileName = args.input_file_name
         inputFileBaseName = os.path.basename(inputFileName)
         namePart, _ = os.path.splitext(inputFileBaseName)
@@ -739,7 +752,7 @@ def RunMain():
         networkName = args.network_name
         allLogs = [inputPath+'/'+filename for filename in os.listdir(inputPath) if networkName in filename]
 
-    if len(sys.argv) <= 11:
+    if len(sys.argv) <= 12:
         problemMapper = ProcessFile(inputFileName)
     else:
         problemMapper = ProcessFiles(allLogs)
@@ -757,9 +770,9 @@ def RunMain():
     if not os.path.exists(sizePath):
         os.makedirs(sizePath)
 
-    OutputConfigs(problemMapper,configPath,outputName,library,tileAware,mfma,rk,disableStrides)
+    OutputConfigs(problemMapper,configPath,outputName,library,tileAware,mfma,rk,disableStrides,client)
 
-    if len(sys.argv) <= 11:
+    if len(sys.argv) <= 12:
         OutputScript(problemMapper, scriptPath, namePart, disableStrides, probDefinition, initialization)
         OutputScript2(problemMapper, scriptPath2, namePart+'2', disableStrides, probDefinition, initialization)
         OutputProblemDefinitions(problemMapper, sizePath, namePart)
