@@ -137,10 +137,56 @@ def main( config ):
 
   return returncode
 
+################################################################################
+# Write New Client Run Script
+################################################################################
+def writeNewClientRunScript(scriptPath, clientParametersPath, clientExePath = None): #, forBenchmark):
+  # create run.bat or run.sh which builds and runs
+  runScriptName = os.path.join(scriptPath, \
+    "run.%s" % ("bat" if os.name == "nt" else "sh") )
+  runScriptFile = open(runScriptName, "w")
+
+  if os.name != "nt":
+    runScriptFile.write("#!/bin/bash\n\n")
+
+  #if forBenchmark:
+  newClientExe = ClientExecutable.getClientExecutable(clientExePath)
+  configFile = clientParametersPath
+  runScriptFile.write("{} --config-file={}\n".format(newClientExe, configFile))
+  runScriptFile.write("ERR1=$?\n\n")
+
+  runScriptFile.write("""
+ERR=0
+if [[ $ERR1 -ne 0 ]]
+then
+    echo one
+    ERR=$ERR1
+fi
+""")
+  if os.name != "nt":
+    runScriptFile.write("exit $ERR\n")
+  runScriptFile.close()
+  if os.name != "nt":
+    os.chmod(runScriptName, 0o777)
+  return runScriptName
 
 ################################################################################
 # Write Run Script
 ################################################################################
+
+def runNewClient(scriptPath, clientParametersPath, clientBuildDir=None):
+  
+  # write runScript
+  runScriptName = writeNewClientRunScript(scriptPath, clientParametersPath, clientBuildDir)
+
+  with ClientExecutionLock():
+    process = subprocess.Popen(runScriptName, cwd=scriptPath)
+    process.communicate()
+
+  if process.returncode:
+    printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
+  return process.returncode
+
 
 def runClient(libraryLogicPath, forBenchmark, enableTileSelection):
   # write runScript

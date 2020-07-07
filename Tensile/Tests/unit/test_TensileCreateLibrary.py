@@ -31,7 +31,7 @@ import Tensile.SolutionStructs as SolutionStructs
 import yaml
 
 #logging.basicConfig(level=logging.INFO)
-#mylogger = logging.getLogger()
+mylogger = logging.getLogger()
 
 def writeYaml(fileName, theObject):
   try:
