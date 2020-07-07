@@ -214,7 +214,7 @@ class SignatureCOV2(Signature):
         cptValueType = getCptValueType(kernel, "V2")
         cptByte = getCptByte(kernel)
         # cptSize = getCptSize(kernel)
-        cptAlign = getCptAlign(kernel)
+        # cptAlign = getCptAlign(kernel)
 
         # Codeobject V2 metadata
         kStr += ".amd_amdgpu_hsa_metadata\n"
@@ -240,7 +240,7 @@ class SignatureCOV2(Signature):
         kStr += self.v2Argument(                               'B',     '8',      '8', "GlobalBuffer", srcValueType, "Generic"); ka_size += 8
 
         useSize = max(4, cptByte)
-        useAlign = max(4, cptAlign)
+        useAlign = useSize
         alphaBeta = "beta" if kernel["ProblemType"]["UseBeta"] else "alpha"
         kStr += self.v2Argument(                           alphaBeta, useSize, useAlign,      "ByValue", cptValueType); ka_size += useSize
 
