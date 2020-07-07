@@ -112,6 +112,12 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
       line += "\n"
     print(line)
 
+  for i in range(0, len(logicAnalyzer.solutions)):
+    s = logicAnalyzer.solutions[i]
+    s["SolutionIndex"] = i
+    s["SolutionNameMin"] = Solution.getNameMin(s, solutionMinNaming)
+    print1("(%2u) %s : %s" % (i, Solution.getNameMin(s, solutionMinNaming), Solution.getNameFull(s)))
+
   if enableTileSelection:
     if globalParameters["NewClient"] == 2:
       validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelection(problemType, selectionFileNameList, \
