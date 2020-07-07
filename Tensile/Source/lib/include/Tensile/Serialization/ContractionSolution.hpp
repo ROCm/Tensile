@@ -115,5 +115,20 @@ namespace Tensile
 
             const static bool flow = false;
         };
+
+        template <typename IO>
+        struct MappingTraits<BufferLoadCheckPacket, IO>
+        {
+            using iot = IOTraits<IO>;
+            static void mapping(IO& io, BufferLoadCheckPacket& s)
+            {
+                iot::mapRequired(io, "ShiftPtrElemA", s.shiftPtrElemA);
+                iot::mapRequired(io, "ShiftPtrElemB", s.shiftPtrElemB);
+                iot::mapRequired(io, "DUorMT0", s.depthUorMT0);
+                iot::mapRequired(io, "DUorMT1", s.depthUorMT1);
+            }
+
+            const static bool flow = false;
+        };
     } // namespace Serialization
 } // namespace Tensile
