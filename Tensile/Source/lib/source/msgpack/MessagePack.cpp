@@ -25,18 +25,21 @@
  *******************************************************************************/
 
 #include <Tensile/msgpack/MessagePack.hpp>
+
+#include <Tensile/msgpack/Loading.hpp>
+
 #include <fstream>
 
 namespace Tensile
 {
     namespace Serialization
     {
-        std::map<std::string, msgpack::object> objectToMap(msgpack::object& object)
+        std::unordered_map<std::string, msgpack::object> objectToMap(msgpack::object& object)
         {
             if(object.type != msgpack::type::object_type::MAP)
                 throw std::runtime_error(concatenate("Expected MAP, found ", object.type));
 
-            std::map<std::string, msgpack::object> result;
+            std::unordered_map<std::string, msgpack::object> result;
             for(uint32_t i = 0; i < object.via.map.size; i++)
             {
                 auto& element = object.via.map.ptr[i];
