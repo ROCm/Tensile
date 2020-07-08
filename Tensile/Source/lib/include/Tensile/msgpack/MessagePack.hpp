@@ -29,6 +29,7 @@
 #include <type_traits>
 
 #include <Tensile/ContractionLibrary.hpp>
+#include <Tensile/Debug.hpp>
 #include <Tensile/Serialization.hpp>
 
 #include <msgpack.hpp>
@@ -89,16 +90,17 @@ namespace Tensile
             static const bool value = true;
         };
 
-        std::map<std::string, msgpack::object> objectToMap(msgpack::object& object);
+        std::unordered_map<std::string, msgpack::object> objectToMap(msgpack::object& object);
 
         struct MessagePackInput
         {
             msgpack::object          object;
             std::vector<std::string> error;
 
-            std::map<std::string, msgpack::object> objectMap;
-            std::set<std::string>                  usedKeys;
-            int                                    enumFound = 0;
+            std::unordered_map<std::string, msgpack::object> objectMap;
+            std::unordered_set<std::string>                  usedKeys;
+
+            int enumFound = 0;
 
             void* context = nullptr;
 
@@ -131,7 +133,8 @@ namespace Tensile
                     MessagePackInput subRef = createSubRef(value);
                     subRef.input(obj);
                     error.insert(error.end(), subRef.error.begin(), subRef.error.end());
-                    usedKeys.insert(key);
+                    if(Tensile::Debug::Instance().printDataInit())
+                        usedKeys.insert(key);
                 }
                 else
                 {
@@ -162,7 +165,8 @@ namespace Tensile
                 {
                     auto& value = iterator->second;
                     createSubRef(value).input(obj);
-                    usedKeys.insert(key);
+                    if(Tensile::Debug::Instance().printDataInit())
+                        usedKeys.insert(key);
                 }
             }
 
@@ -175,7 +179,7 @@ namespace Tensile
 
             void checkUsedKeys()
             {
-                std::set<std::string> fileKeys;
+                std::unordered_set<std::string> fileKeys;
                 for(auto const& pair : objectMap)
                     fileKeys.insert(pair.first);
 
@@ -194,7 +198,8 @@ namespace Tensile
             {
                 MappingTraits<T, MessagePackInput, Context>::mapping(*this, obj, ctx);
 
-                checkUsedKeys();
+                if(Tensile::Debug::Instance().printDataInit())
+                    checkUsedKeys();
             }
 
             template <typename T, typename Context>
@@ -204,7 +209,8 @@ namespace Tensile
             {
                 MappingTraits<T, MessagePackInput, Context>::mapping(*this, obj);
 
-                checkUsedKeys();
+                if(Tensile::Debug::Instance().printDataInit())
+                    checkUsedKeys();
             }
 
             template <typename T, typename Context>
@@ -345,12 +351,4 @@ namespace Tensile
             }
         };
     }
-
-    template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-        MessagePackLoadLibraryFile(std::string const& filename);
-
-    template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-        MessagePackLoadLibraryData(std::vector<uint8_t> const& data);
 }
