@@ -96,8 +96,9 @@ namespace Tensile
             msgpack::object          object;
             std::vector<std::string> error;
 
-            std::set<std::string> usedKeys;
-            int                   enumFound = 0;
+            std::map<std::string, msgpack::object> objectMap;
+            std::set<std::string>                  usedKeys;
+            int                                    enumFound = 0;
 
             void* context = nullptr;
 
@@ -112,13 +113,19 @@ namespace Tensile
                 return MessagePackInput(otherObject, context);
             }
 
+            void addError(std::string const& msg)
+            {
+                error.push_back(msg);
+            }
+
             template <typename T>
             void mapRequired(const char* key, T& obj)
             {
-                auto map = objectToMap(object);
+                if(objectMap.empty())
+                    objectMap = objectToMap(object);
 
-                auto iterator = map.find(key);
-                if(iterator != map.end())
+                auto iterator = objectMap.find(key);
+                if(iterator != objectMap.end())
                 {
                     auto&            value  = iterator->second;
                     MessagePackInput subRef = createSubRef(value);
@@ -128,17 +135,30 @@ namespace Tensile
                 }
                 else
                 {
-                    error.push_back(std::string("Unknown key ") + key);
+                    std::string msg = "Unknown key ";
+                    msg += key;
+                    msg += " (keys: ";
+                    bool first = true;
+                    for(auto const& pair : objectMap)
+                    {
+                        if(!first)
+                            msg += ", ";
+                        msg += pair.first;
+                        first = false;
+                    }
+                    msg += ")";
+                    addError(msg);
                 }
             }
 
             template <typename T>
             void mapOptional(const char* key, T& obj)
             {
-                auto map = objectToMap(object);
+                if(objectMap.empty())
+                    objectMap = objectToMap(object);
 
-                auto iterator = map.find(key);
-                if(iterator != map.end())
+                auto iterator = objectMap.find(key);
+                if(iterator != objectMap.end())
                 {
                     auto& value = iterator->second;
                     createSubRef(value).input(obj);
@@ -153,12 +173,28 @@ namespace Tensile
                 input(obj, ctx);
             }
 
+            void checkUsedKeys()
+            {
+                std::set<std::string> fileKeys;
+                for(auto const& pair : objectMap)
+                    fileKeys.insert(pair.first);
+
+                if(usedKeys != fileKeys)
+                {
+                    for(auto const& k : fileKeys)
+                        if(usedKeys.find(k) == usedKeys.end())
+                            addError(concatenate("Error: Unused key ", k));
+                }
+            }
+
             template <typename T, typename Context>
             typename std::enable_if<has_MappingTraits<T, MessagePackInput, Context>::value,
                                     void>::type
                 input(T& obj, Context& ctx)
             {
                 MappingTraits<T, MessagePackInput, Context>::mapping(*this, obj, ctx);
+
+                checkUsedKeys();
             }
 
             template <typename T, typename Context>
@@ -167,6 +203,8 @@ namespace Tensile
                 input(T& obj, Context& ctx)
             {
                 MappingTraits<T, MessagePackInput, Context>::mapping(*this, obj);
+
+                checkUsedKeys();
             }
 
             template <typename T, typename Context>
@@ -184,7 +222,7 @@ namespace Tensile
                 EnumTraits<T, MessagePackInput>::enumeration(*this, obj);
 
                 if(enumFound != 1)
-                    error.push_back(concatenate("Enum not found!", obj));
+                    addError(concatenate("Enum not found!", obj));
             }
 
             template <typename T, typename Context>

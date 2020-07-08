@@ -73,14 +73,15 @@ namespace Tensile
         {
             std::ifstream        in(filename, std::ios::in | std::ios::binary);
             std::vector<uint8_t> data((std::istreambuf_iterator<char>(in)),
-                                    std::istreambuf_iterator<char>());
+                                      std::istreambuf_iterator<char>());
 
             return MessagePackLoadLibraryData<MyProblem, MySolution>(data);
         }
         catch(std::runtime_error const& exc)
         {
             if(Debug::Instance().printDataInit())
-                std::cout << "Error loading " << filename << "(msgpack):" << std::endl << exc.what() << std::endl;
+                std::cout << "Error loading " << filename << "(msgpack):" << std::endl
+                          << exc.what() << std::endl;
 
             return nullptr;
         }
@@ -100,6 +101,16 @@ namespace Tensile
             Serialization::PointerMappingTraits<Tensile::MasterContractionLibrary,
                                                 Serialization::MessagePackInput>::mapping(min, rv);
 
+            if(!min.error.empty())
+            {
+                std::ostringstream msg;
+                msg << "Error loading msgpack data:" << std::endl;
+                for(auto const& err : min.error)
+                    msg << err << std::endl;
+
+                throw std::runtime_error(msg.str());
+            }
+
             return rv;
         }
         catch(std::runtime_error const& exc)
@@ -109,7 +120,6 @@ namespace Tensile
 
             return nullptr;
         }
-
     }
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
