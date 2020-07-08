@@ -22,7 +22,7 @@
 from .Common import printExit
 from .CSVReader import readCSV
 from .SolutionStructs import Solution
-from . import YAMLIO
+from . import LibraryIO
 
 import csv
 
@@ -109,7 +109,7 @@ def analyzeSolutionSelectionOldClient( problemType, problemSizeGroups):
     dataFileNameList.append(dataFileName)
     solutionsFileName = problemSizeGroup[2]
 
-    (_, solutions) = YAMLIO.readSolutions(solutionsFileName)
+    (_, solutions) = LibraryIO.readSolutions(solutionsFileName)
     if len(solutions) == 0:
       printExit("%s doesn't contains any solutions." % (solutionsFileName) )
 

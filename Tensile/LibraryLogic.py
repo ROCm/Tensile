@@ -21,7 +21,7 @@
 
 from .Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar, printWarning
 from .SolutionStructs import Solution
-from . import YAMLIO
+from . import LibraryIO
 from . import SolutionSelectionLibrary
 
 from copy import deepcopy
@@ -58,7 +58,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
 
     ######################################
     # Read Solutions
-    (problemSizes, solutions) = YAMLIO.readSolutions(solutionsFileName)
+    (problemSizes, solutions) = LibraryIO.readSolutions(solutionsFileName)
     problemSizesList.append(problemSizes)
     solutionsList.append(solutions)
     solutionMinNaming = Solution.getMinNaming(solutions)
@@ -414,15 +414,17 @@ class LogicAnalyzer:
     # column indices
     csvFile = csv.reader(dataFile)
     problemSizeStartIdx = 1
+    # notice that for OperationType != GEMM, the numIndices = 0
     totalSizeIdx = problemSizeStartIdx + self.numIndices
-    solutionStartIdx = totalSizeIdx + 1
-    rowLength = solutionStartIdx + numSolutions
 
     # iterate over rows
     rowIdx = 0
     for row in csvFile:
       rowIdx+=1
       if rowIdx == 1:
+        # get the length of each row, and derive the first column of the solution instead of using wrong "solutionStartIdx = totalSizeIdx + 1"
+        rowLength = len(row)
+        solutionStartIdx = rowLength - numSolutions
         continue
       else:
         #if len(row) < rowLength:
@@ -1429,7 +1431,7 @@ def main(  config ):
         printExit("%s doesn't exist for %s" % (dataFileName, fileBase) )
       if not os.path.exists(solutionsFileName):
         printExit("%s doesn't exist for %s" % (solutionsFileName, fileBase) )
-      (problemSizes, solutions) = YAMLIO.readSolutions(solutionsFileName)
+      (problemSizes, solutions) = LibraryIO.readSolutions(solutionsFileName)
       if len(solutions) == 0:
         printExit("%s doesn't contains any solutions." % (solutionsFileName) )
       problemType = solutions[0]["ProblemType"]
@@ -1442,7 +1444,7 @@ def main(  config ):
     logicTuple = analyzeProblemType( problemType, problemTypes[problemType], \
         analysisParameters)
 
-    YAMLIO.writeLibraryLogicForSchedule(globalParameters["WorkingPath"], \
+    LibraryIO.configWriter("yaml").writeLibraryLogicForSchedule(globalParameters["WorkingPath"], \
         analysisParameters["ScheduleName"], analysisParameters["ArchitectureName"], \
         analysisParameters["DeviceNames"], logicTuple)
 

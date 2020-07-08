@@ -830,6 +830,7 @@ def GetStride(problemDefinition,param):
         "stride_a": str(int(problemDefinition["m"])*int(problemDefinition["k"])), "stride_b": str(int(problemDefinition["n"])*int(problemDefinition["k"])),
         "stride_c": str(int(problemDefinition["m"])*int(problemDefinition["n"]))}
 
+    #assuming we don't encounter TT sizes
     if problemDefinition["transposeB"] == "T":
         return nt[param]
     elif problemDefinition["transposeA"] == "N":
@@ -837,7 +838,7 @@ def GetStride(problemDefinition,param):
 
     return tn[param]
 
-def BuildRocBLASBenchmarkCall(problemDefinition,disableStrides="false",initialization="random_int"):
+def BuildRocBLASBenchmarkCall(problemDefinition,disableStrides="false",initialization="rand_int"):
     f = problemDefinition["f"]
     keys = rocblas_key_mapping[f]
 
@@ -852,6 +853,43 @@ def BuildRocBLASBenchmarkCall(problemDefinition,disableStrides="false",initializ
     rocblas_call += " --initialization %s" % (initialization)
 
     return rocblas_call
+
+def ConvertToYAML(problemDefinition,disableStrides="false"):
+    f = problemDefinition["f"]
+    keys = rocblas_key_mapping[f]
+    convertKey = {"r":"rocblas_function","a_type":"a_type","b_type":"b_type","c_type":"c_type","d_type":"d_type","compute_type":"compute_type","transposeA":"transA","transposeB":"transB","m":"M","n":"N","k":"K","alpha":"alpha","lda":"lda","ldb":"ldb","beta":"beta","ldc":"ldc","ldd":"ldd","stride_a":"stride_a","stride_b":"stride_b","stride_c":"stride_c","stride_d":"stride_d","batch_count":"batch_count","algo":"algo","solution_index":"solution_index","flags":"flags","i":"iters"}
+    rocblasValue = {"h":"rocblas_hgemm","f16_r":"rocblas_hgemm","s":"rocblas_sgemm","f32_r":"rocblas_sgemm","d":"rocblas_dgemm","f64_r": "rocblas_dgemm", "?":"rocblas_gemm_ex"}
+    alternateType: {"f32":"s", "f64": "d", "f16": "h"}
+
+    rocblas_call = "- {"
+    for key in keys:
+        param = key.replace("-","")
+        if param == "f":
+            continue
+        value = problemDefinition[param]
+        modKey = convertKey[param]
+        if ("stride" in modKey and value == 0) or ("batch" in modKey and value == 1) or ("type" in modKey and value == None):
+            continue
+        if param == "r":
+            for dType in rocblasValue.keys():
+                if problemDefinition[param] == dType:
+                    value = rocblasValue[dType]
+            if problemDefinition["stride_a"] != 0:
+                value += "_strided_batched"
+        if ("ld" in param or "stride" in param) and int(value) == 0:
+            value = GetStride(problemDefinition,param)
+        if ("call_count" not in modKey) and ("iters" not in modKey):
+            rocblas_call += "%s: %s, " % (modKey,value)
+        else:
+            rocblas_call +=  "%s: %s " % (modKey, value)
+    rocblas_call += "}"
+
+    return rocblas_call
+
+def WriteScriptYAML(yamlFile,lines):
+    with open(yamlFile, 'a') as f:
+        for line in lines:
+            f.write("%s\n" % line)
 
 def RunMain():
 

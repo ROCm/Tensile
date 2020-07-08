@@ -52,6 +52,14 @@ namespace Tensile
 
     extern PerfModel perf;
 
+    struct BufferLoadCheckPacket
+    {
+        size_t shiftPtrElemA;
+        size_t shiftPtrElemB;
+        size_t depthUorMT0;
+        size_t depthUorMT1;
+    };    
+
     /**
  * Represents a single kernel or set of kernels that can perform a single
  * tensor contraction.
@@ -228,4 +236,5 @@ namespace Tensile
                              ContractionSolution::StaticPerformanceModel const& spm);
     std::ostream& operator<<(std::ostream&                                    stream,
                              ContractionSolution::ProjectedPerformance const& spm);
+    std::ostream& operator<<(std::ostream& stream, BufferLoadCheckPacket const& st);
 } // namespace Tensile
