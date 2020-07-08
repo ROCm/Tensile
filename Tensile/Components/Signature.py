@@ -241,8 +241,9 @@ class SignatureCOV2(Signature):
 
         useSize = max(4, cptByte)
         useAlign = useSize
-        alphaBeta = "beta" if kernel["ProblemType"]["UseBeta"] else "alpha"
-        kStr += self.v2Argument(                           alphaBeta, useSize, useAlign,      "ByValue", cptValueType); ka_size += useSize
+        kStr += self.v2Argument(                             "alpha", useSize, useAlign,      "ByValue", cptValueType); ka_size += useSize
+        if kernel["ProblemType"]["UseBeta"]:
+            kStr += self.v2Argument(                          "beta", useSize, useAlign,      "ByValue", cptValueType); ka_size += useSize
 
         for i in range(0, writer.numSgprStridesD):
             kStr += self.v2Argument(                   "strideD%u"%i,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
@@ -432,8 +433,9 @@ class SignatureCOV3(Signature):
         kStr += self.v3Argument(                               'B',     '8', offset, "global_buffer", srcValueType, "generic"); offset += 8
 
         useSize = max(4, cptByte)
-        alphaBeta = "beta" if kernel["ProblemType"]["UseBeta"] else "alpha"
-        kStr += self.v3Argument(                           alphaBeta, useSize, offset,      "by_value", cptValueType); offset += useSize
+        kStr += self.v3Argument(                             "alpha", useSize, offset,      "by_value", cptValueType); offset += useSize
+        if kernel["ProblemType"]["UseBeta"]:
+            kStr += self.v3Argument(                          "beta", useSize, offset,      "by_value", cptValueType); offset += useSize
 
         for i in range(0, writer.numSgprStridesD):
             kStr += self.v3Argument(                   "strideD%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
