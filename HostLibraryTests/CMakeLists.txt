@@ -99,7 +99,14 @@ add_subdirectory(configs)
 
 set(TEST_DATA_DIR "${CMAKE_CURRENT_BINARY_DIR}/data")
 file(MAKE_DIRECTORY "${TEST_DATA_DIR}")
-file(COPY ${SOLUTION_LIBRARY_FILES} DESTINATION "${TEST_DATA_DIR}")
+
+foreach(FILE ${SOLUTION_LIBRARY_FILES})
+    if(EXISTS ${FILE})
+        message(WARNING "Overwriting ${FILE} from ${FILE}.gz")
+    endif()
+    execute_process(COMMAND gzip --keep --decompress --force "${FILE}.gz")
+    file(COPY ${FILE} DESTINATION "${TEST_DATA_DIR}")
+endforeach(FILE)
 
 include_directories("." ${GTEST_SOURCE_DIR}/include)
 add_subdirectory(testlib)

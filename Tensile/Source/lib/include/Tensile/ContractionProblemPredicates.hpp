@@ -621,8 +621,8 @@ namespace Tensile
                 }
             };
 
-            struct KernelLanguageEqual
-                : public Predicate_CRTP<KernelLanguageEqual, ContractionProblem>
+            struct KernelLanguageCompatible
+                : public Predicate_CRTP<KernelLanguageCompatible, ContractionProblem>
             {
                 enum
                 {
@@ -631,16 +631,17 @@ namespace Tensile
                 };
                 KernelLanguage value;
 
-                KernelLanguageEqual() = default;
+                KernelLanguageCompatible() = default;
 
                 static std::string Type()
                 {
-                    return "KernelLanguage";
+                    return "KernelLanguageCompatible";
                 }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.kernelLanguage() == value;
+                    return problem.kernelLanguage() == value
+                           || problem.kernelLanguage() == KernelLanguage::Any;
                 }
             };
 
@@ -671,8 +672,8 @@ namespace Tensile
                 }
             };
 
-            struct ArithmeticUnitEqual
-                : public Predicate_CRTP<ArithmeticUnitEqual, ContractionProblem>
+            struct ArithmeticUnitCompatible
+                : public Predicate_CRTP<ArithmeticUnitCompatible, ContractionProblem>
             {
                 enum
                 {
@@ -682,16 +683,17 @@ namespace Tensile
 
                 ArithmeticUnit value;
 
-                ArithmeticUnitEqual() = default;
+                ArithmeticUnitCompatible() = default;
 
                 static std::string Type()
                 {
-                    return "ArithmeticUnit";
+                    return "ArithmeticUnitCompatible";
                 }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.arithmeticUnit() == value;
+                    return problem.arithmeticUnit() == value
+                           || problem.arithmeticUnit() == ArithmeticUnit::Any;
                 }
             };
 

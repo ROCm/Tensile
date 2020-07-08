@@ -66,26 +66,44 @@ struct LibraryPerformanceTest
             GTEST_SKIP();
 
         library = loadLibrary();
-        ASSERT_NE(library, nullptr) << filename;
+
+        if(library == nullptr)
+        {
+            std::cout << libraryPath().native() << std::endl;
+            if(!boost::filesystem::is_regular_file(libraryPath()))
+                GTEST_SKIP();
+            else
+                ASSERT_NE(library, nullptr);
+        }
     }
 
-    std::string libraryPath()
+    boost::filesystem::path libraryPath()
     {
-        return TestData::Instance().file(filename).native();
+        return TestData::Instance().file(filename);
     }
 
     std::shared_ptr<SolutionLibrary<ContractionProblem>> loadLibrary(bool cache = true)
     {
         if(!cache)
-            return LoadLibraryFile<ContractionProblem>(libraryPath());
+            return loadLibraryNoCache();
 
-        auto path = libraryPath();
+        auto pathStr = libraryPath().native();
 
-        auto iter = libraryCache.find(path);
+        auto iter = libraryCache.find(pathStr);
         if(iter != libraryCache.end())
             return iter->second;
 
-        return libraryCache[path] = LoadLibraryFile<ContractionProblem>(libraryPath());
+        return libraryCache[pathStr] = loadLibraryNoCache();
+    }
+
+    std::shared_ptr<SolutionLibrary<ContractionProblem>> loadLibraryNoCache()
+    {
+        auto path = libraryPath();
+
+        if(boost::filesystem::is_regular_file(path))
+            return LoadLibraryFile<ContractionProblem>(path.native());
+
+        return nullptr;
     }
 };
 
@@ -214,7 +232,7 @@ TEST_P(LibraryPerformanceTest, SpecificSizes)
     //ASSERT_NE(solution, nullptr) << i << problem;
 }
 
-std::vector<LibraryPerformanceTest::ParamType> GetParams()
+std::vector<LibraryPerformanceTest::ParamType> GetLibraries(std::string const& ext)
 {
     std::vector<LibraryPerformanceTest::ParamType> rv;
 
@@ -223,17 +241,34 @@ std::vector<LibraryPerformanceTest::ParamType> GetParams()
 
     for(auto const& gpu : gpus)
     {
-        rv.push_back(std::make_tuple(gpu, "KernelsLite", false, false));
-        rv.push_back(std::make_tuple(gpu, "KernelsLiteMixed", false, true));
-        rv.push_back(std::make_tuple(gpu, "KernelsLiteNavi", true, false));
-        rv.push_back(std::make_tuple(gpu, "KernelsTileLite", false, false));
-        rv.push_back(std::make_tuple(gpu, "rocBLAS_Full", false, true));
+        rv.push_back(std::make_tuple(gpu, "KernelsLite." + ext, false, false));
+        rv.push_back(std::make_tuple(gpu, "KernelsLiteMixed." + ext, false, true));
+        rv.push_back(std::make_tuple(gpu, "KernelsLiteNavi." + ext, true, false));
+        rv.push_back(std::make_tuple(gpu, "KernelsTileLite." + ext, false, false));
+        rv.push_back(std::make_tuple(gpu, "rocBLAS_Full." + ext, false, true));
     }
 
     rv.push_back(std::make_tuple(
-        AMDGPU(AMDGPU::Processor::gfx908, 64, "Arcturus"), "rocBLAS_Full", false, true));
+        AMDGPU(AMDGPU::Processor::gfx908, 64, "Arcturus"), "rocBLAS_Full." + ext, false, true));
     rv.push_back(std::make_tuple(
-        AMDGPU(AMDGPU::Processor::gfx1010, 40, "Navi"), "KernelsLiteNavi", true, false));
+        AMDGPU(AMDGPU::Processor::gfx1010, 40, "Navi"), "KernelsLiteNavi." + ext, true, false));
+
+    return rv;
+}
+
+std::vector<LibraryPerformanceTest::ParamType> GetParams()
+{
+    std::vector<LibraryPerformanceTest::ParamType> rv;
+
+#ifdef TENSILE_YAML
+    auto yamlParams = GetLibraries("yaml");
+    rv.insert(rv.end(), yamlParams.begin(), yamlParams.end());
+#endif
+
+#ifdef TENSILE_MSGPACK
+    auto datParams = GetLibraries("dat");
+    rv.insert(rv.end(), datParams.begin(), datParams.end());
+#endif
 
     return rv;
 }
