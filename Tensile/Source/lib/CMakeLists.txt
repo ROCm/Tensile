@@ -87,6 +87,8 @@ if(TENSILE_USE_LLVM OR TENSILE_USE_MSGPACK)
 endif()
 
 if(TENSILE_USE_MSGPACK)
+    target_compile_definitions(TensileHost PUBLIC -DTENSILE_MSGPACK=1)
+
     find_package(msgpack)
     if(TARGET msgpackc-static)
         target_link_libraries(TensileHost PRIVATE msgpackc-static)
@@ -108,13 +110,6 @@ if(TENSILE_USE_LLVM)
         target_link_libraries(TensileHost PRIVATE LLVM )
     endif()
     target_include_directories(TensileHost PRIVATE ${LLVM_INCLUDE_DIRS})
-endif()
-
-if(TENSILE_USE_MSGPACK)
-    target_compile_definitions(TensileHost PUBLIC -DTENSILE_MSGPACK=1)
-
-    find_package(msgpack)
-    target_link_libraries(TensileHost PUBLIC msgpackc)
 endif()
 
 if(TENSILE_STATIC_ONLY)
