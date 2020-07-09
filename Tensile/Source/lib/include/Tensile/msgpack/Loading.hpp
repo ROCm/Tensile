@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,41 +24,21 @@
  *
  *******************************************************************************/
 
-#pragma once
+#pragma once 
 
-#include <boost/filesystem.hpp>
+#include <memory>
+#include <string>
+#include <vector>
 
-#include <Tensile/Singleton.hpp>
+#include <Tensile/SolutionLibrary.hpp>
 
-struct TestData : public Tensile::LazySingleton<TestData>
+namespace Tensile
 {
-    using Base = Tensile::LazySingleton<TestData>;
+    template <typename MyProblem, typename MySolution>
+    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
+        MessagePackLoadLibraryFile(std::string const& filename);
 
-    operator bool() const;
-
-    static TestData Invalid();
-    static TestData Env(std::string const& varName);
-
-    boost::filesystem::path dataDir() const;
-
-    boost::filesystem::path  file(std::string const& filename) const;
-    boost::filesystem::path  file(std::string const& filename,
-                                  std::string const& extension) const;
-
-    std::vector<boost::filesystem::path> glob(std::string const& pattern) const;
-
-private:
-    friend Base;
-
-    boost::filesystem::path m_dataDir;
-
-    struct invalid_data
-    {
-    };
-
-    static boost::filesystem::path ProgramLocation();
-
-    TestData();
-    TestData(std::string const& dataDir);
-    TestData(invalid_data);
-};
+    template <typename MyProblem, typename MySolution>
+    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
+        MessagePackLoadLibraryData(std::vector<uint8_t> const& data);
+}

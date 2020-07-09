@@ -40,9 +40,17 @@ TEST(TestData, Simple)
     EXPECT_PRED1(is_regular_file, data.file("KernelsLite"));
     EXPECT_FALSE(is_regular_file(data.file("fjdlksljfjldskj")));
 
-    auto files = data.glob(std::string("*.") + TestData::defaultExtension);
-    EXPECT_EQ(files.size(), 6);
-    for(auto file : files)
+    auto datFiles = data.glob(std::string("*.dat"));
+    auto yamlFiles = data.glob(std::string("*.yaml"));
+
+    EXPECT_GE(datFiles.size() + yamlFiles.size(), 6);
+    for(auto file : datFiles)
+    {
+        std::cout << file << std::endl;
+        EXPECT_PRED1(is_regular_file, file);
+    }
+
+    for(auto file : yamlFiles)
     {
         std::cout << file << std::endl;
         EXPECT_PRED1(is_regular_file, file);

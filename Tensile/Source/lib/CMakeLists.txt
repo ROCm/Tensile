@@ -40,7 +40,6 @@ set(tensile_sources  ${tensile_sources}
     source/EmbeddedLibrary.cpp
     source/KernelArguments.cpp
     source/KernelLanguageTypes.cpp
-    source/MessagePack.cpp
     source/TensorDescriptor.cpp
     source/TensorOps.cpp
     source/Tensile.cpp
@@ -64,6 +63,12 @@ if(TENSILE_USE_LLVM)
     )
 endif()
 
+if(TENSILE_USE_MSGPACK)
+    set(tensile_sources ${tensile_sources}
+        source/msgpack/MessagePack.cpp
+    )
+endif()
+
 if(TENSILE_USE_HIP)
     set(tensile_sources ${tensile_sources}
         source/hip/HipSolutionAdapter.cpp
@@ -77,7 +82,11 @@ add_library (TensileHost STATIC ${tensile_sources})
 
 target_include_directories(TensileHost INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-if(Tensile_LIBRARY_FORMAT MATCHES "msgpack")
+if(TENSILE_USE_LLVM OR TENSILE_USE_MSGPACK)
+    target_compile_definitions(TensileHost PUBLIC TENSILE_DEFAULT_SERIALIZATION)
+endif()
+
+if(TENSILE_USE_MSGPACK)
     find_package(msgpack)
     if(TARGET msgpackc-static)
         target_link_libraries(TensileHost PRIVATE msgpackc-static)
@@ -87,7 +96,7 @@ if(Tensile_LIBRARY_FORMAT MATCHES "msgpack")
 endif()
 
 if(TENSILE_USE_LLVM)
-    target_compile_definitions(TensileHost PUBLIC TENSILE_DEFAULT_SERIALIZATION)
+    target_compile_definitions(TensileHost PUBLIC -DTENSILE_YAML=1)
     find_library(LLVMObjectYAML_LIBRARY
         NAMES LLVMObjectYAML
         PATHS ${LLVM_LIBRARY_DIR})
@@ -101,6 +110,13 @@ if(TENSILE_USE_LLVM)
     target_include_directories(TensileHost PRIVATE ${LLVM_INCLUDE_DIRS})
 endif()
 
+if(TENSILE_USE_MSGPACK)
+    target_compile_definitions(TensileHost PUBLIC -DTENSILE_MSGPACK=1)
+
+    find_package(msgpack)
+    target_link_libraries(TensileHost PUBLIC msgpackc)
+endif()
+
 if(TENSILE_STATIC_ONLY)
     target_compile_definitions(TensileHost PUBLIC TENSILE_STATIC_ONLY)
 endif()
@@ -111,10 +127,6 @@ if(TENSILE_USE_HIP)
     #add_subdirectory(client)
     target_link_libraries( TensileHost PUBLIC ${HSA_LIBRARIES} hip::device )
 
-endif()
-
-if(Tensile_LIBRARY_FORMAT MATCHES "yaml")
-    target_compile_definitions(TensileHost PUBLIC -DTENSILE_YAML=1)
 endif()
 
 if(false)

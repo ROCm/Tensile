@@ -74,19 +74,34 @@ function(TensileCreateLibraryFiles
 
   # Tensile_ROOT can be specified instead of using the installed path.
   set(options NO_MERGE_FILES SHORT_FILE_NAMES PRINT_DEBUG GENERATE_PACKAGE)
-  set(oneValueArgs TENSILE_ROOT EMBED_LIBRARY EMBED_KEY VAR_PREFIX CODE_OBJECT_VERSION COMPILER ARCHITECTURE LIBRARY_FORMAT)
+  set(oneValueArgs
+       ARCHITECTURE
+       CODE_OBJECT_VERSION
+       COMPILER
+       EMBED_KEY
+       EMBED_LIBRARY
+       LIBRARY_FORMAT
+       MERGE_FILES
+       TENSILE_ROOT
+       VAR_PREFIX
+       )
   set(multiValueArgs "")
   cmake_parse_arguments(Tensile "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+  # older NO_MERGE_FILES flag overrides MERGE_FILES option.
+  if(Tensile_NO_MERGE_FILES)
+    set(Tensile_MERGE_FILES OFF)
+  endif()
 
   set(Script "${Tensile_ROOT}/bin/TensileCreateLibrary")
   message(STATUS "Tensile script: ${Script}")
 
   set(Options "--new-client-only")
 
-  if(Tensile_NO_MERGE_FILES)
-    set(Options ${Options} "--no-merge-files")
-  else()
+  if(Tensile_MERGE_FILES)
     set(Options ${Options} "--merge-files")
+  else()
+    set(Options ${Options} "--no-merge-files")
   endif()
 
   if(Tensile_GENERATE_PACKAGE)

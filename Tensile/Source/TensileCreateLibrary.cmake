@@ -73,6 +73,7 @@ function(TensileCreateLibraryCmake
 
   if( NOT ${Tensile_INCLUDE_LEGACY_CODE})
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-legacy-components")
+    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--new-client-only")
   endif()
 
   if(${Tensile_SHORT_FILE_NAMES})
