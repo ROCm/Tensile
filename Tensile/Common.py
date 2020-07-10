@@ -1372,28 +1372,6 @@ def assignGlobalParameters( config ):
     print1 ("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
     print1 ("# Arch caps for %s:%s" % (gfxName(v), archCaps))
 
-  # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
-  # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
-  # '0.0.0' will persist
-
-  # Due to platform.linux_distribution() being deprecated, just try to run dpkg regardless.
-  # The alternative would be to install the `distro` package.
-  # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
-  try:
-    if globalParameters["CxxCompiler"] == "hipcc":
-      output = subprocess.run(["dpkg", "-l", "*rocclr"], check=True, shell=True, stdout=subprocess.PIPE).stdout.decode()
-    elif globalParameters["CxxCompiler"] == "hcc":
-      output = subprocess.run(["dpkg", "-l", "hcc"], check=True, stdout=subprocess.PIPE).stdout.decode()
-
-    for line in output.split('\n'):
-      if 'hipcc' in line:
-        globalParameters['HipClangVersion'] = line.split()[2]
-      elif 'hcc' in line:
-        globalParameters['HccVersion'] = line.split()[2]
-
-  except (subprocess.CalledProcessError, OSError) as e:
-      printWarning("Error: {} looking for package {}: {}".format('dpkg', 'hip-rocclr', e))
-
   for key in config:
     value = config[key]
     if key not in globalParameters:
