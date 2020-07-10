@@ -1381,7 +1381,7 @@ def assignGlobalParameters( config ):
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
   try:
     if globalParameters["CxxCompiler"] == "hipcc":
-      output = subprocess.run(["dpkg", "-l", "hip-rocclr"], check=True, stdout=subprocess.PIPE).stdout.decode()
+      output = subprocess.run(["dpkg", "-l", "*rocclr"], check=True, stdout=subprocess.PIPE).stdout.decode()
     elif globalParameters["CxxCompiler"] == "hcc":
       output = subprocess.run(["dpkg", "-l", "hcc"], check=True, stdout=subprocess.PIPE).stdout.decode()
 
