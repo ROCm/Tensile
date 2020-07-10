@@ -136,10 +136,8 @@ def test_WriteClientLibraryFromSolutions(tmpdir):
 
     fileSolutions = LibraryIO.readSolutions(solutionsFilePath)
     solutions = fileSolutions[1]
-
-    tensileSourcePath = os.path.realpath(os.path.join(scriptDir, "../.."))
     
-    TensileCreateLibrary.WriteClientLibraryFromSolutions(solutions, tensileSourcePath, libraryWorkingPath)
+    TensileCreateLibrary.WriteClientLibraryFromSolutions(solutions, libraryWorkingPath) 
 
     tensileLibraryPath = os.path.join(libraryWorkingPath, "library")
 
