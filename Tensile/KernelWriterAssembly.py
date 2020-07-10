@@ -1236,7 +1236,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["EnableMatrixInstruction"]:
       localReadWidth = tPA["bpe"] / self.bpr
     if kernel["UnrollMajorLDSA"]:
-      localReadWidth = (kernel["LocalReadVectorWidth"] * tPA["bpe"]) // self.bpr
+      localReadWidth = (self.lrvw * tPA["bpe"]) // self.bpr
 
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
@@ -1260,7 +1260,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["EnableMatrixInstruction"]:
       localReadWidth = tPB["bpe"] / self.bpr
     if kernel["UnrollMajorLDSB"]:
-      localReadWidth = (kernel["LocalReadVectorWidth"] * tPB["bpe"]) // self.bpr
+      localReadWidth = (self.lrvw * tPB["bpe"]) // self.bpr
 
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
@@ -1889,8 +1889,8 @@ class KernelWriterAssembly(KernelWriter):
     # reads Per Iteration
     ########################################
     if kernel["EnableMatrixInstruction"]:
-      numReadPerVectorA = tPA["bpe"] * kernel["LocalReadVectorWidth"] // int(tPA["localReadInstruction"].blockWidth * 4)
-      numReadPerVectorB = tPB["bpe"] * kernel["LocalReadVectorWidth"] // int(tPB["localReadInstruction"].blockWidth * 4)
+      numReadPerVectorA = tPA["bpe"] * self.lrvw // int(tPA["localReadInstruction"].blockWidth * 4)
+      numReadPerVectorB = tPB["bpe"] * self.lrvw // int(tPB["localReadInstruction"].blockWidth * 4)
       numA = kernel["InnerUnroll"]*(kernel["MIWaveTile"][0] * numReadPerVectorA) // tPA["localReadInstruction"].numOffsets
       numB = kernel["InnerUnroll"]*(kernel["MIWaveTile"][1] * numReadPerVectorB) // tPB["localReadInstruction"].numOffsets
       # wider localread has 2 mode
@@ -4404,7 +4404,7 @@ class KernelWriterAssembly(KernelWriter):
     tc               = tP["tensorChar"]
     tIdx             = tP["tensorIdx"]
     waveWidth        = globalParameters["WavefrontWidth"]
-    inputPerThread   = kernel["LocalReadVectorWidth"]
+    inputPerThread   = self.lrvw
     LdsPad           = kernel["LdsPad%s" % tc] if kernel["LdsBlockSizePerPad%s" % tc] == 0 else 0
 
     # parameter for get each type index
@@ -7013,7 +7013,7 @@ class KernelWriterAssembly(KernelWriter):
       # recalculate localReadAddr to cancle wider local read in tail loop
       if self.numReadsIterCoalesced > 1 and kernel["MatrixInstB"] == 1 and tP["isB"]:
         self.numReadsIterCoalesced = 1
-        kernel["LocalReadVectorWidth"] = kernel["ProblemType"]["DataType"].numMIInput()
+        self.lrvw = kernel["ProblemType"]["DataType"].numMIInput()
         imod.addCode(self.comment("reCalculate LocalReadAddr"))
         kStr = ""
         kStr += (self.lraTileAssignmentMFMA(kernel, self.tPA))
@@ -7245,7 +7245,7 @@ class KernelWriterAssembly(KernelWriter):
       UnrollStride   = 1
 
     numVectorsPerTile = kernel["MIWaveTile"][tIdx]
-    numReadsPerVector = tP["bpe"] * kernel["LocalReadVectorWidth"] // int(blockWidth * 4) # bytes/register
+    numReadsPerVector = tP["bpe"] * self.lrvw // int(blockWidth * 4) # bytes/register
     numVgpr           = int(ceil(blockWidth))
 
     # pack register
