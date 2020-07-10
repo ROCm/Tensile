@@ -45,7 +45,7 @@ namespace Tensile
 
         bool printKernelArguments() const;
 
-        bool printEmbeddedDataInit() const;
+        bool printDataInit() const;
 
         // print tensor dims, strides, memory sizes
         bool printTensorInfo() const;

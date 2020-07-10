@@ -36,7 +36,7 @@ TEST(KernelLanguagePredicateTest, Any)
 {
     std::string mydoc = "type: And\n"
                         "value: [{type: TruePred}, \n"
-                        "        {type: KernelLanguage, value: Any}]";
+                        "        {type: KernelLanguageCompatible, value: Any}]";
 
     llvm::yaml::Input yin(mydoc);
 
@@ -62,7 +62,7 @@ TEST(KernelLanguagePredicateTest, Asm)
 {
     std::string mydoc = "type: And\n"
                         "value: [{type: TruePred}, \n"
-                        "        {type: KernelLanguage, value: Assembly}]";
+                        "        {type: KernelLanguageCompatible, value: Assembly}]";
 
     llvm::yaml::Input yin(mydoc);
 
@@ -75,7 +75,7 @@ TEST(KernelLanguagePredicateTest, Asm)
     ContractionProblem prob = ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 1, false, 1);
 
     prob.setKernelLanguage(KernelLanguage::Any);
-    EXPECT_EQ((*p)(prob), false);
+    EXPECT_EQ((*p)(prob), true);
 
     prob.setKernelLanguage(KernelLanguage::Assembly);
     EXPECT_EQ((*p)(prob), true);
@@ -88,59 +88,7 @@ TEST(KernelLanguagePredicateTest, Source)
 {
     std::string mydoc = "type: And\n"
                         "value: [{type: TruePred}, \n"
-                        "        {type: KernelLanguage, value: Source}]";
-
-    llvm::yaml::Input yin(mydoc);
-
-    std::shared_ptr<Predicates::Predicate<ContractionProblem>> p;
-
-    yin >> p;
-    ASSERT_FALSE(yin.error());
-    EXPECT_NE(p, nullptr);
-
-    ContractionProblem prob = ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 1, false, 1);
-
-    prob.setKernelLanguage(KernelLanguage::Any);
-    EXPECT_EQ((*p)(prob), false);
-
-    prob.setKernelLanguage(KernelLanguage::Assembly);
-    EXPECT_EQ((*p)(prob), false);
-
-    prob.setKernelLanguage(KernelLanguage::Source);
-    EXPECT_EQ((*p)(prob), true);
-}
-
-TEST(KernelLanguagePredicateTest, AnyOrAsm)
-{
-    std::string mydoc = "type: Or\n"
-                        "value: [{type: KernelLanguage, value: Any}, \n"
-                        "        {type: KernelLanguage, value: Assembly}]";
-
-    llvm::yaml::Input yin(mydoc);
-
-    std::shared_ptr<Predicates::Predicate<ContractionProblem>> p;
-
-    yin >> p;
-    ASSERT_FALSE(yin.error());
-    EXPECT_NE(p, nullptr);
-
-    ContractionProblem prob = ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 1, false, 1);
-
-    prob.setKernelLanguage(KernelLanguage::Any);
-    EXPECT_EQ((*p)(prob), true);
-
-    prob.setKernelLanguage(KernelLanguage::Assembly);
-    EXPECT_EQ((*p)(prob), true);
-
-    prob.setKernelLanguage(KernelLanguage::Source);
-    EXPECT_EQ((*p)(prob), false);
-}
-
-TEST(KernelLanguagePredicateTest, AnyOrSource)
-{
-    std::string mydoc = "type: Or\n"
-                        "value: [{type: KernelLanguage, value: Any}, \n"
-                        "        {type: KernelLanguage, value: Source}]";
+                        "        {type: KernelLanguageCompatible, value: Source}]";
 
     llvm::yaml::Input yin(mydoc);
 
