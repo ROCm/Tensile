@@ -129,6 +129,8 @@ def test_WriteClientLibraryFromSolutions(tmpdir):
     Common.assignGlobalParameters({})
 
     libraryWorkingPath = tmpdir.mkdir("lib")
+    buildWorkingPath = tmpdir.mkdir("build")
+
 
     scriptDir = os.path.dirname(os.path.realpath(__file__))
     dataDir = os.path.realpath(os.path.join(scriptDir, "..", "test_data", "unit"))
@@ -137,8 +139,10 @@ def test_WriteClientLibraryFromSolutions(tmpdir):
     fileSolutions = LibraryIO.readSolutions(solutionsFilePath)
     solutions = fileSolutions[1]
     
+    Common.setWorkingPath(buildWorkingPath)
     TensileCreateLibrary.WriteClientLibraryFromSolutions(solutions, libraryWorkingPath) 
-
+    Common.popWorkingPath()
+    
     tensileLibraryPath = os.path.join(libraryWorkingPath, "library")
 
     hsacoFiles = glob.glob(tensileLibraryPath + "/*hsaco")
