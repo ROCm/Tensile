@@ -90,7 +90,8 @@ namespace Tensile
             static const bool value = true;
         };
 
-        std::unordered_map<std::string, msgpack::object> objectToMap(msgpack::object& object);
+        void objectToMap(msgpack::object&                                  object,
+                         std::unordered_map<std::string, msgpack::object>& map);
 
         struct MessagePackInput
         {
@@ -124,7 +125,7 @@ namespace Tensile
             void mapRequired(const char* key, T& obj)
             {
                 if(objectMap.empty())
-                    objectMap = objectToMap(object);
+                    objectToMap(object, objectMap);
 
                 auto iterator = objectMap.find(key);
                 if(iterator != objectMap.end())
@@ -158,7 +159,7 @@ namespace Tensile
             void mapOptional(const char* key, T& obj)
             {
                 if(objectMap.empty())
-                    objectMap = objectToMap(object);
+                    objectToMap(object, objectMap);
 
                 auto iterator = objectMap.find(key);
                 if(iterator != objectMap.end())
@@ -256,9 +257,9 @@ namespace Tensile
             typename std::enable_if<has_CustomMappingTraits<T, MessagePackInput>::value, void>::type
                 input(T& obj, Context& ctx)
             {
-                auto map = objectToMap(object);
+                objectToMap(object, objectMap);
 
-                for(auto& element : map)
+                for(auto& element : objectMap)
                 {
                     CustomMappingTraits<T, MessagePackInput>::inputOne(*this, element.first, obj);
                 }
