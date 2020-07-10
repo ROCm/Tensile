@@ -58,7 +58,6 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
         kernelWriter = kernelWriterSource if kernel["KernelLanguage"] == "Source" else kernelWriterAssembly
         # get kernel name
         kernelName = kernelWriter.getKernelFileBase(kernel)
-        #sys.stderr.write("kernel:%s\n"% kernelName)
         (err, src) = kernelWriter.getSourceFileString(kernel)
         header = kernelWriter.getHeaderFileString(kernel)
     except RuntimeError:
@@ -85,7 +84,6 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
       if len(objectFiles) == 0:
         continue
       if globalParameters["MergeFiles"]:
-      #  archName = 'gfx'+''.join(map(str,arch))
         coFile = os.path.join(destDir, 'TensileLibrary_{}.co'.format(archName))
         if "PackageLibrary" in globalParameters and globalParameters["PackageLibrary"]:
           destArchDir = ensurePath(os.path.join(destDir, archName))
@@ -461,9 +459,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     # Write a solution pointer typedef for each problemType:
     h = ""
     for problemType in problemTypes:
-      #print "p=", problemType
       argListAll = solutionWriter.getArgList(problemType, True, True, True, True)
-      # declare TensileSolutionPointer_ProblemType
       h += "\n// solution pointer\n"
       h += "typedef TensileStatus (*TensileSolutionPointer_%s)(\n" % problemType
       for i in range(0, len(argListAll)):
@@ -701,7 +697,6 @@ def writeLogic(outputPath, logicData, solutionWriter ):
                                     solutionNamesForSchedule, False)
     s += "  /* exact mappings */\n"
     s += exactLogicStr
-    #s += "  return NULL; // none\n"
     s += "\n}\n"
 
     ########################################
@@ -943,18 +938,12 @@ def forkHardcodedParameters( basePermutation, update ):
 ##############################################################################
 def assigenParameters(problemTypeConfig, configBenchmarkCommonParameters, configForkParameters):
 
-  #hardcodedParametersSets = [{}]
-
   problemTypeObj = ProblemType(problemTypeConfig)
   globalParameters["EnableHalf"] = problemTypeObj["DataType"].isHalf()
   initialSolutionParameters = { "ProblemType": problemTypeConfig }
   initialSolutionParameters.update(defaultSolution)
 
   hardcodedParameters = []
-  #for problemSizeGroupConfig in problemSizeGroupConfigs:
-
-  #configBenchmarkCommonParameters = deepcopy(problemSizeGroupConfig["BenchmarkCommonParameters"])
-  #configForkParameters = deepcopy(problemSizeGroupConfig["ForkParameters"])
 
   benchmarkCommonParameters = []
   for paramDict in defaultBenchmarkCommonParameters:
@@ -1020,11 +1009,6 @@ def generateSolutions (problemType, hardcodedParameters, initialSolutionParamete
     solution.update(initialSolutionParameters)
     solution.update(hardcodedParamDict)
 
-    # append default parameters where necessary
-    #for initialSolutionParameterName in initialSolutionParameters:
-    #  if initialSolutionParameterName not in solution:
-    #    solution[initialSolutionParameterName] = \
-    #        initialSolutionParameters[initialSolutionParameterName]
     # TODO check if solution matches problem size for exact tile kernels
     solutionObject = Solution(solution)
     if solutionObject["Valid"]:
@@ -1034,19 +1018,7 @@ def generateSolutions (problemType, hardcodedParameters, initialSolutionParamete
     else:
       if PrintSolutionRejectionReason:
         print1("rejecting solution %s" % str(solutionObject))
-    #if globalParameters["PrintLevel"] >= 1:
-    #  progressBar.increment()
-
-  # remove hardcoded that don't have any valid benchmarks
-  #######
-  #removeHardcoded = []
-  #for hardcodedIdx in range(0, numHardcoded):
-  #  if len(solutions[hardcodedIdx]) == 0:
-  #    hardcodedParamDict = hardcodedParameters[hardcodedIdx]
-  #    removeHardcoded.append(hardcodedParamDict)
-
-  #for hardcodedParam in removeHardcoded:
-  #  hardcodedParameters.remove(hardcodedParam)
+    
   solutionList = list (solutionSet)
 
   return solutionList
@@ -1344,8 +1316,10 @@ def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, 
 
   return (codeObjectFiles, newLibrary)
 
-def WriteClientLibraryFromSolutions(solutionList, tensileSourcePath, libraryWorkingPath):
+def WriteClientLibraryFromSolutions(solutionList, libraryWorkingPath, tensileSourcePath = None):
 
+  if tensileSourcePath == None:
+    tensileSourcePath = os.path.dirname(os.path.realpath(__file__))
   firstSolution = deepcopy(solutionList[0])
   problemType = firstSolution["ProblemType"].state
   problemType["DataType"] = problemType["DataType"].value
@@ -1358,8 +1332,8 @@ def WriteClientLibraryFromSolutions(solutionList, tensileSourcePath, libraryWork
   mataDataFilePath = os.path.join(effectiveWorkingPath, 'metadata.yaml')
 
   metaData = {"ProblemType":problemType}
-  
   LibraryIO.YAMLWriter().write(mataDataFilePath, metaData)
+  
   codeObjectFiles, newLibrary = writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutionList, cxxCompiler )
 
   return (codeObjectFiles, newLibrary)
@@ -1511,7 +1485,7 @@ def TensileCreateLibrary():
   solutionWriter, kernelWriterSource, kernelWriterAssembly, \
     kernelMinNaming, _ = getSolutionAndKernelWriters(solutions, kernels)
 
-  libraryStaticFiles = copyStaticFiles(outputPath)
+  staticFiles = copyStaticFiles(outputPath)
 
   # Build a list of files to be expected
   (solutionFiles,
@@ -1521,9 +1495,9 @@ def TensileCreateLibrary():
    asmLibFiles) = buildObjectFileNames(solutionWriter, kernelWriterSource, \
     kernelWriterAssembly, solutions, kernels, kernelsBetaOnly)
 
-  (solutionPaths,
-   sourceKernelPaths,
-   asmKernelPaths,
+  (_,
+   _,
+   _,
    sourceLibPaths,
    asmLibPaths) = buildObjectFilePaths(outputPath, solutionFiles, sourceKernelFiles, \
     asmKernelFiles, sourceLibFiles, asmLibFiles)

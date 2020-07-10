@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer, ClientExecutionLock
+from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, printExit, CHeader, printWarning, listToInitializer, ClientExecutionLock
 from . import ClientExecutable
 from . import Common
 from . import LibraryIO
@@ -65,11 +65,6 @@ def main( config ):
     shutil_copy(
         os.path.join(globalParameters["SourcePath"], f),
         globalParameters["WorkingPath"] )
-  #if globalParameters["NewClient"] == 2:
-    #shutil_copy(
-    #    os.path.join(globalParameters["SourcePath"], "CMakeListsCreateLibrary.txt"),
-    #    os.path.join(globalParameters["WorkingPath"], "CMakeLists.txt") )
-  #else:
   if globalParameters["NewClient"] < 2:
     shutil_copy(
         os.path.join(globalParameters["SourcePath"], "CMakeLists.txt"),
@@ -488,7 +483,7 @@ def checkConstStride(constStrideMap, keyIdx):
   return finalVal
 
 
-def problemSizeParams2(problemType, problem):
+def problemSizeParamsImpl(problemType, problem):
 
     numIndices = len(problemType.indices)
     rv = []
@@ -562,7 +557,7 @@ def problemSizeParams2(problemType, problem):
     return rv
 
 def problemSizeParams(solution, problem):
-  return problemSizeParams2(solution.problemType, problem)
+  return problemSizeParamsImpl(solution.problemType, problem)
 
 def dataInitName(num):
     if num == 0: return 'Zero'
@@ -585,8 +580,6 @@ def dataInitParams(problemType):
     initD = globalParameters['DataInitTypeD']
     initAlpha = globalParameters['DataInitTypeAlpha']
     initBeta  = globalParameters['DataInitTypeBeta']
-    # import pdb
-    # pdb.set_trace()
 
     if not problemType.useBeta:
         initBeta = 0
@@ -601,111 +594,12 @@ def dataInitParams(problemType):
             ('init-alpha', dataInitName(initAlpha)),
             ('init-beta',  dataInitName(initBeta))]
 
-def writeClientConfig1(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection = False):
+def writeClientConfigImpl(problemSizes, problemType, sourceDir, codeObjectFiles, resultsFileName, parametersFilePath):
 
-    if tileAwareSelection:
-      filename = os.path.join(globalParameters["WorkingPath"], "ClientParameters_Granularity.ini")
-    else:
-      filename = os.path.join(globalParameters["WorkingPath"], "ClientParameters.ini")
-
-    if len(newLibrary.solutions)==0:
-      raise RuntimeError ("No valid solutions found")
-    with open(filename, "w") as f:
-        def param(key, value):
-            f.write("{}={}\n".format(key, value))
-
-        sourceDir = os.path.join(stepBaseDir, "source")
-        libraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
-        libraryFile = os.path.join(sourceDir, "library", libraryFilename)
-        param("library-file", libraryFile)
-
-        currentGFXName = Common.gfxName(globalParameters["CurrentISA"])
-        for coFile in codeObjectFiles:
-            if 'gfx' not in coFile or currentGFXName in coFile:
-                param("code-object", os.path.join(sourceDir,coFile))
-
-        if tileAwareSelection:
-          param('results-file', os.path.join(stepBaseDir, "../Data", stepName+"_Granularity.csv"))
-        else:
-          if globalParameters["NewClient"] == 1:
-            param('results-file', os.path.join(stepBaseDir, "../Data", stepName+"-new.csv"))
-          else:
-            param('results-file', os.path.join(stepBaseDir, "../Data", stepName+".csv"))
-
-        newSolution = next(iter(newLibrary.solutions.values()))
-        if newSolution.problemType.convolution and globalParameters["ConvolutionVsContraction"]:
-            param('convolution-identifier', newSolution.problemType.convolution.identifier())
-        param('problem-identifier', newSolution.problemType.operationIdentifier)
-        param('a-type',     newSolution.problemType.aType.toEnum())
-        param('b-type',     newSolution.problemType.bType.toEnum())
-        param('c-type',     newSolution.problemType.cType.toEnum())
-        param('d-type',     newSolution.problemType.dType.toEnum())
-        param('alpha-type', newSolution.problemType.alphaType.toEnum())
-        param('beta-type',  newSolution.problemType.betaType.toEnum())
-
-        param('high-precision-accumulate',  newSolution.problemType.highPrecisionAccumulate)
-
-        for problem in problemSizes.problems:
-            for key,value in problemSizeParams(newSolution, problem):
-                param(key,value)
-            #param('problem-size', ','.join(map(str,problemSize)))
-
-        param("device-idx",               globalParameters["Device"])
-
-        for key,value in dataInitParams(newSolution.problemType):
-            param(key, value)
-
-        param("c-equal-d",                globalParameters["CEqualD"])
-
-        if globalParameters["PrintTensorA"]:
-          param("print-tensor-a",         1)
-        if globalParameters["PrintTensorB"]:
-          param("print-tensor-b",         1)
-        if globalParameters["PrintTensorC"]:
-          param("print-tensor-c",         1)
-        if globalParameters["PrintTensorD"]:
-          param("print-tensor-d",         1)
-        if globalParameters["PrintTensorRef"]:
-          param("print-tensor-ref",         1)
-
-        if globalParameters["BoundsCheck"]:
-          param("bounds-check", 1)
-
-        param("print-valids",             globalParameters["ValidationPrintValids"])
-        param("print-max",                globalParameters["ValidationMaxToPrint"])
-        param("num-benchmarks",           globalParameters["NumBenchmarks"])
-        param("num-elements-to-validate", globalParameters["NumElementsToValidate"])
-        param("num-enqueues-per-sync",    globalParameters["EnqueuesPerSync"])
-        param("num-syncs-per-benchmark",  globalParameters["SyncsPerBenchmark"])
-        param("use-gpu-timer",            globalParameters["KernelTime"])
-        param("hardware-monitor",         globalParameters["HardwareMonitor"])
-        if globalParameters["ConvolutionVsContraction"]:
-            assert(newSolution.problemType.convolution)
-            param("convolution-vs-contraction", globalParameters["ConvolutionVsContraction"])
-        if not globalParameters["KernelTime"]:
-            param("num-warmups", 1)
-        param("sleep-percent",            globalParameters["SleepPercent"])
-        param("perf-l2-read-hits",        globalParameters["PerfModelL2ReadHits"])
-        param("perf-l2-write-hits",       globalParameters["PerfModelL2WriteHits"])
-        param("perf-l2-read-bw-mul",      globalParameters["PerfModelL2ReadBwMul"])
-        param("perf-read-efficiency",     globalParameters["PerfModelReadEfficiency"])
-
-
-def writeClientConfigNew(problemSizes, problemType, sourceDir, codeObjectFiles, resultsFileName, parametersFilePath):
-    #if tileAwareSelection:
-    #  filename = os.path.join(globalParameters["WorkingPath"], "ClientParameters_Granularity.ini")
-    #else:
-     # filename = os.path.join(globalParameters["WorkingPath"], "ClientParameters.ini")
-
-
-    #if len(newLibrary.solutions)==0:
-    #  raise RuntimeError ("No valid solutions found")
     with open(parametersFilePath, "w") as f:
         def param(key, value):
             f.write("{}={}\n".format(key, value))
 
-        #sourceDir = os.path.join(stepBaseDir, "source")
-        #libraryDir, _ = os.path.split(codeObjectFiles[0])
         libraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
         libraryFile = os.path.join(sourceDir, "library", libraryFilename)
         param("library-file", libraryFile)
@@ -716,17 +610,7 @@ def writeClientConfigNew(problemSizes, problemType, sourceDir, codeObjectFiles, 
                 param("code-object", os.path.join(sourceDir,coFile))
 
         param('results-file', resultsFileName)
-        #if tileAwareSelection:
-        #  param('results-file', os.path.join(stepBaseDir, "../Data", stepName+"_Granularity.csv"))
-        #else:
-        #  if globalParameters["NewClient"] == 1:
-        #    param('results-file', os.path.join(stepBaseDir, "../Data", stepName+"-new.csv"))
-        #  else:
-        #    param('results-file', os.path.join(stepBaseDir, "../Data", stepName+".csv"))
 
-        #newSolution = next(iter(newLibrary.solutions.values()))
-        #if newSolution.problemType.convolution and globalParameters["ConvolutionVsContraction"]:
-        #    param('convolution-identifier', newSolution.problemType.convolution.identifier())
         if problemType.convolution and globalParameters["ConvolutionVsContraction"]:
             param('convolution-identifier', problemType.convolution.identifier())
         param('problem-identifier', problemType.operationIdentifier)
@@ -740,9 +624,8 @@ def writeClientConfigNew(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param('high-precision-accumulate',  problemType.highPrecisionAccumulate)
 
         for problem in problemSizes.problems:
-            for key,value in problemSizeParams2(problemType, problem): 
+            for key,value in problemSizeParamsImpl(problemType, problem): 
                 param(key,value)
-            #param('problem-size', ','.join(map(str,problemSize)))
 
         param("device-idx",               globalParameters["Device"])
 
@@ -793,10 +676,6 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
     if len(newLibrary.solutions)==0:
       raise RuntimeError ("No valid solutions found")
 
-    #sourceDir = os.path.join(stepBaseDir, "source")
-    #libraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
-    #libraryFile = os.path.join(sourceDir, "library", libraryFilename)
-
     resultsFileName = None
     if tileAwareSelection:
       resultsFileName = os.path.join(stepBaseDir, "../Data", stepName+"_Granularity.csv")
@@ -806,14 +685,10 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
       else:
           resultsFileName = os.path.join(stepBaseDir, "../Data", stepName+".csv")
 
-
-
     newSolution = next(iter(newLibrary.solutions.values()))
     sourceDir = os.path.join(stepBaseDir, "source")
-    writeClientConfigNew(problemSizes, newSolution.problemType, sourceDir, codeObjectFiles, resultsFileName, filename)
-    #writeClientConfigNew(problemSizes, newSolution.problemType, stepBaseDir, codeObjectFiles, resultsFileName, filename)
-    #writeClientConfigNew(problemSizes, problemType, sourceDir, codeObjectFiles, resultsFileName, parametersFilePath):
-
+    writeClientConfigImpl(problemSizes, newSolution.problemType, sourceDir, codeObjectFiles, resultsFileName, filename)
+   
 def CreateBenchmarkClientPrametersForSizes(libraryRootPath, problemSizes, dataFilePath, configFile):
 
     libraryPath = os.path.join(libraryRootPath, "library")
@@ -821,22 +696,14 @@ def CreateBenchmarkClientPrametersForSizes(libraryRootPath, problemSizes, dataFi
     codeObjectFiles = [f for f in libraryFiles if f.endswith("co")] 
   
     metaDataFilePath = os.path.join(libraryPath, "metadata.yaml")
-  #metaData = YAMLIO.readConfig(metaDataFilePath)
+
+    if not os.path.exists(metaDataFilePath):
+      printExit ("meta data file %s does not exist" % metaDataFilePath)
     metaData = LibraryIO.readConfig(metaDataFilePath)
     problemTypeDict = metaData["ProblemType"]
     problemType = ContractionsProblemType.FromOriginalState(problemTypeDict)
   
-  #sizeFile = YAMLIO.readConfig(sizeFilePath)
-  #problemSizes = ProblemSizes(problemTypeDict, sizeFile)
-    #libraryDir, _ = os.path.split(codeObjectFiles[0])
-
-    #Path(codeObjectFiles[0]).parent.parent
-    #mypath = "/home/bill/this/file.yaml"
-    #pathObject = Path(codeObjectFiles[0])
-    #pathObject.
-    #mylogger.info(pathObject.parent.parent)
-    #pathString = string(pathObject)
-    writeClientConfigNew(problemSizes, problemType, libraryRootPath, codeObjectFiles, dataFilePath, configFile)
+    writeClientConfigImpl(problemSizes, problemType, libraryRootPath, codeObjectFiles, dataFilePath, configFile)
 
 
 ################################################################################
