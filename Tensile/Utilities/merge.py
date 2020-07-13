@@ -11,7 +11,7 @@ def ensurePath(path):
 def allFiles(startDir):
     current = os.listdir(startDir)
     files = []
-    for filename in current:
+    for filename in [_current for _current in current if os.path.splitext(_current)[-1].lower() == '.yaml']:
         fullPath = os.path.join(startDir,filename)
         if os.path.isdir(fullPath):
             files = files + allFiles(fullPath)
@@ -86,6 +86,15 @@ def loadData(filename):
     data = yaml.load(stream, yaml.SafeLoader)
     return data
 
+def defaultForceMergePolicy(incFile):
+    if "arcturus" in incFile:
+        forceMerge = "false"
+    else:
+        forceMerge = "true"
+
+    return forceMerge
+
+
 def avoidRegressions():
 
     userArgs = sys.argv[1:]
@@ -93,26 +102,26 @@ def avoidRegressions():
     argParser.add_argument("original_dir", help="The library logic directory without tuned sizes")
     argParser.add_argument("incremental_dir", help="The incremental logic directory")
     argParser.add_argument("output_dir", help="The output logic directory")
-    argParser.add_argument("force_merge", help="Merge previously known sizes unconditionally. Default behavior if not arcturus", nargs='?', default="true")
+    argParser.add_argument("--force_merge", help="Merge previously known sizes unconditionally. Default behavior if not arcturus", default="none")
 
     args = argParser.parse_args(userArgs)
     originalFiles = allFiles(args.original_dir)
     incrementalFiles = allFiles(args.incremental_dir)
     outputPath = args.output_dir
-    forceMerge = args.force_merge
+    forceMerge = args.force_merge.lower()
     ensurePath(outputPath)
 
     for incFile in incrementalFiles:
         with open(incFile):
-            if "arcturus" in incFile:
-                forceMerge = "false"
+            _forceMerge = defaultForceMergePolicy(incFile) if forceMerge == "none" else forceMerge
+            print("Incremental logic file: ", incFile, " Merge policy: %s"%("Forced" if _forceMerge=='true' else "Winner"))
             incData = loadData(incFile)
             improvedKernels = dict()
             for origFile in originalFiles:
                 fileSplit = origFile.split('/')
                 logicFile = fileSplit[len(fileSplit)-1]
                 if logicFile in incFile:
-                    print("Logic file: ", logicFile)
+                    print("Base logic file: ", logicFile)
                     with open(origFile):
                         origData = loadData(origFile)
                         numSizes = len(origData[7])
@@ -136,7 +145,7 @@ def avoidRegressions():
                                 origEff = origData[7][j][1][1]
                                 if incSize == origSize:
                                     isOld = True
-                                    if incEff < origEff and forceMerge == "false":
+                                    if incEff < origEff and _forceMerge == "false":
                                         print(origSize, " already exists but has regressed in performance. Kernel is unchanged")
                                         print("Old Efficiency: ", origEff, "New efficiency: ", incEff)
                                     else:
