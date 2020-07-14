@@ -157,7 +157,7 @@ namespace Tensile
  */
 } // namespace Tensile
 
-/*
+/**
  * \addtogroup Utilities
  * @{
  */
