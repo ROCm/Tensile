@@ -30,7 +30,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             ####
             tox --version
             tox -v --workdir /tmp/.tensile-tox -e lint
-            tox -v --workdir /tmp/.tensile-tox -e py35 -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --tensile-options=--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing-\$gpuArch.csv
+            tox -v --workdir /tmp/.tensile-tox -e py36 -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --tensile-options=--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing-\$gpuArch.csv
 
             mkdir build
             pushd build
