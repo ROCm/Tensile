@@ -86,6 +86,21 @@ namespace Tensile
                 m_currentRow = m_stack.back();
         }
 
+        void CSVStackFile::readCurrentRow(std::unordered_map<std::string, std::string>& outMap)
+        {
+            // we still write the header to csv first, then read the data to map
+            if(m_firstRow && !m_headers.empty())
+                writeRow(m_headers);
+
+            m_firstRow = false;
+            outMap = m_currentRow;
+        }
+
+        void CSVStackFile::clearCurrentRow()
+        {
+            m_currentRow.clear();
+        }
+
         void CSVStackFile::writeRow(std::unordered_map<std::string, std::string> const& row)
         {
             bool firstCol = true;
