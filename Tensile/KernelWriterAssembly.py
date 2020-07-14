@@ -586,7 +586,7 @@ class KernelWriterAssembly(KernelWriter):
     maxLds = 65536
     ldsSize = kernel["LdsNumElements"] * kernel["ProblemType"]["DataType"].numBytes()
     ldsSize = (ldsSize + 255) & 0x1ff00 # 256-byte granularity
-    ldsLimitedOccupancy = int(ceil(maxLds / float(ldsSize)))
+    ldsLimitedOccupancy = self.getLdsLimitedOccupancy(ldsSize)
 
     vgprs *= multiplier
     vgprLimitedOccupancy =  self.vgprOccupancy[vgprs] if vgprs <= 256 else 0
@@ -596,17 +596,34 @@ class KernelWriterAssembly(KernelWriter):
 
     return min(ldsLimitedOccupancy, vgprLimitedOccupancy, accvgprLimitedOccupancy)
 
-  def getMaxRegsForOccupancy(self, vgprs):
-    initOccupancy =  self.vgprOccupancy[vgprs]
+  # TODO: also consider sgpr
+  def getMaxRegsForOccupancy(self, vgprs, ldsSize, accvgprs=0):
+    initOccupancy = self.vgprOccupancy[vgprs]
+    if accvgprs > 0:
+      initOccupancy = min(initOccupancy, self.vgprOccupancy[accvgprs])
+    if ldsSize > 0:
+      initOccupancy = min(initOccupancy, self.getLdsLimitedOccupancy(ldsSize))
     lastVgprs = vgprs
-    while vgprs < len(self.vgprOccupancy):
+    while vgprs < len(self.vgprOccupancy)-1:
       vgprs += 1
-      if self.vgprOccupancy[vgprs] == initOccupancy:
+      if self.vgprOccupancy[vgprs] >= initOccupancy:
         lastVgprs = vgprs
         next
       else:
         break
     return lastVgprs
+
+  @staticmethod
+  def getLdsLimitedOccupancy(ldsSize):
+    maxLds = 65536
+    ldsSize = (ldsSize + 255) & 0x1ff00 # 256-byte granularity
+    ldsLimitedOccupancy = maxLds//ldsSize
+    return ldsLimitedOccupancy
+
+  @staticmethod
+  def getLdsSize(kernel):
+    ldsSize = kernel["LdsNumElements"] * kernel["ProblemType"]["DataType"].numBytes()
+    return ldsSize
 
   ########################################
   ########################################
@@ -5845,7 +5862,7 @@ class KernelWriterAssembly(KernelWriter):
       oldSize = self.savedVgprPool.size()
       newSize = self.vgprPool.size()
       if newSize > self.savedVgprPool.size():
-        for i in range(oldSize-1,newSize):
+        for i in range(oldSize,newSize):
           self.savedVgprPool.pool.append(self.savedVgprPool.Register(RegisterPool.Status.Available,"restore vgprPool"))
       self.vgprPool = self.savedVgprPool # restore vgprPool before alternate path
       self.savedVgprPool = None
@@ -9872,7 +9889,14 @@ class KernelWriterAssembly(KernelWriter):
 
         #print self.vgprPool.state()
         # Use VGPR up to next occupancy threshold:
-        #numVgprAvailable = self.getMaxRegsForOccupancy(self.vgprPool.available())
+        maxVgprs = self.getMaxRegsForOccupancy(self.vgprPool.size(), self.getLdsSize(kernel), self.agprPool.size())
+        if self.serializedStore: # get aggresive when serializedStore is on; not necessarily exclusive to this parameter
+          len(elements[edgeI])
+          tl = []
+          for i in range(self.vgprPool.size()-self.vgprPool.available(), maxVgprs):
+            tl.append(self.vgprPool.checkOut(1, "grow-pool up to next occupancy for GlobalWrite"))
+          for t in tl:
+            self.vgprPool.checkIn(t)
         numVgprAvailable = self.vgprPool.availableBlock(numVgprsPerElement)
 
         # Grow the register pool if needed - we need enough regs for at least one element
