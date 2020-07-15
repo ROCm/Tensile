@@ -54,18 +54,21 @@ namespace Tensile
             using AlphaType = Alpha;
             using BetaType  = Beta;
 
-            ManagedContractionInputs(std::shared_ptr<A> _a,
-                                     std::shared_ptr<B> _b,
-                                     std::shared_ptr<C> _c,
-                                     std::shared_ptr<D> _d,
-                                     size_t             _aElements,
-                                     size_t             _bElements,
-                                     size_t             _cElements,
-                                     size_t             _dElements,
-                                     Alpha              _alpha,
-                                     Beta               _beta,
-                                     bool               _gpu)
-                : Base(_a.get(), _b.get(), _c.get(), _d.get(), _alpha, _beta)
+            ManagedContractionInputs(std::shared_ptr<A>     _a,
+                                     std::shared_ptr<B>     _b,
+                                     std::shared_ptr<C>     _c,
+                                     std::shared_ptr<D>     _d,
+                                     size_t                 _aElements,
+                                     size_t                 _bElements,
+                                     size_t                 _cElements,
+                                     size_t                 _dElements,
+                                     Alpha                  _alpha,
+                                     Beta                   _beta,
+                                     bool                   _gpu,
+                                     std::shared_ptr<void>  _ws=nullptr,
+                                     size_t                 _workspaceSize=0)
+
+                : Base(_a.get(), _b.get(), _c.get(), _d.get(), _alpha, _beta, _ws.get())
                 , managedA(_a)
                 , managedB(_b)
                 , managedC(_c)
@@ -75,20 +78,24 @@ namespace Tensile
                 , cElements(_cElements)
                 , dElements(_dElements)
                 , gpu(_gpu)
+                , managedWS(_ws)
+                , workspaceSize(_workspaceSize)
             {
             }
 
             ~ManagedContractionInputs() = default;
 
-            std::shared_ptr<A> managedA;
-            std::shared_ptr<B> managedB;
-            std::shared_ptr<C> managedC;
-            std::shared_ptr<D> managedD;
+            std::shared_ptr<A>     managedA;
+            std::shared_ptr<B>     managedB;
+            std::shared_ptr<C>     managedC;
+            std::shared_ptr<D>     managedD;
+            std::shared_ptr<void>  managedWS;
 
             size_t aElements;
             size_t bElements;
             size_t cElements;
             size_t dElements;
+            size_t workspaceSize;
 
             bool gpu;
         };
@@ -107,8 +114,9 @@ namespace Tensile
                 = ManagedContractionInputs<AType, BType, CType, DType, AlphaType, BetaType>;
 
             TypedDataInitialization(po::variables_map const&    args,
-                                    ClientProblemFactory const& problemFactory)
-                : DataInitialization(args, problemFactory)
+                                    ClientProblemFactory const& problemFactory,
+                                    size_t maxWorkspaceSize=0)
+                : DataInitialization(args, problemFactory, maxWorkspaceSize)
             {
             }
 
@@ -346,6 +354,7 @@ namespace Tensile
                 std::shared_ptr<BType> b;
                 std::shared_ptr<CType> c;
                 std::shared_ptr<DType> d;
+                std::shared_ptr<void>  ws;
                 static const int       sizew = 10;
 
                 if(pristine)
@@ -406,6 +415,21 @@ namespace Tensile
                                   << dPtr << "\n";
                 }
 
+                if(pristine)
+                {
+                    ws = pristine->managedWS;
+                }
+                else
+                {
+                    void* wsPtr = nullptr;
+                    HIP_CHECK_EXC(hipMalloc(&wsPtr, m_workspaceSize));
+                    ws = std::shared_ptr<void>(wsPtr, hipFree);
+                    if(Debug::Instance().printTensorInfo())
+                        std::cout << "info: allocate g for high precision GSU " << std::setw(sizew)
+                                  << m_workspaceSize << " bytes at "
+                                  << wsPtr << "\n";
+                }
+
                 auto alpha = static_cast<AlphaType>(0);
                 auto beta  = static_cast<BetaType>(0);
 
@@ -419,7 +443,9 @@ namespace Tensile
                                                           m_dMaxElements,
                                                           alpha,
                                                           beta,
-                                                          true);
+                                                          true,
+                                                          ws,
+                                                          m_workspaceSize);
                 return rv;
             }
 

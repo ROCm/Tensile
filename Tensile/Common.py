@@ -1312,6 +1312,8 @@ def GetAsmCaps(isaVersion):
   rv["v_dot2_f32_f16"]  = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
   rv["v_dot2c_f32_f16"] = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34")
 
+  rv["HasAtomicAdd"]    = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
+
   if tryAssembler(isaVersion, "s_waitcnt vmcnt(63)"):
     rv["MaxVmcnt"] = 63
   elif tryAssembler(isaVersion, "s_waitcnt vmcnt(15)"):
@@ -1328,11 +1330,11 @@ def GetAsmCaps(isaVersion):
 
 def GetArchCaps(isaVersion):
   rv = {}
-  rv["HasEccHalf"]       = (isaVersion==(9,0,6) or isaVersion==(9,0,8))
-  rv["Waitcnt0Disabled"] = isaVersion == (9,0,8)
-  rv["SeparateVscnt"]    = isaVersion[0] == 10
-  rv["CMPXWritesSGPR"]   = isaVersion[0] != 10
-  rv["HasWave32"]        = isaVersion[0] == 10
+  rv["HasEccHalf"]       = (isaVersion == (9,0,6) or isaVersion == (9,0,8))
+  rv["Waitcnt0Disabled"] = (isaVersion == (9,0,8))
+  rv["SeparateVscnt"]    = (isaVersion[0] == 10)
+  rv["CMPXWritesSGPR"]   = (isaVersion[0] != 10)
+  rv["HasWave32"]        = (isaVersion[0] == 10)
 
   return rv
 

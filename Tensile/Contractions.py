@@ -289,6 +289,9 @@ class ProblemPredicate(Properties.Predicate):
 
             return cls(tag, index=index, value=value)
 
+        if key == "_WorkspaceSizePerElemC":
+            return cls("WorkspaceCheck", index=0, value=value)
+
         if key.startswith('Assert'):
             raise RuntimeError("Unknown assertion key: {}".format(key))
 
@@ -365,23 +368,27 @@ class SizeMapping:
                  'magicDivAlg',
                  'persistentKernel',
                  'sourceKernel',
+                 'globalAccumulation',
+                 'workspaceSizePerElemC',
                  ]
 
     @classmethod
     def FromOriginalState(cls, d):
-        return cls(workGroup          = d['WorkGroup'],
-                   macroTile          = cls.ReadOriginalMacroTile(d),
-                   threadTile         = d['ThreadTile'],
-                   workGroupMapping   = d['WorkGroupMapping'],
-                   staggerU           = d['StaggerU'] if 'StaggerU' in d else 0,
-                   depthU             = d['DepthU'],
-                   globalSplitU       = d['GlobalSplitU'],
-                   staggerStrideShift = d['_staggerStrideShift'] if '_staggerStrideShift' in d else 0,
-                   packSummationDims  = d['PackSummationDims'] if 'PackSummationDims' in d else 0,
-                   packBatchDims      = d['PackBatchDims'] if 'PackBatchDims' in d else 0,
-                   persistentKernel   = d['PersistentKernel'] if 'PersistentKernel' in d else 0,
-                   magicDivAlg        = d.get('MagicDivAlg', 1),
-                   sourceKernel       = d['KernelLanguage'] == 'Source',
+        return cls(workGroup             = d['WorkGroup'],
+                   macroTile             = cls.ReadOriginalMacroTile(d),
+                   threadTile            = d['ThreadTile'],
+                   workGroupMapping      = d['WorkGroupMapping'],
+                   staggerU              = d['StaggerU'] if 'StaggerU' in d else 0,
+                   depthU                = d['DepthU'],
+                   globalSplitU          = d['GlobalSplitU'],
+                   staggerStrideShift    = d['_staggerStrideShift'] if '_staggerStrideShift' in d else 0,
+                   packSummationDims     = d['PackSummationDims'] if 'PackSummationDims' in d else 0,
+                   packBatchDims         = d['PackBatchDims'] if 'PackBatchDims' in d else 0,
+                   persistentKernel      = d['PersistentKernel'] if 'PersistentKernel' in d else 0,
+                   magicDivAlg           = d.get('MagicDivAlg', 1),
+                   sourceKernel          = d['KernelLanguage'] == 'Source',
+                   globalAccumulation    = d['_GlobalAccumulation'],
+                   workspaceSizePerElemC = d['_WorkspaceSizePerElemC'],
                    )
 
     @classmethod

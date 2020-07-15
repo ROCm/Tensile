@@ -286,7 +286,8 @@ namespace Tensile
                            FreeIndices const&      freeIndices,
                            BatchIndices const&     batchIndices,
                            BoundIndices const&     boundIndices,
-                           double                  beta);
+                           double                  beta,
+                           size_t                  workspaceSize=0);
 
         //! Returns size given original index assignment (in range
         //! 0..NumIndicesC+boundSizes)
@@ -505,6 +506,16 @@ namespace Tensile
             return getOperationDescription();
         }
 
+        void setWorkspaceSize(size_t size)
+        {
+            m_workspaceSize = size;
+        }
+
+        size_t workspaceSize() const
+        {
+            return m_workspaceSize;
+        }
+
     private:
         TensorDescriptor m_a;
         TensorDescriptor m_b;
@@ -554,6 +565,8 @@ namespace Tensile
         size_t m_allocatedElementsNonBatchA;
         size_t m_allocatedElementsNonBatchB;
 
+        size_t m_workspaceSize;
+
         void normalize();
         void consistencyCheck() const;
 
@@ -589,13 +602,14 @@ namespace Tensile
 
         TypedContractionInputs();
         TypedContractionInputs(
-            A const* _a, B const* _b, C const* _c, D* _d, Alpha _alpha, Beta _beta);
+            A const* _a, B const* _b, C const* _c, D* _d, Alpha _alpha, Beta _beta, void* _ws=nullptr);
         ~TypedContractionInputs();
 
-        A const* a = nullptr;
-        B const* b = nullptr;
-        C const* c = nullptr;
-        D*       d = nullptr;
+        A const* a  = nullptr;
+        B const* b  = nullptr;
+        C const* c  = nullptr;
+        D*       d  = nullptr;
+        void*    ws = nullptr;
 
         Alpha alpha = static_cast<Alpha>(0);
         Beta  beta  = static_cast<Beta>(0);

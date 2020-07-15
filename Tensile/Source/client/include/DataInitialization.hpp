@@ -80,14 +80,14 @@ namespace Tensile
    * Factory function.
    */
             static std::shared_ptr<DataInitialization>
-                Get(po::variables_map const& args, ClientProblemFactory const& problemFactory);
+                Get(po::variables_map const& args, ClientProblemFactory const& problemFactory, size_t maxWorkspaceSize=0);
 
             template <typename TypedInputs>
             static std::shared_ptr<TypedDataInitialization<TypedInputs>>
-                GetTyped(po::variables_map const& args, ClientProblemFactory const& problemFactory);
+                GetTyped(po::variables_map const& args, ClientProblemFactory const& problemFactory, size_t maxWorkspaceSize=0);
 
             DataInitialization(po::variables_map const&    args,
-                               ClientProblemFactory const& problemFactory);
+                               ClientProblemFactory const& problemFactory, size_t maxWorkspaceSize=0);
             ~DataInitialization();
 
             /**
@@ -286,6 +286,11 @@ namespace Tensile
                 }
             }
 
+            size_t workspaceSize() const
+            {
+                return m_workspaceSize;
+            }
+
         protected:
             InitMode m_aInit, m_bInit, m_cInit, m_dInit;
             InitMode m_alphaInit, m_betaInit;
@@ -294,6 +299,8 @@ namespace Tensile
             size_t m_bMaxElements;
             size_t m_cMaxElements;
             size_t m_dMaxElements;
+
+            size_t m_workspaceSize;
 
             bool m_cEqualsD;
             bool m_convolutionVsContraction;

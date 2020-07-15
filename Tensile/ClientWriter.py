@@ -1173,6 +1173,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     #h += "int deviceIdx = %u;\n" \
     #    % (globalParameters["Device"])
   h += "\n"
+  h += "void *deviceWS;\n"
   h += "void *deviceD;\n"
   h += "void *deviceC;\n"
   h += "void *deviceA;\n"
@@ -1416,8 +1417,11 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       typeName = dataTypes[0].toCpp()
       destTypeName = destDataTypes[dataType].toCpp()
       computeTypeName = computeDataTypes[dataType].toCpp()
-      h += "  return f(solutionLock, static_cast<%s *>(deviceD), static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
-          % (destTypeName, destTypeName, typeName, typeName)
+      h += "  return f(solutionLock,\n"
+      h += "      static_cast<%s *>(deviceD),\n" % destTypeName
+      h += "      static_cast<%s *>(deviceC),\n" % destTypeName
+      h += "      static_cast<%s *>(deviceA),\n" % typeName
+      h += "      static_cast<%s *>(deviceB),\n" % typeName
     h += "      alpha,\n"
     if problemType["UseBeta"]:
       h += "      beta,\n"
@@ -1437,7 +1441,10 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     if globalParameters["RuntimeLanguage"] == "OCL":
        h += "      numEvents, event_wait_list, outputEvent ); // events\n"
     else:
-       h += "      numEvents, startEvent, stopEvent); // events\n"
+       h += "      numEvents,\n"
+       h += "      startEvent,\n"
+       h += "      stopEvent,\n"
+       h += "      static_cast<float *>(deviceWS)); // events\n"
 
     h += "};\n"
     h += "\n"
@@ -1598,9 +1605,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
             h += "        size%s%s\n" % (indexChars[i], "," if i != problemType["TotalIndices"]-1 else "")
           if enqueue:
             if globalParameters["RuntimeLanguage"] == "OCL":
-               h += ", stream, numEvents, event_wait_list, outputEvent"
+              h += ", stream, numEvents, event_wait_list, outputEvent"
             else:
-               h += ", stream, numEvents, startEvent, stopEvent"
+              h += ", stream, numEvents, startEvent, stopEvent, static_cast<float *>(deviceWS)"
           h += ");\n"
 
         if len(functionsForDataType) > 1:

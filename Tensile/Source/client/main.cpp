@@ -355,6 +355,54 @@ namespace Tensile
             return args;
         }
 
+        size_t getMaxWorkspace(std::shared_ptr<MasterSolutionLibrary<ContractionProblem>>& library,
+                               std::shared_ptr<Hardware>& hardware,
+                               po::variables_map& args,
+                               std::vector<ContractionProblem>& problems,
+                               int firstProblemIdx,
+                               int lastProblemIdx)
+        {
+            // get max workspace size
+            size_t maxWorkspaceSize = 0;
+
+            auto solutionIterator = SolutionIterator::Default(library, hardware, args);
+            MetaRunListener listeners;
+            listeners.addListener(solutionIterator);
+            auto reporters = std::make_shared<MetaResultReporter>();
+            listeners.setReporter(reporters);
+
+            listeners.preBenchmarkRun();
+
+            for(int problemIdx = firstProblemIdx; problemIdx <= lastProblemIdx; problemIdx++)
+            {
+                auto& problem = problems[problemIdx];
+
+                problem.setWorkspaceSize(std::numeric_limits<size_t>::max());
+
+                listeners.preProblem(problem);
+
+                 while(solutionIterator->moreSolutionsInProblem())
+                 {
+                     auto solution = solutionIterator->getSolution();
+
+                     listeners.preSolution(*solution);
+
+                     if(solutionIterator->runCurrentSolution())
+                     {
+                         maxWorkspaceSize = std::max(maxWorkspaceSize, solution->requiredWorkspaceSize(problems[problemIdx]));
+                     }
+
+                     listeners.postSolution();
+                 }
+
+                listeners.postProblem();
+            }
+
+            listeners.postBenchmarkRun();
+
+            return maxWorkspaceSize;
+        }
+
     } // namespace Client
 } // namespace Tensile
 
@@ -373,8 +421,6 @@ int main(int argc, const char* argv[])
     auto                          library = LoadSolutionLibrary(args);
     Tensile::hip::SolutionAdapter adapter;
     LoadCodeObjects(args, adapter);
-
-    auto dataInit = DataInitialization::Get(args, problemFactory);
 
     auto problems        = problemFactory.problems();
     int  firstProblemIdx = args["problem-start-idx"].as<int>();
@@ -400,6 +446,10 @@ int main(int argc, const char* argv[])
     {
         lastSolutionIdx = firstSolutionIdx + numSolutions - 1;
     }
+
+    size_t maxWorkspaceSize = getMaxWorkspace(library, hardware, args, problems, firstProblemIdx, lastProblemIdx);
+
+    auto dataInit = DataInitialization::Get(args, problemFactory, maxWorkspaceSize);
 
     auto solutionIterator = SolutionIterator::Default(library, hardware, args);
 
@@ -442,7 +492,8 @@ int main(int argc, const char* argv[])
 
         for(int problemIdx = firstProblemIdx; problemIdx <= lastProblemIdx; problemIdx++)
         {
-            auto const& problem = problems[problemIdx];
+            auto& problem = problems[problemIdx];
+            problem.setWorkspaceSize(dataInit->workspaceSize());
 
             reporters->report(ResultKey::ProblemIndex, problemIdx);
             reporters->report(ResultKey::ProblemProgress,

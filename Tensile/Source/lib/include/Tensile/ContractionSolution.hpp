@@ -129,6 +129,11 @@ namespace Tensile
             StaticPerformanceModel staticModel;
         };
 
+        /**
+   * Calculate required workspace size.
+   */
+        size_t requiredWorkspaceSize(Problem const&  problem) const;
+
         StaticPerformanceModel staticPerformanceModel(double M,
                                                       double N,
                                                       double K,
@@ -171,6 +176,16 @@ namespace Tensile
                                        TypedInputs const& inputs,
                                        Hardware const&    hardware) const;
 
+        template <typename TypedInputs>
+        KernelInvocation generateOutputConversionCall(Problem const&     problem,
+                                                      TypedInputs const& inputs,
+                                                      Hardware const&    hardware) const;
+
+        template <typename TypedInputs>
+        std::string outputConversionKernelName(Problem const&     problem,
+                                               TypedInputs const& inputs,
+                                               Hardware const&    hardware) const;
+
         struct SizeMapping
         {
             dim3 workGroupSize;
@@ -188,7 +203,10 @@ namespace Tensile
             int    magicDivAlg       = 1;
             size_t persistentKernel  = 0;
 
-            bool sourceKernel = false;
+            bool   sourceKernel = false;
+
+            bool   globalAccumulation    = false;
+            size_t workspaceSizePerElemC = 0;
         };
 
         struct ProblemType
