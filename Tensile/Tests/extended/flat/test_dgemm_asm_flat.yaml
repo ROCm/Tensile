@@ -1,3 +1,6 @@
+TestParameters:
+  marks: [xfail]
+
 # benchmark assembly and source kernels
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
