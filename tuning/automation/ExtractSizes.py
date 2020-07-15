@@ -859,7 +859,7 @@ def ConvertToYAML(problemDefinition,disableStrides="false"):
     keys = rocblas_key_mapping[f]
     convertKey = {"r":"rocblas_function","a_type":"a_type","b_type":"b_type","c_type":"c_type","d_type":"d_type","compute_type":"compute_type","transposeA":"transA","transposeB":"transB","m":"M","n":"N","k":"K","alpha":"alpha","lda":"lda","ldb":"ldb","beta":"beta","ldc":"ldc","ldd":"ldd","stride_a":"stride_a","stride_b":"stride_b","stride_c":"stride_c","stride_d":"stride_d","batch_count":"batch_count","algo":"algo","solution_index":"solution_index","flags":"flags","i":"iters"}
     rocblasValue = {"h":"rocblas_hgemm","f16_r":"rocblas_hgemm","s":"rocblas_sgemm","f32_r":"rocblas_sgemm","d":"rocblas_dgemm","f64_r": "rocblas_dgemm", "?":"rocblas_gemm_ex"}
-    alternateType: {"f32":"s", "f64": "d", "f16": "h"}
+    alternateType = {"f32":"s", "f64": "d", "f16": "h"}
 
     rocblas_call = "- {"
     for key in keys:
