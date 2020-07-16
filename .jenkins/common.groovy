@@ -39,6 +39,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DCODE_OBJECT_VERSION=${cov} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
             make -j\$(nproc)
 
+            popd
             """
 
     try
