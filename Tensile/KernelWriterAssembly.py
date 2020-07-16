@@ -598,15 +598,18 @@ class KernelWriterAssembly(KernelWriter):
 
   # TODO: also consider sgpr
   def getMaxRegsForOccupancy(self, vgprs, ldsSize, accvgprs=0):
-    initOccupancy = self.vgprOccupancy[vgprs]
+
+    vgprOccupancy = self.vgprOccupancy[vgprs] if vgprs <= 256 else 0
+    accvgprOccupancy = self.vgprOccupancy[accvgprs] if accvgprs <= 256 else 0
+    initOccupancy = vgprOccupancy
     if accvgprs > 0:
-      initOccupancy = min(initOccupancy, self.vgprOccupancy[accvgprs])
+      initOccupancy = min(initOccupancy, accvgprOccupancy)
     if ldsSize > 0:
       initOccupancy = min(initOccupancy, self.getLdsLimitedOccupancy(ldsSize))
     lastVgprs = vgprs
     while vgprs < len(self.vgprOccupancy)-1:
       vgprs += 1
-      if self.vgprOccupancy[vgprs] >= initOccupancy:
+      if vgprOccupancy >= initOccupancy:
         lastVgprs = vgprs
         next
       else:
