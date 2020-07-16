@@ -30,7 +30,6 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             export HOME=/home/jenkins
             ####
             tox --version
-            tox -v --workdir /tmp/.tensile-tox -e lint
             tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --tensile-options=--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing-\$gpuArch.csv
 
             mkdir build
@@ -40,9 +39,6 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DCODE_OBJECT_VERSION=${cov} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
             make -j\$(nproc)
 
-            popd
-
-            doxygen docs/Doxyfile
             """
 
     try
