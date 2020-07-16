@@ -131,8 +131,7 @@ def readLibraryLogicForSchedule( filename ):
     printExit("len(%s) %u < 7" % (filename, len(data)))
 
   # parse out objects
-  dataIndex = 0
-  versionString     = data[dataIndex]["MinimumRequiredVersion"]
+  versionString     = data[0]["MinimumRequiredVersion"]
   scheduleName      = data[1]
   architectureName  = data[2] if isinstance(data[2], str) else data[2]["Architecture"]
   deviceNames       = data[3]
