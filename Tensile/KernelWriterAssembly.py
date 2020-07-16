@@ -583,7 +583,6 @@ class KernelWriterAssembly(KernelWriter):
     multiplier = int(ceil(max(kernel["NumThreads"], 256) / 256.0))
     # example: wg=512 multiplier=2, 1024=4
 
-    maxLds = 65536
     ldsSize = kernel["LdsNumElements"] * kernel["ProblemType"]["DataType"].numBytes()
     ldsSize = (ldsSize + 255) & 0x1ff00 # 256-byte granularity
     ldsLimitedOccupancy = self.getLdsLimitedOccupancy(ldsSize)
