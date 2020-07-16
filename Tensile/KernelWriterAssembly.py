@@ -8637,11 +8637,15 @@ class KernelWriterAssembly(KernelWriter):
       tmpS23 = tmpS01+2
       coord0 = tmpVgpr
       coord1 = coord0+1
-      for rIdx, i in enumerate(range(0, nElements, gwvw)):
-        for vi in range (0,gwvw):
+      lrVw = kernel["StoreRemapVectorWidth"]
+      edgeVw = min(kernel["AssertFree0ElementMultiple"],kernel["StoreRemapVectorWidth"])
+      bps = kernel["ProblemType"]["DataType"].numBytes() * edgeVw
+      rpv = kernel["ProblemType"]["DataType"].numRegisters() * edgeVw
+      for rIdx, i in enumerate(range(0, nElements, lrVw)):
+        for vi in range (0, lrVw, edgeVw):
 
           if vi == 0:
-            lgkmcnt = min((nElements-i)//gwvw - 1, 15)
+            lgkmcnt = min((nElements-i)//lrVw - 1, 15)
             kStr += inst("s_waitcnt", "lgkmcnt(%u)"% lgkmcnt, "wait for LDS read" )
 
           sizeBoundary = [0,0]
@@ -8651,11 +8655,12 @@ class KernelWriterAssembly(KernelWriter):
           sizeBoundary[1] = \
               sgpr("PackedSize1") if len(kernel["PackedC1IndicesX"]) > 1 \
               else self.sizeRef(kernel["ProblemType"]["Index1"])
-          currentStep = i//gwvw
+
+          currentStep = i//lrVw
 
           # calculate global coordination
           kStr += inst("v_add_u32", vgpr(coord1), vgpr(self.storeRemapCoord1), self.storeRemapNCPL * currentStep , "coord1 += nColPerLoad")
-          kStr += inst("v_add_u32",vgpr(coord0), vgpr(self.storeRemapCoord0), vi , "coord0 += element index of storeVector")
+          kStr += inst("v_add_u32",vgpr(coord0), vgpr(self.storeRemapCoord0), vi , "coord0 += element index of load vector")
           kStr += inst("v_add_u32", addr0, vgpr(self.storeRemapOffsetCoord1), self.storeRemapNCPL * currentStep , \
                         "offset coord1 += nColPerLoad")
 
@@ -8668,7 +8673,10 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("v_cndmask_b32", addr0, -1, addr0, sgpr(tmpS23,2), "clip if OOB. offset" )
 
           sumIdx = storeRegs[rIdx] + int(vi*rpe)
-          kStr += self.chooseGlobalWrite(True, bpe, sumIdx, rpe, addr0, addr1, 0, ntStr, hi16=vi%2)
+          if bps == 2:
+            kStr += self.chooseGlobalWrite(True, bpe, sumIdx, rpe, addr0, addr1, 0, ntStr, hi16=vi%2)
+          else:
+            kStr += self.chooseGlobalWrite(True, bps, sumIdx, rpv, addr0, addr1, 0, ntStr)
 
     kStr += "\n"
     self.vgprPool.checkIn(vTmp)
