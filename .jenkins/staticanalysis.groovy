@@ -49,13 +49,6 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     }
     catch(e)
     {
-        try
-        {
-            junit "${project.paths.project_build_prefix}/python_unit_tests.xml"
-        }
-        catch(ee)
-        {}
-
         throw e
     }
 }
