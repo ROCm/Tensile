@@ -583,7 +583,6 @@ class KernelWriterAssembly(KernelWriter):
     multiplier = int(ceil(max(kernel["NumThreads"], 256) / 256.0))
     # example: wg=512 multiplier=2, 1024=4
 
-    maxLds = 65536
     ldsSize = kernel["LdsNumElements"] * kernel["ProblemType"]["DataType"].numBytes()
     ldsSize = (ldsSize + 255) & 0x1ff00 # 256-byte granularity
     ldsLimitedOccupancy = self.getLdsLimitedOccupancy(ldsSize)
@@ -1266,7 +1265,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["EnableMatrixInstruction"]:
       localReadWidth = tPA["bpe"] / self.bpr
     if kernel["UnrollMajorLDSA"]:
-      localReadWidth = (kernel["LocalReadVectorWidth"] * tPA["bpe"]) // self.bpr
+      localReadWidth = (self.lrvw * tPA["bpe"]) // self.bpr
 
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
@@ -1290,7 +1289,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["EnableMatrixInstruction"]:
       localReadWidth = tPB["bpe"] / self.bpr
     if kernel["UnrollMajorLDSB"]:
-      localReadWidth = (kernel["LocalReadVectorWidth"] * tPB["bpe"]) // self.bpr
+      localReadWidth = (self.lrvw * tPB["bpe"]) // self.bpr
 
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
@@ -1927,8 +1926,8 @@ class KernelWriterAssembly(KernelWriter):
     # reads Per Iteration
     ########################################
     if kernel["EnableMatrixInstruction"]:
-      numReadPerVectorA = tPA["bpe"] * kernel["LocalReadVectorWidth"] // int(tPA["localReadInstruction"].blockWidth * 4)
-      numReadPerVectorB = tPB["bpe"] * kernel["LocalReadVectorWidth"] // int(tPB["localReadInstruction"].blockWidth * 4)
+      numReadPerVectorA = tPA["bpe"] * self.lrvw // int(tPA["localReadInstruction"].blockWidth * 4)
+      numReadPerVectorB = tPB["bpe"] * self.lrvw // int(tPB["localReadInstruction"].blockWidth * 4)
       numA = kernel["InnerUnroll"]*(kernel["MIWaveTile"][0] * numReadPerVectorA) // tPA["localReadInstruction"].numOffsets
       numB = kernel["InnerUnroll"]*(kernel["MIWaveTile"][1] * numReadPerVectorB) // tPB["localReadInstruction"].numOffsets
       # wider localread has 2 mode
@@ -4443,7 +4442,7 @@ class KernelWriterAssembly(KernelWriter):
     tc               = tP["tensorChar"]
     tIdx             = tP["tensorIdx"]
     waveWidth        = globalParameters["WavefrontWidth"]
-    inputPerThread   = kernel["LocalReadVectorWidth"]
+    inputPerThread   = self.lrvw
     LdsPad           = kernel["LdsPad%s" % tc] if kernel["LdsBlockSizePerPad%s" % tc] == 0 else 0
 
     # parameter for get each type index
@@ -6985,7 +6984,7 @@ class KernelWriterAssembly(KernelWriter):
       # recalculate localReadAddr to cancle wider local read in tail loop
       if self.numReadsIterCoalesced > 1 and kernel["MatrixInstB"] == 1 and tP["isB"]:
         self.numReadsIterCoalesced = 1
-        kernel["LocalReadVectorWidth"] = kernel["ProblemType"]["DataType"].numMIInput()
+        self.lrvw = kernel["ProblemType"]["DataType"].numMIInput()
         imod.addCode(self.comment("reCalculate LocalReadAddr"))
         kStr = ""
         kStr += (self.lraTileAssignmentMFMA(kernel, self.tPA))
@@ -7217,7 +7216,7 @@ class KernelWriterAssembly(KernelWriter):
       UnrollStride   = 1
 
     numVectorsPerTile = kernel["MIWaveTile"][tIdx]
-    numReadsPerVector = tP["bpe"] * kernel["LocalReadVectorWidth"] // int(blockWidth * 4) # bytes/register
+    numReadsPerVector = tP["bpe"] * self.lrvw // int(blockWidth * 4) # bytes/register
     numVgpr           = int(ceil(blockWidth))
 
     # pack register
@@ -8637,11 +8636,15 @@ class KernelWriterAssembly(KernelWriter):
       tmpS23 = tmpS01+2
       coord0 = tmpVgpr
       coord1 = coord0+1
-      for rIdx, i in enumerate(range(0, nElements, gwvw)):
-        for vi in range (0,gwvw):
+      lrVw = kernel["StoreRemapVectorWidth"]
+      edgeVw = min(kernel["AssertFree0ElementMultiple"],kernel["StoreRemapVectorWidth"])
+      bps = kernel["ProblemType"]["DataType"].numBytes() * edgeVw
+      rpv = kernel["ProblemType"]["DataType"].numRegisters() * edgeVw
+      for rIdx, i in enumerate(range(0, nElements, lrVw)):
+        for vi in range (0, lrVw, edgeVw):
 
           if vi == 0:
-            lgkmcnt = min((nElements-i)//gwvw - 1, 15)
+            lgkmcnt = min((nElements-i)//lrVw - 1, 15)
             kStr += inst("s_waitcnt", "lgkmcnt(%u)"% lgkmcnt, "wait for LDS read" )
 
           sizeBoundary = [0,0]
@@ -8651,11 +8654,12 @@ class KernelWriterAssembly(KernelWriter):
           sizeBoundary[1] = \
               sgpr("PackedSize1") if len(kernel["PackedC1IndicesX"]) > 1 \
               else self.sizeRef(kernel["ProblemType"]["Index1"])
-          currentStep = i//gwvw
+
+          currentStep = i//lrVw
 
           # calculate global coordination
           kStr += inst("v_add_u32", vgpr(coord1), vgpr(self.storeRemapCoord1), self.storeRemapNCPL * currentStep , "coord1 += nColPerLoad")
-          kStr += inst("v_add_u32",vgpr(coord0), vgpr(self.storeRemapCoord0), vi , "coord0 += element index of storeVector")
+          kStr += inst("v_add_u32",vgpr(coord0), vgpr(self.storeRemapCoord0), vi , "coord0 += element index of load vector")
           kStr += inst("v_add_u32", addr0, vgpr(self.storeRemapOffsetCoord1), self.storeRemapNCPL * currentStep , \
                         "offset coord1 += nColPerLoad")
 
@@ -8668,7 +8672,10 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("v_cndmask_b32", addr0, -1, addr0, sgpr(tmpS23,2), "clip if OOB. offset" )
 
           sumIdx = storeRegs[rIdx] + int(vi*rpe)
-          kStr += self.chooseGlobalWrite(True, bpe, sumIdx, rpe, addr0, addr1, 0, ntStr, hi16=vi%2)
+          if bps == 2:
+            kStr += self.chooseGlobalWrite(True, bpe, sumIdx, rpe, addr0, addr1, 0, ntStr, hi16=vi%2)
+          else:
+            kStr += self.chooseGlobalWrite(True, bps, sumIdx, rpv, addr0, addr1, 0, ntStr)
 
     kStr += "\n"
     self.vgprPool.checkIn(vTmp)

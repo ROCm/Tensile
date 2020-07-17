@@ -1836,10 +1836,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     self.numItersPLR = kernel["PrefetchLocalRead"]%kernel["LoopIters"]
     self.numVgprBuffer = kernel["PrefetchLocalRead"]
+    self.lrvw = kernel["LocalReadVectorWidth"]
 
     # Wider LocalRead
     if kernel["EnableMatrixInstruction"]:
-      self.numReadsIterCoalesced = kernel["LocalReadVectorWidth"]//kernel["ProblemType"]["DataType"].numMIInput()
+      self.numReadsIterCoalesced = self.lrvw//kernel["ProblemType"]["DataType"].numMIInput()
     else:
       self.numReadsIterCoalesced  = 1
 
