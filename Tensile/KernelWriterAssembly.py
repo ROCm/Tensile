@@ -5117,8 +5117,8 @@ class KernelWriterAssembly(KernelWriter):
                   sgpr("PadEnd%s%s%s"%(tc, freeDimChar, sumDimChar)), \
                   "Final0: (strideFree*sizeFree - strideSum*(sizeSum-1))*BPE - padStart - padEnd")
 
-
-        kStr += inst("s_mov_b32", sgpr("Iter"+sumDimChar), 0, "init iterX")
+        if kernel["PackSummationDims"]:
+          kStr += inst("s_mov_b32", sgpr("Iter"+sumDimChar), 0, "init iterX")
 
         #assert(self.groOffsetInMacroTile==0)
 
