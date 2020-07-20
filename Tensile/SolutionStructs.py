@@ -1629,8 +1629,11 @@ class Solution:
       if key != "ProblemType" and key not in self._state:
         self._state[key] = config[key]
     self["Valid"] = True
-    self["AssignedProblemIndependentDerivedParameters"] = False
-    self["AssignedDerivedParameters"] = False
+    # this could prevent OriginalSolution from re-assigning the parameters, save lots of time
+    if "AssignedProblemIndependentDerivedParameters" not in self._state:
+      self["AssignedProblemIndependentDerivedParameters"] = False
+    if "AssignedDerivedParameters" not in self._state:
+      self["AssignedDerivedParameters"] = False
 
     if self["ProblemType"].convolution:
         for (key,value) in self["ProblemType"].convolution.solutionParms.items():
@@ -2145,17 +2148,17 @@ class Solution:
 
     Solution.assignProblemIndependentDerivedParameters(state)
 
+    if "AssignedDerivedParameters" in state:
+      if state["AssignedDerivedParameters"]:
+        return
+    state["AssignedDerivedParameters"] = False
+
     for s in Solution.InternalKeys:
         state['_'+s] = state[s]
         #del state[s]
 
     if state["VectorStore"] == -1:
-        state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel
-
-    if "AssignedDerivedParameters" in state:
-      if state["AssignedDerivedParameters"]:
-        return
-    state["AssignedDerivedParameters"] = False
+        state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel    
 
     ProblemType.assignDerivedParameters(state["ProblemType"])
     if not state["Valid"]:
@@ -3177,7 +3180,7 @@ class Solution:
     if state["UnrollIncIsDepthU"] and globalParameters["NewClient"] != 2:
       raise RuntimeError ("Legacy client does not support UnrollIncIsDepthU=1 (ASEM issues), aborting")
 
-    problemType["AssignedDerivedParameters"] = True
+    state["AssignedDerivedParameters"] = True
 
 
   ########################################

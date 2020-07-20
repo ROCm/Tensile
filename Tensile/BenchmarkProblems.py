@@ -355,9 +355,15 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ############################################################################
     if not enableTileSelection:
         results = getResults(resultsFileName, solutions, enableTileSelection, newResultsFileName)
+        currentTime = time.time()
+        elapsedTime = currentTime - startTime
+        print1("# Finish GetResults - %.3fs\n" % (elapsedTime))
         print2("CSV Results: %s" % results)
         winners.addResults(benchmarkStep.hardcodedParameters, \
             benchmarkPermutations, solutions, results)
+        currentTime = time.time()
+        elapsedTime = currentTime - startTime
+        print1("# Finish Adding Results - %.3fs\n" % (elapsedTime))
 
     ############################################################################
     # Write Solutions YAML
@@ -405,6 +411,7 @@ def compareResults(old, new, name):
 ################################################################################
 def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileName=None):
 
+  print1("# Get Results from CSV")
   try:
     resultsFile = open(resultsFileName, "r")
   except IOError:
