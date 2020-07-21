@@ -59,14 +59,6 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     }
 
     junit "${project.paths.project_build_prefix}/python_unit_tests.xml"
-
-    publishHTML([allowMissing: false,
-                alwaysLinkToLastBuild: false,
-                keepAll: false,
-                reportDir: "${project.paths.project_build_prefix}/docs/html",
-                reportFiles: 'index.html',
-                reportName: 'Documentation',
-                reportTitles: 'Documentation'])
 }
 
 def publishResults(project)
