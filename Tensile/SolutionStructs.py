@@ -897,7 +897,19 @@ class ProblemType(collections.abc.Mapping):
 
     self.convolution = Convolution(self, convolutionType, convolutionConfig)
     self["NumIndicesLD"] = 0
-    self["UseBeta"] = False
+    # For Conv with filter 1x1, unit-stride, no padding case, we can let UseBeta = True
+    self["UseBeta"] = ("UseBeta" in config and config["UseBeta"] == True) and (self.canExpressedAsGEMM() == True)
+
+  ########################################
+  def canExpressedAsGEMM(self):
+    rv = self.convolution != None and \
+         self.convolution.cc != None and \
+         self.convolution.cc.fil == [1,1] and \
+         self.convolution.cc.stride == [1,1] and \
+         self.convolution.cc.dilation == [1,1] and \
+         self.convolution.cc.padStart == [0,0] and \
+         self.convolution.cc.padEnd == [0,0]
+    return rv
 
   ########################################
   def isGEMM(self):
