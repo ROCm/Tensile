@@ -22,7 +22,6 @@
 from .Common import printExit
 from .CSVReader import readCSV
 from .SolutionStructs import Solution
-from . import LibraryIO
 
 import csv
 
