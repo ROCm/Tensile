@@ -158,6 +158,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if letencyLeft < 0:
           self.numMfmaForNextLoopLR += 1
           letencyLeft = self.miLatency - tensorParametersB["localReadInstruction"].IssueLatency*2
+      latencyForLR = tensorParametersB["localReadInstruction"].IssueLatency*18
+      latencyForLR -= letencyLeft # remaining latency in mfma
+      latencyForLR -= (self.miLatency+self.miLatencyBuffer+2) # last LR will have 1 mfma latency
+      while latencyForLR > 0:
+        latencyForLR -= (self.miLatency+self.miLatencyBuffer+2)
+        self.numMfmaForNextLoopLR += 1
       self.numMfmaForNextLoopLR = min(self.numMfmaForNextLoopLR,numMfmaPerIter-1)
       self.barrierMfmaIndex = numMfmaPerIter*(kernel["LoopIters"]-self.numItersPLR+1) - self.numMfmaForNextLoopLR - 1 if self.numItersPLR else 0
       self.lwEndMfmaIndex = max(self.barrierMfmaIndex - numMfmaBetweenLWandBarrier,0) if self.numItersPLR else numMfmaPerIter*kernel["LoopIters"] - 1

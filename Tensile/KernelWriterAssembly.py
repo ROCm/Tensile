@@ -1964,8 +1964,8 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["EnableMatrixInstruction"]:
       self.miLatency = kernel["MatrixInstM"] // 2 - 2
       # give 1 quad-cycle buffer to prevend bubble from sync
-      miLatencyBuffer = 1
-      self.miLatency -= miLatencyBuffer
+      self.miLatencyBuffer = 1
+      self.miLatency -= self.miLatencyBuffer
 
     # pre-determine labels in order
     unrollChar = self.indexChars[ \
