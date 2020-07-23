@@ -58,7 +58,8 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
 
     ######################################
     # Read Solutions
-    (problemSizes, solutions) = LibraryIO.readSolutions(solutionsFileName)
+    # (problemSizes, solutions) are already read and kept in problemSizeGroups, no need to call LibraryIO.readSolutions(solutionsFileName) again
+    solutions = problemSizeGroup[4]
     problemSizesList.append(problemSizes)
     solutionsList.append(solutions)
     solutionMinNaming = Solution.getMinNaming(solutions)
@@ -1444,7 +1445,7 @@ def main(  config ):
       if problemType not in problemTypes:
         problemTypes[problemType] = []
       problemTypes[problemType].append( (problemSizes, \
-          dataFileName, solutionsFileName, selectionFileName) )
+          dataFileName, solutionsFileName, selectionFileName, solutions) )
 
   for problemType in problemTypes:
     logicTuple = analyzeProblemType( problemType, problemTypes[problemType], \
