@@ -22,7 +22,6 @@
 from .Common import printExit
 from .CSVReader import readCSV
 from .SolutionStructs import Solution
-from . import LibraryIO
 
 import csv
 
@@ -109,7 +108,8 @@ def analyzeSolutionSelectionOldClient( problemType, problemSizeGroups):
     dataFileNameList.append(dataFileName)
     solutionsFileName = problemSizeGroup[2]
 
-    (_, solutions) = LibraryIO.readSolutions(solutionsFileName)
+    # solutions are already read and kept in problemSizeGroups, no need to call LibraryIO.readSolutions(solutionsFileName) again
+    solutions = problemSizeGroup[4]
     if len(solutions) == 0:
       printExit("%s doesn't contains any solutions." % (solutionsFileName) )
 
