@@ -2774,23 +2774,20 @@ class Solution:
       return
 
     # Default LocalReadVectorWidth
-    supportWiderLR = state["TransposeLDS"] and \
-                     state["ProblemType"]["TLUA"] == False and \
-                     state["ProblemType"]["TLUB"] == False
     if state["LocalReadVectorWidth"] == -1:
       if state["EnableMatrixInstruction"]:
         state["LocalReadVectorWidth"] = state["ProblemType"]["DataType"].numMIInput()
       else:
         state["LocalReadVectorWidth"] = state["VectorWidth"]
-
-    if state["EnableMatrixInstruction"]:
-      if not supportWiderLR and state["LocalReadVectorWidth"] != state["ProblemType"]["DataType"].numMIInput():
-        reject(state, "Temp reject LRVW for (TransposeLDS=0 or non-TN)")
-      if state["LocalReadVectorWidth"] < state["ProblemType"]["DataType"].numMIInput():
-        reject(state, "LocalReadVectorWidth < %u" %(state["ProblemType"]["DataType"].numMIInput()))
-    elif state["LocalReadVectorWidth"] != state["VectorWidth"]:
-      reject(state, "LocalReadVectorWidth requires MI-Kernel")
-
+    else:
+      if state["EnableMatrixInstruction"]:
+        if state["LocalReadVectorWidth"] < state["ProblemType"]["DataType"].numMIInput():
+          reject(state, "LocalReadVectorWidth < %u" %(state["ProblemType"]["DataType"].numMIInput()))
+        if state["LocalReadVectorWidth"] > state["ProblemType"]["DataType"].numMIInput() and not state["TransposeLDS"]:
+          reject(state, "LocalReadVectorWidth require TLDS")
+      else:
+        if state["LocalReadVectorWidth"] != state["VectorWidth"]:
+          reject(state, "not support LRVW != VW with nonMI kernel")
 
     if state["LdsPadA"] == -1:
       if state["ProblemType"]["TLUA"]:
@@ -2997,21 +2994,17 @@ class Solution:
       if state["ProblemType"]["TLUA"] and state["ProblemType"]["TLUB"]:
           # TODO: Now in rocBLAS, lot of logic yamls are Type=NT and TLDS=1? Why aren't they rejected and how to get rid of them?
           reject(state, "TransposeLds requires TLUA=0 or TLUB=0")
-      if state["EnableMatrixInstruction"]:
-        # enable widerLocalRead
-        if state["LocalReadVectorWidth"] > state["ProblemType"]["DataType"].numMIInput():
-          # not support 1 block MI
-          # TODO: need to enable ds_read2 to support 1 block MI
-          # if state["MatrixInstB"] == 1:
-            # reject(state, "wider localRead not support 1 block MatrixInstruction yet")
-          # wider localRead support 2 types
-          # 1. prefetch all lds to register
-          # 2. using larger InnerUnroll
-          if not (state["PrefetchLocalRead"] >= state["LoopIters"] and state["InnerUnroll"] == 1) and \
-            not state["InnerUnroll"] >= state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput():
-            reject(state, "wider localRead only support (PrefetchLocalRead %u >= LoopIters %u) or (InnerUnroll %u > LocalReadxN)" % (state["PrefetchLocalRead"],state["LoopIters"],state["InnerUnroll"]))
-        if (state["LoopIters"] - (state["PrefetchLocalRead"]%state["LoopIters"])*state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput()) < 0:
-          reject(state, "LoopIters %u should greater than PrefetchIters %u" % ((state["LoopIters"],(state["PrefetchLocalRead"]%state["LoopIters"])*state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput())))
+    if state["EnableMatrixInstruction"]:
+      # enable widerLocalRead
+      if state["LocalReadVectorWidth"] > state["ProblemType"]["DataType"].numMIInput():
+        # wider localRead support 2 types
+        # 1. prefetch all lds to register
+        # 2. using larger InnerUnroll
+        if not (state["PrefetchLocalRead"] >= state["LoopIters"] and state["InnerUnroll"] == 1) and \
+          not state["InnerUnroll"] >= state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput():
+          reject(state, "wider localRead only support (PrefetchLocalRead %u >= LoopIters %u) or (InnerUnroll %u > LocalReadxN)" % (state["PrefetchLocalRead"],state["LoopIters"],state["InnerUnroll"]))
+      if (state["LoopIters"] - (state["PrefetchLocalRead"]%state["LoopIters"])*state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput()) < 0:
+        reject(state, "LoopIters %u should greater than PrefetchIters %u" % ((state["LoopIters"],(state["PrefetchLocalRead"]%state["LoopIters"])*state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput())))
 
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
