@@ -1210,11 +1210,13 @@ def TensileCreateLibrary():
     if arguments["Architecture"] == key:
       arguments["Architecture"] = mapArchitecture[key]
 
-  logicFiles = [os.path.join(logicPath, f) for f in os.listdir(logicPath) \
-      if (os.path.isfile(os.path.join(logicPath, f)) \
-      and os.path.splitext(f)[1]==".yaml") \
-      and arguments["Architecture"] in os.path.splitext(f)[0] \
-      or "hip" in os.path.splitext(f)[0]]
+  # Recursive directory search
+  logicFiles = []
+  for root, dirs, files in os.walk(logicPath):
+    logicFiles += [os.path.join(root, f) for f in files
+                       if os.path.splitext(f)[1]==".yaml" \
+                       and arguments["Architecture"] in os.path.splitext(f)[0] \
+                       or "hip" in os.path.splitext(f)[0] ]
 
   print1("# LibraryLogicFiles:" % logicFiles)
   for logicFile in logicFiles:
