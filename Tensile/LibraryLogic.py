@@ -148,10 +148,17 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
 
     for i in range(0, len(validSelectionSolutionsRemainder)):
       validSelectionSolution = validSelectionSolutionsRemainder[i]
-      (validSolution, validSolutionInfo) = validSelectionSolution
+      (validSolution, validSolutionInfo0) = validSelectionSolution
       selectionSolutionIndex = solutionsStartIndex + i
       selectionSolutionsIds.add(selectionSolutionIndex)
       validSolution["SolutionNameMin"] = Solution.getNameMin(validSolution, solutionMinNaming)
+      validSolutionInfo = []
+      for key in validSolutionInfo0:
+        value = validSolutionInfo0[key]
+        entry = list(key)
+        entry.append(value)
+        #validSolutionInfo[list(key)] = value 
+        validSolutionInfo.append(entry)
       validSolution["Ideals"] = validSolutionInfo
       selectionSolutions.append(validSolution)
 

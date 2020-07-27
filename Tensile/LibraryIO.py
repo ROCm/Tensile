@@ -192,9 +192,15 @@ class Writer:
     exactLogic    = logicTuple[3]
     rangeLogic    = logicTuple[4]
 
-    tileSelection = False
-    if len(logicTuple) > 5 and logicTuple[5]:
-      tileSelection = True
+    tileSelection = problemType.state["TileAwareSelection"]
+    selectionModel = None
+    if tileSelection:
+      if "SelectionModel" in problemType.state:
+        selectionModel = problemType.state["SelectionModel"]
+      else:
+        selectionModel = "GranularitySelection"
+    #if len(logicTuple) > 5 and logicTuple[5]:
+    #  tileSelection = True
 
     data = []
     # Tensile version
@@ -256,6 +262,7 @@ class Writer:
       tileSelectionLogic = {}
       tileSelectionIndices = logicTuple[6]
       tileSelectionLogic["TileSelectionIndices"] = tileSelectionIndices
+      tileSelectionLogic["SelectionModel"] = selectionModel
       data.append(tileSelectionLogic)
 
     return data

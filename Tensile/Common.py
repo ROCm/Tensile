@@ -1177,7 +1177,8 @@ defaultProblemType = {
     "IndexAssignmentsLD":       [3, 4, 5, 6],      # order is LDD, LDC, LDA, LDB
 
     # Tile aware solution selection
-    "TileAwareSelection":       False
+    "TileAwareSelection":       False,
+    "SelectionModel":           "GranularitySelection"
     }
 
 defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]

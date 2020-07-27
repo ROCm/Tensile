@@ -31,6 +31,7 @@
 #include <Tensile/AMDGPUPredicates.hpp>
 #include <Tensile/ContractionProblemPredicates.hpp>
 #include <Tensile/ExactLogicLibrary.hpp>
+#include <Tensile/FitnessSelectionLibrary.hpp>
 #include <Tensile/GranularitySelectionLibrary.hpp>
 #include <Tensile/PropertyMatching.hpp>
 
@@ -158,6 +159,7 @@ namespace Tensile
     }
 
         TENSILE_SERIALIZE_VECTOR(true, ExactSelectionTableEntry);
+        TENSILE_SERIALIZE_VECTOR(true, FitnessSelectionTableEntry);
 
         TENSILE_SERIALIZE_VECTOR(true,
                                  Tensile::ExactLogicLibrary<Tensile::ContractionProblem,

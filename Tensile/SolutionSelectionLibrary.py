@@ -190,12 +190,14 @@ def analyzeSolutionSelection(problemType, selectionFileNameList, numSolutionsPer
       if firstRow == 0:
         firstRow += 1
       else:
-        sumationId = row[summationIndex].strip()
+        #sumationId = row[summationIndex].strip()
+        size = row[1:5]
+        sizeId = (size[0].strip(),size[1].strip(),size[2].strip(),size[3].strip())
 
         solutionIndex = 0
         for i in range(solutionStartIdx, rowLength):
           baseKey = solutionBaseKeys[solutionIndex]
-          key = "%s_%s" % (baseKey, sumationId)
+          key = "%s_%s_%s_%s_%s" % (baseKey, sizeId[0], sizeId[1], sizeId[2], sizeId[3])
           solution = solutions[solutionIndex]
           solutionIndex += 1
           value = float(row[i])
@@ -203,7 +205,8 @@ def analyzeSolutionSelection(problemType, selectionFileNameList, numSolutionsPer
             dataMap = {}
             solutionsHash[solution] = dataMap
 
-          updateIfGT(solutionsHash[solution], sumationId, value)
+          #updateIfGT(solutionsHash[solution], sumationId, value)
+          updateIfGT(solutionsHash[solution], sizeId, value)
           if not key in performanceMap:
             performanceMap[key] = (solution, value)
           else:

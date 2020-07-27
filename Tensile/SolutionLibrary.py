@@ -85,6 +85,46 @@ class GranularitySelectionLibrary:
             if index in indexMap:
                 self.indices[i] = indexMap[index]
 
+class TileAwareMetricLibrary:
+    Tag = 'FitnessSelection'
+    StateKeys = [('type', 'tag'), 'indices', 'exact']
+
+    @classmethod
+    def FromOriginalState(cls, d, indices):
+        origTable = d[1]
+        #indices = d[9]["TileSelectionIndices"]
+        #  entry = {'key': key, 'value': value, 'speed': row[1][1]}
+        entries = []
+        for row in origTable:
+            try:
+                index = row[1][0]
+                key = list(row[0][0:8])
+                entry = {'key': key, 'value': index }
+                entries.append(entry)
+            except KeyError:
+                pass
+
+        return cls(indices, entries)
+
+    @property
+    def tag(self):
+        return self.__class__.Tag
+
+    def merge(self, other):
+        assert self.__class__ == other.__class__
+        self.indices = list(set().union(self.indices, other.indices))
+        self.exact = list(set().union(self.exact, other.exact))
+
+    def __init__(self, indices, exact):
+        self.indices = indices
+        self.exact = exact
+
+    def remapSolutionIndices(self,indexMap):
+        for i in range(0, len(self.indices)):
+            index = self.indices[i]
+            if index in indexMap:
+                self.indices[i] = indexMap[index]
+
 class MatchingLibrary:
     Tag = 'Matching'
     StateKeys = [('type', 'tag'), 'properties', 'table', 'distance']
@@ -230,7 +270,7 @@ class MasterSolutionLibrary:
         if len(d) > 9 and d[9]:
             # It's a Granularity library
             assert libraryOrder[-1] == "Matching"
-            libraryOrder[-1] = "Granularity"
+            libraryOrder[-1] = "SelectionModel"
 
         allSolutions = [solutionClass.FromSolutionStruct(s, deviceSection) for s in origSolutions]
         cls.FixSolutionIndices(allSolutions)
@@ -242,9 +282,14 @@ class MasterSolutionLibrary:
                 matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, allSolutions)
                 library = matchingLibrary
 
-            elif libName == 'Granularity':
+            elif libName == 'SelectionModel':
                 selectionIndices = d[9]["TileSelectionIndices"]
-                library = GranularitySelectionLibrary.FromOriginalState(origLibrary, selectionIndices)
+                modelName = d[9]["SelectionModel"]
+                if modelName == "GranularitySelection":
+                  library = GranularitySelectionLibrary.FromOriginalState(origLibrary, selectionIndices)
+                else:
+                  library = TileAwareMetricLibrary.FromOriginalState(origLibrary, selectionIndices)  
+
 
             elif libName == 'Hardware':
                 newLib = PredicateLibrary(tag='Hardware')
