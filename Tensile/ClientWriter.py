@@ -28,7 +28,6 @@ import os
 import subprocess
 from shutil import copy as shutil_copy
 from shutil import rmtree
-from pathlib import Path
 
 from .Contractions import FreeIndex
 from .Contractions import ProblemType as ContractionsProblemType
