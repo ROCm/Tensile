@@ -897,7 +897,19 @@ class ProblemType(collections.abc.Mapping):
 
     self.convolution = Convolution(self, convolutionType, convolutionConfig)
     self["NumIndicesLD"] = 0
-    self["UseBeta"] = False
+    # For Conv with filter 1x1, unit-stride, no padding case, we can let UseBeta = True
+    self["UseBeta"] = ("UseBeta" in config and config["UseBeta"] == True) and (self.canExpressedAsGEMM() == True)
+
+  ########################################
+  def canExpressedAsGEMM(self):
+    rv = self.convolution != None and \
+         self.convolution.cc != None and \
+         self.convolution.cc.fil == [1,1] and \
+         self.convolution.cc.stride == [1,1] and \
+         self.convolution.cc.dilation == [1,1] and \
+         self.convolution.cc.padStart == [0,0] and \
+         self.convolution.cc.padEnd == [0,0]
+    return rv
 
   ########################################
   def isGEMM(self):
@@ -1629,8 +1641,11 @@ class Solution:
       if key != "ProblemType" and key not in self._state:
         self._state[key] = config[key]
     self["Valid"] = True
-    self["AssignedProblemIndependentDerivedParameters"] = False
-    self["AssignedDerivedParameters"] = False
+    # this could prevent OriginalSolution from re-assigning the parameters, save lots of time
+    if "AssignedProblemIndependentDerivedParameters" not in self._state:
+      self["AssignedProblemIndependentDerivedParameters"] = False
+    if "AssignedDerivedParameters" not in self._state:
+      self["AssignedDerivedParameters"] = False
 
     if self["ProblemType"].convolution:
         for (key,value) in self["ProblemType"].convolution.solutionParms.items():
@@ -2145,17 +2160,17 @@ class Solution:
 
     Solution.assignProblemIndependentDerivedParameters(state)
 
+    if "AssignedDerivedParameters" in state:
+      if state["AssignedDerivedParameters"]:
+        return
+    state["AssignedDerivedParameters"] = False
+
     for s in Solution.InternalKeys:
         state['_'+s] = state[s]
         #del state[s]
 
     if state["VectorStore"] == -1:
-        state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel
-
-    if "AssignedDerivedParameters" in state:
-      if state["AssignedDerivedParameters"]:
-        return
-    state["AssignedDerivedParameters"] = False
+        state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel    
 
     ProblemType.assignDerivedParameters(state["ProblemType"])
     if not state["Valid"]:
@@ -2823,6 +2838,15 @@ class Solution:
       if state["MatrixInstBN"] > 1 and state["MatrixInstN"] == 4:
         reject(state, "storeRemap doesn't support MI4x4 multi blocks in N direction yet")
         return
+      if not math.log(state["MacroTile0"],2).is_integer():
+        reject(state, "storeRemap only supports power-of-2 MT0")
+        # TODO - this return should be here, but this is a hotfix, 
+        # Somehow we have a "Validation Failed" kernel in rocBLAS now (SRVW=4 and MT0=96) and this will stop the whole building process
+        # Actions: 1. Hotfix, comment out this "return" temporarily for that invalidated kernel
+        #          2. Remove / replace that invalidated kernel
+        #          3. Put back this return
+        #          4. How to design a better way to prevent from invalid kernel in rocBLAS?
+        # return
 
       srMinVw = 1
       srMaxVw = 8
@@ -3174,7 +3198,7 @@ class Solution:
     if state["UnrollIncIsDepthU"] and globalParameters["NewClient"] != 2:
       raise RuntimeError ("Legacy client does not support UnrollIncIsDepthU=1 (ASEM issues), aborting")
 
-    problemType["AssignedDerivedParameters"] = True
+    state["AssignedDerivedParameters"] = True
 
 
   ########################################
