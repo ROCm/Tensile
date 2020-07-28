@@ -247,13 +247,22 @@ class MasterSolutionLibrary:
                 library = GranularitySelectionLibrary.FromOriginalState(origLibrary, selectionIndices)
 
             elif libName == 'Hardware':
+
+                if isinstance(deviceSection[1], dict):
+                    architectureProps = deviceSection[1]
+                    assert "Architecture" in architectureProps, "Invalid device section [1]"
+                    assert "CUCount" in architectureProps, "Invalid device section [1]"
+                    devicePart = architectureProps["Architecture"]
+                    cuCount = architectureProps["CUCount"]
+                else:
+                    devicePart = deviceSection[1]
+                    cuCount = None
+
                 newLib = PredicateLibrary(tag='Hardware')
-                devicePart = deviceSection[1]
                 if devicePart == 'fallback':
                     pred = Hardware.HardwarePredicate("TruePred")
                 else:
-                    isa = Common.gfxArch(devicePart)
-                    pred = Hardware.HardwarePredicate.FromISA(isa)
+                    pred = Hardware.HardwarePredicate.FromHardware(Common.gfxArch(devicePart), cuCount)
 
                 newLib.rows.append({'predicate': pred, 'library': library})
                 library = newLib
