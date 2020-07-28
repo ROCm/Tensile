@@ -2444,7 +2444,7 @@ class Solution:
       # added GSU support for DGEMM
       supported = \
         state["ProblemType"]["DataType"].isSingle() or \
-        state["ProblemType"]["DataType"].isDouble() or \
+        (state["ProblemType"]["DataType"].isDouble() and state["BufferStore"]) or \
         state["ProblemType"]["DestDataType"].isInt32() or \
         (state["KernelLanguage"] == "Assembly" and \
          (state["ProblemType"]["DataType"].isHalf() and \
