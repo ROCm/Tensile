@@ -2714,20 +2714,23 @@ class Solution:
       return
 
     # Default LocalReadVectorWidth
+    supportWiderLR = state["TransposeLDS"] and \
+                     state["ProblemType"]["TLUA"] == False and \
+                     state["ProblemType"]["TLUB"] == False
     if state["LocalReadVectorWidth"] == -1:
       if state["EnableMatrixInstruction"]:
         state["LocalReadVectorWidth"] = state["ProblemType"]["DataType"].numMIInput()
       else:
         state["LocalReadVectorWidth"] = state["VectorWidth"]
-    else:
-      if not state["EnableMatrixInstruction"]:
-        reject(state, "LocalReadVectorWidth requires MatrixInstruction")
-      if not state["TransposeLDS"]:
-        reject(state, "LocalReadVectorWidth requires TransposeLDS=1")
-      if state["ProblemType"]["TLUA"] or state["ProblemType"]["TLUB"]:
-        reject(state, "LocalReadVectorWidth requires TN TransposeLDS=1")
+
+    if state["EnableMatrixInstruction"]:
+      if not supportWiderLR and state["LocalReadVectorWidth"] != state["ProblemType"]["DataType"].numMIInput():
+        reject(state, "Temp reject LRVW for (TransposeLDS=0 or non-TN)")
       if state["LocalReadVectorWidth"] < state["ProblemType"]["DataType"].numMIInput():
         reject(state, "LocalReadVectorWidth < %u" %(state["ProblemType"]["DataType"].numMIInput()))
+    elif state["LocalReadVectorWidth"] != state["VectorWidth"]:
+      reject(state, "LocalReadVectorWidth requires MI-Kernel")
+    
 
     if state["LdsPadA"] == -1:
       if state["ProblemType"]["TLUA"]:
@@ -2933,6 +2936,7 @@ class Solution:
       if not state["EnableMatrixInstruction"]:
         reject(state, "TransposeLds Supports only in MatrixInstruction=1")
       if state["ProblemType"]["TLUA"] and state["ProblemType"]["TLUB"]:
+          # TODO: Now in rocBLAS, lot of logic yamls are Type=NT and TLDS=1? Why aren't they rejected and how to get rid of them?
           reject(state, "TransposeLds requires TLUA=0 or TLUB=0")
       if state["EnableMatrixInstruction"]:
         # enable widerLocalRead
