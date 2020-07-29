@@ -29,23 +29,42 @@ def test_hardware_predicate_comparison():
     a = HardwarePredicate.FromISA((9,0,0))
     b = HardwarePredicate.FromISA((9,0,6))
     c = HardwarePredicate("TruePred")
+    d = HardwarePredicate.FromHardware((9,0,8), 60)
+    e = HardwarePredicate.FromHardware((9,0,8), 64)
 
     assert a < b
     assert a < c
     assert b < c
 
+    assert d < a
+    assert d < b
+    assert d < c
+
+    assert e < a
+    assert e < b
+    assert e < c
+    assert e < d
+
     assert not b < a
     assert not c < a
     assert not c < b
+    assert not a < e
+    assert not b < e
+    assert not c < e
+    assert not d < e
 
     assert not a < a
     assert not b < b
     assert not c < c
+    assert not d < d
+    assert not e < e
 
 def predicate_library_objects():
     objs = [PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,0))}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,6))}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,8))}]),
+            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,0,8), 60)}]),
+            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,0,8), 64)}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate('TruePred')}])
     ]
 
@@ -58,5 +77,7 @@ def test_predicate_library_merge(libraries):
         lib.merge(lib2)
 
     assert lib.rows[-1]['predicate'] == HardwarePredicate('TruePred')
+    assert lib.rows[0]['predicate'] == HardwarePredicate.FromHardware((9,0,8), 64)
+    assert lib.rows[1]['predicate'] == HardwarePredicate.FromHardware((9,0,8), 60)
     for r in lib.rows[:-1]:
         assert r['predicate'] != HardwarePredicate('TruePred')

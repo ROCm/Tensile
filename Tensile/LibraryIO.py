@@ -136,7 +136,7 @@ def readLibraryLogicForSchedule( filename ):
   # parse out objects
   versionString     = data[0]["MinimumRequiredVersion"]
   scheduleName      = data[1]
-  architectureName  = data[2]
+  architectureName  = data[2] if isinstance(data[2], str) else data[2]["Architecture"]
   deviceNames       = data[3]
   problemTypeState  = data[4]
   solutionStates    = data[5]
