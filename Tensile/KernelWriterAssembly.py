@@ -10689,7 +10689,7 @@ class KernelWriterAssembly(KernelWriter):
         bps = kernel["ProblemType"]["DataType"].numBytes()
         vgprCnt = 2 if kernel["ProblemType"]["DataType"].isDouble() else 1   # number of registers for f32/f64
         bpm = self.bpeCexternal * atomicW
-        vgprIdx = 1*(bpm//4)   # index register 
+        vgprIdx = 1*(bpm//4)   # index register
 
         for avi in range(0, gwvw//atomicW):
           dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
