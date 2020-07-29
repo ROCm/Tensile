@@ -1,3 +1,6 @@
+TestParameters:
+  marks: [skip] # Known hipcc bug
+
 GlobalParameters:
   EnqueuesPerSync: 1
   NumElementsToValidate: -1
