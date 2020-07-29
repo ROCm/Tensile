@@ -96,7 +96,7 @@ function(TensileCreateLibraryFiles
   set(Script "${Tensile_ROOT}/bin/TensileCreateLibrary")
   message(STATUS "Tensile script: ${Script}")
 
-  set(Options "--new-client-only --no-legacy-components")
+  set(Options "--new-client-only" "--no-legacy-components")
 
   if(Tensile_MERGE_FILES)
     set(Options ${Options} "--merge-files")
