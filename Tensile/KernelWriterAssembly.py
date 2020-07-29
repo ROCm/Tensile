@@ -395,7 +395,29 @@ class ZeroPadReg:
   def isMatch(self, perp, sPerp, para, sPara):
     return self.perp==perp and self.sPerp==sPerp and self.para==para and self.sPara==sPara
 
+class VgprOccupancyCurve:
+  def __init__(self):
+    self._vgprOccupancy = [0]*(256+1)
+    for i in range(0,   24+1): self._vgprOccupancy[i] = 10
+    for i in range(25,  28+1): self._vgprOccupancy[i] = 9
+    for i in range(29,  32+1): self._vgprOccupancy[i] = 8
+    for i in range(33,  36+1): self._vgprOccupancy[i] = 7
+    for i in range(37,  40+1): self._vgprOccupancy[i] = 6
+    for i in range(41,  48+1): self._vgprOccupancy[i] = 5
+    for i in range(49,  64+1): self._vgprOccupancy[i] = 4
+    for i in range(65,  84+1): self._vgprOccupancy[i] = 3
+    for i in range(85, 128+1): self._vgprOccupancy[i] = 2
+    for i in range(129,256+1): self._vgprOccupancy[i] = 1
+  def __call__(self, index):
+    if index < 0 or index > 256:
+      return 0
+    return self._vgprOccupancy[index]
+  def __getitem__(self, item):
+    return self(item)
+  def __len__(self):
+    return len(self._vgprOccupancy)
 
+vgprOccupancy = VgprOccupancyCurve()
 
 ################################################################################
 # Assembly Kernel
@@ -535,18 +557,6 @@ class KernelWriterAssembly(KernelWriter):
     self.overlapVgprC = False
     self.serializedStore = False
 
-    self.vgprOccupancy = [0]*(256+1)
-    for i in range(0,   24+1): self.vgprOccupancy[i] = 10
-    for i in range(25,  28+1): self.vgprOccupancy[i] = 9
-    for i in range(29,  32+1): self.vgprOccupancy[i] = 8
-    for i in range(33,  36+1): self.vgprOccupancy[i] = 7
-    for i in range(37,  40+1): self.vgprOccupancy[i] = 6
-    for i in range(41,  48+1): self.vgprOccupancy[i] = 5
-    for i in range(49,  64+1): self.vgprOccupancy[i] = 4
-    for i in range(65,  84+1): self.vgprOccupancy[i] = 3
-    for i in range(85, 128+1): self.vgprOccupancy[i] = 2
-    for i in range(129,256+1): self.vgprOccupancy[i] = 1
-
   def getCompileArgs(self, sourceFileName, objectFileName, *moreArgs):
     isa = self.version
     archHasV3 = globalParameters["AsmCaps"][isa]["HasCodeObjectV3"]
@@ -579,41 +589,38 @@ class KernelWriterAssembly(KernelWriter):
     return rv
 
   ########################################
-  def getOccupancy(self, kernel, vgprs, accvgprs=0):
-    multiplier = int(ceil(max(kernel["NumThreads"], 256) / 256.0))
+  @staticmethod
+  def getOccupancy(numThreads, vgprs, ldsSize, accvgprs=0):
+    multiplier = int(ceil(max(numThreads, 256) / 256.0))
     # example: wg=512 multiplier=2, 1024=4
 
-    ldsSize = kernel["LdsNumElements"] * kernel["ProblemType"]["DataType"].numBytes()
-    ldsSize = (ldsSize + 255) & 0x1ff00 # 256-byte granularity
-    ldsLimitedOccupancy = self.getLdsLimitedOccupancy(ldsSize)
+    ldsLimitedOccupancy = KernelWriterAssembly.getLdsLimitedOccupancy(ldsSize)
 
     vgprs *= multiplier
-    vgprLimitedOccupancy =  self.vgprOccupancy[vgprs] if vgprs <= 256 else 0
+    vgprLimitedOccupancy =  vgprOccupancy[vgprs]
 
     accvgprs *= multiplier
-    accvgprLimitedOccupancy =  self.vgprOccupancy[accvgprs] if accvgprs <= 256 else 0
+    accvgprLimitedOccupancy =  vgprOccupancy[accvgprs]
 
     return min(ldsLimitedOccupancy, vgprLimitedOccupancy, accvgprLimitedOccupancy)
 
   # TODO: also consider sgpr
-  def getMaxRegsForOccupancy(self, vgprs, ldsSize, accvgprs=0):
-
-    vgprOccupancy = self.vgprOccupancy[vgprs] if vgprs <= 256 else 0
-    accvgprOccupancy = self.vgprOccupancy[accvgprs] if accvgprs <= 256 else 0
-    initOccupancy = vgprOccupancy
-    if accvgprs > 0:
-      initOccupancy = min(initOccupancy, accvgprOccupancy)
-    if ldsSize > 0:
-      initOccupancy = min(initOccupancy, self.getLdsLimitedOccupancy(ldsSize))
+  @staticmethod
+  def getMaxRegsForOccupancy(numThreads, vgprs, ldsSize, accvgprs=0):
+    multiplier = int(ceil(max(numThreads, 256) / 256.0))
+    vgprs*=multiplier # convert to per simd vgpr count
+                      # eg, 512-thread wg means 2 waves per simd, meaning vgpr count per simd is 2x the vgpr count per wave
     lastVgprs = vgprs
-    while vgprs < len(self.vgprOccupancy)-1:
+    initOccupancy = KernelWriterAssembly.getOccupancy(numThreads, vgprs, ldsSize, accvgprs)
+    while vgprs < len(vgprOccupancy):
       vgprs += 1
-      if vgprOccupancy >= initOccupancy:
+      if vgprOccupancy[vgprs] >= initOccupancy:
         lastVgprs = vgprs
         next
       else:
         break
-    return lastVgprs
+
+    return lastVgprs//multiplier # convert back to per wave vgpr count
 
   @staticmethod
   def getLdsLimitedOccupancy(ldsSize):
@@ -9899,7 +9906,7 @@ class KernelWriterAssembly(KernelWriter):
 
         #print self.vgprPool.state()
         # Use VGPR up to next occupancy threshold:
-        maxVgprs = self.getMaxRegsForOccupancy(self.vgprPool.size(), self.getLdsSize(kernel), self.agprPool.size())
+        maxVgprs = self.getMaxRegsForOccupancy(kernel["NumThreads"], self.vgprPool.size(), self.getLdsSize(kernel), self.agprPool.size())
         if self.serializedStore: # get aggresive when serializedStore is on; not necessarily exclusive to this parameter
           len(elements[edgeI])
           tl = []
@@ -9924,9 +9931,8 @@ class KernelWriterAssembly(KernelWriter):
           print("numVgprAvailable=", numVgprAvailable, "minElements=", minElements, "minNeeded=", minNeeded)
         if numVgprAvailable < minNeeded:
           gwvwOrig = gwvw
-          # TODO: consider the rest of limiters ie sgpr
-          currentOccupancy = self.getOccupancy(kernel, self.vgprPool.size(), self.agprPool.size())
-          futureOccupancy = self.getOccupancy(kernel, \
+          currentOccupancy = self.getOccupancy(kernel["NumThreads"], self.getLdsSize(kernel), self.vgprPool.size(), self.agprPool.size())
+          futureOccupancy = self.getOccupancy(kernel["NumThreads"], self.getLdsSize(kernel), \
               self.vgprPool.size() - numVgprAvailable + minNeeded, self.agprPool.size())
 
           if shrinkDb:
