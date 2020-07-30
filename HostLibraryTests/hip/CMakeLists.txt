@@ -17,12 +17,6 @@ TensileCreateLibraryFiles(
     CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
     )
 
-TensileCreateCopyTarget(
-    copy_kernels_lite
-    "${LITE_ALL_FILES}"
-    ${TEST_DATA_DIR}/kernels_lite
-    )
-
 TensileCreateLibraryFiles(
     "${CMAKE_CURRENT_SOURCE_DIR}/../configs/lite_configs_mixed"
     "${CMAKE_CURRENT_BINARY_DIR}/test_kernels_lite_mixed"
@@ -33,12 +27,6 @@ TensileCreateLibraryFiles(
     NO_MERGE_FILES
     COMPILER ${COMPILER}
     CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
-    )
-
-TensileCreateCopyTarget(
-    copy_kernels_lite_mixed
-    "${LITE_MIXED_ALL_FILES}"
-    ${TEST_DATA_DIR}/kernels_lite_mixed
     )
 
 TensileCreateLibraryFiles(
@@ -53,27 +41,16 @@ TensileCreateLibraryFiles(
     CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
     )
 
-TensileCreateCopyTarget(
-    copy_kernels_lite_2
-    "${LITE_2_ALL_FILES}"
-    ${TEST_DATA_DIR}/kernels_lite_2
-    )
-
 TensileCreateLibraryFiles(
     "${CMAKE_CURRENT_SOURCE_DIR}/../configs/tile_aware_selection"
     "${CMAKE_CURRENT_BINARY_DIR}/test_tile_aware_selection"
     TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
     EMBED_LIBRARY test_tile_aware_selection
     EMBED_KEY     tile_aware_selection
+    VAR_PREFIX TILE_AWARE
     NO_MERGE_FILES
     COMPILER ${COMPILER}
     CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
-    )
-
-TensileCreateCopyTarget(
-    copy_kernels_tile_aware_selection
-    "${TENSILE_ALL_FILES}"
-    ${TEST_DATA_DIR}/tile_aware_selection/library
     )
 
 set(test_yaml rocblas_sgemm_asm_single_kernel.yaml)
@@ -97,11 +74,11 @@ set(HIP_TEST_LIBRARIES
 
 # Make sure that the TensileTests depends on targets below.
 # Otherwise the TensileTests executable will segfault out.
-set(HIP_TEST_COPY_TARGET_DEPS
-    copy_kernels_lite
-    copy_kernels_lite_2
-    copy_kernels_lite_mixed
-    copy_kernels_tile_aware_selection
+set(HIP_TEST_LIBRARY_TARGET_DEPS
+    LITE_LIBRARY_TARGET
+    LITE_MIXED_LIBRARY_TARGET
+    LITE_2_LIBRARY_TARGET
+    TILE_AWARE_LIBRARY_TARGET
     PARENT_SCOPE
 )
 
