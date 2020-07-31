@@ -472,41 +472,88 @@ class KernelWriter(metaclass=abc.ABCMeta):
       iterCode.addCode(waitCode)
 
       # interleave pack code
-      packItem = packCode.flatitems()
-      packCount = 0
-      packInstPerIter = (1 + kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1]) * (kernel["MatrixInstK"] // 2)
-      while packItem:
-        if packCount < packInstPerIter:
-          item = packItem.pop(0)
-          iterCode.addCode(item)
-          packCount = packCount + 1
-        else:
-          break
+      instPerPack = 1 if kernel["ProblemType"]["DataType"].isBFloat16() else 2
+      packItems = []
+      for iui in range(kernel["InnerUnroll"]):
+        packINtems = [ [] for j in range(max(self.numReadsIterCoalescedA,self.numReadsIterCoalescedB)) ]
+        packA = packCode.findNamedItem("packA_I%s"%(iui))
+        packB = packCode.findNamedItem("packB_I%s"%(iui))
+        # In case localReadDo not generate pack Module
+        # and findNamedItem will return None type
+        # TODO: let all type have pack Module
+        if not packA:
+          packA = Code.Module()
+        packAItems = packA.flatitems()
+        if not packB:
+          packB = Code.Module()
+        packBItems = packB.flatitems()
+        if packAItems:
+          for j in range(self.numReadsIterCoalescedA):
+            for n in range(instPerPack):
+              packINtems[j].append(packAItems.pop(0))
+        if packBItems:
+          for j in range(self.numReadsIterCoalescedB):
+            for n in range(instPerPack):
+              packINtems[j].append(packBItems.pop(0))
+        while packAItems:
+          for j in range(self.numReadsIterCoalescedA):
+            for n in range(instPerPack):
+              packINtems[j].append(packAItems.pop(0))
+        while packBItems:
+          for j in range(self.numReadsIterCoalescedB):
+            for n in range(instPerPack):
+              packINtems[j].append(packBItems.pop(0))
+        for j in range(max(self.numReadsIterCoalescedA,self.numReadsIterCoalescedB)):
+          packItems += packINtems.pop(0)
 
-      if packCount == 0:
-        tmpVgpr = self.vgprPool.checkOut(1)
-        iterCode.addInst("v_mov_b32 ","v%u"%(tmpVgpr),"0x0","valu operation to have different priority")
-        self.vgprPool.checkIn(tmpVgpr)
-
-      iterCode.addInst("s_setprio ","3","Raise priority while processing macs")
       macIterItem = macIterCode.flatitems()
       # pop the first code which is s_nop 1 for packing
       item = macIterItem.pop(0)
-      iterCode.addCode(item)
 
-      while macIterItem:
+      numMfmaPerIter = kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] * kernel["InnerUnroll"]
+      curPackIdx = 0
+      packAIdx = 0
+      packBIdx = 0
+
+      for i in range(numMfmaPerIter):
+        if packItems:
+          # how many pack have to be done
+          # calculate the data index of this mfma used for A and B
+          # if i // kernel["MIWaveTile"][0]==0, mfma will use new A (need to take iu into account)
+          # if i % kernel["MIWaveTile"][0]==0, mfma will use new B
+          packAIdx += instPerPack if i//(kernel["MIWaveTile"][0]+kernel["MIWaveTile"][0]*kernel["MIWaveTile"][1]*(i//(kernel["MIWaveTile"][0]*kernel["MIWaveTile"][1]))) == 0 else 0
+          packBIdx += instPerPack if i % kernel["MIWaveTile"][0] == 0 else 0
+          packAIdx = packAIdx if self.tPA["localReadInstruction"].blockWidth == 0.5 else 0
+          packBIdx = packBIdx if self.tPB["localReadInstruction"].blockWidth == 0.5 else 0
+          numPack = (packAIdx + packBIdx)
+          iterCode.addComment0("pack scheduling: packAIdx:%u, packBIdx:%u" %(packAIdx,packBIdx))
+          # we put 2 pack in each mfma
+          if packItems:
+            for j in range(instPerPack):
+              iterCode.addCode(packItems.pop(0))
+              curPackIdx += 1
+          if packItems:
+            for j in range(instPerPack):
+              iterCode.addCode(packItems.pop(0))
+              curPackIdx += 1
+          # since packed register need to wait 2 quad cycle to finish packing
+          # we insert pack instruction if we can, or s_nop
+          while curPackIdx < numPack+2:
+            if packItems:
+              for j in range(instPerPack):
+                iterCode.addCode(packItems.pop(0))
+                curPackIdx += 1
+            else:
+              iterCode.addInst("s_nop ","0","VALU packing writes to be consumed by matrix instruction")
+              curPackIdx += 1
+        if i == 0:
+          if not packItems:
+            tmpVgpr = self.vgprPool.checkOut(1)
+            iterCode.addInst("v_mov_b32 ","v%u"%(tmpVgpr),"0x0","valu operation to have different priority")
+            self.vgprPool.checkIn(tmpVgpr)
+          iterCode.addInst("s_setprio ","3","Raise priority while processing macs")
         item = macIterItem.pop(0)
         iterCode.addCode(item)
-        packCount = 0
-        while packItem:
-          if packCount < 8:
-            item = packItem.pop(0)
-            iterCode.addCode(item)
-            packCount = packCount + 1
-          else:
-            break
-        if packCount > 0:
-          iterCode.addInst("s_nop ","1","VALU packing writes to be consumed by matrix instruction")
 
       iterCode.addInst("s_setprio ","1","Raise priority while processing macs")
       iterCode.addCode(localWriteCode)
@@ -1344,7 +1391,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       finalLoop = not expand or lc==loopCopies-1
       kl.append(self.comment3("Unroll Loop %u/%u - Begin" % (lc+1, loopCopies)))
       kl.append(self.openLoopCopy(kernel, lc))
-      if kernel["PrefetchGlobalRead"] and not self.numItersPLR:
+      if kernel["PrefetchGlobalRead"] and not self.numItersPLR and not kernel["ScheduleIterAlg"] == 2:
         if self.enable["Wait"]:
           if kernel["DirectToLdsA"] or kernel["DirectToLdsB"]:
             kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "11wait for global read"))
@@ -1505,7 +1552,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
         # put barrier at localWriteEndIter+1
         if kernel["PrefetchGlobalRead"]:
-          if u == localWriteEndIter+1:
+          if u == localWriteEndIter+1 or (u == (localWriteEndIter+1)%kernel["LoopIters"] and kernel["ScheduleIterAlg"] == 2):
             if self.enable["Wait"]:
               if kernel["DirectToLdsA"] or kernel["DirectToLdsB"]:
                 kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "12wait for global read"))

@@ -2873,6 +2873,8 @@ class KernelWriterAssembly(KernelWriter):
         msg = "Occupancy limit"
       elif self.overflowedResources == 5:
         msg = "reading and writing LDS at same time require 2 LDS buffer"
+      elif self.overflowedResources == 6:
+        msg = "SIA2 better with occupancy 2"
       else:
         msg = "unknown"
 
@@ -11630,6 +11632,10 @@ class KernelWriterAssembly(KernelWriter):
     elif self.sgprPool.size() > self.maxSgprs:
       self.overflowedResources = 2
 
+    if kernel["ScheduleIterAlg"] == 2 and \
+        self.getOccupancy(kernel["NumThreads"], self.vgprPool.size(), self.getLdsSize(kernel), self.agprPool.size()) < 2:
+      self.overflowedResources = 6
+
     vgprPerCU = 65536
     vgprPerThreadPerOccupancy = vgprPerCU // kernel["NumThreads"]
     numWorkGroupsPerCU = vgprPerThreadPerOccupancy // max(self.vgprPool.size(), self.agprPool.size())
@@ -11739,7 +11745,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr = ""
       if self.archCaps["SeparateVscnt"]:
         kStr += inst("s_waitcnt_lgkmcnt", "null", "0", "extra navi wait")
-      elif self.archCaps["Waitcnt0Disabled"]:
+      elif self.archCaps["Waitcnt0Disabled"] and not kernel["ScheduleIterAlg"] == 2:
         kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "force waitcnt0" )
 
       kStr += self.indent + self.syncStr + " //" + comment + self.endLine
