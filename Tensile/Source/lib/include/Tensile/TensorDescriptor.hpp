@@ -162,11 +162,6 @@ namespace Tensile
                 return;
             }
 
-            // for(int i = 0; i < m_sizes.size(); i++)
-            // {
-            //     TENSILE_ASSERT_EXC(m_sizes[i] > 0);
-            // }
-
             m_strides.resize(m_sizes.size(), UseDefaultStride);
             if(m_strides[0] == UseDefaultStride)
             {
