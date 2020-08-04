@@ -95,6 +95,11 @@ namespace Tensile
         return m_value & 0x2000;
     }
 
+    bool Debug::printWinningKernelName() const
+    {
+        return m_value & 0x4000;
+    }
+
     bool Debug::naivePropertySearch() const
     {
         return m_naivePropertySearch;
