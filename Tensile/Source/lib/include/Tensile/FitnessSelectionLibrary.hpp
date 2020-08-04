@@ -91,7 +91,7 @@ namespace Tensile
             const bool debug = Debug::Instance().printPropertyEvaluation();
 
             std::vector<size_t> key;
-            size_t              M = problem.freeSizeA(0);
+            size_t M = problem.freeSizeA(0);
             key.push_back(M);
             size_t N = problem.freeSizeB(0);
             key.push_back(N);
@@ -126,7 +126,7 @@ namespace Tensile
                 }
             }
 
-            double                      bestPerformance = 0.0;
+            double                      bestDistance = std::numeric_limits<double>::max();
             std::shared_ptr<MySolution> bestSolution;
 
             /*
@@ -180,13 +180,99 @@ namespace Tensile
                 //int                 key;
                 //std::shared_ptr<MySolution>          solution;
                 //std::vector<double> problem;
+                size_t model_M = (size_t)it->problem[0];
+                size_t model_N = (size_t)it->problem[1];
+                size_t model_batchSize = (size_t)it->problem[2];
+                size_t model_K = (size_t)it->problem[3];
 
-                ContractionSolution::TAMetricProjectedPerformance pp = 
-                  it->solution->computeProjectedPerformance(
+                ContractionSolution::TAMetricProblemScore ppReference = 
+                  it->solution->computeProblemScore(
+                    hardware, 
+                    model_M, model_N, model_K, model_batchSize,
+                    0, 0, 0, 0);
+
+                ContractionSolution::TAMetricProblemScore pp = 
+                  it->solution->computeProblemScore(
                     hardware, 
                     M, N, K, NumBatches,
                     0, 0, 0, 0);
                 it++;
+
+       
+                double metric = std::numeric_limits<double>::max();
+                
+                if (ppReference.tile0Granularity > 0.0 && pp.tile0Granularity > 0.0)
+                {
+                  metric = abs(log(ppReference.tile0Granularity) - log(pp.tile0Granularity));
+                }
+                if (ppReference.tile0Granularity > 0.0 && pp.tile0Granularity > 0.0)
+                {
+                  if (metric < std::numeric_limits<double>::max())
+                  {
+                    metric += abs(log(ppReference.tile1Granularity) - log(pp.tile1Granularity));
+                  }
+                  else
+                  {
+                    metric = abs(log(ppReference.tile1Granularity) - log(pp.tile1Granularity));
+                  }
+                }  
+                if (ppReference.cuGranularity > 0.0 && pp.cuGranularity > 0.0)
+                {
+                  if (metric < std::numeric_limits<double>::max())
+                  {
+                    metric += abs(log(ppReference.cuGranularity) - log(pp.cuGranularity));
+                  }
+                  else
+                  {
+                    metric = abs(log(ppReference.cuGranularity) - log(pp.cuGranularity));
+                  }
+                  //metric += abs(log(ppReference.cuGranularity) - log(pp.cuGranularity));
+                }
+                if (ppReference.waveGranularity > 0.0 && pp.waveGranularity > 0.0)
+                {
+                  if (metric < std::numeric_limits<double>::max())
+                  {
+                    metric += abs(log(ppReference.waveGranularity) - log(pp.waveGranularity));
+                  }
+                  else
+                  {
+                    metric = abs(log(ppReference.waveGranularity) - log(pp.waveGranularity));
+                  }
+                  //metric += abs(log(ppReference.waveGranularity) - log(pp.waveGranularity));
+                }
+                
+                if (metric < bestDistance)
+                {
+                    bestDistance = metric;
+                    bestSolution = it->solution;
+                }
+
+/*
+                struct TAMetricProblemScore
+        {
+            double numTiles0  = 0.0; //! number of tiles in 0 dimension
+            double numTiles1  = 0.0; //! number of tiles in 1 dimension
+            double totalTiles = 0.0;
+            double tilesPerCu = 0.0;
+
+            //! Granularity is measured 0..1 with 1.0 meaning no granularity loss
+            double tile0Granularity = 0.0; // loss due to tile0
+            double tile1Granularity = 0.0;
+            double cuGranularity    = 0.0;
+            double waveGranularity  = 0.0;
+            double totalGranularity = 0.0;
+            double suTilesPerCu = 0.0;
+            double suCuGranularity = 0.0;
+            double waves = 0.0;
+            double suWavesPerSimdx2 = 0.0;
+            double suWaveGranularity = 0.0;
+
+            double speedGFlops = 0.0; //! final gflops projection
+            int    CUs         = 0;
+
+            StaticTAMetricPerformanceModel staticModel;
+        };*/
+
             }
             
 

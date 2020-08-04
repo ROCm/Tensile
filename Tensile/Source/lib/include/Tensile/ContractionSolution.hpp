@@ -109,7 +109,7 @@ namespace Tensile
             size_t memGlobalWrites = 0;
         };
 
-        struct TAMetricProjectedPerformance
+        struct TAMetricProblemScore
         {
             double numTiles0  = 0.0; //! number of tiles in 0 dimension
             double numTiles1  = 0.0; //! number of tiles in 1 dimension
@@ -145,7 +145,7 @@ namespace Tensile
                                                       int    globalSplitU) const;
 
 
-        TAMetricProjectedPerformance computeProjectedPerformance(
+        TAMetricProblemScore computeProblemScore(
             Hardware const& hardware, 
             double M, double N, double K, double NumBatches,
             double LDA, double LDB, double LDC, double LDD) const;
@@ -153,7 +153,7 @@ namespace Tensile
         /**
         * Calculate the projected performance based on granularity loss.
         */
-        TAMetricProjectedPerformance projectedTAMetricPerformance(Problem const&  problem,
+        TAMetricProblemScore projectedTAMetricPerformance(Problem const&  problem,
                                                   Hardware const& hardware) const;
 
         //! Estimates based on problem size, solution tile, and  machine hardware

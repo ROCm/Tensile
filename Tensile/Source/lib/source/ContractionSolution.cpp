@@ -759,14 +759,14 @@ ContractionSolution::StaticTAMetricPerformanceModel
         return spm;
     }
 
-    ContractionSolution::TAMetricProjectedPerformance 
-    ContractionSolution::computeProjectedPerformance(
+    ContractionSolution::TAMetricProblemScore 
+    ContractionSolution::computeProblemScore(
             Hardware const& hardware, 
             double M, double N, double K, double NumBatches,
             double LDA, double LDB, double LDC, double LDD) const
             
     {
-        ContractionSolution::TAMetricProjectedPerformance pp;
+        ContractionSolution::TAMetricProblemScore pp;
 
         double MT0 = sizeMapping.macroTile.x;
         double MT1 = sizeMapping.macroTile.y;
@@ -813,11 +813,11 @@ ContractionSolution::StaticTAMetricPerformanceModel
         return  pp;
     }
 
-    ContractionSolution::TAMetricProjectedPerformance
+    ContractionSolution::TAMetricProblemScore
         ContractionSolution::projectedTAMetricPerformance(Problem const&  problem,
                                                   Hardware const& hardware) const
     {
-        TAMetricProjectedPerformance pp;
+        TAMetricProblemScore pp;
 
         double M = 1.0, N = 1.0;
         /*if(problem.freeIndicesA().size() > 1 || sizeMapping.packBatchDims & 0x1)
@@ -894,7 +894,7 @@ ContractionSolution::StaticTAMetricPerformanceModel
         */
         //double IdealGranularityPerf = closestKPerformance;
 
-        pp = computeProjectedPerformance(
+        pp = computeProblemScore(
             hardware, 
             M, N, K, NumBatches,
             0, 0, 0, 0);
@@ -1122,7 +1122,7 @@ ContractionSolution::StaticTAMetricPerformanceModel
     }
 
     std::ostream& operator<<(std::ostream&                                    stream,
-                             ContractionSolution::TAMetricProjectedPerformance const& pp)
+                             ContractionSolution::TAMetricProblemScore const& pp)
     {
         return stream << " numTiles0=" << pp.numTiles0 << " numTiles1=" << pp.numTiles1
                       << " tilesPerCu=" << pp.tilesPerCu
