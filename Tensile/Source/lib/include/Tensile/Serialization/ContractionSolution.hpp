@@ -61,6 +61,7 @@ namespace Tensile
                 iot::mapRequired(io, "debugKernel", s.debugKernel);
                 iot::mapRequired(io, "info", s.info);
                 iot::mapOptional(io, "ideals", s.ideals);
+                //iot::mapOptional(io, "idealsm", s.idealsm);
 
                 iot::mapRequired(io, "sizeMapping", s.sizeMapping);
                 iot::mapRequired(io, "problemType", s.problemType);

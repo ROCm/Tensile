@@ -144,6 +144,12 @@ namespace Tensile
                                                       double totalGranularity,
                                                       int    globalSplitU) const;
 
+
+        TAMetricProjectedPerformance computeProjectedPerformance(
+            Hardware const& hardware, 
+            double M, double N, double K, double NumBatches,
+            double LDA, double LDB, double LDC, double LDD) const;
+
         /**
         * Calculate the projected performance based on granularity loss.
         */
@@ -274,6 +280,7 @@ namespace Tensile
         /// somewhere else.
         std::map<std::string, std::string> info;
         std::map<int, double>              ideals;
+        //std::vector<std::vector<double>>  idealsm;
 
         int32_t staggerUIter(Problem const&  problem,
                              Inputs const&   inputs,

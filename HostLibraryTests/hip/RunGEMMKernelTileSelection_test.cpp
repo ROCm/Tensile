@@ -224,10 +224,12 @@ TEST_P(RunGEMMKernelSolutionSelectionTest, KernelsFitnessSelection)
 
     bool debug = false;
     auto library = LoadLibraryFile<ContractionProblem>(
-            TestData::Instance().file("fitness_selection/library/TensileLibrary").native());
+            //TestData::Instance().file("fitness_selection/library/TensileLibrary").native());
+            TestData::Instance().file("fitness_selection2/library/TensileLibrary").native());
 
     auto adapter = std::make_shared<hip::SolutionAdapter>(debug, "fitness_selection");
-    for(auto file : TestData::Instance().glob("fitness_selection/library/*.*co"))
+    for(auto file : TestData::Instance().glob("fitness_selection2/library/*.*co"))
+    //for(auto file : TestData::Instance().glob("fitness_selection/library/*.*co"))
         adapter->loadCodeObjectFile(file.native());
 
     //for(auto file : TestData::Instance().glob("tile_aware_selection/library/*.*hsaco"))
@@ -245,6 +247,7 @@ TEST_P(RunGEMMKernelSolutionSelectionTest, KernelsFitnessSelection)
 
     ASSERT_NE(library, nullptr);
 
+
     auto solution = library->findBestSolution(problem, *hardware);
 
     ASSERT_NE(solution, nullptr);
@@ -260,7 +263,6 @@ TEST_P(RunGEMMKernelSolutionSelectionTest, KernelsFitnessSelection)
     {
         ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i;
     }
-
 }
 
 INSTANTIATE_TEST_SUITE_P(

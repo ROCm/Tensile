@@ -283,11 +283,17 @@ class MasterSolutionLibrary:
                 library = matchingLibrary
 
             elif libName == 'SelectionModel':
-                selectionIndices = d[9]["TileSelectionIndices"]
-                modelName = d[9]["SelectionModel"]
+                #selectionIndices = d[9]["TileSelectionIndices"]
+                
+                modelName = "GranularitySelection"
+                if "SelectionModel" in d[9]:
+                  modelName = d[9]["SelectionModel"]
                 if modelName == "GranularitySelection":
+                  selectionIndices = d[9]["TileSelectionIndices"]
                   library = GranularitySelectionLibrary.FromOriginalState(origLibrary, selectionIndices)
                 else:
+                  #library = TileAwareMetricLibrary.FromOriginalState(origLibrary, selectionIndices) 
+                  selectionIndices = d[9]["IdealMap"]
                   library = TileAwareMetricLibrary.FromOriginalState(origLibrary, selectionIndices)  
 
 

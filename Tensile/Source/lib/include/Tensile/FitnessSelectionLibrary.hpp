@@ -40,12 +40,21 @@ namespace Tensile
     /**
  * \ingroup SolutionLibrary
  */
-    struct FitnessSelectionTableEntry
+    struct FitnessSolutionTableEntry
     {
         std::vector<size_t> key;
         int                 value;
     };
 
+    template <typename MySolution>
+    struct FitnessModelTableEntry
+    {
+        int                 key;
+        std::shared_ptr<MySolution>          solution;
+        std::vector<double> problem;
+    };
+
+    //FitnessSelectionTableEntry
     /**
  * \ingroup SolutionLibrary
  *
@@ -59,6 +68,7 @@ namespace Tensile
     {
         std::map<int, std::shared_ptr<MySolution>> solutions;
         std::map<std::vector<size_t>, int>         exactMap;
+        std::vector<FitnessModelTableEntry<MySolution>>        modelProblems;
 
         static std::string Type()
         {
@@ -76,7 +86,7 @@ namespace Tensile
         }
 
         virtual std::shared_ptr<MySolution>
-            findBestSolution(MyProblem const& problem, Hardware const& hardware) const override
+        findBestSolution(MyProblem const& problem, Hardware const& hardware) const override
         {
             const bool debug = Debug::Instance().printPropertyEvaluation();
 
@@ -119,6 +129,7 @@ namespace Tensile
             double                      bestPerformance = 0.0;
             std::shared_ptr<MySolution> bestSolution;
 
+            /*
             for(auto const& row : solutions)
             {
                 auto myPerformance
@@ -153,7 +164,31 @@ namespace Tensile
                         std::cout << std::endl;
                     }
                 }
+            }*/
+
+            auto it = modelProblems.begin();
+
+            //double M = 1.0, N = 1.0;
+            //M = problem.freeSizeA(0);
+            //N = problem.freeSizeB(0);
+            //double NumBatches = 1;
+            //double K = problem.boundSize(0); 
+
+
+            while (it != modelProblems.end())
+            {
+                //int                 key;
+                //std::shared_ptr<MySolution>          solution;
+                //std::vector<double> problem;
+
+                ContractionSolution::TAMetricProjectedPerformance pp = 
+                  it->solution->computeProjectedPerformance(
+                    hardware, 
+                    M, N, K, NumBatches,
+                    0, 0, 0, 0);
+                it++;
             }
+            
 
             return bestSolution;
         }

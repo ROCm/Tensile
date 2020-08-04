@@ -128,6 +128,18 @@ namespace Tensile
         {
         };
 
+        template <typename IO>
+        struct CustomMappingTraits<std::map<int, std::vector<double>>, IO>
+            : public DefaultCustomMappingTraits<std::map<int, std::vector<double>>, IO, false, true>
+        {
+        };
+
+        template <typename IO>
+        struct CustomMappingTraits<std::map<int, std::vector<std::vector<double>>>, IO>
+            : public DefaultCustomMappingTraits<std::map<int, std::vector<std::vector<double>>>, IO, false, true>
+        {
+        };
+
         template <typename Seq, typename IO, bool Flow>
         struct DefaultSequenceTraits
         {
@@ -159,7 +171,8 @@ namespace Tensile
     }
 
         TENSILE_SERIALIZE_VECTOR(true, ExactSelectionTableEntry);
-        TENSILE_SERIALIZE_VECTOR(true, FitnessSelectionTableEntry);
+        TENSILE_SERIALIZE_VECTOR(true, FitnessSolutionTableEntry);
+        TENSILE_SERIALIZE_VECTOR(true, FitnessModelTableEntry<std::shared_ptr<Tensile::ContractionSolution>>);
 
         TENSILE_SERIALIZE_VECTOR(true,
                                  Tensile::ExactLogicLibrary<Tensile::ContractionProblem,
@@ -182,6 +195,8 @@ namespace Tensile
                                  std::shared_ptr<Tensile::Property<Tensile::ContractionProblem>>);
 
         TENSILE_SERIALIZE_VECTOR(false, std::shared_ptr<Tensile::ContractionSolution>);
+        TENSILE_SERIALIZE_VECTOR(false, std::vector<double>);
+        //TENSILE_SERIALIZE_VECTOR(false, std::map<int, std::vector<double>));
 
         template <typename Key, typename Value, typename IO>
         struct SequenceTraits<std::vector<Tensile::Matching::MatchingTableEntry<Key, Value>>, IO>

@@ -190,9 +190,74 @@ def analyzeSolutionSelection(problemType, selectionFileNameList, numSolutionsPer
       if firstRow == 0:
         firstRow += 1
       else:
+        sumationId = row[summationIndex].strip()
+
+        solutionIndex = 0
+        for i in range(solutionStartIdx, rowLength):
+          baseKey = solutionBaseKeys[solutionIndex]
+          key = "%s_%s" % (baseKey, sumationId)
+          solution = solutions[solutionIndex]
+          solutionIndex += 1
+          value = float(row[i])
+          if not solution in solutionsHash:
+            dataMap = {}
+            solutionsHash[solution] = dataMap
+
+          updateIfGT(solutionsHash[solution], sumationId, value)
+          if not key in performanceMap:
+            performanceMap[key] = (solution, value)
+          else:
+            _,valueOld = performanceMap[key]
+            if value > valueOld:
+              performanceMap[key] = (solution, value)
+
+
+  validSolutions = []
+  validSolutionSet = set([])
+
+  for key in performanceMap:
+    solution, _ = performanceMap[key]
+    validSolutionSet.add(solution)
+
+  for validSolution in validSolutionSet:
+    dataMap = solutionsHash[validSolution]
+    validSolutions.append((validSolution,dataMap))
+
+  return validSolutions
+
+def analyzeSolutionSelectionForMetric(problemType, selectionFileNameList, numSolutionsPerGroup, solutionGroupMap, solutionsList):
+
+  performanceMap = {}
+  solutionsHash = {}
+
+  totalIndices = problemType["TotalIndices"]
+  summationIndex = totalIndices
+  numIndices = totalIndices + problemType["NumIndicesLD"]
+  problemSizeStartIdx = 1
+  totalSizeIdx = problemSizeStartIdx + numIndices
+  solutionStartIdx = totalSizeIdx + 1
+  for fileIdx in range(0, len(selectionFileNameList)):
+    solutions = solutionsList[fileIdx]
+    selectionFileName = selectionFileNameList[fileIdx]
+    numSolutions = numSolutionsPerGroup[fileIdx]
+    rowLength = solutionStartIdx + numSolutions
+    solutionBaseKeys = []
+
+    for solution in solutions:
+      baseKey = getSolutionBaseKey(solution)
+      solutionBaseKeys.append(baseKey)
+
+    selectionfFile = open(selectionFileName, "r")
+    csvFile = csv.reader(selectionfFile)
+
+    firstRow = 0
+    for row in csvFile:
+      if firstRow == 0:
+        firstRow += 1
+      else:
         #sumationId = row[summationIndex].strip()
         size = row[1:5]
-        sizeId = (size[0].strip(),size[1].strip(),size[2].strip(),size[3].strip())
+        sizeId = (int(size[0].strip()),int(size[1].strip()),int(size[2].strip()),int(size[3].strip()))
 
         solutionIndex = 0
         for i in range(solutionStartIdx, rowLength):

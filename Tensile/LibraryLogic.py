@@ -39,6 +39,9 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
   print1("# Analyzing: %s" % problemType)
 
   enableTileSelection = problemType["TileAwareSelection"]
+  selectionModel = "GranularitySelection"
+  if "SelectionModel" in problemType.state and problemType.state["SelectionModel"] == "FitnessSelection":
+    selectionModel = "FitnessSelection"
   solutionsList = []
   problemSizesList = []
   dataFileNameList = []
@@ -120,8 +123,12 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
 
   if enableTileSelection:
     if globalParameters["NewClient"] == 2:
-      validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelection(problemType, selectionFileNameList, \
-          logicAnalyzer.numSolutionsPerGroup,  logicAnalyzer.solutionGroupMap, solutionsList)
+      if selectionModel == "FitnessSelection":
+        validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelectionForMetric(problemType, selectionFileNameList, \
+            logicAnalyzer.numSolutionsPerGroup,  logicAnalyzer.solutionGroupMap, solutionsList)
+      else:
+        validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelection(problemType, selectionFileNameList, \
+            logicAnalyzer.numSolutionsPerGroup,  logicAnalyzer.solutionGroupMap, solutionsList)
     else:
       validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelectionOldClient(problemType, problemSizeGroups)
 
@@ -139,27 +146,33 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
         validSelectionSolutionsRemainder.append(validSelectionSolution)
 
     selectionSolutions = []
-    for i in range(0 ,len(validSelectionSolutionsIncluded)):
-      validSelectionSolution = validSelectionSolutionsIncluded[i]
-      (validSolution, validSolutionInfo) = validSelectionSolution
-      validSolution["Ideals"] = validSolutionInfo
+    if selectionModel != "FitnessSelection":
+      for i in range(0 ,len(validSelectionSolutionsIncluded)):
+        validSelectionSolution = validSelectionSolutionsIncluded[i]
+        (validSolution, validSolutionInfo) = validSelectionSolution
+        validSolution["Ideals"] = validSolutionInfo
 
     solutionsStartIndex = len(logicAnalyzer.solutions)
 
+    idealMap = {}
     for i in range(0, len(validSelectionSolutionsRemainder)):
       validSelectionSolution = validSelectionSolutionsRemainder[i]
-      (validSolution, validSolutionInfo0) = validSelectionSolution
+      (validSolution, validSolutionInfo) = validSelectionSolution
       selectionSolutionIndex = solutionsStartIndex + i
       selectionSolutionsIds.add(selectionSolutionIndex)
       validSolution["SolutionNameMin"] = Solution.getNameMin(validSolution, solutionMinNaming)
-      validSolutionInfo = []
-      for key in validSolutionInfo0:
-        value = validSolutionInfo0[key]
-        entry = list(key)
-        entry.append(value)
-        #validSolutionInfo[list(key)] = value 
-        validSolutionInfo.append(entry)
-      validSolution["Ideals"] = validSolutionInfo
+      
+      if selectionModel != "FitnessSelection":
+        validSolution["Ideals"] = validSolutionInfo
+      else:
+        vInfo = None
+        vInfoList = []
+        for infoKey in validSolutionInfo:
+           infoValue = validSolutionInfo[infoKey]
+           vInfo = list(infoKey)
+           vInfo.append(infoValue)
+           vInfoList.append(vInfo)
+        idealMap[selectionSolutionIndex] = vInfoList
       selectionSolutions.append(validSolution)
 
     selectionSolutionsIdsList = list(selectionSolutionsIds)
@@ -212,7 +225,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
 
   #selectionSolutionsIdsList = list(selectionSolutionsIds)
   return (problemType, logicAnalyzer.solutions, logicAnalyzer.indexOrder, \
-       exactLogic, rangeLogic, selectionSolutions, selectionSolutionsIdsList)
+       exactLogic, rangeLogic, selectionSolutions, selectionSolutionsIdsList, idealMap)
 
 
 

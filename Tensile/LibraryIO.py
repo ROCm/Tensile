@@ -25,6 +25,7 @@ from . import __version__
 from . import Common
 from . import SolutionLibrary
 import os
+import copy
 
 try:
   import yaml
@@ -261,7 +262,16 @@ class Writer:
     if tileSelection:
       tileSelectionLogic = {}
       tileSelectionIndices = logicTuple[6]
+      if selectionModel == "FitnessSelection":
+        idealMap = logicTuple[7]
+        tileSelectionLogic["IdealMap"] = idealMap
+      #idealMap = {}
+      #for i in tileSelectionIndices:
+      #  iSolution = solutionList[i]
+      #  ideals = copy.deepcopy(iSolution['Ideals'])
+      #  idealMap[i] = ideals
       tileSelectionLogic["TileSelectionIndices"] = tileSelectionIndices
+      tileSelectionLogic["IdealMap"] = idealMap
       tileSelectionLogic["SelectionModel"] = selectionModel
       data.append(tileSelectionLogic)
 

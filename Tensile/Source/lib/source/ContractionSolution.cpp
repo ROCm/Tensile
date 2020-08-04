@@ -759,6 +759,60 @@ ContractionSolution::StaticTAMetricPerformanceModel
         return spm;
     }
 
+    ContractionSolution::TAMetricProjectedPerformance 
+    ContractionSolution::computeProjectedPerformance(
+            Hardware const& hardware, 
+            double M, double N, double K, double NumBatches,
+            double LDA, double LDB, double LDC, double LDD) const
+            
+    {
+        ContractionSolution::TAMetricProjectedPerformance pp;
+
+        double MT0 = sizeMapping.macroTile.x;
+        double MT1 = sizeMapping.macroTile.y;
+        double NumCUs = perf.CUs;
+        double wavefrontSize = 64; //defaults to 64
+        double simdPerCu = 4;
+
+        AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
+        if(pAMDGPU != nullptr)
+        {
+            NumCUs = pAMDGPU->computeUnitCount;
+            wavefrontSize = pAMDGPU->wavefrontSize;
+            simdPerCu = pAMDGPU->simdPerCu;
+        }
+
+        double GlobalSplitU         = sizeMapping.globalSplitU;
+        double LocalSplitU          = sizeMapping.workGroupSize.z;
+        //double IdealGranularityPerf = closestKPerformance;
+
+        
+        pp.numTiles0 = M / MT0;
+        pp.numTiles1 = N / MT1;
+
+        pp.tile0Granularity = pp.numTiles0 / ceil(pp.numTiles0);
+        pp.tile1Granularity = pp.numTiles1 / ceil(pp.numTiles1);
+
+        pp.totalTiles = ceil(pp.numTiles0) * ceil(pp.numTiles1);
+
+        //pp.tilesPerCu = (NumBatches * ceil(pp.numTiles0) * ceil(pp.numTiles1))
+        //                / (NumCUs / GlobalSplitU / LocalSplitU);
+
+        pp.suTilesPerCu = (pp.totalTiles * GlobalSplitU) / NumCUs;
+        pp.suCuGranularity = pp.suTilesPerCu / ceil(pp.suTilesPerCu);
+
+        pp.waves = ceil((sizeMapping.workGroupSize.x * sizeMapping.workGroupSize.y) / wavefrontSize);
+
+        pp.suWavesPerSimdx2 = (pp.suTilesPerCu * pp.waves) / (2 * simdPerCu);
+        pp.suWaveGranularity = pp.suWavesPerSimdx2 * ceil(pp.suWavesPerSimdx2);
+
+
+        pp.totalGranularity = pp.tile0Granularity * pp.tile1Granularity * pp.suCuGranularity * pp.suWaveGranularity;
+        //pp.speedGFlops = IdealGranularityPerf * pp.totalGranularity;
+
+        return  pp;
+    }
+
     ContractionSolution::TAMetricProjectedPerformance
         ContractionSolution::projectedTAMetricPerformance(Problem const&  problem,
                                                   Hardware const& hardware) const
@@ -798,25 +852,28 @@ ContractionSolution::StaticTAMetricPerformanceModel
         
         double K = problem.boundSize(0); // TODO - fix for multiple summations
 
-        auto it = ideals.begin();
+        //auto it = idealsm.begin();
 
-        int    closestK            = -1;
-        int    closestKMeasure     = std::numeric_limits<int>::max();
-        double closestKPerformance = 0.0;
+        //int    closestK            = -1;
+        //int    closestKMeasure     = std::numeric_limits<int>::max();
+        //double closestKPerformance = 0.0;
 
-        while(it != ideals.end())
+        /*while(it != idealsm.end())
         {
-            int myK       = it->first;
+            //int myK       = it->first;
+            int myK = it->at(3);
             int myMeasure = std::abs(myK - K);
             if(myMeasure < closestKMeasure)
             {
                 closestKMeasure     = myMeasure;
                 closestK            = myK;
-                closestKPerformance = it->second;
+                //closestKPerformance = it->second;
+                closestKPerformance = it->at(4);
             }
             it++;
-        }
+        }*/
 
+/*
         double MT0 = sizeMapping.macroTile.x;
         double MT1 = sizeMapping.macroTile.y;
 
@@ -834,8 +891,15 @@ ContractionSolution::StaticTAMetricPerformanceModel
 
         double GlobalSplitU         = sizeMapping.globalSplitU;
         double LocalSplitU          = sizeMapping.workGroupSize.z;
-        double IdealGranularityPerf = closestKPerformance;
+        */
+        //double IdealGranularityPerf = closestKPerformance;
 
+        pp = computeProjectedPerformance(
+            hardware, 
+            M, N, K, NumBatches,
+            0, 0, 0, 0);
+
+/*
         pp.numTiles0 = M / MT0;
         pp.numTiles1 = N / MT1;
 
@@ -854,7 +918,7 @@ ContractionSolution::StaticTAMetricPerformanceModel
 
         pp.suWavesPerSimdx2 = (pp.suTilesPerCu * pp.waves) / (2 * simdPerCu);
         pp.suWaveGranularity = pp.suWavesPerSimdx2 * ceil(pp.suWavesPerSimdx2);
-
+*/
         //pp.waveGranularity = std::min(
         //    1.00,
         //    static_cast<double>(floor(pp.tilesPerCu + 1.0) * sizeMapping.workGroupSize.x
@@ -865,12 +929,12 @@ ContractionSolution::StaticTAMetricPerformanceModel
         //pp.totalGranularity
         //    = pp.tile0Granularity * pp.tile1Granularity * pp.cuGranularity * pp.waveGranularity;
 
-        pp.totalGranularity = pp.tile0Granularity * pp.tile1Granularity * pp.suCuGranularity * pp.suWaveGranularity;
-        pp.speedGFlops = IdealGranularityPerf * pp.totalGranularity;
+        //pp.totalGranularity = pp.tile0Granularity * pp.tile1Granularity * pp.suCuGranularity * pp.suWaveGranularity;
+        //pp.speedGFlops = IdealGranularityPerf * pp.totalGranularity;
 
      
-        pp.staticModel = staticTAMetricPerformanceModel(
-            M, N, K, NumBatches, MT0, MT1, NumCUs, pp.totalGranularity, GlobalSplitU);
+        //pp.staticModel = staticTAMetricPerformanceModel(
+        //    M, N, K, NumBatches, MT0, MT1, NumCUs, pp.totalGranularity, GlobalSplitU);
 
         //total_gran0 <- tile0_gran * tile1_gran * su_cu_gran
         
@@ -995,12 +1059,14 @@ ContractionSolution::StaticTAMetricPerformanceModel
         while(it != ideals.end())
         {
             int myK       = it->first;
+            //int myK       = it->at(3);
             int myMeasure = std::abs(myK - K);
             if(myMeasure < closestKMeasure)
             {
                 closestKMeasure     = myMeasure;
                 closestK            = myK;
                 closestKPerformance = it->second;
+                //closestKPerformance = it->at(4);
             }
             it++;
         }
