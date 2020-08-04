@@ -339,7 +339,7 @@ namespace Tensile
             rv.args.append<uint64_t>("tensor2dSizeB", tensor2dSizeB);
         }
 
-        if (sizeMapping.globalAccumulation)
+        if(sizeMapping.globalAccumulation)
         {
             rv.args.append<void const*>("ws", inputs.ws);
             rv.args.append<void const*>("ws", inputs.ws);
@@ -551,10 +551,10 @@ namespace Tensile
         rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
         rv.numWorkItems.z = rv.workGroupSize.z * rv.numWorkGroups.z;
 
-        if (sizeMapping.globalAccumulation)
-          rv.args.append<void*>("WS", inputs.ws);
+        if(sizeMapping.globalAccumulation)
+            rv.args.append<void*>("WS", inputs.ws);
         else
-          rv.args.append<typename TypedInputs::DType*>("D", inputs.d);
+            rv.args.append<typename TypedInputs::DType*>("D", inputs.d);
         rv.args.append<typename TypedInputs::CType const*>("C", inputs.c);
 
         for(size_t i = 1; i < d.dimensions(); i++)
@@ -602,9 +602,8 @@ namespace Tensile
     }
 
     template <typename TypedInputs>
-    KernelInvocation ContractionSolution::generateOutputConversionCall(Problem const&     problem,
-                                                                       TypedInputs const& inputs,
-                                                                       Hardware const&    hardware) const
+    KernelInvocation ContractionSolution::generateOutputConversionCall(
+        Problem const& problem, TypedInputs const& inputs, Hardware const& hardware) const
     {
         TensorDescriptor const& c = problem.c();
         TensorDescriptor const& d = problem.d();
@@ -680,7 +679,7 @@ namespace Tensile
         std::vector<KernelInvocation> rv;
 
         if(sizeMapping.globalSplitU > 1)
-            if (sizeMapping.globalAccumulation)
+            if(sizeMapping.globalAccumulation)
                 rv.reserve(3);
             else
                 rv.reserve(2);
@@ -700,7 +699,7 @@ namespace Tensile
         else
             rv.push_back(generateSingleCall<TypedInputs, false>(problem, inputs, hardware));
 
-        if (sizeMapping.globalAccumulation)
+        if(sizeMapping.globalAccumulation)
             rv.push_back(generateOutputConversionCall(problem, inputs, hardware));
 
         return rv;
@@ -861,7 +860,7 @@ namespace Tensile
     }
 
     ContractionSolution::ProjectedPerformance
-        ContractionSolution::projectedPerformance(Problem  const& problem,
+        ContractionSolution::projectedPerformance(Problem const&  problem,
                                                   Hardware const& hardware) const
     {
         ProjectedPerformance pp;
@@ -984,10 +983,8 @@ namespace Tensile
     std::ostream& operator<<(std::ostream& stream, BufferLoadCheckPacket const& st)
     {
         return stream << " shiftPtrElemA=" << st.shiftPtrElemA
-                      << " shiftPtrElemB=" << st.shiftPtrElemB
-                      << " depthUorMT0=" << st.depthUorMT0
+                      << " shiftPtrElemB=" << st.shiftPtrElemB << " depthUorMT0=" << st.depthUorMT0
                       << " depthUorMT1=" << st.depthUorMT1;
     }
-
 
 } // namespace Tensile

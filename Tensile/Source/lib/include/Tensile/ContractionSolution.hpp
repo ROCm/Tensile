@@ -58,7 +58,7 @@ namespace Tensile
         size_t shiftPtrElemB;
         size_t depthUorMT0;
         size_t depthUorMT1;
-    };    
+    };
 
     /**
  * Represents a single kernel or set of kernels that can perform a single
@@ -132,7 +132,7 @@ namespace Tensile
         /**
    * Calculate required workspace size.
    */
-        size_t requiredWorkspaceSize(Problem const&  problem) const;
+        size_t requiredWorkspaceSize(Problem const& problem) const;
 
         StaticPerformanceModel staticPerformanceModel(double M,
                                                       double N,
@@ -203,7 +203,7 @@ namespace Tensile
             int    magicDivAlg       = 1;
             size_t persistentKernel  = 0;
 
-            bool   sourceKernel = false;
+            bool sourceKernel = false;
 
             bool   globalAccumulation    = false;
             size_t workspaceSizePerElemC = 0;

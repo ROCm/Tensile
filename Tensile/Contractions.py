@@ -323,11 +323,11 @@ class ProblemPredicate(Properties.Predicate):
         # if bufferload is performed, we output some predication info for host side,
         # to prevent from some extremely large problems from launching and causing bufferload offset limit < 2^32
         # thoses cases will not satisfy the assertion thus won't use the kernel.
-        # See Common.py for more details, we will need four values: 
+        # See Common.py for more details, we will need four values:
         # TODO - haven't been fully tested for FP16 and BF, need to verify the false-positive
         if 'BufferLoad' in state and state['BufferLoad'] == True:
             TLUA = state['ProblemType']['TLUA']
-            TLUB = state['ProblemType']['TLUB']            
+            TLUB = state['ProblemType']['TLUB']
             MayShiftA = TLUA and state['AssertFree0ElementMultiple'] < state['GlobalLoadVectorWidthA']
             MayShiftB = TLUB and state['AssertFree1ElementMultiple'] < state['GlobalLoadVectorWidthB']
             subrv={}
@@ -339,10 +339,10 @@ class ProblemPredicate(Properties.Predicate):
             rv += [cls('BufferLoadOffsetLimitCheck', value=subrv)]
 
         # similiar check is applied for bufferstore,
-        # for bufferstore offset, test if the bot-right offset < 2^32, 
+        # for bufferstore offset, test if the bot-right offset < 2^32,
         # it should be StrideA*MT1, so we need to output MT1 and use the StrideA of problem in host-side for predication
         if 'BufferStore' in state and state['BufferStore'] == True:
-            rv += [cls('BufferStoreOffsetLimitCheck', value=state['MacroTile1'])]            
+            rv += [cls('BufferStoreOffsetLimitCheck', value=state['MacroTile1'])]
 
         return rv
 

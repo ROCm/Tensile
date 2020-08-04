@@ -356,16 +356,16 @@ namespace Tensile
         }
 
         size_t getMaxWorkspace(std::shared_ptr<MasterSolutionLibrary<ContractionProblem>>& library,
-                               std::shared_ptr<Hardware>& hardware,
-                               po::variables_map& args,
-                               std::vector<ContractionProblem>& problems,
+                               std::shared_ptr<Hardware>&                                  hardware,
+                               po::variables_map&                                          args,
+                               std::vector<ContractionProblem>&                            problems,
                                int firstProblemIdx,
                                int lastProblemIdx)
         {
             // get max workspace size
             size_t maxWorkspaceSize = 0;
 
-            auto solutionIterator = SolutionIterator::Default(library, hardware, args);
+            auto            solutionIterator = SolutionIterator::Default(library, hardware, args);
             MetaRunListener listeners;
             listeners.addListener(solutionIterator);
             auto reporters = std::make_shared<MetaResultReporter>();
@@ -381,19 +381,21 @@ namespace Tensile
 
                 listeners.preProblem(problem);
 
-                 while(solutionIterator->moreSolutionsInProblem())
-                 {
-                     auto solution = solutionIterator->getSolution();
+                while(solutionIterator->moreSolutionsInProblem())
+                {
+                    auto solution = solutionIterator->getSolution();
 
-                     listeners.preSolution(*solution);
+                    listeners.preSolution(*solution);
 
-                     if(solutionIterator->runCurrentSolution())
-                     {
-                         maxWorkspaceSize = std::max(maxWorkspaceSize, solution->requiredWorkspaceSize(problems[problemIdx]));
-                     }
+                    if(solutionIterator->runCurrentSolution())
+                    {
+                        maxWorkspaceSize
+                            = std::max(maxWorkspaceSize,
+                                       solution->requiredWorkspaceSize(problems[problemIdx]));
+                    }
 
-                     listeners.postSolution();
-                 }
+                    listeners.postSolution();
+                }
 
                 listeners.postProblem();
             }
@@ -447,7 +449,8 @@ int main(int argc, const char* argv[])
         lastSolutionIdx = firstSolutionIdx + numSolutions - 1;
     }
 
-    size_t maxWorkspaceSize = getMaxWorkspace(library, hardware, args, problems, firstProblemIdx, lastProblemIdx);
+    size_t maxWorkspaceSize
+        = getMaxWorkspace(library, hardware, args, problems, firstProblemIdx, lastProblemIdx);
 
     auto dataInit = DataInitialization::Get(args, problemFactory, maxWorkspaceSize);
 

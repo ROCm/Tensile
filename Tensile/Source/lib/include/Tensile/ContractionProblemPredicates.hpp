@@ -917,7 +917,7 @@ namespace Tensile
                     return problem.d().totalAllocatedElements() * value <= problem.workspaceSize();
                 }
             };
-            
+
         } // namespace Contraction
 
         /**

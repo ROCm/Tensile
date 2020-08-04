@@ -80,14 +80,19 @@ namespace Tensile
    * Factory function.
    */
             static std::shared_ptr<DataInitialization>
-                Get(po::variables_map const& args, ClientProblemFactory const& problemFactory, size_t maxWorkspaceSize=0);
+                Get(po::variables_map const&    args,
+                    ClientProblemFactory const& problemFactory,
+                    size_t                      maxWorkspaceSize = 0);
 
             template <typename TypedInputs>
             static std::shared_ptr<TypedDataInitialization<TypedInputs>>
-                GetTyped(po::variables_map const& args, ClientProblemFactory const& problemFactory, size_t maxWorkspaceSize=0);
+                GetTyped(po::variables_map const&    args,
+                         ClientProblemFactory const& problemFactory,
+                         size_t                      maxWorkspaceSize = 0);
 
             DataInitialization(po::variables_map const&    args,
-                               ClientProblemFactory const& problemFactory, size_t maxWorkspaceSize=0);
+                               ClientProblemFactory const& problemFactory,
+                               size_t                      maxWorkspaceSize = 0);
             ~DataInitialization();
 
             /**

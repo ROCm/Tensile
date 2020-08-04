@@ -5,7 +5,7 @@ GlobalParameters:
   NumBenchmarks: 20
   NumElementsToValidate: 128
 
-  
+
 BenchmarkProblems:
 
   ########################################
@@ -30,19 +30,19 @@ BenchmarkProblems:
         - LoopTail: [True]
         - WorkGroupMapping: [8]
       ForkParameters:
-        - VectorWidth: [2]        
+        - VectorWidth: [2]
         - PersistentKernel: [0,64,120]
         - PrefetchLocalRead: [0,1]
         - PrefetchGlobalRead: [False]   # True never wins
         - InnerUnroll: [2]              # 1 never wins
         - ThreadTile:
-          - [ 2, 4 ]          
+          - [ 2, 4 ]
         - WorkGroup:
           - [ 16, 8, 1 ]   # 32x32
           - [ 16, 8, 2 ]   # 32x32, LSU=2
         - DepthU: [8,16]
         - StaggerU: [16,32]
-        - StaggerUStride: [128]      
+        - StaggerUStride: [128]
         - StaggerUMapping: [1]
         - LdsPadB: [2]
       BenchmarkForkParameters:
@@ -51,7 +51,7 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [32], [4096, 4096, 32768], [1], [32] ]
-          
+
 LibraryLogic:
 
    ScheduleName: "arcturus"

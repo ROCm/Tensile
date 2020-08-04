@@ -3,7 +3,7 @@ GlobalParameters:
   KernelTime: True
   NewClient: 2
   NumBenchmarks: 20
-  
+
 BenchmarkProblems:
 
   ########################################
@@ -33,16 +33,16 @@ BenchmarkProblems:
         - PrefetchLocalRead: [0,1]
         - PrefetchGlobalRead: [False, True]
         - ThreadTile:
-          - [ 2, 4 ]                  # [2,4] always the best 
+          - [ 2, 4 ]                  # [2,4] always the best
         - WorkGroup:
-          - [ 8, 8, 1 ]    # 16x32          
+          - [ 8, 8, 1 ]    # 16x32
           - [ 16, 16, 1 ]  # 32x64
-          - [ 16, 16, 2 ]  # 32x64, LSU=2  
+          - [ 16, 16, 2 ]  # 32x64, LSU=2
         - DepthU: [8,16]                    # 32 never wins
         - StaggerU: [32]
-        - StaggerUStride: [128]      
+        - StaggerUStride: [128]
         - StaggerUMapping: [1]
-        - LdsPadB: [2]                      # 2 almost the best 
+        - LdsPadB: [2]                      # 2 almost the best
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -50,8 +50,8 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [ 32, 4096, 1, 32, 32, 32, 32, 32 ] # padding = 0
           - Exact: [ 32, 8192, 1, 32, 32, 32, 32, 32 ] # padding = 0
-          - Exact: [ 32, 12288, 1, 32, 32, 32, 32, 32 ] # padding = 0      
-          - Exact: [ 32, 16384, 1, 32, 32, 32, 32, 32 ] # padding = 0     
+          - Exact: [ 32, 12288, 1, 32, 32, 32, 32, 32 ] # padding = 0
+          - Exact: [ 32, 16384, 1, 32, 32, 32, 32, 32 ] # padding = 0
           - Exact: [ 32, 20480, 1, 32, 32, 32, 32, 32 ] # padding = 0
           - Exact: [ 32, 24576, 1, 32, 32, 32, 32, 32 ] # padding = 0
           - Exact: [ 32, 28672, 1, 32, 32, 32, 32, 32 ] # padding = 0

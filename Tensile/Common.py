@@ -308,7 +308,7 @@ validParameters = {
     #   no load loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:         MAC_r[3]
     "PrefetchLocalRead":          list(range(128+1)),
 
-    # We use double LDS buffer when PrefetchGlobalRead. 
+    # We use double LDS buffer when PrefetchGlobalRead.
     # While it reads data from LDS[0]/[1], it prefetch global data and writes to LDS[1]/[0]
     # If we can make sure all data are read from LDS to register before writing data to LDS, we can use 1 LDS buffer to save LDS memory.
     # this can help to generate Kernel that LDS usage originally exceed MaxLDS if using double LDS buffer,

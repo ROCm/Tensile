@@ -287,7 +287,7 @@ namespace Tensile
                            BatchIndices const&     batchIndices,
                            BoundIndices const&     boundIndices,
                            double                  beta,
-                           size_t                  workspaceSize=0);
+                           size_t                  workspaceSize = 0);
 
         //! Returns size given original index assignment (in range
         //! 0..NumIndicesC+boundSizes)
@@ -601,8 +601,13 @@ namespace Tensile
         using BetaType  = Beta;
 
         TypedContractionInputs();
-        TypedContractionInputs(
-            A const* _a, B const* _b, C const* _c, D* _d, Alpha _alpha, Beta _beta, void* _ws=nullptr);
+        TypedContractionInputs(A const* _a,
+                               B const* _b,
+                               C const* _c,
+                               D*       _d,
+                               Alpha    _alpha,
+                               Beta     _beta,
+                               void*    _ws = nullptr);
         ~TypedContractionInputs();
 
         A const* a  = nullptr;

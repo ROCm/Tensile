@@ -2769,7 +2769,7 @@ class Solution:
         reject(state, "LocalReadVectorWidth < %u" %(state["ProblemType"]["DataType"].numMIInput()))
     elif state["LocalReadVectorWidth"] != state["VectorWidth"]:
       reject(state, "LocalReadVectorWidth requires MI-Kernel")
-    
+
 
     if state["LdsPadA"] == -1:
       if state["ProblemType"]["TLUA"]:

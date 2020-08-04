@@ -110,7 +110,7 @@ def readSolutions( filename ):
     solutionState = solutionStates[i]
     # force redo the deriving of parameters, make sure old version logic yamls can be validated
     solutionState["AssignedProblemIndependentDerivedParameters"] = False
-    solutionState["AssignedDerivedParameters"] = False    
+    solutionState["AssignedDerivedParameters"] = False
     solutionObject = Solution(solutionState)
     solutions.append(solutionObject)
   problemType = solutions[0]["ProblemType"]
