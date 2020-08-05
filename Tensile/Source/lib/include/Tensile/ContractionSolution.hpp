@@ -131,7 +131,7 @@ namespace Tensile
             double speedGFlops = 0.0; //! final gflops projection
             int    CUs         = 0;
 
-            StaticTAMetricPerformanceModel staticModel;
+            //StaticTAMetricPerformanceModel staticModel;
         };
 
         StaticTAMetricPerformanceModel staticTAMetricPerformanceModel(double M,

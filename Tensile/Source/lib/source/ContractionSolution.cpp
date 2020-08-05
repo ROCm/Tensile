@@ -1133,9 +1133,9 @@ ContractionSolution::StaticTAMetricPerformanceModel
                       << " cuGranularity=" << pp.cuGranularity
                       << " waveGranularity=" << pp.waveGranularity
 
-                      << " speedGFlops=" << pp.speedGFlops
+                      << " speedGFlops=" << pp.speedGFlops;
 
-                      << " staticModel=[ " << pp.staticModel << " ]";
+                      //<< " staticModel=[ " << pp.staticModel << " ]";
     }
 
     std::ostream& operator<<(std::ostream&                                      stream,

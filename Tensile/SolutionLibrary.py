@@ -120,10 +120,15 @@ class TileAwareMetricLibrary:
         self.exact = exact
 
     def remapSolutionIndices(self,indexMap):
-        for i in range(0, len(self.indices)):
+        newMapping = {}
+        #for i in range(0, len(self.indices)):
+        for i in self.indices:
             index = self.indices[i]
-            if index in indexMap:
-                self.indices[i] = indexMap[index]
+            newKey = indexMap[i]
+            newMapping[newKey] = index
+            #if index in indexMap:
+            #    self.indices[i] = indexMap[index]
+        self.indices = newMapping
 
 class MatchingLibrary:
     Tag = 'Matching'

@@ -216,27 +216,27 @@ namespace Tensile
                     metric = abs(log(ppReference.tile1Granularity) - log(pp.tile1Granularity));
                   }
                 }  
-                if (ppReference.cuGranularity > 0.0 && pp.cuGranularity > 0.0)
+                if (ppReference.suCuGranularity > 0.0 && pp.suCuGranularity > 0.0)
                 {
                   if (metric < std::numeric_limits<double>::max())
                   {
-                    metric += abs(log(ppReference.cuGranularity) - log(pp.cuGranularity));
+                    metric += abs(log(ppReference.suCuGranularity) - log(pp.suCuGranularity));
                   }
                   else
                   {
-                    metric = abs(log(ppReference.cuGranularity) - log(pp.cuGranularity));
+                    metric = abs(log(ppReference.suCuGranularity) - log(pp.suCuGranularity));
                   }
                   //metric += abs(log(ppReference.cuGranularity) - log(pp.cuGranularity));
                 }
-                if (ppReference.waveGranularity > 0.0 && pp.waveGranularity > 0.0)
+                if (ppReference.suWaveGranularity > 0.0 && pp.suWaveGranularity > 0.0)
                 {
                   if (metric < std::numeric_limits<double>::max())
                   {
-                    metric += abs(log(ppReference.waveGranularity) - log(pp.waveGranularity));
+                    metric += abs(log(ppReference.suWaveGranularity) - log(pp.suWaveGranularity));
                   }
                   else
                   {
-                    metric = abs(log(ppReference.waveGranularity) - log(pp.waveGranularity));
+                    metric = abs(log(ppReference.suWaveGranularity) - log(pp.suWaveGranularity));
                   }
                   //metric += abs(log(ppReference.waveGranularity) - log(pp.waveGranularity));
                 }

@@ -72,10 +72,29 @@ TensileCreateLibraryFiles(
 #LIBRARY_FORMAT yaml
 #    )
 
+TensileCreateLibraryFiles(
+    "${CMAKE_CURRENT_SOURCE_DIR}/../configs/tile_aware_metric_selection"
+    "${CMAKE_CURRENT_BINARY_DIR}/test_tile_aware_metric_selection"
+    TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
+    EMBED_LIBRARY test_tile_aware_metric_selection
+    EMBED_KEY     tile_aware_metric_selection
+    NO_MERGE_FILES
+    COMPILER ${COMPILER}
+    CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
+    )
+#LIBRARY_FORMAT yaml
+#    )
+
 TensileCreateCopyTarget(
     copy_kernels_tile_aware_selection
     "${TENSILE_ALL_FILES}"
     ${TEST_DATA_DIR}/tile_aware_selection/library
+    )
+
+TensileCreateCopyTarget(
+    copy_kernels_tile_aware_metric_selection
+    "${TENSILE_ALL_FILES}"
+    ${TEST_DATA_DIR}/tile_aware_metric_selection/library
     )
 
 set(test_yaml rocblas_sgemm_asm_single_kernel.yaml)
@@ -96,6 +115,7 @@ set(HIP_TEST_LIBRARIES
     test_kernels_lite_2
     test_kernels_lite_mixed
     test_tile_aware_selection
+    test_tile_aware_metric_selection
     TensileClient PARENT_SCOPE)
 
 # Make sure that the TensileTests depends on targets below.
@@ -105,6 +125,7 @@ set(HIP_TEST_COPY_TARGET_DEPS
     copy_kernels_lite_2
     copy_kernels_lite_mixed
     copy_kernels_tile_aware_selection
+    copy_kernels_tile_aware_metric_selection
     PARENT_SCOPE
 )
 
