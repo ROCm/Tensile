@@ -386,6 +386,8 @@ int main(int argc, const char* argv[])
     int firstSolutionIdx = args["solution-start-idx"].as<int>();
     int numSolutions     = args["num-solutions"].as<int>();
 
+    bool gpuTimer        = args["use-gpu-timer"].as<bool>();
+
     if(firstSolutionIdx < 0)
         firstSolutionIdx = library->solutions.begin()->first;
 
@@ -472,14 +474,19 @@ int main(int argc, const char* argv[])
                             auto kernels = solution->solve(problem, *inputs, *hardware);
 
                             size_t       warmupInvocations = listeners.numWarmupRuns();
-                            TimingEvents warmupStartEvents(warmupInvocations, kernels.size());
-                            TimingEvents warmupStopEvents(warmupInvocations, kernels.size());
+                            size_t       eventCount = gpuTimer ? kernels.size() : 0;
+                            TimingEvents warmupStartEvents(warmupInvocations, eventCount);
+                            TimingEvents warmupStopEvents(warmupInvocations, eventCount);
 
                             for(int i = 0; i < warmupInvocations; i++)
                             {
                                 listeners.preWarmup();
-                                adapter.launchKernels(
-                                    kernels, stream, warmupStartEvents[i], warmupStopEvents[i]);
+                                if (gpuTimer)
+                                    adapter.launchKernels(
+                                        kernels, stream, warmupStartEvents[i], warmupStopEvents[i]);
+                                else
+                                    adapter.launchKernels(
+                                        kernels, stream, nullptr, nullptr);
                                 listeners.postWarmup();
                             }
 
@@ -492,15 +499,19 @@ int main(int argc, const char* argv[])
                             {
                                 listeners.preSyncs();
 
-                                TimingEvents startEvents(enq, kernels.size());
-                                TimingEvents stopEvents(enq, kernels.size());
+                                TimingEvents startEvents(enq, eventCount);
+                                TimingEvents stopEvents(enq, eventCount);
 
                                 listeners.preEnqueues();
 
                                 for(int j = 0; j < enq; j++)
                                 {
-                                    adapter.launchKernels(
-                                        kernels, stream, startEvents[j], stopEvents[j]);
+                                    if (gpuTimer)
+                                        adapter.launchKernels(
+                                            kernels, stream, startEvents[j], stopEvents[j]);
+                                    else
+                                        adapter.launchKernels(
+                                            kernels, stream, nullptr, nullptr);
                                 }
 
                                 listeners.postEnqueues(startEvents, stopEvents);
