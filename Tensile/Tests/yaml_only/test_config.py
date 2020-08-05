@@ -6,6 +6,24 @@ import yaml
 from Tensile import Tensile
 from Tensile import DataType
 
+################################################################################
+# Locate Executables
+# rocm-smi, hip-clang, rocm_agent_enumerator
+################################################################################
+def isExe( filePath ):
+  return os.path.isfile(filePath) and os.access(filePath, os.X_OK)
+def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
+  # look in path first
+  for path in os.environ["PATH"].split(os.pathsep):
+    exePath = os.path.join(path, exeName)
+    if isExe(exePath):
+      return exePath
+  # look in default path second
+  exePath = os.path.join(defaultPath, exeName)
+  if isExe(exePath):
+    return exePath
+  return None
+
 def walkDict(root, path=""):
     """
     Recursively walks a structure which may consist of dictionaries, lists,
@@ -74,6 +92,11 @@ def configMarks(filepath, rootDir, availableArchs):
         ArchSkip = "skip-%s" % arch
         if markNamed(ArchSkip) in marks:
             marks.append(pytest.mark.skip)
+
+    # Environment specific marks
+    isHccEnv = True if locateExe("/opt/rocm/bin", "hcc") != None else False
+    if isHccEnv and markNamed("skip-hcc") in marks:
+        marks.append(pytest.mark.skip)
 
     validate = True
     validateAll = False

@@ -36,7 +36,7 @@ TEST(ArithmeticUnitPredicateTest, Any)
 {
     std::string mydoc = "type: And\n"
                         "value: [{type: TruePred}, \n"
-                        "        {type: ArithmeticUnit, value: Any}]";
+                        "        {type: ArithmeticUnitCompatible, value: Any}]";
 
     llvm::yaml::Input yin(mydoc);
 
@@ -62,7 +62,7 @@ TEST(ArithmeticUnitPredicateTest, Mfma)
 {
     std::string mydoc = "type: And\n"
                         "value: [{type: TruePred}, \n"
-                        "        {type: ArithmeticUnit, value: MFMA}]";
+                        "        {type: ArithmeticUnitCompatible, value: MFMA}]";
 
     llvm::yaml::Input yin(mydoc);
 
@@ -75,7 +75,7 @@ TEST(ArithmeticUnitPredicateTest, Mfma)
     ContractionProblem prob = ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 1, false, 1);
 
     prob.setArithmeticUnit(ArithmeticUnit::Any);
-    EXPECT_EQ((*p)(prob), false);
+    EXPECT_EQ((*p)(prob), true);
 
     prob.setArithmeticUnit(ArithmeticUnit::MFMA);
     EXPECT_EQ((*p)(prob), true);
@@ -88,59 +88,7 @@ TEST(ArithmeticUnitPredicateTest, Valu)
 {
     std::string mydoc = "type: And\n"
                         "value: [{type: TruePred}, \n"
-                        "        {type: ArithmeticUnit, value: VALU}]";
-
-    llvm::yaml::Input yin(mydoc);
-
-    std::shared_ptr<Predicates::Predicate<ContractionProblem>> p;
-
-    yin >> p;
-    ASSERT_FALSE(yin.error());
-    EXPECT_NE(p, nullptr);
-
-    ContractionProblem prob = ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 1, false, 1);
-
-    prob.setArithmeticUnit(ArithmeticUnit::Any);
-    EXPECT_EQ((*p)(prob), false);
-
-    prob.setArithmeticUnit(ArithmeticUnit::MFMA);
-    EXPECT_EQ((*p)(prob), false);
-
-    prob.setArithmeticUnit(ArithmeticUnit::VALU);
-    EXPECT_EQ((*p)(prob), true);
-}
-
-TEST(ArithmeticUnitPredicateTest, AnyOrMfma)
-{
-    std::string mydoc = "type: Or\n"
-                        "value: [{type: ArithmeticUnit, value: Any}, \n"
-                        "        {type: ArithmeticUnit, value: MFMA}]";
-
-    llvm::yaml::Input yin(mydoc);
-
-    std::shared_ptr<Predicates::Predicate<ContractionProblem>> p;
-
-    yin >> p;
-    ASSERT_FALSE(yin.error());
-    EXPECT_NE(p, nullptr);
-
-    ContractionProblem prob = ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 1, false, 1);
-
-    prob.setArithmeticUnit(ArithmeticUnit::Any);
-    EXPECT_EQ((*p)(prob), true);
-
-    prob.setArithmeticUnit(ArithmeticUnit::MFMA);
-    EXPECT_EQ((*p)(prob), true);
-
-    prob.setArithmeticUnit(ArithmeticUnit::VALU);
-    EXPECT_EQ((*p)(prob), false);
-}
-
-TEST(ArithmeticUnitPredicateTest, AnyOrValu)
-{
-    std::string mydoc = "type: Or\n"
-                        "value: [{type: ArithmeticUnit, value: Any}, \n"
-                        "        {type: ArithmeticUnit, value: VALU}]";
+                        "        {type: ArithmeticUnitCompatible, value: VALU}]";
 
     llvm::yaml::Input yin(mydoc);
 

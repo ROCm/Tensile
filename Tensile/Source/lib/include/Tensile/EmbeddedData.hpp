@@ -91,7 +91,7 @@ namespace Tensile
 
         static Items& GetMutable(std::string const& key)
         {
-            if(Debug::Instance().printEmbeddedDataInit())
+            if(Debug::Instance().printDataInit())
                 std::cout << "Embedding an object of type " << typeid(Object).name() << " with key "
                           << key << std::endl;
             return Base::Instance().items[key];

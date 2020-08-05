@@ -58,7 +58,8 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
 
     ######################################
     # Read Solutions
-    (problemSizes, solutions) = LibraryIO.readSolutions(solutionsFileName)
+    # (problemSizes, solutions) are already read and kept in problemSizeGroups, no need to call LibraryIO.readSolutions(solutionsFileName) again
+    solutions = problemSizeGroup[4]
     problemSizesList.append(problemSizes)
     solutionsList.append(solutions)
     solutionMinNaming = Solution.getMinNaming(solutions)
@@ -111,6 +112,12 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
         line += "; "
       line += "\n"
     print(line)
+
+  for i in range(0, len(logicAnalyzer.solutions)):
+    s = logicAnalyzer.solutions[i]
+    s["SolutionIndex"] = i
+    s["SolutionNameMin"] = Solution.getNameMin(s, solutionMinNaming)
+    print1("(%2u) %s : %s" % (i, Solution.getNameMin(s, solutionMinNaming), Solution.getNameFull(s)))
 
   if enableTileSelection:
     if globalParameters["NewClient"] == 2:
@@ -1438,7 +1445,7 @@ def main(  config ):
       if problemType not in problemTypes:
         problemTypes[problemType] = []
       problemTypes[problemType].append( (problemSizes, \
-          dataFileName, solutionsFileName, selectionFileName) )
+          dataFileName, solutionsFileName, selectionFileName, solutions) )
 
   for problemType in problemTypes:
     logicTuple = analyzeProblemType( problemType, problemTypes[problemType], \
@@ -1448,5 +1455,9 @@ def main(  config ):
         analysisParameters["ScheduleName"], analysisParameters["ArchitectureName"], \
         analysisParameters["DeviceNames"], logicTuple)
 
+  currentTime = time.time()
+  elapsedTime = currentTime - startTime
+  print1("%s\n# Finish Analysing data to in %s - %.3fs\n%s" % (HR, globalParameters["LibraryLogicPath"], elapsedTime, HR) )
+  
   popWorkingPath()
 

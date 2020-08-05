@@ -305,27 +305,17 @@ class ProblemPredicate(Properties.Predicate):
         else:
             rv += [cls("CDStridesEqual", value = False)]
 
-        if "KernelLanguage" in state and state["KernelLanguage"] == "Assembly":
-            rv += [ super().Or( \
-                [ cls("KernelLanguage", value = "Any"), \
-                  cls("KernelLanguage", value = "Assembly") ] ) ]
-        elif "KernelLanguage" in state and state["KernelLanguage"] == "Source":
-            rv += [ super().Or( \
-                [ cls("KernelLanguage", value = "Any"), \
-                  cls("KernelLanguage", value = "Source") ] ) ]
+        if "KernelLanguage" in state:
+            rv += [cls("KernelLanguageCompatible", value=state["KernelLanguage"])]
 
         if 'GlobalSplitU' in state and state['GlobalSplitU'] > 1:
             rv += [cls("DeterministicMode", value = False)]
 
         if ("MatrixInstruction" in state and state["MatrixInstruction"]) or \
            ("EnableMatrixInstruction" in state and state["EnableMatrixInstruction"] is True):
-            rv += [ super().Or( \
-                [ cls("ArithmeticUnit", value = "Any"), \
-                  cls("ArithmeticUnit", value = "MFMA") ] ) ]
+            rv += [cls("ArithmeticUnitCompatible", value="MFMA")]
         else:
-            rv += [ super().Or( \
-                [ cls("ArithmeticUnit", value = "Any"), \
-                  cls("ArithmeticUnit", value = "VALU") ] ) ]
+            rv += [cls("ArithmeticUnitCompatible", value="VALU")]
 
         # if bufferload is performed, we output some predication info for host side,
         # to prevent from some extremely large problems from launching and causing bufferload offset limit < 2^32

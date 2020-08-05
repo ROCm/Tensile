@@ -24,11 +24,13 @@
  *
  *******************************************************************************/
 
-#include <Tensile/Tensile.hpp>
 #include <Tensile/llvm/Loading.hpp>
-#include <Tensile/llvm/YAML.hpp>
 
 #include <fstream>
+
+#include <Tensile/Debug.hpp>
+#include <Tensile/Tensile.hpp>
+#include <Tensile/llvm/YAML.hpp>
 
 namespace Tensile
 {
@@ -39,13 +41,23 @@ namespace Tensile
     {
         std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
-        auto              inputFile = llvm::MemoryBuffer::getFile(filename);
-        llvm::yaml::Input yin((*inputFile)->getMemBufferRef());
-
-        yin >> rv;
-
-        if(yin.error())
+        try
         {
+            auto              inputFile = llvm::MemoryBuffer::getFile(filename);
+            llvm::yaml::Input yin((*inputFile)->getMemBufferRef());
+
+            yin >> rv;
+
+            if(yin.error())
+            {
+                return nullptr;
+            }
+        }
+        catch(std::runtime_error const& exc)
+        {
+            if(Debug::Instance().printDataInit())
+                std::cout << "Error loading " << filename << " (YAML):" << std::endl << exc.what() << std::endl;
+
             return nullptr;
         }
 
@@ -58,14 +70,24 @@ namespace Tensile
     {
         std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
-        llvm::StringRef   dataRef((const char*)data.data(), data.size());
-        llvm::yaml::Input yin(dataRef);
-
-        yin >> rv;
-
-        if(yin.error())
+        try
         {
-            throw std::runtime_error(yin.error().message());
+            llvm::StringRef   dataRef((const char*)data.data(), data.size());
+            llvm::yaml::Input yin(dataRef);
+
+            yin >> rv;
+
+            if(yin.error())
+            {
+                throw std::runtime_error(yin.error().message());
+            }
+        }
+        catch(std::runtime_error const& exc)
+        {
+            if(Debug::Instance().printDataInit())
+                std::cout << "Error loading YAML data:" << std::endl << exc.what() << std::endl;
+
+            return nullptr;
         }
 
         return rv;

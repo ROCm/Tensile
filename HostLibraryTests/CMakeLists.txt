@@ -28,6 +28,7 @@ set( CMAKE_CXX_EXTENSIONS OFF )
 
 option(TENSILE_USE_HIP       "Use the Hip runtime." ON)
 option(TENSILE_USE_LLVM      "Use LLVM for parsing config files." ON)
+option(TENSILE_USE_MSGPACK   "Use msgpack for parsing config files." ON)
 option(TENSILE_USE_OPENMP    "Enable OpenMP multithreading." ON)
 option(TENSILE_STATIC_ONLY   "Disable exposing Tensile symbols in a shared library." ON)
 option(TENSILE_DISABLE_CTEST "Disable CTest integration." OFF)
@@ -49,7 +50,7 @@ if(TENSILE_STATIC_ONLY)
 endif()
 
 if(NOT Tensile_FOUND)
-    find_package(Tensile 4.21.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
+    find_package(Tensile 4.22.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
 endif()
 
 if(NOT TENSILE_DISABLE_CTEST)
@@ -98,7 +99,14 @@ add_subdirectory(configs)
 
 set(TEST_DATA_DIR "${CMAKE_CURRENT_BINARY_DIR}/data")
 file(MAKE_DIRECTORY "${TEST_DATA_DIR}")
-file(COPY ${SOLUTION_LIBRARY_FILES} DESTINATION "${TEST_DATA_DIR}")
+
+foreach(FILE ${SOLUTION_LIBRARY_FILES})
+    if(EXISTS ${FILE})
+        message(WARNING "Overwriting ${FILE} from ${FILE}.gz")
+    endif()
+    execute_process(COMMAND gzip --keep --decompress --force "${FILE}.gz")
+    file(COPY ${FILE} DESTINATION "${TEST_DATA_DIR}")
+endforeach(FILE)
 
 include_directories("." ${GTEST_SOURCE_DIR}/include)
 add_subdirectory(testlib)

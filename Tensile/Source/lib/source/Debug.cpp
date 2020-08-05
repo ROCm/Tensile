@@ -85,7 +85,7 @@ namespace Tensile
         return m_value & 0x800;
     }
 
-    bool Debug::printEmbeddedDataInit() const
+    bool Debug::printDataInit() const
     {
         return m_value & 0x1000;
     }

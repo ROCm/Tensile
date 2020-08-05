@@ -135,3 +135,15 @@ namespace Tensile
  * @}
  */
 } // namespace Tensile
+
+namespace std
+{
+    template <>
+    struct hash<Tensile::ArithmeticUnit>
+    {
+        inline size_t operator()(Tensile::ArithmeticUnit const& val) const
+        {
+            return hash<int>()(static_cast<int>(val));
+        }
+    };
+} // namespace std

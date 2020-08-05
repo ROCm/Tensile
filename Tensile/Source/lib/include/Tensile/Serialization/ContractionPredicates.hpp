@@ -73,9 +73,9 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::BetaZero>(),
                     Base::template Pair<Predicates::Contraction::BetaOne>(),
                     Base::template Pair<Predicates::Contraction::HighPrecisionAccumulateEqual>(),
-                    Base::template Pair<Predicates::Contraction::KernelLanguageEqual>(),
+                    Base::template Pair<Predicates::Contraction::KernelLanguageCompatible>(),
                     Base::template Pair<Predicates::Contraction::DeterministicModeEqual>(),
-                    Base::template Pair<Predicates::Contraction::ArithmeticUnitEqual>(),
+                    Base::template Pair<Predicates::Contraction::ArithmeticUnitCompatible>(),
                     Base::template Pair<Predicates::Contraction::TypesEqual>(),
                     Base::template Pair<Predicates::Contraction::OperationIdentifierEqual>(),
                     Base::template Pair<Predicates::Contraction::BufferLoadOffsetLimitCheck>(),
@@ -201,14 +201,14 @@ namespace Tensile
         };
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::ArithmeticUnitEqual, IO>
-            : public AutoMappingTraits<Predicates::Contraction::ArithmeticUnitEqual, IO>
+        struct MappingTraits<Predicates::Contraction::ArithmeticUnitCompatible, IO>
+            : public AutoMappingTraits<Predicates::Contraction::ArithmeticUnitCompatible, IO>
         {
         };
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::KernelLanguageEqual, IO>
-            : public AutoMappingTraits<Predicates::Contraction::KernelLanguageEqual, IO>
+        struct MappingTraits<Predicates::Contraction::KernelLanguageCompatible, IO>
+            : public AutoMappingTraits<Predicates::Contraction::KernelLanguageCompatible, IO>
         {
         };
 

@@ -92,6 +92,12 @@ namespace Tensile
                                         rhs.operationIdentifier(),
                                         lhs.highPrecisionAccumulate(),
                                         rhs.highPrecisionAccumulate(),
+                                        lhs.kernelLanguage(),
+                                        rhs.kernelLanguage(),
+                                        lhs.deterministicMode(),
+                                        rhs.deterministicMode(),
+                                        lhs.arithmeticUnit(),
+                                        rhs.arithmeticUnit(),
                                         lhs.a(),
                                         rhs.a(),
                                         lhs.b(),
@@ -116,7 +122,10 @@ namespace std
                                          problem.b(),
                                          problem.c(),
                                          problem.d(),
-                                         problem.highPrecisionAccumulate());
+                                         problem.highPrecisionAccumulate(),
+                                         problem.kernelLanguage(),
+                                         problem.deterministicMode(),
+                                         problem.arithmeticUnit());
         }
     };
 

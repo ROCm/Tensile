@@ -28,8 +28,8 @@
 
 #include <Tensile/ArithmeticUnitTypes.hpp>
 #include <Tensile/ContractionProblem.hpp>
-#include <Tensile/KernelLanguageTypes.hpp>
 #include <Tensile/ContractionSolution.hpp>
+#include <Tensile/KernelLanguageTypes.hpp>
 #include <Tensile/Predicates.hpp>
 
 #include <array>
@@ -621,8 +621,8 @@ namespace Tensile
                 }
             };
 
-            struct KernelLanguageEqual
-                : public Predicate_CRTP<KernelLanguageEqual, ContractionProblem>
+            struct KernelLanguageCompatible
+                : public Predicate_CRTP<KernelLanguageCompatible, ContractionProblem>
             {
                 enum
                 {
@@ -631,16 +631,21 @@ namespace Tensile
                 };
                 KernelLanguage value;
 
-                KernelLanguageEqual() = default;
+                KernelLanguageCompatible() = default;
+                KernelLanguageCompatible(KernelLanguage value)
+                    : value(value)
+                {
+                }
 
                 static std::string Type()
                 {
-                    return "KernelLanguage";
+                    return "KernelLanguageCompatible";
                 }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.kernelLanguage() == value;
+                    return problem.kernelLanguage() == value
+                           || problem.kernelLanguage() == KernelLanguage::Any;
                 }
             };
 
@@ -671,8 +676,8 @@ namespace Tensile
                 }
             };
 
-            struct ArithmeticUnitEqual
-                : public Predicate_CRTP<ArithmeticUnitEqual, ContractionProblem>
+            struct ArithmeticUnitCompatible
+                : public Predicate_CRTP<ArithmeticUnitCompatible, ContractionProblem>
             {
                 enum
                 {
@@ -682,16 +687,21 @@ namespace Tensile
 
                 ArithmeticUnit value;
 
-                ArithmeticUnitEqual() = default;
+                ArithmeticUnitCompatible() = default;
+                ArithmeticUnitCompatible(ArithmeticUnit value)
+                    : value(value)
+                {
+                }
 
                 static std::string Type()
                 {
-                    return "ArithmeticUnit";
+                    return "ArithmeticUnitCompatible";
                 }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.arithmeticUnit() == value;
+                    return problem.arithmeticUnit() == value
+                           || problem.arithmeticUnit() == ArithmeticUnit::Any;
                 }
             };
 
@@ -770,8 +780,8 @@ namespace Tensile
                 }
             };
 
-            
-            struct BufferLoadOffsetLimitCheck : public Predicate_CRTP<BufferLoadOffsetLimitCheck, ContractionProblem>
+            struct BufferLoadOffsetLimitCheck
+                : public Predicate_CRTP<BufferLoadOffsetLimitCheck, ContractionProblem>
             {
                 enum
                 {
@@ -794,8 +804,12 @@ namespace Tensile
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     const uint64_t TWO_POW_32 = 4294967296;
-                    return ( problem.a().strides()[1] * value.depthUorMT0 + value.shiftPtrElemA ) * problem.a().elementBytes() < TWO_POW_32 
-                        && ( problem.b().strides()[1] * value.depthUorMT1 + value.shiftPtrElemB ) * problem.b().elementBytes() < TWO_POW_32;
+                    return (problem.a().strides()[1] * value.depthUorMT0 + value.shiftPtrElemA)
+                                   * problem.a().elementBytes()
+                               < TWO_POW_32
+                           && (problem.b().strides()[1] * value.depthUorMT1 + value.shiftPtrElemB)
+                                      * problem.b().elementBytes()
+                                  < TWO_POW_32;
                 }
 
                 virtual std::string toString() const override
@@ -818,17 +832,20 @@ namespace Tensile
                     bool rv = (*this)(problem);
 
                     stream << *this << ": ("
-                           << " (" << problem.a().strides()[1] << " * " << value.depthUorMT0 << " + " << value.shiftPtrElemA << ") * " << problem.a().elementBytes()
+                           << " (" << problem.a().strides()[1] << " * " << value.depthUorMT0
+                           << " + " << value.shiftPtrElemA << ") * " << problem.a().elementBytes()
                            << " < 4294967296 && "
-                           << " (" << problem.b().strides()[1] << " * " << value.depthUorMT1 << " + " << value.shiftPtrElemB << ") * " << problem.b().elementBytes()
-                           << " < 4294967296" 
+                           << " (" << problem.b().strides()[1] << " * " << value.depthUorMT1
+                           << " + " << value.shiftPtrElemB << ") * " << problem.b().elementBytes()
+                           << " < 4294967296"
                            << ") == " << rv;
 
                     return rv;
                 }
             };
 
-            struct BufferStoreOffsetLimitCheck : public Predicate_CRTP<BufferStoreOffsetLimitCheck, ContractionProblem>
+            struct BufferStoreOffsetLimitCheck
+                : public Predicate_CRTP<BufferStoreOffsetLimitCheck, ContractionProblem>
             {
                 enum
                 {
@@ -851,7 +868,8 @@ namespace Tensile
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     const uint64_t TWO_POW_32 = 4294967296;
-                    return problem.a().strides()[1] * problem.a().elementBytes() * value < TWO_POW_32;
+                    return problem.a().strides()[1] * problem.a().elementBytes() * value
+                           < TWO_POW_32;
                 }
 
                 virtual std::string toString() const override
@@ -859,19 +877,19 @@ namespace Tensile
                     return concatenate(this->type(), "(MT1:", value, ")");
                 }
 
-                 virtual bool debugEval(ContractionProblem const& problem,
+                virtual bool debugEval(ContractionProblem const& problem,
                                        std::ostream&             stream) const override
                 {
                     bool rv = (*this)(problem);
 
-                    stream << *this << ": ("
-                           << problem.a().strides()[1] << " * " << problem.a().elementBytes() << " * " << value  << " < 4294967296" 
+                    stream << *this << ": (" << problem.a().strides()[1] << " * "
+                           << problem.a().elementBytes() << " * " << value << " < 4294967296"
                            << ") == " << rv;
 
                     return rv;
                 }
             };
-            
+
         } // namespace Contraction
 
         /**

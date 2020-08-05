@@ -164,6 +164,7 @@ namespace Tensile
             static SubclassMap GetSubclasses()
             {
                 SubclassMap rv({Base::template Pair<Predicates::GPU::ProcessorEqual>(),
+                                Base::template Pair<Predicates::GPU::CUCountEqual>(),
                                 Base::template Pair<Predicates::GPU::RunsKernelTargeting>()});
 
                 auto gmap = Generic::GetSubclasses();
@@ -183,6 +184,12 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Predicates::GPU::ProcessorEqual, IO>
             : public AutoMappingTraits<Predicates::GPU::ProcessorEqual, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::GPU::CUCountEqual, IO>
+            : public AutoMappingTraits<Predicates::GPU::CUCountEqual, IO>
         {
         };
 

@@ -108,6 +108,9 @@ def readSolutions( filename ):
   solutions = []
   for i in range(2, len(solutionStates)):
     solutionState = solutionStates[i]
+    # force redo the deriving of parameters, make sure old version logic yamls can be validated
+    solutionState["AssignedProblemIndependentDerivedParameters"] = False
+    solutionState["AssignedDerivedParameters"] = False    
     solutionObject = Solution(solutionState)
     solutions.append(solutionObject)
   problemType = solutions[0]["ProblemType"]
@@ -133,7 +136,7 @@ def readLibraryLogicForSchedule( filename ):
   # parse out objects
   versionString     = data[0]["MinimumRequiredVersion"]
   scheduleName      = data[1]
-  architectureName  = data[2]
+  architectureName  = data[2] if isinstance(data[2], str) else data[2]["Architecture"]
   deviceNames       = data[3]
   problemTypeState  = data[4]
   solutionStates    = data[5]
@@ -156,6 +159,9 @@ def readLibraryLogicForSchedule( filename ):
       solutionState["ISA"] = Common.gfxArch(architectureName)
     else:
       solutionState["ISA"] = [0, 0, 0]
+    # force redo the deriving of parameters, make sure old version logic yamls can be validated
+    solutionState["AssignedProblemIndependentDerivedParameters"] = False
+    solutionState["AssignedDerivedParameters"] = False
     solutionObject = Solution(solutionState)
     if solutionObject["ProblemType"] != problemType:
       printExit("ProblemType of file doesn't match solution: %s != %s" \
