@@ -620,7 +620,7 @@ namespace Tensile
                                    Hardware const&                     hardware) const
     {
         if(Debug::Instance().printWinningKernelName())
-            std::cout << "Winning kernel: " << this->KernelName() << std::endl;
+            std::cout << "Running kernel: " << this->KernelName() << std::endl;
 
         if(problemType.aType == DataType::Float && problemType.bType == DataType::Float
            && problemType.cType == DataType::Float && problemType.dType == DataType::Float)
