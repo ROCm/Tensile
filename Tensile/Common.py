@@ -747,6 +747,12 @@ validParameters = {
     # Assertions/Requirements: NumWorkGroups0 * NumWorkGroups1 < 2^32
     "PersistentKernel":           range(0,512+1) ,       # Use persistent kernel.
 
+    # True:  Batch dimension (WG.z) is also considered in persistent kernel
+    # False: Not considered
+    #        for problems with large batch-size, PKAB = True could help
+    #        for problems with only one batch, PKAB = True/False should make no difference
+    "PersistentKernelAlongBatch": [False,True],
+
     # Allow macro-tile to span batch dimensions and thus a single workgroup can work across batch dimensions.
     # This can improve utilization, in particular if macro-tile is larger than the lower dimensions.
     # The byte address of the last element in the packed array must fit in 2^32.
@@ -988,6 +994,7 @@ defaultBenchmarkCommonParameters = [
     {"MacroTileShapeMin":         [ 1 ] },
     {"MacroTileShapeMax":         [ 64 ] },
     {"PersistentKernel":          [ 0 ] },
+    {"PersistentKernelAlongBatch":[ False ] },    # May be default True is better ?
     {"PackBatchDims":             [ 0 ] },
     {"PackFreeDims":              [ 1 ] },
     {"PackSummationDims":         [ 0 ] },

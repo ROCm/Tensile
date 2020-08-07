@@ -1077,12 +1077,13 @@ class KernelWriterSource(KernelWriter):
       kStr += "  unsigned int %s;%s" % ( wg0, self.endLine)
       kStr += "  unsigned int %s;%s" % ( wg1, self.endLine)
 
+      # PersistentKernel along batch dimension
+      if kernel["PersistentKernelAlongBatch"]:
+        kStr += "  unsigned int wgKSerial;" + self.endLine
+        kStr += "  unsigned int wgIJSerial;" + self.endLine
+
       #kStr += "if (serial==0) printf(\"WG%%u_%%u probWG:%%u_%%u  %s\", hc_get_group_id(0), hc_get_group_id(1), %s, %s);" % (self.endLinePP, wg0, wg1)+ self.endLine
       kStr += "%swhile (1) { // persistent loop %s" % (self.endLine, self.endLine)
-      kStr += "  %s  = serialWgIter %% problemNumGroupTiles0;%s" \
-          % ( wg0, self.endLine)
-      kStr += "  %s  = serialWgIter / problemNumGroupTiles0;%s" \
-          % ( wg1, self.endLine)
     return kStr
 
 
@@ -1099,10 +1100,28 @@ class KernelWriterSource(KernelWriter):
     n1 = 1 if nwgg else 0
 
     if kernel["PersistentKernel"]:
-      kStr += "  %s  = serialWgIter %% problemNumGroupTiles0;%s" \
-          % ( wg0, self.endLine)
-      kStr += "  %s  = serialWgIter / problemNumGroupTiles0;%s" \
-          % ( wg1, self.endLine)
+      # TODO - PK not support GSU in Assembly, but HIP is OK
+      kStr += "  unsigned int numWGIJ = problemNumGroupTiles0*problemNumGroupTiles1;" + self.endLine
+      if kernel["PersistentKernelAlongBatch"]:
+        wgKSerial = "wgKSerial"
+        wgIJSerial = "wgIJSerial"
+        # compare serialWgIter against problem groups
+        # TODO - AlongBatch not support GSU in HIP now
+        kStr += "  if (serialWgIter >= numWGIJ * sizeK) break; // persistent loop" + self.endLine
+        kStr += "  %s  = serialWgIter / numWGIJ;%s" % ( wgKSerial, self.endLine)
+        kStr += "  %s  = serialWgIter %% numWGIJ;%s" % ( wgIJSerial, self.endLine)
+        kStr += "  %s  = %s %% problemNumGroupTiles0;%s" % ( wg0, wgIJSerial, self.endLine)
+        kStr += "  %s  = %s / problemNumGroupTiles0;%s" % ( wg1, wgIJSerial, self.endLine)
+      else:
+        # compare serialWgIter against problem groups
+        if kernel["GlobalSplitU"] > 1:
+          kStr += "  if (serialWgIter >= numWGIJ * GLOBAL_SPLITU) break; // persistent loop" + self.endLine
+        else:
+          kStr += "  if (serialWgIter >= numWGIJ) break; // persistent loop" + self.endLine
+        kStr += "  %s  = serialWgIter %% problemNumGroupTiles0;%s" \
+            % ( wg0, self.endLine)
+        kStr += "  %s  = serialWgIter / problemNumGroupTiles0;%s" \
+            % ( wg1, self.endLine)
     else:
       # optionally transpose work-group grid
       kStr += "  unsigned int %s = %s(%u);%s" \
@@ -1180,12 +1199,6 @@ class KernelWriterSource(KernelWriter):
 
     #kStr += "if (serial==0) printf(\"WG:%%u_%%u progWG:%%u_%%u \\n\", hc_get_group_id(0), hc_get_group_id(1), %s, %s);" \
     #      % (wg0, wg1)+ self.endLine
-
-    if kernel["PersistentKernel"]:
-      # could compare serialWgIter against problem nwg0*nwg1?
-      kStr += "  if ((%s >= n%s) || (%s >= n%s)) break; // persistent loop%s" \
-        % (wg1, wg1, wg0, wg0, self.endLine)
-      #kStr += "if (serial==0) printf(\"WG%%u_%%u probWG:%%u_%%u  probNumWG=%%u_%%u\\n%s\", hc_get_group_id(0), hc_get_group_id(1), %s, %s, problemNumGroupTiles0, problemNumGroupTiles1);" % (self.endLinePP, wg0, wg1)+ self.endLine
     return kStr
 
 
@@ -1241,16 +1254,19 @@ class KernelWriterSource(KernelWriter):
     nonTileFreeIndices = list(range(0, kernel["ProblemType"]["NumIndicesC"]))
     nonTileFreeIndices.remove(kernel["ProblemType"]["Index0"])
     nonTileFreeIndices.remove(kernel["ProblemType"]["Index1"])
-    for i in range(0, len(nonTileFreeIndices)):
-      index = nonTileFreeIndices[i]
-      if isPackedIndex(kernel, index):
-        continue
-      kStr += "  unsigned int wg" + self.indexChars[index] \
-          + " = ( " + self.getGroupIdStr + "(2)"
-      for j in reversed(list(range( i+1, len(nonTileFreeIndices)))):
-        index2 = nonTileFreeIndices[j]
-        kStr += " / size" + self.indexChars[index2]
-      kStr += " ) % size" + self.indexChars[index] + ";" + self.endLine
+    if kernel["PersistentKernel"] and kernel["PersistentKernelAlongBatch"]:
+      kStr += "  unsigned int wgK = wgKSerial % sizeK;" + self.endLine
+    else:
+      for i in range(0, len(nonTileFreeIndices)):
+        index = nonTileFreeIndices[i]
+        if isPackedIndex(kernel, index):
+          continue
+        kStr += "  unsigned int wg" + self.indexChars[index] \
+            + " = ( " + self.getGroupIdStr + "(2)"
+        for j in reversed(list(range( i+1, len(nonTileFreeIndices)))):
+          index2 = nonTileFreeIndices[j]
+          kStr += " / size" + self.indexChars[index2]
+        kStr += " ) % size" + self.indexChars[index] + ";" + self.endLine
     return kStr
 
   ##############################################################################
@@ -2023,6 +2039,12 @@ class KernelWriterSource(KernelWriter):
   # End Summation
   ##############################################################################
   def endSummation(self,kernel):
+    return ""
+
+  ##############################################################################
+  # Convert Alpha, Beta from F16 to F32 for HPA
+  ##############################################################################
+  def checkAlphaBetaForHPA(self,kernel):
     return ""
 
   ##############################################################################
@@ -2965,10 +2987,10 @@ class KernelWriterSource(KernelWriter):
             kStr += self.endLine
     return kStr
 
-  def openPrefetchAcrossPersistent(self, kernel):
+  def openPrefetchAcrossPersistent(self, kernel, isOptNLL):
     return ""
 
-  def closePrefetchAcrossPersistent(self, kernel):
+  def closePrefetchAcrossPersistent(self, kernel, isOptNLL):
     return ""
 
   ##############################################################################

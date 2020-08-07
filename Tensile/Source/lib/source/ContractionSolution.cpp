@@ -300,7 +300,8 @@ namespace Tensile
             std::swap(rv.numWorkGroups.x, rv.numWorkGroups.y);
 
         uint32_t problemNumGroupTiles0 = rv.numWorkGroups.x;
-        uint32_t problemNumGroupTiles1 = rv.numWorkGroups.y;
+        uint32_t problemNumGroupTiles1 = rv.numWorkGroups.y;        
+        uint32_t problemNumGroupTiles2 = rv.numWorkGroups.z;    // used only when persistent kernel along batch
 
         rv.numWorkGroups.y *= sizeMapping.globalSplitU;
 
@@ -309,7 +310,11 @@ namespace Tensile
             size_t persistentGroups = dynamic_cast<AMDGPU const&>(hardware).computeUnitCount
                                       * sizeMapping.persistentKernel;
             size_t problemGroups = rv.numWorkGroups.x * rv.numWorkGroups.y;
-
+            if (sizeMapping.persistentKernelAlongBatch)
+            {
+                problemGroups *= rv.numWorkGroups.z;
+                rv.numWorkGroups.z = 1;
+            }
             rv.numWorkGroups.x = std::min(persistentGroups, problemGroups);
             rv.numWorkGroups.y = 1;
         }
@@ -479,16 +484,31 @@ namespace Tensile
 
         rv.args.append<uint32_t>("problemNumGroupTiles0", problemNumGroupTiles0);
         rv.args.append<uint32_t>("problemNumGroupTiles1", problemNumGroupTiles1);
-        rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0",
-                                 smallMagicNumber(problemNumGroupTiles0));
+
+        if(sizeMapping.persistentKernel != 0)
+        {
+            rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0",
+                                    smallMagicNumber(problemNumGroupTiles0));
+        }
 
         if(!isSourceKernel())
         {
-            rv.args.append<uint32_t>("gridNumWorkGroups0", rv.numWorkGroups.x);
-
             uint32_t numFullBlocks            = problemNumGroupTiles1;
             uint32_t wgmRemainder1            = 0;
             uint32_t magicNumberWgmRemainder1 = 0;
+
+            // conditional args, aligned with KernelWriterAssembly.py
+            if(sizeMapping.persistentKernel != 0)
+            {
+                rv.args.append<uint32_t>("gridNumWorkGroups0", rv.numWorkGroups.x);
+            }
+
+            if(sizeMapping.persistentKernelAlongBatch)
+            {
+                rv.args.append<uint32_t>("problemNumGroupTiles2", problemNumGroupTiles2);
+                rv.args.append<uint32_t>("problemNumGroupTiles0By1", problemNumGroupTiles0 * problemNumGroupTiles1);
+                rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0By1", smallMagicNumber(problemNumGroupTiles0*problemNumGroupTiles1));
+            }
 
             if(sizeMapping.workGroupMapping != 0)
             {
