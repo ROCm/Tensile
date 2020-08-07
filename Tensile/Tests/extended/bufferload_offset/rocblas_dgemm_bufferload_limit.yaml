@@ -3,7 +3,7 @@ GlobalParameters:
   KernelTime: True
   NewClient: 2
   PrintSolutionRejectionReason: True
-  
+
 BenchmarkProblems:
 
   ########################################

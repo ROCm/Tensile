@@ -5,7 +5,7 @@ GlobalParameters:
   NumBenchmarks: 30
   DataInitTypeBeta: 0
   DataInitTypeAlpha: 1
-  
+
 BenchmarkProblems:
 
   ########################################
@@ -30,7 +30,7 @@ BenchmarkProblems:
         - LoopTail: [True]
         - WorkGroupMapping: [8]
       ForkParameters:
-        - VectorWidth: [2]        
+        - VectorWidth: [2]
         - PrefetchLocalRead: [0,1]
         - PersistentKernel: [0,2,3,4]
         - ThreadTile:
@@ -39,7 +39,7 @@ BenchmarkProblems:
           - [ 16, 32, 1 ]
         - DepthU: [8,16]        # DU = 32 cost too much LDS
         - StaggerU: [8,16,32]
-        - StaggerUStride: [64,128,256]      
+        - StaggerUStride: [64,128,256]
         - StaggerUMapping: [0]
         - InnerUnroll: [1]      # 1 is always best
       BenchmarkForkParameters:

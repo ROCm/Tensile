@@ -105,7 +105,9 @@ namespace Tensile
                                         lhs.c(),
                                         rhs.c(),
                                         lhs.d(),
-                                        rhs.d());
+                                        rhs.d(),
+                                        lhs.workspaceSize(),
+                                        rhs.workspaceSize());
         }
     };
 } // namespace Tensile
@@ -125,7 +127,8 @@ namespace std
                                          problem.highPrecisionAccumulate(),
                                          problem.kernelLanguage(),
                                          problem.deterministicMode(),
-                                         problem.arithmeticUnit());
+                                         problem.arithmeticUnit(),
+                                         problem.workspaceSize());
         }
     };
 

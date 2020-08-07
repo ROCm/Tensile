@@ -583,7 +583,7 @@ std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
             {
                 adapter->loadCodeObjectFile(file.native());
             }
-            catch(std::logic_error & exc)
+            catch(std::logic_error& exc)
             {
             }
         }

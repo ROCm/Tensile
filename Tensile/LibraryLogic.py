@@ -1458,6 +1458,6 @@ def main(  config ):
   currentTime = time.time()
   elapsedTime = currentTime - startTime
   print1("%s\n# Finish Analysing data to in %s - %.3fs\n%s" % (HR, globalParameters["LibraryLogicPath"], elapsedTime, HR) )
-  
+
   popWorkingPath()
 

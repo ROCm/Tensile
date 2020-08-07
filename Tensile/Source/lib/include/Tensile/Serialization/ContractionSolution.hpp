@@ -90,6 +90,9 @@ namespace Tensile
                 iot::mapOptional(io, "magicDivAlg", s.magicDivAlg);
                 iot::mapRequired(io, "persistentKernel", s.persistentKernel);
                 iot::mapRequired(io, "sourceKernel", s.sourceKernel);
+
+                iot::mapRequired(io, "globalAccumulation", s.globalAccumulation);
+                iot::mapRequired(io, "workspaceSizePerElemC", s.workspaceSizePerElemC);
             }
 
             const static bool flow = false;

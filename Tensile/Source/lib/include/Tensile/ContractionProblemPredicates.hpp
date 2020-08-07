@@ -890,6 +890,34 @@ namespace Tensile
                 }
             };
 
+            struct WorkspaceCheck : public Predicate_CRTP<WorkspaceCheck, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = true,
+                    HasValue = true
+                };
+                size_t index;
+                size_t value;
+
+                WorkspaceCheck() = default;
+                WorkspaceCheck(size_t index, size_t value)
+                    : index(index)
+                    , value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "WorkspaceCheck";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.d().totalAllocatedElements() * value <= problem.workspaceSize();
+                }
+            };
+
         } // namespace Contraction
 
         /**

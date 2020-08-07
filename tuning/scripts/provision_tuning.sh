@@ -104,7 +104,7 @@ while true; do
     -z | --size-log )       SIZE_LOG="$2"; shift 2;;
     -d | --log-dir )        SIZE_DIR="$2"; shift 2;;
     -n | --network )        NETWORK="$2"; shift 2;;
-    --client )              TENSILE_CLIENT="$2"; shift 2;;    
+    --client )              TENSILE_CLIENT="$2"; shift 2;;
     -t | --tag )            TAG="$2"; shift 3;;
     -f | --tensile-fork)    TENSILE_FORK="$2"; shift 2;;
     --rocblas-fork)         ROCBLAS_FORK="$2"; shift 2;;

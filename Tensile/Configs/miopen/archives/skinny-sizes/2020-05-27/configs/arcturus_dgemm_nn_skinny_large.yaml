@@ -7,7 +7,7 @@ GlobalParameters:
   DataInitTypeBeta: 0
   DataInitTypeAlpha: 1
   NumElementsToValidate: 0
-  
+
 BenchmarkProblems:
 
   ########################################
@@ -32,7 +32,7 @@ BenchmarkProblems:
         - LoopTail: [True]
         - WorkGroupMapping: [8]
       ForkParameters:
-        - VectorWidth: [2]        
+        - VectorWidth: [2]
         - PrefetchLocalRead: [0,1]
         - PersistentKernel: [0,3,4,6]
         - ThreadTile:
@@ -55,7 +55,7 @@ BenchmarkProblems:
           - [ 64, 16, 1 ]
         - DepthU: [8]        # 16 never wins, and 32 not valid, cost too much LDS
         - StaggerU: [8,16,32]
-        - StaggerUStride: [64,128,256]      
+        - StaggerUStride: [64,128,256]
         - StaggerUMapping: [0]
         - InnerUnroll: [1]      # 1 is always best
       BenchmarkForkParameters:
