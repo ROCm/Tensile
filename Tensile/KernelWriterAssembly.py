@@ -375,7 +375,9 @@ class RegisterPool:
         stateStr += "#" # Checked out
     return stateStr
 
-
+  def stateDetailed(self):
+    for index, register in enumerate(self.vgprPool.pool):
+        print("%u: %s"%(index, register.tag))
 
 class ZeroPadReg:
   class State(Enum):
@@ -5507,13 +5509,10 @@ class KernelWriterAssembly(KernelWriter):
     s_nop            = 0
 
     # alloc vgpr
-    kReg    = self.vgprPool.checkOut(1,"kReg") # remainder
-    abReg   = self.vgprPool.checkOut(vgprPerInput,"abReg")
-    tmpVgpr = self.vgprPool.checkOut(2,"tmpVgpr")
-    dummy   = self.vgprPool.checkOut(1,"dummy")
-
-    # alloc sgpr
-    tmpSgpr = self.getTmpSgpr(3).idx()
+    kReg    = None
+    abReg   = None
+    tmpVgpr = None
+    dummy   = None
 
     if (numRegisters == 0.5) and ((kernel["UnrollMajorLDSA"] == False) or (kernel["UnrollMajorLDSB"] == False)):
       s_nop = 2
@@ -5528,6 +5527,8 @@ class KernelWriterAssembly(KernelWriter):
 
     # handle multiple K element in MFMA instruction
     if tail and kernel["MatrixInstK"] > 1:
+      kReg    = self.vgprPool.checkOut(1,"kReg") # remainder
+      tmpSgpr = self.getTmpSgpr(3).idx()
       shiftK.addCode(vectorStaticRemainder(dummy, kReg, "Serial", globalParameters["WavefrontWidth"], tmpVgpr, tmpSgpr))
       shiftK.addCode(vectorStaticDivide(kReg, kReg, dividerFortidInK, tmpVgpr, tmpSgpr))
       shiftK.addCode(staticMultiply(vgpr(kReg), vgpr(kReg), numMIInput, sgpr(tmpSgpr)))
@@ -5546,6 +5547,9 @@ class KernelWriterAssembly(KernelWriter):
 
       # replace 0 for same thread
       if numMIInput > 1:
+        abReg   = self.vgprPool.checkOut(vgprPerInput,"abReg")
+        tmpVgpr = self.vgprPool.checkOut(2,"tmpVgpr")
+        dummy   = self.vgprPool.checkOut(1,"dummy")
         shiftK.addCode(inst("v_sub_u32",    vgpr(kReg), sgpr(loopCounterName), vgpr(kReg), "get distance between size and k index"))
         shiftK.addCode(inst("v_cmp_lt_i32", sgpr(tmpSgpr,2), vgpr(kReg), numMIInput, "set partial 0 if distance less than input per thread"))
         shiftK.addCode(inst("s_and_b32",    sgpr(tmpSgpr+2), sgpr(loopCounterName), numMIInput-1, "get inputs for edge thread"))
@@ -5627,10 +5631,10 @@ class KernelWriterAssembly(KernelWriter):
                           accStart, accEnd, aStr, bStr, accStart, accEnd, self.endLine))
 
     # release register
-    self.vgprPool.checkIn(kReg)
-    self.vgprPool.checkIn(abReg)
-    self.vgprPool.checkIn(tmpVgpr)
-    self.vgprPool.checkIn(dummy)
+    if kReg is not None: self.vgprPool.checkIn(kReg)
+    if abReg is not None: self.vgprPool.checkIn(abReg)
+    if tmpVgpr is not None: self.vgprPool.checkIn(tmpVgpr)
+    if dummy is not None: self.vgprPool.checkIn(dummy)
 
     mfmaMod = Code.Module("mfmaCode")
     mfmaMod.addCode(shiftK)
