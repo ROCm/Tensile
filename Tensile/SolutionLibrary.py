@@ -86,7 +86,7 @@ class GranularitySelectionLibrary:
                 self.indices[i] = indexMap[index]
 
 class TileAwareMetricLibrary:
-    Tag = 'FitnessSelection'
+    Tag = 'TileAwareMetricSelection'
     StateKeys = [('type', 'tag'), 'indices', 'exact']
 
     @classmethod

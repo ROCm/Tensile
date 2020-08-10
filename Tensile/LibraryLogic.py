@@ -40,8 +40,8 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
 
   enableTileSelection = problemType["TileAwareSelection"]
   selectionModel = "GranularitySelection"
-  if "SelectionModel" in problemType.state and problemType.state["SelectionModel"] == "FitnessSelection":
-    selectionModel = "FitnessSelection"
+  if "SelectionModel" in problemType.state and problemType.state["SelectionModel"] == "TileAwareMetricSelection":
+    selectionModel = "TileAwareMetricSelection"
   solutionsList = []
   problemSizesList = []
   dataFileNameList = []
@@ -123,7 +123,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
 
   if enableTileSelection:
     if globalParameters["NewClient"] == 2:
-      if selectionModel == "FitnessSelection":
+      if selectionModel == "TileAwareMetricSelection":
         validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelectionForMetric(problemType, selectionFileNameList, \
             logicAnalyzer.numSolutionsPerGroup,  logicAnalyzer.solutionGroupMap, solutionsList)
       else:
@@ -146,7 +146,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
         validSelectionSolutionsRemainder.append(validSelectionSolution)
 
     selectionSolutions = []
-    if selectionModel != "FitnessSelection":
+    if selectionModel != "TileAwareMetricSelection":
       for i in range(0 ,len(validSelectionSolutionsIncluded)):
         validSelectionSolution = validSelectionSolutionsIncluded[i]
         (validSolution, validSolutionInfo) = validSelectionSolution
@@ -162,7 +162,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
       selectionSolutionsIds.add(selectionSolutionIndex)
       validSolution["SolutionNameMin"] = Solution.getNameMin(validSolution, solutionMinNaming)
       
-      if selectionModel != "FitnessSelection":
+      if selectionModel != "TileAwareMetricSelection":
         validSolution["Ideals"] = validSolutionInfo
       else:
         vInfo = None

@@ -262,7 +262,7 @@ class Writer:
     if tileSelection:
       tileSelectionLogic = {}
       tileSelectionIndices = logicTuple[6]
-      if selectionModel == "FitnessSelection":
+      if selectionModel == "TileAwareMetricSelection":
         idealMap = logicTuple[7]
         tileSelectionLogic["IdealMap"] = idealMap
       #idealMap = {}

@@ -506,7 +506,7 @@ class BenchmarkProcess:
       else:
         problemSizes = problemSizesDict["ProblemSizes"]
         #if "TileAwareSelection" in self.problemType.state and \
-        #                 self.problemType.state["SelectionModel"] == "FitnessSelection":
+        #                 self.problemType.state["SelectionModel"] == "TileAwareMetricSelection":
         #    if not problemSizes:
         #      problemSizes = []
         #    self.addTileAwareSizes(self.problemType, problemSizes)
