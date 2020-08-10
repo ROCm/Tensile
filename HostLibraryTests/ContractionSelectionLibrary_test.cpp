@@ -56,31 +56,55 @@ TEST(ContractionSelectionLibraryTest, GPUSelection)
         AMDGPU::Processor::gfx900, 64, "AMD Radeon Vega Frontier Edition");
     std::shared_ptr<Hardware> v20
         = std::make_shared<AMDGPU>(AMDGPU::Processor::gfx906, 60, "AMD Radeon Vega 7");
+    std::shared_ptr<Hardware> v20_64CU
+        = std::make_shared<AMDGPU>(AMDGPU::Processor::gfx906, 64, "AMD Radeon Vega 7");
 
-    auto v20Solution     = std::make_shared<ContractionSolution>();
-    auto genericSolution = std::make_shared<ContractionSolution>();
+    // Create solutions
+    auto v20Solution      = std::make_shared<ContractionSolution>();
+    auto v20Solution_64CU = std::make_shared<ContractionSolution>();
+    auto genericSolution  = std::make_shared<ContractionSolution>();
 
+    // Create libraries
     std::shared_ptr<ContractionLibrary> v20Lib
         = std::make_shared<SingleContractionLibrary>(v20Solution);
+    std::shared_ptr<ContractionLibrary> v20Lib_64CU
+        = std::make_shared<SingleContractionLibrary>(v20Solution_64CU);
     auto genericLib = std::make_shared<SingleContractionLibrary>(genericSolution);
 
+    // Create hardware predicate for a generic "V20"
     auto isV20 = std::make_shared<Predicates::GPU::ProcessorEqual>(AMDGPU::Processor::gfx906);
     std::shared_ptr<Predicates::Predicate<Hardware>> isAMDGPUV20
         = std::make_shared<Predicates::IsSubclass<Hardware, AMDGPU>>(isV20);
     HardwarePredicate hardwareIsAMDGPUV20(isAMDGPUV20);
 
+    // Create hardware predicate for a "V20" with 64 CU
+    std::shared_ptr<Predicates::Predicate<AMDGPU>> isV20Proc
+        = std::make_shared<Predicates::GPU::ProcessorEqual>(AMDGPU::Processor::gfx906);
+    std::shared_ptr<Predicates::Predicate<AMDGPU>> is64CU
+        = std::make_shared<Predicates::GPU::CUCountEqual>(64);
+    std::shared_ptr<Predicates::Predicate<AMDGPU>> isAMDGPUV20_64CU
+        = std::make_shared<Predicates::And<AMDGPU>>(
+            std::initializer_list<std::shared_ptr<Predicates::Predicate<AMDGPU>>>{isV20Proc,
+                                                                                  is64CU});
+    HardwarePredicate hardwareIsAMDGPUV20_64CU(
+        std::make_shared<Predicates::IsSubclass<Hardware, AMDGPU>>(isAMDGPUV20_64CU));
+
+    // Create hierarchy for hardware selection
     ContractionHardwareSelectionLibrary::Row v20Row(hardwareIsAMDGPUV20, v20Lib);
-    ContractionHardwareSelectionLibrary      lib({v20Row});
+    ContractionHardwareSelectionLibrary::Row v20Row_64CU(hardwareIsAMDGPUV20_64CU, v20Lib_64CU);
+    ContractionHardwareSelectionLibrary      lib({v20Row_64CU, v20Row});
 
     auto problem = std::make_shared<ContractionProblem>();
 
     EXPECT_EQ(lib.findBestSolution(*problem, *v20), v20Solution);
+    EXPECT_EQ(lib.findBestSolution(*problem, *v20_64CU), v20Solution_64CU);
     EXPECT_EQ(lib.findBestSolution(*problem, *v10), std::shared_ptr<ContractionSolution>());
 
     HardwarePredicate allHardware(std::make_shared<Predicates::True<Hardware>>());
     lib.rows.push_back(std::make_pair(allHardware, genericLib));
 
     EXPECT_EQ(lib.findBestSolution(*problem, *v20), v20Solution);
+    EXPECT_EQ(lib.findBestSolution(*problem, *v20_64CU), v20Solution_64CU);
     EXPECT_EQ(lib.findBestSolution(*problem, *v10), genericSolution);
 }
 

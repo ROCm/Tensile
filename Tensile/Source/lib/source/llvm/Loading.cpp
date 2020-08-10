@@ -56,7 +56,8 @@ namespace Tensile
         catch(std::runtime_error const& exc)
         {
             if(Debug::Instance().printDataInit())
-                std::cout << "Error loading " << filename << " (YAML):" << std::endl << exc.what() << std::endl;
+                std::cout << "Error loading " << filename << " (YAML):" << std::endl
+                          << exc.what() << std::endl;
 
             return nullptr;
         }

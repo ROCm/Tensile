@@ -36,6 +36,8 @@ TEST(LLVMYAMLContractionTest, Simple)
 {
     std::string mydoc = "name: foo\n"
                         "sizeMapping:\n"
+                        "  globalAccumulation: false\n"
+                        "  workspaceSizePerElemC: 0\n"
                         "  workGroup: [1,2,3]\n"
                         "  macroTile: [2,4,6]\n"
                         "  threadTile: [2,2,2]\n"
@@ -99,6 +101,8 @@ TEST(LLVMYAMLContractionTest, ContractionLibrary)
     std::string mydoc = "solutions:\n"
                         "  - name: foo\n"
                         "    sizeMapping:\n"
+                        "      globalAccumulation: false\n"
+                        "      workspaceSizePerElemC: 0\n"
                         "      workGroup: [1,2,3]\n"
                         "      macroTile: [1,2,3]\n"
                         "      threadTile: [1,2,3]\n"

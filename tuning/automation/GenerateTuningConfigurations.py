@@ -298,14 +298,14 @@ def updateProblemGroupFromKey(problemKey,sizeKey,problemGroup,sizeList,tileAware
     gsuVals = list()
     [gsuSizeList,gsuVals] = determineGSU(sizeList,mfma)
     sizeList = [size for size in sizeList if size not in gsuSizeList]
-    
+
     if rk == "true" and transposeType == "tn":
         addRkGroup(problemGroup,sizeList,gsuSizeList,tileAware)
     elif mfma == "true" and dType == "s":
         addMfmaGroup(problemGroup,dType,sizeList,gsuSizeList,gsuVals,tileAware,transposeType)
     else:
         addGroup(problemGroup,dType,sizeKey,sizeList,gsuSizeList,gsuVals,tileAware,transposeType)
-        
+
 def addGroup(problemGroup,dType,sizeKey,sizeList,gsuSizeList,gsuVals,tileAware,transposeType):
     masterList = [sizeList,gsuSizeList]
     for currList in masterList:

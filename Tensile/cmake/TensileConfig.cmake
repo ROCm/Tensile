@@ -96,7 +96,7 @@ function(TensileCreateLibraryFiles
   set(Script "${Tensile_ROOT}/bin/TensileCreateLibrary")
   message(STATUS "Tensile script: ${Script}")
 
-  set(Options "--new-client-only")
+  set(Options "--new-client-only" "--no-legacy-components")
 
   if(Tensile_MERGE_FILES)
     set(Options ${Options} "--merge-files")
@@ -143,7 +143,6 @@ function(TensileCreateLibraryFiles
   if(Tensile_LIBRARY_FORMAT)
     set(Options ${Options} "--library-format=${Tensile_LIBRARY_FORMAT}")
     if(Tensile_LIBRARY_FORMAT MATCHES "yaml")
-        target_compile_definitions( Tensile PUBLIC -DTENSILE_YAML=1)
         target_compile_definitions( TensileHost PUBLIC -DTENSILE_YAML=1)
     endif()
   endif()

@@ -164,7 +164,7 @@ globalParameters["MergeFiles"] = True             # F=store every solution and k
 globalParameters["MaxFileName"] = 128 # If a file name would be longer than this, shorten it with a hash.
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (10,1,0), (10,1,1)]             # assembly kernels writer supports these architectures
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
-globalParameters["NewClient"] = 1                                 # 1=Run old+new client, 2=run new client only (All In)
+globalParameters["NewClient"] = 2                                 # 1=Run old+new client, 2=run new client only (All In)
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
@@ -308,7 +308,7 @@ validParameters = {
     #   no load loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:         MAC_r[3]
     "PrefetchLocalRead":          list(range(128+1)),
 
-    # We use double LDS buffer when PrefetchGlobalRead. 
+    # We use double LDS buffer when PrefetchGlobalRead.
     # While it reads data from LDS[0]/[1], it prefetch global data and writes to LDS[1]/[0]
     # If we can make sure all data are read from LDS to register before writing data to LDS, we can use 1 LDS buffer to save LDS memory.
     # this can help to generate Kernel that LDS usage originally exceed MaxLDS if using double LDS buffer,
@@ -1313,6 +1313,8 @@ def GetAsmCaps(isaVersion):
   rv["v_dot2_f32_f16"]  = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
   rv["v_dot2c_f32_f16"] = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34")
 
+  rv["HasAtomicAdd"]    = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
+
   if tryAssembler(isaVersion, "s_waitcnt vmcnt(63)"):
     rv["MaxVmcnt"] = 63
   elif tryAssembler(isaVersion, "s_waitcnt vmcnt(15)"):
@@ -1329,11 +1331,11 @@ def GetAsmCaps(isaVersion):
 
 def GetArchCaps(isaVersion):
   rv = {}
-  rv["HasEccHalf"]       = (isaVersion==(9,0,6) or isaVersion==(9,0,8))
-  rv["Waitcnt0Disabled"] = isaVersion == (9,0,8)
-  rv["SeparateVscnt"]    = isaVersion[0] == 10
-  rv["CMPXWritesSGPR"]   = isaVersion[0] != 10
-  rv["HasWave32"]        = isaVersion[0] == 10
+  rv["HasEccHalf"]       = (isaVersion == (9,0,6) or isaVersion == (9,0,8))
+  rv["Waitcnt0Disabled"] = (isaVersion == (9,0,8))
+  rv["SeparateVscnt"]    = (isaVersion[0] == 10)
+  rv["CMPXWritesSGPR"]   = (isaVersion[0] != 10)
+  rv["HasWave32"]        = (isaVersion[0] == 10)
 
   return rv
 

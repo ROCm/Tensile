@@ -136,3 +136,15 @@ namespace Tensile
  * @}
  */
 } // namespace Tensile
+
+namespace std
+{
+    template <>
+    struct hash<Tensile::KernelLanguage>
+    {
+        inline size_t operator()(Tensile::KernelLanguage const& val) const
+        {
+            return hash<int>()(static_cast<int>(val));
+        }
+    };
+} // namespace std

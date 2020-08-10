@@ -28,6 +28,9 @@ from .Common import assignParameterRequired, assignParameterWithDefault, \
 from .DataType import DataType
 from .Utils import roundUpToNearestMultiple
 
+from .KernelWriterBetaOnly import KernelWriterBetaOnly
+from .KernelWriterConversion import KernelWriterConversion
+
 from collections import namedtuple,OrderedDict
 from copy import deepcopy
 from enum import Enum
@@ -897,7 +900,19 @@ class ProblemType(collections.abc.Mapping):
 
     self.convolution = Convolution(self, convolutionType, convolutionConfig)
     self["NumIndicesLD"] = 0
-    self["UseBeta"] = False
+    # For Conv with filter 1x1, unit-stride, no padding case, we can let UseBeta = True
+    self["UseBeta"] = ("UseBeta" in config and config["UseBeta"] == True) and (self.canExpressedAsGEMM() == True)
+
+  ########################################
+  def canExpressedAsGEMM(self):
+    rv = self.convolution != None and \
+         self.convolution.cc != None and \
+         self.convolution.cc.fil == [1,1] and \
+         self.convolution.cc.stride == [1,1] and \
+         self.convolution.cc.dilation == [1,1] and \
+         self.convolution.cc.padStart == [0,0] and \
+         self.convolution.cc.padEnd == [0,0]
+    return rv
 
   ########################################
   def isGEMM(self):
@@ -1629,8 +1644,11 @@ class Solution:
       if key != "ProblemType" and key not in self._state:
         self._state[key] = config[key]
     self["Valid"] = True
-    self["AssignedProblemIndependentDerivedParameters"] = False
-    self["AssignedDerivedParameters"] = False
+    # this could prevent OriginalSolution from re-assigning the parameters, save lots of time
+    if "AssignedProblemIndependentDerivedParameters" not in self._state:
+      self["AssignedProblemIndependentDerivedParameters"] = False
+    if "AssignedDerivedParameters" not in self._state:
+      self["AssignedDerivedParameters"] = False
 
     if self["ProblemType"].convolution:
         for (key,value) in self["ProblemType"].convolution.solutionParms.items():
@@ -1638,8 +1656,11 @@ class Solution:
     Solution.assignDerivedParameters(self._state)
     self._name = None
 
+    self.initHelperKernelObjests()
+
   # these keys are copied from ProblemType to internal that may be overridden
   InternalKeys = ["UseSgprForGRO","VectorStore"]
+
 
   ########################################
   # get a list of kernel parameters for this solution
@@ -1650,28 +1671,59 @@ class Solution:
     kernels.append(kernel)
     return kernels
 
-  @staticmethod
-  def getKernelsBetaOnlyFromProblem(problemType, gsu):
-    kernels = []
-    if gsu < 2:
-      return kernels
-    betas = [False]
-    if problemType["UseBeta"]:
-      betas.append(True)
-    for beta in betas:
-      kernel = {}
-      kernel["ProblemType"] = deepcopy(problemType)
-      kernel["ProblemType"]["UseBeta"] = beta
-      kernel["KernelLanguage"] = "Source"
-      kernels.append(kernel)
-    return kernels
 
   ########################################
-  # get a list of kernel parameters for this solution
-  def getKernelsBetaOnly(self):
-    return self.getKernelsBetaOnlyFromProblem( \
-            self["ProblemType"], \
-            self["GlobalSplitU"])
+  # create Helper Kernels
+  def initHelperKernelObjests(self):
+    self.initBetaOnlyKernelObjects()
+    self.initConversionKernelObjects()
+
+
+  ########################################
+  # create BetaONly Kernels
+  def initBetaOnlyKernelObjects(self):
+    self.betaOnlyKernelObjects = []
+    if self["GlobalSplitU"] > 1:
+      betas = [False]
+      if self["ProblemType"]["UseBeta"]:
+        betas.append(True)
+      for beta in betas:
+        state = {}
+        state["ProblemType"] = deepcopy(self["ProblemType"])
+        state["ProblemType"]["UseBeta"] = beta
+        state["KernelLanguage"] = "Source"
+        state["_GlobalAccumulation"] = self["_GlobalAccumulation"]
+        self.betaOnlyKernelObjects.append(KernelWriterBetaOnly(state))
+
+
+  ########################################
+  # create Conversion Kernels
+  def initConversionKernelObjects(self):
+    self.conversionKernelObjects = []
+    if (self["GlobalSplitU"] > 1 and self["_GlobalAccumulation"]):
+      state = {}
+      state["ProblemType"] = deepcopy(self["ProblemType"])
+      state["KernelLanguage"] = "Source"
+      self.conversionKernelObjects.append(KernelWriterConversion(state))
+
+
+  ########################################
+  # get Helper Kernels
+  def getHelperKernelObjects(self):
+    return self.betaOnlyKernelObjects + self.conversionKernelObjects
+
+
+  ########################################
+  # get Helper Kernels
+  def getKernelBetaOlnyObjects(self):
+    return self.betaOnlyKernelObjects
+
+
+  ########################################
+  # get Helper Kernels
+  def getKernelConversionObjects(self):
+    return self.conversionKernelObjects
+
 
   ########################################
   # assign tile sizes
@@ -2145,17 +2197,25 @@ class Solution:
 
     Solution.assignProblemIndependentDerivedParameters(state)
 
-    for s in Solution.InternalKeys:
-        state['_'+s] = state[s]
-        #del state[s]
-
-    if state["VectorStore"] == -1:
-        state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel
-
     if "AssignedDerivedParameters" in state:
       if state["AssignedDerivedParameters"]:
         return
     state["AssignedDerivedParameters"] = False
+
+    for s in Solution.InternalKeys:
+        state['_'+s] = state[s]
+        #del state[s]
+
+    dataType = state["ProblemType"]["DataType"]
+    state["_GlobalAccumulation"] = (dataType.isBFloat16() or dataType.isHalf()) \
+                                 and state["ProblemType"]["HighPrecisionAccumulate"] \
+                                 and state["GlobalSplitU"] > 1 \
+                                 and state["EnableMatrixInstruction"]
+
+    state["_WorkspaceSizePerElemC"] = 4 if state["_GlobalAccumulation"] else 0
+
+    if state["VectorStore"] == -1:
+        state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel
 
     ProblemType.assignDerivedParameters(state["ProblemType"])
     if not state["Valid"]:
@@ -2172,18 +2232,15 @@ class Solution:
       reject(state, "Non-MI kernels are already non-overlapping in pre-allocated registers")
 
     if state["EnableMatrixInstruction"]:
-      if not (state["ProblemType"]["DataType"].isSingle() \
-              or state["ProblemType"]["DataType"].isBFloat16() \
-              or state["ProblemType"]["DataType"].isHalf()):
-        reject(state, "didn't support Matrix Instruction with type %s" % str(state["ProblemType"]["DataType"]))
+      if not (dataType.isSingle() or dataType.isBFloat16() or dataType.isHalf()):
+        reject(state, "didn't support Matrix Instruction with type %s" % str(dataType))
       if not state["MIBlock"] or len(state["MIBlock"]) != 6:
         reject(state, "invalid MIBlock")
       if not state["MIWaveGroup"] or len(state["MIWaveGroup"]) != 2:
         reject(state, "invalid MIWaveGroup")
       if not state["MIWaveTile"] or len(state["MIWaveTile"]) != 2:
         reject(state, "invalid MIWaveTile")
-      if not state["ProblemType"]["HighPrecisionAccumulate"] \
-         and not state["ProblemType"]["DataType"].isSingle() :
+      if not state["ProblemType"]["HighPrecisionAccumulate"] and not dataType.isSingle():
         reject(state, "Matrix instructions for half types are natively accumulated" + \
          " in fp32 precision. Please add the following config:" + \
          "\n - HighPrecisionAccumulate: True")
@@ -2422,28 +2479,25 @@ class Solution:
 
     # GlobalSplitU doesn't work with some other things:
     if state["GlobalSplitU"] > 1:
-      if not state["GlobalSplitUSummationAssignmentRoundRobin"] \
-          and state["LoopTail"]:
+      if not state["GlobalSplitUSummationAssignmentRoundRobin"] and state["LoopTail"]:
         reject(state, "GlobalSplitU and LoopTail require SummationAssignmentRoundRobin=True since strongly breaks Tensile kernel architecture")
         return
       # added GSU support for DGEMM
       supported = \
         state["ProblemType"]["DataType"].isSingle() or \
-        state["ProblemType"]["DataType"].isDouble() or \
+        (state["ProblemType"]["DataType"].isDouble() and state["BufferStore"]) or \
         state["ProblemType"]["DestDataType"].isInt32() or \
         (state["KernelLanguage"] == "Assembly" and \
-         (state["ProblemType"]["DataType"].isHalf() and \
-          not state["ProblemType"]["HighPrecisionAccumulate"]))
+         (state["ProblemType"]["DataType"].isHalf() and not state["ProblemType"]["HighPrecisionAccumulate"]) or \
+         state["_GlobalAccumulation"])
       if not supported:
         reject(state, "GlobalSplitU only compatible with single or asm and (half or mixed) precision")
         return
 
     if state["VectorAtomicWidth"] == -1:
-      if state["ProblemType"]["DataType"].isHalf():
+      state["VectorAtomicWidth"] = 1 # TODO - remove this and next line when VAW works for other types
+      if state["ProblemType"]["DataType"].isHalf() and (not state["_GlobalAccumulation"]):
         state["VectorAtomicWidth"] = 2
-        #state["VectorAtomicWidth"] = 8 / state["ProblemType"]["DataType"].numBytes()
-      else:
-        state["VectorAtomicWidth"] = 1 # TODO - remove this and next line when VAW works for other types
 
     if state["VectorAtomicWidth"] >= 2 \
        and not state["ProblemType"]["DataType"].isHalf():
@@ -2455,8 +2509,8 @@ class Solution:
       if state["VectorWidth"] < 2:
         reject(state, "Assembly half requires VectorWidth >= 2")
 
-      if state["GlobalSplitU"] > 1:
-        if state["VectorAtomicWidth"] <2:
+      if state["GlobalSplitU"] > 1 and (not state["_GlobalAccumulation"]):
+        if state["VectorAtomicWidth"] < 2:
           reject(state, "Assembly GSU half requires VectorWidth >= 2 (for 32-bit CAS)")
 
         if state["AssertFree0ElementMultiple"] < 2:
@@ -2699,20 +2753,23 @@ class Solution:
       return
 
     # Default LocalReadVectorWidth
+    supportWiderLR = state["TransposeLDS"] and \
+                     state["ProblemType"]["TLUA"] == False and \
+                     state["ProblemType"]["TLUB"] == False
     if state["LocalReadVectorWidth"] == -1:
       if state["EnableMatrixInstruction"]:
         state["LocalReadVectorWidth"] = state["ProblemType"]["DataType"].numMIInput()
       else:
         state["LocalReadVectorWidth"] = state["VectorWidth"]
-    else:
-      if not state["EnableMatrixInstruction"]:
-        reject(state, "LocalReadVectorWidth requires MatrixInstruction")
-      if not state["TransposeLDS"]:
-        reject(state, "LocalReadVectorWidth requires TransposeLDS=1")
-      if state["ProblemType"]["TLUA"] or state["ProblemType"]["TLUB"]:
-        reject(state, "LocalReadVectorWidth requires TN TransposeLDS=1")
+
+    if state["EnableMatrixInstruction"]:
+      if not supportWiderLR and state["LocalReadVectorWidth"] != state["ProblemType"]["DataType"].numMIInput():
+        reject(state, "Temp reject LRVW for (TransposeLDS=0 or non-TN)")
       if state["LocalReadVectorWidth"] < state["ProblemType"]["DataType"].numMIInput():
         reject(state, "LocalReadVectorWidth < %u" %(state["ProblemType"]["DataType"].numMIInput()))
+    elif state["LocalReadVectorWidth"] != state["VectorWidth"]:
+      reject(state, "LocalReadVectorWidth requires MI-Kernel")
+
 
     if state["LdsPadA"] == -1:
       if state["ProblemType"]["TLUA"]:
@@ -2823,6 +2880,15 @@ class Solution:
       if state["MatrixInstBN"] > 1 and state["MatrixInstN"] == 4:
         reject(state, "storeRemap doesn't support MI4x4 multi blocks in N direction yet")
         return
+      if not math.log(state["MacroTile0"],2).is_integer():
+        reject(state, "storeRemap only supports power-of-2 MT0")
+        # TODO - this return should be here, but this is a hotfix,
+        # Somehow we have a "Validation Failed" kernel in rocBLAS now (SRVW=4 and MT0=96) and this will stop the whole building process
+        # Actions: 1. Hotfix, comment out this "return" temporarily for that invalidated kernel
+        #          2. Remove / replace that invalidated kernel
+        #          3. Put back this return
+        #          4. How to design a better way to prevent from invalid kernel in rocBLAS?
+        # return
 
       srMinVw = 1
       srMaxVw = 8
@@ -2909,6 +2975,7 @@ class Solution:
       if not state["EnableMatrixInstruction"]:
         reject(state, "TransposeLds Supports only in MatrixInstruction=1")
       if state["ProblemType"]["TLUA"] and state["ProblemType"]["TLUB"]:
+          # TODO: Now in rocBLAS, lot of logic yamls are Type=NT and TLDS=1? Why aren't they rejected and how to get rid of them?
           reject(state, "TransposeLds requires TLUA=0 or TLUB=0")
       if state["EnableMatrixInstruction"]:
         # enable widerLocalRead
@@ -3174,7 +3241,7 @@ class Solution:
     if state["UnrollIncIsDepthU"] and globalParameters["NewClient"] != 2:
       raise RuntimeError ("Legacy client does not support UnrollIncIsDepthU=1 (ASEM issues), aborting")
 
-    problemType["AssignedDerivedParameters"] = True
+    state["AssignedDerivedParameters"] = True
 
 
   ########################################
@@ -3362,33 +3429,44 @@ class Solution:
       printExit("Parameter \"%s\" is new object type" % str(value) )
       return str(value)
 
+
+  ##########################
   # make class look like dict
   def keys(self):
     return list(self._state.keys())
+
   def __len__(self):
     return len(self._state)
+
   def __iter__(self):
     return iter(self._state)
 
   def __getitem__(self, key):
     return self._state[key]
+
   def __setitem__(self, key, value):
     self._name = None
     self._state[key] = value
+
   def __str__(self):
     if self._name is None:
       self._name = Solution.getNameFull(self._state)
     return self._name
+
   def __repr__(self):
     return self.__str__()
+
   def getAttributes(self):
     return deepcopy(self._state)
+
   def __hash__(self):
     return hash(str(self))
     #return hash(self.getAttributes())
+
   def __eq__(self, other):
     #return isinstance(other, Solution) and self.getAttributes() == other.getAttributes()
     return isinstance(other, Solution) and str(self) == str(other)
+
   def __ne__(self, other):
     result = self.__eq__(other)
     if result is NotImplemented:

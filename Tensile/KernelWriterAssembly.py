@@ -119,12 +119,10 @@ class RegisterPool:
 
   ########################################
   # Init
-  # reservedAtEnd: reserve a register at the end of the poool, used for vserial
   # defaultPreventOverflow: control behavior of checkout and checkoutAligned when preventOverflow is not explicitly specificed.
-  def __init__(self, size, type, reservedAtEnd, defaultPreventOverflow, printRP=0):
+  def __init__(self, size, type, defaultPreventOverflow, printRP=0):
     self.printRP=printRP
     self.type = type
-    self.reservedAtEnd = reservedAtEnd
     self.defaultPreventOverflow = defaultPreventOverflow
     self.pool = [self.Register(RegisterPool.Status.Unavailable, "init") for i in range(0,size)]
     self.checkOutSize = {}
@@ -301,7 +299,7 @@ class RegisterPool:
   ########################################
   # Size
   def size(self):
-    return len(self.pool) + self.reservedAtEnd
+    return len(self.pool)
 
 
   ########################################
@@ -350,6 +348,7 @@ class RegisterPool:
           print(self.state())
         raise RuntimeError("RegisterPool::checkFinalState: temp (%s, '%s') was never checked in." \
             %(si, self.pool[si].tag))
+    print2("total vgpr count: %u\n"%self.size())
 
   ########################################
   # State
@@ -396,7 +395,29 @@ class ZeroPadReg:
   def isMatch(self, perp, sPerp, para, sPara):
     return self.perp==perp and self.sPerp==sPerp and self.para==para and self.sPara==sPara
 
+class VgprOccupancyCurve:
+  def __init__(self):
+    self._vgprOccupancy = [0]*(256+1)
+    for i in range(0,   24+1): self._vgprOccupancy[i] = 10
+    for i in range(25,  28+1): self._vgprOccupancy[i] = 9
+    for i in range(29,  32+1): self._vgprOccupancy[i] = 8
+    for i in range(33,  36+1): self._vgprOccupancy[i] = 7
+    for i in range(37,  40+1): self._vgprOccupancy[i] = 6
+    for i in range(41,  48+1): self._vgprOccupancy[i] = 5
+    for i in range(49,  64+1): self._vgprOccupancy[i] = 4
+    for i in range(65,  84+1): self._vgprOccupancy[i] = 3
+    for i in range(85, 128+1): self._vgprOccupancy[i] = 2
+    for i in range(129,256+1): self._vgprOccupancy[i] = 1
+  def __call__(self, index):
+    if index < 0 or index > 256:
+      return 0
+    return self._vgprOccupancy[index]
+  def __getitem__(self, item):
+    return self(item)
+  def __len__(self):
+    return len(self._vgprOccupancy)
 
+vgprOccupancy = VgprOccupancyCurve()
 
 ################################################################################
 # Assembly Kernel
@@ -534,18 +555,7 @@ class KernelWriterAssembly(KernelWriter):
     self.localReadOffsetB = 0
     self.inTailLoop = False
     self.overlapVgprC = False
-
-    self.vgprOccupancy = [0]*(256+1)
-    for i in range(0,   24+1): self.vgprOccupancy[i] = 10
-    for i in range(25,  28+1): self.vgprOccupancy[i] = 9
-    for i in range(29,  32+1): self.vgprOccupancy[i] = 8
-    for i in range(33,  36+1): self.vgprOccupancy[i] = 7
-    for i in range(37,  40+1): self.vgprOccupancy[i] = 6
-    for i in range(41,  48+1): self.vgprOccupancy[i] = 5
-    for i in range(49,  64+1): self.vgprOccupancy[i] = 4
-    for i in range(65,  84+1): self.vgprOccupancy[i] = 3
-    for i in range(85, 128+1): self.vgprOccupancy[i] = 2
-    for i in range(129,256+1): self.vgprOccupancy[i] = 1
+    self.serializedStore = False
 
   def getCompileArgs(self, sourceFileName, objectFileName, *moreArgs):
     isa = self.version
@@ -579,31 +589,50 @@ class KernelWriterAssembly(KernelWriter):
     return rv
 
   ########################################
-  def getOccupancy(self, kernel, vgprs):
-    multiplier = int(ceil(max(kernel["NumThreads"], 256) / 256.0))
+  @staticmethod
+  def getOccupancy(numThreads, vgprs, ldsSize, accvgprs=0):
+    multiplier = int(ceil(max(numThreads, 256) / 256.0))
     # example: wg=512 multiplier=2, 1024=4
 
-    maxLds = 65536
-    ldsSize = kernel["LdsNumElements"] * kernel["ProblemType"]["DataType"].numBytes()
-    ldsSize = (ldsSize + 255) & 0x1ff00 # 256-byte granularity
-    ldsLimitedOccupancy = int(ceil(maxLds / float(ldsSize)))
+    ldsLimitedOccupancy = KernelWriterAssembly.getLdsLimitedOccupancy(ldsSize)
 
     vgprs *= multiplier
-    vgprLimitedOccupancy =  self.vgprOccupancy[vgprs] if vgprs <= 256 else 0
+    vgprLimitedOccupancy =  vgprOccupancy[vgprs]
 
-    return min(ldsLimitedOccupancy, vgprLimitedOccupancy)
+    accvgprs *= multiplier
+    accvgprLimitedOccupancy =  vgprOccupancy[accvgprs]
 
-  def getMaxRegsForOccupancy(self, vgprs):
-    initOccupancy =  self.vgprOccupancy[vgprs]
+    return min(ldsLimitedOccupancy, vgprLimitedOccupancy, accvgprLimitedOccupancy)
+
+  # TODO: also consider sgpr
+  @staticmethod
+  def getMaxRegsForOccupancy(numThreads, vgprs, ldsSize, accvgprs=0):
+    multiplier = int(ceil(max(numThreads, 256) / 256.0))
+    vgprs*=multiplier # convert to per simd vgpr count
+                      # eg, 512-thread wg means 2 waves per simd, meaning vgpr count per simd is 2x the vgpr count per wave
     lastVgprs = vgprs
-    while vgprs < len(self.vgprOccupancy):
+    initOccupancy = KernelWriterAssembly.getOccupancy(numThreads, vgprs, ldsSize, accvgprs)
+    while vgprs < len(vgprOccupancy):
       vgprs += 1
-      if self.vgprOccupancy[vgprs] == initOccupancy:
+      if vgprOccupancy[vgprs] >= initOccupancy:
         lastVgprs = vgprs
         next
       else:
         break
-    return lastVgprs
+
+    return lastVgprs//multiplier # convert back to per wave vgpr count
+
+  @staticmethod
+  def getLdsLimitedOccupancy(ldsSize):
+    maxLds = 65536
+    ldsSize = (ldsSize + 255) & 0x1ff00 # 256-byte granularity
+    ldsLimitedOccupancy = maxLds//ldsSize
+    return ldsLimitedOccupancy
+
+  @staticmethod
+  def getLdsSize(kernel):
+    ldsSize = kernel["LdsNumElements"] * kernel["ProblemType"]["DataType"].numBytes()
+    return ldsSize
 
   ########################################
   ########################################
@@ -687,6 +716,15 @@ class KernelWriterAssembly(KernelWriter):
     if name not in self.labels:
       self.labels[name] = "%s_%u" % (name, len(self.labels))
     return self.labels[name]
+
+  ########################################
+  # return label name that is always unique
+  # useful when trying to re-use subroutines that create labels
+  ########################################
+  def getNamedLabelUnique(self, name):
+    key = name + "_" + str(len(self.labels))
+    self.labels[key] = key
+    return key
 
   ########################################
   # return string that defines a unique named name_number
@@ -953,6 +991,8 @@ class KernelWriterAssembly(KernelWriter):
       kernel["LocalWriteUseSgprA"] = False # Requires DirectToLdsA
       kernel["LocalWriteUseSgprB"] = False # Requires DirectToLdsB
 
+    self.useAtomicAdd = self.asmCaps["HasAtomicAdd"] and kernel["_GlobalAccumulation"]
+
     #######################################L
     # Available Memory Instructions
     ########################################
@@ -1067,6 +1107,7 @@ class KernelWriterAssembly(KernelWriter):
     self.kernelName = self.getKernelName(kernel)
     self.inTailLoop = False
     self.overlapVgprC = False
+    self.serializedStore = False
 
     # registers per element
     self.bpr = 4 # all registers are 32bit
@@ -1236,7 +1277,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["EnableMatrixInstruction"]:
       localReadWidth = tPA["bpe"] / self.bpr
     if kernel["UnrollMajorLDSA"]:
-      localReadWidth = (kernel["LocalReadVectorWidth"] * tPA["bpe"]) // self.bpr
+      localReadWidth = (self.lrvw * tPA["bpe"]) // self.bpr
 
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
@@ -1260,7 +1301,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["EnableMatrixInstruction"]:
       localReadWidth = tPB["bpe"] / self.bpr
     if kernel["UnrollMajorLDSB"]:
-      localReadWidth = (kernel["LocalReadVectorWidth"] * tPB["bpe"]) // self.bpr
+      localReadWidth = (self.lrvw * tPB["bpe"]) // self.bpr
 
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
@@ -1404,6 +1445,8 @@ class KernelWriterAssembly(KernelWriter):
       # TODO a bit tricky. Better to manage all GPRs solely through RegisterPool
       self.overlapVgprC = True
       vgprIdx = 0
+      self.serializedStore = True # TODO: make serialized store default with MI kernels
+      self.numVgprValuC = 0
 
     self.startVgprValuA = vgprIdx; vgprIdx += numVgprValuA
 
@@ -1506,6 +1549,9 @@ class KernelWriterAssembly(KernelWriter):
     self.startVgprAddressDbg = vgprIdx
     vgprIdx += numVgprAddressDbg
 
+    self.startVgprSerial = vgprIdx
+    vgprIdx += 1 # for vgpr serial id
+
     # tmp vgprs
     #minVgprTmp = 1
     #if kernel["LoopTail"]:
@@ -1526,7 +1572,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ####################################
     # num sgprs: initial kernel state
-    self.sgprPool = RegisterPool(0, 's', 0, defaultPreventOverflow=True, printRP=0)
+    self.sgprPool = RegisterPool(0, 's', defaultPreventOverflow=True, printRP=0)
     numSgprAddressD = self.rpga # til end
     numSgprAddressC = self.rpga # til end
     numSgprAddressA = self.rpga # til read offsets
@@ -1843,17 +1889,20 @@ class KernelWriterAssembly(KernelWriter):
     # Register Pools
     ########################################
     #print "TotalVgprs", self.totalVgprs
-    self.vgprPool = RegisterPool(self.totalVgprs, 'v', reservedAtEnd=1, defaultPreventOverflow=False,
+    self.vgprPool = RegisterPool(self.totalVgprs, 'v', defaultPreventOverflow=False,
                                  printRP=self.db["PrintRP"])
     #print self.vgprPool.state()
     self.savedVgprPool = None
+    self.savedSgprPool = None
 
     # C regs are not used during initialization so mark them as available -
     # we will claim then just before the start of the unroll loop:
     self.vgprPool.add(self.startVgprValuA, \
         self.lastValuAB - self.startVgprValuA, "ValuAB") # Add as available
 
-    if self.overlapVgprC:
+    if self.serializedStore:
+      self.vgprPool.addRange(self.startVgprReuse, self.vgprPool.size()-1)
+    elif self.overlapVgprC:
       # |<-------------- valuC -------------->|
       # |oooooooooooo|xxxxxxxxxxx|xx|ooooooooo|
       #   lastValuAB ^           ^  ^         ^
@@ -1869,7 +1918,7 @@ class KernelWriterAssembly(KernelWriter):
         self.numVgprValuC, "ValuC-Block") # Add as available
     #print self.vgprPool.state()
 
-    self.agprPool = RegisterPool(self.totalAgprs, 'a', 0, defaultPreventOverflow=False, printRP=0)
+    self.agprPool = RegisterPool(self.totalAgprs, 'a', defaultPreventOverflow=False, printRP=0)
     # C regs are not used during initialization so mark them as available -
     # we will claim then just before the start of the unroll loop:
     self.agprPool.add(0, self.totalAgprs, "ValuC-Block")
@@ -1889,8 +1938,8 @@ class KernelWriterAssembly(KernelWriter):
     # reads Per Iteration
     ########################################
     if kernel["EnableMatrixInstruction"]:
-      numReadPerVectorA = tPA["bpe"] * kernel["LocalReadVectorWidth"] // int(tPA["localReadInstruction"].blockWidth * 4)
-      numReadPerVectorB = tPB["bpe"] * kernel["LocalReadVectorWidth"] // int(tPB["localReadInstruction"].blockWidth * 4)
+      numReadPerVectorA = tPA["bpe"] * self.lrvw // int(tPA["localReadInstruction"].blockWidth * 4)
+      numReadPerVectorB = tPB["bpe"] * self.lrvw // int(tPB["localReadInstruction"].blockWidth * 4)
       numA = kernel["InnerUnroll"]*(kernel["MIWaveTile"][0] * numReadPerVectorA) // tPA["localReadInstruction"].numOffsets
       numB = kernel["InnerUnroll"]*(kernel["MIWaveTile"][1] * numReadPerVectorB) // tPB["localReadInstruction"].numOffsets
       # wider localread has 2 mode
@@ -2345,8 +2394,8 @@ class KernelWriterAssembly(KernelWriter):
     # VGPR Macros
     ########################################
     kStr += self.comment3("VGPR Assignments")
-    kStr += self.comment1("ValuC range: %u-%u, %s"%(self.startVgprValuC, self.startVgprValuC+self.numVgprValuC-1, \
-      "overlapValuC enabled" if self.overlapVgprC else ""))
+    kStr += self.comment1("ValuC range: [%u-%u), %s, %s"%(self.startVgprValuC, self.startVgprValuC+self.numVgprValuC, \
+      "overlapValuC enabled" if self.overlapVgprC else "", "serializedStore enabled" if self.serializedStore else ""))
     kStr += self.macroRegister("vgprValuC", self.startVgprValuC)
 
     kStr += self.comment1("ValuA/B   Xn=PLR buffer idx,  In=InnerUnroll idx")
@@ -2405,14 +2454,15 @@ class KernelWriterAssembly(KernelWriter):
 
     # Serial is always the last register in the pool so the store
     # code doesn't have to deal with fragmentation
-    startSerial = self.vgprPool.size()-1
-    kStr += self.macroRegister("vgprSerial", startSerial)
+    self.vgprstartSerial = self.vgprPool.size()-1
+    kStr += self.macroRegister("vgprSerial", self.startVgprSerial)
 
     if globalParameters["DebugKernel"]:
       kStr += self.macroRegister("vgprAddressDbg", \
           self.startVgprAddressDbg)
     #kStr += self.comment1("Occu: %u waves/simd" % self.numWavesPerSimd )
     kStr += self.comment1("Num VGPR=%u"%self.vgprPool.size())
+    kStr += self.comment1("Num AccVGPR=%u"%self.agprPool.size())
 
 
     ########################################
@@ -4404,7 +4454,7 @@ class KernelWriterAssembly(KernelWriter):
     tc               = tP["tensorChar"]
     tIdx             = tP["tensorIdx"]
     waveWidth        = globalParameters["WavefrontWidth"]
-    inputPerThread   = kernel["LocalReadVectorWidth"]
+    inputPerThread   = self.lrvw
     LdsPad           = kernel["LdsPad%s" % tc] if kernel["LdsBlockSizePerPad%s" % tc] == 0 else 0
 
     # parameter for get each type index
@@ -5079,8 +5129,8 @@ class KernelWriterAssembly(KernelWriter):
                   sgpr("PadEnd%s%s%s"%(tc, freeDimChar, sumDimChar)), \
                   "Final0: (strideFree*sizeFree - strideSum*(sizeSum-1))*BPE - padStart - padEnd")
 
-
-        kStr += inst("s_mov_b32", sgpr("Iter"+sumDimChar), 0, "init iterX")
+        if kernel["PackSummationDims"]:
+          kStr += inst("s_mov_b32", sgpr("Iter"+sumDimChar), 0, "init iterX")
 
         #assert(self.groOffsetInMacroTile==0)
 
@@ -5349,7 +5399,7 @@ class KernelWriterAssembly(KernelWriter):
   def endSummation(self, kernel):
     kStr = ""
 
-    kStr += "%s:\n" % self.getNamedLabel("Summation_End")
+    kStr += "%s:\n" % self.getNamedLabelUnique("Summation_End")
 
     if self.overlapVgprC:
       # After summation loop, valuC is due for Acc->Arch read and is thus locked out.
@@ -5370,6 +5420,18 @@ class KernelWriterAssembly(KernelWriter):
       #                                  startVgprReuse ^
       vbegin = self.numVgprValuC
       vsize = max(0, self.lastVgprForReads-self.numVgprValuC)
+
+      # remove the C regs from the pool since we are about to write them here:
+      # lastValuAB, lastVgprForReads have already been removed prior to hitting this function
+      # we are removing the last remainder (4th segment) of the valuC from register pool
+      # |<-------------- valuC -------------->|
+      # |xxxxxxxxxxxx|xxxxxxxxxxx|xx|xxxxxxxxx|
+      #   lastValuAB ^           ^  ^         ^
+      #         lastVgprForReads ^  ^         ^
+      #              startVgprReuse ^         ^
+      #                             lastValuC ^
+      kStr += self.comment1("endSummation: remove C-tile [%u, %u) from pool"%(self.startVgprReuse, self.startVgprReuse+max(0, self.numVgprValuC-self.startVgprReuse)))
+      self.vgprPool.remove(self.startVgprReuse, max(0, self.numVgprValuC-self.startVgprReuse), "ValuC")
     else:
       vbegin = self.startVgprValuA
       vsize = self.lastVgprForReads - self.startVgprValuA
@@ -5739,11 +5801,17 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cbranch_scc0 %s"%skipOptNLL, \
           "skip if tail loop required")
 
-      # OptNLL has no tail loop so can reclaim some regs here -
-      # we need these to do the address calcs for the stores, etc
       # save the vgprPool for generating the normal path.
+      # dump the 'dirty' pool upon s_endpgm and swap back the 'clean' pool
+      # so we can avoid explicit vgpr check-in/out
       self.savedVgprPool = deepcopy(self.vgprPool)
+      self.savedSgprPool = deepcopy(self.sgprPool)
 
+      # comment out the following codes that attempt to reduce vgpr consumption
+      # however, the kernel vgpr count is governed by peak vgpr consumption so saving
+      # a few here shouldn't affect kernel's overall vgpr consumption.
+      # the following code is for reference and will be removed in the future
+      """
       if self.overlapVgprC:
         return kStr # exit early since they are already in the pool
 
@@ -5767,6 +5835,7 @@ class KernelWriterAssembly(KernelWriter):
         added.append(self.vgprPool.addRange(self.startVgprGlobalReadAddressesA, \
             self.startVgprGlobalReadAddressesB, "startOptNLL"))
       kStr += self.comment("reclaim VGPRS: " + ", ".join(added))
+      """
 
     return kStr
 
@@ -5777,134 +5846,48 @@ class KernelWriterAssembly(KernelWriter):
     if not prefetch:
       if isOptNLL:
         kStr += self.comment1("Stores for OptNLL")
-        self.getNamedLabel("Summation_End")
-
-        # add copyback if required
-        if kernel["EnableMatrixInstruction"]:
-          instCycles = kernel["MatrixInstM"] // 2 # 32x32 is 64 cycles, 16x16 is 32 cycles, 4x4 is 8 cycles
-          kStr += "s_nop %u\n" % instCycles
-          ##for i in range(0, self.totalAgprs):
-          ##  kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%i), "acc%u"%i, "copy areg to vreg")
-          kStr += self.MapAcctoArchRegs(kernel,option=0) # begin locking c-tile vregs from register pool
+        kStr += self.endSummation(kernel)
 
         # perhaps could work with LSU>1 by adding other indices here, but not tested
-        # had to move it below MapAcctoArchRegs(), else computeStoreVgprs() will check out c-tile vregs as
-        # temp vregs which soon gets utilized by c-tile and guarantees aliasing troubles
         assert (kernel["LocalSplitU"] == 1)
         kStr += self.notLocalSplitUGlobalWriteIndices(kernel)
 
         # add stores for opt NLL
         (fullVw, elements) = self.notLocalFullTileElements(kernel, False)
-        # optimized NLL has edge=beta=atomic=False by design
-        ss = self.StoreState(self, kernel, fullVw, edge=False, beta=False, \
-            atomic=False, elements=elements)
+        kStr += self.globalWriteElements(kernel, [fullVw], [elements], applyAlpha=False, betas=[False], edges=[False])
 
-        # TODO - maybe this should be encapulated in the SS setup code
-        tmpSgpr = self.getTmpSgpr(2).idx()
-        if ss.optSingleColVgpr:
-          if not kernel["StoreRemapVectorWidth"]:
-            tmpVgpr= None # don't need tmps for other uses?
-          else:
-            tmpVgpr= self.vgprPool.checkOut(1, "NLL store remap tmps")
-        else:
-          tmpVgpr= self.vgprPool.checkOut(3, "NLL address tmps")
-        assert(len(kernel["PackedC1IndicesX"]) == 1)
-
-        ss.setupStoreElementsForBatch(kernel, fullVw, elements, None, isOptNLL=True)
-        if not kernel["EnableMatrixInstruction"]:
-          kStr += inst("_v_add_lshl_u32", \
-              vgpr(ss.sharedColVgprs), \
-              vgpr(self.cinRowPtr), \
-              vgpr(self.coord0), \
-              hex(log2(self.bpeCexternal)), \
-             "NLL: init cb addr <-  cinRowStart + coord0, scaled by BPE")
-
-        if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-          vgprBf16Temp = self.vgprPool.checkOut(4,"vgprBf16Mask")
-          vgprBf16Mask = vgprBf16Temp + 1
-          vgprFp32Nan = vgprBf16Temp + 2
-          vgprBf16Inc = vgprBf16Temp + 3
-          kStr += inst("v_mov_b32", vgpr(vgprBf16Mask), "0xffff0000", "mask for pack two bfloat16 element to 32bit" )
-          kStr += inst("v_mov_b32", vgpr(vgprFp32Nan), "0x7fff0000", "fp32 Nan" )
-          kStr += inst("v_mov_b32", vgpr(vgprBf16Inc), "0x7fff", "rounding bias for bfloat16" )
-
-        for elementIdx in range(0, len(elements)):
-          kStr += self.comment("store element %d : %s" % (elementIdx, str(elements[elementIdx])))
-          addrCalc = ss.elementAddr[elementIdx]
-          sumIdx = ss.elementSumIdx[elementIdx]
-
-          if kernel["StoreRemapVectorWidth"] and elementIdx == 0:
-            self.storeRemapStartSumIdx = sumIdx
-
-          if ss.optSrdIncForRow and addrCalc.rowInc and kernel["StoreRemapVectorWidth"]:
-            kStr += self.comment("StoreRemap: handle local read and global write")
-            self.storeRemapEndSumIdx = sumIdx
-            kStr += self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpSgpr, edge=False)
-            kStr += addrCalc.incrementToNextRow(kernel, "D", ss, tmpSgpr)
-            kStr += inst("v_mov_b32", vgpr(tmpVgpr), addrCalc.rowInc, "set shift rows")
-            kStr += inst("v_add_u32", vgpr(self.storeRemapCoord1), vgpr(self.storeRemapCoord1), vgpr(tmpVgpr), \
-                "shift storeRemap coord1")
-            self.storeRemapStartSumIdx = sumIdx
-
-          # pack stores, beta and non-beta reach here:
-          for vi in range(0, fullVw):
-            sumIdxV = ss.elementSumIdx[elementIdx] + vi
-            if kernel["ProblemType"]["DataType"].isHalf() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-              assert (fullVw % 2 == 0)
-              kStr += inst("v_cvt_f16_f32", vgpr("ValuC+%u"%sumIdxV), vgpr("ValuC+%u"%sumIdxV), "convert C to fp16" )
-              if vi%2 == 1:
-                d = ss.elementSumIdx[elementIdx] + vi//2
-                kStr += inst("v_pack_b32_f16", vgpr(d), vgpr("ValuC+%u"%(sumIdxV-1)), vgpr("ValuC+%u"%sumIdxV), "Pack with neighbor")
-            elif kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-              assert (fullVw % 2 == 0)
-              kStr += inst("v_cmp_u_f32", sgpr(tmpSgpr,2), vgpr("ValuC+%u"%sumIdxV), vgpr("ValuC+%u"%sumIdxV), "check Nan" )
-              kStr += inst("v_bfe_u32", vgpr(vgprBf16Temp), vgpr("ValuC+%u"%sumIdxV), "16", "1", "Non-Nan case: store lsb of bf16" )
-              kStr += inst("v_add3_u32", vgpr(vgprBf16Temp), vgpr("ValuC+%u"%sumIdxV), vgpr(vgprBf16Temp), vgpr(vgprBf16Inc), "Non-Nan case: add lsb and the increment for rounding" )
-              kStr += inst("v_cndmask_b32", vgpr("ValuC+%u"%sumIdxV), vgpr(vgprBf16Temp), vgpr(vgprFp32Nan), sgpr(tmpSgpr,2), "" )
-              if vi%2 == 0:
-                kStr += inst("v_lshrrev_b32", vgpr("ValuC+%u"%sumIdxV), "16", vgpr("ValuC+%u"%sumIdxV), "convert C to bf16" )
-              elif vi%2 == 1:
-                d = ss.elementSumIdx[elementIdx] + vi//2
-                kStr += inst("v_and_or_b32", vgpr(d), vgpr("ValuC+%u"%sumIdxV), vgpr(vgprBf16Mask), vgpr("ValuC+%u"%(sumIdxV-1)), "pack two bf16 to dword")
-
-          kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpVgpr01=tmpVgpr, tmpS01=tmpSgpr, \
-                              edge=False, beta=False, atomic=False, mask=None, elementIdx=elementIdx)
-
-          if not kernel["StoreRemapVectorWidth"]:
-            kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpSgpr, edge=False)
-          else:
-            kStr += self.storeRemapAddLocalWrite(kernel, ss, addrCalc, sumIdx)
-            if elementIdx == (len(elements)-1):
-              kStr += self.comment("StoreRemap: last local read and global write")
-              self.storeRemapEndSumIdx = sumIdx+fullVw
-              kStr += self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpSgpr, edge=False)
-
-        if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-          self.vgprPool.checkIn(vgprBf16Temp)
-        if tmpVgpr:
-          self.vgprPool.checkIn(tmpVgpr)
-
+        self.cleanupGlobalWrite(kernel)
         kStr += "\n"
         kStr += str(self.functionEnd(kernel, False))
         #kStr += inst("s_branch %s"%summationEnd, "skip the OptNLL")
 
         label = self.getNamedLabel("OptNLL_End")
         kStr += "%s:%s" % (label, self.endLine)
-        del ss # release store state before swapping back saved vgpr pool
-               # so the destructor of ss can refer to the correct vgpr pool
       else:
         label = self.getLabelNum("PrefetchGlobalLastIterEnd")
         kStr += "label_%04u:%s" % (label, self.endLine)
+    # swap back vgpr pool if any
     if self.savedVgprPool != None:
       # in case pool size in current path is larger than pool size in main path
       # and it will miss allocate vgpr since allocating vgpr is based on pool size in main path
       oldSize = self.savedVgprPool.size()
       newSize = self.vgprPool.size()
       if newSize > self.savedVgprPool.size():
-        for i in range(oldSize-1,newSize):
+        for i in range(oldSize,newSize):
           self.savedVgprPool.pool.append(self.savedVgprPool.Register(RegisterPool.Status.Available,"restore vgprPool"))
       self.vgprPool = self.savedVgprPool # restore vgprPool before alternate path
       self.savedVgprPool = None
+    # swap back sgpr pool if any
+    if self.savedSgprPool != None:
+      # in case pool size in current path is larger than pool size in main path
+      # and it will miss allocate vgpr since allocating vgpr is based on pool size in main path
+      oldSize = self.savedSgprPool.size()
+      newSize = self.sgprPool.size()
+      if newSize > self.savedSgprPool.size():
+        for i in range(oldSize-1,newSize):
+          self.savedSgprPool.pool.append(self.savedSgprPool.Register(RegisterPool.Status.Available,"restore sgprPool"))
+      self.sgprPool = self.savedSgprPool # restore vgprPool before alternate path
+      self.savedSgprPool = None
     return kStr
 
   ##############################################################################
@@ -7013,7 +6996,7 @@ class KernelWriterAssembly(KernelWriter):
       # recalculate localReadAddr to cancle wider local read in tail loop
       if self.numReadsIterCoalesced > 1 and kernel["MatrixInstB"] == 1 and tP["isB"]:
         self.numReadsIterCoalesced = 1
-        kernel["LocalReadVectorWidth"] = kernel["ProblemType"]["DataType"].numMIInput()
+        self.lrvw = kernel["ProblemType"]["DataType"].numMIInput()
         imod.addCode(self.comment("reCalculate LocalReadAddr"))
         kStr = ""
         kStr += (self.lraTileAssignmentMFMA(kernel, self.tPA))
@@ -7245,7 +7228,7 @@ class KernelWriterAssembly(KernelWriter):
       UnrollStride   = 1
 
     numVectorsPerTile = kernel["MIWaveTile"][tIdx]
-    numReadsPerVector = tP["bpe"] * kernel["LocalReadVectorWidth"] // int(blockWidth * 4) # bytes/register
+    numReadsPerVector = tP["bpe"] * self.lrvw // int(blockWidth * 4) # bytes/register
     numVgpr           = int(ceil(blockWidth))
 
     # pack register
@@ -7691,12 +7674,12 @@ class KernelWriterAssembly(KernelWriter):
     eReg = self.vgprPool.checkOut(1)
     kStr += vectorStaticRemainder(dummy, eReg, wgMT, numContinuousOutput, tmpVgpr, tmpSgpr)
 
-    # mRge : decide which thread have to deal with this M-size
+    # mReg : decide which thread have to deal with this M-size
     mReg = self.vgprPool.checkOut(1)
     kStr += vectorStaticDivide(mReg, wgMT, numContinuousOutput, tmpVgpr, tmpSgpr)
     kStr += vectorStaticRemainder(dummy, mReg, mReg, numOutputThreads0, tmpVgpr, tmpSgpr)
 
-    # mRge : thread group id [0-31] or [32-63] for mfma 32x32x2
+    # tReg : thread group id [0-31] or [32-63] for mfma 32x32x2
     tReg = self.vgprPool.checkOut(1)
     kStr += vectorStaticDivide(tReg, "Serial", kernel["MatrixInstN"], tmpVgpr, tmpSgpr)
     kStr += vectorStaticRemainder(dummy, tReg, tReg, numOutputThreads0, tmpVgpr, tmpSgpr)
@@ -7710,6 +7693,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cbranch_vccnz label_%04u" % svrLabels[(r-1)], "shift d%u r=%u"%(tP["idx"], r))
     kStr += inst("s_branch label_%04u"%svrLabels[glvw-1], "no shifting" )
     self.vgprPool.checkIn(rReg)
+
+    _, arch2acc = self.AccToArchMapper(kernel)
 
     # blocks for handle M_szie % vector width
     for r in range(1, glvw):
@@ -7748,7 +7733,12 @@ class KernelWriterAssembly(KernelWriter):
               for shiftIdx in range(0, r):
                 dstVgpr = subTile1Idx * numOutputElements + packIdx * numContinuousOutput + outIdx * glvw + shiftIdx
                 srcVgpr = subTile1Idx * numOutputElements + packIdx * numContinuousOutput + outIdx * glvw + shiftIdx + (glvw - r)
-                kStr += inst("v_mov_b32", vgpr(dstVgpr), vgpr(srcVgpr), "")
+                if self.serializedStore:
+                  kStr += inst("v_accvgpr_read_b32", vgpr(tmpVgpr), accvgpr(arch2acc[srcVgpr]), "")
+                  kStr += inst("s_nop", "1", "v_accvgpr read vgpr after write vgpr: 2 wait states")
+                  kStr += inst("v_accvgpr_write_b32", accvgpr(arch2acc[dstVgpr]), vgpr(tmpVgpr), "acc%u = acc%u"%(arch2acc[dstVgpr], arch2acc[srcVgpr]))
+                else:
+                  kStr += inst("v_mov_b32", vgpr(dstVgpr), vgpr(srcVgpr), "")
 
           # end shift reset mask and jump out
           kStr += inst("s_mov_b64", sgpr(tmpSgpr,2), "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
@@ -7765,7 +7755,6 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(eReg)
     self.vgprPool.checkIn(mReg)
     self.vgprPool.checkIn(tReg)
-
     return kStr
 
 
@@ -8093,7 +8082,8 @@ class KernelWriterAssembly(KernelWriter):
         strideC = "StrideC%s"%self.indexChars[i]
         kStr += self.s_mul_u64_u32(sgpr(tmpS0), sgpr(tmpS1), coord, sgpr(strideC), "CScale %s by Stride"%coord)
         #kStr += assert_no_shift_of(tmpS1, log2(self.bpeCexternal), "Need temp")
-        kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(self.bpeCexternal), "scale by bpe")
+        tmpBpe = self.bpeCinternal if kernel["_GlobalAccumulation"] else self.bpeCexternal
+        kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(tmpBpe), "scale by bpe")
 
         kStr += inst("s_add_u32",  sgpr("SrdC+0"), sgpr("SrdC+0"), sgpr(tmpS0), "add lo to SRD")
         kStr += inst("s_addc_u32", sgpr("SrdC+1"), sgpr("SrdC+1"), sgpr(tmpS1), "add hi to SRD")
@@ -8103,7 +8093,7 @@ class KernelWriterAssembly(KernelWriter):
           stride = "StrideD%s" % (self.indexChars[i])
           kStr += self.s_mul_u64_u32(sgpr(tmpS0), sgpr(tmpS1), coord, sgpr(stride), "Scale %s by Stride"%coord)
           #kStr += assert_no_shift_of(tmpS1, log2(self.bpeCexternal), "Need temp")
-          kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(self.bpeCexternal), "scale by bpe")
+          kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(tmpBpe), "scale by bpe")
 
         kStr += inst("s_add_u32",  sgpr("SrdD+0"), sgpr("SrdD+0"), sgpr(tmpS0), "add lo to SRD")
         kStr += inst("s_addc_u32", sgpr("SrdD+1"), sgpr("SrdD+1"), sgpr(tmpS1), "add hi to SRD")
@@ -8603,18 +8593,20 @@ class KernelWriterAssembly(KernelWriter):
     kStr += "\n"
 
     gwvw = kernel["StoreRemapVectorWidth"]
-    startIdx = self.storeRemapStartSumIdx
-    endIdx = self.storeRemapEndSumIdx
+    nElements = kernel["MacroTile0"]*kernel["MatrixInstN"]//kernel["MIWaveGroup"][0]//globalParameters["WavefrontWidth"]
     bpe = kernel["ProblemType"]["DataType"].numBytes()
     bps = kernel["ProblemType"]["DataType"].numBytes() * gwvw
     rpe = kernel["ProblemType"]["DataType"].numRegisters()
     rpv = kernel["ProblemType"]["DataType"].numRegisters() * gwvw
 
+    # num registers to check out
+    storeRegs = []
+    for i in range(0, nElements, gwvw):
+      storeRegs.append(self.vgprPool.checkOut(int(rpv), "store element c"))
     src = vgpr(self.storeRemapLR)
-    for i in range (startIdx, endIdx, gwvw):
-      offset = self.storeRemapLrOffset * kernel["ProblemType"]["DataType"].numBytes() \
-          * ((i-startIdx)//gwvw)
-      dst = vgpr((i-startIdx), rpv)
+    for rIdx, i in enumerate(range(0, nElements, gwvw)):
+      offset = self.storeRemapLrOffset * bpe * (i//gwvw)
+      dst = vgpr(storeRegs[rIdx], rpv)
       if bps==4:
         kStr += inst("ds_read_b32", dst, src, "offset:%u"%offset, "storeRemap lr")
       elif bps==8:
@@ -8639,29 +8631,33 @@ class KernelWriterAssembly(KernelWriter):
     addr0 = vgpr(vTmp)
 
     if not edge:
-      for i in range (startIdx, endIdx, gwvw):
-        if i == startIdx:
+      for rIdx, i in enumerate(range(0, nElements, gwvw)):
+        if i == 0:
           kStr += inst("v_mov_b32", addr0, vgpr(self.storeRemapOffsetCoord1), "coord1")
         else:
-          currentStep = (i-startIdx)//gwvw
+          currentStep = i//gwvw
           kStr += inst("v_add_u32", addr0, vgpr(self.storeRemapOffsetCoord1), self.storeRemapNCPL * currentStep , "coord1 += nColPerLoad")
 
         kStr += inst("v_mul_lo_u32", addr0, addr0, sgpr(strideC1), "coord1 offset =  coord1 * StrideC")
         kStr += inst("_v_add_lshl_u32", addr0, addr0,  vgpr(self.storeRemapCoord0), hex(log2(bpe)), "global write C address")
 
-        lgkmcnt = min((endIdx-i)//gwvw - 1, 15)
+        lgkmcnt = min((nElements-i)//gwvw - 1, 15)
         kStr += inst("s_waitcnt", "lgkmcnt(%u)"% lgkmcnt, "wait for LDS read" )
 
-        kStr += self.chooseGlobalWrite(True, bps, (i-startIdx), rpv, addr0, addr1, 0, ntStr)
+        kStr += self.chooseGlobalWrite(True, bps, storeRegs[rIdx], rpv, addr0, addr1, 0, ntStr)
     else:
       tmpS23 = tmpS01+2
       coord0 = tmpVgpr
       coord1 = coord0+1
-      for i in range (startIdx, endIdx, gwvw):
-        for vi in range (0,gwvw):
+      lrVw = kernel["StoreRemapVectorWidth"]
+      edgeVw = min(kernel["AssertFree0ElementMultiple"],kernel["StoreRemapVectorWidth"])
+      bps = kernel["ProblemType"]["DataType"].numBytes() * edgeVw
+      rpv = kernel["ProblemType"]["DataType"].numRegisters() * edgeVw
+      for rIdx, i in enumerate(range(0, nElements, lrVw)):
+        for vi in range (0, lrVw, edgeVw):
 
           if vi == 0:
-            lgkmcnt = min((endIdx-i)//gwvw - 1, 15)
+            lgkmcnt = min((nElements-i)//lrVw - 1, 15)
             kStr += inst("s_waitcnt", "lgkmcnt(%u)"% lgkmcnt, "wait for LDS read" )
 
           sizeBoundary = [0,0]
@@ -8671,11 +8667,12 @@ class KernelWriterAssembly(KernelWriter):
           sizeBoundary[1] = \
               sgpr("PackedSize1") if len(kernel["PackedC1IndicesX"]) > 1 \
               else self.sizeRef(kernel["ProblemType"]["Index1"])
-          currentStep = (i-startIdx)//gwvw
+
+          currentStep = i//lrVw
 
           # calculate global coordination
           kStr += inst("v_add_u32", vgpr(coord1), vgpr(self.storeRemapCoord1), self.storeRemapNCPL * currentStep , "coord1 += nColPerLoad")
-          kStr += inst("v_add_u32",vgpr(coord0), vgpr(self.storeRemapCoord0), vi , "coord0 += element index of storeVector")
+          kStr += inst("v_add_u32",vgpr(coord0), vgpr(self.storeRemapCoord0), vi , "coord0 += element index of load vector")
           kStr += inst("v_add_u32", addr0, vgpr(self.storeRemapOffsetCoord1), self.storeRemapNCPL * currentStep , \
                         "offset coord1 += nColPerLoad")
 
@@ -8687,11 +8684,16 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("_v_add_lshl_u32", addr0, addr0,  vgpr(coord0), hex(log2(bpe)), "scale to BPE")
           kStr += inst("v_cndmask_b32", addr0, -1, addr0, sgpr(tmpS23,2), "clip if OOB. offset" )
 
-          sumIdx = (i-startIdx)+ int(vi*rpe)
-          kStr += self.chooseGlobalWrite(True, bpe, sumIdx, rpe, addr0, addr1, 0, ntStr, hi16=vi%2)
+          sumIdx = storeRegs[rIdx] + int(vi*rpe)
+          if bps == 2:
+            kStr += self.chooseGlobalWrite(True, bpe, sumIdx, rpe, addr0, addr1, 0, ntStr, hi16=vi%2)
+          else:
+            kStr += self.chooseGlobalWrite(True, bps, sumIdx, rpv, addr0, addr1, 0, ntStr)
 
     kStr += "\n"
     self.vgprPool.checkIn(vTmp)
+    for v in storeRegs:
+      self.vgprPool.checkIn(v)
 
     #Data exchange between different waves
     #Make sure LDS reads are finished of all waves
@@ -8868,6 +8870,8 @@ class KernelWriterAssembly(KernelWriter):
     (fullVw, elements[False]) = self.notLocalFullTileElements(kernel, False)
     (edgeVw, elements[True])  = self.notLocalFullTileElements(kernel, True)
 
+    # print("len(elements[False])= ", len(elements[False]))
+    # print("len(elements[True])= ", len(elements[True]))
     vectorWidths = [fullVw, edgeVw]
 
     kStr = self.globalWriteElements(kernel, vectorWidths, elements)
@@ -8967,11 +8971,18 @@ class KernelWriterAssembly(KernelWriter):
           regsPerElement = 2 if kernel["BufferStore"] else 3
           # The atomic loop processes multiple elements in single instruction
           # so will use VGPR from consec elements? TODO
-          self.numVgprsPerDataPerVI = (1.0*regsPerElement*kernelWriter.bpeCexternal)/kernelWriter.bpr
+          tmpBpe = kernelWriter.bpeCinternal if kernel["_GlobalAccumulation"] else kernelWriter.bpeCexternal
+          self.numVgprsPerDataPerVI = (1.0 * regsPerElement * tmpBpe) / kernelWriter.bpr
         elif beta:
-          self.numVgprsPerDataPerVI = (1.0*kernelWriter.bpeCexternal)/kernelWriter.bpr
+          self.numVgprsPerDataPerVI = (1.0 * kernelWriter.bpeCexternal) / kernelWriter.bpr
         else:
           self.numVgprsPerDataPerVI = 0.0
+
+        if kernelWriter.serializedStore:
+          assert(kernel["EnableMatrixInstruction"]==True)
+          self.numVgprPerValuC = 1
+        else:
+          self.numVgprPerValuC = 0
 
         # indicates each vector element is actually half -
         # changes vgpr allocation so two elements share a data vgpr
@@ -9206,7 +9217,11 @@ class KernelWriterAssembly(KernelWriter):
           if elementsLoadedPerVw < elementsLoadedPerbestVw:
             bestVw = kernel["StoreVectorWidth"]
           if kernel["EnableMatrixInstruction"]:
-            if kernel["MatrixInstM"] == 4:
+            if kw.serializedStore:
+              sumIdx    = kw.vgprPool.checkOut(self.cfg.numVgprPerValuC*self.cfg.gwvw, "vgprValuC")
+              # print("checked out vgpr %u"%sumIdx)
+              # print(kw.vgprPool.state())
+            elif kernel["MatrixInstM"] == 4:
               sumIdx    = kw.startVgprValuC + vc0 + (d0 * kernel["MIOutputVectorWidth"]) + d1 * (kernel["MIOutputVectorWidth"] * kernel["MIWaveTile"][0])
             else:
               d1_stride = ((kernel["MatrixInstM"] * kernel["MatrixInstN"]) // globalParameters["WavefrontWidth"]) * kernel["MatrixInstBM"] * kernel["MIWaveTile"][0]
@@ -9216,9 +9231,21 @@ class KernelWriterAssembly(KernelWriter):
         self.elementSumIdx.append(sumIdx) # sumIdx is an element idx, need to div/2 for half
         self.lastCoordOffset1 = coordOffset1
 
+    def checkInTempVgprC(self):
+      if self.kernelWriter.serializedStore is False:
+        return # early exit; currently only serializedStore==True checks out C-tile from register pool
+
+      assert(self.kernelWriter.overlapVgprC) # sanity check
+      if len(self.elementSumIdx) > 0:
+        for i in self.elementSumIdx:
+          self.kernelWriter.vgprPool.checkIn(i)
+          # print("checked in vgpr %u"%i)
+        self.elementSumIdx = []
+
     def __del__(self):
       if (self.sharedColVgprs != None):
         self.kernelWriter.vgprPool.checkIn(self.sharedColVgprs)
+      self.checkInTempVgprC()
 
 
   ##############################################################################
@@ -9446,11 +9473,12 @@ class KernelWriterAssembly(KernelWriter):
             kStr += self.emitExtractAndScalePackedDims(kernel, ss, beta, atomic, tmpVgpr, 'C')
           else:
             updatedAddr = True
+            tmpBpe = kw.bpeCinternal if kernel["_GlobalAccumulation"] else kw.bpeCexternal
             kStr += inst("_v_add_lshl_u32", \
                 vgpr(self.addrVgpr), \
                 vgpr(kw.cinRowPtr), \
                 vgpr(elementVgpr), \
-                hex(log2(kw.bpeCexternal)), \
+                hex(log2(tmpBpe)), \
                 "scaleToBpe: accumulate d0 lower and *= bpe into Cin addr")
 
         # if not optSrdIncForRow then we may have moved the row pointer
@@ -9747,25 +9775,31 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Global Write Elements
   ##############################################################################
-  def globalWriteElements(self, kernel, vectorWidths, elements):
+  def globalWriteElements(self, kernel, vectorWidths, elements,
+                          applyAlpha=True, # defaults to generating *=alpha codes
+                          betas=None, # if left unspecified, then let global parameter decide
+                          edges=None):
     if not self.do["PostLoop"]: return ""
     kStr = ""
     atomic = kernel["GlobalSplitU"] > 1
 
 
     # write possibilities and labels
-    betas = [False, True] if kernel["ProblemType"]["UseBeta"] else [False]
-    edges = [False, True] if self.do["EdgeWrite"] else [False]
+    # if beta/edge combo not specified fall back to global param definition
+    if betas is None:
+      betas = [False, True] if kernel["ProblemType"]["UseBeta"] else [False]
+    if edges is None:
+      edges = [False, True] if self.do["EdgeWrite"] else [False]
     writeLabels = {}
     for beta in betas:
       writeLabels[beta] = {}
       for edge in edges:
-        writeLabels[beta]["EdgeCheck0"] = self.getNamedLabel("GW_B%u_E%u_EdgeCheck0" % ( 1 if beta else 0, 1 if edge else 0) )
-        writeLabels[beta]["EdgeCheck1"] = self.getNamedLabel("GW_B%u_E%u_EdgeCheck1" % ( 1 if beta else 0, 1 if edge else 0) )
-        writeLabels[beta][edge] = self.getNamedLabel("GW_B%u_E%u" % ( 1 if beta else 0, 1 if edge else 0) )
+        writeLabels[beta]["EdgeCheck0"] = self.getNamedLabelUnique("GW_B%u_E%u_EdgeCheck0" % ( 1 if beta else 0, 1 if edge else 0) )
+        writeLabels[beta]["EdgeCheck1"] = self.getNamedLabelUnique("GW_B%u_E%u_EdgeCheck1" % ( 1 if beta else 0, 1 if edge else 0) )
+        writeLabels[beta][edge] = self.getNamedLabelUnique("GW_B%u_E%u" % ( 1 if beta else 0, 1 if edge else 0) )
       if not beta:
-        betaLabel = self.getNamedLabel("GW_Beta")
-    endLabel = self.getLabelNum("GW_End")
+        betaLabel = self.getNamedLabelUnique("GW_Beta")
+    endLabel = self.getNamedLabelUnique("GW_End")
 
     # Layout
     """
@@ -9827,8 +9861,10 @@ class KernelWriterAssembly(KernelWriter):
     tmpSgpr = self.getTmpSgpr(6).idx()
 
     # branch B1 or B0
-    betaLabel = self.getNamedLabel("GW_Beta")
-    kStr += self.checkIsBetaZero(kernel, tmpSgpr, betaLabel)
+    betaLabel = self.getNamedLabelUnique("GW_Beta")
+
+    if False in betas and True in betas:
+      kStr += self.checkIsBetaZero(kernel, tmpSgpr, betaLabel)
 
     for beta in betas:
       # start B1
@@ -9837,7 +9873,8 @@ class KernelWriterAssembly(KernelWriter):
 
       ########################################
       # branch if Edge0 or Edge1
-      kStr += self.checkIsEdge(kernel, tmpSgpr, "%s" % writeLabels[beta][True])
+      if False in edges and True in edges:
+        kStr += self.checkIsEdge(kernel, tmpSgpr, "%s" % writeLabels[beta][True])
 
       # by now we either jumped to E1 or stayed at E0
       for edge in edges:
@@ -9869,11 +9906,19 @@ class KernelWriterAssembly(KernelWriter):
         #  - if beta gwvw*rpe for new value
         #  - if atomic 2*rpe for old and cmp values
 
-        numVgprsPerElement = self.ss.cfg.numVgprsPerAddr + int(ceil(self.ss.cfg.numVgprsPerDataPerVI * gwvw))
+        # print("numVgprsPerAddr=%u, numVgprsPerDataPerVI=%u, numVgprPerValuC=%u"%(self.ss.cfg.numVgprsPerAddr, self.ss.cfg.numVgprsPerDataPerVI, self.ss.cfg.numVgprPerValuC))
+        numVgprsPerElement = self.ss.cfg.numVgprPerValuC*gwvw + self.ss.cfg.numVgprsPerAddr + int(ceil(self.ss.cfg.numVgprsPerDataPerVI * gwvw))
 
         #print self.vgprPool.state()
         # Use VGPR up to next occupancy threshold:
-        #numVgprAvailable = self.getMaxRegsForOccupancy(self.vgprPool.available())
+        maxVgprs = self.getMaxRegsForOccupancy(kernel["NumThreads"], self.vgprPool.size(), self.getLdsSize(kernel), self.agprPool.size())
+        if self.serializedStore: # get aggresive when serializedStore is on; not necessarily exclusive to this parameter
+          len(elements[edgeI])
+          tl = []
+          for i in range(self.vgprPool.size()-self.vgprPool.available(), maxVgprs):
+            tl.append(self.vgprPool.checkOut(1, "grow-pool up to next occupancy for GlobalWrite"))
+          for t in tl:
+            self.vgprPool.checkIn(t)
         numVgprAvailable = self.vgprPool.availableBlock(numVgprsPerElement)
 
         # Grow the register pool if needed - we need enough regs for at least one element
@@ -9882,6 +9927,8 @@ class KernelWriterAssembly(KernelWriter):
         # Before growing the pool, see if we can shrink the write vector width instead?
         # TODO : the vgprSerial is needed for-ever and if we grow here will split the
         # range of the tmps.  Maybe want to move vgprSerial to first vgpr?
+
+        # TODO: Minimum elems for StoreRemap
         minElements = 2 if (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) else 1
         minNeeded = minElements*numVgprsPerElement
         shrinkDb = 0
@@ -9889,9 +9936,9 @@ class KernelWriterAssembly(KernelWriter):
           print("numVgprAvailable=", numVgprAvailable, "minElements=", minElements, "minNeeded=", minNeeded)
         if numVgprAvailable < minNeeded:
           gwvwOrig = gwvw
-          currentOccupancy = self.getOccupancy(kernel, self.vgprPool.size())
-          futureOccupancy = self.getOccupancy(kernel, \
-              self.vgprPool.size() - numVgprAvailable + minNeeded)
+          currentOccupancy = self.getOccupancy(kernel["NumThreads"], self.getLdsSize(kernel), self.vgprPool.size(), self.agprPool.size())
+          futureOccupancy = self.getOccupancy(kernel["NumThreads"], self.getLdsSize(kernel), \
+              self.vgprPool.size() - numVgprAvailable + minNeeded, self.agprPool.size())
 
           if shrinkDb:
             print("currentOccupancy=%u futureOccupancy=%u VGPRs=%u numVgprAvail=%u vgprPerElem=%u" \
@@ -9925,11 +9972,13 @@ class KernelWriterAssembly(KernelWriter):
         # set atomicW after we potentially resize GWVW
         atomicW = min(gwvw, kernel["VectorAtomicWidth"])
 
-        #print "NumVgprAvailable", numVgprAvailable
+        # print("NumVgprAvailable", numVgprAvailable)
         if numVgprsPerElement:
           numElementsPerBatch = numVgprAvailable // numVgprsPerElement
         else:
           numElementsPerBatch = len(elements[edgeI]) # max, do 'em all
+
+        assert(self.numVgprValuC % gwvw == 0) # sanity check
 
         if shrinkDb:
           print("NumElementsPerBatch=", numElementsPerBatch, "LimitedBySgprs=", self.ss.cfg.numElementsPerBatchLimitedBySgprs, \
@@ -9963,14 +10012,17 @@ class KernelWriterAssembly(KernelWriter):
           firstRow = [e for e in elements[edgeI] if e[0]==0 and e[2]==0]
           numElementsPerBatch=min(len(firstRow),numElementsPerBatch)
 
-        # hack to avoid modifing local write address across rows to support shiftPtr in storeRemap
-        if kernel["StoreRemapVectorWidth"] and edge and not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB:
-          firstRow = [e for e in elements[edgeI] if e[0]==0 and e[2]==0]
+        # check best numElementsPerBatch to handle a column block
+        # elements of column block must be multiple size of numElementsPerBatch
+        if kernel["StoreRemapVectorWidth"]:
+          firstRow = [e for e in elements[edgeI] if e[0]==0 and e[2]==0] # format for element = (tt1, tt0, vc1, vc0)
           # find the largest factor and smaller than numElementPerBatch
+          nBatchesPerRow = 1
           for d in range(1, len(firstRow)+1):
             largestFactor = len(firstRow)//d
             if len(firstRow)%d == 0 and largestFactor <= numElementsPerBatch:
               numElementsPerBatch = largestFactor
+              nBatchesPerRow = d
               break
 
         # if no atomics and no edge, then write whole vectors
@@ -9995,7 +10047,7 @@ class KernelWriterAssembly(KernelWriter):
 
         elementSgprs = tmpSgpr + self.ss.cfg.fixedSgprsPerBatch
 
-
+        codeAccVgprRead = deepcopy(self.codeAccVgprRead) if self.serializedStore else None
         for batchIdx in range(0, numBatches):
           elementStartIdx = batchIdx * numElementsPerBatch
           elementStopIdx = min( elementStartIdx + numElementsPerBatch, len(elements[edgeI]) )
@@ -10005,22 +10057,19 @@ class KernelWriterAssembly(KernelWriter):
           # VGPRS.  We do not want to accidentally overflow and grow the pool here:
 
           if kernel["StoreRemapVectorWidth"]:
-            #Indication if this batch last batch
-            self.StoreRemapLastBatch = 1 if batchIdx == (numBatches-1) else 0
-            #Reset Start Sum index when first batch
-            if batchIdx == 0:
-              self.storeRemapStartSumIdx = 0
+            #Indication if this batch is last batch for this column block shape
+            self.StoreRemapLastBatch = 1 if (batchIdx+1) % nBatchesPerRow == 0 else 0
 
-          kStr += self.globalWriteBatch(kernel, self.ss, batchIdx, beta, edge, atomic, gwvw, atomicW, \
+          kStr += self.globalWriteBatch(kernel, self.ss, batchIdx, applyAlpha, beta, edge, atomic, gwvw, atomicW, \
               elementsThisBatch, self.coord0, self.coord1, self.addrD, self.addrC, \
               tmpVgpr, \
-              elementSgprs, tmpSgpr)
+              elementSgprs, tmpSgpr, codeAccVgprRead)
         # TODO - if this is the last tile, don't need to jump to next instruction
-        kStr += inst("s_branch", "label_%04u"%endLabel, "jump to end")
+        kStr += inst("s_branch", "label_%s"%endLabel, "jump to end")
         del self.ss
 
     # End label
-    kStr += "label_%04u:%s"%(endLabel, self.endLine)
+    kStr += "label_%s:%s"%(endLabel, self.endLine)
     self.vgprPool.checkIn(tmpVgpr)
     return kStr
 
@@ -10179,8 +10228,13 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def chooseAddForAtomic(self, kernel, dst, src0, src1, comment):
     kStr = ""
-    if kernel["ProblemType"]["DataType"].isHalf():
-      if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+    if kernel["ProblemType"]["DataType"].isBFloat16():
+      if kernel["_GlobalAccumulation"]:
+        kStr += inst("v_add_f32", dst, src0, src1, comment)
+    elif kernel["ProblemType"]["DataType"].isHalf():
+      if kernel["_GlobalAccumulation"]:
+        kStr += inst("v_add_f32", dst, src0, src1, comment)
+      elif kernel["ProblemType"]["HighPrecisionAccumulate"]:
         kStr += inst("v_mad_mix need madmix bozo", \
                   dst, src0, src1, \
                   comment)
@@ -10269,9 +10323,9 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Global Write Batch
   ##############################################################################
-  def globalWriteBatch(self, kernel, ss, batchIdx, beta, edge, atomic, gwvw, atomicW, \
-      batchElements, coord0, coord1, addrD, addrC,  \
-      tmpVgpr, batchElementSgprs, tmpSgpr):
+  def globalWriteBatch(self, kernel, ss, batchIdx, applyAlpha, beta, edge, atomic, gwvw, atomicW, \
+      batchElements, coord0, coord1, addrD, addrC, \
+      tmpVgpr, batchElementSgprs, tmpSgpr, codeAccVgprRead):
     kStr = ""
 
     kStr += self.comment1("optSingleColVgpr=%u optSharedColVgpr=%u optSharedMask=%u optSrdIncForRow=%u" % \
@@ -10279,7 +10333,8 @@ class KernelWriterAssembly(KernelWriter):
     if atomic:
       # all kinds of code relies on this assumption:
       assert(atomicW <= gwvw)
-      if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
+      if (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) \
+         and not kernel["_GlobalAccumulation"]:
         assert(atomicW >= 2)
 
     # comment tt1, tt0, vc1, vc0
@@ -10294,6 +10349,8 @@ class KernelWriterAssembly(KernelWriter):
       if elementIdx < len(batchElements)-1:
         commentStr += "; "
     kStr += self.comment3(commentStr)
+    # print(self.kernelName)
+    # print(commentStr)
 
     ss.setupStoreElementsForBatch(kernel, gwvw, batchElements, batchElementSgprs, isOptNLL=False)
 
@@ -10319,6 +10376,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.bomb() # should not get here
     if edge and self.db["AssertNoEdge"]:
       kStr += self.bomb() # should not get here
+
     for elementIdx in range(0, len(batchElements)):
       element = batchElements[elementIdx]
       addr = ss.elementAddr[elementIdx].addrVgpr
@@ -10365,28 +10423,29 @@ class KernelWriterAssembly(KernelWriter):
               vgpr(addr+1), "vcc", "addr = C + index*bytes (hi)")
 
       if atomic:
-        # load c into data+1 because of CAS structure
-        # TODO - Fix for double here, would need bigger load
-        # FIME
-        bps = kernel["ProblemType"]["DataType"].numBytes()
-        # gwvw is the number of elements in the batch
-        # iterate over number of atomic operations to perform, each of width atomicW
-        for avi in range(0, gwvw//atomicW):
-          dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
-          bpm = self.bpeCexternal * atomicW
-          useBuffer = kernel["BufferStore"]
-          if kernel["BufferStore"]: # yes, BufferStore here - use same addressing regs for this load
-            addr0 = vgpr(addr)
-            addr1 = sgpr("SrdC", 4)
-          else:
-            addr0 = vgpr(addr,2)
-            addr1 = ""
-          # Calculate vgpr Indx for 32-bit/64-bit instruction
-          # DGEMM use SRCS[2] register
-          vgprIdx = 1*(bpm//4)
-          kStr += self.chooseGlobalRead(useBuffer, bpm, dataV+vgprIdx, \
-                    addr0, addr1, soffset=0, offset=addrCalc.globalOffset, extraFields="",
-                    comment="load C (atomic) bpm=%u vaw=%u"%(bpm,atomicW)).toStr()
+        if not self.useAtomicAdd:
+          # load c into data+1 because of CAS structure
+          # TODO - Fix for double here, would need bigger load
+          # FIME
+          bps = kernel["ProblemType"]["DataType"].numBytes()
+          # gwvw is the number of elements in the batch
+          # iterate over number of atomic operations to perform, each of width atomicW
+          for avi in range(0, gwvw//atomicW):
+            dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
+            bpm = self.bpeCinternal * atomicW if kernel["_GlobalAccumulation"] else self.bpeCexternal * atomicW
+            useBuffer = kernel["BufferStore"]
+            if kernel["BufferStore"]: # yes, BufferStore here - use same addressing regs for this load
+              addr0 = vgpr(addr)
+              addr1 = sgpr("SrdC", 4)
+            else:
+              addr0 = vgpr(addr,2)
+              addr1 = ""
+            # Calculate vgpr Indx for 32-bit/64-bit instruction
+            # DGEMM use SRCS[2] register
+            vgprIdx = 1*(bpm//4)
+            kStr += self.chooseGlobalRead(useBuffer, bpm, dataV+vgprIdx, \
+                      addr0, addr1, soffset=0, offset=addrCalc.globalOffset, extraFields="",
+                      comment="load C (atomic) bpm=%u vaw=%u"%(bpm,atomicW)).toStr()
       elif beta:
         bps = kernel["ProblemType"]["DataType"].numBytes() * gwvw
         useBuffer = kernel["BufferStore"]
@@ -10407,7 +10466,7 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["ProblemType"]["DataType"].isHalf():
           kStr += self.chooseGlobalRead(useBuffer, bps, data, \
                     addr0, addr1, soffset=0, offset=addrCalc.globalOffset, \
-                    extraFields=extraFields, hi16=sumIdx%2,
+                    extraFields=extraFields, hi16=vc0 % 2,
                     comment="load C for beta calc").toStr()
         elif kernel["ProblemType"]["DataType"].isBFloat16() or \
              kernel["ProblemType"]["DataType"].isInt8x4() or \
@@ -10420,7 +10479,7 @@ class KernelWriterAssembly(KernelWriter):
                     extraFields=extraFields, \
                     comment="load C for beta calc").toStr()
 
-      if kernel["InterleaveAlpha"]:
+      if kernel["InterleaveAlpha"] and applyAlpha:
         kStr += self.applyAlpha(kernel, gwvw, ss.elementSumIdx, elementIdx, tmpS01)
 
       if not kernel["LdcEqualsLdd"]:
@@ -10439,8 +10498,18 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_mov_b64", "exec", -1, "full mask -1 -> exec" )
 
     ########################################
+    # AccVgpr read
+    if codeAccVgprRead is not None:
+      assert(self.serializedStore) # sanity check
+      for elementIdx in range(0, len(batchElements)):
+        for vi in range(0, gwvw):
+          if len(codeAccVgprRead.items()) > 0:
+            kStr += str(codeAccVgprRead.items().pop(0)).replace("__placeholder__", str(ss.elementSumIdx[elementIdx]+vi))
+      kStr += inst("s_nop 1", "2 wait states required before reading vgpr")
+
+    ########################################
     # rC *= alpha
-    if not kernel["InterleaveAlpha"]:
+    if not kernel["InterleaveAlpha"] and applyAlpha:
       kStr += self.comment("rC *= alpha batchEements=%s"%batchElements)
       for elementIdx in range(0, len(batchElements)):
         kStr += self.applyAlpha(kernel, gwvw, ss.elementSumIdx, elementIdx, tmpS01)
@@ -10486,245 +10555,280 @@ class KernelWriterAssembly(KernelWriter):
       labelString += "EarlyExit"
       labelAfterAtomicLoop = self.getLabelNum(labelString)
 
-      ########################################
-      # wait for batched load
-      # TODO - we are always atomic here?
-      kStr += inst("s_waitcnt", "vmcnt(0)", "wait C (atomic)" )
-      if self.archCaps["SeparateVscnt"]:
-        kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
+      if self.useAtomicAdd:
+        ########################################
+        # first attempt write
+        kStr += self.comment("issue first atomic writes")
+        for elementIdx in range(0, len(batchElements)):
+          element  = batchElements[elementIdx]
+          addrCalc = ss.elementAddr[elementIdx]
+          mask     = ss.elementMask[elementIdx]
+          d1       = element[0]
+          d0       = element[1]
+          vc1      = element[2]
+          vc0      = element[3]
 
-      ########################################
-      # first attempt write
-      kStr += self.comment("issue first atomic writes")
-      for elementIdx in range(0, len(batchElements)):
-        element = batchElements[elementIdx]
-        addrCalc = ss.elementAddr[elementIdx]
-        mask = ss.elementMask[elementIdx]
-        d1 = element[0]
-        d0 = element[1]
-        vc1 = element[2]
-        vc0 = element[3]
+          # apply in-bounds exec mask
+          if edge:
+            kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec (before atomic)" )
 
-        # apply in-bounds exec mask
-        if edge:
-          kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec (before atomic)" )
-
-        for avi in range(0, gwvw//atomicW):
-          dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
-          sumIdxV = ss.elementSumIdx[elementIdx] + avi
-          ## number of src[s]/dsst[s] register for DGEMM / SGEMM HGEMM
-          vgprCnt = 2 if kernel["ProblemType"]["DataType"].isDouble() else 1
-          if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():  sumIdxV //= 2
-          #
-          if kernel["ProblemType"]["DataType"].isDouble(): sumIdxV = sumIdxV * 2
-          bpm = self.bpeCexternal * atomicW
-          # Calculate vgpr Indx for 32-bit/64-bit instruction
-          # DGEMM use SRCS[2] register
-          vgprIdx = 1*(bpm//4)
-          # for atomic, data[1] = original c, data[0] = new c
-          kStr += self.chooseAddForAtomic(kernel, \
-                    vgpr(dataV+0,vgprCnt), vgpr(dataV+1*vgprIdx,vgprCnt), vgpr("ValuC+%u"%sumIdxV,vgprCnt), \
-                    "desired value avi=%u"%avi)
-
-          # attempt write
-          atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
-          if self.do["GlobalWrite"]:
-            bps = kernel["ProblemType"]["DataType"].numBytes()
-            if kernel["BufferStore"]:
-              # use cmpswap_x2 for DGEMM in CAS loop
-              if kernel["ProblemType"]["DataType"].isDouble():
-                kStr += "buffer_atomic_cmpswap_x2 %s, %s, %s %s    // %s%s" % \
-                    (vgpr(dataV,4), \
-                    vgpr(addrCalc.addrVgpr,1), \
-                    sgpr("SrdD", 4),  \
-                    "0 offen offset:%u glc" % addrCalc.globalOffset, \
-                    "attempt write avi=%u"%(avi), self.endLine )
-              else:
-              # use cmpswap for SGEMM in CAS loop
-                kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
-                    (vgpr(dataV,2), \
-                    vgpr(addrCalc.addrVgpr,1), \
-                    sgpr("SrdD", 4),  \
-                    "0 offen offset:%u glc" % addrCalc.globalOffset, \
-                    "attempt write avi=%u"%(avi), self.endLine )
-            else:
-              kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
-                  (vgpr(atomicDestVgpr), vgpr(addrCalc.addrVgpr,2), \
-                  vgpr(dataV,2), "glc", "attempt write", self.endLine )
-          else:
-             kStr += inst("v_mov_b32", vgpr(atomicDestVgpr), vgpr(dataV+1), "Fake successful CAS" )
-             # Fake successful CAS swap:
-
-      ########################################
-      # wait for first attempt write
-      kStr += inst("s_waitcnt vmcnt(0)", "wait for atomic writes" )
-      if self.archCaps["SeparateVscnt"]:
-        kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
-
-      ########################################
-      # check first attempt
-      kStr += self.comment("check success of writes, update masks")
-      for elementIdx in range(0, len(batchElements)):
-        element = batchElements[elementIdx]
-        mask = ss.elementMask[elementIdx]
-        d1 = element[0]
-        d0 = element[1]
-        vc1 = element[2]
-        vc0 = element[3]
-
-        # calculate new masks
-        if edge:
-          kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
           for avi in range(0, gwvw//atomicW):
             dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
-            atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
-            # need to apply element mask before comparison
-            # so that all valid lanes are doing the cmp
-            if avi == 0:
-              # use u64 for DGEMM
-              if kernel["ProblemType"]["DataType"].isDouble():
-                kStr += inst("v_cmp_ne_u64", sgpr(tmpS01,2), vgpr(atomicDestVgpr,2), \
-                    vgpr(dataV+2,2), "c read during atomic == c read during prior load (avi=%u, first)"%avi )
+            sumIdxV = ss.elementSumIdx[elementIdx] + avi
+            if self.do["GlobalWrite"]:
+              if kernel["BufferStore"]:
+                kStr += "buffer_atomic_add_f32 %s, %s, %s, %s    // %s%s" % \
+                    (vgpr("ValuC+%u"%sumIdxV), \
+                     vgpr(addrCalc.addrVgpr,1), \
+                     sgpr("SrdD", 4), \
+                     "0 offen offset:%u" % addrCalc.globalOffset, \
+                     "attempt write avi=%u" % (avi), self.endLine )
               else:
-                kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(atomicDestVgpr), \
-                    vgpr(dataV+1), "c read during atomic == c read during prior load (avi=%u, first)"%avi )
-            else:
-              if kernel["ProblemType"]["DataType"].isDouble():
-                kStr += inst("v_cmp_ne_u64", sgpr(tmpS23,2), vgpr(atomicDestVgpr,2), \
-                    vgpr(dataV+2,2), "c read during atomic != c read during prior load" )
-              else:
-                kStr += inst("v_cmp_ne_u32", sgpr(tmpS23,2), vgpr(atomicDestVgpr), \
-                    vgpr(dataV+1), "c read during atomic == c read during prior load (avi=%u)"%avi )
-              kStr += inst("s_or_b64", sgpr(tmpS01,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "combine with tmp mask")
+                pass # TODO:
 
-          if kernel["DisableAtomicFail"]:
-            kStr += inst("s_mov_b64",  sgpr(mask,2), 0, "DisableAtomicFail, force 0" )
-          else:
-            kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
+        if edge:
+          kStr += inst("s_mov_b64", "exec", -1, "full mask -> exec" )
+      else:
+        ########################################
+        # wait for batched load
+        # TODO - we are always atomic here?
+        kStr += inst("s_waitcnt", "vmcnt(0)", "wait C (atomic)" )
+        if self.archCaps["SeparateVscnt"]:
+          kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
 
-        else:
+        ########################################
+        # first attempt write
+        kStr += self.comment("issue first atomic writes")
+        for elementIdx in range(0, len(batchElements)):
+          element = batchElements[elementIdx]
+          addrCalc = ss.elementAddr[elementIdx]
+          mask = ss.elementMask[elementIdx]
+          d1 = element[0]
+          d0 = element[1]
+          vc1 = element[2]
+          vc0 = element[3]
+
+          # apply in-bounds exec mask
+          if edge:
+            kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec (before atomic)" )
+
           for avi in range(0, gwvw//atomicW):
             dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
+            sumIdxV = ss.elementSumIdx[elementIdx] + avi
+            ## number of src[s]/dsst[s] register for DGEMM / SGEMM HGEMM
+            vgprCnt = 2 if kernel["ProblemType"]["DataType"].isDouble() else 1
+            if kernel["ProblemType"]["DataType"].numRegisters() < 1 and not kernel["_GlobalAccumulation"]:
+              sumIdxV //= 2
+            if kernel["ProblemType"]["DataType"].isDouble(): sumIdxV = sumIdxV * 2
+            bpm = self.bpeCinternal * atomicW if kernel["_GlobalAccumulation"] else self.bpeCexternal * atomicW
+            # Calculate vgpr Indx for 32-bit/64-bit instruction
+            # DGEMM use SRCS[2] register
+            vgprIdx = 1*(bpm//4)
+            # for atomic, data[1] = original c, data[0] = new c
+            kStr += self.chooseAddForAtomic(kernel, \
+                      vgpr(dataV+0,vgprCnt), vgpr(dataV+1*vgprIdx,vgprCnt), vgpr("ValuC+%u"%sumIdxV,vgprCnt), \
+                      "desired value avi=%u"%avi)
+
+            # attempt write
             atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
+            if self.do["GlobalWrite"]:
+              bps = kernel["ProblemType"]["DataType"].numBytes()
+              if kernel["BufferStore"]:
+                # use cmpswap_x2 for DGEMM in CAS loop
+                if kernel["ProblemType"]["DataType"].isDouble():
+                  kStr += "buffer_atomic_cmpswap_x2 %s, %s, %s %s    // %s%s" % \
+                      (vgpr(dataV,4), \
+                      vgpr(addrCalc.addrVgpr,1), \
+                      sgpr("SrdD", 4),  \
+                      "0 offen offset:%u glc" % addrCalc.globalOffset, \
+                      "attempt write avi=%u"%(avi), self.endLine )
+                else:
+                # use cmpswap for SGEMM in CAS loop
+                  kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
+                      (vgpr(dataV,2), \
+                      vgpr(addrCalc.addrVgpr,1), \
+                      sgpr("SrdD", 4),  \
+                      "0 offen offset:%u glc" % addrCalc.globalOffset, \
+                      "attempt write avi=%u"%(avi), self.endLine )
+              else:
+                kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
+                    (vgpr(atomicDestVgpr), vgpr(addrCalc.addrVgpr,2), \
+                    vgpr(dataV,2), "glc", "attempt write", self.endLine )
+            else:
+               kStr += inst("v_mov_b32", vgpr(atomicDestVgpr), vgpr(dataV+1), "Fake successful CAS" )
+               # Fake successful CAS swap:
+
+        ########################################
+        # wait for first attempt write
+        kStr += inst("s_waitcnt vmcnt(0)", "wait for atomic writes" )
+        if self.archCaps["SeparateVscnt"]:
+          kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
+
+        ########################################
+        # check first attempt
+        kStr += self.comment("check success of writes, update masks")
+        for elementIdx in range(0, len(batchElements)):
+          element = batchElements[elementIdx]
+          mask = ss.elementMask[elementIdx]
+          d1 = element[0]
+          d0 = element[1]
+          vc1 = element[2]
+          vc0 = element[3]
+
+          # calculate new masks
+          if edge:
+            kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
+            for avi in range(0, gwvw//atomicW):
+              dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
+              atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
+              # need to apply element mask before comparison
+              # so that all valid lanes are doing the cmp
+              if avi == 0:
+                # use u64 for DGEMM
+                if kernel["ProblemType"]["DataType"].isDouble():
+                  kStr += inst("v_cmp_ne_u64", sgpr(tmpS01,2), vgpr(atomicDestVgpr,2), \
+                      vgpr(dataV+2,2), "c read during atomic == c read during prior load (avi=%u, first)"%avi )
+                else:
+                  kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(atomicDestVgpr), \
+                      vgpr(dataV+1), "c read during atomic == c read during prior load (avi=%u, first)"%avi )
+              else:
+                if kernel["ProblemType"]["DataType"].isDouble():
+                  kStr += inst("v_cmp_ne_u64", sgpr(tmpS23,2), vgpr(atomicDestVgpr,2), \
+                      vgpr(dataV+2,2), "c read during atomic != c read during prior load" )
+                else:
+                  kStr += inst("v_cmp_ne_u32", sgpr(tmpS23,2), vgpr(atomicDestVgpr), \
+                      vgpr(dataV+1), "c read during atomic == c read during prior load (avi=%u)"%avi )
+                kStr += inst("s_or_b64", sgpr(tmpS01,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "combine with tmp mask")
+
             if kernel["DisableAtomicFail"]:
               kStr += inst("s_mov_b64",  sgpr(mask,2), 0, "DisableAtomicFail, force 0" )
             else:
-              if kernel["ProblemType"]["DataType"].isDouble():
-                kStr += inst("v_cmp_ne_u64", sgpr(mask,2), vgpr(atomicDestVgpr,2), \
-                    vgpr(dataV+2,2), "c read during atomic != c read during prior load" )
-              else:
-                kStr += inst("v_cmp_ne_u32", sgpr(mask,2), vgpr(atomicDestVgpr), \
-                    vgpr(dataV+1), "c read during atomic != c read during prior load" )
+              kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
 
-      # or masks together to check early exit
-      kStr += self.comment("or masks to check for exit")
-      kStr += inst("s_mov_b64", sgpr(tmpS01,2), hex(0), "empty mask" )
-      for elementIdx in range(0, len(batchElements)):
-        mask = ss.elementMask[elementIdx]
-        kStr += inst("s_or_b64", sgpr(tmpS01,2), sgpr(mask,2), sgpr(tmpS01,2), "or to add threads" )
-      kStr += inst("s_or_saveexec_b64", sgpr(tmpS23,2), sgpr(tmpS01,2), "apply combined mask" )
-      kStr += inst("s_cbranch_execz", "label_%04u" % labelAfterAtomicLoop, "if exec is zero skip loop" )
-
-      # begin atomic loop
-      kStr += self.comment("atomic CAS loop")
-      kStr += "label_%04u:%s" % (label, self.endLine)
-
-      kStr += self.comment("apply updated masks and issue writes again")
-      for elementIdx in range(0, len(batchElements)):
-        element = batchElements[elementIdx]
-        addrCalc = ss.elementAddr[elementIdx]
-        addr = ss.elementAddr[elementIdx].addrVgpr
-        mask = ss.elementMask[elementIdx]
-        bps = kernel["ProblemType"]["DataType"].numBytes()
-        vgprCnt = 2 if kernel["ProblemType"]["DataType"].isDouble() else 1   # number of registers for f32/f64
-        bpm = self.bpeCexternal * atomicW
-        vgprIdx = 1*(bpm//4)   # index register
-
-        for avi in range(0, gwvw//atomicW):
-          dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
-          atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
-          sumIdxV = ss.elementSumIdx[elementIdx] + avi
-          if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():  sumIdxV //= 2
-          if kernel["ProblemType"]["DataType"].isDouble():  sumIdxV =  sumIdxV * 2
-
-          # apply mask for element
-          kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "must try again" )
-          if kernel["ProblemType"]["DataType"].isDouble():
-            #64-bit C val move by 2 32-bit instructions
-            kStr += inst("v_mov_b32", vgpr(dataV+2), vgpr(atomicDestVgpr), "dataV+2 = tmp (new original C)" )
-            kStr += inst("v_mov_b32", vgpr(dataV+3), vgpr(atomicDestVgpr+1), "dataV+3 = tmp (new original C)" )
           else:
-            kStr += inst("v_mov_b32", vgpr(dataV+1), vgpr(atomicDestVgpr), "dataV+1 = tmp (new original C)" )
-          kStr += self.chooseAddForAtomic(kernel, \
-                    vgpr(dataV+0,vgprCnt), vgpr(dataV+1*vgprIdx,vgprCnt), vgpr("ValuC+%u"%sumIdxV,vgprCnt), \
-                    "newC = rC + originalC")
-          if self.do["GlobalWrite"]:
-            if kernel["BufferStore"]:
-              # Using no-ret version here?
-              # cmpswap_x2 for DGEMM
-              if kernel["ProblemType"]["DataType"].isDouble():
-                kStr += "buffer_atomic_cmpswap_x2 %s, %s, %s %s    // %s%s" % \
-                  (vgpr(dataV,4), \
-                   vgpr(addr,1), \
-                   sgpr("SrdD", 4), \
-                   "0 offen offset:%u glc" % (addrCalc.globalOffset), \
-                   "try again", self.endLine )
+            for avi in range(0, gwvw//atomicW):
+              dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
+              atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
+              if kernel["DisableAtomicFail"]:
+                kStr += inst("s_mov_b64",  sgpr(mask,2), 0, "DisableAtomicFail, force 0" )
               else:
-                kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
-                    (vgpr(dataV,2), \
+                if kernel["ProblemType"]["DataType"].isDouble():
+                  kStr += inst("v_cmp_ne_u64", sgpr(mask,2), vgpr(atomicDestVgpr,2), \
+                      vgpr(dataV+2,2), "c read during atomic != c read during prior load" )
+                else:
+                  kStr += inst("v_cmp_ne_u32", sgpr(mask,2), vgpr(atomicDestVgpr), \
+                      vgpr(dataV+1), "c read during atomic != c read during prior load" )
+
+        # or masks together to check early exit
+        kStr += self.comment("or masks to check for exit")
+        kStr += inst("s_mov_b64", sgpr(tmpS01,2), hex(0), "empty mask" )
+        for elementIdx in range(0, len(batchElements)):
+          mask = ss.elementMask[elementIdx]
+          kStr += inst("s_or_b64", sgpr(tmpS01,2), sgpr(mask,2), sgpr(tmpS01,2), "or to add threads" )
+        kStr += inst("s_or_saveexec_b64", sgpr(tmpS23,2), sgpr(tmpS01,2), "apply combined mask" )
+        kStr += inst("s_cbranch_execz", "label_%04u" % labelAfterAtomicLoop, "if exec is zero skip loop" )
+
+        # begin atomic loop
+        kStr += self.comment("atomic CAS loop")
+        kStr += "label_%04u:%s" % (label, self.endLine)
+
+        kStr += self.comment("apply updated masks and issue writes again")
+        for elementIdx in range(0, len(batchElements)):
+          element = batchElements[elementIdx]
+          addrCalc = ss.elementAddr[elementIdx]
+          addr = ss.elementAddr[elementIdx].addrVgpr
+          mask = ss.elementMask[elementIdx]
+          bps = kernel["ProblemType"]["DataType"].numBytes()
+          vgprCnt = 2 if kernel["ProblemType"]["DataType"].isDouble() else 1   # number of registers for f32/f64
+          bpm = self.bpeCinternal * atomicW if kernel["_GlobalAccumulation"] else self.bpeCexternal * atomicW
+          vgprIdx = 1*(bpm//4)   # index register
+
+          for avi in range(0, gwvw//atomicW):
+            dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
+            atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
+            sumIdxV = ss.elementSumIdx[elementIdx] + avi
+            if kernel["ProblemType"]["DataType"].numRegisters() < 1 and not kernel["_GlobalAccumulation"]:
+              sumIdxV //= 2
+            if kernel["ProblemType"]["DataType"].isDouble():  sumIdxV =  sumIdxV * 2
+
+            # apply mask for element
+            kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "must try again" )
+            if kernel["ProblemType"]["DataType"].isDouble():
+              #64-bit C val move by 2 32-bit instructions
+              kStr += inst("v_mov_b32", vgpr(dataV+2), vgpr(atomicDestVgpr), "dataV+2 = tmp (new original C)" )
+              kStr += inst("v_mov_b32", vgpr(dataV+3), vgpr(atomicDestVgpr+1), "dataV+3 = tmp (new original C)" )
+            else:
+              kStr += inst("v_mov_b32", vgpr(dataV+1), vgpr(atomicDestVgpr), "dataV+1 = tmp (new original C)" )
+            kStr += self.chooseAddForAtomic(kernel, \
+                      vgpr(dataV+0,vgprCnt), vgpr(dataV+1*vgprIdx,vgprCnt), vgpr("ValuC+%u"%sumIdxV,vgprCnt), \
+                      "newC = rC + originalC")
+            if self.do["GlobalWrite"]:
+              if kernel["BufferStore"]:
+                # Using no-ret version here?
+                # cmpswap_x2 for DGEMM
+                if kernel["ProblemType"]["DataType"].isDouble():
+                  kStr += "buffer_atomic_cmpswap_x2 %s, %s, %s %s    // %s%s" % \
+                    (vgpr(dataV,4), \
                      vgpr(addr,1), \
                      sgpr("SrdD", 4), \
                      "0 offen offset:%u glc" % (addrCalc.globalOffset), \
                      "try again", self.endLine )
+                else:
+                  kStr += "buffer_atomic_cmpswap %s, %s, %s %s    // %s%s" % \
+                      (vgpr(dataV,2), \
+                       vgpr(addr,1), \
+                       sgpr("SrdD", 4), \
+                       "0 offen offset:%u glc" % (addrCalc.globalOffset), \
+                       "try again", self.endLine )
+              else:
+                kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(atomicDestVgpr), \
+                    vgpr(addr,2), vgpr(dataV,2), "glc", "try again", self.endLine)
+
+        # wait for batched write
+        kStr += inst("s_waitcnt vmcnt(0)", "wait for atomic writes" )
+        if self.archCaps["SeparateVscnt"]:
+          kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
+
+        # check batched write success
+        kStr += self.comment("apply masks and check for success")
+        for elementIdx in range(0, len(batchElements)):
+          element = batchElements[elementIdx]
+          data = ss.elementData[elementIdx]
+          mask = ss.elementMask[elementIdx]
+          for avi in range(0, gwvw//atomicW):
+            dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
+            atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
+
+            # apply mask for element
+            kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "must try again" )
+
+            # compare success
+            if kernel["ProblemType"]["DataType"].isDouble():
+              kStr += inst("v_cmp_ne_u64", sgpr(tmpS01,2), vgpr(data+2,2), vgpr(atomicDestVgpr,2), \
+                  "c read during atomic != c read during prior load" )
             else:
-              kStr += "flat_atomic_cmpswap %s, %s, %s %s    // %s%s" % ( vgpr(atomicDestVgpr), \
-                  vgpr(addr,2), vgpr(dataV,2), "glc", "try again", self.endLine)
+              kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(data+1), vgpr(atomicDestVgpr), \
+                  "c read during atomic == c read during prior load" )
+            # update element mask
+            kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
 
-      # wait for batched write
-      kStr += inst("s_waitcnt vmcnt(0)", "wait for atomic writes" )
-      if self.archCaps["SeparateVscnt"]:
-        kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
+        # or masks together
+        kStr += self.comment("or masks to check for exit")
+        kStr += inst("s_mov_b64", sgpr(tmpS01,2), hex(0), "empty mask" )
+        for elementIdx in range(0, len(batchElements)):
+          mask = ss.elementMask[elementIdx]
+          kStr += inst("s_or_b64", sgpr(tmpS01,2), sgpr(mask,2), sgpr(tmpS01,2), "or to add threads" )
 
-      # check batched write success
-      kStr += self.comment("apply masks and check for success")
-      for elementIdx in range(0, len(batchElements)):
-        element = batchElements[elementIdx]
-        data = ss.elementData[elementIdx]
-        mask = ss.elementMask[elementIdx]
-        for avi in range(0, gwvw//atomicW):
-          dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
-          atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
+        # apply combined masks and exit
+        kStr += inst("s_or_saveexec_b64", sgpr(tmpS23,2), sgpr(tmpS01,2), "apply combined mask" )
+        kStr += inst("s_cbranch_execnz", "label_%04u" % label, "try again if not complete" )
+        kStr += "label_%04u:%s" % (labelAfterAtomicLoop, self.endLine)
+        kStr += inst("s_mov_b64", "exec", -1, "full mask -> exec" )
 
-          # apply mask for element
-          kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "must try again" )
-
-          # compare success
-          if kernel["ProblemType"]["DataType"].isDouble():
-            kStr += inst("v_cmp_ne_u64", sgpr(tmpS01,2), vgpr(data+2,2), vgpr(atomicDestVgpr,2), \
-                "c read during atomic != c read during prior load" )
-          else:
-            kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(data+1), vgpr(atomicDestVgpr), \
-                "c read during atomic == c read during prior load" )
-          # update element mask
-          kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
-
-      # or masks together
-      kStr += self.comment("or masks to check for exit")
-      kStr += inst("s_mov_b64", sgpr(tmpS01,2), hex(0), "empty mask" )
-      for elementIdx in range(0, len(batchElements)):
-        mask = ss.elementMask[elementIdx]
-        kStr += inst("s_or_b64", sgpr(tmpS01,2), sgpr(mask,2), sgpr(tmpS01,2), "or to add threads" )
-
-      # apply combined masks and exit
-      kStr += inst("s_or_saveexec_b64", sgpr(tmpS23,2), sgpr(tmpS01,2), "apply combined mask" )
-      kStr += inst("s_cbranch_execnz", "label_%04u" % label, "try again if not complete" )
-      kStr += "label_%04u:%s" % (labelAfterAtomicLoop, self.endLine)
-      kStr += inst("s_mov_b64", "exec", -1, "full mask -> exec" )
-
-      #  kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "apply new mask" )
-      #  #kStr += inst("s_and_saveexec_b64", sgpr(tmpS45,2), "vcc", "apply new mask" )
-      #  kStr += inst("s_cbranch_execnz", "label_%04u" % labelIdx, "try again if not complete" )
-      #  kStr += inst("s_mov_b64", "exec", sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
+        #  kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "apply new mask" )
+        #  #kStr += inst("s_and_saveexec_b64", sgpr(tmpS45,2), "vcc", "apply new mask" )
+        #  kStr += inst("s_cbranch_execnz", "label_%04u" % labelIdx, "try again if not complete" )
+        #  kStr += inst("s_mov_b64", "exec", sgpr(fullExecMaskSgpr,2), "full mask -> exec" )
 
 
     ########################################
@@ -10764,17 +10868,14 @@ class KernelWriterAssembly(KernelWriter):
         vc0 = element[3]
         sumIdx = ss.elementSumIdx[elementIdx]
 
+        # print(str(element)+" rowInc="+str(addrCalc.rowInc))
         # Already write wave column block into LDS
         # Now read lds data back to registers and write to global memroy
         if ss.optSrdIncForRow and addrCalc.rowInc and kernel["StoreRemapVectorWidth"] > 0:
-          kStr += self.comment("StoreRemap: process local read and global write")
-          self.storeRemapEndSumIdx = sumIdx
-          kStr += self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpS01, edge)
+          kStr += self.comment("StoreRemap: shift coord1 address")
           kStr += addrCalc.incrementToNextRow(kernel, "D", ss, tmpS01)
           kStr += inst("v_mov_b32", vgpr(tmpVgpr), addrCalc.rowInc, "set shift rows")
           kStr += inst("v_add_u32", vgpr(self.storeRemapCoord1), vgpr(self.storeRemapCoord1), vgpr(tmpVgpr), "shift storeRemap coord1")
-          self.storeRemapStartSumIdx = sumIdx
-          storesIssued += 1
 
         # apply in-bounds exec mask
         if edge and not kernel["BufferStore"]:
@@ -10818,7 +10919,7 @@ class KernelWriterAssembly(KernelWriter):
                 # src1 = dataV = f16.lo = opsel 10 or 11 depending on even/odd
                 # src2 = sumIdxV = f32 = opsel 00
                 dataCExternal = ss.elementData[elementIdx] + vi//2
-                hi16 = sumIdxV%2
+                hi16 = (vi + gwvw*vc0) % 2
                 kStr += inst(self.mixinst, vgpr("ValuC+%u"%sumIdxV), sgpr("Beta"), \
                     vgpr(dataCExternal), vgpr("ValuC+%u"%sumIdxV), \
                     "op_sel:[0,%u,0] op_sel_hi:[0,1,0]" % (hi16), \
@@ -10902,14 +11003,11 @@ class KernelWriterAssembly(KernelWriter):
         if not kernel["StoreRemapVectorWidth"]:
           kStr += self.addStore(kernel, ss, addrCalc, sumIdx, tmpS01, edge)
           storesIssued += 1
+
         else:
           kStr += self.storeRemapAddLocalWrite(kernel, ss, addrCalc, sumIdx)
-          # Handle last wave column block
-          if self.StoreRemapLastBatch == 1 and (elementIdx == len(batchElements)-1):
-            kStr += self.comment("last local read and global write")
-            self.storeRemapEndSumIdx = sumIdx+gwvw
-            kStr += self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpS01, edge)
-            storesIssued += 1
+          # Column Block Shape has been written to LDS
+          # Now read back and write out to global memory
 
       if kernel["ProblemType"]["DataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
         self.vgprPool.checkIn(vgprBf16Temp)
@@ -10988,7 +11086,15 @@ class KernelWriterAssembly(KernelWriter):
         lastData = data
 
     self.ss.firstBatch = False
+    self.ss.checkInTempVgprC()
+    if kernel["StoreRemapVectorWidth"]:
+      if self.StoreRemapLastBatch == 1:
+        kStr += self.comment("Handle local read and global write")
+        kStr += self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpS01, edge)
+        storesIssued += 1
 
+    if self.serializedStore:
+      kStr += inst("s_nop 0", "1 wait state required when next inst writes vgprs held by previous dwordx4 store inst")
     return kStr
 
   ##############################################################################
@@ -11040,7 +11146,7 @@ class KernelWriterAssembly(KernelWriter):
 
     vgprPerCU = 65536
     vgprPerThreadPerOccupancy = vgprPerCU // kernel["NumThreads"]
-    numWorkGroupsPerCU = vgprPerThreadPerOccupancy // self.vgprPool.size()
+    numWorkGroupsPerCU = vgprPerThreadPerOccupancy // max(self.vgprPool.size(), self.agprPool.size())
     if numWorkGroupsPerCU < 1:
       self.overflowedResources = 4
 
@@ -11219,6 +11325,35 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(tmpAddr)
     return kStr
 
+  ##############################################################################
+  # AccToArchMapper
+  # Provides forward (acc2arch) and backward (arch2acc) index transformation
+  #  - Forward transformation is currently used for acc->vgpr copying
+  #  - Backward transformation is used in ShiftVectorComponent() to map logical
+  #    C-tile index back to original acc index
+  ##############################################################################
+  def AccToArchMapper(self, kernel):
+    acc2arch = dict()
+    arch2acc = dict()
+
+    if kernel["MatrixInstM"] == 4:
+      numInst = kernel["MIOutputVectorWidth"] * kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1]
+      for i in range(0, numInst):
+        acc2arch[i] = i
+        arch2acc[i] = i
+    else:
+      OutputsPerMFMA1B = kernel["MatrixInstM"] * kernel["MatrixInstN"] // globalParameters["WavefrontWidth"]
+      for wgIdx1 in range(0, kernel["MIWaveTile"][1]):
+        for wgIdx0 in range(0, kernel["MIWaveTile"][0]):
+          for bIdx1 in range(0, kernel["MatrixInstBN"]):
+            for bIdx0 in range(0, kernel["MatrixInstBM"]):
+              for tIdx in range(0, OutputsPerMFMA1B):
+                src = tIdx + OutputsPerMFMA1B * (bIdx0 + kernel["MatrixInstBM"] * (bIdx1 + kernel["MatrixInstBN"] * (wgIdx0 + kernel["MIWaveTile"][0] * wgIdx1)))
+                dst = tIdx + OutputsPerMFMA1B * (bIdx0 + kernel["MatrixInstBM"] * (wgIdx0 + kernel["MIWaveTile"][0] * (bIdx1 + kernel["MatrixInstBN"] * wgIdx1)))
+                acc2arch[src] = dst
+                arch2acc[dst] = src
+
+    return acc2arch, arch2acc
 
   ##############################################################################
   # MapAcctoArch
@@ -11232,56 +11367,18 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     kStr += self.comment("Mapping of Acc register -> C Vgpr register")
 
-    # remove the C regs from the pool since we are about to write them here:
-    # lastValuAB, lastVgprForReads have already been removed prior to hitting this function
-    # we are removing the last remainder (4th segment) of the valuC from register pool
-    if self.overlapVgprC:
-      # |<-------------- valuC -------------->|
-      # |xxxxxxxxxxxx|xxxxxxxxxxx|xx|xxxxxxxxx|
-      #   lastValuAB ^           ^  ^         ^
-      #         lastVgprForReads ^  ^         ^
-      #              startVgprReuse ^         ^
-      #                             lastValuC ^
-      kStr += self.comment("remove the rest of C-tile %u-%u from pool"%(self.startVgprReuse, self.startVgprValuC+self.numVgprValuC))
-      self.vgprPool.remove(self.startVgprReuse, max(0, self.numVgprValuC-self.startVgprReuse), "ValuC")
+    acc2arch, _ = self.AccToArchMapper(kernel)
 
-    if kernel["MatrixInstM"] == 4:
-      for i in range(0, kernel["MIOutputVectorWidth"] * kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1]):
-          kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%i), "acc%u"%i, "copy areg to vreg")
-    else:
-      OutputsPerMFMA1B = kernel["MatrixInstM"] * kernel["MatrixInstN"] // globalParameters["WavefrontWidth"]
+    self.codeAccVgprRead = Code.Module("AccVgprRead")
+    self.codeAccVgprRead.itemList = [None] * len(acc2arch)
 
-      for wgIdx1 in range(0, kernel["MIWaveTile"][1]):
-        for wgIdx0 in range(0, kernel["MIWaveTile"][0]):
-          for bIdx1 in range(0, kernel["MatrixInstBN"]):
-            for bIdx0 in range(0, kernel["MatrixInstBM"]):
-              for tIdx in range(0, OutputsPerMFMA1B):
-                src = tIdx + OutputsPerMFMA1B * (bIdx0 + kernel["MatrixInstBM"] * (bIdx1 + kernel["MatrixInstBN"] * (wgIdx0 + kernel["MIWaveTile"][0] * wgIdx1)))
-                dst = tIdx + OutputsPerMFMA1B * (bIdx0 + kernel["MatrixInstBM"] * (wgIdx0 + kernel["MIWaveTile"][0] * (bIdx1 + kernel["MatrixInstBN"] * wgIdx1)))
-                kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%dst), "acc%u"%src, "copy areg to vreg")
+    for i, e in enumerate(acc2arch):
+       self.codeAccVgprRead.itemList[acc2arch[i]] = Code.Inst("v_accvgpr_read_b32", \
+                                                    vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % acc2arch[i]),
+                                                    "acc%u" % i,
+                                                    "copy areg to vreg[%u]"%acc2arch[i])
 
-    return kStr
-
-
-  ##############################################################################
-  #
-  #   Beta-Only Kernel
-  #
-  ##############################################################################
-
-  ##############################################################################
-  # Function Signature
-  ##############################################################################
-  def functionSignatureBetaOnly(self, kernel):
-    kStr = ""
-    return kStr
-
-  ##############################################################################
-  # Kernel Body Beta-Only
-  ##############################################################################
-  def kernelBodyBetaOnly(self, kernel):
-    kStr = ""
-    return kStr
+    return kStr if self.serializedStore else kStr+str(self.codeAccVgprRead)
 
 
   # Perform 32-bit scalar mul and save u64 result in two SGPR
@@ -11663,6 +11760,8 @@ def vgpr(*args):
   return gpr("v", args)
 def sgpr(*args):
   return gpr("s", args)
+def accvgpr(*args):
+  return gpr("acc", args)
 
 ########################################
 # Log 2

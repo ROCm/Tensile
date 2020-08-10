@@ -164,7 +164,7 @@ class BenchmarkProcess:
     # followed by Ccommon
     self.benchmarkCommonParameters = [{"ProblemSizes": currentProblemSizes}]
     # need to use deepcopy to prevent default parameters from being washed-out later
-    for paramDict in deepcopy(defaultBenchmarkCommonParameters):  
+    for paramDict in deepcopy(defaultBenchmarkCommonParameters):
       for paramName in paramDict:
         if not hasParam( paramName, [ configBenchmarkCommonParameters, \
             configForkParameters, configBenchmarkForkParameters, \
