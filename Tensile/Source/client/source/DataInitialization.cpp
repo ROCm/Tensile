@@ -248,11 +248,8 @@ namespace Tensile
             , m_elementsToValidate(args["num-elements-to-validate"].as<int>())
             , m_keepPristineCopyOnGPU(args["pristine-on-gpu"].as<bool>())
             , m_workspaceSize(maxWorkspaceSize)
-        //, m_boundsCheck(args["bounds-check"].as<bool>())
         {
-            auto x        = args.find("bounds-check");
-            auto arg      = args["bounds-check"];
-            m_boundsCheck = arg.as<bool>();
+            m_boundsCheck = args["bounds-check"].as<int>();
 
             if(args.count("convolution-vs-contraction"))
                 m_convolutionVsContraction = args["convolution-vs-contraction"].as<bool>();
@@ -265,14 +262,30 @@ namespace Tensile
                 m_dMaxElements = std::max(m_dMaxElements, problem.d().totalAllocatedElements());
             }
 
-            if(m_boundsCheck)
+            if(m_boundsCheck == BoundCheckMode::NaN)
             {
                 m_aMaxElements += 1024;
                 m_bMaxElements += 1024;
                 m_cMaxElements += 1024;
                 m_dMaxElements += 1024;
             }
+            else if(m_boundsCheck == BoundCheckMode::GuardPageFront
+                    || m_boundsCheck == BoundCheckMode::GuardPageEnd)
+            {
+                unsigned int aRoundUpSize
+                    = pageSize / DataTypeInfo::Get(args["a-type"].as<DataType>()).elementSize;
+                unsigned int bRoundUpSize
+                    = pageSize / DataTypeInfo::Get(args["b-type"].as<DataType>()).elementSize;
+                unsigned int cRoundUpSize
+                    = pageSize / DataTypeInfo::Get(args["c-type"].as<DataType>()).elementSize;
+                unsigned int dRoundUpSize
+                    = pageSize / DataTypeInfo::Get(args["d-type"].as<DataType>()).elementSize;
 
+                m_aMaxElements = RoundUpToMultiple<unsigned int>(m_aMaxElements, aRoundUpSize);
+                m_bMaxElements = RoundUpToMultiple<unsigned int>(m_bMaxElements, bRoundUpSize);
+                m_cMaxElements = RoundUpToMultiple<unsigned int>(m_cMaxElements, cRoundUpSize);
+                m_dMaxElements = RoundUpToMultiple<unsigned int>(m_dMaxElements, dRoundUpSize);
+            }
             m_problemDependentData = IsProblemDependent(m_aInit) || IsProblemDependent(m_bInit)
                                      || IsProblemDependent(m_cInit) || IsProblemDependent(m_dInit);
         }

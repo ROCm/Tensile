@@ -127,8 +127,10 @@ namespace Tensile
                 ("print-valids",             po::value<bool>()->default_value(false), "Print values that pass validation")
                 ("print-max",                po::value<int>()->default_value(-1), "Max number of values to print")
                 ("num-elements-to-validate", po::value<int>()->default_value(0), "Number of elements to validate")
-                ("bounds-check", po::value<bool>()->default_value(false),
-                "Use sentinel values to check memory boundaries.")
+                ("bounds-check",             po::value<int>()->default_value(0),
+                "1:Use sentinel values to check memory boundaries."
+                "2:Memory bound check by front guard page"
+                "3:Memory bound check by back guard page")
 
                 ("print-tensor-a",           po::value<bool>()->default_value(false), "Print tensor A.")
                 ("print-tensor-b",           po::value<bool>()->default_value(false), "Print tensor B.")

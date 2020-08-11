@@ -79,7 +79,7 @@ public:
         return rv;
     }
 
-    void RunDataContaminationTest(bool cEqualD, bool pristineGPU, bool boundsCheck)
+    void RunDataContaminationTest(bool cEqualD, bool pristineGPU, int boundsCheck)
     {
         using val = po::variable_value;
 

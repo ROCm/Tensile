@@ -48,7 +48,7 @@ namespace Tensile
             m_printValids        = args["print-valids"].as<bool>();
             m_printMax           = args["print-max"].as<int>();
 
-            m_boundsCheck = args["bounds-check"].as<bool>();
+            m_boundsCheck = args["bounds-check"].as<int>();
 
             m_printTensorA   = args["print-tensor-a"].as<bool>();
             m_printTensorB   = args["print-tensor-b"].as<bool>();
@@ -392,23 +392,32 @@ namespace Tensile
             using Type         = typename ManagedInputs::DType;
             auto const& tensor = m_problem.d();
 
-            size_t elementsToCopy = tensor.totalAllocatedElements();
-            if(m_boundsCheck)
+            size_t elementsToCopy       = tensor.totalAllocatedElements();
+            size_t elementsOffsetToCopy = 0;
+            size_t elementsBeforeData   = 0;
+            size_t elementsAfterData    = 0;
+
+            if(m_boundsCheck == BoundCheckMode::NaN)
                 elementsToCopy = result.dElements;
             size_t bytesToCopy = elementsToCopy * sizeof(Type);
 
             if(m_cpuResultBuffer.size() < bytesToCopy)
                 m_cpuResultBuffer.resize(bytesToCopy);
 
+            if(m_boundsCheck == BoundCheckMode::GuardPageEnd)
+                elementsOffsetToCopy = result.dElements - tensor.totalAllocatedElements();
+
             HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(),
-                                    result.managedD.get(),
+                                    result.managedD.get() + elementsOffsetToCopy,
                                     bytesToCopy,
                                     hipMemcpyDeviceToHost));
 
-            auto elementsBeforeData = result.d - result.managedD.get();
-            auto elementsAfterData
-                = elementsToCopy - (tensor.totalAllocatedElements() + elementsBeforeData);
-
+            if(m_boundsCheck == BoundCheckMode::NaN)
+            {
+                elementsBeforeData = result.d - result.managedD.get();
+                elementsAfterData
+                    = elementsToCopy - (tensor.totalAllocatedElements() + elementsBeforeData);
+            }
             // If there was extra data allocated before the tensor to do bounds
             // checking, resultBuffer is the whole allocation, while resultData
             // points directly to the result.
@@ -479,7 +488,7 @@ namespace Tensile
                                   tensor.sizes().end());
                     size_t baseElemIndex = tensor.index(coord);
 
-                    if(m_boundsCheck && baseElemIndex != 0
+                    if(m_boundsCheck == BoundCheckMode::NaN && baseElemIndex != 0
                        && baseElemIndex != prevBaseIndex + innerDimSize)
                     {
                         for(auto innerIndex = prevBaseIndex + innerDimSize;

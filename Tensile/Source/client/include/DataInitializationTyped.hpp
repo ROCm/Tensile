@@ -149,7 +149,7 @@ namespace Tensile
                     if(m_problemDependentData)
                         initializeCPUInputs(*m_cpuInputsPristine, problem);
 
-                    if(m_boundsCheck && !m_cpuBadInputs)
+                    if(m_boundsCheck == BoundCheckMode::NaN && !m_cpuBadInputs)
                     {
                         m_cpuBadInputs = createNewCPUBadInputs();
                     }
@@ -166,7 +166,7 @@ namespace Tensile
                         m_cpuConvInputs = allocNewCPUInputs();
                     }
 
-                    if(allocated || m_boundsCheck)
+                    if(allocated || m_boundsCheck == BoundCheckMode::NaN)
                         copyInputs(m_cpuConvInputs, m_cpuInputsPristine, m_cpuBadInputs, problem);
                 }
 
@@ -190,7 +190,7 @@ namespace Tensile
 
                     pristine = m_gpuInputsPristine;
 
-                    if(m_boundsCheck)
+                    if(m_boundsCheck == BoundCheckMode::NaN)
                     {
                         if(!m_gpuBadInputs)
                             m_gpuBadInputs = createNewGPUBadInputs();
@@ -205,7 +205,7 @@ namespace Tensile
 
                     pristine = m_cpuInputsPristine;
 
-                    if(m_boundsCheck)
+                    if(m_boundsCheck == BoundCheckMode::NaN)
                     {
                         if(!m_cpuBadInputs)
                             m_cpuBadInputs = createNewCPUBadInputs();
@@ -357,6 +357,11 @@ namespace Tensile
                 std::shared_ptr<void>  ws;
                 static const int       sizew = 10;
 
+                std::vector<std::shared_ptr<void>> guardPage;
+                void*                              guardPagePtr;
+                bool enableGuardPage = (m_boundsCheck == BoundCheckMode::GuardPageFront
+                                        || m_boundsCheck == BoundCheckMode::GuardPageEnd);
+
                 if(pristine)
                 {
                     a = pristine->managedA;
@@ -364,6 +369,12 @@ namespace Tensile
                 }
                 else
                 {
+                    if(enableGuardPage)
+                    {
+                        HIP_CHECK_EXC(hipMalloc(&guardPagePtr, pageSize));
+                        guardPage.push_back(std::shared_ptr<void>(guardPagePtr, hipFree));
+                    }
+
                     AType* aPtr = nullptr;
                     HIP_CHECK_EXC(hipMalloc(&aPtr, TypeInfo<AType>::ElementSize * m_aMaxElements));
                     a = std::shared_ptr<AType>(aPtr, hipFree);
@@ -371,6 +382,12 @@ namespace Tensile
                         std::cout << "info: allocate a " << std::setw(sizew)
                                   << TypeInfo<AType>::ElementSize * m_aMaxElements << " bytes at "
                                   << aPtr << "\n";
+
+                    if(enableGuardPage)
+                    {
+                        HIP_CHECK_EXC(hipMalloc(&guardPagePtr, pageSize));
+                        guardPage.push_back(std::shared_ptr<void>(guardPagePtr, hipFree));
+                    }
 
                     BType* bPtr = nullptr;
                     HIP_CHECK_EXC(hipMalloc(&bPtr, TypeInfo<BType>::ElementSize * m_bMaxElements));
@@ -383,6 +400,12 @@ namespace Tensile
 
                 if(m_cEqualsD || !pristine)
                 {
+                    if(enableGuardPage)
+                    {
+                        HIP_CHECK_EXC(hipMalloc(&guardPagePtr, pageSize));
+                        guardPage.push_back(std::shared_ptr<void>(guardPagePtr, hipFree));
+                    }
+
                     CType* cPtr = nullptr;
                     HIP_CHECK_EXC(hipMalloc(&cPtr, TypeInfo<CType>::ElementSize * m_cMaxElements));
                     c = std::shared_ptr<CType>(cPtr, hipFree);
@@ -406,6 +429,12 @@ namespace Tensile
                 }
                 else
                 {
+                    if(enableGuardPage)
+                    {
+                        HIP_CHECK_EXC(hipMalloc(&guardPagePtr, pageSize));
+                        guardPage.push_back(std::shared_ptr<void>(guardPagePtr, hipFree));
+                    }
+
                     DType* dPtr = nullptr;
                     HIP_CHECK_EXC(hipMalloc(&dPtr, TypeInfo<DType>::ElementSize * m_dMaxElements));
                     d = std::shared_ptr<DType>(dPtr, hipFree);
@@ -413,6 +442,12 @@ namespace Tensile
                         std::cout << "info: allocate d " << std::setw(sizew)
                                   << TypeInfo<DType>::ElementSize * m_dMaxElements << " bytes at "
                                   << dPtr << "\n";
+                }
+
+                if(enableGuardPage)
+                {
+                    HIP_CHECK_EXC(hipMalloc(&guardPagePtr, pageSize));
+                    guardPage.push_back(std::shared_ptr<void>(guardPagePtr, hipFree));
                 }
 
                 if(pristine)
@@ -558,7 +593,7 @@ namespace Tensile
             {
                 hipMemcpyKind kind = getCopyKind(dst, src);
 
-                if(m_boundsCheck)
+                if(m_boundsCheck == BoundCheckMode::NaN)
                 {
                     if(!bad)
                         throw std::runtime_error(
@@ -604,6 +639,53 @@ namespace Tensile
 
                     if(!m_cEqualsD)
                         Tensile::hip::CopyTensor(dst->d, src->d, problem.d(), kind);
+
+                    dst->alpha = src->alpha;
+                    dst->beta  = src->beta;
+                }
+                else if(m_boundsCheck == BoundCheckMode::GuardPageEnd)
+                {
+                    {
+                        ptrdiff_t aPadding = dst->aElements - problem.a().totalAllocatedElements();
+                        dst->a             = dst->managedA.get() + aPadding;
+                    }
+
+                    {
+                        ptrdiff_t bPadding = dst->bElements - problem.b().totalAllocatedElements();
+                        dst->b             = dst->managedB.get() + bPadding;
+                    }
+
+                    {
+                        ptrdiff_t cPadding = dst->cElements - problem.c().totalAllocatedElements();
+                        dst->c             = dst->managedC.get() + cPadding;
+                    }
+
+                    {
+                        ptrdiff_t dPadding = dst->dElements - problem.d().totalAllocatedElements();
+                        dst->d             = dst->managedD.get() + dPadding;
+                    }
+                    HIP_CHECK_EXC(hipMemcpy(const_cast<AType*>(dst->a),
+                                            src->a,
+                                            TypeInfo<AType>::ElementSize
+                                                * problem.a().totalAllocatedElements(),
+                                            kind));
+                    HIP_CHECK_EXC(hipMemcpy(const_cast<BType*>(dst->b),
+                                            src->b,
+                                            TypeInfo<BType>::ElementSize
+                                                * problem.b().totalAllocatedElements(),
+                                            kind));
+                    HIP_CHECK_EXC(hipMemcpy(const_cast<CType*>(dst->c),
+                                            src->c,
+                                            TypeInfo<CType>::ElementSize
+                                                * problem.c().totalAllocatedElements(),
+                                            kind));
+
+                    if(!m_cEqualsD)
+                        HIP_CHECK_EXC(hipMemcpy(const_cast<DType*>(dst->d),
+                                                src->d,
+                                                TypeInfo<DType>::ElementSize
+                                                    * problem.d().totalAllocatedElements(),
+                                                kind));
 
                     dst->alpha = src->alpha;
                     dst->beta  = src->beta;

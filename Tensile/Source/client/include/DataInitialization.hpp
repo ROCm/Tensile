@@ -57,6 +57,16 @@ namespace Tensile
             Count
         };
 
+        enum class BoundCheckMode
+        {
+            Disable = 0,
+            NaN,
+            GuardPageFront,
+            GuardPageEnd
+        };
+
+        const int pageSize = 2 * 1024 * 1024;
+
         static bool IsProblemDependent(InitMode const& mode)
         {
             return mode == InitMode::SerialIdx || mode == InitMode::SerialDim0
@@ -67,6 +77,11 @@ namespace Tensile
 
         std::ostream& operator<<(std::ostream& stream, InitMode const& mode);
         std::istream& operator>>(std::istream& stream, InitMode& mode);
+
+        inline bool operator==(const int& lhs, const BoundCheckMode& rhs)
+        {
+            return lhs == static_cast<int>(rhs);
+        }
 
         template <typename TypedInputs>
         class TypedDataInitialization;
@@ -320,7 +335,7 @@ namespace Tensile
             /// If true, we will initialize all out-of-bounds inputs to NaN, and
             /// all out-of-bounds outputs to a known value. This allows us to
             /// verify that out-of-bounds values are not used or written to.
-            bool m_boundsCheck = false;
+            int m_boundsCheck = 0;
 
             /// If true, the data is dependent on the problem size (e.g. serial)
             /// and must be reinitialized for each problem. Pristine copy on GPU
