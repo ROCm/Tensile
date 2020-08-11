@@ -35,7 +35,7 @@
 #include <Tensile/MatchingLibrary.hpp>
 #include <Tensile/SingleSolutionLibrary.hpp>
 #include <Tensile/SolutionLibrary.hpp>
-#include <Tensile/FitnessSelectionLibrary.hpp>
+#include <Tensile/TileAwareMetricSelectionLibrary.hpp>
 
 namespace Tensile
 {
@@ -52,6 +52,6 @@ namespace Tensile
     using ContractionProblemPredicate  = ProblemPredicate<ContractionProblem>;
     using ContractionGranularitySelectionLibrary
         = GranularitySelectionLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionFitnessSelectionLibrary 
-        = FitnessSelectionLibrary<ContractionProblem, ContractionSolution>;
+    using ContractionTileAwareMetricSelectionLibrary 
+        = TileAwareMetricSelectionLibrary<ContractionProblem, ContractionSolution>;
 } // namespace Tensile

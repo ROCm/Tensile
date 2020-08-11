@@ -216,7 +216,7 @@ TEST_P(RunGEMMKernelSolutionSelectionTest, KernelsTileSelection)
 
 }
 
-TEST_P(RunGEMMKernelSolutionSelectionTest, KernelsFitnessSelection)
+TEST_P(RunGEMMKernelSolutionSelectionTest, TileAwareMetricSelection)
 {
 
     ContractionProblem problem = GetParam();

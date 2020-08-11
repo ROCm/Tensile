@@ -34,7 +34,7 @@
 #include <Tensile/Serialization/ContractionPredicates.hpp>
 #include <Tensile/Serialization/ContractionSolution.hpp>
 #include <Tensile/Serialization/ExactLogicLibrary.hpp>
-#include <Tensile/Serialization/FitnessSelectionLibrary.hpp>
+#include <Tensile/Serialization/TileAwareMetricSelectionLibrary.hpp>
 #include <Tensile/Serialization/GranularitySelectionLibrary.hpp>
 #include <Tensile/Serialization/HasTraits.hpp>
 #include <Tensile/Serialization/MapLibrary.hpp>

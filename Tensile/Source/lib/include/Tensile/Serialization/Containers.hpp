@@ -31,7 +31,7 @@
 #include <Tensile/AMDGPUPredicates.hpp>
 #include <Tensile/ContractionProblemPredicates.hpp>
 #include <Tensile/ExactLogicLibrary.hpp>
-#include <Tensile/FitnessSelectionLibrary.hpp>
+#include <Tensile/TileAwareMetricSelectionLibrary.hpp>
 #include <Tensile/GranularitySelectionLibrary.hpp>
 #include <Tensile/PropertyMatching.hpp>
 
@@ -171,8 +171,8 @@ namespace Tensile
     }
 
         TENSILE_SERIALIZE_VECTOR(true, ExactSelectionTableEntry);
-        TENSILE_SERIALIZE_VECTOR(true, FitnessSolutionTableEntry);
-        TENSILE_SERIALIZE_VECTOR(true, FitnessModelTableEntry<std::shared_ptr<Tensile::ContractionSolution>>);
+        TENSILE_SERIALIZE_VECTOR(true, TileAwareMetricSolutionTableEntry);
+        TENSILE_SERIALIZE_VECTOR(true, TileAwareMetricModelTableEntry<std::shared_ptr<Tensile::ContractionSolution>>);
 
         TENSILE_SERIALIZE_VECTOR(true,
                                  Tensile::ExactLogicLibrary<Tensile::ContractionProblem,

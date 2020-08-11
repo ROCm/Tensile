@@ -40,14 +40,14 @@ namespace Tensile
     /**
  * \ingroup SolutionLibrary
  */
-    struct FitnessSolutionTableEntry
+    struct TileAwareMetricSolutionTableEntry
     {
         std::vector<size_t> key;
         int                 value;
     };
 
     template <typename MySolution>
-    struct FitnessModelTableEntry
+    struct TileAwareMetricModelTableEntry
     {
         int                 key;
         std::shared_ptr<MySolution>          solution;
@@ -64,15 +64,15 @@ namespace Tensile
  * ("granularity loss").
  */
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
-    struct FitnessSelectionLibrary : public SolutionLibrary<MyProblem, MySolution>
+    struct TileAwareMetricSelectionLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
         std::map<int, std::shared_ptr<MySolution>> solutions;
         std::map<std::vector<size_t>, int>         exactMap;
-        std::vector<FitnessModelTableEntry<MySolution>>        modelProblems;
+        std::vector<TileAwareMetricModelTableEntry<MySolution>>        modelProblems;
 
         static std::string Type()
         {
-            return "FitnessSelection";
+            return "TileAwareMetricSelection";
         }
         virtual std::string type() const override
         {

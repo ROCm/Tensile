@@ -27,7 +27,7 @@
 
 #pragma once
 
-#include <Tensile/FitnessSelectionLibrary.hpp>
+#include <Tensile/TileAwareMetricSelectionLibrary.hpp>
 #include <Tensile/MasterSolutionLibrary.hpp>
 
 namespace Tensile
@@ -35,9 +35,9 @@ namespace Tensile
     namespace Serialization
     {
         template <typename IO>
-        struct MappingTraits<FitnessSolutionTableEntry, IO>
+        struct MappingTraits<TileAwareMetricSolutionTableEntry, IO>
         {
-            using Entry = FitnessSolutionTableEntry; //<Key, Value>;
+            using Entry = TileAwareMetricSolutionTableEntry; //<Key, Value>;
             //using ModelEntry = FitnessModelTableEntry;
             using iot   = IOTraits<IO>;
 
@@ -51,9 +51,9 @@ namespace Tensile
         };
 
         template <typename MyProblem, typename MySolution, typename IO>
-        struct MappingTraits<FitnessSelectionLibrary<MyProblem, MySolution>, IO>
+        struct MappingTraits<TileAwareMetricSelectionLibrary<MyProblem, MySolution>, IO>
         {
-            using Library = FitnessSelectionLibrary<MyProblem, MySolution>;
+            using Library = TileAwareMetricSelectionLibrary<MyProblem, MySolution>;
 
             using iot = IOTraits<IO>;
 
@@ -64,14 +64,14 @@ namespace Tensile
                 if(ctx == nullptr)
                 {
                     iot::setError(io,
-                                  "FitnessSelectionLibrary requires that context be "
+                                  "TileAwareMetricSelectionLibrary requires that context be "
                                   "set to a SolutionMap.");
                 }
 
                 //std::vector<int>                      cd ;
                 //std::vector<std::vector<double>>                      mappingIndices;
                 std::map<int, std::vector<std::vector<double>>>         mappingIndices;
-                std::vector<FitnessSolutionTableEntry> mapEntries;
+                std::vector<TileAwareMetricSolutionTableEntry> mapEntries;
                 if(iot::outputting(io))
                 {
                     //mappingIndices.reserve(lib.solutions.size());
@@ -103,7 +103,7 @@ namespace Tensile
 
                     for(auto it = lib.exactMap.begin(); it != lib.exactMap.end(); ++it)
                     {
-                        FitnessSolutionTableEntry newEntry;
+                        TileAwareMetricSolutionTableEntry newEntry;
                         newEntry.key   = it->first;
                         newEntry.value = it->second;
                         mapEntries.push_back(newEntry);
@@ -115,7 +115,7 @@ namespace Tensile
                     iot::mapRequired(io, "indices", mappingIndices);
                     if(mappingIndices.empty())
                         iot::setError(io,
-                                      "FitnessSelectionLibrary requires non empty "
+                                      "TileAwareMetricSelectionLibrary requires non empty "
                                       "mapping index set.");
 
                     //for(int index : mappingIndices)
@@ -136,7 +136,7 @@ namespace Tensile
                             {
                                 //for (std::vector<double>::const_iterator it = model.begin() ; it != model.end(); ++it)
                                 //{
-                                    FitnessModelTableEntry<MySolution> modelProblem;
+                                    TileAwareMetricModelTableEntry<MySolution> modelProblem;
                                     modelProblem.key = pair.first;
                                     modelProblem.solution = solution;
                                     modelProblem.problem = model; //(*it);
@@ -149,7 +149,7 @@ namespace Tensile
 
                     iot::mapRequired(io, "exact", mapEntries);
 
-                    for(FitnessSolutionTableEntry entry : mapEntries)
+                    for(TileAwareMetricSolutionTableEntry entry : mapEntries)
                     {
                         std::vector<size_t> key   = entry.key;
                         int                 value = entry.value;

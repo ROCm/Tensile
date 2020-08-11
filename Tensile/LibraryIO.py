@@ -193,7 +193,7 @@ class Writer:
 
   def _getLibraryLogicForSchedule(self, schedulePrefix, architectureName, deviceNames, \
       logicTuple):
-    problemType   = logicTuple[0]
+    problemType   = copy.deepcopy(logicTuple[0])
     solutions     = logicTuple[1]
     indexOrder    = logicTuple[2]
     exactLogic    = logicTuple[3]
