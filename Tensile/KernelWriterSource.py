@@ -3011,6 +3011,15 @@ class KernelWriterSource(KernelWriter):
     return ""
 
   ##############################################################################
+  # PrefetchGlobalRead2
+  ##############################################################################
+  def openPrefetchGlobalRead2(self, kernel):
+    return ""
+
+  def closePrefetchGlobalRead2(self, kernel):
+    return ""
+
+  ##############################################################################
   # Function End
   ##############################################################################
   def functionEnd(self, kernel, addLabel):

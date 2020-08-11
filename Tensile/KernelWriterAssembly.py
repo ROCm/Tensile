@@ -703,7 +703,6 @@ class KernelWriterAssembly(KernelWriter):
     else:
       raise ValueError("unexpected tensorChar='%s' in stride function"%tc)
 
-
   ########################################
   # Get Label
   # return label number - create new if it doesn't already exist
@@ -5066,7 +5065,7 @@ class KernelWriterAssembly(KernelWriter):
       if tP["isB"]:
         # Convert passed in S' to S for easy loop comparison.  S=S-(PGR-1)'
         kStr += inst("s_add_u32", sgpr("StaggerUIter"), sgpr("StaggerUIter"), \
-                  (kernel["PrefetchGlobalRead"]+1), \
+                  (2 if kernel["PrefetchGlobalRead"] else 1), \
                   "Subtract (PGR-1); StaggerUIter now contains target iteration to wrap")
     return kStr
 
@@ -5102,7 +5101,7 @@ class KernelWriterAssembly(KernelWriter):
       tc = tP["tensorChar"]
       tmp = self.getTmpSgpr(2).idx()
       # might be able to refactor this to eliminate signed math
-      kStr += inst("s_sub_i32", sgpr(tmp), 2+kernel["PrefetchGlobalRead"], \
+      kStr += inst("s_sub_i32", sgpr(tmp), 3 if kernel["PrefetchGlobalRead"] else 2, \
                   sgpr("StaggerUIter"), "")
       kStr += self.s_mul_i64_i32(sgpr(tmp), sgpr(tmp+1), \
                   sgpr(tmp), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
@@ -5344,11 +5343,16 @@ class KernelWriterAssembly(KernelWriter):
       if self.prefetchAcrossPersistent0:
         loopCounter = sgpr("TailLoopCounter")
       endCounter = 0
-    elif kernel["PrefetchGlobalRead"]:
+    elif kernel["PrefetchGlobalRead"] == 1:
       if kernel["SuppressNoLoadLoop"]:
         endCounter =  0
       else:
         endCounter = 1
+    elif kernel["PrefetchGlobalRead"] == 2:
+      if kernel["SuppressNoLoadLoop"]:
+        endCounter =  1
+      else:
+        endCounter = 2
     else:
       endCounter =  0
 
@@ -5402,6 +5406,14 @@ class KernelWriterAssembly(KernelWriter):
     else: # not tailloop:
 
       if loopIdx == self.unrollIdx:
+        if kernel["PrefetchGlobalRead"] == 2:
+          kStr += inst("s_cmp_eq_u32", \
+              loopCounter, \
+              hex(endCounter-1), \
+              "LoopCounter%s < EndCounter"%(loopChar) )
+          toPGR1 = self.getLabelNum("toPGR1")
+          kStr += inst("s_cbranch_scc1 label_%04u"%toPGR1, "PGR=2 but only 1 loop, toPGR1")
+
         if self.unrollIncIsDepthU:
           kStr += inst("s_cmp_ge_u32", \
               loopCounter, \
@@ -5511,8 +5523,10 @@ class KernelWriterAssembly(KernelWriter):
         # So can do one more iteration (endCounter==0) in the main unroll loop, and adjust the pointer
         # increments appropriately.
         # Also sum idx other than unroll always compare against 0 (there is no PGR to account for)
-        if kernel["PrefetchGlobalRead"] and not kernel["SuppressNoLoadLoop"] and loopIdx == self.unrollIdx:
+        if kernel["PrefetchGlobalRead"] == 1 and not kernel["SuppressNoLoadLoop"] and loopIdx == self.unrollIdx:
           endCounter = 1
+        elif kernel["PrefetchGlobalRead"] == 2 and not kernel["SuppressNoLoadLoop"] and loopIdx == self.unrollIdx:
+          endCounter = 2
         else:
           endCounter = 0
 
@@ -11605,6 +11619,23 @@ class KernelWriterAssembly(KernelWriter):
     return imod
 
   ##############################################################################
+  # PrefetchGlobalRead2
+  ##############################################################################
+  def openPrefetchGlobalRead2(self, kernel):
+    imod = Code.Module()
+    loopCounter = self.loopCounter(kernel, self.unrollIdx)
+    imod.addInst("s_cmp_eq_u32 %s %s" %(loopCounter, hex(1)),"PGR=2 but only 1 loop")
+    skipPGR2 = self.getLabelNum("skipPGR2")
+    imod.addInst("s_cbranch_scc1 label_%04u" %(skipPGR2),"PGR=2 but only 1 loop")
+    return imod
+
+  def closePrefetchGlobalRead2(self, kernel):
+    imod = Code.Module()
+    skipPGR2 = self.getLabelNum("skipPGR2")
+    imod.addInst("label_%04u:" % (skipPGR2),"")
+    return imod
+
+  ##############################################################################
   # Function End
   ##############################################################################
   def functionEnd(self, kernel, addLabel=True):
@@ -11745,7 +11776,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr = ""
       if self.archCaps["SeparateVscnt"]:
         kStr += inst("s_waitcnt_lgkmcnt", "null", "0", "extra navi wait")
-      elif self.archCaps["Waitcnt0Disabled"] and not kernel["ScheduleIterAlg"] == 2:
+      elif self.archCaps["Waitcnt0Disabled"] and not kernel["ScheduleIterAlg"] == 2 and not kernel["PrefetchGlobalRead"] == 2:
         kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "force waitcnt0" )
 
       kStr += self.indent + self.syncStr + " //" + comment + self.endLine
