@@ -24,7 +24,7 @@ BenchmarkProblems:
       ForkParameters:
         - GlobalSplitU: [1]
         - ThreadTile:
-          - [ 4, 4 ] 
+          - [ 4, 4 ]
         - WorkGroup:
           - [ 8, 8, 1 ]
         - DepthU: [8]
@@ -34,4 +34,4 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 1872, 2000, 1, 128, 2000, 2000, 2000, 2000] # make sure each WG can run at least 2 MTs 
+          - Exact: [ 1872, 2000, 1, 128, 2000, 2000, 2000, 2000] # make sure each WG can run at least 2 MTs

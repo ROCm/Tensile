@@ -522,7 +522,8 @@ namespace Tensile
                                            FreeIndices const&      freeIndices,
                                            BatchIndices const&     batchIndices,
                                            BoundIndices const&     boundIndices,
-                                           double                  beta)
+                                           double                  beta,
+                                           size_t                  workspaceSize)
         : m_a(a)
         , m_b(b)
         , m_c(c)
@@ -535,6 +536,7 @@ namespace Tensile
         , m_batchIndices(batchIndices)
         , m_boundIndices(boundIndices)
         , m_beta(beta)
+        , m_workspaceSize(workspaceSize)
     {
         consistencyCheck();
         normalize();
@@ -1022,13 +1024,14 @@ namespace Tensile
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
     TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs(
-        A const* _a, B const* _b, C const* _c, D* _d, Alpha _alpha, Beta _beta)
+        A const* _a, B const* _b, C const* _c, D* _d, Alpha _alpha, Beta _beta, void* _ws)
         : a(_a)
         , b(_b)
         , c(_c)
         , d(_d)
         , alpha(_alpha)
         , beta(_beta)
+        , ws(_ws)
     {
     }
 

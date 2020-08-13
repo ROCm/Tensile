@@ -111,7 +111,7 @@ def readSolutions( filename ):
     solutionState = solutionStates[i]
     # force redo the deriving of parameters, make sure old version logic yamls can be validated
     solutionState["AssignedProblemIndependentDerivedParameters"] = False
-    solutionState["AssignedDerivedParameters"] = False    
+    solutionState["AssignedDerivedParameters"] = False
     solutionObject = Solution(solutionState)
     solutions.append(solutionObject)
   problemType = solutions[0]["ProblemType"]
@@ -137,7 +137,7 @@ def readLibraryLogicForSchedule( filename ):
   # parse out objects
   versionString     = data[0]["MinimumRequiredVersion"]
   scheduleName      = data[1]
-  architectureName  = data[2]
+  architectureName  = data[2] if isinstance(data[2], str) else data[2]["Architecture"]
   deviceNames       = data[3]
   problemTypeState  = data[4]
   solutionStates    = data[5]

@@ -32,13 +32,13 @@ import yaml
 #logging.basicConfig(level=logging.INFO)
 mylogger = logging.getLogger()
 
-def writeYaml(fileName, theObject):
-  try:
-    stream = open(fileName, "w")
-  except IOError:
-    print("Cannot open file: %s" % fileName)
-  yaml.dump(theObject, stream, default_flow_style=None)
-  stream.close()
+#def writeYaml(fileName, theObject):
+#  try:
+#    stream = open(fileName, "w")
+#  except IOError:
+#    print("Cannot open file: %s" % fileName)
+#  yaml.dump(theObject, stream, default_flow_style=None)
+#  stream.close()
 
 
 def test_assigenParameters():
@@ -87,7 +87,7 @@ def test_loadSolutions(caplog):
 
     fileSolutions = LibraryIO.readSolutions(solutionsFilePath)
     solutions = fileSolutions[1]
-    kernels, _ = TensileCreateLibrary.generateKernelObjectsFromSolutions(solutions)
+    kernels, _, _ = TensileCreateLibrary.generateKernelObjectsFromSolutions(solutions)
     assert len(solutions) == 3
     assert len(kernels) == 3
 

@@ -492,9 +492,11 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   ##############################################################################
 
   kernels = []
-  kernelsBetaOnly = []
+  kernelHelperOjbs = []
+
   kernelNames = set()
-  kernelNamesBetaOnly = set()
+  kernelHelperNames = set()
+
   for solution in Utils.tqdm(solutions, "Finding unique solutions"):
     solutionKernels = solution.getKernels()
     for kernel in solutionKernels:
@@ -502,29 +504,27 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
       if kName not in kernelNames:
         kernels.append(kernel)
         kernelNames.add(kName)
-    solutionKernelsBetaOnly = solution.getKernelsBetaOnly()
-    for kernel in solutionKernelsBetaOnly:
-      kName = Solution.getNameFull(kernel)
-      if kName not in kernelNamesBetaOnly:
-        kernelsBetaOnly.append(kernel)
-        kernelNamesBetaOnly.add(kName)
+
+    solutionHelperKernels = solution.getHelperKernelObjects()
+    for ko in solutionHelperKernels:
+      kname = ko.getKernelName()
+      if kname not in kernelHelperNames:
+        kernelHelperOjbs.append(ko)
+        kernelHelperNames.add(kname)
+
 
   solutionSerialNaming = Solution.getSerialNaming(solutions)
-  kernelSerialNaming = Solution.getSerialNaming(kernels)
-  solutionMinNaming = Solution.getMinNaming(solutions)
-  kernelMinNaming = Solution.getMinNaming(kernels)
-  solutionWriter = SolutionWriter( \
-      solutionMinNaming, solutionSerialNaming, \
-      kernelMinNaming, kernelSerialNaming)
-  kernelWriterSource = KernelWriterSource( \
-      kernelMinNaming, kernelSerialNaming)
-  kernelWriterAssembly = KernelWriterAssembly( \
-      kernelMinNaming, kernelSerialNaming)
+  kernelSerialNaming   = Solution.getSerialNaming(kernels)
+  solutionMinNaming    = Solution.getMinNaming(solutions)
+  kernelMinNaming      = Solution.getMinNaming(kernels)
+  solutionWriter       = SolutionWriter(solutionMinNaming, solutionSerialNaming, kernelMinNaming, kernelSerialNaming)
+  kernelWriterSource   = KernelWriterSource(kernelMinNaming, kernelSerialNaming)
+  kernelWriterAssembly = KernelWriterAssembly(kernelMinNaming, kernelSerialNaming)
 
   # write solution, kernels and CMake
   problemType = solutions[0]["ProblemType"]
   codeObjectFiles = writeSolutionsAndKernels( \
-      globalParameters["WorkingPath"], globalParameters["CxxCompiler"], [problemType], solutions, kernels, kernelsBetaOnly, \
+      globalParameters["WorkingPath"], globalParameters["CxxCompiler"], [problemType], solutions, kernels, kernelHelperOjbs, \
       solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
 
   newLibraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
@@ -575,7 +575,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
    asmKernelFiles,
    sourceLibFiles,
    asmLibFiles) = buildObjectFileNames(solutionWriter, kernelWriterSource, \
-    kernelWriterAssembly, solutions, kernels, kernelsBetaOnly)
+    kernelWriterAssembly, solutions, kernels, kernelHelperOjbs)
 
   writeCMake(outputPath, solutionFiles, sourceKernelFiles, filesToCopy)
 

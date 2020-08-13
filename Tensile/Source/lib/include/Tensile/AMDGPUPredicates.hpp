@@ -70,6 +70,32 @@ namespace Tensile
                 }
             };
 
+            struct CUCountEqual : public Predicate_CRTP<CUCountEqual, AMDGPU>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                int value;
+
+                CUCountEqual() = default;
+                CUCountEqual(int val)
+                    : value(val)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "CUCount";
+                }
+
+                virtual bool operator()(AMDGPU const& gpu) const
+                {
+                    return gpu.computeUnitCount == value;
+                }
+            };
+
             struct RunsKernelTargeting : public Predicate_CRTP<RunsKernelTargeting, AMDGPU>
             {
                 enum

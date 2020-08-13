@@ -48,6 +48,7 @@ import sys
 import time
 from copy import deepcopy, copy
 
+
 ################################################################################
 def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
     """
@@ -304,7 +305,7 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
-def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, kernels, kernelsBetaOnly, \
+def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, kernels, kernelHelperOjbs, \
     solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=False):
   start = time.time()
 
@@ -387,11 +388,9 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     print("\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier")
     printExit("** kernel compilation failure **")
 
-
-  # beta-only kernels
-  for kernel in kernelsBetaOnly:
-    kernelWriter = kernelWriterSource
-    kernelName = kernelWriter.getKernelNameBetaOnly(kernel)
+  # handle helper kernel function
+  for ko in kernelHelperOjbs:
+    kernelName = ko.getKernelName()
 
     # write kernel.cpp
     if not globalParameters["MergeFiles"]:
@@ -400,17 +399,21 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
       kernelSourceFile.write(CHeader)
       kernelFiles.append(kernelSourceFilename)
 
-    (err, src) = kernelWriter.getSourceFileStringBetaOnly(kernel)
+    (err, src) = ko.getSourceFileString()
     kernelSourceFile.write(src)
     if err:
       print("*** warning: invalid kernel#%u"%kernelName)
+
     if not globalParameters["MergeFiles"]:
       kernelSourceFile.close()
+
     # write kernel.h
     if not globalParameters["MergeFiles"]:
       kernelHeaderFile = open(os.path.join(outputPath, "Kernels", kernelName + ".h"), "w")
       kernelHeaderFile.write(CHeader)
-    kernelHeaderFile.write( kernelWriter.getHeaderFileStringBetaOnly(kernel))
+
+    kernelHeaderFile.write( ko.getHeaderFileString())
+
     if not globalParameters["MergeFiles"]:
       kernelHeaderFile.close()
 
@@ -420,8 +423,6 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
       kernelSourceFile.close()
     if kernelHeaderFile:
       kernelHeaderFile.close()
-
-  kernelsToBuild += kernelsBetaOnly
 
   codeObjectFiles += buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath)
   codeObjectFiles += getAssemblyCodeObjectFiles(kernelsToBuild, kernelWriterAssembly, outputPath)
@@ -459,7 +460,9 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     # Write a solution pointer typedef for each problemType:
     h = ""
     for problemType in problemTypes:
-      argListAll = solutionWriter.getArgList(problemType, True, True, True, True)
+      #print "p=", problemType
+      argListAll = solutionWriter.getArgList(problemType, True, True, True, True, True)
+      # declare TensileSolutionPointer_ProblemType
       h += "\n// solution pointer\n"
       h += "typedef TensileStatus (*TensileSolutionPointer_%s)(\n" % problemType
       for i in range(0, len(argListAll)):
@@ -541,9 +544,9 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   for problemType in Utils.tqdm(logicData):
 
     # function argument list
-    argListSizes = solutionWriter.getArgList(problemType, False, False, False, False)
-    argListData  = solutionWriter.getArgList(problemType, False, True, True, True)
-    argListAll  = solutionWriter.getArgList(problemType, True, True, True, True)
+    argListSizes = solutionWriter.getArgList(problemType, False, False, False, False, True)
+    argListData  = solutionWriter.getArgList(problemType, False,  True,  True,  True, True)
+    argListAll   = solutionWriter.getArgList(problemType,  True,  True,  True,  True, True)
 
     # tensile initializer
     h += "\nvoid tensileInitialize();\n\n"
@@ -552,8 +555,8 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     h += "\n// enqueue solution\n"
     h += "TensileStatus tensile_%s(\n" % problemType
     for i in range(0, len(argListData)):
-      h += "    %s %s%s" \
-          % (argListData[i][0], argListData[i][1], \
+      h += "    %s %s = %s%s" \
+          % (argListData[i][0], argListData[i][1], argListData[i][2], \
           ",\n" if i < len(argListData)-1 else ");\n\n")
 
 
@@ -1028,22 +1031,41 @@ def generateSolutions (problemType, hardcodedParameters, initialSolutionParamete
 ##############################################################################
 def getSolutionAndKernelWriters(solutions, kernels):
 
+# olk
+#  # if any kernels are assembly, append every ISA supported
+#  if globalParameters["ShortNames"] and not globalParameters["MergeFiles"]:
+#    solutionSerialNaming = Solution.getSerialNaming(solutions)
+#    kernelSerialNaming = Solution.getSerialNaming(kernels)
+#  else:
+#    solutionSerialNaming = None
+#    kernelSerialNaming = None
+#  solutionMinNaming = Solution.getMinNaming(solutions)
+#  kernelMinNaming = Solution.getMinNaming(kernels)
+#  solutionWriter = SolutionWriter( \
+#      solutionMinNaming, solutionSerialNaming, \
+#      kernelMinNaming, kernelSerialNaming)
+#  kernelWriterSource = KernelWriterSource( \
+#      kernelMinNaming, kernelSerialNaming)
+#  kernelWriterAssembly = KernelWriterAssembly( \
+#      kernelMinNaming, kernelSerialNaming)
+
+#  return (solutionWriter, kernelWriterSource, kernelWriterAssembly, kernelMinNaming, solutionMinNaming)
+
+# new
   # if any kernels are assembly, append every ISA supported
+
   if globalParameters["ShortNames"] and not globalParameters["MergeFiles"]:
     solutionSerialNaming = Solution.getSerialNaming(solutions)
-    kernelSerialNaming = Solution.getSerialNaming(kernels)
+    kernelSerialNaming   = Solution.getSerialNaming(kernels)
   else:
     solutionSerialNaming = None
-    kernelSerialNaming = None
-  solutionMinNaming = Solution.getMinNaming(solutions)
-  kernelMinNaming = Solution.getMinNaming(kernels)
-  solutionWriter = SolutionWriter( \
-      solutionMinNaming, solutionSerialNaming, \
-      kernelMinNaming, kernelSerialNaming)
-  kernelWriterSource = KernelWriterSource( \
-      kernelMinNaming, kernelSerialNaming)
-  kernelWriterAssembly = KernelWriterAssembly( \
-      kernelMinNaming, kernelSerialNaming)
+    kernelSerialNaming   = None
+
+  solutionMinNaming    = Solution.getMinNaming(solutions)
+  kernelMinNaming      = Solution.getMinNaming(kernels)
+  solutionWriter       = SolutionWriter(solutionMinNaming, solutionSerialNaming, kernelMinNaming, kernelSerialNaming)
+  kernelWriterSource   = KernelWriterSource(kernelMinNaming, kernelSerialNaming)
+  kernelWriterAssembly = KernelWriterAssembly(kernelMinNaming, kernelSerialNaming)
 
   return (solutionWriter, kernelWriterSource, kernelWriterAssembly, kernelMinNaming, solutionMinNaming)
 
@@ -1074,12 +1096,13 @@ def copyStaticFiles(outputPath):
 
   return libraryStaticFiles
 
-def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembly, solutions, kernels, betaOnlyKernels):
+def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembly, solutions, kernels, kernelHelperOjbs):
 
   # Build lists of output object names
   sourceKernelNames = []
   asmKernelNames = []
-  betaKernelNames = []
+  kernelHelperOjbNmaes = []
+
   solutionFiles = []
   sourceKernelFiles = []
   asmKernelFiles = []
@@ -1101,8 +1124,7 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
   for kernel in asmKernels:
     asmKernelNames += [kernelWriterAssembly.getKernelFileBase(kernel)]
 
-  for kernel in betaOnlyKernels:
-    betaKernelNames += [kernelWriterSource.getKernelNameBetaOnly(kernel)]
+  kernelHelperOjbNmaes = [ko.getKernelName() for ko in kernelHelperOjbs]
 
   # Source based kernels are built for all supported architectures
   sourceArchs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
@@ -1125,7 +1147,7 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
 
   # Build a list of source files
   if not globalParameters["MergeFiles"]:
-    for kernelName in (sourceKernelNames + asmKernelNames):
+    for kernelName in (sourceKernelNames + asmKernelNames + kernelHelperOjbNmaes):
       sourceKernelFiles += [
         "%s.h"   % (kernelName),
         "%s.cpp" % (kernelName)]
@@ -1143,7 +1165,7 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
   cxxCompiler = globalParameters["CxxCompiler"]
   if not globalParameters["MergeFiles"]:
 
-    allSources = sourceKernelNames + betaKernelNames
+    allSources = sourceKernelNames + kernelHelperOjbNmaes
     if globalParameters["NewClient"] <= 1:
       allSources += asmKernelNames
 
@@ -1276,19 +1298,22 @@ def writeCMake(outputPath, solutionFiles, kernelFiles, libraryStaticFiles):
 def generateKernelObjectsFromSolutions(solutions):
   # create solution writer and kernel writer
   kernels = []
-  kernelsBetaOnly = []
+  kernelHelperOjbs = []
+  kernelHelperNames = set()
+
   for solution in solutions:
     solutionKernels = solution.getKernels()
     for kernel in solutionKernels:
       if kernel not in kernels:
         kernels.append(kernel)
-    solutionKernelsBetaOnly = solution.getKernelsBetaOnly()
-    for kernel in solutionKernelsBetaOnly:
-      if KernelWriter.getKernelNameBetaOnly(kernel) not in \
-          [KernelWriter.getKernelNameBetaOnly(k) for k in kernelsBetaOnly]:
-        kernelsBetaOnly.append(kernel)
+    solutionHelperKernels = solution.getHelperKernelObjects()
+    for ko in solutionHelperKernels:
+      kname = ko.getKernelName()
+      if kname not in kernelHelperNames:
+        kernelHelperOjbs.append(ko)
+        kernelHelperNames.add(kname)
 
-  return (kernels, kernelsBetaOnly)
+  return (kernels, kernelHelperOjbs, kernelHelperNames)
 
 ################################################################################
 # Write Benchmark Client Files
@@ -1297,7 +1322,7 @@ def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, 
 
   copyStaticFiles(libraryWorkingPath)
 
-  kernels, kernelsBetaOnly = generateKernelObjectsFromSolutions(solutions)
+  kernels, kernelsBetaOnly, _ = generateKernelObjectsFromSolutions(solutions)
   solutionWriter, kernelWriterSource, kernelWriterAssembly, \
     kernelMinNaming, _ = getSolutionAndKernelWriters(solutions, kernels)
 
@@ -1427,11 +1452,13 @@ def TensileCreateLibrary():
     if arguments["Architecture"] == key:
       arguments["Architecture"] = mapArchitecture[key]
 
-  logicFiles = [os.path.join(logicPath, f) for f in os.listdir(logicPath) \
-      if (os.path.isfile(os.path.join(logicPath, f)) \
-      and os.path.splitext(f)[1]==".yaml") \
-      and arguments["Architecture"] in os.path.splitext(f)[0] \
-      or "hip" in os.path.splitext(f)[0]]
+  # Recursive directory search
+  logicFiles = []
+  for root, dirs, files in os.walk(logicPath):
+    logicFiles += [os.path.join(root, f) for f in files
+                       if os.path.splitext(f)[1]==".yaml" \
+                       and arguments["Architecture"] in os.path.splitext(f)[0] \
+                       or "hip" in os.path.splitext(f)[0] ]
 
   print1("# LibraryLogicFiles:" % logicFiles)
   for logicFile in logicFiles:
@@ -1479,11 +1506,46 @@ def TensileCreateLibrary():
         masterLibraries[architectureName] = deepcopy(newLibrary)
         masterLibraries[architectureName].version = args.version
 
-  kernels, kernelsBetaOnly = generateKernelObjectsFromSolutions(solutions)
+#<<<<<<< HEAD
+  #kernels, kernelHelperOjbs, kernelHelperNames = generateKernelObjectsFromSolutions(solutions)
+  kernels, kernelHelperOjbs, _ = generateKernelObjectsFromSolutions(solutions)
   # if any kernels are assembly, append every ISA supported
 
   solutionWriter, kernelWriterSource, kernelWriterAssembly, \
     kernelMinNaming, _ = getSolutionAndKernelWriters(solutions, kernels)
+#=======
+#  # create solution writer and kernel writer
+#  kernels = []
+#  kernelHelperOjbs = []
+#  kernelHelperNames = set()
+#
+#  for solution in solutions:
+#    solutionKernels = solution.getKernels()
+#    for kernel in solutionKernels:
+#      if kernel not in kernels:
+#        kernels.append(kernel)
+#    solutionHelperKernels = solution.getHelperKernelObjects()
+#    for ko in solutionHelperKernels:
+#      kname = ko.getKernelName()
+#      if kname not in kernelHelperNames:
+#        kernelHelperOjbs.append(ko)
+#        kernelHelperNames.add(kname)
+#
+#  # if any kernels are assembly, append every ISA supported
+#
+#  if globalParameters["ShortNames"] and not globalParameters["MergeFiles"]:
+#    solutionSerialNaming = Solution.getSerialNaming(solutions)
+#    kernelSerialNaming   = Solution.getSerialNaming(kernels)
+#  else:
+#    solutionSerialNaming = None
+#    kernelSerialNaming   = None
+#
+#  solutionMinNaming    = Solution.getMinNaming(solutions)
+#  kernelMinNaming      = Solution.getMinNaming(kernels)
+#  solutionWriter       = SolutionWriter(solutionMinNaming, solutionSerialNaming, kernelMinNaming, kernelSerialNaming)
+#  kernelWriterSource   = KernelWriterSource(kernelMinNaming, kernelSerialNaming)
+#  kernelWriterAssembly = KernelWriterAssembly(kernelMinNaming, kernelSerialNaming)
+#>>>>>>> ab592f803c67edbc7e0999c12370726e9628b485
 
   staticFiles = copyStaticFiles(outputPath)
 
@@ -1493,7 +1555,7 @@ def TensileCreateLibrary():
    asmKernelFiles,
    sourceLibFiles,
    asmLibFiles) = buildObjectFileNames(solutionWriter, kernelWriterSource, \
-    kernelWriterAssembly, solutions, kernels, kernelsBetaOnly)
+    kernelWriterAssembly, solutions, kernels, kernelHelperOjbs)
 
   (_,
    _,
@@ -1526,13 +1588,11 @@ def TensileCreateLibrary():
     shutil.copy( os.path.join(globalParameters["SourcePath"], fileName), \
       outputPath )
 
-    # write solutions and kernels
+  # write solutions and kernels
   problemTypes = list(logicData.keys())
 
   codeObjectFiles = writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions,
-                                             kernels, kernelsBetaOnly,
-                                             solutionWriter,
-                                             kernelWriterSource, kernelWriterAssembly)
+                                             kernels, kernelHelperOjbs, solutionWriter, kernelWriterSource, kernelWriterAssembly)
 
   sanityCheck0 = set(codeObjectFiles) - set(sourceLibPaths + asmLibPaths)
   sanityCheck1 = set(sourceLibPaths + asmLibPaths) - set(codeObjectFiles)

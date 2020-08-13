@@ -191,7 +191,7 @@ run_tune_nn () {
     echo "touch time.end" >> tune.sh
     chmod 755 tune.sh
     ./tune.sh
-    cp tensile-nn.out ../../logs 
+    cp tensile-nn.out ../../logs
     popd
 
     cp ${NN}/3_LibraryLogic/* exact/
@@ -209,7 +209,7 @@ run_tune_nt () {
     echo "touch time.end" >> tune.sh
     chmod 755 tune.sh
     ./tune.sh
-    cp tensile-nt.out ../../logs 
+    cp tensile-nt.out ../../logs
     popd
 
     cp ${NT}/3_LibraryLogic/* exact/
@@ -227,7 +227,7 @@ run_tune_tn () {
     echo "touch time.end" >> tune.sh
     chmod 755 tune.sh
     ./tune.sh
-    cp tensile-tn.out ../../logs 
+    cp tensile-tn.out ../../logs
     popd
 
     cp ${TN}/3_LibraryLogic/* exact/
