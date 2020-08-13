@@ -3020,12 +3020,20 @@ class Solution:
         if state["LocalReadVectorWidth"] != state["VectorWidth"]:
           reject(state, "not support LRVW != VW with nonMI kernel")
 
+    # set pad as readWidth to avoid unaligned read
+    optPad = state["LocalReadVectorWidth"]
+    readWidth = state["LocalReadVectorWidth"]*state["ProblemType"]["DataType"].numBytes()//4
+    if state["EnableMatrixInstruction"]:
+      # for readWidth = 1 or 4, we need to double pad for MI16x16xNx1 to avoid banck conflict.
+      if state["MatrixInstB"] == 1 and state["MatrixInstM"] == 16 and \
+          (readWidth == 4 or readWidth == 1):
+        optPad *= 2
     if state["LdsPadA"] == -1:
       if state["ProblemType"]["TLUA"]:
         state["LdsPadA"] = 0
       else:
         if state["EnableMatrixInstruction"] and state["TransposeLDS"]:
-          state["LdsPadA"] = max(state["GlobalReadVectorWidth"],state["LocalReadVectorWidth"])
+          state["LdsPadA"] = max(state["GlobalReadVectorWidth"],optPad)
         else:
           state["LdsPadA"] = state["VectorWidth"]
       assert(state["LdsPadA"] >= 0)
@@ -3034,7 +3042,7 @@ class Solution:
         state["LdsPadB"] = 0
       else:
         if state["EnableMatrixInstruction"] and state["TransposeLDS"]:
-          state["LdsPadB"] = max(state["GlobalReadVectorWidth"],state["LocalReadVectorWidth"])
+          state["LdsPadB"] = max(state["GlobalReadVectorWidth"],optPad)
         else:
           state["LdsPadB"] = state["VectorWidth"]
       assert(state["LdsPadB"] >= 0)
@@ -3113,16 +3121,18 @@ class Solution:
     ldsNumElements = max(ldsNumElementsAB, ldsNumElementsReduction, ldsNumElementsOccupancy)
 
     if state["StoreRemapVectorWidth"] == -1:
-      ldsRemapPad = max(4,state["MIOutputVectorWidth"])
+      # use de_read_b64 as default in storeRemap to avoid bank conflict
+      defaultRemap = 8 // state["ProblemType"]["DataType"].numBytes()
+      ldsRemapPad = max(defaultRemap,state["MIOutputVectorWidth"])
       ldsNumElementsRemapC = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"] * state["MIWaveGroup"][1]
       ldsNumElementsRemapC *= (2 if state["_GlobalAccumulation"] else 1) # FP32 output FP16 Data
       ldsSize = ldsNumElementsRemapC * state["ProblemType"]["DataType"].numBytes()
       if not math.log(state["MacroTile0"],2).is_integer() or \
           ldsSize > globalParameters["MaxLDS"] or \
-          (state["GlobalSplitU"] > 1) and (state["_GlobalAccumulation"] != 2):
+          (state["GlobalSplitU"] > 1) and (state["_GlobalAccumulation"] != 'MultipleBuffer'):
         state["StoreRemapVectorWidth"] = 0
       else:
-        state["StoreRemapVectorWidth"] = 4
+        state["StoreRemapVectorWidth"] = defaultRemap
 
     #check not support cases and calculate lds resources
     if state["StoreRemapVectorWidth"]:
@@ -3228,6 +3238,10 @@ class Solution:
     # PLR > 2xLoopIters is redundant setting
     if state["PrefetchLocalRead"] >= 2*state["LoopIters"]:
       reject(state, "PrefetchLocalRead %u larger than 2x LoopIters %u" % (state["PrefetchLocalRead"],state["LoopIters"]))
+
+    # reject low performance
+    if state["PrefetchLocalRead"]%state["LoopIters"] > 1:
+      reject(state, "PrefetchLocalRead: %u, LoopIters: %u performance is low" % (state["PrefetchLocalRead"],state["LoopIters"]))
 
     # prefetch wider read iteration > LoopIters, no enough iterations for prefetching
     if state["EnableMatrixInstruction"]:
