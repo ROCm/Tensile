@@ -20,7 +20,7 @@
 ################################################################################
 
 from .Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, \
-  setWorkingPath, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar, printWarning
+  setWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar, printWarning
 from .SolutionStructs import Solution
 from . import LibraryIO
 from . import SolutionSelectionLibrary

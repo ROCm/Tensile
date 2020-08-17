@@ -33,7 +33,6 @@ from .Common import globalParameters, HR, print1, print2, printExit, ensurePath,
     defaultBenchmarkCommonParameters, hasParam
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
-from .KernelWriter import KernelWriter
 from .SolutionLibrary import MasterSolutionLibrary
 from .SolutionStructs import Solution, ProblemType
 from .SolutionWriter import SolutionWriter
