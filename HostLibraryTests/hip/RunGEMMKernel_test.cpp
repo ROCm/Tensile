@@ -160,45 +160,38 @@ inline std::ostream& operator<<(std::ostream&                           stream,
         return stream << "(nullptr)";
 }
 
-template <typename DataT>
+template <typename TypedInputs>
 struct TypedGEMMKernelTest : public GEMMKernelTest
 {
-    // From explicit instantiations in ContractionProblem.cpp
-    using TypeA = DataT;
-    using TypeB = DataT;
-    using TypeC = std::conditional_t<
-                    std::is_same<TypeA, typename Tensile::Int8x4>::value,
-                    int32_t,
-                    DataT>;
-    using TypeD = TypeC;
-    using TypeAlpha = std::conditional_t<
-                                    std::is_same<TypeA, typename Tensile::BFloat16>::value,
-                                    float,
-                                    TypeD>;
-    using TypeBeta = TypeAlpha;
-    using ContractionInputsType = TypedContractionInputs<TypeA, TypeB, TypeC, TypeD, TypeAlpha, TypeBeta>;
+    // Extract type info
+    using AType = typename TypedInputs::AType;
+    using BType = typename TypedInputs::BType;
+    using CType = typename TypedInputs::CType;
+    using DType = typename TypedInputs::DType;
+    using AlphaType = typename TypedInputs::AlphaType;
+    using BetaType = typename TypedInputs::BetaType;
 
-    std::vector<TypeA> a_h;
-    std::vector<TypeB> b_h;
-    std::vector<TypeC> c_h;
-    std::vector<TypeD> d_h;
-    std::vector<TypeD> d_in_h;
-    std::vector<TypeD> d_ref_h;
+    std::vector<AType> a_h;
+    std::vector<BType> b_h;
+    std::vector<CType> c_h;
+    std::vector<DType> d_h;
+    std::vector<DType> d_in_h;
+    std::vector<DType> d_ref_h;
 
-    TypeA* a_d     = nullptr;
-    TypeB* b_d     = nullptr;
-    TypeC* c_d     = nullptr;
-    TypeD* d_d     = nullptr;
-    TypeD* d_ref_d = nullptr;
+    AType* a_d     = nullptr;
+    BType* b_d     = nullptr;
+    CType* c_d     = nullptr;
+    DType* d_d     = nullptr;
+    DType* d_ref_d = nullptr;
 
-    TypeA* a_d_alloc     = nullptr;
-    TypeB* b_d_alloc     = nullptr;
-    TypeC* c_d_alloc     = nullptr;
-    TypeD* d_d_alloc     = nullptr;
-    TypeD* d_ref_d_alloc = nullptr;
+    AType* a_d_alloc     = nullptr;
+    BType* b_d_alloc     = nullptr;
+    CType* c_d_alloc     = nullptr;
+    DType* d_d_alloc     = nullptr;
+    DType* d_ref_d_alloc = nullptr;
 
-    ContractionInputsType inputs_h;
-    ContractionInputsType inputs_d;
+    TypedInputs inputs_h;
+    TypedInputs inputs_d;
 
     std::shared_ptr<Hardware> hardware;
 
@@ -210,7 +203,7 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
     bool requiredMatch;
     MemoryPageAlignment memoryAlignment;
 
-    static std::unordered_map<size_t, std::vector<TypeD>> referenceCache;
+    static std::unordered_map<size_t, std::vector<DType>> referenceCache;
 
     template<typename T>
     Tensile::DataType dataType() const
@@ -301,10 +294,10 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
 
             return ContractionProblem::GEMM_Strides(transA,
                                                     transB,
-                                                    dataType<TypeA>(),
-                                                    dataType<TypeB>(),
-                                                    dataType<TypeC>(),
-                                                    dataType<TypeD>(),
+                                                    dataType<AType>(),
+                                                    dataType<BType>(),
+                                                    dataType<CType>(),
+                                                    dataType<DType>(),
                                                     m,
                                                     n,
                                                     k,
@@ -342,26 +335,26 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
         TensorDescriptor a, b, c, d;
         if(transA)
         {
-            a = TensorDescriptor(dataType<TypeA>(), {k, m}, {1, lda});
+            a = TensorDescriptor(dataType<AType>(), {k, m}, {1, lda});
             free[0].i = 1;
             bound.a   = 0;
         }
         else
         {
-            a = TensorDescriptor(dataType<TypeA>(), {m, k}, {1, lda});
+            a = TensorDescriptor(dataType<AType>(), {m, k}, {1, lda});
             free[0].i = 0;
             bound.a   = 1;
         }
 
         if(transB)
         {
-            b = TensorDescriptor(dataType<TypeB>(), {n, k}, {1, ldb});
+            b = TensorDescriptor(dataType<BType>(), {n, k}, {1, ldb});
             free[1].i = 0;
             bound.b   = 1;
         }
         else
         {
-            b = TensorDescriptor(dataType<TypeB>(), {k, n}, {1, ldb});
+            b = TensorDescriptor(dataType<BType>(), {k, n}, {1, ldb});
             free[1].i = 1;
             bound.b   = 0;
         }
@@ -370,7 +363,7 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
         ContractionProblem::BatchIndices batchIndices;
         ContractionProblem::BoundIndices boundIndices{bound};
 
-        d = TensorDescriptor(dataType<TypeD>(), {m, n}, {1, ldc});
+        d = TensorDescriptor(dataType<DType>(), {m, n}, {1, ldc});
 
         a.appendDim(batchCount);
         b.appendDim(batchCount);
@@ -414,10 +407,10 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
 
         std::mt19937 rng;
 
-        InitTensor(a_h.data(), problem.a(), RandomInt<TypeA>(), rng);
-        InitTensor(b_h.data(), problem.b(), RandomAlternatingInt<TypeB>(), rng);
-        InitTensor(c_h.data(), problem.c(), RandomInt<TypeC>(), rng);
-        InitTensor(d_in_h.data(), problem.d(), RandomInt<TypeD>(), rng);
+        InitTensor(a_h.data(), problem.a(), RandomInt<AType>(), rng);
+        InitTensor(b_h.data(), problem.b(), RandomAlternatingInt<BType>(), rng);
+        InitTensor(c_h.data(), problem.c(), RandomInt<CType>(), rng);
+        InitTensor(d_in_h.data(), problem.d(), RandomInt<DType>(), rng);
 
         d_ref_h = d_h;
 
@@ -447,11 +440,11 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
         }
         else
         {
-            a_d     = a_d_alloc + ((aSize - problem.a().totalAllocatedBytes()) / sizeof(TypeA));
-            b_d     = b_d_alloc + ((bSize - problem.b().totalAllocatedBytes()) / sizeof(TypeB));
-            c_d     = c_d_alloc + ((cSize - problem.c().totalAllocatedBytes()) / sizeof(TypeC));
-            d_d     = d_d_alloc + ((dSize - problem.d().totalAllocatedBytes()) / sizeof(TypeD));
-            d_ref_d = d_ref_d_alloc + ((dSize - problem.d().totalAllocatedBytes()) / sizeof(TypeD));
+            a_d     = a_d_alloc + ((aSize - problem.a().totalAllocatedBytes()) / sizeof(AType));
+            b_d     = b_d_alloc + ((bSize - problem.b().totalAllocatedBytes()) / sizeof(BType));
+            c_d     = c_d_alloc + ((cSize - problem.c().totalAllocatedBytes()) / sizeof(CType));
+            d_d     = d_d_alloc + ((dSize - problem.d().totalAllocatedBytes()) / sizeof(DType));
+            d_ref_d = d_ref_d_alloc + ((dSize - problem.d().totalAllocatedBytes()) / sizeof(DType));
         }
 
         HIP_CHECK_EXC(
@@ -472,20 +465,20 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
         inputs_d.d = d_d;
 
         // Initialize alpha
-        inputs_d.alpha = RandomInt<TypeAlpha>()(rng);
+        inputs_d.alpha = RandomInt<AlphaType>()(rng);
 
         // Initialize beta
         if(problem.beta() == 1.0)
         {
-            inputs_d.beta = static_cast<TypeBeta>(1.0);
+            inputs_d.beta = static_cast<BetaType>(1.0);
         }
         else if(problem.beta() == 0.0)
         {
-            inputs_d.beta = static_cast<TypeBeta>(0.0);
+            inputs_d.beta = static_cast<BetaType>(0.0);
         }
         else
         {
-            inputs_d.beta = RandomInt<TypeBeta>()(rng);
+            inputs_d.beta = RandomInt<BetaType>()(rng);
         }
 
         // Initialize inputs for CPU reference calcs
@@ -503,7 +496,7 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
 
     void OverrideAlpha(double val) override
     {
-        inputs_h.alpha = inputs_d.alpha = static_cast<TypeAlpha>(val);
+        inputs_h.alpha = inputs_d.alpha = static_cast<AlphaType>(val);
     }
 
     void NullifyAPtr() override
@@ -648,16 +641,21 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
     inline std::string ToString() const override
     {
         return std::string("TypedKernelShortCircuitTest<") + 
-                TypeInfo<DataT>::Name() + 
+                TypeInfo<AType>::Name() + ", " +
+                TypeInfo<BType>::Name() + ", " +
+                TypeInfo<CType>::Name() + ", " +
+                TypeInfo<DType>::Name() + ", " +
+                TypeInfo<AlphaType>::Name() + ", " +
+                TypeInfo<BetaType>::Name() + ", " + 
                 std::string(">");
     }
 };
 
-template<typename DataT>
-using TypeD = typename TypedGEMMKernelTest<DataT>::TypeD;
+template<typename TypedInputs>
+using DType = typename TypedGEMMKernelTest<TypedInputs>::DType;
 
-template<typename DataT>
-std::unordered_map<size_t, std::vector<TypeD<DataT>>> TypedGEMMKernelTest<DataT>::referenceCache;
+template<typename TypedInputs>
+std::unordered_map<size_t, std::vector<DType<TypedInputs>>> TypedGEMMKernelTest<TypedInputs>::referenceCache;
 
 namespace std
 {
@@ -686,7 +684,9 @@ namespace std
             return hash<decltype(obj.data)>()(obj.data);
         }
     };
+
 #ifdef TENSILE_USE_HALF
+
     template <>
     struct hash<Tensile::Half>
     {
@@ -695,7 +695,9 @@ namespace std
             return hash<float>()(static_cast<float>(obj));
         }
     };
+
 #else
+
     template <>
     struct hash<Tensile::Half>
     {
@@ -704,6 +706,7 @@ namespace std
             return hash<decltype(obj.value)>()(obj.value);
         }
     };
+    
 #endif // TENSILE_USE_HALF
 
 } // namespace std
@@ -776,27 +779,27 @@ TEST_P(RunGEMMKernelTest, TestAlphaZeroABNull)
 
 std::vector<std::shared_ptr<GEMMKernelTest>> TypedTests()
 {
-    static auto testFloat = std::make_shared<TypedGEMMKernelTest<float>>();
-    static auto testDouble = std::make_shared<TypedGEMMKernelTest<double>>();
-//     static auto testCFloat = std::make_shared<TypedGEMMKernelTest<std::complex<float>>>();
-//     static auto testCDouble = std::make_shared<TypedGEMMKernelTest<std::complex<double>>>();
-//     static auto testInt8x4 = std::make_shared<TypedGEMMKernelTest<Tensile::Int8x4>>();
-//     static auto testInt32 = std::make_shared<TypedGEMMKernelTest<int32_t>>();
-//     static auto testHalf = std::make_shared<TypedGEMMKernelTest<Tensile::Half>>();
+    static auto testFloat = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<float>>>();
+//     static auto testDouble = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<double>>>();
+//     static auto testCFloat = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<std::complex<float>>>>();
+//     static auto testCDouble = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<std::complex<double>>>>();
+//     static auto testInt8x4 = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>>>();
+//     static auto testInt32 = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<int32_t>>>();
+//     static auto testHalf = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<Tensile::Half>>>();
 // #ifdef TENSILE_USE_BF16
-//     static auto testBF16 = std::make_shared<TypedGEMMKernelTest<Tensile::BFloat16>>();
+//     static auto testBF16 = std::make_shared<TypedGEMMKernelTest<BFloat16ContractionInputs>>();
 // #endif  
     return std::vector<std::shared_ptr<GEMMKernelTest>>{
         testFloat,
-        testDouble,
+//         testDouble,
 //         testCFloat,
 //         testCDouble,
 //         testInt8x4,
 //         testInt32,
 //         testHalf,
-#ifdef TENSILE_USE_BF16
+// #ifdef TENSILE_USE_BF16
 //         testBF16,
-#endif  
+// #endif  
         };
 }
 
