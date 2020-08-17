@@ -261,7 +261,7 @@ namespace llvm
 
             static void inputOne(IO& io, StringRef key, Hide<T>& value)
             {
-                Impl::inputOne(io, key, *value);
+                Impl::inputOne(io, key.str(), *value);
             }
 
             static void output(IO& io, Hide<T>& value)
