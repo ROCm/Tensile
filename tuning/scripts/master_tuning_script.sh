@@ -2,7 +2,7 @@
 
 HELP_STR="
     Pre-Requisites: >=Anaconda 3.6 (or install python3.6 or higher, python3-pip/pip3, python3-yaml, python3-setuptools, python3-distutils,
-                                    python3-venv, wheel, setuptools, pyyaml, matplotlib, pandas, and numpy)
+                                    python3-venv, wheel, setuptools, pyyaml, msgpack, matplotlib, pandas, and numpy)
                     >=llvm-6.0-dev, >=cmake3.5, zlib1g-dev
                     <=rocm3.0 stack for hcc, >=rocm3.3 stack for hip-clang
     About
@@ -19,10 +19,10 @@ HELP_STR="
     usage: $0
     [-h|--help]             Display this help message
     [-o|--output-dir]       Output directory for all tuning-related files
-    [-y|--data-type]        Data type of sizes that you want to tune (sgemm, dgemm, hgemm only)
-    [-g|--gpu]              GPU used for tuning (arcturus, mi25, mi50, mi60, r7, v340 only)
-    [-f|--sclk]             Frequency of sclk in MHz
     [-z|--log]              Pass in log file with rocblas-bench calls, or directory of log files if using network tuning
+    [-y|--data-type]        Optional. Data type of sizes that you want to tune (sgemm, dgemm, hgemm only)
+    [-g|--gpu]              Optional. GPU used for tuning (arcturus, mi25, mi50, mi60, r7, v340 only)
+    [-f|--sclk]             Optional. Frequency of sclk in MHz 
     [-n|--network]          Optional. String to search for in filenames in log directory
     [--client]              Optional. Choose Tensile client version. (new, old, both, default=new)
     [-m|--mfma]             Optional. Use MFMA kernels (default=false)
@@ -118,6 +118,18 @@ if [ -z ${OUTPUT_DIR+foo} ]; then
    exit 2
 fi
 
+if [[ "${HCC}" == true ]]; then
+    TENSILE_COMPILER=hcc
+    CODE_OBJECT_VERSION=V2
+    ROCBLAS_COMPILER=no-hip-clang
+    export PATH=${ROCM_PATH}/bin:${ROCM_PATH}/hip/bin:${ROCM_PATH}/hcc/bin:${PATH}
+else
+    TENSILE_COMPILER=hipcc
+    CODE_OBJECT_VERSION=V3
+    ROCBLAS_COMPILER=hip-clang
+    export PATH=${PATH}:${ROCM_PATH}/bin:${ROCM_PATH}/hip/bin:${ROCM_PATH}/llvm/bin
+fi
+
 if [[ "${DATA_TYPE}" == hgemm || "${DATA_TYPE}" == h ]]; then
     DATA_TYPE=hgemm
     DVAL=4
@@ -125,9 +137,24 @@ elif [[ "${DATA_TYPE}" == dgemm || "${DATA_TYPE}" == d ]]; then
     DATA_TYPE=dgemm
     DVAL=1
 else
-    printf "Assuming sgemm\n"
-    DATA_TYPE=sgemm
-    DVAL=2
+    if [[ grep -Fxq 'r s' ${LOG} || grep -Fxq 'r f32' ${LOG} || grep -Fxq 'sgemm' ${LOG} ]]; then
+        printf "sgemm detected\n"
+        DATA_TYPE=sgemm
+        DVAL=2
+    elif [[ grep -Fxq 'r d' ${LOG} || grep -Fxq 'r f64' ${LOG} || grep -Fxq 'dgemm' ${LOG} ]]; then
+        printf "dgemm detected\n"
+        DATA_TYPE=dgemm
+        DVAL=1
+    elif [[ grep -Fxq 'r h' ${LOG} || grep -Fxq 'r f16' ${LOG} || grep -Fxq 'hgemm' ${LOG} ]]; then
+        printf "hgemm detected\n"
+        DATA_TYPE=hgemm
+        DVAL=4
+    else
+        printf "Could not detect data type in log file, assuming sgemm\n"
+        DATA_TYPE=sgemm
+        DVAL=2
+        exit 2
+    fi
 fi
 
 if [[ "${GPU}" == mi25 || "${GPU}" == v340 ]]; then
@@ -137,25 +164,42 @@ elif [[ "${GPU}" == arcturus ]]; then
 elif [[ "${GPU}" == mi50 || "${GPU}" == r7 ]]; then
     GPU=mi50
 else
-    printf "Assuming vega20 gpu library\n"
-    GPU=mi60
+    cat rocm_agent_enumerator 2>&1 | tee rae.txt
+    cat rocminfo 2>&1 | tee rocminfo.txt
+    if [[ grep -Fxq 'gfx900' rae.txt ]]; then
+        LIBRARY=vega10
+        if [[ grep -Fxp 'Compute Unit:            56' rocminfo.txt ]]; then
+            printf "v340 GPU detected\n"
+            GPU=v340
+        else
+            printf "mi25 GPU detected\n"
+            GPU=mi25 
+        fi
+    elif [[ grep -Fxq 'gfx906' rae.txt ]]; then
+        LIBRARY=vega20
+        if [[ grep -Fxp 'Compute Unit:            60' rocminfo.txt ]]; then
+            printf "mi50 GPU detected\n"
+            GPU=mi50
+        else
+            printf "mi60 GPU detected\n"
+            GPU=mi60
+        fi
+    elif [[ grep -Fxq 'gfx908' rae.txt ]]; then
+        printf "arcturus GPU detected\n"
+        LIBRARY=arcturus
+        GPU=arcturus
+    else
+        printf "Could not detect GPU, assuming mi60\n"
+        LIBRARY=vega20
+        GPU=mi60
+        exit 2
+    fi
+    rm -rf rae.txt rocminfo.txt
 fi
 
 if [[ "${TENSILE_CLIENT}" != both && "${TENSILE_CLIENT}" != old ]]; then
     printf "Setting Tensile Client to new\n"
     TENSILE_CLIENT=new
-fi
-
-if [[ "${HCC}" == true ]]; then
-    TENSILE_COMPILER=hcc
-    CODE_OBJECT_VERSION=V2
-    ROCBLAS_COMPILER=no-hip-clang
-    export PATH=${ROCM_PATH}/bin:${ROCM_PATH}/hip/bin:${ROCM_PATH}/llvm/bin:${PATH}
-else
-    TENSILE_COMPILER=hipcc
-    CODE_OBJECT_VERSION=V3
-    ROCBLAS_COMPILER=hip-clang
-    export PATH=${PATH}:${ROCM_PATH}/bin:${ROCM_PATH}/hip/bin:${ROCM_PATH}/hcc/bin
 fi
 
 collect_uniques () {
