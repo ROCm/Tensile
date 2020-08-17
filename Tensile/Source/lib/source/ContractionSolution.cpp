@@ -676,6 +676,16 @@ namespace Tensile
     {
         bool debug = Debug::Instance().printKernelArguments();
 
+        // Check for nullptrs if alpha is non-zero.
+        if((inputs.alpha != static_cast<typename TypedInputs::AlphaType>(0) /*&& k!=0*/)
+           && (inputs.a == nullptr || inputs.b == nullptr))
+        {
+            std::string matrixID = inputs.a == nullptr ? "A" : "B";
+            std::string msg      = std::string("Unsupported nullptr for ") + matrixID
+                              + std::string(" when Alpha !=0\n");
+            throw std::runtime_error(msg.c_str());
+        }
+
         std::vector<KernelInvocation> rv;
 
         if(sizeMapping.globalSplitU > 1)

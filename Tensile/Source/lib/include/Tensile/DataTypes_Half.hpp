@@ -56,4 +56,8 @@ namespace std
     {
         return stream << static_cast<float>(val);
     }
+    inline Tensile::Half abs(const Tensile::Half& a)
+    {
+        return static_cast<Tensile::Half>(std::abs(static_cast<_Float16>(a)));
+    }
 } // namespace std

@@ -42,7 +42,7 @@ namespace Tensile
         template <typename RNG, typename... Args>
         T operator()(RNG& rng, Args&&...)
         {
-            return dist(rng);
+            return static_cast<T>(dist(rng));
         }
     };
 
@@ -58,7 +58,7 @@ namespace Tensile
         template <typename RNG>
         T operator()(RNG& rng, std::vector<size_t> const& index3)
         {
-            T sign = ((index3[0] % 2) ^ (index3[1] % 2)) ? 1 : -1;
+            T sign = static_cast<T>(((index3[0] % 2) ^ (index3[1] % 2)) ? 1 : -1);
             return sign * parent(rng, index3);
         }
     };
