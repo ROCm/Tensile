@@ -351,6 +351,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
       clp += " --use-gpu-timer %u" % globalParameters["KernelTime"]
       clp += " --sleep-percent %u" % globalParameters["SleepPercent"]
       clp += " --benchmark-solutions %u" % enableTileSelection
+      clp += " --csv-export-extra-cols %u" % globalParameters["CSVExportWinner"]
       if "ClientArgs" in globalParameters:
         clientParams = globalParameters["ClientArgs"]
         if clientParams:
@@ -639,6 +640,8 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         param("perf-l2-write-hits",       globalParameters["PerfModelL2WriteHits"])
         param("perf-l2-read-bw-mul",      globalParameters["PerfModelL2ReadBwMul"])
         param("perf-read-efficiency",     globalParameters["PerfModelReadEfficiency"])
+        param("csv-export-extra-cols",    globalParameters["CSVExportWinner"])
+        param("csv-merge-same-problems",  globalParameters["CSVMergeSameProblemID"])
 
 
 

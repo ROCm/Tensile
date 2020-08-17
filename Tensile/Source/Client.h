@@ -66,6 +66,7 @@ unsigned int sleepPercent;
 unsigned int solutionStartIdx;
 unsigned int numSolutions;
 unsigned int runBenchmarkSolutions = 0;
+unsigned int csvExportExtraCols;
 #endif
 
 // benchmark parameters commandline strings
@@ -100,6 +101,7 @@ const std::string keyStrideD               = "--stride_d";
 const std::string keySolutionStartIdx   = "--solution-start-idx";
 const std::string keyNumSolutions       = "--num-solutions";
 const std::string keyBenchmarkSolutions = "--benchmark-solutions";
+const std::string keyCSVExportExtraCols = "--csv-export-extra-cols";
 #endif
 
 // benchmark parameters default values
@@ -132,6 +134,7 @@ unsigned int       strideD                      = std::numeric_limits<unsigned i
 const unsigned int defaultSolutionStartIdx   = 0;
 const unsigned int defaultNumSolutions       = maxNumSolutions;
 const unsigned int defaultBenchmarkSolutions = 0;
+const unsigned int defaultCSVExportExtraCols = 0;
 #endif
 
 // benchmark parameters for library client
@@ -157,6 +160,7 @@ double       globalFastestGFlops = 0.0;
 double       globalFastestTime   = 0.0;
 unsigned int globalFastestIdx    = 0;
 double       fastestGFlops       = 0.0;
+double       fastestTimeNs       = 0.0;
 unsigned int fastestIdx          = 0;
 
 SolutionLock* solutionLocks;
@@ -1562,6 +1566,10 @@ bool benchmarkAllSolutionsForSize(unsigned int problemIdx,
     {
         file << ", " << sizes[i];
     }
+    for(unsigned int i = totalIndices[problemTypeIdx] + numIndicesLD; i < totalIndices[problemTypeIdx] + 4; i++)
+    {
+        file << ", " << "N/A";
+    }
     size_t totalFlops = numFlopsPerMac[dataTypeIdx];
     for(unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++)
     {
@@ -1715,10 +1723,14 @@ bool benchmarkAllSolutionsForSize(unsigned int problemIdx,
 #endif
 
     fastestGFlops        = 0;
+    fastestIdx           = -1;
+    fastestTimeNs        = std::numeric_limits<double>::max();
     *problem_gpu_time_ms = 0;
+    double allGFlops[numSolutions];
     for(unsigned int solutionIdx = solutionStartIdx; solutionIdx < solutionStartIdx + numSolutions;
         solutionIdx++)
     {
+        allGFlops[solutionIdx - solutionStartIdx] = -1;
         bool solutionIsValid = true;
 
         // validate solution
@@ -2067,6 +2079,7 @@ bool benchmarkAllSolutionsForSize(unsigned int problemIdx,
         {
             fastestGFlops = gflops;
             fastestIdx    = solutionIdx;
+            fastestTimeNs = timeNs;
             newFastest    = true;
             if(fastestGFlops > globalFastestGFlops)
             {
@@ -2135,9 +2148,16 @@ bool benchmarkAllSolutionsForSize(unsigned int problemIdx,
             gflops = -1.0;
             invalidSolutions.insert(solutionIdx);
         }
-        file << ", " << gflops;
+        allGFlops[solutionIdx - solutionStartIdx] = gflops;
         solutionPerf[problemIdx][solutionIdx] = static_cast<float>(gflops);
     } // solution loop
+
+    if (csvExportExtraCols)
+        file << ", " << fastestGFlops << ", " << (fastestTimeNs * 0.001) << ", " << fastestIdx << ", " << solutions[fastestIdx]._name;
+    for (auto gflopsVal : allGFlops)
+    {
+        file << ", " << gflopsVal;
+    }
 
     if(useGPUTimer)
     {
@@ -2333,7 +2353,11 @@ bool benchmarkProblemSizes(DestDataType*   initialD,
     {
         file << ", Size" << indexChars[i];
     }
+
     file << ", LDD, LDC, LDA, LDB, TotalFlops";
+    if (csvExportExtraCols)
+        file << ", WinnerGFlops, WinnerTimeUS, WinnerIdx, WinnerName";
+
     for(unsigned int s = 0; s < numSolutions; s++)
     {
         file << ", " << solutions[s]._name;
@@ -2830,6 +2854,7 @@ void printClientUsage(std::string executableName)
     std::cout << "  " << keyNumSolutions << " [" << defaultNumSolutions << "]" << std::endl;
     std::cout << "  " << keyBenchmarkSolutions << " [" << defaultBenchmarkSolutions << "]"
               << std::endl;
+    std::cout << "  " << keyCSVExportExtraCols << " [" << defaultCSVExportExtraCols << "]" << std::endl;
 #endif
 }
 
@@ -2871,6 +2896,7 @@ void parseCommandLineParameters(int argc, char* argv[])
     solutionStartIdx      = defaultSolutionStartIdx;
     numSolutions          = defaultNumSolutions;
     runBenchmarkSolutions = defaultBenchmarkSolutions;
+    csvExportExtraCols    = defaultCSVExportExtraCols;
 #endif
 
     try
@@ -3119,6 +3145,11 @@ void parseCommandLineParameters(int argc, char* argv[])
             {
                 argIdx++;
                 runBenchmarkSolutions = static_cast<unsigned int>(atoi(argv[argIdx]));
+            }
+            else if(keyCSVExportExtraCols == argv[argIdx])
+            {
+                argIdx++;
+                csvExportExtraCols = static_cast<unsigned int>(atoi(argv[argIdx]));
             }
 #endif
             // unrecognized
