@@ -9,6 +9,7 @@ class KernelWriterConversion(KernelWriterBase):
     super().__init__()
 
     self.state["ProblemType"] = deepcopy(state["ProblemType"])
+    self.state["_GlobalAccumulation"] = state["_GlobalAccumulation"]
 
     # derive parameter
     self.language = "HIP"
@@ -35,9 +36,16 @@ class KernelWriterConversion(KernelWriterBase):
     kStr += "(" + self.endLine
 
     # pointers
+    restrictStr = "__restrict__"
     ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-    kStr += "  " + ptrStr + " * dst," + self.endLine
-    kStr += "  " + "float * src," + self.endLine
+    kStr += "  " + ptrStr + " * D," + self.endLine
+    kStr += "  " + "float * W," + self.endLine
+    ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
+    kStr += "  " + ptrStr + " const * " + restrictStr + " C," + self.endLine
+
+    # alpha & beta
+    kStr += "  %s const alpha,%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine)
+    kStr += "  %s const beta,%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine)
 
     # strides
     firstStrideCD = 1
@@ -45,15 +53,21 @@ class KernelWriterConversion(KernelWriterBase):
       firstStrideCD = 0
     lastStrideC = self.state["ProblemType"]["NumIndicesC"]
     for i in range(firstStrideCD, lastStrideC):
-      kStr += "  unsigned int const stride%s,%s" % (self.indexChars[i], self.endLine)
+      kStr += "  unsigned int const strideD%s,%s" % (self.indexChars[i], self.endLine)
+    for i in range(firstStrideCD, lastStrideC):
+      kStr += "  unsigned int const strideW%s,%s" % (self.indexChars[i], self.endLine)
+    for i in range(firstStrideCD, lastStrideC):
+      kStr += "  unsigned int const strideC%s,%s" % (self.indexChars[i], self.endLine)
 
     # sizes
     for i in range(0, self.state["ProblemType"]["NumIndicesC"]):
-      kStr += "  unsigned int const size%s" % self.indexChars[i]
-      kStr += "," if (i < self.state["ProblemType"]["NumIndicesC"]-1) else ")"
-      kStr += self.endLine
+      kStr += "  unsigned int const size%s,%s" % (self.indexChars[i], self.endLine)
+
+    # gsu
+    kStr += "  unsigned int const gsu)%s" % self.endLine
 
     return kStr
+
 
   def kernelBody(self):
     kStr = ""
@@ -72,18 +86,44 @@ class KernelWriterConversion(KernelWriterBase):
       kStr += "/* hard-coded initial strides */%s" % self.endLine
       lastStrideC = 1
     for i in range(firstStride, lastStrideC):
-      kStr += "#define stride" + self.indexChars[i] + " 1" + self.endLine
+      kStr += "#define strideD" + self.indexChars[i] + " 1" + self.endLine
+    for i in range(firstStride, lastStrideC):
+      kStr += "#define strideW" + self.indexChars[i] + " 1" + self.endLine
+    for i in range(firstStride, lastStrideC):
+      kStr += "#define strideC" + self.indexChars[i] + " 1" + self.endLine
 
     ########################################
     # GLOBAL_D()
-    kStr += "#define GLOBAL(IDX%s" % self.indexChars[0]
+    kStr += "#define GLOBAL_D(IDX%s" % self.indexChars[0]
     for i in range(1, problemType["NumIndicesC"]):
       kStr += ", IDX%s" % self.indexChars[i]
     indexChar = self.indexChars[0]
-    kStr += ") (( (IDX%s)*stride%s" % (indexChar, indexChar)
+    kStr += ") (( (IDX%s)*strideD%s" % (indexChar, indexChar)
     for i in range(1, problemType["NumIndicesC"]):
       indexChar = self.indexChars[i]
-      kStr += " + (IDX%s)*stride%s" % (indexChar, indexChar)
+      kStr += " + (IDX%s)*strideD%s" % (indexChar, indexChar)
+    kStr += " ))" + self.endLine
+
+    # GLOBAL_W()
+    kStr += "#define GLOBAL_W(IDX%s" % self.indexChars[0]
+    for i in range(1, problemType["NumIndicesC"]):
+      kStr += ", IDX%s" % self.indexChars[i]
+    indexChar = self.indexChars[0]
+    kStr += ") (( (IDX%s)*strideW%s" % (indexChar, indexChar)
+    for i in range(1, problemType["NumIndicesC"]):
+      indexChar = self.indexChars[i]
+      kStr += " + (IDX%s)*strideW%s" % (indexChar, indexChar)
+    kStr += " ))" + self.endLine
+
+    # GLOBAL_C()
+    kStr += "#define GLOBAL_C(IDX%s" % self.indexChars[0]
+    for i in range(1, problemType["NumIndicesC"]):
+      kStr += ", IDX%s" % self.indexChars[i]
+    indexChar = self.indexChars[0]
+    kStr += ") (( (IDX%s)*strideC%s" % (indexChar, indexChar)
+    for i in range(1, problemType["NumIndicesC"]):
+      indexChar = self.indexChars[i]
+      kStr += " + (IDX%s)*strideC%s" % (indexChar, indexChar)
     kStr += " ))" + self.endLine
 
     ########################################
@@ -120,16 +160,40 @@ class KernelWriterConversion(KernelWriterBase):
 
     ########################################
     # D index
-    kStr += "  %s idx = GLOBAL( (%s)" % (self.uint64Str, self.uint64Str)
+    kStr += "  %s idxD = GLOBAL_D( (%s)" % (self.uint64Str, self.uint64Str)
     kStr += ', '.join(["wg%s" % self.indexChars[i] if i in problemType["IndicesBatch"] else "global%s" % self.indexChars[i] \
                       for i in range(problemType["NumIndicesC"])])
     kStr += ");%s" % (self.endLine)
 
+    # W index
+    kStr += "  %s idxW = GLOBAL_W( (%s)" % (self.uint64Str, self.uint64Str)
+    kStr += ', '.join(["wg%s" % self.indexChars[i] if i in problemType["IndicesBatch"] else "global%s" % self.indexChars[i] \
+                      for i in range(problemType["NumIndicesC"])])
+    kStr += ");%s" % (self.endLine)
+
+    # D index
+    kStr += "  %s idxC = GLOBAL_C( (%s)" % (self.uint64Str, self.uint64Str)
+    kStr += ', '.join(["wg%s" % self.indexChars[i] if i in problemType["IndicesBatch"] else "global%s" % self.indexChars[i] \
+                      for i in range(problemType["NumIndicesC"])])
+    kStr += ");%s" % (self.endLine)
 
     ########################################
-    # zero
+    # multi buffers GSU: Accumulate all GSU buffer
+    indexChar = self.indexChars[0]
+    kStr += "  %s strideW = 1 + (size%s - 1) * strideW%s" % (self.uint64Str, indexChar, indexChar)
+    for i in range(1, problemType["NumIndicesC"]):
+      indexChar = self.indexChars[i]
+      kStr += " + (size%s - 1) * strideW%s" % (indexChar, indexChar)
+    kStr += ";" + self.endLine
+
+    kStr += "  float accum = 0.0f;%s" % self.endLine
+    kStr += "  for (int i=0; i<gsu; i++) {%s" % self.endLine
+    kStr += "    accum += W[idxW];%s" % self.endLine
+    kStr += "    idxW  += strideW;%s" % self.endLine
+    kStr += "  }%s" % self.endLine
+
     typeStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-    kStr += "    dst[idx] = ((%s)(src[idx]));%s" % (typeStr, self.endLine)
+    kStr += "  D[idxD] = (%s)(((float)alpha) * accum + ((float)beta) * ((float)C[idxC])); %s" % (typeStr, self.endLine)
 
     ########################################
     # end
@@ -149,7 +213,7 @@ class KernelWriterConversion(KernelWriterBase):
       name += indexChars[i].lower()
     name += "_"
     name += self.state["ProblemType"]["DestDataType"].toChar()
-    name += "_Convert"
+    name += "_PostGSU"
 
     return name
 

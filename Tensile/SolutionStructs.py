@@ -1704,6 +1704,7 @@ class Solution:
       state = {}
       state["ProblemType"] = deepcopy(self["ProblemType"])
       state["KernelLanguage"] = "Source"
+      state["_GlobalAccumulation"] = self["_GlobalAccumulation"]
       self.conversionKernelObjects.append(KernelWriterConversion(state))
 
 
@@ -2216,12 +2217,19 @@ class Solution:
         #del state[s]
 
     dataType = state["ProblemType"]["DataType"]
-    state["_GlobalAccumulation"] = (dataType.isBFloat16() or dataType.isHalf()) \
-                                 and state["ProblemType"]["HighPrecisionAccumulate"] \
-                                 and state["GlobalSplitU"] > 1 \
-                                 and state["EnableMatrixInstruction"]
+    state["_GlobalAccumulation"] = 0
+    if ((dataType.isBFloat16() or dataType.isHalf())
+      and state["ProblemType"]["HighPrecisionAccumulate"] \
+      and state["GlobalSplitU"] > 1 \
+      and state["EnableMatrixInstruction"]):
+      state["_GlobalAccumulation"] = state["GlobalSplitUAlgorithm"]
 
-    state["_WorkspaceSizePerElemC"] = 4 if state["_GlobalAccumulation"] else 0
+    if state["_GlobalAccumulation"] == 1:
+      state["_WorkspaceSizePerElemC"] = 4
+    elif state["_GlobalAccumulation"] == 2:
+      state["_WorkspaceSizePerElemC"] = 4 * state["GlobalSplitU"]
+    else:
+      state["_WorkspaceSizePerElemC"] = 0
 
     if state["VectorStore"] == -1:
         state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel
@@ -2910,8 +2918,8 @@ class Solution:
       if not state["EnableMatrixInstruction"]:
         reject(state, "storeRemap only support MaxtrixInstruction kernel")
         return
-      if state["GlobalSplitU"] > 1:
-        reject(state, "storeRemap doesn't support GlobalSplitU yet")
+      if (state["GlobalSplitU"] > 1) and (state["_GlobalAccumulation"] != 2):
+        reject(state, "storeRemap doesn't support GlobalSplitU yet, except GSU algorithm 2")
         return
       if packedC0 or packedC1:
         reject(state, "storeRemap doesn't support packedC0 and packedC1 yet")
@@ -2932,7 +2940,8 @@ class Solution:
       storeInstMinWidth = 1 # minimum dwordx1
       storeInstMaxWidth = 4 # maximum dwordx4
       srMinVw = max(storeInstMinWidth, int(storeInstMinWidth/state["ProblemType"]["DataType"].numRegisters()))
-      srMaxVw = int(storeInstMaxWidth/state["ProblemType"]["DataType"].numRegisters())
+      numReg  = 1 if state["_GlobalAccumulation"] else state["ProblemType"]["DataType"].numRegisters()
+      srMaxVw = int(storeInstMaxWidth/numReg)
       if srMinVw > state["StoreRemapVectorWidth"] or srMaxVw < state["StoreRemapVectorWidth"]:
         reject(state, "StoreRemapVectorWidth %u is not allowed for this data type" % state["StoreRemapVectorWidth"])
         return
@@ -2947,6 +2956,7 @@ class Solution:
         return
       ldsRemapPad = max(state["StoreRemapVectorWidth"],state["MIOutputVectorWidth"])
       ldsNumElementsRemapC = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"] * state["MIWaveGroup"][1]
+      ldsNumElementsRemapC *= (2 if state["_GlobalAccumulation"] else 1) # FP32 output FP16 Data
       #print("ldsNumElementsRemapC=%u" % ldsNumElementsRemapC)
       ldsNumElements = max(ldsNumElements, ldsNumElementsRemapC)
 

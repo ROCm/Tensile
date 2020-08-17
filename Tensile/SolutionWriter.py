@@ -434,13 +434,25 @@ class SolutionWriter:
     s += "\n"
     s += "%sint kernelsLaunched=0;\n" % (t)
 
+
+    ########################################
+    # Parameter for Global Accumulation
+    ########################################
+    numStridesC = problemType["NumIndicesC"] - (0 if problemType["UseInitialStridesCD"] else 1)
+    if kernel["_GlobalAccumulation"]:
+      tmpStr = "1"
+      WSstrides = ["strideW%s" % self.indexChars[0]] if problemType["UseInitialStridesCD"] else []
+      s += ("%sunsigned int %s = %s;\n" % (t, WSstrides[0], tmpStr)) if problemType["UseInitialStridesCD"] else ""
+      for i in range(1, problemType["NumIndicesC"]):
+        tmpStr += "*size%s" % self.indexChars[i-1]
+        WSstrides.append("strideW%s" % self.indexChars[i])
+        s += "%sunsigned int %s = %s;\n" % (t, WSstrides[-1], tmpStr)
+
     ########################################
     # Enqueue Beta-Only Kernel
     ########################################
-    if gsu > 1:
+    if gsu > 1 and kernel["_GlobalAccumulation"] != 2:
       kernelNamesBetaOnly = []
-      numStridesC = problemType["NumIndicesC"] - \
-          (0 if problemType["UseInitialStridesCD"] else 1)
       for ko in solution.getKernelBetaOlnyObjects():
         kernelName = ko.getKernelName()
         kernelNamesBetaOnly.append(kernelName)
@@ -534,7 +546,13 @@ class SolutionWriter:
         s += "%sworkspace,\n" % (t) if solution["_GlobalAccumulation"] else ("%sdataD,\n" % (t))
         s += "%sdataC,\n" % (t)
         # strides
-        for i in range(0,numStridesC*2):
+        if kernel["_GlobalAccumulation"]:
+          for i in range(0, numStridesC):
+            s += "%s%s,\n" % (t, WSstrides[i])
+        else:
+          for i in range(0, numStridesC):
+            s += "%s%s,\n" % (t, self.strideList[i])
+        for i in range(numStridesC, numStridesC*2):
           s += "%s%s,\n" % (t, self.strideList[i])
         # sizes
         for i in range(0, problemType["NumIndicesC"]):
@@ -558,7 +576,13 @@ class SolutionWriter:
           s += ("%sworkspace,\n") % (t) if solution["_GlobalAccumulation"] else ("%sdataD,\n" % (t))
           s += "%sdataC,\n" % (t)
           # strides
-          for i in range(0,numStridesC*2):
+          if kernel["_GlobalAccumulation"]:
+            for i in range(0, numStridesC):
+              s += "%s%s,\n" % (t, WSstrides[i])
+          else:
+            for i in range(0, numStridesC):
+              s += "%s%s,\n" % (t, self.strideList[i])
+          for i in range(numStridesC, numStridesC*2):
             s += "%s%s,\n" % (t, self.strideList[i])
           # sizes
           for i in range(0, problemType["NumIndicesC"]):
@@ -765,8 +789,16 @@ class SolutionWriter:
             else:
               s += "%shipFunctionArgs.beta = beta;\n" % (t)
           # strides
-          for stride in self.strideList:
-            s += "%shipFunctionArgs.%s = %s;\n" % (t, stride, stride)
+          if kernel["_GlobalAccumulation"]:
+            for i in range(0, numStridesC):
+              s += "%shipFunctionArgs.%s = %s;\n" % (t, self.strideList[i], WSstrides[i])
+            for i in range(0, numStridesC):
+              s += "%shipFunctionArgs.%s = %s;\n" % (t, self.strideList[i+numStridesC], WSstrides[i])
+            for i in range(numStridesC*2, len(self.strideList)):
+              s += "%shipFunctionArgs.%s = %s;\n" % (t, self.strideList[i], self.strideList[i])
+          else:
+            for stride in self.strideList:
+              s += "%shipFunctionArgs.%s = %s;\n" % (t, stride, stride)
           # sizes
           for i in range(0, problemType["TotalIndices"]):
             lastParam = i == problemType["TotalIndices"]-1
@@ -823,7 +855,7 @@ class SolutionWriter:
           s += "%sNULL,\n" % (t)
           s += "%s(void**)hipLaunchParams\n" % (t)
           if globalParameters["PreciseKernelTime"]:
-            if gsu > 1:
+            if gsu > 1 and kernel["_GlobalAccumulation"] != 2:
               s += "%s,nullptr\n" %(t)
             else:
               s += "%s,inputEvents ? inputEvents[enqueueIdx]:nullptr\n" %(t)
@@ -869,7 +901,6 @@ class SolutionWriter:
     # Enqueue Kernel for Global Accumultation Buffer
     ###################################################
     if solution["_GlobalAccumulation"]:
-      numStridesC = problemType["NumIndicesC"] - (0 if problemType["UseInitialStridesCD"] else 1)
       for ko in solution.getKernelConversionObjects():
         kernelName = ko.getKernelName()
         s += "%s// enqueue GSU third kernel\n" % (t)
@@ -943,12 +974,20 @@ class SolutionWriter:
           s += "%sstream,\n" % (t)
           s += "%sdataD,\n" % (t)
           s += "%sworkspace,\n" % (t)
+          s += "%sdataC,\n" % (t)
+          s += "%s%s,\n" % (t, "alpha" if kernel["_GlobalAccumulation"] == 2 else "1")
+          s += "%s%s,\n" % (t, "beta" if (kernel["_GlobalAccumulation"] == 2 and problemType["UseBeta"]) else "0")
           # strides
-          for i in range(0,numStridesC):
+          for i in range(0, numStridesC):
+            s += "%s%s,\n" % (t, self.strideList[i])
+          for i in range(0, numStridesC):
+            s += "%s%s,\n" % (t, WSstrides[i])
+          for i in range(numStridesC, numStridesC*2):
             s += "%s%s,\n" % (t, self.strideList[i])
           # sizes
           for i in range(0, problemType["NumIndicesC"]):
-            s += "%ssize%s%s" % (t, self.indexChars[i], ",\n" if i < problemType["NumIndicesC"]-1 else ");\n")
+            s += "%ssize%s%s" % (t, self.indexChars[i], ",\n")
+          s += "%s%u);\n" % (t, (solution["GlobalSplitU"] if kernel["_GlobalAccumulation"] == 2 else 1))
           t = t[:-2]
           s += "%sif( outputEvent != NULL )\n" % (t)
           s += "%s  hipEventRecord(outputEvent[0], stream );\n" % (t)

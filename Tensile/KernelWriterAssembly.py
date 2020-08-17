@@ -1116,28 +1116,27 @@ class KernelWriterAssembly(KernelWriter):
 
     # registers per element
     self.bpr = 4 # all registers are 32bit
-    self.bpeAB = int(self.bpr*\
-        kernel["ProblemType"]["DataType"].numRegisters())
-    self.bpeCexternal = int(self.bpr*\
-        kernel["ProblemType"]["DataType"].numRegisters())
+    self.bpeAB = int(self.bpr * kernel["ProblemType"]["DataType"].numRegisters())
+    self.bpeCexternal = int(self.bpr * kernel["ProblemType"]["DataType"].numRegisters())
+    self.bpeDexternal = int(self.bpr * kernel["ProblemType"]["DataType"].numRegisters())
+
     #jgolds Need to check device for support
     if kernel["ProblemType"]["HighPrecisionAccumulate"]:
         if kernel["ProblemType"]["DataType"].isHalf():
             self.bpeCinternal = int(self.bpr*1)
+            self.bpeDexternal = int(self.bpr*1) if kernel["_GlobalAccumulation"] else self.bpeDexternal
         elif kernel["ProblemType"]["DataType"].isBFloat16():
             self.bpeCinternal = int(self.bpr*1)
-            # print("need_replacement_kernel %s" % self.kernelName)
+            self.bpeDexternal = int(self.bpr*1) if kernel["_GlobalAccumulation"] else self.bpeDexternal
         elif kernel["ProblemType"]["DataType"].isInt8x4():
             # numRegisters for Int8x4 = numRegisters for float = 1
             self.bpeCinternal = int(self.bpr* kernel["ProblemType"]["DataType"].numRegisters())
         else:
             print("HighPrecisionAccumulate only valid when DataType is half, Int8x4.")
-            self.bpeCinternal = int(self.bpr*\
-                kernel["ProblemType"]["DataType"].numRegisters())
+            self.bpeCinternal = int(self.bpr*kernel["ProblemType"]["DataType"].numRegisters())
             kernel["ProblemType"]["HighPrecisionAccumulate"] = False
     else:
-        self.bpeCinternal = int(self.bpr*\
-            kernel["ProblemType"]["DataType"].numRegisters())
+        self.bpeCinternal = int(self.bpr * kernel["ProblemType"]["DataType"].numRegisters())
     assert self.bpeAB == tPA["bpe"]
     assert self.bpeAB == tPB["bpe"]
     # registers per global address
@@ -8347,8 +8346,7 @@ class KernelWriterAssembly(KernelWriter):
         strideC = "StrideC%s"%self.indexChars[i]
         kStr += self.s_mul_u64_u32(sgpr(tmpS0), sgpr(tmpS1), coord, sgpr(strideC), "CScale %s by Stride"%coord)
         #kStr += assert_no_shift_of(tmpS1, log2(self.bpeCexternal), "Need temp")
-        tmpBpe = self.bpeCinternal if kernel["_GlobalAccumulation"] else self.bpeCexternal
-        kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(tmpBpe), "scale by bpe")
+        kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(self.bpeDexternal), "scale by bpe")
 
         kStr += inst("s_add_u32",  sgpr("SrdC+0"), sgpr("SrdC+0"), sgpr(tmpS0), "add lo to SRD")
         kStr += inst("s_addc_u32", sgpr("SrdC+1"), sgpr("SrdC+1"), sgpr(tmpS1), "add hi to SRD")
@@ -8358,12 +8356,27 @@ class KernelWriterAssembly(KernelWriter):
           stride = "StrideD%s" % (self.indexChars[i])
           kStr += self.s_mul_u64_u32(sgpr(tmpS0), sgpr(tmpS1), coord, sgpr(stride), "Scale %s by Stride"%coord)
           #kStr += assert_no_shift_of(tmpS1, log2(self.bpeCexternal), "Need temp")
-          kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(tmpBpe), "scale by bpe")
+          kStr += inst("s_lshl_b64", sgpr(tmpS0,2), sgpr(tmpS0,2), log2(self.bpeDexternal), "scale by bpe")
 
         kStr += inst("s_add_u32",  sgpr("SrdD+0"), sgpr("SrdD+0"), sgpr(tmpS0), "add lo to SRD")
         kStr += inst("s_addc_u32", sgpr("SrdD+1"), sgpr("SrdD+1"), sgpr(tmpS1), "add hi to SRD")
 
         kStr += "\n"
+
+    if kernel["_GlobalAccumulation"] == 2:
+      # GSU algoritm 2: adjust output buffer address to per GSU buffer
+      tmpSgpr = self.getTmpSgpr(5).idx()
+      kStr += "// GSU Output Buffer offset: Free0 + (Free1-1)*StrideC1J + (Free2-1)*StrideCK * GSUIdx * bpe%s" % self.endLine
+      kStr += self.s_mul_u64_u32(sgpr(tmpSgpr+0), sgpr(tmpSgpr+1), sgpr("SizesFree+0"), sgpr("GSUSumIdx"), "Free0")
+      for i in range(1, numDim):
+        kStr += inst("s_sub_u32",  sgpr(tmpSgpr+4), sgpr("SizesFree+%u"%i), 1, "Free%u" % i)
+        kStr += inst("s_mul_i32",  sgpr(tmpSgpr+4), sgpr(tmpSgpr+4), sgpr("GSUSumIdx"), "Free%u" % i)
+        kStr += self.s_mul_u64_u32(sgpr(tmpSgpr+2), sgpr(tmpSgpr+3), sgpr(tmpSgpr+4), sgpr("StrideC%s"%self.indexChars[i]), "Free%u" % i)
+        kStr += inst("s_add_u32",  sgpr(tmpSgpr+0), sgpr(tmpSgpr+0), sgpr(tmpSgpr+2), "Free%u" % i)
+        kStr += inst("s_addc_u32", sgpr(tmpSgpr+1), sgpr(tmpSgpr+1), sgpr(tmpSgpr+3), "Free%u" % i)
+      kStr += inst("s_lshl_b64", sgpr(tmpSgpr+0,2), sgpr(tmpSgpr+0,2), log2(self.bpeDexternal), "scale by bpe")
+      kStr += inst("s_add_u32",  sgpr("SrdD+0"), sgpr("SrdD+0"), sgpr(tmpSgpr+0), "add lo GSU offset to SRD")
+      kStr += inst("s_addc_u32", sgpr("SrdD+1"), sgpr("SrdD+1"), sgpr(tmpSgpr+1), "add hi GSU offset to SRD")
 
     for cdir in (0,1):
       indices = kernel["PackedC%uIndicesX"%cdir]
@@ -8731,7 +8744,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Return max global write vector width, in elements
   def maxGwvw(self, kernel):
-    atomic = kernel["GlobalSplitU"] > 1
+    atomic = (kernel["GlobalSplitU"] > 1) and (kernel["_GlobalAccumulation"] != 2)
 
     if kernel["BufferStore"]:
       if atomic:
@@ -8827,11 +8840,11 @@ class KernelWriterAssembly(KernelWriter):
     """
     kStr = ""
 
-    bps = kernel["ProblemType"]["DataType"].numBytes() * ss.cfg.gwvw
-    rpv = kernel["ProblemType"]["DataType"].numRegisters() * ss.cfg.gwvw
+    bps = self.bpeDexternal * ss.cfg.gwvw
+    rpv = self.bpeDexternal * ss.cfg.gwvw / self.bpr
 
     addr0 = vgpr(self.storeRemapLW)
-    offset =  addrCalc.coordOffset0 * self.bpeCexternal
+    offset =  addrCalc.coordOffset0 * self.bpeDexternal
 
     if bps==2:
       kStr += inst("ds_write_b16", addr0, vgpr(srcVgpr, rpv*2), \
@@ -8866,10 +8879,11 @@ class KernelWriterAssembly(KernelWriter):
 
     gwvw = kernel["StoreRemapVectorWidth"]
     nElements = kernel["MacroTile0"]*kernel["MatrixInstN"]//kernel["MIWaveGroup"][0]//globalParameters["WavefrontWidth"]
-    bpe = kernel["ProblemType"]["DataType"].numBytes()
-    bps = kernel["ProblemType"]["DataType"].numBytes() * gwvw
-    rpe = kernel["ProblemType"]["DataType"].numRegisters()
-    rpv = kernel["ProblemType"]["DataType"].numRegisters() * gwvw
+
+    bpe = self.bpeDexternal
+    bps = bpe * gwvw
+    rpe = self.bpeDexternal / self.bpr
+    rpv = rpe * gwvw
 
     # num registers to check out
     storeRegs = []
@@ -8923,8 +8937,8 @@ class KernelWriterAssembly(KernelWriter):
       coord1 = coord0+1
       lrVw = kernel["StoreRemapVectorWidth"]
       edgeVw = min(kernel["AssertFree0ElementMultiple"],kernel["StoreRemapVectorWidth"])
-      bps = kernel["ProblemType"]["DataType"].numBytes() * edgeVw
-      rpv = kernel["ProblemType"]["DataType"].numRegisters() * edgeVw
+      bps = self.bpeDexternal * edgeVw
+      rpv = self.bpeDexternal / self.bpr * edgeVw
       for rIdx, i in enumerate(range(0, nElements, lrVw)):
         for vi in range (0, lrVw, edgeVw):
 
@@ -9035,7 +9049,7 @@ class KernelWriterAssembly(KernelWriter):
       vgpr(storeRemapLW), \
       vgpr(tmpV0), \
       vgpr(coord0), \
-      hex(log2(self.bpeCexternal)), \
+      hex(log2(self.bpeDexternal)), \
       "local write C address")
 
     kStr += "\n"
@@ -9069,7 +9083,7 @@ class KernelWriterAssembly(KernelWriter):
       vgpr(storeRemapLR), \
       vgpr(tmpV0), \
       vgpr(coord0), \
-      hex(log2(self.bpeCexternal)), \
+      hex(log2(self.bpeDexternal)), \
       "local read C address")
     kStr += "\n"
 
@@ -9247,8 +9261,7 @@ class KernelWriterAssembly(KernelWriter):
           regsPerElement = 2 if kernel["BufferStore"] else 3
           # The atomic loop processes multiple elements in single instruction
           # so will use VGPR from consec elements? TODO
-          tmpBpe = kernelWriter.bpeCinternal if kernel["_GlobalAccumulation"] else kernelWriter.bpeCexternal
-          self.numVgprsPerDataPerVI = (1.0 * regsPerElement * tmpBpe) / kernelWriter.bpr
+          self.numVgprsPerDataPerVI = (1.0 * regsPerElement * kernelWriter.bpeDexternal) / kernelWriter.bpr
         elif beta:
           self.numVgprsPerDataPerVI = (1.0 * kernelWriter.bpeCexternal) / kernelWriter.bpr
         else:
@@ -9554,7 +9567,7 @@ class KernelWriterAssembly(KernelWriter):
 
       if ss.optSingleColVgpr:
         # optimized stores use the load offset for coordOffset0 calculations.
-        self.globalOffset = coordOffset0 * kernelWriter.bpeCexternal
+        self.globalOffset = coordOffset0 * kernelWriter.bpeDexternal
       else:
         # else non-opt stores include the coord0 offset into VGPR address calcs
         self.globalOffset = 0
@@ -9722,7 +9735,7 @@ class KernelWriterAssembly(KernelWriter):
               vgpr(self.addrVgpr), \
               vgpr(kw.cinRowPtr), \
               vgpr(elementVgpr), \
-              hex(log2(kw.bpeCexternal)), \
+              hex(log2(kw.bpeDexternal)), \
               "optSingleColVgpr scaleToBpe: sharedAddrVgpr <- cinRowPtr + coord0, scaled by BPE. BSHERE:coord0=%d, coord0Vgpr=%d"%(kw.coord0, self.coord0Vgpr))
         elif ss.optSharedColVgpr:
           # Need an address calculation for the first address in each row:
@@ -9750,12 +9763,11 @@ class KernelWriterAssembly(KernelWriter):
             kStr += self.emitExtractAndScalePackedDims(kernel, ss, beta, atomic, tmpVgpr, 'C')
           else:
             updatedAddr = True
-            tmpBpe = kw.bpeCinternal if kernel["_GlobalAccumulation"] else kw.bpeCexternal
             kStr += inst("_v_add_lshl_u32", \
                 vgpr(self.addrVgpr), \
                 vgpr(kw.cinRowPtr), \
                 vgpr(elementVgpr), \
-                hex(log2(tmpBpe)), \
+                hex(log2(kw.bpeDexternal)), \
                 "scaleToBpe: accumulate d0 lower and *= bpe into Cin addr")
 
         # if not optSrdIncForRow then we may have moved the row pointer
@@ -9837,7 +9849,7 @@ class KernelWriterAssembly(KernelWriter):
                         sgpr(sTmp1,2), "set new rowStart if meet conditions" )
           if kernel["StoreRemapVectorWidth"]:
             ldsPad = max(kernel["StoreRemapVectorWidth"],kernel["MIOutputVectorWidth"])
-            kStr += inst("v_mov_b32", vgpr(vTmp1), hex((kernel["MacroTile0"]+ldsPad)*kw.bpeCexternal), \
+            kStr += inst("v_mov_b32", vgpr(vTmp1), hex((kernel["MacroTile0"]+ldsPad)*kw.bpeDexternal), \
                         "lds byte stride = (MT0 + PAD) * bpe")
             kStr += inst("v_mad_i32_i24", vgpr(vTmp1), vgpr(vTmp1), vgpr(vTmp2), vgpr(kw.storeRemapLW), \
                         "new lds write address += shift column * Lds byte Stride")
@@ -9930,6 +9942,7 @@ class KernelWriterAssembly(KernelWriter):
     def incrementToNextRow(self, kernel, tc, ss, stmp):
       kStr = ""
       numRows = self.rowInc
+      tmpBpe = self.kernelWriter.bpeCexternal if (tc == 'C') else self.kernelWriter.bpeDexternal
       if ss.optSrdIncForRow:
         if numRows:
           packedC1 = kernel["PackedC1IndicesX"]
@@ -9938,13 +9951,13 @@ class KernelWriterAssembly(KernelWriter):
           if numRows > 1:
             kStr += inst("s_mul_i32", sgpr(stmp), \
                          sgpr(strideCD1), \
-                         numRows*self.kernelWriter.bpeCexternal, \
+                         numRows*tmpBpe, \
                          "scale Stride%s *= numRows(%u) * bpe"%(tc,numRows))
           else:
             kStr += inst("s_lshl_b32 ", \
                   sgpr(stmp), \
                   sgpr(strideCD1), \
-                  log2(self.kernelWriter.bpeCexternal), \
+                  log2(tmpBpe), \
                   "incToNextRow: Scale by BPE")
 
           kStr += inst("s_add_u32 ", \
@@ -10096,13 +10109,14 @@ class KernelWriterAssembly(KernelWriter):
                           edges=None):
     if not self.do["PostLoop"]: return ""
     kStr = ""
-    atomic = kernel["GlobalSplitU"] > 1
+    atomic = (kernel["GlobalSplitU"] > 1) and (kernel["_GlobalAccumulation"] != 2)
 
 
     # write possibilities and labels
     # if beta/edge combo not specified fall back to global param definition
     if betas is None:
-      betas = [False, True] if kernel["ProblemType"]["UseBeta"] else [False]
+      hasBeta = kernel["ProblemType"]["UseBeta"] and (kernel["_GlobalAccumulation"] != 2)
+      betas = [False, True] if hasBeta else [False]
     if edges is None:
       edges = [False, True] if self.do["EdgeWrite"] else [False]
     writeLabels = {}
@@ -10507,8 +10521,9 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["NonTemporalC"]//2==1:
         ntStr += " slc"
 
-      bps = kernel["ProblemType"]["DataType"].numBytes() * ss.cfg.gwvw
-      rpv = kernel["ProblemType"]["DataType"].numRegisters() * ss.cfg.gwvw
+      bps = self.bpeDexternal * ss.cfg.gwvw
+      rpv = self.bpeDexternal * ss.cfg.gwvw / self.bpr
+
       if kernel["BufferStore"]:
         addr0 = vgpr(addrCalc.addrVgpr)
         addr1 = sgpr("SrdD", 4)
@@ -10757,7 +10772,7 @@ class KernelWriterAssembly(KernelWriter):
           # iterate over number of atomic operations to perform, each of width atomicW
           for avi in range(0, gwvw//atomicW):
             dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
-            bpm = self.bpeCinternal * atomicW if kernel["_GlobalAccumulation"] else self.bpeCexternal * atomicW
+            bpm = self.bpeDexternal * atomicW
             useBuffer = kernel["BufferStore"]
             if kernel["BufferStore"]: # yes, BufferStore here - use same addressing regs for this load
               addr0 = vgpr(addr)
@@ -10838,7 +10853,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # rC *= alpha
-    if not kernel["InterleaveAlpha"] and applyAlpha:
+    if not kernel["InterleaveAlpha"] and applyAlpha and (kernel["_GlobalAccumulation"] != 2):
       kStr += self.comment("rC *= alpha batchEements=%s"%batchElements)
       for elementIdx in range(0, len(batchElements)):
         kStr += self.applyAlpha(kernel, gwvw, ss.elementSumIdx, elementIdx, tmpS01)
@@ -10949,7 +10964,7 @@ class KernelWriterAssembly(KernelWriter):
             if kernel["ProblemType"]["DataType"].numRegisters() < 1 and not kernel["_GlobalAccumulation"]:
               sumIdxV //= 2
             if kernel["ProblemType"]["DataType"].isDouble(): sumIdxV = sumIdxV * 2
-            bpm = self.bpeCinternal * atomicW if kernel["_GlobalAccumulation"] else self.bpeCexternal * atomicW
+            bpm = self.bpeDexternal * atomicW
             # Calculate vgpr Indx for 32-bit/64-bit instruction
             # DGEMM use SRCS[2] register
             vgprIdx = 1*(bpm//4)
@@ -11069,7 +11084,7 @@ class KernelWriterAssembly(KernelWriter):
           mask = ss.elementMask[elementIdx]
           bps = kernel["ProblemType"]["DataType"].numBytes()
           vgprCnt = 2 if kernel["ProblemType"]["DataType"].isDouble() else 1   # number of registers for f32/f64
-          bpm = self.bpeCinternal * atomicW if kernel["_GlobalAccumulation"] else self.bpeCexternal * atomicW
+          bpm = self.bpeDexternal * atomicW
           vgprIdx = 1*(bpm//4)   # index register
 
           for avi in range(0, gwvw//atomicW):
@@ -11320,18 +11335,17 @@ class KernelWriterAssembly(KernelWriter):
               kStr += "v_fma_f64 %s, %s, %s, %s%s" % (vgpr("ValuC+%u"%(sumIdxV*4+2),2), vgpr(dataV+2,2), sgpr("Beta+0",2), vgpr("ValuC+%u"%(sumIdxV*4+2),2), self.endLine)
 
         # pack stores, beta and non-beta reach here:
-        for vi in range(0, gwvw):
-          sumIdxV = ss.elementSumIdx[elementIdx] + vi
-          if kernel["ProblemType"]["DataType"].isHalf():
-            if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+        if kernel["ProblemType"]["HighPrecisionAccumulate"] and (kernel["_GlobalAccumulation"] != 2):
+          for vi in range(0, gwvw):
+            sumIdxV = ss.elementSumIdx[elementIdx] + vi
+            if kernel["ProblemType"]["DataType"].isHalf():
               kStr += inst("v_cvt_f16_f32", vgpr("ValuC+%u"%sumIdxV), vgpr("ValuC+%u"%sumIdxV), "convert C to fp16" )
               if vi%2 == 1:
                 assert (gwvw % 2 == 0)
                 d = ss.elementSumIdx[elementIdx] + vi//2
                 kStr += inst("v_pack_b32_f16", vgpr(d), vgpr("ValuC+%u"%(sumIdxV-1)), vgpr("ValuC+%u"%sumIdxV), "Pack with neighbor" )
 
-          elif kernel["ProblemType"]["DataType"].isBFloat16():
-            if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+            elif kernel["ProblemType"]["DataType"].isBFloat16():
               kStr += inst("v_cmp_u_f32", sgpr(tmpS01,2), vgpr("ValuC+%u"%sumIdxV), vgpr("ValuC+%u"%sumIdxV), "check Nan" )
               kStr += inst("v_bfe_u32", vgpr(vgprBf16Temp), vgpr("ValuC+%u"%sumIdxV), "16", "1", "Non-Nan case: store lsb of bf16" )
               kStr += inst("v_add3_u32", vgpr(vgprBf16Temp), vgpr("ValuC+%u"%sumIdxV), vgpr(vgprBf16Temp), vgpr(vgprBf16Inc), "Non-Nan case: add lsb and the increment for rounding" )

@@ -316,8 +316,9 @@ class ProblemPredicate(Properties.Predicate):
         if "KernelLanguage" in state:
             rv += [cls("KernelLanguageCompatible", value=state["KernelLanguage"])]
 
-        if 'GlobalSplitU' in state and state['GlobalSplitU'] > 1:
-            rv += [cls("DeterministicMode", value = False)]
+        if ('GlobalSplitU' in state) and (state['GlobalSplitU'] > 1):
+            if ('_GlobalAccumulation' not in state) or (state['_GlobalAccumulation'] != 2):
+                rv += [cls("DeterministicMode", value = False)]
 
         if 'PersistentKernel' in state and state['PersistentKernel']:
             rv += [cls("PersistentKernelCheck", value = True)]

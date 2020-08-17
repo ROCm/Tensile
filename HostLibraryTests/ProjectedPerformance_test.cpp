@@ -72,7 +72,7 @@ ContractionSolution::SizeMapping makeSizeMapping(Tensile::dim3 workGroupSize,
     sizeMapping.persistentKernel           = 0;
     sizeMapping.persistentKernelAlongBatch = false;
 
-    sizeMapping.globalAccumulation    = false;
+    sizeMapping.globalAccumulation    = 0;
     sizeMapping.workspaceSizePerElemC = 0;
 
     return sizeMapping;
