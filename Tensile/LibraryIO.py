@@ -25,16 +25,23 @@ from . import __version__
 from . import Common
 from . import SolutionLibrary
 import os
+import subprocess
 
 try:
   import yaml
 except ImportError:
-  printExit("You must install PyYAML to use Tensile (to parse config files). See http://pyyaml.org/wiki/PyYAML for installation instructions.")
+  print("yaml module not found, attempting to install pyyaml using pip3")
+  subprocess.check_call(['python3', '-m', 'pip3', 'install', 'pyyaml'])
+finally:
+  import yaml
 
 try:
   import msgpack
 except ImportError:
-  printExit("You must install MessagePack for Python to use Tensile (to parse config files). See https://github.com/msgpack/msgpack-python for installation instructions.")
+  print("msgpack module not found, attempting to install msgpack using pip3")
+  subprocess.check_call(['python3', '-m', 'pip3', 'install', 'msgpack'])
+finally:
+  import msgpack
 
 ################################################################################
 # Read Benchmark Config from YAML Files
