@@ -871,7 +871,7 @@ class KernelWriterSource(KernelWriter):
 
     # sizes
     for i in range(0, kernel["ProblemType"]["TotalIndices"]):
-      s += "," + self.endLine + "  unsigned int const size" + self.indexChars[i]
+      s += "," + self.endLine + "  unsigned int size" + self.indexChars[i]
 
     for idxChar in self.magicSumChars:
       s += ",%s  unsigned magicNumberNumIter%s /*PSD*/" % (self.endLine, idxChar)
@@ -1906,6 +1906,9 @@ class KernelWriterSource(KernelWriter):
         #kStr += "if (serial==0) printf(\\\"WG%u_%u TK:%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
     else:
       kStr += self.endLine + "  /* Compute summation loop num iter */" + self.endLine
+
+      kStr += self.endLine + "  /* Short circuit check alpha=0, skip A*B */" + self.endLine
+      kStr += self.indent + "if(alpha == 0.0f) size%s = 0;"%(loopChar) + self.endLine
 
       if loopIdx == self.unrollIdx and kernel["GlobalSplitU"] > 1:
         kStr += self.calculateLoopNumIterGsu(kernel, "(size%s / LOCAL_DEPTHU)"%loopChar, \

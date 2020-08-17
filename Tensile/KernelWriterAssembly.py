@@ -3024,6 +3024,35 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("v_readfirstlane_b32", sgpr("WaveId"), vgpr(tmpVgpr), "WaveId")
     self.vgprPool.checkIn(tmpVgpr)
 
+    # Check alpha == 0
+    if self.do["ApplyAlpha"]:
+      kStr += self.comment("Short circuit condition if Alpha == 0, then sumDims=0")
+      if kernel["ProblemType"]["DataType"].isDoubleComplex():
+        endCheckLabel = "label_DCChecked"
+        kStr += inst("s_mov_b32", sgpr(tmpSgpr+0), "0x00000000", "lsb of 0.0")
+        kStr += inst("s_mov_b32", sgpr(tmpSgpr+1), "0x00000000", "msb 0.0")
+        kStr += inst("s_cmp_eq_u64", sgpr("Alpha",2), sgpr(tmpSgpr,2), "Alpha.real == 0.0 ?")
+        kStr += inst("s_cbranch_scc1 "%endCheckLabel, "branch if alpha.real == 0")
+        kStr += inst("s_cmp_eq_u64", sgpr("Alpha+2",2), sgpr(tmpSgpr,2), "Alpha.imag == 0.0 ?")
+        kStr += "%s:%s" % (endCheckLabel, self.endLine)
+
+      elif kernel["ProblemType"]["DataType"].isDouble():
+        kStr += inst("s_mov_b32", sgpr(tmpSgpr+0), "0x00000000", "lsb of 0.0")
+        kStr += inst("s_mov_b32", sgpr(tmpSgpr+1), "0x00000000", "msb 0.0")
+        kStr += inst("s_cmp_eq_u64", sgpr("Alpha+2",2), sgpr(tmpSgpr,2), "Alpha == 0.0 ?")
+
+      elif kernel["ProblemType"]["DataType"].isSingleComplex():
+        kStr += inst("s_mov_b32", sgpr(tmpSgpr+0), "0x00000000", "real of 0.0")
+        kStr += inst("s_mov_b32", sgpr(tmpSgpr+1), "0x00000000", "imag 0.0")
+        kStr += inst("s_cmp_eq_u64", sgpr("Alpha+2",2), sgpr(tmpSgpr,2), "Alpha == 0.0 ?")
+
+      else:
+        kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), hex(0), "Alpha == 0.0 ?")
+
+      # Conditional set summation dimensions to 0 on SCC==1
+      for i in range(0, self.numSgprSizesSum):
+        kStr += inst("s_cmov_b32", sgpr("SizesSum+%u"%(i)), hex(0), "Set summation dim=0 if Alpha == 0")
+
     for tc in ('A', 'B'):
       for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
         (freeDim, sumDim) = zp[:2]
