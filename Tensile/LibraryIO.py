@@ -30,16 +30,22 @@ import subprocess
 try:
   import yaml
 except ImportError:
-  print("yaml module not found, attempting to install pyyaml using pip3")
-  subprocess.check_call(['python3', '-m', 'pip3', 'install', 'pyyaml'])
+  print("yaml module not found, attempting to install pyyaml using pip")
+  try:
+    subprocess.check_call(['python3', '-m', 'pip', 'install', 'pyyaml'])
+  except ImportError:
+    printExit("pip not found. Please install pip3 using Python >=3.5")
 finally:
   import yaml
 
 try:
   import msgpack
 except ImportError:
-  print("msgpack module not found, attempting to install msgpack using pip3")
-  subprocess.check_call(['python3', '-m', 'pip3', 'install', 'msgpack'])
+  print("msgpack module not found, attempting to install msgpack using pip")
+  try:
+    subprocess.check_call(['python3', '-m', 'pip', 'install', 'msgpack'])
+  except ImportError:
+    printExit("pip not found. Please install pip3 using Python >=3.5")
 finally:
   import msgpack
 
