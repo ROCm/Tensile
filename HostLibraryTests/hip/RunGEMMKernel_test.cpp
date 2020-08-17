@@ -71,32 +71,30 @@ namespace Tensile
     } // namespace hip
 } // namespace Tensile
 
-using ProblemParams = std::tuple<
-    bool, //   transA
-    bool, //   transB
-    size_t, // m
-    size_t, // n
-    size_t, // k
-    size_t, // lda
-    size_t, // ldb
-    size_t, // ldc
-    double, // beta
-    size_t>; // batchCount
+using ProblemParams = std::tuple<bool, //   transA
+                                 bool, //   transB
+                                 size_t, // m
+                                 size_t, // n
+                                 size_t, // k
+                                 size_t, // lda
+                                 size_t, // ldb
+                                 size_t, // ldc
+                                 double, // beta
+                                 size_t>; // batchCount
 
 ProblemParams RandomGEMMParams{false, false, -1, -1, -1, -1, -1, -1, -1.0, -1};
 
-using SolutionParams = std::tuple<
-    std::shared_ptr<SolutionLibrary<ContractionProblem>>,
-    std::shared_ptr<hip::SolutionAdapter>,
-    bool>; // is a solution required?
+using SolutionParams = std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
+                                  std::shared_ptr<hip::SolutionAdapter>,
+                                  bool>; // is a solution required?
 
 enum class MemoryPageAlignment : int
 {
     BEGIN = 0,
-    END = 1
+    END   = 1
 };
 
-template<typename T>
+template <typename T>
 inline void expectEqual(T const& l, T const& r, size_t i, bool& fail)
 {
     if(!fail)
@@ -105,7 +103,7 @@ inline void expectEqual(T const& l, T const& r, size_t i, bool& fail)
     }
 }
 
-template<>
+template <>
 inline void expectEqual(float const& l, float const& r, size_t i, bool& fail)
 {
     if(!fail)
@@ -114,7 +112,7 @@ inline void expectEqual(float const& l, float const& r, size_t i, bool& fail)
     }
 }
 
-template<>
+template <>
 inline void expectEqual(double const& l, double const& r, size_t i, bool& fail)
 {
     if(!fail)
@@ -123,7 +121,7 @@ inline void expectEqual(double const& l, double const& r, size_t i, bool& fail)
     }
 }
 
-template<typename T>
+template <typename T>
 void expectEqual(std::vector<T> const& l, std::vector<T> const& r)
 {
     bool fail = false;
@@ -141,18 +139,17 @@ void expectEqual(std::vector<T> const& l, std::vector<T> const& r)
 
 struct GEMMKernelTest
 {
-    virtual void SetUp(ProblemParams const&, SolutionParams const&, MemoryPageAlignment const&)  = 0;
-    virtual void TestBestSolution() = 0;
-    virtual void TestAllSolutions() = 0;
-    virtual void TearDown() = 0;
-    virtual void OverrideAlpha(double) = 0;
-    virtual void NullifyAPtr() = 0;
-    virtual void NullifyBPtr() = 0;
-    virtual std::string ToString() const = 0;
+    virtual void SetUp(ProblemParams const&, SolutionParams const&, MemoryPageAlignment const&) = 0;
+    virtual void TestBestSolution()                                                             = 0;
+    virtual void TestAllSolutions()                                                             = 0;
+    virtual void TearDown()                                                                     = 0;
+    virtual void OverrideAlpha(double)                                                          = 0;
+    virtual void NullifyAPtr()                                                                  = 0;
+    virtual void NullifyBPtr()                                                                  = 0;
+    virtual std::string ToString() const                                                        = 0;
 };
 
-inline std::ostream& operator<<(std::ostream&                           stream,
-                                std::shared_ptr<GEMMKernelTest> const& ptr)
+inline std::ostream& operator<<(std::ostream& stream, std::shared_ptr<GEMMKernelTest> const& ptr)
 {
     if(ptr)
         return stream << "*" << ptr->ToString();
@@ -164,12 +161,12 @@ template <typename TypedInputs>
 struct TypedGEMMKernelTest : public GEMMKernelTest
 {
     // Extract type info
-    using AType = typename TypedInputs::AType;
-    using BType = typename TypedInputs::BType;
-    using CType = typename TypedInputs::CType;
-    using DType = typename TypedInputs::DType;
+    using AType     = typename TypedInputs::AType;
+    using BType     = typename TypedInputs::BType;
+    using CType     = typename TypedInputs::CType;
+    using DType     = typename TypedInputs::DType;
     using AlphaType = typename TypedInputs::AlphaType;
-    using BetaType = typename TypedInputs::BetaType;
+    using BetaType  = typename TypedInputs::BetaType;
 
     std::vector<AType> a_h;
     std::vector<BType> b_h;
@@ -196,16 +193,16 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
     std::shared_ptr<Hardware> hardware;
 
     // Test input components
-    ContractionProblem problem;
+    ContractionProblem                                   problem;
     std::shared_ptr<SolutionLibrary<ContractionProblem>> library;
-    std::shared_ptr<hip::SolutionAdapter> adapter;
-    std::shared_ptr<ContractionSolution> solution;
-    bool requiredMatch;
-    MemoryPageAlignment memoryAlignment;
+    std::shared_ptr<hip::SolutionAdapter>                adapter;
+    std::shared_ptr<ContractionSolution>                 solution;
+    bool                                                 requiredMatch;
+    MemoryPageAlignment                                  memoryAlignment;
 
     static std::unordered_map<size_t, std::vector<DType>> referenceCache;
 
-    template<typename T>
+    template <typename T>
     Tensile::DataType dataType() const
     {
         return TypeInfo<T>::Enum;
@@ -313,19 +310,19 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
                                                     beta);
         }
 
-        bool   transA = std::get<0>(props);
-        bool   transB = std::get<1>(props);
-        size_t m = std::get<2>(props);
-        size_t n = std::get<3>(props);
-        size_t k = std::get<4>(props);
-        size_t lda = std::get<5>(props);
-        size_t ldb = std::get<6>(props);
-        size_t ldc = std::get<7>(props);
-        double beta = std::get<8>(props);
+        bool   transA     = std::get<0>(props);
+        bool   transB     = std::get<1>(props);
+        size_t m          = std::get<2>(props);
+        size_t n          = std::get<3>(props);
+        size_t k          = std::get<4>(props);
+        size_t lda        = std::get<5>(props);
+        size_t ldb        = std::get<6>(props);
+        size_t ldc        = std::get<7>(props);
+        double beta       = std::get<8>(props);
         size_t batchCount = std::get<9>(props);
 
         ContractionProblem::FreeIndices free(2);
-        ContractionProblem::BoundIndex bound;
+        ContractionProblem::BoundIndex  bound;
 
         free[0].isA = true;
         free[0].i = free[0].c = free[0].d = 0;
@@ -335,26 +332,26 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
         TensorDescriptor a, b, c, d;
         if(transA)
         {
-            a = TensorDescriptor(dataType<AType>(), {k, m}, {1, lda});
+            a         = TensorDescriptor(dataType<AType>(), {k, m}, {1, lda});
             free[0].i = 1;
             bound.a   = 0;
         }
         else
         {
-            a = TensorDescriptor(dataType<AType>(), {m, k}, {1, lda});
+            a         = TensorDescriptor(dataType<AType>(), {m, k}, {1, lda});
             free[0].i = 0;
             bound.a   = 1;
         }
 
         if(transB)
         {
-            b = TensorDescriptor(dataType<BType>(), {n, k}, {1, ldb});
+            b         = TensorDescriptor(dataType<BType>(), {n, k}, {1, ldb});
             free[1].i = 0;
             bound.b   = 1;
         }
         else
         {
-            b = TensorDescriptor(dataType<BType>(), {k, n}, {1, ldb});
+            b         = TensorDescriptor(dataType<BType>(), {k, n}, {1, ldb});
             free[1].i = 1;
             bound.b   = 0;
         }
@@ -376,26 +373,17 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
         TensorOps nop;
 
         return ContractionProblem(
-            a,
-            nop,
-            b,
-            nop,
-            c,
-            nop,
-            d,
-            nop,
-            freeIndices,
-            batchIndices,
-            boundIndices,
-            beta);
+            a, nop, b, nop, c, nop, d, nop, freeIndices, batchIndices, boundIndices, beta);
     }
 
-    void SetUp(ProblemParams const& probParams, SolutionParams const& solParams, MemoryPageAlignment const& alignment) override
+    void SetUp(ProblemParams const&       probParams,
+               SolutionParams const&      solParams,
+               MemoryPageAlignment const& alignment) override
     {
         // Extract testing inputs
-        problem = createProblem(probParams);
+        problem                                   = createProblem(probParams);
         std::tie(library, adapter, requiredMatch) = solParams;
-        memoryAlignment = alignment;
+        memoryAlignment                           = alignment;
 
         HIP_CHECK_EXC(hipSetDevice(0));
 
@@ -514,7 +502,7 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
         // Run reference CPU calc.
         // Hash keys use problem descr combined with alpha and beta
         // because they will affect the reference calcs.
-        auto key = Tensile::hash_combine(problem, inputs_h.alpha, inputs_h.beta);
+        auto key  = Tensile::hash_combine(problem, inputs_h.alpha, inputs_h.beta);
         auto iter = referenceCache.find(key);
         if(iter == referenceCache.end())
         {
@@ -548,13 +536,13 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
         if(Debug::Instance().printPredicateEvaluation())
         {
             std::cout << "a: " << std::hex << inputs_d.a << ".."
-                    << inputs_d.a + problem.a().totalAllocatedElements() << std::endl;
+                      << inputs_d.a + problem.a().totalAllocatedElements() << std::endl;
             std::cout << "b: " << std::hex << inputs_d.b << ".."
-                    << inputs_d.b + problem.b().totalAllocatedElements() << std::endl;
+                      << inputs_d.b + problem.b().totalAllocatedElements() << std::endl;
             std::cout << "c: " << std::hex << inputs_d.c << ".."
-                    << inputs_d.c + problem.c().totalAllocatedElements() << std::endl;
+                      << inputs_d.c + problem.c().totalAllocatedElements() << std::endl;
             std::cout << "d: " << std::hex << inputs_d.d << ".."
-                    << inputs_d.d + problem.d().totalAllocatedElements() << std::endl;
+                      << inputs_d.d + problem.d().totalAllocatedElements() << std::endl;
         }
 
         std::vector<KernelInvocation> result = solution->solve(problem, inputs_d, *hardware);
@@ -588,7 +576,7 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
                 return;
             }
         }
-        
+
         calcCPU();
         calcGPU();
         expectEqual(d_h, d_ref_h);
@@ -640,22 +628,19 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
 
     inline std::string ToString() const override
     {
-        return std::string("TypedKernelShortCircuitTest<") + 
-                TypeInfo<AType>::Name() + ", " +
-                TypeInfo<BType>::Name() + ", " +
-                TypeInfo<CType>::Name() + ", " +
-                TypeInfo<DType>::Name() + ", " +
-                TypeInfo<AlphaType>::Name() + ", " +
-                TypeInfo<BetaType>::Name() + ", " + 
-                std::string(">");
+        return std::string("TypedKernelShortCircuitTest<") + TypeInfo<AType>::Name() + ", "
+               + TypeInfo<BType>::Name() + ", " + TypeInfo<CType>::Name() + ", "
+               + TypeInfo<DType>::Name() + ", " + TypeInfo<AlphaType>::Name() + ", "
+               + TypeInfo<BetaType>::Name() + ", " + std::string(">");
     }
 };
 
-template<typename TypedInputs>
+template <typename TypedInputs>
 using DType = typename TypedGEMMKernelTest<TypedInputs>::DType;
 
-template<typename TypedInputs>
-std::unordered_map<size_t, std::vector<DType<TypedInputs>>> TypedGEMMKernelTest<TypedInputs>::referenceCache;
+template <typename TypedInputs>
+std::unordered_map<size_t, std::vector<DType<TypedInputs>>>
+    TypedGEMMKernelTest<TypedInputs>::referenceCache;
 
 namespace std
 {
@@ -706,31 +691,29 @@ namespace std
             return hash<decltype(obj.value)>()(obj.value);
         }
     };
-    
+
 #endif // TENSILE_USE_HALF
 
 } // namespace std
 
 struct RunGEMMKernelTest
-    : public ::testing::TestWithParam<
-          std::tuple<
-            std::shared_ptr<GEMMKernelTest>,
-            ProblemParams,
-            SolutionParams,
-            MemoryPageAlignment>>
+    : public ::testing::TestWithParam<std::tuple<std::shared_ptr<GEMMKernelTest>,
+                                                 ProblemParams,
+                                                 SolutionParams,
+                                                 MemoryPageAlignment>>
 {
-    void SetUp() override 
+    void SetUp() override
     {
-        auto param = GetParam();
-        auto typedTest = std::get<0>(param);
-        auto problemParams = std::get<1>(param);
+        auto param          = GetParam();
+        auto typedTest      = std::get<0>(param);
+        auto problemParams  = std::get<1>(param);
         auto solutionParams = std::get<2>(param);
-        auto pageAlignment = std::get<3>(param);
+        auto pageAlignment  = std::get<3>(param);
         typedTest->SetUp(problemParams, solutionParams, pageAlignment);
     }
-    void TearDown() override 
+    void TearDown() override
     {
-        auto param = GetParam();
+        auto param     = GetParam();
         auto typedTest = std::get<0>(param);
         typedTest->TearDown();
     }
@@ -738,29 +721,29 @@ struct RunGEMMKernelTest
 
 TEST_P(RunGEMMKernelTest, TestBestSolution)
 {
-    auto param = GetParam();
+    auto param     = GetParam();
     auto typedTest = std::get<0>(param);
-    typedTest->TestBestSolution(); 
+    typedTest->TestBestSolution();
 }
 
 TEST_P(RunGEMMKernelTest, TestAllSolutions)
 {
-    auto param = GetParam();
+    auto param     = GetParam();
     auto typedTest = std::get<0>(param);
-    typedTest->TestAllSolutions(); 
+    typedTest->TestAllSolutions();
 }
 
 TEST_P(RunGEMMKernelTest, TestAlphaZero)
 {
-    auto param = GetParam();
+    auto param     = GetParam();
     auto typedTest = std::get<0>(param);
     typedTest->OverrideAlpha(0.0);
-    typedTest->TestBestSolution();   
+    typedTest->TestBestSolution();
 }
 
 TEST_P(RunGEMMKernelTest, TestAlphaZeroABNull)
 {
-    auto param = GetParam();
+    auto param     = GetParam();
     auto typedTest = std::get<0>(param);
     typedTest->OverrideAlpha(0.0);
     typedTest->NullifyAPtr();
@@ -768,7 +751,7 @@ TEST_P(RunGEMMKernelTest, TestAlphaZeroABNull)
     auto fail = false;
     try
     {
-        ASSERT_NO_THROW();   
+        ASSERT_NO_THROW();
     }
     catch(...)
     {
@@ -780,33 +763,33 @@ TEST_P(RunGEMMKernelTest, TestAlphaZeroABNull)
 std::vector<std::shared_ptr<GEMMKernelTest>> TypedTests()
 {
     static auto testFloat = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<float>>>();
-//     static auto testDouble = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<double>>>();
-//     static auto testCFloat = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<std::complex<float>>>>();
-//     static auto testCDouble = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<std::complex<double>>>>();
-//     static auto testInt8x4 = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>>>();
-//     static auto testInt32 = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<int32_t>>>();
-//     static auto testHalf = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<Tensile::Half>>>();
-// #ifdef TENSILE_USE_BF16
-//     static auto testBF16 = std::make_shared<TypedGEMMKernelTest<BFloat16ContractionInputs>>();
-// #endif  
+    //     static auto testDouble = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<double>>>();
+    //     static auto testCFloat = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<std::complex<float>>>>();
+    //     static auto testCDouble = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<std::complex<double>>>>();
+    //     static auto testInt8x4 = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>>>();
+    //     static auto testInt32 = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<int32_t>>>();
+    //     static auto testHalf = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<Tensile::Half>>>();
+    // #ifdef TENSILE_USE_BF16
+    //     static auto testBF16 = std::make_shared<TypedGEMMKernelTest<BFloat16ContractionInputs>>();
+    // #endif
     return std::vector<std::shared_ptr<GEMMKernelTest>>{
         testFloat,
-//         testDouble,
-//         testCFloat,
-//         testCDouble,
-//         testInt8x4,
-//         testInt32,
-//         testHalf,
-// #ifdef TENSILE_USE_BF16
-//         testBF16,
-// #endif  
-        };
+        //         testDouble,
+        //         testCFloat,
+        //         testCDouble,
+        //         testInt8x4,
+        //         testInt32,
+        //         testHalf,
+        // #ifdef TENSILE_USE_BF16
+        //         testBF16,
+        // #endif
+    };
 }
 
 std::vector<ProblemParams> TestProblems()
 {
     return std::vector<ProblemParams>{
-        
+
         //{false, false, 5760, 5760, 5760, 5760, 5760, 5760, 1.5, 4},
         //{false,  true, 5760, 5760, 5760, 5760, 5760, 5760, 1.5, 4},
         //{ true, false, 5760, 5760, 5760, 5760, 5760, 5760, 1.5, 4},
@@ -888,8 +871,7 @@ std::vector<ProblemParams> TestProblems()
         {false, false, 16328, 384, 384, 16328, 384, 16328, 2.0, 1},
         {false, true, 16328, 384, 384, 16328, 16328, 16328, 2.0, 1},
         {true, false, 16328, 384, 384, 384, 384, 16328, 2.0, 1},
-        {true, true, 16328, 384, 384, 384, 16328, 16328, 2.0, 1}
-    };
+        {true, true, 16328, 384, 384, 384, 16328, 16328, 2.0, 1}};
 }
 
 std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
@@ -982,11 +964,7 @@ std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
 
 std::vector<MemoryPageAlignment> TestMemoryAlignments()
 {
-    return std::vector<MemoryPageAlignment>
-    {
-        MemoryPageAlignment::BEGIN,
-        MemoryPageAlignment::END 
-    };
+    return std::vector<MemoryPageAlignment>{MemoryPageAlignment::BEGIN, MemoryPageAlignment::END};
 }
 INSTANTIATE_TEST_SUITE_P(HipSolutionAdapter,
                          RunGEMMKernelTest,
@@ -994,4 +972,3 @@ INSTANTIATE_TEST_SUITE_P(HipSolutionAdapter,
                                             ::testing::ValuesIn(TestProblems()),
                                             ::testing::ValuesIn(TestLibraries()),
                                             ::testing::ValuesIn(TestMemoryAlignments())));
-
