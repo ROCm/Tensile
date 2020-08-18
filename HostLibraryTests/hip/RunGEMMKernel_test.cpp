@@ -797,7 +797,7 @@ std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
         auto library = EmbeddedLibrary<ContractionProblem>::Get("kernels_lite_mixed");
         auto adapter = std::make_shared<hip::SolutionAdapter>(debug, "kernels_lite_mixed");
         adapter->loadEmbeddedCodeObjects("kernels_lite_mixed");
-        rv.emplace_back(library, adapter, false);
+        rv.emplace_back(library, adapter, true);
     }
 
     {
@@ -817,7 +817,7 @@ std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
         for(auto file : TestData::Instance().glob("kernels_lite_mixed/*.*co"))
             adapter->loadCodeObjectFile(file.native());
 
-        rv.emplace_back(library, adapter, false);
+        rv.emplace_back(library, adapter, true);
     }
 
     {
