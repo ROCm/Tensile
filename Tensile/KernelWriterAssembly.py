@@ -3026,6 +3026,8 @@ class KernelWriterAssembly(KernelWriter):
 
     # Check alpha == 0
     if self.do["ApplyAlpha"]:
+      tmpSgpr = self.getTmpSgpr(2).idx()
+
       kStr += self.comment("Short circuit condition if Alpha == 0, then sumDims=0")
       if kernel["ProblemType"]["DataType"].isDoubleComplex():
         endCheckLabel = "label_DCChecked"
