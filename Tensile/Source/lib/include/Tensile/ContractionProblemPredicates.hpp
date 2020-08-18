@@ -261,8 +261,8 @@ namespace Tensile
 
             // If the tensor contains no free dimensions, then the first batch dimension
             // serves as the leading free size
-            struct LeadingFreeSizesGreaterOrEqual
-                : public Predicate_CRTP<LeadingFreeSizesGreaterOrEqual, ContractionProblem>
+            struct LeadingFree0SizesGreaterOrEqual
+                : public Predicate_CRTP<LeadingFree0SizesGreaterOrEqual, ContractionProblem>
             {
                 enum
                 {
@@ -271,15 +271,15 @@ namespace Tensile
                 };
                 size_t value;
 
-                LeadingFreeSizesGreaterOrEqual() = default;
-                LeadingFreeSizesGreaterOrEqual(size_t value)
+                LeadingFree0SizesGreaterOrEqual() = default;
+                LeadingFree0SizesGreaterOrEqual(size_t value)
                     : value(value)
                 {
                 }
 
                 static std::string Type()
                 {
-                    return "LeadingFreeSizesGreaterOrEqual";
+                    return "LeadingFree0SizesGreaterOrEqual";
                 }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
@@ -291,9 +291,7 @@ namespace Tensile
                     //   Really should modify Contractions.py to select SizeN >= value, based on
                     //   desired index requirement
                     return (problem.freeIndicesA().size() ? problem.freeSizeA(0) >= value
-                                                          : problem.batchSize(0) >= value)
-                           && (problem.freeIndicesB().size() ? problem.freeSizeB(0) >= value
-                                                             : problem.batchSize(0) >= value);
+                                                          : problem.batchSize(0) >= value);
                 }
                 virtual bool debugEval(ContractionProblem const& problem,
                                        std::ostream&             stream) const override
@@ -304,7 +302,50 @@ namespace Tensile
                            << (problem.freeIndicesA().size() ? "freeA0:" : "batchA0:")
                            << (problem.freeIndicesA().size() ? problem.freeSizeA(0)
                                                              : problem.batchSize(0))
-                           << " >= " << value << " && "
+                           << " >= " << value << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
+            struct LeadingFree1SizesGreaterOrEqual
+                : public Predicate_CRTP<LeadingFree1SizesGreaterOrEqual, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                size_t value;
+
+                LeadingFree1SizesGreaterOrEqual() = default;
+                LeadingFree1SizesGreaterOrEqual(size_t value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "LeadingFree1SizesGreaterOrEqual";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    assert(problem.batchIndices().size() <= 1);
+                    // TODO: this is not quite right since it assumes batchSize(0) is lowest
+                    // order in index assignments
+                    //   If tensor contains multiple batch dims this may not be true.
+                    //   Really should modify Contractions.py to select SizeN >= value, based on
+                    //   desired index requirement
+                    return (problem.freeIndicesB().size() ? problem.freeSizeB(0) >= value
+                                                          : problem.batchSize(0) >= value);
+                }
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": ("
                            << (problem.freeIndicesB().size() ? "freeB0:" : "batchB0:")
                            << (problem.freeIndicesB().size() ? problem.freeSizeB(0)
                                                              : problem.batchSize(0))

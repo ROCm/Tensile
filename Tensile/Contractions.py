@@ -299,9 +299,14 @@ class ProblemPredicate(Properties.Predicate):
     def CompoundPredicates(cls, state, problemType):
         rv = []
 
-        if 'GlobalReadVectorWidth' in state and state['GlobalReadVectorWidth'] > 1:
-            if not problemType.aType.isInt8x4():
-                rv += [cls('LeadingFreeSizesGreaterOrEqual', value=state['GlobalReadVectorWidth'])]
+        if not problemType.aType.isInt8x4():
+            # calculate the minimum supported free dimension size
+            TLUA = state['ProblemType']['TLUA']
+            TLUB = state['ProblemType']['TLUB']
+            minFree0 = state['GlobalLoadVectorWidthA'] if TLUA else 1
+            minFree1 = state['GlobalLoadVectorWidthB'] if TLUB else 1
+            rv += [cls('LeadingFree0SizesGreaterOrEqual', value=minFree0)]
+            rv += [cls('LeadingFree1SizesGreaterOrEqual', value=minFree1)]
 
         if "LdcEqualsLdd" not in state or state["LdcEqualsLdd"] == True:
             rv += [cls("CDStridesEqual", value = True)]
