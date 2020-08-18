@@ -3034,7 +3034,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mov_b32", sgpr(tmpSgpr+0), "0x00000000", "lsb of 0.0")
         kStr += inst("s_mov_b32", sgpr(tmpSgpr+1), "0x00000000", "msb 0.0")
         kStr += inst("s_cmp_eq_u64", sgpr("Alpha",2), sgpr(tmpSgpr,2), "Alpha.real == 0.0 ?")
-        kStr += inst("s_cbranch_scc1 "%endCheckLabel, "branch if alpha.real == 0")
+        kStr += inst("s_cbranch_scc1 %s" % (endCheckLabel), "branch if alpha.real == 0")
         kStr += inst("s_cmp_eq_u64", sgpr("Alpha+2",2), sgpr(tmpSgpr,2), "Alpha.imag == 0.0 ?")
         kStr += "%s:%s" % (endCheckLabel, self.endLine)
 
