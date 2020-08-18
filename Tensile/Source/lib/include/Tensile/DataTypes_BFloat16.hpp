@@ -250,5 +250,4 @@ namespace std
     {
         return static_cast<Tensile::BFloat16>(std::cos(static_cast<float>(a)));
     }
-
 } // namespace std
