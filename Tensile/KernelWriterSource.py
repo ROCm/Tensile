@@ -1907,8 +1907,22 @@ class KernelWriterSource(KernelWriter):
     else:
       kStr += self.endLine + "  /* Compute summation loop num iter */" + self.endLine
 
-      kStr += self.endLine + "  /* Short circuit check alpha=0, skip A*B */" + self.endLine
-      kStr += self.indent + "if(alpha == 0.0f) size%s = 0;"%(loopChar) + self.endLine
+      # Check alpha == 0
+      if kernel["ProblemType"]["DataType"].isDoubleComplex():
+        alphaZeroStr = "std::complex<double>(0.0)"
+      elif kernel["ProblemType"]["DataType"].isDouble() or \
+            kernel["ProblemType"]["DataType"].isReal():
+        alphaZeroStr = "0.0"
+      elif kernel["ProblemType"]["DataType"].isSingleComplex():
+        alphaZeroStr = "std::complex<float>(0.0f)"
+      elif kernel["ProblemType"]["DataType"].isSingle() or \
+            kernel["ProblemType"]["DataType"].isHalf() or \
+            kernel["ProblemType"]["DataType"].isBFloat16():
+        alphaZeroStr = "0.0f"
+      else:
+        alphaZeroStr = "0"
+
+      kStr += self.indent + "if(alpha == %s) size%s = 0;"%(alphaZeroStr, loopChar) + "  // Short circuit check alpha=0, skip A*B " + self.endLine
 
       if loopIdx == self.unrollIdx and kernel["GlobalSplitU"] > 1:
         kStr += self.calculateLoopNumIterGsu(kernel, "(size%s / LOCAL_DEPTHU)"%loopChar, \
