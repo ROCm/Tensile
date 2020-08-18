@@ -71,6 +71,60 @@ namespace Tensile
     } // namespace hip
 } // namespace Tensile
 
+namespace std
+{
+    template <>
+    struct hash<std::complex<float>>
+    {
+        inline size_t operator()(std::complex<float> const& obj) const
+        {
+            return Tensile::hash_combine(obj.real(), obj.imag());
+        }
+    };
+    template <>
+    struct hash<std::complex<double>>
+    {
+        inline size_t operator()(std::complex<double> const& obj) const
+        {
+            return Tensile::hash_combine(obj.real(), obj.imag());
+        }
+    };
+
+    template <>
+    struct hash<Tensile::BFloat16>
+    {
+        inline size_t operator()(Tensile::BFloat16 const& obj) const
+        {
+            return hash<decltype(obj.data)>()(obj.data);
+        }
+    };
+
+#ifdef TENSILE_USE_HALF
+
+    template <>
+    struct hash<Tensile::Half>
+    {
+        inline size_t operator()(Tensile::Half const& obj) const
+        {
+            return hash<float>()(static_cast<float>(obj));
+        }
+    };
+
+#else
+    template <>
+    struct hash<Tensile::Half>
+    {
+        inline size_t operator()(Tensile::Half const& obj) const
+        {
+            return hash<decltype(obj.value)>()(obj.value);
+        }
+    };
+
+#endif // TENSILE_USE_HALF
+
+} // namespace std
+
+/* Types */
 using ProblemParams = std::tuple<bool, //   transA
                                  bool, //   transB
                                  size_t, // m
@@ -94,6 +148,7 @@ enum class MemoryPageAlignment : int
     END   = 1
 };
 
+/* Utils */
 template <typename T>
 inline void expectEqual(T const& l, T const& r, size_t i, bool& fail)
 {
@@ -137,6 +192,7 @@ void expectEqual(std::vector<T> const& l, std::vector<T> const& r)
     ASSERT_EQ(fail, false);
 }
 
+/* Test interface */
 struct GEMMKernelTest
 {
     virtual void SetUp(ProblemParams const&, SolutionParams const&, MemoryPageAlignment const&) = 0;
@@ -157,6 +213,7 @@ inline std::ostream& operator<<(std::ostream& stream, std::shared_ptr<GEMMKernel
         return stream << "(nullptr)";
 }
 
+/* Typed test implementation */
 template <typename TypedInputs>
 struct TypedGEMMKernelTest : public GEMMKernelTest
 {
@@ -202,178 +259,79 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
 
     static std::unordered_map<size_t, std::vector<DType>> referenceCache;
 
-    template <typename T>
-    Tensile::DataType dataType() const
-    {
-        return TypeInfo<T>::Enum;
-    }
-
-    Tensile::ContractionProblem createProblem(ProblemParams const& props) const
+    static Tensile::ContractionProblem createProblem(ProblemParams const& props)
     {
         if(props == RandomGEMMParams)
         {
-            static std::mt19937 rng;
+            return RandomGEMM<AType, BType, CType, DType>();
+        }
+        else
+        {
+            bool   transA     = std::get<0>(props);
+            bool   transB     = std::get<1>(props);
+            size_t m          = std::get<2>(props);
+            size_t n          = std::get<3>(props);
+            size_t k          = std::get<4>(props);
+            size_t lda        = std::get<5>(props);
+            size_t ldb        = std::get<6>(props);
+            size_t ldc        = std::get<7>(props);
+            double beta       = std::get<8>(props);
+            size_t batchCount = std::get<9>(props);
 
-            std::uniform_int_distribution<int> random_bool(0, 1);
-            // std::uniform_int_distribution<int> random_size(2,8192);
-            std::uniform_int_distribution<int> random_padding(0, 32);
-            std::uniform_int_distribution<int> random_batch(1, 10);
-            std::uniform_int_distribution<int> random_beta(0, 2);
+            ContractionProblem::FreeIndices free(2);
+            ContractionProblem::BoundIndex  bound;
 
-            std::uniform_real_distribution<double> random_size(1.0, std::log(8192.0));
+            free[0].isA = true;
+            free[0].i = free[0].c = free[0].d = 0;
+            free[1].isA                       = false;
+            free[1].i = free[1].c = free[1].d = 1;
 
-            bool transA = random_bool(rng);
-            bool transB = random_bool(rng);
-
-            size_t m = std::exp(random_size(rng)) + 1;
-            size_t n = std::exp(random_size(rng)) + 1;
-            size_t k = std::exp(random_size(rng)) + 1;
-
-            int    beta_category = random_beta(rng);
-            double beta;
-            if(beta_category == 0)
-                beta = 0.0;
-            else if(beta_category == 1)
-                beta = 1.0;
-            else
-                beta = 1.2;
-
-            auto random_pad = [&](size_t cols, size_t rows, size_t& ld, size_t& stride) {
-                ld = cols;
-
-                bool pad_ld = random_bool(rng);
-
-                if(pad_ld)
-                {
-                    size_t padding = random_padding(rng);
-                    if(padding == 0)
-                        ld = RoundUpToMultiple<size_t>(ld, 128);
-                    else
-                        ld += padding;
-                }
-
-                stride = ld * rows;
-
-                bool pad_stride = random_bool(rng);
-
-                if(pad_stride)
-                {
-                    size_t padding = random_padding(rng);
-
-                    if(padding == 0)
-                        stride = RoundUpToMultiple<size_t>(stride, 256);
-                    else
-                        stride += padding;
-                }
-            };
-
-            size_t lda, ldb, ldc, ldd;
-            size_t strideA, strideB, strideC, strideD;
-
+            TensorDescriptor a, b, c, d;
             if(transA)
-                random_pad(k, m, lda, strideA);
+            {
+                a         = TensorDescriptor(TypeInfo<AType>::Enum, {k, m}, {1, lda});
+                free[0].i = 1;
+                bound.a   = 0;
+            }
             else
-                random_pad(m, k, lda, strideA);
+            {
+                a         = TensorDescriptor(TypeInfo<AType>::Enum, {m, k}, {1, lda});
+                free[0].i = 0;
+                bound.a   = 1;
+            }
 
             if(transB)
-                random_pad(n, k, ldb, strideB);
+            {
+                b         = TensorDescriptor(TypeInfo<BType>::Enum, {n, k}, {1, ldb});
+                free[1].i = 0;
+                bound.b   = 1;
+            }
             else
-                random_pad(k, n, ldb, strideB);
+            {
+                b         = TensorDescriptor(TypeInfo<BType>::Enum, {k, n}, {1, ldb});
+                free[1].i = 1;
+                bound.b   = 0;
+            }
 
-            random_pad(m, n, ldc, strideC);
+            ContractionProblem::FreeIndices  freeIndices{free};
+            ContractionProblem::BatchIndices batchIndices;
+            ContractionProblem::BoundIndices boundIndices{bound};
 
-            // ldd support not yet merged in.
-            ldd     = ldc;
-            strideD = strideC;
-            // random_pad(m, n, ldd, strideD);
+            d = TensorDescriptor(TypeInfo<DType>::Enum, {m, n}, {1, ldc});
 
-            size_t batchCount = random_batch(rng);
+            a.appendDim(batchCount);
+            b.appendDim(batchCount);
+            d.appendDim(batchCount);
 
-            return ContractionProblem::GEMM_Strides(transA,
-                                                    transB,
-                                                    dataType<AType>(),
-                                                    dataType<BType>(),
-                                                    dataType<CType>(),
-                                                    dataType<DType>(),
-                                                    m,
-                                                    n,
-                                                    k,
-                                                    batchCount,
-                                                    lda,
-                                                    strideA,
-                                                    ldb,
-                                                    strideB,
-                                                    ldc,
-                                                    strideC,
-                                                    ldd,
-                                                    strideD,
-                                                    beta);
+            batchIndices.push_back({2, 2, 2, 2});
+
+            c = d;
+
+            TensorOps nop;
+
+            return ContractionProblem(
+                a, nop, b, nop, c, nop, d, nop, freeIndices, batchIndices, boundIndices, beta);
         }
-
-        bool   transA     = std::get<0>(props);
-        bool   transB     = std::get<1>(props);
-        size_t m          = std::get<2>(props);
-        size_t n          = std::get<3>(props);
-        size_t k          = std::get<4>(props);
-        size_t lda        = std::get<5>(props);
-        size_t ldb        = std::get<6>(props);
-        size_t ldc        = std::get<7>(props);
-        double beta       = std::get<8>(props);
-        size_t batchCount = std::get<9>(props);
-
-        ContractionProblem::FreeIndices free(2);
-        ContractionProblem::BoundIndex  bound;
-
-        free[0].isA = true;
-        free[0].i = free[0].c = free[0].d = 0;
-        free[1].isA                       = false;
-        free[1].i = free[1].c = free[1].d = 1;
-
-        TensorDescriptor a, b, c, d;
-        if(transA)
-        {
-            a         = TensorDescriptor(dataType<AType>(), {k, m}, {1, lda});
-            free[0].i = 1;
-            bound.a   = 0;
-        }
-        else
-        {
-            a         = TensorDescriptor(dataType<AType>(), {m, k}, {1, lda});
-            free[0].i = 0;
-            bound.a   = 1;
-        }
-
-        if(transB)
-        {
-            b         = TensorDescriptor(dataType<BType>(), {n, k}, {1, ldb});
-            free[1].i = 0;
-            bound.b   = 1;
-        }
-        else
-        {
-            b         = TensorDescriptor(dataType<BType>(), {k, n}, {1, ldb});
-            free[1].i = 1;
-            bound.b   = 0;
-        }
-
-        ContractionProblem::FreeIndices  freeIndices{free};
-        ContractionProblem::BatchIndices batchIndices;
-        ContractionProblem::BoundIndices boundIndices{bound};
-
-        d = TensorDescriptor(dataType<DType>(), {m, n}, {1, ldc});
-
-        a.appendDim(batchCount);
-        b.appendDim(batchCount);
-        d.appendDim(batchCount);
-
-        batchIndices.push_back({2, 2, 2, 2});
-
-        c = d;
-
-        TensorOps nop;
-
-        return ContractionProblem(
-            a, nop, b, nop, c, nop, d, nop, freeIndices, batchIndices, boundIndices, beta);
     }
 
     void SetUp(ProblemParams const&       probParams,
@@ -500,8 +458,6 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
     void calcCPU()
     {
         // Run reference CPU calc.
-        // Hash keys use problem descr combined with alpha and beta
-        // because they will affect the reference calcs.
         auto key  = Tensile::hash_combine(problem, inputs_h.alpha, inputs_h.beta);
         auto iter = referenceCache.find(key);
         if(iter == referenceCache.end())
@@ -636,65 +592,8 @@ struct TypedGEMMKernelTest : public GEMMKernelTest
 };
 
 template <typename TypedInputs>
-using DType = typename TypedGEMMKernelTest<TypedInputs>::DType;
-
-template <typename TypedInputs>
-std::unordered_map<size_t, std::vector<DType<TypedInputs>>>
+std::unordered_map<size_t, std::vector<typename TypedInputs::DType>>
     TypedGEMMKernelTest<TypedInputs>::referenceCache;
-
-namespace std
-{
-    template <>
-    struct hash<std::complex<float>>
-    {
-        inline size_t operator()(std::complex<float> const& obj) const
-        {
-            return Tensile::hash_combine(obj.real(), obj.imag());
-        }
-    };
-    template <>
-    struct hash<std::complex<double>>
-    {
-        inline size_t operator()(std::complex<double> const& obj) const
-        {
-            return Tensile::hash_combine(obj.real(), obj.imag());
-        }
-    };
-
-    template <>
-    struct hash<Tensile::BFloat16>
-    {
-        inline size_t operator()(Tensile::BFloat16 const& obj) const
-        {
-            return hash<decltype(obj.data)>()(obj.data);
-        }
-    };
-
-#ifdef TENSILE_USE_HALF
-
-    template <>
-    struct hash<Tensile::Half>
-    {
-        inline size_t operator()(Tensile::Half const& obj) const
-        {
-            return hash<float>()(static_cast<float>(obj));
-        }
-    };
-
-#else
-
-    template <>
-    struct hash<Tensile::Half>
-    {
-        inline size_t operator()(Tensile::Half const& obj) const
-        {
-            return hash<decltype(obj.value)>()(obj.value);
-        }
-    };
-
-#endif // TENSILE_USE_HALF
-
-} // namespace std
 
 struct RunGEMMKernelTest
     : public ::testing::TestWithParam<std::tuple<std::shared_ptr<GEMMKernelTest>,

@@ -149,6 +149,10 @@ namespace Tensile
             }
     }
 
+    template <typename AType = float,
+              typename BType = AType,
+              typename CType = AType,
+              typename DType = CType>
     inline ContractionProblem RandomGEMM()
     {
         static std::mt19937 rng;
@@ -230,10 +234,10 @@ namespace Tensile
 
         return ContractionProblem::GEMM_Strides(transA,
                                                 transB,
-                                                DataType::Float,
-                                                DataType::Float,
-                                                DataType::Float,
-                                                DataType::Float,
+                                                TypeInfo<AType>::Enum,
+                                                TypeInfo<BType>::Enum,
+                                                TypeInfo<CType>::Enum,
+                                                TypeInfo<DType>::Enum,
                                                 m,
                                                 n,
                                                 k,
