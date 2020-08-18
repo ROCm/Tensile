@@ -136,7 +136,7 @@ using ProblemParams = std::tuple<bool, //   transA
                                  double, // beta
                                  size_t>; // batchCount
 
-ProblemParams RandomGEMMParams{false, false, -1, -1, -1, -1, -1, -1, -1.0, -1};
+ProblemParams RandomGEMMParams = std::make_tuple(false, false, -1, -1, -1, -1, -1, -1, -1.0, -1);
 
 using SolutionParams = std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
                                   std::shared_ptr<hip::SolutionAdapter>,
@@ -662,7 +662,8 @@ TEST_P(RunGEMMKernelTest, TestAlphaZeroABNull)
 std::vector<std::shared_ptr<GEMMKernelTest>> TypedTests()
 {
     static auto testFloat = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<float>>>();
-    //     static auto testDouble = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<double>>>();
+    static auto testDouble
+        = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<double>>>();
     //     static auto testCFloat = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<std::complex<float>>>>();
     //     static auto testCDouble = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<std::complex<double>>>>();
     //     static auto testInt8x4 = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>>>();
@@ -672,8 +673,7 @@ std::vector<std::shared_ptr<GEMMKernelTest>> TypedTests()
     //     static auto testBF16 = std::make_shared<TypedGEMMKernelTest<BFloat16ContractionInputs>>();
     // #endif
     return std::vector<std::shared_ptr<GEMMKernelTest>>{
-        testFloat,
-        //         testDouble,
+        testFloat, testDouble,
         //         testCFloat,
         //         testCDouble,
         //         testInt8x4,
@@ -693,51 +693,51 @@ std::vector<ProblemParams> TestProblems()
         //{false,  true, 5760, 5760, 5760, 5760, 5760, 5760, 1.5, 4},
         //{ true, false, 5760, 5760, 5760, 5760, 5760, 5760, 1.5, 4},
         //{ true,  true, 5760, 5760, 5760, 5760, 5760, 5760, 1.5, 4},
-        {false, false, 4, 4, 6, 4, 6, 4, 1.5, 2},
-        {false, true, 4, 4, 6, 4, 4, 4, 1.5, 2},
-        {true, false, 4, 4, 6, 6, 6, 4, 1.5, 2},
-        {true, true, 4, 4, 6, 6, 4, 4, 1.5, 2},
+        std::make_tuple(false, false, 4, 4, 6, 4, 6, 4, 1.5, 2),
+        std::make_tuple(false, true, 4, 4, 6, 4, 4, 4, 1.5, 2),
+        std::make_tuple(true, false, 4, 4, 6, 6, 6, 4, 1.5, 2),
+        std::make_tuple(true, true, 4, 4, 6, 6, 4, 4, 1.5, 2),
 
-        {false, false, 15, 15, 15, 15, 15, 15, 1.5, 1},
-        {false, true, 15, 15, 15, 15, 15, 15, 1.5, 1},
-        {true, false, 15, 15, 15, 15, 15, 15, 1.5, 1},
-        {true, true, 15, 15, 15, 15, 15, 15, 1.5, 1},
+        std::make_tuple(false, false, 15, 15, 15, 15, 15, 15, 1.5, 1),
+        std::make_tuple(false, true, 15, 15, 15, 15, 15, 15, 1.5, 1),
+        std::make_tuple(true, false, 15, 15, 15, 15, 15, 15, 1.5, 1),
+        std::make_tuple(true, true, 15, 15, 15, 15, 15, 15, 1.5, 1),
 
-        {false, false, 16, 16, 16, 16, 16, 16, 1.5, 1},
-        {false, true, 16, 16, 16, 16, 16, 16, 1.5, 1},
-        {true, false, 16, 16, 16, 16, 16, 16, 1.5, 1},
-        {true, true, 16, 16, 16, 16, 16, 16, 1.5, 1},
+        std::make_tuple(false, false, 16, 16, 16, 16, 16, 16, 1.5, 1),
+        std::make_tuple(false, true, 16, 16, 16, 16, 16, 16, 1.5, 1),
+        std::make_tuple(true, false, 16, 16, 16, 16, 16, 16, 1.5, 1),
+        std::make_tuple(true, true, 16, 16, 16, 16, 16, 16, 1.5, 1),
 
-        {false, false, 17, 17, 17, 17, 17, 17, 1.5, 1},
-        {false, true, 17, 17, 17, 17, 17, 17, 1.5, 1},
-        {true, false, 17, 17, 17, 17, 17, 17, 1.5, 1},
-        {true, true, 17, 17, 17, 17, 17, 17, 1.5, 1},
+        std::make_tuple(false, false, 17, 17, 17, 17, 17, 17, 1.5, 1),
+        std::make_tuple(false, true, 17, 17, 17, 17, 17, 17, 1.5, 1),
+        std::make_tuple(true, false, 17, 17, 17, 17, 17, 17, 1.5, 1),
+        std::make_tuple(true, true, 17, 17, 17, 17, 17, 17, 1.5, 1),
 
-        {false, false, 31, 31, 31, 31, 31, 31, 1.5, 1},
-        {false, true, 31, 31, 31, 31, 31, 31, 1.5, 1},
-        {true, false, 31, 31, 31, 31, 31, 31, 1.5, 1},
-        {true, true, 31, 31, 31, 31, 31, 31, 1.5, 1},
+        std::make_tuple(false, false, 31, 31, 31, 31, 31, 31, 1.5, 1),
+        std::make_tuple(false, true, 31, 31, 31, 31, 31, 31, 1.5, 1),
+        std::make_tuple(true, false, 31, 31, 31, 31, 31, 31, 1.5, 1),
+        std::make_tuple(true, true, 31, 31, 31, 31, 31, 31, 1.5, 1),
 
-        {false, false, 32, 32, 32, 32, 32, 32, 1.5, 1},
-        {false, true, 32, 32, 32, 32, 32, 32, 1.5, 1},
-        {true, false, 32, 32, 32, 32, 32, 32, 1.5, 1},
-        {true, true, 32, 32, 32, 32, 32, 32, 1.5, 1},
+        std::make_tuple(false, false, 32, 32, 32, 32, 32, 32, 1.5, 1),
+        std::make_tuple(false, true, 32, 32, 32, 32, 32, 32, 1.5, 1),
+        std::make_tuple(true, false, 32, 32, 32, 32, 32, 32, 1.5, 1),
+        std::make_tuple(true, true, 32, 32, 32, 32, 32, 32, 1.5, 1),
 
-        {false, false, 33, 33, 33, 33, 33, 33, 1.5, 1},
-        {false, true, 33, 33, 33, 33, 33, 33, 1.5, 1},
-        {true, false, 33, 33, 33, 33, 33, 33, 1.5, 1},
-        {true, true, 33, 33, 33, 33, 33, 33, 1.5, 1},
+        std::make_tuple(false, false, 33, 33, 33, 33, 33, 33, 1.5, 1),
+        std::make_tuple(false, true, 33, 33, 33, 33, 33, 33, 1.5, 1),
+        std::make_tuple(true, false, 33, 33, 33, 33, 33, 33, 1.5, 1),
+        std::make_tuple(true, true, 33, 33, 33, 33, 33, 33, 1.5, 1),
 
-        {false, false, 34, 34, 34, 34, 34, 34, 1.5, 1},
-        {false, true, 34, 34, 34, 34, 34, 34, 1.5, 1},
-        {true, false, 34, 34, 34, 34, 34, 34, 1.5, 1},
-        {true, true, 34, 34, 34, 34, 34, 34, 1.5, 1},
+        std::make_tuple(false, false, 34, 34, 34, 34, 34, 34, 1.5, 1),
+        std::make_tuple(false, true, 34, 34, 34, 34, 34, 34, 1.5, 1),
+        std::make_tuple(true, false, 34, 34, 34, 34, 34, 34, 1.5, 1),
+        std::make_tuple(true, true, 34, 34, 34, 34, 34, 34, 1.5, 1),
 
-        {false, false, 234, 123, 634, 234, 634, 234, 1.5, 1},
-        {false, false, 234, 123, 634, 245, 768, 249, 1.5, 12},
-        {false, true, 234, 123, 634, 245, 768, 249, 1.5, 12},
-        {true, false, 234, 123, 634, 768, 768, 249, 1.5, 12},
-        {true, true, 234, 123, 634, 768, 768, 249, 1.5, 12},
+        std::make_tuple(false, false, 234, 123, 634, 234, 634, 234, 1.5, 1),
+        std::make_tuple(false, false, 234, 123, 634, 245, 768, 249, 1.5, 12),
+        std::make_tuple(false, true, 234, 123, 634, 245, 768, 249, 1.5, 12),
+        std::make_tuple(true, false, 234, 123, 634, 768, 768, 249, 1.5, 12),
+        std::make_tuple(true, true, 234, 123, 634, 768, 768, 249, 1.5, 12),
         RandomGEMMParams,
         RandomGEMMParams,
         RandomGEMMParams,
@@ -747,30 +747,30 @@ std::vector<ProblemParams> TestProblems()
         RandomGEMMParams,
         RandomGEMMParams,
         RandomGEMMParams,
-        {false, false, 1, 4, 6, 1, 6, 1, 1.5, 1},
-        {false, false, 4, 1, 6, 4, 6, 4, 1.5, 1},
-        {false, false, 4, 4, 1, 4, 1, 4, 1.5, 1},
+        std::make_tuple(false, false, 1, 4, 6, 1, 6, 1, 1.5, 1),
+        std::make_tuple(false, false, 4, 1, 6, 4, 6, 4, 1.5, 1),
+        std::make_tuple(false, false, 4, 4, 1, 4, 1, 4, 1.5, 1),
 
-        {false, true, 1, 4, 6, 1, 4, 1, 1.5, 1},
-        {false, true, 4, 1, 6, 4, 1, 4, 1.5, 1},
-        {false, true, 4, 4, 1, 4, 4, 4, 1.5, 1},
+        std::make_tuple(false, true, 1, 4, 6, 1, 4, 1, 1.5, 1),
+        std::make_tuple(false, true, 4, 1, 6, 4, 1, 4, 1.5, 1),
+        std::make_tuple(false, true, 4, 4, 1, 4, 4, 4, 1.5, 1),
 
-        {true, false, 1, 4, 6, 6, 6, 1, 1.5, 1},
-        {true, false, 4, 1, 6, 6, 6, 4, 1.5, 1},
-        {true, false, 4, 4, 1, 1, 1, 4, 1.5, 1},
+        std::make_tuple(true, false, 1, 4, 6, 6, 6, 1, 1.5, 1),
+        std::make_tuple(true, false, 4, 1, 6, 6, 6, 4, 1.5, 1),
+        std::make_tuple(true, false, 4, 4, 1, 1, 1, 4, 1.5, 1),
 
-        {true, true, 1, 4, 6, 6, 4, 1, 1.5, 1},
-        {true, true, 4, 1, 6, 6, 1, 4, 1.5, 1},
-        {true, true, 4, 4, 1, 1, 4, 4, 1.5, 1},
+        std::make_tuple(true, true, 1, 4, 6, 6, 4, 1, 1.5, 1),
+        std::make_tuple(true, true, 4, 1, 6, 6, 1, 4, 1.5, 1),
+        std::make_tuple(true, true, 4, 4, 1, 1, 4, 4, 1.5, 1),
 
-        //{false, true, 1, 128, 256, 1, 270, 49928, 1.5, 1},
-        {false, true, 384, 1, 384, 384, 270, 49928, 1.5, 1},
-        {true, true, 4, 4, 1, 1, 4, 4, 1.5, 1},
+        std::make_tuple(false, true, 1, 128, 256, 1, 270, 49928, 1.5, 1),
+        std::make_tuple(false, true, 384, 1, 384, 384, 270, 49928, 1.5, 1),
+        std::make_tuple(true, true, 4, 4, 1, 1, 4, 4, 1.5, 1),
 
-        {false, false, 16328, 384, 384, 16328, 384, 16328, 2.0, 1},
-        {false, true, 16328, 384, 384, 16328, 16328, 16328, 2.0, 1},
-        {true, false, 16328, 384, 384, 384, 384, 16328, 2.0, 1},
-        {true, true, 16328, 384, 384, 384, 16328, 16328, 2.0, 1}};
+        std::make_tuple(false, false, 16328, 384, 384, 16328, 384, 16328, 2.0, 1),
+        std::make_tuple(false, true, 16328, 384, 384, 16328, 16328, 16328, 2.0, 1),
+        std::make_tuple(true, false, 16328, 384, 384, 384, 384, 16328, 2.0, 1),
+        std::make_tuple(true, true, 16328, 384, 384, 384, 16328, 16328, 2.0, 1)};
 }
 
 std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
