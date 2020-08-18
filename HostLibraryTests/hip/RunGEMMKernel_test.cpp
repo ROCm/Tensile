@@ -662,8 +662,8 @@ TEST_P(RunGEMMKernelTest, TestAlphaZeroABNull)
 std::vector<std::shared_ptr<GEMMKernelTest>> TypedTests()
 {
     static auto testFloat = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<float>>>();
-    static auto testDouble
-        = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<double>>>();
+    //static auto testDouble
+    //    = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<double>>>();
     //     static auto testCFloat = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<std::complex<float>>>>();
     //     static auto testCDouble = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<std::complex<double>>>>();
     //     static auto testInt8x4 = std::make_shared<TypedGEMMKernelTest<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>>>();
@@ -673,7 +673,8 @@ std::vector<std::shared_ptr<GEMMKernelTest>> TypedTests()
     //     static auto testBF16 = std::make_shared<TypedGEMMKernelTest<BFloat16ContractionInputs>>();
     // #endif
     return std::vector<std::shared_ptr<GEMMKernelTest>>{
-        testFloat, testDouble,
+        testFloat,
+        // testDouble,
         //         testCFloat,
         //         testCDouble,
         //         testInt8x4,
