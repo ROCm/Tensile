@@ -1909,12 +1909,12 @@ class KernelWriterSource(KernelWriter):
 
       # Check alpha == 0
       if kernel["ProblemType"]["DataType"].isDoubleComplex():
-        alphaZeroStr = "std::complex<double>(0.0)"
+        alphaZeroStr = "tensile_complex<double>(0.0)"
       elif kernel["ProblemType"]["DataType"].isDouble() or \
             kernel["ProblemType"]["DataType"].isReal():
         alphaZeroStr = "0.0"
       elif kernel["ProblemType"]["DataType"].isSingleComplex():
-        alphaZeroStr = "std::complex<float>(0.0f)"
+        alphaZeroStr = "tensile_complex<float>(0.0f)"
       elif kernel["ProblemType"]["DataType"].isSingle() or \
             kernel["ProblemType"]["DataType"].isHalf() or \
             kernel["ProblemType"]["DataType"].isBFloat16():
