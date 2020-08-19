@@ -5608,7 +5608,7 @@ class KernelWriterAssembly(KernelWriter):
             br = vgpr("ValuB_X%u_I%u+%u+%u+%u"   % (vgprBuffer_new, iui_new, b_new, vgprBuffer_new_offset, iui_new_offset), 1)
             bi = vgpr("ValuB_X%u_I%u+%u+%u+%u+1" % (vgprBuffer_new, iui_new, b_new, vgprBuffer_new_offset, iui_new_offset), 1)
             v_mfma = "v_mfma_f32_%ux%ux%u%s "%(kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], "f32")
-            if (ccA and ccB) or (not ccA and not ccB):
+            if ccA == ccB:
               ccVgprs[0] = self.vgprPool.checkOut(1, "negate r1")
               ccInsts[0] = inst("v_sub_f32", vgpr(ccVgprs[0]), "0", ai, "Ai=-Ai")
             if ccA:
@@ -8593,9 +8593,9 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Store Remap: Local Write
   ##############################################################################
-  def storeRemapAddLocalWrite(self, kernel, ss, addrCalc, sumIdx):
+  def storeRemapAddLocalWrite(self, kernel, ss, addrCalc, srcVgpr):
     """
-    Add localWrite for the element with addrCalc and sumIdx.
+    Add localWrite for the element with addrCalc and srcVgpr.
     """
     kStr = ""
 
@@ -8606,16 +8606,16 @@ class KernelWriterAssembly(KernelWriter):
     offset =  addrCalc.coordOffset0 * self.bpeCexternal
 
     if bps==2:
-      kStr += inst("ds_write_b16", addr0, vgpr(sumIdx, rpv*2), \
+      kStr += inst("ds_write_b16", addr0, vgpr(srcVgpr, rpv*2), \
                  "offset:%u"%offset, "storeRemap lw")
     elif bps==4:
-      kStr += inst("ds_write_b32", addr0, vgpr(sumIdx, rpv), \
+      kStr += inst("ds_write_b32", addr0, vgpr(srcVgpr, rpv), \
                  "offset:%u"%offset, "storeRemap lw")
     elif bps==8:
-      kStr += inst("ds_write_b64", addr0, vgpr(sumIdx, rpv), \
+      kStr += inst("ds_write_b64", addr0, vgpr(srcVgpr, rpv), \
                  "offset:%u"%offset, "storeRemap lw")
     elif bps==16:
-      kStr += inst("ds_write_b128", addr0, vgpr(sumIdx, rpv), \
+      kStr += inst("ds_write_b128", addr0, vgpr(srcVgpr, rpv), \
                  "offset:%u"%offset, "storeRemap lw")
     else:
        assert ("StoreRemap: bad bps!")
@@ -9263,7 +9263,7 @@ class KernelWriterAssembly(KernelWriter):
           if kernel["EnableMatrixInstruction"]:
             if kw.serializedStore:
               alignment = self.cfg.numVgprPerValuC
-              sumIdx    = kw.vgprPool.checkOutAligned(self.cfg.numVgprPerValuC*self.cfg.gwvw, alignment, "vgprValuC")
+              sumIdx    = kw.vgprPool.checkOutAligned(self.cfg.numVgprPerValuC*self.cfg.gwvw, alignment, "vgprValuC")//self.cfg.numVgprPerValuC
               # print("checked out vgpr %u"%sumIdx)
               # print(kw.vgprPool.state())
             elif kernel["MatrixInstM"] == 4:
@@ -9283,7 +9283,7 @@ class KernelWriterAssembly(KernelWriter):
       assert(self.kernelWriter.overlapVgprC) # sanity check
       if len(self.elementSumIdx) > 0:
         for i in self.elementSumIdx:
-          self.kernelWriter.vgprPool.checkIn(i)
+          self.kernelWriter.vgprPool.checkIn(i*self.cfg.numVgprPerValuC)
           # print("checked in vgpr %u"%i)
         self.elementSumIdx = []
 
@@ -10312,13 +10312,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if self.do["ApplyAlpha"]:
       for vi in range(0, gwvw):
-        sumIdx = elementSumIdx[elementIdx]
-        if self.serializedStore:
-          # ensure index aligned by number of registers per element
-          assert(sumIdx%self.ss.cfg.numVgprPerValuC==0)
-          # convert from index in terms vgprs to index in terms of elements
-          sumIdx = sumIdx//self.ss.cfg.numVgprPerValuC
-        sumIdxV = sumIdx + vi
+        sumIdxV = elementSumIdx[elementIdx] + vi
         if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
           if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
             if sumIdxV%2:
@@ -10552,13 +10546,14 @@ class KernelWriterAssembly(KernelWriter):
     # AccVgpr read
     if codeAccVgprRead is not None:
       assert(self.serializedStore) # sanity check
+      regsPerScalar = self.bpeCinternal//self.bpr # register per scalar
       # loop over store instructions within one batch
       for elementIdx in range(0, len(batchElements)):
         # loop over scalars within one store instruction
         for vi in range(0, gwvw):
           # loop over registers within one scalar
-          for rIdx in range(0, self.bpeCinternal//self.bpr):
-            kStr += str(codeAccVgprRead.items().pop(0)).replace("__placeholder__", str(ss.elementSumIdx[elementIdx] + self.bpeCinternal//self.bpr*vi + rIdx))
+          for rIdx in range(0, regsPerScalar):
+            kStr += str(codeAccVgprRead.items().pop(0)).replace("__placeholder__", str(ss.elementSumIdx[elementIdx]*regsPerScalar + regsPerScalar*vi + rIdx))
       kStr += inst("s_nop 1", "2 wait states required before reading vgpr")
 
     ########################################
@@ -10921,11 +10916,6 @@ class KernelWriterAssembly(KernelWriter):
         vc1 = element[2]
         vc0 = element[3]
         sumIdx = ss.elementSumIdx[elementIdx]
-        if self.serializedStore:
-          # ensure index aligned by number of registers per element
-          assert(sumIdx%self.ss.cfg.numVgprPerValuC==0)
-          # convert from index in terms vgprs (serializedStore==True) to index in terms of elements (classic)
-          sumIdx = sumIdx//self.ss.cfg.numVgprPerValuC
 
         # print(str(element)+" rowInc="+str(addrCalc.rowInc))
         # Already write wave column block into LDS
@@ -10960,13 +10950,7 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("s_waitcnt", "vmcnt(%u)"%vmcnt, "wait C (interleaved) " + vmComment)
           for vi in range(0, gwvw):
             dataV = ss.elementData[elementIdx] + int(vi*ss.cfg.numVgprsPerDataPerVI)
-            sumIdx = ss.elementSumIdx[elementIdx]
-            if self.serializedStore:
-              # ensure index aligned by number of registers per element
-              assert(sumIdx%self.ss.cfg.numVgprPerValuC==0)
-              # convert from index in terms vgprs (serializedStore==True) to index in terms of elements (classic)
-              sumIdx = sumIdx//self.ss.cfg.numVgprPerValuC
-            sumIdxV = sumIdx + vi
+            sumIdxV = ss.elementSumIdx[elementIdx] + vi
             if kernel["ProblemType"]["DataType"].isHalf():
               if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
                 if sumIdxV%2==0:
@@ -11070,8 +11054,8 @@ class KernelWriterAssembly(KernelWriter):
           storesIssued += 1
 
         else:
-          sumIdx = ss.elementSumIdx[elementIdx]
-          kStr += self.storeRemapAddLocalWrite(kernel, ss, addrCalc, sumIdx)
+          rpe = self.bpeCinternal//self.bpr
+          kStr += self.storeRemapAddLocalWrite(kernel, ss, addrCalc, sumIdx*rpe)
           # Column Block Shape has been written to LDS
           # Now read back and write out to global memory
 
