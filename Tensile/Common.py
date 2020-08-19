@@ -110,6 +110,17 @@ globalParameters["CMakeBuildType"] = "Release"            # whether benchmark cl
 globalParameters["PrintSolutionRejectionReason"] = False  # when a solution is marked as invalid, print why
 globalParameters["LibraryFormat"] = "yaml"                # set library backend (either yaml or msgpack)
 
+# True/False: CSV will/won't export WinnerGFlops, WinnerTimeUS, WinnerIdx, WinnerName.
+# TODO - if no side-effect, we can set default to True. This can make analyzing "LibraryLogic" (AddFromCSV) faster
+globalParameters["CSVExportWinner"] = False
+
+# (When NumBenchmarks > 1). True: CSV will merge the rows of same Problem-ID. False: Each problem will write out "NumBenchmarks" rows
+#   In old client - No effect, since in old client, CSV file only exports the last benchmark, somehow is not correct because the previous benchmarks are discarded
+#   In new client - csv file exports "NumBenchmarks" rows for every problem. This also make the later analyzing slower
+#                   Set this to "True" can merge the rows for same problem, hence can reduce the csv file size and speed up the later analyzing
+# TODO - if side-effect, we can set default to True. This can make "getResults()" / "AddFromCSV()" faster
+globalParameters["CSVMergeSameProblemID"] = False
+
 # how to initialize tensor data
 # serial-in-u will use a sequence that increments in the K dimension
 # This is a predictable patterns that can be checked as the kernel runs to detect

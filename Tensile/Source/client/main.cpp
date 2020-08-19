@@ -158,6 +158,8 @@ namespace Tensile
                 ("perf-l2-read-bw-mul",      po::value<double>()->default_value(2.0), "L2 read bandwidth multiplier")
                 ("perf-read-efficiency",     po::value<double>()->default_value(0.85), "Read efficiency")
                 ("perf-ops-per-cycle",       po::value<int>()->default_value(64), "Ops per cycle")
+                ("csv-export-extra-cols",    po::value<bool>()->default_value(false), "CSV exports winner information")
+                ("csv-merge-same-problems",  po::value<bool>()->default_value(false), "CSV merge rows of same problem id")
 
                 ("problem-size,p",           vector_default_empty<std::string>(), "Specify a problem size.  Comma-separated list of "
                                                                                   "sizes, in the order of the Einstein notation.")
