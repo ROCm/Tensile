@@ -1580,16 +1580,6 @@ def assignParameterRequired(destinationDictionary, key, sourceDictionary):
 # Push / Pop Working Path
 # store a WorkingPath where to write files (like benchmark files)
 ################################################################################
-def ensurePath( path ):
-  try:
-    os.makedirs(path)
-  except OSError:
-    pass
-  return path
-def setWorkingPath( fullPathName ):
-  # Warning: this is not thread-safe, modifies the global WorkingPath!
-  workingDirectoryStack.append(globalParameters["WorkingPath"])
-  globalParameters["WorkingPath"] = ensurePath(fullPathName)
 def pushWorkingPath( foldername ):
   # Warning: this is not thread-safe, modifies the global WorkingPath!
   globalParameters["WorkingPath"] = \
@@ -1602,6 +1592,17 @@ def popWorkingPath():
       os.path.split(globalParameters["WorkingPath"])[0]
   else:
     globalParameters["WorkingPath"] = workingDirectoryStack.pop()
+def ensurePath( path ):
+  try:
+    os.makedirs(path)
+  except OSError:
+    pass
+  return path
+def setWorkingPath( fullPathName ):
+  # Warning: this is not thread-safe, modifies the global WorkingPath!
+  workingDirectoryStack.append(globalParameters["WorkingPath"])
+  globalParameters["WorkingPath"] = ensurePath(fullPathName)
+
 
 def roundUp(f):
   return (int)(math.ceil(f))

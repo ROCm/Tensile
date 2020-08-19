@@ -132,59 +132,23 @@ def main( config ):
   return returncode
 
 ################################################################################
-# Write New Client Run Script
-################################################################################
-def writeNewClientRunScript(scriptPath, clientParametersPath, clientExePath = None): #, forBenchmark):
-  # create run.bat or run.sh which builds and runs
-  runScriptName = os.path.join(scriptPath, \
-    "run.%s" % ("bat" if os.name == "nt" else "sh") )
-  runScriptFile = open(runScriptName, "w")
-
-  if os.name != "nt":
-    runScriptFile.write("#!/bin/bash\n\n")
-
-  #if forBenchmark:
-  newClientExe = ClientExecutable.getClientExecutable(clientExePath)
-  configFile = clientParametersPath
-  runScriptFile.write("{} --config-file={}\n".format(newClientExe, configFile))
-  runScriptFile.write("ERR1=$?\n\n")
-
-  runScriptFile.write("""
-ERR=0
-if [[ $ERR1 -ne 0 ]]
-then
-    echo one
-    ERR=$ERR1
-fi
-""")
-  if os.name != "nt":
-    runScriptFile.write("exit $ERR\n")
-  runScriptFile.close()
-  if os.name != "nt":
-    os.chmod(runScriptName, 0o777)
-  return runScriptName
-
-################################################################################
 # Write Run Script
 ################################################################################
-
 def runNewClient(scriptPath, clientParametersPath, clientBuildDir=None):
-  
-  # write runScript
-  runScriptName = writeNewClientRunScript(scriptPath, clientParametersPath, clientBuildDir)
 
-  with ClientExecutionLock():
-    process = subprocess.Popen(runScriptName, cwd=scriptPath)
-    process.communicate()
+  newClientExe = ClientExecutable.getClientExecutable(clientBuildDir)
+  iniFile = "--config-file={}".format(clientParametersPath)
+  args = [newClientExe, iniFile]
 
-  if process.returncode:
-    printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
-  return process.returncode
+  try:
+    subprocess.run(args, check=True)
+  except (subprocess.CalledProcessError, OSError) as e:
+    printWarning("ClientWriter Benchmark Process exited with error: {}".format(e))
 
 
 def runClient(libraryLogicPath, forBenchmark, enableTileSelection):
+  
   # write runScript
-
   pushWorkingPath("build")
   path = globalParameters["WorkingPath"]
   if globalParameters["NewClient"] < 2:
@@ -483,7 +447,7 @@ def checkConstStride(constStrideMap, keyIdx):
   return finalVal
 
 
-def problemSizeParamsImpl(problemType, problem):
+def problemSizeParams(problemType, problem):
 
     numIndices = len(problemType.indices)
     rv = []
@@ -556,9 +520,6 @@ def problemSizeParamsImpl(problemType, problem):
 
     return rv
 
-def problemSizeParams(solution, problem):
-  return problemSizeParamsImpl(solution.problemType, problem)
-
 def dataInitName(num):
     if num == 0: return 'Zero'
     if num == 1: return 'One'
@@ -594,7 +555,7 @@ def dataInitParams(problemType):
             ('init-alpha', dataInitName(initAlpha)),
             ('init-beta',  dataInitName(initBeta))]
 
-def writeClientConfigImpl(problemSizes, problemType, sourceDir, codeObjectFiles, resultsFileName, parametersFilePath):
+def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, resultsFileName, parametersFilePath):
 
     with open(parametersFilePath, "w") as f:
         def param(key, value):
@@ -624,7 +585,7 @@ def writeClientConfigImpl(problemSizes, problemType, sourceDir, codeObjectFiles,
         param('high-precision-accumulate',  problemType.highPrecisionAccumulate)
 
         for problem in problemSizes.problems:
-            for key,value in problemSizeParamsImpl(problemType, problem): 
+            for key,value in problemSizeParams(problemType, problem): 
                 param(key,value)
 
         param("device-idx",               globalParameters["Device"])
@@ -689,7 +650,7 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
 
     newSolution = next(iter(newLibrary.solutions.values()))
     sourceDir = os.path.join(stepBaseDir, "source")
-    writeClientConfigImpl(problemSizes, newSolution.problemType, sourceDir, codeObjectFiles, resultsFileName, filename)
+    writeClientConfigIni(problemSizes, newSolution.problemType, sourceDir, codeObjectFiles, resultsFileName, filename)
    
 def CreateBenchmarkClientPrametersForSizes(libraryRootPath, problemSizes, dataFilePath, configFile):
 
@@ -705,7 +666,7 @@ def CreateBenchmarkClientPrametersForSizes(libraryRootPath, problemSizes, dataFi
     problemTypeDict = metaData["ProblemType"]
     problemType = ContractionsProblemType.FromOriginalState(problemTypeDict)
   
-    writeClientConfigImpl(problemSizes, problemType, libraryRootPath, codeObjectFiles, dataFilePath, configFile)
+    writeClientConfigIni(problemSizes, problemType, libraryRootPath, codeObjectFiles, dataFilePath, configFile)
 
 
 ################################################################################

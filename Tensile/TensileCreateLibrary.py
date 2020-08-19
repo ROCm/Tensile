@@ -936,9 +936,9 @@ def forkHardcodedParameters( basePermutation, update ):
   return updatedHardcodedParameters
 
 ##############################################################################
-# assigenParameters
+# assignParameters
 ##############################################################################
-def assigenParameters(problemTypeConfig, configBenchmarkCommonParameters, configForkParameters):
+def assignParameters(problemTypeConfig, configBenchmarkCommonParameters, configForkParameters):
 
   problemTypeObj = ProblemType(problemTypeConfig)
   globalParameters["EnableHalf"] = problemTypeObj["DataType"].isHalf()
@@ -1505,46 +1505,12 @@ def TensileCreateLibrary():
         masterLibraries[architectureName] = deepcopy(newLibrary)
         masterLibraries[architectureName].version = args.version
 
-#<<<<<<< HEAD
-  #kernels, kernelHelperOjbs, kernelHelperNames = generateKernelObjectsFromSolutions(solutions)
-  kernels, kernelHelperOjbs, _ = generateKernelObjectsFromSolutions(solutions)
-  # if any kernels are assembly, append every ISA supported
 
+  kernels, kernelHelperOjbs, _ = generateKernelObjectsFromSolutions(solutions)
+  
+  # if any kernels are assembly, append every ISA supported
   solutionWriter, kernelWriterSource, kernelWriterAssembly, \
     kernelMinNaming, _ = getSolutionAndKernelWriters(solutions, kernels)
-#=======
-#  # create solution writer and kernel writer
-#  kernels = []
-#  kernelHelperOjbs = []
-#  kernelHelperNames = set()
-#
-#  for solution in solutions:
-#    solutionKernels = solution.getKernels()
-#    for kernel in solutionKernels:
-#      if kernel not in kernels:
-#        kernels.append(kernel)
-#    solutionHelperKernels = solution.getHelperKernelObjects()
-#    for ko in solutionHelperKernels:
-#      kname = ko.getKernelName()
-#      if kname not in kernelHelperNames:
-#        kernelHelperOjbs.append(ko)
-#        kernelHelperNames.add(kname)
-#
-#  # if any kernels are assembly, append every ISA supported
-#
-#  if globalParameters["ShortNames"] and not globalParameters["MergeFiles"]:
-#    solutionSerialNaming = Solution.getSerialNaming(solutions)
-#    kernelSerialNaming   = Solution.getSerialNaming(kernels)
-#  else:
-#    solutionSerialNaming = None
-#    kernelSerialNaming   = None
-#
-#  solutionMinNaming    = Solution.getMinNaming(solutions)
-#  kernelMinNaming      = Solution.getMinNaming(kernels)
-#  solutionWriter       = SolutionWriter(solutionMinNaming, solutionSerialNaming, kernelMinNaming, kernelSerialNaming)
-#  kernelWriterSource   = KernelWriterSource(kernelMinNaming, kernelSerialNaming)
-#  kernelWriterAssembly = KernelWriterAssembly(kernelMinNaming, kernelSerialNaming)
-#>>>>>>> ab592f803c67edbc7e0999c12370726e9628b485
 
   staticFiles = copyStaticFiles(outputPath)
 

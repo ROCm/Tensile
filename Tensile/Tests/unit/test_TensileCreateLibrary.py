@@ -53,7 +53,7 @@ def test_assigenParameters():
         [{"WorkGroup": [[16, 16, 1]]}, {"ThreadTile": [[4, 4],[8, 8]]}]
 
     problemTypeObj, hardcodedParameters, initialSolutionParameters = \
-        TensileCreateLibrary.assigenParameters(problemTypeConfig, benchmarkCommonParameters, configForkParameters)
+        TensileCreateLibrary.assignParameters(problemTypeConfig, benchmarkCommonParameters, configForkParameters)
     
    
     assert problemTypeObj != None
