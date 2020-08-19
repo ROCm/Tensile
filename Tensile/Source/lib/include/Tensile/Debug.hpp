@@ -1,4 +1,4 @@
- /**
+/**
  * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -58,7 +58,7 @@ namespace Tensile
         bool printLibraryVersion() const;
 
         bool printLookupEfficiency() const;
-        
+
         bool printWinningKernelName() const;
 
         bool naivePropertySearch() const;
