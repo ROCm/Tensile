@@ -47,11 +47,6 @@ namespace Tensile
         return m_value & 0x10;
     }
 
-    bool Debug::printLookupEfficiency() const
-    {
-        return m_value & 0x4000;
-    }
-
     bool Debug::printCodeObjectInfo() const
     {
         return m_value & 0x20;
@@ -85,7 +80,7 @@ namespace Tensile
         return m_value & 0x800;
     }
 
-    bool Debug::printEmbeddedDataInit() const
+    bool Debug::printDataInit() const
     {
         return m_value & 0x1000;
     }
@@ -93,6 +88,16 @@ namespace Tensile
     bool Debug::printLibraryVersion() const
     {
         return m_value & 0x2000;
+    }
+
+    bool Debug::printLookupEfficiency() const
+    {
+        return m_value & 0x4000;
+    }
+
+    bool Debug::printWinningKernelName() const
+    {
+        return m_value & 0x8000;
     }
 
     bool Debug::naivePropertySearch() const

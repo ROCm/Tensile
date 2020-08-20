@@ -32,12 +32,14 @@ endif()
 
 set(tensile_sources  ${tensile_sources}
     source/AMDGPU.cpp
+    source/ArithmeticUnitTypes.cpp
     source/ContractionProblem.cpp
     source/ContractionSolution.cpp
     source/DataTypes.cpp
     source/Debug.cpp
     source/EmbeddedLibrary.cpp
     source/KernelArguments.cpp
+    source/KernelLanguageTypes.cpp
     source/TensorDescriptor.cpp
     source/TensorOps.cpp
     source/Tensile.cpp
@@ -47,11 +49,23 @@ set(tensile_sources  ${tensile_sources}
 if(TENSILE_USE_LLVM)
     find_package(LLVM 6.0 QUIET CONFIG)
     if(NOT LLVM_FOUND)
-        find_package(LLVM REQUIRED CONFIG)
+        find_package(LLVM 7.0 QUIET CONFIG)
+        if(NOT LLVM_FOUND)
+            find_package(LLVM 9.0 QUIET CONFIG)
+            if(NOT LLVM_FOUND)
+                find_package(LLVM REQUIRED CONFIG)
+            endif()
+        endif()
     endif()
     set(tensile_sources ${tensile_sources}
         source/llvm/YAML.cpp
         source/llvm/Loading.cpp
+    )
+endif()
+
+if(TENSILE_USE_MSGPACK)
+    set(tensile_sources ${tensile_sources}
+        source/msgpack/MessagePack.cpp
     )
 endif()
 
@@ -68,8 +82,23 @@ add_library (TensileHost STATIC ${tensile_sources})
 
 target_include_directories(TensileHost INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-if(TENSILE_USE_LLVM)
+if(TENSILE_USE_LLVM OR TENSILE_USE_MSGPACK)
     target_compile_definitions(TensileHost PUBLIC TENSILE_DEFAULT_SERIALIZATION)
+endif()
+
+if(TENSILE_USE_MSGPACK)
+    target_compile_definitions(TensileHost PUBLIC -DTENSILE_MSGPACK=1)
+
+    find_package(msgpack)
+    if(TARGET msgpackc-static)
+        target_link_libraries(TensileHost PRIVATE msgpackc-static)
+    else()
+        target_link_libraries(TensileHost PRIVATE msgpackc)
+    endif()
+endif()
+
+if(TENSILE_USE_LLVM)
+    target_compile_definitions(TensileHost PUBLIC -DTENSILE_YAML=1)
     find_library(LLVMObjectYAML_LIBRARY
         NAMES LLVMObjectYAML
         PATHS ${LLVM_LIBRARY_DIR})

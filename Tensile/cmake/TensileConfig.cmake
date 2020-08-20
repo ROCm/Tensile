@@ -68,21 +68,40 @@ include("${Tensile_ROOT}/Source/TensileCreateLibrary.cmake")
 function(TensileCreateLibraryFiles
         Tensile_LOGIC_PATH Tensile_OUTPUT_PATH)
 
+  if(NOT TENSILE_NEW_CLIENT)
+    message(FATAL_ERROR "TensileCreateLibraryFiles function should only be called for new client.")
+  endif()
+
   # Tensile_ROOT can be specified instead of using the installed path.
   set(options NO_MERGE_FILES SHORT_FILE_NAMES PRINT_DEBUG GENERATE_PACKAGE)
-  set(oneValueArgs TENSILE_ROOT EMBED_LIBRARY EMBED_KEY VAR_PREFIX CODE_OBJECT_VERSION COMPILER ARCHITECTURE)
+  set(oneValueArgs
+       ARCHITECTURE
+       CODE_OBJECT_VERSION
+       COMPILER
+       EMBED_KEY
+       EMBED_LIBRARY
+       LIBRARY_FORMAT
+       MERGE_FILES
+       TENSILE_ROOT
+       VAR_PREFIX
+       )
   set(multiValueArgs "")
   cmake_parse_arguments(Tensile "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+  # older NO_MERGE_FILES flag overrides MERGE_FILES option.
+  if(Tensile_NO_MERGE_FILES)
+    set(Tensile_MERGE_FILES OFF)
+  endif()
 
   set(Script "${Tensile_ROOT}/bin/TensileCreateLibrary")
   message(STATUS "Tensile script: ${Script}")
 
-  set(Options "")
+  set(Options "--new-client-only" "--no-legacy-components")
 
-  if(Tensile_NO_MERGE_FILES)
-    set(Options ${Options} "--no-merge-files")
-  else()
+  if(Tensile_MERGE_FILES)
     set(Options ${Options} "--merge-files")
+  else()
+    set(Options ${Options} "--no-merge-files")
   endif()
 
   if(Tensile_GENERATE_PACKAGE)
@@ -121,37 +140,75 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--architecture=${Tensile_ARCHITECTURE}")
   endif()
 
+  if(Tensile_LIBRARY_FORMAT)
+    set(Options ${Options} "--library-format=${Tensile_LIBRARY_FORMAT}")
+    if(Tensile_LIBRARY_FORMAT MATCHES "yaml")
+        target_compile_definitions( TensileHost PUBLIC -DTENSILE_YAML=1)
+    endif()
+  endif()
+
   set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
   message(STATUS "Tensile_CREATE_COMMAND: ${CommandLine}")
+
+  if(Tensile_EMBED_LIBRARY)
+      set(Tensile_EMBED_LIBRARY_SOURCE "${Tensile_OUTPUT_PATH}/library/${Tensile_EMBED_LIBRARY}.cpp")
+  endif()
 
   if($ENV{TENSILE_SKIP_LIBRARY})
       message(STATUS "Skipping build of ${Tensile_OUTPUT_PATH}")
   else()
-      execute_process(COMMAND ${CommandLine} RESULT_VARIABLE CommandResult)
-      if(CommandResult)
-        message(FATAL_ERROR "Error creating Tensile library: ${CommandResult}")
+
+      if(NOT Tensile_VAR_PREFIX)
+          set(Tensile_VAR_PREFIX TENSILE)
       endif()
+
+      # Create the manifest file of the output libraries.
+      set(Tensile_CREATE_MANIFEST_COMMAND ${CommandLine} "--generate-manifest-and-exit")
+      set(Tensile_MANIFEST_FILE_PATH "${Tensile_OUTPUT_PATH}/library/TensileManifest.txt")
+
+      execute_process(
+        COMMAND ${Tensile_CREATE_MANIFEST_COMMAND}
+        RESULT_VARIABLE Tensile_CREATE_MANIFEST_RESULT)
+
+      if(Tensile_CREATE_MANIFEST_RESULT OR (NOT EXISTS ${Tensile_MANIFEST_FILE_PATH}))
+        message(FATAL_ERROR "Error creating Tensile library: ${Tensile_CREATE_MANIFEST_RESULT}")
+      endif()
+
+      # Defer the actual call of the TensileCreateLibraries to 'make' time as needed.
+      # Read the manifest file and declare the files as expected output.
+      file(STRINGS ${Tensile_MANIFEST_FILE_PATH} Tensile_MANIFEST_CONTENTS)
+      add_custom_command(
+        COMMENT "Generating Tensile Libraries"
+        OUTPUT ${Tensile_EMBED_LIBRARY_SOURCE};${Tensile_MANIFEST_CONTENTS}
+        COMMAND ${CommandLine}
+      )
+
+      set("${Tensile_VAR_PREFIX}_ALL_FILES" ${Tensile_MANIFEST_CONTENTS} PARENT_SCOPE)
+
   endif()
-
-  if(NOT Tensile_VAR_PREFIX)
-      set(Tensile_VAR_PREFIX TENSILE)
-  endif()
-
-  file(GLOB CodeObjects "${Tensile_OUTPUT_PATH}/library/*.co")
-  file(GLOB HSACodeObjects "${Tensile_OUTPUT_PATH}/library/*.hsaco")
-  set(LibraryFile "${Tensile_OUTPUT_PATH}/library/TensileLibrary.yaml")
-
-  set("${Tensile_VAR_PREFIX}_CODE_OBJECTS" ${CodeObjects} ${HSACodeObjects} PARENT_SCOPE)
-  set("${Tensile_VAR_PREFIX}_LIBRARY_FILE" "${LibraryFile}" PARENT_SCOPE)
-
-  set("${Tensile_VAR_PREFIX}_ALL_FILES" ${CodeObjects} ${HSACodeObjects} ${LibraryFile} PARENT_SCOPE)
 
   if(Tensile_EMBED_LIBRARY)
 
-    add_library(${Tensile_EMBED_LIBRARY} "${Tensile_OUTPUT_PATH}/library/${Tensile_EMBED_LIBRARY}.cpp")
+    add_library(${Tensile_EMBED_LIBRARY} ${Tensile_EMBED_LIBRARY_SOURCE})
     target_link_libraries(${Tensile_EMBED_LIBRARY} PUBLIC TensileHost)
 
   endif()
 
 endfunction()
 
+# Target is created for copying dependencies
+function(TensileCreateCopyTarget
+    Target_NAME
+    Tensile_OBJECTS_TO_COPY
+    Dest_PATH
+    )
+
+    file(MAKE_DIRECTORY "${Dest_PATH}")
+    add_custom_target(
+        ${Target_NAME} ALL
+        COMMENT "${Target_NAME}: Copying tensile objects to ${Dest_PATH}"
+        COMMAND_EXPAND_LISTS
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${Tensile_OBJECTS_TO_COPY} ${Dest_PATH}
+        DEPENDS ${Tensile_OBJECTS_TO_COPY}
+    )
+endfunction()

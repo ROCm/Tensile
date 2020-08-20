@@ -24,6 +24,8 @@
 
 #pragma once
 
+#include <Tensile/ArithmeticUnitTypes.hpp>
+#include <Tensile/KernelLanguageTypes.hpp>
 #include <Tensile/Tensile.hpp>
 
 #include <Tensile/ContractionProblem_fwd.hpp>
@@ -287,7 +289,8 @@ namespace Tensile
                            FreeIndices const&      freeIndices,
                            BatchIndices const&     batchIndices,
                            BoundIndices const&     boundIndices,
-                           double                  beta);
+                           double                  beta,
+                           size_t                  workspaceSize = 0);
 
         //! Returns size given original index assignment (in range
         //! 0..NumIndicesC+boundSizes)
@@ -339,6 +342,33 @@ namespace Tensile
         bool highPrecisionAccumulate() const
         {
             return m_highPrecisionAccumulate;
+        }
+
+        void setArithmeticUnit(ArithmeticUnit value)
+        {
+            m_arithmeticUnit = value;
+        }
+        ArithmeticUnit arithmeticUnit() const
+        {
+            return m_arithmeticUnit;
+        }
+
+        void setKernelLanguage(KernelLanguage value)
+        {
+            m_kernelLanguage = value;
+        }
+        KernelLanguage kernelLanguage() const
+        {
+            return m_kernelLanguage;
+        }
+
+        void setDeterministicMode(bool value)
+        {
+            m_deterministicMode = value;
+        }
+        bool deterministicMode() const
+        {
+            return m_deterministicMode;
         }
 
         /// Largest of the free and bound indices.  Does not include batch size.
@@ -462,11 +492,11 @@ namespace Tensile
 
         bool transA() const
         {
-            return m_transA;
+            return m_aNames == "lik";
         }
         bool transB() const
         {
-            return m_transB;
+            return m_bNames == "jlk";
         }
 
         std::string        operationName() const;
@@ -477,6 +507,16 @@ namespace Tensile
         std::string operationDescription() const
         {
             return getOperationDescription();
+        }
+
+        void setWorkspaceSize(size_t size)
+        {
+            m_workspaceSize = size;
+        }
+
+        size_t workspaceSize() const
+        {
+            return m_workspaceSize;
         }
 
     private:
@@ -496,9 +536,12 @@ namespace Tensile
         std::string m_sumNames;
         std::string m_operationIdentifier;
 
-        bool m_transA;
-        bool m_transB;
-        bool m_highPrecisionAccumulate = false;
+        bool           m_transA;
+        bool           m_transB;
+        bool           m_highPrecisionAccumulate = false;
+        bool           m_deterministicMode       = false;
+        ArithmeticUnit m_arithmeticUnit          = ArithmeticUnit::Any;
+        KernelLanguage m_kernelLanguage          = KernelLanguage::Any;
 
         FreeIndices  m_freeIndicesA; //< in same order as IndexAssignmentsA
         FreeIndices  m_freeIndicesB; //< in same order as IndexAssignmentsB
@@ -524,6 +567,8 @@ namespace Tensile
 
         size_t m_allocatedElementsNonBatchA;
         size_t m_allocatedElementsNonBatchB;
+
+        size_t m_workspaceSize;
 
         void normalize();
         void consistencyCheck() const;
@@ -559,14 +604,20 @@ namespace Tensile
         using BetaType  = Beta;
 
         TypedContractionInputs();
-        TypedContractionInputs(
-            A const* _a, B const* _b, C const* _c, D* _d, Alpha _alpha, Beta _beta);
+        TypedContractionInputs(A const* _a,
+                               B const* _b,
+                               C const* _c,
+                               D*       _d,
+                               Alpha    _alpha,
+                               Beta     _beta,
+                               void*    _ws = nullptr);
         ~TypedContractionInputs();
 
-        A const* a = nullptr;
-        B const* b = nullptr;
-        C const* c = nullptr;
-        D*       d = nullptr;
+        A const* a  = nullptr;
+        B const* b  = nullptr;
+        C const* c  = nullptr;
+        D*       d  = nullptr;
+        void*    ws = nullptr;
 
         Alpha alpha = static_cast<Alpha>(0);
         Beta  beta  = static_cast<Beta>(0);

@@ -28,6 +28,7 @@ set( CMAKE_CXX_EXTENSIONS OFF )
 
 option(TENSILE_USE_HIP       "Use the Hip runtime." ON)
 option(TENSILE_USE_LLVM      "Use LLVM for parsing config files." ON)
+option(TENSILE_USE_MSGPACK   "Use msgpack for parsing config files." ON)
 option(TENSILE_USE_OPENMP    "Enable OpenMP multithreading." ON)
 option(TENSILE_STATIC_ONLY   "Disable exposing Tensile symbols in a shared library." ON)
 option(TENSILE_DISABLE_CTEST "Disable CTest integration." OFF)
@@ -49,7 +50,7 @@ if(TENSILE_STATIC_ONLY)
 endif()
 
 if(NOT Tensile_FOUND)
-    find_package(Tensile 4.19.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
+    find_package(Tensile 4.22.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
 endif()
 
 if(NOT TENSILE_DISABLE_CTEST)
@@ -65,6 +66,9 @@ endif()
 
 set(INSTALL_GTEST OFF CACHE BOOL "Install GTest")
 add_subdirectory(googletest)
+if(NOT gtest_SOURCE_DIR)
+    message(FATAL_ERROR "googletest not found.  Run git submodule update --init")
+endif()
 
 find_package(Boost COMPONENTS filesystem)
 
@@ -95,14 +99,20 @@ add_subdirectory(configs)
 
 set(TEST_DATA_DIR "${CMAKE_CURRENT_BINARY_DIR}/data")
 file(MAKE_DIRECTORY "${TEST_DATA_DIR}")
-file(COPY ${SOLUTION_LIBRARY_FILES} DESTINATION "${TEST_DATA_DIR}")
+
+foreach(FILE ${SOLUTION_LIBRARY_FILES})
+    if(EXISTS ${FILE})
+        message(WARNING "Overwriting ${FILE} from ${FILE}.gz")
+    endif()
+    execute_process(COMMAND gzip --keep --decompress --force "${FILE}.gz")
+    file(COPY ${FILE} DESTINATION "${TEST_DATA_DIR}")
+endforeach(FILE)
 
 include_directories("." ${GTEST_SOURCE_DIR}/include)
 add_subdirectory(testlib)
 
 set(test_sources ${test_sources}
     test.cpp
-
     CachingLibrary_test.cpp
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp
@@ -120,6 +130,9 @@ if(TENSILE_USE_LLVM)
 
     set(test_sources ${test_sources}
         ContractionLibraryLoading_test.cpp
+        llvm/ArithmeticUnitPredicate_test.cpp
+        llvm/DeterministicModePredicate_test.cpp
+        llvm/KernelLanguagePredicate_test.cpp
         llvm/LLVMYAMLContraction_test.cpp
         llvm/LibraryPerformance_test.cpp
         )
@@ -138,7 +151,7 @@ add_executable(TensileTests ${test_sources})
 
 if(NOT TENSILE_DISABLE_CTEST)
     if(GTEST_INTEGRATION)
-        gtest_discover_tests(TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+        gtest_discover_tests(TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR} TIMEOUT 60)
     else()
         add_test(NAME TensileHostLibraryTests COMMAND TensileTests WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
     endif()
@@ -161,7 +174,13 @@ if(TENSILE_USE_LLVM)
 endif()
 
 if(TENSILE_USE_HIP)
+
+    # Make sure the testing libraries get copied to avoid segfaults in test runs.
+    add_dependencies(TensileTests ${HIP_TEST_COPY_TARGET_DEPS})
+
+    target_link_libraries(TensileTests PRIVATE "-Xlinker --whole-archive")
     target_link_libraries(TensileTests PUBLIC ${HIP_TEST_LIBRARIES})
+    target_link_libraries(TensileTests PRIVATE "-Xlinker --no-whole-archive")
     foreach(arch IN LISTS TENSILE_GPU_ARCHS)
         target_link_libraries(TensileTests PRIVATE "--amdgpu-target=${arch}")
     endforeach(arch)

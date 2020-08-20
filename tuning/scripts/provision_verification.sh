@@ -141,5 +141,5 @@ pushd ${REFERENCE_NAME} > /dev/null
 ${BUILD_ROCBLAS} > build-reference.out 2>&1
 popd > /dev/null
 
-TENSILE_CREATE_LIBRARY="${TENSILE_PATH}/Tensile/bin/TensileCreateLibrary --no-merge-files --no-legacy-components --no-short-file-names --no-library-print-debug --code-object-version=V2 --cxx-compiler=hcc ${MERGE_PATH} ${TENSILE_LIBRARY_PATH} HIP"
+TENSILE_CREATE_LIBRARY="${TENSILE_PATH}/Tensile/bin/TensileCreateLibrary --merge-files --no-legacy-components --no-short-file-names --no-library-print-debug --code-object-version=V2 --cxx-compiler=hcc ${MERGE_PATH} ${TENSILE_LIBRARY_PATH} HIP"
 ${TENSILE_CREATE_LIBRARY}

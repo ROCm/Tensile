@@ -90,6 +90,9 @@ namespace Tensile
                 iot::mapOptional(io, "magicDivAlg", s.magicDivAlg);
                 iot::mapRequired(io, "persistentKernel", s.persistentKernel);
                 iot::mapRequired(io, "sourceKernel", s.sourceKernel);
+
+                iot::mapRequired(io, "globalAccumulation", s.globalAccumulation);
+                iot::mapRequired(io, "workspaceSizePerElemC", s.workspaceSizePerElemC);
             }
 
             const static bool flow = false;
@@ -111,6 +114,21 @@ namespace Tensile
                 iot::mapRequired(io, "highPrecisionAccumulate", s.highPrecisionAccumulate);
                 iot::mapOptional(io, "useInitialStridesAB", s.useInitialStridesAB);
                 iot::mapOptional(io, "useInitialStridesCD", s.useInitialStridesCD);
+            }
+
+            const static bool flow = false;
+        };
+
+        template <typename IO>
+        struct MappingTraits<BufferLoadCheckPacket, IO>
+        {
+            using iot = IOTraits<IO>;
+            static void mapping(IO& io, BufferLoadCheckPacket& s)
+            {
+                iot::mapRequired(io, "ShiftPtrElemA", s.shiftPtrElemA);
+                iot::mapRequired(io, "ShiftPtrElemB", s.shiftPtrElemB);
+                iot::mapRequired(io, "DUorMT0", s.depthUorMT0);
+                iot::mapRequired(io, "DUorMT1", s.depthUorMT1);
             }
 
             const static bool flow = false;

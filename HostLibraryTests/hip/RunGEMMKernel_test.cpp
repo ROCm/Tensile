@@ -421,12 +421,10 @@ TEST_P(RunGEMMKernelTest, AllSolutions)
 std::vector<ContractionProblem> TestProblems()
 {
     return std::vector<ContractionProblem>{
-        // ContractionProblem::GEMM(false, false, 5760, 5760, 5760, 5760, 5760,
-        // 5760, 1.5, false,  4), ContractionProblem::GEMM(false,  true, 5760,
-        // 5760, 5760, 5760, 5760, 5760, 1.5, false,  4), ContractionProblem::GEMM(
-        // true, false, 5760, 5760, 5760, 5760, 5760, 5760, 1.5, false,  4),
-        // ContractionProblem::GEMM( true,  true, 5760, 5760, 5760, 5760, 5760,
-        // 5760, 1.5, false,  4),
+        //ContractionProblem::GEMM(false, false, 5760, 5760, 5760, 5760, 5760, 5760, 1.5, false,  4),
+        //ContractionProblem::GEMM(false,  true, 5760, 5760, 5760, 5760, 5760, 5760, 1.5, false,  4),
+        //ContractionProblem::GEMM( true, false, 5760, 5760, 5760, 5760, 5760, 5760, 1.5, false,  4),
+        //ContractionProblem::GEMM( true,  true, 5760, 5760, 5760, 5760, 5760, 5760, 1.5, false,  4),
         ContractionProblem::GEMM(false, false, 4, 4, 6, 4, 6, 4, 1.5, false, 2),
         ContractionProblem::GEMM(false, true, 4, 4, 6, 4, 4, 4, 1.5, false, 2),
         ContractionProblem::GEMM(true, false, 4, 4, 6, 6, 6, 4, 1.5, false, 2),
@@ -500,7 +498,12 @@ std::vector<ContractionProblem> TestProblems()
 
         ContractionProblem::GEMM(false, true, 1, 128, 256, 1, 270, 49928, 1.5, false, 1),
         ContractionProblem::GEMM(false, true, 384, 1, 384, 384, 270, 49928, 1.5, false, 1),
-        ContractionProblem::GEMM(true, true, 4, 4, 1, 1, 4, 4, 1.5, false, 1)};
+        ContractionProblem::GEMM(true, true, 4, 4, 1, 1, 4, 4, 1.5, false, 1),
+
+        ContractionProblem::GEMM(false, false, 16328, 384, 384, 16328, 384, 16328, 2.0, false, 1),
+        ContractionProblem::GEMM(false, true, 16328, 384, 384, 16328, 16328, 16328, 2.0, false, 1),
+        ContractionProblem::GEMM(true, false, 16328, 384, 384, 384, 384, 16328, 2.0, false, 1),
+        ContractionProblem::GEMM(true, true, 16328, 384, 384, 384, 16328, 16328, 2.0, false, 1)};
 }
 
 std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
@@ -531,7 +534,7 @@ std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
 
     {
         auto library = LoadLibraryFile<ContractionProblem>(
-            TestData::Instance().file("kernels_lite/TensileLibrary.yaml").native());
+            TestData::Instance().file("kernels_lite/TensileLibrary").native());
         auto adapter = std::make_shared<hip::SolutionAdapter>(debug, "kernels_lite (file)");
         for(auto file : TestData::Instance().glob("kernels_lite/*.*co"))
             adapter->loadCodeObjectFile(file.native());
@@ -541,7 +544,7 @@ std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
 
     {
         auto library = LoadLibraryFile<ContractionProblem>(
-            TestData::Instance().file("kernels_lite_mixed/TensileLibrary.yaml").native());
+            TestData::Instance().file("kernels_lite_mixed/TensileLibrary").native());
         auto adapter = std::make_shared<hip::SolutionAdapter>(debug, "kernels_lite_mixed (file)");
         for(auto file : TestData::Instance().glob("kernels_lite_mixed/*.*co"))
             adapter->loadCodeObjectFile(file.native());
@@ -551,7 +554,7 @@ std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
 
     {
         auto library = LoadLibraryFile<ContractionProblem>(
-            TestData::Instance().file("tile_aware_selection/library/TensileLibrary.yaml").native());
+            TestData::Instance().file("tile_aware_selection/library/TensileLibrary").native());
 
         auto adapter = std::make_shared<hip::SolutionAdapter>(debug, "tile_aware_selection");
         for(auto file : TestData::Instance().glob("tile_aware_selection/library/*.*co"))
@@ -566,8 +569,7 @@ std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
     auto envDir = TestData::Env("TENSILE_TEST_LIBRARY");
     if(envDir)
     {
-        auto library
-            = LoadLibraryFile<ContractionProblem>(envDir.file("TensileLibrary.yaml").native());
+        auto library = LoadLibraryFile<ContractionProblem>(envDir.file("TensileLibrary").native());
         auto adapter = std::make_shared<hip::SolutionAdapter>(debug, "TENSILE_TEST_LIBRARY");
 
         for(auto file : envDir.glob("*.co"))
@@ -577,7 +579,13 @@ std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
 
         for(auto file : envDir.glob("*.hsaco"))
         {
-            adapter->loadCodeObjectFile(file.native());
+            try
+            {
+                adapter->loadCodeObjectFile(file.native());
+            }
+            catch(std::logic_error& exc)
+            {
+            }
         }
 
         rv.emplace_back(library, adapter, false);

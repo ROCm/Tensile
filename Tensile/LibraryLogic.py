@@ -21,7 +21,7 @@
 
 from .Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar, printWarning
 from .SolutionStructs import Solution
-from . import YAMLIO
+from . import LibraryIO
 from . import SolutionSelectionLibrary
 
 from copy import deepcopy
@@ -58,7 +58,8 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
 
     ######################################
     # Read Solutions
-    (problemSizes, solutions) = YAMLIO.readSolutions(solutionsFileName)
+    # (problemSizes, solutions) are already read and kept in problemSizeGroups, no need to call LibraryIO.readSolutions(solutionsFileName) again
+    solutions = problemSizeGroup[4]
     problemSizesList.append(problemSizes)
     solutionsList.append(solutions)
     solutionMinNaming = Solution.getMinNaming(solutions)
@@ -111,6 +112,12 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
         line += "; "
       line += "\n"
     print(line)
+
+  for i in range(0, len(logicAnalyzer.solutions)):
+    s = logicAnalyzer.solutions[i]
+    s["SolutionIndex"] = i
+    s["SolutionNameMin"] = Solution.getNameMin(s, solutionMinNaming)
+    print1("(%2u) %s : %s" % (i, Solution.getNameMin(s, solutionMinNaming), Solution.getNameFull(s)))
 
   if enableTileSelection:
     if globalParameters["NewClient"] == 2:
@@ -414,15 +421,25 @@ class LogicAnalyzer:
     # column indices
     csvFile = csv.reader(dataFile)
     problemSizeStartIdx = 1
+    # notice that for OperationType != GEMM, the numIndices = 0
     totalSizeIdx = problemSizeStartIdx + self.numIndices
-    solutionStartIdx = totalSizeIdx + 1
-    rowLength = solutionStartIdx + numSolutions
+
+    # need to take care if the loaded csv is the export-winner-version
+    csvHasWinner = "_CSVWinner" in dataFileName
+    if csvHasWinner:
+      # the column of the two are fixed (GFlops, SizeI/J/K/L, LDD/C/A/B, TotalFlops, WinnerGFlops, WinnerTimeUs, WinnerIdx, WinnerName)
+      # the order are implemented in ResultFileReporter.cpp (NewClient) and Client.h (OldClient)
+      columnOfWinnerGFlops = 10
+      columnOfWinnerIdx = 12
 
     # iterate over rows
     rowIdx = 0
     for row in csvFile:
       rowIdx+=1
       if rowIdx == 1:
+        # get the length of each row, and derive the first column of the solution instead of using wrong "solutionStartIdx = totalSizeIdx + 1"
+        rowLength = len(row)
+        solutionStartIdx = rowLength - numSolutions
         continue
       else:
         #if len(row) < rowLength:
@@ -438,16 +455,24 @@ class LogicAnalyzer:
 
         # Exact Problem Size
         if problemSize in self.exactProblemSizes:
-          # solution gflops
-          solutionIdx = 0
-          winnerIdx = -1
-          winnerGFlops = -1
-          for i in range(solutionStartIdx, rowLength):
-            gflops = float(row[i])
-            if gflops > winnerGFlops:
-              winnerIdx = solutionIdx
-              winnerGFlops = gflops
-            solutionIdx += 1
+
+          if csvHasWinner:
+            # Faster. Get the winner info from csv directly, avoid an extra loop
+            winnerGFlops = float(row[columnOfWinnerGFlops])
+            winnerIdx = int(row[columnOfWinnerIdx])
+          else:
+            # Old code. TODO - Can we get rid of this in the future?
+            # solution gflops
+            solutionIdx = 0
+            winnerIdx = -1
+            winnerGFlops = -1
+            for i in range(solutionStartIdx, rowLength):
+              gflops = float(row[i])
+              if gflops > winnerGFlops:
+                winnerIdx = solutionIdx
+                winnerGFlops = gflops
+              solutionIdx += 1
+
           if winnerIdx != -1:
             if problemSize in self.exactWinners:
               if winnerGFlops > self.exactWinners[problemSize][1]:
@@ -1429,22 +1454,26 @@ def main(  config ):
         printExit("%s doesn't exist for %s" % (dataFileName, fileBase) )
       if not os.path.exists(solutionsFileName):
         printExit("%s doesn't exist for %s" % (solutionsFileName, fileBase) )
-      (problemSizes, solutions) = YAMLIO.readSolutions(solutionsFileName)
+      (problemSizes, solutions) = LibraryIO.readSolutions(solutionsFileName)
       if len(solutions) == 0:
         printExit("%s doesn't contains any solutions." % (solutionsFileName) )
       problemType = solutions[0]["ProblemType"]
       if problemType not in problemTypes:
         problemTypes[problemType] = []
       problemTypes[problemType].append( (problemSizes, \
-          dataFileName, solutionsFileName, selectionFileName) )
+          dataFileName, solutionsFileName, selectionFileName, solutions) )
 
   for problemType in problemTypes:
     logicTuple = analyzeProblemType( problemType, problemTypes[problemType], \
         analysisParameters)
 
-    YAMLIO.writeLibraryLogicForSchedule(globalParameters["WorkingPath"], \
+    LibraryIO.configWriter("yaml").writeLibraryLogicForSchedule(globalParameters["WorkingPath"], \
         analysisParameters["ScheduleName"], analysisParameters["ArchitectureName"], \
         analysisParameters["DeviceNames"], logicTuple)
+
+  currentTime = time.time()
+  elapsedTime = currentTime - startTime
+  print1("%s\n# Finish Analysing data to in %s - %.3fs\n%s" % (HR, globalParameters["LibraryLogicPath"], elapsedTime, HR) )
 
   popWorkingPath()
 

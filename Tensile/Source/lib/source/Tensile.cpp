@@ -30,7 +30,13 @@
 #include <Tensile/ContractionSolution.hpp>
 
 #ifdef TENSILE_DEFAULT_SERIALIZATION
+#ifdef TENSILE_YAML
 #include <Tensile/llvm/Loading.hpp>
+#endif
+
+#ifdef TENSILE_MSGPACK
+#include <Tensile/msgpack/Loading.hpp>
+#endif
 #endif
 
 namespace Tensile
@@ -47,10 +53,50 @@ namespace Tensile
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
         LoadLibraryFile(std::string const& filename)
     {
-        return LLVMLoadLibraryFile<MyProblem, MySolution>(filename);
+        std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> rv;
+
+#ifdef TENSILE_MSGPACK
+        rv = MessagePackLoadLibraryFile<MyProblem, MySolution>(filename);
+        if(rv)
+            return rv;
+#endif
+
+#ifdef TENSILE_YAML
+        rv = LLVMLoadLibraryFile<MyProblem, MySolution>(filename);
+        if(rv)
+            return rv;
+#endif
+
+        // Failed to load library, return nullptr.
+        return nullptr;
+    }
+
+    template <typename MyProblem, typename MySolution>
+    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
+        LoadLibraryData(std::vector<uint8_t> const& data)
+    {
+        std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> rv;
+
+#ifdef TENSILE_MSGPACK
+        rv = MessagePackLoadLibraryData<MyProblem, MySolution>(data);
+        if(rv)
+            return rv;
+#endif
+
+#ifdef TENSILE_YAML
+        rv = LLVMLoadLibraryData<MyProblem, MySolution>(data);
+        if(rv)
+            return rv;
+#endif
+
+        // Failed to load library, return nullptr.
+        return nullptr;
     }
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
         LoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename);
+
+    template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
+        LoadLibraryData<ContractionProblem, ContractionSolution>(std::vector<uint8_t> const& data);
 #endif
 } // namespace Tensile

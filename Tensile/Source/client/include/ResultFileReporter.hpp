@@ -44,7 +44,7 @@ namespace Tensile
         public:
             static std::shared_ptr<ResultFileReporter> Default(po::variables_map const& args);
 
-            ResultFileReporter(std::string const& filename);
+            ResultFileReporter(std::string const& filename, bool exportExtraCols, bool mergeSameProblems);
 
             virtual void reportValue_string(std::string const& key,
                                             std::string const& value) override;
@@ -62,10 +62,22 @@ namespace Tensile
         private:
             template <typename T>
             void reportValue(std::string const& key, T const& value);
+            void mergeRow(std::unordered_map<std::string,std::string>& newRow);
 
             CSVStackFile m_output;
             std::string  m_solutionName;
             bool         m_invalidSolution = false;
+            bool         m_extraCol;
+            bool         m_mergeSameProblems;
+            // for extra columns
+            std::string  m_winnerSolution;
+            int64_t      m_currSolutionIdx = -1;
+            int64_t      m_winnerSolutionIdx = -1;
+            int64_t      m_fastestGflops = -1;
+            double       m_fasterTimeUS = -1;
+            // for merge rows
+            int64_t      m_currProbID = -1;
+            std::map<int64_t, std::unordered_map<std::string,std::string>> m_probMap;
         };
     } // namespace Client
 } // namespace Tensile

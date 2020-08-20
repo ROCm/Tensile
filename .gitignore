@@ -54,3 +54,7 @@ tags
 .\#*
 \#*\#
 *~
+
+# tox virtual environments
+.tox
+

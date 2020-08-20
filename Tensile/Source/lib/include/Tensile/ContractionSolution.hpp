@@ -52,6 +52,14 @@ namespace Tensile
 
     extern PerfModel perf;
 
+    struct BufferLoadCheckPacket
+    {
+        size_t shiftPtrElemA;
+        size_t shiftPtrElemB;
+        size_t depthUorMT0;
+        size_t depthUorMT1;
+    };
+
     /**
  * Represents a single kernel or set of kernels that can perform a single
  * tensor contraction.
@@ -121,6 +129,11 @@ namespace Tensile
             StaticPerformanceModel staticModel;
         };
 
+        /**
+   * Calculate required workspace size.
+   */
+        size_t requiredWorkspaceSize(Problem const& problem) const;
+
         StaticPerformanceModel staticPerformanceModel(double M,
                                                       double N,
                                                       double K,
@@ -148,12 +161,12 @@ namespace Tensile
                                                  TypedInputs const& inputs,
                                                  Hardware const&    hardware) const;
 
-        template <typename TypedInputs>
+        template <typename TypedInputs, bool T_Debug>
         KernelInvocation generateSingleCall(Problem const&     problem,
                                             TypedInputs const& inputs,
                                             Hardware const&    hardware) const;
 
-        template <typename TypedInputs>
+        template <typename TypedInputs, bool T_Debug>
         KernelInvocation generateBetaOnlyCall(Problem const&     problem,
                                               TypedInputs const& inputs,
                                               Hardware const&    hardware) const;
@@ -163,24 +176,37 @@ namespace Tensile
                                        TypedInputs const& inputs,
                                        Hardware const&    hardware) const;
 
+        template <typename TypedInputs>
+        KernelInvocation generateOutputConversionCall(Problem const&     problem,
+                                                      TypedInputs const& inputs,
+                                                      Hardware const&    hardware) const;
+
+        template <typename TypedInputs>
+        std::string outputConversionKernelName(Problem const&     problem,
+                                               TypedInputs const& inputs,
+                                               Hardware const&    hardware) const;
+
         struct SizeMapping
         {
             dim3 workGroupSize;
             dim3 threadTile;
             dim3 macroTile;
 
-            size_t staggerU;
-            size_t depthU;
-            size_t globalSplitU;
-            size_t staggerStrideShift;
-            int    workGroupMapping;
+            size_t staggerU           = 0;
+            size_t depthU             = 0;
+            size_t globalSplitU       = 0;
+            size_t staggerStrideShift = 0;
+            int    workGroupMapping   = 0;
 
-            size_t packBatchDims;
+            size_t packBatchDims     = 0;
             int    packSummationDims = 0;
             int    magicDivAlg       = 1;
-            size_t persistentKernel;
+            size_t persistentKernel  = 0;
 
-            bool sourceKernel;
+            bool sourceKernel = false;
+
+            bool   globalAccumulation    = false;
+            size_t workspaceSizePerElemC = 0;
         };
 
         struct ProblemType
@@ -196,7 +222,7 @@ namespace Tensile
             bool        useInitialStridesCD     = false;
         };
 
-        int         index;
+        int         index = 0;
         std::string kernelName;
         bool        debugKernel = false;
 
@@ -228,4 +254,5 @@ namespace Tensile
                              ContractionSolution::StaticPerformanceModel const& spm);
     std::ostream& operator<<(std::ostream&                                    stream,
                              ContractionSolution::ProjectedPerformance const& spm);
+    std::ostream& operator<<(std::ostream& stream, BufferLoadCheckPacket const& st);
 } // namespace Tensile

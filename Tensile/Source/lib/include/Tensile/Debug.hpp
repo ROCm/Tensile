@@ -1,4 +1,4 @@
-/**
+ /**
  * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -38,14 +38,11 @@ namespace Tensile
         bool printPropertyEvaluation() const;
         bool printPredicateEvaluation() const;
         bool printDeviceSelection() const;
-
-        bool printLookupEfficiency() const;
-
         bool printCodeObjectInfo() const;
 
         bool printKernelArguments() const;
 
-        bool printEmbeddedDataInit() const;
+        bool printDataInit() const;
 
         // print tensor dims, strides, memory sizes
         bool printTensorInfo() const;
@@ -59,6 +56,10 @@ namespace Tensile
         bool printTensorModeHex() const;
 
         bool printLibraryVersion() const;
+
+        bool printLookupEfficiency() const;
+        
+        bool printWinningKernelName() const;
 
         bool naivePropertySearch() const;
 

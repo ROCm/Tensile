@@ -174,7 +174,7 @@ class YamlBuilder:
                 "ForceRedoBenchmarkProblems": True,
                 "ForceRedoLibraryLogic": True,
                 "ForceRedoLibraryClient": True,
-                "CMakeBuildType": "Release",
+                "CMakeBuildType": "RelWithDebInfo",
                 "EnqueuesPerSync": 1,
                 "SyncsPerBenchmark": 1,
                 "LibraryPrintDebug": False,

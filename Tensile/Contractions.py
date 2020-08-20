@@ -235,7 +235,7 @@ class ProblemType:
         if includeOperation:
             predicates.append(ProblemPredicate("OperationIdentifierEqual", value=self.operationIdentifier))
             if not self.useBeta:
-                predicates.append(ProblemPredicate("BetaZero"));
+                predicates.append(ProblemPredicate("BetaZero"))
 
         if includeType:
             predicates.append(ProblemPredicate("TypesEqual", value=(self.aType, self.bType, self.cType, self.dType)))
@@ -295,6 +295,9 @@ class ProblemPredicate(Properties.Predicate):
 
             return cls(tag, index=index, value=value)
 
+        if key == "_WorkspaceSizePerElemC":
+            return cls("WorkspaceCheck", index=0, value=value)
+
         if key.startswith('Assert'):
             raise RuntimeError("Unknown assertion key: {}".format(key))
 
@@ -302,12 +305,50 @@ class ProblemPredicate(Properties.Predicate):
     def CompoundPredicates(cls, state, problemType):
         rv = []
 
-        if 'VectorWidth' in state and state['VectorWidth'] > 1:
+        if 'GlobalReadVectorWidth' in state and state['GlobalReadVectorWidth'] > 1:
             if not problemType.aType.isInt8x4():
-                rv += [cls('LeadingFreeSizesGreaterOrEqual', value=state['VectorWidth'])]
+                rv += [cls('LeadingFreeSizesGreaterOrEqual', value=state['GlobalReadVectorWidth'])]
 
         if "LdcEqualsLdd" not in state or state["LdcEqualsLdd"] == True:
-            rv += [cls("CDStridesEqual")]
+            rv += [cls("CDStridesEqual", value = True)]
+        else:
+            rv += [cls("CDStridesEqual", value = False)]
+
+        if "KernelLanguage" in state:
+            rv += [cls("KernelLanguageCompatible", value=state["KernelLanguage"])]
+
+        if 'GlobalSplitU' in state and state['GlobalSplitU'] > 1:
+            rv += [cls("DeterministicMode", value = False)]
+
+        if ("MatrixInstruction" in state and state["MatrixInstruction"]) or \
+           ("EnableMatrixInstruction" in state and state["EnableMatrixInstruction"] is True):
+            rv += [cls("ArithmeticUnitCompatible", value="MFMA")]
+        else:
+            rv += [cls("ArithmeticUnitCompatible", value="VALU")]
+
+        # if bufferload is performed, we output some predication info for host side,
+        # to prevent from some extremely large problems from launching and causing bufferload offset limit < 2^32
+        # thoses cases will not satisfy the assertion thus won't use the kernel.
+        # See Common.py for more details, we will need four values:
+        # TODO - haven't been fully tested for FP16 and BF, need to verify the false-positive
+        if 'BufferLoad' in state and state['BufferLoad'] == True:
+            TLUA = state['ProblemType']['TLUA']
+            TLUB = state['ProblemType']['TLUB']
+            MayShiftA = TLUA and state['AssertFree0ElementMultiple'] < state['GlobalLoadVectorWidthA']
+            MayShiftB = TLUB and state['AssertFree1ElementMultiple'] < state['GlobalLoadVectorWidthB']
+            subrv={}
+            subrv['ShiftPtrElemB'] = state['GlobalLoadVectorWidthB'] if MayShiftB else 0
+            subrv['ShiftPtrElemA'] = state['GlobalLoadVectorWidthA'] if MayShiftA else 0
+            subrv['DUorMT1'] = state['DepthU'] if TLUB else state['MacroTile1']
+            subrv['DUorMT0'] = state['DepthU'] if TLUA else state['MacroTile0']
+            # value is also a dict for better readibility, client side need to handel the serialization
+            rv += [cls('BufferLoadOffsetLimitCheck', value=subrv)]
+
+        # similiar check is applied for bufferstore,
+        # for bufferstore offset, test if the bot-right offset < 2^32,
+        # it should be StrideA*MT1, so we need to output MT1 and use the StrideA of problem in host-side for predication
+        if 'BufferStore' in state and state['BufferStore'] == True:
+            rv += [cls('BufferStoreOffsetLimitCheck', value=state['MacroTile1'])]
 
         return rv
 
@@ -333,23 +374,27 @@ class SizeMapping:
                  'magicDivAlg',
                  'persistentKernel',
                  'sourceKernel',
+                 'globalAccumulation',
+                 'workspaceSizePerElemC',
                  ]
 
     @classmethod
     def FromOriginalState(cls, d):
-        return cls(workGroup          = d['WorkGroup'],
-                   macroTile          = cls.ReadOriginalMacroTile(d),
-                   threadTile         = d['ThreadTile'],
-                   workGroupMapping   = d['WorkGroupMapping'],
-                   staggerU           = d['StaggerU'] if 'StaggerU' in d else 0,
-                   depthU             = d['DepthU'],
-                   globalSplitU       = d['GlobalSplitU'],
-                   staggerStrideShift = d['_staggerStrideShift'] if '_staggerStrideShift' in d else 0,
-                   packSummationDims  = d['PackSummationDims'] if 'PackSummationDims' in d else 0,
-                   packBatchDims      = d['PackBatchDims'] if 'PackBatchDims' in d else 0,
-                   persistentKernel   = d['PersistentKernel'] if 'PersistentKernel' in d else 0,
-                   magicDivAlg        = d.get('MagicDivAlg', 1),
-                   sourceKernel       = d['KernelLanguage'] == 'Source',
+        return cls(workGroup             = d['WorkGroup'],
+                   macroTile             = cls.ReadOriginalMacroTile(d),
+                   threadTile            = d['ThreadTile'],
+                   workGroupMapping      = d['WorkGroupMapping'],
+                   staggerU              = d['StaggerU'] if 'StaggerU' in d else 0,
+                   depthU                = d['DepthU'],
+                   globalSplitU          = d['GlobalSplitU'],
+                   staggerStrideShift    = d['_staggerStrideShift'] if '_staggerStrideShift' in d else 0,
+                   packSummationDims     = d['PackSummationDims'] if 'PackSummationDims' in d else 0,
+                   packBatchDims         = d['PackBatchDims'] if 'PackBatchDims' in d else 0,
+                   persistentKernel      = d['PersistentKernel'] if 'PersistentKernel' in d else 0,
+                   magicDivAlg           = d.get('MagicDivAlg', 1),
+                   sourceKernel          = d['KernelLanguage'] == 'Source',
+                   globalAccumulation    = d['_GlobalAccumulation'],
+                   workspaceSizePerElemC = d['_WorkspaceSizePerElemC'],
                    )
 
     @classmethod
