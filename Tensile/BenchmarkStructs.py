@@ -143,8 +143,9 @@ class BenchmarkProcess:
               paramValues = paramDict[paramName]
               for paramValue in paramValues:
                 if validParameters[paramName] != -1 and paramValue not in validParameters[paramName]:
-                  printExit("Invalid parameter value: %s = %s\nValid values for %s are %s." \
-                      % (paramName, paramValue, paramName, validParameters[paramName]))
+                  printExit("Invalid parameter value: %s = %s\nValid values for %s are %s%s." \
+                            % (paramName, paramValue, paramName, validParameters[paramName][:32],
+                               " (only first 32 combos printed)\nRefer to Common.py for more info" if len(validParameters[paramName])>32 else ""))
 
 
     ############################################################################
