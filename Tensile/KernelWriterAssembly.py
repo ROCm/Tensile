@@ -812,7 +812,7 @@ class KernelWriterAssembly(KernelWriter):
       strides ):
 
     #instructions = self.memoryArchitecture[operation]
-    instructions = self.memoryInstructions[self.version][operation]
+    instructions = self.memoryInstructions[operation]
     # try to combine
     if (write2 == "Coalesced" and para2) \
         or (write2 == "Perpendicular" and perp2):
@@ -1236,7 +1236,6 @@ class KernelWriterAssembly(KernelWriter):
     chosen_store_dword   = flat_store_dword
 
     self.memoryInstructions = {
-        (9,0,0): {
           "GlobalRead": [ chosen_load_dwordx4, chosen_load_dwordx2,
             chosen_load_dword, chosen_load_short, chosen_load_byte ],
           "GlobalWrite": [ chosen_store_dwordx4, chosen_store_dwordx2,
@@ -1245,14 +1244,7 @@ class KernelWriterAssembly(KernelWriter):
             ds_read_b64, ds_read2_b32, ds_read_b32, ds_read_u16, ds_read_u8 ],
           "LocalWrite": [ ds_write_b128, ds_write2_b64,
             ds_write_b64, ds_write2_b32, ds_write_b32, ds_write_b16, ds_write_b8 ]
-          }, # 900
         }
-    self.memoryInstructions[(8,0,3)] = self.memoryInstructions[(9,0,0)]
-    self.memoryInstructions[(9,0,6)] = self.memoryInstructions[(9,0,0)]
-    self.memoryInstructions[(9,0,8)] = self.memoryInstructions[(9,0,0)]
-    self.memoryInstructions[(9,0,10)] = self.memoryInstructions[(9,0,0)]
-    self.memoryInstructions[(10,1,0)] = self.memoryInstructions[(9,0,0)]
-    self.memoryInstructions[(10,1,1)] = self.memoryInstructions[(9,0,0)]
 
     if self.asmCaps["v_fma_mix_f32"]:
       self.mixinst = "v_fma_mix_f32"
@@ -1489,7 +1481,7 @@ class KernelWriterAssembly(KernelWriter):
         self.localRead2CoalescedB, localRead2Perpendicular,
         [self.localReadStrideCoalescedB] )
 
-    instructions = self.memoryInstructions[self.version]
+    instructions = self.memoryInstructions
     self.globalReadInstructionA = instructions["GlobalRead"][ \
         self.globalReadInstructionIdxA]
     self.globalReadInstructionB = instructions["GlobalRead"][ \
@@ -7561,7 +7553,7 @@ class KernelWriterAssembly(KernelWriter):
         kernel["LocalWrite2A"], \
         self.localWrite2CoalescedA, self.localWrite2PerpendicularA,
         [self.localWriteStrideTileA, self.localWriteStrideUnrollA] )
-    tP["localWriteInstruction"] = self.memoryInstructions[self.version]["LocalWrite"][newInstIdx]
+    tP["localWriteInstruction"] = self.memoryInstructions["LocalWrite"][newInstIdx]
 
     if kernel["PersistentKernel"]:
       if getattr(self, "oriLwa%s"%tc) is None:
@@ -7626,7 +7618,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += (self.lraDeclareAddresses(kernel, self.tPB))
         imod.addCode(kStr)
         localRead2Perpendicular = False
-        instructions = self.memoryInstructions[self.version]
+        instructions = self.memoryInstructions
 
         localReadWidth = self.tPA["bpe"] / self.bpr
         if kernel["UnrollMajorLDSA"]:
