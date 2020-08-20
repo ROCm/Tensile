@@ -494,7 +494,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # Check value in C matrix.
     # Caveats:
-    #  - Only works for single.
+    #  - Only works for single, or Half/BF with HPA.
     #  - Checks after alpha calc for each element.  Later elements (in the TT) will not yet have applied their alpha.
     #  - Only works if matrix is integral multiple of macro-tile (no edges) - check is dumb so doesn't know
     #    which work-items are outside the valid edge.
@@ -1976,7 +1976,9 @@ class KernelWriterAssembly(KernelWriter):
     self.getLabelNum("KernelEnd%s"%(unrollChar))
     # shift vectors determined later
 
-    assert not self.db["CheckValueC"] or kernel["ProblemType"]["DataType"].isSingle()
+    isBFHalfHPA = (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and \
+                   kernel["ProblemType"]["HighPrecisionAccumulate"]
+    assert not self.db["CheckValueC"] or (kernel["ProblemType"]["DataType"].isSingle() or isBFHalfHPA)
 
     if self.db["InitLds"] : print ("\n***WARNING: InitLds enabled, may impact performance\n")
     if self.db["InitSgpr"] : print ("\n***WARNING: InitSgpr enabled, may impact performance\n")
@@ -2272,14 +2274,14 @@ class KernelWriterAssembly(KernelWriter):
       dict = {'op': op, 'dtype': dtype}
       mStr = ".macro _v_cmpx_{op}_{dtype} dst, src0, src1=".format(**dict) + self.endLine
       if self.archCaps["CMPXWritesSGPR"]:
-        mStr += r"   v_cmpx_{op}_{dtype} \dst \src0 \src1 ".format(**dict) + self.endLine
+        mStr += r"   v_cmpx_{op}_{dtype} \dst, \src0, \src1 ".format(**dict) + self.endLine
       else:
-        mStr += r"   v_cmp_{op}_{dtype} \dst \src0 \src1".format(**dict) + self.endLine
+        mStr += r"   v_cmp_{op}_{dtype} \dst, \src0, \src1".format(**dict) + self.endLine
         mStr += r"   s_mov_b64 exec \dst" + self.endLine
       mStr += ".endm" + self.endLine
       return mStr
 
-    ops = ['lt', 'eq', 'le', 'gt', 'lg', 'ge', 'o', 'u']
+    ops = ['lt', 'eq', 'le', 'gt', 'ne', 'lg', 'ge', 'o', 'u']
     dtypes = list([sg + ln
               for sg in ['i','u']
               for ln in ['16', '32', '64']])
@@ -7224,17 +7226,36 @@ class KernelWriterAssembly(KernelWriter):
         valuIdx += blockWidth
 
         # TODO - handle vector-load
+        tmpSgpr = self.getTmpSgpr(1).idx()
         if self.db["CheckValue1%s" % tc]:
-            localReadCode.addInst("s_waitcnt lgkmcnt(0)", "CheckValue1 wait for LDS read")
-            if self.archCaps["SeparateVscnt"]:
-              localReadCode.addInst( "s_waitcnt_vscnt", "null", "0", "")
-            if kernel["ProblemType"]["DataType"].isHalf():
-              localReadCode.append(self.assert_eq(destVgpr, hex(0x3c003c00))) # packed 1s
-            elif kernel["ProblemType"]["DataType"].isBFloat16():
-              localReadCode.append(self.assert_eq(destVgpr, hex(0x3f803f80))) # packed 1s
-            elif kernel["ProblemType"]["DataType"].isInt8x4() or \
-                kernel["ProblemType"]["DataType"].isSingle():
-              localReadCode.addText(self.assert_eq(destVgpr, 1.0))
+          dbgVgpr = destVgpr
+          dbgVgprList = destVgpr.split("v[")
+          if len(dbgVgprList) == 1: # vIdx, no []
+            dbgVgpr = dbgVgprList[0]
+          else:
+            # We only check the first one now
+            # TODO: Handle vector, but need to take care the last one
+            dbgVgprList = (dbgVgprList[1].split("]")[0]).split(':')
+            dbgVgpr = "v[%s]"%dbgVgprList[0]
+
+          localReadCode.addInst("s_waitcnt lgkmcnt(0)", "CheckValue1 wait for LDS read")
+          if self.archCaps["SeparateVscnt"]:
+            localReadCode.addInst( "s_waitcnt_vscnt", "null", "0", "")
+
+          if kernel["ProblemType"]["DataType"].isHalf():
+            localReadCode.addInst("s_mov_b32", sgpr(tmpSgpr), hex(0x3c003c00),"CheckValue1: FP16")   # packed 1s
+            localReadCode.addCode(self.assert_eq( dbgVgpr, sgpr(tmpSgpr)))
+
+          elif kernel["ProblemType"]["DataType"].isBFloat16():
+            localReadCode.addInst("s_mov_b32", sgpr(tmpSgpr), hex(0x3f803f80),"CheckValue1: BF16")   # packed 1s
+            localReadCode.addCode(self.assert_eq( dbgVgpr, sgpr(tmpSgpr)))
+
+          # TODO - Check if this works
+          elif kernel["ProblemType"]["DataType"].isInt8x4():
+            localReadCode.addCode(self.assert_eq( dbgVgpr, 1))
+
+          elif kernel["ProblemType"]["DataType"].isSingle():
+            localReadCode.addCode(self.assert_eq( dbgVgpr, 1.0) )
 
     return imod, pack
 
@@ -7316,16 +7337,45 @@ class KernelWriterAssembly(KernelWriter):
 
         localReadCode.addCode(Code.LocalReadInst(instruction.toCodeInst(paramTuple, 0, highBits), comment))
 
+        # TODO - handle vector-load
+        tmpSgpr = self.getTmpSgpr(1).idx()
         if self.db["CheckValue1%s"%tc]:
-            localReadCode.addInst("s_waitcnt lgkmcnt(0)", "CheckValue1 wait for LDS read")
-            if self.archCaps["SeparateVscnt"]:
-              localReadCode.addInst( "s_waitcnt_vscnt", "null", "0", "")
-            if kernel["ProblemType"]["DataType"].isHalf():
-              localReadCode.append(self.assert_eq(destVgpr, hex(0x3c003c00))) # packed 1s
-            elif kernel["ProblemType"]["DataType"].isBFloat16():
-              localReadCode.append(self.assert_eq(destVgpr, hex(0x3f803f80))) # packed 1s
-            elif kernel["ProblemType"]["DataType"].isInt8x4() or kernel["ProblemType"]["DataType"].isSingle():
-              localReadCode.addText(self.assert_eq(destVgpr, 1.0))
+          dbgVgpr = destVgpr
+          dbgVgprList = destVgpr.split("v[")
+          if len(dbgVgprList) == 1: # vIdx, no []
+            dbgVgpr = dbgVgprList[0]
+          else:
+            # We only check the first one now
+            # TODO: Handle vector, but need to take care the last one
+            dbgVgprList = (dbgVgprList[1].split("]")[0]).split(':')
+            dbgVgpr = "v[%s]"%dbgVgprList[0]
+
+          localReadCode.addInst("s_waitcnt lgkmcnt(0)", "CheckValue1 wait for LDS read")
+          if self.archCaps["SeparateVscnt"]:
+            localReadCode.addInst( "s_waitcnt_vscnt", "null", "0", "")
+
+          if kernel["ProblemType"]["DataType"].isHalf():
+            localReadCode.addInst("s_mov_b32", sgpr(tmpSgpr), hex(0x3c003c00),"CheckValue1: FP16")   # packed 1s
+            # will skip (needPack and highBits)
+            if not needPack:
+              localReadCode.addCode(self.assert_eq( dbgVgpr, sgpr(tmpSgpr)))
+            elif not highBits:
+              localReadCode.addCode(self.assert_eq_u16( dbgVgpr, sgpr(tmpSgpr)))
+
+          elif kernel["ProblemType"]["DataType"].isBFloat16():
+            localReadCode.addInst("s_mov_b32", sgpr(tmpSgpr), hex(0x3f803f80),"CheckValue1: BF16")   # packed 1s
+            # will skip (needPack and highBits)
+            if not needPack:
+              localReadCode.addCode(self.assert_eq( dbgVgpr, sgpr(tmpSgpr)))
+            elif not highBits:
+              localReadCode.addCode(self.assert_eq_u16( dbgVgpr, sgpr(tmpSgpr)))
+
+          # TODO - Check if this works
+          elif kernel["ProblemType"]["DataType"].isInt8x4():
+            localReadCode.addCode(self.assert_eq( dbgVgpr, 1))
+
+          elif kernel["ProblemType"]["DataType"].isSingle():
+            localReadCode.addCode(self.assert_eq( dbgVgpr, 1.0) )
 
     return imod, pack
 
@@ -10319,6 +10369,13 @@ class KernelWriterAssembly(KernelWriter):
               kStr += inst("v_pk_mul_f16", vgpr("ValuC+%u"%(sumIdxV//2)), sgpr("Alpha"), vgpr("ValuC+%u"%(sumIdxV//2)), "*= alpha sumIdx=%u vi=%u"%(elementSumIdx[elementIdx], vi))
           else: # HPA
             kStr += inst("v_mul_f32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha")
+            if self.db["ForceExpectedValue"]:
+              kStr += inst("v_mov_b32", vgpr("ValuC+%u"%sumIdxV), self.db["ValueCExpectedValue"], "force expected value" )
+            if self.db["ForceVSerial"]:
+              kStr += inst("v_mov_b32", vgpr("ValuC+%u"%sumIdxV), vgpr("Serial"), "force expected value to serial" )
+            if self.db["CheckValueC"]:
+              kStr += inst("s_mov_b32", sgpr(tmpS01), self.db["ValueCExpectedValue"], "Move expected value")
+              kStr += self.assert_eq(vgpr("ValuC+%u"%sumIdxV), sgpr(tmpS01))
 
         elif kernel["ProblemType"]["DataType"].isInt8x4():
           # below assume we use v_mul_lo_u32. Could also use v_mul_i32_i24.
@@ -10886,6 +10943,19 @@ class KernelWriterAssembly(KernelWriter):
     else:
       # edge has v_cndmask so loads or stores may not issue, hard to track vmcnt:
       interleaveStoreVmcnt = self.interleaveStoreVmcnt and not edge
+
+      for elementIdx in range(0, len(batchElements)):
+        for vi in range(0, gwvw):
+          sumIdxV = ss.elementSumIdx[elementIdx] + vi
+          if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
+            if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+              if self.db["ForceExpectedValue"]:
+                kStr += inst("v_mov_b32", vgpr("ValuC+%u"%sumIdxV), self.db["ValueCExpectedValue"], "force expected value" )
+              if self.db["ForceVSerial"]:
+                kStr += inst("v_mov_b32", vgpr("ValuC+%u"%sumIdxV), vgpr("Serial"), "force expected value to serial" )
+              if self.db["CheckValueC"]:
+                kStr += inst("s_mov_b32", sgpr(tmpS01), self.db["ValueCExpectedValue"], "Move expected value")
+                kStr += self.assert_eq(vgpr("ValuC+%u"%sumIdxV), sgpr(tmpS01))
 
       ########################################
       # wait for batched load
@@ -11600,6 +11670,9 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def assert_eq(self, val0, val1, cookie=-1):
     return self.assertCmpCommon("ne_u32", val0, val1, cookie)
+
+  def assert_eq_u16(self, val0, val1, cookie=-1):
+    return self.assertCmpCommon("ne_u16", val0, val1, cookie)
 
   def assert_ne(self, val0, val1, cookie=-1):
     return self.assertCmpCommon("eq_u32", val0, val1, cookie)

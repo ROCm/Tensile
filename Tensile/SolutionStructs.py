@@ -2118,6 +2118,15 @@ class Solution:
 
   @staticmethod
   def parameterWrapper(state):
+    if len(state["MatrixInstruction"]) == 9:
+      waves = state["MatrixInstruction"][7]* state["MatrixInstruction"][8]
+      state["ThreadTile"][0] = state["MatrixInstruction"][5]
+      state["ThreadTile"][1] = state["MatrixInstruction"][6] * state["MatrixInstruction"][1]
+      state["WorkGroup"][0] = state["MatrixInstruction"][4] * state["MatrixInstruction"][0] * state["MatrixInstruction"][7]
+      state["WorkGroup"][1] = waves*globalParameters["WavefrontWidth"] // state["WorkGroup"][0]
+      #print("9-tuple: ", state["MatrixInstruction"], " TT=", state["ThreadTile"], " WG=", state["WorkGroup"])
+    if state["MatrixInstruction"]:
+      state["MatrixInstruction"] = [state["MatrixInstruction"][0],state["MatrixInstruction"][1],state["MatrixInstruction"][2],state["MatrixInstruction"][3]]
     state["UnrollMajorLDSA"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUA"])
     state["UnrollMajorLDSB"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUB"])
 
