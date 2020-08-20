@@ -530,18 +530,15 @@ int main(int argc, const char* argv[])
                             auto kernels = solution->solve(problem, *inputs, *hardware);
 
                             size_t       warmupInvocations = listeners.numWarmupRuns();
-                            size_t       eventCount        = gpuTimer ? kernels.size() : 0;
+                            size_t       eventCount        = kernels.size();
                             TimingEvents warmupStartEvents(warmupInvocations, eventCount);
                             TimingEvents warmupStopEvents(warmupInvocations, eventCount);
 
                             for(int i = 0; i < warmupInvocations; i++)
                             {
                                 listeners.preWarmup();
-                                if(gpuTimer)
-                                    adapter.launchKernels(
-                                        kernels, stream, warmupStartEvents[i], warmupStopEvents[i]);
-                                else
-                                    adapter.launchKernels(kernels, stream, nullptr, nullptr);
+                                adapter.launchKernels(
+                                    kernels, stream, warmupStartEvents[i], warmupStopEvents[i]);
                                 listeners.postWarmup();
                             }
 
