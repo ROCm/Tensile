@@ -27,19 +27,11 @@ import Tensile.LibraryIO as LibraryIO
 import Tensile.Common as Common
 import Tensile.ClientWriter as ClientWriter
 import Tensile.SolutionStructs as SolutionStructs
+import Tensile.BenchmarkProblems as BenchmarkProblems
+import Tensile.BenchmarkStructs as BenchmarkStructs
 import yaml
 
-#logging.basicConfig(level=logging.INFO)
 mylogger = logging.getLogger()
-
-#def writeYaml(fileName, theObject):
-#  try:
-#    stream = open(fileName, "w")
-#  except IOError:
-#    print("Cannot open file: %s" % fileName)
-#  yaml.dump(theObject, stream, default_flow_style=None)
-#  stream.close()
-
 
 def test_assigenParameters():
     problemTypeConfig = \
@@ -53,7 +45,7 @@ def test_assigenParameters():
         [{"WorkGroup": [[16, 16, 1]]}, {"ThreadTile": [[4, 4],[8, 8]]}]
 
     problemTypeObj, hardcodedParameters, initialSolutionParameters = \
-        TensileCreateLibrary.assignParameters(problemTypeConfig, benchmarkCommonParameters, configForkParameters)
+        BenchmarkStructs.assignParameters(problemTypeConfig, benchmarkCommonParameters, configForkParameters)
     
    
     assert problemTypeObj != None
@@ -69,11 +61,11 @@ def test_generateSolutions():
     initialSolutionParametersFilePath = os.path.join(dataDir, "library_data", "initialSolutionParameters.yaml")
 
     problemType = LibraryIO.readConfig(problemTypeFilePath)["ProblemType"]
-    problemTypeObject = TensileCreateLibrary.ProblemType(problemType)
+    problemTypeObject = SolutionStructs.ProblemType(problemType)
     hardcodedParameters = LibraryIO.readConfig(hardcodedParametersFilePath)
     initialSolutionParameters = LibraryIO.readConfig(initialSolutionParametersFilePath)
 
-    solutionList = TensileCreateLibrary.generateSolutions (problemTypeObject, hardcodedParameters, initialSolutionParameters)
+    solutionList = BenchmarkProblems.generateForkedSolutions (problemTypeObject, hardcodedParameters, initialSolutionParameters)
 
     assert len(solutionList) == 2
 
