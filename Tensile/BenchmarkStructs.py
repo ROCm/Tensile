@@ -35,13 +35,14 @@ from .SolutionStructs import Solution, ProblemType, ProblemSizes
 ##############################################################################
 # forkHardcodedParameters
 ##############################################################################
-def forkHardcodedParameters( basePermutation, update ):
+def forkHardcodedParameters( basePermutations, update ):
   updatedHardcodedParameters = []
-  for newPermutation in update:
-    permutation = {}
-    permutation.update(basePermutation)
-    permutation.update(newPermutation)
-    updatedHardcodedParameters.append(permutation)
+  for oldPermutation in basePermutations:
+    for newPermutation in update:
+      permutation = {}
+      permutation.update(oldPermutation)
+      permutation.update(newPermutation)
+      updatedHardcodedParameters.append(permutation)
   return updatedHardcodedParameters
 
 def fillMissingParametersWithDefaults(parameterConfigurationList, defaultParameters):
@@ -111,7 +112,7 @@ def assignParameters(problemTypeConfig, configBenchmarkCommonParameters, configF
     
   forkPermutations = constructForkPermutations(configForkParameters)
   if len(forkPermutations) > 0:
-    hardcodedParameters = forkHardcodedParameters(initialSolutionParameters, forkPermutations)
+    hardcodedParameters = forkHardcodedParameters([initialSolutionParameters], forkPermutations)
   
   return (problemTypeObj, hardcodedParameters, initialSolutionParameters)
 
@@ -245,15 +246,6 @@ class BenchmarkProcess:
     self.benchmarkCommonParameters = [{"ProblemSizes": currentProblemSizes}]
     # need to use deepcopy to prevent default parameters from being washed-out later
 
-
-    #for paramDict in deepcopy(defaultBenchmarkCommonParameters):
-    #  for paramName in paramDict:
-    #    if not hasParam( paramName, [ configBenchmarkCommonParameters, \
-    #        configForkParameters, configBenchmarkForkParameters, \
-    #        configJoinParameters, configBenchmarkJoinParameters]) \
-    #        or paramName == "ProblemSizes":
-    #      self.benchmarkCommonParameters.append(paramDict)
-
     benchmarkCommonParameters = fillMissingParametersWithDefaults([ configBenchmarkCommonParameters, \
             configForkParameters, configBenchmarkForkParameters, \
             configJoinParameters, configBenchmarkJoinParameters], deepcopy(defaultBenchmarkCommonParameters))
@@ -364,23 +356,6 @@ class BenchmarkProcess:
 
     ############################################################################
     # (I-7) any default param with 1 value will be hardcoded; move to beginning
-    
-    #for stepList in [self.benchmarkCommonParameters, \
-    #    self.forkParameters, self.benchmarkForkParameters, \
-    #    self.benchmarkJoinParameters]:
-    #  for paramDict in copy(stepList):
-    #    for paramName in copy(paramDict):
-    #      paramValues = paramDict[paramName]
-    #      if paramValues == None:
-    #        printExit("You must specify value for parameters \"%s\"" % paramName )
-    #      if len(paramValues) < 2 and paramName != "ProblemSizes":
-    #        paramDict.pop(paramName)
-    #        #self.benchmarkCommonParameters.insert(0, {paramName: paramValues })
-    #        self.hardcodedParameters[0][paramName] = paramValues[0]
-    #        self.singleValueParameters[paramName] = [ paramValues[0] ]
-    #        self.initialSolutionParameters[paramName] = paramValues[0]
-    #        if len(paramDict) == 0:
-    #          stepList.remove(paramDict)
 
     singleValues = getSingleValues([self.benchmarkCommonParameters, \
         self.forkParameters, self.benchmarkForkParameters, \
@@ -635,15 +610,15 @@ class BenchmarkProcess:
   # Add new permutations of hardcoded parameters to old permutations of params
   ##############################################################################
   def forkHardcodedParameters( self, update ):
-    updatedHardcodedParameters = []
-    for oldPermutation in self.hardcodedParameters:
+    #updatedHardcodedParameters = []
+    #for oldPermutation in self.hardcodedParameters:
       #for newPermutation in update:
       #  permutation = {}
       #  permutation.update(oldPermutation)
       #  permutation.update(newPermutation)
       #  updatedHardcodedParameters.append(permutation)
-      permutation = forkHardcodedParameters( oldPermutation, update )
-      updatedHardcodedParameters.append(permutation)
+    updatedHardcodedParameters = forkHardcodedParameters( self.hardcodedParameters, update )
+      #updatedHardcodedParameters.append(permutation)
     self.hardcodedParameters = updatedHardcodedParameters
 
   ##############################################################################
