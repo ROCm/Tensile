@@ -30,6 +30,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             export HOME=/home/jenkins
             ####
             tox --version
+            export TENSILE_COMPILER=${compiler}
             tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --tensile-options=--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing-\$gpuArch.csv
 
             mkdir build
