@@ -43,6 +43,41 @@ from .SolutionStructs import Solution, ProblemType, ProblemSizes
 from .SolutionWriter import SolutionWriter
 from .TensileCreateLibrary import writeSolutionsAndKernels, writeCMake, buildObjectFileNames
 
+
+def generateForkedSolutions (problemType, forkedParameters, commonSolutionParameters):
+  
+  solutions = []
+  numForked = len(forkedParameters)
+
+  ############################################################################
+  # this creates a set or solutions based on the forked parameters using
+  # a set of common parameters from which to fork from
+  ############################################################################
+  print1("# Enumerating Solutions")
+  solutionSet = set() 
+  PrintSolutionRejectionReason = globalParameters["PrintSolutionRejectionReason"]
+  for forkedIdx in Utils.tqdm(range(0, numForked), "Enumerating Solutions"):
+    solutions.append([])
+    forkedParamDict = forkedParameters[forkedIdx]
+    
+    solution = {"ProblemType": deepcopy(problemType.state)}
+    solution.update(commonSolutionParameters)
+    solution.update(forkedParamDict)
+
+    # TODO check if solution matches problem size for exact tile kernels
+    solutionObject = Solution(solution)
+    if solutionObject["Valid"]:
+      if solutionObject not in solutionSet:
+        solutionSet.add(solutionObject)
+        solutions[forkedIdx].append(solutionObject)
+    else:
+      if PrintSolutionRejectionReason:
+        print1("rejecting solution %s" % str(solutionObject))
+    
+  solutionList = list (solutionSet)
+
+  return solutionList
+
 ################################################################################
 # Benchmark Problem Type
 ################################################################################

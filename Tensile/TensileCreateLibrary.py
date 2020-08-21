@@ -29,12 +29,11 @@ from . import EmbeddedData
 from . import LibraryIO
 from . import Utils
 from .Common import globalParameters, HR, print1, print2, printExit, ensurePath, \
-    CHeader, CMakeHeader, assignGlobalParameters, listToInitializer, defaultSolution, \
-    defaultBenchmarkCommonParameters, hasParam
+    CHeader, CMakeHeader, assignGlobalParameters, listToInitializer
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
-from .SolutionStructs import Solution, ProblemType
+from .SolutionStructs import Solution
 from .SolutionWriter import SolutionWriter
 
 import argparse
@@ -45,7 +44,7 @@ import shutil
 import subprocess
 import sys
 import time
-from copy import deepcopy, copy
+from copy import deepcopy
 
 
 ################################################################################
@@ -354,8 +353,6 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
   kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
   results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap)
-  #do we need this?
-  #print(len(results))
 
   removeKernels = []
   removeSolutions = []
@@ -923,136 +920,12 @@ def writeSolutionCall(solutionName, problemType):
   return s
 
 ##############################################################################
-# forkHardcodedParameters
-##############################################################################
-def forkHardcodedParameters( basePermutation, update ):
-  updatedHardcodedParameters = []
-  #for oldPermutation in hardcodedParameters:
-  for newPermutation in update:
-    permutation = {}
-    permutation.update(basePermutation)
-    permutation.update(newPermutation)
-    updatedHardcodedParameters.append(permutation)
-  return updatedHardcodedParameters
-
-##############################################################################
-# assignParameters
-##############################################################################
-def assignParameters(problemTypeConfig, configBenchmarkCommonParameters, configForkParameters):
-
-  problemTypeObj = ProblemType(problemTypeConfig)
-  globalParameters["EnableHalf"] = problemTypeObj["DataType"].isHalf()
-  initialSolutionParameters = { "ProblemType": problemTypeConfig }
-  initialSolutionParameters.update(defaultSolution)
-
-  hardcodedParameters = []
-
-  benchmarkCommonParameters = []
-  for paramDict in defaultBenchmarkCommonParameters:
-    for paramName in paramDict:
-      if not hasParam( paramName, [ configBenchmarkCommonParameters, configForkParameters ]) \
-          or paramName == "ProblemSizes":
-        benchmarkCommonParameters.append(paramDict)
-  if configBenchmarkCommonParameters != None:
-    for paramDict in configBenchmarkCommonParameters:
-      benchmarkCommonParameters.append(paramDict)
-
-  for stepList in [benchmarkCommonParameters, configForkParameters]:
-    for paramDict in copy(stepList):
-      for paramName in copy(paramDict):
-        paramValues = paramDict[paramName]
-        if paramValues == None:
-          printExit("You must specify value for parameters \"%s\"" % paramName )
-        if len(paramValues) < 2 and paramName != "ProblemSizes":
-          paramDict.pop(paramName)
-          initialSolutionParameters[paramName] = paramValues[0]
-          if len(paramDict) == 0:
-            stepList.remove(paramDict)
-
-  totalPermutations = 1
-  for param in configForkParameters:
-    for name in param: # only 1
-      values = param[name]
-      totalPermutations *= len(values)
-  forkPermutations = []
-  for i in range(0, totalPermutations):
-    forkPermutations.append({})
-    pIdx = i
-    for param in configForkParameters:
-      for name in param:
-        values = param[name]
-        valueIdx = pIdx % len(values)
-        forkPermutations[i][name] = values[valueIdx]
-        pIdx //= len(values)
-  if len(forkPermutations) > 0:
-    hardcodedParameters = forkHardcodedParameters(initialSolutionParameters, forkPermutations)
-
-  return (problemTypeObj, hardcodedParameters, initialSolutionParameters)
-
-def generateSolutions (problemType, hardcodedParameters, initialSolutionParameters):
-  numHardcoded = len(hardcodedParameters)
-
-  ############################################################################
-  # Enumerate Benchmark Permutations
-  ############################################################################
-  solutions = []
-
-  ############################################################################
-  # Enumerate Solutions = Hardcoded * Benchmark
-  ############################################################################
-  print1("# Enumerating Solutions")
-  solutionSet = set() 
-  PrintSolutionRejectionReason = globalParameters["PrintSolutionRejectionReason"]
-  for hardcodedIdx in range(0, numHardcoded):
-    solutions.append([])
-    hardcodedParamDict = hardcodedParameters[hardcodedIdx]
-    
-    solution = {"ProblemType": deepcopy(problemType.state)}
-    solution.update(initialSolutionParameters)
-    solution.update(hardcodedParamDict)
-
-    # TODO check if solution matches problem size for exact tile kernels
-    solutionObject = Solution(solution)
-    if solutionObject["Valid"]:
-      if solutionObject not in solutionSet:
-        solutionSet.add(solutionObject)
-        solutions[hardcodedIdx].append(solutionObject)
-    else:
-      if PrintSolutionRejectionReason:
-        print1("rejecting solution %s" % str(solutionObject))
-    
-  solutionList = list (solutionSet)
-
-  return solutionList
-
-##############################################################################
 # Min Naming / Solution and Kernel Writers
 ##############################################################################
 def getSolutionAndKernelWriters(solutions, kernels):
 
-# olk
-#  # if any kernels are assembly, append every ISA supported
-#  if globalParameters["ShortNames"] and not globalParameters["MergeFiles"]:
-#    solutionSerialNaming = Solution.getSerialNaming(solutions)
-#    kernelSerialNaming = Solution.getSerialNaming(kernels)
-#  else:
-#    solutionSerialNaming = None
-#    kernelSerialNaming = None
-#  solutionMinNaming = Solution.getMinNaming(solutions)
-#  kernelMinNaming = Solution.getMinNaming(kernels)
-#  solutionWriter = SolutionWriter( \
-#      solutionMinNaming, solutionSerialNaming, \
-#      kernelMinNaming, kernelSerialNaming)
-#  kernelWriterSource = KernelWriterSource( \
-#      kernelMinNaming, kernelSerialNaming)
-#  kernelWriterAssembly = KernelWriterAssembly( \
-#      kernelMinNaming, kernelSerialNaming)
-
-#  return (solutionWriter, kernelWriterSource, kernelWriterAssembly, kernelMinNaming, solutionMinNaming)
-
-# new
   # if any kernels are assembly, append every ISA supported
-
+  
   if globalParameters["ShortNames"] and not globalParameters["MergeFiles"]:
     solutionSerialNaming = Solution.getSerialNaming(solutions)
     kernelSerialNaming   = Solution.getSerialNaming(kernels)
