@@ -3483,14 +3483,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # get kernel name
   ##############################################################################
   def getKernelFileBase(self, kernel):
-    rv = self.getKernelName(kernel)
-    return self.shortenFileBase(rv)
+    if globalParameters["ShortNames"]:
+      fileBase = Solution.getNameSerial(kernel, self.kernelSerialNaming)
+    else:
+      fileBase = self.shortenFileBase(kernel)
+    return fileBase
 
   def getKernelName(self, kernel):
-    if globalParameters["ShortNames"]:
-      kernelName = Solution.getNameSerial(kernel, self.kernelSerialNaming)
-    else:
-      kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
+    kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
     return kernelName
 
   def getKernelSource(self, kernel):
@@ -3596,7 +3596,8 @@ for codeObjectFileName in codeObjectFileNames:
     kernelName = self.getKernelName(kernel)
     return ReplacementKernels.Get(kernelName)
 
-  def shortenFileBase(self, base):
+  def shortenFileBase(self, kernel):
+    base = self.getKernelName(kernel)
     if len(base) <= globalParameters["MaxFileName"]:
       return base
 
@@ -3615,7 +3616,7 @@ for codeObjectFileName in codeObjectFileNames:
   def getKernelObjectAssemblyFile(self, kernel):
     asmPath = self.getAssemblyDirectory()
     # write assembly file to assembly directory
-    kernelName = self.shortenFileBase(self.getKernelName(kernel))
+    kernelName = self.getKernelFileBase(kernel)
     fileBase = os.path.join(asmPath, kernelName )
     assemblyFileName = "%s.s" % fileBase
 
