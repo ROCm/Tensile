@@ -107,6 +107,7 @@ def runTestCommand (platform, project, jobName, test_marks)
             export HOME=/home/jenkins
             ####
             tox --version
+            export TENSILE_COMPILER=${compiler}
             tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --tensile-options=--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing-\$gpuArch.csv
             PY_ERR=\$?
             date
