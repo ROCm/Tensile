@@ -57,10 +57,7 @@ class SolutionWriter:
   # get solution name
   ##############################################################################
   def getSolutionName(self, solution):
-    if globalParameters["ShortNames"]:
-      solutionName = Solution.getNameSerial(solution, self.solutionSerialNaming)
-    else:
-      solutionName = Solution.getNameMin(solution, self.solutionMinNaming)
+    solutionName = Solution.getNameMin(solution, self.solutionMinNaming)
     return solutionName
 
   ##############################################################################
