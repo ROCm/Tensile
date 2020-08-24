@@ -93,7 +93,7 @@ namespace Tensile
                 writeRow(m_headers);
 
             m_firstRow = false;
-            outMap = m_currentRow;
+            outMap     = m_currentRow;
         }
 
         void CSVStackFile::clearCurrentRow()
