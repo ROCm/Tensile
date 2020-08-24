@@ -152,6 +152,31 @@ namespace Tensile
         return stream;
     }
 
+    constexpr uint32_t bitsNeeded(uint32_t maxVal)
+    {
+        return maxVal <= 1 ? 0 : 1 + bitsNeeded((maxVal + 1) / 2);
+    }
+
+    constexpr uint32_t bitMask(uint32_t numBits)
+    {
+        if(numBits == 1)
+            return (uint32_t)0x1;
+        return (bitMask(numBits - 1) << 1) | (uint32_t)0x1;
+    }
+
+    constexpr uint32_t generateBitField(uint32_t elementWidth, uint32_t val0)
+    {
+        int mask = bitMask(elementWidth);
+        return mask & val0;
+    }
+
+    template <typename... ArgsT>
+    constexpr uint32_t generateBitField(uint32_t elementWidth, uint32_t val0, ArgsT... vals)
+    {
+        int mask = bitMask(elementWidth);
+        return (generateBitField(elementWidth, vals...) << elementWidth) | (mask & val0);
+    }
+
     /**
  * @}
  */

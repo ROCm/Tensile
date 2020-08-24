@@ -160,60 +160,60 @@ namespace Tensile
             auto alphaType = args["alpha-type"].as<DataType>();
             auto betaType  = args["beta-type"].as<DataType>();
 
-            if(aType == DataType::Float && bType == DataType::Float && cType == DataType::Float
-               && dType == DataType::Float && alphaType == DataType::Float
-               && betaType == DataType::Float)
+            auto contractionInputsTypeId
+                = ContractionInputs::typeId(aType, bType, cType, dType, alphaType, betaType);
+
+            switch(contractionInputsTypeId)
             {
-                return GetTyped<TypedContractionInputs<float>>(
+            case FloatContractionInputs::typeId():
+            {
+                return GetTyped<FloatContractionInputs>(args, problemFactory, maxWorkspaceSize);
+            }
+            case DoubleContractionInputs::typeId():
+            {
+                return GetTyped<DoubleContractionInputs>(args, problemFactory, maxWorkspaceSize);
+            }
+            case ComplexFloatContractionInputs::typeId():
+            {
+                return GetTyped<ComplexFloatContractionInputs>(
                     args, problemFactory, maxWorkspaceSize);
             }
-            else if(aType == DataType::Double && bType == DataType::Double
-                    && cType == DataType::Double && dType == DataType::Double
-                    && alphaType == DataType::Double && betaType == DataType::Double)
+            case ComplexDoubleContractionInputs::typeId():
             {
-                return GetTyped<TypedContractionInputs<double>>(
+                return GetTyped<ComplexDoubleContractionInputs>(
                     args, problemFactory, maxWorkspaceSize);
             }
-            else if(aType == DataType::ComplexFloat && bType == DataType::ComplexFloat
-                    && cType == DataType::ComplexFloat && dType == DataType::ComplexFloat
-                    && alphaType == DataType::ComplexFloat && betaType == DataType::ComplexFloat)
+#ifdef TENSILE_USE_HALF
+            case HalfContractionInputs::typeId():
             {
-                return GetTyped<TypedContractionInputs<std::complex<float>>>(
+                return GetTyped<HalfContractionInputs>(args, problemFactory, maxWorkspaceSize);
+            }
+            case HalfInFloatOutContractionInputs::typeId():
+            {
+                return GetTyped<HalfInFloatOutContractionInputs>(
                     args, problemFactory, maxWorkspaceSize);
             }
-            else if(aType == DataType::ComplexDouble && bType == DataType::ComplexDouble
-                    && cType == DataType::ComplexDouble && dType == DataType::ComplexDouble
-                    && alphaType == DataType::ComplexDouble && betaType == DataType::ComplexDouble)
+#endif // TENSILE_USE_HALF
+            case Int8x4ContractionInputs::typeId():
             {
-                return GetTyped<TypedContractionInputs<std::complex<double>>>(
-                    args, problemFactory, maxWorkspaceSize);
+                return GetTyped<Int8x4ContractionInputs>(args, problemFactory, maxWorkspaceSize);
             }
-            else if(aType == DataType::Half && bType == DataType::Half && cType == DataType::Half
-                    && dType == DataType::Half && alphaType == DataType::Half
-                    && betaType == DataType::Half)
+            case Int32ContractionInputs::typeId():
             {
-                return GetTyped<TypedContractionInputs<Half>>(
-                    args, problemFactory, maxWorkspaceSize);
+                return GetTyped<Int32ContractionInputs>(args, problemFactory, maxWorkspaceSize);
             }
-            else if(aType == DataType::Int8x4 && bType == DataType::Int8x4
-                    && cType == DataType::Int32 && dType == DataType::Int32
-                    && alphaType == DataType::Int32 && betaType == DataType::Int32)
-            {
-                return GetTyped<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>>(
-                    args, problemFactory, maxWorkspaceSize);
-            }
-            else if(aType == DataType::Int32 && bType == DataType::Int32 && cType == DataType::Int32
-                    && dType == DataType::Int32 && alphaType == DataType::Int32
-                    && betaType == DataType::Int32)
-            {
-                return GetTyped<TypedContractionInputs<int32_t>>(
-                    args, problemFactory, maxWorkspaceSize);
-            }
-            else if(aType == DataType::BFloat16 && bType == DataType::BFloat16
-                    && cType == DataType::BFloat16 && dType == DataType::BFloat16
-                    && alphaType == DataType::Float && betaType == DataType::Float)
+#ifdef TENSILE_USE_BF16
+            case BFloat16ContractionInputs::typeId():
             {
                 return GetTyped<BFloat16ContractionInputs>(args, problemFactory, maxWorkspaceSize);
+            }
+            case BFloat16InFloatOutContractionInputs::typeId():
+            {
+                return GetTyped<BFloat16InFloatOutContractionInputs>(
+                    args, problemFactory, maxWorkspaceSize);
+            }
+#endif // TENSILE_USE_BF16
+            default:;
             }
 
             throw std::runtime_error(concatenate("Invalid combination of data types: ",
