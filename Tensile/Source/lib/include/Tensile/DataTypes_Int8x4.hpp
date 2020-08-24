@@ -50,12 +50,13 @@ namespace Tensile
         }
 
         Int8x4(uint32_t v)
+            : a(v & 0xff)
+            , b((v << 8) & 0xff)
+            , c((v << 16) & 0xff)
+            , d((v << 24) & 0xff)
         {
-            a = (v)&0xff;
-            b = (v << 8) & 0xff;
-            c = (v << 16) & 0xff;
-            d = (v << 24) & 0xff;
         }
+
         int8_t a, b, c, d;
 
         int32_t operator*(Int8x4 const& other) const

@@ -94,13 +94,13 @@ namespace Tensile
             // dimensions that are contiguous in memory.
             for(size_t i = 0; i < desc.dimensions(); i++)
             {
-                contiguousDimensions = i + 1;
-
                 if(strides[i] > expectedStride)
                     break;
 
+                contiguousDimensions = i + 1;
+
                 if(i < desc.dimensions() - 1)
-                    expectedStride = strides[i] * sizes[i + 1];
+                    expectedStride = strides[i] * sizes[i];
             }
 
             auto copyCount = CoordCount(sizes.begin() + contiguousDimensions, sizes.end());

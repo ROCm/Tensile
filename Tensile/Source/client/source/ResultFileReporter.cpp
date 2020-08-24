@@ -35,10 +35,14 @@ namespace Tensile
         std::shared_ptr<ResultFileReporter>
             ResultFileReporter::Default(po::variables_map const& args)
         {
-            return std::make_shared<ResultFileReporter>(args["results-file"].as<std::string>(), args["csv-export-extra-cols"].as<bool>(), args["csv-merge-same-problems"].as<bool>());
+            return std::make_shared<ResultFileReporter>(args["results-file"].as<std::string>(),
+                                                        args["csv-export-extra-cols"].as<bool>(),
+                                                        args["csv-merge-same-problems"].as<bool>());
         }
 
-        ResultFileReporter::ResultFileReporter(std::string const& filename, bool exportExtraCols, bool mergeSameProblems)
+        ResultFileReporter::ResultFileReporter(std::string const& filename,
+                                               bool               exportExtraCols,
+                                               bool               mergeSameProblems)
             : m_output(filename)
             , m_extraCol(exportExtraCols)
             , m_mergeSameProblems(mergeSameProblems)
@@ -71,7 +75,7 @@ namespace Tensile
                 double timeUS = std::stod(valueStr);
                 if(!m_invalidSolution)
                 {
-                    if (m_fasterTimeUS < 0 || m_fasterTimeUS > timeUS)
+                    if(m_fasterTimeUS < 0 || m_fasterTimeUS > timeUS)
                     {
                         m_fasterTimeUS = timeUS;
                     }
@@ -85,11 +89,11 @@ namespace Tensile
                     m_output.setValueForKey(m_solutionName, value);
 
                     int64_t gflops = std::stoull(valueStr);
-                    if (m_fastestGflops < gflops)
+                    if(m_fastestGflops < gflops)
                     {
-                        m_winnerSolution = m_solutionName;
+                        m_winnerSolution    = m_solutionName;
                         m_winnerSolutionIdx = m_currSolutionIdx;
-                        m_fastestGflops = gflops;
+                        m_fastestGflops     = gflops;
                     }
                 }
             }
@@ -138,7 +142,7 @@ namespace Tensile
                 m_output.setHeaderForKey(ResultKey::LDA, "LDA");
                 m_output.setHeaderForKey(ResultKey::LDB, "LDB");
                 m_output.setHeaderForKey(ResultKey::TotalFlops, "TotalFlops");
-                if (m_extraCol)
+                if(m_extraCol)
                 {
                     m_output.setHeaderForKey(ResultKey::FastestGFlops, "WinnerGFlops");
                     m_output.setHeaderForKey(ResultKey::TimeUS, "WinnerTimeUS");
@@ -148,33 +152,34 @@ namespace Tensile
             }
         }
 
-        void ResultFileReporter::mergeRow(std::unordered_map<std::string,std::string>& newRow)
+        void ResultFileReporter::mergeRow(std::unordered_map<std::string, std::string>& newRow)
         {
             m_currProbID = std::stoull(newRow[ResultKey::ProblemIndex]);
-            if ( m_probMap.count(m_currProbID) == 0 )
+            if(m_probMap.count(m_currProbID) == 0)
             {
                 m_probMap[m_currProbID] = newRow;
                 return;
             }
 
             auto& oldRow = m_probMap[m_currProbID];
-            for ( auto& oldRowIter : oldRow )
+            for(auto& oldRowIter : oldRow)
             {
                 const std::string& key = oldRowIter.first;
-                if ( key.compare(ResultKey::ProblemIndex) == 0 ||
-                     key.find_first_of("Size") != std::string::npos ||
-                     key.compare(ResultKey::LDD) == 0 || key.compare(ResultKey::LDC) == 0 || key.compare(ResultKey::LDA) == 0 || key.compare(ResultKey::LDB) == 0 ||
-                     key.compare(ResultKey::TotalFlops) == 0 )
+                if(key.compare(ResultKey::ProblemIndex) == 0
+                   || key.find_first_of("Size") != std::string::npos
+                   || key.compare(ResultKey::LDD) == 0 || key.compare(ResultKey::LDC) == 0
+                   || key.compare(ResultKey::LDA) == 0 || key.compare(ResultKey::LDB) == 0
+                   || key.compare(ResultKey::TotalFlops) == 0)
                 {
                     // these data should be the same for same problem
                     assert(oldRowIter.second == newRow[key]);
                 }
-                else if ( key.compare(ResultKey::FastestGFlops) == 0 )
+                else if(key.compare(ResultKey::FastestGFlops) == 0)
                 {
                     // if new row is better, update
                     uint64_t oldFastest = std::stoull(oldRowIter.second);
                     uint64_t newFastest = std::stoull(newRow[key]);
-                    if ( newFastest > oldFastest)
+                    if(newFastest > oldFastest)
                     {
                         oldRow[ResultKey::FastestGFlops]     = newRow[ResultKey::FastestGFlops];
                         oldRow[ResultKey::TimeUS]            = newRow[ResultKey::TimeUS];
@@ -182,7 +187,9 @@ namespace Tensile
                         oldRow[ResultKey::SolutionWinner]    = newRow[ResultKey::SolutionWinner];
                     }
                 }
-                else if ( key.compare(ResultKey::TimeUS) == 0 || key.compare(ResultKey::SolutionWinnerIdx) == 0 || key.compare(ResultKey::SolutionWinner) == 0 )
+                else if(key.compare(ResultKey::TimeUS) == 0
+                        || key.compare(ResultKey::SolutionWinnerIdx) == 0
+                        || key.compare(ResultKey::SolutionWinner) == 0)
                 {
                     // skip, we update these together with FastestGFlops
                     continue;
@@ -193,7 +200,7 @@ namespace Tensile
                     // if new row is better, update
                     uint64_t oldFastest = std::stoull(oldRowIter.second);
                     uint64_t newFastest = std::stoull(newRow[key]);
-                    if ( newFastest > oldFastest)
+                    if(newFastest > oldFastest)
                     {
                         oldRow[key] = newRow[key];
                     }
@@ -203,7 +210,7 @@ namespace Tensile
 
         void ResultFileReporter::postProblem()
         {
-            if (m_extraCol)
+            if(m_extraCol)
             {
                 // update winner
                 m_output.setValueForKey(ResultKey::FastestGFlops, m_fastestGflops);
@@ -212,19 +219,19 @@ namespace Tensile
                 m_output.setValueForKey(ResultKey::SolutionWinner, m_winnerSolution);
             }
             // reset
-            m_winnerSolution = "";
-            m_currSolutionIdx = -1;
+            m_winnerSolution    = "";
+            m_currSolutionIdx   = -1;
             m_winnerSolutionIdx = -1;
-            m_fastestGflops  = -1;
-            m_fasterTimeUS = -1;
+            m_fastestGflops     = -1;
+            m_fasterTimeUS      = -1;
 
-            if (!m_mergeSameProblems)
+            if(!m_mergeSameProblems)
             {
                 m_output.writeCurrentRow();
             }
             else
             {
-                std::unordered_map<std::string,std::string> curRow;
+                std::unordered_map<std::string, std::string> curRow;
                 m_output.readCurrentRow(curRow);
                 m_output.clearCurrentRow();
                 // for (auto & field : curRow )
@@ -241,12 +248,12 @@ namespace Tensile
 
         void ResultFileReporter::finalizeReport()
         {
-            if ( m_mergeSameProblems )
+            if(m_mergeSameProblems)
             {
-                for (auto& probIter : m_probMap)
+                for(auto& probIter : m_probMap)
                 {
                     auto& single_row = probIter.second;
-                    for (auto & field : single_row )
+                    for(auto& field : single_row)
                     {
                         m_output.setValueForKey(field.first, field.second);
                     }

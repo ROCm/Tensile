@@ -720,6 +720,9 @@ namespace Tensile
                                    ContractionSolution::Inputs const&  inputs,
                                    Hardware const&                     hardware) const
     {
+        if(Debug::Instance().printWinningKernelName())
+            std::cout << "Running kernel: " << this->KernelName() << std::endl;
+
         if(problemType.aType == DataType::Float && problemType.bType == DataType::Float
            && problemType.cType == DataType::Float && problemType.dType == DataType::Float)
         {
