@@ -379,8 +379,7 @@ namespace Tensile
 
         auto const&         sizes = desc.sizes();
         std::vector<size_t> coord(desc.dimensions(), 0);
-        //const auto          stride0 = desc.strides()[0];
-        const auto stride1 = desc.strides()[1];
+        const auto          stride0 = desc.strides()[0];
 
         auto upperDimCount = CoordCount(sizes.begin() + 2, sizes.end());
 
@@ -398,36 +397,18 @@ namespace Tensile
                 stream << ")" << std::endl << "[" << std::endl;
             }
 
-            // for(coord[1] = 0; coord[1] < sizes[1]; coord[1]++)
-            // {
-            //     coord[0] = 0;
-
-            //     auto const* localPtr = data + desc.index(coord);
-
-            //     if(sizes[0] > 0)
-            //         stream << localPtr[0];
-
-            //     for(coord[0] = 1; coord[0] < sizes[0]; coord[0]++)
-            //     {
-            //         stream << " " << localPtr[coord[0] * stride0];
-            //     }
-
-            //     stream << std::endl;
-            // }
-
-            stream << std::endl << "Real matrix:" << std::endl;
-            for(coord[0] = 0; coord[0] < sizes[0]; coord[0]++)
+            for(coord[1] = 0; coord[1] < sizes[1]; coord[1]++)
             {
-                coord[1] = 0;
+                coord[0] = 0;
 
                 auto const* localPtr = data + desc.index(coord);
 
-                if(sizes[1] > 0)
+                if(sizes[0] > 0)
                     stream << localPtr[0];
 
-                for(coord[1] = 1; coord[1] < sizes[1]; coord[1]++)
+                for(coord[0] = 1; coord[0] < sizes[0]; coord[0]++)
                 {
-                    stream << " " << localPtr[coord[1] * stride1];
+                    stream << " " << localPtr[coord[0] * stride0];
                 }
 
                 stream << std::endl;
