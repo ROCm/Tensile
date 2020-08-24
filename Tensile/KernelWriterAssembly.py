@@ -3039,11 +3039,11 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr += self.comment("Short circuit condition if Alpha == 0, then sumDims=0")
       if kernel["ProblemType"]["DataType"].isDoubleComplex():
-        endCheckLabel = "label_DCChecked"
+        endCheckLabel = "label_DCAlphaNonZero"
         kStr += inst("s_mov_b32", sgpr(tmpSgpr+0), "0x00000000", "lsb of 0.0")
         kStr += inst("s_mov_b32", sgpr(tmpSgpr+1), "0x00000000", "msb 0.0")
         kStr += inst("s_cmp_eq_u64", sgpr("Alpha",2), sgpr(tmpSgpr,2), "Alpha.real == 0.0 ?")
-        kStr += inst("s_cbranch_scc1 %s" % (endCheckLabel), "branch if alpha.real == 0")
+        kStr += inst("s_cbranch_scc0 %s" % (endCheckLabel), "branch if alpha.real == 0")
         kStr += inst("s_cmp_eq_u64", sgpr("Alpha+2",2), sgpr(tmpSgpr,2), "Alpha.imag == 0.0 ?")
         kStr += "%s:%s" % (endCheckLabel, self.endLine)
 
