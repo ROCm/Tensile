@@ -1792,7 +1792,7 @@ class KernelWriterAssembly(KernelWriter):
       self.undefineSgpr("StridesD")
     if not self.staggerU:
       self.undefineSgpr("OrigStaggerUIter")  # Original stagger register.  Only needed for Persistent
-    if not kernel["PersistentKernel"]:
+    if not kernel["PersistentKernel"] and not (kernel["NumITilesUnRoll"] > 1):
       self.undefineSgpr("MagicNumberProblemNumGroupTiles0") # Magic number to use for division
       self.undefineSgpr("GridNumWorkGroups0") # Magic number to use for division
 

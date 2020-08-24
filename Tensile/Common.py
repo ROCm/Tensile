@@ -228,14 +228,20 @@ for i in validThreadTileSides:
   for j in validThreadTileSides:
     validThreadTiles.append([i, j])
 
+validDepthIJs = []
+validDepthIJTiles = [1,2,3,4,5,6]
+for i in validDepthIJTiles:
+  for j in validDepthIJTiles:
+    validDepthIJs.append([i, j])
+
 validActivationFormats = ('NCHW', 'NHWC', 'CNHW', 'NCDHW', 'NDHWC', 'CNDHW')
 validWeightFormats = ('KCYX', "CKYX", "CYXK",  'KCZYX', 'CKZYX', 'CZYXK')
 validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 48, 96, 192, 384, 768 ]
 validMacroTiles = []
 validISA = [(0,0,0)]
 validISA.extend(globalParameters["SupportedISA"])
-depthUs = list(range(-16, 0))
-depthUs.extend(list(range(2,512+1,1)))
+depthUs = list(range(-16, 1))
+depthUs.extend(list(range(1,512+1,1)))
 for i in validMacroTileSides:
   for j in validMacroTileSides:
     validMacroTiles.append([i, j])
@@ -369,6 +375,12 @@ validParameters = {
     # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads,
     # followed by local writes, followed by MACs
     "ScheduleIterAlg":             [0, 1, 2, 3],
+
+    # Scheduling algorithm to use in last iteration (noloadLoop or nextTileLoad(persistent)):
+    # 0 = minimal/no scheduling. waitcode, followed by local reads, followed by MACs
+    # 1 = interleave localReads,pack,MAC
+    # 2 = interleave localReads,accVgprMove,pack,MAC,store
+    "ScheduleLastIterAlg":             [1,2],
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
@@ -804,6 +816,11 @@ validParameters = {
     # -3 : Only allow min(GLVWA,GLVWB) < VW ?
     "DepthU":                     depthUs,
 
+    #DepthIJ ; depthU version for Free0, Free1 index. useful for cases where K<=4 and numbe of Tiles/CU >=2 
+    #unrolling MT0,MT1 tiles in unroll Loop. Global & local ofset pointers are adjusted to fetch for i..i+DepthIJ.i j..j+depthIJ.j tiles
+
+    "DepthIJ":                    validDepthIJs,
+
     # integer ammount of padding to put into LDS, in 2016 this didn't seem to help performance, profilers were showing that channel conflicts weren't really hurting
     # performance so this has been deprecated and probably doesn't work
     # -1 means use same padding as the VectorWidth if TLU=0 else 0.  (Padding only helps when transpose is required)
@@ -911,6 +928,7 @@ defaultBenchmarkCommonParameters = [
     {"ScheduleGlobalRead":        [ 1 ] },
     {"ScheduleLocalWrite":        [ 1 ] },
     {"ScheduleIterAlg":           [ 1 ] },
+    {"ScheduleLastIterAlg":       [ 1 ] },
 
     {"LdcEqualsLdd":              [ True ] },
     {"InterleaveAlpha":           [ 0 ] },
@@ -965,6 +983,7 @@ defaultBenchmarkCommonParameters = [
     {"DisableAtomicFail":         [ 0 ] },
     {"DisableKernelPieces":       [ 0 ] },
     {"DepthU":                    [ -1 ] },
+    {"DepthIJ":                   [ [1,1] ] },
     {"PerformanceSyncLocation":   [ -1 ] },
     {"PerformanceWaitLocation":   [ -1 ] },
     {"PerformanceWaitCount":      [ -1 ] },

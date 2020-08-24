@@ -1807,6 +1807,9 @@ class Solution:
         if abs(state["WorkGroupMapping"]) > 2:
           reject(state, "WorkGroupMappingType=Z only supports WorkGroupMapping=1, 2")
 
+    # state variable for unroll I,J tiles
+    state["NumITilesUnRoll"] = state["DepthIJ"][0]
+    state["NumJTilesUnRoll"] = state["DepthIJ"][1]
     # done
     state["AssignedProblemIndependentDerivedParameters"] = True
 
@@ -1853,6 +1856,7 @@ class Solution:
     #print "result: ", pvar(state, "GlobalLoadVectorWidth%s"%tc), \
     #        pvar(state, "NumLoads%s"%tc)
 
+    #print("validDepthU=",validDepthU)
     return validDepthU
 
   ########################################
@@ -1989,19 +1993,19 @@ class Solution:
   def setGlobalLoadTileDimFractional(state, tc, depthU):
 
     assert(depthU > 0)
-    dbFract = 0
+    dbFract = 1
 
     # parDim, perpDim define the LoadTile and are measured in elements
     if state["ProblemType"]["TLU%s"%tc]:
-      parDim  = state["MacroTile%s"%tc]
+      parDim  = state["MacroTile%s"%tc]*state["NumITilesUnRoll"]
       perpDim = depthU
     else:
       parDim  = depthU
-      perpDim = state["MacroTile%s"%tc]
+      perpDim = state["MacroTile%s"%tc]*state["NumJTilesUnRoll"]
 
     if dbFract:
-        print("\ninfo: %s Fractional MT%u_%u_%u Par=%u Perp=%u WG%02u_%02u_%02u NumThreads=%u GRWV=%u" \
-          % (tc, state["MacroTile0"], state["MacroTile1"], depthU, \
+        print("\ninfo: %s Fractional NumITilesUnRoll=%u NumJTilesUnRoll=%u MT%u_%u_%u Par=%u Perp=%u WG%02u_%02u_%02u NumThreads=%u GRWV=%u" \
+          % (tc, state["NumITilesUnRoll"], state["NumJTilesUnRoll"], state["MacroTile0"], state["MacroTile1"], depthU, \
             parDim, perpDim, \
             state["WorkGroup"][0], state["WorkGroup"][1], state["LocalSplitU"], \
             state["NumThreads"], state["GlobalReadVectorWidth"]))
@@ -2086,6 +2090,8 @@ class Solution:
     perpOverhang = perpDim % state["LSP%s"%tc]
     state["fractionalPerpOverhang%s"%tc] = perpOverhang
     if dbFract:
+      print("\ninfo: NumITilesUnRoll=%u NumJTilesUnRoll=%u %s"\
+          % (state["NumITilesUnRoll"], state["NumJTilesUnRoll"]))
       # how many threads compute Global Read Offsets (GRO) that are not used
       print("  PerLoadTile=%ux%u elements Loads/WI=%ux%u LoadTile/WI=%ux%u (MT=%ux%u), %u/%u = %.1f%% WI GRO used %s" \
           % (state["LSC%s"%tc], state["LSP%s"%tc], \
@@ -2255,6 +2261,8 @@ class Solution:
           reject(state, "didn't support LdsBlockSizePerPadB on tile major LDS yet")
         if state["LdsBlockSizePerPadB"] < state["DepthU"]*state["ProblemType"]["DataType"].numBytes():
           reject(state, "reject: DepthU %u x bpe > LdsBlockSizePerPadB %u" % (state["DepthU"], state["LdsBlockSizePerPad"]))
+      if state["ScheduleLastIterAlg"] == 2:
+          reject(state, "SLIA3 support not available yet")
     else:
       if state["UnrollMajorLDSA"] or state["UnrollMajorLDSB"]:
         reject(state, "didn't support UnrollMajorLDS in VALU mode yet")
@@ -2267,6 +2275,9 @@ class Solution:
 
       if state["ScheduleIterAlg"] == 2 or state["ScheduleIterAlg"] == 3:
         reject(state, "SIA2 and SIA3 only support MatrixInstruction")
+
+      if state["ScheduleLastIterAlg"] == 1 or state["ScheduleLastIterAlg"] == 2:
+        reject(state, "SLIA2 and SLIA3 only support MatrixInstruction")
 
     if state["ProblemType"]["Tensor0"]==0:
       state["ThreadTileA"] = state["ThreadTile0"]
@@ -2369,7 +2380,7 @@ class Solution:
     #  - And Suppress does not work if GSU>1 for some reason
     state["SuppressNoLoadLoop"] &= (bufferLoad and state["PrefetchGlobalRead"] and (state["GlobalSplitU"]==1))
     # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
-    state["ExpandPointerSwap"]  &= (bufferLoad and state["PrefetchGlobalRead"])
+    state["ExpandPointerSwap"]  &= (bufferLoad and state["PrefetchGlobalRead"]) 
 
     #print("PackedC0IdxChars", state["PackedC0IdxChars"])
     #print("PackedC1IdxChars", state["PackedC1IdxChars"])
@@ -2556,18 +2567,18 @@ class Solution:
 
       # how many elements to load
       if state["ProblemType"]["TLUA"]:
-        totalElementsCoalescedA = state["MacroTile0"]
+        totalElementsCoalescedA = state["MacroTile0"]*state["NumITilesUnRoll"]
         totalElementsPerpA = depthU
       else:
         totalElementsCoalescedA = depthU
-        totalElementsPerpA = state["MacroTile0"]
+        totalElementsPerpA = state["MacroTile0"]*state["NumITilesUnRoll"]
 
       if state["ProblemType"]["TLUB"]:
-        totalElementsCoalescedB = state["MacroTile1"]
+        totalElementsCoalescedB = state["MacroTile1"]*state["NumJTilesUnRoll"]
         totalElementsPerpB = depthU
       else:
         totalElementsCoalescedB = depthU
-        totalElementsPerpB = state["MacroTile1"]
+        totalElementsPerpB = state["MacroTile1"]*state["NumJTilesUnRoll"]
 
       totalElementsA = totalElementsCoalescedA * totalElementsPerpA
       totalElementsB = totalElementsCoalescedB * totalElementsPerpB

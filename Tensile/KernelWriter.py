@@ -309,6 +309,216 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # should never run out of items to schedule
       assert not itemsToSched # should have scheduled everthing already
 
+  def makeLastIterSchedule(self, kernel, localReadCode, waitCode, macIterCode, \
+                                 packCode = Code.Module(), movAccVgprCodeItems = Code.Module() ):
+
+    iterCode = Code.Module()
+
+    # Default schedule is other, waitCode, MAC/MFMA code:
+    if self.scheduleLastIterAlg == 1:
+      iterCode.addCode(waitCode)
+      # interleave pack code
+      packItem = packCode.flatitems()
+      packCount = 0
+      packInstPerIter = (1 + kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1]) * (kernel["MatrixInstK"] // 2)
+      while packItem:
+        if packCount < packInstPerIter:
+          item = packItem.pop(0)
+          iterCode.addCode(item)
+          packCount = packCount + 1
+        else:
+          break
+      readsPerIter = localReadCode.countType(Code.LocalReadInst)
+      localReadCodeAB = Code.Module()
+      for iui in range(kernel["InnerUnroll"]):
+        localReadCodeA = localReadCode.findNamedItem("LocalReadDoA_I%s"%(iui))
+        localReadCodeB = localReadCode.findNamedItem("LocalReadDoB_I%s"%(iui))
+        # In case localReadDo not generate localReadCode Module
+        # and findNamedItem will return None type
+        # TODO: findNamedItem return Code.Module() if not found
+        if not localReadCodeA:
+          localReadCodeA = Code.Module()
+        if not localReadCodeB:
+          localReadCodeB = Code.Module()
+        while localReadCodeA.items() or localReadCodeB.items():
+          if localReadCodeA.items():
+            localReadCodeAB.addCode(localReadCodeA.items().pop(0))
+          if localReadCodeB.items():
+            localReadCodeAB.addCode(localReadCodeB.items().pop(0))
+        localReadItems = localReadCodeAB.flatitems()
+
+
+      macIterItem = macIterCode.flatitems()
+      # pop the first code which is s_nop 1 for packing
+      item = macIterItem.pop(0)
+      iterCode.addCode(item)
+      readLeft = 3
+      while macIterItem:
+        while localReadItems:
+          if readLeft == 0:
+            readLeft = 3 
+            break
+          item = localReadItems.pop(0)
+          iterCode.addCode(item)
+          readsThisItem = item.countType(Code.LocalReadInst)
+          if readsThisItem:
+            readLeft = readLeft - 1
+        item = macIterItem.pop(0)
+        iterCode.addCode(item)
+        packCount = 0
+        while packItem:
+          if packCount < 4:
+            item = packItem.pop(0)
+            iterCode.addCode(item)
+            packCount = packCount + 1
+          else:
+            break
+        if packCount > 0:
+          iterCode.addInst("s_nop ","1","VALU packing writes to be consumed by matrix instruction")
+      if isinstance(waitCode, Code.WaitCnt):
+        lgkmcnt = 0
+        localReads = 0
+        waitCode.comment += " old=%u, new=%u newLR=%u" % (waitCode.lgkmcnt, lgkmcnt,localReads)
+        waitCode.lgkmcnt = 3 if readsPerIter > 3 else readsPerIter  
+      pass
+    elif self.scheduleLastIterAlg == 2:
+      # mfma interleave with LocalReads, pack, movaccVgpr, store
+      if kernel["EnableMatrixInstruction"]:
+        numMfmaPerIter = kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] * kernel["InnerUnroll"]
+        packInstPerIter = (1 + kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1]) * (kernel["MatrixInstK"] // 2)//numMfmaPerIter
+        macIterItems = macIterCode.flatitems()
+        readsPerIter = localReadCode.countType(Code.LocalReadInst)
+        localReadCodeAB = Code.Module()
+        for iui in range(kernel["InnerUnroll"]):
+          localReadCodeA = localReadCode.findNamedItem("LocalReadDoA_I%s"%(iui))
+          localReadCodeB = localReadCode.findNamedItem("LocalReadDoB_I%s"%(iui))
+          # In case localReadDo not generate localReadCode Module
+          # and findNamedItem will return None type
+          # TODO: findNamedItem return Code.Module() if not found
+          if not localReadCodeA:
+            localReadCodeA = Code.Module()
+          if not localReadCodeB:
+            localReadCodeB = Code.Module()
+          while localReadCodeA.items() or localReadCodeB.items():
+            if localReadCodeA.items():
+              localReadCodeAB.addCode(localReadCodeA.items().pop(0))
+            if localReadCodeB.items():
+              localReadCodeAB.addCode(localReadCodeB.items().pop(0))
+        localReadItems = localReadCodeAB.flatitems()
+        packAB = Code.Module()
+
+        #remove registers from vgprPool for movAcc instruction
+        # remove enough to do one MFMA at a time
+
+        if not kernel["DisableVgprOverlapping"]:
+          #look for state variable for dstAGPr
+          perMfmaDstVgprs = kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"] // globalParameters["WavefrontWidth"]
+          StartVgprCIdx = self.startVgprReuse
+          kStr += self.comment1("endSummation: remove C-tile [%u, %u) from pool"%(self.startVgprReuse, self.startVgprReuse+max(0, perMfmaDstVgprs-self.startVgprReuse)))
+          self.vgprPool.remove(self.startVgprReuse, max(0, perMfmaDstVgprs-self.startVgprReuse), "ValuC")
+          #update reUse index
+          self.startVgprReuse = self.startVgprReuse + perMfmaDstVgprs
+   
+        for iui in range(kernel["InnerUnroll"]):
+          packA = packCode.findNamedItem("packA_I%s"%(iui))
+          packB = packCode.findNamedItem("packB_I%s"%(iui))
+          # In case localReadDo not generate pack Module
+          # and findNamedItem will return None type
+          # TODO: let all type have pack Module
+          if not packA:
+            packA = Code.Module()
+          if not packB:
+            packB = Code.Module()
+          while packA.items() or packB.items():
+            if packA.items():
+              packAB.addCode(packA.items().pop(0))
+            if packB.items():
+              packAB.addCode(packB.items().pop(0))
+
+        
+        # remove s_nop for packing
+        macIterItems.pop(0)
+
+        iterCode.addCode(syncCode)
+        skipLocalWriteWaitcnt = 0
+        localReadsWaitcnt = 0
+        #i=0 do read for next Tile
+        #i=1..n read for next Tile + movAccvgpr
+        for i in range(numMfmaPerIter):
+          readLeft = readsPerIter
+          accVgprLeft = accMovPerTile
+          # with PrefetchLocalRead, localreads can interleave with mfma
+          packA = Code.Module()
+          packB = Code.Module()
+          packToSched = False
+          movaccVgprToSched = False
+          storeCToSched = False
+
+          if packAB.items():
+             packA.addCode(packAB.items().pop(0))
+             packInstPerMfma = packA.count()
+          if packAB.items():
+             packB.addCode(packAB.items().pop(0))
+             packInstPerMfma += packB.count()
+
+          if packA.items() or packB.items():
+             packToSched = True
+          if readsPerIter !=0:
+             lrdToSched = True
+          if movaccVgprToSched.items():
+             movaccVgprToSched = True
+             
+          if self.numItersPLR:
+            latencyPerMfmaIter = kernel["MatrixInstM"] // 2
+            if packToSched:
+              availableCyclesforRead = latencyPerMfmaIter - (packInstPerMfma*4) - 8
+            else: 
+              availableCyclesforRead = latencyPerMfmaIter - 8
+            numReadsToSched = availableCyclesforRead // 8
+            if packToSched:
+              numReadsToSched = numReadsToSched - packInstPerMfma*4
+            if (i == 0):
+              numReadsToSched  = 4 if (numReadsToSched>4) else numReadsToSched  # cap it to 4 for credit-max 
+            else:
+              numReadsToSched  = 3 if (numReadsToSched>3) else numReadsToSched  # cap it to 3  to allow other instructions
+                                                                                # issue all LocalReads quickly
+          if i == 0:
+            movaccVgprToSched = False
+          if movaccVgprToSched:
+            availableCyclesforAccMov = latencyPerMfmaIter - (packInstPerMfma*4) - numReadsToSched*8 - 8
+            if availableCyclesforAccMov < 4:
+              numMovAccSched = 0
+            else:
+              numMovAccSched =  availableCyclesforAccMov//4 -1 # count for waitcnt
+          while localReadItems:
+            if readLeft == 0 and (i != numMfmaPerIter - 1):
+              break
+            item = localReadItems.pop(0)
+            iterCode.addCode(item)
+            readsThisItem = item.countType(Code.LocalReadInst)
+            if readsThisItem:
+              readLeft = readLeft - 1
+              # because waitCode is scheduled at first mfma, we only need to skip localreads at first mfma.
+              if (i == 0):
+                localReadsWaitcnt += 1
+          if i == 0:
+            iterCode.addCode(waitCode)
+          if packA.items(): 
+            iterCode.addCode(packA)
+          if packB.items(): 
+            iterCode.addCode(packB)
+          #if packA.items() and packB.items()
+          #  iterCode.addInst("s_nop ","1","VALU packing writes to be consumed by matrix instruction")
+          iterCode.addCode(macIterItems.pop(0))
+    else:
+      assert 0, "Unsupported scheduleIterAlg=%u"%self.scheduleIterAlg
+
+    for item in list(packCode.items()):
+      if item.tempVgpr != None:
+        self.vgprPool.checkIn(item.tempVgpr)
+        item.tempVgpr = None
+
+    return iterCode
 
   ##############################################################################
   # Schedule work into the each unroll loop iteration
@@ -338,7 +548,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   #  localReadCode + otherCode
   ##############################################################################
   def makeSubIterSchedule(self, kernel, localReadCode, iteration, pointerCode, waitCode, macIterCode, \
-      waitLWCode = Code.Module(), syncCode = Code.Module(), packCode = Code.Module()):
+      waitLWCode = Code.Module(), syncCode = Code.Module(), packCode = Code.Module(), movAccVgprCode = Code.Module() ):
 
     iterCode = Code.Module()
     globalReadCode = self.perIterGlobalReadCode[iteration]
@@ -449,7 +659,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
         isBarrier = localWriteEndIter + 1
         writeItems = list(localWriteCode.items())
         macIterItems = macIterCode.flatitems()
-        readsPerIter = localReadCode.countType(Code.LocalReadInst)
         localReadCodeAB = Code.Module()
         for iui in range(kernel["InnerUnroll"]):
           localReadCodeA = localReadCode.findNamedItem("LocalReadDoA_I%s"%(iui))
@@ -822,7 +1031,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
   def noLoadLoop( self, kernel, tensorParametersA, tensorParametersB, isOptNLL, pack ):
     kl = []
     pflr     = self.numItersPLR
-
     kl.append(self.comment3("%s NoLoadLoop - Begin") % "Opt" if isOptNLL else "")
     if self.prefetchAcrossPersistent:
       kl.append(self.openPrefetchAcrossPersistent(kernel))
@@ -836,49 +1044,76 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "4wait for local write"))
       if self.enable["Sync"]:
         kl.append(self.syncThreads(kernel))
-    for u in range(0, kernel["LoopIters"]):
-      kl.append(self.comment("iter %u"%u))
-      plrIdx = (u+pflr) % (self.numVgprBuffer + 1)
-      plrPIdx = ((u+pflr) % (self.numItersPLR+1))
-      pack[plrPIdx] = Code.Module()
-      for iui in range(0,kernel["InnerUnroll"]):
-        if self.enable["LocalRead"]:
-          if u < kernel["LoopIters"]/self.numIterPerCoalescedRead - self.numItersPLR:
-            if iui*self.numReadsIterCoalesced < kernel["InnerUnroll"]:
-              # Reading 16-bit data from LDS requires packing when ECC enabled
-              kl.append(self.comment("local read a"))
-              localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx*self.numIterPerCoalescedRead, iui*self.numReadsIterCoalesced, 0, tensorParametersA)
-              kl.append(localReadCodeA)
-              kl.append(self.comment("local read b"))
-              localReadCodeB, packCodeB = self.localReadDo(kernel, plrIdx*self.numIterPerCoalescedRead, iui*self.numReadsIterCoalesced, 0, tensorParametersB)
-              kl.append(localReadCodeB)
-              pack[plrPIdx].addCode(packCodeA)
-              pack[plrPIdx].addCode(packCodeB)
-
-              kl.append(self.comment("local read inc a"))
-              kl.append(self.localReadInc(kernel, iui, tensorParametersA))
-              kl.append(self.comment("local read inc b"))
-              kl.append(self.localReadInc(kernel, iui, tensorParametersB))
-      if self.enable["Wait"]:
-        dataAtIter = u//self.numIterPerCoalescedRead - self.numItersPLR
-        numReadsIter = min(u+1,kernel["LoopIters"]//self.numIterPerCoalescedRead - self.numItersPLR)
-        skipReadsIter = numReadsIter - dataAtIter - 1
-        kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, \
-            skipReadsIter, \
-            "7wait for local read"))
-      if self.enable["MAC"]:
-        luIdx = (u) % (self.numVgprBuffer+1) # local to use for MACs
-        pIdx = (u) % (self.numItersPLR+1) # local to use for MACs
-        if kernel["EnableMatrixInstruction"]:
-          kl.append(pack[pIdx])
-          for item in list(pack[pIdx].items()):
-            if item.tempVgpr != None:
-              self.vgprPool.checkIn(item.tempVgpr)
-              item.tempVgpr = None
-          kl.append(self.mfmaIter(kernel, luIdx, kernel["InnerUnroll"]))
-        else:
-          kl.append(self.macIter(kernel, luIdx, kernel["InnerUnroll"], useMacro=not isOptNLL ))
-    kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=isOptNLL))
+    # unrollI,J option adds iterations in noLoadLoop
+    # DepthU= mathces prolemsize[k] and no unroll Loop 
+    for UnrollI in range(0,kernel["NumITilesUnRoll"]):
+      for UnrollJ in range(0,kernel["NumJTilesUnRoll"]):
+        for u in range(0, kernel["LoopIters"]):
+          kl.append(self.comment("iter %u"%u))
+          plrIdx = (u+pflr) % (self.numVgprBuffer + 1)
+          plrPIdx = ((u+pflr) % (self.numItersPLR+1))
+          pack[plrPIdx] = Code.Module()
+          localReads = Code.Module()
+          waitCode = Code.Module()
+          macIterCode = Code.Module()
+          AccVgprReadCode = Code.Module("AccVgprRead")
+          for iui in range(0,kernel["InnerUnroll"]):
+            if self.enable["LocalRead"]:
+              if u < kernel["LoopIters"]/self.numIterPerCoalescedRead - self.numItersPLR:
+                if iui*self.numReadsIterCoalesced < kernel["InnerUnroll"]:
+                  # Reading 16-bit data from LDS requires packing when ECC enabled
+                  localReads.addText(self.comment("local read a"))
+                  localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx*self.numIterPerCoalescedRead, iui*self.numReadsIterCoalesced, 0, tensorParametersA)
+                  localReads.addCode(localReadCodeA)
+                  localReads.addText(self.comment("local read b"))
+                  localReadCodeB, packCodeB = self.localReadDo(kernel, plrIdx*self.numIterPerCoalescedRead, iui*self.numReadsIterCoalesced, 0, tensorParametersB)
+                  localReads.addCode(localReadCodeB)
+                  pack[plrPIdx].addCode(packCodeA)
+                  pack[plrPIdx].addCode(packCodeB)
+                  #if (kernel["NumITilesUnRoll"] + kernel["NumJTilesUnRoll"] > 2 and self.scheduleIterAlg ==2): 
+                  localReads.addText(self.comment("local read inc a"))
+                  localReads.addText(self.localReadInc(kernel, iui, tensorParametersA))
+                  localReads.addText(self.comment("local read inc b"))
+                  localReads.addText(self.localReadInc(kernel, iui, tensorParametersB))
+          # use only when unorllI,unrollJ != 1
+          if not (self.scheduleLastIterAlg):  
+            if localReads:
+              k1.append(localReads) 
+          if self.enable["Wait"]:
+            dataAtIter = u//self.numIterPerCoalescedRead - self.numItersPLR
+            numReadsIter = min(u+1,kernel["LoopIters"]//self.numIterPerCoalescedRead - self.numItersPLR)
+            skipReadsIter = numReadsIter - dataAtIter - 1
+            waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, \
+                skipReadsIter, \
+                "7wait for local read")
+          if not (self.scheduleLastIterAlg):  
+            if waitCode:
+              k1.append(waitCode)
+          if self.enable["MAC"]:
+            luIdx = (u) % (self.numVgprBuffer+1) # local to use for MACs
+            pIdx = (u) % (self.numItersPLR+1) # local to use for MACs
+            if kernel["EnableMatrixInstruction"]:
+              if not (self.scheduleLastIterAlg):
+                kl.append(pack[pIdx])
+                for item in list(pack[pIdx].items()):
+                  if item.tempVgpr != None:
+                    self.vgprPool.checkIn(item.tempVgpr)
+                    item.tempVgpr = None
+                kl.append(self.mfmaIter(kernel, luIdx, kernel["InnerUnroll"]))
+              else:
+                macIterCode.addCode(self.mfmaIter(kernel, luIdx, kernel["InnerUnroll"]))     
+            else:
+              kl.append(self.macIter(kernel, luIdx, kernel["InnerUnroll"], useMacro=not isOptNLL ))
+          if (self.scheduleLastIterAlg==2):  
+            #interleave accVgprmov instructions
+            acc2arch, _ = self.AccToArchMapper(kernel)
+            AccVgprReadCode.itemList = [None] * len(acc2arch)
+            for i, e in enumerate(acc2arch):
+              AccVgprReadCode.itemList[acc2arch[i]] = Code.Inst("v_accvgpr_read_b32", \
+                                                               vgpr("ValuC+__placeholder__"), "acc%u" % i, "copy areg to vreg[%u]"%acc2arch[i])
+          if (self.scheduleLastIterAlg):
+            self.makeLastIterSchedule(kernel,localReads,waitCode,macIterCode,pack[pIdx],AccVgprReadCode)
+        kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=isOptNLL))
     return kl
 
   ##############################################################################
@@ -1719,6 +1954,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.scheduleIterAlg = kernel["ScheduleIterAlg"]
     else:
       self.scheduleIterAlg = 0
+    if self.canSchedule:
+      self.scheduleLastIterAlg = kernel["ScheduleLastIterAlg"]
+    else:
+      self.scheduleLastIterAlg = 0
+      
 
     self.prefetchAcrossPersistent = \
         kernel["KernelLanguage"] == "Assembly" and \
