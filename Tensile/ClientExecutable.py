@@ -59,6 +59,7 @@ def clientExecutableEnvironment(builddir=None):
 
     options = {'CMAKE_BUILD_TYPE': globalParameters["CMakeBuildType"],
                'TENSILE_NEW_CLIENT': 'ON',
+               'Tensile_LIBRARY_FORMAT': globalParameters["LibraryFormat"],
                'CMAKE_CXX_COMPILER': os.path.join('/opt/rocm/bin/', globalParameters['CxxCompiler'])}
 
     return CMakeEnvironment(sourcedir, builddir, **options)
@@ -67,6 +68,9 @@ def clientExecutableEnvironment(builddir=None):
 buildEnv = None
 
 def getClientExecutable(builddir=None):
+    if "PrebuiltClient" in globalParameters:
+        return globalParameters["PrebuiltClient"]
+
     global buildEnv
 
     if buildEnv is None:

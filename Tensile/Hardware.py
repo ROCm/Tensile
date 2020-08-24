@@ -27,3 +27,49 @@ class HardwarePredicate(Properties.Predicate):
         gfxArch = 'gfx'+''.join(map(str, isa))
         return cls("AMDGPU", value=cls("Processor", value=gfxArch))
 
+    @classmethod
+    def FromHardware(cls, isa, cuCount=None):
+        gfxArch = 'gfx'+''.join(map(str, isa))
+        if cuCount == None:
+            return cls("AMDGPU", value=cls("Processor", value=gfxArch))
+        else:
+            return cls("AMDGPU", value=cls.And([cls("Processor", value=gfxArch),
+                                                cls("CUCount", value=cuCount)]))
+
+    def __lt__(self, other):
+        # Use superclass logic for TruePreds
+        if other.tag == 'TruePred' or self.tag == 'TruePred':
+            return super().__lt__(other)
+
+        # Compute unit counts are embedded as 'And' with
+        # 'Processor' and 'ComputeUnitCount' as children
+        if self.value.tag == 'And':
+            myAndPred = self.value
+            myProcPred = next(iter(x for x in myAndPred.value if x.tag == "Processor"), None)
+            myCUPred = next(iter(x for x in myAndPred.value if x.tag == "CUCount"), None)
+            myCUCount = myCUPred.value if myCUPred != None else 0
+        else:
+            myProcPred = self.value
+            myCUCount = 0
+
+        if other.value.tag == 'And':
+            otherAndPred = other.value
+            otherProcPred = next(iter(x for x in otherAndPred.value if x.tag == "Processor"), None)
+            otherCUPred = next(iter(x for x in otherAndPred.value if x.tag == "CUCount"), None)
+            otherCUCount = otherCUPred.value if otherCUPred != None else 0
+        else:
+            otherProcPred = other.value
+            otherCUCount = 0
+
+        # If CU properties are empty, then compare processor predicates
+        if myCUCount == otherCUCount == 0:
+            # Make sure that we have valid processor preds
+            assert myProcPred != None and otherProcPred != None, "Missing processor predicate"
+            assert myProcPred.tag == otherProcPred.tag == "Processor", "Invalid processor predicate"
+
+            # Downgrade to base class so that we don't recurse
+            myProcPred.__class__ = otherProcPred.__class__ = Properties.Predicate
+            return myProcPred < otherProcPred
+
+        # Higher priority given to higher CU count
+        return myCUCount > otherCUCount

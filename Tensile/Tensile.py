@@ -27,11 +27,11 @@ import os
 import sys
 import argparse
 from .Common import globalParameters, print1, ensurePath, \
-    assignGlobalParameters, defaultGlobalParameters, HR
+    assignGlobalParameters, restoreDefaultGlobalParameters, HR
 from . import BenchmarkProblems
 from . import ClientWriter
 from . import LibraryLogic
-from . import YAMLIO
+from . import LibraryIO
 from . import __version__
 
 ###############################################################################
@@ -85,26 +85,21 @@ def executeStepsInConfig( config ):
     ClientWriter.main( libraryClientConfig )
     print1("")
 
+def addCommonArguments(argParser):
+  """
+  Add a common set of arguments to `argParser`.
 
-################################################################################
-# Tensile
-# - below entry points call here
-################################################################################
-def Tensile(userArgs):
-  # 1st half of splash
-  print1("")
-  print1(HR)
-  print1("#")
-  print1("#  Tensile v%s" % (__version__) )
+  Currently used by the main Tensile script and the unit tests but could also be used for TensileCreateLibrary.
+  """
+  def splitExtraParameters(par):
+    """
+    Allows the --global-parameters option to specify any parameters from the command line.
+    """
 
-  # setup argument parser
-  argParser = argparse.ArgumentParser()
-  argParser.add_argument("config_file", \
-      help="benchmark config.yaml file")
-  argParser.add_argument("output_path", \
-      help="path where to conduct benchmark")
-  argParser.add_argument("--version", action="version", \
-      version="%(prog)s {version}".format(version=__version__))
+    (key, value) = par.split("=")
+    value = eval(value)
+    return (key, value)
+
   argParser.add_argument("-d", "--device", dest="device", type=int, \
       help="override which device to benchmark")
   argParser.add_argument("-p", "--platform", dest="platform", type=int, \
@@ -112,7 +107,7 @@ def Tensile(userArgs):
   argParser.add_argument("--runtime-language", dest="RuntimeLanguage", \
       choices=["HIP", "OCL"], help="override which runtime language to use")
   argParser.add_argument("--code-object-version", dest="CodeObjectVersion", \
-      choices=["V2", "V3"], help="HSA code-object version")
+      choices=["V2", "V3"], default="V3", help="HSA code-object version")
   argParser.add_argument("-v", "--verbose", action="store_true", \
       help="set PrintLevel=2")
   argParser.add_argument("--debug", dest="debug", action="store_true", \
@@ -122,15 +117,89 @@ def Tensile(userArgs):
   argParser.add_argument("--no-merge-files", dest="noMergeFiles", action="store_true", \
       help="kernels and solutions written to individual files")
   argParser.add_argument("--cxx-compiler", dest="CxxCompiler", choices=["hcc", "hipcc"], \
-      action="store", default="hcc", help="select which compiler to use")
+      action="store", default="hipcc", help="select which compiler to use")
+  argParser.add_argument("--library-format", dest="LibraryFormat", choices=["yaml", "msgpack"], \
+      action="store", default="yaml", help="select which library format to use")
   argParser.add_argument("--client-build-path", default=None)
   argParser.add_argument("--client-lock", default=None)
-  # argParser.add_argument("--hip-clang-version", dest="HipClangVersion", \
+  argParser.add_argument("--prebuilt-client", default=None)
+
+  argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
+
+def argUpdatedGlobalParameters(args):
+  """
+  Returns a dictionary with `globalParameters` keys that should be updated based on `args`.
+  """
+  rv = {}
+  # override config with command-line options
+  if args.device:
+    print1("# Command-line override: Device")
+    rv["Device"] = args.device
+  if args.platform:
+    print1("# Command-line override: Platform")
+    rv["Platform"] = args.platform
+  if args.RuntimeLanguage:
+    print1("# Command-line override: RuntimeLanguage")
+    rv["RuntimeLanguage"] = args.RuntimeLanguage
+  if args.CodeObjectVersion:
+    print1("# Command-line override: CodeObjectVersion")
+    rv["CodeObjectVersion"] = args.CodeObjectVersion
+  if args.verbose:
+    print1("# Command-line override: PrintLevel")
+    rv["PrintLevel"] = 2
+  if args.debug:
+    print1("# Command-line override: Debug")
+    rv["PrintLevel"] = 2
+    rv["CMakeBuildType"] = "Debug"
+  if args.shortNames:
+    rv["ShortNames"] = True
+  if args.noMergeFiles:
+    rv["MergeFiles"] = False
+  if args.CxxCompiler:
+    rv['CxxCompiler'] = args.CxxCompiler
+    if rv['CxxCompiler'] == "hipcc" and not args.CodeObjectVersion:
+      rv["CodeObjectVersion"] = "V3"
+  print1("")
+  if args.client_build_path:
+    rv["ClientBuildPath"] = args.client_build_path
+  if args.client_lock:
+    rv["ClientExecutionLockPath"] = args.client_lock
+  if args.prebuilt_client:
+    rv["PrebuiltClient"] = args.prebuilt_client
+
+  for key, value in args.global_parameters:
+    rv[key] = value
+
+  return rv
+
+################################################################################
+# Tensile
+# - below entry points call here
+################################################################################
+def Tensile(userArgs):
+  global globalParameters
+
+  # 1st half of splash
+  print1("")
+  print1(HR)
+  print1("#")
+  print1("#  Tensile v%s" % (__version__) )
+
+  # setup argument parser
+  argParser = argparse.ArgumentParser()
+  argParser.add_argument("config_file", type=os.path.realpath, help="benchmark config.yaml file")
+  argParser.add_argument("output_path", \
+      help="path where to conduct benchmark")
+  argParser.add_argument("--version", action="version", \
+      version="%(prog)s {version}".format(version=__version__))
+  # argParser.add_argument("--hcc-version", dest="HccVersion", \
   #     help="This can affect what opcodes are emitted by the assembler")
+  addCommonArguments(argParser)
 
   # parse arguments
   args = argParser.parse_args(userArgs)
-  configPath = os.path.realpath( args.config_file)
+
+  configPath = args.config_file
 
   # 2nd half of splash
   print1("#  Config: %s" % (configPath) )
@@ -139,14 +208,16 @@ def Tensile(userArgs):
   print1("")
 
   print1("# Restoring default globalParameters")
-  for key in defaultGlobalParameters:
-    if args.CxxCompiler:
-      globalParameters['CxxCompiler'] = args.CxxCompiler
-    else:
-      globalParameters[key] = defaultGlobalParameters[key]
+  restoreDefaultGlobalParameters()
+
+  # CxxCompiler and LibraryFormat needs to be updated before assignGlobalParameters.
+  if args.CxxCompiler:
+    globalParameters['CxxCompiler'] = args.CxxCompiler
+  if args.LibraryFormat:
+    globalParameters['LibraryFormat'] = args.LibraryFormat
 
   # read config
-  config = YAMLIO.readConfig( configPath )
+  config = LibraryIO.readConfig( configPath )
   globalParameters["ConfigPath"] = configPath
 
   # assign global parameters
@@ -158,42 +229,17 @@ def Tensile(userArgs):
   globalParameters["OutputPath"] = ensurePath(os.path.abspath(args.output_path))
   globalParameters["WorkingPath"] = globalParameters["OutputPath"]
 
-  # override config with command-line options
-  if args.device:
-    print1("# Command-line override: Device")
-    globalParameters["Device"] = args.device
-  if args.platform:
-    print1("# Command-line override: Platform")
-    globalParameters["Platform"] = args.platform
-  if args.RuntimeLanguage:
-    print1("# Command-line override: RuntimeLanguage")
-    globalParameters["RuntimeLanguage"] = args.RuntimeLanguage
-  if args.CodeObjectVersion:
-    print1("# Command-line override: CodeObjectVersion")
-    globalParameters["CodeObjectVersion"] = args.CodeObjectVersion
-  if args.verbose:
-    print1("# Command-line override: PrintLevel")
-    globalParameters["PrintLevel"] = 2
-  if args.debug:
-    print1("# Command-line override: Debug")
-    globalParameters["PrintLevel"] = 2
-    globalParameters["CMakeBuildType"] = "Debug"
-  if args.shortNames:
-    globalParameters["ShortNames"] = True
-  if args.noMergeFiles:
-    globalParameters["MergeFiles"] = False
-  if args.CxxCompiler:
-    globalParameters['CxxCompiler'] = args.CxxCompiler
-    if globalParameters['CxxCompiler'] == "hipcc" and not args.CodeObjectVersion:
-      globalParameters["CodeObjectVersion"] = "V3"
-  print1("")
-  if args.client_build_path:
-    globalParameters["ClientBuildPath"] = args.client_build_path
-  if args.client_lock:
-    globalParameters["ClientExecutionLockPath"] = args.client_lock
+  overrideParameters = argUpdatedGlobalParameters(args)
+
+  for key, value in overrideParameters.items():
+    print("Overriding {0}={1}".format(key, value))
+    globalParameters[key] = value
+
+  #globalParameters["NewClient"] = 2
+  #globalParameters["PrintCodeCommands"] = True
 
   # Execute Steps in the config script
-  executeStepsInConfig( config )
+  executeStepsInConfig(config)
 
 
 def TensileConfigPath(*args):

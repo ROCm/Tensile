@@ -62,6 +62,8 @@ namespace Tensile
             void pop();
 
             void writeCurrentRow();
+            void readCurrentRow(std::unordered_map<std::string, std::string>& outMap);
+            void clearCurrentRow();
 
         private:
             std::string escape(std::string const& value);

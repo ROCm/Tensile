@@ -21,7 +21,8 @@
 
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer, ClientExecutionLock
 from . import ClientExecutable
-from . import YAMLIO
+from . import Common
+from . import LibraryIO
 
 import os
 import subprocess
@@ -97,7 +98,7 @@ def main( config ):
   for logicFileName in logicFiles:
     (scheduleName, deviceNames, problemType, solutionsForType, \
         indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) \
-        = YAMLIO.readLibraryLogicForSchedule(logicFileName)
+        = LibraryIO.readLibraryLogicForSchedule(logicFileName)
     if problemType["DataType"].isHalf():
         enableHalf = True
     functions.append((scheduleName, problemType))
@@ -190,6 +191,7 @@ def getBuildOldClientScript(libraryLogicPath, forBenchmark):
   runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
   runScriptFile.write(" -DTensile_COMPILER=%s" % globalParameters["CxxCompiler"])
   runScriptFile.write(" -DTensile_ARCHITECTURE=%s" % globalParameters["Architecture"])
+  runScriptFile.write(" -DTensile_LIBRARY_FORMAT=%s" % globalParameters["LibraryFormat"])
   if globalParameters["EnableHalf"]:
     runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
   if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
@@ -255,9 +257,14 @@ def getBuildNewClientLibraryScript(buildPath, libraryLogicPath, forBenchmark):
   else:
     callCreateLibraryCmd += " --no-library-print-debug"
 
+  # Function won't get called if NewClient !=2, but don't want to make assumption
+  if "NewClient" in globalParameters and globalParameters["NewClient"] == 2:
+      callCreateLibraryCmd += " --new-client-only"
+
   callCreateLibraryCmd += " --architecture=" + globalParameters["Architecture"]
   callCreateLibraryCmd += " --code-object-version=" + globalParameters["CodeObjectVersion"]
   callCreateLibraryCmd += " --cxx-compiler=" + globalParameters["CxxCompiler"]
+  callCreateLibraryCmd += " --library-format=" + globalParameters["LibraryFormat"]
 
   callCreateLibraryCmd += " %s" % libraryLogicPath
   callCreateLibraryCmd += " %s" % buildPath #" ../source"
@@ -344,6 +351,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
       clp += " --use-gpu-timer %u" % globalParameters["KernelTime"]
       clp += " --sleep-percent %u" % globalParameters["SleepPercent"]
       clp += " --benchmark-solutions %u" % enableTileSelection
+      clp += " --csv-export-extra-cols %u" % globalParameters["CSVExportWinner"]
       if "ClientArgs" in globalParameters:
         clientParams = globalParameters["ClientArgs"]
         if clientParams:
@@ -471,13 +479,13 @@ def problemSizeParams(solution, problem):
         # should just set problem.stride* appropriately when reading the Yaml and not deal with extra fields here
         if astrides[1] == -1:
           astrides[1] = problem.sizes[numIndices+2]
-        else:
+        elif astrides[1] != problem.sizes[numIndices+2]:
           raise RuntimeError("problem-specified lda(%u) conflicts with setConstStrideA(%u)" % \
               (astrides[1], problem.sizes[numIndices+2]))
 
         if bstrides[1] == -1:
           bstrides[1] = problem.sizes[numIndices+3]
-        else:
+        elif bstrides[1] != problem.sizes[numIndices+3]:
           raise RuntimeError("problem-specified ldb(%u) conflicts with setConstStrideB(%u)" % \
               (bstrides[1], problem.sizes[numIndices+3]))
 
@@ -558,12 +566,13 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
             f.write("{}={}\n".format(key, value))
 
         sourceDir = os.path.join(stepBaseDir, "source")
-        libraryFile = os.path.join(sourceDir, "library", "TensileLibrary.yaml")
+        libraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
+        libraryFile = os.path.join(sourceDir, "library", libraryFilename)
         param("library-file", libraryFile)
 
-        currentGFXName = "gfx%x%x%x" % globalParameters["CurrentISA"]
+        currentGFXName = Common.gfxName(globalParameters["CurrentISA"])
         for coFile in codeObjectFiles:
-            if (currentGFXName in coFile):
+            if 'gfx' not in coFile or currentGFXName in coFile:
                 param("code-object", os.path.join(sourceDir,coFile))
 
         if tileAwareSelection:
@@ -620,6 +629,7 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         param("num-enqueues-per-sync",    globalParameters["EnqueuesPerSync"])
         param("num-syncs-per-benchmark",  globalParameters["SyncsPerBenchmark"])
         param("use-gpu-timer",            globalParameters["KernelTime"])
+        param("hardware-monitor",         globalParameters["HardwareMonitor"])
         if globalParameters["ConvolutionVsContraction"]:
             assert(newSolution.problemType.convolution)
             param("convolution-vs-contraction", globalParameters["ConvolutionVsContraction"])
@@ -630,6 +640,8 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         param("perf-l2-write-hits",       globalParameters["PerfModelL2WriteHits"])
         param("perf-l2-read-bw-mul",      globalParameters["PerfModelL2ReadBwMul"])
         param("perf-read-efficiency",     globalParameters["PerfModelReadEfficiency"])
+        param("csv-export-extra-cols",    globalParameters["CSVExportWinner"])
+        param("csv-merge-same-problems",  globalParameters["CSVMergeSameProblemID"])
 
 
 
@@ -669,6 +681,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
         solutionName = solutionWriter.getSolutionName(solution)
         h += "#include \"" + solutionName + ".h\"\n"
         h += "#include \"Solutions.h\"\n"
+    h += "#include \"ReferenceCPU.h\"\n"
     h += "\n"
   else:
     h += "#include \"Solutions.h\"\n"
@@ -1163,6 +1176,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     #h += "int deviceIdx = %u;\n" \
     #    % (globalParameters["Device"])
   h += "\n"
+  h += "void *deviceWS;\n"
   h += "void *deviceD;\n"
   h += "void *deviceC;\n"
   h += "void *deviceA;\n"
@@ -1406,8 +1420,11 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       typeName = dataTypes[0].toCpp()
       destTypeName = destDataTypes[dataType].toCpp()
       computeTypeName = computeDataTypes[dataType].toCpp()
-      h += "  return f(solutionLock, static_cast<%s *>(deviceD), static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
-          % (destTypeName, destTypeName, typeName, typeName)
+      h += "  return f(solutionLock,\n"
+      h += "      static_cast<%s *>(deviceD),\n" % destTypeName
+      h += "      static_cast<%s *>(deviceC),\n" % destTypeName
+      h += "      static_cast<%s *>(deviceA),\n" % typeName
+      h += "      static_cast<%s *>(deviceB),\n" % typeName
     h += "      alpha,\n"
     if problemType["UseBeta"]:
       h += "      beta,\n"
@@ -1427,7 +1444,10 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     if globalParameters["RuntimeLanguage"] == "OCL":
        h += "      numEvents, event_wait_list, outputEvent ); // events\n"
     else:
-       h += "      numEvents, startEvent, stopEvent); // events\n"
+       h += "      numEvents,\n"
+       h += "      startEvent,\n"
+       h += "      stopEvent,\n"
+       h += "      static_cast<float *>(deviceWS)); // events\n"
 
     h += "};\n"
     h += "\n"
@@ -1588,9 +1608,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
             h += "        size%s%s\n" % (indexChars[i], "," if i != problemType["TotalIndices"]-1 else "")
           if enqueue:
             if globalParameters["RuntimeLanguage"] == "OCL":
-               h += ", stream, numEvents, event_wait_list, outputEvent"
+              h += ", stream, numEvents, event_wait_list, outputEvent"
             else:
-               h += ", stream, numEvents, startEvent, stopEvent"
+              h += ", stream, numEvents, startEvent, stopEvent, static_cast<float *>(deviceWS)"
           h += ");\n"
 
         if len(functionsForDataType) > 1:

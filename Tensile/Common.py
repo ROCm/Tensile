@@ -58,6 +58,7 @@ globalParameters["PreciseKernelTime"] = True     # T=On hip, use the timestamps 
 globalParameters["CodeFromFiles"] = True          # if False byte arrays will be generated during Benchmarking phase as before
 globalParameters["SortProblems"] = False          # sort problems by size; else use order in YAML file
 globalParameters["PinClocks"] = False             # T=pin gpu clocks and fan, F=don't
+globalParameters["HardwareMonitor"] = True        # False: disable benchmarking client monitoring clocks using rocm-smi.
 globalParameters["NumBenchmarks"] = 1             # how many benchmark data points to collect per problem/solution
 globalParameters["SyncsPerBenchmark"] = 1         # how iterations of the stream synchronization for-loop to do per benchmark data point
 globalParameters["EnqueuesPerSync"] = 1           # how many solution enqueues to perform per synchronization
@@ -107,6 +108,18 @@ globalParameters["UnrollLoopEfficiencyEnable"] = False   # if True split(S) MAC&
 ########################################
 globalParameters["CMakeBuildType"] = "Release"            # whether benchmark clients and library client should be release or debug
 globalParameters["PrintSolutionRejectionReason"] = False  # when a solution is marked as invalid, print why
+globalParameters["LibraryFormat"] = "yaml"                # set library backend (either yaml or msgpack)
+
+# True/False: CSV will/won't export WinnerGFlops, WinnerTimeUS, WinnerIdx, WinnerName.
+# TODO - if no side-effect, we can set default to True. This can make analyzing "LibraryLogic" (AddFromCSV) faster
+globalParameters["CSVExportWinner"] = False
+
+# (When NumBenchmarks > 1). True: CSV will merge the rows of same Problem-ID. False: Each problem will write out "NumBenchmarks" rows
+#   In old client - No effect, since in old client, CSV file only exports the last benchmark, somehow is not correct because the previous benchmarks are discarded
+#   In new client - csv file exports "NumBenchmarks" rows for every problem. This also make the later analyzing slower
+#                   Set this to "True" can merge the rows for same problem, hence can reduce the csv file size and speed up the later analyzing
+# TODO - if side-effect, we can set default to True. This can make "getResults()" / "AddFromCSV()" faster
+globalParameters["CSVMergeSameProblemID"] = False
 
 # how to initialize tensor data
 # serial-in-u will use a sequence that increments in the K dimension
@@ -160,9 +173,9 @@ globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
 globalParameters["MaxFileName"] = 128 # If a file name would be longer than this, shorten it with a hash.
-globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (10,1,0)]             # assembly kernels writer supports these architectures
+globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (10,1,0), (10,1,1)]             # assembly kernels writer supports these architectures
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
-globalParameters["NewClient"] = 1                                 # 1=Run old+new client, 2=run new client only (All In)
+globalParameters["NewClient"] = 2                                 # 1=Run old+new client, 2=run new client only (All In)
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
@@ -188,8 +201,8 @@ if os.name == "nt":
 else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
-globalParameters["CodeObjectVersion"] = "V2"
-globalParameters["CxxCompiler"] = "hcc"
+globalParameters["CodeObjectVersion"] = "V3"
+globalParameters["CxxCompiler"] = "hipcc"
 globalParameters["Architecture"] = "all"
 
 # might be deprecated
@@ -243,7 +256,19 @@ validMFMA["H"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16
 validMFMA["S"] = [[32,32,1,2], [32,32,2,1], [16,16,1,4], [16,16,4,1], [4,4,1,16]]
 validMFMA["B"] = [[32,32,2,2], [32,32,4,1], [16,16,2,4], [16,16,8,1], [4,4,2,16]]
 validMFMA["4xi8"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
+validMFMA["C"] = validMFMA["S"]
+validTT = 16
+validMFMA["_format9"] = []
+for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["4xi8"]]:
+  for MI in MFMA:
+    for bm in range(int(math.log(MI[3],2))+1):
+      for tt0 in range(1,validTT+1):
+        for tt1 in range(1,validTT+1):
+          for wave_m in range (3):
+            for wave_n in range(3):
+              validMFMA["_format9"].append([MI[0],MI[1],MI[2],MI[3],2**bm,tt0,tt1,2**wave_m, 2**wave_n])
 validMatrixInstructions = [[], [-1]] + validMFMA["H"] + validMFMA["S"] + validMFMA["B"] + validMFMA["4xi8"]
+validMatrixInstructions = validMatrixInstructions + validMFMA["_format9"]
 
 validParameters = {
     "LoopDoWhile":                [ False, True ], # Source. True=DoWhile, False=For loop
@@ -271,8 +296,51 @@ validParameters = {
     "GlobalReadCoalesceVectorA":  [        True ], # FIXME =False worked before the vector refactor; fixing requires re-ordering load/store indices; but they aren't the faster option so not worth time right now
     "GlobalReadCoalesceVectorB":  [        True ],
 
-    "PrefetchGlobalRead":         [ False, True ], # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
-    "PrefetchLocalRead":          [ 0,1,2,3], # prefetch / double-buffer reads from lds (or 2 for triple-buffer, 3 for quad-buffer).  Increases size of ValuA/ValuB registers.
+    # original global read to lds is interlace, [w0,w1,w2,w3,w0,w1,w2,w3,w0,w1,w2,w3,w0,w1,w2,w3]
+    # when WaveSeparateGlobalRead is enabled, LDS is divided to number of waves part.
+    # each wave load a block memory to lds,     [w0,w0,w0,w0,w1,w1,w1,w1,w2,w2,w2,w2,w3,w3,w3,w3]
+    # -1 is selected by logic, 0 disable, 1 enable.
+    "WaveSeparateGlobalReadA":    [ 0, 1 ],
+    "WaveSeparateGlobalReadB":    [ 0, 1 ],
+
+    # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
+    "PrefetchGlobalRead":         [ False, True ],
+
+    # number of iteration prefetch local reads from lds to VGPRs buffer = PLR % LoopIter
+    # number of VGPRs buffer = min(PLR,LoopIters)
+    # LoopIters = DepthU / LocalSplitU
+    # (LoopIters /= MatrixInstruction_K)
+    # ex. MT64x128x16_MI32x32x4x2_PLR1, we'll have 4 LoopIters, prefetch read 1 iteration, with 2 VGPRs buffer
+    #     befor loop:       plr[0]
+    #           loop: iter0:plr[1] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[0], iter3:plr[0] MAC_r[1]
+    #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[0], iter3:       MAC_r[1]
+    #
+    # ex. MT64x128x16_MI32x32x4x2_PLR3, we'll have 4 LoopIterss, prefetch read 3 iteration, with 4 VGPRs buffer
+    #     befor loop:       plr[0] plr[1] plr[2]
+    #           loop: iter0:plr[3] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[2], iter3:plr[2] MAC_r[3]
+    #   no load loop: iter0:plr[3] MAC_r[0], iter1:       MAC_r[1], iter2:       MAC_r[2], iter3:       MAC_r[3]
+    #
+    # ex. MT64x128x16_MI32x32x4x2_PLR5, we'll have 4 LoopIterss, prefetch read 5%4=1 iteration, with 4 VGPRs buffer
+    #     befor loop:       plr[0]
+    #           loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:plr[0] MAC_r[3]
+    #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:       MAC_r[3]
+    #
+    # ex. MT64x128x16_MI32x32x4x2_PLR5_LRVW8, we'll have 4 LoopIterss, prefetch read 5%4=1 iteration, with 4 VGPRs buffer, each read read 2 iterations
+    #     befor loop:       plr[0:1]
+    #           loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:plr[0:1] MAC_r[3]
+    #   no load loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:         MAC_r[3]
+    "PrefetchLocalRead":          list(range(128+1)),
+
+    # We use double LDS buffer when PrefetchGlobalRead.
+    # While it reads data from LDS[0]/[1], it prefetch global data and writes to LDS[1]/[0]
+    # If we can make sure all data are read from LDS to register before writing data to LDS, we can use 1 LDS buffer to save LDS memory.
+    # this can help to generate Kernel that LDS usage originally exceed MaxLDS if using double LDS buffer,
+    # or help to increase Occupancy.
+    #     1 means: Force to use 1 LDS Buffer even with PrefetchGlobalRead
+    #    -1 means: generator will use 1 LDS buffer only when LDS exceed MaxLDS
+    # Currently only support TN+TLDS+wider_local_read
+    # TODO: optimize scheduling to support more cases.
+    "1LDSBuffer": [-1 ,0, 1],
 
     # Split the unroll summation into multiple sections and combine the sections
     # GSU applies only to the unroll summation dimension
@@ -599,8 +667,52 @@ validParameters = {
 
     # MatrixInstruction: (M x N x K x B)
     # XDLOPS tile definition, only valid for gfx908
+    # MxNxKxB specifies matrix instruction variants
+    #  MxNxB determines the shape of the C tile each instruction worked on
+    #      K determines the unroll depth
     # If empty, do not use these instructions
+    #
+    # Alternative format: (M x N x K x B x MIBlockM x WaveTileM x WaveTileN x WaveM x WaveN)
+    # (Note: MxN means M-by-N in the following comments)
+    # MIBlockM determines how many blocks along M dimension for multi-block MI variants. Concrete examples:
+    #  - MI 16x16x1x4 (4-block variant) with MIBlockM=4 -> (16x16)*(4x1)=64x16 tile per instruction executed
+    #  - MI 32x32x1x2 (2-block variant) with MIBlockM=1 -> (32x32)*(1x2)=32x64 tile per instruction executed
+    # WaveTileM/N are dimensions of the C tile each wave works on, and is close to the concept of ThreadTile in classic VALU kernels
+    #  - WT 4x1 -> each wave executes 4x1 matrix instructions on the C tile of total area (4*MITileM)x(1*MITileN)
+    # WaveM/N are dimensions of waves spawned for one workgroup where each wave consists of 64 threads
+    #  - Wave2x2 -> a total of 4 waves in one workgroup of shape 2x2
+    # Putting it all together:
+    #  - [32, 32, 1, 2,  1,  4, 1,  2, 2]
+    #     ^^^^^^^^^^^^   ^   ^^^^   ^^^^
+    #      MatrixInst  BlkM   WT    Wave
+    #  - means (32x64) per MI * (4x1) per wave * (2x2) per workgroup = (32*4*2)x(64*1*2) = 256x128 macro tile
+    # Tensile will ignore the parameters ThreadTile and WorkGroup when the alternative format is used
     "MatrixInstruction":          validMatrixInstructions,
+
+    # StoreRemap: Optimize MatrixInstruction store patterns to enhance performance.
+    #             MI output data between each threads are along N dims.
+    #             But global memory is along M dim continous.
+    #             That mean global write between each threads are not continous.
+    #             Therefore, store performance for MI instruction is poor.
+    # How StoreRemap works in final store stage:
+    #             1. Put all thread output data into LDS.
+    #             2. All thread read data from LDS along M dims.
+    #                (match global Memory continous direction)
+    #             3. All thread write out data into global memory.
+    # 0:   Disable StoreRemap (default)
+    # 1~8: Enable StoreRemap and set the global write vector width
+    # Suggest optimum value: fp32 = [2,4], fp16 or bf16 = [4,8] (dwordx2 and dowrdx4)
+    "StoreRemapVectorWidth":      [0,1,2,4,8],
+
+    # Disable overlapping AB-tile vgpr and read/write addr vgprs with C-tile vgprs
+    # Valid only for MatrixInstruction enabled kernels, which by default overlaps
+    # C-tile w/ AB-tile until it's due for v_accvgpr_read before the writeback. Illustrated below:
+    # |<----------------------- valuC ----------------------->|
+    # |<--- valuA/B --->|<-- R/W pointers -->|xxx|<- Spares ->|
+    #                                          ^        ^
+    #         (Reserved by persistent kernels) ^        ^
+    #                       (Utilized by register pool) ^
+    "DisableVgprOverlapping":     [False, True],
 
     # If positive, each switch includes switches <= the specified switch.
     # For example 3 will enable NoPostLoop+NoGlobalRead+NoLocalWrite
@@ -737,15 +849,16 @@ validParameters = {
     # integer ammount of padding to put into LDS, in 2016 this didn't seem to help performance, profilers were showing that channel conflicts weren't really hurting
     # performance so this has been deprecated and probably doesn't work
     # -1 means use same padding as the VectorWidth if TLU=0 else 0.  (Padding only helps when transpose is required)
+    # With MatrixInstruciton: -1 means max(GRVW,MIInput) if TLU=0
     "LdsPadA":                     [ -1, 0, 1, 2, 3, 4, 8],
     "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8],
 
     # Padding boundary for LDS. defines block-size for pad insertion. for every 'LdsBlockSizePerPad' bytes, LDS padding (pad value from LdsPad parameter)
-    # is added (readOffset aware of the pad and adjusts offset value based on this parameter value).good rule of thumb is LdsBlockSizePerPad >= unrollDepth * BPE
-    # optimized value is 128
+    # is added (readOffset aware of the pad and adjusts offset value based on this parameter value).
+    # Only support LdsBlockSizePerPad >= unrollDepth * BPE
     # 0 means disable LdsBlockSizePerPad,
-    # -1 means value is determined by Tensile logic
-    "LdsBlockSizePerPad":          [-1, 0, 64, 128, 256],
+    # -1 means round up to nearest power of 2 begin with 128
+    "LdsBlockSizePerPad":          [-1, 0, 64, 128, 256, 512],
 
     #Transpose LDS format. Local store in Coalsced dimension , same as optimized global fetch dimension . applicable only in TLU=0 case for miSIMD(s)
     "TransposeLDS":                [-1, 1, 0],
@@ -821,6 +934,8 @@ defaultBenchmarkCommonParameters = [
     {"LocalReadVectorWidth":      [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
+    {"WaveSeparateGlobalReadA":    [ 0 ] },
+    {"WaveSeparateGlobalReadB":    [ 0 ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
     {"GlobalReadCoalesceGroupB":  [ True ] },
     {"PrefetchGlobalRead":        [ True ] },
@@ -887,6 +1002,8 @@ defaultBenchmarkCommonParameters = [
     {"WorkGroupMapping":          [ 8 ] },
     {"ThreadTile":                [ [4,4] ] },
     {"MatrixInstruction":         [ [] ] },
+    {"DisableVgprOverlapping":    [ False ] },
+    {"1LDSBuffer":                [ 0 ] },
     {"DisableAtomicFail":         [ 0 ] },
     {"DisableKernelPieces":       [ 0 ] },
     {"DepthU":                    [ -1 ] },
@@ -899,6 +1016,7 @@ defaultBenchmarkCommonParameters = [
     {"ReplacementKernel":         [ False ] },
     {"MinVgprNumber":             [0]},
     {"MaxVgprNumber":             [256]},
+    {"StoreRemapVectorWidth":     [ 0 ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = []
@@ -1220,61 +1338,82 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
 def GetAsmCaps(isaVersion):
   """ Determine assembler capabilities by testing short instructions sequences """
   rv = {}
-  rv["SupportedISA"] = tryAssembler(isaVersion, "", "")
-  rv["HasExplicitCO"] = tryAssembler(isaVersion, "", "v_add_co_u32 v0,vcc,v0,1")
-  rv["HasExplicitNC"] = tryAssembler(isaVersion, "", "v_add_nc_u32 v0,v0,1")
-  rv["HasDirectToLds"] = tryAssembler(isaVersion, "", "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
-  rv["HasAddLshl"] = tryAssembler(isaVersion, "", "v_add_lshl_u32 v47, v36, v34, 0x2")
-  rv["HasSMulHi"] = tryAssembler(isaVersion, "", "s_mul_hi_u32 s47, s36, s34")
-  rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "-mno-code-object-v3", "")
-  if tryAssembler(isaVersion, "", "s_waitcnt vmcnt(63)"):
+  rv["SupportedISA"]    = tryAssembler(isaVersion, "")
+  rv["HasExplicitCO"]   = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,1")
+  rv["HasExplicitNC"]   = tryAssembler(isaVersion, "v_add_nc_u32 v0,v0,1")
+
+  rv["HasDirectToLds"]  = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
+  rv["HasAddLshl"]      = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
+  rv["HasSMulHi"]       = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
+  rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "", False, "-mno-code-object-v3")
+
+  rv["HasMFMA"]         = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
+
+  rv["v_mac_f16"]       = tryAssembler(isaVersion, "v_mac_f16 v47, v36, v34")
+  rv["v_fma_f16"]       = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
+  rv["v_pk_fma_f16"]    = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0]")
+  rv["v_mad_mix_f32"]   = tryAssembler(isaVersion, "v_mad_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
+  rv["v_fma_mix_f32"]   = tryAssembler(isaVersion, "v_fma_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
+
+  rv["v_dot2_f32_f16"]  = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
+  rv["v_dot2c_f32_f16"] = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34")
+
+  rv["HasAtomicAdd"]    = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
+
+  if tryAssembler(isaVersion, "s_waitcnt vmcnt(63)"):
     rv["MaxVmcnt"] = 63
-  elif tryAssembler(isaVersion, "", "s_waitcnt vmcnt(15)"):
+  elif tryAssembler(isaVersion, "s_waitcnt vmcnt(15)"):
     rv["MaxVmcnt"] = 15
   else:
     rv["MaxVmcnt"] = 0
 
-  rv["SupportedSource"] = (isaVersion != (10,1,0))
+  rv["SupportedSource"] = True
+
+  if globalParameters["CxxCompiler"] == "hcc" and isaVersion[0] == 10:
+    rv["SupportedISA"] = 0
 
   return rv
 
 def GetArchCaps(isaVersion):
   rv = {}
-  rv["HasEccHalf"]     = (isaVersion==(9,0,6) or isaVersion==(9,0,8))
-  rv["Waitcnt0Disabled"] = isaVersion == (9,0,8)
-  rv["SeparateVscnt"]  = isaVersion == (10,1,0)
-  rv["CMPXWritesSGPR"] = isaVersion != (10,1,0)
-  rv["HasWave32"]      = isaVersion == (10,1,0)
+  rv["HasEccHalf"]       = (isaVersion == (9,0,6) or isaVersion == (9,0,8))
+  rv["Waitcnt0Disabled"] = (isaVersion == (9,0,8))
+  rv["SeparateVscnt"]    = (isaVersion[0] == 10)
+  rv["CMPXWritesSGPR"]   = (isaVersion[0] != 10)
+  rv["HasWave32"]        = (isaVersion[0] == 10)
 
   return rv
 
-def tryAssembler(isaVersion, options, asmString):
+def tryAssembler(isaVersion, asmString, debug=False, *options):
   """
   Try to assemble the asmString for the specified target processor
   Success is defined as assembler returning no error code or stderr/stdout
   """
-  if isaVersion == (10,1,0):
-    options += ' -mwavefrontsize64'
+  options = list(options)
+  if globalParameters["PrintLevel"] >= 2:
+    debug = True
 
-  asmCmd = "%s -x assembler -target amdgcn-amdhsa -mcpu=%s %s -" \
-             % (globalParameters["AssemblerPath"], gfxName(isaVersion), options)
+  if isaVersion[0] == 10:
+    options += ['-mwavefrontsize64']
 
-  sysCmd = "echo \"%s\" | %s" % (asmString, asmCmd)
+  args = [globalParameters["AssemblerPath"], '-x', 'assembler',
+          '-target', 'amdgcn-amdhsa',
+          '-mcpu='+gfxName(isaVersion),
+          *options,
+          '-']
 
-  try:
-    result = subprocess.check_output([sysCmd], shell=True,  stderr=subprocess.STDOUT).decode()
-    if globalParameters["PrintLevel"] >=2:
-        print("isaVersion: ", isaVersion)
-        print("asm_cmd: ", asmCmd)
-        print("output :", result)
-    if result != "":
-      return 0 # stdout and stderr must be empty
-  except subprocess.CalledProcessError as e:
-    if globalParameters["PrintLevel"] >=2:
-        print("CalledProcessError", e)
-    return 0 # error, not supported
+  result = subprocess.run(args, input=asmString.encode(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+  output = result.stdout.decode()
 
-  return 1 # syntax works
+  if debug:
+    print("isaVersion: ", isaVersion)
+    print("asm_cmd:", ' '.join(args))
+    print("output: ", output)
+    print("return code: ", result.returncode)
+
+  if output != "" or result.returncode != 0:
+    return False
+  return True
 
 def gfxArch(name):
     import re
@@ -1298,19 +1437,63 @@ def gfxArch(name):
 def gfxName(arch):
     return 'gfx' + ''.join(map(str,arch))
 
+def restoreDefaultGlobalParameters():
+  """
+  Restores `globalParameters` back to defaults.
+  """
+  global globalParameters
+  global defaultGlobalParameters
+  # Can't just assign globalParameters = deepcopy(defaultGlobalParameters) because that would
+  # result in dangling references, specifically in Tensile.Tensile().
+  globalParameters.clear()
+  for key, value in deepcopy(defaultGlobalParameters).items():
+    globalParameters[key] = value
+
+def printTable(rows):
+  rows = list([[str(cell) for cell in row] for row in rows])
+  colWidths = list([max([len(cell) for cell in col]) for col in zip(*rows)])
+
+  for row in rows:
+    for (width, cell) in zip(colWidths, row):
+      pad = ' ' * (width - len(cell))
+      print(pad, cell, sep='', end=' ')
+    print()
+
+def printCapTable(parameters):
+  import itertools
+  archs = [(0,0,0)] + parameters["SupportedISA"]
+  gfxNames = list(map(gfxName, archs))
+
+  headerRow = ['cap'] + gfxNames
+
+  def capRow(caps, cap):
+    return [cap] + [('1' if cap in caps[arch] and caps[arch][cap] else '0') for arch in archs]
+
+  allAsmCaps = set(itertools.chain(*[caps.keys() for arch, caps in parameters["AsmCaps"].items()]))
+  allAsmCaps = sorted(allAsmCaps)
+  asmCapRows = [capRow(parameters["AsmCaps"], cap) for cap in allAsmCaps]
+
+  allArchCaps = set(itertools.chain(*[caps.keys() for arch, caps in parameters["ArchCaps"].items()]))
+  allArchCaps = sorted(allArchCaps)
+  archCapRows = [capRow(parameters["ArchCaps"], cap) for cap in allArchCaps]
+
+  printTable([headerRow] + asmCapRows + archCapRows)
+
 ################################################################################
-# Assign Global Parameters
-# each global parameter has a default parameter, and the user
-# can override them, those overridings happen here
 ################################################################################
 def assignGlobalParameters( config ):
+  """
+  Assign Global Parameters
+  Each global parameter has a default parameter, and the user
+  can override them, those overridings happen here
+  """
 
   global globalParameters
 
   # Minimum Required Version
   if "MinimumRequiredVersion" in config:
     if not versionIsCompatible(config["MinimumRequiredVersion"]):
-      printExit("Benchmark.yaml file requires version=%s is not compatible with current Tensile version=%s" \
+      printExit("Config file requires version=%s is not compatible with current Tensile version=%s" \
           % (config["MinimumRequiredVersion"], __version__) )
 
   # User-specified global parameters
@@ -1366,17 +1549,17 @@ def assignGlobalParameters( config ):
 
   globalParameters["AsmCaps"] = {}
   globalParameters["ArchCaps"] = {}
+
   for v in globalParameters["SupportedISA"] + [(0,0,0)]:
     globalParameters["AsmCaps"][v] = GetAsmCaps(v)
     globalParameters["ArchCaps"][v] = GetArchCaps(v)
 
-    asmCaps = " ".join(["%s=%u"%(k,v) for k,v in globalParameters["AsmCaps"][v].items()])
-    archCaps = " ".join(["%s=%u"%(k,v) for k,v in globalParameters["ArchCaps"][v].items()])
+  if globalParameters["PrintLevel"] >= 1:
+    printCapTable(globalParameters)
 
-    #print("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
+  globalParameters["SupportedISA"] = list([i for i in globalParameters["SupportedISA"] if globalParameters["AsmCaps"][i]["SupportedISA"]])
 
-    print1 ("# Asm caps for %s:%s" % (gfxName(v), asmCaps))
-    print1 ("# Arch caps for %s:%s" % (gfxName(v), archCaps))
+  validParameters["ISA"] = [(0,0,0), *globalParameters["SupportedISA"]]
 
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
@@ -1422,7 +1605,7 @@ def assignParameterWithDefault(destinationDictionary, key, sourceDictionary, \
 # populate dst with src[key] else abort since it's required
 def assignParameterRequired(destinationDictionary, key, sourceDictionary):
   if key in sourceDictionary:
-    destinationDictionary[key] = sourceDictionary[key]
+    destinationDictionary[key] = deepcopy(sourceDictionary[key])
   else:
     printExit("Parameter \"%s\" must be defined in dictionary %s" % (key, sourceDictionary) )
 

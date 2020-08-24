@@ -26,7 +26,10 @@
 
 #pragma once
 
+#include <Tensile/ArithmeticUnitTypes.hpp>
 #include <Tensile/ContractionProblem.hpp>
+#include <Tensile/ContractionSolution.hpp>
+#include <Tensile/KernelLanguageTypes.hpp>
 #include <Tensile/Predicates.hpp>
 
 #include <array>
@@ -98,7 +101,7 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.freeSizeA(index) % value == 0;
+                    return problem.freeSizeB(index) % value == 0;
                 }
             };
 
@@ -511,8 +514,17 @@ namespace Tensile
                 enum
                 {
                     HasIndex = false,
-                    HasValue = false
+                    HasValue = true
                 };
+
+                bool value;
+
+                CDStridesEqual() = default;
+                CDStridesEqual(bool value)
+                    : value(value)
+                {
+                }
+
                 static std::string Type()
                 {
                     return "CDStridesEqual";
@@ -520,7 +532,7 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.c().strides() == problem.d().strides();
+                    return value == (problem.c().strides() == problem.d().strides());
                 }
             };
 
@@ -609,6 +621,90 @@ namespace Tensile
                 }
             };
 
+            struct KernelLanguageCompatible
+                : public Predicate_CRTP<KernelLanguageCompatible, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                KernelLanguage value;
+
+                KernelLanguageCompatible() = default;
+                KernelLanguageCompatible(KernelLanguage value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "KernelLanguageCompatible";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.kernelLanguage() == value
+                           || problem.kernelLanguage() == KernelLanguage::Any;
+                }
+            };
+
+            struct DeterministicModeEqual
+                : public Predicate_CRTP<DeterministicModeEqual, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                bool value;
+
+                DeterministicModeEqual() = default;
+                DeterministicModeEqual(bool value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "DeterministicMode";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.deterministicMode() == value;
+                }
+            };
+
+            struct ArithmeticUnitCompatible
+                : public Predicate_CRTP<ArithmeticUnitCompatible, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+
+                ArithmeticUnit value;
+
+                ArithmeticUnitCompatible() = default;
+                ArithmeticUnitCompatible(ArithmeticUnit value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "ArithmeticUnitCompatible";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.arithmeticUnit() == value
+                           || problem.arithmeticUnit() == ArithmeticUnit::Any;
+                }
+            };
+
             struct TypesEqual : public Predicate_CRTP<TypesEqual, ContractionProblem>
             {
                 enum
@@ -683,6 +779,145 @@ namespace Tensile
                     return problem.operationIdentifier() == value;
                 }
             };
+
+            struct BufferLoadOffsetLimitCheck
+                : public Predicate_CRTP<BufferLoadOffsetLimitCheck, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                BufferLoadCheckPacket value;
+
+                BufferLoadOffsetLimitCheck() = default;
+                BufferLoadOffsetLimitCheck(BufferLoadCheckPacket value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "BufferLoadOffsetLimitCheck";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    const uint64_t TWO_POW_32 = 4294967296;
+                    return (problem.a().strides()[1] * value.depthUorMT0 + value.shiftPtrElemA)
+                                   * problem.a().elementBytes()
+                               < TWO_POW_32
+                           && (problem.b().strides()[1] * value.depthUorMT1 + value.shiftPtrElemB)
+                                      * problem.b().elementBytes()
+                                  < TWO_POW_32;
+                }
+
+                virtual std::string toString() const override
+                {
+                    return concatenate(this->type(),
+                                       "(DU/MT0:",
+                                       value.depthUorMT0,
+                                       ", DU/MT1:",
+                                       value.depthUorMT1,
+                                       ", ShiftPtrPadElementA:",
+                                       value.shiftPtrElemA,
+                                       ", ShiftPtrPadElementB:",
+                                       value.shiftPtrElemB,
+                                       ")");
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": ("
+                           << " (" << problem.a().strides()[1] << " * " << value.depthUorMT0
+                           << " + " << value.shiftPtrElemA << ") * " << problem.a().elementBytes()
+                           << " < 4294967296 && "
+                           << " (" << problem.b().strides()[1] << " * " << value.depthUorMT1
+                           << " + " << value.shiftPtrElemB << ") * " << problem.b().elementBytes()
+                           << " < 4294967296"
+                           << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
+            struct BufferStoreOffsetLimitCheck
+                : public Predicate_CRTP<BufferStoreOffsetLimitCheck, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                size_t value;
+
+                BufferStoreOffsetLimitCheck() = default;
+                BufferStoreOffsetLimitCheck(size_t value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "BufferStoreOffsetLimitCheck";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    const uint64_t TWO_POW_32 = 4294967296;
+                    return problem.a().strides()[1] * problem.a().elementBytes() * value
+                           < TWO_POW_32;
+                }
+
+                virtual std::string toString() const override
+                {
+                    return concatenate(this->type(), "(MT1:", value, ")");
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.a().strides()[1] << " * "
+                           << problem.a().elementBytes() << " * " << value << " < 4294967296"
+                           << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
+            struct WorkspaceCheck : public Predicate_CRTP<WorkspaceCheck, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = true,
+                    HasValue = true
+                };
+                size_t index;
+                size_t value;
+
+                WorkspaceCheck() = default;
+                WorkspaceCheck(size_t index, size_t value)
+                    : index(index)
+                    , value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "WorkspaceCheck";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.d().totalAllocatedElements() * value <= problem.workspaceSize();
+                }
+            };
+
         } // namespace Contraction
 
         /**

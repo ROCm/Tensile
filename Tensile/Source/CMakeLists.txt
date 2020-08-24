@@ -35,11 +35,11 @@ if(TENSILE_NEW_CLIENT)
     set(TENSILE_USE_OPENMP   ON CACHE BOOL "Use LLVM for parsing config files.")
     set(TENSILE_STATIC_ONLY  ON CACHE BOOL "Disable exposing Tensile symbols in a shared library.")
 
-  if(CMAKE_CXX_COMPILER STREQUAL "hipcc")
+    if(CMAKE_CXX_COMPILER STREQUAL "hipcc")
       set(TENSILE_GPU_ARCHS gfx803 gfx900 gfx906 gfx908 gfx1010 CACHE STRING "GPU architectures")
-  else()
+    else()
       set(TENSILE_GPU_ARCHS gfx803 gfx900 gfx906 gfx908 CACHE STRING "GPU architectures")
-  endif()
+    endif()
 
     include(CMakeDependentOption)
     CMAKE_DEPENDENT_OPTION(TENSILE_BUILD_CLIENT "Build the benchmarking client" ON
@@ -104,10 +104,12 @@ else()
     set_property( CACHE Tensile_COMPILER PROPERTY STRINGS hcc hipcc)
     set(Tensile_ARCHITECTURE all CACHE STRING "Which GPU architecture to use")
     set_property( CACHE Tensile_ARCHITECTURE PROPERTY STRINGS all gfx000 gfx900 gfx906 gfx908)
+    set_property( CACHE Tensile_LIBRARY_FORMAT PROPERTY STRINGS yaml msgpack)
 
     message( STATUS "Tensile_CODE_OBJECT_VERSION from Tensile/Source/CMakeLists.txt: ${Tensile_CODE_OBJECT_VERSION}")
     message( STATUS "Tensile_COMPILER            from Tensile/Source/CMakeLists.txt: ${Tensile_COMPILER}")
     message( STATUS "Tensile_ARCHITECTURE        from Tensile/Source/CMakeLists.txt: ${Tensile_ARCHITECTURE}")
+    message( STATUS "Tensile_LIBRARY_FORMAT      from Tensile/Source/CMakeLists.txt: ${Tensile_LIBRARY_FORMAT}")
 
     ###############################################################################
     # Benchmark Client
@@ -204,6 +206,7 @@ else()
         ${Tensile_COMPILER}             # hcc or hipcc
         ${Tensile_CODE_OBJECT_VERSION}  # V2 or V3
         ${Tensile_ARCHITECTURE}         # all, gfx000, gfx803, gfx900, gfx906, gfx908
+        ${Tensile_LIBRARY_FORMAT}       # yaml or msgpack
         ${Tensile_MERGE_FILES}          # ON or OFF
         ${Tensile_SHORT_FILE_NAMES}     # ON or OFF
         ${Tensile_LIBRARY_PRINT_DEBUG}  # ON or OFF

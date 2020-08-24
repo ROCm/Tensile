@@ -1,3 +1,6 @@
+TestParameters:
+  marks: [skip] # Passes in hcc, fails in hipcc (re-enable when fix is available)
+
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
   NumElementsToValidate: -1

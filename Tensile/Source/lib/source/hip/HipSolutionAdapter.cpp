@@ -75,19 +75,31 @@ namespace Tensile
         void SolutionAdapter::loadCodeObjectFile(std::string const& path)
         {
             hipModule_t module;
-            auto        error = hipModuleLoad(&module, path.c_str());
+            try
+            {
+                auto error = hipModuleLoad(&module, path.c_str());
 
-            if(error == hipErrorFileNotFound)
-            {
-                throw std::runtime_error(concatenate("Code object file '", path, "' not found."));
+                if(error == hipErrorFileNotFound)
+                {
+                    throw std::runtime_error(
+                        concatenate("Code object file '", path, "' not found."));
+                }
+                else if(error == hipErrorUnknown || error == hipErrorSharedObjectInitFailed)
+                {
+                    return;
+                }
+                else
+                {
+                    HIP_CHECK_EXC_MESSAGE(error, path);
+                }
+
+                if(m_debug)
+                    std::cout << "loaded code object" << path << std::endl;
             }
-            else if(error == hipErrorUnknown || error == hipErrorSharedObjectInitFailed)
+            catch(std::runtime_error const& exc)
             {
+                std::cout << exc.what() << std::endl;
                 return;
-            }
-            else
-            {
-                HIP_CHECK_EXC_MESSAGE(error, path);
             }
 
             {
@@ -105,15 +117,26 @@ namespace Tensile
         void SolutionAdapter::loadCodeObject(const void* image)
         {
             hipModule_t module;
-            auto        error = hipModuleLoadData(&module, image);
+            try
+            {
+                auto error = hipModuleLoadData(&module, image);
 
-            if(error == hipErrorUnknown || error == hipErrorSharedObjectInitFailed)
-            {
-                return;
+                if(error == hipErrorUnknown || error == hipErrorSharedObjectInitFailed)
+                {
+                    return;
+                }
+                else
+                {
+                    HIP_CHECK_EXC(error);
+                }
+
+                if(m_debug)
+                    std::cout << "loaded code object data." << std::endl;
             }
-            else
+            catch(std::runtime_error const& exc)
             {
-                HIP_CHECK_EXC(error);
+                std::cout << exc.what() << std::endl;
+                return;
             }
 
             {
@@ -151,11 +174,22 @@ namespace Tensile
             for(size_t i = 0; i < embeddedData.size(); i++)
             {
                 hipModule_t nextModule;
-                auto        error = hipModuleLoadData(&nextModule, embeddedData[i].data());
-                if(error == hipErrorUnknown || error == hipErrorSharedObjectInitFailed)
-                    continue;
-                newModules.push_back(nextModule);
-                HIP_CHECK_EXC(error);
+                try
+                {
+                    auto error = hipModuleLoadData(&nextModule, embeddedData[i].data());
+
+                    if(error == hipErrorUnknown || error == hipErrorSharedObjectInitFailed)
+                        continue;
+                    newModules.push_back(nextModule);
+                    HIP_CHECK_EXC(error);
+
+                    if(m_debug)
+                        std::cout << "Loaded code object for key " << key << std::endl;
+                }
+                catch(std::runtime_error const& exc)
+                {
+                    std::cout << exc.what() << std::endl;
+                }
             }
 
             {
