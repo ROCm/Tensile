@@ -504,7 +504,7 @@ int main(int argc, const char* argv[])
 
             reporters->report(ResultKey::ProblemIndex, problemIdx);
             reporters->report(ResultKey::ProblemProgress,
-                              concatenate(problemIdx, "/", problemFactory.problems().size()));
+                              concatenate(problemIdx, "/", lastProblemIdx));
 
             // std::cout << "Problem: " << problem.operationDescription() <<
             // std::endl; std::cout << "a: " << problem.a() << std::endl; std::cout <<
