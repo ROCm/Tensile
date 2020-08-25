@@ -300,8 +300,9 @@ namespace Tensile
             std::swap(rv.numWorkGroups.x, rv.numWorkGroups.y);
 
         uint32_t problemNumGroupTiles0 = rv.numWorkGroups.x;
-        uint32_t problemNumGroupTiles1 = rv.numWorkGroups.y;        
-        uint32_t problemNumGroupTiles2 = rv.numWorkGroups.z;    // used only when persistent kernel along batch
+        uint32_t problemNumGroupTiles1 = rv.numWorkGroups.y;
+        // used only when persistent kernel along batch
+        uint32_t problemNumGroupTiles2 = rv.numWorkGroups.z;
 
         rv.numWorkGroups.y *= sizeMapping.globalSplitU;
 
@@ -310,7 +311,7 @@ namespace Tensile
             size_t persistentGroups = dynamic_cast<AMDGPU const&>(hardware).computeUnitCount
                                       * sizeMapping.persistentKernel;
             size_t problemGroups = rv.numWorkGroups.x * rv.numWorkGroups.y;
-            if (sizeMapping.persistentKernelAlongBatch)
+            if(sizeMapping.persistentKernelAlongBatch)
             {
                 problemGroups *= rv.numWorkGroups.z;
                 rv.numWorkGroups.z = 1;
@@ -488,7 +489,7 @@ namespace Tensile
         if(sizeMapping.persistentKernel != 0)
         {
             rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0",
-                                    smallMagicNumber(problemNumGroupTiles0));
+                                     smallMagicNumber(problemNumGroupTiles0));
         }
 
         if(!isSourceKernel())
@@ -506,8 +507,11 @@ namespace Tensile
             if(sizeMapping.persistentKernelAlongBatch)
             {
                 rv.args.append<uint32_t>("problemNumGroupTiles2", problemNumGroupTiles2);
-                rv.args.append<uint32_t>("problemNumGroupTiles0By1", problemNumGroupTiles0 * problemNumGroupTiles1);
-                rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0By1", smallMagicNumber(problemNumGroupTiles0*problemNumGroupTiles1));
+                rv.args.append<uint32_t>("problemNumGroupTiles0By1",
+                                         problemNumGroupTiles0 * problemNumGroupTiles1);
+                rv.args.append<uint32_t>(
+                    "magicNumberProblemNumGroupTiles0By1",
+                    smallMagicNumber(problemNumGroupTiles0 * problemNumGroupTiles1));
             }
 
             if(sizeMapping.workGroupMapping != 0)

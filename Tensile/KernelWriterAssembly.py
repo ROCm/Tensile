@@ -2870,6 +2870,8 @@ class KernelWriterAssembly(KernelWriter):
         msg = "Occupancy limit"
       elif self.overflowedResources == 5:
         msg = "reading and writing LDS at same time require 2 LDS buffer"
+      elif self.overflowedResources == 6:
+        msg = "Persistent Kernel is better for only occupancy < 2"
       else:
         msg = "unknown"
 
@@ -3455,7 +3457,7 @@ class KernelWriterAssembly(KernelWriter):
     tP["gpr"]["uReg"] = uReg
     self.vgprPool.checkIn(tmpVgpr)
 
-    return kStr
+    return "" if self.dontAppendCode else kStr
 
   ##############################################################################
   # Global Read Addresses: Unroll Assignment
@@ -3496,7 +3498,7 @@ class KernelWriterAssembly(KernelWriter):
     else:
       kStr += self.comment1(vgpr(tP["gpr"]["uReg"]))
 
-    return kStr
+    return "" if self.dontAppendCode else kStr
 
   ##############################################################################
   # Global Read Addresses: Other Free Assignments
@@ -3597,7 +3599,7 @@ class KernelWriterAssembly(KernelWriter):
       if tP["gpr"]["lwoT"] != tP["gpr"]["tReg"] :
         self.vgprPool.checkIn(tP["gpr"]["tReg"])
         tP["gpr"]["tReg"] = None
-    return kStr
+    return "" if self.dontAppendCode else kStr
 
 
   ##############################################################################
@@ -3640,7 +3642,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("_v_add_co_u32", vgpr(v+l), "vcc", stride, \
               vgpr(v+l-1), "gro%s%s_%u + %s"%(tP["tensorChar"], self.unrollChar, l, strideIdx) )
       #self.vgprPool.checkIn(tP["gpr"]["uReg"])
-    return kStr
+    return "" if self.dontAppendCode else kStr
 
 
   ##############################################################################
@@ -3923,7 +3925,7 @@ class KernelWriterAssembly(KernelWriter):
     for zpr in self.zeroPadRegs[tc].values():
       assert(zpr.state == ZeroPadReg.State.CalculatedAddr)
 
-    return kStr
+    return "" if self.dontAppendCode else kStr
 
   ##############################################################################
   # Global Read Addresses: Apply User Offsets
@@ -4308,7 +4310,7 @@ class KernelWriterAssembly(KernelWriter):
     #kStr += "s_endpgm\n"
     #if tP["isB"]:
     #  kStr += self.bomb(0x100)
-    return kStr
+    return "" if self.dontAppendCode else kStr
 
   ##############################################################################
   # Local Write Addresses: Tile Assignment A/B
@@ -4501,7 +4503,7 @@ class KernelWriterAssembly(KernelWriter):
     #if tP["isA"]:
       #kStr += self.dump(vgpr("LocalWriteAddr%s"%tP["tensorChar"]))
       #kStr += self.bomb(-40)
-    return kStr
+    return "" if self.dontAppendCode else kStr
 
   ##############################################################################
   # Local Write Addresses: Final Offsets A/B
@@ -11491,6 +11493,11 @@ class KernelWriterAssembly(KernelWriter):
       self.overflowedResources = 1
     elif self.sgprPool.size() > self.maxSgprs:
       self.overflowedResources = 2
+
+    # Persistent Kernel is better for small occupancy
+    if kernel["PersistentKernel"] and \
+        self.getOccupancy(kernel["NumThreads"], self.vgprPool.size(), self.getLdsSize(kernel), self.agprPool.size()) > 2:
+      self.overflowedResources = 6
 
     vgprPerCU = 65536
     vgprPerThreadPerOccupancy = vgprPerCU // kernel["NumThreads"]

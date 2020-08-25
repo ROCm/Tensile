@@ -516,6 +516,14 @@ namespace Tensile
             return m_workspaceSize;
         }
 
+        void checkPersistentKernelEligibility(ContractionSolution const& solution,
+                                              Hardware const&            hardware);
+
+        bool getPersistentKernelEligibility() const
+        {
+            return m_eligibleForPK;
+        }
+
     private:
         TensorDescriptor m_a;
         TensorDescriptor m_b;
@@ -537,6 +545,7 @@ namespace Tensile
         bool           m_transB;
         bool           m_highPrecisionAccumulate = false;
         bool           m_deterministicMode       = false;
+        bool           m_eligibleForPK           = false;
         ArithmeticUnit m_arithmeticUnit          = ArithmeticUnit::Any;
         KernelLanguage m_kernelLanguage          = KernelLanguage::Any;
 

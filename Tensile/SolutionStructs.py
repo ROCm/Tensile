@@ -2330,6 +2330,10 @@ class Solution:
       # warn("PrefetchAcrossPersistent requires PersistentKernel != 0, forcing PrefetchAcrossPersistent = False")
       state["PrefetchAcrossPersistent"] = False
 
+    if state["PersistentKernel"] and (state["MacroTileA"] * state["MacroTileB"] <= 64 * 64 ):
+      reject(state, "Quick reject small MT-size[%ux%u] which have larger occupancy and wouldn't gain for PersistentKernel" \
+        % (state["MacroTileA"], state["MacroTileB"]))
+
     problemType = state["ProblemType"]
     if not problemType["UseInitialStridesAB"]:
       for (tc) in ('A','B'):

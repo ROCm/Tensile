@@ -319,6 +319,9 @@ class ProblemPredicate(Properties.Predicate):
         if 'GlobalSplitU' in state and state['GlobalSplitU'] > 1:
             rv += [cls("DeterministicMode", value = False)]
 
+        if 'PersistentKernel' in state and state['PersistentKernel']:
+            rv += [cls("PersistentKernelCheck", value = True)]
+
         if ("MatrixInstruction" in state and state["MatrixInstruction"]) or \
            ("EnableMatrixInstruction" in state and state["EnableMatrixInstruction"] is True):
             rv += [cls("ArithmeticUnitCompatible", value="MFMA")]
