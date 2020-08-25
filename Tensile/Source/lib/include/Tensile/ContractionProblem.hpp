@@ -585,23 +585,25 @@ namespace Tensile
         ContractionInputs();
         virtual ~ContractionInputs();
 
-        constexpr static uint32_t typeId(DataType aType,
+        constexpr static uint32_t TypeId(DataType aType,
                                          DataType bType,
                                          DataType cType,
                                          DataType dType,
                                          DataType alphaType,
                                          DataType betaType)
         {
-            static_assert(bitsNeeded((uint32_t)DataType::Count) * 6 <= 32,
+            static_assert(BitFieldGenerator::ElementWidth((uint32_t)DataType::Count) * 6
+                              <= BitFieldGenerator::maxBitFieldWidth,
                           "Max bitfield width exceeded");
 
-            return generateBitField(bitsNeeded((uint32_t)DataType::Count),
-                                    (uint32_t)aType,
-                                    (uint32_t)bType,
-                                    (uint32_t)cType,
-                                    (uint32_t)dType,
-                                    (uint32_t)alphaType,
-                                    (uint32_t)betaType);
+            return BitFieldGenerator::GenerateBitField(
+                BitFieldGenerator::ElementWidth((uint32_t)DataType::Count),
+                (uint32_t)aType,
+                (uint32_t)bType,
+                (uint32_t)cType,
+                (uint32_t)dType,
+                (uint32_t)alphaType,
+                (uint32_t)betaType);
         }
     };
 
@@ -638,9 +640,9 @@ namespace Tensile
         Alpha alpha = static_cast<Alpha>(0);
         Beta  beta  = static_cast<Beta>(0);
 
-        constexpr static uint32_t typeId()
+        constexpr static uint32_t TypeId()
         {
-            return ContractionInputs::typeId(TypeInfo<A>::Enum,
+            return ContractionInputs::TypeId(TypeInfo<A>::Enum,
                                              TypeInfo<B>::Enum,
                                              TypeInfo<C>::Enum,
                                              TypeInfo<D>::Enum,

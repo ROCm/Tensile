@@ -291,7 +291,7 @@ namespace Tensile
                                                                           : problem.d().dataType();
             auto betaType = alphaType;
 
-            auto contractionInputsTypeId = ContractionInputs::typeId(problem.a().dataType(),
+            auto contractionInputsTypeId = ContractionInputs::TypeId(problem.a().dataType(),
                                                                      problem.b().dataType(),
                                                                      problem.c().dataType(),
                                                                      problem.d().dataType(),
@@ -300,26 +300,26 @@ namespace Tensile
 
             switch(contractionInputsTypeId)
             {
-            case FloatContractionInputs::typeId():
+            case FloatContractionInputs::TypeId():
             {
                 auto const& typedInputs = dynamic_cast<FloatContractionInputs const&>(inputs);
                 return ReferenceSolution<FloatContractionInputs>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
-            case DoubleContractionInputs::typeId():
+            case DoubleContractionInputs::TypeId():
             {
                 auto const& typedInputs = dynamic_cast<DoubleContractionInputs const&>(inputs);
                 return ReferenceSolution<DoubleContractionInputs>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
-            case ComplexFloatContractionInputs::typeId():
+            case ComplexFloatContractionInputs::TypeId():
             {
                 auto const& typedInputs
                     = dynamic_cast<ComplexFloatContractionInputs const&>(inputs);
                 return ReferenceSolution<ComplexFloatContractionInputs>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
-            case ComplexDoubleContractionInputs::typeId():
+            case ComplexDoubleContractionInputs::TypeId():
             {
                 auto const& typedInputs
                     = dynamic_cast<ComplexDoubleContractionInputs const&>(inputs);
@@ -327,7 +327,7 @@ namespace Tensile
                     problem, typedInputs, validationStride);
             }
 #ifdef TENSILE_USE_HALF
-            case HalfContractionInputs::typeId():
+            case HalfContractionInputs::TypeId():
             {
                 auto const& typedInputs = dynamic_cast<HalfContractionInputs const&>(inputs);
 
@@ -342,7 +342,7 @@ namespace Tensile
                         problem, typedInputs, validationStride);
                 }
             }
-            case HalfInFloatOutContractionInputs::typeId():
+            case HalfInFloatOutContractionInputs::TypeId():
             {
                 auto const& typedInputs
                     = dynamic_cast<HalfInFloatOutContractionInputs const&>(inputs);
@@ -351,20 +351,20 @@ namespace Tensile
                     problem, typedInputs, validationStride);
             }
 #endif // TENSILE_USE_HALF
-            case Int8x4ContractionInputs::typeId():
+            case Int8x4ContractionInputs::TypeId():
             {
                 auto const& typedInputs = dynamic_cast<Int8x4ContractionInputs const&>(inputs);
                 return ReferenceSolution<Int8x4ContractionInputs>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
-            case Int32ContractionInputs::typeId():
+            case Int32ContractionInputs::TypeId():
             {
                 auto const& typedInputs = dynamic_cast<Int32ContractionInputs const&>(inputs);
                 return ReferenceSolution<Int32ContractionInputs>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
 #ifdef TENSILE_USE_BF16
-            case BFloat16ContractionInputs::typeId():
+            case BFloat16ContractionInputs::TypeId():
             {
                 auto const& typedInputs = dynamic_cast<BFloat16ContractionInputs const&>(inputs);
 
@@ -379,7 +379,7 @@ namespace Tensile
                         problem, typedInputs, validationStride);
                 }
             }
-            case BFloat16InFloatOutContractionInputs::typeId():
+            case BFloat16InFloatOutContractionInputs::TypeId():
             {
                 auto const& typedInputs
                     = dynamic_cast<BFloat16InFloatOutContractionInputs const&>(inputs);

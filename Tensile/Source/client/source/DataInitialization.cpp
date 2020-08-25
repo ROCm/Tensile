@@ -161,53 +161,53 @@ namespace Tensile
             auto betaType  = args["beta-type"].as<DataType>();
 
             auto contractionInputsTypeId
-                = ContractionInputs::typeId(aType, bType, cType, dType, alphaType, betaType);
+                = ContractionInputs::TypeId(aType, bType, cType, dType, alphaType, betaType);
 
             switch(contractionInputsTypeId)
             {
-            case FloatContractionInputs::typeId():
+            case FloatContractionInputs::TypeId():
             {
                 return GetTyped<FloatContractionInputs>(args, problemFactory, maxWorkspaceSize);
             }
-            case DoubleContractionInputs::typeId():
+            case DoubleContractionInputs::TypeId():
             {
                 return GetTyped<DoubleContractionInputs>(args, problemFactory, maxWorkspaceSize);
             }
-            case ComplexFloatContractionInputs::typeId():
+            case ComplexFloatContractionInputs::TypeId():
             {
                 return GetTyped<ComplexFloatContractionInputs>(
                     args, problemFactory, maxWorkspaceSize);
             }
-            case ComplexDoubleContractionInputs::typeId():
+            case ComplexDoubleContractionInputs::TypeId():
             {
                 return GetTyped<ComplexDoubleContractionInputs>(
                     args, problemFactory, maxWorkspaceSize);
             }
 #ifdef TENSILE_USE_HALF
-            case HalfContractionInputs::typeId():
+            case HalfContractionInputs::TypeId():
             {
                 return GetTyped<HalfContractionInputs>(args, problemFactory, maxWorkspaceSize);
             }
-            case HalfInFloatOutContractionInputs::typeId():
+            case HalfInFloatOutContractionInputs::TypeId():
             {
                 return GetTyped<HalfInFloatOutContractionInputs>(
                     args, problemFactory, maxWorkspaceSize);
             }
 #endif // TENSILE_USE_HALF
-            case Int8x4ContractionInputs::typeId():
+            case Int8x4ContractionInputs::TypeId():
             {
                 return GetTyped<Int8x4ContractionInputs>(args, problemFactory, maxWorkspaceSize);
             }
-            case Int32ContractionInputs::typeId():
+            case Int32ContractionInputs::TypeId():
             {
                 return GetTyped<Int32ContractionInputs>(args, problemFactory, maxWorkspaceSize);
             }
 #ifdef TENSILE_USE_BF16
-            case BFloat16ContractionInputs::typeId():
+            case BFloat16ContractionInputs::TypeId():
             {
                 return GetTyped<BFloat16ContractionInputs>(args, problemFactory, maxWorkspaceSize);
             }
-            case BFloat16InFloatOutContractionInputs::typeId():
+            case BFloat16InFloatOutContractionInputs::TypeId():
             {
                 return GetTyped<BFloat16InFloatOutContractionInputs>(
                     args, problemFactory, maxWorkspaceSize);

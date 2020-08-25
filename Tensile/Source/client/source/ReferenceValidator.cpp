@@ -188,7 +188,7 @@ namespace Tensile
                                  : m_problem.d().dataType();
             auto betaType = alphaType;
 
-            auto contractionInputsTypeId = ContractionInputs::typeId(m_problem.a().dataType(),
+            auto contractionInputsTypeId = ContractionInputs::TypeId(m_problem.a().dataType(),
                                                                      m_problem.b().dataType(),
                                                                      m_problem.c().dataType(),
                                                                      m_problem.d().dataType(),
@@ -197,46 +197,46 @@ namespace Tensile
 
             switch(contractionInputsTypeId)
             {
-            case ManagedFloatContractionInputs::typeId():
+            case ManagedFloatContractionInputs::TypeId():
             {
                 return validateSolutionCast<ManagedFloatContractionInputs>(inputs);
             }
-            case ManagedDoubleContractionInputs::typeId():
+            case ManagedDoubleContractionInputs::TypeId():
             {
                 return validateSolutionCast<ManagedDoubleContractionInputs>(inputs);
             }
-            case ManagedComplexFloatContractionInputs::typeId():
+            case ManagedComplexFloatContractionInputs::TypeId():
             {
                 return validateSolutionCast<ManagedComplexFloatContractionInputs>(inputs);
             }
-            case ManagedComplexDoubleContractionInputs::typeId():
+            case ManagedComplexDoubleContractionInputs::TypeId():
             {
                 return validateSolutionCast<ManagedComplexDoubleContractionInputs>(inputs);
             }
 #ifdef TENSILE_USE_HALF
-            case ManagedHalfContractionInputs::typeId():
+            case ManagedHalfContractionInputs::TypeId():
             {
                 return validateSolutionCast<ManagedHalfContractionInputs>(inputs);
             }
-            case ManagedHalfInFloatOutContractionInputs::typeId():
+            case ManagedHalfInFloatOutContractionInputs::TypeId():
             {
                 return validateSolutionCast<ManagedHalfInFloatOutContractionInputs>(inputs);
             }
 #endif // TENSILE_USE_HALF
-            case ManagedInt8x4ContractionInputs::typeId():
+            case ManagedInt8x4ContractionInputs::TypeId():
             {
                 return validateSolutionCast<ManagedInt8x4ContractionInputs>(inputs);
             }
-            case ManagedInt32ContractionInputs::typeId():
+            case ManagedInt32ContractionInputs::TypeId():
             {
                 return validateSolutionCast<ManagedInt32ContractionInputs>(inputs);
             }
 #ifdef TENSILE_USE_BF16
-            case ManagedBFloat16ContractionInputs::typeId():
+            case ManagedBFloat16ContractionInputs::TypeId():
             {
                 return validateSolutionCast<ManagedBFloat16ContractionInputs>(inputs);
             }
-            case ManagedBFloat16InFloatOutContractionInputs::typeId():
+            case ManagedBFloat16InFloatOutContractionInputs::TypeId():
             {
                 return validateSolutionCast<ManagedBFloat16InFloatOutContractionInputs>(inputs);
             }
