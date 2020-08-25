@@ -906,98 +906,54 @@ class SolutionWriter:
         s += "%s// enqueue GSU third kernel\n" % (t)
 
         # grid sizes
-        s += "%ssize_t localWorkSizeGlobalAccum[3] = { 8, 8, 1};\n" % (t)
-        s += "%ssize_t globalWorkSizeGlobalAccum[3];\n" % (t)
-        #s += "%sunsigned int sizeOfC0 = size%s;\n" % (t, \
-        #    self.indexChars[problemType["Index0"]])
-        #s += "%sunsigned int sizeOfC1 = size%s;\n" % (t, \
-        #    self.indexChars[problemType["Index1"]])
-        s += "%ssize_t totalWorkGroupsGlobalAccum0 = sizeOfC0 / localWorkSizeGlobalAccum[0];\n" % (t)
-        s += "%ssize_t totalWorkGroupsGlobalAccum1 = sizeOfC1 / localWorkSizeGlobalAccum[1];\n" % (t)
-        s += "%s// b/c single kernel, add extra work-group here if edge needed\n" % (t)
-        s += "%sif (totalWorkGroupsGlobalAccum0*localWorkSizeGlobalAccum[0] < sizeOfC0) { totalWorkGroupsGlobalAccum0++; }\n" % (t)
-        s += "%sif (totalWorkGroupsGlobalAccum1*localWorkSizeGlobalAccum[1] < sizeOfC1) { totalWorkGroupsGlobalAccum1++; }\n" % (t)
-        s += "%sglobalWorkSizeGlobalAccum[0] = totalWorkGroupsGlobalAccum0%s;\n" % (t, "*localWorkSizeGlobalAccum[0]" if self.language == "OCL" else "")
-        s += "%sglobalWorkSizeGlobalAccum[1] = totalWorkGroupsGlobalAccum1%s;\n" % (t, "*localWorkSizeGlobalAccum[1]" if self.language == "OCL" else "")
-        s += "%sglobalWorkSizeGlobalAccum[2] = 1;\n" % (t)
+        s += "%ssize_t sizeOfC = sizeOfC0 * sizeOfC1;\n" % (t)
         for i in range(0, problemType["NumIndicesC"]):
           if i != problemType["Index0"] and i != problemType["Index1"]:
-            s += "%sglobalWorkSizeGlobalAccum[2] *= size%s;\n" % (t, self.indexChars[i])
+            s += "%ssizeOfC *= size%s;\n" % (t, self.indexChars[i])
+        s += "%ssize_t localWorkSizeGlobalAccum[3] = { 256, 1, 1};\n" % (t)
+        s += "%ssize_t globalWorkSizeGlobalAccum[3] = { 1, 1, 1};\n" % (t)
+        s += "%sglobalWorkSizeGlobalAccum[0] = (sizeOfC + localWorkSizeGlobalAccum[0] - 1) / localWorkSizeGlobalAccum[0];\n" % (t)
+        s += "%s// b/c single kernel, add extra work-group here if edge needed\n" % (t)
 
-        if self.language == "OCL":
-          #s += "%sbool betaZero = true;\n" % (t)
-          s += "%scl_kernel kernelGlobalAccum = kernel_%s;\n" \
-              % (t, kernelName)
-          argIdx = 0
-          s += "%sstatus = clSetKernelArg( kernelGlobalAccum, %u, sizeof(cl_mem), &dataC ); tensileStatusCheck(status);\n" % (t, argIdx); argIdx+=1
-          # strides
-          for i in range(0,numStridesC):
-            s += "%sstatus = clSetKernelArg( kernelGlobalAccum, %u, sizeof(unsigned int), &%s ); tensileStatusCheck(status);\n" % (t, argIdx, self.strideList[i]); argIdx+=1
-          # sizes
-          for i in range(0, problemType["NumIndicesC"]):
-            s += "%sstatus = clSetKernelArg( kernelGlobalAccum, %u, sizeof(unsigned int), &size%s ); tensileStatusCheck(status);\n" % (t, argIdx, self.indexChars[i]); argIdx+=1
-          # enqueue
-          s += "%scl_event kernelEventGlobalAccum;\n" % (t)
-          s += "%sstatus = clEnqueueNDRangeKernel(\n" % (t)
-          t += "  "
-          s += "%sstream,\n" % (t)
-          s += "%skernelGlobalAccum,\n" % (t)
-          s += "%sworkDim,\n" % (t)
-          s += "%sNULL, // globalWorkOffset\n" % (t)
-          s += "%sglobalWorkSizeGlobalAccum,\n" % (t)
-          s += "%slocalWorkSizeGlobalAccum,\n" % (t)
-          s += "%snumInputEvents,\n" % (t)
-          s += "%sinputEvents,\n" % (t)
-          #s += "%soutputEvent );\n" % (t)
-          s += "%s&kernelEventGlobalAccum );\n" % (t)
-          t = t[2:]
-          s += "%stensileStatusCheck(status);\n" % (t)
-          #s += "%sreturn tensileStatusSuccess;\n" % (t)
-          s += "%sstatus = clFinish(stream);\n" % (t)
-          s += "%stensileStatusCheck(status);\n" % (t)
-          #s += " float tmp[128*128];\n"
-          #s += "clEnqueueReadBuffer(stream, dataC, CL_TRUE, 0, 128*128*sizeof(float), tmp, 0, NULL, NULL);\n"
-          #s += "for (unsigned int i = 0; i < 128*128; i++) { printf(\"%f\\n\", tmp[i]); }\n"
-        else:
-          s += "%stry {\n" % (t)
-          t += "  "
-          # TODO - timing with beta kernels is somewhat pessimistic since it has this separate event only on the GSU path.
-          # Introduces 2-3us of overhead ; may want to disable PreciseKernelTime so non-GSU have same overhead.
-          # Long-term fix would be to launch the beta kernel with the hipHccModule* API and set start-event in that call
-          s += "%skernelsLaunched++;\n" % (t)
-          s += "%shipLaunchKernelGGL(\n" % (t)
-          t += "  "
-          s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelName)
-          s += "%sdim3(globalWorkSizeGlobalAccum[0], globalWorkSizeGlobalAccum[1], globalWorkSizeGlobalAccum[2]),\n" % (t)
-          s += "%sdim3(localWorkSizeGlobalAccum[0], localWorkSizeGlobalAccum[1], localWorkSizeGlobalAccum[2]),\n" % (t)
-          s += "%s0, // groupMemBytes\n" % (t)
-          s += "%sstream,\n" % (t)
-          s += "%sdataD,\n" % (t)
-          s += "%sworkspace,\n" % (t)
-          s += "%sdataC,\n" % (t)
-          s += "%s%s,\n" % (t, "alpha" if kernel["_GlobalAccumulation"] == 2 else "1")
-          s += "%s%s,\n" % (t, "beta" if (kernel["_GlobalAccumulation"] == 2 and problemType["UseBeta"]) else "0")
-          # strides
-          for i in range(0, numStridesC):
-            s += "%s%s,\n" % (t, self.strideList[i])
-          for i in range(0, numStridesC):
-            s += "%s%s,\n" % (t, WSstrides[i])
-          for i in range(numStridesC, numStridesC*2):
-            s += "%s%s,\n" % (t, self.strideList[i])
-          # sizes
-          for i in range(0, problemType["NumIndicesC"]):
-            s += "%ssize%s%s" % (t, self.indexChars[i], ",\n")
-          s += "%s%u);\n" % (t, (solution["GlobalSplitU"] if kernel["_GlobalAccumulation"] == 2 else 1))
-          t = t[:-2]
-          s += "%sif( outputEvent != NULL )\n" % (t)
-          s += "%s  hipEventRecord(outputEvent[0], stream );\n" % (t)
-          t = t[:-2]
-          s += "%s} catch (const std::exception& e) {\n" % (t)
-          s += "#ifdef DEBUG\n"
-          s += "%s  std::cerr << e.what() << std::endl;\n" % (t)
-          s += "#endif\n"
-          s += "%s  return tensileStatusFailure;\n" % (t)
-          s += "%s}\n" % (t)
+        s += "%stry {\n" % (t)
+        t += "  "
+        # TODO - timing with beta kernels is somewhat pessimistic since it has this separate event only on the GSU path.
+        # Introduces 2-3us of overhead ; may want to disable PreciseKernelTime so non-GSU have same overhead.
+        # Long-term fix would be to launch the beta kernel with the hipHccModule* API and set start-event in that call
+        s += "%skernelsLaunched++;\n" % (t)
+        s += "%shipLaunchKernelGGL(\n" % (t)
+        t += "  "
+        s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelName)
+        s += "%sdim3(globalWorkSizeGlobalAccum[0], globalWorkSizeGlobalAccum[1], globalWorkSizeGlobalAccum[2]),\n" % (t)
+        s += "%sdim3(localWorkSizeGlobalAccum[0], localWorkSizeGlobalAccum[1], localWorkSizeGlobalAccum[2]),\n" % (t)
+        s += "%s0, // groupMemBytes\n" % (t)
+        s += "%sstream,\n" % (t)
+        s += "%sdataD,\n" % (t)
+        s += "%sworkspace,\n" % (t)
+        s += "%sdataC,\n" % (t)
+        s += "%s%s,\n" % (t, "alpha" if kernel["_GlobalAccumulation"] == 2 else "1")
+        s += "%s%s,\n" % (t, "beta" if (kernel["_GlobalAccumulation"] == 2 and problemType["UseBeta"]) else "0")
+        # strides
+        for i in range(0, numStridesC):
+          s += "%s%s,\n" % (t, self.strideList[i])
+        for i in range(0, numStridesC):
+          s += "%s%s,\n" % (t, WSstrides[i])
+        for i in range(numStridesC, numStridesC*2):
+          s += "%s%s,\n" % (t, self.strideList[i])
+        # sizes
+        for i in range(0, problemType["NumIndicesC"]):
+          s += "%ssize%s%s" % (t, self.indexChars[i], ",\n")
+        s += "%s%u);\n" % (t, (solution["GlobalSplitU"] if kernel["_GlobalAccumulation"] == 2 else 1))
+        t = t[:-2]
+        s += "%sif( outputEvent != NULL )\n" % (t)
+        s += "%s  hipEventRecord(outputEvent[0], stream );\n" % (t)
+        t = t[:-2]
+        s += "%s} catch (const std::exception& e) {\n" % (t)
+        s += "#ifdef DEBUG\n"
+        s += "%s  std::cerr << e.what() << std::endl;\n" % (t)
+        s += "#endif\n"
+        s += "%s  return tensileStatusFailure;\n" % (t)
+        s += "%s}\n" % (t)
 
     s += "\n"
     s += "  return tensileStatusSuccess;\n"

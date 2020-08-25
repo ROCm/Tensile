@@ -127,54 +127,40 @@ class KernelWriterConversion(KernelWriterBase):
     kStr += " ))" + self.endLine
 
     ########################################
-    # wg d0, d1
-    #kStr += "  unsigned int wg" + self.tileChar0 + " = " \
-    #    + self.getGroupIdStr + "(0);" + self.endLine
-    #kStr += "  unsigned int wg" + self.tileChar1 + " = " \
-    #    + self.getGroupIdStr + "(1);" + self.endLine
-    ########################################
-    # wg other : batch dims
-    freeIdxC0 = [idx for idx in range(problemType["NumIndicesC"]) \
-                    if idx in problemType["IndexAssignmentsA"] and idx in problemType["IndicesFree"]]
-    freeIdxC1 = [idx for idx in range(problemType["NumIndicesC"]) \
-                    if idx in problemType["IndexAssignmentsB"] and idx in problemType["IndicesFree"]]
+    # multi buffers GSU: Accumulate all GSU buffer
+    indexChar = self.indexChars[0]
+    kStr += "  uint64_t id = %s(0);%s" % (self.getGlobalIdStr, self.endLine)
+    kStr += "  if (id >= (size%s" % self.indexChars[0]
+    for i in range(1, problemType["NumIndicesC"]):
+      kStr += "*size%s" % self.indexChars[i]
+    kStr += "))%s" % self.endLine
+    kStr += "    return;%s" % self.endLine
 
-    batchSizes  = "*".join(["size%s"%self.indexChars[idx] for idx in problemType["IndicesBatch"]])
-    freeSizesC0 = "*".join(["size%s"%self.indexChars[idx] for idx in freeIdxC0])
-    freeSizesC1 = "*".join(["size%s"%self.indexChars[idx] for idx in freeIdxC1])
+    kStr += "  uint64_t id0"
+    for i in range(1, problemType["NumIndicesC"]):
+      kStr += ", id%d" % i
+    kStr += ";%s" % self.endLine
 
-    t = []
-    if freeSizesC0:
-      t.append("(%s(0) >=  %s)" % (self.getGlobalIdStr, freeSizesC0))
-    if freeSizesC1:
-      t.append("(%s(1) >=  %s)" % (self.getGlobalIdStr, freeSizesC1))
-    if batchSizes:
-      t.append("(%s(2) >=  %s)" % (self.getGlobalIdStr, batchSizes))
-    kStr += "  if ("
-    kStr += "\n   || ".join(t) + ")\n"
-    kStr += "    return;\n"
+    for i in range(0, problemType["NumIndicesC"]):
+      kStr += "  id%d = id %% size%s;%s" % (i, self.indexChars[i], self.endLine)
+      kStr += "  id  = id / size%s;%s" % (self.indexChars[i], self.endLine)
 
-    kStr += self.extractIndices(self.getGroupIdStr  + "(2)", "wg"    , problemType["IndicesBatch"])
-    kStr += self.extractIndices(self.getGlobalIdStr + "(0)", "global", freeIdxC0)
-    kStr += self.extractIndices(self.getGlobalIdStr + "(1)", "global", freeIdxC1)
+    kStr += self.endLine
 
     ########################################
     # D index
     kStr += "  %s idxD = GLOBAL_D( (%s)" % (self.uint64Str, self.uint64Str)
-    kStr += ', '.join(["wg%s" % self.indexChars[i] if i in problemType["IndicesBatch"] else "global%s" % self.indexChars[i] \
-                      for i in range(problemType["NumIndicesC"])])
+    kStr += ', '.join(["id%d" % i for i in range(problemType["NumIndicesC"])])
     kStr += ");%s" % (self.endLine)
 
     # W index
     kStr += "  %s idxW = GLOBAL_W( (%s)" % (self.uint64Str, self.uint64Str)
-    kStr += ', '.join(["wg%s" % self.indexChars[i] if i in problemType["IndicesBatch"] else "global%s" % self.indexChars[i] \
-                      for i in range(problemType["NumIndicesC"])])
+    kStr += ', '.join(["id%d" % i for i in range(problemType["NumIndicesC"])])
     kStr += ");%s" % (self.endLine)
 
     # D index
     kStr += "  %s idxC = GLOBAL_C( (%s)" % (self.uint64Str, self.uint64Str)
-    kStr += ', '.join(["wg%s" % self.indexChars[i] if i in problemType["IndicesBatch"] else "global%s" % self.indexChars[i] \
-                      for i in range(problemType["NumIndicesC"])])
+    kStr += ', '.join(["id%d" % i for i in range(problemType["NumIndicesC"])])
     kStr += ");%s" % (self.endLine)
 
     ########################################
