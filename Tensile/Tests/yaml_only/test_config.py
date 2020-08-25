@@ -175,7 +175,8 @@ def findConfigs(rootDir=None):
     params = []
     for (dirpath, dirnames, filenames) in os.walk(rootDir):
         for filename in filenames:
-            if filename.endswith('.yaml'):
+            # filter out yamls in logic_yaml since they are not meant for Tensile.py
+            if filename.endswith('.yaml') and "logic_yaml" not in dirpath:
                 filepath = os.path.join(rootDir, dirpath, filename)
                 if not "test_data" in filepath:
                     marks = configMarks(filepath, rootDir, availableArchs)
