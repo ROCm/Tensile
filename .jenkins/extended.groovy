@@ -36,7 +36,7 @@ def runCI =
     {
         platform, project->
 
-        def test_marks = "pre_checkin or extended"
+        def test_marks = "pre_checkin or extended or integration"
         commonGroovy.runTestCommand(platform, project, jobName, test_marks)
     }
 

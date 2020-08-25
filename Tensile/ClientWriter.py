@@ -23,7 +23,7 @@ from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print
 from . import ClientExecutable
 from . import Common
 from . import LibraryIO
-from .SolutionStructs import Problem, ProblemType
+from .SolutionStructs import Problem, ProblemType, ProblemSizesMock
 
 import os
 import subprocess
@@ -114,10 +114,6 @@ def main( config ):
   functionNames = []
   enableHalf = False
 
-  # Note: this step is needed for retrieving code object and tensile library yaml paths
-  # TODO Do away with this workaround. TensileCreateLibrary.py should take function arguments and return values directly
-  #      Refactor TensileCreateLibrary (not .py) to take CLI args instead and pass to underlying python script
-  globalParameters["GenerateManifestAndExit"] = True
   createLibraryScript = getBuildNewClientLibraryScript(stepBaseDir, libraryLogicPath)
   subprocess.run(shlex.split(createLibraryScript), cwd=stepBaseDir)
   coList = []
@@ -126,14 +122,6 @@ def main( config ):
     lines = f.read().split("\n")
     coList = [line for line in lines if "co" in line]
     yamlList = [line for line in lines if "yaml" in line]
-  globalParameters["GenerateManifestAndExit"] = False
-  createLibraryScript = getBuildNewClientLibraryScript(stepBaseDir, libraryLogicPath)
-  subprocess.run(shlex.split(createLibraryScript), cwd=stepBaseDir)
-
-  class ProblemSizesAdapter:
-    def __init__(self, exactLogic):
-      problems = [probSolPair[0] for probSolPair in exactLogic]
-      self.problems = [Problem(prob) for prob in problems]
 
   clientParametersPaths = []
   for logicFileName in logicFiles:
@@ -144,7 +132,7 @@ def main( config ):
         enableHalf = True
     functions.append((scheduleName, problemType))
     functionNames.append("tensile_%s" % (problemType))
-    problemSizes = ProblemSizesAdapter(exactLogic)
+    problemSizes = ProblemSizesMock(exactLogic)
     clientParametersPaths.append(writeClientConfig(
                                   forBenchmark=False,
                                   solutions=None,
