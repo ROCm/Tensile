@@ -23,9 +23,11 @@ from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print
 from . import ClientExecutable
 from . import Common
 from . import LibraryIO
+from .SolutionStructs import Problem, ProblemType
 
 import os
 import subprocess
+import shlex
 from shutil import copy as shutil_copy
 from shutil import rmtree
 from enum import Enum
@@ -111,6 +113,29 @@ def main( config ):
   functions = []
   functionNames = []
   enableHalf = False
+
+  # Note: this step is needed for retrieving code object and tensile library yaml paths
+  # TODO Do away with this workaround. TensileCreateLibrary.py should take function arguments and return values directly
+  #      Refactor TensileCreateLibrary (not .py) to take CLI args instead and pass to underlying python script
+  globalParameters["GenerateManifestAndExit"] = True
+  createLibraryScript = getBuildNewClientLibraryScript(stepBaseDir, libraryLogicPath)
+  subprocess.run(shlex.split(createLibraryScript), cwd=stepBaseDir)
+  coList = []
+  yamlList = []
+  with open(os.path.join(stepBaseDir,"library","TensileManifest.txt"), "r") as f:
+    lines = f.read().split("\n")
+    coList = [line for line in lines if "co" in line]
+    yamlList = [line for line in lines if "yaml" in line]
+  globalParameters["GenerateManifestAndExit"] = False
+  createLibraryScript = getBuildNewClientLibraryScript(stepBaseDir, libraryLogicPath)
+  subprocess.run(shlex.split(createLibraryScript), cwd=stepBaseDir)
+
+  class ProblemSizesAdapter:
+    def __init__(self, exactLogic):
+      problems = [probSolPair[0] for probSolPair in exactLogic]
+      self.problems = [Problem(prob) for prob in problems]
+
+  clientParametersPaths = []
   for logicFileName in logicFiles:
     (scheduleName, deviceNames, problemType, solutionsForType, \
         indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) \
@@ -119,6 +144,18 @@ def main( config ):
         enableHalf = True
     functions.append((scheduleName, problemType))
     functionNames.append("tensile_%s" % (problemType))
+    problemSizes = ProblemSizesAdapter(exactLogic)
+    clientParametersPaths.append(writeClientConfig(
+                                  forBenchmark=False,
+                                  solutions=None,
+                                  problemSizes=problemSizes,
+                                  stepName=str(ProblemType(problemType)),
+                                  stepBaseDir=globalParameters["WorkingPath"],
+                                  newLibrary=newLibrary,
+                                  configBase="ClientParameters_%s"%str(ProblemType(problemType)),
+                                  codeObjectFiles=coList,
+                                  tileAwareSelection=False,
+                                  libraryFile=yamlList[0]))
   globalParameters["EnableHalf"] = enableHalf
 
   ##############################################################################
@@ -145,7 +182,7 @@ def main( config ):
 
   forBenchmark = False
   enableTileSelection = False
-  returncode = runClient(libraryLogicPath, forBenchmark, enableTileSelection)
+  returncode = runClient(libraryLogicPath, forBenchmark, enableTileSelection, clientParametersPaths)
 
   popWorkingPath() # LibraryClient
 
@@ -166,14 +203,13 @@ def runNewClient(scriptPath, clientParametersPath, clientBuildDir=None):
     printWarning("ClientWriter Benchmark Process exited with error: {}".format(e))
 
 
-def runClient(libraryLogicPath, forBenchmark, enableTileSelection):
-
+def runClient(libraryLogicPath, forBenchmark, enableTileSelection, configPaths=None):
   # write runScript
   pushWorkingPath("build")
   path = globalParameters["WorkingPath"]
   if globalParameters["NewClient"] < 2:
-    buildScriptName = writeBuildOldClientScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
-    runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
+    buildScriptName = writeBuildOldClientScript(path, libraryLogicPath, forBenchmark)
+    runScriptName = writeRunScript(path,  forBenchmark, enableTileSelection, configPaths)
 
     subprocess.check_call(buildScriptName, cwd=path)
 
@@ -187,17 +223,11 @@ def runClient(libraryLogicPath, forBenchmark, enableTileSelection):
     popWorkingPath() # build
     return process.returncode
   else:
-    if not forBenchmark:
-      buildScriptName = writeBuildNewClientLibraryScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
-      with ClientExecutionLock():
-        process = subprocess.Popen(buildScriptName, cwd=path)
-        process.communicate()
-    else:
-      runScriptName = writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection)
 
-      with ClientExecutionLock():
-        process = subprocess.Popen(runScriptName, cwd=path)
-        process.communicate()
+    runScriptName = writeRunScript(path, forBenchmark, enableTileSelection, configPaths)
+    with ClientExecutionLock():
+      process = subprocess.Popen(runScriptName, cwd=path)
+      process.communicate()
 
     if process.returncode:
       printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
@@ -259,7 +289,7 @@ def getBuildOldClientScript(libraryLogicPath, forBenchmark):
 
   return runScriptFile.getvalue()
 
-def getBuildNewClientLibraryScript(buildPath, libraryLogicPath, forBenchmark):
+def getBuildNewClientLibraryScript(buildPath, libraryLogicPath):
   import io
   runScriptFile = io.StringIO()
 
@@ -283,6 +313,9 @@ def getBuildNewClientLibraryScript(buildPath, libraryLogicPath, forBenchmark):
   else:
     callCreateLibraryCmd += " --no-library-print-debug"
 
+  if globalParameters["GenerateManifestAndExit"]:
+    callCreateLibraryCmd += " --generate-manifest-and-exit"
+
   # Function won't get called if NewClient !=2, but don't want to make assumption
   if "NewClient" in globalParameters and globalParameters["NewClient"] == 2:
       callCreateLibraryCmd += " --new-client-only"
@@ -300,19 +333,19 @@ def getBuildNewClientLibraryScript(buildPath, libraryLogicPath, forBenchmark):
 
   return runScriptFile.getvalue()
 
-def writeBuildNewClientLibraryScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
+def writeBuildNewClientLibraryScript(path, libraryLogicPath):
   filename = os.path.join(path, \
     "build.%s" % ("bat" if os.name == "nt" else "sh") )
   with open(filename, "w") as file:
     file.write("#!/bin/bash\n\n")
     file.write("set -ex\n")
-    file.write(getBuildNewClientLibraryScript(path, libraryLogicPath, forBenchmark))
+    file.write(getBuildNewClientLibraryScript(path, libraryLogicPath))
 
   if os.name != "nt":
     os.chmod(filename, 0o777)
   return filename
 
-def writeBuildOldClientScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
+def writeBuildOldClientScript(path, libraryLogicPath, forBenchmark):
   filename = os.path.join(path, \
     "build.%s" % ("bat" if os.name == "nt" else "sh") )
   with open(filename, "w") as file:
@@ -325,7 +358,13 @@ def writeBuildOldClientScript(path, libraryLogicPath, forBenchmark, enableTileSe
   return filename
 
 
-def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
+def writeRunScript(path, forBenchmark, enableTileSelection, configPaths=None):
+  if configPaths is None:
+    configPaths = []
+    configPaths.append(os.path.join(globalParameters["WorkingPath"], "../source/ClientParameters.ini"))
+    if enableTileSelection is True and globalParameters["NewClient"] == 2:
+      configPaths.append(os.path.join(globalParameters["WorkingPath"], "../source/ClientParameters_Granularity.ini"))
+
   # create run.bat or run.sh which builds and runs
   runScriptName = os.path.join(path, \
     "run.%s" % ("bat" if os.name == "nt" else "sh") )
@@ -390,11 +429,8 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
 
     if globalParameters["NewClient"]:
       newClientExe = ClientExecutable.getClientExecutable()
-      configFile = os.path.join(globalParameters['WorkingPath'], '../source/ClientParameters.ini')
-      runScriptFile.write("{} --config-file {} {}\n".format(newClientExe, configFile, globalParameters["NewClientArgs"]))
-      if enableTileSelection and (globalParameters["NewClient"] == 2):
-        configFileGranularity = os.path.join(globalParameters['WorkingPath'], '../source/ClientParameters_Granularity.ini')
-        runScriptFile.write("{} --config-file {} {}\n".format(newClientExe, configFileGranularity, globalParameters["NewClientArgs"]))
+      for configFile in configPaths:
+        runScriptFile.write("{} --config-file {} {}\n".format(newClientExe, configFile, globalParameters["NewClientArgs"]))
       runScriptFile.write("ERR2=$?\n\n")
     else:
       runScriptFile.write("ERR2=0\n")
@@ -419,14 +455,18 @@ fi
         runScriptFile.write("%s -d 0 --setfan 50\n" % globalParameters["ROCmSMIPath"])
   else:
     executablePath = os.path.join(globalParameters["WorkingPath"])
-    if os.name == "nt":
-      executablePath = os.path.join(executablePath, \
-          globalParameters["CMakeBuildType"], \
-          "client.exe")
-    else:
-      executablePath = os.path.join(executablePath, "client")
-    runScriptFile.write("%s && echo %s%s%s && echo %s# Library Client:%s && echo %s# %s%s && %s\n" \
+    if globalParameters["NewClient"] < 2:
+      if os.name == "nt":
+        executablePath = os.path.join(executablePath, \
+            globalParameters["CMakeBuildType"], \
+            "client.exe")
+      else:
+        executablePath = os.path.join(executablePath, "client")
+      runScriptFile.write("%s && echo %s%s%s && echo %s# Library Client:%s && echo %s# %s%s && %s\n" \
         % (echoLine, q, HR, q, q, q, q, executablePath, q, executablePath) )
+    if globalParameters["NewClient"]:
+      for configFile in configPaths:
+        runScriptFile.write("{} --config-file {} {} --best-solution 1\n".format(ClientExecutable.getClientExecutable(), configFile, globalParameters["NewClientArgs"]))
   if os.name != "nt":
     runScriptFile.write("exit $ERR\n")
   runScriptFile.close()
@@ -579,14 +619,16 @@ def boundsCheckName(mode):
     if mode == 3: return 'GuardPageBack'
     if mode == 4: return 'GuardPageAll'
 
-def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, resultsFileName, parametersFilePath):
+
+def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, resultsFileName, parametersFilePath, libraryFile=None):
 
     with open(parametersFilePath, "w") as f:
         def param(key, value):
             f.write("{}={}\n".format(key, value))
 
-        libraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
-        libraryFile = os.path.join(sourceDir, "library", libraryFilename)
+        if libraryFile is None:
+          libraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
+          libraryFile = os.path.join(sourceDir, "library", libraryFilename)
         param("library-file", libraryFile)
 
         currentGFXName = Common.gfxName(globalParameters["CurrentISA"])
@@ -654,11 +696,12 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param("log-level",                ClientLogLevel(globalParameters["ClientLogLevel"]).name)
         param("max-workspace-size",       globalParameters["MaxWorkspaceSize"])
 
-def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection = False):
+def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection, configBase = "ClientParameters", libraryFile = None):
+
     if tileAwareSelection:
-      filename = os.path.join(globalParameters["WorkingPath"], "ClientParameters_Granularity.ini")
+      filename = os.path.join(globalParameters["WorkingPath"], "%s_Granularity.ini"%configBase)
     else:
-      filename = os.path.join(globalParameters["WorkingPath"], "ClientParameters.ini")
+      filename = os.path.join(globalParameters["WorkingPath"], "%s.ini"%configBase)
 
     if len(newLibrary.solutions)==0:
       raise RuntimeError ("No valid solutions found")
@@ -674,7 +717,9 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
 
     newSolution = next(iter(newLibrary.solutions.values()))
     sourceDir = os.path.join(stepBaseDir, "source")
-    writeClientConfigIni(problemSizes, newSolution.problemType, sourceDir, codeObjectFiles, resultsFileName, filename)
+    writeClientConfigIni(problemSizes, newSolution.problemType, sourceDir, codeObjectFiles, resultsFileName, filename, libraryFile)
+
+    return filename
 
 def CreateBenchmarkClientParametersForSizes(libraryRootPath, problemSizes, dataFilePath, configFile):
 
