@@ -137,15 +137,15 @@ elif [[ "${DATA_TYPE}" == dgemm || "${DATA_TYPE}" == d ]]; then
     DATA_TYPE=dgemm
     DVAL=1
 else
-    if [[ grep -Fxq 'r s' ${LOG} || grep -Fxq 'r f32' ${LOG} || grep -Fxq 'sgemm' ${LOG} ]]; then
+    if [[ "$(grep -c "r s" ${LOG})" -gt 0 || "$(grep -c "r f32" ${LOG})" -gt 0 || "$(grep -c "sgemm" ${LOG})" -gt 0 || "$(grep -c "a_type f32" ${LOG})" -gt 0 ]]; then
         printf "sgemm detected\n"
         DATA_TYPE=sgemm
         DVAL=2
-    elif [[ grep -Fxq 'r d' ${LOG} || grep -Fxq 'r f64' ${LOG} || grep -Fxq 'dgemm' ${LOG} ]]; then
+    elif [[ "$(grep -c 'r d' ${LOG})" -gt 0 || "$(grep -c 'r f64' ${LOG})" -gt 0 || "$(grep -c 'dgemm' ${LOG})" -gt 0 ]]; then
         printf "dgemm detected\n"
         DATA_TYPE=dgemm
         DVAL=1
-    elif [[ grep -Fxq 'r h' ${LOG} || grep -Fxq 'r f16' ${LOG} || grep -Fxq 'hgemm' ${LOG} ]]; then
+    elif [[ "$(grep -c 'r h' ${LOG})" -gt 0 || "$(grep -c 'r f16' ${LOG})" -gt 0 || "$(grep -c 'hgemm' ${LOG})" -gt 0 || "$(grep -c 'a_type f16' ${LOG})" -gt 0 ]]; then
         printf "hgemm detected\n"
         DATA_TYPE=hgemm
         DVAL=4
@@ -164,27 +164,27 @@ elif [[ "${GPU}" == arcturus ]]; then
 elif [[ "${GPU}" == mi50 || "${GPU}" == r7 ]]; then
     GPU=mi50
 else
-    cat rocm_agent_enumerator 2>&1 | tee rae.txt
-    cat rocminfo 2>&1 | tee rocminfo.txt
-    if [[ grep -Fxq 'gfx900' rae.txt ]]; then
+    rocm_agent_enumerator 2>&1 | tee rae.txt
+    rocminfo 2>&1 | tee rocminfo.txt
+    if [[ "$(grep -c 'gfx900' rae.txt)" -gt 0 ]]; then
         LIBRARY=vega10
-        if [[ grep -Fxp 'Compute Unit:            56' rocminfo.txt ]]; then
+        if [[ "$(grep -c 'Compute Unit:            56' rocminfo.txt)" -gt 0 ]]; then
             printf "v340 GPU detected\n"
             GPU=v340
         else
             printf "mi25 GPU detected\n"
             GPU=mi25 
         fi
-    elif [[ grep -Fxq 'gfx906' rae.txt ]]; then
+    elif [[ "$(grep -c 'gfx906' rae.txt)" -gt 0 ]]; then
         LIBRARY=vega20
-        if [[ grep -Fxp 'Compute Unit:            60' rocminfo.txt ]]; then
+        if [[ "$(grep -c 'Compute Unit:            60' rocminfo.txt)" -gt 0 ]]; then
             printf "mi50 GPU detected\n"
             GPU=mi50
         else
             printf "mi60 GPU detected\n"
             GPU=mi60
         fi
-    elif [[ grep -Fxq 'gfx908' rae.txt ]]; then
+    elif [[ "$(grep -c 'gfx908' rae.txt)" -gt 0 ]]; then
         printf "arcturus GPU detected\n"
         LIBRARY=arcturus
         GPU=arcturus
@@ -195,6 +195,13 @@ else
         exit 2
     fi
     rm -rf rae.txt rocminfo.txt
+fi
+
+if [ -z ${SCLK+foo} ]; then
+    rocm-smi 2>&1 | tee rocmsmi.txt
+    SCLK=$(cat rocmsmi.txt | awk 'FNR == 6 {print $4}' | cut -d M -f 1)
+    printf "SCLK: ${SCLK}\n"
+    rm -rf rocmsmi.txt
 fi
 
 if [[ "${TENSILE_CLIENT}" != both && "${TENSILE_CLIENT}" != old ]]; then
@@ -297,10 +304,15 @@ run_tune_all_scripts () {
     elif [[ "${OMIT_TYPE}" == tn ]]; then
         run_tune_nn
         run_tune_nt
-    else
-        run_tune_nn
-        run_tune_nt
+    elif [[ "$(grep -c "transposeA T" ../../${LOG})" -gt 0 ]]; then
         run_tune_tn
+    elif [[ "$(grep -c "transposeB T" ../../${LOG})" -gt 0 ]]; then
+        run_tune_nt
+    elif [[ "$(grep -c "transposeB N" ../../${LOG})" -gt 0 ]]; then
+        run_tune_nn
+    else
+        printf "Did not detect any valid problem sizes. Exiting now.\n"
+        exit 2
     fi
 }
 
