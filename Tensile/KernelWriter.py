@@ -111,6 +111,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     lastLoadIter = 0
     if kernel["EnableMatrixInstruction"] and kernel["ScheduleIterAlg"] == 3:
       numMfmaPerIter = kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] * kernel["InnerUnroll"]
+      if kernel["ProblemType"]["DataType"].isComplex(): numMfmaPerIter *= 4
       # Can locally overrid these ######
       # number of mfma between last localWrite and barrier
       numMfmaBetweenLWandBarrier = 1 if kernel["MatrixInstM"] == 32 else 2
@@ -444,6 +445,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # mfma interleave
       if kernel["EnableMatrixInstruction"]:
         numMfmaPerIter = kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] * kernel["InnerUnroll"]
+        if kernel["ProblemType"]["DataType"].isComplex(): numMfmaPerIter *= 4
         writesModPerIter = len(localWriteCode.items())//self.numLocalWriteModPerMfma if self.numLocalWriteModPerMfma != 0 else len(localWriteCode.items())
         localWriteEndIter = kernel["LoopIters"] - self.numItersPLR - 1
         isBarrier = localWriteEndIter + 1
@@ -1062,10 +1064,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.localWriteACode = Code.Module()
         self.localWriteBCode = Code.Module()
 
-      # which iteration to perform the local writes
-      # if scheduleLocalWrite=0, all local writes performed in this iteration
-      # if scheduleLocalWrite=1, writes are scheduled backwards from this iteration
-      # If PLR=0, the writes are placed in the last loop iteration
+      # localWriteEndIter is used to determine which iteration to put sync
+      # if PGR=0, GR,LW,sync,LR will put at front of loop.
       localWriteEndIter = kernel["LoopIters"] - self.numItersPLR - 1
 
       # Schedule the global read, global read inc, and writes:
@@ -1171,12 +1171,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
         waitLWCode = Code.Module()
         syncCode = Code.Module()
         # put barrier at localWriteEndIter+1
-        if u == localWriteEndIter+1:
-          if self.enable["Wait"]:
-            waitLWCode.addCode(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, \
-                "3wait for local write"))
-          if self.enable["Sync"]:
-            syncCode.addCode(self.syncThreads(kernel))
+        if kernel["PrefetchGlobalRead"]:
+          if u == localWriteEndIter+1:
+            if self.enable["Wait"]:
+              waitLWCode.addCode(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, \
+                  "3wait for local write"))
+            if self.enable["Sync"]:
+              syncCode.addCode(self.syncThreads(kernel))
 
         if isResetLroIter: # ResetLroIter
           if kernel["PrefetchGlobalRead"]:
@@ -3040,70 +3041,3 @@ for codeObjectFileName in codeObjectFileNames:
 
     return fileString
 
-  ##############################################################################
-  #
-  #   Beta-Only Kernels
-  #
-  # kernel dictionary has ProblemType for indices and Beta=True/False
-  ##############################################################################
-
-  ##############################################################################
-  # Get Name
-  ##############################################################################
-  @staticmethod
-  def getKernelNameBetaOnly(kernel):
-    indexChars = globalParameters["IndexChars"]
-    # C dimensions
-    name = "C"
-    for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-      name += indexChars[i].lower()
-    name += "_"
-    name += kernel["ProblemType"]["DestDataType"].toChar()
-    if kernel["ProblemType"]["UseBeta"]: name += "B"
-
-    return name
-
-  @abc.abstractmethod
-  def functionSignatureBetaOnly(kernel):
-    return ""
-
-  @abc.abstractmethod
-  def kernelBodyBetaOnly( self, kernel ):
-    return ""
-
-  def getSourceFileStringBetaOnly(self, kernel):
-    fileString = ""
-    kernelName = self.getKernelNameBetaOnly(kernel)
-    if not globalParameters["MergeFiles"]:
-      fileString += "\n"
-      fileString += "#include \"%s.h\"\n" % kernelName
-      fileString += "\n"
-    if self.language == "OCL":
-      fileString += "const char * const %s_src = \"\"\n\"" % kernelName
-    fileString += self.functionSignatureBetaOnly( kernel )
-    fileString += self.kernelBodyBetaOnly( kernel )
-    if self.language == "OCL":
-      fileString += "\";"
-    return (0,fileString)
-
-  def getHeaderFileStringBetaOnly(self, kernel):
-    kernelName = self.getKernelNameBetaOnly(kernel)
-    fileString = "" # CHeader
-    if not globalParameters["MergeFiles"]:
-      fileString += CHeader
-      fileString += "#pragma once\n\n"
-      fileString += "\n"
-      fileString += "#include <KernelHeader.h>\n\n"
-      if self.language == "HIP":
-        fileString += "#include <hip/hip_runtime.h>\n"
-        fileString += "#include <hip/hip_fp16.h>\n"
-        fileString += "\n"
-      else:
-        fileString += "#include <string>\n"
-    if self.language == "OCL":
-      fileString += "extern const char * const %s_src;\n" % kernelName
-    else:
-      fileString += self.functionSignatureBetaOnly(kernel)
-      fileString += ";\n"
-
-    return fileString

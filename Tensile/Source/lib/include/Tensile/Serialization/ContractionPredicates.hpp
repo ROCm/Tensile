@@ -62,7 +62,8 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::BatchSizeEqual>(),
                     Base::template Pair<Predicates::Contraction::BoundSizeMultiple>(),
                     Base::template Pair<Predicates::Contraction::MaxProblemSizeGreaterThan>(),
-                    Base::template Pair<Predicates::Contraction::LeadingFreeSizesGreaterOrEqual>(),
+                    Base::template Pair<Predicates::Contraction::LeadingFree0SizesGreaterOrEqual>(),
+                    Base::template Pair<Predicates::Contraction::LeadingFree1SizesGreaterOrEqual>(),
                     Base::template Pair<Predicates::Contraction::SizeEqual>(),
                     Base::template Pair<Predicates::Contraction::StrideAEqual>(),
                     Base::template Pair<Predicates::Contraction::StrideBEqual>(),
@@ -80,6 +81,7 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::OperationIdentifierEqual>(),
                     Base::template Pair<Predicates::Contraction::BufferLoadOffsetLimitCheck>(),
                     Base::template Pair<Predicates::Contraction::BufferStoreOffsetLimitCheck>(),
+                    Base::template Pair<Predicates::Contraction::WorkspaceCheck>(),
                 });
 
                 auto gmap = Generic::GetSubclasses();
@@ -135,8 +137,14 @@ namespace Tensile
         };
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::LeadingFreeSizesGreaterOrEqual, IO>
-            : public AutoMappingTraits<Predicates::Contraction::LeadingFreeSizesGreaterOrEqual, IO>
+        struct MappingTraits<Predicates::Contraction::LeadingFree0SizesGreaterOrEqual, IO>
+            : public AutoMappingTraits<Predicates::Contraction::LeadingFree0SizesGreaterOrEqual, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::LeadingFree1SizesGreaterOrEqual, IO>
+            : public AutoMappingTraits<Predicates::Contraction::LeadingFree1SizesGreaterOrEqual, IO>
         {
         };
 
@@ -239,6 +247,12 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::BufferStoreOffsetLimitCheck, IO>
             : public AutoMappingTraits<Predicates::Contraction::BufferStoreOffsetLimitCheck, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::WorkspaceCheck, IO>
+            : public AutoMappingTraits<Predicates::Contraction::WorkspaceCheck, IO>
         {
         };
     } // namespace Serialization

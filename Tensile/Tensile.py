@@ -122,6 +122,7 @@ def addCommonArguments(argParser):
       action="store", default="yaml", help="select which library format to use")
   argParser.add_argument("--client-build-path", default=None)
   argParser.add_argument("--client-lock", default=None)
+  argParser.add_argument("--prebuilt-client", default=None)
 
   argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
 
@@ -163,6 +164,8 @@ def argUpdatedGlobalParameters(args):
     rv["ClientBuildPath"] = args.client_build_path
   if args.client_lock:
     rv["ClientExecutionLockPath"] = args.client_lock
+  if args.prebuilt_client:
+    rv["PrebuiltClient"] = args.prebuilt_client
 
   for key, value in args.global_parameters:
     rv[key] = value

@@ -143,8 +143,9 @@ class BenchmarkProcess:
               paramValues = paramDict[paramName]
               for paramValue in paramValues:
                 if validParameters[paramName] != -1 and paramValue not in validParameters[paramName]:
-                  printExit("Invalid parameter value: %s = %s\nValid values for %s are %s." \
-                      % (paramName, paramValue, paramName, validParameters[paramName]))
+                  printExit("Invalid parameter value: %s = %s\nValid values for %s are %s%s." \
+                            % (paramName, paramValue, paramName, validParameters[paramName][:32],
+                               " (only first 32 combos printed)\nRefer to Common.py for more info" if len(validParameters[paramName])>32 else ""))
 
 
     ############################################################################
@@ -164,7 +165,7 @@ class BenchmarkProcess:
     # followed by Ccommon
     self.benchmarkCommonParameters = [{"ProblemSizes": currentProblemSizes}]
     # need to use deepcopy to prevent default parameters from being washed-out later
-    for paramDict in deepcopy(defaultBenchmarkCommonParameters):  
+    for paramDict in deepcopy(defaultBenchmarkCommonParameters):
       for paramName in paramDict:
         if not hasParam( paramName, [ configBenchmarkCommonParameters, \
             configForkParameters, configBenchmarkForkParameters, \

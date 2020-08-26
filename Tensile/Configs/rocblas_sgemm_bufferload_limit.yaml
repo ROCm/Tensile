@@ -5,7 +5,7 @@ GlobalParameters:
   # PrintSolutionRejectionReason: True
   # NumElementsToValidate: 65535
   # CMakeBuildType: Debug
-  
+
 BenchmarkProblems:
 
   ########################################

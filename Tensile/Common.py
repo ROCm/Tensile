@@ -50,7 +50,8 @@ globalParameters = OrderedDict()
 # common
 ########################################
 globalParameters["MinimumRequiredVersion"] = "0.0.0"  # which version of tensile is required to handle all the features required by this configuration file
-globalParameters["PrintLevel"] = 1                # how much info to print. 0=none, 1=standard, 2=verbose
+globalParameters["PrintLevel"] = 1                # how much info to print in generator. 0=none, 1=standard, 2=verbose
+globalParameters["ClientLogLevel"] = 3            # the log level of client. 0=Error, 1=Terse, 2=Verbose, 3=Debug (Aligned with ResultReporter.hpp)
 # benchmarking
 globalParameters["KernelTime"] = False            # T=use device timers, F=use host timers
 globalParameters["PreciseKernelTime"] = True     # T=On hip, use the timestamps for kernel start and stop rather than separate events.  Can provide more accurate kernel timing.  For GlobalSplitU kernels, recommend disabling this to provide consistent
@@ -110,6 +111,17 @@ globalParameters["CMakeBuildType"] = "Release"            # whether benchmark cl
 globalParameters["PrintSolutionRejectionReason"] = False  # when a solution is marked as invalid, print why
 globalParameters["LibraryFormat"] = "yaml"                # set library backend (either yaml or msgpack)
 
+# True/False: CSV will/won't export WinnerGFlops, WinnerTimeUS, WinnerIdx, WinnerName.
+# TODO - if no side-effect, we can set default to True. This can make analyzing "LibraryLogic" (AddFromCSV) faster
+globalParameters["CSVExportWinner"] = False
+
+# (When NumBenchmarks > 1). True: CSV will merge the rows of same Problem-ID. False: Each problem will write out "NumBenchmarks" rows
+#   In old client - No effect, since in old client, CSV file only exports the last benchmark, somehow is not correct because the previous benchmarks are discarded
+#   In new client - csv file exports "NumBenchmarks" rows for every problem. This also make the later analyzing slower
+#                   Set this to "True" can merge the rows for same problem, hence can reduce the csv file size and speed up the later analyzing
+# TODO - if side-effect, we can set default to True. This can make "getResults()" / "AddFromCSV()" faster
+globalParameters["CSVMergeSameProblemID"] = False
+
 # how to initialize tensor data
 # serial-in-u will use a sequence that increments in the K dimension
 # This is a predictable patterns that can be checked as the kernel runs to detect
@@ -164,7 +176,7 @@ globalParameters["MergeFiles"] = True             # F=store every solution and k
 globalParameters["MaxFileName"] = 128 # If a file name would be longer than this, shorten it with a hash.
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (10,1,0), (10,1,1)]             # assembly kernels writer supports these architectures
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
-globalParameters["NewClient"] = 1                                 # 1=Run old+new client, 2=run new client only (All In)
+globalParameters["NewClient"] = 2                                 # 1=Run old+new client, 2=run new client only (All In)
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
@@ -245,7 +257,19 @@ validMFMA["H"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16
 validMFMA["S"] = [[32,32,1,2], [32,32,2,1], [16,16,1,4], [16,16,4,1], [4,4,1,16]]
 validMFMA["B"] = [[32,32,2,2], [32,32,4,1], [16,16,2,4], [16,16,8,1], [4,4,2,16]]
 validMFMA["4xi8"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
+validMFMA["C"] = validMFMA["S"]
+validTT = 16
+validMFMA["_format9"] = []
+for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["4xi8"]]:
+  for MI in MFMA:
+    for bm in range(int(math.log(MI[3],2))+1):
+      for tt0 in range(1,validTT+1):
+        for tt1 in range(1,validTT+1):
+          for wave_m in range (3):
+            for wave_n in range(3):
+              validMFMA["_format9"].append([MI[0],MI[1],MI[2],MI[3],2**bm,tt0,tt1,2**wave_m, 2**wave_n])
 validMatrixInstructions = [[], [-1]] + validMFMA["H"] + validMFMA["S"] + validMFMA["B"] + validMFMA["4xi8"]
+validMatrixInstructions = validMatrixInstructions + validMFMA["_format9"]
 
 validParameters = {
     "LoopDoWhile":                [ False, True ], # Source. True=DoWhile, False=For loop
@@ -308,7 +332,7 @@ validParameters = {
     #   no load loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:         MAC_r[3]
     "PrefetchLocalRead":          list(range(128+1)),
 
-    # We use double LDS buffer when PrefetchGlobalRead. 
+    # We use double LDS buffer when PrefetchGlobalRead.
     # While it reads data from LDS[0]/[1], it prefetch global data and writes to LDS[1]/[0]
     # If we can make sure all data are read from LDS to register before writing data to LDS, we can use 1 LDS buffer to save LDS memory.
     # this can help to generate Kernel that LDS usage originally exceed MaxLDS if using double LDS buffer,
@@ -644,7 +668,26 @@ validParameters = {
 
     # MatrixInstruction: (M x N x K x B)
     # XDLOPS tile definition, only valid for gfx908
+    # MxNxKxB specifies matrix instruction variants
+    #  MxNxB determines the shape of the C tile each instruction worked on
+    #      K determines the unroll depth
     # If empty, do not use these instructions
+    #
+    # Alternative format: (M x N x K x B x MIBlockM x WaveTileM x WaveTileN x WaveM x WaveN)
+    # (Note: MxN means M-by-N in the following comments)
+    # MIBlockM determines how many blocks along M dimension for multi-block MI variants. Concrete examples:
+    #  - MI 16x16x1x4 (4-block variant) with MIBlockM=4 -> (16x16)*(4x1)=64x16 tile per instruction executed
+    #  - MI 32x32x1x2 (2-block variant) with MIBlockM=1 -> (32x32)*(1x2)=32x64 tile per instruction executed
+    # WaveTileM/N are dimensions of the C tile each wave works on, and is close to the concept of ThreadTile in classic VALU kernels
+    #  - WT 4x1 -> each wave executes 4x1 matrix instructions on the C tile of total area (4*MITileM)x(1*MITileN)
+    # WaveM/N are dimensions of waves spawned for one workgroup where each wave consists of 64 threads
+    #  - Wave2x2 -> a total of 4 waves in one workgroup of shape 2x2
+    # Putting it all together:
+    #  - [32, 32, 1, 2,  1,  4, 1,  2, 2]
+    #     ^^^^^^^^^^^^   ^   ^^^^   ^^^^
+    #      MatrixInst  BlkM   WT    Wave
+    #  - means (32x64) per MI * (4x1) per wave * (2x2) per workgroup = (32*4*2)x(64*1*2) = 256x128 macro tile
+    # Tensile will ignore the parameters ThreadTile and WorkGroup when the alternative format is used
     "MatrixInstruction":          validMatrixInstructions,
 
     # StoreRemap: Optimize MatrixInstruction store patterns to enhance performance.
@@ -1312,6 +1355,8 @@ def GetAsmCaps(isaVersion):
   rv["v_dot2_f32_f16"]  = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
   rv["v_dot2c_f32_f16"] = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34")
 
+  rv["HasAtomicAdd"]    = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
+
   if tryAssembler(isaVersion, "s_waitcnt vmcnt(63)"):
     rv["MaxVmcnt"] = 63
   elif tryAssembler(isaVersion, "s_waitcnt vmcnt(15)"):
@@ -1328,11 +1373,11 @@ def GetAsmCaps(isaVersion):
 
 def GetArchCaps(isaVersion):
   rv = {}
-  rv["HasEccHalf"]       = (isaVersion==(9,0,6) or isaVersion==(9,0,8))
-  rv["Waitcnt0Disabled"] = isaVersion == (9,0,8)
-  rv["SeparateVscnt"]    = isaVersion[0] == 10
-  rv["CMPXWritesSGPR"]   = isaVersion[0] != 10
-  rv["HasWave32"]        = isaVersion[0] == 10
+  rv["HasEccHalf"]       = (isaVersion == (9,0,6) or isaVersion == (9,0,8))
+  rv["Waitcnt0Disabled"] = (isaVersion == (9,0,8))
+  rv["SeparateVscnt"]    = (isaVersion[0] == 10)
+  rv["CMPXWritesSGPR"]   = (isaVersion[0] != 10)
+  rv["HasWave32"]        = (isaVersion[0] == 10)
 
   return rv
 

@@ -28,9 +28,29 @@ import os
 import subprocess
 from shutil import copy as shutil_copy
 from shutil import rmtree
+from enum import Enum
 
 from .Contractions import FreeIndex
 
+class DataInitName(Enum):
+  Zero = 0
+  One = 1
+  Two = 2
+  Random = 3
+  NaN = 4
+  Inf = 5
+  BadInput = 6
+  BadOutput = 7
+  SerialIdx = 8
+  SerialDim0 = 9
+  SerialDim1 = 10
+  Identity = 11
+
+class ClientLogLevel(Enum):
+  Error = 0
+  Terse = 1
+  Verbose = 2
+  Debug = 3
 
 ################################################################################
 # Main
@@ -351,6 +371,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
       clp += " --use-gpu-timer %u" % globalParameters["KernelTime"]
       clp += " --sleep-percent %u" % globalParameters["SleepPercent"]
       clp += " --benchmark-solutions %u" % enableTileSelection
+      clp += " --csv-export-extra-cols %u" % globalParameters["CSVExportWinner"]
       if "ClientArgs" in globalParameters:
         clientParams = globalParameters["ClientArgs"]
         if clientParams:
@@ -512,21 +533,6 @@ def problemSizeParams(solution, problem):
 
     return rv
 
-
-def dataInitName(num):
-    if num == 0: return 'Zero'
-    if num == 1: return 'One'
-    if num == 2: return 'Two'
-    if num == 3: return 'Random'
-    if num == 4: return 'NaN'
-    if num == 5: return 'Inf'
-    if num == 6: return 'BadInput'
-    if num == 7: return 'BadOutput'
-    if num == 8: return 'SerialIdx'
-    if num == 9: return 'SerialDim0'
-    if num == 10: return 'SerialDim1'
-    if num == 11: return 'Identity'
-
 def dataInitParams(problemType):
     initA = globalParameters['DataInitTypeA']
     initB = globalParameters['DataInitTypeB']
@@ -543,12 +549,13 @@ def dataInitParams(problemType):
     if initA == -1: initA = globalParameters['DataInitTypeAB']
     if initB == -1: initB = globalParameters['DataInitTypeAB']
 
-    return [('init-a',     dataInitName(initA)),
-            ('init-b',     dataInitName(initB)),
-            ('init-c',     dataInitName(initC)),
-            ('init-d',     dataInitName(initD)),
-            ('init-alpha', dataInitName(initAlpha)),
-            ('init-beta',  dataInitName(initBeta))]
+    return [('init-a',     DataInitName(initA).name),
+            ('init-b',     DataInitName(initB).name),
+            ('init-c',     DataInitName(initC).name),
+            ('init-d',     DataInitName(initD).name),
+            ('init-alpha', DataInitName(initAlpha).name),
+            ('init-beta',  DataInitName(initBeta).name)]
+
 
 def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection = False):
 
@@ -639,6 +646,9 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         param("perf-l2-write-hits",       globalParameters["PerfModelL2WriteHits"])
         param("perf-l2-read-bw-mul",      globalParameters["PerfModelL2ReadBwMul"])
         param("perf-read-efficiency",     globalParameters["PerfModelReadEfficiency"])
+        param("csv-export-extra-cols",    globalParameters["CSVExportWinner"])
+        param("csv-merge-same-problems",  globalParameters["CSVMergeSameProblemID"])
+        param("log-level",                ClientLogLevel(globalParameters["ClientLogLevel"]).name)
 
 
 
@@ -1173,6 +1183,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     #h += "int deviceIdx = %u;\n" \
     #    % (globalParameters["Device"])
   h += "\n"
+  h += "void *deviceWS;\n"
   h += "void *deviceD;\n"
   h += "void *deviceC;\n"
   h += "void *deviceA;\n"
@@ -1416,8 +1427,11 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
       typeName = dataTypes[0].toCpp()
       destTypeName = destDataTypes[dataType].toCpp()
       computeTypeName = computeDataTypes[dataType].toCpp()
-      h += "  return f(solutionLock, static_cast<%s *>(deviceD), static_cast<%s *>(deviceC), static_cast<%s *>(deviceA), static_cast<%s *>(deviceB),\n" \
-          % (destTypeName, destTypeName, typeName, typeName)
+      h += "  return f(solutionLock,\n"
+      h += "      static_cast<%s *>(deviceD),\n" % destTypeName
+      h += "      static_cast<%s *>(deviceC),\n" % destTypeName
+      h += "      static_cast<%s *>(deviceA),\n" % typeName
+      h += "      static_cast<%s *>(deviceB),\n" % typeName
     h += "      alpha,\n"
     if problemType["UseBeta"]:
       h += "      beta,\n"
@@ -1437,7 +1451,10 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     if globalParameters["RuntimeLanguage"] == "OCL":
        h += "      numEvents, event_wait_list, outputEvent ); // events\n"
     else:
-       h += "      numEvents, startEvent, stopEvent); // events\n"
+       h += "      numEvents,\n"
+       h += "      startEvent,\n"
+       h += "      stopEvent,\n"
+       h += "      static_cast<float *>(deviceWS)); // events\n"
 
     h += "};\n"
     h += "\n"
@@ -1598,9 +1615,9 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
             h += "        size%s%s\n" % (indexChars[i], "," if i != problemType["TotalIndices"]-1 else "")
           if enqueue:
             if globalParameters["RuntimeLanguage"] == "OCL":
-               h += ", stream, numEvents, event_wait_list, outputEvent"
+              h += ", stream, numEvents, event_wait_list, outputEvent"
             else:
-               h += ", stream, numEvents, startEvent, stopEvent"
+              h += ", stream, numEvents, startEvent, stopEvent, static_cast<float *>(deviceWS)"
           h += ");\n"
 
         if len(functionsForDataType) > 1:

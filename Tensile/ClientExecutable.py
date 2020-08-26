@@ -68,6 +68,9 @@ def clientExecutableEnvironment(builddir=None):
 buildEnv = None
 
 def getClientExecutable(builddir=None):
+    if "PrebuiltClient" in globalParameters:
+        return globalParameters["PrebuiltClient"]
+
     global buildEnv
 
     if buildEnv is None:

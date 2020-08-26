@@ -28,8 +28,8 @@
 
 #include <Tensile/ArithmeticUnitTypes.hpp>
 #include <Tensile/ContractionProblem.hpp>
-#include <Tensile/KernelLanguageTypes.hpp>
 #include <Tensile/ContractionSolution.hpp>
+#include <Tensile/KernelLanguageTypes.hpp>
 #include <Tensile/Predicates.hpp>
 
 #include <array>
@@ -261,8 +261,8 @@ namespace Tensile
 
             // If the tensor contains no free dimensions, then the first batch dimension
             // serves as the leading free size
-            struct LeadingFreeSizesGreaterOrEqual
-                : public Predicate_CRTP<LeadingFreeSizesGreaterOrEqual, ContractionProblem>
+            struct LeadingFree0SizesGreaterOrEqual
+                : public Predicate_CRTP<LeadingFree0SizesGreaterOrEqual, ContractionProblem>
             {
                 enum
                 {
@@ -271,15 +271,15 @@ namespace Tensile
                 };
                 size_t value;
 
-                LeadingFreeSizesGreaterOrEqual() = default;
-                LeadingFreeSizesGreaterOrEqual(size_t value)
+                LeadingFree0SizesGreaterOrEqual() = default;
+                LeadingFree0SizesGreaterOrEqual(size_t value)
                     : value(value)
                 {
                 }
 
                 static std::string Type()
                 {
-                    return "LeadingFreeSizesGreaterOrEqual";
+                    return "LeadingFree0SizesGreaterOrEqual";
                 }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
@@ -291,9 +291,7 @@ namespace Tensile
                     //   Really should modify Contractions.py to select SizeN >= value, based on
                     //   desired index requirement
                     return (problem.freeIndicesA().size() ? problem.freeSizeA(0) >= value
-                                                          : problem.batchSize(0) >= value)
-                           && (problem.freeIndicesB().size() ? problem.freeSizeB(0) >= value
-                                                             : problem.batchSize(0) >= value);
+                                                          : problem.batchSize(0) >= value);
                 }
                 virtual bool debugEval(ContractionProblem const& problem,
                                        std::ostream&             stream) const override
@@ -304,7 +302,50 @@ namespace Tensile
                            << (problem.freeIndicesA().size() ? "freeA0:" : "batchA0:")
                            << (problem.freeIndicesA().size() ? problem.freeSizeA(0)
                                                              : problem.batchSize(0))
-                           << " >= " << value << " && "
+                           << " >= " << value << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
+            struct LeadingFree1SizesGreaterOrEqual
+                : public Predicate_CRTP<LeadingFree1SizesGreaterOrEqual, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                size_t value;
+
+                LeadingFree1SizesGreaterOrEqual() = default;
+                LeadingFree1SizesGreaterOrEqual(size_t value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "LeadingFree1SizesGreaterOrEqual";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    assert(problem.batchIndices().size() <= 1);
+                    // TODO: this is not quite right since it assumes batchSize(0) is lowest
+                    // order in index assignments
+                    //   If tensor contains multiple batch dims this may not be true.
+                    //   Really should modify Contractions.py to select SizeN >= value, based on
+                    //   desired index requirement
+                    return (problem.freeIndicesB().size() ? problem.freeSizeB(0) >= value
+                                                          : problem.batchSize(0) >= value);
+                }
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": ("
                            << (problem.freeIndicesB().size() ? "freeB0:" : "batchB0:")
                            << (problem.freeIndicesB().size() ? problem.freeSizeB(0)
                                                              : problem.batchSize(0))
@@ -632,6 +673,10 @@ namespace Tensile
                 KernelLanguage value;
 
                 KernelLanguageCompatible() = default;
+                KernelLanguageCompatible(KernelLanguage value)
+                    : value(value)
+                {
+                }
 
                 static std::string Type()
                 {
@@ -684,6 +729,10 @@ namespace Tensile
                 ArithmeticUnit value;
 
                 ArithmeticUnitCompatible() = default;
+                ArithmeticUnitCompatible(ArithmeticUnit value)
+                    : value(value)
+                {
+                }
 
                 static std::string Type()
                 {
@@ -772,8 +821,8 @@ namespace Tensile
                 }
             };
 
-            
-            struct BufferLoadOffsetLimitCheck : public Predicate_CRTP<BufferLoadOffsetLimitCheck, ContractionProblem>
+            struct BufferLoadOffsetLimitCheck
+                : public Predicate_CRTP<BufferLoadOffsetLimitCheck, ContractionProblem>
             {
                 enum
                 {
@@ -796,8 +845,12 @@ namespace Tensile
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     const uint64_t TWO_POW_32 = 4294967296;
-                    return ( problem.a().strides()[1] * value.depthUorMT0 + value.shiftPtrElemA ) * problem.a().elementBytes() < TWO_POW_32 
-                        && ( problem.b().strides()[1] * value.depthUorMT1 + value.shiftPtrElemB ) * problem.b().elementBytes() < TWO_POW_32;
+                    return (problem.a().strides()[1] * value.depthUorMT0 + value.shiftPtrElemA)
+                                   * problem.a().elementBytes()
+                               < TWO_POW_32
+                           && (problem.b().strides()[1] * value.depthUorMT1 + value.shiftPtrElemB)
+                                      * problem.b().elementBytes()
+                                  < TWO_POW_32;
                 }
 
                 virtual std::string toString() const override
@@ -820,17 +873,20 @@ namespace Tensile
                     bool rv = (*this)(problem);
 
                     stream << *this << ": ("
-                           << " (" << problem.a().strides()[1] << " * " << value.depthUorMT0 << " + " << value.shiftPtrElemA << ") * " << problem.a().elementBytes()
+                           << " (" << problem.a().strides()[1] << " * " << value.depthUorMT0
+                           << " + " << value.shiftPtrElemA << ") * " << problem.a().elementBytes()
                            << " < 4294967296 && "
-                           << " (" << problem.b().strides()[1] << " * " << value.depthUorMT1 << " + " << value.shiftPtrElemB << ") * " << problem.b().elementBytes()
-                           << " < 4294967296" 
+                           << " (" << problem.b().strides()[1] << " * " << value.depthUorMT1
+                           << " + " << value.shiftPtrElemB << ") * " << problem.b().elementBytes()
+                           << " < 4294967296"
                            << ") == " << rv;
 
                     return rv;
                 }
             };
 
-            struct BufferStoreOffsetLimitCheck : public Predicate_CRTP<BufferStoreOffsetLimitCheck, ContractionProblem>
+            struct BufferStoreOffsetLimitCheck
+                : public Predicate_CRTP<BufferStoreOffsetLimitCheck, ContractionProblem>
             {
                 enum
                 {
@@ -853,7 +909,8 @@ namespace Tensile
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     const uint64_t TWO_POW_32 = 4294967296;
-                    return problem.a().strides()[1] * problem.a().elementBytes() * value < TWO_POW_32;
+                    return problem.a().strides()[1] * problem.a().elementBytes() * value
+                           < TWO_POW_32;
                 }
 
                 virtual std::string toString() const override
@@ -861,19 +918,47 @@ namespace Tensile
                     return concatenate(this->type(), "(MT1:", value, ")");
                 }
 
-                 virtual bool debugEval(ContractionProblem const& problem,
+                virtual bool debugEval(ContractionProblem const& problem,
                                        std::ostream&             stream) const override
                 {
                     bool rv = (*this)(problem);
 
-                    stream << *this << ": ("
-                           << problem.a().strides()[1] << " * " << problem.a().elementBytes() << " * " << value  << " < 4294967296" 
+                    stream << *this << ": (" << problem.a().strides()[1] << " * "
+                           << problem.a().elementBytes() << " * " << value << " < 4294967296"
                            << ") == " << rv;
 
                     return rv;
                 }
             };
-            
+
+            struct WorkspaceCheck : public Predicate_CRTP<WorkspaceCheck, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = true,
+                    HasValue = true
+                };
+                size_t index;
+                size_t value;
+
+                WorkspaceCheck() = default;
+                WorkspaceCheck(size_t index, size_t value)
+                    : index(index)
+                    , value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "WorkspaceCheck";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.d().totalAllocatedElements() * value <= problem.workspaceSize();
+                }
+            };
+
         } // namespace Contraction
 
         /**

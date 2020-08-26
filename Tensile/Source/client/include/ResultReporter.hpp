@@ -77,15 +77,18 @@ namespace Tensile
             const std::string ProblemSizes = "problem-sizes";
 
             // Solution information
-            const std::string SolutionName     = "solution";
-            const std::string SolutionIndex    = "solution-index";
-            const std::string SolutionProgress = "solution-progress";
+            const std::string SolutionName      = "solution";
+            const std::string SolutionIndex     = "solution-index";
+            const std::string SolutionProgress  = "solution-progress";
+            const std::string SolutionWinnerIdx = "solution-winner-idx";
+            const std::string SolutionWinner    = "solution-winner";
 
             // Performance-related
-            const std::string Validation  = "validation";
-            const std::string TimeUS      = "time-us";
-            const std::string SpeedGFlops = "gflops";
-            const std::string EnqueueTime = "enqueue-time";
+            const std::string Validation    = "validation";
+            const std::string TimeUS        = "time-us";
+            const std::string SpeedGFlops   = "gflops";
+            const std::string EnqueueTime   = "enqueue-time";
+            const std::string FastestGFlops = "fastest-gflops";
 
             // Performance estimation and granularity
             const std::string Tile0Granularity = "tile0-gran";

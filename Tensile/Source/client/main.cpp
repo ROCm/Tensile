@@ -158,6 +158,8 @@ namespace Tensile
                 ("perf-l2-read-bw-mul",      po::value<double>()->default_value(2.0), "L2 read bandwidth multiplier")
                 ("perf-read-efficiency",     po::value<double>()->default_value(0.85), "Read efficiency")
                 ("perf-ops-per-cycle",       po::value<int>()->default_value(64), "Ops per cycle")
+                ("csv-export-extra-cols",    po::value<bool>()->default_value(false), "CSV exports winner information")
+                ("csv-merge-same-problems",  po::value<bool>()->default_value(false), "CSV merge rows of same problem id")
 
                 ("problem-size,p",           vector_default_empty<std::string>(), "Specify a problem size.  Comma-separated list of "
                                                                                   "sizes, in the order of the Einstein notation.")
@@ -355,6 +357,56 @@ namespace Tensile
             return args;
         }
 
+        size_t getMaxWorkspace(std::shared_ptr<MasterSolutionLibrary<ContractionProblem>>& library,
+                               std::shared_ptr<Hardware>&                                  hardware,
+                               po::variables_map&                                          args,
+                               std::vector<ContractionProblem>&                            problems,
+                               int firstProblemIdx,
+                               int lastProblemIdx)
+        {
+            // get max workspace size
+            size_t maxWorkspaceSize = 0;
+
+            auto            solutionIterator = SolutionIterator::Default(library, hardware, args);
+            MetaRunListener listeners;
+            listeners.addListener(solutionIterator);
+            auto reporters = std::make_shared<MetaResultReporter>();
+            listeners.setReporter(reporters);
+
+            listeners.preBenchmarkRun();
+
+            for(int problemIdx = firstProblemIdx; problemIdx <= lastProblemIdx; problemIdx++)
+            {
+                auto& problem = problems[problemIdx];
+
+                problem.setWorkspaceSize(std::numeric_limits<size_t>::max());
+
+                listeners.preProblem(problem);
+
+                while(solutionIterator->moreSolutionsInProblem())
+                {
+                    auto solution = solutionIterator->getSolution();
+
+                    listeners.preSolution(*solution);
+
+                    if(solutionIterator->runCurrentSolution())
+                    {
+                        maxWorkspaceSize
+                            = std::max(maxWorkspaceSize,
+                                       solution->requiredWorkspaceSize(problems[problemIdx]));
+                    }
+
+                    listeners.postSolution();
+                }
+
+                listeners.postProblem();
+            }
+
+            listeners.postBenchmarkRun();
+
+            return maxWorkspaceSize;
+        }
+
     } // namespace Client
 } // namespace Tensile
 
@@ -374,8 +426,6 @@ int main(int argc, const char* argv[])
     Tensile::hip::SolutionAdapter adapter;
     LoadCodeObjects(args, adapter);
 
-    auto dataInit = DataInitialization::Get(args, problemFactory);
-
     auto problems        = problemFactory.problems();
     int  firstProblemIdx = args["problem-start-idx"].as<int>();
     int  numProblems     = args["num-problems"].as<int>();
@@ -385,6 +435,8 @@ int main(int argc, const char* argv[])
 
     int firstSolutionIdx = args["solution-start-idx"].as<int>();
     int numSolutions     = args["num-solutions"].as<int>();
+
+    bool gpuTimer = args["use-gpu-timer"].as<bool>();
 
     if(firstSolutionIdx < 0)
         firstSolutionIdx = library->solutions.begin()->first;
@@ -400,6 +452,11 @@ int main(int argc, const char* argv[])
     {
         lastSolutionIdx = firstSolutionIdx + numSolutions - 1;
     }
+
+    size_t maxWorkspaceSize
+        = getMaxWorkspace(library, hardware, args, problems, firstProblemIdx, lastProblemIdx);
+
+    auto dataInit = DataInitialization::Get(args, problemFactory, maxWorkspaceSize);
 
     auto solutionIterator = SolutionIterator::Default(library, hardware, args);
 
@@ -442,11 +499,12 @@ int main(int argc, const char* argv[])
 
         for(int problemIdx = firstProblemIdx; problemIdx <= lastProblemIdx; problemIdx++)
         {
-            auto const& problem = problems[problemIdx];
+            auto& problem = problems[problemIdx];
+            problem.setWorkspaceSize(dataInit->workspaceSize());
 
             reporters->report(ResultKey::ProblemIndex, problemIdx);
             reporters->report(ResultKey::ProblemProgress,
-                              concatenate(problemIdx, "/", problemFactory.problems().size()));
+                              concatenate(problemIdx, "/", lastProblemIdx));
 
             // std::cout << "Problem: " << problem.operationDescription() <<
             // std::endl; std::cout << "a: " << problem.a() << std::endl; std::cout <<
@@ -472,14 +530,18 @@ int main(int argc, const char* argv[])
                             auto kernels = solution->solve(problem, *inputs, *hardware);
 
                             size_t       warmupInvocations = listeners.numWarmupRuns();
-                            TimingEvents warmupStartEvents(warmupInvocations, kernels.size());
-                            TimingEvents warmupStopEvents(warmupInvocations, kernels.size());
+                            size_t       eventCount        = gpuTimer ? kernels.size() : 0;
+                            TimingEvents warmupStartEvents(warmupInvocations, eventCount);
+                            TimingEvents warmupStopEvents(warmupInvocations, eventCount);
 
                             for(int i = 0; i < warmupInvocations; i++)
                             {
                                 listeners.preWarmup();
-                                adapter.launchKernels(
-                                    kernels, stream, warmupStartEvents[i], warmupStopEvents[i]);
+                                if(gpuTimer)
+                                    adapter.launchKernels(
+                                        kernels, stream, warmupStartEvents[i], warmupStopEvents[i]);
+                                else
+                                    adapter.launchKernels(kernels, stream, nullptr, nullptr);
                                 listeners.postWarmup();
                             }
 
@@ -492,15 +554,18 @@ int main(int argc, const char* argv[])
                             {
                                 listeners.preSyncs();
 
-                                TimingEvents startEvents(enq, kernels.size());
-                                TimingEvents stopEvents(enq, kernels.size());
+                                TimingEvents startEvents(enq, eventCount);
+                                TimingEvents stopEvents(enq, eventCount);
 
                                 listeners.preEnqueues();
 
                                 for(int j = 0; j < enq; j++)
                                 {
-                                    adapter.launchKernels(
-                                        kernels, stream, startEvents[j], stopEvents[j]);
+                                    if(gpuTimer)
+                                        adapter.launchKernels(
+                                            kernels, stream, startEvents[j], stopEvents[j]);
+                                    else
+                                        adapter.launchKernels(kernels, stream, nullptr, nullptr);
                                 }
 
                                 listeners.postEnqueues(startEvents, stopEvents);

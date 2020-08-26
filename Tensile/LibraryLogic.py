@@ -58,7 +58,8 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
 
     ######################################
     # Read Solutions
-    (problemSizes, solutions) = LibraryIO.readSolutions(solutionsFileName)
+    # (problemSizes, solutions) are already read and kept in problemSizeGroups, no need to call LibraryIO.readSolutions(solutionsFileName) again
+    solutions = problemSizeGroup[4]
     problemSizesList.append(problemSizes)
     solutionsList.append(solutions)
     solutionMinNaming = Solution.getMinNaming(solutions)
@@ -423,6 +424,14 @@ class LogicAnalyzer:
     # notice that for OperationType != GEMM, the numIndices = 0
     totalSizeIdx = problemSizeStartIdx + self.numIndices
 
+    # need to take care if the loaded csv is the export-winner-version
+    csvHasWinner = "_CSVWinner" in dataFileName
+    if csvHasWinner:
+      # the column of the two are fixed (GFlops, SizeI/J/K/L, LDD/C/A/B, TotalFlops, WinnerGFlops, WinnerTimeUs, WinnerIdx, WinnerName)
+      # the order are implemented in ResultFileReporter.cpp (NewClient) and Client.h (OldClient)
+      columnOfWinnerGFlops = 10
+      columnOfWinnerIdx = 12
+
     # iterate over rows
     rowIdx = 0
     for row in csvFile:
@@ -446,16 +455,24 @@ class LogicAnalyzer:
 
         # Exact Problem Size
         if problemSize in self.exactProblemSizes:
-          # solution gflops
-          solutionIdx = 0
-          winnerIdx = -1
-          winnerGFlops = -1
-          for i in range(solutionStartIdx, rowLength):
-            gflops = float(row[i])
-            if gflops > winnerGFlops:
-              winnerIdx = solutionIdx
-              winnerGFlops = gflops
-            solutionIdx += 1
+
+          if csvHasWinner:
+            # Faster. Get the winner info from csv directly, avoid an extra loop
+            winnerGFlops = float(row[columnOfWinnerGFlops])
+            winnerIdx = int(row[columnOfWinnerIdx])
+          else:
+            # Old code. TODO - Can we get rid of this in the future?
+            # solution gflops
+            solutionIdx = 0
+            winnerIdx = -1
+            winnerGFlops = -1
+            for i in range(solutionStartIdx, rowLength):
+              gflops = float(row[i])
+              if gflops > winnerGFlops:
+                winnerIdx = solutionIdx
+                winnerGFlops = gflops
+              solutionIdx += 1
+
           if winnerIdx != -1:
             if problemSize in self.exactWinners:
               if winnerGFlops > self.exactWinners[problemSize][1]:
@@ -1444,7 +1461,7 @@ def main(  config ):
       if problemType not in problemTypes:
         problemTypes[problemType] = []
       problemTypes[problemType].append( (problemSizes, \
-          dataFileName, solutionsFileName, selectionFileName) )
+          dataFileName, solutionsFileName, selectionFileName, solutions) )
 
   for problemType in problemTypes:
     logicTuple = analyzeProblemType( problemType, problemTypes[problemType], \
@@ -1457,6 +1474,6 @@ def main(  config ):
   currentTime = time.time()
   elapsedTime = currentTime - startTime
   print1("%s\n# Finish Analysing data to in %s - %.3fs\n%s" % (HR, globalParameters["LibraryLogicPath"], elapsedTime, HR) )
-  
+
   popWorkingPath()
 

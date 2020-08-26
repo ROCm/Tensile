@@ -189,12 +189,11 @@ namespace Tensile
                                               TimingEvents const&                startEvents,
                                               TimingEvents const&                stopEvents)
         {
-            HIP_CHECK_EXC(hipEventSynchronize(stopEvents->back().back()));
-
             double_millis totalTime(0.0);
 
             if(m_useGPUTimer)
             {
+                HIP_CHECK_EXC(hipEventSynchronize(stopEvents->back().back()));
                 for(size_t i = 0; i < startEvents->size(); i++)
                 {
                     float enqTime = 0.0f;

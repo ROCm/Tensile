@@ -384,6 +384,9 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 
 def compareResults(old, new, name):
     import math
+    if name == " WinnerIdx":
+      return 0
+
     try:
         old = float(old)
     except (ValueError, TypeError):
@@ -431,17 +434,21 @@ def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileNa
   for solutionsForHardcoded in solutions:
     results.append([])
     for solution in solutionsForHardcoded:
-      # GEMM csv files contain "LDD" "LDC" "LDA" "LDB" columns
-      if solution["ProblemType"]["OperationType"] == "GEMM":
-        problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 5
-      else:
-        problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 1
+      numColForProblemSize = solution["ProblemType"]["TotalIndices"]
       results[-1].append([])
       numSolutions += 1
 
   # read results in gflops
   csvFile = csv.reader(resultsFile)
-  startIdx = problemSizeIdx + 1
+
+  if globalParameters["CSVExportWinner"]:
+    # in both old/new clients, csv files always output "GFlops" ,...., "LDD" "LDC" "LDA" "LDB" "TotalFlops" "WinnerGFlops" "WinnerTimeUS" "WinnerIdx" "WinnerName" columns
+    startIdx = numColForProblemSize + 10
+  else:
+    # in both old/new clients, csv files always output "GFlops" ,...., "LDD" "LDC" "LDA" "LDB"columns
+    # old client, non-GEMM csv files don't contain "LDD" "LDC" "LDA" "LDB", so we output an "N/A" text (in csv only) for alignment purpose (-diff.csv)
+    startIdx = numColForProblemSize + 5
+
   rowLength = startIdx + numSolutions
 
   rowIdx = 0
@@ -492,9 +499,11 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   ##############################################################################
 
   kernels = []
-  kernelsBetaOnly = []
+  kernelHelperOjbs = []
+
   kernelNames = set()
-  kernelNamesBetaOnly = set()
+  kernelHelperNames = set()
+
   for solution in Utils.tqdm(solutions, "Finding unique solutions"):
     solutionKernels = solution.getKernels()
     for kernel in solutionKernels:
@@ -502,29 +511,27 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
       if kName not in kernelNames:
         kernels.append(kernel)
         kernelNames.add(kName)
-    solutionKernelsBetaOnly = solution.getKernelsBetaOnly()
-    for kernel in solutionKernelsBetaOnly:
-      kName = Solution.getNameFull(kernel)
-      if kName not in kernelNamesBetaOnly:
-        kernelsBetaOnly.append(kernel)
-        kernelNamesBetaOnly.add(kName)
+
+    solutionHelperKernels = solution.getHelperKernelObjects()
+    for ko in solutionHelperKernels:
+      kname = ko.getKernelName()
+      if kname not in kernelHelperNames:
+        kernelHelperOjbs.append(ko)
+        kernelHelperNames.add(kname)
+
 
   solutionSerialNaming = Solution.getSerialNaming(solutions)
-  kernelSerialNaming = Solution.getSerialNaming(kernels)
-  solutionMinNaming = Solution.getMinNaming(solutions)
-  kernelMinNaming = Solution.getMinNaming(kernels)
-  solutionWriter = SolutionWriter( \
-      solutionMinNaming, solutionSerialNaming, \
-      kernelMinNaming, kernelSerialNaming)
-  kernelWriterSource = KernelWriterSource( \
-      kernelMinNaming, kernelSerialNaming)
-  kernelWriterAssembly = KernelWriterAssembly( \
-      kernelMinNaming, kernelSerialNaming)
+  kernelSerialNaming   = Solution.getSerialNaming(kernels)
+  solutionMinNaming    = Solution.getMinNaming(solutions)
+  kernelMinNaming      = Solution.getMinNaming(kernels)
+  solutionWriter       = SolutionWriter(solutionMinNaming, solutionSerialNaming, kernelMinNaming, kernelSerialNaming)
+  kernelWriterSource   = KernelWriterSource(kernelMinNaming, kernelSerialNaming)
+  kernelWriterAssembly = KernelWriterAssembly(kernelMinNaming, kernelSerialNaming)
 
   # write solution, kernels and CMake
   problemType = solutions[0]["ProblemType"]
   codeObjectFiles = writeSolutionsAndKernels( \
-      globalParameters["WorkingPath"], globalParameters["CxxCompiler"], [problemType], solutions, kernels, kernelsBetaOnly, \
+      globalParameters["WorkingPath"], globalParameters["CxxCompiler"], [problemType], solutions, kernels, kernelHelperOjbs, \
       solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
 
   newLibraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
@@ -575,7 +582,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
    asmKernelFiles,
    sourceLibFiles,
    asmLibFiles) = buildObjectFileNames(solutionWriter, kernelWriterSource, \
-    kernelWriterAssembly, solutions, kernels, kernelsBetaOnly)
+    kernelWriterAssembly, solutions, kernels, kernelHelperOjbs)
 
   writeCMake(outputPath, solutionFiles, sourceKernelFiles, filesToCopy)
 
@@ -820,13 +827,16 @@ def main( config ):
       problemTypeObj = ProblemType(problemTypeConfig)
       globalParameters["EnableHalf"] = problemTypeObj["DataType"].isHalf()
 
+      # using a suffix to check the csv version (for later addFromCSV())
+      csvSuffix = "_CSVWinner" if globalParameters["CSVExportWinner"] else ""
       # results files will be named
-      newResultsFileName = os.path.join(dataPath, "%s_%02u.csv" \
-          % (str(problemTypeObj), problemSizeGroupIdx) )
-      newSolutionsFileName = os.path.join(dataPath, "%s_%02u.yaml" \
-          % (str(problemTypeObj), problemSizeGroupIdx) )
-      newGranularityFileName = os.path.join(dataPath, "%s_%02u.gsp" \
-          % (str(problemTypeObj), problemSizeGroupIdx) )
+      newResultsFileName = os.path.join(dataPath, "%s_%02u%s.csv" \
+          % (str(problemTypeObj), problemSizeGroupIdx, csvSuffix) )
+      newSolutionsFileName = os.path.join(dataPath, "%s_%02u%s.yaml" \
+          % (str(problemTypeObj), problemSizeGroupIdx, csvSuffix) )
+      newGranularityFileName = os.path.join(dataPath, "%s_%02u%s.gsp" \
+          % (str(problemTypeObj), problemSizeGroupIdx, csvSuffix) )
+
       # skip if possible
       if globalParameters["ForceRedoBenchmarkProblems"] or \
           not os.path.exists(newResultsFileName):
