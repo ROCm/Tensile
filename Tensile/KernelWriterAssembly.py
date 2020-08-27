@@ -2645,7 +2645,7 @@ class KernelWriterAssembly(KernelWriter):
           else:
             offsetIsVgpr = False
         elif indices[i] in kernel["ProblemType"]["MirrorDims%s" % tc]:
-          offsetVgpr = True
+          offsetIsVgpr = True
         else:
           assert(0) # no other type allowed
 
