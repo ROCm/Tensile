@@ -161,6 +161,7 @@ if [[ "${GPU}" == mi25 || "${GPU}" == v340 ]]; then
     LIBRARY=vega10
 elif [[ "${GPU}" == arcturus ]]; then
     LIBRARY=arcturus
+    MFMA=true
 elif [[ "${GPU}" == mi50 || "${GPU}" == r7 ]]; then
     GPU=mi50
 else
