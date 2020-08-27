@@ -97,75 +97,76 @@ inline std::ostream& operator<<(std::ostream& os, const tensile_complex<T>& data
 }
 
 template <typename T>
-constexpr __host__ __device__ tensile_complex<T> operator+(tensile_complex<T> data)
+constexpr __host__ __device__ tensile_complex<T> operator+(tensile_complex<T> const& data)
 {
     return data;
 }
 
 template <typename T>
-constexpr __host__ __device__ tensile_complex<T> operator-(tensile_complex<T> data)
+constexpr __host__ __device__ tensile_complex<T> operator-(tensile_complex<T> const& data)
 {
     return tensile_complex<T>{-data.x, -data.y};
 }
 
 template <typename T>
-constexpr __host__ __device__ tensile_complex<T> operator+(tensile_complex<T> a,
-                                                           tensile_complex<T> b)
+constexpr __host__ __device__ tensile_complex<T> operator+(tensile_complex<T> const& a,
+                                                           tensile_complex<T> const& b)
 {
     return tensile_complex<T>{a.x + b.x, a.y + b.y};
 }
 
 template <typename T>
-constexpr __host__ __device__ tensile_complex<T> operator-(tensile_complex<T> a,
-                                                           tensile_complex<T> b)
+constexpr __host__ __device__ tensile_complex<T> operator-(tensile_complex<T> const& a,
+                                                           tensile_complex<T> const& b)
 {
     return tensile_complex<T>{a.x - b.x, a.y - b.y};
 }
 
 template <typename T>
-constexpr __host__ __device__ tensile_complex<T> operator*(tensile_complex<T> a,
-                                                           tensile_complex<T> b)
+constexpr __host__ __device__ tensile_complex<T> operator*(tensile_complex<T> const& a,
+                                                           tensile_complex<T> const& b)
 {
     return tensile_complex<T>{a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x};
 }
 
 template <typename T>
-constexpr __host__ __device__ tensile_complex<T> operator/(tensile_complex<T> a,
-                                                           tensile_complex<T> b)
+constexpr __host__ __device__ tensile_complex<T> operator/(tensile_complex<T> const& a,
+                                                           tensile_complex<T> const& b)
 {
     return tensile_complex<T>{(a.x * b.x + a.y * b.y) / (b.x * b.x + b.y * b.y),
                               (a.y * b.x - a.x * b.y) / (b.x * b.x + b.y * b.y)};
 }
 
 template <typename T>
-constexpr __host__ __device__ tensile_complex<T>& operator+=(tensile_complex<T>& a,
-                                                             tensile_complex<T>  b)
+constexpr __host__ __device__ tensile_complex<T>& operator+=(tensile_complex<T>&       a,
+                                                             tensile_complex<T> const& b)
 {
     return (a = a + b);
 }
 
 template <typename T>
-constexpr __host__ __device__ tensile_complex<T>& operator-=(tensile_complex<T>& a,
-                                                             tensile_complex<T>  b)
+constexpr __host__ __device__ tensile_complex<T>& operator-=(tensile_complex<T>&       a,
+                                                             tensile_complex<T> const& b)
 {
     return (a = a - b);
 }
 
 template <typename T>
-constexpr __host__ __device__ tensile_complex<T>& operator*=(tensile_complex<T>& a,
-                                                             tensile_complex<T>  b)
+constexpr __host__ __device__ tensile_complex<T>& operator*=(tensile_complex<T>&       a,
+                                                             tensile_complex<T> const& b)
 {
     return (a = a * b);
 }
 
 template <typename T>
-constexpr __host__ __device__ tensile_complex<T>& operator/=(tensile_complex<T>& a,
-                                                             tensile_complex<T>  b)
+constexpr __host__ __device__ tensile_complex<T>& operator/=(tensile_complex<T>&       a,
+                                                             tensile_complex<T> const& b)
 {
     return (a = a / b);
 }
 template <typename T>
-constexpr __host__ __device__ bool operator==(tensile_complex<T>& a, tensile_complex<T> b)
+constexpr __host__ __device__ bool operator==(tensile_complex<T> const& a,
+                                              tensile_complex<T> const& b)
 {
     return (a.x == b.x) && (a.y == b.y);
 }

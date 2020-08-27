@@ -183,67 +183,68 @@ namespace Tensile
 
         bool ReferenceValidator::validateSolution(std::shared_ptr<ContractionInputs> inputs)
         {
-            if(m_problem.a().dataType() == DataType::Float
-               && m_problem.b().dataType() == DataType::Float
-               && m_problem.c().dataType() == DataType::Float
-               && m_problem.d().dataType() == DataType::Float)
+            auto alphaType = m_problem.a().dataType() == DataType::BFloat16
+                                 ? DataType::Float
+                                 : m_problem.d().dataType();
+            auto betaType = alphaType;
+
+            auto contractionInputsTypeId = ContractionInputs::TypeId(m_problem.a().dataType(),
+                                                                     m_problem.b().dataType(),
+                                                                     m_problem.c().dataType(),
+                                                                     m_problem.d().dataType(),
+                                                                     alphaType,
+                                                                     betaType);
+
+            switch(contractionInputsTypeId)
             {
-                return validateSolutionCast<ManagedContractionInputs<float>>(inputs);
-            }
-            else if(m_problem.a().dataType() == DataType::Double
-                    && m_problem.b().dataType() == DataType::Double
-                    && m_problem.c().dataType() == DataType::Double
-                    && m_problem.d().dataType() == DataType::Double)
+            case ManagedFloatContractionInputs::TypeId():
             {
-                return validateSolutionCast<ManagedContractionInputs<double>>(inputs);
+                return validateSolutionCast<ManagedFloatContractionInputs>(inputs);
             }
-            else if(m_problem.a().dataType() == DataType::ComplexFloat
-                    && m_problem.b().dataType() == DataType::ComplexFloat
-                    && m_problem.c().dataType() == DataType::ComplexFloat
-                    && m_problem.d().dataType() == DataType::ComplexFloat)
+            case ManagedDoubleContractionInputs::TypeId():
             {
-                return validateSolutionCast<ManagedContractionInputs<std::complex<float>>>(inputs);
+                return validateSolutionCast<ManagedDoubleContractionInputs>(inputs);
             }
-            else if(m_problem.a().dataType() == DataType::ComplexDouble
-                    && m_problem.b().dataType() == DataType::ComplexDouble
-                    && m_problem.c().dataType() == DataType::ComplexDouble
-                    && m_problem.d().dataType() == DataType::ComplexDouble)
+            case ManagedComplexFloatContractionInputs::TypeId():
             {
-                return validateSolutionCast<ManagedContractionInputs<std::complex<double>>>(inputs);
+                return validateSolutionCast<ManagedComplexFloatContractionInputs>(inputs);
             }
-            else if(m_problem.a().dataType() == DataType::Half
-                    && m_problem.b().dataType() == DataType::Half
-                    && m_problem.c().dataType() == DataType::Half
-                    && m_problem.d().dataType() == DataType::Half)
+            case ManagedComplexDoubleContractionInputs::TypeId():
             {
-                return validateSolutionCast<ManagedContractionInputs<Half>>(inputs);
+                return validateSolutionCast<ManagedComplexDoubleContractionInputs>(inputs);
             }
-            else if(m_problem.a().dataType() == DataType::Int8x4
-                    && m_problem.b().dataType() == DataType::Int8x4
-                    && m_problem.c().dataType() == DataType::Int32
-                    && m_problem.d().dataType() == DataType::Int32)
+#ifdef TENSILE_USE_HALF
+            case ManagedHalfContractionInputs::TypeId():
             {
-                return validateSolutionCast<
-                    ManagedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>>(inputs);
+                return validateSolutionCast<ManagedHalfContractionInputs>(inputs);
             }
-            else if(m_problem.a().dataType() == DataType::Int32
-                    && m_problem.b().dataType() == DataType::Int32
-                    && m_problem.c().dataType() == DataType::Int32
-                    && m_problem.d().dataType() == DataType::Int32)
+            case ManagedHalfInFloatOutContractionInputs::TypeId():
             {
-                return validateSolutionCast<ManagedContractionInputs<int32_t>>(inputs);
+                return validateSolutionCast<ManagedHalfInFloatOutContractionInputs>(inputs);
             }
-            else if(m_problem.a().dataType() == DataType::BFloat16
-                    && m_problem.b().dataType() == DataType::BFloat16
-                    && m_problem.c().dataType() == DataType::BFloat16
-                    && m_problem.d().dataType() == DataType::BFloat16)
+#endif // TENSILE_USE_HALF
+            case ManagedInt8x4ContractionInputs::TypeId():
+            {
+                return validateSolutionCast<ManagedInt8x4ContractionInputs>(inputs);
+            }
+            case ManagedInt32ContractionInputs::TypeId():
+            {
+                return validateSolutionCast<ManagedInt32ContractionInputs>(inputs);
+            }
+#ifdef TENSILE_USE_BF16
+            case ManagedBFloat16ContractionInputs::TypeId():
             {
                 return validateSolutionCast<ManagedBFloat16ContractionInputs>(inputs);
             }
-            else
+            case ManagedBFloat16InFloatOutContractionInputs::TypeId():
             {
-                throw std::runtime_error("Data type not implemented.");
+                return validateSolutionCast<ManagedBFloat16InFloatOutContractionInputs>(inputs);
             }
+#endif // TENSILE_USE_BF16
+            default:;
+            }
+
+            throw std::runtime_error("Data type not implemented.");
         }
 
         void ReferenceValidator::validateWarmups(std::shared_ptr<ContractionInputs> inputs,

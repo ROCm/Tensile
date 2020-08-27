@@ -28,11 +28,31 @@ import os
 import subprocess
 from shutil import copy as shutil_copy
 from shutil import rmtree
+from enum import Enum
 
 from .Contractions import FreeIndex
 from .Contractions import ProblemType as ContractionsProblemType
 
+class DataInitName(Enum):
+  Zero = 0
+  One = 1
+  Two = 2
+  Random = 3
+  NaN = 4
+  Inf = 5
+  BadInput = 6
+  BadOutput = 7
+  SerialIdx = 8
+  SerialDim0 = 9
+  SerialDim1 = 10
+  Identity = 11
 
+class ClientLogLevel(Enum):
+  Error = 0
+  Terse = 1
+  Verbose = 2
+  Debug = 3
+  
 ################################################################################
 # Main
 ################################################################################
@@ -520,20 +540,6 @@ def problemSizeParams(problemType, problem):
 
     return rv
 
-def dataInitName(num):
-    if num == 0: return 'Zero'
-    if num == 1: return 'One'
-    if num == 2: return 'Two'
-    if num == 3: return 'Random'
-    if num == 4: return 'NaN'
-    if num == 5: return 'Inf'
-    if num == 6: return 'BadInput'
-    if num == 7: return 'BadOutput'
-    if num == 8: return 'SerialIdx'
-    if num == 9: return 'SerialDim0'
-    if num == 10: return 'SerialDim1'
-    if num == 11: return 'Identity'
-
 def dataInitParams(problemType):
     initA = globalParameters['DataInitTypeA']
     initB = globalParameters['DataInitTypeB']
@@ -548,12 +554,13 @@ def dataInitParams(problemType):
     if initA == -1: initA = globalParameters['DataInitTypeAB']
     if initB == -1: initB = globalParameters['DataInitTypeAB']
 
-    return [('init-a',     dataInitName(initA)),
-            ('init-b',     dataInitName(initB)),
-            ('init-c',     dataInitName(initC)),
-            ('init-d',     dataInitName(initD)),
-            ('init-alpha', dataInitName(initAlpha)),
-            ('init-beta',  dataInitName(initBeta))]
+    return [('init-a',     DataInitName(initA).name),
+            ('init-b',     DataInitName(initB).name),
+            ('init-c',     DataInitName(initC).name),
+            ('init-d',     DataInitName(initD).name),
+            ('init-alpha', DataInitName(initAlpha).name),
+            ('init-beta',  DataInitName(initBeta).name)]
+
 
 def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, resultsFileName, parametersFilePath):
 
@@ -629,6 +636,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param("perf-read-efficiency",     globalParameters["PerfModelReadEfficiency"])
         param("csv-export-extra-cols",    globalParameters["CSVExportWinner"])
         param("csv-merge-same-problems",  globalParameters["CSVMergeSameProblemID"])
+        param("log-level",                ClientLogLevel(globalParameters["ClientLogLevel"]).name)
 
 def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection = False):
     if tileAwareSelection:
