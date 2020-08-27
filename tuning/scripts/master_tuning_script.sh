@@ -379,7 +379,7 @@ DIR=archive
 if [[ "${LIBRARY}" == arcturus ]]; then
     DIR=asm_full
     git clone https://github.com/RocmSoftwarePlatform/rocmdevtools.git -b efficiency
-    python rocmdevtools/scripts/tuning/convertToEfficiency.py library/exact arc ${SCLK}
+    python rocmdevtools/scripts/tuning/convertToEfficiency.py library/exact arc ${SCLK} 2>&1 | tee logs/log-efficiency
 fi
 python Tensile/Tensile/Utilities/merge.py rocBLAS/library/src/blas3/Tensile/Logic/${DIR} library/exact library/merge 2>&1 | tee logs/log-merge-script
 
