@@ -93,7 +93,17 @@ namespace Tensile
                 writeRow(m_headers);
 
             m_firstRow = false;
-            outMap     = m_currentRow;
+
+            // only copy the fields that are in headers
+            for(auto const& key : m_keyOrder)
+            {
+                std::string value = "";
+
+                auto it = m_currentRow.find(key);
+                if(it != m_currentRow.end())
+                    value = escape(it->second);
+                outMap[key] = value;
+            }
         }
 
         void CSVStackFile::clearCurrentRow()
