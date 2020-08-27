@@ -189,6 +189,7 @@ else
         printf "arcturus GPU detected\n"
         LIBRARY=arcturus
         GPU=arcturus
+        MFMA=true
     else
         printf "Could not detect GPU, assuming mi60\n"
         LIBRARY=vega20
@@ -305,15 +306,16 @@ run_tune_all_scripts () {
     elif [[ "${OMIT_TYPE}" == tn ]]; then
         run_tune_nn
         run_tune_nt
-    elif [[ "$(grep -c "transposeA T" ../../${LOG})" -gt 0 ]]; then
-        run_tune_tn
-    elif [[ "$(grep -c "transposeB T" ../../${LOG})" -gt 0 ]]; then
-        run_tune_nt
-    elif [[ "$(grep -c "transposeB N" ../../${LOG})" -gt 0 ]]; then
-        run_tune_nn
     else
-        printf "Did not detect any valid problem sizes. Exiting now.\n"
-        exit 2
+        if  [[ "$(grep -c "transposeA T" ../../${LOG})" -gt 0 ]]; then
+            run_tune_tn
+        fi
+        if [[ "$(grep -c "transposeB T" ../../${LOG})" -gt 0 ]]; then
+            run_tune_nt
+        fi
+        if [[ "$(grep -c "transposeA N --transposeB N" ../../${LOG})" -gt 0 ]]; then
+            run_tune_nn
+        fi
     fi
 }
 
