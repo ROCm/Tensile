@@ -110,7 +110,7 @@ def GetSize(problemDefinition,disableStrides="false",mfma="false"):
     b = 1
 
     #workaround to deal with bug in xdlops generator
-    if mfma == True:
+    if mfma == "true":
         if m == 1:
             m = 4
         if n == 1:
