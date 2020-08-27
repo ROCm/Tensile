@@ -24,6 +24,7 @@
 
 #include <Tensile/AMDGPU.hpp>
 #include <Tensile/ContractionProblem.hpp>
+#include <Tensile/Utils.hpp>
 
 #include <cmath>
 #include <cstddef>
@@ -713,71 +714,78 @@ namespace Tensile
         if(Debug::Instance().printWinningKernelName())
             std::cout << "Running kernel: " << this->KernelName() << std::endl;
 
-        if(problemType.aType == DataType::Float && problemType.bType == DataType::Float
-           && problemType.cType == DataType::Float && problemType.dType == DataType::Float)
+        auto alphaType
+            = problemType.aType == DataType::BFloat16 ? DataType::Float : problemType.dType;
+        auto betaType = alphaType;
+
+        auto contractionInputsTypeId = ContractionInputs::TypeId(problemType.aType,
+                                                                 problemType.bType,
+                                                                 problemType.cType,
+                                                                 problemType.dType,
+                                                                 alphaType,
+                                                                 betaType);
+
+        switch(contractionInputsTypeId)
         {
-            auto const& typedInputs = dynamic_cast<TypedContractionInputs<float> const&>(inputs);
+        case FloatContractionInputs::TypeId():
+        {
+            auto const& typedInputs = dynamic_cast<FloatContractionInputs const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
-        else if(problemType.aType == DataType::Double && problemType.bType == DataType::Double
-                && problemType.cType == DataType::Double && problemType.dType == DataType::Double)
+        case DoubleContractionInputs::TypeId():
         {
-            auto const& typedInputs = dynamic_cast<TypedContractionInputs<double> const&>(inputs);
+            auto const& typedInputs = dynamic_cast<DoubleContractionInputs const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
-        else if(problemType.aType == DataType::ComplexFloat
-                && problemType.bType == DataType::ComplexFloat
-                && problemType.cType == DataType::ComplexFloat
-                && problemType.dType == DataType::ComplexFloat)
+        case ComplexFloatContractionInputs::TypeId():
         {
-            auto const& typedInputs
-                = dynamic_cast<TypedContractionInputs<std::complex<float>> const&>(inputs);
+            auto const& typedInputs = dynamic_cast<ComplexFloatContractionInputs const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
-        else if(problemType.aType == DataType::ComplexDouble
-                && problemType.bType == DataType::ComplexDouble
-                && problemType.cType == DataType::ComplexDouble
-                && problemType.dType == DataType::ComplexDouble)
+        case ComplexDoubleContractionInputs::TypeId():
         {
-            auto const& typedInputs
-                = dynamic_cast<TypedContractionInputs<std::complex<double>> const&>(inputs);
+            auto const& typedInputs = dynamic_cast<ComplexDoubleContractionInputs const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
 #ifdef TENSILE_USE_HALF
-        else if(problemType.aType == DataType::Half && problemType.bType == DataType::Half
-                && problemType.cType == DataType::Half && problemType.dType == DataType::Half)
+        case HalfContractionInputs::TypeId():
         {
-            auto const& typedInputs = dynamic_cast<TypedContractionInputs<Half> const&>(inputs);
+            auto const& typedInputs = dynamic_cast<HalfContractionInputs const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
-#endif
-        else if(problemType.aType == DataType::Int8x4 && problemType.bType == DataType::Int8x4
-                && problemType.cType == DataType::Int32 && problemType.dType == DataType::Int32)
+        case HalfInFloatOutContractionInputs::TypeId():
         {
-            auto const& typedInputs
-                = dynamic_cast<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t> const&>(
-                    inputs);
+            auto const& typedInputs = dynamic_cast<HalfInFloatOutContractionInputs const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
-        else if(problemType.aType == DataType::Int32 && problemType.bType == DataType::Int32
-                && problemType.cType == DataType::Int32 && problemType.dType == DataType::Int32)
+#endif // TENSILE_USE_HALF
+        case Int8x4ContractionInputs::TypeId():
         {
-            auto const& typedInputs = dynamic_cast<TypedContractionInputs<int32_t> const&>(inputs);
+            auto const& typedInputs = dynamic_cast<Int8x4ContractionInputs const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        case Int32ContractionInputs::TypeId():
+        {
+            auto const& typedInputs = dynamic_cast<Int32ContractionInputs const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
 #ifdef TENSILE_USE_BF16
-        else if(problemType.aType == DataType::BFloat16 && problemType.bType == DataType::BFloat16
-                && problemType.cType == DataType::BFloat16
-                && problemType.dType == DataType::BFloat16)
+        case BFloat16ContractionInputs::TypeId():
         {
             auto const& typedInputs = dynamic_cast<BFloat16ContractionInputs const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
-#endif
-        else
+        case BFloat16InFloatOutContractionInputs::TypeId():
         {
-            throw std::runtime_error("Data type not implemented.");
+            auto const& typedInputs
+                = dynamic_cast<BFloat16InFloatOutContractionInputs const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
         }
+#endif // TENSILE_USE_BF16
+
+        default:;
+        }
+        throw std::runtime_error("Data type not implemented.");
     }
 
     ContractionSolution::StaticPerformanceModel

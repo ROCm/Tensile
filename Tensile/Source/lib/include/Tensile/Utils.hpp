@@ -152,6 +152,43 @@ namespace Tensile
         return stream;
     }
 
+    struct BitFieldGenerator
+    {
+        constexpr static uint32_t maxBitFieldWidth = 32;
+
+        // Get the minimum width of the given maxVal in bits.
+        constexpr static uint32_t ElementWidth(uint32_t maxVal)
+        {
+            return maxVal ? 1 + ElementWidth(maxVal >> 1) : 0;
+        }
+
+        // Get the bit mask for the element size in bits.
+        constexpr static uint32_t BitMask(uint32_t elementWidth)
+        {
+            if(elementWidth == 1)
+                return (uint32_t)0x1;
+            return (BitMask(elementWidth - 1) << 1) | (uint32_t)0x1;
+        }
+
+        // Generate a 32 bit field containing val0 in the LSB, occupying the first
+        // elementWidth bits.
+        constexpr static uint32_t GenerateBitField(uint32_t elementWidth, uint32_t val0)
+        {
+            int mask = BitMask(elementWidth);
+            return mask & val0;
+        }
+
+        // Generate a 32 bit field containing val0... valN in order starting from LSB, each
+        // value occupying elementWidth bits of the field.
+        template <typename... ArgsT>
+        constexpr static uint32_t
+            GenerateBitField(uint32_t elementWidth, uint32_t val0, ArgsT... valN)
+        {
+            int mask = BitMask(elementWidth);
+            return (GenerateBitField(elementWidth, valN...) << elementWidth) | (mask & val0);
+        }
+    };
+
     /**
  * @}
  */
