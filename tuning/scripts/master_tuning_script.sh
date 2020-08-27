@@ -23,6 +23,7 @@ HELP_STR="
     [-y|--data-type]        Optional. Data type of sizes that you want to tune (sgemm, dgemm, hgemm only)
     [-g|--gpu]              Optional. GPU used for tuning (arcturus, mi25, mi50, mi60, r7, v340 only)
     [-f|--sclk]             Optional. Frequency of sclk in MHz 
+    [-d|--no-dependencies]  Optional. Skip installing required dependencies (dependencies are installed by default)
     [-n|--network]          Optional. String to search for in filenames in log directory
     [--client]              Optional. Choose Tensile client version. (new, old, both, default=new)
     [-m|--mfma]             Optional. Use MFMA kernels (default=false)
@@ -36,7 +37,7 @@ HELP_STR="
     [--rocblas-fork]        Optional. Specify which rocBLAS fork to use (default=ROCmSoftwarePlatform)
     [-b|--branch]           Optional. Specify which Tensile branch to use (default=master)
     [--rocblas-branch]      Optional. Specify which rocBLAS branch to use (default=develop)
-    [-p|--public]           Optional. Specify whether you want to use rocBLAS public repo (default=false)
+    [-p|--private]          Optional. Specify whether you want to use rocBLAS-internal (private) repo (default=false)
     [--one-type]            Optional. Only tune one matrix type (nn, nt, or tn)
     [--omit-type]           Optional. Ignore one matrix type when tuning (nn, nt, or tn)
     [--problem-definition]  Optional. Specify gemm, strided batched, or both sizes (gemm, batch, or both, default=both)
@@ -61,11 +62,12 @@ ORGANIZATION=ROCmSoftwarePlatform
 ROCBLAS_ORGANIZATION=ROCmSoftwarePlatform
 ROCBLAS_BRANCH=develop
 TENSILE_BRANCH=develop
-PUBLIC=false
+PRIVATE=false
 HCC=false
 ROCM_PATH=/opt/rocm
+DEPENDENCIES=true
 
-OPTS=`getopt -o hg:z:y:o:f:rmctsi:u:b:p --long help,gpu:,log:,network:,data-type:,output-dir:,sclk:,client:,rk,mfma,count,tile-aware,disable-strides,initialization:,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition:,hcc,rocm-path: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hg:z:y:o:f:drmctsi:u:b:p --long help,gpu:,log:,network:,data-type:,output-dir:,sclk:,no-dependencies,client:,rk,mfma,count,tile-aware,disable-strides,initialization:,username:,branch:,number:,rocblas-fork:,rocblas-branch:,private,one-type:,omit-type:,problem-definition:,hcc,rocm-path: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -80,6 +82,7 @@ while true; do
         -y | --data-type )          DATA_TYPE="$2"; shift 2;;
         -o | --output-dir )         OUTPUT_DIR="$2"; shift 2;;
         -f | --sclk )               SCLK="$2"; shift 2;;
+        -d | --no-dependencies )    DEPENDENCIES=false; shift ;;
         -r | --rk )                 RK=true; shift ;;
         -m | --mfma )               MFMA=true; shift ;;
         -c | --count )              COUNT=true; shift ;;
@@ -90,7 +93,7 @@ while true; do
         --rocblas-fork )            ROCBLAS_ORGANIZATION="$2"; shift 2;;
         -b | --branch )             TENSILE_BRANCH="$2"; shift 2;;
         --rocblas-branch )          ROCBLAS_BRANCH="$2"; shift 2;;
-        -p | --public )             PUBLIC=true; shift ;;
+        -p | --private )            PRIVATE=true; shift ;;
         --client)                   TENSILE_CLIENT="$2"; shift 2;;
         --number )                  NUM="$2"; shift 2;;
         --one-type )                TUNE_TYPE="$2"; shift 2;;
@@ -116,6 +119,21 @@ fi
 if [ -z ${OUTPUT_DIR+foo} ]; then
    printf "An output directory is required\n"
    exit 2
+fi
+
+if [[ "${DEPENDENCIES}" == true ]]; then
+    # install dependencies (Ubuntu only)
+    sudo apt install -y --no-install-recommends cmake ca-certificates git \
+    pkg-config python3 python3-dev python3-matplotlib python3-pandas python3-pip \
+    python3-setuptools python3-tk python3-venv python3-yaml libnuma1 llvm-6.0-dev \
+    libboost-all-dev zlib1g-dev libomp-dev wget
+
+    # add required python dependencies
+    pip3 install setuptools --upgrade && pip3 install wheel && pip3 install pyyaml msgpack
+
+    # download and install Anaconda to ensure the spreadsheet can be generated
+    wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh -O ~/anaconda3.7.sh && \
+    bash ~/anaconda3.7.sh -b -p ~/anaconda && source ~/.bashrc
 fi
 
 if [[ "${HCC}" == true ]]; then
@@ -347,9 +365,9 @@ pushd Tensile
 run_tune_all_scripts
 popd
 
-REPO=rocBLAS-internal
-if [[ "${PUBLIC}" == true ]]; then
-    REPO=rocBLAS
+REPO=rocBLAS
+if [[ "${PRIVATE}" == true ]]; then
+    REPO=rocBLAS-internal
 fi
 
 git clone https://github.com/${ROCBLAS_ORGANIZATION}/${REPO}.git -b ${ROCBLAS_BRANCH} rocBLAS
@@ -360,6 +378,8 @@ mkdir library/merge
 DIR=archive
 if [[ "${LIBRARY}" == arcturus ]]; then
     DIR=asm_full
+    git clone https://github.com/RocmSoftwarePlatform/rocmdevtools.git -b efficiency
+    python rocmdevtools/scripts/tuning/convertToEfficiency.py library/exact arc ${SCLK}
 fi
 python Tensile/Tensile/Utilities/merge.py rocBLAS/library/src/blas3/Tensile/Logic/${DIR} library/exact library/merge 2>&1 | tee logs/log-merge-script
 
