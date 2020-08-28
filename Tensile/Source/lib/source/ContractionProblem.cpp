@@ -1045,8 +1045,10 @@ namespace Tensile
 #ifdef TENSILE_USE_HALF
     template struct TypedContractionInputs<Half>;
     template struct TypedContractionInputs<Half, Half, Half, Half, float, float>;
+    template struct TypedContractionInputs<Half, Half, float, float>;
 #endif
 #ifdef TENSILE_USE_BF16
     template struct TypedContractionInputs<BFloat16, BFloat16, BFloat16, BFloat16, float, float>;
+    template struct TypedContractionInputs<BFloat16, BFloat16, float, float>;
 #endif
 } // namespace Tensile

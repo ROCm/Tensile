@@ -1566,9 +1566,12 @@ bool benchmarkAllSolutionsForSize(unsigned int problemIdx,
     {
         file << ", " << sizes[i];
     }
-    for(unsigned int i = totalIndices[problemTypeIdx] + numIndicesLD; i < totalIndices[problemTypeIdx] + 4; i++)
+    for(unsigned int i = totalIndices[problemTypeIdx] + numIndicesLD;
+        i < totalIndices[problemTypeIdx] + 4;
+        i++)
     {
-        file << ", " << "N/A";
+        file << ", "
+             << "N/A";
     }
     size_t totalFlops = numFlopsPerMac[dataTypeIdx];
     for(unsigned int i = 0; i < totalIndices[problemTypeIdx]; i++)
@@ -1731,7 +1734,7 @@ bool benchmarkAllSolutionsForSize(unsigned int problemIdx,
         solutionIdx++)
     {
         allGFlops[solutionIdx - solutionStartIdx] = -1;
-        bool solutionIsValid = true;
+        bool solutionIsValid                      = true;
 
         // validate solution
         size_t        numInvalids = 0;
@@ -2149,12 +2152,13 @@ bool benchmarkAllSolutionsForSize(unsigned int problemIdx,
             invalidSolutions.insert(solutionIdx);
         }
         allGFlops[solutionIdx - solutionStartIdx] = gflops;
-        solutionPerf[problemIdx][solutionIdx] = static_cast<float>(gflops);
+        solutionPerf[problemIdx][solutionIdx]     = static_cast<float>(gflops);
     } // solution loop
 
-    if (csvExportExtraCols)
-        file << ", " << fastestGFlops << ", " << (fastestTimeNs * 0.001) << ", " << fastestIdx << ", " << solutions[fastestIdx]._name;
-    for (auto gflopsVal : allGFlops)
+    if(csvExportExtraCols)
+        file << ", " << fastestGFlops << ", " << (fastestTimeNs * 0.001) << ", " << fastestIdx
+             << ", " << solutions[fastestIdx]._name;
+    for(auto gflopsVal : allGFlops)
     {
         file << ", " << gflopsVal;
     }
@@ -2355,7 +2359,7 @@ bool benchmarkProblemSizes(DestDataType*   initialD,
     }
 
     file << ", LDD, LDC, LDA, LDB, TotalFlops";
-    if (csvExportExtraCols)
+    if(csvExportExtraCols)
         file << ", WinnerGFlops, WinnerTimeUS, WinnerIdx, WinnerName";
 
     for(unsigned int s = 0; s < numSolutions; s++)
@@ -2854,7 +2858,8 @@ void printClientUsage(std::string executableName)
     std::cout << "  " << keyNumSolutions << " [" << defaultNumSolutions << "]" << std::endl;
     std::cout << "  " << keyBenchmarkSolutions << " [" << defaultBenchmarkSolutions << "]"
               << std::endl;
-    std::cout << "  " << keyCSVExportExtraCols << " [" << defaultCSVExportExtraCols << "]" << std::endl;
+    std::cout << "  " << keyCSVExportExtraCols << " [" << defaultCSVExportExtraCols << "]"
+              << std::endl;
 #endif
 }
 

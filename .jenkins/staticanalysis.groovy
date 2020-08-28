@@ -72,6 +72,7 @@ def runCI =
     def nodes = new dockerNodes(nodeDetails, jobName, prj)
 
     boolean formatCheck = true
+    boolean staticAnalysis = true
 
     prj.timeout.test = 30
 
@@ -84,7 +85,7 @@ def runCI =
         runCompileCommand(platform, project, jobName, false)
     }
 
-    buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, null, null)
+    buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, null, null, staticAnalysis)
 
 }
 
@@ -93,6 +94,6 @@ ci: {
 
     properties(auxiliary.addCommonProperties([pipelineTriggers([cron('0 6 * * 6')])]))
     stage(urlJobName) {
-        runCI([ubuntu16:['any']], urlJobName)
+        runCI([ubuntu18:['any']], urlJobName)
     }
 }

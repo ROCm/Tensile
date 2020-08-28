@@ -50,7 +50,8 @@ globalParameters = OrderedDict()
 # common
 ########################################
 globalParameters["MinimumRequiredVersion"] = "0.0.0"  # which version of tensile is required to handle all the features required by this configuration file
-globalParameters["PrintLevel"] = 1                # how much info to print. 0=none, 1=standard, 2=verbose
+globalParameters["PrintLevel"] = 1                # how much info to print in generator. 0=none, 1=standard, 2=verbose
+globalParameters["ClientLogLevel"] = 3            # the log level of client. 0=Error, 1=Terse, 2=Verbose, 3=Debug (Aligned with ResultReporter.hpp)
 # benchmarking
 globalParameters["KernelTime"] = False            # T=use device timers, F=use host timers
 globalParameters["PreciseKernelTime"] = True     # T=On hip, use the timestamps for kernel start and stop rather than separate events.  Can provide more accurate kernel timing.  For GlobalSplitU kernels, recommend disabling this to provide consistent
@@ -256,7 +257,19 @@ validMFMA["H"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16
 validMFMA["S"] = [[32,32,1,2], [32,32,2,1], [16,16,1,4], [16,16,4,1], [4,4,1,16]]
 validMFMA["B"] = [[32,32,2,2], [32,32,4,1], [16,16,2,4], [16,16,8,1], [4,4,2,16]]
 validMFMA["4xi8"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
+validMFMA["C"] = validMFMA["S"]
+validTT = 16
+validMFMA["_format9"] = []
+for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["4xi8"]]:
+  for MI in MFMA:
+    for bm in range(int(math.log(MI[3],2))+1):
+      for tt0 in range(1,validTT+1):
+        for tt1 in range(1,validTT+1):
+          for wave_m in range (3):
+            for wave_n in range(3):
+              validMFMA["_format9"].append([MI[0],MI[1],MI[2],MI[3],2**bm,tt0,tt1,2**wave_m, 2**wave_n])
 validMatrixInstructions = [[], [-1]] + validMFMA["H"] + validMFMA["S"] + validMFMA["B"] + validMFMA["4xi8"]
+validMatrixInstructions = validMatrixInstructions + validMFMA["_format9"]
 
 validParameters = {
     "LoopDoWhile":                [ False, True ], # Source. True=DoWhile, False=For loop
@@ -655,7 +668,26 @@ validParameters = {
 
     # MatrixInstruction: (M x N x K x B)
     # XDLOPS tile definition, only valid for gfx908
+    # MxNxKxB specifies matrix instruction variants
+    #  MxNxB determines the shape of the C tile each instruction worked on
+    #      K determines the unroll depth
     # If empty, do not use these instructions
+    #
+    # Alternative format: (M x N x K x B x MIBlockM x WaveTileM x WaveTileN x WaveM x WaveN)
+    # (Note: MxN means M-by-N in the following comments)
+    # MIBlockM determines how many blocks along M dimension for multi-block MI variants. Concrete examples:
+    #  - MI 16x16x1x4 (4-block variant) with MIBlockM=4 -> (16x16)*(4x1)=64x16 tile per instruction executed
+    #  - MI 32x32x1x2 (2-block variant) with MIBlockM=1 -> (32x32)*(1x2)=32x64 tile per instruction executed
+    # WaveTileM/N are dimensions of the C tile each wave works on, and is close to the concept of ThreadTile in classic VALU kernels
+    #  - WT 4x1 -> each wave executes 4x1 matrix instructions on the C tile of total area (4*MITileM)x(1*MITileN)
+    # WaveM/N are dimensions of waves spawned for one workgroup where each wave consists of 64 threads
+    #  - Wave2x2 -> a total of 4 waves in one workgroup of shape 2x2
+    # Putting it all together:
+    #  - [32, 32, 1, 2,  1,  4, 1,  2, 2]
+    #     ^^^^^^^^^^^^   ^   ^^^^   ^^^^
+    #      MatrixInst  BlkM   WT    Wave
+    #  - means (32x64) per MI * (4x1) per wave * (2x2) per workgroup = (32*4*2)x(64*1*2) = 256x128 macro tile
+    # Tensile will ignore the parameters ThreadTile and WorkGroup when the alternative format is used
     "MatrixInstruction":          validMatrixInstructions,
 
     # StoreRemap: Optimize MatrixInstruction store patterns to enhance performance.
@@ -963,7 +995,6 @@ defaultBenchmarkCommonParameters = [
     {"FractionalLoad":            [ 0 ] },
     {"Use64bShadowLimit":         [ 1 ] },
     {"VectorAtomicWidth":         [ -1 ] },
-
     {"NumLoadsCoalescedA":        [ 1 ] },
     {"NumLoadsCoalescedB":        [ 1 ] },
     {"WorkGroup":                 [ [16,16,1]] },

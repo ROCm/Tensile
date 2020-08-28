@@ -2118,6 +2118,15 @@ class Solution:
 
   @staticmethod
   def parameterWrapper(state):
+    if len(state["MatrixInstruction"]) == 9:
+      waves = state["MatrixInstruction"][7]* state["MatrixInstruction"][8]
+      state["ThreadTile"][0] = state["MatrixInstruction"][5]
+      state["ThreadTile"][1] = state["MatrixInstruction"][6] * state["MatrixInstruction"][1]
+      state["WorkGroup"][0] = state["MatrixInstruction"][4] * state["MatrixInstruction"][0] * state["MatrixInstruction"][7]
+      state["WorkGroup"][1] = waves*globalParameters["WavefrontWidth"] // state["WorkGroup"][0]
+      #print("9-tuple: ", state["MatrixInstruction"], " TT=", state["ThreadTile"], " WG=", state["WorkGroup"])
+    if state["MatrixInstruction"]:
+      state["MatrixInstruction"] = [state["MatrixInstruction"][0],state["MatrixInstruction"][1],state["MatrixInstruction"][2],state["MatrixInstruction"][3]]
     state["UnrollMajorLDSA"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUA"])
     state["UnrollMajorLDSB"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUB"])
 
@@ -2228,19 +2237,28 @@ class Solution:
     if "LoopUnroll" in state:
       state["LoopIters"] = state["LoopUnroll"]
 
+    if state["ScheduleIterAlg"] == 2:
+      state["InnerUnroll"] = state["DepthU"] // state["MatrixInstK"]
+      state["PrefetchLocalRead"] = 1
+      state["ExpandPointerSwap"] = 1
+
     if state["DisableVgprOverlapping"] is True and state["EnableMatrixInstruction"] is not True:
       reject(state, "Non-MI kernels are already non-overlapping in pre-allocated registers")
 
     if state["EnableMatrixInstruction"]:
-      if not (dataType.isSingle() or dataType.isBFloat16() or dataType.isHalf()):
-        reject(state, "didn't support Matrix Instruction with type %s" % str(dataType))
+      if not (state["ProblemType"]["DataType"].isSingle() \
+              or state["ProblemType"]["DataType"].isBFloat16() \
+              or state["ProblemType"]["DataType"].isHalf() \
+              or state["ProblemType"]["DataType"].isSingleComplex()):
+        reject(state, "didn't support Matrix Instruction with type %s" % str(state["ProblemType"]["DataType"]))
       if not state["MIBlock"] or len(state["MIBlock"]) != 6:
         reject(state, "invalid MIBlock")
       if not state["MIWaveGroup"] or len(state["MIWaveGroup"]) != 2:
         reject(state, "invalid MIWaveGroup")
       if not state["MIWaveTile"] or len(state["MIWaveTile"]) != 2:
         reject(state, "invalid MIWaveTile")
-      if not state["ProblemType"]["HighPrecisionAccumulate"] and not dataType.isSingle():
+      if not state["ProblemType"]["HighPrecisionAccumulate"] \
+         and state["ProblemType"]["DataType"].numRegisters() < 1 :
         reject(state, "Matrix instructions for half types are natively accumulated" + \
          " in fp32 precision. Please add the following config:" + \
          "\n - HighPrecisionAccumulate: True")
@@ -2439,7 +2457,10 @@ class Solution:
       #TODO : re-enable later after running testlists
       #state["StoreVectorWidth"] = state["VectorWidth"]
       # use wider store for best store optimization
-      state["StoreVectorWidth"] = 4
+      if state["ProblemType"]["DataType"].numRegisters() <= 1:
+        state["StoreVectorWidth"] = 4
+      else:
+        state["StoreVectorWidth"] = 4//state["ProblemType"]["DataType"].numRegisters()
 
     if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
       # reject - VW too big
@@ -2753,23 +2774,20 @@ class Solution:
       return
 
     # Default LocalReadVectorWidth
-    supportWiderLR = state["TransposeLDS"] and \
-                     state["ProblemType"]["TLUA"] == False and \
-                     state["ProblemType"]["TLUB"] == False
     if state["LocalReadVectorWidth"] == -1:
       if state["EnableMatrixInstruction"]:
         state["LocalReadVectorWidth"] = state["ProblemType"]["DataType"].numMIInput()
       else:
         state["LocalReadVectorWidth"] = state["VectorWidth"]
-
-    if state["EnableMatrixInstruction"]:
-      if not supportWiderLR and state["LocalReadVectorWidth"] != state["ProblemType"]["DataType"].numMIInput():
-        reject(state, "Temp reject LRVW for (TransposeLDS=0 or non-TN)")
-      if state["LocalReadVectorWidth"] < state["ProblemType"]["DataType"].numMIInput():
-        reject(state, "LocalReadVectorWidth < %u" %(state["ProblemType"]["DataType"].numMIInput()))
-    elif state["LocalReadVectorWidth"] != state["VectorWidth"]:
-      reject(state, "LocalReadVectorWidth requires MI-Kernel")
-
+    else:
+      if state["EnableMatrixInstruction"]:
+        if state["LocalReadVectorWidth"] < state["ProblemType"]["DataType"].numMIInput():
+          reject(state, "LocalReadVectorWidth < %u" %(state["ProblemType"]["DataType"].numMIInput()))
+        if state["LocalReadVectorWidth"] > state["ProblemType"]["DataType"].numMIInput() and not state["TransposeLDS"]:
+          reject(state, "LocalReadVectorWidth require TLDS")
+      else:
+        if state["LocalReadVectorWidth"] != state["VectorWidth"]:
+          reject(state, "not support LRVW != VW with nonMI kernel")
 
     if state["LdsPadA"] == -1:
       if state["ProblemType"]["TLUA"]:
@@ -2847,7 +2865,8 @@ class Solution:
 
 
     if state["1LDSBuffer"] == -1:
-      if ldsNumElementsAB * state["ProblemType"]["DataType"].numBytes() > globalParameters["MaxLDS"]:
+      if ldsNumElementsAB * state["ProblemType"]["DataType"].numBytes() > globalParameters["MaxLDS"] or \
+          state["ScheduleIterAlg"] == 2:
         state["1LDSBuffer"] = 1
       else:
         state["1LDSBuffer"] = 0
@@ -2855,8 +2874,8 @@ class Solution:
     if state["1LDSBuffer"]:
       if not state["PrefetchGlobalRead"]:
         reject(state, "PGR=0 already use 1 LDS buffer only")
-      if not state["LocalReadVectorWidth"] > state["ProblemType"]["DataType"].numMIInput():
-        reject(state, "(currently) require wider localread to avoid reading and writing same LDS buffer at same time")
+      if not state["ScheduleIterAlg"] == 2 and not state["ScheduleIterAlg"] == 3:
+        reject(state, "1LDSBuffer only support SIA2 or SIA3")
       state["LdsOffsetB"] = ldsNumElementsAlignedA
       ldsNumElementsAB = ldsNumElementsAlignedA + ldsNumElementsB
 
@@ -2890,12 +2909,10 @@ class Solution:
         #          4. How to design a better way to prevent from invalid kernel in rocBLAS?
         # return
 
-      srMinVw = 1
-      srMaxVw = 8
-      if state["ProblemType"]["DataType"].isSingle():
-        srMaxVw = 4
-      elif state["ProblemType"]["DataType"].isHalf() or state["ProblemType"]["DataType"].isBFloat16():
-        srMinVw = 2
+      storeInstMinWidth = 1 # minimum dwordx1
+      storeInstMaxWidth = 4 # maximum dwordx4
+      srMinVw = max(storeInstMinWidth, int(storeInstMinWidth/state["ProblemType"]["DataType"].numRegisters()))
+      srMaxVw = int(storeInstMaxWidth/state["ProblemType"]["DataType"].numRegisters())
       if srMinVw > state["StoreRemapVectorWidth"] or srMaxVw < state["StoreRemapVectorWidth"]:
         reject(state, "StoreRemapVectorWidth %u is not allowed for this data type" % state["StoreRemapVectorWidth"])
         return
@@ -2966,10 +2983,10 @@ class Solution:
           % (state["PrefetchLocalRead"],state["LoopIters"],state["LocalReadVectorWidth"],\
           (state["PrefetchLocalRead"]%state["LoopIters"]),state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput()))
 
-    # reject conditions with lower performance
-    if state["ScheduleIterAlg"] == 2 and \
-    (state["ExpandPointerSwap"] != 1 or state["LoopIters"] != 1 or state["ScheduleGlobalRead"] != 1):
-      reject(state, "ScheduleIterAlg 2 only work with EPS1_SGR1, LoopIter=1")
+    # # reject conditions with lower performance
+    # if state["ScheduleIterAlg"] == 2 and \
+    # (state["ExpandPointerSwap"] != 1 or state["LoopIters"] != 1 or state["ScheduleGlobalRead"] != 1):
+    #   reject(state, "ScheduleIterAlg 2 only work with EPS1_SGR1, LoopIter=1")
 
     if state["TransposeLDS"] == 1:
       if not state["EnableMatrixInstruction"]:
@@ -2977,21 +2994,17 @@ class Solution:
       if state["ProblemType"]["TLUA"] and state["ProblemType"]["TLUB"]:
           # TODO: Now in rocBLAS, lot of logic yamls are Type=NT and TLDS=1? Why aren't they rejected and how to get rid of them?
           reject(state, "TransposeLds requires TLUA=0 or TLUB=0")
-      if state["EnableMatrixInstruction"]:
-        # enable widerLocalRead
-        if state["LocalReadVectorWidth"] > state["ProblemType"]["DataType"].numMIInput():
-          # not support 1 block MI
-          # TODO: need to enable ds_read2 to support 1 block MI
-          # if state["MatrixInstB"] == 1:
-            # reject(state, "wider localRead not support 1 block MatrixInstruction yet")
-          # wider localRead support 2 types
-          # 1. prefetch all lds to register
-          # 2. using larger InnerUnroll
-          if not (state["PrefetchLocalRead"] >= state["LoopIters"] and state["InnerUnroll"] == 1) and \
-            not state["InnerUnroll"] >= state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput():
-            reject(state, "wider localRead only support (PrefetchLocalRead %u >= LoopIters %u) or (InnerUnroll %u > LocalReadxN)" % (state["PrefetchLocalRead"],state["LoopIters"],state["InnerUnroll"]))
-        if (state["LoopIters"] - (state["PrefetchLocalRead"]%state["LoopIters"])*state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput()) < 0:
-          reject(state, "LoopIters %u should greater than PrefetchIters %u" % ((state["LoopIters"],(state["PrefetchLocalRead"]%state["LoopIters"])*state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput())))
+    if state["EnableMatrixInstruction"]:
+      # enable widerLocalRead
+      if state["LocalReadVectorWidth"] > state["ProblemType"]["DataType"].numMIInput():
+        # wider localRead support 2 types
+        # 1. prefetch all lds to register
+        # 2. using larger InnerUnroll
+        if not (state["PrefetchLocalRead"] >= state["LoopIters"] and state["InnerUnroll"] == 1) and \
+          not state["InnerUnroll"] >= state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput():
+          reject(state, "wider localRead only support (PrefetchLocalRead %u >= LoopIters %u) or (InnerUnroll %u > LocalReadxN)" % (state["PrefetchLocalRead"],state["LoopIters"],state["InnerUnroll"]))
+      if (state["LoopIters"] - (state["PrefetchLocalRead"]%state["LoopIters"])*state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput()) < 0:
+        reject(state, "LoopIters %u should greater than PrefetchIters %u" % ((state["LoopIters"],(state["PrefetchLocalRead"]%state["LoopIters"])*state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput())))
 
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
