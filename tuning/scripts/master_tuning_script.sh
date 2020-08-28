@@ -122,11 +122,12 @@ if [ -z ${OUTPUT_DIR+foo} ]; then
 fi
 
 if [[ "${DEPENDENCIES}" == true ]]; then
-    # install dependencies (Ubuntu only)
-    sudo apt install -y --no-install-recommends cmake ca-certificates git \
+    # install dependencies for Tensile and rocBLAS (Ubuntu only)
+    sudo apt install -y --no-install-recommends cmake make ca-certificates git \
     pkg-config python3 python3-dev python3-matplotlib python3-pandas python3-pip \
     python3-setuptools python3-tk python3-venv python3-yaml libnuma1 llvm-6.0-dev \
-    libboost-all-dev zlib1g-dev libomp-dev gfortran libpthread-stubs0-dev wget
+    libboost-all-dev zlib1g-dev libomp-dev gfortran libpthread-stubs0-dev libmsgpack-dev \
+    libmsgpackc2 wget
 
     # add required python dependencies
     pip3 install setuptools --upgrade && pip3 install wheel && pip3 install pyyaml msgpack
@@ -136,6 +137,22 @@ if [[ "${DEPENDENCIES}" == true ]]; then
         wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh -O ~/anaconda3.7.sh && \
         bash ~/anaconda3.7.sh -b -p ~/anaconda && eval "$(~/anaconda/bin/conda shell.bash hook)"
     fi
+
+    # Install Gtest
+    sudo mkdir -p /usr/src/gtest && pushd /usr/src/gtest && \
+    sudo wget https://github.com/google/googletest/archive/release-1.10.0.tar.gz  && \
+    sudo tar -xvf release-1.10.0.tar.gz  && \
+    pushd googletest-release-1.10.0 && \
+    sudo mkdir build && pushd build && sudo cmake .. && sudo make && sudo make install && popd && popd && popd
+
+    # Install Lapack
+    sudo mkdir -p /usr/src/lapack && pushd /usr/src/lapack && \
+    sudo wget https://github.com/Reference-LAPACK/lapack-release/archive/lapack-3.7.1.tar.gz  && \
+    sudo tar -xvf lapack-3.7.1.tar.gz  && \
+    pushd lapack-release-lapack-3.7.1 && \
+    sudo mkdir build && pushd build && \ 
+    sudo cmake .. -DCBLAS=ON -DLAPACKE=OFF -DBUILD_TESTING=OFF -DCMAKE_Fortran_FLAGS='-fno-optimize-sibling-calls' && \
+    sudo make && sudo make install && popd && popd && popd 
 fi
 
 if [[ "${HCC}" == true ]]; then
