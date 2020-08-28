@@ -10599,7 +10599,6 @@ class KernelWriterAssembly(KernelWriter):
 
   # rpv = regs per vector
     rpv = bpl/4.0
-
     if self.version[0] == 10:
       extraFields += " glc, slc, dlc"
 
@@ -10622,8 +10621,21 @@ class KernelWriterAssembly(KernelWriter):
       elif bpl==16:
         return Code.GlobalReadInst("buffer_load_dwordx4", vgpr(destVgpr, rpv), addr0, \
                   addr1, soffset, tailFields, comment)
+      elif bpl==32:
+        # split into two dwordx4 loads. Second load offset is +0.5 bpl
+        tailFields1 = "offen offset:%u"%(offset + bpl/2)
+        if extraFields != "":
+          tailFields1 += ", %s"% extraFields
+
+        rv = Code.Module("emulated buffer_load_dwordx8")
+        rv.addCode(Code.GlobalReadInst("buffer_load_dwordx4", vgpr(destVgpr, rpv/2), addr0, \
+                  addr1, soffset, tailFields, comment))
+        rv.addCode(Code.GlobalReadInst("buffer_load_dwordx4", vgpr(int(destVgpr + rpv/2), rpv/2), addr0, \
+                  addr1, soffset, tailFields1, comment))
+        return rv
+
       else:
-        assert ("chooseGlobalRead: bad bpl")
+        assert 0, "chooseGlobalRead: bad bpl"
 
     else:
       if bpl==2 and hi16:
@@ -10637,7 +10649,7 @@ class KernelWriterAssembly(KernelWriter):
       elif bpl==16:
         return Code.GlobalReadInst("flat_load_dwordx4", vgpr(destVgpr, rpv), addr0, extraFields, comment )
       else:
-        assert ("chooseGlobalRead: bad bpl")
+        assert 0, "chooseGlobalRead: bad bpl"
 
   ##############################################################################
   def chooseGlobalWrite(self, useBuffer, bps, srcVgpr, rpv, \
@@ -10666,8 +10678,15 @@ class KernelWriterAssembly(KernelWriter):
       elif bps==16:
         kStr += inst("buffer_store_dwordx4", vgpr(srcVgpr, rpv), addr0, \
                   addr1, 0, "offen", "offset:%u"%offset, extraFields, "store D")
+      elif bps == 32:
+        # split into two dwordx4 loads. Offset the second by +0.5 bps
+        kStr += inst("buffer_store_dwordx4", vgpr(srcVgpr, rpv/2), addr0, \
+                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "store D")
+
+        kStr += inst("buffer_store_dwordx4", vgpr(int(srcVgpr +rpv/2), rpv/2), addr0, \
+                  addr1, 0, "offen", "offset:%u"%(int(offset+bps/2)), extraFields, "store D")
       else:
-        assert ("bad bps")
+        assert 0, "bad bps"
     else:
       if bps==2 and hi16:
         kStr += inst("flat_store_short_d16_hi", addr0, vgpr(srcVgpr*2), extraFields, "store D" )
@@ -10680,7 +10699,7 @@ class KernelWriterAssembly(KernelWriter):
       elif bps==16:
         kStr += inst("flat_store_dwordx4", addr0, vgpr(srcVgpr, rpv), extraFields, "store D" )
       else:
-         assert ("bad bps")
+         assert 0, "bad bps"
 
     return kStr
 
