@@ -886,10 +886,15 @@ def ConvertToYAML(problemDefinition,disableStrides="false"):
 
     return rocblas_call
 
-def WriteScriptYAML(yamlFile,lines):
+def WriteScriptYAML(yamlFile,lines,strided=False):
     with open(yamlFile, 'a') as f:
         for line in lines:
-            f.write("%s\n" % line)
+            if strided:
+                if "strided" in line:
+                    f.write("%s\n" % line)
+            else:
+                if "strided" not in line:
+                    f.write("%s\n" % line)
 
 def RunMain():
 

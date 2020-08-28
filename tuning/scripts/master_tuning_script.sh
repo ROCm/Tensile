@@ -126,14 +126,16 @@ if [[ "${DEPENDENCIES}" == true ]]; then
     sudo apt install -y --no-install-recommends cmake ca-certificates git \
     pkg-config python3 python3-dev python3-matplotlib python3-pandas python3-pip \
     python3-setuptools python3-tk python3-venv python3-yaml libnuma1 llvm-6.0-dev \
-    libboost-all-dev zlib1g-dev libomp-dev wget
+    libboost-all-dev zlib1g-dev libomp-dev gfortran libpthread-stubs0-dev wget
 
     # add required python dependencies
     pip3 install setuptools --upgrade && pip3 install wheel && pip3 install pyyaml msgpack
 
     # download and install Anaconda to ensure the spreadsheet can be generated
-    wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh -O ~/anaconda3.7.sh && \
-    bash ~/anaconda3.7.sh -b -p ~/anaconda && source ~/.bashrc
+    if [[ $(ls -A ~/anaconda | wc -c) -eq 0 ]]; then
+        wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh -O ~/anaconda3.7.sh && \
+        bash ~/anaconda3.7.sh -b -p ~/anaconda && eval "$(~/anaconda/bin/conda shell.bash hook)"
+    fi
 fi
 
 if [[ "${HCC}" == true ]]; then
@@ -325,13 +327,13 @@ run_tune_all_scripts () {
         run_tune_nn
         run_tune_nt
     else
-        if  [[ "$(grep -c "transposeA T" ../../${LOG})" -gt 0 ]]; then
+        if  [[ "$(grep -c "transposeA T" ../../${LOG})" -gt 0 || "$(grep -c "transA: 'T'" ../../${LOG})" -gt 0 ]]; then
             run_tune_tn
         fi
-        if [[ "$(grep -c "transposeB T" ../../${LOG})" -gt 0 ]]; then
+        if [[ "$(grep -c "transposeB T" ../../${LOG})" -gt 0 || "$(grep -c "transB: 'T'" ../../${LOG})" -gt 0 ]]; then
             run_tune_nt
         fi
-        if [[ "$(grep -c "transposeA N --transposeB N" ../../${LOG})" -gt 0 ]]; then
+        if [[ "$(grep -c "transposeA N --transposeB N" ../../${LOG})" -gt 0 || "$(grep -c "transA: 'N', transB: 'N'" ../../${LOG})" -gt 0 ]]; then
             run_tune_nn
         fi
     fi

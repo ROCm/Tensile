@@ -560,9 +560,11 @@ def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", pr
     outputFileName3 = GetOutputFileName(scriptPath, namePart+"-all", "sh")
     outputFileName4 = GetOutputFileName(scriptPath, namePart+"-verify", "sh")
     outputFileName5 = GetOutputFileName(scriptPath, namePart+"-yaml", "sh")
+    outputFileName6 = GetOutputFileName(scriptPath, namePart+"-yaml-strided", "sh")
 
     scriptFileNames.append(outputFileName5)
     count = 0
+    strided = False
 
     for key in keys:
         if disableStrides == "true":
@@ -575,10 +577,16 @@ def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", pr
         for problemDefinition in lineDefinitions:
             rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition,disableStrides,initialization)
             yaml_call = ConvertToYAML(problemDefinition,disableStrides)
+            if "strided" in yaml_call and strided == False:
+                strided = True
+                scriptFileNames.append(outputFileName6)
             lines.append(rocblas_call)
             yamlLines.append(yaml_call)
         noiterlines = removeIter(lines)
         WriteScriptYAML(outputFileName5,yamlLines)
+        if strided == True:
+            WriteScriptYAML(outputFileName6,yamlLines,strided) 
+             
         with open(outputFileName, 'a') as f, open(outputFileName2, 'a') as g, open(outputFileName3, 'a') as h:
             for line in lines:
                 if "strided" in line:
@@ -634,9 +642,11 @@ def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", p
     outputFileName3 = GetOutputFileName(scriptPath, namePart+"-all", "sh")
     outputFileName4 = GetOutputFileName(scriptPath, namePart+"-verify", "sh")
     outputFileName5 = GetOutputFileName(scriptPath, namePart+"-yaml", "sh")
+    outputFileName6 = GetOutputFileName(scriptPath, namePart+"-yaml-strided", "sh")
 
     scriptFileNames.append(outputFileName5)
     count = 0
+    strided = False
 
     for key in keys:
         if disableStrides == "true":
@@ -650,9 +660,15 @@ def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", p
             rocblas_call = BuildRocBLASBenchmarkCall(problemDefinition,disableStrides,initialization)
             lines.append(rocblas_call)
             yaml_call = ConvertToYAML(problemDefinition,disableStrides)
+            if "strided" in yaml_call and strided == False:
+                strided = True
+                scriptFileNames.append(outputFileName6)
             yamlLines.append(yaml_call)
         noiterlines = removeIter(lines)
         WriteScriptYAML(outputFileName5,yamlLines)
+        if strided == True:
+            WriteScriptYAML(outputFileName6,yamlLines,strided) 
+        
         with open(outputFileName, 'a') as f, open(outputFileName2, 'a') as g, open(outputFileName3, 'a') as h:
             for line in lines:
                 if "strided" in line:
