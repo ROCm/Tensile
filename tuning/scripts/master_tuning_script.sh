@@ -139,20 +139,24 @@ if [[ "${DEPENDENCIES}" == true ]]; then
     fi
 
     # Install Gtest
-    sudo mkdir -p /usr/src/gtest && pushd /usr/src/gtest && \
-    sudo wget https://github.com/google/googletest/archive/release-1.10.0.tar.gz  && \
-    sudo tar -xvf release-1.10.0.tar.gz  && \
-    pushd googletest-release-1.10.0 && \
-    sudo mkdir build && pushd build && sudo cmake .. && sudo make && sudo make install && popd && popd && popd
+    if [[ $(ls -A /usr/src/gtest/googletest-release-1.10.0 | wc -c) -eq 0 ]]; then
+        sudo mkdir -p /usr/src/gtest && pushd /usr/src/gtest && \
+        sudo wget https://github.com/google/googletest/archive/release-1.10.0.tar.gz  && \
+        sudo tar -xvf release-1.10.0.tar.gz  && \
+        pushd googletest-release-1.10.0 && \
+        sudo mkdir build && pushd build && sudo cmake .. && sudo make && sudo make install && popd && popd && popd
+    fi
 
     # Install Lapack
-    sudo mkdir -p /usr/src/lapack && pushd /usr/src/lapack && \
-    sudo wget https://github.com/Reference-LAPACK/lapack-release/archive/lapack-3.7.1.tar.gz  && \
-    sudo tar -xvf lapack-3.7.1.tar.gz  && \
-    pushd lapack-release-lapack-3.7.1 && \
-    sudo mkdir build && pushd build && \ 
-    sudo cmake .. -DCBLAS=ON -DLAPACKE=OFF -DBUILD_TESTING=OFF -DCMAKE_Fortran_FLAGS='-fno-optimize-sibling-calls' && \
-    sudo make && sudo make install && popd && popd && popd 
+    if [[ $(ls -A /usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3.7.1 | wc -c) -eq 0 ]]; then
+        sudo mkdir -p /usr/src/lapack && pushd /usr/src/lapack && \
+        sudo wget https://github.com/Reference-LAPACK/lapack-release/archive/lapack-3.7.1.tar.gz  && \
+        sudo tar -xvf lapack-3.7.1.tar.gz  && \
+        pushd lapack-release-lapack-3.7.1 && \
+        sudo mkdir build && pushd build && \ 
+        sudo cmake .. -DCBLAS=ON -DLAPACKE=OFF -DBUILD_TESTING=OFF -DCMAKE_Fortran_FLAGS='-fno-optimize-sibling-calls' && \
+        sudo make && sudo make install && popd && popd && popd 
+    fi
 fi
 
 if [[ "${HCC}" == true ]]; then

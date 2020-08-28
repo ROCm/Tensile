@@ -820,13 +820,13 @@ def GetTensileSize(problemDefinition):
     return size
 
 def GetStride(problemDefinition,param):
-    nn = {"lda": problemDefinition["m"], "ldb": problemDefinition["k"], "ldc": problemDefinition["m"],
+    nn = {"lda": problemDefinition["m"], "ldb": problemDefinition["k"], "ldc": problemDefinition["m"], "ldd": problemDefinition["m"],
         "stride_a": str(int(problemDefinition["m"])*int(problemDefinition["k"])), "stride_b": str(int(problemDefinition["n"])*int(problemDefinition["k"])),
         "stride_c": str(int(problemDefinition["m"])*int(problemDefinition["n"]))}
-    nt = {"lda": problemDefinition["k"], "ldb": problemDefinition["k"], "ldc": problemDefinition["n"],
+    nt = {"lda": problemDefinition["k"], "ldb": problemDefinition["k"], "ldc": problemDefinition["n"], "ldd": problemDefinition["n"],
         "stride_a": str(int(problemDefinition["m"])*int(problemDefinition["k"])), "stride_b": str(int(problemDefinition["n"])*int(problemDefinition["k"])),
         "stride_c": str(int(problemDefinition["m"])*int(problemDefinition["n"]))}
-    tn = {"lda": problemDefinition["k"], "ldb": problemDefinition["k"], "ldc": problemDefinition["m"],
+    tn = {"lda": problemDefinition["k"], "ldb": problemDefinition["k"], "ldc": problemDefinition["m"], "ldd": problemDefinition["m"],
         "stride_a": str(int(problemDefinition["m"])*int(problemDefinition["k"])), "stride_b": str(int(problemDefinition["n"])*int(problemDefinition["k"])),
         "stride_c": str(int(problemDefinition["m"])*int(problemDefinition["n"]))}
 
@@ -862,6 +862,7 @@ def ConvertToYAML(problemDefinition,disableStrides="false"):
     alternateType = {"f32":"s", "f64": "d", "f16": "h"}
 
     rocblas_call = "- {"
+    lock = False
     for key in keys:
         param = key.replace("-","")
         if param == "f":
@@ -870,7 +871,10 @@ def ConvertToYAML(problemDefinition,disableStrides="false"):
         modKey = convertKey[param]
         if ("stride" in modKey and value == 0) or ("batch" in modKey and value == 1) or ("type" in modKey and value == None):
             continue
-        if param == "r":
+        if "-r" not in keys and not lock:
+            rocblas_call += "%s: %s, " % ("rocblas_function",rocblasValue["?"])
+            lock = True
+        elif param == "r":
             for dType in rocblasValue.keys():
                 if problemDefinition[param] == dType:
                     value = rocblasValue[dType]
@@ -881,7 +885,7 @@ def ConvertToYAML(problemDefinition,disableStrides="false"):
         if ("call_count" not in modKey) and ("iters" not in modKey):
             rocblas_call += "%s: %s, " % (modKey,value)
         else:
-            rocblas_call +=  "%s: %s " % (modKey, value)
+            rocblas_call +=  "%s: %s " % (modKey,value)
     rocblas_call += "}"
 
     return rocblas_call
