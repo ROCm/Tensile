@@ -995,7 +995,6 @@ defaultBenchmarkCommonParameters = [
     {"FractionalLoad":            [ 0 ] },
     {"Use64bShadowLimit":         [ 1 ] },
     {"VectorAtomicWidth":         [ -1 ] },
-
     {"NumLoadsCoalescedA":        [ 1 ] },
     {"NumLoadsCoalescedB":        [ 1 ] },
     {"WorkGroup":                 [ [16,16,1]] },
