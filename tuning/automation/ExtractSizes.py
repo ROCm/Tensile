@@ -687,6 +687,15 @@ def UpdateOutputMapping(mapper, problemDefinition):
     else:
         lineDefinitions = []
         mapper[key] = lineDefinitions
+ 
+    if problemDefinition["r"] == None:
+        problemDefinition["r"] = problemDefinition["a_type"]
+    elif problemDefinition["a_type"] == None:
+        problemDefinition["a_type"] = problemDefinition["r"]
+        problemDefinition["b_type"] = problemDefinition["r"]
+        problemDefinition["c_type"] = problemDefinition["r"]
+        problemDefinition["d_type"] = problemDefinition["r"]
+        problemDefinition["compute_type"] = problemDefinition["r"]
 
     if problemDefinition not in lineDefinitions:
         lineDefinitions.append(problemDefinition)
