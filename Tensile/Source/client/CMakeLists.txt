@@ -34,6 +34,10 @@ endif()
 
 target_include_directories(TensileClient PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")# "${rocm_smi_root}/include")
 
+if(CXX_VERSION_STRING MATCHES "clang")
+    target_compile_options(TensileClient PUBLIC -mno-xnack -Xarch_gfx906 -mno-sram-ecc -Xarch_gfx908 -msram-ecc)
+endif()
+
 target_link_libraries(TensileClient TensileHost ${Boost_LIBRARIES} rocm_smi)
 
 add_executable(tensile_client main.cpp)
