@@ -37,7 +37,7 @@ HELP_STR="
     [--rocblas-fork]        Optional. Specify which rocBLAS fork to use (default=ROCmSoftwarePlatform)
     [-b|--branch]           Optional. Specify which Tensile branch to use (default=master)
     [--rocblas-branch]      Optional. Specify which rocBLAS branch to use (default=develop)
-    [-p|--private]          Optional. Specify whether you want to use rocBLAS-internal (private) repo (default=false)
+    [-p|--public]           Optional. Specify whether you want to use rocBLAS (public) repo (default=false)
     [--one-type]            Optional. Only tune one matrix type (nn, nt, or tn)
     [--omit-type]           Optional. Ignore one matrix type when tuning (nn, nt, or tn)
     [--problem-definition]  Optional. Specify gemm, strided batched, or both sizes (gemm, batch, or both, default=both)
@@ -62,12 +62,12 @@ ORGANIZATION=ROCmSoftwarePlatform
 ROCBLAS_ORGANIZATION=ROCmSoftwarePlatform
 ROCBLAS_BRANCH=develop
 TENSILE_BRANCH=develop
-PRIVATE=false
+PUBLIC=false
 HCC=false
 ROCM_PATH=/opt/rocm
 DEPENDENCIES=true
 
-OPTS=`getopt -o hg:z:y:o:f:drmctsi:u:b:p --long help,gpu:,log:,network:,data-type:,output-dir:,sclk:,no-dependencies,client:,rk,mfma,count,tile-aware,disable-strides,initialization:,username:,branch:,number:,rocblas-fork:,rocblas-branch:,private,one-type:,omit-type:,problem-definition:,hcc,rocm-path: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hg:z:y:o:f:drmctsi:u:b:p --long help,gpu:,log:,network:,data-type:,output-dir:,sclk:,no-dependencies,client:,rk,mfma,count,tile-aware,disable-strides,initialization:,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition:,hcc,rocm-path: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -93,7 +93,7 @@ while true; do
         --rocblas-fork )            ROCBLAS_ORGANIZATION="$2"; shift 2;;
         -b | --branch )             TENSILE_BRANCH="$2"; shift 2;;
         --rocblas-branch )          ROCBLAS_BRANCH="$2"; shift 2;;
-        -p | --private )            PRIVATE=true; shift ;;
+        -p | --public )             PUBLIC=true; shift ;;
         --client)                   TENSILE_CLIENT="$2"; shift 2;;
         --number )                  NUM="$2"; shift 2;;
         --one-type )                TUNE_TYPE="$2"; shift 2;;
@@ -381,6 +381,7 @@ LOGNAME="${LOG%.*}"
 collect_uniques
 chmod 755 scripts/*
 chmod 755 scripts2/*
+git config --global credential.helper store
 git clone https://github.com/${ORGANIZATION}/Tensile.git -b ${TENSILE_BRANCH}
 
 mkdir logs
@@ -388,9 +389,9 @@ pushd Tensile
 run_tune_all_scripts
 popd
 
-REPO=rocBLAS
-if [[ "${PRIVATE}" == true ]]; then
-    REPO=rocBLAS-internal
+REPO=rocBLAS-internal
+if [[ "${PUBLIC}" == true ]]; then
+    REPO=rocBLAS
 fi
 
 git clone https://github.com/${ROCBLAS_ORGANIZATION}/${REPO}.git -b ${ROCBLAS_BRANCH} rocBLAS
@@ -455,4 +456,4 @@ popd
 popd
 
 source ~/.bashrc
-./tuning/scripts/analyze-results.sh -o ${OUTPUT_DIR}/analysis -r ${OUTPUT_DIR}/rocBLAS/reference-build/release/clients/staging/results1 -b ${OUTPUT_DIR}/rocBLAS/tuned-build/release/clients/staging/results1 -z ${LOG} -f ${SCLK} -s ${DVAL} -g ${GPU} -c ${COUNT} -m ${MFMA}
+./tuning/scripts/analyze-results.sh -o ${OUTPUT_DIR}/analysis -r ${OUTPUT_DIR}/rocBLAS/reference-build/release/clients/staging/results1 -b ${OUTPUT_DIR}/rocBLAS/tuned-build/release/clients/staging/results1 -z ${OUTPUT_DIR}/scripts/*-all.sh -f ${SCLK} -s ${DVAL} -g ${GPU} -c ${COUNT} -m ${MFMA}
