@@ -83,7 +83,16 @@ add_library (TensileHost STATIC ${tensile_sources})
 target_include_directories(TensileHost INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 if(CXX_VERSION_STRING MATCHES "clang")
-    target_compile_options(TensileHost PUBLIC -mno-xnack "SHELL:-Xarch_gfx906 -msram-ecc" "SHELL:-Xarch_gfx908 -msram-ecc")
+    target_compile_options(TensileHost PUBLIC -mno-xnack)
+    set(gfx906_options "-Xarch_gfx906 -msram-ecc")
+    set(gfx908_options "-Xarch_gfx908 -msram-ecc")
+    if(CMAKE_VERSION VERSION_LESS 3.12)
+        set_target_properties(TensileHost PROPERTIES COMPILE_FLAGS
+          "${gfx906_options} ${gfx908_options}")
+    else()
+        target_compile_options(TensileHost PUBLIC
+          "SHELL:${gfx906_options}" "SHELL:${gfx908_options}")
+    endif()
 endif()
 
 if(TENSILE_USE_LLVM OR TENSILE_USE_MSGPACK)
