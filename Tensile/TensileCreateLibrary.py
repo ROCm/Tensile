@@ -173,7 +173,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
       hipFlags += ['-I', outputPath]
 
-      archFlags += ['-mno-xnack', '-Xarch_gfx906', '-mno-sram-ecc', '-Xarch_gfx908', '-msram-ecc']
+      archFlags += ['-mno-xnack', '-Xarch_gfx906', '-msram-ecc', '-Xarch_gfx908', '-msram-ecc']
 
       compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', os.path.join(buildPath, objectFilename)]
 
