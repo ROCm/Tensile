@@ -166,10 +166,9 @@ namespace Tensile
             {
                 const std::string& key = oldRowIter.first;
                 if(key.compare(ResultKey::ProblemIndex) == 0
-                   || key.find_first_of("Size") != std::string::npos
-                   || key.compare(ResultKey::LDD) == 0 || key.compare(ResultKey::LDC) == 0
-                   || key.compare(ResultKey::LDA) == 0 || key.compare(ResultKey::LDB) == 0
-                   || key.compare(ResultKey::TotalFlops) == 0)
+                   || key.find("Size") != std::string::npos || key.compare(ResultKey::LDD) == 0
+                   || key.compare(ResultKey::LDC) == 0 || key.compare(ResultKey::LDA) == 0
+                   || key.compare(ResultKey::LDB) == 0 || key.compare(ResultKey::TotalFlops) == 0)
                 {
                     // these data should be the same for same problem
                     assert(oldRowIter.second == newRow[key]);
