@@ -735,7 +735,7 @@ def ConvertToRocBlasBenchCall(line):
             benchLine += ('-n '+line[item+1]+' ')
         if line[item] == 'K':
             benchLine += ('-k '+line[item+1]+' ')
-        if line[item] == 'call_count':
+        if line[item] == 'call_count' or line[item] == "iters":
             benchLine += ('-i '+line[item+1])
         if line[item] == 'a_type':
             if line[item+1] == 'f32_r':
