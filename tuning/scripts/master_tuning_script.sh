@@ -181,7 +181,7 @@ elif [[ "${DATA_TYPE}" == dgemm || "${DATA_TYPE}" == d ]]; then
     DATA_TYPE=dgemm
     DVAL=1
 else
-    if [[ "$(grep -c "r s" ${LOG})" -gt 0 || "$(grep -c "r f32" ${LOG})" -gt 0 || "$(grep -c "sgemm" ${LOG})" -gt 0 || "$(grep -c "a_type f32" ${LOG})" -gt 0 ]]; then
+    if [[ "$(grep -c 'r s' ${LOG})" -gt 0 || "$(grep -c 'r f32' ${LOG})" -gt 0 || "$(grep -c 'sgemm' ${LOG})" -gt 0 || "$(grep -c 'a_type f32' ${LOG})" -gt 0 || "$(grep -c '"a_type: "f32_r"' ${LOG})" -gt 0 ]]; then
         printf "sgemm detected\n"
         DATA_TYPE=sgemm
         DVAL=2
@@ -189,10 +189,14 @@ else
         printf "dgemm detected\n"
         DATA_TYPE=dgemm
         DVAL=1
-    elif [[ "$(grep -c 'r h' ${LOG})" -gt 0 || "$(grep -c 'r f16' ${LOG})" -gt 0 || "$(grep -c 'hgemm' ${LOG})" -gt 0 || "$(grep -c 'a_type f16' ${LOG})" -gt 0 ]]; then
+    elif [[ "$(grep -c 'r h' ${LOG})" -gt 0 || "$(grep -c 'r f16' ${LOG})" -gt 0 || "$(grep -c 'hgemm' ${LOG})" -gt 0 || "$(grep -c 'a_type f16' ${LOG})" -gt 0 || "$(grep -c 'a_type: "f16_r"' ${LOG})" -gt 0 ]]; then
         printf "hgemm detected\n"
         DATA_TYPE=hgemm
         DVAL=4
+        if [[ "$(grep -c 'compute_type f16_r' ${LOG})" -gt 0 || "$(grep -c 'compute_type: "f16_r"' ${LOG})" -gt 0 ]]; then
+            printf "compute_type of f16 detected, disabling HighPrecisionAccumulate\n"
+            DISABLE_HPA=true
+        fi
     else
         printf "Could not detect data type in log file, assuming sgemm\n"
         DATA_TYPE=sgemm
