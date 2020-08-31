@@ -43,36 +43,79 @@ from .SolutionStructs import Solution, ProblemType, ProblemSizes
 from .SolutionWriter import SolutionWriter
 from .TensileCreateLibrary import writeSolutionsAndKernels, writeCMake, buildObjectFileNames
 
+############################################################################
+# generateForkedSolutions
+############################################################################
+def generateForkedSolutions (problemType, hardcodedParameters, benchmarkPermutations, winners=None, initialSolutionParameters=None):
+  """this creates a set or solutions based on the forked parameters using
+     a set of common parameters from which to fork from
+     
+  Parameters:
+  problemType the problem type
+  hardcodedParameters the set of parameters which overrides the baseline parameters
+  benchmarkPermutations set of baseline parameters from which the the updates are branched form
+  winners previous winning parameters which overrides the derived parameters
+  initialSolutionParameters set of parameters which fills in missing params default parameters
 
-def generateForkedSolutions (problemType, forkedParameters, commonSolutionParameters):
-  
+  Returns:
+  list: Soutions list
+     
+  """
   solutions = []
-  numForked = len(forkedParameters)
+  numHardcoded = len(hardcodedParameters)
 
-  ############################################################################
-  # this creates a set or solutions based on the forked parameters using
-  # a set of common parameters from which to fork from
-  ############################################################################
   print1("# Enumerating Solutions")
   solutionSet = set() 
-  PrintSolutionRejectionReason = globalParameters["PrintSolutionRejectionReason"]
-  for forkedIdx in Utils.tqdm(range(0, numForked), "Enumerating Solutions"):
-    solutions.append([])
-    forkedParamDict = forkedParameters[forkedIdx]
-    
-    solution = {"ProblemType": deepcopy(problemType.state)}
-    solution.update(commonSolutionParameters)
-    solution.update(forkedParamDict)
 
-    # TODO check if solution matches problem size for exact tile kernels
-    solutionObject = Solution(solution)
-    if solutionObject["Valid"]:
-      if solutionObject not in solutionSet:
-        solutionSet.add(solutionObject)
-        solutions[forkedIdx].append(solutionObject)
-    else:
-      if PrintSolutionRejectionReason:
-        print1("rejecting solution %s" % str(solutionObject))
+  for hardcodedIdx in Utils.tqdm(range(0, numHardcoded), "Enumerating Solutions"):
+    solutions.append([])
+    hardcodedParamDict = hardcodedParameters[hardcodedIdx]
+    for benchmarkPermutation in benchmarkPermutations:
+      solution = {"ProblemType": deepcopy(problemType.state)}
+      solution.update(benchmarkPermutation)
+      solution.update(hardcodedParamDict)
+      if winners:
+        winningParameters = winners[hardcodedParamDict]
+        if winningParameters == None:
+          # this is a joined parameter that didn't have a winner, that's okay
+          continue
+        solution.update(winningParameters)
+
+      # append default parameters where necessary
+      if initialSolutionParameters:
+        for initialSolutionParameterName in initialSolutionParameters:
+          if initialSolutionParameterName not in solution:
+            solution[initialSolutionParameterName] = \
+              initialSolutionParameters[initialSolutionParameterName]
+
+      # TODO check if solution matches problem size for exact tile kernels
+      solutionObject = Solution(solution)
+      if solutionObject["Valid"]:
+        if solutionObject not in solutionSet:
+          solutionSet.add(solutionObject)
+          solutions[hardcodedIdx].append(solutionObject)
+      else:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("rejecting solution %s" % str(solutionObject))
+
+  #PrintSolutionRejectionReason = globalParameters["PrintSolutionRejectionReason"]
+  #for forkedIdx in Utils.tqdm(range(0, numForked), "Enumerating Solutions"):
+  #  solutions.append([])
+  #  forkedParamDict = forkedParameters[forkedIdx]
+  #  
+  #  solution = {"ProblemType": deepcopy(problemType.state)}
+  #  solution.update(commonSolutionParameters)
+  #  solution.update(forkedParamDict)
+
+  #  # TODO check if solution matches problem size for exact tile kernels
+  #  solutionObject = Solution(solution)
+  #  if solutionObject["Valid"]:
+  #    if solutionObject not in solutionSet:
+  #      solutionSet.add(solutionObject)
+  #      solutions[forkedIdx].append(solutionObject)
+  #  else:
+  #    if PrintSolutionRejectionReason:
+  #      print1("rejecting solution %s" % str(solutionObject))
     
   solutionList = list (solutionSet)
 
@@ -210,7 +253,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ############################################################################
     # Enumerate Benchmark Permutations
     ############################################################################
-    solutions = []
+    #solutions = []
     totalBenchmarkPermutations = 1
     for benchmarkParamName in benchmarkStep.benchmarkParameters:
       totalBenchmarkPermutations *= len(benchmarkStep.benchmarkParameters[benchmarkParamName])
@@ -234,35 +277,42 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     # Enumerate Solutions = Hardcoded * Benchmark
     ############################################################################
     print1("# Enumerating Solutions")
-    solutionSet = set() # avoid duplicates for nlca=-1, 1
-    for hardcodedIdx in Utils.tqdm(range(0, numHardcoded), "Enumerating Solutions"):
-      solutions.append([])
-      hardcodedParamDict = benchmarkStep.hardcodedParameters[hardcodedIdx]
-      for benchmarkIdx, benchmarkPermutation in enumerate(benchmarkPermutations):
-        solution = {"ProblemType": deepcopy(benchmarkProcess.problemType.state)}
-        solution.update(benchmarkPermutation)
-        solution.update(hardcodedParamDict)
-        if benchmarkStepIdx > 0:
-          winningParameters = winners[hardcodedParamDict]
-          if winningParameters == None:
-            # this is a joined parameter that didn't have a winner, that's okay
-            continue
-          solution.update(winningParameters)
+    if benchmarkStepIdx > 0:
+      theWinners = winners
+    else:
+      theWinners = None
 
-        # append default parameters where necessary
-        for initialSolutionParameterName in benchmarkStep.initialSolutionParameters:
-          if initialSolutionParameterName not in solution:
-            solution[initialSolutionParameterName] = \
-                benchmarkStep.initialSolutionParameters[initialSolutionParameterName]
-        # TODO check if solution matches problem size for exact tile kernels
-        solutionObject = Solution(solution)
-        if solutionObject["Valid"]:
-          if solutionObject not in solutionSet:
-            solutionSet.add(solutionObject)
-            solutions[hardcodedIdx].append(solutionObject)
-        else:
-          if globalParameters["PrintSolutionRejectionReason"]:
-            print1("rejecting solution %s" % str(solutionObject))
+    solutions = generateForkedSolutions (benchmarkStep.problemType, benchmarkStep.hardcodedParameters, \
+        benchmarkPermutations, benchmarkStep.hardcodedParameters, theWinners, benchmarkStep.initialSolutionParameters)
+    #solutionSet = set() # avoid duplicates for nlca=-1, 1
+    #for hardcodedIdx in Utils.tqdm(range(0, numHardcoded), "Enumerating Solutions"):
+    #  solutions.append([])
+    #  hardcodedParamDict = benchmarkStep.hardcodedParameters[hardcodedIdx]
+    #  for benchmarkIdx, benchmarkPermutation in enumerate(benchmarkPermutations):
+    #    solution = {"ProblemType": deepcopy(benchmarkProcess.problemType.state)}
+    #    solution.update(benchmarkPermutation)
+    #    solution.update(hardcodedParamDict)
+    #    if benchmarkStepIdx > 0:
+    #      winningParameters = winners[hardcodedParamDict]
+    #      if winningParameters == None:
+    #        # this is a joined parameter that didn't have a winner, that's okay
+    #        continue
+    #      solution.update(winningParameters)
+
+    #    # append default parameters where necessary
+    #    for initialSolutionParameterName in benchmarkStep.initialSolutionParameters:
+    #      if initialSolutionParameterName not in solution:
+    #        solution[initialSolutionParameterName] = \
+    #            benchmarkStep.initialSolutionParameters[initialSolutionParameterName]
+    #    # TODO check if solution matches problem size for exact tile kernels
+    #    solutionObject = Solution(solution)
+    #    if solutionObject["Valid"]:
+    #      if solutionObject not in solutionSet:
+    #        solutionSet.add(solutionObject)
+    #        solutions[hardcodedIdx].append(solutionObject)
+    #    else:
+    #      if globalParameters["PrintSolutionRejectionReason"]:
+    #        print1("rejecting solution %s" % str(solutionObject))
 
     # remove hardcoded that don't have any valid benchmarks
     removeHardcoded = list([x for i,x in enumerate(benchmarkStep.hardcodedParameters) if len(solutions[i]) == 0])
