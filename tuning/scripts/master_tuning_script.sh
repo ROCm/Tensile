@@ -32,6 +32,7 @@ HELP_STR="
     [-t|--tile-aware]       Optional. Use tile-aware method. (limited support, default=false)
     [-s|--disable-strides]  Optional. Disable leading dimensions and strides in tuning file (default=false)
     [-i|--initialization]   Optional. Initialize matrices when benchmarking (rand_int, trig_float, hpl, default=rand_int)
+    [--disable-hpa]         Optional. Disable high precision accumulate in hgemm sizes (default=false)
     [--number]              Optional. Set script number (view scripts/performance in rocBLAS directory, default=1)
     [-u|--username]         Optional. Specify which Tensile fork to use (default=ROCmSoftwarePlatform)
     [--rocblas-fork]        Optional. Specify which rocBLAS fork to use (default=ROCmSoftwarePlatform)
@@ -51,6 +52,7 @@ TILE_AWARE=false
 MFMA=false
 RK=false
 DISABLE_STRIDES=false
+DISABLE_HPA=false
 LIBRARY=vega20
 GPU=mi60
 DVAL=2
@@ -67,7 +69,7 @@ HCC=false
 ROCM_PATH=/opt/rocm
 DEPENDENCIES=true
 
-OPTS=`getopt -o hg:z:y:o:f:drmctsi:u:b:p --long help,gpu:,log:,network:,data-type:,output-dir:,sclk:,no-dependencies,client:,rk,mfma,count,tile-aware,disable-strides,initialization:,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition:,hcc,rocm-path: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hg:z:y:o:f:drmctsi:u:b:p --long help,gpu:,log:,network:,data-type:,output-dir:,sclk:,no-dependencies,client:,rk,mfma,count,tile-aware,disable-strides,initialization:,disable-hpa,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition:,hcc,rocm-path: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -89,6 +91,7 @@ while true; do
         -t | --tile-aware )         TILE_AWARE=true; shift ;;
         -s | --disable-strides )    DISABLE_STRIDES=true; shift;;
         -i | --initialization )     INITIALIZATION="$2"; shift 2;;
+        --disable-hpa )             DISABLE_HPA=true; shift;;
         -u | --username )           ORGANIZATION="$2"; shift 2;;
         --rocblas-fork )            ROCBLAS_ORGANIZATION="$2"; shift 2;;
         -b | --branch )             TENSILE_BRANCH="$2"; shift 2;;
@@ -371,9 +374,9 @@ make_packages()
 mkdir ${OUTPUT_DIR}
 EXTRACT_SIZE_PATH=`pwd`/${OUTPUT_DIR}
 if [ -z ${NETWORK+foo} ]; then
-    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION} ${INITIALIZATION} ${TENSILE_CLIENT}
+    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION} ${INITIALIZATION} ${TENSILE_CLIENT} ${DISABLE_HPA}
 else
-    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION} ${INITIALIZATION} ${TENSILE_CLIENT}
+    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION} ${INITIALIZATION} ${TENSILE_CLIENT} ${DISABLE_HPA}
 fi
 
 pushd ${OUTPUT_DIR}

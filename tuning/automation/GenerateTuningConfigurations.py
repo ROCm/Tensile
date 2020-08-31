@@ -170,7 +170,7 @@ def ClassifySize(size,mfma="false"):
 
     return sizeKey
 
-def GetProblemType(key,tileAware):
+def GetProblemType(key,tileAware,disableHpa):
     _ , transposeA, transposeB, dType = key
 
     initialParams = {}
@@ -185,6 +185,9 @@ def GetProblemType(key,tileAware):
     else:
         initialParams["TransposeB"] = True
     initialParams["DataType"] = dType
+
+    if dType == "h" and disableHpa == "false":
+        initialParams["HighPrecisionAccumulate"] = True
 
     problemType = generateProblemType(initialParams,tileAware)
 
@@ -442,7 +445,7 @@ def addRkGroup(problemGroup,sizeList,gsuSizeList,tileAware):
     appendSizes(benchmarkGroup,sizeList,tileAware,False,"true")
     problemGroup.append(benchmarkGroup)
 
-def OutputConfigs(problemMapper, configPath, outputName, library, tileAware, mfma, rk, disableStrides, client):
+def OutputConfigs(problemMapper, configPath, outputName, library, tileAware, mfma, rk, disableStrides, client, disableHpa):
 
     keys = list(problemMapper.keys())
 
@@ -464,7 +467,7 @@ def OutputConfigs(problemMapper, configPath, outputName, library, tileAware, mfm
             if "'beta': 1" in str(problemDefinition):
                 initBetaVal = 1
 
-        problemType = GetProblemType(key,tileAware)
+        problemType = GetProblemType(key,tileAware,disableHpa)
         dataType = problemType["DataType"].lower()
         operationType = problemType["OperationType"].lower()
 
@@ -732,7 +735,7 @@ def RunMain():
 
     argParser = argparse.ArgumentParser()
 
-    if len(sys.argv) <= 12:
+    if len(sys.argv) <= 13:
         argParser.add_argument("input_file_name", help="configuration file path")
     else:
         argParser.add_argument("input_logs", help="the input path for log files")
@@ -748,6 +751,7 @@ def RunMain():
     argParser.add_argument("problem_definition", help="gemm, batch, or both", default="both")
     argParser.add_argument("initialization", help="rand_int or trig_float", default="rand_int")
     argParser.add_argument("client", help="set Tensile client to new, old, or both", default="new")
+    argParser.add_argument("disable_hpa", help="for hgemm, disable hpa", default="false")
 
     args = argParser.parse_args(userArgs)
     outputPath = args.output_path
@@ -760,8 +764,9 @@ def RunMain():
     probDefinition = args.problem_definition
     initialization = args.initialization
     client = args.client
+    disableHpa = args.disable_hpa
 
-    if len(sys.argv) <= 12:
+    if len(sys.argv) <= 13:
         inputFileName = args.input_file_name
         inputFileBaseName = os.path.basename(inputFileName)
         namePart, _ = os.path.splitext(inputFileBaseName)
@@ -770,7 +775,7 @@ def RunMain():
         networkName = args.network_name
         allLogs = [inputPath+'/'+filename for filename in os.listdir(inputPath) if networkName in filename]
 
-    if len(sys.argv) <= 12:
+    if len(sys.argv) <= 13:
         problemMapper = ProcessFile(inputFileName)
     else:
         problemMapper = ProcessFiles(allLogs)
@@ -788,9 +793,9 @@ def RunMain():
     if not os.path.exists(sizePath):
         os.makedirs(sizePath)
 
-    OutputConfigs(problemMapper,configPath,outputName,library,tileAware,mfma,rk,disableStrides,client)
+    OutputConfigs(problemMapper,configPath,outputName,library,tileAware,mfma,rk,disableStrides,client,disableHpa)
 
-    if len(sys.argv) <= 12:
+    if len(sys.argv) <= 13:
         OutputScript(problemMapper, scriptPath, namePart, disableStrides, probDefinition, initialization)
         OutputScript2(problemMapper, scriptPath2, namePart+'2', disableStrides, probDefinition, initialization)
         OutputProblemDefinitions(problemMapper, sizePath, namePart)
