@@ -462,34 +462,6 @@ namespace Tensile
                 compareInvalid.before(resultBuffer[i], i, elementsBeforeData);
             }
 
-            auto compareValues
-                = [&](Type referenceValue, Type resultValue, size_t elemIndex, size_t elemNumber) {
-                      bool match = AlmostEqual(referenceValue, resultValue);
-                      if(!match)
-                          errors++;
-
-                      if(!match || m_printValids)
-                      {
-                          if(doPrint)
-                          {
-                              if(printed == 0)
-                              {
-                                  std::cout << "Index:  Device | Reference" << std::endl;
-                              }
-
-                              std::cout << "[" << (printed) << "] "
-                                        << " elem=" << elemNumber << " idx=" << elemIndex << ": "
-                                        << resultValue << (match ? "==" : "!=") << referenceValue
-                                        << std::endl;
-
-                              printed++;
-
-                              if(m_printMax >= 0 && printed >= m_printMax)
-                                  doPrint = false;
-                          }
-                      }
-                  };
-
             if(m_validationStride == 1)
             {
                 std::vector<size_t> coord(tensor.dimensions());
