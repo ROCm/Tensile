@@ -271,13 +271,7 @@ class Writer:
       if selectionModel == "TileAwareMetricSelection":
         idealMap = logicTuple[7]
         tileSelectionLogic["IdealMap"] = idealMap
-      #idealMap = {}
-      #for i in tileSelectionIndices:
-      #  iSolution = solutionList[i]
-      #  ideals = copy.deepcopy(iSolution['Ideals'])
-      #  idealMap[i] = ideals
       tileSelectionLogic["TileSelectionIndices"] = tileSelectionIndices
-      #tileSelectionLogic["IdealMap"] = idealMap
       tileSelectionLogic["SelectionModel"] = selectionModel
       data.append(tileSelectionLogic)
 

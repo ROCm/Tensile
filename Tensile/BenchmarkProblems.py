@@ -273,7 +273,8 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 
     # write benchmarkFiles
     writeBenchmarkFiles(stepBaseDir, solutionList, benchmarkStep.problemSizes, \
-        shortName, filesToCopy, benchmarkProcess.solutionSummationSizes)
+        shortName, filesToCopy, benchmarkProcess.solutionSummationSizes, \
+        benchmarkProcess.tileAwareMetricSizes)
 
     removeSolutions = []
     for i in range(0, len(solutions)):
@@ -485,11 +486,38 @@ def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileNa
     diffFile.close()
   return results
 
+################################################################################
+# computeIdealSizes
+################################################################################
+def computeIdealSizes(problemType, solutions, solutionSummationSizes):
+  idealSizes = []
+  if "TileAwareSelection" in problemType and problemType["TileAwareSelection"]:
+    maxMacroTile0 = 0
+    maxMacroTile1 = 0
+    for solution in solutions:
+      macroTile0 = solution["MacroTile0"]
+      macroTile1 = solution["MacroTile1"]
+      if macroTile0 > maxMacroTile0:
+        maxMacroTile0 = macroTile0
+      if macroTile1 > maxMacroTile1:
+        maxMacroTile1 = macroTile1
+    idealM = 36 * maxMacroTile0
+    idealN = 36 * maxMacroTile1
+
+    if problemType["Batched"]:
+        for idealK in solutionSummationSizes:
+          idealSize = {"Exact": [idealM, idealN, 1, idealK]}
+          idealSizes.append(idealSize)
+    else:
+        for idealK in solutionSummationSizes:
+          idealSize = {"Exact": [idealM, idealN, idealK]}
+          idealSizes.append(idealSize)
+  return ProblemSizes(problemType, idealSizes)
 
 ################################################################################
 # Write Benchmark Files
 ################################################################################
-def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToCopy, solutionSummationSizes):
+def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToCopy, solutionSummationSizes, tileAwareMetricSizes = None):
   if not globalParameters["MergeFiles"]:
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Solutions"))
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Kernels"))
@@ -546,27 +574,15 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   writeClientConfig(True, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, False)
 
   if "TileAwareSelection" in problemType and problemType["TileAwareSelection"]:
-    maxMacroTile0 = 0
-    maxMacroTile1 = 0
-    for solution in solutions:
-      macroTile0 = solution["MacroTile0"]
-      macroTile1 = solution["MacroTile1"]
-      if macroTile0 > maxMacroTile0:
-        maxMacroTile0 = macroTile0
-      if macroTile1 > maxMacroTile1:
-        maxMacroTile1 = macroTile1
-    idealM = 36 * maxMacroTile0
-    idealN = 36 * maxMacroTile1
-    idealSizes = []
-    if problemType["Batched"]:
-        for idealK in solutionSummationSizes:
-          idealSize = {"Exact": [idealM, idealN, 1, idealK]}
-          idealSizes.append(idealSize)
-    else:
-        for idealK in solutionSummationSizes:
-          idealSize = {"Exact": [idealM, idealN, idealK]}
-          idealSizes.append(idealSize)
-    idealProblemSizes = ProblemSizes(problemType, idealSizes)
+    idealProblemSizes = None
+    if "SelectionModel" in problemType and problemType["SelectionModel"] == "TileAwareMetricSelection":
+      if tileAwareMetricSizes:
+        idealProblemSizes = ProblemSizes(problemType, tileAwareMetricSizes)
+      else:
+        idealProblemSizes = computeIdealSizes(problemType, solutions, solutionSummationSizes)
+    else:  
+      idealProblemSizes = computeIdealSizes(problemType, solutions, solutionSummationSizes)
+
     writeClientConfig(True, solutions, idealProblemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, True)
 
   if len(solutions) == 0:

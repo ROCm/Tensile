@@ -78,6 +78,7 @@ class BenchmarkProcess:
     self.hardcodedParameters = [{}]
     self.singleValueParameters = {}
     self.solutionSummationSizes = []
+    self.tileAwareMetricSizes = []
 
     # (I)
     self.fillInMissingStepsWithDefaults(self.isBatched, problemSizeGroupConfig)
@@ -311,6 +312,14 @@ class BenchmarkProcess:
     #  self.benchmarkJoinParameters.append({"BenchmarkJoin": [0]})
     # No, this is handles by Final Benchmark
 
+    if "TileAwareMetricSelection" in config:
+      # this value is expected to be a list of dictionaries
+      # it could potentially be a name with no value 
+      if config["TileAwareMetricSelection"] and len(config["TileAwareMetricSelection"]):
+        tileAwareMetricConfig = config["TileAwareMetricSelection"][0]
+        if "ProblemSizes" in tileAwareMetricConfig:
+          self.tileAwareMetricSizes = tileAwareMetricConfig["ProblemSizes"]
+
     ############################################################################
     # (I-10) Parameter Lists
     # benchmarkCommonParameters
@@ -506,11 +515,6 @@ class BenchmarkProcess:
         self.solutionSummationSizes = problemSizesDict["SolutionSummationSizes"]
       else:
         problemSizes = problemSizesDict["ProblemSizes"]
-        #if "TileAwareSelection" in self.problemType.state and \
-        #                 self.problemType.state["SelectionModel"] == "TileAwareMetricSelection":
-        #    if not problemSizes:
-        #      problemSizes = []
-        #    self.addTileAwareSizes(self.problemType, problemSizes)
         self.currentProblemSizes = ProblemSizes(self.problemType, problemSizes)
         currentBenchmarkParameters = {}
         benchmarkStep = BenchmarkStep(
@@ -523,37 +527,6 @@ class BenchmarkProcess:
         self.benchmarkStepIdx+=1
 
 
-  def addTileAwareSizes(self, problemType, problemSizes):
-    #maxMacroTile0 = 0
-    #maxMacroTile1 = 0
-    #benchmarkProcess.solutionSummationSizes
-    #for solution in solutions:
-    #  macroTile0 = solution["MacroTile0"]
-    #  macroTile1 = solution["MacroTile1"]
-    #  if macroTile0 > maxMacroTile0:
-    #    maxMacroTile0 = macroTile0
-    #  if macroTile1 > maxMacroTile1:
-    #    maxMacroTile1 = macroTile1
-    maxMacroTile0 = 128
-    maxMacroTile1 = 128
-    idealM = 36 * maxMacroTile0
-    idealN = 36 * maxMacroTile1
-    #idealSizes = []
-    if problemType["Batched"]:
-        for idealK in self.solutionSummationSizes:
-          idealSize = {"Exact": [idealM, idealN, 1, idealK]}
-          #idealSizes.append(idealSize)
-          problemSizes.append(idealSize)
-    else:
-        for idealK in self.solutionSummationSizes:
-          idealSize = {"Exact": [idealM, idealN, idealK]}
-          #idealSizes.append(idealSize)
-          problemSizes.append(idealSize)
-    #idealProblemSizes = ProblemSizes(problemType, idealSizes)
-    #return idealSizes
-
-
-
   ##############################################################################
   # For list of config parameters convert to steps and append to steps list
   ##############################################################################
@@ -562,11 +535,6 @@ class BenchmarkProcess:
     for paramConfig in configParameterList:
       if isinstance(paramConfig, dict):
         if "ProblemSizes" in paramConfig:
-          #if "TileAwareSelection" in self.problemType.state and \
-          #               self.problemType.state["SelectionModel"] == "TileAwareMetric":
-          #  problemSizes = paramConfig["ProblemSizes"]
-          #  self.addTileAwareSizes(self.problemType, problemSizes)
-          #self.currentProblemSizes = ProblemSizes(self.problemType, problemSizes)
           self.currentProblemSizes = ProblemSizes(self.problemType, paramConfig["ProblemSizes"])
           continue
       currentBenchmarkParameters = {}

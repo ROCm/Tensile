@@ -122,6 +122,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
     s["SolutionNameMin"] = Solution.getNameMin(s, solutionMinNaming)
     print1("(%2u) %s : %s" % (i, Solution.getNameMin(s, solutionMinNaming), Solution.getNameFull(s)))
 
+  idealMap = {}
   if enableTileSelection:
     if globalParameters["NewClient"] == 2:
       if selectionModel == "TileAwareMetricSelection":
@@ -155,7 +156,6 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
 
     solutionsStartIndex = len(logicAnalyzer.solutions)
 
-    idealMap = {}
     for i in range(0, len(validSelectionSolutionsRemainder)):
       validSelectionSolution = validSelectionSolutionsRemainder[i]
       (validSolution, validSolutionInfo) = validSelectionSolution
