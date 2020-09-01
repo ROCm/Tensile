@@ -213,6 +213,7 @@ namespace Tensile
                 ("log-level",                po::value<LogLevel>()->default_value(LogLevel::Debug),                "Log level")
                 ("exit-on-failure",          po::value<bool>()->default_value(false), "Exit run early on failed kernels.")
                 ("selection-only",           po::value<bool>()->default_value(false), "Don't run any solutions, only print kernel selections.")
+                ("max-workspace-size",       po::value<size_t>()->default_value(32*1024*1024), "Max workspace for training")
                 ;
             // clang-format on
 
@@ -459,8 +460,11 @@ int main(int argc, const char* argv[])
         lastSolutionIdx = firstSolutionIdx + numSolutions - 1;
     }
 
+    size_t maxWorkspaceSizeLimit = args["max-workspace-size"].as<size_t>();
     size_t maxWorkspaceSize
         = getMaxWorkspace(library, hardware, args, problems, firstProblemIdx, lastProblemIdx);
+    maxWorkspaceSize
+        = (maxWorkspaceSize < maxWorkspaceSizeLimit) ? maxWorkspaceSize : maxWorkspaceSizeLimit;
 
     auto dataInit = DataInitialization::Get(args, problemFactory, maxWorkspaceSize);
 
