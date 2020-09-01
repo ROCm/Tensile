@@ -588,7 +588,7 @@ class  MacInst (Inst):
               % ("vgprValuB_X%u_I%u"%(self.PLR,iui), self.bIdx)
           #if a==0 and b==0:
           #  kStr += dump(aStr)
-          kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
+          kStr += "_v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
           ##if macIdx == self.kernel["PerformanceWaitLocation"]:
           ##    kStr += "s_waitcnt lgkmcnt(%u) // extra wait for performance%s" \
           ##        % (self.kernel["PerformanceWaitCount"], self.endLine)
