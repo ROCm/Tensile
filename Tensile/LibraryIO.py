@@ -277,7 +277,7 @@ class Writer:
       #  ideals = copy.deepcopy(iSolution['Ideals'])
       #  idealMap[i] = ideals
       tileSelectionLogic["TileSelectionIndices"] = tileSelectionIndices
-      tileSelectionLogic["IdealMap"] = idealMap
+      #tileSelectionLogic["IdealMap"] = idealMap
       tileSelectionLogic["SelectionModel"] = selectionModel
       data.append(tileSelectionLogic)
 
