@@ -65,7 +65,7 @@ def test_generateSolutions():
     hardcodedParameters = LibraryIO.readConfig(hardcodedParametersFilePath)
     initialSolutionParameters = LibraryIO.readConfig(initialSolutionParametersFilePath)
 
-    solutionList = BenchmarkProblems.generateForkedSolutions (problemTypeObject, hardcodedParameters, initialSolutionParameters)
+    solutionList = BenchmarkProblems.generateForkedSolutions (problemTypeObject, hardcodedParameters, [initialSolutionParameters])
 
     assert len(solutionList) == 2
 
