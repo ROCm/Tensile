@@ -241,7 +241,7 @@ def prepAsm():
     assemblerFile.write("#!/bin/sh %s\n" % ("-x" if globalParameters["PrintLevel"] >=2  else ""))
     assemblerFile.write("# usage: asm.sh kernelName ASM_ARGS\n")
     assemblerFile.write("# example: asm.sh kernelName -mno-xnack -mcpu=gfx900\n")
-    assemblerFile.write("# example: asm.sh kernelName -mno-xnack -mno-sram-ecc -mcpu=gfx906\n")
+    assemblerFile.write("# example: asm.sh kernelName -mno-xnack -msram-ecc -mcpu=gfx906\n")
     assemblerFile.write("# example: asm.sh kernelName -mno-xnack -msram-ecc -mcpu=gfx908\n")
     assemblerFile.write("f=$1\n")
     assemblerFile.write("shift\n")
