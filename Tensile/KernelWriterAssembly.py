@@ -3036,26 +3036,43 @@ class KernelWriterAssembly(KernelWriter):
     # Check alpha == 0
     if self.do["ApplyAlpha"]:
 
+      # TODO: Instead of using input DataType check we should have an explicit AlphaType
       kStr += self.comment("Short circuit condition if Alpha == 0, then sumDims=0")
+      endCheckLabel = "label_AlphaNonZero"
       if kernel["ProblemType"]["DataType"].isDoubleComplex():
-        endCheckLabel = "label_DCAlphaNonZero"
-        kStr += inst("s_cmp_eq_u64", sgpr("Alpha",2), hex(0), "Alpha.real == 0.0 ?")
-        kStr += inst("s_cbranch_scc0 %s" % (endCheckLabel), "branch if alpha.real != 0")
-        kStr += inst("s_cmp_eq_u64", sgpr("Alpha+2",2), hex(0), "Alpha.imag == 0.0 ?")
-        kStr += "%s:%s" % (endCheckLabel, self.endLine)
+        kStr += inst("v_cmp_eq_f64", "vcc", sgpr("Alpha", 2), 0.0, "Alpha.real == 0.0 ?")
+        kStr += inst("s_cbranch_vccz %s" % (endCheckLabel), "branch if Alpha.real != 0")
+        kStr += inst("v_cmp_eq_f64", "vcc", sgpr("Alpha+2", 2), 0.0, "Alpha.imag == 0.0 ?")
+        kStr += inst("s_cbranch_vccz %s" % (endCheckLabel), "branch if Alpha.imag != 0")
 
       elif kernel["ProblemType"]["DataType"].isDouble():
-        kStr += inst("s_cmp_eq_u64", sgpr("Alpha",2), hex(0), "Alpha == 0.0 ?")
+        kStr += inst("v_cmp_eq_f64", "vcc", sgpr("Alpha", 2), 0.0, "Alpha == 0.0 ?")
+        kStr += inst("s_cbranch_vccz %s" % (endCheckLabel), "branch if Alpha != 0")
 
       elif kernel["ProblemType"]["DataType"].isSingleComplex():
-        kStr += inst("s_cmp_eq_u64", sgpr("Alpha",2), hex(0), "Alpha == 0.0 ?")
+        kStr += inst("v_cmp_eq_f32", "vcc", sgpr("Alpha"), 0.0, "Alpha.real == 0.0f ?")
+        kStr += inst("s_cbranch_vccz %s" % (endCheckLabel), "branch if Alpha.real != 0")
+        kStr += inst("v_cmp_eq_f32", "vcc", sgpr("Alpha+1"), 0.0, "Alpha.imag == 0.0f ?")
+        kStr += inst("s_cbranch_vccz %s" % (endCheckLabel), "branch if Alpha.imag != 0")
 
+      # AlphaType is f32
+      elif kernel["ProblemType"]["DataType"].isSingle() or \
+           kernel["ProblemType"]["DataType"].isHalf() or \
+           kernel["ProblemType"]["DataType"].isBFloat16():
+        kStr += inst("v_cmp_eq_f32", "vcc", sgpr("Alpha"), 0.0, "Alpha == 0.0f ?")
+        kStr += inst("s_cbranch_vccz %s" % (endCheckLabel), "branch if alpha != 0")
+
+      # AlphaType is int32
       else:
-        kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), hex(0), "Alpha == 0.0 ?")
+        kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), 0, "Alpha == 0.0 ?")
+        kStr += inst("s_cbranch_scc0 %s" % (endCheckLabel), "branch if alpha != 0")
 
       # Conditional set summation dimensions to 0 on SCC==1
       for i in range(0, self.numSgprSizesSum):
-        kStr += inst("s_cmov_b32", sgpr("SizesSum+%u"%(i)), hex(0), "Set summation dim=0 if Alpha == 0")
+        kStr += inst("s_mov_b32", sgpr("SizesSum+%u"%(i)), hex(0), "Set summation dim=0 if Alpha == 0")
+
+      # Jump here if alpha is non-zero
+      kStr += "%s:%s" % (endCheckLabel, self.endLine)
 
     for tc in ('A', 'B'):
       for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
