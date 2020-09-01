@@ -202,7 +202,7 @@ globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
 globalParameters["MaxFileName"] = 128             # If a file name would be longer than this, shorten it with a hash.
-globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (9,0,10), (10,1,0), (10,1,1)] # assembly kernels writer supports these architectures
+globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (9,0,10), (10,1,0), (10,1,1), (10,1,2), (10,3,0)]             # assembly kernels writer supports these architectures
 globalParameters["GenerateManifestAndExit"] = False               # Output manifest file with list of expected library objects and exit
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
 globalParameters["NewClient"] = 2                                 # 1=Run old+new client, 2=run new client only (All In)
@@ -264,7 +264,8 @@ architectureMap = {
   'all':'_','gfx000':'none', 'gfx803':'r9nano', 'gfx900':'vega10',
   'gfx906':'vega20', 'gfx906:xnack+':'vega20', 'gfx906:xnack-':'vega20',
   'gfx908':'arcturus','gfx908:xnack+':'arcturus', 'gfx908:xnack-':'arcturus',
-  'gfx90a':'aldebaran', 'gfx90a:xnack+':'aldebaran', 'gfx90a:xnack-':'aldebaran'
+  'gfx90a':'aldebaran', 'gfx90a:xnack+':'aldebaran', 'gfx90a:xnack-':'aldebaran',
+  'gfx1010':'navi10', 'gfx1011':'navi11', 'gfx1012':'navi12', 'gfx1030':'navi21'
 }
 
 def getArchitectureName(gfxName):
@@ -763,6 +764,9 @@ validParameters = {
     "ThreadTile":                 validThreadTiles,
     "MacroTile":                  validMacroTiles,      # MT0 = wg0*tt0, MT1 = wg1*tt1
 
+    # Which instruction to use for MAC: MAD or FMA
+    "MACInstruction":             ["MAD", "FMA"],
+
     # MatrixInstruction: (M x N x K x B)
     # XDLOPS tile definition, only valid for gfx908, gfx90a
     # MxNxKxB specifies matrix instruction variants
@@ -1129,6 +1133,7 @@ defaultBenchmarkCommonParameters = [
     {"WorkGroupMappingType":      [ "B" ] },
     {"WorkGroupMapping":          [ 8 ] },
     {"ThreadTile":                [ [4,4] ] },
+    {"MACInstruction":            [ '' ]},
     {"MatrixInstruction":         [ [] ] },
     {"DisableVgprOverlapping":    [ False ] },
     {"1LDSBuffer":                [ 0 ] },
@@ -1483,13 +1488,22 @@ def GetAsmCaps(isaVersion):
   rv["HasMFMA_bf16_1k"] = tryAssembler(isaVersion, "v_mfma_f32_32x32x4bf16_1k a[0:31], v[32:33], v[36:37], a[0:31]")
 
   rv["v_mac_f16"]       = tryAssembler(isaVersion, "v_mac_f16 v47, v36, v34")
+
   rv["v_fma_f16"]       = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
+  rv["v_fmac_f16"]      = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34")
+
   rv["v_pk_fma_f16"]    = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0]")
+  rv["v_pk_fmac_f16"]   = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34")
+
   rv["v_mad_mix_f32"]   = tryAssembler(isaVersion, "v_mad_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
   rv["v_fma_mix_f32"]   = tryAssembler(isaVersion, "v_fma_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
 
   rv["v_dot2_f32_f16"]  = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
   rv["v_dot2c_f32_f16"] = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34")
+
+  rv["v_mac_f32"] = tryAssembler(isaVersion, "v_mac_f32 v20, v21, v22")
+  rv["v_fma_f32"] = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")
+  rv["v_fmac_f32"] = tryAssembler(isaVersion, "v_fmac_f32 v20, v21, v22")
 
   rv["HasAtomicAdd"]    = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
 
@@ -1607,7 +1621,7 @@ def printCapTable(parameters):
     return [cap] + [('1' if cap in caps[arch] and caps[arch][cap] else '0') for arch in archs]
 
   allAsmCaps = set(itertools.chain(*[caps.keys() for arch, caps in parameters["AsmCaps"].items()]))
-  allAsmCaps = sorted(allAsmCaps)
+  allAsmCaps = sorted(allAsmCaps, key=lambda k: (k.split("_")[-1], k))
   asmCapRows = [capRow(parameters["AsmCaps"], cap) for cap in allAsmCaps]
 
   allArchCaps = set(itertools.chain(*[caps.keys() for arch, caps in parameters["ArchCaps"].items()]))
@@ -1676,18 +1690,17 @@ def assignGlobalParameters( config ):
 
   # read current gfx version
   if os.name != "nt" and globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
-    process = Popen([globalParameters["ROCmAgentEnumeratorPath"], "-t", "GPU"], stdout=PIPE)
-    line = process.stdout.readline().decode()
-    while line != "":
+    command = [globalParameters["ROCmAgentEnumeratorPath"]]#, "-t", "GPU"]
+    result = subprocess.run(command, stdout=subprocess.PIPE)
+    for line in result.stdout.decode().split("\n"):
       arch = gfxArch(line.strip())
       if arch is not None:
         if arch in globalParameters["SupportedISA"]:
           print1("# Detected local GPU with ISA: " + gfxName(arch))
           globalParameters["CurrentISA"] = arch
-        line = process.stdout.readline().decode()
     if globalParameters["CurrentISA"] == (0,0,0):
       printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
-    if process.returncode:
+    if result.returncode:
       printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
 
   # TODO Remove this when rocm-smi supports gfx90a

@@ -371,7 +371,7 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         gReg = writer.vgprPool.checkOut(1)
         kStr += staticMultiply(vgpr(wReg), vgpr(wReg), MIBShape0 // numSubOutputPerWave0, sgpr(tmpSgpr))
         kStr += vectorStaticDivide(gReg, wgMT, numSubOutputPerWave0, tmpVgpr, tmpSgpr)
-        kStr += inst("v_sub_u32", vgpr(gReg), vgpr(gReg), vgpr(wReg), "")
+        kStr += inst("_v_sub_u32", vgpr(gReg), vgpr(gReg), vgpr(wReg), "")
         writer.vgprPool.checkIn(wReg)
 
         # eReg : use to disguish which shift block (sub-tile) we need to deal with
