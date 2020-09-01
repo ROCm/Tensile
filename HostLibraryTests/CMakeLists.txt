@@ -127,7 +127,16 @@ set(test_sources ${test_sources}
 )
 
 if(TENSILE_USE_LLVM)
-    find_package(LLVM 6.0 REQUIRED CONFIG)
+    find_package(LLVM 6.0 QUIET CONFIG)
+    if(NOT LLVM_FOUND)
+        find_package(LLVM 7.0 QUIET CONFIG)
+        if(NOT LLVM_FOUND)
+            find_package(LLVM 9.0 QUIET CONFIG)
+            if(NOT LLVM_FOUND)
+                find_package(LLVM REQUIRED CONFIG)
+            endif()
+        endif()
+    endif()
 
     set(test_sources ${test_sources}
         ContractionLibraryLoading_test.cpp

@@ -52,7 +52,10 @@ namespace Tensile
             gfx900  = 900,
             gfx906  = 906,
             gfx908  = 908,
-            gfx1010 = 1010
+            gfx1010 = 1010,
+            gfx1011 = 1011,
+            gfx1012 = 1012,
+            gfx1030 = 1030
         };
 
         AMDGPU();
