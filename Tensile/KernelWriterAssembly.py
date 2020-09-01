@@ -570,7 +570,10 @@ class KernelWriterAssembly(KernelWriter):
     if archHasV3:
       rv += ['-mno-code-object-v3' if globalParameters["CodeObjectVersion"] == "V2" else '-mcode-object-v3']
 
-    rv += ['-mcpu=gfx' + ''.join(map(str,isa))]
+    rv += ['-mcpu=gfx' + ''.join(map(str,isa)), '-mno-xnack']
+    if isa == (9,0,6) or isa == (9,0,8):
+      rv += ['-msram-ecc']
+
     if isa[0] == 10:
       rv += ['-mwavefrontsize64']
 
