@@ -174,6 +174,8 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       hipFlags += ['-I', outputPath]
       hipFlags += ['-mwavefrontsize64']
 
+      archFlags += ['-mno-xnack', '-Xarch_gfx906', '-msram-ecc', '-Xarch_gfx908', '-msram-ecc']
+
       compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', os.path.join(buildPath, objectFilename)]
 
       if globalParameters["PrintCodeCommands"]:
@@ -239,7 +241,9 @@ def prepAsm():
   else:
     assemblerFile.write("#!/bin/sh %s\n" % ("-x" if globalParameters["PrintLevel"] >=2  else ""))
     assemblerFile.write("# usage: asm.sh kernelName ASM_ARGS\n")
-    assemblerFile.write("# example: asm.sh kernelName -mcpu=gfx900\n")
+    assemblerFile.write("# example: asm.sh kernelName -mno-xnack -mcpu=gfx900\n")
+    assemblerFile.write("# example: asm.sh kernelName -mno-xnack -mno-sram-ecc -mcpu=gfx906\n")
+    assemblerFile.write("# example: asm.sh kernelName -mno-xnack -msram-ecc -mcpu=gfx908\n")
     assemblerFile.write("f=$1\n")
     assemblerFile.write("shift\n")
     assemblerFile.write("ASM=%s\n"%globalParameters["AssemblerPath"])

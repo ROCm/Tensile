@@ -35,6 +35,17 @@ if(TENSILE_NEW_CLIENT)
     set(TENSILE_USE_OPENMP   ON CACHE BOOL "Use LLVM for parsing config files.")
     set(TENSILE_STATIC_ONLY  ON CACHE BOOL "Disable exposing Tensile symbols in a shared library.")
 
+    if(NOT DEFINED CXX_VERSION_STRING)
+        if(CMAKE_CXX_COMPILER MATCHES ".*/hipcc$" OR CMAKE_CXX_COMPILER MATCHES ".*/hcc$")
+          # Determine if CXX Compiler is hcc, hip-clang or nvcc
+          execute_process(COMMAND ${CMAKE_CXX_COMPILER} "--version" OUTPUT_VARIABLE CXX_OUTPUT
+                  OUTPUT_STRIP_TRAILING_WHITESPACE
+                  ERROR_STRIP_TRAILING_WHITESPACE)
+          string(REGEX MATCH "[A-Za-z]* ?clang version" TMP_CXX_VERSION ${CXX_OUTPUT})
+          string(REGEX MATCH "[A-Za-z]+" CXX_VERSION_STRING ${TMP_CXX_VERSION})
+        endif()
+    endif()
+
     if(CMAKE_CXX_COMPILER STREQUAL "hipcc")
       set(TENSILE_GPU_ARCHS gfx803 gfx900 gfx906 gfx908 gfx1010 CACHE STRING "GPU architectures")
     else()
@@ -60,7 +71,7 @@ if(TENSILE_NEW_CLIENT)
             if(EXISTS /etc/redhat-release)
                 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp=libgomp")
             else()
-	        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+                set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
                 set(OPENMP_LIBRARY /usr/lib/x86_64-linux-gnu/libomp.so)
                 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OPENMP_LIBRARY}")
             endif()

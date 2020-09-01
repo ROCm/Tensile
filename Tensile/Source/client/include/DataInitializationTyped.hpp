@@ -632,7 +632,26 @@ namespace Tensile
             std::shared_ptr<ManagedInputs> m_gpuBadInputs;
         };
 
+        /* Commonly used managed contraction input type groupings */
+        using ManagedFloatContractionInputs        = ManagedContractionInputs<float>;
+        using ManagedDoubleContractionInputs       = ManagedContractionInputs<double>;
+        using ManagedComplexFloatContractionInputs = ManagedContractionInputs<std::complex<float>>;
+        using ManagedComplexDoubleContractionInputs
+            = ManagedContractionInputs<std::complex<double>>;
+#ifdef TENSILE_USE_HALF
+        using ManagedHalfContractionInputs = ManagedContractionInputs<Half>;
+        using ManagedHalfInFloatOutContractionInputs
+            = ManagedContractionInputs<Half, Half, float, float>;
+#endif // TENSILE_USE_HALF
+        using ManagedInt8x4ContractionInputs
+            = ManagedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>;
+        using ManagedInt32ContractionInputs = ManagedContractionInputs<int32_t>;
+#ifdef TENSILE_USE_BF16
         using ManagedBFloat16ContractionInputs
             = ManagedContractionInputs<BFloat16, BFloat16, BFloat16, BFloat16, float, float>;
+        using ManagedBFloat16InFloatOutContractionInputs
+            = ManagedContractionInputs<BFloat16, BFloat16, float, float>;
+#endif // TENSILE_USE_BF16
+
     } // namespace Client
 } // namespace Tensile
