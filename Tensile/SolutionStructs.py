@@ -2407,6 +2407,14 @@ class Solution:
     if state["DisableVgprOverlapping"] is True and state["EnableMatrixInstruction"] is not True:
       reject(state, "Non-MI kernels are already non-overlapping in pre-allocated registers")
 
+    # F32 only for now but we should extend this for other data types as well.
+    if "MACInstruction" not in state or state["MACInstruction"] not in validParameters["MACInstruction"]:
+      isa = tuple(state["ISA"])
+      if globalParameters["AsmCaps"][isa]["v_mac_f32"]:
+        state["MACInstruction"] = "MAC"
+      else:
+        state["MACInstruction"] = "FMA"
+
     if state["EnableMatrixInstruction"]:
       if not (state["ProblemType"]["DataType"].isSingle() \
               or state["ProblemType"]["DataType"].isBFloat16() \
@@ -3679,6 +3687,11 @@ class Solution:
   ########################################
   @ staticmethod
   def getParameterNameAbbreviation( name ):
+    specialValues = {
+      'MACInstruction': '' # Conflicts with MatrixInstruction, but _MAD and _FMA should be enough differentiation for the kernel name.
+    }
+    if name in specialValues: return specialValues[name]
+
     return ''.join([c for c in name if not c.islower()])
 
   ########################################
@@ -3711,7 +3724,7 @@ class Solution:
       s =  "_".join(["%d%d"%(pos,k) for pos,k in value.items()])
       return s
     else:
-      printExit("Parameter \"%s\" is new object type" % str(value) )
+      printExit('Parameter {key}={value} is new object type ({t})'.format(key=key, value=value, t=type(value)))
       return str(value)
 
 

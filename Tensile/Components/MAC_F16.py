@@ -22,7 +22,7 @@
 from ..Component import Component, MAC
 from ..DataType import DataType
 
-class MAC_Plain(MAC):
+class MAC_F16_Plain(MAC):
     """
     Plain MAC instruction implementation
     """
@@ -71,7 +71,7 @@ class MAC_Plain(MAC):
         return kStr
 
 
-class FMA_NonPacked(MAC):
+class FMA_F16_NonPacked(MAC):
     asmCaps = {"v_fma_f16": True,
                "v_pk_fma_f16": False}
     #archCaps = {}
@@ -124,7 +124,7 @@ class FMA_NonPacked(MAC):
         kStr += priority(writer, 0, "Reset priority after macs")
         return kStr
 
-class FMA_Packed(MAC):
+class FMA_F16_Packed(MAC):
     asmCaps = {"v_pk_fma_f16": True}
     #archCaps = {}
     kernel = {"ProblemType": {"DataType": DataType(DataType.half),
