@@ -57,16 +57,6 @@ namespace Tensile
             Count
         };
 
-        enum class BoundCheckMode
-        {
-            Disable = 0,
-            NaN,
-            GuardPageFront,
-            GuardPageEnd
-        };
-
-        const int pageSize = 2 * 1024 * 1024;
-
         static bool IsProblemDependent(InitMode const& mode)
         {
             return mode == InitMode::SerialIdx || mode == InitMode::SerialDim0
@@ -78,10 +68,19 @@ namespace Tensile
         std::ostream& operator<<(std::ostream& stream, InitMode const& mode);
         std::istream& operator>>(std::istream& stream, InitMode& mode);
 
-        inline bool operator==(const int& lhs, const BoundCheckMode& rhs)
+        const int pageSize = 2 * 1024 * 1024;
+
+        enum class BoundsCheckMode
         {
-            return lhs == static_cast<int>(rhs);
-        }
+            Disable = 0,
+            NaN,
+            GuardPageFront,
+            GuardPageBack,
+            MaxMode
+        };
+
+        std::ostream& operator<<(std::ostream& stream, BoundsCheckMode const& mode);
+        std::istream& operator>>(std::istream& stream, BoundsCheckMode& mode);
 
         template <typename TypedInputs>
         class TypedDataInitialization;
@@ -332,10 +331,13 @@ namespace Tensile
             /// with each kernel launch, but it will use extra memory.
             bool m_keepPristineCopyOnGPU = true;
 
-            /// If true, we will initialize all out-of-bounds inputs to NaN, and
+            /// If set "::NaN", we will initialize all out-of-bounds inputs to NaN, and
             /// all out-of-bounds outputs to a known value. This allows us to
             /// verify that out-of-bounds values are not used or written to.
-            int m_boundsCheck = 0;
+            /// If set "::GuardPageFront/::GuardPageBack", we will allocate matrix memory
+            /// with page aligned, and put matrix start/end address to memory start/end address.
+            /// Out-of-bounds access would trigger memory segmentation faults.
+            BoundsCheckMode m_boundsCheck = BoundsCheckMode::Disable;
 
             /// If true, the data is dependent on the problem size (e.g. serial)
             /// and must be reinitialized for each problem. Pristine copy on GPU

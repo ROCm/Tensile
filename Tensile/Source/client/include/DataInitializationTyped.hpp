@@ -137,7 +137,8 @@ namespace Tensile
                 if(!m_cpuInputsPristine)
                     m_cpuInputsPristine = createNewCPUInputs(problem);
 
-                if(m_cpuInputs && !m_boundsCheck && !m_problemDependentData)
+                if(m_cpuInputs && m_boundsCheck == BoundsCheckMode::Disable
+                   && !m_problemDependentData)
                 {
                     copyD(m_cpuInputs, m_cpuInputsPristine);
                 }
@@ -149,7 +150,7 @@ namespace Tensile
                     if(m_problemDependentData)
                         initializeCPUInputs(*m_cpuInputsPristine, problem);
 
-                    if(m_boundsCheck == BoundCheckMode::NaN && !m_cpuBadInputs)
+                    if(m_boundsCheck == BoundsCheckMode::NaN && !m_cpuBadInputs)
                     {
                         m_cpuBadInputs = createNewCPUBadInputs();
                     }
@@ -166,7 +167,7 @@ namespace Tensile
                         m_cpuConvInputs = allocNewCPUInputs();
                     }
 
-                    if(allocated || m_boundsCheck == BoundCheckMode::NaN)
+                    if(allocated || m_boundsCheck == BoundsCheckMode::NaN)
                         copyInputs(m_cpuConvInputs, m_cpuInputsPristine, m_cpuBadInputs, problem);
                 }
 
@@ -190,7 +191,7 @@ namespace Tensile
 
                     pristine = m_gpuInputsPristine;
 
-                    if(m_boundsCheck == BoundCheckMode::NaN)
+                    if(m_boundsCheck == BoundsCheckMode::NaN)
                     {
                         if(!m_gpuBadInputs)
                             m_gpuBadInputs = createNewGPUBadInputs();
@@ -205,7 +206,7 @@ namespace Tensile
 
                     pristine = m_cpuInputsPristine;
 
-                    if(m_boundsCheck == BoundCheckMode::NaN)
+                    if(m_boundsCheck == BoundsCheckMode::NaN)
                     {
                         if(!m_cpuBadInputs)
                             m_cpuBadInputs = createNewCPUBadInputs();
@@ -214,7 +215,8 @@ namespace Tensile
                     }
                 }
 
-                if(m_gpuInputs && !m_boundsCheck && !m_problemDependentData)
+                if(m_gpuInputs && m_boundsCheck == BoundsCheckMode::Disable
+                   && !m_problemDependentData)
                 {
                     if(m_elementsToValidate)
                         copyD(m_gpuInputs, pristine);
@@ -347,7 +349,7 @@ namespace Tensile
             std::shared_ptr<ManagedInputs> allocNewGPUInputs(std::shared_ptr<ManagedInputs> pristine
                                                              = nullptr)
             {
-                if(m_boundsCheck || (pristine && !pristine->gpu))
+                if(m_boundsCheck != BoundsCheckMode::Disable || (pristine && !pristine->gpu))
                     pristine = nullptr;
 
                 std::shared_ptr<AType> a;
@@ -359,8 +361,8 @@ namespace Tensile
 
                 std::vector<std::shared_ptr<void>> guardPage;
                 void*                              guardPagePtr;
-                bool enableGuardPage = (m_boundsCheck == BoundCheckMode::GuardPageFront
-                                        || m_boundsCheck == BoundCheckMode::GuardPageEnd);
+                bool enableGuardPage = (m_boundsCheck == BoundsCheckMode::GuardPageFront
+                                        || m_boundsCheck == BoundsCheckMode::GuardPageBack);
 
                 if(pristine)
                 {
@@ -593,7 +595,7 @@ namespace Tensile
             {
                 hipMemcpyKind kind = getCopyKind(dst, src);
 
-                if(m_boundsCheck == BoundCheckMode::NaN)
+                if(m_boundsCheck == BoundsCheckMode::NaN)
                 {
                     if(!bad)
                         throw std::runtime_error(
@@ -643,7 +645,7 @@ namespace Tensile
                     dst->alpha = src->alpha;
                     dst->beta  = src->beta;
                 }
-                else if(m_boundsCheck == BoundCheckMode::GuardPageEnd)
+                else if(m_boundsCheck == BoundsCheckMode::GuardPageBack)
                 {
                     {
                         ptrdiff_t aPadding = dst->aElements - problem.a().totalAllocatedElements();

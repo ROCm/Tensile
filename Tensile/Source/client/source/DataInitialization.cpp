@@ -123,6 +123,56 @@ namespace Tensile
             return stream;
         }
 
+        std::ostream& operator<<(std::ostream& stream, BoundsCheckMode const& mode)
+        {
+            std::string strValue;
+
+            if(mode == BoundsCheckMode::Disable)
+                strValue = "Disable";
+            else if(mode == BoundsCheckMode::NaN)
+                strValue = "NaN";
+            else if(mode == BoundsCheckMode::GuardPageFront)
+                strValue = "GuardPageFront";
+            else if(mode == BoundsCheckMode::GuardPageBack)
+                strValue = "GuardPageBack";
+            else
+                throw std::runtime_error(
+                    concatenate("Invalid BoundsCheckMode value: ", static_cast<int>(mode)));
+
+            return stream << strValue;
+        }
+
+        std::istream& operator>>(std::istream& stream, BoundsCheckMode& mode)
+        {
+            std::string strValue;
+            stream >> strValue;
+
+            if(strValue == "Disable")
+                mode = BoundsCheckMode::Disable;
+            else if(strValue == "NaN")
+                mode = BoundsCheckMode::NaN;
+            else if(strValue == "GuardPageFront")
+                mode = BoundsCheckMode::GuardPageFront;
+            else if(strValue == "GuardPageBack")
+                mode = BoundsCheckMode::GuardPageBack;
+            else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
+            {
+                int value = atoi(strValue.c_str());
+                if(value >= 0 && value < static_cast<int>(BoundsCheckMode::MaxMode))
+                    mode = static_cast<BoundsCheckMode>(value);
+                else
+                    throw std::runtime_error(
+                        concatenate("Can't convert ", strValue, " to BoundsCheckMode."));
+            }
+            else
+            {
+                throw std::runtime_error(
+                    concatenate("Can't convert ", strValue, " to BoundsCheckMode."));
+            }
+
+            return stream;
+        }
+
         double DataInitialization::GetRepresentativeBetaValue(po::variables_map const& args)
         {
             auto argValue = args["init-beta"].as<int>();
@@ -249,7 +299,7 @@ namespace Tensile
             , m_keepPristineCopyOnGPU(args["pristine-on-gpu"].as<bool>())
             , m_workspaceSize(maxWorkspaceSize)
         {
-            m_boundsCheck = args["bounds-check"].as<int>();
+            m_boundsCheck = args["bounds-check"].as<BoundsCheckMode>();
 
             if(args.count("convolution-vs-contraction"))
                 m_convolutionVsContraction = args["convolution-vs-contraction"].as<bool>();
@@ -262,15 +312,15 @@ namespace Tensile
                 m_dMaxElements = std::max(m_dMaxElements, problem.d().totalAllocatedElements());
             }
 
-            if(m_boundsCheck == BoundCheckMode::NaN)
+            if(m_boundsCheck == BoundsCheckMode::NaN)
             {
                 m_aMaxElements += 1024;
                 m_bMaxElements += 1024;
                 m_cMaxElements += 1024;
                 m_dMaxElements += 1024;
             }
-            else if(m_boundsCheck == BoundCheckMode::GuardPageFront
-                    || m_boundsCheck == BoundCheckMode::GuardPageEnd)
+            else if(m_boundsCheck == BoundsCheckMode::GuardPageFront
+                    || m_boundsCheck == BoundsCheckMode::GuardPageBack)
             {
                 unsigned int aRoundUpSize
                     = pageSize / DataTypeInfo::Get(args["a-type"].as<DataType>()).elementSize;
