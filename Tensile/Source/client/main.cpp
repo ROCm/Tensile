@@ -227,7 +227,15 @@ namespace Tensile
 
         std::shared_ptr<Hardware> GetHardware(po::variables_map const& args)
         {
-            HIP_CHECK_EXC(hipSetDevice(args["device-idx"].as<int>()));
+            int deviceCount = 0;
+            HIP_CHECK_EXC(hipGetDeviceCount(&deviceCount));
+
+            int deviceIdx = args["device-idx"].as<int>();
+
+            if(deviceIdx >= deviceCount)
+                throw std::runtime_error(concatenate("Invalid device index ", deviceIdx, " (", deviceCount, " total found.)"));
+
+            HIP_CHECK_EXC(hipSetDevice(deviceIdx));
 
             return hip::GetCurrentDevice();
         }
