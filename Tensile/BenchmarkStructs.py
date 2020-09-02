@@ -67,7 +67,7 @@ def constructForkPermutations(forkParametersConfig):
     pIdx = i
     for param in forkParametersConfig:
       for name in param:
-        values = param[name]
+        values = deepcopy(param[name])
         valueIdx = pIdx % len(values)
         forkPermutations[i][name] = values[valueIdx]
         pIdx //= len(values)
