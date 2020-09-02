@@ -31,6 +31,7 @@ HELP_STR="
     [-c|--count]            Optional. Sets all cases where count=1 to count=10 (default=false)
     [-t|--tile-aware]       Optional. Use tile-aware method. (limited support, default=false)
     [-s|--disable-strides]  Optional. Disable leading dimensions and strides in tuning file (default=false)
+    [-v|--verification]     Optional. Enable verification when running sizes in rocblas-bench (default=false, always true if arcturus)
     [-i|--initialization]   Optional. Initialize matrices when benchmarking (rand_int, trig_float, hpl, default=rand_int)
     [--disable-hpa]         Optional. Disable high precision accumulate in hgemm sizes (default=false)
     [--number]              Optional. Set script number (view scripts/performance in rocBLAS directory, default=1)
@@ -59,6 +60,7 @@ DVAL=2
 NUM=1
 DATA_TYPE=sgemm
 PROBLEM_DEFINITION=both
+VERIFICATION=false
 INITIALIZATION=rand_int
 ORGANIZATION=ROCmSoftwarePlatform
 ROCBLAS_ORGANIZATION=ROCmSoftwarePlatform
@@ -69,7 +71,7 @@ HCC=false
 ROCM_PATH=/opt/rocm
 DEPENDENCIES=true
 
-OPTS=`getopt -o hg:z:y:o:f:drmctsi:u:b:p --long help,gpu:,log:,network:,data-type:,output-dir:,sclk:,no-dependencies,client:,rk,mfma,count,tile-aware,disable-strides,initialization:,disable-hpa,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition:,hcc,rocm-path: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hg:z:y:o:f:drmctsvi:u:b:p --long help,gpu:,log:,network:,data-type:,output-dir:,sclk:,no-dependencies,client:,rk,mfma,count,tile-aware,disable-strides,verification,initialization:,disable-hpa,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition:,hcc,rocm-path: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -89,7 +91,8 @@ while true; do
         -m | --mfma )               MFMA=true; shift ;;
         -c | --count )              COUNT=true; shift ;;
         -t | --tile-aware )         TILE_AWARE=true; shift ;;
-        -s | --disable-strides )    DISABLE_STRIDES=true; shift;;
+        -s | --disable-strides )    DISABLE_STRIDES=true; shift ;;
+        -v | --verification )       VERIFICATION=true; shift ;;
         -i | --initialization )     INITIALIZATION="$2"; shift 2;;
         --disable-hpa )             DISABLE_HPA=true; shift;;
         -u | --username )           ORGANIZATION="$2"; shift 2;;
@@ -201,7 +204,6 @@ else
         printf "Could not detect data type in log file, assuming sgemm\n"
         DATA_TYPE=sgemm
         DVAL=2
-        exit 2
     fi
 fi
 
@@ -210,6 +212,7 @@ if [[ "${GPU}" == mi25 || "${GPU}" == v340 ]]; then
 elif [[ "${GPU}" == arcturus ]]; then
     LIBRARY=arcturus
     MFMA=true
+    VERIFICATION=true
 elif [[ "${GPU}" == mi50 || "${GPU}" == r7 ]]; then
     GPU=mi50
 else
@@ -238,6 +241,7 @@ else
         LIBRARY=arcturus
         GPU=arcturus
         MFMA=true
+        VERIFICATION=true
     else
         printf "Could not detect GPU, assuming mi60\n"
         LIBRARY=vega20
@@ -281,59 +285,66 @@ collect_uniques () {
 
 run_tune_nn () {
     NN=build-${LIBRARY}-${DATA_TYPE}-nn-${OUTPUT_DIR}
-    mkdir ${NN}
-    cp ../configs/*nn*.yaml ${NN}
+    if [[ $(ls -A ${NN} | wc -c) -eq 0 ]]; then
+        mkdir ${NN}
+        cp ../configs/*nn*.yaml ${NN}
 
-    pushd ${NN}
-    echo "#!/bin/sh" > tune.sh
-    echo "touch time.begin" >> tune.sh
-    echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_nn_${OUTPUT_DIR}.yaml ./ --cxx-compiler=${TENSILE_COMPILER} --code-object-version=${CODE_OBJECT_VERSION} 2>&1 | tee tensile-nn.out" >> tune.sh
-    echo "touch time.end" >> tune.sh
-    chmod 755 tune.sh
-    ./tune.sh
-    cp tensile-nn.out ../../logs
-    popd
+        pushd ${NN}
+        echo "#!/bin/sh" > tune.sh
+        echo "touch time.begin" >> tune.sh
+        echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_nn_${OUTPUT_DIR}.yaml ./ --cxx-compiler=${TENSILE_COMPILER} --code-object-version=${CODE_OBJECT_VERSION} 2>&1 | tee tensile-nn.out" >> tune.sh
+        echo "touch time.end" >> tune.sh
+        chmod 755 tune.sh
+        ./tune.sh
+        cp tensile-nn.out ../../logs
+        popd
 
-    cp ${NN}/3_LibraryLogic/* exact/
+        cp ${NN}/3_LibraryLogic/* exact/
+    fi
 }
 
 run_tune_nt () {
     NT=build-${LIBRARY}-${DATA_TYPE}-nt-${OUTPUT_DIR}
-    mkdir ${NT}
-    cp ../configs/*nt*.yaml ${NT}
+    if [[ $(ls -A ${NT} | wc -c) -eq 0 ]]; then
+        mkdir ${NT}
+        cp ../configs/*nt*.yaml ${NT}
 
-    pushd ${NT}
-    echo "#!/bin/sh" > tune.sh
-    echo "touch time.begin" >> tune.sh
-    echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_nt_${OUTPUT_DIR}.yaml ./ --cxx-compiler=${TENSILE_COMPILER} --code-object-version=${CODE_OBJECT_VERSION} 2>&1 | tee tensile-nt.out" >> tune.sh
-    echo "touch time.end" >> tune.sh
-    chmod 755 tune.sh
-    ./tune.sh
-    cp tensile-nt.out ../../logs
-    popd
+        pushd ${NT}
+        echo "#!/bin/sh" > tune.sh
+        echo "touch time.begin" >> tune.sh
+        echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_nt_${OUTPUT_DIR}.yaml ./ --cxx-compiler=${TENSILE_COMPILER} --code-object-version=${CODE_OBJECT_VERSION} 2>&1 | tee tensile-nt.out" >> tune.sh
+        echo "touch time.end" >> tune.sh
+        chmod 755 tune.sh
+        ./tune.sh
+        cp tensile-nt.out ../../logs
+        popd
 
-    cp ${NT}/3_LibraryLogic/* exact/
+        cp ${NT}/3_LibraryLogic/* exact/
+    fi
 }
 
 run_tune_tn () {
     TN=build-${LIBRARY}-${DATA_TYPE}-tn-${OUTPUT_DIR}
-    mkdir ${TN}
-    cp ../configs/*tn*.yaml ${TN}
+    if [[ $(ls -A ${TN} | wc -c) -eq 0 ]]; then
+        mkdir ${TN}
+        cp ../configs/*tn*.yaml ${TN}
 
-    pushd ${TN}
-    echo "#!/bin/sh" > tune.sh
-    echo "touch time.begin" >> tune.sh
-    echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_tn_${OUTPUT_DIR}.yaml ./ --cxx-compiler=${TENSILE_COMPILER} --code-object-version=${CODE_OBJECT_VERSION} 2>&1 | tee tensile-tn.out" >> tune.sh
-    echo "touch time.end" >> tune.sh
-    chmod 755 tune.sh
-    ./tune.sh
-    cp tensile-tn.out ../../logs
-    popd
+        pushd ${TN}
+        echo "#!/bin/sh" > tune.sh
+        echo "touch time.begin" >> tune.sh
+        echo "../Tensile/bin/Tensile ${LIBRARY}_${DATA_TYPE}_tn_${OUTPUT_DIR}.yaml ./ --cxx-compiler=${TENSILE_COMPILER} --code-object-version=${CODE_OBJECT_VERSION} 2>&1 | tee tensile-tn.out" >> tune.sh
+        echo "touch time.end" >> tune.sh
+        chmod 755 tune.sh
+        ./tune.sh
+        cp tensile-tn.out ../../logs
+        popd
 
-    cp ${TN}/3_LibraryLogic/* exact/
+        cp ${TN}/3_LibraryLogic/* exact/
+    fi
 }
 
 run_tune_all_scripts () {
+if [[ $(ls -A exact | wc -c) -eq 0 ]]; then
     mkdir exact
     if [[ "${TUNE_TYPE}" == nn ]]; then
         run_tune_nn
@@ -364,33 +375,47 @@ run_tune_all_scripts () {
             run_tune_nn
         fi
     fi
+fi
 }
 
 make_packages()
 {
-    make package
-    make package_clients
-    cp *.deb ../../../packages/library
-    cp clients/*.deb ../../../packages/client
+    if [[ $(ls -A *.deb | wc -c) -eq 0 ]]; then
+        make package
+        cp *.deb ../../../packages/library
+    fi
+    if [[ $(ls -A clients/*.deb | wc -c) -eq 0 ]]; then
+        make package_clients
+        cp clients/*.deb ../../../packages/client
+    fi
 }
 
-mkdir ${OUTPUT_DIR}
-EXTRACT_SIZE_PATH=`pwd`/${OUTPUT_DIR}
-if [ -z ${NETWORK+foo} ]; then
-    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION} ${INITIALIZATION} ${TENSILE_CLIENT} ${DISABLE_HPA}
-else
-    python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION} ${INITIALIZATION} ${TENSILE_CLIENT} ${DISABLE_HPA}
+if [[ $(ls -A ${OUTPUT_DIR} | wc -c) -eq 0 ]]; then
+    mkdir ${OUTPUT_DIR}
+    EXTRACT_SIZE_PATH=`pwd`/${OUTPUT_DIR}
+    if [ -z ${NETWORK+foo} ]; then
+        python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION} ${INITIALIZATION} ${TENSILE_CLIENT} ${DISABLE_HPA}
+    else
+        python tuning/automation/GenerateTuningConfigurations.py ${LOG} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_DIR}.yaml ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION} ${INITIALIZATION} ${TENSILE_CLIENT} ${DISABLE_HPA}
+    fi
+
+    pushd ${OUTPUT_DIR}
+    LOGNAME="${LOG%.*}"
+    collect_uniques
+    chmod 755 scripts/*
+    chmod 755 scripts2/*
 fi
 
-pushd ${OUTPUT_DIR}
-LOGNAME="${LOG%.*}"
-collect_uniques
-chmod 755 scripts/*
-chmod 755 scripts2/*
 git config --global credential.helper store
-git clone https://github.com/${ORGANIZATION}/Tensile.git -b ${TENSILE_BRANCH}
 
-mkdir logs
+if [[ $(ls -A Tensile | wc -c) -eq 0 ]]; then
+    git clone https://github.com/${ORGANIZATION}/Tensile.git -b ${TENSILE_BRANCH}
+fi
+
+if [[ $(ls -A logs | wc -c) -eq 0 ]]; then
+    mkdir logs
+fi
+
 pushd Tensile
 run_tune_all_scripts
 popd
@@ -400,10 +425,15 @@ if [[ "${PUBLIC}" == true ]]; then
     REPO=rocBLAS
 fi
 
-git clone https://github.com/${ROCBLAS_ORGANIZATION}/${REPO}.git -b ${ROCBLAS_BRANCH} rocBLAS
-mkdir library
-mv Tensile/exact library/
-mkdir library/merge
+if [[ $(ls -A rocBLAS | wc -c) -eq 0 ]]; then
+    git clone https://github.com/${ROCBLAS_ORGANIZATION}/${REPO}.git -b ${ROCBLAS_BRANCH} rocBLAS
+fi
+
+if [[ $(ls -A library | wc -c) -eq 0 ]]; then
+    mkdir library
+    mv Tensile/exact library/
+    mkdir library/merge
+fi
 
 DIR=archive
 if [[ "${LIBRARY}" == arcturus || ("${DATA_TYPE}" == hgemm && "${DISABLE_HPA}" == false) ]]; then
@@ -411,27 +441,38 @@ if [[ "${LIBRARY}" == arcturus || ("${DATA_TYPE}" == hgemm && "${DISABLE_HPA}" =
 fi
 
 if [[ "${LIBRARY}" == arcturus ]]; then
-    git clone https://github.com/RocmSoftwarePlatform/rocmdevtools.git -b efficiency
-    python rocmdevtools/scripts/tuning/convertToEfficiency.py library/exact ${LIBRARY} ${SCLK} 2>&1 | tee logs/log-efficiency
+    if [[ $(ls -A logs/log-efficiency | wc -c) -eq 0 ]]; then
+        git clone https://github.com/RocmSoftwarePlatform/rocmdevtools.git -b efficiency
+        python rocmdevtools/scripts/tuning/convertToEfficiency.py library/exact ${LIBRARY} ${SCLK} 2>&1 | tee logs/log-efficiency
+    fi
 fi
-python Tensile/Tensile/Utilities/merge.py rocBLAS/library/src/blas3/Tensile/Logic/${DIR} library/exact library/merge 2>&1 | tee logs/log-merge-script
+
+if [[ $(ls -A library/merge | wc -c) -eq 0 ]]; then
+    python Tensile/Tensile/Utilities/merge.py rocBLAS/library/src/blas3/Tensile/Logic/${DIR} library/exact library/merge 2>&1 | tee logs/log-merge-script
+fi
 
 if [[ "${LIBRARY}" != arcturus ]]; then
     if [[ "${DATA_TYPE}" == hgemm && "${DISABLE_HPA}" == false ]]; then
         printf "hpa hgemm does not support the massage script, skipping this step\n"
     else
-        python rocBLAS/library/src/blas3/Tensile/Logic/archive/massage.py library/merge library/massage
+        if [[ $(ls -A library/massage | wc -c) -eq 0 ]]; then
+            python rocBLAS/library/src/blas3/Tensile/Logic/archive/massage.py library/merge library/massage
+        fi
     fi
 fi
 
-mkdir packages
-mkdir packages/library
-mkdir packages/client
+if [[ $(ls -A packages | wc -c) -eq 0 ]]; then
+    mkdir packages
+    mkdir packages/library
+    mkdir packages/client
+fi
+
 pushd rocBLAS
-./install.sh -c --build_dir reference-build --${ROCBLAS_COMPILER} 2>&1 | tee log-reference-build
-cp log-reference-build ../logs
-pushd reference-build/release
-popd
+
+if [[ $(ls -A reference-build/release/clients/staging | wc -c) -eq 0 ]]; then
+    ./install.sh -c --build_dir reference-build --${ROCBLAS_COMPILER} 2>&1 | tee log-reference-build
+    cp log-reference-build ../logs
+fi
 
 if [[ "${LIBRARY}" != arcturus ]]; then
     if [[ "${DATA_TYPE}" == hgemm && "${DISABLE_HPA}" == false ]]; then
@@ -445,33 +486,48 @@ else
     cp ../library/merge/* library/src/blas3/Tensile/Logic/asm_full
 fi
 
-./install.sh -c --build_dir tuned-build --${ROCBLAS_COMPILER} 2>&1 | tee log-tuned-build
-cp log-tuned-build ../logs
-pushd tuned-build/release
-make_packages
-popd
+if [[ $(ls -A tuned-build/release/clients/staging | wc -c) -eq 0 ]]; then
+    ./install.sh -c --build_dir tuned-build --${ROCBLAS_COMPILER} 2>&1 | tee log-tuned-build
+    cp log-tuned-build ../logs
+    pushd tuned-build/release
+    make_packages
+    popd
+fi
 
 cp ../scripts/*.sh reference-build/release/clients/staging
 cp ../scripts/*.sh tuned-build/release/clients/staging
 pushd reference-build/release/clients/staging
-./doit_all1.sh
-find results1 -name \*.1 -exec sed -i "s/4t/t/g" {} \;
-find results1 -name \*.1 -exec sed -i "s/4r/r/g" {} \;
-./*verify.sh 2>&1 | tee log-verification-reference-build
-cp log-verification-reference-build ../../../../../logs
+if [[ $(ls -A reference-build/release/clients/staging/results1 | wc -c) -eq 0 ]]; then
+    ./doit_all1.sh
+    find results1 -name \*.1 -exec sed -i "s/4t/t/g" {} \;
+    find results1 -name \*.1 -exec sed -i "s/4r/r/g" {} \;
+
+    if [[ "${VERIFICATION}" == true ]]; then
+        ./*verify.sh 2>&1 | tee log-verification-reference-build
+        cp log-verification-reference-build ../../../../../logs
+    fi
+fi
 popd
 
 pushd tuned-build/release/clients/staging
-./doit_all1.sh
-find results1 -name \*.1 -exec sed -i "s/4t/t/g" {} \;
-find results1 -name \*.1 -exec sed -i "s/4r/r/g" {} \;
-./*verify.sh 2>&1 | tee log-verification-tuned-build
-cp log-verification-tuned-build ../../../../../logs
+if [[ $(ls -A tuned-build/release/clients/staging/results1 | wc -c) -eq 0 ]]; then
+    ./doit_all1.sh
+    find results1 -name \*.1 -exec sed -i "s/4t/t/g" {} \;
+    find results1 -name \*.1 -exec sed -i "s/4r/r/g" {} \;
+
+    if [[ "${VERIFICATION}" == true ]]; then
+        ./*verify.sh 2>&1 | tee log-verification-tuned-build
+        cp log-verification-tuned-build ../../../../../logs
+    fi
+fi
 popd
 
 mv ../scripts/*-all.sh scripts/performance/${OUTPUT_DIR}${NUM}.sh
 popd
 popd
 
-source ~/.bashrc
-./tuning/scripts/analyze-results.sh -o ${OUTPUT_DIR}/analysis -r ${OUTPUT_DIR}/rocBLAS/reference-build/release/clients/staging/results1 -b ${OUTPUT_DIR}/rocBLAS/tuned-build/release/clients/staging/results1 -z ${OUTPUT_DIR}/scripts/*-all.sh -f ${SCLK} -s ${DVAL} -g ${GPU} -c ${COUNT} -m ${MFMA}
+
+if [[ $(ls -A ${OUTPUT_DIR}/analysis/final | wc -c) -eq 0 ]]; then
+    rm -rf ${OUTPUT_DIR}/analysis
+    ./tuning/scripts/analyze-results.sh -o ${OUTPUT_DIR}/analysis -r ${OUTPUT_DIR}/rocBLAS/reference-build/release/clients/staging/results1 -b ${OUTPUT_DIR}/rocBLAS/tuned-build/release/clients/staging/results1 -z ${OUTPUT_DIR}/scripts/*-all.sh -f ${SCLK} -s ${DVAL} -g ${GPU} -c ${COUNT} -m ${MFMA}
+fi
