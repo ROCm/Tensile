@@ -52,6 +52,6 @@ namespace Tensile
     using ContractionProblemPredicate  = ProblemPredicate<ContractionProblem>;
     using ContractionGranularitySelectionLibrary
         = GranularitySelectionLibrary<ContractionProblem, ContractionSolution>;
-    using ContractionTileAwareMetricSelectionLibrary 
+    using ContractionTileAwareMetricSelectionLibrary
         = TileAwareMetricSelectionLibrary<ContractionProblem, ContractionSolution>;
 } // namespace Tensile

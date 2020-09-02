@@ -49,9 +49,9 @@ namespace Tensile
     template <typename MySolution>
     struct TileAwareMetricModelTableEntry
     {
-        int                 key;
-        std::shared_ptr<MySolution>          solution;
-        std::vector<double> problem;
+        int                         key;
+        std::shared_ptr<MySolution> solution;
+        std::vector<double>         problem;
     };
 
     /**
@@ -65,9 +65,9 @@ namespace Tensile
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct TileAwareMetricSelectionLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
-        std::map<int, std::shared_ptr<MySolution>> solutions;
-        std::map<std::vector<size_t>, int>         exactMap;
-        std::vector<TileAwareMetricModelTableEntry<MySolution>>        modelProblems;
+        std::map<int, std::shared_ptr<MySolution>>              solutions;
+        std::map<std::vector<size_t>, int>                      exactMap;
+        std::vector<TileAwareMetricModelTableEntry<MySolution>> modelProblems;
 
         static std::string Type()
         {
@@ -85,12 +85,12 @@ namespace Tensile
         }
 
         virtual std::shared_ptr<MySolution>
-        findBestSolution(MyProblem const& problem, Hardware const& hardware) const override
+            findBestSolution(MyProblem const& problem, Hardware const& hardware) const override
         {
             const bool debug = Debug::Instance().printPropertyEvaluation();
 
             std::vector<size_t> key;
-            size_t M = problem.freeSizeA(0);
+            size_t              M = problem.freeSizeA(0);
             key.push_back(M);
             size_t N = problem.freeSizeB(0);
             key.push_back(N);
@@ -130,75 +130,67 @@ namespace Tensile
 
             auto it = modelProblems.begin();
 
-            while (it != modelProblems.end())
+            while(it != modelProblems.end())
             {
-                size_t model_M = (size_t)it->problem[0];
-                size_t model_N = (size_t)it->problem[1];
+                size_t model_M         = (size_t)it->problem[0];
+                size_t model_N         = (size_t)it->problem[1];
                 size_t model_batchSize = (size_t)it->problem[2];
-                size_t model_K = (size_t)it->problem[3];
+                size_t model_K         = (size_t)it->problem[3];
 
-                ContractionSolution::TAMetricProblemScore ppReference = 
-                  it->solution->computeProblemScore(
-                    hardware, 
-                    model_M, model_N, model_K, model_batchSize,
-                    0, 0, 0, 0);
+                ContractionSolution::TAMetricProblemScore ppReference
+                    = it->solution->computeProblemScore(
+                        hardware, model_M, model_N, model_K, model_batchSize, 0, 0, 0, 0);
 
-                ContractionSolution::TAMetricProblemScore pp = 
-                  it->solution->computeProblemScore(
-                    hardware, 
-                    M, N, K, NumBatches,
-                    0, 0, 0, 0);
+                ContractionSolution::TAMetricProblemScore pp
+                    = it->solution->computeProblemScore(hardware, M, N, K, NumBatches, 0, 0, 0, 0);
                 it++;
 
-       
                 double metric = std::numeric_limits<double>::max();
-                
-                if (ppReference.tile0Granularity > 0.0 && pp.tile0Granularity > 0.0)
+                if(ppReference.tile0Granularity > 0.0 && pp.tile0Granularity > 0.0)
                 {
-                  metric = abs(log(ppReference.tile0Granularity) - log(pp.tile0Granularity));
+                    metric = abs(log(ppReference.tile0Granularity) - log(pp.tile0Granularity));
                 }
-                if (ppReference.tile0Granularity > 0.0 && pp.tile0Granularity > 0.0)
+                if(ppReference.tile0Granularity > 0.0 && pp.tile0Granularity > 0.0)
                 {
-                  if (metric < std::numeric_limits<double>::max())
-                  {
-                    metric += abs(log(ppReference.tile1Granularity) - log(pp.tile1Granularity));
-                  }
-                  else
-                  {
-                    metric = abs(log(ppReference.tile1Granularity) - log(pp.tile1Granularity));
-                  }
-                }  
-                if (ppReference.suCuGranularity > 0.0 && pp.suCuGranularity > 0.0)
-                {
-                  if (metric < std::numeric_limits<double>::max())
-                  {
-                    metric += abs(log(ppReference.suCuGranularity) - log(pp.suCuGranularity));
-                  }
-                  else
-                  {
-                    metric = abs(log(ppReference.suCuGranularity) - log(pp.suCuGranularity));
-                  }
+                    if(metric < std::numeric_limits<double>::max())
+                    {
+                        metric += abs(log(ppReference.tile1Granularity) - log(pp.tile1Granularity));
+                    }
+                    else
+                    {
+                        metric = abs(log(ppReference.tile1Granularity) - log(pp.tile1Granularity));
+                    }
                 }
-                if (ppReference.suWaveGranularity > 0.0 && pp.suWaveGranularity > 0.0)
+                if(ppReference.suCuGranularity > 0.0 && pp.suCuGranularity > 0.0)
                 {
-                  if (metric < std::numeric_limits<double>::max())
-                  {
-                    metric += abs(log(ppReference.suWaveGranularity) - log(pp.suWaveGranularity));
-                  }
-                  else
-                  {
-                    metric = abs(log(ppReference.suWaveGranularity) - log(pp.suWaveGranularity));
-                  }
+                    if(metric < std::numeric_limits<double>::max())
+                    {
+                        metric += abs(log(ppReference.suCuGranularity) - log(pp.suCuGranularity));
+                    }
+                    else
+                    {
+                        metric = abs(log(ppReference.suCuGranularity) - log(pp.suCuGranularity));
+                    }
                 }
-                
-                if (metric < bestDistance)
+                if(ppReference.suWaveGranularity > 0.0 && pp.suWaveGranularity > 0.0)
+                {
+                    if(metric < std::numeric_limits<double>::max())
+                    {
+                        metric
+                            += abs(log(ppReference.suWaveGranularity) - log(pp.suWaveGranularity));
+                    }
+                    else
+                    {
+                        metric
+                            = abs(log(ppReference.suWaveGranularity) - log(pp.suWaveGranularity));
+                    }
+                }
+                if(metric < bestDistance)
                 {
                     bestDistance = metric;
                     bestSolution = it->solution;
                 }
             }
-            
-
             return bestSolution;
         }
 

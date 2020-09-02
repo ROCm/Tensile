@@ -789,15 +789,15 @@ namespace Tensile
     }
 
     ContractionSolution::StaticTAMetricPerformanceModel
-    ContractionSolution::staticTAMetricPerformanceModel(double M,
-                                                    double N,
-                                                    double K,
-                                                    double NumBatches,
-                                                    double MT0,
-                                                    double MT1,
-                                                    double NumCUs,
-                                                    double TotalGranularity,
-                                                    int    GlobalSplitU) const
+        ContractionSolution::staticTAMetricPerformanceModel(double M,
+                                                            double N,
+                                                            double K,
+                                                            double NumBatches,
+                                                            double MT0,
+                                                            double MT1,
+                                                            double NumCUs,
+                                                            double TotalGranularity,
+                                                            int    GlobalSplitU) const
     {
         StaticTAMetricPerformanceModel spm;
 
@@ -861,32 +861,36 @@ namespace Tensile
         return spm;
     }
 
-    ContractionSolution::TAMetricProblemScore 
-    ContractionSolution::computeProblemScore(
-            Hardware const& hardware, 
-            double M, double N, double K, double NumBatches,
-            double LDA, double LDB, double LDC, double LDD) const
-            
+    ContractionSolution::TAMetricProblemScore
+        ContractionSolution::computeProblemScore(Hardware const& hardware,
+                                                 double          M,
+                                                 double          N,
+                                                 double          K,
+                                                 double          NumBatches,
+                                                 double          LDA,
+                                                 double          LDB,
+                                                 double          LDC,
+                                                 double          LDD) const
     {
         ContractionSolution::TAMetricProblemScore pp;
 
-        double MT0 = sizeMapping.macroTile.x;
-        double MT1 = sizeMapping.macroTile.y;
-        double NumCUs = perf.CUs;
+        double MT0           = sizeMapping.macroTile.x;
+        double MT1           = sizeMapping.macroTile.y;
+        double NumCUs        = perf.CUs;
         double wavefrontSize = 64; //defaults to 64
-        double simdPerCu = 4;
+        double simdPerCu     = 4;
 
         AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
         if(pAMDGPU != nullptr)
         {
-            NumCUs = pAMDGPU->computeUnitCount;
+            NumCUs        = pAMDGPU->computeUnitCount;
             wavefrontSize = pAMDGPU->wavefrontSize;
-            simdPerCu = pAMDGPU->simdPerCu;
+            simdPerCu     = pAMDGPU->simdPerCu;
         }
 
-        double GlobalSplitU         = sizeMapping.globalSplitU;
-        double LocalSplitU          = sizeMapping.workGroupSize.z;
- 
+        double GlobalSplitU = sizeMapping.globalSplitU;
+        double LocalSplitU  = sizeMapping.workGroupSize.z;
+
         pp.numTiles0 = M / MT0;
         pp.numTiles1 = N / MT1;
 
@@ -895,23 +899,23 @@ namespace Tensile
 
         pp.totalTiles = ceil(pp.numTiles0) * ceil(pp.numTiles1);
 
-        pp.suTilesPerCu = (pp.totalTiles * GlobalSplitU) / NumCUs;
+        pp.suTilesPerCu    = (pp.totalTiles * GlobalSplitU) / NumCUs;
         pp.suCuGranularity = pp.suTilesPerCu / ceil(pp.suTilesPerCu);
 
-        pp.waves = ceil((sizeMapping.workGroupSize.x * sizeMapping.workGroupSize.y) / wavefrontSize);
+        pp.waves
+            = ceil((sizeMapping.workGroupSize.x * sizeMapping.workGroupSize.y) / wavefrontSize);
 
-        pp.suWavesPerSimdx2 = (pp.suTilesPerCu * pp.waves) / (2 * simdPerCu);
+        pp.suWavesPerSimdx2  = (pp.suTilesPerCu * pp.waves) / (2 * simdPerCu);
         pp.suWaveGranularity = pp.suWavesPerSimdx2 * ceil(pp.suWavesPerSimdx2);
+        pp.totalGranularity
+            = pp.tile0Granularity * pp.tile1Granularity * pp.suCuGranularity * pp.suWaveGranularity;
 
-
-        pp.totalGranularity = pp.tile0Granularity * pp.tile1Granularity * pp.suCuGranularity * pp.suWaveGranularity;
-
-        return  pp;
+        return pp;
     }
 
     ContractionSolution::TAMetricProblemScore
         ContractionSolution::projectedTAMetricPerformance(Problem const&  problem,
-                                                  Hardware const& hardware) const
+                                                          Hardware const& hardware) const
     {
         TAMetricProblemScore pp;
 
@@ -926,15 +930,9 @@ namespace Tensile
             for(size_t i = 0; i < problem.batchIndices().size(); i++)
                 NumBatches *= problem.batchSize(i);
         }*/
-        
         double K = problem.boundSize(0); // TODO - fix for multiple summations
 
-        pp = computeProblemScore(
-            hardware, 
-            M, N, K, NumBatches,
-            0, 0, 0, 0);
-        
-
+        pp = computeProblemScore(hardware, M, N, K, NumBatches, 0, 0, 0, 0);
         return pp;
     }
 
@@ -1063,7 +1061,7 @@ namespace Tensile
 
         while(it != ideals.end())
         {
-            int myK       = it->first;
+            int myK = it->first;
             //int myK       = it->at(3);
             int myMeasure = std::abs(myK - K);
             if(myMeasure < closestKMeasure)
@@ -1117,7 +1115,7 @@ namespace Tensile
         return pp;
     }
 
-    std::ostream& operator<<(std::ostream&                                      stream,
+    std::ostream& operator<<(std::ostream&                                              stream,
                              ContractionSolution::StaticTAMetricPerformanceModel const& spm)
     {
         return stream << " memReadBytesA=" << spm.memReadBytesA
@@ -1140,7 +1138,7 @@ namespace Tensile
 
                       << " speedGFlops=" << pp.speedGFlops;
 
-                      //<< " staticModel=[ " << pp.staticModel << " ]";
+        //<< " staticModel=[ " << pp.staticModel << " ]";
     }
 
     std::ostream& operator<<(std::ostream&                                      stream,

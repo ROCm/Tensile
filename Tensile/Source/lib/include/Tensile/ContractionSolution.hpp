@@ -97,7 +97,6 @@ namespace Tensile
 
         bool isSourceKernel() const;
 
-
         struct StaticTAMetricPerformanceModel
         {
             size_t memReadBytesA   = 0.0; //! Estimated memory reads A
@@ -117,15 +116,15 @@ namespace Tensile
             double tilesPerCu = 0.0;
 
             //! Granularity is measured 0..1 with 1.0 meaning no granularity loss
-            double tile0Granularity = 0.0; // loss due to tile0
-            double tile1Granularity = 0.0;
-            double cuGranularity    = 0.0;
-            double waveGranularity  = 0.0;
-            double totalGranularity = 0.0;
-            double suTilesPerCu = 0.0;
-            double suCuGranularity = 0.0;
-            double waves = 0.0;
-            double suWavesPerSimdx2 = 0.0;
+            double tile0Granularity  = 0.0; // loss due to tile0
+            double tile1Granularity  = 0.0;
+            double cuGranularity     = 0.0;
+            double waveGranularity   = 0.0;
+            double totalGranularity  = 0.0;
+            double suTilesPerCu      = 0.0;
+            double suCuGranularity   = 0.0;
+            double waves             = 0.0;
+            double suWavesPerSimdx2  = 0.0;
             double suWaveGranularity = 0.0;
 
             double speedGFlops = 0.0; //! final gflops projection
@@ -135,26 +134,30 @@ namespace Tensile
         };
 
         StaticTAMetricPerformanceModel staticTAMetricPerformanceModel(double M,
-                                                      double N,
-                                                      double K,
-                                                      double NumBatches,
-                                                      double MT0,
-                                                      double MT1,
-                                                      double NumCUs,
-                                                      double totalGranularity,
-                                                      int    globalSplitU) const;
+                                                                      double N,
+                                                                      double K,
+                                                                      double NumBatches,
+                                                                      double MT0,
+                                                                      double MT1,
+                                                                      double NumCUs,
+                                                                      double totalGranularity,
+                                                                      int    globalSplitU) const;
 
-
-        TAMetricProblemScore computeProblemScore(
-            Hardware const& hardware, 
-            double M, double N, double K, double NumBatches,
-            double LDA, double LDB, double LDC, double LDD) const;
+        TAMetricProblemScore computeProblemScore(Hardware const& hardware,
+                                                 double          M,
+                                                 double          N,
+                                                 double          K,
+                                                 double          NumBatches,
+                                                 double          LDA,
+                                                 double          LDB,
+                                                 double          LDC,
+                                                 double          LDD) const;
 
         /**
         * Calculate the projected performance based on granularity loss.
         */
         TAMetricProblemScore projectedTAMetricPerformance(Problem const&  problem,
-                                                  Hardware const& hardware) const;
+                                                          Hardware const& hardware) const;
 
         //! Estimates based on problem size, solution tile, and  machine hardware
         //! charz:

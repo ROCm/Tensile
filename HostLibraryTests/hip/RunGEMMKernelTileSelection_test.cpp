@@ -52,7 +52,6 @@ using namespace Tensile;
 
 struct RunGEMMKernelSolutionSelectionTest : public ::testing::TestWithParam<ContractionProblem>
 {
-    
     std::vector<float> a_h;
     std::vector<float> b_h;
     std::vector<float> c_h;
@@ -83,7 +82,6 @@ struct RunGEMMKernelSolutionSelectionTest : public ::testing::TestWithParam<Cont
         d_in_h.resize(problem.d().totalAllocatedElements());
 
         std::mt19937 rng;
-
 
         InitTensor(a_h.data(), problem.a(), RandomInt<float>(), rng);
         InitTensor(b_h.data(), problem.b(), RandomAlternatingInt<float>(), rng);
@@ -154,9 +152,9 @@ TEST_P(RunGEMMKernelSolutionSelectionTest, KernelsTileSelection)
 {
     ContractionProblem problem = GetParam();
 
-    bool debug = false;
+    bool debug   = false;
     auto library = LoadLibraryFile<ContractionProblem>(
-            TestData::Instance().file("tile_aware_selection/library/TensileLibrary").native());
+        TestData::Instance().file("tile_aware_selection/library/TensileLibrary").native());
 
     auto adapter = std::make_shared<hip::SolutionAdapter>(debug, "tile_aware_selection");
     for(auto file : TestData::Instance().glob("tile_aware_selection/library/*.*co"))
@@ -182,7 +180,6 @@ TEST_P(RunGEMMKernelSolutionSelectionTest, KernelsTileSelection)
     {
         ASSERT_FLOAT_EQ(d_h[i], d_ref_h[i]) << i;
     }
-
 }
 
 TEST_P(RunGEMMKernelSolutionSelectionTest, TileAwareMetricSelection)
@@ -190,16 +187,15 @@ TEST_P(RunGEMMKernelSolutionSelectionTest, TileAwareMetricSelection)
 
     ContractionProblem problem = GetParam();
 
-    bool debug = false;
+    bool debug   = false;
     auto library = LoadLibraryFile<ContractionProblem>(
-            TestData::Instance().file("tile_aware_metric_selection/library/TensileLibrary").native());
+        TestData::Instance().file("tile_aware_metric_selection/library/TensileLibrary").native());
 
     auto adapter = std::make_shared<hip::SolutionAdapter>(debug, "fitness_selection");
     for(auto file : TestData::Instance().glob("tile_aware_metric_selection/library/*.*co"))
         adapter->loadCodeObjectFile(file.native());
 
     ASSERT_NE(library, nullptr);
-
 
     auto solution = library->findBestSolution(problem, *hardware);
 
@@ -230,16 +226,4 @@ INSTANTIATE_TEST_SUITE_P(
         ContractionProblem::GEMM(false, false, 234, 123, 634, 245, 768, 249, 1.5, false, 12),
         ContractionProblem::GEMM(false, true, 234, 123, 634, 245, 768, 249, 1.5, false, 12),
         ContractionProblem::GEMM(true, false, 234, 123, 634, 768, 768, 249, 1.5, false, 12),
-        ContractionProblem::GEMM(true, true, 234, 123, 634, 768, 768, 249, 1.5, false, 12)//,
-        //RandomGEMM(),
-        //RandomGEMM(),
-        //RandomGEMM(),
-        //RandomGEMM(),
-        //RandomGEMM(),
-        //RandomGEMM(),
-        //RandomGEMM(),
-        //RandomGEMM(),
-        //RandomGEMM()
-        ));
-
-       
+        ContractionProblem::GEMM(true, true, 234, 123, 634, 768, 768, 249, 1.5, false, 12)));
