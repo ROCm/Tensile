@@ -65,6 +65,8 @@ TensileCreateLibraryFiles(
     TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
     EMBED_LIBRARY test_tile_aware_selection
     EMBED_KEY     tile_aware_selection
+    VAR_PREFIX TILE_AWARE_SELECTION
+    LIBRARY_FORMAT yaml
     NO_MERGE_FILES
     COMPILER ${COMPILER}
     CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
@@ -78,6 +80,8 @@ TensileCreateLibraryFiles(
     TENSILE_ROOT "${TENSILE_SCRIPT_ROOT}"
     EMBED_LIBRARY test_tile_aware_metric_selection
     EMBED_KEY     tile_aware_metric_selection
+    VAR_PREFIX TILE_AWARE_METRIC_SELECTION
+    LIBRARY_FORMAT yaml
     NO_MERGE_FILES
     COMPILER ${COMPILER}
     CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
@@ -87,13 +91,13 @@ TensileCreateLibraryFiles(
 
 TensileCreateCopyTarget(
     copy_kernels_tile_aware_selection
-    "${TENSILE_ALL_FILES}"
+    "${TILE_AWARE_SELECTION_ALL_FILES}"
     ${TEST_DATA_DIR}/tile_aware_selection/library
     )
 
 TensileCreateCopyTarget(
     copy_kernels_tile_aware_metric_selection
-    "${TENSILE_ALL_FILES}"
+    "${TILE_AWARE_METRIC_SELECTION_ALL_FILES}"
     ${TEST_DATA_DIR}/tile_aware_metric_selection/library
     )
 
