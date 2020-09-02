@@ -31,9 +31,9 @@
 #include <Tensile/AMDGPUPredicates.hpp>
 #include <Tensile/ContractionProblemPredicates.hpp>
 #include <Tensile/ExactLogicLibrary.hpp>
-#include <Tensile/TileAwareMetricSelectionLibrary.hpp>
 #include <Tensile/GranularitySelectionLibrary.hpp>
 #include <Tensile/PropertyMatching.hpp>
+#include <Tensile/TileAwareMetricSelectionLibrary.hpp>
 
 #include <cstddef>
 #include <map>
@@ -136,7 +136,10 @@ namespace Tensile
 
         template <typename IO>
         struct CustomMappingTraits<std::map<int, std::vector<std::vector<double>>>, IO>
-            : public DefaultCustomMappingTraits<std::map<int, std::vector<std::vector<double>>>, IO, false, true>
+            : public DefaultCustomMappingTraits<std::map<int, std::vector<std::vector<double>>>,
+                                                IO,
+                                                false,
+                                                true>
         {
         };
 
@@ -172,7 +175,8 @@ namespace Tensile
 
         TENSILE_SERIALIZE_VECTOR(true, ExactSelectionTableEntry);
         TENSILE_SERIALIZE_VECTOR(true, TileAwareMetricSolutionTableEntry);
-        TENSILE_SERIALIZE_VECTOR(true, TileAwareMetricModelTableEntry<std::shared_ptr<Tensile::ContractionSolution>>);
+        TENSILE_SERIALIZE_VECTOR(
+            true, TileAwareMetricModelTableEntry<std::shared_ptr<Tensile::ContractionSolution>>);
 
         TENSILE_SERIALIZE_VECTOR(true,
                                  Tensile::ExactLogicLibrary<Tensile::ContractionProblem,

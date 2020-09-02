@@ -27,8 +27,8 @@
 
 #pragma once
 
-#include <Tensile/TileAwareMetricSelectionLibrary.hpp>
 #include <Tensile/MasterSolutionLibrary.hpp>
+#include <Tensile/TileAwareMetricSelectionLibrary.hpp>
 
 namespace Tensile
 {
@@ -67,24 +67,27 @@ namespace Tensile
                                   "set to a SolutionMap.");
                 }
 
-                std::map<int, std::vector<std::vector<double>>>         mappingIndices;
-                std::vector<TileAwareMetricSolutionTableEntry> mapEntries;
+                std::map<int, std::vector<std::vector<double>>> mappingIndices;
+                std::vector<TileAwareMetricSolutionTableEntry>  mapEntries;
                 if(iot::outputting(io))
                 {
-                    for (auto const& problem: lib.modelProblems)
+                    for(auto const& problem : lib.modelProblems)
                     {
-                        int key = problem.key;
-                        std::vector<std::vector<double>> problemList;
-                        std::map<int, std::vector<std::vector<double>>>::iterator pIter = mappingIndices.find(key);
-                        if (pIter == mappingIndices.end())
+                        int                                                       key = problem.key;
+                        std::vector<std::vector<double>>                          problemList;
+                        std::map<int, std::vector<std::vector<double>>>::iterator pIter
+                            = mappingIndices.find(key);
+                        if(pIter == mappingIndices.end())
                         {
-                            problemList = std::vector<std::vector<double>>();
+                            problemList         = std::vector<std::vector<double>>();
                             mappingIndices[key] = problemList;
-                        } else {
+                        }
+                        else
+                        {
                             problemList = pIter->second;
                         }
                         problemList.push_back(problem.problem);
-                    } 
+                    }
 
                     iot::mapRequired(io, "indices", mappingIndices);
 
@@ -116,12 +119,12 @@ namespace Tensile
                         {
                             auto solution = slnIter->second;
                             lib.solutions.insert(std::make_pair(pair.first, solution));
-                            for (auto const& model : pair.second)
+                            for(auto const& model : pair.second)
                             {
                                 TileAwareMetricModelTableEntry<MySolution> modelProblem;
-                                modelProblem.key = pair.first;
+                                modelProblem.key      = pair.first;
                                 modelProblem.solution = solution;
-                                modelProblem.problem = model; 
+                                modelProblem.problem  = model;
                                 lib.modelProblems.push_back(modelProblem);
                             }
                         }
