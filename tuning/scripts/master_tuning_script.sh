@@ -242,7 +242,6 @@ else
         printf "Could not detect GPU, assuming mi60\n"
         LIBRARY=vega20
         GPU=mi60
-        exit 2
     fi
     rm -rf rae.txt rocminfo.txt
 fi
@@ -407,15 +406,22 @@ mv Tensile/exact library/
 mkdir library/merge
 
 DIR=archive
-if [[ "${LIBRARY}" == arcturus ]]; then
+if [[ "${LIBRARY}" == arcturus || ("${DATA_TYPE}" == hgemm && "${DISABLE_HPA}" == false) ]]; then
     DIR=asm_full
+fi
+
+if [[ "${LIBRARY}" == arcturus ]]; then
     git clone https://github.com/RocmSoftwarePlatform/rocmdevtools.git -b efficiency
-    python rocmdevtools/scripts/tuning/convertToEfficiency.py library/exact arc ${SCLK} 2>&1 | tee logs/log-efficiency
+    python rocmdevtools/scripts/tuning/convertToEfficiency.py library/exact ${LIBRARY} ${SCLK} 2>&1 | tee logs/log-efficiency
 fi
 python Tensile/Tensile/Utilities/merge.py rocBLAS/library/src/blas3/Tensile/Logic/${DIR} library/exact library/merge 2>&1 | tee logs/log-merge-script
 
 if [[ "${LIBRARY}" != arcturus ]]; then
-    python rocBLAS/library/src/blas3/Tensile/Logic/archive/massage.py library/merge library/massage
+    if [[ "${DATA_TYPE}" == hgemm && "${DISABLE_HPA}" == false ]]; then
+        printf "hpa hgemm does not support the massage script, skipping this step\n"
+    else
+        python rocBLAS/library/src/blas3/Tensile/Logic/archive/massage.py library/merge library/massage
+    fi
 fi
 
 mkdir packages
@@ -428,12 +434,17 @@ pushd reference-build/release
 popd
 
 if [[ "${LIBRARY}" != arcturus ]]; then
-    cp ../library/massage/* library/src/blas3/Tensile/Logic/asm_full
-    cp ../library/massage/* library/src/blas3/Tensile/Logic/asm_ci
-    cp ../library/merge/* library/src/blas3/Tensile/Logic/archive
+    if [[ "${DATA_TYPE}" == hgemm && "${DISABLE_HPA}" == false ]]; then
+        cp ../library/merge/* library/src/blas3/Tensile/Logic/asm_full
+    else
+        cp ../library/massage/* library/src/blas3/Tensile/Logic/asm_full
+        cp ../library/massage/* library/src/blas3/Tensile/Logic/asm_ci
+        cp ../library/merge/* library/src/blas3/Tensile/Logic/archive
+    fi
 else
     cp ../library/merge/* library/src/blas3/Tensile/Logic/asm_full
 fi
+
 ./install.sh -c --build_dir tuned-build --${ROCBLAS_COMPILER} 2>&1 | tee log-tuned-build
 cp log-tuned-build ../logs
 pushd tuned-build/release
