@@ -237,11 +237,6 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 
     benchmarkPermutations = constructForkPermutations(benchmarkStep.benchmarkParameters)
 
-    totalBenchmarkPermutations = len(benchmarkPermutations)
-
-    if (totalBenchmarkPermutations != totalBenchmarkPermutations1):
-      printExit("failed total permutations")
-
     ############################################################################
     # Enumerate Solutions = Hardcoded * Benchmark
     ############################################################################
