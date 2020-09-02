@@ -1211,5 +1211,5 @@
     - [4608, 4608, 1, 4096, 11271.0]
     - [4608, 4608, 1, 8192, 11977.0]
     - [4608, 4608, 1, 16192, 12255.0]
-  SelectionModel: FitnessSelection
+  SelectionModel: TileAwareMetricSelection
   TileSelectionIndices: [0, 1, 2, 3, 4, 5]
