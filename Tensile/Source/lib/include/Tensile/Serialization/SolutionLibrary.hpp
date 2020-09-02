@@ -39,10 +39,10 @@
 #include <Tensile/Serialization/Predicates.hpp>
 
 #include <Tensile/Serialization/ExactLogicLibrary.hpp>
-#include <Tensile/Serialization/TileAwareMetricSelectionLibrary.hpp>
 #include <Tensile/Serialization/GranularitySelectionLibrary.hpp>
 #include <Tensile/Serialization/MapLibrary.hpp>
 #include <Tensile/Serialization/MatchingLibrary.hpp>
+#include <Tensile/Serialization/TileAwareMetricSelectionLibrary.hpp>
 
 namespace Tensile
 {

@@ -34,10 +34,10 @@
 #include <Tensile/Serialization/ContractionPredicates.hpp>
 #include <Tensile/Serialization/ContractionSolution.hpp>
 #include <Tensile/Serialization/ExactLogicLibrary.hpp>
-#include <Tensile/Serialization/TileAwareMetricSelectionLibrary.hpp>
 #include <Tensile/Serialization/GranularitySelectionLibrary.hpp>
 #include <Tensile/Serialization/HasTraits.hpp>
 #include <Tensile/Serialization/MapLibrary.hpp>
 #include <Tensile/Serialization/Predicates.hpp>
 #include <Tensile/Serialization/Properties.hpp>
 #include <Tensile/Serialization/SolutionLibrary.hpp>
+#include <Tensile/Serialization/TileAwareMetricSelectionLibrary.hpp>
