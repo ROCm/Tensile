@@ -788,8 +788,8 @@ namespace Tensile
         throw std::runtime_error("Data type not implemented.");
     }
 
-ContractionSolution::StaticTAMetricPerformanceModel
-        ContractionSolution::staticTAMetricPerformanceModel(double M,
+    ContractionSolution::StaticTAMetricPerformanceModel
+    ContractionSolution::staticTAMetricPerformanceModel(double M,
                                                     double N,
                                                     double K,
                                                     double NumBatches,
@@ -886,9 +886,7 @@ ContractionSolution::StaticTAMetricPerformanceModel
 
         double GlobalSplitU         = sizeMapping.globalSplitU;
         double LocalSplitU          = sizeMapping.workGroupSize.z;
-        //double IdealGranularityPerf = closestKPerformance;
-
-        
+ 
         pp.numTiles0 = M / MT0;
         pp.numTiles1 = N / MT1;
 
@@ -896,9 +894,6 @@ ContractionSolution::StaticTAMetricPerformanceModel
         pp.tile1Granularity = pp.numTiles1 / ceil(pp.numTiles1);
 
         pp.totalTiles = ceil(pp.numTiles0) * ceil(pp.numTiles1);
-
-        //pp.tilesPerCu = (NumBatches * ceil(pp.numTiles0) * ceil(pp.numTiles1))
-        //                / (NumCUs / GlobalSplitU / LocalSplitU);
 
         pp.suTilesPerCu = (pp.totalTiles * GlobalSplitU) / NumCUs;
         pp.suCuGranularity = pp.suTilesPerCu / ceil(pp.suTilesPerCu);
@@ -910,7 +905,6 @@ ContractionSolution::StaticTAMetricPerformanceModel
 
 
         pp.totalGranularity = pp.tile0Granularity * pp.tile1Granularity * pp.suCuGranularity * pp.suWaveGranularity;
-        //pp.speedGFlops = IdealGranularityPerf * pp.totalGranularity;
 
         return  pp;
     }
@@ -922,27 +916,8 @@ ContractionSolution::StaticTAMetricPerformanceModel
         TAMetricProblemScore pp;
 
         double M = 1.0, N = 1.0;
-        /*if(problem.freeIndicesA().size() > 1 || sizeMapping.packBatchDims & 0x1)
-        {
-            std::vector<size_t> packedIndices
-                = generatePackedIndicesA(problem, sizeMapping.packBatchDims);
-            for(auto pi = packedIndices.begin(); pi != packedIndices.end(); pi++)
-                M *= problem.a().sizes()[*pi];
-        }
-        else*/
-            M = problem.freeSizeA(0);
-
-        /*
-        if(problem.freeIndicesB().size() > 1 || sizeMapping.packBatchDims & 0x2)
-        {
-            std::vector<size_t> packedIndices
-                = generatePackedIndicesB(problem, sizeMapping.packBatchDims);
-            for(auto pi = packedIndices.begin(); pi != packedIndices.end(); pi++)
-                N *= problem.b().sizes()[*pi];
-        }
-        else*/
-            N = problem.freeSizeB(0);
-
+        M = problem.freeSizeA(0);
+        N = problem.freeSizeB(0);
 
         double NumBatches = 1;
         /*
@@ -954,91 +929,10 @@ ContractionSolution::StaticTAMetricPerformanceModel
         
         double K = problem.boundSize(0); // TODO - fix for multiple summations
 
-        //auto it = idealsm.begin();
-
-        //int    closestK            = -1;
-        //int    closestKMeasure     = std::numeric_limits<int>::max();
-        //double closestKPerformance = 0.0;
-
-        /*while(it != idealsm.end())
-        {
-            //int myK       = it->first;
-            int myK = it->at(3);
-            int myMeasure = std::abs(myK - K);
-            if(myMeasure < closestKMeasure)
-            {
-                closestKMeasure     = myMeasure;
-                closestK            = myK;
-                //closestKPerformance = it->second;
-                closestKPerformance = it->at(4);
-            }
-            it++;
-        }*/
-
-/*
-        double MT0 = sizeMapping.macroTile.x;
-        double MT1 = sizeMapping.macroTile.y;
-
-        double NumCUs = perf.CUs;
-        double wavefrontSize = 64; //defaults to 64
-        double simdPerCu = 4;
-
-        AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
-        if(pAMDGPU != nullptr)
-        {
-            NumCUs = pAMDGPU->computeUnitCount;
-            wavefrontSize = pAMDGPU->wavefrontSize;
-            simdPerCu = pAMDGPU->simdPerCu;
-        }
-
-        double GlobalSplitU         = sizeMapping.globalSplitU;
-        double LocalSplitU          = sizeMapping.workGroupSize.z;
-        */
-        //double IdealGranularityPerf = closestKPerformance;
-
         pp = computeProblemScore(
             hardware, 
             M, N, K, NumBatches,
             0, 0, 0, 0);
-
-/*
-        pp.numTiles0 = M / MT0;
-        pp.numTiles1 = N / MT1;
-
-        pp.tile0Granularity = pp.numTiles0 / ceil(pp.numTiles0);
-        pp.tile1Granularity = pp.numTiles1 / ceil(pp.numTiles1);
-
-        pp.totalTiles = ceil(pp.numTiles0) * ceil(pp.numTiles1);
-
-        //pp.tilesPerCu = (NumBatches * ceil(pp.numTiles0) * ceil(pp.numTiles1))
-        //                / (NumCUs / GlobalSplitU / LocalSplitU);
-
-        pp.suTilesPerCu = (pp.totalTiles * GlobalSplitU) / NumCUs;
-        pp.suCuGranularity = pp.suTilesPerCu / ceil(pp.suTilesPerCu);
-
-        pp.waves = ceil((sizeMapping.workGroupSize.x * sizeMapping.workGroupSize.y) / wavefrontSize);
-
-        pp.suWavesPerSimdx2 = (pp.suTilesPerCu * pp.waves) / (2 * simdPerCu);
-        pp.suWaveGranularity = pp.suWavesPerSimdx2 * ceil(pp.suWavesPerSimdx2);
-*/
-        //pp.waveGranularity = std::min(
-        //    1.00,
-        //    static_cast<double>(floor(pp.tilesPerCu + 1.0) * sizeMapping.workGroupSize.x
-        //                        * sizeMapping.workGroupSize.y * sizeMapping.workGroupSize.z)
-        //        / pAMDGPU->wavefrontSize / pAMDGPU->simdPerCu);
-
-        //pp.cuGranularity = pp.tilesPerCu / ceil(pp.tilesPerCu);
-        //pp.totalGranularity
-        //    = pp.tile0Granularity * pp.tile1Granularity * pp.cuGranularity * pp.waveGranularity;
-
-        //pp.totalGranularity = pp.tile0Granularity * pp.tile1Granularity * pp.suCuGranularity * pp.suWaveGranularity;
-        //pp.speedGFlops = IdealGranularityPerf * pp.totalGranularity;
-
-     
-        //pp.staticModel = staticTAMetricPerformanceModel(
-        //    M, N, K, NumBatches, MT0, MT1, NumCUs, pp.totalGranularity, GlobalSplitU);
-
-        //total_gran0 <- tile0_gran * tile1_gran * su_cu_gran
         
 
         return pp;

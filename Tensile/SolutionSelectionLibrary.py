@@ -231,7 +231,6 @@ def analyzeSolutionSelectionForMetric(problemType, selectionFileNameList, numSol
   solutionsHash = {}
 
   totalIndices = problemType["TotalIndices"]
-  summationIndex = totalIndices
   numIndices = totalIndices + problemType["NumIndicesLD"]
   problemSizeStartIdx = 1
   totalSizeIdx = problemSizeStartIdx + numIndices

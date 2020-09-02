@@ -51,8 +51,6 @@ class GranularitySelectionLibrary:
     @classmethod
     def FromOriginalState(cls, d, indices):
         origTable = d[1]
-        #indices = d[9]["TileSelectionIndices"]
-        #  entry = {'key': key, 'value': value, 'speed': row[1][1]}
         entries = []
         for row in origTable:
             try:
@@ -92,8 +90,6 @@ class TileAwareMetricLibrary:
     @classmethod
     def FromOriginalState(cls, d, indices):
         origTable = d[1]
-        #indices = d[9]["TileSelectionIndices"]
-        #  entry = {'key': key, 'value': value, 'speed': row[1][1]}
         entries = []
         for row in origTable:
             try:
@@ -121,13 +117,10 @@ class TileAwareMetricLibrary:
 
     def remapSolutionIndices(self,indexMap):
         newMapping = {}
-        #for i in range(0, len(self.indices)):
         for i in self.indices:
             index = self.indices[i]
             newKey = indexMap[i]
             newMapping[newKey] = index
-            #if index in indexMap:
-            #    self.indices[i] = indexMap[index]
         self.indices = newMapping
 
 class MatchingLibrary:
@@ -267,7 +260,6 @@ class MasterSolutionLibrary:
 
         deviceSection = d[1:4]
         origProblemType = d[4]
-        #origSolutions = d[5]
         origLibrary = d[6:8]
 
         problemType = Contractions.ProblemType.FromOriginalState(origProblemType)
@@ -288,8 +280,6 @@ class MasterSolutionLibrary:
                 library = matchingLibrary
 
             elif libName == 'SelectionModel':
-                #selectionIndices = d[9]["TileSelectionIndices"]
-                
                 modelName = "GranularitySelection"
                 if "SelectionModel" in d[9]:
                   modelName = d[9]["SelectionModel"]
@@ -297,7 +287,6 @@ class MasterSolutionLibrary:
                   selectionIndices = d[9]["TileSelectionIndices"]
                   library = GranularitySelectionLibrary.FromOriginalState(origLibrary, selectionIndices)
                 else:
-                  #library = TileAwareMetricLibrary.FromOriginalState(origLibrary, selectionIndices) 
                   selectionIndices = d[9]["IdealMap"]
                   library = TileAwareMetricLibrary.FromOriginalState(origLibrary, selectionIndices)  
 
@@ -371,7 +360,6 @@ class MasterSolutionLibrary:
 
     def applyNaming(self, naming=None):
         if naming is None:
-            #allSolutions = itertools.chain(iter(list(self.solutions.values())), iter(list(self.sourceSolutions.values())))
             kernels = list(itertools.chain(*[s.originalSolution.getKernels() for s in self.solutions.values()]))
             naming = OriginalSolution.getMinNaming(kernels)
 

@@ -54,7 +54,6 @@ namespace Tensile
         std::vector<double> problem;
     };
 
-    //FitnessSelectionTableEntry
     /**
  * \ingroup SolutionLibrary
  *
@@ -129,57 +128,10 @@ namespace Tensile
             double                      bestDistance = std::numeric_limits<double>::max();
             std::shared_ptr<MySolution> bestSolution;
 
-            /*
-            for(auto const& row : solutions)
-            {
-                auto myPerformance
-                    = row.second->projectedTAMetricPerformance(problem, hardware).speedGFlops;
-
-                if(debug)
-                {
-                    std::cout << row.second->description() << ": " << myPerformance;
-                }
-
-                if(myPerformance > bestPerformance)
-                {
-                    if((*row.second->problemPredicate)(problem)
-                       && (*row.second->hardwarePredicate)(hardware))
-                    {
-                        bestPerformance = myPerformance;
-                        bestSolution    = row.second;
-
-                        if(debug)
-                            std::cout << " <-- Best so far";
-                    }
-                    else if(debug)
-                    {
-                        std::cout << " <-- Best, but predicate failure";
-                    }
-
-                    if(debug)
-                    {
-                        row.second->problemPredicate->debugEval(problem, std::cout);
-                        std::cout << std::endl;
-                        row.second->hardwarePredicate->debugEval(hardware, std::cout);
-                        std::cout << std::endl;
-                    }
-                }
-            }*/
-
             auto it = modelProblems.begin();
-
-            //double M = 1.0, N = 1.0;
-            //M = problem.freeSizeA(0);
-            //N = problem.freeSizeB(0);
-            //double NumBatches = 1;
-            //double K = problem.boundSize(0); 
-
 
             while (it != modelProblems.end())
             {
-                //int                 key;
-                //std::shared_ptr<MySolution>          solution;
-                //std::vector<double> problem;
                 size_t model_M = (size_t)it->problem[0];
                 size_t model_N = (size_t)it->problem[1];
                 size_t model_batchSize = (size_t)it->problem[2];
@@ -226,7 +178,6 @@ namespace Tensile
                   {
                     metric = abs(log(ppReference.suCuGranularity) - log(pp.suCuGranularity));
                   }
-                  //metric += abs(log(ppReference.cuGranularity) - log(pp.cuGranularity));
                 }
                 if (ppReference.suWaveGranularity > 0.0 && pp.suWaveGranularity > 0.0)
                 {
@@ -238,7 +189,6 @@ namespace Tensile
                   {
                     metric = abs(log(ppReference.suWaveGranularity) - log(pp.suWaveGranularity));
                   }
-                  //metric += abs(log(ppReference.waveGranularity) - log(pp.waveGranularity));
                 }
                 
                 if (metric < bestDistance)
@@ -246,33 +196,6 @@ namespace Tensile
                     bestDistance = metric;
                     bestSolution = it->solution;
                 }
-
-/*
-                struct TAMetricProblemScore
-        {
-            double numTiles0  = 0.0; //! number of tiles in 0 dimension
-            double numTiles1  = 0.0; //! number of tiles in 1 dimension
-            double totalTiles = 0.0;
-            double tilesPerCu = 0.0;
-
-            //! Granularity is measured 0..1 with 1.0 meaning no granularity loss
-            double tile0Granularity = 0.0; // loss due to tile0
-            double tile1Granularity = 0.0;
-            double cuGranularity    = 0.0;
-            double waveGranularity  = 0.0;
-            double totalGranularity = 0.0;
-            double suTilesPerCu = 0.0;
-            double suCuGranularity = 0.0;
-            double waves = 0.0;
-            double suWavesPerSimdx2 = 0.0;
-            double suWaveGranularity = 0.0;
-
-            double speedGFlops = 0.0; //! final gflops projection
-            int    CUs         = 0;
-
-            StaticTAMetricPerformanceModel staticModel;
-        };*/
-
             }
             
 

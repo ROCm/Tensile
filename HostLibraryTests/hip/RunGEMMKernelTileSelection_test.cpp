@@ -90,11 +90,6 @@ struct RunGEMMKernelSolutionSelectionTest : public ::testing::TestWithParam<Cont
         InitTensor(c_h.data(), problem.c(), RandomInt<float>(), rng);
         InitTensor(d_in_h.data(), problem.d(), RandomInt<float>(), rng);
 
-        // InitTensor(a_h.data(), problem.a, Iota<float>());
-        // InitTensor(b_h.data(), problem.b, Iota<float>());
-        // InitTensor(c_h.data(), problem.c, RandomInt<float>());
-        // InitTensor(d_h.data(), problem.d, RandomInt<float>());
-
         d_ref_h = d_h;
 
         CopyTensor(d_ref_h.data(), c_h.data(), problem.d(), problem.c());
@@ -132,7 +127,6 @@ struct RunGEMMKernelSolutionSelectionTest : public ::testing::TestWithParam<Cont
         hardware = hip::GetCurrentDevice();
         ASSERT_NE(hardware, nullptr);
 
-//#if 1
         TypedContractionInputs<float> inputsRefHost;
         inputsRefHost.a     = a_h.data();
         inputsRefHost.b     = b_h.data();
@@ -142,7 +136,6 @@ struct RunGEMMKernelSolutionSelectionTest : public ::testing::TestWithParam<Cont
         inputsRefHost.beta  = inputs.beta;
 
         Client::SolveCPU(problem, inputsRefHost);
-//#else
     }
 
     void TearDown() override
@@ -156,24 +149,10 @@ struct RunGEMMKernelSolutionSelectionTest : public ::testing::TestWithParam<Cont
         hipDeviceReset();
     }
 };
-/*
-void TearDown() override
-{
-    hipFree(a_d);
-    hipFree(b_d);
-    hipFree(c_d);
-    hipFree(d_d);
-    hipFree(d_ref_d);
-
-    hipDeviceReset();
-}
-*/
 
 TEST_P(RunGEMMKernelSolutionSelectionTest, KernelsTileSelection)
 {
-
     ContractionProblem problem = GetParam();
-    // std::cout << problem << std::endl;
 
     bool debug = false;
     auto library = LoadLibraryFile<ContractionProblem>(
@@ -185,16 +164,6 @@ TEST_P(RunGEMMKernelSolutionSelectionTest, KernelsTileSelection)
 
     for(auto file : TestData::Instance().glob("tile_aware_selection/library/*.*hsaco"))
         adapter->loadCodeObjectFile(file.native());
-
-   //     rv.emplace_back(library, adapter, false);
-
-    //auto library = LoadLibraryFile<ContractionProblem>(
-    //    TestData::Instance().file("kernels_tile_selection/TensileLibrary").native());
-        //TestData::Instance().file("kernels_tile_selection/TensileLibrary").native());
-
-    //hip::SolutionAdapter adapter(false);
-    //adapter.loadCodeObjectFile(
-    //    TestData::Instance().file("kernels_tile_selection/TensileLibrary_gfx906", "co").native());
 
     ASSERT_NE(library, nullptr);
 
@@ -220,30 +189,14 @@ TEST_P(RunGEMMKernelSolutionSelectionTest, TileAwareMetricSelection)
 {
 
     ContractionProblem problem = GetParam();
-    // std::cout << problem << std::endl;
 
     bool debug = false;
     auto library = LoadLibraryFile<ContractionProblem>(
-            //TestData::Instance().file("fitness_selection/library/TensileLibrary").native());
             TestData::Instance().file("tile_aware_metric_selection/library/TensileLibrary").native());
 
     auto adapter = std::make_shared<hip::SolutionAdapter>(debug, "fitness_selection");
     for(auto file : TestData::Instance().glob("tile_aware_metric_selection/library/*.*co"))
-    //for(auto file : TestData::Instance().glob("fitness_selection/library/*.*co"))
         adapter->loadCodeObjectFile(file.native());
-
-    //for(auto file : TestData::Instance().glob("tile_aware_selection/library/*.*hsaco"))
-    //    adapter->loadCodeObjectFile(file.native());
-
-   //     rv.emplace_back(library, adapter, false);
-
-    //auto library = LoadLibraryFile<ContractionProblem>(
-    //    TestData::Instance().file("kernels_tile_selection/TensileLibrary").native());
-        //TestData::Instance().file("kernels_tile_selection/TensileLibrary").native());
-
-    //hip::SolutionAdapter adapter(false);
-    //adapter.loadCodeObjectFile(
-    //    TestData::Instance().file("kernels_tile_selection/TensileLibrary_gfx906", "co").native());
 
     ASSERT_NE(library, nullptr);
 

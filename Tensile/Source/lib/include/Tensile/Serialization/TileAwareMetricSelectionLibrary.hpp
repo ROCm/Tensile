@@ -38,7 +38,6 @@ namespace Tensile
         struct MappingTraits<TileAwareMetricSolutionTableEntry, IO>
         {
             using Entry = TileAwareMetricSolutionTableEntry; //<Key, Value>;
-            //using ModelEntry = FitnessModelTableEntry;
             using iot   = IOTraits<IO>;
 
             static void mapping(IO& io, Entry& entry)
@@ -68,22 +67,10 @@ namespace Tensile
                                   "set to a SolutionMap.");
                 }
 
-                //std::vector<int>                      cd ;
-                //std::vector<std::vector<double>>                      mappingIndices;
                 std::map<int, std::vector<std::vector<double>>>         mappingIndices;
                 std::vector<TileAwareMetricSolutionTableEntry> mapEntries;
                 if(iot::outputting(io))
                 {
-                    //mappingIndices.reserve(lib.solutions.size());
-
-                    //mappingIndices
-                    /*for(auto const& pair : lib.solutions)
-                    {
-                        std::vector<double> none;
-                        //mappingIndices.push_back(pair.first, none);
-                        mappingIndices[pair.first] = none;
-                    }*/
-
                     for (auto const& problem: lib.modelProblems)
                     {
                         int key = problem.key;
@@ -118,10 +105,8 @@ namespace Tensile
                                       "TileAwareMetricSelectionLibrary requires non empty "
                                       "mapping index set.");
 
-                    //for(int index : mappingIndices)
                     for(auto const& pair : mappingIndices)
                     {
-                        //auto slnIter = ctx->find(index);
                         auto slnIter = ctx->find(pair.first);
                         if(slnIter == ctx->end())
                         {
@@ -130,20 +115,15 @@ namespace Tensile
                         else
                         {
                             auto solution = slnIter->second;
-                            //lib.solutions.insert(std::make_pair(index, solution));
                             lib.solutions.insert(std::make_pair(pair.first, solution));
                             for (auto const& model : pair.second)
                             {
-                                //for (std::vector<double>::const_iterator it = model.begin() ; it != model.end(); ++it)
-                                //{
-                                    TileAwareMetricModelTableEntry<MySolution> modelProblem;
-                                    modelProblem.key = pair.first;
-                                    modelProblem.solution = solution;
-                                    modelProblem.problem = model; //(*it);
-                                    lib.modelProblems.push_back(modelProblem);
-                                //}
+                                TileAwareMetricModelTableEntry<MySolution> modelProblem;
+                                modelProblem.key = pair.first;
+                                modelProblem.solution = solution;
+                                modelProblem.problem = model; 
+                                lib.modelProblems.push_back(modelProblem);
                             }
-                            //lib.modelProblems.push_back()
                         }
                     }
 
