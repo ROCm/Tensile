@@ -1,4 +1,4 @@
-import os, subprocess, shlex, random, pytest
+import os, subprocess, shlex, shutil, random, pytest
 from Tensile import ClientWriter, LibraryIO, Common
 from Tensile.SolutionStructs import ProblemType, Problem
 
@@ -9,8 +9,7 @@ from Tensile.SolutionStructs import ProblemType, Problem
 # $ pytest Tensile/Tests -m integration --capture=tee-sys --builddir /tmp/pytest
 
 def getLogicFileDir(baseDir, schedule):
-
-  prefix = "https://github.com/ROCmSoftwarePlatform/rocBLAS/raw/develop/library/src/blas3/Tensile/Logic/asm_full/"
+  prefix = "library/src/blas3/Tensile/Logic/asm_full"
   testData = {
     "pre_checkin" : [
       "arcturus_Cijk_Ailk_Bjlk_SB.yaml",
@@ -29,26 +28,26 @@ def getLogicFileDir(baseDir, schedule):
     ]
   }
 
-  files = [prefix + e for e in testData[schedule] ]
   destDir = os.path.join(baseDir, "logic_yaml", schedule)
+  shutil.rmtree(destDir, ignore_errors=True)
   Common.ensurePath(destDir)
 
-  import glob
-  for f in glob.glob(destDir+"/*"):
-    print("file: ", f)
-    if os.path.basename(f) not in testData[schedule]:
-      print("removing file: ", f)
-      os.remove(f)
+  # basically to query the latest zip release weblink, download it and unzip
+  # selected files to destination folder
+  cmd = """#!/bin/bash
+weblink=$(curl --silent "https://api.github.com/repos/ROCmSoftwarePlatform/rocBLAS/releases/latest" | grep zipball | sed -r 's/.*"([^"]+)".*/\\1/')
+wget -nc $weblink
+archive=$(basename $weblink)
+rootDir=$(zipinfo -1 $archive | head -n 1)
+"""
+  for f in testData[schedule]:
+    cmd += "unzip -j -d %s -x $archive ${rootDir}%s\n"%(destDir, os.path.join(prefix,f))
 
-  cmd = list()
-  cmd.append("wget")
-  cmd.extend(files)
-  cmd.extend(["-nc"])
-  cmd.extend(["-P", destDir])
-  ret = subprocess.run(cmd)
-  assert(ret.returncode==0)
+  scriptFile = os.path.join(baseDir,"get_logic.sh")
+  with open(scriptFile, "w") as file: file.write(cmd)
+  os.chmod(scriptFile, 0o777)
+  subprocess.run(scriptFile, cwd=baseDir, check=True)
 
-  # pytest.set_trace()
   return destDir
 
 # Mock class
@@ -68,27 +67,17 @@ def test_integration(useGlobalParameters, builddir, testYamls, mergeFiles, libra
   logicFileDir = getLogicFileDir(builddir, testYamls)
   outputDir    = os.path.join(builddir, "lib")
 
-  # pytest.set_trace()
   with useGlobalParameters(OutputPath=outputDir,
                            WorkingPath=outputDir,
                            MergeFiles=mergeFiles,
                            LibraryFormat=libraryFormat,
                            LegacyComponents=legacyComponents,
-                           CMakeBuildType="Debug"
+                           GenerateManifestAndExit=False
                            ):
     Common.ensurePath(outputDir)
 
-    # Note: this step is needed for retrieving code object and tensile library yaml paths
-    # TODO Do away with this workaround. TensileCreateLibrary.py should take function arguments and return values directly
-    #      Refactor TensileCreateLibrary (not .py) to take CLI args instead and pass to underlying python script
-    Common.globalParameters["GenerateManifestAndExit"] = True
     createLibraryScript = ClientWriter.getBuildNewClientLibraryScript(outputDir, logicFileDir)
-    subprocess.run(shlex.split(createLibraryScript), cwd=outputDir)
-    ###
-
-    Common.globalParameters["GenerateManifestAndExit"] = False
-    createLibraryScript = ClientWriter.getBuildNewClientLibraryScript(outputDir, logicFileDir)
-    subprocess.run(shlex.split(createLibraryScript), cwd=outputDir)
+    subprocess.run(shlex.split(createLibraryScript), cwd=outputDir, check=True)
 
     coList = []
     libList = []
@@ -119,7 +108,7 @@ def test_integration(useGlobalParameters, builddir, testYamls, mergeFiles, libra
                                       codeObjectFiles=coList,
                                       tileAwareSelection=False,
                                       libraryFile=libList[0]))
-    # pytest.set_trace()
+
     forBenchmark = False
     enableTileSelection = False
     returncode = ClientWriter.runClient(logicFileDir, forBenchmark, enableTileSelection, clientParametersPaths)
