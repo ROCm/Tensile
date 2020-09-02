@@ -236,7 +236,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     solutions = []
 
     benchmarkPermutations = constructForkPermutations(benchmarkStep.benchmarkParameters)
-    maxPossibleSolutions = len(benchmarkPermutations)
+    maxPossibleSolutions = len(benchmarkPermutations) * numHardcoded
 
     ############################################################################
     # Enumerate Solutions = Hardcoded * Benchmark
