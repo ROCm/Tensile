@@ -467,7 +467,7 @@ int main(int argc, const char* argv[])
 
     listeners.addListener(solutionIterator);
     listeners.addListener(std::make_shared<ProgressListener>(args));
-    if (runKernels)
+    if(runKernels)
     {
         listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit));
         listeners.addListener(std::make_shared<BenchmarkTimer>(args, *hardware));
@@ -584,7 +584,7 @@ int main(int argc, const char* argv[])
                     {
                         reporters->report(ResultKey::Validation, "INVALID");
                         reporters->log(LogLevel::Error,
-                                    concatenate("Exception occurred: ", err.what(), "\n"));
+                                       concatenate("Exception occurred: ", err.what(), "\n"));
                     }
                 }
 
