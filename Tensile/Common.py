@@ -1727,7 +1727,15 @@ def assignGlobalParameters( config ):
       printWarning("Global parameter %s = %s unrecognised." % ( key, value ))
     globalParameters[key] = value
 
-
+def setupRestoreClocks():
+  import atexit
+  def restoreClocks():
+    if globalParameters["PinClocks"]:
+      rsmi = globalParameters["ROCmSMIPath"]
+      subprocess.call([rsmi, "-d", "0", "--resetclocks"])
+      subprocess.call([rsmi, "-d", "0", "--setfan", "50"])
+  atexit.register(restoreClocks)
+setupRestoreClocks()
 
 ################################################################################
 # Assign Parameters
