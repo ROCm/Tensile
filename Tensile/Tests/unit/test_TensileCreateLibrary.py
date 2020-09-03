@@ -20,6 +20,7 @@
 ################################################################################
 
 import logging
+import pytest
 import os
 import glob
 import Tensile.TensileCreateLibrary as TensileCreateLibrary
@@ -111,7 +112,7 @@ def test_loadSolutions(caplog):
     assert expectedKernelName1 == actualKernelName1
     assert expectedKernelName2 == actualKernelName2
 
-
+@pytest.mark.skip(reason="System issue with find assempler called when assigning defaults")
 def test_WriteClientLibraryFromSolutions(tmpdir):
     Common.globalParameters["MergeFiles"] = True
     Common.globalParameters["CodeObjectVersion"] = "V3"
