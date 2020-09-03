@@ -126,7 +126,7 @@ if [[ ${MERGE} == true ]]; then
   mkdir -p ${MERGE_PATH}
   mkdir -p ${MASSAGE_PATH}
   
-  if [[ ${LIBRARY} != arcturus ]]; then
+  if [[ ${LIBRARY} != arcturus && ${MASSAGE} == true ]]; then
     ASM_PATH=${ARCHIVE_PATH}
   fi
   EXE_MERGE="python ${MERGE_SCRIPT} ${ASM_PATH} ${EXACT_PATH} ${MERGE_PATH}"
