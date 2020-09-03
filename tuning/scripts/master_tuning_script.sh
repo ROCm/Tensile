@@ -404,6 +404,8 @@ if [[ $(ls -A ${OUTPUT_DIR} | wc -c) -eq 0 ]]; then
     collect_uniques
     chmod 755 scripts/*
     chmod 755 scripts2/*
+else
+    pushd ${OUTPUT_DIR}
 fi
 
 git config --global credential.helper store
@@ -431,7 +433,7 @@ fi
 
 if [[ $(ls -A library | wc -c) -eq 0 ]]; then
     mkdir library
-    mv Tensile/exact library/
+    cp -r Tensile/exact library/
     mkdir library/merge
 fi
 
@@ -497,7 +499,7 @@ fi
 cp ../scripts/*.sh reference-build/release/clients/staging
 cp ../scripts/*.sh tuned-build/release/clients/staging
 pushd reference-build/release/clients/staging
-if [[ $(ls -A reference-build/release/clients/staging/results1 | wc -c) -eq 0 ]]; then
+if [[ $(ls -A results1 | wc -c) -eq 0 ]]; then
     ./doit_all1.sh
     find results1 -name \*.1 -exec sed -i "s/4t/t/g" {} \;
     find results1 -name \*.1 -exec sed -i "s/4r/r/g" {} \;
@@ -510,7 +512,7 @@ fi
 popd
 
 pushd tuned-build/release/clients/staging
-if [[ $(ls -A tuned-build/release/clients/staging/results1 | wc -c) -eq 0 ]]; then
+if [[ $(ls -A results1 | wc -c) -eq 0 ]]; then
     ./doit_all1.sh
     find results1 -name \*.1 -exec sed -i "s/4t/t/g" {} \;
     find results1 -name \*.1 -exec sed -i "s/4r/r/g" {} \;
