@@ -285,7 +285,7 @@ collect_uniques () {
 
 run_tune_nn () {
     NN=build-${LIBRARY}-${DATA_TYPE}-nn-${OUTPUT_DIR}
-    if [[ $(ls -A ${NN} | wc -c) -eq 0 ]]; then
+    if [[ $(ls -A ${NN}/3_LibraryLogic | wc -c) -eq 0 ]]; then
         mkdir ${NN}
         cp ../configs/*nn*.yaml ${NN}
 
@@ -305,7 +305,7 @@ run_tune_nn () {
 
 run_tune_nt () {
     NT=build-${LIBRARY}-${DATA_TYPE}-nt-${OUTPUT_DIR}
-    if [[ $(ls -A ${NT} | wc -c) -eq 0 ]]; then
+    if [[ $(ls -A ${NT}/3_LibraryLogic | wc -c) -eq 0 ]]; then
         mkdir ${NT}
         cp ../configs/*nt*.yaml ${NT}
 
@@ -325,7 +325,7 @@ run_tune_nt () {
 
 run_tune_tn () {
     TN=build-${LIBRARY}-${DATA_TYPE}-tn-${OUTPUT_DIR}
-    if [[ $(ls -A ${TN} | wc -c) -eq 0 ]]; then
+    if [[ $(ls -A ${TN}/3_LibraryLogic | wc -c) -eq 0 ]]; then
         mkdir ${TN}
         cp ../configs/*tn*.yaml ${TN}
 
