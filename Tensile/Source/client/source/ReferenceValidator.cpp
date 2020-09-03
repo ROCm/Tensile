@@ -48,8 +48,6 @@ namespace Tensile
             m_printValids        = args["print-valids"].as<bool>();
             m_printMax           = args["print-max"].as<int>();
 
-            m_boundsCheck = args["bounds-check"].as<BoundsCheckMode>();
-
             m_printTensorA   = args["print-tensor-a"].as<bool>();
             m_printTensorB   = args["print-tensor-b"].as<bool>();
             m_printTensorC   = args["print-tensor-c"].as<bool>();
@@ -397,14 +395,15 @@ namespace Tensile
             size_t elementsBeforeData   = 0;
             size_t elementsAfterData    = 0;
 
-            if(m_boundsCheck == BoundsCheckMode::NaN)
+            BoundsCheckMode boundsCheck = m_dataInit->getCurBoundsCheck();
+            if(boundsCheck == BoundsCheckMode::NaN)
                 elementsToCopy = result.dElements;
             size_t bytesToCopy = elementsToCopy * sizeof(Type);
 
             if(m_cpuResultBuffer.size() < bytesToCopy)
                 m_cpuResultBuffer.resize(bytesToCopy);
 
-            if(m_boundsCheck == BoundsCheckMode::GuardPageBack)
+            if(boundsCheck == BoundsCheckMode::GuardPageBack)
                 elementsOffsetToCopy = result.dElements - tensor.totalAllocatedElements();
 
             HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(),
@@ -412,7 +411,7 @@ namespace Tensile
                                     bytesToCopy,
                                     hipMemcpyDeviceToHost));
 
-            if(m_boundsCheck == BoundsCheckMode::NaN)
+            if(boundsCheck == BoundsCheckMode::NaN)
             {
                 elementsBeforeData = result.d - result.managedD.get();
                 elementsAfterData
@@ -488,7 +487,7 @@ namespace Tensile
                                   tensor.sizes().end());
                     size_t baseElemIndex = tensor.index(coord);
 
-                    if(m_boundsCheck == BoundsCheckMode::NaN && baseElemIndex != 0
+                    if(boundsCheck == BoundsCheckMode::NaN && baseElemIndex != 0
                        && baseElemIndex != prevBaseIndex + innerDimSize)
                     {
                         for(auto innerIndex = prevBaseIndex + innerDimSize;

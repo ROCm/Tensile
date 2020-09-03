@@ -130,7 +130,8 @@ namespace Tensile
                 ("bounds-check",             po::value<BoundsCheckMode>()->default_value(BoundsCheckMode::Disable),
                 "1:Use sentinel values to check memory boundaries."
                 "2:Memory bound check by front guard page"
-                "3:Memory bound check by back guard page")
+                "3:Memory bound check by back guard page"
+                "4:Memory bound check by both side guard page")
 
                 ("print-tensor-a",           po::value<bool>()->default_value(false), "Print tensor A.")
                 ("print-tensor-b",           po::value<bool>()->default_value(false), "Print tensor B.")
@@ -467,6 +468,7 @@ int main(int argc, const char* argv[])
 
     MetaRunListener listeners;
 
+    listeners.addListener(dataInit);
     listeners.addListener(solutionIterator);
     listeners.addListener(std::make_shared<ProgressListener>(args));
     if(runKernels)

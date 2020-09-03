@@ -135,6 +135,8 @@ namespace Tensile
                 strValue = "GuardPageFront";
             else if(mode == BoundsCheckMode::GuardPageBack)
                 strValue = "GuardPageBack";
+            else if(mode == BoundsCheckMode::GuardPageAll)
+                strValue = "GuardPageAll";
             else
                 throw std::runtime_error(
                     concatenate("Invalid BoundsCheckMode value: ", static_cast<int>(mode)));
@@ -155,6 +157,8 @@ namespace Tensile
                 mode = BoundsCheckMode::GuardPageFront;
             else if(strValue == "GuardPageBack")
                 mode = BoundsCheckMode::GuardPageBack;
+            else if(strValue == "GuardPageAll")
+                mode = BoundsCheckMode::GuardPageAll;
             else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
             {
                 int value = atoi(strValue.c_str());
@@ -299,7 +303,16 @@ namespace Tensile
             , m_keepPristineCopyOnGPU(args["pristine-on-gpu"].as<bool>())
             , m_workspaceSize(maxWorkspaceSize)
         {
-            m_boundsCheck = args["bounds-check"].as<BoundsCheckMode>();
+            m_boundsCheck    = args["bounds-check"].as<BoundsCheckMode>();
+            m_curBoundsCheck = m_boundsCheck;
+
+            if(m_boundsCheck == BoundsCheckMode::GuardPageAll)
+            {
+                //GuardPageAll needs 2 runs per solution.
+                //First run perform front side guard page checking.
+                m_curBoundsCheck     = BoundsCheckMode::GuardPageFront;
+                m_numRunsPerSolution = 2;
+            }
 
             if(args.count("convolution-vs-contraction"))
                 m_convolutionVsContraction = args["convolution-vs-contraction"].as<bool>();
@@ -312,15 +325,15 @@ namespace Tensile
                 m_dMaxElements = std::max(m_dMaxElements, problem.d().totalAllocatedElements());
             }
 
-            if(m_boundsCheck == BoundsCheckMode::NaN)
+            if(m_curBoundsCheck == BoundsCheckMode::NaN)
             {
                 m_aMaxElements += 1024;
                 m_bMaxElements += 1024;
                 m_cMaxElements += 1024;
                 m_dMaxElements += 1024;
             }
-            else if(m_boundsCheck == BoundsCheckMode::GuardPageFront
-                    || m_boundsCheck == BoundsCheckMode::GuardPageBack)
+            else if(m_curBoundsCheck == BoundsCheckMode::GuardPageFront
+                    || m_curBoundsCheck == BoundsCheckMode::GuardPageBack)
             {
                 unsigned int aRoundUpSize
                     = pageSize / DataTypeInfo::Get(args["a-type"].as<DataType>()).elementSize;

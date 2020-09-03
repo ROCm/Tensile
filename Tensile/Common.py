@@ -71,6 +71,7 @@ globalParameters["BoundsCheck"] = 0   # Bounds check
 #1: Perform bounds check to find out of bounds reads/writes.  NumElementsToValidate must be -1.
 #2: Perform bounds check by front side guard page
 #3: Perform bounds check by back side guard page
+#4: Perform bounds check by both back and front side guard page
 
 globalParameters["ValidationMaxToPrint"] = 4      # maximum number of mismatches to print
 globalParameters["ValidationPrintValids"] = False # print matches too
