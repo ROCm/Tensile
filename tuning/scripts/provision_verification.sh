@@ -119,12 +119,16 @@ cp ${REFERENCE_LIBRARY_ASM}/* ${ASM_PATH}
 cp ${REFERENCE_LIBRARY_ARCHIVE}/* ${ARCHIVE_PATH}
 cp ${ARCHIVE_PATH}/*yaml ${ASM_PATH}
 
-MERGE_SCRIPT=${TENSILE_PATH}/Tensile/Utilities/merge_rocblas_yaml_files.py
+MERGE_SCRIPT=${TENSILE_PATH}/Tensile/Utilities/merge.py
 MASSAGE_SCRIPT=${REFERENCE_LIBRARY_ARCHIVE}/massage.py
 
 if [[ ${MERGE} == true ]]; then
   mkdir -p ${MERGE_PATH}
   mkdir -p ${MASSAGE_PATH}
+  
+  if [[ ${LIBRARY} != arcturus ]]; then
+    ASM_PATH=${ARCHIVE_PATH}
+  fi
   EXE_MERGE="python ${MERGE_SCRIPT} ${ASM_PATH} ${EXACT_PATH} ${MERGE_PATH}"
   ${EXE_MERGE}
 else
@@ -132,7 +136,7 @@ else
 fi
 
 if [[ ${MASSAGE} == true ]]; then
-  python ${MASSAGE_SCRIPT} ${MASSAGE_PATH} ${REFERENCE_LIBRARY_ASM}
+  python ${MASSAGE_SCRIPT} ${MERGE_PATH} ${MASSAGE_PATH}
 fi
 
 BUILD_ROCBLAS="./install.sh -c"
