@@ -3052,7 +3052,7 @@ class Solution:
 
     # lds max occupancy
     ldsSizeOccupancy = globalParameters["DeviceLDS"] // state["MaxOccupancy"]
-    ldsNumElementsOccupancy = ldsSizeOccupancy // state["ProblemType"]["DataType"].numBytes()
+    ldsNumElementsOccupancy = ldsSizeOccupancy // state["ProblemType"]["DestDataType"].numBytes()
 
     #print("ldsNumElementsA", ldsNumElementsA)
     #print("ldsNumElementsB", ldsNumElementsB)
@@ -3121,7 +3121,19 @@ class Solution:
         return
       ldsRemapPad = max(state["StoreRemapVectorWidth"],state["MIOutputVectorWidth"])
       ldsNumElementsRemapC = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"] * state["MIWaveGroup"][1]
-      ldsNumElementsRemapC *= (2 if state["_GlobalAccumulation"] else 1) # FP32 output FP16 Data
+
+      if state["_GlobalAccumulation"]:
+        # FP32 output FP16 Data
+        multiplier = 2
+      elif state["ProblemType"]["DestDataType"].numBytes() > state["ProblemType"]["DataType"].numBytes():
+        # Determine ratio of output to input element size.
+        # SRVW remaps output so we need to scale up resources.
+        multiplier = state["ProblemType"]["DestDataType"].numBytes() // state["ProblemType"]["DataType"].numBytes()
+      else:
+        multiplier = 1
+
+      ldsNumElementsRemapC *= multiplier
+
       #print("ldsNumElementsRemapC=%u" % ldsNumElementsRemapC)
       ldsNumElements = max(ldsNumElements, ldsNumElementsRemapC)
 

@@ -9035,7 +9035,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("ds_write_b128", addr0, vgpr(srcVgpr, rpv), \
                  "offset:%u"%offset, "storeRemap lw")
     else:
-       assert ("StoreRemap: bad bps!")
+      assert 0, "StoreRemap: bad bps!"
 
     return kStr
 
@@ -9075,6 +9075,8 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("ds_read_b64", dst, src, "offset:%u"%offset, "storeRemap lr")
       elif bps==16:
         kStr += inst("ds_read_b128", dst, src, "offset:%u"%offset, "storeRemap lr")
+      else:
+        assert 0, "StoreRemap: bad bps!"
 
     kStr += "\n"
 
