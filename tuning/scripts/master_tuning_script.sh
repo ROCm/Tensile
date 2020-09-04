@@ -451,7 +451,7 @@ if [[ "${LIBRARY}" == arcturus || ("${DATA_TYPE}" == hgemm && "${DISABLE_HPA}" =
 fi
 
 if [[ "${LIBRARY}" == arcturus ]]; then
-    if [[ $(ls -A logs/log-efficiency | wc -c) -eq 0 ]]; then
+    if [[ $(ls -A logs/log-efficiency | wc -c) -eq 0 && "${PUBLIC}" == false ]]; then
         git clone https://github.com/RocmSoftwarePlatform/rocmdevtools.git -b efficiency
         python rocmdevtools/scripts/tuning/convertToEfficiency.py library/exact ${LIBRARY} ${SCLK} 2>&1 | tee logs/log-efficiency
     fi
