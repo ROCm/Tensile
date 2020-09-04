@@ -37,7 +37,7 @@ HELP_STR="
     [--number]              Optional. Set script number (view scripts/performance in rocBLAS directory, default=1)
     [-u|--username]         Optional. Specify which Tensile fork to use (default=ROCmSoftwarePlatform)
     [--rocblas-fork]        Optional. Specify which rocBLAS fork to use (default=ROCmSoftwarePlatform)
-    [-b|--branch]           Optional. Specify which Tensile branch to use (default=master)
+    [-b|--branch]           Optional. Specify which Tensile branch to use (default=develop)
     [--rocblas-branch]      Optional. Specify which rocBLAS branch to use (default=develop)
     [-p|--public]           Optional. Specify whether you want to use rocBLAS (public) repo (default=false)
     [--one-type]            Optional. Only tune one matrix type (nn, nt, or tn)
@@ -163,6 +163,13 @@ if [[ "${DEPENDENCIES}" == true ]]; then
         sudo cmake .. -DCBLAS=ON -DLAPACKE=OFF -DBUILD_TESTING=OFF -DCMAKE_Fortran_FLAGS='-fno-optimize-sibling-calls' && \
         sudo make && sudo make install && popd && popd && popd 
     fi
+fi
+
+# get the user credentials
+if [[ "${PUBLIC}" == false ]]; then
+    git clone https://github.com/ROCmSoftwarePlatform/rocBLAS-internal.git credentials
+    git config --global credential.helper store
+    rm -rf credentials
 fi
 
 if [[ "${HCC}" == true ]]; then
@@ -408,8 +415,6 @@ else
     pushd ${OUTPUT_DIR}
 fi
 
-git config --global credential.helper store
-
 if [[ $(ls -A Tensile | wc -c) -eq 0 ]]; then
     git clone https://github.com/${ORGANIZATION}/Tensile.git -b ${TENSILE_BRANCH}
 fi
@@ -524,7 +529,7 @@ if [[ $(ls -A results1 | wc -c) -eq 0 ]]; then
 fi
 popd
 
-mv ../scripts/*-all.sh scripts/performance/${OUTPUT_DIR}${NUM}.sh
+cp ../scripts/*-all.sh scripts/performance/${OUTPUT_DIR}${NUM}.sh
 popd
 popd
 
