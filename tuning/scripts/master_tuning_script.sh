@@ -218,7 +218,6 @@ if [[ "${GPU}" == mi25 || "${GPU}" == v340 ]]; then
     LIBRARY=vega10
 elif [[ "${GPU}" == arcturus ]]; then
     LIBRARY=arcturus
-    MFMA=true
     VERIFICATION=true
 elif [[ "${GPU}" == mi50 || "${GPU}" == r7 ]]; then
     GPU=mi50
@@ -247,8 +246,12 @@ else
         printf "arcturus GPU detected\n"
         LIBRARY=arcturus
         GPU=arcturus
-        MFMA=true
         VERIFICATION=true
+
+        # currently, only sgemm mfma kernels are supported in automation
+        if [[ "${DATA_TYPE}" == sgemm ]]; then
+            MFMA=true
+        fi
     else
         printf "Could not detect GPU, assuming mi60\n"
         LIBRARY=vega20
