@@ -1684,23 +1684,18 @@ class Solution:
   def initBetaOnlyKernelObjects(self):
     self.betaOnlyKernelObjects = []
     if self["GlobalSplitU"] > 1:
-      betas = [False]
-      if self["ProblemType"]["UseBeta"]:
-        betas.append(True)
-      for beta in betas:
-        state = {}
-        state["ProblemType"] = deepcopy(self["ProblemType"])
-        state["ProblemType"]["UseBeta"] = beta
-        state["KernelLanguage"] = "Source"
-        state["_GlobalAccumulation"] = self["_GlobalAccumulation"]
-        self.betaOnlyKernelObjects.append(KernelWriterBetaOnly(state))
+      state = {}
+      state["ProblemType"] = deepcopy(self["ProblemType"])
+      state["KernelLanguage"] = "Source"
+      state["_GlobalAccumulation"] = self["_GlobalAccumulation"]
+      self.betaOnlyKernelObjects.append(KernelWriterBetaOnly(state))
 
 
   ########################################
   # create Conversion Kernels
   def initConversionKernelObjects(self):
     self.conversionKernelObjects = []
-    if (self["GlobalSplitU"] > 1 and self["_GlobalAccumulation"]):
+    if (self["GlobalSplitU"] > 1) and self["_GlobalAccumulation"]:
       state = {}
       state["ProblemType"] = deepcopy(self["ProblemType"])
       state["KernelLanguage"] = "Source"

@@ -573,8 +573,8 @@ namespace Tensile
 
         rv.kernelName = betaOnlyKernelName(problem, inputs, hardware);
 
-        rv.workGroupSize.x = 8;
-        rv.workGroupSize.y = 8;
+        rv.workGroupSize.x = 256;
+        rv.workGroupSize.y = 1;
         rv.workGroupSize.z = 1;
 
         size_t wiX = 1;
@@ -587,9 +587,9 @@ namespace Tensile
         for(size_t i = 0; i < problem.batchIndices().size(); i++)
             wiZ *= problem.batchSize(i);
 
-        rv.numWorkGroups.x = CeilDivide(wiX, rv.workGroupSize.x);
-        rv.numWorkGroups.y = CeilDivide(wiY, rv.workGroupSize.y);
-        rv.numWorkGroups.z = CeilDivide(wiZ, rv.workGroupSize.z);
+        rv.numWorkGroups.x = CeilDivide(wiX * wiY * wiZ, rv.workGroupSize.x);
+        rv.numWorkGroups.y = 1;
+        rv.numWorkGroups.z = 1;
 
         rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
         rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
@@ -629,10 +629,7 @@ namespace Tensile
             idx++;
         }
 
-        if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
-        {
-            rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
-        }
+        rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
 
         return rv;
     }
@@ -644,11 +641,6 @@ namespace Tensile
     {
         std::string name = concatenate(
             "C", problem.cNames(), "_", TypeInfo<typename TypedInputs::DType>::Abbrev());
-
-        if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
-        {
-            name += "B";
-        }
 
         if(sizeMapping.globalAccumulation)
         {

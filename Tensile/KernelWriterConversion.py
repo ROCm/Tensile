@@ -184,9 +184,15 @@ class KernelWriterConversion(KernelWriterBase):
     ########################################
     # end
     kStr += "}%s" % self.endLine
+    for i in range(firstStride, lastStrideC):
+      kStr += "#undef strideD" + self.indexChars[i] + self.endLine
+    for i in range(firstStride, lastStrideC):
+      kStr += "#undef strideW" + self.indexChars[i] + self.endLine
+    for i in range(firstStride, lastStrideC):
+      kStr += "#undef strideC" + self.indexChars[i] + self.endLine
     kStr += "#undef GLOBAL_D%s" % (self.endLine)
+    kStr += "#undef GLOBAL_W%s" % (self.endLine)
     kStr += "#undef GLOBAL_C%s" % (self.endLine)
-    kStr += "#undef SCALAR_ZERO%s" % ( self.endLine)
 
     return kStr
 

@@ -448,6 +448,12 @@ class SolutionWriter:
         WSstrides.append("strideW%s" % self.indexChars[i])
         s += "%sunsigned int %s = %s;\n" % (t, WSstrides[-1], tmpStr)
 
+    if gsu > 1:
+      s += "%ssize_t sizeOfC = sizeOfC0 * sizeOfC1;\n" % (t)
+      for i in range(0, problemType["NumIndicesC"]):
+        if i != problemType["Index0"] and i != problemType["Index1"]:
+          s += "%ssizeOfC *= size%s;\n" % (t, self.indexChars[i])
+
     ########################################
     # Enqueue Beta-Only Kernel
     ########################################
@@ -459,23 +465,10 @@ class SolutionWriter:
       s += "%s// enqueue Beta-Only kernel\n" % (t)
 
       # grid sizes
-      s += "%ssize_t localWorkSizeBetaOnly[3] = { 8, 8, 1};\n" % (t)
-      s += "%ssize_t globalWorkSizeBetaOnly[3];\n" % (t)
-      #s += "%sunsigned int sizeOfC0 = size%s;\n" % (t, \
-      #    self.indexChars[problemType["Index0"]])
-      #s += "%sunsigned int sizeOfC1 = size%s;\n" % (t, \
-      #    self.indexChars[problemType["Index1"]])
-      s += "%ssize_t totalWorkGroupsBetaOnly0 = sizeOfC0 / localWorkSizeBetaOnly[0];\n" % (t)
-      s += "%ssize_t totalWorkGroupsBetaOnly1 = sizeOfC1 / localWorkSizeBetaOnly[1];\n" % (t)
+      s += "%ssize_t localWorkSizeBetaOnly[3] = { 256, 1, 1};\n" % (t)
+      s += "%ssize_t globalWorkSizeBetaOnly[3] = { 1, 1, 1};\n" % (t)
+      s += "%sglobalWorkSizeBetaOnly[0] = (sizeOfC + globalWorkSizeBetaOnly[0] - 1) / globalWorkSizeBetaOnly[0];\n" % (t)
       s += "%s// b/c single kernel, add extra work-group here if edge needed\n" % (t)
-      s += "%sif (totalWorkGroupsBetaOnly0*localWorkSizeBetaOnly[0] < sizeOfC0) { totalWorkGroupsBetaOnly0++; }\n" % (t)
-      s += "%sif (totalWorkGroupsBetaOnly1*localWorkSizeBetaOnly[1] < sizeOfC1) { totalWorkGroupsBetaOnly1++; }\n" % (t)
-      s += "%sglobalWorkSizeBetaOnly[0] = totalWorkGroupsBetaOnly0%s;\n" % (t, "*localWorkSizeBetaOnly[0]" if self.language == "OCL" else "")
-      s += "%sglobalWorkSizeBetaOnly[1] = totalWorkGroupsBetaOnly1%s;\n" % (t, "*localWorkSizeBetaOnly[1]" if self.language == "OCL" else "")
-      s += "%sglobalWorkSizeBetaOnly[2] = 1;\n" % (t)
-      for i in range(0, problemType["NumIndicesC"]):
-        if i != problemType["Index0"] and i != problemType["Index1"]:
-          s += "%sglobalWorkSizeBetaOnly[2] *= size%s;\n" % (t, self.indexChars[i])
 
       if problemType["UseBeta"]:
         s += "%sbool betaZero = beta == (%s)0;\n" % (t, typeName)
@@ -530,9 +523,6 @@ class SolutionWriter:
         # TODO - timing with beta kernels is somewhat pessimistic since it has this separate event only on the GSU path.
         # Introduces 2-3us of overhead ; may want to disable PreciseKernelTime so non-GSU have same overhead.
         # Long-term fix would be to launch the beta kernel with the hipHccModule* API and set start-event in that call
-        if problemType["UseBeta"]:
-          s += "%sif (betaZero) {\n" % (t)
-          t += "  "
         s += "%sif( inputEvents != NULL )\n" % (t)
         s += "%s  hipEventRecord(inputEvents[0], stream );\n" % (t)
         s += "%skernelsLaunched++;\n" % (t)
@@ -556,41 +546,9 @@ class SolutionWriter:
           s += "%s%s,\n" % (t, self.strideList[i])
         # sizes
         for i in range(0, problemType["NumIndicesC"]):
-          s += "%ssize%s%s" % (t, self.indexChars[i], ",\n" if i < problemType["NumIndicesC"]-1 else ");\n")
+          s += "%ssize%s,\n" % (t, self.indexChars[i])
+        s += ("%sbeta);\n" % (t)) if problemType["UseBeta"] else ("%s0.0f);\n" % (t))
         t = t[:-2]
-
-        if problemType["UseBeta"]:
-          t = t[:-2]
-          s += "%s} else {\n" % (t)
-          t += "  "
-          s += "%sif( inputEvents != NULL )\n" % (t)
-          s += "%s  hipEventRecord(inputEvents[0], stream );\n" % (t)
-          s += "%skernelsLaunched++;\n" % (t)
-          s += "%shipLaunchKernelGGL(\n" % (t)
-          t += "  "
-          s += "%sHIP_KERNEL_NAME(%s),\n" % (t, kernelNamesBetaOnly[1])
-          s += "%sdim3(globalWorkSizeBetaOnly[0], globalWorkSizeBetaOnly[1], globalWorkSizeBetaOnly[2]),\n" % (t)
-          s += "%sdim3(localWorkSizeBetaOnly[0], localWorkSizeBetaOnly[1], localWorkSizeBetaOnly[2]),\n" % (t)
-          s += "%s0, // groupMemBytes\n" % (t)
-          s += "%sstream,\n" % (t)
-          s += ("%sworkspace,\n") % (t) if solution["_GlobalAccumulation"] else ("%sdataD,\n" % (t))
-          s += "%sdataC,\n" % (t)
-          # strides
-          if kernel["_GlobalAccumulation"]:
-            for i in range(0, numStridesC):
-              s += "%s%s,\n" % (t, WSstrides[i])
-          else:
-            for i in range(0, numStridesC):
-              s += "%s%s,\n" % (t, self.strideList[i])
-          for i in range(numStridesC, numStridesC*2):
-            s += "%s%s,\n" % (t, self.strideList[i])
-          # sizes
-          for i in range(0, problemType["NumIndicesC"]):
-            s += "%ssize%s,\n" % (t, self.indexChars[i])
-          s += "%sbeta);\n" % (t)
-          t = t[2:]
-          t = t[:-2]
-          s += "%s}\n" % (t)
 
         t = t[:-2]
         s += "%s} catch (const std::exception& e) {\n" % (t)
@@ -906,10 +864,6 @@ class SolutionWriter:
         s += "%s// enqueue GSU third kernel\n" % (t)
 
         # grid sizes
-        s += "%ssize_t sizeOfC = sizeOfC0 * sizeOfC1;\n" % (t)
-        for i in range(0, problemType["NumIndicesC"]):
-          if i != problemType["Index0"] and i != problemType["Index1"]:
-            s += "%ssizeOfC *= size%s;\n" % (t, self.indexChars[i])
         s += "%ssize_t localWorkSizeGlobalAccum[3] = { 256, 1, 1};\n" % (t)
         s += "%ssize_t globalWorkSizeGlobalAccum[3] = { 1, 1, 1};\n" % (t)
         s += "%sglobalWorkSizeGlobalAccum[0] = (sizeOfC + localWorkSizeGlobalAccum[0] - 1) / localWorkSizeGlobalAccum[0];\n" % (t)
