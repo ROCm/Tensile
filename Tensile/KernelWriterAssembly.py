@@ -9922,7 +9922,7 @@ class KernelWriterAssembly(KernelWriter):
           addr = self.sharedColVgprs
         elif self.optSharedColVgpr:
           if kernel["EnableMatrixInstruction"]:
-            elementCol = (d0 * gwvw + vc0) / gwvw
+            elementCol = (d0 * kernel["MIOutputVectorWidth"] + vc0) / gwvw
           else:
             elementCol = (d0 * kernel["VectorWidth"] + vc0) / gwvw
           assert (modf(elementCol)[0] < 0.001)
