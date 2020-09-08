@@ -412,6 +412,12 @@ namespace Tensile
                 return ReferenceSolution<ContractionInputs_I32_I32_I32>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
+            case ContractionInputs_I8_I32_I32::TypeId():
+            {
+                auto const& typedInputs = dynamic_cast<ContractionInputs_I8_I32_I32 const&>(inputs);
+                return ReferenceSolution<ContractionInputs_I8_I32_I32>::SolveCPU(
+                    problem, typedInputs, validationStride);
+            }
 #ifdef TENSILE_USE_BF16
             case ContractionInputs_B_B_S::TypeId():
             {

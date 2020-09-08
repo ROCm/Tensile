@@ -824,6 +824,15 @@ class ProblemType(collections.abc.Mapping):
           printExit("NO compute data type, or dest data type, or data type specified")
           self["DataType"] = DataType(0)
 
+    if self["OperationType"] == "GEMM" and self["DataType"].isInt8():
+      if not self["DestDataType"].isInt32() or not self["ComputeDataType"].isInt32():
+        printExit("For DataType=Int8, DestDataType can only be Int32, and ComputeDataType=Int32")
+
+    # Ethan: TODO - WIP, could be removed
+    if self["OperationType"] == "GEMM" and self["DataType"].isInt8x4():
+      if not self["DestDataType"].isInt32() or not self["ComputeDataType"].isInt32():
+        printExit("For DataType=Int8x4, DestDataType can only be Int32, and ComputeDataType=Int32")
+
     self.convolution = None
     if self["OperationType"] == "GEMM":
       self.checkIfSupportedGEMMType()
@@ -2420,7 +2429,9 @@ class Solution:
       if not (state["ProblemType"]["DataType"].isSingle() \
               or state["ProblemType"]["DataType"].isBFloat16() \
               or state["ProblemType"]["DataType"].isHalf() \
-              or state["ProblemType"]["DataType"].isSingleComplex()):
+              or state["ProblemType"]["DataType"].isSingleComplex() \
+              or state["ProblemType"]["DataType"].isInt8() \
+              or state["ProblemType"]["DataType"].isInt8x4()):
         reject(state, "didn't support Matrix Instruction with type %s" % str(state["ProblemType"]["DataType"]))
       if not state["MIBlock"] or len(state["MIBlock"]) != 6:
         reject(state, "invalid MIBlock")
@@ -2823,7 +2834,7 @@ class Solution:
         if state["EnableMatrixInstruction"] and state["GlobalLoadVectorWidthA"]:
           partialA = state["ProblemType"]["TLUA"] and (state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"] != 0)
           if partialA and state["GlobalLoadVectorWidthA"] > state["MIOutputVectorWidth"]:
-            #reduce GLVA if GLVA larger than MIOVW
+            #reduce GLVA if GLVA larger than MIOVW, Ethan: Study
             tva = totalElementsA // state["MIOutputVectorWidth"]
             if not Solution.setGlobalLoadVectorWidth(state, "A", tva, state["MIOutputVectorWidth"]):
               validDepthU = False
@@ -3363,7 +3374,7 @@ class Solution:
       if not state["GuaranteeNoPartialA"] or not state["GuaranteeNoPartialB"]:
         state["_UseSgprForGRO"] = False
         #reject(state, "PBC with wide load has insufficient overlap guarantees- try GRVW=1 or adding appropriate Assert*ElementMultiple")
-
+    # Ethan:: Study
     if state["EnableMatrixInstruction"]:
       cont1 = not state["GuaranteeNoPartialA"]
       cont2 = ((state["MIOutputVectorWidth"] % state["GlobalLoadVectorWidthA"]) != 0)

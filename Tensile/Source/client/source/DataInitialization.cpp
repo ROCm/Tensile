@@ -279,6 +279,10 @@ namespace Tensile
                 return GetTyped<ContractionInputs_I32_I32_I32>(
                     args, problemFactory, maxWorkspaceSize);
             }
+            case ContractionInputs_I8_I32_I32::TypeId():
+            {
+                return GetTyped<ContractionInputs_I8_I32_I32>(args, problemFactory, maxWorkspaceSize);
+            }
 #ifdef TENSILE_USE_BF16
             case ContractionInputs_B_B_S::TypeId():
             {

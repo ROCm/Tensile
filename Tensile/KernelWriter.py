@@ -119,6 +119,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     globalReadIncBCode  = self.globalReadIncrements.findNamedItem("globalReadIncrementB")
 
     lastLoadIter = 0
+    # Ethan: TODO-IGEMM, SIA3 Skip for now
     if kernel["EnableMatrixInstruction"] and kernel["ScheduleIterAlg"] == 3:
       numMfmaPerIter = self.numMfmaPerIter
       ##################################
@@ -2224,7 +2225,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.globalWriteWorkGroupInit(kernel))
 
       ####################################
-      # Shift Vector Components
+      # Shift Vector Components, # Ethan: Study
       ####################################
       if kernel["EdgeType"] == "ShiftPtr":
         # GuaranteeNoPartial means each component in the vector loads is always valid.  In this case we
@@ -2521,16 +2522,17 @@ class KernelWriter(metaclass=abc.ABCMeta):
     else:
       self.numReadsIterCoalescedA  = 1
       self.numReadsIterCoalescedB  = 1
-
+    # Ethan: Study
     self.numIterPerCoalescedReadA = max(1,self.numReadsIterCoalescedA//kernel["InnerUnroll"])
     self.numIterPerCoalescedReadB = max(1,self.numReadsIterCoalescedB//kernel["InnerUnroll"])
 
+    # Ethan: TODO-IGEMM, SIA3 Skip for now
     if kernel["ScheduleIterAlg"] == 3 or kernel["ScheduleIterAlg"] == 2:
       self.numMfmaPerIter = kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] * kernel["InnerUnroll"]
       if kernel["ProblemType"]["DataType"].isComplex(): self.numMfmaPerIter *= 4
 
     ########################################
-    # read vectors or vector components
+    # read vectors or vector components, # Ethan: Study
     ########################################
     if kernel["ProblemType"]["TLUA"]: # NT no transpose
       self.numReadsTileA = kernel["NumLoadsCoalescedA"]
@@ -2614,28 +2616,28 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.numReadVectorComponentsA = kernel["GlobalLoadVectorWidthA"] \
         if (self.readTileDimComponentsA \
         or self.readUnrollDimComponentsA) else 1
-    self.numWriteVectorComponentsA = kernel["GlobalLoadVectorWidthA"] \
-        if (self.writeTileDimComponentsA \
-        or self.writeUnrollDimComponentsA) else 1
-    self.numReadTileVectorComponentsA = kernel["GlobalLoadVectorWidthA"] \
-        if self.readTileDimComponentsA else 1 # for branches
-    # convert tile/unroll to para/perp
+    # self.numWriteVectorComponentsA = kernel["GlobalLoadVectorWidthA"] \
+    #     if (self.writeTileDimComponentsA \
+    #     or self.writeUnrollDimComponentsA) else 1
+    # self.numReadTileVectorComponentsA = kernel["GlobalLoadVectorWidthA"] \
+    #     if self.readTileDimComponentsA else 1 # for branches
+    # convert tile/unroll to para/perp, Ethan: Study
     if kernel["ProblemType"]["TLUA"]:
       self.numReadsCoalVecCompA = self.numReadsTileVecCompA
       self.numReadsPerpVecCompA = self.numReadsUnrollVecCompA
       # for asm
       self.readCoalescedComponentsA  = self.readTileDimComponentsA
-      self.readCoalescedVectorA      = self.readTileDimVectorA
+      # self.readCoalescedVectorA      = self.readTileDimVectorA  # Ethan: Not Used
       self.readPerpendicularComponentsA  = self.readUnrollDimComponentsA
-      self.readPerpendicularVectorA      = self.readUnrollDimVectorA
+      # self.readPerpendicularVectorA      = self.readUnrollDimVectorA  # Ethan: Not Used
     else:
       self.numReadsCoalVecCompA = self.numReadsUnrollVecCompA
       self.numReadsPerpVecCompA = self.numReadsTileVecCompA
       # for asm
       self.readCoalescedComponentsA  = self.readUnrollDimComponentsA
-      self.readCoalescedVectorA      = self.readUnrollDimVectorA
+      # self.readCoalescedVectorA      = self.readUnrollDimVectorA  # Ethan: Not Used
       self.readPerpendicularComponentsA  = self.readTileDimComponentsA
-      self.readPerpendicularVectorA      = self.readTileDimVectorA
+      # self.readPerpendicularVectorA      = self.readTileDimVectorA  # Ethan: Not Used
 
     ####################################
     # read vectors or vector components b
@@ -2728,28 +2730,28 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.numReadVectorComponentsB = kernel["GlobalLoadVectorWidthB"] \
         if (self.readTileDimComponentsB \
         or self.readUnrollDimComponentsB) else 1
-    self.numWriteVectorComponentsB = kernel["GlobalLoadVectorWidthB"] \
-        if (self.writeTileDimComponentsB \
-        or self.writeUnrollDimComponentsB) else 1
-    self.numReadTileVectorComponentsB = kernel["GlobalLoadVectorWidthB"] \
-        if self.readTileDimComponentsB else 1 # for branches
+    # self.numWriteVectorComponentsB = kernel["GlobalLoadVectorWidthB"] \
+    #     if (self.writeTileDimComponentsB \
+    #     or self.writeUnrollDimComponentsB) else 1
+    # self.numReadTileVectorComponentsB = kernel["GlobalLoadVectorWidthB"] \
+    #     if self.readTileDimComponentsB else 1 # for branches
     # convert tile/unroll to para/perp
     if kernel["ProblemType"]["TLUB"]:
       self.numReadsCoalVecCompB = self.numReadsTileVecCompB
       self.numReadsPerpVecCompB = self.numReadsUnrollVecCompB
       # for asm
       self.readCoalescedComponentsB  = self.readTileDimComponentsB
-      self.readCoalescedVectorB      = self.readTileDimVectorB
+      # self.readCoalescedVectorB      = self.readTileDimVectorB  # Ethan: Not Used
       self.readPerpendicularComponentsB  = self.readUnrollDimComponentsB
-      self.readPerpendicularVectorB      = self.readUnrollDimVectorB
+      # self.readPerpendicularVectorB      = self.readUnrollDimVectorB  # Ethan: Not Used
     else:
       self.numReadsCoalVecCompB = self.numReadsUnrollVecCompB
       self.numReadsPerpVecCompB = self.numReadsTileVecCompB
       # for asm
       self.readCoalescedComponentsB  = self.readUnrollDimComponentsB
-      self.readCoalescedVectorB      = self.readUnrollDimVectorB
+      # self.readCoalescedVectorB      = self.readUnrollDimVectorB  # Ethan: Not Used
       self.readPerpendicularComponentsB  = self.readTileDimComponentsB
-      self.readPerpendicularVectorB      = self.readTileDimVectorB
+      # self.readPerpendicularVectorB      = self.readTileDimVectorB  # Ethan: Not Used
 
     ####################################
     # load sizes
@@ -2912,9 +2914,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       tP["glvw"] = kernel["GlobalLoadVectorWidthA"]
       # asm
       tP["rcc"] = self.readCoalescedComponentsA             # read vector components along coalesced dimensions
-      tP["rcv"] = self.readCoalescedVectorA                 # read vector along coalesced dimension
+      # tP["rcv"] = self.readCoalescedVectorA                 # read vector along coalesced dimension
       tP["rpc"] = self.readPerpendicularComponentsA         # read vector components along perpendicular dimension
-      tP["rpv"] = self.readPerpendicularVectorA             # read vector along perpendicular dimension
+      # tP["rpv"] = self.readPerpendicularVectorA             # read vector along perpendicular dimension
       tP["ruc"] = self.readUnrollDimComponentsA             # read vector components along unroll dimension
       tP["wtc"] = self.writeTileDimComponentsA              # write vector components along tile dimension
       tP["wuc"] = self.writeUnrollDimComponentsA            # write vector components along unroll dimension
@@ -2963,9 +2965,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       tP["glvw"] = kernel["GlobalLoadVectorWidthB"]
       # asm
       tP["rcc"] = self.readCoalescedComponentsB
-      tP["rcv"] = self.readCoalescedVectorB
+      # tP["rcv"] = self.readCoalescedVectorB
       tP["rpc"] = self.readPerpendicularComponentsB
-      tP["rpv"] = self.readPerpendicularVectorB
+      # tP["rpv"] = self.readPerpendicularVectorB
       tP["ruc"] = self.readUnrollDimComponentsB
       tP["wtc"] = self.writeTileDimComponentsB
       tP["wuc"] = self.writeUnrollDimComponentsB

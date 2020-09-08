@@ -152,6 +152,21 @@ class DataType:
             'packing': 1,
             'miInput' : 2,
         },
+        {
+            'char': 'I8',
+            'name': 'int8',
+            'nameAbbrev': 'i8',
+            'enum': 'Int8',                     # Ethan: through client writer, mapping to c++ enum
+            'reg': 0.25,
+            'ocl': 'ERROR',
+            'hip': 'int8_t',
+            'libType': 'TensileInt8',           # Ethan: old client
+            'libEnum': 'tensileDataTypeInt8',   # Ethan: old client
+            'isIntegral': True,
+            'isComplex': False,
+            'packing': 1,
+            'miInput' : 4,
+        },
     ]
     lookup = {}
 
@@ -236,6 +251,8 @@ class DataType:
         return self.value == DataType.int32
     def isInt8x4(self):
         return self.value == DataType.int8x4
+    def isInt8(self):
+        return self.value == DataType.int8
     def isBFloat16(self):
         return self.value == DataType.bfloat16
     def isNone(self):

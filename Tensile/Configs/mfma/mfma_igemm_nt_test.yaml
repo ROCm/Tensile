@@ -1,0 +1,88 @@
+GlobalParameters:
+  MinimumRequiredVersion: 4.4.0
+  PrintLevel: 1
+  ForceRedoBenchmarkProblems: True
+  ForceRedoLibraryLogic: True
+  ForceRedoLibraryClient: True
+  CMakeBuildType: Release
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
+  LibraryPrintDebug: False
+  NumElementsToValidate: -1
+  ValidationMaxToPrint: 4
+  ValidationPrintValids: False
+  ShortNames: False
+  MergeFiles: True
+  Platform: 0
+  Device: 0
+  KernelTime: True
+  # PinClocks: True
+  SleepPercent: 200
+  PrintSolutionRejectionReason: True
+  # DataInitTypeA: 2
+  # DataInitTypeB: 5
+  #DataInitTypeC: 0
+  #DataInitTypeD: 0
+  DataInitTypeBeta: 0
+  DataInitTypeAlpha: 1
+  PrintTensorA: 1
+  PrintTensorC: 2
+  NewClient: 2
+  HardwareMonitor: False
+
+BenchmarkProblems:
+  ########################################
+  # NT - standard
+  ########################################
+  -
+    - # ProblemType
+      OperationType: GEMM
+      #####################################
+      # DataType: h
+      #####################################
+      # DataType: 4xi8
+      # DestDataType: I
+      # HighPrecisionAccumulate: True
+      #####################################
+      DataType: I8
+      DestDataType: I
+      HighPrecisionAccumulate: True
+      #####################################
+      # DataType: s
+      #####################################
+      TransposeA: False
+      TransposeB: True
+      UseBeta: False
+      Batched: True
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        # - KernelLanguage: ["Assembly"]
+        - KernelLanguage: ["Source"]
+        - EdgeType: ["ShiftPtr"]
+        - PrefetchLocalRead: [False]
+        - PrefetchGlobalRead: [False]
+        - ExpandPointerSwap: [False]
+        - ScheduleGlobalRead: [False]
+      ForkParameters:
+        # - MatrixInstruction:
+        #   - [32, 32, 1, 2]
+        #   # - [32, 32, 4, 2]
+        #   # - [32, 32, 8, 1]
+        - ThreadTile:
+          - [ 4, 4 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+        - WorkGroupMapping: [0]
+        - DepthU: [ 16 ]
+        # - VectorWidth: [4]
+      BenchmarkForkParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          # - Range: [ [64], [64], [1], [32] ]
+          # - Range: [ [63], [63], [1], [31] ]
+          - Range: [ [5], [5], [1], [5] ]
+
+  ########################################
