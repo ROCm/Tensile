@@ -687,6 +687,15 @@ def UpdateOutputMapping(mapper, problemDefinition):
     else:
         lineDefinitions = []
         mapper[key] = lineDefinitions
+ 
+    if problemDefinition["r"] == None:
+        problemDefinition["r"] = problemDefinition["a_type"]
+    elif problemDefinition["a_type"] == None:
+        problemDefinition["a_type"] = problemDefinition["r"]
+        problemDefinition["b_type"] = problemDefinition["r"]
+        problemDefinition["c_type"] = problemDefinition["r"]
+        problemDefinition["d_type"] = problemDefinition["r"]
+        problemDefinition["compute_type"] = problemDefinition["r"]
 
     if problemDefinition not in lineDefinitions:
         lineDefinitions.append(problemDefinition)
@@ -726,7 +735,7 @@ def ConvertToRocBlasBenchCall(line):
             benchLine += ('-n '+line[item+1]+' ')
         if line[item] == 'K':
             benchLine += ('-k '+line[item+1]+' ')
-        if line[item] == 'call_count':
+        if line[item] == 'call_count' or line[item] == "iters":
             benchLine += ('-i '+line[item+1])
         if line[item] == 'a_type':
             if line[item+1] == 'f32_r':
@@ -820,13 +829,13 @@ def GetTensileSize(problemDefinition):
     return size
 
 def GetStride(problemDefinition,param):
-    nn = {"lda": problemDefinition["m"], "ldb": problemDefinition["k"], "ldc": problemDefinition["m"],
+    nn = {"lda": problemDefinition["m"], "ldb": problemDefinition["k"], "ldc": problemDefinition["m"], "ldd": problemDefinition["m"],
         "stride_a": str(int(problemDefinition["m"])*int(problemDefinition["k"])), "stride_b": str(int(problemDefinition["n"])*int(problemDefinition["k"])),
         "stride_c": str(int(problemDefinition["m"])*int(problemDefinition["n"]))}
-    nt = {"lda": problemDefinition["k"], "ldb": problemDefinition["k"], "ldc": problemDefinition["n"],
+    nt = {"lda": problemDefinition["k"], "ldb": problemDefinition["k"], "ldc": problemDefinition["n"], "ldd": problemDefinition["n"],
         "stride_a": str(int(problemDefinition["m"])*int(problemDefinition["k"])), "stride_b": str(int(problemDefinition["n"])*int(problemDefinition["k"])),
         "stride_c": str(int(problemDefinition["m"])*int(problemDefinition["n"]))}
-    tn = {"lda": problemDefinition["k"], "ldb": problemDefinition["k"], "ldc": problemDefinition["m"],
+    tn = {"lda": problemDefinition["k"], "ldb": problemDefinition["k"], "ldc": problemDefinition["m"], "ldd": problemDefinition["m"],
         "stride_a": str(int(problemDefinition["m"])*int(problemDefinition["k"])), "stride_b": str(int(problemDefinition["n"])*int(problemDefinition["k"])),
         "stride_c": str(int(problemDefinition["m"])*int(problemDefinition["n"]))}
 
@@ -862,6 +871,7 @@ def ConvertToYAML(problemDefinition,disableStrides="false"):
     alternateType = {"f32":"s", "f64": "d", "f16": "h"}
 
     rocblas_call = "- {"
+    lock = False
     for key in keys:
         param = key.replace("-","")
         if param == "f":
@@ -870,7 +880,10 @@ def ConvertToYAML(problemDefinition,disableStrides="false"):
         modKey = convertKey[param]
         if ("stride" in modKey and value == 0) or ("batch" in modKey and value == 1) or ("type" in modKey and value == None):
             continue
-        if param == "r":
+        if "-r" not in keys and not lock:
+            rocblas_call += "%s: %s, " % ("rocblas_function",rocblasValue["?"])
+            lock = True
+        elif param == "r":
             for dType in rocblasValue.keys():
                 if problemDefinition[param] == dType:
                     value = rocblasValue[dType]
@@ -881,15 +894,20 @@ def ConvertToYAML(problemDefinition,disableStrides="false"):
         if ("call_count" not in modKey) and ("iters" not in modKey):
             rocblas_call += "%s: %s, " % (modKey,value)
         else:
-            rocblas_call +=  "%s: %s " % (modKey, value)
+            rocblas_call +=  "%s: %s " % (modKey,value)
     rocblas_call += "}"
 
     return rocblas_call
 
-def WriteScriptYAML(yamlFile,lines):
+def WriteScriptYAML(yamlFile,lines,strided=False):
     with open(yamlFile, 'a') as f:
         for line in lines:
-            f.write("%s\n" % line)
+            if strided:
+                if "strided" in line:
+                    f.write("%s\n" % line)
+            else:
+                if "strided" not in line:
+                    f.write("%s\n" % line)
 
 def RunMain():
 
