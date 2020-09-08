@@ -19,7 +19,8 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, pushWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar, printWarning
+from .Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, \
+  setWorkingPath, popWorkingPath, assignParameterWithDefault, startTime, ProgressBar, printWarning
 from .SolutionStructs import Solution
 from . import LibraryIO
 from . import SolutionSelectionLibrary
@@ -1375,24 +1376,6 @@ class LogicAnalyzer:
 
 
   ##############################################################################
-  # Get Size Free
-  #def getSizeFree(self, problemIndices):
-  #  sizeFree = 1
-  #  for i in self.rangeIndicesFree:
-  #    sizeFree *= self.problemIndexToSize[i][problemIndices[i]]
-  #  return sizeFree
-
-
-  ##############################################################################
-  # Get Size Summation
-  #def getSizeSummation(self, problemIndices):
-  #  sizeSummation = 1
-  #  for i in self.rangeIndicesSummation:
-  #    sizeSummation *= self.problemIndexToSize[i][problemIndices[i]]
-  #  return sizeSummation
-
-
-  ##############################################################################
   # Get Item
   def __getitem__(self, indexTuple):
     indices = indexTuple[0] # in analysis order
@@ -1424,19 +1407,11 @@ class LogicAnalyzer:
 
 
 
-################################################################################
-################################################################################
-###
-###   Main
-###
-################################################################################
-################################################################################
-def main(  config ):
+def generateLogic(config, benchmarkDataPath, libraryLogicPath):
   print2("# LibraryLogic config: %s" % config)
   print2("# DefaultAnalysisParameters: " % defaultAnalysisParameters)
-  benchmarkDataPath = os.path.join(globalParameters["WorkingPath"], \
-      globalParameters["BenchmarkDataPath"])
-  pushWorkingPath(globalParameters["LibraryLogicPath"])
+
+  setWorkingPath(libraryLogicPath)
 
   # Assign Defaults
   analysisParameters = {}
@@ -1493,7 +1468,25 @@ def main(  config ):
 
   currentTime = time.time()
   elapsedTime = currentTime - startTime
-  print1("%s\n# Finish Analysing data to in %s - %.3fs\n%s" % (HR, globalParameters["LibraryLogicPath"], elapsedTime, HR) )
-
+  print1("%s\n# Finish Analysing data to in %s - %.3fs\n%s" % (HR, os.path.split(libraryLogicPath)[0], elapsedTime, HR) )
   popWorkingPath()
+
+
+################################################################################
+################################################################################
+###
+###   Main
+###
+################################################################################
+################################################################################
+def main(  config ):
+
+  benchmarkDataPath = os.path.join(globalParameters["WorkingPath"], \
+      globalParameters["BenchmarkDataPath"])
+
+  libraryLogicPath = os.path.join(globalParameters["WorkingPath"], \
+      globalParameters["LibraryLogicPath"])
+
+  generateLogic(config, benchmarkDataPath, libraryLogicPath)
+
 

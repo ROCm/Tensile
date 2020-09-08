@@ -73,11 +73,12 @@ def writeSolutions( filename, problemSizes, solutions ):
     printExit("Cannot open file: %s" % filename)
   stream.write("- MinimumRequiredVersion: %s\n" % __version__ )
   stream.write("- ProblemSizes:\n")
-  for sizeRange in problemSizes.ranges:
-    stream.write("  - Range: %s\n" % sizeRange)
-  for problemExact in problemSizes.exacts:
-    #FIXME-problem, this ignores strides:
-    stream.write("  - Exact: %s\n" % str(problemExact))
+  if problemSizes:
+    for sizeRange in problemSizes.ranges:
+      stream.write("  - Range: %s\n" % sizeRange)
+    for problemExact in problemSizes.exacts:
+      #FIXME-problem, this ignores strides:
+      stream.write("  - Exact: %s\n" % str(problemExact))
   yaml.dump(solutionStates, stream, default_flow_style=None)
   stream.close()
 
