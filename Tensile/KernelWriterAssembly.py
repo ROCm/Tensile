@@ -9016,7 +9016,9 @@ class KernelWriterAssembly(KernelWriter):
       kStr   += inst("v_add_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), "coordination 1 = wave_id1 + tid1")
 
     # coord 1 : offset part
-    kStr += inst("v_mul_lo_u32", vgpr(self.cinRowPtr), vgpr(tid1), sgpr("StridesC"), " offset 1")
+    packedC1 = kernel["PackedC1IndicesX"]
+    strideC1 = "StrideC%s" % (self.indexChars[packedC1[0]])
+    kStr += inst("v_mul_lo_u32", vgpr(self.cinRowPtr), vgpr(tid1), sgpr(strideC1), " offset 1")
 
     # coord 0 : wave part
     kStr += vectorStaticRemainder(dummy, tmpVgpr0, wave_id, kernel["MIWaveGroup"][0], tmpVgpr1, tmpSgpr)
