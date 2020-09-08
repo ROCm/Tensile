@@ -171,7 +171,7 @@ def test_WriteClientLibraryFromSolutions(tmpdir):
  
     assert (len(actualProblemType) > 0)
 
-def test_CreateBenchmarkClientPrametersForSizes(tmpdir):
+def test_CreateBenchmarkClientParametersForSizes(tmpdir):
 
     Common.globalParameters["CurrentISA"] = (9,0,6)
     dataWorkingPath = tmpdir.mkdir("Data")
