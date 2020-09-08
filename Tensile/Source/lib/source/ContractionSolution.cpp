@@ -308,14 +308,24 @@ namespace Tensile
 
         if(sizeMapping.persistentKernel != 0)
         {
-            size_t persistentGroups = dynamic_cast<AMDGPU const&>(hardware).computeUnitCount
-                                      * sizeMapping.persistentKernel;
+            size_t cuCount = dynamic_cast<AMDGPU const&>(hardware).computeUnitCount;
+            size_t finalPKValue = sizeMapping.persistentKernel;
             size_t problemGroups = rv.numWorkGroups.x * rv.numWorkGroups.y;
             if(sizeMapping.persistentKernelAlongBatch)
             {
                 problemGroups *= rv.numWorkGroups.z;
                 rv.numWorkGroups.z = 1;
             }
+
+            // truncate to the largest pk value that makes PK.G (ex.240) <= problemGroups (ex.277)
+            if(finalPKValue == -1)
+            {
+                finalPKValue = 5 * (problemGroups / cuCount ) / 8;
+                finalPKValue = std::max(finalPKValue, (size_t)1);
+                //std::cout << "final persistent kernel value: " << finalPKValue << std::endl;
+            }
+
+            size_t persistentGroups = cuCount * finalPKValue;
             rv.numWorkGroups.x = std::min(persistentGroups, problemGroups);
             rv.numWorkGroups.y = 1;
         }
