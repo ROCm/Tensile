@@ -34,7 +34,7 @@ import yaml
 
 mylogger = logging.getLogger()
 
-def test_assigenParameters():
+def test_assignParameters():
     problemTypeConfig = \
         {"Batched": True, "DataType": "s", "OperationType": "GEMM", "TransposeA": False, "TransposeB": False, "UseBeta": True}
   
@@ -190,7 +190,7 @@ def test_CreateBenchmarkClientPrametersForSizes(tmpdir):
 
     dataFilePath = os.path.join(dataWorkingPath, "results.csv")
     configFile = os.path.join(configWorkingPath, "ClientParameters.ini")
-    ClientWriter.CreateBenchmarkClientPrametersForSizes(testDataPath, problemSizes, dataFilePath, configFile)
+    ClientWriter.CreateBenchmarkClientParametersForSizes(testDataPath, problemSizes, dataFilePath, configFile)
 
     assert os.path.exists(configFile) == 1
     

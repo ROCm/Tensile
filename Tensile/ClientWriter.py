@@ -660,7 +660,7 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
     sourceDir = os.path.join(stepBaseDir, "source")
     writeClientConfigIni(problemSizes, newSolution.problemType, sourceDir, codeObjectFiles, resultsFileName, filename)
    
-def CreateBenchmarkClientPrametersForSizes(libraryRootPath, problemSizes, dataFilePath, configFile):
+def CreateBenchmarkClientParametersForSizes(libraryRootPath, problemSizes, dataFilePath, configFile):
 
     libraryPath = os.path.join(libraryRootPath, "library")
     libraryFiles = [os.path.join(libraryPath, f) for f in os.listdir(libraryPath)] 

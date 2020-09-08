@@ -42,17 +42,17 @@ def test_paths():
     expectedWorkingPath = "working/path"
     assert Common.globalParameters["WorkingPath"] == expectedWorkingPath
 
-    recurrsiveWorkingPath = "next1"
+    recursiveWorkingPath = "next1"
     expectedRecurrsiveWorkingPath = "working/path/next1"
-    Common.pushWorkingPath (recurrsiveWorkingPath)
+    Common.pushWorkingPath (recursiveWorkingPath)
     assert Common.globalParameters["WorkingPath"] == expectedRecurrsiveWorkingPath
     Common.popWorkingPath()
     assert Common.globalParameters["WorkingPath"] == expectedWorkingPath
 
-    settedWorkingPath = "working/path/set1"
-    expectedSettedWorkingPath = "working/path/set1"
-    Common.setWorkingPath (settedWorkingPath)
-    assert Common.globalParameters["WorkingPath"] == expectedSettedWorkingPath
+    set1WorkingPath = "working/path/set1"
+    expectedSet1WorkingPath = "working/path/set1"
+    Common.setWorkingPath (set1WorkingPath)
+    assert Common.globalParameters["WorkingPath"] == expectedSet1WorkingPath
     Common.popWorkingPath()
     assert Common.globalParameters["WorkingPath"] == expectedWorkingPath
 
