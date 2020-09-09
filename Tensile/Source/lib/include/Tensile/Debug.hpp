@@ -38,9 +38,6 @@ namespace Tensile
         bool printPropertyEvaluation() const;
         bool printPredicateEvaluation() const;
         bool printDeviceSelection() const;
-
-        bool printLookupEfficiency() const;
-
         bool printCodeObjectInfo() const;
 
         bool printKernelArguments() const;
@@ -59,6 +56,10 @@ namespace Tensile
         bool printTensorModeHex() const;
 
         bool printLibraryVersion() const;
+
+        bool printLookupEfficiency() const;
+
+        bool printWinningKernelName() const;
 
         bool naivePropertySearch() const;
 

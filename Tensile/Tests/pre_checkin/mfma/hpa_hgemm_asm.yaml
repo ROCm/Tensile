@@ -50,7 +50,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024,3,1030], [1024,3,1030], [1], [1024,3,1030] ]
+          - Range: [ [1024], [1024], [1], [1024] ]
+          - Range: [ [1031], [1031], [8], [1031] ]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -81,7 +82,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024,3,1030], [1024,3,1030], [1], [1024,3,1030] ]
+          - Range: [ [1024], [1024], [1], [1024] ]
+          - Range: [ [1031], [1031], [8], [1031] ]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -111,7 +113,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024,3,1030], [1024,3,1030], [1], [1024,3,1030] ]
+          - Range: [ [1024], [1024], [1], [1024] ]
+          - Range: [ [1031], [1031], [8], [1031] ]
 
   ########################################
   # TN - standard
@@ -155,7 +158,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024,3,1030], [1024,3,1030], [1], [1024,3,1030] ]
+          - Range: [ [1024], [1024], [1], [1024] ]
+          - Range: [ [1031], [1031], [8], [1031] ]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -186,7 +190,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024,3,1030], [1024,3,1030], [1], [1024,3,1030] ]
+          - Range: [ [1024], [1024], [1], [1024] ]
+          - Range: [ [1031], [1031], [8], [1031] ]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -216,7 +221,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024,3,1030], [1024,3,1030], [1], [1024,3,1030] ]
+          - Range: [ [1024], [1024], [1], [1024] ]
+          - Range: [ [1031], [1031], [8], [1031] ]
 
   ########################################
   # NN - standard
@@ -260,7 +266,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024,3,1030], [1024,3,1030], [1], [1024,3,1030] ]
+          - Range: [ [1024], [1024], [1], [1024] ]
+          - Range: [ [1031], [1031], [8], [1031] ]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -291,7 +298,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024,3,1030], [1024,3,1030], [1], [1024,3,1030] ]
+          - Range: [ [1024], [1024], [1], [1024] ]
+          - Range: [ [1031], [1031], [8], [1031] ]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -321,7 +329,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024,3,1030], [1024,3,1030], [1], [1024,3,1030] ]
+          - Range: [ [1024], [1024], [1], [1024] ]
+          - Range: [ [1031], [1031], [8], [1031] ]
 
   ########################################
   # TT - standard
@@ -365,7 +374,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024,3,1030], [1024,3,1030], [1], [1024,3,1030] ]
+          - Range: [ [1024], [1024], [1], [1024] ]
+          - Range: [ [1031], [1031], [8], [1031] ]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -396,7 +406,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024,3,1030], [1024,3,1030], [1], [1024,3,1030] ]
+          - Range: [ [1024], [1024], [1], [1024] ]
+          - Range: [ [1031], [1031], [8], [1031] ]
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
@@ -426,5 +437,6 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024,3,1030], [1024,3,1030], [1], [1024,3,1030] ]
+          - Range: [ [1024], [1024], [1], [1024] ]
+          - Range: [ [1031], [1031], [8], [1031] ]
 

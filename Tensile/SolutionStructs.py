@@ -28,6 +28,9 @@ from .Common import assignParameterRequired, assignParameterWithDefault, \
 from .DataType import DataType
 from .Utils import roundUpToNearestMultiple
 
+from .KernelWriterBetaOnly import KernelWriterBetaOnly
+from .KernelWriterConversion import KernelWriterConversion
+
 from collections import namedtuple,OrderedDict
 from copy import deepcopy
 from enum import Enum
@@ -1653,8 +1656,11 @@ class Solution:
     Solution.assignDerivedParameters(self._state)
     self._name = None
 
+    self.initHelperKernelObjests()
+
   # these keys are copied from ProblemType to internal that may be overridden
   InternalKeys = ["UseSgprForGRO","VectorStore"]
+
 
   ########################################
   # get a list of kernel parameters for this solution
@@ -1665,28 +1671,59 @@ class Solution:
     kernels.append(kernel)
     return kernels
 
-  @staticmethod
-  def getKernelsBetaOnlyFromProblem(problemType, gsu):
-    kernels = []
-    if gsu < 2:
-      return kernels
-    betas = [False]
-    if problemType["UseBeta"]:
-      betas.append(True)
-    for beta in betas:
-      kernel = {}
-      kernel["ProblemType"] = deepcopy(problemType)
-      kernel["ProblemType"]["UseBeta"] = beta
-      kernel["KernelLanguage"] = "Source"
-      kernels.append(kernel)
-    return kernels
 
   ########################################
-  # get a list of kernel parameters for this solution
-  def getKernelsBetaOnly(self):
-    return self.getKernelsBetaOnlyFromProblem( \
-            self["ProblemType"], \
-            self["GlobalSplitU"])
+  # create Helper Kernels
+  def initHelperKernelObjests(self):
+    self.initBetaOnlyKernelObjects()
+    self.initConversionKernelObjects()
+
+
+  ########################################
+  # create BetaONly Kernels
+  def initBetaOnlyKernelObjects(self):
+    self.betaOnlyKernelObjects = []
+    if self["GlobalSplitU"] > 1:
+      betas = [False]
+      if self["ProblemType"]["UseBeta"]:
+        betas.append(True)
+      for beta in betas:
+        state = {}
+        state["ProblemType"] = deepcopy(self["ProblemType"])
+        state["ProblemType"]["UseBeta"] = beta
+        state["KernelLanguage"] = "Source"
+        state["_GlobalAccumulation"] = self["_GlobalAccumulation"]
+        self.betaOnlyKernelObjects.append(KernelWriterBetaOnly(state))
+
+
+  ########################################
+  # create Conversion Kernels
+  def initConversionKernelObjects(self):
+    self.conversionKernelObjects = []
+    if (self["GlobalSplitU"] > 1 and self["_GlobalAccumulation"]):
+      state = {}
+      state["ProblemType"] = deepcopy(self["ProblemType"])
+      state["KernelLanguage"] = "Source"
+      self.conversionKernelObjects.append(KernelWriterConversion(state))
+
+
+  ########################################
+  # get Helper Kernels
+  def getHelperKernelObjects(self):
+    return self.betaOnlyKernelObjects + self.conversionKernelObjects
+
+
+  ########################################
+  # get Helper Kernels
+  def getKernelBetaOlnyObjects(self):
+    return self.betaOnlyKernelObjects
+
+
+  ########################################
+  # get Helper Kernels
+  def getKernelConversionObjects(self):
+    return self.conversionKernelObjects
+
 
   ########################################
   # assign tile sizes
@@ -2081,6 +2118,15 @@ class Solution:
 
   @staticmethod
   def parameterWrapper(state):
+    if len(state["MatrixInstruction"]) == 9:
+      waves = state["MatrixInstruction"][7]* state["MatrixInstruction"][8]
+      state["ThreadTile"][0] = state["MatrixInstruction"][5]
+      state["ThreadTile"][1] = state["MatrixInstruction"][6] * state["MatrixInstruction"][1]
+      state["WorkGroup"][0] = state["MatrixInstruction"][4] * state["MatrixInstruction"][0] * state["MatrixInstruction"][7]
+      state["WorkGroup"][1] = waves*globalParameters["WavefrontWidth"] // state["WorkGroup"][0]
+      #print("9-tuple: ", state["MatrixInstruction"], " TT=", state["ThreadTile"], " WG=", state["WorkGroup"])
+    if state["MatrixInstruction"]:
+      state["MatrixInstruction"] = [state["MatrixInstruction"][0],state["MatrixInstruction"][1],state["MatrixInstruction"][2],state["MatrixInstruction"][3]]
     state["UnrollMajorLDSA"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUA"])
     state["UnrollMajorLDSB"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUB"])
 
@@ -2169,8 +2215,16 @@ class Solution:
         state['_'+s] = state[s]
         #del state[s]
 
+    dataType = state["ProblemType"]["DataType"]
+    state["_GlobalAccumulation"] = (dataType.isBFloat16() or dataType.isHalf()) \
+                                 and state["ProblemType"]["HighPrecisionAccumulate"] \
+                                 and state["GlobalSplitU"] > 1 \
+                                 and state["EnableMatrixInstruction"]
+
+    state["_WorkspaceSizePerElemC"] = 4 if state["_GlobalAccumulation"] else 0
+
     if state["VectorStore"] == -1:
-        state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel    
+        state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel
 
     ProblemType.assignDerivedParameters(state["ProblemType"])
     if not state["Valid"]:
@@ -2183,13 +2237,19 @@ class Solution:
     if "LoopUnroll" in state:
       state["LoopIters"] = state["LoopUnroll"]
 
+    if state["ScheduleIterAlg"] == 2:
+      state["InnerUnroll"] = state["DepthU"] // state["MatrixInstK"]
+      state["PrefetchLocalRead"] = 1
+      state["ExpandPointerSwap"] = 1
+
     if state["DisableVgprOverlapping"] is True and state["EnableMatrixInstruction"] is not True:
       reject(state, "Non-MI kernels are already non-overlapping in pre-allocated registers")
 
     if state["EnableMatrixInstruction"]:
       if not (state["ProblemType"]["DataType"].isSingle() \
               or state["ProblemType"]["DataType"].isBFloat16() \
-              or state["ProblemType"]["DataType"].isHalf()):
+              or state["ProblemType"]["DataType"].isHalf() \
+              or state["ProblemType"]["DataType"].isSingleComplex()):
         reject(state, "didn't support Matrix Instruction with type %s" % str(state["ProblemType"]["DataType"]))
       if not state["MIBlock"] or len(state["MIBlock"]) != 6:
         reject(state, "invalid MIBlock")
@@ -2198,7 +2258,7 @@ class Solution:
       if not state["MIWaveTile"] or len(state["MIWaveTile"]) != 2:
         reject(state, "invalid MIWaveTile")
       if not state["ProblemType"]["HighPrecisionAccumulate"] \
-         and not state["ProblemType"]["DataType"].isSingle() :
+         and state["ProblemType"]["DataType"].numRegisters() < 1 :
         reject(state, "Matrix instructions for half types are natively accumulated" + \
          " in fp32 precision. Please add the following config:" + \
          "\n - HighPrecisionAccumulate: True")
@@ -2397,7 +2457,10 @@ class Solution:
       #TODO : re-enable later after running testlists
       #state["StoreVectorWidth"] = state["VectorWidth"]
       # use wider store for best store optimization
-      state["StoreVectorWidth"] = 4
+      if state["ProblemType"]["DataType"].numRegisters() <= 1:
+        state["StoreVectorWidth"] = 4
+      else:
+        state["StoreVectorWidth"] = 4//state["ProblemType"]["DataType"].numRegisters()
 
     if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
       # reject - VW too big
@@ -2437,8 +2500,7 @@ class Solution:
 
     # GlobalSplitU doesn't work with some other things:
     if state["GlobalSplitU"] > 1:
-      if not state["GlobalSplitUSummationAssignmentRoundRobin"] \
-          and state["LoopTail"]:
+      if not state["GlobalSplitUSummationAssignmentRoundRobin"] and state["LoopTail"]:
         reject(state, "GlobalSplitU and LoopTail require SummationAssignmentRoundRobin=True since strongly breaks Tensile kernel architecture")
         return
       # added GSU support for DGEMM
@@ -2447,18 +2509,16 @@ class Solution:
         (state["ProblemType"]["DataType"].isDouble() and state["BufferStore"]) or \
         state["ProblemType"]["DestDataType"].isInt32() or \
         (state["KernelLanguage"] == "Assembly" and \
-         (state["ProblemType"]["DataType"].isHalf() and \
-          not state["ProblemType"]["HighPrecisionAccumulate"]))
+         (state["ProblemType"]["DataType"].isHalf() and not state["ProblemType"]["HighPrecisionAccumulate"]) or \
+         state["_GlobalAccumulation"])
       if not supported:
         reject(state, "GlobalSplitU only compatible with single or asm and (half or mixed) precision")
         return
 
     if state["VectorAtomicWidth"] == -1:
-      if state["ProblemType"]["DataType"].isHalf():
+      state["VectorAtomicWidth"] = 1 # TODO - remove this and next line when VAW works for other types
+      if state["ProblemType"]["DataType"].isHalf() and (not state["_GlobalAccumulation"]):
         state["VectorAtomicWidth"] = 2
-        #state["VectorAtomicWidth"] = 8 / state["ProblemType"]["DataType"].numBytes()
-      else:
-        state["VectorAtomicWidth"] = 1 # TODO - remove this and next line when VAW works for other types
 
     if state["VectorAtomicWidth"] >= 2 \
        and not state["ProblemType"]["DataType"].isHalf():
@@ -2470,8 +2530,8 @@ class Solution:
       if state["VectorWidth"] < 2:
         reject(state, "Assembly half requires VectorWidth >= 2")
 
-      if state["GlobalSplitU"] > 1:
-        if state["VectorAtomicWidth"] <2:
+      if state["GlobalSplitU"] > 1 and (not state["_GlobalAccumulation"]):
+        if state["VectorAtomicWidth"] < 2:
           reject(state, "Assembly GSU half requires VectorWidth >= 2 (for 32-bit CAS)")
 
         if state["AssertFree0ElementMultiple"] < 2:
@@ -2714,23 +2774,20 @@ class Solution:
       return
 
     # Default LocalReadVectorWidth
-    supportWiderLR = state["TransposeLDS"] and \
-                     state["ProblemType"]["TLUA"] == False and \
-                     state["ProblemType"]["TLUB"] == False
     if state["LocalReadVectorWidth"] == -1:
       if state["EnableMatrixInstruction"]:
         state["LocalReadVectorWidth"] = state["ProblemType"]["DataType"].numMIInput()
       else:
         state["LocalReadVectorWidth"] = state["VectorWidth"]
-
-    if state["EnableMatrixInstruction"]:
-      if not supportWiderLR and state["LocalReadVectorWidth"] != state["ProblemType"]["DataType"].numMIInput():
-        reject(state, "Temp reject LRVW for (TransposeLDS=0 or non-TN)")
-      if state["LocalReadVectorWidth"] < state["ProblemType"]["DataType"].numMIInput():
-        reject(state, "LocalReadVectorWidth < %u" %(state["ProblemType"]["DataType"].numMIInput()))
-    elif state["LocalReadVectorWidth"] != state["VectorWidth"]:
-      reject(state, "LocalReadVectorWidth requires MI-Kernel")
-    
+    else:
+      if state["EnableMatrixInstruction"]:
+        if state["LocalReadVectorWidth"] < state["ProblemType"]["DataType"].numMIInput():
+          reject(state, "LocalReadVectorWidth < %u" %(state["ProblemType"]["DataType"].numMIInput()))
+        if state["LocalReadVectorWidth"] > state["ProblemType"]["DataType"].numMIInput() and not state["TransposeLDS"]:
+          reject(state, "LocalReadVectorWidth require TLDS")
+      else:
+        if state["LocalReadVectorWidth"] != state["VectorWidth"]:
+          reject(state, "not support LRVW != VW with nonMI kernel")
 
     if state["LdsPadA"] == -1:
       if state["ProblemType"]["TLUA"]:
@@ -2808,7 +2865,8 @@ class Solution:
 
 
     if state["1LDSBuffer"] == -1:
-      if ldsNumElementsAB * state["ProblemType"]["DataType"].numBytes() > globalParameters["MaxLDS"]:
+      if ldsNumElementsAB * state["ProblemType"]["DataType"].numBytes() > globalParameters["MaxLDS"] or \
+          state["ScheduleIterAlg"] == 2:
         state["1LDSBuffer"] = 1
       else:
         state["1LDSBuffer"] = 0
@@ -2816,8 +2874,8 @@ class Solution:
     if state["1LDSBuffer"]:
       if not state["PrefetchGlobalRead"]:
         reject(state, "PGR=0 already use 1 LDS buffer only")
-      if not state["LocalReadVectorWidth"] > state["ProblemType"]["DataType"].numMIInput():
-        reject(state, "(currently) require wider localread to avoid reading and writing same LDS buffer at same time")
+      if not state["ScheduleIterAlg"] == 2 and not state["ScheduleIterAlg"] == 3:
+        reject(state, "1LDSBuffer only support SIA2 or SIA3")
       state["LdsOffsetB"] = ldsNumElementsAlignedA
       ldsNumElementsAB = ldsNumElementsAlignedA + ldsNumElementsB
 
@@ -2843,7 +2901,7 @@ class Solution:
         return
       if not math.log(state["MacroTile0"],2).is_integer():
         reject(state, "storeRemap only supports power-of-2 MT0")
-        # TODO - this return should be here, but this is a hotfix, 
+        # TODO - this return should be here, but this is a hotfix,
         # Somehow we have a "Validation Failed" kernel in rocBLAS now (SRVW=4 and MT0=96) and this will stop the whole building process
         # Actions: 1. Hotfix, comment out this "return" temporarily for that invalidated kernel
         #          2. Remove / replace that invalidated kernel
@@ -2851,12 +2909,10 @@ class Solution:
         #          4. How to design a better way to prevent from invalid kernel in rocBLAS?
         # return
 
-      srMinVw = 1
-      srMaxVw = 8
-      if state["ProblemType"]["DataType"].isSingle():
-        srMaxVw = 4
-      elif state["ProblemType"]["DataType"].isHalf() or state["ProblemType"]["DataType"].isBFloat16():
-        srMinVw = 2
+      storeInstMinWidth = 1 # minimum dwordx1
+      storeInstMaxWidth = 4 # maximum dwordx4
+      srMinVw = max(storeInstMinWidth, int(storeInstMinWidth/state["ProblemType"]["DataType"].numRegisters()))
+      srMaxVw = int(storeInstMaxWidth/state["ProblemType"]["DataType"].numRegisters())
       if srMinVw > state["StoreRemapVectorWidth"] or srMaxVw < state["StoreRemapVectorWidth"]:
         reject(state, "StoreRemapVectorWidth %u is not allowed for this data type" % state["StoreRemapVectorWidth"])
         return
@@ -2927,10 +2983,10 @@ class Solution:
           % (state["PrefetchLocalRead"],state["LoopIters"],state["LocalReadVectorWidth"],\
           (state["PrefetchLocalRead"]%state["LoopIters"]),state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput()))
 
-    # reject conditions with lower performance
-    if state["ScheduleIterAlg"] == 2 and \
-    (state["ExpandPointerSwap"] != 1 or state["LoopIters"] != 1 or state["ScheduleGlobalRead"] != 1):
-      reject(state, "ScheduleIterAlg 2 only work with EPS1_SGR1, LoopIter=1")
+    # # reject conditions with lower performance
+    # if state["ScheduleIterAlg"] == 2 and \
+    # (state["ExpandPointerSwap"] != 1 or state["LoopIters"] != 1 or state["ScheduleGlobalRead"] != 1):
+    #   reject(state, "ScheduleIterAlg 2 only work with EPS1_SGR1, LoopIter=1")
 
     if state["TransposeLDS"] == 1:
       if not state["EnableMatrixInstruction"]:
@@ -2938,21 +2994,17 @@ class Solution:
       if state["ProblemType"]["TLUA"] and state["ProblemType"]["TLUB"]:
           # TODO: Now in rocBLAS, lot of logic yamls are Type=NT and TLDS=1? Why aren't they rejected and how to get rid of them?
           reject(state, "TransposeLds requires TLUA=0 or TLUB=0")
-      if state["EnableMatrixInstruction"]:
-        # enable widerLocalRead
-        if state["LocalReadVectorWidth"] > state["ProblemType"]["DataType"].numMIInput():
-          # not support 1 block MI
-          # TODO: need to enable ds_read2 to support 1 block MI
-          # if state["MatrixInstB"] == 1:
-            # reject(state, "wider localRead not support 1 block MatrixInstruction yet")
-          # wider localRead support 2 types
-          # 1. prefetch all lds to register
-          # 2. using larger InnerUnroll
-          if not (state["PrefetchLocalRead"] >= state["LoopIters"] and state["InnerUnroll"] == 1) and \
-            not state["InnerUnroll"] >= state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput():
-            reject(state, "wider localRead only support (PrefetchLocalRead %u >= LoopIters %u) or (InnerUnroll %u > LocalReadxN)" % (state["PrefetchLocalRead"],state["LoopIters"],state["InnerUnroll"]))
-        if (state["LoopIters"] - (state["PrefetchLocalRead"]%state["LoopIters"])*state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput()) < 0:
-          reject(state, "LoopIters %u should greater than PrefetchIters %u" % ((state["LoopIters"],(state["PrefetchLocalRead"]%state["LoopIters"])*state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput())))
+    if state["EnableMatrixInstruction"]:
+      # enable widerLocalRead
+      if state["LocalReadVectorWidth"] > state["ProblemType"]["DataType"].numMIInput():
+        # wider localRead support 2 types
+        # 1. prefetch all lds to register
+        # 2. using larger InnerUnroll
+        if not (state["PrefetchLocalRead"] >= state["LoopIters"] and state["InnerUnroll"] == 1) and \
+          not state["InnerUnroll"] >= state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput():
+          reject(state, "wider localRead only support (PrefetchLocalRead %u >= LoopIters %u) or (InnerUnroll %u > LocalReadxN)" % (state["PrefetchLocalRead"],state["LoopIters"],state["InnerUnroll"]))
+      if (state["LoopIters"] - (state["PrefetchLocalRead"]%state["LoopIters"])*state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput()) < 0:
+        reject(state, "LoopIters %u should greater than PrefetchIters %u" % ((state["LoopIters"],(state["PrefetchLocalRead"]%state["LoopIters"])*state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput())))
 
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
@@ -3390,33 +3442,44 @@ class Solution:
       printExit("Parameter \"%s\" is new object type" % str(value) )
       return str(value)
 
+
+  ##########################
   # make class look like dict
   def keys(self):
     return list(self._state.keys())
+
   def __len__(self):
     return len(self._state)
+
   def __iter__(self):
     return iter(self._state)
 
   def __getitem__(self, key):
     return self._state[key]
+
   def __setitem__(self, key, value):
     self._name = None
     self._state[key] = value
+
   def __str__(self):
     if self._name is None:
       self._name = Solution.getNameFull(self._state)
     return self._name
+
   def __repr__(self):
     return self.__str__()
+
   def getAttributes(self):
     return deepcopy(self._state)
+
   def __hash__(self):
     return hash(str(self))
     #return hash(self.getAttributes())
+
   def __eq__(self, other):
     #return isinstance(other, Solution) and self.getAttributes() == other.getAttributes()
     return isinstance(other, Solution) and str(self) == str(other)
+
   def __ne__(self, other):
     result = self.__eq__(other)
     if result is NotImplemented:

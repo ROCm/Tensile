@@ -6,7 +6,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     project.paths.construct_build_prefix()
 
     String compiler = jobName.contains('hipclang') ? 'hipcc' : 'hcc'
-    String pythonVersion = jobName.contains('hipclang') ? 'py36' : 'py35'
+    String pythonVersion = 'py36'
     String cov = jobName.contains('hipclang') ? "V3" : "V2"
     String buildType = debug ? 'Debug' : 'RelWithDebInfo'
     String parallelJobs = jobName.contains('hipclang') ? "export HIPCC_COMPILE_FLAGS_APPEND=-parallel-jobs=2" : ":"
@@ -30,6 +30,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             export HOME=/home/jenkins
             ####
             tox --version
+            export TENSILE_COMPILER=${compiler}
             tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --tensile-options=--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing-\$gpuArch.csv
 
             mkdir build
@@ -85,7 +86,7 @@ def runTestCommand (platform, project, jobName, test_marks)
     def test_dir =  "Tensile/Tests"
 
     String compiler = jobName.contains('hipclang') ? 'hipcc' : 'hcc'
-    String pythonVersion = jobName.contains('hipclang') ? 'py36' : 'py35'
+    String pythonVersion = 'py36'
 
     def command = """#!/usr/bin/env bash
             set -x
@@ -106,6 +107,7 @@ def runTestCommand (platform, project, jobName, test_marks)
             export HOME=/home/jenkins
             ####
             tox --version
+            export TENSILE_COMPILER=${compiler}
             tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --tensile-options=--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing-\$gpuArch.csv
             PY_ERR=\$?
             date

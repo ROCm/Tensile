@@ -156,6 +156,9 @@ namespace Tensile
                 bool first = true;
                 for(auto const& term : value)
                 {
+                    if((*term)(obj))
+                        continue;
+
                     if(!first)
                         stream << ", ";
                     first = false;
@@ -163,7 +166,7 @@ namespace Tensile
                     term->debugEval(obj, stream);
                 }
 
-                stream << "): " << rv;
+                stream << "): " << rv << std::endl;
                 return rv;
             }
         };
@@ -218,7 +221,7 @@ namespace Tensile
                     term->debugEval(obj, stream);
                 }
 
-                stream << "): " << rv;
+                stream << "): " << rv << std::endl;
                 return rv;
             }
         };
@@ -255,7 +258,7 @@ namespace Tensile
 
                 stream << this->type() << "(";
                 value->debugEval(obj, stream);
-                stream << "): " << rv;
+                stream << "): " << rv << std::endl;
 
                 return rv;
             }

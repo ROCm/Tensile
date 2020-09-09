@@ -34,6 +34,19 @@ endif()
 
 target_include_directories(TensileClient PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")# "${rocm_smi_root}/include")
 
+if(CXX_VERSION_STRING MATCHES "clang")
+    target_compile_options(TensileClient PUBLIC -mno-xnack)
+    set(gfx906_options "-Xarch_gfx906 -msram-ecc")
+    set(gfx908_options "-Xarch_gfx908 -msram-ecc")
+    if(CMAKE_VERSION VERSION_LESS 3.12)
+        set_target_properties(TensileClient PROPERTIES
+          COMPILE_FLAGS "${gfx906_options} ${gfx908_options}")
+    else()
+	    target_compile_options(TensileClient PUBLIC
+          "SHELL:${gfx906_options}" "SHELL:${gfx908_options}")
+    endif()
+endif()
+
 target_link_libraries(TensileClient TensileHost ${Boost_LIBRARIES} rocm_smi)
 
 add_executable(tensile_client main.cpp)

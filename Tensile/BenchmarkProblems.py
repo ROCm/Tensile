@@ -34,7 +34,7 @@ from . import ClientExecutable
 from . import SolutionLibrary
 from . import LibraryIO
 from . import Utils
-from .BenchmarkStructs import BenchmarkProcess
+from .BenchmarkStructs import BenchmarkProcess, constructForkPermutations
 from .ClientWriter import runClient, writeClientParameters, writeClientConfig
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime
 from .KernelWriterAssembly import KernelWriterAssembly
@@ -42,6 +42,64 @@ from .KernelWriterSource import KernelWriterSource
 from .SolutionStructs import Solution, ProblemType, ProblemSizes
 from .SolutionWriter import SolutionWriter
 from .TensileCreateLibrary import writeSolutionsAndKernels, writeCMake, buildObjectFileNames
+
+############################################################################
+# generateForkedSolutions
+############################################################################
+def generateForkedSolutions (problemType, hardcodedParameters, benchmarkPermutations, winners=None, initialSolutionParameters=None):
+  """this creates a set or solutions based on the forked parameters using
+     a set of common parameters from which to fork from
+     
+  Parameters:
+  problemType the problem type
+  hardcodedParameters the set of parameters which overrides the baseline parameters
+  benchmarkPermutations set of baseline parameters from which the the updates are branched form
+  winners previous winning parameters which overrides the derived parameters
+  initialSolutionParameters set of parameters which fills in missing params default parameters
+
+  Returns:
+  list: Soutions list
+     
+  """
+
+  solutions = []
+  numHardcoded = len(hardcodedParameters)
+
+  print1("# Enumerating Solutions")
+  solutionSet = set() 
+
+  for hardcodedIdx in Utils.tqdm(range(0, numHardcoded), "Enumerating Solutions"):
+    solutions.append([])
+    hardcodedParamDict = hardcodedParameters[hardcodedIdx]
+    for benchmarkPermutation in benchmarkPermutations:
+      solution = {"ProblemType": deepcopy(problemType.state)}
+      solution.update(benchmarkPermutation)
+      solution.update(hardcodedParamDict)
+      if winners:
+        winningParameters = winners[hardcodedParamDict]
+        if winningParameters == None:
+          # this is a joined parameter that didn't have a winner, that's okay
+          continue
+        solution.update(winningParameters)
+
+      # append default parameters where necessary
+      if initialSolutionParameters:
+        for initialSolutionParameterName in initialSolutionParameters:
+          if initialSolutionParameterName not in solution:
+            solution[initialSolutionParameterName] = \
+              initialSolutionParameters[initialSolutionParameterName]
+
+      # TODO check if solution matches problem size for exact tile kernels
+      solutionObject = Solution(solution)
+      if solutionObject["Valid"]:
+        if solutionObject not in solutionSet:
+          solutionSet.add(solutionObject)
+          solutions[hardcodedIdx].append(solutionObject)
+      else:
+        if globalParameters["PrintSolutionRejectionReason"]:
+          print1("rejecting solution %s" % str(solutionObject))
+
+  return solutions
 
 ################################################################################
 # Benchmark Problem Type
@@ -176,58 +234,20 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     # Enumerate Benchmark Permutations
     ############################################################################
     solutions = []
-    totalBenchmarkPermutations = 1
-    for benchmarkParamName in benchmarkStep.benchmarkParameters:
-      totalBenchmarkPermutations *= len(benchmarkStep.benchmarkParameters[benchmarkParamName])
-    maxPossibleSolutions = totalBenchmarkPermutations*numHardcoded
-    print1("# MaxPossibleSolutions: %u = %u (hardcoded) * %u (benchmark)" % \
-        (maxPossibleSolutions, numHardcoded, totalBenchmarkPermutations))
 
-    benchmarkPermutations = []
-    for i in range(0, totalBenchmarkPermutations):
-      permutation = {}
-      pIdx = i
-      for benchmarkParamName in benchmarkStep.benchmarkParameters:
-        benchmarkParamValues = deepcopy( \
-            benchmarkStep.benchmarkParameters[benchmarkParamName])
-        valueIdx = pIdx % len(benchmarkParamValues)
-        permutation[benchmarkParamName] = benchmarkParamValues[valueIdx]
-        pIdx /= len(benchmarkParamValues)
-      benchmarkPermutations.append(permutation)
+    benchmarkPermutations = constructForkPermutations(benchmarkStep.benchmarkParameters)
+    maxPossibleSolutions = len(benchmarkPermutations) * numHardcoded
 
     ############################################################################
     # Enumerate Solutions = Hardcoded * Benchmark
     ############################################################################
-    print1("# Enumerating Solutions")
-    solutionSet = set() # avoid duplicates for nlca=-1, 1
-    for hardcodedIdx in Utils.tqdm(range(0, numHardcoded), "Enumerating Solutions"):
-      solutions.append([])
-      hardcodedParamDict = benchmarkStep.hardcodedParameters[hardcodedIdx]
-      for benchmarkIdx, benchmarkPermutation in enumerate(benchmarkPermutations):
-        solution = {"ProblemType": deepcopy(benchmarkProcess.problemType.state)}
-        solution.update(benchmarkPermutation)
-        solution.update(hardcodedParamDict)
-        if benchmarkStepIdx > 0:
-          winningParameters = winners[hardcodedParamDict]
-          if winningParameters == None:
-            # this is a joined parameter that didn't have a winner, that's okay
-            continue
-          solution.update(winningParameters)
+    #print1("# Enumerating Solutions")
+    theWinners = None
+    if benchmarkStepIdx > 0:
+      theWinners = winners
 
-        # append default parameters where necessary
-        for initialSolutionParameterName in benchmarkStep.initialSolutionParameters:
-          if initialSolutionParameterName not in solution:
-            solution[initialSolutionParameterName] = \
-                benchmarkStep.initialSolutionParameters[initialSolutionParameterName]
-        # TODO check if solution matches problem size for exact tile kernels
-        solutionObject = Solution(solution)
-        if solutionObject["Valid"]:
-          if solutionObject not in solutionSet:
-            solutionSet.add(solutionObject)
-            solutions[hardcodedIdx].append(solutionObject)
-        else:
-          if globalParameters["PrintSolutionRejectionReason"]:
-            print1("rejecting solution %s" % str(solutionObject))
+    solutions = generateForkedSolutions (benchmarkProcess.problemType, benchmarkStep.hardcodedParameters, \
+        benchmarkPermutations, theWinners, benchmarkStep.initialSolutionParameters)
 
     # remove hardcoded that don't have any valid benchmarks
     removeHardcoded = list([x for i,x in enumerate(benchmarkStep.hardcodedParameters) if len(solutions[i]) == 0])
@@ -384,6 +404,9 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 
 def compareResults(old, new, name):
     import math
+    if name == " WinnerIdx":
+      return 0
+
     try:
         old = float(old)
     except (ValueError, TypeError):
@@ -431,17 +454,21 @@ def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileNa
   for solutionsForHardcoded in solutions:
     results.append([])
     for solution in solutionsForHardcoded:
-      # GEMM csv files contain "LDD" "LDC" "LDA" "LDB" columns
-      if solution["ProblemType"]["OperationType"] == "GEMM":
-        problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 5
-      else:
-        problemSizeIdx = solution["ProblemType"]["TotalIndices"] + 1
+      numColForProblemSize = solution["ProblemType"]["TotalIndices"]
       results[-1].append([])
       numSolutions += 1
 
   # read results in gflops
   csvFile = csv.reader(resultsFile)
-  startIdx = problemSizeIdx + 1
+
+  if globalParameters["CSVExportWinner"]:
+    # in both old/new clients, csv files always output "GFlops" ,...., "LDD" "LDC" "LDA" "LDB" "TotalFlops" "WinnerGFlops" "WinnerTimeUS" "WinnerIdx" "WinnerName" columns
+    startIdx = numColForProblemSize + 10
+  else:
+    # in both old/new clients, csv files always output "GFlops" ,...., "LDD" "LDC" "LDA" "LDB"columns
+    # old client, non-GEMM csv files don't contain "LDD" "LDC" "LDA" "LDB", so we output an "N/A" text (in csv only) for alignment purpose (-diff.csv)
+    startIdx = numColForProblemSize + 5
+
   rowLength = startIdx + numSolutions
 
   rowIdx = 0
@@ -492,9 +519,11 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   ##############################################################################
 
   kernels = []
-  kernelsBetaOnly = []
+  kernelHelperOjbs = []
+
   kernelNames = set()
-  kernelNamesBetaOnly = set()
+  kernelHelperNames = set()
+
   for solution in Utils.tqdm(solutions, "Finding unique solutions"):
     solutionKernels = solution.getKernels()
     for kernel in solutionKernels:
@@ -502,29 +531,27 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
       if kName not in kernelNames:
         kernels.append(kernel)
         kernelNames.add(kName)
-    solutionKernelsBetaOnly = solution.getKernelsBetaOnly()
-    for kernel in solutionKernelsBetaOnly:
-      kName = Solution.getNameFull(kernel)
-      if kName not in kernelNamesBetaOnly:
-        kernelsBetaOnly.append(kernel)
-        kernelNamesBetaOnly.add(kName)
+
+    solutionHelperKernels = solution.getHelperKernelObjects()
+    for ko in solutionHelperKernels:
+      kname = ko.getKernelName()
+      if kname not in kernelHelperNames:
+        kernelHelperOjbs.append(ko)
+        kernelHelperNames.add(kname)
+
 
   solutionSerialNaming = Solution.getSerialNaming(solutions)
-  kernelSerialNaming = Solution.getSerialNaming(kernels)
-  solutionMinNaming = Solution.getMinNaming(solutions)
-  kernelMinNaming = Solution.getMinNaming(kernels)
-  solutionWriter = SolutionWriter( \
-      solutionMinNaming, solutionSerialNaming, \
-      kernelMinNaming, kernelSerialNaming)
-  kernelWriterSource = KernelWriterSource( \
-      kernelMinNaming, kernelSerialNaming)
-  kernelWriterAssembly = KernelWriterAssembly( \
-      kernelMinNaming, kernelSerialNaming)
+  kernelSerialNaming   = Solution.getSerialNaming(kernels)
+  solutionMinNaming    = Solution.getMinNaming(solutions)
+  kernelMinNaming      = Solution.getMinNaming(kernels)
+  solutionWriter       = SolutionWriter(solutionMinNaming, solutionSerialNaming, kernelMinNaming, kernelSerialNaming)
+  kernelWriterSource   = KernelWriterSource(kernelMinNaming, kernelSerialNaming)
+  kernelWriterAssembly = KernelWriterAssembly(kernelMinNaming, kernelSerialNaming)
 
   # write solution, kernels and CMake
   problemType = solutions[0]["ProblemType"]
   codeObjectFiles = writeSolutionsAndKernels( \
-      globalParameters["WorkingPath"], globalParameters["CxxCompiler"], [problemType], solutions, kernels, kernelsBetaOnly, \
+      globalParameters["WorkingPath"], globalParameters["CxxCompiler"], [problemType], solutions, kernels, kernelHelperOjbs, \
       solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
 
   newLibraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
@@ -575,7 +602,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
    asmKernelFiles,
    sourceLibFiles,
    asmLibFiles) = buildObjectFileNames(solutionWriter, kernelWriterSource, \
-    kernelWriterAssembly, solutions, kernels, kernelsBetaOnly)
+    kernelWriterAssembly, solutions, kernels, kernelHelperOjbs)
 
   writeCMake(outputPath, solutionFiles, sourceKernelFiles, filesToCopy)
 
@@ -820,13 +847,16 @@ def main( config ):
       problemTypeObj = ProblemType(problemTypeConfig)
       globalParameters["EnableHalf"] = problemTypeObj["DataType"].isHalf()
 
+      # using a suffix to check the csv version (for later addFromCSV())
+      csvSuffix = "_CSVWinner" if globalParameters["CSVExportWinner"] else ""
       # results files will be named
-      newResultsFileName = os.path.join(dataPath, "%s_%02u.csv" \
-          % (str(problemTypeObj), problemSizeGroupIdx) )
-      newSolutionsFileName = os.path.join(dataPath, "%s_%02u.yaml" \
-          % (str(problemTypeObj), problemSizeGroupIdx) )
-      newGranularityFileName = os.path.join(dataPath, "%s_%02u.gsp" \
-          % (str(problemTypeObj), problemSizeGroupIdx) )
+      newResultsFileName = os.path.join(dataPath, "%s_%02u%s.csv" \
+          % (str(problemTypeObj), problemSizeGroupIdx, csvSuffix) )
+      newSolutionsFileName = os.path.join(dataPath, "%s_%02u%s.yaml" \
+          % (str(problemTypeObj), problemSizeGroupIdx, csvSuffix) )
+      newGranularityFileName = os.path.join(dataPath, "%s_%02u%s.gsp" \
+          % (str(problemTypeObj), problemSizeGroupIdx, csvSuffix) )
+
       # skip if possible
       if globalParameters["ForceRedoBenchmarkProblems"] or \
           not os.path.exists(newResultsFileName):

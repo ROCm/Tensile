@@ -72,11 +72,12 @@ def writeSolutions( filename, problemSizes, solutions ):
     printExit("Cannot open file: %s" % filename)
   stream.write("- MinimumRequiredVersion: %s\n" % __version__ )
   stream.write("- ProblemSizes:\n")
-  for sizeRange in problemSizes.ranges:
-    stream.write("  - Range: %s\n" % sizeRange)
-  for problemExact in problemSizes.exacts:
-    #FIXME-problem, this ignores strides:
-    stream.write("  - Exact: %s\n" % str(problemExact))
+  if problemSizes:
+    for sizeRange in problemSizes.ranges:
+      stream.write("  - Range: %s\n" % sizeRange)
+    for problemExact in problemSizes.exacts:
+      #FIXME-problem, this ignores strides:
+      stream.write("  - Exact: %s\n" % str(problemExact))
   yaml.dump(solutionStates, stream, default_flow_style=None)
   stream.close()
 
@@ -110,7 +111,7 @@ def readSolutions( filename ):
     solutionState = solutionStates[i]
     # force redo the deriving of parameters, make sure old version logic yamls can be validated
     solutionState["AssignedProblemIndependentDerivedParameters"] = False
-    solutionState["AssignedDerivedParameters"] = False    
+    solutionState["AssignedDerivedParameters"] = False
     solutionObject = Solution(solutionState)
     solutions.append(solutionObject)
   problemType = solutions[0]["ProblemType"]

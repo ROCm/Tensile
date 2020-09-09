@@ -286,7 +286,8 @@ namespace Tensile
                            FreeIndices const&      freeIndices,
                            BatchIndices const&     batchIndices,
                            BoundIndices const&     boundIndices,
-                           double                  beta);
+                           double                  beta,
+                           size_t                  workspaceSize = 0);
 
         //! Returns size given original index assignment (in range
         //! 0..NumIndicesC+boundSizes)
@@ -505,6 +506,16 @@ namespace Tensile
             return getOperationDescription();
         }
 
+        void setWorkspaceSize(size_t size)
+        {
+            m_workspaceSize = size;
+        }
+
+        size_t workspaceSize() const
+        {
+            return m_workspaceSize;
+        }
+
     private:
         TensorDescriptor m_a;
         TensorDescriptor m_b;
@@ -554,6 +565,8 @@ namespace Tensile
         size_t m_allocatedElementsNonBatchA;
         size_t m_allocatedElementsNonBatchB;
 
+        size_t m_workspaceSize;
+
         void normalize();
         void consistencyCheck() const;
 
@@ -571,6 +584,27 @@ namespace Tensile
     {
         ContractionInputs();
         virtual ~ContractionInputs();
+
+        constexpr static uint32_t TypeId(DataType aType,
+                                         DataType bType,
+                                         DataType cType,
+                                         DataType dType,
+                                         DataType alphaType,
+                                         DataType betaType)
+        {
+            static_assert(BitFieldGenerator::ElementWidth((uint32_t)DataType::Count) * 6
+                              <= BitFieldGenerator::maxBitFieldWidth,
+                          "Max bitfield width exceeded");
+
+            return BitFieldGenerator::GenerateBitField(
+                BitFieldGenerator::ElementWidth((uint32_t)DataType::Count),
+                (uint32_t)aType,
+                (uint32_t)bType,
+                (uint32_t)cType,
+                (uint32_t)dType,
+                (uint32_t)alphaType,
+                (uint32_t)betaType);
+        }
     };
 
     /**
@@ -588,21 +622,52 @@ namespace Tensile
         using BetaType  = Beta;
 
         TypedContractionInputs();
-        TypedContractionInputs(
-            A const* _a, B const* _b, C const* _c, D* _d, Alpha _alpha, Beta _beta);
+        TypedContractionInputs(A const* _a,
+                               B const* _b,
+                               C const* _c,
+                               D*       _d,
+                               Alpha    _alpha,
+                               Beta     _beta,
+                               void*    _ws = nullptr);
         ~TypedContractionInputs();
 
-        A const* a = nullptr;
-        B const* b = nullptr;
-        C const* c = nullptr;
-        D*       d = nullptr;
+        A const* a  = nullptr;
+        B const* b  = nullptr;
+        C const* c  = nullptr;
+        D*       d  = nullptr;
+        void*    ws = nullptr;
 
         Alpha alpha = static_cast<Alpha>(0);
         Beta  beta  = static_cast<Beta>(0);
+
+        constexpr static uint32_t TypeId()
+        {
+            return ContractionInputs::TypeId(TypeInfo<A>::Enum,
+                                             TypeInfo<B>::Enum,
+                                             TypeInfo<C>::Enum,
+                                             TypeInfo<D>::Enum,
+                                             TypeInfo<Alpha>::Enum,
+                                             TypeInfo<Beta>::Enum);
+        }
     };
 
+    /* Commonly used contraction input type groupings */
+    using FloatContractionInputs         = TypedContractionInputs<float>;
+    using DoubleContractionInputs        = TypedContractionInputs<double>;
+    using ComplexFloatContractionInputs  = TypedContractionInputs<std::complex<float>>;
+    using ComplexDoubleContractionInputs = TypedContractionInputs<std::complex<double>>;
+#ifdef TENSILE_USE_HALF
+    using HalfContractionInputs           = TypedContractionInputs<Half>;
+    using HalfInFloatOutContractionInputs = TypedContractionInputs<Half, Half, float, float>;
+#endif // TENSILE_USE_HALF
+    using Int8x4ContractionInputs = TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>;
+    using Int32ContractionInputs  = TypedContractionInputs<int32_t>;
+#ifdef TENSILE_USE_BF16
     using BFloat16ContractionInputs
         = TypedContractionInputs<BFloat16, BFloat16, BFloat16, BFloat16, float, float>;
+    using BFloat16InFloatOutContractionInputs
+        = TypedContractionInputs<BFloat16, BFloat16, float, float>;
+#endif // TENSILE_USE_BF16
 
     TENSILE_API std::ostream& operator<<(std::ostream&             stream,
                                          ContractionProblem const& contraction);
