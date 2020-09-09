@@ -1029,9 +1029,9 @@ namespace Tensile
         , b(_b)
         , c(_c)
         , d(_d)
+        , ws(_ws)
         , alpha(_alpha)
         , beta(_beta)
-        , ws(_ws)
     {
     }
 
