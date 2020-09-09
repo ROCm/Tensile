@@ -127,6 +127,9 @@ namespace Tensile
     void DataTypeInfo::registerAllTypeInfoOnce()
     {
         static int call_once = (registerAllTypeInfo(), 0);
+
+        if(call_once)
+            return;
     }
 
     void DataTypeInfo::addInfoObject(DataTypeInfo const& info)
