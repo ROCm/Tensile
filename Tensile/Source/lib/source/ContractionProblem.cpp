@@ -1264,7 +1264,6 @@ namespace Tensile
         , batchD(_batchD)
         , alpha(_alpha)
         , beta(_beta)
-        , ws(_ws)
     {
     }
 
