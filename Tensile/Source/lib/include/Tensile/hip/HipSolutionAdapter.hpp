@@ -85,6 +85,7 @@ namespace Tensile
             std::vector<hipModule_t>                       m_modules;
             std::unordered_map<std::string, hipFunction_t> m_kernels;
             bool                                           m_debug = false;
+            bool                                           m_debugSkipLaunch = false;
             std::string                                    m_name  = "HipSolutionAdapter";
 
             std::vector<std::string> m_loadedModuleNames;

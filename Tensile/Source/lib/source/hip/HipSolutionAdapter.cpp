@@ -49,7 +49,8 @@ namespace Tensile
     namespace hip
     {
         SolutionAdapter::SolutionAdapter()
-            : m_debug(Debug::Instance().printKernelArguments())
+            : m_debug(Debug::Instance().printKernelArguments()),
+              m_debugSkipLaunch(Debug::Instance().skipKernelLaunch())
         {
         }
 
@@ -249,6 +250,15 @@ namespace Tensile
                 std::cout << " l" << kernel.workGroupSize << " x g" << kernel.numWorkGroups << " = "
                           << kernel.numWorkItems << std::endl;
                 std::cout << kernel.args;
+            }
+            if(m_debugSkipLaunch)
+            {
+                std::cout << "DEBUG: Skip kernel execution" << std::endl;
+                if(startEvent != nullptr)
+                    HIP_CHECK_EXC(hipEventRecord(startEvent, stream));
+                if(stopEvent != nullptr)
+                    HIP_CHECK_EXC(hipEventRecord(stopEvent, stream));
+                return;
             }
 
             hipFunction_t function = getKernel(kernel.kernelName);

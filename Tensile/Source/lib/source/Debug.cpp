@@ -28,6 +28,10 @@
 #define DEBUG_SM 0
 #endif
 
+#ifndef DEBUG_SM2
+#define DEBUG_SM2 0
+#endif
+
 namespace Tensile
 {
     std::once_flag debug_init;
@@ -105,12 +109,22 @@ namespace Tensile
         return m_naivePropertySearch;
     }
 
+    bool Debug::skipKernelLaunch() const
+    {
+        return m_value2 & 0x1;
+    }
+
     Debug::Debug()
-        : m_value(DEBUG_SM)
+        : m_value(DEBUG_SM),
+          m_value2(DEBUG_SM2)
     {
         const char* db = std::getenv("TENSILE_DB");
         if(db)
             m_value = strtol(db, nullptr, 0);
+
+        const char* db2 = std::getenv("TENSILE_DB2");
+        if(db2)
+            m_value2 = strtol(db2, nullptr, 0);
 
         const char* naive = std::getenv("TENSILE_NAIVE_SEARCH");
         if(naive)
