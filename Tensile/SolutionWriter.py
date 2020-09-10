@@ -457,7 +457,7 @@ class SolutionWriter:
     ########################################
     # Enqueue Beta-Only Kernel
     ########################################
-    if gsu > 1 and kernel["_GlobalAccumulation"] != 2:
+    if gsu > 1 and kernel["_GlobalAccumulation"] != 'MultipleBuffer':
       kernelNamesBetaOnly = []
       for ko in solution.getKernelBetaOlnyObjects():
         kernelName = ko.getKernelName()
@@ -813,7 +813,7 @@ class SolutionWriter:
           s += "%sNULL,\n" % (t)
           s += "%s(void**)hipLaunchParams\n" % (t)
           if globalParameters["PreciseKernelTime"]:
-            if gsu > 1 and kernel["_GlobalAccumulation"] != 2:
+            if gsu > 1 and kernel["_GlobalAccumulation"] != 'MultipleBuffer':
               s += "%s,nullptr\n" %(t)
             else:
               s += "%s,inputEvents ? inputEvents[enqueueIdx]:nullptr\n" %(t)
@@ -885,8 +885,8 @@ class SolutionWriter:
         s += "%sdataD,\n" % (t)
         s += "%sworkspace,\n" % (t)
         s += "%sdataC,\n" % (t)
-        s += "%s%s,\n" % (t, "alpha" if kernel["_GlobalAccumulation"] == 2 else "1")
-        s += "%s%s,\n" % (t, "beta" if (kernel["_GlobalAccumulation"] == 2 and problemType["UseBeta"]) else "0")
+        s += "%s%s,\n" % (t, "alpha" if kernel["_GlobalAccumulation"] == 'MultipleBuffer' else "1")
+        s += "%s%s,\n" % (t, "beta" if (kernel["_GlobalAccumulation"] == 'MultipleBuffer' and problemType["UseBeta"]) else "0")
         # strides
         for i in range(0, numStridesC):
           s += "%s%s,\n" % (t, self.strideList[i])
@@ -897,7 +897,7 @@ class SolutionWriter:
         # sizes
         for i in range(0, problemType["NumIndicesC"]):
           s += "%ssize%s%s" % (t, self.indexChars[i], ",\n")
-        s += "%s%u);\n" % (t, (solution["GlobalSplitU"] if kernel["_GlobalAccumulation"] == 2 else 1))
+        s += "%s%u);\n" % (t, (solution["GlobalSplitU"] if kernel["_GlobalAccumulation"] == 'MultipleBuffer' else 1))
         t = t[:-2]
         s += "%sif( outputEvent != NULL )\n" % (t)
         s += "%s  hipEventRecord(outputEvent[0], stream );\n" % (t)

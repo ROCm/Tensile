@@ -1122,10 +1122,7 @@ class KernelWriterAssembly(KernelWriter):
 
     #jgolds Need to check device for support
     if kernel["ProblemType"]["HighPrecisionAccumulate"]:
-        if kernel["ProblemType"]["DataType"].isHalf():
-            self.bpeCinternal = int(self.bpr*1)
-            self.bpeDexternal = int(self.bpr*1) if kernel["_GlobalAccumulation"] else self.bpeDexternal
-        elif kernel["ProblemType"]["DataType"].isBFloat16():
+        if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
             self.bpeCinternal = int(self.bpr*1)
             self.bpeDexternal = int(self.bpr*1) if kernel["_GlobalAccumulation"] else self.bpeDexternal
         elif kernel["ProblemType"]["DataType"].isInt8x4():
@@ -8363,7 +8360,7 @@ class KernelWriterAssembly(KernelWriter):
 
         kStr += "\n"
 
-    if kernel["_GlobalAccumulation"] == 2:
+    if kernel["_GlobalAccumulation"] == 'MultipleBuffer':
       # GSU algoritm 2: adjust output buffer address to per GSU buffer
       tmpSgpr = self.getTmpSgpr(5).idx()
       kStr += "// GSU Output Buffer offset: Free0 + (Free1-1)*StrideC1J + (Free2-1)*StrideCK * GSUIdx * bpe%s" % self.endLine
@@ -8744,7 +8741,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Return max global write vector width, in elements
   def maxGwvw(self, kernel):
-    atomic = (kernel["GlobalSplitU"] > 1) and (kernel["_GlobalAccumulation"] != 2)
+    atomic = (kernel["GlobalSplitU"] > 1) and (kernel["_GlobalAccumulation"] != 'MultipleBuffer')
 
     if kernel["BufferStore"]:
       if atomic:
@@ -10109,13 +10106,13 @@ class KernelWriterAssembly(KernelWriter):
                           edges=None):
     if not self.do["PostLoop"]: return ""
     kStr = ""
-    atomic = (kernel["GlobalSplitU"] > 1) and (kernel["_GlobalAccumulation"] != 2)
+    atomic = (kernel["GlobalSplitU"] > 1) and (kernel["_GlobalAccumulation"] != 'MultipleBuffer')
 
 
     # write possibilities and labels
     # if beta/edge combo not specified fall back to global param definition
     if betas is None:
-      hasBeta = kernel["ProblemType"]["UseBeta"] and (kernel["_GlobalAccumulation"] != 2)
+      hasBeta = kernel["ProblemType"]["UseBeta"] and (kernel["_GlobalAccumulation"] != 'MultipleBuffer')
       betas = [False, True] if hasBeta else [False]
     if edges is None:
       edges = [False, True] if self.do["EdgeWrite"] else [False]
@@ -10853,7 +10850,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # rC *= alpha
-    if not kernel["InterleaveAlpha"] and applyAlpha and (kernel["_GlobalAccumulation"] != 2):
+    if not kernel["InterleaveAlpha"] and applyAlpha and (kernel["_GlobalAccumulation"] != 'MultipleBuffer'):
       kStr += self.comment("rC *= alpha batchEements=%s"%batchElements)
       for elementIdx in range(0, len(batchElements)):
         kStr += self.applyAlpha(kernel, gwvw, ss.elementSumIdx, elementIdx, tmpS01)
@@ -11335,7 +11332,7 @@ class KernelWriterAssembly(KernelWriter):
               kStr += "v_fma_f64 %s, %s, %s, %s%s" % (vgpr("ValuC+%u"%(sumIdxV*4+2),2), vgpr(dataV+2,2), sgpr("Beta+0",2), vgpr("ValuC+%u"%(sumIdxV*4+2),2), self.endLine)
 
         # pack stores, beta and non-beta reach here:
-        if kernel["ProblemType"]["HighPrecisionAccumulate"] and (kernel["_GlobalAccumulation"] != 2):
+        if kernel["ProblemType"]["HighPrecisionAccumulate"] and (kernel["_GlobalAccumulation"] != 'MultipleBuffer'):
           for vi in range(0, gwvw):
             sumIdxV = ss.elementSumIdx[elementIdx] + vi
             if kernel["ProblemType"]["DataType"].isHalf():

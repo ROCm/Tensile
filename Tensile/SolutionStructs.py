@@ -2212,16 +2212,19 @@ class Solution:
         #del state[s]
 
     dataType = state["ProblemType"]["DataType"]
-    state["_GlobalAccumulation"] = 0
+    state["_GlobalAccumulation"] = None
     if ((dataType.isBFloat16() or dataType.isHalf())
-      and state["ProblemType"]["HighPrecisionAccumulate"] \
-      and state["GlobalSplitU"] > 1 \
-      and state["EnableMatrixInstruction"]):
-      state["_GlobalAccumulation"] = state["GlobalSplitUAlgorithm"]
+        and state["ProblemType"]["HighPrecisionAccumulate"] \
+        and state["GlobalSplitU"] > 1 \
+        and state["EnableMatrixInstruction"]):
+      if state["GlobalSplitUAlgorithm"] == "SingleBuffer":
+        state["_GlobalAccumulation"] = 'SingleBuffer'
+      if state["GlobalSplitUAlgorithm"] == "MultipleBuffer":
+        state["_GlobalAccumulation"] = 'MultipleBuffer'
 
-    if state["_GlobalAccumulation"] == 1:
+    if state["_GlobalAccumulation"] == 'SingleBuffer':
       state["_WorkspaceSizePerElemC"] = 4
-    elif state["_GlobalAccumulation"] == 2:
+    elif state["_GlobalAccumulation"] == 'MultipleBuffer':
       state["_WorkspaceSizePerElemC"] = 4 * state["GlobalSplitU"]
     else:
       state["_WorkspaceSizePerElemC"] = 0
@@ -2913,7 +2916,7 @@ class Solution:
       if not state["EnableMatrixInstruction"]:
         reject(state, "storeRemap only support MaxtrixInstruction kernel")
         return
-      if (state["GlobalSplitU"] > 1) and (state["_GlobalAccumulation"] != 2):
+      if (state["GlobalSplitU"] > 1) and (state["_GlobalAccumulation"] != 'MultipleBuffer'):
         reject(state, "storeRemap doesn't support GlobalSplitU yet, except GSU algorithm 2")
         return
       if packedC0 or packedC1:

@@ -136,7 +136,7 @@ BenchmarkProblems:
         - InnerUnroll: [2]
         - DepthU: [32]
         - VectorWidth: [2]
-        - GlobalSplitUAlgorithm: [1, 2]
+        - GlobalSplitUAlgorithm: ["SingleBuffer", "MultipleBuffer"]
         - GlobalSplitU: [2, 5, 15]
       JoinParameters:
       BenchmarkJoinParameters:
@@ -272,7 +272,7 @@ BenchmarkProblems:
         - InnerUnroll: [2]
         - DepthU: [32]
         - VectorWidth: [2]
-        - GlobalSplitUAlgorithm: [1, 2]
+        - GlobalSplitUAlgorithm: ["SingleBuffer", "MultipleBuffer"]
         - GlobalSplitU: [2, 5, 15]
       JoinParameters:
       BenchmarkJoinParameters:
@@ -408,7 +408,7 @@ BenchmarkProblems:
         - InnerUnroll: [2]
         - DepthU: [32]
         - VectorWidth: [2]
-        - GlobalSplitUAlgorithm: [1, 2]
+        - GlobalSplitUAlgorithm: ["SingleBuffer", "MultipleBuffer"]
         - GlobalSplitU: [2, 5, 15]
       JoinParameters:
       BenchmarkJoinParameters:
@@ -544,7 +544,7 @@ BenchmarkProblems:
         - InnerUnroll: [2]
         - DepthU: [32]
         - VectorWidth: [2]
-        - GlobalSplitUAlgorithm: [1, 2]
+        - GlobalSplitUAlgorithm: ["SingleBuffer", "MultipleBuffer"]
         - GlobalSplitU: [2, 5, 15]
       JoinParameters:
       BenchmarkJoinParameters:

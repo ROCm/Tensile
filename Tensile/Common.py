@@ -351,7 +351,7 @@ validParameters = {
     # choose how to do GlobalSplitU
     # 1: use atomic operation to accumlate on one buffer
     # 2: each GSU group write to each own buffer and accumulate by another kernel
-    "GlobalSplitUAlgorithm":      [1, 2],
+    "GlobalSplitUAlgorithm":      ["SingleBuffer", "MultipleBuffer"],
 
     # When splitting up the summation between workgroups, there are two options for organizing which workgroup will do what
     # If we begin with N workgroups and set GSU=4, there will now be 4N workgroups
@@ -994,7 +994,7 @@ defaultBenchmarkCommonParameters = [
     {"StaggerUMapping":           [ 0 ] },    # recommend [0,1]
     {"MagicDivAlg":               [ 2 ] },
     {"GlobalSplitU":              [ 1 ] },
-    {"GlobalSplitUAlgorithm":     [ 2 ] },
+    {"GlobalSplitUAlgorithm":     [ "MultipleBuffer" ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },
     {"MacroTileShapeMin":         [ 1 ] },
