@@ -202,6 +202,7 @@ namespace Tensile
             int    packSummationDims = 0;
             int    magicDivAlg       = 1;
             size_t persistentKernel  = 0;
+            bool   persistentKernelAlongBatch;
 
             bool sourceKernel = false;
 

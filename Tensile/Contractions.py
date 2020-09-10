@@ -319,6 +319,9 @@ class ProblemPredicate(Properties.Predicate):
         if 'GlobalSplitU' in state and state['GlobalSplitU'] > 1:
             rv += [cls("DeterministicMode", value = False)]
 
+        if 'PersistentKernel' in state and state['PersistentKernel']:
+            rv += [cls("PersistentKernelCheck", value = True)]
+
         if ("MatrixInstruction" in state and state["MatrixInstruction"]) or \
            ("EnableMatrixInstruction" in state and state["EnableMatrixInstruction"] is True):
             rv += [cls("ArithmeticUnitCompatible", value="MFMA")]
@@ -372,6 +375,7 @@ class SizeMapping:
                  'packBatchDims',
                  'magicDivAlg',
                  'persistentKernel',
+                 'persistentKernelAlongBatch',
                  'sourceKernel',
                  'globalAccumulation',
                  'workspaceSizePerElemC',
@@ -390,6 +394,7 @@ class SizeMapping:
                    packSummationDims     = d['PackSummationDims'] if 'PackSummationDims' in d else 0,
                    packBatchDims         = d['PackBatchDims'] if 'PackBatchDims' in d else 0,
                    persistentKernel      = d['PersistentKernel'] if 'PersistentKernel' in d else 0,
+                   persistentKernelAlongBatch   = d['PersistentKernelAlongBatch'] if 'PersistentKernelAlongBatch' in d else False,
                    magicDivAlg           = d.get('MagicDivAlg', 1),
                    sourceKernel          = d['KernelLanguage'] == 'Source',
                    globalAccumulation    = d['_GlobalAccumulation'],

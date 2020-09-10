@@ -959,6 +959,33 @@ namespace Tensile
                 }
             };
 
+            struct PersistentKernelCheck
+                : public Predicate_CRTP<PersistentKernelCheck, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                bool value;
+
+                PersistentKernelCheck() = default;
+                PersistentKernelCheck(bool value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "PersistentKernelCheck";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.getPersistentKernelEligibility();
+                }
+            };
+
         } // namespace Contraction
 
         /**

@@ -2312,6 +2312,28 @@ class Solution:
 
     state["WorkGroupMapping" ] = abs(state["WorkGroupMapping"])
 
+    # avoid bug somehow related to GlobalSplitU + Persistent
+    # avoid bug related to WGM<0
+    if state["PersistentKernel"] and (\
+            (state["KernelLanguage"] == "Assembly" and state["GlobalSplitU"] != 1) or \
+            (state["KernelLanguage"] == "Assembly" and state["WorkGroupMapping"] < 0) ):
+      state["PersistentKernel"] = 0
+
+    if state["PersistentKernelAlongBatch"] and (\
+            (state["PersistentKernel"] == 0) or \
+            (state["KernelLanguage"] == "Source" and state["GlobalSplitU"] != 1) ):
+      # warn("PersistentKernelAlongBatch requires PersistentKernel != 0, forcing PersistentKernelAlongBatch = False")
+      # warn("PersistentKernelAlongBatch not support GSU on HIP, forcing PersistentKernelAlongBatch = False")
+      state["PersistentKernelAlongBatch"] = False
+
+    if state["PrefetchAcrossPersistent"] and (state["PersistentKernel"] == 0):
+      # warn("PrefetchAcrossPersistent requires PersistentKernel != 0, forcing PrefetchAcrossPersistent = False")
+      state["PrefetchAcrossPersistent"] = False
+
+    if state["PersistentKernel"] and (state["MacroTileA"] * state["MacroTileB"] <= 64 * 64 ):
+      reject(state, "Quick reject small MT-size[%ux%u] which have larger occupancy and wouldn't gain for PersistentKernel" \
+        % (state["MacroTileA"], state["MacroTileB"]))
+
     problemType = state["ProblemType"]
     if not problemType["UseInitialStridesAB"]:
       for (tc) in ('A','B'):
@@ -2387,7 +2409,8 @@ class Solution:
     #  - And Suppress does not work if GSU>1 for some reason
     state["SuppressNoLoadLoop"] &= (bufferLoad and state["PrefetchGlobalRead"] and (state["GlobalSplitU"]==1))
     # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
-    state["ExpandPointerSwap"]  &= (bufferLoad and state["PrefetchGlobalRead"])
+    # EPS not supported with PAP yet
+    state["ExpandPointerSwap"]  &= (bufferLoad and state["PrefetchGlobalRead"] and not state["PrefetchAcrossPersistent"])
 
     #print("PackedC0IdxChars", state["PackedC0IdxChars"])
     #print("PackedC1IdxChars", state["PackedC1IdxChars"])
@@ -2887,9 +2910,6 @@ class Solution:
       if not state["EnableMatrixInstruction"]:
         reject(state, "storeRemap only support MaxtrixInstruction kernel")
         return
-      if state["PersistentKernel"]:
-        reject(state, "storeRemap doesn't support persist kernel yet")
-        return
       if state["GlobalSplitU"] > 1:
         reject(state, "storeRemap doesn't support GlobalSplitU yet")
         return
@@ -3234,15 +3254,6 @@ class Solution:
           reject(state, "asm ZeroPad requires GlobalLoadVectorWidth==1")
         if not bufferLoad:
           reject(state, "asm ZeroPad requires BufferLoad")
-
-    # avoid bug somehow related to GlobalSplitU + Persistent
-    # avoid bug related to WGM<0
-    # avoid bug somehow related to HPA + Persistent
-    if state["PersistentKernel"] and (\
-            (state["KernelLanguage"] == "Assembly" and state["GlobalSplitU"] != 1) or \
-            (state["KernelLanguage"] == "Assembly" and state["WorkGroupMapping"] < 0) or \
-            (state["KernelLanguage"] == "Assembly" and problemType["HighPrecisionAccumulate"]) ):
-      state["PersistentKernel"] = 0
 
     if state["MagicDivAlg"] == 2 and globalParameters["NewClient"] != 2:
       warn("Legacy client does not support MagicDivAlg==2, forcing MagicDivAlg=1")

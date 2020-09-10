@@ -859,30 +859,48 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # papIter indicates this is the setup for the "prefetchAcrossPersistent"
   # (aka pap) iteration
   ##############################################################################
-  def setupNewTile(self, kernel, tensorParametersA, tensorParametersB, isPap):
+  def setupNewTile(self, kernel, tensorParametersA, tensorParametersB, isPap, isOptNLL=False):
     kl = []
 
     if self.enable["PreLoop"]:
       ####################################
       # Global Read Addresses
       ####################################
-      kl.append(self.comment3("Begin setupNewTile"))
+      kl.append(self.comment3("Begin setupNewTile, isPap=%s") % isPap)
 
       # work-group assignments
       kl.append(self.comment("global read addresses: work-group"))
       kl.append(self.graWorkGroup(kernel, isPap))
 
+      needShift = False
+      if (kernel["EdgeType"] == "ShiftPtr") and \
+         (not (kernel["BufferLoad"] and kernel["GuaranteeNoPartialA"])) or \
+         (not (kernel["BufferLoad"] and kernel["GuaranteeNoPartialB"])):
+        needShift = True
+
+      # some case (PAP), we don't have to append the code for duplicated calculation
+      # only those calculation related to WorkGroupID need to be generated. otherwise it's just redundant
+      # default dontAppendCode = False, means need to append code
+      self.dontAppendCode = False
+
+      # 1. during isPap, this is actually no needed, so we can skip this.
+      #    but since there are some vgpr value is used in the later lwaFirstOffset (when not OptNLL, such as "lwoT")
+      #    so we still do this part when "isPap & not OptNLL"
+      # 2. if tile edge, then we still need to add all these codes even isPap
+      self.dontAppendCode = isPap and isOptNLL and (not needShift)
       # tile assignments
       kl.append(self.comment("global read addresses: tile offset assignment a"))
       kl.append(self.graTileAssignment(kernel, tensorParametersA))
       kl.append(self.comment("global read addresses: tile offset assignment b"))
       kl.append(self.graTileAssignment(kernel, tensorParametersB))
 
+      self.dontAppendCode = isPap and (not needShift)
       # unroll assignments
       kl.append(self.comment("global read addresses: unroll assignment a"))
       kl.append(self.graUnrollAssignment(kernel, tensorParametersA))
       kl.append(self.comment("global read addresses: unroll assignment b"))
       kl.append(self.graUnrollAssignment(kernel, tensorParametersB))
+      self.dontAppendCode = False
 
       # other free indices
       if kernel["ProblemType"]["NumIndicesC"] > 2:
@@ -894,6 +912,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.comment("global read addresses: other summation assignments"))
         kl.append(self.graOtherSummationAssignments(kernel))
 
+      self.dontAppendCode = isPap and (not needShift)
       # tile offsets
       kl.append(self.comment("global read addresses: tile offsets a"))
       kl.append(self.graTileOffsets(kernel, tensorParametersA))
@@ -905,6 +924,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.graUnrollOffsets(kernel, tensorParametersA))
       kl.append(self.comment("global read addresses: unroll offsets b"))
       kl.append(self.graUnrollOffsets(kernel, tensorParametersB))
+      self.dontAppendCode = False
 
       # tile edges
       if kernel["EdgeType"] == "ShiftPtr":
@@ -927,11 +947,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.comment("global read addresses: branch b"))
         kl.append(self.graBranch(kernel, tensorParametersB))
 
+      self.dontAppendCode = isPap and (not needShift)
       # final offsets
       kl.append(self.comment("global read addresses: final offsets a"))
       kl.append(self.graFinalOffsets(kernel, tensorParametersA))
       kl.append(self.comment("global read addresses: final offsets b"))
       kl.append(self.graFinalOffsets(kernel, tensorParametersB))
+      self.dontAppendCode = False
 
       # addresses
       kl.append(self.comment("global read addresses: addresses a"))
@@ -939,6 +961,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.comment("global read addresses: addresses b"))
       kl.append(self.graAddresses(kernel, tensorParametersB))
 
+      self.dontAppendCode = isPap
       # increments
       kl.append(self.comment("global read addresses: increments a"))
       for i in reversed(range(kernel["ProblemType"]["NumIndicesSummation"])):
@@ -946,6 +969,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.comment("global read addresses: increments b"))
       for i in reversed(range(kernel["ProblemType"]["NumIndicesSummation"])):
         kl.append(self.graIncrements(kernel, i, tensorParametersB))
+      self.dontAppendCode = False
 
       ####################################
       # Local Write Addresses
@@ -960,11 +984,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.lwaUnrollAssignment(kernel, tensorParametersA))
       kl.append(self.lwaUnrollAssignment(kernel, tensorParametersB))
 
+      # if PAP, no need to reset LWA, but if not OptNLL, we still do this (due to TailLoop)
+      self.dontAppendCode = isPap and isOptNLL
       # first offsets
       kl.append(self.comment("local write addresses: first offset a"))
       kl.append(self.lwaFirstOffset(kernel, tensorParametersA))
       kl.append(self.comment("local write addresses: first offset b"))
       kl.append(self.lwaFirstOffset(kernel, tensorParametersB))
+      self.dontAppendCode = False
 
       # final offsets
       kl.append(self.lwaFinalOffsets(kernel, tensorParametersA))
@@ -1017,22 +1044,49 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.comment1("local read addresses: init pointers b"))
       kl.append(self.localReadInitPointers(kernel, tensorParametersB))
 
+    if isPap and not isOptNLL:
+      # init lds read pointers before each unrolled loop
+      kl.append(self.comment1("local read addresses: reset offset a"))
+      kl.append(self.localReadResetOffsets(kernel, tensorParametersA))
+      kl.append(self.comment1("local read addresses: reset offset b"))
+      kl.append(self.localReadResetOffsets(kernel, tensorParametersB))
+
     ####################################
     # prefetch: unrolled loop prefix
     ####################################
     if kernel["PrefetchGlobalRead"]:
       pfi = 1
       kl.append(self.comment("prefetch: global -> local"))
-      kl.append(self.openSumAtLeastUnroll(kernel, prefetch=True, isPap=isPap, isOptNLL=False))
-      if self.enable["GlobalRead"]:
-        kl.append(str(self.directToLdsM0Update(kernel, 0, tensorParametersA)))
-        kl.append(str(self.globalReadDo(kernel, 0, tensorParametersA)))
-        kl.append(str(self.directToLdsM0Update(kernel, 0, tensorParametersB)))
-        kl.append(str(self.globalReadDo(kernel, 0, tensorParametersB)))
-      if self.enable["GlobalReadInc"]:
-        kl.append(self.globalReadIncrementAB(kernel, self.unrollIdx, pfi))
+      kl.append(self.openSumAtLeastUnroll(kernel, prefetch=True, isPap=isPap, isOptNLL=isOptNLL))
+      if isPap and isOptNLL:
+        if self.enable["GlobalRead"]:
+          self.dtlsM0UpdateACode = self.directToLdsM0Update(kernel, 0, tensorParametersA)
+          self.globalReadACode = self.globalReadDo(kernel, 0, tensorParametersA)
+          self.dtlsM0UpdateBCode = self.directToLdsM0Update(kernel, 0, tensorParametersB)
+          self.globalReadBCode = self.globalReadDo(kernel, 0, tensorParametersB)
+        else:
+          self.dtlsM0UpdateACode = Code.StructuredModule()
+          self.globalReadACode = Code.StructuredModule() # empty
+          self.dtlsM0UpdateBCode = Code.StructuredModule()
+          self.globalReadBCode = Code.StructuredModule() # empty
 
-    kl.append(self.comment3("End setupNewTile"))
+        if self.enable["GlobalReadInc"]:
+          self.globalReadIncrements = self.globalReadIncrementAB(kernel, self.unrollIdx, pfi)
+        else:
+          self.globalReadIncrements = Code.Module()
+          self.globalReadIncrements.addCode(Code.Module("globalReadIncrementA"))
+          self.globalReadIncrements.addCode(Code.Module("globalReadIncrementB"))
+
+      else:
+        if self.enable["GlobalRead"]:
+          kl.append(str(self.directToLdsM0Update(kernel, 0, tensorParametersA)))
+          kl.append(str(self.globalReadDo(kernel, 0, tensorParametersA)))
+          kl.append(str(self.directToLdsM0Update(kernel, 0, tensorParametersB)))
+          kl.append(str(self.globalReadDo(kernel, 0, tensorParametersB)))
+        if self.enable["GlobalReadInc"]:
+          kl.append(self.globalReadIncrementAB(kernel, self.unrollIdx, pfi))
+
+    kl.append(self.comment3("End setupNewTile, isPap=%s") % isPap)
 
     return kl
 
@@ -1046,12 +1100,20 @@ class KernelWriter(metaclass=abc.ABCMeta):
     kl = []
     pflr     = self.numItersPLR
 
-    kl.append(self.comment3("%s NoLoadLoop - Begin") % "Opt" if isOptNLL else "")
-    if self.prefetchAcrossPersistent:
-      kl.append(self.openPrefetchAcrossPersistent(kernel))
-      kl += self.setupNewTile(kernel, self.tPA, self.tPB, True)
-      kl.append(self.closePrefetchAcrossPersistent(kernel))
+    kl.append(self.comment3("%s NoLoadLoop - Begin") % ("Opt." if isOptNLL else "Ord."))
 
+    self.dtlsM0UpdateACode = Code.StructuredModule()
+    self.globalReadACode = Code.StructuredModule() # empty
+    self.dtlsM0UpdateBCode = Code.StructuredModule()
+    self.globalReadBCode = Code.StructuredModule() # empty
+    self.globalReadIncrements = Code.Module()
+    self.globalReadIncrements.addCode(Code.Module("globalReadIncrementA"))
+    self.globalReadIncrements.addCode(Code.Module("globalReadIncrementB"))
+    self.localWriteACode = Code.Module()
+    self.localWriteBCode = Code.Module()
+    localWriteEndIter = kernel["LoopIters"] - self.numItersPLR - 1
+
+    # the scheduled GlobalRead,Inc code of PAP is inside openSumAtLeastUnroll (if PAP=on)
     kl.append(self.openSumAtLeastUnroll(kernel, prefetch=False, isPap=False, \
         isOptNLL=isOptNLL))
     if not self.numItersPLR:
@@ -1060,10 +1122,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.enable["Sync"]:
         kl.append(self.syncThreads(kernel))
 
-    # noloadloop without globalRead and localWrite
-    self.perIterGlobalReadCode = [ Code.Module() for i in range (kernel["LoopIters"]) ]
-    self.perIterLocalWriteCode = [ Code.Module() for i in range (kernel["LoopIters"]) ]
-    self.perIterLocalWriteCanSkip = [ 0 for i in range (kernel["LoopIters"]) ]
+    # PAP would have GlobalRead and GlobalInc, but no localWrite
+    # Get the perIterGlobalReadCode code for PAP (if PAP=On), else would be empty
+    self.makeSchedule(kernel, tensorParametersA, tensorParametersB, localWriteEndIter)
+    kl.append(str(self.unrollLoopHeaderCode))
 
     for u in range(0, kernel["LoopIters"]):
       kl.append(self.comment("iter %u"%u))
@@ -1191,34 +1253,39 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # can't do shadow initC with multiple summation since this resets the ValuC counters
         # on each unroll iteration.
         self.doShadowInit = 1 # 1 is just store setup
+
+    # for PersistentKernel with HPA mode, we can do the alpha, beta conversion f16->f32 only once outside the PK-loop
+    if kernel["PersistentKernel"]:
+      kl.append( self.checkAlphaBetaForHPA(kernel))
+
     if self.prefetchAcrossPersistent:
       # first prefetch is outside persistent loop, subsequent prefetch will
       # be integrated into no-load-loop
-      kl += self.setupNewTile(kernel, tensorParametersA, tensorParametersB, False)
+      kl += self.setupNewTile(kernel, tensorParametersA, tensorParametersB, isPap=False, isOptNLL=False)
       kl.append(self.openPersistentLoop(kernel))
     else:
       # prefetch is inside persistent loop
       kl.append(self.openPersistentLoop(kernel))
-      kl += self.setupNewTile(kernel, tensorParametersA, tensorParametersB, False)
+      kl += self.setupNewTile(kernel, tensorParametersA, tensorParametersB, isPap=False, isOptNLL=False)
 
     pack = [ Code.Module() for i in range (self.numVgprBuffer+1) ]
 
     if kernel["PrefetchGlobalRead"]:
+      pkWithStoreRemap = kernel["PersistentKernel"] and kernel["StoreRemapVectorWidth"]
       if self.doShadowInit:
         kl.append(self.openShadowInit(kernel))
         kl.append(self.globalWriteWorkGroupInit(kernel))
         if self.doShadowInit == 2:
           kl.append(self.initC(kernel)) # initC while waiting for global reads
         kl.append(self.closeShadowInit(kernel))
-
       if self.enable["Wait"]:
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "8wait for global read"))
-
         # These cases loop back and run the prefetch loop again
         # we need an extra barrier to ensure that the ds_reads from previous iteration
         # have finished before we generate the prefetch for the next summation index.
-        if kernel["PrefetchAcrossPersistent"] or self.actualSummationLoops>1:
-          kl.append(self.syncThreads(kernel))
+        if pkWithStoreRemap or self.actualSummationLoops>1:
+          kl.append( self.indent + self.syncStr + "// for PersistentKernel with SRVW " + self.endLine )
+
 
       if self.enable["LocalWrite"]:
         # local write
@@ -1233,6 +1300,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.localWriteSwapOffsets(kernel, tensorParametersB))
         kl.append(self.localWriteInitPointers(kernel, tensorParametersA))
         kl.append(self.localWriteInitPointers(kernel, tensorParametersB))
+
       # prefetch-local
       if self.numItersPLR:
         if self.enable["Wait"]:
@@ -1676,6 +1744,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # execute the NLL inside each unroll iteration not just once at the end.
     if kernel["PrefetchGlobalRead"]:
       if not kernel["SuppressNoLoadLoop"]:
+
         if kernel["KernelLanguage"] == "Assembly" and kernel["OptNoLoadLoop"] and \
            kernel["BufferLoad"] and kernel["BufferStore"] and self.doShadowInit and \
            kernel["LocalSplitU"]==1 and kernel["GlobalSplitU"] == 1 and \
@@ -1816,6 +1885,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.comment("global read inc AB"))
       kl.append(self.globalReadIncrementAB(kernel, i, 0))
       kl.append(self.closeLoop(kernel, i, True))
+
+    if self.prefetchAcrossPersistent:
+      kl.append(str(self.openPrefetchAcrossPersistent(kernel, isOptNLL=False)))
+      kl += self.setupNewTile(kernel, self.tPA, self.tPB, isPap=True, isOptNLL=False)
+      kl.append(str(self.closePrefetchAcrossPersistent(kernel, isOptNLL=False)))
 
     kl.append(self.endSummation(kernel))
     if self.enable["PostLoop"]:
@@ -2483,6 +2557,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #tP["nlvc"] = self.numReadVectorComponentsA
       #tP["nwvc"] = self.numWriteVectorComponentsA
       tP["wg"] = "WorkGroup0"                               # these are storing the actual strong to lookup the number from kernel dictionary
+      tP["prevWg"] = "PrevWorkGroup0"                       # used for prefetch-across-persistent
       tP["sg"] = "SubGroup0"
       tP["tt"] = "ThreadTile0"
       tP["mt"] = "MacroTile0"
@@ -2537,6 +2612,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #tP["nlvc"] = self.numReadVectorComponentsB
       #tP["nwvc"] = self.numWriteVectorComponentsB
       tP["wg"] = "WorkGroup1"
+      tP["prevWg"] = "PrevWorkGroup1"
       tP["sg"] = "SubGroup1"
       tP["tt"] = "ThreadTile1"
       tP["mt"] = "MacroTile1"
@@ -2801,6 +2877,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
     return ""
 
   ##############################################################################
+  # Convert Alpha, Beta from F16 to F32 for HPA
+  ##############################################################################
+  @abc.abstractmethod
+  def checkAlphaBetaForHPA(self, kernel):
+    return ""
+
+  ##############################################################################
   # MAC Iteration
   # useMacro : if true, call the MAC* macro. If False, inline the MACs
   ##############################################################################
@@ -2977,11 +3060,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
     return ""
 
   @abc.abstractmethod
-  def openPrefetchAcrossPersistent(self, kernel):
+  def openPrefetchAcrossPersistent(self, kernel, isOptNLL=False):
     return ""
 
   @abc.abstractmethod
-  def closePrefetchAcrossPersistent(self, kernel):
+  def closePrefetchAcrossPersistent(self, kernel, isOptNLL=False):
     return ""
 
   ##############################################################################
