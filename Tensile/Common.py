@@ -253,6 +253,8 @@ globalParameters["MinKForGSU"] = 256 # min K size to use GlobalSplitU algorithm 
 # control if a solution is run for a given problem
 globalParameters["GranularityThreshold"] = 0.0
 
+globalParameters["PristineOnGPU"] = True # use Pristine memory on Tensile trainning verification or not
+
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 

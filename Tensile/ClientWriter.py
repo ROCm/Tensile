@@ -695,6 +695,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param("log-level",                ClientLogLevel(globalParameters["ClientLogLevel"]).name)
         param("max-workspace-size",       globalParameters["MaxWorkspaceSize"])
         param("granularity-threshold",    globalParameters["GranularityThreshold"])
+        param("pristine-on-gpu",          globalParameters["PristineOnGPU"])
 
 def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection, configBase = "ClientParameters", libraryFile = None):
 
