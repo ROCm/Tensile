@@ -118,12 +118,15 @@ namespace Tensile
             virtual int error() const override;
 
         private:
+            void allocateResultBuffer(size_t bytes);
+
             std::shared_ptr<DataInitialization> m_dataInit;
             std::shared_ptr<ContractionInputs>  m_referenceInputs;
 
             ConvolutionProblem m_convolutionProblem;
 
-            std::vector<uint8_t> m_cpuResultBuffer;
+            size_t m_cpuResultBufferSize = 0;
+            std::shared_ptr<uint8_t> m_cpuResultBuffer;
 
             ContractionProblem m_problem;
 
