@@ -301,6 +301,18 @@ namespace Tensile
             return rv;
         }
 
+        void ReferenceValidator::allocateResultBuffer(size_t bytes)
+        {
+            if(m_cpuResultBufferSize == bytes)
+                return;
+            m_cpuResultBuffer.reset();
+
+            uint8_t * buffer;
+            HIP_CHECK_EXC(hipHostMalloc(&buffer, bytes, 0));
+            m_cpuResultBuffer.reset(buffer, hipFree);
+            m_cpuResultBufferSize = bytes;
+        }
+
         template <typename ManagedInputs>
         void ReferenceValidator::printTensorsTyped(ManagedInputs const& reference,
                                                    ManagedInputs const& result)
@@ -328,29 +340,29 @@ namespace Tensile
                 requiredBufferSize
                     = std::max(requiredBufferSize, m_problem.d().totalAllocatedBytes());
 
-            if(m_cpuResultBuffer.size() < requiredBufferSize)
-                m_cpuResultBuffer.resize(requiredBufferSize);
+            if(m_cpuResultBufferSize < requiredBufferSize)
+                allocateResultBuffer(requiredBufferSize);
 
             if(m_printTensorA)
             {
-                HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(),
+                HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.get(),
                                         result.a,
                                         m_problem.a().totalAllocatedBytes(),
                                         hipMemcpyDeviceToHost));
                 auto const* buffer = reinterpret_cast<typename ManagedInputs::AType const*>(
-                    m_cpuResultBuffer.data());
+                    m_cpuResultBuffer.get());
 
                 m_reporter->logTensor(LogLevel::Verbose, "A", buffer, m_problem.a(), result.a);
             }
 
             if(m_printTensorB)
             {
-                HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(),
+                HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.get(),
                                         result.b,
                                         m_problem.b().totalAllocatedBytes(),
                                         hipMemcpyDeviceToHost));
                 auto const* buffer = reinterpret_cast<typename ManagedInputs::BType const*>(
-                    m_cpuResultBuffer.data());
+                    m_cpuResultBuffer.get());
 
                 m_reporter->logTensor(LogLevel::Verbose, "B", buffer, m_problem.b(), result.b);
             }
@@ -358,12 +370,12 @@ namespace Tensile
             if(result.c == result.d && (m_printTensorC || m_printTensorD))
             {
                 // If the pointers are the same, only print the buffer once.
-                HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(),
+                HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.get(),
                                         result.c,
                                         m_problem.c().totalAllocatedBytes(),
                                         hipMemcpyDeviceToHost));
                 auto const* buffer = reinterpret_cast<typename ManagedInputs::CType const*>(
-                    m_cpuResultBuffer.data());
+                    m_cpuResultBuffer.get());
 
                 m_reporter->logTensor(LogLevel::Verbose, "C_D", buffer, m_problem.c(), result.c);
             }
@@ -371,24 +383,24 @@ namespace Tensile
             {
                 if(m_printTensorC)
                 {
-                    HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(),
+                    HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.get(),
                                             result.c,
                                             m_problem.c().totalAllocatedBytes(),
                                             hipMemcpyDeviceToHost));
                     auto const* buffer = reinterpret_cast<typename ManagedInputs::CType const*>(
-                        m_cpuResultBuffer.data());
+                        m_cpuResultBuffer.get());
 
                     m_reporter->logTensor(LogLevel::Verbose, "C", buffer, m_problem.c(), result.c);
                 }
 
                 if(m_printTensorD)
                 {
-                    HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(),
+                    HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.get(),
                                             result.d,
                                             m_problem.d().totalAllocatedBytes(),
                                             hipMemcpyDeviceToHost));
                     auto const* buffer = reinterpret_cast<typename ManagedInputs::DType const*>(
-                        m_cpuResultBuffer.data());
+                        m_cpuResultBuffer.get());
 
                     m_reporter->logTensor(LogLevel::Verbose, "D", buffer, m_problem.d(), result.d);
                 }
@@ -420,15 +432,15 @@ namespace Tensile
                 elementsToCopy = result.dElements;
             size_t bytesToCopy = elementsToCopy * sizeof(Type);
 
-            if(m_cpuResultBuffer.size() < bytesToCopy)
-                m_cpuResultBuffer.resize(bytesToCopy);
+            if(m_cpuResultBufferSize < bytesToCopy)
+                allocateResultBuffer(bytesToCopy);
 
             if(boundsCheck == BoundsCheckMode::GuardPageBack)
                 elementsOffsetToCopy = result.dElements - tensor.totalAllocatedElements();
 
             auto copykind = result.gpu ? hipMemcpyDeviceToHost : hipMemcpyHostToHost;
 
-            HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(),
+            HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.get(),
                                     result.managedD.get() + elementsOffsetToCopy,
                                     bytesToCopy,
                                     copykind));
@@ -442,7 +454,7 @@ namespace Tensile
             // If there was extra data allocated before the tensor to do bounds
             // checking, resultBuffer is the whole allocation, while resultData
             // points directly to the result.
-            Type const* resultBuffer    = reinterpret_cast<Type const*>(m_cpuResultBuffer.data());
+            Type const* resultBuffer    = reinterpret_cast<Type const*>(m_cpuResultBuffer.get());
             Type const* resultData      = resultBuffer + elementsBeforeData;
             Type const* resultAfterData = resultData + tensor.totalAllocatedElements();
 
@@ -463,34 +475,6 @@ namespace Tensile
                 boundsCheckElements++;
                 compareInvalid.before(resultBuffer[i], i, elementsBeforeData);
             }
-
-            auto compareValues
-                = [&](Type referenceValue, Type resultValue, size_t elemIndex, size_t elemNumber) {
-                      bool match = AlmostEqual(referenceValue, resultValue);
-                      if(!match)
-                          errors++;
-
-                      if(!match || m_printValids)
-                      {
-                          if(doPrint)
-                          {
-                              if(printed == 0)
-                              {
-                                  std::cout << "Index:  Device | Reference" << std::endl;
-                              }
-
-                              std::cout << "[" << (printed) << "] "
-                                        << " elem=" << elemNumber << " idx=" << elemIndex << ": "
-                                        << resultValue << (match ? "==" : "!=") << referenceValue
-                                        << std::endl;
-
-                              printed++;
-
-                              if(m_printMax >= 0 && printed >= m_printMax)
-                                  doPrint = false;
-                          }
-                      }
-                  };
 
             if(m_validationStride == 1)
             {
