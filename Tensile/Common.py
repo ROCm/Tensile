@@ -493,6 +493,28 @@ validParameters = {
     # Can always be True, set to False for debugging or comparison
     "OptPreLoopVmcnt":            [False, True],
 
+    # For MatrixInstruction and SIA3, number of GlobalReadInstruction between mfma
+    # the purpose of this parameter is to control density of global read instruction scheduling
+    # Scheduling global read back to back can have better memory efficiency
+    # However, when full of vmem FIFO, it will block other instruction to be issued
+    # Range from 0.01 to 5
+    #         0.1 means 1 GR per 10 mfma
+    #           5 means 5 GR per 1 mfma
+    "GlobalReadPerMfma":       [ i/100 for i in range(1,500)],
+
+    # For MatrixInstruction and SIA3, number of LocalWriteInstruction between mfma
+    # the purpose of this parameter is to control density of local write instruction scheduling
+    # In PGR1, we want to schedule local write more denser, so we can have more
+    #          latency to hide global read
+    # In PGR2, since LW is followed by GR, every LW has same whole loop latecy
+    #          to hide global read. We want to schedule LW less denser, can
+    #          avoid full of vmem FIFO.
+    # Range from 0.01 to 5
+    #         0.1 means 1 LW per 10 mfma
+    #           5 means 5 LW per 1 mfma
+    # -1 will use an optimized setting
+    "LocalWritePerMfma":       [ i/100 for i in range(1,500)] + [ -1 ],
+
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
     # TODO: remove. legacy logic yaml in rocblas contains true and false for this parameter
@@ -1159,6 +1181,10 @@ defaultBenchmarkCommonParameters = [
     {"OptPreLoopVmcnt":           [ True ] },
 
     {"LdcEqualsLdd":              [ False ] },
+
+    {"GlobalReadPerMfma":         [ 1 ] },
+    {"LocalWritePerMfma":         [ 1 ] },
+
     {"InterleaveAlpha":           [ 0 ] },
     {"OptNoLoadLoop":             [ 1 ] },
     {"PrefetchAcrossPersistent":  [ 0 ] },

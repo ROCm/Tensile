@@ -2639,7 +2639,6 @@ class Solution:
                                state["PrefetchAcrossPersistent"] and \
                                bufferLoad
 
-
     #print("PackedC0IdxChars", state["PackedC0IdxChars"])
     #print("PackedC1IdxChars", state["PackedC1IdxChars"])
 
@@ -3871,6 +3870,11 @@ class Solution:
       return abbrev
     elif isinstance(value, dict):
       s =  "_".join(["%d%d"%(pos,k) for pos,k in value.items()])
+      return s
+    elif isinstance(value, float):
+      val1 = int(value)
+      val2 = int(value*100) - int(value)*100
+      s =  "%dp%d" % (val1,val2)
       return s
     else:
       printExit('Parameter {key}={value} is new object type ({t})'.format(key=key, value=value, t=type(value)))
