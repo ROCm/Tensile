@@ -4937,6 +4937,7 @@ class KernelWriterAssembly(KernelWriter):
 
     kStr=""
     tc = tP["tensorChar"]
+    isMirrorIdx = kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s" % tc]
 
     if self.staggerU:
       assert (kernel["BufferLoad"])
@@ -4963,7 +4964,7 @@ class KernelWriterAssembly(KernelWriter):
                 sgpr("WrapU%s+0"%tc), \
                 "remove one iteration")
       kStr += inst("s_subb_u32", sgpr("WrapU%s+1"%tc), \
-                0, \
+                -1 if isMirrorIdx else 0, \
                 sgpr("WrapU%s+1"%tc), \
                 "remove one iteration")
 
