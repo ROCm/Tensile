@@ -338,7 +338,7 @@ def writeRunScript(path, libraryLogicPath, forBenchmark, enableTileSelection):
           "client.exe") )
     else:
       if globalParameters["PinClocks"] and globalParameters["ROCmSMIPath"]:
-        runScriptFile.write("%s -d 0 --setfan 255 --setsclk 7\n" % globalParameters["ROCmSMIPath"])
+        runScriptFile.write("%s -d 0 --setfan 255 --setsclk 2\n" % globalParameters["ROCmSMIPath"])
         runScriptFile.write("sleep 1\n")
         runScriptFile.write("%s -d 0 -a\n" % globalParameters["ROCmSMIPath"])
 
