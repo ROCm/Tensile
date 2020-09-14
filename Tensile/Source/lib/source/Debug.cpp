@@ -115,8 +115,8 @@ namespace Tensile
     }
 
     Debug::Debug()
-        : m_value(DEBUG_SM),
-          m_value2(DEBUG_SM2)
+        : m_value(DEBUG_SM)
+        , m_value2(DEBUG_SM2)
     {
         const char* db = std::getenv("TENSILE_DB");
         if(db)

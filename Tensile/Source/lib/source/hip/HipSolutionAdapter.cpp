@@ -49,8 +49,8 @@ namespace Tensile
     namespace hip
     {
         SolutionAdapter::SolutionAdapter()
-            : m_debug(Debug::Instance().printKernelArguments()),
-              m_debugSkipLaunch(Debug::Instance().skipKernelLaunch())
+            : m_debug(Debug::Instance().printKernelArguments())
+            , m_debugSkipLaunch(Debug::Instance().skipKernelLaunch())
         {
         }
 
