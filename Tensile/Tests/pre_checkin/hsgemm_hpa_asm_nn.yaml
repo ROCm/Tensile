@@ -61,8 +61,11 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 4, 2 ]
           - [ 4, 8 ]
-          - [ 16, 16 ]
+          - [ 8, 4 ]
           - [ 8, 8 ]
+          - [ 8, 16 ]
+          - [ 16, 8 ]
+          # Consumes too many vgpr - [ 16, 16 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [  8,  8,  1 ]
