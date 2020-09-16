@@ -871,7 +871,7 @@ class KernelWriterSource(KernelWriter):
 
     # sizes
     for i in range(0, kernel["ProblemType"]["TotalIndices"]):
-      s += "," + self.endLine + "  unsigned int const size" + self.indexChars[i]
+      s += "," + self.endLine + "  unsigned int size" + self.indexChars[i]
 
     for idxChar in self.magicSumChars:
       s += ",%s  unsigned magicNumberNumIter%s /*PSD*/" % (self.endLine, idxChar)
@@ -1922,6 +1922,23 @@ class KernelWriterSource(KernelWriter):
         #kStr += "if (serial==0) printf(\\\"WG%u_%u TK:%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
     else:
       kStr += self.endLine + "  /* Compute summation loop num iter */" + self.endLine
+
+      # Check alpha == 0
+      if kernel["ProblemType"]["DataType"].isDoubleComplex():
+        alphaZeroStr = "tensile_complex<double>(0.0)"
+      elif kernel["ProblemType"]["DataType"].isDouble() or \
+            kernel["ProblemType"]["DataType"].isReal():
+        alphaZeroStr = "0.0"
+      elif kernel["ProblemType"]["DataType"].isSingleComplex():
+        alphaZeroStr = "tensile_complex<float>(0.0f)"
+      elif kernel["ProblemType"]["DataType"].isSingle() or \
+            kernel["ProblemType"]["DataType"].isHalf() or \
+            kernel["ProblemType"]["DataType"].isBFloat16():
+        alphaZeroStr = "0.0f"
+      else:
+        alphaZeroStr = "0"
+
+      kStr += self.indent + "if(alpha == %s) size%s = 0;"%(alphaZeroStr, loopChar) + "  // Short circuit check alpha=0, skip A*B " + self.endLine
 
       if loopIdx == self.unrollIdx and kernel["GlobalSplitU"] > 1:
         kStr += self.calculateLoopNumIterGsu(kernel, "(size%s / LOCAL_DEPTHU)"%loopChar, \
