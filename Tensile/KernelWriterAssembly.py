@@ -2870,8 +2870,6 @@ class KernelWriterAssembly(KernelWriter):
         msg = "Occupancy limit"
       elif self.overflowedResources == 5:
         msg = "reading and writing LDS at same time require 2 LDS buffer"
-      elif self.overflowedResources == 6:
-        msg = "Persistent Kernel is better for only occupancy < 2"
       else:
         msg = "unknown"
 
@@ -11493,11 +11491,6 @@ class KernelWriterAssembly(KernelWriter):
       self.overflowedResources = 1
     elif self.sgprPool.size() > self.maxSgprs:
       self.overflowedResources = 2
-
-    # Persistent Kernel is better for small occupancy
-    if kernel["PersistentKernel"] and \
-        self.getOccupancy(kernel["NumThreads"], self.vgprPool.size(), self.getLdsSize(kernel), self.agprPool.size()) > 2:
-      self.overflowedResources = 6
 
     vgprPerCU = 65536
     vgprPerThreadPerOccupancy = vgprPerCU // kernel["NumThreads"]
