@@ -165,26 +165,27 @@ namespace Tensile
         {
         }
 
-        virtual std::shared_ptr<MySolution>
-            findBestSolution(MyProblem const& problem, Hardware const& hardware) const override
+        virtual std::tuple<std::shared_ptr<MySolution>, double>
+            findBestSolutionWithFitness(MyProblem const& problem, Hardware const& hardware) const override
         {
             try
             {
                 auto const& amdgpu = dynamic_cast<AMDGPU const&>(hardware);
 
+                double fitness = std::numeric_limits<double>::max();
                 auto rv = m_cache.find(problem, amdgpu);
                 if(rv)
-                    return rv;
+                    return std::make_tuple(rv, fitness);    //Fitness won't be accurate
 
-                rv = m_subLibrary->findBestSolution(problem, hardware);
+                std::tie(rv, fitness) = m_subLibrary->findBestSolutionWithFitness(problem, hardware);
                 if(rv)
                     m_cache.add(rv, problem, amdgpu);
 
-                return rv;
+                return std::make_tuple(rv, fitness);
             }
             catch(std::bad_cast const& exc)
             {
-                return m_subLibrary->findBestSolution(problem, hardware);
+                return m_subLibrary->findBestSolutionWithFitness(problem, hardware);
             }
         }
 

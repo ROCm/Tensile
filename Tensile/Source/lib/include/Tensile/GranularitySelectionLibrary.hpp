@@ -75,8 +75,8 @@ namespace Tensile
             return rv;
         }
 
-        virtual std::shared_ptr<MySolution>
-            findBestSolution(MyProblem const& problem, Hardware const& hardware) const override
+        virtual std::tuple<std::shared_ptr<MySolution>, double>
+            findBestSolutionWithFitness(MyProblem const& problem, Hardware const& hardware) const override
         {
             const bool debug = Debug::Instance().printPropertyEvaluation();
 
@@ -108,7 +108,7 @@ namespace Tensile
 
                 if((*rv->problemPredicate)(problem) && (*rv->hardwarePredicate)(hardware))
                 {
-                    return rv;
+                    return std::make_tuple(rv, 0.0);
                 }
                 else if(debug)
                 {
@@ -155,7 +155,7 @@ namespace Tensile
                 }
             }
 
-            return bestSolution;
+            return std::make_tuple(bestSolution, 0.0);
         }
 
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
