@@ -373,11 +373,30 @@ namespace Tensile
         size_t startStrideCD = problemType.useInitialStridesCD ? 0 : 1;
         size_t startStrideAB = problemType.useInitialStridesAB ? 0 : 1;
 
-        for(size_t i = startStrideCD; i < d.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideD", i), d.strides()[i]);
+        if(sizeMapping.globalAccumulation)
+        {
+            size_t wsStride = startStrideCD ? d.sizes()[0] : 1;
+            for(size_t i = startStrideCD; i < d.dimensions(); i++)
+            {
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW", i), wsStride);
+                wsStride *= d.sizes()[i];
+            }
 
-        for(size_t i = startStrideCD; i < c.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideC", i), c.strides()[i]);
+            wsStride = startStrideCD ? d.sizes()[0] : 1;
+            for(size_t i = startStrideCD; i < c.dimensions(); i++)
+            {
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW", i), wsStride);
+                wsStride *= d.sizes()[i];
+            }
+        }
+        else
+        {
+            for(size_t i = startStrideCD; i < d.dimensions(); i++)
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideD", i), d.strides()[i]);
+
+            for(size_t i = startStrideCD; i < c.dimensions(); i++)
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideC", i), c.strides()[i]);
+        }
 
         for(size_t i = startStrideAB; i < a.dimensions(); i++)
             rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideA", i), a.strides()[i]);
@@ -554,8 +573,8 @@ namespace Tensile
 
         rv.kernelName = betaOnlyKernelName(problem, inputs, hardware);
 
-        rv.workGroupSize.x = 8;
-        rv.workGroupSize.y = 8;
+        rv.workGroupSize.x = 256;
+        rv.workGroupSize.y = 1;
         rv.workGroupSize.z = 1;
 
         size_t wiX = 1;
@@ -568,9 +587,9 @@ namespace Tensile
         for(size_t i = 0; i < problem.batchIndices().size(); i++)
             wiZ *= problem.batchSize(i);
 
-        rv.numWorkGroups.x = CeilDivide(wiX, rv.workGroupSize.x);
-        rv.numWorkGroups.y = CeilDivide(wiY, rv.workGroupSize.y);
-        rv.numWorkGroups.z = CeilDivide(wiZ, rv.workGroupSize.z);
+        rv.numWorkGroups.x = CeilDivide(wiX * wiY * wiZ, rv.workGroupSize.x);
+        rv.numWorkGroups.y = 1;
+        rv.numWorkGroups.z = 1;
 
         rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
         rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
@@ -582,9 +601,22 @@ namespace Tensile
             rv.args.append<typename TypedInputs::DType*>("D", inputs.d);
         rv.args.append<typename TypedInputs::CType const*>("C", inputs.c);
 
-        for(size_t i = 1; i < d.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideD", i),
-                                     d.sizes()[i] == 1 ? 0 : d.strides()[i]);
+        if(sizeMapping.globalAccumulation)
+        {
+            size_t stride = d.sizes()[0];
+            for(size_t i = 1; i < d.dimensions(); i++)
+            {
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW", i),
+                                         d.sizes()[i] == 1 ? 0 : stride);
+                stride *= d.sizes()[i];
+            }
+        }
+        else
+        {
+            for(size_t i = 1; i < d.dimensions(); i++)
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideD", i),
+                                         d.sizes()[i] == 1 ? 0 : d.strides()[i]);
+        }
 
         for(size_t i = 1; i < c.dimensions(); i++)
             rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideC", i),
@@ -597,10 +629,7 @@ namespace Tensile
             idx++;
         }
 
-        if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
-        {
-            rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
-        }
+        rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
 
         return rv;
     }
@@ -613,11 +642,6 @@ namespace Tensile
         std::string name = concatenate(
             "C", problem.cNames(), "_", TypeInfo<typename TypedInputs::DType>::Abbrev());
 
-        if(inputs.beta != static_cast<typename TypedInputs::BetaType>(0))
-        {
-            name += "B";
-        }
-
         if(sizeMapping.globalAccumulation)
         {
             name += "_GA";
@@ -626,7 +650,7 @@ namespace Tensile
         return name;
     }
 
-    template <typename TypedInputs>
+    template <typename TypedInputs, bool T_Debug>
     KernelInvocation ContractionSolution::generateOutputConversionCall(
         Problem const& problem, TypedInputs const& inputs, Hardware const& hardware) const
     {
@@ -635,15 +659,14 @@ namespace Tensile
 
         KernelInvocation rv;
 
-        bool debug = Debug::Instance().printKernelArguments();
-        rv.args    = KernelArguments(debug);
+        rv.args = KernelArguments(T_Debug);
 
         rv.args.reserve(512, 64);
 
         rv.kernelName = outputConversionKernelName(problem, inputs, hardware);
 
-        rv.workGroupSize.x = 8;
-        rv.workGroupSize.y = 8;
+        rv.workGroupSize.x = 256;
+        rv.workGroupSize.y = 1;
         rv.workGroupSize.z = 1;
 
         size_t wiX = 1;
@@ -656,9 +679,9 @@ namespace Tensile
         for(size_t i = 0; i < problem.batchIndices().size(); i++)
             wiZ *= problem.batchSize(i);
 
-        rv.numWorkGroups.x = CeilDivide(wiX, rv.workGroupSize.x);
-        rv.numWorkGroups.y = CeilDivide(wiY, rv.workGroupSize.y);
-        rv.numWorkGroups.z = CeilDivide(wiZ, rv.workGroupSize.z);
+        rv.numWorkGroups.x = CeilDivide(wiX * wiY * wiZ, rv.workGroupSize.x);
+        rv.numWorkGroups.y = 1;
+        rv.numWorkGroups.z = 1;
 
         rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
         rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
@@ -666,17 +689,42 @@ namespace Tensile
 
         rv.args.append<typename TypedInputs::DType*>("D", inputs.d);
         rv.args.append<void*>("WS", inputs.ws);
+        rv.args.append<typename TypedInputs::CType const*>("c", inputs.c);
+
+        if(sizeMapping.globalAccumulation == 2)
+            rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
+        else
+            rv.args.append<typename TypedInputs::AlphaType>("alpha", 1.0f);
+
+        if(sizeMapping.globalAccumulation == 2 and problemType.useBeta)
+            rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
+        else
+            rv.args.append<typename TypedInputs::BetaType>("beta", 0.0f);
 
         for(size_t i = 1; i < d.dimensions(); i++)
-            rv.args.append<uint32_t>(concatenate("strideD", i),
-                                     d.sizes()[i] == 1 ? 0 : d.strides()[i]);
+            rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideD", i), d.strides()[i]);
+
+        uint32_t wsStride = d.sizes()[0];
+        for(size_t i = 1; i < d.dimensions(); i++)
+        {
+            rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW", i), wsStride);
+            wsStride *= d.sizes()[i];
+        }
+
+        for(size_t i = 1; i < c.dimensions(); i++)
+            rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideC", i), c.strides()[i]);
 
         int idx = 0;
         for(auto size : problem.d().sizes())
         {
-            rv.args.append<uint32_t>(concatenate("size_", idx), size);
+            rv.args.append<uint32_t>(concatenate_if<T_Debug>("size_", idx), size);
             idx++;
         }
+
+        if(sizeMapping.globalAccumulation == 1)
+            rv.args.append<uint32_t>("gsu", 1);
+        else
+            rv.args.append<uint32_t>("gsu", sizeMapping.globalSplitU);
 
         return rv;
     }
@@ -689,7 +737,7 @@ namespace Tensile
         std::string name = concatenate(
             "C", problem.cNames(), "_", TypeInfo<typename TypedInputs::DType>::Abbrev());
 
-        name += "_Convert";
+        name += "_PostGSU";
 
         return name;
     }
@@ -713,15 +761,7 @@ namespace Tensile
 
         std::vector<KernelInvocation> rv;
 
-        if(sizeMapping.globalSplitU > 1)
-            if(sizeMapping.globalAccumulation)
-                rv.reserve(3);
-            else
-                rv.reserve(2);
-        else
-            rv.reserve(1);
-
-        if(sizeMapping.globalSplitU > 1)
+        if(sizeMapping.globalSplitU > 1 && sizeMapping.globalAccumulation != 2)
         {
             if(debug)
                 rv.push_back(generateBetaOnlyCall<TypedInputs, true>(problem, inputs, hardware));
@@ -735,7 +775,14 @@ namespace Tensile
             rv.push_back(generateSingleCall<TypedInputs, false>(problem, inputs, hardware));
 
         if(sizeMapping.globalAccumulation)
-            rv.push_back(generateOutputConversionCall(problem, inputs, hardware));
+        {
+            if(debug)
+                rv.push_back(
+                    generateOutputConversionCall<TypedInputs, true>(problem, inputs, hardware));
+            else
+                rv.push_back(
+                    generateOutputConversionCall<TypedInputs, false>(problem, inputs, hardware));
+        }
 
         return rv;
     }
@@ -899,7 +946,7 @@ namespace Tensile
     {
         size_t size = 0;
 
-        size += problem.d().totalAllocatedElements() * sizeMapping.workspaceSizePerElemC;
+        size += problem.d().totalLogicalElements() * sizeMapping.workspaceSizePerElemC;
 
         return size;
     }

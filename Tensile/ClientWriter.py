@@ -1078,6 +1078,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     maximumC = problemSizes.maxC
     maximumA = problemSizes.maxA
     maximumB = problemSizes.maxB
+    maximumW = problemSizes.maxD * 32;
 
     maxMT = getMaxSolutionSizes(solutions, solutionSummationSizes)
 
@@ -1089,17 +1090,20 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     maximumB = max(maximumB, maxNK)
     maximumC = max(maximumC, maxMN)
     maximumD = max(maximumD, maxMN)
+    maximumW = max(maximumW, maxMN)
 
     h += "size_t maxSizeD = %u;\n" % (maximumD)
     h += "size_t maxSizeC = %u;\n" % (maximumC)
     h += "size_t maxSizeA = %u;\n" % (maximumA)
     h += "size_t maxSizeB = %u;\n" % (maximumB)
+    h += "size_t maxSizeW = %u;\n" % (maximumW)
     h += "\n"
   else:
     h += "size_t maxSizeD;\n"
     h += "size_t maxSizeC;\n"
     h += "size_t maxSizeA;\n"
     h += "size_t maxSizeB;\n"
+    h += "size_t maxSizeW;\n"
     h += "\n"
 
   ##############################################################################

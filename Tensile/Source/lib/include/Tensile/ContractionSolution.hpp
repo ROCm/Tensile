@@ -176,7 +176,7 @@ namespace Tensile
                                        TypedInputs const& inputs,
                                        Hardware const&    hardware) const;
 
-        template <typename TypedInputs>
+        template <typename TypedInputs, bool T_Debug>
         KernelInvocation generateOutputConversionCall(Problem const&     problem,
                                                       TypedInputs const& inputs,
                                                       Hardware const&    hardware) const;
@@ -206,7 +206,7 @@ namespace Tensile
 
             bool sourceKernel = false;
 
-            bool   globalAccumulation    = false;
+            int    globalAccumulation    = 0;
             size_t workspaceSizePerElemC = 0;
         };
 
