@@ -104,15 +104,15 @@ namespace Tensile
             return iter->second;
         }
 
-        virtual std::shared_ptr<MySolution>
-            findBestSolution(MyProblem const& problem, Hardware const& hardware) const override
+        virtual std::tuple<std::shared_ptr<MySolution>, double>
+            findBestSolutionWithFitness(MyProblem const& problem, Hardware const& hardware) const override
         {
             auto library = lookup(problem, hardware);
 
             if(library == nullptr)
-                return std::shared_ptr<MySolution>();
+                return std::make_tuple(std::shared_ptr<MySolution>(), std::numeric_limits<double>::max());
 
-            return library->findBestSolution(problem, hardware);
+            return library->findBestSolutionWithFitness(problem, hardware);
         }
 
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
