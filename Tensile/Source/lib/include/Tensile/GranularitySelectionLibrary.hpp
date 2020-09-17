@@ -108,7 +108,7 @@ namespace Tensile
 
                 if((*rv->problemPredicate)(problem) && (*rv->hardwarePredicate)(hardware))
                 {
-                    return std::make_tuple(rv, 0.0);
+                    return std::make_tuple(rv, std::numeric_limits<double>::max());
                 }
                 else if(debug)
                 {
@@ -155,7 +155,7 @@ namespace Tensile
                 }
             }
 
-            return std::make_tuple(bestSolution, 0.0);
+            return std::make_tuple(bestSolution, std::numeric_limits<double>::max());
         }
 
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
