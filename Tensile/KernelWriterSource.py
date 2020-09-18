@@ -340,6 +340,8 @@ class KernelWriterSource(KernelWriter):
     for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
       indexChar = self.indexChars[i]
       kStr += " + (IDX%s)*strideD%s" % (indexChar, indexChar)
+    if kernel["_GlobalAccumulation"] == 'MultipleBuffer':
+      kStr += " + (gsuSumIdx)*strideW"
     kStr += " ))" + self.endLine
     # C
     kStr += "#define GLOBAL_C(IDX%s" % self.indexChars[0]
@@ -400,7 +402,7 @@ class KernelWriterSource(KernelWriter):
 
     ####################################
     # Atomic Global MAC
-    if kernel["GlobalSplitU"] > 1:
+    if kernel["GlobalSplitU"] > 1 and kernel["_GlobalAccumulation"] != 'MultipleBuffer':
       kStr += self.comment("atomic add float")
       kStr += "#ifndef ATOMIC_FLOAT_FUNCTION%s" % (self.endLine)
       kStr += "#define ATOMIC_FLOAT_FUNCTION%s" % (self.endLine)
@@ -553,12 +555,17 @@ class KernelWriterSource(KernelWriter):
             + "DST = MAC(MULA,MULB,DST);" + self.endLine
 
       # GSU
-      if kernel["GlobalSplitU"] > 1: # 1st kernel will have taken care of B
-        if kernel["ProblemType"]["UseBeta"]:
-          kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) atomicAddType(&(DST), (ALPHA)*(REG));"
-        else:
-          kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG) atomicAddType(&(DST), (ALPHA)*(REG));"
-
+      if kernel["GlobalSplitU"] > 1:
+        if kernel["_GlobalAccumulation"] != 'MultipleBuffer': # 1st kernel would take care of Beta
+          if kernel["ProblemType"]["UseBeta"]:
+            kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) atomicAddType(&(DST), (ALPHA)*(REG));"
+          else:
+            kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG) atomicAddType(&(DST), (ALPHA)*(REG));"
+        elif kernel["_GlobalAccumulation"] == 'MultipleBuffer': # 2nd kernel would take care of Alpha and Beta
+          if kernel["ProblemType"]["UseBeta"]:
+            kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) DST = (REG);" + self.endLine
+          else:
+            kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG) DST = (REG);" + self.endLine
       else:
         if kernel["ProblemType"]["UseBeta"]:
           # dst = alpha*reg + dst*beta
@@ -826,11 +833,10 @@ class KernelWriterSource(KernelWriter):
     restrictStr = "restrict"
     if self.language == "HIP":
       restrictStr = "__restrict__"
-    ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
-    s += "  " + globalStr + ptrStr \
-        + " *D,"
+    ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language) \
+        if not kernel["_GlobalAccumulation"] else "float"
+    s += "  " + globalStr + ptrStr + " *D,"
     s += self.endLine
-    ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
     s += "  " + globalStr + ptrStr \
         + " const * " + restrictStr + " C,"
     s += self.endLine
@@ -2891,6 +2897,17 @@ class KernelWriterSource(KernelWriter):
           kStr += "(wg%s);" % (self.indexChars[i])
         kStr += "%s" % self.endLine
 
+    if kernel["_GlobalAccumulation"] == 'MultipleBuffer':
+      indexChar = self.indexChars[0]
+      kStr += "  %s strideW = 1 + (size%s - 1) " % (self.uint64Str, indexChar)
+      for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
+        strideStr = "1"
+        for j in range(0, i):
+          strideStr += " * size%s" % (self.indexChars[j])
+        indexChar = self.indexChars[i]
+        kStr += " + (size%s - 1) * %s" % (indexChar, strideStr)
+      kStr += ";" + self.endLine
+
     return kStr
 
   ##############################################################################
@@ -3051,6 +3068,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "#undef LSPA%s" % (self.endLine)
       kStr += "#undef LSCB%s" % (self.endLine)
       kStr += "#undef LSPB%s" % (self.endLine)
+      kStr += "#undef GLOBAL_D%s" % (self.endLine)
       kStr += "#undef GLOBAL_C%s" % (self.endLine)
       kStr += "#undef GLOBAL_OFFSET_A%s" % (self.endLine)
       kStr += "#undef GLOBAL_OFFSET_B%s" % (self.endLine)
