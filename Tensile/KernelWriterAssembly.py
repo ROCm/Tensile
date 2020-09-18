@@ -1050,6 +1050,8 @@ class KernelWriterAssembly(KernelWriter):
     buffer_load_short = MemoryInstruction("buffer_load_short_d16", 1, 0, 0, 0.5, \
         "UNUSED %s, %s, %s, %s offen offset:0 %s" )
 
+    self.buff_load_inst_offset_max = 4096
+
     ########################################
     # Global Write
     flat_store_dwordx4 = MemoryInstruction("flat_store_dwordx4",  1, 0, 0, 4, \
@@ -1896,8 +1898,13 @@ class KernelWriterAssembly(KernelWriter):
         self.defineSgpr("LocalWriteAddrB", 1)
 
     if kernel["_UseSgprForGRO"]:
-      self.defineSgpr("ScalarGlobalReadOffsetA", numGlobalReadOffsetsA-1)
-      self.defineSgpr("ScalarGlobalReadOffsetB", numGlobalReadOffsetsB-1)
+      needFirstSgprOffset = kernel["DirectToLdsA"] and kernel["UseInstOffsetForGRO"]
+      numberOfSgpr = numGlobalReadOffsetsA if needFirstSgprOffset else (numGlobalReadOffsetsA-1)
+      self.defineSgpr("ScalarGlobalReadOffsetA", numberOfSgpr)
+
+      needFirstSgprOffset = kernel["DirectToLdsB"] and kernel["UseInstOffsetForGRO"]
+      numberOfSgpr = numGlobalReadOffsetsB if needFirstSgprOffset else (numGlobalReadOffsetsB-1)
+      self.defineSgpr("ScalarGlobalReadOffsetB", numberOfSgpr)
 
     self.defineSgpr("WaveId",1)
 
@@ -3822,6 +3829,31 @@ class KernelWriterAssembly(KernelWriter):
               kStr += ", %u // gRO%s_%u_%u_%u_%u%s" % (tmp, tP["tensorChar"], \
                   para, sPara, perp, sPerp, self.endLine)
 
+              tmpSgpr = self.getTmpSgpr(2).idx()
+
+              # modify start
+              if (not kernel["_UseSgprForGRO"]) and kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]:
+                 # add room for instruction offset
+                groVgpr = "GlobalReadOffset%s+%u" % (tP["tensorChar"], graIdx)
+                kStr += inst("s_mov_b32", sgpr(tmpSgpr), self.buff_load_inst_offset_max, "" )
+                kStr += inst("v_add_u32", vgpr(groVgpr), vgpr(groVgpr), sgpr(tmpSgpr), "shift for UseInstOffsetForGRO")
+
+                ldsInc = (globalParameters["WavefrontWidth"] if kernel["WaveSeparateGlobalRead%c"%tc] else kernel["NumThreads"]) * self.bpr
+                if kernel["LdsBlockSizePerPad%s"%tc] != 0:
+                  ldsInc += (ldsInc // kernel["LdsBlockSizePerPad%s"%tc]) * kernel["LdsPad%s"%tc] * tP["bpe"]
+                else:
+                  padInterval = (globalParameters["WavefrontWidth"] if kernel["WaveSeparateGlobalRead%c"%tc] else kernel["NumThreads"]) * self.bpr
+                  ldsInc += (ldsInc // padInterval) * kernel["LdsPad%s"%tc] * tP["bpe"]
+
+                # buffer_load only support 12 bit instruction offset
+                # we have to increase m0 if offset is larger thant 12 bits
+                # so only keep 12 bit offset and subtract it on global address
+                # global address will add back by buffer_load instruction offset
+                ldsInc = (ldsInc * graIdx) % self.buff_load_inst_offset_max
+                if (ldsInc != 0):
+                  kStr += inst("s_mov_b32", sgpr(tmpSgpr), ldsInc, "" )
+                  kStr += inst("v_sub_u32", vgpr(groVgpr), vgpr(groVgpr), sgpr(tmpSgpr), "sub offset for buffer_load instoffset")
+
               for zpr in [zpr for zpr in self.zeroPadRegs[tc].values() if zpr.isMatch(perp, sPerp, para, sPara)]:
                 assert(zpr.state == ZeroPadReg.State.Allocated) # only calc address once
                 zpr.state = ZeroPadReg.State.CalculatedAddr
@@ -3858,7 +3890,6 @@ class KernelWriterAssembly(KernelWriter):
                           "zp.freeDim * strideFree + zp.sumDim * strideSum PadStart")
 
               if kernel["BufferLoad"] and kernel["FractionalLoad"]:
-                tmpSgpr = self.getTmpSgpr(2).idx()
                 lastValidThread = kernel[tP["lsc"]]*kernel[tP["lsp"]]//tP["glvw"]
                 if lastValidThread < kernel["NumThreads"]:
                   kStr += "// Offset only valid for %u/%u threads inside the PerLoadTile\n" \
@@ -3880,10 +3911,12 @@ class KernelWriterAssembly(KernelWriter):
                        "Mask load so OOB will return 0")
                   self.vgprPool.checkIn(boundsVgpr)
 
-            if graIdx >0 and (kernel["_UseSgprForGRO"] or self.checkGRO):
+            needFirstSgprOffset = kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]
+            if (kernel["_UseSgprForGRO"] or self.checkGRO) and (needFirstSgprOffset or graIdx > 0):
               # compute offsets for scalar global read offsets:
               if kernel["_UseSgprForGRO"]:
-                scalarGro = "ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1)
+                tmpIdx = graIdx if needFirstSgprOffset else graIdx-1
+                scalarGro = "ScalarGlobalReadOffset%s+%u"%(tc, tmpIdx)
               else:
                 scalarGro = self.getTmpSgpr(1).idx()
 
@@ -3918,6 +3951,26 @@ class KernelWriterAssembly(KernelWriter):
                   sgpr(scalarGro), \
                   hex(log2(tP["bpe"])), \
                   "scalar offset *= bytes/element")
+
+              if kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]:
+                # add room for instruction offset
+                kStr += inst("s_add_u32", sgpr(scalarGro), sgpr(scalarGro), self.buff_load_inst_offset_max, "shift for UseInstOffsetForGRO")
+
+                ldsInc = (globalParameters["WavefrontWidth"] if kernel["WaveSeparateGlobalRead%c"%tc] else kernel["NumThreads"]) * self.bpr
+                if kernel["LdsBlockSizePerPad%s"%tc] != 0:
+                  ldsInc += (ldsInc // kernel["LdsBlockSizePerPad%s"%tc]) * kernel["LdsPad%s"%tc] * tP["bpe"]
+                else:
+                  padInterval = (globalParameters["WavefrontWidth"] if kernel["WaveSeparateGlobalRead%c"%tc] else kernel["NumThreads"]) * self.bpr
+                  ldsInc += (ldsInc // padInterval) * kernel["LdsPad%s"%tc] * tP["bpe"]
+
+                # buffer_load only support 12 bit instruction offset
+                # we have to increase m0 if offset is larger thant 12 bits
+                # so only keep 12 bit offset and subtract it on global address
+                # global address will add back by buffer_load instruction offset
+                ldsInc = (ldsInc * graIdx) % self.buff_load_inst_offset_max
+                if (ldsInc != 0):
+                  kStr += inst("s_sub_u32", sgpr(scalarGro), sgpr(scalarGro), ldsInc, "sub offset for buffer_load instoffset")
+
               if self.checkGRO:
                 # Debug mode to verify that the computed offsets are offset by the expected scalar
                 print(tc, "tileStride=", tileStride, "unrollStride=", unrollStride, \
@@ -4076,6 +4129,10 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_add_u32",  sgpr("ShadowLimit%s+0"%tc), sgpr("ShadowLimit%s+0"%tc), prePad, "extend limit for pre-pad")
         kStr += inst("s_addc_u32", sgpr("ShadowLimit%s+1"%tc), sgpr("ShadowLimit%s+1"%tc), 0, "extend limit for pre-pad")
 
+      if kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]:
+        kStr += inst("s_add_u32",  sgpr("ShadowLimit%s+0"%tc), sgpr("ShadowLimit%s+0"%tc), self.buff_load_inst_offset_max, "extend limit for directToLDS instruction offset")
+        kStr += inst("s_addc_u32", sgpr("ShadowLimit%s+1"%tc), sgpr("ShadowLimit%s+1"%tc), 0, "extend limit for directToLDS instruction offset")
+
       kStr += inst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
       kStr += inst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "BufferLimit", "Move shadow to real if we are within 2^32")
     else:
@@ -4117,6 +4174,10 @@ class KernelWriterAssembly(KernelWriter):
     if prePad:
       kStr += inst("s_sub_u32",  sgpr("Srd%s+0"%tc), sgpr("Srd%s+0"%tc), prePad, "pre-pad to make room for possible pointer shift")
       kStr += inst("s_subb_u32",  sgpr("Srd%s+1"%tc), sgpr("Srd%s+1"%tc), 0, "pre-pad to make room for possible pointer shift")
+
+    if kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]:
+      kStr += inst("s_sub_u32",  sgpr("Srd%s+0"%tc), sgpr("Srd%s+0"%tc), self.buff_load_inst_offset_max, "make room for directToLDS instruction offset")
+      kStr += inst("s_subb_u32",  sgpr("Srd%s+1"%tc), sgpr("Srd%s+1"%tc), 0, "make room for directToLDS instruction offset")
 
     kStr += inst("s_mov_b32", sgpr("Srd%s+3"%tc), "Srd127_96", "Set bits 127_96 in SRD")
 
@@ -6464,7 +6525,10 @@ class KernelWriterAssembly(KernelWriter):
     # print("tc={}, nrp={}, nrpv={}, nrc={}, nrcv/nrcvpi={}, zeroPad={}, sgprforGRO={}".format(tc, tP["nrp"], tP["nrpv"], tP["nrc"], tP["nrcv"]//tP["nrcvpi"], problemType["ZeroPad%s"%tc], kernel["UseSgprForGRO"]))
     if problemType["ZeroPad%s"%tc]:
       addrV = self.vgprPool.checkOut(1,"addrV")
+
+    instOffset = 0
     loopCnt = -1
+
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
@@ -6512,45 +6576,58 @@ class KernelWriterAssembly(KernelWriter):
                 # element that should be accessed.
                 if kernel["_UseSgprForGRO"]:
                   offsetVgpr = "GlobalReadOffset%s+0"%(tc)
-                  if graIdx==0:
-                    soffset = "0"
-                  else:
-                    soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
                 else:
                   offsetVgpr = "GlobalReadOffset%s+%u"%(tc, graIdx)
-                  soffset = "0"
 
-                if problemType["ZeroPad%s"%tc]:
+                # Vgpr for GRO
+                if not kernel["_UseSgprForGRO"]:
+                  soffset = "0"
+                # instruction offset with Sgpr for GRO
+                elif kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]:
+                  soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx))
+                # Sgpr for GRO
+                else:
+                  soffset = "0" if graIdx == 0 else sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
+
+                if problemType["ZeroPad%s"%tc] and not (kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]):
                   codeMod = Code.Module("guardZeroPad%u"%loopCnt)
                   offsetVgpr = self.guardZeroPad(kernel, tP, codeMod, offsetVgpr, soffset, tmpSgpr, addrV, perp, sPerp, para, sPara)
                   kStr += str(codeMod)
 
-
                 if kernel["DirectToLds%s"%tc]:
-                  if directToLdsLoads != 0:
-                    ldsInc = kernel["NumThreads"]*4
-                    kStr += inst("s_add_u32", "m0", "m0", ldsInc, \
-                        "Move LDS write address to next line" )
-                  directToLdsLoads+=1
+                  ldsInc = (globalParameters["WavefrontWidth"] if kernel["WaveSeparateGlobalRead%c"%tc] else kernel["NumThreads"]) * self.bpr
+                  if kernel["LdsBlockSizePerPad%s"%tc] != 0:
+                    ldsInc += (ldsInc // kernel["LdsBlockSizePerPad%s"%tc]) * kernel["LdsPad%s"%tc] * tP["bpe"]
+                  else:
+                    padInterval = (globalParameters["WavefrontWidth"] if kernel["WaveSeparateGlobalRead%c"%tc] else kernel["NumThreads"]) * self.bpr
+                    ldsInc += (ldsInc // padInterval) * kernel["LdsPad%s"%tc] * tP["bpe"]
 
-                  # Assembler expects a destination VGPR even though not written
+                  if kernel["UseInstOffsetForGRO"]:
+                    # buffer_load only support 12 bit instruction offset
+                    # we have to increase m0 if offset is larger thant 12 bits
+                    if instOffset >= self.buff_load_inst_offset_max:
+                      inc = (instOffset // self.buff_load_inst_offset_max) * self.buff_load_inst_offset_max
+                      kStr += inst("s_add_u32", "m0", "m0", inc, "Move LDS write address to next base" )
+                      instOffset -= inc
+                  elif directToLdsLoads != 0:
+                      kStr += inst("s_add_u32", "m0", "m0", ldsInc, "Move LDS write address to next line" )
+
+                  directToLdsLoads+=1
                   destVgpr=0
                 else:
                   destVgpr="G2L%s+%u+%u"%(tc, g2lIdx, regIdx)
 
-                offset = r * tP["bpe"]
+                offset = r * tP["bpe"] + instOffset
                 hi16 = 0
-                if kernel["ProblemType"]["DataType"].isHalf() or \
-                   kernel["ProblemType"]["DataType"].isBFloat16():
+                comment = "load one buffer value"
+                if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
                   if numElementsPerLoad==2:
                     # Pack two FP16 values into a single load dword x2
                     r += 1 # skip next element since we loaded 2X here
-                    comment="load packed 2X half buffer value"
+                    comment = "load packed 2X half buffer value"
                   elif not kernel["DirectToLds%s"%tc]:
                     hi16=loopCnt%2 if tP["glvw"]==1 else r%2
-                    comment="load half buffer value"
-                else:
-                  comment="load one buffer value"
+                    comment="load one buffer value"
 
                 bpl = numElementsPerLoad*self.bpeAB # bytesPerLoad
 
@@ -6561,6 +6638,9 @@ class KernelWriterAssembly(KernelWriter):
                           extraFields=extraFields, \
                           hi16=hi16, \
                           comment=comment).toStr()
+
+                if kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]:
+                  instOffset += ldsInc
                 # print("  bpl={}, destVgpr={}, soffset={}, offset={}, hi16={}".format(bpl, destVgpr, soffset, offset, hi16))
 
               else: # Not buffer load, ie 'flat' load
@@ -6717,7 +6797,6 @@ class KernelWriterAssembly(KernelWriter):
     g2lIdx = 0
     loadWidth = tP["globalReadInstruction"].totalWidth # load width in elements?
     bpl = self.bpeAB * tP["glvw"] # bytes per load
-    ldsOffset = 0
     instOffset = 0
 
     loopIdx = self.unrollIdx # TODO - does this handle multiple summation indices?
@@ -6777,6 +6856,7 @@ class KernelWriterAssembly(KernelWriter):
       extraFields += " lds"
 
     directToLdsLoads = 0
+    instOffset       = 0
 
     loopCnt = -1
     if problemType["ZeroPad%s"%tc]:
@@ -6794,42 +6874,44 @@ class KernelWriterAssembly(KernelWriter):
             imod.middle.addCode(loadModule)
 
             if kernel["BufferLoad"]:
-              if graIdx==0 or not kernel["_UseSgprForGRO"]:
-                offsetVgpr= "GlobalReadOffset%s+%u"%(tc, graIdx)
-                soffset = "0"
-              else:
+              if kernel["_UseSgprForGRO"]:
                 offsetVgpr= "GlobalReadOffset%s+0"%(tc)
-                soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
+              else:
+                offsetVgpr= "GlobalReadOffset%s+%u"%(tc, graIdx)
 
-              if problemType["ZeroPad%s"%tc]:
+              # vgpr for GRO
+              if not kernel["_UseSgprForGRO"]:
+                soffset = "0"
+              # instruction offset with Sgpr for GRO
+              elif kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]:
+                soffset = sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx))
+              # Sgpr for GRO
+              else:
+                soffset = "0" if graIdx == 0 else sgpr("ScalarGlobalReadOffset%s+%u"%(tc, graIdx-1))
+
+              if problemType["ZeroPad%s"%tc] and not (kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]):
                 codeMod = Code.Module("guardZeroPad%u"%loopCnt)
                 offsetVgpr = self.guardZeroPad(kernel, tP, codeMod, offsetVgpr, soffset, tmpSgpr, addrV, perp, sPerp, para, sPara)
                 loadModule.addCode(codeMod)
 
               if kernel["DirectToLds%s"%tc]:
+                ldsInc = (globalParameters["WavefrontWidth"] if kernel["WaveSeparateGlobalRead%c"%tc] else kernel["NumThreads"]) * self.bpr
+                if kernel["LdsBlockSizePerPad%s"%tc] != 0:
+                  ldsInc += (ldsInc // kernel["LdsBlockSizePerPad%s"%tc]) * kernel["LdsPad%s"%tc] * tP["bpe"]
+                else:
+                  padInterval = (globalParameters["WavefrontWidth"] if kernel["WaveSeparateGlobalRead%c"%tc] else kernel["NumThreads"]) * self.bpr
+                  ldsInc += (ldsInc // padInterval) * kernel["LdsPad%s"%tc] * tP["bpe"]
 
-                # Get offset (for checking, see comment below) and comment:
-                (checkOffset, iDummy, comment) = \
-                    self.calculateLdsWriteOffset(perp, para, sPerp, sPara, kernel, tP, 0)
-
-                # Direct to LDS always writes consecutive LDS locations at m0 + 4 * TidInWave
-                # Therefore we double-check here to ensure the desired LDS write offset
-                # is moving at NumThreads*4.  This should already be guaranteed since
-                # we only use direct-to-lds for non-transpose cases but double-check here.
-                ldsInc = kernel["NumThreads"]*4
-                #print ("checkOffset=", checkOffset, "ldsOffset=", ldsOffset, "ldsInc=", ldsInc)
-
-
-                if directToLdsLoads != 0:
-                  LdsPad = kernel["LdsPad%s"%tc] if kernel["LdsBlockSizePerPad%s"%tc] == 0 else 0
-                  if not kernel["UseInstOffsetForGRO"]:
-                    ldsOffset = ldsInc + (ldsInc//256) * LdsPad * tP["bpe"]
-                    loadModule.addInst("s_add_u32", "m0", "m0", hex(ldsOffset), \
-                      "Move LDS write address to next line" )
-                  else:
-                    instOffset += ldsInc + (ldsInc//256) * LdsPad * tP["bpe"]
+                if kernel["UseInstOffsetForGRO"]:
+                  # buffer_load only support 12 bit instruction offset
+                  # we have to increase m0 if offset is larger thant 12 bits
+                  if instOffset >= self.buff_load_inst_offset_max:
+                    inc = (instOffset // self.buff_load_inst_offset_max) * self.buff_load_inst_offset_max
+                    loadModule.addInst("s_add_u32", "m0", "m0", inc, "Move LDS write address to next base" )
+                    instOffset -= inc
+                elif directToLdsLoads != 0:
+                  loadModule.addInst("s_add_u32", "m0", "m0", ldsInc, "Move LDS write address to next line" )
                 directToLdsLoads+=1
-                #ldsOffset += ldsInc
                 destVgpr=0
               else:
                 destVgpr="G2L%s+%u"%(tc, g2lIdx)
@@ -6841,6 +6923,10 @@ class KernelWriterAssembly(KernelWriter):
                         extraFields=extraFields, \
                         hi16=(kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and loopCnt%2==1, \
                         comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp)))
+
+              if kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]:
+                  instOffset += ldsInc
+
               #print "IM=", type(imod.instList[-1]), imod.instList[-1],
             else: # not buffer load
               # load one element from address
@@ -7524,7 +7610,7 @@ class KernelWriterAssembly(KernelWriter):
         for oIdx in range(0, numOffsets):
           offset_val = (vIdx * numOffsets+oIdx) * MIWaveGropuShape[tIdx] * tileStride
           offset_val = (rIdx * UnrollStride + offset_val + tP["localReadOffset"]) * tP["bpe"]
-          if kernel["LdsBlockSizePerPad%s"%tc] != 0:
+          if (kernel["LdsBlockSizePerPad%s"%tc] != 0) and (kernel["LdsPad%s"%tc] != 0):
             offset_val = offset_val + (offset_val // kernel["LdsBlockSizePerPad%s"%tc]) * kernel["LdsPad%s"%tc] * tP["bpe"]
           offset_val = offset_val + tP["localReadSwapByteOffset"]
           paramList.append(int(offset_val))
