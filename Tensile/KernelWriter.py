@@ -103,7 +103,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # schedule of work for each local_read iteration:
     self.perIterGlobalReadCode = [ Code.Module() for i in range (kernel["LoopIters"]) ]
     self.perIterLocalWriteCode = [ Code.Module() for i in range (kernel["LoopIters"]) ]
-    self.perIterLocalWriteCode2 = [ Code.Module() for i in range (kernel["LoopIters"]) ]
+    self.perIterLocalWriteCodeNGLL = [ Code.Module() for i in range (kernel["LoopIters"]) ]
     self.perIterLocalWriteCanSkip = [ 0 for i in range (kernel["LoopIters"]) ]
     assert([item.name for item in self.globalReadIncrements.itemList] == ['globalReadIncrementA', 'globalReadIncrementB'])
 
@@ -131,7 +131,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       numLocalWriteModPerIter = numMfmaPerIter * self.numLocalWriteModPerMfma
       # if numGlobalReadInsPerMfma>1, we still want to schedule only 1 GlobalReadIncCode per mfma
       # inserting empty CodeModule so that generator will schedule 1 GlobalReadIncCode 1 empty CodeModule if numGlobalReadInsPerMfma=2
-      # TODO: break lobalReadIncCode
+      # TODO: break globalReadIncCode
       numEmptyGlobalReadIncCode = self.numGlobalReadInsPerMfma - 1
       # assign parameter
       # 1. we calculate number of mfma to prefetch localReads for next loop
@@ -141,32 +141,39 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # ds_read[A][0], ds_read[B][0], ds_read[A][1:], ds_read[B][1:]
       self.numMfmaForNextLoopLR = 1
       latencyLeft = self.miLatency
+      # ds_read[A][0]
       for i in range(self.numReadPerVectorA):
         latencyLeft -= tensorParametersA["localReadInstruction"].IssueLatency*2
         if latencyLeft < 0:
           self.numMfmaForNextLoopLR += 1
           latencyLeft = self.miLatency - tensorParametersA["localReadInstruction"].IssueLatency*2
+      # ds_read[B][0]
       for i in range(self.numReadPerVectorB):
         latencyLeft -= tensorParametersB["localReadInstruction"].IssueLatency*2
         if latencyLeft < 0:
           self.numMfmaForNextLoopLR += 1
           latencyLeft = self.miLatency - tensorParametersB["localReadInstruction"].IssueLatency*2
+      # ds_read[A][1:]
       for i in range(self.numReadsPerIterA-self.numReadPerVectorA):
         latencyLeft -= tensorParametersA["localReadInstruction"].IssueLatency*2
         if latencyLeft < 0:
           self.numMfmaForNextLoopLR += 1
           latencyLeft = self.miLatency - tensorParametersA["localReadInstruction"].IssueLatency*2
+      # ds_read[B][1:]
       for i in range(self.numReadsPerIterB-self.numReadPerVectorB):
         latencyLeft -= tensorParametersB["localReadInstruction"].IssueLatency*2
         if latencyLeft < 0:
           self.numMfmaForNextLoopLR += 1
           latencyLeft = self.miLatency - tensorParametersB["localReadInstruction"].IssueLatency*2
+      # to calculate number of mfma we need to wait before data arrive from lds to vgpr.
+      # TODO: latency: 40 quad-cycle for 4 word, 22 quad-cycle for 2 word, 10 quad-cycle for 1 word
       latencyForLR = tensorParametersB["localReadInstruction"].IssueLatency*18
       latencyForLR -= latencyLeft # remaining latency in mfma
       latencyForLR -= (self.miLatency+self.miLatencyBuffer+2) # last LR will have 1 mfma latency
       while latencyForLR > 0:
         latencyForLR -= (self.miLatency+self.miLatencyBuffer+2)
         self.numMfmaForNextLoopLR += 1
+      # final index definition
       self.numMfmaForNextLoopLR = min(self.numMfmaForNextLoopLR,numMfmaPerIter-1)
       self.barrierMfmaIndex = numMfmaPerIter*(kernel["LoopIters"]-self.numItersPLR+1) - self.numMfmaForNextLoopLR - 1 if self.numItersPLR else 0
       self.nextLoopLRMfmaIndex = self.barrierMfmaIndex if self.numItersPLR else numMfmaPerIter*kernel["LoopIters"] - self.numMfmaForNextLoopLR - 1
@@ -203,6 +210,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 self.globalReadBCode.middle.countType(Code.GlobalReadInst)
 
       # Add all loads from middle as individual schedulable items
+      # when using PGR2, put global read instruction right after corresponding localWrite instruction
       if kernel["PrefetchGlobalRead"] == 2:
         itemsGRToSched =  []
         itemsGRToSchedLater = list(self.globalReadACode.middle.items()) + \
@@ -284,6 +292,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       barrier.addInst("s_barrier","")
       if self.localWriteACode.items():
         self.localWriteACode.items()[0].items().insert(0,barrier)
+
     # Now schedule the writes:
     if not self.scheduleLocalWrite:
       # if no scheduleLocalWrite - just add writes to localWritelocalWriteEndIter
@@ -339,7 +348,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
               "startIter=", startIter, "localWriteEndIter=", localWriteEndIter)
 
       readsToWait = len(list(self.localWriteACode.items())) + len(list(self.localWriteBCode.items()))
-      readsToWait2 = len(list(self.localWriteACode.items())) + len(list(self.localWriteBCode.items()))
+      readsToWaitNGLL = readsToWait
       if self.scheduleGlobalRead:
         # Number of write blocks should match number of reads.
         # Note for TLU=0 cases we will have multiple writes/load - but these are all in same write module
@@ -365,12 +374,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
         for item in itemsLWToSched[:itemPerIter]:
           # Use a module to ensure these pieces stay together in the sub-iter scheduler
           imod = Code.Module("LocalWriteMod%u"%u)
-          imod2 = Code.Module("LocalWriteMod%u"%u)
+          imodNGLL = Code.Module("LocalWriteMod%u"%u)
 
           # Prepend a waitcnt if needed
           writesPerItem = item.countType(Code.LocalWriteInst)
           imod.addComment0("sched write - iter %u writesPerItem=%u"%(u,writesPerItem))
-          imod2.addComment0("sched write - iter %u writesPerItem=%u"%(u,writesPerItem))
+          imodNGLL.addComment0("sched write - iter %u writesPerItem=%u"%(u,writesPerItem))
           if writesPerItem:
             # if writesPerItem>1 this indicates multiple LocalWrites in the same module
             # this happens in some transpose cases.  Here the first write needs to wait
@@ -378,23 +387,23 @@ class KernelWriter(metaclass=abc.ABCMeta):
             # TODO - can schedule these writes across iters, should figure this out above
             writesToSched = writesToSched - writesPerItem
             readsToWait = readsToWait - 1
-            readsToWait2 = readsToWait2 - 1
+            readsToWaitNGLL = readsToWaitNGLL - 1
             # TODO - gfx9 supports higher max VMCNT
             if 1:
               imod.addCode(Code.WaitCnt(self.version, -1, min(maxVmcnt, readsToWait), \
                   "wait for global read before writing to local"))
-              imod2.addCode(Code.WaitCnt(self.version, -1, min(maxVmcnt, readsToWait2), \
+              imodNGLL.addCode(Code.WaitCnt(self.version, -1, min(maxVmcnt, readsToWaitNGLL), \
                   "wait for global read before writing to local"))
             else:
               print("warning - scheduleLocalWrite adding conservative vmcnt(0)")
               imod.addCode(Code.WaitCnt(self.version, -1, 0, "conservative waitcnt"))
           imod.addCode(item)
-          imod2.addCode(copy.deepcopy(item))
           if kernel["PrefetchGlobalRead"] == 2:
             imod.addCode(itemsGRToSchedLater.pop(0))
             readsToWait = readsToWait + 1
-          self.perIterLocalWriteCode[u].addCode(imod)
-          self.perIterLocalWriteCode2[u].addCode(imod2)
+          self.perIterLocalWriteCode[u].addCode(imod) 
+          imodNGLL.addCode(copy.deepcopy(item))
+          self.perIterLocalWriteCodeNGLL[u].addCode(imodNGLL)
         itemsLWToSched = itemsLWToSched[itemPerIter:]
 
       # should never run out of items to schedule
@@ -1177,7 +1186,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.enable["Sync"]:
         kl.append(self.syncThreads(kernel))
 
-    self.perIterLocalWriteCode = self.perIterLocalWriteCode2
+    self.perIterLocalWriteCode = self.perIterLocalWriteCodeNGLL
     self.perIterLocalWriteCanSkip = [ 0 for i in range (kernel["LoopIters"]) ]
 
     for u in range(0, kernel["LoopIters"]):
