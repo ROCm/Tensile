@@ -157,11 +157,11 @@ namespace Tensile
     {
     public:
         using Library = SolutionLibrary<MyProblem, MySolution>;
-        using Cache   = CacheMap<std::shared_ptr<MySolution>, AMDGPU, MyProblem>;
+        using Cache   = CacheMap<std::tuple<std::shared_ptr<MySolution>, double>, AMDGPU, MyProblem>;
 
         CachingLibrary(std::shared_ptr<Library> subLibrary)
             : m_subLibrary(subLibrary)
-            , m_cache(nullptr)
+            , m_cache(std::make_tuple(nullptr, std::numeric_limits<double>::max()))
         {
         }
 
@@ -173,13 +173,14 @@ namespace Tensile
                 auto const& amdgpu = dynamic_cast<AMDGPU const&>(hardware);
 
                 double fitness = std::numeric_limits<double>::max();
-                auto rv = m_cache.find(problem, amdgpu);
+                std::shared_ptr<MySolution> rv;
+                std::tie(rv, fitness) = m_cache.find(problem, amdgpu);
                 if(rv)
-                    return std::make_tuple(rv, fitness);    //Fitness won't be accurate
+                    return std::make_tuple(rv, fitness);  
 
                 std::tie(rv, fitness) = m_subLibrary->findBestSolutionWithFitness(problem, hardware);
                 if(rv)
-                    m_cache.add(rv, problem, amdgpu);
+                    m_cache.add(std::make_tuple(rv, fitness), problem, amdgpu);
 
                 return std::make_tuple(rv, fitness);
             }
@@ -200,7 +201,7 @@ namespace Tensile
         {
             auto const& amdgpu = dynamic_cast<AMDGPU const&>(hardware);
 
-            return m_cache.find(problem, amdgpu);
+            return std::get<std::shared_ptr<MySolution>>(m_cache.find(problem, amdgpu));
         }
 
         virtual std::string type() const override
