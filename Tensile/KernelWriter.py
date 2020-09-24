@@ -1192,7 +1192,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
     for u in range(0, kernel["LoopIters"]):
       kl.append(self.comment("iter %u"%u))
       plrIdx = (u+pflr) % (self.numVgprBuffer+1) % kernel["LoopIters"]
-      plrPIdx = (u+pflr) % (self.numVgprBuffer+1) % kernel["LoopIters"]
       localReads = Code.Module()
       isResetLroIter = (u == localWriteEndIter)
       isSwapAndResetLwoIter = isResetLroIter
@@ -1222,13 +1221,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
               localReads.addText(self.comment("local read a"))
               localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx*self.numIterPerCoalescedReadA, iui*self.numReadsIterCoalescedA, 0, tensorParametersA)
               localReads.addCode(localReadCodeA)
-              pack[plrPIdx*self.numIterPerCoalescedReadA].addCode(packCodeA)
+              pack[plrIdx*self.numIterPerCoalescedReadA].addCode(packCodeA)
               localReads.addText(self.comment("local read b"))
           if u < kernel["LoopIters"]/self.numIterPerCoalescedReadB - self.numItersPLR or (kernel["PrefetchGlobalRead"] and u > localWriteEndIter):
             if iui*self.numReadsIterCoalescedB < kernel["InnerUnroll"]:
               localReadCodeB, packCodeB = self.localReadDo(kernel, plrIdx*self.numIterPerCoalescedReadB, iui*self.numReadsIterCoalescedB, 0, tensorParametersB)
               localReads.addCode(localReadCodeB)
-              pack[plrPIdx*self.numIterPerCoalescedReadB].addCode(packCodeB)
+              pack[plrIdx*self.numIterPerCoalescedReadB].addCode(packCodeB)
           if not isResetLroIter or iui != kernel["InnerUnroll"]-1:
             if u < kernel["LoopIters"]/self.numIterPerCoalescedReadA - self.numItersPLR or (kernel["PrefetchGlobalRead"] and u > localWriteEndIter):
               if iui*self.numReadsIterCoalescedA < kernel["InnerUnroll"]:
