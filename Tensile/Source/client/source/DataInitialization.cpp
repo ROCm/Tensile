@@ -242,6 +242,11 @@ namespace Tensile
             {
                 return GetTyped<HalfContractionInputs>(args, problemFactory, maxWorkspaceSize);
             }
+            case HalfInOutFloatComputeContractionInputs::TypeId():
+            {
+                return GetTyped<HalfInOutFloatComputeContractionInputs>(
+                    args, problemFactory, maxWorkspaceSize);
+            }
             case HalfInFloatOutContractionInputs::TypeId():
             {
                 return GetTyped<HalfInFloatOutContractionInputs>(

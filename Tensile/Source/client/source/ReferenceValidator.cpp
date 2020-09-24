@@ -181,10 +181,22 @@ namespace Tensile
 
         bool ReferenceValidator::validateSolution(std::shared_ptr<ContractionInputs> inputs)
         {
-            auto alphaType = m_problem.a().dataType() == DataType::BFloat16
-                                 ? DataType::Float
-                                 : m_problem.d().dataType();
-            auto betaType  = alphaType;
+            // retreive alpha/beta type set via setAlpha/BetaType()
+            auto alphaType = m_problem.alphaType();
+            auto betaType  = m_problem.betaType();
+
+            // Backward-compatible: when setAlpha/BetaType() wasn't called, use the old way
+            // Could remove after rocBLAS is updated
+            if(alphaType == DataType::Count)
+            {
+                alphaType = m_problem.a().dataType() == DataType::BFloat16
+                                ? DataType::Float
+                                : m_problem.d().dataType();
+            }
+            if(betaType == DataType::Count)
+            {
+                betaType = alphaType;
+            }
 
             auto contractionInputsTypeId = ContractionInputs::TypeId(m_problem.a().dataType(),
                                                                      m_problem.b().dataType(),
@@ -215,6 +227,10 @@ namespace Tensile
             case ManagedHalfContractionInputs::TypeId():
             {
                 return validateSolutionCast<ManagedHalfContractionInputs>(inputs);
+            }
+            case ManagedHalfInOutFloatComputeContractionInputs::TypeId():
+            {
+                return validateSolutionCast<ManagedHalfInOutFloatComputeContractionInputs>(inputs);
             }
             case ManagedHalfInFloatOutContractionInputs::TypeId():
             {

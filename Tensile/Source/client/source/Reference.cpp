@@ -298,10 +298,21 @@ namespace Tensile
                       ContractionInputs const&  inputs,
                       size_t                    validationStride)
         {
+            // retreive alpha/beta type set via setAlpha/BetaType()
+            auto alphaType = problem.alphaType();
+            auto betaType  = problem.betaType();
 
-            auto alphaType = problem.a().dataType() == DataType::BFloat16 ? DataType::Float
-                                                                          : problem.d().dataType();
-            auto betaType  = alphaType;
+            // Backward-compatible: when setAlpha/BetaType() wasn't called, use the old way
+            // Could remove after rocBLAS is updated
+            if(alphaType == DataType::Count)
+            {
+                alphaType = problem.a().dataType() == DataType::BFloat16 ? DataType::Float
+                                                                         : problem.d().dataType();
+            }
+            if(betaType == DataType::Count)
+            {
+                betaType = alphaType;
+            }
 
             auto contractionInputsTypeId = ContractionInputs::TypeId(problem.a().dataType(),
                                                                      problem.b().dataType(),
@@ -353,6 +364,14 @@ namespace Tensile
                     return ReferenceSolution<HalfContractionInputs>::SolveCPU(
                         problem, typedInputs, validationStride);
                 }
+            }
+            case HalfInOutFloatComputeContractionInputs::TypeId():
+            {
+                auto const& typedInputs
+                    = dynamic_cast<HalfInOutFloatComputeContractionInputs const&>(inputs);
+
+                return ReferenceSolution<HalfInOutFloatComputeContractionInputs>::SolveCPU(
+                    problem, typedInputs, validationStride);
             }
             case HalfInFloatOutContractionInputs::TypeId():
             {

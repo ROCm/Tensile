@@ -728,6 +728,8 @@ namespace Tensile
             = ManagedContractionInputs<std::complex<double>>;
 #ifdef TENSILE_USE_HALF
         using ManagedHalfContractionInputs = ManagedContractionInputs<Half>;
+        using ManagedHalfInOutFloatComputeContractionInputs
+            = ManagedContractionInputs<Half, Half, Half, Half, float, float>;
         using ManagedHalfInFloatOutContractionInputs
             = ManagedContractionInputs<Half, Half, float, float>;
 #endif // TENSILE_USE_HALF

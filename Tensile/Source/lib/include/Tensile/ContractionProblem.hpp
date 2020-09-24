@@ -332,6 +332,24 @@ namespace Tensile
             return m_problemStrides;
         }
 
+        void setAlphaType(DataType type)
+        {
+            m_alphaType = type;
+        }
+        DataType alphaType() const
+        {
+            return m_alphaType;
+        }
+
+        void setBetaType(DataType type)
+        {
+            m_betaType = type;
+        }
+        DataType betaType() const
+        {
+            return m_betaType;
+        }
+
         void setHighPrecisionAccumulate(bool value)
         {
             m_highPrecisionAccumulate = value;
@@ -549,6 +567,9 @@ namespace Tensile
         ArithmeticUnit m_arithmeticUnit          = ArithmeticUnit::Any;
         KernelLanguage m_kernelLanguage          = KernelLanguage::Any;
 
+        DataType m_alphaType = DataType::Count; // if not assigned, will follow d-type
+        DataType m_betaType  = DataType::Count; // for bwd-compatible
+
         FreeIndices  m_freeIndicesA; //< in same order as IndexAssignmentsA
         FreeIndices  m_freeIndicesB; //< in same order as IndexAssignmentsB
         FreeIndices  m_freeIndices;
@@ -668,6 +689,8 @@ namespace Tensile
 #ifdef TENSILE_USE_HALF
     using HalfContractionInputs           = TypedContractionInputs<Half>;
     using HalfInFloatOutContractionInputs = TypedContractionInputs<Half, Half, float, float>;
+    using HalfInOutFloatComputeContractionInputs
+        = TypedContractionInputs<Half, Half, Half, Half, float, float>;
 #endif // TENSILE_USE_HALF
     using Int8x4ContractionInputs = TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>;
     using Int32ContractionInputs  = TypedContractionInputs<int32_t>;

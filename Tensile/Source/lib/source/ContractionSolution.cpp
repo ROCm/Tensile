@@ -795,9 +795,21 @@ namespace Tensile
         if(Debug::Instance().printWinningKernelName())
             std::cout << "Running kernel: " << this->KernelName() << std::endl;
 
-        auto alphaType
-            = problemType.aType == DataType::BFloat16 ? DataType::Float : problemType.dType;
-        auto betaType = alphaType;
+        // retreive alpha/beta type set via setAlpha/BetaType()
+        auto alphaType = problem.alphaType();
+        auto betaType  = problem.betaType();
+
+        // Backward-compatible: when setAlpha/BetaType() wasn't called, use the old way
+        // Could remove after rocBLAS is updated
+        if(alphaType == DataType::Count)
+        {
+            alphaType
+                = problemType.aType == DataType::BFloat16 ? DataType::Float : problemType.dType;
+        }
+        if(betaType == DataType::Count)
+        {
+            betaType = alphaType;
+        }
 
         auto contractionInputsTypeId = ContractionInputs::TypeId(problemType.aType,
                                                                  problemType.bType,
@@ -832,6 +844,12 @@ namespace Tensile
         case HalfContractionInputs::TypeId():
         {
             auto const& typedInputs = dynamic_cast<HalfContractionInputs const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        case HalfInOutFloatComputeContractionInputs::TypeId():
+        {
+            auto const& typedInputs
+                = dynamic_cast<HalfInOutFloatComputeContractionInputs const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
         case HalfInFloatOutContractionInputs::TypeId():

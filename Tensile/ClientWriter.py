@@ -1308,7 +1308,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   if forBenchmark:
     problemType = solutions[0]["ProblemType"]
     h += "/* generated call to solution */\n"
-    h += "template<typename DataType, class SolutionInfoType>\n"
+    h += "template<typename ComputeDataType, class SolutionInfoType>\n"
     h += "TensileStatus generatedCallToSolution(\n"
     h += "    const SolutionInfoType &solution,\n"
     h += "    SolutionLock *solutionLock,\n"
@@ -1322,8 +1322,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "    const unsigned int stride_b,\n"
     h += "    const unsigned int stride_c,\n"
     h += "    const unsigned int stride_d,\n"
-    h += "    DataType alpha,\n"
-    h += "    DataType beta,\n"
+    h += "    ComputeDataType alpha,\n"
+    h += "    ComputeDataType beta,\n"
     h += "    unsigned int numEvents = 0,\n"
     if globalParameters["RuntimeLanguage"] == "OCL":
       h += "    cl_event *event_wait_list = NULL,\n"
