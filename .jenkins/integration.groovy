@@ -13,34 +13,27 @@ def runCI =
 {
     nodeDetails, jobName ->
 
-    def prj = new rocProject('Tensile', 'Extended')
+    def prj = new rocProject('Tensile', 'Integration')
 
     // Define test architectures, optional rocm version argument is available
     def nodes = new dockerNodes(nodeDetails, jobName, prj)
 
     boolean formatCheck = false
 
-    prj.timeout.test = 420
+    prj.timeout.test = 60
 
     def commonGroovy
-
-    def compileCommand =
-    {
-        platform, project->
-
-        commonGroovy = load "${project.paths.project_src_prefix}/.jenkins/common.groovy"
-        commonGroovy.runCompileCommand(platform, project, jobName, false)
-    }
 
     def testCommand =
     {
         platform, project->
 
-        def test_marks = "pre_checkin or extended"
-        commonGroovy.runTestCommand(platform, project, jobName, test_marks)
+        def test_marks = "integration"
+        boolean skipHostTest = true
+        commonGroovy.runTestCommand(platform, project, jobName, test_marks, skipHostTest)
     }
 
-    buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, testCommand, null)
+    buildProject(prj, formatCheck, nodes.dockerArray, null, testCommand, null)
 
 }
 
@@ -75,7 +68,7 @@ ci: {
     // For url job names that are outside of the standardJobNameSet i.e. compute-rocm-dkms-no-npi-1901
     if(!jobNameList.keySet().contains(urlJobName))
     {
-        properties(auxiliary.addCommonProperties([]))
+        properties(auxiliary.addCommonProperties([pipelineTriggers([cron('0 6 * * 6')])]))
         stage(urlJobName) {
             runCI([ubuntu18:['any']], urlJobName)
         }

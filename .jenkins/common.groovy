@@ -81,12 +81,13 @@ def publishResults(project)
     }
 }
 
-def runTestCommand (platform, project, jobName, test_marks)
+def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest=false)
 {
     def test_dir =  "Tensile/Tests"
 
     String compiler = jobName.contains('hipclang') ? 'hipcc' : 'hcc'
     String pythonVersion = 'py36'
+    String skipMark = skipHostTest ? "#" : ""
 
     def command = """#!/usr/bin/env bash
             set -x
@@ -99,7 +100,7 @@ def runTestCommand (platform, project, jobName, test_marks)
             gpuArch=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
 
             pushd build
-            ./TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
+            ${skipMark}./TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
             HOST_ERR=\$?
 
             popd
