@@ -67,16 +67,18 @@ namespace Tensile
         }
 
         virtual std::tuple<std::shared_ptr<MySolution>, double>
-            findBestSolutionWithFitness(MyProblem const& problem, Hardware const& hardware) const override
+            findBestSolutionWithFitness(MyProblem const& problem,
+                                        Hardware const&  hardware) const override
         {
             std::shared_ptr<MySolution> rv;
-            double fitness = std::numeric_limits<double>::max();
+            double                      fitness = std::numeric_limits<double>::max();
 
             for(auto const& row : rows)
             {
                 if(row.first(problem, hardware))
                 {
-                    std::tie(rv, fitness) = row.second->findBestSolutionWithFitness(problem, hardware);
+                    std::tie(rv, fitness)
+                        = row.second->findBestSolutionWithFitness(problem, hardware);
                     if(rv)
                         return std::make_tuple(rv, fitness);
                 }

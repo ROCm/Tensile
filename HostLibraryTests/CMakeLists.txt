@@ -116,7 +116,7 @@ set(test_sources ${test_sources}
     CachingLibrary_test.cpp
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp
-    ContractionFitness_test.cpp 
+    ContractionFitness_test.cpp
     DataTypes_test.cpp
     EmbeddedData_test.cpp
     KernelArguments_test.cpp

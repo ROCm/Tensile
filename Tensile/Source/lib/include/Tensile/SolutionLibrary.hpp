@@ -80,12 +80,14 @@ namespace Tensile
    *
    * May return `nullptr` if no such object exists.
    */
-        virtual std::tuple<std::shared_ptr<MySolution>, double> findBestSolutionWithFitness(MyProblem const& problem,
-                                                                                          Hardware const& hardware) const =0;
-        virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
-                                                             Hardware const&  hardware) const
+        virtual std::tuple<std::shared_ptr<MySolution>, double>
+                                    findBestSolutionWithFitness(MyProblem const& problem,
+                                                                Hardware const&  hardware) const = 0;
+        std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
+                                                     Hardware const&  hardware) const
         {
-            return std::get<typename std::shared_ptr<MySolution>>(findBestSolutionWithFitness(problem, hardware));
+            return std::get<typename std::shared_ptr<MySolution>>(
+                findBestSolutionWithFitness(problem, hardware));
         }
         /**
    * Returns all `Solution` objects that are capable of correctly solving this

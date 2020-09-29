@@ -76,7 +76,8 @@ namespace Tensile
         }
 
         virtual std::tuple<std::shared_ptr<MySolution>, double>
-            findBestSolutionWithFitness(MyProblem const& problem, Hardware const& hardware) const override
+            findBestSolutionWithFitness(MyProblem const& problem,
+                                        Hardware const&  hardware) const override
         {
             const bool debug = Debug::Instance().printPropertyEvaluation();
 

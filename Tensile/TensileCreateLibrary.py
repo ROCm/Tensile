@@ -929,7 +929,7 @@ def writeSolutionCall(solutionName, problemType):
 def getSolutionAndKernelWriters(solutions, kernels):
 
   # if any kernels are assembly, append every ISA supported
-  
+
   if globalParameters["ShortNames"] and not globalParameters["MergeFiles"]:
     solutionSerialNaming = Solution.getSerialNaming(solutions)
     kernelSerialNaming   = Solution.getSerialNaming(kernels)
@@ -1207,7 +1207,7 @@ def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, 
   codeObjectFiles = writeSolutionsAndKernels( \
     libraryWorkingPath, cxxCompiler, [problemType], solutions, kernels, kernelsBetaOnly, \
     solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
-    
+
   newLibraryDir = ensurePath(os.path.join(libraryWorkingPath, 'library'))
   newLibraryFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")
   newLibrary = MasterSolutionLibrary.BenchmarkingLibrary(solutions)
@@ -1227,14 +1227,14 @@ def WriteClientLibraryFromSolutions(solutionList, libraryWorkingPath, tensileSou
   problemType["DestDataType"] = problemType["DestDataType"].value
   problemType["ComputeDataType"] = problemType["ComputeDataType"].value
   cxxCompiler = globalParameters["CxxCompiler"]
- 
-  effectiveWorkingPath = os.path.join(libraryWorkingPath, "library") 
+
+  effectiveWorkingPath = os.path.join(libraryWorkingPath, "library")
   ensurePath(effectiveWorkingPath)
   mataDataFilePath = os.path.join(effectiveWorkingPath, 'metadata.yaml')
 
   metaData = {"ProblemType":problemType}
   LibraryIO.YAMLWriter().write(mataDataFilePath, metaData)
-  
+
   codeObjectFiles, newLibrary = writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutionList, cxxCompiler )
 
   return (codeObjectFiles, newLibrary)
@@ -1384,7 +1384,7 @@ def TensileCreateLibrary():
 
 
   kernels, kernelHelperOjbs, _ = generateKernelObjectsFromSolutions(solutions)
-  
+
   # if any kernels are assembly, append every ISA supported
   solutionWriter, kernelWriterSource, kernelWriterAssembly, \
     kernelMinNaming, _ = getSolutionAndKernelWriters(solutions, kernels)

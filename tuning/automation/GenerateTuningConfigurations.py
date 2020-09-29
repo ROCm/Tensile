@@ -609,8 +609,8 @@ def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", pr
         noiterlines = removeIter(lines)
         WriteScriptYAML(outputFileName5,yamlLines)
         if strided == True:
-            WriteScriptYAML(outputFileName6,yamlLines,strided) 
-             
+            WriteScriptYAML(outputFileName6,yamlLines,strided)
+
         with open(outputFileName, 'a') as f, open(outputFileName2, 'a') as g, open(outputFileName3, 'a') as h:
             for line in lines:
                 if "strided" in line:
@@ -691,8 +691,8 @@ def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", p
         noiterlines = removeIter(lines)
         WriteScriptYAML(outputFileName5,yamlLines)
         if strided == True:
-            WriteScriptYAML(outputFileName6,yamlLines,strided) 
-        
+            WriteScriptYAML(outputFileName6,yamlLines,strided)
+
         with open(outputFileName, 'a') as f, open(outputFileName2, 'a') as g, open(outputFileName3, 'a') as h:
             for line in lines:
                 if "strided" in line:

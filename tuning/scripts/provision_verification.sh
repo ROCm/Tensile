@@ -125,7 +125,7 @@ MASSAGE_SCRIPT=${REFERENCE_LIBRARY_ARCHIVE}/massage.py
 if [[ ${MERGE} == true ]]; then
   mkdir -p ${MERGE_PATH}
   mkdir -p ${MASSAGE_PATH}
-  
+
   if [[ ${LIBRARY} != arcturus && ${MASSAGE} == true ]]; then
     ASM_PATH=${ARCHIVE_PATH}
   fi
