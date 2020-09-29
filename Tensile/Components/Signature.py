@@ -324,8 +324,7 @@ class SignatureCOV3(Signature):
 
         # begin kernel descriptor
         kStr += ".amdgcn_target \"amdgcn-amd-amdhsa--gfx%s%s\"%s" \
-            % ("".join(map(str,writer.version)), \
-            "+sram-ecc" if writer.version == (9,0,6) or writer.version == (9,0,8) else "",  writer.endLine)
+            % ("".join(map(str,writer.version)), writer.endLine)
 
         kStr += ".text%s" % writer.endLine
         kStr += ".protected %s%s" % (writer.kernelName, writer.endLine)
