@@ -323,7 +323,7 @@ class SignatureCOV3(Signature):
         kStr = self.commentHeader()
 
         # begin kernel descriptor
-        kStr += ".amdgcn_target \"amdgcn-amd-amdhsa--gfx%s%s\"%s" \
+        kStr += ".amdgcn_target \"amdgcn-amd-amdhsa--gfx%s\"%s" \
             % ("".join(map(str,writer.version)), writer.endLine)
 
         kStr += ".text%s" % writer.endLine
