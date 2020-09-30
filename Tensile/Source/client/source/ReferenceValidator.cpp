@@ -187,13 +187,13 @@ namespace Tensile
 
             // Backward-compatible: when setAlpha/BetaType() wasn't called, use the old way
             // Could remove after rocBLAS is updated
-            if(alphaType == DataType::Count)
+            if(alphaType == DataType::None)
             {
                 alphaType = m_problem.a().dataType() == DataType::BFloat16
                                 ? DataType::Float
                                 : m_problem.d().dataType();
             }
-            if(betaType == DataType::Count)
+            if(betaType == DataType::None)
             {
                 betaType = alphaType;
             }
@@ -207,52 +207,52 @@ namespace Tensile
 
             switch(contractionInputsTypeId)
             {
-            case ManagedFloatContractionInputs::TypeId():
+            case ManagedContractionInputs_S_S_S::TypeId():
             {
-                return validateSolutionCast<ManagedFloatContractionInputs>(inputs);
+                return validateSolutionCast<ManagedContractionInputs_S_S_S>(inputs);
             }
-            case ManagedDoubleContractionInputs::TypeId():
+            case ManagedContractionInputs_D_D_D::TypeId():
             {
-                return validateSolutionCast<ManagedDoubleContractionInputs>(inputs);
+                return validateSolutionCast<ManagedContractionInputs_D_D_D>(inputs);
             }
-            case ManagedComplexFloatContractionInputs::TypeId():
+            case ManagedContractionInputs_C_C_C::TypeId():
             {
-                return validateSolutionCast<ManagedComplexFloatContractionInputs>(inputs);
+                return validateSolutionCast<ManagedContractionInputs_C_C_C>(inputs);
             }
-            case ManagedComplexDoubleContractionInputs::TypeId():
+            case ManagedContractionInputs_Z_Z_Z::TypeId():
             {
-                return validateSolutionCast<ManagedComplexDoubleContractionInputs>(inputs);
+                return validateSolutionCast<ManagedContractionInputs_Z_Z_Z>(inputs);
             }
 #ifdef TENSILE_USE_HALF
-            case ManagedHalfContractionInputs::TypeId():
+            case ManagedContractionInputs_H_H_H::TypeId():
             {
-                return validateSolutionCast<ManagedHalfContractionInputs>(inputs);
+                return validateSolutionCast<ManagedContractionInputs_H_H_H>(inputs);
             }
-            case ManagedHalfInOutFloatComputeContractionInputs::TypeId():
+            case ManagedContractionInputs_H_H_S::TypeId():
             {
-                return validateSolutionCast<ManagedHalfInOutFloatComputeContractionInputs>(inputs);
+                return validateSolutionCast<ManagedContractionInputs_H_H_S>(inputs);
             }
-            case ManagedHalfInFloatOutContractionInputs::TypeId():
+            case ManagedContractionInputs_H_S_S::TypeId():
             {
-                return validateSolutionCast<ManagedHalfInFloatOutContractionInputs>(inputs);
+                return validateSolutionCast<ManagedContractionInputs_H_S_S>(inputs);
             }
 #endif // TENSILE_USE_HALF
-            case ManagedInt8x4ContractionInputs::TypeId():
+            case ManagedContractionInputs_I8x4_I32_I32::TypeId():
             {
-                return validateSolutionCast<ManagedInt8x4ContractionInputs>(inputs);
+                return validateSolutionCast<ManagedContractionInputs_I8x4_I32_I32>(inputs);
             }
-            case ManagedInt32ContractionInputs::TypeId():
+            case ManagedContractionInputs_I32_I32_I32::TypeId():
             {
-                return validateSolutionCast<ManagedInt32ContractionInputs>(inputs);
+                return validateSolutionCast<ManagedContractionInputs_I32_I32_I32>(inputs);
             }
 #ifdef TENSILE_USE_BF16
-            case ManagedBFloat16ContractionInputs::TypeId():
+            case ManagedContractionInputs_B_B_S::TypeId():
             {
-                return validateSolutionCast<ManagedBFloat16ContractionInputs>(inputs);
+                return validateSolutionCast<ManagedContractionInputs_B_B_S>(inputs);
             }
-            case ManagedBFloat16InFloatOutContractionInputs::TypeId():
+            case ManagedContractionInputs_B_S_S::TypeId():
             {
-                return validateSolutionCast<ManagedBFloat16InFloatOutContractionInputs>(inputs);
+                return validateSolutionCast<ManagedContractionInputs_B_S_S>(inputs);
             }
 #endif // TENSILE_USE_BF16
             default:;

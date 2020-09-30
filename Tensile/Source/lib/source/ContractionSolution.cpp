@@ -801,12 +801,12 @@ namespace Tensile
 
         // Backward-compatible: when setAlpha/BetaType() wasn't called, use the old way
         // Could remove after rocBLAS is updated
-        if(alphaType == DataType::Count)
+        if(alphaType == DataType::None)
         {
             alphaType
                 = problemType.aType == DataType::BFloat16 ? DataType::Float : problemType.dType;
         }
-        if(betaType == DataType::Count)
+        if(betaType == DataType::None)
         {
             betaType = alphaType;
         }
@@ -820,64 +820,62 @@ namespace Tensile
 
         switch(contractionInputsTypeId)
         {
-        case FloatContractionInputs::TypeId():
+        case ContractionInputs_S_S_S::TypeId():
         {
-            auto const& typedInputs = dynamic_cast<FloatContractionInputs const&>(inputs);
+            auto const& typedInputs = dynamic_cast<ContractionInputs_S_S_S const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
-        case DoubleContractionInputs::TypeId():
+        case ContractionInputs_D_D_D::TypeId():
         {
-            auto const& typedInputs = dynamic_cast<DoubleContractionInputs const&>(inputs);
+            auto const& typedInputs = dynamic_cast<ContractionInputs_D_D_D const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
-        case ComplexFloatContractionInputs::TypeId():
+        case ContractionInputs_C_C_C::TypeId():
         {
-            auto const& typedInputs = dynamic_cast<ComplexFloatContractionInputs const&>(inputs);
+            auto const& typedInputs = dynamic_cast<ContractionInputs_C_C_C const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
-        case ComplexDoubleContractionInputs::TypeId():
+        case ContractionInputs_Z_Z_Z::TypeId():
         {
-            auto const& typedInputs = dynamic_cast<ComplexDoubleContractionInputs const&>(inputs);
+            auto const& typedInputs = dynamic_cast<ContractionInputs_Z_Z_Z const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
 #ifdef TENSILE_USE_HALF
-        case HalfContractionInputs::TypeId():
+        case ContractionInputs_H_H_H::TypeId():
         {
-            auto const& typedInputs = dynamic_cast<HalfContractionInputs const&>(inputs);
+            auto const& typedInputs = dynamic_cast<ContractionInputs_H_H_H const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
-        case HalfInOutFloatComputeContractionInputs::TypeId():
+        case ContractionInputs_H_H_S::TypeId():
         {
-            auto const& typedInputs
-                = dynamic_cast<HalfInOutFloatComputeContractionInputs const&>(inputs);
+            auto const& typedInputs = dynamic_cast<ContractionInputs_H_H_S const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
-        case HalfInFloatOutContractionInputs::TypeId():
+        case ContractionInputs_H_S_S::TypeId():
         {
-            auto const& typedInputs = dynamic_cast<HalfInFloatOutContractionInputs const&>(inputs);
+            auto const& typedInputs = dynamic_cast<ContractionInputs_H_S_S const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
 #endif // TENSILE_USE_HALF
-        case Int8x4ContractionInputs::TypeId():
+        case ContractionInputs_I8x4_I32_I32::TypeId():
         {
-            auto const& typedInputs = dynamic_cast<Int8x4ContractionInputs const&>(inputs);
+            auto const& typedInputs = dynamic_cast<ContractionInputs_I8x4_I32_I32 const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
-        case Int32ContractionInputs::TypeId():
+        case ContractionInputs_I32_I32_I32::TypeId():
         {
-            auto const& typedInputs = dynamic_cast<Int32ContractionInputs const&>(inputs);
+            auto const& typedInputs = dynamic_cast<ContractionInputs_I32_I32_I32 const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
 #ifdef TENSILE_USE_BF16
-        case BFloat16ContractionInputs::TypeId():
+        case ContractionInputs_B_B_S::TypeId():
         {
-            auto const& typedInputs = dynamic_cast<BFloat16ContractionInputs const&>(inputs);
+            auto const& typedInputs = dynamic_cast<ContractionInputs_B_B_S const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
-        case BFloat16InFloatOutContractionInputs::TypeId():
+        case ContractionInputs_B_S_S::TypeId():
         {
-            auto const& typedInputs
-                = dynamic_cast<BFloat16InFloatOutContractionInputs const&>(inputs);
+            auto const& typedInputs = dynamic_cast<ContractionInputs_B_S_S const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
 #endif // TENSILE_USE_BF16

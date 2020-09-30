@@ -720,26 +720,27 @@ namespace Tensile
             std::shared_ptr<ManagedInputs> m_gpuBadInputs;
         };
 
-        /* Commonly used managed contraction input type groupings */
-        using ManagedFloatContractionInputs        = ManagedContractionInputs<float>;
-        using ManagedDoubleContractionInputs       = ManagedContractionInputs<double>;
-        using ManagedComplexFloatContractionInputs = ManagedContractionInputs<std::complex<float>>;
-        using ManagedComplexDoubleContractionInputs
-            = ManagedContractionInputs<std::complex<double>>;
+        // Commonly used managed contraction input type groupings
+        // Naming: _[Ti_To_Tc]_:
+        // S=float, D=double, C=complex<float>, Z=complex<double>,
+        // H=Half, B=BF16, I8x4=Int8x4, I32=int32_t
+        using ManagedContractionInputs_S_S_S = ManagedContractionInputs<float>;
+        using ManagedContractionInputs_D_D_D = ManagedContractionInputs<double>;
+        using ManagedContractionInputs_C_C_C = ManagedContractionInputs<std::complex<float>>;
+        using ManagedContractionInputs_Z_Z_Z = ManagedContractionInputs<std::complex<double>>;
 #ifdef TENSILE_USE_HALF
-        using ManagedHalfContractionInputs = ManagedContractionInputs<Half>;
-        using ManagedHalfInOutFloatComputeContractionInputs
+        using ManagedContractionInputs_H_H_H = ManagedContractionInputs<Half>;
+        using ManagedContractionInputs_H_H_S
             = ManagedContractionInputs<Half, Half, Half, Half, float, float>;
-        using ManagedHalfInFloatOutContractionInputs
-            = ManagedContractionInputs<Half, Half, float, float>;
+        using ManagedContractionInputs_H_S_S = ManagedContractionInputs<Half, Half, float, float>;
 #endif // TENSILE_USE_HALF
-        using ManagedInt8x4ContractionInputs
+        using ManagedContractionInputs_I8x4_I32_I32
             = ManagedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>;
-        using ManagedInt32ContractionInputs = ManagedContractionInputs<int32_t>;
+        using ManagedContractionInputs_I32_I32_I32 = ManagedContractionInputs<int32_t>;
 #ifdef TENSILE_USE_BF16
-        using ManagedBFloat16ContractionInputs
+        using ManagedContractionInputs_B_B_S
             = ManagedContractionInputs<BFloat16, BFloat16, BFloat16, BFloat16, float, float>;
-        using ManagedBFloat16InFloatOutContractionInputs
+        using ManagedContractionInputs_B_S_S
             = ManagedContractionInputs<BFloat16, BFloat16, float, float>;
 #endif // TENSILE_USE_BF16
 

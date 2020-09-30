@@ -1118,9 +1118,9 @@ class KernelWriterAssembly(KernelWriter):
     # registers per element
     self.bpr = 4 # all registers are 32bit
     # default setup
+    # AB=DataType / Cexternal=DestDataType / Cinternal=Accumulation (MAC or MFMA)
     self.bpeAB = int(self.bpr * kernel["ProblemType"]["DataType"].numRegisters())
     self.bpeCexternal = int(self.bpr * kernel["ProblemType"]["DestDataType"].numRegisters())
-    self.bpeDexternal = int(self.bpr * kernel["ProblemType"]["DestDataType"].numRegisters())
     # already covers: dgemm, cgemm, zgemm, sgemm
     #               : hgemm  + !HPA ([H/H/H] compute = internal = f16)
     #               : hgemm  +  HPA ([H/H/S] compute = internal = f32) -> new
@@ -1129,12 +1129,24 @@ class KernelWriterAssembly(KernelWriter):
     # special cases : hgemm  +  HPA ([H/H/H] compute = f16, but internal = f32)
     self.bpeCinternal = int(self.bpr * kernel["ProblemType"]["ComputeDataType"].numRegisters())
 
+    # Dexternal = the "current" kernel output type,
+    # - default: the "current" kernel is a non-GSU-kernel,
+    #     Dexternal = Cexternal (= DestDataType) and is the final gemm result
+    #
+    # - For GSU: the "current" kernel is a GSU-kernel,
+    #     this kernel returns a temp buffer with same type as Cinternal.
+    #     Later, another kernel will accumulate this buffer
+    #     and convert the final result to Cexternal (= DestDataType) as the gemm result
+    self.bpeDexternal = int(self.bpr * kernel["ProblemType"]["DestDataType"].numRegisters())
+
+    # TODO- Currently, Cexternal, Cinteral, Dexternal are kind of confusing, need to clean up
+
     #jgolds Need to check device for support
     if kernel["ProblemType"]["HighPrecisionAccumulate"]:
-      # GSU
+      # Special case for HPA
       if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
-        self.bpeDexternal = int(self.bpr*1) if kernel["_GlobalAccumulation"] else self.bpeDexternal
-        self.bpeCinternal = int(self.bpr*1) # mainly for [H/H/H]
+        self.bpeCinternal = int(self.bpr*1) # mainly for [H/H/H], internal = f32
+        self.bpeDexternal = self.bpeCinternal if kernel["_GlobalAccumulation"] else self.bpeDexternal
       elif kernel["ProblemType"]["DataType"].isInt8x4():
         # numRegisters for Int8x4 = numRegisters for float = 1
         # Cinternal == ComputeType == int32
@@ -3100,9 +3112,9 @@ class KernelWriterAssembly(KernelWriter):
 
     # Check alpha == 0, is done before kernel body
     # so if alpha/beta=Half, they haven't been converted to f32
+    # This means we can use ComputeDataType as AlphaType (even <h,h,h,h,"h,h"> +"HPA")
     if self.do["ApplyAlpha"]:
 
-      # Instead of using input DataType check we should have an explicit AlphaType
       kStr += self.comment("Short circuit condition if Alpha == 0, then sumDims=0")
       endCheckLabel = "label_AlphaNonZero"
       if kernel["ProblemType"]["ComputeDataType"].isDoubleComplex():
@@ -10335,8 +10347,7 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(alphaVgprTmp)
 
       #jgolds look at moving these converted values back to scalar regs and free up the VGPRs
-      # TODO - for hpa the host should pass in an F32 alpha so we don't have to do it here
-      # if using (h,h,h,h,s,s) + HPA then we don't have to do the cvt
+      # ethan if using (h,h,h,h,s,s) + HPA then the host should pass in an F32 alpha, we don't have to do the cvt
       if beta:
         self.betaVgpr = self.vgprPool.checkOut(1, "beta")
         kStr += inst("v_mov_b32", vgpr(self.betaVgpr), sgpr("Beta"), "sgpr -> vgpr b/c op_sel")
