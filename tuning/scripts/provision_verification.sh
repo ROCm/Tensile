@@ -96,7 +96,11 @@ MERGE_PATH="${LIBRARY_ROOT}/merge"
 ASM_PATH="${LIBRARY_ROOT}/asm_full"
 ARCHIVE_PATH="${LIBRARY_ROOT}/archive"
 MASSAGE_PATH="${LIBRARY_ROOT}/massage"
+
+
 TENSILE_LIBRARY_PATH="${LIBRARY_ROOT}/tensile_library"
+mkdir -p ${TENSILE_LIBRARY_PATH}
+TENSILE_LIBRARY_PATH=$(realpath ${TENSILE_LIBRARY_PATH})
 
 mkdir -p ${ROCBLAS_ROOT}
 mkdir -p ${EXACT_PATH}
@@ -145,5 +149,9 @@ pushd ${REFERENCE_NAME} > /dev/null
 ${BUILD_ROCBLAS} > build-reference.out 2>&1
 popd > /dev/null
 
-TENSILE_CREATE_LIBRARY="${TENSILE_PATH}/Tensile/bin/TensileCreateLibrary --merge-files --no-legacy-components --no-short-file-names --no-library-print-debug --code-object-version=V2 --cxx-compiler=hcc ${MERGE_PATH} ${TENSILE_LIBRARY_PATH} HIP"
+#TENSILE_CREATE_LIBRARY="${TENSILE_PATH}/Tensile/bin/TensileCreateLibrary --merge-files --no-legacy-components --no-short-file-names --no-library-print-debug --code-object-version=V2 --cxx-compiler=hipcc ${MERGE_PATH} ${TENSILE_LIBRARY_PATH} HIP"
+
+CREATE_LIBRARY_EXE=${REFERENCE_NAME}/build/release/virtualenv/lib/python3.6/site-packages/Tensile/bin/TensileCreateLibrary
+TENSILE_CREATE_LIBRARY="${CREATE_LIBRARY_EXE} --merge-files --no-legacy-components --no-short-file-names --no-library-print-debug --code-object-version=V3 --cxx-compiler=hipcc --library-format=msgpack ${MERGE_PATH} ${TENSILE_LIBRARY_PATH} HIP"
+
 ${TENSILE_CREATE_LIBRARY}
