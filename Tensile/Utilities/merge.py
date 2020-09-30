@@ -2,6 +2,9 @@ import yaml
 import os
 import sys
 import argparse
+from copy import deepcopy
+
+verbosity = 1
 
 def ensurePath(path):
   if not os.path.exists(path):
@@ -37,34 +40,52 @@ def fixSizeInconsistencies(sizes, fileType):
     if len(duplicates) > 0:
         for i in duplicates:
             sizes.pop(i)
-        print(len(duplicates), "duplicate size(s) removed from ", fileType, " logic file")
-    return [sizes,len(sizes)]
+        verbose(len(duplicates), "duplicate size(s) removed from", fileType, "logic file")
+    return sizes, len(sizes)
 
-def addKernel(incData, origData, improvedKernels, incIndex, currIndex):
-    tempData = incData[5][incIndex]
-    tempData["SolutionIndex"] = currIndex
-    currIndex = currIndex + 1
-    improvedKernels[incIndex] = tempData
-    origData[5].append(improvedKernels[incIndex])
-    return [incData, origData, improvedKernels, incIndex, currIndex]
+# remove dict key "SolutionIndex" from dict
+def cmpHelper(sol):
+    return {k:v for k, v in sol.items() if k!="SolutionIndex"}
 
-def removeUnusedKernels(origData):
-    unusedKernels = list()
+def addKernel(solutionPool, solution):
+    for i, item in enumerate(solutionPool):
+        if cmpHelper(item) == cmpHelper(solution):
+            index = i
+            debug("...Reuse previously existed kernel", end="")
+            break
+    else:
+        index = len(solutionPool)
+        _solution = deepcopy(solution) # if we don't we will see some subtle errors
+        _solution["SolutionIndex"] = index
+        solutionPool.append(_solution)
+        debug("...A new kernel has been added", end="")
+    debug("({}) {}".format(index, solutionPool[index]["SolutionNameMin"] if "SolutionNameMin" in solutionPool[index] else "(SolutionName N/A)"))
+    return solutionPool, index
+
+def removeUnusedKernels(origData, prefix=""):
+    origNumSolutions = len(origData[5])
     for i in range(0,len(origData[5])):
-        kernelIndex = origData[5][i]["SolutionIndex"]
-        isUsed = False
+        solutionIndex = origData[5][i]["SolutionIndex"]
         for item in range(0,len(origData[7])):
             index = origData[7][item][1][0]
-            if index == kernelIndex:
-                isUsed = True
+            if index == solutionIndex:
+                origData[5][i]["__valid__"] = True
                 break
-        if isUsed == False:
-            uIndex = i-len(unusedKernels)
-            if uIndex not in unusedKernels:
-                unusedKernels.append(uIndex)
+        else:
+            origData[5][i]["__valid__"] = False
 
-    for i in unusedKernels:
-        origData[5].pop(i)
+    # debug prints
+    for o in [o for o in origData[5] if o["__valid__"]==False]:
+        debug("{}Solution ({}) {} is unused".format(
+            prefix,
+            o["SolutionIndex"],
+            o["SolutionNameMin"] if "SolutionNameMin" in o else "(SolutionName N/A)"))
+
+    # filter out dangling kernels
+    origData[5] = [ {k: v for k, v in o.items() if k != "__valid__"}
+                    for o in origData[5] if o["__valid__"]==True ]
+
+    # reindex solutions
     for i in range(0,len(origData[5])):
         oldSolIndex = origData[5][i]["SolutionIndex"]
         origData[5][i]["SolutionIndex"] = i
@@ -73,8 +94,8 @@ def removeUnusedKernels(origData):
             if index == oldSolIndex:
                 origData[7][item][1][0] = i
 
-    print("Removed ",len(unusedKernels), " unused kernels from output logic file")
-    return origData
+    numInvalidRemoved = origNumSolutions - len(origData[5])
+    return origData, numInvalidRemoved
 
 def loadData(filename):
     try:
@@ -88,87 +109,122 @@ def loadData(filename):
 
 def defaultForceMergePolicy(incFile):
     if "arcturus" in incFile:
-        forceMerge = "false"
+        forceMerge = False
     else:
-        forceMerge = "true"
+        forceMerge = True
 
     return forceMerge
 
+def msg(*args, **kwargs):
+    for i in args: print(i, end=" ")
+    print(**kwargs)
 
-def avoidRegressions():
+def verbose(*args, **kwargs):
+    if verbosity < 1: return
+    msg(*args, **kwargs)
 
-    userArgs = sys.argv[1:]
+def debug(*args, **kwargs):
+    if verbosity < 2: return
+    msg(*args, **kwargs)
+
+# returns merged logic data as list
+def mergeLogic(origData, incData, forceMerge):
+    origNumSizes = len(origData[7])
+    origNumSolutions = len(origData[5])
+    origData, numOrigRemoved = removeUnusedKernels(origData, "Base logic file: ")
+
+    incNumSizes = len(incData[7])
+    incNumSolutions = len(incData[5])
+    incData, numIncRemoved = removeUnusedKernels(incData, "Inc logic file: ")
+
+    verbose(origNumSizes, "sizes and", origNumSolutions, "kernels in base logic file")
+    verbose(incNumSizes, "sizes and", incNumSolutions, "kernels in incremental logic file")
+
+    # trim 8-tuple gemm size format to 4-tuple [m, n, b, k]
+    # TODO future gemm size could include dictionary format so need robust preprocessing
+    [origData[7], origNumSizes] = fixSizeInconsistencies(origData[7], "base")
+    [incData[7], incNumSizes] = fixSizeInconsistencies(incData[7], "incremental")
+
+    solutionPool = deepcopy(origData[5])
+    solutionMap = deepcopy(origData[7])
+    for i, [incSize, [incIndex, incEff]] in enumerate(incData[7]):
+        incSolution = [s for s in incData[5] if s["SolutionIndex"]==incIndex] # TODO this is slow
+        assert len(incSolution)==1
+        incSolution = incSolution[0]
+        for j, [origSize, [origIndex, origEff]] in enumerate(origData[7]):
+            if incSize != origSize:
+                continue
+            if incEff > origEff or forceMerge:
+                if incEff > origEff:
+                    verbose("[O]", origSize, "already exists and has improved in performance.", end="")
+                elif forceMerge:
+                    verbose("[!]", origSize, "already exists but does not improve in performance.", end="")
+                verbose("Efficiency:", origEff, "->", incEff, "(force_merge=True)" if forceMerge else "")
+                solutionPool, index = addKernel(solutionPool, incSolution)
+                solutionMap[j][1] = [index, incEff]
+            else:
+                verbose("[X]", origSize, " already exists but does not improve in performance.", end="")
+                verbose("Efficiency:", origEff, "->", incEff)
+            break
+        else:
+            verbose("[-]", incSize, "has been added to solution table, Efficiency: N/A ->", incEff)
+            solutionPool, index = addKernel(solutionPool, incSolution)
+            solutionMap.append([incSize,[index, incEff]])
+
+    verbose(numOrigRemoved, "unused kernels removed from base logic file")
+    verbose(numIncRemoved, "unused kernels removed from incremental logic file")
+
+    mergedData = deepcopy(origData)
+    mergedData[5] = solutionPool
+    mergedData[7] = solutionMap
+    mergedData, numReplaced = removeUnusedKernels(mergedData, "Merged data: ")
+
+    numSizesAdded = len(solutionMap)-len(origData[7])
+    numSolutionsAdded = len(solutionPool)-len(origData[5])
+    numSolutionsRemoved = numReplaced+numOrigRemoved+numIncRemoved
+
+    return [mergedData, numSizesAdded, numSolutionsAdded, numSolutionsRemoved]
+
+def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge):
+    originalFiles = allFiles(originalDir)
+    incrementalFiles = allFiles(incrementalDir)
+    ensurePath(outputPath)
+
+    # filter the incremental logic files that have the corresponding base file
+    incrementalFiles = [ i for i in incrementalFiles
+                         if os.path.split(i)[-1] in [os.path.split(o)[-1] for o in originalFiles] ]
+
+    for incFile in incrementalFiles:
+        basename = os.path.split(incFile)[-1]
+        origFile = os.path.join(originalDir, basename)
+        forceMerge = defaultForceMergePolicy(incFile) if forceMerge is None else forceMerge
+
+        msg("Base logic file:", origFile, "| Incremental:", incFile, "| Merge policy: %s"%("Forced" if forceMerge else "Winner"))
+        mergedData, *stats = mergeLogic(loadData(origFile), loadData(incFile), forceMerge)
+        msg(stats[0], "sizes and", stats[1], "kernels added,", stats[2], "kernels removed")
+
+        with open(os.path.join(outputPath, basename), "w") as outFile:
+            yaml.safe_dump(mergedData,outFile,default_flow_style=None)
+        msg("File written to", os.path.join(outputPath, basename))
+        msg("------------------------------")
+
+if __name__ == "__main__":
     argParser = argparse.ArgumentParser()
     argParser.add_argument("original_dir", help="The library logic directory without tuned sizes")
     argParser.add_argument("incremental_dir", help="The incremental logic directory")
     argParser.add_argument("output_dir", help="The output logic directory")
+    argParser.add_argument("-v", "--verbosity", help="0: summary, 1: verbose, 2: debug", default=1, type=int)
     argParser.add_argument("--force_merge", help="Merge previously known sizes unconditionally. Default behavior if not arcturus", default="none")
 
-    args = argParser.parse_args(userArgs)
-    originalFiles = allFiles(args.original_dir)
-    incrementalFiles = allFiles(args.incremental_dir)
+    args = argParser.parse_args(sys.argv[1:])
+    originalDir = args.original_dir
+    incrementalDir = args.incremental_dir
     outputPath = args.output_dir
+    verbosity = args.verbosity
     forceMerge = args.force_merge.lower()
-    ensurePath(outputPath)
 
-    for incFile in incrementalFiles:
-        with open(incFile):
-            _forceMerge = defaultForceMergePolicy(incFile) if forceMerge == "none" else forceMerge
-            print("Incremental logic file: ", incFile, " Merge policy: %s"%("Forced" if _forceMerge=='true' else "Winner"))
-            incData = loadData(incFile)
-            improvedKernels = dict()
-            for origFile in originalFiles:
-                fileSplit = origFile.split('/')
-                logicFile = fileSplit[len(fileSplit)-1]
-                if logicFile in incFile:
-                    print("Base logic file: ", logicFile)
-                    with open(origFile):
-                        origData = loadData(origFile)
-                        numSizes = len(origData[7])
-                        incNumSizes = len(incData[7])
-                        print(numSizes, " sizes in original logic file")
-                        print(incNumSizes, " sizes in tuned logic file")
-                        print(len(origData[5]), " kernels in original logic file")
-                        print(len(incData[5]), " kernels in tuned logic file")
-                        [origData[7], numSizes] = fixSizeInconsistencies(origData[7], "original")
-                        origData[5] = fixSolutionIndexBug(origData[5])
-                        [incData[7], incNumSizes] = fixSizeInconsistencies(incData[7], "incremental")
-                        incData[5] = fixSolutionIndexBug(incData[5])
-                        currIndex = len(origData[5])
-                        for i in range(0,len(incData[7])):
-                            incSize = incData[7][i][0]
-                            incIndex = incData[7][i][1][0]
-                            incEff = incData[7][i][1][1]
-                            isOld = False
-                            for j in range(0,len(origData[7])):
-                                origSize = origData[7][j][0]
-                                origEff = origData[7][j][1][1]
-                                if incSize == origSize:
-                                    isOld = True
-                                    if incEff < origEff and _forceMerge == "false":
-                                        print(origSize, " already exists but has regressed in performance. Kernel is unchanged")
-                                        print("Old Efficiency: ", origEff, "New efficiency: ", incEff)
-                                    else:
-                                        if incIndex in improvedKernels.keys():
-                                            print(origSize, " already exists and has improved in performance, and uses a previously known kernel.")
-                                            print("Old Efficiency: ", origEff, "New efficiency: ", incEff)
-                                        if incIndex not in improvedKernels.keys():
-                                            print(origSize, " already exists and has improved in performance. A new kernel has been added.")
-                                            print("Old Efficiency: ", origEff, ", New Efficiency: ", incEff)
-                                            [incData, origData, improvedKernels, incIndex, currIndex] = addKernel(incData, origData, improvedKernels, incIndex, currIndex)
-                                        origData[7][j][1][0] = improvedKernels[incIndex]["SolutionIndex"]
-                                        origData[7][j][1][1] = incEff
-                            if isOld == False:
-                                if incIndex in improvedKernels.keys():
-                                    print(incSize, " has been added to solution table, and uses a previously known kernel. Efficiency: ", incEff)
-                                else:
-                                    print(incSize, " has been added to solution table. A new kernel has been added. Efficiency: ", incEff)
-                                    [incData, origData, improvedKernels, incIndex, currIndex] = addKernel(incData, origData, improvedKernels, incIndex, currIndex)
-                                origData[7].append([incSize,[improvedKernels[incIndex]["SolutionIndex"], incEff]])
-                        print(len(origData[7])-numSizes, " sizes and ", len(improvedKernels.keys())," kernels have been added to ", logicFile)
-                        origData = removeUnusedKernels(origData)
-                    with open(outputPath+'/'+logicFile, "w") as outFile:
-                        yaml.safe_dump(origData,outFile,default_flow_style=None)
+    if forceMerge in ["none"]: forceMerge=None
+    elif forceMerge in ["true", "1"]: forceMerge=True
+    elif forceMerge in ["false", "0"]: forceMerge=False
 
-if __name__ == "__main__":
-    avoidRegressions()
+    avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge)
