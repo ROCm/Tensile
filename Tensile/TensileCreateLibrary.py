@@ -180,7 +180,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       for arch in archs:
         infile = os.path.join(buildPath, objectFilename)
         outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, arch))
-        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa-%s" % arch, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % arch, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
         if globalParameters["PrintCodeCommands"]:
           print(' '.join(bundlerArgs))
         subprocess.check_call(bundlerArgs)
