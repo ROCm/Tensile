@@ -672,16 +672,24 @@ class SolutionWriter:
           s += "%sdim3(localWorkSize[0], localWorkSize[1], localWorkSize[2]),\n" % (t)
           s += "%s0, // groupMemBytes\n" % (t)
           s += "%sstream,\n" % (t)
-          s += "%sdataD,\n" % (t)
-          s += "%sdataC,\n" % (t)
+          s += ("%sdataD,\n") % (t) if not solution["_GlobalAccumulation"] else ("%sworkspace,\n" % (t))
+          s += ("%sdataC,\n") % (t) if not solution["_GlobalAccumulation"] else ("%sworkspace,\n" % (t))
           s += "%sdataA,\n" % (t)
           s += "%sdataB,\n" % (t)
           s += "%salpha,\n" % (t)
           s += "%s%sbeta,\n" % (t, \
               "" if problemType["UseBeta"] else "//")
           # strides
-          for stride in self.strideList:
-            s += "%s%s,\n" % (t, stride)
+          if kernel["_GlobalAccumulation"]:
+            for i in range(0, numStridesC):
+              s += "%s%s,\n" % (t, WSstrides[i])
+            for i in range(0, numStridesC):
+              s += "%s%s,\n" % (t, WSstrides[i])
+            for i in range(numStridesC*2, len(self.strideList)):
+              s += "%s%s,\n" % (t, self.strideList[i])
+          else:
+            for stride in self.strideList:
+              s += "%s%s,\n" % (t, stride)
           # sizes
           for i in range(0, problemType["TotalIndices"]):
             lastParam = i == problemType["TotalIndices"]-1

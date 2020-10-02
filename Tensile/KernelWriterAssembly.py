@@ -5990,9 +5990,14 @@ class KernelWriterAssembly(KernelWriter):
       # check alpha
       if self.do["ApplyAlpha"]:
         if kernel["ProblemType"]["DataType"].isHalf():
-          # when HPA=True and ComputeDataType=Half --> Alpha/Beta is already converted to F32
-          if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["ComputeDataType"].isHalf():
+          # The only case: <H,H,H> + HPA + PersistentKernel:
+          #                the checkAlphaBetaForHPA is done at the beginning of kernel,
+          #                so alpha is already cvt from F16->F32 here
+          if kernel["ProblemType"]["ComputeDataType"].isHalf() and \
+             kernel["ProblemType"]["HighPrecisionAccumulate"] and \
+             kernel["PersistentKernel"]:
             kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), "1.0", "Alpha == 1.0 ?")
+          # Otherwise, Alpha is a packed F16 so far (if Non-PK, the cvt is done later in GW)
           else:
             kStr += inst("s_mov_b32", sgpr(tmpSgpr), "0x3c003c00", "Packed alpha==1.0")
             kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), sgpr(tmpSgpr), "alpha == 1.0?")

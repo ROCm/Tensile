@@ -209,6 +209,7 @@ namespace Tensile
                 ("log-file-append",          po::value<bool>()->default_value(false),                "Append to log file.")
                 ("log-level",                po::value<LogLevel>()->default_value(LogLevel::Debug),                "Log level")
                 ("exit-on-failure",          po::value<bool>()->default_value(false), "Exit run early on failed kernels.")
+                ("selection-only",           po::value<bool>()->default_value(false), "Don't run any solutions, only print kernel selections.")
                 ;
             // clang-format on
 
@@ -438,6 +439,8 @@ int main(int argc, const char* argv[])
 
     bool gpuTimer = args["use-gpu-timer"].as<bool>();
 
+    bool runKernels = !args["selection-only"].as<bool>();
+
     if(firstSolutionIdx < 0)
         firstSolutionIdx = library->solutions.begin()->first;
 
@@ -463,11 +466,13 @@ int main(int argc, const char* argv[])
     MetaRunListener listeners;
 
     listeners.addListener(solutionIterator);
-    listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit));
-    listeners.addListener(std::make_shared<ProgressListener>());
-
-    listeners.addListener(std::make_shared<BenchmarkTimer>(args, *hardware));
-    listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
+    listeners.addListener(std::make_shared<ProgressListener>(args));
+    if(runKernels)
+    {
+        listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit));
+        listeners.addListener(std::make_shared<BenchmarkTimer>(args, *hardware));
+        listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
+    }
 
     auto reporters = std::make_shared<MetaResultReporter>();
     reporters->addReporter(PerformanceReporter::Default(args));
@@ -519,7 +524,7 @@ int main(int argc, const char* argv[])
 
                 listeners.preSolution(*solution);
 
-                if(solutionIterator->runCurrentSolution())
+                if(solutionIterator->runCurrentSolution() && runKernels)
                 {
                     try
                     {
