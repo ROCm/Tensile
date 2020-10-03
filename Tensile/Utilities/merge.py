@@ -37,11 +37,12 @@ def fixSizeInconsistencies(sizes, fileType):
                 duplicates.append(i-len(duplicates))
             else:
                 sizes[i][0] = currSize
+    sizes_ = deepcopy(sizes)
     if len(duplicates) > 0:
         for i in duplicates:
-            sizes.pop(i)
+            sizes_.pop(i)
         verbose(len(duplicates), "duplicate size(s) removed from", fileType, "logic file")
-    return sizes, len(sizes)
+    return sizes_, len(sizes_)
 
 # remove dict key "SolutionIndex" from dict
 def cmpHelper(sol):
@@ -128,22 +129,24 @@ def debug(*args, **kwargs):
     msg(*args, **kwargs)
 
 # returns merged logic data as list
-def mergeLogic(origData, incData, forceMerge):
+def mergeLogic(origData, incData, forceMerge, trimSize=True):
     origNumSizes = len(origData[7])
     origNumSolutions = len(origData[5])
-    origData, numOrigRemoved = removeUnusedKernels(origData, "Base logic file: ")
 
     incNumSizes = len(incData[7])
     incNumSolutions = len(incData[5])
-    incData, numIncRemoved = removeUnusedKernels(incData, "Inc logic file: ")
 
     verbose(origNumSizes, "sizes and", origNumSolutions, "kernels in base logic file")
     verbose(incNumSizes, "sizes and", incNumSolutions, "kernels in incremental logic file")
 
-    # trim 8-tuple gemm size format to 4-tuple [m, n, b, k]
-    # TODO future gemm size could include dictionary format so need robust preprocessing
-    [origData[7], origNumSizes] = fixSizeInconsistencies(origData[7], "base")
-    [incData[7], incNumSizes] = fixSizeInconsistencies(incData[7], "incremental")
+    if trimSize:
+        # trim 8-tuple gemm size format to 4-tuple [m, n, b, k]
+        # TODO future gemm size could include dictionary format so need robust preprocessing
+        [origData[7], origNumSizes] = fixSizeInconsistencies(origData[7], "base")
+        [incData[7], incNumSizes] = fixSizeInconsistencies(incData[7], "incremental")
+
+    origData, numOrigRemoved = removeUnusedKernels(origData, "Base logic file: ")
+    incData, numIncRemoved = removeUnusedKernels(incData, "Inc logic file: ")
 
     solutionPool = deepcopy(origData[5])
     solutionMap = deepcopy(origData[7])
@@ -181,11 +184,11 @@ def mergeLogic(origData, incData, forceMerge):
 
     numSizesAdded = len(solutionMap)-len(origData[7])
     numSolutionsAdded = len(solutionPool)-len(origData[5])
-    numSolutionsRemoved = numReplaced+numOrigRemoved+numIncRemoved
+    numSolutionsRemoved = numReplaced+numOrigRemoved # incremental file not counted
 
     return [mergedData, numSizesAdded, numSolutionsAdded, numSolutionsRemoved]
 
-def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge):
+def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSize=True):
     originalFiles = allFiles(originalDir)
     incrementalFiles = allFiles(incrementalDir)
     ensurePath(outputPath)
@@ -199,8 +202,8 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge):
         origFile = os.path.join(originalDir, basename)
         forceMerge = defaultForceMergePolicy(incFile) if forceMerge is None else forceMerge
 
-        msg("Base logic file:", origFile, "| Incremental:", incFile, "| Merge policy: %s"%("Forced" if forceMerge else "Winner"))
-        mergedData, *stats = mergeLogic(loadData(origFile), loadData(incFile), forceMerge)
+        msg("Base logic file:", origFile, "| Incremental:", incFile, "| Merge policy: %s"%("Forced" if forceMerge else "Winner"), "| Trim size:", trimSize)
+        mergedData, *stats = mergeLogic(loadData(origFile), loadData(incFile), forceMerge, trimSize)
         msg(stats[0], "sizes and", stats[1], "kernels added,", stats[2], "kernels removed")
 
         with open(os.path.join(outputPath, basename), "w") as outFile:
@@ -215,6 +218,7 @@ if __name__ == "__main__":
     argParser.add_argument("output_dir", help="The output logic directory")
     argParser.add_argument("-v", "--verbosity", help="0: summary, 1: verbose, 2: debug", default=1, type=int)
     argParser.add_argument("--force_merge", help="Merge previously known sizes unconditionally. Default behavior if not arcturus", default="none")
+    argParser.add_argument("--notrim", help="Do not trim long size format down to short format (m,n,b,k). Default is --trim", action="store_false")
 
     args = argParser.parse_args(sys.argv[1:])
     originalDir = args.original_dir
@@ -222,9 +226,10 @@ if __name__ == "__main__":
     outputPath = args.output_dir
     verbosity = args.verbosity
     forceMerge = args.force_merge.lower()
+    trimSize = args.notrim
 
     if forceMerge in ["none"]: forceMerge=None
     elif forceMerge in ["true", "1"]: forceMerge=True
     elif forceMerge in ["false", "0"]: forceMerge=False
 
-    avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge)
+    avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSize)
