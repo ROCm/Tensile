@@ -6106,40 +6106,44 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   ##############################################################################
-  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL):
+  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL, isNGLL):
     kStr = ""
     if not prefetch:
-      if isOptNLL:
-
-        # If is PAP inside OptNLL: Swap the LRO:
-        if self.prefetchAcrossPersistent:
-          expand = kernel["ExpandPointerSwap"]
-          kStr += self.comment("local read swap offsets a")
-          kStr += self.localReadSwapOffsets(kernel, expand, self.tPA)
-          kStr += self.comment("local read swap offsets b")
-          kStr += self.localReadSwapOffsets(kernel, expand, self.tPB)
-
-        kStr += self.comment1("Stores for OptNLL")
-        kStr += self.endSummation(kernel)
-
-        # perhaps could work with LSU>1 by adding other indices here, but not tested
-        assert (kernel["LocalSplitU"] == 1)
-        kStr += self.notLocalSplitUGlobalWriteIndices(kernel)
-
-        # add stores for opt NLL
-        (fullVw, elements) = self.notLocalFullTileElements(kernel, False)
-        kStr += self.globalWriteElements(kernel, [fullVw], [elements], applyAlpha=False, betas=[False], edges=[False])
-
-        self.cleanupGlobalWrite(kernel)
-        kStr += "\n"
-        kStr += str(self.functionEnd(kernel, False))
-        #kStr += inst("s_branch %s"%summationEnd, "skip the OptNLL")
-
-        label = self.getNamedLabel("OptNLL_End")
-        kStr += "%s:%s" % (label, self.endLine)
+      if isNGLL:
+        toPGR1 = self.getLabelNum("toPGR1")
+        kStr += "label_%04u:%s" % (toPGR1, self.endLine)
       else:
-        label = self.getLabelNum("PrefetchGlobalLastIterEnd")
-        kStr += "label_%04u:%s" % (label, self.endLine)
+        if isOptNLL:
+          # If is PAP inside OptNLL: Swap the LRO:
+          if self.prefetchAcrossPersistent:
+            expand = kernel["ExpandPointerSwap"]
+            kStr += self.comment("local read swap offsets a")
+            kStr += self.localReadSwapOffsets(kernel, expand, self.tPA)
+            kStr += self.comment("local read swap offsets b")
+            kStr += self.localReadSwapOffsets(kernel, expand, self.tPB)
+
+          kStr += self.comment1("Stores for OptNLL")
+          kStr += self.endSummation(kernel)
+
+          # perhaps could work with LSU>1 by adding other indices here, but not tested
+          assert (kernel["LocalSplitU"] == 1)
+          kStr += self.notLocalSplitUGlobalWriteIndices(kernel)
+
+          # add stores for opt NLL
+          (fullVw, elements) = self.notLocalFullTileElements(kernel, False)
+          kStr += self.globalWriteElements(kernel, [fullVw], [elements], applyAlpha=False, betas=[False], edges=[False])
+
+          self.cleanupGlobalWrite(kernel)
+          kStr += "\n"
+          kStr += str(self.functionEnd(kernel, False))
+          #kStr += inst("s_branch %s"%summationEnd, "skip the OptNLL")
+
+          label = self.getNamedLabel("OptNLL_End")
+          kStr += "%s:%s" % (label, self.endLine)
+        else:
+          label = self.getLabelNum("PrefetchGlobalLastIterEnd")
+          kStr += "label_%04u:%s" % (label, self.endLine)
+
     # swap back vgpr pool if any
     if self.savedVgprPool != None:
       # in case pool size in current path is larger than pool size in main path

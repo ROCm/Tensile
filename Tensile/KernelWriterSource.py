@@ -2091,7 +2091,7 @@ class KernelWriterSource(KernelWriter):
     self.indent += "  "
     return kStr
 
-  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL):
+  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL, isNGLL):
     kStr = ""
     self.indent = self.indent[2:]
     kStr += "%s} // end %s%s" % \

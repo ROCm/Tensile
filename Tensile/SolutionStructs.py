@@ -2456,7 +2456,7 @@ class Solution:
     #  - The "NoLoad" loop is only generated if PrefetchGlobalRead>0
     #  - And Suppress does not work if GSU>1 for some reason
     if state["SuppressNoLoadLoop"] == 1:
-      if not (bufferLoad and state["PrefetchGlobalRead"] and (state["GlobalSplitU"]==1)):
+      if not (bufferLoad and state["PrefetchGlobalRead"] == 1 and (state["GlobalSplitU"]==1)):
         state["SuppressNoLoadLoop"] = 0
 
     if state["ExpandPointerSwap"] == 1:
