@@ -1245,7 +1245,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       if self.enable["LocalRead"]:
         # reads for current loop are done in previous iteration because of wider local read
-        doReadA = (u < kernel["LoopIters"]/self.numIterPerCoalescedReadA - self.numItersPLR) 
+        doReadA = (u < kernel["LoopIters"]/self.numIterPerCoalescedReadA - self.numItersPLR)
         doReadB = (u < kernel["LoopIters"]/self.numIterPerCoalescedReadB - self.numItersPLR)
         if isNGLL:
           # reads for next loop
@@ -1314,7 +1314,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
             skipReadsIter, \
             "7wait for local read")
       luIdx = (u) % (self.numVgprBuffer+1) # local to use for MACs
-      pIdx = (u) % (self.numVgprBuffer+1) # local to use for MACs
       if self.enable["MAC"]:
         if kernel["EnableMatrixInstruction"]:
           macIterCode.addCode(self.mfmaIter(kernel, luIdx, kernel["InnerUnroll"]))
@@ -1322,13 +1321,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
           macIterCode.addCode(self.macIter(kernel, luIdx, kernel["InnerUnroll"], True ))
 
       subIterCode = self.makeSubIterSchedule(kernel, localReads, \
-                      u, pointerLWCode, pointerLRCode, waitCode, macIterCode, waitLWCode, syncCode, pack[pIdx])
+                      u, pointerLWCode, pointerLRCode, waitCode, macIterCode, waitLWCode, syncCode, pack[luIdx])
       kl.append(subIterCode)
-      for item in list(pack[pIdx].items()):
+      for item in list(pack[luIdx].items()):
         if item.tempVgpr != None:
           self.vgprPool.checkIn(item.tempVgpr)
           item.tempVgpr = None
-      pack[pIdx] = Code.Module()
+      pack[luIdx] = Code.Module()
 
     kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=isOptNLL, isNGLL=isNGLL))
 
@@ -1714,7 +1713,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
               "wait for prior local read local write")
 
         luIdx = (u) % (self.numVgprBuffer+1) # local to use for MACs
-        pIdx = (u) % (self.numVgprBuffer+1) # local to use for MACs
         if self.enable["MAC"]:
           if kernel["EnableMatrixInstruction"]:
             macIterCode.addCode(self.mfmaIter(kernel, luIdx, kernel["InnerUnroll"]))
@@ -1737,13 +1735,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
         ###############################################################################
         if self.numItersPLR or (not globalParameters["UnrollLoopEfficiencyEnable"]):
           subIterCode = self.makeSubIterSchedule(kernel, localReads, \
-                          u, pointerLWCode, pointerLRCode, waitCode, macIterCode, waitLWCode, syncCode, pack[pIdx])
+                          u, pointerLWCode, pointerLRCode, waitCode, macIterCode, waitLWCode, syncCode, pack[luIdx])
           kl.append(subIterCode) # add scheduled "other", local reads, local writes
-          for item in list(pack[pIdx].items()):
+          for item in list(pack[luIdx].items()):
             if item.tempVgpr != None:
               self.vgprPool.checkIn(item.tempVgpr)
               item.tempVgpr = None
-          pack[pIdx] = Code.Module()
+          pack[luIdx] = Code.Module()
         else:
           macIterCode = Code.Module()
           MacitemsReorder = []
