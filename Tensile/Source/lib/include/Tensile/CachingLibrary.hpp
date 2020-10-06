@@ -165,28 +165,32 @@ namespace Tensile
         {
         }
 
-        virtual std::tuple<std::shared_ptr<MySolution>, double>
-            findBestSolutionWithFitness(MyProblem const& problem,
-                                        Hardware const&  hardware) const override
+        virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
+                                                             Hardware const&  hardware,
+                                                             double*          fitness
+                                                             = nullptr) const override
         {
             try
             {
-                auto const& amdgpu = dynamic_cast<AMDGPU const&>(hardware);
+                double cachedFitness = std::numeric_limits<double>::max();
+                fitness              = (fitness) ? fitness : &cachedFitness;
 
-                auto rv = m_cache.find(problem, amdgpu);
+                auto const&                 amdgpu = dynamic_cast<AMDGPU const&>(hardware);
+                std::shared_ptr<MySolution> solution;
+                std::tie(solution, *fitness) = m_cache.find(problem, amdgpu);
 
-                if(std::get<std::shared_ptr<MySolution>>(rv))
-                    return rv;
+                if(solution)
+                    return solution;
 
-                rv = m_subLibrary->findBestSolutionWithFitness(problem, hardware);
-                if(std::get<std::shared_ptr<MySolution>>(rv))
-                    m_cache.add(rv, problem, amdgpu);
+                solution = m_subLibrary->findBestSolution(problem, hardware, fitness);
+                if(solution)
+                    m_cache.add(std::make_tuple(solution, *fitness), problem, amdgpu);
 
-                return rv;
+                return solution;
             }
             catch(std::bad_cast const& exc)
             {
-                return m_subLibrary->findBestSolutionWithFitness(problem, hardware);
+                return m_subLibrary->findBestSolution(problem, hardware, fitness);
             }
         }
 

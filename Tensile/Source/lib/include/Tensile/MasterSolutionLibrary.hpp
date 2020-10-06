@@ -79,11 +79,12 @@ namespace Tensile
 
         MasterSolutionLibrary() = default;
 
-        virtual std::tuple<std::shared_ptr<MySolution>, double>
-            findBestSolutionWithFitness(MyProblem const& problem,
-                                        Hardware const&  hardware) const override
+        virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
+                                                             Hardware const&  hardware,
+                                                             double*          fitness
+                                                             = nullptr) const override
         {
-            return library->findBestSolutionWithFitness(problem, hardware);
+            return library->findBestSolution(problem, hardware, fitness);
         }
 
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,

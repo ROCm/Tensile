@@ -64,16 +64,20 @@ namespace Tensile
                 return concatenate(type(), ": ", table->description());
         }
 
-        virtual std::tuple<std::shared_ptr<MySolution>, double>
-            findBestSolutionWithFitness(MyProblem const& problem,
-                                        Hardware const&  hardware) const override
+        virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
+                                                             Hardware const&  hardware,
+                                                             double*          fitness
+                                                             = nullptr) const override
         {
             typename Table::Transform transform
                 = [&](Element library) -> std::shared_ptr<MySolution> {
                 return library->findBestSolution(problem, hardware);
             };
-
-            return table->findBestMatch(problem, transform);
+            double localFitness = std::numeric_limits<double>::max();
+            fitness             = (fitness) ? fitness : &localFitness;
+            std::shared_ptr<MySolution> solution;
+            std::tie(solution, *fitness) = table->findBestMatch(problem, transform);
+            return solution;
         }
 
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,

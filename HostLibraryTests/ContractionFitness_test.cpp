@@ -23,11 +23,11 @@ TEST(ContractionFitnessTest, MatchingSize)
         ContractionProblem p
             = ContractionProblem::GEMM(false, false, 64, 64, 256, 64, 64, 256, 1.0, false, 2);
 
-        auto solution_and_fitness = library->findBestSolutionWithFitness(p, hardware);
-        auto solution             = std::get<0>(solution_and_fitness);
+        double fitness  = -1.0; //Initialize to fail test
+        auto   solution = library->findBestSolution(p, hardware, &fitness);
 
         ASSERT_NE(solution, nullptr);
-        EXPECT_EQ(std::get<1>(solution_and_fitness), 0.0);
+        EXPECT_EQ(fitness, 0.0);
     }
 }
 
@@ -43,10 +43,10 @@ TEST(ContractionFitnessTest, NonMatchingSize)
         ContractionProblem p
             = ContractionProblem::GEMM(false, false, 65, 64, 256, 65, 64, 256, 1.0, false, 2);
 
-        auto solution_and_fitness = library->findBestSolutionWithFitness(p, hardware);
-        auto solution             = std::get<0>(solution_and_fitness);
+        double fitness  = 0.0; //Initialize to fail test
+        auto   solution = library->findBestSolution(p, hardware, &fitness);
 
         ASSERT_NE(solution, nullptr);
-        EXPECT_NE(std::get<1>(solution_and_fitness), 0.0);
+        EXPECT_NE(fitness, 0.0);
     }
 }
