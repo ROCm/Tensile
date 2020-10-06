@@ -132,12 +132,12 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         return globalParameters["AsmCaps"][arch]["SupportedISA"] and \
                globalParameters["AsmCaps"][arch]["SupportedSource"]
 
-    archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
-             if isSupported(arch)]
-
-    archFlags = ['--amdgpu-target=' + arch for arch in archs]
 
     if (CxxCompiler == 'hcc'):
+
+      archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
+             if isSupported(arch)]
+      archFlags = ['--amdgpu-target=' + arch for arch in archs]    # hcc
 
       hipFlags = subprocess.check_output([which('hcc-config'), '--cxxflags']).decode().split(' ')
       # when HCC_HOME is defined -I/opt/rocm/include is *not* part of
@@ -166,6 +166,16 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
       coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
     elif (CxxCompiler == "hipcc"):
+
+      archs = []
+      for arch in globalParameters['SupportedISA']:
+        if isSupported(arch):
+          if (arch == (9,0,6) or arch == (9,0,8)):
+            archs += ['gfx'+''.join(map(str,arch))+':xnack-']
+          else:
+            archs += ['gfx'+''.join(map(str,arch))]
+
+      archFlags = ['--offload-arch=' + arch for arch in archs]
 
       hipFlags = ["--genco", "-D__HIP_HCC_COMPAT_MODE__=1"] #needs to be fixed when Maneesh's change is made available
 
@@ -1000,9 +1010,22 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
 
   kernelHelperOjbNmaes = [ko.getKernelName() for ko in kernelHelperOjbs]
 
+  cxxCompiler = globalParameters["CxxCompiler"]
+
   # Source based kernels are built for all supported architectures
-  sourceArchs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
-             if isSupported(arch)]
+  if (cxxCompiler == 'hcc'):
+    sourceArchs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
+               if isSupported(arch)]
+  elif (cxxCompiler == 'hipcc'):
+    sourceArchs = []
+    for arch in globalParameters['SupportedISA']:
+      if isSupported(arch):
+        if (arch == (9,0,6) or arch == (9,0,8)):
+          sourceArchs += ['gfx'+''.join(map(str,arch))+':xnack-']
+        else:
+          sourceArchs += ['gfx'+''.join(map(str,arch))]
+  else:
+    raise RuntimeError("Unknown compiler %s" % cxxCompiler)
 
   # Asm based kernels target the configured ISA
   asmArchs = collections.defaultdict(list)
@@ -1036,7 +1059,6 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
         "%s.co" % (asmKernelName)]
 
   # Build a list of lib names from source
-  cxxCompiler = globalParameters["CxxCompiler"]
   if not globalParameters["MergeFiles"]:
 
     allSources = sourceKernelNames + kernelHelperOjbNmaes
@@ -1436,6 +1458,10 @@ def TensileCreateLibrary():
 
   sanityCheck0 = set(codeObjectFiles) - set(sourceLibPaths + asmLibPaths)
   sanityCheck1 = set(sourceLibPaths + asmLibPaths) - set(codeObjectFiles)
+
+  if globalParameters["PrintCodeCommands"]:
+    print("codeObjectFiles:", codeObjectFiles);
+    print("sourceLibPaths + asmLibPaths:", sourceLibPaths + asmLibPaths);
 
   assert len(sanityCheck0) == 0, "Unexpected code object files: {}".format(sanityCheck0)
   assert len(sanityCheck1) == 0, "Missing expected code object files: {}".format(sanityCheck1)
