@@ -2140,10 +2140,11 @@ class KernelWriterAssembly(KernelWriter):
     self.localReadDoCntB   = 0
 
     if kernel["EnableMatrixInstruction"]:
-      self.miLatency = kernel["MatrixInstM"] // 2 - 2
+      self.miLatency = kernel["MatrixInstM"] // 2
+      miIssueLatency = 2
       # give 1 quad-cycle buffer to prevend bubble from sync
-      self.miLatencyBuffer = 1
-      self.miLatency -= self.miLatencyBuffer
+      miLatencyBuffer = 1
+      self.miLatencyLeft = max(self.miLatency - miLatencyBuffer - miIssueLatency,0)
 
     # pre-determine labels in order
     unrollChar = self.indexChars[ \

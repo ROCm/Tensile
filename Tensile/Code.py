@@ -320,7 +320,9 @@ class WaitCnt (Module):
     main_args = []
     wait_store = False
     if self.lgkmcnt != -1:
-      main_args += ["lgkmcnt(%u)" % self.lgkmcnt]
+      currentIsa = globalParameters["CurrentISA"]
+      maxLgkmcnt = globalParameters["AsmCaps"][currentIsa]["MaxLgkmcnt"]
+      main_args += ["lgkmcnt(%u)" % (min(self.lgkmcnt,maxLgkmcnt))]
       wait_store = True
 
     if self.vmcnt != -1:
@@ -351,8 +353,9 @@ class LocalWriteInst (Inst):
 
 # uniq type that can be used in Module.countType
 class LocalReadInst (Inst):
-  def __init__(self,issuelatency,*args):
+  def __init__(self,issuelatency,readToTempVgpr,*args):
     self.IssueLatency = issuelatency
+    self.readToTempVgpr = readToTempVgpr
     Inst.__init__(self,*args)
 
 ################################################################################
