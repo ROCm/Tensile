@@ -785,7 +785,7 @@ std::vector<ProblemParams> TestProblems()
 std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
                        std::shared_ptr<hip::SolutionAdapter>,
                        bool>>
-    TestLibraries()
+    TestLibraries_Impl()
 {
     bool debug = Debug::Instance().printKernelArguments();
 
@@ -847,13 +847,15 @@ std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
     {
         auto library = LoadLibraryFile<ContractionProblem>(envDir.file("TensileLibrary").native());
         auto adapter = std::make_shared<hip::SolutionAdapter>(debug, "TENSILE_TEST_LIBRARY");
+        auto device = std::dynamic_pointer_cast<AMDGPU>(Tensile::hip::GetCurrentDevice());
+        auto arch = device->processor;
 
-        for(auto file : envDir.glob("*.co"))
+        for(auto file : envDir.glob(concatenate("*-", arch, ".co")))
         {
             adapter->loadCodeObjectFile(file.native());
         }
 
-        for(auto file : envDir.glob("*.hsaco"))
+        for(auto file : envDir.glob(concatenate("*-", arch, ".hsaco")))
         {
             try
             {
@@ -867,6 +869,16 @@ std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
         rv.emplace_back(library, adapter, false);
     }
 
+    return rv;
+}
+
+// Prevent the libraries from being loaded twice.
+std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
+                       std::shared_ptr<hip::SolutionAdapter>,
+                       bool>>
+    TestLibraries()
+{
+    static auto rv = TestLibraries_Impl();
     return rv;
 }
 
