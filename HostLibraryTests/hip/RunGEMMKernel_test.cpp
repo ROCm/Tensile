@@ -67,6 +67,7 @@ namespace Tensile
             else
                 return stream << "(nullptr)";
         }
+
     } // namespace hip
 } // namespace Tensile
 
@@ -636,6 +637,14 @@ TEST_P(RunGEMMKernelTest, TestAlphaZero)
     auto param     = GetParam();
     auto typedTest = std::get<0>(param);
     typedTest->OverrideAlpha(0.0);
+    typedTest->TestBestSolution();
+}
+
+TEST_P(RunGEMMKernelTest, TestAlphaZeroSigned)
+{
+    auto param     = GetParam();
+    auto typedTest = std::get<0>(param);
+    typedTest->OverrideAlpha(std::copysign(0.0, -1.0));
     typedTest->TestBestSolution();
 }
 
