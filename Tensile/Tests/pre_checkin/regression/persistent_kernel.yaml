@@ -3,6 +3,7 @@ GlobalParameters:
   DataInitTypeBeta: 2 # the bug is in the non-OptNLL code path of persitent kernel
 # disable BoundsCheck for now to avoid crash
   BoundsCheck: False
+  KernelTime: True
   NewClient: 2
 
 BenchmarkProblems:
@@ -27,6 +28,7 @@ BenchmarkProblems:
           - [ 4, 4 ]
         - WorkGroup:
           - [ 8, 8, 1 ]
+          - [ 32, 32, 1 ]
         - DepthU: [8]
         - PersistentKernel: [1,2]
       BenchmarkForkParameters:
@@ -35,3 +37,4 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [ 1872, 2000, 1, 128, 2000, 2000, 2000, 2000] # make sure each WG can run at least 2 MTs
+          - Exact: [ 256, 15488, 1, 128] # make sure each WG can run at least 2 MTs

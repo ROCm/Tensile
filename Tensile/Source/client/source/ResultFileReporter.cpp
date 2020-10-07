@@ -175,9 +175,10 @@ namespace Tensile
                 }
                 else if(key.compare(ResultKey::FastestGFlops) == 0)
                 {
-                    // if new row is better, update
-                    uint64_t oldFastest = std::stoull(oldRowIter.second);
-                    uint64_t newFastest = std::stoull(newRow[key]);
+                    // if new row is better, update, dummy guard for -1 and empty str
+                    int64_t oldFastest
+                        = (oldRowIter.second.empty()) ? 0 : std::stoll(oldRowIter.second);
+                    int64_t newFastest = (newRow[key].empty()) ? 0 : std::stoll(newRow[key]);
                     if(newFastest > oldFastest)
                     {
                         oldRow[ResultKey::FastestGFlops]     = newRow[ResultKey::FastestGFlops];
@@ -196,9 +197,10 @@ namespace Tensile
                 else
                 {
                     // these are gflops for each solution
-                    // if new row is better, update
-                    uint64_t oldFastest = std::stoull(oldRowIter.second);
-                    uint64_t newFastest = std::stoull(newRow[key]);
+                    // if new row is better, update. Dummy guard for -1 and empty str
+                    int64_t oldFastest
+                        = (oldRowIter.second.empty()) ? 0 : std::stoll(oldRowIter.second);
+                    int64_t newFastest = (newRow[key].empty()) ? 0 : std::stoll(newRow[key]);
                     if(newFastest > oldFastest)
                     {
                         oldRow[key] = newRow[key];

@@ -316,8 +316,12 @@ class ProblemPredicate(Properties.Predicate):
         if "KernelLanguage" in state:
             rv += [cls("KernelLanguageCompatible", value=state["KernelLanguage"])]
 
-        if 'GlobalSplitU' in state and state['GlobalSplitU'] > 1:
-            rv += [cls("DeterministicMode", value = False)]
+        if ('GlobalSplitU' in state) and (state['GlobalSplitU'] > 1):
+            if ('_GlobalAccumulation' not in state) or (state['_GlobalAccumulation'] != 'MultipleBuffer'):
+                rv += [cls("DeterministicMode", value = False)]
+
+        if 'PersistentKernel' in state and state['PersistentKernel']:
+            rv += [cls("PersistentKernelCheck", value = True)]
 
         if ("MatrixInstruction" in state and state["MatrixInstruction"]) or \
            ("EnableMatrixInstruction" in state and state["EnableMatrixInstruction"] is True):
@@ -372,6 +376,7 @@ class SizeMapping:
                  'packBatchDims',
                  'magicDivAlg',
                  'persistentKernel',
+                 'persistentKernelAlongBatch',
                  'sourceKernel',
                  'globalAccumulation',
                  'workspaceSizePerElemC',
@@ -379,6 +384,11 @@ class SizeMapping:
 
     @classmethod
     def FromOriginalState(cls, d):
+        globalAccum = 0
+        if d['_GlobalAccumulation'] == 'SingleBuffer':
+            globalAccum = 1
+        if d['_GlobalAccumulation'] == 'MultipleBuffer':
+            globalAccum = 2
         return cls(workGroup             = d['WorkGroup'],
                    macroTile             = cls.ReadOriginalMacroTile(d),
                    threadTile            = d['ThreadTile'],
@@ -390,9 +400,10 @@ class SizeMapping:
                    packSummationDims     = d['PackSummationDims'] if 'PackSummationDims' in d else 0,
                    packBatchDims         = d['PackBatchDims'] if 'PackBatchDims' in d else 0,
                    persistentKernel      = d['PersistentKernel'] if 'PersistentKernel' in d else 0,
+                   persistentKernelAlongBatch   = d['PersistentKernelAlongBatch'] if 'PersistentKernelAlongBatch' in d else False,
                    magicDivAlg           = d.get('MagicDivAlg', 1),
                    sourceKernel          = d['KernelLanguage'] == 'Source',
-                   globalAccumulation    = d['_GlobalAccumulation'],
+                   globalAccumulation    = globalAccum,
                    workspaceSizePerElemC = d['_WorkspaceSizePerElemC'],
                    )
 
