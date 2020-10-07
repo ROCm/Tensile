@@ -2628,7 +2628,9 @@ class Solution:
     # VectorWidth default handling
     if state["VectorWidth"] < 1:
       if state["EnableMatrixInstruction"]:
-        state["VectorWidth"] = 2 if (state["ProblemType"]["DataType"].numRegisters() == 0.5) else 1
+        regPerElem = state["ProblemType"]["DataType"].numRegisters()
+        # half: regPE=0.5, vw=2 / int8: regPE=0.25, vw=4
+        state["VectorWidth"] = int(1//regPerElem) if (regPerElem < 1) else 1
       else:
         state["VectorWidth"] = int(4 / state["ProblemType"]["DataType"].numRegisters())
         while state["ThreadTile0"] % state["VectorWidth"] != 0 \
@@ -2660,6 +2662,12 @@ class Solution:
         if not state["ProblemType"]["HighPrecisionAccumulate"] and state["AssertFree0ElementMultiple"] % 2 != 0:
           # beta-on-edge has AF0EM requirement except for HPA kernels
           reject(state, "Archs with HasEccHalf require AF0EM%2==0 except for HPA kernels")
+
+    # Some restrictions for int8:
+    if state["KernelLanguage"] == "Assembly" \
+      and state["ProblemType"]["DataType"].isInt8():
+      if state["VectorWidth"] < 4:
+        reject(state, "VectorWidth must be >= 4 for Int8")
 
     #if state["KernelLanguage"] == "Assembly" and state["PackSummationDims"]:
     #    reject(state, "PackSummationDims does not yet support assembly")
@@ -2845,6 +2853,13 @@ class Solution:
         if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
           if state["GlobalLoadVectorWidthA"] == 1 or state["GlobalLoadVectorWidthB"] == 1:
             reject(state, "HalfEcc requires GLVWA > 1")
+
+      # TODO- Need this restrict ?
+      if validDepthU and state["KernelLanguage"] == "Assembly" and state["ProblemType"]["DataType"].isInt8():
+        if state["GlobalLoadVectorWidthA"] < 4:
+          reject(state, "Int8 requires GLVWA >= 4, current is %u"%state["GlobalLoadVectorWidthA"])
+        if state["GlobalLoadVectorWidthB"] < 4:
+          reject(state, "Int8 requires GLVWB >= 4, current is %u"%state["GlobalLoadVectorWidthB"])
 
 
       # Now convert elements to vectors based on GlobalReadVectorWidth

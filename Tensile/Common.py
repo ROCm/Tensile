@@ -158,6 +158,11 @@ globalParameters["CMakeCFlags"] = ""              # pass flags to cmake
 globalParameters["DebugKernel"] = False           # assembly only, kernel gets buffer for debug "printing"; kernel writes data to memory, gets coppied to host and printed
 globalParameters["LibraryPrintDebug"] = False     # solutions will print enqueue info when enqueueing a kernel
 
+# debug for assembly
+globalParameters["EnableAsserts"] = False         # Enable assembly debug assert
+globalParameters["EnableDebugA"] = False          # Enable / Disable CheckValue1A
+globalParameters["EnableDebugB"] = False          # Enable / Disable CheckValue1B
+
 # Tensor printing controls:
 globalParameters["PrintConvolutionUsage"] = 0      # Print Convolution usage info. 1=tensor fields,2=boilerplate info,4=print tensor mappings for specified ConvProblems
 globalParameters["PrintTensorA"] = 0          # Print TensorA after initialization
@@ -166,7 +171,6 @@ globalParameters["PrintTensorC"] = 0          # Print TensorC.  0x1=after init; 
 globalParameters["PrintTensorD"] = 0          # Print TensorD.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintTensorRef"] = 0          # Print reference tensor.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintIndexAssignments"] = 0      # Print the tensor index assignment info
-globalParameters["PrintTensorRef"] = 0          # Print reference tensor.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintWinnersOnly"] = False      # Only print the solutions which become the fastest
 globalParameters["PrintCodeCommands"] = False  # print the commands used to generate the code objects (asm,link,hip-clang, etc)
 
@@ -281,6 +285,7 @@ validMFMA["S"] = [[32,32,1,2], [32,32,2,1], [16,16,1,4], [16,16,4,1], [4,4,1,16]
 validMFMA["B"] = [[32,32,2,2], [32,32,4,1], [16,16,2,4], [16,16,8,1], [4,4,2,16]]
 validMFMA["4xi8"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
 validMFMA["C"] = validMFMA["S"]
+validMFMA["I8"] = validMFMA["4xi8"]
 validTT = 16
 validMFMA["_format9"] = []
 for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["4xi8"]]:
@@ -1411,6 +1416,7 @@ def GetAsmCaps(isaVersion):
 
   rv["HasDirectToLds"]  = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
   rv["HasAddLshl"]      = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
+  rv["HasLshlOr"]       = tryAssembler(isaVersion, "v_lshl_or_b32 v47, v36, 0x2, v34")
   rv["HasSMulHi"]       = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
   rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "", False, "-mllvm --amdhsa-code-object-version=2")
 

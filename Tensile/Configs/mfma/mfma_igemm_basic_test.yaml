@@ -1,0 +1,455 @@
+GlobalParameters:
+  MinimumRequiredVersion: 4.4.0
+  PrintLevel: 1
+  # ForceRedoBenchmarkProblems: True
+  # ForceRedoLibraryLogic: True
+  # ForceRedoLibraryClient: True
+  CMakeBuildType: Release
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
+  LibraryPrintDebug: False
+  NumElementsToValidate: -1
+  ValidationMaxToPrint: 4
+  ValidationPrintValids: False
+  ShortNames: False
+  MergeFiles: True
+  Platform: 0
+  Device: 0
+  KernelTime: True
+  # PinClocks: True
+  SleepPercent: 200
+  PrintSolutionRejectionReason: False
+  # EnableAsserts: True
+  # EnableDebugA: True
+  # EnableDebugB: True
+  # DataInitTypeA: 1
+  # DataInitTypeB: 1
+  # DataInitTypeC: 0
+  # DataInitTypeD: 0
+  # DataInitTypeBeta: 0
+  # DataInitTypeAlpha: 1
+  # PrintTensorA: 1
+  # PrintTensorB: 1
+  # PrintTensorC: 2
+  # PrintTensorRef: 2
+  NewClient: 2
+
+BenchmarkProblems:
+  # ########################################
+  # # NT - standard
+  # ########################################
+  # -
+  #   - # ProblemType
+  #     OperationType: GEMM
+  #     #####################################
+  #     # DataType: h
+  #     # DestDataType: h
+  #     # ComputeDataType: s
+  #     # HighPrecisionAccumulate: True
+  #     #####################################
+  #     DataType: b
+  #     DestDataType: b
+  #     ComputeDataType: s
+  #     HighPrecisionAccumulate: True
+  #     #####################################
+  #     # DataType: 4xi8
+  #     # DestDataType: I
+  #     # HighPrecisionAccumulate: True
+  #     #####################################
+  #     # DataType: I8
+  #     # DestDataType: I
+  #     # HighPrecisionAccumulate: True
+  #     #####################################
+  #     # DataType: s
+  #     #####################################
+  #     TransposeA: True
+  #     TransposeB: False
+  #     UseBeta: False
+  #     Batched: True
+
+  #   - # BenchmarkProblemSizeGroup - Standard
+  #     InitialSolutionParameters:
+  #     BenchmarkCommonParameters:
+  #       - KernelLanguage: ["Assembly"]
+  #       # - KernelLanguage: ["Source"]
+  #       - LoopTail: [False]
+  #       - EdgeType: ["None"]
+  #       - PrefetchLocalRead: [False]
+  #       - PrefetchGlobalRead: [False]
+  #       - ExpandPointerSwap: [False]
+  #       - ScheduleGlobalRead: [False]
+  #     ForkParameters:
+  #       - MatrixInstruction:
+  #         # - [32,32,1,2]
+  #         # - [32,32,4,2]
+  #         - [32,32,4,1, 1, 2,2, 1,1]  # 64x64 BF
+  #         # - [32,32,8,1, 1, 2,2, 1,1]  # 64x64
+  #         # - [32,32,8,1, 1, 2,2, 1,2]  # 64x128
+  #       - ThreadTile:
+  #         - [ 4, 4 ]
+  #       - WorkGroup:
+  #         - [ 16, 16, 1 ]
+  #       - WorkGroupMapping: [0]
+  #       - DepthU: [ 8 ]
+  #       # - VectorWidth: [4]
+  #     BenchmarkForkParameters:
+  #     BenchmarkJoinParameters:
+  #     BenchmarkFinalParameters:
+  #       - ProblemSizes:
+  #         - Range: [ [64], [64], [1], [8] ]
+  #         # - Range: [ [63], [63], [1], [31] ]
+  #         # - Range: [ [5], [5], [1], [5] ]
+
+  # #######################################
+  # -
+  #   - # ProblemType
+  #     OperationType: GEMM
+  #     #####################################
+  #     DataType: h
+  #     DestDataType: h
+  #     ComputeDataType: s
+  #     HighPrecisionAccumulate: True
+  #     #####################################
+  #     # DataType: 4xi8
+  #     # DestDataType: I
+  #     # HighPrecisionAccumulate: True
+  #     #####################################
+  #     # DataType: s
+  #     #####################################
+  #     TransposeA: False
+  #     TransposeB: True
+  #     UseBeta: True
+  #     Batched: True
+
+  #   - # BenchmarkProblemSizeGroup - Standard
+  #     InitialSolutionParameters:
+  #     BenchmarkCommonParameters:
+  #       - KernelLanguage: ["Assembly"]
+  #       # - KernelLanguage: ["Source"]
+  #       - LoopTail: [False]
+  #       - EdgeType: ["None"]
+  #       - PrefetchLocalRead: [False]
+  #       - PrefetchGlobalRead: [False]
+  #       - ExpandPointerSwap: [False]
+  #       - ScheduleGlobalRead: [False]
+  #     ForkParameters:
+  #       - MatrixInstruction:
+  #         - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
+  #         - [32,32, 8, 1, 1, 1,1, 1,1]  # 64x64
+  #         # - [32,32,8,1, 1, 2,2, 1,2]  # 64x128
+  #       - ThreadTile:
+  #         - [ 4, 4 ]
+  #       - WorkGroup:
+  #         - [ 16, 16, 1 ]
+  #       - WorkGroupMapping: [0]
+  #       - DepthU: [ 16 ]
+  #       # - DepthU: [ 8 ]
+  #       - VectorWidth: [4]
+  #     BenchmarkForkParameters:
+  #     BenchmarkJoinParameters:
+  #     BenchmarkFinalParameters:
+  #       - ProblemSizes:
+  #         - Range: [ [32], [64], [1], [16] ]
+  #         # - Range: [ [32], [32], [1], [8] ]
+  #         # - Range: [ [63], [63], [1], [31] ]
+  #         # - Range: [ [5], [5], [1], [5] ]
+
+  # ########################################
+  # -
+  #   - # ProblemType - Simplest
+  #     OperationType: GEMM
+  #     #####################################
+  #     DataType: I8
+  #     DestDataType: I
+  #     HighPrecisionAccumulate: True
+  #     #####################################
+  #     TransposeA: False
+  #     TransposeB: True
+  #     UseBeta: True
+  #     Batched: True
+
+  #   - # BenchmarkProblemSizeGroup - Standard
+  #     InitialSolutionParameters:
+  #     BenchmarkCommonParameters:
+  #       - KernelLanguage: ["Assembly"]
+  #       - LoopTail: [False]
+  #       - EdgeType: ["None"]
+  #       - PrefetchLocalRead: [False]
+  #       - PrefetchGlobalRead: [False]
+  #       - ExpandPointerSwap: [False]
+  #       - ScheduleGlobalRead: [False]
+  #     ForkParameters:
+  #       - MatrixInstruction:
+  #         # - [32,32, 8, 1, 1, 1,1, 1,1]  # 32x32
+  #       - ThreadTile:
+  #         - [ 4, 4 ]
+  #       - WorkGroup:
+  #         - [ 16, 16, 1 ]
+  #       - WorkGroupMapping: [0]
+  #       - DepthU: [ 8 ]
+  #       # - VectorWidth: [4]
+  #     BenchmarkForkParameters:
+  #     BenchmarkJoinParameters:
+  #     BenchmarkFinalParameters:
+  #       - ProblemSizes:
+  #         - Range: [ [32], [32], [1], [8] ]
+
+  ########################################
+  # All MT Combination - NT
+  ########################################
+  -
+    - # ProblemType - NT
+      OperationType: GEMM
+      #####################################
+      DataType: I8
+      DestDataType: I
+      HighPrecisionAccumulate: True
+      #####################################
+      TransposeA: False
+      TransposeB: True
+      UseBeta: False
+      Batched: True
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - LoopTail: [False]
+        - EdgeType: ["None"]
+        - PrefetchLocalRead: [False]
+        - PrefetchGlobalRead: [False]
+        - ExpandPointerSwap: [False]
+        - ScheduleGlobalRead: [False]
+      ForkParameters:
+        - MatrixInstruction:
+          - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
+          - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
+          - [ 4, 4, 4,16, 2, 2,2, 1,1]  # 16x64
+          - [ 4, 4, 4,16, 2, 2,2, 2,2]  # 32x128
+
+          - [16,16, 4, 4, 1, 1,1, 1,1]  # 16x64
+          - [16,16, 4, 4, 1, 1,1, 2,2]  # 32x128
+          - [16,16, 4, 4, 1, 2,2, 1,1]  # 32x128
+          - [16,16, 4, 4, 1, 2,2, 2,2]  # 64x256
+
+          - [16,16,16, 1, 1, 1,1, 1,1]  # 16x16
+          - [16,16,16, 1, 1, 1,1, 2,2]  # 32x32
+          - [16,16,16, 1, 1, 2,2, 1,1]  # 32x32
+          - [16,16,16, 1, 1, 2,2, 2,2]  # 64x64
+
+          - [32,32, 4, 2, 1, 1,1, 1,1]  # 32x64
+          - [32,32, 4, 2, 1, 1,1, 2,2]  # 64x128
+          - [32,32, 4, 2, 1, 2,2, 1,1]  # 64x128
+          - [32,32, 4, 2, 1, 2,2, 2,2]  # 128x256
+
+          - [32,32, 8, 1, 1, 1,1, 1,1]  # 32x32
+          - [32,32, 8, 1, 1, 1,1, 2,2]  # 64x64
+          - [32,32, 8, 1, 1, 2,2, 1,1]  # 64x64
+          - [32,32, 8, 1, 1, 2,2, 2,2]  # 128x128
+        - ThreadTile:
+          - [ 4, 4 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+        - WorkGroupMapping: [0]
+        - DepthU: [ 16,32,64 ]
+        # - VectorWidth: [4]
+      BenchmarkForkParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [128], [256], [1], [64] ]
+
+  ########################################
+  # All MT Combination - NN
+  ########################################
+  -
+    - # ProblemType - NN
+      OperationType: GEMM
+      #####################################
+      DataType: I8
+      DestDataType: I
+      HighPrecisionAccumulate: True
+      #####################################
+      TransposeA: False
+      TransposeB: False
+      UseBeta: False
+      Batched: True
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - LoopTail: [False]
+        - EdgeType: ["None"]
+        - PrefetchLocalRead: [False]
+        - PrefetchGlobalRead: [False]
+        - ExpandPointerSwap: [False]
+        - ScheduleGlobalRead: [False]
+      ForkParameters:
+        - MatrixInstruction:
+          - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
+          - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
+          - [ 4, 4, 4,16, 2, 2,2, 1,1]  # 16x64
+          - [ 4, 4, 4,16, 2, 2,2, 2,2]  # 32x128
+
+          - [16,16, 4, 4, 1, 1,1, 1,1]  # 16x64
+          - [16,16, 4, 4, 1, 1,1, 2,2]  # 32x128
+          - [16,16, 4, 4, 1, 2,2, 1,1]  # 32x128
+          - [16,16, 4, 4, 1, 2,2, 2,2]  # 64x256
+
+          - [16,16,16, 1, 1, 1,1, 1,1]  # 16x16
+          - [16,16,16, 1, 1, 1,1, 2,2]  # 32x32
+          - [16,16,16, 1, 1, 2,2, 1,1]  # 32x32
+          - [16,16,16, 1, 1, 2,2, 2,2]  # 64x64
+
+          - [32,32, 4, 2, 1, 1,1, 1,1]  # 32x64
+          - [32,32, 4, 2, 1, 1,1, 2,2]  # 64x128
+          - [32,32, 4, 2, 1, 2,2, 1,1]  # 64x128
+          - [32,32, 4, 2, 1, 2,2, 2,2]  # 128x256
+
+          - [32,32, 8, 1, 1, 1,1, 1,1]  # 32x32
+          - [32,32, 8, 1, 1, 1,1, 2,2]  # 64x64
+          - [32,32, 8, 1, 1, 2,2, 1,1]  # 64x64
+          - [32,32, 8, 1, 1, 2,2, 2,2]  # 128x128
+        - ThreadTile:
+          - [ 4, 4 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+        - WorkGroupMapping: [0]
+        - DepthU: [ 16,32,64 ]
+        # - VectorWidth: [4]
+      BenchmarkForkParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [128], [256], [1], [64] ]
+
+  ########################################
+  # All MT Combination
+  ########################################
+  -
+    - # ProblemType - TN
+      OperationType: GEMM
+      #####################################
+      DataType: I8
+      DestDataType: I
+      HighPrecisionAccumulate: True
+      #####################################
+      TransposeA: True
+      TransposeB: False
+      UseBeta: False
+      Batched: True
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - LoopTail: [False]
+        - EdgeType: ["None"]
+        - PrefetchLocalRead: [False]
+        - PrefetchGlobalRead: [False]
+        - ExpandPointerSwap: [False]
+        - ScheduleGlobalRead: [False]
+      ForkParameters:
+        - MatrixInstruction:
+          - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
+          - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
+          - [ 4, 4, 4,16, 2, 2,2, 1,1]  # 16x64
+          - [ 4, 4, 4,16, 2, 2,2, 2,2]  # 32x128
+
+          - [16,16, 4, 4, 1, 1,1, 1,1]  # 16x64
+          - [16,16, 4, 4, 1, 1,1, 2,2]  # 32x128
+          - [16,16, 4, 4, 1, 2,2, 1,1]  # 32x128
+          - [16,16, 4, 4, 1, 2,2, 2,2]  # 64x256
+
+          - [16,16,16, 1, 1, 1,1, 1,1]  # 16x16
+          - [16,16,16, 1, 1, 1,1, 2,2]  # 32x32
+          - [16,16,16, 1, 1, 2,2, 1,1]  # 32x32
+          - [16,16,16, 1, 1, 2,2, 2,2]  # 64x64
+
+          - [32,32, 4, 2, 1, 1,1, 1,1]  # 32x64
+          - [32,32, 4, 2, 1, 1,1, 2,2]  # 64x128
+          - [32,32, 4, 2, 1, 2,2, 1,1]  # 64x128
+          - [32,32, 4, 2, 1, 2,2, 2,2]  # 128x256
+
+          - [32,32, 8, 1, 1, 1,1, 1,1]  # 32x32
+          - [32,32, 8, 1, 1, 1,1, 2,2]  # 64x64
+          - [32,32, 8, 1, 1, 2,2, 1,1]  # 64x64
+          - [32,32, 8, 1, 1, 2,2, 2,2]  # 128x128
+        - ThreadTile:
+          - [ 4, 4 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+        - WorkGroupMapping: [0]
+        - DepthU: [ 16,32,64 ]
+        # - VectorWidth: [4]
+      BenchmarkForkParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [128], [256], [1], [64] ]
+
+  ########################################
+  # All MT Combination
+  ########################################
+  -
+    - # ProblemType - TT
+      OperationType: GEMM
+      #####################################
+      DataType: I8
+      DestDataType: I
+      HighPrecisionAccumulate: True
+      #####################################
+      TransposeA: True
+      TransposeB: True
+      UseBeta: False
+      Batched: True
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - LoopTail: [False]
+        - EdgeType: ["None"]
+        - PrefetchLocalRead: [False]
+        - PrefetchGlobalRead: [False]
+        - ExpandPointerSwap: [False]
+        - ScheduleGlobalRead: [False]
+      ForkParameters:
+        - MatrixInstruction:
+          - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
+          - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
+          - [ 4, 4, 4,16, 2, 2,2, 1,1]  # 16x64
+          - [ 4, 4, 4,16, 2, 2,2, 2,2]  # 32x128
+
+          - [16,16, 4, 4, 1, 1,1, 1,1]  # 16x64
+          - [16,16, 4, 4, 1, 1,1, 2,2]  # 32x128
+          - [16,16, 4, 4, 1, 2,2, 1,1]  # 32x128
+          - [16,16, 4, 4, 1, 2,2, 2,2]  # 64x256
+
+          - [16,16,16, 1, 1, 1,1, 1,1]  # 16x16
+          - [16,16,16, 1, 1, 1,1, 2,2]  # 32x32
+          - [16,16,16, 1, 1, 2,2, 1,1]  # 32x32
+          - [16,16,16, 1, 1, 2,2, 2,2]  # 64x64
+
+          - [32,32, 4, 2, 1, 1,1, 1,1]  # 32x64
+          - [32,32, 4, 2, 1, 1,1, 2,2]  # 64x128
+          - [32,32, 4, 2, 1, 2,2, 1,1]  # 64x128
+          - [32,32, 4, 2, 1, 2,2, 2,2]  # 128x256
+
+          - [32,32, 8, 1, 1, 1,1, 1,1]  # 32x32
+          - [32,32, 8, 1, 1, 1,1, 2,2]  # 64x64
+          - [32,32, 8, 1, 1, 2,2, 1,1]  # 64x64
+          - [32,32, 8, 1, 1, 2,2, 2,2]  # 128x128
+        - ThreadTile:
+          - [ 4, 4 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+        - WorkGroupMapping: [0]
+        - DepthU: [ 16,32,64 ]
+        # - VectorWidth: [4]
+      BenchmarkForkParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [128], [256], [1], [64] ]

@@ -68,7 +68,7 @@ def ProcessingPool(enable=True):
 
   return multiprocessing.Pool(threadCount)
 
-def ParallelMap(function, objects, message="", enable=True, method=None):
+def ParallelMap(function, objects, message="", enable=False, method=None):
   """
   Generally equivalent to list(map(function, objects)), possibly executing in parallel.
 
