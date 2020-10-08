@@ -850,14 +850,12 @@ std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
         auto device = std::dynamic_pointer_cast<AMDGPU>(Tensile::hip::GetCurrentDevice());
         auto arch = device->processor;
 
-        //for(auto file : envDir.glob(concatenate("*-", arch, ".co")))
-        for(auto file : envDir.glob(concatenate("*.co")))
+        for(auto file : envDir.glob(concatenate("*-", arch, ".co")))
         {
             adapter->loadCodeObjectFile(file.native());
         }
 
-        //for(auto file : envDir.glob(concatenate("*-", arch, ".hsaco")))
-        for(auto file : envDir.glob(concatenate("*.hsaco")))
+        for(auto file : envDir.glob(concatenate("*-", arch, ".hsaco")))
         {
             try
             {
