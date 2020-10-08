@@ -191,80 +191,92 @@ namespace Tensile
 
                 Accumulator value(0);
 
-                for(size_t boundNum = 0; boundNum < boundCount; boundNum++)
+                // Check short-circuit for alpha = 0
+                if(inputs.alpha != static_cast<typename Inputs::AlphaType>(0))
                 {
-                    std::vector<int64_t> bound(problem.boundIndices().size());
-                    CoordNumbered(boundNum,
-                                  bound.begin() + 1,
-                                  bound.end(),
-                                  boundSize.begin() + 1,
-                                  boundSize.end());
-                    bool aInZeroPad = false;
-                    bool bInZeroPad = false;
-
-                    for(int i = 1; i < bound.size(); i++)
+                    if(inputs.a == nullptr || inputs.b == nullptr)
                     {
-                        auto const& zpA           = problem.boundIndices()[i].aZeroPad;
-                        auto const& zpB           = problem.boundIndices()[i].bZeroPad;
-                        aCoord[boundIndices[i].a] = bound[i];
-                        bCoord[boundIndices[i].b] = bound[i];
-
-                        if(zpA.valid()
-                           && inZeroPad(problem,
-                                        zpA,
-                                        a,
-                                        aCoord,
-                                        bound.at(problem.toBoundsPos(zpA.boundIndex))))
-                            aInZeroPad = true;
-                        if(zpB.valid()
-                           && inZeroPad(problem,
-                                        zpB,
-                                        b,
-                                        bCoord,
-                                        bound.at(problem.toBoundsPos(zpB.boundIndex))))
-                            bInZeroPad = true;
+                        std::string matrixID = inputs.a == nullptr ? "A" : "B";
+                        std::string msg      = std::string("Unsupported nullptr for ") + matrixID
+                                          + std::string(" when Alpha !=0\n");
+                        throw std::runtime_error(msg.c_str());
                     }
 
-                    size_t aIndex = a.index(aCoord);
-                    size_t bIndex = b.index(bCoord);
-                    for(int i = 1; i < bound.size(); i++)
+                    for(size_t boundNum = 0; boundNum < boundCount; boundNum++)
                     {
-                        auto const& zpA = problem.boundIndices()[i].aZeroPad;
-                        auto const& zpB = problem.boundIndices()[i].bZeroPad;
+                        std::vector<int64_t> bound(problem.boundIndices().size());
+                        CoordNumbered(boundNum,
+                                      bound.begin() + 1,
+                                      bound.end(),
+                                      boundSize.begin() + 1,
+                                      boundSize.end());
+                        bool aInZeroPad = false;
+                        bool bInZeroPad = false;
 
-                        aIndex -= zpA.padStart;
-                        bIndex -= zpB.padStart;
-                    }
-
-                    auto aStride = problem.a().strides()[boundIndices[0].a];
-                    auto bStride = problem.b().strides()[boundIndices[0].b];
-
-                    // innermost bound calculation:
-                    for(size_t i = 0; i < boundSize[0]; i++)
-                    {
-                        auto const& zpA = problem.boundIndices()[0].aZeroPad;
-                        auto const& zpB = problem.boundIndices()[0].bZeroPad;
-
-                        typename Inputs::AType aVal(0);
-                        typename Inputs::BType bVal(0);
-                        if(!aInZeroPad && !inZeroPad(problem, zpA, a, aCoord, i))
-                            aVal = Transform<typename Inputs::AType>::Input(
-                                inputs.a[aIndex + (i * aStride) - zpA.padStart], aConjugate);
-                        if(!bInZeroPad && !inZeroPad(problem, zpB, b, bCoord, i))
-                            bVal = Transform<typename Inputs::BType>::Input(
-                                inputs.b[bIndex + (i * bStride) - zpB.padStart], bConjugate);
-
-                        value += static_cast<Accumulator>(aVal * bVal);
-
-                        if(0)
+                        for(int i = 1; i < bound.size(); i++)
                         {
-                            std::cout << " bound=" << bound[0] << "," << bound[1]
-                                      << " dNum=" << dNum << " value=" << value
-                                      << " aInZeroPad=" << aInZeroPad << " aindex=" << aIndex
-                                      << " +offset="
-                                      << (int64_t)(i * aStride) - zpA.padStart
-                                      //<< " aVal=" << aVal // disable int8
-                                      << "\n";
+                            auto const& zpA           = problem.boundIndices()[i].aZeroPad;
+                            auto const& zpB           = problem.boundIndices()[i].bZeroPad;
+                            aCoord[boundIndices[i].a] = bound[i];
+                            bCoord[boundIndices[i].b] = bound[i];
+
+                            if(zpA.valid()
+                               && inZeroPad(problem,
+                                            zpA,
+                                            a,
+                                            aCoord,
+                                            bound.at(problem.toBoundsPos(zpA.boundIndex))))
+                                aInZeroPad = true;
+                            if(zpB.valid()
+                               && inZeroPad(problem,
+                                            zpB,
+                                            b,
+                                            bCoord,
+                                            bound.at(problem.toBoundsPos(zpB.boundIndex))))
+                                bInZeroPad = true;
+                        }
+
+                        size_t aIndex = a.index(aCoord);
+                        size_t bIndex = b.index(bCoord);
+                        for(int i = 1; i < bound.size(); i++)
+                        {
+                            auto const& zpA = problem.boundIndices()[i].aZeroPad;
+                            auto const& zpB = problem.boundIndices()[i].bZeroPad;
+
+                            aIndex -= zpA.padStart;
+                            bIndex -= zpB.padStart;
+                        }
+
+                        auto aStride = problem.a().strides()[boundIndices[0].a];
+                        auto bStride = problem.b().strides()[boundIndices[0].b];
+
+                        // innermost bound calculation:
+                        for(size_t i = 0; i < boundSize[0]; i++)
+                        {
+                            auto const& zpA = problem.boundIndices()[0].aZeroPad;
+                            auto const& zpB = problem.boundIndices()[0].bZeroPad;
+
+                            typename Inputs::AType aVal(0);
+                            typename Inputs::BType bVal(0);
+                            if(!aInZeroPad && !inZeroPad(problem, zpA, a, aCoord, i))
+                                aVal = Transform<typename Inputs::AType>::Input(
+                                    inputs.a[aIndex + (i * aStride) - zpA.padStart], aConjugate);
+                            if(!bInZeroPad && !inZeroPad(problem, zpB, b, bCoord, i))
+                                bVal = Transform<typename Inputs::BType>::Input(
+                                    inputs.b[bIndex + (i * bStride) - zpB.padStart], bConjugate);
+
+                            value += static_cast<Accumulator>(aVal * bVal);
+
+                            if(0)
+                            {
+                                std::cout << " bound=" << bound[0] << "," << bound[1]
+                                          << " dNum=" << dNum << " value=" << value
+                                          << " aInZeroPad=" << aInZeroPad << " aindex=" << aIndex
+                                          << " +offset="
+                                          << (int64_t)(i * aStride) - zpA.padStart
+                                          //<< " aVal=" << aVal // disable int8
+                                          << "\n";
+                            }
                         }
                     }
                 }
@@ -289,7 +301,7 @@ namespace Tensile
 
             auto alphaType = problem.a().dataType() == DataType::BFloat16 ? DataType::Float
                                                                           : problem.d().dataType();
-            auto betaType = alphaType;
+            auto betaType  = alphaType;
 
             auto contractionInputsTypeId = ContractionInputs::TypeId(problem.a().dataType(),
                                                                      problem.b().dataType(),

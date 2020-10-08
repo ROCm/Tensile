@@ -432,8 +432,9 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     if kernelHeaderFile:
       kernelHeaderFile.close()
 
-  codeObjectFiles += buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath)
-  codeObjectFiles += getAssemblyCodeObjectFiles(kernelsToBuild, kernelWriterAssembly, outputPath)
+  if not globalParameters["GenerateSourcesAndExit"]:
+    codeObjectFiles += buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath)
+    codeObjectFiles += getAssemblyCodeObjectFiles(kernelsToBuild, kernelWriterAssembly, outputPath)
 
   stop = time.time()
   print("# Kernel Building elapsed time = %.1f secs" % (stop-start))
@@ -1216,7 +1217,8 @@ def generateKernelObjectsFromSolutions(solutions):
 ################################################################################
 def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, cxxCompiler):
 
-  copyStaticFiles(libraryWorkingPath)
+  if not globalParameters["GenerateSourcesAndExit"]:
+      copyStaticFiles(libraryWorkingPath)
 
   kernels, kernelsBetaOnly, _ = generateKernelObjectsFromSolutions(solutions)
   solutionWriter, kernelWriterSource, kernelWriterAssembly, \
@@ -1300,6 +1302,12 @@ def TensileCreateLibrary():
                           default=False, help="Output manifest file with list of expected library objects and exit.")
   argParser.add_argument("--library-format", dest="LibraryFormat", choices=["yaml", "msgpack"], \
       action="store", default="msgpack", help="select which library format to use")
+  argParser.add_argument("--generate-sources-and-exit",   dest="GenerateSourcesAndExit", action="store_true",
+                          default=False, help="Output source files only and exit.")
+  argParser.add_argument("--jobs", "-j", dest="CpuThreads", type=int,
+                          default=-1, help="Number of parallel jobs to launch.")
+  argParser.add_argument("--verbose", "-v", dest="PrintLevel", type=int,
+                          default=-1, help="Set printout verbosity level.")
   args = argParser.parse_args()
 
   logicPath = args.LogicPath
@@ -1329,6 +1337,14 @@ def TensileCreateLibrary():
 
   # Output manifest only applies to the new client
   arguments["GenerateManifestAndExit"] = args.new_client_only and args.GenerateManifestAndExit
+
+  arguments["GenerateSourcesAndExit"] = args.GenerateSourcesAndExit
+  if arguments["GenerateSourcesAndExit"]:
+    # Generated sources are preserved and go into output dir
+    arguments["WorkingPath"] = outputPath
+
+  arguments["CpuThreads"] = args.CpuThreads
+  arguments["PrintLevel"] = args.PrintLevel
 
   assignGlobalParameters(arguments)
 
@@ -1443,7 +1459,8 @@ def TensileCreateLibrary():
     return
 
   # generate cmake for the source kernels
-  writeCMake(outputPath, solutionFiles, sourceKernelFiles, staticFiles)
+  if not arguments["GenerateSourcesAndExit"]:
+    writeCMake(outputPath, solutionFiles, sourceKernelFiles, staticFiles)
 
   # Make sure to copy the library static files.
   for fileName in staticFiles:
@@ -1464,7 +1481,8 @@ def TensileCreateLibrary():
     print("sourceLibPaths + asmLibPaths:", sourceLibPaths + asmLibPaths);
 
   assert len(sanityCheck0) == 0, "Unexpected code object files: {}".format(sanityCheck0)
-  assert len(sanityCheck1) == 0, "Missing expected code object files: {}".format(sanityCheck1)
+  if not globalParameters["GenerateSourcesAndExit"]:
+    assert len(sanityCheck1) == 0, "Missing expected code object files: {}".format(sanityCheck1)
 
   if globalParameters["LegacyComponents"]:
     # write logic
