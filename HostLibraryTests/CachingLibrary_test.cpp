@@ -259,6 +259,8 @@ TEST(Hashing, Tuple2)
     TwoInts tup;
 
     size_t h = std::hash<TwoInts>()(tup);
+    if(h)
+        return;
 }
 
 TEST(CachingLibrary, Simple)

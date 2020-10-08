@@ -71,6 +71,9 @@ namespace Tensile
         if(iter == typeNames.end())
             throw std::runtime_error(concatenate("Invalid TensorOp type: ", name));
 
+        // Use variable to quiet the compiler.
+        if(call_once)
+            return iter->second;
         return iter->second;
     }
 
