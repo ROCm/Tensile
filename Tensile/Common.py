@@ -45,6 +45,7 @@ ParallelMap = Parallel.ParallelMap
 # Global Parameters
 ################################################################################
 globalParameters = OrderedDict()
+workingDirectoryStack = []
 
 ########################################
 # common
@@ -86,6 +87,7 @@ globalParameters["ShowProgressBar"] = True     # if False and library client alr
 globalParameters["SolutionSelectionAlg"] = 1          # algorithm to detetermine which solutions to keep. 0=removeLeastImportantSolutions, 1=keepWinnerSolutions (faster)
 globalParameters["ExpandRanges"] = True          # expand ranges into exact configs before writing logic file.  False ignores ranges.
 globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kernels
+globalParameters["GenerateSourcesAndExit"] = False # Exit after kernel source generation.
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["ExitOnFails"] = 1     # Exit if failures detected.
@@ -346,6 +348,11 @@ validParameters = {
     # Split the unroll summation into multiple sections and combine the sections
     # GSU applies only to the unroll summation dimension
     "GlobalSplitU":               list(range(1, 1024+1)),
+
+    # choose how to do GlobalSplitU
+    # 1: use atomic operation to accumlate on one buffer
+    # 2: each GSU group write to each own buffer and accumulate by another kernel
+    "GlobalSplitUAlgorithm":      ["SingleBuffer", "MultipleBuffer"],
 
     # When splitting up the summation between workgroups, there are two options for organizing which workgroup will do what
     # If we begin with N workgroups and set GSU=4, there will now be 4N workgroups
@@ -749,6 +756,12 @@ validParameters = {
     # Assertions/Requirements: NumWorkGroups0 * NumWorkGroups1 < 2^32
     "PersistentKernel":           range(0,512+1) ,       # Use persistent kernel.
 
+    # True:  Batch dimension (WG.z) is also considered in persistent kernel
+    # False: Not considered
+    #        for problems with large batch-size, PKAB = True could help
+    #        for problems with only one batch, PKAB = True/False should make no difference
+    "PersistentKernelAlongBatch": [False,True],
+
     # Allow macro-tile to span batch dimensions and thus a single workgroup can work across batch dimensions.
     # This can improve utilization, in particular if macro-tile is larger than the lower dimensions.
     # The byte address of the last element in the packed array must fit in 2^32.
@@ -985,11 +998,13 @@ defaultBenchmarkCommonParameters = [
     {"StaggerUMapping":           [ 0 ] },    # recommend [0,1]
     {"MagicDivAlg":               [ 2 ] },
     {"GlobalSplitU":              [ 1 ] },
+    {"GlobalSplitUAlgorithm":     [ "MultipleBuffer" ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },
     {"MacroTileShapeMin":         [ 1 ] },
     {"MacroTileShapeMax":         [ 64 ] },
     {"PersistentKernel":          [ 0 ] },
+    {"PersistentKernelAlongBatch":[ False ] },    # May be default True is better ?
     {"PackBatchDims":             [ 0 ] },
     {"PackFreeDims":              [ 1 ] },
     {"PackSummationDims":         [ 0 ] },
@@ -1641,14 +1656,22 @@ def pushWorkingPath( foldername ):
   return ensurePath( globalParameters["WorkingPath"] )
 def popWorkingPath():
   # Warning: this is not thread-safe, modifies the global WorkingPath!
-  globalParameters["WorkingPath"] = \
+  if len(workingDirectoryStack) == 0:
+    globalParameters["WorkingPath"] = \
       os.path.split(globalParameters["WorkingPath"])[0]
+  else:
+    globalParameters["WorkingPath"] = workingDirectoryStack.pop()
 def ensurePath( path ):
   try:
     os.makedirs(path)
   except OSError:
     pass
   return path
+def setWorkingPath( fullPathName ):
+  # Warning: this is not thread-safe, modifies the global WorkingPath!
+  workingDirectoryStack.append(globalParameters["WorkingPath"])
+  globalParameters["WorkingPath"] = ensurePath(fullPathName)
+
 
 def roundUp(f):
   return (int)(math.ceil(f))
