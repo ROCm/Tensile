@@ -301,7 +301,7 @@ namespace Tensile
 
             auto alphaType = problem.a().dataType() == DataType::BFloat16 ? DataType::Float
                                                                           : problem.d().dataType();
-            auto betaType = alphaType;
+            auto betaType  = alphaType;
 
             auto contractionInputsTypeId = ContractionInputs::TypeId(problem.a().dataType(),
                                                                      problem.b().dataType(),

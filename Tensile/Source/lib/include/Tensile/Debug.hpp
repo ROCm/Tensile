@@ -63,10 +63,13 @@ namespace Tensile
 
         bool naivePropertySearch() const;
 
+        bool skipKernelLaunch() const;
+
     private:
         friend LazySingleton<Debug>;
 
         int  m_value;
+        int  m_value2;
         bool m_naivePropertySearch = false;
 
         Debug();

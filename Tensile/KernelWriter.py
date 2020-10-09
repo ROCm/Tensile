@@ -3355,18 +3355,23 @@ for codeObjectFileName in codeObjectFileNames:
 
     try:
       if kernel["KernelLanguage"] == "Assembly":
-        self.writeByteArrayScript()
-
         asmPath = self.getAssemblyDirectory()
-        coFile = self.getSingleCodeObjectFile(kernel)
         kernelName = self.getKernelName(kernel)
 
-        if globalParameters["CodeFromFiles"] or globalParameters["NewClient"] > 1:
-          # I guess in this case we are making sure that the code object file exists by executing the code
-          # above but we aren't placing it into the source.
+        if globalParameters["GenerateSourcesAndExit"]:
+          # only create the assembly file.
+          self.getKernelObjectAssemblyFile(kernel)
           return (0, "")
+        else:
+          self.writeByteArrayScript()
+          coFile = self.getSingleCodeObjectFile(kernel)
 
-        return (0, self.getFileCobaDefinition(kernelName, os.path.join(asmPath, coFile)))
+          if globalParameters["CodeFromFiles"] or globalParameters["NewClient"] > 1:
+            # I guess in this case we are making sure that the code object file exists by executing the code
+            # above but we aren't placing it into the source.
+            return (0, "")
+
+          return (0, self.getFileCobaDefinition(kernelName, os.path.join(asmPath, coFile)))
 
       else:
         return (0, self.getKernelSource(kernel))
