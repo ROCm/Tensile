@@ -112,7 +112,6 @@ while true; do
     -b | --branch  )        TENSILE_BRANCH="$2"; shift 2;;
     -c | --commit )         COMMIT="$2"; shift 2;;
     -o | --output )         OUTPUT_FILE="$2"; shift 2;;
-    -y | --type )           CONFIGURATION_TYPE="$2"; shift 2;;
     -l | --library )        LIBRARY="$2"; shift 2;;
     -a | --tile-aware )     TILE_AWARE=true; shift;;
     -m | --mfma )           MFMA=true; shift;;
@@ -149,11 +148,6 @@ if [ -z ${OUTPUT_FILE+foo} ]; then
 fi
 if [ -z ${LIBRARY+foo} ]; then
    printf "Need specify a target platform for tuning\n"
-   exit 2
-fi
-
-if [ -z ${CONFIGURATION_TYPE+foo} ]; then
-   printf "Need specify a configuration type\n"
    exit 2
 fi
 

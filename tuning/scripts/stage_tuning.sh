@@ -18,9 +18,11 @@ make_tensile_tuning () {
     cp $FILEPATH $WORKINGPATH
     pushd ${WORKINGPATH} > /dev/null
     echo "#!/bin/sh" > doit.sh
-    echo "touch time.begin" >> doit.sh
-    echo "../Tensile/bin/Tensile $FILENAME ./ > make.out 2>&1" >> doit.sh
-    echo "touch time.end" >> doit.sh
+    echo "if [ ! -d 3_LibraryLogic ] || [ \$(ls -A 3_LibraryLogic | wc -c) -eq 0 ]; then" >> doit.sh
+    echo "  touch time.begin" >> doit.sh
+    echo "  ../Tensile/bin/Tensile $FILENAME ./ > make.out 2>&1" >> doit.sh
+    echo "  touch time.end" >> doit.sh
+    echo "fi" >> doit.sh
 
     chmod +x doit.sh
     popd > /dev/null
@@ -72,9 +74,11 @@ done
 
 echo "for dir in$DIRS" >> $DOIT
 echo "do" >> $DOIT
+#echo "  if [ ! -d build-${dir}/3_LibraryLogic ] || [ \$(ls -A build-\${dir}/3_LibraryLogic | wc -c) -eq 0 ]; then" >> $DOIT
 echo "  cd build-\${dir}" >> $DOIT
 echo "  ./doit.sh > doit-errs 2>&1" >> $DOIT
 echo "  cd .." >> $DOIT
+#echo "  fi" >> $DOIT
 echo "done" >> $DOIT
 
 chmod +x $DOIT
