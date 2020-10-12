@@ -824,15 +824,6 @@ class ProblemType(collections.abc.Mapping):
           printExit("NO compute data type, or dest data type, or data type specified")
           self["DataType"] = DataType(0)
 
-    if self["OperationType"] == "GEMM" and self["DataType"].isInt8():
-      if not self["DestDataType"].isInt32() or not self["ComputeDataType"].isInt32():
-        printExit("For DataType=Int8, DestDataType can only be Int32, and ComputeDataType=Int32")
-
-    # Ethan: TODO - WIP, could be removed
-    if self["OperationType"] == "GEMM" and self["DataType"].isInt8x4():
-      if not self["DestDataType"].isInt32() or not self["ComputeDataType"].isInt32():
-        printExit("For DataType=Int8x4, DestDataType can only be Int32, and ComputeDataType=Int32")
-
     self.convolution = None
     if self["OperationType"] == "GEMM":
       self.checkIfSupportedGEMMType()
@@ -975,10 +966,9 @@ class ProblemType(collections.abc.Mapping):
       if not (outType.isInt32() and computeType.isInt32()):
         printExit("DataType=i4x8 only allows DestDataType=I and ComputeDataType=I")
 
-    # TODO - WIP
-    # if inType.isInt8():
-    #   if not (outType.isInt32() and computeType.isInt32()):
-    #     printExit("DataType=i8 only allows DestDataType=I and ComputeDataType=I")
+    if inType.isInt8():
+      if not (outType.isInt32() and computeType.isInt32()):
+        printExit("DataType=i8 only allows DestDataType=I and ComputeDataType=I")
 
 
   ########################################
