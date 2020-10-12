@@ -35,15 +35,19 @@ namespace Tensile
 {
     namespace Client
     {
-        ProgressListener::ProgressListener() {}
+        ProgressListener::ProgressListener(po::variables_map const& args)
+            : m_runOnce(args["selection-only"].as<bool>())
+        {
+        }
 
         bool ProgressListener::needMoreBenchmarkRuns() const
         {
-            return false;
+            return m_runOnce;
         }
 
         void ProgressListener::preBenchmarkRun()
         {
+            m_runOnce = false;
             m_reporter->report(ResultKey::BenchmarkRunNumber, m_benchmarkRun);
         }
 
