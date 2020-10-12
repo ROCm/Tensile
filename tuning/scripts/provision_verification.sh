@@ -127,13 +127,15 @@ REFERENCE_NAME=${ROCBLAS_ROOT}/rocBLAS-reference
 REFERENCE_LIBRARY_ASM=${REFERENCE_NAME}/library/src/blas3/Tensile/Logic/asm_full
 REFERENCE_LIBRARY_ARCHIVE=${REFERENCE_NAME}/library/src/blas3/Tensile/Logic/archive
 
-for PATH_NAME in $LOGIC_FILE_PATHS; do
+if [[ $(ls -A ${EXACT_PATH} | wc -c) -eq 0 ]]; then
+  for PATH_NAME in $LOGIC_FILE_PATHS; do
     cp ${PATH_NAME}/* ${EXACT_PATH}
-done
+  done
 
-cp ${REFERENCE_LIBRARY_ASM}/* ${ASM_PATH}
-cp ${REFERENCE_LIBRARY_ARCHIVE}/* ${ARCHIVE_PATH}
-cp ${ARCHIVE_PATH}/*yaml ${ASM_PATH}
+  cp ${REFERENCE_LIBRARY_ASM}/* ${ASM_PATH}
+  cp ${REFERENCE_LIBRARY_ARCHIVE}/* ${ARCHIVE_PATH}
+  cp ${ARCHIVE_PATH}/*yaml ${ASM_PATH}
+fi
 
 MERGE_SCRIPT=${TENSILE_PATH}/Tensile/Utilities/merge.py
 MASSAGE_SCRIPT=${REFERENCE_LIBRARY_ARCHIVE}/massage.py
@@ -156,6 +158,7 @@ if [[ ${MERGE} == true ]]; then
   fi
 
   if [[ $(ls -A ${MERGE_PATH} | wc -c) -eq 0 ]]; then
+    echo "merging exact logic"
     EXE_MERGE="python ${MERGE_SCRIPT} ${ASM_PATH} ${EXACT_PATH} ${MERGE_PATH}"
     ${EXE_MERGE} 2>&1 | tee ${LOGS}/log-merge-script
     #python ${MASSAGE_SCRIPT} ${MERGE_PATH} ${MASSAGE_PATH} 2>&1 | tee logs/log-merge-script
@@ -183,12 +186,11 @@ if [ ! -f ${ROCBLAS_BENCH_PATH} ]; then
     popd > /dev/null
 fi
 
-#TENSILE_CREATE_LIBRARY="${TENSILE_PATH}/Tensile/bin/TensileCreateLibrary --merge-files --no-legacy-components --no-short-file-names --no-library-print-debug --code-object-version=V2 --cxx-compiler=hipcc ${MERGE_PATH} ${TENSILE_LIBRARY_PATH} HIP"
-
-
-if [ ! -d ${TENSILE_LIBRARY_PATH} ]; then
-    CREATE_LIBRARY_EXE=${REFERENCE_NAME}/build/release/virtualenv/lib/python3.6/site-packages/Tensile/bin/TensileCreateLibrary
-    TENSILE_CREATE_LIBRARY="${CREATE_LIBRARY_EXE} --merge-files --no-legacy-components --no-short-file-names --no-library-print-debug --code-object-version=V3 --cxx-compiler=hipcc --library-format=msgpack ${MERGE_PATH} ${TENSILE_LIBRARY_PATH} HIP"
-
-    ${TENSILE_CREATE_LIBRARY}
+CREATE_LIBRARY_EXE=${REFERENCE_NAME}/build/release/virtualenv/lib/python3.6/site-packages/Tensile/bin/TensileCreateLibrary
+           #rocblas/rocBLAS-reference/build/release/virtualenv/lib/python3.6/site-packages/Tensile/bin/TensileCreateLibrary
+TENSILE_CREATE_LIBRARY="${CREATE_LIBRARY_EXE} --merge-files --no-legacy-components --no-short-file-names --no-library-print-debug --code-object-version=V3 --cxx-compiler=hipcc --library-format=msgpack ${MERGE_PATH} ${TENSILE_LIBRARY_PATH} HIP"
+if [ -f ${CREATE_LIBRARY_EXE} ]; then
+    if [ ! -d ${TENSILE_LIBRARY_PATH}/library ]; then
+        ${TENSILE_CREATE_LIBRARY}
+    fi
 fi
