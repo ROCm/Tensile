@@ -6900,12 +6900,24 @@ class KernelWriterAssembly(KernelWriter):
             g2lIdx = i * loadWidth
 
             destVgprHi = None
+            dataIsI8 = False
 
             r = 0
             # for each component in vector
             while r < loadWidth*self.bpr//tP["bpe"]:
               numElementsPerLoad = 1
-              if kernel["ProblemType"]["DataType"].isHalf() or \
+              # Ethan: P1 (Done)
+              if kernel["ProblemType"]["DataType"].isInt8():
+                # Ethan: TODO-
+                # if tP["glvw"]>1 and kernel["AssertSummationElementMultiple"] % 2 == 0:
+                # # Pack two FP16 values into a single load dword x2
+                #   numElementsPerLoad = 2
+                # elif self.archCaps["HasEccHalf"]:
+                #   destVgprHi = self.vgprPool.checkOut(1, 'destVgprHi')
+                destVgprHi = self.vgprPool.checkOut(1, 'destVgprHi')
+                dataIsI8 = True
+                regIdx = r // 4
+              elif kernel["ProblemType"]["DataType"].isHalf() or \
                  kernel["ProblemType"]["DataType"].isBFloat16():
                 if tP["glvw"]>1 and kernel["AssertSummationElementMultiple"] % 2 == 0:
                 # Pack two FP16 values into a single load dword x2
@@ -6916,9 +6928,7 @@ class KernelWriterAssembly(KernelWriter):
                   # then pack 2 registers into one
                   destVgprHi = self.vgprPool.checkOut(1, 'destVgprHi')
                 regIdx = r // 2
-              # Ethan: P1 (Done)
               elif kernel["ProblemType"]["DataType"].isInt8x4() or \
-                   kernel["ProblemType"]["DataType"].isInt8() or \
                    kernel["ProblemType"]["DataType"].isSingle():
                 regIdx = r
               elif kernel["ProblemType"]["DataType"].isDouble() or \
@@ -6991,6 +7001,7 @@ class KernelWriterAssembly(KernelWriter):
                   destVgpr="G2L%s+%u+%u"%(tc, g2lIdx, regIdx)
 
                 offset = r * tP["bpe"] + instOffset
+                hi8 = 0
                 hi16 = 0
                 comment = "load one buffer value"
                 if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
@@ -7002,10 +7013,23 @@ class KernelWriterAssembly(KernelWriter):
                     hi16=loopCnt%2 if tP["glvw"]==1 else r%2
                     comment="load one buffer value"
 
+                if kernel["ProblemType"]["DataType"].isInt8():
+                  # Ethan: TODO-
+                  # if numElementsPerLoad==2:
+                  #   # Pack two FP16 values into a single load dword x2
+                  #   r += 1 # skip next element since we loaded 2X here
+                  #   comment = "load packed 2X half buffer value"
+                  if not kernel["DirectToLds%s"%tc]:
+                    hi8  = (loopCnt%4) %2 if tP["glvw"]==1 else (r%4) %2
+                    hi16 = (loopCnt%4)//2 if tP["glvw"]==1 else (r%4)//2
+                    comment="load one buffer value"
+
                 bpl = numElementsPerLoad*self.bpeAB # bytesPerLoad
 
+                # if hi8=1 or hi16=1 (component 1,2,3 for int8) or (component 1 for half), use the temp destVgprHi
+                # but only when hi16=1 we use the _d16_hi version instruction, see the below visualized int8 comment
                 kStr += self.chooseGlobalRead(True, \
-                          bpl, destVgpr=destVgprHi if (hi16 and destVgprHi != None) else destVgpr, \
+                          bpl, destVgpr=destVgprHi if ((hi16 or hi8) and destVgprHi != None) else destVgpr, \
                           addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
                           soffset=soffset, offset=offset, \
                           extraFields=extraFields, \
@@ -7055,12 +7079,30 @@ class KernelWriterAssembly(KernelWriter):
                     vgpr(zeroVgpr), \
                     "vcc", \
                     "gra += 1 (upper)")
-              # pack 2x registers containing 16-bit each into one 32-bit packed half-dword
-              if destVgprHi != None and r % 2 == 1:
+
+              # int8 byte:
+              # |--------|--------|--------|---V0---|, r = 0, hi8=0, hi16=0, load d16
+              # |--------|--------|--------|---V1---|, r = 1, hi8=1, hi16=0, load d16
+              # |--------|---V2---|--------|--------|, r = 2, hi8=0, hi16=1, load d16_hi
+              # |--------|---V3---|--------|--------|, r = 3, hi8=1, hi16=1, load d16_hi
+              # V1, V3 -> shift left 8 bits, or 4 regs (pack)
+              # DestV0|=(V1 << 8), DestV0|= V2, DestV0|=(V3 << 8)
+              # Int8 (byte)
+              if destVgprHi != None and dataIsI8:
+                if hi8 or hi16:
+                  # Ethan: TODO- can be optimized to do vmcnt and pack once at the end??
+                  kStr += "s_waitcnt vmcnt(0)\n"  # a vmcnt to start packing
+                if hi8:
+                  kStr += "v_lshlrev_b32 " + vgpr(destVgprHi) + ", 0x8, " + vgpr(destVgprHi) + " // shift left to higher 8 bits\n"
+                if hi8 or hi16:
+                  kStr += "v_or_b32 " + vgpr(destVgpr) + ", " + vgpr(destVgpr) + ", " + vgpr(destVgprHi) + " // pack a sub 8-bit with dest\n"
+              # Half
+              elif destVgprHi != None and r % 2 == 1:
                 kStr += "s_waitcnt vmcnt(0)\n"
                 kStr += "v_or_b32 " + vgpr(destVgpr) + ", " + vgpr(destVgpr) + ", " + vgpr(destVgprHi) + " // HasEccHalf: pack\n"
-              r += 1 # next component (for half)
-              if destVgprHi != None: self.vgprPool.checkIn(destVgprHi)
+              r += 1 # next component (for half, byte)
+              if destVgprHi != None:
+                self.vgprPool.checkIn(destVgprHi)
             # end R loop
 
     if self.db["ConservativeWaitCnt"] & 0x1:
@@ -7312,6 +7354,7 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 destVgpr="G2L%s+%u"%(tc, g2lIdx)
 
+              # Ethan TODO- hi16 for Int8?
               loadModule.addCode( self.chooseGlobalRead(kernel["BufferLoad"], \
                         bpl, destVgpr=destVgpr, \
                         addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
@@ -7941,6 +7984,11 @@ class KernelWriterAssembly(KernelWriter):
               if tP["glvw"]==1 and instructionCnt%2==1:
                 isHigh16Bits = True
 
+            #       |  hi16  |  hi16  |        |        |
+            #       |  hi8   |        |   hi8  |        |
+            #############################################
+            # VGPR: |---w4---|---w3---|---w2---|---w1---| -> b8_d16: get w1 / _b8_d16_hi: get w3
+            # LSHR: |--------|---w4---|--------|---w2---| -> b8_d16: get w2 / _b8_d16_hi: get w4
             elif kernel["ProblemType"]["DataType"].isInt8():
               isHigh16Bits = (s % 4) > 1 # 2,3
               # TODO
@@ -8225,7 +8273,7 @@ class KernelWriterAssembly(KernelWriter):
       packTimesPerVgpr = int(1/blockWidth) - 1 # 0.5->pack once (16->32) / 0.25->pack three times (8->16, 8->16, 16->32)
       tmpVgprIdx = self.vgprPool.checkOut(self.numVgprValuAPerBlock*self.numReadsIterCoalescedA*packTimesPerVgpr if tc == 'A' \
         else self.numVgprValuBPerBlock*self.numReadsIterCoalescedB*packTimesPerVgpr)
-      pack.addTempVgpr(tmpVgprIdx)
+      pack.addTempVgpr(tmpVgprIdx) # important, add to pack Module for later CheckIn
 
     valufIdx = 0
     for vIdx in range(0, numVectorsPerTile):
@@ -8249,7 +8297,7 @@ class KernelWriterAssembly(KernelWriter):
           destVgpr = highVgpr
 
         isHigh8Bits  = (blockWidth == 0.25) and ( ((rIdx % 4) % 2) == 1) # 1,3
-        isHigh16Bits = (blockWidth == 0.25) and ( (rIdx % 4) > 1) # 2,3
+        isHigh16Bits = (blockWidth == 0.25) and ( ((rIdx % 4) //2) == 1) # 2,3
         if needPack:
           if isHigh8Bits or isHigh16Bits:
             highVgpr = vgpr(tmpVgprIdx)
@@ -8286,7 +8334,12 @@ class KernelWriterAssembly(KernelWriter):
 
         # TODO - handle vector-load
         tmpSgpr = self.getTmpSgpr(1).idx()
-        if self.db["CheckValue1%s"%tc]:
+        if self.db["CheckValue1%s"%tc] and not self.inTailLoop:
+          # if self.inTailLoop:
+          #   skipLabel = self.getNamedLabelUnique("skipCheckValue1")
+          #   localReadCode.addCode("s_cmp_eq_u32 s[sgprSrd%s+2], s[sgprShadowLimit%s+0]%s"%(tc, tc, self.endLine))
+          #   localReadCode.addCode("s_cbranch_scc0 %s%s"%(skipLabel, self.endLine))
+
           dbgVgpr = destVgpr
           dbgVgprList = destVgpr.split("v[")
           if len(dbgVgprList) == 1: # vIdx, no []
@@ -8336,6 +8389,9 @@ class KernelWriterAssembly(KernelWriter):
 
           elif kernel["ProblemType"]["DataType"].isSingle():
             localReadCode.addCode(self.assert_eq( dbgVgpr, 1.0) )
+
+          # if self.inTailLoop:
+          #   localReadCode.addCode("%s:"%skipLabel + self.endLine)
 
     return imod, pack
 

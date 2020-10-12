@@ -64,7 +64,7 @@ BenchmarkProblems:
   #     #####################################
   #     TransposeA: True
   #     TransposeB: False
-  #     UseBeta: False
+  #     UseBeta: True
   #     Batched: True
 
   #   - # BenchmarkProblemSizeGroup - Standard
@@ -207,7 +207,7 @@ BenchmarkProblems:
       #####################################
       TransposeA: False
       TransposeB: True
-      UseBeta: False
+      UseBeta: True
       Batched: True
 
     - # BenchmarkProblemSizeGroup - Standard
@@ -258,6 +258,8 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [128], [256], [1], [64] ]
+          - Range: [ [512], [512], [6], [512] ]
+          - Range: [ [1024], [1024], [1], [1024] ]
 
   ########################################
   # All MT Combination - NN
@@ -272,7 +274,7 @@ BenchmarkProblems:
       #####################################
       TransposeA: False
       TransposeB: False
-      UseBeta: False
+      UseBeta: True
       Batched: True
 
     - # BenchmarkProblemSizeGroup - Standard
@@ -323,6 +325,8 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [128], [256], [1], [64] ]
+          - Range: [ [512], [512], [6], [512] ]
+          - Range: [ [1024], [1024], [1], [1024] ]
 
   ########################################
   # All MT Combination
@@ -337,7 +341,7 @@ BenchmarkProblems:
       #####################################
       TransposeA: True
       TransposeB: False
-      UseBeta: False
+      UseBeta: True
       Batched: True
 
     - # BenchmarkProblemSizeGroup - Standard
@@ -388,6 +392,8 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [128], [256], [1], [64] ]
+          - Range: [ [512], [512], [6], [512] ]
+          - Range: [ [1024], [1024], [1], [1024] ]
 
   ########################################
   # All MT Combination
@@ -402,7 +408,7 @@ BenchmarkProblems:
       #####################################
       TransposeA: True
       TransposeB: True
-      UseBeta: False
+      UseBeta: True
       Batched: True
 
     - # BenchmarkProblemSizeGroup - Standard
@@ -453,3 +459,12 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [128], [256], [1], [64] ]
+          - Range: [ [512], [512], [6], [512] ]
+          - Range: [ [1024], [1024], [1], [1024] ]
+
+LibraryLogic:
+    ScheduleName: "arcturus"
+    DeviceNames: ["Device 7380", "Device 7388", "Device 738c", "Device 7390"]
+    ArchitectureName: "gfx908"
+
+LibraryClient:

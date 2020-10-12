@@ -1255,6 +1255,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.enable["Wait"]:
         if kernel["DirectToLdsA"] or kernel["DirectToLdsB"]:
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "10wait for global read"))
+        # Ethan: TODO- need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "4wait for local write"))
       if self.enable["Sync"]:
         kl.append(self.syncThreads(kernel))
@@ -1392,6 +1393,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         dataAtIter = u - self.numItersPLR
         numReadsIter = min(u+1,kernel["LoopIters"] - self.numItersPLR)
         skipReadsIter = numReadsIter - dataAtIter - 1
+        # Ethan: TODO- (for int8) need to make sure we do the vgpr.checkin for the temp VGPR in LocalRead
         waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, \
             skipReadsIter, \
             "7wait for local read")
@@ -1405,6 +1407,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       subIterCode = self.makeSubIterSchedule(kernel, localReads, \
                       u, pointerLWCode, pointerLRCode, waitCode, macIterCode, waitLWCode, syncCode, pack[luIdx])
       kl.append(subIterCode)
+      # Ethan: vgpr.checkin for all the checked-out vgpr in LocalRead
       for item in list(pack[luIdx].items()):
         if item.tempVgpr != None:
           self.vgprPool.checkIn(item.tempVgpr)
@@ -1537,6 +1540,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # prefetch-local
       if self.numItersPLR:
         if self.enable["Wait"]:
+          # Ethan: TODO- need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "0prefetch wait for local write"))
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel))
@@ -1581,6 +1585,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if self.enable["Wait"]:
           if kernel["DirectToLdsA"] or kernel["DirectToLdsB"]:
             kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "11wait for global read"))
+          # Ethan: TODO- need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 1, 0, -1, "1wait for local write"))
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel, "4sync for global read"))
@@ -1637,6 +1642,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kl.append(self.comment("local write b"))
           kl.append(self.localWriteDo(kernel, tensorParametersB))
         if self.enable["Wait"]:
+          # Ethan: TODO- need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "2prefetch wait for local write"))
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel))
@@ -1811,6 +1817,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             if self.enable["Wait"]:
               if kernel["DirectToLdsA"] or kernel["DirectToLdsB"]:
                 kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "12wait for global read"))
+              # Ethan: TODO- need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite
               waitLWCode.addCode(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "3wait for local write"))
             if self.enable["Sync"]:
               syncCode.addCode(self.syncThreads(kernel))
@@ -2144,6 +2151,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.comment("Recalc local read offsets"))
         kl.append(self.recalcLocalReadAddressesAB(kernel))
         if self.enable["Wait"]:
+          # Ethan: TODO- need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "5wait for local write"))
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel))
@@ -2191,6 +2199,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
         if kernel["EnableMatrixInstruction"]:
           kl.append(pack[0])
+          # Ethan: vgpr.checkin for all the checked-out vgpr in LocalRead
           for item in list(pack[0].items()):
             if item.tempVgpr != None:
               self.vgprPool.checkIn(item.tempVgpr)
