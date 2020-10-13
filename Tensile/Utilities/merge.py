@@ -49,9 +49,9 @@ def cmpHelper(sol):
     return {k:v for k, v in sol.items() if k!="SolutionIndex"}
 
 def addKernel(solutionPool, solution):
-    for i, item in enumerate(solutionPool):
+    for item in solutionPool:
         if cmpHelper(item) == cmpHelper(solution):
-            index = i
+            index = item["SolutionIndex"]
             debug("...Reuse previously existed kernel", end="")
             break
     else:
@@ -65,35 +65,30 @@ def addKernel(solutionPool, solution):
 
 def removeUnusedKernels(origData, prefix=""):
     origNumSolutions = len(origData[5])
-    for i in range(0,len(origData[5])):
-        solutionIndex = origData[5][i]["SolutionIndex"]
-        for item in range(0,len(origData[7])):
-            index = origData[7][item][1][0]
-            if index == solutionIndex:
-                origData[5][i]["__valid__"] = True
-                break
-        else:
-            origData[5][i]["__valid__"] = False
+
+    kernelsInUse = [ index for _, [index, _] in origData[7] ]
+    for i, solution in enumerate(origData[5]):
+        solutionIndex = solution["SolutionIndex"]
+        origData[5][i]["__InUse__"] = True if solutionIndex in kernelsInUse else False
 
     # debug prints
-    for o in [o for o in origData[5] if o["__valid__"]==False]:
+    for o in [o for o in origData[5] if o["__InUse__"]==False]:
         debug("{}Solution ({}) {} is unused".format(
             prefix,
             o["SolutionIndex"],
             o["SolutionNameMin"] if "SolutionNameMin" in o else "(SolutionName N/A)"))
 
     # filter out dangling kernels
-    origData[5] = [ {k: v for k, v in o.items() if k != "__valid__"}
-                    for o in origData[5] if o["__valid__"]==True ]
+    origData[5] = [ {k: v for k, v in o.items() if k != "__InUse__"}
+                    for o in origData[5] if o["__InUse__"]==True ]
 
     # reindex solutions
-    for i in range(0,len(origData[5])):
-        oldSolIndex = origData[5][i]["SolutionIndex"]
+    idMap = {} # new = idMap[old]
+    for i, solution in enumerate(origData[5]):
+        idMap[solution["SolutionIndex"]] = i
         origData[5][i]["SolutionIndex"] = i
-        for item in range(0,len(origData[7])):
-            index = origData[7][item][1][0]
-            if index == oldSolIndex:
-                origData[7][item][1][0] = i
+    for i, [size, [oldSolIndex, eff]] in enumerate(origData[7]):
+        origData[7][i] = [size, [idMap[oldSolIndex], eff]]
 
     numInvalidRemoved = origNumSolutions - len(origData[5])
     return origData, numInvalidRemoved
@@ -108,6 +103,9 @@ def loadData(filename):
     data = yaml.load(stream, yaml.SafeLoader)
     return data
 
+# this is for complying the behavior of legacy merge script, where incremental logic
+# file always replaces the base logic file even it's slower in performance -
+# in the future we may let default force merge policy = False
 def defaultForceMergePolicy(incFile):
     if "arcturus" in incFile:
         forceMerge = False
@@ -150,26 +148,27 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True):
 
     solutionPool = deepcopy(origData[5])
     solutionMap = deepcopy(origData[7])
-    for i, [incSize, [incIndex, incEff]] in enumerate(incData[7]):
+
+    origDict = {tuple(origSize): [i, origEff] for i, [origSize, [origIndex, origEff]] in enumerate(origData[7])}
+    for incSize, [incIndex, incEff] in incData[7]:
         incSolution = [s for s in incData[5] if s["SolutionIndex"]==incIndex] # TODO this is slow
         assert len(incSolution)==1
         incSolution = incSolution[0]
-        for j, [origSize, [origIndex, origEff]] in enumerate(origData[7]):
-            if incSize != origSize:
-                continue
+
+        try:
+            j, origEff = origDict[tuple(incSize)]
             if incEff > origEff or forceMerge:
                 if incEff > origEff:
-                    verbose("[O]", origSize, "already exists and has improved in performance.", end="")
+                    verbose("[O]", incSize, "already exists and has improved in performance.", end="")
                 elif forceMerge:
-                    verbose("[!]", origSize, "already exists but does not improve in performance.", end="")
+                    verbose("[!]", incSize, "already exists but does not improve in performance.", end="")
                 verbose("Efficiency:", origEff, "->", incEff, "(force_merge=True)" if forceMerge else "")
                 solutionPool, index = addKernel(solutionPool, incSolution)
                 solutionMap[j][1] = [index, incEff]
             else:
-                verbose("[X]", origSize, " already exists but does not improve in performance.", end="")
+                verbose("[X]", incSize, " already exists but does not improve in performance.", end="")
                 verbose("Efficiency:", origEff, "->", incEff)
-            break
-        else:
+        except KeyError:
             verbose("[-]", incSize, "has been added to solution table, Efficiency: N/A ->", incEff)
             solutionPool, index = addKernel(solutionPool, incSolution)
             solutionMap.append([incSize,[index, incEff]])
@@ -204,7 +203,7 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSi
 
         msg("Base logic file:", origFile, "| Incremental:", incFile, "| Merge policy: %s"%("Forced" if forceMerge else "Winner"), "| Trim size:", trimSize)
         mergedData, *stats = mergeLogic(loadData(origFile), loadData(incFile), forceMerge, trimSize)
-        msg(stats[0], "sizes and", stats[1], "kernels added,", stats[2], "kernels removed")
+        msg(stats[0], "size(s) and", stats[1], "kernel(s) added,", stats[2], "kernel(s) removed")
 
         with open(os.path.join(outputPath, basename), "w") as outFile:
             yaml.safe_dump(mergedData,outFile,default_flow_style=None)

@@ -11,20 +11,20 @@ logicPrefix = r"""
 
 baseLogic=logicPrefix + r"""
 -
-  - SolutionIndex: 0
+  - SolutionIndex: 2
     SolutionNameMin: InUseForSize256
   - SolutionIndex: 1
-    SolutionNameMin: InUseForSize128or64
-  - SolutionIndex: 2
     SolutionNameMin: UnusedSolution
+  - SolutionIndex: 0
+    SolutionNameMin: InUseForSize128or64
 - DummyIndexAssignment
 -
   - - [256, 256, 1, 256]
-    - [0, 111.1]
+    - [2, 111.1]
   - - [128, 128, 1, 128]
-    - [1, 99.9]
+    - [0, 99.9]
   - - [64, 64, 1, 64]
-    - [1, 88.8]
+    - [0, 88.8]
 """
 
 incLogic=logicPrefix + r"""
@@ -132,14 +132,24 @@ def test_removeUnusedKernels(input, expectedNumKernelRemoved):
   # yaml.safe_dump(dataFiltered, stream, default_flow_style=None)
   # print(stream.getvalue())
 
-def test_mergeLogic():
+@pytest.mark.parametrize("baseLogic, incLogic, expectedStats, expectedSizes, expectedSolutions", [
+# test case #1: merge incLogic into baseLogic
+  (baseLogic, incLogic, [1,2,2], # 1 sizes added, 2 kernels added, 2 kernels removed/replaced
+  [(1024,1024,1,1024), (256,256,1,256), (128,128,1,128), (64,64,1,64)],
+  ["InUseForSize256or1024xxx", "InUseForSize256or1024xxx", "InUseForSize128xxx", "InUseForSize128or64"]),
+# test case #2: merge baseLogic into itself
+  (baseLogic, baseLogic, [0,0,1], # 0 sizes added, 0 kernels added, 1 kernel removed because it's unused
+  [(256,256,1,256), (128,128,1,128), (64,64,1,64)],
+  ["InUseForSize256", "InUseForSize128or64", "InUseForSize128or64"]),
+])
+def test_mergeLogic(baseLogic, incLogic, expectedStats, expectedSizes, expectedSolutions):
   baseData = yaml.load(baseLogic, yaml.SafeLoader)
   incData = yaml.load(incLogic, yaml.SafeLoader)
 
   mergedData, *stats = mergeLogic(baseData, incData, False)
 
   # check if stats are as expected
-  assert stats == [1,2,2] # 1 sizes added, 2 kernels added, 2 kernels removed/replaced
+  assert stats == expectedStats
 
   # print final yaml for visual inspection
   # stream = io.StringIO("")
@@ -152,20 +162,11 @@ def test_mergeLogic():
   for size, [index, _] in mergedData[7]:
     solutionMap[tuple(size)] = [s["SolutionNameMin"] for s in mergedData[5] if s["SolutionIndex"]==index][0]
 
-  sizeList = [tuple([256, 256, 1, 256]), tuple([128, 128, 1, 128]), tuple([64, 64, 1, 64])]
-  expectedSolution = [ "InUseForSize256or1024xxx", "InUseForSize128xxx", "InUseForSize128or64" ]
-  for size, expected in zip(sizeList, expectedSolution):
+  for size, expected in zip(expectedSizes, expectedSolutions):
     assert solutionMap[size] == expected
 
   # check if each solution in merged data is uniqueSolution
-  checkUniqueSolution(mergedData[5])
-
-def test_mergeLogicWithSelf():
-  baseData = yaml.load(baseLogic, yaml.SafeLoader)
-  incData = yaml.load(baseLogic, yaml.SafeLoader)
-
-  _, *stats = mergeLogic(baseData, incData, False)
-  assert stats == [0, 0, 1] # 0 sizes added, 0 kernels added, 1 kernels removed because it's unused
+  assert checkUniqueSolution(mergedData[5])
 
 @pytest.mark.parametrize("input,expected", [(uniqueSolution, True), (notUniqueSolution, False)])
 def test_checkUniqueSolution(input, expected):
@@ -173,8 +174,7 @@ def test_checkUniqueSolution(input, expected):
   assert checkUniqueSolution(data[5]) == expected
 
 if __name__ == "__main__":
-    # test_mergeLogic()
-    # test_mergeLogicWithSelf()
+    # test_mergeLogic(baseLogic, incLogic, [1,2,2], [(1024, 1024, 1, 1024), (256, 256, 1, 256), (128, 128, 1, 128), (64, 64, 1, 64)], [ "InUseForSize256or1024xxx", "InUseForSize256or1024xxx", "InUseForSize128xxx", "InUseForSize128or64"])
     # test_checkUniqueSolution(uniqueSolution, True)
     # test_fixSizeInconsistencies(trimmedSize, [[128,128,1,128],[512,512,1,512],[1024,1024,1,1024]])
-    test_fixSizeInconsistencies(notTrimmedSize, [[128,128,1,128],[1024,1024,1,1024]])
+    test_fixSizeInconsistencies(notTrimmedSize, [[1024,1024,1,1024],[128,128,1,128]])
