@@ -306,8 +306,15 @@ validParameters = {
     "WaveSeparateGlobalReadA":    [ 0, 1 ],
     "WaveSeparateGlobalReadB":    [ 0, 1 ],
 
-    # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
-    "PrefetchGlobalRead":         [ False, True ],
+    # PrefetchGlobalRead = 1:
+    # Requires 2X LDS space, and VGPRs for buffering data on way into LDS
+    #   prefetch / double-buffer reads from global memory -> vgprs -> lds.
+    #
+    # PrefetchGlobalRead = 2:
+    # Do another prefetch while writing data from vgpr to lds.
+    #   prefetch / double-buffer reads from global memory -> vgprs --> lds.
+    #                                                              |-> prefetch reads
+    "PrefetchGlobalRead":         [ 0, 1, 2 ],
 
     # number of iteration prefetch local reads from lds to VGPRs buffer = PLR % LoopIter
     # number of VGPRs buffer = min(PLR,LoopIters)
@@ -952,7 +959,7 @@ defaultBenchmarkCommonParameters = [
     {"WaveSeparateGlobalReadB":    [ 0 ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
     {"GlobalReadCoalesceGroupB":  [ True ] },
-    {"PrefetchGlobalRead":        [ True ] },
+    {"PrefetchGlobalRead":        [ 1 ] },
     {"PrefetchLocalRead":         [ 1 ] },
     {"UnrollMemFence":            [ False ] },
     {"GlobalRead2A":              [ True ] },
