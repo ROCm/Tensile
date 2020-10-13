@@ -569,7 +569,9 @@ class KernelWriterSource(KernelWriter):
       else:
         if kernel["ProblemType"]["UseBeta"]:
           # dst = alpha*reg + dst*beta
-          if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isBFloat16():
+          if kernel["ProblemType"]["HighPrecisionAccumulate"] and \
+            kernel["ProblemType"]["DataType"].isBFloat16() and \
+            kernel["ProblemType"]["DestDataType"].isBFloat16():
             kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) " \
               + "DST = 0 != (BETA) ? " \
               + "static_cast<tensile_bfloat16>((ALPHA)*(REG) + (BETA) * static_cast<float>(SRC)) : " \

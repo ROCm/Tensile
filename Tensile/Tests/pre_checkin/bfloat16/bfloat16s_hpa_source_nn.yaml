@@ -85,7 +85,7 @@ BenchmarkProblems:
         - DepthU: [32]
         - VectorWidth: [2]
         - GlobalSplitUAlgorithm: ["SingleBuffer", "MultipleBuffer"]
-        - GlobalSplitU: [2, 5, 15]
+        - GlobalSplitU: [1, 2, 5, 15]
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
