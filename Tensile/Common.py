@@ -67,7 +67,12 @@ globalParameters["EnqueuesPerSync"] = 1           # how many solution enqueues t
 globalParameters["SleepPercent"] = 300            # how long to sleep after every data point: 25 means 25% of solution time. Sleeping lets gpu cool down more.
 # validation
 globalParameters["NumElementsToValidate"] = 128   # number of elements to validate, 128 will be evenly spaced out (with prime number stride) across C tensor
-globalParameters["BoundsCheck"] = False   # Perform bounds check to find out of bounds reads/writes.  NumElementsToValidate must be -1.
+globalParameters["BoundsCheck"] = 0   # Bounds check
+#1: Perform bounds check to find out of bounds reads/writes.  NumElementsToValidate must be -1.
+#2: Perform bounds check by front side guard page
+#3: Perform bounds check by back side guard page
+#4: Perform bounds check by both back and front side guard page
+
 globalParameters["ValidationMaxToPrint"] = 4      # maximum number of mismatches to print
 globalParameters["ValidationPrintValids"] = False # print matches too
 # steps
@@ -87,6 +92,7 @@ globalParameters["ShowProgressBar"] = True     # if False and library client alr
 globalParameters["SolutionSelectionAlg"] = 1          # algorithm to detetermine which solutions to keep. 0=removeLeastImportantSolutions, 1=keepWinnerSolutions (faster)
 globalParameters["ExpandRanges"] = True          # expand ranges into exact configs before writing logic file.  False ignores ranges.
 globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kernels
+globalParameters["GenerateSourcesAndExit"] = False # Exit after kernel source generation.
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["ExitOnFails"] = 1     # Exit if failures detected.
@@ -305,8 +311,15 @@ validParameters = {
     "WaveSeparateGlobalReadA":    [ 0, 1 ],
     "WaveSeparateGlobalReadB":    [ 0, 1 ],
 
-    # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
-    "PrefetchGlobalRead":         [ False, True ],
+    # PrefetchGlobalRead = 1:
+    # Requires 2X LDS space, and VGPRs for buffering data on way into LDS
+    #   prefetch / double-buffer reads from global memory -> vgprs -> lds.
+    #
+    # PrefetchGlobalRead = 2:
+    # Do another prefetch while writing data from vgpr to lds.
+    #   prefetch / double-buffer reads from global memory -> vgprs --> lds.
+    #                                                              |-> prefetch reads
+    "PrefetchGlobalRead":         [ 0, 1, 2 ],
 
     # number of iteration prefetch local reads from lds to VGPRs buffer = PLR % LoopIter
     # number of VGPRs buffer = min(PLR,LoopIters)
@@ -347,6 +360,11 @@ validParameters = {
     # Split the unroll summation into multiple sections and combine the sections
     # GSU applies only to the unroll summation dimension
     "GlobalSplitU":               list(range(1, 1024+1)),
+
+    # choose how to do GlobalSplitU
+    # 1: use atomic operation to accumlate on one buffer
+    # 2: each GSU group write to each own buffer and accumulate by another kernel
+    "GlobalSplitUAlgorithm":      ["SingleBuffer", "MultipleBuffer"],
 
     # When splitting up the summation between workgroups, there are two options for organizing which workgroup will do what
     # If we begin with N workgroups and set GSU=4, there will now be 4N workgroups
@@ -747,6 +765,12 @@ validParameters = {
     # Assertions/Requirements: NumWorkGroups0 * NumWorkGroups1 < 2^32
     "PersistentKernel":           range(0,512+1) ,       # Use persistent kernel.
 
+    # True:  Batch dimension (WG.z) is also considered in persistent kernel
+    # False: Not considered
+    #        for problems with large batch-size, PKAB = True could help
+    #        for problems with only one batch, PKAB = True/False should make no difference
+    "PersistentKernelAlongBatch": [False,True],
+
     # Allow macro-tile to span batch dimensions and thus a single workgroup can work across batch dimensions.
     # This can improve utilization, in particular if macro-tile is larger than the lower dimensions.
     # The byte address of the last element in the packed array must fit in 2^32.
@@ -940,7 +964,7 @@ defaultBenchmarkCommonParameters = [
     {"WaveSeparateGlobalReadB":    [ 0 ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
     {"GlobalReadCoalesceGroupB":  [ True ] },
-    {"PrefetchGlobalRead":        [ True ] },
+    {"PrefetchGlobalRead":        [ 1 ] },
     {"PrefetchLocalRead":         [ 1 ] },
     {"UnrollMemFence":            [ False ] },
     {"GlobalRead2A":              [ True ] },
@@ -983,11 +1007,13 @@ defaultBenchmarkCommonParameters = [
     {"StaggerUMapping":           [ 0 ] },    # recommend [0,1]
     {"MagicDivAlg":               [ 2 ] },
     {"GlobalSplitU":              [ 1 ] },
+    {"GlobalSplitUAlgorithm":     [ "MultipleBuffer" ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },
     {"MacroTileShapeMin":         [ 1 ] },
     {"MacroTileShapeMax":         [ 64 ] },
     {"PersistentKernel":          [ 0 ] },
+    {"PersistentKernelAlongBatch":[ False ] },    # May be default True is better ?
     {"PackBatchDims":             [ 0 ] },
     {"PackFreeDims":              [ 1 ] },
     {"PackSummationDims":         [ 0 ] },

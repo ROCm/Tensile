@@ -90,6 +90,7 @@ namespace Tensile
                 iot::mapOptional(io, "packSummationDims", s.packSummationDims);
                 iot::mapOptional(io, "magicDivAlg", s.magicDivAlg);
                 iot::mapRequired(io, "persistentKernel", s.persistentKernel);
+                iot::mapRequired(io, "persistentKernelAlongBatch", s.persistentKernelAlongBatch);
                 iot::mapRequired(io, "sourceKernel", s.sourceKernel);
 
                 iot::mapRequired(io, "globalAccumulation", s.globalAccumulation);

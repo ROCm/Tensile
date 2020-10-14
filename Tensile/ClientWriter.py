@@ -561,6 +561,12 @@ def dataInitParams(problemType):
             ('init-alpha', DataInitName(initAlpha).name),
             ('init-beta',  DataInitName(initBeta).name)]
 
+def boundsCheckName(mode):
+    if mode == 0: return 'Disable'
+    if mode == 1: return 'NaN'
+    if mode == 2: return 'GuardPageFront'
+    if mode == 3: return 'GuardPageBack'
+    if mode == 4: return 'GuardPageAll'
 
 def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, resultsFileName, parametersFilePath):
 
@@ -613,9 +619,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         if globalParameters["PrintTensorRef"]:
           param("print-tensor-ref",         1)
 
-        if globalParameters["BoundsCheck"]:
-          param("bounds-check", 1)
-
+        param("bounds-check",             boundsCheckName(int(globalParameters["BoundsCheck"])))
         param("print-valids",             globalParameters["ValidationPrintValids"])
         param("print-max",                globalParameters["ValidationMaxToPrint"])
         param("num-benchmarks",           globalParameters["NumBenchmarks"])
@@ -1078,6 +1082,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     maximumC = problemSizes.maxC
     maximumA = problemSizes.maxA
     maximumB = problemSizes.maxB
+    maximumW = problemSizes.maxD * 32;
 
     maxMT = getMaxSolutionSizes(solutions, solutionSummationSizes)
 
@@ -1089,17 +1094,20 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     maximumB = max(maximumB, maxNK)
     maximumC = max(maximumC, maxMN)
     maximumD = max(maximumD, maxMN)
+    maximumW = max(maximumW, maxMN)
 
     h += "size_t maxSizeD = %u;\n" % (maximumD)
     h += "size_t maxSizeC = %u;\n" % (maximumC)
     h += "size_t maxSizeA = %u;\n" % (maximumA)
     h += "size_t maxSizeB = %u;\n" % (maximumB)
+    h += "size_t maxSizeW = %u;\n" % (maximumW)
     h += "\n"
   else:
     h += "size_t maxSizeD;\n"
     h += "size_t maxSizeC;\n"
     h += "size_t maxSizeA;\n"
     h += "size_t maxSizeB;\n"
+    h += "size_t maxSizeW;\n"
     h += "\n"
 
   ##############################################################################

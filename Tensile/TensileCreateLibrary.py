@@ -424,8 +424,9 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     if kernelHeaderFile:
       kernelHeaderFile.close()
 
-  codeObjectFiles += buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath)
-  codeObjectFiles += getAssemblyCodeObjectFiles(kernelsToBuild, kernelWriterAssembly, outputPath)
+  if not globalParameters["GenerateSourcesAndExit"]:
+    codeObjectFiles += buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath)
+    codeObjectFiles += getAssemblyCodeObjectFiles(kernelsToBuild, kernelWriterAssembly, outputPath)
 
   stop = time.time()
   print("# Kernel Building elapsed time = %.1f secs" % (stop-start))
@@ -929,7 +930,7 @@ def writeSolutionCall(solutionName, problemType):
 def getSolutionAndKernelWriters(solutions, kernels):
 
   # if any kernels are assembly, append every ISA supported
-  
+
   if globalParameters["ShortNames"] and not globalParameters["MergeFiles"]:
     solutionSerialNaming = Solution.getSerialNaming(solutions)
     kernelSerialNaming   = Solution.getSerialNaming(kernels)
@@ -1196,7 +1197,8 @@ def generateKernelObjectsFromSolutions(solutions):
 ################################################################################
 def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, cxxCompiler):
 
-  copyStaticFiles(libraryWorkingPath)
+  if not globalParameters["GenerateSourcesAndExit"]:
+      copyStaticFiles(libraryWorkingPath)
 
   kernels, kernelsBetaOnly, _ = generateKernelObjectsFromSolutions(solutions)
   solutionWriter, kernelWriterSource, kernelWriterAssembly, \
@@ -1207,7 +1209,7 @@ def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, 
   codeObjectFiles = writeSolutionsAndKernels( \
     libraryWorkingPath, cxxCompiler, [problemType], solutions, kernels, kernelsBetaOnly, \
     solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
-    
+
   newLibraryDir = ensurePath(os.path.join(libraryWorkingPath, 'library'))
   newLibraryFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")
   newLibrary = MasterSolutionLibrary.BenchmarkingLibrary(solutions)
@@ -1227,14 +1229,14 @@ def WriteClientLibraryFromSolutions(solutionList, libraryWorkingPath, tensileSou
   problemType["DestDataType"] = problemType["DestDataType"].value
   problemType["ComputeDataType"] = problemType["ComputeDataType"].value
   cxxCompiler = globalParameters["CxxCompiler"]
- 
-  effectiveWorkingPath = os.path.join(libraryWorkingPath, "library") 
+
+  effectiveWorkingPath = os.path.join(libraryWorkingPath, "library")
   ensurePath(effectiveWorkingPath)
   mataDataFilePath = os.path.join(effectiveWorkingPath, 'metadata.yaml')
 
   metaData = {"ProblemType":problemType}
   LibraryIO.YAMLWriter().write(mataDataFilePath, metaData)
-  
+
   codeObjectFiles, newLibrary = writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutionList, cxxCompiler )
 
   return (codeObjectFiles, newLibrary)
@@ -1252,6 +1254,15 @@ def TensileCreateLibrary():
   ##############################################################################
   # Parse Command Line Arguments
   ##############################################################################
+  def splitExtraParameters(par):
+    """
+    Allows the --global-parameters option to specify any parameters from the command line.
+    """
+
+    (key, value) = par.split("=")
+    value = eval(value)
+    return (key, value)
+
   print2("Arguments: %s" % sys.argv)
   argParser = argparse.ArgumentParser()
   argParser.add_argument("LogicPath",       help="Path to LibraryLogic.yaml files.")
@@ -1280,6 +1291,14 @@ def TensileCreateLibrary():
                           default=False, help="Output manifest file with list of expected library objects and exit.")
   argParser.add_argument("--library-format", dest="LibraryFormat", choices=["yaml", "msgpack"], \
       action="store", default="msgpack", help="select which library format to use")
+  argParser.add_argument("--generate-sources-and-exit",   dest="GenerateSourcesAndExit", action="store_true",
+                          default=False, help="Output source files only and exit.")
+  argParser.add_argument("--jobs", "-j", dest="CpuThreads", type=int,
+                          default=-1, help="Number of parallel jobs to launch.")
+  argParser.add_argument("--verbose", "-v", dest="PrintLevel", type=int,
+                          default=1, help="Set printout verbosity level.")
+
+  argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
   args = argParser.parse_args()
 
   logicPath = args.LogicPath
@@ -1309,6 +1328,17 @@ def TensileCreateLibrary():
 
   # Output manifest only applies to the new client
   arguments["GenerateManifestAndExit"] = args.new_client_only and args.GenerateManifestAndExit
+
+  arguments["GenerateSourcesAndExit"] = args.GenerateSourcesAndExit
+  if arguments["GenerateSourcesAndExit"]:
+    # Generated sources are preserved and go into output dir
+    arguments["WorkingPath"] = outputPath
+
+  arguments["CpuThreads"] = args.CpuThreads
+  arguments["PrintLevel"] = args.PrintLevel
+
+  for key, value in args.global_parameters:
+    arguments[key] = value
 
   assignGlobalParameters(arguments)
 
@@ -1384,7 +1414,7 @@ def TensileCreateLibrary():
 
 
   kernels, kernelHelperOjbs, _ = generateKernelObjectsFromSolutions(solutions)
-  
+
   # if any kernels are assembly, append every ISA supported
   solutionWriter, kernelWriterSource, kernelWriterAssembly, \
     kernelMinNaming, _ = getSolutionAndKernelWriters(solutions, kernels)
@@ -1423,7 +1453,8 @@ def TensileCreateLibrary():
     return
 
   # generate cmake for the source kernels
-  writeCMake(outputPath, solutionFiles, sourceKernelFiles, staticFiles)
+  if not arguments["GenerateSourcesAndExit"]:
+    writeCMake(outputPath, solutionFiles, sourceKernelFiles, staticFiles)
 
   # Make sure to copy the library static files.
   for fileName in staticFiles:
@@ -1440,7 +1471,8 @@ def TensileCreateLibrary():
   sanityCheck1 = set(sourceLibPaths + asmLibPaths) - set(codeObjectFiles)
 
   assert len(sanityCheck0) == 0, "Unexpected code object files: {}".format(sanityCheck0)
-  assert len(sanityCheck1) == 0, "Missing expected code object files: {}".format(sanityCheck1)
+  if not globalParameters["GenerateSourcesAndExit"]:
+    assert len(sanityCheck1) == 0, "Missing expected code object files: {}".format(sanityCheck1)
 
   if globalParameters["LegacyComponents"]:
     # write logic

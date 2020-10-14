@@ -116,6 +116,34 @@ BenchmarkProblems:
           - Range: [ [1024], [1024], [1], [1024] ]
           - Range: [ [1031], [1031], [8], [1031] ]
 
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+      ForkParameters:
+        - MatrixInstruction:
+          - [32, 32, 4, 2]
+          - [32, 32, 8, 1]
+        - PrefetchLocalRead: [1]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 2, 32 ]
+        - WorkGroup:
+          - [  32, 8, 1 ]
+          - [  64, 4, 1 ]
+        - WorkGroupMapping: [8]
+        - InnerUnroll: [2]
+        - DepthU: [32]
+        - VectorWidth: [2]
+        - GlobalSplitUAlgorithm: ["SingleBuffer", "MultipleBuffer"]
+        - GlobalSplitU: [2, 5, 15]
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [1024,3,1030], [1024,3,1030], [1,1,2], [1024,3,1030] ]
+
   ########################################
   # TN - standard
   ########################################
@@ -223,6 +251,34 @@ BenchmarkProblems:
         - ProblemSizes:
           - Range: [ [1024], [1024], [1], [1024] ]
           - Range: [ [1031], [1031], [8], [1031] ]
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+      ForkParameters:
+        - MatrixInstruction:
+          - [32, 32, 4, 2]
+          - [32, 32, 8, 1]
+        - PrefetchLocalRead: [1]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 2, 32 ]
+        - WorkGroup:
+          - [  32, 8, 1 ]
+          - [  64, 4, 1 ]
+        - WorkGroupMapping: [8]
+        - InnerUnroll: [2]
+        - DepthU: [32]
+        - VectorWidth: [2]
+        - GlobalSplitUAlgorithm: ["SingleBuffer", "MultipleBuffer"]
+        - GlobalSplitU: [2, 5, 15]
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [1024,3,1030], [1024,3,1030], [1,1,2], [1024,3,1030] ]
 
   ########################################
   # NN - standard
@@ -332,6 +388,34 @@ BenchmarkProblems:
           - Range: [ [1024], [1024], [1], [1024] ]
           - Range: [ [1031], [1031], [8], [1031] ]
 
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+      ForkParameters:
+        - MatrixInstruction:
+          - [32, 32, 4, 2]
+          - [32, 32, 8, 1]
+        - PrefetchLocalRead: [1]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 2, 32 ]
+        - WorkGroup:
+          - [  32, 8, 1 ]
+          - [  64, 4, 1 ]
+        - WorkGroupMapping: [8]
+        - InnerUnroll: [2]
+        - DepthU: [32]
+        - VectorWidth: [2]
+        - GlobalSplitUAlgorithm: ["SingleBuffer", "MultipleBuffer"]
+        - GlobalSplitU: [2, 5, 15]
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [1024,3,1030], [1024,3,1030], [1,1,2], [1024,3,1030] ]
+
   ########################################
   # TT - standard
   ########################################
@@ -439,4 +523,32 @@ BenchmarkProblems:
         - ProblemSizes:
           - Range: [ [1024], [1024], [1], [1024] ]
           - Range: [ [1031], [1031], [8], [1031] ]
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+      ForkParameters:
+        - MatrixInstruction:
+          - [32, 32, 4, 2]
+          - [32, 32, 8, 1]
+        - PrefetchLocalRead: [1]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 2, 32 ]
+        - WorkGroup:
+          - [  32, 8, 1 ]
+          - [  64, 4, 1 ]
+        - WorkGroupMapping: [8]
+        - InnerUnroll: [2]
+        - DepthU: [32]
+        - VectorWidth: [2]
+        - GlobalSplitUAlgorithm: ["SingleBuffer", "MultipleBuffer"]
+        - GlobalSplitU: [2, 5, 15]
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [1024,3,1030], [1024,3,1030], [1,1,2], [1024,3,1030] ]
 

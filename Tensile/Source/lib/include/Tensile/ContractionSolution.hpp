@@ -238,7 +238,7 @@ namespace Tensile
                                        TypedInputs const& inputs,
                                        Hardware const&    hardware) const;
 
-        template <typename TypedInputs>
+        template <typename TypedInputs, bool T_Debug>
         KernelInvocation generateOutputConversionCall(Problem const&     problem,
                                                       TypedInputs const& inputs,
                                                       Hardware const&    hardware) const;
@@ -264,10 +264,11 @@ namespace Tensile
             int    packSummationDims = 0;
             int    magicDivAlg       = 1;
             size_t persistentKernel  = 0;
+            bool   persistentKernelAlongBatch;
 
             bool sourceKernel = false;
 
-            bool   globalAccumulation    = false;
+            int    globalAccumulation    = 0;
             size_t workspaceSizePerElemC = 0;
         };
 
