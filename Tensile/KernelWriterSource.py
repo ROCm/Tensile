@@ -2097,7 +2097,7 @@ class KernelWriterSource(KernelWriter):
     self.indent += "  "
     return kStr
 
-  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL, isNGLL):
+  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL):
     kStr = ""
     self.indent = self.indent[2:]
     kStr += "%s} // end %s%s" % \
@@ -3025,15 +3025,6 @@ class KernelWriterSource(KernelWriter):
     return ""
 
   def closePrefetchAcrossPersistent(self, kernel, isOptNLL):
-    return ""
-
-  ##############################################################################
-  # PrefetchGlobalRead2
-  ##############################################################################
-  def openPrefetchGlobalRead2(self, kernel):
-    return ""
-
-  def closePrefetchGlobalRead2(self, kernel):
     return ""
 
   ##############################################################################

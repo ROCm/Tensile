@@ -2292,7 +2292,6 @@ class Solution:
       state["InnerUnroll"] = state["DepthU"] // state["MatrixInstK"]
       state["PrefetchLocalRead"] = 1
       state["ExpandPointerSwap"] = 1
-      state["1LDSBuffer"] = 1
 
     if state["DisableVgprOverlapping"] is True and state["EnableMatrixInstruction"] is not True:
       reject(state, "Non-MI kernels are already non-overlapping in pre-allocated registers")
@@ -2455,20 +2454,10 @@ class Solution:
     #These modes only work under certain conditions, apply them here:
     #  - The "NoLoad" loop is only generated if PrefetchGlobalRead>0
     #  - And Suppress does not work if GSU>1 for some reason
-    if state["SuppressNoLoadLoop"] == 1:
-      if not (bufferLoad and state["PrefetchGlobalRead"] == 1 and (state["GlobalSplitU"]==1)):
-        state["SuppressNoLoadLoop"] = 0
-
-    if state["ExpandPointerSwap"] == 1:
-      # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
-      if not (bufferLoad and state["PrefetchGlobalRead"] == 1):
-        state["ExpandPointerSwap"] = 0
-      # EPS not supported with PGR=2 yet
-      if state["PrefetchGlobalRead"] == 2:
-        state["ExpandPointerSwap"] = 0
-      # EPS not supported with PAP yet
-      if state["PrefetchAcrossPersistent"]:
-        state["ExpandPointerSwap"] = 0
+    state["SuppressNoLoadLoop"] &= (bufferLoad and state["PrefetchGlobalRead"] and (state["GlobalSplitU"]==1))
+    # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
+    # EPS not supported with PAP yet
+    state["ExpandPointerSwap"]  &= (bufferLoad and state["PrefetchGlobalRead"] and not state["PrefetchAcrossPersistent"])
 
     #print("PackedC0IdxChars", state["PackedC0IdxChars"])
     #print("PackedC1IdxChars", state["PackedC1IdxChars"])
@@ -2946,7 +2935,8 @@ class Solution:
 
 
     if state["1LDSBuffer"] == -1:
-      if ldsNumElementsAB * state["ProblemType"]["DataType"].numBytes() > globalParameters["MaxLDS"]:
+      if ldsNumElementsAB * state["ProblemType"]["DataType"].numBytes() > globalParameters["MaxLDS"] or \
+          state["ScheduleIterAlg"] == 2:
         state["1LDSBuffer"] = 1
       else:
         state["1LDSBuffer"] = 0
