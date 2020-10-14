@@ -463,8 +463,7 @@ int main(int argc, const char* argv[])
     size_t maxWorkspaceSizeLimit = args["max-workspace-size"].as<size_t>();
     size_t maxWorkspaceSize
         = getMaxWorkspace(library, hardware, args, problems, firstProblemIdx, lastProblemIdx);
-    maxWorkspaceSize
-        = (maxWorkspaceSize < maxWorkspaceSizeLimit) ? maxWorkspaceSize : maxWorkspaceSizeLimit;
+    maxWorkspaceSize = std::min(maxWorkspaceSize, maxWorkspaceSizeLimit);
 
     auto dataInit = DataInitialization::Get(args, problemFactory, maxWorkspaceSize);
 
