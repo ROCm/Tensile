@@ -876,6 +876,18 @@ validParameters = {
     # -3 : Only allow min(GLVWA,GLVWB) < VW ?
     "DepthU":                     depthUs,
 
+    # DepthULdsDivisor determines how we pipeline the data from global memory to LDS
+    # Instead of moving all in-flight data from the register buffer (G2L) to the LDS at once, we divide the G2L buffer into N portions and
+    # write each portion of the G2L to LDS, read from LDS and do the actual matrix multiply-accumulate, before moving on to the portion and so on.
+    # This helps cut down LDS usage by the value of the divisor. Helps increase CU occupancy or DepthU if kernel was previously LDS limited.
+    #
+    # The premise of this parameter is to be able to fetch all 256B (equivalent to 128 half's or 64 single's) in a TN laid-out problem size,
+    # maximizing L2 channel efficiency, therefore this parameter only works for TN buffer layout
+    #
+    # Implementation-wise, for now it only supports ScheduleIterAlg=3 and TransposeLDS=1
+    # In addition, it does not work with DirectToLds=1 because it needs the in-flight data to reside in registers
+    "DepthULdsDivisor":           [1, 2], # [4, 8] not tested yet
+
     # integer ammount of padding to put into LDS, in 2016 this didn't seem to help performance, profilers were showing that channel conflicts weren't really hurting
     # performance so this has been deprecated and probably doesn't work
     # -1 means use same padding as the VectorWidth if TLU=0 else 0.  (Padding only helps when transpose is required)
@@ -1038,6 +1050,7 @@ defaultBenchmarkCommonParameters = [
     {"DisableAtomicFail":         [ 0 ] },
     {"DisableKernelPieces":       [ 0 ] },
     {"DepthU":                    [ -1 ] },
+    {"DepthULdsDivisor":          [ 1 ] },
     {"PerformanceSyncLocation":   [ -1 ] },
     {"PerformanceWaitLocation":   [ -1 ] },
     {"PerformanceWaitCount":      [ -1 ] },

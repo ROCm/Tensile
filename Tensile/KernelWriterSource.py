@@ -1617,7 +1617,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write Addresses: First Offset A/B
   ##############################################################################
-  def lwaFirstOffset(self, kernel, tP):
+  def lwaFirstOffset(self, kernel, tP, uDu=0):
     kStr = ""
     kStr += "  unsigned int localWriteFirstOffset%s = lw%s%s + lw%s%s*(MT%s+PAD)%s;%s" \
         % (tP["tensorChar"], tP["tensorChar"], tP["tileChar"], \
@@ -1698,6 +1698,18 @@ class KernelWriterSource(KernelWriter):
     kStr += "  %sDATA_TYPE *localRead%s;%s" % (self.sharedPtrStr, \
         tP["tensorChar"], self.endLine)
     return kStr
+
+  ##############################################################################
+  # Recalculate local write addresses A/B
+  ##############################################################################
+  def recalcLocalWriteAddresses(self, kernel, tP, uDu):
+    return ""
+
+  ##############################################################################
+  # Recalculate local read addresses A/B
+  ##############################################################################
+  def recalcLocalReadAddressesAB(self, kernel):
+    return ""
 
   ##############################################################################
   # openShadowInit
@@ -1988,7 +2000,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Open Loop
   ##############################################################################
-  def openLoop(self, kernel, loopIdx):
+  def openLoop(self, kernel, loopIdx, uDu=0):
     problemType = kernel["ProblemType"]
     tailLoop = loopIdx < 0
     if tailLoop:
@@ -2026,8 +2038,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Close Loop
   ##############################################################################
-  def closeLoop(self, kernel, loopIdx, finalLoop):
+  def closeLoop(self, kernel, loopIdx, finalLoop, uDu=0, emitEndLabelOnly=False):
     kStr = ""
+    if emitEndLabelOnly:
+      return kStr
     problemType = kernel["ProblemType"]
     loopDim = problemType["IndicesSummation"][loopIdx]
     loopChar = self.indexChars[loopDim]
@@ -2447,7 +2461,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write: Do It A/B
   ##############################################################################
-  def localWriteDo(self, kernel, tP):
+  def localWriteDo(self, kernel, tP, uDu=0):
     kStr = ""
     if self.language == "HIP":
       kStr += "#pragma clang diagnostic push" + self.endLine

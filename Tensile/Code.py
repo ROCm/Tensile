@@ -167,6 +167,16 @@ class Module(Item):
       | | |--GlobalReadInst bogusGlobalReadInst                                // comments
     """
 
+  def countTypeList(self, ttypeList):
+    count = 0
+    # add "Module" type to type list filter, where we want to count recursively
+    # the types under "Module"
+    if Module not in ttypeList:
+      ttypeList.append(Module)
+    for ttype in ttypeList:
+      count += self.countType(ttype)
+    return count
+
   def countType(self,ttype):
     """
     Count number of items with specified type in this Module
