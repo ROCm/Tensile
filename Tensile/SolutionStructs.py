@@ -50,6 +50,17 @@ def reject(state, *args):
     for a in args:
       print(a)
     #traceback.print_stack(None, 2)
+    solutionIndex = state["SolutionIndex"] if (state != None and "SolutionIndex" in state) else -1
+    if solutionIndex != -1:
+      # If we have valid solutionIndex, this means we are during TensileCreateLibrary stage
+      # In this stage, all solutions in the logic should be valid
+      # So if any rejection happens, print the warning for further check
+      # This will be done only when --global-parameters=PrintSolutionRejectionReason=True
+      solutionNameMin = state["SolutionNameMin"] if ("SolutionNameMin" in state) else None
+      # if we don't have SolutionNameMin, we simply use the problemTypeName
+      solutionNameMin = str(state["ProblemType"]) if (solutionNameMin == None) else solutionNameMin
+      print("!! Warning: Any rejection of a LibraryLogic is not expected, please check. \
+        SolutionIndex: %d (or SolutionName/ProblemType: %s)"%(solutionIndex, solutionNameMin))
   if state != None:
     state["Valid"] = False
 
