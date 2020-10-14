@@ -133,7 +133,6 @@ namespace Tensile
             bool m_printValids;
             int  m_printMax;
             int  m_validationStride;
-            bool m_boundsCheck;
 
             bool m_printTensorA;
             bool m_printTensorB;

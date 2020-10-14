@@ -561,6 +561,12 @@ def dataInitParams(problemType):
             ('init-alpha', DataInitName(initAlpha).name),
             ('init-beta',  DataInitName(initBeta).name)]
 
+def boundsCheckName(mode):
+    if mode == 0: return 'Disable'
+    if mode == 1: return 'NaN'
+    if mode == 2: return 'GuardPageFront'
+    if mode == 3: return 'GuardPageBack'
+    if mode == 4: return 'GuardPageAll'
 
 def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, resultsFileName, parametersFilePath):
 
@@ -613,9 +619,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         if globalParameters["PrintTensorRef"]:
           param("print-tensor-ref",         1)
 
-        if globalParameters["BoundsCheck"]:
-          param("bounds-check", 1)
-
+        param("bounds-check",             boundsCheckName(int(globalParameters["BoundsCheck"])))
         param("print-valids",             globalParameters["ValidationPrintValids"])
         param("print-max",                globalParameters["ValidationMaxToPrint"])
         param("num-benchmarks",           globalParameters["NumBenchmarks"])

@@ -34,6 +34,8 @@
 
 #include <cstddef>
 
+#include "RunListener.hpp"
+
 namespace po = boost::program_options;
 
 namespace Tensile
@@ -68,10 +70,25 @@ namespace Tensile
         std::ostream& operator<<(std::ostream& stream, InitMode const& mode);
         std::istream& operator>>(std::istream& stream, InitMode& mode);
 
+        const int pageSize = 2 * 1024 * 1024;
+
+        enum class BoundsCheckMode
+        {
+            Disable = 0,
+            NaN,
+            GuardPageFront,
+            GuardPageBack,
+            GuardPageAll,
+            MaxMode
+        };
+
+        std::ostream& operator<<(std::ostream& stream, BoundsCheckMode const& mode);
+        std::istream& operator>>(std::istream& stream, BoundsCheckMode& mode);
+
         template <typename TypedInputs>
         class TypedDataInitialization;
 
-        class DataInitialization
+        class DataInitialization : public RunListener
         {
         public:
             static double GetRepresentativeBetaValue(po::variables_map const& args);
@@ -296,6 +313,67 @@ namespace Tensile
                 return m_workspaceSize;
             }
 
+            BoundsCheckMode getCurBoundsCheck()
+            {
+                return m_curBoundsCheck;
+            }
+
+            virtual bool needMoreBenchmarkRuns() const override
+            {
+                return false;
+            };
+            virtual void preBenchmarkRun() override{};
+            virtual void postBenchmarkRun() override{};
+            virtual void preProblem(ContractionProblem const& problem) override{};
+            virtual void postProblem() override{};
+            virtual void preSolution(ContractionSolution const& solution) override{};
+            virtual void postSolution() override{};
+            virtual bool needMoreRunsInSolution() const override
+            {
+                return m_numRunsInSolution < m_numRunsPerSolution;
+            };
+
+            virtual size_t numWarmupRuns() override
+            {
+                return 0;
+            };
+            virtual void setNumWarmupRuns(size_t count) override{};
+            virtual void preWarmup() override{};
+            virtual void postWarmup() override{};
+            virtual void validateWarmups(std::shared_ptr<ContractionInputs> inputs,
+                                         TimingEvents const&                startEvents,
+                                         TimingEvents const&                stopEvents) override
+            {
+                m_numRunsInSolution++;
+            };
+
+            virtual size_t numSyncs() override
+            {
+                return 0;
+            };
+            virtual void setNumSyncs(size_t count) override{};
+            virtual void preSyncs() override{};
+            virtual void postSyncs() override{};
+
+            virtual size_t numEnqueuesPerSync() override
+            {
+                return 0;
+            };
+            virtual void setNumEnqueuesPerSync(size_t count) override{};
+            virtual void preEnqueues() override{};
+            virtual void postEnqueues(TimingEvents const& startEvents,
+                                      TimingEvents const& stopEvents) override{};
+            virtual void validateEnqueues(std::shared_ptr<ContractionInputs> inputs,
+                                          TimingEvents const&                startEvents,
+                                          TimingEvents const&                stopEvents) override{};
+
+            virtual void finalizeReport() override{};
+
+            virtual int error() const override
+            {
+                return 0;
+            };
+
         protected:
             InitMode m_aInit, m_bInit, m_cInit, m_dInit;
             InitMode m_alphaInit, m_betaInit;
@@ -317,10 +395,20 @@ namespace Tensile
             /// with each kernel launch, but it will use extra memory.
             bool m_keepPristineCopyOnGPU = true;
 
-            /// If true, we will initialize all out-of-bounds inputs to NaN, and
+            /// If set "::NaN", we will initialize all out-of-bounds inputs to NaN, and
             /// all out-of-bounds outputs to a known value. This allows us to
             /// verify that out-of-bounds values are not used or written to.
-            bool m_boundsCheck = false;
+            /// If set "::GuardPageFront/::GuardPageBack", we will allocate matrix memory
+            /// with page aligned, and put matrix start/end address to memory start/end address.
+            /// Out-of-bounds access would trigger memory segmentation faults.
+            /// m_boundsCheck keep the setting from args.
+            /// m_curBoundsCheck keep the current running boundsCheck mode.
+            /// If set "::GuardPageAll", DataInit would need 2 runs per solution.
+            /// First run would apply "::GuardPageFront" and second run would apply "::GuardPageBack".
+            BoundsCheckMode m_boundsCheck        = BoundsCheckMode::Disable;
+            BoundsCheckMode m_curBoundsCheck     = BoundsCheckMode::Disable;
+            int             m_numRunsPerSolution = 0;
+            int             m_numRunsInSolution  = 0;
 
             /// If true, the data is dependent on the problem size (e.g. serial)
             /// and must be reinitialized for each problem. Pristine copy on GPU
