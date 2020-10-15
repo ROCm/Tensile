@@ -44,6 +44,7 @@
 #include "TimingEvents.hpp"
 
 #include "LogReporter.hpp"
+#include "LibraryUpdateReporter.hpp"
 #include "MetaResultReporter.hpp"
 #include "PerformanceReporter.hpp"
 #include "ResultFileReporter.hpp"
@@ -214,7 +215,16 @@ namespace Tensile
                 ("results-file",             po::value<std::string>()->default_value("results.csv"), "File name to write results.")
                 ("log-file",                 po::value<std::string>(),                               "File name for output log.")
                 ("log-file-append",          po::value<bool>()->default_value(false),                "Append to log file.")
-                ("log-level",                po::value<LogLevel>()->default_value(LogLevel::Debug),  "Log level")
+                ("log-level",                po::value<LogLevel>()->default_value(LogLevel::Debug),                "Log level")
+
+                ("library-update-file",      po::value<std::string>()->default_value(""), "File name which will have indices "
+                                                                       "and speeds suitable for updating "
+                                                                       "an existing library logic file.")
+                ("library-update-comment",   po::value<bool>()->default_value(false), "Include solution name as a "
+                                                                                      "comment in library update "
+                                                                                      "file.")
+
+
                 ("exit-on-failure",          po::value<bool>()->default_value(false), "Exit run early on failed kernels.")
                 ("selection-only",           po::value<bool>()->default_value(false), "Don't run any solutions, only print kernel selections.")
                 ("max-workspace-size",       po::value<size_t>()->default_value(32*1024*1024), "Max workspace for training")
@@ -501,6 +511,7 @@ int main(int argc, const char* argv[])
     // will be missing
     reporters->addReporter(LogReporter::Default(args));
     reporters->addReporter(ResultFileReporter::Default(args));
+    reporters->addReporter(LibraryUpdateReporter::Default(args));
 
     if(args.count("log-file"))
     {
