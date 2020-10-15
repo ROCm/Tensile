@@ -39,7 +39,8 @@ namespace Tensile
         public:
             virtual void addReporter(std::shared_ptr<ResultReporter> reporter)
             {
-                m_reporters.push_back(reporter);
+                if(reporter != nullptr)
+                    m_reporters.push_back(reporter);
             }
 
             virtual void reportValue_string(std::string const& key,
