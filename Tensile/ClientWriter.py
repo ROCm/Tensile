@@ -52,7 +52,7 @@ class ClientLogLevel(Enum):
   Terse = 1
   Verbose = 2
   Debug = 3
-  
+
 ################################################################################
 # Main
 ################################################################################
@@ -167,7 +167,7 @@ def runNewClient(scriptPath, clientParametersPath, clientBuildDir=None):
 
 
 def runClient(libraryLogicPath, forBenchmark, enableTileSelection):
-  
+
   # write runScript
   pushWorkingPath("build")
   path = globalParameters["WorkingPath"]
@@ -598,7 +598,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param('high-precision-accumulate',  problemType.highPrecisionAccumulate)
 
         for problem in problemSizes.problems:
-            for key,value in problemSizeParams(problemType, problem): 
+            for key,value in problemSizeParams(problemType, problem):
                 param(key,value)
 
         param("device-idx",               globalParameters["Device"])
@@ -663,13 +663,13 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
     newSolution = next(iter(newLibrary.solutions.values()))
     sourceDir = os.path.join(stepBaseDir, "source")
     writeClientConfigIni(problemSizes, newSolution.problemType, sourceDir, codeObjectFiles, resultsFileName, filename)
-   
+
 def CreateBenchmarkClientParametersForSizes(libraryRootPath, problemSizes, dataFilePath, configFile):
 
     libraryPath = os.path.join(libraryRootPath, "library")
-    libraryFiles = [os.path.join(libraryPath, f) for f in os.listdir(libraryPath)] 
-    codeObjectFiles = [f for f in libraryFiles if f.endswith("co")] 
-  
+    libraryFiles = [os.path.join(libraryPath, f) for f in os.listdir(libraryPath)]
+    codeObjectFiles = [f for f in libraryFiles if f.endswith("co")]
+
     metaDataFilePath = os.path.join(libraryPath, "metadata.yaml")
 
     if not os.path.exists(metaDataFilePath):
@@ -677,7 +677,7 @@ def CreateBenchmarkClientParametersForSizes(libraryRootPath, problemSizes, dataF
     metaData = LibraryIO.readConfig(metaDataFilePath)
     problemTypeDict = metaData["ProblemType"]
     problemType = ContractionsProblemType.FromOriginalState(problemTypeDict)
-  
+
     writeClientConfigIni(problemSizes, problemType, libraryRootPath, codeObjectFiles, dataFilePath, configFile)
 
 
