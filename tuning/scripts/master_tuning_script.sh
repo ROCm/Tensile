@@ -159,9 +159,9 @@ if [[ "${DEPENDENCIES}" == true ]]; then
         sudo wget https://github.com/Reference-LAPACK/lapack-release/archive/lapack-3.7.1.tar.gz  && \
         sudo tar -xvf lapack-3.7.1.tar.gz  && \
         pushd lapack-release-lapack-3.7.1 && \
-        sudo mkdir build && pushd build && \ 
+        sudo mkdir build && pushd build && \
         sudo cmake .. -DCBLAS=ON -DLAPACKE=OFF -DBUILD_TESTING=OFF -DCMAKE_Fortran_FLAGS='-fno-optimize-sibling-calls' && \
-        sudo make && sudo make install && popd && popd && popd 
+        sudo make && sudo make install && popd && popd && popd
     fi
 fi
 
@@ -224,7 +224,7 @@ else
             GPU=v340
         else
             printf "mi25 GPU detected\n"
-            GPU=mi25 
+            GPU=mi25
         fi
     elif [[ "$(grep -c 'gfx906' rae.txt)" -gt 0 ]]; then
         LIBRARY=vega20

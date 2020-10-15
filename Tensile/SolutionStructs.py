@@ -50,6 +50,17 @@ def reject(state, *args):
     for a in args:
       print(a)
     #traceback.print_stack(None, 2)
+    solutionIndex = state["SolutionIndex"] if (state != None and "SolutionIndex" in state) else -1
+    if solutionIndex != -1:
+      # If we have valid solutionIndex, this means we are during TensileCreateLibrary stage
+      # In this stage, all solutions in the logic should be valid
+      # So if any rejection happens, print the warning for further check
+      # This will be done only when --global-parameters=PrintSolutionRejectionReason=True
+      solutionNameMin = state["SolutionNameMin"] if ("SolutionNameMin" in state) else None
+      # if we don't have SolutionNameMin, we simply use the problemTypeName
+      solutionNameMin = str(state["ProblemType"]) if (solutionNameMin == None) else solutionNameMin
+      print("!! Warning: Any rejection of a LibraryLogic is not expected, please check. \
+        SolutionIndex: %d (or SolutionName/ProblemType: %s)"%(solutionIndex, solutionNameMin))
   if state != None:
     state["Valid"] = False
 
@@ -2292,6 +2303,7 @@ class Solution:
       state["InnerUnroll"] = state["DepthU"] // state["MatrixInstK"]
       state["PrefetchLocalRead"] = 1
       state["ExpandPointerSwap"] = 1
+      state["1LDSBuffer"] = 1
 
     if state["DisableVgprOverlapping"] is True and state["EnableMatrixInstruction"] is not True:
       reject(state, "Non-MI kernels are already non-overlapping in pre-allocated registers")
@@ -2454,10 +2466,20 @@ class Solution:
     #These modes only work under certain conditions, apply them here:
     #  - The "NoLoad" loop is only generated if PrefetchGlobalRead>0
     #  - And Suppress does not work if GSU>1 for some reason
-    state["SuppressNoLoadLoop"] &= (bufferLoad and state["PrefetchGlobalRead"] and (state["GlobalSplitU"]==1))
-    # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
-    # EPS not supported with PAP yet
-    state["ExpandPointerSwap"]  &= (bufferLoad and state["PrefetchGlobalRead"] and not state["PrefetchAcrossPersistent"])
+    if state["SuppressNoLoadLoop"] == 1:
+      if not (bufferLoad and state["PrefetchGlobalRead"] == 1 and (state["GlobalSplitU"]==1)):
+        state["SuppressNoLoadLoop"] = 0
+
+    if state["ExpandPointerSwap"] == 1:
+      # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
+      if not (bufferLoad and state["PrefetchGlobalRead"] == 1):
+        state["ExpandPointerSwap"] = 0
+      # EPS not supported with PGR=2 yet
+      if state["PrefetchGlobalRead"] == 2:
+        state["ExpandPointerSwap"] = 0
+      # EPS not supported with PAP yet
+      if state["PrefetchAcrossPersistent"]:
+        state["ExpandPointerSwap"] = 0
 
     #print("PackedC0IdxChars", state["PackedC0IdxChars"])
     #print("PackedC1IdxChars", state["PackedC1IdxChars"])
@@ -2935,8 +2957,7 @@ class Solution:
 
 
     if state["1LDSBuffer"] == -1:
-      if ldsNumElementsAB * state["ProblemType"]["DataType"].numBytes() > globalParameters["MaxLDS"] or \
-          state["ScheduleIterAlg"] == 2:
+      if ldsNumElementsAB * state["ProblemType"]["DataType"].numBytes() > globalParameters["MaxLDS"]:
         state["1LDSBuffer"] = 1
       else:
         state["1LDSBuffer"] = 0

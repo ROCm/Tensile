@@ -37,7 +37,7 @@ mylogger = logging.getLogger()
 def test_assignParameters():
     problemTypeConfig = \
         {"Batched": True, "DataType": "s", "OperationType": "GEMM", "TransposeA": False, "TransposeB": False, "UseBeta": True}
-  
+
     benchmarkCommonParameters = [{"LoopTail": [True]}, {"KernelLanguage": ["Assembly"]}, \
         {"EdgeType": ["ShiftPtr"]}, {"GlobalSplitU": [1]}, {"VectorWidth": [-1]}, {"FractionalLoad": [1]}, \
         {"PrefetchGlobalRead": [True]}]
@@ -47,8 +47,8 @@ def test_assignParameters():
 
     problemTypeObj, hardcodedParameters, initialSolutionParameters = \
         BenchmarkStructs.assignParameters(problemTypeConfig, benchmarkCommonParameters, configForkParameters)
-    
-   
+
+
     assert problemTypeObj != None
     assert hardcodedParameters != None
     assert initialSolutionParameters != None
@@ -87,7 +87,7 @@ def test_loadSolutions(caplog):
 
     solutionWriter, _, kernelWriterAssembly, \
         _, _ = TensileCreateLibrary.getSolutionAndKernelWriters(solutions, kernels)
-    
+
     expectedSolutionName0 = "Cijk_Ailk_Bljk_SB_MT128x128x2_SE_TT8_8_WG16_16_1"
     expectedSolutionName1 = "Cijk_Ailk_Bljk_SB_MT64x64x2_SE_TT4_4_WG16_16_1"
     expectedSolutionName2 = "Cijk_Ailk_Bljk_SB_MT64x64x2_SE_TT4_8_WG16_8_1"
@@ -130,11 +130,11 @@ def test_WriteClientLibraryFromSolutions(tmpdir):
 
     fileSolutions = LibraryIO.readSolutions(solutionsFilePath)
     solutions = fileSolutions[1]
-    
+
     Common.setWorkingPath(buildWorkingPath)
-    TensileCreateLibrary.WriteClientLibraryFromSolutions(solutions, libraryWorkingPath) 
+    TensileCreateLibrary.WriteClientLibraryFromSolutions(solutions, libraryWorkingPath)
     Common.popWorkingPath()
-    
+
     tensileLibraryPath = os.path.join(libraryWorkingPath, "library")
 
     hsacoFiles = glob.glob(tensileLibraryPath + "/*hsaco")
@@ -145,7 +145,7 @@ def test_WriteClientLibraryFromSolutions(tmpdir):
 
     tensileYamlFilePath = os.path.join(tensileLibraryPath, "TensileLibrary.yaml")
     assert os.path.exists(tensileYamlFilePath) == 1
-    
+
     config = None
     try:
         stream = open(tensileYamlFilePath, "r")
@@ -168,7 +168,7 @@ def test_WriteClientLibraryFromSolutions(tmpdir):
     metadata = yaml.load(stream, yaml.SafeLoader)
     stream.close()
     actualProblemType = metadata["ProblemType"]
- 
+
     assert (len(actualProblemType) > 0)
 
 def test_CreateBenchmarkClientParametersForSizes(tmpdir):
@@ -193,7 +193,7 @@ def test_CreateBenchmarkClientParametersForSizes(tmpdir):
     ClientWriter.CreateBenchmarkClientParametersForSizes(testDataPath, problemSizes, dataFilePath, configFile)
 
     assert os.path.exists(configFile) == 1
-    
+
 
 
 

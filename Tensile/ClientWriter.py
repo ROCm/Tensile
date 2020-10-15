@@ -52,7 +52,7 @@ class ClientLogLevel(Enum):
   Terse = 1
   Verbose = 2
   Debug = 3
-  
+
 ################################################################################
 # Main
 ################################################################################
@@ -167,7 +167,7 @@ def runNewClient(scriptPath, clientParametersPath, clientBuildDir=None):
 
 
 def runClient(libraryLogicPath, forBenchmark, enableTileSelection):
-  
+
   # write runScript
   pushWorkingPath("build")
   path = globalParameters["WorkingPath"]
@@ -561,6 +561,12 @@ def dataInitParams(problemType):
             ('init-alpha', DataInitName(initAlpha).name),
             ('init-beta',  DataInitName(initBeta).name)]
 
+def boundsCheckName(mode):
+    if mode == 0: return 'Disable'
+    if mode == 1: return 'NaN'
+    if mode == 2: return 'GuardPageFront'
+    if mode == 3: return 'GuardPageBack'
+    if mode == 4: return 'GuardPageAll'
 
 def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, resultsFileName, parametersFilePath):
 
@@ -592,7 +598,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param('high-precision-accumulate',  problemType.highPrecisionAccumulate)
 
         for problem in problemSizes.problems:
-            for key,value in problemSizeParams(problemType, problem): 
+            for key,value in problemSizeParams(problemType, problem):
                 param(key,value)
 
         param("device-idx",               globalParameters["Device"])
@@ -613,9 +619,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         if globalParameters["PrintTensorRef"]:
           param("print-tensor-ref",         1)
 
-        if globalParameters["BoundsCheck"]:
-          param("bounds-check", 1)
-
+        param("bounds-check",             boundsCheckName(int(globalParameters["BoundsCheck"])))
         param("print-valids",             globalParameters["ValidationPrintValids"])
         param("print-max",                globalParameters["ValidationMaxToPrint"])
         param("num-benchmarks",           globalParameters["NumBenchmarks"])
@@ -659,13 +663,13 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
     newSolution = next(iter(newLibrary.solutions.values()))
     sourceDir = os.path.join(stepBaseDir, "source")
     writeClientConfigIni(problemSizes, newSolution.problemType, sourceDir, codeObjectFiles, resultsFileName, filename)
-   
+
 def CreateBenchmarkClientParametersForSizes(libraryRootPath, problemSizes, dataFilePath, configFile):
 
     libraryPath = os.path.join(libraryRootPath, "library")
-    libraryFiles = [os.path.join(libraryPath, f) for f in os.listdir(libraryPath)] 
-    codeObjectFiles = [f for f in libraryFiles if f.endswith("co")] 
-  
+    libraryFiles = [os.path.join(libraryPath, f) for f in os.listdir(libraryPath)]
+    codeObjectFiles = [f for f in libraryFiles if f.endswith("co")]
+
     metaDataFilePath = os.path.join(libraryPath, "metadata.yaml")
 
     if not os.path.exists(metaDataFilePath):
@@ -673,7 +677,7 @@ def CreateBenchmarkClientParametersForSizes(libraryRootPath, problemSizes, dataF
     metaData = LibraryIO.readConfig(metaDataFilePath)
     problemTypeDict = metaData["ProblemType"]
     problemType = ContractionsProblemType.FromOriginalState(problemTypeDict)
-  
+
     writeClientConfigIni(problemSizes, problemType, libraryRootPath, codeObjectFiles, dataFilePath, configFile)
 
 

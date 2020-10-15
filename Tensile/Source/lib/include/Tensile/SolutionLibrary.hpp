@@ -81,7 +81,8 @@ namespace Tensile
    * May return `nullptr` if no such object exists.
    */
         virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
-                                                             Hardware const&  hardware) const = 0;
+                                                             Hardware const&  hardware,
+                                                             double* fitness = nullptr) const = 0;
 
         /**
    * Returns all `Solution` objects that are capable of correctly solving this
