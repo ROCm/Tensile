@@ -44,6 +44,7 @@
 #include "TimingEvents.hpp"
 
 #include "LogReporter.hpp"
+#include "LibraryUpdateReporter.hpp"
 #include "MetaResultReporter.hpp"
 #include "PerformanceReporter.hpp"
 #include "ResultFileReporter.hpp"
@@ -208,6 +209,15 @@ namespace Tensile
                 ("log-file",                 po::value<std::string>(),                               "File name for output log.")
                 ("log-file-append",          po::value<bool>()->default_value(false),                "Append to log file.")
                 ("log-level",                po::value<LogLevel>()->default_value(LogLevel::Debug),                "Log level")
+
+                ("library-update-file",      po::value<std::string>()->default_value(""), "File name which will have indices "
+                                                                       "and speeds suitable for updating "
+                                                                       "an existing library logic file.")
+                ("library-update-comment",   po::value<bool>()->default_value(false), "Include solution name as a "
+                                                                                      "comment in library update "
+                                                                                      "file.")
+
+
                 ("exit-on-failure",          po::value<bool>()->default_value(false), "Exit run early on failed kernels.")
                 ;
             // clang-format on
@@ -484,6 +494,7 @@ int main(int argc, const char* argv[])
     // will be missing
     reporters->addReporter(LogReporter::Default(args));
     reporters->addReporter(ResultFileReporter::Default(args));
+    reporters->addReporter(LibraryUpdateReporter::Default(args));
 
     if(args.count("log-file"))
     {

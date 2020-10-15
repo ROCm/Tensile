@@ -11,6 +11,7 @@ set(client_sources
     source/DataInitialization.cpp
     source/HardwareMonitor.cpp
     source/HardwareMonitorListener.cpp
+    source/LibraryUpdateReporter.cpp
     source/MetaRunListener.cpp
     source/PerformanceReporter.cpp
     source/ProgressListener.cpp
