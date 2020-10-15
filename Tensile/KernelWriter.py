@@ -541,7 +541,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # pop the first code which is s_nop 1 for packing
       item = macIterItem.pop(0)
 
-      numMfmaPerIter = kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] * kernel["InnerUnroll"]
+      numMfmaPerIter = self.numMfmaPerIter
       curPackIdx = 0
       packAIdx = 0
       packBIdx = 0
@@ -2355,7 +2355,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.numIterPerCoalescedReadA = max(1,self.numReadsIterCoalescedA//kernel["InnerUnroll"])
     self.numIterPerCoalescedReadB = max(1,self.numReadsIterCoalescedB//kernel["InnerUnroll"])
 
-    if kernel["ScheduleIterAlg"] == 3:
+    if kernel["ScheduleIterAlg"] == 3 or kernel["ScheduleIterAlg"] == 2:
       self.numMfmaPerIter = kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] * kernel["InnerUnroll"]
       if kernel["ProblemType"]["DataType"].isComplex(): self.numMfmaPerIter *= 4
 
