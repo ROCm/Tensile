@@ -41,11 +41,6 @@ if [ -z ${SCRIPTS_PATH+foo} ]; then
     exit 2
 fi
 
-
-#determing full path of tools root
-#TOOLS_ROOT=`dirname "$0"`
-#TOOLS_ROOT=`( cd "${TOOLS_ROOT}" && cd .. && pwd )`
-
 ROCBLAS_ROOT="${WORKING_PATH}/rocblas"
 SCRIPT_ROOT="${SCRIPTS_PATH}"
 LIBRARY_ROOT="${WORKING_PATH}/library"

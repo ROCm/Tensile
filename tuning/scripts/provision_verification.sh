@@ -161,7 +161,6 @@ if [[ ${MERGE} == true ]]; then
     echo "merging exact logic"
     EXE_MERGE="python ${MERGE_SCRIPT} ${ASM_PATH} ${EXACT_PATH} ${MERGE_PATH}"
     ${EXE_MERGE} 2>&1 | tee ${LOGS}/log-merge-script
-    #python ${MASSAGE_SCRIPT} ${MERGE_PATH} ${MASSAGE_PATH} 2>&1 | tee logs/log-merge-script
   fi
   
 else
@@ -169,11 +168,9 @@ else
 fi
 
 if [[ ${MASSAGE} == true ]]; then
-  #if [[ $(ls -A library/merge | wc -c) -eq 0 ]]; then
   if [[ $(ls -A ${MASSAGE_PATH} | wc -c) -eq 0 ]]; then
      python ${MASSAGE_SCRIPT} ${MERGE_PATH} ${MASSAGE_PATH} 2>&1 | tee ${LOGS}/log-massage-script
   fi
-  #python ${MASSAGE_SCRIPT} ${MERGE_PATH} ${MASSAGE_PATH}
 fi
 
 ROCBLAS_BENCH_PATH="${ROCBLAS_REFERENCE_NAME}/build/release/clients/staging/rocblas-bench"
@@ -187,7 +184,6 @@ if [ ! -f ${ROCBLAS_BENCH_PATH} ]; then
 fi
 
 CREATE_LIBRARY_EXE=${REFERENCE_NAME}/build/release/virtualenv/lib/python3.6/site-packages/Tensile/bin/TensileCreateLibrary
-           #rocblas/rocBLAS-reference/build/release/virtualenv/lib/python3.6/site-packages/Tensile/bin/TensileCreateLibrary
 TENSILE_CREATE_LIBRARY="${CREATE_LIBRARY_EXE} --merge-files --no-legacy-components --no-short-file-names --no-library-print-debug --code-object-version=V3 --cxx-compiler=hipcc --library-format=msgpack ${MERGE_PATH} ${TENSILE_LIBRARY_PATH} HIP"
 if [ -f ${CREATE_LIBRARY_EXE} ]; then
     if [ ! -d ${TENSILE_LIBRARY_PATH}/library ]; then

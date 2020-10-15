@@ -23,7 +23,7 @@ HELP_STR="
     [-y|--data-type]        Optional. Data type of sizes that you want to tune (sgemm, dgemm, hgemm only)
     [-g|--gpu]              Optional. GPU used for tuning (arcturus, mi25, mi50, mi60, r7, v340 only)
     [-f|--sclk]             Optional. Frequency of sclk in MHz 
-    [-d|--no-dependencies]  Optional. Skip installing required dependencies (dependencies are installed by default)
+    [-d|--no-dependencies]  Optional. Skip installing required dependencies (dependencies are not installed by default)
     [-n|--network]          Optional. String to search for in filenames in log directory
     [--client]              Optional. Choose Tensile client version. (new, old, both, default=new)
     [-m|--mfma]             Optional. Use MFMA kernels (default=false)

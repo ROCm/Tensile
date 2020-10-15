@@ -74,11 +74,9 @@ done
 
 echo "for dir in$DIRS" >> $DOIT
 echo "do" >> $DOIT
-#echo "  if [ ! -d build-${dir}/3_LibraryLogic ] || [ \$(ls -A build-\${dir}/3_LibraryLogic | wc -c) -eq 0 ]; then" >> $DOIT
 echo "  cd build-\${dir}" >> $DOIT
 echo "  ./doit.sh > doit-errs 2>&1" >> $DOIT
 echo "  cd .." >> $DOIT
-#echo "  fi" >> $DOIT
 echo "done" >> $DOIT
 
 chmod +x $DOIT
