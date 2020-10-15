@@ -61,13 +61,10 @@ class KernelWriterBetaOnly(KernelWriterBase):
 
     # sizes
     for i in range(0, self.state["ProblemType"]["NumIndicesC"]):
-      kStr += "  unsigned int const size%s" % self.indexChars[i]
-      kStr += "," if (i < self.state["ProblemType"]["NumIndicesC"]-1 or self.state["ProblemType"]["UseBeta"]) else ")"
-      kStr += self.endLine
+      kStr += "  unsigned int const size%s,%s" % (self.indexChars[i], self.endLine)
 
     # beta
-    if self.state["ProblemType"]["UseBeta"]:
-      kStr += "  %s const beta)%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine )
+    kStr += "  %s const beta)%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine )
 
     return kStr
 
@@ -122,52 +119,36 @@ class KernelWriterBetaOnly(KernelWriterBase):
     kStr += " ))" + self.endLine
 
     ########################################
-    # wg d0, d1
-    #kStr += "  unsigned int wg" + self.tileChar0 + " = " \
-    #    + self.getGroupIdStr + "(0);" + self.endLine
-    #kStr += "  unsigned int wg" + self.tileChar1 + " = " \
-    #    + self.getGroupIdStr + "(1);" + self.endLine
-    ########################################
-    # wg other : batch dims
-    freeIdxC0 = [idx for idx in range(problemType["NumIndicesC"]) \
-                    if idx in problemType["IndexAssignmentsA"] and idx in problemType["IndicesFree"]]
-    freeIdxC1 = [idx for idx in range(problemType["NumIndicesC"]) \
-                    if idx in problemType["IndexAssignmentsB"] and idx in problemType["IndicesFree"]]
+    # multi buffers GSU: Accumulate all GSU buffer
+    indexChar = self.indexChars[0]
+    kStr += "  uint64_t id = %s(0);%s" % (self.getGlobalIdStr, self.endLine)
+    kStr += "  if (id >= (size%s" % self.indexChars[0]
+    for i in range(1, problemType["NumIndicesC"]):
+      kStr += "*size%s" % self.indexChars[i]
+    kStr += "))%s" % self.endLine
+    kStr += "    return;%s" % self.endLine
 
-    batchSizes  = "*".join(["size%s"%self.indexChars[idx] for idx in problemType["IndicesBatch"]])
-    freeSizesC0 = "*".join(["size%s"%self.indexChars[idx] for idx in freeIdxC0])
-    freeSizesC1 = "*".join(["size%s"%self.indexChars[idx] for idx in freeIdxC1])
+    kStr += "  uint64_t id0"
+    for i in range(1, problemType["NumIndicesC"]):
+      kStr += ", id%d" % i
+    kStr += ";%s" % self.endLine
 
-    t = []
-    if freeSizesC0:
-      t.append("(%s(0) >=  %s)" % (self.getGlobalIdStr, freeSizesC0))
-    if freeSizesC1:
-      t.append("(%s(1) >=  %s)" % (self.getGlobalIdStr, freeSizesC1))
-    if batchSizes:
-      t.append("(%s(2) >=  %s)" % (self.getGlobalIdStr, batchSizes))
+    for i in range(0, problemType["NumIndicesC"]):
+      kStr += "  id%d = id %% size%s;%s" % (i, self.indexChars[i], self.endLine)
+      kStr += "  id  = id / size%s;%s" % (self.indexChars[i], self.endLine)
 
-    kStr += " if ("
-    kStr += "\n   || ".join(t) + ")\n"
-    kStr += "    return;\n"
-
-    kStr += self.extractIndices(self.getGroupIdStr  + "(2)", "wg"     , problemType["IndicesBatch"])
-    kStr += self.extractIndices(self.getGlobalIdStr + "(0)", "globalC", freeIdxC0)
-    kStr += self.extractIndices(self.getGlobalIdStr + "(1)", "globalC", freeIdxC1)
+    kStr += self.endLine
 
     ########################################
     # D index
     kStr += "  %s idxD = GLOBAL_D( (%s)" % (self.uint64Str, self.uint64Str)
-    kStr += ', '.join(["wg%s" % self.indexChars[i] if i in problemType["IndicesBatch"] else "globalC%s" % self.indexChars[i] \
-                      for i in range(problemType["NumIndicesC"])])
+    kStr += ', '.join(["id%d" % i for i in range(problemType["NumIndicesC"])])
     kStr += ");%s" % (self.endLine)
 
     # C index
     kStr += "  %s idxC = GLOBAL_C( (%s)" % (self.uint64Str, self.uint64Str)
-    kStr += ', '.join(["wg%s" % self.indexChars[i] if i in problemType["IndicesBatch"] else "globalC%s" % self.indexChars[i] \
-                      for i in range(problemType["NumIndicesC"])])
+    kStr += ', '.join(["id%d" % i for i in range(problemType["NumIndicesC"])])
     kStr += ");%s" % (self.endLine)
-
-    #kStr += "printf(\\\"%%09llu\\\\n\\\", idx);%s" % (self.endLine)
 
     ########################################
     # zero
@@ -180,21 +161,22 @@ class KernelWriterBetaOnly(KernelWriterBase):
     ########################################
     # zero
     computeType = problemType["ComputeDataType"].toDevice(self.language)
-    if problemType["UseBeta"]:
-      if problemType["DataType"].isComplex():
-        kStr += "  if((beta.s0 == 0) && (beta.s1 == 0)) {%s" % self.endLine
-      else:
-        kStr += "  if(beta == SCALAR_ZERO) {%s" % self.endLine
-      kStr += "    D[idxD] = SCALAR_ZERO;%s" % self.endLine
-      kStr += "  } else {%s" % self.endLine
-      kStr += "    D[idxD] = ((%s)(C[idxC])) * beta;%s" % (computeType, self.endLine)
-      kStr += "  }%s" % self.endLine
+    if problemType["DataType"].isComplex():
+      kStr += "  if((beta.s0 == 0) && (beta.s1 == 0)) {%s" % self.endLine
     else:
-      kStr += "  D[idxD] = SCALAR_ZERO;%s" % (self.endLine)
+      kStr += "  if(beta == SCALAR_ZERO) {%s" % self.endLine
+    kStr += "    D[idxD] = SCALAR_ZERO;%s" % self.endLine
+    kStr += "  } else {%s" % self.endLine
+    kStr += "    D[idxD] = ((%s)(C[idxC])) * beta;%s" % (computeType, self.endLine)
+    kStr += "  }%s" % self.endLine
 
     ########################################
     # end
     kStr += "}%s" % self.endLine
+    for i in range(firstStride, lastStrideC):
+      kStr += "#undef strideD" + self.indexChars[i] + self.endLine
+    for i in range(firstStride, lastStrideC):
+      kStr += "#undef strideC" + self.indexChars[i] + self.endLine
     kStr += "#undef GLOBAL_D%s" % (self.endLine)
     kStr += "#undef GLOBAL_C%s" % (self.endLine)
     kStr += "#undef SCALAR_ZERO%s" % ( self.endLine)
@@ -210,8 +192,8 @@ class KernelWriterBetaOnly(KernelWriterBase):
       name += indexChars[i].lower()
     name += "_"
     name += self.state["ProblemType"]["DestDataType"].toChar()
-    if self.state["ProblemType"]["UseBeta"]: name += "B"
-    if self.state["_GlobalAccumulation"]: name += "_GA"
+    if self.state["_GlobalAccumulation"]:
+      name += "_GA"
 
     return name
 

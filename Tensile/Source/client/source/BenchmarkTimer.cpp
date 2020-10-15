@@ -141,6 +141,8 @@ namespace Tensile
                                              TimingEvents const&                startEvents,
                                              TimingEvents const&                stopEvents)
         {
+            if((stopEvents->size() > 0) && (stopEvents->back().size() > 0))
+                HIP_CHECK_EXC(hipEventSynchronize(stopEvents->back().back()));
         }
 
         size_t BenchmarkTimer::numSyncs()

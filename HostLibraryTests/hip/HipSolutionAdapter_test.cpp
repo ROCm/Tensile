@@ -60,13 +60,13 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Zero)
     KernelInvocation k;
 
     k.kernelName      = "Cijk_S";
-    k.workGroupSize.x = 8;
-    k.workGroupSize.y = 8;
+    k.workGroupSize.x = 256;
+    k.workGroupSize.y = 1;
     k.workGroupSize.z = 1;
 
-    k.numWorkGroups.x = CeilDivide(desc.sizes()[0], k.workGroupSize.x);
-    k.numWorkGroups.y = CeilDivide(desc.sizes()[1], k.workGroupSize.y);
-    k.numWorkGroups.z = desc.sizes()[2];
+    k.numWorkGroups.x = CeilDivide(desc.totalLogicalElements(), k.workGroupSize.x);
+    k.numWorkGroups.y = 1;
+    k.numWorkGroups.z = 1;
 
     k.numWorkItems.x = k.workGroupSize.x * k.numWorkGroups.x;
     k.numWorkItems.y = k.workGroupSize.y * k.numWorkGroups.y;
@@ -81,6 +81,7 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Zero)
     k.args.append<unsigned int>("size0", desc.sizes()[0]);
     k.args.append<unsigned int>("size1", desc.sizes()[1]);
     k.args.append<unsigned int>("size2", desc.sizes()[2]);
+    k.args.append<float>("beta", 0.0f);
 
     hip::SolutionAdapter adapter(false);
     adapter.loadEmbeddedCodeObjects("kernels_lite_mixed");
@@ -131,14 +132,14 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Nonzero)
 
     KernelInvocation k;
 
-    k.kernelName      = "Cijk_SB";
-    k.workGroupSize.x = 8;
-    k.workGroupSize.y = 8;
+    k.kernelName      = "Cijk_S";
+    k.workGroupSize.x = 256;
+    k.workGroupSize.y = 1;
     k.workGroupSize.z = 1;
 
-    k.numWorkGroups.x = CeilDivide(desc.sizes()[0], k.workGroupSize.x);
-    k.numWorkGroups.y = CeilDivide(desc.sizes()[1], k.workGroupSize.y);
-    k.numWorkGroups.z = desc.sizes()[2];
+    k.numWorkGroups.x = CeilDivide(desc.totalLogicalElements(), k.workGroupSize.x);
+    k.numWorkGroups.y = 1;
+    k.numWorkGroups.z = 1;
 
     k.numWorkItems.x = k.workGroupSize.x * k.numWorkGroups.x;
     k.numWorkItems.y = k.workGroupSize.y * k.numWorkGroups.y;
