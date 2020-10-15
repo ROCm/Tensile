@@ -23,7 +23,7 @@ HELP_STR="
     [-y|--data-type]        Optional. Data type of sizes that you want to tune (sgemm, dgemm, hgemm only)
     [-g|--gpu]              Optional. GPU used for tuning (arcturus, mi25, mi50, mi60, r7, v340 only)
     [-f|--sclk]             Optional. Frequency of sclk in MHz 
-    [-d|--no-dependencies]  Optional. Skip installing required dependencies (dependencies are not installed by default)
+    [-d|--dependencies]     Optional. Install required dependencies (dependencies are not installed by default)
     [-n|--network]          Optional. String to search for in filenames in log directory
     [--client]              Optional. Choose Tensile client version. (new, old, both, default=new)
     [-m|--mfma]             Optional. Use MFMA kernels (default=false)
@@ -71,7 +71,7 @@ HCC=false
 ROCM_PATH=/opt/rocm
 DEPENDENCIES=false
 
-OPTS=`getopt -o hg:z:y:o:f:drmn:ctsvi:u:b:p --long help,gpu:,log:,network:,data-type:,output-dir:,sclk:,no-dependencies,client:,rk,mfma,count,tile-aware,disable-strides,verification,initialization:,disable-hpa,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition:,hcc,rocm-path: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hg:z:y:o:f:drmn:ctsvi:u:b:p --long help,gpu:,log:,network:,data-type:,output-dir:,sclk:,dependencies,client:,rk,mfma,count,tile-aware,disable-strides,verification,initialization:,disable-hpa,username:,branch:,number:,rocblas-fork:,rocblas-branch:,public,one-type:,omit-type:,problem-definition:,hcc,rocm-path: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -86,7 +86,7 @@ while true; do
         -y | --data-type )          DATA_TYPE="$2"; shift 2;;
         -o | --output-dir )         OUTPUT_DIR="$2"; shift 2;;
         -f | --sclk )               SCLK="$2"; shift 2;;
-        -d | --no-dependencies )    DEPENDENCIES=true; shift ;;
+        -d | --dependencies )       DEPENDENCIES=true; shift ;;
         -r | --rk )                 RK=true; shift ;;
         -m | --mfma )               MFMA=true; shift ;;
         -c | --count )              COUNT=true; shift ;;
