@@ -10,7 +10,7 @@
 /* Begin Kernel                           */
 /******************************************/
 
-.amdgcn_target "amdgcn-amd-amdhsa--gfx908+sram-ecc"
+.amdgcn_target "amdgcn-amd-amdhsa--gfx908"
 .text
 .protected Cijk_Alik_Bljk_SB_MT32x64x32_SE_K1
 .globl Cijk_Alik_Bljk_SB_MT32x64x32_SE_K1
