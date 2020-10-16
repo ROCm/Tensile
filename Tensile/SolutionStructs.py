@@ -3078,6 +3078,18 @@ class Solution:
     # lds size is the greater of the two
     ldsNumElements = max(ldsNumElementsAB, ldsNumElementsReduction, ldsNumElementsOccupancy)
 
+    if state["StoreRemapVectorWidth"] == -1:
+      ldsRemapPad = max(4,state["MIOutputVectorWidth"])
+      ldsNumElementsRemapC = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"] * state["MIWaveGroup"][1]
+      ldsNumElementsRemapC *= (2 if state["_GlobalAccumulation"] else 1) # FP32 output FP16 Data
+      ldsSize = ldsNumElementsRemapC * state["ProblemType"]["DataType"].numBytes()
+      if not math.log(state["MacroTile0"],2).is_integer() or \
+          ldsSize > globalParameters["MaxLDS"] or \
+          (state["GlobalSplitU"] > 1) and (state["_GlobalAccumulation"] != 2):
+        state["StoreRemapVectorWidth"] = 0
+      else:
+        state["StoreRemapVectorWidth"] = 4
+
     #check not support cases and calculate lds resources
     if state["StoreRemapVectorWidth"]:
       if not state["EnableMatrixInstruction"]:

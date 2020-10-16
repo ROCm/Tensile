@@ -726,7 +726,7 @@ validParameters = {
     # 0:   Disable StoreRemap (default)
     # 1~8: Enable StoreRemap and set the global write vector width
     # Suggest optimum value: fp32 = [2,4], fp16 or bf16 = [4,8] (dwordx2 and dowrdx4)
-    "StoreRemapVectorWidth":      [0,1,2,4,8],
+    "StoreRemapVectorWidth":      [-1,0,1,2,4,8],
 
     # Disable overlapping AB-tile vgpr and read/write addr vgprs with C-tile vgprs
     # Valid only for MatrixInstruction enabled kernels, which by default overlaps
