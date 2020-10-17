@@ -112,17 +112,15 @@ class ProblemType:
 
         srcType = DataType(d['DataType'])
         dstType = DataType(d['DestDataType']) if 'DestDataType' in d else srcType
+        computeType = DataType(d['ComputeDataType']) if 'ComputeDataType' in d else dstType
 
         rv.aType = srcType
         rv.bType = srcType
         rv.cType = dstType
         rv.dType = dstType
-
-        rv.alphaType = dstType
-        rv.betaType = dstType
-        if dstType.isBFloat16():
-            rv.alphaType = DataType(dstType.single)
-            rv.betaType  = DataType(dstType.single)
+        # we already checked the src/dst/compute types are supported and well-assigned in SolutionStruct
+        rv.alphaType = computeType
+        rv.betaType = computeType
 
         rv.highPrecisionAccumulate = False
         if 'HighPrecisionAccumulate' in d:

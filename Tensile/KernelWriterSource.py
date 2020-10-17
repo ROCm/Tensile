@@ -1930,16 +1930,16 @@ class KernelWriterSource(KernelWriter):
       kStr += self.endLine + "  /* Compute summation loop num iter */" + self.endLine
 
       # Check alpha == 0
-      if kernel["ProblemType"]["DataType"].isDoubleComplex():
+      if kernel["ProblemType"]["ComputeDataType"].isDoubleComplex():
         alphaZeroStr = "tensile_complex<double>(0.0)"
-      elif kernel["ProblemType"]["DataType"].isDouble() or \
-            kernel["ProblemType"]["DataType"].isReal():
+      elif kernel["ProblemType"]["ComputeDataType"].isDouble() or \
+            kernel["ProblemType"]["ComputeDataType"].isReal():
         alphaZeroStr = "0.0"
-      elif kernel["ProblemType"]["DataType"].isSingleComplex():
+      elif kernel["ProblemType"]["ComputeDataType"].isSingleComplex():
         alphaZeroStr = "tensile_complex<float>(0.0f)"
-      elif kernel["ProblemType"]["DataType"].isSingle() or \
-            kernel["ProblemType"]["DataType"].isHalf() or \
-            kernel["ProblemType"]["DataType"].isBFloat16():
+      elif kernel["ProblemType"]["ComputeDataType"].isSingle() or \
+            kernel["ProblemType"]["ComputeDataType"].isHalf() or \
+            kernel["ProblemType"]["ComputeDataType"].isBFloat16():
         alphaZeroStr = "0.0f"
       else:
         alphaZeroStr = "0"

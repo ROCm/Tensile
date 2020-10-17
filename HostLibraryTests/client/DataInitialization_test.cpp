@@ -146,7 +146,7 @@ public:
 using InputTypes = ::testing::Types<TypedContractionInputs<float>,
                                     TypedContractionInputs<double>,
                                     TypedContractionInputs<Half>,
-                                    BFloat16ContractionInputs,
+                                    ContractionInputs_B_B_S,
                                     TypedContractionInputs<std::complex<float>>,
                                     TypedContractionInputs<std::complex<double>>,
                                     TypedContractionInputs<Int8x4, Int8x4, int32_t>,
