@@ -174,6 +174,8 @@ namespace Tensile
                                                          static_cast<int64_t>(zp[zi + 3])}));
                     }
                 }
+                rv.back().setAlphaType(m_alphaType);
+                rv.back().setBetaType(m_betaType);
                 rv.back().setHighPrecisionAccumulate(m_highPrecisionAccumulate);
                 rv.back().setKernelLanguage(m_kernelLanguage);
                 rv.back().setDeterministicMode(m_deterministicMode);

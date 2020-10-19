@@ -825,7 +825,8 @@ class ProblemType(collections.abc.Mapping):
 
     self.convolution = None
     if self["OperationType"] == "GEMM":
-      self.initGEMM(config)
+      self.checkIfSupportedGEMMType()
+      self.initGEMM()
     elif self["OperationType"] == "TensorContraction":
       self.initTensorContraction(self.state)
     elif self["OperationType"] in ("ConvolutionForward", "ConvolutionBackwardData", "ConvolutionBackwardWeights"):
@@ -868,10 +869,108 @@ class ProblemType(collections.abc.Mapping):
           if anchorDim not in self.state["IndexAssignments%s"%tc]:
               printExit("SetConstStride%s=%s anchorDim=%u is not in IndexAssignments%s"%(tc, sc, anchorDim, tc))
 
+  ################################################################################
+  # Assign and check the 3-datatypes EXPLICTLY for better maintanence:
+  # Target: to avoid some hack-code/workaround/ambiguous code
+  #     - Such as fixing Cexternal to DestDataType instead of DataType,
+  #       but now it works well since they are the same
+  #     - Another exmple is the "ComputeDataType" is barely referred in generator
+  #       We use lots of if (DataType==... and HPA==...) which might be tedious
+  #       It's better to make them explict
+
+  # Align the supported GEMM type with rocBLAS: [a/b/c/d/alpha/beta]
+  #   (rocblas/library/include/internal/rocblas_functions.h)
+  # Non_Ex
+  #   - CGEMM:  [C/C/ C/C/ C/C]
+  #   - ZGEMM:  [Z/Z/ Z/Z/ Z/Z]
+  #   - DGEMM:  [D/D/ D/D/ D/D]
+  #   - SGEMM:  [S/S/ S/S/ S/S]
+  #   - HGEMM:  [H/H/ H/H/ H/H] (HPA=F)
+  # _Ex:
+  #   - HGEMM:  [H/H/ H/H/ H/H] (HPA=T), SEE MORE EXPLANATION BELOW
+  #   - HGEMM:  [H/H/ H/H/ S/S] (HPA=T), Somehow we hadn't used this version
+  #   - BFGEMM: [B/B/ B/B/ S/S] (HPA=T), the only supported one
+  #   - IGEMM:  [i8/i8/ I/I/ I/I ], tensile packs 4 i8 to i8x4 with some restrictions
+
+  # DataType        = Input data-type of A/B
+  # DestDataType    = Output data-type of C/D
+  # ComputeDataType = Input data-type of alpha/beta:
+  # Cinternal: basically should == ComputeDataType
+  #   - EXCEPT FOR (H/H/H/H/H/H)+HPA, Cinternal is F32, which is not intuitive
+
+  # But for HGEMM, ComputeDataType is trickier:
+  #   - When rocBLAS invokes with a/b=F16, c/d=F16, compute=F16,
+  #     rocBLAS directly find a well-mapped tensile-kernel
+  #     -> Tensile: [H/H/ H/H/ H/H] & HPA=FALSE is used
+  #        Input Alpha/Beta is Half
+  #
+  #   - When rocBLAS invokes with a/b=F16, c/d=F16, compute=F32,
+  #     rocBLAS turns on HPA, then casts to a compute-type=F16 ver of tensile-kernel
+  #     -> Tensile: [H/H/ H/H/ H/H] & HPA=TRUE is used
+  #        Input Alpha/Beta is still Half
+  #     Which seems not a intuitive mapping for alpha/beta
+  #
+  # Target: The better and consistent logic should be the same as BF16
+  #   - When rocBLAS invokes with a/b=F16, c/d=F16, compute=F32,
+  #     rocBLAS turns on HPA, BUT STILL REMAINS compute-type=F32
+  #     -> Tensile: [H/H/ H/H/ S/S] & HPA=TRUE is used
+  #        Input Alpha/Beta is Float
+  #     That's also how bf16 works
+
+  # Function checkIfSupportedGEMMType:
+  #   Assures 3 data-types are valid, supported and well-assigned
+  #   Next step TODO-
+  #     - We can start to try generating [H/H/ H/H/ S/S] & HPA
+  #       If Alpha/Beta=S, this also saves a few instrctions to cvt from f16->f32 in assembly
+  #     - Also need to do some change in rocBLAS:
+  #       When invoking gemm_ex with a/b=F16, c/d=F16, compute=F32,
+  #       simply reflects to Tensile [H/H/ H/H/ S/S] & HPA kernel
+  ################################################################################
+  def checkIfSupportedGEMMType(self):
+    inType = self["DataType"]
+    outType = self["DestDataType"]
+    computeType = self["ComputeDataType"]
+
+    if inType.isDouble():
+      if not (outType.isDouble() and computeType.isDouble()):
+        printExit("DataType=D only allows DestDataType=D and ComputeDataType=D")
+
+    if inType.isSingle():
+      if not (outType.isSingle() and computeType.isSingle()):
+        printExit("DataType=S only allows DestDataType=S and ComputeDataType=S")
+
+    if inType.isHalf():
+      # TODO- Test and migrate ([H/H/H]+HPA) to ([H/H/S]+HPA)
+      # Note that we need to do a little change in rocBLAS and logic yaml
+      if not (outType.isHalf() and (computeType.isHalf() or computeType.isSingle())):
+        printExit("DataType=H only allows DestDataType=H and ComputeDataType=H/S")
+      # if not (outType.isHalf() and computeType.isHalf()):
+      #   printExit("DataType=H only allows DestDataType=H and ComputeDataType=H")
+
+    if inType.isBFloat16():
+      if not (outType.isBFloat16() and computeType.isSingle()):
+        printExit("DataType=B only allows DestDataType=B and ComputeDataType=S")
+
+    if inType.isDoubleComplex():
+      if not (outType.isDoubleComplex() and computeType.isDoubleComplex()):
+        printExit("DataType=Z only allows DestDataType=Z and ComputeDataType=Z")
+
+    if inType.isSingleComplex():
+      if not (outType.isSingleComplex() and computeType.isSingleComplex()):
+        printExit("DataType=C only allows DestDataType=C and ComputeDataType=C")
+
+    if inType.isInt8x4():
+      if not (outType.isInt32() and computeType.isInt32()):
+        printExit("DataType=i4x8 only allows DestDataType=I and ComputeDataType=I")
+
+    # TODO - WIP
+    # if inType.isInt8():
+    #   if not (outType.isInt32() and computeType.isInt32()):
+    #     printExit("DataType=i8 only allows DestDataType=I and ComputeDataType=I")
 
 
   ########################################
-  def initGEMM(self, config):
+  def initGEMM(self):
     sumIdx = 3 if self["Batched"] else 2
     self["IndexAssignmentsA"] = [0, sumIdx] # N
     self["IndexAssignmentsB"] = [sumIdx, 1] # N
@@ -2322,7 +2421,7 @@ class Solution:
         reject(state, "invalid MIWaveTile")
       if not state["ProblemType"]["HighPrecisionAccumulate"] \
          and state["ProblemType"]["DataType"].numRegisters() < 1 :
-        reject(state, "Matrix instructions for half types are natively accumulated" + \
+        reject(state, "Matrix instructions for half, bf16 types are natively accumulated" + \
          " in fp32 precision. Please add the following config:" + \
          "\n - HighPrecisionAccumulate: True")
       if state["LdsBlockSizePerPadA"]:
@@ -2337,6 +2436,12 @@ class Solution:
         if state["LdsBlockSizePerPadB"] < state["DepthU"]*state["ProblemType"]["DataType"].numBytes():
           reject(state, "reject: DepthU %u x bpe > LdsBlockSizePerPadB %u" % (state["DepthU"], state["LdsBlockSizePerPad"]))
     else:
+      if not state["ProblemType"]["HighPrecisionAccumulate"] \
+         and state["ProblemType"]["ComputeDataType"].numRegisters() > state["ProblemType"]["DataType"].numRegisters() :
+        reject(state, "For non-MI Kernel, if sizeof(ComputeDataType) > sizeof(DataType), " + \
+         "Please add the following config:" + \
+         "\n - HighPrecisionAccumulate: True")
+
       if state["UnrollMajorLDSA"] or state["UnrollMajorLDSB"]:
         reject(state, "didn't support UnrollMajorLDS in VALU mode yet")
 
