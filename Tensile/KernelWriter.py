@@ -261,27 +261,35 @@ class KernelWriter(metaclass=abc.ABCMeta):
         loadsToSched = sum(1 for item in itemsGRToSched if item.countTypeList(filter))
         self.grEndMfmaIndex = max(0, roundUp(loadsToSched/self.numGlobalReadInsPerMfma) - 1)
         if self.grEndMfmaIndex > self.lwEndMfmaIndex:
-          firstStep = (numMfmaPerIter + (self.grEndMfmaIndex - self.lwEndMfmaIndex)) * self.numGlobalReadInsPerMfma
+          schedNumForIter0 = (numMfmaPerIter + (self.grEndMfmaIndex - self.lwEndMfmaIndex)) * self.numGlobalReadInsPerMfma
           self.grEndMfmaIndex = self.lwEndMfmaIndex
         else:
-          firstStep = numMfmaPerIter * self.numGlobalReadInsPerMfma
+          schedNumForIter0 = numMfmaPerIter * self.numGlobalReadInsPerMfma
         endIter = roundUp((readCnt + 2 + 2*numEmptyGlobalReadIncCode)/numMfmaPerIter)
         if endIter > kernel["LoopIters"]:
           endIter = kernel["LoopIters"]
+      # SIA 1 or 2
+      # distribute the instructions in itemsGRToSched evenly as possible to iterations: perIterGlobalReadCode[0,endIter)
+      # last one is perIterGlobalReadCode[endIter-1],
+      # Ideally:     endIter <= localWriteEndIter,
+      #              then put M0 updateCode (if any) and first 'schedNumForIter0' GR-inst in perIterGlobalReadCode[0]
+      #              put every numGlobalReadInsPerIter GR-insts in perIterGlobalReadCode[1]~[endIter-1]
+      # corner case: endIter > localWriteEndIter, set endIter = localWriteEndIter,in this case, schedNumForIter0 will > 1
+      #              and perIterGlobalReadCode[0] would need to schedule more instructions
       else:
         # reads and incs are scheduled in iters range(0..endIter)
         endIter = readCnt + 2
         if endIter > localWriteEndIter:
           # Front-load some of the buffer loads if we don't have enough loop iters:
           # could use a different/smarter algorithm to space out the loads?
-          firstStep = endIter-(localWriteEndIter) + 1
+          schedNumForIter0 = endIter-(localWriteEndIter) + 1
           endIter = localWriteEndIter
         else:
           # schedule b2b for readCnt > 2 (True for bigger TT)
-          firstStep = 1
+          schedNumForIter0 = 1
 
       if schedDb & 0x1:
-        print("makeSchedule-gr, readCnt=", readCnt, "firstStep=", firstStep, "endIter=", endIter)
+        print("makeSchedule-gr, readCnt=", readCnt, "schedNumForIter0=", schedNumForIter0, "endIter=", endIter)
 
       # insert dtlsM0UpdateACode dtlsM0UpdateBCode code
       if self.globalReadACode.middle.items():
@@ -289,11 +297,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.globalReadBCode.middle.items():
         self.globalReadBCode.middle.items()[0].items().insert(0,self.dtlsM0UpdateBCode)
       # append 'n' global load at a time
-      # append global load(S) first 'number of global load(s) determined by  firstStep
-      for item in itemsGRToSched[:firstStep]:
+      # append global load(S) first 'number of global load(s)' determined by schedNumForIter0
+      for item in itemsGRToSched[:schedNumForIter0]:
         self.perIterGlobalReadCode[0].addCode(item)
-      itemsGRToSched = itemsGRToSched[firstStep:]
+      itemsGRToSched = itemsGRToSched[schedNumForIter0:] # trim the scheduled GRs, do the rest in the following loop
+
       for u in range(1, endIter):
+        # append itemPerIter GR for each iteration,
+        # and trim the scheduled ones at the end of loop
         itemPerIter = 1 * numGlobalReadInsPerIter
         try:
           for item in itemsGRToSched[:itemPerIter]:
@@ -301,7 +312,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             lastLoadIter = u
           itemsGRToSched = itemsGRToSched[itemPerIter:]
         except IndexError:
-          break # no code left to schedule
+          break # itemsGRToSched is 0-length, no code left to schedule
 
       # here is to avoid globalReadInc code not add in
       # TODO: globalReadInc scheduling should not be blocked by localWriteInst
@@ -309,7 +320,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         for item in itemsGRToSched:
           self.perIterGlobalReadCode[endIter-1].addCode(item)
       else:
-        assert not itemsGRToSched # should have scheduled everything already
+        assert not itemsGRToSched # should have scheduled everything already, itemsGRToSched should be empty
 
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadACode.footer)
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadBCode.footer)

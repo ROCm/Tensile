@@ -94,8 +94,8 @@ BenchmarkProblems:
   #     DestDataType: I
   #     HighPrecisionAccumulate: True
   #     #####################################
-  #     TransposeA: True
-  #     TransposeB: True
+  #     TransposeA: False
+  #     TransposeB: False
   #     UseBeta: True
   #     Batched: True
 
@@ -108,8 +108,9 @@ BenchmarkProblems:
   #       - OptNoLoadLoop: [True]      # priority 3 (Done)
   #       - ExpandPointerSwap: [True]  # priority 4 (Done)
   #       - EdgeType: ["ShiftPtr"]     # priority 5 (Done)
-  #       - ScheduleGlobalRead: [True] # priority 6
-  #       - PrefetchLocalRead: [True]  # priority 7
+  #       - ScheduleLocalWrite: [True] # priority 6 (Done)
+  #       - ScheduleGlobalRead: [True] # priority 7 (Done)
+  #       - PrefetchLocalRead: [False] # priority 8
   #     ForkParameters:
   #       - MatrixInstruction:
   #         - [32,32, 8, 1, 1, 1,1, 1,1]  # 32x32
@@ -117,7 +118,7 @@ BenchmarkProblems:
   #         - [ 4, 4 ]
   #       - WorkGroup:
   #         - [ 16, 16, 1 ]
-  #       - DepthU: [ 8 ]
+  #       - DepthU: [ 32 ]
   #       # - VectorWidth: [4]
   #     BenchmarkForkParameters:
   #     BenchmarkJoinParameters:
@@ -160,8 +161,9 @@ BenchmarkProblems:
         - OptNoLoadLoop: [True]      # priority 3 (Done)
         - ExpandPointerSwap: [True]  # priority 4 (Done)
         - EdgeType: ["ShiftPtr"]     # priority 5 (Done)
-        - ScheduleGlobalRead: [True] # priority 6
-        - PrefetchLocalRead: [True]  # priority 7
+        - ScheduleLocalWrite: [True] # priority 6 (Done)
+        - ScheduleGlobalRead: [True] # priority 7 (Done)
+        - PrefetchLocalRead: [False] # priority 8
         - MatrixInstruction:
           - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
           - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
@@ -236,8 +238,9 @@ BenchmarkProblems:
         - OptNoLoadLoop: [True]      # priority 3 (Done)
         - ExpandPointerSwap: [True]  # priority 4 (Done)
         - EdgeType: ["ShiftPtr"]     # priority 5 (Done)
-        - ScheduleGlobalRead: [True] # priority 6
-        - PrefetchLocalRead: [True]  # priority 7
+        - ScheduleLocalWrite: [True] # priority 6 (Done)
+        - ScheduleGlobalRead: [True] # priority 7 (Done)
+        - PrefetchLocalRead: [False] # priority 8
         - MatrixInstruction:
           - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
           - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
@@ -312,8 +315,9 @@ BenchmarkProblems:
         - OptNoLoadLoop: [True]      # priority 3 (Done)
         - ExpandPointerSwap: [True]  # priority 4 (Done)
         - EdgeType: ["ShiftPtr"]     # priority 5 (Done)
-        - ScheduleGlobalRead: [True] # priority 6
-        - PrefetchLocalRead: [True]  # priority 7
+        - ScheduleLocalWrite: [True] # priority 6 (Done)
+        - ScheduleGlobalRead: [True] # priority 7 (Done)
+        - PrefetchLocalRead: [False] # priority 8
         - MatrixInstruction:
           - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
           - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
@@ -388,8 +392,9 @@ BenchmarkProblems:
         - OptNoLoadLoop: [True]      # priority 3 (Done)
         - ExpandPointerSwap: [True]  # priority 4 (Done)
         - EdgeType: ["ShiftPtr"]     # priority 5 (Done)
-        - ScheduleGlobalRead: [True] # priority 6
-        - PrefetchLocalRead: [True]  # priority 7
+        - ScheduleLocalWrite: [True] # priority 6 (Done)
+        - ScheduleGlobalRead: [True] # priority 7 (Done)
+        - PrefetchLocalRead: [False] # priority 8
         - MatrixInstruction:
           - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
           - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
