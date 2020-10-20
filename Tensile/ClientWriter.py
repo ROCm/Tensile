@@ -496,9 +496,16 @@ def problemSizeParams(problemType, problem):
         else:
             bstrides[index.b] = sc[1]
 
+    if problem.stridesC:
+      cstrides = list(problem.stridesC)
+    else:
+      cstrides = [-1] * problemType.cDims
 
-    cstrides = problem.stridesC
-    dstrides = problem.stridesD
+    if problem.stridesD:
+      dstrides = list(problem.stridesD)
+    else:
+      dstrides = [-1] * problemType.dDims
+
     if len(problem.sizes) == numIndices:
         None
     elif len(problem.sizes) == numIndices + 4:
@@ -516,8 +523,12 @@ def problemSizeParams(problemType, problem):
           raise RuntimeError("problem-specified ldb(%u) conflicts with setConstStrideB(%u)" % \
               (bstrides[1], problem.sizes[numIndices+3]))
 
-        cstrides = (-1, problem.sizes[numIndices+1])
-        dstrides = (-1, problem.sizes[numIndices+0])
+        if cstrides[1] == -1:
+          cstrides[1] = problem.sizes[numIndices+1]
+
+        if dstrides[1] == -1:
+          dstrides[1] = problem.sizes[numIndices+0]
+
     else:
         raise RuntimeError(
             "Invalid number of problem type indices: {0} - Indices: {1}, problemSize: {2}".format(len(problem.sizes), numIndices,
