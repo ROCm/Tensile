@@ -168,14 +168,17 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
     elif (CxxCompiler == "hipcc"):
 
       archs = []
+      cmdlineArchs = []
       for arch in globalParameters['SupportedISA']:
         if isSupported(arch):
           if (arch == (9,0,6) or arch == (9,0,8)):
-            archs += ['gfx'+''.join(map(str,arch))+':xnack-']
+            archs += ['gfx'+''.join(map(str,arch))+'-xnack-']
+            cmdlineArchs += ['gfx'+''.join(map(str,arch))+':xnack-']
           else:
             archs += ['gfx'+''.join(map(str,arch))]
+            cmdlineArchs += ['gfx'+''.join(map(str,arch))]
 
-      archFlags = ['--offload-arch=' + arch for arch in archs]
+      archFlags = ['--offload-arch=' + arch for arch in cmdlineArchs]
 
       hipFlags = ["--genco", "-D__HIP_HCC_COMPAT_MODE__=1"] #needs to be fixed when Maneesh's change is made available
 
@@ -187,10 +190,10 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         print('hipcc:', ' '.join(compileArgs))
       subprocess.check_call(compileArgs)
 
-      for arch in archs:
+      for i in range(len(archs)):
         infile = os.path.join(buildPath, objectFilename)
-        outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, arch))
-        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % arch, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+        outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
+        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
         if globalParameters["PrintCodeCommands"]:
           print(' '.join(bundlerArgs))
         subprocess.check_call(bundlerArgs)
@@ -1022,7 +1025,7 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
     for arch in globalParameters['SupportedISA']:
       if isSupported(arch):
         if (arch == (9,0,6) or arch == (9,0,8)):
-          sourceArchs += ['gfx'+''.join(map(str,arch))+':xnack-']
+          sourceArchs += ['gfx'+''.join(map(str,arch))+'-xnack-']
         else:
           sourceArchs += ['gfx'+''.join(map(str,arch))]
   else:
