@@ -34,13 +34,13 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --tensile-options=--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing-\$gpuArch.csv
 
             mkdir build
-            #####pushd build
+            pushd build
 
-            #####export PATH=/opt/rocm/bin:$PATH
-            #####cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DCODE_OBJECT_VERSION=${cov} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
-            #####make -j\$(nproc)
+            export PATH=/opt/rocm/bin:$PATH
+            cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DCODE_OBJECT_VERSION=${cov} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
+            make -j\$(nproc)
 
-            #####popd
+            popd
             """
 
     try
@@ -72,7 +72,7 @@ def publishResults(project)
     {
         try
         {
-            //junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
+            junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
         }
         finally
         {
@@ -98,11 +98,11 @@ def runTestCommand (platform, project, jobName, test_marks)
 
             gpuArch=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
 
-            #####pushd build
-            #####./TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
-            #####HOST_ERR=\$?
+            pushd build
+            ./TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
+            HOST_ERR=\$?
 
-            #####popd
+            popd
             #### temporary fix to remedy incorrect home directory
             export HOME=/home/jenkins
             ####
