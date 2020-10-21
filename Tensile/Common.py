@@ -150,8 +150,7 @@ globalParameters["DataInitTypeC"]  = 3            # 0=0, 1=1, 2=serial, 3=rand, 
 globalParameters["DataInitTypeD"]  = 0            # 0=0, 1=1, 2=serial, 3=rand, 4=Na, 5=serial-in-uN, 6=trig_float.
 globalParameters["DataInitTypeAlpha"] = 2         # 0=0, 1=1, 2=2, 3=rand, 4=NaN
 globalParameters["DataInitTypeBeta"] = 2          # 0=0, 1=1, 2=2, 3=rand, 4=NaN
-
-globalParameters["CEqualD"] = True               # Set to true if testing for the case where the pointer to C is the same as D.
+globalParameters["CEqualD"] = False               # Set to true if testing for the case where the pointer to C is the same as D.
 # build parameters
 globalParameters["CMakeCXXFlags"] = ""            # pass flags to cmake
 globalParameters["CMakeCFlags"] = ""              # pass flags to cmake
@@ -464,6 +463,9 @@ validParameters = {
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
+    # TODO: remove. legacy logic yaml in rocblas contains true and false for this parameter
+    # remove this parameter will cause two kernels have same.
+    # so we can't remove it until we clean logic yaml in rocblas
     "LdcEqualsLdd":               [ False, True ],
 
     # Interleave alpha scale calculation with beta loads and address calcs - rather
@@ -1052,7 +1054,7 @@ defaultBenchmarkCommonParameters = [
     {"ScheduleIterAlg":           [ 1 ] },
     {"OptPreLoopVmcnt":           [ True ] },
 
-    {"LdcEqualsLdd":              [ True ] },
+    {"LdcEqualsLdd":              [ False ] },
     {"InterleaveAlpha":           [ 0 ] },
     {"OptNoLoadLoop":             [ 1 ] },
     {"PrefetchAcrossPersistent":  [ 0 ] },
