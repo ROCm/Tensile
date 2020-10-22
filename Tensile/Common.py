@@ -1440,6 +1440,9 @@ def GetAsmCaps(isaVersion):
   else:
     rv["MaxVmcnt"] = 0
 
+  # TODO- Need to query the max cap, just like vmcnt as well?
+  rv["MaxLgkmcnt"] = 15
+
   rv["SupportedSource"] = True
 
   if globalParameters["CxxCompiler"] == "hcc" and isaVersion[0] == 10:

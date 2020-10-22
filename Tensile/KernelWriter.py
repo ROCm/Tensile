@@ -566,7 +566,15 @@ class KernelWriter(metaclass=abc.ABCMeta):
       iterCode.addCode(waitCode)
 
       # interleave pack code
-      instPerPack = 1 if kernel["ProblemType"]["DataType"].isBFloat16() else 2
+      # BF16: each packCode is for one 32-bit reg,  1 packing inst: half-to-single x1
+      # FP16: each packCode is for two 32-bit regs, 2 packing inst: half-to-single x2
+      # INT8: each packCode is for one 32-bit regs, 3 packing inst: byte-to-half x2 + half-to-single x1
+      instPerPack = 1
+      if kernel["ProblemType"]["DataType"].isHalf():
+        instPerPack = 2
+      elif kernel["ProblemType"]["DataType"].isInt8():
+        instPerPack = 3
+
       packItems = []
       for iui in range(kernel["InnerUnroll"]):
         packINtems = [ [] for j in range(max(self.numReadsIterCoalescedA,self.numReadsIterCoalescedB)) ]
@@ -617,11 +625,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # if i % kernel["MIWaveTile"][0]==0, mfma will use new B
           packAIdx += instPerPack if i//(kernel["MIWaveTile"][0]+kernel["MIWaveTile"][0]*kernel["MIWaveTile"][1]*(i//(kernel["MIWaveTile"][0]*kernel["MIWaveTile"][1]))) == 0 else 0
           packBIdx += instPerPack if i % kernel["MIWaveTile"][0] == 0 else 0
-          packAIdx = packAIdx if self.tPA["localReadInstruction"].blockWidth == 0.5 else 0
-          packBIdx = packBIdx if self.tPB["localReadInstruction"].blockWidth == 0.5 else 0
+          # blockWidth < 1, means 0.5 or 0.25 (BF,H,Int8)
+          packAIdx = packAIdx if self.tPA["localReadInstruction"].blockWidth < 1 else 0
+          packBIdx = packBIdx if self.tPB["localReadInstruction"].blockWidth < 1 else 0
           numPack = (packAIdx + packBIdx)
           iterCode.addComment0("pack scheduling: packAIdx:%u, packBIdx:%u" %(packAIdx,packBIdx))
-          # we put 2 pack in each mfma
+          # we put 2 pack in each mfma, "2" means A & B
           if packItems:
             for j in range(instPerPack):
               iterCode.addCode(packItems.pop(0))
@@ -914,6 +923,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       assert 0, "Unsupported scheduleIterAlg=%u"%self.scheduleIterAlg
 
     if isinstance(waitCode, Code.WaitCnt):
+      currentIsa = globalParameters["CurrentISA"]
+      maxLgkmcnt = globalParameters["AsmCaps"][currentIsa]["MaxLgkmcnt"]
+
       # Set the waitCount, based on the new iter schedule
       lgkmcnt = 0 # most conservative
       localReads = 0
@@ -990,7 +1002,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
               else:
                 lgkmcnt = localWrites  # this only survives if writes are at the end
 
-      lgkmcnt = min(lgkmcnt, 15)
+      lgkmcnt = min(lgkmcnt, maxLgkmcnt)
       waitCode.comment += " old=%u, new=%u newLW=%u newLR=%u" % (waitCode.lgkmcnt, lgkmcnt,localWrites,localReads)
       waitCode.lgkmcnt = lgkmcnt
 

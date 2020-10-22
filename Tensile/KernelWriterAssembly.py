@@ -12597,7 +12597,8 @@ class KernelWriterAssembly(KernelWriter):
         imod.addInst("s_barrier", "debug" )
         return imod
 
-    lgkmcnt = min(lgkmcnt, 15)
+    maxLgkmcnt = globalParameters["AsmCaps"][self.version]["MaxLgkmcnt"]
+    lgkmcnt = min(lgkmcnt, maxLgkmcnt)
     if lgkmcnt >= 0 and vmcnt >= 0:
       vmcnt = -1 # preserve prior behavior of removing vmcnt here?
     maxVmcnt = globalParameters["AsmCaps"][self.version]["MaxVmcnt"]

@@ -63,18 +63,20 @@ BenchmarkProblems:
   #       - LoopTail: [True]           # priority 1 (Done)
   #       - PrefetchGlobalRead: [True] # priority 2 (Done)
   #       - OptNoLoadLoop: [True]      # priority 3 (Done)
-  #       - ExpandPointerSwap: [True]  # priority 4 (Done)
-  #       - EdgeType: ["ShiftPtr"]     # priority 5
-  #       - PrefetchLocalRead: [False] # priority 6
-  #       - ScheduleGlobalRead: [False]
+  #       - ExpandPointerSwap: [False]  # priority 4 (Done)
+  #       - EdgeType: ["ShiftPtr"]     # priority 5 (Done)
+  #       - ScheduleLocalWrite: [False] # priority 6 (Done)
+  #       - ScheduleGlobalRead: [False] # priority 7 (Done)
+  #       - PrefetchLocalRead: [False] # priority 8
   #     ForkParameters:
+  #       - ScheduleIterAlg: [2]       # priority 9
   #       - MatrixInstruction:
   #         - [32,32, 8, 1, 1, 1,1, 1,1]  # 32x32
   #       - ThreadTile:
   #         - [ 4, 4 ]
   #       - WorkGroup:
   #         - [ 16, 16, 1 ]
-  #       - DepthU: [ 8 ]
+  #       - DepthU: [ 16 ]
   #       - VectorWidth: [4]
   #     BenchmarkForkParameters:
   #     BenchmarkJoinParameters:
@@ -83,7 +85,8 @@ BenchmarkProblems:
   #         # - Range: [ [32], [32], [1], [1] ]
   #         # - Range: [ [32], [32], [1], [9] ]
   #         # - Range: [ [32], [32], [1], [16] ]
-  #         - Range: [ [31,1,33], [31,1,33], [1], [7,1,9] ]
+  #         # - Range: [ [31,1,33], [31,1,33], [1], [7,1,9] ]
+  #         - Range: [ [31,1,33], [31,1,33], [1], [15,1,17] ]
 
   # ########################################
   # -
@@ -95,7 +98,7 @@ BenchmarkProblems:
   #     HighPrecisionAccumulate: True
   #     #####################################
   #     TransposeA: False
-  #     TransposeB: False
+  #     TransposeB: True
   #     UseBeta: True
   #     Batched: True
 
@@ -112,13 +115,15 @@ BenchmarkProblems:
   #       - ScheduleGlobalRead: [True] # priority 7 (Done)
   #       - PrefetchLocalRead: [False] # priority 8
   #     ForkParameters:
+  #       - ScheduleIterAlg: [1,2]     # priority 9 (Done)
+  #       # - PrefetchLocalRead: [False, True] # priority 8
   #       - MatrixInstruction:
   #         - [32,32, 8, 1, 1, 1,1, 1,1]  # 32x32
   #       - ThreadTile:
   #         - [ 4, 4 ]
   #       - WorkGroup:
   #         - [ 16, 16, 1 ]
-  #       - DepthU: [ 32 ]
+  #       - DepthU: [ 16 ]
   #       # - VectorWidth: [4]
   #     BenchmarkForkParameters:
   #     BenchmarkJoinParameters:
@@ -164,6 +169,8 @@ BenchmarkProblems:
         - ScheduleLocalWrite: [True] # priority 6 (Done)
         - ScheduleGlobalRead: [True] # priority 7 (Done)
         - PrefetchLocalRead: [False] # priority 8
+        - ScheduleIterAlg: [2]       # priority 9 (Done)
+        # - PrefetchLocalRead: [False, True] # priority 8
         - MatrixInstruction:
           - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
           - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
@@ -241,6 +248,8 @@ BenchmarkProblems:
         - ScheduleLocalWrite: [True] # priority 6 (Done)
         - ScheduleGlobalRead: [True] # priority 7 (Done)
         - PrefetchLocalRead: [False] # priority 8
+        - ScheduleIterAlg: [2]       # priority 9 (Done)
+        # - PrefetchLocalRead: [False, True] # priority 8
         - MatrixInstruction:
           - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
           - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
@@ -318,6 +327,8 @@ BenchmarkProblems:
         - ScheduleLocalWrite: [True] # priority 6 (Done)
         - ScheduleGlobalRead: [True] # priority 7 (Done)
         - PrefetchLocalRead: [False] # priority 8
+        - ScheduleIterAlg: [2]       # priority 9 (Done)
+        # - PrefetchLocalRead: [False, True] # priority 8
         - MatrixInstruction:
           - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
           - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
@@ -395,6 +406,8 @@ BenchmarkProblems:
         - ScheduleLocalWrite: [True] # priority 6 (Done)
         - ScheduleGlobalRead: [True] # priority 7 (Done)
         - PrefetchLocalRead: [False] # priority 8
+        - ScheduleIterAlg: [2]       # priority 9 (Done)
+        # - PrefetchLocalRead: [False, True] # priority 8
         - MatrixInstruction:
           - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
           - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
@@ -443,9 +456,9 @@ BenchmarkProblems:
           - Exact: [6784, 3584, 1, 1280]
           - Exact: [1024, 6784, 1, 1280]
 
-LibraryLogic:
-    ScheduleName: "arcturus"
-    DeviceNames: ["Device 7380", "Device 7388", "Device 738c", "Device 7390"]
-    ArchitectureName: "gfx908"
+# LibraryLogic:
+#     ScheduleName: "arcturus"
+#     DeviceNames: ["Device 7380", "Device 7388", "Device 738c", "Device 7390"]
+#     ArchitectureName: "gfx908"
 
-LibraryClient:
+# LibraryClient:
