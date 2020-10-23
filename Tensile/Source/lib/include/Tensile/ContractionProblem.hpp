@@ -545,7 +545,7 @@ namespace Tensile
         bool           m_transB;
         bool           m_highPrecisionAccumulate = false;
         bool           m_deterministicMode       = false;
-        bool           m_eligibleForPK           = true;
+        bool           m_eligibleForPK           = false;
         ArithmeticUnit m_arithmeticUnit          = ArithmeticUnit::Any;
         KernelLanguage m_kernelLanguage          = KernelLanguage::Any;
 
