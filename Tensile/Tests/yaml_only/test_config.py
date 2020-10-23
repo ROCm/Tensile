@@ -145,7 +145,14 @@ def configMarks(filepath, rootDir, availableArchs):
 
 def findAvailableArchs():
     availableArchs = []
-    rocmAgentEnum = "/opt/rocm/bin/rocm_agent_enumerator"
+    rocmpath = "/opt/rocm"
+    if "ROCM_ROOT" in os.environ:
+        rocmpath = os.environ.get("ROCM_ROOT")
+    if "ROCM_PATH" in os.environ:
+        rocmpath = os.environ.get("ROCM_PATH")
+    if "TENSILE_ROCM_PATH" in os.environ:
+        rocmpath = os.environ.get("TENSILE_ROCM_PATH")
+    rocmAgentEnum = os.path.join(rocmpath, "bin/rocm_agent_enumerator")
     output = subprocess.check_output([rocmAgentEnum, "-t", "GPU"])
     lines = output.decode().splitlines()
     for line in lines:

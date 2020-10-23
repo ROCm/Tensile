@@ -108,7 +108,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
 def which(p):
     exes = [p+x for x in ['', '.exe', '.bat']]
     system_path = os.environ['PATH'].split(os.pathsep)
-    for dirname in system_path+['/opt/rocm/bin']:
+    for dirname in system_path+[globalParameters["ROCmBinPath"]]:
         for exe in exes:
             candidate = os.path.join(os.path.expanduser(dirname), exe)
             if os.path.isfile(candidate):
