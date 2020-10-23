@@ -1288,7 +1288,7 @@ def TensileCreateLibrary():
   argParser.add_argument("--jobs", "-j", dest="CpuThreads", type=int,
                           default=-1, help="Number of parallel jobs to launch.")
   argParser.add_argument("--verbose", "-v", dest="PrintLevel", type=int,
-                          default=-1, help="Set printout verbosity level.")
+                          default=1, help="Set printout verbosity level.")
   args = argParser.parse_args()
 
   logicPath = args.LogicPath
