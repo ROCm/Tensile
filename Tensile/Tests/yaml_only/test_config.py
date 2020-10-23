@@ -146,8 +146,6 @@ def configMarks(filepath, rootDir, availableArchs):
 def findAvailableArchs():
     availableArchs = []
     rocmpath = "/opt/rocm"
-    if "ROCM_ROOT" in os.environ:
-        rocmpath = os.environ.get("ROCM_ROOT")
     if "ROCM_PATH" in os.environ:
         rocmpath = os.environ.get("ROCM_PATH")
     if "TENSILE_ROCM_PATH" in os.environ:

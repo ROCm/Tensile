@@ -1537,8 +1537,6 @@ def assignGlobalParameters( config ):
       print2(" %24s: %8s (unspecified)" % (key, defaultValue))
 
   globalParameters["ROCmPath"] = "/opt/rocm"
-  if "ROCM_ROOT" in os.environ:
-    globalParameters["ROCmPath"] = os.environ.get("ROCM_ROOT")
   if "ROCM_PATH" in os.environ:
     globalParameters["ROCmPath"] = os.environ.get("ROCM_PATH")
   if "TENSILE_ROCM_PATH" in os.environ:
