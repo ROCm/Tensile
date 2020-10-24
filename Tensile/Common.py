@@ -1536,24 +1536,32 @@ def assignGlobalParameters( config ):
     else:
       print2(" %24s: %8s (unspecified)" % (key, defaultValue))
 
+  globalParameters["ROCmPath"] = "/opt/rocm"
+  if "ROCM_PATH" in os.environ:
+    globalParameters["ROCmPath"] = os.environ.get("ROCM_PATH")
+  if "TENSILE_ROCM_PATH" in os.environ:
+    globalParameters["ROCmPath"] = os.environ.get("TENSILE_ROCM_PATH")
+
+  globalParameters["ROCmBinPath"] = os.path.join(globalParameters["ROCmPath"], "bin")
+
   # ROCm Agent Enumerator Path
-  globalParameters["ROCmAgentEnumeratorPath"] = locateExe("/opt/rocm/bin", "rocm_agent_enumerator")
+  globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm_agent_enumerator")
   if "CxxCompiler" in config:
     globalParameters["CxxCompiler"] = config["CxxCompiler"]
 
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
   elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hipcc":
-    globalParameters["AssemblerPath"] = locateExe("/opt/rocm/llvm/bin", "clang++")
+    globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang++")
   elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hcc":
-    globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc")
+    globalParameters["AssemblerPath"] = locateExe(globalParameters["ROCmBinPath"], "hcc")
 
-  globalParameters["ROCmSMIPath"] = locateExe("/opt/rocm/bin", "rocm-smi")
+  globalParameters["ROCmSMIPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm-smi")
   if globalParameters["CxxCompiler"] == "hcc":
-    globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/bin", "extractkernel")
+    globalParameters["ExtractKernelPath"] = locateExe(globalParameters["ROCmBinPath"], "extractkernel")
   else:
-    globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/hip/bin", "extractkernel")
-    globalParameters["ClangOffloadBundlerPath"] = locateExe("/opt/rocm/llvm/bin", "clang-offload-bundler")
+    globalParameters["ExtractKernelPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "hip/bin"), "extractkernel")
+    globalParameters["ClangOffloadBundlerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang-offload-bundler")
 
   if "ROCmAgentEnumeratorPath" in config:
     globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
