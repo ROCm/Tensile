@@ -293,8 +293,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 
     # write benchmarkFiles
     writeBenchmarkFiles(stepBaseDir, solutionList, benchmarkStep.problemSizes, \
-        shortName, filesToCopy, benchmarkProcess.solutionSummationSizes, \
-        benchmarkProcess.tileAwareMetricSizes)
+        shortName, filesToCopy, benchmarkProcess.solutionSummationSizes)
 
     removeSolutions = []
     for i in range(0, len(solutions)):
@@ -593,16 +592,8 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
 
   writeClientConfig(True, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, False)
 
-  if "TileAwareSelection" in problemType and problemType["TileAwareSelection"]:
-    idealProblemSizes = None
-    if "SelectionModel" in problemType and problemType["SelectionModel"] == "TileAwareMetricSelection":
-      if tileAwareMetricSizes:
-        idealProblemSizes = ProblemSizes(problemType, tileAwareMetricSizes)
-      else:
-        idealProblemSizes = computeIdealSizes(problemType, solutions, solutionSummationSizes)
-    else:  
-      idealProblemSizes = computeIdealSizes(problemType, solutions, solutionSummationSizes)
-
+  if "TileAwareSelection" in problemType and problemType["TileAwareSelection"]:  
+    idealProblemSizes = computeIdealSizes(problemType, solutions, solutionSummationSizes)
     writeClientConfig(True, solutions, idealProblemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, True)
 
   if len(solutions) == 0:

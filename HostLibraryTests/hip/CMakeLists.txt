@@ -113,6 +113,14 @@ set(test_sources ${test_sources}
     hip/RunGEMMKernelTileSelection_test.cpp
     hip/RunGEMMKernel_test.cpp PARENT_SCOPE)
 
+#set(HIP_TEST_LIBRARIES
+#    hip::host
+#    test_kernels_lite
+#    test_kernels_lite_2
+#    test_kernels_lite_mixed
+#    test_tile_aware_selection
+#    TensileClient PARENT_SCOPE)
+
 set(HIP_TEST_LIBRARIES
     hip::host
     test_kernels_lite
@@ -124,6 +132,14 @@ set(HIP_TEST_LIBRARIES
 
 # Make sure that the TensileTests depends on targets below.
 # Otherwise the TensileTests executable will segfault out.
+#set(HIP_TEST_COPY_TARGET_DEPS
+#    copy_kernels_lite
+#    copy_kernels_lite_2
+#    copy_kernels_lite_mixed
+#    copy_kernels_tile_aware_selection
+#    PARENT_SCOPE
+#)
+
 set(HIP_TEST_COPY_TARGET_DEPS
     copy_kernels_lite
     copy_kernels_lite_2

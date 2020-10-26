@@ -231,10 +231,12 @@ def analyzeSolutionSelectionForMetric(problemType, selectionFileNameList, numSol
   solutionsHash = {}
 
   totalIndices = problemType["TotalIndices"]
+  summationIndex = totalIndices
   numIndices = totalIndices + problemType["NumIndicesLD"]
   problemSizeStartIdx = 1
   totalSizeIdx = problemSizeStartIdx + numIndices
   solutionStartIdx = totalSizeIdx + 1
+  validSolutions = []
   for fileIdx in range(0, len(selectionFileNameList)):
     solutions = solutionsList[fileIdx]
     selectionFileName = selectionFileNameList[fileIdx]
@@ -250,18 +252,21 @@ def analyzeSolutionSelectionForMetric(problemType, selectionFileNameList, numSol
     csvFile = csv.reader(selectionfFile)
 
     firstRow = 0
+    #keySizeMap = {}
     for row in csvFile:
       if firstRow == 0:
         firstRow += 1
       else:
-        #sumationId = row[summationIndex].strip()
+        bestSolution = None
+        bestValue = 0.0
+        sumationId = row[summationIndex].strip()
         size = row[1:5]
         sizeId = (int(size[0].strip()),int(size[1].strip()),int(size[2].strip()),int(size[3].strip()))
-
+        #key = "%s_%s_%s_%s" % (sizeId[0], sizeId[1], sizeId[2], sizeId[3])
+        #keySizeMap[key] = sizeId
         solutionIndex = 0
         for i in range(solutionStartIdx, rowLength):
-          baseKey = solutionBaseKeys[solutionIndex]
-          key = "%s_%s_%s_%s_%s" % (baseKey, sizeId[0], sizeId[1], sizeId[2], sizeId[3])
+          #baseKey = solutionBaseKeys[solutionIndex]
           solution = solutions[solutionIndex]
           solutionIndex += 1
           value = float(row[i])
@@ -269,26 +274,36 @@ def analyzeSolutionSelectionForMetric(problemType, selectionFileNameList, numSol
             dataMap = {}
             solutionsHash[solution] = dataMap
 
+          solutionsHash[solution][sumationId] = value
+
+          if value > bestValue:
+            bestSolution = solution
+            bestValue = value
           #updateIfGT(solutionsHash[solution], sumationId, value)
-          updateIfGT(solutionsHash[solution], sizeId, value)
-          if not key in performanceMap:
-            performanceMap[key] = (solution, value)
-          else:
-            _,valueOld = performanceMap[key]
-            if value > valueOld:
-              performanceMap[key] = (solution, value)
+          #updateIfGT(solutionsHash[solution], sizeId, value)
+          #if not key in performanceMap:
+          #  performanceMap[key] = (solution, value)
+          #else:
+          #  _,valueOld = performanceMap[key]
+          #  if value > valueOld:
+          #    performanceMap[key] = (solution, value)
+        #performanceMap[key] = (bestSolution, bestValue)
+        validSolutions.append((bestSolution, solutionsHash[bestSolution], sizeId))
 
 
-  validSolutions = []
-  validSolutionSet = set([])
+  #validSolutions = []
+  #validSolutionSet = set([])
 
-  for key in performanceMap:
-    solution, _ = performanceMap[key]
-    validSolutionSet.add(solution)
+  #for key in performanceMap:
+  #  validSolution, _ = performanceMap[key]
+  #  dataMap = solutionsHash[validSolution]
+  #  validSize = keySizeMap[key]
+  #  validSolutions.append((validSolution, dataMap, validSize))
+  #  #validSolutionSet.add(solution)
 
-  for validSolution in validSolutionSet:
-    dataMap = solutionsHash[validSolution]
-    validSolutions.append((validSolution,dataMap))
+  #for validSolution in validSolutionSet:
+  #  dataMap = solutionsHash[validSolution]
+  #  validSolutions.append((validSolution,dataMap))
 
   return validSolutions
 

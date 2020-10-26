@@ -130,6 +130,8 @@ namespace Tensile
             double speedGFlops = 0.0; //! final gflops projection
             int    CUs         = 0;
 
+            double summationPerformance = 0.0;
+
             //StaticTAMetricPerformanceModel staticModel;
         };
 
@@ -302,6 +304,7 @@ namespace Tensile
         /// somewhere else.
         std::map<std::string, std::string> info;
         std::map<int, double>              ideals;
+        std::map<std::string, double>      linearModel;
 
         int32_t staggerUIter(Problem const&  problem,
                              Inputs const&   inputs,

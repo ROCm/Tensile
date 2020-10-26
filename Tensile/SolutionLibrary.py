@@ -85,10 +85,10 @@ class GranularitySelectionLibrary:
 
 class TileAwareMetricLibrary:
     Tag = 'TileAwareMetricSelection'
-    StateKeys = [('type', 'tag'), 'indices', 'exact']
+    StateKeys = [('type', 'tag'), 'indices', 'exact', 'model']
 
     @classmethod
-    def FromOriginalState(cls, d, indices):
+    def FromOriginalState(cls, d, indices, problems):
         origTable = d[1]
         entries = []
         for row in origTable:
@@ -100,7 +100,12 @@ class TileAwareMetricLibrary:
             except KeyError:
                 pass
 
-        return cls(indices, entries)
+        model = []
+        for problem in problems:
+            model.append({'problem': problem[0], 'solution_id': problem[1]})
+
+
+        return cls(indices, entries, model)
 
     @property
     def tag(self):
@@ -111,17 +116,20 @@ class TileAwareMetricLibrary:
         self.indices = list(set().union(self.indices, other.indices))
         self.exact = list(set().union(self.exact, other.exact))
 
-    def __init__(self, indices, exact):
+    def __init__(self, indices, exact, model):
         self.indices = indices
         self.exact = exact
+        self.model = model
 
     def remapSolutionIndices(self,indexMap):
-        newMapping = {}
-        for i in self.indices:
+        for i in range(0, len(self.indices)):
             index = self.indices[i]
-            newKey = indexMap[i]
-            newMapping[newKey] = index
-        self.indices = newMapping
+            if index in indexMap:
+                self.indices[i] = indexMap[index]
+        for i in range(0, len(self.model)):
+            index = self.model[i]['solution_id']
+            if index in indexMap:
+                self.model[i]['solution_id'] = indexMap[index]
 
 class MatchingLibrary:
     Tag = 'Matching'
@@ -283,12 +291,14 @@ class MasterSolutionLibrary:
                 modelName = "GranularitySelection"
                 if "SelectionModel" in d[9]:
                   modelName = d[9]["SelectionModel"]
+                selectionIndices = d[9]["TileSelectionIndices"]
                 if modelName == "GranularitySelection":
-                  selectionIndices = d[9]["TileSelectionIndices"]
+                #  selectionIndices = d[9]["TileSelectionIndices"]
                   library = GranularitySelectionLibrary.FromOriginalState(origLibrary, selectionIndices)
                 else:
-                  selectionIndices = d[9]["IdealMap"]
-                  library = TileAwareMetricLibrary.FromOriginalState(origLibrary, selectionIndices)  
+                #  selectionIndices = d[9]["IdealMap"]
+                  model = d[9]["ModelProblems"]
+                  library = TileAwareMetricLibrary.FromOriginalState(origLibrary, selectionIndices, model)  
 
 
             elif libName == 'Hardware':

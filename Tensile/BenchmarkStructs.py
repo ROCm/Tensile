@@ -159,7 +159,7 @@ class BenchmarkProcess:
     self.hardcodedParameters = [{}]
     self.singleValueParameters = {}
     self.solutionSummationSizes = []
-    self.tileAwareMetricSizes = []
+    #self.tileAwareMetricSizes = []
 
     # (I)
     self.fillInMissingStepsWithDefaults(self.isBatched, problemSizeGroupConfig)
@@ -385,13 +385,13 @@ class BenchmarkProcess:
     #  self.benchmarkJoinParameters.append({"BenchmarkJoin": [0]})
     # No, this is handles by Final Benchmark
 
-    if "TileAwareMetricSelection" in config:
-      # this value is expected to be a list of dictionaries
-      # it could potentially be a name with no value 
-      if config["TileAwareMetricSelection"] and len(config["TileAwareMetricSelection"]):
-        tileAwareMetricConfig = config["TileAwareMetricSelection"][0]
-        if "ProblemSizes" in tileAwareMetricConfig:
-          self.tileAwareMetricSizes = tileAwareMetricConfig["ProblemSizes"]
+    #if "TileAwareMetricSelection" in config:
+    #  # this value is expected to be a list of dictionaries
+    #  # it could potentially be a name with no value 
+    #  if config["TileAwareMetricSelection"] and len(config["TileAwareMetricSelection"]):
+    #    tileAwareMetricConfig = config["TileAwareMetricSelection"][0]
+    #    if "ProblemSizes" in tileAwareMetricConfig:
+    #      self.tileAwareMetricSizes = tileAwareMetricConfig["ProblemSizes"]
 
     ############################################################################
     # (I-10) Parameter Lists

@@ -49,6 +49,22 @@ namespace Tensile
             const static bool flow = true;
         };
 
+        template <typename IO>
+        struct MappingTraits<TileAwareMetricModelTableEntry, IO>
+        {
+            using Entry = TileAwareMetricModelTableEntry; //<Key, Value>;
+            using iot   = IOTraits<IO>;
+
+            static void mapping(IO& io, Entry& entry)
+            {
+                iot::mapRequired(io, "solution_id", entry.solution_id);
+                iot::mapRequired(io, "problem", entry.problem);
+            }
+
+            const static bool flow = true;
+        };
+
+
         template <typename MyProblem, typename MySolution, typename IO>
         struct MappingTraits<TileAwareMetricSelectionLibrary<MyProblem, MySolution>, IO>
         {
@@ -67,27 +83,20 @@ namespace Tensile
                                   "set to a SolutionMap.");
                 }
 
-                std::map<int, std::vector<std::vector<double>>> mappingIndices;
-                std::vector<TileAwareMetricSolutionTableEntry>  mapEntries;
+                //std::map<int, std::vector<std::vector<double>>> mappingIndices;
+                //std::vector<TileAwareMetricSolutionTableEntry>  mapEntries;
+                std::vector<int>                                     mappingIndices;
+                std::vector<TileAwareMetricSolutionTableEntry>       mapEntries;
+                //std::map<std::vector<size_t>, int>                   modelEntires;
+                std::vector<TileAwareMetricModelTableEntry>          modelEntries;
+                //std::vector<int>                      mappingIndices;
+                //std::vector<ExactSelectionTableEntry> mapEntries;
                 if(iot::outputting(io))
                 {
-                    for(auto const& problem : lib.modelProblems)
-                    {
-                        int                                                       key = problem.key;
-                        std::vector<std::vector<double>>                          problemList;
-                        std::map<int, std::vector<std::vector<double>>>::iterator pIter
-                            = mappingIndices.find(key);
-                        if(pIter == mappingIndices.end())
-                        {
-                            problemList         = std::vector<std::vector<double>>();
-                            mappingIndices[key] = problemList;
-                        }
-                        else
-                        {
-                            problemList = pIter->second;
-                        }
-                        problemList.push_back(problem.problem);
-                    }
+                    mappingIndices.reserve(lib.solutions.size());
+
+                    for(auto const& pair : lib.solutions)
+                        mappingIndices.push_back(pair.first);
 
                     iot::mapRequired(io, "indices", mappingIndices);
 
@@ -99,6 +108,21 @@ namespace Tensile
                         mapEntries.push_back(newEntry);
                     }
                     iot::mapRequired(io, "exact", mapEntries);
+
+                    for(auto it = lib.modelProblems.begin(); it != lib.modelProblems.end(); ++it)
+                    {
+                        //std::vector<size_t>         key;
+                        //std::shared_ptr<MySolution> solution;
+                        //std::vector<double>         problem;
+
+                        TileAwareMetricModelTableEntry newEntry;
+                        //std::map<std::vector<size_t>, int>  newEntry;
+                        //newEntry.key   = it->key;
+                        newEntry.solution_id  = it->solution_id;
+                        newEntry.problem = it->problem;
+                        modelEntries.push_back(newEntry);
+                    }
+                    iot::mapRequired(io, "model", modelEntries);
                 }
                 else
                 {
@@ -108,9 +132,9 @@ namespace Tensile
                                       "TileAwareMetricSelectionLibrary requires non empty "
                                       "mapping index set.");
 
-                    for(auto const& pair : mappingIndices)
+                    for(int index : mappingIndices)
                     {
-                        auto slnIter = ctx->find(pair.first);
+                        auto slnIter = ctx->find(index);
                         if(slnIter == ctx->end())
                         {
                             iot::setError(io, concatenate("Invalid solution index: ", index));
@@ -118,15 +142,7 @@ namespace Tensile
                         else
                         {
                             auto solution = slnIter->second;
-                            lib.solutions.insert(std::make_pair(pair.first, solution));
-                            for(auto const& model : pair.second)
-                            {
-                                TileAwareMetricModelTableEntry<MySolution> modelProblem;
-                                modelProblem.key      = pair.first;
-                                modelProblem.solution = solution;
-                                modelProblem.problem  = model;
-                                lib.modelProblems.push_back(modelProblem);
-                            }
+                            lib.solutions.insert(std::make_pair(index, solution));
                         }
                     }
 
@@ -137,6 +153,16 @@ namespace Tensile
                         std::vector<size_t> key   = entry.key;
                         int                 value = entry.value;
                         lib.exactMap.insert(std::pair<std::vector<size_t>, int>(key, value));
+                    }
+
+                    iot::mapRequired(io, "model", modelEntries);
+
+                    for(TileAwareMetricModelTableEntry entry : modelEntries)
+                    {
+                        //std::vector<size_t> key   = entry.first;
+                        //int                 value = entry.second;
+                        //lib.exactMap.insert(std::pair<std::vector<size_t>, int>(key, value));
+                        lib.modelProblems.push_back(entry);
                     }
                 }
             }

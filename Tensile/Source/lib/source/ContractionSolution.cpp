@@ -991,10 +991,39 @@ namespace Tensile
         pp.totalGranularity
             = pp.tile0Granularity * pp.tile1Granularity * pp.suCuGranularity * pp.suWaveGranularity;
 
+
+        //double slope = linearModel["slope"];
+        auto modelSlope = linearModel.find("slope");
+        double slope = 0.0;
+        double intercept = 0.0;
+        if (modelSlope != linearModel.end()) 
+        {
+            slope = modelSlope->second;
+            //std::cout << "The slope is " << slope << std::endl;
+        }
+        //else
+        //{
+        //    //std::cout << "no go, try again." << std::endl;
+        //}
+        auto modelIntercept = linearModel.find("intercept");
+        if (modelIntercept != linearModel.end()) 
+        {
+            intercept = modelIntercept->second;
+            //std::cout << "The intercept is " << intercept << std::endl;
+        }
+        //else
+        //{
+        //    std::cout << "no go, try again." << std::endl;
+        //}
+        
+        double sum_value = K;
+        double sum_perf0 = sum_value / (intercept + (slope * sum_value));
+        pp.summationPerformance = 1000.0 * sum_perf0 / 10894.0;  // = MAX_PERF; // TODO: compute ideal perf  instead of MAX_PERF
+
         return pp;
     }
 
-    ContractionSolution::TAMetricProblemScore
+    /*ContractionSolution::TAMetricProblemScore
         ContractionSolution::projectedTAMetricPerformance(Problem const&  problem,
                                                           Hardware const& hardware) const
     {
@@ -1005,17 +1034,17 @@ namespace Tensile
         N = problem.freeSizeB(0);
 
         double NumBatches = 1;
-        /*
+        
         if(sizeMapping.packBatchDims == 0)
         {
             for(size_t i = 0; i < problem.batchIndices().size(); i++)
                 NumBatches *= problem.batchSize(i);
-        }*/
+        }
         double K = problem.boundSize(0); // TODO - fix for multiple summations
 
         pp = computeProblemScore(hardware, M, N, K, NumBatches, 0, 0, 0, 0);
         return pp;
-    }
+    }*/
 
     ContractionSolution::StaticPerformanceModel
         ContractionSolution::staticPerformanceModel(double M,

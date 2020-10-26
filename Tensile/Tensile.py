@@ -48,7 +48,7 @@ def executeStepsInConfig( config ):
   # Benchmark Problems
   ##############################################################################
   if "BenchmarkProblems" in config:
-    BenchmarkProblems.main( config["BenchmarkProblems"] )
+    #BenchmarkProblems.main( config["BenchmarkProblems"] )
     print1("")
 
 

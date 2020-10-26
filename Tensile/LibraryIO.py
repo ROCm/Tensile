@@ -269,11 +269,17 @@ class Writer:
     if tileSelection:
       tileSelectionLogic = {}
       tileSelectionIndices = logicTuple[6]
-      if selectionModel == "TileAwareMetricSelection":
-        idealMap = logicTuple[7]
-        tileSelectionLogic["IdealMap"] = idealMap
+      #if selectionModel == "TileAwareMetricSelection":
+      #  idealMap = logicTuple[7]
+      #  tileSelectionLogic["IdealMap"] = idealMap
       tileSelectionLogic["TileSelectionIndices"] = tileSelectionIndices
       tileSelectionLogic["SelectionModel"] = selectionModel
+      
+
+      if selectionModel == "TileAwareMetricSelection":
+        modelProblems = logicTuple[7]
+        tileSelectionLogic["ModelProblems"] = modelProblems
+
       data.append(tileSelectionLogic)
 
     return data

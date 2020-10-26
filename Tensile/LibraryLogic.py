@@ -32,6 +32,8 @@ import csv
 import os
 import time
 
+import numpy as np
+
 ################################################################################
 # Analyze Problem Type
 ################################################################################
@@ -135,49 +137,109 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
     else:
       validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelectionOldClient(problemType, problemSizeGroups)
 
-    validSelectionSolutionsIncluded = []
-    validSelectionSolutionsRemainder = []
+    #validSelectionSolutionsIncluded = []
+    #validSelectionSolutionsRemainder = []
     selectionSolutionsIds = set([])
-    for validSelectionSolution in validSelectionSolutions:
-      (validSolution, validSolutionInfo) = validSelectionSolution
-      if validSolution in logicAnalyzer.solutions:
-        validExactSolutionIndex = logicAnalyzer.solutions.index(validSolution)
-        selectionSolutionsIds.add(validExactSolutionIndex)
-        validExactSolution = logicAnalyzer.solutions[validExactSolutionIndex]
-        validSelectionSolutionsIncluded.append((validExactSolution, validSolutionInfo))
-      else:
-        validSelectionSolutionsRemainder.append(validSelectionSolution)
-
     selectionSolutions = []
-    if selectionModel != "TileAwareMetricSelection":
-      for i in range(0 ,len(validSelectionSolutionsIncluded)):
-        validSelectionSolution = validSelectionSolutionsIncluded[i]
-        (validSolution, validSolutionInfo) = validSelectionSolution
-        validSolution["Ideals"] = validSolutionInfo
+    solutionSelectionModel = []
 
     solutionsStartIndex = len(logicAnalyzer.solutions)
 
-    for i in range(0, len(validSelectionSolutionsRemainder)):
-      validSelectionSolution = validSelectionSolutionsRemainder[i]
-      (validSolution, validSolutionInfo) = validSelectionSolution
-      selectionSolutionIndex = solutionsStartIndex + i
-      selectionSolutionsIds.add(selectionSolutionIndex)
-      validSolution["SolutionNameMin"] = Solution.getNameMin(validSolution, solutionMinNaming)
-      
-      if selectionModel != "TileAwareMetricSelection":
-        validSolution["Ideals"] = validSolutionInfo
+    for validSelectionSolution in validSelectionSolutions:
+      theSolution = None
+      theSolutionIndex = -1
+      (validSolution, validSolutionInfo) = (validSelectionSolution[0], validSelectionSolution[1])
+      if validSolution in logicAnalyzer.solutions:
+        validExactSolutionIndex = logicAnalyzer.solutions.index(validSolution)
+        selectionSolutionsIds.add(validExactSolutionIndex)
+        theSolutionIndex = validExactSolutionIndex
+        validExactSolution = logicAnalyzer.solutions[validExactSolutionIndex]
+        theSolution = validExactSolution
+        #validSelectionSolutionsIncluded.append((validExactSolution, validSolutionInfo))
+        validExactSolution["Ideals"] = validSolutionInfo
       else:
-        vInfo = None
-        vInfoList = []
-        for infoKey in validSolutionInfo:
-           infoValue = validSolutionInfo[infoKey]
-           vInfo = list(infoKey)
-           vInfo.append(infoValue)
-           vInfoList.append(vInfo)
-        idealMap[selectionSolutionIndex] = vInfoList
-      selectionSolutions.append(validSolution)
+        #validSelectionSolutionsRemainder.append(validSelectionSolution)
+        theSolution = validSolution
+        validSolution["Ideals"] = validSolutionInfo
+        
+        # validSelectionSolution = validSelectionSolutionsRemainder[i]
+        #(validSolution, validSolutionInfo) = validSelectionSolution
+        #selectionSolutionIndex = solutionsStartIndex + i
+        selectionSolutionsIds.add(solutionsStartIndex)
+        theSolutionIndex = solutionsStartIndex
+        solutionsStartIndex += 1
+        validSolution["SolutionNameMin"] = Solution.getNameMin(validSolution, solutionMinNaming)
+        #validSolution["Ideals"] = validSolutionInfo
+        selectionSolutions.append(validSolution)
 
-    selectionSolutionsIdsList = list(selectionSolutionsIds)
+      if selectionModel == "TileAwareMetricSelection":
+      #for validSelectionSolution in validSelectionSolutions:
+      #  (validSolution, validSolutionInfo, _) = validSelectionSolution
+      
+        sumsweep_values = []
+        sumsweep_perf = []
+        sumsweep_perf_norm = []
+
+        for infoKey in validSolutionInfo:
+          perf = validSolutionInfo[infoKey]
+          sweepid = int(infoKey)
+
+          sumsweep_perf.append(perf)
+          sumsweep_values.append(sweepid)
+          sumsweep_perf_norm.append(1000 * sweepid / perf)
+
+        sumsweep_model = np.polyfit(x=sumsweep_values, y=sumsweep_perf_norm, deg=1)
+        linearModel = {"slope": sumsweep_model[0].item(), "intercept": sumsweep_model[1].item()}
+        theSolution["LinearModel"] = linearModel
+
+        theSize = list(validSelectionSolution[2])
+        #theSolution["sizeId"] = theSize
+        solutionSelectionModel.append([theSize, theSolutionIndex])
+        #print(theSize)
+ 
+    # set of solutions that are part of the tile aware model and 
+    # not a solution for an exact problem size
+    
+
+    #if selectionModel != "TileAwareMetricSelection":
+    #  for i in range(0 ,len(validSelectionSolutionsIncluded)):
+    #    validSelectionSolution = validSelectionSolutionsIncluded[i]
+    #    (validSolution, validSolutionInfo) = validSelectionSolution
+    #    validSolution["Ideals"] = validSolutionInfo
+
+    #solutionsStartIndex = len(logicAnalyzer.solutions)
+
+    #for i in range(0, len(validSelectionSolutionsRemainder)):
+    #  validSelectionSolution = validSelectionSolutionsRemainder[i]
+    #  (validSolution, validSolutionInfo) = validSelectionSolution
+    #  selectionSolutionIndex = solutionsStartIndex + i
+    #  selectionSolutionsIds.add(selectionSolutionIndex)
+    #  validSolution["SolutionNameMin"] = Solution.getNameMin(validSolution, solutionMinNaming)
+    #  validSolution["Ideals"] = validSolutionInfo
+    #  selectionSolutions.append(validSolution)
+
+    #if selectionModel == "TileAwareMetricSelection":
+    #  for validSelectionSolution in validSelectionSolutions:
+    #    (validSolution, validSolutionInfo, _) = validSelectionSolution
+      
+    #    sumsweep_values = []
+    #    sumsweep_perf = []
+    #    sumsweep_perf_norm = []
+
+    #    for infoKey in validSolutionInfo:
+    #      perf = validSolutionInfo[infoKey]
+    #      sweepid = int(infoKey)
+
+    #      sumsweep_perf.append(perf)
+    #      sumsweep_values.append(sweepid)
+    #      sumsweep_perf_norm.append(1000 * sweepid / perf)
+
+    #    sumsweep_model = np.polyfit(x=sumsweep_values, y=sumsweep_perf_norm, deg=1)
+    #    model = {"slope": sumsweep_model[0].item(), "intercept": sumsweep_model[1].item()}
+    #    validSolution["model"] = model
+      #selectionSolutions.append(validSolution)
+
+    #selectionSolutionsIdsList = list(selectionSolutionsIds)
 
   ######################################
   # Correct outliers
@@ -225,9 +287,9 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
   print1("# Exact Logic:\n")
   print1("%s"%exactLogic)
 
-  #selectionSolutionsIdsList = list(selectionSolutionsIds)
+  selectionSolutionsIdsList = list(selectionSolutionsIds)
   return (problemType, logicAnalyzer.solutions, logicAnalyzer.indexOrder, \
-       exactLogic, rangeLogic, selectionSolutions, selectionSolutionsIdsList, idealMap)
+       exactLogic, rangeLogic, selectionSolutions, selectionSolutionsIdsList, solutionSelectionModel)
 
 
 
