@@ -22,12 +22,12 @@ GlobalParameters:
   # EnableAsserts: True
   # EnableDebugA: True
   # EnableDebugB: True
-  # DataInitTypeA: 1
-  # DataInitTypeB: 1
-  # DataInitTypeC: 0
-  # DataInitTypeD: 0
-  # DataInitTypeBeta: 0
-  # DataInitTypeAlpha: 1
+  DataInitTypeA: 1
+  DataInitTypeB: 1
+  DataInitTypeC: 0
+  DataInitTypeD: 0
+  DataInitTypeBeta: 0
+  DataInitTypeAlpha: 1
   # PrintTensorA: 1
   # PrintTensorB: 1
   # PrintTensorC: 2
@@ -113,10 +113,9 @@ BenchmarkProblems:
   #       - EdgeType: ["ShiftPtr"]     # priority 5 (Done)
   #       - ScheduleLocalWrite: [True] # priority 6 (Done)
   #       - ScheduleGlobalRead: [True] # priority 7 (Done)
-  #       - PrefetchLocalRead: [False] # priority 8
+  #       - PrefetchLocalRead: [True]  # priority 8 (Done)
   #     ForkParameters:
   #       - ScheduleIterAlg: [1,2]     # priority 9 (Done)
-  #       # - PrefetchLocalRead: [False, True] # priority 8
   #       - MatrixInstruction:
   #         - [32,32, 8, 1, 1, 1,1, 1,1]  # 32x32
   #       - ThreadTile:
@@ -168,9 +167,8 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]     # priority 5 (Done)
         - ScheduleLocalWrite: [True] # priority 6 (Done)
         - ScheduleGlobalRead: [True] # priority 7 (Done)
-        - PrefetchLocalRead: [False] # priority 8
-        - ScheduleIterAlg: [2]       # priority 9 (Done)
-        # - PrefetchLocalRead: [False, True] # priority 8
+        - PrefetchLocalRead: [True]  # priority 8 (Done)
+        - ScheduleIterAlg: [1,2]     # priority 9 (Done)
         - MatrixInstruction:
           - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
           - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
@@ -247,9 +245,8 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]     # priority 5 (Done)
         - ScheduleLocalWrite: [True] # priority 6 (Done)
         - ScheduleGlobalRead: [True] # priority 7 (Done)
-        - PrefetchLocalRead: [False] # priority 8
-        - ScheduleIterAlg: [2]       # priority 9 (Done)
-        # - PrefetchLocalRead: [False, True] # priority 8
+        - PrefetchLocalRead: [True]  # priority 8 (Done)
+        - ScheduleIterAlg: [1,2]     # priority 9 (Done)
         - MatrixInstruction:
           - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
           - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
@@ -326,9 +323,8 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]     # priority 5 (Done)
         - ScheduleLocalWrite: [True] # priority 6 (Done)
         - ScheduleGlobalRead: [True] # priority 7 (Done)
-        - PrefetchLocalRead: [False] # priority 8
-        - ScheduleIterAlg: [2]       # priority 9 (Done)
-        # - PrefetchLocalRead: [False, True] # priority 8
+        - PrefetchLocalRead: [True]  # priority 8 (Done)
+        - ScheduleIterAlg: [1,2]     # priority 9 (Done)
         - MatrixInstruction:
           - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
           - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
@@ -405,9 +401,8 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]     # priority 5 (Done)
         - ScheduleLocalWrite: [True] # priority 6 (Done)
         - ScheduleGlobalRead: [True] # priority 7 (Done)
-        - PrefetchLocalRead: [False] # priority 8
-        - ScheduleIterAlg: [2]       # priority 9 (Done)
-        # - PrefetchLocalRead: [False, True] # priority 8
+        - PrefetchLocalRead: [True]  # priority 8 (Done)
+        - ScheduleIterAlg: [1,2]     # priority 9 (Done)
         - MatrixInstruction:
           - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
           - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64

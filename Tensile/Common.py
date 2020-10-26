@@ -162,6 +162,9 @@ globalParameters["LibraryPrintDebug"] = False     # solutions will print enqueue
 globalParameters["EnableAsserts"] = False         # Enable assembly debug assert
 globalParameters["EnableDebugA"] = False          # Enable / Disable CheckValue1A
 globalParameters["EnableDebugB"] = False          # Enable / Disable CheckValue1B
+globalParameters["EnableDebugC"] = False          # Enable / Disable CheckValueC
+globalParameters["ExpectedValueC"] = 16.0         # Expected C Value when CheckValueC, debug for Alpha*A*B
+globalParameters["ForceCExpectedValue"] = False   # Force C to "DebugExpectedValueC", debug for global write
 
 # Tensor printing controls:
 globalParameters["PrintConvolutionUsage"] = 0      # Print Convolution usage info. 1=tensor fields,2=boilerplate info,4=print tensor mappings for specified ConvProblems
@@ -929,7 +932,8 @@ validParameters = {
     # -1 means round up to nearest power of 2 begin with 128
     "LdsBlockSizePerPad":          [-1, 0, 64, 128, 256, 512],
 
-    #Transpose LDS format. Local store in Coalsced dimension , same as optimized global fetch dimension . applicable only in TLU=0 case for miSIMD(s)
+    # Transpose LDS format. Local store in Coalsced dimension , same as optimized global fetch dimension . applicable only in TLU=0 case for miSIMD(s)
+    # Ethan: TODO- No code for -1 ?
     "TransposeLDS":                [-1, 1, 0],
 
     # tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated

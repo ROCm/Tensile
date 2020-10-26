@@ -507,15 +507,15 @@ class KernelWriterAssembly(KernelWriter):
     #  - Only works if matrix is integral multiple of macro-tile (no edges) - check is dumb so doesn't know
     #    which work-items are outside the valid edge.
     #  - Does not work in OptNoLoadLoop
-    self.db["CheckValueC"]  = False
+    self.db["CheckValueC"]  = globalParameters["EnableDebugC"]
     # value expected if CheckValueC is set. Use '.' for FP.
     # For example could be 16.0 if U=8 and alpha=2
-    self.db["ValueCExpectedValue"] = 16.0
+    self.db["ValueCExpectedValue"] = globalParameters["ExpectedValueC"]
 
     # Force an expected value for all C outputs.
     # May be useful for checking store path
     # See same caveats as CheckValueC
-    self.db["ForceExpectedValue"]  = False
+    self.db["ForceExpectedValue"]  = globalParameters["ForceCExpectedValue"]
 
     # Force VSerial value into the output, this will
     # not match reference but can be useful to see which work-items are
@@ -2102,16 +2102,18 @@ class KernelWriterAssembly(KernelWriter):
     self.getNamedLabel("KernelEnd%s"%(unrollChar))
     # shift vectors determined later
 
-    # isBFHalfHPA = (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and \
-    #                kernel["ProblemType"]["HighPrecisionAccumulate"]
-    # assert not self.db["CheckValueC"] or (kernel["ProblemType"]["DataType"].isSingle() or isBFHalfHPA)
+    canCheckValueC = (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and \
+                      kernel["ProblemType"]["HighPrecisionAccumulate"]
+    canCheckValueC = canCheckValueC or kernel["ProblemType"]["DataType"].isSingle()
+    canCheckValueC = canCheckValueC or (kernel["ProblemType"]["DataType"].isInt8() and kernel["ProblemType"]["HighPrecisionAccumulate"])
+    assert not self.db["CheckValueC"] or canCheckValueC
 
     if self.db["InitLds"] : print ("\n***WARNING: InitLds enabled, may impact performance\n")
     if self.db["InitSgpr"] : print ("\n***WARNING: InitSgpr enabled, may impact performance\n")
     if self.db["InitVgpr"] : print ("\n***WARNING: InitVgpr enabled, may impact performance\n")
     if self.db["ConservativeWaitCnt"] : print ("\n***WARNING: ConservativeWaitCnt enabled, may impact performance\n")
     if self.do["KeepDirectToLdsAlloc"] : print ("\n***WARNING: KeepDirectToLdsAlloc enabled, may impact performance\n")
-    # if not kernel["LoopTail"] : print ("\n***WARNING: LoopTail disabled, kernel may not function correctly for all inputs\n")
+    if not kernel["LoopTail"] : print ("\n***WARNING: LoopTail disabled, kernel may not function correctly for all inputs\n")
     if self.db["CheckValue1A"] : print ("\n***WARNING: CheckValue1A enabled, may impact performance\n")
     if self.db["CheckValue1B"] : print ("\n***WARNING: CheckValue1B enabled, may impact performance\n")
     if self.db["CheckValueC"] : print ("\n***WARNING: CheckValueC enabled, may impact performance\n")
@@ -2949,11 +2951,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # addr *= bytes/element
       if justOffset32:
-        kStr += inst("v_lshlrev_b32", \
-            "v[\\vgprAddr+0]", \
-            hex(log2(self.bpeAB)), \
-            "v[\\vgprAddr+0]", \
-            "offset *= bytes/element")
+        kStr += staticMultiply("v[\\vgprAddr+0]", "v[\\vgprAddr+0]", self.bpeAB, None, "offset *= bytes/element")
       else:
         kStr += inst("v_lshlrev_b64", \
             "v[\\vgprAddr+0:\\vgprAddr+1]", \
@@ -4350,7 +4348,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # Add the tile start to the SRD
     if wroteTileStart:
-      kStr += inst("s_lshl_b64", sgpr(tileStart,2), sgpr(tileStart,2), log2(bpe), "tileStart *= BPE")
+      kStr += scalarStaticMultiply(sgpr(tileStart,2), sgpr(tileStart,2), bpe, None, "tileStart *= BPE")
       kStr += inst("s_add_u32",  sgpr("Srd%s+0"%tc), sgpr("Address%s+0"%tc), sgpr(tileStart+0), "SRD base = Address+ tileStart0")
       kStr += inst("s_addc_u32", sgpr("Srd%s+1"%tc), sgpr("Address%s+1"%tc), sgpr(tileStart+1), "SRD base = Address+ tileStart1")
     else:
@@ -7938,6 +7936,7 @@ class KernelWriterAssembly(KernelWriter):
 
             sPerp = 0
             sPara = 0
+            # Ethan: TODO- Add comment
             if tP["tlu"] != kernel["UnrollMajorLDS%s" % tP["tensorChar"]]:
               if tP["wtc"] == tP["grcv"]:
                 sPerp = s
@@ -8349,10 +8348,6 @@ class KernelWriterAssembly(KernelWriter):
         # TODO - handle vector-load
         tmpSgpr = self.getTmpSgpr(1).idx()
         if self.db["CheckValue1%s"%tc] and not self.inTailLoop:
-          # if self.inTailLoop:
-          #   skipLabel = self.getNamedLabelUnique("skipCheckValue1")
-          #   localReadCode.addCode("s_cmp_eq_u32 s[sgprSrd%s+2], s[sgprShadowLimit%s+0]%s"%(tc, tc, self.endLine))
-          #   localReadCode.addCode("s_cbranch_scc0 %s%s"%(skipLabel, self.endLine))
 
           dbgVgpr = destVgpr
           dbgVgprList = destVgpr.split("v[")
@@ -8375,20 +8370,12 @@ class KernelWriterAssembly(KernelWriter):
             localReadCode.addInst("s_mov_b32", sgpr(tmpSgpr), hexValue,"CheckValue1: FP16")
             localReadCode.addCode(self.assert_eq( dbgVgpr, sgpr(tmpSgpr)))
 
-            # localReadCode.addInst("s_mov_b32", sgpr(tmpSgpr), hex(0x3c003c00),"CheckValue1: FP16")   # packed 1s
-            # # will skip (needPack and highBitsForHalf)
-            # if not needPack:
-            #   localReadCode.addCode(self.assert_eq( dbgVgpr, sgpr(tmpSgpr)))
-            # elif not highBitsForHalf:
-            #   localReadCode.addCode(self.assert_eq_u16( dbgVgpr, sgpr(tmpSgpr)))
-
           elif kernel["ProblemType"]["DataType"].isBFloat16():
-            localReadCode.addInst("s_mov_b32", sgpr(tmpSgpr), hex(0x3f803f80),"CheckValue1: BF16")   # packed 1s
-            # will skip (needPack and highBitsForHalf)
-            if not needPack:
-              localReadCode.addCode(self.assert_eq( dbgVgpr, sgpr(tmpSgpr)))
-            elif not highBits:
-              localReadCode.addCode(self.assert_eq_u16( dbgVgpr, sgpr(tmpSgpr)))
+            hexValue = hex(0x3f803f80)   # packed 1s
+            if needPack:
+              hexValue = hex(0x3f800000) if highBitsForHalf else hex(0x00003f80)
+            localReadCode.addInst("s_mov_b32", sgpr(tmpSgpr), hexValue,"CheckValue1: BF16")
+            localReadCode.addCode(self.assert_eq( dbgVgpr, sgpr(tmpSgpr)))
 
           if kernel["ProblemType"]["DataType"].isInt8():
             if needPack:
@@ -8396,16 +8383,13 @@ class KernelWriterAssembly(KernelWriter):
               localReadCode.addInst("s_mov_b32", sgpr(tmpSgpr), hexValue,"CheckValue1: INT8")
               localReadCode.addCode(self.assert_eq( dbgVgpr, sgpr(tmpSgpr)))
 
-          # TODO - Check if this works
+          # TODO - Check if this works. But need this? MFMA would use INT8
           elif kernel["ProblemType"]["DataType"].isInt8x4():
             localReadCode.addInst("s_mov_b32", sgpr(tmpSgpr), hex(0x01010101),"CheckValue1: INT8x4")
             localReadCode.addCode(self.assert_eq( dbgVgpr, sgpr(tmpSgpr)))
 
           elif kernel["ProblemType"]["DataType"].isSingle():
             localReadCode.addCode(self.assert_eq( dbgVgpr, 1.0) )
-
-          # if self.inTailLoop:
-          #   localReadCode.addCode("%s:"%skipLabel + self.endLine)
 
     return imod, pack
 
@@ -11165,7 +11149,7 @@ class KernelWriterAssembly(KernelWriter):
 
         # TODO: Minimum elems for StoreRemap
         # TODO: Which of DataType or DestDataType is in a better sense?
-        minElements = 2 if (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) else 1
+        minElements = 2 if (kernel["ProblemType"]["DestDataType"].isHalf() or kernel["ProblemType"]["DestDataType"].isBFloat16()) else 1
         minNeeded = minElements*numVgprsPerElement
         shrinkDb = 0
         if shrinkDb:
@@ -11557,14 +11541,13 @@ class KernelWriterAssembly(KernelWriter):
               kStr += self.assert_eq(vgpr("ValuC+%u"%sumIdxV), sgpr(tmpS01))
 
         # Ethan: P1 (Done)
-        # int8x4 / int8
+        # Int8 (Int8x4?)
         elif kernel["ProblemType"]["ComputeDataType"].isInt32():
           # below assume we use v_mul_lo_u32. Could also use v_mul_i32_i24.
           # kStr += inst("v_mul_i32_i24", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha" )
           kStr += inst("v_mul_lo_u32", vgpr("ValuC+%u"%sumIdxV), sgpr("Alpha"), vgpr("ValuC+%u"%sumIdxV), "*= alpha" )
           if self.db["ForceExpectedValue"]:
             kStr += inst("v_mov_b32", vgpr("ValuC+%u"%sumIdxV), self.db["ValueCExpectedValue"], "force expected value" )
-          # TODO- Check if this works
           if self.db["CheckValueC"]:
             kStr += inst("s_mov_b32", sgpr(tmpS01), self.db["ValueCExpectedValue"], "Move expected value")
             kStr += self.assert_eq(vgpr("ValuC+%u"%sumIdxV), sgpr(tmpS01))
@@ -12138,8 +12121,9 @@ class KernelWriterAssembly(KernelWriter):
       for elementIdx in range(0, len(batchElements)):
         for vi in range(0, gwvw):
           sumIdxV = ss.elementSumIdx[elementIdx] + vi
-          # covers sgemm, bfgemm, hgemm(HPA)
-          if kernel["ProblemType"]["ComputeDataType"].isSingle() or \
+          # covers sgemm, bfgemm, hgemm(HPA), int8 (int8x4?)
+          if kernel["ProblemType"]["ComputeDataType"].isInt32() or \
+             kernel["ProblemType"]["ComputeDataType"].isSingle() or \
              (kernel["ProblemType"]["ComputeDataType"].isHalf() and \
              kernel["ProblemType"]["HighPrecisionAccumulate"]):
               if self.db["ForceExpectedValue"]:
@@ -12341,7 +12325,9 @@ class KernelWriterAssembly(KernelWriter):
 
           #kStr += self.bomb(5)
       if self.db["CheckStoreC"]>=0:
+        useBuffer = kernel["BufferStore"]
         # Note - CheckStoreC won't work for EDGE store cases since they load 0 for OOB, would need more sophisticated check
+        # Note - TODO- CheckStoreC also won't work for StoreRemap
         kStr += inst("s_waitcnt", "vmcnt(0)", "CheckStoreC, wait for stores to complete" )
         if self.archCaps["SeparateVscnt"]:
           kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
@@ -12383,7 +12369,7 @@ class KernelWriterAssembly(KernelWriter):
         for elementIdx in range(0, len(batchElements)):
           sumIdx = ss.elementSumIdx[elementIdx]
           # Need to fix for other types:
-          assert (kernel["ProblemType"]["DestDataType"].isSingle())
+          assert (kernel["ProblemType"]["DestDataType"].isSingle() or kernel["ProblemType"]["DestDataType"].isInt32())
           kStr += self.assert_eq(vgpr(sumIdx), sgpr(tmpS01))
 
 
@@ -13129,6 +13115,13 @@ def inst(*args):
   return line
 
 ########################################
+# Format Trailing Comment Only
+#######################################
+def instCommentOnly(comment=""):
+  # Aligned with inst (50 chars)
+  return "%-50s // %s\n" % ("", comment)
+
+########################################
 # Format GPRs
 ########################################
 def gpr(*args):
@@ -13317,9 +13310,9 @@ def staticMultiply(product, operand, multiplier, tmpSgpr=None, comment=""):
   elif ((multiplier & (multiplier - 1)) == 0): # pow of 2
     multiplier_log2 = log2(multiplier)
     if multiplier_log2==0 and product == operand:
-      return ""
+      return instCommentOnly(comment + " (multiplier is 1, do nothing)")
     else:
-      return inst("v_lshlrev_b32", product, multiplier_log2, operand, comment)
+      return inst("v_lshlrev_b32", product, hex(multiplier_log2), operand, comment)
   else:
     kStr = ""
     if product == operand:
@@ -13329,3 +13322,25 @@ def staticMultiply(product, operand, multiplier, tmpSgpr=None, comment=""):
       kStr += inst("v_mov_b32", product, hex(multiplier), comment)
       kStr += inst("v_mul_lo_u32", product, product, operand, comment)
     return kStr
+
+
+########################################
+# Multiply scalar for 64bit
+# product register, operand register, multiplier
+########################################
+def scalarStaticMultiply(product, operand, multiplier, tmpSgpr=None, comment=""):
+  if comment == "":
+    comment = "%s = %s * %s" % (product, operand, multiplier)
+
+  if multiplier == 0:
+      return inst("s_mov_b64", product, hex(multiplier), comment)
+
+  # TODO- to support non-pow2, need to use mul_32 and mul_hi_32 ?
+  assert ((multiplier & (multiplier - 1)) == 0) # assert pow of 2
+
+  multiplier_log2 = log2(multiplier)
+  if multiplier_log2==0 and product == operand:
+    return instCommentOnly(comment + " (multiplier is 1, do nothing)")
+  else:
+    # notice that the src-order of s_lshl_b64 is different from v_lshlrev_b32.
+    return inst("s_lshl_b64", product, operand, hex(multiplier_log2), comment)

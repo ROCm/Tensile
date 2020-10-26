@@ -2411,6 +2411,7 @@ class Solution:
       state["PrefetchLocalRead"] = 1
       state["ExpandPointerSwap"] = 1
       state["1LDSBuffer"] = 1
+      print2("\nSet SIA=2, force PrefetchLocalRead=1, ExpandPointerSwap=1, 1LDSBuffer=1")
 
     if state["DisableVgprOverlapping"] is True and state["EnableMatrixInstruction"] is not True:
       reject(state, "Non-MI kernels are already non-overlapping in pre-allocated registers")
@@ -2421,7 +2422,7 @@ class Solution:
               or state["ProblemType"]["DataType"].isHalf() \
               or state["ProblemType"]["DataType"].isSingleComplex() \
               or state["ProblemType"]["DataType"].isInt8() \
-              or state["ProblemType"]["DataType"].isInt8x4()):
+              or state["ProblemType"]["DataType"].isInt8x4()):  # Ethan: TODO- CleanUp this
         reject(state, "didn't support Matrix Instruction with type %s" % str(state["ProblemType"]["DataType"]))
       if not state["MIBlock"] or len(state["MIBlock"]) != 6:
         reject(state, "invalid MIBlock")
@@ -2431,8 +2432,8 @@ class Solution:
         reject(state, "invalid MIWaveTile")
       if not state["ProblemType"]["HighPrecisionAccumulate"] \
          and state["ProblemType"]["DataType"].numRegisters() < 1 :
-        reject(state, "Matrix instructions for half, bf16 types are natively accumulated" + \
-         " in fp32 precision. Please add the following config:" + \
+        reject(state, "Matrix instructions for half, bf16 (or i8) types are natively accumulated" + \
+         " in fp32 (or i32) precision. Please add the following config:" + \
          "\n - HighPrecisionAccumulate: True")
     else:
       if not state["ProblemType"]["HighPrecisionAccumulate"] \
@@ -3198,8 +3199,8 @@ class Solution:
 
       storeInstMinWidth = 1 # minimum dwordx1
       storeInstMaxWidth = 4 # maximum dwordx4
-      srMinVw = max(storeInstMinWidth, int(storeInstMinWidth/state["ProblemType"]["DataType"].numRegisters()))
-      numReg  = 1 if state["_GlobalAccumulation"] else state["ProblemType"]["DataType"].numRegisters()
+      srMinVw = max(storeInstMinWidth, int(storeInstMinWidth/state["ProblemType"]["DestDataType"].numRegisters()))
+      numReg  = 1 if state["_GlobalAccumulation"] else state["ProblemType"]["DestDataType"].numRegisters()
       srMaxVw = int(storeInstMaxWidth/numReg)
       if srMinVw > state["StoreRemapVectorWidth"] or srMaxVw < state["StoreRemapVectorWidth"]:
         reject(state, "StoreRemapVectorWidth %u is not allowed for this data type" % state["StoreRemapVectorWidth"])

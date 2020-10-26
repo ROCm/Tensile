@@ -569,12 +569,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # BF16: each packCode is for one 32-bit reg,  1 packing inst: half-to-single x1
       # FP16: each packCode is for two 32-bit regs, 2 packing inst: half-to-single x2
       # INT8: each packCode is for one 32-bit regs, 3 packing inst: byte-to-half x2 + half-to-single x1
-      instPerPack = 1
-      if kernel["ProblemType"]["DataType"].isHalf():
-        instPerPack = 2
-      elif kernel["ProblemType"]["DataType"].isInt8():
-        instPerPack = 3
-
+      instPerPack = 3 if kernel["ProblemType"]["DataType"].isInt8() else ( 1 if kernel["ProblemType"]["DataType"].isBFloat16() else 2 )
       packItems = []
       for iui in range(kernel["InnerUnroll"]):
         packINtems = [ [] for j in range(max(self.numReadsIterCoalescedA,self.numReadsIterCoalescedB)) ]
@@ -713,7 +708,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # we need 1 vector A and 1 vector B for first mfma
       # then we prepare remaining A, then remaining B
       ####
-      instPerPack = 1 if kernel["ProblemType"]["DataType"].isBFloat16() else 2
+      instPerPack = 3 if kernel["ProblemType"]["DataType"].isInt8() else ( 1 if kernel["ProblemType"]["DataType"].isBFloat16() else 2 )
       packItems = []
       for iui in range(kernel["InnerUnroll"]):
         packINtems = [ [] for j in range(max(self.numReadsIterCoalescedA,self.numReadsIterCoalescedB)) ]
@@ -888,8 +883,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # if i % kernel["MIWaveTile"][0]==0, mfma will use new B
           packAIdx += instPerPack if i//(kernel["MIWaveTile"][0]+kernel["MIWaveTile"][0]*kernel["MIWaveTile"][1]*(i//(kernel["MIWaveTile"][0]*kernel["MIWaveTile"][1]))) == 0 else 0
           packBIdx += instPerPack if i % kernel["MIWaveTile"][0] == 0 else 0
-          packAIdx = packAIdx if self.tPA["localReadInstruction"].blockWidth == 0.5 else 0
-          packBIdx = packBIdx if self.tPB["localReadInstruction"].blockWidth == 0.5 else 0
+          # blockWidth < 1, means 0.5 or 0.25 (BF,H,Int8)
+          packAIdx = packAIdx if self.tPA["localReadInstruction"].blockWidth < 1 else 0
+          packBIdx = packBIdx if self.tPB["localReadInstruction"].blockWidth < 1 else 0
           numPack = (packAIdx + packBIdx)
           iterCode.addComment0("pack scheduling: packAIdx:%u, packBIdx:%u" %(packAIdx,packBIdx))
           # we put 2 pack in each mfma
@@ -1278,7 +1274,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.enable["Wait"]:
         if kernel["DirectToLdsA"] or kernel["DirectToLdsB"]:
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "10wait for global read"))
-        # Ethan: TODO- need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite
+        # Ethan: TODO- need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite (PGR=2 ?)
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "4wait for local write"))
       if self.enable["Sync"]:
         kl.append(self.syncThreads(kernel))
@@ -1418,7 +1414,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
         dataAtIter = u - self.numItersPLR
         numReadsIter = min(u+1,kernel["LoopIters"] - self.numItersPLR)
         skipReadsIter = numReadsIter - dataAtIter - 1
-        # Ethan: TODO- (for int8) need to make sure we do the vgpr.checkin for the temp VGPR in LocalRead
         waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, \
             skipReadsIter, \
             "7wait for local read")
@@ -1862,7 +1857,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
             if self.enable["Wait"]:
               if kernel["DirectToLdsA"] or kernel["DirectToLdsB"]:
                 kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "12wait for global read"))
-              # Ethan: TODO- need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite
               waitLWCode.addCode(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "3wait for local write"))
             if self.enable["Sync"]:
               syncCode.addCode(self.syncThreads(kernel))
@@ -1903,7 +1897,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
           waitLocalWrite = -1
 
         if self.enable["Wait"]:
-          # Ethan: TODO- need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite
           dataAtIter = u - self.numItersPLR
           numReadsIter = min(u+1,kernel["LoopIters"] - self.numItersPLR)
           numPrefetchIter = (u//(kernel["LoopIters"]-self.numItersPLR))*((u+1)-(kernel["LoopIters"]-self.numItersPLR)) if kernel["PrefetchGlobalRead"] else 0
@@ -2076,7 +2069,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
               else:
                   #last group only pointer + localWrite Code
                 if self.enable["Wait"]:
-                  # Ethan: TODO- need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite
                   waitCode = Code.WaitCnt(self.version, waitCntItems[iter],-1,"wait for prior local read & local writes")
                 subIterCode.addCode(waitCode)
                 subIterCode.addCode(macIterCodeGrp)
