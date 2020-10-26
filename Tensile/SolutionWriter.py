@@ -743,13 +743,13 @@ class SolutionWriter:
           s += "%shipFunctionArgs.dataA = dataA;\n" % (t)
           s += "%shipFunctionArgs.dataB = dataB;\n" % (t)
 
-          if problemType["DataType"].isHalf():
+          if problemType["ComputeDataType"].isHalf():
             s += "%shipFunctionArgs.alpha[0] = alpha;\n" % (t)
             s += "%shipFunctionArgs.alpha[1] = alpha;\n" % (t)
           else:
             s += "%shipFunctionArgs.alpha = alpha;\n" % (t)
           if problemType["UseBeta"]:
-            if problemType["DataType"].isHalf():
+            if problemType["ComputeDataType"].isHalf():
               s += "%shipFunctionArgs.beta[0] = beta;\n" % (t)
               s += "%shipFunctionArgs.beta[1] = beta;\n" % (t)
             else:

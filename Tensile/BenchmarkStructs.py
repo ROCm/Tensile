@@ -88,7 +88,7 @@ def getSingleValues(parameterSetList):
           if len(paramDict) == 0:
             stepList.remove(paramDict)
 
-  return singleVaules          
+  return singleVaules
 
 ##############################################################################
 # assignParameters
@@ -109,11 +109,11 @@ def assignParameters(problemTypeConfig, configBenchmarkCommonParameters, configF
   for paramName in singleValues:
     paramValue = singleValues[paramName]
     initialSolutionParameters[paramName] = paramValue
-    
+
   forkPermutations = constructForkPermutations(configForkParameters)
   if len(forkPermutations) > 0:
     hardcodedParameters = forkHardcodedParameters([initialSolutionParameters], forkPermutations)
-  
+
   return (problemTypeObj, hardcodedParameters, initialSolutionParameters)
 
 class BenchmarkProcess:

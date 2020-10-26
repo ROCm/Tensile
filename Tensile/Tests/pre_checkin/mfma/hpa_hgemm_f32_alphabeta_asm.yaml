@@ -15,6 +15,8 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: h
+      DestDataType: h
+      ComputeDataType: s
       HighPrecisionAccumulate: True
       TransposeA: False
       TransposeB: True
@@ -142,7 +144,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [256,3,266], [256,3,266], [1,1,2], [4096,3,4106] ]
+          - Range: [ [1024,3,1030], [1024,3,1030], [1,1,2], [1024,3,1030] ]
 
   ########################################
   # TN - standard
@@ -151,6 +153,8 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: h
+      DestDataType: h
+      ComputeDataType: s
       HighPrecisionAccumulate: True
       TransposeA: True
       TransposeB: False
@@ -278,7 +282,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [256,3,266], [256,3,266], [1,1,2], [4096,3,4106] ]
+          - Range: [ [1024,3,1030], [1024,3,1030], [1,1,2], [1024,3,1030] ]
 
   ########################################
   # NN - standard
@@ -287,6 +291,8 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: h
+      DestDataType: h
+      ComputeDataType: s
       HighPrecisionAccumulate: True
       TransposeA: False
       TransposeB: False
@@ -414,7 +420,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [256,3,266], [256,3,266], [1,1,2], [4096,3,4106] ]
+          - Range: [ [1024,3,1030], [1024,3,1030], [1,1,2], [1024,3,1030] ]
 
   ########################################
   # TT - standard
@@ -423,6 +429,8 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: h
+      DestDataType: h
+      ComputeDataType: s
       HighPrecisionAccumulate: True
       TransposeA: True
       TransposeB: True
@@ -550,5 +558,5 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [256,3,266], [256,3,266], [1,1,2], [4096,3,4106] ]
+          - Range: [ [1024,3,1030], [1024,3,1030], [1,1,2], [1024,3,1030] ]
 

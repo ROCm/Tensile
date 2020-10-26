@@ -22,7 +22,7 @@ HELP_STR="
     [-z|--log]              Pass in log file with rocblas-bench calls, or directory of log files if using network tuning
     [-y|--data-type]        Optional. Data type of sizes that you want to tune (sgemm, dgemm, hgemm only)
     [-g|--gpu]              Optional. GPU used for tuning (arcturus, mi25, mi50, mi60, r7, v340 only)
-    [-f|--sclk]             Optional. Frequency of sclk in MHz 
+    [-f|--sclk]             Optional. Frequency of sclk in MHz
     [-d|--no-dependencies]  Optional. Skip installing required dependencies (dependencies are installed by default)
     [-n|--network]          Optional. String to search for in filenames in log directory
     [--client]              Optional. Choose Tensile client version. (new, old, both, default=new)
@@ -159,9 +159,9 @@ if [[ "${DEPENDENCIES}" == true ]]; then
         sudo wget https://github.com/Reference-LAPACK/lapack-release/archive/lapack-3.7.1.tar.gz  && \
         sudo tar -xvf lapack-3.7.1.tar.gz  && \
         pushd lapack-release-lapack-3.7.1 && \
-        sudo mkdir build && pushd build && \ 
+        sudo mkdir build && pushd build && \
         sudo cmake .. -DCBLAS=ON -DLAPACKE=OFF -DBUILD_TESTING=OFF -DCMAKE_Fortran_FLAGS='-fno-optimize-sibling-calls' && \
-        sudo make && sudo make install && popd && popd && popd 
+        sudo make && sudo make install && popd && popd && popd
     fi
 fi
 
@@ -231,7 +231,7 @@ else
             GPU=v340
         else
             printf "mi25 GPU detected\n"
-            GPU=mi25 
+            GPU=mi25
         fi
     elif [[ "$(grep -c 'gfx906' rae.txt)" -gt 0 ]]; then
         LIBRARY=vega20

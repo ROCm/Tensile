@@ -226,6 +226,10 @@ globalParameters["PerfModelL2WriteHits"] = 0.15
 globalParameters["PerfModelL2ReadBwMul"] = 2
 globalParameters["PerfModelReadEfficiency"] = 0.85
 
+# limitation for training
+globalParameters["MaxWorkspaceSize"] = 32 * 1024 * 1024 # max workspace for training (32M)
+globalParameters["MinKForGSU"] = 256 # min K size to use GlobalSplitU algorithm (only for HPA now)
+
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 
@@ -1369,7 +1373,7 @@ def GetAsmCaps(isaVersion):
   rv["HasDirectToLds"]  = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
   rv["HasAddLshl"]      = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
   rv["HasSMulHi"]       = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
-  rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "", False, "-mno-code-object-v3")
+  rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "", False, "-mllvm --amdhsa-code-object-version=2")
 
   rv["HasMFMA"]         = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
 
@@ -1533,24 +1537,32 @@ def assignGlobalParameters( config ):
     else:
       print2(" %24s: %8s (unspecified)" % (key, defaultValue))
 
+  globalParameters["ROCmPath"] = "/opt/rocm"
+  if "ROCM_PATH" in os.environ:
+    globalParameters["ROCmPath"] = os.environ.get("ROCM_PATH")
+  if "TENSILE_ROCM_PATH" in os.environ:
+    globalParameters["ROCmPath"] = os.environ.get("TENSILE_ROCM_PATH")
+
+  globalParameters["ROCmBinPath"] = os.path.join(globalParameters["ROCmPath"], "bin")
+
   # ROCm Agent Enumerator Path
-  globalParameters["ROCmAgentEnumeratorPath"] = locateExe("/opt/rocm/bin", "rocm_agent_enumerator")
+  globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm_agent_enumerator")
   if "CxxCompiler" in config:
     globalParameters["CxxCompiler"] = config["CxxCompiler"]
 
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
   elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hipcc":
-    globalParameters["AssemblerPath"] = locateExe("/opt/rocm/llvm/bin", "clang++")
+    globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang++")
   elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hcc":
-    globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc")
+    globalParameters["AssemblerPath"] = locateExe(globalParameters["ROCmBinPath"], "hcc")
 
-  globalParameters["ROCmSMIPath"] = locateExe("/opt/rocm/bin", "rocm-smi")
+  globalParameters["ROCmSMIPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm-smi")
   if globalParameters["CxxCompiler"] == "hcc":
-    globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/bin", "extractkernel")
+    globalParameters["ExtractKernelPath"] = locateExe(globalParameters["ROCmBinPath"], "extractkernel")
   else:
-    globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/hip/bin", "extractkernel")
-    globalParameters["ClangOffloadBundlerPath"] = locateExe("/opt/rocm/llvm/bin", "clang-offload-bundler")
+    globalParameters["ExtractKernelPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "hip/bin"), "extractkernel")
+    globalParameters["ClangOffloadBundlerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang-offload-bundler")
 
   if "ROCmAgentEnumeratorPath" in config:
     globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]

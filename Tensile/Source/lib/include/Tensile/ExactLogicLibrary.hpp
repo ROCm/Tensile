@@ -66,8 +66,10 @@ namespace Tensile
         {
         }
 
-        virtual std::shared_ptr<MySolution>
-            findBestSolution(MyProblem const& problem, Hardware const& hardware) const override
+        virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
+                                                             Hardware const&  hardware,
+                                                             double*          fitness
+                                                             = nullptr) const override
         {
             std::shared_ptr<MySolution> rv;
 
@@ -75,7 +77,7 @@ namespace Tensile
             {
                 if(row.first(problem, hardware))
                 {
-                    rv = row.second->findBestSolution(problem, hardware);
+                    rv = row.second->findBestSolution(problem, hardware, fitness);
                     if(rv)
                         return rv;
                 }

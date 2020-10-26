@@ -52,7 +52,7 @@ class ClientLogLevel(Enum):
   Terse = 1
   Verbose = 2
   Debug = 3
-  
+
 ################################################################################
 # Main
 ################################################################################
@@ -167,7 +167,7 @@ def runNewClient(scriptPath, clientParametersPath, clientBuildDir=None):
 
 
 def runClient(libraryLogicPath, forBenchmark, enableTileSelection):
-  
+
   # write runScript
   pushWorkingPath("build")
   path = globalParameters["WorkingPath"]
@@ -598,7 +598,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param('high-precision-accumulate',  problemType.highPrecisionAccumulate)
 
         for problem in problemSizes.problems:
-            for key,value in problemSizeParams(problemType, problem): 
+            for key,value in problemSizeParams(problemType, problem):
                 param(key,value)
 
         param("device-idx",               globalParameters["Device"])
@@ -641,6 +641,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param("csv-export-extra-cols",    globalParameters["CSVExportWinner"])
         param("csv-merge-same-problems",  globalParameters["CSVMergeSameProblemID"])
         param("log-level",                ClientLogLevel(globalParameters["ClientLogLevel"]).name)
+        param("max-workspace-size",       globalParameters["MaxWorkspaceSize"])
 
 def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection = False):
     if tileAwareSelection:
@@ -663,13 +664,13 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
     newSolution = next(iter(newLibrary.solutions.values()))
     sourceDir = os.path.join(stepBaseDir, "source")
     writeClientConfigIni(problemSizes, newSolution.problemType, sourceDir, codeObjectFiles, resultsFileName, filename)
-   
+
 def CreateBenchmarkClientParametersForSizes(libraryRootPath, problemSizes, dataFilePath, configFile):
 
     libraryPath = os.path.join(libraryRootPath, "library")
-    libraryFiles = [os.path.join(libraryPath, f) for f in os.listdir(libraryPath)] 
-    codeObjectFiles = [f for f in libraryFiles if f.endswith("co")] 
-  
+    libraryFiles = [os.path.join(libraryPath, f) for f in os.listdir(libraryPath)]
+    codeObjectFiles = [f for f in libraryFiles if f.endswith("co")]
+
     metaDataFilePath = os.path.join(libraryPath, "metadata.yaml")
 
     if not os.path.exists(metaDataFilePath):
@@ -677,7 +678,7 @@ def CreateBenchmarkClientParametersForSizes(libraryRootPath, problemSizes, dataF
     metaData = LibraryIO.readConfig(metaDataFilePath)
     problemTypeDict = metaData["ProblemType"]
     problemType = ContractionsProblemType.FromOriginalState(problemTypeDict)
-  
+
     writeClientConfigIni(problemSizes, problemType, libraryRootPath, codeObjectFiles, dataFilePath, configFile)
 
 
@@ -1308,7 +1309,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   if forBenchmark:
     problemType = solutions[0]["ProblemType"]
     h += "/* generated call to solution */\n"
-    h += "template<typename DataType, class SolutionInfoType>\n"
+    h += "template<typename ComputeDataType, class SolutionInfoType>\n"
     h += "TensileStatus generatedCallToSolution(\n"
     h += "    const SolutionInfoType &solution,\n"
     h += "    SolutionLock *solutionLock,\n"
@@ -1322,8 +1323,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "    const unsigned int stride_b,\n"
     h += "    const unsigned int stride_c,\n"
     h += "    const unsigned int stride_d,\n"
-    h += "    DataType alpha,\n"
-    h += "    DataType beta,\n"
+    h += "    ComputeDataType alpha,\n"
+    h += "    ComputeDataType beta,\n"
     h += "    unsigned int numEvents = 0,\n"
     if globalParameters["RuntimeLanguage"] == "OCL":
       h += "    cl_event *event_wait_list = NULL,\n"

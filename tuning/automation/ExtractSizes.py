@@ -687,7 +687,7 @@ def UpdateOutputMapping(mapper, problemDefinition):
     else:
         lineDefinitions = []
         mapper[key] = lineDefinitions
- 
+
     if problemDefinition["r"] == None:
         problemDefinition["r"] = problemDefinition["a_type"]
     elif problemDefinition["a_type"] == None:

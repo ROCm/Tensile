@@ -49,7 +49,7 @@ from .TensileCreateLibrary import writeSolutionsAndKernels, writeCMake, buildObj
 def generateForkedSolutions (problemType, hardcodedParameters, benchmarkPermutations, winners=None, initialSolutionParameters=None):
   """this creates a set or solutions based on the forked parameters using
      a set of common parameters from which to fork from
-     
+
   Parameters:
   problemType the problem type
   hardcodedParameters the set of parameters which overrides the baseline parameters
@@ -59,14 +59,14 @@ def generateForkedSolutions (problemType, hardcodedParameters, benchmarkPermutat
 
   Returns:
   list: Soutions list
-     
+
   """
 
   solutions = []
   numHardcoded = len(hardcodedParameters)
 
   print1("# Enumerating Solutions")
-  solutionSet = set() 
+  solutionSet = set()
 
   for hardcodedIdx in Utils.tqdm(range(0, numHardcoded), "Enumerating Solutions"):
     solutions.append([])
