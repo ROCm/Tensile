@@ -1724,13 +1724,6 @@ class KernelWriterAssembly(KernelWriter):
       # contractions with multiple summations will use multiple LoopCounters, if PSD=0
       for i in range(kernel["ProblemType"]["NumIndicesSummation"]):
         self.defineSgpr(self.loopCounterName(kernel,i), 1)
-        # TODO ANT: remove SGPR NumRemainderSumElements
-        # numRemainderSumElements is required by multi-k matrix product in the multiply-accumulate loop.
-        # It means in the final iteration of each tail loop, the last N elem along summation dimension
-        # should be filled with 0's (numRemainderSumElements = numIterK % MatrixInstK)
-        if kernel["EnableMatrixInstruction"] and \
-          kernel["AssertSummationElementMultiple"] % kernel["MatrixInstK"] != 0:
-          self.defineSgpr("NumRemainderSumElements%s" % self.loopChar(kernel, i), 1)
 
     self.defineSgpr("OrigLoopCounter", 1)
 
@@ -5266,16 +5259,12 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # Tail Loop
-    numRemainderSumElements = None
     if tailLoop:
       tmpSgpr = self.getTmpSgpr(4).idx()
       if self.prefetchAcrossPersistent0:
         loopCounterName = "TailLoopCounter"
       else:
         loopCounterName = self.loopCounterName(kernel, loopIdx)
-      if kernel["EnableMatrixInstruction"] and \
-          kernel["AssertSummationElementMultiple"] % kernel["MatrixInstK"] != 0:
-        numRemainderSumElements = "NumRemainderSumElements%s"%loopChar
       kStr += "\n"
       if kernel["SuppressNoLoadLoop"]:
         # If the tail loop is suppressed, then final iterations will have moved the Srd base forward
@@ -5296,8 +5285,6 @@ class KernelWriterAssembly(KernelWriter):
       # size % DepthU
       kStr += scalarStaticDivideAndRemainder(tmpSgpr, loopCounterName, "SizesSum+%u"%loopIdx, kernel["DepthU"], tmpSgpr+2, 2)
       loopCounter = sgpr(loopCounterName)
-      if numRemainderSumElements:
-        kStr += scalarStaticDivideAndRemainder(None, numRemainderSumElements, loopCounter, kernel["MatrixInstK"], tmpSgpr+2, 2)
 
       if kernel["LocalSplitU"] > 1:
         # (size % DepthU) + LSU - 1
