@@ -2,7 +2,7 @@ GlobalParameters:
   MinimumRequiredVersion: 4.4.0
   PrintLevel: 2
   CMakeBuildType: Release
-  KernelTime: True
+  KernelTime: False
   PinClocks: True
   SleepPercent: 200
   DataInitTypeBeta : 0

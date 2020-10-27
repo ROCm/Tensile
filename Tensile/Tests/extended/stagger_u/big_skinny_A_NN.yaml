@@ -3,7 +3,7 @@ GlobalParameters:
   PrintLevel: 2
   CMakeBuildType: Release
   KernelTime: True
-  PinClocks: True
+  PinClocks: False
   SleepPercent: 200
   DataInitTypeBeta : 0
   NewClient: 2
