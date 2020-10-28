@@ -6994,7 +6994,10 @@ class KernelWriterAssembly(KernelWriter):
       sumChar = self.indexChars[sumDim]
 
       codeMod.addComment1("guardZeroPad: "+zpr.regName)
-      iterX = "Iter"+sumChar if kernel["PackSummationDims"] else "LoopCounter"+sumChar
+      iterX = "Iter"+sumChar if kernel["PackSummationDims"] else tmpSgpr
+      if not kernel["PackSummationDims"]:
+        codeMod.addInst("s_sub_u32", sgpr(tmpSgpr), sgpr("Size%s"%sumChar) , sgpr("LoopCounter%s"%sumChar),
+                          "loop = Size - remaining loop counter")
       codeMod.addInst("s_mul_i32", sgpr(tmpSgpr), sgpr(iterX), \
                         self.strideRef(tc,sumDim), "LoopCounterZp*strideSum")
       codeMod.addInst("s_lshl_b32", sgpr(tmpSgpr), sgpr(tmpSgpr), \
