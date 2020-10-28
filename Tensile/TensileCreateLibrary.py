@@ -151,7 +151,6 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       hipFlags = ["--genco", "-D__HIP_HCC_COMPAT_MODE__=1"] #needs to be fixed when Maneesh's change is made available
 
       hipFlags += ['-I', outputPath]
-      hipFlags += ['-mwavefrontsize64']
 
       compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', os.path.join(buildPath, objectFilename)]
 
@@ -264,18 +263,32 @@ def prepAsmNewClient(kernelWriterAssembly):
     assemblerFile.write("copy %1.o %1.co\n")
   else:
     assemblerFile.write("#!/bin/sh {log}\n".format(log = "-x" if globalParameters["PrintLevel"] >=2  else ""))
-    assemblerFile.write("# usage: asm-new.sh kernelName(no extension)\n")
+    assemblerFile.write("# usage: asm-new.sh kernelName(no extension) [--wave32]\n")
 
     assemblerFile.write("f=$1\n")
     assemblerFile.write("shift\n")
+    assemblerFile.write('if [ ! -z "$1" ] && [ "$1" = "--wave32" ]; then\n')
+    assemblerFile.write("    wave=32\n")
+    assemblerFile.write("    shift\n")
+    assemblerFile.write("else\n")
+    assemblerFile.write("    wave=64\n")
+    assemblerFile.write("fi\n")
+
 
     isa = globalParameters["CurrentISA"]
     assemblerFile.write("h={gfxName}\n".format(gfxName = Common.gfxName(isa)))
 
-    cArgs = kernelWriterAssembly.getCompileArgs("$f.s", "$f.o", useGlobalISA=True)
+    cArgs32 = kernelWriterAssembly.getCompileArgs("$f.s", "$f.o", isa=isa, wavefrontSize=32)
+    cArgs64 = kernelWriterAssembly.getCompileArgs("$f.s", "$f.o", isa=isa, wavefrontSize=64)
     lArgs = kernelWriterAssembly.getLinkCodeObjectArgs(["$f.o"], "$f.co")
 
-    assemblerFile.write(" ".join(cArgs) + "\n")
+    assemblerFile.write("if [ $wave -eq 32 ]; then\n")
+    assemblerFile.write(" ".join(cArgs32) + "\n")
+    assemblerFile.write("else\n")
+    assemblerFile.write(" ".join(cArgs64) + "\n")
+    assemblerFile.write("fi\n")
+
+
     assemblerFile.write(" ".join(lArgs) + "\n")
 
     assemblerFile.write("cp $f.co ../../../library/${f}_$h.co\n")

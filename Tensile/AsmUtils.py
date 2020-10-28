@@ -96,7 +96,7 @@ def log2(x):
 # quotient register, remainder register, dividend register, divisor, tmpVgprx2, tmpSgpr
 ########################################
 
-def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, doRemainder=True, comment=""):
+def vectorStaticDivideAndRemainder(writer, qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, doRemainder=True, comment=""):
 
     dComment = "%s = %s / %s"    % (vgpr(qReg), vgpr(dReg), divisor) if (comment=="") else comment
     rComment = "%s = %s %% %s" % (vgpr(rReg), vgpr(dReg), divisor) if (comment=="") else comment
@@ -132,15 +132,15 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, 
         if doRemainder:
             kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), rComment)
             kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(qReg), sgpr(tmpSgpr), rComment)
-            kStr += inst("_v_sub_co_u32", vgpr(rReg), "vcc", vgpr(dReg), vgpr(tmpVgpr), rComment)
+            kStr += inst("_v_sub_co_u32", vgpr(rReg), writer.vcc, vgpr(dReg), vgpr(tmpVgpr), rComment)
     return kStr
 
-def vectorStaticDivide(qReg, dReg, divisor, tmpVgpr, tmpSgpr, comment=""):
+def vectorStaticDivide(writer, qReg, dReg, divisor, tmpVgpr, tmpSgpr, comment=""):
     rReg = -1 # unused
-    kStr = vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, False, comment)
+    kStr = vectorStaticDivideAndRemainder(writer, qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, False, comment)
     return kStr
 
-def vectorStaticRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, comment=""):
+def vectorStaticRemainder(writer, qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, comment=""):
     if comment == "":
         comment = "%s = %s %% %s" % (vgpr(rReg), vgpr(dReg), divisor)
 
@@ -172,7 +172,7 @@ def vectorStaticRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, comment="
         kStr += inst("v_mov_b32", vgpr(qReg), vgpr(tmpVgpr), comment)
         kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), comment)
         kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(qReg), sgpr(tmpSgpr), comment)
-        kStr += inst("_v_sub_co_u32", vgpr(rReg), "vcc", vgpr(dReg), vgpr(tmpVgpr), comment)
+        kStr += inst("_v_sub_co_u32", vgpr(rReg), writer.vcc, vgpr(dReg), vgpr(tmpVgpr), comment)
     return kStr
 
 # only used for loop unroll and GlobalSplitU

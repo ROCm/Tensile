@@ -191,7 +191,10 @@ class SignatureCOV2(Signature):
         kStr += "  %s %u // lds bytes%s" % ( tWord, group_segment_size, writer.endLine )
 
         if writer.archCaps["HasWave32"]:
-            kStr += "  wavefront_size = 6 // 64-thread wavefronts%s" % writer.endLine
+            if kernel["WavefrontSize"] == 32:
+                kStr += "  wavefront_size = 5 // 32-thread wavefronts%s" % writer.endLine
+            else:
+                kStr += "  wavefront_size = 6 // 64-thread wavefronts%s" % writer.endLine
 
         # other
         kStr += "  compute_pgm_rsrc2_user_sgpr = 2 // vcc%s" % writer.endLine
@@ -315,7 +318,7 @@ class SignatureCOV2(Signature):
         kStr += "      GroupSegmentFixedSize: %u%s" % ( group_segment_size, writer.endLine )
         kStr += "      PrivateSegmentFixedSize: %u%s" % ( 0, writer.endLine )
         kStr += "      KernargSegmentAlign:  %u%s" % ( 8, writer.endLine )
-        kStr += "      WavefrontSize:        %u%s" % ( 64, writer.endLine )
+        kStr += "      WavefrontSize:        %u%s" % ( kernel["WavefrontSize"], writer.endLine )
         kStr += "      NumSGPRs:             %u%s" % ( totalSgprs, writer.endLine )
         kStr += "      NumVGPRs:             %u%s" % ( totalVgprs, writer.endLine )
         kStr += "      MaxFlatWorkGroupSize: %u%s" % ( kernel["SubGroup0"] * kernel["SubGroup1"] * kernel["LocalSplitU"], writer.endLine )
@@ -397,7 +400,10 @@ class SignatureCOV3(Signature):
         kStr += "  %s %u // lds bytes%s" % ( tWord, group_segment_size, writer.endLine )
 
         if writer.archCaps["HasWave32"]:
-            kStr += "  .amdhsa_wavefront_size32 0 // 64-thread wavefronts%s" % writer.endLine
+            if kernel["WavefrontSize"] == 32:
+                kStr += "  .amdhsa_wavefront_size32 1 // 32-thread wavefronts%s" % writer.endLine
+            else:
+                kStr += "  .amdhsa_wavefront_size32 0 // 64-thread wavefronts%s" % writer.endLine
 
         # other
         kStr += "  .amdhsa_private_segment_fixed_size 0%s" % writer.endLine
@@ -531,7 +537,7 @@ class SignatureCOV3(Signature):
         kStr += "    .sgpr_spill_count:           %u%s" % ( 0, writer.endLine )
         kStr += "    .vgpr_count:                 %u%s" % ( totalVgprs, writer.endLine )
         kStr += "    .vgpr_spill_count:           %u%s" % ( 0, writer.endLine )
-        kStr += "    .wavefront_size:             %u%s" % ( 64, writer.endLine )
+        kStr += "    .wavefront_size:             %u%s" % ( kernel["WavefrontSize"], writer.endLine )
 
         kStr += "...\n"
 
