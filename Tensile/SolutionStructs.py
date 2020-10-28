@@ -1883,9 +1883,9 @@ class Solution:
         state["SubGroup0"]   = state["MIWaveGroup"][0] * state["MatrixInstM"] * state["MatrixInstBM"] // state["MIOutputVectorWidth"]
         state["SubGroup1"]   = state["MIWaveGroup"][1] * state["MatrixInstN"] * state["MatrixInstBN"]
       else:
-        state["ThreadTile0"] = state["MatrixInstBM"] * state["MIWaveTile"][0] * (state["MatrixInstM"] * state["MatrixInstN"] // globalParameters["WavefrontWidth"])
+        state["ThreadTile0"] = state["MatrixInstBM"] * state["MIWaveTile"][0] * (state["MatrixInstM"] * state["MatrixInstN"] // state["WavefrontSize"])
         state["ThreadTile1"] = state["MatrixInstBN"] * state["MIWaveTile"][1]
-        state["SubGroup0"]   = state["MIWaveGroup"][0] * (globalParameters["WavefrontWidth"] // state["MatrixInstN"])
+        state["SubGroup0"]   = state["MIWaveGroup"][0] * (state["WavefrontSize"] // state["MatrixInstN"])
         state["SubGroup1"]   = state["MIWaveGroup"][1] * state["MatrixInstN"]
 
     elif EnableMatrixInstruction == False:
@@ -1984,7 +1984,7 @@ class Solution:
   def setGlobalLoadTileDimClassic(state, tc, numLoads, totalVectorsCoalesced, totalElementsPerp):
 
     if state["WaveSeparateGlobalRead%s"%tc]:
-      totalElementsPerp = roundupRatio(totalElementsPerp, state["NumThreads"] // globalParameters["WavefrontWidth"])
+      totalElementsPerp = roundupRatio(totalElementsPerp, state["NumThreads"] // state["WavefrontSize"])
 
     # nlc = 1
     if state["NumLoadsCoalesced%s"%tc] == 1 :
@@ -2051,7 +2051,7 @@ class Solution:
       state["LSP%s"%tc] = state["MacroTile%s"%tc] // state["NumLoadsPerpendicular%s"%tc]
 
     if state["WaveSeparateGlobalRead%s"%tc]:
-      state["LSP%s"%tc] = roundupRatio(state["LSP%s"%tc], state["NumThreads"] // globalParameters["WavefrontWidth"])
+      state["LSP%s"%tc] = roundupRatio(state["LSP%s"%tc], state["NumThreads"] // state["WavefrontSize"])
 
     return True
 
@@ -2243,7 +2243,7 @@ class Solution:
       state["ThreadTile"][0] = state["MatrixInstruction"][5]
       state["ThreadTile"][1] = state["MatrixInstruction"][6] * state["MatrixInstruction"][1]
       state["WorkGroup"][0] = state["MatrixInstruction"][4] * state["MatrixInstruction"][0] * state["MatrixInstruction"][7]
-      state["WorkGroup"][1] = waves*globalParameters["WavefrontWidth"] // state["WorkGroup"][0]
+      state["WorkGroup"][1] = waves*state["WavefrontSize"] // state["WorkGroup"][0]
       #print("9-tuple: ", state["MatrixInstruction"], " TT=", state["ThreadTile"], " WG=", state["WorkGroup"])
     if state["MatrixInstruction"]:
       state["MatrixInstruction"] = [state["MatrixInstruction"][0],state["MatrixInstruction"][1],state["MatrixInstruction"][2],state["MatrixInstruction"][3]]
@@ -2273,7 +2273,7 @@ class Solution:
       state["MIBlock"][5] = MIBlock_BN
 
       # set MIWaveGroup
-      numOfWave                = (state["WorkGroup"][0] * state["WorkGroup"][1]) // globalParameters["WavefrontWidth"]
+      numOfWave                = (state["WorkGroup"][0] * state["WorkGroup"][1]) // state["WavefrontSize"]
       state['MIWaveGroup']     = [1, 1]
       state['MIWaveGroup'][0]  = min((miwg0 // state["MatrixInstruction"][0]) // MIBlock_BM, numOfWave)
       state['MIWaveGroup'][1]  = numOfWave // state['MIWaveGroup'][0]
@@ -2292,7 +2292,7 @@ class Solution:
   @staticmethod
   def checkAndAssignWaveSeparateGlobalRead(state, tc):
     # check can we use WaveSeparateGlobalRead
-    numOfWaves = state["NumThreads"] // globalParameters["WavefrontWidth"]
+    numOfWaves = state["NumThreads"] // state["WavefrontSize"]
     if state["WaveSeparateGlobalRead%s"%tc]:
       if state["FractionalLoad"] != 0:
         reject(state, "didn't support WaveSeparateGlobalRead with FractionalLoad(%u) != 0" % state["FractionalLoad"])
@@ -2318,7 +2318,7 @@ class Solution:
       print2("can't use DirectToLds for BF16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
       return False
 
-    if state["NumThreads"] % globalParameters["WavefrontWidth"] != 0:
+    if state["NumThreads"] % state["WavefrontSize"] != 0:
       return False
 
     if state["GlobalLoadVectorWidth%c"%tc] * numBytes != 4:
@@ -2328,7 +2328,7 @@ class Solution:
       return False
 
     if state["WaveSeparateGlobalRead%c" % tc]:
-      if state["LSC%c"%tc] * state["LSP%c"%tc] * numBytes != globalParameters["WavefrontWidth"] * 4:
+      if state["LSC%c"%tc] * state["LSP%c"%tc] * numBytes != state["WavefrontSize"] * 4:
         return False
     else:
       if state["LSC%c"%tc] * state["LSP%c"%tc] * numBytes != state["NumThreads"] * 4:
@@ -2337,13 +2337,13 @@ class Solution:
     if (state["LdsBlockSizePerPad%c"%tc] == 0) \
         and (state["LdsPad%c"%tc] != 0):
 #        and ((state["LSC%c"%tc] * numBytes) != (state["NumThreads"] * 4)): // TODO:
-#        and ((state["LSC%c"%tc] * numBytes) % (globalParameters["WavefrontWidth"] * 4) != 0):
+#        and ((state["LSC%c"%tc] * numBytes) % (state["WavefrontSize"] * 4) != 0):
       return False
 
     if (state["LdsBlockSizePerPad%c"%tc] != 0) \
         and (state["LdsPad%c"%tc] != 0) \
-        and (state["LdsBlockSizePerPad%c"%tc] != globalParameters["WavefrontWidth"] * 4):
-#        and (state["LdsBlockSizePerPad%tc"] % (globalParameters["WavefrontWidth"] * 4) != 0): // TODO:
+        and (state["LdsBlockSizePerPad%c"%tc] != state["WavefrontSize"] * 4):
+#        and (state["LdsBlockSizePerPad%tc"] % (state["WavefrontSize"] * 4) != 0): // TODO:
       return False
 
     return True
@@ -2409,13 +2409,19 @@ class Solution:
       reject(state, "Non-MI kernels are already non-overlapping in pre-allocated registers")
 
     # F32 only for now but we should extend this for other data types as well.
+    isa = tuple(state["ISA"])
     if "MACInstruction" not in state or state["MACInstruction"] not in validParameters["MACInstruction"]:
-      isa = tuple(state["ISA"])
       print(isa)
       if globalParameters["AsmCaps"][isa]["v_mac_f32"]:
         state["MACInstruction"] = "MAC"
       else:
         state["MACInstruction"] = "FMA"
+
+    if state["WavefrontSize"] == 32 and not globalParameters["ArchCaps"][isa]["HasWave32"]:
+      reject(state, "WavefrontSize=32 not supported for ISA {}".format(isa))
+
+    if state["WavefrontSize"] == 32 and state["KernelLanguage"] == "Source":
+      reject(state, "WavefrontSize=32 not yet supported for source kernels.")
 
     if state["EnableMatrixInstruction"]:
       if not (state["ProblemType"]["DataType"].isSingle() \
@@ -2768,7 +2774,7 @@ class Solution:
       depthU     = 2
       depthULds  = 2
       maxDepthU  = globalParameters["MaxDepthU"]
-      numOfWaves = state["NumThreads"] // globalParameters["WavefrontWidth"]
+      numOfWaves = state["NumThreads"] // state["WavefrontSize"]
       if state["ProblemType"]["TLUA"] and state["WaveSeparateGlobalReadA"]:
         depthU = max(depthU, numOfWaves)
       if state["ProblemType"]["TLUB"] and state["WaveSeparateGlobalReadB"]:
@@ -3219,11 +3225,11 @@ class Solution:
         reject(state, "StoreRemapVectorWidth %u is not allowed for this data type" % state["StoreRemapVectorWidth"])
         return
 
-      if state["StoreRemapVectorWidth"] * globalParameters["WavefrontWidth"] < state["MacroTile0"]:
+      if state["StoreRemapVectorWidth"] * state["WavefrontSize"] < state["MacroTile0"]:
         reject(state, "storeRemap: Per wave single global write instruction doesn't enough to write one M column." + \
                " Please use larger StoreRemapVectorWidth.")
         return
-      if (state["MacroTile0"]*state["MatrixInstN"])//state["MIWaveGroup"][0] < state["StoreRemapVectorWidth"]*globalParameters["WavefrontWidth"]:
+      if (state["MacroTile0"]*state["MatrixInstN"])//state["MIWaveGroup"][0] < state["StoreRemapVectorWidth"]*state["WavefrontSize"]:
         reject(state, "storeRemap: number elements of lds less than per wave per local read elements." + \
                " Please use smaller StoreRemapVectorWidth.")
         return

@@ -310,7 +310,7 @@ class WaitCnt (Module):
     self.version = version
     self.lgkmcnt = lgkmcnt
     self.vmcnt   = vmcnt
-    self.comment = comment
+    self.comment = "lgkmcnt={} vmcnt={}".format(lgkmcnt, vmcnt) + comment
 
     # let this derived class play nicely with Module.prettyPrint()
     self.__dict__.update(self.instructions().__dict__)
@@ -387,7 +387,7 @@ class  MFMAInst (Inst):
       numOfRowsperMfma = 1
       numOfRowInsts = self.kernel["ThreadTile0"]/numOfRowsperMfma
       #numOfColInsts = kernel["ThreadTile1"]/kernel["MatrixInstN"]
-      numOfDstRgs = (self.kernel["MatrixInstN"] * self.kernel["MatrixInstM"] * self.kernel["MatrixInstB"] // globalParameters["WavefrontWidth"])
+      numOfDstRgs = (self.kernel["MatrixInstN"] * self.kernel["MatrixInstM"] * self.kernel["MatrixInstB"] // self.kernel["WavefrontSize"])
       if self.kernel["ProblemType"]["DataType"].isSingle():
         for iui in range(0, self.innerUnroll):
            cStr = "a[(%u+%u*%u)*%u):((((%u+%u*%u)*%u)+%u)-1)]" % (self.aIdx,self.bIdx,numOfRowInsts,numOfDstRgs,self.aIdx,numOfDstRgs,self.bIdx,numOfRowInsts,numOfDstRgs)
