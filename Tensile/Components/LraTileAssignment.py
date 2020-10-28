@@ -20,7 +20,6 @@
 ################################################################################
 
 from ..Component import LraTileAssignment
-from ..Common import globalParameters
 from ..AsmUtils import inst, vgpr, sgpr, vectorStaticDivideAndRemainder, vectorStaticDivide, staticMultiply, vectorStaticRemainder
 
 class LraTileAssignmentVALU(LraTileAssignment):
@@ -101,7 +100,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         # get constant parameter
         tc               = tP["tensorChar"]
         tIdx             = tP["tensorIdx"]
-        waveWidth        = globalParameters["WavefrontWidth"]
+        waveWidth        = writer.kernel["WavefrontSize"]
         inputPerThread   = max(writer.lrvwA,writer.lrvwB)
         LdsPad           = kernel["LdsPad%s" % tc] if kernel["LdsBlockSizePerPad%s" % tc] == 0 else 0
 
