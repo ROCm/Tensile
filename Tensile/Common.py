@@ -1346,20 +1346,20 @@ def printExit(message):
 
 ################################################################################
 # Locate Executables
-# rocm-smi, hip-clang, rocm_agent_enumerator
+# rocm-smi, hip-clang, rocm_agent_enumerator, clang-offload-bundler
 ################################################################################
 def isExe( filePath ):
   return os.path.isfile(filePath) and os.access(filePath, os.X_OK)
 def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
-  # look in path first
+  # look in defaultPath first
+  exePath = os.path.join(defaultPath, exeName)
+  if isExe(exePath):
+    return exePath
+  # look in PATH second
   for path in os.environ["PATH"].split(os.pathsep):
     exePath = os.path.join(path, exeName)
     if isExe(exePath):
       return exePath
-  # look in default path second
-  exePath = os.path.join(defaultPath, exeName)
-  if isExe(exePath):
-    return exePath
   return None
 
 def GetAsmCaps(isaVersion):
