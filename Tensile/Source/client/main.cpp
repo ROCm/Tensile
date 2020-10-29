@@ -231,7 +231,7 @@ namespace Tensile
                                                                                       "file.")
 
 
-                ("exit-on-failure",          po::value<bool>()->default_value(false), "Exit run early on failed kernels.")
+                ("exit-on-error",            po::value<bool>()->default_value(false), "Exit run early on failed kernels or other errors.")
                 ("selection-only",           po::value<bool>()->default_value(false), "Don't run any solutions, only print kernel selections.")
                 ("max-workspace-size",       po::value<size_t>()->default_value(32*1024*1024), "Max workspace for training")
                 ("granularity-threshold",    po::value<double>()->default_value(0.0), "Don't run a solution if total granularity is below")
@@ -465,6 +465,7 @@ int main(int argc, const char* argv[])
     int  numSolutions     = args["num-solutions"].as<int>();
     bool gpuTimer         = args["use-gpu-timer"].as<bool>();
     bool runKernels       = !args["selection-only"].as<bool>();
+    bool exitOnError      = args["exit-on-error"].as<bool>();
 
     if(firstSolutionIdx < 0)
         firstSolutionIdx = library->solutions.begin()->first;
@@ -618,6 +619,9 @@ int main(int argc, const char* argv[])
                 }
 
                 listeners.postSolution();
+
+                if(exitOnError && listeners.error() > 0)
+                    return listeners.error();
             }
 
             listeners.postProblem();
