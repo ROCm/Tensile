@@ -22,10 +22,10 @@ def allFiles(startDir):
             files.append(fullPath)
     return files
 
-def fixSolutionIndexBug(kernels):
-    for i in range(0,len(kernels)):
-        kernels[i]["SolutionIndex"] = i
-    return kernels
+def reindexSolutions(data):
+    for i, _ in enumerate(data[5]):
+        data[5][i]["SolutionIndex"] = i
+    return data
 
 def fixSizeInconsistencies(sizes, fileType):
     duplicates = list()
@@ -202,7 +202,15 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSi
         forceMerge = defaultForceMergePolicy(incFile) if forceMerge is None else forceMerge
 
         msg("Base logic file:", origFile, "| Incremental:", incFile, "| Merge policy: %s"%("Forced" if forceMerge else "Winner"), "| Trim size:", trimSize)
-        mergedData, *stats = mergeLogic(loadData(origFile), loadData(incFile), forceMerge, trimSize)
+        origData = loadData(origFile)
+        incData = loadData(incFile)
+
+        # So far "SolutionIndex" in logic yamls has zero impact on actual 1-1 size mapping (but the order of the Solution does)
+        # since mergeLogic() takes that value very seriously so we reindex them here so it doesn't choke on duplicated SolutionIndex
+        origData = reindexSolutions(origData)
+        incData = reindexSolutions(incData)
+
+        mergedData, *stats = mergeLogic(origData, incData, forceMerge, trimSize)
         msg(stats[0], "size(s) and", stats[1], "kernel(s) added,", stats[2], "kernel(s) removed")
 
         with open(os.path.join(outputPath, basename), "w") as outFile:
