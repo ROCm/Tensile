@@ -327,6 +327,8 @@ class ProblemPredicate(Properties.Predicate):
 
         if 'PersistentKernel' in state and state['PersistentKernel']:
             rv += [cls("PersistentKernelCheck", value = True)]
+            # debugging: set value = false to allow the problem runnable with PK
+            # rv += [cls("PersistentKernelCheck", value = False)]
 
         if ("MatrixInstruction" in state and state["MatrixInstruction"]) or \
            ("EnableMatrixInstruction" in state and state["EnableMatrixInstruction"] is True):

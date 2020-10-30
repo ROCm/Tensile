@@ -982,7 +982,8 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.getPersistentKernelEligibility();
+                    // if value = false -> turn off check, always return eligibility as true
+                    return value ? problem.getPersistentKernelEligibility() : true;
                 }
             };
 

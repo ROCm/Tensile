@@ -1735,7 +1735,8 @@ class KernelWriterAssembly(KernelWriter):
         # If the no-load-loop is present it counts as one iteration and
         # So if K is even multiple of unroll then we exit at odd iteration
         # and each PK loop will start on the second expanded pointer swap
-        self.defineSgpr("EvenIterStart", 1)
+        # TODO- We use a temp Sgpr to track this?
+        self.defineSgpr("BreakAtEvenIter", 1)  # exit loop at LoopCopy2 (finish all EPS loops)
       self.defineSgpr("TailLoopCounter", 1)
     if globalParameters["DebugKernel"]:
       self.defineSgpr("AddressDbg", self.numSgprAddressDbg)
@@ -3215,9 +3216,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["PersistentKernel"]:
       kStr += inst("s_mov_b32", sgpr("SerialWorkGroupIter"), sgpr("WorkGroup0"), "init SerialWorkGroupIter")
-      # kStr += inst("s_mov_b32", sgpr("PersistentLoopIter"), 0, "init PersistentKernelLoop Iter")  # Back-up: not needed now
-    if self.prefetchAcrossPersistent0 and kernel["ExpandPointerSwap"]:
-      kStr += inst("s_mov_b32", sgpr("EvenIterStart"), 0, "init SerialWorkGroupIter")
+      kStr += inst("s_mov_b32", sgpr("PersistentLoopIter"), 0, "init PersistentKernelLoop Iter")  # Back-up: not needed now
 
     if kernel["MagicDivAlg"]==2:
       for magicName in self.sumMagicParms:
@@ -5433,10 +5432,10 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", sgpr("OrigLoopCounter"), \
                 loopCounter, \
                 "copy loop counter")
-      if self.prefetchAcrossPersistent0 and kernel["ExpandPointerSwap"] and isPap:
-        kStr += inst("s_and_b32", sgpr("EvenIterStart"), sgpr("OrigLoopCounter"), \
-                  0x1,
-                  "save unroll loop start position - copy1 or copy2")
+      # calculate once and save: will this problem size exit at oddIter or evenIter?
+      if self.prefetchAcrossPersistent0 and kernel["ExpandPointerSwap"] and not isPap:
+        kStr += inst("s_and_b32", sgpr("BreakAtEvenIter"), sgpr("OrigLoopCounter"), \
+                  0x1, "save unroll loop start position - copy1 or copy2")
     elif not kernel["PackSummationDims"]:
       # other summation, not unroll loop
       #printExit("no assembly support for 2+ dimensional summation")
@@ -5616,9 +5615,10 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_cbranch_scc1 %s"%loopLabelEnd, \
             "don't enter Loop%s"%loopChar )
 
-      if self.prefetchAcrossPersistent and kernel["ExpandPointerSwap"]:
-        kStr += inst("","compare if odd-iter return")
-        #kStr += inst("s_cbranch_scc1", self.getLabelTarget("LoopCopy2"), "start at oddIter?")
+      # No need, we will always start from LoopCopy1
+      # if self.prefetchAcrossPersistent and kernel["ExpandPointerSwap"]:
+      #   kStr += inst("s_cmp_eq_u32", sgpr("BreakAtEvenIter"), 1, "test if BreakAtEvenIter == 1 ?")
+      #   kStr += inst("s_cbranch_scc1", self.getLabelTarget("LoopCopy1"), "if == 1, then start from LoopCopy1")
 
       kStr += "%s:%s" % (loopLabelBegin, self.endLine)
 
@@ -6341,13 +6341,19 @@ class KernelWriterAssembly(KernelWriter):
         kStr += "label_%04u:%s" % (toPGR1, self.endLine)
       else:
         if isOptNLL:
-          # If is PAP inside OptNLL: Swap the LRO:
+          # If is PAP inside OptNLL: Swap the LRO (if EPS, depends on if BreakAtEvenIter)
           if self.prefetchAcrossPersistent:
-            expand = kernel["ExpandPointerSwap"]
-            kStr += self.comment("local read swap offsets a (prefetchAcrossPersistent)")
-            kStr += self.localReadSwapOffsets(kernel, expand, self.tPA)
-            kStr += self.comment("local read swap offsets b (prefetchAcrossPersistent)")
-            kStr += self.localReadSwapOffsets(kernel, expand, self.tPB)
+            if kernel["ExpandPointerSwap"]:
+              kStr += inst("s_cmp_eq_u32", sgpr("BreakAtEvenIter"), 1, "test if BreakAtEvenIter==1 ?")
+              kStr += inst("s_cbranch_scc1", self.getLabelTarget("SkipLroSwap"), "Skip LROSwap if BreakAtEvenIter==1")
+
+            kStr += self.comment("(PAP) Select low bank of LDS, if high bank is selected before (loop odditer exit)" if kernel["ExpandPointerSwap"] \
+              else "(PAP) local read swap offsets a, b")
+            kStr += self.localReadSwapOffsets(kernel, False, self.tPA)
+            kStr += self.localReadSwapOffsets(kernel, False, self.tPB)
+
+            if kernel["ExpandPointerSwap"]:
+              kStr += self.getLabelDef("SkipLroSwap", "Skip LRO Swap\n")
 
           kStr += self.comment1("Stores for OptNLL")
           kStr += self.endSummation(kernel)
@@ -7257,9 +7263,10 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["1LDSBuffer"]:
       return kStr
     tc = tP["tensorChar"]
-#fixme-iui  need to use wrapping increment for double or triple buffering:
+    #fixme-iui  need to use wrapping increment for double or triple buffering:
     if kernel["ExpandPointerSwap"]:
       tP["localWriteSwapByteOffset"] = 0 if tP["localWriteSwapByteOffset"] else kernel["LdsOffsetA_Blk"]*tP["bpe"]
+      kStr += self.comment("(ESP=1) local write swap internal offset -> %u" % tP["localWriteSwapByteOffset"])
     else:
       if kernel["LocalWriteUseSgpr%s"%tc]:
         kStr += inst("s_xor_b32", \

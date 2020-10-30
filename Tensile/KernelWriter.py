@@ -1546,7 +1546,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if self.enable["LocalRead"]:
           for plrIdx in range(0, self.numItersPLR):
             pack[plrIdx] = Code.Module()
-            for espi in range(0, (self.prefetchAcrossPersistent and kernel["ExpandPointerSwap"])+1):
+            # no matter EPS or PAP, only prefect local once per plrIdx
+            # for espi in range(0, (self.prefetchAcrossPersistent and kernel["ExpandPointerSwap"])+1):
+            for espi in range(0, 1):
               for iui in range(0,kernel["InnerUnroll"]):
                 if iui*self.numReadsIterCoalescedA < kernel["InnerUnroll"]:
                   kl.append(self.comment("local read prefetch a"))
@@ -2390,12 +2392,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     else:
       self.scheduleIterAlg = 0
 
-    self.prefetchAcrossPersistent = \
-        kernel["KernelLanguage"] == "Assembly" and \
-        kernel["PersistentKernel"] and \
-        kernel["PrefetchGlobalRead"] and \
-        not kernel["SuppressNoLoadLoop"] and \
-        kernel["PrefetchAcrossPersistent"]
+    self.prefetchAcrossPersistent = kernel["PrefetchAcrossPersistent"]
 
 
     self.actualSummationLoops = 1 if kernel["PackSummationDims"] else kernel["ProblemType"]["NumIndicesSummation"]
@@ -2411,7 +2408,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     # turn on parts of prefetchAcrossPersistent code for testing
     self.prefetchAcrossPersistent0 = 0 or self.prefetchAcrossPersistent
-    self.prefetchAcrossPersistent2 = 0 and self.prefetchAcrossPersistent
 
     self.enable = {}
     dkp = kernel["DisableKernelPieces"]

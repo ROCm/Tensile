@@ -31,6 +31,8 @@ BenchmarkProblems:
           - [ 32, 32, 1 ]
         - DepthU: [8]
         - PersistentKernel: [1,2]
+        - PersistentKernelAlongBatch: [False,True]
+        - PrefetchAcrossPersistent: [False,True]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:

@@ -2485,9 +2485,13 @@ class Solution:
       # warn("PersistentKernelAlongBatch not support GSU on HIP, forcing PersistentKernelAlongBatch = False")
       state["PersistentKernelAlongBatch"] = False
 
-    if state["PrefetchAcrossPersistent"] and (state["PersistentKernel"] == 0):
-      # warn("PrefetchAcrossPersistent requires PersistentKernel != 0, forcing PrefetchAcrossPersistent = False")
-      state["PrefetchAcrossPersistent"] = False
+    if state["PrefetchAcrossPersistent"]:
+      if state["KernelLanguage"] == "Source" or \
+         state["PersistentKernel"] == 0 or \
+         state["PrefetchGlobalRead"] == 0 or \
+         state["SuppressNoLoadLoop"]:
+        #warn("PAP requires Assembly, PK != 0, PGR != 0, SuppressNoLoadLoop = True, forcing PAP = False")
+        state["PrefetchAcrossPersistent"] = False
 
     problemType = state["ProblemType"]
     if not problemType["UseInitialStridesAB"]:
@@ -2572,9 +2576,6 @@ class Solution:
         state["ExpandPointerSwap"] = 0
       # EPS not supported with PGR=2 yet
       if state["PrefetchGlobalRead"] == 2:
-        state["ExpandPointerSwap"] = 0
-      # EPS not supported with PAP yet
-      if state["PrefetchAcrossPersistent"]:
         state["ExpandPointerSwap"] = 0
       # EPS not supported with SplitLDS yet
       if state["DepthULdsDivisor"] > 1:
