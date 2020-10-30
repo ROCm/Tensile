@@ -22,7 +22,7 @@
 cmake_minimum_required(VERSION 3.5)
 
 # Override all paths arguments as they do not work properly
-list(APPEND CMAKE_PREFIX_PATH /opt/rocm)
+list(APPEND CMAKE_PREFIX_PATH $ENV{ROCM_PATH} /opt/rocm)
 
 option(TENSILE_NEW_CLIENT "Build the new client" ON)
 
@@ -57,7 +57,7 @@ if(TENSILE_NEW_CLIENT)
                            "TENSILE_USE_HIP;TENSILE_USE_LLVM" OFF)
 
     if(TENSILE_USE_HIP)
-        find_package(HIP REQUIRED CONFIG PATHS /opt/rocm)
+        find_package(HIP REQUIRED CONFIG PATHS $ENV{ROCM_PATH} /opt/rocm)
     endif()
 
     if(TENSILE_USE_OPENMP)
