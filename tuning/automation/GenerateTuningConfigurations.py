@@ -583,8 +583,8 @@ def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", pr
     outputFileName2 = GetOutputFileName(scriptPath, namePart+"-strided", "sh")
     outputFileName3 = GetOutputFileName(scriptPath, namePart+"-all", "sh")
     outputFileName4 = GetOutputFileName(scriptPath, namePart+"-verify", "sh")
-    outputFileName5 = GetOutputFileName(scriptPath, namePart+"-yaml", "sh")
-    outputFileName6 = GetOutputFileName(scriptPath, namePart+"-yaml-strided", "sh")
+    outputFileName5 = GetOutputFileName(scriptPath, namePart, "yaml")
+    outputFileName6 = GetOutputFileName(scriptPath, namePart+"-strided", "yaml")
 
     scriptFileNames.append(outputFileName5)
     count = 0
