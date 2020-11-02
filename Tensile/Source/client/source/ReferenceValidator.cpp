@@ -422,10 +422,12 @@ namespace Tensile
             if(boundsCheck == BoundsCheckMode::GuardPageBack)
                 elementsOffsetToCopy = result.dElements - tensor.totalAllocatedElements();
 
+            auto copykind = result.gpu ? hipMemcpyDeviceToHost : hipMemcpyHostToHost;
+
             HIP_CHECK_EXC(hipMemcpy(m_cpuResultBuffer.data(),
                                     result.managedD.get() + elementsOffsetToCopy,
                                     bytesToCopy,
-                                    hipMemcpyDeviceToHost));
+                                    copykind));
 
             if(boundsCheck == BoundsCheckMode::NaN)
             {
