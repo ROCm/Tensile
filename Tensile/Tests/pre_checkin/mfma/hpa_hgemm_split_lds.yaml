@@ -1,0 +1,56 @@
+TestParameters:
+  marks: [skip-gfx900, skip-gfx906, skip-gfx1010, skip-gfx1011] # not supported by arch
+
+GlobalParameters:
+  NumElementsToValidate: 65536
+  BoundsCheck: True
+  NewClient: 2
+BenchmarkProblems:
+
+  ########################################
+  # TN - standard
+  ########################################
+  -
+    - # ProblemType
+      OperationType: GEMM
+      DataType: h
+      HighPrecisionAccumulate: True
+      TransposeA: True
+      TransposeB: False
+      UseBeta: True
+      Batched: True
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+      ForkParameters:
+        - TransposeLDS: [0, 1]
+        - MatrixInstruction:
+          - [32, 32, 4, 2]
+          - [32, 32, 8, 1]
+        - PrefetchLocalRead: [0, 1, 3, 5, 9]
+        - PrefetchGlobalRead: [0, 1]
+        - ThreadTile:
+          - [ 2, 32 ]
+        - WorkGroup:
+          - [  16,16, 1 ]
+        - WorkGroupMapping: [8]
+        - InnerUnroll: [2]
+        - DepthU: [64, 128]
+        - DepthULdsDivisor: [2]
+        - ScheduleIterAlg: [3]
+        - VectorWidth: [4, 8]
+        - 1LDSBuffer: [0, 1]
+        - PersistentKernel: [0, 1]
+        - PersistentKernelAlongBatch: [1]
+        - PrefetchAcrossPersistent: [0, 1]
+        - GlobalSplitUAlgorithm: ["SingleBuffer", "MultipleBuffer"]
+        - GlobalSplitU: [2, 5, 15]
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [1024], [1024], [1], [1024] ]
+          - Range: [ [1031], [1031], [16], [1031] ]
