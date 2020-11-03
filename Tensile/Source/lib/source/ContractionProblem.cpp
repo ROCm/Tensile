@@ -635,11 +635,14 @@ namespace Tensile
         if(sizeMapping.persistentKernelAlongBatch)
             problemTiles *= numWG.z;
 
-        size_t cuCount = dynamic_cast<AMDGPU const&>(hardware).computeUnitCount;
+        size_t cuCount      = dynamic_cast<AMDGPU const&>(hardware).computeUnitCount;
         size_t finalPKValue = sizeMapping.persistentKernel;
         if(finalPKValue == -1)
         {
-            finalPKValue = 5 * (problemTiles / cuCount ) / 8;
+            // 1. Get the largest pk value (ex.3)
+            //    which can make the PK.G (ex.3*120=360) <= problemGroups (ex.433)
+            // 2. Scale by 5/8 (can try 0.5~1, to control the tiles-per-workgroup = 1~2)
+            finalPKValue = 5 * (problemTiles / cuCount) / 8;
             finalPKValue = std::max(finalPKValue, (size_t)1);
         }
 

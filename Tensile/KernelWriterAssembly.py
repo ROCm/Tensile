@@ -421,6 +421,14 @@ class VgprOccupancyCurve:
 
 vgprOccupancy = VgprOccupancyCurve()
 
+
+class PreLoopVmcntCase(Enum):
+  Undefined = 0
+  Basic_Load = 1
+  OptNLL_Store = 2
+  OrdNLL_B0_Store = 3
+  OrdNLL_B1_Store = 4
+
 ################################################################################
 # Assembly Kernel
 ################################################################################
@@ -997,6 +1005,35 @@ class KernelWriterAssembly(KernelWriter):
       kernel["LocalWriteUseSgprB"] = False # Requires DirectToLdsB
 
     self.useAtomicAdd = self.asmCaps["HasAtomicAdd"] and kernel["_GlobalAccumulation"]
+
+    # OptPreLoopVmcnt for PAP:
+    # the vmcnt for ds_write in pre-loop can be optimized to skip the store of prev PKLoop
+    #
+    # a dictionary storing the vmcnt numbers for each case:
+    # case 1: first PK-Loop (no previous store), cnt = #-basic-globalload
+    # case 2: after Opt.NLL (no Beta), cnt = #-prev-store (no beta,edge) +  #-basic-globalload
+    # case 3: after Ord.NLL (no Beta), cnt = #-prev-store (no beta) +  #-basic-globalload
+    # case 4: after Ord.NLL (with Beta), cnt = no needed for vmcnt
+    self.preLoopVmcntDict = { \
+      PreLoopVmcntCase.Basic_Load:0, \
+      PreLoopVmcntCase.OptNLL_Store:0, \
+      PreLoopVmcntCase.OrdNLL_B0_Store:0 }
+      # Case4: No need to count store vmcnt for next PreLoop since OrdNLL_B1_Store already has vmcnts waiting for loading beta
+      # PreLoopVmcntCase.OrdNLL_B1_Store:0 }
+
+    # a dictionary storing the keywords to be replaced for each case:
+    # case 1: replace the vmcnt("Basic_Load") with vmcnt(N)
+    # case 2: replace the vmcnt("OptNLL_Store" + "Basic_Load") with vmcnt(M1+N)
+    # case 3: replace the vmcnt("OrdNLL_B0_Store" + "Basic_Load") with vmcnt(M2+N)
+    # case 4: s_waitcnt vmcnt will be removed, no need to replace
+    self.preLoopCaseToReplaceKWList = { \
+      PreLoopVmcntCase.Basic_Load     :[PreLoopVmcntCase.Basic_Load], \
+      PreLoopVmcntCase.OptNLL_Store   :[PreLoopVmcntCase.Basic_Load, PreLoopVmcntCase.OptNLL_Store], \
+      PreLoopVmcntCase.OrdNLL_B0_Store:[PreLoopVmcntCase.Basic_Load, PreLoopVmcntCase.OrdNLL_B0_Store] }
+      # PreLoopVmcntCase.OrdNLL_B1_Store:[PreLoopVmcntCase.Basic_Load, PreLoopVmcntCase.OrdNLL_B1_Store] }
+
+    self.useManualVmcnt = False
+    self.currPreLoopVmcntCase = PreLoopVmcntCase.Undefined
 
     #######################################L
     # Available Memory Instructions
@@ -1905,6 +1942,9 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("PrevWorkGroup0", 1) # WorkGroup0 from prev iteration, use for stores
       self.defineSgpr("PrevWorkGroup1", 1) # WorkGroup0 from prev iteration, use for stores
       # self.defineSgpr("PrevWorkGroup2", 1) # WorkGroup0 from prev iteration, use for stores
+
+    if self.canOptimizePreLoopLWVmcnt:
+      self.defineSgpr("PreLoopLWVmcntCase", 1) # Indicating which case for optimizing PreLoop Vmcnt (based on the Store Inst)
 
     self.defineSgpr("GlobalReadIncsA", numSgprGlobalReadIncsA)
     self.defineSgpr("GlobalReadIncsB", numSgprGlobalReadIncsB)
@@ -3216,7 +3256,10 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["PersistentKernel"]:
       kStr += inst("s_mov_b32", sgpr("SerialWorkGroupIter"), sgpr("WorkGroup0"), "init SerialWorkGroupIter")
-      kStr += inst("s_mov_b32", sgpr("PersistentLoopIter"), 0, "init PersistentKernelLoop Iter")  # Back-up: not needed now
+      # kStr += inst("s_mov_b32", sgpr("PersistentLoopIter"), 0, "init PersistentKernelLoop Iter")  # Back-up: not needed now
+
+    if self.canOptimizePreLoopLWVmcnt:
+      kStr += inst("s_mov_b32", sgpr("PreLoopLWVmcntCase"), hex(1), "init PreLoopLWVmcntCase to 1")
 
     if kernel["MagicDivAlg"]==2:
       for magicName in self.sumMagicParms:
@@ -7266,7 +7309,7 @@ class KernelWriterAssembly(KernelWriter):
     #fixme-iui  need to use wrapping increment for double or triple buffering:
     if kernel["ExpandPointerSwap"]:
       tP["localWriteSwapByteOffset"] = 0 if tP["localWriteSwapByteOffset"] else kernel["LdsOffsetA_Blk"]*tP["bpe"]
-      kStr += self.comment("(ESP=1) local write swap internal offset -> %u" % tP["localWriteSwapByteOffset"])
+      kStr += self.comment("(EPS=1) local write swap internal offset -> %u" % tP["localWriteSwapByteOffset"])
     else:
       if kernel["LocalWriteUseSgpr%s"%tc]:
         kStr += inst("s_xor_b32", \
@@ -7544,6 +7587,154 @@ class KernelWriterAssembly(KernelWriter):
     return str(imod)
 
   ##############################################################################
+  # Local Write in Prefetch Pass (PreLoop): Do It A/B
+  ##############################################################################
+  def preLoopLocalWriteDo(self, kernel, tPA, tPB):
+
+    imod = Code.Module()
+
+    # can't optimize, insert the general LWDo
+    if not self.canOptimizePreLoopLWVmcnt:
+      LWDoMod = imod.addCode(Code.Module())
+      LWDoMod.addText(self.comment("local write a"))
+      LWDoMod.addCode(self.localWriteDo(kernel, tPA))
+      LWDoMod.addText(self.comment("local write b"))
+      LWDoMod.addCode(self.localWriteDo(kernel, tPB))
+      return imod
+
+    # Opt for PAP waitcnt, 4 cases:
+    # one for the first PK-loop, one for Opt-NLL, one for Ord-NLL, No beta / one for Beta
+    basic_gl_Label = self.getNamedLabel("Basic_GL_Label")
+    optNLL_lw_Label = self.getNamedLabel("OptNLL_LW_Label")
+    ordNLL_B0_lw_Label = self.getNamedLabel("OrdNLL_B0_LW_Label")
+    ordNLL_B1_lw_Label = self.getNamedLabel("OrdNLL_B1_LW_Label")
+    lwEnd_Label = self.getNamedLabel("PreLoopLWEnd")
+
+    self.useManualVmcnt = True
+    self.vmcntDec = 0
+    # Template LWDoCode, not added to imod. Using "__placeholder__" ( vmcnt("__placeholder__ + Basic_Load - Decrement") )
+    LWDoCodeTemplate = Code.Module()
+    LWDoCodeTemplate.addText(self.comment("local write a"))
+    LWDoCodeTemplate.addCode(self.localWriteDo(kernel, tPA))
+    LWDoCodeTemplate.addText(self.comment("local write b"))
+    LWDoCodeTemplate.addCode(self.localWriteDo(kernel, tPB))
+    codeTemplateStrList = LWDoCodeTemplate.flatitems()
+    self.useManualVmcnt = False
+    # "Basic_Load" should == the final number of vmcnt-decrement ( Since "Basic_Load - Decrement" would be 0 )
+    self.preLoopVmcntDict[ PreLoopVmcntCase.Basic_Load ] = self.vmcntDec
+
+    # Branch conditions
+    BranchMod = imod.addCode(Code.Module("Branch Module"))
+
+    # barrier, but can be skipped for the first PK Loop
+    BranchMod.addInst("s_cmp_eq_u32", sgpr("PreLoopLWVmcntCase"), hex(1), "Case 1: First PK Loop?")
+    BranchMod.addInst("s_cbranch_scc1", basic_gl_Label, "jump to Case 1, can skip the s_barrier")
+    BranchMod.addInst("\ns_barrier",  "", "for the second or later PKLoop, need to ensure the prev DS_READ for SR or MFMA are finished before LW\n")
+
+    BranchMod.addInst("s_cmp_eq_u32", sgpr("PreLoopLWVmcntCase"), hex(2), "Case 2: Prev PK-Loop is Opt-NLL?")
+    BranchMod.addInst("s_cbranch_scc1", optNLL_lw_Label, "jump to Case 2")
+    BranchMod.addInst("s_cmp_eq_u32", sgpr("PreLoopLWVmcntCase"), hex(3), "Case 3: Prev PK-Loop is Ord-NLL with no beta?")
+    BranchMod.addInst("s_cbranch_scc1", ordNLL_B0_lw_Label, "jump to Case 3")
+    BranchMod.addInst("s_cmp_eq_u32", sgpr("PreLoopLWVmcntCase"), hex(4), "Case 4: Prev PK-Loop is Ord-NLL with beta?")
+    BranchMod.addInst("s_cbranch_scc1", ordNLL_B1_lw_Label, "jump to Case 4")
+
+    # Fast duplicate LWDoCodeTemplate four times to different placeholder keywords for later replacement (after global write)
+    # can avoid calling localWriteDo() for several times
+
+    basicVmcntKW = PreLoopVmcntCase( PreLoopVmcntCase.Basic_Load ).name
+
+    # CASE 1:
+    # replace vmcnt("__placeholder__ + Basic_Load - Decrement") to vmcnt("Basic_Load - Decrement")
+    currCaseKW = basicVmcntKW
+    LWDoCase1Mod = imod.addCode(Code.Module(currCaseKW))
+    LWDoCase1Mod.addText("\n%s:" % basic_gl_Label)
+    LWDoCase1Mod.addComment1("global-load-cnt = %s"%(basicVmcntKW))
+    for item in codeTemplateStrList:
+      LWDoCase1Mod.addText(str(item).replace("__placeholder__+",""))
+    LWDoCase1Mod.addInst("s_branch", lwEnd_Label, "finish case, jump to end of LW")
+
+    # CASE 2:
+    # replace vmcnt("__placeholder__ + Basic_Load - Decrement") to vmcnt("OptNLL_Store + Basic_Load - Decrement")
+    currCaseKW = PreLoopVmcntCase( PreLoopVmcntCase.OptNLL_Store ).name
+    LWDoCase2Mod = imod.addCode(Code.Module(currCaseKW))
+    LWDoCase2Mod.addText("\n%s:" % optNLL_lw_Label)
+    LWDoCase2Mod.addComment1("prev-global-store-cnt = %s, global-load-cnt = %s"%(currCaseKW, basicVmcntKW))
+    for item in codeTemplateStrList:
+      LWDoCase2Mod.addText(str(item).replace("__placeholder__",currCaseKW))
+    LWDoCase2Mod.addInst("s_branch", lwEnd_Label, "finish case, jump to end of LW")
+
+    # CASE 3:
+    # replace vmcnt("__placeholder__ + Basic_Load - Decrement") to vmcnt("OrdNLL_B0_Store + Basic_Load - Decrement")
+    currCaseKW = PreLoopVmcntCase( PreLoopVmcntCase.OrdNLL_B0_Store ).name
+    LWDoCase3Mod = imod.addCode(Code.Module(currCaseKW))
+    LWDoCase3Mod.addText("\n%s:" % ordNLL_B0_lw_Label)
+    LWDoCase3Mod.addComment1("prev-global-store-cnt = %s, global-load-cnt = %s"%(currCaseKW, basicVmcntKW))
+    for item in codeTemplateStrList:
+      LWDoCase3Mod.addText(str(item).replace("__placeholder__",currCaseKW))
+    LWDoCase3Mod.addInst("s_branch", lwEnd_Label, "finish case, jump to end of LW")
+
+    # CASE 4:
+    # replace vmcnt("__placeholder__ + Basic_Load - Decrement") to vmcnt("OrdNLL_B1_Store + Basic_Load - Decrement")
+    currCaseKW = PreLoopVmcntCase( PreLoopVmcntCase.OrdNLL_B1_Store ).name
+    LWDoCase4Mod = imod.addCode(Code.Module(currCaseKW))
+    LWDoCase4Mod.addText("\n%s:" % ordNLL_B1_lw_Label)
+    # special for case 4, prev store already did vmcnt(n) for loading beta, we don't need any vmcnt here
+    # so only keep the lines without s_waitcnt vmcnt( __placeholder__ ), otherwise, discard them
+    # LWDoCase4Mod.addComment1("prev-global-store-cnt = %s, global-load-cnt = %s"%(currCaseKW, basicVmcntKW))
+    for item in codeTemplateStrList:
+      if (str(item).find("__placeholder__") == -1):
+        LWDoCase4Mod.addText(str(item))
+    # End
+    imod.addText("\n%s:" % lwEnd_Label)
+
+    return imod
+
+  ##############################################################################
+  # Replace the determined vmcnt in PreLoop LocalWrite
+  ##############################################################################
+  def replacePreLoopLWVmcnt(self, kernel):
+    # This replaces the vmcnt keywords with the actual number
+    # ("Basic_Load"/"OptNLL_Store"/"OrdNLL_B0_Store"/"OrdNLL_B1_Store")
+
+    maxVmcnt = globalParameters["AsmCaps"][self.version]["MaxVmcnt"]
+
+    # Iterate each PreLoopVmcnt case which needs to replace keyword to number
+    for vmcntCase in self.preLoopCaseToReplaceKWList:
+      toReplaceList = self.preLoopCaseToReplaceKWList[vmcntCase]
+      # get the module corresponding to the case
+      codeMod = self.preLoopLocalWriteCode.findNamedItem( PreLoopVmcntCase(vmcntCase).name )
+      if codeMod:
+        numItems = len(codeMod.itemList)
+        # for each module, loop each item string, pop from head -> replace -> append to tail
+        for idx in range(0,numItems):
+          replacedCode = str(codeMod.itemList.pop(0))
+          # Get the vmcnt keywords need to be replaced for this case
+          # replace each keyword with actual number (calculated in global write)
+          for toReplaceCase in toReplaceList:
+            vmcntCaseKeyword = PreLoopVmcntCase(toReplaceCase).name
+            replacedCode = replacedCode.replace(vmcntCaseKeyword, "%u"%(self.preLoopVmcntDict[toReplaceCase]))#
+          #
+          # Up to here, the replacedCode is "....vmcnt(A+B-C)", which is possible to exceed MaxVmcnt
+          # So we need to do the final evaluation
+          #
+          valStartPos = replacedCode.find("vmcnt(")
+          if valStartPos != -1:
+            valEndPosEnd = replacedCode.find(")")
+            valStartPos += 6
+            # get the str of "A+B-C" to evaluate
+            valueStr = replacedCode[valStartPos : valEndPosEnd]
+            # replace "A+B-C" to final evaluated value, since we need to test min(value, maxVmcnt)
+            # "..... vmcnt(" + final_value + ")", and add comment
+            replacedCode = "%-50s // %s \n" %( \
+              replacedCode[:valStartPos] + str( min(maxVmcnt, eval(valueStr)) ) + ")", \
+              ("min(maxVmcnt, (%s))"%valueStr) \
+              )
+
+          codeMod.addText(replacedCode)
+
+    return
+
+  ##############################################################################
   # Local Write: Do It A/B
   # uDu: 'None' means to use fractional local write (where not all threads are active)
   #      when DepthULdsDivisor > 1
@@ -7609,6 +7800,13 @@ class KernelWriterAssembly(KernelWriter):
         for para in range(0, tP["nrc"]):
           if para>=1:
             localWriteCode = imod.addCode(Code.Module("LocalWrite%u perp=%d para=%d"%(instructionCnt,perp,para)))
+
+          # insert the manual vmcnt for each nrc
+          if self.useManualVmcnt == True:
+            self.vmcntDec += 1
+            localWriteCode.addText("s_waitcnt vmcnt(__placeholder__+%s-%u)\n" \
+              %( PreLoopVmcntCase(PreLoopVmcntCase.Basic_Load).name, self.vmcntDec))
+
           for s in range(0, max(tP["nwcv"],tP["nwpv"])//tP["nwcvpi"]):
 
             sPerp = 0
@@ -9348,6 +9546,8 @@ class KernelWriterAssembly(KernelWriter):
 
     kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for LDS write" )
 
+    numStoreInst = 0
+
     #Data exchange between different waves
     #Make sure LDS writes are finished of all waves
     if kernel["MIWaveGroup"][0] > 1:
@@ -9409,6 +9609,7 @@ class KernelWriterAssembly(KernelWriter):
         lgkmcnt = min((nElements-i)//gwvw - 1, 15)
         kStr += inst("s_waitcnt", "lgkmcnt(%u)"% lgkmcnt, "wait for LDS read" )
 
+        numStoreInst += 1
         kStr += self.chooseGlobalWrite(True, bps, storeRegs[rIdx], rpv, addr0, addr1, 0, ntStr)
     else:
       tmpS23 = tmpS01+2
@@ -9450,6 +9651,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("v_cndmask_b32", addr0, -1, addr0, sgpr(tmpS23,2), "clip if OOB. offset" )
 
           sumIdx = storeRegs[rIdx] + int(vi*rpe)
+          numStoreInst += 1
           if bps == 2:
             kStr += self.chooseGlobalWrite(True, bpe, sumIdx, rpe, addr0, addr1, 0, ntStr, hi16=vi%2)
           else:
@@ -9465,7 +9667,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["MIWaveGroup"][0] > 1:
       kStr += self.indent + self.syncStr + " //wait all lds read finished" + self.endLine
 
-    return kStr
+    return kStr, numStoreInst
 
   ##############################################################################
   # Store remap compute vgprs:
@@ -10685,6 +10887,22 @@ class KernelWriterAssembly(KernelWriter):
       if beta:
         kStr += "%s:\n"%(betaLabel)
 
+      # if len(betas) == 1, then is for OptNLL (case 2), else is OrdNLL (case 3,4)
+      if self.canOptimizePreLoopLWVmcnt:
+        if len(betas) > 1:            # betas = [False,True], OrdNLL
+          if beta:                    # case 3 = no beta / case 4 = beta
+            case = 4
+            self.currPreLoopVmcntCase = PreLoopVmcntCase.OrdNLL_B1_Store
+          else:
+            case = 3
+            self.currPreLoopVmcntCase = PreLoopVmcntCase.OrdNLL_B0_Store
+          kStr += inst("s_mov_b32", sgpr("PreLoopLWVmcntCase"), hex(case), \
+            "for optimizing next PreLoop LWVmcnt, set to Case%u: OrdNLL and %sbeta"%(case, "" if beta else "no "))
+        else:                         # betas = [False], OptNLL
+          self.currPreLoopVmcntCase = PreLoopVmcntCase.OptNLL_Store
+          kStr += inst("s_mov_b32", sgpr("PreLoopLWVmcntCase"), hex(2), \
+            "for optimizing next PreLoop LW vmcnt, set to Case2: OptNLL")
+
       ########################################
       # branch if Edge0 or Edge1
       if False in edges and True in edges:
@@ -10883,6 +11101,9 @@ class KernelWriterAssembly(KernelWriter):
         # TODO - if this is the last tile, don't need to jump to next instruction
         kStr += inst("s_branch", "label_%s"%endLabel, "jump to end")
         del self.ss
+
+        # Finish one write path, reset currPreLoopVmcntCase to Undefined
+        self.currPreLoopVmcntCase = PreLoopVmcntCase.Undefined
 
     # End label
     kStr += "label_%s:%s"%(endLabel, self.endLine)
@@ -11716,6 +11937,12 @@ class KernelWriterAssembly(KernelWriter):
         if self.archCaps["SeparateVscnt"]:
           kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
 
+        # PreLoop LWVmcnt: When a vmcnt(cnt) is inserted here, means the GlobalLoad for PAP is finished
+        # So the preLoopVmcntDict value is meaningless since we no longer need to wait in next PreLoop
+        # And this only occurs when beta=true, so case must not be 2 or 3
+        assert self.currPreLoopVmcntCase not in self.preLoopVmcntDict, \
+          "PreLoopVmcntCase 2 or 3 shouldn't enter the beta true case"
+
       kStr += self.comment("apply mask, calc new C and issue writes")
       #kStr += self.bomb() # can see store addresses just before the store inst
 
@@ -11770,6 +11997,13 @@ class KernelWriterAssembly(KernelWriter):
             #print "wmvcnt=", vmcnt
             kStr += "\n"
             kStr += inst("s_waitcnt", "vmcnt(%u)"%vmcnt, "wait C (interleaved) " + vmComment)
+
+            # PreLoop LWVmcnt: When a vmcnt(cnt) is inserted here, means the GlobalLoad for PAP is finished
+            # So the preLoopVmcntDict value is meaningless since we no longer need to wait in next PreLoop
+            # And this only occurs when beta=true, so case must not be 2 or 3
+            assert self.currPreLoopVmcntCase not in self.preLoopVmcntDict, \
+              "PreLoopVmcntCase 2 or 3 shouldn't enter the beta true case"
+
           for vi in range(0, gwvw):
             dataV = ss.elementData[elementIdx] + int(vi*ss.cfg.numVgprsPerDataPerVI)
             sumIdxV = ss.elementSumIdx[elementIdx] + vi
@@ -11961,11 +12195,21 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["StoreRemapVectorWidth"]:
       if self.StoreRemapLastBatch == 1:
         kStr += self.comment("Handle local read and global write")
-        kStr += self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpS01, edge)
-        storesIssued += 1
+        # this seems buggy? it's possible to issue more than one stores for SR
+        # kStr += self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpS01, edge)
+        # storesIssued += 1
+        storeStr, numNewStores = self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpS01, edge)
+        kStr += storeStr
+        storesIssued += numNewStores
 
     if self.serializedStore:
       kStr += inst("s_nop 0", "1 wait state required when next inst writes vgprs held by previous dwordx4 store inst")
+
+    # Update the store cnt to preLoopVmcntDict for Case2/3
+    # (No need to update for Case0:'Undefined' or Case4:'OrdNLL_B1_Store')
+    if self.currPreLoopVmcntCase in self.preLoopVmcntDict:
+      self.preLoopVmcntDict[self.currPreLoopVmcntCase] += storesIssued
+
     return kStr
 
   ##############################################################################
@@ -12152,7 +12396,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr = ""
       if self.archCaps["SeparateVscnt"]:
         kStr += inst("s_waitcnt_lgkmcnt", "null", "0", "extra navi wait")
-      elif kernel["DepthULdsDivisor"] > 1 or kernel["ScheduleIterAlg"] == 2 or kernel["PrefetchGlobalRead"] == 2:
+      elif kernel["DepthULdsDivisor"] > 1 or kernel["ScheduleIterAlg"] == 2 \
+        or kernel["PrefetchGlobalRead"] == 2 or self.prefetchAcrossPersistent:
         kStr += "// Skip force waitcnt0" + self.endLine
       elif self.archCaps["Waitcnt0Disabled"]:
         kStr += inst("s_waitcnt", "lgkmcnt(0) & vmcnt(0)", "force waitcnt0" )

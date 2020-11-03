@@ -308,8 +308,8 @@ namespace Tensile
 
         if(sizeMapping.persistentKernel != 0)
         {
-            size_t cuCount = dynamic_cast<AMDGPU const&>(hardware).computeUnitCount;
-            size_t finalPKValue = sizeMapping.persistentKernel;
+            size_t cuCount       = dynamic_cast<AMDGPU const&>(hardware).computeUnitCount;
+            size_t finalPKValue  = sizeMapping.persistentKernel;
             size_t problemGroups = rv.numWorkGroups.x * rv.numWorkGroups.y;
             if(sizeMapping.persistentKernelAlongBatch)
             {
@@ -317,17 +317,19 @@ namespace Tensile
                 rv.numWorkGroups.z = 1;
             }
 
-            // truncate to the largest pk value that makes PK.G (ex.240) <= problemGroups (ex.277)
             if(finalPKValue == -1)
             {
-                finalPKValue = 5 * (problemGroups / cuCount ) / 8;
+                // 1. Get the largest pk value (ex.3)
+                //    which can make the PK.G (ex.3*120=360) <= problemGroups (ex.433)
+                // 2. Scale by 5/8 (can try 0.5~1, to control the tiles-per-workgroup = 1~2)
+                finalPKValue = 5 * (problemGroups / cuCount) / 8;
                 finalPKValue = std::max(finalPKValue, (size_t)1);
                 //std::cout << "final persistent kernel value: " << finalPKValue << std::endl;
             }
 
             size_t persistentGroups = cuCount * finalPKValue;
-            rv.numWorkGroups.x = std::min(persistentGroups, problemGroups);
-            rv.numWorkGroups.y = 1;
+            rv.numWorkGroups.x      = std::min(persistentGroups, problemGroups);
+            rv.numWorkGroups.y      = 1;
         }
 
         rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;

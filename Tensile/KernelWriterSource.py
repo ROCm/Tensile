@@ -2479,6 +2479,23 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
+  # Local Write in Prefetch Pass (PreLoop): Do It A/B
+  ##############################################################################
+  def preLoopLocalWriteDo(self, kernel, tPA, tPB):
+    kStr = ""
+    kStr += self.comment("local write a")
+    kStr += self.localWriteDo(kernel, tPA)
+    kStr += self.comment("local write b")
+    kStr += self.localWriteDo(kernel, tPB)
+    return kStr
+
+  ##############################################################################
+  # Replace the determined vmcnt in PreLoop LocalWrite
+  ##############################################################################
+  def replacePreLoopLWVmcnt(self, kernel):
+    return ""
+
+  ##############################################################################
   # Local Write: Do It A/B
   ##############################################################################
   def localWriteDo(self, kernel, tP, uDu=0):

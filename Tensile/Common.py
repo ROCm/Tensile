@@ -427,7 +427,13 @@ validParameters = {
     # Scheduling algorithm to use for each iteration:
     # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads,
     # followed by local writes, followed by MACs
-    "ScheduleIterAlg":             [0, 1, 2, 3],
+    "ScheduleIterAlg":            [0, 1, 2, 3],
+
+    # Optimizing Local Write Vmcnt in PreLoop when PGR is on, especially for PAP
+    # 0: no optimization, force wait vmcnt 0
+    # 1: do optimization, in PAP, this can avoid ds_write waiting for previous global store
+    # Can always be True, set to False for debugging or comparison
+    "OptPreLoopVmcnt":            [False, True],
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
@@ -779,7 +785,9 @@ validParameters = {
     #         more opportunities to schedule other WG or recover if a wg runs long
     #         or all compute units were not available before the launch.
     #       - Host code will not launch more groups than tiles in the C space
-    # -1 : Automatically choose the largest value that makes each cu work on 2 MTs
+    # -1 : Automatically choose a "heuristic" value that can possibly get a better gain: (TilesPerWorkgroup = 1~2)
+    #      Not based on any theory, but on some experiment observation, can be used to reduce the kernels
+    #      Recommand [-1,0,1] for basic tuning
     # Assertions/Requirements: NumWorkGroups0 * NumWorkGroups1 < 2^32
     "PersistentKernel":           range(-1,512+1) ,       # Use persistent kernel.
 
@@ -1009,6 +1017,7 @@ defaultBenchmarkCommonParameters = [
     {"ScheduleGlobalRead":        [ 1 ] },
     {"ScheduleLocalWrite":        [ 1 ] },
     {"ScheduleIterAlg":           [ 1 ] },
+    {"OptPreLoopVmcnt":           [ True ] },
 
     {"LdcEqualsLdd":              [ True ] },
     {"InterleaveAlpha":           [ 0 ] },
