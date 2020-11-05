@@ -628,7 +628,10 @@ class KernelWriterAssembly(KernelWriter):
   @staticmethod
   def getLdsLimitedOccupancy(ldsSize):
     maxLds = 65536
-    ldsSize = (ldsSize + 255) & 0x1ff00 # 256-byte granularity
+    # As ldsSize gets large, rounding might push us slightly higher than maxLds.
+    # Clamp at maxLds
+    ldsSize = min(ldsSize + 255, maxLds) & 0x1ff00 # 256-byte granularity
+
     ldsLimitedOccupancy = maxLds//ldsSize
     return ldsLimitedOccupancy
 
@@ -2151,7 +2154,7 @@ class KernelWriterAssembly(KernelWriter):
                 """
                 #kStr += self.bomb(-13)
       else:
-        printExit("Bfloat16 not supported for arch=%u" % self.version )
+        printExit("Bfloat16 not supported for arch=%s" % str(self.version) )
 
 
     # integer i8
@@ -3533,9 +3536,9 @@ class KernelWriterAssembly(KernelWriter):
     if not self.groOffsetInMacroTile and kernel["GlobalSplitU"] > 1:
       gsuOffset = self.vgprPool.checkOut(1, "gsuOffset", self.preventVgprOverflowDuringNewTile)
       kStr += inst("v_mov_b32", vgpr(gsuOffset), sgpr("GSUSumIdx"), "=gsuSumIdx")
+      tmpSgpr = self.getTmpSgpr(1).idx()
       if kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
         # graUnrollAssignment += gsuSumIdx*DepthU
-        tmpSgpr = self.getTmpSgpr(1).idx()
         kStr += staticMultiply(vgpr(gsuOffset), vgpr(gsuOffset), kernel["DepthU"], sgpr(tmpSgpr))
       else:
         # graUnrollAssignment += gsuSumIdx*(SizeU/GSU)
@@ -3545,7 +3548,6 @@ class KernelWriterAssembly(KernelWriter):
         quotient = self.vgprPool.checkOut(1, "quotient", self.preventVgprOverflowDuringNewTile)
         dummy = self.vgprPool.checkOut(1, "dummy", self.preventVgprOverflowDuringNewTile)
         tmpVgpr = self.vgprPool.checkOut(2, "tmpVgpr", self.preventVgprOverflowDuringNewTile)
-        tmpSgpr = self.getTmpSgpr(1).idx()
         kStr += vectorStaticDivideAndRemainder(quotient, dummy, sizeU, \
             kernel["GlobalSplitU"], tmpVgpr, tmpSgpr)
         self.vgprPool.checkIn(sizeU)
@@ -4057,10 +4059,10 @@ class KernelWriterAssembly(KernelWriter):
   def computeLoadSrd(self, kernel, tP, tc, indices, bpe):
     kStr = ""
 
-    stmp = self.getTmpSgpr(2+2+1).idx()
+    stmp = self.getTmpSgpr(2+2).idx()
     tileStart = stmp+2
+    prePadSgpr = self.getTmpSgpr(1).idx()
     wroteTileStart = False
-
     #---
     # Compute tileStart #elements from the 2D array start
     # Add tile (and unroll if GSU) component into SRD - SRD will point to beginning of the macro-tile:
@@ -4115,7 +4117,7 @@ class KernelWriterAssembly(KernelWriter):
       freeDimChar = globalParameters["IndexChars"][freeDim]
       sumDimChar  = globalParameters["IndexChars"][sumDim]
       # override the const pre-pad with an SGPR based on the leading/trailing items:
-      prePad = prePadSgpr = sgpr(stmp+4)
+      prePad = sgpr(prePadSgpr)
       if i==0:
         kStr += inst("s_add_u32", prePadSgpr, \
                  sgpr("PadStart%s%s%s"%(tc, freeDimChar,sumDimChar)), \
@@ -4906,12 +4908,55 @@ class KernelWriterAssembly(KernelWriter):
       lastIterEnd = self.getLabelNum("LoopEnd%s"%loopChar)
     else:
       lastIterEnd = self.getLabelNum("PrefetchGlobalLastIterEnd")
-    kStr += inst("s_cbranch_scc1 label_%04u"\
-          % lastIterEnd, \
-          "after InitC, skip to end of prefetch last iter b/c numIter==0")
+
+    # This branch could potentially be very far e.g. > SIMM16
+    kStr += self.comment("after InitC, skip to end of prefetch last iter if numIter==0")
+    kStr += self.longBranchScc1("label_%04u"%lastIterEnd)
 
     return kStr
 
+  ##############################################################################
+  # longBranch - 32 bit offset
+  # s_branch class instructions take a label operand which is truncated to 16 bit
+  # If the target label address offset is greater than 16 bits, then
+  # we must use a longer 32 bit version.
+  # Use when erroring out "invalid operand due to label > SIMM16"
+  ##############################################################################
+  def longBranch(self, label):
+    kStr = ""
+    tmpSgpr = self.getTmpSgpr(3).idx()
+    kStr += inst("s_getpc_B64", sgpr(tmpSgpr,2), "addr of next instr")
+    kStr += inst("s_add_u32", sgpr(tmpSgpr+2), "%s"%label, hex(4), "target branch offset")
+    kStr += inst("s_add_u32", sgpr(tmpSgpr), sgpr(tmpSgpr), sgpr(tmpSgpr+2), "add target branch offset")
+    kStr += inst("s_addc_u32", sgpr(tmpSgpr+1), 0, sgpr(tmpSgpr+1), "add high and carry")
+    kStr += inst("s_setpc_b64", sgpr(tmpSgpr,2), "branch to %s"%label)
+    return kStr
+
+  ##############################################################################
+  # longBranchScc0 - 32 bit offset
+  # Conditional branch to label when SCC == 0
+  # Use when erroring out "invalid operand due to label > SIMM16"
+  ##############################################################################
+  def longBranchScc0(self, label):
+    kStr = ""
+    noBranchLabel = self.getNamedLabelUnique("NoBranch")
+    kStr += inst("s_cbranch_scc1 label_%s" % noBranchLabel, "Only branch on scc0")
+    kStr += self.longBranch(label)
+    kStr += "label_%s:%s"%(noBranchLabel, self.endLine)
+    return kStr
+
+  ##############################################################################
+  # longBranchScc1 - 32 bit offset
+  # Conditional branch to label when SCC == 1
+  # Use when erroring out "invalid operand due to label > SIMM16"
+  ##############################################################################
+  def longBranchScc1(self, label):
+    kStr = ""
+    noBranchLabel = self.getNamedLabelUnique("NoBranch")
+    kStr += inst("s_cbranch_scc0 label_%s" % noBranchLabel, "Only branch on scc1")
+    kStr += self.longBranch(label)
+    kStr += "label_%s:%s"%(noBranchLabel, self.endLine)
+    return kStr
 
   ##############################################################################
   # Initialize C
@@ -4984,12 +5029,11 @@ class KernelWriterAssembly(KernelWriter):
     kStr =""
     if self.unrollIncIsDepthU:
       if kernel["GlobalSplitU"] > 1:
-        tmpSgpr = self.getTmpSgpr(2).idx()
+        tmpSgpr = self.getTmpSgpr(3).idx()
         quotient = "UnrollLoopLastIter"
         dividend = self.loopSizeRef(kernel, self.unrollIdx) # sumSize
         divisor = kernel["DepthU"]
         kStr += scalarStaticDivideAndRemainder(quotient, None, dividend, divisor, tmpSgpr, 0)
-        tmpSgpr = self.getTmpSgpr(3).idx()
         kStr += self.calculateLoopNumIterGsu(kernel, "UnrollLoopLastIter", tmpSgpr)
         kStr += inst ("s_mul_i32", sgpr("UnrollLoopLastIter"), sgpr("UnrollLoopLastIter"), "DepthU", "scale")
 
@@ -5259,7 +5303,7 @@ class KernelWriterAssembly(KernelWriter):
 
       else:
         # TODO - use named arguments
-        tmpSgpr = self.getTmpSgpr(2).idx()
+        tmpSgpr = self.getTmpSgpr(3).idx()
         quotient = loopCounterName
         dividend = sumSize
         divisor = kernel["DepthU"]
@@ -5298,7 +5342,7 @@ class KernelWriterAssembly(KernelWriter):
         freeDimChar = globalParameters["IndexChars"][freeDim]
         sumDimChar  = globalParameters["IndexChars"][sumDim]
         elementEdge = "ElementEdge%s%s" % (tc,sumDimChar)
-        tmpSgpr = self.getTmpSgpr(2).idx()
+        tmpSgpr = self.getTmpSgpr(1).idx()
         kStr += "\n"
         kStr += self.comment1("ElementEdge%s%s" % (tc, sumDimChar))
         kStr += inst("s_mul_i32", sgpr(elementEdge), \
@@ -5391,7 +5435,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # LSU not all threads will do summation
       if kernel["LocalSplitU"] > 1:
-        tmpSgpr = self.getTmpSgpr(2).idx()
+        tmpSgpr = self.getTmpSgpr(1).idx()
         kStr += self.comment("apply exec mask for LSU")
         tmpVgpr = self.vgprPool.checkOut(2,"tmpVgpr")
         dummy = self.vgprPool.checkOut(1,"dummy")
@@ -6520,8 +6564,9 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # Calculate Max Addr
     ########################################
-    maxAddrSgpr = self.getTmpSgpr(4).idx()
-    tmpSgpr = maxAddrSgpr + 2
+
+    tmpSgpr = self.getTmpSgpr(2).idx()
+    maxAddrSgpr = tmpSgpr
 
     if not kernel["BufferLoad"]:
       kStr += self.comment1("flat addressing - max read address = size[n] * stride[n-1]")
@@ -6554,6 +6599,7 @@ class KernelWriterAssembly(KernelWriter):
       maxAddrVgpr = self.vgprPool.checkOut(2, "maxAddrVgpr")
       kStr += inst("v_mov_b32", vgpr(maxAddrVgpr+0), sgpr(maxAddrSgpr+0), "sgpr->vgpr")
       kStr += inst("v_mov_b32", vgpr(maxAddrVgpr+1), sgpr(maxAddrSgpr+1), "sgpr->vgpr")
+      del maxAddrSgpr
 
       # full exec mask
       fullExec = tmpSgpr
@@ -6868,9 +6914,10 @@ class KernelWriterAssembly(KernelWriter):
               0,
               "Set limit to 0 for last iteration")
 
-    tmpSgpr = self.getTmpSgpr(2+len(problemType["ZeroPad%s"%tc])).idx()
+    tmpSgpr = self.getTmpSgpr(2).idx()
     # TODO - clean up here:
     # +0,+1 - general purpose tmp. i + 2 is the offset for zero-pad index X
+    #tmpSgpr = self.getTmpSgpr(2+len(problemType["ZeroPad%s"%tc])).idx()
     #for i, zp in enumerate(problemType["ZeroPad%s"%tc]):
     #  zpTmp = tmpSgpr + i + 2
     #  imod.header.addComment1("Zeropad check:")
@@ -9035,7 +9082,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("ds_write_b128", addr0, vgpr(srcVgpr, rpv), \
                  "offset:%u"%offset, "storeRemap lw")
     else:
-       assert ("StoreRemap: bad bps!")
+      assert 0, "StoreRemap: bad bps!"
 
     return kStr
 
@@ -9075,6 +9122,8 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("ds_read_b64", dst, src, "offset:%u"%offset, "storeRemap lr")
       elif bps==16:
         kStr += inst("ds_read_b128", dst, src, "offset:%u"%offset, "storeRemap lr")
+      else:
+        assert 0, "StoreRemap: bad bps!"
 
     kStr += "\n"
 
@@ -10599,7 +10648,6 @@ class KernelWriterAssembly(KernelWriter):
 
   # rpv = regs per vector
     rpv = bpl/4.0
-
     if self.version[0] == 10:
       extraFields += " glc, slc, dlc"
 
@@ -10622,8 +10670,21 @@ class KernelWriterAssembly(KernelWriter):
       elif bpl==16:
         return Code.GlobalReadInst("buffer_load_dwordx4", vgpr(destVgpr, rpv), addr0, \
                   addr1, soffset, tailFields, comment)
+      elif bpl==32:
+        # split into two dwordx4 loads. Second load offset is +0.5 bpl
+        tailFields1 = "offen offset:%u"%(offset + bpl/2)
+        if extraFields != "":
+          tailFields1 += ", %s"% extraFields
+
+        rv = Code.Module("emulated buffer_load_dwordx8")
+        rv.addCode(Code.GlobalReadInst("buffer_load_dwordx4", vgpr(destVgpr, rpv/2), addr0, \
+                  addr1, soffset, tailFields, comment))
+        rv.addCode(Code.GlobalReadInst("buffer_load_dwordx4", vgpr(int(destVgpr + rpv/2), rpv/2), addr0, \
+                  addr1, soffset, tailFields1, comment))
+        return rv
+
       else:
-        assert ("chooseGlobalRead: bad bpl")
+        assert 0, "chooseGlobalRead: bad bpl"
 
     else:
       if bpl==2 and hi16:
@@ -10637,7 +10698,7 @@ class KernelWriterAssembly(KernelWriter):
       elif bpl==16:
         return Code.GlobalReadInst("flat_load_dwordx4", vgpr(destVgpr, rpv), addr0, extraFields, comment )
       else:
-        assert ("chooseGlobalRead: bad bpl")
+        assert 0, "chooseGlobalRead: bad bpl"
 
   ##############################################################################
   def chooseGlobalWrite(self, useBuffer, bps, srcVgpr, rpv, \
@@ -10666,8 +10727,15 @@ class KernelWriterAssembly(KernelWriter):
       elif bps==16:
         kStr += inst("buffer_store_dwordx4", vgpr(srcVgpr, rpv), addr0, \
                   addr1, 0, "offen", "offset:%u"%offset, extraFields, "store D")
+      elif bps == 32:
+        # split into two dwordx4 loads. Offset the second by +0.5 bps
+        kStr += inst("buffer_store_dwordx4", vgpr(srcVgpr, rpv/2), addr0, \
+                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "store D")
+
+        kStr += inst("buffer_store_dwordx4", vgpr(int(srcVgpr +rpv/2), rpv/2), addr0, \
+                  addr1, 0, "offen", "offset:%u"%(int(offset+bps/2)), extraFields, "store D")
       else:
-        assert ("bad bps")
+        assert 0, "bad bps"
     else:
       if bps==2 and hi16:
         kStr += inst("flat_store_short_d16_hi", addr0, vgpr(srcVgpr*2), extraFields, "store D" )
@@ -10680,7 +10748,7 @@ class KernelWriterAssembly(KernelWriter):
       elif bps==16:
         kStr += inst("flat_store_dwordx4", addr0, vgpr(srcVgpr, rpv), extraFields, "store D" )
       else:
-         assert ("bad bps")
+         assert 0, "bad bps"
 
     return kStr
 

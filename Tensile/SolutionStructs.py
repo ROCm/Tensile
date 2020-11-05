@@ -942,14 +942,16 @@ class ProblemType(collections.abc.Mapping):
     if inType.isHalf():
       # TODO- Test and migrate ([H/H/H]+HPA) to ([H/H/S]+HPA)
       # Note that we need to do a little change in rocBLAS and logic yaml
-      if not (outType.isHalf() and (computeType.isHalf() or computeType.isSingle())):
-        printExit("DataType=H only allows DestDataType=H and ComputeDataType=H/S")
+      if not ((outType.isHalf() and (computeType.isHalf() or computeType.isSingle())) or \
+              (outType.isSingle() and computeType.isSingle())):
+        printExit("DataType=H only allows (DestDataType=H and ComputeDataType=H/S) or (DestDataType=S and ComputeDataType=S")
       # if not (outType.isHalf() and computeType.isHalf()):
       #   printExit("DataType=H only allows DestDataType=H and ComputeDataType=H")
 
     if inType.isBFloat16():
-      if not (outType.isBFloat16() and computeType.isSingle()):
-        printExit("DataType=B only allows DestDataType=B and ComputeDataType=S")
+      if not ((outType.isBFloat16() or outType.isSingle()) and  \
+              computeType.isSingle()) :
+        printExit("DataType=B only allows DestDataType=B/S  and ComputeDataType=S")
 
     if inType.isDoubleComplex():
       if not (outType.isDoubleComplex() and computeType.isDoubleComplex()):
@@ -1167,9 +1169,20 @@ class ProblemType(collections.abc.Mapping):
     if self["ComplexConjugateB"]:
       name += "C"
 
-    # precision and other
+    # DataTypes
     name += "_"
-    name += self["DataType"].toChar()
+    name += self["DataType"].toChar() # Type of A/B
+
+    # Special condition for HSS and BSS kernels, distinguish types due to Ti != To.
+    # _TiToTc_
+    # TODO: Distinguish all kernels by _TiToTc_ to be more consistent with rocblas
+    if (self["DataType"].isBFloat16() or self["DataType"].isHalf()) and \
+       (self["DestDataType"].isSingle() and self["ComputeDataType"].isSingle()):
+      name += self["DestDataType"].toChar()    # Type of C/D
+      name += self["ComputeDataType"].toChar() # Type of Alpha/Beta
+      name += "_"
+
+    # Other
     if self["UseBeta"]: name += "B"
     if self["HighPrecisionAccumulate"] and not self["SilentHighPrecisionAccumulate"]: name += "H"
     if self["UseInitialStridesAB"]: name += "I"
@@ -3052,7 +3065,7 @@ class Solution:
 
     # lds max occupancy
     ldsSizeOccupancy = globalParameters["DeviceLDS"] // state["MaxOccupancy"]
-    ldsNumElementsOccupancy = ldsSizeOccupancy // state["ProblemType"]["DataType"].numBytes()
+    ldsNumElementsOccupancy = ldsSizeOccupancy // state["ProblemType"]["DestDataType"].numBytes()
 
     #print("ldsNumElementsA", ldsNumElementsA)
     #print("ldsNumElementsB", ldsNumElementsB)
@@ -3077,6 +3090,18 @@ class Solution:
 
     # lds size is the greater of the two
     ldsNumElements = max(ldsNumElementsAB, ldsNumElementsReduction, ldsNumElementsOccupancy)
+
+    if state["StoreRemapVectorWidth"] == -1:
+      ldsRemapPad = max(4,state["MIOutputVectorWidth"])
+      ldsNumElementsRemapC = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"] * state["MIWaveGroup"][1]
+      ldsNumElementsRemapC *= (2 if state["_GlobalAccumulation"] else 1) # FP32 output FP16 Data
+      ldsSize = ldsNumElementsRemapC * state["ProblemType"]["DataType"].numBytes()
+      if not math.log(state["MacroTile0"],2).is_integer() or \
+          ldsSize > globalParameters["MaxLDS"] or \
+          (state["GlobalSplitU"] > 1) and (state["_GlobalAccumulation"] != 2):
+        state["StoreRemapVectorWidth"] = 0
+      else:
+        state["StoreRemapVectorWidth"] = 4
 
     #check not support cases and calculate lds resources
     if state["StoreRemapVectorWidth"]:
@@ -3121,7 +3146,19 @@ class Solution:
         return
       ldsRemapPad = max(state["StoreRemapVectorWidth"],state["MIOutputVectorWidth"])
       ldsNumElementsRemapC = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"] * state["MIWaveGroup"][1]
-      ldsNumElementsRemapC *= (2 if state["_GlobalAccumulation"] else 1) # FP32 output FP16 Data
+
+      if state["_GlobalAccumulation"]:
+        # FP32 output FP16 Data
+        multiplier = 2
+      elif state["ProblemType"]["DestDataType"].numBytes() > state["ProblemType"]["DataType"].numBytes():
+        # Determine ratio of output to input element size.
+        # SRVW remaps output so we need to scale up resources.
+        multiplier = state["ProblemType"]["DestDataType"].numBytes() // state["ProblemType"]["DataType"].numBytes()
+      else:
+        multiplier = 1
+
+      ldsNumElementsRemapC *= multiplier
+
       #print("ldsNumElementsRemapC=%u" % ldsNumElementsRemapC)
       ldsNumElements = max(ldsNumElements, ldsNumElementsRemapC)
 
