@@ -1271,11 +1271,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
         else:
           self.localWriteACode = Code.Module()
           self.localWriteBCode = Code.Module()
-        if kernel["PrefetchGlobalRead"] and kernel["LoopIters"] == 1 and uDu > 0:
+
+        # TODO schedule waitcnt/barrier in makeSubIterSchedule()
+        if kernel["PrefetchGlobalRead"] and kernel["LoopIters"] in [1, 2] and uDu > 0:
           if self.enable["Wait"]:
             kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 1, 0, -1, "wait for local write"))
           if self.enable["Sync"]:
             kl.append(self.syncThreads(kernel, "sync for local read after write"))
+
         if not isNGLL:
           # PAP would have GlobalRead and GlobalInc, but no localWrite
           # Get the perIterGlobalReadCode code for PAP (if PAP=On), else would be empty
@@ -1695,7 +1698,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             self.localWriteBCode = Code.Module()
 
           # TODO schedule waitcnt/barrier in makeSubIterSchedule()
-          if kernel["PrefetchGlobalRead"] and kernel["LoopIters"] == 1 and uDu > 0:
+          if kernel["PrefetchGlobalRead"] and kernel["LoopIters"] in [1, 2] and uDu > 0:
             if self.enable["Wait"]:
               kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 1, 0, -1, "wait for local write"))
             if self.enable["Sync"]:
