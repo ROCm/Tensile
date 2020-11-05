@@ -235,12 +235,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
       itemsGRToSched.append(globalReadIncACode)
       for i in range(numEmptyGlobalReadIncCode):
         imod = Code.Module()
-        imod.addCode(Code.Inst("// ", "globalReadIncA scheduler placeholder"))
+        imod.addInst("//","globalReadIncA scheduler placeholder")
         itemsGRToSched.append(imod)
       itemsGRToSched.append(globalReadIncBCode)
       for i in range(numEmptyGlobalReadIncCode):
         imod = Code.Module()
-        imod.addCode(Code.Inst("// ", "globalReadIncB scheduler placeholder"))
+        imod.addInst("//","globalReadIncB scheduler placeholder")
         itemsGRToSched.append(imod)
 
       if kernel["DepthULdsDivisor"] > 1:
@@ -250,7 +250,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
       readCnt = len(itemsGRToSched)
 
       if kernel["EnableMatrixInstruction"] and kernel["ScheduleIterAlg"] == 3:
-        loadsToSched = sum(1 for item in itemsGRToSched if item.countType(Code.GlobalReadInst))
+        # Loop in PGR1: GlobalRead -> GlobalReadInc -> LocalWrite
+        # but GlobalReadInc shouldn't block LocalWrite so we count them out
+        # Loop in PGR2: GlobalReadInc -> LocalWrite/GlobalRead pair
+        # since LocalWrite/GlobalRead pair depends on GlobalReadInc, we count in only GlobalReadInc
+        filter = [Code.GlobalReadInst]
+        if kernel["PrefetchGlobalRead"] == 2:
+          filter = [Code.Inst]
+        loadsToSched = sum(1 for item in itemsGRToSched if item.countTypeList(filter))
         self.grEndMfmaIndex = max(0, roundUp(loadsToSched/self.numGlobalReadInsPerMfma) - 1)
         if self.grEndMfmaIndex > self.lwEndMfmaIndex:
           firstStep = (numMfmaPerIter + (self.grEndMfmaIndex - self.lwEndMfmaIndex)) * self.numGlobalReadInsPerMfma
