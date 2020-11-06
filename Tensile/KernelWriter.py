@@ -1304,7 +1304,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       extraComment = ""
       if isLastLoop:
         extraComment += " (last unrolled loop)"
-      if not isLastLoop:
+      else:
         if isResetLroIter:
             extraComment += " (reset local read pointers iteration) "
         if isSwapAndResetLwoIter:
