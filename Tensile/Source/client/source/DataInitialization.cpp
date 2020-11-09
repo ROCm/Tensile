@@ -321,6 +321,10 @@ namespace Tensile
             , m_dInit(args["init-d"].as<InitMode>())
             , m_alphaInit(args["init-alpha"].as<InitMode>())
             , m_betaInit(args["init-beta"].as<InitMode>())
+            , m_aBufferOffset(args["offset-a"].as<size_t>())
+            , m_bBufferOffset(args["offset-b"].as<size_t>())
+            , m_cBufferOffset(args["offset-c"].as<size_t>())
+            , m_dBufferOffset(args["offset-d"].as<size_t>())
             , m_aMaxElements(0)
             , m_bMaxElements(0)
             , m_cMaxElements(0)
@@ -351,6 +355,11 @@ namespace Tensile
                 m_cMaxElements = std::max(m_cMaxElements, problem.c().totalAllocatedElements());
                 m_dMaxElements = std::max(m_dMaxElements, problem.d().totalAllocatedElements());
             }
+
+            m_aMaxElements += m_aBufferOffset;
+            m_bMaxElements += m_bBufferOffset;
+            m_cMaxElements += m_cBufferOffset;
+            m_dMaxElements += m_dBufferOffset;
 
             if(m_curBoundsCheck == BoundsCheckMode::NaN)
             {

@@ -520,14 +520,6 @@ namespace Tensile
         rv.args.append<uint32_t>("problemNumGroupTiles0", problemNumGroupTiles0);
         rv.args.append<uint32_t>("problemNumGroupTiles1", problemNumGroupTiles1);
 
-        if(sizeMapping.persistentKernel != 0)
-        {
-            uint32_t magicShift;
-            rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0",
-                                     magicNumber(2, problemNumGroupTiles0, &magicShift));
-            rv.args.append<uint32_t>("magicShiftProblemNumGroupTiles0", magicShift);
-        }
-
         if(!isSourceKernel())
         {
             uint32_t numFullBlocks            = problemNumGroupTiles1;
@@ -537,6 +529,10 @@ namespace Tensile
             // conditional args, aligned with KernelWriterAssembly.py
             if(sizeMapping.persistentKernel != 0)
             {
+                uint32_t magicShift;
+                rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0",
+                                         magicNumber(2, problemNumGroupTiles0, &magicShift));
+                rv.args.append<uint32_t>("magicShiftProblemNumGroupTiles0", magicShift);
                 rv.args.append<uint32_t>("gridNumWorkGroups0", rv.numWorkGroups.x);
             }
 
@@ -563,7 +559,15 @@ namespace Tensile
             rv.args.append<uint32_t>("numFullBlocks", numFullBlocks);
             rv.args.append<uint32_t>("wgmRemainder1", wgmRemainder1);
             rv.args.append<uint32_t>("magicNumberWgmRemainder1", magicNumberWgmRemainder1);
+        }
 
+        rv.args.append<uint32_t>("offsetD", d.offset());
+        rv.args.append<uint32_t>("offsetC", c.offset());
+        rv.args.append<uint32_t>("offsetA", a.offset());
+        rv.args.append<uint32_t>("offsetB", b.offset());
+
+        if(!isSourceKernel())
+        {
             rv.args.append<uint32_t>("pad", 0);
         }
 
@@ -646,6 +650,9 @@ namespace Tensile
             rv.args.append<uint32_t>(concatenate_if<T_Debug>("size_", idx), size);
             idx++;
         }
+
+        rv.args.append<uint32_t>("offsetD", d.offset());
+        rv.args.append<uint32_t>("offsetC", c.offset());
 
         rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
 
@@ -738,6 +745,9 @@ namespace Tensile
             rv.args.append<uint32_t>(concatenate_if<T_Debug>("size_", idx), size);
             idx++;
         }
+
+        rv.args.append<uint32_t>("offsetD", d.offset());
+        rv.args.append<uint32_t>("offsetC", c.offset());
 
         if(sizeMapping.globalAccumulation == 1)
             rv.args.append<uint32_t>("gsu", 1);

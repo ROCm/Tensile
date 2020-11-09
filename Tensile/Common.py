@@ -151,6 +151,11 @@ globalParameters["DataInitTypeD"]  = 0            # 0=0, 1=1, 2=serial, 3=rand, 
 globalParameters["DataInitTypeAlpha"] = 2         # 0=0, 1=1, 2=2, 3=rand, 4=NaN
 globalParameters["DataInitTypeBeta"] = 2          # 0=0, 1=1, 2=2, 3=rand, 4=NaN
 globalParameters["CEqualD"] = False               # Set to true if testing for the case where the pointer to C is the same as D.
+globalParameters["BufferOffsetA"] = 0             # data offset of buffer A
+globalParameters["BufferOffsetB"] = 0             # data offset of buffer B
+globalParameters["BufferOffsetC"] = 0             # data offset of buffer C
+globalParameters["BufferOffsetD"] = 0             # data offset of buffer D
+
 # build parameters
 globalParameters["CMakeCXXFlags"] = ""            # pass flags to cmake
 globalParameters["CMakeCFlags"] = ""              # pass flags to cmake

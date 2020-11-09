@@ -36,8 +36,6 @@ class KernelWriterBetaOnly(KernelWriterBase):
     kStr += "(" + self.endLine
 
     # pointers
-    restrictStr = "__restrict__"
-
     if self.state["_GlobalAccumulation"]:
       ptrStr = "float"
     else:
@@ -46,7 +44,7 @@ class KernelWriterBetaOnly(KernelWriterBase):
     kStr += "  " + ptrStr + " *D,"
     kStr += self.endLine
     ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-    kStr += "  " + ptrStr + " const * " + restrictStr + " C,"
+    kStr += "  " + ptrStr + " const *C,"
     kStr += self.endLine
 
     # strides
@@ -62,6 +60,10 @@ class KernelWriterBetaOnly(KernelWriterBase):
     # sizes
     for i in range(0, self.state["ProblemType"]["NumIndicesC"]):
       kStr += "  unsigned int const size%s,%s" % (self.indexChars[i], self.endLine)
+
+    # offset
+    kStr += "  unsigned int offsetD,%s" % self.endLine
+    kStr += "  unsigned int offsetC,%s" % self.endLine
 
     # beta
     kStr += "  %s const beta)%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine )
@@ -128,6 +130,7 @@ class KernelWriterBetaOnly(KernelWriterBase):
     kStr += "))%s" % self.endLine
     kStr += "    return;%s" % self.endLine
 
+    kStr += self.endLine
     kStr += "  uint64_t id0"
     for i in range(1, problemType["NumIndicesC"]):
       kStr += ", id%d" % i
@@ -137,8 +140,13 @@ class KernelWriterBetaOnly(KernelWriterBase):
       kStr += "  id%d = id %% size%s;%s" % (i, self.indexChars[i], self.endLine)
       kStr += "  id  = id / size%s;%s" % (self.indexChars[i], self.endLine)
 
+    # apply offset
     kStr += self.endLine
+    if not self.state["_GlobalAccumulation"]:
+      kStr += "  D = D + offsetD;" + self.endLine
+    kStr += "  C = C + offsetC;" + self.endLine
 
+    kStr += self.endLine
     ########################################
     # D index
     kStr += "  %s idxD = GLOBAL_D( (%s)" % (self.uint64Str, self.uint64Str)

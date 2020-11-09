@@ -832,22 +832,19 @@ class KernelWriterSource(KernelWriter):
     if self.language == "HIP":
       #s += "  hipLaunchParm lp," + self.endLine
       globalStr = ""
-    restrictStr = "restrict"
-    if self.language == "HIP":
-      restrictStr = "__restrict__"
     ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language) \
         if not kernel["_GlobalAccumulation"] else "float"
     s += "  " + globalStr + ptrStr + " *D,"
     s += self.endLine
     s += "  " + globalStr + ptrStr \
-        + " const * " + restrictStr + " C,"
+        + " const *C,"
     s += self.endLine
     ptrStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
     s += "  " + globalStr + ptrStr \
-        + " const * " + restrictStr + " A,"
+        + " const *A,"
     s += self.endLine
     s += "  " + globalStr + ptrStr \
-        + " const * " + restrictStr + " B"
+        + " const *B"
 
     # alpha & beta
     s += "," + self.endLine + "  " \
@@ -907,7 +904,13 @@ class KernelWriterSource(KernelWriter):
     # kernel["PersistentKernel"]:
     s += "," + self.endLine + "  unsigned int problemNumGroupTiles0"
     s += "," + self.endLine + "  unsigned int problemNumGroupTiles1"
-    s += "," + self.endLine + "  unsigned int magicNumberProblemNumGroupTiles0"
+
+    # offset
+    s += "," + self.endLine + "  unsigned int offsetD"
+    s += "," + self.endLine + "  unsigned int offsetC"
+    s += "," + self.endLine + "  unsigned int offsetA"
+    s += "," + self.endLine + "  unsigned int offsetB"
+
     s += " )"
     return s
 
@@ -1031,6 +1034,15 @@ class KernelWriterSource(KernelWriter):
         % (self.sharedDeclStr, self.endLine )
 
 
+    ####################################
+    # apply offset
+    kStr += self.endLine
+    if not kernel["_GlobalAccumulation"]:
+      kStr += "  D = D + offsetD;" + self.endLine
+      kStr += "  C = C + offsetC;" + self.endLine
+    kStr += "  A = A + offsetA;" + self.endLine
+    kStr += "  B = B + offsetB;" + self.endLine
+
     if 0:
       # in some cases we know the pad values at compile time and could hard-code here.  Not enabled.
       for tc in ('A', 'B'):
@@ -1050,8 +1062,9 @@ class KernelWriterSource(KernelWriter):
     self.magicNonSumChars = kernel["PackedC0IdxChars"][:-1] + kernel["PackedC1IdxChars"][:-1]
 
     if kernel["MagicDivAlg"] == 2:
-      kStr += "typedef struct MagicStruct {unsigned M; int a; int s;} MagicStruct;" + self.endLine
-      kStr += "const unsigned MAGIC_STRUCT_A = 0x80000000; // for extracting a-bit from shift kernarg" + self.endLine
+      kStr += self.endLine
+      kStr += "  typedef struct MagicStruct {unsigned M; int a; int s;} MagicStruct;" + self.endLine
+      kStr += "  const unsigned MAGIC_STRUCT_A = 0x80000000; // for extracting a-bit from shift kernarg" + self.endLine
       kStr += "#define MAGIC_DIV2(dividend, magic) (((((uint64_t)(dividend) * magic.M) >> 32) + dividend*magic.a) >> magic.s)%s" % self.endLine
 
       sumParms=[(idxChar, "magicStruct%s"%idxChar, "NumIter%s"%idxChar) for idxChar in self.magicSumChars]

@@ -95,6 +95,10 @@ public:
         args.insert({"pristine-on-gpu", val(pristineGPU, false)});
         args.insert({"bounds-check", val(boundsCheck, false)});
         args.insert({"num-elements-to-validate", val(1, false)});
+        args.insert({"offset-a", val((size_t)0, false)});
+        args.insert({"offset-b", val((size_t)0, false)});
+        args.insert({"offset-c", val((size_t)0, false)});
+        args.insert({"offset-d", val((size_t)0, false)});
 
         TensorDescriptor a(TypeInfo<typename TypedInputs::AType>::Enum, {10, 10, 1});
         TensorDescriptor b(TypeInfo<typename TypedInputs::BType>::Enum, {10, 10, 1});

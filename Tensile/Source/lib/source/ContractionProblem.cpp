@@ -65,6 +65,55 @@ namespace Tensile
                                                         size_t   dStride,
                                                         double   beta)
     {
+        return GEMM_Strides(transA,
+                            transB,
+                            aType,
+                            bType,
+                            cType,
+                            dType,
+                            m,
+                            n,
+                            k,
+                            batchSize,
+                            lda,
+                            aStride,
+                            0,
+                            ldb,
+                            bStride,
+                            0,
+                            ldc,
+                            cStride,
+                            0,
+                            ldd,
+                            dStride,
+                            0,
+                            beta);
+    }
+
+    ContractionProblem ContractionProblem::GEMM_Strides(bool     transA,
+                                                        bool     transB,
+                                                        DataType aType,
+                                                        DataType bType,
+                                                        DataType cType,
+                                                        DataType dType,
+                                                        size_t   m,
+                                                        size_t   n,
+                                                        size_t   k,
+                                                        size_t   batchSize,
+                                                        size_t   lda,
+                                                        size_t   aStride,
+                                                        size_t   aOffset,
+                                                        size_t   ldb,
+                                                        size_t   bStride,
+                                                        size_t   bOffset,
+                                                        size_t   ldc,
+                                                        size_t   cStride,
+                                                        size_t   cOffset,
+                                                        size_t   ldd,
+                                                        size_t   dStride,
+                                                        size_t   dOffset,
+                                                        double   beta)
+    {
         Tensile::ContractionProblem::FreeIndices  free(2);
         Tensile::ContractionProblem::BoundIndices bound(1);
         Tensile::ContractionProblem::BatchIndices batch(1);
@@ -80,32 +129,32 @@ namespace Tensile
 
         if(transA)
         {
-            a          = TensorDescriptor(aType, {k, m, batchSize}, {1, lda, aStride});
+            a          = TensorDescriptor(aType, {k, m, batchSize}, {1, lda, aStride}, aOffset);
             free[0].i  = 1;
             bound[0].a = 0;
         }
         else
         {
-            a          = TensorDescriptor(aType, {m, k, batchSize}, {1, lda, aStride});
+            a          = TensorDescriptor(aType, {m, k, batchSize}, {1, lda, aStride}, aOffset);
             free[0].i  = 0;
             bound[0].a = 1;
         }
 
         if(transB)
         {
-            b          = TensorDescriptor(bType, {n, k, batchSize}, {1, ldb, bStride});
+            b          = TensorDescriptor(bType, {n, k, batchSize}, {1, ldb, bStride}, bOffset);
             free[1].i  = 0;
             bound[0].b = 1;
         }
         else
         {
-            b          = TensorDescriptor(bType, {k, n, batchSize}, {1, ldb, bStride});
+            b          = TensorDescriptor(bType, {k, n, batchSize}, {1, ldb, bStride}, bOffset);
             free[1].i  = 1;
             bound[0].b = 0;
         }
 
-        c = TensorDescriptor(cType, {m, n, batchSize}, {1, ldc, cStride});
-        d = TensorDescriptor(dType, {m, n, batchSize}, {1, ldd, dStride});
+        c = TensorDescriptor(cType, {m, n, batchSize}, {1, ldc, cStride}, cOffset);
+        d = TensorDescriptor(dType, {m, n, batchSize}, {1, ldd, dStride}, dOffset);
 
         TensorOps nop;
 
@@ -126,6 +175,24 @@ namespace Tensile
                                                 bool   colMajor,
                                                 size_t batchCount)
     {
+        return GEMM(transA, transB, m, n, k, lda, 0, ldb, 0, ldc, 0, beta, colMajor, batchCount);
+    }
+
+    ContractionProblem ContractionProblem::GEMM(bool   transA,
+                                                bool   transB,
+                                                size_t m,
+                                                size_t n,
+                                                size_t k,
+                                                size_t lda,
+                                                size_t offsetA,
+                                                size_t ldb,
+                                                size_t offsetB,
+                                                size_t ldc,
+                                                size_t offsetC,
+                                                double beta,
+                                                bool   colMajor,
+                                                size_t batchCount)
+    {
         if(colMajor)
             throw std::runtime_error("Column major not yet implemented.");
 
@@ -140,26 +207,26 @@ namespace Tensile
         TensorDescriptor a, b, c, d;
         if(transA)
         {
-            a         = TensorDescriptor(DataType::Float, {k, m}, {1, lda});
+            a         = TensorDescriptor(DataType::Float, {k, m}, {1, lda}, offsetA);
             free[0].i = 1;
             bound.a   = 0;
         }
         else
         {
-            a         = TensorDescriptor(DataType::Float, {m, k}, {1, lda});
+            a         = TensorDescriptor(DataType::Float, {m, k}, {1, lda}, offsetA);
             free[0].i = 0;
             bound.a   = 1;
         }
 
         if(transB)
         {
-            b         = TensorDescriptor(DataType::Float, {n, k}, {1, ldb});
+            b         = TensorDescriptor(DataType::Float, {n, k}, {1, ldb}, offsetB);
             free[1].i = 0;
             bound.b   = 1;
         }
         else
         {
-            b         = TensorDescriptor(DataType::Float, {k, n}, {1, ldb});
+            b         = TensorDescriptor(DataType::Float, {k, n}, {1, ldb}, offsetB);
             free[1].i = 1;
             bound.b   = 0;
         }
@@ -168,7 +235,7 @@ namespace Tensile
         BatchIndices batchIndices;
         BoundIndices boundIndices{bound};
 
-        d = TensorDescriptor(DataType::Float, {m, n}, {1, ldc});
+        d = TensorDescriptor(DataType::Float, {m, n}, {1, ldc}, offsetC);
 
         a.appendDim(batchCount);
         b.appendDim(batchCount);
@@ -398,6 +465,39 @@ namespace Tensile
                                                           std::vector<size_t> const& dStrides,
                                                           double                     beta)
     {
+        return FromIndexSizes(operationIdentifier,
+                              indexSizes,
+                              aType,
+                              aStrides,
+                              0,
+                              bType,
+                              bStrides,
+                              0,
+                              cType,
+                              cStrides,
+                              0,
+                              dType,
+                              dStrides,
+                              0,
+                              beta);
+    }
+
+    ContractionProblem ContractionProblem::FromIndexSizes(std::string const& operationIdentifier,
+                                                          std::vector<size_t> const& indexSizes,
+                                                          DataType                   aType,
+                                                          std::vector<size_t> const& aStrides,
+                                                          size_t                     aOffset,
+                                                          DataType                   bType,
+                                                          std::vector<size_t> const& bStrides,
+                                                          size_t                     bOffset,
+                                                          DataType                   cType,
+                                                          std::vector<size_t> const& cStrides,
+                                                          size_t                     cOffset,
+                                                          DataType                   dType,
+                                                          std::vector<size_t> const& dStrides,
+                                                          size_t                     dOffset,
+                                                          double                     beta)
+    {
         FreeIndices  freeIndices;
         BatchIndices batchIndices;
         BoundIndices boundIndices;
@@ -414,15 +514,19 @@ namespace Tensile
                               aType,
                               aStrides,
                               aOps,
+                              aOffset,
                               bType,
                               bStrides,
                               bOps,
+                              bOffset,
                               cType,
                               cStrides,
                               cOps,
+                              cOffset,
                               dType,
                               dStrides,
                               dOps,
+                              dOffset,
                               beta);
     }
 
@@ -442,6 +546,51 @@ namespace Tensile
                                                           DataType                   dType,
                                                           std::vector<size_t> const& dStrides,
                                                           TensorOps const&           dOps,
+                                                          double                     beta)
+    {
+        return FromIndexSizes(freeIndices,
+                              batchIndices,
+                              boundIndices,
+                              indexSizes,
+                              aType,
+                              aStrides,
+                              aOps,
+                              0,
+                              bType,
+                              bStrides,
+                              bOps,
+                              0,
+                              cType,
+                              cStrides,
+                              cOps,
+                              0,
+                              dType,
+                              dStrides,
+                              dOps,
+                              0,
+                              beta);
+    }
+
+    ContractionProblem ContractionProblem::FromIndexSizes(FreeIndices const&         freeIndices,
+                                                          BatchIndices const&        batchIndices,
+                                                          BoundIndices const&        boundIndices,
+                                                          std::vector<size_t> const& indexSizes,
+                                                          DataType                   aType,
+                                                          std::vector<size_t> const& aStrides,
+                                                          TensorOps const&           aOps,
+                                                          size_t                     aOffset,
+                                                          DataType                   bType,
+                                                          std::vector<size_t> const& bStrides,
+                                                          TensorOps const&           bOps,
+                                                          size_t                     bOffset,
+                                                          DataType                   cType,
+                                                          std::vector<size_t> const& cStrides,
+                                                          TensorOps const&           cOps,
+                                                          size_t                     cOffset,
+                                                          DataType                   dType,
+                                                          std::vector<size_t> const& dStrides,
+                                                          TensorOps const&           dOps,
+                                                          size_t                     dOffset,
                                                           double                     beta)
     {
         size_t maxA = 0;
@@ -510,10 +659,14 @@ namespace Tensile
             indexIdx++;
         }
 
-        TensorDescriptor a(aType, aSizes.begin(), aSizes.end(), aStrides.begin(), aStrides.end());
-        TensorDescriptor b(bType, bSizes.begin(), bSizes.end(), bStrides.begin(), bStrides.end());
-        TensorDescriptor c(cType, cSizes.begin(), cSizes.end(), cStrides.begin(), cStrides.end());
-        TensorDescriptor d(dType, dSizes.begin(), dSizes.end(), dStrides.begin(), dStrides.end());
+        TensorDescriptor a(
+            aType, aSizes.begin(), aSizes.end(), aStrides.begin(), aStrides.end(), aOffset);
+        TensorDescriptor b(
+            bType, bSizes.begin(), bSizes.end(), bStrides.begin(), bStrides.end(), bOffset);
+        TensorDescriptor c(
+            cType, cSizes.begin(), cSizes.end(), cStrides.begin(), cStrides.end(), cOffset);
+        TensorDescriptor d(
+            dType, dSizes.begin(), dSizes.end(), dStrides.begin(), dStrides.end(), dOffset);
 
         return ContractionProblem(
             a, aOps, b, bOps, c, cOps, d, dOps, freeIndices, batchIndices, boundIndices, beta);

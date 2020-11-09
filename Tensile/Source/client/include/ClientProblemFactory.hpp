@@ -94,6 +94,11 @@ namespace Tensile
             TensorOps m_cOps;
             TensorOps m_dOps;
 
+            size_t m_aOffset;
+            size_t m_bOffset;
+            size_t m_cOffset;
+            size_t m_dOffset;
+
             double m_beta;
         };
 

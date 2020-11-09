@@ -123,7 +123,10 @@ namespace Tensile
                 ("init-beta",                po::value<InitMode>()->default_value(InitMode::Two), "Initialization for beta")
                 ("pristine-on-gpu",          po::value<bool>()->default_value(false), "Keep a pristine copy of inputs on GPU for performance")
                 ("c-equal-d",                po::value<bool>()->default_value(false), "C equals D")
-
+                ("offset-a",                 po::value<size_t>()->default_value(0), "buffer a start offset")
+                ("offset-b",                 po::value<size_t>()->default_value(0), "buffer b start offset")
+                ("offset-c",                 po::value<size_t>()->default_value(0), "buffer c start offset")
+                ("offset-d",                 po::value<size_t>()->default_value(0), "buffer d start offset")
                 ("print-valids",             po::value<bool>()->default_value(false), "Print values that pass validation")
                 ("print-max",                po::value<int>()->default_value(-1), "Max number of values to print")
                 ("num-elements-to-validate", po::value<int>()->default_value(0), "Number of elements to validate")

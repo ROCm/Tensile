@@ -58,6 +58,11 @@ namespace Tensile
             , m_bOps(args["b-ops"].as<TensorOps>())
             , m_cOps(args["c-ops"].as<TensorOps>())
             , m_dOps(args["d-ops"].as<TensorOps>())
+            , m_aOffset(args["offset-a"].as<size_t>())
+            , m_bOffset(args["offset-b"].as<size_t>())
+            , m_cOffset(args["offset-c"].as<size_t>())
+            , m_dOffset(args["offset-d"].as<size_t>())
+
         {
             if(args.count("problem-identifier"))
                 ContractionProblem::IdentifierToIndices(
@@ -135,15 +140,19 @@ namespace Tensile
                                                                 m_aType,
                                                                 aStrides,
                                                                 m_aOps,
+                                                                m_aOffset,
                                                                 m_bType,
                                                                 bStrides,
                                                                 m_bOps,
+                                                                m_bOffset,
                                                                 m_cType,
                                                                 cStrides,
                                                                 m_cOps,
+                                                                m_cOffset,
                                                                 m_dType,
                                                                 dStrides,
                                                                 m_dOps,
+                                                                m_dOffset,
                                                                 m_beta));
 
                 if(i < m_aZeroPads.size())
