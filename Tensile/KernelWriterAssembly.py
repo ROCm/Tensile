@@ -3216,8 +3216,20 @@ class KernelWriterAssembly(KernelWriter):
 
       # kStr += legacyGetKernelArgs(kernel)
 
-      kStr += inst("s_waitcnt", "lgkmcnt(0)", \
-          "wait for %u bytes of kern args" % self.kernArgOffset )
+      kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for %u bytes of kern args" % self.kernArgOffset )
+
+      if not kernel["ProblemType"]["StridedBatched"]:
+        for idx in kernel["ProblemType"]["IndicesBatch"]:
+          if not isPackedIndex(kernel,idx):
+            tmpSgpr = self.getTmpSgpr(1).idx()
+            kStr += self.endLine
+            kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr("WorkGroup2"), 0x8, "offset of global buffer address")
+            if not kernel["_GlobalAccumulation"]:
+              kStr += inst("s_load_dwordx2", sgpr("AddressD", 2), sgpr("AddressD",2), sgpr(tmpSgpr), "load global buffer D address")
+              kStr += inst("s_load_dwordx2", sgpr("AddressC", 2), sgpr("AddressC",2), sgpr(tmpSgpr), "load global buffer C address")
+            kStr += inst("s_load_dwordx2", sgpr("AddressA", 2), sgpr("AddressA",2), sgpr(tmpSgpr), "load global buffer A address")
+            kStr += inst("s_load_dwordx2", sgpr("AddressB", 2), sgpr("AddressB",2), sgpr(tmpSgpr), "load global buffer B address")
+            kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait global buffer adress ready")
     else:
       kStr += ".if 0\n"
 
@@ -3241,6 +3253,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_addc_u32", sgpr("AddressB+1"), sgpr("AddressB+1"), 0, "add offset to buffer address")
 
     # undefine Offset sgpr
+    kStr += self.endLine
     kStr += self.undefineSgpr("OffsetD")
     kStr += self.undefineSgpr("OffsetC")
     kStr += self.undefineSgpr("OffsetA")
@@ -4349,26 +4362,27 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_add_u32",  sgpr("Srd%s+2"%tc), sgpr("Srd%s+2"%tc), prePad, "extend limit for pre-pad")
 
     # Apply any high-order address components to the tileStart and eventually the SRD - batch idx for batched gemm
-    numDim = len(indices)
-    wg=2 # TODO - refactor since only WG2 is supported and this is always batch
-    for i in range(1, numDim):
-      idx = indices[i]
-      if idx == kernel["ProblemType"]["Index0"] \
-          or idx == kernel["ProblemType"]["Index1"] \
-          or idx in kernel["ProblemType"]["IndicesSummation"] \
-          or isPackedIndex(kernel, idx):
-            continue # these will be captured in GRO not the SRD (or other summations are always 0)
-      else:
-        assert(wg==2) # can only have one wg2 with a batch. Other dimensions should be packed into wg0/wg1
-        stride = "Stride%s%s"%(tc,self.indexChars[tP['ia'][i]])
-        if not wroteTileStart:
-          kStr += self.s_mul_u64_u32(sgpr(tileStart+0), sgpr(tileStart+1), sgpr(stride), sgpr("WorkGroup2"), "Stride*WG")
-          wroteTileStart = True
+    if kernel["ProblemType"]["StridedBatched"]:
+      numDim = len(indices)
+      wg=2 # TODO - refactor since only WG2 is supported and this is always batch
+      for i in range(1, numDim):
+        idx = indices[i]
+        if idx == kernel["ProblemType"]["Index0"] \
+            or idx == kernel["ProblemType"]["Index1"] \
+            or idx in kernel["ProblemType"]["IndicesSummation"] \
+            or isPackedIndex(kernel, idx):
+              continue # these will be captured in GRO not the SRD (or other summations are always 0)
         else:
-          kStr += self.s_mul_u64_u32(sgpr(stmp+0), sgpr(stmp+1), sgpr(stride), sgpr("WorkGroup2"), "Stride*WG")
-          kStr += inst("s_add_u32",  sgpr(tileStart+0), sgpr(tileStart+0), sgpr(stmp+0), "accum wg term to tilestart")
-          kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum wg term to tilestart")
-        wg+=1
+          assert(wg==2) # can only have one wg2 with a batch. Other dimensions should be packed into wg0/wg1
+          stride = "Stride%s%s"%(tc,self.indexChars[tP['ia'][i]])
+          if not wroteTileStart:
+            kStr += self.s_mul_u64_u32(sgpr(tileStart+0), sgpr(tileStart+1), sgpr(stride), sgpr("WorkGroup2"), "Stride*WG")
+            wroteTileStart = True
+          else:
+            kStr += self.s_mul_u64_u32(sgpr(stmp+0), sgpr(stmp+1), sgpr(stride), sgpr("WorkGroup2"), "Stride*WG")
+            kStr += inst("s_add_u32",  sgpr(tileStart+0), sgpr(tileStart+0), sgpr(stmp+0), "accum wg term to tilestart")
+            kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum wg term to tilestart")
+          wg+=1
 
     # Add the tile start to the SRD
     if wroteTileStart:
@@ -5267,7 +5281,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.comment1("save PrevWorkGroup for stores here")
         kStr += inst("s_mov_b32", sgpr("PrevWorkGroup0"), sgpr("WorkGroup0"), "save for store code")
         kStr += inst("s_mov_b32", sgpr("PrevWorkGroup1"), sgpr("WorkGroup1"), "save for store code")
-        # kStr += inst("s_mov_b32", sgpr("PrevWorkGroup2"), sgpr("WorkGroup2"), "save for store code")
 
     return kStr
 
@@ -9235,8 +9248,9 @@ class KernelWriterAssembly(KernelWriter):
         addToSrd = True
       elif not isPackedIndex(kernel, i):
         # group index, this is higher-order Tensor dimension, just add to SRD base:
-        coord = sgpr("WorkGroup2")
-        addToSrd = True
+        isStridedBuffer = kernel["ProblemType"]["StridedBatched"] or kernel["_GlobalAccumulation"]
+        coord = sgpr("WorkGroup2") if isStridedBuffer else None
+        addToSrd = True if isStridedBuffer else False
       else:
         # could be packed higher-order index, just ignore
         coord = None

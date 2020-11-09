@@ -84,6 +84,7 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::PersistentKernelCheck>(),
                     Base::template Pair<Predicates::Contraction::GlobalSplitUCheckMinK>(),
                     Base::template Pair<Predicates::Contraction::CDStridesEqual>(),
+                    Base::template Pair<Predicates::Contraction::StridedBatchedEqual>(),
                 });
 
                 auto gmap = Generic::GetSubclasses();
@@ -267,6 +268,12 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::CDStridesEqual, IO>
             : public AutoMappingTraits<Predicates::Contraction::CDStridesEqual, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::StridedBatchedEqual, IO>
+            : public AutoMappingTraits<Predicates::Contraction::StridedBatchedEqual, IO>
         {
         };
     } // namespace Serialization

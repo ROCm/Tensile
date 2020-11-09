@@ -366,13 +366,27 @@ namespace Tensile
             rv.args.append<void const*>("ws", inputs.ws);
             rv.args.append<void const*>("ws", inputs.ws);
         }
-        else
+        else if(problemType.stridedBatched)
         {
             rv.args.append<typename TypedInputs::DType const*>("d", inputs.d);
             rv.args.append<typename TypedInputs::CType const*>("c", inputs.c);
         }
-        rv.args.append<typename TypedInputs::AType const*>("a", inputs.a);
-        rv.args.append<typename TypedInputs::BType const*>("b", inputs.b);
+        else
+        {
+            rv.args.append<typename TypedInputs::DType const* const*>("batchD", inputs.batchD);
+            rv.args.append<typename TypedInputs::CType const* const*>("batchC", inputs.batchC);
+        }
+
+        if(problemType.stridedBatched)
+        {
+            rv.args.append<typename TypedInputs::AType const*>("a", inputs.a);
+            rv.args.append<typename TypedInputs::BType const*>("b", inputs.b);
+        }
+        else
+        {
+            rv.args.append<typename TypedInputs::AType const* const*>("batchA", inputs.batchA);
+            rv.args.append<typename TypedInputs::BType const* const*>("batchB", inputs.batchB);
+        }
 
         rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
         if(std::is_same<typename TypedInputs::AlphaType, Half>::value && !isSourceKernel())
@@ -619,9 +633,15 @@ namespace Tensile
 
         if(sizeMapping.globalAccumulation)
             rv.args.append<void*>("WS", inputs.ws);
-        else
+        else if(problemType.stridedBatched)
             rv.args.append<typename TypedInputs::DType*>("D", inputs.d);
-        rv.args.append<typename TypedInputs::CType const*>("C", inputs.c);
+        else
+            rv.args.append<typename TypedInputs::DType const* const*>("batchD", inputs.batchD);
+
+        if(problemType.stridedBatched)
+            rv.args.append<typename TypedInputs::CType const*>("C", inputs.c);
+        else
+            rv.args.append<typename TypedInputs::CType const* const*>("batchC", inputs.batchC);
 
         if(sizeMapping.globalAccumulation)
         {
@@ -666,6 +686,11 @@ namespace Tensile
     {
         std::string name = concatenate(
             "C", problem.cNames(), "_", TypeInfo<typename TypedInputs::DType>::Abbrev());
+
+        if(!problemType.stridedBatched)
+        {
+            name += "_GB";
+        }
 
         if(sizeMapping.globalAccumulation)
         {
@@ -712,9 +737,17 @@ namespace Tensile
         rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
         rv.numWorkItems.z = rv.workGroupSize.z * rv.numWorkGroups.z;
 
-        rv.args.append<typename TypedInputs::DType*>("D", inputs.d);
+        if(problemType.stridedBatched)
+            rv.args.append<typename TypedInputs::DType*>("D", inputs.d);
+        else
+            rv.args.append<typename TypedInputs::DType const* const*>("batchD", inputs.batchD);
+
         rv.args.append<void*>("WS", inputs.ws);
-        rv.args.append<typename TypedInputs::CType const*>("c", inputs.c);
+
+        if(problemType.stridedBatched)
+            rv.args.append<typename TypedInputs::CType const*>("C", inputs.c);
+        else
+            rv.args.append<typename TypedInputs::CType const* const*>("batchC", inputs.batchC);
 
         if(sizeMapping.globalAccumulation == 2)
             rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
@@ -765,6 +798,11 @@ namespace Tensile
         std::string name = concatenate(
             "C", problem.cNames(), "_", TypeInfo<typename TypedInputs::DType>::Abbrev());
 
+        if(!problemType.stridedBatched)
+        {
+            name += "_GB";
+        }
+
         name += "_PostGSU";
 
         return name;
@@ -779,7 +817,9 @@ namespace Tensile
 
         // Check for nullptrs if alpha is non-zero.
         if((inputs.alpha != static_cast<typename TypedInputs::AlphaType>(0) /*&& k!=0*/)
-           && (inputs.a == nullptr || inputs.b == nullptr))
+           && ((problem.stridedBatched() && (inputs.a == nullptr || inputs.b == nullptr))
+               || (!problem.stridedBatched()
+                   && (inputs.batchA == nullptr || inputs.batchB == nullptr))))
         {
             std::string matrixID = inputs.a == nullptr ? "A" : "B";
             std::string msg      = std::string("Unsupported nullptr for ") + matrixID

@@ -834,17 +834,20 @@ class KernelWriterSource(KernelWriter):
       globalStr = ""
     ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language) \
         if not kernel["_GlobalAccumulation"] else "float"
-    s += "  " + globalStr + ptrStr + " *D,"
+    isStridedBuffer = kernel["ProblemType"]["StridedBatched"] or kernel["_GlobalAccumulation"]
+    ptrStr  += ("" if isStridedBuffer else "*")
+    batchStr = ("" if isStridedBuffer else "Batch")
+    s += "  " + globalStr + ptrStr + " *"+ batchStr + "D,"
     s += self.endLine
-    s += "  " + globalStr + ptrStr \
-        + " const *C,"
+    s += "  " + globalStr + ptrStr + " const * " + batchStr + "C,"
     s += self.endLine
-    ptrStr = kernel["ProblemType"]["DataType"].toDevice(self.language)
-    s += "  " + globalStr + ptrStr \
-        + " const *A,"
+
+    ptrStr   = kernel["ProblemType"]["DataType"].toDevice(self.language)
+    ptrStr  += ("" if kernel["ProblemType"]["StridedBatched"] else "*")
+    batchStr = ("" if kernel["ProblemType"]["StridedBatched"] else "Batch")
+    s += "  " + globalStr + ptrStr + " const * " + batchStr + "A,"
     s += self.endLine
-    s += "  " + globalStr + ptrStr \
-        + " const *B"
+    s += "  " + globalStr + ptrStr + " const * " + batchStr + "B"
 
     # alpha & beta
     s += "," + self.endLine + "  " \
@@ -931,6 +934,7 @@ class KernelWriterSource(KernelWriter):
     s = ""
     s += " {" + self.endLine
     return s
+
 
   ##############################################################################
   # Allocate Resources
@@ -1033,6 +1037,17 @@ class KernelWriterSource(KernelWriter):
     kStr += "  %sDATA_TYPE localMemory[LDS_NUM_ELEMENTS];%s" \
         % (self.sharedDeclStr, self.endLine )
 
+
+    ####################################
+    # apply general batch
+    if not kernel["ProblemType"]["StridedBatched"]:
+      kStr += self.endLine
+      kStr += "  unsigned int wg = " + self.getGroupIdStr + "(2);" + self.endLine
+      if not kernel["_GlobalAccumulation"]:
+        kStr += "  DEST_DATA_TYPE      * D = BatchD[wg];" + self.endLine
+        kStr += "  DEST_DATA_TYPE const* C = BatchC[wg];" + self.endLine
+      kStr += "  DATA_TYPE      const* A = BatchA[wg];" + self.endLine
+      kStr += "  DATA_TYPE      const* B = BatchB[wg];" + self.endLine
 
     ####################################
     # apply offset
@@ -1289,6 +1304,7 @@ class KernelWriterSource(KernelWriter):
           index2 = nonTileFreeIndices[j]
           kStr += " / size" + self.indexChars[index2]
         kStr += " ) % size" + self.indexChars[index] + ";" + self.endLine
+
     return kStr
 
   ##############################################################################
@@ -1487,7 +1503,10 @@ class KernelWriterSource(KernelWriter):
                           (sPara if tP["tlu"] else sPerp) )
                   else:
                     # just a non-vector group index
-                    kStr += "wg" + self.indexChars[index]
+                    if kernel["ProblemType"]["StridedBatched"]:
+                      kStr += "wg" + self.indexChars[index]
+                    else:
+                      kStr += "0"
               else: # summation index
                 if index == kernel["ProblemType"]["IndexUnroll"]:
                   kStr += "(globalReadOffset%s%s_%u_%u)" \
@@ -1537,6 +1556,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def graAddresses(self, kernel, tP):
     kStr = ""
+
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
@@ -2953,17 +2973,18 @@ class KernelWriterSource(KernelWriter):
             % (self.indexChars[index1], self.tileChar1, self.tileChar0, self.endLine)
 
     for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
-        kStr += "  unsigned int globalC%s = " % self.indexChars[i]
-        if i == index0 and len(kernel["PackedC0IndicesX"])==1:
-          kStr += "flattenedGlobalC0;"
-        elif i == index1 and len(kernel["PackedC1IndicesX"])==1:
-          kStr += "flattenedGlobalC1;"
-        elif isPackedIndex(kernel,i):
-          kStr += "0; // will be set below"
-        else:
-          #kStr += "printf(\"pre: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalC1J:%%u\\n\", serial, wg0I, wg1J, globalC0I, globalC1J);%s" % (self.endLine)
-          kStr += "(wg%s);" % (self.indexChars[i])
-        kStr += "%s" % self.endLine
+      kStr += "  unsigned int globalC%s = " % self.indexChars[i]
+      if i == index0 and len(kernel["PackedC0IndicesX"]) == 1:
+        kStr += "flattenedGlobalC0;"
+      elif i == index1 and len(kernel["PackedC1IndicesX"]) == 1:
+        kStr += "flattenedGlobalC1;"
+      elif isPackedIndex(kernel,i):
+        kStr += "0; // will be set below"
+      elif kernel["ProblemType"]["StridedBatched"] or kernel["_GlobalAccumulation"]:
+        kStr += "(wg%s);" % (self.indexChars[i])
+      else:
+        kStr += "0;"
+      kStr += "%s" % self.endLine
 
     if kernel["_GlobalAccumulation"] == 'MultipleBuffer':
       indexChar = self.indexChars[0]

@@ -59,7 +59,7 @@ class BoundIndex:
 
 class ProblemType:
     StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType',
-                 'useBeta', 'highPrecisionAccumulate', 'useInitialStridesAB', 'useInitialStridesCD']
+                 'useBeta', 'highPrecisionAccumulate', 'useInitialStridesAB', 'useInitialStridesCD', 'stridedBatched']
     @classmethod
     def FromOriginalState(cls, d):
         indices = [None]*d['TotalIndices']
@@ -136,6 +136,10 @@ class ProblemType:
         rv.useInitialStridesCD = False
         if 'UseInitialStridesCD' in d:
             rv.useInitialStridesCD = d['UseInitialStridesCD']
+
+        rv.stridedBatched = True
+        if 'StridedBatched' in d:
+          rv.stridedBatched = d['StridedBatched']
 
         rv.setConstStrideA = []
         if 'SetConstStrideA' in d:
@@ -235,6 +239,7 @@ class ProblemType:
             predicates.append(ProblemPredicate("OperationIdentifierEqual", value=self.operationIdentifier))
             if not self.useBeta:
                 predicates.append(ProblemPredicate("BetaZero"))
+            predicates.append(ProblemPredicate("StridedBatched", value=self.stridedBatched))
 
         if includeType:
             predicates.append(ProblemPredicate("TypesEqual", value=(self.aType, self.bType, self.cType, self.dType)))

@@ -441,8 +441,11 @@ namespace Tensile
             size_t m_bMaxElements;
             size_t m_cMaxElements;
             size_t m_dMaxElements;
+            size_t m_maxBatch;
 
             size_t m_workspaceSize;
+
+            bool m_stridedBatched;
 
             bool m_cEqualsD;
             bool m_convolutionVsContraction;

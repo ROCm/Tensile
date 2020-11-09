@@ -1156,6 +1156,11 @@ class ProblemType(collections.abc.Mapping):
     if self["HighPrecisionAccumulate"] and not self["SilentHighPrecisionAccumulate"]: name += "H"
     if self["UseInitialStridesAB"]: name += "I"
     if self["UseInitialStridesCD"]: name += "Ic"
+
+    # precision and other
+    # name += "_SB" if self["StridedBatched"] else "_GB"
+    name += "" if self["StridedBatched"] else "_GB" # legacy
+
     return name
 
   def keys(self):
@@ -1833,6 +1838,12 @@ class Solution:
     if "Valid" not in state:
       state["Valid"] = True
 
+    if (not state["ProblemType"]["StridedBatched"]) and (not state["ProblemType"]['Batched']):
+      reject(state, "General Batched GEMM only support Batched Problem")
+
+    if (not state["ProblemType"]["StridedBatched"]) and (state["ProblemType"]["OperationType"] != 'GEMM'):
+      reject(state, "General Batched GEMM only support GEMM OperationType")
+
     EnableMatrixInstruction = state["EnableMatrixInstruction"] if "EnableMatrixInstruction" in state else None
     if EnableMatrixInstruction == None:
       if  ("MIBlock" in state and len(state["MIBlock"]) == 6) \
@@ -2349,9 +2360,8 @@ class Solution:
     dataType = state["ProblemType"]["DataType"]
     state["_GlobalAccumulation"] = None
     if ((dataType.isBFloat16() or dataType.isHalf())
-        and state["ProblemType"]["HighPrecisionAccumulate"] \
-        and state["GlobalSplitU"] > 1 \
-        and (state["EnableMatrixInstruction"] or state["KernelLanguage"] == "Source")):
+        and state["ProblemType"]["HighPrecisionAccumulate"]
+        and state["GlobalSplitU"] > 1):
       if state["GlobalSplitUAlgorithm"] == "SingleBuffer":
         state["_GlobalAccumulation"] = 'SingleBuffer'
       if state["GlobalSplitUAlgorithm"] == "MultipleBuffer":
@@ -2447,9 +2457,11 @@ class Solution:
 
     # avoid bug somehow related to GlobalSplitU + Persistent
     # avoid bug related to WGM<0
+    # General Batch doesn't support PersistentKernel
     if state["PersistentKernel"] and (\
             (state["KernelLanguage"] == "Assembly" and state["GlobalSplitU"] != 1) or \
-            (state["KernelLanguage"] == "Assembly" and state["WorkGroupMapping"] < 0) ):
+            (state["KernelLanguage"] == "Assembly" and state["WorkGroupMapping"] < 0) or \
+            (not state["ProblemType"]["StridedBatched"])):
       state["PersistentKernel"] = 0
 
     if state["PersistentKernelAlongBatch"] and (\

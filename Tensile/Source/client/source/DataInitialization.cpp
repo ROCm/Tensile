@@ -329,6 +329,8 @@ namespace Tensile
             , m_bMaxElements(0)
             , m_cMaxElements(0)
             , m_dMaxElements(0)
+            , m_maxBatch(0)
+            , m_stridedBatched(args["strided-batched"].as<bool>())
             , m_cEqualsD(args["c-equal-d"].as<bool>())
             , m_elementsToValidate(args["num-elements-to-validate"].as<int>())
             , m_keepPristineCopyOnGPU(args["pristine-on-gpu"].as<bool>())
@@ -354,6 +356,11 @@ namespace Tensile
                 m_bMaxElements = std::max(m_bMaxElements, problem.b().totalAllocatedElements());
                 m_cMaxElements = std::max(m_cMaxElements, problem.c().totalAllocatedElements());
                 m_dMaxElements = std::max(m_dMaxElements, problem.d().totalAllocatedElements());
+
+                size_t numOfBatch = 1;
+                for(size_t i = 0; i < problem.batchIndices().size(); i++)
+                    numOfBatch *= problem.batchSize(i);
+                m_maxBatch = std::max(m_maxBatch, numOfBatch);
             }
 
             m_aMaxElements += m_aBufferOffset;

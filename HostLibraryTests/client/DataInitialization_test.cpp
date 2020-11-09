@@ -99,6 +99,7 @@ public:
         args.insert({"offset-b", val((size_t)0, false)});
         args.insert({"offset-c", val((size_t)0, false)});
         args.insert({"offset-d", val((size_t)0, false)});
+        args.insert({"strided-batched", val(false, false)});
 
         TensorDescriptor a(TypeInfo<typename TypedInputs::AType>::Enum, {10, 10, 1});
         TensorDescriptor b(TypeInfo<typename TypedInputs::BType>::Enum, {10, 10, 1});

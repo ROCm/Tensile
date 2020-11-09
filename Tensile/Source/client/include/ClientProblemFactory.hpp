@@ -76,6 +76,7 @@ namespace Tensile
             DataType       m_dType;
             DataType       m_alphaType;
             DataType       m_betaType;
+            bool           m_stridedBatched;
             bool           m_highPrecisionAccumulate;
             bool           m_deterministicMode;
             ArithmeticUnit m_arithmeticUnit;

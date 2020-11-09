@@ -37,10 +37,12 @@ class KernelWriterConversion(KernelWriterBase):
 
     # pointers
     ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-    kStr += "  " + ptrStr + " * D," + self.endLine
+    ptrStr += '' if self.state["ProblemType"]["StridedBatched"] else '*'
+    bStr = '' if self.state["ProblemType"]["StridedBatched"] else 'Batch'
+
+    kStr += "  " + ptrStr + " * " + bStr + "D," + self.endLine
     kStr += "  " + "float * W," + self.endLine
-    ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-    kStr += "  " + ptrStr + " const *C," + self.endLine
+    kStr += "  " + ptrStr + " const * " + bStr + "C," + self.endLine
 
     # alpha & beta
     kStr += "  %s const alpha,%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine)
@@ -149,6 +151,28 @@ class KernelWriterConversion(KernelWriterBase):
       kStr += "  id%d = id %% size%s;%s" % (i, self.indexChars[i], self.endLine)
       kStr += "  id  = id / size%s;%s" % (self.indexChars[i], self.endLine)
 
+    nonTileFreeIndices = []
+
+    ########################################
+    # apply batch
+    if not self.state["ProblemType"]["StridedBatched"]:
+      nonTileFreeIndices = list(range(0, self.state["ProblemType"]["NumIndicesC"]))
+      nonTileFreeIndices.remove(self.state["ProblemType"]["Index0"])
+      nonTileFreeIndices.remove(self.state["ProblemType"]["Index1"])
+
+      kStr += self.endLine
+      kStr += "  uint64_t wg = 0"
+      batchStride = "1"
+      for i in nonTileFreeIndices:
+        kStr += " + id%d * %s " % (i, batchStride)
+        batchStride += " * size%s" % self.indexChars[i]
+      kStr += ";" + self.endLine
+
+      ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
+      kStr += "  " + ptrStr + " * D = BatchD[wg];" + self.endLine
+      ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
+      kStr += "  " + ptrStr + " const* C = BatchC[wg];" + self.endLine
+
     ########################################
     # apply offset
     kStr += self.endLine
@@ -159,17 +183,23 @@ class KernelWriterConversion(KernelWriterBase):
     # D index
     kStr += self.endLine
     kStr += "  %s idxD = GLOBAL_D( (%s)" % (self.uint64Str, self.uint64Str)
-    kStr += ', '.join(["id%d" % i for i in range(problemType["NumIndicesC"])])
+    for i in range(problemType["NumIndicesC"]):
+      kStr += ', ' if i else ''
+      kStr += '0'  if i in nonTileFreeIndices else ('id%d' % i)
     kStr += ");%s" % (self.endLine)
 
     # W index
     kStr += "  %s idxW = GLOBAL_W( (%s)" % (self.uint64Str, self.uint64Str)
-    kStr += ', '.join(["id%d" % i for i in range(problemType["NumIndicesC"])])
+    for i in range(problemType["NumIndicesC"]):
+      kStr += ', ' if i else ''
+      kStr += 'id%d' % i
     kStr += ");%s" % (self.endLine)
 
     # D index
     kStr += "  %s idxC = GLOBAL_C( (%s)" % (self.uint64Str, self.uint64Str)
-    kStr += ', '.join(["id%d" % i for i in range(problemType["NumIndicesC"])])
+    for i in range(problemType["NumIndicesC"]):
+      kStr += ', ' if i else ''
+      kStr += '0'  if i in nonTileFreeIndices else ('id%d' % i)
     kStr += ");%s" % (self.endLine)
 
     ########################################
@@ -219,6 +249,7 @@ class KernelWriterConversion(KernelWriterBase):
       name += indexChars[i].lower()
     name += "_"
     name += self.state["ProblemType"]["DestDataType"].toChar()
+    name += "" if self.state["ProblemType"]["StridedBatched"] else "_GB"
     name += "_PostGSU"
 
     return name
