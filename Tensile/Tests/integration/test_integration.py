@@ -56,9 +56,9 @@ class ProblemSizesMock:
     problems = [probSolPair[0] for probSolPair in exactLogic]
     self.problems = [Problem(prob) for prob in problems]
 
-@pytest.mark.parametrize("mergeFiles",        [False, True])
-@pytest.mark.parametrize("legacyComponents",  [False, True])
-@pytest.mark.parametrize("libraryFormat",     ["yaml", pytest.param("msgpack", marks=pytest.mark.xfail)])
+@pytest.mark.parametrize("mergeFiles",        [True])
+@pytest.mark.parametrize("legacyComponents",  [False])
+@pytest.mark.parametrize("libraryFormat",     ["yaml"])
 @pytest.mark.parametrize("testYamls",         ["quick", "pre_checkin"])
 def test_integration(useGlobalParameters, builddir, testYamls, mergeFiles, libraryFormat, legacyComponents):
   if testYamls == "pre_checkin":
