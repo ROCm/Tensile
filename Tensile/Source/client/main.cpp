@@ -102,13 +102,13 @@ namespace Tensile
                 ("batch",                    value_default<ContractionProblem::BatchIndices>("[]"), "Batch index. Order: a,b,c,d")
                 ("bound",                    value_default<ContractionProblem::BoundIndices>("[]"), "Bound/summation index. Order: a,b")
 
-                ("type",                     po::value<DataType>()->default_value(DataType::Count), "Data type")
-                ("a-type",                   po::value<DataType>()->default_value(DataType::Count), "A data type")
-                ("b-type",                   po::value<DataType>()->default_value(DataType::Count), "B data type")
-                ("c-type",                   po::value<DataType>()->default_value(DataType::Count), "C data type")
-                ("d-type",                   po::value<DataType>()->default_value(DataType::Count), "D data type")
-                ("alpha-type",               po::value<DataType>()->default_value(DataType::Count), "alpha data type")
-                ("beta-type",                po::value<DataType>()->default_value(DataType::Count), "beta data type")
+                ("type",                     po::value<DataType>()->default_value(DataType::None), "Data type")
+                ("a-type",                   po::value<DataType>()->default_value(DataType::None), "A data type")
+                ("b-type",                   po::value<DataType>()->default_value(DataType::None), "B data type")
+                ("c-type",                   po::value<DataType>()->default_value(DataType::None), "C data type")
+                ("d-type",                   po::value<DataType>()->default_value(DataType::None), "D data type")
+                ("alpha-type",               po::value<DataType>()->default_value(DataType::None), "alpha data type")
+                ("beta-type",                po::value<DataType>()->default_value(DataType::None), "beta data type")
                 ("high-precision-accumulate", po::value<bool>()->default_value(false), "Use high-precision accumulate.")
                 ("kernel-language",          po::value<KernelLanguage>()->default_value(KernelLanguage::Any), "Select kernel language.")
                 ("deterministic-mode",       po::value<bool>()->default_value(false), "Enforce deterministic summation patterns"
@@ -127,8 +127,11 @@ namespace Tensile
                 ("print-valids",             po::value<bool>()->default_value(false), "Print values that pass validation")
                 ("print-max",                po::value<int>()->default_value(-1), "Max number of values to print")
                 ("num-elements-to-validate", po::value<int>()->default_value(0), "Number of elements to validate")
-                ("bounds-check", po::value<bool>()->default_value(false),
-                "Use sentinel values to check memory boundaries.")
+                ("bounds-check",             po::value<BoundsCheckMode>()->default_value(BoundsCheckMode::Disable),
+                "1:Use sentinel values to check memory boundaries."
+                "2:Memory bound check by front guard page"
+                "3:Memory bound check by back guard page"
+                "4:Memory bound check by both side guard page")
 
                 ("print-tensor-a",           po::value<bool>()->default_value(false), "Print tensor A.")
                 ("print-tensor-b",           po::value<bool>()->default_value(false), "Print tensor B.")
@@ -210,6 +213,7 @@ namespace Tensile
                 ("log-level",                po::value<LogLevel>()->default_value(LogLevel::Debug),                "Log level")
                 ("exit-on-failure",          po::value<bool>()->default_value(false), "Exit run early on failed kernels.")
                 ("selection-only",           po::value<bool>()->default_value(false), "Don't run any solutions, only print kernel selections.")
+                ("max-workspace-size",       po::value<size_t>()->default_value(32*1024*1024), "Max workspace for training")
                 ;
             // clang-format on
 
@@ -456,8 +460,10 @@ int main(int argc, const char* argv[])
         lastSolutionIdx = firstSolutionIdx + numSolutions - 1;
     }
 
+    size_t maxWorkspaceSizeLimit = args["max-workspace-size"].as<size_t>();
     size_t maxWorkspaceSize
         = getMaxWorkspace(library, hardware, args, problems, firstProblemIdx, lastProblemIdx);
+    maxWorkspaceSize = std::min(maxWorkspaceSize, maxWorkspaceSizeLimit);
 
     auto dataInit = DataInitialization::Get(args, problemFactory, maxWorkspaceSize);
 
@@ -465,6 +471,7 @@ int main(int argc, const char* argv[])
 
     MetaRunListener listeners;
 
+    listeners.addListener(dataInit);
     listeners.addListener(solutionIterator);
     listeners.addListener(std::make_shared<ProgressListener>(args));
     if(runKernels)

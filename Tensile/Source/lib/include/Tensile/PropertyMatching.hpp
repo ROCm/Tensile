@@ -73,7 +73,8 @@ namespace Tensile
 
             virtual ~MatchingTable() = default;
 
-            virtual ReturnValue findBestMatch(Object const& object, Transform transform) const = 0;
+            virtual std::tuple<ReturnValue, double> findBestMatch(Object const& object,
+                                                                  Transform transform) const = 0;
 
             virtual std::vector<Value> matchesInOrder(Object const& object) const = 0;
 
@@ -150,7 +151,8 @@ namespace Tensile
                 return Distance::Type();
             }
 
-            ReturnValue findBestKeyMatch(Key const& key, Transform transform) const
+            std::tuple<ReturnValue, double> findBestKeyMatch(Key const& key,
+                                                             Transform  transform) const
             {
                 const bool debug = Debug::Instance().printPropertyEvaluation();
                 const bool naive = Debug::Instance().naivePropertySearch();
@@ -172,10 +174,11 @@ namespace Tensile
             }
 
             template <bool T_Debug>
-            ReturnValue findBestKeyMatch_BinSearch(Key const& key, Transform transform) const
+            std::tuple<ReturnValue, double> findBestKeyMatch_BinSearch(Key const& key,
+                                                                       Transform  transform) const
             {
                 if(this->table.empty())
-                    return this->nullValue;
+                    return std::make_tuple(this->nullValue, std::numeric_limits<double>::max());
 
                 auto comp = [](Entry const& e, Key const& key) { return e.key < key; };
 
@@ -339,17 +342,18 @@ namespace Tensile
                     std::cout << "Considered " << considered << "% of entries." << std::endl;
                 }
 
-                return bestMatch;
+                return std::make_tuple(bestMatch, bestDistance);
             }
 
             template <bool T_Debug>
-            ReturnValue findBestKeyMatch_NaiveSearch(Key const& key, Transform transform) const
+            std::tuple<ReturnValue, double> findBestKeyMatch_NaiveSearch(Key const& key,
+                                                                         Transform  transform) const
             {
                 double bestDistance = std::numeric_limits<double>::max();
 
                 auto iter = this->table.begin();
                 if(iter == this->table.end())
-                    return this->nullValue;
+                    return std::make_tuple(this->nullValue, bestDistance);
 
                 ReturnValue bestMatch = transform(iter->value);
 
@@ -406,7 +410,7 @@ namespace Tensile
                     iter++;
                 }
 
-                return bestMatch;
+                return std::make_tuple(bestMatch, bestDistance);
             }
 
             std::vector<Value> keyMatchesInOrder(Key const& key) const
@@ -446,8 +450,8 @@ namespace Tensile
                 return myKey;
             }
 
-            virtual ReturnValue findBestMatch(Object const& object,
-                                              Transform     transform) const override
+            virtual std::tuple<ReturnValue, double>
+                findBestMatch(Object const& object, Transform transform) const override
             {
                 return findBestKeyMatch(keyForProblem(object), transform);
             }

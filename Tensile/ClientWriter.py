@@ -52,7 +52,7 @@ class ClientLogLevel(Enum):
   Terse = 1
   Verbose = 2
   Debug = 3
-  
+
 ################################################################################
 # Main
 ################################################################################
@@ -167,7 +167,7 @@ def runNewClient(scriptPath, clientParametersPath, clientBuildDir=None):
 
 
 def runClient(libraryLogicPath, forBenchmark, enableTileSelection):
-  
+
   # write runScript
   pushWorkingPath("build")
   path = globalParameters["WorkingPath"]
@@ -496,9 +496,16 @@ def problemSizeParams(problemType, problem):
         else:
             bstrides[index.b] = sc[1]
 
+    if problem.stridesC:
+      cstrides = list(problem.stridesC)
+    else:
+      cstrides = [-1] * problemType.cDims
 
-    cstrides = problem.stridesC
-    dstrides = problem.stridesD
+    if problem.stridesD:
+      dstrides = list(problem.stridesD)
+    else:
+      dstrides = [-1] * problemType.dDims
+
     if len(problem.sizes) == numIndices:
         None
     elif len(problem.sizes) == numIndices + 4:
@@ -516,8 +523,12 @@ def problemSizeParams(problemType, problem):
           raise RuntimeError("problem-specified ldb(%u) conflicts with setConstStrideB(%u)" % \
               (bstrides[1], problem.sizes[numIndices+3]))
 
-        cstrides = (-1, problem.sizes[numIndices+1])
-        dstrides = (-1, problem.sizes[numIndices+0])
+        if cstrides[1] == -1:
+          cstrides[1] = problem.sizes[numIndices+1]
+
+        if dstrides[1] == -1:
+          dstrides[1] = problem.sizes[numIndices+0]
+
     else:
         raise RuntimeError(
             "Invalid number of problem type indices: {0} - Indices: {1}, problemSize: {2}".format(len(problem.sizes), numIndices,
@@ -561,6 +572,12 @@ def dataInitParams(problemType):
             ('init-alpha', DataInitName(initAlpha).name),
             ('init-beta',  DataInitName(initBeta).name)]
 
+def boundsCheckName(mode):
+    if mode == 0: return 'Disable'
+    if mode == 1: return 'NaN'
+    if mode == 2: return 'GuardPageFront'
+    if mode == 3: return 'GuardPageBack'
+    if mode == 4: return 'GuardPageAll'
 
 def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, resultsFileName, parametersFilePath):
 
@@ -592,7 +609,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param('high-precision-accumulate',  problemType.highPrecisionAccumulate)
 
         for problem in problemSizes.problems:
-            for key,value in problemSizeParams(problemType, problem): 
+            for key,value in problemSizeParams(problemType, problem):
                 param(key,value)
 
         param("device-idx",               globalParameters["Device"])
@@ -613,9 +630,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         if globalParameters["PrintTensorRef"]:
           param("print-tensor-ref",         1)
 
-        if globalParameters["BoundsCheck"]:
-          param("bounds-check", 1)
-
+        param("bounds-check",             boundsCheckName(int(globalParameters["BoundsCheck"])))
         param("print-valids",             globalParameters["ValidationPrintValids"])
         param("print-max",                globalParameters["ValidationMaxToPrint"])
         param("num-benchmarks",           globalParameters["NumBenchmarks"])
@@ -637,6 +652,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param("csv-export-extra-cols",    globalParameters["CSVExportWinner"])
         param("csv-merge-same-problems",  globalParameters["CSVMergeSameProblemID"])
         param("log-level",                ClientLogLevel(globalParameters["ClientLogLevel"]).name)
+        param("max-workspace-size",       globalParameters["MaxWorkspaceSize"])
 
 def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection = False):
     if tileAwareSelection:
@@ -659,13 +675,13 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
     newSolution = next(iter(newLibrary.solutions.values()))
     sourceDir = os.path.join(stepBaseDir, "source")
     writeClientConfigIni(problemSizes, newSolution.problemType, sourceDir, codeObjectFiles, resultsFileName, filename)
-   
+
 def CreateBenchmarkClientParametersForSizes(libraryRootPath, problemSizes, dataFilePath, configFile):
 
     libraryPath = os.path.join(libraryRootPath, "library")
-    libraryFiles = [os.path.join(libraryPath, f) for f in os.listdir(libraryPath)] 
-    codeObjectFiles = [f for f in libraryFiles if f.endswith("co")] 
-  
+    libraryFiles = [os.path.join(libraryPath, f) for f in os.listdir(libraryPath)]
+    codeObjectFiles = [f for f in libraryFiles if f.endswith("co")]
+
     metaDataFilePath = os.path.join(libraryPath, "metadata.yaml")
 
     if not os.path.exists(metaDataFilePath):
@@ -673,7 +689,7 @@ def CreateBenchmarkClientParametersForSizes(libraryRootPath, problemSizes, dataF
     metaData = LibraryIO.readConfig(metaDataFilePath)
     problemTypeDict = metaData["ProblemType"]
     problemType = ContractionsProblemType.FromOriginalState(problemTypeDict)
-  
+
     writeClientConfigIni(problemSizes, problemType, libraryRootPath, codeObjectFiles, dataFilePath, configFile)
 
 
@@ -1304,7 +1320,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
   if forBenchmark:
     problemType = solutions[0]["ProblemType"]
     h += "/* generated call to solution */\n"
-    h += "template<typename DataType, class SolutionInfoType>\n"
+    h += "template<typename ComputeDataType, class SolutionInfoType>\n"
     h += "TensileStatus generatedCallToSolution(\n"
     h += "    const SolutionInfoType &solution,\n"
     h += "    SolutionLock *solutionLock,\n"
@@ -1318,8 +1334,8 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     h += "    const unsigned int stride_b,\n"
     h += "    const unsigned int stride_c,\n"
     h += "    const unsigned int stride_d,\n"
-    h += "    DataType alpha,\n"
-    h += "    DataType beta,\n"
+    h += "    ComputeDataType alpha,\n"
+    h += "    ComputeDataType beta,\n"
     h += "    unsigned int numEvents = 0,\n"
     if globalParameters["RuntimeLanguage"] == "OCL":
       h += "    cl_event *event_wait_list = NULL,\n"

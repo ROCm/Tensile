@@ -79,7 +79,7 @@ public:
         return rv;
     }
 
-    void RunDataContaminationTest(bool cEqualD, bool pristineGPU, bool boundsCheck)
+    void RunDataContaminationTest(bool cEqualD, bool pristineGPU, BoundsCheckMode boundsCheck)
     {
         using val = po::variable_value;
 
@@ -146,7 +146,7 @@ public:
 using InputTypes = ::testing::Types<TypedContractionInputs<float>,
                                     TypedContractionInputs<double>,
                                     TypedContractionInputs<Half>,
-                                    BFloat16ContractionInputs,
+                                    ContractionInputs_B_B_S,
                                     TypedContractionInputs<std::complex<float>>,
                                     TypedContractionInputs<std::complex<double>>,
                                     TypedContractionInputs<Int8x4, Int8x4, int32_t>,
@@ -161,42 +161,42 @@ TYPED_TEST_SUITE(DataInitializationTest, InputTypes);
 
 TYPED_TEST(DataInitializationTest, Contamination_false_false_false)
 {
-    this->RunDataContaminationTest(false, false, false);
+    this->RunDataContaminationTest(false, false, BoundsCheckMode::Disable);
 }
 
 TYPED_TEST(DataInitializationTest, Contamination_false_true_false)
 {
-    this->RunDataContaminationTest(false, true, false);
+    this->RunDataContaminationTest(false, true, BoundsCheckMode::Disable);
 }
 
 TYPED_TEST(DataInitializationTest, Contamination_true_false_false)
 {
-    this->RunDataContaminationTest(true, false, false);
+    this->RunDataContaminationTest(true, false, BoundsCheckMode::Disable);
 }
 
 TYPED_TEST(DataInitializationTest, Contamination_true_true_false)
 {
-    this->RunDataContaminationTest(true, true, false);
+    this->RunDataContaminationTest(true, true, BoundsCheckMode::Disable);
 }
 
 TYPED_TEST(DataInitializationTest, Contamination_false_false_true)
 {
-    this->RunDataContaminationTest(false, false, true);
+    this->RunDataContaminationTest(false, false, BoundsCheckMode::NaN);
 }
 
 TYPED_TEST(DataInitializationTest, Contamination_false_true_true)
 {
-    this->RunDataContaminationTest(false, true, true);
+    this->RunDataContaminationTest(false, true, BoundsCheckMode::NaN);
 }
 
 TYPED_TEST(DataInitializationTest, Contamination_true_false_true)
 {
-    this->RunDataContaminationTest(true, false, true);
+    this->RunDataContaminationTest(true, false, BoundsCheckMode::NaN);
 }
 
 TYPED_TEST(DataInitializationTest, Contamination_true_true_true)
 {
-    this->RunDataContaminationTest(true, true, true);
+    this->RunDataContaminationTest(true, true, BoundsCheckMode::NaN);
 }
 
 template <typename T>

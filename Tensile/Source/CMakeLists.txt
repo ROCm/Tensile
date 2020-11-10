@@ -22,7 +22,7 @@
 cmake_minimum_required(VERSION 3.5)
 
 # Override all paths arguments as they do not work properly
-list(APPEND CMAKE_PREFIX_PATH /opt/rocm)
+list(APPEND CMAKE_PREFIX_PATH $ENV{ROCM_PATH} /opt/rocm)
 
 option(TENSILE_NEW_CLIENT "Build the new client" ON)
 
@@ -47,7 +47,7 @@ if(TENSILE_NEW_CLIENT)
     endif()
 
     if(CMAKE_CXX_COMPILER STREQUAL "hipcc")
-      set(TENSILE_GPU_ARCHS gfx803 gfx900 gfx906 gfx908 gfx1010 CACHE STRING "GPU architectures")
+      set(TENSILE_GPU_ARCHS gfx803 gfx900 gfx906:xnack- gfx908:xnack- gfx1010 CACHE STRING "GPU architectures")
     else()
       set(TENSILE_GPU_ARCHS gfx803 gfx900 gfx906 gfx908 CACHE STRING "GPU architectures")
     endif()
@@ -57,7 +57,7 @@ if(TENSILE_NEW_CLIENT)
                            "TENSILE_USE_HIP;TENSILE_USE_LLVM" OFF)
 
     if(TENSILE_USE_HIP)
-        find_package(HIP REQUIRED CONFIG PATHS /opt/rocm)
+        find_package(HIP REQUIRED CONFIG PATHS $ENV{ROCM_PATH} /opt/rocm)
     endif()
 
     if(TENSILE_USE_OPENMP)
@@ -114,7 +114,7 @@ else()
     set_property( CACHE Tensile_CODE_OBJECT_VERSION PROPERTY STRINGS V2 V3)
     set_property( CACHE Tensile_COMPILER PROPERTY STRINGS hcc hipcc)
     set(Tensile_ARCHITECTURE all CACHE STRING "Which GPU architecture to use")
-    set_property( CACHE Tensile_ARCHITECTURE PROPERTY STRINGS all gfx000 gfx900 gfx906 gfx908)
+    set_property( CACHE Tensile_ARCHITECTURE PROPERTY STRINGS all gfx000 gfx900 gfx906:xnack- gfx908:xnack-)
     set_property( CACHE Tensile_LIBRARY_FORMAT PROPERTY STRINGS yaml msgpack)
 
     message( STATUS "Tensile_CODE_OBJECT_VERSION from Tensile/Source/CMakeLists.txt: ${Tensile_CODE_OBJECT_VERSION}")
@@ -216,7 +216,7 @@ else()
         ${Tensile_RUNTIME_LANGUAGE}     # HIP or OCL
         ${Tensile_COMPILER}             # hcc or hipcc
         ${Tensile_CODE_OBJECT_VERSION}  # V2 or V3
-        ${Tensile_ARCHITECTURE}         # all, gfx000, gfx803, gfx900, gfx906, gfx908
+        ${Tensile_ARCHITECTURE}         # all, gfx000, gfx803, gfx900, gfx906:xnack-, gfx908:xnack-
         ${Tensile_LIBRARY_FORMAT}       # yaml or msgpack
         ${Tensile_MERGE_FILES}          # ON or OFF
         ${Tensile_SHORT_FILE_NAMES}     # ON or OFF

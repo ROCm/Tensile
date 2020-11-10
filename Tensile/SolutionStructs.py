@@ -50,6 +50,17 @@ def reject(state, *args):
     for a in args:
       print(a)
     #traceback.print_stack(None, 2)
+    solutionIndex = state["SolutionIndex"] if (state != None and "SolutionIndex" in state) else -1
+    if solutionIndex != -1:
+      # If we have valid solutionIndex, this means we are during TensileCreateLibrary stage
+      # In this stage, all solutions in the logic should be valid
+      # So if any rejection happens, print the warning for further check
+      # This will be done only when --global-parameters=PrintSolutionRejectionReason=True
+      solutionNameMin = state["SolutionNameMin"] if ("SolutionNameMin" in state) else None
+      # if we don't have SolutionNameMin, we simply use the problemTypeName
+      solutionNameMin = str(state["ProblemType"]) if (solutionNameMin == None) else solutionNameMin
+      print("!! Warning: Any rejection of a LibraryLogic is not expected, please check. \
+        SolutionIndex: %d (or SolutionName/ProblemType: %s)"%(solutionIndex, solutionNameMin))
   if state != None:
     state["Valid"] = False
 
@@ -814,7 +825,8 @@ class ProblemType(collections.abc.Mapping):
 
     self.convolution = None
     if self["OperationType"] == "GEMM":
-      self.initGEMM(config)
+      self.checkIfSupportedGEMMType()
+      self.initGEMM()
     elif self["OperationType"] == "TensorContraction":
       self.initTensorContraction(self.state)
     elif self["OperationType"] in ("ConvolutionForward", "ConvolutionBackwardData", "ConvolutionBackwardWeights"):
@@ -857,10 +869,110 @@ class ProblemType(collections.abc.Mapping):
           if anchorDim not in self.state["IndexAssignments%s"%tc]:
               printExit("SetConstStride%s=%s anchorDim=%u is not in IndexAssignments%s"%(tc, sc, anchorDim, tc))
 
+  ################################################################################
+  # Assign and check the 3-datatypes EXPLICTLY for better maintanence:
+  # Target: to avoid some hack-code/workaround/ambiguous code
+  #     - Such as fixing Cexternal to DestDataType instead of DataType,
+  #       but now it works well since they are the same
+  #     - Another exmple is the "ComputeDataType" is barely referred in generator
+  #       We use lots of if (DataType==... and HPA==...) which might be tedious
+  #       It's better to make them explict
+
+  # Align the supported GEMM type with rocBLAS: [a/b/c/d/alpha/beta]
+  #   (rocblas/library/include/internal/rocblas_functions.h)
+  # Non_Ex
+  #   - CGEMM:  [C/C/ C/C/ C/C]
+  #   - ZGEMM:  [Z/Z/ Z/Z/ Z/Z]
+  #   - DGEMM:  [D/D/ D/D/ D/D]
+  #   - SGEMM:  [S/S/ S/S/ S/S]
+  #   - HGEMM:  [H/H/ H/H/ H/H] (HPA=F)
+  # _Ex:
+  #   - HGEMM:  [H/H/ H/H/ H/H] (HPA=T), SEE MORE EXPLANATION BELOW
+  #   - HGEMM:  [H/H/ H/H/ S/S] (HPA=T), Somehow we hadn't used this version
+  #   - BFGEMM: [B/B/ B/B/ S/S] (HPA=T), the only supported one
+  #   - IGEMM:  [i8/i8/ I/I/ I/I ], tensile packs 4 i8 to i8x4 with some restrictions
+
+  # DataType        = Input data-type of A/B
+  # DestDataType    = Output data-type of C/D
+  # ComputeDataType = Input data-type of alpha/beta:
+  # Cinternal: basically should == ComputeDataType
+  #   - EXCEPT FOR (H/H/H/H/H/H)+HPA, Cinternal is F32, which is not intuitive
+
+  # But for HGEMM, ComputeDataType is trickier:
+  #   - When rocBLAS invokes with a/b=F16, c/d=F16, compute=F16,
+  #     rocBLAS directly find a well-mapped tensile-kernel
+  #     -> Tensile: [H/H/ H/H/ H/H] & HPA=FALSE is used
+  #        Input Alpha/Beta is Half
+  #
+  #   - When rocBLAS invokes with a/b=F16, c/d=F16, compute=F32,
+  #     rocBLAS turns on HPA, then casts to a compute-type=F16 ver of tensile-kernel
+  #     -> Tensile: [H/H/ H/H/ H/H] & HPA=TRUE is used
+  #        Input Alpha/Beta is still Half
+  #     Which seems not a intuitive mapping for alpha/beta
+  #
+  # Target: The better and consistent logic should be the same as BF16
+  #   - When rocBLAS invokes with a/b=F16, c/d=F16, compute=F32,
+  #     rocBLAS turns on HPA, BUT STILL REMAINS compute-type=F32
+  #     -> Tensile: [H/H/ H/H/ S/S] & HPA=TRUE is used
+  #        Input Alpha/Beta is Float
+  #     That's also how bf16 works
+
+  # Function checkIfSupportedGEMMType:
+  #   Assures 3 data-types are valid, supported and well-assigned
+  #   Next step TODO-
+  #     - We can start to try generating [H/H/ H/H/ S/S] & HPA
+  #       If Alpha/Beta=S, this also saves a few instrctions to cvt from f16->f32 in assembly
+  #     - Also need to do some change in rocBLAS:
+  #       When invoking gemm_ex with a/b=F16, c/d=F16, compute=F32,
+  #       simply reflects to Tensile [H/H/ H/H/ S/S] & HPA kernel
+  ################################################################################
+  def checkIfSupportedGEMMType(self):
+    inType = self["DataType"]
+    outType = self["DestDataType"]
+    computeType = self["ComputeDataType"]
+
+    if inType.isDouble():
+      if not (outType.isDouble() and computeType.isDouble()):
+        printExit("DataType=D only allows DestDataType=D and ComputeDataType=D")
+
+    if inType.isSingle():
+      if not (outType.isSingle() and computeType.isSingle()):
+        printExit("DataType=S only allows DestDataType=S and ComputeDataType=S")
+
+    if inType.isHalf():
+      # TODO- Test and migrate ([H/H/H]+HPA) to ([H/H/S]+HPA)
+      # Note that we need to do a little change in rocBLAS and logic yaml
+      if not ((outType.isHalf() and (computeType.isHalf() or computeType.isSingle())) or \
+              (outType.isSingle() and computeType.isSingle())):
+        printExit("DataType=H only allows (DestDataType=H and ComputeDataType=H/S) or (DestDataType=S and ComputeDataType=S")
+      # if not (outType.isHalf() and computeType.isHalf()):
+      #   printExit("DataType=H only allows DestDataType=H and ComputeDataType=H")
+
+    if inType.isBFloat16():
+      if not ((outType.isBFloat16() or outType.isSingle()) and  \
+              computeType.isSingle()) :
+        printExit("DataType=B only allows DestDataType=B/S  and ComputeDataType=S")
+
+    if inType.isDoubleComplex():
+      if not (outType.isDoubleComplex() and computeType.isDoubleComplex()):
+        printExit("DataType=Z only allows DestDataType=Z and ComputeDataType=Z")
+
+    if inType.isSingleComplex():
+      if not (outType.isSingleComplex() and computeType.isSingleComplex()):
+        printExit("DataType=C only allows DestDataType=C and ComputeDataType=C")
+
+    if inType.isInt8x4():
+      if not (outType.isInt32() and computeType.isInt32()):
+        printExit("DataType=i4x8 only allows DestDataType=I and ComputeDataType=I")
+
+    # TODO - WIP
+    # if inType.isInt8():
+    #   if not (outType.isInt32() and computeType.isInt32()):
+    #     printExit("DataType=i8 only allows DestDataType=I and ComputeDataType=I")
 
 
   ########################################
-  def initGEMM(self, config):
+  def initGEMM(self):
     sumIdx = 3 if self["Batched"] else 2
     self["IndexAssignmentsA"] = [0, sumIdx] # N
     self["IndexAssignmentsB"] = [sumIdx, 1] # N
@@ -1057,9 +1169,20 @@ class ProblemType(collections.abc.Mapping):
     if self["ComplexConjugateB"]:
       name += "C"
 
-    # precision and other
+    # DataTypes
     name += "_"
-    name += self["DataType"].toChar()
+    name += self["DataType"].toChar() # Type of A/B
+
+    # Special condition for HSS and BSS kernels, distinguish types due to Ti != To.
+    # _TiToTc_
+    # TODO: Distinguish all kernels by _TiToTc_ to be more consistent with rocblas
+    if (self["DataType"].isBFloat16() or self["DataType"].isHalf()) and \
+       (self["DestDataType"].isSingle() and self["ComputeDataType"].isSingle()):
+      name += self["DestDataType"].toChar()    # Type of C/D
+      name += self["ComputeDataType"].toChar() # Type of Alpha/Beta
+      name += "_"
+
+    # Other
     if self["UseBeta"]: name += "B"
     if self["HighPrecisionAccumulate"] and not self["SilentHighPrecisionAccumulate"]: name += "H"
     if self["UseInitialStridesAB"]: name += "I"
@@ -2292,6 +2415,7 @@ class Solution:
       state["InnerUnroll"] = state["DepthU"] // state["MatrixInstK"]
       state["PrefetchLocalRead"] = 1
       state["ExpandPointerSwap"] = 1
+      state["1LDSBuffer"] = 1
 
     if state["DisableVgprOverlapping"] is True and state["EnableMatrixInstruction"] is not True:
       reject(state, "Non-MI kernels are already non-overlapping in pre-allocated registers")
@@ -2310,7 +2434,7 @@ class Solution:
         reject(state, "invalid MIWaveTile")
       if not state["ProblemType"]["HighPrecisionAccumulate"] \
          and state["ProblemType"]["DataType"].numRegisters() < 1 :
-        reject(state, "Matrix instructions for half types are natively accumulated" + \
+        reject(state, "Matrix instructions for half, bf16 types are natively accumulated" + \
          " in fp32 precision. Please add the following config:" + \
          "\n - HighPrecisionAccumulate: True")
       if state["LdsBlockSizePerPadA"]:
@@ -2325,6 +2449,12 @@ class Solution:
         if state["LdsBlockSizePerPadB"] < state["DepthU"]*state["ProblemType"]["DataType"].numBytes():
           reject(state, "reject: DepthU %u x bpe > LdsBlockSizePerPadB %u" % (state["DepthU"], state["LdsBlockSizePerPad"]))
     else:
+      if not state["ProblemType"]["HighPrecisionAccumulate"] \
+         and state["ProblemType"]["ComputeDataType"].numRegisters() > state["ProblemType"]["DataType"].numRegisters() :
+        reject(state, "For non-MI Kernel, if sizeof(ComputeDataType) > sizeof(DataType), " + \
+         "Please add the following config:" + \
+         "\n - HighPrecisionAccumulate: True")
+
       if state["UnrollMajorLDSA"] or state["UnrollMajorLDSB"]:
         reject(state, "didn't support UnrollMajorLDS in VALU mode yet")
 
@@ -2454,10 +2584,20 @@ class Solution:
     #These modes only work under certain conditions, apply them here:
     #  - The "NoLoad" loop is only generated if PrefetchGlobalRead>0
     #  - And Suppress does not work if GSU>1 for some reason
-    state["SuppressNoLoadLoop"] &= (bufferLoad and state["PrefetchGlobalRead"] and (state["GlobalSplitU"]==1))
-    # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
-    # EPS not supported with PAP yet
-    state["ExpandPointerSwap"]  &= (bufferLoad and state["PrefetchGlobalRead"] and not state["PrefetchAcrossPersistent"])
+    if state["SuppressNoLoadLoop"] == 1:
+      if not (bufferLoad and state["PrefetchGlobalRead"] == 1 and (state["GlobalSplitU"]==1)):
+        state["SuppressNoLoadLoop"] = 0
+
+    if state["ExpandPointerSwap"] == 1:
+      # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
+      if not (bufferLoad and state["PrefetchGlobalRead"] == 1):
+        state["ExpandPointerSwap"] = 0
+      # EPS not supported with PGR=2 yet
+      if state["PrefetchGlobalRead"] == 2:
+        state["ExpandPointerSwap"] = 0
+      # EPS not supported with PAP yet
+      if state["PrefetchAcrossPersistent"]:
+        state["ExpandPointerSwap"] = 0
 
     #print("PackedC0IdxChars", state["PackedC0IdxChars"])
     #print("PackedC1IdxChars", state["PackedC1IdxChars"])
@@ -2925,7 +3065,7 @@ class Solution:
 
     # lds max occupancy
     ldsSizeOccupancy = globalParameters["DeviceLDS"] // state["MaxOccupancy"]
-    ldsNumElementsOccupancy = ldsSizeOccupancy // state["ProblemType"]["DataType"].numBytes()
+    ldsNumElementsOccupancy = ldsSizeOccupancy // state["ProblemType"]["DestDataType"].numBytes()
 
     #print("ldsNumElementsA", ldsNumElementsA)
     #print("ldsNumElementsB", ldsNumElementsB)
@@ -2935,8 +3075,7 @@ class Solution:
 
 
     if state["1LDSBuffer"] == -1:
-      if ldsNumElementsAB * state["ProblemType"]["DataType"].numBytes() > globalParameters["MaxLDS"] or \
-          state["ScheduleIterAlg"] == 2:
+      if ldsNumElementsAB * state["ProblemType"]["DataType"].numBytes() > globalParameters["MaxLDS"]:
         state["1LDSBuffer"] = 1
       else:
         state["1LDSBuffer"] = 0
@@ -2951,6 +3090,18 @@ class Solution:
 
     # lds size is the greater of the two
     ldsNumElements = max(ldsNumElementsAB, ldsNumElementsReduction, ldsNumElementsOccupancy)
+
+    if state["StoreRemapVectorWidth"] == -1:
+      ldsRemapPad = max(4,state["MIOutputVectorWidth"])
+      ldsNumElementsRemapC = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"] * state["MIWaveGroup"][1]
+      ldsNumElementsRemapC *= (2 if state["_GlobalAccumulation"] else 1) # FP32 output FP16 Data
+      ldsSize = ldsNumElementsRemapC * state["ProblemType"]["DataType"].numBytes()
+      if not math.log(state["MacroTile0"],2).is_integer() or \
+          ldsSize > globalParameters["MaxLDS"] or \
+          (state["GlobalSplitU"] > 1) and (state["_GlobalAccumulation"] != 2):
+        state["StoreRemapVectorWidth"] = 0
+      else:
+        state["StoreRemapVectorWidth"] = 4
 
     #check not support cases and calculate lds resources
     if state["StoreRemapVectorWidth"]:
@@ -2995,7 +3146,19 @@ class Solution:
         return
       ldsRemapPad = max(state["StoreRemapVectorWidth"],state["MIOutputVectorWidth"])
       ldsNumElementsRemapC = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"] * state["MIWaveGroup"][1]
-      ldsNumElementsRemapC *= (2 if state["_GlobalAccumulation"] else 1) # FP32 output FP16 Data
+
+      if state["_GlobalAccumulation"]:
+        # FP32 output FP16 Data
+        multiplier = 2
+      elif state["ProblemType"]["DestDataType"].numBytes() > state["ProblemType"]["DataType"].numBytes():
+        # Determine ratio of output to input element size.
+        # SRVW remaps output so we need to scale up resources.
+        multiplier = state["ProblemType"]["DestDataType"].numBytes() // state["ProblemType"]["DataType"].numBytes()
+      else:
+        multiplier = 1
+
+      ldsNumElementsRemapC *= multiplier
+
       #print("ldsNumElementsRemapC=%u" % ldsNumElementsRemapC)
       ldsNumElements = max(ldsNumElements, ldsNumElementsRemapC)
 
