@@ -23,7 +23,7 @@ def runCI =
     prj.timeout.test = 60
 
     def commonGroovy
-
+    commonGroovy = load "${project.paths.project_src_prefix}/.jenkins/common.groovy"
     def testCommand =
     {
         platform, project->
