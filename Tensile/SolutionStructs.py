@@ -596,7 +596,7 @@ class Convolution:
     # convert to Output dimensions:
     spatialOut=[0]*len(pcc.spatial)
     for i in range(self.formatNumSpatialDims):
-      spatialOut[i] = int((pcc.spatial[i] - pcc.fil[i] + 1 + pcc.padStart[i] + pcc.padEnd[i]) / pcc.stride[i])
+      spatialOut[i] = int((pcc.spatial[i] + pcc.padStart[i] + pcc.padEnd[i] - ((pcc.fil[i]-1) * pcc.dilation[i] + 1)) / pcc.stride[i]) + 1
 
     #print ("spatialOut=", spatialOut, "padStart=", pcc.padStart, "padEnd=", pcc.padEnd)
 
