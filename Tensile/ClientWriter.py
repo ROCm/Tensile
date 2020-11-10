@@ -23,7 +23,7 @@ from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print
 from . import ClientExecutable
 from . import Common
 from . import LibraryIO
-from .SolutionStructs import Problem, ProblemType, ProblemSizesMock
+from .SolutionStructs import ProblemType, ProblemSizesMock
 
 import os
 import subprocess

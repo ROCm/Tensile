@@ -1,6 +1,6 @@
 import os, subprocess, shlex, shutil, random, pytest
 from Tensile import ClientWriter, LibraryIO, Common
-from Tensile.SolutionStructs import ProblemType, Problem, ProblemSizesMock
+from Tensile.SolutionStructs import ProblemType, ProblemSizesMock
 
 # 1. Call TensileCreateLibrary
 # 2. Get client instance from ClientExecutable()
