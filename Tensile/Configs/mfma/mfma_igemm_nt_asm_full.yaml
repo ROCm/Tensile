@@ -82,6 +82,8 @@ BenchmarkProblems:
 
           - [32,32, 8, 1, 1, 1,1, 2,2]  # 64x64
           - [32,32, 8, 1, 1, 2,2, 2,2]  # 128x128
+
+          - [32,32, 8, 1, 1, 1,4, 4,2]  # 128x256
         - ThreadTile:
           - [ 4, 4 ]
         - WorkGroup:
@@ -92,10 +94,12 @@ BenchmarkProblems:
         - WaveSeparateGlobalReadA: [1] # priority 1
         - WaveSeparateGlobalReadB: [1]
         - TransposeLDS: [False]         # priority 2 (Done)
-        - StoreRemapVectorWidth: [0,4] # priority 3
-        - ScheduleIterAlg: [3]         # priority 4 --> SIA3
-        # - DirectToLds: [True]          # TBD
+        - StoreRemapVectorWidth: [0,4]  # priority 3
+        - ScheduleIterAlg: [3]          # priority 4 --> SIA3
         # - InnerUnroll: [2]             # TBD
+        - PersistentKernel: [-1,0]                  # priority 5 (Done)
+        - PersistentKernelAlongBatch: [False,True]  # priority 5 (Done)
+        - PrefetchAcrossPersistent: [False,True]    # priority 5 (Done)
       BenchmarkForkParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:

@@ -2483,11 +2483,13 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def preLoopLocalWriteDo(self, kernel, tPA, tPB):
     kStr = ""
+    LWCodeA, dummy = self.localWriteDo(kernel, tPA)
+    LWCodeB, dummy = self.localWriteDo(kernel, tPB)
     kStr += self.comment("local write a")
-    kStr += self.localWriteDo(kernel, tPA)
+    kStr += LWCodeA
     kStr += self.comment("local write b")
-    kStr += self.localWriteDo(kernel, tPB)
-    return kStr
+    kStr += LWCodeB
+    return kStr, dummy, dummy
 
   ##############################################################################
   # Replace the determined vmcnt in PreLoop LocalWrite
@@ -3248,4 +3250,3 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def MapAcctoArchRegs(self, kernel, option):
     return ""
-
