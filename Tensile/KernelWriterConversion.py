@@ -178,8 +178,13 @@ class KernelWriterConversion(KernelWriterBase):
     kStr += "    idxW  += strideW;%s" % self.endLine
     kStr += "  }%s" % self.endLine
 
+    kStr += "  if( beta == (%s)0)%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine)
+    kStr += "    accum = ((float)alpha) * accum;%s" % (self.endLine)
+    kStr += "  else%s" % self.endLine
+    kStr += "    accum = (((float)alpha) * accum + ((float)beta) * ((float)C[idxC]));%s" % (self.endLine)
+
     typeStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-    kStr += "  D[idxD] = (%s)(((float)alpha) * accum + ((float)beta) * ((float)C[idxC])); %s" % (typeStr, self.endLine)
+    kStr += "  D[idxD] = (%s)accum;%s" % (typeStr, self.endLine)
 
     ########################################
     # end
