@@ -23,7 +23,15 @@ def runCI =
     prj.timeout.test = 60
 
     def commonGroovy
-    commonGroovy = load "${project.paths.project_src_prefix}/.jenkins/common.groovy"
+
+    def compileCommand =
+    {
+        platform, project->
+
+        commonGroovy = load "${project.paths.project_src_prefix}/.jenkins/common.groovy"
+        // commonGroovy.runCompileCommand(platform, project, jobName, false)
+    }
+
     def testCommand =
     {
         platform, project->
@@ -33,7 +41,7 @@ def runCI =
         commonGroovy.runTestCommand(platform, project, jobName, test_marks, skipHostTest)
     }
 
-    buildProject(prj, formatCheck, nodes.dockerArray, null, testCommand, null)
+    buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, testCommand, null)
 
 }
 
