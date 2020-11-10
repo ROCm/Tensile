@@ -62,7 +62,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     junit "${project.paths.project_build_prefix}/python_unit_tests.xml"
 }
 
-def publishResults(project)
+def publishResults(project, boolean skipHostTest=false)
 {
     try
     {
@@ -72,7 +72,7 @@ def publishResults(project)
     {
         try
         {
-            junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
+            if (!skipHostTest) junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
         }
         finally
         {
@@ -135,14 +135,14 @@ def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest
     {
         try
         {
-            publishResults(project)
+            publishResults(project, skipHostTest)
         }
         catch(ee)
         {}
 
         throw e
     }
-    publishResults(project)
+    publishResults(project, skipHostTest)
 }
 
 return this
