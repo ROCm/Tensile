@@ -15,6 +15,7 @@ GlobalParameters:
   CpuThreads: 0
   NewClient: 2
 
+# 2sums, single zero-pad, with padding on the 'other' (non-unroll) summation dim
 BenchmarkProblems:
   -
     - # ProblemType
@@ -23,10 +24,10 @@ BenchmarkProblems:
       DestDataType: s
       UseBeta: False
       NumIndicesC: 2
-      IndexAssignmentsA: [ 0, 2 ]
-      IndexAssignmentsB: [ 2, 1 ]
-      ZeroPadA: [[0, 2,   2, 2]]
-      MirrorDimsA: [ 2 ]
+      IndexAssignmentsA: [ 0, 2, 3, 4 ]
+      IndexAssignmentsB: [ 4, 3, 2, 1 ]
+      ZeroPadA: [[0, 2,   -1, -1 ]]
+      MirrorDimsA: [ 4 ]
       UseInitialStridesAB: True
 
     - # BenchmarkProblemSizeGroup - Standard
@@ -51,6 +52,6 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: {sizes: [16,16,4], stridesA: [1,1,16] }
-          - Exact: {sizes: [16,16,16], stridesA: [1,1,16] }
-          - Exact: {sizes: [16,16,16], stridesA: [1,1,16] }
+          - Exact: {sizes: [16,16,1,1,4], stridesA: [1,1,16], padStartA: [1], padEndA: [2] }
+          - Exact: {sizes: [16,16,8,8,16], stridesA: [1,1,16], padStartA: [1], padEndA: [2] }
+          - Exact: {sizes: [16,16,4,4,16], stridesA: [1,1,16], padStartA: [1], padEndA: [2] }
