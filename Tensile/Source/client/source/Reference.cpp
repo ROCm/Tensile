@@ -24,6 +24,7 @@
 
 #include "Reference.hpp"
 #include "Tensile/Debug.hpp"
+#include "Tensile/Utils.hpp"
 
 #include <cstddef>
 
@@ -190,97 +191,92 @@ namespace Tensile
 
                 Accumulator value(0);
 
-                for(size_t boundNum = 0; boundNum < boundCount; boundNum++)
+                // Check short-circuit for alpha = 0
+                if(inputs.alpha != static_cast<typename Inputs::AlphaType>(0))
                 {
-                    std::vector<int64_t> bound(problem.boundIndices().size());
-                    CoordNumbered(boundNum,
-                                  bound.begin() + 1,
-                                  bound.end(),
-                                  boundSize.begin() + 1,
-                                  boundSize.end());
-                    bool aInZeroPad = false;
-                    bool bInZeroPad = false;
-
-                    for(int i = 1; i < bound.size(); i++)
+                    if(inputs.a == nullptr || inputs.b == nullptr)
                     {
-                        auto const& zpA           = problem.boundIndices()[i].aZeroPad;
-                        auto const& zpB           = problem.boundIndices()[i].bZeroPad;
-                        aCoord[boundIndices[i].a] = bound[i];
-                        bCoord[boundIndices[i].b] = bound[i];
+                        std::string matrixID = inputs.a == nullptr ? "A" : "B";
+                        std::string msg      = std::string("Unsupported nullptr for ") + matrixID
+                                          + std::string(" when Alpha !=0\n");
+                        throw std::runtime_error(msg.c_str());
+                    }
 
-                        if(problem.boundIndices()[i].aMirror)
-                            aCoord[boundIndices[i].a]
-                                = boundSize[i] - aCoord[boundIndices[i].a] - 1;
-                        if(problem.boundIndices()[i].bMirror)
-                            bCoord[boundIndices[i].b]
-                                = boundSize[i] - bCoord[boundIndices[i].b] - 1;
+                    for(size_t boundNum = 0; boundNum < boundCount; boundNum++)
+                    {
+                        std::vector<int64_t> bound(problem.boundIndices().size());
+                        CoordNumbered(boundNum,
+                                      bound.begin() + 1,
+                                      bound.end(),
+                                      boundSize.begin() + 1,
+                                      boundSize.end());
+                        bool aInZeroPad = false;
+                        bool bInZeroPad = false;
 
-                        if(zpA.valid())
+                        for(int i = 1; i < bound.size(); i++)
                         {
-                            auto sumCoordA
-                                = problem.boundIndices()[i].aMirror
-                                      ? (boundSize[i]
-                                         - bound.at(problem.toBoundsPos(zpA.boundIndex)) - 1)
-                                      : bound.at(problem.toBoundsPos(zpA.boundIndex));
-                            if(inZeroPad(problem, zpA, a, aCoord, sumCoordA))
+                            auto const& zpA           = problem.boundIndices()[i].aZeroPad;
+                            auto const& zpB           = problem.boundIndices()[i].bZeroPad;
+                            aCoord[boundIndices[i].a] = bound[i];
+                            bCoord[boundIndices[i].b] = bound[i];
+
+                            if(zpA.valid()
+                               && inZeroPad(problem,
+                                            zpA,
+                                            a,
+                                            aCoord,
+                                            bound.at(problem.toBoundsPos(zpA.boundIndex))))
                                 aInZeroPad = true;
-                        }
-                        if(zpB.valid())
-                        {
-                            auto sumCoordB
-                                = problem.boundIndices()[i].bMirror
-                                      ? (boundSize[i]
-                                         - bound.at(problem.toBoundsPos(zpB.boundIndex)) - 1)
-                                      : bound.at(problem.toBoundsPos(zpB.boundIndex));
-                            if(inZeroPad(problem, zpB, b, bCoord, sumCoordB))
+                            if(zpB.valid()
+                               && inZeroPad(problem,
+                                            zpB,
+                                            b,
+                                            bCoord,
+                                            bound.at(problem.toBoundsPos(zpB.boundIndex))))
                                 bInZeroPad = true;
                         }
-                    }
 
-                    size_t aIndex = a.index(aCoord);
-                    size_t bIndex = b.index(bCoord);
-                    for(int i = 1; i < bound.size(); i++)
-                    {
-                        auto const& zpA = problem.boundIndices()[i].aZeroPad;
-                        auto const& zpB = problem.boundIndices()[i].bZeroPad;
-
-                        aIndex -= zpA.padStart;
-                        bIndex -= zpB.padStart;
-                    }
-
-                    auto aStride = problem.a().strides()[boundIndices[0].a];
-                    auto bStride = problem.b().strides()[boundIndices[0].b];
-
-                    // innermost bound calculation:
-                    for(size_t i = 0; i < boundSize[0]; i++)
-                    {
-                        auto const& zpA = problem.boundIndices()[0].aZeroPad;
-                        auto const& zpB = problem.boundIndices()[0].bZeroPad;
-
-                        typename Inputs::AType aVal(0);
-                        typename Inputs::BType bVal(0);
-
-                        size_t aI = problem.boundIndices()[0].aMirror ? (boundSize[0] - i - 1) : i;
-                        size_t bI = problem.boundIndices()[0].bMirror ? (boundSize[0] - i - 1) : i;
-
-                        if(!aInZeroPad && !inZeroPad(problem, zpA, a, aCoord, aI))
-                            aVal = Transform<typename Inputs::AType>::Input(
-                                inputs.a[aIndex + (aI * aStride) - zpA.padStart], aConjugate);
-                        if(!bInZeroPad && !inZeroPad(problem, zpB, b, bCoord, bI))
-                            bVal = Transform<typename Inputs::BType>::Input(
-                                inputs.b[bIndex + (bI * bStride) - zpB.padStart], bConjugate);
-
-                        value += static_cast<Accumulator>(aVal * bVal);
-
-                        if(0)
+                        size_t aIndex = a.index(aCoord);
+                        size_t bIndex = b.index(bCoord);
+                        for(int i = 1; i < bound.size(); i++)
                         {
-                            std::cout << " bound=" << bound[0] << "," << bound[1]
-                                      << " dNum=" << dNum << " value=" << value
-                                      << " aInZeroPad=" << aInZeroPad << " aindex=" << aIndex
-                                      << " +offset="
-                                      << (int64_t)(aI * aStride) - zpA.padStart
-                                      //<< " aVal=" << aVal // disable int8
-                                      << "\n";
+                            auto const& zpA = problem.boundIndices()[i].aZeroPad;
+                            auto const& zpB = problem.boundIndices()[i].bZeroPad;
+
+                            aIndex -= zpA.padStart;
+                            bIndex -= zpB.padStart;
+                        }
+
+                        auto aStride = problem.a().strides()[boundIndices[0].a];
+                        auto bStride = problem.b().strides()[boundIndices[0].b];
+
+                        // innermost bound calculation:
+                        for(size_t i = 0; i < boundSize[0]; i++)
+                        {
+                            auto const& zpA = problem.boundIndices()[0].aZeroPad;
+                            auto const& zpB = problem.boundIndices()[0].bZeroPad;
+
+                            typename Inputs::AType aVal(0);
+                            typename Inputs::BType bVal(0);
+                            if(!aInZeroPad && !inZeroPad(problem, zpA, a, aCoord, i))
+                                aVal = Transform<typename Inputs::AType>::Input(
+                                    inputs.a[aIndex + (i * aStride) - zpA.padStart], aConjugate);
+                            if(!bInZeroPad && !inZeroPad(problem, zpB, b, bCoord, i))
+                                bVal = Transform<typename Inputs::BType>::Input(
+                                    inputs.b[bIndex + (i * bStride) - zpB.padStart], bConjugate);
+
+                            value += static_cast<Accumulator>(aVal * bVal);
+
+                            if(0)
+                            {
+                                std::cout << " bound=" << bound[0] << "," << bound[1]
+                                          << " dNum=" << dNum << " value=" << value
+                                          << " aInZeroPad=" << aInZeroPad << " aindex=" << aIndex
+                                          << " +offset="
+                                          << (int64_t)(i * aStride) - zpA.padStart
+                                          //<< " aVal=" << aVal // disable int8
+                                          << "\n";
+                            }
                         }
                     }
                 }
@@ -302,99 +298,113 @@ namespace Tensile
                       ContractionInputs const&  inputs,
                       size_t                    validationStride)
         {
-            if(problem.a().dataType() == DataType::Float
-               && problem.b().dataType() == DataType::Float
-               && problem.c().dataType() == DataType::Float
-               && problem.d().dataType() == DataType::Float)
+
+            auto alphaType = problem.a().dataType() == DataType::BFloat16 ? DataType::Float
+                                                                          : problem.d().dataType();
+            auto betaType  = alphaType;
+
+            auto contractionInputsTypeId = ContractionInputs::TypeId(problem.a().dataType(),
+                                                                     problem.b().dataType(),
+                                                                     problem.c().dataType(),
+                                                                     problem.d().dataType(),
+                                                                     alphaType,
+                                                                     betaType);
+
+            switch(contractionInputsTypeId)
             {
-                auto const& typedInputs
-                    = dynamic_cast<TypedContractionInputs<float> const&>(inputs);
-                return ReferenceSolution<TypedContractionInputs<float>>::SolveCPU(
+            case FloatContractionInputs::TypeId():
+            {
+                auto const& typedInputs = dynamic_cast<FloatContractionInputs const&>(inputs);
+                return ReferenceSolution<FloatContractionInputs>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
-            else if(problem.a().dataType() == DataType::Double
-                    && problem.b().dataType() == DataType::Double
-                    && problem.c().dataType() == DataType::Double
-                    && problem.d().dataType() == DataType::Double)
+            case DoubleContractionInputs::TypeId():
             {
-                auto const& typedInputs
-                    = dynamic_cast<TypedContractionInputs<double> const&>(inputs);
-                return ReferenceSolution<TypedContractionInputs<double>>::SolveCPU(
+                auto const& typedInputs = dynamic_cast<DoubleContractionInputs const&>(inputs);
+                return ReferenceSolution<DoubleContractionInputs>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
-            else if(problem.a().dataType() == DataType::ComplexFloat
-                    && problem.b().dataType() == DataType::ComplexFloat
-                    && problem.c().dataType() == DataType::ComplexFloat
-                    && problem.d().dataType() == DataType::ComplexFloat)
+            case ComplexFloatContractionInputs::TypeId():
             {
                 auto const& typedInputs
-                    = dynamic_cast<TypedContractionInputs<std::complex<float>> const&>(inputs);
-                return ReferenceSolution<TypedContractionInputs<std::complex<float>>>::SolveCPU(
+                    = dynamic_cast<ComplexFloatContractionInputs const&>(inputs);
+                return ReferenceSolution<ComplexFloatContractionInputs>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
-            else if(problem.a().dataType() == DataType::ComplexDouble
-                    && problem.b().dataType() == DataType::ComplexDouble
-                    && problem.c().dataType() == DataType::ComplexDouble
-                    && problem.d().dataType() == DataType::ComplexDouble)
+            case ComplexDoubleContractionInputs::TypeId():
             {
                 auto const& typedInputs
-                    = dynamic_cast<TypedContractionInputs<std::complex<double>> const&>(inputs);
-                return ReferenceSolution<TypedContractionInputs<std::complex<double>>>::SolveCPU(
+                    = dynamic_cast<ComplexDoubleContractionInputs const&>(inputs);
+                return ReferenceSolution<ComplexDoubleContractionInputs>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
-            else if(problem.a().dataType() == DataType::Half
-                    && problem.b().dataType() == DataType::Half
-                    && problem.c().dataType() == DataType::Half
-                    && problem.d().dataType() == DataType::Half)
+#ifdef TENSILE_USE_HALF
+            case HalfContractionInputs::TypeId():
             {
-                auto const& typedInputs = dynamic_cast<TypedContractionInputs<Half> const&>(inputs);
+                auto const& typedInputs = dynamic_cast<HalfContractionInputs const&>(inputs);
 
                 if(problem.highPrecisionAccumulate())
-                    return ReferenceSolution<TypedContractionInputs<Half>, float>::SolveCPU(
+                {
+                    return ReferenceSolution<HalfContractionInputs, float>::SolveCPU(
                         problem, typedInputs, validationStride);
+                }
                 else
-                    return ReferenceSolution<TypedContractionInputs<Half>>::SolveCPU(
+                {
+                    return ReferenceSolution<HalfContractionInputs>::SolveCPU(
                         problem, typedInputs, validationStride);
+                }
             }
-            else if(problem.a().dataType() == DataType::Int8x4
-                    && problem.b().dataType() == DataType::Int8x4
-                    && problem.c().dataType() == DataType::Int32
-                    && problem.d().dataType() == DataType::Int32)
+            case HalfInFloatOutContractionInputs::TypeId():
             {
                 auto const& typedInputs
-                    = dynamic_cast<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t> const&>(
-                        inputs);
-                return ReferenceSolution<TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>>::
-                    SolveCPU(problem, typedInputs, validationStride);
-            }
-            else if(problem.a().dataType() == DataType::Int32
-                    && problem.b().dataType() == DataType::Int32
-                    && problem.c().dataType() == DataType::Int32
-                    && problem.d().dataType() == DataType::Int32)
-            {
-                auto const& typedInputs
-                    = dynamic_cast<TypedContractionInputs<int32_t> const&>(inputs);
-                return ReferenceSolution<TypedContractionInputs<int32_t>>::SolveCPU(
+                    = dynamic_cast<HalfInFloatOutContractionInputs const&>(inputs);
+
+                return ReferenceSolution<HalfInFloatOutContractionInputs>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
-            else if(problem.a().dataType() == DataType::BFloat16
-                    && problem.b().dataType() == DataType::BFloat16
-                    && problem.c().dataType() == DataType::BFloat16
-                    && problem.d().dataType() == DataType::BFloat16)
+#endif // TENSILE_USE_HALF
+            case Int8x4ContractionInputs::TypeId():
+            {
+                auto const& typedInputs = dynamic_cast<Int8x4ContractionInputs const&>(inputs);
+                return ReferenceSolution<Int8x4ContractionInputs>::SolveCPU(
+                    problem, typedInputs, validationStride);
+            }
+            case Int32ContractionInputs::TypeId():
+            {
+                auto const& typedInputs = dynamic_cast<Int32ContractionInputs const&>(inputs);
+                return ReferenceSolution<Int32ContractionInputs>::SolveCPU(
+                    problem, typedInputs, validationStride);
+            }
+#ifdef TENSILE_USE_BF16
+            case BFloat16ContractionInputs::TypeId():
             {
                 auto const& typedInputs = dynamic_cast<BFloat16ContractionInputs const&>(inputs);
 
                 if(problem.highPrecisionAccumulate())
+                {
                     return ReferenceSolution<BFloat16ContractionInputs, float>::SolveCPU(
                         problem, typedInputs, validationStride);
+                }
                 else
+                {
                     return ReferenceSolution<BFloat16ContractionInputs>::SolveCPU(
                         problem, typedInputs, validationStride);
+                }
             }
-            else
+            case BFloat16InFloatOutContractionInputs::TypeId():
             {
-                throw std::runtime_error("Data type not implemented.");
+                auto const& typedInputs
+                    = dynamic_cast<BFloat16InFloatOutContractionInputs const&>(inputs);
+
+                return ReferenceSolution<BFloat16InFloatOutContractionInputs>::SolveCPU(
+                    problem, typedInputs, validationStride);
             }
+#endif // TENSILE_USE_BF16
+
+            default:;
+            }
+
+            throw std::runtime_error("Data type not implemented.");
         }
 
         // A is activation, B is weights

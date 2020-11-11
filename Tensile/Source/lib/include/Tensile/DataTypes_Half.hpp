@@ -34,7 +34,7 @@
 
 namespace Tensile
 {
-#ifdef TENSILE_USE_HIP
+#if defined(TENSILE_USE_HIP) || defined(TENSILE_USE_FLOAT16_BUILTIN)
     /**
  * \ingroup DataTypes
  */

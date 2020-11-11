@@ -8,7 +8,7 @@
 solutions:
   - name:            'Cijk_Ailk_Bljk_SB_MT128x128x08_K1'
     sizeMapping:
-      globalAccumulation: false
+      globalAccumulation: 0
       workspaceSizePerElemC: 0
       workGroup:       [ 256,   1, 1 ]
       threadTile:      [   8,   8, 1 ]
@@ -18,6 +18,8 @@ solutions:
       staggerStrideShift: 3
       staggerU: 32
       workGroupMapping: 8
+      persistentKernel: 0
+      persistentKernelAlongBatch: false
 
     hardwarePredicate: { type: TruePred }
     problemPredicate:  { type: TruePred }
@@ -34,7 +36,7 @@ solutions:
         dType:           Float
   - name:            'Cijk_Ailk_Bjlk_SB_MT128x128x08_K1'
     sizeMapping:
-      globalAccumulation: false
+      globalAccumulation: 0
       workspaceSizePerElemC: 0
       workGroup:       [ 256,   1, 1 ]
       threadTile:      [   8,   8, 1 ]
@@ -44,6 +46,8 @@ solutions:
       staggerStrideShift: 3
       staggerU: 32
       workGroupMapping: 8
+      persistentKernel: 0
+      persistentKernelAlongBatch: false
 
     hardwarePredicate: { type: TruePred }
     problemPredicate:  { type: TruePred }
@@ -60,7 +64,7 @@ solutions:
         dType:           Float
   - name:            'Cijk_Alik_Bljk_SB_MT128x128x08_K1'
     sizeMapping:
-      globalAccumulation: false
+      globalAccumulation: 0
       workspaceSizePerElemC: 0
       workGroup:       [ 256,   1, 1 ]
       threadTile:      [   8,   8, 1 ]
@@ -70,6 +74,8 @@ solutions:
       staggerStrideShift: 3
       staggerU: 32
       workGroupMapping: 8
+      persistentKernel: 0
+      persistentKernelAlongBatch: false
 
     hardwarePredicate: { type: TruePred }
     problemPredicate:  { type: TruePred }
@@ -86,7 +92,7 @@ solutions:
         dType:           Float
   - name:            'Cijk_Alik_Bjlk_SB_MT128x128x08_K1'
     sizeMapping:
-      globalAccumulation: false
+      globalAccumulation: 0
       workspaceSizePerElemC: 0
       workGroup:       [ 256,   1, 1 ]
       threadTile:      [   8,   8, 1 ]
@@ -96,6 +102,8 @@ solutions:
       staggerStrideShift: 3
       staggerU: 32
       workGroupMapping: 8
+      persistentKernel: 0
+      persistentKernelAlongBatch: false
 
     hardwarePredicate: { type: TruePred }
     problemPredicate:  { type: TruePred }

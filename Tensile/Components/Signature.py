@@ -281,8 +281,13 @@ class SignatureCOV2(Signature):
         kStr += self.v2Argument(                  "NumWorkGroups0",     '4',      '4',      "ByValue",        "U32"); ka_size += 4
         kStr += self.v2Argument(                  "NumWorkGroups1",     '4',      '4',      "ByValue",        "U32"); ka_size += 4
 
-        kStr += self.v2Argument("MagicNumberProblemNumGroupTiles0",     '4',      '4',      "ByValue",        "U32"); ka_size += 4
-        kStr += self.v2Argument(              "GridNumWorkGroups0",     '4',      '4',      "ByValue",        "U32"); ka_size += 4
+        if kernel["PersistentKernel"]:
+            kStr += self.v2Argument("MagicNumberProblemNumGroupTiles0",     '4',    '4',      "ByValue",      "U32"); ka_size += 4
+            kStr += self.v2Argument(              "GridNumWorkGroups0",     '4',    '4',      "ByValue",      "U32"); ka_size += 4
+            if kernel["PersistentKernelAlongBatch"]:
+                kStr += self.v2Argument(                "NumWorkGroups2",     '4',    '4',    "ByValue",      "U32"); ka_size += 4
+                kStr += self.v2Argument(              "NumWorkGroups0By1",    '4',    '4',    "ByValue",      "U32"); ka_size += 4
+                kStr += self.v2Argument("MagicNumProblemNumGroupTiles0By1",   '4',    '4',    "ByValue",      "U32"); ka_size += 4
 
         kStr += self.v2Argument(                   "NumFullBlocks",     '4',      '4',      "ByValue",        "U32"); ka_size += 4
         kStr += self.v2Argument(                   "WgmRemainder1",     '4',      '4',      "ByValue",        "U32"); ka_size += 4
@@ -325,7 +330,7 @@ class SignatureCOV3(Signature):
         # begin kernel descriptor
         kStr += ".amdgcn_target \"amdgcn-amd-amdhsa--gfx%s%s\"%s" \
             % ("".join(map(str,writer.version)), \
-            "+sram-ecc" if writer.version == (9,0,8) else "",  writer.endLine)
+            "+sram-ecc" if writer.version == (9,0,6) or writer.version == (9,0,8) else "",  writer.endLine)
 
         kStr += ".text%s" % writer.endLine
         kStr += ".protected %s%s" % (writer.kernelName, writer.endLine)
@@ -473,8 +478,13 @@ class SignatureCOV3(Signature):
         kStr += self.v3Argument(                  "NumWorkGroups0",     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += self.v3Argument(                  "NumWorkGroups1",     '4', offset,      "by_value",        "u32"); offset += 4
 
-        kStr += self.v3Argument("MagicNumberProblemNumGroupTiles0",     '4', offset,      "by_value",        "u32"); offset += 4
-        kStr += self.v3Argument(              "GridNumWorkGroups0",     '4', offset,      "by_value",        "u32"); offset += 4
+        if kernel["PersistentKernel"]:
+            kStr += self.v3Argument("MagicNumberProblemNumGroupTiles0",   '4', offset,    "by_value",        "u32"); offset += 4
+            kStr += self.v3Argument(              "GridNumWorkGroups0",   '4', offset,    "by_value",        "u32"); offset += 4
+            if kernel["PersistentKernelAlongBatch"]:
+                kStr += self.v3Argument(                "NumWorkGroups2",   '4', offset,  "by_value",        "u32"); offset += 4
+                kStr += self.v3Argument(              "NumWorkGroups0By1",  '4', offset,  "by_value",        "u32"); offset += 4
+                kStr += self.v3Argument("MagicNumProblemNumGroupTiles0By1", '4', offset,  "by_value",        "u32"); offset += 4
 
         kStr += self.v3Argument(                   "NumFullBlocks",     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += self.v3Argument(                   "WgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4

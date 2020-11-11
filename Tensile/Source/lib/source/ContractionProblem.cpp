@@ -22,8 +22,10 @@
  * THE SOFTWARE.
  */
 
+#include <Tensile/AMDGPU.hpp>
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/ContractionProblem_Detail.hpp>
+#include <Tensile/ContractionSolution.hpp>
 #include <Tensile/Utils.hpp>
 
 #include <cctype>
@@ -595,6 +597,51 @@ namespace Tensile
         m_boundIndices[toBoundsPos(zp.boundIndex)].bZeroPad.boundPos  = toBPos(zp.boundIndex);
     }
 
+    void ContractionProblem::checkPersistentKernelEligibility(ContractionSolution const& solution,
+                                                              Hardware const&            hardware)
+    {
+        m_eligibleForPK = true;
+
+        // Get the new WorkGroup numbers under the PK and CU value
+        auto sizeMapping = solution.sizeMapping;
+        if(sizeMapping.persistentKernel == 0)
+            return;
+
+        size_t persistentGroups
+            = dynamic_cast<AMDGPU const&>(hardware).computeUnitCount * sizeMapping.persistentKernel;
+
+        // Get the normal WorkGroup numbers by sizeMapping MacroTile
+        dim3 numWG(1, 1, 1);
+        for(size_t i = 0; i < m_freeIndicesA.size(); i++)
+        {
+            numWG.x *= m_freeSizesA.at(i);
+        }
+        for(size_t i = 0; i < m_freeIndicesB.size(); i++)
+        {
+            numWG.y *= m_freeSizesB.at(i);
+        }
+        for(size_t i = 0; i < m_batchIndices.size(); i++)
+        {
+            if(sizeMapping.packBatchDims & 0x1)
+                numWG.x *= m_batchSizes[i];
+            if(sizeMapping.packBatchDims & 0x2)
+                numWG.y *= m_batchSizes[i];
+            if(!sizeMapping.packBatchDims)
+                numWG.z *= m_batchSizes[i];
+        }
+
+        numWG.x = CeilDivide(numWG.x, sizeMapping.macroTile.x);
+        numWG.y = CeilDivide(numWG.y, sizeMapping.macroTile.y);
+        numWG.y *= sizeMapping.globalSplitU;
+
+        size_t problemTiles = numWG.x * numWG.y;
+        if(sizeMapping.persistentKernelAlongBatch)
+            problemTiles *= numWG.z;
+
+        // If #PKWG (PK*CUs) >= #TotalTiles, the persistent kernel behaves just like non-PK
+        m_eligibleForPK = persistentGroups < problemTiles;
+    }
+
     void ContractionProblem::normalize()
     {
         m_maxProblemSize = 0;
@@ -1052,8 +1099,10 @@ namespace Tensile
 #ifdef TENSILE_USE_HALF
     template struct TypedContractionInputs<Half>;
     template struct TypedContractionInputs<Half, Half, Half, Half, float, float>;
+    template struct TypedContractionInputs<Half, Half, float, float>;
 #endif
 #ifdef TENSILE_USE_BF16
     template struct TypedContractionInputs<BFloat16, BFloat16, BFloat16, BFloat16, float, float>;
+    template struct TypedContractionInputs<BFloat16, BFloat16, float, float>;
 #endif
 } // namespace Tensile

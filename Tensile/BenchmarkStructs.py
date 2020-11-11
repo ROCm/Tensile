@@ -29,20 +29,101 @@ from .Common import print1, print2, printWarning, defaultSolution, \
     validParameters, defaultSolutionSummationSizes
 from .SolutionStructs import Solution, ProblemType, ProblemSizes
 
+
+### modularize benchmark steps construction
+
+##############################################################################
+# forkHardcodedParameters
+##############################################################################
+def forkHardcodedParameters( basePermutations, update ):
+  updatedHardcodedParameters = []
+  for oldPermutation in basePermutations:
+    for newPermutation in update:
+      permutation = {}
+      permutation.update(oldPermutation)
+      permutation.update(newPermutation)
+      updatedHardcodedParameters.append(permutation)
+  return updatedHardcodedParameters
+
+def fillMissingParametersWithDefaults(parameterConfigurationList, defaultParameters):
+
+  benchmarkParameters = []
+  for paramDict in defaultParameters:
+    for paramName in paramDict:
+      if not hasParam( paramName, parameterConfigurationList) \
+          or paramName == "ProblemSizes":
+        benchmarkParameters.append(paramDict)
+  return benchmarkParameters
+
+def constructForkPermutations(forkParametersConfig):
+  totalPermutations = 1
+  for param in forkParametersConfig:
+    for name in param: # only 1
+      values = param[name]
+      totalPermutations *= len(values)
+  forkPermutations = []
+  for i in range(0, totalPermutations):
+    forkPermutations.append({})
+    pIdx = i
+    for param in forkParametersConfig:
+      for name in param:
+        values = deepcopy(param[name])
+        valueIdx = pIdx % len(values)
+        forkPermutations[i][name] = values[valueIdx]
+        pIdx //= len(values)
+  return forkPermutations
+
+def getSingleValues(parameterSetList):
+  ############################################################################
+  singleVaules = {}
+  for stepList in parameterSetList:
+    for paramDict in copy(stepList):
+      for paramName in copy(paramDict):
+        paramValues = paramDict[paramName]
+        if paramValues == None:
+          printExit("You must specify value for parameters \"%s\"" % paramName )
+        if len(paramValues) < 2 and paramName != "ProblemSizes":
+          paramDict.pop(paramName)
+          singleVaules[paramName] = paramValues[0]
+          if len(paramDict) == 0:
+            stepList.remove(paramDict)
+
+  return singleVaules          
+
+##############################################################################
+# assignParameters
+##############################################################################
+def assignParameters(problemTypeConfig, configBenchmarkCommonParameters, configForkParameters):
+
+  problemTypeObj = ProblemType(problemTypeConfig)
+  initialSolutionParameters = { "ProblemType": problemTypeConfig }
+  initialSolutionParameters.update(defaultSolution)
+
+  hardcodedParameters = []
+  benchmarkCommonParameters = fillMissingParametersWithDefaults([configBenchmarkCommonParameters, configForkParameters], defaultBenchmarkCommonParameters)
+  if configBenchmarkCommonParameters != None:
+    for paramDict in configBenchmarkCommonParameters:
+      benchmarkCommonParameters.append(paramDict)
+
+  singleValues = getSingleValues([benchmarkCommonParameters, configForkParameters])
+  for paramName in singleValues:
+    paramValue = singleValues[paramName]
+    initialSolutionParameters[paramName] = paramValue
+    
+  forkPermutations = constructForkPermutations(configForkParameters)
+  if len(forkPermutations) > 0:
+    hardcodedParameters = forkHardcodedParameters([initialSolutionParameters], forkPermutations)
+  
+  return (problemTypeObj, hardcodedParameters, initialSolutionParameters)
+
 class BenchmarkProcess:
   """
   Benchmark Process
   Steps in config need to be expanded and missing elements need to be assigned a default.
   """
 
-  #def __init__(self, config):
   def __init__(self, problemTypeConfig, problemSizeGroupConfig ):
-    # read problem type
-    #if "ProblemType" in config:
-    #  problemTypeConfig = config["ProblemType"]
-    #else:
-    #  problemTypeConfig = {}
-    #  print2("No ProblemType in config: %s; using defaults." % str(config) )
+
     self.problemType = ProblemType(problemTypeConfig)
     self.isBatched = True \
         if "Batched" in problemTypeConfig and problemTypeConfig["Batched"] \
@@ -165,13 +246,12 @@ class BenchmarkProcess:
     # followed by Ccommon
     self.benchmarkCommonParameters = [{"ProblemSizes": currentProblemSizes}]
     # need to use deepcopy to prevent default parameters from being washed-out later
-    for paramDict in deepcopy(defaultBenchmarkCommonParameters):
-      for paramName in paramDict:
-        if not hasParam( paramName, [ configBenchmarkCommonParameters, \
+
+    benchmarkCommonParameters = fillMissingParametersWithDefaults([ configBenchmarkCommonParameters, \
             configForkParameters, configBenchmarkForkParameters, \
-            configJoinParameters, configBenchmarkJoinParameters]) \
-            or paramName == "ProblemSizes":
-          self.benchmarkCommonParameters.append(paramDict)
+            configJoinParameters, configBenchmarkJoinParameters], deepcopy(defaultBenchmarkCommonParameters))
+    self.benchmarkCommonParameters.extend(benchmarkCommonParameters)
+
     if configBenchmarkCommonParameters != None:
       for paramDict in configBenchmarkCommonParameters:
         self.benchmarkCommonParameters.append(paramDict)
@@ -277,22 +357,15 @@ class BenchmarkProcess:
 
     ############################################################################
     # (I-7) any default param with 1 value will be hardcoded; move to beginning
-    for stepList in [self.benchmarkCommonParameters, \
+
+    singleValues = getSingleValues([self.benchmarkCommonParameters, \
         self.forkParameters, self.benchmarkForkParameters, \
-        self.benchmarkJoinParameters]:
-      for paramDict in copy(stepList):
-        for paramName in copy(paramDict):
-          paramValues = paramDict[paramName]
-          if paramValues == None:
-            printExit("You must specify value for parameters \"%s\"" % paramName )
-          if len(paramValues) < 2 and paramName != "ProblemSizes":
-            paramDict.pop(paramName)
-            #self.benchmarkCommonParameters.insert(0, {paramName: paramValues })
-            self.hardcodedParameters[0][paramName] = paramValues[0]
-            self.singleValueParameters[paramName] = [ paramValues[0] ]
-            self.initialSolutionParameters[paramName] = paramValues[0]
-            if len(paramDict) == 0:
-              stepList.remove(paramDict)
+        self.benchmarkJoinParameters])
+    for paramName in singleValues:
+      paramValue = singleValues[paramName]
+      self.hardcodedParameters[0][paramName] = paramValue
+      self.singleValueParameters[paramName] = [ paramValue ]
+      self.initialSolutionParameters[paramName] = paramValue
 
     ############################################################################
     # (I-8) if fork and join, but no benchmark fork, append dummy benchmarkFork
@@ -367,21 +440,7 @@ class BenchmarkProcess:
     print2("####################################################################")
     print1("# Fork Parameters")
     print2(self.forkParameters)
-    totalPermutations = 1
-    for param in self.forkParameters:
-      for name in param: # only 1
-        values = param[name]
-        totalPermutations *= len(values)
-    forkPermutations = []
-    for i in range(0, totalPermutations):
-      forkPermutations.append({})
-      pIdx = i
-      for param in self.forkParameters:
-        for name in param:
-          values = param[name]
-          valueIdx = pIdx % len(values)
-          forkPermutations[i][name] = values[valueIdx]
-          pIdx //= len(values)
+    forkPermutations = constructForkPermutations(self.forkParameters)
     if len(forkPermutations) > 0:
       self.forkHardcodedParameters(forkPermutations)
 
@@ -552,15 +611,16 @@ class BenchmarkProcess:
   # Add new permutations of hardcoded parameters to old permutations of params
   ##############################################################################
   def forkHardcodedParameters( self, update ):
-    updatedHardcodedParameters = []
-    for oldPermutation in self.hardcodedParameters:
-      for newPermutation in update:
-        permutation = {}
-        permutation.update(oldPermutation)
-        permutation.update(newPermutation)
-        updatedHardcodedParameters.append(permutation)
+    #updatedHardcodedParameters = []
+    #for oldPermutation in self.hardcodedParameters:
+      #for newPermutation in update:
+      #  permutation = {}
+      #  permutation.update(oldPermutation)
+      #  permutation.update(newPermutation)
+      #  updatedHardcodedParameters.append(permutation)
+    updatedHardcodedParameters = forkHardcodedParameters( self.hardcodedParameters, update )
+      #updatedHardcodedParameters.append(permutation)
     self.hardcodedParameters = updatedHardcodedParameters
-
 
   ##############################################################################
   # contract old permutations of hardcoded parameters based on new

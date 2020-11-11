@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, CHeader, printWarning, listToInitializer, ClientExecutionLock
+from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, printExit, CHeader, printWarning, listToInitializer, ClientExecutionLock
 from . import ClientExecutable
 from . import Common
 from . import LibraryIO
@@ -28,10 +28,31 @@ import os
 import subprocess
 from shutil import copy as shutil_copy
 from shutil import rmtree
+from enum import Enum
 
 from .Contractions import FreeIndex
+from .Contractions import ProblemType as ContractionsProblemType
 
+class DataInitName(Enum):
+  Zero = 0
+  One = 1
+  Two = 2
+  Random = 3
+  NaN = 4
+  Inf = 5
+  BadInput = 6
+  BadOutput = 7
+  SerialIdx = 8
+  SerialDim0 = 9
+  SerialDim1 = 10
+  Identity = 11
 
+class ClientLogLevel(Enum):
+  Error = 0
+  Terse = 1
+  Verbose = 2
+  Debug = 3
+  
 ################################################################################
 # Main
 ################################################################################
@@ -63,11 +84,6 @@ def main( config ):
     shutil_copy(
         os.path.join(globalParameters["SourcePath"], f),
         globalParameters["WorkingPath"] )
-  #if globalParameters["NewClient"] == 2:
-    #shutil_copy(
-    #    os.path.join(globalParameters["SourcePath"], "CMakeListsCreateLibrary.txt"),
-    #    os.path.join(globalParameters["WorkingPath"], "CMakeLists.txt") )
-  #else:
   if globalParameters["NewClient"] < 2:
     shutil_copy(
         os.path.join(globalParameters["SourcePath"], "CMakeLists.txt"),
@@ -135,14 +151,24 @@ def main( config ):
 
   return returncode
 
-
 ################################################################################
 # Write Run Script
 ################################################################################
+def runNewClient(scriptPath, clientParametersPath, clientBuildDir=None):
+
+  newClientExe = ClientExecutable.getClientExecutable(clientBuildDir)
+  iniFile = "--config-file={}".format(clientParametersPath)
+  args = [newClientExe, iniFile]
+
+  try:
+    subprocess.run(args, check=True)
+  except (subprocess.CalledProcessError, OSError) as e:
+    printWarning("ClientWriter Benchmark Process exited with error: {}".format(e))
+
 
 def runClient(libraryLogicPath, forBenchmark, enableTileSelection):
+  
   # write runScript
-
   pushWorkingPath("build")
   path = globalParameters["WorkingPath"]
   if globalParameters["NewClient"] < 2:
@@ -440,17 +466,18 @@ def checkConstStride(constStrideMap, keyIdx):
   #print ("idx=", keyIdx, "=", finalVal)
   return finalVal
 
-def problemSizeParams(solution, problem):
 
-    numIndices = len(solution.problemType.indices)
+def problemSizeParams(problemType, problem):
+
+    numIndices = len(problemType.indices)
     rv = []
 
     if problem.stridesA:
         astrides = list(problem.stridesA)
     else:
-        astrides = [-1] * solution.problemType.aDims
-    for sc in solution.problemType.setConstStrideA:
-        index = solution.problemType.indices[sc[0]]
+        astrides = [-1] * problemType.aDims
+    for sc in problemType.setConstStrideA:
+        index = problemType.indices[sc[0]]
         if type(index) == FreeIndex:
             assert(index.isA)
             astrides[index.i] = sc[1]
@@ -460,9 +487,9 @@ def problemSizeParams(solution, problem):
     if problem.stridesB:
       bstrides = list(problem.stridesB)
     else:
-      bstrides = [-1] * solution.problemType.bDims
-    for sc in solution.problemType.setConstStrideB:
-        index = solution.problemType.indices[sc[0]]
+      bstrides = [-1] * problemType.bDims
+    for sc in problemType.setConstStrideB:
+        index = problemType.indices[sc[0]]
         if type(index) == FreeIndex:
             assert(not index.isA)
             bstrides[index.i] = sc[1]
@@ -513,21 +540,6 @@ def problemSizeParams(solution, problem):
 
     return rv
 
-
-def dataInitName(num):
-    if num == 0: return 'Zero'
-    if num == 1: return 'One'
-    if num == 2: return 'Two'
-    if num == 3: return 'Random'
-    if num == 4: return 'NaN'
-    if num == 5: return 'Inf'
-    if num == 6: return 'BadInput'
-    if num == 7: return 'BadOutput'
-    if num == 8: return 'SerialIdx'
-    if num == 9: return 'SerialDim0'
-    if num == 10: return 'SerialDim1'
-    if num == 11: return 'Identity'
-
 def dataInitParams(problemType):
     initA = globalParameters['DataInitTypeA']
     initB = globalParameters['DataInitTypeB']
@@ -535,8 +547,6 @@ def dataInitParams(problemType):
     initD = globalParameters['DataInitTypeD']
     initAlpha = globalParameters['DataInitTypeAlpha']
     initBeta  = globalParameters['DataInitTypeBeta']
-    # import pdb
-    # pdb.set_trace()
 
     if not problemType.useBeta:
         initBeta = 0
@@ -544,28 +554,20 @@ def dataInitParams(problemType):
     if initA == -1: initA = globalParameters['DataInitTypeAB']
     if initB == -1: initB = globalParameters['DataInitTypeAB']
 
-    return [('init-a',     dataInitName(initA)),
-            ('init-b',     dataInitName(initB)),
-            ('init-c',     dataInitName(initC)),
-            ('init-d',     dataInitName(initD)),
-            ('init-alpha', dataInitName(initAlpha)),
-            ('init-beta',  dataInitName(initBeta))]
-
-def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection = False):
-
-    if tileAwareSelection:
-      filename = os.path.join(globalParameters["WorkingPath"], "ClientParameters_Granularity.ini")
-    else:
-      filename = os.path.join(globalParameters["WorkingPath"], "ClientParameters.ini")
+    return [('init-a',     DataInitName(initA).name),
+            ('init-b',     DataInitName(initB).name),
+            ('init-c',     DataInitName(initC).name),
+            ('init-d',     DataInitName(initD).name),
+            ('init-alpha', DataInitName(initAlpha).name),
+            ('init-beta',  DataInitName(initBeta).name)]
 
 
-    if len(newLibrary.solutions)==0:
-      raise RuntimeError ("No valid solutions found")
-    with open(filename, "w") as f:
+def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, resultsFileName, parametersFilePath):
+
+    with open(parametersFilePath, "w") as f:
         def param(key, value):
             f.write("{}={}\n".format(key, value))
 
-        sourceDir = os.path.join(stepBaseDir, "source")
         libraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
         libraryFile = os.path.join(sourceDir, "library", libraryFilename)
         param("library-file", libraryFile)
@@ -575,35 +577,27 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
             if 'gfx' not in coFile or currentGFXName in coFile:
                 param("code-object", os.path.join(sourceDir,coFile))
 
-        if tileAwareSelection:
-          param('results-file', os.path.join(stepBaseDir, "../Data", stepName+"_Granularity.csv"))
-        else:
-          if globalParameters["NewClient"] == 1:
-            param('results-file', os.path.join(stepBaseDir, "../Data", stepName+"-new.csv"))
-          else:
-            param('results-file', os.path.join(stepBaseDir, "../Data", stepName+".csv"))
+        param('results-file', resultsFileName)
 
-        newSolution = next(iter(newLibrary.solutions.values()))
-        if newSolution.problemType.convolution and globalParameters["ConvolutionVsContraction"]:
-            param('convolution-identifier', newSolution.problemType.convolution.identifier())
-        param('problem-identifier', newSolution.problemType.operationIdentifier)
-        param('a-type',     newSolution.problemType.aType.toEnum())
-        param('b-type',     newSolution.problemType.bType.toEnum())
-        param('c-type',     newSolution.problemType.cType.toEnum())
-        param('d-type',     newSolution.problemType.dType.toEnum())
-        param('alpha-type', newSolution.problemType.alphaType.toEnum())
-        param('beta-type',  newSolution.problemType.betaType.toEnum())
+        if problemType.convolution and globalParameters["ConvolutionVsContraction"]:
+            param('convolution-identifier', problemType.convolution.identifier())
+        param('problem-identifier', problemType.operationIdentifier)
+        param('a-type',     problemType.aType.toEnum())
+        param('b-type',     problemType.bType.toEnum())
+        param('c-type',     problemType.cType.toEnum())
+        param('d-type',     problemType.dType.toEnum())
+        param('alpha-type', problemType.alphaType.toEnum())
+        param('beta-type',  problemType.betaType.toEnum())
 
-        param('high-precision-accumulate',  newSolution.problemType.highPrecisionAccumulate)
+        param('high-precision-accumulate',  problemType.highPrecisionAccumulate)
 
         for problem in problemSizes.problems:
-            for key,value in problemSizeParams(newSolution, problem):
+            for key,value in problemSizeParams(problemType, problem): 
                 param(key,value)
-            #param('problem-size', ','.join(map(str,problemSize)))
 
         param("device-idx",               globalParameters["Device"])
 
-        for key,value in dataInitParams(newSolution.problemType):
+        for key,value in dataInitParams(problemType):
             param(key, value)
 
         param("c-equal-d",                globalParameters["CEqualD"])
@@ -631,7 +625,7 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         param("use-gpu-timer",            globalParameters["KernelTime"])
         param("hardware-monitor",         globalParameters["HardwareMonitor"])
         if globalParameters["ConvolutionVsContraction"]:
-            assert(newSolution.problemType.convolution)
+            assert(problemType.convolution)
             param("convolution-vs-contraction", globalParameters["ConvolutionVsContraction"])
         if not globalParameters["KernelTime"]:
             param("num-warmups", 1)
@@ -642,7 +636,45 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
         param("perf-read-efficiency",     globalParameters["PerfModelReadEfficiency"])
         param("csv-export-extra-cols",    globalParameters["CSVExportWinner"])
         param("csv-merge-same-problems",  globalParameters["CSVMergeSameProblemID"])
+        param("log-level",                ClientLogLevel(globalParameters["ClientLogLevel"]).name)
 
+def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection = False):
+    if tileAwareSelection:
+      filename = os.path.join(globalParameters["WorkingPath"], "ClientParameters_Granularity.ini")
+    else:
+      filename = os.path.join(globalParameters["WorkingPath"], "ClientParameters.ini")
+
+    if len(newLibrary.solutions)==0:
+      raise RuntimeError ("No valid solutions found")
+
+    resultsFileName = None
+    if tileAwareSelection:
+      resultsFileName = os.path.join(stepBaseDir, "../Data", stepName+"_Granularity.csv")
+    else:
+      if globalParameters["NewClient"] == 1:
+          resultsFileName = os.path.join(stepBaseDir, "../Data", stepName+"-new.csv")
+      else:
+          resultsFileName = os.path.join(stepBaseDir, "../Data", stepName+".csv")
+
+    newSolution = next(iter(newLibrary.solutions.values()))
+    sourceDir = os.path.join(stepBaseDir, "source")
+    writeClientConfigIni(problemSizes, newSolution.problemType, sourceDir, codeObjectFiles, resultsFileName, filename)
+   
+def CreateBenchmarkClientParametersForSizes(libraryRootPath, problemSizes, dataFilePath, configFile):
+
+    libraryPath = os.path.join(libraryRootPath, "library")
+    libraryFiles = [os.path.join(libraryPath, f) for f in os.listdir(libraryPath)] 
+    codeObjectFiles = [f for f in libraryFiles if f.endswith("co")] 
+  
+    metaDataFilePath = os.path.join(libraryPath, "metadata.yaml")
+
+    if not os.path.exists(metaDataFilePath):
+      printExit ("meta data file %s does not exist" % metaDataFilePath)
+    metaData = LibraryIO.readConfig(metaDataFilePath)
+    problemTypeDict = metaData["ProblemType"]
+    problemType = ContractionsProblemType.FromOriginalState(problemTypeDict)
+  
+    writeClientConfigIni(problemSizes, problemType, libraryRootPath, codeObjectFiles, dataFilePath, configFile)
 
 
 ################################################################################
@@ -1046,6 +1078,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     maximumC = problemSizes.maxC
     maximumA = problemSizes.maxA
     maximumB = problemSizes.maxB
+    maximumW = problemSizes.maxD * 32;
 
     maxMT = getMaxSolutionSizes(solutions, solutionSummationSizes)
 
@@ -1057,17 +1090,20 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
     maximumB = max(maximumB, maxNK)
     maximumC = max(maximumC, maxMN)
     maximumD = max(maximumD, maxMN)
+    maximumW = max(maximumW, maxMN)
 
     h += "size_t maxSizeD = %u;\n" % (maximumD)
     h += "size_t maxSizeC = %u;\n" % (maximumC)
     h += "size_t maxSizeA = %u;\n" % (maximumA)
     h += "size_t maxSizeB = %u;\n" % (maximumB)
+    h += "size_t maxSizeW = %u;\n" % (maximumW)
     h += "\n"
   else:
     h += "size_t maxSizeD;\n"
     h += "size_t maxSizeC;\n"
     h += "size_t maxSizeA;\n"
     h += "size_t maxSizeB;\n"
+    h += "size_t maxSizeW;\n"
     h += "\n"
 
   ##############################################################################

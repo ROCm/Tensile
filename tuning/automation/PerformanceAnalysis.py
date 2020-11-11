@@ -109,9 +109,9 @@ def fillCallCounts(problemMapper, callCounts, callCount, callCountStrided, isOne
                     callCounts.append(midList)
 
     for line in callCounts:
-        if line[0] == "gemm":
+        if line[0] == "gemm" or line[0] == "gemm_ex":
             callCount.append(line[3])
-        elif line[0] == "gemm_strided_batched":
+        elif "gemm_strided_batched" in line[0]:
             callCountStrided.append(line[3])
 
 def chooseCallCount(resultsName, callCount, callCountStrided):
