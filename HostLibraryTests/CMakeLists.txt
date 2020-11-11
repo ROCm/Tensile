@@ -74,7 +74,7 @@ find_package(Boost COMPONENTS filesystem)
 
 #if(TENSILE_USE_HIP AND NOT HIP_DIR)
 if(TENSILE_USE_HIP)
-    find_package(HIP REQUIRED CONFIG PATHS /opt/rocm)
+    find_package(HIP REQUIRED CONFIG PATHS $ENV{ROCM_PATH} /opt/rocm)
 endif()
 
 if(TENSILE_USE_OPENMP)
@@ -88,7 +88,7 @@ if(TENSILE_USE_OPENMP)
         if(EXISTS /etc/redhat-release)
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp=libgomp")
         else()
-	    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
             set(OPENMP_LIBRARY /usr/lib/x86_64-linux-gnu/libomp.so)
             set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OPENMP_LIBRARY}")
         endif()
@@ -116,6 +116,7 @@ set(test_sources ${test_sources}
     CachingLibrary_test.cpp
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp
+    ContractionFitness_test.cpp
     DataTypes_test.cpp
     EmbeddedData_test.cpp
     KernelArguments_test.cpp
@@ -130,6 +131,7 @@ if(TENSILE_USE_LLVM)
 
     set(test_sources ${test_sources}
         ContractionLibraryLoading_test.cpp
+        ContractionFitness_test.cpp
         llvm/ArithmeticUnitPredicate_test.cpp
         llvm/DeterministicModePredicate_test.cpp
         llvm/KernelLanguagePredicate_test.cpp

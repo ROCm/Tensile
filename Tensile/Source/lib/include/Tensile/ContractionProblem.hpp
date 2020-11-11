@@ -335,6 +335,24 @@ namespace Tensile
             return m_problemStrides;
         }
 
+        void setAlphaType(DataType type)
+        {
+            m_alphaType = type;
+        }
+        DataType alphaType() const
+        {
+            return m_alphaType;
+        }
+
+        void setBetaType(DataType type)
+        {
+            m_betaType = type;
+        }
+        DataType betaType() const
+        {
+            return m_betaType;
+        }
+
         void setHighPrecisionAccumulate(bool value)
         {
             m_highPrecisionAccumulate = value;
@@ -552,6 +570,9 @@ namespace Tensile
         ArithmeticUnit m_arithmeticUnit          = ArithmeticUnit::Any;
         KernelLanguage m_kernelLanguage          = KernelLanguage::Any;
 
+        DataType m_alphaType = DataType::None; // if not assigned, will follow d-type
+        DataType m_betaType  = DataType::None; // for bwd-compatible
+
         FreeIndices  m_freeIndicesA; //< in same order as IndexAssignmentsA
         FreeIndices  m_freeIndicesB; //< in same order as IndexAssignmentsB
         FreeIndices  m_freeIndices;
@@ -663,22 +684,25 @@ namespace Tensile
         }
     };
 
-    /* Commonly used contraction input type groupings */
-    using FloatContractionInputs         = TypedContractionInputs<float>;
-    using DoubleContractionInputs        = TypedContractionInputs<double>;
-    using ComplexFloatContractionInputs  = TypedContractionInputs<std::complex<float>>;
-    using ComplexDoubleContractionInputs = TypedContractionInputs<std::complex<double>>;
+    // Commonly used contraction input type groupings
+    // Naming: _[Ti_To_Tc]_:
+    // S=float, D=double, C=complex<float>, Z=complex<double>,
+    // H=Half, B=BF16, I8x4=Int8x4, I32=int32_t
+    using ContractionInputs_S_S_S = TypedContractionInputs<float>;
+    using ContractionInputs_D_D_D = TypedContractionInputs<double>;
+    using ContractionInputs_C_C_C = TypedContractionInputs<std::complex<float>>;
+    using ContractionInputs_Z_Z_Z = TypedContractionInputs<std::complex<double>>;
 #ifdef TENSILE_USE_HALF
-    using HalfContractionInputs           = TypedContractionInputs<Half>;
-    using HalfInFloatOutContractionInputs = TypedContractionInputs<Half, Half, float, float>;
+    using ContractionInputs_H_H_H = TypedContractionInputs<Half>;
+    using ContractionInputs_H_H_S = TypedContractionInputs<Half, Half, Half, Half, float, float>;
+    using ContractionInputs_H_S_S = TypedContractionInputs<Half, Half, float, float>;
 #endif // TENSILE_USE_HALF
-    using Int8x4ContractionInputs = TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>;
-    using Int32ContractionInputs  = TypedContractionInputs<int32_t>;
+    using ContractionInputs_I8x4_I32_I32 = TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>;
+    using ContractionInputs_I32_I32_I32  = TypedContractionInputs<int32_t>;
 #ifdef TENSILE_USE_BF16
-    using BFloat16ContractionInputs
+    using ContractionInputs_B_B_S
         = TypedContractionInputs<BFloat16, BFloat16, BFloat16, BFloat16, float, float>;
-    using BFloat16InFloatOutContractionInputs
-        = TypedContractionInputs<BFloat16, BFloat16, float, float>;
+    using ContractionInputs_B_S_S = TypedContractionInputs<BFloat16, BFloat16, float, float>;
 #endif // TENSILE_USE_BF16
 
     TENSILE_API std::ostream& operator<<(std::ostream&             stream,

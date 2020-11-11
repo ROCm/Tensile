@@ -26,6 +26,7 @@ from .SolutionStructs import Solution as OriginalSolution
 from .Utils import state, state_key_ordering
 
 from . import Common
+from . Common import globalParameters
 
 @state_key_ordering
 class FreeIndex:
@@ -115,17 +116,15 @@ class ProblemType:
 
         srcType = DataType(d['DataType'])
         dstType = DataType(d['DestDataType']) if 'DestDataType' in d else srcType
+        computeType = DataType(d['ComputeDataType']) if 'ComputeDataType' in d else dstType
 
         rv.aType = srcType
         rv.bType = srcType
         rv.cType = dstType
         rv.dType = dstType
-
-        rv.alphaType = dstType
-        rv.betaType = dstType
-        if dstType.isBFloat16():
-            rv.alphaType = DataType(dstType.single)
-            rv.betaType  = DataType(dstType.single)
+        # we already checked the src/dst/compute types are supported and well-assigned in SolutionStruct
+        rv.alphaType = computeType
+        rv.betaType = computeType
 
         rv.highPrecisionAccumulate = False
         if 'HighPrecisionAccumulate' in d:
@@ -295,7 +294,7 @@ class ProblemPredicate(Properties.Predicate):
 
             return cls(tag, index=index, value=value)
 
-        if key == "_WorkspaceSizePerElemC":
+        if key == "_WorkspaceSizePerElemC" and value > 0:
             return cls("WorkspaceCheck", index=0, value=value)
 
         if key.startswith('Assert'):
@@ -358,6 +357,10 @@ class ProblemPredicate(Properties.Predicate):
         # it should be StrideA*MT1, so we need to output MT1 and use the StrideA of problem in host-side for predication
         if 'BufferStore' in state and state['BufferStore'] == True:
             rv += [cls('BufferStoreOffsetLimitCheck', value=state['MacroTile1'])]
+
+        if '_GlobalAccumulation' in state and state['_GlobalAccumulation'] != None:
+            value = globalParameters['MinKForGSU'] * state['GlobalSplitU']
+            rv += [cls('GlobalSplitUCheckMinK', value=value)]
 
         return rv
 

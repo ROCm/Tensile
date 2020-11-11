@@ -583,8 +583,8 @@ def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", pr
     outputFileName2 = GetOutputFileName(scriptPath, namePart+"-strided", "sh")
     outputFileName3 = GetOutputFileName(scriptPath, namePart+"-all", "sh")
     outputFileName4 = GetOutputFileName(scriptPath, namePart+"-verify", "sh")
-    outputFileName5 = GetOutputFileName(scriptPath, namePart+"-yaml", "sh")
-    outputFileName6 = GetOutputFileName(scriptPath, namePart+"-yaml-strided", "sh")
+    outputFileName5 = GetOutputFileName(scriptPath, namePart, "yaml")
+    outputFileName6 = GetOutputFileName(scriptPath, namePart+"-strided", "yaml")
 
     scriptFileNames.append(outputFileName5)
     count = 0
@@ -609,8 +609,8 @@ def OutputScript(problemMapper, scriptPath, namePart, disableStrides="false", pr
         noiterlines = removeIter(lines)
         WriteScriptYAML(outputFileName5,yamlLines)
         if strided == True:
-            WriteScriptYAML(outputFileName6,yamlLines,strided) 
-             
+            WriteScriptYAML(outputFileName6,yamlLines,strided)
+
         with open(outputFileName, 'a') as f, open(outputFileName2, 'a') as g, open(outputFileName3, 'a') as h:
             for line in lines:
                 if "strided" in line:
@@ -691,8 +691,8 @@ def OutputScript2(problemMapper, scriptPath, namePart, disableStrides="false", p
         noiterlines = removeIter(lines)
         WriteScriptYAML(outputFileName5,yamlLines)
         if strided == True:
-            WriteScriptYAML(outputFileName6,yamlLines,strided) 
-        
+            WriteScriptYAML(outputFileName6,yamlLines,strided)
+
         with open(outputFileName, 'a') as f, open(outputFileName2, 'a') as g, open(outputFileName3, 'a') as h:
             for line in lines:
                 if "strided" in line:

@@ -113,6 +113,11 @@ namespace Tensile
             }
         }
 
+        void throwException(const std::string& msg)
+        {
+            throw std::runtime_error(msg.c_str());
+        }
+
         template <typename Inputs, typename Accumulator>
         void ReferenceSolution<Inputs, Accumulator>::SolveCPU(ContractionProblem const& problem,
                                                               Inputs const&             inputs,
@@ -199,7 +204,10 @@ namespace Tensile
                         std::string matrixID = inputs.a == nullptr ? "A" : "B";
                         std::string msg      = std::string("Unsupported nullptr for ") + matrixID
                                           + std::string(" when Alpha !=0\n");
-                        throw std::runtime_error(msg.c_str());
+                        // HACK moving throw temporarily to test targetid update
+                        //      throw is currently causing a compiler error in this function
+                        throwException(msg);
+                        // throw std::runtime_error(msg.c_str());
                     }
 
                     for(size_t boundNum = 0; boundNum < boundCount; boundNum++)
@@ -318,10 +326,21 @@ namespace Tensile
                       ContractionInputs const&  inputs,
                       size_t                    validationStride)
         {
+            // retreive alpha/beta type set via setAlpha/BetaType()
+            auto alphaType = problem.alphaType();
+            auto betaType  = problem.betaType();
 
-            auto alphaType = problem.a().dataType() == DataType::BFloat16 ? DataType::Float
-                                                                          : problem.d().dataType();
-            auto betaType  = alphaType;
+            // Backward-compatible: when setAlpha/BetaType() wasn't called, use the old way
+            // Could remove after rocBLAS is updated
+            if(alphaType == DataType::None)
+            {
+                alphaType = problem.a().dataType() == DataType::BFloat16 ? DataType::Float
+                                                                         : problem.d().dataType();
+            }
+            if(betaType == DataType::None)
+            {
+                betaType = alphaType;
+            }
 
             auto contractionInputsTypeId = ContractionInputs::TypeId(problem.a().dataType(),
                                                                      problem.b().dataType(),
@@ -332,91 +351,93 @@ namespace Tensile
 
             switch(contractionInputsTypeId)
             {
-            case FloatContractionInputs::TypeId():
+            case ContractionInputs_S_S_S::TypeId():
             {
-                auto const& typedInputs = dynamic_cast<FloatContractionInputs const&>(inputs);
-                return ReferenceSolution<FloatContractionInputs>::SolveCPU(
+                auto const& typedInputs = dynamic_cast<ContractionInputs_S_S_S const&>(inputs);
+                return ReferenceSolution<ContractionInputs_S_S_S>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
-            case DoubleContractionInputs::TypeId():
+            case ContractionInputs_D_D_D::TypeId():
             {
-                auto const& typedInputs = dynamic_cast<DoubleContractionInputs const&>(inputs);
-                return ReferenceSolution<DoubleContractionInputs>::SolveCPU(
+                auto const& typedInputs = dynamic_cast<ContractionInputs_D_D_D const&>(inputs);
+                return ReferenceSolution<ContractionInputs_D_D_D>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
-            case ComplexFloatContractionInputs::TypeId():
+            case ContractionInputs_C_C_C::TypeId():
             {
-                auto const& typedInputs
-                    = dynamic_cast<ComplexFloatContractionInputs const&>(inputs);
-                return ReferenceSolution<ComplexFloatContractionInputs>::SolveCPU(
+                auto const& typedInputs = dynamic_cast<ContractionInputs_C_C_C const&>(inputs);
+                return ReferenceSolution<ContractionInputs_C_C_C>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
-            case ComplexDoubleContractionInputs::TypeId():
+            case ContractionInputs_Z_Z_Z::TypeId():
             {
-                auto const& typedInputs
-                    = dynamic_cast<ComplexDoubleContractionInputs const&>(inputs);
-                return ReferenceSolution<ComplexDoubleContractionInputs>::SolveCPU(
+                auto const& typedInputs = dynamic_cast<ContractionInputs_Z_Z_Z const&>(inputs);
+                return ReferenceSolution<ContractionInputs_Z_Z_Z>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
 #ifdef TENSILE_USE_HALF
-            case HalfContractionInputs::TypeId():
+            case ContractionInputs_H_H_H::TypeId():
             {
-                auto const& typedInputs = dynamic_cast<HalfContractionInputs const&>(inputs);
+                auto const& typedInputs = dynamic_cast<ContractionInputs_H_H_H const&>(inputs);
 
                 if(problem.highPrecisionAccumulate())
                 {
-                    return ReferenceSolution<HalfContractionInputs, float>::SolveCPU(
+                    return ReferenceSolution<ContractionInputs_H_H_H, float>::SolveCPU(
                         problem, typedInputs, validationStride);
                 }
                 else
                 {
-                    return ReferenceSolution<HalfContractionInputs>::SolveCPU(
+                    return ReferenceSolution<ContractionInputs_H_H_H>::SolveCPU(
                         problem, typedInputs, validationStride);
                 }
             }
-            case HalfInFloatOutContractionInputs::TypeId():
+            case ContractionInputs_H_S_S::TypeId():
             {
-                auto const& typedInputs
-                    = dynamic_cast<HalfInFloatOutContractionInputs const&>(inputs);
-
-                return ReferenceSolution<HalfInFloatOutContractionInputs>::SolveCPU(
+                auto const& typedInputs = dynamic_cast<ContractionInputs_H_S_S const&>(inputs);
+                return ReferenceSolution<ContractionInputs_H_S_S>::SolveCPU(
+                    problem, typedInputs, validationStride);
+            }
+            case ContractionInputs_H_H_S::TypeId():
+            {
+                auto const& typedInputs = dynamic_cast<ContractionInputs_H_H_S const&>(inputs);
+                return ReferenceSolution<ContractionInputs_H_H_S, float>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
 #endif // TENSILE_USE_HALF
-            case Int8x4ContractionInputs::TypeId():
+            case ContractionInputs_I8x4_I32_I32::TypeId():
             {
-                auto const& typedInputs = dynamic_cast<Int8x4ContractionInputs const&>(inputs);
-                return ReferenceSolution<Int8x4ContractionInputs>::SolveCPU(
+                auto const& typedInputs
+                    = dynamic_cast<ContractionInputs_I8x4_I32_I32 const&>(inputs);
+                return ReferenceSolution<ContractionInputs_I8x4_I32_I32>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
-            case Int32ContractionInputs::TypeId():
+            case ContractionInputs_I32_I32_I32::TypeId():
             {
-                auto const& typedInputs = dynamic_cast<Int32ContractionInputs const&>(inputs);
-                return ReferenceSolution<Int32ContractionInputs>::SolveCPU(
+                auto const& typedInputs
+                    = dynamic_cast<ContractionInputs_I32_I32_I32 const&>(inputs);
+                return ReferenceSolution<ContractionInputs_I32_I32_I32>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
 #ifdef TENSILE_USE_BF16
-            case BFloat16ContractionInputs::TypeId():
+            case ContractionInputs_B_B_S::TypeId():
             {
-                auto const& typedInputs = dynamic_cast<BFloat16ContractionInputs const&>(inputs);
+                auto const& typedInputs = dynamic_cast<ContractionInputs_B_B_S const&>(inputs);
 
                 if(problem.highPrecisionAccumulate())
                 {
-                    return ReferenceSolution<BFloat16ContractionInputs, float>::SolveCPU(
+                    return ReferenceSolution<ContractionInputs_B_B_S, float>::SolveCPU(
                         problem, typedInputs, validationStride);
                 }
                 else
                 {
-                    return ReferenceSolution<BFloat16ContractionInputs>::SolveCPU(
+                    return ReferenceSolution<ContractionInputs_B_B_S>::SolveCPU(
                         problem, typedInputs, validationStride);
                 }
             }
-            case BFloat16InFloatOutContractionInputs::TypeId():
+            case ContractionInputs_B_S_S::TypeId():
             {
-                auto const& typedInputs
-                    = dynamic_cast<BFloat16InFloatOutContractionInputs const&>(inputs);
-
-                return ReferenceSolution<BFloat16InFloatOutContractionInputs>::SolveCPU(
+                auto const& typedInputs = dynamic_cast<ContractionInputs_B_S_S const&>(inputs);
+                return ReferenceSolution<ContractionInputs_B_S_S>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
 #endif // TENSILE_USE_BF16

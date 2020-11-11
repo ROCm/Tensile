@@ -67,7 +67,12 @@ globalParameters["EnqueuesPerSync"] = 1           # how many solution enqueues t
 globalParameters["SleepPercent"] = 300            # how long to sleep after every data point: 25 means 25% of solution time. Sleeping lets gpu cool down more.
 # validation
 globalParameters["NumElementsToValidate"] = 128   # number of elements to validate, 128 will be evenly spaced out (with prime number stride) across C tensor
-globalParameters["BoundsCheck"] = False   # Perform bounds check to find out of bounds reads/writes.  NumElementsToValidate must be -1.
+globalParameters["BoundsCheck"] = 0   # Bounds check
+#1: Perform bounds check to find out of bounds reads/writes.  NumElementsToValidate must be -1.
+#2: Perform bounds check by front side guard page
+#3: Perform bounds check by back side guard page
+#4: Perform bounds check by both back and front side guard page
+
 globalParameters["ValidationMaxToPrint"] = 4      # maximum number of mismatches to print
 globalParameters["ValidationPrintValids"] = False # print matches too
 # steps
@@ -221,6 +226,10 @@ globalParameters["PerfModelL2WriteHits"] = 0.15
 globalParameters["PerfModelL2ReadBwMul"] = 2
 globalParameters["PerfModelReadEfficiency"] = 0.85
 
+# limitation for training
+globalParameters["MaxWorkspaceSize"] = 32 * 1024 * 1024 # max workspace for training (32M)
+globalParameters["MinKForGSU"] = 256 # min K size to use GlobalSplitU algorithm (only for HPA now)
+
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 
@@ -306,8 +315,15 @@ validParameters = {
     "WaveSeparateGlobalReadA":    [ 0, 1 ],
     "WaveSeparateGlobalReadB":    [ 0, 1 ],
 
-    # prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
-    "PrefetchGlobalRead":         [ False, True ],
+    # PrefetchGlobalRead = 1:
+    # Requires 2X LDS space, and VGPRs for buffering data on way into LDS
+    #   prefetch / double-buffer reads from global memory -> vgprs -> lds.
+    #
+    # PrefetchGlobalRead = 2:
+    # Do another prefetch while writing data from vgpr to lds.
+    #   prefetch / double-buffer reads from global memory -> vgprs --> lds.
+    #                                                              |-> prefetch reads
+    "PrefetchGlobalRead":         [ 0, 1, 2 ],
 
     # number of iteration prefetch local reads from lds to VGPRs buffer = PLR % LoopIter
     # number of VGPRs buffer = min(PLR,LoopIters)
@@ -710,7 +726,7 @@ validParameters = {
     # 0:   Disable StoreRemap (default)
     # 1~8: Enable StoreRemap and set the global write vector width
     # Suggest optimum value: fp32 = [2,4], fp16 or bf16 = [4,8] (dwordx2 and dowrdx4)
-    "StoreRemapVectorWidth":      [0,1,2,4,8],
+    "StoreRemapVectorWidth":      [-1,0,1,2,4,8],
 
     # Disable overlapping AB-tile vgpr and read/write addr vgprs with C-tile vgprs
     # Valid only for MatrixInstruction enabled kernels, which by default overlaps
@@ -952,7 +968,7 @@ defaultBenchmarkCommonParameters = [
     {"WaveSeparateGlobalReadB":    [ 0 ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
     {"GlobalReadCoalesceGroupB":  [ True ] },
-    {"PrefetchGlobalRead":        [ True ] },
+    {"PrefetchGlobalRead":        [ 1 ] },
     {"PrefetchLocalRead":         [ 1 ] },
     {"UnrollMemFence":            [ False ] },
     {"GlobalRead2A":              [ True ] },
@@ -1334,20 +1350,20 @@ def printExit(message):
 
 ################################################################################
 # Locate Executables
-# rocm-smi, hip-clang, rocm_agent_enumerator
+# rocm-smi, hip-clang, rocm_agent_enumerator, clang-offload-bundler
 ################################################################################
 def isExe( filePath ):
   return os.path.isfile(filePath) and os.access(filePath, os.X_OK)
 def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
-  # look in path first
+  # look in defaultPath first
+  exePath = os.path.join(defaultPath, exeName)
+  if isExe(exePath):
+    return exePath
+  # look in PATH second
   for path in os.environ["PATH"].split(os.pathsep):
     exePath = os.path.join(path, exeName)
     if isExe(exePath):
       return exePath
-  # look in default path second
-  exePath = os.path.join(defaultPath, exeName)
-  if isExe(exePath):
-    return exePath
   return None
 
 def GetAsmCaps(isaVersion):
@@ -1360,7 +1376,7 @@ def GetAsmCaps(isaVersion):
   rv["HasDirectToLds"]  = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
   rv["HasAddLshl"]      = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
   rv["HasSMulHi"]       = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
-  rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "", False, "-mno-code-object-v3")
+  rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "", False, "-mllvm --amdhsa-code-object-version=2")
 
   rv["HasMFMA"]         = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
 
@@ -1524,24 +1540,32 @@ def assignGlobalParameters( config ):
     else:
       print2(" %24s: %8s (unspecified)" % (key, defaultValue))
 
+  globalParameters["ROCmPath"] = "/opt/rocm"
+  if "ROCM_PATH" in os.environ:
+    globalParameters["ROCmPath"] = os.environ.get("ROCM_PATH")
+  if "TENSILE_ROCM_PATH" in os.environ:
+    globalParameters["ROCmPath"] = os.environ.get("TENSILE_ROCM_PATH")
+
+  globalParameters["ROCmBinPath"] = os.path.join(globalParameters["ROCmPath"], "bin")
+
   # ROCm Agent Enumerator Path
-  globalParameters["ROCmAgentEnumeratorPath"] = locateExe("/opt/rocm/bin", "rocm_agent_enumerator")
+  globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm_agent_enumerator")
   if "CxxCompiler" in config:
     globalParameters["CxxCompiler"] = config["CxxCompiler"]
 
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
   elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hipcc":
-    globalParameters["AssemblerPath"] = locateExe("/opt/rocm/llvm/bin", "clang++")
+    globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang++")
   elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hcc":
-    globalParameters["AssemblerPath"] = locateExe("/opt/rocm/bin", "hcc")
+    globalParameters["AssemblerPath"] = locateExe(globalParameters["ROCmBinPath"], "hcc")
 
-  globalParameters["ROCmSMIPath"] = locateExe("/opt/rocm/bin", "rocm-smi")
+  globalParameters["ROCmSMIPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm-smi")
   if globalParameters["CxxCompiler"] == "hcc":
-    globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/bin", "extractkernel")
+    globalParameters["ExtractKernelPath"] = locateExe(globalParameters["ROCmBinPath"], "extractkernel")
   else:
-    globalParameters["ExtractKernelPath"] = locateExe("/opt/rocm/hip/bin", "extractkernel")
-    globalParameters["ClangOffloadBundlerPath"] = locateExe("/opt/rocm/llvm/bin", "clang-offload-bundler")
+    globalParameters["ExtractKernelPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "hip/bin"), "extractkernel")
+    globalParameters["ClangOffloadBundlerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang-offload-bundler")
 
   if "ROCmAgentEnumeratorPath" in config:
     globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]

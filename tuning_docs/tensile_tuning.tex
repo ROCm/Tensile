@@ -1,0 +1,1947 @@
+\documentclass[]{article}
+
+\usepackage{amsmath}
+\usepackage{fancyvrb}
+\usepackage[dvipsnames]{xcolor}  
+
+\usepackage[english]{babel}
+
+\usepackage[margin=0.75in]{geometry}
+
+\usepackage[latin1]{inputenc}
+\usepackage{times}
+\usepackage{tikz}
+
+\usepackage{listings}
+
+\usetikzlibrary{arrows,shapes,positioning,shadows,trees}
+\usepackage{minted}
+\usepackage{caption}
+
+\usepackage{hyperref}
+\hypersetup{
+	colorlinks=true,
+	linkcolor=blue,
+	filecolor=magenta,      
+	urlcolor=MidnightBlue,
+	pdftitle={Sharelatex Example},
+	bookmarks=true
+}
+
+
+\lstset{basicstyle=\ttfamily,
+	showstringspaces=false,
+	breaklines=true,
+	commentstyle=\color{ForestGreen},
+	keywordstyle=\color{blue}
+}
+
+\usepackage{blindtext}
+\usepackage{pifont,mdframed}
+
+\newenvironment{warning}
+{\par\begin{mdframed}[linewidth=2pt,linecolor=red]
+		\begin{list}{}{\leftmargin=1cm
+				\labelwidth=\leftmargin}\item[\Large\ding{43}]}
+		{\end{list}\end{mdframed}\par}
+
+
+\setcounter{tocdepth}{4} 
+\setcounter{secnumdepth}{4}
+
+\usepackage{authblk}
+
+\title{Tensile Tuning and Workflow}
+\author{William Gilmartin \and Alex Liu \and Scott Quiring}
+
+\begin{document}
+
+\maketitle
+
+\newpage
+
+\tableofcontents
+
+\begin{abstract}
+Description of the Tensile workflow and proposals
+\end{abstract}
+
+
+\tikzstyle{format} = [draw, thin, fill=blue!20]
+\tikzstyle{medium} = [ellipse, draw, thin, fill=green!20, minimum height=2.5em]
+
+\section{Tensile and rocBLAS}
+
+
+rocBLAS is a BLAS implementation which is included as part of AMD's ROCm project offerings which optimizes the BLAS routines for AMD's GPUs. The gpu kernels which implement the rocBLAS blas3 gemm routines (or gpu kernel) are optimized using Tensile tool which is a utility that benchmarks the performance of selected kernels that are generated from "tuning parameters" and selected for inclusion in the final library based on the results. This library is included as part of the rocBLAS package and loaded at run-time during initialization. Give a gemm call the problem parameters are passed to the tensile client which selects the best known kernel for optimal performance during the execution.
+ 
+
+A guide to installation of rocBLAS and Tensile can be found \hyperref[sec:appendixA]{Appendix A}.
+
+\subsection{Goals of Tensile Tuning}
+
+Every problem that can be solved with a generalized algorithm can be customized based on the application. In this case, we are solving problems on AMDGPUs which are highly configurable and can get things done in many ways. We have many choices of distributing workload, hardware resources, vector parallelization or unrolling loops just to name a few. How do we know which are the best choices, guaranteeing correct results with the best performance?
+
+One way that we can deal with this is by considering parameterized benchmarks. We choose parameters and problem sizes that we are interested in, and try different combinations of these values to gain insight on their effects of correctness and performance. Once validated for correctness and show relative performance advantages, each of these combinations is considered a valid 'solution' to the problem.
+
+The goals of the Tensile Tuning process is to build libraries containing gpu kernels which provide optimized performance for any problem specification within a given problem domain by means of the selection. This selection maps an incoming problem or set of problems to the best kernel which is optimal for that problem(s). This is achieved in Tensile by the solution selection method. 
+
+\subsubsection{Solution Selection Model}
+
+The model that Tensile uses for selection is a metric base method which compares the target problem sizes against sizes used as representations (called exact sizes) within the model. These representation sizes are the ones that are tuned by Tensile during the tuning process so that for each exact size there is a mapping from that specific size to a kernel which is optimal for that size. In the model if the incoming problem size happens to be one of the representative (exact) sizes than the corresponding kernel is selected. However if the problem size is not not an exact size (a representation), then the selection falls back to an alternative means of selection, which in the current version if Tensile is based on a metric or distance from the representation space (that is the set of exact sizes representing the model). The size specification is in the from of the gemm type problem description, that is, based on the on the dimension of the C matrix, the summation size and the batch count of the problem. The metric selection finds the representative (exact) size which is closed to the incoming problem size in terms of the metric. The selection then returns the kernel which is optimal for the representative size.
+
+The objective of building the Tensile library is to find the optimal set of representative sizes and associated kernels which best models the problem domain. The Tensile tuning process will take a given set of problem sizes and create the internal mappings which map those problem sizes to the respective optimal kernel. 
+
+\subsubsection{Tuning with Tensile}
+
+The Tensile tuning process performs tuning for sets of problem sizes (the problems space) upon sets of kernels (the kernel space) defined by the specification of the tuning. The set of problem sizes along with the set of kernels together defines the configuration space for the Tuning.   
+
+\begin{figure}[h]
+	
+	\[ tuning\ configurations\ space = solutions \times problem\ sizes \]
+	
+\end{figure}
+
+The results of the tuning will produce the ideal kernel, from within the kernel space, for each problem size within the problems space, and thus generating the mapping which is used in the selection.
+
+\section{Basic Example (Hello Tensile Tuning)}
+
+As a simple example of running the tuning application look at the configuration tuning.yaml. This provides Tensile with the specifications for a simple tuning run using tensile, the content will be described in more detail latter in this document. The following example show how to execute a full round of tuning using Tensile.
+
+\begin{lstlisting}[language=bash,breaklines=true]
+
+# clone Tensile
+git clone https://github.com/ROCmSoftwarePlatform/Tensile.git
+
+# setup tuning run
+cd Tensile
+mkdir build
+cd build
+cp ../../tuning.yaml .
+
+# run tensile
+../Tensile/bin/Tensile example_vega20_tuning.yaml . > tuning.out 2>&1 
+\end{lstlisting}
+
+In this example we ran the tuning configuration for a system with a vega20 gpu installed, this example configuration can be found in the Tensile/tuning/examples sub directory of the Tensile repo. In this example, the configuration parameters which enable tuning for this specific device is describe in the  \hyperref[sec:LibraryLogic]{Library  Logic Parameters} section of this document.
+
+The output of the benchmark run (tuning.out) contains useful information for examining the performance of the problems sizes as measured against the selected set of kernels which are being benchmarked. Shown below:  
+
+\begin{Verbatim}[frame=single,commandchars=\\\(\)]
+run, (\color(blue)problem-progress), (\color(blue)solution-progress), operation, (\color(red)problem-sizes), (\color(red)solution), 
+ validation, time-us, (\color(red)gflops), empty, total-gran, tiles-per-cu, num-cus, tile0-gran, 
+ tile1-gran, cu-gran, wave-gran, mem-read-bytes, mem-write-bytes, temp-edge, 
+ clock-sys, clock-soc, clock-mem, fan-rpm, hardware-samples, enqueue-time 
+
+0, (\color(blue)0/3), (\color(blue)0/5), Contraction_l_Ailk_Bljk_Cijk_Dijk, (\color(red)"(5504,5504,1,3104)"), 
+ (\color(red)Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU1_K1_TT4_4_WG16_16_1), NO_CHECK, 17423.79, 
+ (\color(red)10794), , 0.99, 123.27, 60, 1.00, 1.00, 0.99, 1.00, 11875254272, 121176064,  36.00, 
+ 700.00, 971.00, 1000.00, 845.00, 1, 2020-09-29 13:32:14.002548
+   
+0, 0/3, 1/5, Contraction_l_Ailk_Bljk_Cijk_Dijk, "(5504,5504,1,3104)", 
+ Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU4_K1_TT4_4_WG16_16_1, NO_CHECK, 17953.34, 
+ 10475, , 1.00, 493.07, 60, 1.00, 1.00, 1.00, 1.00, 11754078208, 363528192, 36.00,
+ 1801.00, 971.00, 1000.00, 845.00, 1, 2020-09-29 13:32:14.029611
+   
+0, 0/3, 2/5, Contraction_l_Ailk_Bljk_Cijk_Dijk, "(5504,5504,1,3104)",
+ (\color(green)Cijk_Ailk_Bljk_SB_MT128x128x16_SE_GSU1_K1_TT8_8_WG16_16_1), NO_CHECK, 15872.19,
+ (\color(green)11849), 0.99, 30.82, 60, 1.00, 1.00, 0.99, 1.00, 5998215168, 121176064, 36.00,
+ 1801.00, 971.00, 1000.00, 845.00, 1, 2020-09-29 13:32:14.058389
+   
+0, 0/3, 3/5, Contraction_l_Ailk_Bljk_Cijk_Dijk, "(5504,5504,1,3104)",
+ Cijk_Ailk_Bljk_SB_MT128x128x16_SE_GSU4_K1_TT8_8_WG16_16_1, NO_CHECK, 17040.37,
+ 11036, 0.99, 123.27, 60, 1.00, 1.00, 0.99, 1.00, 5877039104, 363528192, 36.00,
+ 1801.00, 971.00, 1000.00, 845.00, 1, 2020-09-29 13:32:14.082752
+   
+0, 0/3, 4/5, Contraction_l_Ailk_Bljk_Cijk_Dijk, "(5504,5504,1,3104)",
+ Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU1_K1_TT8_8_WG8_8_4, NO_CHECK, 26010.67,
+ 7230, 1.00, 493.07, 60, 1.00, 1.00, 1.00, 1.00, 11875254272, 121176064, 36.00,
+ 1801.00, 971.00, 1000.00, 843.00, 1, 2020-09-29 13:32:14.110139
+
+...
+
+
+\end{Verbatim}
+
+The text in the red shows is the problem dimensions, the kernel name and the performance (GFlops) as measured by Tensile. This is useful when iterating through a tuning exercise that takes more than one benchmark run. It provides a user with a snapshot of the performance of the sizes for each of the kernels being measured by Tensile. In this example the blue text indicates the progress of the problems and solution. A problem is defined by the size specification (the sizes that are being benchmarked) and the solutions are defined by the kernels generated by Tensile during the initial stages of execution. Here we see problem 0 of 3 problems (0/3) is being presented. This problem was benchmarked for each of the kernels that Tensile generated, in this case there are 5 total kernels ([0-4]/5). The performance of the first measurement is highlighted in red. The final results of the tuning will be the best performing kernel for each of the sizes being measured, in this example it is highlighted in green. We can see here that the best kernel for problem 0 was Cijk\_Ailk\_Bljk\_SB\_MT128x128x16\_SE\_GSU1\_K1\_TT8\_8\_WG16\_16\_1 and hence this was the one that will be selected for the final library.
+
+As part of the tuning tuning process, one can examine these results and get a sense of how good the tuning parameters are that are being used in the current sweep of the tuning parameters. If needed, subsequent adjustments can to the tuning parameters used in previous tuning iterations can be made for later iterations.
+
+\section{Tensile Tuning Workflow}
+
+The Tensile tuning workflow may be viewed conceptually as a different operation than a simple Tensile tuning pass, which performs tuning as a single pass of the Tensile application, during a complete tuning exercise that it could take multiple iterations to reach the desired performance. A single tuning iteration of tuning in Tensile can be broken down into several steps. The Tensile application performs those steps as part of a complete unit.
+
+\subsection{Steps in Tensile Tuning}
+
+\begin{figure}[H]
+	\centering
+	\captionsetup{justification=centering}
+	\begin{tikzpicture} [node distance=3cm, auto, thick]
+	
+	\path[->] node[format,label={config}] (tune) {*.yaml};
+	\path[->] node[format,above of=tune,label={build}] (build) {client};
+	\path[->] node[format, right of=tune, label={[align=center]:perfor\\-mance\\data}] (bench) {*.csv}
+	(tune) edge node[align=center] {bench\\mark} (bench)
+	(build) edge (bench);
+	\path[->] node[format, right of=bench, label={logic}] (analyze) {*.yaml}
+	(bench) edge node {analyze} (analyze);
+	\path[->] node[format, right of=analyze] (lib) {.*co *.dat}
+	(analyze) edge node[align=center] {create\\library} (lib);
+
+	\end{tikzpicture}
+	\caption{a complete Tensile tuning pass}
+\end{figure}
+
+Each of the steps corresponds to the directories created by the Tensile application located within the working path. The input to Tensile is a tuning configuration file which provides the set of \hyperref[sec:appendixB]{parameters} used to drive the tuning process for a given iteration.
+
+\begin{description}
+	\item[Step 0] This step creates the Tensile client application which is the exectutable the does the benchmarking. This is found in the directory \textbf{0\_Build}.
+	\item[Step 1] The second step does two things. It first part of this step generates a library containing all the solutions that are being measured based on the tuning configuration. The second part of this step does the actual benchmarking using the problems sizes defined in the configuration. The output of this is placed in \textbf{1\_BenchmarkProblems}.
+	\item[Step 2] This step merely collects and copies the benchmark data and places it in \textbf{2\_BenchmarkData}.
+	\item[Step 3] This step performs analytics on the data and generates the logic file which is used to create the final Tensile Library. The output of this is placed in \textbf{3\_LibraryLogic}.
+	\item[Step 4] Finally, this step generates a prototype Tensile Library based on the logic file created in the previous step. The output of this is placed in \textbf{4\_LibraryClient}.
+	
+\end{description}
+
+The full workflow also includes post process analysis of the results. In our current system this we use rocblas-bench which includes a reference version of the library that can be used to compare the results, that is, we make a comparison of the version of rocBLAS without the updated tuning and a new candidate version which includes the new tuning results. 
+
+The over all process includes user intervention in several areas areas of the tuning workflow. This includes the creation and modifications of the tuning configuration for each iteration of the tuning process. The automation help in the process by automating the initial tuning and validation part of the workflow but it is not smart enough to update parameters sets for additional steps in the process.
+
+\subsection{Tensile application}
+The tensile tuning application is executed using the following command:
+
+\begin{lstlisting}[language=bash]
+./Tensile/bin/Tensile config_file output_path
+\end{lstlisting}
+
+\begin{verbatim}
+arguments: 
+ config_file           benchmark config.yaml file
+ output_path           path where to conduct benchmark
+\end{verbatim}
+
+Tensile takes as input a tuning configuration file \emph{tuning\_config.yaml} as input. This file provides all the specification of the tuning. This includes the global context such as the print level and build type (Release|Debug) as well as the sets of parameters used to specify the problem, sizes and definition of the kernels used for benchmarking.
+
+Tensile will produce, as a result of the tuning, a \emph{Cijk\_Ailk\_Bljk.yaml} file (called the logic file) which contains all the information needed to build the final Tensile library containing the kernel objects and the definitions of the mappings which map a given input to the optimizes kernel for that input.
+
+
+\subsection{The Tensile Tuning Configuration}
+
+The Tensile tuning configuration (tuning.yaml file) defines the context which drives the tuning for a complete or partial tuning pass. There are 4 sections defined in this configuration which do not directly correspond to the directories defined in the previous section. The sections are 
+
+\begin{description}
+\item[GlobalParameters] The set of parameters which provides context for the entire tuning exercise. 
+\item[BenchmarkProblems] Defines the set of kernel specifications as well as the size definitions for the tuning exercise.
+\item[LibraryLogic] Specifies the target environment and platform information that Tensile uses as part of the \hyperref[sec:LibraryLogic]{library logic}. The logic files that get generated provides Tensile with the metadata used in the final tensile library construction. 
+\item[LibraryCilent] If defined this will enable step 4 of the tuning process which means the final library will be created. There are no parameters that are defined in this section so this is just a flag which indicates that the final library is to be build. The library generator will take, as input, the logic files created in the previous step.
+\end{description}
+
+\subsubsection{GlobalParameters}
+
+An example of the global parameters section in the tuning configuration:
+\begin{minted}[
+	gobble=0,breaklines,
+	frame=single,
+	linenos
+	]{yaml}
+GlobalParameters:
+  MinimumRequiredVersion: 4.4.0
+  PrintLevel: 1
+  ForceRedoBenchmarkProblems: True
+  ForceRedoLibraryLogic: True
+  ForceRedoLibraryClient: True
+  CMakeBuildType: Release
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
+  LibraryPrintDebug: False
+  NumElementsToValidate: 0
+  ValidationMaxToPrint: 4
+  ValidationPrintValids: False
+  ShortNames: False
+  MergeFiles: True
+  Platform: 0
+  Device: 0
+  KernelTime: True
+  PinClocks: False
+  SleepPercent: 0
+  DataInitTypeBeta : 0
+  PrintWinnersOnly: 1
+\end{minted}
+
+Some important parameters to consider are:
+\begin{description}
+\item[CMakeBuildType] Specifies the build type of the tensile client, is set to either Release or Debug
+\item[PrintLevel] The print level.
+\item[Device] If multiple devices are install on the machine used for tuning, this will indicate the device id used to perform the benchmarks. 
+\end{description}
+
+\subsubsection{BenchmarkProblems}
+\begin{minted}[
+gobble=0,breaklines,
+frame=single,
+linenos
+]{yaml}
+BenchmarkProblems:
+- - {Batched: true, DataType: s, OperationType: GEMM, TransposeA: false, TransposeB: false, UseBeta: true}
+  - BenchmarkCommonParameters:
+    - LoopTail: [true]
+    - KernelLanguage: [Assembly]
+    - EdgeType: [ShiftPtr]
+    BenchmarkFinalParameters: 
+    - ProblemSizes:
+    - Exact: [ 5504, 5504, 1, 3104 ]
+    - Range: [ [64, 64, 64, 7000], [4], [1], [128] ]
+    BenchmarkForkParameters: null
+    BenchmarkJoinParameters: null
+    ForkParameters:
+    - GlobalSplitU: [1, 4]
+    - PrefetchGlobalRead: [true, false]
+    - WorkGroupMapping: [1, 8, 64]
+    - DepthU: [16, 32, 64]
+    - PrefetchLocalRead: [true, false]
+    - VectorWidth: [2, 4]
+    - GlobalReadVectorWidth: [1, 4]
+    - FractionalLoad: [0, 1]
+# the thread tilings
+    - ThreadTile:
+      - [4, 4]
+      - [8, 8]
+# the work group sepecifications
+    - WorkGroup:
+      - [16, 16, 1]
+      - [8, 8, 4]
+    InitialSolutionParameters: null
+    JoinParameters: null
+
+# can define more than 1 problem in a problem group
+# start of next problem
+  - BenchmarkCommonParameters:    
+  
+...
+
+# other problem groups
+- - {Batched: true, DataType: s, OperationType: GEMM, TransposeA: false, TransposeB: false, UseBeta: true}
+
+...
+
+\end{minted}
+
+This is the most important section of the tuning configuration. It defines specifications for the set of kernels which are being benchmarked as well as the sizes that are being targeted. Each benchmark problem has a set of parameters which defines how everything gets constructed. Most of the parameters are descriptions of the kernel specifications. The main parameters to focus for generating the benchmark kernels are BenchmarkCommonParameters and ForkParameters. They get generated in the following convention.  
+
+\paragraph{BenchmarkCommonParameters} The benchmark common parameters define a base set of parameters used in all the kernels that are generated in the specification for the section. These would then be common parameter values for all the kernels that are generated.
+
+\label{sec:forkParams}
+\paragraph{ForkParameters} The fork parameters generate the kernels as a cross product of the parameters lists which are specified. For example if VectorWidth = [2, 4] and DepthU = [16, 32] the kernels that get generated would be drawn from all combinations of the corresponding value lists, hence, the combinations \{ \{VectorWidth=2 ,DepthU=16\}, \{VectorWidth=4, DepthU=16\},  \{VectorWidth=2, DepthU=32\}, \{VectorWidth=4, DepthU=32\} \} would get generated as part of the respective kernels specifications and they would targeted for benchmarking provided they define valid kernels. 
+
+\paragraph{BenchmarkFinalParameters} The problem sizes get defined in BenchmarkFinalParameters as shown in the example provided. There are two types of size specifications one is the Exact, which specifics a single size, and the other is Range, which generates a set of sizes based on the range logic. 
+
+\hfill \break
+Note the overall structure of this section of the configuration:
+
+\hfill \break
+\noindent {\color{blue} Benchmark Problem Groups (List of problem groups): }
+
+\noindent {\color{blue} \hspace{2em} -- Problem Group (List of problem groups items)} 
+
+\noindent {\color{blue} \hspace{4em} -- Problem (problem group items) } 
+
+\noindent {\color{blue} \hspace{6em} -- Problem Type (first item) } 
+
+\noindent {\color{blue} \hspace{6em} -- Problem One Spec (second item (parameter map)) }
+
+\noindent {\color{blue} \hspace{6em} -- Problem Two Spec (third item (parameter map)) }
+
+\noindent {\color{blue} \hspace{6em} -- Problem Three Spec (fourth item (parameter map)) 
+	
+	...
+	
+}
+
+\label{sec:LibraryLogic}
+\subsubsection{LibraryLogic}
+
+The \emph{Library Logic} is a collction of one or more .yaml files containing benchmarking output results (usually one per gfx architecture, per benchmark problem) created by Tensile and is the final product of the benchmarking and tuning process. It consists of kernel meta-data (called the solution) and mappings to problems that it can solve, and performance data at particular sizes.
+
+This section of the tuning configuration specifies the target platform and architecture of the particular tuning exercise being conducted. An example of what gets defined in this section is:
+
+\begin{minted}[
+gobble=0,breaklines,
+frame=single,
+linenos
+]{yaml}
+LibraryLogic:
+  ArchitectureName: gfx906
+  DeviceNames: [Device 66a0, Device 66a1, Device 66a7]
+  ScheduleName: vega20
+\end{minted}
+
+This describes the target platform for which the final library is targeted and will generate a corresponding \hyperref[sec:logicFile]{logic file} for this specific platform and device specification. Notice here that the top of this logic file contains the same information as described in the LibraryLigic section of the configuration file. \newline
+
+\noindent \textbf{Generated Logic File Example:}
+\begin{minted}[
+gobble=0,breaklines,
+frame=single,
+linenos
+]{yaml}
+# specifications of library
+# defined in GlobalParameters section of the tuning configuration
+- {MinimumRequiredVersion: 4.22.0}
+# defined in the LibraryLogic section of the tuning configuration
+- vega20
+- gfx906
+- [Device 66a0, Device 66a1, Device 66a7]
+\end{minted}
+
+There are three main parts to this and they are mostly self describing. The ArchitectureName specifies the graphics architecture and the number "906" is the instruction set "ISA" id. The schedule is the gpu codename. The Device list is the specific device ids. 
+
+Other example target platform specifications and devices are listed in \hyperref[sec:appendixD]{appendix D}
+
+
+
+\subsection{Tuning Configuration Construction}
+
+The things to focus on during the construction of the tuning configuration are,
+
+The problem type:
+\begin{minted}[
+gobble=0,breaklines,
+frame=single,
+linenos
+]{yaml}
+
+- - { Batched: true,        # [true, false]
+      DataType: s,          # [S=singel, D=Double, C=ComplexSingle, Z=ComplexDouble, H=half,4xi8=int8x4, I=int32, B=bfloat16]
+      OperationType: GEMM,  # [GEMM, TensorContraction, ConvolutionForward, ConvolutionBackwardData, ConvolutionBackwardWeights]
+      TransposeA: false,    # [true, false]
+      TransposeB: false,    # [true, false]
+      UseBeta: true         # [true, false]
+     }         
+
+\end{minted}
+
+These are fairly straight foreword. 
+
+The list of problem specifications is the heart of the tuning configuration, Tensile has the ability to define a muli-step tuning process which includes a complex set of search specifications but in practice this does not in general result in better performance than the process we outline here:
+\begin{minted}[
+gobble=0,breaklines,
+frame=single,
+linenos
+]{yaml}
+BenchmarkCommonParameters:
+BenchmarkFinalParameters: 
+BenchmarkForkParameters: null      # not used
+BenchmarkJoinParameters: null      # not used
+ForkParameters:
+InitialSolutionParameters: null    # not used
+JoinParameters: null               # not used
+\end{minted}
+
+The  {\color{ForestGreen} \bf BenchmarkCommonParameters} and  {\color{ForestGreen} \bf ForkParameters} define the space of kernels used for benchmarking. The benchmark common parameters define the common parameters, unless overridden by the forked parameters, defined for all the kernels that get generated for the benchmarking. As described in the \hyperref[sec:forkParams]{forked parameters} section this defines a cross product of tuning parameter created from all the combination of parameters in the parameter lists. A full list of parameters is described in \hyperref[sec:appendixB]{appendix B} here we will focus on the most common parameters that are used during most tuning exercise. 
+
+{\color{ForestGreen} \bf ThreadTile} = [tt0, tt1] and {\color{ForestGreen} \bf  WorkGroup} = [wg0, wg1, localSplitU ] define the thread tile parameter defines the dimensions of the C matrix that each thread works on. Together they form the macro tiling {\color{ForestGreen} \bf MacroTile} = [tt0*wg0, tt1*wg1, mt2].
+ 
+The {\color{ForestGreen} \bf GlobalSplitU} parameter defines how the tensile splits the unroll summation into multiple sections. Other possible considerations for starting the tuning are {\color{ForestGreen} \bf DepthU, VectorWidth} and {\color{ForestGreen} \bf GlobalReadVectorWidth}. The global read vector width Controls desired width (number of elements) for loads from global memory LDS (possable values are [-1, 1, 2, 3, 4, 6, 8 ]). The vector width controls the contiguous elements from the C matrix. The depth U parameter is closely related to the local split U parameter and the combination of the two defines how the loop unroll of the summation dimension.
+
+Considering the full set of parameters involve it is not practical to build every set of kernels as part of any investigation. This would exhaust compute resources. The target number of kernels we consider optimal for investigation is between 10,000 and 20,000 kernels. The tuning workflow may take many iterations of the tuning to reach optimal performance. Each iteration will perform a complete run of the Tensile tuning and evaluation of the results. If some of the problem sizes under investigation do not result in optimal performance then, for the sizes that fail, modifications of the tuning specifications are made to search alternative solutions in the kernel space. The tuning is then rerun using the update parameter set. This type of iteration is continued until the desired optimization is reached.
+
+\subsection{Tuning Artifacts}
+The final result of Tensile tuning will generate some data artifacts which are important to know about. 
+
+\subsubsection{Build Artifacts}
+The first stage of the tuning creates a benchmark library. This is found in the directory:
+ 
+\begin{lstlisting}[language=bash,breaklines=true, emph={build,ls,build_tmp,library}, emphstyle=\color{blue}]
+$ ls /tunning_root/1_BenchmarkProblems/Cijk_A??k_B??k_??_??/??_Final
+
+# sourcs contains the library components
+$ build source
+
+$ ls /tunning_root/1_BenchmarkProblems/Cijk_A??k_B??k_??_??/??_Final/source
+
+# library contains the final tensile library and code objects
+# build_tmp contains the kernals
+$ build_tmp library
+
+$ ls /tunning_root/1_BenchmarkProblems/Cijk_A??k_B??k_??_??/??_Final/source/build_tmp/SOURCETMP/assembly
+
+$ Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU4_K1_TT8_8_WG8_8_4.co
+$ Cijk_Ailk_Bljk_SB_MT128x128x16_SE_GSU1_K1_TT8_8_WG16_16_1.o
+$ Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU1_K1_TT4_4_WG16_16_1.co
+$ Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU1_K1_TT8_8_WG8_8_4.s
+$ Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU4_K1_TT8_8_WG8_8_4.o
+$ Cijk_Ailk_Bljk_SB_MT128x128x16_SE_GSU1_K1_TT8_8_WG16_16_1.s
+$ Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU1_K1_TT4_4_WG16_16_1.o
+$ Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU4_K1_TT4_4_WG16_16_1.co
+$ Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU4_K1_TT8_8_WG8_8_4.s
+
+$ ls /tunning_root/1_BenchmarkProblems/Cijk_A??k_B??k_??_??/??_Final/source/library
+
+$ Kernels.so-000-gfx1010.hsaco  Kernels.so-000-gfx1011.hsaco Kernels.so-000-gfx803.hsaco Kernels.so-000-gfx900.hsaco Kernels.so-000-gfx906.hsaco  Kernels.so-000-gfx908.hsaco TensileLibrary_gfx906.co TensileLibrary.yaml
+
+\end{lstlisting}
+
+\noindent the full kernel naming conventions is outlined in \hyperref[sec:appendixC]{appendix C}. 
+
+here the the question marks indicate that there may be more than one subdirectory creates for each level do to the fact that a configuration can specify more than one problem type or problem groupings. The naming convention corresponding to Cijk\_A??k\_B??k\_??\_?? is a result of the problem type. The $ C, A $ and $ B $ is a reference to the matrix multiplication $ C = A \times B $, in this context, the letters convey the summation index $= l$, batch index $= k$ and the fixed indices $=i,j$. Hence
+
+\begin{description}
+	\item[Cijk\_Ailk\_Bljk]  $ \Longrightarrow C = A * B $
+	\item[Cijk\_Ailk\_Bjlk]  $ \Longrightarrow C = A * B^T $
+	\item[Cijk\_Alik\_Bljk]  $ \Longrightarrow C = A^T * B $
+	\item[Cijk\_Alik\_Bjlk]  $ \Longrightarrow C = A^T * B^T $
+\end{description}
+
+The names for the problem types are effectively the Einstein summation convention for tensor contraction. This convention is that in a summation over symbols that appears twice then the summation simplified by making the summation symbol implicit.  
+
+\[ C_{ijk} = \sum_{l=1}^{N} A_{ilk} B_{ljk} = A_{ilk} B_{ljk}\ \ \text{(Einstein: the sum is over the index $l$)}\]
+
+The other part of the name corresponds to the datatype, also, if there is more then one problem in the problem group defined in the configuration, there will be a sequence number attached. Hence Cijk\_Ailk\_Bljk\_SB\_00 means that the problem is the first problem in the problem group and is for datatype single. The directory under this could possibly contain more than one subdirectory which corresponds to the sub-steps in the configuration for the specific problem, however in practice we recommend following the conventions specified above which will only produce one subdirectory for one tuning step. The 00\_Final directory contains the resulting library which is used by Tensile to perform the actual benchmarks. 
+
+The files that are show in the source/library directory contains the compiled shared library and the serialized master library. The code objects are identified by the extensions .co/.hsaco. The only difference between them is that the .co libraries contain the ASM (assembly) kernels and the .hsaco libraries contain SOURCE kernels. The gfx??? part of the name identifies the architecture for which the objects were compiled for.
+
+
+\subsubsection{The Tensile Logic File}
+\label{sec:logicFile}
+
+
+The results of the tuning will generate the tensile logic file. This file is used to Generate the final tensile library using the TensileCreateLibrary application. It contains the library and kernel specification as well as the size mappings. An example:
+
+\begin{minted}[escapeinside=@@,breaklines,
+frame=single,
+linenos
+]{yaml}
+# specifications of library
+# defined in GlobalParameters section of the tuning configuration
+- {MinimumRequiredVersion: 4.22.0}
+# defined in the LibraryLogic section of the tuning configuration
+- vega20
+- gfx906
+- [Device 66a0, Device 66a1, Device 66a7]
+- AllowNoFreeDims: false
+  AssignedDerivedParameters: true
+  Batched: true
+  ComplexConjugateA: false
+  ComplexConjugateB: false
+  ComputeDataType: 0
+  ConvolutionConfig: []
+  DataType: 0
+  DestDataType: 0
+  HighPrecisionAccumulate: false
+  Index0: 0
+  Index01A: 0
+
+...
+
+# first kernel
+- - 1LDSBuffer: 0
+    AggressivePerfMode: 1
+    AssertFree0ElementMultiple: 1
+    AssertFree1ElementMultiple: 1
+    AssertMinApproxSize: 3
+...
+
+    ProblemType:
+      AllowNoFreeDims: false
+      AssignedDerivedParameters: true
+      
+...
+
+    ThreadTile: [4, 4]
+    WorkGroup: [16, 16, 1]
+
+...
+
+# start of the next kernel
+  - 1LDSBuffer: 0
+
+
+# start of the size mappings
+- [2, 3, 0, 1]
+# size mapping
+# size [m, n, batch, k, strides, ...]
+- - - [64, 4, 1, 128, 64, 64, 64, 128]
+# mapping of size to kernel 0
+    - [0, 3.0]
+  - - [128, 4, 1, 128, 128, 128, 128, 128]
+    - [0, 6.0]
+# mapping of size to kernel @\color{red}{1}@
+  - - [256, 4, 1, 128, 256, 256, 256, 128]
+    - [@\color{red}{1}@@,@ 13.0]
+
+# ignored in the current selection model
+- null
+
+\end{minted}
+
+This example only highlights what the logic file looks like. It is not practical, at this point, to go over all the parameters in a complete file. The things to note here are the beginning of the top of the file we see the library specifications that was defined in the LibraryLogic section of the tuning configuration as well as the mappings.
+ 
+The final set of lines show how the mappings are specified in the logic file. They are specified in pairs, the first array specifies the size and the second specifics what kernel that size is mapped to. The size part is parameterized as follows (in terms of blas parameters):
+ 
+\begin{center}
+ 	- - [m, n, batch size, k, ldc, ldd, lda, ldb]. 
+\end{center} 
+
+the second line is parameterized, giving the index of the kernel as the first parameter and the measured efficiency of the selected kernel as the second parameter
+
+\begin{center}
+	- [kernel index, measured efficiency].
+\end{center}
+
+\section{Validating Using rocblas-bench}
+
+rocblas-bench is a tool used to perform benchmarks on the problem sizes which are being measured. It is design to measure performance of the full set of rocblas library functions, our interest is in the level 3 gemm functions which in rocBLAS are calls into Tensile library. 
+
+The git repository for rocblas is found at https://github.com/ROCmSoftwarePlatform/rocBLAS, hence to clone either the develop or master branch version may be used for testing:
+
+\begin{lstlisting}[language=bash]
+git clone -b master|develop https://github.com/ROCmSoftwarePlatform/rocBLAS.git
+\end{lstlisting}
+
+To build use
+
+\begin{lstlisting}[language=bash]
+cd rocBLAS
+./install.sh -d -c
+\end{lstlisting}
+
+where the c option builds the client applications which includes rocblas-bench and the d option will build and install the dependencies (the d option only need to be once on each system that rocblas is being build). Executing the test for a single problem sizes is done using the familiar blas parameters
+
+\begin{lstlisting}[language=bash]
+cd build/release/client/staging
+./rocblas-bench -f gemm -r f32_r --transposeA N --transposeB T -m 1001 -n 1536 -k 64 --alpha 1.0 --lda 1001 --ldb 1536 --beta 0.0 --ldc 1001 -i 10 
+\end{lstlisting} 
+
+The i option is the number of iterations of the gemm call. Because there is a latency in loading he tensile library which rocblas links to, it is recommended that, for testing, run the rocblas-bench using the batch call. This call takes a yaml file with a list of problem sizes. An example of the file content is:
+
+\begin{minted}[
+gobble=0,breaklines,
+frame=single,
+linenos
+]{yaml}
+
+- { rocblas_function: "rocblas_sgemm", transA: 'N', transB: 'N', M: 1024, N: 1264, K: 345, lda: 1024, ldb: 345, ldc: 1024, cold_iters: 2, iters: 10 }
+- { rocblas_function: "rocblas_sgemm", transA: 'N', transB: 'N', M: 1025, N: 1064, K: 148, lda: 1025, ldb: 148, ldc: 1025, cold_iters: 2, iters: 10 }
+- { rocblas_function: "rocblas_sgemm", transA: 'N', transB: 'N', M: 2450, N: 512, K: 1023, lda: 2450, ldb: 1023, ldc: 2450, cold_iters: 2, iters: 10 }
+- { rocblas_function: "rocblas_sgemm", transA: 'N', transB: 'N', M: 2345, N: 2222, K: 345, lda: 2345, ldb: 345, ldc: 2345, cold_iters: 2, iters: 10 }
+
+\end{minted} 
+
+this can be executed in rocblas-bench using:
+
+\begin{lstlisting}[language=bash]
+./rocblas-bench --yaml problem-sizes.yaml
+\end{lstlisting}
+
+The Tensile components (logic files) which rocblas uses as the default library are located in the rocblas repo, rocBLAS/library/src/blas3/Tensile/Logic. The various sub directories contain the logic files used to build the Tensile Library. The most important one is the asm\_full, this contains the logic used to build the default version of the tensile library which gets installed with the rocblas library. The files contain the logic files which is the final output of the tuning as described above. You can examine the content of this directory to see the scope of the full tensile library product. 
+
+The process for tuning is done incrementally in the sense that we do not perform the tuning on the full set of sizes for each exercise but in stages as the need arises, that is when there is a particular size that is of interest. This means that the final product contains the sizes and kernels from many separate tuning exercise. This means that the results of each tuning exercise must be merged. 
+
+\subsection{Merging Results into rocBLAS}
+
+There is a utility used to merge the result of the logic contained in separate files. Located in the Tensile repo path Tensile/Tensile/Utilities:
+
+\begin{verbatim}
+usage: merge.py [-h] [--force_merge FORCE_MERGE]
+original_dir incremental_dir output_dir
+
+positional arguments:
+original_dir          The library logic directory without tuned sizes
+incremental_dir       The incremental logic directory
+output_dir            The output logic directory
+
+optional arguments:
+-h, --help            show this help message and exit
+--force_merge FORCE_MERGE
+Merge previously known sizes unconditionally. Default
+behavior if not arcturus
+\end{verbatim}
+
+This takes an input path which contains the previous logic and then an incremental director containing the new logic which is being merged into the previous results, this is the newly tuned logic. The output path then contains the merged results. This is a two step process for performing this the first is the merge and the second is called the massage. We stage everything by merging the results into the archive path (this is the un-massaged logic):
+
+\begin{lstlisting}[language=bash,breaklines=true,commentstyle=\color{ForestGreen}]
+ROCBLAS_TENSILE_LOGIC=rocBLAS/library/src/blas3/Tensile/Logic
+TENSILE_UTILITIES=Tensile/Tensile/Utilities
+
+# merged the new results into the archive results (unmassaged) 
+python3 ${TENSILE_UTILITIES}/merge.py ${ROCBLAS_TENSILE_LOGIC}/archive newLogicPath mergedPath
+
+# update the ci (continuous integration) path with the update massaged results
+cp mergedPath/* ${ROCBLAS_TENSILE_LOGIC}/asm_ci
+
+# update the full path with the updated massaged results
+cp mergedPath/* ${ROCBLAS_TENSILE_LOGIC}/asm_full
+\end{lstlisting}
+
+once the new results are merged into the rocBLAS logic path then you can rebuild a version of rocBLAS that contains the new logic.
+
+\begin{lstlisting}[language=bash]
+./install.sh -c (-d) # the -d option installs the dependencies, -c build the client apps
+\end{lstlisting}
+ 
+\subsection{Using TensileCreateLibrary}
+
+TensileCreateLibrary has a very important purpose in Tensile to generate and organize libraries of kernels to run on AMDGPU architectures. Given a set of previously defined solutions to a problem, each solution metadata is used to generate concrete GPU code (kernel) either in assembly or c++ source. The kernels themselves are basic operation building blocks that form the foundation of solving more complex problems and are common to many different applications. For example, kernels that implement the Generalized Matrix-Matrix Multiplication (GEMM) could ultimately end up being used in more complex machine learning or image processing techniques. Of course we can define any solution meta-data that we want, but we have an aim to generate the most efficient and highest performing kernels possible. The benchmarking process that we use helps us find optimal kernels by testing out many varieties of parameterized solutions. Components from TensileCreateLibraries are used to generate the initial set of test solutions from the parameterized meta-data. After testing, the most optimal solutions are then selected and stored as configuration files. These configuration files are passed to TensileCreateLibraries to finally become the Master Solution Library.
+
+\subsection{The Tensile Library}
+
+The final kernel libraries and master solution library can then be loaded by a client using the Tensile API. Tensile API will map user defined problems to specific kernels that are optimally suited to get the job done.
+
+Where does TensileCreateLibrary come in? TensileCreateLibrary contains components that are suitable for processing solution metadata to generate kernel sources, assemble/compile them, and link them into code object libraries. It is also suitable for combining and managing solution meta-data and their problem mappings.
+
+TensileCreateLibrary is mainly used to aggregate a given set of solutions into a master solution library and to generate and bundle associated kernels into code object libraries. The outputs are specifically the master solution library (TensileLibrary.dat) and the code object libraries (.co/.hsaco).
+
+\subsubsection{Master Solution Library}
+
+Now that we have an aggregate of solutions and their kernels, how are solutions solutions selected and kernels executed at run time? To see how this works, we need to know a little bit more about the structure of the Master Solution Library. It is inefficient to check EVERY solution for suitability, so they are organized in a hierarchical structure to drastically reduce search time. Note this is subject to change over time, but as of the time of writing, it fits the structure below.
+
+\subsubsection{Library Hierarchy}
+
+Libraries are used to implement hierarchical searches. At each level of the hierarchy, the predicates must be asserted before moving to the next level. 
+
+\paragraph{Hardware Layer}
+
+This top level of the hierarchy requires the fewest comparisons as there are a limited amount of supported hardware available. At run time, we can only run kernels built for the hardware installed on the host machine. These are classified by 'gfx' architecture values. See \href{https://github.com/ROCmSoftwarePlatform/Tensile/wiki/Languages}{here} for supported architectures.
+
+\paragraph{Problem Map}
+The problem map layer uses coarse problem operation classifications. This includes ops like GEMM TT or GEMM TN, which are coded similar to the following: Contraction\_l\_Alik\_Bjlk\_Cijk\_Dijk. There are a few more comparisons at this level.
+
+\paragraph{Problem}
+
+he problem library layer is more targeted around specific problem properties. This includes input types or other properties like high precision accumulate. For example, each GEMM kernel can only target specific input and output types and memory mappings otherwise it would need to change its implementation drastically.
+
+\paragraph{Size and Speed}
+
+Next, problem sizes are matched based on minimum euclidean distance. Benchmarking is not done for every size imaginable so we must match the closest possible size. Solutions must also pass a final predicate that compares finer details of the problem description (example: CDStridesEqual: true AND KernelLanguageCompatible=ASM, ...). If the predicate fails then it is not included in the final selection.
+
+At this point we may have a small pool of kernels that can correctly solve the problem and have performance data for solving a problem of similar size. Based on what we know of the benchmarking, the kernel with the highest speed is selected to ultimately solve the problem.
+
+\paragraph{IRL}
+
+Let's see a REAL example of a TensileLibrary.yaml file looks like:
+
+
+\begin{minted}[
+gobble=0,breaklines,
+frame=single,
+linenos
+]{yaml}
+---
+library:
+  rows:
+  - library:
+      map:
+        Contraction_l_Alik_Bjlk_Cijk_Dijk:            <-- Problem Operation 
+          rows:
+          - library:
+              distance: Euclidean                     <-- Distance measure by Euclidean method
+              properties:
+              - {index: 0, type: FreeSizeA}           <-- Size properties used to measure distance
+              - {index: 0, type: FreeSizeB}    
+              - {index: 0, type: BoundSize}
+              table:
+              - key: [1, 1, 1]                        <-- Benchmarked size
+                speed: 0.00013586956220247663         <-- Benchmarked speed
+                value: {index: 53, type: Single}      <-- Solution is index 53!
+
+              ... thousands more benchmark key-pairs
+
+              type: Matching                          <-- Matching table ^^^
+            predicate: 
+              type: And
+              value:
+              - type: TypesEqual                      
+                value: [Half, Half, Float, Float]        
+              - {type: HighPrecisionAccumulate, value: true}
+          type: Problem                               <-- Problem Layer
+      property: {type: OperationIdentifier}           <-- Problem Map Layer
+      type: ProblemMap
+    predicate:
+      type: AMDGPU                                    <-- Hardware Layer
+      value: {type: Processor, value: gfx900}
+ type: Hardware
+solutions:                                            <-- Begins the master solution list vvv
+- debugKernel: false                                      
+  hardwarePredicate: {type: TruePred}
+  ideals: {}
+  index: 0                                            <-- Solution Index
+  info: {1LDSBuffer: '0', AggressivePerfMode: '1', ... lots more
+  }
+  name: Cijk_Alik_Bjlk_HSBH_MT16x16x8_SE_AF0EM2_AMAS3_ASEM2_EPS1_GRVW2_ISA900_K1_ KLA_LRVW2_PGR1_PLR1_TT2_2_VW2_WG8_8_1_WGM1
+  problemPredicate:                                       <-- Predicate: types must match + HPA + others
+    type: And
+  value:
+  - {index: -1, type: BoundSizeMultiple, value: 2}
+  - {index: 0, type: FreeSizeAMultiple, value: 2}
+  - {type: OperationIdentifierEqual, value: Contraction_l_Alik_Bjlk_Cijk_Dijk}
+  - type: TypesEqual
+  value: [Half, Half, Float, Float]
+  - {type: HighPrecisionAccumulate, value: true}
+  ...
+problemType: {aType: Half, bType: Half, cType: Float, dType: Float, highPrecisionAccumulate: true,  <-- Problem that kernel can solve
+  operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk, useBeta: true, useInitialStridesAB: false,
+  useInitialStridesCD: false}
+sizeMapping:                                             <-- Begin kernel properties meta-data 
+  depthU: 8
+  globalAccumulation: false
+  globalSplitU: 1
+  macroTile: [16, 16, 1]
+
+... Many more properties
+
+- debugKernel: false                                       <-- Next solution, and so on. 
+  hardwarePredicate: {type: TruePred}
+  ideals: {}
+  index: 1
+
+
+
+... Many more, hundreds of solutions
+
+
+...EOF
+\end{minted} 
+
+
+Due to the .yaml indenting and structure, it is a bit difficult to understand the hierarchy just from looking at the file itself; this is why the real example wasn't covered until now. This file is however parsed and organized in memory to implement the hierarchy structure previously discussed.
+
+\subsubsection{Code Object Libraries}
+
+Kernels are compiled into shared object libraries. These are identified by their file extensions .co/.hsaco. The only difference between them is that .co libs are ASM kernels and .hsaco libs are SOURCE kernels. Same ABI, same format.
+
+\paragraph{ASM Kernels}
+
+Solutions that have the KernelLanguage: Assembly property use the KernelWriterAssembly object to generate the actual kernel code. This object has the very complicated task of translating all of the solution properties, or meta-data, into a sequence of code modules that are eventually rendered into a string of targeted asm code and saved to file as assembly. The ISA property determines the target graphics architecture of the assembly which is especially important for the object to choose the correct assembly instruction set. For example, the KernelWriterAssembly may dynamically test the assembler for v\_mfma instructions for ISA (9,0,6) and will find alternatives if unsupported.
+
+ASM kernels are assembled into .o object files and finally linked into .co files. The file names are obtained from the Solution's Name property.
+
+\paragraph{Source Kernels}
+
+Solutions that have the KernelLanguage: Source property use the KernelWriterSource object to generate the actual kernel code. This object has the very complicated task of translating all of the solution properties, or meta-data, into a sequence of code modules that are eventually rendered into a string of C++ code and saved to file as .h and .cpp sources. The ISA property for source kernels is (0,0,0) which means that source kernels are compiled for all architecture targets.
+
+Source kernels are compiled and assembled into .o files and extracted into .hsaco code modules per architecture. The file names are obtained from the Solution's Name property and decorated with the architecture target.
+
+\paragraph{Final Code Object Libraries}
+
+Depending on TensileCreateLibrary state for 'MergeFiles', the code object libraries may be linked together into monolithic libraries for each architecture. This just affects the number of library files in the final result of TensileCreateLibrary. Again, there .co and .hsaco files have basically the same format, however the extensions allow distinguishing between ASM and SOURCE kernels.
+
+\subsection{Using the Tensile Library For Testing}
+
+The Tensile Library's independence from rocBLAS enables us build and use the libraries as part of a separate workflow. This avoids much of the long wait times related to rocBLAS build. The rocblas-bench application can reference a library by setting a special environment variable \textbf{ROCBLAS\_TENSILE\_LIBPATH}. When this variable is set to a specific version of the Tensile library, rocBLAS will load that version at runtime, otherwise the prebuilt version of the library will be loaded. This means that only one version of rocBLAS needs to be built for testing when comparing the results of a new version of the Tensile library with a reference version. 
+
+When using this method of referencing the a library, it is important that the version of TensileCreateLibrary from the rocBLAS build is used to create the library, otherwise there could be conflicts.
+
+\begin{warning}
+	It is important to note here is that the rocBLAS project and the Tensile project are independent and so consideration must be given to synchronizing the two projects when building the Tensile library as an independent entity. The logic file that get generated as a result of Tensile tuning are backwards compatible in the sense that they only contain metadata and kernel parameters and not actual code objects. When using Tensile independently of rocBLAS the two versions of Tensile may not be in sync. TensileCreateLibrary is the utility that generates the code objects and library components which rely on the Tensile client code an hence it is important that the generated library is the same one that is used in rocBLAS.
+\end{warning}
+
+There are two options for insuring that the version of the library that gets generated using the same version TensileCreateLibrary as the one used in the rocBLAS build.
+
+\subsubsection{Explicit reference to Tensile during build}
+By default rocBLAS is linked to a specific version (or git commit) of Tensile. You can override the default reference and import a local version of Tensile into rocBLAS during the build using the -t option of install.sh when building rocBLAS. hence, build rocBLAS using:
+
+\begin{lstlisting}[language=bash]
+./install.sh -c -t /path/to/repo/Tensile 
+\end{lstlisting}
+
+This will insure that the version of Tensile in rocBLAS uses the one referenced to during the build (/path/to/repo/Tensile in the example). 
+
+\subsubsection{Explicit reference to TensileCreateLibrary}
+
+The version of TensileCreateLibrary that was imported during the rocBLAS build can be referenced. The is found in the following path:
+
+\begin{lstlisting}[language=bash]
+/repo/rocBLAS/build/release/Tensile/Tensile/bin/TensileCreateLibrary.
+\end{lstlisting}
+
+\subsubsection{Example usage}
+
+Once the library is generated it can be used in rocBLAS by setting the environment variable ROCBLAS\_TENSILE\_LIBPATH. Execute rocblas-bench as follows:
+
+\begin{lstlisting}[language=bash]
+ROCBLAS_TENSILE_LIBPATH=path/to/drop/new/tensile/library ./rocblas-bench --yaml problem_sizes.yaml
+\end{lstlisting}
+
+\subsubsection{The TensileCreateLibrary command}
+The TensileCreateLibrary application takes as input a path containing the tensile logic files and generates the TensileLibrary which contains the library artifacts and code objects that contain the kernel as well as the selection logic, that is the logic for selecting the kernel to be executed. A example execution of the create library application is:
+
+\begin{verbatim}
+Tensile/bin/TensileCreateLibrary <Options...> <LogicPath> <OutputPath> <RuntimeLanguage>
+
+[-h] Display usage help
+
+[--cxx-compiler {hcc,hipcc}] Compiler override (default hipcc).
+
+[--code-object-version {V2,V3}] Code object version override (default V3).
+
+[--architecture {all,gfx000,gfx803,gfx900,gfx906,gfx908}] Architecture override 
+    (default all).
+
+[--merge-files] / [--no-merge-files] If merge, all kernels are merged to one code 
+    object file per architecture (default on).
+
+[--short-file-names] / [--no-short-file-names] Windows only option for shortening 
+    output files names. Currently disabled.
+
+[--library-print-debug] / [--no-library-print-debug] Solutions will print enqueue 
+    info when enqueueing a kernel (default off)
+
+[--no-enumerate] Disable enumeration of host graphics architecture.
+
+[--package-library]
+
+[--no-legacy-components] Don't generate solution source code for old client.
+
+[--embed-library EMBEDLIBRARY] Embed (new) library files into static variables. 
+    Specify the name of the library.
+
+[--embed-library-key EMBEDLIBRARYKEY] Prefix embedded symbols with EMBEDLIBRARYKEY.
+
+[--new-client-only] Only build libraries for the new client.
+
+[--version VERSION] Embed version into library files.
+
+[--generate-manifest-and-exit] In the output directory, create a manifest file of 
+    expected outputs only.
+
+[--library-format {yaml,msgpack}] Choose format of output library (default msgpack). 
+    Respective file extensions {.yaml,.dat}
+
+LogicPath Path to LibraryLogic .yaml files.
+
+OutputPath Output directory.
+
+{OCL,HIP,HSA} Chosen runtime language.
+\end{verbatim}
+
+\begin{lstlisting}[language=bash]
+/path/to/tensile-rep/Tensile/bin/TensileCreateLibrary --merge-files --no-legacy-components --no-short-file-names --no-library-print-debug --code-object-version=V3 --cxx-compiler=hipcc --library-format=msgpack path/to/new/logic path/to/drop/new/tensile HIP
+\end{lstlisting}
+
+\section{Tuning Automation}
+
+Tensile provides a set of automation scripts for simplifying the tuning process. Starting with a set of logs which contain information about the problems sizes, the automation tools will generate the tuning configurations and then start a first pass at tuning based on the generated configuration. In the current version of automation the configuration generator is not very smart and only provides a simple classification base on size categories, hence, the full tuning will not likely produce the optimal performance optimization for all sizes under consideration, hence, further iterations of tuning is likely. It does set up a framework and a quick tuning pass as part of the tuning workflow so it is a good place to start a tuning exercise. 
+
+
+\subsection{Automation Workflow}
+
+\begin{figure}[h]
+	\begin{tikzpicture} [node distance=3cm, auto,>=latex', thick]
+	
+	\path[->] node[format,label={[align=center]:rocBLAS\\log}] (tune) {test.log};
+	\path[->] node[format, align=center,right of=tune,label={[align=center]:creaet\\tuning\\artifacts}] (ptune) {tuning\\artifacts}
+	(tune) edge node[align=center] {provision\\tuning} (ptune);
+	\path[->] node[format, right of=ptune, label={[align=center]:tuning\\results}] (tune) {logic.yaml}
+	(ptune) edge node {tune} (tune);
+	\path[->] node[format,right of=tune, label={[align=center]:validation\\artifacts}] (pvalid) {.yaml} (tune) edge node[align=center] {provision\\validation} (pvalid);
+	\path[->] node[format, align=center, right of=pvalid] (valid) {validation\\data}
+	(pvalid) edge node[align=center] {run\\validation} (valid);
+	\path[->] node[format, right of=valid] (analyze) {results.xlxs}
+    (valid) edge node[align=center] {analyze} (analyze);
+	
+	\end{tikzpicture}
+	\caption{Tensile automation workflow}
+\end{figure}
+
+\subsection{rocBLAS logging information}
+
+rocBLAS logging provides information about the rocBLAS functions which get called during an application process as well as the size information of the call. This can be enabled by setting the ROCBLAS\_LAYER environment variable. The two settings that get used as input into the automation are ROCBLAS\_LAYER=2 or ROCBLAS\_LAYER=4. The each produce output about the rocBLAS calls in alternative formats. The first options produces:
+
+\begin{lstlisting}[language=bash,breaklines=true]
+ROCBLAS\_LAYER=2
+
+# generates output in the form of
+rocblas-bench -f gemm -r s --transposeA N --transposeB N -m 1024 -n 1024 -k 1024 --beta 0.0 --alpha 1.0 --lda 1024 --ldb 1024 --ldc 1024 
+\end{lstlisting}
+
+\begin{lstlisting}[language=bash,breaklines=true]
+ROCBLAS\_LAYER=4
+
+# generates output in the form of
+- { rocblas_function: rocblas_sgemm, transA: N, transB: N, M: 1024, N: 1024, K: 1024, lda: 1024, ldb: 1024, ldc: 1024}
+\end{lstlisting}
+
+In either case, the automation tools are able to parse out the relevant information about the sizes and use it to generate the tuning artifacts which drive the automation.
+
+\subsection{Tuning Automation Scripts}
+
+The typical tuning exercise starts with a particular application which links to the rocBLAS library and calls gemm. The application is run with the logging enabled by setting the ROCBLAS\_LAYER environment variable. The output of the log is used as input to the tuning automation. 
+
+\subsubsection{The provision\_tuning.sh script}
+
+The first step of the tuning is stet up using the provision\_tuning.sh script. This script provisions a repo of Tensile as well as generates a set of configurations and other artifacts used during tuning. An example call is:
+
+
+\begin{lstlisting}[language=bash,breaklines=true]
+./tuning/scripts/provision_tuning.sh -w tensile_tuning -z logs/inception-rocblas-configs_unique.log -o tf_inception.yaml -y sgemm -l vega20 
+\end{lstlisting}
+
+The options for the tuning provisioning are:
+
+\begin{verbatim}
+provision_tuning.sh 
+
+[-w|--working-path <path>]                 # the working path
+[-z | --size-log <logfile path>]           # the rocblas logfile 
+[-f|--tensile-fork <username>]             # tensile fork
+[-b|--branch <branch>]                     # tensile branch
+[-c <github commit id>]                    # tensile commit id
+[-t|--tag <github tag>]                    # github tag 
+[-o|--output <configuration filename>]     # the configuration name
+[-y | --type <data type>]                  # the datatype hsd
+[-l | --library <library/schedule>]        # library (vega20|vega10|arcturus)
+[-m | --mfma] 
+[-r | --rk] 
+[-s | --disable-strides] 
+[--problem-definition <gemm/batch/both] 
+[-n] 
+[[-h|--help]
+
+\end{verbatim}
+
+After this script is run the following artifacts are generated and available in the tensile\_tuning directory which is created as a result of the script.
+
+\begin{itemize}
+	
+
+ \item The \textbf{configs} directory show the benchmark configuration/input yaml files used by Tensile
+ 
+ \item The \textbf{make} directory use as a working directory during construction of the artifacts
+
+ \item The \textbf{logs} directory has the logs for the merge script, the reference and tuned rocBLAS build, all Tensile runs, and the rocblas-bench verification results
+ 
+ \item The \textbf{scripts} directory has all rocblas-bench scripts that are called by this script
+ 
+ \item \textbf{scripts2} used to run test for the update tuned logic using the new Tensile Client Library by setting the ROCBLAS\_TENSILE\_LIB\_CLIENT environment variable
+ 
+ \item The \textbf{sizes} directory has a csv file that shows the parsed log file parameters a comma-separated format
+ 
+ \item \textbf{tensile/Tensile} directory has a copy of the Tensile develop repo, which used to run Tensile on nn/nt/tn types and to collect the benchmark configuration and logic files
+	
+\end{itemize}
+
+\subsubsection{The provision\_verification.sh script}
+
+The provision\_verification.sh script provisions repo of rocBLAS and builds a reference version of the Tensile library as well as a new version of with the tuned sizes included. An example execution is:
+
+\begin{lstlisting}[language=bash,breaklines=true]
+./tuning/scripts/provision_verification.sh -w validate -r tensile_tuning/tensile/Tensile -l vega20
+\end{lstlisting}
+
+\begin{verbatim}
+provision_verification.sh 
+
+[-w|--working-path <path>] 
+[-r <Tensile reference>] 
+[-b|--branch <branch>] 
+[-c | --commit <github commit id>] 
+[-t|--tag <githup tag>] 
+[-l|--library <gpu library>] 
+[-n|--no-merge] 
+[--no-massage]  
+[--rocblas-fork <username>] 
+[-h|--help]
+\end{verbatim}
+
+\begin{itemize}
+	\item The \textbf{library} directory has the exact, massage, and merge library logic files available
+	
+	\begin{itemize}
+		\item \textbf{exact} is what's available in 3\_LibraryLogic after running Tensile using the config file
+	    \item \textbf{merge} has the exact files merged with the file that is already in rocBLAS
+	    \item \textbf{massage} adds the special Ldc/Ldd kernels to the merged yaml files, only if using gfx900/906 and if hpa hgemm sizes are not used
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{The ./run\_validation.sh script}
+
+This script will run the tests for both the reference and validation versions of the Tensile library
+
+\begin{lstlisting}[language=bash,breaklines=true]
+./tuning/scripts/run_validation.sh -w validate -s tensile_tuning/scripts
+\end{lstlisting}
+
+\begin{verbatim}	
+[-w|--working-path <path>] 
+[-s|--test-scripts <path to test yamls] 
+[-i | id]
+[-h|--help]
+\end{verbatim}
+
+\subsubsection{The analyze\_results.sh script}
+
+Finally, after the results are benchmarked using the reference and new versions of Tensile, the may be analyzed using the analyze\_results.sh script. An example is:
+
+\begin{lstlisting}[language=bash,breaklines=true]
+./tuning/scripts/analyze-results.sh -o analysis -s 2 -f 1301 -r validate/rocblas/rocBLAS-reference/build/release/clients/staging/results -b validate/rocblas/rocBLAS-verify/build/release/clients/staging/results 
+\end{lstlisting}
+
+\begin{verbatim}
+analyze-results.sh 
+
+[-b|--benchmark-path <benchmark results path>]
+[-r|--reference-path <reference results path>] 
+[-o|--output <output path>] 
+[-f] 
+[-s] 
+[-z] 
+[-g|--gpu] 
+[-m|--mfma] 
+[-c|--count] 
+[-h|--help]
+\end{verbatim}
+
+After running this script the final analysis will get generated which compares the old and new versions of the library. 
+
+\begin{itemize}
+	\item The \textbf{analysis} directory provides the spreadsheets that show performance data, in xlsx and csv format 
+	\begin{itemize}
+		\item 	Look in the \textbf{final} directory to view the final spreadsheet
+	\end{itemize}
+
+\end{itemize}
+
+\subsubsection{Automation usage example}
+
+\begin{lstlisting}[language=bash,breaklines=true]
+# provisions Tensile for tuning
+./tuning/scripts/provision_tuning.sh -w tensile_tuning -z logs/gemm.log -o tf_inception.yaml -y sgemm -l vega20 
+
+cd tensile_tuning/tensile/Tensile
+
+# does the actual tuning using the generated configuration
+./doit-all.sh
+
+cd ../../..
+
+# provisions the verirications, including building rocblas-bench
+./tuning/scripts/provision_verification.sh -w validate -r tensile_tuning/tensile/Tensile -l vega20
+
+# runs the actual benchmarks for the old and new versions of the library
+./tuning/scripts/run_validation.sh -w validate -s tensile_tuning/scripts
+
+# analysis the results
+./tuning/scripts/analyze-results.sh -o analysis -s 2 -f 1372 -z tensile_tuning/scripts/*-all.sh -r validate/rocblas/rocBLAS-reference/build/release/clients/staging/results1 -b validate/rocblas/rocBLAS-reference/build/release/clients/staging/results2
+\end{lstlisting}
+
+\subsubsection{The master\_tuning\_script.sh Script}
+
+Each of the previous results can be run independently and they separate out each of the steps in one pass of the tuning workflow. The master\_tuning\_script.sh script combines the complete workflow without intervention. It takes the same rocBLAS log file information as described in the previous part of this section as input and runs the full process end to end, thus combining all the steps mention about. An example execution:
+
+\begin{lstlisting}[language=bash,breaklines=true]
+tuning/scripts/master_tuning_script.sh -o output_dir -z path_to_log_file
+\end{lstlisting}
+
+\begin{verbatim}
+master_tuning_script.sh
+
+[-o|--output-dir] Output directory for all tuning-related files
+[-z|--log] Pass in log file with rocblas-bench calls, or directory of log files if using network tuning
+[-y|--data-type] Optional. Data type of sizes that you want to tune (sgemm, dgemm, hgemm only)
+[-g|--gpu] Optional. GPU used for tuning (arcturus, mi25, mi50, mi60, r7, v340 only)
+[-f|--sclk] Optional. Frequency of sclk in MHz
+[-d|--no-dependencies] Optional. Skip installing required dependencies (dependencies are installed by default)
+[-n|--network] Optional. String to search for in filenames in log directory
+[--client] Optional. Choose Tensile client version. (new, old, both, default=new)
+[-m|--mfma] Optional. Use MFMA kernels (default=false)
+[-r|--rk] Optional. Use replacement kernels (sgemm only, default=false)
+[-c|--count] Optional. Sets all cases where count=1 to count=10 (default=false)
+[-t|--tile-aware] Optional. Use tile-aware method. (limited support, default=false)
+[-s|--disable-strides] Optional. Disable leading dimensions and strides in tuning file (default=false)
+[-v|--verification] Optional. Enable verification when running sizes in rocblas-bench (default=false, always true if arcturus)
+[-i|--initialization] Optional. Initialize matrices when benchmarking (rand_int, trig_float, hpl, default=rand_int)
+[--disable-hpa] Optional. Disable high precision accumulate in hgemm sizes (default=false)
+[--number] Optional. Set script number (view scripts/performance in rocBLAS directory, default=1)
+[-u|--username] Optional. Specify which Tensile fork to use (default=ROCmSoftwarePlatform)
+[--rocblas-fork] Optional. Specify which rocBLAS fork to use (default=ROCmSoftwarePlatform)
+[-b|--branch] Optional. Specify which Tensile branch to use (default=develop)
+[--rocblas-branch] Optional. Specify which rocBLAS branch to use (default=develop)
+[-p|--public] Optional. Specify whether you want to use rocBLAS (public) repo (default=false)
+[--one-type] Optional. Only tune one matrix type (nn, nt, or tn)
+[--omit-type] Optional. Ignore one matrix type when tuning (nn, nt, or tn)
+[--problem-definition] Optional. Specify gemm, strided batched, or both sizes (gemm, batch, or both, default=both)
+[--hcc] Optional. Use hcc compiler (default=false)
+[--rocm-path] Optional. Define ROCM_PATH, the location of the rocm stack (default=/opt/rocm)
+\end{verbatim}
+
+\section{Tuning Considerations}
+
+\begin{itemize}
+
+\item Kernels can be compute-bound or memory-bound?
+	
+ \begin{itemize}
+ 	\item If a kernel is memory bound, throttling will occur, and performance will drop?
+ \end{itemize}
+
+\item To avoid throttling, set the system clock (sclk) and memory clock (memclk) to a near one-to-one ratio?
+
+  \begin{itemize}
+  	\item Can be done using rocm-smi or atitool?
+  \end{itemize}
+
+\item CPU timers are used by rocblas-bench, while GPU timers are used by Tensile?
+
+  \begin{itemize}
+   	\item Generally leads to rocblas-bench producing lower performance than Tensile?
+  \end{itemize}
+
+\item Timing is affected by launching rocblas-bench?
+
+  \begin{itemize}
+  	\item Leads to varying performance?
+  \end{itemize}
+
+\item Reliance on GFlops instead of efficiency. The GFlops may be affected by environmental factors so the results on one machine may not produce the same results on another machine do to differences in hardware, for example what the clock rate that was used during the tuning process may deffer on different systems or event the same machine at difference times. To compensate for this it is recommended that the efficiency is use as a performance comparison when comparing results across different systems and tuning exercises. 
+
+$$ efficiency = \frac{kernel\ performance \times 1000}{0 \times f \times numCUs} \times 100 $$
+
+\begin{itemize}
+	\item $f$ = sclk frequency in MHz
+	\item $numCUs$ = number of compute units
+	\item $o$ = ops/CU/cycle
+	\item $1000$ = conversion to MFlops/sec from GFlops/sec
+\end{itemize}
+  
+
+\end{itemize}
+
+\section{Appendix A - ROCm and Tensile installation and references}
+\label{sec:appendixA}
+
+Use the following references to find the documentation about the ROCm platform.
+
+\noindent Documentation for the \href{https://rocmdocs.amd.com/en/latest/}{AMD ROCm} platform.
+
+\noindent Reference to \href{https://rocblas.readthedocs.io/en/latest/intro.html}{rocBLAS}.
+
+\noindent Reference to \href{https://github.com/ROCmSoftwarePlatform/Tensile/tree/develop/tuning}{Tensile provisioning} overview and \href{https://github.com/ROCmSoftwarePlatform/Tensile/wiki}{Tensile} wiki.
+
+\subsection{ROCm Installation}
+
+Follow these links to find information about installing the ROCm platform. \newline
+
+\noindent \href{https://rocmdocs.amd.com/en/latest/Installation_Guide/Installation-Guide.html}{Install rocm dependancies}.
+
+\noindent rocBLAS \href{https://rocblas.readthedocs.io/en/latest/install.html}{building and install}.
+
+\subsection{Install Tensile Dependencies}
+
+Use the following steps to install the Tensile and automation dependencies. \newline
+
+\noindent Install the python dependencies:
+
+\begin{lstlisting}[language=bash,breaklines=true]
+sudo apt install -y --no-install-recommends cmake make ca-certificates git \
+pkg-config python3 python3-dev python3-matplotlib python3-pandas python3-pip \
+python3-setuptools python3-tk python3-venv python3-yaml libnuma1 llvm-6.0-dev \
+libboost-all-dev zlib1g-dev libomp-dev gfortran libpthread-stubs0-dev \ 
+libmsgpack-dev libmsgpackc2 wget
+\end{lstlisting}
+
+\noindent Then install:
+
+\begin{lstlisting}[language=bash,breaklines=true]
+pip3 install setuptools --upgrade && pip3 install wheel && pip3 install pyyaml msgpack
+\end{lstlisting}
+
+\noindent download and install Anaconda to ensure the spreadsheet can be generated:
+
+\begin{lstlisting}[language=bash,breaklines=true]
+wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh -O ~/anaconda3.7.sh && \
+bash ~/anaconda3.7.sh -b -p ~/anaconda && eval "$(~/anaconda/bin/conda shell.bash hook)"
+\end{lstlisting}
+
+\section{Appendix B - Tensile Tuning parameters}
+\label{sec:appendixB}
+
+\href{https://github.com/ROCmSoftwarePlatform/Tensile/wiki/Kernel-Parameters}{Kernel parameters}.
+These are the valid Tensile tuning parameters with descriptions:
+
+\begin{lstlisting}[language=python,breaklines=true] "LoopDoWhile":                [ False, True ], # Source. True=DoWhile, False=For loop
+"LoopTail":                   [ False, True ], # tail loop handles non multiples of unrolled summation loop
+
+# threads load elements from global into registers, then write from registers to LDS
+# these options affect those read/write patterns
+# coalesce-group=True  means adjacent threads will     read adjacent addresses; if the data needs to be transposed then adjacent threads will NOT write adjacent elements to LDS.
+# coalesce-group=False means adjacent threads will NOT read adjacent addresses; if the data needs to be transposed then adjacent threads will     write adjacent elements to LDS.
+# this parameter really only matters for transposing
+# =False means the L1 cache will do the transposing work and it is quite fast; then data is written coalesced (no bank conflicts) to LDS.
+# =True means the transpose will happen while writing to LDS, this usually has bank conflicts, but it appears the throughput is still fast enough to not slow the VALUs down.
+# it appears that the L1 cache can still achieve quite a bit of performance for GRCG=False, but overall it's usually faster to read coalesced
+"GlobalReadCoalesceGroupA":   [ False, True ],
+"GlobalReadCoalesceGroupB":   [ False, True ],
+
+# for transposes, this option governs how short-vectors should be read from global and written to lds
+# it is impossible to transpose data while operating on short-vectors for GlobalRead,LocalWrite and LocalRead; an odd number of those must be transposing and operating on vector components.
+# since data will be read from lds many more times than it will be written, data must always end up in lds such that short-vectors can be read from lds
+# =True means read short-vector from global and write its components to lds
+# =False means read vector components from global so that a full short-vector can be written to lds
+# both options were supported until a refactoring of the short-vector code (necessary to enable assembly) broke it. Since =True always seems to be faster, no time has been spend on fixing =False
+#  it may still work in source, but just not in assembly. The problem is the order in which elements are stored into vgprs, is different than the order in which they are written to lds. In source each
+#  loaded element gets a variable name which in independent of the order that they are written in the source code, but in assembly the values are just assigned vgprs in order and that order needs to be shuffles.
+"GlobalReadCoalesceVectorA":  [        True ], # FIXME =False worked before the vector refactor; fixing requires re-ordering load/store indices; but they aren't the faster option so not worth time right now
+"GlobalReadCoalesceVectorB":  [        True ],
+
+# original global read to lds is interlace, [w0,w1,w2,w3,w0,w1,w2,w3,w0,w1,w2,w3,w0,w1,w2,w3]
+# when WaveSeparateGlobalRead is enabled, LDS is divided to number of waves part.
+# each wave load a block memory to lds,     [w0,w0,w0,w0,w1,w1,w1,w1,w2,w2,w2,w2,w3,w3,w3,w3]
+# -1 is selected by logic, 0 disable, 1 enable.
+"WaveSeparateGlobalReadA":    [ 0, 1 ],
+"WaveSeparateGlobalReadB":    [ 0, 1 ],
+
+# prefetch / double-buffer reads from global memory -> vgprs -> lds. Requires 2X LDS space, and VGPRs for buffering data on way into LDS
+"PrefetchGlobalRead":         [ False, True ],
+
+# number of iteration prefetch local reads from lds to VGPRs buffer = PLR % LoopIter
+# number of VGPRs buffer = min(PLR,LoopIters)
+# LoopIters = DepthU / LocalSplitU
+# (LoopIters /= MatrixInstruction_K)
+# ex. MT64x128x16_MI32x32x4x2_PLR1, we'll have 4 LoopIters, prefetch read 1 iteration, with 2 VGPRs buffer
+#     befor loop:       plr[0]
+#           loop: iter0:plr[1] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[0], iter3:plr[0] MAC_r[1]
+#   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[0], iter3:       MAC_r[1]
+#
+# ex. MT64x128x16_MI32x32x4x2_PLR3, we'll have 4 LoopIterss, prefetch read 3 iteration, with 4 VGPRs buffer
+#     befor loop:       plr[0] plr[1] plr[2]
+#           loop: iter0:plr[3] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[2], iter3:plr[2] MAC_r[3]
+#   no load loop: iter0:plr[3] MAC_r[0], iter1:       MAC_r[1], iter2:       MAC_r[2], iter3:       MAC_r[3]
+#
+# ex. MT64x128x16_MI32x32x4x2_PLR5, we'll have 4 LoopIterss, prefetch read 5%4=1 iteration, with 4 VGPRs buffer
+#     befor loop:       plr[0]
+#           loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:plr[0] MAC_r[3]
+#   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:       MAC_r[3]
+#
+# ex. MT64x128x16_MI32x32x4x2_PLR5_LRVW8, we'll have 4 LoopIterss, prefetch read 5%4=1 iteration, with 4 VGPRs buffer, each read read 2 iterations
+#     befor loop:       plr[0:1]
+#           loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:plr[0:1] MAC_r[3]
+#   no load loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:         MAC_r[3]
+"PrefetchLocalRead":          list(range(128+1)),
+
+# We use double LDS buffer when PrefetchGlobalRead.
+# While it reads data from LDS[0]/[1], it prefetch global data and writes to LDS[1]/[0]
+# If we can make sure all data are read from LDS to register before writing data to LDS, we can use 1 LDS buffer to save LDS memory.
+# this can help to generate Kernel that LDS usage originally exceed MaxLDS if using double LDS buffer,
+# or help to increase Occupancy.
+#     1 means: Force to use 1 LDS Buffer even with PrefetchGlobalRead
+#    -1 means: generator will use 1 LDS buffer only when LDS exceed MaxLDS
+# Currently only support TN+TLDS+wider_local_read
+# TODO: optimize scheduling to support more cases.
+"1LDSBuffer": [-1 ,0, 1],
+
+# Split the unroll summation into multiple sections and combine the sections
+# GSU applies only to the unroll summation dimension
+"GlobalSplitU":               list(range(1, 1024+1)),
+
+# When splitting up the summation between workgroups, there are two options for organizing which workgroup will do what
+# If we begin with N workgroups and set GSU=4, there will now be 4N workgroups
+# GSUWGMRR=False means workgroup 0,1,2,3 will all work on the same tile; =True means workgroup 0, N-1, 2N-1, 3N-1 will all work on the same tile
+"GlobalSplitUWorkGroupMappingRoundRobin":     [ False, True ],
+# GSUSARR=False means the 4 workgroups do whole chunks of the summation: k=0 -> K/4-1, k=K/4 -> 2K/4-1, k=2K/4 -> 3K/4-1, k=3K/4 -> 4K/4-1
+# GSUSARR=True means the 4 workgroups round robin split up the chunks of the summation: k=0 -> DU-1, 4DU -> 5DU-1, ...; k=1DU -> 2DU-1, 5DU -> 6DU-1...; ...
+"GlobalSplitUSummationAssignmentRoundRobin":  [ False, True ],
+
+# in opencl for some compilers, performance improved by putting a memfence after each subiteration; it prevented the loads of one subiteration from being moved
+# into a prior iteration, which would help latency but it consumed more vgprs which was a net loss
+"UnrollMemFence":             [ False, True ],
+
+# not used yet; will refer to combining multiple reads into single instruction
+# such as ds_read_b32 -> ds_read2_b32
+# the pro is that it cuts in half the number of instructions
+# the con is that bits per offset is half, so arithmatic might be required to increment and reset offset vgprs
+"GlobalRead2A":               [ False, True ],
+"GlobalRead2B":               [ False, True ],
+"LocalWrite2A":               [ False, True ],
+"LocalWrite2B":               [ False, True ],
+"LocalRead2A":                [ False, True ],
+"LocalRead2B":                [ False, True ],
+
+# don't create a whole copy of the Unroll loop with loads removed - instead
+# use buffer limits to suppress global loads and ignore unnecessary ds_reads
+"SuppressNoLoadLoop":         [False, True],
+
+# For PrefetchGlobalRead=1, create a second copy of the unroll loop with
+# the LDS pointer swaps expanded into inline constants for LDS read and write instructions
+# This eliminates 4 vector XOR instructions used for pointer swap
+"ExpandPointerSwap":          [False, True],
+
+# Schedule global reads and global read incrementsinto LocalRead iterations
+# Can reduce pressure on local read instruction dispatch queue
+# 0=perform global reads at start of instruction loop
+# 1=schedule into the local read instruction iterations
+"ScheduleGlobalRead":         [0, 1],
+
+# Schedule local writes into LocalRead iterations.
+# Can reduce pressure on local read instruction dispatch queue
+"ScheduleLocalWrite":         [0, 1],
+
+# Scheduling algorithm to use for each iteration:
+# 0 = minimal/no scheduling.  Global Read and increments, followed by local reads,
+# followed by local writes, followed by MACs
+"ScheduleIterAlg":             [0, 1, 2, 3],
+
+# LDD Support
+# Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
+"LdcEqualsLdd":               [ False, True ],
+
+# Interleave alpha scale calculation with beta loads and address calcs - rather
+# than as a separate block of instructions
+"InterleaveAlpha":             [0, 1],
+
+# Create a copy of NoLoadLoop which interleaves the stores with the final mac
+# calculation and may perform other optimizations
+# 0 = no interleave
+# 1 = interleave one stores after required macs have completed execution
+# 2 = interleave two stores after required macs have completed execution
+"OptNoLoadLoop":               [0, 1, 2],
+
+# Prefetch across persistent kernel iterations - the no-load-loop computes the
+# tile assignment and next global read offset and launches the buffer loads for
+# the next tile in the sequence.
+"PrefetchAcrossPersistent":    [0, 1],
+
+"BufferLoad":                 [ False, True ],
+"BufferStore":                [ False, True ],
+
+# Attempt to load directly from global memory into LDS.
+# Assembly only
+# Requires BufferLoad, assembler support for lds modifier on buffer
+# loads (checked automatically), GlobalVectorWidth=1 (this is hw
+# requirement) and A/B must not require any transpose.
+# DirectToLds reduces load latency and eliminates the
+# G2L registers used to stage data.  Also replaces the
+# local write offset with an SGPR.
+# For an 8x8 TT with PrefetchGlobalRead=1 this can save 33 VGPRs.
+#    - Requirements for DirectToLds=1:
+#      GlobalLoadVectorWidth? = 1
+#      TransposeLDS = 1 for TLU=0 case
+"DirectToLds":                [ False, True ],
+
+# Load options:
+# (GRO = Global Read Offset)
+# BufferLoad=0:
+#  = Use flat instructions with 64 bit GRO for each load
+#    + supports sizes up to 2^64
+#    - uses many VGPR for addressing
+#    - uses execmask+compares for edge detection
+#    - generates extra LDS traffic (could convert flat->global load)
+# BufferLoad=1:
+#  = Use buffer load instructions with 32-bit offset
+#    + Less VGPRS (32b offset vs 64-bit) needed for addressing
+#    + Uses hardware buffer limit for edge detection
+#    - Limited range - the bot-right corner of macro-tile (plus padding=GRVW
+#        for shift-pointer, if ShiftPtr is required) must be within 2^32.
+#      ShiftPtrPad = MayShift ? GRWV*BPE : 0
+#      For TLU=1: Unroll*StrideA1 + ShiftPtrPad <= 2^32
+#      For TLU=0: MT*StrideA1 + ShiftPtrPad <= 2^32
+#      These conditions should be checked using Assert - TODO
+#  = UseSgprForGRO=1:
+#    + Attempt to use SGPR for Global Read Offsets.
+#    + Use one VGPR base GRO + many SGPR GRO rather than many VGPR GRO.
+#    + Each SGPR stores an offset from base GlobalReadOffset+0.
+#    - Requirements for UseSgprForGRO=1:
+#      - BufferLoad=1
+#      - Use appropriate Assert*ElementMultiple or GRVW=1 to eliminate need for ShifPtr
+#        (UseSgprForGRO does not support ShiftPtr since ShiftPtr needs to potentially shift GRO)
+#  = KernelWriterAssembly also supports 64-bit 2D buffer size (see use64bPbcLimit)
+#    - Requires 4 instructions to move scalar limit and a couple SGPR
+#    - Enabled by default.  If the overhead matters we can add asserts/YAML parm to specialize
+#  = UseInstOffsetForGRO=1:
+#    + Attempt to use Instruction offset for Global Read Offsets.
+#    + This feature avoid updating m0 for subsequent GRO(s) for directToLds feature
+#    - Requirements for UseInstOffsetForGRO=1:
+#      - BufferLoad=1
+#      - DirectToLds=1
+
+#  converting m0 update from LocalWriteAddrSGpr using  is usually win
+# -1 attempt to use a hueristic to determine when the tile size will use too many SGPR and fall back to VGPR
+"UseInstOffsetForGRO":              [ -1, 0, 1],
+
+
+# Converting VGPR GRO into SGPR GRO is usually a win
+# However, the mode may exhaust all available SGPR, in particular for large unroll
+# -1 attempt to use a hueristic to determine when the tile size will use too many SGPR and fall back to VGPR
+"UseSgprForGRO":              [ -1, 0, 1],
+
+# Some work-items in the group may not participate in the final buffer load.
+# Allows more flexibility in choosing DepthU.
+# 1= allocate extra addressing vpgr for edge cases
+# 2= use temp vgpr inside unroll loop, may save 1 VPR if both A and B have a fractional edge but costs v_alu
+"FractionalLoad":             [ 0, 1, 2] ,
+
+# Use a 64-bit shadow limit register to allow buffers larger than 2^32 bytes
+"Use64bShadowLimit":   [ True, False],
+
+# Attempt to vectorize atomics
+# 1,2,4 : Number of elements to vectorize
+# -1 : Maximum supported value.  Half=2, Single=1, Double=1
+# Currently 32-bit CAS only, eventually might support more
+"VectorAtomicWidth":          [ -1, 1, 2 ] ,
+
+# Assertion properties
+# These provide information or assertions that the problem size meets certain requirements
+# for sizes or alignments.  The kernel generator can use this information to produce
+# a kernel which uses those assertions to produce a faster kernel.
+#
+# If modifying or adding Assertions also change ProblemProperties class in TensileTypes.h
+
+# Kernel generator will assume that the summation size is some multiple of the element size
+# and use this to optimize the kernel.
+# This can result in more efficient kernels, but requires runtime checking to ensure the specified
+# summation value meets the requirements.
+# (Recommended AF1EM value is 8 for half, 4 for single, 2 for double)
+#
+# Optimizations enabled by AssertSummationElementMultiple>1:
+#  - If >=2 for half:
+#     - Tail loop loads can be vectorized 2X to use dword
+#     - Enables asm kernels on V20
+#     - Can use DirectToLds for both unroll and tail loops
+#  - Tail loop can be unrolled up to InnerUnroll amount if AssertSummationElementMultiple%InnerUnroll==0
+#
+# 1 indicates no assertion (since all sizes are multiples of 1)
+"AssertSummationElementMultiple": [1,2,4,8],
+
+# Kernel generator will assume that the FreeIndex[0] size is some multiple of the element size
+# and use this to optimize the kernel.
+# FreeIndex[0] is usually letter "I"
+# (Recommended AF0EM value is 8 for half, 4 for single, 2 for double)
+#
+# Optimizations enabled by AssertFree0ElementMultiple>1:
+# Load optimizations:
+#  - For TLU=1 matrix, if AF1WM>=GLVW then can enable UseSgprForGRO
+#      - Reduces registers used for address calculations
+#      - Enables FractionalLoad for more flexibility in address calcs
+#      - Removes address shift/unshift code
+#    - UseSgprForGRO will only be enabled if all matrices meet assertion requirements.
+#
+# Store Optimizations:
+#  - Can vectorize stores in edge tiles.  Vector width can be up to AF0EM.
+#   (since C matrix is always coalesced in Free0 index diretion and this assertion guarantees the index element multiple)
+#
+# 1 indicates no assertion (since all sizes are multiples of 1)
+"AssertFree0ElementMultiple" : [1,2,4,8],
+
+# Kernel generator will assume that the FreeIndex[1] size is some multiple of the element size
+# and use this to optimize the kernel.
+# FreeIndex[1] is usually letter "J"
+# (Recommended AF1EM value is 8 for half, 4 for single, 2 for double)
+
+# Optimizations enabled by AssertFree1ElementMultiple>1:
+#  - See above AssertFree0ElementMultiple "Load optimizations"
+
+# 1 indicates no assertion (since all sizes are multiples of 1)
+"AssertFree1ElementMultiple" : [1,2,4,8],
+
+# Some kernels only work for certain sizes, see ProblemProperties in TensileTypes for exact defs
+"AssertMinApproxSize" : [0,1,2],
+
+
+# Assertions/Predicates that require stride to be specified value.
+# Dictionary of pairs of {position:constValue}
+# Unlike SetConstStride*, these use a position in the IndexAssignments* field:
+#   EX: "{2:0}"  means IndexAssignmentsB[2] must be 0 to run the solution.
+# Use this syntax to specify multiple Fork values in a YAML config file.
+
+#- AssertStrideAEqual:
+#  - {5: 2, 6: 2} # these are two AssertStrideAEqual predicates for the same solution.
+#  - {5: 2}       # this is a second solution generated with a single predicate.
+
+# Like other assertions, these are used when kernel is generated and checked before running kernel.
+"AssertStrideAEqual":  -1,
+
+"AssertStrideBEqual":  -1,
+
+"AssertStrideCEqual":  -1,
+"AssertStrideDEqual":  -1,
+
+# Assertions that require stride to be specified value.
+# Dictionary of pairs of {index, constValue}.
+# Index is a member of the global index assignments.
+"AssertSizeEqual":    -1,
+
+# Generate code inside kernel to check Assertions on Tensor dimensions
+"CheckTensorDimAsserts":               [False, True],
+
+# Generate code inside kernel to check several dimension overflow cases, in particular around use of 32-bit calcs
+# 0 = no check, 1=checks for cases that should be avoided through assertions and kernel selection,
+# 2=checks for cases that should never happen
+"CheckDimOverflow":               [0,1,2],
+
+# Stagger the start summation position of the tiles.
+# Elements from the summation dimension are loaded at offsets rather than all starting at 0.
+# StaggerU is the max 'clicks' of StaggerUStride bytes where each wg starts ; see StaggerUMapping
+# for how the specific stagger for a given wg is determined.
+#
+# The tile assignment C are same as with StaggerOffset=0 ; the difference is the
+# order that the summation elements are added.
+# GRO will wrap back to the row start start when the edge is reached.
+#
+# This can be effective for TLU=0 style matrices where the K dimension is a large power-of-2.
+# In this case the start of each row of the tile is separated by an exact power-of-2
+# which causes poor dram, cache, and tlb behavior.  V20 has 16 channels each 256 bytes wide.
+
+# StaggerU adjusts the start position in the summation (aka 'U') dimension
+# to avoid these conflicts.  Both A and B matrix start at the adjusted position.
+# If >0 specifies the offset in multiples of the macro-tile "unroll" dim
+#  - Higher values will spread traffic to more channels but provide less L2 re-use.
+#  - StaggerU and WorkGroupMapping interact and should be tuned together -
+#    The WGM controls how tiles are assigned in C matrix, while StaggerU controls where those
+#    tiles start reading their summation dim parms.
+#  - StaggerU requires BufferLoad==1 and is silently ignored if BufferLoad==0
+"StaggerU":              [0,2,4,8,16,32,64],
+
+# Stride in bytes for each staggeru 'click'.
+# 256 is recommended since this is the width of memory channel (on gfx803,gfx900,gf906) - so
+# each click will start in a new memory channel and spread traffic among the 16 available channels.
+# For example StaggerUStride=256 and StaggerU=8 will use 8 unique starting points
+# in summation dimension, each offset by 256-bytes - provided the tensor dims are large
+# enough to support this.
+# StaggerUStride will be internally increased so it is an integer multiple of DepthU*BpeAB.
+# (the implementation requires this - the unroll iteration accesses data in steps of
+# DepthU*BPE
+"StaggerUStride":               [16,32,64,128,256,512,1024],
+
+# How the tile assignment (wg0, wg1, wg2) controls the initial StaggerU offset:
+# 0: Use wg0
+# 1: Use wg1
+# 2: Use wg2
+# 3: Use wgSerial, wgSerial = wg0 + wg1 * nwg0 + wg2 * (nwg0 * nwg1)
+# 4: Debug mode, offset each tile max allowed StaggerU.  This just moves hotspot
+#    to a different bank since all workgroups still start at same point.
+"StaggerUMapping":       [0,1,2,3,4],
+
+
+# 0=don't use magic div (source only)
+# 1=magic div alg #1.  Slightly faster but limited range (if magic number is 2^32)
+# 2=magic div alg#2.  Slightly slower but handles all unsigned ints up to 2^32
+"MagicDivAlg":       [0,1,2],
+
+# For Block Mapping type:
+# 0   : Use hardware-assigned wg number with no remapping.
+# N   : WG block width.  "Wrap" to a new wg1 "row" assignment after N WGs assigned in that row.
+# < 0 : Swaps the position of wg0 and wg1.  Does not change NumWorkGroups* or ProblemNumWorkGroups*. No longer supported.
+# Tensor C always mapped with first free coord as fastest moving
+# (Elements in this dimension are sequential in memory.
+#
+# For 2D nonbatched Matrix this means index order is I, then J
+# For 2D batched Matrix this means index order is I, then J, then K.
+#
+# Then for 2D case:
+#   - If drawn in row-major format, I is the width and J is the height.
+#   - WGM determines dimensions of the box used to assign tiles from C
+#   - WGM is the height of the box (in the J dimension)
+#   - Given WGM, the box width (in I dim) is determined by number of CUs
+#   - The box always moves across matrixC in the fastest-moving "I" dim, then
+#     wraps to next J.  TODO - might be useful to change this?
+#
+# Examples for 2D matrix:
+# WGM=8:  on CU64 machine this is a square box
+# WGM=1:  Short/Fat - this will cover maximum width in I dimension of C.  This matches hardware assigned mapping.
+# WGM=64: Tall/Skinny - this will cover maximum width in J dimention of C.
+#
+# Formula for wgSerial:
+# wgSerial = wg0 + (wg1 % WorkGroupMapping) * nwg0
+"WorkGroupMapping":           list(range(0,1024+1)),  # change a workgroup's id so that the all the workgroups on the gpu at a time are hitting L2 cache the best
+"WorkGroupMappingType":       ["B", "Z"],           # Blocking, Z-order (not any faster than blocking, especially for the arithmetic it requires)
+"MaxOccupancy":               list(range(1, 40+1)),       # wg / CU; if cache thrashing is hurting performance, this allocates extra lds to artificially limit occupancy
+"WorkGroup":                  validWorkGroups,      # ( wg0 x wg1 x LocalSplitU ) dimensions of the workgroup which will operate on a tile and share lds
+
+#ThreadTile: ( tt0 x tt1 ) dimensions of the C tile that each thread works on,
+# TT=4 and VW=4 means a thread will work on a tight 4x4 tile of C, where VW=1 means the tile will work on 16 spread out values
+# Generally, the VW determines the consecutive a WI will work on, then it will skip ahead SG0*VW elements to get to the next row of VGPR inputs
+"ThreadTile":                 validThreadTiles,
+"MacroTile":                  validMacroTiles,      # MT0 = wg0*tt0, MT1 = wg1*tt1
+
+# MatrixInstruction: (M x N x K x B)
+# XDLOPS tile definition, only valid for gfx908
+# MxNxKxB specifies matrix instruction variants
+#  MxNxB determines the shape of the C tile each instruction worked on
+#      K determines the unroll depth
+# If empty, do not use these instructions
+#
+# Alternative format: (M x N x K x B x MIBlockM x WaveTileM x WaveTileN x WaveM x WaveN)
+# (Note: MxN means M-by-N in the following comments)
+# MIBlockM determines how many blocks along M dimension for multi-block MI variants. Concrete examples:
+#  - MI 16x16x1x4 (4-block variant) with MIBlockM=4 -> (16x16)*(4x1)=64x16 tile per instruction executed
+#  - MI 32x32x1x2 (2-block variant) with MIBlockM=1 -> (32x32)*(1x2)=32x64 tile per instruction executed
+# WaveTileM/N are dimensions of the C tile each wave works on, and is close to the concept of ThreadTile in classic VALU kernels
+#  - WT 4x1 -> each wave executes 4x1 matrix instructions on the C tile of total area (4*MITileM)x(1*MITileN)
+# WaveM/N are dimensions of waves spawned for one workgroup where each wave consists of 64 threads
+#  - Wave2x2 -> a total of 4 waves in one workgroup of shape 2x2
+# Putting it all together:
+#  - [32, 32, 1, 2,  1,  4, 1,  2, 2]
+#     ^^^^^^^^^^^^   ^   ^^^^   ^^^^
+#      MatrixInst  BlkM   WT    Wave
+#  - means (32x64) per MI * (4x1) per wave * (2x2) per workgroup = (32*4*2)x(64*1*2) = 256x128 macro tile
+# Tensile will ignore the parameters ThreadTile and WorkGroup when the alternative format is used
+"MatrixInstruction":          validMatrixInstructions,
+
+# StoreRemap: Optimize MatrixInstruction store patterns to enhance performance.
+#             MI output data between each threads are along N dims.
+#             But global memory is along M dim continous.
+#             That mean global write between each threads are not continous.
+#             Therefore, store performance for MI instruction is poor.
+# How StoreRemap works in final store stage:
+#             1. Put all thread output data into LDS.
+#             2. All thread read data from LDS along M dims.
+#                (match global Memory continous direction)
+#             3. All thread write out data into global memory.
+# 0:   Disable StoreRemap (default)
+# 1~8: Enable StoreRemap and set the global write vector width
+# Suggest optimum value: fp32 = [2,4], fp16 or bf16 = [4,8] (dwordx2 and dowrdx4)
+"StoreRemapVectorWidth":      [0,1,2,4,8],
+
+# Disable overlapping AB-tile vgpr and read/write addr vgprs with C-tile vgprs
+# Valid only for MatrixInstruction enabled kernels, which by default overlaps
+# C-tile w/ AB-tile until it's due for v_accvgpr_read before the writeback. Illustrated below:
+# |<----------------------- valuC ----------------------->|
+# |<--- valuA/B --->|<-- R/W pointers -->|xxx|<- Spares ->|
+#                                          ^        ^
+#         (Reserved by persistent kernels) ^        ^
+#                       (Utilized by register pool) ^
+"DisableVgprOverlapping":     [False, True],
+
+# If positive, each switch includes switches <= the specified switch.
+# For example 3 will enable NoPostLoop+NoGlobalRead+NoLocalWrite
+# If negative, setting is precise and will disable only the specified code piece.
+# intended use is to evaluate which sections of the kernel are taking most of the execution time
+# 0=Baseline
+# 1= +NoPostLoop
+# 2= +NoGlobalRead
+# 3= +NoLocalWrite
+# 4= +NoLocalRead
+# 5= +NoWait +NoSync
+# 6= +NoMAC
+# 7= +NoPreLoop+ NoGlobalReadInc
+# 9= NullKernel
+# For example set DisableKernelPieces: [0,1,2,3,4,5,6,7,9]
+#   this will create a set of kernels with progessively more pieces of the kernel disabled
+"DisableKernelPieces":        list(range(-9,10)),         # disable pieces of the kernel, for performance isolation
+
+# assume atomics always work correctly.
+"DisableAtomicFail": [False, True],
+
+# 0  : standard launch
+# N>0 : launch persistent kernel with N workgroups per compute unit
+#       - Recommended min is enough WG to use all resources on the CU
+#       - Higher values result in shorter-running WG which are less 'persistent'
+#         this increases the switch time between work-groups but results in
+#         more opportunities to schedule other WG or recover if a wg runs long
+#         or all compute units were not available before the launch.
+#       - Host code will not launch more groups than tiles in the C space
+# Assertions/Requirements: NumWorkGroups0 * NumWorkGroups1 < 2^32
+"PersistentKernel":           range(0,512+1) ,       # Use persistent kernel.
+
+# Allow macro-tile to span batch dimensions and thus a single workgroup can work across batch dimensions.
+# This can improve utilization, in particular if macro-tile is larger than the lower dimensions.
+# The byte address of the last element in the packed array must fit in 2^32.
+# 0x0 = each workgroup works on a single batch dim.
+# 0x1 = pack Batch dimensions into wg0/A - works if all batch strides for B==0.
+#       Also must set AssertFree0ElementMultiple to >= GlobalReadVectorWidth
+# 0x2 = pack Batch dimensions into wg1/B - works if all batch strides for A==0
+#       Also must set AssertFree1ElementMultiple to >= GlobalReadVectorWidth
+# 0x3 = pack batch dims into both A and B. Could support any stride for A and B. (Not supported yet)
+"PackBatchDims":             [0,1,2],
+
+# Pack free dimensions
+# If True, allow macro-tile to span free dimensions.  Single workgroup can work across multiple free dimensions.
+# If False, macro-tile is always Free0*Free1.  Additional free dimensions are not supported.
+"PackFreeDims":              [False, True],
+
+# Pack summation dims
+# If 0, a for loops are generated for each summation dimension.
+# If 1, summation dims are packed into a single loop and extracted as needed using mod/shift.  The innermost summation
+#  dimension must be an integer multiple of the unroll loop - in other words the load tile is contiguous in memory.
+#  In this mode, tensile can still prefetch data across the load tile dimension.
+# If 2, summations dims are packed into a single loop as above.  In addition, the load tile does not need to be
+#  contiguous in memory and can span summation dimensions. (not supported yet)
+"PackSummationDims":         [0,1],
+
+# debug mode, uses the PackSummationDims method to increment the unroll loop counter
+"UnrollIncIsDepthU":         [0,1],
+
+# Granularity allowed when packing tensor dims.
+# Lower values are finer granularity which requires more dimension division operations on store path
+# but supports more flexible tensor dimes.
+# Higher values are coarser values - less dimension division operations but tensor dims must meet
+# more stringent element multiple requirements
+# 0x1 : Any dimension supported, compute dims after each element (not supported yet)
+# 0x2 : VectorWidth must not span tensor dim
+"PackGranularity": [2],
+
+# Controls desired width (#elements) for loads from global memory -> LDS.
+# and eliminates the pointer unshift logic
+# -1 : Set GlobalReadVectorWidth =  VectorWidth
+#  1 cannot be used for half type.
+"GlobalReadVectorWidth":      [ -1, 1, 2, 3, 4, 6, 8 ],
+
+# Controls desired width (#elements) for loads from LDS -> VGPR.
+# -1 : Set LocalReadVectorWidth =  VectorWidth
+#  1 cannot be used for half type.
+# used in combination with TransposeLDS=True
+# in TransposeLDS=1 case, use wider load to fetch elements in summation dimension from LDS
+# helps optimizing instruction scheduling between MFMA and nonMFMA instructions
+
+"LocalReadVectorWidth":      [ -1, 1, 2, 4, 8 ],
+
+# threads should read/write/operate on this many contiguous elements from the C matrix.
+# If VW=4 then thread0 will process 4 consec C elements, then thread1 next 4, etc.
+# If the ThreadTile is > VectorWidth then thread0 will next operate on the 4 elements in C at (4*NumThreads)
+# Typically the load vector width and store vector width are directly related to the VW.
+# The global load width is closely related to the width of local stores so
+# GlobalReadVectorWidth also ontrols local write width.
+# Local read width also matches since VectorWidth consec elements must be read
+# Typically matching 16 bytes is good choice since the stores will be optimally coalesced with 16 bytes/WI.
+# -1 means use the largest vector width up to 128 bits.
+# Using a VW too large which results in >16bytes/thread isn't supported
+"VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8 ],
+
+# If 0, store 1 element per instruction.
+# If 1, store vector-width elements per instruction.
+# if -1, store vector-wide elements per instruction unless PBD would not generate a valid kernel
+"VectorStore":                    [-1, 0, 1],
+
+# Controls desired width (#elements) for stores from reg to global memory.
+# When MatrixInstruciton == None, derived parameter gwvw takes precedence.
+# -1 : Set StoreVectorWidth = VectorWidth
+"StoreVectorWidth":           [ -1, 1, 2, 3, 4, 6, 8 ],
+
+# place upper and lower limits on the skinny-ness of macro tiles; shape=1 means square tile, like 64x64. shape=4 means 4x64 or 64x4 or 128x8...
+# these will just mark some kernels as invalid so that fewer kernels will be checked
+"MacroTileShapeMin":          list(range(1, 256+1)),
+"MacroTileShapeMax":          list(range(1, 256+1)),
+
+# when loading all the data from global into lds requires multiple load instructions, these parameters govern which
+# loads will pull which rectangle of data from global into lds
+# NLC=1 means one load along the coalesced dimension, which results in the most coalescing possible
+# NLC=-1 looks for the largest number of reads along the coalesced dimension which results in the least ammount of coalescing;
+# however in this case the stride between one load and another is a static value, therefore buffer loads only need one set of registers
+# whereas the =1 case has a stride which is a multiple of a kernel argument and therefore needs one address per load in the perpendicular dimension
+"NumLoadsCoalescedA":         list(range(-1, 64+1)),
+"NumLoadsCoalescedB":         list(range(-1, 64+1)),
+
+# DepthU, LocalSplitU (which is the 3rd number in WorkGroup), and LoopUnroll are closely related
+# LoopUnroll=4 means there are 4 subiterations within the loop, 4 actual iterations written in the code.
+# LocalSplit=2 means the workgroup is split up into 2 subgroups, and each subgroup is doing different parts of the summation.
+# subgroup0 does k=0-3, 8-11... and subgroup1 does k=4-7, 12-15...
+# So, each iteration through the summation loop, which has 4 actual subiterations, does 8 summation iterations, because each subgroup did 4;
+# and when data is read from global memory the threads read 8 elements along the summation dimension.
+# DepthU = LoopUnroll * LocalSplitU = 4*2 in this case
+# it made more sense for the user to directly control LocalSplitU and DepthU, then derrive afterwards LoopUnroll=DepthU/LocalSplitU
+# -1 : Only allow GLVW=1
+# -2 : Only allow max(GLVWA,GLVWB) < VW ?
+# -3 : Only allow min(GLVWA,GLVWB) < VW ?
+"DepthU":                     depthUs,
+
+# integer ammount of padding to put into LDS, in 2016 this didn't seem to help performance, profilers were showing that channel conflicts weren't really hurting
+# performance so this has been deprecated and probably doesn't work
+# -1 means use same padding as the VectorWidth if TLU=0 else 0.  (Padding only helps when transpose is required)
+# With MatrixInstruciton: -1 means max(GRVW,MIInput) if TLU=0
+"LdsPadA":                     [ -1, 0, 1, 2, 3, 4, 8],
+"LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8],
+
+# Padding boundary for LDS. defines block-size for pad insertion. for every 'LdsBlockSizePerPad' bytes, LDS padding (pad value from LdsPad parameter)
+# is added (readOffset aware of the pad and adjusts offset value based on this parameter value).
+# Only support LdsBlockSizePerPad >= unrollDepth * BPE
+# 0 means disable LdsBlockSizePerPad,
+# -1 means round up to nearest power of 2 begin with 128
+"LdsBlockSizePerPad":          [-1, 0, 64, 128, 256, 512],
+
+#Transpose LDS format. Local store in Coalsced dimension , same as optimized global fetch dimension . applicable only in TLU=0 case for miSIMD(s)
+"TransposeLDS":                [-1, 1, 0],
+
+# tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated
+"PerformanceSyncLocation":    list(range(-1, 16*16+1)),
+"PerformanceWaitLocation":    list(range(-1, 16*16+1)),
+"PerformanceWaitCount":       list(range(-1, 16)),
+
+# add gls or slc after global memory read/writes to change cacheing, not cacheing the writes is promising and improved performance a tiny bit
+"NonTemporalC":               list(range(0,4)),
+"NonTemporalA":               list(range(0,4)),
+"NonTemporalB":               list(range(0,4)),
+
+# guard against out of bounds reads
+# None: don't guard
+# Branch: use if statements (source only, and doesn't support VW)
+# ShiftPtr: shift read pointers to be in bounds, then unshift registers (source & assembly),
+# ShiftPtr does not support very small problem dims < global load vector width since the shift
+# would move outside the array bounds.
+# If GLVW==1 or Assert*ElementMultiple for the coalesced dim is > GRVW, then shifting is not
+# necessary and the shift/unshift code will not be generated
+"EdgeType":                   [ "Branch", "ShiftPtr", "None" ], # None=don't guard against ou
+
+# Group together unroll iterations inside the unroll loop.
+# For example, InnerUnroll=2 will fetch LDS for two unroll iterations
+"InnerUnroll":                [1,2,4,8,16,32,64],
+
+# Arrange elements in LDS so N elements consec in U-dim are adjacent in LDS
+# 1 is default and results in no interleaving.
+# Implementation only supports LocalDotLayout that is a power-of-two
+"LocalDotLayout":             [1,2,4,8],
+
+# Aggressive performance mode
+# Some of these may cause instability, particularly s_setprio
+# 0=none, 1=add setprio, 2=add setprio and modify LDS to allow only 2 waves/simd
+"AggressivePerfMode":       [0,1,2],
+
+# Kernels should be written in assembly or source
+# if assembly, ISA will determine architecture
+# if source, Runtime will determine language
+# later on, we'll relax this to inner kernel languages and outer kernel languages, such as inline asm embedded in ocl or in llvm
+"KernelLanguage":             [ "Assembly", "Source" ],
+"ISA":                        validISA,       # arch for assembly kernels
+
+# Replaces assembly kernels if they are found in the directory Tensile/Tensile/ReplacementKernels
+"ReplacementKernel":          [False, True],
+
+"MinVgprNumber":                list(range(0,256)),
+
+"MaxVgprNumber":                list(range(0,257)),
+\end{lstlisting}
+
+\section{Appendix C - Tensile Kernel Naming Convention}
+\label{sec:appendixC}
+
+When Tensile or Tensile Create Library produces the kernels it will generate names for those kernels based on the kernel specification defined by the parameters which are used to generate the kernels. The naming convention used is based on the name of the parameters involved. The part of the name produced from the parameter is an abbreviation of the name concatenated with the value of the parameter. For example GlobalSplitU = 4 will produce a name part GSU4. The full name of a kernel looks like the following:
+
+\begin{verbatim}
+Cijk_Ailk_Bljk_SB_MT128x128x16_SE_GSU1_K1_TT8_8_WG16_16_1.s.
+\end{verbatim}
+
+Any library will contain a large set of parameters that are common to all the kernels in the library so, in the final library those parameters are not included as part of the naming of the kernels in that library. This reduces the name as the full set of parameters is rather large.
+
+\section{Appendix D - Library Logic Specifications}
+\label{sec:appendixD}
+
+The following is a full list of platform targets that can be used for the library logic generation in tensile.
+
+\begin{minted}[
+gobble=0,breaklines,
+frame=single,
+linenos
+]{yaml}
+
+ScheduleName: "vega20"
+DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7", "Device 66af", "Vega 20"]
+ArchitectureName: "gfx906"
+
+ScheduleName: "vega10"
+DeviceNames: ["Device 6863", "Device 6862", "Device 687f", "Device 6860", "Device 6861", "Vega 10 XTX [Radeon Vega Frontier Edition]", "Vega [Radeon RX Vega]",
+"Vega 10 XT [Radeon RX Vega 64]", "Vega", "Device 6864", "Device 686c", "Vega 10 [Radeon Instinct MI25 MxGPU]"]
+ArchitectureName: "gfx900"
+
+ScheduleName: "mi25"
+DeviceNames: ["Device 6860"]
+ArchitectureName: "gfx900"
+
+ScheduleName: "r9nano"
+DeviceNames: ["Device 7300"]
+ArchitectureName: "gfx803"
+
+ScheduleName: "hip"
+DeviceNames: ["Device 0000"]
+ArchitectureName: "fallback"
+
+\end{minted}
+
+
+\end{document}

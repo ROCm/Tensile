@@ -142,7 +142,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024,3,1030], [1024,3,1030], [1,1,2], [1024,3,1030] ]
+          - Range: [ [256,3,266], [256,3,266], [1,1,2], [4096,3,4106] ]
 
   ########################################
   # TN - standard
@@ -278,7 +278,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024,3,1030], [1024,3,1030], [1,1,2], [1024,3,1030] ]
+          - Range: [ [256,3,266], [256,3,266], [1,1,2], [4096,3,4106] ]
 
   ########################################
   # NN - standard
@@ -414,7 +414,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024,3,1030], [1024,3,1030], [1,1,2], [1024,3,1030] ]
+          - Range: [ [256,3,266], [256,3,266], [1,1,2], [4096,3,4106] ]
 
   ########################################
   # TT - standard
@@ -550,5 +550,5 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024,3,1030], [1024,3,1030], [1,1,2], [1024,3,1030] ]
+          - Range: [ [256,3,266], [256,3,266], [1,1,2], [4096,3,4106] ]
 

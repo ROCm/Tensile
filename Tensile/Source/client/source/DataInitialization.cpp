@@ -123,6 +123,60 @@ namespace Tensile
             return stream;
         }
 
+        std::ostream& operator<<(std::ostream& stream, BoundsCheckMode const& mode)
+        {
+            std::string strValue;
+
+            if(mode == BoundsCheckMode::Disable)
+                strValue = "Disable";
+            else if(mode == BoundsCheckMode::NaN)
+                strValue = "NaN";
+            else if(mode == BoundsCheckMode::GuardPageFront)
+                strValue = "GuardPageFront";
+            else if(mode == BoundsCheckMode::GuardPageBack)
+                strValue = "GuardPageBack";
+            else if(mode == BoundsCheckMode::GuardPageAll)
+                strValue = "GuardPageAll";
+            else
+                throw std::runtime_error(
+                    concatenate("Invalid BoundsCheckMode value: ", static_cast<int>(mode)));
+
+            return stream << strValue;
+        }
+
+        std::istream& operator>>(std::istream& stream, BoundsCheckMode& mode)
+        {
+            std::string strValue;
+            stream >> strValue;
+
+            if(strValue == "Disable")
+                mode = BoundsCheckMode::Disable;
+            else if(strValue == "NaN")
+                mode = BoundsCheckMode::NaN;
+            else if(strValue == "GuardPageFront")
+                mode = BoundsCheckMode::GuardPageFront;
+            else if(strValue == "GuardPageBack")
+                mode = BoundsCheckMode::GuardPageBack;
+            else if(strValue == "GuardPageAll")
+                mode = BoundsCheckMode::GuardPageAll;
+            else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
+            {
+                int value = atoi(strValue.c_str());
+                if(value >= 0 && value < static_cast<int>(BoundsCheckMode::MaxMode))
+                    mode = static_cast<BoundsCheckMode>(value);
+                else
+                    throw std::runtime_error(
+                        concatenate("Can't convert ", strValue, " to BoundsCheckMode."));
+            }
+            else
+            {
+                throw std::runtime_error(
+                    concatenate("Can't convert ", strValue, " to BoundsCheckMode."));
+            }
+
+            return stream;
+        }
+
         double DataInitialization::GetRepresentativeBetaValue(po::variables_map const& args)
         {
             auto argValue = args["init-beta"].as<int>();
@@ -165,52 +219,54 @@ namespace Tensile
 
             switch(contractionInputsTypeId)
             {
-            case FloatContractionInputs::TypeId():
+            case ContractionInputs_S_S_S::TypeId():
             {
-                return GetTyped<FloatContractionInputs>(args, problemFactory, maxWorkspaceSize);
+                return GetTyped<ContractionInputs_S_S_S>(args, problemFactory, maxWorkspaceSize);
             }
-            case DoubleContractionInputs::TypeId():
+            case ContractionInputs_D_D_D::TypeId():
             {
-                return GetTyped<DoubleContractionInputs>(args, problemFactory, maxWorkspaceSize);
+                return GetTyped<ContractionInputs_D_D_D>(args, problemFactory, maxWorkspaceSize);
             }
-            case ComplexFloatContractionInputs::TypeId():
+            case ContractionInputs_C_C_C::TypeId():
             {
-                return GetTyped<ComplexFloatContractionInputs>(
-                    args, problemFactory, maxWorkspaceSize);
+                return GetTyped<ContractionInputs_C_C_C>(args, problemFactory, maxWorkspaceSize);
             }
-            case ComplexDoubleContractionInputs::TypeId():
+            case ContractionInputs_Z_Z_Z::TypeId():
             {
-                return GetTyped<ComplexDoubleContractionInputs>(
-                    args, problemFactory, maxWorkspaceSize);
+                return GetTyped<ContractionInputs_Z_Z_Z>(args, problemFactory, maxWorkspaceSize);
             }
 #ifdef TENSILE_USE_HALF
-            case HalfContractionInputs::TypeId():
+            case ContractionInputs_H_H_H::TypeId():
             {
-                return GetTyped<HalfContractionInputs>(args, problemFactory, maxWorkspaceSize);
+                return GetTyped<ContractionInputs_H_H_H>(args, problemFactory, maxWorkspaceSize);
             }
-            case HalfInFloatOutContractionInputs::TypeId():
+            case ContractionInputs_H_H_S::TypeId():
             {
-                return GetTyped<HalfInFloatOutContractionInputs>(
-                    args, problemFactory, maxWorkspaceSize);
+                return GetTyped<ContractionInputs_H_H_S>(args, problemFactory, maxWorkspaceSize);
+            }
+            case ContractionInputs_H_S_S::TypeId():
+            {
+                return GetTyped<ContractionInputs_H_S_S>(args, problemFactory, maxWorkspaceSize);
             }
 #endif // TENSILE_USE_HALF
-            case Int8x4ContractionInputs::TypeId():
+            case ContractionInputs_I8x4_I32_I32::TypeId():
             {
-                return GetTyped<Int8x4ContractionInputs>(args, problemFactory, maxWorkspaceSize);
+                return GetTyped<ContractionInputs_I8x4_I32_I32>(
+                    args, problemFactory, maxWorkspaceSize);
             }
-            case Int32ContractionInputs::TypeId():
+            case ContractionInputs_I32_I32_I32::TypeId():
             {
-                return GetTyped<Int32ContractionInputs>(args, problemFactory, maxWorkspaceSize);
+                return GetTyped<ContractionInputs_I32_I32_I32>(
+                    args, problemFactory, maxWorkspaceSize);
             }
 #ifdef TENSILE_USE_BF16
-            case BFloat16ContractionInputs::TypeId():
+            case ContractionInputs_B_B_S::TypeId():
             {
-                return GetTyped<BFloat16ContractionInputs>(args, problemFactory, maxWorkspaceSize);
+                return GetTyped<ContractionInputs_B_B_S>(args, problemFactory, maxWorkspaceSize);
             }
-            case BFloat16InFloatOutContractionInputs::TypeId():
+            case ContractionInputs_B_S_S::TypeId():
             {
-                return GetTyped<BFloat16InFloatOutContractionInputs>(
-                    args, problemFactory, maxWorkspaceSize);
+                return GetTyped<ContractionInputs_B_S_S>(args, problemFactory, maxWorkspaceSize);
             }
 #endif // TENSILE_USE_BF16
             default:;
@@ -248,11 +304,17 @@ namespace Tensile
             , m_elementsToValidate(args["num-elements-to-validate"].as<int>())
             , m_keepPristineCopyOnGPU(args["pristine-on-gpu"].as<bool>())
             , m_workspaceSize(maxWorkspaceSize)
-        //, m_boundsCheck(args["bounds-check"].as<bool>())
         {
-            auto x        = args.find("bounds-check");
-            auto arg      = args["bounds-check"];
-            m_boundsCheck = arg.as<bool>();
+            m_boundsCheck    = args["bounds-check"].as<BoundsCheckMode>();
+            m_curBoundsCheck = m_boundsCheck;
+
+            if(m_boundsCheck == BoundsCheckMode::GuardPageAll)
+            {
+                //GuardPageAll needs 2 runs per solution.
+                //First run perform front side guard page checking.
+                m_curBoundsCheck     = BoundsCheckMode::GuardPageFront;
+                m_numRunsPerSolution = 2;
+            }
 
             if(args.count("convolution-vs-contraction"))
                 m_convolutionVsContraction = args["convolution-vs-contraction"].as<bool>();
@@ -265,14 +327,30 @@ namespace Tensile
                 m_dMaxElements = std::max(m_dMaxElements, problem.d().totalAllocatedElements());
             }
 
-            if(m_boundsCheck)
+            if(m_curBoundsCheck == BoundsCheckMode::NaN)
             {
                 m_aMaxElements += 1024;
                 m_bMaxElements += 1024;
                 m_cMaxElements += 1024;
                 m_dMaxElements += 1024;
             }
+            else if(m_curBoundsCheck == BoundsCheckMode::GuardPageFront
+                    || m_curBoundsCheck == BoundsCheckMode::GuardPageBack)
+            {
+                unsigned int aRoundUpSize
+                    = pageSize / DataTypeInfo::Get(args["a-type"].as<DataType>()).elementSize;
+                unsigned int bRoundUpSize
+                    = pageSize / DataTypeInfo::Get(args["b-type"].as<DataType>()).elementSize;
+                unsigned int cRoundUpSize
+                    = pageSize / DataTypeInfo::Get(args["c-type"].as<DataType>()).elementSize;
+                unsigned int dRoundUpSize
+                    = pageSize / DataTypeInfo::Get(args["d-type"].as<DataType>()).elementSize;
 
+                m_aMaxElements = RoundUpToMultiple<unsigned int>(m_aMaxElements, aRoundUpSize);
+                m_bMaxElements = RoundUpToMultiple<unsigned int>(m_bMaxElements, bRoundUpSize);
+                m_cMaxElements = RoundUpToMultiple<unsigned int>(m_cMaxElements, cRoundUpSize);
+                m_dMaxElements = RoundUpToMultiple<unsigned int>(m_dMaxElements, dRoundUpSize);
+            }
             m_problemDependentData = IsProblemDependent(m_aInit) || IsProblemDependent(m_bInit)
                                      || IsProblemDependent(m_cInit) || IsProblemDependent(m_dInit);
         }
