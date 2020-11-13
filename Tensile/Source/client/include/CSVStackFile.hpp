@@ -40,9 +40,9 @@ namespace Tensile
         class CSVStackFile
         {
         public:
-            CSVStackFile(std::string const& filename);
-            CSVStackFile(std::ostream& stream);
-            CSVStackFile(std::shared_ptr<std::ostream> stream);
+            CSVStackFile(std::string const& filename, std::string const& separator=", ");
+            CSVStackFile(std::ostream& stream, std::string const& separator=", ");
+            CSVStackFile(std::shared_ptr<std::ostream> stream, std::string const& separator=", ");
 
             ~CSVStackFile();
 
@@ -72,6 +72,8 @@ namespace Tensile
             void writeRow(std::unordered_map<std::string, std::string> const& row);
 
             std::shared_ptr<std::ostream> m_stream;
+
+            std::string m_separator;
 
             bool                                         m_firstRow = true;
             std::vector<std::string>                     m_keyOrder;

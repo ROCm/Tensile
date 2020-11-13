@@ -92,8 +92,10 @@ namespace Tensile
             const int m_numEnqueuesPerSync;
             const int m_numSyncsPerBenchmark;
             const int m_numEnqueuesPerSolution;
+            const size_t m_minFlopsPerSync = 0;
 
             const bool m_useGPUTimer;
+            const bool m_syncAfterWarmups = true;
             const int  m_sleepPercent;
 
             int m_numBenchmarksRun = 0;
