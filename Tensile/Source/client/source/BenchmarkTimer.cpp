@@ -43,8 +43,10 @@ namespace Tensile
 
         BenchmarkTimer::BenchmarkTimer(po::variables_map const& args, Hardware const& hardware)
             : m_numWarmups(args["num-warmups"].as<int>())
+            , m_syncAfterWarmups(args["sync-after-warmups"].as<bool>())
             , m_numBenchmarks(args["num-benchmarks"].as<int>())
             , m_numEnqueuesPerSync(args["num-enqueues-per-sync"].as<int>())
+            , m_minFlopsPerSync(args["min-flops-per-sync"].as<size_t>())
             , m_numSyncsPerBenchmark(args["num-syncs-per-benchmark"].as<int>())
             , m_hardware(hardware)
             , m_numEnqueuesPerSolution(m_numEnqueuesPerSync * m_numSyncsPerBenchmark)
@@ -141,7 +143,7 @@ namespace Tensile
                                              TimingEvents const&                startEvents,
                                              TimingEvents const&                stopEvents)
         {
-            if((stopEvents->size() > 0) && (stopEvents->back().size() > 0))
+            if(m_syncAfterWarmups && (stopEvents->size() > 0) && (stopEvents->back().size() > 0))
                 HIP_CHECK_EXC(hipEventSynchronize(stopEvents->back().back()));
         }
 
@@ -161,7 +163,14 @@ namespace Tensile
 
         size_t BenchmarkTimer::numEnqueuesPerSync()
         {
-            return m_numEnqueuesPerSync;
+            size_t enqueuesByFlops = 0;
+            if(m_minFlopsPerSync > 0)
+            {
+                size_t flopsInProblem = m_problem.flopCount();
+                enqueuesByFlops = CeilDivide(m_minFlopsPerSync, flopsInProblem);
+            }
+
+            return std::max<size_t>(m_numEnqueuesPerSync, enqueuesByFlops);
         }
 
         void BenchmarkTimer::setNumEnqueuesPerSync(size_t count)
