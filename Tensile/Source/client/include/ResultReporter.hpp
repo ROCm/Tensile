@@ -39,6 +39,7 @@ namespace Tensile
         {
             Error = 0,
             Terse,
+            Normal,
             Verbose,
             Debug,
             Count

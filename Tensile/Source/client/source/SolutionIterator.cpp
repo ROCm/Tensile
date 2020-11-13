@@ -79,6 +79,7 @@ namespace Tensile
                 {
                     std::ostringstream msg;
                     solution.hardwarePredicate->debugEval(*m_hardware, msg);
+                    msg << std::endl;
                     m_reporter->log(LogLevel::Verbose, msg.str());
                 }
 
@@ -94,6 +95,7 @@ namespace Tensile
                 {
                     std::ostringstream msg;
                     solution.problemPredicate->debugEval(m_problem, msg);
+                    msg << std::endl;
                     m_reporter->log(LogLevel::Verbose, msg.str());
                 }
 
