@@ -6638,7 +6638,7 @@ class KernelWriterAssembly(KernelWriter):
         incCodeA.addText("\n");
         incUpperA = sgpr(inc[tc]+1) if self.use64bPackSumOffset else 0
         if bool(set(kernel["ProblemType"]["IndicesSummation"]).intersection(set(kernel["ProblemType"]["MirrorDims%s"%tc]))) and not self.use64bPackSumOffset:
-          incUpperA = incUpper = sgpr(self.getTmpSgpr(1).idx())
+          incUpperA = sgpr(self.getTmpSgpr(1).idx())
           incCodeA.addInst("s_ashr_i32", incUpperA, sgpr(inc[tc]), 31, "sign-extend")
         incCodeA.addText(self.incrementSrd(kernel, tp, sgpr(inc[tc]), incUpperA))
 
