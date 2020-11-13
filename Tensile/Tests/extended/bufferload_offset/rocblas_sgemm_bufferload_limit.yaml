@@ -32,7 +32,6 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 2, 8 ]
         - WorkGroup:
-          - [ 16, 4, 1 ]  # 32x32
           - [ 16, 8, 1 ]  # 32x64
         - DepthU: [32,64]
       BenchmarkForkParameters:
@@ -40,9 +39,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [33554432], [64], [1], [64] ]  # strideA = 33554432, should fail on DU >= 32 (For tensorA-N)
-          - Range: [ [16777216], [64], [1], [64] ]  # strideA = 16777216, should fail on DU >= 64 (For tensorA-N)
-          - Range: [ [64], [64], [1], [33554432] ]  # strideB = 33554432, should fail on MT1 >= 32 (For tensorB-N)
+          - Range: [ [16777216], [32], [1], [32] ]  # strideA = 16777216, should fail on DU >= 64 (For tensorA-N)
+          - Range: [ [32], [32], [1], [16777216] ]  # strideB = 16777216, should fail on MT1 >= 64 (For tensorB-N)
 
   ########################################
   # NT / TLUA = 1, TLUB = 1
@@ -77,10 +75,8 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [33554432], [64], [1], [64] ]  # strideA = 33554432, should fail on DU >= 32 (For tensorA-N)
-          - Range: [ [16777216], [64], [1], [64] ]  # strideA = 16777216, should fail on DU >= 64 (For tensorA-N)
-          - Range: [ [64], [33554432], [1], [64] ]  # strideB = 33554432, should fail on DU >= 32 (For tensorB-T)
-          - Range: [ [64], [16777216], [1], [64] ]  # strideB = 16777216, should fail on DU >= 64 (For tensorB-T)
+          - Range: [ [16777216], [32], [1], [32] ]  # strideA = 16777216, should fail on DU >= 64 (For tensorA-N)
+          - Range: [ [32], [16777216], [1], [32] ]  # strideB = 16777216, should fail on DU >= 64 (For tensorB-T)
 
   ########################################
   # TN / TLUA = 0, TLUB = 0
@@ -108,8 +104,6 @@ BenchmarkProblems:
         - ThreadTile:
           - [ 2, 2 ]
         - WorkGroup:
-          - [ 8, 16, 1 ]  # 16x32
-          - [ 16, 8, 1 ]  # 32x16
           - [ 16, 16, 1 ] # 32x32
           - [ 16, 32, 1 ] # 32x64
           - [ 32, 16, 1 ] # 64x32
@@ -119,8 +113,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [64], [64], [1], [33554432] ]  # strideA = 33554432, should fail on MT0 >= 32 (For tensorA-T)  # strideB = 33554432, should fail on MT1 >= 32 (For tensorB-N)
-          - Range: [ [64], [64], [1], [16777216] ]  # strideA = 16777216, should fail on MT0 >= 64 (For tensorA-T)  # strideB = 16777216, should fail on MT1 >= 64 (For tensorB-N)
+          - Range: [ [32], [32], [1], [16777216] ]  # strideA = 16777216, should fail on MT0 >= 64 (For tensorA-T)  # strideB = 16777216, should fail on MT1 >= 64 (For tensorB-N)
 
   ########################################
   # TT / TLUA = 0, TLUB = 1
@@ -156,17 +149,5 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [64], [64], [1], [33554432] ]  # strideA = 33554432, should fail on MT0 >= 32 (For tensorA-T)
-          - Range: [ [64], [33554432], [1], [64] ]  # strideB = 33554432, should fail on DU >= 32 (For tensorB-T)
-          - Range: [ [64], [16777216], [1], [64] ]  # strideB = 16777216, should fail on DU >= 64 (For tensorB-T)
-
-LibraryLogic:
-    ScheduleName: "vega20"
-    DeviceNames: ["Device 66a0", "Device 66a1", "Device 66a7", "Device 66af", "Vega 20"]
-    ArchitectureName: "gfx906"
-
-    ScheduleName: "arcturus"
-    DeviceNames: ["Device 7380", "Device 7388", "Device 738c", "Device 7390"]
-    ArchitectureName: "gfx908"
-
-LibraryClient:
+          - Range: [ [32], [32], [1], [16777216] ]  # strideA = 16777216, should fail on MT0 >= 64 (For tensorA-T)
+          - Range: [ [32], [16777216], [1], [32] ]  # strideB = 16777216, should fail on DU >= 64 (For tensorB-T)
