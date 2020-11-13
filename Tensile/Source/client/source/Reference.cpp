@@ -235,29 +235,21 @@ namespace Tensile
                                 bCoord[boundIndices[i].b]
                                     = boundSize[i] - bCoord[boundIndices[i].b] - 1;
 
-                            if(zpA.valid()) 
+                            if(zpA.valid())
                             {
                                 auto sumCoord = bound.at(problem.toBoundsPos(zpA.boundIndex));
-                                if (problem.boundIndices()[i].aMirror)
+                                if(problem.boundIndices()[i].aMirror)
                                     sumCoord = boundSize[i] - sumCoord - 1;
 
-                                if (inZeroPad(problem,
-                                            zpA,
-                                            a,
-                                            aCoord,
-                                            sumCoord))
+                                if(inZeroPad(problem, zpA, a, aCoord, sumCoord))
                                     aInZeroPad = true;
                             }
                             if(zpB.valid())
                             {
                                 auto sumCoord = bound.at(problem.toBoundsPos(zpB.boundIndex));
-                                if (problem.boundIndices()[i].bMirror)
+                                if(problem.boundIndices()[i].bMirror)
                                     sumCoord = boundSize[i] - sumCoord - 1;
-                                if (inZeroPad(problem,
-                                            zpB,
-                                            b,
-                                            bCoord,
-                                            sumCoord))
+                                if(inZeroPad(problem, zpB, b, bCoord, sumCoord))
                                     bInZeroPad = true;
                             }
                         }
@@ -281,8 +273,10 @@ namespace Tensile
                         {
                             auto const& zpA = problem.boundIndices()[0].aZeroPad;
                             auto const& zpB = problem.boundIndices()[0].bZeroPad;
-                            size_t aI = problem.boundIndices()[0].aMirror ? (boundSize[0] - i - 1) : i;
-                            size_t bI = problem.boundIndices()[0].bMirror ? (boundSize[0] - i - 1) : i;
+                            size_t      aI
+                                = problem.boundIndices()[0].aMirror ? (boundSize[0] - i - 1) : i;
+                            size_t bI
+                                = problem.boundIndices()[0].bMirror ? (boundSize[0] - i - 1) : i;
 
                             typename Inputs::AType aVal(0);
                             typename Inputs::BType bVal(0);
