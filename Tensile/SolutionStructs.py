@@ -2402,7 +2402,6 @@ class Solution:
     # F32 only for now but we should extend this for other data types as well.
     isa = tuple(state["ISA"])
     if "MACInstruction" not in state or state["MACInstruction"] not in validParameters["MACInstruction"]:
-      print(isa)
       if globalParameters["AsmCaps"][isa]["v_mac_f32"]:
         state["MACInstruction"] = "MAC"
       else:

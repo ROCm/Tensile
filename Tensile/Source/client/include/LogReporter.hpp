@@ -51,7 +51,7 @@ namespace Tensile
                         bool                               dumpTensors)
                 : m_level(level)
                 , m_stream(stream)
-                , m_csvOutput(stream)
+                , m_csvOutput(stream, ",")
                 , m_dumpTensors(dumpTensors)
             {
                 for(auto const& key : keys)
@@ -64,7 +64,7 @@ namespace Tensile
                         bool                               dumpTensors)
                 : m_level(level)
                 , m_stream(stream)
-                , m_csvOutput(stream)
+                , m_csvOutput(stream, ",")
                 , m_dumpTensors(dumpTensors)
             {
                 for(auto const& key : keys)
@@ -78,7 +78,7 @@ namespace Tensile
                 : m_level(level)
                 , m_stream(*stream)
                 , m_ownedStream(stream)
-                , m_csvOutput(stream)
+                , m_csvOutput(stream, ",")
                 , m_dumpTensors(dumpTensors)
             {
                 for(auto const& key : keys)
@@ -87,13 +87,15 @@ namespace Tensile
 
             template <typename Stream>
             static std::shared_ptr<LogReporter> Default(po::variables_map const& args,
-                                                        Stream&                  stream)
+                                                        Stream&                  stream,
+                                                        LogLevel level = LogLevel::Count)
             {
                 bool dumpTensors = args["dump-tensors"].as<bool>();
                 using namespace ResultKey;
-                auto logLevel = args["log-level"].as<LogLevel>();
-                std::cout << "Log level: " << logLevel << std::endl;
-                return std::shared_ptr<LogReporter>(new LogReporter(logLevel,
+                if(level == LogLevel::Count)
+                    level = args["log-level"].as<LogLevel>();
+                std::cout << "Log level: " << level << std::endl;
+                return std::shared_ptr<LogReporter>(new LogReporter(level,
                                                                     {BenchmarkRunNumber,
                                                                      ProblemProgress,
                                                                      SolutionProgress,
@@ -166,7 +168,7 @@ namespace Tensile
             void acceptValidation(std::string const& value)
             {
                 if(value == "PASSED" || value == "NO_CHECK")
-                    m_rowLevel = LogLevel::Verbose;
+                    m_rowLevel = LogLevel::Normal;
                 else if(value == "FAILED" || value == "FAILED_CONV")
                     m_rowLevel = LogLevel::Error;
                 else if(value == "WRONG_HARDWARE")
@@ -273,7 +275,7 @@ namespace Tensile
             virtual void preSolution(ContractionSolution const& solution) override
             {
                 m_csvOutput.push();
-                m_rowLevel = LogLevel::Verbose;
+                m_rowLevel = LogLevel::Normal;
             }
 
             virtual void postSolution() override

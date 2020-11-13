@@ -154,9 +154,11 @@ namespace Tensile
                 ("platform-idx",             po::value<int>()->default_value(0), "OpenCL Platform Index")
 
                 ("num-warmups",              po::value<int>()->default_value(0), "Number of warmups to run")
+                ("sync-after-warmups",       po::value<bool>()->default_value(true), "Synchronize GPU after warmup kernel runs")
                 ("num-benchmarks",           po::value<int>()->default_value(1), "Number of benchmarks to run")
                 ("num-enqueues-per-sync",    po::value<int>()->default_value(1), "Enqueues per sync")
                 ("num-syncs-per-benchmark",  po::value<int>()->default_value(1), "Syncs per benchmark")
+                ("min-flops-per-sync",       po::value<size_t>()->default_value(0), "Minimum number of flops per sync to increase stability for small problems.")
                 ("use-gpu-timer",            po::value<bool>()->default_value(true), "Use GPU timer")
                 ("sleep-percent",            po::value<int>()->default_value(0), "Sleep percentage")
                 ("hardware-monitor",         po::value<bool>()->default_value(true), "Use hardware monitor.")
@@ -225,7 +227,7 @@ namespace Tensile
                                                                                       "file.")
 
 
-                ("exit-on-failure",          po::value<bool>()->default_value(false), "Exit run early on failed kernels.")
+                ("exit-on-error",          po::value<bool>()->default_value(false), "Exit run early on failed kernels or other errors.")
                 ("selection-only",           po::value<bool>()->default_value(false), "Don't run any solutions, only print kernel selections.")
                 ("max-workspace-size",       po::value<size_t>()->default_value(32*1024*1024), "Max workspace for training")
                 ("granularity-threshold",    po::value<double>()->default_value(0.0), "Don't run a solution if total granularity is below")
@@ -367,7 +369,10 @@ namespace Tensile
                 auto configFiles = args["config-file"].as<std::vector<std::string>>();
                 for(auto filename : configFiles)
                 {
+                    std::cout << "loading config file " << filename << std::endl;
                     std::ifstream file(filename.c_str());
+                    if(file.bad())
+                        throw std::runtime_error(concatenate("Could not open ", filename));
                     po::store(po::parse_config_file(file, options), args);
                 }
             }
@@ -467,6 +472,7 @@ int main(int argc, const char* argv[])
     bool gpuTimer = args["use-gpu-timer"].as<bool>();
 
     bool runKernels = !args["selection-only"].as<bool>();
+    bool exitOnError = args["exit-on-error"].as<bool>();
 
     if(firstSolutionIdx < 0)
         firstSolutionIdx = library->solutions.begin()->first;
@@ -519,7 +525,7 @@ int main(int argc, const char* argv[])
         auto        logFile  = std::make_shared<std::ofstream>(
             filename.c_str(), args["log-file-append"].as<bool>() ? std::ios::app : std::ios::out);
 
-        reporters->addReporter(LogReporter::Default(args, logFile));
+        reporters->addReporter(LogReporter::Default(args, logFile, LogLevel::Normal));
     }
 
     listeners.setReporter(reporters);
@@ -604,8 +610,8 @@ int main(int argc, const char* argv[])
                                 listeners.postEnqueues(startEvents, stopEvents);
                                 listeners.validateEnqueues(inputs, startEvents, stopEvents);
 
-                                listeners.postSyncs();
                             }
+                            listeners.postSyncs();
                         }
                     }
                     catch(std::runtime_error const& err)
@@ -617,6 +623,9 @@ int main(int argc, const char* argv[])
                 }
 
                 listeners.postSolution();
+
+                if(exitOnError && listeners.error() > 0)
+                    return listeners.error();
             }
 
             listeners.postProblem();

@@ -160,6 +160,20 @@ namespace Tensile
 
             auto boundCount = CoordCount(boundSize.begin() + 1, boundSize.end());
 
+            if(inputs.alpha != static_cast<typename Inputs::AlphaType>(0))
+            {
+                if(inputs.a == nullptr || inputs.b == nullptr)
+                {
+                    std::ostringstream msg;
+                    msg << "Unsupported nullptr for";
+                    if(!inputs.a) msg << " A";
+                    if(!inputs.b) msg << " B";
+                    msg << " when Alpha !=0";
+
+                    throw std::runtime_error(msg.str());
+                }
+            }
+
 #pragma omp parallel for
             for(size_t dNum = 0; dNum < d.totalLogicalElements(); dNum += validationStride)
             {
@@ -199,17 +213,6 @@ namespace Tensile
                 // Check short-circuit for alpha = 0
                 if(inputs.alpha != static_cast<typename Inputs::AlphaType>(0))
                 {
-                    if(inputs.a == nullptr || inputs.b == nullptr)
-                    {
-                        std::string matrixID = inputs.a == nullptr ? "A" : "B";
-                        std::string msg      = std::string("Unsupported nullptr for ") + matrixID
-                                          + std::string(" when Alpha !=0\n");
-                        // HACK moving throw temporarily to test targetid update
-                        //      throw is currently causing a compiler error in this function
-                        throwException(msg);
-                        // throw std::runtime_error(msg.c_str());
-                    }
-
                     for(size_t boundNum = 0; boundNum < boundCount; boundNum++)
                     {
                         std::vector<int64_t> bound(problem.boundIndices().size());
@@ -616,3 +619,4 @@ namespace Tensile
         }
     } // namespace Client
 } // namespace Tensile
+
