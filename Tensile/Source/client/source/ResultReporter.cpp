@@ -38,6 +38,8 @@ namespace Tensile
                 return "Error";
             case LogLevel::Terse:
                 return "Terse";
+            case LogLevel::Normal:
+                return "Normal";
             case LogLevel::Verbose:
                 return "Verbose";
             case LogLevel::Debug:

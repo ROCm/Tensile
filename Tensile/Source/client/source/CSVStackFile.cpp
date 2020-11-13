@@ -33,20 +33,23 @@ namespace Tensile
 {
     namespace Client
     {
-        CSVStackFile::CSVStackFile(std::string const& filename)
+        CSVStackFile::CSVStackFile(std::string const& filename, std::string const& separator)
             : m_stream(new std::ofstream(filename.c_str()))
+            , m_separator(separator)
         {
         }
 
         void null_deleter(void* ptr) {}
 
-        CSVStackFile::CSVStackFile(std::ostream& stream)
+        CSVStackFile::CSVStackFile(std::ostream& stream, std::string const& separator)
             : m_stream(&stream, null_deleter)
+            , m_separator(separator)
         {
         }
 
-        CSVStackFile::CSVStackFile(std::shared_ptr<std::ostream> stream)
+        CSVStackFile::CSVStackFile(std::shared_ptr<std::ostream> stream, std::string const& separator)
             : m_stream(stream)
+            , m_separator(separator)
         {
         }
 
@@ -117,7 +120,7 @@ namespace Tensile
             for(auto const& key : m_keyOrder)
             {
                 if(!firstCol)
-                    (*m_stream) << ", ";
+                    (*m_stream) << m_separator;
 
                 std::string value = "";
 
