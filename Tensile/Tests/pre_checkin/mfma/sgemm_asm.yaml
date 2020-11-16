@@ -29,11 +29,9 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [32, 32, 1, 2]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 1, 32 ]
-          - [ 2, 32 ]
-          - [ 4, 32 ]
           - [ 1, 64 ]
           - [ 2, 64 ]
           - [ 4, 64 ]
@@ -63,10 +61,9 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [32, 32, 2, 1]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 1, 32 ]
-          - [ 2, 32 ]
           - [ 4, 32 ]
           - [ 1, 64 ]
           - [ 2, 64 ]
@@ -95,12 +92,11 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [16, 16, 1, 4]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 2, 16 ]
           - [ 4, 16 ]
           - [ 8, 16 ]
-          - [ 2, 32 ]
           - [ 4, 32 ]
           - [ 2, 64 ]
         - WorkGroup:
@@ -129,12 +125,11 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [16, 16, 4, 1]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 2, 16 ]
           - [ 4, 16 ]
           - [ 8, 16 ]
-          - [ 2, 32 ]
           - [ 4, 32 ]
           - [ 2, 64 ]
         - WorkGroup:
@@ -162,7 +157,7 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [ 4, 4, 1, 16]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 2,  8 ]
           - [ 2, 16 ]
@@ -201,10 +196,9 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [32, 32, 1, 2]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 1, 32 ]
-          - [ 2, 32 ]
           - [ 4, 32 ]
           - [ 1, 64 ]
           - [ 2, 64 ]
@@ -235,10 +229,9 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [32, 32, 2, 1]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 1, 32 ]
-          - [ 2, 32 ]
           - [ 4, 32 ]
           - [ 1, 64 ]
           - [ 2, 64 ]
@@ -267,12 +260,11 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [16, 16, 1, 4]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 2, 16 ]
           - [ 4, 16 ]
           - [ 8, 16 ]
-          - [ 2, 32 ]
           - [ 4, 32 ]
           - [ 2, 64 ]
         - WorkGroup:
@@ -301,12 +293,11 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [16, 16, 4, 1]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 2, 16 ]
           - [ 4, 16 ]
           - [ 8, 16 ]
-          - [ 2, 32 ]
           - [ 4, 32 ]
           - [ 2, 64 ]
         - WorkGroup:
@@ -334,7 +325,7 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [ 4, 4, 1, 16]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 2,  8 ]
           - [ 2, 16 ]
@@ -373,10 +364,9 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [32, 32, 1, 2]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 1, 32 ]
-          - [ 2, 32 ]
           - [ 4, 32 ]
           - [ 1, 64 ]
           - [ 2, 64 ]
@@ -407,10 +397,9 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [32, 32, 2, 1]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 1, 32 ]
-          - [ 2, 32 ]
           - [ 4, 32 ]
           - [ 1, 64 ]
           - [ 2, 64 ]
@@ -439,12 +428,11 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [16, 16, 1, 4]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 2, 16 ]
           - [ 4, 16 ]
           - [ 8, 16 ]
-          - [ 2, 32 ]
           - [ 4, 32 ]
           - [ 2, 64 ]
         - WorkGroup:
@@ -473,12 +461,11 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [16, 16, 4, 1]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 2, 16 ]
           - [ 4, 16 ]
           - [ 8, 16 ]
-          - [ 2, 32 ]
           - [ 4, 32 ]
           - [ 2, 64 ]
         - WorkGroup:
@@ -506,7 +493,7 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [ 4, 4, 1, 16]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 2,  8 ]
           - [ 2, 16 ]
@@ -545,10 +532,9 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [32, 32, 1, 2]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 1, 32 ]
-          - [ 2, 32 ]
           - [ 4, 32 ]
           - [ 1, 64 ]
           - [ 2, 64 ]
@@ -579,10 +565,9 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [32, 32, 2, 1]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 1, 32 ]
-          - [ 2, 32 ]
           - [ 4, 32 ]
           - [ 1, 64 ]
           - [ 2, 64 ]
@@ -611,12 +596,11 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [16, 16, 1, 4]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 2, 16 ]
           - [ 4, 16 ]
           - [ 8, 16 ]
-          - [ 2, 32 ]
           - [ 4, 32 ]
           - [ 2, 64 ]
         - WorkGroup:
@@ -645,12 +629,11 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [16, 16, 4, 1]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 2, 16 ]
           - [ 4, 16 ]
           - [ 8, 16 ]
-          - [ 2, 32 ]
           - [ 4, 32 ]
           - [ 2, 64 ]
         - WorkGroup:
@@ -678,7 +661,7 @@ BenchmarkProblems:
       ForkParameters:
         - MatrixInstruction:
           - [ 4, 4, 1, 16]
-        - PrefetchGlobalRead: [True]
+        - PrefetchGlobalRead: [1, 2]
         - ThreadTile:
           - [ 2,  8 ]
           - [ 2, 16 ]
