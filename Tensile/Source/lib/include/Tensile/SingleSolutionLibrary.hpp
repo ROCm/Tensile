@@ -72,8 +72,10 @@ namespace Tensile
         {
         }
 
-        virtual std::shared_ptr<MySolution>
-            findBestSolution(MyProblem const& problem, Hardware const& hardware) const override
+        virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
+                                                             Hardware const&  hardware,
+                                                             double*          fitness
+                                                             = nullptr) const override
         {
             bool debug = Debug::Instance().printPredicateEvaluation();
 
@@ -101,7 +103,7 @@ namespace Tensile
                                                          Hardware const&  hardware) const override
         {
 
-            auto result = findBestSolution(problem, hardware);
+            auto result = this->findBestSolution(problem, hardware);
 
             bool debug = Debug::Instance().printPredicateEvaluation();
             if(debug)

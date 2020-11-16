@@ -103,10 +103,10 @@ PLOT_DIFF=${AUTOMATION_ROOT}/PlotDifference.py
 PLOT_RESULTS=${AUTOMATION_ROOT}/PlotResults.py
 
 
-python ${ANALYSIS} ${REFERENCE_RESULTS} ${REFERENCE_AGGREGATED} ${FREQ} ${SZ} ${LOG} ${GPU} ${MFMA} ${COUNT}
-python ${ANALYSIS} ${NEW_RESULTS} ${NEW_AGGREGATED} ${FREQ} ${SZ} ${LOG} ${GPU} ${MFMA} ${COUNT}
+python3 ${ANALYSIS} ${REFERENCE_RESULTS} ${REFERENCE_AGGREGATED} ${FREQ} ${SZ} ${LOG} ${GPU} ${MFMA} ${COUNT}
+python3 ${ANALYSIS} ${NEW_RESULTS} ${NEW_AGGREGATED} ${FREQ} ${SZ} ${LOG} ${GPU} ${MFMA} ${COUNT}
 
-ls ${NEW_AGGREGATED}/*aggregated* | xargs -n1 basename | xargs -I{} python ${COMPARE} ${REFERENCE_AGGREGATED}/{} ${NEW_AGGREGATED}/{} ${CASE_FINAL}/{}
+ls ${NEW_AGGREGATED}/*aggregated* | xargs -n1 basename | xargs -I{} python3 ${COMPARE} ${REFERENCE_AGGREGATED}/{} ${NEW_AGGREGATED}/{} ${CASE_FINAL}/{}
 
 if $PLOT; then
 
@@ -121,7 +121,7 @@ if $PLOT; then
     filename=$(basename "$file")
     namepart="${filename%-aggregated.*}"
 
-    python ${PLOT_RESULTS} ${file} ${REFERENCE_PLOT}/${namepart}
+    python3 ${PLOT_RESULTS} ${file} ${REFERENCE_PLOT}/${namepart}
   done
 
   aggregated_files=$(ls ${NEW_AGGREGATED}/*aggregated*)
@@ -129,7 +129,7 @@ if $PLOT; then
     filename=$(basename "$file")
     namepart="${filename%-aggregated.*}"
 
-    python ${PLOT_RESULTS} ${file} ${NEW_PLOT}/${namepart}
+    python3 ${PLOT_RESULTS} ${file} ${NEW_PLOT}/${namepart}
   done
 
 fi

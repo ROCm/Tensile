@@ -32,13 +32,13 @@ GlobalParameters:
 BenchmarkProblems:
 
   ########################################
-  # NT - 
+  # NT -
   ########################################
   -
     - # ProblemType
       OperationType: GEMM
       DataType: s
-      TransposeA: False 
+      TransposeA: False
       TransposeB: True
       UseBeta: True
       Batched: True

@@ -108,7 +108,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
 def which(p):
     exes = [p+x for x in ['', '.exe', '.bat']]
     system_path = os.environ['PATH'].split(os.pathsep)
-    for dirname in system_path+['/opt/rocm/bin']:
+    for dirname in system_path+[globalParameters["ROCmBinPath"]]:
         for exe in exes:
             candidate = os.path.join(os.path.expanduser(dirname), exe)
             if os.path.isfile(candidate):
@@ -132,12 +132,12 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         return globalParameters["AsmCaps"][arch]["SupportedISA"] and \
                globalParameters["AsmCaps"][arch]["SupportedSource"]
 
-    archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
-             if isSupported(arch)]
-
-    archFlags = ['--amdgpu-target=' + arch for arch in archs]
 
     if (CxxCompiler == 'hcc'):
+
+      archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
+             if isSupported(arch)]
+      archFlags = ['--amdgpu-target=' + arch for arch in archs]    # hcc
 
       hipFlags = subprocess.check_output([which('hcc-config'), '--cxxflags']).decode().split(' ')
       # when HCC_HOME is defined -I/opt/rocm/include is *not* part of
@@ -167,12 +167,23 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
     elif (CxxCompiler == "hipcc"):
 
+      archs = []
+      cmdlineArchs = []
+      for arch in globalParameters['SupportedISA']:
+        if isSupported(arch):
+          if (arch == (9,0,6) or arch == (9,0,8)):
+            archs += ['gfx'+''.join(map(str,arch))+'-xnack-']
+            cmdlineArchs += ['gfx'+''.join(map(str,arch))+':xnack-']
+          else:
+            archs += ['gfx'+''.join(map(str,arch))]
+            cmdlineArchs += ['gfx'+''.join(map(str,arch))]
+
+      archFlags = ['--offload-arch=' + arch for arch in cmdlineArchs]
+
       hipFlags = ["--genco", "-D__HIP_HCC_COMPAT_MODE__=1"] #needs to be fixed when Maneesh's change is made available
 
       hipFlags += ['-I', outputPath]
       hipFlags += ['-mwavefrontsize64']
-
-      archFlags += ['-mno-xnack', '-Xarch_gfx906', '-msram-ecc', '-Xarch_gfx908', '-msram-ecc']
 
       compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', os.path.join(buildPath, objectFilename)]
 
@@ -180,10 +191,10 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         print('hipcc:', ' '.join(compileArgs))
       subprocess.check_call(compileArgs)
 
-      for arch in archs:
+      for i in range(len(archs)):
         infile = os.path.join(buildPath, objectFilename)
-        outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, arch))
-        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa-%s" % arch, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+        outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
+        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
         if globalParameters["PrintCodeCommands"]:
           print(' '.join(bundlerArgs))
         subprocess.check_call(bundlerArgs)
@@ -239,9 +250,9 @@ def prepAsm():
   else:
     assemblerFile.write("#!/bin/sh %s\n" % ("-x" if globalParameters["PrintLevel"] >=2  else ""))
     assemblerFile.write("# usage: asm.sh kernelName ASM_ARGS\n")
-    assemblerFile.write("# example: asm.sh kernelName -mno-xnack -mcpu=gfx900\n")
-    assemblerFile.write("# example: asm.sh kernelName -mno-xnack -msram-ecc -mcpu=gfx906\n")
-    assemblerFile.write("# example: asm.sh kernelName -mno-xnack -msram-ecc -mcpu=gfx908\n")
+    assemblerFile.write("# example: asm.sh kernelName -mcpu=gfx900\n")
+    assemblerFile.write("# example: asm.sh kernelName -mcpu=gfx906\n")
+    assemblerFile.write("# example: asm.sh kernelName -mcpu=gfx908\n")
     assemblerFile.write("f=$1\n")
     assemblerFile.write("shift\n")
     assemblerFile.write("ASM=%s\n"%globalParameters["AssemblerPath"])
@@ -249,9 +260,9 @@ def prepAsm():
     defaultIsa = (9,0,0)
     assemblerFile.write( \
       "${ASM} -x assembler -target amdgcn-amd-amdhsa %s $@ -c -o $f.o $f.s\n" % \
-      ("-mno-code-object-v3" if \
+      ("-mllvm --amdhsa-code-object-version=2" if \
       globalParameters["AsmCaps"][defaultIsa]["HasCodeObjectV3"] and \
-      globalParameters["CodeObjectVersion"] == "V2" else "-mcode-object-v3"))
+      globalParameters["CodeObjectVersion"] == "V2" else "-mllvm --amdhsa-code-object-version=4"))
     assemblerFile.write("${ASM} -target amdgcn-amd-amdhsa $f.o -o $f.co\n")
   assemblerFile.close()
   os.chmod(assemblerFileName, 0o777)
@@ -931,7 +942,7 @@ def writeSolutionCall(solutionName, problemType):
 def getSolutionAndKernelWriters(solutions, kernels):
 
   # if any kernels are assembly, append every ISA supported
-  
+
   if globalParameters["ShortNames"] and not globalParameters["MergeFiles"]:
     solutionSerialNaming = Solution.getSerialNaming(solutions)
     kernelSerialNaming   = Solution.getSerialNaming(kernels)
@@ -1004,9 +1015,22 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
 
   kernelHelperOjbNmaes = [ko.getKernelName() for ko in kernelHelperOjbs]
 
+  cxxCompiler = globalParameters["CxxCompiler"]
+
   # Source based kernels are built for all supported architectures
-  sourceArchs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
-             if isSupported(arch)]
+  if (cxxCompiler == 'hcc'):
+    sourceArchs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
+               if isSupported(arch)]
+  elif (cxxCompiler == 'hipcc'):
+    sourceArchs = []
+    for arch in globalParameters['SupportedISA']:
+      if isSupported(arch):
+        if (arch == (9,0,6) or arch == (9,0,8)):
+          sourceArchs += ['gfx'+''.join(map(str,arch))+'-xnack-']
+        else:
+          sourceArchs += ['gfx'+''.join(map(str,arch))]
+  else:
+    raise RuntimeError("Unknown compiler %s" % cxxCompiler)
 
   # Asm based kernels target the configured ISA
   asmArchs = collections.defaultdict(list)
@@ -1040,7 +1064,6 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
         "%s.co" % (asmKernelName)]
 
   # Build a list of lib names from source
-  cxxCompiler = globalParameters["CxxCompiler"]
   if not globalParameters["MergeFiles"]:
 
     allSources = sourceKernelNames + kernelHelperOjbNmaes
@@ -1210,7 +1233,7 @@ def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, 
   codeObjectFiles = writeSolutionsAndKernels( \
     libraryWorkingPath, cxxCompiler, [problemType], solutions, kernels, kernelsBetaOnly, \
     solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
-    
+
   newLibraryDir = ensurePath(os.path.join(libraryWorkingPath, 'library'))
   newLibraryFile = os.path.join(newLibraryDir, "TensileLibrary.yaml")
   newLibrary = MasterSolutionLibrary.BenchmarkingLibrary(solutions)
@@ -1230,14 +1253,14 @@ def WriteClientLibraryFromSolutions(solutionList, libraryWorkingPath, tensileSou
   problemType["DestDataType"] = problemType["DestDataType"].value
   problemType["ComputeDataType"] = problemType["ComputeDataType"].value
   cxxCompiler = globalParameters["CxxCompiler"]
- 
-  effectiveWorkingPath = os.path.join(libraryWorkingPath, "library") 
+
+  effectiveWorkingPath = os.path.join(libraryWorkingPath, "library")
   ensurePath(effectiveWorkingPath)
   mataDataFilePath = os.path.join(effectiveWorkingPath, 'metadata.yaml')
 
   metaData = {"ProblemType":problemType}
   LibraryIO.YAMLWriter().write(mataDataFilePath, metaData)
-  
+
   codeObjectFiles, newLibrary = writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutionList, cxxCompiler )
 
   return (codeObjectFiles, newLibrary)
@@ -1255,6 +1278,15 @@ def TensileCreateLibrary():
   ##############################################################################
   # Parse Command Line Arguments
   ##############################################################################
+  def splitExtraParameters(par):
+    """
+    Allows the --global-parameters option to specify any parameters from the command line.
+    """
+
+    (key, value) = par.split("=")
+    value = eval(value)
+    return (key, value)
+
   print2("Arguments: %s" % sys.argv)
   argParser = argparse.ArgumentParser()
   argParser.add_argument("LogicPath",       help="Path to LibraryLogic.yaml files.")
@@ -1289,6 +1321,8 @@ def TensileCreateLibrary():
                           default=-1, help="Number of parallel jobs to launch.")
   argParser.add_argument("--verbose", "-v", dest="PrintLevel", type=int,
                           default=1, help="Set printout verbosity level.")
+
+  argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
   args = argParser.parse_args()
 
   logicPath = args.LogicPath
@@ -1326,6 +1360,9 @@ def TensileCreateLibrary():
 
   arguments["CpuThreads"] = args.CpuThreads
   arguments["PrintLevel"] = args.PrintLevel
+
+  for key, value in args.global_parameters:
+    arguments[key] = value
 
   assignGlobalParameters(arguments)
 
@@ -1401,7 +1438,7 @@ def TensileCreateLibrary():
 
 
   kernels, kernelHelperOjbs, _ = generateKernelObjectsFromSolutions(solutions)
-  
+
   # if any kernels are assembly, append every ISA supported
   solutionWriter, kernelWriterSource, kernelWriterAssembly, \
     kernelMinNaming, _ = getSolutionAndKernelWriters(solutions, kernels)
@@ -1456,6 +1493,10 @@ def TensileCreateLibrary():
 
   sanityCheck0 = set(codeObjectFiles) - set(sourceLibPaths + asmLibPaths)
   sanityCheck1 = set(sourceLibPaths + asmLibPaths) - set(codeObjectFiles)
+
+  if globalParameters["PrintCodeCommands"]:
+    print("codeObjectFiles:", codeObjectFiles);
+    print("sourceLibPaths + asmLibPaths:", sourceLibPaths + asmLibPaths);
 
   assert len(sanityCheck0) == 0, "Unexpected code object files: {}".format(sanityCheck0)
   if not globalParameters["GenerateSourcesAndExit"]:

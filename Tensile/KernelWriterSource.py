@@ -569,7 +569,9 @@ class KernelWriterSource(KernelWriter):
       else:
         if kernel["ProblemType"]["UseBeta"]:
           # dst = alpha*reg + dst*beta
-          if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isBFloat16():
+          if kernel["ProblemType"]["HighPrecisionAccumulate"] and \
+            kernel["ProblemType"]["DataType"].isBFloat16() and \
+            kernel["ProblemType"]["DestDataType"].isBFloat16():
             kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) " \
               + "DST = 0 != (BETA) ? " \
               + "static_cast<tensile_bfloat16>((ALPHA)*(REG) + (BETA) * static_cast<float>(SRC)) : " \
@@ -1615,7 +1617,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write Addresses: First Offset A/B
   ##############################################################################
-  def lwaFirstOffset(self, kernel, tP):
+  def lwaFirstOffset(self, kernel, tP, uDu=0):
     kStr = ""
     kStr += "  unsigned int localWriteFirstOffset%s = lw%s%s + lw%s%s*(MT%s+PAD)%s;%s" \
         % (tP["tensorChar"], tP["tensorChar"], tP["tileChar"], \
@@ -1696,6 +1698,18 @@ class KernelWriterSource(KernelWriter):
     kStr += "  %sDATA_TYPE *localRead%s;%s" % (self.sharedPtrStr, \
         tP["tensorChar"], self.endLine)
     return kStr
+
+  ##############################################################################
+  # Recalculate local write addresses A/B
+  ##############################################################################
+  def recalcLocalWriteAddresses(self, kernel, tP, uDu):
+    return ""
+
+  ##############################################################################
+  # Recalculate local read addresses A/B
+  ##############################################################################
+  def recalcLocalReadAddressesAB(self, kernel):
+    return ""
 
   ##############################################################################
   # openShadowInit
@@ -1930,16 +1944,16 @@ class KernelWriterSource(KernelWriter):
       kStr += self.endLine + "  /* Compute summation loop num iter */" + self.endLine
 
       # Check alpha == 0
-      if kernel["ProblemType"]["DataType"].isDoubleComplex():
+      if kernel["ProblemType"]["ComputeDataType"].isDoubleComplex():
         alphaZeroStr = "tensile_complex<double>(0.0)"
-      elif kernel["ProblemType"]["DataType"].isDouble() or \
-            kernel["ProblemType"]["DataType"].isReal():
+      elif kernel["ProblemType"]["ComputeDataType"].isDouble() or \
+            kernel["ProblemType"]["ComputeDataType"].isReal():
         alphaZeroStr = "0.0"
-      elif kernel["ProblemType"]["DataType"].isSingleComplex():
+      elif kernel["ProblemType"]["ComputeDataType"].isSingleComplex():
         alphaZeroStr = "tensile_complex<float>(0.0f)"
-      elif kernel["ProblemType"]["DataType"].isSingle() or \
-            kernel["ProblemType"]["DataType"].isHalf() or \
-            kernel["ProblemType"]["DataType"].isBFloat16():
+      elif kernel["ProblemType"]["ComputeDataType"].isSingle() or \
+            kernel["ProblemType"]["ComputeDataType"].isHalf() or \
+            kernel["ProblemType"]["ComputeDataType"].isBFloat16():
         alphaZeroStr = "0.0f"
       else:
         alphaZeroStr = "0"
@@ -1986,7 +2000,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Open Loop
   ##############################################################################
-  def openLoop(self, kernel, loopIdx):
+  def openLoop(self, kernel, loopIdx, uDu=0):
     problemType = kernel["ProblemType"]
     tailLoop = loopIdx < 0
     if tailLoop:
@@ -2024,8 +2038,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Close Loop
   ##############################################################################
-  def closeLoop(self, kernel, loopIdx, finalLoop):
+  def closeLoop(self, kernel, loopIdx, finalLoop, uDu=0, emitEndLabelOnly=False):
     kStr = ""
+    if emitEndLabelOnly:
+      return kStr
     problemType = kernel["ProblemType"]
     loopDim = problemType["IndicesSummation"][loopIdx]
     loopChar = self.indexChars[loopDim]
@@ -2097,7 +2113,7 @@ class KernelWriterSource(KernelWriter):
     self.indent += "  "
     return kStr
 
-  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL):
+  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL, isNGLL):
     kStr = ""
     self.indent = self.indent[2:]
     kStr += "%s} // end %s%s" % \
@@ -2445,7 +2461,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write: Do It A/B
   ##############################################################################
-  def localWriteDo(self, kernel, tP):
+  def localWriteDo(self, kernel, tP, uDu=0):
     kStr = ""
     if self.language == "HIP":
       kStr += "#pragma clang diagnostic push" + self.endLine
@@ -3025,6 +3041,15 @@ class KernelWriterSource(KernelWriter):
     return ""
 
   def closePrefetchAcrossPersistent(self, kernel, isOptNLL):
+    return ""
+
+  ##############################################################################
+  # PrefetchGlobalRead2
+  ##############################################################################
+  def openPrefetchGlobalRead2(self, kernel):
+    return ""
+
+  def closePrefetchGlobalRead2(self, kernel):
     return ""
 
   ##############################################################################

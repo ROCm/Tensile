@@ -58,3 +58,10 @@ tags
 # tox virtual environments
 .tox
 
+HostLibraryTests/googletest
+HostLibraryTests/configs
+.ipynb_checkpoints
+TensileKernelLibrary*
+repro_source_speed
+*.ipynb
+

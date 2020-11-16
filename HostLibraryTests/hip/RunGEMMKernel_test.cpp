@@ -669,16 +669,16 @@ TEST_P(RunGEMMKernelTest, TestAlphaZeroABNull)
 
 std::vector<std::shared_ptr<GEMMKernelTest>> TypedTests()
 {
-    static auto testFloat = std::make_shared<TypedGEMMKernelTest<FloatContractionInputs>>();
+    static auto testFloat = std::make_shared<TypedGEMMKernelTest<ContractionInputs_S_S_S>>();
     //static auto testDouble
-    //    = std::make_shared<TypedGEMMKernelTest<DoubleContractionInputs>>();
-    //     static auto testCFloat = std::make_shared<TypedGEMMKernelTest<ComplexFloatContractionInputs>>();
-    //     static auto testCDouble = std::make_shared<TypedGEMMKernelTest<ComplexDoubleContractionInputs>>();
-    //     static auto testInt8x4 = std::make_shared<TypedGEMMKernelTest<Int8x4ContractionInputs>>();
-    //     static auto testInt32 = std::make_shared<TypedGEMMKernelTest<Int32ContractionInputs>>();
-    //     static auto testHalf = std::make_shared<TypedGEMMKernelTest<HalfContractionInputs>>();
+    //    = std::make_shared<TypedGEMMKernelTest<ContractionInputs_D_D_D>>();
+    //     static auto testCFloat = std::make_shared<TypedGEMMKernelTest<ComplexContractionInputs_S_S_S>>();
+    //     static auto testCDouble = std::make_shared<TypedGEMMKernelTest<ComplexContractionInputs_D_D_D>>();
+    //     static auto testInt8x4 = std::make_shared<TypedGEMMKernelTest<ContractionInputs_I8_I32_I32>>();
+    //     static auto testInt32 = std::make_shared<TypedGEMMKernelTest<ContractionInputs_I32_I32_I32>>();
+    //     static auto testHalf = std::make_shared<TypedGEMMKernelTest<ContractionInputs_H_H_H>>();
     // #ifdef TENSILE_USE_BF16
-    //     static auto testBF16 = std::make_shared<TypedGEMMKernelTest<BFloat16ContractionInputs>>();
+    //     static auto testBF16 = std::make_shared<TypedGEMMKernelTest<ContractionInputs_B_B_S>>();
     // #endif
     return std::vector<std::shared_ptr<GEMMKernelTest>>{
         testFloat,

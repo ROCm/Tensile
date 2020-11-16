@@ -62,7 +62,7 @@ def clientExecutableEnvironment(builddir=None):
                'TENSILE_USE_MSGPACK': 'ON',
                'TENSILE_USE_LLVM': 'ON',
                'Tensile_LIBRARY_FORMAT': globalParameters["LibraryFormat"],
-               'CMAKE_CXX_COMPILER': os.path.join('/opt/rocm/bin/', globalParameters['CxxCompiler'])}
+               'CMAKE_CXX_COMPILER': os.path.join(globalParameters["ROCmBinPath"], globalParameters['CxxCompiler'])}
 
     return CMakeEnvironment(sourcedir, builddir, **options)
 
