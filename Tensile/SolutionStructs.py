@@ -2493,6 +2493,10 @@ class Solution:
         #warn("PAP requires Assembly, PK != 0, PGR != 0, SuppressNoLoadLoop = True, forcing PAP = False")
         state["PrefetchAcrossPersistent"] = False
 
+    # TODO- fix this, avoid the bug for now
+    if state["PrefetchAcrossPersistent"] and state["StaggerU"] == 0:
+        state["PrefetchAcrossPersistent"] = False
+
     problemType = state["ProblemType"]
     if not problemType["UseInitialStridesAB"]:
       for (tc) in ('A','B'):

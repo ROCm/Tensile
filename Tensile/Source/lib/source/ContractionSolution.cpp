@@ -519,8 +519,10 @@ namespace Tensile
 
         if(sizeMapping.persistentKernel != 0)
         {
+            uint32_t magicShift;
             rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0",
-                                     smallMagicNumber(problemNumGroupTiles0));
+                                     magicNumber(2, problemNumGroupTiles0, &magicShift));
+            rv.args.append<uint32_t>("magicShiftProblemNumGroupTiles0", magicShift);
         }
 
         if(!isSourceKernel())
@@ -537,12 +539,13 @@ namespace Tensile
 
             if(sizeMapping.persistentKernelAlongBatch)
             {
+                uint32_t numGroupTiles0x1 = problemNumGroupTiles0 * problemNumGroupTiles1;
+                uint32_t magicShift;
+
                 rv.args.append<uint32_t>("problemNumGroupTiles2", problemNumGroupTiles2);
-                rv.args.append<uint32_t>("problemNumGroupTiles0By1",
-                                         problemNumGroupTiles0 * problemNumGroupTiles1);
-                rv.args.append<uint32_t>(
-                    "magicNumberProblemNumGroupTiles0By1",
-                    smallMagicNumber(problemNumGroupTiles0 * problemNumGroupTiles1));
+                rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0By1",
+                                         magicNumber(2, numGroupTiles0x1, &magicShift));
+                rv.args.append<uint32_t>("magicShiftProblemNumGroupTiles0By1", magicShift);
             }
 
             if(sizeMapping.workGroupMapping != 0)
