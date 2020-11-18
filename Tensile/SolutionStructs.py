@@ -588,6 +588,7 @@ class Convolution:
     sizes[self.convolutionDims['C'].idx]=c
     sizes[self.convolutionDims['K'].idx]=k
 
+    astrides[self.convolutionDims['N'].idx] = reduce((lambda x, y: x * y), pcc.spatial) * c
     bstrides[self.convolutionDims['N'].idx] = 0 # broadcast b matrix
 
     if len(pcc.spatial) != self.formatNumSpatialDims:
