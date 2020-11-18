@@ -48,5 +48,7 @@ setup(
     "tensile_rocblas_zgemm = Tensile.Tensile:TensileROCBLASZGEMM",
     # automatically find fastest sgemm exhaustive search
     "tensile_sgemm = Tensile.Tensile:TensileSGEMM5760",
+    # Run tensile benchmark from cluster
+    "TensileBenchmarkCluster = Tensile.TensileBenchmarkCluster:main",
     ]}
   )
