@@ -7717,7 +7717,7 @@ class KernelWriterAssembly(KernelWriter):
         kernel["LocalWrite2A"], \
         self.localWrite2CoalescedA, self.localWrite2PerpendicularA,
         [self.localWriteStrideTileA, self.localWriteStrideUnrollA] )
-    tP["localWriteInstruction"] = self.memoryInstructions[self.version]["LocalWrite"][newInstIdx]
+    tP["localWriteInstruction"] = self.memoryInstructions["LocalWrite"][newInstIdx]
 
     if kernel["PersistentKernel"]:
       if getattr(self, "oriLwa%s"%tc) is None:
@@ -7782,7 +7782,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += (self.lraDeclareAddresses(kernel, self.tPB))
         imod.addCode(kStr)
         localRead2Perpendicular = False
-        instructions = self.memoryInstructions[self.version]
+        instructions = self.memoryInstructions
 
         localReadWidth = self.tPA["bpe"] / self.bpr
         if kernel["UnrollMajorLDSA"]:
