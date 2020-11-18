@@ -25,6 +25,18 @@ import ctypes
 # Global to print module names around strings
 printModuleNames = 0
 
+def printItemList(listOfItems, tag="__unnamed__"):
+  header = "="*40
+  print("%s\nbegin list %s\n%s"%(header, tag, header))
+  for i, item in enumerate(listOfItems):
+    item = list(item) if isinstance(item, tuple) else [item]
+    print("list[%s] %s"%(i, "-"*30))
+    for j, t in enumerate(item):
+      ostream = t.prettyPrint()
+      ostream = ostream[:-1] if len(ostream)>0 and ostream[-1:] == '\n' else ostream
+      print(ostream)
+  print("%s\nend list %s\n%s"%(header, tag, header))
+
 class Item:
   """
   Base class for Modules, Instructions, etc
@@ -38,6 +50,11 @@ class Item:
   def countType(self,ttype):
     return int(isinstance(self, ttype))
 
+  def prettyPrint(self, indent=""):
+    ostream = ""
+    ostream += "%s%s "%(indent, type(self).__name__)
+    ostream += str(self)
+    return ostream
 
 class Module(Item):
   """
@@ -110,15 +127,55 @@ class Module(Item):
     self.addCode(TextBlock(text))
 
   def prettyPrint(self,indent=""):
-    print("%sModule %s:"% (indent,self.name))
+    ostream = ""
+    ostream += '%s%s "%s"\n'%(indent, type(self).__name__, self.name)
     for i in self.itemList:
-      if isinstance(i, Module):
-        i.prettyPrint(indent+"  ")
-      elif isinstance(i, str):
-        print(indent, '"', str(i).strip('\n'), '"')
-      else: # Inst
-          print(indent, "%s: [ %s ]" % \
-              (i.__class__.__name__, str(i).strip('\n')))
+      ostream += i.prettyPrint(indent.replace("|--", "| ") + "|--")
+    return ostream
+    """
+    Test code:
+      mod1 = Code.Module("TopModule")
+      mod2 = Code.Module("Module-lvl2")
+      mod2.addCode(Code.Inst("bogusInst", "comments"))
+      mod3 = Code.Module("Module-lvl3")
+      mod3.addCode(Code.TextBlock("bogusTextBlock\nbogusTextBlock2\nbogusTextBlock3"))
+      mod3.addCode(Code.GlobalReadInst("bogusGlobalReadInst", "comments"))
+      mod2.addCode(mod3)
+      mod1.addCode(mod2)
+      mod1.addCode(Code.Inst("bogusInst", "comments"))
+      mod1.addCode(mod2)
+
+      print(mod1.prettyPrint())
+    Output:
+      Module "TopModule"
+      |--Module "Module-lvl2"
+      | |--Inst bogusInst                                          // comments
+      | |--Module "Module-lvl3"
+      | | |--TextBlock
+      | | | |--bogusTextBlock
+      | | | |--bogusTextBlock2
+      | | | |--bogusTextBlock3
+      | | |--GlobalReadInst bogusGlobalReadInst                                // comments
+      |--Inst bogusInst                                          // comments
+      |--Module "Module-lvl2"
+      | |--Inst bogusInst                                          // comments
+      | |--Module "Module-lvl3"
+      | | |--TextBlock
+      | | | |--bogusTextBlock
+      | | | |--bogusTextBlock2
+      | | | |--bogusTextBlock3
+      | | |--GlobalReadInst bogusGlobalReadInst                                // comments
+    """
+
+  def countTypeList(self, ttypeList):
+    count = 0
+    # add "Module" type to type list filter, where we want to count recursively
+    # the types under "Module"
+    if Module not in ttypeList:
+      ttypeList.append(Module)
+    for ttype in ttypeList:
+      count += self.countType(ttype)
+    return count
 
   def countType(self,ttype):
     """
@@ -207,6 +264,14 @@ class TextBlock(Item):
   def __str__(self):
     return self.text
 
+  def prettyPrint(self, indent=""):
+    ostream = ""
+    ostream += "%s%s "%(indent, type(self).__name__)
+    l = [_i for _i in str(self).split("\n") if len(_i)>0]
+    l.insert(0, "")
+    ostream += "%s"%(("\n"+indent.replace("|-", "| |-")).join(l))
+    ostream += "\n"
+    return ostream
 
 class Inst(Item):
   """
@@ -246,6 +311,9 @@ class WaitCnt (Module):
     self.lgkmcnt = lgkmcnt
     self.vmcnt   = vmcnt
     self.comment = comment
+
+    # let this derived class play nicely with Module.prettyPrint()
+    self.__dict__.update(self.instructions().__dict__)
 
   def instructions(self):
     rv = Module()
