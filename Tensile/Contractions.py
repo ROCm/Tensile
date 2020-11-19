@@ -49,10 +49,12 @@ class BatchIndex:
 
 @state_key_ordering
 class BoundIndex:
-    StateKeys = ['a', 'b']
-    def __init__(self, a=None, b=None):
+    StateKeys = ['a', 'b', 'aMirror', 'bMirror']
+    def __init__(self, a=None, b=None, aMirror=False, bMirror=False):
         self.a = a
         self.b = b
+        self.aMirror = aMirror
+        self.bMirror = bMirror
 
 
 class ProblemType:
@@ -66,7 +68,8 @@ class ProblemType:
         boundIndices = []
 
         for i in d['IndicesSummation']:
-            bi = BoundIndex()
+            bi = BoundIndex(aMirror=('MirrorDimsA' in d and i in d['MirrorDimsA']),
+                            bMirror=('MirrorDimsB' in d and i in d['MirrorDimsB']))
             indices[i] = bi
             boundIndices.append(bi)
 
@@ -147,6 +150,9 @@ class ProblemType:
         if 'ZeroPadB' in d:
             rv.zeroPadB = d['ZeroPadB']
 
+        rv.mirrorDimsA = d['MirrorDimsA'] if 'MirrorDimsA' in d else []
+        rv.mirrorDimsB = d['MirrorDimsB'] if 'MirrorDimsB' in d else []
+
         rv.useBeta = True
         if 'UseBeta' in d:
             rv.useBeta = d['UseBeta']
@@ -195,8 +201,8 @@ class ProblemType:
 
         for i, bound in enumerate(self.boundIndices):
             name = sumNames[i]
-            aNames[bound.a] = name
-            bNames[bound.b] = name
+            aNames[bound.a] = name.upper() if bound.aMirror else name
+            bNames[bound.b] = name.upper() if bound.bMirror else name
 
         aNames = ''.join(aNames)
         bNames = ''.join(bNames)

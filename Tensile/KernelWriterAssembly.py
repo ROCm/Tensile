@@ -2652,6 +2652,7 @@ class KernelWriterAssembly(KernelWriter):
       # macro declaration
       kStr += ".macro GLOBAL_OFFSET_%s vgprAddr:req"%tc
       calcDims = [] # dimensions which are participating in the address calc (ignores other summation)
+      mirrorSumDims = []
       for i in range(0, numDim):
         if tc == 'C':
           useInitialStrides = kernel["ProblemType"]["UseInitialStridesCD"]
@@ -2669,6 +2670,8 @@ class KernelWriterAssembly(KernelWriter):
           calcDims.append(i)
         elif indices[i] in kernel["ProblemType"]["IndicesSummation"]:
           # other summation index (not unroll)
+          if tc in ('A', 'B') and indices[i] in kernel["ProblemType"]["MirrorDims%s" % tc]:
+            mirrorSumDims.append(i)
           continue
         else:
           # other batch or free index
@@ -2694,9 +2697,45 @@ class KernelWriterAssembly(KernelWriter):
       # true for first addr calc. In this case, we can directly write addr
       # rather than accumulating through a tmp
       writeDirectToAddr = 1
+
+      # mirror other summation indeces
+      for i in mirrorSumDims:
+        if writeDirectToAddr:
+          dest = "v[\\vgprAddr+0]"
+          needAdd = 0 # don't need add since writing address directly.
+          writeDirectToAddr = 0
+        else:
+          dest = "v[\\vgprTmp+0]"
+          needAdd = 1
+        kStr += inst("v_sub_u32", \
+                dest,
+                sgpr("Size%s"%globalParameters["IndexChars"][indices[i]]), \
+                "1", \
+                "mirror %s%s 1"%(tc, globalParameters["IndexChars"][indices[i]]))
+        kStr += inst("v_mul_lo_u32", \
+                dest,
+                dest, \
+                self.strideRef(tc, indices[i]), \
+                "mirror %s%s 2"%(tc, globalParameters["IndexChars"][indices[i]]))
+
+        if needAdd:
+          writeDirectToAddr = 0 # safety net, once we write address can't directly overwrite it later
+          destLo = "v[\\vgprAddr+0]"
+          destHi = "v[\\vgprAddr+1]"
+
+          srcLo = pendingOffset if pendingOffset else destLo
+          srcHi = 0 if pendingOffset else destHi
+          kStr += inst("_v_add_co_u32", \
+            destLo, \
+            "vcc", \
+            srcLo, \
+            "v[\\vgprTmp+0]", \
+            "accumulate %s lower"%idxChar)
+
       for i in calcDims:
         # should have eliminated these above
         idx = indices[i]
+        isMirrorIdx = tc in ('A', 'B') and idx in kernel["ProblemType"]["MirrorDims%s" % tc]
         assert not (idx in kernel["ProblemType"]["IndicesSummation"] and idx != kernel["ProblemType"]["IndexUnroll"])
 
         if indices[i] == kernel["ProblemType"]["Index0"] \
@@ -2739,6 +2778,18 @@ class KernelWriterAssembly(KernelWriter):
               destLo = "v[\\vgprTmp+0]"
               destHi = "v[\\vgprTmp+1]"
               needAdd = 1
+            if isMirrorIdx:
+              kStr += inst("v_sub_i32", \
+                "v[\\vgprTmp+0]",
+                sgpr("Size%s"%globalParameters["IndexChars"][idx]), \
+                offset, \
+                "mirror %s%s 1"%(tc, globalParameters["IndexChars"][indices[i]]))
+              kStr += inst("v_sub_i32", \
+                "v[\\vgprTmp+0]",
+                "v[\\vgprTmp+0]", \
+                "1", \
+                "mirror %s%s 2"%(tc, globalParameters["IndexChars"][indices[i]]))
+              offset = "v[\\vgprTmp+0]"
 
             # offset * stride
             kStr += inst("v_mul_lo_u32", \
@@ -2753,6 +2804,7 @@ class KernelWriterAssembly(KernelWriter):
                   offset, \
                   "mul d%u upper"%i)
           else: # offset is SGPR:
+            assert not isMirrorIdx
             if not justOffset32:
               # buffer mode (aka justOffset32) does scalars into SRD not offset
               kStr += inst("v_mov_b32", \
@@ -3885,10 +3937,23 @@ class KernelWriterAssembly(KernelWriter):
                           vgpr(iaToGpr[freeDim]), \
                           self.strideRef(tc, freeDim), \
                           "zp.freeDim * strideFree")
+                vgprOffset = vgpr(iaToGpr[sumDim]) if vgpr(iaToGpr[sumDim]) else 0
+                if sumDim in kernel["ProblemType"]["MirrorDims%s"%tc]:
+                  kStr += inst("v_sub_u32", \
+                          vgpr(tmp), \
+                          sgpr("Size%s"%sumDimChar), \
+                          vgprOffset, \
+                          "zp.sumDim mirror 1")
+                  kStr += inst("v_sub_u32", \
+                          vgpr(tmp), \
+                          vgpr(tmp), \
+                          "1", \
+                          "zp.sumDim mirror 2")
+                  vgprOffset = vgpr(tmp)
                 #iaToGpr[sumDim] will be 0 for other summation dims
                 kStr += inst("v_mul_lo_u32", \
                           vgpr(tmp), \
-                          vgpr(iaToGpr[sumDim]) if vgpr(iaToGpr[sumDim]) else 0, \
+                          vgprOffset, \
                           self.strideRef(tc, sumDim), \
                           "zp.sumDim * strideSum")
                 kStr += inst("_v_add_u32", \
@@ -4300,6 +4365,7 @@ class KernelWriterAssembly(KernelWriter):
     loopChar = self.indexChars[dimIdx]
 
     stride = self.strideRef(tc, dimIdx)
+    isMirrorIdx = dimIdx in kernel["ProblemType"]["MirrorDims%s"%tc]
 
     #print (tc, ": loopIdx=", loopIdx, "dimIdx=", dimIdx, "strideIdx=", strideIdx)
 
@@ -4347,6 +4413,9 @@ class KernelWriterAssembly(KernelWriter):
         if gsu>1:
           m += "*%d"%gsu
 
+        if isMirrorIdx:
+          m = "-%s"%(m)
+
         # multiply by stride, optimizing if unit stride
         if self.isConstUnitStride(stride):
           kStr += inst("s_mov_b32", sgpr("GlobalReadIncs%s+%u"%(tc, loopIdx)), m, \
@@ -4365,11 +4434,18 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["PackSummationDims"]:
           # simpler address calculation here - don't need to subtract prev iteration increments
           # since only one iteration
-          kStr += inst("s_lshl_b32", \
-              sgpr(graInc), \
-              stride, \
-              "Bpe%sLog2"%tc,
-              "<- scale by bpe")
+          if isMirrorIdx:
+            kStr += inst("s_mul_i32", \
+                sgpr(graInc), \
+                stride, \
+                "-Bpe%s"%tc,
+                "<- scale by bpe")
+          else:
+            kStr += inst("s_lshl_b32", \
+                sgpr(graInc), \
+                stride, \
+                "Bpe%sLog2"%tc,
+                "<- scale by bpe")
         else:
           # subtract increments done by the inner iterations
           # may be negative:
@@ -4377,6 +4453,7 @@ class KernelWriterAssembly(KernelWriter):
           dimIdxPrev    = kernel["ProblemType"]["IndicesSummation"][loopIdxPrev] # dimension index
           loopCharPrev  = self.indexChars[dimIdxPrev]
           stridePrev = self.strideRef(tc, dimIdxPrev)
+          isMirrorIdxPrev = dimIdxPrev in kernel["ProblemType"]["MirrorDims%s"%tc]
 
           kStr += self.comment("compute globalReadInc for higher-level loop")
 
@@ -4405,10 +4482,30 @@ class KernelWriterAssembly(KernelWriter):
 
           # subtract amount that previous inner loop will have already incremented:
           # graInc is used as temp for the prev loop calc
-          kStr += inst("s_sub_i32", sgpr(graInc), \
-              stride, \
-              sgpr(graInc), \
-              "incr%s%s = stride%s%s - <prev-incs>"%(tc, loopChar, tc, loopChar) )
+          if isMirrorIdx and isMirrorIdxPrev:
+            kStr += inst("s_sub_i32", sgpr(graInc), \
+                sgpr(graInc), \
+                stride, \
+                "incr%s%s = <prev-incs> - stride%s%s"%(tc, loopChar, tc, loopChar) )
+          elif isMirrorIdx:
+            kStr += inst("s_add_i32", sgpr(graInc), \
+                stride, \
+                sgpr(graInc), \
+                "incr%s%s = stride%s%s + <prev-incs>"%(tc, loopChar, tc, loopChar) )
+            kStr += inst("s_sub_i32", sgpr(graInc), \
+                0, \
+                sgpr(graInc), \
+                "incr%s%s = - (stride%s%s + <prev-incs>)"%(tc, loopChar, tc, loopChar) )
+          elif isMirrorIdxPrev:
+            kStr += inst("s_add_i32", sgpr(graInc), \
+                stride, \
+                sgpr(graInc), \
+                "incr%s%s = stride%s%s + <prev-incs>"%(tc, loopChar, tc, loopChar) )
+          else:
+            kStr += inst("s_sub_i32", sgpr(graInc), \
+                stride, \
+                sgpr(graInc), \
+                "incr%s%s = stride%s%s - <prev-incs>"%(tc, loopChar, tc, loopChar) )
 
           kStr += inst("s_lshl_b32", \
               sgpr(graInc), \
@@ -6312,7 +6409,7 @@ class KernelWriterAssembly(KernelWriter):
          sgpr("Srd%s+1"%(tc)), \
          sgpr("Srd%s+1"%(tc)), \
          incUpper, \
-        "gra SRD += inc(upper)" )
+         "gra SRD += inc(upper)" )
 
     # also have to move the boundary since we change the base
     # so less buffers to the edge:
@@ -6320,12 +6417,12 @@ class KernelWriterAssembly(KernelWriter):
       imod.addInst("s_sub_u32", \
           sgpr("ShadowLimit%s+0"%tc), \
           sgpr("ShadowLimit%s+0"%tc), \
-           incLower, \
+          incLower, \
             "limit -= inc)")
       imod.addInst("s_subb_u32", \
           sgpr("ShadowLimit%s+1"%tc), \
           sgpr("ShadowLimit%s+1"%tc), \
-           incUpper, \
+          incUpper, \
             "limit -= inc)" )
       if checkShadowLimitCopy:
         imod.addInst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
@@ -6423,9 +6520,9 @@ class KernelWriterAssembly(KernelWriter):
                     "incUpper <- ?")
         imod.addCode(self.incrementSrd(kernel, tP, sgpr(incLower), sgpr(incUpper), checkShadowLimitCopy=True))
       else:
-        if loopIdx != self.unrollIdx:
+        if loopIdx != self.unrollIdx or (tc in ('A', 'B') and kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s"%tc]):
           incUpper = sgpr(self.getTmpSgpr(1).idx())
-          # GRO may be negative for other summation if stride-other < stride-unroll.
+          # GRO may be negative for other summation if stride-other < stride-unroll or if mirror dim.
           imod.addInst("s_ashr_i32", incUpper, sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), 31, "sign-extend")
         else:
           incUpper = 0 # GRO is positive for loop unroll
@@ -6587,10 +6684,16 @@ class KernelWriterAssembly(KernelWriter):
 
 
       # TODO - this skips over the stagger-u wrap codes
-      incCodeA.addText("\n");
-      incCodeA.addCode(self.incrementSrd(kernel, self.tPA, sgpr(inc['A']), sgpr(inc['A']+1) if self.use64bPackSumOffset else 0))
-      incCodeA.addText("\n");
-      incCodeA.addCode(self.incrementSrd(kernel, self.tPB, sgpr(inc['B']), sgpr(inc['B']+1) if self.use64bPackSumOffset else 0))
+      def incrementSrdPsd(tc, tp):
+        incCodeA.addText("\n");
+        incUpperA = sgpr(inc[tc]+1) if self.use64bPackSumOffset else 0
+        if bool(set(kernel["ProblemType"]["IndicesSummation"]).intersection(set(kernel["ProblemType"]["MirrorDims%s"%tc]))) and not self.use64bPackSumOffset:
+          incUpperA = sgpr(self.getTmpSgpr(1).idx())
+          incCodeA.addInst("s_ashr_i32", incUpperA, sgpr(inc[tc]), 31, "sign-extend")
+        incCodeA.addCode(self.incrementSrd(kernel, tp, sgpr(inc[tc]), incUpperA))
+
+      incrementSrdPsd('A', self.tPA)
+      incrementSrdPsd('B', self.tPB)
     else:
       self.globalReadIncrement(kernel, incCodeA, loopIdx, self.tPA, prefetchIndex, incs)
       self.globalReadIncrement(kernel, incCodeB, loopIdx, self.tPB, prefetchIndex, incs)
@@ -6743,6 +6846,16 @@ class KernelWriterAssembly(KernelWriter):
                   offsetVgpr = self.guardZeroPad(kernel, tP, codeMod, offsetVgpr, soffset, tmpSgpr, addrV, perp, sPerp, para, sPara)
                   kStr += str(codeMod)
 
+                unrollMirrorWithSoffset = kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in problemType["MirrorDims%s"%tc] and soffset != "0"
+                # ScalarGlobalReadOffset should be negative value with unroll mirroring.
+                # However, buffer_load uses soffset as uint value, so GRO - SGRO, SGRO = 0
+                if unrollMirrorWithSoffset:
+                  codeMod = Code.Module("mirrorIdx%u"%loopCnt)
+                  codeMod.addInst("v_sub_u32", vgpr(offsetVgpr), vgpr(offsetVgpr), soffset, "mirror unroll: GRO=GRO-SGRO, soffset=0")
+                  kStr += str(codeMod)
+                  soffset_prev = soffset
+                  soffset = "0"
+
                 if kernel["DirectToLds%s"%tc]:
                   ldsInc = (globalParameters["WavefrontWidth"] if kernel["WaveSeparateGlobalRead%c"%tc] else kernel["NumThreads"]) * self.bpr
                   if kernel["LdsBlockSizePerPad%s"%tc] != 0:
@@ -6787,6 +6900,11 @@ class KernelWriterAssembly(KernelWriter):
                           extraFields=extraFields, \
                           hi16=hi16, \
                           comment=comment).toStr()
+
+                if unrollMirrorWithSoffset:
+                  codeMod = Code.Module("mirrorIdx%u"%loopCnt)
+                  codeMod.addInst("v_add_u32", vgpr(offsetVgpr), vgpr(offsetVgpr), soffset_prev, "mirror unroll: restore GRO=GRO+SGRO")
+                  kStr += str(codeMod)
 
                 if kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]:
                   instOffset += ldsInc
@@ -6885,7 +7003,11 @@ class KernelWriterAssembly(KernelWriter):
         assert (soffset == "0") # need to add to scalar above.  Can't happen with UseSgprForGRO=0
         codeMod.addInst("s_add_u32", sgpr(tmpSgpr), sgpr(tmpSgpr), soffset, "add soffset ")
 
-      codeMod.addInst("_v_add_u32", vgpr(addrV), vgpr(zpr.regName), sgpr(tmpSgpr), \
+      if sumDim in kernel["ProblemType"]["MirrorDims%s"%tc]:
+        codeMod.addInst("v_sub_u32", vgpr(addrV), vgpr(zpr.regName), sgpr(tmpSgpr), \
+                        "<- GRO - scaled elementCounter")
+      else:
+        codeMod.addInst("_v_add_u32", vgpr(addrV), vgpr(zpr.regName), sgpr(tmpSgpr), \
                         "<- GRO + scaled elementCounter")
 
       cmpDest = "vcc" if i==0 else sgpr(tmpSgpr,2) # first one writes vcc
@@ -7044,6 +7166,16 @@ class KernelWriterAssembly(KernelWriter):
                 offsetVgpr = self.guardZeroPad(kernel, tP, codeMod, offsetVgpr, soffset, tmpSgpr, addrV, perp, sPerp, para, sPara)
                 loadModule.addCode(codeMod)
 
+              unrollMirrorWithSoffset = kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in problemType["MirrorDims%s"%tc] and soffset != "0"
+              # ScalarGlobalReadOffset should be negative value with unroll mirroring.
+              # However, buffer_load uses soffset as uint value, so GRO - SGRO, SGRO = 0
+              if unrollMirrorWithSoffset:
+                codeMod = Code.Module("mirrorIdx%u"%loopCnt)
+                codeMod.addInst("v_sub_u32", vgpr(offsetVgpr), vgpr(offsetVgpr), soffset, "mirror unroll: GRO=GRO-SGRO, soffset=0")
+                loadModule.addCode(codeMod)
+                soffset_prev = soffset
+                soffset = "0"
+
               if kernel["DirectToLds%s"%tc]:
                 ldsInc = (globalParameters["WavefrontWidth"] if kernel["WaveSeparateGlobalRead%c"%tc] else kernel["NumThreads"]) * self.bpr
                 if kernel["LdsBlockSizePerPad%s"%tc] != 0:
@@ -7073,6 +7205,11 @@ class KernelWriterAssembly(KernelWriter):
                         extraFields=extraFields, \
                         hi16=(kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and loopCnt%2==1, \
                         comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp)))
+
+              if unrollMirrorWithSoffset:
+                codeMod = Code.Module("mirrorIdx%u"%loopCnt)
+                codeMod.addInst("v_add_u32", vgpr(offsetVgpr), vgpr(offsetVgpr), soffset_prev, "mirror unroll: restore GRO=GRO+SGRO")
+                loadModule.addCode(codeMod)
 
               if kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]:
                   instOffset += ldsInc

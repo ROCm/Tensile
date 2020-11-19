@@ -1159,13 +1159,13 @@ class ProblemType(collections.abc.Mapping):
     # A dimensions
     name += "_A"
     for i in self["IndexAssignmentsA"]:
-      name += indexChars[i].lower()
+      name += indexChars[i] if i in self["MirrorDimsA"] else indexChars[i].lower()
     if self["ComplexConjugateA"]:
       name += "C"
     # B dimensions
     name += "_B"
     for i in self["IndexAssignmentsB"]:
-      name += indexChars[i].lower()
+      name += indexChars[i] if i in self["MirrorDimsB"] else indexChars[i].lower()
     if self["ComplexConjugateB"]:
       name += "C"
 
