@@ -95,7 +95,7 @@ RUN bash -xc \
     echo \"# Generates tuning result to /ResultDir\" >> \$runScript ; \ 
     echo \"cd /Tensile\" >> \$runScript ; \
     echo \"/Tensile/bin/Tensile /TaskDir/*.yaml /ResultDir --prebuilt-client=/Tensile/bin/tensile_client\" >> \$runScript ; \
-    echo \"exit\" >> \$runScript ; \
+    echo \"exit \$?\" >> \$runScript ; \
     chmod +x \$runScript ; \
     cat \$runScript; \
     \

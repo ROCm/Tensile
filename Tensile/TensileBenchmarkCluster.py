@@ -245,7 +245,9 @@ def createBenchmarkTaskScript(filePath):
         + writeLine("runCmd=\"docker run --rm --network=host --device=/dev/kfd --device=/dev/dri --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -v \"$taskDir\":\"/TaskDir\" -v \"$resultDir\":\"/ResultDir\" $dockerImageId\"") \
         + writeLine("echo \"$runCmd\"") \
         + writeLine("$runCmd") \
-        + writeLine("echo \"Done!\"")
+        + writeLine("returnCode=$?") \
+        + writeLine("echo \"Done!\"") \
+        + writeLine("exit $returnCode")
 
     with open(filePath, "w") as f:
         f.write(result)
@@ -355,7 +357,8 @@ def createClusterMasterScript(filePath):
     # Invoke
     result += \
           writeComment("Invoke task") \
-        + writeLine("srun -N 1 \"$task\" -i \"$image\" -r \"$taskResultDir\" -t \"$taskDir\"")
+        + writeLine("srun -N 1 \"$task\" -i \"$image\" -r \"$taskResultDir\" -t \"$taskDir\"") \
+        + writeLine("exit $?")
 
     with open(filePath, "w") as f:
         f.write(result)
@@ -397,8 +400,9 @@ def createClusterRunScript(filePath):
         + writeLine("runCmd=\"sbatch --nodes=$minNodes-$maxNodes --array=$arrayStart-$arrayEnd --wait $batchScript -i $imageDir -r $resultsDir -t $tasksDir\"") \
         + writeLine("echo \"$runCmd\"") \
         + writeLine("$runCmd") \
-        + writeLine("popd") \
-        + writeLine("exit 0")
+        + writeLine("returnCode=$?") \
+        + writeLine("echo \"Done!\"") \
+        + writeLine("exit $returnCode")
 
     with open(filePath, "w") as f:
         f.write(result)
@@ -456,7 +460,7 @@ def combineClusterBenchmarkResults(resultsDir, outputDir):
     for d in resultsDirs:
         resultsFiles += [os.path.join(d, f) for f in os.listdir(d) if os.path.isfile(os.path.join(d, f)) ]
 
-    if length(resultsDirs) != length(resultsFiles):
+    if len(resultsDirs) != len(resultsFiles):
         print("Warning: inconsistent number of expected results. Check that results are complete.")
 
 
