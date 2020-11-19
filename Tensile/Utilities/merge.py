@@ -218,6 +218,50 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSi
         msg("File written to", os.path.join(outputPath, basename))
         msg("------------------------------")
 
+# partialLogicFilePaths: list of full paths to partial logic files
+# outputDir: Directory to write the final result to
+# forceMerge:
+# trimSize:
+# Expects: that all the partial logic files
+# have the same base name, but are located
+# in different folders.
+# Provides: one final logic file that is the
+# merged result of all partial files.
+# This is useful for when a tuning task is
+# shared between multiple machines who each
+# will provide a partial result.
+def mergePartialLogics(partialLogicFilePaths, outputDir, forceMerge, trimSize=True):
+    logicFiles = deepcopy(partialLogicFilePaths)
+    ensurePath(outputDir)
+
+    baseLogicFile = logicFiles.pop(0)
+    baseLogicData = loadData(baseLogicFile)
+    msg("Base logic file:", baseLogicFile)
+    for f in logicFiles:
+        forceMerge = defaultForceMergePolicy(f) if forceMerge is None else forceMerge
+
+        msg("Incremental file:", f, "| Merge policy: %s"%("Forced" if forceMerge else "Winner"), "| Trim size:", trimSize)
+        incLogicData = loadData(f)
+
+        # So far "SolutionIndex" in logic yamls has zero impact on actual 1-1 size mapping (but the order of the Solution does)
+        # since mergeLogic() takes that value very seriously so we reindex them here so it doesn't choke on duplicated SolutionIndex
+        baseLogicData = reindexSolutions(baseLogicData)
+        incLogicData = reindexSolutions(incLogicData)
+
+        mergedData, *stats = mergeLogic(baseLogicData, incLogicData, forceMerge, trimSize)
+        msg(stats[0], "size(s) and", stats[1], "kernel(s) added,", stats[2], "kernel(s) removed")
+
+        # Use the merged data as the base data for the next partial logic file
+        baseLogicData = deepcopy(mergedData)
+
+
+    baseFileName = os.path.basename(baseLogicFile)
+    outputFilePath = os.path.join(outputDir, baseFileName)
+    with open(outputFilePath, "w") as outFile:
+        yaml.safe_dump(baseLogicData, outFile, default_flow_style=None)
+    msg("File written to", outputFilePath)
+    msg("------------------------------")
+
 if __name__ == "__main__":
     argParser = argparse.ArgumentParser()
     argParser.add_argument("original_dir", help="The library logic directory without tuned sizes")

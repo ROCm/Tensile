@@ -16,6 +16,7 @@ import math
 import argparse
 import mgzip
 from .Common import HR
+from Tensile.Utilities.merge import mergePartialLogics
 
 BenchmarkParameters = {}
 
@@ -395,7 +396,9 @@ def createClusterRunScript(filePath):
         + writeComment("Invoke") \
         + writeLine("runCmd=\"sbatch --nodes=$minNodes-$maxNodes --array=$arrayStart-$arrayEnd --wait $batchScript -i $imageDir -r $resultsDir -t $tasksDir\"") \
         + writeLine("echo \"$runCmd\"") \
-        + writeLine("$runCmd")
+        + writeLine("$runCmd") \
+        + writeLine("popd") \
+        + writeLine("exit 0")
 
     with open(filePath, "w") as f:
         f.write(result)
@@ -444,6 +447,26 @@ def runClusterBenchmark(runScriptFile):
     with open(os.path.join(os.path.dirname(runScriptFile), "runlog.log"), "wt") as logFile:
         subprocess.check_call(runScriptFile, stdout=logFile, stderr=logFile)
 
+def combineClusterBenchmarkResults(resultsDir, outputDir):
+    # Find the partial logic .yaml files
+    # These are in each result directory under 3_LibraryLogic
+    resultsDirs = [os.path.join(resultsDir, d, "3_LibraryLogic") for d in os.listdir(resultsDir) if os.path.isdir(os.path.join(resultsDir, d, "3_LibraryLogic"))]
+
+    resultsFiles = []
+    for d in resultsDirs:
+        resultsFiles += [os.path.join(d, f) for f in os.listdir(d) if os.path.isfile(os.path.join(d, f)) ]
+
+    if length(resultsDirs) != length(resultsFiles):
+        print("Warning: inconsistent number of expected results. Check that results are complete.")
+
+
+    mergePartialLogics(
+        resultsFiles, \
+        outputDir, \
+        BenchmarkParameters["FinalLogicForceMerge"], \
+        BenchmarkParameters["FinalLogicTrim"])
+
+
 def assignDefaultBenchmarkParameters():
     """
     Assign default benchmark parameters
@@ -464,6 +487,8 @@ def assignDefaultBenchmarkParameters():
     BenchmarkParameters["TensileFork"] = "ROCmSoftwarePlatform"
     BenchmarkParameters["TensileBranch"] = "develop"
     BenchmarkParameters["TensileCommit"] = "HEAD"
+    BenchmarkParameters["FinalLogicForceMerge"] = False
+    BenchmarkParameters["FinalLogicTrim"] = True
 
 def assignBenchmarkParameters( arguments ):
     """
@@ -521,15 +546,25 @@ def TensileBenchmarkCluster(userArgs):
 
     # Deploy benchmark package only if needed
     if BenchmarkParameters["DeployStep"] is True:
+        print("Preparing benchmarking files...")
         prepareClusterBenchmark(args.BenchmarkLogicPath, args.DeploymentPath)
+        print("Finished preparing benchmarking files")
 
     # Run the benchmark only if needed
     if BenchmarkParameters["RunStep"] is True:
+        print("Running benchmark tasks (this might take a while)...")
         runClusterBenchmark(os.path.join(args.DeploymentPath, "RUN.sh"))
+        print("Finished benchmark tasks")
 
-    # Run the benchmark only if needed
+    # Combining results only if needed
     if BenchmarkParameters["ResultsStep"] is True:
-        pass
+        print("Combining benchmark results...")
+        resultsDir = os.path.join(args.DeploymentPath, "Results")
+        finalLogicDir = os.path.join(resultsDir, "Final")
+        combineClusterBenchmarkResults(resultsDir, finalLogicDir)
+        print("Final logic file saved to: %s" % finalLogicDir)
+
+    print("Finished")
 
 def main():
     TensileBenchmarkCluster(sys.argv[1:])
