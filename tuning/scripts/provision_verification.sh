@@ -140,13 +140,15 @@ fi
 MERGE_SCRIPT=${TENSILE_PATH}/Tensile/Utilities/merge.py
 MASSAGE_SCRIPT=${REFERENCE_LIBRARY_ARCHIVE}/massage.py
 
-if [[ "${LIBRARY}" == arcturus ]]; then
-    if [[ $(ls -A logs/log-efficiency | wc -c) -eq 0 && "${PUBLIC}" == false ]]; then
+if [ "${LIBRARY}" == arcturus ]; then
+  if [ "${PUBLIC}" == false ]; then
+    if [ ! -f ${LOGS}/log-efficiency ]; then
         pushd ${WORKING_PATH}  > /dev/null
         git clone https://github.com/RocmSoftwarePlatform/rocmdevtools.git -b efficiency
         python3 rocmdevtools/scripts/tuning/convertToEfficiency.py ${EXACT_PATH} ${LIBRARY} ${SCLK} 2>&1 | tee ${LOGS}/log-efficiency
-        popd
+        popd > /dev/null
     fi
+  fi
 fi
 
 if [[ ${MERGE} == true ]]; then
