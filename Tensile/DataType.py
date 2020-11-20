@@ -165,12 +165,12 @@ class DataType:
             'name': 'int8',
             'nameAbbrev': 'i8',
             'miOutTypeNameAbbrev': 'i32',
-            'enum': 'Int8',                     # Ethan: through client writer, mapping to c++ enum
+            'enum': 'Int8',                     # mapping to new client c++ enum
             'reg': 0.25,
             'ocl': 'ERROR',
             'hip': 'int8_t',
-            'libType': 'TensileInt8',           # Ethan: old client
-            'libEnum': 'tensileDataTypeInt8',   # Ethan: old client
+            'libType': 'TensileInt8',           # old client
+            'libEnum': 'tensileDataTypeInt8',   # old client
             'isIntegral': True,
             'isComplex': False,
             'packing': 1,

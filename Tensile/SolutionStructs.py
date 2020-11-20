@@ -2421,8 +2421,7 @@ class Solution:
               or state["ProblemType"]["DataType"].isBFloat16() \
               or state["ProblemType"]["DataType"].isHalf() \
               or state["ProblemType"]["DataType"].isSingleComplex() \
-              or state["ProblemType"]["DataType"].isInt8() \
-              or state["ProblemType"]["DataType"].isInt8x4()):  # Ethan: TODO- CleanUp this
+              or state["ProblemType"]["DataType"].isInt8()):
         reject(state, "didn't support Matrix Instruction with type %s" % str(state["ProblemType"]["DataType"]))
       if not state["MIBlock"] or len(state["MIBlock"]) != 6:
         reject(state, "invalid MIBlock")
@@ -2796,6 +2795,14 @@ class Solution:
         reject(state, "LoopIters need to greater than 0")
         return
 
+      # Make sure the prefetch VGPR index plr[x] can be aligned for each loop
+      # for example, if PLR3 result in 4 VGPR:
+      #   PGR  - pre  : plr[0], plr[1], plr[2]
+      #   loop - iter0: plr[3], iter1: plr[0], iter2: plr[1], iter3: plr[2] -> restart LOOP (from plr[3]...) -> OK
+      #
+      # but if PLR2 result in 3 VGPR:
+      #   PGR  - pre  : plr[0], plr[1]
+      #   loop - iter0: plr[2], iter1: plr[0], iter2: plr[1], iter3: plr[2] -> restart LOOP (from plr[2]...) -> !!
       if (depthULds % ((state["PrefetchLocalRead"]%loopIters)+1)) != 0:
         validDepthU = False
 
@@ -2833,7 +2840,7 @@ class Solution:
         if state["EnableMatrixInstruction"] and state["GlobalLoadVectorWidthA"]:
           partialA = state["ProblemType"]["TLUA"] and (state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"] != 0)
           if partialA and state["GlobalLoadVectorWidthA"] > state["MIOutputVectorWidth"]:
-            #reduce GLVA if GLVA larger than MIOVW, Ethan: Study
+            #reduce GLVA if GLVA larger than MIOVW, Ethan-TODO: Study
             tva = totalElementsA // state["MIOutputVectorWidth"]
             if not Solution.setGlobalLoadVectorWidth(state, "A", tva, state["MIOutputVectorWidth"]):
               validDepthU = False
@@ -3059,13 +3066,15 @@ class Solution:
         if state["LocalReadVectorWidth"] != state["VectorWidth"]:
           reject(state, "not support LRVW != VW with nonMI kernel")
 
-    # set pad as readWidth to avoid unaligned read
+    # set pad as readRegs to avoid unaligned read
     optPad = state["LocalReadVectorWidth"]
-    readWidth = state["LocalReadVectorWidth"]*state["ProblemType"]["DataType"].numBytes()//4
+    readRegs = state["LocalReadVectorWidth"]*state["ProblemType"]["DataType"].numBytes()//4
+    if readRegs > 4:
+      reject(state, "LocalReadVectorWidth=%u results in attemping to read LDS larger than b128, reject")
     if state["EnableMatrixInstruction"]:
-      # for readWidth = 1 or 4, we need to double pad for MI16x16xNx1 to avoid banck conflict.
+      # for readRegs = 1 or 4, we need to double pad for MI16x16xNx1 to avoid bank conflict.
       if state["MatrixInstB"] == 1 and state["MatrixInstM"] == 16 and \
-          (readWidth == 4 or readWidth == 1):
+          (readRegs == 4 or readRegs == 1):
         optPad *= 2
     if state["LdsPadA"] == -1:
       if state["ProblemType"]["TLUA"]:
@@ -3151,8 +3160,9 @@ class Solution:
     if state["1LDSBuffer"]:
       if not state["PrefetchGlobalRead"]:
         reject(state, "PGR=0 already use 1 LDS buffer only")
-      if not state["ScheduleIterAlg"] == 2 and not state["ScheduleIterAlg"] == 3:
-        reject(state, "1LDSBuffer only support SIA2 or SIA3")
+      # Should be able to support as long as NO scheduleLocalWrite
+      if (not state["ScheduleIterAlg"] == 2) and (not state["ScheduleIterAlg"] == 3) and (state["ScheduleLocalWrite"]):
+        reject(state, "1LDSBuffer only support SIA2 or SIA3, or SIA1 without SLW")
       state["LdsOffsetB"] = ldsNumElementsAlignedA
       ldsNumElementsAB = ldsNumElementsAlignedA + ldsNumElementsB
 
@@ -3230,6 +3240,16 @@ class Solution:
       ldsNumElementsRemapC *= multiplier
 
       #print("ldsNumElementsRemapC=%u" % ldsNumElementsRemapC)
+
+      # if LDS is bound by RemapC (SRVW), then 1LDSBuffer actually dosen't help in SIA3
+      # since LDS usage couldn't be reduced
+      if state["1LDSBuffer"] and (state["ScheduleIterAlg"] == 3) and (ldsNumElements < ldsNumElementsRemapC):
+        # TODO- Remove this DataType test condition,
+        # Currently we do this test is just because we don't want to affect existing logic in rocBLAS
+        if state["ProblemType"]["DataType"].isInt8():
+          reject(state, "LDS usage is bound be StoreRemap, thus 1LDSBuffer wouldn't have any help. Skip.")
+          return
+
       ldsNumElements = max(ldsNumElements, ldsNumElementsRemapC)
 
     state["LdsNumElements"] = ldsNumElements
@@ -3275,19 +3295,33 @@ class Solution:
       return
 
     # PLR > 2xLoopIters is redundant setting
+    # TODO- Why need to x2 ? Why not (if state["PrefetchLocalRead"] >= state["LoopIters"]:)
     if state["PrefetchLocalRead"] >= 2*state["LoopIters"]:
-      reject(state, "PrefetchLocalRead %u larger than 2x LoopIters %u" % (state["PrefetchLocalRead"],state["LoopIters"]))
+      reject(state, "Reject since PrefetchLocalRead %u >= 2x LoopIters %u" % (state["PrefetchLocalRead"],state["LoopIters"]))
 
     # reject low performance
     if state["PrefetchLocalRead"]%state["LoopIters"] > 1:
       reject(state, "PrefetchLocalRead: %u, LoopIters: %u performance is low" % (state["PrefetchLocalRead"],state["LoopIters"]))
 
     # prefetch wider read iteration > LoopIters, no enough iterations for prefetching
-    if state["EnableMatrixInstruction"]:
-      if (state["PrefetchLocalRead"]%state["LoopIters"])*state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput() >= state["LoopIters"]:
+    if state["EnableMatrixInstruction"] and state["PrefetchLocalRead"] > 0:
+      # Mulitple = WLR-size / input-size = how many iters could be covered by one WLR ?
+      wlrMultiple = state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput()
+      if wlrMultiple == 0:
+        reject(state, "LocalReadVectorWidth %u is less than MIInput" % (state["LocalReadVectorWidth"]))
+        return
+      # for example, if the original ds_read is b32...
+      #   1. if LoopIters = 5 (b32 x 5 times), WLR-Multiple = 2 (b64), then we can fit the WLR
+      #   2. if LoopIters = 2 (b32 x 2 times), WLR-Multiple = 4 (b128), this is not allowed
+      #   3. if LoopIters = 2 (b32 x 2 times), WLR-Multiple = 2 (b64), this is allowed
+      if state["LoopIters"] % wlrMultiple != 0:
+        reject(state, "LocalReadVectorWidth %u cannot be distributed evenly, LoopIters %u should be divisible by WLR-Multiple %u" \
+          % (state["LocalReadVectorWidth"], state["LoopIters"], wlrMultiple))
+
+      PLR = (state["PrefetchLocalRead"] % state["LoopIters"])
+      if PLR != 0 and state["LoopIters"] - (PLR * wlrMultiple) <= 0 :
         reject(state, "with PrefetchLocalRead %u LoopIters %u LocalReadVectorWidth %u, not enough LoopIters to prefetch %ux%u iterations, " \
-          % (state["PrefetchLocalRead"],state["LoopIters"],state["LocalReadVectorWidth"],\
-          (state["PrefetchLocalRead"]%state["LoopIters"]),state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput()))
+          % (state["PrefetchLocalRead"],state["LoopIters"],state["LocalReadVectorWidth"], PLR , wlrMultiple) )
 
     # # reject conditions with lower performance
     # if state["ScheduleIterAlg"] == 2 and \
@@ -3309,8 +3343,6 @@ class Solution:
         if not (state["PrefetchLocalRead"] >= state["LoopIters"] and state["InnerUnroll"] == 1) and \
           not state["InnerUnroll"] >= state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput():
           reject(state, "wider localRead only support (PrefetchLocalRead %u >= LoopIters %u) or (InnerUnroll %u > LocalReadxN)" % (state["PrefetchLocalRead"],state["LoopIters"],state["InnerUnroll"]))
-      if (state["LoopIters"] - (state["PrefetchLocalRead"]%state["LoopIters"])*state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput()) < 0:
-        reject(state, "LoopIters %u should greater than PrefetchIters %u" % ((state["LoopIters"],(state["PrefetchLocalRead"]%state["LoopIters"])*state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput())))
 
     if state["DepthULdsDivisor"] > 1:
       if state["PrefetchGlobalRead"] == 2:
@@ -3380,7 +3412,7 @@ class Solution:
       if not state["GuaranteeNoPartialA"] or not state["GuaranteeNoPartialB"]:
         state["_UseSgprForGRO"] = False
         #reject(state, "PBC with wide load has insufficient overlap guarantees- try GRVW=1 or adding appropriate Assert*ElementMultiple")
-    # Ethan:: Study
+    # Ethan-TODO: Study
     if state["EnableMatrixInstruction"]:
       cont1 = not state["GuaranteeNoPartialA"]
       cont2 = ((state["MIOutputVectorWidth"] % state["GlobalLoadVectorWidthA"]) != 0)

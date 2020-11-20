@@ -68,13 +68,12 @@ BenchmarkProblems:
   #     BenchmarkCommonParameters:
   #       - KernelLanguage: ["Assembly"]
   #       - LoopTail: [True]
-  #       - PrefetchGlobalRead: [False]
-  #       - PrefetchLocalRead: [False]
+  #       - PrefetchGlobalRead: [True]
   #       - OptNoLoadLoop: [True]
   #       - ExpandPointerSwap: [False]
   #       - EdgeType: ["ShiftPtr"]
-  #       - ScheduleGlobalRead: [False] # default True
-  #       - ScheduleLocalWrite: [False] # default True
+  #       # - ScheduleGlobalRead: [False] # default True
+  #       # - ScheduleLocalWrite: [False] # default True
   #     ForkParameters:
   #       - MatrixInstruction:
   #         - [32,32, 8, 1, 1, 1,1, 1,1]  # 32x32 - H, Int8
@@ -83,24 +82,29 @@ BenchmarkProblems:
   #         - [ 4, 4 ]
   #       - WorkGroup:
   #         - [ 16, 16, 1 ]
-  #       - DepthU: [ 8 ]
   #       - VectorWidth: [4]
+  #       - PrefetchLocalRead: [2]
+  #       - DepthU: [ 16 ]
+  #       # - DepthU: [ 32 ]
+  #       - LocalReadVectorWidth: [8]    # PLR1/DU16/LRVW8 --> reject, 1/8/8 --> asm fail, need to figure out // SIMPLEST: 2/16/8
   #       # - WaveSeparateGlobalReadA: [1] # priority 1
   #       # - WaveSeparateGlobalReadB: [1]
-  #       # - TransposeLDS: [True]         # priority 2
-  #       # - StoreRemapVectorWidth: [4]   # priority 3
+  #       - TransposeLDS: [True]         # priority 2
+  #       - StoreRemapVectorWidth: [4]   # priority 3
   #       - ScheduleIterAlg: [3]         # priority 4
-  #       # - InnerUnroll: [2]             # TBD
-  #       # - 1LDSBuffer: [2]              # TBD
+  #       # - InnerUnroll: [1]             # TBD
+  #       - 1LDSBuffer: [0,1]                         # TBD
   #     BenchmarkForkParameters:
   #     BenchmarkJoinParameters:
   #     BenchmarkFinalParameters:
   #       - ProblemSizes:
   #         # - Range: [ [32], [32], [1], [1] ]
-  #         - Range: [ [32], [32], [1], [8] ]
+  #         # - Range: [ [32], [32], [1], [8] ]
   #         # - Range: [ [32], [32], [1], [9] ]
   #         # - Range: [ [32], [32], [1], [16] ]
+  #         # - Range: [ [32], [32], [1], [17] ]
   #         # - Range: [ [31,1,33], [31,1,33], [1], [7,1,9] ]
+  #         - Range: [ [31,1,33], [31,1,33], [1], [15,1,17] ]
 
   ########################################
   -
@@ -122,33 +126,33 @@ BenchmarkProblems:
         - KernelLanguage: ["Assembly"]
         - LoopTail: [True]
         - PrefetchGlobalRead: [True]
-        - PrefetchLocalRead: [True]
         - OptNoLoadLoop: [True]
         - ExpandPointerSwap: [True]
         - EdgeType: ["ShiftPtr"]
-        # - ScheduleGlobalRead: [True] # default True
-        # - ScheduleLocalWrite: [True] # default True
+        # - ScheduleGlobalRead: [False] # default True
+        # - ScheduleLocalWrite: [False] # default True
       ForkParameters:
         - MatrixInstruction:
-          - [32,32, 8, 1, 1, 1,1, 1,1]  # 32x32
-          # - [32,32, 8, 1, 1, 1,4, 4,2]  # 128x256
+          # - [32,32, 8, 1, 1, 1,1, 1,1]  # 32x32
+          - [32,32, 8, 1, 1, 2,2, 1,1]  # 64x64
         - ThreadTile:
           - [ 4, 4 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - DepthU: [ 8 ]
-        # - DepthU: [ 32 ]
-        # - VectorWidth: [4]
+
+        - PrefetchLocalRead: [1,2,5,9]
+        - DepthU: [16]
+        # - LocalReadVectorWidth: [16]    # PLR1/DU16/LRVW8 --> reject, 3/32/8 --> reject, 1/8/8 or 2/16/16 or 5/40/8 --> asm fail // SIMPLEST: 2/16/8, or 5/32/8
         # - WaveSeparateGlobalReadA: [1]            # priority 1
         # - WaveSeparateGlobalReadB: [1]
-        # - TransposeLDS: [True]                    # priority 2 (Done)
+        - TransposeLDS: [True]                    # priority 2 (Done)
         - StoreRemapVectorWidth: [4]                # priority 3 (Done)
-        - ScheduleIterAlg: [3]                      # priority 4
-        # - InnerUnroll: [2]                        # TBD
-        # - 1LDSBuffer: [2]                         # TBD
-        - PersistentKernel: [-1,0]                  # priority 5 (Done)
-        - PersistentKernelAlongBatch: [False,True]  # priority 5 (Done)
-        - PrefetchAcrossPersistent: [False,True]    # priority 5 (Done)
+        - ScheduleIterAlg: [3]                      # priority 7
+        # - InnerUnroll: [1,2]                        # priority 4 (Done)
+        # - 1LDSBuffer: [0,1]                         # priority 5 (Done)
+        # - PersistentKernel: [-1,0]                  # priority 6 (Done)
+        # - PersistentKernelAlongBatch: [False, True]  # priority 6 (Done)
+        # - PrefetchAcrossPersistent: [False, True]    # priority 6 (Done)
       BenchmarkForkParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
@@ -160,9 +164,11 @@ BenchmarkProblems:
           # - Range: [ [32], [32], [1], [17] ]
           # - Range: [ [32], [32], [1], [24] ]
           # - Range: [ [32], [32], [1], [25] ]
-          # - Range: [ [31,1,33], [31,1,33], [1], [15,1,17] ]
-          - Range: [ [31,1,33], [63,1,65], [1], [15,1,17] ]
+          # - Range: [ [31,1,33], [31,1,33], [1], [63,1,65] ]
+          # - Range: [ [31,1,33], [63,1,65], [1], [15,1,17] ]
           - Range: [ [4096], [8192], [1], [512] ]
+          # - Range: [ [128], [30720], [1], [32] ]  # num MT0 = 1, num MT1 = 120, unroll = 1 (for 128x256)
+          # - Range: [ [1760], [7133], [1], [1760] ]  # num MT0 = 13.75, num MT1 = 27.86..., unroll = 55 (for 128x256)
 
   # ########################################
   # # All MT Combination - NT
@@ -228,12 +234,12 @@ BenchmarkProblems:
   #       - WaveSeparateGlobalReadB: [1]
   #       - TransposeLDS: [False]                     # priority 2 (Done)
   #       - StoreRemapVectorWidth: [4]                # priority 3 (Done)
-  #       - ScheduleIterAlg: [3]                      # priority 4
-  #       # - InnerUnroll: [2]                        # TBD
-  #       # - 1LDSBuffer: [2]                         # TBD
+  #       - ScheduleIterAlg: [3]                      # priority 7
+  #       - InnerUnroll: [1,2]                        # priority 4 (Done)
+  #       - 1LDSBuffer: [0,1]                         # priority 6
   #       - PersistentKernel: [-1,0]                  # priority 5 (Done)
-  #       - PersistentKernelAlongBatch: [False,True]  # priority 5 (Done)
-  #       - PrefetchAcrossPersistent: [False,True]    # priority 5 (Done)
+  #       - PersistentKernelAlongBatch: [True]        # priority 5 (Done)
+  #       - PrefetchAcrossPersistent: [True]          # priority 5 (Done)
   #     BenchmarkForkParameters:
   #     BenchmarkJoinParameters:
   #     BenchmarkFinalParameters:
@@ -315,12 +321,12 @@ BenchmarkProblems:
   #       - WaveSeparateGlobalReadB: [1]
   #       - TransposeLDS: [True]                      # priority 2 (Done)
   #       - StoreRemapVectorWidth: [4]                # priority 3 (Done)
-  #       - ScheduleIterAlg: [3]                      # priority 4
-  #       # - InnerUnroll: [2]                        # TBD
-  #       # - 1LDSBuffer: [2]                         # TBD
+  #       - ScheduleIterAlg: [3]                      # priority 7
+  #       - InnerUnroll: [1,2]                        # priority 4 (Done)
+  #       - 1LDSBuffer: [0,1]                         # priority 6
   #       - PersistentKernel: [-1,0]                  # priority 5 (Done)
-  #       - PersistentKernelAlongBatch: [False,True]  # priority 5 (Done)
-  #       - PrefetchAcrossPersistent: [False,True]    # priority 5 (Done)
+  #       - PersistentKernelAlongBatch: [True]        # priority 5 (Done)
+  #       - PrefetchAcrossPersistent: [True]          # priority 5 (Done)
   #     BenchmarkForkParameters:
   #     BenchmarkJoinParameters:
   #     BenchmarkFinalParameters:
@@ -402,12 +408,12 @@ BenchmarkProblems:
   #       - WaveSeparateGlobalReadB: [1]
   #       - TransposeLDS: [True]                      # priority 2 (Done)
   #       - StoreRemapVectorWidth: [4]                # priority 3 (Done)
-  #       - ScheduleIterAlg: [3]                      # priority 4
-  #       # - InnerUnroll: [2]                        # TBD
-  #       # - 1LDSBuffer: [2]                         # TBD
+  #       - ScheduleIterAlg: [3]                      # priority 7
+  #       - InnerUnroll: [1,2]                        # priority 4 (Done)
+  #       - 1LDSBuffer: [0,1]                         # priority 6
   #       - PersistentKernel: [-1,0]                  # priority 5 (Done)
-  #       - PersistentKernelAlongBatch: [False,True]  # priority 5 (Done)
-  #       - PrefetchAcrossPersistent: [False,True]    # priority 5 (Done)
+  #       - PersistentKernelAlongBatch: [True]        # priority 5 (Done)
+  #       - PrefetchAcrossPersistent: [True]          # priority 5 (Done)
   #     BenchmarkForkParameters:
   #     BenchmarkJoinParameters:
   #     BenchmarkFinalParameters:
@@ -489,12 +495,12 @@ BenchmarkProblems:
   #       - WaveSeparateGlobalReadB: [1]
   #       - TransposeLDS: [True]                      # priority 2 (Done)
   #       - StoreRemapVectorWidth: [4]                # priority 3 (Done)
-  #       - ScheduleIterAlg: [3]                      # priority 4
-  #       # - InnerUnroll: [2]                        # TBD
-  #       # - 1LDSBuffer: [2]                         # TBD
+  #       - ScheduleIterAlg: [3]                      # priority 7
+  #       - InnerUnroll: [1,2]                        # priority 4 (Done)
+  #       - 1LDSBuffer: [0,1]                         # priority 6
   #       - PersistentKernel: [-1,0]                  # priority 5 (Done)
-  #       - PersistentKernelAlongBatch: [False,True]  # priority 5 (Done)
-  #       - PrefetchAcrossPersistent: [False,True]    # priority 5 (Done)
+  #       - PersistentKernelAlongBatch: [True]        # priority 5 (Done)
+  #       - PrefetchAcrossPersistent: [True]          # priority 5 (Done)
   #     BenchmarkForkParameters:
   #     BenchmarkJoinParameters:
   #     BenchmarkFinalParameters:

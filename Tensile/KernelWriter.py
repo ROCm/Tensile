@@ -119,7 +119,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     globalReadIncBCode  = self.globalReadIncrements.findNamedItem("globalReadIncrementB")
 
     lastLoadIter = 0
-    # Ethan: TODO-IGEMM, SIA3 Skip for now
+    # Ethan-TODO: IGEMM, SIA3 Skip for now
     if kernel["EnableMatrixInstruction"] and kernel["ScheduleIterAlg"] == 3:
       numMfmaPerIter = self.numMfmaPerIter
       ##################################
@@ -128,6 +128,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # mfma|lw|mfma|mfma|barrier, 2 mfma between last LW and barrier
       numMfmaBetweenLWandBarrier = 2 if kernel["MatrixInstM"] == 32 else 3
       # number of global read instructions between 2 mfma
+      # Ethan-TODO: 1LDS
       self.numGlobalReadInsPerMfma = 2 if kernel["MatrixInstM"] == 32 and not kernel["ProblemType"]["TLUA"] and not kernel["ProblemType"]["TLUB"] and kernel["TransposeLDS"] and not kernel["1LDSBuffer"] else 1
       # number of local write instructions between 2 mfma
       # we roughly peek number of localReads per mfma to decide number of localWrites per mfma
@@ -788,6 +789,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # if start to schedule localwrite, but still have localreads not scheduled yet,
         # reject to use 1LDSB, since it will write and read same lds buffer at same time.
         # TODO: force to schedule all remaining localreads before start to schedule localwrite.
+        # Ethan-TODO: 1LDS
         if mfmaIndex >= self.lwStartMfmaIndex and mfmaIndex <= max(self.lwEndMfmaIndex,self.barrierMfmaIndex) and \
           localReadItemsThisLoop and kernel["1LDSBuffer"]:
           self.overflowedResources = 5
@@ -1274,7 +1276,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.enable["Wait"]:
         if kernel["DirectToLdsA"] or kernel["DirectToLdsB"]:
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "10wait for global read"))
-        # Ethan: TODO- need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite (PGR=2 ?)
+        # Ethan-TODO: need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite (PGR=2 ?)
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "4wait for local write"))
       if self.enable["Sync"]:
         kl.append(self.syncThreads(kernel))
@@ -1355,6 +1357,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # reads for next loop
         doReadA = doReadA or (hasLiveLdsData and u > localWriteEndIter)
         doReadB = doReadB or (hasLiveLdsData and u > localWriteEndIter)
+        # Ethan-TODO: IU
         for iui in range(0,kernel["InnerUnroll"]):
           doReadA = doReadA and iui*self.numReadsIterCoalescedA < kernel["InnerUnroll"]
           doReadB = doReadB and iui*self.numReadsIterCoalescedB < kernel["InnerUnroll"]
@@ -1418,6 +1421,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             skipReadsIter, \
             "7wait for local read")
       luIdx = (u) % (self.numVgprBuffer+1) # local to use for MACs
+      # Ethan-TODO: IU
       if self.enable["MAC"]:
         if kernel["EnableMatrixInstruction"]:
           macIterCode.addCode(self.mfmaIter(kernel, luIdx, kernel["InnerUnroll"]))
@@ -1563,7 +1567,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # prefetch-local
       if self.numItersPLR:
         if self.enable["Wait"]:
-          # Ethan: TODO- need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite
+          # Ethan-TODO: need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "0prefetch wait for local write"))
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel))
@@ -1575,6 +1579,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             # no matter EPS or PAP, only prefect local once per plrIdx
             # for espi in range(0, (self.prefetchAcrossPersistent and kernel["ExpandPointerSwap"])+1):
             for espi in range(0, 1):
+              # Ethan-TODO: IU
               for iui in range(0,kernel["InnerUnroll"]):
                 if iui*self.numReadsIterCoalescedA < kernel["InnerUnroll"]:
                   kl.append(self.comment("local read prefetch a"))
@@ -1906,6 +1911,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
               "wait for prior local read local write")
 
         luIdx = (u) % (self.numVgprBuffer+1) # local to use for MACs
+        # Ethan-TODO: IU
         if self.enable["MAC"]:
           if kernel["EnableMatrixInstruction"]:
             macIterCode.addCode(self.mfmaIter(kernel, luIdx, kernel["InnerUnroll"]))
@@ -2201,7 +2207,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.comment("Recalc local read offsets"))
         kl.append(self.recalcLocalReadAddressesAB(kernel))
         if self.enable["Wait"]:
-          # Ethan: TODO- need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite
+          # Ethan-TODO: need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "5wait for local write"))
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel))
@@ -2292,7 +2298,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.globalWriteWorkGroupInit(kernel))
 
       ####################################
-      # Shift Vector Components, # Ethan: Study
+      # Shift Vector Components, # Ethan-TODO: Study
       ####################################
       if kernel["EdgeType"] == "ShiftPtr":
         # GuaranteeNoPartial means each component in the vector loads is always valid.  In this case we
@@ -2589,17 +2595,17 @@ class KernelWriter(metaclass=abc.ABCMeta):
     else:
       self.numReadsIterCoalescedA  = 1
       self.numReadsIterCoalescedB  = 1
-    # Ethan: Study
+    # Ethan-TODO: Study
     self.numIterPerCoalescedReadA = max(1,self.numReadsIterCoalescedA//kernel["InnerUnroll"])
     self.numIterPerCoalescedReadB = max(1,self.numReadsIterCoalescedB//kernel["InnerUnroll"])
 
-    # Ethan: TODO-IGEMM, SIA3 Skip for now
+    # Ethan-TODO: IGEMM, SIA3 Skip for now
     if kernel["ScheduleIterAlg"] == 3 or kernel["ScheduleIterAlg"] == 2:
       self.numMfmaPerIter = kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] * kernel["InnerUnroll"]
       if kernel["ProblemType"]["DataType"].isComplex(): self.numMfmaPerIter *= 4
 
     ########################################
-    # read vectors or vector components, # Ethan: Study
+    # read vectors or vector components, # Ethan-TODO: Study
     ########################################
     if kernel["ProblemType"]["TLUA"]: # NT no transpose
       self.numReadsTileA = kernel["NumLoadsCoalescedA"]
@@ -2688,23 +2694,23 @@ class KernelWriter(metaclass=abc.ABCMeta):
     #     or self.writeUnrollDimComponentsA) else 1
     # self.numReadTileVectorComponentsA = kernel["GlobalLoadVectorWidthA"] \
     #     if self.readTileDimComponentsA else 1 # for branches
-    # convert tile/unroll to para/perp, Ethan: Study
+    # convert tile/unroll to para/perp, Ethan-TODO: Study
     if kernel["ProblemType"]["TLUA"]:
       self.numReadsCoalVecCompA = self.numReadsTileVecCompA
       self.numReadsPerpVecCompA = self.numReadsUnrollVecCompA
       # for asm
       self.readCoalescedComponentsA  = self.readTileDimComponentsA
-      # self.readCoalescedVectorA      = self.readTileDimVectorA  # Ethan: Not Used
+      # self.readCoalescedVectorA      = self.readTileDimVectorA  # Ethan-TODO: Not Used
       self.readPerpendicularComponentsA  = self.readUnrollDimComponentsA
-      # self.readPerpendicularVectorA      = self.readUnrollDimVectorA  # Ethan: Not Used
+      # self.readPerpendicularVectorA      = self.readUnrollDimVectorA  # Ethan-TODO: Not Used
     else:
       self.numReadsCoalVecCompA = self.numReadsUnrollVecCompA
       self.numReadsPerpVecCompA = self.numReadsTileVecCompA
       # for asm
       self.readCoalescedComponentsA  = self.readUnrollDimComponentsA
-      # self.readCoalescedVectorA      = self.readUnrollDimVectorA  # Ethan: Not Used
+      # self.readCoalescedVectorA      = self.readUnrollDimVectorA  # Ethan-TODO: Not Used
       self.readPerpendicularComponentsA  = self.readTileDimComponentsA
-      # self.readPerpendicularVectorA      = self.readTileDimVectorA  # Ethan: Not Used
+      # self.readPerpendicularVectorA      = self.readTileDimVectorA  # Ethan-TODO: Not Used
 
     ####################################
     # read vectors or vector components b
@@ -2808,17 +2814,17 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.numReadsPerpVecCompB = self.numReadsUnrollVecCompB
       # for asm
       self.readCoalescedComponentsB  = self.readTileDimComponentsB
-      # self.readCoalescedVectorB      = self.readTileDimVectorB  # Ethan: Not Used
+      # self.readCoalescedVectorB      = self.readTileDimVectorB  # Ethan-TODO: Not Used
       self.readPerpendicularComponentsB  = self.readUnrollDimComponentsB
-      # self.readPerpendicularVectorB      = self.readUnrollDimVectorB  # Ethan: Not Used
+      # self.readPerpendicularVectorB      = self.readUnrollDimVectorB  # Ethan-TODO: Not Used
     else:
       self.numReadsCoalVecCompB = self.numReadsUnrollVecCompB
       self.numReadsPerpVecCompB = self.numReadsTileVecCompB
       # for asm
       self.readCoalescedComponentsB  = self.readUnrollDimComponentsB
-      # self.readCoalescedVectorB      = self.readUnrollDimVectorB  # Ethan: Not Used
+      # self.readCoalescedVectorB      = self.readUnrollDimVectorB  # Ethan-TODO: Not Used
       self.readPerpendicularComponentsB  = self.readTileDimComponentsB
-      # self.readPerpendicularVectorB      = self.readTileDimVectorB  # Ethan: Not Used
+      # self.readPerpendicularVectorB      = self.readTileDimVectorB  # Ethan-TODO: Not Used
 
     ####################################
     # load sizes

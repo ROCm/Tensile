@@ -521,7 +521,7 @@ class KernelWriterSource(KernelWriter):
     else:
       if kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isHalf():
         kStr += "#define MAC(A,B,DST) DST += static_cast<float>(A) * static_cast<float>(B)"
-      # Ethan: HIP Version, skip for now
+      # Ethan-TODO: HIP Version, skip for now
       elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isInt8x4():
         kStr += "#define MAC(A,B,DST) DST = GenDot4(static_cast<int>(A), static_cast<int>(B), static_cast<int>(DST))"
       elif kernel["ProblemType"]["HighPrecisionAccumulate"] and kernel["ProblemType"]["DataType"].isBFloat16():

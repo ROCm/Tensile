@@ -346,28 +346,33 @@ validParameters = {
     "PrefetchGlobalRead":         [ 0, 1, 2 ],
 
     # number of iteration prefetch local reads from lds to VGPRs buffer = PLR % LoopIter
-    # number of VGPRs buffer = min(PLR,LoopIters)
+    # number of VGPRs buffer = min(PLR+1,LoopIters)
     # LoopIters = DepthU / LocalSplitU
     # (LoopIters /= MatrixInstruction_K)
-    # ex. MT64x128x16_MI32x32x4x2_PLR1, we'll have 4 LoopIters, prefetch read 1 iteration, with 2 VGPRs buffer
+    # ex. MT64x128x16_MI32x32x4x2_PLR1, we'll have 4 LoopIters, prefetch read 1 iteration, with 2 VGPRs buffer (2=min(1+1,4))
     #     befor loop:       plr[0]
     #           loop: iter0:plr[1] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[0], iter3:plr[0] MAC_r[1]
     #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[0], iter3:       MAC_r[1]
     #
-    # ex. MT64x128x16_MI32x32x4x2_PLR3, we'll have 4 LoopIterss, prefetch read 3 iteration, with 4 VGPRs buffer
+    # ex. MT64x128x16_MI32x32x4x2_PLR3, we'll have 4 LoopIters, prefetch read 3 iteration, with 4 VGPRs buffer (4=min(3+1,4))
     #     befor loop:       plr[0] plr[1] plr[2]
     #           loop: iter0:plr[3] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[2], iter3:plr[2] MAC_r[3]
     #   no load loop: iter0:plr[3] MAC_r[0], iter1:       MAC_r[1], iter2:       MAC_r[2], iter3:       MAC_r[3]
     #
-    # ex. MT64x128x16_MI32x32x4x2_PLR5, we'll have 4 LoopIterss, prefetch read 5%4=1 iteration, with 4 VGPRs buffer
+    # ex. MT64x128x16_MI32x32x4x2_PLR5, we'll have 4 LoopIters, prefetch read 5%4=1 iteration, with 4 VGPRs buffer (4=min(5+1,4))
     #     befor loop:       plr[0]
     #           loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:plr[0] MAC_r[3]
     #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:       MAC_r[3]
     #
-    # ex. MT64x128x16_MI32x32x4x2_PLR5_LRVW8, we'll have 4 LoopIterss, prefetch read 5%4=1 iteration, with 4 VGPRs buffer, each read read 2 iterations
+    # ex. MT64x128x16_MI32x32x4x2_PLR5_LRVW8, we'll have 4 LoopIters, prefetch read 5%4=1 iteration, with 4 VGPRs buffer (4=min(5+1,4)) , each read read 2 iterations
     #     befor loop:       plr[0:1]
     #           loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:plr[0:1] MAC_r[3]
     #   no load loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:         MAC_r[3]
+    #
+    # ex. MT64x128x16_MI32x32x4x2_PLR7, we'll have 4 LoopIters, prefetch read 7%4=3 iteration, with 4 VGPRs buffer (=min(7+1,4)) --> Exactly the same as PLR3
+    #     befor loop:       plr[0]
+    #           loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:plr[0] MAC_r[3]
+    #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:       MAC_r[3]
     "PrefetchLocalRead":          list(range(128+1)),
 
     # We use double LDS buffer when PrefetchGlobalRead.
@@ -377,7 +382,9 @@ validParameters = {
     # or help to increase Occupancy.
     #     1 means: Force to use 1 LDS Buffer even with PrefetchGlobalRead
     #    -1 means: generator will use 1 LDS buffer only when LDS exceed MaxLDS
-    # Currently only support TN+TLDS+wider_local_read
+    # Usage case:
+    #    SIA2: 1LDSBuffer is set to 1 natively
+    #    SIA3: 1LDSBuffer works only when PGR=True
     # TODO: optimize scheduling to support more cases.
     "1LDSBuffer": [-1 ,0, 1],
 
@@ -854,8 +861,11 @@ validParameters = {
     # used in combination with TransposeLDS=True
     # in TransposeLDS=1 case, use wider load to fetch elements in summation dimension from LDS
     # helps optimizing instruction scheduling between MFMA and nonMFMA instructions
+    # NOTE: for input bpe=32, max LRVW is 4  (to fit ds_read_b128) (FP32)
+    #                 bpe=16, max LRVW is 8  (to fit ds_read_b128) (FP16)
+    #                 bpe=8,  max LRVW is 16 (to fit ds_read_b128) (INT8)
 
-    "LocalReadVectorWidth":      [ -1, 1, 2, 4, 8 ],
+    "LocalReadVectorWidth":      [ -1, 1, 2, 4, 8, 16 ],
 
     # threads should read/write/operate on this many contiguous elements from the C matrix.
     # If VW=4 then thread0 will process 4 consec C elements, then thread1 next 4, etc.
@@ -933,7 +943,7 @@ validParameters = {
     "LdsBlockSizePerPad":          [-1, 0, 64, 128, 256, 512],
 
     # Transpose LDS format. Local store in Coalsced dimension , same as optimized global fetch dimension . applicable only in TLU=0 case for miSIMD(s)
-    # Ethan: TODO- No code for -1 ?
+    # Ethan-TODO: No code for -1 ?
     "TransposeLDS":                [-1, 1, 0],
 
     # tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated
