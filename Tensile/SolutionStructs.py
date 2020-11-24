@@ -2460,13 +2460,12 @@ class Solution:
     # General Batch doesn't support PersistentKernel
     if state["PersistentKernel"] and (\
             (state["KernelLanguage"] == "Assembly" and state["GlobalSplitU"] != 1) or \
-            (state["KernelLanguage"] == "Assembly" and state["WorkGroupMapping"] < 0) or \
-            (not state["ProblemType"]["StridedBatched"])):
+            (state["KernelLanguage"] == "Assembly" and state["WorkGroupMapping"] < 0)):
       state["PersistentKernel"] = 0
 
     if state["PersistentKernelAlongBatch"] and (\
             (state["PersistentKernel"] == 0) or \
-            (state["KernelLanguage"] == "Source" and state["GlobalSplitU"] != 1) ):
+            (state["KernelLanguage"] == "Source" and state["GlobalSplitU"] != 1)):
       print2("PersistentKernelAlongBatch requires PersistentKernel != 0, forcing PersistentKernelAlongBatch = False")
       print2("PersistentKernelAlongBatch not support GSU on HIP, forcing PersistentKernelAlongBatch = False")
       state["PersistentKernelAlongBatch"] = False

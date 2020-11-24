@@ -1148,16 +1148,20 @@ class KernelWriterSource(KernelWriter):
         kStr += "  %s  = serialWgIter %% numWGIJ;%s" % ( wgIJSerial, self.endLine)
         kStr += "  %s  = %s %% problemNumGroupTiles0;%s" % ( wg0, wgIJSerial, self.endLine)
         kStr += "  %s  = %s / problemNumGroupTiles0;%s" % ( wg1, wgIJSerial, self.endLine)
+        if not kernel["ProblemType"]["StridedBatched"]:
+          if not kernel["_GlobalAccumulation"]:
+            kStr += "  D = BatchD[wgKSerial] + offsetD;%s" % self.endLine
+            kStr += "  C = BatchC[wgKSerial] + offsetC;%s" % self.endLine
+          kStr += "  A = BatchA[wgKSerial] + offsetA;%s" % self.endLine
+          kStr += "  B = BatchB[wgKSerial] + offsetB;%s" % self.endLine
       else:
         # compare serialWgIter against problem groups
         if kernel["GlobalSplitU"] > 1:
           kStr += "  if (serialWgIter >= numWGIJ * GLOBAL_SPLITU) break; // persistent loop" + self.endLine
         else:
           kStr += "  if (serialWgIter >= numWGIJ) break; // persistent loop" + self.endLine
-        kStr += "  %s  = serialWgIter %% problemNumGroupTiles0;%s" \
-            % ( wg0, self.endLine)
-        kStr += "  %s  = serialWgIter / problemNumGroupTiles0;%s" \
-            % ( wg1, self.endLine)
+        kStr += "  %s  = serialWgIter %% problemNumGroupTiles0;%s" % ( wg0, self.endLine)
+        kStr += "  %s  = serialWgIter / problemNumGroupTiles0;%s" % ( wg1, self.endLine)
     else:
       # optionally transpose work-group grid
       kStr += "  unsigned int %s = %s(%u);%s" \
