@@ -1,42 +1,18 @@
 # Change Log for Tensile
- 
-## [(Unreleased) Tensile 4.24.0 for ROCm 4.0.0]
+
+## [Tensile 4.24.0 for ROCm 4.0.0]
 ### Added
-__anchor__aac
+- ROCm 4.0 TargetID support in Tensile; source kernels force xnack=OFF
+- Tensile/Utilities/merge.py revamp for merging logic yaml files
+  - now merge.py requires python3
+  - add `-v` verbosity levels (up to 2)
+  - add `--notrim` to retain leading dimensions in sizes
+- New BoundsCheck design: Access guard page will trigger memory fault
+- Solution fitness metric
+- Auto-tuning documentation and build script improvements
+- Support for High Precision Accumulate FP16/BF16 In FP32 Out
+- CHANGELOG.md
 
-__anchor__ab
-
-__anchor__al
-
-__anchor__bg
-
-__anchor__bs
-
-__anchor__bu
-
-__anchor__cm
-
-__anchor__el
-
-__anchor__hh
-
-__anchor__jc
-
-__anchor__jh
-
-__anchor__lk
-
-__anchor__rj
-
-__anchor__sq
-
-__anchor__th
-
-__anchor__yy
-
-__anchor__ac
-
-__anchor__dm
-
-__anchor__tz
-
+### Fixed
+- locateExe in Tensile/Common.py looks in defaultPath first
+- Honor $ENV{ROCM_PATH} to support relocatable ROCm location
