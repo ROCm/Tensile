@@ -44,22 +44,22 @@ namespace Tensile
     {
         enum class InitMode
         {
-            Zero = 0,       // 0
-            One,            // 1
-            Two,            // 2
-            Random,         // 3
-            NaN,            // 4
-            Inf,            // 5
-            BadInput,       // 6
-            BadOutput,      // 7
-            SerialIdx,      // 8
-            SerialDim0,     // 9
-            SerialDim1,     // 10
-            Identity,       // 11
-            TrigSin,        // 12
-            TrigCos,        // 13
-            TrigAbsSin,     // 14
-            TrigAbsCos,     // 15
+            Zero = 0, // 0
+            One, // 1
+            Two, // 2
+            Random, // 3
+            NaN, // 4
+            Inf, // 5
+            BadInput, // 6
+            BadOutput, // 7
+            SerialIdx, // 8
+            SerialDim0, // 9
+            SerialDim1, // 10
+            Identity, // 11
+            TrigSin, // 12
+            TrigCos, // 13
+            TrigAbsSin, // 14
+            TrigAbsCos, // 15
             Count
         };
 
@@ -942,57 +942,60 @@ namespace Tensile
             return std::isinf(value);
         }
 
-        template<>
+        template <>
         inline float DataInitialization::getTrigValue<float>(int idx, bool useCos, bool useAbs)
         {
             float val = useCos ? cos(idx) : sin(idx);
-            if (useAbs)
+            if(useAbs)
                 val = abs(val);
             return val;
         }
 
-        template<>
+        template <>
         inline double DataInitialization::getTrigValue<double>(int idx, bool useCos, bool useAbs)
         {
             double val = useCos ? cos(idx) : sin(idx);
-            if (useAbs)
+            if(useAbs)
                 val = abs(val);
             return val;
         }
 
-        template<>
+        template <>
         inline Half DataInitialization::getTrigValue<Half>(int idx, bool useCos, bool useAbs)
         {
             return static_cast<Half>(getTrigValue<float>(idx, useCos, useAbs));
         }
 
-        template<>
-        inline BFloat16 DataInitialization::getTrigValue<BFloat16>(int idx, bool useCos, bool useAbs)
+        template <>
+        inline BFloat16
+            DataInitialization::getTrigValue<BFloat16>(int idx, bool useCos, bool useAbs)
         {
             return static_cast<BFloat16>(getTrigValue<float>(idx, useCos, useAbs));
         }
 
-        template<>
+        template <>
         inline int32_t DataInitialization::getTrigValue<int32_t>(int idx, bool useCos, bool useAbs)
         {
             throw std::runtime_error("Trig not available for int32_t.");
         }
 
-        template<>
+        template <>
         inline Int8x4 DataInitialization::getTrigValue<Int8x4>(int idx, bool useCos, bool useAbs)
         {
             throw std::runtime_error("Trig not available for Int8x4.");
         }
 
-        template<>
-        inline std::complex<float> DataInitialization::getTrigValue<std::complex<float>>(int idx, bool useCos, bool useAbs)
+        template <>
+        inline std::complex<float>
+            DataInitialization::getTrigValue<std::complex<float>>(int idx, bool useCos, bool useAbs)
         {
             return std::complex<float>(getTrigValue<float>(idx, useCos, useAbs),
                                        getTrigValue<float>(idx, useCos, useAbs));
         }
 
-        template<>
-        inline std::complex<double> DataInitialization::getTrigValue<std::complex<double> >(int idx, bool useCos, bool useAbs)
+        template <>
+        inline std::complex<double> DataInitialization::getTrigValue<std::complex<double>>(
+            int idx, bool useCos, bool useAbs)
         {
             return std::complex<double>(getTrigValue<double>(idx, useCos, useAbs),
                                         getTrigValue<double>(idx, useCos, useAbs));

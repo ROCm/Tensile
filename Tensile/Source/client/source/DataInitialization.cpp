@@ -114,13 +114,13 @@ namespace Tensile
                 mode = InitMode::SerialDim1;
             else if(strValue == ToString(InitMode::Identity))
                 mode = InitMode::Identity;
-            else if (strValue == ToString(InitMode::TrigSin))
+            else if(strValue == ToString(InitMode::TrigSin))
                 mode = InitMode::TrigSin;
-            else if (strValue == ToString(InitMode::TrigCos))
+            else if(strValue == ToString(InitMode::TrigCos))
                 mode = InitMode::TrigCos;
-            else if (strValue == ToString(InitMode::TrigAbsSin))
+            else if(strValue == ToString(InitMode::TrigAbsSin))
                 mode = InitMode::TrigAbsSin;
-            else if (strValue == ToString(InitMode::TrigAbsCos))
+            else if(strValue == ToString(InitMode::TrigAbsCos))
                 mode = InitMode::TrigAbsCos;
             else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
             {
