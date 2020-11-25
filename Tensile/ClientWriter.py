@@ -46,6 +46,10 @@ class DataInitName(Enum):
   SerialDim0 = 9
   SerialDim1 = 10
   Identity = 11
+  TrigSin = 12
+  TrigCos = 13
+  TrigAbsSin = 14
+  TrigAbsCos = 15
 
 class ClientLogLevel(Enum):
   Error = 0
