@@ -50,6 +50,7 @@ class DataInitName(Enum):
   TrigCos = 13
   TrigAbsSin = 14
   TrigAbsCos = 15
+  RandomNarrow = 16
 
 class ClientLogLevel(Enum):
   Error = 0
