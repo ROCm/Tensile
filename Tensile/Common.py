@@ -239,6 +239,9 @@ globalParameters["PerfModelReadEfficiency"] = 0.85
 globalParameters["MaxWorkspaceSize"] = 32 * 1024 * 1024 # max workspace for training (32M)
 globalParameters["MinKForGSU"] = 256 # min K size to use GlobalSplitU algorithm (only for HPA now)
 
+# control if a solution is run for a given problem
+globalParameters["GranularityThreshold"] = 0.0
+
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 
@@ -842,7 +845,7 @@ validParameters = {
     # If the ThreadTile is > VectorWidth then thread0 will next operate on the 4 elements in C at (4*NumThreads)
     # Typically the load vector width and store vector width are directly related to the VW.
     # The global load width is closely related to the width of local stores so
-    # GlobalReadVectorWidth also ontrols local write width.
+    # GlobalReadVectorWidth also controls local write width.
     # Local read width also matches since VectorWidth consec elements must be read
     # Typically matching 16 bytes is good choice since the stores will be optimally coalesced with 16 bytes/WI.
     # -1 means use the largest vector width up to 128 bits.
