@@ -1017,46 +1017,46 @@ namespace Tensile
         template <>
         struct FP_PARAM<double>
         {
-            using UINT_T              = uint64_t;
-            static constexpr int NSIG = 52;
-            static constexpr int NEXP = 11;
+            using UINT_T                = uint64_t;
+            static constexpr int NUMSIG = 52;
+            static constexpr int NUMEXP = 11;
         };
 
         template <>
         struct FP_PARAM<float>
         {
-            using UINT_T              = uint32_t;
-            static constexpr int NSIG = 23;
-            static constexpr int NEXP = 8;
+            using UINT_T                = uint32_t;
+            static constexpr int NUMSIG = 23;
+            static constexpr int NUMEXP = 8;
         };
 
         template <>
         struct FP_PARAM<BFloat16>
         {
-            using UINT_T              = uint16_t;
-            static constexpr int NSIG = 7;
-            static constexpr int NEXP = 8;
+            using UINT_T                = uint16_t;
+            static constexpr int NUMSIG = 7;
+            static constexpr int NUMEXP = 8;
         };
 
         template <>
         struct FP_PARAM<Half>
         {
-            using UINT_T              = uint16_t;
-            static constexpr int NSIG = 10;
-            static constexpr int NEXP = 5;
+            using UINT_T                = uint16_t;
+            static constexpr int NUMSIG = 10;
+            static constexpr int NUMEXP = 5;
         };
 
         template <typename T>
         struct rocm_random_common : FP_PARAM<T>
         {
             using typename FP_PARAM<T>::UINT_T;
-            using FP_PARAM<T>::NSIG;
-            using FP_PARAM<T>::NEXP;
+            using FP_PARAM<T>::NUMSIG;
+            using FP_PARAM<T>::NUMEXP;
             using random_fp_int_dist = std::uniform_int_distribution<UINT_T>;
 
             static_assert(sizeof(UINT_T) == sizeof(T), "Type sizes do not match");
-            static constexpr UINT_T expmask = (((UINT_T)1 << NEXP) - 1) << NSIG;
-            static constexpr UINT_T expbias = ((UINT_T)1 << (NEXP - 1)) - 1;
+            static constexpr UINT_T expmask = (((UINT_T)1 << NUMEXP) - 1) << NUMSIG;
+            static constexpr UINT_T expbias = ((UINT_T)1 << (NUMEXP - 1)) - 1;
             inline static T         signsig_exp(UINT_T signsig, UINT_T exp)
             {
                 union
@@ -1064,7 +1064,7 @@ namespace Tensile
                     UINT_T u;
                     T      fp;
                 };
-                u = signsig & ~expmask | ((exp + expbias) << NSIG) & expmask;
+                u = signsig & ~expmask | ((exp + expbias) << NUMSIG) & expmask;
                 return fp;
             }
         };
@@ -1075,7 +1075,7 @@ namespace Tensile
                                                       FP_PARAM<BFloat16>::UINT_T exp)
         {
             FP_PARAM<BFloat16>::UINT_T u;
-            u = signsig & ~expmask | ((exp + expbias) << NSIG) & expmask;
+            u = signsig & ~expmask | ((exp + expbias) << NUMSIG) & expmask;
             return static_cast<BFloat16>(u);
         }
 
