@@ -2400,10 +2400,9 @@ class KernelWriterSource(KernelWriter):
               if sumDim in kernel["ProblemType"]["MirrorDims%s"%(tc)]:
                 iterVar = "-" + iterVar
 
-              globalReadOffsetZp = "globalReadOffset%s_%u_%u_%u_%u_ZP%s%s + %u" \
+              globalReadOffsetZp = "globalReadOffset%s_%u_%u_%u_%u_ZP%s%s" \
                   % (tc, para, 0 if tP["rc"] else sPara, perp, sPerp, \
-                     freeDimChar, sumChar,
-                     sPara if tP["rc"] else 0);
+                     freeDimChar, sumChar);
               kStr += " ( (%s * stride%s%s + %s) >= elementEdge%s%s )" \
                       % (iterVar, tc, sumChar, globalReadOffsetZp, tc, sumChar)
 
