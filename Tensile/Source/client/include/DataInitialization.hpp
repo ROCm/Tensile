@@ -44,25 +44,31 @@ namespace Tensile
     {
         enum class InitMode
         {
-            Zero = 0,
-            One,
-            Two,
-            Random,
-            NaN,
-            Inf,
-            BadInput,
-            BadOutput,
-            SerialIdx,
-            SerialDim0,
-            SerialDim1,
-            Identity,
+            Zero = 0, // 0
+            One, // 1
+            Two, // 2
+            Random, // 3
+            NaN, // 4
+            Inf, // 5
+            BadInput, // 6
+            BadOutput, // 7
+            SerialIdx, // 8
+            SerialDim0, // 9
+            SerialDim1, // 10
+            Identity, // 11
+            TrigSin, // 12
+            TrigCos, // 13
+            TrigAbsSin, // 14
+            TrigAbsCos, // 15
             Count
         };
 
         static bool IsProblemDependent(InitMode const& mode)
         {
             return mode == InitMode::SerialIdx || mode == InitMode::SerialDim0
-                   || mode == InitMode::SerialDim1 || mode == InitMode::Identity;
+                   || mode == InitMode::SerialDim1 || mode == InitMode::Identity
+                   || mode == InitMode::TrigSin || mode == InitMode::TrigCos
+                   || mode == InitMode::TrigAbsSin || mode == InitMode::TrigAbsCos;
         }
 
         std::string ToString(InitMode mode);
@@ -153,6 +159,10 @@ namespace Tensile
                 case InitMode::SerialDim0:
                 case InitMode::SerialDim1:
                 case InitMode::Identity:
+                case InitMode::TrigSin:
+                case InitMode::TrigCos:
+                case InitMode::TrigAbsSin:
+                case InitMode::TrigAbsCos:
                 case InitMode::Count:
                     throw std::runtime_error("Invalid InitMode.");
                 }
@@ -160,6 +170,9 @@ namespace Tensile
 
             template <typename T, InitMode Mode>
             static inline T getValue();
+
+            template <typename T>
+            static inline T getTrigValue(int idx, bool useCos, bool useAbs);
 
             template <typename T>
             static bool isBadInput(T value);
@@ -201,6 +214,10 @@ namespace Tensile
                 case InitMode::SerialDim0:
                 case InitMode::SerialDim1:
                 case InitMode::Identity:
+                case InitMode::TrigSin:
+                case InitMode::TrigCos:
+                case InitMode::TrigAbsSin:
+                case InitMode::TrigAbsCos:
                 case InitMode::Count:
                     throw std::runtime_error("Invalid InitMode.");
                 }
@@ -247,6 +264,18 @@ namespace Tensile
                     break;
                 case InitMode::Identity:
                     initArrayIdentity<T>(array, tensor);
+                    break;
+                case InitMode::TrigSin:
+                    initArrayTrig<T, false, false>(array, tensor);
+                    break;
+                case InitMode::TrigCos:
+                    initArrayTrig<T, true, false>(array, tensor);
+                    break;
+                case InitMode::TrigAbsSin:
+                    initArrayTrig<T, false, true>(array, tensor);
+                    break;
+                case InitMode::TrigAbsCos:
+                    initArrayTrig<T, true, true>(array, tensor);
                     break;
                 case InitMode::Count:
                     throw std::runtime_error("Invalid InitMode.");
@@ -305,6 +334,19 @@ namespace Tensile
                 {
                     CoordNumbered(idx, coord.begin(), coord.end(), sizes.begin(), sizes.end());
                     array[tensor.index(coord)] = static_cast<T>(coord[0] == coord[1] ? 1 : 0);
+                }
+            }
+
+            template <typename T, bool useCos, bool useAbs>
+            void initArrayTrig(T* array, TensorDescriptor const& tensor)
+            {
+                auto const&         sizes = tensor.sizes();
+                auto                count = CoordCount(sizes.begin(), sizes.end());
+                std::vector<size_t> coord(tensor.dimensions(), 0);
+                for(size_t idx = 0; idx < count; idx++)
+                {
+                    CoordNumbered(idx, coord.begin(), coord.end(), sizes.begin(), sizes.end());
+                    array[tensor.index(coord)] = getTrigValue<T>(idx, useCos, useAbs);
                 }
             }
 
@@ -898,6 +940,65 @@ namespace Tensile
         inline bool DataInitialization::isBadOutput<BFloat16>(BFloat16 value)
         {
             return std::isinf(value);
+        }
+
+        template <>
+        inline float DataInitialization::getTrigValue<float>(int idx, bool useCos, bool useAbs)
+        {
+            float val = useCos ? cos(idx) : sin(idx);
+            if(useAbs)
+                val = abs(val);
+            return val;
+        }
+
+        template <>
+        inline double DataInitialization::getTrigValue<double>(int idx, bool useCos, bool useAbs)
+        {
+            double val = useCos ? cos(idx) : sin(idx);
+            if(useAbs)
+                val = abs(val);
+            return val;
+        }
+
+        template <>
+        inline Half DataInitialization::getTrigValue<Half>(int idx, bool useCos, bool useAbs)
+        {
+            return static_cast<Half>(getTrigValue<float>(idx, useCos, useAbs));
+        }
+
+        template <>
+        inline BFloat16
+            DataInitialization::getTrigValue<BFloat16>(int idx, bool useCos, bool useAbs)
+        {
+            return static_cast<BFloat16>(getTrigValue<float>(idx, useCos, useAbs));
+        }
+
+        template <>
+        inline int32_t DataInitialization::getTrigValue<int32_t>(int idx, bool useCos, bool useAbs)
+        {
+            throw std::runtime_error("Trig not available for int32_t.");
+        }
+
+        template <>
+        inline Int8x4 DataInitialization::getTrigValue<Int8x4>(int idx, bool useCos, bool useAbs)
+        {
+            throw std::runtime_error("Trig not available for Int8x4.");
+        }
+
+        template <>
+        inline std::complex<float>
+            DataInitialization::getTrigValue<std::complex<float>>(int idx, bool useCos, bool useAbs)
+        {
+            return std::complex<float>(getTrigValue<float>(idx, useCos, useAbs),
+                                       getTrigValue<float>(idx, useCos, useAbs));
+        }
+
+        template <>
+        inline std::complex<double> DataInitialization::getTrigValue<std::complex<double>>(
+            int idx, bool useCos, bool useAbs)
+        {
+            return std::complex<double>(getTrigValue<double>(idx, useCos, useAbs),
+                                        getTrigValue<double>(idx, useCos, useAbs));
         }
     } // namespace Client
 } // namespace Tensile

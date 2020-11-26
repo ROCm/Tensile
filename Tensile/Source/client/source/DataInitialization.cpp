@@ -63,6 +63,14 @@ namespace Tensile
                 return "SerialDim1";
             case InitMode::Identity:
                 return "Identity";
+            case InitMode::TrigSin:
+                return "TrigSin";
+            case InitMode::TrigCos:
+                return "TrigCos";
+            case InitMode::TrigAbsSin:
+                return "TrigAbsSin";
+            case InitMode::TrigAbsCos:
+                return "TrigAbsCos";
 
             case InitMode::Count:
                 break;
@@ -106,6 +114,14 @@ namespace Tensile
                 mode = InitMode::SerialDim1;
             else if(strValue == ToString(InitMode::Identity))
                 mode = InitMode::Identity;
+            else if(strValue == ToString(InitMode::TrigSin))
+                mode = InitMode::TrigSin;
+            else if(strValue == ToString(InitMode::TrigCos))
+                mode = InitMode::TrigCos;
+            else if(strValue == ToString(InitMode::TrigAbsSin))
+                mode = InitMode::TrigAbsSin;
+            else if(strValue == ToString(InitMode::TrigAbsCos))
+                mode = InitMode::TrigAbsCos;
             else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
             {
                 int value = atoi(strValue.c_str());
