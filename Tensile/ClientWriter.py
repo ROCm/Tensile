@@ -33,6 +33,7 @@ from enum import Enum
 from .Contractions import FreeIndex
 from .Contractions import ProblemType as ContractionsProblemType
 
+# NOTE- For NewClient only
 class DataInitName(Enum):
   Zero = 0
   One = 1

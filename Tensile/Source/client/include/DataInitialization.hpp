@@ -43,6 +43,8 @@ namespace Tensile
 {
     namespace Client
     {
+        // Problem-indept. from 0~7, and 16 (fixed values for every problem)
+        // And problem-dept. from 8~15 (values depend on problem)
         enum class InitMode
         {
             Zero = 0, // 0
