@@ -48,10 +48,12 @@ namespace Tensile
                 int firstSolutionIdx = args["solution-start-idx"].as<int>();
                 int numSolutions     = args["num-solutions"].as<int>();
 
-                auto criteria = AllSolutionsIterator::CreateCriteria(library, hardware, args);
-
                 return std::make_shared<AllSolutionsIterator>(
-                    library, hardware, firstSolutionIdx, numSolutions, criteria);
+                    library,
+                    hardware,
+                    firstSolutionIdx,
+                    numSolutions,
+                    AllSolutionsIterator::CreateCriteria(library, hardware, args));
             }
         }
 
@@ -115,7 +117,6 @@ namespace Tensile
             RunCriteria criteria;
 
             double granThresh = args["granularity-threshold"].as<double>();
-
             if(granThresh > 0.0)
             {
                 criteria.push_back(
