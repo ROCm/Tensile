@@ -33,6 +33,7 @@
 #include "ClientProblemFactory.hpp"
 
 #include <cstddef>
+#include <random>
 
 #include "RunListener.hpp"
 
@@ -60,6 +61,7 @@ namespace Tensile
             TrigCos, // 13
             TrigAbsSin, // 14
             TrigAbsCos, // 15
+            RandomNarrow, // 16
             Count
         };
 
@@ -147,6 +149,8 @@ namespace Tensile
                     return getValue<T, InitMode::Two>();
                 case InitMode::Random:
                     return getValue<T, InitMode::Random>();
+                case InitMode::RandomNarrow:
+                    return getValue<T, InitMode::RandomNarrow>();
                 case InitMode::NaN:
                     return getValue<T, InitMode::NaN>();
                 case InitMode::Inf:
@@ -198,6 +202,9 @@ namespace Tensile
                 case InitMode::Random:
                     initArray<T, InitMode::Random>(array, elements);
                     break;
+                case InitMode::RandomNarrow:
+                    initArray<T, InitMode::RandomNarrow>(array, elements);
+                    break;
                 case InitMode::NaN:
                     initArray<T, InitMode::NaN>(array, elements);
                     break;
@@ -240,6 +247,9 @@ namespace Tensile
                     break;
                 case InitMode::Random:
                     initArray<T, InitMode::Random>(array, tensor);
+                    break;
+                case InitMode::RandomNarrow:
+                    initArray<T, InitMode::RandomNarrow>(array, tensor);
                     break;
                 case InitMode::NaN:
                     initArray<T, InitMode::NaN>(array, tensor);
@@ -999,6 +1009,162 @@ namespace Tensile
         {
             return std::complex<double>(getTrigValue<double>(idx, useCos, useAbs),
                                         getTrigValue<double>(idx, useCos, useAbs));
+        }
+
+        template <typename>
+        struct FP_PARAM;
+
+        template <>
+        struct FP_PARAM<double>
+        {
+            using UINT_T                = uint64_t;
+            static constexpr int NUMSIG = 52;
+            static constexpr int NUMEXP = 11;
+        };
+
+        template <>
+        struct FP_PARAM<float>
+        {
+            using UINT_T                = uint32_t;
+            static constexpr int NUMSIG = 23;
+            static constexpr int NUMEXP = 8;
+        };
+
+        template <>
+        struct FP_PARAM<BFloat16>
+        {
+            using UINT_T                = uint16_t;
+            static constexpr int NUMSIG = 7;
+            static constexpr int NUMEXP = 8;
+        };
+
+        template <>
+        struct FP_PARAM<Half>
+        {
+            using UINT_T                = uint16_t;
+            static constexpr int NUMSIG = 10;
+            static constexpr int NUMEXP = 5;
+        };
+
+        template <typename T>
+        struct rocm_random_common : FP_PARAM<T>
+        {
+            using typename FP_PARAM<T>::UINT_T;
+            using FP_PARAM<T>::NUMSIG;
+            using FP_PARAM<T>::NUMEXP;
+            using random_fp_int_dist = std::uniform_int_distribution<UINT_T>;
+
+            static_assert(sizeof(UINT_T) == sizeof(T), "Type sizes do not match");
+            static constexpr UINT_T expmask = (((UINT_T)1 << NUMEXP) - 1) << NUMSIG;
+            static constexpr UINT_T expbias = ((UINT_T)1 << (NUMEXP - 1)) - 1;
+            inline static T         signsig_exp(UINT_T signsig, UINT_T exp)
+            {
+                union
+                {
+                    UINT_T u;
+                    T      fp;
+                };
+                u = signsig & ~expmask | ((exp + expbias) << NUMSIG) & expmask;
+                return fp;
+            }
+        };
+
+        template <>
+        inline BFloat16
+            rocm_random_common<BFloat16>::signsig_exp(FP_PARAM<BFloat16>::UINT_T signsig,
+                                                      FP_PARAM<BFloat16>::UINT_T exp)
+        {
+            FP_PARAM<BFloat16>::UINT_T u;
+            u = signsig & ~expmask | ((exp + expbias) << NUMSIG) & expmask;
+            return static_cast<BFloat16>(u);
+        }
+
+        template <typename T, int LOW_EXP, int HIGH_EXP>
+        struct rocm_random : rocm_random_common<T>
+        {
+            using typename rocm_random_common<T>::random_fp_int_dist;
+            __attribute__((flatten)) T operator()()
+            {
+                static std::mt19937 rng;
+                int                 exp = std::uniform_int_distribution<int>{}(rng);
+                exp                     = exp % (HIGH_EXP - LOW_EXP + 1) + LOW_EXP;
+                return this->signsig_exp(random_fp_int_dist{}(rng), exp);
+            }
+        };
+
+        template <typename T>
+        struct rocm_random_narrow_range;
+
+        template <>
+        struct rocm_random_narrow_range<double> : rocm_random<double, -189, 0>
+        {
+        };
+
+        template <>
+        struct rocm_random_narrow_range<float> : rocm_random<float, -100, 0>
+        {
+        };
+
+        template <>
+        struct rocm_random_narrow_range<BFloat16> : rocm_random<BFloat16, -100, 0>
+        {
+        };
+
+        template <>
+        struct rocm_random_narrow_range<Half> : rocm_random<Half, -100, 0>
+        {
+        };
+
+        template <>
+        inline float DataInitialization::getValue<float, InitMode::RandomNarrow>()
+        {
+            return rocm_random_narrow_range<float>{}();
+        }
+
+        template <>
+        inline double DataInitialization::getValue<double, InitMode::RandomNarrow>()
+        {
+            return rocm_random_narrow_range<double>{}();
+        }
+
+        template <>
+        inline BFloat16 DataInitialization::getValue<BFloat16, InitMode::RandomNarrow>()
+        {
+            return rocm_random_narrow_range<BFloat16>{}();
+        }
+
+        template <>
+        inline Half DataInitialization::getValue<Half, InitMode::RandomNarrow>()
+        {
+            return rocm_random_narrow_range<Half>{}();
+        }
+
+        template <>
+        inline std::complex<float>
+            DataInitialization::getValue<std::complex<float>, InitMode::RandomNarrow>()
+        {
+            return std::complex<float>(rocm_random_narrow_range<float>{}(),
+                                       rocm_random_narrow_range<float>{}());
+        }
+
+        template <>
+        inline std::complex<double>
+            DataInitialization::getValue<std::complex<double>, InitMode::RandomNarrow>()
+        {
+            return std::complex<double>(rocm_random_narrow_range<double>{}(),
+                                        rocm_random_narrow_range<double>{}());
+        }
+
+        template <>
+        inline int32_t DataInitialization::getValue<int32_t, InitMode::RandomNarrow>()
+        {
+            return getValue<int32_t, InitMode::Random>();
+        }
+
+        template <>
+        inline Int8x4 DataInitialization::getValue<Int8x4, InitMode::RandomNarrow>()
+        {
+            return getValue<Int8x4, InitMode::Random>();
         }
     } // namespace Client
 } // namespace Tensile
