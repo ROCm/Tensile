@@ -35,6 +35,7 @@ from enum import Enum
 from .Contractions import FreeIndex
 from .Contractions import ProblemType as ContractionsProblemType
 
+# NOTE- For NewClient only
 class DataInitName(Enum):
   Zero = 0
   One = 1
@@ -48,6 +49,11 @@ class DataInitName(Enum):
   SerialDim0 = 9
   SerialDim1 = 10
   Identity = 11
+  TrigSin = 12
+  TrigCos = 13
+  TrigAbsSin = 14
+  TrigAbsCos = 15
+  RandomNarrow = 16
 
 class ClientLogLevel(Enum):
   Error = 0

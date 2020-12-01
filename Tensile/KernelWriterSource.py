@@ -1234,9 +1234,10 @@ class KernelWriterSource(KernelWriter):
   # Global Read Addresses: Unroll Assignment A/B
   ##############################################################################
   def graUnrollAssignment(self, kernel, tP):
-    kStr = ""
-    kStr += "  unsigned int globalReadOffset%s%s = (serial%s" \
-        % (tP["tensorChar"], self.unrollChar, ("/" if tP["grcg"] == tP["tlu"] else "%") )
+    kStr = "  unsigned int globalReadOffset%s%s = " % (tP["tensorChar"], self.unrollChar)
+    if kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s"% tP["tensorChar"]]:
+      kStr += "size%s - 1 - " % self.unrollChar
+    kStr += "(serial" + ("/" if tP["grcg"] == tP["tlu"] else "%")
     if tP["grcg"]:
       kStr += (tP["lvc"] if tP["grcv"] else tP["lsc"])
     else:
@@ -1284,10 +1285,18 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     for i in range(self.otherSummations):
       index = i + kernel["ProblemType"]["NumIndicesC"]
-      kStr += "#define globalReadOffsetA%s 0%s" \
-          % (self.indexChars[index], self.endLine)
-      kStr += "#define globalReadOffsetB%s 0%s" \
-          % (self.indexChars[index], self.endLine)
+      if index in kernel["ProblemType"]["MirrorDimsA"]:
+        kStr += "unsigned int globalReadOffsetA%s = size%s - 1;%s" \
+            % (self.indexChars[index], self.indexChars[index], self.endLine)
+      else:
+        kStr += "#define globalReadOffsetA%s 0%s" \
+            % (self.indexChars[index], self.endLine)
+      if index in kernel["ProblemType"]["MirrorDimsB"]:
+        kStr += "unsigned int globalReadOffsetB%s = size%s - 1;%s" \
+            % (self.indexChars[index], self.indexChars[index], self.endLine)
+      else:
+        kStr += "#define globalReadOffsetB%s 0%s" \
+            % (self.indexChars[index], self.endLine)
     return kStr
 
   ##############################################################################
@@ -1364,11 +1373,13 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def graUnrollOffsets(self, kernel, tP):
     kStr = ""
+    isMirrorUnroll = kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s"% tP["tensorChar"]]
     for l in range(0, tP["nru"]):
       for s in range(0, 1 if tP["rc"] else kernel["VectorWidth"]):
-        kStr += "  unsigned int globalReadOffset%s%s_%u_%u = globalReadOffset%s%s + %u + %d*%s;%s" \
+        kStr += "  unsigned int globalReadOffset%s%s_%u_%u = globalReadOffset%s%s + %u %s %d*%s;%s" \
             % (tP["tensorChar"], self.unrollChar, l, s, \
-            tP["tensorChar"], self.unrollChar, s, l, \
+            tP["tensorChar"], self.unrollChar, s,    \
+            "-" if isMirrorUnroll else "+", l, \
             (tP["lsp"] if tP["tlu"] else tP["lsc"]), \
             self.endLine)
       #else:
@@ -1537,9 +1548,10 @@ class KernelWriterSource(KernelWriter):
     tc = tP["tensorChar"]
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    declStr = "%s%s globalReadInc%s%s = (%s)stride%s%s" \
+    isMirrorIdx = kernel["ProblemType"]["IndicesSummation"][loopIdx] in kernel["ProblemType"]["MirrorDims%s"%(tc)]
+    declStr = "%s%s globalReadInc%s%s = %s(%s)stride%s%s" \
         % (self.indent, self.int64Str, tc, loopChar, \
-        self.int64Str, tc, loopChar)
+        "-" if isMirrorIdx else "", self.int64Str, tc, loopChar)
     if loopIdx==self.unrollIdx:
       kStr += declStr
       if not kernel["PackSummationDims"]:
@@ -1559,6 +1571,7 @@ class KernelWriterSource(KernelWriter):
         # need to only subtract the increments performed in the unroll
         # loop (truncate the iterations that are handled in tail loop).
         tmpChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx+1]]
+        isPervMirrorIdx = kernel["ProblemType"]["IndicesSummation"][loopIdx+1] in kernel["ProblemType"]["MirrorDims%s"%(tc)]
         if loopIdx+1 == self.unrollIdx:
           # special case needs to adjust (subtract) address incs made during unroll loop
           if kernel["GlobalSplitU"] > 1:
@@ -1570,11 +1583,11 @@ class KernelWriterSource(KernelWriter):
           else:
             numIter = "size%s/LOCAL_DEPTHU" % tmpChar
           kStr += declStr
-          kStr += " - stride%s%s*(" % (tc, tmpChar) + numIter + ")*LOCAL_DEPTHU"
+          kStr += " %s stride%s%s*(" % ("+" if isPervMirrorIdx else "-", tc, tmpChar) + numIter + ")*LOCAL_DEPTHU"
         else:
           # other summation that does not immediately wrap the unroll inc:
           kStr += declStr
-          kStr += " - stride%s%s*(size%s)" % (tc, tmpChar, tmpChar)
+          kStr += " %s stride%s%s*(size%s)" % ("+" if isPervMirrorIdx else "-", tc, tmpChar, tmpChar)
     kStr += ";" + self.endLine
     return kStr
 
@@ -1617,7 +1630,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write Addresses: First Offset A/B
   ##############################################################################
-  def lwaFirstOffset(self, kernel, tP):
+  def lwaFirstOffset(self, kernel, tP, uDu=0):
     kStr = ""
     kStr += "  unsigned int localWriteFirstOffset%s = lw%s%s + lw%s%s*(MT%s+PAD)%s;%s" \
         % (tP["tensorChar"], tP["tensorChar"], tP["tileChar"], \
@@ -1698,6 +1711,18 @@ class KernelWriterSource(KernelWriter):
     kStr += "  %sDATA_TYPE *localRead%s;%s" % (self.sharedPtrStr, \
         tP["tensorChar"], self.endLine)
     return kStr
+
+  ##############################################################################
+  # Recalculate local write addresses A/B
+  ##############################################################################
+  def recalcLocalWriteAddresses(self, kernel, tP, uDu):
+    return ""
+
+  ##############################################################################
+  # Recalculate local read addresses A/B
+  ##############################################################################
+  def recalcLocalReadAddressesAB(self, kernel):
+    return ""
 
   ##############################################################################
   # openShadowInit
@@ -1988,7 +2013,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Open Loop
   ##############################################################################
-  def openLoop(self, kernel, loopIdx):
+  def openLoop(self, kernel, loopIdx, uDu=0):
     problemType = kernel["ProblemType"]
     tailLoop = loopIdx < 0
     if tailLoop:
@@ -2026,8 +2051,10 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Close Loop
   ##############################################################################
-  def closeLoop(self, kernel, loopIdx, finalLoop):
+  def closeLoop(self, kernel, loopIdx, finalLoop, uDu=0, emitEndLabelOnly=False):
     kStr = ""
+    if emitEndLabelOnly:
+      return kStr
     problemType = kernel["ProblemType"]
     loopDim = problemType["IndicesSummation"][loopIdx]
     loopChar = self.indexChars[loopDim]
@@ -2338,14 +2365,19 @@ class KernelWriterSource(KernelWriter):
                 % (tP["tensorChar"].lower(), \
                 para, sPara, perp, sPerp )
             kStr += "%s%s = " % (self.indent, dest)
+            isMirrorIdx = kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s"% tc]
             # guard around K
             guarded = 0
             if guardK:
               guarded = 1
-              kStr += "( globalReadOffset%s%s_%u_%u + %u >= (size%s %% LOCAL_DEPTHU%s)%s )" \
+              guardMirror = ""
+              if isMirrorIdx:
+                guardMirror += "- (size%s / LOCAL_DEPTHU)*LOCAL_DEPTHU" % (self.unrollChar)
+              kStr += "( globalReadOffset%s%s_%u_%u %s %s %u >= (size%s %% LOCAL_DEPTHU%s)%s )" \
                   % (tP["tensorChar"], self.unrollChar, \
-                  (perp if tP["tlu"] else para), \
-                  (sPerp if tP["tlu"] else 0), (0 if tP["tlu"] else sPara), self.unrollChar, \
+                  (perp if tP["tlu"] else para), (sPerp if tP["tlu"] else 0), \
+                  guardMirror, "-" if isMirrorIdx and tc == 'B' else "+", \
+                  (0 if tP["tlu"] else sPara), self.unrollChar, \
                   (" + LOCAL_DEPTHU*gsuSumIdx" if kernel["GlobalSplitU"]>1 \
                   else ""), (" || !numIter%s"%self.unrollChar) \
                   if kernel["GlobalSplitU"] > 1 else "")
@@ -2365,6 +2397,8 @@ class KernelWriterSource(KernelWriter):
                 iterVar = "psdIter"
               else:
                 raise RuntimeError("ZP not supported with multiple summations and PSD==0")
+              if sumDim in kernel["ProblemType"]["MirrorDims%s"%(tc)]:
+                iterVar = "-" + iterVar
 
               globalReadOffsetZp = "globalReadOffset%s_%u_%u_%u_%u_ZP%s%s + %u" \
                   % (tc, para, 0 if tP["rc"] else sPara, perp, sPerp, \
@@ -2382,8 +2416,8 @@ class KernelWriterSource(KernelWriter):
                   (tP["tensorChar"], para if tP["tlu"] else perp) )
             if guarded:
               kStr += " ? SCALAR_OOB_DATA : "
-            kStr += "*(globalRead%s_%u_%u_%u_%u + %u);%s" \
-                % (tP["tensorChar"], para, 0 if tP["rc"] else sPara, perp, sPerp, sPara if tP["rc"] else 0, \
+            kStr += "*(globalRead%s_%u_%u_%u_%u %s %u);%s" \
+                % (tP["tensorChar"], para, 0 if tP["rc"] else sPara, perp, sPerp, "-" if isMirrorIdx and tc == 'B' else "+", sPara if tP["rc"] else 0, \
                 self.endLine)
 
             #if self.db["PrintStagger"] and tP["isA"]:
@@ -2447,7 +2481,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write: Do It A/B
   ##############################################################################
-  def localWriteDo(self, kernel, tP):
+  def localWriteDo(self, kernel, tP, uDu=0):
     kStr = ""
     if self.language == "HIP":
       kStr += "#pragma clang diagnostic push" + self.endLine

@@ -109,12 +109,15 @@ namespace Tensile
    */
         struct BoundIndex
         {
-            BoundIndex(size_t xa = 0, size_t xb = 0)
+            BoundIndex(size_t xa = 0, size_t xb = 0, bool aMirror = false, bool bMirror = false)
                 : a(xa)
-                , b(xb){};
+                , b(xb)
+                , aMirror(aMirror)
+                , bMirror(bMirror){};
             size_t  a, b; //! positions in a or b tensor
             ZeroPad aZeroPad;
             ZeroPad bZeroPad;
+            bool    aMirror, bMirror;
         };
         using BoundIndices = std::vector<BoundIndex>;
 

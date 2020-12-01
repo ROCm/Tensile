@@ -228,20 +228,30 @@ namespace Tensile
                             aCoord[boundIndices[i].a] = bound[i];
                             bCoord[boundIndices[i].b] = bound[i];
 
-                            if(zpA.valid()
-                               && inZeroPad(problem,
-                                            zpA,
-                                            a,
-                                            aCoord,
-                                            bound.at(problem.toBoundsPos(zpA.boundIndex))))
-                                aInZeroPad = true;
-                            if(zpB.valid()
-                               && inZeroPad(problem,
-                                            zpB,
-                                            b,
-                                            bCoord,
-                                            bound.at(problem.toBoundsPos(zpB.boundIndex))))
-                                bInZeroPad = true;
+                            if(problem.boundIndices()[i].aMirror)
+                                aCoord[boundIndices[i].a]
+                                    = boundSize[i] - aCoord[boundIndices[i].a] - 1;
+                            if(problem.boundIndices()[i].bMirror)
+                                bCoord[boundIndices[i].b]
+                                    = boundSize[i] - bCoord[boundIndices[i].b] - 1;
+
+                            if(zpA.valid())
+                            {
+                                auto sumCoord = bound.at(problem.toBoundsPos(zpA.boundIndex));
+                                if(problem.boundIndices()[i].aMirror)
+                                    sumCoord = boundSize[i] - sumCoord - 1;
+
+                                if(inZeroPad(problem, zpA, a, aCoord, sumCoord))
+                                    aInZeroPad = true;
+                            }
+                            if(zpB.valid())
+                            {
+                                auto sumCoord = bound.at(problem.toBoundsPos(zpB.boundIndex));
+                                if(problem.boundIndices()[i].bMirror)
+                                    sumCoord = boundSize[i] - sumCoord - 1;
+                                if(inZeroPad(problem, zpB, b, bCoord, sumCoord))
+                                    bInZeroPad = true;
+                            }
                         }
 
                         size_t aIndex = a.index(aCoord);
@@ -263,15 +273,19 @@ namespace Tensile
                         {
                             auto const& zpA = problem.boundIndices()[0].aZeroPad;
                             auto const& zpB = problem.boundIndices()[0].bZeroPad;
+                            size_t      aI
+                                = problem.boundIndices()[0].aMirror ? (boundSize[0] - i - 1) : i;
+                            size_t bI
+                                = problem.boundIndices()[0].bMirror ? (boundSize[0] - i - 1) : i;
 
                             typename Inputs::AType aVal(0);
                             typename Inputs::BType bVal(0);
-                            if(!aInZeroPad && !inZeroPad(problem, zpA, a, aCoord, i))
+                            if(!aInZeroPad && !inZeroPad(problem, zpA, a, aCoord, aI))
                                 aVal = Transform<typename Inputs::AType>::Input(
-                                    inputs.a[aIndex + (i * aStride) - zpA.padStart], aConjugate);
-                            if(!bInZeroPad && !inZeroPad(problem, zpB, b, bCoord, i))
+                                    inputs.a[aIndex + (aI * aStride) - zpA.padStart], aConjugate);
+                            if(!bInZeroPad && !inZeroPad(problem, zpB, b, bCoord, bI))
                                 bVal = Transform<typename Inputs::BType>::Input(
-                                    inputs.b[bIndex + (i * bStride) - zpB.padStart], bConjugate);
+                                    inputs.b[bIndex + (bI * bStride) - zpB.padStart], bConjugate);
 
                             value += static_cast<Accumulator>(aVal * bVal);
 
