@@ -12,7 +12,8 @@ from Tensile.SolutionStructs import ProblemType, ProblemSizesMock
 #   --library-format=msgpack is currently known to fail
 #   --short-file-names is currently known to fail
 
-def getLogicFileDir(baseDir, schedule):
+@pytest.fixture(scope="module")
+def getLogicFileDir(builddir):
   prefix = "library/src/blas3/Tensile/Logic/asm_full"
   testData = {
     "pre_checkin" : [
@@ -32,9 +33,8 @@ def getLogicFileDir(baseDir, schedule):
     ]
   }
 
-  destDir = os.path.join(baseDir, "logic_yaml", schedule)
+  destDir = os.path.join(builddir, "logic_yaml")
   shutil.rmtree(destDir, ignore_errors=True)
-  Common.ensurePath(destDir)
 
   # basically to query the latest zip release weblink, download it and unzip
   # selected files to destination folder
@@ -46,13 +46,16 @@ def getLogicFileDir(baseDir, schedule):
   archive=$(basename $weblink)
   rootDir=$(zipinfo -1 $archive | head -n 1)
   """
-  for f in testData[schedule]:
-    cmd += "unzip -j -d %s -x $archive ${rootDir}%s\n"%(destDir, os.path.join(prefix,f))
+  for schedule in list(testData.keys()):
+    for f in testData[schedule]:
+      dir = os.path.join(destDir, schedule)
+      Common.ensurePath(dir)
+      cmd += "unzip -j -d %s -x $archive ${rootDir}%s\n"%(dir, os.path.join(prefix,f))
 
-  scriptFile = os.path.join(baseDir,"get_logic.sh")
+  scriptFile = os.path.join(builddir,"get_logic.sh")
   with open(scriptFile, "w") as file: file.write(cmd)
   os.chmod(scriptFile, 0o777)
-  subprocess.run(scriptFile, cwd=baseDir, check=True)
+  subprocess.run(scriptFile, cwd=builddir, check=True)
 
   return destDir
 
@@ -83,13 +86,14 @@ def str2bool(mergeFiles, shortNames, legacyComponents):
 @pytest.mark.parametrize("libraryFormat",     ["yaml", pytest.param("msgpack", marks=pytest.mark.xfail)])
 @pytest.mark.parametrize("shortNames",        [pytest.param("shortNames", marks=pytest.mark.xfail), "noShortName"])
 @pytest.mark.parametrize("legacyComponents",  ["legacyComponents", "noLegacyComponents"])
-def test_integration(useGlobalParameters, builddir, testYamls, mergeFiles, libraryFormat, shortNames, legacyComponents):
+def test_integration(useGlobalParameters, builddir, getLogicFileDir,
+                     testYamls, mergeFiles, libraryFormat, shortNames, legacyComponents):
   mergeFiles, shortNames, legacyComponents = str2bool(mergeFiles, shortNames, legacyComponents)
 
   if isSkippedTest(testYamls, mergeFiles, libraryFormat, shortNames, legacyComponents):
     pytest.skip("only run pre_checkin test in certain combo")
 
-  logicFileDir = getLogicFileDir(builddir, testYamls)
+  logicFileDir = os.path.join(getLogicFileDir, testYamls)
   outputDir    = os.path.join(builddir, "lib")
 
   with useGlobalParameters(OutputPath=outputDir,
