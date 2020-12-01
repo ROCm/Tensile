@@ -234,7 +234,7 @@ def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath):
     return itertools.chain.from_iterable(coFiles)
 
 ################################################################################
-def prepAsm():
+def prepAsmOldClient():
   """
   Create and prepare the assembly directory  - called ONCE per output dir:
   """
@@ -263,6 +263,42 @@ def prepAsm():
       globalParameters["AsmCaps"][defaultIsa]["HasCodeObjectV3"] and \
       globalParameters["CodeObjectVersion"] == "V2" else "-mllvm --amdhsa-code-object-version=4"))
     assemblerFile.write("${ASM} -target amdgcn-amd-amdhsa $f.o -o $f.co\n")
+  assemblerFile.close()
+  os.chmod(assemblerFileName, 0o777)
+
+################################################################################
+def prepAsmNewClient(kernelWriterAssembly):
+  """
+  Create and prepare the assembly directory  - called ONCE per output dir:
+  """
+  asmPath = ensurePath(os.path.join(globalParameters["WorkingPath"], "assembly") )
+  assemblerFileName = os.path.join(asmPath, \
+      "asm-new.%s"%("bat" if os.name=="nt" else "sh"))
+  assemblerFile = open(assemblerFileName, "w")
+  if os.name == "nt":
+    assemblerFile.write("echo Windows: Copying instead of Assembling\n")
+    assemblerFile.write("copy %1.s %1.o\n")
+    assemblerFile.write("copy %1.o %1.co\n")
+  else:
+    assemblerFile.write("#!/bin/sh %s\n" % ("-x" if globalParameters["PrintLevel"] >=2  else ""))
+    assemblerFile.write("# usage: asm-new.sh kernelName(no extension)\n")
+
+    assemblerFile.write("f=$1\n")
+    assemblerFile.write("shift\n")
+
+    isa = globalParameters["CurrentISA"]
+    assemblerFile.write("h=gfx%s\n" % "".join(map(str,isa)))
+
+    cArgs = kernelWriterAssembly.getCompileArgs("$f.s", "$f.o", useGlobalISA=True)
+    lArgs = kernelWriterAssembly.getLinkCodeObjectArgs(["$f.o"], "$f.co")
+
+    assemblerFile.write(" ".join(cArgs) + "\n")
+    assemblerFile.write(" ".join(lArgs) + "\n")
+
+    assemblerFile.write("cp $f.co ../../../library/${f}_$h.co\n")
+    assemblerFile.write("mkdir -p ../../../asm_backup && ")
+    assemblerFile.write("cp $f.s ../../../asm_backup/$f.s\n")
+
   assemblerFile.close()
   os.chmod(assemblerFileName, 0o777)
 
@@ -364,7 +400,8 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
   kernelsWithBuildErrs = {}
 
-  prepAsm()
+  prepAsmOldClient()
+  prepAsmNewClient(kernelWriterAssembly)
 
   kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
   results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap)
