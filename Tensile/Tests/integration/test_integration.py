@@ -8,6 +8,10 @@ from Tensile.SolutionStructs import ProblemType, ProblemSizesMock
 # 4. Run client with small subset of GEMM problems
 # $ pytest Tensile/Tests -m integration --capture=tee-sys --builddir /tmp/pytest
 
+# TODO fix TensileCreateLibrary build configs:
+#   --library-format=msgpack is currently known to fail
+#   --short-file-names is currently known to fail
+
 def getLogicFileDir(baseDir, schedule):
   prefix = "library/src/blas3/Tensile/Logic/asm_full"
   testData = {
@@ -50,17 +54,38 @@ def getLogicFileDir(baseDir, schedule):
 
   return destDir
 
-# TODO fix TensileCreateLibrary build configs:
-#   --library-format=msgpack is currently known to fail
-#   --short-file-names is currently known to fail
-@pytest.mark.parametrize("mergeFiles",        [False, True])
-@pytest.mark.parametrize("legacyComponents",  [False, True])
-@pytest.mark.parametrize("libraryFormat",     ["yaml", pytest.param("msgpack", marks=pytest.mark.xfail)])
-@pytest.mark.parametrize("shortNames",        [False, pytest.param(True, marks=pytest.mark.xfail)])
-@pytest.mark.parametrize("testYamls",         ["quick"])
-def test_integration(useGlobalParameters, builddir, testYamls, mergeFiles, libraryFormat, shortNames, legacyComponents):
+def isSkippedTest(testYamls, mergeFiles, libraryFormat, shortNames, legacyComponents):
   if testYamls == "pre_checkin":
-    if not (mergeFiles == True and libraryFormat == "yaml"): pytest.skip("only run pre_checkin test in certain combo")
+    # for more extensive tests,
+    # we run only on single combination of build params
+    if (mergeFiles           == True
+        and legacyComponents == False
+        and shortNames       == False
+        and libraryFormat    == "yaml"
+        and legacyComponents == False):
+      return False
+    else:
+      return True
+  elif testYamls == "quick":
+    return False
+  else:
+    assert(False) # should've caught all params already
+
+def str2bool(mergeFiles, shortNames, legacyComponents):
+  return (True if mergeFiles=="mergeFiles" else False,
+          True if shortNames=="shortNames" else False,
+          True if legacyComponents=="legacyComponents" else False)
+
+@pytest.mark.parametrize("testYamls",         ["quick", "pre_checkin"])
+@pytest.mark.parametrize("mergeFiles",        ["mergeFiles", "noMergeFiles"])
+@pytest.mark.parametrize("libraryFormat",     ["yaml", pytest.param("msgpack", marks=pytest.mark.xfail)])
+@pytest.mark.parametrize("shortNames",        [pytest.param("shortNames", marks=pytest.mark.xfail), "noShortName"])
+@pytest.mark.parametrize("legacyComponents",  ["legacyComponents", "noLegacyComponents"])
+def test_integration(useGlobalParameters, builddir, testYamls, mergeFiles, libraryFormat, shortNames, legacyComponents):
+  mergeFiles, shortNames, legacyComponents = str2bool(mergeFiles, shortNames, legacyComponents)
+
+  if isSkippedTest(testYamls, mergeFiles, libraryFormat, shortNames, legacyComponents):
+    pytest.skip("only run pre_checkin test in certain combo")
 
   logicFileDir = getLogicFileDir(builddir, testYamls)
   outputDir    = os.path.join(builddir, "lib")
