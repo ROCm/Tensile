@@ -1459,20 +1459,19 @@ def TensileCreateLibrary():
    asmLibPaths) = buildObjectFilePaths(outputPath, solutionFiles, sourceKernelFiles, \
     asmKernelFiles, sourceLibFiles, asmLibFiles)
 
+  # Generate manifest file
+  libraryPath = os.path.join(outputPath, "library")
+  ensurePath(libraryPath)
+  generatedFile = open(os.path.join(libraryPath, "TensileManifest.txt"), "w")
+
+  libraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
+
+  # Manifest file contains YAML file, output library paths and cpp source for embedding.
+  for filePath in [os.path.join(libraryPath, libraryFilename)] + sourceLibPaths + asmLibPaths:
+    generatedFile.write("%s\n" %(filePath) )
+  generatedFile.close()
+
   if globalParameters["GenerateManifestAndExit"] == True:
-
-    # Generate manifest file
-    libraryPath = os.path.join(outputPath, "library")
-    ensurePath(libraryPath)
-    generatedFile = open(os.path.join(libraryPath, "TensileManifest.txt"), "w")
-
-    libraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
-
-    # Manifest file contains YAML file, output library paths and cpp source for embedding.
-    for filePath in [os.path.join(libraryPath, libraryFilename)] + sourceLibPaths + asmLibPaths:
-      generatedFile.write("%s\n" %(filePath) )
-    generatedFile.close()
-
     return
 
   # generate cmake for the source kernels

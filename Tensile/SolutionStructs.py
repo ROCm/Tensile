@@ -1594,6 +1594,14 @@ class ExactDict(Problem):
 ################################################################################
 # ProblemSizes
 ################################################################################
+"""
+Adapter class for class `ProblemSizes`. It satisfies the implicit usage requirement
+of ClientWriter.writeClientConfig() by converting ExactLogic to list of `Problem` objects
+"""
+class ProblemSizesMock:
+  def __init__(self, exactLogic):
+    self.problems = [Problem(problem) for problem, solution in exactLogic]
+
 class ProblemSizes:
 
   ########################################
