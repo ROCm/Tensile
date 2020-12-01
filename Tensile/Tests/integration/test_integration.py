@@ -39,7 +39,9 @@ def getLogicFileDir(baseDir, schedule):
   # basically to query the latest zip release weblink, download it and unzip
   # selected files to destination folder
   cmd = """#!/bin/bash
-  weblink=$(curl --silent "https://api.github.com/repos/ROCmSoftwarePlatform/rocBLAS/releases/latest" | grep zipball | sed -r 's/.*"([^"]+)".*/\\1/')
+  set -x
+  curl --silent "https://api.github.com/repos/ROCmSoftwarePlatform/rocBLAS/releases/latest" | tee log
+  weblink=$(grep -oP '(?<="zipball_url": ")[a-zA-Z:/\.\-0-9]*' log)
   wget -nc $weblink
   archive=$(basename $weblink)
   rootDir=$(zipinfo -1 $archive | head -n 1)
