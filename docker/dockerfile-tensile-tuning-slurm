@@ -92,9 +92,9 @@ RUN bash -xc \
     echo \"# !/bin/bash\" >> \$runScript; \
     echo \"# Container run script\" >> \$runScript ; \ 
     echo \"# Expects single yaml in mounted /TaskDir\" >> \$runScript ; \
-    echo \"# Generates tuning result to /ResultDir\" >> \$runScript ; \ 
+    echo \"# Generates tuning result to /ResultDir\" >> \$runScript ; \
     echo \"cd /Tensile\" >> \$runScript ; \
-    echo \"/Tensile/bin/Tensile /TaskDir/*.yaml /ResultDir --prebuilt-client=/Tensile/bin/tensile_client\" >> \$runScript ; \
+    echo \"/Tensile/bin/Tensile /TaskDir/*.yaml /ResultDir --prebuilt-client=/Tensile/bin/tensile_client 2>&1 > /LogDir/runlog.log \" >> \$runScript ; \
     echo \"exit \$?\" >> \$runScript ; \
     chmod +x \$runScript ; \
     cat \$runScript; \
@@ -105,4 +105,4 @@ RUN bash -xc \
 "
 
 # Finally, designate the container to run the tuning script and save the log
-ENTRYPOINT exec /Tensile/bin/run.sh 2>&1 > /ResultDir/runlog.log
+ENTRYPOINT exec /Tensile/bin/run.sh
