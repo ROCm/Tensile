@@ -2840,7 +2840,7 @@ class Solution:
         if state["EnableMatrixInstruction"] and state["GlobalLoadVectorWidthA"]:
           partialA = state["ProblemType"]["TLUA"] and (state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"] != 0)
           if partialA and state["GlobalLoadVectorWidthA"] > state["MIOutputVectorWidth"]:
-            #reduce GLVA if GLVA larger than MIOVW, Ethan-TODO: Study
+            #reduce GLVA if GLVA larger than MIOVW
             tva = totalElementsA // state["MIOutputVectorWidth"]
             if not Solution.setGlobalLoadVectorWidth(state, "A", tva, state["MIOutputVectorWidth"]):
               validDepthU = False
@@ -3412,7 +3412,6 @@ class Solution:
       if not state["GuaranteeNoPartialA"] or not state["GuaranteeNoPartialB"]:
         state["_UseSgprForGRO"] = False
         #reject(state, "PBC with wide load has insufficient overlap guarantees- try GRVW=1 or adding appropriate Assert*ElementMultiple")
-    # Ethan-TODO: Study
     if state["EnableMatrixInstruction"]:
       cont1 = not state["GuaranteeNoPartialA"]
       cont2 = ((state["MIOutputVectorWidth"] % state["GlobalLoadVectorWidthA"]) != 0)

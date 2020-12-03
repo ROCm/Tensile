@@ -382,7 +382,7 @@ validParameters = {
     # or help to increase Occupancy.
     #     1 means: Force to use 1 LDS Buffer even with PrefetchGlobalRead
     #    -1 means: generator will use 1 LDS buffer only when LDS exceed MaxLDS
-    # Usage case:
+    # Use case:
     #    SIA2: 1LDSBuffer is set to 1 natively
     #    SIA3: 1LDSBuffer works only when PGR=True
     # TODO: optimize scheduling to support more cases.
@@ -943,7 +943,7 @@ validParameters = {
     "LdsBlockSizePerPad":          [-1, 0, 64, 128, 256, 512],
 
     # Transpose LDS format. Local store in Coalsced dimension , same as optimized global fetch dimension . applicable only in TLU=0 case for miSIMD(s)
-    # Ethan-TODO: No code for -1 ?
+    # TODO: No code for -1 ?
     "TransposeLDS":                [-1, 1, 0],
 
     # tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated
