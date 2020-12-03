@@ -152,6 +152,34 @@ class Solutions:
         return s
 
     @classmethod
+    def asm3_mi(cls):
+        s = cls.commonSetup()
+
+        s["ForkParameters"] = \
+                [
+                    {"PrefetchGlobalRead": [1]},
+                    {"KernelLanguage": ["Assembly"]},
+                    {"MatrixInstruction": [
+                        [32,32,1,2]
+                        ]},
+                    {"ThreadTile": [
+                        [ 1, 32 ]
+                        ]},
+                    {"WorkGroup": [
+                        [ 16, 16, 1],
+                        [ 64, 4, 1]
+                        ]},
+                    {"DepthU": [8]},
+                    {"GlobalReadVectorWidth": [-1,2]},
+                    {"PackSummationDims": [0,1]},
+                    {"VectorWidth": [1,4]},
+                    {"FractionalLoad": [1]},
+                    {"PackBatchDims": [0,1]},
+                ]
+
+        return s
+
+    @classmethod
     def defaultSolution(cls):
         return cls.asm3_pbd
 

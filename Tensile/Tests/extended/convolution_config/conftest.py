@@ -10,7 +10,7 @@ Runner=namedtuple("Runner", ["level", "func", "solution"])
 TensileState=namedtuple("TensileState", ["args"])
 
 # this control the default solutions used for each test.
-solutions = ["src1", "src5_gsu", "asm3_pbd", "asm3_splitu"]
+solutions = ["src1", "src5_gsu", "asm3_pbd", "asm3_splitu", "asm3_mi"]
 #solutions = ["asm3_pbd"] # run a smaller set of tests
 
 @pytest.fixture(scope="function")
