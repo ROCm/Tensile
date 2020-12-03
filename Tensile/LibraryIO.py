@@ -159,7 +159,7 @@ def readLibraryLogicForSchedule( filename ):
     if solutionState["KernelLanguage"] == "Assembly":
       solutionState["ISA"] = Common.gfxArch(architectureName)
     else:
-      solutionState["ISA"] = [0, 0, 0]
+      solutionState["ISA"] = (0, 0, 0)
     # force redo the deriving of parameters, make sure old version logic yamls can be validated
     solutionState["AssignedProblemIndependentDerivedParameters"] = False
     solutionState["AssignedDerivedParameters"] = False
