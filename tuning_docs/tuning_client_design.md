@@ -118,3 +118,71 @@ Kernel correctness validation is reported via the `ResultKey::Validation` key.  
 
 Any other errors can currently be reported by implementing the `RunListener::error()` function and returning a non-zero value.  In the gfx10 branch, this has been enhanced to allow the client to optionally exit early.
 
+## Worker Class Design
+
+### DataInitialization
+
+`DataInitialization` and its child class `TypedDataInitialization` are responsible for allocating and initializing the buffers used as input and output for the kernels and for reference calculations.
+
+Where possible, care is taken to minimize runtime overhead between kernel invocations and between different problem sizes:
+
+ - Buffers are allocated once at the beginning of the process, for the largest problem size.
+ - Mostly, initialization modes are independent of the actual tensor dimensions (they are constant, or random, or based on their linear index), and this allows the initialization to be done only once in the process lifetime.
+    - Tensor dimension-based initialization is available for kernel debugging purposes.  This is slower as the input data must be regenerated for each problem size.
+
+These classes make use of a custom subclass of `TypedContractionInputs`, `ManagedContractionInputs`, which manage the lifetime of the memory allocations through the use of `shared_ptr` members.  Since the 'managed' members must remain pointing to the beginning of the allocation (to free the memory), they are also used by the bounds checking code.
+
+#### Initialization Modes
+
+Different initialization modes are supported
+
+### Bounds Checking
+
+Bounds checking is a feature that is implemented across the `DataInitialization` and `ReferenceValidator` classes.  There are two main bounds checking modes, value-based and page-based.
+
+## `ClientProblemFactory`
+
+Creates all of the ContractionProblem objects for the process.  The problems can be specified in several different ways, in order to support higher-dimensional tensor contractions.
+
+## `SolutionIterator`
+
+Responsible for deciding which solution(s) will be run for a particular problem.  There are two major subclasses:
+
+### `AllSolutionsIterator`
+
+Iterates over all the solutions that are capable of solving the problem.  This is the main class to be used for Tensile tuning.
+
+### `BestSolutionIterator`
+
+This class just calls `findBestSolution()` on the solution library, in order to test the solution selection.  This can be used to evaluate the tuning results.
+
+## `HardwareMonitorListener` and `HardwareMonitor`
+
+Responsible for monitoring GPU temperatures and clock rates, via ROCm-SMI.  **Note**: Hardware monitoring can be disabled by setting the `hardware-monitor` program argument to `false`. 
+
+`HardwareMonitor` uses threads to asynchronously query ROCm-SMI.  It provides an interface to start/stop monitoring manually, or to monitor between Hip events, to limit query rates, and to specify the specific sensor(s) that are required.  It also examines the PCI id data to make sure we are monitoring the correct device in the case that there are multiple GPUs in the system.
+
+`HardwareMonitorListener` implements the `RunListener` interface and uses `HardwareMonitor`'s asynchronous interface to monitor GPU properties while the GPU kernels are actually executing.  It then provides this information to any reporter classes via the `report()` functionality:
+
+ - `const std::string TempEdge            = "temp-edge";`
+ - `const std::string ClockRateSys        = "clock-sys"; // GPU clock in Mhz`
+ - `const std::string ClockRateSOC        = "clock-soc"; // Soc clock in Mhz`
+ - `const std::string ClockRateMem        = "clock-mem"; // Mem clock in Mhz`
+ - `const std::string DeviceIndex         = "device-idx";`
+ - `const std::string FanSpeedRPMs        = "fan-rpm";`
+ - `const std::string HardwareSampleCount = "hardware-samples";`
+
+## `MetaRunListener`
+
+This object maintains `shared_ptr` references to the worker classes and forwards calls along to each worker.
+
+## `ReferenceValidator`
+
+When requested, performs validation to ensure the kernels generate the correct result.  This uses the `SolveCPU()` function in `Reference.hpp/.cpp` to calculate a reference result.  This necessarily slows down the tuning process, but the `num-elements-to-validate` parameter can help to speed this up.  Values:
+
+ - -1: Validate all elements.
+ - 0: Do no element validation.
+ - >1: Validate up to this number of elements.  This speeds up the tuning process, because we don't calculate unneeded the reference values, and we don't perform the comparison.
+        - In order to reduce the possibility that a systemic error is missed, we validate every `n` elements, where `n` the next prime number that is >= the total number of elements in the output tensor divided by the number of elements to validate.
+
+`ReferenceValidator` is also responsible for performing the checks when the Bounds Check mode is `NaN`.  When this is the case, extra memory is allocated around each of the tensors (by DataInitialization).  The `managed` pointers remain pointing to the beginning of the allocated volume, but the `a/b/c/d` pointers point to an address inside this allocated volume, and all of the values around the valid locations are filled with `infinity` or `NaN`: Input values are filled with `NaN`, and output values are filled with `infinity` (integer types are filled with max/min values for their type).  Then, the `ReferenceValidator` verifies that the memory locations surrounding the output are still `infinity` after the solution has been run.

@@ -713,11 +713,19 @@ namespace Tensile
             }
 
         private:
+
+            /**
+             * Depending on user configuration, the actual pointers within these inputs structs may not 
+             * all point to separately allocated buffers. 
+             */
+
             std::shared_ptr<ManagedInputs> m_cpuConvInputs;
-            std::shared_ptr<ManagedInputs> m_cpuInputs, m_cpuInputsPristine;
-            std::shared_ptr<ManagedInputs> m_cpuBadInputs;
-            std::shared_ptr<ManagedInputs> m_gpuInputs, m_gpuInputsPristine;
-            std::shared_ptr<ManagedInputs> m_gpuBadInputs;
+            std::shared_ptr<ManagedInputs> m_cpuInputsPristine; //< Untouched copies of the inputs
+            std::shared_ptr<ManagedInputs> m_cpuInputs; //< Inputs used for CPU reference calculations
+            std::shared_ptr<ManagedInputs> m_cpuBadInputs; //< Inputs containing 'bad' values for bounds checking
+            std::shared_ptr<ManagedInputs> m_gpuInputsPristine; //< Untouched copies of the inputs
+            std::shared_ptr<ManagedInputs> m_gpuInputs; //< Inputs to be sent in to GPU kernels
+            std::shared_ptr<ManagedInputs> m_gpuBadInputs; //< GPU copies of 'bad' values
         };
 
         // Commonly used managed contraction input type groupings
