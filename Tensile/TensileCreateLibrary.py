@@ -280,14 +280,14 @@ def prepAsmNewClient(kernelWriterAssembly):
     assemblerFile.write("copy %1.s %1.o\n")
     assemblerFile.write("copy %1.o %1.co\n")
   else:
-    assemblerFile.write("#!/bin/sh %s\n" % ("-x" if globalParameters["PrintLevel"] >=2  else ""))
+    assemblerFile.write("#!/bin/sh {log}\n".format(log = "-x" if globalParameters["PrintLevel"] >=2  else ""))
     assemblerFile.write("# usage: asm-new.sh kernelName(no extension)\n")
 
     assemblerFile.write("f=$1\n")
     assemblerFile.write("shift\n")
 
     isa = globalParameters["CurrentISA"]
-    assemblerFile.write("h=gfx%s\n" % "".join(map(str,isa)))
+    assemblerFile.write("h={gfxName}\n".format(gfxName = Common.gfxName(isa)))
 
     cArgs = kernelWriterAssembly.getCompileArgs("$f.s", "$f.o", useGlobalISA=True)
     lArgs = kernelWriterAssembly.getLinkCodeObjectArgs(["$f.o"], "$f.co")
