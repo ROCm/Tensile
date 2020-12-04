@@ -29,7 +29,10 @@ def CPUThreadCount(enable=True):
   if not enable or globalParameters["CpuThreads"] == 0:
     return 0
   else:
-    cpu_count = len(os.sched_getaffinity(0))
+    if os.name == "nt":
+      cpu_count = 1
+    else:
+      cpu_count = len(os.sched_getaffinity(0))
     cpuThreads = globalParameters["CpuThreads"]
     if cpuThreads < 0:
         return cpu_count*abs(cpuThreads)

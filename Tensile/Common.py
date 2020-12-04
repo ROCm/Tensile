@@ -30,6 +30,10 @@ import os.path
 import subprocess
 import sys
 import time
+import tempfile
+import getpass
+from uuid import uuid4
+#import multiprocessing
 
 startTime = time.time()
 
@@ -226,7 +230,7 @@ globalParameters["HipClangVersion"] = "0,0,0"
 
 # default runtime is selected based on operating system, user can override
 if os.name == "nt":
-  globalParameters["RuntimeLanguage"] = "OCL"
+  globalParameters["RuntimeLanguage"] = "HIP" #"OCL"
 else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
@@ -1774,15 +1778,30 @@ def assignGlobalParameters( config ):
     globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
 
   # read current gfx version
-  if os.name != "nt" and globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
-    command = [globalParameters["ROCmAgentEnumeratorPath"]]#, "-t", "GPU"]
-    result = subprocess.run(command, stdout=subprocess.PIPE)
-    for line in result.stdout.decode().split("\n"):
+  if globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
+    if os.name == "nt":
+      process = subprocess.run([globalParameters["ROCmAgentEnumeratorPath"]], check=True, stdout=subprocess.PIPE)
+      line = ""
+      for line_in in process.stdout.decode().splitlines():
+        if 'gcnArch' in line_in:
+          line += "gfx" + line_in.split()[1]
+          break
+
       arch = gfxArch(line.strip())
       if arch is not None:
         if arch in globalParameters["SupportedISA"]:
           print1("# Detected local GPU with ISA: " + gfxName(arch))
           globalParameters["CurrentISA"] = arch
+    else:
+      process = Popen([globalParameters["ROCmAgentEnumeratorPath"], "-t", "GPU"], stdout=PIPE)
+      line = process.stdout.readline().decode()
+      while line != "":
+        arch = gfxArch(line.strip())
+        if arch is not None:
+          if arch in globalParameters["SupportedISA"]:
+            print1("# Detected local GPU with ISA: gfx" + ''.join(map(str,arch)))
+            globalParameters["CurrentISA"] = arch
+        line = process.stdout.readline().decode()
     if globalParameters["CurrentISA"] == (0,0,0):
       printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
     if result.returncode:

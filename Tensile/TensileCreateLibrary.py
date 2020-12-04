@@ -88,10 +88,39 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
         coFile = os.path.join(destDir, 'TensileLibrary_{}.co'.format(archName))
         if "PackageLibrary" in globalParameters and globalParameters["PackageLibrary"]:
           destArchDir = ensurePath(os.path.join(destDir, archName))
-          coFile = os.path.join(destArchDir, 'TensileLibrary_{}.co'.format(archName))
-        args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
-        subprocess.check_call(args, cwd=asmDir)
-        coFiles.append(coFile)
+          coFile = os.path.join(os.path.normcase(destArchDir), 'TensileLibrary_{}.co'.format(archName))
+
+        if os.name == "nt":
+          # On Windows, processing the objectFiles list in a single chunk makes the
+          # command line (including spaces) exceeds the limit of 8191 characters.
+          rv = ["C:\\hip\\bin\\clang++.exe", "-target", "amdgcn-amd-amdhsa", "-o", "-"]
+          L0 = len(" ".join(rv))
+
+          l = L0
+          slice = []
+          with open(coFile, 'wb') as file:
+            for obj in objectFiles:
+              if l + len(obj) < 8100 and obj != objectFiles[-1]:
+                  slice.append(obj)
+                  l = len(" ".join(slice))
+              else:
+                  if obj == objectFiles[-1]:
+                      slice.append(obj)
+                      l = len(" ".join(slice))
+                      newslice = []
+                  else:
+                      newslice = [obj]
+                  args = kernelWriterAssembly.getLinkCodeObjectArgs(slice, "-")
+                  result = subprocess.check_output(args, cwd=str(asmDir))
+                  file.write(result)
+                  file.flush()
+
+                  l = L0 + len(" ".join(newslice))
+                  slice = newslice
+        else:
+          args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
+          subprocess.check_call(args, cwd=asmDir)
+          coFiles.append(coFile)
       else:
         assemblyKernelNames = [kernelWriterAssembly.getKernelFileBase(k) for k in archKernels]
         origCOFiles = [os.path.join(asmDir,  k + '.co') for k in assemblyKernelNames]
@@ -159,7 +188,11 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
       launcher = shlex.split(os.environ.get('Tensile_CXX_COMPILER_LAUNCHER', ''))
 
-      compileArgs = launcher + [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', os.path.join(buildPath, objectFilename)]
+      if os.name == "nt":
+        hipFlags += ['-fPIC', '-Wno-deprecated-declarations']
+        compileArgs = launcher + [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', os.path.join(buildPath, objectFilename)]
+      else:
+        compileArgs = launcher + [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', os.path.join(buildPath, objectFilename)]
 
       if globalParameters["PrintCodeCommands"]:
         print('hipcc:', ' '.join(compileArgs))
@@ -230,11 +263,30 @@ def prepAsmOldClient():
   asmPath = ensurePath(os.path.join(globalParameters["WorkingPath"], "assembly") )
   assemblerFileName = os.path.join(asmPath, \
       "asm.%s"%("bat" if os.name=="nt" else "sh"))
-  assemblerFile = open(assemblerFileName, "w")
+  assemblerFile = open(os.path.normcase(assemblerFileName), "w")
   if os.name == "nt":
-    assemblerFile.write("echo Windows: Copying instead of Assembling\n")
-    assemblerFile.write("copy %1.s %1.o\n")
-    assemblerFile.write("copy %1.o %1.co\n")
+    if globalParameters["PrintLevel"] <2:
+      assemblerFile.write("echo off\n")
+    assemblerFile.write("rem usage: asm.bat kernelName ASM_ARGS\n")
+    assemblerFile.write("rem example: asm.bat kernelName -mcpu=gfx900\n")
+    assemblerFile.write("set f=%1\n")
+    assemblerFile.write("set Args=%2\n")
+    assemblerFile.write(":Parse\n")
+    assemblerFile.write("shift\n")
+    assemblerFile.write("set First=%2\n")
+    assemblerFile.write("if not defined First goto :EndParse\n")
+    assemblerFile.write("  set Args=%Args%=%First%\n")
+    assemblerFile.write("  goto :Parse\n")
+    assemblerFile.write(":EndParse\n")
+    assemblerFile.write("set ASM=%s\n"%globalParameters["AssemblerPath"])
+    # cannot use globalParameters["CurrentISA"] because it might be (0,0,0)
+    defaultIsa = (9,0,0)
+    assemblerFile.write( \
+      "%ASM% -x assembler -target amdgcn-amd-amdhsa {0} %Args% -c -o %f%.o %f%.s\n".format( \
+      "-mno-code-object-v3" if \
+      globalParameters["AsmCaps"][defaultIsa]["HasCodeObjectV3"] and \
+      globalParameters["CodeObjectVersion"] == "V2" else "-mcode-object-v3"))
+    assemblerFile.write("%ASM% -target amdgcn-amd-amdhsa %f%.o -o %f%.co\n")
   else:
     assemblerFile.write("#!/bin/sh %s\n" % ("-x" if globalParameters["PrintLevel"] >=2  else ""))
     assemblerFile.write("# usage: asm.sh kernelName ASM_ARGS\n")
@@ -386,8 +438,8 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   # Write Kernels
   ##############################################################################
   if globalParameters["MergeFiles"]:
-    kernelSourceFilename = os.path.join(outputPath, "Kernels.cpp")
-    kernelHeaderFilename = os.path.join(outputPath, "Kernels.h")
+    kernelSourceFilename = os.path.join(os.path.normcase(outputPath), "Kernels.cpp")
+    kernelHeaderFilename = os.path.join(os.path.normcase(outputPath), "Kernels.h")
 
     kernelFiles.append(kernelSourceFilename)
     kernelSourceFile = open(kernelSourceFilename, "w")
@@ -460,7 +512,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
     # write kernel.h
     if not globalParameters["MergeFiles"]:
-      kernelHeaderFile = open(os.path.join(outputPath, "Kernels", kernelName + ".h"), "w")
+      kernelHeaderFile = open(os.path.join(os.path.normcase(outputPath), "Kernels", kernelName + ".h"), "w")
       kernelHeaderFile.write(CHeader)
 
     kernelHeaderFile.write( ko.getHeaderFileString())
@@ -489,8 +541,8 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     ##############################################################################
 
 
-    solutionSourceFilename = os.path.join(outputPath, "Solutions.cpp")
-    solutionHeaderFilename = os.path.join(outputPath, "Solutions.h")
+    solutionSourceFilename = os.path.join(os.path.normcase(outputPath), "Solutions.cpp")
+    solutionHeaderFilename = os.path.join(os.path.normcase(outputPath), "Solutions.h")
 
     solutionSourceFile = open(solutionSourceFilename, "w")
     solutionHeaderFile = open(solutionHeaderFilename, "w")
@@ -500,10 +552,16 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     solutionSourceFile.write("#include \"Solutions.h\"\n")
     solutionSourceFile.write("#include <algorithm>\n")
 
+    # hip/clang Windows - beginning
+    solutionSourceFile.write("#ifdef max\n")
+    solutionSourceFile.write("#undef max\n")
+    solutionSourceFile.write("#endif\n")
+    # hip/clang Windows - end
+
     solutionHeaderFile.write("#include \"TensileTypes.h\"\n")
     solutionHeaderFile.write("#include \"SolutionHelper.h\"\n")
     solutionHeaderFile.write("#include \"Tools.h\"\n")
-    if globalParameters["CodeFromFiles"]:
+    if globalParameters["CodeFromFiles"] and (os.name != "nt"):
       solutionHeaderFile.write("#include <unistd.h>\n")
     if globalParameters["MergeFiles"]:
       solutionHeaderFile.write("#include \"Kernels.h\"\n")
@@ -531,7 +589,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
       # write solution.cpp
       if not globalParameters["MergeFiles"]:
-        solutionSourceFile = open(os.path.join(outputPath, \
+        solutionSourceFile = open(os.path.join(os.path.normcase(outputPath), \
             "Solutions", solutionFileName+".cpp"), "w")
         solutionSourceFile.write(CHeader)
       solutionSourceFile.write( \
@@ -541,7 +599,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
       # write solution.h
       if not globalParameters["MergeFiles"]:
-        solutionHeaderFile = open(os.path.join(outputPath, \
+        solutionHeaderFile = open(os.path.join(os.path.normcase(outputPath), \
             "Solutions", solutionFileName+".h"), "w")
         solutionHeaderFile.write(CHeader)
       solutionHeaderFile.write( \
@@ -787,7 +845,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
     # open and close problemType files
     if not globalParameters["MergeFiles"]:
-      logicSourceFile = open(os.path.join(outputPath, "Logic", \
+      logicSourceFile = open(os.path.join(os.path.normcase(outputPath), "Logic", \
           "%s.cpp" % filePrefix), "w")
       logicSourceFile.write(s)
       logicSourceFile.close()
@@ -797,17 +855,17 @@ def writeLogic(outputPath, logicData, solutionWriter ):
 
   # close merged files
   if globalParameters["MergeFiles"]:
-    logicSourceFile = open(os.path.join(outputPath, \
+    logicSourceFile = open(os.path.join(os.path.normcase(outputPath), \
         "Tensile.cpp"), "w")
     logicSourceFile.write(s)
     logicSourceFile.close()
 
-  logicHeaderFile = open(os.path.join(outputPath, \
+  logicHeaderFile = open(os.path.join(os.path.normcase(outputPath), \
       "Tensile.h"), "w")
   logicHeaderFile.write(h)
   logicHeaderFile.close()
 
-  internalHeaderFile = open(os.path.join(outputPath, \
+  internalHeaderFile = open(os.path.join(os.path.normcase(outputPath), \
       "TensileInternal.h"), "w")
   internalHeaderFile.write(ih)
   internalHeaderFile.close()
@@ -1200,7 +1258,7 @@ def writeCMake(outputPath, solutionFiles, kernelFiles, libraryStaticFiles):
     staticFilePaths += [ os.path.join(cmakeSrcDir, staticFile) ]
 
   # Proceed to generate cmake file
-  generatedFile = open(os.path.join(outputPath, "Generated.cmake"), "w")
+  generatedFile = open(os.path.join(os.path.normcase(outputPath), "Generated.cmake"), "w")
   generatedFile.write(CMakeHeader)
 
   # write TensileClient_SOLUTIONS symbol

@@ -22,8 +22,16 @@
 
 #pragma once
 
+#if defined(max)
+#undef max
+#endif
 #include <cstddef>
 #include <limits>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 /*******************************************************************************
  * Functions to map from ProblemDims to the best available solution
  *   - Provides efficient hash tables for lookup with thread-safe access
@@ -194,6 +202,16 @@ public:
             _exactMap.insert({pkey, solutionIdx});
         }
 
+#ifdef _WIN32
+        const DWORD nSize = _MAX_PATH;
+        static char db[nSize];
+        GetEnvironmentVariableA("TENSILE_DB", db, nSize);
+        _db = strtol(db,nullptr,0);
+
+        static char alg[nSize];
+        GetEnvironmentVariableA("TENSILE_FIND_ALG", alg, nSize); // If <0 see Algo enumeration, or >=0 specified specific solution index
+        _findAlg = strtol(alg,nullptr,0);
+#else
         const char* db = std::getenv("TENSILE_DB");
         if(db)
         {
@@ -206,6 +224,7 @@ public:
         {
             _findAlg = strtol(alg, nullptr, 0);
         }
+#endif
         if(_db & 0x1)
             printf("TENSILE_FIND_ALGO= %d (%s)\n", _findAlg, algoString(_findAlg));
     }

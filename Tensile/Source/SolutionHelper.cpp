@@ -24,7 +24,8 @@
 #include "Tools.h"
 #include <cstddef>
 #include <mutex>
-#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #ifdef WIN32
 __declspec(thread) KernelMap kernelMap;
@@ -133,6 +134,7 @@ TensileStatus SolutionLock::getFunction(hipFunction_t*       f,
     if(!_deviceFunctions[deviceId])
     {
         std::lock_guard<std::mutex> loadModuleLock(_loadModuleMutex);
+        struct stat                 fileStat;
         hipModule_t                 module = nullptr;
         if(!_deviceFunctions[deviceId])
         {
@@ -140,7 +142,7 @@ TensileStatus SolutionLock::getFunction(hipFunction_t*       f,
             {
                 std::string pk1 = "assembly/" + kernelName + ".co";
                 std::string pk2 = "../source/assembly/" + kernelName + ".co";
-                if(access(pk2.c_str(), R_OK) != 0)
+                if(stat(pk2.c_str(),&fileStat) < 0 || (fileStat.st_mode & S_IFMT) != S_IFREG)
                     e = hipModuleLoad(&module, pk1.c_str());
                 else
                     e = hipModuleLoad(&module, pk2.c_str());

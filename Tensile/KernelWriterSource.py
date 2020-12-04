@@ -51,10 +51,18 @@ class KernelWriterSource(KernelWriter):
       self.endLineQuote = "\\n\""
 
     if self.language == "OCL":
-      self.getGroupIdStr = "get_group_id"
-      self.getNumGroupsStr = "get_num_groups"
-      self.getLocalIdStr = "get_local_id"
-      self.getGlobalIdStr = "get_global_id"
+      self.getGroupIdStr = ["get_group_id(0)",
+                            "get_group_id(1)",
+                            "get_group_id(2)"]
+      self.getNumGroupsStr = ["get_num_groups(0)",
+                              "get_num_groups(1)",
+                              "get_num_groups(2)"]
+      self.getLocalIdStr = ["get_local_id(0)",
+                            "get_local_id(1)",
+                            "get_local_id(2)"]
+      self.getGlobalIdStr = ["get_group_id(0) * get_local_size(0) + get_local_id(0)",
+                             "get_group_id(1) * get_local_size(1) + get_local_id(1)",
+                             "get_group_id(2) * get_local_size(2) + get_local_id(2)"]
       self.sharedDeclStr = "__local "
       self.sharedPtrStr = "__local "
       self.globalPtrStr = "__global "
@@ -68,11 +76,45 @@ class KernelWriterSource(KernelWriter):
       self.atomicCasStr = "atomic_cmpxchg"
       self.volatileStr = "volatile "
       self.deviceFunctionStr = ""
+    elif self.language == "HCC":
+      self.getGroupIdStr = ["hc_get_group_id(0)",
+                            "hc_get_group_id(1)",
+                            "hc_get_group_id(2)"]
+      self.getNumGroupsStr = ["hc_get_num_groups(0)",
+                              "hc_get_num_groups(1)",
+                              "hc_get_num_groups(2)"]
+      self.getLocalIdStr = ["hc_get_workitem_id(0)",
+                            "hc_get_workitem_id(1)",
+                            "hc_get_workitem_id(2)"]
+      self.getGlobalIdStr = ["hc_get_workitem_absolute_id(0)",
+                             "hc_get_workitem_absolute_id(1)",
+                             "hc_get_workitem_absolute_id(2)"]
+      self.sharedDeclStr = "__shared__ "
+      self.sharedPtrStr = ""
+      self.globalPtrStr = ""
+      self.syncStr = "__syncthreads();"
+      self.fenceStr = self.syncStr
+      self.macFStr = "fmaf"
+      self.macDStr = "fma"
+      self.int64Str = "int64_t"
+      self.uint64Str = "uint64_t"
+      self.vectorComponents = ["x", "y", "z", "w"]
+      self.atomicCasStr = "atomicCAS"
+      self.volatileStr = ""
+      self.deviceFunctionStr = "__device__ "
     else:
-      self.getGroupIdStr = "hc_get_group_id"
-      self.getNumGroupsStr = "hc_get_num_groups"
-      self.getLocalIdStr = "hc_get_workitem_id"
-      self.getGlobalIdStr = "hc_get_workitem_absolute_id"
+      self.getGroupIdStr = ["hipBlockIdx_x",
+                            "hipBlockIdx_y",
+                            "hipBlockIdx_z"]
+      self.getNumGroupsStr = ["hipGridDim_x",
+                              "hipGridDim_y",
+                              "hipGridDim_z"]
+      self.getLocalIdStr = ["hipThreadIdx_x",
+                            "hipThreadIdx_y",
+                            "hipThreadIdx_z"]
+      self.getGlobalIdStr = ["hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x",
+                             "hipBlockIdx_y * hipBlockDim_y + hipThreadIdx_y",
+                             "hipBlockIdx_z * hipBlockDim_z + hipThreadIdx_z"]
       self.sharedDeclStr = "__shared__ "
       self.sharedPtrStr = ""
       self.globalPtrStr = ""
@@ -943,8 +985,8 @@ class KernelWriterSource(KernelWriter):
   def allocateResources(self, kernel):
     kStr = ""
 
-    kStr += "  unsigned int serial = %s(0);%s" \
-        % (self.getLocalIdStr, self.endLine)
+    kStr += "  unsigned int serial = %s;%s" \
+        % (self.getLocalIdStr[0], self.endLine)
     kStr += "  unsigned int sgId = serial / (SG%s*SG%s);%s" \
         % (self.tileChar0, self.tileChar1, self.endLine)
 
@@ -1105,8 +1147,8 @@ class KernelWriterSource(KernelWriter):
     if kernel["PersistentKernel"]:
       wg0 = "wg%s" % self.tileChar0
       wg1 = "wg%s" % self.tileChar1
-      kStr += "  %s serialWgIter = %s(0);%s" \
-        % (self.uint64Str, self.getGroupIdStr, self.endLine)
+      kStr += "  %s serialWgIter = %s;%s" \
+        % (self.uint64Str, self.getGroupIdStr[0], self.endLine)
       kStr += "  unsigned int n%s = problemNumGroupTiles0;%s" \
           % ( wg0, self.endLine)
       kStr += "  unsigned int n%s = problemNumGroupTiles1;%s" \
@@ -1165,14 +1207,14 @@ class KernelWriterSource(KernelWriter):
         kStr += "  %s  = serialWgIter / problemNumGroupTiles0;%s" % ( wg1, self.endLine)
     else:
       # optionally transpose work-group grid
-      kStr += "  unsigned int %s = %s(%u);%s" \
-          % ( wg0, self.getGroupIdStr, n0, self.endLine)
-      kStr += "  unsigned int %s = %s(%u);%s" \
-          % ( wg1, self.getGroupIdStr, n1, self.endLine)
-      kStr += "  unsigned int n%s = %s(%u);%s" \
-          % ( wg0, self.getNumGroupsStr, n0, self.endLine)
-      kStr += "  unsigned int n%s = %s(%u);%s" \
-          % ( wg1, self.getNumGroupsStr, n1, self.endLine)
+      kStr += "  unsigned int %s = %s;%s" \
+          % ( wg0, self.getGroupIdStr[n0], self.endLine)
+      kStr += "  unsigned int %s = %s;%s" \
+          % ( wg1, self.getGroupIdStr[n1], self.endLine)
+      kStr += "  unsigned int n%s = %s;%s" \
+          % ( wg0, self.getNumGroupsStr[n0], self.endLine)
+      kStr += "  unsigned int n%s = %s;%s" \
+          % ( wg1, self.getNumGroupsStr[n1], self.endLine)
       if kernel["GlobalSplitU"] > 1:
         kStr += "  n%s /= GLOBAL_SPLITU;%s" % (wg1, self.endLine)
 
@@ -1238,7 +1280,7 @@ class KernelWriterSource(KernelWriter):
       else:
         printExit("WorkGroupMappingType=Z and WorkGroupMapping=%u not supported"%kernel["WorkGroupMapping"])
 
-    #kStr += "if (serial==0) printf(\"WG:%%u_%%u progWG:%%u_%%u \\n\", hc_get_group_id(0), hc_get_group_id(1), %s, %s);" \
+    #kStr += "if (serial==0) printf(\"WG%s_%s probWG:%%u_%%u  \\n\", self.getNumGroupsStr[0], self.getNumGroupsStr[1], %s, %s);\
     #      % (wg0, wg1)+ self.endLine
     return kStr
 
@@ -1551,9 +1593,9 @@ class KernelWriterSource(KernelWriter):
                                tc, freeDimChar, sumChar) + \
                       self.endLine
             if 0 and tP["isA"]:
-              kStr += "printf(%sgid0=%%u %s=%%lu%s, %s(0), %s);" \
+              kStr += "printf(%sgid0=%%u %s=%%lu%s, %s, %s);" \
                        % (self.quote, gro, self.endLineQuote, \
-                          self.getGlobalIdStr, gro) + self.endLine
+                          self.getGlobalIdStr[0], gro) + self.endLine
     return kStr
 
   ##############################################################################
@@ -1825,19 +1867,19 @@ class KernelWriterSource(KernelWriter):
       staggerInput = "0xffffffff" # all WG compute same stagger, this is test mode
     else:
       assert(0) # unsupported
-    #kStr += "if (serial==0) printf(\"xWG:%u_%u progWG:%u_%u staggerUIterParm=%u\\n\", hc_get_group_id(0), hc_get_group_id(1), wg0I, wg1J, staggerUIterParm);"  + self.endLine
+    #kStr += "if (serial==0) printf(\"xWG:%s_%s progWG:%u_%u staggerUIterParm=%u\\n\", self.getGroupIdStr[0], self.getGroupIdStr[1], wg0I, wg1J, staggerUIterParm);"  + self.endLine
     kStr += "  unsigned staggerUIter = (%s & staggerUIterParm);%s" % (staggerInput, self.endLine)
 
     bpeAB = int(4*kernel["ProblemType"]["DataType"].numRegisters())
     kStr += "  staggerUIter = (staggerUIter << %u); // shift so each stagger has %u-byte stride%s" \
             % (kernel["_staggerStrideShift"], \
               (1<<kernel["_staggerStrideShift"])*kernel["DepthU"]*bpeAB, self.endLine)
-    #kStr += "if (serial==0) printf(\"WG:%u_%u progWG:%u_%u staggerUIter=%u\\n\", hc_get_group_id(0), hc_get_group_id(1), wg0I, wg1J, staggerUIter);"  + self.endLine
+    #kStr += "if (serial==0) printf(\"WG:%s_%s progWG:%u_%u staggerUIter=%u\\n\", self.getGroupIdStr[0], self.getGroupIdStr[1], wg0I, wg1J, staggerUIter);"  + self.endLine
     #kStr += "  staggerUIter = 0;\n"
 
     if self.db["PrintStagger"]:
-      kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) == 0)%s" % \
-              (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
+      kStr += "if (%s==0 && %s==0 && %s == 0)%s" % \
+              (self.getGlobalIdStr[2], self.getGlobalIdStr[1], self.getGlobalIdStr[0], self.endLine)
       kStr += "  printf(%sStaggerOffset loop init: numIter=%%u, staggerUIter=%%u, globalReadIncAL=%%lu globalReadIncBL=%%lu %s,\
                         numIter%s, staggerUIter, globalReadIncAL, globalReadIncBL);%s" \
                       % (self.quote, self.endLineQuote, loopChar, self.endLine)
@@ -1870,15 +1912,15 @@ class KernelWriterSource(KernelWriter):
                     % (gr, tc, loopChar, self.endLine)
 
             if self.db["PrintStagger"]:
-              kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 16)%s" % \
-                      (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
+              kStr += "if (%s==0 && %s==0 && %s <= 16)%s" % \
+                      (self.getGlobalIdStr[2], self.getGlobalIdStr[1], self.getGlobalIdStr[0], self.endLine)
               # typecasting to work around hcc printf bugs:
               kStr += "printf(%sStaggerOffset init: gid=%%u.%%u.%%u, ti=0x%%x  %s-%s=0x%%x%s, \
-                              %s(2),%s(1),%s(0), %s,  (unsigned)(size_t)(%s-%s));%s" \
+                              %s,%s,%s, %s,  (unsigned)(size_t)(%s-%s));%s" \
                              % (self.quote,\
                                 gr, tc,
                                 self.endLineQuote,\
-                                self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr,\
+                                self.getGlobalIdStr[2], self.getGlobalIdStr[1], self.getGlobalIdStr[0], \
                                 ti,  gr, tc, \
                                 self.endLine)
 
@@ -1913,14 +1955,14 @@ class KernelWriterSource(KernelWriter):
                       % (gr, kernel["PrefetchGlobalRead"], tc, loopChar, self.endLine)
 
               if self.db["PrintStagger"]:
-                kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 8)%s" % \
-                        (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
+                kStr += "if (%s==0 && %s==0 && %s <= 8)%s" % \
+                        (self.getGlobalIdStr[2], self.getGlobalIdStr[1], self.getGlobalIdStr[0], self.endLine)
                 kStr += "printf(%sStaggerOffset remove: gid=%%u.%%u.%%u, origNumIter=%%u staggerUIter=%%u %s=%%p %s=%%p %s, \
-                                %s(2),%s(1),%s(0), origNumIter, staggerUIter, %s, %s);%s" \
+                                %s,%s,%s, origNumIter, staggerUIter, %s, %s);%s" \
                                % (self.quote, \
                                   tc, gr, \
                                   self.endLineQuote, \
-                                  self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr,
+                                  self.getGlobalIdStr[2], self.getGlobalIdStr[1], self.getGlobalIdStr[0],
                                   tc, gr, \
                                   self.endLine)
 
@@ -2188,14 +2230,14 @@ class KernelWriterSource(KernelWriter):
 
     if self.db["PrintStagger"]:
       # note loop counter numIterK/numIterL hard-coded, manually hack if needed
-      kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 16)%s" % \
-              (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
+      kStr += "if (%s==0 && %s)==0 && %s) <= 16)%s" % \
+              (self.getGlobalIdStr[2], self.getGlobalIdStr[1], self.getGlobalIdStr[0], self.endLine)
       kStr += "printf(%sStaggerOffset wrap-gro: gid=%%u.%%u.%%u, old GR-%s=0x%%x numIter=%%u staggerUIter=%%u%s,\
-                        %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s), numIterL, staggerUIter);%s" \
+                        %s,%s,%s, (unsigned)(size_t)(%s-%s), numIterL, staggerUIter);%s" \
                        % (self.quote, \
                           tc, \
                           self.endLineQuote, \
-                          self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, \
+                          self.getGlobalIdStr[2], self.getGlobalIdStr[1], self.getGlobalIdStr[0], \
                           gr,tc, \
                           self.endLine)
 
@@ -2205,14 +2247,14 @@ class KernelWriterSource(KernelWriter):
                self.endLine)
     kStr += "%s}%s" % (self.indent, self.endLine)
     if self.db["PrintStagger"]:
-      kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 8)%s" % \
-              (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
+      kStr += "if (%s==0 && %s==0 && %s <= 8)%s" % \
+              (self.getGlobalIdStr[2], self.getGlobalIdStr[1], self.getGlobalIdStr[0], self.endLine)
       kStr += "printf(%sStaggerOffset check-gro: gid=%%u.%%u.%%u, GR-%s=0x%%x %s, \
-                      %s(2),%s(1),%s(0), (unsigned)(size_t)(%s-%s));%s" \
+                      %s,%s,%s, (unsigned)(size_t)(%s-%s));%s" \
                      % (self.quote, \
                         tc, \
                         self.endLineQuote, \
-                        self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, \
+                        self.getGlobalIdStr[2], self.getGlobalIdStr[1], self.getGlobalIdStr[0], \
                         gr,tc, \
                         self.endLine)
     return kStr
@@ -2457,14 +2499,14 @@ class KernelWriterSource(KernelWriter):
 
             #if self.db["PrintStagger"] and tP["isA"]:
             if 0 and self.db["PrintStagger"]:
-              kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 16)%s" % \
-                      (self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr, self.endLine)
+              kStr += "if (%s==0 && %s==0 && %s <= 16)%s" % \
+                      (self.getGlobalIdStr[2], self.getGlobalIdStr[1], self.getGlobalIdStr[0], self.endLine)
               kStr += "  printf(%sglobalRead: gid=%%u.%%u.%%u, %s loaded:%%.0f%s, \
-                                %s(2),%s(1),%s(0), %s );%s" \
+                                %s,%s,%s, %s );%s" \
                              % (self.quote,\
                                 tc,
                                 self.endLineQuote, \
-                                self.getGlobalIdStr, self.getGlobalIdStr, self.getGlobalIdStr,\
+                                self.getGlobalIdStr[2], self.getGlobalIdStr[1], self.getGlobalIdStr[0], \
                                 dest, \
                                 self.endLine)
     return kStr
@@ -3138,8 +3180,8 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
 
     if kernel["PersistentKernel"]:
-      kStr += "  serialWgIter += %s(0);%s" \
-        % (self.getNumGroupsStr, self.endLine)
+      kStr += "  serialWgIter += %s;%s" \
+        % (self.getNumGroupsStr[0], self.endLine)
       kStr += "} // End Persistent Loop" + self.endLine
 
 

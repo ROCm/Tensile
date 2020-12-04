@@ -31,6 +31,10 @@
 
 #include <cstddef>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 // OpenCL
 #if Tensile_RUNTIME_LANGUAGE_OCL
 #include "CL/cl.h"
@@ -565,11 +569,18 @@ struct ProblemProperties
         , _allBatchBStridesAreZero(allBatchBStridesAreZero)
         , _db(0)
     {
+#ifdef _WIN32
+        const DWORD nSize = _MAX_PATH;
+        static char db[nSize];
+        GetEnvironmentVariableA("TENSILE_DB", db, nSize);
+        _db = strtol(db,nullptr,0);
+#else
         const char* db = std::getenv("TENSILE_DB");
         if(db)
         {
             _db = strtol(db, nullptr, 0);
         }
+#endif
     }
 
     // Constructor used to compute assertions for a specified problem size

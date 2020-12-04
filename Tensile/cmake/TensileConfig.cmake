@@ -22,11 +22,15 @@
 include(CMakeParseArguments)
 
 if(NOT DEFINED Tensile_ROOT)
-# Compute the installation prefix relative to this file.
-get_filename_component(Tensile_PREFIX "${CMAKE_CURRENT_LIST_FILE}" PATH)
-get_filename_component(Tensile_PREFIX "${Tensile_PREFIX}" PATH)
+    # Compute the installation prefix relative to this file.
+    get_filename_component(Tensile_PREFIX "${CMAKE_CURRENT_LIST_FILE}" PATH)
+    get_filename_component(Tensile_PREFIX "${Tensile_PREFIX}" PATH)
 
-execute_process(COMMAND "${Tensile_PREFIX}/bin/TensileGetPath" OUTPUT_VARIABLE Tensile_ROOT)
+    if (WIN32)
+        execute_process(COMMAND "${Tensile_PREFIX}/bin/TensileGetPath.exe" OUTPUT_VARIABLE Tensile_ROOT)
+    else()
+        execute_process(COMMAND "${Tensile_PREFIX}/bin/TensileGetPath" OUTPUT_VARIABLE Tensile_ROOT)
+    endif()
 endif()
 list(APPEND CMAKE_MODULE_PATH "${Tensile_ROOT}/Source/cmake/")
 list(APPEND CMAKE_MODULE_PATH "${Tensile_ROOT}/Source/")

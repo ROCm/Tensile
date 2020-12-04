@@ -31,6 +31,7 @@ import shlex
 from shutil import copy as shutil_copy
 from shutil import rmtree
 from enum import Enum
+import multiprocessing
 
 from .Contractions import FreeIndex
 from .Contractions import ProblemType as ContractionsProblemType
@@ -61,6 +62,8 @@ class ClientLogLevel(Enum):
   Terse = 1
   Verbose = 2
   Debug = 3
+
+
 
 ################################################################################
 # Main
@@ -276,8 +279,10 @@ def getBuildOldClientScript(libraryLogicPath, forBenchmark):
   runScriptFile.write("%s && echo %s%s%s && echo %s# Building Client%s && echo %s%s%s\n" \
       % (echoLine, q, HR, q, q, q, q, HR, q))
   runScriptFile.write("cmake --build . --config %s%s\n" \
-      % (globalParameters["CMakeBuildType"], " -- -j 8" \
-      if os.name != "nt" else "") )
+      % (globalParameters["CMakeBuildType"], " -- -j ", max(8, multiprocessing.cpu_count())"))
+# runScriptFile.write("cmake --build . --config %s%s\n" \
+#     % (globalParameters["CMakeBuildType"], " -- -j 8" \
+#     if os.name != "nt" else "") )
 
   return runScriptFile.getvalue()
 

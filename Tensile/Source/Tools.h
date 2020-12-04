@@ -27,7 +27,7 @@
 #ifdef Tensile_RESUME_BENCHMARK
 #include <fstream>
 #endif
-#ifdef WIN32
+#ifdef _WIN32
 #include "Windows.h"
 #else
 #include <time.h>
@@ -54,7 +54,7 @@ public:
     static const double reciprical_thousand;
 
 private:
-#ifdef WIN32
+#ifdef _WIN32
     LARGE_INTEGER startTime;
     LARGE_INTEGER frequency;
 #else

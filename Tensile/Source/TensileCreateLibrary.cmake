@@ -52,8 +52,10 @@ function(TensileCreateLibraryCmake
   message(STATUS "Tensile_ARCHITECTURE        from TensileCreateLibraryCmake : ${Tensile_ARCHITECTURE}")
   message(STATUS "Tensile_LIBRARY_FORMAT      from TensileCreateLibraryCmake : ${Tensile_LIBRARY_FORMAT}")
 
-  execute_process(COMMAND chmod 755 ${Tensile_ROOT}/bin/TensileCreateLibrary)
-  execute_process(COMMAND chmod 755 ${Tensile_ROOT}/bin/Tensile)
+  #execute_process(COMMAND chmod 755 ${Tensile_ROOT}/bin/TensileCreateLibrary)
+  #execute_process(COMMAND chmod 755 ${Tensile_ROOT}/bin/Tensile)
+  file(COPY ${Tensile_ROOT}/bin/TensileCreateLibrary DESTINATION ${Tensile_ROOT}/bin FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+  file(COPY ${Tensile_ROOT}/bin/Tensile DESTINATION ${Tensile_ROOT}/bin FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
   set(Tensile_CREATE_COMMAND "${Tensile_ROOT}/bin/TensileCreateLibrary")
 
@@ -108,7 +110,7 @@ function(TensileCreateLibraryCmake
     message(STATUS "Skipping build of ${Tensile_OUTPUT_PATH}")
   else()
     execute_process(
-      COMMAND ${Tensile_CREATE_COMMAND}
+      COMMAND ${VIRTUALENV_BIN_DIR}/${VIRTUALENV_PYTHON_EXENAME} ${Tensile_CREATE_COMMAND}
       RESULT_VARIABLE Tensile_CREATE_RESULT
     )
     if(Tensile_CREATE_RESULT)
