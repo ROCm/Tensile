@@ -4117,9 +4117,9 @@ class KernelWriterAssembly(KernelWriter):
   def computeLoadSrd(self, kernel, tP, tc, indices, bpe):
     kStr = ""
 
-    stmp = self.getTmpSgpr(2+2).idx()
+    stmp = self.getTmpSgpr(2+2+1).idx()
     tileStart = stmp+2
-    prePadSgpr = self.getTmpSgpr(1).idx()
+    prePadSgpr = stmp+4
     wroteTileStart = False
     #---
     # Compute tileStart #elements from the 2D array start
@@ -4177,12 +4177,12 @@ class KernelWriterAssembly(KernelWriter):
       # override the const pre-pad with an SGPR based on the leading/trailing items:
       prePad = sgpr(prePadSgpr)
       if i==0:
-        kStr += inst("s_add_u32", prePadSgpr, \
+        kStr += inst("s_add_u32", prePad, \
                  sgpr("PadStart%s%s%s"%(tc, freeDimChar,sumDimChar)), \
                  prePadConst, "prePadSgpr = PadStart + ptr-shift-pad")
       else:
-        kStr += inst("s_add_u32", prePadSgpr, \
-                 prePadSgpr, sgpr("PadStart%s%s%s"%(tc,freeDimChar, sumDimChar)), \
+        kStr += inst("s_add_u32", prePad, \
+                 prePad, sgpr("PadStart%s%s%s"%(tc,freeDimChar, sumDimChar)), \
                  "prepadSgpr += PadStart")
 
 
