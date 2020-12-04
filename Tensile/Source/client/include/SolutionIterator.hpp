@@ -129,8 +129,8 @@ namespace Tensile
         class AllSolutionsIterator : public SolutionIterator
         {
         public:
-            using RunCriteria = std::vector<
-                std::function<bool(ContractionSolution::ProjectedPerformance const&)>>;
+            using RunCriteria = std::vector<std::function<bool(
+                ContractionProblem const&, Hardware const&, ContractionSolution const&)>>;
 
             static RunCriteria
                 CreateCriteria(std::shared_ptr<MasterSolutionLibrary<ContractionProblem>> library,

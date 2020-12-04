@@ -119,10 +119,12 @@ namespace Tensile
             double granThresh = args["granularity-threshold"].as<double>();
             if(granThresh > 0.0)
             {
-                criteria.push_back(
-                    [granThresh](ContractionSolution::ProjectedPerformance const& projPerf) {
-                        return projPerf.totalGranularity >= granThresh;
-                    });
+                criteria.push_back([granThresh](ContractionProblem const&  problem,
+                                                Hardware const&            hardware,
+                                                ContractionSolution const& solution) {
+                    auto projPerf = solution.projectedPerformance(problem, hardware);
+                    return projPerf.totalGranularity >= granThresh;
+                });
             }
             return criteria;
         }
@@ -196,10 +198,9 @@ namespace Tensile
             if(!checkSolution(*solution))
                 return false;
 
-            auto projPerf = solution->projectedPerformance(m_problem, *m_hardware);
             for(auto const& criterion : m_runCriteria)
             {
-                if(!criterion(projPerf))
+                if(!criterion(m_problem, *m_hardware, *solution))
                     return false;
             }
             return true;
