@@ -1,4 +1,6 @@
-import copy
+from copy import copy
+from copy import deepcopy
+import ast
 
 class ReadWriteTransformDict(dict):  # dicts take a mapping or iterable as their optional first argument
     """
@@ -107,13 +109,16 @@ class ReadWriteTransformDict(dict):  # dicts take a mapping or iterable as their
 
     def setReadTransform(self, readTransformFunc):
         self.writeNoTransform(self.readTransformFuncKey, readTransformFunc)
+        if readTransformFunc is None:
+            self.pop(self.readTransformFuncKey, None)
 
     def getWriteTransform(self):
         return self.readNoTransform(self.writeTransformFuncKey) if self.hasWriteTransform() else None
 
     def setWriteTransform(self, writeTransformFunc):
         self.writeNoTransform(self.writeTransformFuncKey, writeTransformFunc)
-
+        if writeTransformFunc is None:
+            self.pop(self.writeTransformFuncKey, None)
 
     def toDict(self):
         return dict(zip(self.keys(), self.values()))
@@ -369,9 +374,9 @@ class Parameter(ReadWriteTransformDict):
 
     def __and__(self, rhs):
         if isinstance(rhs, Parameter):
-            return self.value and rhs.value
+            return self.value & rhs.value
         else:
-            return self.value and rhs
+            return self.value & rhs
 
     def __rand__(self, lhs):
         if isinstance(lhs, Parameter):
@@ -404,7 +409,7 @@ class Parameter(ReadWriteTransformDict):
             return lhs ^ self.value
 
     def __bool__(self):
-        return bool(self.__call__())
+        return bool(self.value)
 
     # Unary ops
     def __neg__(self):
@@ -430,33 +435,6 @@ class Parameter(ReadWriteTransformDict):
     def getDescription(self):
         return self.description
 
-# pig = Parameter("Pig", 15, 10)
-# print(pig.defaultValue)
-# print(pig.get("value"))
-# print(pig.value)
-# print(pig.name)
-# print(pig.type)
-# print(pig)
-
-# print(5 + pig)
-# print(5 - pig)
-# print(5 * pig)
-# print(5 / pig)
-# print(5 // pig)
-# print(5 % pig)
-# print(5 ** pig)
-# print(5 << pig)
-# print(5 >> pig)
-# print(5 & pig)
-# print(5 | pig)
-# print(5 ^ pig)
-# print(5 < pig)
-# print(5 <= pig)
-# print(5 == pig)
-# print(5 != pig)
-# print(5 > pig)
-# print(5 >= pig)
-
 class CallableParameter(Parameter):
     """
     This class is a Parameter who gets its value
@@ -468,6 +446,9 @@ class CallableParameter(Parameter):
     calls
     """
     __slots__ = ()
+
+    class BadFunc(Exception):
+        pass
 
     def __init__(self, name, callFunc, description=""):
         super().__init__(name, 0, 0, description)
@@ -519,6 +500,9 @@ class CallableParameter(Parameter):
         "Sub"      : lambda lhs, rhs : lhs - rhs,
         "BitAnd"   : lambda lhs, rhs : lhs & rhs,
         "BitOr"    : lambda lhs, rhs : lhs | rhs,
+        "BitXor"   : lambda lhs, rhs : lhs ^ rhs,
+        "LShift"   : lambda lhs, rhs : lhs << rhs,
+        "RShift"   : lambda lhs, rhs : lhs >> rhs,
         "min"      : lambda lhs, rhs : min(lhs, rhs),
         "max"      : lambda lhs, rhs : max(lhs, rhs),
         }
@@ -534,7 +518,10 @@ class CallableParameter(Parameter):
             func = op
 
         # Verify that the function is callable with 2 params
-        assert func(lhs, rhs) != None, "Binary operation must be a function with two operands"
+        try:
+            func(lhs, rhs)
+        except Exception as ex:
+            raise CallableParameter.BadFunc from ex
 
         # Capture function and attached values
         opKey = next((key for key in FuncMap if FuncMap[key] == op), None)
@@ -560,6 +547,8 @@ class CallableParameter(Parameter):
         FuncMap = {
         "Not"    : lambda val : not val,
         "Invert" : lambda val : ~val,
+        "USub"   : lambda val : -val,
+        "UAdd"   : lambda val : +val,
         "None"   : lambda val : val
         }
 
@@ -573,8 +562,11 @@ class CallableParameter(Parameter):
             name = "CustomUnaryOp"
             func = op
 
-        # Verify that the function is callable with 2 params
-        assert func(rhs) != None, "Unary operation must be a function with one operand"
+        # Verify that the function is callable with 1 param
+        try:
+            func(rhs)
+        except Exception as ex:
+            raise CallableParameter.BadFunc from ex
 
         # Capture function and attached values
         opKey = next((key for key in FuncMap if FuncMap[key] == op), None)
@@ -588,7 +580,6 @@ class CallableParameter(Parameter):
 
         return unOp
 
-import ast
 class ExpressionEvaluator(object):
     """
     This class is a recursive visitor of an ast module tree.
@@ -602,6 +593,7 @@ class ExpressionEvaluator(object):
         exprEval = ExpressionEvaluator.evaluate(tree, context)
         result = exprEval.__call__() # = True
     """
+
     __slots__ = ()
 
     def evaluate(self, node, namesContext):
@@ -620,7 +612,8 @@ class ExpressionEvaluator(object):
         # Level 1 node (required)
         elif nodeType == "Expr":
             # fields: ('value')
-            return self.evaluate(node.value, namesContext)
+            result = self.evaluate(node.value, namesContext)
+            return result.value if hasattr(result, "value") else result
 
         # Binary operations nodes which take 2 operands
         elif nodeType == "BinOp":
@@ -675,18 +668,32 @@ class ExpressionEvaluator(object):
 
         elif nodeType == "Assign":
             # fields: ('targets', 'value')
-            print("NODE VALUE: ", node.value)
+
+            value = self.evaluate(node.value, namesContext)
+            valueToAssign = value.value if hasattr(value, "value") else value
+
             for target in node.targets:
-                attrib = self.evaluate(target, namesContext)
-                value = self.evaluate(node.value, namesContext)
+                targetType = type(target).__name__
+
+                # If we are assigning to a name, use
+                # current context as write object.
+                if targetType == "Name":
+                    assignObj = namesContext
+                    assignAttr = target.id
+
+                # If we are assigning to an attribute,
+                # get the embedded context to write to
+                elif targetType == "Attribute":
+                    assignObj = self.evaluate(target, namesContext)
+                    assignAttr = target.attr
+
+                else: assert 0, "Don't know how to handle target node type: {0}".format(targetType)
 
                 # The assignment value might be an expression,
                 # so if it is callable, then evaluate it
-                setattr(attrib,
-                    target.attr,
-                    value.__call__() if callable(value) else value)
+                assignObj[assignAttr] = valueToAssign
 
-            return self.evaluate(node.value, namesContext)
+            return valueToAssign
 
         # Leaf node types
         elif nodeType == "Name":
@@ -728,8 +735,6 @@ class ExpressionEvaluator(object):
             return node.s
 
         assert 0, "Unknown node type"
-
-from copy import deepcopy
 
 # Everything stored as a Parameter object, which has
 # value, default value and type attributes
@@ -816,10 +821,25 @@ class ProjectConfig(ReadWriteTransformDict):
     def __contains__(self, key):
         return True if super().__contains__(key) else self.toFlattenedDict().__contains__(key)
 
-    def __getitem__(self, key):
+    def __getContainer(self, key):
         # In case we are accessing with keys such as [a.b.c]
-        # Then we need to recurse to get the embedded value.
+        # Then we need to recurse to get the embedded container.
         # Assumes that a and b for example are embedded configs
+        if "." in key:
+            try:
+                levels = key.split(".")
+                currentValue = self
+                for level in levels[:-1]:
+                    currentValue = currentValue[level]
+                return currentValue.readNoTransform(levels[-1])
+            except:
+               pass
+
+        # Fallback, in case there is a "." in the key
+        return self.readNoTransform(key)
+
+    def __getitem__(self, key):
+
         if "." in key:
             try:
                 levels = key.split(".")
@@ -856,8 +876,8 @@ class ProjectConfig(ReadWriteTransformDict):
         super().__setitem__(key, value)
 
     # Simplification of creating attributes
-    def createValue(self, name, value, defaultValue = None):
-        self[name] = self.ContainerType(name, value, defaultValue)
+    def createValue(self, name, value, defaultValue = None, description=""):
+        self[name] = self.ContainerType(name, value, defaultValue, description)
         return self[name]
 
     def createSection(self, name):
@@ -887,13 +907,8 @@ class ProjectConfig(ReadWriteTransformDict):
                 assert result, "Constraint evaluation failed: {0}".format(expression)
         return result
 
-proj = ProjectConfig()
-test = proj.createSection("WorkIt").createValue("Pie", 3.14159)
-test2 = proj.createSection("WorkIts").createValue("Pip", 3.14159)
-#test1 = ProjectConfig.toFlattenedDict(proj)
-#proj.addConstraint("WorkIts.Pip = max(5, 10)*10 / (2**4) - min(WorkIt.Pie,  4 % 2//1) if (1 < 2) else 0")
-proj.addConstraint("WorkIts.Pip = max(5, 10)")
-proj.checkConstraints()
-#print(proj.WorkIt.Pie)
-print(proj.WorkIts.Pip)
-print(proj.toFlattenedDict())
+    def getDefaultValue(self, name):
+        return self.__getContainer(name).getDefault()
+
+    def getDescription(self, name):
+        return self.__getContainer(name).getDescription()
