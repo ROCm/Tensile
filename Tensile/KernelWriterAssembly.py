@@ -559,8 +559,8 @@ class KernelWriterAssembly(KernelWriter):
     self.overlapVgprC = False
     self.serializedStore = False
 
-  def getCompileArgs(self, sourceFileName, objectFileName, *moreArgs):
-    isa = self.version
+  def getCompileArgs(self, sourceFileName, objectFileName, *moreArgs, useGlobalISA=False):
+    isa = self.version if not useGlobalISA else globalParameters["CurrentISA"]
     archHasV3 = globalParameters["AsmCaps"][isa]["HasCodeObjectV3"]
 
     rv = [globalParameters['AssemblerPath'],
