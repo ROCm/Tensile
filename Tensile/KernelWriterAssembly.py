@@ -6907,8 +6907,10 @@ class KernelWriterAssembly(KernelWriter):
             packInt8Code = None
 
             r = 0
+            numLoadVectorComp = loadWidth*self.bpr//tP["bpe"]
+            int8TempVgpr = numLoadVectorComp - 1
             # for each component in vector
-            while r < loadWidth*self.bpr//tP["bpe"]:
+            while r < numLoadVectorComp:
               numElementsPerLoad = 1
               if kernel["ProblemType"]["DataType"].isInt8():
                 # Ethan-TODO:
@@ -6920,7 +6922,7 @@ class KernelWriterAssembly(KernelWriter):
                 # Check out 3 regs once , for component 1,2,3 (r = 1,2,3)
                 if r == 1:
                   packInt8Code = Code.Module()
-                  destVgprHi = self.vgprPool.checkOut(3, 'destVgprHi')
+                  destVgprHi = self.vgprPool.checkOut( int8TempVgpr , 'destVgprHi')
                 dataIsI8 = True
                 regIdx = r // 4
               elif kernel["ProblemType"]["DataType"].isHalf() or \
@@ -7099,7 +7101,7 @@ class KernelWriterAssembly(KernelWriter):
                 # hi16 -> r = 2,3
                 if hi8 or hi16:
                   # r = 1,2,3, vmcnt needed for one packing
-                  packInt8Code.addText("s_waitcnt vmcnt(%u)\n"%(3-r) )
+                  packInt8Code.addText("s_waitcnt vmcnt(%u)\n"%(int8TempVgpr-r) )
                 if hi8:
                   # r = 1,3,   shift needed
                   packInt8Code.addInst("v_lshlrev_b32", vgpr(destVgprHi), "0x8", vgpr(destVgprHi), "shift left to higher 8 bits")
@@ -7127,7 +7129,7 @@ class KernelWriterAssembly(KernelWriter):
             if dataIsI8:
               assert packInt8Code != None and destVgprHi != None
               kStr += str(packInt8Code)
-              self.vgprPool.checkIn(destVgprHi - 3)
+              self.vgprPool.checkIn(destVgprHi - int8TempVgpr)
               destVgprHi = None
 
     if self.db["ConservativeWaitCnt"] & 0x1:

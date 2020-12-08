@@ -2140,6 +2140,9 @@ class Solution:
     grvw = state["GlobalReadVectorWidth"]
     minGrvw = 2 if state["ProblemType"]["DataType"].isHalf() and \
                 globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"] else 1
+    # TODO- check this for int8 and fractional load
+    # minGrvw = 4 if state["ProblemType"]["DataType"].isInt8() and \
+    #             globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"] else 1
     bestVw = -1
     while grvw >= minGrvw:
       # Per instruction across the entire group:
