@@ -1,146 +1,15 @@
+TestParameters:
+  marks: [skip-gfx900, skip-gfx906, skip-gfx1010, skip-gfx1011] # not supported by arch
+
 GlobalParameters:
-  MinimumRequiredVersion: 4.4.0
-  PrintLevel: 1
-  # ForceRedoBenchmarkProblems: True
-  # ForceRedoLibraryLogic: True
-  # ForceRedoLibraryClient: True
-  CMakeBuildType: Release
-  EnqueuesPerSync: 1
-  SyncsPerBenchmark: 1
-  LibraryPrintDebug: False
-  NumElementsToValidate: -1
-  ValidationMaxToPrint: 4
-  ValidationPrintValids: False
-  ShortNames: False
-  MergeFiles: True
-  Platform: 0
-  Device: 0
+  NumElementsToValidate: 2048
+  # BoundsCheck: True
   KernelTime: True
-  # PinClocks: True
-  SleepPercent: 200
-  PrintSolutionRejectionReason: False
-  # EnableAsserts: True
-  # EnableDebugA: True
-  # EnableDebugB: True
-  DataInitTypeA: 1
-  DataInitTypeB: 1
-  DataInitTypeC: 0
-  DataInitTypeD: 0
-  DataInitTypeBeta: 0
-  DataInitTypeAlpha: 1
-  # PrintTensorA: 1
-  # PrintTensorB: 1
-  # PrintTensorC: 2
-  # PrintTensorRef: 2
   NewClient: 2
 
 BenchmarkProblems:
-  # #######################################
-  # -
-  #   - # ProblemType
-  #     OperationType: GEMM
-  #     #####################################
-  #     DataType: h
-  #     DestDataType: h
-  #     ComputeDataType: s
-  #     HighPrecisionAccumulate: True
-  #     #####################################
-  #     # DataType: 4xi8
-  #     # DestDataType: I
-  #     # HighPrecisionAccumulate: True
-  #     #####################################
-  #     # DataType: s
-  #     #####################################
-  #     TransposeA: False
-  #     TransposeB: True
-  #     UseBeta: True
-  #     Batched: True
-
-  #   - # BenchmarkProblemSizeGroup - Standard
-  #     InitialSolutionParameters:
-  #     BenchmarkCommonParameters:
-  #       - KernelLanguage: ["Assembly"]
-  #       - LoopTail: [True]           # priority 1 (Done)
-  #       - PrefetchGlobalRead: [True] # priority 2 (Done)
-  #       - OptNoLoadLoop: [True]      # priority 3 (Done)
-  #       - ExpandPointerSwap: [False]  # priority 4 (Done)
-  #       - EdgeType: ["ShiftPtr"]     # priority 5 (Done)
-  #       - ScheduleLocalWrite: [False] # priority 6 (Done)
-  #       - ScheduleGlobalRead: [False] # priority 7 (Done)
-  #       - PrefetchLocalRead: [False] # priority 8
-  #     ForkParameters:
-  #       - ScheduleIterAlg: [2]       # priority 9
-  #       - MatrixInstruction:
-  #         - [32,32, 8, 1, 1, 1,1, 1,1]  # 32x32
-  #       - ThreadTile:
-  #         - [ 4, 4 ]
-  #       - WorkGroup:
-  #         - [ 16, 16, 1 ]
-  #       - DepthU: [ 16 ]
-  #       - VectorWidth: [4]
-  #     BenchmarkForkParameters:
-  #     BenchmarkJoinParameters:
-  #     BenchmarkFinalParameters:
-  #       - ProblemSizes:
-  #         # - Range: [ [32], [32], [1], [1] ]
-  #         # - Range: [ [32], [32], [1], [9] ]
-  #         # - Range: [ [32], [32], [1], [16] ]
-  #         # - Range: [ [31,1,33], [31,1,33], [1], [7,1,9] ]
-  #         - Range: [ [31,1,33], [31,1,33], [1], [15,1,17] ]
-
-  # ########################################
-  # -
-  #   - # ProblemType - Simplest
-  #     OperationType: GEMM
-  #     #####################################
-  #     DataType: I8
-  #     DestDataType: I
-  #     HighPrecisionAccumulate: True
-  #     #####################################
-  #     TransposeA: False
-  #     TransposeB: True
-  #     UseBeta: True
-  #     Batched: True
-
-  #   - # BenchmarkProblemSizeGroup - Standard
-  #     InitialSolutionParameters:
-  #     BenchmarkCommonParameters:
-  #       - KernelLanguage: ["Assembly"]
-  #       - LoopTail: [True]           # priority 1 (Done)
-  #       - PrefetchGlobalRead: [True] # priority 2 (Done)
-  #       - OptNoLoadLoop: [True]      # priority 3 (Done)
-  #       - ExpandPointerSwap: [True]  # priority 4 (Done)
-  #       - EdgeType: ["ShiftPtr"]     # priority 5 (Done)
-  #       - ScheduleLocalWrite: [True] # priority 6 (Done)
-  #       - ScheduleGlobalRead: [True] # priority 7 (Done)
-  #       - PrefetchLocalRead: [True]  # priority 8 (Done)
-  #     ForkParameters:
-  #       - ScheduleIterAlg: [1,2]     # priority 9 (Done)
-  #       - MatrixInstruction:
-  #         - [32,32, 8, 1, 1, 1,1, 1,1]  # 32x32
-  #       - ThreadTile:
-  #         - [ 4, 4 ]
-  #       - WorkGroup:
-  #         - [ 16, 16, 1 ]
-  #       - DepthU: [ 16 ]
-  #       # - VectorWidth: [4]
-  #     BenchmarkForkParameters:
-  #     BenchmarkJoinParameters:
-  #     BenchmarkFinalParameters:
-  #       - ProblemSizes:
-  #         # - Range: [ [32], [32], [1], [1] ]
-  #         # - Range: [ [32], [32], [1], [8] ]
-  #         # - Range: [ [32], [32], [1], [9] ]
-  #         # - Range: [ [32], [32], [1], [16] ]
-  #         # - Range: [ [32], [32], [1], [17] ]
-  #         # - Range: [ [32], [32], [1], [24] ]
-  #         # - Range: [ [32], [32], [1], [25] ]
-  #         - Range: [ [31,1,33], [31,1,33], [1], [15,1,17] ]
-  #         # - Range: [ [31,1,33], [63,1,65], [1], [15,1,17] ]
-  #         # - Range: [ [4096], [8192], [1], [512] ]
-
   ########################################
-  # All MT Combination - NT
+  # NT
   ########################################
   -
     - # ProblemType - NT
@@ -159,16 +28,11 @@ BenchmarkProblems:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
+        - LoopTail: [True]
+        - OptNoLoadLoop: [True]
+        - ExpandPointerSwap: [True]
+        - EdgeType: ["ShiftPtr"]
       ForkParameters:
-        - LoopTail: [True]           # priority 1 (Done)
-        - PrefetchGlobalRead: [True] # priority 2 (Done)
-        - OptNoLoadLoop: [True]      # priority 3 (Done)
-        - ExpandPointerSwap: [True]  # priority 4 (Done)
-        - EdgeType: ["ShiftPtr"]     # priority 5 (Done)
-        - ScheduleLocalWrite: [True] # priority 6 (Done)
-        - ScheduleGlobalRead: [True] # priority 7 (Done)
-        - PrefetchLocalRead: [True]  # priority 8 (Done)
-        - ScheduleIterAlg: [1,2]     # priority 9 (Done)
         - MatrixInstruction:
           - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
           - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
@@ -198,27 +62,34 @@ BenchmarkProblems:
           - [ 4, 4 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - DepthU: [ 16,32,64 ]
-        # - VectorWidth: [4]
+        - DepthU: [ 32,64,128 ]
+        - PrefetchGlobalRead: [1,2]
+        - PrefetchLocalRead: [True]
+        - GlobalReadVectorWidth: [4,16]
+        - WaveSeparateGlobalReadA: [1]
+        - WaveSeparateGlobalReadB: [1]
+        - TransposeLDS: [False]
+        - StoreRemapVectorWidth: [4]
+        - ScheduleIterAlg: [3]
+        - InnerUnroll: [1,2]
+        - 1LDSBuffer: [0,1]
+        - PersistentKernel: [-1,0]
+        - PersistentKernelAlongBatch: [True]
+        - PrefetchAcrossPersistent: [True]
       BenchmarkForkParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          # # - Range: [ [512], [512], [6], [512] ]
-          # # - Range: [ [512], [512], [6], [514] ]
-          # - Range: [ [1022,2,1026], [1022,2,1026], [1], [1022,2,1026] ]
           - Range: [ [126,2,130], [254,2,258], [1], [62,2,66] ]
-          - Exact: [6784, 1024, 1, 1280]
           - Exact: [5888, 1024, 1, 128]
           - Exact: [1024, 128, 1, 256]
           - Exact: [128, 64, 1, 3328]
           - Exact: [448, 64, 1, 256]
-          - Exact: [2368, 256, 1, 128]
           - Exact: [6784, 3584, 1, 1280]
           - Exact: [1024, 6784, 1, 1280]
 
   ########################################
-  # All MT Combination - NN
+  # NN
   ########################################
   -
     - # ProblemType - NN
@@ -237,16 +108,11 @@ BenchmarkProblems:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
+        - LoopTail: [True]
+        - OptNoLoadLoop: [True]
+        - ExpandPointerSwap: [True]
+        - EdgeType: ["ShiftPtr"]
       ForkParameters:
-        - LoopTail: [True]           # priority 1 (Done)
-        - PrefetchGlobalRead: [True] # priority 2 (Done)
-        - OptNoLoadLoop: [True]      # priority 3 (Done)
-        - ExpandPointerSwap: [True]  # priority 4 (Done)
-        - EdgeType: ["ShiftPtr"]     # priority 5 (Done)
-        - ScheduleLocalWrite: [True] # priority 6 (Done)
-        - ScheduleGlobalRead: [True] # priority 7 (Done)
-        - PrefetchLocalRead: [True]  # priority 8 (Done)
-        - ScheduleIterAlg: [1,2]     # priority 9 (Done)
         - MatrixInstruction:
           - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
           - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
@@ -276,27 +142,35 @@ BenchmarkProblems:
           - [ 4, 4 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - DepthU: [ 16,32,64 ]
-        # - VectorWidth: [4]
+        - DepthU: [ 64,128 ]
+        - PrefetchGlobalRead: [1,2]
+        - PrefetchLocalRead: [5,9,17]
+        - GlobalReadVectorWidth: [4,16]
+        - LocalReadVectorWidth: [16]
+        - WaveSeparateGlobalReadA: [1]
+        - WaveSeparateGlobalReadB: [1]
+        - TransposeLDS: [True]
+        - StoreRemapVectorWidth: [4]
+        - ScheduleIterAlg: [3]
+        - InnerUnroll: [1,2]
+        - 1LDSBuffer: [0,1]
+        - PersistentKernel: [-1,0]
+        - PersistentKernelAlongBatch: [True]
+        - PrefetchAcrossPersistent: [True]
       BenchmarkForkParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          # # - Range: [ [512], [512], [6], [512] ]
-          # # - Range: [ [512], [512], [6], [514] ]
-          # - Range: [ [1022,2,1026], [1022,2,1026], [1], [1022,2,1026] ]
           - Range: [ [126,2,130], [254,2,258], [1], [62,2,66] ]
-          - Exact: [6784, 1024, 1, 1280]
           - Exact: [5888, 1024, 1, 128]
           - Exact: [1024, 128, 1, 256]
           - Exact: [128, 64, 1, 3328]
           - Exact: [448, 64, 1, 256]
-          - Exact: [2368, 256, 1, 128]
           - Exact: [6784, 3584, 1, 1280]
           - Exact: [1024, 6784, 1, 1280]
 
   ########################################
-  # All MT Combination
+  # TN
   ########################################
   -
     - # ProblemType - TN
@@ -315,16 +189,12 @@ BenchmarkProblems:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
+        - LoopTail: [True]
+        - PrefetchLocalRead: [True]
+        - OptNoLoadLoop: [True]
+        - ExpandPointerSwap: [True]
+        - EdgeType: ["ShiftPtr"]
       ForkParameters:
-        - LoopTail: [True]           # priority 1 (Done)
-        - PrefetchGlobalRead: [True] # priority 2 (Done)
-        - OptNoLoadLoop: [True]      # priority 3 (Done)
-        - ExpandPointerSwap: [True]  # priority 4 (Done)
-        - EdgeType: ["ShiftPtr"]     # priority 5 (Done)
-        - ScheduleLocalWrite: [True] # priority 6 (Done)
-        - ScheduleGlobalRead: [True] # priority 7 (Done)
-        - PrefetchLocalRead: [True]  # priority 8 (Done)
-        - ScheduleIterAlg: [1,2]     # priority 9 (Done)
         - MatrixInstruction:
           - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
           - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
@@ -354,27 +224,36 @@ BenchmarkProblems:
           - [ 4, 4 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - DepthU: [ 16,32,64 ]
+        - DepthU: [ 64,128 ]
         # - VectorWidth: [4]
+        - PrefetchGlobalRead: [1,2]
+        - PrefetchLocalRead: [5,9,17]
+        - GlobalReadVectorWidth: [4,16]
+        - LocalReadVectorWidth: [16]
+        - WaveSeparateGlobalReadA: [1]
+        - WaveSeparateGlobalReadB: [1]
+        - TransposeLDS: [True]
+        - StoreRemapVectorWidth: [4]
+        - ScheduleIterAlg: [3]
+        - InnerUnroll: [1,2]
+        - 1LDSBuffer: [0,1]
+        - PersistentKernel: [-1,0]
+        - PersistentKernelAlongBatch: [True]
+        - PrefetchAcrossPersistent: [True]
       BenchmarkForkParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          # # - Range: [ [512], [512], [6], [512] ]
-          # # - Range: [ [512], [512], [6], [514] ]
-          # - Range: [ [1022,2,1026], [1022,2,1026], [1], [1022,2,1026] ]
           - Range: [ [126,2,130], [254,2,258], [1], [62,2,66] ]
-          - Exact: [6784, 1024, 1, 1280]
           - Exact: [5888, 1024, 1, 128]
           - Exact: [1024, 128, 1, 256]
           - Exact: [128, 64, 1, 3328]
           - Exact: [448, 64, 1, 256]
-          - Exact: [2368, 256, 1, 128]
           - Exact: [6784, 3584, 1, 1280]
           - Exact: [1024, 6784, 1, 1280]
 
   ########################################
-  # All MT Combination
+  # TT
   ########################################
   -
     - # ProblemType - TT
@@ -393,16 +272,11 @@ BenchmarkProblems:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
+        - LoopTail: [True]
+        - OptNoLoadLoop: [True]
+        - ExpandPointerSwap: [True]
+        - EdgeType: ["ShiftPtr"]
       ForkParameters:
-        - LoopTail: [True]           # priority 1 (Done)
-        - PrefetchGlobalRead: [True] # priority 2 (Done)
-        - OptNoLoadLoop: [True]      # priority 3 (Done)
-        - ExpandPointerSwap: [True]  # priority 4 (Done)
-        - EdgeType: ["ShiftPtr"]     # priority 5 (Done)
-        - ScheduleLocalWrite: [True] # priority 6 (Done)
-        - ScheduleGlobalRead: [True] # priority 7 (Done)
-        - PrefetchLocalRead: [True]  # priority 8 (Done)
-        - ScheduleIterAlg: [1,2]     # priority 9 (Done)
         - MatrixInstruction:
           - [ 4, 4, 4,16, 2, 1,1, 1,1]  # 8x32
           - [ 4, 4, 4,16, 2, 1,1, 2,2]  # 16x64
@@ -432,28 +306,29 @@ BenchmarkProblems:
           - [ 4, 4 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        - DepthU: [ 16,32,64 ]
-        # - VectorWidth: [4]
+        - DepthU: [ 64,128 ]
+        - PrefetchGlobalRead: [1,2]
+        - PrefetchLocalRead: [5,9,17]
+        - GlobalReadVectorWidth: [4,16]
+        - LocalReadVectorWidth: [16]
+        - WaveSeparateGlobalReadA: [1]
+        - WaveSeparateGlobalReadB: [1]
+        - TransposeLDS: [True]
+        - StoreRemapVectorWidth: [4]
+        - ScheduleIterAlg: [3]
+        - InnerUnroll: [1,2]
+        - 1LDSBuffer: [0,1]
+        - PersistentKernel: [-1,0]
+        - PersistentKernelAlongBatch: [True]
+        - PrefetchAcrossPersistent: [True]
       BenchmarkForkParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          # # - Range: [ [512], [512], [6], [512] ]
-          # # - Range: [ [512], [512], [6], [514] ]
-          # - Range: [ [1022,2,1026], [1022,2,1026], [1], [1022,2,1026] ]
           - Range: [ [126,2,130], [254,2,258], [1], [62,2,66] ]
-          - Exact: [6784, 1024, 1, 1280]
           - Exact: [5888, 1024, 1, 128]
           - Exact: [1024, 128, 1, 256]
           - Exact: [128, 64, 1, 3328]
           - Exact: [448, 64, 1, 256]
-          - Exact: [2368, 256, 1, 128]
           - Exact: [6784, 3584, 1, 1280]
           - Exact: [1024, 6784, 1, 1280]
-
-# LibraryLogic:
-#     ScheduleName: "arcturus"
-#     DeviceNames: ["Device 7380", "Device 7388", "Device 738c", "Device 7390"]
-#     ArchitectureName: "gfx908"
-
-# LibraryClient:

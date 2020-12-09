@@ -2493,9 +2493,10 @@ class Solution:
     if state["PrefetchAcrossPersistent"]:
       if state["KernelLanguage"] == "Source" or \
          state["PersistentKernel"] == 0 or \
-         state["PrefetchGlobalRead"] == 0 or \
+         state["PrefetchGlobalRead"] != 1 or \
          state["SuppressNoLoadLoop"]:
-        print2("PAP requires Assembly, PK != 0, PGR != 0, SuppressNoLoadLoop = True, forcing PAP = False")
+        # TODO- do we need to support PGR2 ?
+        print2("PAP requires Assembly, PK!=0, PGR==1, SuppressNoLoadLoop=True, forcing PAP=False")
         state["PrefetchAcrossPersistent"] = False
 
     # TODO- fix this, avoid the bug for now
@@ -3348,6 +3349,10 @@ class Solution:
           reject(state, "wider localRead only support (PrefetchLocalRead %u >= LoopIters %u) or (InnerUnroll %u > LocalReadxN)" % (state["PrefetchLocalRead"],state["LoopIters"],state["InnerUnroll"]))
 
     if state["DepthULdsDivisor"] > 1:
+      if not (state["ProblemType"]["DataType"].isHalf() or \
+              state["ProblemType"]["DataType"].isBFloat16() or \
+              state["ProblemType"]["DataType"].isSingle()):
+        reject(state, "DepthULdsDivisor > 1 does not support DataType other than F16, BF16 or F32 yet.")
       if state["PrefetchGlobalRead"] == 2:
         reject(state, "DepthULdsDivisor > 1 does not support PrefetchGlobalRead=2")
       if state["ScheduleIterAlg"] != 3:

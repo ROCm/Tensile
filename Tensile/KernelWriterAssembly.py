@@ -6913,12 +6913,13 @@ class KernelWriterAssembly(KernelWriter):
             while r < numLoadVectorComp:
               numElementsPerLoad = 1
               if kernel["ProblemType"]["DataType"].isInt8():
-                # Ethan-TODO:
+                # TODO-Int8, Check this:
                 # if tP["glvw"]>1 and kernel["AssertSummationElementMultiple"] % 2 == 0:
                 # # Pack two FP16 values into a single load dword x2
                 #   numElementsPerLoad = 2
                 # elif self.archCaps["HasEccHalf"]:
                 #   destVgprHi = self.vgprPool.checkOut(1, 'destVgprHi')
+
                 # Check out 3 regs once , for component 1,2,3 (r = 1,2,3)
                 if r == 1:
                   packInt8Code = Code.Module()
@@ -7022,7 +7023,7 @@ class KernelWriterAssembly(KernelWriter):
                     comment="load one buffer value"
 
                 if kernel["ProblemType"]["DataType"].isInt8():
-                  # Ethan-TODO:
+                  # TODO-Int8, Check this:
                   # if numElementsPerLoad==2:
                   #   # Pack two FP16 values into a single load dword x2
                   #   r += 1 # skip next element since we loaded 2X here
@@ -11904,6 +11905,7 @@ class KernelWriterAssembly(KernelWriter):
           if edge:
             kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec (before atomic)" )
 
+          # TODO- Int8: Need to support later
           for avi in range(0, gwvw//atomicW):
             dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
             sumIdxV = ss.elementSumIdx[elementIdx] + avi
@@ -11968,6 +11970,7 @@ class KernelWriterAssembly(KernelWriter):
           vc0 = element[3]
 
           # calculate new masks
+          # TODO- Int8: Need to support later
           if edge:
             kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
             for avi in range(0, gwvw//atomicW):
@@ -12035,6 +12038,7 @@ class KernelWriterAssembly(KernelWriter):
           bpm = self.bpeDexternal * atomicW
           vgprIdx = 1*(bpm//4)   # index register
 
+          # TODO- Int8: Need to support later
           for avi in range(0, gwvw//atomicW):
             dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
             atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
@@ -12087,6 +12091,7 @@ class KernelWriterAssembly(KernelWriter):
           element = batchElements[elementIdx]
           data = ss.elementData[elementIdx]
           mask = ss.elementMask[elementIdx]
+          # TODO- Int8: Need to support later
           for avi in range(0, gwvw//atomicW):
             dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
             atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
