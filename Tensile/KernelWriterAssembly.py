@@ -2042,6 +2042,7 @@ class KernelWriterAssembly(KernelWriter):
     self.getNamedLabel("PrefetchGlobalLastIterEnd")
     self.getNamedLabel("TailLoopBegin%s"%(unrollChar))
     self.getNamedLabel("TailLoopEnd%s"%(unrollChar))
+    self.getNamedLabel("SkipTailLoop%s"%(unrollChar))
     self.getNamedLabel("KernelEnd%s"%(unrollChar))
     # shift vectors determined later
 
@@ -5396,13 +5397,13 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_cmov_b32", loopCounter, hex(0), "numIter=0 if gsuSimIdx!=remainder")
 
       # if tail numIter == 0 skip altogether
-      tailLoopLabelEnd = self.getNamedLabel("TailLoopEnd%s"%(loopChar) )
+      skipTailLoopLabel = self.getNamedLabel("SkipTailLoop%s"%(loopChar) )
       kStr += inst("s_cmp_eq_u32", loopCounter, \
           hex(0), "numIter%s == 0"%loopChar )
       kStr += inst("s_mov_b32", sgpr("OrigLoopCounter"), 0, \
           "repurpose to count each localRead increment")
       kStr += inst("s_cbranch_scc1 %s"\
-          % tailLoopLabelEnd, \
+          % skipTailLoopLabel, \
           "skip to end of tail loop b/c numIter==0")
 
     ########################################
@@ -5643,7 +5644,7 @@ class KernelWriterAssembly(KernelWriter):
       loopIdx = self.unrollIdx
       loopChar = self.indexChars[ \
           kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-      kStr += "%s:%s"%(self.getNamedLabel("TailLoopEnd%s"%(loopChar)), self.endLine)
+      kStr += "%s:%s"%(self.getNamedLabel("SkipTailLoop%s"%(loopChar)), self.endLine)
       return kStr
 
     #kStr += self.indent + self.syncStr + self.endLine
@@ -5779,13 +5780,6 @@ class KernelWriterAssembly(KernelWriter):
             self.vgprPool.checkIn(self.oriLraB)
             self.oriLraA = None
             self.oriLraB = None
-          if self.oriLwaA != None:
-            kStr += inst("v_mov_b32", vgpr("LocalWriteAddrA"), vgpr(self.oriLwaA), "restore LWA")
-            kStr += inst("v_mov_b32", vgpr("LocalWriteAddrB"), vgpr(self.oriLwaB), "restore LWA")
-            self.vgprPool.checkIn(self.oriLwaA)
-            self.vgprPool.checkIn(self.oriLwaB)
-            self.oriLwaA = None
-            self.oriLwaB = None
           else:
             for tP in [self.tPA, self.tPB]:
               tc     = tP["tensorChar"]
@@ -5802,6 +5796,14 @@ class KernelWriterAssembly(KernelWriter):
               kStr += inst("s_mov_b32", sgpr(stmp), inc, "tailloop lds offset")
               kStr += inst("s_mul_i32", sgpr(stmp), sgpr("OrigLoopCounter"), sgpr(stmp), "scale by mul")
               kStr += inst("v_sub_u32", vgpr("LocalReadAddr%s"%tc), vgpr("LocalReadAddr%s"%tc), sgpr(stmp), "remove lro damage")
+          # if LWA is backed-up before, we simply restore the addr
+          if self.oriLwaA != None:
+            kStr += inst("v_mov_b32", vgpr("LocalWriteAddrA"), vgpr(self.oriLwaA), "restore LWA")
+            kStr += inst("v_mov_b32", vgpr("LocalWriteAddrB"), vgpr(self.oriLwaB), "restore LWA")
+            self.vgprPool.checkIn(self.oriLwaA)
+            self.vgprPool.checkIn(self.oriLwaB)
+            self.oriLwaA = None
+            self.oriLwaB = None
 
     # restore all threads
     if tailLoop and kernel["LocalSplitU"] > 1:
@@ -7520,7 +7522,7 @@ class KernelWriterAssembly(KernelWriter):
         self.localReadInstructionA = instructions["LocalRead"][self.localReadInstructionIdxA]
 
         localReadWidth = self.tPB["bpe"] / self.bpr
-        if kernel["UnrollMajorLDSA"]:
+        if kernel["UnrollMajorLDSB"]:
           localReadWidth = (kernel["ProblemType"]["DataType"].numMIInput() * self.tPB["bpe"]) // self.bpr
         self.localReadInstructionIdxB = \
           self.selectMemoryInstruction("LocalRead", localReadWidth, \
