@@ -2202,8 +2202,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
             kl.append(self.macIter(kernel, 0, tailLoopInnerUnroll, True))
 
         kl.append(self.closeLoop(kernel, -1, True, uDu if kernel["DepthULdsDivisor"]>1 else None))
-    if kernel["DepthULdsDivisor"]>1:
-      kl.append(self.closeLoop(kernel, -1, None, emitEndLabelOnly=True))
+    # always emit the skip-tail-loop label
+    kl.append(self.closeLoop(kernel, -1, None, emitEndLabelOnly=True))
     # tail: close
     self.inTailLoop = False
 
