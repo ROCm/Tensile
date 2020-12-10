@@ -32,6 +32,9 @@ if(TENSILE_NEW_CLIENT)
 
     set(TENSILE_USE_HIP      ON CACHE BOOL "Use the Hip runtime.")
     set(TENSILE_USE_LLVM     ON CACHE BOOL "Use LLVM for parsing config files.")
+    if(Tensile_LIBRARY_FORMAT MATCHES "msgpack")
+        set(TENSILE_USE_MSGPACK  ON CACHE BOOL "Use message pack for parsing config files.")
+    endif()
     set(TENSILE_USE_OPENMP   ON CACHE BOOL "Use LLVM for parsing config files.")
     set(TENSILE_STATIC_ONLY  ON CACHE BOOL "Disable exposing Tensile symbols in a shared library.")
 
