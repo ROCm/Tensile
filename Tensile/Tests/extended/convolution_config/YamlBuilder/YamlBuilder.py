@@ -1,3 +1,5 @@
+import os
+import subprocess
 import copy, operator, pytest
 from functools import reduce
 from Tensile.SolutionStructs import ConvProblem
@@ -191,6 +193,23 @@ class YamlBuilder:
     def write(self, fname):
         with open(str(fname), "w") as f:
             yaml.dump(self.doc, f, default_flow_style=None)
+
+    @classmethod
+    def findAvailableArchs(self):
+        availableArchs = []
+        rocmpath = "/opt/rocm"
+        if "ROCM_PATH" in os.environ:
+            rocmpath = os.environ.get("ROCM_PATH")
+        if "TENSILE_ROCM_PATH" in os.environ:
+            rocmpath = os.environ.get("TENSILE_ROCM_PATH")
+        rocmAgentEnum = os.path.join(rocmpath, "bin/rocm_agent_enumerator")
+        output = subprocess.check_output([rocmAgentEnum, "-t", "GPU"])
+        lines = output.decode().splitlines()
+        for line in lines:
+            line = line.strip()
+            if not line in availableArchs:
+                availableArchs.append(line)
+        return availableArchs
 
     @classmethod
     def Header(cls,debug):
@@ -435,6 +454,15 @@ class YamlBuilder:
         Generates a YamlBuilder object that will run a convolution, in normal
         contraction mode.
         """
+
+        availableArchs = cls.findAvailableArchs()
+        benchmarkParams = solution()
+
+        for item in benchmarkParams["ForkParameters"]:
+          if 'MatrixInstruction' in item and 'gfx908' not in availableArchs:
+            pytest.skip()
+            break
+
         doc = cls.Header(debug=False)
 
         if generateConvFormat:
@@ -450,7 +478,6 @@ class YamlBuilder:
             }
             tensileProblemType.update(problemType)
 
-        benchmarkParams = solution()
         for (key,value) in conv.solutionParms.items():
             benchmarkParams["ForkParameters"].append({key:[value]})
         problems = problemFunc(conv, problemType, problemLevel)
