@@ -17,6 +17,14 @@ TensileCreateLibraryFiles(
     CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
     )
 
+# Tests need library and kernels copied to data folder
+TensileCreateCopyTarget(
+    copy_kernels_lite
+    "${LITE_ALL_FILES}"
+    ${TEST_DATA_DIR}/kernels_lite
+    )
+add_dependencies(copy_kernels_lite LITE_LIBRARY_TARGET)
+
 TensileCreateLibraryFiles(
     "${CMAKE_CURRENT_SOURCE_DIR}/../configs/lite_configs_mixed"
     "${CMAKE_CURRENT_BINARY_DIR}/test_kernels_lite_mixed"
@@ -28,6 +36,14 @@ TensileCreateLibraryFiles(
     COMPILER ${COMPILER}
     CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
     )
+
+# Tests need library and kernels copied to data folder
+TensileCreateCopyTarget(
+    copy_kernels_lite_mixed
+    "${LITE_MIXED_ALL_FILES}"
+    ${TEST_DATA_DIR}/kernels_lite_mixed
+    )
+add_dependencies(copy_kernels_lite_mixed LITE_MIXED_LIBRARY_TARGET)
 
 TensileCreateLibraryFiles(
     "${CMAKE_CURRENT_SOURCE_DIR}/../configs/lite_configs"
@@ -41,6 +57,14 @@ TensileCreateLibraryFiles(
     CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
     )
 
+# Tests need library and kernels copied to data folder
+TensileCreateCopyTarget(
+    copy_kernels_lite_2
+    "${LITE_2_ALL_FILES}"
+    ${TEST_DATA_DIR}/kernels_lite_2
+    )
+add_dependencies(copy_kernels_lite_2 LITE_2_LIBRARY_TARGET)
+
 TensileCreateLibraryFiles(
     "${CMAKE_CURRENT_SOURCE_DIR}/../configs/tile_aware_selection"
     "${CMAKE_CURRENT_BINARY_DIR}/test_tile_aware_selection"
@@ -52,6 +76,14 @@ TensileCreateLibraryFiles(
     COMPILER ${COMPILER}
     CODE_OBJECT_VERSION ${CODE_OBJECT_VERSION}
     )
+
+# Tests need library and kernels copied to data folder
+TensileCreateCopyTarget(
+    copy_kernels_tile_aware_selection
+    "${TILE_AWARE_ALL_FILES}"
+    ${TEST_DATA_DIR}/tile_aware_selection/library
+    )
+add_dependencies(copy_kernels_tile_aware_selection TILE_AWARE_LIBRARY_TARGET)
 
 set(test_yaml rocblas_sgemm_asm_single_kernel.yaml)
 file(COPY ${test_yaml} DESTINATION .)
@@ -75,10 +107,10 @@ set(HIP_TEST_LIBRARIES
 # Make sure that the TensileTests depends on targets below.
 # Otherwise the TensileTests executable will segfault out.
 set(HIP_TEST_LIBRARY_TARGET_DEPS
-    LITE_LIBRARY_TARGET
-    LITE_MIXED_LIBRARY_TARGET
-    LITE_2_LIBRARY_TARGET
-    TILE_AWARE_LIBRARY_TARGET
+    copy_kernels_lite
+    copy_kernels_lite_mixed
+    copy_kernels_lite_2
+    copy_kernels_tile_aware_selection
     PARENT_SCOPE
 )
 

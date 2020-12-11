@@ -93,8 +93,16 @@ function(TensileCreateLibraryFiles
     message(FATAL_ERROR "TensileCreateLibraryFiles function should only be called for new client.")
   endif()
 
-  # Tensile_ROOT can be specified instead of using the installed path.
-  set(options NO_MERGE_FILES SHORT_FILE_NAMES PRINT_DEBUG GENERATE_PACKAGE)
+  # Boolean options
+  set(options
+       MERGE_FILES
+       NO_MERGE_FILES
+       SHORT_FILE_NAMES
+       PRINT_DEBUG
+       GENERATE_PACKAGE
+       )
+
+  # Single value settings
   set(oneValueArgs
        ARCHITECTURE
        CODE_OBJECT_VERSION
@@ -102,12 +110,19 @@ function(TensileCreateLibraryFiles
        EMBED_KEY
        EMBED_LIBRARY
        LIBRARY_FORMAT
-       MERGE_FILES
        TENSILE_ROOT
        VAR_PREFIX
        )
+
   set(multiValueArgs "")
   cmake_parse_arguments(Tensile "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+  if(Tensile_UNPARSED_ARGUMENTS)
+    message(WARNING "Unrecognized arguments: ${Tensile_UNPARSED_ARGUMENTS}")
+  endif()
+  if(Tensile_KEYWORDS_MISSING_VALUES)
+    message(WARNING "Malformed arguments: ${Tensile_KEYWORDS_MISSING_VALUES}")
+  endif()
 
   # Parse incoming options
   if(Tensile_TENSILE_ROOT)
@@ -120,9 +135,9 @@ function(TensileCreateLibraryFiles
 
   set(Options "--new-client-only" "--no-legacy-components")
 
-  # older NO_MERGE_FILES flag overrides MERGE_FILES option.
+  # Older NO_MERGE_FILES flag overrides MERGE_FILES option.
   if(Tensile_NO_MERGE_FILES)
-    set(Tensile_MERGE_FILES OFF)
+    set(Tensile_MERGE_FILES FALSE)
   endif()
 
   if(Tensile_MERGE_FILES)
