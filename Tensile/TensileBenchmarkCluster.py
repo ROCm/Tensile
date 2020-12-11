@@ -7,20 +7,21 @@ if __name__ == "__main__":
 import shlex, subprocess
 import sys
 import os
-import re
-import itertools
-import datetime
-import time
-import copy
-import math
 import argparse
-import mgzip
+
 from .BenchmarkSplitter import BenchmarkSplitter
 from .Configuration import ProjectConfig
-from .Common import HR
 from Tensile.Utilities.merge import mergePartialLogics
 
-import yaml
+try:
+    import mgzip
+except ImportError:
+    print("Package mgzip not found: docker zipping will be slow. Install pip3 install mgzip to improve performance.")
+
+    # Fallback package import
+    import gzip
+
+
 
 class ScriptHelper(object):
     """
@@ -412,8 +413,6 @@ class BenchmarkImplSLURM(object):
         with open(os.path.join(logDir, "dockerBuildLog.log"), 'w') as logFile:
 
             # Docker build command
-            dockerFileName = os.path.basename(dockerFilePath)
-            dockerFileDir = os.path.dirname(dockerFilePath)
             buildCmd = str("\
                 docker build \
                 -t {0} \
@@ -439,9 +438,17 @@ class BenchmarkImplSLURM(object):
             # Docker will save .tar binary to stdout as long as it's not attached to console.
             # Pipe stdout into mgzip to get smaller .tar.gz archive
             print("Saving docker image: {0}  to {1} ...".format(tag, archivePath))
-            with mgzip.open(archivePath, 'wb') as zipFile:
-                with subprocess.Popen(shlex.split(saveCmd), stdout=subprocess.PIPE, stderr=logFile) as proc:
-                    zipFile.write(proc.stdout.read())
+
+            try:
+                with mgzip.open(archivePath, 'wb') as zipFile:
+                    with subprocess.Popen(shlex.split(saveCmd), stdout=subprocess.PIPE, stderr=logFile) as proc:
+                        zipFile.write(proc.stdout.read())
+            except NameError:
+                print("mgzip not available: Install with pip3 install mgzip. Falling back to slow single threaded gzip...")
+                with gzip.open(archivePath, 'wb') as zipFile:
+                    with subprocess.Popen(shlex.split(saveCmd), stdout=subprocess.PIPE, stderr=logFile) as proc:
+                        zipFile.write(proc.stdout.read())
+
             print("Done saving docker image!")
 
     @staticmethod

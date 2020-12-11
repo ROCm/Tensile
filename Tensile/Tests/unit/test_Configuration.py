@@ -1,4 +1,3 @@
-import pytest
 import ast
 from Tensile.Configuration import ReadWriteTransformDict
 from Tensile.Configuration import Parameter
@@ -254,6 +253,7 @@ def test_BinaryOp():
 
     try:
         p21 = CallableParameter.createBinaryOp(lhs, rhs, badOp)
+        p21.value # Dummy to satisfy linter
     except CallableParameter.BadFunc:
         pass
     except :
@@ -467,7 +467,7 @@ def test_UnaryOp():
 
     try:
         p5 = CallableParameter.createUnaryOp(rhs, badOp)
-
+        p5.value # Dummy to satisfy linter
     except CallableParameter.BadFunc:
         pass
     except :

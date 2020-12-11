@@ -1,4 +1,3 @@
-from copy import copy
 from copy import deepcopy
 import ast
 
@@ -136,10 +135,10 @@ class ReadWriteTransformDict(dict):  # dicts take a mapping or iterable as their
             if isinstance(attribute, dict):
                 subDict = ReadWriteTransformDict.toFlattenedDict(attribute, key, separator)
                 for subKey in subDict.keys():
-                    newKey = separator.join([prefix, subKey]) if prefix is not "" else subKey
+                    newKey = separator.join([prefix, subKey]) if prefix != "" else subKey
                     result[newKey] = deepcopy(subDict[subKey])
             else:
-                newKey = separator.join([prefix, key]) if prefix is not "" else key
+                newKey = separator.join([prefix, key]) if prefix != "" else key
                 result[newKey] = deepcopy(obj[key])
         return result
 
@@ -177,13 +176,13 @@ class Parameter(ReadWriteTransformDict):
 
         # Restrict writing to only known fields
         def writeXForm(self, key, value):
-            if key not in self or key is "type":
+            if key not in self or key == "type":
                 raise AttributeError("Cannot write attribute: {0}".format(key))
             else:
                 # Ensure incoming values are same type to allow assignment
                 objType = self.readNoTransform("type")
                 incomingType = type(value)
-                if key is "value" and objType is not incomingType:
+                if key == "value" and objType is not incomingType:
                     raise AttributeError("Type preservation: stored {0} != incoming {1}".format(objType, incomingType))
                 else:
                     self.writeNoTransform(key, value)
@@ -457,7 +456,7 @@ class CallableParameter(Parameter):
         # Before each read, call on self to update value
         rXForm = self.getReadTransform()
         def readXForm(obj, key):
-            if key is "value":
+            if key == "value":
                 obj.writeNoTransform(key, obj.__call__())
             return rXForm(obj, key) if rXForm is not None else obj.readNoTransform(key)
         self.setReadTransform(readXForm)
@@ -466,7 +465,7 @@ class CallableParameter(Parameter):
         # Will be updated by reads as callable is updated.
         wXForm = self.getWriteTransform()
         def writeXForm(obj, key, value):
-            if key is "value":
+            if key == "value":
                 pass
             else:
                 wXForm(obj, key, value) if wXForm is not None else obj.writeNoTransform(key, value)
@@ -649,7 +648,7 @@ class ExpressionEvaluator(object):
 
         elif nodeType == "Call":
             # fields: ('func', 'args', 'keywords')
-            if len(node.args) is 2:
+            if len(node.args) == 2:
                 lhs = self.evaluate(node.args[0], namesContext)
                 rhs = self.evaluate(node.args[1], namesContext)
                 # For the op, give empty context so we get a string
@@ -657,7 +656,7 @@ class ExpressionEvaluator(object):
                 op = self.evaluate(node.func, {})
                 return CallableParameter.createBinaryOp(lhs, rhs, op)
 
-            elif len(node.args) is 1:
+            elif len(node.args) == 1:
                 rhs = self.evaluate(node.args[0], namesContext)
                 # For the op, give empty context so we get a string
                 # from the name node. Then pass it into the factory
@@ -904,8 +903,8 @@ class ProjectConfig(ReadWriteTransformDict):
             for expression, tree in [(x, y) for (x, y) in constraints.items() if "_" not in x]:
                 result = ExpressionEvaluator().evaluate(tree.value, self)
                 value = result.value if isinstance(result, Parameter) else result
-                assert result, "Constraint evaluation failed: {0}".format(expression)
-        return result
+                assert value, "Constraint evaluation failed: {0}".format(expression)
+        return value
 
     def getDefaultValue(self, name):
         return self.__getContainer(name).getDefault()
