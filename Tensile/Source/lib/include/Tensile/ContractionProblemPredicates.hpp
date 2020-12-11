@@ -965,15 +965,9 @@ namespace Tensile
                 enum
                 {
                     HasIndex = false,
-                    HasValue = true
+                    HasValue = false
                 };
-                bool value;
-
                 PersistentKernelCheck() = default;
-                PersistentKernelCheck(bool value)
-                    : value(value)
-                {
-                }
 
                 static std::string Type()
                 {
@@ -982,8 +976,7 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    // if value = false -> turn off check, always return eligibility as true
-                    return value ? problem.getPersistentKernelEligibility() : true;
+                    return problem.getPersistentKernelEligibility();
                 }
             };
 

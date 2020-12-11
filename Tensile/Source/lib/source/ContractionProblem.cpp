@@ -635,7 +635,10 @@ namespace Tensile
         if(sizeMapping.persistentKernelAlongBatch)
             problemTiles *= numWG.z;
 
-        size_t cuCount      = dynamic_cast<AMDGPU const&>(hardware).computeUnitCount;
+        AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
+        assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
+
+        size_t cuCount      = pAMDGPU->computeUnitCount;
         size_t finalPKValue = sizeMapping.persistentKernel;
         if(finalPKValue == -1)
         {

@@ -2481,8 +2481,8 @@ class Solution:
     if state["PersistentKernelAlongBatch"] and (\
             (state["PersistentKernel"] == 0) or \
             (state["KernelLanguage"] == "Source" and state["GlobalSplitU"] != 1) ):
-      # warn("PersistentKernelAlongBatch requires PersistentKernel != 0, forcing PersistentKernelAlongBatch = False")
-      # warn("PersistentKernelAlongBatch not support GSU on HIP, forcing PersistentKernelAlongBatch = False")
+      print2("PersistentKernelAlongBatch requires PersistentKernel != 0, forcing PersistentKernelAlongBatch = False")
+      print2("PersistentKernelAlongBatch not support GSU on HIP, forcing PersistentKernelAlongBatch = False")
       state["PersistentKernelAlongBatch"] = False
 
     if state["PrefetchAcrossPersistent"]:
@@ -2490,11 +2490,12 @@ class Solution:
          state["PersistentKernel"] == 0 or \
          state["PrefetchGlobalRead"] == 0 or \
          state["SuppressNoLoadLoop"]:
-        #warn("PAP requires Assembly, PK != 0, PGR != 0, SuppressNoLoadLoop = True, forcing PAP = False")
+        print2("PAP requires Assembly, PK != 0, PGR != 0, SuppressNoLoadLoop = True, forcing PAP = False")
         state["PrefetchAcrossPersistent"] = False
 
     # TODO- fix this, avoid the bug for now
     if state["PrefetchAcrossPersistent"] and state["StaggerU"] == 0:
+        print2("PAP has some defects so far and would cause error when SU=0, disable PAP temporarily")
         state["PrefetchAcrossPersistent"] = False
 
     problemType = state["ProblemType"]

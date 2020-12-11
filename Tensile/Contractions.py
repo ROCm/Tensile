@@ -325,10 +325,9 @@ class ProblemPredicate(Properties.Predicate):
             if ('_GlobalAccumulation' not in state) or (state['_GlobalAccumulation'] != 'MultipleBuffer'):
                 rv += [cls("DeterministicMode", value = False)]
 
+        # debugging: mark this set to allow the problem always runnable with PK
         if 'PersistentKernel' in state and state['PersistentKernel']:
-            rv += [cls("PersistentKernelCheck", value = True)]
-            # debugging: set value = false to allow the problem runnable with PK
-            # rv += [cls("PersistentKernelCheck", value = False)]
+            rv += [cls("PersistentKernelCheck")]
 
         if ("MatrixInstruction" in state and state["MatrixInstruction"]) or \
            ("EnableMatrixInstruction" in state and state["EnableMatrixInstruction"] is True):
@@ -503,4 +502,3 @@ class Solution:
                 raise KeyError("{0} is not a property of Solution.".format(key))
 
             setattr(self, key, value)
-
