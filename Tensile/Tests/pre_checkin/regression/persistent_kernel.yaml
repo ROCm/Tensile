@@ -31,6 +31,8 @@ BenchmarkProblems:
           - [ 32, 32, 1 ]
         - DepthU: [8]
         - PersistentKernel: [1,2]
+        - PersistentKernelAlongBatch: [False,True]
+        - PrefetchAcrossPersistent: [False,True]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -38,3 +40,4 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [ 1872, 2000, 1, 128, 2000, 2000, 2000, 2000] # make sure each WG can run at least 2 MTs
           - Exact: [ 256, 15488, 1, 128] # make sure each WG can run at least 2 MTs
+          - Exact: [ 6144, 24000, 1, 2560] # Really big problem with #Tiles = 192*750=144000 for MT32x32

@@ -1494,30 +1494,28 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl += self.setupNewTile(kernel, tensorParametersA, tensorParametersB, isPap=False, isOptNLL=False)
 
     pack = [ Code.Module() for i in range (self.numVgprBuffer+1) ]
+    self.preLoopLocalWriteCode = None
 
     if kernel["PrefetchGlobalRead"]:
-      pkWithStoreRemap = kernel["PersistentKernel"] and kernel["StoreRemapVectorWidth"]
       if self.doShadowInit:
         kl.append(self.openShadowInit(kernel))
         kl.append(self.globalWriteWorkGroupInit(kernel))
         if self.doShadowInit == 2:
           kl.append(self.initC(kernel)) # initC while waiting for global reads
         kl.append(self.closeShadowInit(kernel))
-      if self.enable["Wait"]:
+
+      if self.enable["Wait"] and not self.canOptimizePreLoopLWVmcnt:
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "8wait for global read"))
         # These cases loop back and run the prefetch loop again
-        # we need an extra barrier to ensure that the ds_reads from previous iteration
+        # we need an extra barrier to ensure that the ds_reads (either for SR or MFMA) from previous iteration
         # have finished before we generate the prefetch for the next summation index.
-        if pkWithStoreRemap or self.actualSummationLoops>1:
-          kl.append( self.indent + self.syncStr + "// for PersistentKernel with SRVW " + self.endLine )
-
+        if kernel["PersistentKernel"] or self.actualSummationLoops>1:
+          kl.append( self.indent + self.syncStr + "// for PersistentKernel " + self.endLine )
 
       if self.enable["LocalWrite"]:
         # local write
-        kl.append(self.comment("local write a"))
-        kl.append(self.localWriteDo(kernel, tensorParametersA, 0))
-        kl.append(self.comment("local write b"))
-        kl.append(self.localWriteDo(kernel, tensorParametersB, 0))
+        self.preLoopLocalWriteCode = self.preLoopLocalWriteDo(kernel, tensorParametersA, tensorParametersB)
+        kl.append(self.preLoopLocalWriteCode)
         # swap local ptrs
         kl.append(self.comment("local write swap a"))
         kl.append(self.localWriteSwapOffsets(kernel, tensorParametersA))
@@ -1546,7 +1544,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if self.enable["LocalRead"]:
           for plrIdx in range(0, self.numItersPLR):
             pack[plrIdx] = Code.Module()
-            for espi in range(0, (self.prefetchAcrossPersistent and kernel["ExpandPointerSwap"])+1):
+            # no matter EPS or PAP, only prefect local once per plrIdx
+            # for espi in range(0, (self.prefetchAcrossPersistent and kernel["ExpandPointerSwap"])+1):
+            for espi in range(0, 1):
               for iui in range(0,kernel["InnerUnroll"]):
                 if iui*self.numReadsIterCoalescedA < kernel["InnerUnroll"]:
                   kl.append(self.comment("local read prefetch a"))
@@ -2286,6 +2286,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.comment("not-LocalSplitU: global write"))
         kl.append(self.notLocalSplitUGlobalWrite(kernel))
 
+    # After we know the #-of-globalwrite instructions, we can go back to replace the pre-loop LW vmcnt
+    # Note that currently, this code-replacement occurs only when PrefetchAcrossPersisent=True,
+    # otherwise, nothing is changed
+    if self.preLoopLocalWriteCode != None:
+      self.replacePreLoopLWVmcnt(kernel)
+
     # function suffix
     kl.append(self.functionEnd(kernel, True))
     kl.append(self.functionSuffix(kernel))
@@ -2390,12 +2396,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     else:
       self.scheduleIterAlg = 0
 
-    self.prefetchAcrossPersistent = \
-        kernel["KernelLanguage"] == "Assembly" and \
-        kernel["PersistentKernel"] and \
-        kernel["PrefetchGlobalRead"] and \
-        not kernel["SuppressNoLoadLoop"] and \
-        kernel["PrefetchAcrossPersistent"]
+    self.prefetchAcrossPersistent = kernel["PrefetchAcrossPersistent"]
 
 
     self.actualSummationLoops = 1 if kernel["PackSummationDims"] else kernel["ProblemType"]["NumIndicesSummation"]
@@ -2411,7 +2412,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     # turn on parts of prefetchAcrossPersistent code for testing
     self.prefetchAcrossPersistent0 = 0 or self.prefetchAcrossPersistent
-    self.prefetchAcrossPersistent2 = 0 and self.prefetchAcrossPersistent
+    self.canOptimizePreLoopLWVmcnt = kernel["OptPreLoopVmcnt"]
 
     self.enable = {}
     dkp = kernel["DisableKernelPieces"]
@@ -3289,6 +3290,20 @@ class KernelWriter(metaclass=abc.ABCMeta):
     return ""
 
   ##############################################################################
+  # Local Write in Prefetch Pass (PreLoop): Do It A/B
+  ##############################################################################
+  @abc.abstractmethod
+  def preLoopLocalWriteDo(self, kernel, tPA, tPB):
+    return ""
+
+  ##############################################################################
+  # Replace the determined vmcnt in PreLoop LocalWrite
+  ##############################################################################
+  @abc.abstractmethod
+  def replacePreLoopLWVmcnt(self, kernel):
+    return ""
+
+  ##############################################################################
   # Local Write: Do It A/B
   ##############################################################################
   @abc.abstractmethod
@@ -3761,4 +3776,3 @@ for codeObjectFileName in codeObjectFileNames:
         fileString += "extern const unsigned char %s_coba[]; // code object byte array\n" % kernelName
 
     return fileString
-

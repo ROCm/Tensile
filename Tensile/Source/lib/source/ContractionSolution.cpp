@@ -308,16 +308,31 @@ namespace Tensile
 
         if(sizeMapping.persistentKernel != 0)
         {
-            size_t persistentGroups = dynamic_cast<AMDGPU const&>(hardware).computeUnitCount
-                                      * sizeMapping.persistentKernel;
+            AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
+            assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
+
+            size_t cuCount       = pAMDGPU->computeUnitCount;
+            size_t finalPKValue  = sizeMapping.persistentKernel;
             size_t problemGroups = rv.numWorkGroups.x * rv.numWorkGroups.y;
             if(sizeMapping.persistentKernelAlongBatch)
             {
                 problemGroups *= rv.numWorkGroups.z;
                 rv.numWorkGroups.z = 1;
             }
-            rv.numWorkGroups.x = std::min(persistentGroups, problemGroups);
-            rv.numWorkGroups.y = 1;
+
+            if(finalPKValue == -1)
+            {
+                // 1. Get the largest pk value (ex.3)
+                //    which can make the PK.G (ex.3*120=360) <= problemGroups (ex.433)
+                // 2. Scale by 5/8 (can try 0.5~1, to control the tiles-per-workgroup = 1~2)
+                finalPKValue = 5 * (problemGroups / cuCount) / 8;
+                finalPKValue = std::max(finalPKValue, (size_t)1);
+                //std::cout << "final persistent kernel value: " << finalPKValue << std::endl;
+            }
+
+            size_t persistentGroups = cuCount * finalPKValue;
+            rv.numWorkGroups.x      = std::min(persistentGroups, problemGroups);
+            rv.numWorkGroups.y      = 1;
         }
 
         rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
@@ -507,8 +522,10 @@ namespace Tensile
 
         if(sizeMapping.persistentKernel != 0)
         {
+            uint32_t magicShift;
             rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0",
-                                     smallMagicNumber(problemNumGroupTiles0));
+                                     magicNumber(2, problemNumGroupTiles0, &magicShift));
+            rv.args.append<uint32_t>("magicShiftProblemNumGroupTiles0", magicShift);
         }
 
         if(!isSourceKernel())
@@ -525,12 +542,13 @@ namespace Tensile
 
             if(sizeMapping.persistentKernelAlongBatch)
             {
+                uint32_t numGroupTiles0x1 = problemNumGroupTiles0 * problemNumGroupTiles1;
+                uint32_t magicShift;
+
                 rv.args.append<uint32_t>("problemNumGroupTiles2", problemNumGroupTiles2);
-                rv.args.append<uint32_t>("problemNumGroupTiles0By1",
-                                         problemNumGroupTiles0 * problemNumGroupTiles1);
-                rv.args.append<uint32_t>(
-                    "magicNumberProblemNumGroupTiles0By1",
-                    smallMagicNumber(problemNumGroupTiles0 * problemNumGroupTiles1));
+                rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0By1",
+                                         magicNumber(2, numGroupTiles0x1, &magicShift));
+                rv.args.append<uint32_t>("magicShiftProblemNumGroupTiles0By1", magicShift);
             }
 
             if(sizeMapping.workGroupMapping != 0)
