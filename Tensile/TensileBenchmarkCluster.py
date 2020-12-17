@@ -1,9 +1,3 @@
-
-if __name__ == "__main__":
-    print("This file can no longer be run as a script.  Run 'Tensile/bin/TensileBenchmarkCluster' instead.")
-    exit(1)
-
-
 import shlex, subprocess
 import sys
 import os
@@ -14,7 +8,7 @@ from .Configuration import ProjectConfig
 from Tensile.Utilities.merge import mergePartialLogics
 
 try:
-    import mgzip
+    import mgzip as gzip
 except ImportError:
     print("Package mgzip not found: docker zipping will be slow. Install pip3 install mgzip to improve performance.")
 
@@ -436,18 +430,12 @@ class BenchmarkImplSLURM(object):
             saveCmd = str("docker save {0}").format(tag)
 
             # Docker will save .tar binary to stdout as long as it's not attached to console.
-            # Pipe stdout into mgzip to get smaller .tar.gz archive
+            # Pipe stdout into gzip to get smaller .tar.gz archive
             print("Saving docker image: {0}  to {1} ...".format(tag, archivePath))
 
-            try:
-                with mgzip.open(archivePath, 'wb') as zipFile:
-                    with subprocess.Popen(shlex.split(saveCmd), stdout=subprocess.PIPE, stderr=logFile) as proc:
-                        zipFile.write(proc.stdout.read())
-            except NameError:
-                print("mgzip not available: Install with pip3 install mgzip. Falling back to slow single threaded gzip...")
-                with gzip.open(archivePath, 'wb') as zipFile:
-                    with subprocess.Popen(shlex.split(saveCmd), stdout=subprocess.PIPE, stderr=logFile) as proc:
-                        zipFile.write(proc.stdout.read())
+            with gzip.open(archivePath, 'wb') as zipFile:
+                with subprocess.Popen(shlex.split(saveCmd), stdout=subprocess.PIPE, stderr=logFile) as proc:
+                    zipFile.write(proc.stdout.read())
 
             print("Done saving docker image!")
 
