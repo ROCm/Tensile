@@ -286,11 +286,12 @@ class SignatureCOV2(Signature):
 
         if kernel["PersistentKernel"]:
             kStr += self.v2Argument("MagicNumberProblemNumGroupTiles0",     '4',    '4',      "ByValue",      "U32"); ka_size += 4
+            kStr += self.v2Argument("MagicShiftProblemNumGroupTiles0",      '4',    '4',      "ByValue",      "U32"); ka_size += 4
             kStr += self.v2Argument(              "GridNumWorkGroups0",     '4',    '4',      "ByValue",      "U32"); ka_size += 4
             if kernel["PersistentKernelAlongBatch"]:
                 kStr += self.v2Argument(                "NumWorkGroups2",     '4',    '4',    "ByValue",      "U32"); ka_size += 4
-                kStr += self.v2Argument(              "NumWorkGroups0By1",    '4',    '4',    "ByValue",      "U32"); ka_size += 4
                 kStr += self.v2Argument("MagicNumProblemNumGroupTiles0By1",   '4',    '4',    "ByValue",      "U32"); ka_size += 4
+                kStr += self.v2Argument("MagicShiftProblemNumGroupTiles0By1", '4',    '4',    "ByValue",      "U32"); ka_size += 4
 
         kStr += self.v2Argument(                   "NumFullBlocks",     '4',      '4',      "ByValue",        "U32"); ka_size += 4
         kStr += self.v2Argument(                   "WgmRemainder1",     '4',      '4',      "ByValue",        "U32"); ka_size += 4
@@ -485,11 +486,12 @@ class SignatureCOV3(Signature):
 
         if kernel["PersistentKernel"]:
             kStr += self.v3Argument("MagicNumberProblemNumGroupTiles0",   '4', offset,    "by_value",        "u32"); offset += 4
+            kStr += self.v3Argument("MagicShiftProblemNumGroupTiles0",    '4', offset,    "by_value",        "u32"); offset += 4
             kStr += self.v3Argument(              "GridNumWorkGroups0",   '4', offset,    "by_value",        "u32"); offset += 4
             if kernel["PersistentKernelAlongBatch"]:
                 kStr += self.v3Argument(                "NumWorkGroups2",   '4', offset,  "by_value",        "u32"); offset += 4
-                kStr += self.v3Argument(              "NumWorkGroups0By1",  '4', offset,  "by_value",        "u32"); offset += 4
                 kStr += self.v3Argument("MagicNumProblemNumGroupTiles0By1", '4', offset,  "by_value",        "u32"); offset += 4
+                kStr += self.v3Argument("MagicShiftProblemNumGroupTiles0By1", '4', offset,"by_value",        "u32"); offset += 4
 
         kStr += self.v3Argument(                   "NumFullBlocks",     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += self.v3Argument(                   "WgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4

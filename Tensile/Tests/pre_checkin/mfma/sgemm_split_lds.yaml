@@ -38,15 +38,16 @@ BenchmarkProblems:
         - WorkGroupMapping: [8]
         - InnerUnroll: [2]
         - DepthU: [64, 128]
-        - DepthULdsDivisor: [2]
+        - DepthULdsDivisor: [1,2]
         - ScheduleIterAlg: [3]
         - VectorWidth: [4, 8]
         - 1LDSBuffer: [0, 1]
         - PersistentKernel: [0, 1]
-        - PersistentKernelAlongBatch: [1]
+        - PersistentKernelAlongBatch: [False]
         - PrefetchAcrossPersistent: [0, 1]
         - GlobalSplitUAlgorithm: ["SingleBuffer", "MultipleBuffer"]
-        - GlobalSplitU: [2, 5, 15]
+        - GlobalSplitU: [1, 2, 5]
+        - LocalReadVectorWidth: [2]
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:

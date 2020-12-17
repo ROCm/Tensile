@@ -1159,13 +1159,13 @@ class ProblemType(collections.abc.Mapping):
     # A dimensions
     name += "_A"
     for i in self["IndexAssignmentsA"]:
-      name += indexChars[i].lower()
+      name += indexChars[i] if i in self["MirrorDimsA"] else indexChars[i].lower()
     if self["ComplexConjugateA"]:
       name += "C"
     # B dimensions
     name += "_B"
     for i in self["IndexAssignmentsB"]:
-      name += indexChars[i].lower()
+      name += indexChars[i] if i in self["MirrorDimsB"] else indexChars[i].lower()
     if self["ComplexConjugateB"]:
       name += "C"
 
@@ -1594,6 +1594,14 @@ class ExactDict(Problem):
 ################################################################################
 # ProblemSizes
 ################################################################################
+"""
+Adapter class for class `ProblemSizes`. It satisfies the implicit usage requirement
+of ClientWriter.writeClientConfig() by converting ExactLogic to list of `Problem` objects
+"""
+class ProblemSizesMock:
+  def __init__(self, exactLogic):
+    self.problems = [Problem(problem) for problem, solution in exactLogic]
+
 class ProblemSizes:
 
   ########################################
@@ -1855,7 +1863,7 @@ class Solution:
     state["AssignedProblemIndependentDerivedParameters"] = False
     if "Valid" not in state:
       state["Valid"] = True
-        
+
 
     EnableMatrixInstruction = state["EnableMatrixInstruction"] if "EnableMatrixInstruction" in state else None
     if EnableMatrixInstruction == None:
@@ -2488,13 +2496,22 @@ class Solution:
     if state["PersistentKernelAlongBatch"] and (\
             (state["PersistentKernel"] == 0) or \
             (state["KernelLanguage"] == "Source" and state["GlobalSplitU"] != 1) ):
-      # warn("PersistentKernelAlongBatch requires PersistentKernel != 0, forcing PersistentKernelAlongBatch = False")
-      # warn("PersistentKernelAlongBatch not support GSU on HIP, forcing PersistentKernelAlongBatch = False")
+      print2("PersistentKernelAlongBatch requires PersistentKernel != 0, forcing PersistentKernelAlongBatch = False")
+      print2("PersistentKernelAlongBatch not support GSU on HIP, forcing PersistentKernelAlongBatch = False")
       state["PersistentKernelAlongBatch"] = False
 
-    if state["PrefetchAcrossPersistent"] and (state["PersistentKernel"] == 0):
-      # warn("PrefetchAcrossPersistent requires PersistentKernel != 0, forcing PrefetchAcrossPersistent = False")
-      state["PrefetchAcrossPersistent"] = False
+    if state["PrefetchAcrossPersistent"]:
+      if state["KernelLanguage"] == "Source" or \
+         state["PersistentKernel"] == 0 or \
+         state["PrefetchGlobalRead"] == 0 or \
+         state["SuppressNoLoadLoop"]:
+        print2("PAP requires Assembly, PK != 0, PGR != 0, SuppressNoLoadLoop = True, forcing PAP = False")
+        state["PrefetchAcrossPersistent"] = False
+
+    # TODO- fix this, avoid the bug for now
+    if state["PrefetchAcrossPersistent"] and state["StaggerU"] == 0:
+        print2("PAP has some defects so far and would cause error when SU=0, disable PAP temporarily")
+        state["PrefetchAcrossPersistent"] = False
 
     problemType = state["ProblemType"]
     if not problemType["UseInitialStridesAB"]:
@@ -2580,12 +2597,16 @@ class Solution:
       # EPS not supported with PGR=2 yet
       if state["PrefetchGlobalRead"] == 2:
         state["ExpandPointerSwap"] = 0
-      # EPS not supported with PAP yet
-      if state["PrefetchAcrossPersistent"]:
-        state["ExpandPointerSwap"] = 0
       # EPS not supported with SplitLDS yet
       if state["DepthULdsDivisor"] > 1:
         state["ExpandPointerSwap"] = 0
+
+    # Can optimize preLoop LW Vmcnt only when PAP, BufferLoad
+    # TODO- less restriction? Haven't tested for not BufferLoad
+    state["OptPreLoopVmcnt"] = state["OptPreLoopVmcnt"] and \
+                               state["PrefetchAcrossPersistent"] and \
+                               bufferLoad
+
 
     #print("PackedC0IdxChars", state["PackedC0IdxChars"])
     #print("PackedC1IdxChars", state["PackedC1IdxChars"])
@@ -3715,4 +3736,3 @@ class Solution:
     if result is NotImplemented:
       return result
     return not result
-

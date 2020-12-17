@@ -6,6 +6,9 @@ Tensile.egg-info
 build*
 dist
 .cache
+/*.yaml
+/*.txt
+/*log*
 
 0_Build
 1_BenchmarkProblems

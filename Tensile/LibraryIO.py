@@ -34,7 +34,7 @@ except ImportError:
 try:
   import msgpack
 except ImportError:
-  printExit("You must install MessagePack for Python to use Tensile (to parse config files). See https://github.com/msgpack/msgpack-python for installation instructions.")
+  print("Message pack python library not detected. Must use YAML backend instead.")
 
 ################################################################################
 # Read Benchmark Config from YAML Files
@@ -292,7 +292,11 @@ class YAMLWriter(Writer):
 class MessagePackWriter(Writer):
   def write(self, filename, data):
     with open(filename, 'wb') as f:
+      try:
         msgpack.pack(data, f)
+      except NameError:
+        printExit("You must install MessagePack for Python to use Tensile (to parse config files). See https://github.com/msgpack/msgpack-python for installation instructions.")
+
 
   def writeLibraryLogicForSchedule(self, filePath, schedulePrefix, architectureName, \
       deviceNames, logicTuple):
@@ -310,3 +314,5 @@ class MessagePackWriter(Writer):
       stream.close()
     except IOError:
       printExit("Cannot open file: %s" % filename)
+    except NameError:
+      printExit("You must install MessagePack for Python to use Tensile (to parse config files). See https://github.com/msgpack/msgpack-python for installation instructions.")

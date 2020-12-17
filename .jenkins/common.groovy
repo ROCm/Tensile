@@ -62,7 +62,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     junit "${project.paths.project_build_prefix}/python_unit_tests.xml"
 }
 
-def publishResults(project)
+def publishResults(project, boolean skipHostTest=false)
 {
     try
     {
@@ -72,7 +72,7 @@ def publishResults(project)
     {
         try
         {
-            junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
+            if (!skipHostTest) junit "${project.paths.project_build_prefix}/build/host_test_output.xml"
         }
         finally
         {
@@ -81,12 +81,13 @@ def publishResults(project)
     }
 }
 
-def runTestCommand (platform, project, jobName, test_marks)
+def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest=false)
 {
     def test_dir =  "Tensile/Tests"
 
     String compiler = jobName.contains('hipclang') ? 'hipcc' : 'hcc'
     String pythonVersion = 'py36'
+    String markSkipHostTest = skipHostTest ? "#" : ""
 
     def command = """#!/usr/bin/env bash
             set -x
@@ -98,11 +99,11 @@ def runTestCommand (platform, project, jobName, test_marks)
 
             gpuArch=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
 
-            pushd build
-            ./TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
-            HOST_ERR=\$?
+            ${markSkipHostTest}pushd build
+            ${markSkipHostTest}./TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
+            ${markSkipHostTest}HOST_ERR=\$?
+            ${markSkipHostTest}popd
 
-            popd
             #### temporary fix to remedy incorrect home directory
             export HOME=/home/jenkins
             ####
@@ -112,10 +113,10 @@ def runTestCommand (platform, project, jobName, test_marks)
             PY_ERR=\$?
             date
 
-            if [[ \$HOST_ERR -ne 0 ]]
-            then
-                exit \$HOST_ERR
-            fi
+            ${markSkipHostTest}if [[ \$HOST_ERR -ne 0 ]]
+            ${markSkipHostTest}then
+            ${markSkipHostTest}    exit \$HOST_ERR
+            ${markSkipHostTest}fi
 
             if [[ \$PY_ERR -ne 0 ]]
             then
@@ -134,14 +135,14 @@ def runTestCommand (platform, project, jobName, test_marks)
     {
         try
         {
-            publishResults(project)
+            publishResults(project, skipHostTest)
         }
         catch(ee)
         {}
 
         throw e
     }
-    publishResults(project)
+    publishResults(project, skipHostTest)
 }
 
 return this

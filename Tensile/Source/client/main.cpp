@@ -43,8 +43,8 @@
 #include "SolutionIterator.hpp"
 #include "TimingEvents.hpp"
 
-#include "LogReporter.hpp"
 #include "LibraryUpdateReporter.hpp"
+#include "LogReporter.hpp"
 #include "MetaResultReporter.hpp"
 #include "PerformanceReporter.hpp"
 #include "ResultFileReporter.hpp"
@@ -140,7 +140,7 @@ namespace Tensile
                 ("print-tensor-d",           po::value<bool>()->default_value(false), "Print tensor D.")
                 ("print-tensor-ref",         po::value<bool>()->default_value(false), "Print reference tensor D.")
 
-                ("dump-tensors",           po::value<bool>()->default_value(false),  "Binary dump tensors instead of printing.")
+                ("dump-tensors",             po::value<bool>()->default_value(false), "Binary dump tensors instead of printing.")
 
                 ("convolution-identifier",   po::value<std::string>(), "Convolution problem identifer:  ConvolutionType_ActFormat_FilterFormat_Filter_Stride_Dilation_Groups.  Example: ConvolutionBackwardWeights_NCHW_filter:3x3_stride:1x1_dilation:1x1_groups:1.  Batch count, spacial dimensions (H,W,D), Cin and Cout filters are determined by the problem dimensions.")
                 ("convolution-vs-contraction",  po::value<bool>()->default_value(false), "Compare reference convolution against contraction.")
@@ -206,7 +206,7 @@ namespace Tensile
                 ("problem-start-idx",        po::value<int>()->default_value(0),  "First problem to run")
                 ("num-problems",             po::value<int>()->default_value(-1), "Number of problems to run")
 
-                ("solution-start-idx",       po::value<int>()->default_value(-1),  "First solution to run")
+                ("solution-start-idx",       po::value<int>()->default_value(-1), "First solution to run")
                 ("num-solutions",            po::value<int>()->default_value(-1), "Number of solutions to run")
                 ("best-solution",            po::value<bool>()->default_value(false), "Best solution benchmark mode")
 
@@ -226,6 +226,7 @@ namespace Tensile
                 ("exit-on-error",          po::value<bool>()->default_value(false), "Exit run early on failed kernels or other errors.")
                 ("selection-only",           po::value<bool>()->default_value(false), "Don't run any solutions, only print kernel selections.")
                 ("max-workspace-size",       po::value<size_t>()->default_value(32*1024*1024), "Max workspace for training")
+                ("granularity-threshold",    po::value<double>()->default_value(0.0), "Don't run a solution if total granularity is below")
                 ;
             // clang-format on
 
@@ -240,7 +241,8 @@ namespace Tensile
             int deviceIdx = args["device-idx"].as<int>();
 
             if(deviceIdx >= deviceCount)
-                throw std::runtime_error(concatenate("Invalid device index ", deviceIdx, " (", deviceCount, " total found.)"));
+                throw std::runtime_error(concatenate(
+                    "Invalid device index ", deviceIdx, " (", deviceCount, " total found.)"));
 
             HIP_CHECK_EXC(hipSetDevice(deviceIdx));
 
@@ -466,7 +468,7 @@ int main(int argc, const char* argv[])
 
     bool gpuTimer = args["use-gpu-timer"].as<bool>();
 
-    bool runKernels = !args["selection-only"].as<bool>();
+    bool runKernels  = !args["selection-only"].as<bool>();
     bool exitOnError = args["exit-on-error"].as<bool>();
 
     if(firstSolutionIdx < 0)
@@ -604,7 +606,6 @@ int main(int argc, const char* argv[])
 
                                 listeners.postEnqueues(startEvents, stopEvents);
                                 listeners.validateEnqueues(inputs, startEvents, stopEvents);
-
                             }
                             listeners.postSyncs();
                         }

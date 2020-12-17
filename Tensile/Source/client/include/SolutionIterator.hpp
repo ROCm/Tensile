@@ -30,6 +30,9 @@
 
 #include <boost/program_options.hpp>
 
+#include <functional>
+#include <vector>
+
 #include "RunListener.hpp"
 
 namespace Tensile
@@ -126,10 +129,19 @@ namespace Tensile
         class AllSolutionsIterator : public SolutionIterator
         {
         public:
+            using RunCriteria = std::vector<std::function<bool(
+                ContractionProblem const&, Hardware const&, ContractionSolution const&)>>;
+
+            static RunCriteria
+                CreateCriteria(std::shared_ptr<MasterSolutionLibrary<ContractionProblem>> library,
+                               std::shared_ptr<Hardware>                                  hardware,
+                               po::variables_map const&                                   args);
+
             AllSolutionsIterator(std::shared_ptr<MasterSolutionLibrary<ContractionProblem>> library,
                                  std::shared_ptr<Hardware> hardware,
                                  int                       firstSolutionIdx,
-                                 int                       numSolutions);
+                                 int                       numSolutions,
+                                 RunCriteria               runCriteria = RunCriteria());
 
             virtual void preProblem(ContractionProblem const& problem) override;
             virtual void postProblem() override;
@@ -139,12 +151,15 @@ namespace Tensile
 
             virtual bool                                 moreSolutionsInProblem() const override;
             virtual std::shared_ptr<ContractionSolution> getSolution() override;
+            virtual bool                                 runCurrentSolution() override;
 
         private:
             int m_firstSolutionIdx;
             int m_lastSolutionIdx;
 
             int m_currentSolutionIdx;
+
+            RunCriteria m_runCriteria;
         };
 
         class BestSolutionIterator : public SolutionIterator

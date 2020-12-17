@@ -965,15 +965,9 @@ namespace Tensile
                 enum
                 {
                     HasIndex = false,
-                    HasValue = true
+                    HasValue = false
                 };
-                bool value;
-
                 PersistentKernelCheck() = default;
-                PersistentKernelCheck(bool value)
-                    : value(value)
-                {
-                }
 
                 static std::string Type()
                 {

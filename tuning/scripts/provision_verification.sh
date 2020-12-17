@@ -73,7 +73,7 @@ if [ -z ${WORKING_PATH+foo} ]; then
 fi
 
 if [ -z ${LOGS+foo} ]; then
-  LOGS=${WORKING_PATH}/logs 
+  LOGS=${WORKING_PATH}/logs
 fi
 
 if [ -z ${TENSILE_PATH+foo} ]; then
@@ -140,13 +140,15 @@ fi
 MERGE_SCRIPT=${TENSILE_PATH}/Tensile/Utilities/merge.py
 MASSAGE_SCRIPT=${REFERENCE_LIBRARY_ARCHIVE}/massage.py
 
-if [[ "${LIBRARY}" == arcturus ]]; then
-    if [[ $(ls -A logs/log-efficiency | wc -c) -eq 0 && "${PUBLIC}" == false ]]; then
+if [ "${LIBRARY}" == arcturus ]; then
+  if [ "${PUBLIC}" == false ]; then
+    if [ ! -f ${LOGS}/log-efficiency ]; then
         pushd ${WORKING_PATH}  > /dev/null
         git clone https://github.com/RocmSoftwarePlatform/rocmdevtools.git -b efficiency
-        python rocmdevtools/scripts/tuning/convertToEfficiency.py ${EXACT_PATH} ${LIBRARY} ${SCLK} 2>&1 | tee ${LOGS}/log-efficiency
-        popd
+        python3 rocmdevtools/scripts/tuning/convertToEfficiency.py ${EXACT_PATH} ${LIBRARY} ${SCLK} 2>&1 | tee ${LOGS}/log-efficiency
+        popd > /dev/null
     fi
+  fi
 fi
 
 if [[ ${MERGE} == true ]]; then
@@ -159,17 +161,17 @@ if [[ ${MERGE} == true ]]; then
 
   if [[ $(ls -A ${MERGE_PATH} | wc -c) -eq 0 ]]; then
     echo "merging exact logic"
-    EXE_MERGE="python ${MERGE_SCRIPT} ${ASM_PATH} ${EXACT_PATH} ${MERGE_PATH}"
+    EXE_MERGE="python3 ${MERGE_SCRIPT} ${ASM_PATH} ${EXACT_PATH} ${MERGE_PATH}"
     ${EXE_MERGE} 2>&1 | tee ${LOGS}/log-merge-script
   fi
-  
+
 else
   MERGE_PATH=${EXACT_PATH}
 fi
 
 if [[ ${MASSAGE} == true ]]; then
   if [[ $(ls -A ${MASSAGE_PATH} | wc -c) -eq 0 ]]; then
-     python ${MASSAGE_SCRIPT} ${MERGE_PATH} ${MASSAGE_PATH} 2>&1 | tee ${LOGS}/log-massage-script
+     python3 ${MASSAGE_SCRIPT} ${MERGE_PATH} ${MASSAGE_PATH} 2>&1 | tee ${LOGS}/log-massage-script
   fi
 fi
 
