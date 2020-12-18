@@ -654,22 +654,29 @@ def mapTypeName(inputName):
         outputName = "h"
     elif inputName == "f64_r":
         outputName = "d"
+    elif inputName == "bf16_r":
+        outputName = "b"
     else:
         outputName = inputName
 
     return outputName
 
 def getDataTypeDef(problemDefinition):
-
+    inType = None
+    destType = None
     computeType = None
     if problemDefinition["r"]:
-        computeType = mapTypeName(problemDefinition["r"])
-    elif problemDefinition["compute_type"]:
-        computeType = mapTypeName(problemDefinition["compute_type"])
+        t = mapTypeName(problemDefinition["r"])
+        inType = t
+        destType = t
+        computeType = t
     else:
-        computeType = "s"
+        # assuming a == b and c == d (and they all exist)
+        inType = mapTypeName(problemDefinition["a_type"])
+        destType = mapTypeName(problemDefinition["c_type"])
+        computeType = mapTypeName(problemDefinition["compute_type"])
 
-    return computeType
+    return (inType, destType, computeType)
 
 def UpdateOutputMapping(mapper, problemDefinition):
     # "f","transposeA","transposeB"
@@ -677,7 +684,6 @@ def UpdateOutputMapping(mapper, problemDefinition):
     transposeA = problemDefinition["transposeA"]
     transposeB = problemDefinition["transposeB"]
     t = getDataTypeDef(problemDefinition)
-
     key = (f,transposeA,transposeB,t)
 
     lineDefinition = None
