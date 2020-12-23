@@ -209,9 +209,9 @@ class TuningConfiguration(object):
             printExit("Cannot open file: %s" % filename)
 
 
-def generateProblemType(initialParams, tileAware= "true"):
+def generateProblemType(initialParams, tileAware=True):
 
-    if tileAware == "true":
+    if tileAware:
         problemType = {
             "OperationType": "GEMM",
             "DataType": "s",
@@ -272,7 +272,7 @@ def appendExactSizes(problemSizes, size):
     if size[0] % 64 == 0 and size[1] % 128 == 0 and size[3] % 64 == 0 and size[3] >= 128:
         problemSizes.append({"Exact": size})
 
-def appendSizes(benchmarkGroup, sizes, tileAware="false", noExact=False, rk="false"):
+def appendSizes(benchmarkGroup, sizes, tileAware=False, noExact=False, rk=False):
     benchmarkFinalParams = benchmarkGroup["BenchmarkFinalParameters"]
     problemSizes = []
 
@@ -286,7 +286,7 @@ def appendSizes(benchmarkGroup, sizes, tileAware="false", noExact=False, rk="fal
             appendGuardSizes(problemSizes,size,modifiedSize)
     else:
         for size in sizes:
-            if rk == "true":
+            if rk:
                 appendExactSizes(problemSizes,size)
             else:
                 problemSizes.append({"Exact": size})
@@ -295,7 +295,7 @@ def appendSizes(benchmarkGroup, sizes, tileAware="false", noExact=False, rk="fal
         benchmarkFinalParams = []
         benchmarkGroup["BenchmarkFinalParameters"] = benchmarkFinalParams
 
-    if tileAware == "false":
+    if not tileAware:
         benchmarkFinalParams.append({"ProblemSizes":problemSizes})
 
 def generateEmptyBenchmarkGroup():

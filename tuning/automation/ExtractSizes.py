@@ -853,7 +853,7 @@ def GetStride(problemDefinition,param):
 
     return tn[param]
 
-def BuildRocBLASBenchmarkCall(problemDefinition,disableStrides="false",initialization="rand_int"):
+def BuildRocBLASBenchmarkCall(problemDefinition,disableStrides=False,initialization="rand_int"):
     f = problemDefinition["f"]
     keys = rocblas_key_mapping[f]
 
@@ -863,13 +863,13 @@ def BuildRocBLASBenchmarkCall(problemDefinition,disableStrides="false",initializ
         value = problemDefinition[param]
         if ("ld" in param or "stride" in param) and int(value) == 0:
             value = GetStride(problemDefinition,param)
-        if ("ld" not in param and "stride" not in param) or disableStrides == "false":
+        if ("ld" not in param and "stride" not in param) or not disableStrides:
             rocblas_call += " %s %s" % (key,value)
     rocblas_call += " --initialization %s" % (initialization)
 
     return rocblas_call
 
-def ConvertToYAML(problemDefinition,disableStrides="false"):
+def ConvertToYAML(problemDefinition,disableStrides=False):
     f = problemDefinition["f"]
     keys = rocblas_key_mapping[f]
     convertKey = {"r":"rocblas_function","a_type":"a_type","b_type":"b_type","c_type":"c_type","d_type":"d_type","compute_type":"compute_type","transposeA":"transA","transposeB":"transB","m":"M","n":"N","k":"K","alpha":"alpha","lda":"lda","ldb":"ldb","beta":"beta","ldc":"ldc","ldd":"ldd","stride_a":"stride_a","stride_b":"stride_b","stride_c":"stride_c","stride_d":"stride_d","batch_count":"batch_count","algo":"algo","solution_index":"solution_index","flags":"flags","i":"iters"}

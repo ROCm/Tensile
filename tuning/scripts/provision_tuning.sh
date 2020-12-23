@@ -32,17 +32,6 @@ function extract_network_sizes() {
   popd > /dev/null
 }
 
-function build_configs() {
-  # build the tuning configurations
-
-  local HEADER_FILE="${CONFIGURATION_ROOT}/boiler/header.yml"
-  local GENERATE_CONFIGURATION="${AUTOMATION_ROOT}/GenerateTuningConfigurations.py"
-
-  BUILD_CONFIGS="python3 ${GENERATE_CONFIGURATION} -w ${WORKING_PATH} -d ${HEADER_FILE} -c ${CONFIGURATION_ROOT} -p ${PROBLEM_SPEC} -o ${OUTPUT_FILE}"
-  ${BUILD_CONFIGS}
-
-}
-
 function provision_tensile() {
 
   local PROVISION_TENSILE="${SCRIPT_ROOT}/provision_repo.sh -w ${TENSILE_ROOT} -b ${TENSILE_BRANCH} -f ${TENSILE_FORK}"

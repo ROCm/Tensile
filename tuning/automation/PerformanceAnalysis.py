@@ -24,6 +24,7 @@ import os
 import sys
 import argparse
 import re
+from distutils.util import strtobool
 
 import pandas as pd
 from ExtractSizes import *
@@ -81,7 +82,7 @@ def ParseResults(inputPath, outputPath, resultsName):
 
 def getMultiplier(xdl):
 
-    if xdl == "true":
+    if xdl:
         return 2
 
     return 1
@@ -102,7 +103,7 @@ def fillCallCounts(problemMapper, callCounts, callCount, callCountStrided, isOne
             midList = list()
             for key in klist:
                 if key == "transposeA" or key == "transposeB" or key == "f" or key == "i":
-                    if klist[key] == 10 and isOne == "true":
+                    if klist[key] == 10 and isOne:
                         klist[key] = 1
                     midList.append(klist[key])
                 if len(midList) == 4:
@@ -184,6 +185,9 @@ def RunMain():
 
     userArgs = sys.argv[1:]
 
+    def strbool(arg):
+        return bool(strtobool(arg))
+
     argParser = argparse.ArgumentParser()
     argParser.add_argument("input_path", help="path where the results are located")
     argParser.add_argument("output_path", help="path where the processed files are to go")
@@ -191,8 +195,8 @@ def RunMain():
     argParser.add_argument("data_size", help="data size",type=int,default=2)
     argParser.add_argument("input_file_name", help="configuration file path")
     argParser.add_argument("gpu", help="which gpu was used", type=str,default="vega20")
-    argParser.add_argument("mfma", help="were mfma instructions enabled", type=str,default="false")
-    argParser.add_argument("is_count_1", help="were mfma instructions enabled", type=str,default="false")
+    argParser.add_argument("mfma", help="were mfma instructions enabled", type=strbool,default=False)
+    argParser.add_argument("is_count_1", help="were mfma instructions enabled", type=strbool,default=False) # duplicated parameter?
 
     args = argParser.parse_args(userArgs)
 
