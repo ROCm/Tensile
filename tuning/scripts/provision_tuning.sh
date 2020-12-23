@@ -1,37 +1,5 @@
 #!/bin/bash
 
-
-
-function extract_sizes() {
-
-  pushd "${WORKING_PATH}" > /dev/null
-  local EXTRACT_SIZE_PATH=`pwd`
-  popd > /dev/null
-
-  EXTRACT_EXE="python3 ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_LOG} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION}  ${INITIALIZATION} ${TENSILE_CLIENT} ${DISABLE_HPA}"
-
-  ${EXTRACT_EXE}
-
-  pushd ${PEFORMANCE_PATH} > /dev/null
-  chmod +x *
-  popd > /dev/null
-}
-
-function extract_network_sizes() {
-
-  pushd "${WORKING_PATH}" > /dev/null
-  local EXTRACT_SIZE_PATH=`pwd`
-  popd > /dev/null
-
-  EXTRACT_EXE="python3 ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_DIR} ${NETWORK} ${EXTRACT_SIZE_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION} ${INITIALIZATION} ${TENSILE_CLIENT} ${DISABLE_HPA}"
-
-  ${EXTRACT_EXE}
-
-  pushd ${PEFORMANCE_PATH} > /dev/null
-  chmod +x *
-  popd > /dev/null
-}
-
 function provision_tensile() {
 
   local PROVISION_TENSILE="${SCRIPT_ROOT}/provision_repo.sh -w ${TENSILE_ROOT} -b ${TENSILE_BRANCH} -f ${TENSILE_FORK}"
@@ -62,15 +30,32 @@ function provision_tensile() {
   ${PROVISION_TENSILE}
 
   cp -r ${STAGE_ROOT}/* ${TENSILE_ROOT}/${TENSILE_PATH}
-
 }
 
-HELP_STR="usage: $0 [-w|--working-path <path>] [-z | --size-log <logfile path>] [-f|--tensile-fork <username>] [-b|--branch <branch>] [-c <github commit id>] [-t|--tag <github tag>] [--rocblas-fork <username>] [-o|--output <configuration filename>] [-y | --type <data type>] [-l | --library <library/schedule>] [-m | --mfma] [-r | --rk] [-s | --disable-strides] [--problem-definition <gemm/batch/both] [--client <new/old/both>] [-n] [[-h|--help]"
+HELP_STR="
+Usage: provisions_tuning <required options> [optional options]
+
+Options:
+  [-h|--help]                              Display this help message
+  [-w|--working-path <path>]               Required.
+  [-z|--size-log <logfile path>]           Required.
+  [-o|--output <configuration filename>]   Required
+  [-l|--library <library/schedule>]        Required.
+  [-f|--tensile-fork <username>]           Optional.
+  [-b|--branch <branch>]                   Optional.
+  [-c|--commit <github commit id>]         Optional.
+  [-t|--tag <github tag>]                  Optional
+  [-m|--mfma]                              Optional.
+  [-r|--rk]                                Optional.
+  [-s|--disable-strides]                   Optional.
+  [--problem-definition <gemm/batch/both]  Optional.
+  [--client <new/old/both>]                Optional.
+  [-n|--network]                           Optional.
+"
 HELP=false
 TENSILE_CLIENT=new
 SUPPRESS_TENSILE=false
 TENSILE_FORK='ROCmSoftwarePlatform'
-ROCBLAS_FORK='ROCmSoftwarePlatform'
 TENSILE_BRANCH='develop'
 TENSILE_HOST="https://github.com/${TENSILE_FORK}/Tensile.git"
 TILE_AWARE=false
@@ -81,7 +66,10 @@ PROBLEM_DEFINITION=both
 INITIALIZATION=rand_int
 DISABLE_HPA=false
 
-OPTS=`getopt -o hw:z:d:n:t:f:b:c:o:y:l:amrsi: --long help,working-path:,size-log:,log-dir:,tag:,tensile-fork:,rocblas-fork:,branch:,commit:,output:,type:,library:,client:,tile-aware,mfma,rk,problem-definition:,disable-strides,initialization:,disable-hpa,no-tensile,id: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hw:z:d:n:t:f:p:b:c:o:l:amrsi: \
+--long help,working-path:,size-log:,log-dir:,network:,tag:,tensile-fork:,rocblas-fork:,tensile-path:,\
+branch:,commit:,output:,library:,client:,tile-aware,mfma,rk,problem-definition:,disable-strides,initialization:,\
+disable-hpa,no-tensile,id: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -97,7 +85,7 @@ while true; do
     --client )              TENSILE_CLIENT="$2"; shift 2;;
     -t | --tag )            TAG="$2"; shift 3;;
     -f | --tensile-fork)    TENSILE_FORK="$2"; shift 2;;
-    --rocblas-fork)         ROCBLAS_FORK="$2"; shift 2;;
+    -p | --tensile-path)    TENSILE_PATH="$2"; shift 2;;
     -b | --branch  )        TENSILE_BRANCH="$2"; shift 2;;
     -c | --commit )         COMMIT="$2"; shift 2;;
     -o | --output )         OUTPUT_FILE="$2"; shift 2;;
@@ -118,68 +106,75 @@ done
 
 if $HELP; then
   echo "${HELP_STR}" >&2
-  exit 2
+  exit 0
 fi
 
 if [ -z ${WORKING_PATH+foo} ]; then
-   printf "A working path is required\n"
-   exit 2
+  printf "A working path is required\n"
+  exit 2
 fi
 
 if [ -z ${SIZE_LOG+foo} ] && [ -z ${SIZE_DIR+foo} ]; then
-   printf "A problem specification file or directory is required\n"
-   exit 2
+  printf "A problem specification file or directory is required\n"
+  exit 2
 fi
 
 if [ -z ${OUTPUT_FILE+foo} ]; then
-   printf "Need a configuration file name to generate\n"
-   exit 2
+  printf "Need a configuration file name to generate\n"
+  exit 2
 fi
 if [ -z ${LIBRARY+foo} ]; then
-   printf "Need specify a target platform for tuning\n"
-   exit 2
+  printf "Need specify a target platform for tuning\n"
+  exit 2
 fi
 
 if [[ "${TENSILE_CLIENT}" != both && "${TENSILE_CLIENT}" != old ]]; then
-    printf "Setting Tensile Client to new\n"
-    TENSILE_CLIENT=new
+  printf "Setting Tensile Client to new\n"
+  TENSILE_CLIENT=new
 fi
 
-#determining the full path of tools root
+# determining the full path of tools root
 TOOLS_ROOT=`dirname "$0"`
 TOOLS_ROOT=`( cd "${TOOLS_ROOT}" && cd .. && pwd )`
 
-TENSILE_ROOT="${WORKING_PATH}/reops"
 BUILD_ROOT="${WORKING_PATH}/configs"
 STAGE_ROOT="${WORKING_PATH}/make"
+OUT_SCRIPT_ROOT="${WORKING_PATH}/scripts"
+OUT_SCRIPT2_ROOT="${WORKING_PATH}/scripts2"
 TENSILE_ROOT="${WORKING_PATH}/tensile"
-CONFIGURATION_ROOT="${TOOLS_ROOT}/configuration"
 AUTOMATION_ROOT="${TOOLS_ROOT}/automation"
 SCRIPT_ROOT="${TOOLS_ROOT}/scripts"
-SIZE_PATH="${WORKING_PATH}/sizes"
-PROBLEM_SPEC="${WORKING_PATH}/problem_spec.csv"
-PEFORMANCE_PATH="${WORKING_PATH}/scripts"
 
-mkdir -p ${BUILD_ROOT}
 mkdir -p ${STAGE_ROOT}
-mkdir -p ${TENSILE_ROOT}
-mkdir -p ${SIZE_PATH}
-mkdir -p ${PEFORMANCE_PATH}
-
 
 # extracts the sizes from the logs and generates the tuning configurations
 if [ -z ${NETWORK+foo} ]; then
-  extract_sizes
+  EXTRACT_EXE="python3 ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_LOG} ${WORKING_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION}  ${INITIALIZATION} ${TENSILE_CLIENT} ${DISABLE_HPA}"
 else
-  extract_network_sizes
+  EXTRACT_EXE="python3 ${AUTOMATION_ROOT}/GenerateTuningConfigurations.py ${SIZE_DIR} ${NETWORK} ${WORKING_PATH} ${OUTPUT_FILE} ${LIBRARY} ${TILE_AWARE} ${MFMA} ${RK} ${DISABLE_STRIDES} ${PROBLEM_DEFINITION} ${INITIALIZATION} ${TENSILE_CLIENT} ${DISABLE_HPA}"
 fi
+${EXTRACT_EXE}
 
+# make output scripts executable
+pushd ${OUT_SCRIPT_ROOT} > /dev/null
+chmod +x *
+popd > /dev/null
+
+pushd ${OUT_SCRIPT2_ROOT} > /dev/null
+chmod +x *
+popd > /dev/null
+
+# prepare scripts to run tuning
 ls ${BUILD_ROOT}/*.yaml | xargs -n1 basename | xargs ${SCRIPT_ROOT}/stage_tuning.sh ${BUILD_ROOT} ${STAGE_ROOT}
 
-# if enabled, this will provision tensile and set it up for tuning
-if ${SUPPRESS_TENSILE} ; then
-  echo "Suppressing Tensile provisioning"
+if [ -z ${TENSILE_PATH+foo} ]; then
+  # tensile path not set: provision copy if not suppressed
+  if ${SUPPRESS_TENSILE} ; then
+    echo "Suppressing Tensile provisioning"
+  else
+    provision_tensile
+  fi
+  # use provided tensile path
 else
-  provision_tensile
+  cp -r ${STAGE_ROOT}/* ${TENSILE_PATH}
 fi
-

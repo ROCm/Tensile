@@ -80,7 +80,3 @@ echo "  cd .." >> $DOIT
 echo "done" >> $DOIT
 
 chmod +x $DOIT
-
-
-
-
