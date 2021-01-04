@@ -33,24 +33,33 @@ function provision_tensile() {
 }
 
 HELP_STR="
-Usage: provisions_tuning <required options> [optional options]
+Usage: ./provisions_tuning.sh -w WORKING_PATH {-z LOG_FILE | -d LOG_DIR -n NETWORK_NAME} -o OUTPUT_NAME -l LIBRARY [options]
 
 Options:
-  [-h|--help]                              Display this help message
-  [-w|--working-path <path>]               Required.
-  [-z|--size-log <logfile path>]           Required.
-  [-o|--output <configuration filename>]   Required
-  [-l|--library <library/schedule>]        Required.
-  [-f|--tensile-fork <username>]           Optional.
-  [-b|--branch <branch>]                   Optional.
-  [-c|--commit <github commit id>]         Optional.
-  [-t|--tag <github tag>]                  Optional
-  [-m|--mfma]                              Optional.
-  [-r|--rk]                                Optional.
-  [-s|--disable-strides]                   Optional.
-  [--problem-definition <gemm/batch/both]  Optional.
-  [--client <new/old/both>]                Optional.
-  [-n|--network]                           Optional.
+  [-h|--help]                     Display this help message
+  [-w|--working-path PATH]        Working path for tuning
+  [-z|--size-log PATH]            Log file containing sizes to tune
+  [-d|--log-dir PATH]             Directory containing log files
+  [-n|--network NAME]             Neural network name. ?? Will only tune log files with this string in the file name
+  [-o|--output NAME]              Output name to append to config files generated
+  [-l|--library LIBRARY]          Library to tune on (e.g. vega20)
+  [-p|--tensile-path PATH]        Path to existing Tensile (will not provision new copy)
+Options for provisioning Tensile:
+  [-f|--tensile-fork USERNAME]    Tensile fork to use
+  [-b|--branch BRANCH]            Tensile branch to use
+  [-c|--commit COMMIT_ID]         Tensile commit to use
+  [-t|--tag GITHUB_TAG]           Tensile tag to use
+  [--id ID]                       ?? 
+  [--no-tensile]                  Skip provisioning Tensile
+Options for config generation:
+  [-a|--tile-aware]               ?? 
+  [-m|--mfma]                     Use MFMA instruction in tuning
+  [-r|--rk]                       ?? Something with replacement kernels
+  [-s|--disable-strides]          ?? Disables something
+  [-i|--initialization]           ?? Data initialization when tuning
+  [--problem-definition \\
+      {gemm|batch|both}]          ?? Which problems?
+  [--client {new|old|both}]       Which client to use
 "
 HELP=false
 TENSILE_CLIENT=new
@@ -67,9 +76,10 @@ INITIALIZATION=rand_int
 DISABLE_HPA=false
 
 OPTS=`getopt -o hw:z:d:n:t:f:p:b:c:o:l:amrsi: \
---long help,working-path:,size-log:,log-dir:,network:,tag:,tensile-fork:,rocblas-fork:,tensile-path:,\
-branch:,commit:,output:,library:,client:,tile-aware,mfma,rk,problem-definition:,disable-strides,initialization:,\
-disable-hpa,no-tensile,id: -n 'parse-options' -- "$@"`
+--long help,working-path:,size-log:,log-dir:,network:,tag:,tensile-fork:,\
+rocblas-fork:,tensile-path:,branch:,commit:,output:,library:,client:,\
+tile-aware,mfma,rk,problem-definition:,disable-strides,initialization:,\
+no-tensile,id: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -83,11 +93,11 @@ while true; do
     -d | --log-dir )        SIZE_DIR="$2"; shift 2;;
     -n | --network )        NETWORK="$2"; shift 2;;
     --client )              TENSILE_CLIENT="$2"; shift 2;;
-    -t | --tag )            TAG="$2"; shift 3;;
-    -f | --tensile-fork)    TENSILE_FORK="$2"; shift 2;;
     -p | --tensile-path)    TENSILE_PATH="$2"; shift 2;;
+    -f | --tensile-fork)    TENSILE_FORK="$2"; shift 2;;
     -b | --branch  )        TENSILE_BRANCH="$2"; shift 2;;
     -c | --commit )         COMMIT="$2"; shift 2;;
+    -t | --tag )            TAG="$2"; shift 3;;
     -o | --output )         OUTPUT_FILE="$2"; shift 2;;
     -l | --library )        LIBRARY="$2"; shift 2;;
     -a | --tile-aware )     TILE_AWARE=true; shift;;
@@ -96,7 +106,6 @@ while true; do
     --problem-definition )  PROBLEM_DEFINITION="$2"; shift;;
     -s | --disable-strides) DISABLE_STRIDES=true; shift;;
     -i | --initialization ) INITIALIZATION="$2"; shift;;
-    --disable-hpa)          DISABLE_HPA=true; shift;;
     --no-tensile )          SUPPRESS_TENSILE=true; shift;;
     --id )                  ID="$2"; shift 2;;
     -- ) shift; break ;;

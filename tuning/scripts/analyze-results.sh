@@ -1,13 +1,29 @@
 #!/bin/sh
 
-HELP_STR="usage: $0 [-b|--benchmark-path <benchmark results path>] [-r|--reference-path <reference results path>] [-o|--output <output path>] [-f] [-s] [-z] [-g|--gpu] [-m|--mfma] [-c|--count] [-h|--help]"
+HELP_STR="
+Usage: ./analyze-results.sh -o OUTPUT_PATH -s SIZE -f FREQ -z LOG_FILE -r REF_PATH -b BENCH_PATH [options]
+
+Options:
+  [-h|--help]                 Display this help message
+  [-o|--output PATH]          Output path
+  [-s|--size]                 Data size
+  [-f|--freq]                 Clock rate
+  [-z|--size-log]             Log file of sizes
+  [-r|--reference-path PATH]  Path to reference library
+  [-b|--benchmark-path PATH]  Path to benchmark libraru
+  [-g|--gpu]                  GPU
+  [-m|--mfma]                 Was MFMA enabled
+  [-c|--count]                ??
+  [-n|--no-plot]              Skip plotting
+"
 HELP=false
 PLOT=true
 MFMA=false
 COUNT=false
 
-OPTS=`getopt -o hf:s:b:o:r:z:g:mcn --long help,output-path:,reference-path:,benchmark-path:,gpu:,mfma,count,no-plot -n '
-parse-options' -- "$@"`
+OPTS=`getopt -o hf:s:b:o:r:z:g:mcn \
+--long help,freq:,size-log:,size:,output-path:,reference-path:,benchmark-path:,\
+gpu:,mfma,count,no-plot -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -19,11 +35,11 @@ while true; do
     -r | --reference-path )    REFERENCE_PATH="$2"; shift 2;;
     -b | --benchmark-path  )   BENCHMARK_PATH="$2"; shift 2;;
     -o | --output-path )       OUTPUT_PATH="$2"; shift 2;;
-    -z )                       LOG="$2"; shift 2;;
-    -f )                       FREQ="$2"; shift 2;;
-    -s )                       SZ="$2"; shift 2;;
-    -g | --gpu ) 	           GPU="$2"; shift 2;;
-    -m | --mfma )	           MFMA=true; shift ;;
+    -z | --size-log)           LOG="$2"; shift 2;;
+    -f | --freq)               FREQ="$2"; shift 2;;
+    -s | --size)               SZ="$2"; shift 2;;
+    -g | --gpu ) 	             GPU="$2"; shift 2;;
+    -m | --mfma )	             MFMA=true; shift ;;
     -c | --count )	           COUNT=true; shift ;;
     -n | --no-plot )           PLOT=false; shift ;;
     -- ) shift; break ;;
@@ -37,38 +53,38 @@ if $HELP; then
 fi
 
 if [ -z ${REFERENCE_PATH+foo} ]; then
-   printf "Need a reference results path\n"
-   exit 2
+  printf "Need a reference results path\n"
+  exit 2
 fi
 
 if [ -z ${BENCHMARK_PATH+foo} ]; then
-   printf "Need the benchmark results path\n"
-   exit 2
+  printf "Need the benchmark results path\n"
+  exit 2
 fi
 
 if [ -z ${OUTPUT_PATH+foo} ]; then
-   printf "Need the output path\n"
-   exit 2
+  printf "Need the output path\n"
+  exit 2
 fi
 
 if [ -z ${LOG+foo} ]; then
-   printf "Need to select a log file\n"
-   exit 2
+  printf "Need to select a log file\n"
+  exit 2
 fi
 
 if [ -z ${FREQ+foo} ]; then
-   printf "Need clock rate\n"
-   exit 2
+  printf "Need clock rate\n"
+  exit 2
 fi
 
 if [ -z ${SZ+foo} ]; then
-   printf "Need data size\n"
-   exit 2
+  printf "Need data size\n"
+  exit 2
 fi
 
 if [ -z ${GPU+foo} ]; then
-   printf "GPU not specified, assuming MI60\n"
-   GPU=vega20
+  printf "GPU not specified, assuming MI60\n"
+  GPU=vega20
 fi
 
 CASE_REFERENCE=${OUTPUT_PATH}/reference

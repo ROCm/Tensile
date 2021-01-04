@@ -1,7 +1,14 @@
 #!/bin/bash
 
+HELP_STR="
+Usage: ./run_validation.sh -w WORKING_PATH -s SCRIPT_PATH
 
-HELP_STR="usage: ./run_validation.sh [-w|--working-path <path>] [-s|--test-scripts <path to test yamls] [-i | id] [-h|--help]"                                                                                                                                                                                                                                                        
+Options:
+  [-h|--help]                Display this help message
+  [-w|--working-path PATH]   Working path for verification
+  [-s|--test-scripts PATH]   Path to tuning test scripts
+  [-i| id]                   rocBLAS ID
+"
                                                                                                                                                                                                                                                                         
 HELP=false                                                                                                                                                                                                                                                              
 ROCBLAS_BRANCH='develop'                                                                                                                                                                                                                                                
@@ -9,7 +16,8 @@ ROCBLAS_FORK='RocmSoftwarePlatform'
 MASSAGE=true
 MERGE=true
 
-OPTS=`getopt -o ht:w:s:i: --long help,working-path:,test-scripts: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o ht:w:s:i: \
+--long help,working-path:,test-scripts: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -27,18 +35,18 @@ while true; do
 done
 
 if $HELP; then
-    echo "${HELP_STR}" >&2
-    exit 2
+  echo "${HELP_STR}" >&2
+  exit 2
 fi
 
 if [ -z ${WORKING_PATH+foo} ]; then
-    printf "A working path is required\n"
-    exit 2
+  printf "A working path is required\n"
+  exit 2
 fi
 
 if [ -z ${SCRIPTS_PATH+foo} ]; then
-    printf "A script path is required\n"
-    exit 2
+  printf "A script path is required\n"
+  exit 2
 fi
 
 ROCBLAS_ROOT="${WORKING_PATH}/rocblas"
@@ -48,7 +56,7 @@ LIBRARY_ROOT="${WORKING_PATH}/library"
 ROCBLAS_PATH="${ROCBLAS_ROOT}/rocBLAS-reference"
 
 if [ -n "${ID}" ]; then
-    ROCBLAS_PATH="${ROCBLAS_PATH}-${ID}"
+  ROCBLAS_PATH="${ROCBLAS_PATH}-${ID}"
 fi
 
 TENSILE_LIBRARY_PATH="${LIBRARY_ROOT}/tensile_library/library"
@@ -68,14 +76,14 @@ FILES=$(ls ${SCRIPT_ROOT}/*yaml)
 
 for FILE in $FILES
 do
-    NAME=$(basename ${FILE} | cut -d'.' -f1)
-    ${ROCBLAS_BENCH} --yaml ${FILE} > ${REFERENCE_PATH}/${NAME}.1
+  NAME=$(basename ${FILE} | cut -d'.' -f1)
+  ${ROCBLAS_BENCH} --yaml ${FILE} > ${REFERENCE_PATH}/${NAME}.1
 done
 
 for FILE in $FILES
 do
-    NAME=$(basename ${FILE} | cut -d'.' -f1)
-    ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY_PATH} ${ROCBLAS_BENCH} --yaml ${FILE} > ${VERIFICATION_PATH}/${NAME}.1
+  NAME=$(basename ${FILE} | cut -d'.' -f1)
+  ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY_PATH} ${ROCBLAS_BENCH} --yaml ${FILE} > ${VERIFICATION_PATH}/${NAME}.1
 done
 
 

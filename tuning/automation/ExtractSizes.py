@@ -887,7 +887,7 @@ def ConvertToYAML(problemDefinition,disableStrides=False):
         if ("stride" in modKey and value == 0) or ("batch" in modKey and value == 1) or ("type" in modKey and value == None):
             continue
         if "-r" not in keys and not lock:
-            rocblas_call += "%s: %s, " % ("rocblas_function",rocblasValue["?"])
+            rocblas_call += "%s: %s, " % ("rocblas_function","rocblas_"+f) # TODO: tmp hack to fix function name --- rocblasValue["?"])
             lock = True
         elif param == "r":
             for dType in rocblasValue.keys():
@@ -901,6 +901,8 @@ def ConvertToYAML(problemDefinition,disableStrides=False):
             rocblas_call += "%s: %s, " % (modKey,value)
         else:
             rocblas_call +=  "%s: %s " % (modKey,value)
+    if "batch_count" not in rocblas_call :
+        rocblas_call += ", batch_count: 1 " # TODO: tmp workaround to fix negative gflops
     rocblas_call += "}"
 
     return rocblas_call

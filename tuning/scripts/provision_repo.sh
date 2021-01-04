@@ -8,15 +8,27 @@ WORKING_PATH='release'
 HELP=false
 ROCBLAS=false
 PROVISION_BRANCH='develop'
-TENSILE_FORK='RocmSoftwarePlatform'
-ROCBLAS_FORK='RocmSoftwarePlatform'
+FORK='RocmSoftwarePlatform'
 
 GIT_HOST="${TENSILE_HOST}"
 PROVISION_PATH='Tensile'
 
-HELP_STR="usage: $0 [-b|--branch <branch>] [-f|--tensile-fork <username>] [-w|--working-path <path>] [-i <identifier>] [-t|--tag <githup tag>] [-h|--help]"
+HELP_STR="
+Usage: ./provision_repo.sh [options]
 
-OPTS=`getopt -o hf:rw:t:b:c:i: --long help,tensile-fork:,rocblas-fork:,working-path:,tag:,branch:,commit: -n 'parse-options' -- "$@"`
+Options:
+  [-h|--help]                   Display this help message
+  [-r]                          Provision rocBLAS instead of Tensile
+  [-w|--working-path PATH]      Working path for tuning
+  [-f|--tensile-fork USERNAME]  Fork to use
+  [-b|--branch BRANCH]          Branch to use
+  [-c|--commit COMMIT_ID]       Commit to use
+  [-t|--tag GITHUB_TAG]         Tag to use
+  [-i ID]                       ??
+"
+
+OPTS=`getopt -o hf:rw:t:b:c:i: \
+--long help,fork:,working-path:,tag:,branch:,commit: -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -25,13 +37,12 @@ eval set -- "$OPTS"
 while true; do
   case "$1" in
     -h | --help )         HELP=true; shift ;;
-    -f | --tensile-fork ) TENSILE_FORK="$2"; shift 2;;
-    --rocblas-fork )      ROCBLAS_FORK="$2"; shift 2;;
     -r )                  PROVISION_PATH='rocBLAS'; shift;;
     -w | --working-path ) WORKING_PATH="$2"; shift 2;;
-    -t | --tag )          TAG="$2"; shift 3;;
+    -f | --fork )         FORK="$2"; shift 2;;
     -b | --branch  )      PROVISION_BRANCH="$2"; shift 2;;
     -c | --commit )       COMMIT="$2"; shift 2;;
+    -t | --tag )          TAG="$2"; shift 3;;
     -i )                  ID="$2"; shift 2;;
     -- ) shift; break ;;
     * ) break ;;
@@ -47,8 +58,8 @@ mkdir -p ${WORKING_PATH}
 
 pushd ${WORKING_PATH} > /dev/null
 
-TENSILE_HOST="https://github.com/${TENSILE_FORK}/Tensile.git"
-ROCBLAS_HOST="https://github.com/${ROCBLAS_FORK}/rocBLAS-internal.git"
+TENSILE_HOST="https://github.com/${FORK}/Tensile.git"
+ROCBLAS_HOST="https://github.com/${FORK}/rocBLAS-internal.git"
 
 if [[ $PROVISION_PATH == "rocBLAS" ]]; then
   GIT_HOST="${ROCBLAS_HOST}"
@@ -79,6 +90,5 @@ else
     popd > /dev/null
   fi
 fi
-
 
 popd > /dev/null
