@@ -2510,10 +2510,6 @@ class KernelWriterAssembly(KernelWriter):
     else:
       kStr += r"    v_lshlrev_b32 \dst, \shiftCnt, \src0" + self.endLine
       kStr += r"    v_or_b32 \dst, \dst, \src1" + self.endLine
-      # if self.AsmBugs["ExplicitCO"]:
-      #   kStr += r"    v_add_co_u32 \dst, vcc, \src0, \src1" + self.endLine
-      # else:
-      #   kStr += r"    v_or_b32 \dst, \dst, \src1" + self.endLine
     kStr += ".endm" + self.endLine
 
     kStr += self.defineCMPXMacros(kernel)
@@ -11513,8 +11509,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("v_pk_add_f16", \
                   dst, src0, src1, \
                   comment)
-    # TODO: INT8- Check atomic add Version
-    elif kernel["ProblemType"]["DataType"].isInt8x4():
+    elif kernel["ProblemType"]["DataType"].isInt8x4() or kernel["ProblemType"]["DataType"].isInt8():
       # assume v_add_i32 can be used in place of v_add_f32
       # need to add saturation directive to v_add_i32 instruction to clamp integer arithmetic
       kStr += inst("v_add_i32", \
@@ -11715,8 +11710,7 @@ class KernelWriterAssembly(KernelWriter):
         if not self.useAtomicAdd:
           # load c into data+1 because of CAS structure
           # TODO - Fix for double here, would need bigger load
-          # FIME
-          bps = kernel["ProblemType"]["DestDataType"].numBytes()
+          # FIXME
           # gwvw is the number of elements in the batch
           # iterate over number of atomic operations to perform, each of width atomicW
           for avi in range(0, gwvw//atomicW):
@@ -11905,15 +11899,14 @@ class KernelWriterAssembly(KernelWriter):
           if edge:
             kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec (before atomic)" )
 
-          # TODO- Int8: Need to support later
           for avi in range(0, gwvw//atomicW):
             dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
             sumIdxV = ss.elementSumIdx[elementIdx] + avi
             ## number of src[s]/dsst[s] register for DGEMM / SGEMM HGEMM
-            vgprCnt = 2 if kernel["ProblemType"]["DataType"].isDouble() else 1
-            if kernel["ProblemType"]["DataType"].numRegisters() < 1 and not kernel["_GlobalAccumulation"]:
+            vgprCnt = 2 if kernel["ProblemType"]["DestDataType"].isDouble() else 1
+            if kernel["ProblemType"]["DestDataType"].numRegisters() < 1 and not kernel["_GlobalAccumulation"]:
               sumIdxV //= 2
-            if kernel["ProblemType"]["DataType"].isDouble(): sumIdxV = sumIdxV * 2
+            if kernel["ProblemType"]["DestDataType"].isDouble(): sumIdxV = sumIdxV * 2
             bpm = self.bpeDexternal * atomicW
             # Calculate vgpr Indx for 32-bit/64-bit instruction
             # DGEMM use SRCS[2] register
@@ -11926,10 +11919,9 @@ class KernelWriterAssembly(KernelWriter):
             # attempt write
             atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
             if self.do["GlobalWrite"]:
-              bps = kernel["ProblemType"]["DataType"].numBytes()
               if kernel["BufferStore"]:
                 # use cmpswap_x2 for DGEMM in CAS loop
-                if kernel["ProblemType"]["DataType"].isDouble():
+                if kernel["ProblemType"]["DestDataType"].isDouble():
                   kStr += "buffer_atomic_cmpswap_x2 %s, %s, %s %s    // %s%s" % \
                       (vgpr(dataV,4), \
                       vgpr(addrCalc.addrVgpr,1), \
@@ -11970,7 +11962,6 @@ class KernelWriterAssembly(KernelWriter):
           vc0 = element[3]
 
           # calculate new masks
-          # TODO- Int8: Need to support later
           if edge:
             kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
             for avi in range(0, gwvw//atomicW):
@@ -11980,14 +11971,14 @@ class KernelWriterAssembly(KernelWriter):
               # so that all valid lanes are doing the cmp
               if avi == 0:
                 # use u64 for DGEMM
-                if kernel["ProblemType"]["DataType"].isDouble():
+                if kernel["ProblemType"]["DestDataType"].isDouble():
                   kStr += inst("v_cmp_ne_u64", sgpr(tmpS01,2), vgpr(atomicDestVgpr,2), \
                       vgpr(dataV+2,2), "c read during atomic == c read during prior load (avi=%u, first)"%avi )
                 else:
                   kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(atomicDestVgpr), \
                       vgpr(dataV+1), "c read during atomic == c read during prior load (avi=%u, first)"%avi )
               else:
-                if kernel["ProblemType"]["DataType"].isDouble():
+                if kernel["ProblemType"]["DestDataType"].isDouble():
                   kStr += inst("v_cmp_ne_u64", sgpr(tmpS23,2), vgpr(atomicDestVgpr,2), \
                       vgpr(dataV+2,2), "c read during atomic != c read during prior load" )
                 else:
@@ -12007,7 +11998,7 @@ class KernelWriterAssembly(KernelWriter):
               if kernel["DisableAtomicFail"]:
                 kStr += inst("s_mov_b64",  sgpr(mask,2), 0, "DisableAtomicFail, force 0" )
               else:
-                if kernel["ProblemType"]["DataType"].isDouble():
+                if kernel["ProblemType"]["DestDataType"].isDouble():
                   kStr += inst("v_cmp_ne_u64", sgpr(mask,2), vgpr(atomicDestVgpr,2), \
                       vgpr(dataV+2,2), "c read during atomic != c read during prior load" )
                 else:
@@ -12033,23 +12024,21 @@ class KernelWriterAssembly(KernelWriter):
           addrCalc = ss.elementAddr[elementIdx]
           addr = ss.elementAddr[elementIdx].addrVgpr
           mask = ss.elementMask[elementIdx]
-          bps = kernel["ProblemType"]["DataType"].numBytes()
-          vgprCnt = 2 if kernel["ProblemType"]["DataType"].isDouble() else 1   # number of registers for f32/f64
+          vgprCnt = 2 if kernel["ProblemType"]["DestDataType"].isDouble() else 1   # number of registers for f32/f64
           bpm = self.bpeDexternal * atomicW
           vgprIdx = 1*(bpm//4)   # index register
 
-          # TODO- Int8: Need to support later
           for avi in range(0, gwvw//atomicW):
             dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
             atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
             sumIdxV = ss.elementSumIdx[elementIdx] + avi
-            if kernel["ProblemType"]["DataType"].numRegisters() < 1 and not kernel["_GlobalAccumulation"]:
+            if kernel["ProblemType"]["DestDataType"].numRegisters() < 1 and not kernel["_GlobalAccumulation"]:
               sumIdxV //= 2
-            if kernel["ProblemType"]["DataType"].isDouble():  sumIdxV =  sumIdxV * 2
+            if kernel["ProblemType"]["DestDataType"].isDouble():  sumIdxV =  sumIdxV * 2
 
             # apply mask for element
             kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "must try again" )
-            if kernel["ProblemType"]["DataType"].isDouble():
+            if kernel["ProblemType"]["DestDataType"].isDouble():
               #64-bit C val move by 2 32-bit instructions
               kStr += inst("v_mov_b32", vgpr(dataV+2), vgpr(atomicDestVgpr), "dataV+2 = tmp (new original C)" )
               kStr += inst("v_mov_b32", vgpr(dataV+3), vgpr(atomicDestVgpr+1), "dataV+3 = tmp (new original C)" )
@@ -12062,7 +12051,7 @@ class KernelWriterAssembly(KernelWriter):
               if kernel["BufferStore"]:
                 # Using no-ret version here?
                 # cmpswap_x2 for DGEMM
-                if kernel["ProblemType"]["DataType"].isDouble():
+                if kernel["ProblemType"]["DestDataType"].isDouble():
                   kStr += "buffer_atomic_cmpswap_x2 %s, %s, %s %s    // %s%s" % \
                     (vgpr(dataV,4), \
                      vgpr(addr,1), \
@@ -12091,7 +12080,6 @@ class KernelWriterAssembly(KernelWriter):
           element = batchElements[elementIdx]
           data = ss.elementData[elementIdx]
           mask = ss.elementMask[elementIdx]
-          # TODO- Int8: Need to support later
           for avi in range(0, gwvw//atomicW):
             dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
             atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
@@ -12100,7 +12088,7 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "must try again" )
 
             # compare success
-            if kernel["ProblemType"]["DataType"].isDouble():
+            if kernel["ProblemType"]["DestDataType"].isDouble():
               kStr += inst("v_cmp_ne_u64", sgpr(tmpS01,2), vgpr(data+2,2), vgpr(atomicDestVgpr,2), \
                   "c read during atomic != c read during prior load" )
             else:

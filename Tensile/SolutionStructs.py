@@ -24,7 +24,8 @@ from .Common import assignParameterRequired, assignParameterWithDefault, \
                     globalParameters, \
                     print2, printExit, \
                     validActivationFormats, validConvolutionConfig, \
-                    validMFMA, validParameters, validWeightFormats
+                    validMFMA, validParameters, validWeightFormats, \
+                    validGEMMTypes, typesUsingNewNaming
 from .DataType import DataType
 from .Utils import roundUpToNearestMultiple
 
@@ -932,44 +933,12 @@ class ProblemType(collections.abc.Mapping):
     outType = self["DestDataType"]
     computeType = self["ComputeDataType"]
 
-    if inType.isDouble():
-      if not (outType.isDouble() and computeType.isDouble()):
-        printExit("DataType=D only allows DestDataType=D and ComputeDataType=D")
+    gemmType = ( inType.toChar(), outType.toChar(), computeType.toChar() )
+    if gemmType not in validGEMMTypes:
+      printExit("This typed-GEMM (Ti, To, Tc) = (%s, %s, %s) is not supported yet."%(gemmType[0],gemmType[1],gemmType[2]))
 
-    if inType.isSingle():
-      if not (outType.isSingle() and computeType.isSingle()):
-        printExit("DataType=S only allows DestDataType=S and ComputeDataType=S")
-
-    if inType.isHalf():
-      # TODO- Test and migrate ([H/H/H]+HPA) to ([H/H/S]+HPA)
-      # Note that we need to do a little change in rocBLAS and logic yaml
-      if not ((outType.isHalf() and (computeType.isHalf() or computeType.isSingle())) or \
-              (outType.isSingle() and computeType.isSingle())):
-        printExit("DataType=H only allows (DestDataType=H and ComputeDataType=H/S) or (DestDataType=S and ComputeDataType=S")
-      # if not (outType.isHalf() and computeType.isHalf()):
-      #   printExit("DataType=H only allows DestDataType=H and ComputeDataType=H")
-
-    if inType.isBFloat16():
-      if not ((outType.isBFloat16() or outType.isSingle()) and  \
-              computeType.isSingle()) :
-        printExit("DataType=B only allows DestDataType=B/S  and ComputeDataType=S")
-
-    if inType.isDoubleComplex():
-      if not (outType.isDoubleComplex() and computeType.isDoubleComplex()):
-        printExit("DataType=Z only allows DestDataType=Z and ComputeDataType=Z")
-
-    if inType.isSingleComplex():
-      if not (outType.isSingleComplex() and computeType.isSingleComplex()):
-        printExit("DataType=C only allows DestDataType=C and ComputeDataType=C")
-
-    if inType.isInt8x4():
-      if not (outType.isInt32() and computeType.isInt32()):
-        printExit("DataType=i4x8 only allows DestDataType=I and ComputeDataType=I")
-
-    if inType.isInt8():
-      if not (outType.isInt32() and computeType.isInt32()):
-        printExit("DataType=i8 only allows DestDataType=I and ComputeDataType=I")
-
+    # TODO- Migrate ([H/H/H]+HPA) to ([H/H/S]+HPA)
+    # Note that we need to do a little change in rocBLAS and logic yaml
 
   ########################################
   def initGEMM(self):
@@ -1173,11 +1142,11 @@ class ProblemType(collections.abc.Mapping):
     name += "_"
     name += self["DataType"].toChar() # Type of A/B
 
-    # Special condition for HSS and BSS kernels, distinguish types due to Ti != To.
-    # _TiToTc_
+    # Special condition for some newly supported kernels:
+    #   HHS, HSS, BSS and I8II kernels, use a clearer naming _TiToTc_
     # TODO: Distinguish all kernels by _TiToTc_ to be more consistent with rocblas
-    if (self["DataType"].isBFloat16() or self["DataType"].isHalf()) and \
-       (self["DestDataType"].isSingle() and self["ComputeDataType"].isSingle()):
+    gemmType = (self["DataType"].toChar(),self["DestDataType"].toChar(),self["ComputeDataType"].toChar() )
+    if gemmType in typesUsingNewNaming:
       name += self["DestDataType"].toChar()    # Type of C/D
       name += self["ComputeDataType"].toChar() # Type of Alpha/Beta
       name += "_"

@@ -302,6 +302,18 @@ for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["4xi8"]]:
 validMatrixInstructions = [[], [-1]] + validMFMA["H"] + validMFMA["S"] + validMFMA["B"] + validMFMA["4xi8"]
 validMatrixInstructions = validMatrixInstructions + validMFMA["_format9"]
 
+# The supported typed GEMM, each entry is (Ti, To, Tc).
+# This is used in SolutionStruct.py::checkIfSupportedGEMMType()
+validGEMMTypes = [ ('D','D','D'), ('S','S','S'), ('Z','Z','Z'), ('C','C','C'), \
+                  ('H','H','H'), ('H','H','S'), ('H','S','S'), \
+                  ('B','B','S'), ('B','S','S'), \
+                  ('4xi8','I','I'), \
+                  ('I8','I','I')]
+
+# These type are newly supported and we would like to use a better file naming for them: _TiToTc_
+# For the rest of the typed, we keep them with old existing naming.
+typesUsingNewNaming = [ ('H','H','S'), ('H','S','S'), ('B','S','S'),('I8','I','I')]
+
 validParameters = {
     "LoopDoWhile":                [ False, True ], # Source. True=DoWhile, False=For loop
     "LoopTail":                   [ False, True ], # tail loop handles non multiples of unrolled summation loop
