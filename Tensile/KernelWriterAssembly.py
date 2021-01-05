@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -589,8 +589,12 @@ class KernelWriterAssembly(KernelWriter):
     else:
       return 1
 
-  def getCompileArgs(self, sourceFileName, objectFileName, *moreArgs, useGlobalISA=False):
-    isa = self.version if not useGlobalISA else globalParameters["CurrentISA"]
+  def getCompileArgs(self, sourceFileName, objectFileName, *moreArgs, isa=None, wavefrontSize=None):
+    if isa is None:
+      isa = self.version
+    if wavefrontSize is None:
+      wavefrontSize = self.kernel["WavefrontSize"]
+
     archHasV3 = globalParameters["AsmCaps"][isa]["HasCodeObjectV3"]
 
     rv = [globalParameters['AssemblerPath'],
@@ -602,11 +606,10 @@ class KernelWriterAssembly(KernelWriter):
 
     rv += ['-mcpu=gfx' + ''.join(map(str,isa))]
 
-    if self.kernel["WavefrontSize"] == 64:
+    if wavefrontSize == 64:
       rv += ['-mwavefrontsize64']
     else:
       rv += ['-mno-wavefrontsize64']
-
 
     rv += moreArgs
 
