@@ -22,7 +22,7 @@ HELP_STR="
     [-z|--log]              Pass in log file with rocblas-bench calls, or directory of log files if using network tuning
     [-y|--data-type]        Optional. Data type of sizes that you want to tune (sgemm, dgemm, hgemm only)
     [-g|--gpu]              Optional. GPU used for tuning (arcturus, mi25, mi50, mi60, r7, v340 only)
-    [-f|--sclk]             Optional. Frequency of sclk in MHz 
+    [-f|--sclk]             Optional. Frequency of sclk in MHz
     [-d|--dependencies]     Optional. Install required dependencies (dependencies are not installed by default)
     [-n|--network]          Optional. String to search for in filenames in log directory
     [--client]              Optional. Choose Tensile client version. (new, old, both, default=new)
@@ -375,7 +375,7 @@ chmod +x $TUNING_SH
 popd > /dev/null
 
 VERIFICATION_SH="${SCRIPT_PATH}/provision_verification.sh"
-VERIFICATION_PATH="valdiate" 
+VERIFICATION_PATH="valdiate"
 VERIFICATION_SCRIPTS="${OUTPUT_DIR}/scripts"
 VERIFICATION_EXE="${VERIFICATION_SH} -w ${VERIFICATION_PATH} -r ${TENSILE_PATH} -l ${LIBRARY}"
 

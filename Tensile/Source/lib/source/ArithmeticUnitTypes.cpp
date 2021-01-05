@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -74,7 +74,7 @@ namespace Tensile
     void ArithmeticUnitTypeInfo::registerAllTypeInfoOnce()
     {
         static int call_once = (registerAllTypeInfo(), 0);
-        
+
         // Use the variable to quiet the compiler.
         if(call_once)
             return;

@@ -1,11 +1,11 @@
 #!/bin/bash
 
 
-HELP_STR="usage: ./run_validation.sh [-w|--working-path <path>] [-s|--test-scripts <path to test yamls] [-i | id] [-h|--help]"                                                                                                                                                                                                                                                        
-                                                                                                                                                                                                                                                                        
-HELP=false                                                                                                                                                                                                                                                              
-ROCBLAS_BRANCH='develop'                                                                                                                                                                                                                                                
-ROCBLAS_FORK='RocmSoftwarePlatform'                                                                                                                                                                                                                                     
+HELP_STR="usage: ./run_validation.sh [-w|--working-path <path>] [-s|--test-scripts <path to test yamls] [-i | id] [-h|--help]"
+
+HELP=false
+ROCBLAS_BRANCH='develop'
+ROCBLAS_FORK='RocmSoftwarePlatform'
 MASSAGE=true
 MERGE=true
 

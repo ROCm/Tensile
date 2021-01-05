@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -847,8 +847,8 @@ std::vector<std::tuple<std::shared_ptr<SolutionLibrary<ContractionProblem>>,
     {
         auto library = LoadLibraryFile<ContractionProblem>(envDir.file("TensileLibrary").native());
         auto adapter = std::make_shared<hip::SolutionAdapter>(debug, "TENSILE_TEST_LIBRARY");
-        auto device = std::dynamic_pointer_cast<AMDGPU>(Tensile::hip::GetCurrentDevice());
-        auto arch = device->processor;
+        auto device  = std::dynamic_pointer_cast<AMDGPU>(Tensile::hip::GetCurrentDevice());
+        auto arch    = device->processor;
 
         for(auto file : envDir.glob(concatenate("*-", arch, ".co")))
         {
