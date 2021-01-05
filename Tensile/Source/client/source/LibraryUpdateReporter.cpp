@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,7 +36,7 @@ namespace Tensile
             LibraryUpdateReporter::Default(po::variables_map const& args)
         {
             auto filename = args["library-update-file"].as<std::string>();
-            auto comment = args["library-update-comment"].as<bool>();
+            auto comment  = args["library-update-comment"].as<bool>();
             if(filename != "")
             {
                 return FromFilename(filename, comment);
@@ -44,20 +44,21 @@ namespace Tensile
             return std::shared_ptr<LibraryUpdateReporter>();
         }
 
-        std::shared_ptr<LibraryUpdateReporter> LibraryUpdateReporter::FromFilename(std::string const& filename,
-                                                                                   bool addComment)
+        std::shared_ptr<LibraryUpdateReporter>
+            LibraryUpdateReporter::FromFilename(std::string const& filename, bool addComment)
         {
             auto file = std::make_shared<std::ofstream>(filename);
             return std::make_shared<LibraryUpdateReporter>(file, addComment);
         }
 
-        LibraryUpdateReporter::LibraryUpdateReporter(std::ostream & stream, bool addComment)
-            : m_stream(stream),
-              m_addComment(addComment)
+        LibraryUpdateReporter::LibraryUpdateReporter(std::ostream& stream, bool addComment)
+            : m_stream(stream)
+            , m_addComment(addComment)
         {
         }
 
-        LibraryUpdateReporter::LibraryUpdateReporter(std::shared_ptr<std::ostream> stream, bool addComment)
+        LibraryUpdateReporter::LibraryUpdateReporter(std::shared_ptr<std::ostream> stream,
+                                                     bool                          addComment)
             : m_stream(*stream.get())
             , m_ownedStream(stream)
             , m_addComment(addComment)
@@ -88,19 +89,18 @@ namespace Tensile
             {
                 try
                 {
-                    int64_t speed = std::stoll(valueStr);
+                    int64_t speed      = std::stoll(valueStr);
                     m_curSolutionSpeed = speed;
                     //m_stream << "Fastest: " << m_fastestSolutionSpeed << std::endl;
                 }
                 catch(std::out_of_range const& exc)
                 {
-
                 }
             }
         }
 
         void LibraryUpdateReporter::reportValue_string(std::string const& key,
-                                                    std::string const& value)
+                                                       std::string const& value)
         {
             reportValue(key, value);
         }
@@ -144,15 +144,16 @@ namespace Tensile
                 m_stream << "  - - [";
                 streamJoin(m_stream, m_problemSizes, ", ");
                 m_stream << "]" << std::endl;
-                m_stream << "    - [" << m_fastestSolutionIdx << ", " << m_fastestSolutionSpeed << "]";
+                m_stream << "    - [" << m_fastestSolutionIdx << ", " << m_fastestSolutionSpeed
+                         << "]";
                 if(m_addComment)
                     m_stream << " # " << m_fastestSolutionName;
                 m_stream << std::endl;
             }
 
             // reset
-            m_fastestSolutionIdx = -1;
-            m_fastestSolutionName = "";
+            m_fastestSolutionIdx   = -1;
+            m_fastestSolutionName  = "";
             m_fastestSolutionSpeed = -1;
         }
 
@@ -161,14 +162,14 @@ namespace Tensile
             // cascade from BenchmarkTimer, SpeedGFlops second
             if(m_curSolutionPassed && m_curSolutionSpeed > m_fastestSolutionSpeed)
             {
-                m_fastestSolutionIdx = m_curSolutionIdx;
-                m_fastestSolutionName = m_curSolutionName;
+                m_fastestSolutionIdx   = m_curSolutionIdx;
+                m_fastestSolutionName  = m_curSolutionName;
                 m_fastestSolutionSpeed = m_curSolutionSpeed;
             }
 
-            m_curSolutionName = "";
-            m_curSolutionIdx = -1;
-            m_curSolutionSpeed = -1;
+            m_curSolutionName   = "";
+            m_curSolutionIdx    = -1;
+            m_curSolutionSpeed  = -1;
             m_curSolutionPassed = false;
         }
 
