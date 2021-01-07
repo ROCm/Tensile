@@ -5,6 +5,7 @@ import argparse
 
 from .BenchmarkSplitter import BenchmarkSplitter
 from .Configuration import ProjectConfig
+from .TensileBenchmarkClusterScripts import ScriptWriter
 from Tensile.Utilities.merge import mergePartialLogics
 
 try:
@@ -14,379 +15,6 @@ except ImportError:
 
     # Fallback package import
     import gzip
-
-
-
-class ScriptHelper(object):
-    """
-    Helper class to facilitate formatting when
-    writing bash scripts.
-    """
-
-    @staticmethod
-    def genLine(text):
-        return str("{0}\n").format(text)
-
-    @staticmethod
-    def genComment(text):
-        return ScriptHelper.genLine(str("#") + str(text))
-
-    @staticmethod
-    def genEcho(text):
-        return ScriptHelper.genLine(str("echo \"{0}\";").format(str(text)))
-
-    @staticmethod
-    def makeExecutable(path):
-        mode = os.stat(path).st_mode
-        mode |= (mode & 0o444) >> 2    # copy R bits to X
-        os.chmod(path, mode)
-
-class ScriptWriter(object):
-    """
-    A script writing utility class that holds a string
-    buffer and wraps writing to the buffer.
-    Has factory functions to build scripts with regular
-    workflow interface.
-    """
-    def __init__(self):
-        self._buffer = ""
-
-    def writeLine(self, text):
-        self._buffer += ScriptHelper.genLine(text)
-
-    def writeComment(self, text):
-        self._buffer += ScriptHelper.genComment(text)
-
-    def writeEcho(self, text):
-        self._buffer += ScriptHelper.genEcho(text)
-
-    def dumpToFile(self, fileName, outputDir = "."):
-        scriptPath = os.path.join(outputDir, fileName)
-        with open(scriptPath, "w") as f:
-            f.write(self._buffer)
-        ScriptHelper.makeExecutable(scriptPath)
-
-    def __str__(self):
-        return self._buffer
-
-    @classmethod
-    def writeScript(bufferClass, writerClass, fileName, outputDir = "."):
-        buffer = bufferClass()
-        writerClass.writeHeader(buffer)
-        writerClass.writeBody(buffer)
-        writerClass.writeEpilogue(buffer)
-        buffer.dumpToFile(fileName, outputDir)
-
-    @classmethod
-    def previewScript(bufferClass, writerClass):
-        buffer = bufferClass()
-        writerClass.writeHeader(buffer)
-        writerClass.writeBody(buffer)
-        writerClass.writeEpilogue(buffer)
-        print(buffer)
-
-    @staticmethod
-    def writeBenchmarkNodeScript(fileName, outputDir="."):
-        ScriptWriter.writeScript(BenchmarkNodeWriter, fileName, outputDir)
-
-    @staticmethod
-    def writeBenchmarkTaskScript(fileName, outputDir="."):
-        ScriptWriter.writeScript(BenchmarkTaskWriter, fileName, outputDir)
-
-    @staticmethod
-    def writeBenchmarkJobScript(fileName, outputDir="."):
-        ScriptWriter.writeScript(BenchmarkJobWriter, fileName, outputDir)
-
-
-class BenchmarkNodeWriter(object):
-    """
-    Node host run script.
-    Creates an instance of the docker image and
-    mounts the logs, results and tasks directories
-    and finally invokes the benchmark on the
-    supplied yaml.
-    """
-    @staticmethod
-    def __initHeader(sBuffer):
-        sBuffer.writeComment("!/bin/bash")
-        sBuffer.writeComment("Benchmark node script")
-        sBuffer.writeComment("Actual host task to be run by a SLURM worker node")
-        sBuffer.writeLine("")
-
-    @staticmethod
-    def __initializeFuncs(sBuffer):
-        sBuffer.writeComment("Funcs")
-        sBuffer.writeLine("usage() { echo \"Usage: $0 [-i <path_to_docker_image>] [-l <log_dir>] [-r <result_dir>] [-t <task_dir>]\" 1>&2; exit 1; }")
-        sBuffer.writeLine("failAndExit() { echo \"FAILED: $1\" 1>&2; exit 1; }")
-        sBuffer.writeLine("")
-
-    @staticmethod
-    def __parseArgs(sBuffer):
-        sBuffer.writeComment("Parse arguments")
-        sBuffer.writeLine("while getopts i:l:r:t: flag")
-        sBuffer.writeLine("do")
-        sBuffer.writeLine("    case \"${flag}\" in")
-        sBuffer.writeLine("        i) dockerImagePath=${OPTARG};;")
-        sBuffer.writeLine("        l) logDir=${OPTARG};;")
-        sBuffer.writeLine("        r) resultDir=${OPTARG};;")
-        sBuffer.writeLine("        t) taskDir=${OPTARG};;")
-        sBuffer.writeLine("        *) usage;;")
-        sBuffer.writeLine("    esac")
-        sBuffer.writeLine("done")
-        sBuffer.writeLine("[ -z \"${dockerImagePath}\" ] || [ -z \"${logDir}\" ] || [ -z \"${resultDir}\" ]  || [ -z \"${taskDir}\" ] && usage;")
-        sBuffer.writeLine("[ -d \"${logDir}\" ] && [ -d \"${resultDir}\" ] && [ -d \"${taskDir}\" ] || failAndExit \"Directory not found\";")
-        sBuffer.writeLine("[ -f \"${dockerImagePath}\" ] || failAndExit \"Docker image not found: $dockerImagePath\";")
-        sBuffer.writeEcho("Docker image path: $dockerImagePath")
-        sBuffer.writeEcho("Path to log: $logDir")
-        sBuffer.writeEcho("Path to task: $taskDir")
-        sBuffer.writeEcho("Path to result: $resultDir")
-        sBuffer.writeLine("")
-
-    @staticmethod
-    def __loadDockerImage(sBuffer):
-        sBuffer.writeComment("Import docker image")
-        sBuffer.writeComment("Successful output is \"Loaded image: imageName:TAG\"")
-        sBuffer.writeEcho("Loading docker image...")
-        sBuffer.writeLine("dockerLoadOutput=`docker load < $dockerImagePath || failAndExit \"Importing docker image\"`")
-        sBuffer.writeLine("")
-        sBuffer.writeEcho("Docker Load Result: $dockerLoadOutput")
-        sBuffer.writeLine("[ -z \"${dockerLoadOutput}\" ] && failAndExit \"Loading docker image $dockerImagePath\"")
-        sBuffer.writeLine("")
-        sBuffer.writeComment("Split the output on ':' or spaces")
-        sBuffer.writeComment("Capture the docker image name and tag")
-        sBuffer.writeLine("outputSplit=(${dockerLoadOutput//:/ })")
-        sBuffer.writeLine("dockerName=${outputSplit[2]}")
-        sBuffer.writeLine("dockerTag=${outputSplit[3]}")
-        sBuffer.writeLine("")
-        sBuffer.writeComment("Find docker image record with correct name and tag")
-        sBuffer.writeLine("dockerImageQuery=`docker images | grep -i \"$dockerName\" | grep -i \"$dockerTag\"`")
-        sBuffer.writeLine("[ -z \"${dockerImageQuery}\" ] && failAndExit \"Finding docker image record for $dockerName:$dockerTag\"")
-        sBuffer.writeLine("")
-        sBuffer.writeComment("Get docker image ID")
-        sBuffer.writeLine("outputSplit=(${dockerImageQuery//   / })")
-        sBuffer.writeLine("dockerImageId=${outputSplit[2]}")
-        sBuffer.writeLine("[ -z \"${dockerImageId}\" ] && failAndExit \"Finding docker image id for $dockerName:$dockerTag\"")
-        sBuffer.writeEcho("Success: Loaded Image ID: ${dockerImageId}")
-        sBuffer.writeLine("")
-
-    @staticmethod
-    def __runTask(sBuffer):
-        sBuffer.writeComment("Check the task dir exists")
-        sBuffer.writeLine("")
-        sBuffer.writeComment("Run container with mounted taskDir")
-        sBuffer.writeEcho("Running container... (this might take some time):")
-        sBuffer.writeLine("runCmd=\"docker run --rm --network=host --device=/dev/kfd --device=/dev/dri --group-add video --cap-add=SYS_PTRACE --security-opt seccomp=unconfined -v \"$taskDir\":\"/TaskDir\" -v \"$resultDir\":\"/ResultDir\" -v \"$logDir\":\"/LogDir\" $dockerImageId\"")
-        sBuffer.writeEcho("$runCmd")
-        sBuffer.writeLine("$runCmd")
-        sBuffer.writeLine("returnCode=$?")
-
-    @staticmethod
-    def __exit(sBuffer):
-        sBuffer.writeEcho("Done!")
-        sBuffer.writeLine("exit $returnCode")
-
-    @staticmethod
-    def writeHeader(sBuffer):
-        BenchmarkNodeWriter.__initHeader(sBuffer)
-
-    @staticmethod
-    def writeBody(sBuffer):
-        BenchmarkNodeWriter.__initializeFuncs(sBuffer)
-        BenchmarkNodeWriter.__parseArgs(sBuffer)
-        BenchmarkNodeWriter.__loadDockerImage(sBuffer)
-        BenchmarkNodeWriter.__runTask(sBuffer)
-
-    @staticmethod
-    def writeEpilogue(sBuffer):
-        BenchmarkNodeWriter.__exit(sBuffer)
-
-class BenchmarkTaskWriter(object):
-    """
-    SLURM specific script.
-    Invokes the 'srun' command to queue a task.
-    SLURM environment variables tell us which
-    indexed task to run as part of the array.
-    The final task submitted is the node script
-    which will run on one of the hosts.
-    """
-    @staticmethod
-    def __initHeader(sBuffer):
-        sBuffer.writeComment("!/bin/bash")
-        sBuffer.writeComment("Benchmark task enqueue script")
-        sBuffer.writeComment("This script will configure and commit a single task to the cluster.")
-        sBuffer.writeComment("Intended to be the run target of SLURM SBATCH multiplexer")
-        sBuffer.writeLine("")
-
-    @staticmethod
-    def __initializeFuncs(sBuffer):
-        sBuffer.writeComment("Funcs")
-        sBuffer.writeLine("usage() { echo \"Usage: $0 [-i <image_dir>] [-l <logs_dir>] [-r <results_dir>] [-t <tasks_dir>] \" 1>&2; exit 1; }")
-        sBuffer.writeLine("failAndExit() { echo \"FAILED: $1\" 1>&2; exit 1; }")
-        sBuffer.writeLine("")
-
-    @staticmethod
-    def __parseArgs(sBuffer):
-        sBuffer.writeComment("Parse arguments")
-        sBuffer.writeLine("while getopts i:l:r:t: flag")
-        sBuffer.writeLine("do")
-        sBuffer.writeLine("    case \"${flag}\" in")
-        sBuffer.writeLine("        i) imageDir=${OPTARG};; ")
-        sBuffer.writeLine("        l) logsDir=${OPTARG};;")
-        sBuffer.writeLine("        r) resultsDir=${OPTARG};;")
-        sBuffer.writeLine("        t) tasksDir=${OPTARG};;")
-        sBuffer.writeLine("        *) usage;;")
-        sBuffer.writeLine("    esac")
-        sBuffer.writeLine("done")
-        sBuffer.writeLine("[ -z \"${imageDir}\" ] || [ -z \"${logsDir}\" ] || [ -z \"${resultsDir}\" ] || [ -z \"${tasksDir}\" ] && usage;")
-        sBuffer.writeLine("[ -d \"${imageDir}\" ] && [ -d \"${logsDir}\" ] && [ -d \"${resultsDir}\" ] && [ -d \"${tasksDir}\" ] || failAndExit \"Directory not found\";")
-        sBuffer.writeEcho("Image dir: $imageDir")
-        sBuffer.writeEcho("Logs dir: $logsDir")
-        sBuffer.writeEcho("Tasks dir: $tasksDir")
-        sBuffer.writeEcho("Results dir: $resultsDir")
-        sBuffer.writeLine("")
-
-    @staticmethod
-    def __configureTask(sBuffer):
-        sBuffer.writeComment("Setup task parameters")
-        sBuffer.writeLine("pushd $tasksDir")
-        sBuffer.writeLine("subDirs=(*)")
-        sBuffer.writeLine("taskName=${subDirs[$SLURM_ARRAY_TASK_ID]}")
-        sBuffer.writeLine("taskDir=$tasksDir/$taskName")
-        sBuffer.writeLine("taskResultDir=$resultsDir/$taskName")
-        sBuffer.writeLine("mkdir -p $taskResultDir")
-        sBuffer.writeLine("taskLogDir=$logsDir/$taskName")
-        sBuffer.writeLine("mkdir -p $taskLogDir")
-        sBuffer.writeLine("task=($taskDir/*.sh)")
-        sBuffer.writeLine("image=($imageDir/*.tar.gz)")
-        sBuffer.writeEcho("Task ID: $SLURM_ARRAY_TASK_ID / $SLURM_TASK_MAX")
-        sBuffer.writeEcho("Task Name: $taskName")
-        sBuffer.writeEcho("Host Name: `hostname`")
-        sBuffer.writeLine("")
-
-    @staticmethod
-    def __submitTask(sBuffer):
-        sBuffer.writeComment("Enqueue node task")
-        sBuffer.writeLine("srun -N 1 \"$task\" -i \"$image\" -l \"$taskLogDir\" -r \"$taskResultDir\" -t \"$taskDir\"")
-        sBuffer.writeLine("returnCode=$?")
-
-    @staticmethod
-    def __exit(sBuffer):
-        sBuffer.writeEcho("Done!")
-        sBuffer.writeLine("exit $returnCode")
-
-    @staticmethod
-    def writeHeader(sBuffer):
-        BenchmarkTaskWriter.__initHeader(sBuffer)
-
-    @staticmethod
-    def writeBody(sBuffer):
-        BenchmarkTaskWriter.__initializeFuncs(sBuffer)
-        BenchmarkTaskWriter.__parseArgs(sBuffer)
-        BenchmarkTaskWriter.__configureTask(sBuffer)
-        BenchmarkTaskWriter.__submitTask(sBuffer)
-
-    @staticmethod
-    def writeEpilogue(sBuffer):
-        BenchmarkTaskWriter.__exit(sBuffer)
-
-class BenchmarkJobWriter(object):
-    """
-    SLURM specific script.
-    Invokes the 'sbatch' and allocates resources.
-    Will create an array of N tasks that will each
-    run one instance of the task script.
-    N = number of sub-folders inside task folder
-    Assumes one node per task.
-    Will wait until the entire batch is complete
-    before exiting.
-    NOTE: the wait feature requires that all task
-    scripts have a return code, or will hang forever!
-    """
-    @staticmethod
-    def __initHeader(sBuffer):
-        sBuffer.writeComment("!/bin/bash")
-        sBuffer.writeComment("Benchmark batch job script")
-        sBuffer.writeComment("This script will configure and submit a batch job to the cluster")
-        sBuffer.writeComment("This is the SLURM cluster benchmark entry-point")
-        sBuffer.writeLine("")
-
-    @staticmethod
-    def __initializeFuncs(sBuffer):
-        sBuffer.writeComment("Funcs")
-        sBuffer.writeLine("usage() { echo \"Usage: $0 [-i <image_dir>] [-l <logs_dir>] [-r <results_dir>] [-s <path_to_task_script>] [-t <tasks_dir>] \" 1>&2; exit 1; }")
-        sBuffer.writeLine("failAndExit() { echo \"FAILED: $1\" 1>&2; exit 1; }")
-        sBuffer.writeLine("")
-
-    @staticmethod
-    def __parseArgs(sBuffer):
-        sBuffer.writeComment("Parse arguments")
-        sBuffer.writeLine("while getopts i:l:r:s:t: flag")
-        sBuffer.writeLine("do")
-        sBuffer.writeLine("    case \"${flag}\" in")
-        sBuffer.writeLine("        i) imageDir=${OPTARG};;")
-        sBuffer.writeLine("        l) logsDir=${OPTARG};;")
-        sBuffer.writeLine("        r) resultsDir=${OPTARG};;")
-        sBuffer.writeLine("        s) taskScript=${OPTARG};;")
-        sBuffer.writeLine("        t) tasksDir=${OPTARG};;")
-        sBuffer.writeLine("        *) usage;;")
-        sBuffer.writeLine("    esac")
-        sBuffer.writeLine("done")
-        sBuffer.writeLine("[ -z \"${imageDir}\" ] || [ -z \"${logsDir}\" ] || [ -z \"${resultsDir}\" ] || [ -z \"${tasksDir}\" ]  && usage;")
-        sBuffer.writeLine("[ -d \"${imageDir}\" ] && [ -d \"${logsDir}\" ] && [ -d \"${resultsDir}\" ] && [ -d \"${tasksDir}\" ] || failAndExit \"Directory not found\";")
-        sBuffer.writeLine("[ -f \"${taskScript}\" ] || failAndExit \"Task script not found\";")
-        sBuffer.writeEcho("Image dir: $imageDir")
-        sBuffer.writeEcho("Logs dir: $logsDir")
-        sBuffer.writeEcho("Tasks dir: $tasksDir")
-        sBuffer.writeEcho("Results dir: $resultsDir")
-        sBuffer.writeEcho("Enqueue script: $taskScript")
-        sBuffer.writeLine("")
-
-    @staticmethod
-    def __configureJob(sBuffer):
-        sBuffer.writeComment("Setup local environment")
-        sBuffer.writeComment("Get in the directory where this script lives")
-        sBuffer.writeLine("pushd $( dirname `greadlink -f ${BASH_SOURCE[0]} || readlink -f ${BASH_SOURCE[0]}` )")
-        sBuffer.writeComment("Enumerate the tasks and set up batch params based on task count")
-        sBuffer.writeLine("subDirs=($tasksDir/*)")
-        sBuffer.writeLine("let arraySize=${#subDirs[@]}")
-        sBuffer.writeLine("[ -z \"${arraySize}\" ] && failAndExit \"No task count\";")
-        sBuffer.writeLine("let arrayStart=0")
-        sBuffer.writeLine("let arrayEnd=$arraySize-1")
-        sBuffer.writeComment("Create logs directory for SLURM")
-        sBuffer.writeLine("slurmLogsDir=$logsDir/SLURM")
-        sBuffer.writeLine("mkdir -p $slurmLogsDir")
-        sBuffer.writeLine("")
-
-    @staticmethod
-    def __submitJob(sBuffer):
-        sBuffer.writeComment("Invoke batch request to SLURM")
-        sBuffer.writeComment("Will wait until the task completes before exiting")
-        sBuffer.writeLine("runCmd=\"sbatch --nodes=1 --array=$arrayStart-$arrayEnd -o $slurmLogsDir/slurm-%A_%a.out --wait $taskScript -i $imageDir -l $logsDir -r $resultsDir -t $tasksDir\"")
-        sBuffer.writeEcho("Submitting batch job to SLURM. This may take a while...")
-        sBuffer.writeEcho("$runCmd")
-        sBuffer.writeLine("$runCmd")
-        sBuffer.writeLine("returnCode=$?")
-        sBuffer.writeLine("popd")
-
-    @staticmethod
-    def __exit(sBuffer):
-        sBuffer.writeEcho("Done!")
-        sBuffer.writeLine("exit $returnCode")
-
-    @staticmethod
-    def writeHeader(sBuffer):
-        BenchmarkJobWriter.__initHeader(sBuffer)
-
-    @staticmethod
-    def writeBody(sBuffer):
-        BenchmarkJobWriter.__initializeFuncs(sBuffer)
-        BenchmarkJobWriter.__parseArgs(sBuffer)
-        BenchmarkJobWriter.__configureJob(sBuffer)
-        BenchmarkJobWriter.__submitJob(sBuffer)
-
-    @staticmethod
-    def writeEpilogue(sBuffer):
-        BenchmarkJobWriter.__exit(sBuffer)
 
 class BenchmarkImplSLURM(object):
 
@@ -470,8 +98,8 @@ class BenchmarkImplSLURM(object):
             os.rename(os.path.join(tasksDir, f), os.path.join(configSubdir, f))
             ScriptWriter.writeBenchmarkNodeScript(baseFileName + ".sh", configSubdir)
 
-    @staticmethod
-    def initializeConfig(config):
+    @classmethod
+    def initializeConfig(cls, config):
         """
         Store SLURM backend-specific configurations.
         These can all be overridden via commandline
@@ -489,7 +117,7 @@ class BenchmarkImplSLURM(object):
 
         # Docker build
         section = baseSection.createSection("DOCKER")
-        section.createValue("DockerBaseImage", "compute-artifactory.amd.com:5000/rocm-plus-docker/compute-rocm-dkms-amd-feature-targetid:106-STG1")
+        section.createValue("DockerBaseImage", "compute-artifactory.amd.com:5000/rocm-plus-docker/compute-rocm-dkms-amd-feature-targetid:3004-STG1")
         section.createValue("DockerBuildFile", os.path.join(rootTensileDir, "docker", "dockerfile-tensile-tuning-slurm"))
         section.createValue("DockerImageName", "tensile-tuning-cluster-executable")
         section.createValue("DockerImageTag", "TEST")
@@ -497,8 +125,8 @@ class BenchmarkImplSLURM(object):
         section.createValue("TensileBranch", "develop")
         section.createValue("TensileCommit", "HEAD")
 
-    @staticmethod
-    def generateBenchmark(config):
+    @classmethod
+    def generateBenchmark(cls, config):
         """
         Build executables used in SLURM backend,
         based on configuration parameters
@@ -512,7 +140,7 @@ class BenchmarkImplSLURM(object):
 
         # Create the base image for task executable in image dir
         sConfig = config["SLURM"]["DOCKER"]
-        BenchmarkImplSLURM.__createTensileBenchmarkContainer( \
+        cls.__createTensileBenchmarkContainer( \
             sConfig["DockerBaseImage"], \
             sConfig["DockerBuildFile"], \
             "{0}:{1}".format(sConfig["DockerImageName"], sConfig["DockerImageTag"]), \
@@ -525,18 +153,18 @@ class BenchmarkImplSLURM(object):
         # Create the scripts that will be used to invoke the benchmark in base dir
         # Create the scripts that node hosts will run in the tasks dir
         sConfig = config["SLURM"]["SCRIPTS"]
-        BenchmarkImplSLURM.__createClusterBenchmarkScripts( \
+        cls.__createClusterBenchmarkScripts( \
             baseDir, \
             tasksDir, \
             sConfig["TaskScriptName"], \
             sConfig["JobScriptName"])
 
-    @staticmethod
-    def preInvokeBenchmark(config):
+    @classmethod
+    def preInvokeBenchmark(cls, config):
         pass
 
-    @staticmethod
-    def invokeBenchmark(config):
+    @classmethod
+    def invokeBenchmark(cls, config):
 
         # Dirs
         (baseDir, tasksDir, imageDir, resultsDir, logsDir) = \
@@ -569,8 +197,8 @@ class BenchmarkImplSLURM(object):
         with open(logFilePath, "wt") as logFile:
             subprocess.check_call(shlex.split(invokeCmd), stdout=logFile, stderr=logFile)
 
-    @staticmethod
-    def postInvokeBenchmark(benchmarkObj):
+    @classmethod
+    def postInvokeBenchmark(cls, benchmarkObj):
         pass
 
 
