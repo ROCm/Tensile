@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.13)
 
 # Override all paths arguments as they do not work properly
 list(APPEND CMAKE_PREFIX_PATH $ENV{ROCM_PATH} /opt/rocm)
@@ -65,21 +65,17 @@ if(TENSILE_NEW_CLIENT)
     endif()
 
     if(TENSILE_USE_OPENMP)
-        #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_OPENMP")
-        find_package(OpenMP QUIET)
-        if (OPENMP_FOUND)
-            set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-            set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+        # Workaround for https://gitlab.kitware.com/cmake/cmake/-/issues/21787
+        # ensures we link to HIP's libomp and get an rpath to it.
+        add_library(custom_openmp_cxx INTERFACE)
+
+        if(TENSILE_USE_HIP)
+            target_compile_options(custom_openmp_cxx INTERFACE "-fopenmp")
+            target_link_options(custom_openmp_cxx INTERFACE "-fopenmp")
         else ()
-            if(EXISTS /etc/redhat-release)
-                set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp=libgomp")
-            else()
-                set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
-                set(OPENMP_LIBRARY /usr/lib/x86_64-linux-gnu/libomp.so)
-                set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OPENMP_LIBRARY}")
-            endif()
-        endif()
+            find_package(OpenMP REQUIRED)
+            target_link_libraries(custom_openmp_cxx INTERFACE OpenMP::OpenMP_CXX)
+        endif ()
     endif()
 
     add_subdirectory(lib)
