@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -713,16 +713,17 @@ namespace Tensile
             }
 
         private:
-
             /**
-             * Depending on user configuration, the actual pointers within these inputs structs may not 
-             * all point to separately allocated buffers. 
+             * Depending on user configuration, the actual pointers within these inputs structs may not
+             * all point to separately allocated buffers.
              */
 
             std::shared_ptr<ManagedInputs> m_cpuConvInputs;
             std::shared_ptr<ManagedInputs> m_cpuInputsPristine; //< Untouched copies of the inputs
-            std::shared_ptr<ManagedInputs> m_cpuInputs; //< Inputs used for CPU reference calculations
-            std::shared_ptr<ManagedInputs> m_cpuBadInputs; //< Inputs containing 'bad' values for bounds checking
+            std::shared_ptr<ManagedInputs>
+                m_cpuInputs; //< Inputs used for CPU reference calculations
+            std::shared_ptr<ManagedInputs>
+                m_cpuBadInputs; //< Inputs containing 'bad' values for bounds checking
             std::shared_ptr<ManagedInputs> m_gpuInputsPristine; //< Untouched copies of the inputs
             std::shared_ptr<ManagedInputs> m_gpuInputs; //< Inputs to be sent in to GPU kernels
             std::shared_ptr<ManagedInputs> m_gpuBadInputs; //< GPU copies of 'bad' values

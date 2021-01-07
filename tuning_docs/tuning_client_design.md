@@ -76,12 +76,12 @@ Each of the iterations of each of the loops is surrounded by a pair of `pre` and
  - `preSolution(solution)` / `postSolution()`
  - etc.
  - `postEnqueues()` is sent Hip events corresponding to the enqueued kernels via `TimingEvents` objects.
- 
+
 The inner enqueue loop does not have its `pre-` and `post-` calls inside the loop due to potential interference with the timing.  Instead, these functions are called before and after the entire loop.
 
 The implementation of each of these is meant to be relatively trivial in terms of execution time, especially in the inner loops.  More involved calculations and validations can be done in the `validate` functions:
 
- - `validateWarmups(inputs, startEvents, stopEvents)`: This is where `ReferenceValidator` validates the results if appropriate. 
+ - `validateWarmups(inputs, startEvents, stopEvents)`: This is where `ReferenceValidator` validates the results if appropriate.
  - `validateEnqueues(inputs, startEvents, stopEvents)`: This is where `BenchmarkTimer` calculates the time and speed of the kernel.
 
  - `finalizeReport()` is called outside of the outer benchmark loop.
@@ -158,7 +158,7 @@ This class just calls `findBestSolution()` on the solution library, in order to 
 
 ## `HardwareMonitorListener` and `HardwareMonitor`
 
-Responsible for monitoring GPU temperatures and clock rates, via ROCm-SMI.  **Note**: Hardware monitoring can be disabled by setting the `hardware-monitor` program argument to `false`. 
+Responsible for monitoring GPU temperatures and clock rates, via ROCm-SMI.  **Note**: Hardware monitoring can be disabled by setting the `hardware-monitor` program argument to `false`.
 
 `HardwareMonitor` uses threads to asynchronously query ROCm-SMI.  It provides an interface to start/stop monitoring manually, or to monitor between Hip events, to limit query rates, and to specify the specific sensor(s) that are required.  It also examines the PCI id data to make sure we are monitoring the correct device in the case that there are multiple GPUs in the system.
 
