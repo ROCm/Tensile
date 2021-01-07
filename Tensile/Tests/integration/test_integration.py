@@ -83,7 +83,7 @@ def str2bool(mergeFiles, shortNames, legacyComponents):
 
 @pytest.mark.parametrize("testYamls",         ["quick", "pre_checkin"])
 @pytest.mark.parametrize("mergeFiles",        ["mergeFiles", "noMergeFiles"])
-@pytest.mark.parametrize("libraryFormat",     ["yaml", pytest.param("msgpack", marks=pytest.mark.xfail)])
+@pytest.mark.parametrize("libraryFormat",     ["yaml", "msgpack"])
 @pytest.mark.parametrize("shortNames",        ["shortNames", "noShortName"])
 @pytest.mark.parametrize("legacyComponents",  ["legacyComponents", "noLegacyComponents"])
 def test_integration(useGlobalParameters, builddir, getLogicFileDir,
