@@ -19,7 +19,7 @@ make_tensile_tuning () {
     echo "#!/bin/sh" > doit.sh
     echo "if [ ! -d 3_LibraryLogic ] || [ \$(ls -A 3_LibraryLogic | wc -c) -eq 0 ]; then" >> doit.sh
     echo "  touch time.begin" >> doit.sh
-    echo "  ../Tensile/bin/Tensile $FILENAME ./ > make.out 2>&1" >> doit.sh
+    echo "  $TENSILE/Tensile/bin/Tensile $FILENAME ./ > make.out 2>&1" >> doit.sh
     echo "  touch time.end" >> doit.sh
     echo "fi" >> doit.sh
 
@@ -27,27 +27,32 @@ make_tensile_tuning () {
     popd > /dev/null
 }
 
-if [ $# -lt 3 ]; then
-
+if [ $# -le 4 ]; then
   echo "Too few arguments"
-  echo "need source_path destination_path file_names"
-  exit 0
-
+  echo "need source_path destination_path tensile_path file_names"
+  exit 2
 fi
 
-SOURCE="$1"
+SOURCE=$1
 shift
-DESTINATION="$1"
+DESTINATION=$1
+shift
+TENSILE=$1
 shift
 
 if [ ! -d $SOURCE ]; then
   echo "The path $SOURCE does not exist. Exiting"
-  exit 0
+  exit 2
 fi
 
 if [ ! -d $DESTINATION ]; then
   echo "The path $DESTINATION does not exist. Exiting"
-  exit 0
+  exit 2
+fi
+
+if [ ! -d $TENSILE ]; then
+  echo "The path $TENSILE does not exist. Exiting"
+  exit 2
 fi
 
 DOIT=$DESTINATION/doit-all.sh
@@ -57,7 +62,7 @@ do
   FILE="$SOURCE/$config"
   if [ ! -f $FILE ]; then
     echo "The file $FILE does not exist"
-    exit 0
+    exit 2
   fi
 done
 
