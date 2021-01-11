@@ -27,7 +27,7 @@ make_tensile_tuning () {
     popd > /dev/null
 }
 
-if [ $# -le 4 ]; then
+if [ $# -lt 4 ]; then
   echo "Too few arguments"
   echo "need source_path destination_path tensile_path file_names"
   exit 2
@@ -62,7 +62,7 @@ do
   FILE="$SOURCE/$config"
   if [ ! -f $FILE ]; then
     echo "The file $FILE does not exist"
-    exit 2
+    exit 1
   fi
 done
 

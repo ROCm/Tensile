@@ -1,23 +1,15 @@
 #!/bin/bash
 
+HELP=false
+
 HELP_STR="
-Usage: ./run_validation.sh -w WORKING_PATH -s SCRIPT_PATH
+Usage: ${0} WORKING_PATH ROCBLAS_PATH
 
 Options:
-  [-h|--help]                Display this help message
-  [-w|--working-path PATH]   Working path for verification
-  [-s|--test-scripts PATH]   Path to tuning test scripts
-  [-i| id]                   rocBLAS ID
+  -h | --help          Display this help message
 "
-                                                                                                                                                                                                                                                                        
-HELP=false                                                                                                                                                                                                                                                              
-ROCBLAS_BRANCH='develop'                                                                                                                                                                                                                                                
-ROCBLAS_FORK='RocmSoftwarePlatform'                                                                                                                                                                                                                                     
-MASSAGE=true
-MERGE=true
 
-OPTS=`getopt -o ht:w:s:i: \
---long help,working-path:,test-scripts: -n 'parse-options' -- "$@"`
+OPTS=`getopt -o h --long help -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
 
@@ -26,9 +18,6 @@ eval set -- "$OPTS"
 while true; do
   case "$1" in
     -h | --help )         HELP=true; shift ;;
-    -w | --working-path ) WORKING_PATH="$2"; shift 2;;
-    -s | --test-scripts ) SCRIPTS_PATH="$2"; shift 2;;
-    -i )                  ID="$2"; shift 2;;
     -- ) shift; break ;;
     * ) break ;;
   esac
@@ -36,54 +25,44 @@ done
 
 if $HELP; then
   echo "${HELP_STR}" >&2
+  exit 0
+fi
+
+if [ $# != 2 ]; then
+  echo "Exactly two positional args required"
+  echo "See ${0} --help"
   exit 2
 fi
 
-if [ -z ${WORKING_PATH+foo} ]; then
-  printf "A working path is required\n"
-  exit 2
-fi
+WORKING_PATH=${1}
+ROCBLAS_PATH=${2}
 
-if [ -z ${SCRIPTS_PATH+foo} ]; then
-  printf "A script path is required\n"
-  exit 2
-fi
+SCRIPT_ROOT=${WORKING_PATH}/scripts
+LIBRARY_ROOT=${WORKING_PATH}/library
 
-ROCBLAS_ROOT="${WORKING_PATH}/rocblas"
-SCRIPT_ROOT="${SCRIPTS_PATH}"
-LIBRARY_ROOT="${WORKING_PATH}/library"
+TENSILE_LIBRARY_PATH=${LIBRARY_ROOT}/tensile_library/library
 
-ROCBLAS_PATH="${ROCBLAS_ROOT}/rocBLAS-reference"
+BENCHMARK_PATH=
+ROCBLAS_BENCH=${ROCBLAS_PATH}/build/release/clients/staging/rocblas-bench
 
-if [ -n "${ID}" ]; then
-  ROCBLAS_PATH="${ROCBLAS_PATH}-${ID}"
-fi
-
-TENSILE_LIBRARY_PATH="${LIBRARY_ROOT}/tensile_library/library"
-mkdir -p ${TENSILE_LIBRARY_PATH}
-TENSILE_LIBRARY_PATH=$(realpath ${TENSILE_LIBRARY_PATH})
-
-BENCHMARK_PATH=${ROCBLAS_PATH}/build/release/clients/staging
-ROCBLAS_BENCH=${BENCHMARK_PATH}/rocblas-bench
-
-REFERENCE_PATH=${BENCHMARK_PATH}/results_ref
-VERIFICATION_PATH=${BENCHMARK_PATH}/results_validate
+REFERENCE_PATH=${WORKING_PATH}/benchmarks/reference
+TUNED_PATH=${WORKING_PATH}/benchmarks/tuned
 
 mkdir -p ${REFERENCE_PATH}
-mkdir -p ${VERIFICATION_PATH}
+mkdir -p ${TUNED_PATH}
 
 FILES=$(ls ${SCRIPT_ROOT}/*yaml)
 
+echo "Benchmarking reference library"
 for FILE in $FILES
 do
   NAME=$(basename ${FILE} | cut -d'.' -f1)
   ${ROCBLAS_BENCH} --yaml ${FILE} > ${REFERENCE_PATH}/${NAME}.1
 done
 
+echo "Benchmarking tuned library"
 for FILE in $FILES
 do
   NAME=$(basename ${FILE} | cut -d'.' -f1)
-  ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY_PATH} ${ROCBLAS_BENCH} --yaml ${FILE} > ${VERIFICATION_PATH}/${NAME}.1
+  ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY_PATH} ${ROCBLAS_BENCH} --yaml ${FILE} > ${TUNED_PATH}/${NAME}.1
 done
-
-
