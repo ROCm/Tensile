@@ -6,25 +6,27 @@ HELP_STR="
 Usage: ${0} WORKING_PATH ROCBLAS_PATH
 
 Options:
-  -h | --help          Display this help message
+-h | --help          Display this help message
 "
 
-OPTS=`getopt -o h --long help -n 'parse-options' -- "$@"`
+if ! OPTS=$(getopt -o h --long help -n 'parse-options' -- "$@")
+then
+  echo "Failed parsing options"
+  exit 1
+fi
 
-if [ $? != 0 ] ; then echo "Failed parsing options." >&2 ; exit 1 ; fi
-
-eval set -- "$OPTS"
+eval set -- "${OPTS}"
 
 while true; do
-  case "$1" in
+  case ${1} in
     -h | --help )         HELP=true; shift ;;
     -- ) shift; break ;;
     * ) break ;;
   esac
 done
 
-if $HELP; then
-  echo "${HELP_STR}" >&2
+if ${HELP}; then
+  echo "${HELP_STR}"
   exit 0
 fi
 
@@ -41,28 +43,26 @@ SCRIPT_ROOT=${WORKING_PATH}/scripts
 LIBRARY_ROOT=${WORKING_PATH}/library
 
 TENSILE_LIBRARY_PATH=${LIBRARY_ROOT}/tensile_library/library
-
-BENCHMARK_PATH=
 ROCBLAS_BENCH=${ROCBLAS_PATH}/build/release/clients/staging/rocblas-bench
 
 REFERENCE_PATH=${WORKING_PATH}/benchmarks/reference
 TUNED_PATH=${WORKING_PATH}/benchmarks/tuned
 
-mkdir -p ${REFERENCE_PATH}
-mkdir -p ${TUNED_PATH}
+mkdir -p "${REFERENCE_PATH}"
+mkdir -p "${TUNED_PATH}"
 
-FILES=$(ls ${SCRIPT_ROOT}/*yaml)
-
+FILES=$(ls "${SCRIPT_ROOT}"/*yaml)
+echo ${FILES}
 echo "Benchmarking reference library"
 for FILE in $FILES
 do
-  NAME=$(basename ${FILE} | cut -d'.' -f1)
-  ${ROCBLAS_BENCH} --yaml ${FILE} > ${REFERENCE_PATH}/${NAME}.1
+  NAME=$(basename "${FILE}" | cut -d'.' -f1)
+  "${ROCBLAS_BENCH}" --yaml "${FILE}" > "${REFERENCE_PATH}/${NAME}.1"
 done
 
 echo "Benchmarking tuned library"
 for FILE in $FILES
 do
-  NAME=$(basename ${FILE} | cut -d'.' -f1)
-  ROCBLAS_TENSILE_LIBPATH=${TENSILE_LIBRARY_PATH} ${ROCBLAS_BENCH} --yaml ${FILE} > ${TUNED_PATH}/${NAME}.1
+  NAME=$(basename "${FILE}" | cut -d'.' -f1)
+  ROCBLAS_TENSILE_LIBPATH="${TENSILE_LIBRARY_PATH}" "${ROCBLAS_BENCH}" --yaml "${FILE}" > "${TUNED_PATH}/${NAME}.1"
 done
