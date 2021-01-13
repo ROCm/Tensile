@@ -243,6 +243,18 @@ namespace Tensile
                                        reinterpret_cast<std::complex<float> const*>(data),
                                        tensor,
                                        reinterpret_cast<std::complex<float> const*>(ptrVal));
+                    else if(tensor.dataType() == DataType::Int32)
+                        logTensorTyped(level,
+                                       name,
+                                       reinterpret_cast<int32_t const*>(data),
+                                       tensor,
+                                       reinterpret_cast<int32_t const*>(ptrVal));
+                    else if(tensor.dataType() == DataType::Int8)
+                        logTensorTyped(level,
+                                       name,
+                                       reinterpret_cast<Int8 const*>(data),
+                                       tensor,
+                                       reinterpret_cast<Int8 const*>(ptrVal));
                     else
                         throw std::runtime_error(
                             concatenate("Can't log tensor of type ", tensor.dataType()));

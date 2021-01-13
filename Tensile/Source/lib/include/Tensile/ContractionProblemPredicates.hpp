@@ -957,6 +957,17 @@ namespace Tensile
                 {
                     return problem.d().totalLogicalElements() * value <= problem.workspaceSize();
                 }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.d().totalLogicalElements() << " * " << value
+                           << " <= " << problem.workspaceSize() << ") == " << rv;
+
+                    return rv;
+                }
             };
 
             struct PersistentKernelCheck
