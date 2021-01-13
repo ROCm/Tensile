@@ -6,20 +6,21 @@ MFMA=false
 COUNT=false
 
 HELP_STR="
-Usage: ${0} WORKING_PATH LOG_PATH [options]
+Usage: ${0} WORKING_PATH LOG_PATH LIBRARY [options]
+
+  where LIBRARY = {arcturus | vega20 | vega10 | mi25 | r9nano | hip}
 
 Options:
-  -h | --help                 Display this help message
-  -s | --size                 Data size
-  -f | --freq                 Clock rate
-  -l | --library              {vega20|vega20...}
-  -m | --mfma                 Was MFMA enabled
-  -c | --count                ??
-  -n | --no-plot              Skip plotting
+-h | --help                 Display this help message
+-s | --size                 Data size
+-f | --freq                 Clock rate
+-m | --mfma                 Was MFMA enabled
+-c | --count                ??
+-n | --no-plot              Skip plotting
 "
 
-if ! OPTS=$(getopt -o h,s:,f:,l:,m,c,n \
---long help,size:,freq:,library:,mfma,count,no-plot -n 'parse-options' -- "$@")
+if ! OPTS=$(getopt -o h,s:,f:,m,c,n \
+--long help,size:,freq:,mfma,count,no-plot -n 'parse-options' -- "$@")
 then
   echo "Failed parsing options"
   exit 1
@@ -32,7 +33,6 @@ while true; do
     -h | --help )              HELP=true; shift ;;
     -s | --size)               SZ=${2}; shift 2;;
     -f | --freq)               FREQ=${2}; shift 2;;
-    -l | --library ) 	         LIBRARY=${2}; shift 2;;
     -m | --mfma )	             MFMA=true; shift ;;
     -c | --count )	           COUNT=true; shift ;;
     -n | --no-plot )           PLOT=false; shift ;;
@@ -56,18 +56,14 @@ if [ -z ${FREQ+x} ]; then
   FREQ=1000
 fi
 
-if [ -z ${LIBRARY+x} ]; then
-  echo "GPU Library not specified: assuming vega20"
-  LIBRARY=vega20
-fi
-
-if [ $# != 2 ]; then
-  echo "Exactly two possitional args required"
+if [ $# != 3 ]; then
+  echo "Exactly three possitional args required"
   echo "See ${0} --help"
 fi
 
 WORKING_PATH=${1}
 LOG=${2}
+LIBRARY=${3}
 
 REFERENCE_PATH=${WORKING_PATH}/benchmarks/reference
 TUNED_PATH=${WORKING_PATH}/benchmarks/tuned

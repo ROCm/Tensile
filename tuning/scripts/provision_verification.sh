@@ -39,7 +39,7 @@ Options:
 -b | --branch BRANCH          rocBLAS branch to use
 -c | --commit COMMIT_ID       rocBLAS commit to use
 -t | --tag GITHUP_TAG         rocBLAS tag to use
--i | --id ID                  ??
+-i | --id ID                  ID to append to rocBLAS directory name
 -s | --sclk                   Freq
 -n | --no-merge               Skip merge step
 --no-massage                  Skip massage step
