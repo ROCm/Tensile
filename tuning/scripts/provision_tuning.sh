@@ -63,7 +63,7 @@ Options for config generation:
 
 if ! OPTS=$(getopt -o h,n:,p:,f:,b:,c:,t:,i:,a,m,r,s \
 --long help,network:,tensile-path:,tensile-fork:,branch:,commit:,tag:,id:,\
-tile-aware,mfma,rk,disable-strides,initialization:,problem-definition:,client \
+tile-aware,mfma,rk,disable-strides,initialization:,problem-definition:,client: \
  -n "${0}" -- "$@")
 then
   echo "Failed parsing options"
@@ -86,8 +86,8 @@ while true; do
     -m | --mfma )            MFMA=true; shift;;
     -r | --rk )              RK=true; shift;;
     -s | --disable-strides ) DISABLE_STRIDES=true; shift;;
-    --initialization )       INITIALIZATION=${2}; shift;;
-    --problem-definition )   PROBLEM_DEFINITION=${2}; shift;;
+    --initialization )       INITIALIZATION=${2}; shift 2;;
+    --problem-definition )   PROBLEM_DEFINITION=${2}; shift 2;;
     --client )               TENSILE_CLIENT=${2}; shift 2;;
     -- ) shift; break ;;
     * ) break ;;
@@ -111,10 +111,6 @@ OUTPUT_SUFFIX=${3} # TODO: this is not really used in the rest of the tuning pip
 LIBRARY=${4}
 
 # TODO: test options have valid values
-
-if [ "${TENSILE_CLIENT}" != both ] && [ "${TENSILE_CLIENT}" != old ]; then
-  TENSILE_CLIENT=new
-fi
 
 # determine full path of tools root
 TOOLS_ROOT=$(realpath "${0}" | xargs dirname | xargs dirname)

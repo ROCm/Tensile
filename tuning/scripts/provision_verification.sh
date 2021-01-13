@@ -215,7 +215,7 @@ if [ ! -f "${ROCBLAS_BENCH_PATH}" ]; then
   rm -r -f "${ROCBLAS_PATH}/build"
   BUILD_ROCBLAS="./install.sh -d -c"
   pushd "${ROCBLAS_PATH}" > /dev/null || exit
-  ${BUILD_ROCBLAS} 2>&1 | "${LOGS}/rocblas-install.log"
+  ${BUILD_ROCBLAS} 2>&1 | tee "${LOGS}/rocblas-install.log"
   popd > /dev/null || exit
 else
   echo "rocBLAS already built: skipping"
