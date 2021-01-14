@@ -190,10 +190,18 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         print('hipcc:', ' '.join(compileArgs))
       subprocess.check_call(compileArgs)
 
+      infile = os.path.join(buildPath, objectFilename)
+      try:
+        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-inputs=%s" % infile, "-list"]
+        buffer = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT).decode()
+        # TODO - use the list of gfx entries returned as targets directly
+        hipVersion = "hipv4" if "hipv4" in buffer else "hip"
+      except subprocess.CalledProcessError:
+        hipVersion = "hip"
+
       for i in range(len(archs)):
-        infile = os.path.join(buildPath, objectFilename)
         outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
-        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=%s-amdgcn-amd-amdhsa--%s" % (hipVersion, cmdlineArchs[i]), "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
         if globalParameters["PrintCodeCommands"]:
           print(' '.join(bundlerArgs))
         subprocess.check_call(bundlerArgs)
