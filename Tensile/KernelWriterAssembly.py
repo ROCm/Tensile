@@ -11160,8 +11160,8 @@ class KernelWriterAssembly(KernelWriter):
         # range of the tmps.  Maybe want to move vgprSerial to first vgpr?
 
         # TODO: Minimum elems for StoreRemap
-        # TODO: Which of DataType or DestDataType is in a better sense?
-        minElements = 2 if (kernel["ProblemType"]["DestDataType"].isHalf() or kernel["ProblemType"]["DestDataType"].isBFloat16()) else 1
+        # TODO: Which of DataType or DestDataType is in a better sense? 0114: Check Using DestDataType + HSS
+        minElements = 2 if (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) else 1
         minNeeded = minElements*numVgprsPerElement
         shrinkDb = 0
         if shrinkDb:
@@ -11218,7 +11218,7 @@ class KernelWriterAssembly(KernelWriter):
         if self.ss.cfg.numElementsPerBatchLimitedBySgprs < numElementsPerBatch:
           numElementsPerBatch = self.ss.cfg.numElementsPerBatchLimitedBySgprs
 
-        # TODO: Which of DataType or DestDataType is in a better sense?
+        # TODO: Which of DataType or DestDataType is in a better sense? 0114: Check Using DestDataType + HSS
         if (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()):
           # only do an even number of halves - since these share hi/lo pieces of some registers?
           if numElementsPerBatch > 1:
