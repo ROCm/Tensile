@@ -193,9 +193,9 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       infile = os.path.join(buildPath, objectFilename)
       try:
         bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-inputs=%s" % infile, "-list"]
-        subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT).decode().split("\n")
+        buffer = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT).decode()
         # TODO - use the list of gfx entries returned as targets directly
-        hipVersion = "hipv4"
+        hipVersion = "hipv4" if "hipv4" in buffer else "hip"
       except subprocess.CalledProcessError:
         hipVersion = "hip"
 
