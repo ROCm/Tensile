@@ -584,6 +584,13 @@ def removeIter(lines):
     return noiterlines
 
 def OutputScript(problemMapper, scriptPath, namePart, disableStrides=False, probDef="both", initialization="rand_int"):
+
+    def removeFileSafe(file):
+        try:
+            os.remove(file)
+        except OSError:
+            pass
+
     keys = list(problemMapper.keys())
 
     scriptFileNames = []
@@ -593,6 +600,14 @@ def OutputScript(problemMapper, scriptPath, namePart, disableStrides=False, prob
     outputFileName4 = GetOutputFileName(scriptPath, namePart+"-verify", "sh")
     outputFileName5 = GetOutputFileName(scriptPath, namePart, "yaml")
     outputFileName6 = GetOutputFileName(scriptPath, namePart+"-strided", "yaml")
+
+    # delete old files if they exist
+    removeFileSafe(outputFileName)
+    removeFileSafe(outputFileName2)
+    removeFileSafe(outputFileName3)
+    removeFileSafe(outputFileName4)
+    removeFileSafe(outputFileName5)
+    removeFileSafe(outputFileName6)
 
     scriptFileNames.append(outputFileName5)
     count = 0
@@ -612,6 +627,7 @@ def OutputScript(problemMapper, scriptPath, namePart, disableStrides=False, prob
             if "strided" in yaml_call and strided == False:
                 strided = True
                 scriptFileNames.append(outputFileName6)
+                open(outputFileName6, 'w').close()
             lines.append(rocblas_call)
             yamlLines.append(yaml_call)
         noiterlines = removeIter(lines)

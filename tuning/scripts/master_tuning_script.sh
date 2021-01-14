@@ -267,7 +267,7 @@ if [ ! -d "${WORKING_PATH}/library" ]; then
   echo "Running ./provision_verification.sh"
 
   PROVISION_VERIFICATION=${SCRIPT_PATH}/provision_verification.sh
-  VERIFICATION_ARGS=("${WORKING_PATH}" "${TENSILE_PATH}" "${LIBRARY}")
+  VERIFICATION_ARGS=("${WORKING_PATH}" "${WORKING_PATH}/tensile/Tensile" "${LIBRARY}")
 
   if [ "${LIBRARY}" == arcturus ]; then
     if [ "${DATA_TYPE}" == hgemm ]; then
@@ -290,7 +290,7 @@ fi
 # run_validation.sh
 if [ ! -d "${WORKING_PATH}/benchmarks" ]; then
   RUN_VALIDATION=${SCRIPT_PATH}/run_validation.sh
-  "${RUN_VALIDATION}" "${WORKING_PATH}" "${ROCBLAS_PATH}/rocblas/rocBLAS"
+  "${RUN_VALIDATION}" "${WORKING_PATH}" "${WORKING_PATH}/rocblas/rocBLAS"
 else
   echo "benchmarks directory non-empty. Assuming ./run_validation.sh done previously"
   echo "Use --redo to force redoing previously done steps"

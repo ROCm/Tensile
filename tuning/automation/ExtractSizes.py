@@ -874,35 +874,46 @@ def ConvertToYAML(problemDefinition,disableStrides=False):
     keys = rocblas_key_mapping[f]
     convertKey = {"r":"rocblas_function","a_type":"a_type","b_type":"b_type","c_type":"c_type","d_type":"d_type","compute_type":"compute_type","transposeA":"transA","transposeB":"transB","m":"M","n":"N","k":"K","alpha":"alpha","lda":"lda","ldb":"ldb","beta":"beta","ldc":"ldc","ldd":"ldd","stride_a":"stride_a","stride_b":"stride_b","stride_c":"stride_c","stride_d":"stride_d","batch_count":"batch_count","algo":"algo","solution_index":"solution_index","flags":"flags","i":"iters"}
     rocblasValue = {"h":"rocblas_hgemm","f16_r":"rocblas_hgemm","s":"rocblas_sgemm","f32_r":"rocblas_sgemm","d":"rocblas_dgemm","f64_r": "rocblas_dgemm", "?":"rocblas_gemm_ex"}
-    alternateType = {"f32":"s", "f64": "d", "f16": "h"}
+    alternateType = {"f32":"s", "f64":"d", "f16":"h"}
 
     rocblas_call = "- {"
     lock = False
+
+    # TODO: this logic needs to be tested more extensively
+    funcName = ""
+    ex = False
+    if "-r" in keys:
+        funcName = rocblasValue[problemDefinition["r"]]
+    elif "--a_type" in keys:
+        funcName = "rocblas_gemm"
+        ex = True
+    else:
+        # shouldn't happen
+        exit -1
+
+    if "strided" in f:
+        funcName += "_strided"
+    if "batched" in f:
+        funcName += "_batched"
+    if ex:
+        funcName += "_ex"
+    rocblas_call +=  "rocblas_function: %s, " % funcName
+
     for key in keys:
+        if key == "-f" or key == "-r":
+            continue
+
         param = key.replace("-","")
-        if param == "f":
-            continue
         value = problemDefinition[param]
-        modKey = convertKey[param]
-        if ("stride" in modKey and value == 0) or ("batch" in modKey and value == 1) or ("type" in modKey and value == None):
-            continue
-        if "-r" not in keys and not lock:
-            rocblas_call += "%s: %s, " % ("rocblas_function","rocblas_"+f) # TODO: tmp hack to fix function name --- rocblasValue["?"])
-            lock = True
-        elif param == "r":
-            for dType in rocblasValue.keys():
-                if problemDefinition[param] == dType:
-                    value = rocblasValue[dType]
-            if problemDefinition["stride_a"] != 0:
-                value += "_strided_batched"
+        yamlKey = convertKey[param]
+
         if ("ld" in param or "stride" in param) and int(value) == 0:
             value = GetStride(problemDefinition,param)
-        if ("call_count" not in modKey) and ("iters" not in modKey):
-            rocblas_call += "%s: %s, " % (modKey,value)
+        if ("call_count" not in yamlKey) and ("iters" not in yamlKey):
+            rocblas_call += "%s: %s, " % (yamlKey,value)
         else:
-            rocblas_call +=  "%s: %s " % (modKey,value)
-    if "batch_count" not in rocblas_call :
-        rocblas_call += ", batch_count: 1 " # TODO: tmp workaround to fix negative gflops
+            rocblas_call +=  "%s: %s " % (yamlKey,value)
+
     rocblas_call += "}"
 
     return rocblas_call
