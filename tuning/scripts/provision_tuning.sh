@@ -38,23 +38,23 @@ Usage: ${0} WORKING_PATH LOG_PATH OUTPUT_SUFFIX.yaml LIBRARY [options]
   where LIBRARY = {arcturus | vega20 | vega10 | mi25 | r9nano | hip}
 
 Options:
--h | --help                     Display this help message
--n | --network NAME             Neural network name. If this is set, LOG_PATH should be a directory. \
+-h | --help                   Display this help message
+-n | --network NAME           Neural network name. If this is set, LOG_PATH should be a directory. \
 Will only tune log files with this string in the file name
--p | --tensile-path PATH        Path to existing Tensile (will not provision new copy)
+-p | --tensile-path PATH      Path to existing Tensile (will not provision new copy)
 
 Options for provisioning Tensile:
--f | --tensile-fork USERNAME    Tensile fork to use
--b | --branch BRANCH            Tensile branch to use
--c | --commit COMMIT_ID         Tensile commit to use
--t | --tag GITHUB_TAG           Tensile tag to use
--i | --id ID                    ID to append to Tensile directory name
+-f | --tensile-fork USERNAME  Tensile fork to use
+-b | --branch BRANCH          Tensile branch to use
+-c | --commit COMMIT_ID       Tensile commit to use
+-t | --tag GITHUB_TAG         Tensile tag to use
+-i | --id ID                  ID to append to Tensile directory name
 
 Options for config generation:
--a | --tile-aware               Enables tileaware selection
--m | --mfma                     Enables using MFMA instructions
--r | --rk                       Enables using replacement kernels
--s | --disable-strides          Disables custom strides
+-t | --tile-aware             Use tile-aware method. (limited support)
+-m | --mfma                   Use MFMA kernels
+-r | --rk                     Use replacement kernels (sgemm only)
+-s | --disable-strides        Disable leading dimensions and strides in tuning file
 
 --initialization {rand_int | trig_float | hpl} (=rand_int)  Data initialization for matrices
 --problem-definition {gemm | batch | both} (=both)          Which problem types to tune

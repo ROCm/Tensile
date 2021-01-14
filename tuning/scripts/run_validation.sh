@@ -6,7 +6,7 @@ HELP_STR="
 Usage: ${0} WORKING_PATH ROCBLAS_PATH
 
 Options:
--h | --help          Display this help message
+-h | --help             Display this help message
 "
 
 if ! OPTS=$(getopt -o h --long help -n 'parse-options' -- "$@")

@@ -34,16 +34,16 @@ Usage: ${0} WORKING_PATH TENSILE_PATH LIBRARY [options]
 
 Options:
 -h | --help                   Display this help message
--p | --rocblas-path PATH      Path to existing rocBLAS
+-p | --rocblas-path PATH      Path to existing rocBLAS (will not provision new copy)
 -f | --rocblas-fork USERNAME  rocBLAS fork to use
 -b | --branch BRANCH          rocBLAS branch to use
 -c | --commit COMMIT_ID       rocBLAS commit to use
 -t | --tag GITHUP_TAG         rocBLAS tag to use
 -i | --id ID                  ID to append to rocBLAS directory name
--s | --sclk                   Freq
+-s | --sclk                   Frequency of sclk in MHz
 -n | --no-merge               Skip merge step
 --no-massage                  Skip massage step
---log-dir                     Dir for logs
+--log-dir                     Directory for logs
 --redo                        Force logic preparation, merge, massage, and library build steps to be redone
 "
 

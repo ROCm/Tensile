@@ -12,6 +12,7 @@ DATA_TYPE=sgemm
 PROBLEM_DEFINITION=both
 INITIALIZATION=rand_int
 DEPENDENCIES=false
+REDO=false
 
 HELP_STR="
 Pre-Requisites:
@@ -26,33 +27,36 @@ This is the master tuning script. It does the following:
 2) Runs Tensile for all 3 input yaml files
 3) Merges the tuning results (yaml file in 3_LibraryLogic directory) into the existing rocBLAS
 4) Runs massage script (adds ldc=ldd sizes) for vega10 and vega20 only
-5) Builds rocBLAS without tuned sizes (build_dir=reference_build)
-6) Builds rocBLAS with tuned sizes (build_dir=tuned_build)
-7) Runs rocblas-bench with untuned sizes and tuned sizes
-8) Runs analysis script, providing spreadsheets with performance before and after tuning
+5) Runs rocblas-bench with untuned sizes and tuned sizes
+6) Runs analysis script, providing spreadsheets with performance before and after tuning
 
 Usage: $0 WORKING_DIR LOG_PATH [options]
 
 Options:
 -h | --help             Display this help message
--l | --library          GPU used for tuning (arcturus, mi25, mi50, mi60, r7, v340 only)
 -n | --network          String to search for in filenames in log directory
+--tensile-path PATH     Path to existing Tensile (will not provision new copy)
+--rocblas-path PATH     Path to existing rocBLAS (will not provision new copy)
 -y | --data-type        Data type of sizes that you want to tune (sgemm, dgemm, hgemm only)
--t | --tile-aware       Use tile-aware method. (limited support, default=false)
--m | --mfma             Use MFMA kernels (default=false)
--r | --rk               Use replacement kernels (sgemm only, default=false)
--s | --disable-strides  Disable leading dimensions and strides in tuning file (default=false)
--i | --initialization   Initialize matrices when benchmarking (rand_int, trig_float, hpl, default=rand_int)
---problem-definition    Specify gemm, strided batched, or both sizes (gemm, batch, or both, default=both)
---client                Choose Tensile client version. (new, old, both, default=new)
+-t | --tile-aware       Use tile-aware method. (limited support)
+-m | --mfma             Use MFMA kernels
+-r | --rk               Use replacement kernels (sgemm only)
+-s | --disable-strides  Disable leading dimensions and strides in tuning file
 -f | --sclk             Frequency of sclk in MHz
--c | --count            Sets all cases where count=1 to count=10 (default=false)
+-c | --count            Sets all cases where count=1 to count=10
 -d | --dependencies     Install required dependencies (dependencies are not installed by default)
+--redo                  Force logic preparation, merge, massage, and library build steps to be redone
+
+-l | --library \\
+    {arcturus | vega20 | vega10 | mi25 | r9nano | hip}      GPU used for tuning (arcturus, mi25, mi50, mi60, r7, v340 only)
+--initialization {rand_int | trig_float | hpl} (=rand_int)  Data initialization for matrices
+--problem-definition {gemm | batch | both} (=both)          Which problem types to tune
+--client {new | old | both} (=new)                          Which Tensile runtime client to use
 "
 
 if ! OPTS=$(getopt -o h,l:,n:,y:,t,m,r,s,i:,f:,c,d \
---long help,library:,network:,data-type:,tile-aware,mfma,rk,disable-strides,initialization,\
-problem-definition,client,sclk:,count,dependencies -n 'parse-options' -- "$@")
+--long help,library:,network:,tensile-path:,rocblas-path:,data-type:,tile-aware,mfma,rk,\
+disable-strides,initialization,problem-definition,client,sclk:,count,dependencies,redo -n 'parse-options' -- "$@")
 then
 	echo "Failed parsing options"
 	exit 1
@@ -65,6 +69,8 @@ while true; do
 		-h | --help )               HELP=true; shift ;;
 		-l | --library )            LIBRARY=${2}; shift 2;;
 		-n | --network )            NETWORK=${2}; shift 2;;
+		--tensile-path )            TENSILE_PATH=${2}; shift 2;;
+		--rocblas-path )            ROCBLAS_PATH=${2}; shift 2;;
 		-y | --data-type )          DATA_TYPE=${2}; shift 2;;
 		-t | --tile-aware )         TILE_AWARE=true; shift ;;
 		-m | --mfma )               MFMA=true; shift ;;
@@ -76,6 +82,7 @@ while true; do
 		-f | --sclk )               SCLK=${2}; shift 2;;
 		-c | --count )              COUNT=true; shift ;;
 		-d | --dependencies )       DEPENDENCIES=true; shift ;;
+		--redo )                    REDO=true; shift ;;
 		-- ) shift; break ;;
 		* ) break ;;
 	esac
@@ -94,6 +101,14 @@ fi
 
 WORKING_PATH=${1}
 LOG_PATH=${2}
+
+if [ -z ${TENSILE_PATH} ]; then
+  TENSILE_PATH=${WORKING_PATH}/tensile/Tensile
+fi
+
+if [ -z ${ROCBLAS_PATH} ]; then
+  ROCBLAS_PATH=${WORKING_PATH}/rocblas/rocBLAS
+fi
 
 if ${DEPENDENCIES}; then
 	# install dependencies for Tensile and rocBLAS (Ubuntu only)
@@ -221,14 +236,12 @@ fi
 SCRIPT_PATH=$(realpath "${0}" | xargs dirname)
 
 # provision_tuning.sh
-if [ ! -d "${WORKING_PATH}/library" ]; then
+if [ ! -d "${WORKING_PATH}/library" ] || ${REDO}; then
   echo "Running ./provision_tuning.sh"
 
   PROVISION_TUNNING=${SCRIPT_PATH}/provision_tuning.sh
-  TUNING_ARGS=("${WORKING_PATH}" "${LOG_PATH}")
-
-  TUNING_ARGS+=(foobar.yaml "${LIBRARY}" --problem-definition "${PROBLEM_DEFINITION}" \
-    --initialization "${INITIALIZATION}" --client "${TENSILE_CLIENT}")
+  TUNING_ARGS=("${WORKING_PATH}" "${LOG_PATH}" foobar.yaml "${LIBRARY}" -p "${TENSILE_PATH}" --problem-definition \
+  	"${PROBLEM_DEFINITION}" --initialization "${INITIALIZATION}" --client "${TENSILE_CLIENT}")
 
   if [ -n "${NETWORK}" ]; then
 	  TUNING_ARGS+=(-n "${NETWORK}")
@@ -257,17 +270,18 @@ else
 fi
 
 # ./doit-all.sh (run Tensile for generated configs)
+# TODO: this wont run again properly even with --redo
 echo "Performing tuning with Tensile"
 pushd "${WORKING_PATH}/make" > /dev/null || exit
 ./doit-all.sh
 popd > /dev/null || exit
 
 # provision_verification.sh
-if [ ! -d "${WORKING_PATH}/library" ]; then
+if [ ! -d "${WORKING_PATH}/library" ] || ${REDO}; then
   echo "Running ./provision_verification.sh"
 
   PROVISION_VERIFICATION=${SCRIPT_PATH}/provision_verification.sh
-  VERIFICATION_ARGS=("${WORKING_PATH}" "${WORKING_PATH}/tensile/Tensile" "${LIBRARY}")
+  VERIFICATION_ARGS=("${WORKING_PATH}" "${TENSILE_PATH}" "${LIBRARY}" -p "${ROCBLAS_PATH}" --redo)
 
   if [ "${LIBRARY}" == arcturus ]; then
     if [ "${DATA_TYPE}" == hgemm ]; then
@@ -288,16 +302,16 @@ else
 fi
 
 # run_validation.sh
-if [ ! -d "${WORKING_PATH}/benchmarks" ]; then
+if [ ! -d "${WORKING_PATH}/benchmarks" ] || ${REDO}; then
   RUN_VALIDATION=${SCRIPT_PATH}/run_validation.sh
-  "${RUN_VALIDATION}" "${WORKING_PATH}" "${WORKING_PATH}/rocblas/rocBLAS"
+  "${RUN_VALIDATION}" "${WORKING_PATH}" "${ROCBLAS_PATH}"
 else
   echo "benchmarks directory non-empty. Assuming ./run_validation.sh done previously"
   echo "Use --redo to force redoing previously done steps"
 fi
 
 # analyze_results.sh
-if [ ! -d "${WORKING_PATH}/analysis" ]; then
+if [ ! -d "${WORKING_PATH}/analysis" ] || ${REDO}; then
   ANALYZE_RESULTS=${SCRIPT_PATH}/analyze_results.sh
   ANALYZE_ARGS=("${WORKING_PATH}" "${LOG_PATH}" "${LIBRARY}" -f "${SCLK}" -s "${DVAL}")
 
