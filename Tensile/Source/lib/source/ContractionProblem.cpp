@@ -28,6 +28,7 @@
 #include <Tensile/ContractionSolution.hpp>
 #include <Tensile/Utils.hpp>
 
+#include <cctype>
 #include <cstddef>
 #include <set>
 
@@ -332,17 +333,20 @@ namespace Tensile
         begin++;
         std::string d = identifier.substr(begin, end - begin);
 
-        std::set<char> allIndices(a.begin(), a.end());
+        auto caseInsensitiveCmp = [](char a, char b) { return std::tolower(a) < std::tolower(b); };
+        std::set<char, decltype(caseInsensitiveCmp)> allIndices(
+            a.begin(), a.end(), caseInsensitiveCmp);
         allIndices.insert(b.begin(), b.end());
         allIndices.insert(c.begin(), c.end());
         allIndices.insert(d.begin(), d.end());
 
         for(char index : allIndices)
         {
-            size_t aIndex = a.find(index);
-            size_t bIndex = b.find(index);
-            size_t cIndex = c.find(index);
-            size_t dIndex = d.find(index);
+            char   caseInsensitiveIndex[] = {char(std::tolower(index)), char(std::toupper(index))};
+            size_t aIndex                 = a.find_first_of(caseInsensitiveIndex, 0, 2);
+            size_t bIndex                 = b.find_first_of(caseInsensitiveIndex, 0, 2);
+            size_t cIndex                 = c.find(index);
+            size_t dIndex                 = d.find(index);
 
             if(aIndex != std::string::npos && bIndex != std::string::npos
                && cIndex != std::string::npos && dIndex != std::string::npos)
@@ -352,7 +356,9 @@ namespace Tensile
             else if(aIndex != std::string::npos && bIndex != std::string::npos
                     && cIndex == std::string::npos && dIndex == std::string::npos)
             {
-                bound.push_back(BoundIndex{aIndex, bIndex});
+                bool aMirror = std::isupper(a[aIndex]);
+                bool bMirror = std::isupper(b[bIndex]);
+                bound.push_back(BoundIndex{aIndex, bIndex, aMirror, bMirror});
             }
             else if(aIndex != std::string::npos && bIndex == std::string::npos
                     && cIndex != std::string::npos && dIndex != std::string::npos)
@@ -601,9 +607,6 @@ namespace Tensile
         if(sizeMapping.persistentKernel == 0)
             return;
 
-        size_t persistentGroups
-            = dynamic_cast<AMDGPU const&>(hardware).computeUnitCount * sizeMapping.persistentKernel;
-
         // Get the normal WorkGroup numbers by sizeMapping MacroTile
         dim3 numWG(1, 1, 1);
         for(size_t i = 0; i < m_freeIndicesA.size(); i++)
@@ -631,6 +634,22 @@ namespace Tensile
         size_t problemTiles = numWG.x * numWG.y;
         if(sizeMapping.persistentKernelAlongBatch)
             problemTiles *= numWG.z;
+
+        AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
+        assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
+
+        size_t cuCount      = pAMDGPU->computeUnitCount;
+        size_t finalPKValue = sizeMapping.persistentKernel;
+        if(finalPKValue == -1)
+        {
+            // 1. Get the largest pk value (ex.3)
+            //    which can make the PK.G (ex.3*120=360) <= problemGroups (ex.433)
+            // 2. Scale by 5/8 (can try 0.5~1, to control the tiles-per-workgroup = 1~2)
+            finalPKValue = 5 * (problemTiles / cuCount) / 8;
+            finalPKValue = std::max(finalPKValue, (size_t)1);
+        }
+
+        size_t persistentGroups = cuCount * finalPKValue;
 
         // If #PKWG (PK*CUs) >= #TotalTiles, the persistent kernel behaves just like non-PK
         m_eligibleForPK = persistentGroups < problemTiles;
@@ -946,8 +965,9 @@ namespace Tensile
 
         for(ptrdiff_t i = 0; i < sumNames.size(); i++)
         {
-            aNames[m_boundIndices[i].a] = sumNames[i];
-            bNames[m_boundIndices[i].b] = sumNames[i];
+            auto const& boundIndex = m_boundIndices[i];
+            aNames[boundIndex.a]   = boundIndex.aMirror ? std::toupper(sumNames[i]) : sumNames[i];
+            bNames[boundIndex.b]   = boundIndex.bMirror ? std::toupper(sumNames[i]) : sumNames[i];
         }
 
         if(m_c.empty() || m_beta == 0.0)
@@ -1088,6 +1108,8 @@ namespace Tensile
     template struct TypedContractionInputs<std::complex<double>>;
     template struct TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>;
     template struct TypedContractionInputs<int32_t>;
+    template struct TypedContractionInputs<int8_t, int8_t, int32_t, int32_t>;
+
 #ifdef TENSILE_USE_HALF
     template struct TypedContractionInputs<Half>;
     template struct TypedContractionInputs<Half, Half, Half, Half, float, float>;

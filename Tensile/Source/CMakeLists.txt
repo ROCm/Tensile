@@ -31,8 +31,12 @@ if(TENSILE_NEW_CLIENT)
     project(Tensile)
 
     set(TENSILE_USE_HIP      ON CACHE BOOL "Use the Hip runtime.")
-    set(TENSILE_USE_LLVM     ON CACHE BOOL "Use LLVM for parsing config files.")
-    set(TENSILE_USE_OPENMP   ON CACHE BOOL "Use LLVM for parsing config files.")
+    if(Tensile_LIBRARY_FORMAT MATCHES "msgpack")
+        set(TENSILE_USE_MSGPACK  ON CACHE BOOL "Use message pack for parsing config files.")
+    else()
+        set(TENSILE_USE_LLVM     ON CACHE BOOL "Use LLVM for parsing config files.")
+    endif()
+    set(TENSILE_USE_OPENMP   ON CACHE BOOL "Use OpenMP to improve performance.")
     set(TENSILE_STATIC_ONLY  ON CACHE BOOL "Disable exposing Tensile symbols in a shared library.")
 
     if(NOT DEFINED CXX_VERSION_STRING)
@@ -54,7 +58,7 @@ if(TENSILE_NEW_CLIENT)
 
     include(CMakeDependentOption)
     CMAKE_DEPENDENT_OPTION(TENSILE_BUILD_CLIENT "Build the benchmarking client" ON
-                           "TENSILE_USE_HIP;TENSILE_USE_LLVM" OFF)
+                           "TENSILE_USE_HIP" OFF)
 
     if(TENSILE_USE_HIP)
         find_package(HIP REQUIRED CONFIG PATHS $ENV{ROCM_PATH} /opt/rocm)

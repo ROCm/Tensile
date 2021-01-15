@@ -54,6 +54,8 @@ namespace Tensile
             return "Int32";
         case DataType::BFloat16:
             return "BFloat16";
+        case DataType::Int8:
+            return "Int8";
 
         case DataType::Count:;
         }
@@ -80,6 +82,8 @@ namespace Tensile
             return "I";
         case DataType::BFloat16:
             return "B";
+        case DataType::Int8:
+            return "I8";
 
         case DataType::Count:;
         }
@@ -117,6 +121,7 @@ namespace Tensile
         registerTypeInfo<Int8x4>();
         registerTypeInfo<int32_t>();
         registerTypeInfo<BFloat16>();
+        registerTypeInfo<int8_t>();
     }
 
     void DataTypeInfo::registerAllTypeInfoOnce()
@@ -186,6 +191,8 @@ namespace Tensile
             t = DataType::Int8x4;
         else if(strValue == ToString(DataType::Int32))
             t = DataType::Int32;
+        else if(strValue == ToString(DataType::Int8))
+            t = DataType::Int8;
         else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
         {
             int value = atoi(strValue.c_str());

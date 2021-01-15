@@ -49,7 +49,11 @@ namespace Tensile
                 int numSolutions     = args["num-solutions"].as<int>();
 
                 return std::make_shared<AllSolutionsIterator>(
-                    library, hardware, firstSolutionIdx, numSolutions);
+                    library,
+                    hardware,
+                    firstSolutionIdx,
+                    numSolutions,
+                    AllSolutionsIterator::CreateCriteria(library, hardware, args));
             }
         }
 
@@ -105,12 +109,34 @@ namespace Tensile
             return checkSolution(*solution);
         }
 
+        AllSolutionsIterator::RunCriteria AllSolutionsIterator::CreateCriteria(
+            std::shared_ptr<MasterSolutionLibrary<ContractionProblem>> library,
+            std::shared_ptr<Hardware>                                  hardware,
+            po::variables_map const&                                   args)
+        {
+            RunCriteria criteria;
+
+            double granThresh = args["granularity-threshold"].as<double>();
+            if(granThresh > 0.0)
+            {
+                criteria.push_back([granThresh](ContractionProblem const&  problem,
+                                                Hardware const&            hardware,
+                                                ContractionSolution const& solution) {
+                    auto projPerf = solution.projectedPerformance(problem, hardware);
+                    return projPerf.totalGranularity >= granThresh;
+                });
+            }
+            return criteria;
+        }
+
         AllSolutionsIterator::AllSolutionsIterator(
             std::shared_ptr<MasterSolutionLibrary<ContractionProblem>> library,
             std::shared_ptr<Hardware>                                  hardware,
             int                                                        firstSolutionIdx,
-            int                                                        numSolutions)
+            int                                                        numSolutions,
+            RunCriteria                                                runCriteria)
             : SolutionIterator(library, hardware)
+            , m_runCriteria(runCriteria)
         {
             m_firstSolutionIdx = firstSolutionIdx;
 
@@ -163,6 +189,21 @@ namespace Tensile
                 return std::shared_ptr<ContractionSolution>();
 
             return iter->second;
+        }
+
+        bool AllSolutionsIterator::runCurrentSolution()
+        {
+            auto solution = getSolution();
+
+            if(!checkSolution(*solution))
+                return false;
+
+            for(auto const& criterion : m_runCriteria)
+            {
+                if(!criterion(m_problem, *m_hardware, *solution))
+                    return false;
+            }
+            return true;
         }
 
         BestSolutionIterator::BestSolutionIterator(

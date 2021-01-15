@@ -109,12 +109,15 @@ namespace Tensile
    */
         struct BoundIndex
         {
-            BoundIndex(size_t xa = 0, size_t xb = 0)
+            BoundIndex(size_t xa = 0, size_t xb = 0, bool aMirror = false, bool bMirror = false)
                 : a(xa)
-                , b(xb){};
+                , b(xb)
+                , aMirror(aMirror)
+                , bMirror(bMirror){};
             size_t  a, b; //! positions in a or b tensor
             ZeroPad aZeroPad;
             ZeroPad bZeroPad;
+            bool    aMirror, bMirror;
         };
         using BoundIndices = std::vector<BoundIndex>;
 
@@ -695,6 +698,7 @@ namespace Tensile
     using ContractionInputs_H_S_S = TypedContractionInputs<Half, Half, float, float>;
 #endif // TENSILE_USE_HALF
     using ContractionInputs_I8x4_I32_I32 = TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>;
+    using ContractionInputs_I8_I32_I32   = TypedContractionInputs<int8_t, int8_t, int32_t, int32_t>;
     using ContractionInputs_I32_I32_I32  = TypedContractionInputs<int32_t>;
 #ifdef TENSILE_USE_BF16
     using ContractionInputs_B_B_S

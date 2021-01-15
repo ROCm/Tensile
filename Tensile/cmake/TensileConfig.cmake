@@ -65,15 +65,44 @@ endif()
 add_subdirectory("${Tensile_ROOT}/Source" "Tensile")
 include("${Tensile_ROOT}/Source/TensileCreateLibrary.cmake")
 
+# Target is created for copying dependencies
+function(TensileCreateCopyTarget
+    Target_NAME
+    Tensile_OBJECTS_TO_COPY
+    Dest_PATH
+    )
+
+    file(MAKE_DIRECTORY "${Dest_PATH}")
+    add_custom_target(
+        ${Target_NAME} ALL
+        COMMENT "${Target_NAME}: Copying tensile objects to ${Dest_PATH}"
+        COMMAND_EXPAND_LISTS
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${Tensile_OBJECTS_TO_COPY} ${Dest_PATH}
+        DEPENDS ${Tensile_OBJECTS_TO_COPY}
+    )
+endfunction()
+
+# Output target: ${Tensile_VAR_PREFIX}_LIBRARY_TARGET. Ensures that the libs get built in Tensile_OUTPUT_PATH/library.
+# Output symbol: ${Tensile_VAR_PREFIX}_ALL_FILES. List of full paths of all expected library files in manifest.
 function(TensileCreateLibraryFiles
-        Tensile_LOGIC_PATH Tensile_OUTPUT_PATH)
+         Tensile_LOGIC_PATH
+         Tensile_OUTPUT_PATH
+         )
 
   if(NOT TENSILE_NEW_CLIENT)
     message(FATAL_ERROR "TensileCreateLibraryFiles function should only be called for new client.")
   endif()
 
-  # Tensile_ROOT can be specified instead of using the installed path.
-  set(options NO_MERGE_FILES SHORT_FILE_NAMES PRINT_DEBUG GENERATE_PACKAGE)
+  # Boolean options
+  set(options
+       MERGE_FILES
+       NO_MERGE_FILES
+       SHORT_FILE_NAMES
+       PRINT_DEBUG
+       GENERATE_PACKAGE
+       )
+
+  # Single value settings
   set(oneValueArgs
        ARCHITECTURE
        CODE_OBJECT_VERSION
@@ -81,22 +110,35 @@ function(TensileCreateLibraryFiles
        EMBED_KEY
        EMBED_LIBRARY
        LIBRARY_FORMAT
-       MERGE_FILES
        TENSILE_ROOT
        VAR_PREFIX
        )
+
   set(multiValueArgs "")
   cmake_parse_arguments(Tensile "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
-  # older NO_MERGE_FILES flag overrides MERGE_FILES option.
-  if(Tensile_NO_MERGE_FILES)
-    set(Tensile_MERGE_FILES OFF)
+  if(Tensile_UNPARSED_ARGUMENTS)
+    message(WARNING "Unrecognized arguments: ${Tensile_UNPARSED_ARGUMENTS}")
+  endif()
+  if(Tensile_KEYWORDS_MISSING_VALUES)
+    message(WARNING "Malformed arguments: ${Tensile_KEYWORDS_MISSING_VALUES}")
   endif()
 
-  set(Script "${Tensile_ROOT}/bin/TensileCreateLibrary")
+  # Parse incoming options
+  if(Tensile_TENSILE_ROOT)
+    set(Script "${Tensile_TENSILE_ROOT}/bin/TensileCreateLibrary")
+  else()
+    set(Script "${Tensile_ROOT}/bin/TensileCreateLibrary")
+  endif()
+
   message(STATUS "Tensile script: ${Script}")
 
   set(Options "--new-client-only" "--no-legacy-components")
+
+  # Older NO_MERGE_FILES flag overrides MERGE_FILES option.
+  if(Tensile_NO_MERGE_FILES)
+    set(Tensile_MERGE_FILES FALSE)
+  endif()
 
   if(Tensile_MERGE_FILES)
     set(Options ${Options} "--merge-files")
@@ -185,6 +227,17 @@ function(TensileCreateLibraryFiles
 
       set("${Tensile_VAR_PREFIX}_ALL_FILES" ${Tensile_MANIFEST_CONTENTS} PARENT_SCOPE)
 
+      # Create a chained library build target.
+      # We've declared the manifest contents as output of the custom
+      # command above which builds the tensile libs. Now create a
+      # target dependency on those files so that we force the custom
+      # command to be invoked at build time, not cmake time.
+      TensileCreateCopyTarget(
+      "${Tensile_VAR_PREFIX}_LIBRARY_TARGET"
+      "${Tensile_MANIFEST_CONTENTS}"
+      "${Tensile_OUTPUT_PATH}/library"
+    )
+
   endif()
 
   if(Tensile_EMBED_LIBRARY)
@@ -196,19 +249,3 @@ function(TensileCreateLibraryFiles
 
 endfunction()
 
-# Target is created for copying dependencies
-function(TensileCreateCopyTarget
-    Target_NAME
-    Tensile_OBJECTS_TO_COPY
-    Dest_PATH
-    )
-
-    file(MAKE_DIRECTORY "${Dest_PATH}")
-    add_custom_target(
-        ${Target_NAME} ALL
-        COMMENT "${Target_NAME}: Copying tensile objects to ${Dest_PATH}"
-        COMMAND_EXPAND_LISTS
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${Tensile_OBJECTS_TO_COPY} ${Dest_PATH}
-        DEPENDS ${Tensile_OBJECTS_TO_COPY}
-    )
-endfunction()

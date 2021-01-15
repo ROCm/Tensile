@@ -190,10 +190,18 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         print('hipcc:', ' '.join(compileArgs))
       subprocess.check_call(compileArgs)
 
+      infile = os.path.join(buildPath, objectFilename)
+      try:
+        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-inputs=%s" % infile, "-list"]
+        buffer = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT).decode()
+        # TODO - use the list of gfx entries returned as targets directly
+        hipVersion = "hipv4" if "hipv4" in buffer else "hip"
+      except subprocess.CalledProcessError:
+        hipVersion = "hip"
+
       for i in range(len(archs)):
-        infile = os.path.join(buildPath, objectFilename)
         outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
-        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=%s-amdgcn-amd-amdhsa--%s" % (hipVersion, cmdlineArchs[i]), "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
         if globalParameters["PrintCodeCommands"]:
           print(' '.join(bundlerArgs))
         subprocess.check_call(bundlerArgs)
@@ -234,7 +242,7 @@ def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath):
     return itertools.chain.from_iterable(coFiles)
 
 ################################################################################
-def prepAsm():
+def prepAsmOldClient():
   """
   Create and prepare the assembly directory  - called ONCE per output dir:
   """
@@ -263,6 +271,42 @@ def prepAsm():
       globalParameters["AsmCaps"][defaultIsa]["HasCodeObjectV3"] and \
       globalParameters["CodeObjectVersion"] == "V2" else "-mllvm --amdhsa-code-object-version=4"))
     assemblerFile.write("${ASM} -target amdgcn-amd-amdhsa $f.o -o $f.co\n")
+  assemblerFile.close()
+  os.chmod(assemblerFileName, 0o777)
+
+################################################################################
+def prepAsmNewClient(kernelWriterAssembly):
+  """
+  Create and prepare the assembly directory  - called ONCE per output dir:
+  """
+  asmPath = ensurePath(os.path.join(globalParameters["WorkingPath"], "assembly") )
+  assemblerFileName = os.path.join(asmPath, \
+      "asm-new.%s"%("bat" if os.name=="nt" else "sh"))
+  assemblerFile = open(assemblerFileName, "w")
+  if os.name == "nt":
+    assemblerFile.write("echo Windows: Copying instead of Assembling\n")
+    assemblerFile.write("copy %1.s %1.o\n")
+    assemblerFile.write("copy %1.o %1.co\n")
+  else:
+    assemblerFile.write("#!/bin/sh {log}\n".format(log = "-x" if globalParameters["PrintLevel"] >=2  else ""))
+    assemblerFile.write("# usage: asm-new.sh kernelName(no extension)\n")
+
+    assemblerFile.write("f=$1\n")
+    assemblerFile.write("shift\n")
+
+    isa = globalParameters["CurrentISA"]
+    assemblerFile.write("h={gfxName}\n".format(gfxName = Common.gfxName(isa)))
+
+    cArgs = kernelWriterAssembly.getCompileArgs("$f.s", "$f.o", useGlobalISA=True)
+    lArgs = kernelWriterAssembly.getLinkCodeObjectArgs(["$f.o"], "$f.co")
+
+    assemblerFile.write(" ".join(cArgs) + "\n")
+    assemblerFile.write(" ".join(lArgs) + "\n")
+
+    assemblerFile.write("cp $f.co ../../../library/${f}_$h.co\n")
+    assemblerFile.write("mkdir -p ../../../asm_backup && ")
+    assemblerFile.write("cp $f.s ../../../asm_backup/$f.s\n")
+
   assemblerFile.close()
   os.chmod(assemblerFileName, 0o777)
 
@@ -364,7 +408,8 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
   kernelsWithBuildErrs = {}
 
-  prepAsm()
+  prepAsmOldClient()
+  prepAsmNewClient(kernelWriterAssembly)
 
   kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
   results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap)
@@ -1293,7 +1338,7 @@ def TensileCreateLibrary():
   argParser.add_argument("RuntimeLanguage", help="Which runtime language?", choices=["OCL", "HIP", "HSA"])
   argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hcc", "hipcc"],       action="store", default="hipcc")
   argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["V2", "V3"], action="store", default="V3")
-  argParser.add_argument("--architecture",           dest="Architecture",      choices=["all", "gfx000", "gfx803", "gfx900", "gfx906", "gfx908"], action="store", default="all")
+  argParser.add_argument("--architecture",           dest="Architecture",      choices=["all", "gfx000", "gfx803", "gfx900", "gfx906:xnack-", "gfx908:xnack-"], action="store", default="all")
   argParser.add_argument("--merge-files",            dest="MergeFiles",        action="store_true")
   argParser.add_argument("--no-merge-files",         dest="MergeFiles",        action="store_false")
   argParser.add_argument("--short-file-names",       dest="ShortNames",        action="store_true")
@@ -1375,7 +1420,7 @@ def TensileCreateLibrary():
 
   # Translate GPU targets to filter filenames in Tensile_LOGIC directory
   mapArchitecture = {'all':'_','gfx000':'none', 'gfx803':'r9nano',
-        'gfx900':'vega10', 'gfx906':'vega20', 'gfx908':'arcturus'}
+        'gfx900':'vega10', 'gfx906:xnack-':'vega20', 'gfx908:xnack-':'arcturus'}
 
   for key in mapArchitecture:
     if arguments["Architecture"] == key:
@@ -1459,20 +1504,19 @@ def TensileCreateLibrary():
    asmLibPaths) = buildObjectFilePaths(outputPath, solutionFiles, sourceKernelFiles, \
     asmKernelFiles, sourceLibFiles, asmLibFiles)
 
+  # Generate manifest file
+  libraryPath = os.path.join(outputPath, "library")
+  ensurePath(libraryPath)
+  generatedFile = open(os.path.join(libraryPath, "TensileManifest.txt"), "w")
+
+  libraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
+
+  # Manifest file contains YAML file, output library paths and cpp source for embedding.
+  for filePath in [os.path.join(libraryPath, libraryFilename)] + sourceLibPaths + asmLibPaths:
+    generatedFile.write("%s\n" %(filePath) )
+  generatedFile.close()
+
   if globalParameters["GenerateManifestAndExit"] == True:
-
-    # Generate manifest file
-    libraryPath = os.path.join(outputPath, "library")
-    ensurePath(libraryPath)
-    generatedFile = open(os.path.join(libraryPath, "TensileManifest.txt"), "w")
-
-    libraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
-
-    # Manifest file contains YAML file, output library paths and cpp source for embedding.
-    for filePath in [os.path.join(libraryPath, libraryFilename)] + sourceLibPaths + asmLibPaths:
-      generatedFile.write("%s\n" %(filePath) )
-    generatedFile.close()
-
     return
 
   # generate cmake for the source kernels

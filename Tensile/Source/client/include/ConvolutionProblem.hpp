@@ -248,8 +248,9 @@ namespace Tensile
 
         size_t m_groups = 1;
 
-        size_t m_numFilterDims  = 0;
-        size_t m_numSpatialDims = 0;
+        size_t m_numFilterDims        = 0;
+        size_t m_numSpatialDims       = 0;
+        size_t m_numFormatSpatialDims = 0;
 
         ActivationFormat m_formatA;
         ComboFormat      m_formatB;

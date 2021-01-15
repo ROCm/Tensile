@@ -136,6 +136,13 @@ globalParameters["CSVMergeSameProblemID"] = False
 # trig_float initializes with the sin function to have non-zero values in the mantissa
 # and exponent. It cannot be used for int8 or int32. Need to use tensileAlmostEqual
 # not tensileEqual for checking the result.
+# NOTE- the following comments explaining the DataInitType are for OldClient and should be obsolete.
+#       For NewClient, please read ClientWriter.py, the DataInitName(Enum)
+#       - Problem-Independent: 0=0, 1=1, 2=2, 3=rand, 4=Nan, 5=Infinity, 6=BadInput(Nan), 7=BadOutput(Inf), 16=RandomNarrow
+#       - Problem-dependent: 8=SerialID, 9=SerialDim0, 10=SerialDim1, 11=Identity, 12~15= Cos/Sin, Abs or Not
+#       For A, B, C, D: All the InitMode (0~16) can be used
+#       For Alpha/Beta: Only problem-independent init (0~7, 16) can be used,
+#                       problem-dependent init (8~15) would cause a exception (Invalid InitMode) in New Client
 globalParameters["DataInitTypeAB"] = 3            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN, 5=serial-in-u, 6=trig_float.  Can be overridden by the DataInitTypeA or DataInitTypeB.  Eventually DataInitTypeAB will be retired.
 globalParameters["DataInitTypeA"] = -1            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN, 5=serial-in-u, 6=trig_float.  -1 uses value from DataInitTypeAB
 globalParameters["DataInitTypeB"] = -1            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN, 5=serial-in-u, 6=trig_float.  -1 uses value from DataInitTypeAB
@@ -143,12 +150,21 @@ globalParameters["DataInitTypeC"]  = 3            # 0=0, 1=1, 2=serial, 3=rand, 
 globalParameters["DataInitTypeD"]  = 0            # 0=0, 1=1, 2=serial, 3=rand, 4=Na, 5=serial-in-uN, 6=trig_float.
 globalParameters["DataInitTypeAlpha"] = 2         # 0=0, 1=1, 2=2, 3=rand, 4=NaN
 globalParameters["DataInitTypeBeta"] = 2          # 0=0, 1=1, 2=2, 3=rand, 4=NaN
+
 globalParameters["CEqualD"] = True               # Set to true if testing for the case where the pointer to C is the same as D.
 # build parameters
 globalParameters["CMakeCXXFlags"] = ""            # pass flags to cmake
 globalParameters["CMakeCFlags"] = ""              # pass flags to cmake
 globalParameters["DebugKernel"] = False           # assembly only, kernel gets buffer for debug "printing"; kernel writes data to memory, gets coppied to host and printed
 globalParameters["LibraryPrintDebug"] = False     # solutions will print enqueue info when enqueueing a kernel
+
+# debug for assembly
+globalParameters["EnableAsserts"] = False         # Enable assembly debug assert
+globalParameters["EnableDebugA"] = False          # Enable / Disable CheckValue1A
+globalParameters["EnableDebugB"] = False          # Enable / Disable CheckValue1B
+globalParameters["EnableDebugC"] = False          # Enable / Disable CheckValueC
+globalParameters["ExpectedValueC"] = 16.0         # Expected C Value when CheckValueC, debug for Alpha*A*B
+globalParameters["ForceCExpectedValue"] = False   # Force C to "DebugExpectedValueC", debug for global write
 
 # Tensor printing controls:
 globalParameters["PrintConvolutionUsage"] = 0      # Print Convolution usage info. 1=tensor fields,2=boilerplate info,4=print tensor mappings for specified ConvProblems
@@ -158,7 +174,6 @@ globalParameters["PrintTensorC"] = 0          # Print TensorC.  0x1=after init; 
 globalParameters["PrintTensorD"] = 0          # Print TensorD.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintTensorRef"] = 0          # Print reference tensor.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintIndexAssignments"] = 0      # Print the tensor index assignment info
-globalParameters["PrintTensorRef"] = 0          # Print reference tensor.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintWinnersOnly"] = False      # Only print the solutions which become the fastest
 globalParameters["PrintCodeCommands"] = False  # print the commands used to generate the code objects (asm,link,hip-clang, etc)
 
@@ -180,8 +195,9 @@ globalParameters["MaxLDS"] = 65536                # max LDS a kernel should atte
 globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
-globalParameters["MaxFileName"] = 128 # If a file name would be longer than this, shorten it with a hash.
+globalParameters["MaxFileName"] = 128             # If a file name would be longer than this, shorten it with a hash.
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (10,1,0), (10,1,1)]             # assembly kernels writer supports these architectures
+globalParameters["GenerateManifestAndExit"] = False               # Output manifest file with list of expected library objects and exit
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
 globalParameters["NewClient"] = 2                                 # 1=Run old+new client, 2=run new client only (All In)
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
@@ -230,6 +246,9 @@ globalParameters["PerfModelReadEfficiency"] = 0.85
 globalParameters["MaxWorkspaceSize"] = 32 * 1024 * 1024 # max workspace for training (32M)
 globalParameters["MinKForGSU"] = 256 # min K size to use GlobalSplitU algorithm (only for HPA now)
 
+# control if a solution is run for a given problem
+globalParameters["GranularityThreshold"] = 0.0
+
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 
@@ -269,6 +288,7 @@ validMFMA["S"] = [[32,32,1,2], [32,32,2,1], [16,16,1,4], [16,16,4,1], [4,4,1,16]
 validMFMA["B"] = [[32,32,2,2], [32,32,4,1], [16,16,2,4], [16,16,8,1], [4,4,2,16]]
 validMFMA["4xi8"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
 validMFMA["C"] = validMFMA["S"]
+validMFMA["I8"] = validMFMA["4xi8"]
 validTT = 16
 validMFMA["_format9"] = []
 for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["4xi8"]]:
@@ -281,6 +301,18 @@ for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["4xi8"]]:
               validMFMA["_format9"].append([MI[0],MI[1],MI[2],MI[3],2**bm,tt0,tt1,2**wave_m, 2**wave_n])
 validMatrixInstructions = [[], [-1]] + validMFMA["H"] + validMFMA["S"] + validMFMA["B"] + validMFMA["4xi8"]
 validMatrixInstructions = validMatrixInstructions + validMFMA["_format9"]
+
+# The supported typed GEMM, each entry is (Ti, To, Tc).
+# This is used in SolutionStruct.py::checkIfSupportedGEMMType()
+validGEMMTypes = [ ('D','D','D'), ('S','S','S'), ('Z','Z','Z'), ('C','C','C'), \
+                  ('H','H','H'), ('H','H','S'), ('H','S','S'), \
+                  ('B','B','S'), ('B','S','S'), \
+                  ('4xi8','I','I'), \
+                  ('I8','I','I')]
+
+# These type are newly supported and we would like to use a better file naming for them: _TiToTc_
+# For the rest of the typed, we keep them with old existing naming.
+typesUsingNewNaming = [ ('H','H','S'), ('H','S','S'), ('B','S','S'),('I8','I','I')]
 
 validParameters = {
     "LoopDoWhile":                [ False, True ], # Source. True=DoWhile, False=For loop
@@ -326,28 +358,33 @@ validParameters = {
     "PrefetchGlobalRead":         [ 0, 1, 2 ],
 
     # number of iteration prefetch local reads from lds to VGPRs buffer = PLR % LoopIter
-    # number of VGPRs buffer = min(PLR,LoopIters)
+    # number of VGPRs buffer = min(PLR+1,LoopIters)
     # LoopIters = DepthU / LocalSplitU
     # (LoopIters /= MatrixInstruction_K)
-    # ex. MT64x128x16_MI32x32x4x2_PLR1, we'll have 4 LoopIters, prefetch read 1 iteration, with 2 VGPRs buffer
+    # ex. MT64x128x16_MI32x32x4x2_PLR1, we'll have 4 LoopIters, prefetch read 1 iteration, with 2 VGPRs buffer (2=min(1+1,4))
     #     befor loop:       plr[0]
     #           loop: iter0:plr[1] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[0], iter3:plr[0] MAC_r[1]
     #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[0], iter3:       MAC_r[1]
     #
-    # ex. MT64x128x16_MI32x32x4x2_PLR3, we'll have 4 LoopIterss, prefetch read 3 iteration, with 4 VGPRs buffer
+    # ex. MT64x128x16_MI32x32x4x2_PLR3, we'll have 4 LoopIters, prefetch read 3 iteration, with 4 VGPRs buffer (4=min(3+1,4))
     #     befor loop:       plr[0] plr[1] plr[2]
     #           loop: iter0:plr[3] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[2], iter3:plr[2] MAC_r[3]
     #   no load loop: iter0:plr[3] MAC_r[0], iter1:       MAC_r[1], iter2:       MAC_r[2], iter3:       MAC_r[3]
     #
-    # ex. MT64x128x16_MI32x32x4x2_PLR5, we'll have 4 LoopIterss, prefetch read 5%4=1 iteration, with 4 VGPRs buffer
+    # ex. MT64x128x16_MI32x32x4x2_PLR5, we'll have 4 LoopIters, prefetch read 5%4=1 iteration, with 4 VGPRs buffer (4=min(5+1,4))
     #     befor loop:       plr[0]
     #           loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:plr[0] MAC_r[3]
     #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:       MAC_r[3]
     #
-    # ex. MT64x128x16_MI32x32x4x2_PLR5_LRVW8, we'll have 4 LoopIterss, prefetch read 5%4=1 iteration, with 4 VGPRs buffer, each read read 2 iterations
+    # ex. MT64x128x16_MI32x32x4x2_PLR5_LRVW8, we'll have 4 LoopIters, prefetch read 5%4=1 iteration, with 4 VGPRs buffer (4=min(5+1,4)) , each read read 2 iterations
     #     befor loop:       plr[0:1]
     #           loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:plr[0:1] MAC_r[3]
     #   no load loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:         MAC_r[3]
+    #
+    # ex. MT64x128x16_MI32x32x4x2_PLR7, we'll have 4 LoopIters, prefetch read 7%4=3 iteration, with 4 VGPRs buffer (=min(7+1,4)) --> Exactly the same as PLR3
+    #     befor loop:       plr[0]
+    #           loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:plr[0] MAC_r[3]
+    #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:       MAC_r[3]
     "PrefetchLocalRead":          list(range(128+1)),
 
     # We use double LDS buffer when PrefetchGlobalRead.
@@ -357,7 +394,9 @@ validParameters = {
     # or help to increase Occupancy.
     #     1 means: Force to use 1 LDS Buffer even with PrefetchGlobalRead
     #    -1 means: generator will use 1 LDS buffer only when LDS exceed MaxLDS
-    # Currently only support TN+TLDS+wider_local_read
+    # Use case:
+    #    SIA2: 1LDSBuffer is set to 1 natively
+    #    SIA3: 1LDSBuffer works only when PGR=True
     # TODO: optimize scheduling to support more cases.
     "1LDSBuffer": [-1 ,0, 1],
 
@@ -415,7 +454,13 @@ validParameters = {
     # Scheduling algorithm to use for each iteration:
     # 0 = minimal/no scheduling.  Global Read and increments, followed by local reads,
     # followed by local writes, followed by MACs
-    "ScheduleIterAlg":             [0, 1, 2, 3],
+    "ScheduleIterAlg":            [0, 1, 2, 3],
+
+    # Optimizing Local Write Vmcnt in PreLoop when PGR is on, especially for PAP
+    # 0: no optimization, force wait vmcnt 0
+    # 1: do optimization, in PAP, this can avoid ds_write waiting for previous global store
+    # Can always be True, set to False for debugging or comparison
+    "OptPreLoopVmcnt":            [False, True],
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
@@ -726,6 +771,7 @@ validParameters = {
     # 0:   Disable StoreRemap (default)
     # 1~8: Enable StoreRemap and set the global write vector width
     # Suggest optimum value: fp32 = [2,4], fp16 or bf16 = [4,8] (dwordx2 and dowrdx4)
+    # -1:  Use dwordx2 if support SRVW, or set SRVW to 0
     "StoreRemapVectorWidth":      [-1,0,1,2,4,8],
 
     # Disable overlapping AB-tile vgpr and read/write addr vgprs with C-tile vgprs
@@ -766,8 +812,11 @@ validParameters = {
     #         more opportunities to schedule other WG or recover if a wg runs long
     #         or all compute units were not available before the launch.
     #       - Host code will not launch more groups than tiles in the C space
+    # -1 : Automatically choose a "heuristic" value that can possibly get a better gain: (TilesPerWorkgroup = 1~2)
+    #      Not based on any theory, but on some experiment observation, can be used to reduce the kernels
+    #      Recommand [-1,0,1] for basic tuning
     # Assertions/Requirements: NumWorkGroups0 * NumWorkGroups1 < 2^32
-    "PersistentKernel":           range(0,512+1) ,       # Use persistent kernel.
+    "PersistentKernel":           range(-1,512+1) ,       # Use persistent kernel.
 
     # True:  Batch dimension (WG.z) is also considered in persistent kernel
     # False: Not considered
@@ -815,8 +864,10 @@ validParameters = {
     # Controls desired width (#elements) for loads from global memory -> LDS.
     # and eliminates the pointer unshift logic
     # -1 : Set GlobalReadVectorWidth =  VectorWidth
-    #  1 cannot be used for half type.
-    "GlobalReadVectorWidth":      [ -1, 1, 2, 3, 4, 6, 8 ],
+    # NOTE: for input bpe=32, max GRVW is 4  (to fit dwordx4) (FP32), min GRVW is 1 (dword)
+    #                 bpe=16, max GRVW is 8  (to fit dwordx4) (FP16), min GRVW is 2 (dword)
+    #                 bpe=8,  max GRVW is 16 (to fit dwordx4) (INT8), min GRVW is 4 (dword)
+    "GlobalReadVectorWidth":      [ -1, 1, 2, 3, 4, 6, 8, 16 ],
 
     # Controls desired width (#elements) for loads from LDS -> VGPR.
     # -1 : Set LocalReadVectorWidth =  VectorWidth
@@ -824,15 +875,18 @@ validParameters = {
     # used in combination with TransposeLDS=True
     # in TransposeLDS=1 case, use wider load to fetch elements in summation dimension from LDS
     # helps optimizing instruction scheduling between MFMA and nonMFMA instructions
+    # NOTE: for input bpe=32, max LRVW is 4  (to fit ds_read_b128) (FP32)
+    #                 bpe=16, max LRVW is 8  (to fit ds_read_b128) (FP16)
+    #                 bpe=8,  max LRVW is 16 (to fit ds_read_b128) (INT8)
 
-    "LocalReadVectorWidth":      [ -1, 1, 2, 4, 8 ],
+    "LocalReadVectorWidth":      [ -1, 1, 2, 4, 8, 16 ],
 
     # threads should read/write/operate on this many contiguous elements from the C matrix.
     # If VW=4 then thread0 will process 4 consec C elements, then thread1 next 4, etc.
     # If the ThreadTile is > VectorWidth then thread0 will next operate on the 4 elements in C at (4*NumThreads)
     # Typically the load vector width and store vector width are directly related to the VW.
     # The global load width is closely related to the width of local stores so
-    # GlobalReadVectorWidth also ontrols local write width.
+    # GlobalReadVectorWidth also controls local write width.
     # Local read width also matches since VectorWidth consec elements must be read
     # Typically matching 16 bytes is good choice since the stores will be optimally coalesced with 16 bytes/WI.
     # -1 means use the largest vector width up to 128 bits.
@@ -876,12 +930,24 @@ validParameters = {
     # -3 : Only allow min(GLVWA,GLVWB) < VW ?
     "DepthU":                     depthUs,
 
+    # DepthULdsDivisor determines how we pipeline the data from global memory to LDS
+    # Instead of moving all in-flight data from the register buffer (G2L) to the LDS at once, we divide the G2L buffer into N portions and
+    # write each portion of the G2L to LDS, read from LDS and do the actual matrix multiply-accumulate, before moving on to the portion and so on.
+    # This helps cut down LDS usage by the value of the divisor. Helps increase CU occupancy or DepthU if kernel was previously LDS limited.
+    #
+    # The premise of this parameter is to be able to fetch all 256B (equivalent to 128 half's or 64 single's) in a TN laid-out problem size,
+    # maximizing L2 channel efficiency, therefore this parameter only works for TN buffer layout
+    #
+    # Implementation-wise, for now it only supports ScheduleIterAlg=3 and TransposeLDS=1
+    # In addition, it does not work with DirectToLds=1 because it needs the in-flight data to reside in registers
+    "DepthULdsDivisor":           [1, 2], # [4, 8] not tested yet
+
     # integer ammount of padding to put into LDS, in 2016 this didn't seem to help performance, profilers were showing that channel conflicts weren't really hurting
     # performance so this has been deprecated and probably doesn't work
     # -1 means use same padding as the VectorWidth if TLU=0 else 0.  (Padding only helps when transpose is required)
     # With MatrixInstruciton: -1 means max(GRVW,MIInput) if TLU=0
-    "LdsPadA":                     [ -1, 0, 1, 2, 3, 4, 8],
-    "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8],
+    "LdsPadA":                     [ -1, 0, 1, 2, 3, 4, 8, 16],
+    "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8, 16],
 
     # Padding boundary for LDS. defines block-size for pad insertion. for every 'LdsBlockSizePerPad' bytes, LDS padding (pad value from LdsPad parameter)
     # is added (readOffset aware of the pad and adjusts offset value based on this parameter value).
@@ -890,7 +956,8 @@ validParameters = {
     # -1 means round up to nearest power of 2 begin with 128
     "LdsBlockSizePerPad":          [-1, 0, 64, 128, 256, 512],
 
-    #Transpose LDS format. Local store in Coalsced dimension , same as optimized global fetch dimension . applicable only in TLU=0 case for miSIMD(s)
+    # Transpose LDS format. Local store in Coalsced dimension , same as optimized global fetch dimension . applicable only in TLU=0 case for miSIMD(s)
+    # TODO: No code for -1 ?
     "TransposeLDS":                [-1, 1, 0],
 
     # tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated
@@ -983,6 +1050,7 @@ defaultBenchmarkCommonParameters = [
     {"ScheduleGlobalRead":        [ 1 ] },
     {"ScheduleLocalWrite":        [ 1 ] },
     {"ScheduleIterAlg":           [ 1 ] },
+    {"OptPreLoopVmcnt":           [ True ] },
 
     {"LdcEqualsLdd":              [ True ] },
     {"InterleaveAlpha":           [ 0 ] },
@@ -1038,6 +1106,7 @@ defaultBenchmarkCommonParameters = [
     {"DisableAtomicFail":         [ 0 ] },
     {"DisableKernelPieces":       [ 0 ] },
     {"DepthU":                    [ -1 ] },
+    {"DepthULdsDivisor":          [ 1 ] },
     {"PerformanceSyncLocation":   [ -1 ] },
     {"PerformanceWaitLocation":   [ -1 ] },
     {"PerformanceWaitCount":      [ -1 ] },
@@ -1245,6 +1314,10 @@ defaultProblemType = {
     "ZeroPadA":                 [], # [ [0,1, 2,3]]
     "ZeroPadB":                 [], # Not fully supported/tested yet
 
+    # Summation dimension indices
+    "MirrorDimsA":              [],
+    "MirrorDimsB":              [],
+
     # for LD description
     "NumIndicesLD":            4,
     "IndexAssignmentsLD":       [3, 4, 5, 6],      # order is LDD, LDC, LDA, LDB
@@ -1371,6 +1444,7 @@ def GetAsmCaps(isaVersion):
 
   rv["HasDirectToLds"]  = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
   rv["HasAddLshl"]      = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
+  rv["HasLshlOr"]       = tryAssembler(isaVersion, "v_lshl_or_b32 v47, v36, 0x2, v34")
   rv["HasSMulHi"]       = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
   rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "", False, "-mllvm --amdhsa-code-object-version=2")
 
@@ -1393,6 +1467,9 @@ def GetAsmCaps(isaVersion):
     rv["MaxVmcnt"] = 15
   else:
     rv["MaxVmcnt"] = 0
+
+  # TODO- Need to query the max cap, just like vmcnt as well?
+  rv["MaxLgkmcnt"] = 15
 
   rv["SupportedSource"] = True
 

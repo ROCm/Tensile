@@ -138,6 +138,22 @@ TEST(ContractionProblem, FromOperationIdentifier)
                                                       2.0);
 
     EXPECT_EQ(problem.operationIdentifier(), identifier);
+
+    identifier         = "Contraction_l_ALik_Bjlk_Cijk_Dijk";
+    auto mirrorProblem = ContractionProblem::FromIndexSizes(identifier,
+                                                            sizes,
+                                                            DataType::Float,
+                                                            empty,
+                                                            DataType::Float,
+                                                            empty,
+                                                            DataType::Float,
+                                                            empty,
+                                                            DataType::Float,
+                                                            empty,
+                                                            2.0);
+    EXPECT_TRUE(mirrorProblem.boundIndices()[0].aMirror);
+    EXPECT_FALSE(mirrorProblem.boundIndices()[0].bMirror);
+    EXPECT_EQ(mirrorProblem.operationIdentifier(), identifier);
 }
 
 #if 0
