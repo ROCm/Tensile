@@ -56,7 +56,7 @@ mkdir -p "${WORKING_PATH}"
 pushd "${WORKING_PATH}" > /dev/null || exit
 
 TENSILE_HOST="https://github.com/${FORK}/Tensile.git"
-ROCBLAS_HOST="https://github.com/${FORK}/rocBLAS-internal.git"
+ROCBLAS_HOST="https://github.com/${FORK}/rocBLAS.git"
 
 if [ $PROVISION_PATH == "rocBLAS" ]; then
   GIT_HOST="${ROCBLAS_HOST}"

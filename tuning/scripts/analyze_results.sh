@@ -33,8 +33,8 @@ while true; do
     -h | --help )              HELP=true; shift ;;
     -s | --size)               SZ=${2}; shift 2;;
     -f | --sclk)               SCLK=${2}; shift 2;;
-    -m | --mfma )	             MFMA=true; shift ;;
-    -c | --count )	           COUNT=true; shift ;;
+    -m | --mfma )              MFMA=true; shift ;;
+    -c | --count )             COUNT=true; shift ;;
     -n | --no-plot )           PLOT=false; shift ;;
     -- ) shift; break ;;
     * ) break ;;

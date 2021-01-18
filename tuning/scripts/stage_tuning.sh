@@ -20,9 +20,9 @@ function make_tensile_tuning() {
     echo "  ${TENSILE}/Tensile/bin/Tensile ${FILE_NAME} ./ > make.out 2>&1"
     echo "  touch time.end"
     echo "fi"
-  } > doit.sh
+  } > runTensileTuning.sh
 
-  chmod +x doit.sh
+  chmod +x runTensileTuning.sh
   popd > /dev/null || exit
 }
 
@@ -54,7 +54,7 @@ if [ ! -d "${TENSILE}" ]; then
   exit 2
 fi
 
-DOIT="${DESTINATION}/doit-all.sh"
+DOIT="${DESTINATION}/runTensileTuning-all.sh"
 
 for CONFIG in "$@"
 do
