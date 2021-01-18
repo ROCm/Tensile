@@ -2,7 +2,7 @@
 
 \usepackage{amsmath}
 \usepackage{fancyvrb}
-\usepackage[dvipsnames]{xcolor}  
+\usepackage[dvipsnames]{xcolor}
 
 \usepackage[english]{babel}
 
@@ -22,7 +22,7 @@
 \hypersetup{
 	colorlinks=true,
 	linkcolor=blue,
-	filecolor=magenta,      
+	filecolor=magenta,
 	urlcolor=MidnightBlue,
 	pdftitle={Sharelatex Example},
 	bookmarks=true
@@ -46,7 +46,7 @@
 		{\end{list}\end{mdframed}\par}
 
 
-\setcounter{tocdepth}{3} 
+\setcounter{tocdepth}{3}
 \setcounter{secnumdepth}{3}
 
 \usepackage{authblk}
@@ -74,7 +74,7 @@
 
 
 rocBLAS is a BLAS implementation which is included as part of AMD's ROCm project offerings which optimizes the BLAS routines for AMD's GPUs. The gpu kernels which implement the rocBLAS blas3 gemm routines are optimized using Tensile, which is a utility that benchmarks the performance of selected kernels that are generated from ``tuning parameters'' and selected for inclusion in the final library based on the results. This library is included as part of the rocBLAS package and loaded at run-time during initialization. For a given gemm call, the problem parameters are passed to the Tensile client which selects the kernel with the best known performance for the problem.
- 
+
 
 A guide for the installation of rocBLAS and Tensile can be found in \hyperref[sec:appendixA]{Appendix A}.
 
@@ -86,18 +86,18 @@ One way that we can deal with this is by considering parameterized benchmarks. W
 
 \subsubsection{Solution Selection Model}
 
-The model that Tensile uses for selection is a metric based one which compares the target problem sizes against sizes used as representations (called exact sizes) within the model. These representation sizes are those tuned by Tensile during the tuning process so that for each exact size, there is a mapping from that specific size to the optimal kernel. In the model, if the incoming problem size happens to be one of the representative (exact) sizes, then the corresponding kernel is selected. However, if the problem size is not not an exact size (a representation), then the selection falls back to an alternative means of selection, which in the current version of Tensile is based on a metric---or distance---from the representation space (that is, the set of exact sizes representing the model). The size specification is in the form of the gemm type problem description: based on the on the dimensions of the C matrix, the summation size and the batch count of the problem. The metric selection finds the representative (exact) size which is closest to the incoming problem size in terms of the metric. The selection then returns the kernel which is optimal for the representative size.
+The model that Tensile uses for selection is a metric based one which compares the target problem sizes against sizes used as representations (called exact sizes) within the model. These representation sizes are those tuned by Tensile during the tuning process so that for each exact size, there is a mapping from that specific size to the optimal kernel. In the model, if the incoming problem size happens to be one of the representative (exact) sizes, then the corresponding kernel is selected. However, if the problem size is not not an exact size (a representation), then the selection falls back to an alternative means of selection, which in the current version of Tensile is based on a metric---or distance---from the representation space (that is, the set of exact sizes representing the model). The size specification is in the form of the gemm type problem description: based on the dimensions of the C matrix, the summation size and the batch count of the problem. The metric selection finds the representative (exact) size which is closest to the incoming problem size in terms of the metric. The selection then returns the kernel which is optimal for the representative size.
 
-The objective of building the Tensile library is to find the optimal set of representative sizes and associated kernels which best models the problem domain. The Tensile tuning process will take a given set of problem sizes and create the internal mappings which map those problem sizes to the respective optimal kernel. 
+The objective of building the Tensile library is to find the optimal set of representative sizes and associated kernels which best models the problem domain. The Tensile tuning process will take a given set of problem sizes and create the internal mappings which map those problem sizes to the respective optimal kernel.
 
 \subsubsection{Tuning with Tensile}
 
 The Tensile tuning process performs tuning for sets of problem sizes (the problem space) upon sets of kernels (the kernel space) defined by the specification of the tuning. The set of problem sizes along with the set of kernels together defines the configuration space for the tuning:
 
 \begin{figure}[h]
-	
+
 	\[ \mathrm{tuning\ configurations\ space} = \mathrm{solutions} \times \mathrm{problem\ sizes}. \]
-	
+
 \end{figure}
 \noindent
 The results of the tuning will produce the ideal kernel from within the kernel space for each problem size within the problem space, thus generating the mapping which is used in the selection.
@@ -118,7 +118,7 @@ cd build
 cp ../../tuning.yaml .
 
 # run tensile
-../Tensile/bin/Tensile example_vega20_tuning.yaml . > tuning.out 2>&1 
+../Tensile/bin/Tensile example_vega20_tuning.yaml . > tuning.out 2>&1
 \end{lstlisting}
 
 In this example, we ran the tuning configuration for a system with a vega20 gpu installed (this example configuration can be found in the Tensile/tuning/examples sub directory of the Tensile repo). The configuration parameters which enable tuning for this specific device is describe in the  \hyperref[sec:LibraryLogic]{Library  Logic Parameters} section of this document.
@@ -126,31 +126,31 @@ In this example, we ran the tuning configuration for a system with a vega20 gpu 
 The output of the benchmark run (tuning.out) contains useful information for examining the performance of the problem sizes as measured against the selected set of kernels which are being benchmarked. An excerpt is shown below.
 
 \begin{Verbatim}[frame=single,commandchars=\\\(\)]
-run, (\color(blue)problem-progress), (\color(blue)solution-progress), operation, (\color(red)problem-sizes), (\color(red)solution), 
- validation, time-us, (\color(red)gflops), empty, total-gran, tiles-per-cu, num-cus, tile0-gran, 
- tile1-gran, cu-gran, wave-gran, mem-read-bytes, mem-write-bytes, temp-edge, 
- clock-sys, clock-soc, clock-mem, fan-rpm, hardware-samples, enqueue-time 
+run, (\color(blue)problem-progress), (\color(blue)solution-progress), operation, (\color(red)problem-sizes), (\color(red)solution),
+ validation, time-us, (\color(red)gflops), empty, total-gran, tiles-per-cu, num-cus, tile0-gran,
+ tile1-gran, cu-gran, wave-gran, mem-read-bytes, mem-write-bytes, temp-edge,
+ clock-sys, clock-soc, clock-mem, fan-rpm, hardware-samples, enqueue-time
 
-0, (\color(blue)0/3), (\color(blue)0/5), Contraction_l_Ailk_Bljk_Cijk_Dijk, (\color(red)"(5504,5504,1,3104)"), 
- (\color(red)Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU1_K1_TT4_4_WG16_16_1), NO_CHECK, 17423.79, 
- (\color(red)10794), , 0.99, 123.27, 60, 1.00, 1.00, 0.99, 1.00, 11875254272, 121176064,  36.00, 
+0, (\color(blue)0/3), (\color(blue)0/5), Contraction_l_Ailk_Bljk_Cijk_Dijk, (\color(red)"(5504,5504,1,3104)"),
+ (\color(red)Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU1_K1_TT4_4_WG16_16_1), NO_CHECK, 17423.79,
+ (\color(red)10794), , 0.99, 123.27, 60, 1.00, 1.00, 0.99, 1.00, 11875254272, 121176064,  36.00,
  700.00, 971.00, 1000.00, 845.00, 1, 2020-09-29 13:32:14.002548
-   
-0, 0/3, 1/5, Contraction_l_Ailk_Bljk_Cijk_Dijk, "(5504,5504,1,3104)", 
- Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU4_K1_TT4_4_WG16_16_1, NO_CHECK, 17953.34, 
+
+0, 0/3, 1/5, Contraction_l_Ailk_Bljk_Cijk_Dijk, "(5504,5504,1,3104)",
+ Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU4_K1_TT4_4_WG16_16_1, NO_CHECK, 17953.34,
  10475, , 1.00, 493.07, 60, 1.00, 1.00, 1.00, 1.00, 11754078208, 363528192, 36.00,
  1801.00, 971.00, 1000.00, 845.00, 1, 2020-09-29 13:32:14.029611
-   
+
 0, 0/3, 2/5, Contraction_l_Ailk_Bljk_Cijk_Dijk, "(5504,5504,1,3104)",
  (\color(green)Cijk_Ailk_Bljk_SB_MT128x128x16_SE_GSU1_K1_TT8_8_WG16_16_1), NO_CHECK, 15872.19,
  (\color(green)11849), 0.99, 30.82, 60, 1.00, 1.00, 0.99, 1.00, 5998215168, 121176064, 36.00,
  1801.00, 971.00, 1000.00, 845.00, 1, 2020-09-29 13:32:14.058389
-   
+
 0, 0/3, 3/5, Contraction_l_Ailk_Bljk_Cijk_Dijk, "(5504,5504,1,3104)",
  Cijk_Ailk_Bljk_SB_MT128x128x16_SE_GSU4_K1_TT8_8_WG16_16_1, NO_CHECK, 17040.37,
  11036, 0.99, 123.27, 60, 1.00, 1.00, 0.99, 1.00, 5877039104, 363528192, 36.00,
  1801.00, 971.00, 1000.00, 845.00, 1, 2020-09-29 13:32:14.082752
-   
+
 0, 0/3, 4/5, Contraction_l_Ailk_Bljk_Cijk_Dijk, "(5504,5504,1,3104)",
  Cijk_Ailk_Bljk_SB_MT64x64x16_SE_GSU1_K1_TT8_8_WG8_8_4, NO_CHECK, 26010.67,
  7230, 1.00, 493.07, 60, 1.00, 1.00, 1.00, 1.00, 11875254272, 121176064, 36.00,
@@ -175,7 +175,7 @@ The Tensile tuning workflow may be viewed conceptually as a different operation 
 	\centering
 	\captionsetup{justification=centering}
 	\begin{tikzpicture} [node distance=3cm, auto, thick]
-	
+
 	\path[->] node[format,label={config}] (tune) {*.yaml};
 	\path[->] node[format,above of=tune,label={build}] (build) {client};
 	\path[->] node[format, right of=tune, label={[align=center]:perfor\\-mance\\data}] (bench) {*.csv}
@@ -198,7 +198,7 @@ Each of the steps corresponds to the directories created by the Tensile applicat
 	\item[Step 2] This step merely collects and copies the benchmark data and places it in \textbf{2\_BenchmarkData}.
 	\item[Step 3] This step performs analytics on the data and generates the logic file which is used to create the final Tensile Library. The output of this is placed in \textbf{3\_LibraryLogic}.
 	\item[Step 4] Finally, this step generates a prototype Tensile Library based on the logic file created in the previous step. The output of this is placed in \textbf{4\_LibraryClient}.
-	
+
 \end{description}
 
 The full workflow also includes post process analysis of the results. In our current system, we use rocblas-bench which includes a reference version of the library that can be used to compare the results. That is, we make a comparison of the version of rocBLAS without the updated tuning and a new candidate version which includes the new tuning results.
@@ -213,7 +213,7 @@ The tensile tuning application is executed using the following command:
 \end{lstlisting}
 
 \begin{verbatim}
-arguments: 
+arguments:
  config_file           benchmark config.yaml file
  output_path           path where to conduct benchmark
 \end{verbatim}
@@ -223,10 +223,10 @@ Tensile takes a tuning configuration file \emph{tuning\_config.yaml} as input. T
 
 \subsection{The Tensile Tuning Configuration}
 
-The Tensile tuning configuration (tuning.yaml file) defines the context which drives the tuning for a complete or partial tuning pass. There are 4 sections defined in this configuration which do not directly correspond to the directories defined in the previous section. The sections are 
+The Tensile tuning configuration (tuning.yaml file) defines the context which drives the tuning for a complete or partial tuning pass. There are 4 sections defined in this configuration which do not directly correspond to the directories defined in the previous section. The sections are
 
 \begin{description}
-\item[GlobalParameters] The set of parameters which provides context for the entire tuning exercise. 
+\item[GlobalParameters] The set of parameters which provides context for the entire tuning exercise.
 \item[BenchmarkProblems] Defines the set of kernel specifications as well as the size definitions for the tuning exercise.
 \item[LibraryLogic] Specifies the target environment and platform information that Tensile uses as part of the \hyperref[sec:LibraryLogic]{library logic}. The logic files that get generated provide Tensile with the metadata used in the final Tensile library construction.
 \item[LibraryCilent] If defined, this will enable step 4 of the tuning process which means the final library will be created. There are no parameters that are defined in this section, so this is just a flag which indicates that the final library is to be build. The library generator will take, as input, the logic files created in the previous step.
@@ -285,7 +285,7 @@ BenchmarkProblems:
     - LoopTail: [true]
     - KernelLanguage: [Assembly]
     - EdgeType: [ShiftPtr]
-    BenchmarkFinalParameters: 
+    BenchmarkFinalParameters:
     - ProblemSizes:
     - Exact: [ 5504, 5504, 1, 3104 ]
     - Range: [ [64, 64, 64, 7000], [4], [1], [128] ]
@@ -313,8 +313,8 @@ BenchmarkProblems:
 
 # can define more than 1 problem in a problem group
 # start of next problem
-  - BenchmarkCommonParameters:    
-  
+  - BenchmarkCommonParameters:
+
 ...
 
 # other problem groups
@@ -339,20 +339,20 @@ Note the overall structure of this section of the configuration:
 \hfill \break
 \noindent {\color{blue} Benchmark Problem Groups (List of problem groups): }
 
-\noindent {\color{blue} \hspace{2em} -- Problem Group (List of problem groups items)} 
+\noindent {\color{blue} \hspace{2em} -- Problem Group (List of problem groups items)}
 
-\noindent {\color{blue} \hspace{4em} -- Problem (problem group items) } 
+\noindent {\color{blue} \hspace{4em} -- Problem (problem group items) }
 
-\noindent {\color{blue} \hspace{6em} -- Problem Type (first item) } 
+\noindent {\color{blue} \hspace{6em} -- Problem Type (first item) }
 
 \noindent {\color{blue} \hspace{6em} -- Problem One Spec (second item (parameter map)) }
 
 \noindent {\color{blue} \hspace{6em} -- Problem Two Spec (third item (parameter map)) }
 
-\noindent {\color{blue} \hspace{6em} -- Problem Three Spec (fourth item (parameter map)) 
-	
+\noindent {\color{blue} \hspace{6em} -- Problem Three Spec (fourth item (parameter map))
+
 	...
-	
+
 }
 
 \label{sec:LibraryLogic}
@@ -409,7 +409,7 @@ linenos
       TransposeA: false,    # [true, false]
       TransposeB: false,    # [true, false]
       UseBeta: true         # [true, false]
-     }         
+     }
 
 \end{minted}
 
@@ -420,7 +420,7 @@ frame=single,
 linenos
 ]{yaml}
 BenchmarkCommonParameters:
-BenchmarkFinalParameters: 
+BenchmarkFinalParameters:
 BenchmarkForkParameters: null      # not used
 BenchmarkJoinParameters: null      # not used
 ForkParameters:
@@ -430,16 +430,16 @@ JoinParameters: null               # not used
 
 The  {\color{ForestGreen} \bf BenchmarkCommonParameters} and  {\color{ForestGreen} \bf ForkParameters} define the space of kernels used for benchmarking. The benchmark common parameters define the common parameters that---unless overridden by the forked parameters---are defined for all the kernels that get generated for the benchmarking. As described in the \hyperref[sec:forkParams]{forked parameters} section, the fork parameters define a Cartesian product of tuning parameter created from all the combinations of parameters in the parameter lists. A full list of parameters is described in \hyperref[sec:appendixB]{Appendix B}; here, we will focus on the most common parameters that are used during most tuning exercises.
 
-{\color{ForestGreen} \bf ThreadTile} = [tt0, tt1] and {\color{ForestGreen} \bf  WorkGroup} = [wg0, wg1, localSplitU ] define the thread tile parameter defines the dimensions of the C matrix that each thread works on. Together they form the macro tiling {\color{ForestGreen} \bf MacroTile} = [tt0*wg0, tt1*wg1, mt2]. The {\color{ForestGreen} \bf GlobalSplitU} parameter defines how Tensile splits the unroll summation into multiple sections. Other possible considerations for starting the tuning are {\color{ForestGreen} \bf DepthU, VectorWidth} and {\color{ForestGreen} \bf GlobalReadVectorWidth}. The global read vector width Controls desired width (number of elements) for loads from global memory LDS (possable values are [-1, 1, 2, 3, 4, 6, 8 ]). The vector width controls the contiguous elements from the C matrix. The depth U parameter is closely related to the local split U parameter and the combination of the two defines how the loop of the summation dimension is unrolled.
+{\color{ForestGreen} \bf ThreadTile} = [tt0, tt1] and {\color{ForestGreen} \bf  WorkGroup} = [wg0, wg1, localSplitU ] define the thread tile parameter which defines the dimensions of the C matrix that each thread works on. Together they form the macro tiling {\color{ForestGreen} \bf MacroTile} = [tt0*wg0, tt1*wg1, mt2]. The {\color{ForestGreen} \bf GlobalSplitU} parameter defines how Tensile splits the unroll summation into multiple sections. Other possible considerations for starting the tuning are {\color{ForestGreen} \bf DepthU, VectorWidth} and {\color{ForestGreen} \bf GlobalReadVectorWidth}. The global read vector width Controls desired width (number of elements) for loads from global memory LDS (possable values are [-1, 1, 2, 3, 4, 6, 8 ]). The vector width controls the contiguous elements from the C matrix. The depth U parameter is closely related to the local split U parameter and the combination of the two defines how the loop of the summation dimension is unrolled.
 
 Considering the full set of parameters involved, it is not practical to build every set of kernels as part of any investigation; this would exhaust compute resources. The target number of kernels we consider optimal for investigation is between 10,000 and 20,000. The tuning workflow may take many iterations of the tuning to reach optimal performance. Each iteration will perform a complete run of the Tensile tuning and evaluation of the results. If some of the problem sizes under investigation do not result in optimal performance then, for the sizes that fail, modifications of the tuning specifications are made to search alternative solutions in the kernel space. The tuning is then rerun using the updated parameter set. This type of iteration is continued until the desired optimization is reached.
 
 \subsection{Tuning Artifacts}
-The final result of Tensile tuning will generate some data artifacts which are important to know about. 
+The final result of Tensile tuning will generate some data artifacts which are important to know about.
 
 \subsubsection{Build Artifacts}
 The first stage of the tuning creates a benchmark library. This is found in the directory:
- 
+
 \begin{lstlisting}[language=bash,breaklines=true, emph={build,ls,build_tmp,library}, emphstyle=\color{blue}]
 $ ls /tunning_root/1_BenchmarkProblems/Cijk_A??k_B??k_??_??/??_Final
 
@@ -481,11 +481,11 @@ Here, the question marks indicate that there may be more than one subdirectory c
 \end{description}
 
 \noindent
-The names for the problem types are effectively the Einstein summation convention for tensor contraction. This convention is that, in a summation over symbols that appear twice, the summation is simplified by making the summation symbol implicit.  
+The names for the problem types are effectively the Einstein summation convention for tensor contraction. This convention is that, in a summation over symbols that appear twice, the summation is simplified by making the summation symbol implicit.
 
 \[ C_{ijk} = \sum_{l=1}^{N} A_{ilk} B_{ljk} = A_{ilk} B_{ljk}\ \ \text{(Einstein: the sum is over the index $l$)}\]
 
-The other part of the name corresponds to the datatype. Additionally, if there is more then one problem in the problem group defined in the configuration, there will be a sequence number attached. Hence, Cijk\_Ailk\_Bljk\_SB\_00 means that the problem is the first problem in the problem group and is for datatype single. The directory under this could possibly contain more than one subdirectory which corresponds to the sub-steps in the configuration for the specific problem; however, in practice we recommend following the conventions specified above which will only produce one subdirectory for one tuning step. The \textbf{00\_Final} directory contains the resulting library which is used by Tensile to perform the actual benchmarks. 
+The other part of the name corresponds to the datatype. Additionally, if there is more then one problem in the problem group defined in the configuration, there will be a sequence number attached. Hence, Cijk\_Ailk\_Bljk\_SB\_00 means that the problem is the first problem in the problem group and is for datatype single. The directory under this could possibly contain more than one subdirectory which corresponds to the sub-steps in the configuration for the specific problem; however, in practice we recommend following the conventions specified above which will only produce one subdirectory for one tuning step. The \textbf{00\_Final} directory contains the resulting library which is used by Tensile to perform the actual benchmarks.
 
 The files in the \textbf{source/library} directory include the compiled shared library and the serialized master library. The code objects are identified by the extensions .co/.hsaco. The only difference between them is that the .co libraries contain the ASM (assembly) kernels and the .hsaco libraries contain SOURCE kernels. The gfx??? part of the name identifies the architecture for which the objects were compiled for.
 
@@ -535,7 +535,7 @@ linenos
     ProblemType:
       AllowNoFreeDims: false
       AssignedDerivedParameters: true
-      
+
 ...
 
     ThreadTile: [4, 4]
@@ -566,12 +566,12 @@ linenos
 \end{minted}
 \noindent
 This example only highlights what the logic file looks like. It is not practical, at this point, to go over all the parameters in a complete file. There are, however, two things worth noting at the moment: near the beginning of the file is the library specifications that was defined in the LibraryLogic section of the tuning configuration; near the end of the file are the mappings.
- 
+
 The mappings in the logic file are specified in pairs; the first array specifies the size and the second specifics what kernel that size is mapped to. The size part is parameterized as follows (in terms of blas parameters):
- 
+
 \begin{center}
- 	- - [m, n, batch size, k, ldc, ldd, lda, ldb]. 
-\end{center} 
+ 	- - [m, n, batch size, k, ldc, ldd, lda, ldb].
+\end{center}
 \noindent
 The second array gives the index of the kernel this size is mapped to as the first parameter and the measured efficiency of the selected kernel as the second:
 
@@ -598,14 +598,14 @@ cd rocBLAS
 \end{lstlisting}
 
 \noindent
-where the c option builds the client applications which includes rocblas-bench and the d option will build and install the dependencies (the d option only need to be once on each system that rocblas is being build).
+where the c option builds the client applications, which includes rocblas-bench, and the d option will build and install the dependencies (the d option only need to be included once on each system that rocblas is being build).
 
 Executing the test for a single problem size is done using familiar blas parameters:
 
 \begin{lstlisting}[language=bash]
 cd build/release/client/staging
-./rocblas-bench -f gemm -r f32_r --transposeA N --transposeB T -m 1001 -n 1536 -k 64 --alpha 1.0 --lda 1001 --ldb 1536 --beta 0.0 --ldc 1001 -i 10 
-\end{lstlisting} 
+./rocblas-bench -f gemm -r f32_r --transposeA N --transposeB T -m 1001 -n 1536 -k 64 --alpha 1.0 --lda 1001 --ldb 1536 --beta 0.0 --ldc 1001 -i 10
+\end{lstlisting}
 
 \noindent
 Here, the i option is the number of iterations of the gemm call. Because there is a latency in loading the Tensile library which rocBLAS links to, for testing, it is recommended to use rocblas-bench with the batch call. The batch call takes a yaml file with a list of problem sizes. An example yaml file contents is shown below.
@@ -658,7 +658,7 @@ The merge script takes an input path which contains the previous logic and an in
 ROCBLAS_TENSILE_LOGIC=rocBLAS/library/src/blas3/Tensile/Logic
 TENSILE_UTILITIES=Tensile/Tensile/Utilities
 
-# merged the new results into the archive results (unmassaged) 
+# merged the new results into the archive results (unmassaged)
 python3 ${TENSILE_UTILITIES}/merge.py ${ROCBLAS_TENSILE_LOGIC}/archive newLogicPath mergedPath
 
 # update the ci (continuous integration) path with the update massaged results
@@ -688,7 +688,7 @@ With an aggregate of solutions and their kernels, we need a method for selecting
 
 \subsection{Library Hierarchy}
 
-Libraries are used to implement hierarchical searches. At each level of the hierarchy, the predicates must be asserted before moving to the next level. 
+Libraries are used to implement hierarchical searches. At each level of the hierarchy, the predicates must be asserted before moving to the next level.
 
 \paragraph{Hardware Layer}
 
@@ -722,13 +722,13 @@ library:
   rows:
   - library:
       map:
-        Contraction_l_Alik_Bjlk_Cijk_Dijk:            <-- Problem Operation 
+        Contraction_l_Alik_Bjlk_Cijk_Dijk:            <-- Problem Operation
           rows:
           - library:
               distance: Euclidean                     <-- Distance measure by Euclidean method
               properties:
               - {index: 0, type: FreeSizeA}           <-- Size properties used to measure distance
-              - {index: 0, type: FreeSizeB}    
+              - {index: 0, type: FreeSizeB}
               - {index: 0, type: BoundSize}
               table:
               - key: [1, 1, 1]                        <-- Benchmarked size
@@ -738,11 +738,11 @@ library:
               ... thousands more benchmark key-pairs
 
               type: Matching                          <-- Matching table ^^^
-            predicate: 
+            predicate:
               type: And
               value:
-              - type: TypesEqual                      
-                value: [Half, Half, Float, Float]        
+              - type: TypesEqual
+                value: [Half, Half, Float, Float]
               - {type: HighPrecisionAccumulate, value: true}
           type: Problem                               <-- Problem Layer
       property: {type: OperationIdentifier}           <-- Problem Map Layer
@@ -752,7 +752,7 @@ library:
       value: {type: Processor, value: gfx900}
  type: Hardware
 solutions:                                            <-- Begins the master solution list vvv
-- debugKernel: false                                      
+- debugKernel: false
   hardwarePredicate: {type: TruePred}
   ideals: {}
   index: 0                                            <-- Solution Index
@@ -772,7 +772,7 @@ solutions:                                            <-- Begins the master solu
 problemType: {aType: Half, bType: Half, cType: Float, dType: Float, highPrecisionAccumulate: true,  <-- Problem that kernel can solve
   operationIdentifier: Contraction_l_Alik_Bjlk_Cijk_Dijk, useBeta: true, useInitialStridesAB: false,
   useInitialStridesCD: false}
-sizeMapping:                                             <-- Begin kernel properties meta-data 
+sizeMapping:                                             <-- Begin kernel properties meta-data
   depthU: 8
   globalAccumulation: false
   globalSplitU: 1
@@ -780,7 +780,7 @@ sizeMapping:                                             <-- Begin kernel proper
 
 ... Many more properties
 
-- debugKernel: false                                       <-- Next solution, and so on. 
+- debugKernel: false                                       <-- Next solution, and so on.
   hardwarePredicate: {type: TruePred}
   ideals: {}
   index: 1
@@ -791,7 +791,7 @@ sizeMapping:                                             <-- Begin kernel proper
 
 
 ...EOF
-\end{minted} 
+\end{minted}
 
 \noindent
 Due to the yaml indenting and structure, it is a bit difficult to understand the hierarchy just from looking at the file itself; this is why the real example wasn't covered until now. This file is, however, parsed and organized in memory to implement the hierarchy structure previously discussed.
@@ -830,11 +830,11 @@ There are two options for insuring that the version of the library that gets gen
 By default rocBLAS, is linked to a specific version (or git commit) of Tensile. You can override the default reference and import a local version of Tensile into rocBLAS during the build using the -t option of install.sh when building rocBLAS. In this case, build rocBLAS using
 
 \begin{lstlisting}[language=bash]
-./install.sh -c -t /path/to/repo/Tensile 
+./install.sh -c -t /path/to/repo/Tensile
 \end{lstlisting}
 
 \noindent
-This will ensure that the version of Tensile rocBLAS uses is the one referenced to during the build (/path/to/repo/Tensile in the example). 
+This will ensure that the version of Tensile rocBLAS uses is the one referenced to during the build (/path/to/repo/Tensile in the example).
 
 \paragraph{Explicit Reference to TensileCreateLibrary}
 
@@ -864,16 +864,16 @@ Tensile/bin/TensileCreateLibrary <Options...> <LogicPath> <OutputPath> <RuntimeL
 
 [--code-object-version {V2,V3}] Code object version override (default V3).
 
-[--architecture {all,gfx000,gfx803,gfx900,gfx906,gfx908}] Architecture override 
+[--architecture {all,gfx000,gfx803,gfx900,gfx906,gfx908}] Architecture override
     (default all).
 
-[--merge-files] / [--no-merge-files] If merge, all kernels are merged to one code 
+[--merge-files] / [--no-merge-files] If merge, all kernels are merged to one code
     object file per architecture (default on).
 
-[--short-file-names] / [--no-short-file-names] Windows only option for shortening 
+[--short-file-names] / [--no-short-file-names] Windows only option for shortening
     output files names. Currently disabled.
 
-[--library-print-debug] / [--no-library-print-debug] Solutions will print enqueue 
+[--library-print-debug] / [--no-library-print-debug] Solutions will print enqueue
     info when enqueueing a kernel (default off)
 
 [--no-enumerate] Disable enumeration of host graphics architecture.
@@ -882,7 +882,7 @@ Tensile/bin/TensileCreateLibrary <Options...> <LogicPath> <OutputPath> <RuntimeL
 
 [--no-legacy-components] Don't generate solution source code for old client.
 
-[--embed-library EMBEDLIBRARY] Embed (new) library files into static variables. 
+[--embed-library EMBEDLIBRARY] Embed (new) library files into static variables.
     Specify the name of the library.
 
 [--embed-library-key EMBEDLIBRARYKEY] Prefix embedded symbols with EMBEDLIBRARYKEY.
@@ -891,10 +891,10 @@ Tensile/bin/TensileCreateLibrary <Options...> <LogicPath> <OutputPath> <RuntimeL
 
 [--version VERSION] Embed version into library files.
 
-[--generate-manifest-and-exit] In the output directory, create a manifest file of 
+[--generate-manifest-and-exit] In the output directory, create a manifest file of
     expected outputs only.
 
-[--library-format {yaml,msgpack}] Choose format of output library (default msgpack). 
+[--library-format {yaml,msgpack}] Choose format of output library (default msgpack).
     Respective file extensions {.yaml,.dat}
 
 LogicPath Path to LibraryLogic yaml files.
@@ -910,14 +910,14 @@ OutputPath Output directory.
 
 \section{Tuning Automation}
 
-Tensile provides a set of automation scripts for simplifying the tuning process. Starting with a set of logs which contain information about the problems sizes, the automation tools will generate the tuning configurations and then start a first pass at tuning based on the generated configuration. In the current version of automation, the configuration generator is not very smart and only provides a simple classification based on size categories. Hence, the full tuning is unlikely to produce the optimal performance for all sizes under consideration and further tuning iterations will be necessary. Despite this limitation, it does set up a framework and a quick tuning pass as part of the tuning workflow, so it is a good place to start a tuning exercise. 
+Tensile provides a set of automation scripts for simplifying the tuning process. Starting with a set of logs which contain information about the problems sizes, the automation tools will generate the tuning configurations and then start a first pass at tuning based on the generated configuration. In the current version of automation, the configuration generator is not very smart and only provides a simple classification based on size categories. Hence, the full tuning is unlikely to produce the optimal performance for all sizes under consideration and further tuning iterations will be necessary. Despite this limitation, it does set up a framework and a quick tuning pass as part of the tuning workflow, so it is a good place to start a tuning exercise.
 
 
 \subsection{Automation Workflow}
 
 \begin{figure}[h]
 	\begin{tikzpicture} [node distance=3cm, auto,>=latex', thick]
-	
+
 	\path[->] node[format,label={[align=center]:rocBLAS\\log}] (tune) {test.log};
 	\path[->] node[format, align=center,right of=tune,label={[align=center]:creaet\\tuning\\artifacts}] (ptune) {tuning\\artifacts}
 	(tune) edge node[align=center] {provision\\tuning} (ptune);
@@ -928,7 +928,7 @@ Tensile provides a set of automation scripts for simplifying the tuning process.
 	(pvalid) edge node[align=center] {run\\validation} (valid);
 	\path[->] node[format, right of=valid] (analyze) {results.xlxs}
     (valid) edge node[align=center] {analyze} (analyze);
-	
+
 	\end{tikzpicture}
 	\caption{Tensile automation workflow}
 \end{figure}
@@ -941,7 +941,7 @@ rocBLAS logging provides information about the rocBLAS functions which get calle
 ROCBLAS_LAYER=2
 
 # generates output in the form of
-rocblas-bench -f gemm -r s --transposeA N --transposeB N -m 1024 -n 1024 -k 1024 --beta 0.0 --alpha 1.0 --lda 1024 --ldb 1024 --ldc 1024 
+rocblas-bench -f gemm -r s --transposeA N --transposeB N -m 1024 -n 1024 -k 1024 --beta 0.0 --alpha 1.0 --lda 1024 --ldb 1024 --ldc 1024
 \end{lstlisting}
 
 \begin{lstlisting}[language=bash,breaklines=true]
@@ -956,7 +956,7 @@ In either case, the automation tools are able to parse out the relevant informat
 
 \subsection{Tuning Automation Scripts}
 
-The typical tuning exercise starts with a particular application which links to the rocBLAS library and calls gemm. The application is run with the logging enabled by setting the ROCBLAS\_LAYER environment variable. The output of the log is used as input to the tuning automation. 
+The typical tuning exercise starts with a particular application which links to the rocBLAS library and calls gemm. The application is run with the logging enabled by setting the ROCBLAS\_LAYER environment variable. The output of the log is used as input to the tuning automation.
 
 \subsubsection{The provision\_tuning.sh Script}
 
@@ -964,29 +964,29 @@ The first step of the tuning is set up using the provision\_tuning.sh script. Th
 
 
 \begin{lstlisting}[language=bash,breaklines=true]
-./tuning/scripts/provision_tuning.sh -w tensile_tuning -z logs/inception-rocblas-configs_unique.log -o tf_inception.yaml -y sgemm -l vega20 
+./tuning/scripts/provision_tuning.sh -w tensile_tuning -z logs/inception-rocblas-configs_unique.log -o tf_inception.yaml -y sgemm -l vega20
 \end{lstlisting}
 
 \noindent
 The options for the tuning provisioning are as follows:
 
 \begin{verbatim}
-provision_tuning.sh 
+provision_tuning.sh
 
 [-w|--working-path <path>]                 # the working path
-[-z | --size-log <logfile path>]           # the rocblas logfile 
+[-z | --size-log <logfile path>]           # the rocblas logfile
 [-f|--tensile-fork <username>]             # tensile fork
 [-b|--branch <branch>]                     # tensile branch
 [-c <github commit id>]                    # tensile commit id
-[-t|--tag <github tag>]                    # github tag 
+[-t|--tag <github tag>]                    # github tag
 [-o|--output <configuration filename>]     # the configuration name
 [-y | --type <data type>]                  # the datatype hsd
 [-l | --library <library/schedule>]        # library (vega20|vega10|arcturus)
-[-m | --mfma] 
-[-r | --rk] 
-[-s | --disable-strides] 
-[--problem-definition <gemm/batch/both] 
-[-n] 
+[-m | --mfma]
+[-r | --rk]
+[-s | --disable-strides]
+[--problem-definition <gemm/batch/both]
+[-n]
 [[-h|--help]
 
 \end{verbatim}
@@ -994,22 +994,22 @@ provision_tuning.sh
 After this script is run, the following artifacts are generated and available in the tensile\_tuning directory, which is created as a result of the script.
 
 \begin{itemize}
-	
+
 
  \item The \textbf{configs} directory contains the benchmark configuration/input yaml files used by Tensile
- 
+
  \item The \textbf{make} directory is used as a working directory during construction of the artifacts
 
  \item The \textbf{logs} directory has the logs for the merge script, the reference and tuned rocBLAS build, all Tensile runs and the rocblas-bench verification results
- 
+
  \item The \textbf{scripts} directory has all rocblas-bench scripts that are called by this script
- 
+
  \item The \textbf{scripts2} directory is used to run tests for the updated tuned logic using the new Tensile Client Library by setting the \\ROCBLAS\_TENSILE\_LIB\_CLIENT environment variable
- 
+
  \item The \textbf{sizes} directory has a csv file that shows the parsed log file parameters in a comma-separated format
- 
+
  \item The \textbf{tensile/Tensile} directory has a copy of the Tensile develop repo, which used to run Tensile on nn/nt/tn types and to collect the benchmark configuration and logic files
-	
+
 \end{itemize}
 
 \subsubsection{The provision\_verification.sh Script}
@@ -1021,22 +1021,22 @@ The provision\_verification.sh script provisions a copy of rocBLAS and builds a 
 \end{lstlisting}
 
 \begin{verbatim}
-provision_verification.sh 
+provision_verification.sh
 
-[-w|--working-path <path>] 
-[-r <Tensile reference>] 
-[-b|--branch <branch>] 
-[-c | --commit <github commit id>] 
-[-t|--tag <githup tag>] 
-[-l|--library <gpu library>] 
-[-n|--no-merge] 
-[--no-massage]  
-[--rocblas-fork <username>] 
+[-w|--working-path <path>]
+[-r <Tensile reference>]
+[-b|--branch <branch>]
+[-c | --commit <github commit id>]
+[-t|--tag <githup tag>]
+[-l|--library <gpu library>]
+[-n|--no-merge]
+[--no-massage]
+[--rocblas-fork <username>]
 [-h|--help]
 \end{verbatim}
 
 After running the script, the \textbf{validate/library} directory has the exact, massage, and merge library logic files available
-	
+
 \begin{itemize}
 	\item \textbf{exact} is what's available in 3\_LibraryLogic after running Tensile using the config file
 	\item \textbf{merge} has the exact files merged with the file that is already in rocBLAS
@@ -1051,9 +1051,9 @@ This script will run the tests for both the reference and validation versions of
 ./tuning/scripts/run_validation.sh -w validate -s tensile_tuning/scripts
 \end{lstlisting}
 
-\begin{verbatim}	
-[-w|--working-path <path>] 
-[-s|--test-scripts <path to test yamls] 
+\begin{verbatim}
+[-w|--working-path <path>]
+[-s|--test-scripts <path to test yamls]
 [-i | id]
 [-h|--help]
 \end{verbatim}
@@ -1063,21 +1063,21 @@ This script will run the tests for both the reference and validation versions of
 Finally, after the results are benchmarked using the reference and new versions of Tensile, they may be analyzed using the analyze\_results.sh script. An example is
 
 \begin{lstlisting}[language=bash,breaklines=true]
-./tuning/scripts/analyze-results.sh -o analysis -s 2 -f 1301 -r validate/rocblas/rocBLAS-reference/build/release/clients/staging/results -b validate/rocblas/rocBLAS-verify/build/release/clients/staging/results 
+./tuning/scripts/analyze-results.sh -o analysis -s 2 -f 1301 -r validate/rocblas/rocBLAS-reference/build/release/clients/staging/results -b validate/rocblas/rocBLAS-verify/build/release/clients/staging/results
 \end{lstlisting}
 
 \begin{verbatim}
-analyze-results.sh 
+analyze-results.sh
 
 [-b|--benchmark-path <benchmark results path>]
-[-r|--reference-path <reference results path>] 
-[-o|--output <output path>] 
-[-f] 
-[-s] 
-[-z] 
-[-g|--gpu] 
-[-m|--mfma] 
-[-c|--count] 
+[-r|--reference-path <reference results path>]
+[-o|--output <output path>]
+[-f]
+[-s]
+[-z]
+[-g|--gpu]
+[-m|--mfma]
+[-c|--count]
 [-h|--help]
 \end{verbatim}
 
@@ -1087,7 +1087,7 @@ After running this script, the final analysis will get generated which compares 
 
 \begin{lstlisting}[language=bash,breaklines=true]
 # provisions Tensile for tuning
-./tuning/scripts/provision_tuning.sh -w tensile_tuning -z logs/gemm.log -o tf_inception.yaml -y sgemm -l vega20 
+./tuning/scripts/provision_tuning.sh -w tensile_tuning -z logs/gemm.log -o tf_inception.yaml -y sgemm -l vega20
 
 cd tensile_tuning/tensile/Tensile
 
@@ -1151,7 +1151,7 @@ master_tuning_script.sh
 \begin{itemize}
 
 \item Kernels can be compute-bound or memory-bound?
-	
+
  \begin{itemize}
  	\item If a kernel is memory bound, throttling will occur, and performance will drop?
  \end{itemize}
@@ -1174,7 +1174,7 @@ master_tuning_script.sh
   	\item Leads to varying performance?
   \end{itemize}
 
-\item Reliance on GFlops instead of efficiency. The GFlops may be affected by environmental factors, so the results on one machine may not be the same as those on another. For example, the clock rate that was used during the tuning process may differ between systems or even on the same machine at different times. To compensate for this, it is recommended that the efficiency is use as a performance comparison when comparing results across different systems and tuning exercises. 
+\item Reliance on GFlops instead of efficiency. The GFlops may be affected by environmental factors, so the results on one machine may not be the same as those on another. For example, the clock rate that was used during the tuning process may differ between systems or even on the same machine at different times. To compensate for this, it is recommended that the efficiency is use as a performance comparison when comparing results across different systems and tuning exercises.
 
 $$ \mathrm{efficiency} = \frac{\mathrm{kernel\ performance} \times 1000}{o \times f \times \mathrm{numCUs}} \times 100 $$
 
@@ -1184,7 +1184,7 @@ $$ \mathrm{efficiency} = \frac{\mathrm{kernel\ performance} \times 1000}{o \time
 	\item $o$ = ops/CU/cycle
 	\item $1000$ = conversion to MFlops/sec from GFlops/sec
 \end{itemize}
-  
+
 
 \end{itemize}
 
@@ -1217,7 +1217,7 @@ Use the following steps to install the Tensile and automation dependencies. \new
 sudo apt install -y --no-install-recommends cmake make ca-certificates git \
 pkg-config python3 python3-dev python3-matplotlib python3-pandas python3-pip \
 python3-setuptools python3-tk python3-venv python3-yaml libnuma1 llvm-6.0-dev \
-libboost-all-dev zlib1g-dev libomp-dev gfortran libpthread-stubs0-dev \ 
+libboost-all-dev zlib1g-dev libomp-dev gfortran libpthread-stubs0-dev \
 libmsgpack-dev libmsgpackc2 wget
 \end{lstlisting}
 
