@@ -1,5 +1,8 @@
 # Change Log for Tensile
 
+## [(Unreleased) Tensile 4.27.0 for ROCm 4.2.0]
+### Added
+
 ## [Tensile 4.26.0 for ROCm 4.1.0]
 ### Added
 - Make messagepack python dependency optional
