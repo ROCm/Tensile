@@ -737,7 +737,8 @@ class SrdUpperFields10XX(BitfieldStructure):
               ("index_stride",   ctypes.c_uint, 2),
               ("add_tid_enable", ctypes.c_uint, 1),
               ("resource_level", ctypes.c_uint, 1),
-              ("_unusedB",       ctypes.c_uint, 3),
+              ("_unusedB",       ctypes.c_uint, 1),
+              ("LLC_noalloc",    ctypes.c_uint, 2),
               ("oob_select",     ctypes.c_uint, 2),
               ("type",           ctypes.c_uint, 2)]
 

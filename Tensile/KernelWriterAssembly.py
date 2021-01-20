@@ -1650,6 +1650,9 @@ class KernelWriterAssembly(KernelWriter):
 
     # TODO: alignment hack, figure out a better solution
     vgprIdx = ((vgprIdx+1)//2)*2
+    # Avoid bank conflict between VgprA and VgprC
+    if (self.version[0] == 10) and ((vgprIdx % 4) == (self.startVgprValuC % 4)):
+      vgprIdx += 1
     self.startVgprValuA = vgprIdx; vgprIdx += numVgprValuA
     self.startVgprG2LA = None
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
@@ -10385,8 +10388,6 @@ class KernelWriterAssembly(KernelWriter):
 
   # rpv = regs per vector
     rpv = bpl/4.0
-    if self.version[0] == 10:
-      extraFields += " glc, slc, dlc"
 
     if useBuffer:
       tailFields = "offen offset:%u"%offset
