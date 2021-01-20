@@ -1640,6 +1640,9 @@ class KernelWriterAssembly(KernelWriter):
     PLR = kernel["PrefetchLocalRead"] if kernel["PrefetchLocalRead"] < kernel["LoopIters"] else kernel["LoopIters"] - 1
     valuBlocks = (1+PLR) * kernel["InnerUnroll"]
 
+    # Avoid bank conflict between VgprA and VgprC
+    if (self.version[0] == 10) and ((vgprIdx % 4) == (self.startVgprValuC % 4)):
+      vgprIdx += 1
     self.startVgprValuA = vgprIdx; vgprIdx += numVgprValuA
     self.startVgprG2LA = None
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
@@ -11464,8 +11467,6 @@ class KernelWriterAssembly(KernelWriter):
 
   # rpv = regs per vector
     rpv = bpl/4.0
-    if self.version[0] == 10:
-      extraFields += " glc, slc, dlc"
 
     if useBuffer:
       tailFields = "offen offset:%u"%offset
