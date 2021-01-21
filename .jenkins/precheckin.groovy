@@ -63,10 +63,10 @@ ci: {
     jobNameList.each
     {
         jobName, nodeDetails->
-        if (urlJobName == jobName)
+        /*if (urlJobName == jobName)
             stage(jobName) {
                 runCI(nodeDetails, jobName, false, true)
-            }
+            }*/
         if (runHostTest == "compute-rocm-dkms-no-npi-hipclang")
             stage(jobName) {
                 runCI(([centos7:['gfx900']]), jobName, true, false)
