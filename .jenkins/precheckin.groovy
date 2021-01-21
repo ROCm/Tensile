@@ -1,5 +1,4 @@
 #!/usr/bin/env groovy
-// This shared library is available at https://github.com/ROCmSoftwarePlatform/rocJENKINS/
 @Library('rocJenkins@pong') _
 
 // This is file for internal AMD use.
@@ -11,12 +10,12 @@ import java.nio.file.Path
 
 def runCI =
 {
-    nodeDetails, jobName ->
+    nodeDetails, jobName, runHostTest, runToxTest ->
 
     def prj = new rocProject('Tensile', 'PreCheckin')
 
     // Define test architectures, optional rocm version argument is available
-    def nodes = new dockerNodes(nodeDetails, jobName, prj)
+    def nodes = new dockerNodes(nodeDetails, jobName, prj, runHostTest, runToxTest)
 
     boolean formatCheck = false
 
@@ -36,8 +35,8 @@ def runCI =
     {
         platform, project->
 
-        def test_marks = "pre_checkin"
-        commonGroovy.runTestCommand(platform, project, jobName, test_marks)
+        def test_filter = "pre_checkin"
+        commonGroovy.runTestCommand(platform, project, jobName, test_filter)
     }
 
     buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, testCommand, null)
@@ -47,12 +46,10 @@ def runCI =
 ci: {
     String urlJobName = auxiliary.getTopJobName(env.BUILD_URL)
 
-    def propertyList = ["compute-rocm-dkms-no-npi-hipclang":[],
-                        "rocm-docker":[]]
+    def propertyList = ["compute-rocm-dkms-no-npi-hipclang":[]]
     propertyList = auxiliary.appendPropertyList(propertyList)
 
-    def jobNameList = ["compute-rocm-dkms-no-npi-hipclang":([ubuntu18:['gfx900','gfx906','gfx908']]),
-                       "rocm-docker":([ubuntu18:['gfx908']])]
+    def jobNameList = ["compute-rocm-dkms-no-npi-hipclang":([ubuntu18:['gfx900','gfx906','gfx908']])]
 
     // jobNameList = auxiliary.appendJobNameList(jobNameList)
 
@@ -68,7 +65,11 @@ ci: {
         jobName, nodeDetails->
         if (urlJobName == jobName)
             stage(jobName) {
-                runCI(nodeDetails, jobName)
+                runCI(nodeDetails, jobName, false, true)
+            }
+        if (runHostTest == "compute-rocm-dkms-no-npi-hipclang")
+            stage(jobName) {
+                runCI(([centos7:['gfx900']]), jobName, true, false)
             }
     }
 
@@ -77,7 +78,7 @@ ci: {
     {
         properties(auxiliary.addCommonProperties([pipelineTriggers([cron('0 6 * * 6')])]))
         stage(urlJobName) {
-            runCI([ubuntu18:['any']], urlJobName)
+            runCI([ubuntu18:['any']], urlJobName, true, true)
         }
     }
 }
