@@ -67,7 +67,7 @@ ci: {
             stage(jobName) {
                 runCI(nodeDetails, jobName, false, true)
             }*/
-        if (runHostTest == "compute-rocm-dkms-no-npi-hipclang")
+        if (urlJobName == "compute-rocm-dkms-no-npi-hipclang")
             stage(jobName) {
                 runCI(([centos7:['gfx900']]), jobName, true, false)
             }
