@@ -15,7 +15,7 @@ def runCI =
     def prj = new rocProject('Tensile', 'PreCheckin')
 
     // Define test architectures, optional rocm version argument is available
-    def nodes = new dockerNodes(nodeDetails, jobName, prj, runHostTest, runToxTest)
+    def nodes = new dockerNodes(nodeDetails, jobName, prj)
 
     boolean formatCheck = false
 
@@ -28,7 +28,7 @@ def runCI =
         platform, project->
 
         commonGroovy = load "${project.paths.project_src_prefix}/.jenkins/common.groovy"
-        commonGroovy.runCompileCommand(platform, project, jobName, false)
+        commonGroovy.runCompileCommand(platform, project, jobName, runHostTest, runToxTest)
     }
 
     def testCommand =
@@ -36,7 +36,7 @@ def runCI =
         platform, project->
 
         def test_filter = "pre_checkin"
-        commonGroovy.runTestCommand(platform, project, jobName, test_filter)
+        commonGroovy.runTestCommand(platform, project, jobName, test_filter, runHostTest, runToxTest)
     }
 
     buildProject(prj, formatCheck, nodes.dockerArray, compileCommand, testCommand, null)
