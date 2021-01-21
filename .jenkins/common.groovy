@@ -5,7 +5,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false, boolean b
 {
     project.paths.construct_build_prefix()
 
-    String compiler = hipcc
+    String compiler = 'hipcc'
     String pythonVersion = 'py36'
     String cov = "V3"
     String buildType = debug ? 'Debug' : 'RelWithDebInfo'
