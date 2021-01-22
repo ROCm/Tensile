@@ -476,6 +476,13 @@ namespace Tensile
             auto formatB = counts.formatB();
             auto formatD = counts.formatD();
 
+            size_t padShift
+                = std::accumulate(problem.aZeroPad().begin(),
+                                  problem.aZeroPad().end(),
+                                  0,
+                                  [](size_t sum, const ContractionProblem::ZeroPad& zp) {
+                                      return sum + zp.padStart;
+                                  });
             if(db1)
             {
                 std::cout << "SolveCPUConvolution:\n";
@@ -541,9 +548,23 @@ namespace Tensile
                                         bCoord[fp] = filterCoord[fi];
                                 }
 
-                                auto aIndex = activationTensor.index(aCoord);
-                                auto aVal   = Transform<typename Inputs::AType>::Input(
-                                    inputs.a[aIndex], false);
+                                auto aIndex     = activationTensor.index(aCoord) - padShift;
+                                bool inZeroPads = std::accumulate(
+                                    problem.aZeroPad().begin(),
+                                    problem.aZeroPad().end(),
+                                    false,
+                                    [&](bool ret, const ContractionProblem::ZeroPad& zp) {
+                                        return ret
+                                               || inZeroPad(problem,
+                                                            zp,
+                                                            activationTensor,
+                                                            aCoord,
+                                                            aCoord[zp.boundPos]);
+                                    });
+
+                                auto aVal = inZeroPads ? static_cast<typename Inputs::AType>(0.0)
+                                                       : Transform<typename Inputs::AType>::Input(
+                                                           inputs.a[aIndex], false);
 
                                 auto bIndex = weightTensor.index(bCoord);
                                 auto bVal   = Transform<typename Inputs::BType>::Input(
