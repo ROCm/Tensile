@@ -631,8 +631,8 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
                 param("code-object", os.path.join(sourceDir,coFile))
 
         param('results-file', resultsFileName)
-
-        if problemType.convolution and globalParameters["ConvolutionVsContraction"]:
+        convValidation = problemType.convolution and globalParameters["ConvolutionVsContraction"];
+        if convValidation:
             param('convolution-identifier', problemType.convolution.identifier())
         param('problem-identifier', problemType.operationIdentifier)
         param('a-type',     problemType.aType.toEnum())
@@ -648,6 +648,8 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         for problem in problemSizes.problems:
             for key,value in problemSizeParams(problemType, problem):
                 param(key,value)
+            if convValidation:
+              param('convolution-problem', problemType.convolution.identifier(problem))
 
         param("device-idx",               globalParameters["Device"])
 
@@ -681,8 +683,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param("num-syncs-per-benchmark",  globalParameters["SyncsPerBenchmark"])
         param("use-gpu-timer",            globalParameters["KernelTime"])
         param("hardware-monitor",         globalParameters["HardwareMonitor"])
-        if globalParameters["ConvolutionVsContraction"]:
-            assert(problemType.convolution)
+        if convValidation:
             param("convolution-vs-contraction", globalParameters["ConvolutionVsContraction"])
         if not globalParameters["KernelTime"]:
             param("num-warmups", 1)

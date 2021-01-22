@@ -1,7 +1,7 @@
 /**
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -163,69 +163,56 @@ namespace Tensile
         struct TENSILE_API LoopCounts
         {
             LoopCounts()
-                : scount(MaxNumSpatialDims, 1)
-                , fcount(MaxNumSpatialDims, 1){};
-            void                setupForData(ConvolutionProblem const& convProblem,
-                                             ContractionProblem const& problem);
+                : scount(MaxNumSpatialDims, 1){};
+            void                    setupForData(ConvolutionProblem const& convProblem,
+                                                 ContractionProblem const& problem);
+            void                    setupFormat(ConvolutionProblem const& convProblem);
+            const ActivationFormat& formatA() const
+            {
+                return m_formatA;
+            };
+            const ComboFormat& formatB() const
+            {
+                return m_formatB;
+            };
+            const ComboFormat& formatD() const
+            {
+                return m_formatD;
+            };
             std::string         description() const;
             size_t              batchCount;
             size_t              cinCount;
             size_t              coutCount;
             std::vector<size_t> scount;
-            std::vector<size_t> fcount;
+            std::vector<size_t> spatialCount; //whd (original convolution input tensor)
+            std::vector<size_t> filterCount; //xyz
+            std::vector<size_t> strideCount; //vu#
+            std::vector<size_t> dilationCount; //jl^
+            std::vector<size_t> padStartCount; //qp$
+            std::vector<size_t> padEndCount; //q_p_$_
+
+            ActivationFormat m_formatA;
+            ComboFormat      m_formatB;
+            ComboFormat      m_formatD; // output tensor
         };
 
         ConvolutionProblem() {}
 
         void             FromIdentifier(std::string identifier);
+        void             setupFormat(std::vector<size_t>& filters);
         TensorDescriptor setupDataActivation(LoopCounts const&         counts,
                                              ContractionProblem const& problem) const;
         TensorDescriptor setupDataOutput(LoopCounts const&         counts,
                                          ContractionProblem const& problem) const;
         TensorDescriptor setupForwardWeights(LoopCounts const&         counts,
                                              ContractionProblem const& problem) const;
-        void             validate(const ContractionProblem& problem) const;
-
-        const std::vector<size_t> spatials() const
-        {
-            return m_spatials;
-        };
-        const std::vector<size_t> filter() const
-        {
-            return m_filters;
-        };
-        const std::vector<size_t> stride() const
-        {
-            return m_strides;
-        };
-        const std::vector<size_t> dilation() const
-        {
-            return m_dilations;
-        };
-
-        const ActivationFormat& formatA() const
-        {
-            return m_formatA;
-        };
-        const ComboFormat& formatB() const
-        {
-            return m_formatB;
-        };
-        const ComboFormat& formatD() const
-        {
-            return m_formatD;
-        };
+        void             validate(const ContractionProblem&             problem,
+                                  const ConvolutionProblem::LoopCounts& counts) const;
 
         //! Number of spatial dims after packing.
         size_t numSpatialDims() const
         {
             return m_numSpatialDims;
-        }
-        //! number of filter summation dimensions.  (filter=1 does not require
-        //! dedicated sum dim)
-        size_t numFilterDims() const
-        {
-            return m_numFilterDims;
         }
 
         std::string        description() const;
@@ -233,28 +220,34 @@ namespace Tensile
         {
             return m_operationIdentifier;
         }
+        std::string const& AIdentifier() const
+        {
+            return m_AIdentifier;
+        }
+        std::string const& BIdentifier() const
+        {
+            return m_BIdentifier;
+        }
+        std::string const& DIdentifier() const
+        {
+            return m_DIdentifier;
+        }
+        size_t numFormatSpatialDims() const
+        {
+            return m_numFormatSpatialDims;
+        }
 
     private:
         //! ConvolutionForward, ConvolutionBackwardData, ConvolutionBackwardWeights
         std::string m_operationIdentifier;
-
-        //! 0,1,2 order is W,H,D(act) or X,Y,Z(weights)
-        std::vector<size_t> m_spatials;
-        std::vector<size_t> m_filters;
-        std::vector<size_t> m_strides;
-        std::vector<size_t> m_dilations;
-        std::vector<size_t> m_padStart;
-        std::vector<size_t> m_padEnd;
+        std::string m_AIdentifier;
+        std::string m_BIdentifier;
+        std::string m_DIdentifier;
 
         size_t m_groups = 1;
 
-        size_t m_numFilterDims        = 0;
         size_t m_numSpatialDims       = 0;
         size_t m_numFormatSpatialDims = 0;
-
-        ActivationFormat m_formatA;
-        ComboFormat      m_formatB;
-        ComboFormat      m_formatD; // output tensor
     };
 
     TENSILE_API std::ostream& operator<<(std::ostream&             stream,
