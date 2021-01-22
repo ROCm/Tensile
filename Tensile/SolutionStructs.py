@@ -589,6 +589,11 @@ class Convolution:
     sizes[self.convolutionDims['C'].idx]=c
     sizes[self.convolutionDims['K'].idx]=k
 
+    xIndexOfA = [index for index in range(len(self.regDimsA)) if self.regDimsA[index].dim.shortChar == 'W']
+    cIndexOfA = [index for index in range(len(self.regDimsA)) if self.regDimsA[index].dim.shortChar == 'C']
+    if xIndexOfA < cIndexOfA:
+      astrides[self.convolutionDims['C'].idx] = reduce((lambda x, y: x * y), pcc.spatial)
+
     astrides[self.convolutionDims['N'].idx] = reduce((lambda x, y: x * y), pcc.spatial) * c
     bstrides[self.convolutionDims['N'].idx] = 0 # broadcast b matrix
 
