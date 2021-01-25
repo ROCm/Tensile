@@ -494,10 +494,8 @@ namespace Tensile
                 if(inputs.gpu)
                     throw std::runtime_error("Initializing GPU inputs as CPU.");
 
-                if(m_problem.a() != problem.a() ||
-                    m_problem.b() != problem.b() ||
-                    m_problem.c() != problem.c() ||
-                    (!m_cEqualsD && m_problem.d() != problem.d()))
+                if(m_problem.a() != problem.a() || m_problem.b() != problem.b()
+                   || m_problem.c() != problem.c() || (!m_cEqualsD && m_problem.d() != problem.d()))
                 {
                     if(m_problemDependentData)
                     {
@@ -731,11 +729,12 @@ namespace Tensile
             std::shared_ptr<ManagedInputs>
                 m_cpuInputs; //< Inputs used for CPU reference calculations
             std::shared_ptr<ManagedInputs>
-                m_cpuBadInputs; //< Inputs containing 'bad' values for bounds checking
+                                           m_cpuBadInputs; //< Inputs containing 'bad' values for bounds checking
             std::shared_ptr<ManagedInputs> m_gpuInputsPristine; //< Untouched copies of the inputs
             std::shared_ptr<ManagedInputs> m_gpuInputs; //< Inputs to be sent in to GPU kernels
             std::shared_ptr<ManagedInputs> m_gpuBadInputs; //< GPU copies of 'bad' values
-            ContractionProblem             m_problem; //< Contraction problem for which current inputs are initialized
+            ContractionProblem
+                m_problem; //< Contraction problem for which current inputs are initialized
         };
 
         // Commonly used managed contraction input type groupings
