@@ -494,25 +494,33 @@ namespace Tensile
                 if(inputs.gpu)
                     throw std::runtime_error("Initializing GPU inputs as CPU.");
 
-                if(m_problemDependentData)
+                if(m_problem.a() != problem.a() ||
+                    m_problem.b() != problem.b() ||
+                    m_problem.c() != problem.c() ||
+                    (!m_cEqualsD && m_problem.d() != problem.d()))
                 {
-                    initArray(m_aInit, inputs.managedA.get(), problem.a());
-                    initArray(m_bInit, inputs.managedB.get(), problem.b());
-                    initArray(m_cInit, inputs.managedC.get(), problem.c());
-                    if(!m_cEqualsD)
-                        initArray(m_dInit, inputs.managedD.get(), problem.d());
-                }
-                else
-                {
-                    initArray(m_aInit, inputs.managedA.get(), m_aMaxElements);
-                    initArray(m_bInit, inputs.managedB.get(), m_bMaxElements);
-                    initArray(m_cInit, inputs.managedC.get(), m_cMaxElements);
-                    if(!m_cEqualsD)
-                        initArray(m_dInit, inputs.managedD.get(), m_dMaxElements);
-                }
+                    if(m_problemDependentData)
+                    {
+                        initArray(m_aInit, inputs.managedA.get(), problem.a());
+                        initArray(m_bInit, inputs.managedB.get(), problem.b());
+                        initArray(m_cInit, inputs.managedC.get(), problem.c());
+                        if(!m_cEqualsD)
+                            initArray(m_dInit, inputs.managedD.get(), problem.d());
+                    }
+                    else
+                    {
+                        initArray(m_aInit, inputs.managedA.get(), m_aMaxElements);
+                        initArray(m_bInit, inputs.managedB.get(), m_bMaxElements);
+                        initArray(m_cInit, inputs.managedC.get(), m_cMaxElements);
+                        if(!m_cEqualsD)
+                            initArray(m_dInit, inputs.managedD.get(), m_dMaxElements);
+                    }
 
-                inputs.alpha = getValue<AlphaType>(m_alphaInit);
-                inputs.beta  = getValue<BetaType>(m_betaInit);
+                    inputs.alpha = getValue<AlphaType>(m_alphaInit);
+                    inputs.beta  = getValue<BetaType>(m_betaInit);
+
+                    m_problem = problem;
+                }
             }
 
             void initializeCPUBadInputs(ManagedInputs& inputs)
@@ -727,6 +735,7 @@ namespace Tensile
             std::shared_ptr<ManagedInputs> m_gpuInputsPristine; //< Untouched copies of the inputs
             std::shared_ptr<ManagedInputs> m_gpuInputs; //< Inputs to be sent in to GPU kernels
             std::shared_ptr<ManagedInputs> m_gpuBadInputs; //< GPU copies of 'bad' values
+            ContractionProblem             m_problem; //< Contraction problem for which current inputs are initialized
         };
 
         // Commonly used managed contraction input type groupings
