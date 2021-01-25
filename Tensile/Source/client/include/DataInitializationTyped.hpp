@@ -729,7 +729,7 @@ namespace Tensile
             std::shared_ptr<ManagedInputs>
                 m_cpuInputs; //< Inputs used for CPU reference calculations
             std::shared_ptr<ManagedInputs>
-                                           m_cpuBadInputs; //< Inputs containing 'bad' values for bounds checking
+                m_cpuBadInputs; //< Inputs containing 'bad' values for bounds checking
             std::shared_ptr<ManagedInputs> m_gpuInputsPristine; //< Untouched copies of the inputs
             std::shared_ptr<ManagedInputs> m_gpuInputs; //< Inputs to be sent in to GPU kernels
             std::shared_ptr<ManagedInputs> m_gpuBadInputs; //< GPU copies of 'bad' values
