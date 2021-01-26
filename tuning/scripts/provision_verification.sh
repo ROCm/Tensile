@@ -213,9 +213,12 @@ echo "Building rocBLAS"
 ROCBLAS_BENCH_PATH=${ROCBLAS_PATH}/build/release/clients/staging/rocblas-bench
 if [ ! -f "${ROCBLAS_BENCH_PATH}" ]; then
   rm -r -f "${ROCBLAS_PATH}/build"
-  BUILD_ROCBLAS="./install.sh -d -c"
   pushd "${ROCBLAS_PATH}" > /dev/null || exit
-  ${BUILD_ROCBLAS} 2>&1 | tee "${LOGS}/rocblas-install.log"
+
+  TENSILE_PATH=$(realpath "${TENSILE_PATH}")
+  BUILD_ARGS=(-d -c -t "${TENSILE_PATH}")
+  BUILD_EXE=./install.sh
+  "${BUILD_EXE}" "${BUILD_ARGS[@]}" 2>&1 | tee "${LOGS}/rocblas-install.log"
   popd > /dev/null || exit
 else
   echo "rocBLAS already built: skipping"
