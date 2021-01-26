@@ -109,6 +109,8 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
 def which(p):
     exes = [p+x for x in ['', '.exe', '.bat']]
     system_path = os.environ['PATH'].split(os.pathsep)
+    if p == 'hipcc' and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
+        return os.environ['CMAKE_CXX_COMPILER']
     for dirname in system_path+[globalParameters["ROCmBinPath"]]:
         for exe in exes:
             candidate = os.path.join(os.path.expanduser(dirname), exe)
@@ -122,6 +124,9 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
     destDir = ensurePath(os.path.join(outputPath, 'library'))
     (_, filename) = os.path.split(kernelFile)
     (base, _) = os.path.splitext(filename)
+
+    if "CmakeCxxCompiler" in globalParameters:
+      os.environ["CMAKE_CXX_COMPILER"] = globalParameters["CmakeCxxCompiler"]
 
     objectFilename = base + '.o'
     objectFilepath = os.path.join(buildPath, objectFilename)
@@ -1339,6 +1344,7 @@ def TensileCreateLibrary():
   argParser.add_argument("OutputPath",      help="Where to write library files?")
   argParser.add_argument("RuntimeLanguage", help="Which runtime language?", choices=["OCL", "HIP", "HSA"])
   argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hcc", "hipcc"],       action="store", default="hipcc")
+  argParser.add_argument("--cmake-cxx-compiler",     dest="CmakeCxxCompiler",  action="store")
   argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["V2", "V3"], action="store", default="V3")
   argParser.add_argument("--architecture",           dest="Architecture",      choices=["all", "gfx000", "gfx803", "gfx900", "gfx906:xnack-", "gfx908:xnack-"], action="store", default="all")
   argParser.add_argument("--merge-files",            dest="MergeFiles",        action="store_true")
@@ -1382,6 +1388,8 @@ def TensileCreateLibrary():
   arguments["CodeObjectVersion"] = args.CodeObjectVersion
   arguments["Architecture"] = args.Architecture
   arguments["CxxCompiler"] = args.CxxCompiler
+  if args.CmakeCxxCompiler:
+    os.environ["CMAKE_CXX_COMPILER"] = args.CmakeCxxCompiler
   arguments["MergeFiles"] = args.MergeFiles
   arguments["ShortNames"] = args.ShortNames
   arguments["LibraryPrintDebug"] = args.LibraryPrintDebug

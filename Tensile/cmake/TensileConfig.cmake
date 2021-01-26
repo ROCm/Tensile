@@ -107,6 +107,7 @@ function(TensileCreateLibraryFiles
        ARCHITECTURE
        CODE_OBJECT_VERSION
        COMPILER
+       COMPILER_PATH
        EMBED_KEY
        EMBED_LIBRARY
        LIBRARY_FORMAT
@@ -176,6 +177,10 @@ function(TensileCreateLibraryFiles
 
   if(Tensile_COMPILER)
     set(Options ${Options} "--cxx-compiler=${Tensile_COMPILER}")
+  endif()
+
+  if(Tensile_COMPILER_PATH)
+    set(Options ${Options} "--cmake-cxx-compiler=${Tensile_COMPILER_PATH}")
   endif()
 
   if(Tensile_ARCHITECTURE)
