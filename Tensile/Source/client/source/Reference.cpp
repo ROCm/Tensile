@@ -1,7 +1,7 @@
 /**
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -415,6 +415,12 @@ namespace Tensile
                 auto const& typedInputs
                     = dynamic_cast<ContractionInputs_I32_I32_I32 const&>(inputs);
                 return ReferenceSolution<ContractionInputs_I32_I32_I32>::SolveCPU(
+                    problem, typedInputs, validationStride);
+            }
+            case ContractionInputs_I8_I32_I32::TypeId():
+            {
+                auto const& typedInputs = dynamic_cast<ContractionInputs_I8_I32_I32 const&>(inputs);
+                return ReferenceSolution<ContractionInputs_I8_I32_I32>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
 #ifdef TENSILE_USE_BF16

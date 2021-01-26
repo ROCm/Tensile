@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -277,6 +277,11 @@ namespace Tensile
             case ContractionInputs_I32_I32_I32::TypeId():
             {
                 return GetTyped<ContractionInputs_I32_I32_I32>(
+                    args, problemFactory, maxWorkspaceSize);
+            }
+            case ContractionInputs_I8_I32_I32::TypeId():
+            {
+                return GetTyped<ContractionInputs_I8_I32_I32>(
                     args, problemFactory, maxWorkspaceSize);
             }
 #ifdef TENSILE_USE_BF16

@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -635,7 +635,7 @@ class  MacInst (Inst):
         else:
           raise NotImplementedError("Half-precision not supported for arch=%u" % self.version )
 
-      # integer i8
+      # integer i8x4
       elif self.kernel["ProblemType"]["DataType"].isInt8x4():
         if self.version == (8,0,3):
           kStr += "// int8 not implemented yet for gfx803:"

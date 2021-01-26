@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -45,6 +45,7 @@ using InputTypes = ::testing::Types<std::tuple<float>,
                                     std::tuple<Tensile::BFloat16>,
                                     std::tuple<std::complex<float>>,
                                     std::tuple<std::complex<double>>,
+                                    std::tuple<int8_t>,
                                     std::tuple<Tensile::Int8x4>,
                                     std::tuple<int32_t>>;
 
@@ -84,6 +85,7 @@ static_assert(Tensile::TypeInfo<std::complex<float>>::Enum == Tensile::DataType:
 static_assert(Tensile::TypeInfo<std::complex<double>>::Enum == Tensile::DataType::ComplexDouble,
               "ComplexDouble");
 static_assert(Tensile::TypeInfo<Tensile::Half>::Enum == Tensile::DataType::Half, "Half");
+static_assert(Tensile::TypeInfo<int8_t>::Enum == Tensile::DataType::Int8, "Int8");
 static_assert(Tensile::TypeInfo<Tensile::Int8x4>::Enum == Tensile::DataType::Int8x4, "Int8x4");
 static_assert(Tensile::TypeInfo<int32_t>::Enum == Tensile::DataType::Int32, "Int32");
 static_assert(Tensile::TypeInfo<Tensile::BFloat16>::Enum == Tensile::DataType::BFloat16,
@@ -94,6 +96,7 @@ static_assert(Tensile::TypeInfo<double>::Packing == 1, "Double");
 static_assert(Tensile::TypeInfo<std::complex<float>>::Packing == 1, "ComplexFloat");
 static_assert(Tensile::TypeInfo<std::complex<double>>::Packing == 1, "ComplexDouble");
 static_assert(Tensile::TypeInfo<Tensile::Half>::Packing == 1, "Half");
+static_assert(Tensile::TypeInfo<int8_t>::Packing == 1, "Int8");
 static_assert(Tensile::TypeInfo<Tensile::Int8x4>::Packing == 4, "Int8x4");
 static_assert(Tensile::TypeInfo<int32_t>::Packing == 1, "Int32");
 static_assert(Tensile::TypeInfo<Tensile::BFloat16>::Packing == 1, "BFloat16");
@@ -133,6 +136,7 @@ INSTANTIATE_TEST_SUITE_P(DataTypesTest,
                                            Tensile::DataType::ComplexFloat,
                                            Tensile::DataType::ComplexDouble,
                                            Tensile::DataType::Half,
+                                           Tensile::DataType::Int8,
                                            Tensile::DataType::Int8x4,
                                            Tensile::DataType::Int32,
                                            Tensile::DataType::BFloat16));

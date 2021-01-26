@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2020-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -478,6 +478,17 @@ class SignatureCOV3(Signature):
         for idxChar in kernel["PackedC1IdxChars"][:-1]:
             kStr += self.v3Argument(     "MagicNumberSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
             kStr += self.v3Argument(      "MagicShiftSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
+
+        for idx in kernel["ProblemType"]["IndicesSummation"]:
+          for tc in ('A','B'):
+            for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
+              (freeDim, sumDim, padStart, padEnd) = zp
+              if sumDim == idx:
+                freeDimChar = globalParameters["IndexChars"][freeDim]
+                sumDimChar  = globalParameters["IndexChars"][sumDim]
+                # These will eventually be read as kernel args:
+                kStr += self.v3Argument(   "PadStart%s%s%s"%(tc, freeDimChar, sumDimChar),     '4', offset,      "by_value",        "u32"); offset += 4
+                kStr += self.v3Argument(     "PadEnd%s%s%s"%(tc, freeDimChar, sumDimChar),     '4', offset,      "by_value",        "u32"); offset += 4
 
         kStr += self.v3Argument(              "OrigStaggerUIter",       '4', offset,      "by_value",        "i32"); offset += 4
 

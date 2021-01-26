@@ -1,7 +1,7 @@
 /**
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -248,8 +248,9 @@ namespace Tensile
 
         size_t m_groups = 1;
 
-        size_t m_numFilterDims  = 0;
-        size_t m_numSpatialDims = 0;
+        size_t m_numFilterDims        = 0;
+        size_t m_numSpatialDims       = 0;
+        size_t m_numFormatSpatialDims = 0;
 
         ActivationFormat m_formatA;
         ComboFormat      m_formatB;

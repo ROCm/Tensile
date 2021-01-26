@@ -1,7 +1,7 @@
 /**
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -259,6 +259,7 @@ namespace Tensile
 
         m_operationIdentifier       = parts[0];
         size_t formatNumSpatialDims = parts[1].size() - 2;
+        m_numFormatSpatialDims      = formatNumSpatialDims;
 
         for(auto part = parts.begin() + 4; part != parts.end(); part++)
         {
@@ -381,6 +382,8 @@ namespace Tensile
         // Mimic the expected dimension order in formatA:
         std::vector<size_t>  activationDims;
         std::vector<int64_t> activationStri;
+        int64_t              batchStride;
+
         switch(formatA().format())
         {
         case ConvolutionProblem::TensorFormat::NCHW:
@@ -400,7 +403,12 @@ namespace Tensile
             activationDims.push_back(problem.a().sizes()[formatA().channelPosition()]);
             activationStri.push_back(-1);
             activationDims.push_back(problem.a().sizes()[formatA().batchPosition()]);
-            activationStri.push_back(-1);
+            batchStride = problem.a().sizes()[formatA().channelPosition()];
+            for(int si = 0; si < m_numFormatSpatialDims; si++)
+            {
+                batchStride *= spatials().at(si);
+            }
+            activationStri.push_back(batchStride);
             break;
         case ConvolutionProblem::TensorFormat::NHWC:
             assert(0); // need strides

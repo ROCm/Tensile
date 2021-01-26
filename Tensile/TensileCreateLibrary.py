@@ -40,6 +40,7 @@ import argparse
 import collections
 import itertools
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -190,13 +191,27 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         print('hipcc:', ' '.join(compileArgs))
       subprocess.check_call(compileArgs)
 
-      for i in range(len(archs)):
-        infile = os.path.join(buildPath, objectFilename)
-        outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
-        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
-        if globalParameters["PrintCodeCommands"]:
-          print(' '.join(bundlerArgs))
-        subprocess.check_call(bundlerArgs)
+      infile = os.path.join(buildPath, objectFilename)
+      try:
+        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-inputs=%s" % infile, "-list"]
+        listing = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT).decode().split("\n")
+        for target in listing:
+          matched = re.search("gfx.*$", target)
+          if matched:
+            arch = re.sub(":", "-", matched.group())
+            outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, arch))
+            bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=%s" % target, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+            if globalParameters["PrintCodeCommands"]:
+              print(' '.join(bundlerArgs))
+            subprocess.check_call(bundlerArgs)
+
+      except subprocess.CalledProcessError:
+        for i in range(len(archs)):
+          outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
+          bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+          if globalParameters["PrintCodeCommands"]:
+            print(' '.join(bundlerArgs))
+          subprocess.check_call(bundlerArgs)
 
       coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
     else:
@@ -992,13 +1007,8 @@ def writeSolutionCall(solutionName, problemType):
 def getSolutionAndKernelWriters(solutions, kernels):
 
   # if any kernels are assembly, append every ISA supported
-
-  if globalParameters["ShortNames"] and not globalParameters["MergeFiles"]:
-    solutionSerialNaming = Solution.getSerialNaming(solutions)
-    kernelSerialNaming   = Solution.getSerialNaming(kernels)
-  else:
-    solutionSerialNaming = None
-    kernelSerialNaming   = None
+  solutionSerialNaming = Solution.getSerialNaming(solutions)
+  kernelSerialNaming   = Solution.getSerialNaming(kernels)
 
   solutionMinNaming    = Solution.getMinNaming(solutions)
   kernelMinNaming      = Solution.getMinNaming(kernels)
@@ -1344,7 +1354,7 @@ def TensileCreateLibrary():
   argParser.add_argument("RuntimeLanguage", help="Which runtime language?", choices=["OCL", "HIP", "HSA"])
   argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hcc", "hipcc"],       action="store", default="hipcc")
   argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["V2", "V3"], action="store", default="V3")
-  argParser.add_argument("--architecture",           dest="Architecture",      choices=["all", "gfx000", "gfx803", "gfx900", "gfx906", "gfx908"], action="store", default="all")
+  argParser.add_argument("--architecture",           dest="Architecture",      choices=["all", "gfx000", "gfx803", "gfx900", "gfx906:xnack-", "gfx908:xnack-"], action="store", default="all")
   argParser.add_argument("--merge-files",            dest="MergeFiles",        action="store_true")
   argParser.add_argument("--no-merge-files",         dest="MergeFiles",        action="store_false")
   argParser.add_argument("--short-file-names",       dest="ShortNames",        action="store_true")
@@ -1426,7 +1436,7 @@ def TensileCreateLibrary():
 
   # Translate GPU targets to filter filenames in Tensile_LOGIC directory
   mapArchitecture = {'all':'_','gfx000':'none', 'gfx803':'r9nano',
-        'gfx900':'vega10', 'gfx906':'vega20', 'gfx908':'arcturus'}
+        'gfx900':'vega10', 'gfx906:xnack-':'vega20', 'gfx908:xnack-':'arcturus'}
 
   for key in mapArchitecture:
     if arguments["Architecture"] == key:

@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -50,7 +50,7 @@ if(TENSILE_STATIC_ONLY)
 endif()
 
 if(NOT Tensile_FOUND)
-    find_package(Tensile 4.25.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
+    find_package(Tensile 4.26.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
 endif()
 
 if(NOT TENSILE_DISABLE_CTEST)
@@ -186,8 +186,9 @@ endif()
 
 if(TENSILE_USE_HIP)
 
-    # Make sure the testing libraries get copied to avoid segfaults in test runs.
-    add_dependencies(TensileTests ${HIP_TEST_COPY_TARGET_DEPS})
+    # Make sure the testing libraries get built & copied before the client is built
+    # to avoid segfaults on gtest integration.
+    add_dependencies(TensileTests ${HIP_TEST_LIBRARY_TARGET_DEPS})
 
     target_link_libraries(TensileTests PRIVATE "-Xlinker --whole-archive")
     target_link_libraries(TensileTests PUBLIC ${HIP_TEST_LIBRARIES})

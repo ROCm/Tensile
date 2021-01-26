@@ -1,7 +1,7 @@
 /**
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -1108,6 +1108,8 @@ namespace Tensile
     template struct TypedContractionInputs<std::complex<double>>;
     template struct TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>;
     template struct TypedContractionInputs<int32_t>;
+    template struct TypedContractionInputs<int8_t, int8_t, int32_t, int32_t>;
+
 #ifdef TENSILE_USE_HALF
     template struct TypedContractionInputs<Half>;
     template struct TypedContractionInputs<Half, Half, Half, Half, float, float>;

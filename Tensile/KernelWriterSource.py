@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -2400,10 +2400,9 @@ class KernelWriterSource(KernelWriter):
               if sumDim in kernel["ProblemType"]["MirrorDims%s"%(tc)]:
                 iterVar = "-" + iterVar
 
-              globalReadOffsetZp = "globalReadOffset%s_%u_%u_%u_%u_ZP%s%s + %u" \
+              globalReadOffsetZp = "globalReadOffset%s_%u_%u_%u_%u_ZP%s%s" \
                   % (tc, para, 0 if tP["rc"] else sPara, perp, sPerp, \
-                     freeDimChar, sumChar,
-                     sPara if tP["rc"] else 0);
+                     freeDimChar, sumChar);
               kStr += " ( (%s * stride%s%s + %s) >= elementEdge%s%s )" \
                       % (iterVar, tc, sumChar, globalReadOffsetZp, tc, sumChar)
 
@@ -2483,11 +2482,13 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def preLoopLocalWriteDo(self, kernel, tPA, tPB):
     kStr = ""
+    LWCodeA, dummy = self.localWriteDo(kernel, tPA)
+    LWCodeB, dummy = self.localWriteDo(kernel, tPB)
     kStr += self.comment("local write a")
-    kStr += self.localWriteDo(kernel, tPA)
+    kStr += LWCodeA
     kStr += self.comment("local write b")
-    kStr += self.localWriteDo(kernel, tPB)
-    return kStr
+    kStr += LWCodeB
+    return kStr, dummy, dummy
 
   ##############################################################################
   # Replace the determined vmcnt in PreLoop LocalWrite
@@ -2500,6 +2501,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localWriteDo(self, kernel, tP, uDu=0):
     kStr = ""
+    tmpVgprStartIdxForLSHR = -1 # not used in source, just align the return with assembly
     if self.language == "HIP":
       kStr += "#pragma clang diagnostic push" + self.endLine
       kStr += "#pragma clang diagnostic ignored \"-Wconditional-uninitialized\"" + self.endLine
@@ -2524,7 +2526,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "    for (unsigned int i = serial; i < LDS_NUM_ELEMENTS; i+=NUM_THREADS) {%s" % self.endLine
       kStr += "      printf(\\\"lds[%%06u] = %%.0f\\\\n\\\", i, localMemory[i]);%s" % self.endLine
       kStr += "    }" + self.endLine
-    return kStr
+    return kStr, tmpVgprStartIdxForLSHR
 
   ##############################################################################
   # Local Read: Swap Offsets A/B
@@ -3247,4 +3249,3 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def MapAcctoArchRegs(self, kernel, option):
     return ""
-

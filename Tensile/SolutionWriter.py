@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -57,10 +57,7 @@ class SolutionWriter:
   # get solution name
   ##############################################################################
   def getSolutionName(self, solution):
-    if globalParameters["ShortNames"]:
-      solutionName = Solution.getNameSerial(solution, self.solutionSerialNaming)
-    else:
-      solutionName = Solution.getNameMin(solution, self.solutionMinNaming)
+    solutionName = Solution.getNameMin(solution, self.solutionMinNaming)
     return solutionName
 
   ##############################################################################

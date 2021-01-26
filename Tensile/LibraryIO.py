@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -159,7 +159,7 @@ def readLibraryLogicForSchedule( filename ):
     if solutionState["KernelLanguage"] == "Assembly":
       solutionState["ISA"] = Common.gfxArch(architectureName)
     else:
-      solutionState["ISA"] = [0, 0, 0]
+      solutionState["ISA"] = (0, 0, 0)
     # force redo the deriving of parameters, make sure old version logic yamls can be validated
     solutionState["AssignedProblemIndependentDerivedParameters"] = False
     solutionState["AssignedDerivedParameters"] = False
