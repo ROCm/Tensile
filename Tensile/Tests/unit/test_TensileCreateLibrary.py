@@ -53,64 +53,64 @@ def test_assignParameters():
     assert hardcodedParameters != None
     assert initialSolutionParameters != None
 
-def test_generateSolutions():
+def test_generateSolutions(useGlobalParameters):
+    with useGlobalParameters():
+        scriptDir = os.path.dirname(os.path.realpath(__file__))
+        dataDir = os.path.realpath(os.path.join(scriptDir, "..", "test_data", "unit"))
+        problemTypeFilePath = os.path.join(dataDir, "library_data", "problemType.yaml")
+        hardcodedParametersFilePath = os.path.join(dataDir, "library_data", "hardcodedParameters.yaml")
+        initialSolutionParametersFilePath = os.path.join(dataDir, "library_data", "initialSolutionParameters.yaml")
 
-    scriptDir = os.path.dirname(os.path.realpath(__file__))
-    dataDir = os.path.realpath(os.path.join(scriptDir, "..", "test_data", "unit"))
-    problemTypeFilePath = os.path.join(dataDir, "library_data", "problemType.yaml")
-    hardcodedParametersFilePath = os.path.join(dataDir, "library_data", "hardcodedParameters.yaml")
-    initialSolutionParametersFilePath = os.path.join(dataDir, "library_data", "initialSolutionParameters.yaml")
+        problemType = LibraryIO.readConfig(problemTypeFilePath)["ProblemType"]
+        problemTypeObject = SolutionStructs.ProblemType(problemType)
+        hardcodedParameters = LibraryIO.readConfig(hardcodedParametersFilePath)
+        initialSolutionParameters = LibraryIO.readConfig(initialSolutionParametersFilePath)
 
-    problemType = LibraryIO.readConfig(problemTypeFilePath)["ProblemType"]
-    problemTypeObject = SolutionStructs.ProblemType(problemType)
-    hardcodedParameters = LibraryIO.readConfig(hardcodedParametersFilePath)
-    initialSolutionParameters = LibraryIO.readConfig(initialSolutionParametersFilePath)
+        solutionList = BenchmarkProblems.generateForkedSolutions (problemTypeObject, hardcodedParameters, [initialSolutionParameters])
 
-    solutionList = BenchmarkProblems.generateForkedSolutions (problemTypeObject, hardcodedParameters, [initialSolutionParameters])
+        assert len(solutionList) == 2
 
-    assert len(solutionList) == 2
+def test_loadSolutions(caplog, useGlobalParameters):
+    with useGlobalParameters():
+        mylogger.debug("this is a test of debug log")
+        mylogger.info("this is some info")
+        scriptDir = os.path.dirname(os.path.realpath(__file__))
+        dataDir = os.path.realpath(os.path.join(scriptDir, "..", "test_data", "unit"))
+        solutionsFilePath = os.path.join(dataDir, "solutions", "solutions_nn_3.yaml")
 
-def test_loadSolutions(caplog):
-
-    mylogger.debug("this is a test of debug log")
-    mylogger.info("this is some info")
-    scriptDir = os.path.dirname(os.path.realpath(__file__))
-    dataDir = os.path.realpath(os.path.join(scriptDir, "..", "test_data", "unit"))
-    solutionsFilePath = os.path.join(dataDir, "solutions", "solutions_nn_3.yaml")
-
-    fileSolutions = LibraryIO.readSolutions(solutionsFilePath)
-    solutions = fileSolutions[1]
-    kernels, _, _ = TensileCreateLibrary.generateKernelObjectsFromSolutions(solutions)
-    assert len(solutions) == 3
-    assert len(kernels) == 3
+        fileSolutions = LibraryIO.readSolutions(solutionsFilePath)
+        solutions = fileSolutions[1]
+        kernels, _, _ = TensileCreateLibrary.generateKernelObjectsFromSolutions(solutions)
+        assert len(solutions) == 3
+        assert len(kernels) == 3
 
 
-    solutionWriter, _, kernelWriterAssembly, \
-        _, _ = TensileCreateLibrary.getSolutionAndKernelWriters(solutions, kernels)
+        solutionWriter, _, kernelWriterAssembly, \
+            _, _ = TensileCreateLibrary.getSolutionAndKernelWriters(solutions, kernels)
 
-    expectedSolutionName0 = "Cijk_Ailk_Bljk_SB_MT128x128x2_SE_TT8_8_WG16_16_1"
-    expectedSolutionName1 = "Cijk_Ailk_Bljk_SB_MT64x64x2_SE_TT4_4_WG16_16_1"
-    expectedSolutionName2 = "Cijk_Ailk_Bljk_SB_MT64x64x2_SE_TT4_8_WG16_8_1"
+        expectedSolutionName0 = "Cijk_Ailk_Bljk_SB_MT128x128x2_SE_TT8_8_WG16_16_1"
+        expectedSolutionName1 = "Cijk_Ailk_Bljk_SB_MT64x64x2_SE_TT4_4_WG16_16_1"
+        expectedSolutionName2 = "Cijk_Ailk_Bljk_SB_MT64x64x2_SE_TT4_8_WG16_8_1"
 
-    actualSolutionName0 = solutionWriter.getSolutionName(solutions[0])
-    actualSolutionName1 = solutionWriter.getSolutionName(solutions[1])
-    actualSolutionName2 = solutionWriter.getSolutionName(solutions[2])
+        actualSolutionName0 = solutionWriter.getSolutionName(solutions[0])
+        actualSolutionName1 = solutionWriter.getSolutionName(solutions[1])
+        actualSolutionName2 = solutionWriter.getSolutionName(solutions[2])
 
-    assert expectedSolutionName0 == actualSolutionName0
-    assert expectedSolutionName1 == actualSolutionName1
-    assert expectedSolutionName2 == actualSolutionName2
+        assert expectedSolutionName0 == actualSolutionName0
+        assert expectedSolutionName1 == actualSolutionName1
+        assert expectedSolutionName2 == actualSolutionName2
 
-    expectedKernelName0 = "Cijk_Ailk_Bljk_SB_MT128x128x2_SE_K1_TT8_8_WG16_16_1"
-    expectedKernelName1 = "Cijk_Ailk_Bljk_SB_MT64x64x2_SE_K1_TT4_4_WG16_16_1"
-    expectedKernelName2 = "Cijk_Ailk_Bljk_SB_MT64x64x2_SE_K1_TT4_8_WG16_8_1"
+        expectedKernelName0 = "Cijk_Ailk_Bljk_SB_MT128x128x2_SE_K1_TT8_8_WG16_16_1"
+        expectedKernelName1 = "Cijk_Ailk_Bljk_SB_MT64x64x2_SE_K1_TT4_4_WG16_16_1"
+        expectedKernelName2 = "Cijk_Ailk_Bljk_SB_MT64x64x2_SE_K1_TT4_8_WG16_8_1"
 
-    actualKernelName0 = kernelWriterAssembly.getKernelName(kernels[0])
-    actualKernelName1 = kernelWriterAssembly.getKernelName(kernels[1])
-    actualKernelName2 = kernelWriterAssembly.getKernelName(kernels[2])
+        actualKernelName0 = kernelWriterAssembly.getKernelName(kernels[0])
+        actualKernelName1 = kernelWriterAssembly.getKernelName(kernels[1])
+        actualKernelName2 = kernelWriterAssembly.getKernelName(kernels[2])
 
-    assert expectedKernelName0 == actualKernelName0
-    assert expectedKernelName1 == actualKernelName1
-    assert expectedKernelName2 == actualKernelName2
+        assert expectedKernelName0 == actualKernelName0
+        assert expectedKernelName1 == actualKernelName1
+        assert expectedKernelName2 == actualKernelName2
 
 @pytest.mark.skip(reason="System issue with find assempler called when assigning defaults")
 def test_WriteClientLibraryFromSolutions(tmpdir):
