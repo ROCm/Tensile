@@ -483,6 +483,7 @@ namespace Tensile
 
                 size_t       prevBaseIndex = 0;
                 const size_t innerDimSize  = tensor.sizes()[0];
+                const size_t initialStride = tensor.strides()[0];
 
                 for(size_t i = 0; i < outerCount; i++)
                 {
@@ -509,7 +510,7 @@ namespace Tensile
 
                     for(size_t j = 0; j < innerDimSize; j++)
                     {
-                        size_t elemIndex = baseElemIndex + j;
+                        size_t elemIndex = baseElemIndex + (j * initialStride);
 
                         Type referenceValue = reference.d[elemIndex];
                         Type resultValue    = resultData[elemIndex];
