@@ -74,6 +74,9 @@ namespace Tensile
     {
         virtual ~SolutionLibrary() = default;
 
+        //virtual SolutionSet<MySolution> findBestEvaluationSolution(MyProblem const& problem,
+        //                                                           Hardware const&  hardware) const = 0;
+        
         /**
    * Returns the single `Solution` object that best solves this
    * particular `problem` on this particular piece of `hardware`.

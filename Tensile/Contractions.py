@@ -437,7 +437,8 @@ class Solution:
                 'debugKernel',
                 'info',
                 'index',
-                'ideals']
+                'ideals',
+                'linearModel']
     HiddenKeys = ['originalSolution']
 
     @classmethod
@@ -469,6 +470,11 @@ class Solution:
             rv.ideals = d['Ideals']
         else:
             rv.ideals = {}
+
+        if 'LinearModel' in d:
+            rv.linearModel = d['LinearModel']
+        else:
+            rv.linearModel = {}
 
         if 'ISA' not in d:
             if d['KernelLanguage'] == 'Assembly':

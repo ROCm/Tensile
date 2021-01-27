@@ -46,6 +46,16 @@ import sys
 import time
 from copy import deepcopy
 
+ # Translate GPU targets to filter filenames in Tensile_LOGIC directory
+mapArchitecture = {'all':'_','gfx000':'none', 'gfx803':'r9nano',
+  'gfx900':'vega10', 'gfx906':'vega20', 'gfx908':'arcturus'}
+
+
+def getArchitectureName(gfxName):
+  if gfxName in mapArchitecture:
+    return mapArchitecture[gfxName]
+  else:
+    return None
 
 ################################################################################
 def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
@@ -1311,6 +1321,8 @@ def TensileCreateLibrary():
   print2(HR)
   print2("")
 
+  print ("this is an exit")
+
   ##############################################################################
   # Parse Command Line Arguments
   ##############################################################################
@@ -1409,6 +1421,7 @@ def TensileCreateLibrary():
 
   if not os.path.exists(logicPath):
     printExit("LogicPath %s doesn't exist" % logicPath)
+
 
   # Translate GPU targets to filter filenames in Tensile_LOGIC directory
   mapArchitecture = {'all':'_','gfx000':'none', 'gfx803':'r9nano',

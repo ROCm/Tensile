@@ -129,6 +129,40 @@ namespace Tensile
             StaticPerformanceModel staticModel;
         };
 
+        struct TAMetricProblemScore
+        {
+            double numTiles0  = 0.0; //! number of tiles in 0 dimension
+            double numTiles1  = 0.0; //! number of tiles in 1 dimension
+            double totalTiles = 0.0;
+            double tilesPerCu = 0.0;
+
+            //! Granularity is measured 0..1 with 1.0 meaning no granularity loss
+            double tile0Granularity  = 0.0; // loss due to tile0
+            double tile1Granularity  = 0.0;
+            double natCuGranularity  = 0.0;
+            //double waveGranularity   = 0.0;
+            double totalGranularity  = 0.0;
+            double natTilesPerCu     = 0.0;
+            double suTilesPerCu      = 0.0;
+            double suCuGranularity   = 0.0;
+            double waves             = 0.0;
+            double suWavesPerSimdx2  = 0.0;
+            double suWaveGranularity = 0.0;
+
+            double speedGFlops = 0.0; //! final gflops projection
+            int    CUs         = 0;
+
+            double summationPerformance = 0.0;
+
+            double M;
+            double N;
+            double K;
+            double MT0;
+            double MT1;
+            double GSU;
+            double LSU;
+        };
+
         /**
    * Calculate required workspace size.
    */
@@ -143,6 +177,16 @@ namespace Tensile
                                                       double NumCUs,
                                                       double totalGranularity,
                                                       int    globalSplitU) const;
+
+        TAMetricProblemScore computeProblemScore(Hardware const& hardware,
+                                                 double          M,
+                                                 double          N,
+                                                 double          K,
+                                                 double          NumBatches,
+                                                 double          LDA,
+                                                 double          LDB,
+                                                 double          LDC,
+                                                 double          LDD) const;
 
         /**
    * Calculate the projected performance based on granularity loss.
@@ -240,6 +284,7 @@ namespace Tensile
         /// somewhere else.
         std::map<std::string, std::string> info;
         std::map<int, double>              ideals;
+        std::map<std::string, double>      linearModel;
 
         int32_t staggerUIter(Problem const&  problem,
                              Inputs const&   inputs,

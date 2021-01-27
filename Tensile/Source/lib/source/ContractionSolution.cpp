@@ -1080,6 +1080,109 @@ namespace Tensile
         return pp;
     }
 
+    ContractionSolution::TAMetricProblemScore
+        ContractionSolution::computeProblemScore(Hardware const& hardware,
+                                                 double          M,
+                                                 double          N,
+                                                 double          K,
+                                                 double          NumBatches,
+                                                 double          LDA,
+                                                 double          LDB,
+                                                 double          LDC,
+                                                 double          LDD) const
+    {
+        ContractionSolution::TAMetricProblemScore pp;
+
+        double MT0           = sizeMapping.macroTile.x;
+        double MT1           = sizeMapping.macroTile.y;
+        double NumCUs        = perf.CUs;
+        double wavefrontSize = 64; //defaults to 64
+        double simdPerCu     = 4;
+
+        pp.M = M;
+        pp.N = N;
+        pp.K = K;
+        pp.MT0 = MT0;
+        pp.MT1 = MT1;
+
+        AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
+        if(pAMDGPU != nullptr)
+        {
+            NumCUs        = pAMDGPU->computeUnitCount;
+            wavefrontSize = pAMDGPU->wavefrontSize;
+            simdPerCu     = pAMDGPU->simdPerCu;
+        }
+
+        double GlobalSplitU = sizeMapping.globalSplitU;
+        double LocalSplitU  = sizeMapping.workGroupSize.z;
+
+        pp.GSU = GlobalSplitU;
+        pp.LSU = LocalSplitU;
+
+        pp.numTiles0 = M / MT0;
+        pp.numTiles1 = N / MT1;
+
+        pp.tile0Granularity = pp.numTiles0 / ceil(pp.numTiles0);
+        pp.tile1Granularity = pp.numTiles1 / ceil(pp.numTiles1);
+
+        pp.totalTiles = ceil(pp.numTiles0) * ceil(pp.numTiles1);
+        pp.natTilesPerCu = NumBatches * pp.totalTiles / NumCUs;
+        pp.suTilesPerCu    = (pp.totalTiles * GlobalSplitU) / NumCUs;
+        pp.suCuGranularity = pp.suTilesPerCu / ceil(pp.suTilesPerCu);
+
+        pp.waves
+            = ceil((sizeMapping.workGroupSize.x * sizeMapping.workGroupSize.y) / wavefrontSize);
+
+        pp.suWavesPerSimdx2  = (pp.suTilesPerCu * pp.waves) / (2 * simdPerCu);
+        pp.suWaveGranularity = pp.suWavesPerSimdx2 * ceil(pp.suWavesPerSimdx2);
+        pp.totalGranularity
+            = pp.tile0Granularity * pp.tile1Granularity * pp.suCuGranularity * pp.suWaveGranularity;
+
+        double nat_tiles_per_cu = NumBatches * ceil(pp.numTiles0) * ceil(pp.numTiles1) / NumCUs;
+        pp.natCuGranularity = ceil(nat_tiles_per_cu) * ceil(nat_tiles_per_cu) / NumCUs;
+
+        //double slope = linearModel["slope"];
+        auto modelSlope = linearModel.find("slope");
+        double slope = 0.0;
+        double intercept = 0.0;
+        double perf_max = 10000.0;
+        if (modelSlope != linearModel.end()) 
+        {
+            slope = modelSlope->second;
+            //std::cout << "The slope is " << slope << std::endl;
+        }
+        //else
+        //{
+        //    //std::cout << "no go, try again." << std::endl;
+        //}
+        ///pp.suCuGranularity = CEIL(tiles0) * CEIL(tiles1) *GSU * LSU / num_cus
+
+        auto modelIntercept = linearModel.find("intercept");
+        if (modelIntercept != linearModel.end()) 
+        {
+            intercept = modelIntercept->second;
+            //std::cout << "The intercept is " << intercept << std::endl;
+        }
+        //else
+        //{
+        //    std::cout << "no go, try again." << std::endl;
+        //}
+
+        auto modelPerfMax = linearModel.find("max");
+        if (modelPerfMax != linearModel.end()) 
+        {
+            perf_max = modelPerfMax->second;
+            //std::cout << "The intercept is " << intercept << std::endl;
+        }
+
+        double sum_value = K;
+        double sum_perf0 = sum_value / (intercept + (slope * sum_value));
+        pp.summationPerformance = 1000.0 * sum_perf0 / perf_max;
+        //pp.summationPerformance = 1000.0 * sum_perf0 / 10894.0;  // = MAX_PERF; // TODO: compute ideal perf  instead of MAX_PERF
+
+        return pp;
+    }
+
     std::ostream& operator<<(std::ostream&                                      stream,
                              ContractionSolution::StaticPerformanceModel const& spm)
     {

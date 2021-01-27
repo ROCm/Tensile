@@ -732,6 +732,16 @@ def CreateBenchmarkClientParametersForSizes(libraryRootPath, problemSizes, dataF
 
     writeClientConfigIni(problemSizes, problemType, libraryRootPath, codeObjectFiles, dataFilePath, configFile)
 
+def CreateBenchmarkClientParametersForSizesP(libraryRootPath, problemSizes, dataFilePath, configFile, problemTypeDict):
+
+    libraryPath = os.path.join(libraryRootPath, "library")
+    libraryFiles = [os.path.join(libraryPath, f) for f in os.listdir(libraryPath)]
+    codeObjectFiles = [f for f in libraryFiles if f.endswith("co")]
+
+    problemType = ContractionsProblemType.FromOriginalState(problemTypeDict)
+
+    writeClientConfigIni(problemSizes, problemType, libraryRootPath, codeObjectFiles, dataFilePath, configFile)
+
 
 ################################################################################
 # Write Generated Benchmark Parameters

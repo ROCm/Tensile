@@ -76,6 +76,14 @@ namespace Tensile
             virtual std::tuple<ReturnValue, double> findBestMatch(Object const& object,
                                                                   Transform transform) const = 0;
 
+            //virtual SolutionSet<MySolution> findBestEvaluationSolution(MyProblem const& problem,
+            //                                                           Transform transform) const = 0;
+
+            //virtual SolutionSet<MySolution> findBestEvaluationSolution(Object const& object,
+            virtual ReturnValue findBestEvaluationSolution(Object const& object, 
+                                                           Hardware const&  hardware,
+                                                           Transform transform) const = 0;
+
             virtual std::vector<Value> matchesInOrder(Object const& object) const = 0;
 
             virtual std::string description() const = 0;
@@ -459,6 +467,196 @@ namespace Tensile
             virtual std::vector<Value> matchesInOrder(Object const& object) const override
             {
                 return keyMatchesInOrder(keyForProblem(object));
+            }
+
+            //virtual SolutionSet<MySolution> findBestEvaluationSolution(Object const& object,
+
+            double computeTileAwareMetric(ContractionSolution::TAMetricProblemScore pp,
+                                          ContractionSolution::TAMetricProblemScore ppReference) const
+            {
+                double metric = 0.0; //std::numeric_limits<double>::max();
+  
+                double tile0GranularityDim = abs(log(ppReference.tile0Granularity) - log(pp.tile0Granularity));
+                metric = tile0GranularityDim; 
+
+                double tile1GranularityDim = abs(log(ppReference.tile1Granularity) - log(pp.tile1Granularity));
+                metric += tile1GranularityDim;
+
+                double natCuGranularityDim = abs(log(ppReference.natCuGranularity) - log(pp.natCuGranularity));
+                metric += natCuGranularityDim;
+
+                double suCuGranularityDim = abs(log(ppReference.suCuGranularity) - log(pp.suCuGranularity));
+                metric += suCuGranularityDim;
+
+                double suWaveGranularityDim = abs(log(ppReference.suWaveGranularity) - log(pp.suWaveGranularity));
+                metric += suWaveGranularityDim;
+
+                double natTilesPerCuDim = abs(log(ppReference.natTilesPerCu) - log(pp.natTilesPerCu));
+                metric += natTilesPerCuDim;
+
+                double suTilesPerCuDim = abs(log(ppReference.suTilesPerCu) - log(pp.suTilesPerCu));
+                metric += suTilesPerCuDim;
+
+                double summationPerformanceDim = abs(ppReference.summationPerformance - pp.summationPerformance);
+                metric += summationPerformanceDim;
+
+                return metric;
+            }
+
+            double computeTAMScore(ReturnValue& solution, Hardware const&  hardware, Object const& object, Key key) const
+            {
+                size_t M = object.freeSizeA(0);
+                size_t N = object.freeSizeB(0);
+                size_t K = object.boundSize(0);
+                size_t NumBatches = object.batchSize(0);
+
+                size_t model_M         = key[0];
+                size_t model_N         = key[1];
+                size_t model_K         = 1;
+                size_t model_batchSize = 1;
+
+                if (key.size() > 3)
+                {
+                    model_K = key[3];
+                    model_batchSize = key[2];
+                }
+                else
+                {
+                    model_K = key[2];
+                }
+
+                ContractionSolution::TAMetricProblemScore pp
+                      = solution->computeProblemScore(hardware, M, N, K, NumBatches, 0, 0, 0, 0);
+                      //= solution->computeProblemScore(hardware, M, N, K, NumBatches, 0, 0, 0, 0);
+
+                ContractionSolution::TAMetricProblemScore ppReference
+                      = solution->computeProblemScore(
+                          hardware, model_M, model_N, model_K, model_batchSize, 0, 0, 0, 0);
+
+                double distance = this->computeTileAwareMetric(pp, ppReference);
+
+                return distance;
+            }
+
+            virtual ReturnValue findBestEvaluationSolution(Object const& object , 
+                                                           Hardware const&  hardware, 
+                                                           Transform transform) const override
+            //virtual std::tuple<ReturnValue, double>
+            //    findBestEvaluationSolution(Object const& object, Transform transform)
+            {
+                double bestDistance = std::numeric_limits<double>::max();
+
+                auto iter = this->table.begin();
+                if(iter == this->table.end())
+                    return this->nullValue;
+                    //return std::make_tuple(this->nullValue, bestDistance);
+
+                ReturnValue theMatch = transform(iter->value);
+                //if (theMatch == nullptr)
+                //    return this->nullValue;
+
+                ReturnValue bestMatch = theMatch;
+                if (theMatch != nullptr)
+                    bestDistance = computeTAMScore(theMatch, hardware, object, iter->key);
+                
+                //if(bestMatch)
+                //    bestDistance = distance(key, iter->key);
+
+
+                //auto iter = this->table.begin();
+                iter++;
+
+                if(iter == this->table.end())
+                    //return std::make_tuple(this->nullValue, bestDistance);
+                    return this->nullValue;
+
+                //size_t M = object.freeSizeA(0);
+                //size_t N = object.freeSizeB(0);
+                //size_t K = object.boundSize(0);
+                //size_t NumBatches = object.batchSize(0);
+
+                while(iter != this->table.end())
+                {
+                    auto nextMatch = transform(iter->value);
+
+                    //size_t model_M         = iter->key[0];
+                    //size_t model_N         = iter->key[1];
+                    //size_t model_K         = 1;
+                    //size_t model_batchSize = 1;
+
+                    //if (iter->key.size() > 3)
+                    //{
+                    //    model_K = iter->key[3];
+                    //    model_batchSize = iter->key[2];
+                    //}
+                    //else
+                    //{
+                    //    model_K = iter->key[2];
+                    //}
+                    
+
+                    //size_t model_batchSize = model_size[2];
+                    //size_t model_K         = model_size[3];
+
+                    //std::vector<size_t> key;
+                    //size_t M = problem.freeSizeA(0);
+                    //size_t M = myMatch->freeSizeA(0);
+                    //key.push_back(M);
+                    //size_t N = problem.freeSizeB(0);
+                    //size_t N = myMatch->freeSizeB(0);
+                    //key.push_back(N);
+                    //size_t NumBatches = problem.batchSize(0);
+                    //size_t NumBatches = myMatch->batchSize(0);
+                    //key.push_back(NumBatches);
+                    //size_t K = problem.boundSize(0);
+                    //size_t K = myMatch->boundSize(0);
+                    //key.push_back(K);
+
+                    //size_t M = 0;
+                    //size_t N = 0;
+                    //size_t K = 0;
+                    //ssize_t NumBatches = 0;
+
+                    //size_t M = object.freeSizeA(0);
+                    //size_t N = object.freeSizeB(0);
+                    //size_t K = object.boundSize(0);
+                    //size_t NumBatches = object.batchSize(0);
+
+                    //ContractionSolution::TAMetricProblemScore ppReference
+                    //  = solution->computeProblemScore(
+                    //      hardware, model_M, model_N, model_K, model_batchSize, 0, 0, 0, 0);
+
+                    //ContractionSolution::TAMetricProblemScore pp
+                    //  = myMatch->computeProblemScore(hardware, M, N, K, NumBatches, 0, 0, 0, 0);
+                      //= solution->computeProblemScore(hardware, M, N, K, NumBatches, 0, 0, 0, 0);
+
+                    //ContractionSolution::TAMetricProblemScore ppReference
+                    //  = myMatch->computeProblemScore(
+                    //      hardware, model_M, model_N, model_K, model_batchSize, 0, 0, 0, 0);
+
+                    if (nextMatch != nullptr)
+                    {
+                        //double distance = this->computeTileAwareMetric(pp, ppReference);
+                        //double distance = 0.0;
+
+                        double nextDistance = computeTAMScore(nextMatch, hardware, object, iter->key);
+ 
+                        if (nextDistance < bestDistance)
+                        {
+                            //bestMatch = transform(iter->value);
+                            bestMatch = nextMatch; //transform(iter->value);
+                            bestDistance = nextDistance;
+                        }
+                    }
+
+                    ++iter;
+                }
+
+                //return this->nullValue;
+
+                //std::cout << "best distance is: " << bestDistance << std::endl;
+                return bestMatch;
+                //return std::make_tuple(this->nullValue, std::numeric_limits<double>::max());
             }
 
             virtual std::string description() const override
