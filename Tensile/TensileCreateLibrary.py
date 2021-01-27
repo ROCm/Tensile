@@ -125,7 +125,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
     (_, filename) = os.path.split(kernelFile)
     (base, _) = os.path.splitext(filename)
 
-    if "CmakeCxxCompiler" in globalParameters:
+    if "CmakeCxxCompiler" in globalParameters and globalParameters["CmakeCxxCompiler"] is not None:
       os.environ["CMAKE_CXX_COMPILER"] = globalParameters["CmakeCxxCompiler"]
 
     objectFilename = base + '.o'
