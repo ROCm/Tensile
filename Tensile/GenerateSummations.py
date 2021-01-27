@@ -176,3 +176,9 @@ def GenerateSummations(userArgs):
         LibraryIO.configWriter("yaml").writeLibraryLogicForSchedule(finalPath, \
             scheduleName1, architectureName1, \
             deviceNames1, logicTuple1)
+
+        localFinalLogic = os.path.join(finalPath, logicFileBaseName)
+        outputFinal = ensurePath(os.path.join(outputPath, "final"))
+        finalLogic = os.path.join(outputFinal, logicFileBaseName)
+
+        copyfile(localFinalLogic, finalLogic)
