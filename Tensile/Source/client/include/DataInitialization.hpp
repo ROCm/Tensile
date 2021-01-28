@@ -432,12 +432,20 @@ namespace Tensile
             InitMode m_aInit, m_bInit, m_cInit, m_dInit;
             InitMode m_alphaInit, m_betaInit;
 
+            size_t m_aBufferOffset;
+            size_t m_bBufferOffset;
+            size_t m_cBufferOffset;
+            size_t m_dBufferOffset;
+
             size_t m_aMaxElements;
             size_t m_bMaxElements;
             size_t m_cMaxElements;
             size_t m_dMaxElements;
+            size_t m_maxBatch;
 
             size_t m_workspaceSize;
+
+            bool m_stridedBatched;
 
             bool m_cEqualsD;
             bool m_convolutionVsContraction;
@@ -858,6 +866,49 @@ namespace Tensile
         }
 
         template <>
+        inline int8_t DataInitialization::getValue<int8_t, InitMode::Zero>()
+        {
+            return 0;
+        }
+        template <>
+        inline int8_t DataInitialization::getValue<int8_t, InitMode::One>()
+        {
+            return 1;
+        }
+        template <>
+        inline int8_t DataInitialization::getValue<int8_t, InitMode::Two>()
+        {
+            return 2;
+        }
+        template <>
+        inline int8_t DataInitialization::getValue<int8_t, InitMode::NaN>()
+        {
+            throw std::runtime_error("NaN not available for int8_t.");
+        }
+        template <>
+        inline int8_t DataInitialization::getValue<int8_t, InitMode::Inf>()
+        {
+            throw std::runtime_error("Inf not available for int8_t.");
+        }
+
+        template <>
+        inline int8_t DataInitialization::getValue<int8_t, InitMode::Random>()
+        {
+            return static_cast<int8_t>((rand() % 7) - 3);
+        }
+
+        template <>
+        inline int8_t DataInitialization::getValue<int8_t, InitMode::BadInput>()
+        {
+            return std::numeric_limits<int8_t>::max();
+        }
+        template <>
+        inline int8_t DataInitialization::getValue<int8_t, InitMode::BadOutput>()
+        {
+            return std::numeric_limits<int8_t>::min();
+        }
+
+        template <>
         inline bool DataInitialization::isBadInput<float>(float value)
         {
             return std::isnan(value);
@@ -903,6 +954,12 @@ namespace Tensile
         inline bool DataInitialization::isBadInput<BFloat16>(BFloat16 value)
         {
             return std::isnan(value);
+        }
+
+        template <>
+        inline bool DataInitialization::isBadInput<int8_t>(int8_t value)
+        {
+            return value == DataInitialization::getValue<int8_t, InitMode::BadInput>();
         }
 
         template <>
@@ -955,6 +1012,12 @@ namespace Tensile
         }
 
         template <>
+        inline bool DataInitialization::isBadOutput<int8_t>(int8_t value)
+        {
+            return value == DataInitialization::getValue<int8_t, InitMode::BadOutput>();
+        }
+
+        template <>
         inline float DataInitialization::getTrigValue<float>(int idx, bool useCos, bool useAbs)
         {
             float val = useCos ? cos(idx) : sin(idx);
@@ -995,6 +1058,12 @@ namespace Tensile
         inline Int8x4 DataInitialization::getTrigValue<Int8x4>(int idx, bool useCos, bool useAbs)
         {
             throw std::runtime_error("Trig not available for Int8x4.");
+        }
+
+        template <>
+        inline int8_t DataInitialization::getTrigValue<int8_t>(int idx, bool useCos, bool useAbs)
+        {
+            throw std::runtime_error("Trig not available for Int8.");
         }
 
         template <>
@@ -1167,6 +1236,12 @@ namespace Tensile
         inline Int8x4 DataInitialization::getValue<Int8x4, InitMode::RandomNarrow>()
         {
             return getValue<Int8x4, InitMode::Random>();
+        }
+
+        template <>
+        inline int8_t DataInitialization::getValue<int8_t, InitMode::RandomNarrow>()
+        {
+            return getValue<int8_t, InitMode::Random>();
         }
     } // namespace Client
 } // namespace Tensile

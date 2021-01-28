@@ -40,6 +40,7 @@ import argparse
 import collections
 import itertools
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -118,6 +119,8 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
 def which(p):
     exes = [p+x for x in ['', '.exe', '.bat']]
     system_path = os.environ['PATH'].split(os.pathsep)
+    if p == 'hipcc' and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
+        return os.environ['CMAKE_CXX_COMPILER']
     for dirname in system_path+[globalParameters["ROCmBinPath"]]:
         for exe in exes:
             candidate = os.path.join(os.path.expanduser(dirname), exe)
@@ -131,6 +134,9 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
     destDir = ensurePath(os.path.join(outputPath, 'library'))
     (_, filename) = os.path.split(kernelFile)
     (base, _) = os.path.splitext(filename)
+
+    if "CmakeCxxCompiler" in globalParameters and globalParameters["CmakeCxxCompiler"] is not None:
+      os.environ["CMAKE_CXX_COMPILER"] = globalParameters["CmakeCxxCompiler"]
 
     objectFilename = base + '.o'
     objectFilepath = os.path.join(buildPath, objectFilename)
@@ -200,13 +206,27 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         print('hipcc:', ' '.join(compileArgs))
       subprocess.check_call(compileArgs)
 
-      for i in range(len(archs)):
-        infile = os.path.join(buildPath, objectFilename)
-        outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
-        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
-        if globalParameters["PrintCodeCommands"]:
-          print(' '.join(bundlerArgs))
-        subprocess.check_call(bundlerArgs)
+      infile = os.path.join(buildPath, objectFilename)
+      try:
+        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-inputs=%s" % infile, "-list"]
+        listing = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT).decode().split("\n")
+        for target in listing:
+          matched = re.search("gfx.*$", target)
+          if matched:
+            arch = re.sub(":", "-", matched.group())
+            outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, arch))
+            bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=%s" % target, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+            if globalParameters["PrintCodeCommands"]:
+              print(' '.join(bundlerArgs))
+            subprocess.check_call(bundlerArgs)
+
+      except subprocess.CalledProcessError:
+        for i in range(len(archs)):
+          outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
+          bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+          if globalParameters["PrintCodeCommands"]:
+            print(' '.join(bundlerArgs))
+          subprocess.check_call(bundlerArgs)
 
       coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
     else:
@@ -860,7 +880,7 @@ def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problem
         solution["AssertFree0ElementMultiple"], \
         solution["AssertFree1ElementMultiple"], \
         solution["AssertMinApproxSize"], \
-        solution["LdcEqualsLdd"], \
+        False, \
         solution["PackBatchDims"]==2, \
         solution["PackBatchDims"]==1, \
         "," if i < len(solutionsForSchedule)-1 else "", \
@@ -988,13 +1008,8 @@ def writeSolutionCall(solutionName, problemType):
 def getSolutionAndKernelWriters(solutions, kernels):
 
   # if any kernels are assembly, append every ISA supported
-
-  if globalParameters["ShortNames"] and not globalParameters["MergeFiles"]:
-    solutionSerialNaming = Solution.getSerialNaming(solutions)
-    kernelSerialNaming   = Solution.getSerialNaming(kernels)
-  else:
-    solutionSerialNaming = None
-    kernelSerialNaming   = None
+  solutionSerialNaming = Solution.getSerialNaming(solutions)
+  kernelSerialNaming   = Solution.getSerialNaming(kernels)
 
   solutionMinNaming    = Solution.getMinNaming(solutions)
   kernelMinNaming      = Solution.getMinNaming(kernels)
@@ -1341,8 +1356,9 @@ def TensileCreateLibrary():
   argParser.add_argument("OutputPath",      help="Where to write library files?")
   argParser.add_argument("RuntimeLanguage", help="Which runtime language?", choices=["OCL", "HIP", "HSA"])
   argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hcc", "hipcc"],       action="store", default="hipcc")
+  argParser.add_argument("--cmake-cxx-compiler",     dest="CmakeCxxCompiler",  action="store")
   argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["V2", "V3"], action="store", default="V3")
-  argParser.add_argument("--architecture",           dest="Architecture",      choices=["all", "gfx000", "gfx803", "gfx900", "gfx906", "gfx908"], action="store", default="all")
+  argParser.add_argument("--architecture",           dest="Architecture",      choices=["all", "gfx000", "gfx803", "gfx900", "gfx906:xnack-", "gfx908:xnack-"], action="store", default="all")
   argParser.add_argument("--merge-files",            dest="MergeFiles",        action="store_true")
   argParser.add_argument("--no-merge-files",         dest="MergeFiles",        action="store_false")
   argParser.add_argument("--short-file-names",       dest="ShortNames",        action="store_true")
@@ -1384,6 +1400,8 @@ def TensileCreateLibrary():
   arguments["CodeObjectVersion"] = args.CodeObjectVersion
   arguments["Architecture"] = args.Architecture
   arguments["CxxCompiler"] = args.CxxCompiler
+  if args.CmakeCxxCompiler:
+    os.environ["CMAKE_CXX_COMPILER"] = args.CmakeCxxCompiler
   arguments["MergeFiles"] = args.MergeFiles
   arguments["ShortNames"] = args.ShortNames
   arguments["LibraryPrintDebug"] = args.LibraryPrintDebug
@@ -1425,7 +1443,7 @@ def TensileCreateLibrary():
 
   # Translate GPU targets to filter filenames in Tensile_LOGIC directory
   mapArchitecture = {'all':'_','gfx000':'none', 'gfx803':'r9nano',
-        'gfx900':'vega10', 'gfx906':'vega20', 'gfx908':'arcturus'}
+        'gfx900':'vega10', 'gfx906:xnack-':'vega20', 'gfx908:xnack-':'arcturus'}
 
   for key in mapArchitecture:
     if arguments["Architecture"] == key:

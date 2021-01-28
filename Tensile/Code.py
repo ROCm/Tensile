@@ -635,7 +635,7 @@ class  MacInst (Inst):
         else:
           raise NotImplementedError("Half-precision not supported for arch=%u" % self.version )
 
-      # integer i8
+      # integer i8x4
       elif self.kernel["ProblemType"]["DataType"].isInt8x4():
         if self.version == (8,0,3):
           kStr += "// int8 not implemented yet for gfx803:"

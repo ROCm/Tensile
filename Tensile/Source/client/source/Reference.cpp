@@ -304,7 +304,7 @@ namespace Tensile
                 }
 
                 auto cIndex = c.index(cCoord);
-                auto dIndex = d.index(cCoord);
+                auto dIndex = d.index(dCoord);
 
                 // Ensure zero*nan returns zero
                 auto beta = static_cast<typename Inputs::DType>(inputs.beta);
@@ -410,6 +410,12 @@ namespace Tensile
                 auto const& typedInputs
                     = dynamic_cast<ContractionInputs_I32_I32_I32 const&>(inputs);
                 return ReferenceSolution<ContractionInputs_I32_I32_I32>::SolveCPU(
+                    problem, typedInputs, validationStride);
+            }
+            case ContractionInputs_I8_I32_I32::TypeId():
+            {
+                auto const& typedInputs = dynamic_cast<ContractionInputs_I8_I32_I32 const&>(inputs);
+                return ReferenceSolution<ContractionInputs_I8_I32_I32>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
 #ifdef TENSILE_USE_BF16

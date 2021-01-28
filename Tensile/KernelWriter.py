@@ -260,27 +260,35 @@ class KernelWriter(metaclass=abc.ABCMeta):
         loadsToSched = sum(1 for item in itemsGRToSched if item.countTypeList(filter))
         self.grEndMfmaIndex = max(0, roundUp(loadsToSched/self.numGlobalReadInsPerMfma) - 1)
         if self.grEndMfmaIndex > self.lwEndMfmaIndex:
-          firstStep = (numMfmaPerIter + (self.grEndMfmaIndex - self.lwEndMfmaIndex)) * self.numGlobalReadInsPerMfma
+          schedNumForIter0 = (numMfmaPerIter + (self.grEndMfmaIndex - self.lwEndMfmaIndex)) * self.numGlobalReadInsPerMfma
           self.grEndMfmaIndex = self.lwEndMfmaIndex
         else:
-          firstStep = numMfmaPerIter * self.numGlobalReadInsPerMfma
+          schedNumForIter0 = numMfmaPerIter * self.numGlobalReadInsPerMfma
         endIter = roundUp((readCnt + 2 + 2*numEmptyGlobalReadIncCode)/numMfmaPerIter)
         if endIter > kernel["LoopIters"]:
           endIter = kernel["LoopIters"]
+      # SIA 1 or 2
+      # distribute the instructions in itemsGRToSched evenly as possible to iterations: perIterGlobalReadCode[0,endIter)
+      # last one is perIterGlobalReadCode[endIter-1],
+      # Ideally:     endIter <= localWriteEndIter,
+      #              then put M0 updateCode (if any) and first 'schedNumForIter0' GR-inst in perIterGlobalReadCode[0]
+      #              put every numGlobalReadInsPerIter GR-insts in perIterGlobalReadCode[1]~[endIter-1]
+      # corner case: endIter > localWriteEndIter, set endIter = localWriteEndIter,in this case, schedNumForIter0 will > 1
+      #              and perIterGlobalReadCode[0] would need to schedule more instructions
       else:
         # reads and incs are scheduled in iters range(0..endIter)
         endIter = readCnt + 2
         if endIter > localWriteEndIter:
           # Front-load some of the buffer loads if we don't have enough loop iters:
           # could use a different/smarter algorithm to space out the loads?
-          firstStep = endIter-(localWriteEndIter) + 1
+          schedNumForIter0 = endIter-(localWriteEndIter) + 1
           endIter = localWriteEndIter
         else:
           # schedule b2b for readCnt > 2 (True for bigger TT)
-          firstStep = 1
+          schedNumForIter0 = 1
 
       if schedDb & 0x1:
-        print("makeSchedule-gr, readCnt=", readCnt, "firstStep=", firstStep, "endIter=", endIter)
+        print("makeSchedule-gr, readCnt=", readCnt, "schedNumForIter0=", schedNumForIter0, "endIter=", endIter)
 
       # insert dtlsM0UpdateACode dtlsM0UpdateBCode code
       if self.globalReadACode.middle.items():
@@ -288,11 +296,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.globalReadBCode.middle.items():
         self.globalReadBCode.middle.items()[0].items().insert(0,self.dtlsM0UpdateBCode)
       # append 'n' global load at a time
-      # append global load(S) first 'number of global load(s) determined by  firstStep
-      for item in itemsGRToSched[:firstStep]:
+      # append global load(S) first 'number of global load(s)' determined by schedNumForIter0
+      for item in itemsGRToSched[:schedNumForIter0]:
         self.perIterGlobalReadCode[0].addCode(item)
-      itemsGRToSched = itemsGRToSched[firstStep:]
+      itemsGRToSched = itemsGRToSched[schedNumForIter0:] # trim the scheduled GRs, do the rest in the following loop
+
       for u in range(1, endIter):
+        # append itemPerIter GR for each iteration,
+        # and trim the scheduled ones at the end of loop
         itemPerIter = 1 * numGlobalReadInsPerIter
         try:
           for item in itemsGRToSched[:itemPerIter]:
@@ -300,7 +311,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             lastLoadIter = u
           itemsGRToSched = itemsGRToSched[itemPerIter:]
         except IndexError:
-          break # no code left to schedule
+          break # itemsGRToSched is 0-length, no code left to schedule
 
       # here is to avoid globalReadInc code not add in
       # TODO: globalReadInc scheduling should not be blocked by localWriteInst
@@ -308,7 +319,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         for item in itemsGRToSched:
           self.perIterGlobalReadCode[endIter-1].addCode(item)
       else:
-        assert not itemsGRToSched # should have scheduled everything already
+        assert not itemsGRToSched # should have scheduled everything already, itemsGRToSched should be empty
 
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadACode.footer)
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadBCode.footer)
@@ -554,7 +565,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       iterCode.addCode(waitCode)
 
       # interleave pack code
-      instPerPack = 1 if kernel["ProblemType"]["DataType"].isBFloat16() else 2
+      # BF16: each packCode is for one 32-bit reg,  1 packing inst: half-to-single x1
+      # FP16: each packCode is for two 32-bit regs, 2 packing inst: half-to-single x2
+      # INT8: each packCode is for one 32-bit regs, 3 packing inst: byte-to-half x2 + half-to-single x1
+      instPerPack = 3 if kernel["ProblemType"]["DataType"].isInt8() else ( 1 if kernel["ProblemType"]["DataType"].isBFloat16() else 2 )
       packItems = []
       for iui in range(kernel["InnerUnroll"]):
         packINtems = [ [] for j in range(max(self.numReadsIterCoalescedA,self.numReadsIterCoalescedB)) ]
@@ -605,11 +619,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # if i % kernel["MIWaveTile"][0]==0, mfma will use new B
           packAIdx += instPerPack if i//(kernel["MIWaveTile"][0]+kernel["MIWaveTile"][0]*kernel["MIWaveTile"][1]*(i//(kernel["MIWaveTile"][0]*kernel["MIWaveTile"][1]))) == 0 else 0
           packBIdx += instPerPack if i % kernel["MIWaveTile"][0] == 0 else 0
-          packAIdx = packAIdx if self.tPA["localReadInstruction"].blockWidth == 0.5 else 0
-          packBIdx = packBIdx if self.tPB["localReadInstruction"].blockWidth == 0.5 else 0
+          # blockWidth < 1, means 0.5 or 0.25 (BF,H,Int8)
+          packAIdx = packAIdx if self.tPA["localReadInstruction"].blockWidth < 1 else 0
+          packBIdx = packBIdx if self.tPB["localReadInstruction"].blockWidth < 1 else 0
           numPack = (packAIdx + packBIdx)
           iterCode.addComment0("pack scheduling: packAIdx:%u, packBIdx:%u" %(packAIdx,packBIdx))
-          # we put 2 pack in each mfma
+          # we put 2 pack in each mfma, "2" means A & B
           if packItems:
             for j in range(instPerPack):
               iterCode.addCode(packItems.pop(0))
@@ -692,7 +707,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # we need 1 vector A and 1 vector B for first mfma
       # then we prepare remaining A, then remaining B
       ####
-      instPerPack = 1 if kernel["ProblemType"]["DataType"].isBFloat16() else 2
+      instPerPack = 3 if kernel["ProblemType"]["DataType"].isInt8() else ( 1 if kernel["ProblemType"]["DataType"].isBFloat16() else 2 )
       packItems = []
       for iui in range(kernel["InnerUnroll"]):
         packINtems = [ [] for j in range(max(self.numReadsIterCoalescedA,self.numReadsIterCoalescedB)) ]
@@ -867,8 +882,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # if i % kernel["MIWaveTile"][0]==0, mfma will use new B
           packAIdx += instPerPack if i//(kernel["MIWaveTile"][0]+kernel["MIWaveTile"][0]*kernel["MIWaveTile"][1]*(i//(kernel["MIWaveTile"][0]*kernel["MIWaveTile"][1]))) == 0 else 0
           packBIdx += instPerPack if i % kernel["MIWaveTile"][0] == 0 else 0
-          packAIdx = packAIdx if self.tPA["localReadInstruction"].blockWidth == 0.5 else 0
-          packBIdx = packBIdx if self.tPB["localReadInstruction"].blockWidth == 0.5 else 0
+          # blockWidth < 1, means 0.5 or 0.25 (BF,H,Int8)
+          packAIdx = packAIdx if self.tPA["localReadInstruction"].blockWidth < 1 else 0
+          packBIdx = packBIdx if self.tPB["localReadInstruction"].blockWidth < 1 else 0
           numPack = (packAIdx + packBIdx)
           iterCode.addComment0("pack scheduling: packAIdx:%u, packBIdx:%u" %(packAIdx,packBIdx))
           # we put 2 pack in each mfma
@@ -902,6 +918,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       assert 0, "Unsupported scheduleIterAlg=%u"%self.scheduleIterAlg
 
     if isinstance(waitCode, Code.WaitCnt):
+      currentIsa = globalParameters["CurrentISA"]
+      maxLgkmcnt = globalParameters["AsmCaps"][currentIsa]["MaxLgkmcnt"]
+
       # Set the waitCount, based on the new iter schedule
       lgkmcnt = 0 # most conservative
       localReads = 0
@@ -978,7 +997,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
               else:
                 lgkmcnt = localWrites  # this only survives if writes are at the end
 
-      lgkmcnt = min(lgkmcnt, 15)
+      lgkmcnt = min(lgkmcnt, maxLgkmcnt)
       waitCode.comment += " old=%u, new=%u newLW=%u newLR=%u" % (waitCode.lgkmcnt, lgkmcnt,localWrites,localReads)
       waitCode.lgkmcnt = lgkmcnt
 
@@ -1254,6 +1273,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.enable["Wait"]:
         if kernel["DirectToLdsA"] or kernel["DirectToLdsB"]:
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "10wait for global read"))
+        # TODO: need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite (uDu, PGR=2)
         kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "4wait for local write"))
       if self.enable["Sync"]:
         kl.append(self.syncThreads(kernel))
@@ -1273,8 +1293,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
             self.globalReadIncrements.addCode(Code.Module("globalReadIncrementA"))
             self.globalReadIncrements.addCode(Code.Module("globalReadIncrementB"))
         if not isLastLoop:
-          self.localWriteACode = self.localWriteDo(kernel, tensorParametersA, (uDu+1)%kernel["DepthULdsDivisor"])  # local write in loopcnt N targets data for loopcnt N+1
-          self.localWriteBCode = self.localWriteDo(kernel, tensorParametersB, (uDu+1)%kernel["DepthULdsDivisor"])
+          self.localWriteACode, tmpCheckedOutVgprA = self.localWriteDo(kernel, tensorParametersA, (uDu+1)%kernel["DepthULdsDivisor"])  # local write in loopcnt N targets data for loopcnt N+1
+          self.localWriteBCode, tmpCheckedOutVgprB = self.localWriteDo(kernel, tensorParametersB, (uDu+1)%kernel["DepthULdsDivisor"])
+          self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprA)
+          self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprB)
         else:
           self.localWriteACode = Code.Module()
           self.localWriteBCode = Code.Module()
@@ -1404,6 +1426,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       subIterCode = self.makeSubIterSchedule(kernel, localReads, \
                       u, pointerLWCode, pointerLRCode, waitCode, macIterCode, waitLWCode, syncCode, pack[luIdx])
       kl.append(subIterCode)
+      # vgpr.checkin for all the checked-out vgpr in LocalRead
       for item in list(pack[luIdx].items()):
         if item.tempVgpr != None:
           self.vgprPool.checkIn(item.tempVgpr)
@@ -1494,6 +1517,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl += self.setupNewTile(kernel, tensorParametersA, tensorParametersB, isPap=False, isOptNLL=False)
 
     pack = [ Code.Module() for i in range (self.numVgprBuffer+1) ]
+    self.tmpCheckedOutLWVgprs = []
     self.preLoopLocalWriteCode = None
 
     if kernel["PrefetchGlobalRead"]:
@@ -1514,8 +1538,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       if self.enable["LocalWrite"]:
         # local write
-        self.preLoopLocalWriteCode = self.preLoopLocalWriteDo(kernel, tensorParametersA, tensorParametersB)
+        self.preLoopLocalWriteCode, tmpCheckedOutVgprA, tmpCheckedOutVgprB = self.preLoopLocalWriteDo(kernel, tensorParametersA, tensorParametersB)
         kl.append(self.preLoopLocalWriteCode)
+        self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprA)
+        self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprB)
         # swap local ptrs
         kl.append(self.comment("local write swap a"))
         kl.append(self.localWriteSwapOffsets(kernel, tensorParametersA))
@@ -1536,6 +1562,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # prefetch-local
       if self.numItersPLR:
         if self.enable["Wait"]:
+          # TODO: need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite (uDu, PGR=2)
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "0prefetch wait for local write"))
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel))
@@ -1584,6 +1611,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel, "4sync for global read"))
 
+      # Begin Unroll: make sure we correctly checked-in the temp VGPR used for Int8 LocalWrite
+      kl.append(self.comment("Begin Each Unroll: Check VGPR.checkin for INT8 LW"))
+      for vgpr in self.tmpCheckedOutLWVgprs:
+        if vgpr != -1:
+          self.vgprPool.checkIn(vgpr)
+      self.tmpCheckedOutLWVgprs = []
+
       if self.enable["GlobalRead"]:
         # unrolled loop: global read A, B
         # M0 update for directToLds
@@ -1606,8 +1640,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.globalReadIncrements.addCode(Code.Module("globalReadIncrementB"))
 
       if self.enable["LocalWrite"]:
-        self.localWriteACode = self.localWriteDo(kernel, tensorParametersA)
-        self.localWriteBCode = self.localWriteDo(kernel, tensorParametersB)
+        self.localWriteACode, tmpCheckedOutVgprA = self.localWriteDo(kernel, tensorParametersA)
+        self.localWriteBCode, tmpCheckedOutVgprB = self.localWriteDo(kernel, tensorParametersB)
+        self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprA)
+        self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprB)
       else:
         self.localWriteACode = Code.Module()
         self.localWriteBCode = Code.Module()
@@ -1632,9 +1668,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kl.append(self.syncThreads(kernel, "PGR=0, prior iter done reading lds"))
         if self.enable["LocalWrite"]:
           kl.append(self.comment("local write a"))
-          kl.append(self.localWriteDo(kernel, tensorParametersA))
+          tempLWCodeModA, tmpCheckedOutVgprA = self.localWriteDo(kernel, tensorParametersA)
+          kl.append(tempLWCodeModA)
           kl.append(self.comment("local write b"))
-          kl.append(self.localWriteDo(kernel, tensorParametersB))
+          tempLWCodeModB, tmpCheckedOutVgprB = self.localWriteDo(kernel, tensorParametersB)
+          kl.append(tempLWCodeModB)
+          self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprA)
+          self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprB)
         if self.enable["Wait"]:
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "2prefetch wait for local write"))
         if self.enable["Sync"]:
@@ -1698,8 +1738,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
           # ...update local write code
           if self.enable["LocalWrite"]:
-            self.localWriteACode = self.localWriteDo(kernel, tensorParametersA, (uDu+1)%kernel["DepthULdsDivisor"])  # local write in loopcnt N targets data for loopcnt N+1
-            self.localWriteBCode = self.localWriteDo(kernel, tensorParametersB, (uDu+1)%kernel["DepthULdsDivisor"])
+            self.localWriteACode, tmpCheckedOutVgprA = self.localWriteDo(kernel, tensorParametersA, (uDu+1)%kernel["DepthULdsDivisor"])  # local write in loopcnt N targets data for loopcnt N+1
+            self.localWriteBCode, tmpCheckedOutVgprB = self.localWriteDo(kernel, tensorParametersB, (uDu+1)%kernel["DepthULdsDivisor"])
+            self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprA)
+            self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprB)
           else:
             self.localWriteACode = Code.Module()
             self.localWriteBCode = Code.Module()
@@ -1734,9 +1776,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
               kl.append(self.syncThreads(kernel, "PGR=0, prior iter done reading lds"))
             if self.enable["LocalWrite"]:
               kl.append(self.comment("local write a"))
-              kl.append(self.localWriteDo(kernel, tensorParametersA, (uDu+writeForNextLoop)%kernel["DepthULdsDivisor"]))
+              tempLWCodeModA, tmpCheckedOutVgprA = self.localWriteDo(kernel, tensorParametersA, (uDu+writeForNextLoop)%kernel["DepthULdsDivisor"])
+              kl.append(tempLWCodeModA)
               kl.append(self.comment("local write b"))
-              kl.append(self.localWriteDo(kernel, tensorParametersB, (uDu+writeForNextLoop)%kernel["DepthULdsDivisor"]))
+              tempLWCodeModB, tmpCheckedOutVgprB = self.localWriteDo(kernel, tensorParametersB, (uDu+writeForNextLoop)%kernel["DepthULdsDivisor"])
+              kl.append(tempLWCodeModB)
+              self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprA)
+              self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprB)
             if self.enable["Wait"]:
               kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "2prefetch wait for local write"))
             if self.enable["Sync"]:
@@ -2040,6 +2086,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       kl.append(self.closeLoop(kernel, self.unrollIdx, finalLoop))
 
+    # SafeCheck Before NLL: make sure we correctly checked-in the temp VGPR used for Int8 LocalWrite
+    kl.append(self.comment("Before NLL: Check VGPR.checkin for INT8 LW"))
+    for vgpr in self.tmpCheckedOutLWVgprs:
+      if vgpr != -1:
+        self.vgprPool.checkIn(vgpr)
+    self.tmpCheckedOutLWVgprs = []
+
     if kernel["PrefetchGlobalRead"] == 2:
       kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False, isNGLL=True, pack=pack)
 
@@ -2136,17 +2189,30 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kl.append(self.localWriteInitPointers(kernel, tensorParametersA))
           kl.append(self.localWriteInitPointers(kernel, tensorParametersB))
           kl.append(self.comment("local write a"))
-          kl.append(self.localWriteDo(kernel, tensorParametersA, None))
+          tempLWCodeModA, tmpCheckedOutVgprA = self.localWriteDo(kernel, tensorParametersA, None)
+          kl.append(tempLWCodeModA)
           kl.append(self.comment("local write b"))
-          kl.append(self.localWriteDo(kernel, tensorParametersB, None))
+          tempLWCodeModB, tmpCheckedOutVgprB = self.localWriteDo(kernel, tensorParametersB, None)
+          kl.append(tempLWCodeModB)
+          self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprA)
+          self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprB)
         # change local read policy from wider local read to one unit of K at a time
         kl.append(self.comment("Recalc local read offsets"))
         kl.append(self.recalcLocalReadAddressesAB(kernel))
         if self.enable["Wait"]:
+          # TODO: need to check if we correctly checked-in the temp VGPR used for Int8 LocalWrite (uDu, PGR=2)
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "5wait for local write"))
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel))
         #kl.append(self.dumpLds(kernel, 0, 8))
+
+        # TailLoop: make sure we correctly checked-in the temp VGPR used for Int8 LocalWrite
+        # TODO- INT8: check if we can put this outside 'for uDu'
+        kl.append(self.comment("TailLoop: Check VGPR.checkin for INT8 LW"))
+        for vgpr in self.tmpCheckedOutLWVgprs:
+          if vgpr != -1:
+            self.vgprPool.checkIn(vgpr)
+        self.tmpCheckedOutLWVgprs = []
 
         # tail: re-init local read addresses
         if kernel["PrefetchGlobalRead"]:
@@ -2190,6 +2256,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
         if kernel["EnableMatrixInstruction"]:
           kl.append(pack[0])
+          # vgpr.checkin for all the checked-out vgpr in LocalRead
           for item in list(pack[0].items()):
             if item.tempVgpr != None:
               self.vgprPool.checkIn(item.tempVgpr)
@@ -2235,7 +2302,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kl.append(self.comment("shift vector components d0"))
           kl.append(self.shiftVectorComponents(kernel, tensorParametersA))
 
-        # shift vector components d1
+        # shift vector components d1, for MFMA version, B never entered this
         if not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB and not kernel["EnableMatrixInstruction"]:
           kl.append(self.comment("shift vector components d1"))
           kl.append(self.shiftVectorComponents(kernel, tensorParametersB))
@@ -2521,7 +2588,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
     else:
       self.numReadsIterCoalescedA  = 1
       self.numReadsIterCoalescedB  = 1
-
     self.numIterPerCoalescedReadA = max(1,self.numReadsIterCoalescedA//kernel["InnerUnroll"])
     self.numIterPerCoalescedReadB = max(1,self.numReadsIterCoalescedB//kernel["InnerUnroll"])
 
@@ -2614,28 +2680,28 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.numReadVectorComponentsA = kernel["GlobalLoadVectorWidthA"] \
         if (self.readTileDimComponentsA \
         or self.readUnrollDimComponentsA) else 1
-    self.numWriteVectorComponentsA = kernel["GlobalLoadVectorWidthA"] \
-        if (self.writeTileDimComponentsA \
-        or self.writeUnrollDimComponentsA) else 1
-    self.numReadTileVectorComponentsA = kernel["GlobalLoadVectorWidthA"] \
-        if self.readTileDimComponentsA else 1 # for branches
+    # self.numWriteVectorComponentsA = kernel["GlobalLoadVectorWidthA"] \
+    #     if (self.writeTileDimComponentsA \
+    #     or self.writeUnrollDimComponentsA) else 1
+    # self.numReadTileVectorComponentsA = kernel["GlobalLoadVectorWidthA"] \
+    #     if self.readTileDimComponentsA else 1 # for branches
     # convert tile/unroll to para/perp
     if kernel["ProblemType"]["TLUA"]:
       self.numReadsCoalVecCompA = self.numReadsTileVecCompA
       self.numReadsPerpVecCompA = self.numReadsUnrollVecCompA
       # for asm
       self.readCoalescedComponentsA  = self.readTileDimComponentsA
-      self.readCoalescedVectorA      = self.readTileDimVectorA
+      # self.readCoalescedVectorA      = self.readTileDimVectorA  # Not Used
       self.readPerpendicularComponentsA  = self.readUnrollDimComponentsA
-      self.readPerpendicularVectorA      = self.readUnrollDimVectorA
+      # self.readPerpendicularVectorA      = self.readUnrollDimVectorA  # Not Used
     else:
       self.numReadsCoalVecCompA = self.numReadsUnrollVecCompA
       self.numReadsPerpVecCompA = self.numReadsTileVecCompA
       # for asm
       self.readCoalescedComponentsA  = self.readUnrollDimComponentsA
-      self.readCoalescedVectorA      = self.readUnrollDimVectorA
+      # self.readCoalescedVectorA      = self.readUnrollDimVectorA  # Not Used
       self.readPerpendicularComponentsA  = self.readTileDimComponentsA
-      self.readPerpendicularVectorA      = self.readTileDimVectorA
+      # self.readPerpendicularVectorA      = self.readTileDimVectorA  # Not Used
 
     ####################################
     # read vectors or vector components b
@@ -2728,28 +2794,28 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.numReadVectorComponentsB = kernel["GlobalLoadVectorWidthB"] \
         if (self.readTileDimComponentsB \
         or self.readUnrollDimComponentsB) else 1
-    self.numWriteVectorComponentsB = kernel["GlobalLoadVectorWidthB"] \
-        if (self.writeTileDimComponentsB \
-        or self.writeUnrollDimComponentsB) else 1
-    self.numReadTileVectorComponentsB = kernel["GlobalLoadVectorWidthB"] \
-        if self.readTileDimComponentsB else 1 # for branches
+    # self.numWriteVectorComponentsB = kernel["GlobalLoadVectorWidthB"] \
+    #     if (self.writeTileDimComponentsB \
+    #     or self.writeUnrollDimComponentsB) else 1
+    # self.numReadTileVectorComponentsB = kernel["GlobalLoadVectorWidthB"] \
+    #     if self.readTileDimComponentsB else 1 # for branches
     # convert tile/unroll to para/perp
     if kernel["ProblemType"]["TLUB"]:
       self.numReadsCoalVecCompB = self.numReadsTileVecCompB
       self.numReadsPerpVecCompB = self.numReadsUnrollVecCompB
       # for asm
       self.readCoalescedComponentsB  = self.readTileDimComponentsB
-      self.readCoalescedVectorB      = self.readTileDimVectorB
+      # self.readCoalescedVectorB      = self.readTileDimVectorB  # Not Used
       self.readPerpendicularComponentsB  = self.readUnrollDimComponentsB
-      self.readPerpendicularVectorB      = self.readUnrollDimVectorB
+      # self.readPerpendicularVectorB      = self.readUnrollDimVectorB  # Not Used
     else:
       self.numReadsCoalVecCompB = self.numReadsUnrollVecCompB
       self.numReadsPerpVecCompB = self.numReadsTileVecCompB
       # for asm
       self.readCoalescedComponentsB  = self.readUnrollDimComponentsB
-      self.readCoalescedVectorB      = self.readUnrollDimVectorB
+      # self.readCoalescedVectorB      = self.readUnrollDimVectorB  # Not Used
       self.readPerpendicularComponentsB  = self.readTileDimComponentsB
-      self.readPerpendicularVectorB      = self.readTileDimVectorB
+      # self.readPerpendicularVectorB      = self.readTileDimVectorB  # Not Used
 
     ####################################
     # load sizes
@@ -2912,9 +2978,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       tP["glvw"] = kernel["GlobalLoadVectorWidthA"]
       # asm
       tP["rcc"] = self.readCoalescedComponentsA             # read vector components along coalesced dimensions
-      tP["rcv"] = self.readCoalescedVectorA                 # read vector along coalesced dimension
+      # tP["rcv"] = self.readCoalescedVectorA                 # read vector along coalesced dimension
       tP["rpc"] = self.readPerpendicularComponentsA         # read vector components along perpendicular dimension
-      tP["rpv"] = self.readPerpendicularVectorA             # read vector along perpendicular dimension
+      # tP["rpv"] = self.readPerpendicularVectorA             # read vector along perpendicular dimension
       tP["ruc"] = self.readUnrollDimComponentsA             # read vector components along unroll dimension
       tP["wtc"] = self.writeTileDimComponentsA              # write vector components along tile dimension
       tP["wuc"] = self.writeUnrollDimComponentsA            # write vector components along unroll dimension
@@ -2963,9 +3029,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       tP["glvw"] = kernel["GlobalLoadVectorWidthB"]
       # asm
       tP["rcc"] = self.readCoalescedComponentsB
-      tP["rcv"] = self.readCoalescedVectorB
+      # tP["rcv"] = self.readCoalescedVectorB
       tP["rpc"] = self.readPerpendicularComponentsB
-      tP["rpv"] = self.readPerpendicularVectorB
+      # tP["rpv"] = self.readPerpendicularVectorB
       tP["ruc"] = self.readUnrollDimComponentsB
       tP["wtc"] = self.writeTileDimComponentsB
       tP["wuc"] = self.writeUnrollDimComponentsB
@@ -3498,14 +3564,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # get kernel name
   ##############################################################################
   def getKernelFileBase(self, kernel):
-    rv = self.getKernelName(kernel)
-    return self.shortenFileBase(rv)
+    if globalParameters["ShortNames"]:
+      fileBase = Solution.getNameSerial(kernel, self.kernelSerialNaming)
+    else:
+      fileBase = self.shortenFileBase(kernel)
+    return fileBase
 
   def getKernelName(self, kernel):
-    if globalParameters["ShortNames"]:
-      kernelName = Solution.getNameSerial(kernel, self.kernelSerialNaming)
-    else:
-      kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
+    kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
     return kernelName
 
   def getKernelSource(self, kernel):
@@ -3611,7 +3677,8 @@ for codeObjectFileName in codeObjectFileNames:
     kernelName = self.getKernelName(kernel)
     return ReplacementKernels.Get(kernelName)
 
-  def shortenFileBase(self, base):
+  def shortenFileBase(self, kernel):
+    base = self.getKernelName(kernel)
     if len(base) <= globalParameters["MaxFileName"]:
       return base
 
@@ -3630,7 +3697,7 @@ for codeObjectFileName in codeObjectFileNames:
   def getKernelObjectAssemblyFile(self, kernel):
     asmPath = self.getAssemblyDirectory()
     # write assembly file to assembly directory
-    kernelName = self.shortenFileBase(self.getKernelName(kernel))
+    kernelName = self.getKernelFileBase(kernel)
     fileBase = os.path.join(asmPath, kernelName )
     assemblyFileName = "%s.s" % fileBase
 

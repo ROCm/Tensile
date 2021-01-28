@@ -279,6 +279,11 @@ namespace Tensile
                 return GetTyped<ContractionInputs_I32_I32_I32>(
                     args, problemFactory, maxWorkspaceSize);
             }
+            case ContractionInputs_I8_I32_I32::TypeId():
+            {
+                return GetTyped<ContractionInputs_I8_I32_I32>(
+                    args, problemFactory, maxWorkspaceSize);
+            }
 #ifdef TENSILE_USE_BF16
             case ContractionInputs_B_B_S::TypeId():
             {
@@ -316,10 +321,16 @@ namespace Tensile
             , m_dInit(args["init-d"].as<InitMode>())
             , m_alphaInit(args["init-alpha"].as<InitMode>())
             , m_betaInit(args["init-beta"].as<InitMode>())
+            , m_aBufferOffset(args["offset-a"].as<size_t>())
+            , m_bBufferOffset(args["offset-b"].as<size_t>())
+            , m_cBufferOffset(args["offset-c"].as<size_t>())
+            , m_dBufferOffset(args["offset-d"].as<size_t>())
             , m_aMaxElements(0)
             , m_bMaxElements(0)
             , m_cMaxElements(0)
             , m_dMaxElements(0)
+            , m_maxBatch(0)
+            , m_stridedBatched(args["strided-batched"].as<bool>())
             , m_cEqualsD(args["c-equal-d"].as<bool>())
             , m_elementsToValidate(args["num-elements-to-validate"].as<int>())
             , m_keepPristineCopyOnGPU(args["pristine-on-gpu"].as<bool>())
@@ -345,7 +356,17 @@ namespace Tensile
                 m_bMaxElements = std::max(m_bMaxElements, problem.b().totalAllocatedElements());
                 m_cMaxElements = std::max(m_cMaxElements, problem.c().totalAllocatedElements());
                 m_dMaxElements = std::max(m_dMaxElements, problem.d().totalAllocatedElements());
+
+                size_t numOfBatch = 1;
+                for(size_t i = 0; i < problem.batchIndices().size(); i++)
+                    numOfBatch *= problem.batchSize(i);
+                m_maxBatch = std::max(m_maxBatch, numOfBatch);
             }
+
+            m_aMaxElements += m_aBufferOffset;
+            m_bMaxElements += m_bBufferOffset;
+            m_cMaxElements += m_cBufferOffset;
+            m_dMaxElements += m_dBufferOffset;
 
             if(m_curBoundsCheck == BoundsCheckMode::NaN)
             {

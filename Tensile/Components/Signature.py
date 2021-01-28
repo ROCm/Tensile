@@ -257,7 +257,6 @@ class SignatureCOV2(Signature):
         for i in range(0, writer.numSgprStridesB):
             kStr += self.v2Argument(                   "strideB%u"%i,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
 
-
         for i in range(0, writer.numSgprSizesFree):
             kStr += self.v2Argument(                 "SizesFree%u"%i,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
 
@@ -276,6 +275,16 @@ class SignatureCOV2(Signature):
             kStr += self.v2Argument(     "MagicNumberSize%s"%idxChar,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
             kStr += self.v2Argument(      "MagicShiftSize%s"%idxChar,     '4',      '4',      "ByValue",        "U32"); ka_size += 4
 
+        for idx in kernel["ProblemType"]["IndicesSummation"]:
+          for tc in ('A','B'):
+            for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
+              (freeDim, sumDim, padStart, padEnd) = zp
+              if sumDim == idx:
+                freeDimChar = globalParameters["IndexChars"][freeDim]
+                sumDimChar  = globalParameters["IndexChars"][sumDim]
+                kStr += self.v2Argument("PadStart%s%s%s"%(tc, freeDimChar, sumDimChar), '4', '4', "ByValue", "U32"); ka_size += 4
+                kStr += self.v2Argument("PadEnd%s%s%s"%(tc, freeDimChar, sumDimChar), '4', '4', "ByValue", "U32"); ka_size += 4
+
         kStr += self.v2Argument(                "OrigStaggerUIter",     '4',      '4',      "ByValue",        "I32"); ka_size += 4
 
         kStr += self.v2Argument(                  "NumWorkGroups0",     '4',      '4',      "ByValue",        "U32"); ka_size += 4
@@ -293,6 +302,12 @@ class SignatureCOV2(Signature):
         kStr += self.v2Argument(                   "NumFullBlocks",     '4',      '4',      "ByValue",        "U32"); ka_size += 4
         kStr += self.v2Argument(                   "WgmRemainder1",     '4',      '4',      "ByValue",        "U32"); ka_size += 4
         kStr += self.v2Argument(        "MagicNumberWgmRemainder1",     '4',      '4',      "ByValue",        "U32"); ka_size += 4
+
+        kStr += self.v2Argument("OffsetD", '4', '4', "ByValue", "U32"); ka_size += 4
+        kStr += self.v2Argument("OffsetC", '4', '4', "ByValue", "U32"); ka_size += 4
+        kStr += self.v2Argument("OffsetA", '4', '4', "ByValue", "U32"); ka_size += 4
+        kStr += self.v2Argument("OffsetB", '4', '4', "ByValue", "U32"); ka_size += 4
+
         kStr += self.v2Argument(                         "padding",     '4',      '4',      "ByValue",        "U32"); ka_size += 4
 
         kStr += "    CodeProps:\n"
@@ -454,7 +469,6 @@ class SignatureCOV3(Signature):
         for i in range(0, writer.numSgprStridesB):
             kStr += self.v3Argument(                   "strideB%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
 
-
         for i in range(0, writer.numSgprSizesFree):
             kStr += self.v3Argument(                 "SizesFree%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
 
@@ -501,6 +515,11 @@ class SignatureCOV3(Signature):
         kStr += self.v3Argument(                   "NumFullBlocks",     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += self.v3Argument(                   "WgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += self.v3Argument(        "MagicNumberWgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
+
+        kStr += self.v3Argument("OffsetD", '4', offset, "by_value", "u32"); offset += 4
+        kStr += self.v3Argument("OffsetC", '4', offset, "by_value", "u32"); offset += 4
+        kStr += self.v3Argument("OffsetA", '4', offset, "by_value", "u32"); offset += 4
+        kStr += self.v3Argument("OffsetB", '4', offset, "by_value", "u32"); offset += 4
 
         kStr += self.v3Argument(                         "padding",     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += "    .group_segment_fixed_size:   %u%s" % ( group_segment_size, writer.endLine ) #XXXXXX

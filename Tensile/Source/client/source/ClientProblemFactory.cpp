@@ -46,6 +46,7 @@ namespace Tensile
             , m_dType(DataType::Float)
             , m_alphaType(DataType::Float)
             , m_betaType(DataType::Float)
+            , m_stridedBatched(args["strided-batched"].as<bool>())
             , m_highPrecisionAccumulate(args["high-precision-accumulate"].as<bool>())
             , m_kernelLanguage(args["kernel-language"].as<Tensile::KernelLanguage>())
             , m_deterministicMode(args["deterministic-mode"].as<bool>())
@@ -58,6 +59,11 @@ namespace Tensile
             , m_bOps(args["b-ops"].as<TensorOps>())
             , m_cOps(args["c-ops"].as<TensorOps>())
             , m_dOps(args["d-ops"].as<TensorOps>())
+            , m_aOffset(args["offset-a"].as<size_t>())
+            , m_bOffset(args["offset-b"].as<size_t>())
+            , m_cOffset(args["offset-c"].as<size_t>())
+            , m_dOffset(args["offset-d"].as<size_t>())
+
         {
             if(args.count("problem-identifier"))
                 ContractionProblem::IdentifierToIndices(
@@ -135,15 +141,19 @@ namespace Tensile
                                                                 m_aType,
                                                                 aStrides,
                                                                 m_aOps,
+                                                                m_aOffset,
                                                                 m_bType,
                                                                 bStrides,
                                                                 m_bOps,
+                                                                m_bOffset,
                                                                 m_cType,
                                                                 cStrides,
                                                                 m_cOps,
+                                                                m_cOffset,
                                                                 m_dType,
                                                                 dStrides,
                                                                 m_dOps,
+                                                                m_dOffset,
                                                                 m_beta));
 
                 if(i < m_aZeroPads.size())
@@ -176,6 +186,7 @@ namespace Tensile
                 }
                 rv.back().setAlphaType(m_alphaType);
                 rv.back().setBetaType(m_betaType);
+                rv.back().setStridedBatched(m_stridedBatched);
                 rv.back().setHighPrecisionAccumulate(m_highPrecisionAccumulate);
                 rv.back().setKernelLanguage(m_kernelLanguage);
                 rv.back().setDeterministicMode(m_deterministicMode);
