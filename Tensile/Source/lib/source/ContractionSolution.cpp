@@ -1141,7 +1141,6 @@ namespace Tensile
         double nat_tiles_per_cu = NumBatches * ceil(pp.numTiles0) * ceil(pp.numTiles1) / NumCUs;
         pp.natCuGranularity = ceil(nat_tiles_per_cu) * ceil(nat_tiles_per_cu) / NumCUs;
 
-        //double slope = linearModel["slope"];
         auto modelSlope = linearModel.find("slope");
         double slope = 0.0;
         double intercept = 0.0;
@@ -1149,36 +1148,23 @@ namespace Tensile
         if (modelSlope != linearModel.end()) 
         {
             slope = modelSlope->second;
-            //std::cout << "The slope is " << slope << std::endl;
         }
-        //else
-        //{
-        //    //std::cout << "no go, try again." << std::endl;
-        //}
-        ///pp.suCuGranularity = CEIL(tiles0) * CEIL(tiles1) *GSU * LSU / num_cus
 
         auto modelIntercept = linearModel.find("intercept");
         if (modelIntercept != linearModel.end()) 
         {
             intercept = modelIntercept->second;
-            //std::cout << "The intercept is " << intercept << std::endl;
         }
-        //else
-        //{
-        //    std::cout << "no go, try again." << std::endl;
-        //}
 
         auto modelPerfMax = linearModel.find("max");
         if (modelPerfMax != linearModel.end()) 
         {
             perf_max = modelPerfMax->second;
-            //std::cout << "The intercept is " << intercept << std::endl;
         }
 
         double sum_value = K;
         double sum_perf0 = sum_value / (intercept + (slope * sum_value));
         pp.summationPerformance = 1000.0 * sum_perf0 / perf_max;
-        //pp.summationPerformance = 1000.0 * sum_perf0 / 10894.0;  // = MAX_PERF; // TODO: compute ideal perf  instead of MAX_PERF
 
         return pp;
     }

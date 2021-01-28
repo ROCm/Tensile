@@ -140,7 +140,6 @@ namespace Tensile
             double tile0Granularity  = 0.0; // loss due to tile0
             double tile1Granularity  = 0.0;
             double natCuGranularity  = 0.0;
-            //double waveGranularity   = 0.0;
             double totalGranularity  = 0.0;
             double natTilesPerCu     = 0.0;
             double suTilesPerCu      = 0.0;

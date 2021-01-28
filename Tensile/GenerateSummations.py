@@ -33,13 +33,14 @@ def isValidArch(archName, currentArch):
     return currentArch == arch
 
 def createLibraryForBenchmark(logicPath, libraryPath, currentPath):
-    args = ["/home/billg/amd/wbgilmartin/tasks/tile_aware_metric/dockerdx2/Tensile-tile-aware-metric-integration/Tensile/bin/TensileCreateLibrary", \
+
+    pythonExePath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "bin", "TensileCreateLibrary")
+    args = [pythonExePath, \
         "--merge-files", "--no-legacy-components", \
         "--new-client-only", "--no-short-file-names", "--no-library-print-debug", "--architecture=all", \
         "--code-object-version=V3", "--cxx-compiler=hipcc", "--library-format=yaml", \
         logicPath, libraryPath, "HIP"]
 
-   #print (args)
     try:
         subprocess.run(args, check=True, cwd=currentPath)
     except (subprocess.CalledProcessError, OSError) as e:
@@ -52,13 +53,8 @@ def GenerateSummations(userArgs):
 
     inputLogicPath = userArgs[0]
     outputPath = userArgs[1]
-    #libPath = ensurePath(os.path.join(outputPath, "lib"))
-    #finalPath = ensurePath(os.path.join(outputPath, "final"))
-
-    #restoreDefaultGlobalParameters()
     assignGlobalParameters({})
 
-    #supportedISAs = globalParameters["SupportedISA"]    
     currentISA = globalParameters["CurrentISA"]
     currentArchitecture = getArchitecture(currentISA)
 
@@ -160,7 +156,6 @@ def GenerateSummations(userArgs):
             model = np.polyfit(x=index_keys, y=perf, deg=1)
             slope = model[0].item()
             intercept = model[1].item()
-            #perf_max = perf_raw.max().item()
             linearModel = {"slope": slope, "intercept": intercept, "max": perf_max}
         
             s["LinearModel"] = deepcopy(linearModel)
