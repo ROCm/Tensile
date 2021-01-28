@@ -1626,6 +1626,9 @@ def assignGlobalParameters( config ):
     globalParameters["ROCmPath"] = os.environ.get("ROCM_PATH")
   if "TENSILE_ROCM_PATH" in os.environ:
     globalParameters["ROCmPath"] = os.environ.get("TENSILE_ROCM_PATH")
+  globalParameters["CmakeCxxCompiler"] = None
+  if "CMAKE_CXX_COMPILER" in os.environ:
+    globalParameters["CmakeCxxCompiler"] = os.environ.get("CMAKE_CXX_COMPILER")
 
   globalParameters["ROCmBinPath"] = os.path.join(globalParameters["ROCmPath"], "bin")
 
