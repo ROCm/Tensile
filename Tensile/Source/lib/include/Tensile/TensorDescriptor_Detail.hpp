@@ -46,7 +46,9 @@ namespace Tensile
                                         lhs.sizes(),
                                         rhs.sizes(),
                                         lhs.strides(),
-                                        rhs.strides());
+                                        rhs.strides(),
+                                        lhs.offset(),
+                                        rhs.offset());
         }
     };
 
@@ -63,7 +65,8 @@ namespace std
             return Tensile::combine_hashes(
                 std::hash<size_t>()((size_t)tensor.dataType()),
                 Tensile::hash_combine_iter(tensor.sizes().begin(), tensor.sizes().end()),
-                Tensile::hash_combine_iter(tensor.strides().begin(), tensor.strides().end()));
+                Tensile::hash_combine_iter(tensor.strides().begin(), tensor.strides().end()),
+                std::hash<size_t>()((size_t)tensor.offset()));
         }
     };
 } // namespace std

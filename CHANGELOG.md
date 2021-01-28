@@ -2,6 +2,10 @@
 
 ## [(Unreleased) Tensile 4.27.0 for ROCm 4.2.0]
 ### Added
+- support general batch GEMM
+- Support offset for each input/output buffer in Tensile
+- support support ldc != ldd for all GEMM kernel
+
 
 ## [Tensile 4.26.0 for ROCm 4.1.0]
 ### Added
