@@ -123,7 +123,7 @@ def GenerateSummations(userArgs):
         dataFilePath = os.path.join(dataPath, "benchmark.csv")
         configFile = os.path.join(configFilePath, "ClientParameters.ini")
         scriptPath = ensurePath(os.path.join(outputPath, logicFileStem, "script"))
-        ClientWriter.CreateBenchmarkClientParametersForSizesP(libraryPath, problemSizes, dataFilePath, configFile, problemTypeObj1)
+        ClientWriter.CreateBenchmarkClientParametersForSizes(libraryPath, problemSizes, dataFilePath, configFile, problemTypeObj1)
         ClientWriter.runNewClient(scriptPath, configFile, clientBuildDir)
 
 

@@ -716,29 +716,22 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
 
     return filename
 
-def CreateBenchmarkClientParametersForSizes(libraryRootPath, problemSizes, dataFilePath, configFile):
+def CreateBenchmarkClientParametersForSizes(libraryRootPath, problemSizes, dataFilePath, configFile, problemTypeDict=None):
 
     libraryPath = os.path.join(libraryRootPath, "library")
     libraryFiles = [os.path.join(libraryPath, f) for f in os.listdir(libraryPath)]
     codeObjectFiles = [f for f in libraryFiles if f.endswith("co")]
 
-    metaDataFilePath = os.path.join(libraryPath, "metadata.yaml")
-
-    if not os.path.exists(metaDataFilePath):
-      printExit ("meta data file %s does not exist" % metaDataFilePath)
-    metaData = LibraryIO.readConfig(metaDataFilePath)
-    problemTypeDict = metaData["ProblemType"]
-    problemType = ContractionsProblemType.FromOriginalState(problemTypeDict)
-
-    writeClientConfigIni(problemSizes, problemType, libraryRootPath, codeObjectFiles, dataFilePath, configFile)
-
-def CreateBenchmarkClientParametersForSizesP(libraryRootPath, problemSizes, dataFilePath, configFile, problemTypeDict):
-
-    libraryPath = os.path.join(libraryRootPath, "library")
-    libraryFiles = [os.path.join(libraryPath, f) for f in os.listdir(libraryPath)]
-    codeObjectFiles = [f for f in libraryFiles if f.endswith("co")]
-
-    problemType = ContractionsProblemType.FromOriginalState(problemTypeDict)
+    if problemTypeDict:
+      problemType = ContractionsProblemType.FromOriginalState(problemTypeDict)
+    else:
+      # if the we can library contains meta data then we can get the problem type this data
+      metaDataFilePath = os.path.join(libraryPath, "metadata.yaml")
+      if not os.path.exists(metaDataFilePath):
+        printExit ("meta data file %s does not exist" % metaDataFilePath)
+      metaData = LibraryIO.readConfig(metaDataFilePath)
+      problemTypeDict = metaData["ProblemType"]
+      problemType = ContractionsProblemType.FromOriginalState(problemTypeDict)
 
     writeClientConfigIni(problemSizes, problemType, libraryRootPath, codeObjectFiles, dataFilePath, configFile)
 
