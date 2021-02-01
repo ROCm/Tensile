@@ -2487,13 +2487,14 @@ class KernelWriterAssembly(KernelWriter):
     kStr += ".endm" + self.endLine
 
     kStr += self.endLine
-    kStr += ".macro _v_addc_co_u32 dst:req, ccOut:req, src0:req, ccIn:req, src1:req, dpp=" + self.endLine
+    # sub w/o carry-out.  On older arch, vcc is still written.
+    kStr += ".macro _v_sub_i32 dst:req, src0:req, src1:req, dpp=" + self.endLine
     if self.AsmBugs["ExplicitNC"]:
-        kStr += r"   v_add_co_ci_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
+        kStr += r"   v_sub_nc_i32 \dst, \src0, \src1 \dpp" + self.endLine
     elif self.AsmBugs["ExplicitCO"]:
-        kStr += r"   v_addc_co_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
+        kStr += r"   v_sub_i32 \dst, \src0, \src1 \dpp" + self.endLine
     else:
-        kStr += r"   v_addc_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
+        kStr += r"   v_sub_i32 \dst, vcc, \src0, \src1 \dpp" + self.endLine
     kStr += ".endm" + self.endLine
 
     # Use combined add+shift, where available:
@@ -2899,12 +2900,12 @@ class KernelWriterAssembly(KernelWriter):
               destHi = "v[\\vgprTmp+1]"
               needAdd = 1
             if isMirrorIdx:
-              kStr += inst("v_sub_i32", \
+              kStr += inst("_v_sub_i32", \
                 "v[\\vgprTmp+0]",
                 sgpr("Size%s"%globalParameters["IndexChars"][idx]), \
                 offset, \
                 "mirror %s%s 1"%(tc, globalParameters["IndexChars"][indices[i]]))
-              kStr += inst("v_sub_i32", \
+              kStr += inst("_v_sub_i32", \
                 "v[\\vgprTmp+0]",
                 "v[\\vgprTmp+0]", \
                 "1", \
@@ -7177,7 +7178,7 @@ class KernelWriterAssembly(KernelWriter):
 
                 if unrollMirrorWithSoffset:
                   codeMod = Code.Module("mirrorIdx%u"%loopCnt)
-                  codeMod.addInst("v_add_u32", vgpr(offsetVgpr), vgpr(offsetVgpr), soffset_prev, "mirror unroll: restore GRO=GRO+SGRO")
+                  codeMod.addInst("_v_add_u32", vgpr(offsetVgpr), vgpr(offsetVgpr), soffset_prev, "mirror unroll: restore GRO=GRO+SGRO")
                   kStr += str(codeMod)
 
                 if kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]:
@@ -7523,7 +7524,7 @@ class KernelWriterAssembly(KernelWriter):
 
               if unrollMirrorWithSoffset:
                 codeMod = Code.Module("mirrorIdx%u"%loopCnt)
-                codeMod.addInst("v_add_u32", vgpr(offsetVgpr), vgpr(offsetVgpr), soffset_prev, "mirror unroll: restore GRO=GRO+SGRO")
+                codeMod.addInst("_v_add_u32", vgpr(offsetVgpr), vgpr(offsetVgpr), soffset_prev, "mirror unroll: restore GRO=GRO+SGRO")
                 loadModule.addCode(codeMod)
 
               if kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]:
@@ -10894,10 +10895,9 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("v_cmp_gt_u32", sgpr(sTmp2,2), vgpr(vTmp2), 0, "this problem is not multiple size of glvw")
           kStr += inst("s_and_b64", sgpr(sTmp1,2), sgpr(sTmp1,2), sgpr(sTmp2,2), "AND both conditions")
           # calculate new coord
-          kStr += inst("v_add_u32", vgpr(vTmp1), vgpr(self.coord1Vgpr), vgpr(vTmp2), "shift coord1")
-          kStr += inst("v_bfi_b32", vgpr(vTmp1), vw-1, vgpr(vTmp1), sgpr("SizesFree+%u"%kw.tPB["idx"]), \
-                       "new coord1 = (shift coord1 & (vw-1)) |  (sizeFree & ~(vw-1))")
-          kStr += inst("v_sub_i32", vgpr(vTmp2), vgpr(vTmp1), vgpr(self.coord1Vgpr), "shift how many column")
+          kStr += inst("_v_add_u32", vgpr(vTmp1), vgpr(self.coord1Vgpr), vgpr(vTmp2), "shift coord1")
+          kStr += inst("v_bfi_b32", vgpr(vTmp1), vw-1, vgpr(vTmp1), sgpr("SizesFree+%u"%kw.tPB["idx"]), "new coord1 = (shift coord1 & (vw-1)) |  (sizeFree & ~(vw-1))")
+          kStr += inst("_v_sub_i32", vgpr(vTmp2), vgpr(vTmp1), vgpr(self.coord1Vgpr), "shift how many column")
           kStr += inst("v_cndmask_b32", vgpr(self.coord1Vgpr), vgpr(self.coord1Vgpr), vgpr(vTmp1), \
                         sgpr(sTmp1,2), "set new coord1 if meet conditions" )
 
