@@ -40,6 +40,7 @@ import argparse
 import collections
 import itertools
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -193,18 +194,24 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       infile = os.path.join(buildPath, objectFilename)
       try:
         bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-inputs=%s" % infile, "-list"]
-        buffer = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT).decode()
-        # TODO - use the list of gfx entries returned as targets directly
-        hipVersion = "hipv4" if "hipv4" in buffer else "hip"
-      except subprocess.CalledProcessError:
-        hipVersion = "hip"
+        listing = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT).decode().split("\n")
+        for target in listing:
+          matched = re.search("gfx.*$", target)
+          if matched:
+            arch = re.sub(":", "-", matched.group())
+            outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, arch))
+            bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=%s" % target, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+            if globalParameters["PrintCodeCommands"]:
+              print(' '.join(bundlerArgs))
+            subprocess.check_call(bundlerArgs)
 
-      for i in range(len(archs)):
-        outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
-        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=%s-amdgcn-amd-amdhsa--%s" % (hipVersion, cmdlineArchs[i]), "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
-        if globalParameters["PrintCodeCommands"]:
-          print(' '.join(bundlerArgs))
-        subprocess.check_call(bundlerArgs)
+      except subprocess.CalledProcessError:
+        for i in range(len(archs)):
+          outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
+          bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+          if globalParameters["PrintCodeCommands"]:
+            print(' '.join(bundlerArgs))
+          subprocess.check_call(bundlerArgs)
 
       coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
     else:
@@ -986,13 +993,8 @@ def writeSolutionCall(solutionName, problemType):
 def getSolutionAndKernelWriters(solutions, kernels):
 
   # if any kernels are assembly, append every ISA supported
-
-  if globalParameters["ShortNames"] and not globalParameters["MergeFiles"]:
-    solutionSerialNaming = Solution.getSerialNaming(solutions)
-    kernelSerialNaming   = Solution.getSerialNaming(kernels)
-  else:
-    solutionSerialNaming = None
-    kernelSerialNaming   = None
+  solutionSerialNaming = Solution.getSerialNaming(solutions)
+  kernelSerialNaming   = Solution.getSerialNaming(kernels)
 
   solutionMinNaming    = Solution.getMinNaming(solutions)
   kernelMinNaming      = Solution.getMinNaming(kernels)
