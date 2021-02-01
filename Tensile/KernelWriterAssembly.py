@@ -2471,7 +2471,9 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.endLine
     # sub w/o carry-out.  On older arch, vcc is still written.
     kStr += ".macro _v_sub_u32 dst:req, src0:req, src1:req, dpp=" + self.endLine
-    if self.AsmBugs["ExplicitCO"]:
+    if self.AsmBugs["ExplicitNC"]:
+        kStr += r"   v_sub_nc_u32 \dst, \src0, \src1 \dpp" + self.endLine
+    elif self.AsmBugs["ExplicitCO"]:
         kStr += r"   v_sub_u32 \dst, \src0, \src1 \dpp" + self.endLine
     else:
         kStr += r"   v_sub_u32 \dst, vcc, \src0, \src1 \dpp" + self.endLine
@@ -2818,7 +2820,7 @@ class KernelWriterAssembly(KernelWriter):
         else:
           dest = "v[\\vgprTmp+0]"
           needAdd = 1
-        kStr += inst("v_sub_u32", \
+        kStr += inst("_v_sub_u32", \
                 dest,
                 sgpr("Size%s"%globalParameters["IndexChars"][indices[i]]), \
                 "1", \
@@ -3915,7 +3917,7 @@ class KernelWriterAssembly(KernelWriter):
                   sgpr("MagicShiftSize%s"%pChar), sgpr("MagicAbitSize%s"%pChar) if kernel["MagicDivAlg"]==2 else "0")
               kStr += inst("v_mov_b32", groVgpr, vgpr(tmpV), "extract gro%s%s_%u (%s)"%(tc,groChar,l,groVgpr))
               kStr += inst("v_mul_lo_u32", vgpr(tmpV), groVgpr, sgpr("SizesFree+%u"%lastGroIdx), "remainder part 1")
-              kStr += inst("v_sub_u32", lastGroVgpr, lastGroVgpr, vgpr(tmpV), \
+              kStr += inst("_v_sub_u32", lastGroVgpr, lastGroVgpr, vgpr(tmpV), \
                   "remove extracted bits from gro%s%s_%u (%s)"%(tc, globalParameters["IndexChars"][lastGroIdx], l, lastGroVgpr))
               lastGroVgpr = groVgpr
               lastGroIdx = groIdx
@@ -4144,7 +4146,7 @@ class KernelWriterAssembly(KernelWriter):
                 ldsInc = (ldsInc * graIdx) % self.buff_load_inst_offset_max
                 if (ldsInc != 0):
                   kStr += inst("s_mov_b32", sgpr(tmpSgpr), ldsInc, "" )
-                  kStr += inst("v_sub_u32", vgpr(groVgpr), vgpr(groVgpr), sgpr(tmpSgpr), "sub offset for buffer_load instoffset")
+                  kStr += inst("_v_sub_u32", vgpr(groVgpr), vgpr(groVgpr), sgpr(tmpSgpr), "sub offset for buffer_load instoffset")
 
               for zpr in [zpr for zpr in self.zeroPadRegs[tc].values() if zpr.isMatch(perp, sPerp, para, sPara)]:
                 assert(zpr.state == ZeroPadReg.State.Allocated) # only calc address once
@@ -4161,12 +4163,12 @@ class KernelWriterAssembly(KernelWriter):
                           "zp.freeDim * strideFree")
                 vgprOffset = vgpr(iaToGpr[sumDim]) if vgpr(iaToGpr[sumDim]) else 0
                 if sumDim in kernel["ProblemType"]["MirrorDims%s"%tc]:
-                  kStr += inst("v_sub_u32", \
+                  kStr += inst("_v_sub_u32", \
                           vgpr(tmp), \
                           sgpr("Size%s"%sumDimChar), \
                           vgprOffset, \
                           "zp.sumDim mirror 1")
-                  kStr += inst("v_sub_u32", \
+                  kStr += inst("_v_sub_u32", \
                           vgpr(tmp), \
                           vgpr(tmp), \
                           "1", \
@@ -4188,7 +4190,7 @@ class KernelWriterAssembly(KernelWriter):
                              "Bpe%sLog2"%tc, \
                              vgpr(zpr.regName), \
                              "scale to bpe")
-                kStr += inst("v_sub_u32",
+                kStr += inst("_v_sub_u32",
                           vgpr(zpr.regName), \
                           vgpr(zpr.regName), \
                           sgpr("PadStart%s%s%s"%(tc, freeDimChar, sumDimChar)), \
@@ -6017,7 +6019,7 @@ class KernelWriterAssembly(KernelWriter):
 
               kStr += inst("s_mov_b32", sgpr(stmp), inc, "tailloop lds offset")
               kStr += inst("s_mul_i32", sgpr(stmp), sgpr("OrigLoopCounter"), sgpr(stmp), "scale by mul")
-              kStr += inst("v_sub_u32", vgpr("LocalReadAddr%s"%tc), vgpr("LocalReadAddr%s"%tc), sgpr(stmp), "remove lro damage")
+              kStr += inst("_v_sub_u32", vgpr("LocalReadAddr%s"%tc), vgpr("LocalReadAddr%s"%tc), sgpr(stmp), "remove lro damage")
           # if LWA is backed-up before, we simply restore the addr
           if self.oriLwaA != None:
             kStr += inst("v_mov_b32", vgpr("LocalWriteAddrA"), vgpr(self.oriLwaA), "restore LWA")
@@ -6204,7 +6206,7 @@ class KernelWriterAssembly(KernelWriter):
         abReg   = self.vgprPool.checkOut(vgprPerInput,"abReg")
         tmpVgpr = self.vgprPool.checkOut(2,"tmpVgpr")
         dummy   = self.vgprPool.checkOut(1,"dummy")
-        shiftK.addCode(inst("v_sub_u32",    vgpr(kReg), sgpr(loopCounterName), vgpr(kReg), "get distance between size and k index"))
+        shiftK.addCode(inst("_v_sub_u32",    vgpr(kReg), sgpr(loopCounterName), vgpr(kReg), "get distance between size and k index"))
         shiftK.addCode(inst("v_cmp_lt_i32", sgpr(tmpSgpr,2), vgpr(kReg), numMIInput, "set partial 0 if distance less than input per thread"))
         shiftK.addCode(inst("s_and_b32",    sgpr(tmpSgpr+2), sgpr(loopCounterName), numMIInput-1, "get inputs for edge thread"))
         shiftK.addCode(inst("s_sub_u32",    sgpr(tmpSgpr+2), numMIInput, sgpr(tmpSgpr+2), "use shift to fill 0 for outside element"))
@@ -7102,7 +7104,7 @@ class KernelWriterAssembly(KernelWriter):
                 # However, buffer_load uses soffset as uint value, so GRO - SGRO, SGRO = 0
                 if unrollMirrorWithSoffset:
                   codeMod = Code.Module("mirrorIdx%u"%loopCnt)
-                  codeMod.addInst("v_sub_u32", vgpr(offsetVgpr), vgpr(offsetVgpr), soffset, "mirror unroll: GRO=GRO-SGRO, soffset=0")
+                  codeMod.addInst("_v_sub_u32", vgpr(offsetVgpr), vgpr(offsetVgpr), soffset, "mirror unroll: GRO=GRO-SGRO, soffset=0")
                   kStr += str(codeMod)
                   soffset_prev = soffset
                   soffset = "0"
@@ -7309,7 +7311,7 @@ class KernelWriterAssembly(KernelWriter):
         codeMod.addInst("s_add_u32", sgpr(tmpSgpr), sgpr(tmpSgpr), soffset, "add soffset ")
 
       if sumDim in kernel["ProblemType"]["MirrorDims%s"%tc]:
-        codeMod.addInst("v_sub_u32", vgpr(addrV), vgpr(zpr.regName), sgpr(tmpSgpr), \
+        codeMod.addInst("_v_sub_u32", vgpr(addrV), vgpr(zpr.regName), sgpr(tmpSgpr), \
                         "<- GRO - scaled elementCounter")
       else:
         codeMod.addInst("_v_add_u32", vgpr(addrV), vgpr(zpr.regName), sgpr(tmpSgpr), \
@@ -7476,7 +7478,7 @@ class KernelWriterAssembly(KernelWriter):
               # However, buffer_load uses soffset as uint value, so GRO - SGRO, SGRO = 0
               if unrollMirrorWithSoffset:
                 codeMod = Code.Module("mirrorIdx%u"%loopCnt)
-                codeMod.addInst("v_sub_u32", vgpr(offsetVgpr), vgpr(offsetVgpr), soffset, "mirror unroll: GRO=GRO-SGRO, soffset=0")
+                codeMod.addInst("_v_sub_u32", vgpr(offsetVgpr), vgpr(offsetVgpr), soffset, "mirror unroll: GRO=GRO-SGRO, soffset=0")
                 loadModule.addCode(codeMod)
                 soffset_prev = soffset
                 soffset = "0"
@@ -8907,7 +8909,7 @@ class KernelWriterAssembly(KernelWriter):
     gReg = self.vgprPool.checkOut(1)
     kStr += staticMultiply(vgpr(wReg), vgpr(wReg), MIBShape0 // numSubOutputPerWave0, sgpr(tmpSgpr))
     kStr += vectorStaticDivide(self, gReg, wgMT, numSubOutputPerWave0, tmpVgpr, tmpSgpr)
-    kStr += inst("v_sub_u32", vgpr(gReg), vgpr(gReg), vgpr(wReg), "")
+    kStr += inst("_v_sub_u32", vgpr(gReg), vgpr(gReg), vgpr(wReg), "")
     self.vgprPool.checkIn(wReg)
 
     # eReg : use to disguish which shift block (sub-tile) we need to deal with
