@@ -81,6 +81,8 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Zero)
     k.args.append<unsigned int>("size0", desc.sizes()[0]);
     k.args.append<unsigned int>("size1", desc.sizes()[1]);
     k.args.append<unsigned int>("size2", desc.sizes()[2]);
+    k.args.append<unsigned int>("offsetD", desc.offset());
+    k.args.append<unsigned int>("offsetC", desc.offset());
     k.args.append<float>("beta", 0.0f);
 
     hip::SolutionAdapter adapter(false);
@@ -154,6 +156,8 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Nonzero)
     k.args.append<unsigned int>("size0", desc.sizes()[0]);
     k.args.append<unsigned int>("size1", desc.sizes()[1]);
     k.args.append<unsigned int>("size2", desc.sizes()[2]);
+    k.args.append<unsigned int>("offsetD", desc.offset());
+    k.args.append<unsigned int>("offsetC", desc.offset());
     k.args.append<float>("beta", beta);
 
     hip::SolutionAdapter adapter(false);

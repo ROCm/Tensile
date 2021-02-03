@@ -221,6 +221,7 @@ namespace Tensile
             bool        useBeta                 = true;
             bool        useInitialStridesAB     = false;
             bool        useInitialStridesCD     = false;
+            bool        stridedBatched          = true;
         };
 
         int         index = 0;

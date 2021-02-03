@@ -150,8 +150,12 @@ globalParameters["DataInitTypeC"]  = 3            # 0=0, 1=1, 2=serial, 3=rand, 
 globalParameters["DataInitTypeD"]  = 0            # 0=0, 1=1, 2=serial, 3=rand, 4=Na, 5=serial-in-uN, 6=trig_float.
 globalParameters["DataInitTypeAlpha"] = 2         # 0=0, 1=1, 2=2, 3=rand, 4=NaN
 globalParameters["DataInitTypeBeta"] = 2          # 0=0, 1=1, 2=2, 3=rand, 4=NaN
+globalParameters["CEqualD"] = False               # Set to true if testing for the case where the pointer to C is the same as D.
+globalParameters["BufferOffsetA"] = 0             # data offset of buffer A
+globalParameters["BufferOffsetB"] = 0             # data offset of buffer B
+globalParameters["BufferOffsetC"] = 0             # data offset of buffer C
+globalParameters["BufferOffsetD"] = 0             # data offset of buffer D
 
-globalParameters["CEqualD"] = True               # Set to true if testing for the case where the pointer to C is the same as D.
 # build parameters
 globalParameters["CMakeCXXFlags"] = ""            # pass flags to cmake
 globalParameters["CMakeCFlags"] = ""              # pass flags to cmake
@@ -464,6 +468,9 @@ validParameters = {
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
+    # TODO: remove. legacy logic yaml in rocblas contains true and false for this parameter
+    # remove this parameter will cause two kernels have same.
+    # so we can't remove it until we clean logic yaml in rocblas
     "LdcEqualsLdd":               [ False, True ],
 
     # Interleave alpha scale calculation with beta loads and address calcs - rather
@@ -1052,7 +1059,7 @@ defaultBenchmarkCommonParameters = [
     {"ScheduleIterAlg":           [ 1 ] },
     {"OptPreLoopVmcnt":           [ True ] },
 
-    {"LdcEqualsLdd":              [ True ] },
+    {"LdcEqualsLdd":              [ False ] },
     {"InterleaveAlpha":           [ 0 ] },
     {"OptNoLoadLoop":             [ 1 ] },
     {"PrefetchAcrossPersistent":  [ 0 ] },
@@ -1222,6 +1229,7 @@ defaultProblemType = {
     "TransposeA":               False,            # =True means transA="T" or "C", =False means transA = "N"
     "TransposeB":               True,
     "Batched":                  False,            # add batching dimension
+    "StridedBatched":           True,             # use to select general batch or strided batch
 
     # for OperationType == TensorContraction
     # - Indices < NumIndicesC are Free or Batch indices and appear in C and D
@@ -1618,6 +1626,9 @@ def assignGlobalParameters( config ):
     globalParameters["ROCmPath"] = os.environ.get("ROCM_PATH")
   if "TENSILE_ROCM_PATH" in os.environ:
     globalParameters["ROCmPath"] = os.environ.get("TENSILE_ROCM_PATH")
+  globalParameters["CmakeCxxCompiler"] = None
+  if "CMAKE_CXX_COMPILER" in os.environ:
+    globalParameters["CmakeCxxCompiler"] = os.environ.get("CMAKE_CXX_COMPILER")
 
   globalParameters["ROCmBinPath"] = os.path.join(globalParameters["ROCmPath"], "bin")
 

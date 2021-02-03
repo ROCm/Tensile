@@ -432,12 +432,20 @@ namespace Tensile
             InitMode m_aInit, m_bInit, m_cInit, m_dInit;
             InitMode m_alphaInit, m_betaInit;
 
+            size_t m_aBufferOffset;
+            size_t m_bBufferOffset;
+            size_t m_cBufferOffset;
+            size_t m_dBufferOffset;
+
             size_t m_aMaxElements;
             size_t m_bMaxElements;
             size_t m_cMaxElements;
             size_t m_dMaxElements;
+            size_t m_maxBatch;
 
             size_t m_workspaceSize;
+
+            bool m_stridedBatched;
 
             bool m_cEqualsD;
             bool m_convolutionVsContraction;

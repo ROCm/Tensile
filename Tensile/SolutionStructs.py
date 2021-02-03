@@ -1156,6 +1156,11 @@ class ProblemType(collections.abc.Mapping):
     if self["HighPrecisionAccumulate"] and not self["SilentHighPrecisionAccumulate"]: name += "H"
     if self["UseInitialStridesAB"]: name += "I"
     if self["UseInitialStridesCD"]: name += "Ic"
+
+    # precision and other
+    # name += "_SB" if self["StridedBatched"] else "_GB"
+    name += "" if self["StridedBatched"] else "_GB" # legacy
+
     return name
 
   def keys(self):
@@ -1833,6 +1838,12 @@ class Solution:
     if "Valid" not in state:
       state["Valid"] = True
 
+    if (not state["ProblemType"]["StridedBatched"]) and (not state["ProblemType"]['Batched']):
+      reject(state, "General Batched GEMM only support Batched Problem")
+
+    if (not state["ProblemType"]["StridedBatched"]) and (state["ProblemType"]["OperationType"] != 'GEMM'):
+      reject(state, "General Batched GEMM only support GEMM OperationType")
+
     EnableMatrixInstruction = state["EnableMatrixInstruction"] if "EnableMatrixInstruction" in state else None
     if EnableMatrixInstruction == None:
       if  ("MIBlock" in state and len(state["MIBlock"]) == 6) \
@@ -2349,9 +2360,8 @@ class Solution:
     dataType = state["ProblemType"]["DataType"]
     state["_GlobalAccumulation"] = None
     if ((dataType.isBFloat16() or dataType.isHalf())
-        and state["ProblemType"]["HighPrecisionAccumulate"] \
-        and state["GlobalSplitU"] > 1 \
-        and (state["EnableMatrixInstruction"] or state["KernelLanguage"] == "Source")):
+        and state["ProblemType"]["HighPrecisionAccumulate"]
+        and state["GlobalSplitU"] > 1):
       if state["GlobalSplitUAlgorithm"] == "SingleBuffer":
         state["_GlobalAccumulation"] = 'SingleBuffer'
       if state["GlobalSplitUAlgorithm"] == "MultipleBuffer":
@@ -2447,14 +2457,15 @@ class Solution:
 
     # avoid bug somehow related to GlobalSplitU + Persistent
     # avoid bug related to WGM<0
+    # General Batch doesn't support PersistentKernel
     if state["PersistentKernel"] and (\
             (state["KernelLanguage"] == "Assembly" and state["GlobalSplitU"] != 1) or \
-            (state["KernelLanguage"] == "Assembly" and state["WorkGroupMapping"] < 0) ):
+            (state["KernelLanguage"] == "Assembly" and state["WorkGroupMapping"] < 0)):
       state["PersistentKernel"] = 0
 
     if state["PersistentKernelAlongBatch"] and (\
             (state["PersistentKernel"] == 0) or \
-            (state["KernelLanguage"] == "Source" and state["GlobalSplitU"] != 1) ):
+            (state["KernelLanguage"] == "Source" and state["GlobalSplitU"] != 1)):
       print2("PersistentKernelAlongBatch requires PersistentKernel != 0, forcing PersistentKernelAlongBatch = False")
       print2("PersistentKernelAlongBatch not support GSU on HIP, forcing PersistentKernelAlongBatch = False")
       state["PersistentKernelAlongBatch"] = False
@@ -3459,11 +3470,6 @@ class Solution:
       if state["KernelLanguage"] == "Assembly":
         if not bufferLoad:
           reject(state, "Packed dims for Assembly requires BufferLoad")
-        if not state["LdcEqualsLdd"]:
-          # this would require an extra VGPR for addressing (since shared VGPRS are per-row)
-          # and also would require that the dimension extraction and scale code be implemented
-          # for LDD as well. see emitExtractAndScalePackedDims
-          reject(state, "Packed dims for Assembly requires LdcEqualsLdd==True")
 
     if packedC0 and state["PackGranularity"]==2:
       if state["KernelLanguage"] == "Source":

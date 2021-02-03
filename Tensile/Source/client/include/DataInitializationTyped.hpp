@@ -58,6 +58,10 @@ namespace Tensile
                                      std::shared_ptr<B>    _b,
                                      std::shared_ptr<C>    _c,
                                      std::shared_ptr<D>    _d,
+                                     std::shared_ptr<A*>   _batchA,
+                                     std::shared_ptr<B*>   _batchB,
+                                     std::shared_ptr<C*>   _batchC,
+                                     std::shared_ptr<D*>   _batchD,
                                      size_t                _aElements,
                                      size_t                _bElements,
                                      size_t                _cElements,
@@ -68,11 +72,25 @@ namespace Tensile
                                      std::shared_ptr<void> _ws            = nullptr,
                                      size_t                _workspaceSize = 0)
 
-                : Base(_a.get(), _b.get(), _c.get(), _d.get(), _alpha, _beta, _ws.get())
+                : Base(_a.get(),
+                       _b.get(),
+                       _c.get(),
+                       _d.get(),
+                       _batchA.get(),
+                       _batchB.get(),
+                       _batchC.get(),
+                       _batchD.get(),
+                       _alpha,
+                       _beta,
+                       _ws.get())
                 , managedA(_a)
                 , managedB(_b)
                 , managedC(_c)
                 , managedD(_d)
+                , managedBatchA(_batchA)
+                , managedBatchB(_batchB)
+                , managedBatchC(_batchC)
+                , managedBatchD(_batchD)
                 , aElements(_aElements)
                 , bElements(_bElements)
                 , cElements(_cElements)
@@ -89,6 +107,10 @@ namespace Tensile
             std::shared_ptr<B>    managedB;
             std::shared_ptr<C>    managedC;
             std::shared_ptr<D>    managedD;
+            std::shared_ptr<A*>   managedBatchA;
+            std::shared_ptr<B*>   managedBatchB;
+            std::shared_ptr<C*>   managedBatchC;
+            std::shared_ptr<D*>   managedBatchD;
             std::shared_ptr<void> managedWS;
 
             size_t aElements;
@@ -183,6 +205,98 @@ namespace Tensile
                 return m_cpuConvInputs;
             };
 
+            template <typename T>
+            void initGPUBatchedInput(T                          base,
+                                     T*                         array,
+                                     TensorDescriptor const&    tensor,
+                                     const std::vector<size_t>& batchIdx)
+            {
+                std::vector<size_t> batchSizes;
+                std::vector<size_t> batchStrides;
+                for(auto& idx : batchIdx)
+                {
+                    batchSizes.push_back(tensor.sizes().at(idx));
+                    batchStrides.push_back(tensor.strides().at(idx));
+                }
+                std::vector<size_t> coord(batchSizes.size(), 0);
+
+                auto count = CoordCount(batchSizes.begin(), batchSizes.end());
+
+                T* cpuArray = (T*)std::malloc(count * sizeof(T));
+                for(size_t idx = 0; idx < count; idx++)
+                {
+                    CoordNumbered(
+                        idx, coord.begin(), coord.end(), batchSizes.begin(), batchSizes.end());
+                    cpuArray[idx] = base;
+                    for(size_t i = 0; i < batchSizes.size(); i++)
+                    {
+                        cpuArray[idx] += coord[i] * batchStrides[i];
+                    }
+                }
+
+                HIP_CHECK_EXC(hipMemcpy(array, cpuArray, count * sizeof(T), hipMemcpyHostToDevice));
+
+                std::free(cpuArray);
+            }
+
+            void initializeGPUBatchedInputs(ManagedInputs&            inputs,
+                                            ContractionProblem const& problem)
+            {
+                if(!inputs.gpu)
+                    throw std::runtime_error("Initializing GPU batched inputs");
+
+                auto                batchIdxs = problem.batchIndices();
+                std::vector<size_t> batchIdxA(batchIdxs.size(), 0);
+                std::vector<size_t> batchIdxB(batchIdxs.size(), 0);
+                std::vector<size_t> batchIdxC(batchIdxs.size(), 0);
+                std::vector<size_t> batchIdxD(batchIdxs.size(), 0);
+
+                ptrdiff_t aPadding = 0;
+                ptrdiff_t bPadding = 0;
+                ptrdiff_t cPadding = 0;
+                ptrdiff_t dPadding = 0;
+
+                for(size_t i = 0; i < batchIdxs.size(); i++)
+                {
+                    batchIdxA[i] = batchIdxs[i].a;
+                    batchIdxB[i] = batchIdxs[i].b;
+                    batchIdxC[i] = batchIdxs[i].c;
+                    batchIdxD[i] = batchIdxs[i].d;
+                }
+
+                if(m_curBoundsCheck == BoundsCheckMode::NaN)
+                {
+                    aPadding = (inputs.aElements - problem.a().totalAllocatedElements()) / 2;
+                    bPadding = (inputs.bElements - problem.b().totalAllocatedElements()) / 2;
+                    cPadding = (inputs.cElements - problem.c().totalAllocatedElements()) / 2;
+                    dPadding = (inputs.dElements - problem.d().totalAllocatedElements()) / 2;
+                }
+                else if(m_curBoundsCheck == BoundsCheckMode::GuardPageBack)
+                {
+                    aPadding = inputs.aElements - problem.a().totalAllocatedElements();
+                    bPadding = inputs.bElements - problem.b().totalAllocatedElements();
+                    cPadding = inputs.cElements - problem.c().totalAllocatedElements();
+                    dPadding = inputs.dElements - problem.d().totalAllocatedElements();
+                }
+
+                initGPUBatchedInput(inputs.managedA.get() + aPadding,
+                                    inputs.managedBatchA.get(),
+                                    problem.a(),
+                                    batchIdxA);
+                initGPUBatchedInput(inputs.managedB.get() + bPadding,
+                                    inputs.managedBatchB.get(),
+                                    problem.b(),
+                                    batchIdxB);
+                initGPUBatchedInput(inputs.managedC.get() + cPadding,
+                                    inputs.managedBatchC.get(),
+                                    problem.c(),
+                                    batchIdxC);
+                initGPUBatchedInput(inputs.managedD.get() + dPadding,
+                                    inputs.managedBatchD.get(),
+                                    problem.d(),
+                                    batchIdxD);
+            }
+
             std::shared_ptr<ManagedInputs> prepareGPUInputsTyped(ContractionProblem const& problem)
             {
                 std::shared_ptr<ManagedInputs> pristine;
@@ -235,6 +349,8 @@ namespace Tensile
 
                     copyInputs(m_gpuInputs, pristine, bad, problem);
                 }
+
+                initializeGPUBatchedInputs(*m_gpuInputs, problem);
 
                 return m_gpuInputs;
             }
@@ -339,6 +455,10 @@ namespace Tensile
                                                           b,
                                                           c,
                                                           d,
+                                                          std::shared_ptr<AType*>(),
+                                                          std::shared_ptr<BType*>(),
+                                                          std::shared_ptr<CType*>(),
+                                                          std::shared_ptr<DType*>(),
                                                           m_aMaxElements,
                                                           m_bMaxElements,
                                                           m_cMaxElements,
@@ -348,6 +468,19 @@ namespace Tensile
                                                           false);
 
                 return rv;
+            }
+
+            template <typename T>
+            std::shared_ptr<T> allocNewGPUBuffer(const char* title, size_t size)
+            {
+                static const int sizew = 10;
+                T*               ptr   = nullptr;
+                HIP_CHECK_EXC(hipMalloc(&ptr, size));
+                auto p = std::shared_ptr<T>(ptr, hipFree);
+                if(Debug::Instance().printTensorInfo())
+                    std::cout << "info: allocate " << title << " " << std::setw(sizew) << size
+                              << " bytes at " << ptr << "\n";
+                return p;
             }
 
             std::shared_ptr<ManagedInputs> allocNewGPUInputs(std::shared_ptr<ManagedInputs> pristine
@@ -360,8 +493,14 @@ namespace Tensile
                 std::shared_ptr<BType> b;
                 std::shared_ptr<CType> c;
                 std::shared_ptr<DType> d;
-                std::shared_ptr<void>  ws;
-                static const int       sizew = 10;
+
+                std::shared_ptr<AType*> batch_a;
+                std::shared_ptr<BType*> batch_b;
+                std::shared_ptr<CType*> batch_c;
+                std::shared_ptr<DType*> batch_d;
+
+                std::shared_ptr<void> ws;
+                static const int      sizew = 10;
 
                 std::vector<std::shared_ptr<void>> guardPage;
                 void*                              guardPagePtr;
@@ -370,8 +509,10 @@ namespace Tensile
 
                 if(pristine)
                 {
-                    a = pristine->managedA;
-                    b = pristine->managedB;
+                    a       = pristine->managedA;
+                    b       = pristine->managedB;
+                    batch_a = pristine->managedBatchA;
+                    batch_b = pristine->managedBatchB;
                 }
                 else
                 {
@@ -381,13 +522,9 @@ namespace Tensile
                         guardPage.push_back(std::shared_ptr<void>(guardPagePtr, hipFree));
                     }
 
-                    AType* aPtr = nullptr;
-                    HIP_CHECK_EXC(hipMalloc(&aPtr, TypeInfo<AType>::ElementSize * m_aMaxElements));
-                    a = std::shared_ptr<AType>(aPtr, hipFree);
-                    if(Debug::Instance().printTensorInfo())
-                        std::cout << "info: allocate a " << std::setw(sizew)
-                                  << TypeInfo<AType>::ElementSize * m_aMaxElements << " bytes at "
-                                  << aPtr << "\n";
+                    a       = allocNewGPUBuffer<AType>("a",
+                                                 TypeInfo<AType>::ElementSize * m_aMaxElements);
+                    batch_a = allocNewGPUBuffer<AType*>("batchA", sizeof(AType*) * m_maxBatch);
 
                     if(enableGuardPage)
                     {
@@ -395,13 +532,9 @@ namespace Tensile
                         guardPage.push_back(std::shared_ptr<void>(guardPagePtr, hipFree));
                     }
 
-                    BType* bPtr = nullptr;
-                    HIP_CHECK_EXC(hipMalloc(&bPtr, TypeInfo<BType>::ElementSize * m_bMaxElements));
-                    b = std::shared_ptr<BType>(bPtr, hipFree);
-                    if(Debug::Instance().printTensorInfo())
-                        std::cout << "info: allocate b " << std::setw(sizew)
-                                  << TypeInfo<BType>::ElementSize * m_bMaxElements << " bytes at "
-                                  << bPtr << "\n";
+                    b       = allocNewGPUBuffer<BType>("b",
+                                                 TypeInfo<BType>::ElementSize * m_bMaxElements);
+                    batch_b = allocNewGPUBuffer<BType*>("batchB", sizeof(BType*) * m_maxBatch);
                 }
 
                 if(m_cEqualsD || !pristine)
@@ -412,26 +545,25 @@ namespace Tensile
                         guardPage.push_back(std::shared_ptr<void>(guardPagePtr, hipFree));
                     }
 
-                    CType* cPtr = nullptr;
-                    HIP_CHECK_EXC(hipMalloc(&cPtr, TypeInfo<CType>::ElementSize * m_cMaxElements));
-                    c = std::shared_ptr<CType>(cPtr, hipFree);
-                    if(Debug::Instance().printTensorInfo())
-                        std::cout << "info: allocate c " << std::setw(sizew)
-                                  << TypeInfo<CType>::ElementSize * m_cMaxElements << " bytes at "
-                                  << cPtr << "\n";
+                    c       = allocNewGPUBuffer<CType>("c",
+                                                 TypeInfo<CType>::ElementSize * m_cMaxElements);
+                    batch_c = allocNewGPUBuffer<CType*>("batchC", sizeof(CType*) * m_maxBatch);
                 }
                 else
                 {
-                    c = pristine->managedC;
+                    c       = pristine->managedC;
+                    batch_c = pristine->managedBatchC;
                 }
 
                 if(m_cEqualsD)
                 {
-                    d = c;
+                    d       = c;
+                    batch_d = batch_c;
                 }
                 else if(pristine)
                 {
-                    d = pristine->managedD;
+                    d       = pristine->managedD;
+                    batch_d = pristine->managedBatchD;
                 }
                 else
                 {
@@ -441,13 +573,9 @@ namespace Tensile
                         guardPage.push_back(std::shared_ptr<void>(guardPagePtr, hipFree));
                     }
 
-                    DType* dPtr = nullptr;
-                    HIP_CHECK_EXC(hipMalloc(&dPtr, TypeInfo<DType>::ElementSize * m_dMaxElements));
-                    d = std::shared_ptr<DType>(dPtr, hipFree);
-                    if(Debug::Instance().printTensorInfo())
-                        std::cout << "info: allocate d " << std::setw(sizew)
-                                  << TypeInfo<DType>::ElementSize * m_dMaxElements << " bytes at "
-                                  << dPtr << "\n";
+                    d       = allocNewGPUBuffer<DType>("d",
+                                                 TypeInfo<DType>::ElementSize * m_dMaxElements);
+                    batch_d = allocNewGPUBuffer<DType*>("batchD", sizeof(DType*) * m_maxBatch);
                 }
 
                 if(enableGuardPage)
@@ -462,12 +590,7 @@ namespace Tensile
                 }
                 else
                 {
-                    void* wsPtr = nullptr;
-                    HIP_CHECK_EXC(hipMalloc(&wsPtr, m_workspaceSize));
-                    ws = std::shared_ptr<void>(wsPtr, hipFree);
-                    if(Debug::Instance().printTensorInfo())
-                        std::cout << "info: allocate g for high precision GSU " << std::setw(sizew)
-                                  << m_workspaceSize << " bytes at " << wsPtr << "\n";
+                    ws = allocNewGPUBuffer<void>("ws", m_workspaceSize);
                 }
 
                 auto alpha = static_cast<AlphaType>(0);
@@ -477,6 +600,10 @@ namespace Tensile
                                                           b,
                                                           c,
                                                           d,
+                                                          batch_a,
+                                                          batch_b,
+                                                          batch_c,
+                                                          batch_d,
                                                           m_aMaxElements,
                                                           m_bMaxElements,
                                                           m_cMaxElements,

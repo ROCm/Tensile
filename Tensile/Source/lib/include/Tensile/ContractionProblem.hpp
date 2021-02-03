@@ -148,6 +148,34 @@ namespace Tensile
                                                double   beta);
 
         /**
+   * Create a ContractionProblem representing a batched GEMM, specifying
+   * strides between matrices.
+   */
+        static ContractionProblem GEMM_Strides(bool     transA,
+                                               bool     transB,
+                                               DataType aType,
+                                               DataType bType,
+                                               DataType cType,
+                                               DataType dType,
+                                               size_t   m,
+                                               size_t   n,
+                                               size_t   k,
+                                               size_t   batchSize,
+                                               size_t   lda,
+                                               size_t   aStride,
+                                               size_t   aOffset,
+                                               size_t   ldb,
+                                               size_t   bStride,
+                                               size_t   bOffset,
+                                               size_t   ldc,
+                                               size_t   cStride,
+                                               size_t   cOffset,
+                                               size_t   ldd,
+                                               size_t   dStride,
+                                               size_t   dOffset,
+                                               double   beta);
+
+        /**
    * Create a ContractionProblem representing a batched SGEMM, with
    * leading dimensions, but no strides.
    */
@@ -159,6 +187,25 @@ namespace Tensile
                                        size_t lda,
                                        size_t ldb,
                                        size_t ldc,
+                                       double beta,
+                                       bool   unused,
+                                       size_t batchCount);
+
+        /**
+   * Create a ContractionProblem representing a batched SGEMM, with
+   * leading dimensions, but no strides.
+   */
+        static ContractionProblem GEMM(bool   transA,
+                                       bool   transB,
+                                       size_t m,
+                                       size_t n,
+                                       size_t k,
+                                       size_t lda,
+                                       size_t offsetA,
+                                       size_t ldb,
+                                       size_t offsetB,
+                                       size_t ldc,
+                                       size_t offsetC,
                                        double beta,
                                        bool   unused,
                                        size_t batchCount);
@@ -241,6 +288,62 @@ namespace Tensile
                                                  double                     beta);
 
         /**
+   * Create a ContractionProblem from a definition of each index, the
+   * size of each index, the strides of each tensor, and any operations.
+   *
+   * @param freeIndices  Free indices
+   * @param batchIndices Batch indices
+   * @param boundIndices Bound indices
+   * @param indexSizes   Size of each index, in the order of appearance in
+   *                     the D tensor.
+   *
+   * @param aType    Data type of A
+   * @param aStrides Strides of A
+   * @param aOps     Operations to apply to A as it is read
+   * @param aOffset  start offset of buffer A
+   *
+   * @param bType    Data type of B
+   * @param bStrides Strides of B
+   * @param bOps     Operations to apply to B as it is read
+   * @param bOffset  start offset of buffer B
+   *
+   * @param cType    Data type of C
+   * @param cStrides Strides of C
+   * @param cOps     Operations to apply to C as it is read
+   * @param cOffset  start offset of buffer C
+   *
+   * @param dType    Data type of D
+   * @param dStrides Strides of D
+   * @param dOps     Operations to apply to D as it is read
+   * @param dOffset  start offset of buffer D
+   *
+   * @param beta Representative value of beta. Is only used to possibly
+   *             select a more efficient kernel if we know that
+   *             `beta == 0` or `beta == 1`.
+   */
+        static ContractionProblem FromIndexSizes(FreeIndices const&         freeIndices,
+                                                 BatchIndices const&        batchIndices,
+                                                 BoundIndices const&        boundIndices,
+                                                 std::vector<size_t> const& indexSizes,
+                                                 DataType                   aType,
+                                                 std::vector<size_t> const& aStrides,
+                                                 TensorOps const&           aOps,
+                                                 size_t                     aOffset,
+                                                 DataType                   bType,
+                                                 std::vector<size_t> const& bStrides,
+                                                 TensorOps const&           bOps,
+                                                 size_t                     bOffset,
+                                                 DataType                   cType,
+                                                 std::vector<size_t> const& cStrides,
+                                                 TensorOps const&           cOps,
+                                                 size_t                     cOffset,
+                                                 DataType                   dType,
+                                                 std::vector<size_t> const& dStrides,
+                                                 TensorOps const&           dOps,
+                                                 size_t                     dOffset,
+                                                 double                     beta);
+
+        /**
    * Create a ContractionProblem based on an operation identifier such as
    * `Contraction_l_AlikC_Bjlk_Cijk_Dijk` and individual index sizes.
    *
@@ -276,6 +379,52 @@ namespace Tensile
                                                  std::vector<size_t> const& cStrides,
                                                  DataType                   dType,
                                                  std::vector<size_t> const& dStrides,
+                                                 double                     beta);
+
+        /**
+   * Create a ContractionProblem based on an operation identifier such as
+   * `Contraction_l_AlikC_Bjlk_Cijk_Dijk` and individual index sizes.
+   *
+   * @param operationIdentifier String that represents this exact
+   *                            operation in terms of transposes, data
+   *                            types, and operations.
+   * @param indexSizes   Size of each index, in the order of appearance in
+   *                     the D tensor.
+   *
+   * @param aType    Data type of A
+   * @param aStrides Strides of A
+   * @param aOffset  Data offset of buffer A
+   *
+   * @param bType    Data type of B
+   * @param bStrides Strides of B
+   * @param bOffset  Data offset of buffer B
+   *
+   * @param cType    Data type of C
+   * @param cStrides Strides of C
+   * @param cOffset  Data offset of buffer C
+   *
+   * @param dType    Data type of D
+   * @param dStrides Strides of D
+   * @param dOffset  Data offset of buffer D
+   *
+   * @param beta Representative value of beta. Is only used to possibly
+   *             select a more efficient kernel if we know that
+   *             `beta == 0` or `beta == 1`.
+   */
+        static ContractionProblem FromIndexSizes(std::string const&         operationIdentifier,
+                                                 std::vector<size_t> const& indexSizes,
+                                                 DataType                   aType,
+                                                 std::vector<size_t> const& aStrides,
+                                                 size_t                     aOffset,
+                                                 DataType                   bType,
+                                                 std::vector<size_t> const& bStrides,
+                                                 size_t                     bOffset,
+                                                 DataType                   cType,
+                                                 std::vector<size_t> const& cStrides,
+                                                 size_t                     cOffset,
+                                                 DataType                   dType,
+                                                 std::vector<size_t> const& dStrides,
+                                                 size_t                     dOffset,
                                                  double                     beta);
 
         ContractionProblem(TensorDescriptor const& a,
@@ -330,6 +479,7 @@ namespace Tensile
         {
             return m_problemSizes;
         }
+
         std::vector<size_t> const& problemStrides() const
         {
             return m_problemStrides;
@@ -339,6 +489,7 @@ namespace Tensile
         {
             m_alphaType = type;
         }
+
         DataType alphaType() const
         {
             return m_alphaType;
@@ -348,15 +499,27 @@ namespace Tensile
         {
             m_betaType = type;
         }
+
         DataType betaType() const
         {
             return m_betaType;
+        }
+
+        void setStridedBatched(bool value)
+        {
+            m_stridedBatched = value;
+        }
+
+        bool stridedBatched() const
+        {
+            return m_stridedBatched;
         }
 
         void setHighPrecisionAccumulate(bool value)
         {
             m_highPrecisionAccumulate = value;
         }
+
         bool highPrecisionAccumulate() const
         {
             return m_highPrecisionAccumulate;
@@ -564,6 +727,7 @@ namespace Tensile
 
         bool           m_transA;
         bool           m_transB;
+        bool           m_stridedBatched          = true;
         bool           m_highPrecisionAccumulate = false;
         bool           m_deterministicMode       = false;
         bool           m_eligibleForPK           = true;
@@ -655,20 +819,42 @@ namespace Tensile
         using BetaType  = Beta;
 
         TypedContractionInputs();
+
         TypedContractionInputs(A const* _a,
                                B const* _b,
                                C const* _c,
                                D*       _d,
                                Alpha    _alpha,
                                Beta     _beta,
-                               void*    _ws = nullptr);
+                               void*    _ws = nullptr)
+            : TypedContractionInputs(
+                _a, _b, _c, _d, nullptr, nullptr, nullptr, nullptr, _alpha, _beta){};
+
+        TypedContractionInputs(A const*        _a,
+                               B const*        _b,
+                               C const*        _c,
+                               D*              _d,
+                               A const* const* _batchA,
+                               B const* const* _batchB,
+                               C const* const* _batchC,
+                               D* const*       _batchD,
+                               Alpha           _alpha,
+                               Beta            _beta,
+                               void*           _ws = nullptr);
+
         ~TypedContractionInputs();
 
-        A const* a  = nullptr;
-        B const* b  = nullptr;
-        C const* c  = nullptr;
-        D*       d  = nullptr;
-        void*    ws = nullptr;
+        A const* a = nullptr;
+        B const* b = nullptr;
+        C const* c = nullptr;
+        D*       d = nullptr;
+
+        A const* const* batchA = nullptr;
+        B const* const* batchB = nullptr;
+        C const* const* batchC = nullptr;
+        D* const*       batchD = nullptr;
+
+        void* ws = nullptr;
 
         Alpha alpha = static_cast<Alpha>(0);
         Beta  beta  = static_cast<Beta>(0);
