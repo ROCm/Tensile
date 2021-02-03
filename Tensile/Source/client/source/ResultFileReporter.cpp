@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -37,17 +37,23 @@ namespace Tensile
         {
             return std::make_shared<ResultFileReporter>(args["results-file"].as<std::string>(),
                                                         args["csv-export-extra-cols"].as<bool>(),
-                                                        args["csv-merge-same-problems"].as<bool>());
+                                                        args["csv-merge-same-problems"].as<bool>(),
+                                                        args["benchmark-per-cu"].as<bool>());
         }
 
         ResultFileReporter::ResultFileReporter(std::string const& filename,
                                                bool               exportExtraCols,
-                                               bool               mergeSameProblems)
+                                               bool               mergeSameProblems,
+                                               bool               gflopsPerCu)
             : m_output(filename)
             , m_extraCol(exportExtraCols)
             , m_mergeSameProblems(mergeSameProblems)
+            , m_gflopsPerCu(gflopsPerCu)
         {
-            m_output.setHeaderForKey(ResultKey::ProblemIndex, "GFlops");
+            if(m_gflopsPerCu)
+                m_output.setHeaderForKey(ResultKey::ProblemIndex, "GFlopsPerCU");
+            else
+                m_output.setHeaderForKey(ResultKey::ProblemIndex, "GFlops");
         }
 
         template <typename T>
@@ -81,7 +87,8 @@ namespace Tensile
                     }
                 }
             }
-            else if(key == ResultKey::SpeedGFlops)
+            else if((key == ResultKey::SpeedGFlops && !m_gflopsPerCu)
+                    || (key == ResultKey::SpeedGFlopsPerCu && m_gflopsPerCu))
             {
                 // cascade from BenchmarkTimer, SpeedGFlops second
                 if(!m_invalidSolution)

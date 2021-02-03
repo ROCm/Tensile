@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -100,17 +100,27 @@ namespace Tensile
             double timePerEnqueue_us
                 = double_micros(m_timeInSolution).count() / m_numEnqueuesInSolution;
 
-            double   gflops     = m_problem.flopCount() / (timePerEnqueue_us) / 1000.0;
-            uint64_t gflopsUint = static_cast<uint64_t>(round(gflops));
-
             ContractionSolution::ProjectedPerformance pp
                 = m_solution.projectedPerformance(m_problem, m_hardware);
+
+            double gflops      = m_problem.flopCount() / (timePerEnqueue_us) / 1000.0;
+            double tiles       = pp.tilesPerCu * perf.CUs;
+            int    usedCus     = (tiles > perf.CUs) ? perf.CUs : tiles;
+            double gflopsPerCu = gflops / usedCus;
+
+            uint64_t gflopsUint      = static_cast<uint64_t>(round(gflops));
+            uint64_t gflopsPerCuUint = static_cast<uint64_t>(round(gflopsPerCu));
 
             m_reporter->report(ResultKey::TimeUS, timePerEnqueue_us);
             if(gflopsUint)
                 m_reporter->report(ResultKey::SpeedGFlops, gflopsUint);
             else
                 m_reporter->report(ResultKey::SpeedGFlops, gflops);
+
+            if(gflopsPerCuUint)
+                m_reporter->report(ResultKey::SpeedGFlopsPerCu, gflopsPerCuUint);
+            else
+                m_reporter->report(ResultKey::SpeedGFlopsPerCu, gflopsPerCu);
 
             m_timeInSolution        = double_millis::zero();
             m_numEnqueuesInSolution = 0;

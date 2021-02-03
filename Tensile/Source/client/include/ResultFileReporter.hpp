@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -46,7 +46,8 @@ namespace Tensile
 
             ResultFileReporter(std::string const& filename,
                                bool               exportExtraCols,
-                               bool               mergeSameProblems);
+                               bool               mergeSameProblems,
+                               bool               gflopsPerCu);
 
             virtual void reportValue_string(std::string const& key,
                                             std::string const& value) override;
@@ -71,6 +72,7 @@ namespace Tensile
             bool         m_invalidSolution = false;
             bool         m_extraCol;
             bool         m_mergeSameProblems;
+            bool         m_gflopsPerCu;
             // for extra columns
             std::string m_winnerSolution;
             int64_t     m_currSolutionIdx   = -1;

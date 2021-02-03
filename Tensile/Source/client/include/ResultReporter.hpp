@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -84,11 +84,12 @@ namespace Tensile
             const std::string SolutionWinner    = "solution-winner";
 
             // Performance-related
-            const std::string Validation    = "validation";
-            const std::string TimeUS        = "time-us";
-            const std::string SpeedGFlops   = "gflops";
-            const std::string EnqueueTime   = "enqueue-time";
-            const std::string FastestGFlops = "fastest-gflops";
+            const std::string Validation       = "validation";
+            const std::string TimeUS           = "time-us";
+            const std::string SpeedGFlops      = "gflops";
+            const std::string SpeedGFlopsPerCu = "gflops-per-cu";
+            const std::string EnqueueTime      = "enqueue-time";
+            const std::string FastestGFlops    = "fastest-gflops";
 
             // Performance estimation and granularity
             const std::string Tile0Granularity = "tile0-gran";
