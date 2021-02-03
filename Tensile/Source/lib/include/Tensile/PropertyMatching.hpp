@@ -28,11 +28,11 @@
 #include <tuple>
 #include <vector>
 
+#include <Tensile/ContractionSolution.hpp>
 #include <Tensile/Debug.hpp>
 #include <Tensile/Distance.hpp>
 #include <Tensile/Properties.hpp>
 #include <Tensile/Utils.hpp>
-#include <Tensile/ContractionSolution.hpp>
 
 namespace Tensile
 {
@@ -77,9 +77,9 @@ namespace Tensile
             virtual std::tuple<ReturnValue, double> findBestMatch(Object const& object,
                                                                   Transform transform) const = 0;
 
-            virtual ReturnValue findBestEvaluationSolution(Object const& object, 
-                                                           Hardware const&  hardware,
-                                                           Transform transform) const = 0;
+            virtual ReturnValue findBestEvaluationSolution(Object const&   object,
+                                                           Hardware const& hardware,
+                                                           Transform       transform) const = 0;
 
             virtual std::vector<Value> matchesInOrder(Object const& object) const = 0;
 
@@ -466,43 +466,54 @@ namespace Tensile
                 return keyMatchesInOrder(keyForProblem(object));
             }
 
-            double computeTileAwareMetric(ContractionSolution::TAMetricProblemScore pp,
-                                          ContractionSolution::TAMetricProblemScore ppReference) const
+            double
+                computeTileAwareMetric(ContractionSolution::TAMetricProblemScore pp,
+                                       ContractionSolution::TAMetricProblemScore ppReference) const
             {
-                double metric = 0.0; 
-  
-                double tile0GranularityDim = abs(log(ppReference.tile0Granularity) - log(pp.tile0Granularity));
-                metric = tile0GranularityDim; 
+                double metric = 0.0;
 
-                double tile1GranularityDim = abs(log(ppReference.tile1Granularity) - log(pp.tile1Granularity));
+                double tile0GranularityDim
+                    = abs(log(ppReference.tile0Granularity) - log(pp.tile0Granularity));
+                metric = tile0GranularityDim;
+
+                double tile1GranularityDim
+                    = abs(log(ppReference.tile1Granularity) - log(pp.tile1Granularity));
                 metric += tile1GranularityDim;
 
-                double natCuGranularityDim = abs(log(ppReference.natCuGranularity) - log(pp.natCuGranularity));
+                double natCuGranularityDim
+                    = abs(log(ppReference.natCuGranularity) - log(pp.natCuGranularity));
                 metric += natCuGranularityDim;
 
-                double suCuGranularityDim = abs(log(ppReference.suCuGranularity) - log(pp.suCuGranularity));
+                double suCuGranularityDim
+                    = abs(log(ppReference.suCuGranularity) - log(pp.suCuGranularity));
                 metric += suCuGranularityDim;
 
-                double suWaveGranularityDim = abs(log(ppReference.suWaveGranularity) - log(pp.suWaveGranularity));
+                double suWaveGranularityDim
+                    = abs(log(ppReference.suWaveGranularity) - log(pp.suWaveGranularity));
                 metric += suWaveGranularityDim;
 
-                double natTilesPerCuDim = abs(log(ppReference.natTilesPerCu) - log(pp.natTilesPerCu));
+                double natTilesPerCuDim
+                    = abs(log(ppReference.natTilesPerCu) - log(pp.natTilesPerCu));
                 metric += natTilesPerCuDim;
 
                 double suTilesPerCuDim = abs(log(ppReference.suTilesPerCu) - log(pp.suTilesPerCu));
                 metric += suTilesPerCuDim;
 
-                double summationPerformanceDim = abs(ppReference.summationPerformance - pp.summationPerformance);
+                double summationPerformanceDim
+                    = abs(ppReference.summationPerformance - pp.summationPerformance);
                 metric += summationPerformanceDim;
 
                 return metric;
             }
 
-            double computeTAMScore(ReturnValue& solution, Hardware const&  hardware, Object const& object, Key key) const
+            double computeTAMScore(ReturnValue&    solution,
+                                   Hardware const& hardware,
+                                   Object const&   object,
+                                   Key             key) const
             {
-                size_t M = object.freeSizeA(0);
-                size_t N = object.freeSizeB(0);
-                size_t K = object.boundSize(0);
+                size_t M          = object.freeSizeA(0);
+                size_t N          = object.freeSizeB(0);
+                size_t K          = object.boundSize(0);
                 size_t NumBatches = object.batchSize(0);
 
                 size_t model_M         = key[0];
@@ -510,9 +521,9 @@ namespace Tensile
                 size_t model_K         = 1;
                 size_t model_batchSize = 1;
 
-                if (key.size() > 3)
+                if(key.size() > 3)
                 {
-                    model_K = key[3];
+                    model_K         = key[3];
                     model_batchSize = key[2];
                 }
                 else
@@ -521,20 +532,20 @@ namespace Tensile
                 }
 
                 ContractionSolution::TAMetricProblemScore pp
-                      = solution->computeProblemScore(hardware, M, N, K, NumBatches, 0, 0, 0, 0);
+                    = solution->computeProblemScore(hardware, M, N, K, NumBatches, 0, 0, 0, 0);
 
                 ContractionSolution::TAMetricProblemScore ppReference
-                      = solution->computeProblemScore(
-                          hardware, model_M, model_N, model_K, model_batchSize, 0, 0, 0, 0);
+                    = solution->computeProblemScore(
+                        hardware, model_M, model_N, model_K, model_batchSize, 0, 0, 0, 0);
 
                 double distance = this->computeTileAwareMetric(pp, ppReference);
 
                 return distance;
             }
 
-            virtual ReturnValue findBestEvaluationSolution(Object const& object , 
-                                                           Hardware const&  hardware, 
-                                                           Transform transform) const override
+            virtual ReturnValue findBestEvaluationSolution(Object const&   object,
+                                                           Hardware const& hardware,
+                                                           Transform       transform) const override
             {
                 double bestDistance = std::numeric_limits<double>::max();
 
@@ -545,9 +556,9 @@ namespace Tensile
                 ReturnValue theMatch = transform(iter->value);
 
                 ReturnValue bestMatch = theMatch;
-                if (theMatch != nullptr)
+                if(theMatch != nullptr)
                     bestDistance = computeTAMScore(theMatch, hardware, object, iter->key);
-                
+
                 iter++;
 
                 if(iter == this->table.end())
@@ -557,13 +568,14 @@ namespace Tensile
                 {
                     auto nextMatch = transform(iter->value);
 
-                    if (nextMatch != nullptr)
+                    if(nextMatch != nullptr)
                     {
-                        double nextDistance = computeTAMScore(nextMatch, hardware, object, iter->key);
- 
-                        if (nextDistance < bestDistance)
+                        double nextDistance
+                            = computeTAMScore(nextMatch, hardware, object, iter->key);
+
+                        if(nextDistance < bestDistance)
                         {
-                            bestMatch = nextMatch; 
+                            bestMatch    = nextMatch;
                             bestDistance = nextDistance;
                         }
                     }

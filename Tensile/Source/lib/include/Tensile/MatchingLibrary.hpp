@@ -76,9 +76,10 @@ namespace Tensile
                 return library->findBestSolution(problem, hardware);
             };
 
-            if (useDebugSelection)
+            if(useDebugSelection)
             {
-                std::shared_ptr<MySolution> evaluationSolution = table->findBestEvaluationSolution(problem, hardware, transform);
+                std::shared_ptr<MySolution> evaluationSolution
+                    = table->findBestEvaluationSolution(problem, hardware, transform);
                 return evaluationSolution;
             }
             else

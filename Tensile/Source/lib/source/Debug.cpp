@@ -114,10 +114,10 @@ namespace Tensile
         return m_value2 & 0x1;
     }
 
-     bool Debug::enableDebugSelection() const
-     {
+    bool Debug::enableDebugSelection() const
+    {
         return m_debugSelection;
-     }
+    }
 
     Debug::Debug()
         : m_value(DEBUG_SM)

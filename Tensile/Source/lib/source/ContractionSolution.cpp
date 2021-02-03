@@ -1154,9 +1154,9 @@ namespace Tensile
         double wavefrontSize = 64; //defaults to 64
         double simdPerCu     = 4;
 
-        pp.M = M;
-        pp.N = N;
-        pp.K = K;
+        pp.M   = M;
+        pp.N   = N;
+        pp.K   = K;
         pp.MT0 = MT0;
         pp.MT1 = MT1;
 
@@ -1180,8 +1180,8 @@ namespace Tensile
         pp.tile0Granularity = pp.numTiles0 / ceil(pp.numTiles0);
         pp.tile1Granularity = pp.numTiles1 / ceil(pp.numTiles1);
 
-        pp.totalTiles = ceil(pp.numTiles0) * ceil(pp.numTiles1);
-        pp.natTilesPerCu = NumBatches * pp.totalTiles / NumCUs;
+        pp.totalTiles      = ceil(pp.numTiles0) * ceil(pp.numTiles1);
+        pp.natTilesPerCu   = NumBatches * pp.totalTiles / NumCUs;
         pp.suTilesPerCu    = (pp.totalTiles * GlobalSplitU) / NumCUs;
         pp.suCuGranularity = pp.suTilesPerCu / ceil(pp.suTilesPerCu);
 
@@ -1194,31 +1194,31 @@ namespace Tensile
             = pp.tile0Granularity * pp.tile1Granularity * pp.suCuGranularity * pp.suWaveGranularity;
 
         double nat_tiles_per_cu = NumBatches * ceil(pp.numTiles0) * ceil(pp.numTiles1) / NumCUs;
-        pp.natCuGranularity = ceil(nat_tiles_per_cu) * ceil(nat_tiles_per_cu) / NumCUs;
+        pp.natCuGranularity     = ceil(nat_tiles_per_cu) * ceil(nat_tiles_per_cu) / NumCUs;
 
-        auto modelSlope = linearModel.find("slope");
-        double slope = 0.0;
-        double intercept = 0.0;
-        double perf_max = 10000.0;
-        if (modelSlope != linearModel.end()) 
+        auto   modelSlope = linearModel.find("slope");
+        double slope      = 0.0;
+        double intercept  = 0.0;
+        double perf_max   = 10000.0;
+        if(modelSlope != linearModel.end())
         {
             slope = modelSlope->second;
         }
 
         auto modelIntercept = linearModel.find("intercept");
-        if (modelIntercept != linearModel.end()) 
+        if(modelIntercept != linearModel.end())
         {
             intercept = modelIntercept->second;
         }
 
         auto modelPerfMax = linearModel.find("max");
-        if (modelPerfMax != linearModel.end()) 
+        if(modelPerfMax != linearModel.end())
         {
             perf_max = modelPerfMax->second;
         }
 
-        double sum_value = K;
-        double sum_perf0 = sum_value / (intercept + (slope * sum_value));
+        double sum_value        = K;
+        double sum_perf0        = sum_value / (intercept + (slope * sum_value));
         pp.summationPerformance = 1000.0 * sum_perf0 / perf_max;
 
         return pp;

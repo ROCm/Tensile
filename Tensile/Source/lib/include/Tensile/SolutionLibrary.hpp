@@ -73,7 +73,7 @@ namespace Tensile
     struct TENSILE_API SolutionLibrary
     {
         virtual ~SolutionLibrary() = default;
-        
+
         /**
    * Returns the single `Solution` object that best solves this
    * particular `problem` on this particular piece of `hardware`.

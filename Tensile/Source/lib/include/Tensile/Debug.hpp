@@ -73,7 +73,7 @@ namespace Tensile
         int  m_value;
         int  m_value2;
         bool m_naivePropertySearch = false;
-        bool m_debugSelection = false;
+        bool m_debugSelection      = false;
 
         Debug();
     };
