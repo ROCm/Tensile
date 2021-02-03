@@ -32,6 +32,7 @@
 #include <Tensile/Distance.hpp>
 #include <Tensile/Properties.hpp>
 #include <Tensile/Utils.hpp>
+#include <Tensile/ContractionSolution.hpp>
 
 namespace Tensile
 {

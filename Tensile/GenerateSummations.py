@@ -5,11 +5,7 @@ import os
 
 import pandas as pd
 import numpy as np
-import math
-import yaml
-import scipy
 import subprocess
-import itertools
 import glob
 
 from shutil import copyfile
@@ -19,8 +15,8 @@ from . import LibraryIO
 
 from . import TensileCreateLibrary
 from . import ClientWriter
-from .Common import assignGlobalParameters, restoreDefaultGlobalParameters, ensurePath, globalParameters, \
-    gfxName, gfxArch, pushWorkingPath, popWorkingPath
+from .Common import assignGlobalParameters, ensurePath, globalParameters, \
+    gfxName, gfxArch
 from .SolutionStructs import ProblemSizes, Solution
 
 
