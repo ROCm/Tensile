@@ -5887,8 +5887,7 @@ class KernelWriterAssembly(KernelWriter):
     tailLoop = loopIdx < 0
     if tailLoop:
       loopIdx = self.unrollIdx
-      loopChar = self.indexChars[ \
-          kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+      loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx]]
       loopLabelBegin = self.getNamedLabel("TailLoopBegin%s%s"%(loopChar, "_G2L%s"%uDu if uDu is not None else "") )
       loopLabelEnd = self.getNamedLabel("TailLoopEnd%s%s"%(loopChar, "_G2L%s"%uDu if uDu is not None else "") )
       loopLabelEndOddExit = self.getNamedLabel("TailLoopEnd%s_oddexit"%(loopChar) )
@@ -5903,6 +5902,8 @@ class KernelWriterAssembly(KernelWriter):
         unrollInc      *= kernel["MatrixInstK"]
         KinInnerUnroll *= kernel["MatrixInstK"]
       if kernel["AssertSummationElementMultiple"] % KinInnerUnroll == 0:
+        unrollInc *= kernel["InnerUnroll"]
+      elif (kernel["LocalDotLayout"] == 2) and (kernel["InnerUnroll"] == 2):
         unrollInc *= kernel["InnerUnroll"]
 
       kStr += self.comment("closeLoop loop%s finalLoop=%d tailLoop=%d" % (loopChar, finalLoop, tailLoop))
@@ -6312,12 +6313,39 @@ class KernelWriterAssembly(KernelWriter):
 
     return mfmaMod
 
+
+  def removeExtraUnroll(self, kernel):
+    kStr = ""
+    loopCounterName = self.loopCounterName(kernel, self.unrollIdx)
+    tmpSgpr = self.getTmpSgpr(1).idx()
+
+    kStr += inst("s_cmp_eq_u32", sgpr(loopCounterName), hex(kernel["LocalDotLayout"]-1), f'leftover L == {kernel["LocalDotLayout"]-1}?')
+    kStr += inst("s_lshl_b32", sgpr(tmpSgpr), "scc", hex(log2(self.bpeAB*8)), "shift lenghth for remove unused unroll")
+
+    for blockA in range(0, kernel["ThreadTile0"]//2):
+      for iui in range(0, kernel["InnerUnroll"]):
+        aStr = f'ValuA_X0_I{iui}+{blockA}'
+        kStr += inst("v_lshlrev_b32", vgpr(aStr), sgpr(tmpSgpr), vgpr(aStr), "remove unused unroll")
+
+    for blockB in range(0, kernel["ThreadTile1"]//2):
+      for iui in range(0, kernel["InnerUnroll"]):
+        bStr = f'ValuB_X0_I{iui}+{blockB}'
+        kStr += inst("v_lshlrev_b32", vgpr(bStr), sgpr(tmpSgpr), vgpr(bStr), "remove unused unroll")
+
+    return kStr
+
+
   ##############################################################################
   # MAC Iteration
   ##############################################################################
-  def macIter(self, kernel, bufferIdx, iuiCount, useMacro):
-    if not self.do["MAC"]: return ""
+  def macIter(self, kernel, bufferIdx, iuiCount, useMacro, isTail=False):
     imod = Code.Module("macIter_X%u_I%u"%(bufferIdx, iuiCount))
+
+    if not self.do["MAC"]: return imod
+
+    if isTail and (kernel["InnerUnroll"] == 2) and (kernel["LocalDotLayout"] == 2) \
+        and ((kernel["AssertSummationElementMultiple"] % kernel["LocalDotLayout"]) != 0):
+      imod.addText(self.removeExtraUnroll(kernel))
 
     if kernel["ProblemType"]["DataType"].isHalf():
       imod.addInst(".align32 8, 0xbf800001", "align v_pk_fma")   # Align v_pk_fma instructions used in MAC_ blocks
