@@ -415,12 +415,13 @@ class YamlBuilder:
             problem['d'] = spatialIn[2]
         problems.append(problem)
 
-        if problemLevel==2:
-            problems += cls.genProblems(conv, nRange=(1,2,8), ckRange=[64], spatialRange=(7,14,56))
-        elif problemLevel==3:
-            problems += cls.genProblems(conv, nRange=(1,2,8), ckRange=range(127,129), spatialRange=(7,14,56))
-        elif problemLevel==4:
-            problems += cls.genProblems(conv, nRange=(1,2,8), ckRange=range(127,129), spatialRange=(7,56,73,111,194))
+        if not conv.cc.spatial:
+          if problemLevel==2:
+              problems += cls.genProblems(conv, nRange=(1,2,8), ckRange=[64], spatialRange=(7,14,56))
+          elif problemLevel==3:
+              problems += cls.genProblems(conv, nRange=(1,2,8), ckRange=range(127,129), spatialRange=(7,14,56))
+          elif problemLevel==4:
+              problems += cls.genProblems(conv, nRange=(1,2,8), ckRange=range(127,129), spatialRange=(7,56,73,111,194))
 
         #try:
         #    asize = cls.memSize(problemType["IndexAssignmentsA"], problems)
@@ -439,7 +440,7 @@ class YamlBuilder:
         Generates a YamlBuilder object that will run in
         ConvolutionVsContraction mode.
         """
-        obj = cls.ConvolutionContraction(conv, {}, solution, problemFunc=cls.ProblemSizes, problemLevel=1, dataType=dataType)
+        obj = cls.ConvolutionContraction(conv, {}, solution, problemFunc=cls.ProblemSizes, problemLevel=2, dataType=dataType)
         obj.doc["GlobalParameters"]["ConvolutionVsContraction"] = 1
         for problem in obj.doc["BenchmarkProblems"]:
             problem[0]["OperationType"] = conv.convolutionType
