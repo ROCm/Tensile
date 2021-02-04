@@ -2236,10 +2236,15 @@ class KernelWriter(metaclass=abc.ABCMeta):
         KinInnerUnroll = kernel["InnerUnroll"]
         if kernel["EnableMatrixInstruction"]:
           KinInnerUnroll *= kernel["MatrixInstK"]
-        tailLoopInnerUnroll = kernel["InnerUnroll"] if (kernel["AssertSummationElementMultiple"] % KinInnerUnroll == 0) else 1
+
+        tailLoopInnerUnroll = 1
+        if (kernel["AssertSummationElementMultiple"] % KinInnerUnroll == 0):
+          tailLoopInnerUnroll = kernel["InnerUnroll"]
+        elif (kernel["LocalDotLayout"] == 2) and (kernel["InnerUnroll"] == 2):
+          tailLoopInnerUnroll = kernel["InnerUnroll"]
 
         pack[0] = Code.Module()
-        for iui in range(0,tailLoopInnerUnroll):
+        for iui in range(0, tailLoopInnerUnroll):
           if self.enable["LocalRead"]:
             # Reading 16-bit data from LDS requires packing when ECC enabled
             kl.append(self.comment("local read a"))
@@ -2266,11 +2271,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
               self.vgprPool.checkIn(item.tempVgpr)
               item.tempVgpr = None
           pack[0] = Code.Module()
+
         if self.enable["MAC"]:
           if kernel["EnableMatrixInstruction"]:
             kl.append(self.mfmaIter(kernel, 0, tailLoopInnerUnroll, True))
           else:
-            kl.append(self.macIter(kernel, 0, tailLoopInnerUnroll, True))
+            kl.append(self.macIter(kernel, 0, tailLoopInnerUnroll, True, True))
 
         kl.append(self.closeLoop(kernel, -1, True, uDu if kernel["DepthULdsDivisor"]>1 else None))
     # always emit the skip-tail-loop label
@@ -3294,7 +3300,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # useMacro : if true, call the MAC* macro. If False, inline the MACs
   ##############################################################################
   @abc.abstractmethod
-  def macIter(self, kernel, bufferIdx, iuiCount, useMacro):
+  def macIter(self, kernel, bufferIdx, iuiCount, useMacro, isTail=False):
     return ""
 
   ##############################################################################
