@@ -3295,8 +3295,8 @@ class Solution:
     if ldl > 1:
       # Disable DirectToLds for LDL > 1. Necessary because we need to swizzle the input data
       state["DirectToLds"] = False
-      if (state["AssertSummationElementMultiple"] % ldl != 0):
-        reject(state, "LocalDotLayout > 1 only supports ASEM a multiple of LDL")
+      if (state["AssertSummationElementMultiple"] % ldl != 0) and (ldl != 2):
+        reject(state, "LocalDotLayout > 1 only supports ASEM a multiple of LDL, except ldl = 2")
         return
       if (state["ProblemType"]["HighPrecisionAccumulate"] != True or state["InnerUnroll"] != ldl):
         reject(state, "LocalDotLayout > 1 only supports HighPrecisionAccumulate set to true and InnerUnroll equal to LocalDotLayout")
