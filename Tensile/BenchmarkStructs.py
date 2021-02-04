@@ -26,7 +26,7 @@ from .Common import print1, print2, printWarning, defaultSolution, \
     defaultBenchmarkCommonParameters, hasParam, \
     defaultBenchmarkJoinParameters, getParamValues, defaultForkParameters, \
     defaultBenchmarkForkParameters, defaultJoinParameters, printExit, \
-    validParameters, defaultSolutionSummationSizes
+    validParameters, defaultSolutionSummationSizes, globalParameters
 from .SolutionStructs import Solution, ProblemType, ProblemSizes
 
 
@@ -115,6 +115,19 @@ def assignParameters(problemTypeConfig, configBenchmarkCommonParameters, configF
     hardcodedParameters = forkHardcodedParameters([initialSolutionParameters], forkPermutations)
 
   return (problemTypeObj, hardcodedParameters, initialSolutionParameters)
+
+
+##############################################################################
+# check LDD == LDC if CEqualD"
+##############################################################################
+def checkCDBufferAndStrides(problemType, problemSizes, isCEqualD):
+  if isCEqualD and problemType["OperationType"] == "GEMM":
+    for problem in problemSizes.problems:
+      ldd = problem.sizes[problemType["IndexAssignmentsLD"][0]]
+      ldc = problem.sizes[problemType["IndexAssignmentsLD"][1]]
+      if ldd != ldc:
+        printExit("LDD(%d) != LDC(%d) causes unpredictable result when CEqualD(True)" % (ldd, ldc))
+
 
 class BenchmarkProcess:
   """
@@ -567,6 +580,7 @@ class BenchmarkProcess:
         problemSizes = problemSizesDict["ProblemSizes"]
         self.currentProblemSizes = ProblemSizes(self.problemType, problemSizes)
         currentBenchmarkParameters = {}
+        checkCDBufferAndStrides(self.problemType, self.currentProblemSizes, globalParameters["CEqualD"])
         benchmarkStep = BenchmarkStep(
             self.hardcodedParameters,
             currentBenchmarkParameters,
@@ -597,6 +611,7 @@ class BenchmarkProcess:
               % ( paramName, str(self.problemType) ) )
       if len(currentBenchmarkParameters) > 0:
         print2("Adding BenchmarkStep for %s" % str(currentBenchmarkParameters))
+        checkCDBufferAndStrides(self.problemType, self.currentProblemSizes, globalParameters["CEqualD"])
         benchmarkStep = BenchmarkStep(
             self.hardcodedParameters,
             currentBenchmarkParameters,

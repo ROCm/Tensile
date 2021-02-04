@@ -36,18 +36,18 @@ class KernelWriterBetaOnly(KernelWriterBase):
     kStr += "(" + self.endLine
 
     # pointers
-    restrictStr = "__restrict__"
-
-    if self.state["_GlobalAccumulation"]:
-      ptrStr = "float"
-    else:
-      ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-
-    kStr += "  " + ptrStr + " *D,"
-    kStr += self.endLine
     ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-    kStr += "  " + ptrStr + " const * " + restrictStr + " C,"
-    kStr += self.endLine
+    ptrStr = "float" if self.state["_GlobalAccumulation"] else ptrStr
+    isStridedBuffer = self.state["ProblemType"]["StridedBatched"] or self.state["_GlobalAccumulation"]
+    ptrStr += "" if isStridedBuffer else "*"
+    batch   = "" if isStridedBuffer else "Batch"
+    kStr += "  " + ptrStr + " * " + batch + "D," + self.endLine
+
+    ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
+    isStridedBuffer = self.state["ProblemType"]["StridedBatched"]
+    ptrStr += "" if isStridedBuffer else "*"
+    batch   = "" if isStridedBuffer else "Batch"
+    kStr += "  " + ptrStr + " const * " + batch + "C," + self.endLine
 
     # strides
     firstStrideCD = 1
@@ -62,6 +62,10 @@ class KernelWriterBetaOnly(KernelWriterBase):
     # sizes
     for i in range(0, self.state["ProblemType"]["NumIndicesC"]):
       kStr += "  unsigned int const size%s,%s" % (self.indexChars[i], self.endLine)
+
+    # offset
+    kStr += "  unsigned int offsetD,%s" % self.endLine
+    kStr += "  unsigned int offsetC,%s" % self.endLine
 
     # beta
     kStr += "  %s const beta)%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine )
@@ -128,6 +132,7 @@ class KernelWriterBetaOnly(KernelWriterBase):
     kStr += "))%s" % self.endLine
     kStr += "    return;%s" % self.endLine
 
+    kStr += self.endLine
     kStr += "  uint64_t id0"
     for i in range(1, problemType["NumIndicesC"]):
       kStr += ", id%d" % i
@@ -137,17 +142,56 @@ class KernelWriterBetaOnly(KernelWriterBase):
       kStr += "  id%d = id %% size%s;%s" % (i, self.indexChars[i], self.endLine)
       kStr += "  id  = id / size%s;%s" % (self.indexChars[i], self.endLine)
 
-    kStr += self.endLine
+    nonTileFreeIndices = []
 
+    # apply batch
+    if not self.state["ProblemType"]["StridedBatched"]:
+      nonTileFreeIndices = list(range(0, self.state["ProblemType"]["NumIndicesC"]))
+      nonTileFreeIndices.remove(self.state["ProblemType"]["Index0"])
+      nonTileFreeIndices.remove(self.state["ProblemType"]["Index1"])
+
+      kStr += self.endLine
+      kStr += "  uint64_t wg = 0"
+      batchStride = "1"
+      for i in nonTileFreeIndices:
+        kStr += " + id%d * %s " % (i, batchStride)
+        batchStride += " * size%s" % self.indexChars[i]
+      kStr += ";" + self.endLine
+
+      if not self.state["_GlobalAccumulation"]:
+        ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
+        kStr += "  " + ptrStr + " * D = BatchD[wg];" + self.endLine
+      ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
+      kStr += "  " + ptrStr + " const* C = BatchC[wg];" + self.endLine
+
+    # apply offset
+    kStr += self.endLine
+    if not self.state["_GlobalAccumulation"]:
+      kStr += "  D = D + offsetD;" + self.endLine
+    kStr += "  C = C + offsetC;" + self.endLine
+
+
+    kStr += self.endLine
     ########################################
     # D index
     kStr += "  %s idxD = GLOBAL_D( (%s)" % (self.uint64Str, self.uint64Str)
-    kStr += ', '.join(["id%d" % i for i in range(problemType["NumIndicesC"])])
+    for i in range(problemType["NumIndicesC"]):
+      tmpStr = ''
+      if self.state["_GlobalAccumulation"]:
+        tmpStr = 'id%d' % i
+      elif i in nonTileFreeIndices:
+        tmpStr = '0'
+      else:
+        tmpStr = 'id%d' % i
+      kStr += ', ' if i else ''
+      kStr += tmpStr
     kStr += ");%s" % (self.endLine)
 
     # C index
     kStr += "  %s idxC = GLOBAL_C( (%s)" % (self.uint64Str, self.uint64Str)
-    kStr += ', '.join(["id%d" % i for i in range(problemType["NumIndicesC"])])
+    for i in range(problemType["NumIndicesC"]):
+      kStr += ', ' if i else ''
+      kStr += '0'  if i in nonTileFreeIndices else ('id%d' % i)
     kStr += ");%s" % (self.endLine)
 
     ########################################
@@ -192,8 +236,8 @@ class KernelWriterBetaOnly(KernelWriterBase):
       name += indexChars[i].lower()
     name += "_"
     name += self.state["ProblemType"]["DestDataType"].toChar()
-    if self.state["_GlobalAccumulation"]:
-      name += "_GA"
+    name += "" if self.state["ProblemType"]["StridedBatched"] else "_GB" # legacy
+    name += "_GA" if self.state["_GlobalAccumulation"] else ""
 
     return name
 

@@ -642,7 +642,8 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param('alpha-type', problemType.alphaType.toEnum())
         param('beta-type',  problemType.betaType.toEnum())
 
-        param('high-precision-accumulate',  problemType.highPrecisionAccumulate)
+        param('high-precision-accumulate', problemType.highPrecisionAccumulate)
+        param('strided-batched', problemType.stridedBatched)
 
         for problem in problemSizes.problems:
             for key,value in problemSizeParams(problemType, problem):
@@ -654,6 +655,11 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
             param(key, value)
 
         param("c-equal-d",                globalParameters["CEqualD"])
+
+        param("offset-a",                 globalParameters["BufferOffsetA"])
+        param("offset-b",                 globalParameters["BufferOffsetB"])
+        param("offset-c",                 globalParameters["BufferOffsetC"])
+        param("offset-d",                 globalParameters["BufferOffsetD"])
 
         if globalParameters["PrintTensorA"]:
           param("print-tensor-a",         1)
@@ -1192,7 +1198,7 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
           solution["AssertFree0ElementMultiple"],
           solution["AssertFree1ElementMultiple"],
           solution["AssertMinApproxSize"],
-          "true" if solution["LdcEqualsLdd"] else "false",
+          "false",
           solution["PackBatchDims"]==2, \
           solution["PackBatchDims"]==1, \
           )
