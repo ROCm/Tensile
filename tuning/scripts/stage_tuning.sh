@@ -1,86 +1,87 @@
 #!/bin/bash
 
+function make_tensile_tuning() {
 
-make_tensile_tuning () {
+  local FILE_PATH=$1
 
-    local FULLFILENAME=$1
+  local FILE_NAME; FILE_NAME=$(basename "${FILE_PATH}")
+  local FILE_PATH; FILE_PATH=$(ls "$SOURCE/$FILE_NAME")
+  local FILE_NAME_NO_EXT="${FILE_NAME%.*}"
 
-    local BUILDNAME="build"
+  local WORKING_PATH="${DESTINATION}/build-${FILE_NAME_NO_EXT}"
 
-    local FILENAME=$(basename "$FULLFILENAME")
-    local FNAME="${FILENAME%.*}"
-    local FILEPATH=$(ls $SOURCE/$FILENAME)
+  mkdir -p "${WORKING_PATH}"
+  cp "${FILE_PATH}" "${WORKING_PATH}"
+  pushd "${WORKING_PATH}" > /dev/null || exit
+  {
+    echo "#!/bin/sh"
+    echo "if [ ! -d 3_LibraryLogic ] || [ -z \"\$(ls -A 3_LibraryLogic)\" ]; then"
+    echo "  touch time.begin"
+    echo "  ${TENSILE}/Tensile/bin/Tensile ${FILE_NAME} ./ > make.out 2>&1"
+    echo "  touch time.end"
+    echo "fi"
+  } > runTensileTuning.sh
 
-    local WORKINGPATHNAME=${BUILDNAME}-${FNAME}
-    local WORKINGPATH=${DESTINATION}/${WORKINGPATHNAME}
-
-    mkdir -p $WORKINGPATH
-    cp $FILEPATH $WORKINGPATH
-    pushd ${WORKINGPATH} > /dev/null
-    echo "#!/bin/sh" > doit.sh
-    echo "if [ ! -d 3_LibraryLogic ] || [ \$(ls -A 3_LibraryLogic | wc -c) -eq 0 ]; then" >> doit.sh
-    echo "  touch time.begin" >> doit.sh
-    echo "  ../Tensile/bin/Tensile $FILENAME ./ > make.out 2>&1" >> doit.sh
-    echo "  touch time.end" >> doit.sh
-    echo "fi" >> doit.sh
-
-    chmod +x doit.sh
-    popd > /dev/null
+  chmod +x runTensileTuning.sh
+  popd > /dev/null || exit
 }
 
-if [ $# -lt 3 ]; then
-
+if [ $# -lt 4 ]; then
   echo "Too few arguments"
-  echo "need source_path destination_path file_names"
-  exit 0
-
+  echo "need: SOURCE_PATH DESTINATION_PATH TENSILE_PATH FILE_NAME(s)"
+  exit 2
 fi
 
-SOURCE="$1"
+SOURCE=$1
 shift
-DESTINATION="$1"
+DESTINATION=$1
+shift
+TENSILE=$1
 shift
 
-if [ ! -d $SOURCE ]; then
-  echo "The path $SOURCE does not exist. Exiting"
-  exit 0
+if [ ! -d "${SOURCE}" ]; then
+  echo "The path ${SOURCE} does not exist"
+  exit 2
 fi
 
-if [ ! -d $DESTINATION ]; then
-  echo "The path $DESTINATION does not exist. Exiting"
-  exit 0
+if [ ! -d "${DESTINATION}" ]; then
+  echo "The path ${DESTINATION} does not exist"
+  exit 2
 fi
 
-DOIT=$DESTINATION/doit-all.sh
+if [ ! -d "${TENSILE}" ]; then
+  echo "The path ${TENSILE} does not exist"
+  exit 2
+fi
 
-for config in "$@"
+DOIT="${DESTINATION}/runTensileTuning-all.sh"
+
+for CONFIG in "$@"
 do
-  FILE="$SOURCE/$config"
-  if [ ! -f $FILE ]; then
-    echo "The file $FILE does not exist"
-    exit 0
+  FILE="${SOURCE}/${CONFIG}"
+  if [ ! -f "$FILE" ]; then
+    echo "The file ${FILE} does not exist"
+    exit 2
   fi
 done
 
 DIRS=""
-echo "#!/bin/sh" > $DOIT
+echo "#!/bin/sh" > "${DOIT}"
 
-for config in "$@"
+for CONFIG in "$@"
 do
-    make_tensile_tuning "${SOURCE}/${config}"
-    DIRNAME="${config%.*}"
-    DIRS="${DIRS} ${DIRNAME}"
+    make_tensile_tuning "${SOURCE}/${CONFIG}"
+    DIRNAME="${CONFIG%.*}"
+    DIRS+=" ${DIRNAME}"
 done
 
-echo "for dir in$DIRS" >> $DOIT
-echo "do" >> $DOIT
-echo "  cd build-\${dir}" >> $DOIT
-echo "  ./doit.sh > doit-errs 2>&1" >> $DOIT
-echo "  cd .." >> $DOIT
-echo "done" >> $DOIT
+{
+  echo "for dir in${DIRS}"
+  echo "do"
+  echo "  cd build-\${dir} || exit"
+  echo "  ./doit.sh > doit-errs 2>&1"
+  echo "  cd .."
+  echo "done"
+} >> "${DOIT}"
 
-chmod +x $DOIT
-
-
-
-
+chmod +x "${DOIT}"
