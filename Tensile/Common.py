@@ -23,7 +23,6 @@ from . import __version__
 from . import Parallel
 from collections import OrderedDict
 from copy import deepcopy
-from subprocess import Popen, PIPE
 
 
 import math
@@ -94,7 +93,6 @@ globalParameters["ExpandRanges"] = True          # expand ranges into exact conf
 globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kernels
 globalParameters["GenerateSourcesAndExit"] = False # Exit after kernel source generation.
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
-globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["ExitOnFails"] = 1     # Exit if failures detected.
 globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N).  TODO - 0 sometimes fails with a kernel name error?  0 does not check error codes correctly
 # FROM MERGE
@@ -743,6 +741,7 @@ validParameters = {
 
     # Which instruction to use for MAC: MAD or FMA
     "MACInstruction":             ["MAD", "FMA"],
+    "WavefrontSize":              [32, 64],
 
     # MatrixInstruction: (M x N x K x B)
     # XDLOPS tile definition, only valid for gfx908
@@ -1111,6 +1110,7 @@ defaultBenchmarkCommonParameters = [
     {"WorkGroupMapping":          [ 8 ] },
     {"ThreadTile":                [ [4,4] ] },
     {"MACInstruction":            [ '' ]},
+    {"WavefrontSize":             [ 64 ]},
     {"MatrixInstruction":         [ [] ] },
     {"DisableVgprOverlapping":    [ False ] },
     {"1LDSBuffer":                [ 0 ] },
@@ -1476,11 +1476,12 @@ def GetAsmCaps(isaVersion):
   rv["v_dot2_f32_f16"]  = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
   rv["v_dot2c_f32_f16"] = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34")
 
-  rv["v_mac_f32"] = tryAssembler(isaVersion, "v_mac_f32 v20, v21, v22")
-  rv["v_fma_f32"] = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")
-  rv["v_fmac_f32"] = tryAssembler(isaVersion, "v_fmac_f32 v20, v21, v22")
+  rv["v_mac_f32"]       = tryAssembler(isaVersion, "v_mac_f32 v20, v21, v22")
+  rv["v_fma_f32"]       = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")
+  rv["v_fmac_f32"]      = tryAssembler(isaVersion, "v_fmac_f32 v20, v21, v22")
 
   rv["HasAtomicAdd"]    = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
+
 
   if tryAssembler(isaVersion, "s_waitcnt vmcnt(63)"):
     rv["MaxVmcnt"] = 63
@@ -1684,7 +1685,7 @@ def assignGlobalParameters( config ):
     if globalParameters["CurrentISA"] == (0,0,0):
       printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
     if result.returncode:
-      printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
+      printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], result.returncode))
 
   globalParameters["AsmCaps"] = {}
   globalParameters["ArchCaps"] = {}

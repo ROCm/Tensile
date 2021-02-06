@@ -61,3 +61,8 @@ tags
 # tox virtual environments
 .tox
 
+HostLibraryTests/googletest
+HostLibraryTests/configs
+.ipynb_checkpoints
+*.ipynb
+

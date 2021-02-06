@@ -978,8 +978,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
           localReads  = item.countType(Code.LocalReadInst)
           localWrites = item.countType(Code.LocalWriteInst)
           if self.numVgprBuffer:
-            # here the reads are prefetches so can skip them in the waitcnt
-            lgkmcnt += localReads
+            # SQ: If PrefetchLocalRead = 1 and DepthU == LocalSplitU, then there is no double
+            #  buffering and we must wait for all localReads but not localWrites.
+            #  In that case, LoopIters == 1:
+            if kernel["LoopIters"] > 1:
+              # here the reads are prefetches so can skip them in the waitcnt
+              lgkmcnt += localReads
             # and the writes are targetting another section of LDS and are
             # synchronized through a different waitnct than this one
             # (which is always just before the macs)
