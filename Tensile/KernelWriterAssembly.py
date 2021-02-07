@@ -11979,6 +11979,9 @@ class KernelWriterAssembly(KernelWriter):
       #  - Need a solution for the mask.  Can move to all buffer or can fix?
 
       # atomic loop label
+      wavelen = self.kernel["WavefrontSize"]
+      laneSGPRC = self.laneSGPRCount
+
       element = batchElements[0]
       d1 = element[0]
       d0 = element[1]
@@ -12120,37 +12123,38 @@ class KernelWriterAssembly(KernelWriter):
               if avi == 0:
                 # use u64 for DGEMM
                 if kernel["ProblemType"]["DestDataType"].isDouble():
-                  kStr += inst("v_cmp_ne_u64", sgpr(tmpS01,2), vgpr(atomicDestVgpr,2), \
+                  kStr += inst("v_cmp_ne_u64", sgpr(tmpS01,laneSGPRC), vgpr(atomicDestVgpr,2), \
                       vgpr(dataV+2,2), "c read during atomic == c read during prior load (avi=%u, first)"%avi )
                 else:
-                  kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(atomicDestVgpr), \
+                  kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,laneSGPRC), vgpr(atomicDestVgpr), \
                       vgpr(dataV+1), "c read during atomic == c read during prior load (avi=%u, first)"%avi )
               else:
                 if kernel["ProblemType"]["DestDataType"].isDouble():
-                  kStr += inst("v_cmp_ne_u64", sgpr(tmpS23,2), vgpr(atomicDestVgpr,2), \
+                  kStr += inst("v_cmp_ne_u64", sgpr(tmpS23,laneSGPRC), vgpr(atomicDestVgpr,2), \
                       vgpr(dataV+2,2), "c read during atomic != c read during prior load" )
                 else:
-                  kStr += inst("v_cmp_ne_u32", sgpr(tmpS23,2), vgpr(atomicDestVgpr), \
+                  kStr += inst("v_cmp_ne_u32", sgpr(tmpS23,laneSGPRC), vgpr(atomicDestVgpr), \
                       vgpr(dataV+1), "c read during atomic == c read during prior load (avi=%u)"%avi )
-                kStr += inst("s_or_b64", sgpr(tmpS01,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "combine with tmp mask")
+                kStr += inst("s_or_b{}".format(wavelen), sgpr(tmpS01,laneSGPRC), \
+                      sgpr(tmpS01,laneSGPRC), sgpr(tmpS23,laneSGPRC), "combine with tmp mask")
 
             if kernel["DisableAtomicFail"]:
-              kStr += inst("s_mov_b64",  sgpr(mask,2), 0, "DisableAtomicFail, force 0" )
+              kStr += inst("s_mov_b{}".format(wavelen),  sgpr(mask,laneSGPRC), 0, "DisableAtomicFail, force 0" )
             else:
-              kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
+              kStr += inst("s_and_b{}".format(wavelen),  sgpr(mask,laneSGPRC), sgpr(tmpS01,laneSGPRC), sgpr(mask,laneSGPRC), "inBounds & must try again" )
 
           else:
             for avi in range(0, gwvw//atomicW):
               dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
               atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
               if kernel["DisableAtomicFail"]:
-                kStr += inst("s_mov_b64",  sgpr(mask,2), 0, "DisableAtomicFail, force 0" )
+                kStr += inst("s_mov_b{}".format(wavelen),  sgpr(mask,laneSGPRC), 0, "DisableAtomicFail, force 0" )
               else:
                 if kernel["ProblemType"]["DestDataType"].isDouble():
-                  kStr += inst("v_cmp_ne_u64", sgpr(mask,2), vgpr(atomicDestVgpr,2), \
+                  kStr += inst("v_cmp_ne_u64", sgpr(mask,laneSGPRC), vgpr(atomicDestVgpr,2), \
                       vgpr(dataV+2,2), "c read during atomic != c read during prior load" )
                 else:
-                  kStr += inst("v_cmp_ne_u32", sgpr(mask,2), vgpr(atomicDestVgpr), \
+                  kStr += inst("v_cmp_ne_u32", sgpr(mask,laneSGPRC), vgpr(atomicDestVgpr), \
                       vgpr(dataV+1), "c read during atomic != c read during prior load" )
 
         # or masks together to check early exit
@@ -12158,8 +12162,8 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mov_b64", sgpr(tmpS01,2), hex(0), "empty mask" )
         for elementIdx in range(0, len(batchElements)):
           mask = ss.elementMask[elementIdx]
-          kStr += inst("s_or_b64", sgpr(tmpS01,2), sgpr(mask,2), sgpr(tmpS01,2), "or to add threads" )
-        kStr += inst("s_or_saveexec_b64", sgpr(tmpS23,2), sgpr(tmpS01,2), "apply combined mask" )
+          kStr += inst("s_or_b{}".format(wavelen), sgpr(tmpS01,laneSGPRC), sgpr(mask,laneSGPRC), sgpr(tmpS01,laneSGPRC), "or to add threads" )
+        kStr += inst("s_or_saveexec_b{}".format(wavelen), sgpr(tmpS23,laneSGPRC), sgpr(tmpS01,laneSGPRC), "apply combined mask" )
         kStr += inst("s_cbranch_execz", "label_%04u" % labelAfterAtomicLoop, "if exec is zero skip loop" )
 
         # begin atomic loop
@@ -12237,23 +12241,23 @@ class KernelWriterAssembly(KernelWriter):
 
             # compare success
             if kernel["ProblemType"]["DestDataType"].isDouble():
-              kStr += inst("v_cmp_ne_u64", sgpr(tmpS01,2), vgpr(data+2,2), vgpr(atomicDestVgpr,2), \
+              kStr += inst("v_cmp_ne_u64", sgpr(tmpS01,laneSGPRC), vgpr(data+2,2), vgpr(atomicDestVgpr,2), \
                   "c read during atomic != c read during prior load" )
             else:
-              kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(data+1), vgpr(atomicDestVgpr), \
+              kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,laneSGPRC), vgpr(data+1), vgpr(atomicDestVgpr), \
                   "c read during atomic == c read during prior load" )
             # update element mask
-            kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
+            kStr += inst("s_and_b{}".format(wavelen),  sgpr(mask,laneSGPRC), sgpr(tmpS01,laneSGPRC), sgpr(mask,laneSGPRC), "inBounds & must try again" )
 
         # or masks together
         kStr += self.comment("or masks to check for exit")
-        kStr += inst("s_mov_b64", sgpr(tmpS01,2), hex(0), "empty mask" )
+        kStr += inst("s_mov_b{}".format(wavelen), sgpr(tmpS01,laneSGPRC), hex(0), "empty mask" )
         for elementIdx in range(0, len(batchElements)):
           mask = ss.elementMask[elementIdx]
-          kStr += inst("s_or_b64", sgpr(tmpS01,2), sgpr(mask,2), sgpr(tmpS01,2), "or to add threads" )
+          kStr += inst("s_or_b{}".format(wavelen), sgpr(tmpS01,laneSGPRC), sgpr(mask,laneSGPRC), sgpr(tmpS01,laneSGPRC), "or to add threads" )
 
         # apply combined masks and exit
-        kStr += inst("s_or_saveexec_b64", sgpr(tmpS23,2), sgpr(tmpS01,2), "apply combined mask" )
+        kStr += inst("s_or_saveexec_b{}".format(wavelen), sgpr(tmpS23,laneSGPRC), sgpr(tmpS01,laneSGPRC), "apply combined mask" )
         kStr += inst("s_cbranch_execnz", "label_%04u" % label, "try again if not complete" )
         kStr += "label_%04u:%s" % (labelAfterAtomicLoop, self.endLine)
         kStr += inst("s_mov_b64", "exec", -1, "full mask -> exec" )
