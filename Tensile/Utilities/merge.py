@@ -3,6 +3,9 @@ import os
 import sys
 import argparse
 from copy import deepcopy
+from collections import defaultdict
+from enum import Enum
+import pdb
 
 verbosity = 1
 
@@ -126,8 +129,60 @@ def debug(*args, **kwargs):
     if verbosity < 2: return
     msg(*args, **kwargs)
 
+def findSolutionWithIndex(solutionData, solIndex):
+    #Return index if 
+    solution = solutionData[solIndex]
+    if solution["SolutionIndex"] == solIndex:
+        return solution
+    else:
+        print("Searching for index...")
+        solution = [s for s in solutionData if s["SolutionIndex"]==solIndex]
+        assert(len(solution) == 1)
+        return solution[0]
+
+class SolutionUpdate(Enum):
+    Replace=0
+    Append =1
+    Reject =2
+
+# returns (efficiency[, replacedIndex]) or None if nothing is replaced
+def findOriginalSolutionToUpdate(incSolution, incSize, incEff, origSolutionData, origSolutionDict, forceMerge, includeKernelVariants = False):
+    try:
+        origSolutions = origSolutionDict[tuple(incSize)]
+        origJ, origIndex, origEff = origSolutions[0]
+        originalSolution = None
+        if includeKernelVariants:
+            for j, index, eff in origSolutions:
+                solution = findSolutionWithIndex(origSolutionData, index)
+                if solution["EnableMatrixInstruction"] == incSolution["EnableMatrixInstruction"]:
+                    origJ, origIndex, origEff = j, index, eff
+                    originalSolution = solution
+                    break
+            if not originalSolution:
+                verbose("[O]", incSize, "already exists but has a different value for EnableMatrixInstruction."
+                                        " New entry has been added to the solution table")
+                return SolutionUpdate.Append, 
+        else:
+            originalSolution = findSolutionWithIndex(origSolutionData, origIndex)
+        
+        if incEff > origEff or forceMerge:
+            if incEff > origEff:
+                verbose("[O]", incSize, "already exists and has improved in performance.", end="")
+            elif forceMerge:
+                verbose("[!]", incSize, "already exists but does not improve in performance.", end="")
+            verbose("Efficiency:", origEff, "->", incEff, "(force_merge=True)" if forceMerge else "")
+            return SolutionUpdate.Replace, origJ
+        else:
+            verbose("[X]", incSize, " already exists but does not improve in performance.", end="")
+            verbose("Efficiency:", origEff, "->", incEff)
+    except KeyError:
+        verbose("[-]", incSize, "has been added to solution table, Efficiency: N/A ->", incEff)
+        return SolutionUpdate.Append,
+    
+    return SolutionUpdate.Reject,
+
 # returns merged logic data as list
-def mergeLogic(origData, incData, forceMerge, trimSize=True):
+def mergeLogic(origData, incData, forceMerge, trimSize=True, includeKernelVariants=False):
     origNumSizes = len(origData[7])
     origNumSolutions = len(origData[5])
 
@@ -136,6 +191,8 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True):
 
     verbose(origNumSizes, "sizes and", origNumSolutions, "kernels in base logic file")
     verbose(incNumSizes, "sizes and", incNumSolutions, "kernels in incremental logic file")
+
+    unmergedKernelParameters = {"EnableMatrixInstruction": False} if includeKernelVariants else {}
 
     if trimSize:
         # trim 8-tuple gemm size format to 4-tuple [m, n, b, k]
@@ -149,29 +206,31 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True):
     solutionPool = deepcopy(origData[5])
     solutionMap = deepcopy(origData[7])
 
-    origDict = {tuple(origSize): [i, origEff] for i, [origSize, [origIndex, origEff]] in enumerate(origData[7])}
-    for incSize, [incIndex, incEff] in incData[7]:
-        incSolution = [s for s in incData[5] if s["SolutionIndex"]==incIndex] # TODO this is slow
-        assert len(incSolution)==1
-        incSolution = incSolution[0]
+    origDict = {} 
+    for i, [origSize, [origIndex, origEff]] in enumerate(origData[7]):
+        origDict[tuple(origSize)] = origDict.get(tuple(origSize), []) + [[i, origIndex, origEff]] 
 
-        try:
-            j, origEff = origDict[tuple(incSize)]
-            if incEff > origEff or forceMerge:
-                if incEff > origEff:
-                    verbose("[O]", incSize, "already exists and has improved in performance.", end="")
-                elif forceMerge:
-                    verbose("[!]", incSize, "already exists but does not improve in performance.", end="")
-                verbose("Efficiency:", origEff, "->", incEff, "(force_merge=True)" if forceMerge else "")
-                solutionPool, index = addKernel(solutionPool, incSolution)
-                solutionMap[j][1] = [index, incEff]
-            else:
-                verbose("[X]", incSize, " already exists but does not improve in performance.", end="")
-                verbose("Efficiency:", origEff, "->", incEff)
-        except KeyError:
-            verbose("[-]", incSize, "has been added to solution table, Efficiency: N/A ->", incEff)
-            solutionPool, index = addKernel(solutionPool, incSolution)
-            solutionMap.append([incSize,[index, incEff]])
+    for incSize, [incIndex, incEff] in incData[7]:
+        incSolution = findSolutionWithIndex(incData[5], incIndex)
+
+        result, *index = findOriginalSolutionToUpdate(incSolution,  
+                                                      incSize, 
+                                                      incEff, 
+                                                      origData[5], 
+                                                      origDict, 
+                                                      forceMerge,
+                                                      includeKernelVariants)
+
+        if result == SolutionUpdate.Append:
+            solutionPool, kernelIndex = addKernel(solutionPool, incSolution)
+            solutionMap.append([incSize,[kernelIndex, incEff]])
+            #pdb.set_trace()
+        elif result == SolutionUpdate.Replace:
+            assert(index)
+            replacedIndex = index[0]
+            solutionPool, kernelIndex = addKernel(solutionPool, incSolution)
+            pdb.set_trace()
+            solutionMap[replacedIndex][1] = [kernelIndex, incEff]
 
     verbose(numOrigRemoved, "unused kernels removed from base logic file")
     verbose(numIncRemoved, "unused kernels removed from incremental logic file")
@@ -210,57 +269,13 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSi
         origData = reindexSolutions(origData)
         incData = reindexSolutions(incData)
 
-        mergedData, *stats = mergeLogic(origData, incData, forceMerge, trimSize)
+        mergedData, *stats = mergeLogic(origData, incData, forceMerge, trimSize, True)
         msg(stats[0], "size(s) and", stats[1], "kernel(s) added,", stats[2], "kernel(s) removed")
 
         with open(os.path.join(outputPath, basename), "w") as outFile:
             yaml.safe_dump(mergedData,outFile,default_flow_style=None)
         msg("File written to", os.path.join(outputPath, basename))
         msg("------------------------------")
-
-# partialLogicFilePaths: list of full paths to partial logic files
-# outputDir: Directory to write the final result to
-# forceMerge:
-# trimSize:
-# Expects: that all the partial logic files
-# have the same base name, but are located
-# in different folders.
-# Provides: one final logic file that is the
-# merged result of all partial files.
-# This is useful for when a tuning task is
-# shared between multiple machines who each
-# will provide a partial result.
-def mergePartialLogics(partialLogicFilePaths, outputDir, forceMerge, trimSize=True):
-    logicFiles = deepcopy(partialLogicFilePaths)
-    ensurePath(outputDir)
-
-    baseLogicFile = logicFiles.pop(0)
-    baseLogicData = loadData(baseLogicFile)
-    msg("Base logic file:", baseLogicFile)
-    for f in logicFiles:
-        forceMerge = defaultForceMergePolicy(f) if forceMerge is None else forceMerge
-
-        msg("Incremental file:", f, "| Merge policy: %s"%("Forced" if forceMerge else "Winner"), "| Trim size:", trimSize)
-        incLogicData = loadData(f)
-
-        # So far "SolutionIndex" in logic yamls has zero impact on actual 1-1 size mapping (but the order of the Solution does)
-        # since mergeLogic() takes that value very seriously so we reindex them here so it doesn't choke on duplicated SolutionIndex
-        baseLogicData = reindexSolutions(baseLogicData)
-        incLogicData = reindexSolutions(incLogicData)
-
-        mergedData, *stats = mergeLogic(baseLogicData, incLogicData, forceMerge, trimSize)
-        msg(stats[0], "size(s) and", stats[1], "kernel(s) added,", stats[2], "kernel(s) removed")
-
-        # Use the merged data as the base data for the next partial logic file
-        baseLogicData = deepcopy(mergedData)
-
-
-    baseFileName = os.path.basename(baseLogicFile)
-    outputFilePath = os.path.join(outputDir, baseFileName)
-    with open(outputFilePath, "w") as outFile:
-        yaml.safe_dump(baseLogicData, outFile, default_flow_style=None)
-    msg("File written to", outputFilePath)
-    msg("------------------------------")
 
 if __name__ == "__main__":
     argParser = argparse.ArgumentParser()
