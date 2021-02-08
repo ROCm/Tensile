@@ -75,6 +75,7 @@ namespace Tensile
             const std::string LDD = "ldd";
 
             const std::string TotalFlops   = "total-flops";
+            const std::string SolutionsRun = "solutions-run";
             const std::string ProblemSizes = "problem-sizes";
 
             // Solution information

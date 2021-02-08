@@ -496,6 +496,17 @@ int main(int argc, const char* argv[])
         lastSolutionIdx = firstSolutionIdx + numSolutions - 1;
     }
 
+    auto reporters = std::make_shared<MetaResultReporter>();
+    reporters->addReporter(PerformanceReporter::Default(args));
+
+    // PerformanceReporter needs to be called before these two, or else values
+    // will be missing
+    reporters->addReporter(LogReporter::Default(args));
+    reporters->addReporter(ResultFileReporter::Default(args));
+    reporters->addReporter(LibraryUpdateReporter::Default(args));
+
+    // PerformanceReported called before getting max workspace size so
+    // AllSolutionIterator has the data it needs (e.g. numCUs)
     size_t maxWorkspaceSizeLimit = args["max-workspace-size"].as<size_t>();
     size_t maxWorkspaceSize
         = getMaxWorkspace(library, hardware, args, problems, firstProblemIdx, lastProblemIdx);
@@ -524,7 +535,6 @@ int main(int argc, const char* argv[])
     // will be missing
     reporters->addReporter(LogReporter::Default(args));
     reporters->addReporter(ResultFileReporter::Default(args));
-    reporters->addReporter(LibraryUpdateReporter::Default(args));
 
     if(args.count("log-file"))
     {
@@ -536,10 +546,6 @@ int main(int argc, const char* argv[])
     }
 
     listeners.setReporter(reporters);
-
-    // ReferenceValidator validator(args, dataInit);
-    // BenchmarkTimer timer(args);
-
     reporters->report(ResultKey::ProblemCount, problemFactory.problems().size());
 
     while(listeners.needMoreBenchmarkRuns())

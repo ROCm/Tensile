@@ -151,7 +151,9 @@ namespace Tensile
                 m_output.setHeaderForKey(ResultKey::LDC, "LDC");
                 m_output.setHeaderForKey(ResultKey::LDA, "LDA");
                 m_output.setHeaderForKey(ResultKey::LDB, "LDB");
+                m_output.setHeaderForKey(ResultKey::SolutionsRun, "Solutions Run");
                 m_output.setHeaderForKey(ResultKey::TotalFlops, "TotalFlops");
+
                 if(m_extraCol)
                 {
                     m_output.setHeaderForKey(ResultKey::FastestGFlops, "WinnerGFlops");

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright 2020-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -158,6 +158,7 @@ namespace Tensile
             int m_lastSolutionIdx;
 
             int m_currentSolutionIdx;
+            int m_numSolutionsSkipped;
 
             RunCriteria m_runCriteria;
         };

@@ -99,6 +99,15 @@ namespace Tensile
 
         void BenchmarkTimer::postSolution()
         {
+            std::cout << m_numEnqueuesInSolution << std::endl;
+            if(m_timeInSolution == double_millis::zero())
+            {
+                m_reporter->report(ResultKey::Validation, "SKIPPED");
+                m_reporter->report(ResultKey::TimeUS, 0);
+                m_reporter->report(ResultKey::SpeedGFlops, -1);
+                return;
+            }
+
             double timePerEnqueue_us
                 = double_micros(m_timeInSolution).count() / m_numEnqueuesInSolution;
 

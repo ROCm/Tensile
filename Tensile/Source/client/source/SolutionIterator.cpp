@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright 2020-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -119,6 +119,9 @@ namespace Tensile
             RunCriteria criteria;
 
             double granThresh = args["granularity-threshold"].as<double>();
+            double memThresh  = 1.0; // = args["memory-throughput-threshold"].as<double>();
+            double minLDSUtil = 0.75; // = args["minimum-ldl-utilization"].as<double>();
+
             if(granThresh > 0.0)
             {
                 criteria.push_back([granThresh](ContractionProblem const&  problem,
@@ -126,6 +129,47 @@ namespace Tensile
                                                 ContractionSolution const& solution) {
                     auto projPerf = solution.projectedPerformance(problem, hardware);
                     return projPerf.granularities.totalGranularity >= granThresh;
+                });
+            }
+            if(memThresh > 0.0)
+            {
+                criteria.push_back([memThresh](ContractionProblem const&  problem,
+                                               Hardware const&            hardware,
+                                               ContractionSolution const& solution) {
+                    // TODO need: alu-rate, bytes-per-cu, cycles-per-cu (check total flop calculation)
+                    size_t K   = problem.boundSize(0); // TODO - fix for multiple summations
+                    size_t GSU = solution.sizeMapping.globalSplitU;
+                    size_t LSU = solution.sizeMapping.workGroupSize.z;
+                    size_t MT0 = solution.sizeMapping.macroTile.x;
+                    size_t MT1 = solution.sizeMapping.macroTile.y;
+
+                    size_t tileK = K / GSU / LSU;
+
+                    size_t bpe = DataTypeInfo::Get(problem.a().dataType()).elementSize;
+
+                    size_t aluRate = 128; // TODO hardcoded for testing
+                    double bytesPerCU
+                        = (MT0 * tileK * bpe) + (MT1 * tileK * bpe) + (MT0 * MT1 * bpe);
+                    double cyclesPerCU
+                        = double(MT0 * MT1 * tileK * problem.flopsPerMac()) / aluRate;
+                    double roofline = bytesPerCU / cyclesPerCU;
+
+                    //                 readBW * numChannels
+                    double l2BWperCU     = 32 * 64 / perf.CUs; // TODO hardcoded for testing
+                    double memRate       = perf.readEff * l2BWperCU;
+                    double compMemFactor = memRate / roofline;
+
+                    return compMemFactor >= memThresh;
+                });
+            }
+            if(minLDSUtil > 0.0)
+            {
+                criteria.push_back([minLDSUtil](ContractionProblem const&  problem,
+                                                Hardware const&            hardware,
+                                                ContractionSolution const& solution) {
+                    // TODO need: LDS used by kernel
+                    bool toReturn = true;
+                    return toReturn;
                 });
             }
             return criteria;
@@ -138,6 +182,7 @@ namespace Tensile
             int                                                        numSolutions,
             RunCriteria                                                runCriteria)
             : SolutionIterator(library, hardware)
+            , m_numSolutionsSkipped(0)
             , m_runCriteria(runCriteria)
         {
             m_firstSolutionIdx = firstSolutionIdx;
@@ -162,10 +207,18 @@ namespace Tensile
         {
             SolutionIterator::preProblem(problem);
 
-            m_currentSolutionIdx = m_firstSolutionIdx;
+            m_numSolutionsSkipped = 0;
+            m_currentSolutionIdx  = m_firstSolutionIdx;
         }
 
-        void AllSolutionsIterator::postProblem() {}
+        void AllSolutionsIterator::postProblem()
+        {
+            // int numSolutions = m_lastSolutionIdx - m_firstSolutionIdx + 1;
+
+            // std::stringstream solRun;
+            // solRun << numSolutions - m_numSolutionsSkipped << "/" << numSolutions;
+            // m_reporter->report(ResultKey::SolutionsRun, solRun.str());
+        }
 
         void AllSolutionsIterator::preSolution(ContractionSolution const& solution)
         {
@@ -210,7 +263,10 @@ namespace Tensile
             for(auto const& criterion : m_runCriteria)
             {
                 if(!criterion(m_problem, *m_hardware, *solution))
+                {
+                    m_numSolutionsSkipped++;
                     return false;
+                }
             }
             return true;
         }
