@@ -376,8 +376,8 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
         elapsedTime = currentTime - startTime
         print1("# Finish GetResults - %.3fs\n" % (elapsedTime))
         print2("CSV Results: %s" % results)
-        winners.addResults(benchmarkStep.hardcodedParameters, \
-            benchmarkPermutations, solutions, results)
+        #winners.addResults(benchmarkStep.hardcodedParameters, \
+            #benchmarkPermutations, solutions, results)
         currentTime = time.time()
         elapsedTime = currentTime - startTime
         print1("# Finish Adding Results - %.3fs\n" % (elapsedTime))
@@ -460,11 +460,11 @@ def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileNa
 
   if globalParameters["CSVExportWinner"]:
     # in both old/new clients, csv files always output "GFlops" ,...., "LDD" "LDC" "LDA" "LDB" "TotalFlops" "WinnerGFlops" "WinnerTimeUS" "WinnerIdx" "WinnerName" columns
-    startIdx = numColForProblemSize + 10
+    startIdx = numColForProblemSize + 11
   else:
     # in both old/new clients, csv files always output "GFlops" ,...., "LDD" "LDC" "LDA" "LDB"columns
     # old client, non-GEMM csv files don't contain "LDD" "LDC" "LDA" "LDB", so we output an "N/A" text (in csv only) for alignment purpose (-diff.csv)
-    startIdx = numColForProblemSize + 5
+    startIdx = numColForProblemSize + 6
 
   rowLength = startIdx + numSolutions
 

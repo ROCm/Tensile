@@ -120,15 +120,22 @@ namespace Tensile
 
             double granThresh = args["granularity-threshold"].as<double>();
             double memThresh  = 1.0; // = args["memory-throughput-threshold"].as<double>();
-            double minLDSUtil = 0.75; // = args["minimum-ldl-utilization"].as<double>();
+            double minLDSUtil = 0.75; // = args["minimum-lds-utilization"].as<double>();
+            PerformanceMetric perfMetric = args["performance-metric"].as<PerformanceMetric>();
 
             if(granThresh > 0.0)
             {
-                criteria.push_back([granThresh](ContractionProblem const&  problem,
-                                                Hardware const&            hardware,
-                                                ContractionSolution const& solution) {
-                    auto projPerf = solution.projectedPerformance(problem, hardware);
-                    return projPerf.granularities.totalGranularity >= granThresh;
+                criteria.push_back([granThresh, perfMetric](ContractionProblem const&  problem,
+                                                            Hardware const&            hardware,
+                                                            ContractionSolution const& solution) {
+                    auto   projPerf  = solution.projectedPerformance(problem, hardware);
+                    double totalGran = projPerf.totalGranularity;
+
+                    // For CUEfficiency benchmarking, low CU granularity is OK
+                    if(perfMetric == PerformanceMetric::CUEfficiency)
+                        totalGran /= projPerf.cuGranularity;
+
+                    return totalGran >= granThresh;
                 });
             }
             if(memThresh > 0.0)
@@ -213,11 +220,11 @@ namespace Tensile
 
         void AllSolutionsIterator::postProblem()
         {
-            // int numSolutions = m_lastSolutionIdx - m_firstSolutionIdx + 1;
+            int numSolutions = m_lastSolutionIdx - m_firstSolutionIdx + 1;
 
-            // std::stringstream solRun;
-            // solRun << numSolutions - m_numSolutionsSkipped << "/" << numSolutions;
-            // m_reporter->report(ResultKey::SolutionsRun, solRun.str());
+            std::stringstream solRun;
+            solRun << numSolutions - m_numSolutionsSkipped << "/" << numSolutions;
+            m_reporter->report(ResultKey::SolutionsRun, solRun.str());
         }
 
         void AllSolutionsIterator::preSolution(ContractionSolution const& solution)
@@ -265,6 +272,7 @@ namespace Tensile
                 if(!criterion(m_problem, *m_hardware, *solution))
                 {
                     m_numSolutionsSkipped++;
+                    m_reporter->report(ResultKey::Validation, "SKIPPED");
                     return false;
                 }
             }
