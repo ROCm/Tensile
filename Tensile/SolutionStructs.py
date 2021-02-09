@@ -25,7 +25,8 @@ from .Common import assignParameterRequired, assignParameterWithDefault, \
                     print2, printExit, \
                     validActivationFormats, validConvolutionConfig, \
                     validMFMA, validParameters, validWeightFormats, \
-                    validGEMMTypes, typesUsingNewNaming
+                    validGEMMTypes, typesUsingNewNaming, \
+                    roundUp
 from .DataType import DataType
 from .Utils import roundUpToNearestMultiple
 
@@ -3510,6 +3511,119 @@ class Solution:
         reject(state, "SplitLDS requires wider GlobalReadVectorWidth (assert RegisterPerElem (%f) * GRVW (%u) // DepthULdsDivisor (%u) >= 1"%
           (state["ProblemType"]["DataType"].numRegisters(),state["GlobalReadVectorWidth"],state["DepthULdsDivisor"]))
 
+    if state["LocalWritePerMfma"] == -1:
+      if state["PrefetchGlobalRead"] == 2:
+        numLoadsA = state["DepthU"]*state["MacroTile0"]//state["GlobalLoadVectorWidthA"]//state["NumThreads"]
+        numLoadsB = state["DepthU"]*state["MacroTile1"]//state["GlobalLoadVectorWidthB"]//state["NumThreads"]
+        numMfmaPerIter = state["MIWaveTile"][0] * state["MIWaveTile"][1] * state["InnerUnroll"]
+        lrvwA = state["LocalReadVectorWidth"] if not state["ProblemType"]["TLUA"] else state["MIInputPerThread"]
+        lrvwB = state["LocalReadVectorWidth"] if not state["ProblemType"]["TLUB"] else state["MIInputPerThread"]
+        blockWidthA = state["LocalReadVectorWidth"]/(4/bpeAB) if state["TransposeLDS"] and not state["ProblemType"]["TLUA"] else bpeAB/4
+        blockWidthB = state["LocalReadVectorWidth"]/(4/bpeAB) if state["TransposeLDS"] and not state["ProblemType"]["TLUB"] else bpeAB/4
+
+        numReadPerVectorA = bpeAB * lrvwA // int(blockWidthA * 4)
+        numReadsPerIterA = state["InnerUnroll"]*(state["MIWaveTile"][0] * numReadPerVectorA)
+        numReadPerVectorB = bpeAB * lrvwB // int(blockWidthB * 4)
+        numReadsPerIterB = state["InnerUnroll"]*(state["MIWaveTile"][1] * numReadPerVectorB)
+
+        numMfmaBetweenLWandBarrier = 2 if state["MatrixInstM"] == 32 else 3
+        if state["PrefetchGlobalRead"] == 2:
+          numMfmaBetweenLWandBarrier -= 1
+        numItersPLR = state["PrefetchLocalRead"]%state["LoopIters"]
+        numVgprBuffer = state["LoopIters"] if state["PrefetchLocalRead"] > state["LoopIters"] else state["PrefetchLocalRead"]
+        issueLatencyA = 2 if state["TransposeLDS"] and not state["ProblemType"]["TLUA"] and state["LocalReadVectorWidth"]*bpeAB == 16 else 1
+        issueLatencyB = 2 if state["TransposeLDS"] and not state["ProblemType"]["TLUB"] and state["LocalReadVectorWidth"]*bpeAB == 16 else 1
+
+        miLatency = state["MatrixInstM"] // 2
+        miIssueLatency = 2
+        # give 1 quad-cycle buffer to prevend bubble from sync
+        miLatencyBuffer = 1
+        miLatencyLeft = max(miLatency - miLatencyBuffer - miIssueLatency,0)
+        numMfmaForNextLoopLR = 1
+        latencyLeft = miLatencyLeft
+        # ds_read[A][0]
+        for i in range(numReadPerVectorA):
+          latencyLeft -= issueLatencyA*2
+          if latencyLeft < 0:
+            numMfmaForNextLoopLR += 1
+            latencyLeft = max(miLatencyLeft - issueLatencyA*2,0)
+        # ds_read[B][0]
+        for i in range(numReadPerVectorB):
+          latencyLeft -= issueLatencyB*2
+          if latencyLeft < 0:
+            numMfmaForNextLoopLR += 1
+            latencyLeft = max(miLatencyLeft - issueLatencyB*2,0)
+        # ds_read[A][1:]
+        for i in range(numReadsPerIterA-numReadPerVectorA):
+          latencyLeft -= issueLatencyA*2
+          if latencyLeft < 0:
+            numMfmaForNextLoopLR += 1
+            latencyLeft = max(miLatencyLeft - issueLatencyA*2,0)
+        # ds_read[B][1:]
+        for i in range(numReadsPerIterB-numReadPerVectorB):
+          latencyLeft -= issueLatencyB*2
+          if latencyLeft < 0:
+            numMfmaForNextLoopLR += 1
+            latencyLeft = max(miLatencyLeft - issueLatencyB*2,0)
+        # in PGR2, we need 2 mfma for global read increments
+        lwStartMfmaIndex = 2
+        # for 1LDSB, we have to issue localwrites after localreads
+        if state["1LDSBuffer"] and numVgprBuffer >= state["LoopIters"]:
+          if numReadPerVectorA != 1 or numReadPerVectorB !=1:
+            numHalfReads = (numReadPerVectorA//2)*state["InnerUnroll"]*state["MIWaveTile"][0] + (numReadPerVectorB//2)*state["InnerUnroll"]*state["MIWaveTile"][1]
+            numMfmaForHalfRead = 1
+            latencyLeft = miLatencyLeft
+            for i in range(numHalfReads):
+              latencyLeft -= 2
+              if latencyLeft < 0:
+                numMfmaForHalfRead += 1
+                latencyLeft = max(miLatencyLeft - 2, 0)
+            lwStartMfmaIndex = numMfmaPerIter * (state["LoopIters"] - 1 - numItersPLR) + numMfmaForHalfRead
+          else:
+            numReads = (numReadsPerIterA+numReadsPerIterB) * (state["LoopIters"]//(state["LocalReadVectorWidth"]//state["MIInputPerThread"]) - numItersPLR)
+            numMfmaForCurrentLoopLR = 1
+            latencyLeft = miLatencyLeft
+            for i in range(numReads):
+              latencyLeft -= issueLatencyB*2
+              if latencyLeft < 0:
+                numMfmaForCurrentLoopLR += 1
+                latencyLeft = max(miLatencyLeft - issueLatencyB*2,0)
+            if state["MIWaveTile"][0] * state["MIWaveTile"][1] > 1:
+              numMfmaForCurrentLoopLR += 1
+            lwStartMfmaIndex = numMfmaForCurrentLoopLR
+        # to calculate number of mfma we need to wait before data arrive from lds to vgpr.
+        # latency: 40 quad-cycle for 4 word, 20 quad-cycle for 2 word, 10 quad-cycle for 1 word / half word
+        latencyForLR = roundUp(blockWidthB)*10
+        latencyForLR -= max(latencyLeft,0) # remaining latency in mfma
+        while latencyForLR > 0:
+          latencyForLR -= miLatency
+          numMfmaForNextLoopLR += 1
+          if state["1LDSBuffer"]:
+            lwStartMfmaIndex += 1
+        if state["1LDSBuffer"] and not numVgprBuffer >= state["LoopIters"]:
+          lwStartMfmaIndex = numMfmaPerIter * (state["LoopIters"] - 1 - numItersPLR) + numMfmaForNextLoopLR
+        # last iteration LR will have 1 mfma latency in default, because there is no any instruction after last mfma
+        numMfmaForNextLoopLR = max(numMfmaForNextLoopLR - 1, 1)
+        # final index definition
+        numMfmaForNextLoopLR = min(numMfmaForNextLoopLR, numMfmaPerIter - 1)
+        barrierMfmaIndex = numMfmaPerIter*(state["LoopIters"]-numItersPLR+1) - numMfmaForNextLoopLR - 1 if numItersPLR else 0
+        lwEndMfmaIndex = max(barrierMfmaIndex - numMfmaBetweenLWandBarrier,0) if numItersPLR else numMfmaPerIter*state["LoopIters"] - 1
+        temp1 = 0
+        temp2 = 100
+        writesToSched = (numLoadsA+numLoadsB-1)*100
+        loop = 0
+        numMfmaCanSched = max(lwEndMfmaIndex-lwStartMfmaIndex+1,1)
+        while temp1 != temp2 and loop < 10:
+          loop += 1
+          temp1 = temp2
+          temp2 = roundUp((writesToSched+1 + temp1 + temp1%100 - (writesToSched+1) % temp1)/numMfmaCanSched)
+        state["LocalWritePerMfma"] = temp1/100
+      else:
+        state["LocalWritePerMfma"] = 1
+
+    if state["GlobalReadPerMfma"] > 1 and state["PrefetchGlobalRead"] == 2:
+      reject(state, "GlobalReadPerMfma need to be 1 if PGR2")
+
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
     # LDS loads always write 4 bytes apart so can use only 4-byte operations
@@ -3873,8 +3987,11 @@ class Solution:
       return s
     elif isinstance(value, float):
       val1 = int(value)
-      val2 = int(value*100) - int(value)*100
-      s =  "%dp%d" % (val1,val2)
+      val2 = int(round(value*100)) - int(value)*100
+      if val2 > 0:
+        s =  "%dp%s" % (val1,str(val2).zfill(2))
+      else:
+        s = "%d" % (val1)
       return s
     else:
       printExit('Parameter {key}={value} is new object type ({t})'.format(key=key, value=value, t=type(value)))
