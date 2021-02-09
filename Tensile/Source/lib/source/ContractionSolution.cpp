@@ -363,17 +363,18 @@ namespace Tensile
 
         if(sizeMapping.globalAccumulation)
         {
-            rv.args.append<void const*>("ws", inputs.ws);
-            rv.args.append<void const*>("ws", inputs.ws);
+            // Workspace is both C and D here.
+            rv.args.append<void      *>("ws_d", inputs.ws);
+            rv.args.append<void const*>("ws_c", inputs.ws);
         }
         else if(problemType.stridedBatched)
         {
-            rv.args.append<typename TypedInputs::DType const*>("d", inputs.d);
+            rv.args.append<typename TypedInputs::DType      *>("d", inputs.d);
             rv.args.append<typename TypedInputs::CType const*>("c", inputs.c);
         }
         else
         {
-            rv.args.append<typename TypedInputs::DType const* const*>("batchD", inputs.batchD);
+            rv.args.append<typename TypedInputs::DType      * const*>("batchD", inputs.batchD);
             rv.args.append<typename TypedInputs::CType const* const*>("batchC", inputs.batchC);
         }
 
@@ -407,14 +408,14 @@ namespace Tensile
             size_t wsStride = startStrideCD ? d.sizes()[0] : 1;
             for(size_t i = startStrideCD; i < d.dimensions(); i++)
             {
-                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW", i), wsStride);
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW_D", i), wsStride);
                 wsStride *= d.sizes()[i];
             }
 
             wsStride = startStrideCD ? d.sizes()[0] : 1;
             for(size_t i = startStrideCD; i < c.dimensions(); i++)
             {
-                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW", i), wsStride);
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW_C", i), wsStride);
                 wsStride *= d.sizes()[i];
             }
         }
@@ -704,6 +705,7 @@ namespace Tensile
     KernelInvocation ContractionSolution::generateOutputConversionCall(
         Problem const& problem, TypedInputs const& inputs, Hardware const& hardware) const
     {
+        TensorDescriptor const& c = problem.c();
         TensorDescriptor const& d = problem.d();
 
         KernelInvocation rv;

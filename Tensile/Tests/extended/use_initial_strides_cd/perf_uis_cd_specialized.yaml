@@ -1,6 +1,3 @@
-TestParameters:
-  marks: [xfail-gfx1030] # not supported by arch
-
 # A config to generate a fast kernel for large DGEMMs
 GlobalParameters:
   HardwareMonitor: True

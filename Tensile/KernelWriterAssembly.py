@@ -2449,6 +2449,27 @@ class KernelWriterAssembly(KernelWriter):
     kStr += ".endm" + self.endLine
 
     kStr += self.endLine
+    kStr += ".macro _v_addc_co_u32 dst:req, ccOut:req, src0:req, ccIn:req, src1:req, dpp=" + self.endLine
+    if self.AsmBugs["ExplicitNC"]:
+        kStr += r"   v_add_co_ci_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
+    elif self.AsmBugs["ExplicitCO"]:
+        kStr += r"   v_addc_co_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
+    else:
+        kStr += r"   v_addc_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
+    kStr += ".endm" + self.endLine
+
+    # add w/o carry-out.  On older arch, vcc is still written
+    kStr += self.endLine
+    kStr += ".macro _v_add_i32 dst:req, src0:req, src1:req, dpp=" + self.endLine
+    if self.AsmBugs["ExplicitNC"]:
+        kStr += r"   v_add_nc_i32 \dst, \src0 \src1 \dpp" + self.endLine
+    elif self.AsmBugs["ExplicitCO"]:
+        kStr += r"   v_add_i32 \dst, \src0, \src1 \dpp" + self.endLine
+    else:
+        kStr += r"   v_add_i32 \dst, vcc, \src0, \src1 \dpp" + self.endLine
+    kStr += ".endm" + self.endLine
+
+    kStr += self.endLine
     kStr += ".macro _v_sub_co_u32 dst:req, cc:req, src0:req, src1:req, dpp=" + self.endLine
     if self.AsmBugs["ExplicitCO"]:
         kStr += r"   v_sub_co_u32 \dst, \cc, \src0, \src1 \dpp" + self.endLine
@@ -3278,11 +3299,30 @@ class KernelWriterAssembly(KernelWriter):
     else:
       kStr += ".if 0\n"
 
-    # set wave id vgpr
-    tmpVgpr = self.vgprPool.checkOut(1, "tmpVgpr", self.preventVgprOverflowDuringNewTile)
-    kStr += inst("v_lshrrev_b32 ", vgpr(tmpVgpr), hex(log2(self.kernel["WavefrontSize"])), vgpr("Serial"), "Wavefront Serial Id")
-    kStr += inst("v_readfirstlane_b32", sgpr("WaveId"), vgpr(tmpVgpr), "WaveId")
-    self.vgprPool.checkIn(tmpVgpr)
+    # add offset to buffer
+    if not kernel["_GlobalAccumulation"]:
+      kStr += inst("s_lshl_b32", sgpr("OffsetD"), sgpr("OffsetD"), hex(log2(self.bpeCexternal)), "elements offset to bytes offset")
+      kStr += inst("s_add_u32",  sgpr("AddressD+0"), sgpr("AddressD+0"), sgpr("OffsetD"), "add offset to buffer address")
+      kStr += inst("s_addc_u32", sgpr("AddressD+1"), sgpr("AddressD+1"), 0, "add offset to buffer address")
+
+      kStr += inst("s_lshl_b32", sgpr("OffsetC"), sgpr("OffsetC"), hex(log2(self.bpeCexternal)), "elements offset to bytes offset")
+      kStr += inst("s_add_u32",  sgpr("AddressC+0"), sgpr("AddressC+0"), sgpr("OffsetC"), "add offset to buffer address")
+      kStr += inst("s_addc_u32", sgpr("AddressC+1"), sgpr("AddressC+1"), 0, "add offset to buffer address")
+
+    kStr += inst("s_lshl_b32", sgpr("OffsetA"), sgpr("OffsetA"), hex(log2(self.bpeAB)), "elements offset to bytes offset")
+    kStr += inst("s_add_u32",  sgpr("AddressA+0"), sgpr("AddressA+0"), sgpr("OffsetA"), "add offset to buffer address")
+    kStr += inst("s_addc_u32", sgpr("AddressA+1"), sgpr("AddressA+1"), 0, "add offset to buffer address")
+
+    kStr += inst("s_lshl_b32", sgpr("OffsetB"), sgpr("OffsetB"), hex(log2(self.bpeAB)), "elements offset to bytes offset")
+    kStr += inst("s_add_u32",  sgpr("AddressB+0"), sgpr("AddressB+0"), sgpr("OffsetB"), "add offset to buffer address")
+    kStr += inst("s_addc_u32", sgpr("AddressB+1"), sgpr("AddressB+1"), 0, "add offset to buffer address")
+
+    # undefine Offset sgpr
+    kStr += self.endLine
+    kStr += self.undefineSgpr("OffsetD")
+    kStr += self.undefineSgpr("OffsetC")
+    kStr += self.undefineSgpr("OffsetA")
+    kStr += self.undefineSgpr("OffsetB")
 
     self.defineVariableSgprs(kernel)
 
@@ -3764,6 +3804,7 @@ class KernelWriterAssembly(KernelWriter):
     if not self.groOffsetInMacroTile and kernel["GlobalSplitU"] > 1:
       gsuOffset = self.vgprPool.checkOut(1, "gsuOffset", self.preventVgprOverflowDuringNewTile)
       kStr += inst("v_mov_b32", vgpr(gsuOffset), sgpr("GSUSumIdx"), "=gsuSumIdx")
+      tmpSgpr = self.getTmpSgpr(1).idx()
       if kernel["GlobalSplitUSummationAssignmentRoundRobin"]:
         # graUnrollAssignment += gsuSumIdx*DepthU
         kStr += staticMultiply(vgpr(gsuOffset), vgpr(gsuOffset), kernel["DepthU"], sgpr(tmpSgpr))
@@ -3981,8 +4022,8 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_mov_b32", vgpr(edge), sgpr(tmpSgpr), \
           "edge vgpr = Size%s- WG*MT - margin(%u)"%(tP["tileChar"], margin) )
       shiftedEdge = self.vgprPool.checkOut(1, "shiftedEdge", self.preventVgprOverflowDuringNewTile)
-      kStr += inst("_v_add_co_u32", vgpr(shiftedEdge), self.vcc, vgpr(edge), self.srdShiftLeft[tc], \
-        "shiftedEdge = edge + srdShiftLeft(%u)"%(self.srdShiftLeft[tc]))
+      kStr += inst("_v_add_co_u32", vgpr(shiftedEdge), self.vcc, vgpr(edge), self.srdShiftLeft[tc],
+                   "shiftedEdge = edge + srdShiftLeft({})".format(self.srdShiftLeft[tc]))
     else:
       tmpSgpr = self.getTmpSgpr(1).idx()
       kStr += inst("s_sub_u32", sgpr(tmpSgpr), self.sizeRef(tP["idx"]), margin, \
@@ -4004,17 +4045,17 @@ class KernelWriterAssembly(KernelWriter):
       cmpCommentText = "offset < edge"
       if self.groOffsetInMacroTile:
         shiftedOffset = self.vgprPool.checkOut(1, "shiftedOffset", self.preventVgprOverflowDuringNewTile)
-        kStr += inst("_v_add_co_u32", vgpr(shiftedOffset), self.vcc, vgpr(v+l), self.srdShiftLeft[tc], \
-          "shiftedOffset = offset + srdShiftLeft(%u)"%(self.srdShiftLeft[tc]))
+        kStr += inst("_v_add_co_u32", vgpr(shiftedOffset), self.vcc, vgpr(v+l), self.srdShiftLeft[tc], "shiftedOffset = offset + srdShiftLeft(%u)"%(self.srdShiftLeft[tc]))
         # int cmp since if we are near the front of the tile this may go negative:
-        cmpCommentText = "shiftedOffset < shiftedEdge"
-        kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(shiftedOffset), vgpr(shiftedEdge), cmpCommentText )
+        kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,self.laneSGPRCount), vgpr(shiftedOffset), vgpr(shiftedEdge),
+                     "shiftedOffset < shiftedEdge")
         self.vgprPool.checkIn(shiftedOffset)
       else:
-        kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,2), vgpr(v+l), vgpr(edge), cmpCommentText )
+        kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,self.laneSGPRCount), vgpr(v+l), vgpr(edge),
+                     "shiftedOffset < shiftedEdge")
       # shift
-      kStr += inst("v_cndmask_b32", vgpr(v+l), vgpr(edge), vgpr(v+l), sgpr(tmpSgpr,2), \
-        "offset = (%s) ? offset(v%u) : edge(v%u)"%(cmpCommentText, v+l, edge) )
+      kStr += inst("v_cndmask_b32", vgpr(v+l), vgpr(edge), vgpr(v+l), sgpr(tmpSgpr,self.laneSGPRCount),
+                   "offset = (%s) ? offset(v%u) : edge(v%u)"%(cmpCommentText, v+l, edge))
     self.vgprPool.checkIn(edge)
     if self.groOffsetInMacroTile:
       self.vgprPool.checkIn(shiftedEdge)
@@ -10895,10 +10936,10 @@ class KernelWriterAssembly(KernelWriter):
                        sgpr(mask,2), "LD%s clip if OOB. offset" % tc )
       else:
         # store a copy of the offset in 2 of the tmpVgpr for D
-        kStr += inst("_v_add_co_u32",  vgpr(addr+0), self.vcc, vgpr(BufAddr+0), vgpr(tmpVgpr+2), \
+        kStr += inst("_v_add_co_u32",  vgpr(addr+0), self.kernelWriter.vcc, vgpr(BufAddr+0), vgpr(tmpVgpr+2), \
                      "addr = C(D) + index*bytes (lo)" )
-        kStr += inst("_v_addc_co_u32", vgpr(addr+1), self.vcc, vgpr(BufAddr+1), vgpr(tmpVgpr+3), \
-                     self.vcc, "addr = C(D) + index*bytes (hi)")
+        kStr += inst("_v_addc_co_u32", vgpr(addr+1), self.kernelWriter.vcc, vgpr(BufAddr+1), vgpr(tmpVgpr+3), \
+                     self.kernelWriter.vcc, "addr = C(D) + index*bytes (hi)")
       return kStr
 
 
@@ -11139,7 +11180,6 @@ class KernelWriterAssembly(KernelWriter):
       #jgolds look at moving these converted values back to scalar regs and free up the VGPRs
       # ethan if using (h,h,h,h,s,s) + HPA then the host should pass in an F32 alpha, we don't have to do the cvt
       if beta:
-        #jgolds look at moving these converted values back to scalar regs and free up the VGPRs
         # TODO - for hpa the host should pass in an F32 alpha so we don't have to do it here
         if kernel["ProblemType"]["HighPrecisionAccumulate"]:
           self.betaVgpr = self.vgprPool.checkOut(1, "beta")
