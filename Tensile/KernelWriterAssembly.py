@@ -2470,17 +2470,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += r"   v_addc_u32 \dst, \ccOut, \src0, \ccIn, \src1 \dpp" + self.endLine
     kStr += ".endm" + self.endLine
 
-    # add w/o carry-out.  On older arch, vcc is still written
-    kStr += self.endLine
-    kStr += ".macro _v_add_i32 dst:req, src0:req, src1:req, dpp=" + self.endLine
-    if self.AsmBugs["ExplicitNC"]:
-        kStr += r"   v_add_nc_i32 \dst, \src0 \src1 \dpp" + self.endLine
-    elif self.AsmBugs["ExplicitCO"]:
-        kStr += r"   v_add_i32 \dst, \src0, \src1 \dpp" + self.endLine
-    else:
-        kStr += r"   v_add_i32 \dst, vcc, \src0, \src1 \dpp" + self.endLine
-    kStr += ".endm" + self.endLine
-
     kStr += self.endLine
     kStr += ".macro _v_sub_co_u32 dst:req, cc:req, src0:req, src1:req, dpp=" + self.endLine
     if self.AsmBugs["ExplicitCO"]:

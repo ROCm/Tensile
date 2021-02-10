@@ -1,7 +1,7 @@
 /**
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -166,8 +166,10 @@ namespace Tensile
                 {
                     std::ostringstream msg;
                     msg << "Unsupported nullptr for";
-                    if(!inputs.a) msg << " A";
-                    if(!inputs.b) msg << " B";
+                    if(!inputs.a)
+                        msg << " A";
+                    if(!inputs.b)
+                        msg << " B";
                     msg << " when Alpha !=0";
 
                     throw std::runtime_error(msg.str());
@@ -619,4 +621,3 @@ namespace Tensile
         }
     } // namespace Client
 } // namespace Tensile
-
