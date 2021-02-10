@@ -140,6 +140,9 @@ def findSolutionWithIndex(solutionData, solIndex):
         assert(len(solution) == 1)
         return solution[0]
 
+def usingMFMA(solution):
+    return solution["EnableMatrixInstruction"] or solution["MatrixInstruction"]
+
 class SolutionUpdate(Enum):
     Replace=0
     Append =1
@@ -154,7 +157,7 @@ def findOriginalSolutionToUpdate(incSolution, incSize, incEff, origSolutionData,
         if includeKernelVariants:
             for j, index, eff in origSolutions:
                 solution = findSolutionWithIndex(origSolutionData, index)
-                if solution["EnableMatrixInstruction"] == incSolution["EnableMatrixInstruction"]:
+                if usingMFMA(solution) == usingMFMA(incSolution):
                     origJ, origIndex, origEff = j, index, eff
                     originalSolution = solution
                     break
