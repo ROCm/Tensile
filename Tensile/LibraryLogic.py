@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -207,7 +207,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
 
   #selectionSolutionsIdsList = list(selectionSolutionsIds)
   return (problemType, logicAnalyzer.solutions, logicAnalyzer.indexOrder, \
-       exactLogic, rangeLogic, selectionSolutions, selectionSolutionsIdsList)
+       exactLogic, rangeLogic, selectionSolutions, selectionSolutionsIdsList, logicAnalyzer.perCU)
 
 
 
@@ -438,6 +438,16 @@ class LogicAnalyzer:
     for row in csvFile:
       rowIdx+=1
       if rowIdx == 1:
+        # get unit (gflops or gflops/cu) of benchmark data
+        perfUnit = row[0]
+        if perfUnit == "GFlops":
+          self.perCU = False
+        elif perfUnit == "GFlopsPerCU":
+          self.perCU = True
+        else:
+          printWarning("Performance unit %s in %s is unrecognized: assuming GFlops" % (perfUnit, dataFileName))
+          self.perCU = False
+
         # get the length of each row, and derive the first column of the solution instead of using wrong "solutionStartIdx = totalSizeIdx + 1"
         rowLength = len(row)
         solutionStartIdx = rowLength - numSolutions
@@ -1468,5 +1478,3 @@ def main(  config ):
       globalParameters["LibraryLogicPath"])
 
   generateLogic(config, benchmarkDataPath, libraryLogicPath)
-
-

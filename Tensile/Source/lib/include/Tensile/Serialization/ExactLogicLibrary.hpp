@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -53,6 +53,20 @@ namespace Tensile
         struct MappingTraits<ProblemSelectionLibrary<MyProblem, MySolution>, IO>
         {
             using Library = ProblemSelectionLibrary<MyProblem, MySolution>;
+            using iot     = IOTraits<IO>;
+
+            static void mapping(IO& io, Library& lib)
+            {
+                iot::mapRequired(io, "rows", lib.rows);
+            }
+
+            const static bool flow = false;
+        };
+
+        template <typename MyProblem, typename MySolution, typename IO>
+        struct MappingTraits<PerCUorOverallLibrary<MyProblem, MySolution>, IO>
+        {
+            using Library = PerCUorOverallLibrary<MyProblem, MySolution>;
             using iot     = IOTraits<IO>;
 
             static void mapping(IO& io, Library& lib)

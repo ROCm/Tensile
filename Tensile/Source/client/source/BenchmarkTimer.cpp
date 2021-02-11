@@ -108,19 +108,15 @@ namespace Tensile
             int    usedCus     = (tiles > perf.CUs) ? perf.CUs : tiles;
             double gflopsPerCu = gflops / usedCus;
 
-            uint64_t gflopsUint      = static_cast<uint64_t>(round(gflops));
-            uint64_t gflopsPerCuUint = static_cast<uint64_t>(round(gflopsPerCu));
+            uint64_t gflopsUint = static_cast<uint64_t>(round(gflops));
 
             m_reporter->report(ResultKey::TimeUS, timePerEnqueue_us);
+            m_reporter->report(ResultKey::SpeedGFlopsPerCu, gflopsPerCu);
+
             if(gflopsUint)
                 m_reporter->report(ResultKey::SpeedGFlops, gflopsUint);
             else
                 m_reporter->report(ResultKey::SpeedGFlops, gflops);
-
-            if(gflopsPerCuUint)
-                m_reporter->report(ResultKey::SpeedGFlopsPerCu, gflopsPerCuUint);
-            else
-                m_reporter->report(ResultKey::SpeedGFlopsPerCu, gflopsPerCu);
 
             m_timeInSolution        = double_millis::zero();
             m_numEnqueuesInSolution = 0;

@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -218,12 +218,17 @@ class MasterSolutionLibrary:
     @classmethod
     def FromOriginalState(cls, d, origSolutions, solutionClass=Contractions.Solution, libraryOrder = None):
         if libraryOrder is None:
-            libraryOrder = ['Hardware', 'OperationIdentifier', 'Predicates', 'Matching']
+            libraryOrder = ['Hardware', 'OperationIdentifier', 'PerCU', 'Predicates', 'Matching']
 
         deviceSection = d[1:4]
         origProblemType = d[4]
         #origSolutions = d[5]
         origLibrary = d[6:8]
+
+        perCU = False
+        if len(d) > 10:
+            perCU = d[10]
+            print(perCU)
 
         problemType = Contractions.ProblemType.FromOriginalState(origProblemType)
 
@@ -282,6 +287,16 @@ class MasterSolutionLibrary:
 
                 newLib = ProblemMapLibrary(prop, mapping)
                 library = newLib
+
+            elif libName == 'PerCU':
+                if perCU:
+                    predicate = Properties.Predicate(tag='PerCU')
+                else:
+                    predicate = Properties.Predicate(tag='TruePred')
+                newLib = PredicateLibrary(tag='PerCUorOverall')
+                newLib.rows.append({'predicate': predicate, 'library': library})
+                library = newLib
+
             else:
                 raise ValueError("Unknown value " + libName)
 
@@ -345,4 +360,3 @@ class MasterSolutionLibrary:
     @property
     def cpp_class(self):
         return "MasterSolutionLibrary<ContractionProblem, ContractionSolution>"
-

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -1053,6 +1053,29 @@ namespace Tensile
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     return problem.stridedBatched() == value;
+                }
+            };
+
+            struct PerCU : public Predicate_CRTP<PerCU, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+                bool value;
+
+                PerCU() = default;
+
+                static std::string Type()
+                {
+                    return "PerCU";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return true; // TODO - logic for determining to use per CU or not
+                    //return problem.flopCount() <= some_value;
                 }
             };
         } // namespace Contraction
