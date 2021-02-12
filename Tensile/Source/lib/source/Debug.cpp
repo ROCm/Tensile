@@ -135,7 +135,7 @@ namespace Tensile
         if(naive)
             m_naivePropertySearch = strtol(naive, nullptr, 0) != 0;
 
-        const char* db_select = std::getenv("ENABLE_DEBUG_SELECTION");
+        const char* db_select = std::getenv("TENSILE_TAM_SELECTION_ENABLE");
         if(db_select)
             m_debugSelection = strtol(db_select, nullptr, 0) != 0;
     }

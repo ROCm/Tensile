@@ -28,7 +28,6 @@
 #include <tuple>
 #include <vector>
 
-#include <Tensile/ContractionSolution.hpp>
 #include <Tensile/Debug.hpp>
 #include <Tensile/Distance.hpp>
 #include <Tensile/Properties.hpp>
@@ -466,83 +465,6 @@ namespace Tensile
                 return keyMatchesInOrder(keyForProblem(object));
             }
 
-            double
-                computeTileAwareMetric(ContractionSolution::TAMetricProblemScore pp,
-                                       ContractionSolution::TAMetricProblemScore ppReference) const
-            {
-                double metric = 0.0;
-
-                double tile0GranularityDim
-                    = abs(log(ppReference.tile0Granularity) - log(pp.tile0Granularity));
-                metric = tile0GranularityDim;
-
-                double tile1GranularityDim
-                    = abs(log(ppReference.tile1Granularity) - log(pp.tile1Granularity));
-                metric += tile1GranularityDim;
-
-                double natCuGranularityDim
-                    = abs(log(ppReference.natCuGranularity) - log(pp.natCuGranularity));
-                metric += natCuGranularityDim;
-
-                double suCuGranularityDim
-                    = abs(log(ppReference.suCuGranularity) - log(pp.suCuGranularity));
-                metric += suCuGranularityDim;
-
-                double suWaveGranularityDim
-                    = abs(log(ppReference.suWaveGranularity) - log(pp.suWaveGranularity));
-                metric += suWaveGranularityDim;
-
-                double natTilesPerCuDim
-                    = abs(log(ppReference.natTilesPerCu) - log(pp.natTilesPerCu));
-                metric += natTilesPerCuDim;
-
-                double suTilesPerCuDim = abs(log(ppReference.suTilesPerCu) - log(pp.suTilesPerCu));
-                metric += suTilesPerCuDim;
-
-                double summationPerformanceDim
-                    = abs(ppReference.summationPerformance - pp.summationPerformance);
-                metric += summationPerformanceDim;
-
-                return metric;
-            }
-
-            double computeTAMScore(ReturnValue&    solution,
-                                   Hardware const& hardware,
-                                   Object const&   object,
-                                   Key             key) const
-            {
-                size_t M          = object.freeSizeA(0);
-                size_t N          = object.freeSizeB(0);
-                size_t K          = object.boundSize(0);
-                size_t NumBatches = object.batchSize(0);
-
-                size_t model_M         = key[0];
-                size_t model_N         = key[1];
-                size_t model_K         = 1;
-                size_t model_batchSize = 1;
-
-                if(key.size() > 3)
-                {
-                    model_K         = key[3];
-                    model_batchSize = key[2];
-                }
-                else
-                {
-                    model_K = key[2];
-                }
-
-                ContractionSolution::TAMetricProblemScore pp
-                    = solution->computeProblemScore(hardware, M, N, K, NumBatches, 0, 0, 0, 0);
-
-                ContractionSolution::TAMetricProblemScore ppReference
-                    = solution->computeProblemScore(
-                        hardware, model_M, model_N, model_K, model_batchSize, 0, 0, 0, 0);
-
-                double distance = this->computeTileAwareMetric(pp, ppReference);
-
-                return distance;
-            }
-
             virtual ReturnValue findBestEvaluationSolution(Object const&   object,
                                                            Hardware const& hardware,
                                                            Transform       transform) const override
@@ -557,12 +479,26 @@ namespace Tensile
 
                 ReturnValue bestMatch = theMatch;
                 if(theMatch != nullptr)
-                    bestDistance = computeTAMScore(theMatch, hardware, object, iter->key);
+                {
+                    size_t model_M          = iter->key[0];
+                    size_t model_N          = iter->key[1];
+                    size_t model_K          = 1;
+                    size_t model_NumBatches = 1;
+
+                    if(iter->key.size() > 3)
+                    {
+                        model_K          = iter->key[3];
+                        model_NumBatches = iter->key[2];
+                    }
+                    else
+                    {
+                        model_K = iter->key[2];
+                    }
+                    bestDistance = theMatch->computeTAMScore(
+                        object, hardware, model_M, model_N, model_K, model_NumBatches);
+                }
 
                 iter++;
-
-                if(iter == this->table.end())
-                    return this->nullValue;
 
                 while(iter != this->table.end())
                 {
@@ -570,8 +506,22 @@ namespace Tensile
 
                     if(nextMatch != nullptr)
                     {
-                        double nextDistance
-                            = computeTAMScore(nextMatch, hardware, object, iter->key);
+                        size_t model_M          = iter->key[0];
+                        size_t model_N          = iter->key[1];
+                        size_t model_K          = 1;
+                        size_t model_NumBatches = 1;
+
+                        if(iter->key.size() > 3)
+                        {
+                            model_K          = iter->key[3];
+                            model_NumBatches = iter->key[2];
+                        }
+                        else
+                        {
+                            model_K = iter->key[2];
+                        }
+                        double nextDistance = theMatch->computeTAMScore(
+                            object, hardware, model_M, model_N, model_K, model_NumBatches);
 
                         if(nextDistance < bestDistance)
                         {

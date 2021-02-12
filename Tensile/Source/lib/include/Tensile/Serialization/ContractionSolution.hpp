@@ -123,6 +123,20 @@ namespace Tensile
         };
 
         template <typename IO>
+        struct MappingTraits<ContractionSolution::LinearModel, IO>
+        {
+            using iot = IOTraits<IO>;
+            static void mapping(IO& io, ContractionSolution::LinearModel& s)
+            {
+                iot::mapRequired(io, "slope", s.slope);
+                iot::mapRequired(io, "intercept", s.intercept);
+                iot::mapRequired(io, "max", s.max);
+            }
+
+            const static bool flow = false;
+        };
+
+        template <typename IO>
         struct MappingTraits<BufferLoadCheckPacket, IO>
         {
             using iot = IOTraits<IO>;

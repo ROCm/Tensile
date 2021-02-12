@@ -110,18 +110,39 @@ namespace Tensile
             size_t memGlobalWrites = 0;
         };
 
-        struct ProjectedPerformance
+        struct Granularites
         {
             double numTiles0  = 0.0; //! number of tiles in 0 dimension
             double numTiles1  = 0.0; //! number of tiles in 1 dimension
+            double totalTiles = 0.0;
             double tilesPerCu = 0.0;
 
             //! Granularity is measured 0..1 with 1.0 meaning no granularity loss
-            double tile0Granularity = 0.0; // loss due to tile0
-            double tile1Granularity = 0.0;
-            double cuGranularity    = 0.0;
-            double waveGranularity  = 0.0;
-            double totalGranularity = 0.0;
+            double tile0Granularity          = 0.0; // loss due to tile0
+            double tile1Granularity          = 0.0;
+            double cuGranularity             = 0.0;
+            double waveGranularity           = 0.0;
+            double totalGranularity          = 0.0;
+            double totalTileAwareGranularity = 0.0;
+            double natCuGranularity          = 0.0;
+            double natTilesPerCu             = 0.0;
+            double suTilesPerCu              = 0.0;
+            double suCuGranularity           = 0.0;
+            double waves                     = 0.0;
+            double suWavesPerSimdx2          = 0.0;
+            double suWaveGranularity         = 0.0;
+
+            int CUs = 0;
+
+            double MT0;
+            double MT1;
+            double GSU;
+            double LSU;
+        };
+
+        struct ProjectedPerformance
+        {
+            Granularites granularites;
 
             double speedGFlops = 0.0; //! final gflops projection
             int    CUs         = 0;
@@ -131,41 +152,24 @@ namespace Tensile
 
         struct TAMetricProblemScore
         {
-            double numTiles0  = 0.0; //! number of tiles in 0 dimension
-            double numTiles1  = 0.0; //! number of tiles in 1 dimension
-            double totalTiles = 0.0;
-            double tilesPerCu = 0.0;
+            Granularites granularites;
 
-            //! Granularity is measured 0..1 with 1.0 meaning no granularity loss
-            double tile0Granularity  = 0.0; // loss due to tile0
-            double tile1Granularity  = 0.0;
-            double natCuGranularity  = 0.0;
-            double totalGranularity  = 0.0;
-            double natTilesPerCu     = 0.0;
-            double suTilesPerCu      = 0.0;
-            double suCuGranularity   = 0.0;
-            double waves             = 0.0;
-            double suWavesPerSimdx2  = 0.0;
-            double suWaveGranularity = 0.0;
-
-            double speedGFlops = 0.0; //! final gflops projection
-            int    CUs         = 0;
+            int CUs = 0;
 
             double summationPerformance = 0.0;
 
             double M;
             double N;
             double K;
-            double MT0;
-            double MT1;
-            double GSU;
-            double LSU;
         };
 
         /**
    * Calculate required workspace size.
    */
         size_t requiredWorkspaceSize(Problem const& problem) const;
+
+        Granularites computeGranularites(
+            Hardware const& hardware, double M, double N, double K, double NumBatches) const;
 
         StaticPerformanceModel staticPerformanceModel(double M,
                                                       double N,
@@ -186,6 +190,16 @@ namespace Tensile
                                                  double          LDB,
                                                  double          LDC,
                                                  double          LDD) const;
+
+        double computeTileAwareMetric(TAMetricProblemScore pp,
+                                      TAMetricProblemScore ppReference) const;
+
+        double computeTAMScore(Problem const&  problem,
+                               Hardware const& hardware,
+                               size_t          model_M,
+                               size_t          model_N,
+                               size_t          model_K,
+                               size_t          model_NumBatches) const;
 
         /**
    * Calculate the projected performance based on granularity loss.
@@ -267,6 +281,13 @@ namespace Tensile
             bool        stridedBatched          = true;
         };
 
+        struct LinearModel
+        {
+            double slope;
+            double intercept;
+            double max;
+        };
+
         int         index = 0;
         std::string kernelName;
         bool        debugKernel = false;
@@ -284,7 +305,7 @@ namespace Tensile
         /// somewhere else.
         std::map<std::string, std::string> info;
         std::map<int, double>              ideals;
-        std::map<std::string, double>      linearModel;
+        LinearModel                        linearModel;
 
         int32_t staggerUIter(Problem const&  problem,
                              Inputs const&   inputs,
