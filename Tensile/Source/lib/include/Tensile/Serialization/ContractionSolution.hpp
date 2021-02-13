@@ -128,9 +128,9 @@ namespace Tensile
             using iot = IOTraits<IO>;
             static void mapping(IO& io, ContractionSolution::LinearModel& s)
             {
-                iot::mapRequired(io, "slope", s.slope);
-                iot::mapRequired(io, "intercept", s.intercept);
-                iot::mapRequired(io, "max", s.max);
+                iot::mapOptional(io, "slope", s.slope);
+                iot::mapOptional(io, "intercept", s.intercept);
+                iot::mapOptional(io, "max", s.max);
             }
 
             const static bool flow = false;
