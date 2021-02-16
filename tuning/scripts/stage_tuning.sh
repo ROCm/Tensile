@@ -17,7 +17,7 @@ function make_tensile_tuning() {
     echo "#!/bin/sh"
     echo "if [ ! -d 3_LibraryLogic ] || [ -z \"\$(ls -A 3_LibraryLogic)\" ]; then"
     echo "  touch time.begin"
-    echo "  ${TENSILE}/Tensile/bin/Tensile ${FILE_NAME} ./ > make.out 2>&1"
+    echo "  ${TENSILE}/Tensile/bin/Tensile ${FILE_NAME} ./ > tuning.out 2>&1"
     echo "  touch time.end"
     echo "fi"
   } > runTensileTuning.sh
@@ -79,7 +79,7 @@ done
   echo "for dir in${DIRS}"
   echo "do"
   echo "  cd build-\${dir} || exit"
-  echo "  ./doit.sh > doit-errs 2>&1"
+  echo "  ./runTensileTuning.sh > tuning-errs.out 2>&1"
   echo "  cd .."
   echo "done"
 } >> "${DOIT}"
