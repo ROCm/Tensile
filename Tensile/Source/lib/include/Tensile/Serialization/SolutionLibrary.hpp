@@ -72,7 +72,6 @@ namespace Tensile
                     {Base::template Pair<SingleSolutionLibrary<MyProblem, MySolution>>(),
                      Base::template Pair<HardwareSelectionLibrary<MyProblem, MySolution>>(),
                      Base::template Pair<ProblemSelectionLibrary<MyProblem, MySolution>>(),
-                     Base::template Pair<PerCUorOverallLibrary<MyProblem, MySolution>>(),
                      Base::template Pair<ProblemMapLibrary<MyProblem, MySolution>>(),
                      Base::template Pair<ProblemMatchingLibrary<MyProblem, MySolution>>(),
                      Base::template Pair<GranularitySelectionLibrary<MyProblem, MySolution>>()});

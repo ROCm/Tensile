@@ -63,20 +63,6 @@ namespace Tensile
             const static bool flow = false;
         };
 
-        template <typename MyProblem, typename MySolution, typename IO>
-        struct MappingTraits<PerCUorOverallLibrary<MyProblem, MySolution>, IO>
-        {
-            using Library = PerCUorOverallLibrary<MyProblem, MySolution>;
-            using iot     = IOTraits<IO>;
-
-            static void mapping(IO& io, Library& lib)
-            {
-                iot::mapRequired(io, "rows", lib.rows);
-            }
-
-            const static bool flow = false;
-        };
-
         template <typename MyProblem, typename MySolution, typename MyPredicate, typename IO>
         struct MappingTraits<LibraryRow<MyProblem, MySolution, MyPredicate>, IO>
         {

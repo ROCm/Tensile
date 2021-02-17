@@ -213,33 +213,6 @@ namespace Tensile
         }
     };
 
-    template <typename MyProblem, typename MySolution>
-    struct PerCUorOverallLibrary
-        : public ExactLogicLibrary<MyProblem, MySolution, ProblemPredicate<MyProblem>>
-    {
-        using Base = ExactLogicLibrary<MyProblem, MySolution, ProblemPredicate<MyProblem>>;
-
-        PerCUorOverallLibrary() = default;
-        PerCUorOverallLibrary(std::initializer_list<typename Base::Row> init)
-            : Base(init)
-        {
-        }
-
-        PerCUorOverallLibrary(std::vector<typename Base::Row> const& init)
-            : Base(init)
-        {
-        }
-
-        static std::string Type()
-        {
-            return "PerCUorOverall";
-        }
-        virtual std::string type() const
-        {
-            return Type();
-        }
-    };
-
     /**
  * @}
  */

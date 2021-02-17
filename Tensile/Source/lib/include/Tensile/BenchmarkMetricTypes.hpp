@@ -36,71 +36,72 @@ namespace Tensile
 {
     /**
  * \ingroup Tensile
- * \defgroup ArithmeticUnits Arithmetic unit type Info
+ * \defgroup BenchmarkMetrics Benchmark metric type Info
  *
- * @brief Definitions and metadata on supported arithmetic unit types.
+ * @brief Definitions and metadata on supported benchmark metric types.
  */
 
     /**
- * \ingroup ArithmeticUnits
+ * \ingroup BenchmarkMetrics
  * @{
  */
 
     /**
- * Arithmetic Unit
+ * Benchmark Metric
  */
-    enum class ArithmeticUnit : int
+    enum class BenchmarkMetric : int
     {
-        Any,
-        MFMA,
-        VALU,
+        Best,
+        CUEfficiency,
+        Overall,
         Count
     };
 
-    std::string   ToString(ArithmeticUnit d);
-    std::string   TypeAbbrev(ArithmeticUnit d);
-    std::ostream& operator<<(std::ostream& stream, ArithmeticUnit const& t);
-    std::istream& operator>>(std::istream& stream, ArithmeticUnit& t);
+    std::string   ToString(BenchmarkMetric d);
+    std::string   TypeAbbrev(BenchmarkMetric d);
+    std::ostream& operator<<(std::ostream& stream, BenchmarkMetric const& t);
+    std::istream& operator>>(std::istream& stream, BenchmarkMetric& t);
 
     /**
- * \ingroup ArithmeticUnits
- * \brief Runtime accessible arithmetic unit type metadata
+ * \ingroup BenchmarkMetrics
+ * \brief Runtime accessible benchmark metric type metadata
  */
-    struct ArithmeticUnitTypeInfo
+    struct BenchmarkMetricTypeInfo
     {
-        static ArithmeticUnitTypeInfo const& Get(int index);
-        static ArithmeticUnitTypeInfo const& Get(ArithmeticUnit t);
-        static ArithmeticUnitTypeInfo const& Get(std::string const& str);
+        static BenchmarkMetricTypeInfo const& Get(int index);
+        static BenchmarkMetricTypeInfo const& Get(BenchmarkMetric t);
+        static BenchmarkMetricTypeInfo const& Get(std::string const& str);
 
-        ArithmeticUnit m_arithmeticUnit;
-        std::string    name;
+        BenchmarkMetric m_benchmarkMetric;
+        std::string     name;
+        std::string     abbrev;
 
     private:
         static void registerAllTypeInfo();
         static void registerAllTypeInfoOnce();
 
-        template <ArithmeticUnit T_Enum>
+        template <BenchmarkMetric T_Enum>
         static void registerTypeInfo();
 
-        static void addInfoObject(ArithmeticUnitTypeInfo const& info);
+        static void addInfoObject(BenchmarkMetricTypeInfo const& info);
 
-        static std::map<ArithmeticUnit, ArithmeticUnitTypeInfo> data;
-        static std::map<std::string, ArithmeticUnit>            typeNames;
+        static std::map<BenchmarkMetric, BenchmarkMetricTypeInfo> data;
+        static std::map<std::string, BenchmarkMetric>             typeNames;
     };
 
     /**
- * \ingroup ArithmeticUnits
- * \brief Compile-time accessible arithmetic unit type metadata.
+ * \ingroup BenchmarkMetrics
+ * \brief Compile-time accessible benchmark metric type metadata.
  */
-    template <ArithmeticUnit T_Enum>
-    struct ArithmeticUnitInfo
+    template <BenchmarkMetric T_Enum>
+    struct BenchmarkMetricInfo
     {
     };
 
-    template <ArithmeticUnit T_Enum>
-    struct BaseArithmeticUnitInfo
+    template <BenchmarkMetric T_Enum>
+    struct BaseBenchmarkMetricInfo
     {
-        constexpr static ArithmeticUnit Enum = T_Enum;
+        constexpr static BenchmarkMetric Enum = T_Enum;
 
         static inline std::string Name()
         {
@@ -112,22 +113,22 @@ namespace Tensile
         }
     };
 
-    template <ArithmeticUnit T_Enum>
-    constexpr ArithmeticUnit BaseArithmeticUnitInfo<T_Enum>::Enum;
+    template <BenchmarkMetric T_Enum>
+    constexpr BenchmarkMetric BaseBenchmarkMetricInfo<T_Enum>::Enum;
 
     template <>
-    struct ArithmeticUnitInfo<ArithmeticUnit::Any>
-        : public BaseArithmeticUnitInfo<ArithmeticUnit::Any>
+    struct BenchmarkMetricInfo<BenchmarkMetric::Best>
+        : public BaseBenchmarkMetricInfo<BenchmarkMetric::Best>
     {
     };
     template <>
-    struct ArithmeticUnitInfo<ArithmeticUnit::MFMA>
-        : public BaseArithmeticUnitInfo<ArithmeticUnit::MFMA>
+    struct BenchmarkMetricInfo<BenchmarkMetric::CUEfficiency>
+        : public BaseBenchmarkMetricInfo<BenchmarkMetric::CUEfficiency>
     {
     };
     template <>
-    struct ArithmeticUnitInfo<ArithmeticUnit::VALU>
-        : public BaseArithmeticUnitInfo<ArithmeticUnit::VALU>
+    struct BenchmarkMetricInfo<BenchmarkMetric::Overall>
+        : public BaseBenchmarkMetricInfo<BenchmarkMetric::Overall>
     {
     };
 
@@ -139,9 +140,9 @@ namespace Tensile
 namespace std
 {
     template <>
-    struct hash<Tensile::ArithmeticUnit>
+    struct hash<Tensile::BenchmarkMetric>
     {
-        inline size_t operator()(Tensile::ArithmeticUnit const& val) const
+        inline size_t operator()(Tensile::BenchmarkMetric const& val) const
         {
             return hash<int>()(static_cast<int>(val));
         }

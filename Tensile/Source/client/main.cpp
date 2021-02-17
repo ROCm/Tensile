@@ -96,7 +96,7 @@ namespace Tensile
                                                                                   "specified, we will use the embedded code "
                                                                                   "object(s) if available.")
 
-                ("benchmark-per-cu",         po::value<bool>()->default_value(false), "Benchmark speed per CU instead of overall speed")
+                ("benchmark-metric",         po::value<BenchmarkMetric>()->default_value(BenchmarkMetric::Overall), "Metric for benchmarking results")
 
                 ("problem-identifier",       po::value<std::string>(), "Problem identifer (Einstein notation). Either "
                                                                        "this or free/batch/bound must be specified.")

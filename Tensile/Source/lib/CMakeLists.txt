@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -33,6 +33,7 @@ endif()
 set(tensile_sources  ${tensile_sources}
     source/AMDGPU.cpp
     source/ArithmeticUnitTypes.cpp
+    source/BenchmarkMetricTypes.cpp
     source/ContractionProblem.cpp
     source/ContractionSolution.cpp
     source/DataTypes.cpp
@@ -131,4 +132,3 @@ foreach (_variableName ${_variableNames})
     message(STATUS "${_variableName}=${${_variableName}}")
 endforeach()
 endif()
-

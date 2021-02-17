@@ -1056,7 +1056,7 @@ namespace Tensile
                 }
             };
 
-            struct PerCU : public Predicate_CRTP<PerCU, ContractionProblem>
+            struct CUEfficiency : public Predicate_CRTP<CUEfficiency, ContractionProblem>
             {
                 enum
                 {
@@ -1065,17 +1065,29 @@ namespace Tensile
                 };
                 bool value;
 
-                PerCU() = default;
+                CUEfficiency() = default;
 
                 static std::string Type()
                 {
-                    return "PerCU";
+                    return "CUEfficiency";
                 }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return true; // TODO - logic for determining to use per CU or not
-                    //return problem.flopCount() <= some_value;
+                    if(problem.benchmarkMetric() == BenchmarkMetric::CUEfficiency)
+                    {
+                        return true;
+                    }
+                    else if(problem.benchmarkMetric() == BenchmarkMetric::Best)
+                    {
+                        // TODO logic to determine if should use or not this metric or not
+                        // based on problem sizes and/or number of flops
+                        return false;
+                    }
+                    else
+                    {
+                        return false;
+                    }
                 }
             };
         } // namespace Contraction

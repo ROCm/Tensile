@@ -207,7 +207,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
 
   #selectionSolutionsIdsList = list(selectionSolutionsIds)
   return (problemType, logicAnalyzer.solutions, logicAnalyzer.indexOrder, \
-       exactLogic, rangeLogic, selectionSolutions, selectionSolutionsIdsList, logicAnalyzer.perCU)
+       exactLogic, rangeLogic, selectionSolutions, selectionSolutionsIdsList, logicAnalyzer.perfMetric)
 
 
 
@@ -441,12 +441,12 @@ class LogicAnalyzer:
         # get unit (gflops or gflops/cu) of benchmark data
         perfUnit = row[0]
         if perfUnit == "GFlops":
-          self.perCU = False
+          self.perfMetric = "Overall"
         elif perfUnit == "GFlopsPerCU":
-          self.perCU = True
+          self.perfMetric = "CUEfficiency"
         else:
-          printWarning("Performance unit %s in %s is unrecognized: assuming GFlops" % (perfUnit, dataFileName))
-          self.perCU = False
+          printWarning("Performance unit %s in %s is unrecognized: assuming GFlops (overall)" % (perfUnit, dataFileName))
+          self.perfMetric = "Overall"
 
         # get the length of each row, and derive the first column of the solution instead of using wrong "solutionStartIdx = totalSizeIdx + 1"
         rowLength = len(row)

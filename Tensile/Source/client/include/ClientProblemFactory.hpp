@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -70,17 +70,18 @@ namespace Tensile
             ContractionProblem::BatchIndices m_batchIndices;
             ContractionProblem::BoundIndices m_boundIndices;
 
-            DataType       m_aType;
-            DataType       m_bType;
-            DataType       m_cType;
-            DataType       m_dType;
-            DataType       m_alphaType;
-            DataType       m_betaType;
-            bool           m_stridedBatched;
-            bool           m_highPrecisionAccumulate;
-            bool           m_deterministicMode;
-            ArithmeticUnit m_arithmeticUnit;
-            KernelLanguage m_kernelLanguage;
+            DataType        m_aType;
+            DataType        m_bType;
+            DataType        m_cType;
+            DataType        m_dType;
+            DataType        m_alphaType;
+            DataType        m_betaType;
+            bool            m_stridedBatched;
+            bool            m_highPrecisionAccumulate;
+            bool            m_deterministicMode;
+            ArithmeticUnit  m_arithmeticUnit;
+            BenchmarkMetric m_benchmarkMetric;
+            KernelLanguage  m_kernelLanguage;
 
             std::vector<std::vector<size_t>> m_problemSizes;
             std::vector<std::vector<size_t>> m_aStrides;

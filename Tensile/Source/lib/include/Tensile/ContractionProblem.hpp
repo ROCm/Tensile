@@ -1,7 +1,7 @@
 /**
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,7 @@
 #pragma once
 
 #include <Tensile/ArithmeticUnitTypes.hpp>
+#include <Tensile/BenchmarkMetricTypes.hpp>
 #include <Tensile/KernelLanguageTypes.hpp>
 #include <Tensile/Tensile.hpp>
 
@@ -543,6 +544,16 @@ namespace Tensile
             return m_kernelLanguage;
         }
 
+        void setBenchmarkMetric(BenchmarkMetric value)
+        {
+            m_benchmarkMetric = value;
+        }
+
+        BenchmarkMetric benchmarkMetric() const
+        {
+            return m_benchmarkMetric;
+        }
+
         void setDeterministicMode(bool value)
         {
             m_deterministicMode = value;
@@ -725,14 +736,15 @@ namespace Tensile
         std::string m_sumNames;
         std::string m_operationIdentifier;
 
-        bool           m_transA;
-        bool           m_transB;
-        bool           m_stridedBatched          = true;
-        bool           m_highPrecisionAccumulate = false;
-        bool           m_deterministicMode       = false;
-        bool           m_eligibleForPK           = true;
-        ArithmeticUnit m_arithmeticUnit          = ArithmeticUnit::Any;
-        KernelLanguage m_kernelLanguage          = KernelLanguage::Any;
+        bool            m_transA;
+        bool            m_transB;
+        bool            m_stridedBatched          = true;
+        bool            m_highPrecisionAccumulate = false;
+        bool            m_deterministicMode       = false;
+        bool            m_eligibleForPK           = true;
+        ArithmeticUnit  m_arithmeticUnit          = ArithmeticUnit::Any;
+        BenchmarkMetric m_benchmarkMetric         = BenchmarkMetric::Overall;
+        KernelLanguage  m_kernelLanguage          = KernelLanguage::Any;
 
         DataType m_alphaType = DataType::None; // if not assigned, will follow d-type
         DataType m_betaType  = DataType::None; // for bwd-compatible

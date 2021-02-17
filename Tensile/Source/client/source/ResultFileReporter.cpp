@@ -35,24 +35,25 @@ namespace Tensile
         std::shared_ptr<ResultFileReporter>
             ResultFileReporter::Default(po::variables_map const& args)
         {
-            return std::make_shared<ResultFileReporter>(args["results-file"].as<std::string>(),
-                                                        args["csv-export-extra-cols"].as<bool>(),
-                                                        args["csv-merge-same-problems"].as<bool>(),
-                                                        args["benchmark-per-cu"].as<bool>());
+            return std::make_shared<ResultFileReporter>(
+                args["results-file"].as<std::string>(),
+                args["csv-export-extra-cols"].as<bool>(),
+                args["csv-merge-same-problems"].as<bool>(),
+                args["benchmark-metric"].as<BenchmarkMetric>());
         }
 
         ResultFileReporter::ResultFileReporter(std::string const& filename,
                                                bool               exportExtraCols,
                                                bool               mergeSameProblems,
-                                               bool               gflopsPerCu)
+                                               BenchmarkMetric    benchmarkMetric)
             : m_output(filename)
             , m_extraCol(exportExtraCols)
             , m_mergeSameProblems(mergeSameProblems)
-            , m_gflopsPerCu(gflopsPerCu)
+            , m_benchmarkMetric(benchmarkMetric)
         {
-            if(m_gflopsPerCu)
+            if(m_benchmarkMetric == BenchmarkMetric::CUEfficiency)
                 m_output.setHeaderForKey(ResultKey::ProblemIndex, "GFlopsPerCU");
-            else
+            else // (m_benchmarkMetric == BenchmarkMetric::Overall)
                 m_output.setHeaderForKey(ResultKey::ProblemIndex, "GFlops");
         }
 
@@ -87,10 +88,11 @@ namespace Tensile
                     }
                 }
             }
-            else if((key == ResultKey::SpeedGFlops && !m_gflopsPerCu)
-                    || (key == ResultKey::SpeedGFlopsPerCu && m_gflopsPerCu))
+            else if((key == ResultKey::SpeedGFlops && m_benchmarkMetric == BenchmarkMetric::Overall)
+                    || (key == ResultKey::SpeedGFlopsPerCu
+                        && m_benchmarkMetric == BenchmarkMetric::CUEfficiency))
             {
-                // cascade from BenchmarkTimer, SpeedGFlops second
+                // cascade from BenchmarkTimer, SpeedGFlops or SpeedGFlopsPerCU second
                 if(!m_invalidSolution)
                 {
                     m_output.setValueForKey(m_solutionName, value);

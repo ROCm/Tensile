@@ -94,8 +94,9 @@ namespace Tensile
                 auto logLevel = args["log-level"].as<LogLevel>();
                 std::cout << "Log level: " << logLevel << std::endl;
 
-                const std::string perfMetric
-                    = (args["benchmark-per-cu"].as<bool>()) ? SpeedGFlopsPerCu : SpeedGFlops;
+                BenchmarkMetric   metric = args["benchmark-metric"].as<BenchmarkMetric>();
+                const std::string perfUnit
+                    = (metric == BenchmarkMetric::CUEfficiency ? SpeedGFlopsPerCu : SpeedGFlops);
 
                 return std::shared_ptr<LogReporter>(new LogReporter(logLevel,
                                                                     {BenchmarkRunNumber,
@@ -106,7 +107,7 @@ namespace Tensile
                                                                      SolutionName,
                                                                      Validation,
                                                                      TimeUS,
-                                                                     perfMetric,
+                                                                     perfUnit,
                                                                      Empty,
                                                                      TotalGranularity,
                                                                      TilesPerCu,

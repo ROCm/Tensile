@@ -51,7 +51,7 @@ workingDirectoryStack = []
 # common
 ########################################
 globalParameters["MinimumRequiredVersion"] = "0.0.0"  # which version of tensile is required to handle all the features required by this configuration file
-globalParameters["BenchmarkPerCU"] = False        # if True, benchmark speed will be reported per CU instead of overall speed
+globalParameters["BenchmarkMetric"] = "Overall"   # metric for benchmarking results; one of {Overall, CUEfficiency}
 globalParameters["PrintLevel"] = 1                # how much info to print in generator. 0=none, 1=standard, 2=verbose
 globalParameters["ClientLogLevel"] = 3            # the log level of client. 0=Error, 1=Terse, 2=Verbose, 3=Debug (Aligned with ResultReporter.hpp)
 # benchmarking
