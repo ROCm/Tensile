@@ -1190,11 +1190,7 @@ namespace Tensile
                                                  double          M,
                                                  double          N,
                                                  double          K,
-                                                 double          NumBatches,
-                                                 double          LDA,
-                                                 double          LDB,
-                                                 double          LDC,
-                                                 double          LDD) const
+                                                 double          NumBatches) const
     {
         ContractionSolution::TAMetricProblemScore pp;
         pp.granularites = ContractionSolution::computeGranularites(hardware, M, N, K, NumBatches);
@@ -1262,16 +1258,40 @@ namespace Tensile
                                                 size_t          model_K,
                                                 size_t          model_NumBatches) const
     {
-        size_t M          = problem.freeSizeA(0);
-        size_t N          = problem.freeSizeB(0);
-        size_t K          = problem.boundSize(0);
-        size_t NumBatches = problem.batchSize(0);
+        double M = 1.0, N = 1.0;
+        if(problem.freeIndicesA().size() > 1 || sizeMapping.packBatchDims & 0x1)
+        {
+            std::vector<size_t> packedIndices
+                = generatePackedIndicesA(problem, sizeMapping.packBatchDims);
+            for(auto pi = packedIndices.begin(); pi != packedIndices.end(); pi++)
+                M *= problem.a().sizes()[*pi];
+        }
+        else
+            M = problem.freeSizeA(0);
+
+        if(problem.freeIndicesB().size() > 1 || sizeMapping.packBatchDims & 0x2)
+        {
+            std::vector<size_t> packedIndices
+                = generatePackedIndicesB(problem, sizeMapping.packBatchDims);
+            for(auto pi = packedIndices.begin(); pi != packedIndices.end(); pi++)
+                N *= problem.b().sizes()[*pi];
+        }
+        else
+            N = problem.freeSizeB(0);
+
+        double NumBatches = 1;
+        if(sizeMapping.packBatchDims == 0)
+        {
+            for(size_t i = 0; i < problem.batchIndices().size(); i++)
+                NumBatches *= problem.batchSize(i);
+        }
+        double K = problem.boundSize(0); // TODO - fix for multiple summations
 
         ContractionSolution::TAMetricProblemScore pp
-            = computeProblemScore(hardware, M, N, K, NumBatches, 0, 0, 0, 0);
+            = computeProblemScore(hardware, M, N, K, NumBatches);
 
         ContractionSolution::TAMetricProblemScore ppReference = computeProblemScore(
-            hardware, model_M, model_N, model_K, model_NumBatches, 0, 0, 0, 0);
+            hardware, model_M, model_N, model_K, model_NumBatches);
 
         double distance = computeTileAwareMetric(pp, ppReference);
 

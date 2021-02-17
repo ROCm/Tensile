@@ -185,11 +185,7 @@ namespace Tensile
                                                  double          M,
                                                  double          N,
                                                  double          K,
-                                                 double          NumBatches,
-                                                 double          LDA,
-                                                 double          LDB,
-                                                 double          LDC,
-                                                 double          LDD) const;
+                                                 double          NumBatches) const;
 
         double computeTileAwareMetric(TAMetricProblemScore pp,
                                       TAMetricProblemScore ppReference) const;
