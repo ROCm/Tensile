@@ -1253,10 +1253,10 @@ namespace Tensile
 
     double ContractionSolution::computeTAMScore(Problem const&  problem,
                                                 Hardware const& hardware,
-                                                size_t          model_M,
-                                                size_t          model_N,
-                                                size_t          model_K,
-                                                size_t          model_NumBatches) const
+                                                double          model_M,
+                                                double          model_N,
+                                                double          model_K,
+                                                double          model_NumBatches) const
     {
         double M = 1.0, N = 1.0;
         if(problem.freeIndicesA().size() > 1 || sizeMapping.packBatchDims & 0x1)

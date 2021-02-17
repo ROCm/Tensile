@@ -29,7 +29,7 @@ from . import EmbeddedData
 from . import LibraryIO
 from . import Utils
 from .Common import globalParameters, HR, print1, print2, printExit, ensurePath, \
-    CHeader, CMakeHeader, assignGlobalParameters, listToInitializer
+    CHeader, CMakeHeader, assignGlobalParameters, listToInitializer, architectureMap
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
@@ -46,17 +46,6 @@ import subprocess
 import sys
 import time
 from copy import deepcopy
-
- # Translate GPU targets to filter filenames in Tensile_LOGIC directory
-mapArchitecture = {'all':'_','gfx000':'none', 'gfx803':'r9nano',
-  'gfx900':'vega10', 'gfx906':'vega20', 'gfx908':'arcturus'}
-
-
-def getArchitectureName(gfxName):
-  if gfxName in mapArchitecture:
-    return mapArchitecture[gfxName]
-  else:
-    return None
 
 ################################################################################
 def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
@@ -1336,8 +1325,6 @@ def TensileCreateLibrary():
   print2(HR)
   print2("")
 
-  print ("this is an exit")
-
   ##############################################################################
   # Parse Command Line Arguments
   ##############################################################################
@@ -1440,14 +1427,9 @@ def TensileCreateLibrary():
   if not os.path.exists(logicPath):
     printExit("LogicPath %s doesn't exist" % logicPath)
 
-
-  # Translate GPU targets to filter filenames in Tensile_LOGIC directory
-  mapArchitecture = {'all':'_','gfx000':'none', 'gfx803':'r9nano',
-        'gfx900':'vega10', 'gfx906:xnack-':'vega20', 'gfx908:xnack-':'arcturus'}
-
-  for key in mapArchitecture:
+  for key in architectureMap:
     if arguments["Architecture"] == key:
-      arguments["Architecture"] = mapArchitecture[key]
+      arguments["Architecture"] = architectureMap[key]
 
   # Recursive directory search
   logicFiles = []

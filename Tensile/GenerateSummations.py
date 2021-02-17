@@ -33,16 +33,15 @@ from copy import deepcopy
 
 from . import LibraryIO
 
-from . import TensileCreateLibrary
 from . import ClientWriter
 from .Common import assignGlobalParameters, ensurePath, globalParameters, \
-    gfxName, gfxArch, printExit
+    gfxName, gfxArch, printExit, getArchitectureName
 from .SolutionStructs import ProblemSizes, Solution
 
 
 def getArchitecture(isaName):
     archid = gfxName(isaName)
-    return TensileCreateLibrary.getArchitectureName(archid)
+    return getArchitectureName(archid)
 
 def isValidArch(archName, currentArch):
     arch = gfxArch(archName)

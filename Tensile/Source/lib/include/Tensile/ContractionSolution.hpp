@@ -192,10 +192,10 @@ namespace Tensile
 
         double computeTAMScore(Problem const&  problem,
                                Hardware const& hardware,
-                               size_t          model_M,
-                               size_t          model_N,
-                               size_t          model_K,
-                               size_t          model_NumBatches) const;
+                               double          model_M,
+                               double          model_N,
+                               double          model_K,
+                               double          model_NumBatches) const;
 
         /**
    * Calculate the projected performance based on granularity loss.
@@ -279,9 +279,9 @@ namespace Tensile
 
         struct LinearModel
         {
-            double slope;
-            double intercept;
-            double max;
+            double slope = 1.0;
+            double intercept = 0.0;
+            double max = 1000.0;
         };
 
         int         index = 0;

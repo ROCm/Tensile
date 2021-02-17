@@ -256,6 +256,19 @@ globalParameters["GranularityThreshold"] = 0.0
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 
+# Translate GPU targets to filter filenames in Tensile_LOGIC directory
+architectureMap = {'all':'_','gfx000':'none', 'gfx803':'r9nano',
+    'gfx900':'vega10', 'gfx906:xnack-':'vega20', 'gfx908:xnack-':'arcturus'}
+
+def getArchitectureName(gfxName):
+  if gfxName in architectureMap:
+    return architectureMap[gfxName]
+  else:
+    for archKey in architectureMap:
+      if gfxName in archKey:
+        return architectureMap[archKey]
+    return None
+
 ################################################################################
 # Enumerate Valid Solution Parameters
 ################################################################################
