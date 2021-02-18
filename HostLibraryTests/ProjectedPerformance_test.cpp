@@ -164,8 +164,8 @@ TEST(ContractionPerformance, Problem3)
 
     // std::cout << model << "\n";
 
-    ASSERT_DOUBLE_EQ(model.tilesPerCu, .1875);
-    ASSERT_DOUBLE_EQ(model.totalGranularity, .140625);
+    ASSERT_DOUBLE_EQ(model.granularites.tilesPerCu, .1875);
+    ASSERT_DOUBLE_EQ(model.granularites.totalGranularity, .140625);
     ASSERT_DOUBLE_EQ(model.speedGFlops, 421.875);
 }
 
@@ -197,7 +197,7 @@ TEST(ContractionPerformance, Problem4)
 
     // std::cout << model << "\n";
 
-    ASSERT_DOUBLE_EQ(model.tilesPerCu, 225);
-    ASSERT_NEAR(model.totalGranularity, .984375, .001);
+    ASSERT_DOUBLE_EQ(model.granularites.tilesPerCu, 225);
+    ASSERT_NEAR(model.granularites.totalGranularity, .984375, .001);
     ASSERT_DOUBLE_EQ(model.speedGFlops, 2953.125);
 }
