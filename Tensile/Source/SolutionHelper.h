@@ -75,7 +75,7 @@ struct SolutionLock
 #ifdef WIN32
 __declspec(thread) extern KernelMap kernelMap;
 #else
-extern thread_local KernelMap kernelMap;
+extern thread_local KernelMap                 kernelMap;
 #endif
 
 /*******************************************************************************
