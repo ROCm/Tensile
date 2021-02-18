@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -1711,7 +1711,8 @@ def assignGlobalParameters( config ):
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
   try:
     if globalParameters["CxxCompiler"] == "hipcc":
-      output = subprocess.run(["hipcc", "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
+      hipcc = os.path.join(globalParameters["ROCmBinPath"], "hipcc")
+      output = subprocess.run([hipcc, "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
     elif globalParameters["CxxCompiler"] == "hcc":
       printWarning("Error: hcc is deprecated")
 
@@ -1721,7 +1722,8 @@ def assignGlobalParameters( config ):
         print1("# Found  hipcc version " + globalParameters['HipClangVersion'])
 
   except (subprocess.CalledProcessError, OSError) as e:
-      printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))
+      hipcc = os.path.join(globalParameters["ROCmBinPath"], "hipcc")
+      printWarning("Error: {} running {} {} ".format(hipcc, '--version',  e))
 
   for key in config:
     value = config[key]

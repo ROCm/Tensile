@@ -111,7 +111,7 @@ def which(p):
     system_path = os.environ['PATH'].split(os.pathsep)
     if p == 'hipcc' and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
         return os.environ['CMAKE_CXX_COMPILER']
-    for dirname in system_path+[globalParameters["ROCmBinPath"]]:
+    for dirname in [globalParameters["ROCmBinPath"]]+system_path:
         for exe in exes:
             candidate = os.path.join(os.path.expanduser(dirname), exe)
             if os.path.isfile(candidate):
