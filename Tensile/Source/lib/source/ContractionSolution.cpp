@@ -1149,8 +1149,7 @@ namespace Tensile
         }
         double K = problem.boundSize(0); // TODO - fix for multiple summations
 
-        ContractionSolution::Granularites granularites
-            = ContractionSolution::computeGranularites(hardware, M, N, K, NumBatches);
+        pp.granularites = ContractionSolution::computeGranularites(hardware, M, N, K, NumBatches);
 
         auto it = ideals.begin();
 
@@ -1171,26 +1170,25 @@ namespace Tensile
             it++;
         }
 
-        double MT0    = granularites.MT0;
-        double MT1    = granularites.MT1;
-        double NumCUs = granularites.CUs;
+        double MT0    = pp.granularites.MT0;
+        double MT1    = pp.granularites.MT1;
+        double NumCUs = pp.granularites.CUs;
 
-        double GlobalSplitU         = granularites.GSU;
-        double LocalSplitU          = granularites.LSU;
+        double GlobalSplitU         = pp.granularites.GSU;
+        double LocalSplitU          = pp.granularites.LSU;
         double IdealGranularityPerf = closestKPerformance;
 
         pp.staticModel = staticPerformanceModel(
             M, N, K, NumBatches, MT0, MT1, NumCUs, pp.granularites.totalGranularity, GlobalSplitU);
 
+        pp.speedGFlops = IdealGranularityPerf * pp.granularites.totalGranularity;
+        pp.CUs         = NumCUs;
+
         return pp;
     }
 
-    ContractionSolution::TAMetricProblemScore
-        ContractionSolution::computeProblemScore(Hardware const& hardware,
-                                                 double          M,
-                                                 double          N,
-                                                 double          K,
-                                                 double          NumBatches) const
+    ContractionSolution::TAMetricProblemScore ContractionSolution::computeProblemScore(
+        Hardware const& hardware, double M, double N, double K, double NumBatches) const
     {
         ContractionSolution::TAMetricProblemScore pp;
         pp.granularites = ContractionSolution::computeGranularites(hardware, M, N, K, NumBatches);
@@ -1290,8 +1288,8 @@ namespace Tensile
         ContractionSolution::TAMetricProblemScore pp
             = computeProblemScore(hardware, M, N, K, NumBatches);
 
-        ContractionSolution::TAMetricProblemScore ppReference = computeProblemScore(
-            hardware, model_M, model_N, model_K, model_NumBatches);
+        ContractionSolution::TAMetricProblemScore ppReference
+            = computeProblemScore(hardware, model_M, model_N, model_K, model_NumBatches);
 
         double distance = computeTileAwareMetric(pp, ppReference);
 
