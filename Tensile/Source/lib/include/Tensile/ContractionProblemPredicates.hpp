@@ -1063,7 +1063,6 @@ namespace Tensile
                     HasIndex = false,
                     HasValue = false
                 };
-                bool value;
 
                 CUEfficiency() = default;
 

@@ -93,9 +93,7 @@ namespace Tensile
  * \brief Compile-time accessible arithmetic unit type metadata.
  */
     template <ArithmeticUnit T_Enum>
-    struct ArithmeticUnitInfo
-    {
-    };
+    struct ArithmeticUnitInfo;
 
     template <ArithmeticUnit T_Enum>
     struct BaseArithmeticUnitInfo

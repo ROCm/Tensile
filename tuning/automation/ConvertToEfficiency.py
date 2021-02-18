@@ -60,6 +60,8 @@ def allFiles(startDir):
             files.append(fullPath)
     return files
 
+# sclk: MHz
+# alu: flops/cycle/CU
 def peakGFlops(sclk, alu, numCUs):
     return (sclk / 1000) * alu * numCUs
 

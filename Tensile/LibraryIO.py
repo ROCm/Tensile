@@ -130,9 +130,9 @@ def readLibraryLogicForSchedule( filename ):
   data = yaml.load(stream, yaml.SafeLoader)
   stream.close()
 
-  # verify
-  if len(data) < 6:
-    printExit("len(%s) %u < 6" % (filename, len(data)))
+  # verify data has all the fields we need
+  if len(data) < 9:
+    printExit("Library logic file %s is missing required fields (len = %u < 9)" % (filename, len(data)))
 
   # parse out objects
   versionString     = data[0]["MinimumRequiredVersion"]

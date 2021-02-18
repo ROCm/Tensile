@@ -94,9 +94,7 @@ namespace Tensile
  * \brief Compile-time accessible benchmark metric type metadata.
  */
     template <BenchmarkMetric T_Enum>
-    struct BenchmarkMetricInfo
-    {
-    };
+    struct BenchmarkMetricInfo;
 
     template <BenchmarkMetric T_Enum>
     struct BaseBenchmarkMetricInfo
