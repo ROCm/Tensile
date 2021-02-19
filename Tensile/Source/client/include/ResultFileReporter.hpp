@@ -47,7 +47,7 @@ namespace Tensile
             ResultFileReporter(std::string const& filename,
                                bool               exportExtraCols,
                                bool               mergeSameProblems,
-                               BenchmarkMetric    benchmarkMetric);
+                               PerformanceMetric  performanceMetric);
 
             virtual void reportValue_string(std::string const& key,
                                             std::string const& value) override;
@@ -67,12 +67,12 @@ namespace Tensile
             void reportValue(std::string const& key, T const& value);
             void mergeRow(std::unordered_map<std::string, std::string>& newRow);
 
-            CSVStackFile    m_output;
-            std::string     m_solutionName;
-            bool            m_invalidSolution = false;
-            bool            m_extraCol;
-            bool            m_mergeSameProblems;
-            BenchmarkMetric m_benchmarkMetric;
+            CSVStackFile      m_output;
+            std::string       m_solutionName;
+            bool              m_invalidSolution = false;
+            bool              m_extraCol;
+            bool              m_mergeSameProblems;
+            PerformanceMetric m_performanceMetric;
             // for extra columns
             std::string m_winnerSolution;
             int64_t     m_currSolutionIdx   = -1;

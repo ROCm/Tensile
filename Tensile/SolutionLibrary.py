@@ -218,16 +218,16 @@ class MasterSolutionLibrary:
     @classmethod
     def FromOriginalState(cls, d, origSolutions, solutionClass=Contractions.Solution, libraryOrder = None):
         if libraryOrder is None:
-            libraryOrder = ['Hardware', 'OperationIdentifier', 'BenchmarkMetric', 'Predicates', 'Matching']
+            libraryOrder = ['Hardware', 'OperationIdentifier', 'PerformanceMetric', 'Predicates', 'Matching']
 
         deviceSection = d[1:4]
         origProblemType = d[4]
         #origSolutions = d[5]
         origLibrary = d[6:8]
 
-        benchMetric = 'Overall'
+        perfMetric = 'Overall'
         if len(d) > 10:
-            benchMetric = d[10]
+            perfMetric = d[10]
 
         problemType = Contractions.ProblemType.FromOriginalState(origProblemType)
 
@@ -287,9 +287,9 @@ class MasterSolutionLibrary:
                 newLib = ProblemMapLibrary(prop, mapping)
                 library = newLib
 
-            elif libName == 'BenchmarkMetric':
-                if benchMetric != 'Overall':
-                    predicate = Properties.Predicate(tag=benchMetric)
+            elif libName == 'PerformanceMetric':
+                if perfMetric != 'Overall':
+                    predicate = Properties.Predicate(tag=perfMetric)
                 else:
                     predicate = Properties.Predicate(tag='TruePred')
                 newLib = PredicateLibrary(tag='Problem')

@@ -94,9 +94,9 @@ namespace Tensile
                 auto logLevel = args["log-level"].as<LogLevel>();
                 std::cout << "Log level: " << logLevel << std::endl;
 
-                BenchmarkMetric   metric = args["benchmark-metric"].as<BenchmarkMetric>();
+                PerformanceMetric metric = args["performance-metric"].as<PerformanceMetric>();
                 const std::string perfUnit
-                    = (metric == BenchmarkMetric::CUEfficiency ? SpeedGFlopsPerCu : SpeedGFlops);
+                    = (metric == PerformanceMetric::CUEfficiency ? SpeedGFlopsPerCu : SpeedGFlops);
 
                 return std::shared_ptr<LogReporter>(new LogReporter(logLevel,
                                                                     {BenchmarkRunNumber,

@@ -634,7 +634,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
 
         if problemType.convolution and globalParameters["ConvolutionVsContraction"]:
             param('convolution-identifier', problemType.convolution.identifier())
-        param('benchmark-metric', globalParameters["BenchmarkMetric"])
+        param('performance-metric', globalParameters["PerformanceMetric"])
         param('problem-identifier', problemType.operationIdentifier)
         param('a-type',     problemType.aType.toEnum())
         param('b-type',     problemType.bType.toEnum())

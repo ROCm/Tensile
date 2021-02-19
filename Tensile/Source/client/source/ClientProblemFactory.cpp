@@ -48,8 +48,8 @@ namespace Tensile
             , m_betaType(DataType::Float)
             , m_stridedBatched(args["strided-batched"].as<bool>())
             , m_highPrecisionAccumulate(args["high-precision-accumulate"].as<bool>())
-            , m_benchmarkMetric(args["benchmark-metric"].as<BenchmarkMetric>())
             , m_kernelLanguage(args["kernel-language"].as<KernelLanguage>())
+            , m_performanceMetric(args["performance-metric"].as<PerformanceMetric>())
             , m_deterministicMode(args["deterministic-mode"].as<bool>())
             , m_arithmeticUnit(args["arithmetic-unit"].as<ArithmeticUnit>())
             , m_aStrides(args["a-strides"].as<std::vector<std::vector<size_t>>>())
@@ -190,7 +190,7 @@ namespace Tensile
                 rv.back().setStridedBatched(m_stridedBatched);
                 rv.back().setHighPrecisionAccumulate(m_highPrecisionAccumulate);
                 rv.back().setKernelLanguage(m_kernelLanguage);
-                rv.back().setBenchmarkMetric(m_benchmarkMetric);
+                rv.back().setPerformanceMetric(m_performanceMetric);
                 rv.back().setDeterministicMode(m_deterministicMode);
                 rv.back().setArithmeticUnit(m_arithmeticUnit);
             }

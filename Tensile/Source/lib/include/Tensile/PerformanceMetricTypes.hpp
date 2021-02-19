@@ -36,20 +36,20 @@ namespace Tensile
 {
     /**
  * \ingroup Tensile
- * \defgroup BenchmarkMetrics Benchmark metric type Info
+ * \defgroup PerformanceMetrics Performance metric type Info
  *
- * @brief Definitions and metadata on supported benchmark metric types.
+ * @brief Definitions and metadata on supported performance metric types.
  */
 
     /**
- * \ingroup BenchmarkMetrics
+ * \ingroup PerformanceMetrics
  * @{
  */
 
     /**
- * Benchmark Metric
+ * Performance Metric
  */
-    enum class BenchmarkMetric : int
+    enum class PerformanceMetric : int
     {
         Best,
         CUEfficiency,
@@ -57,49 +57,49 @@ namespace Tensile
         Count
     };
 
-    std::string   ToString(BenchmarkMetric d);
-    std::string   TypeAbbrev(BenchmarkMetric d);
-    std::ostream& operator<<(std::ostream& stream, BenchmarkMetric const& t);
-    std::istream& operator>>(std::istream& stream, BenchmarkMetric& t);
+    std::string   ToString(PerformanceMetric d);
+    std::string   TypeAbbrev(PerformanceMetric d);
+    std::ostream& operator<<(std::ostream& stream, PerformanceMetric const& t);
+    std::istream& operator>>(std::istream& stream, PerformanceMetric& t);
 
     /**
- * \ingroup BenchmarkMetrics
- * \brief Runtime accessible benchmark metric type metadata
+ * \ingroup PerformanceMetrics
+ * \brief Runtime accessible performance metric type metadata
  */
-    struct BenchmarkMetricTypeInfo
+    struct PerformanceMetricTypeInfo
     {
-        static BenchmarkMetricTypeInfo const& Get(int index);
-        static BenchmarkMetricTypeInfo const& Get(BenchmarkMetric t);
-        static BenchmarkMetricTypeInfo const& Get(std::string const& str);
+        static PerformanceMetricTypeInfo const& Get(int index);
+        static PerformanceMetricTypeInfo const& Get(PerformanceMetric t);
+        static PerformanceMetricTypeInfo const& Get(std::string const& str);
 
-        BenchmarkMetric m_benchmarkMetric;
-        std::string     name;
-        std::string     abbrev;
+        PerformanceMetric m_performanceMetric;
+        std::string       name;
+        std::string       abbrev;
 
     private:
         static void registerAllTypeInfo();
         static void registerAllTypeInfoOnce();
 
-        template <BenchmarkMetric T_Enum>
+        template <PerformanceMetric T_Enum>
         static void registerTypeInfo();
 
-        static void addInfoObject(BenchmarkMetricTypeInfo const& info);
+        static void addInfoObject(PerformanceMetricTypeInfo const& info);
 
-        static std::map<BenchmarkMetric, BenchmarkMetricTypeInfo> data;
-        static std::map<std::string, BenchmarkMetric>             typeNames;
+        static std::map<PerformanceMetric, PerformanceMetricTypeInfo> data;
+        static std::map<std::string, PerformanceMetric>               typeNames;
     };
 
     /**
- * \ingroup BenchmarkMetrics
- * \brief Compile-time accessible benchmark metric type metadata.
+ * \ingroup PerformanceMetrics
+ * \brief Compile-time accessible performance metric type metadata.
  */
-    template <BenchmarkMetric T_Enum>
-    struct BenchmarkMetricInfo;
+    template <PerformanceMetric T_Enum>
+    struct PerformanceMetricInfo;
 
-    template <BenchmarkMetric T_Enum>
-    struct BaseBenchmarkMetricInfo
+    template <PerformanceMetric T_Enum>
+    struct BasePerformanceMetricInfo
     {
-        constexpr static BenchmarkMetric Enum = T_Enum;
+        constexpr static PerformanceMetric Enum = T_Enum;
 
         static inline std::string Name()
         {
@@ -111,22 +111,22 @@ namespace Tensile
         }
     };
 
-    template <BenchmarkMetric T_Enum>
-    constexpr BenchmarkMetric BaseBenchmarkMetricInfo<T_Enum>::Enum;
+    template <PerformanceMetric T_Enum>
+    constexpr PerformanceMetric BasePerformanceMetricInfo<T_Enum>::Enum;
 
     template <>
-    struct BenchmarkMetricInfo<BenchmarkMetric::Best>
-        : public BaseBenchmarkMetricInfo<BenchmarkMetric::Best>
+    struct PerformanceMetricInfo<PerformanceMetric::Best>
+        : public BasePerformanceMetricInfo<PerformanceMetric::Best>
     {
     };
     template <>
-    struct BenchmarkMetricInfo<BenchmarkMetric::CUEfficiency>
-        : public BaseBenchmarkMetricInfo<BenchmarkMetric::CUEfficiency>
+    struct PerformanceMetricInfo<PerformanceMetric::CUEfficiency>
+        : public BasePerformanceMetricInfo<PerformanceMetric::CUEfficiency>
     {
     };
     template <>
-    struct BenchmarkMetricInfo<BenchmarkMetric::Overall>
-        : public BaseBenchmarkMetricInfo<BenchmarkMetric::Overall>
+    struct PerformanceMetricInfo<PerformanceMetric::Overall>
+        : public BasePerformanceMetricInfo<PerformanceMetric::Overall>
     {
     };
 
@@ -138,9 +138,9 @@ namespace Tensile
 namespace std
 {
     template <>
-    struct hash<Tensile::BenchmarkMetric>
+    struct hash<Tensile::PerformanceMetric>
     {
-        inline size_t operator()(Tensile::BenchmarkMetric const& val) const
+        inline size_t operator()(Tensile::PerformanceMetric const& val) const
         {
             return hash<int>()(static_cast<int>(val));
         }

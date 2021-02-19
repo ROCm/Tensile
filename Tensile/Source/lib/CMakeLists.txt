@@ -33,7 +33,6 @@ endif()
 set(tensile_sources  ${tensile_sources}
     source/AMDGPU.cpp
     source/ArithmeticUnitTypes.cpp
-    source/BenchmarkMetricTypes.cpp
     source/ContractionProblem.cpp
     source/ContractionSolution.cpp
     source/DataTypes.cpp
@@ -41,6 +40,7 @@ set(tensile_sources  ${tensile_sources}
     source/EmbeddedLibrary.cpp
     source/KernelArguments.cpp
     source/KernelLanguageTypes.cpp
+    source/PerformanceMetricTypes.cpp
     source/TensorDescriptor.cpp
     source/TensorOps.cpp
     source/Tensile.cpp

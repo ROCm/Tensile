@@ -1073,11 +1073,11 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    if(problem.benchmarkMetric() == BenchmarkMetric::CUEfficiency)
+                    if(problem.performanceMetric() == PerformanceMetric::CUEfficiency)
                     {
                         return true;
                     }
-                    else if(problem.benchmarkMetric() == BenchmarkMetric::Best)
+                    else if(problem.performanceMetric() == PerformanceMetric::Best)
                     {
                         // True if total flops below a constant threshold
                         // Current threshold chosen naively as the flops for a

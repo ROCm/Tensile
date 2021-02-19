@@ -52,8 +52,8 @@ TEST(CUEfficiencyPredicate, CUEfficiency)
     ContractionProblem large = ContractionProblem::GEMM(
         false, false, 10'000, 10'000, 10'000, 10'000, 10'000, 10'000, 1, false, 1);
 
-    small.setBenchmarkMetric(BenchmarkMetric::CUEfficiency);
-    large.setBenchmarkMetric(BenchmarkMetric::CUEfficiency);
+    small.setPerformanceMetric(PerformanceMetric::CUEfficiency);
+    large.setPerformanceMetric(PerformanceMetric::CUEfficiency);
 
     EXPECT_EQ((*p)(small), true);
     EXPECT_EQ((*p)(large), true);
@@ -79,8 +79,8 @@ TEST(CUEfficiencyPredicate, Overall)
     ContractionProblem large = ContractionProblem::GEMM(
         false, false, 10'000, 10'000, 10'000, 10'000, 10'000, 10'000, 1, false, 1);
 
-    small.setBenchmarkMetric(BenchmarkMetric::Overall);
-    large.setBenchmarkMetric(BenchmarkMetric::Overall);
+    small.setPerformanceMetric(PerformanceMetric::Overall);
+    large.setPerformanceMetric(PerformanceMetric::Overall);
 
     EXPECT_EQ((*p)(small), false);
     EXPECT_EQ((*p)(large), false);
@@ -110,8 +110,8 @@ TEST(CUEfficiencyPredicate, Best)
     ContractionProblem large = ContractionProblem::GEMM(
         false, false, 10'000, 10'000, 10'000, 10'000, 10'000, 10'000, 1, false, 1);
 
-    small.setBenchmarkMetric(BenchmarkMetric::Best);
-    large.setBenchmarkMetric(BenchmarkMetric::Best);
+    small.setPerformanceMetric(PerformanceMetric::Best);
+    large.setPerformanceMetric(PerformanceMetric::Best);
 
     EXPECT_EQ((*p)(small), true);
     EXPECT_EQ((*p)(large), false);

@@ -24,132 +24,132 @@
  *
  *******************************************************************************/
 
-#include <Tensile/BenchmarkMetricTypes.hpp>
+#include <Tensile/PerformanceMetricTypes.hpp>
 #include <Tensile/Utils.hpp>
 
 #include <algorithm>
 
 namespace Tensile
 {
-    std::map<BenchmarkMetric, BenchmarkMetricTypeInfo> BenchmarkMetricTypeInfo::data;
-    std::map<std::string, BenchmarkMetric>             BenchmarkMetricTypeInfo::typeNames;
+    std::map<PerformanceMetric, PerformanceMetricTypeInfo> PerformanceMetricTypeInfo::data;
+    std::map<std::string, PerformanceMetric>               PerformanceMetricTypeInfo::typeNames;
 
-    std::string ToString(BenchmarkMetric d)
+    std::string ToString(PerformanceMetric d)
     {
         switch(d)
         {
-        case BenchmarkMetric::Best:
+        case PerformanceMetric::Best:
             return "Best";
-        case BenchmarkMetric::CUEfficiency:
+        case PerformanceMetric::CUEfficiency:
             return "CUEfficiency";
-        case BenchmarkMetric::Overall:
+        case PerformanceMetric::Overall:
             return "Overall";
 
-        case BenchmarkMetric::Count:
+        case PerformanceMetric::Count:
         default:;
         }
         return "Invalid";
     }
 
-    std::string TypeAbbrev(BenchmarkMetric d)
+    std::string TypeAbbrev(PerformanceMetric d)
     {
         switch(d)
         {
-        case BenchmarkMetric::Best:
+        case PerformanceMetric::Best:
             return "Best";
-        case BenchmarkMetric::CUEfficiency:
+        case PerformanceMetric::CUEfficiency:
             return "CUEff";
-        case BenchmarkMetric::Overall:
+        case PerformanceMetric::Overall:
             return "Ovrl";
 
-        case BenchmarkMetric::Count:
+        case PerformanceMetric::Count:
         default:;
         }
         return "Invalid";
     }
 
-    template <BenchmarkMetric T>
-    void BenchmarkMetricTypeInfo::registerTypeInfo()
+    template <PerformanceMetric T>
+    void PerformanceMetricTypeInfo::registerTypeInfo()
     {
-        using T_Info = BenchmarkMetricInfo<T>;
+        using T_Info = PerformanceMetricInfo<T>;
 
-        BenchmarkMetricTypeInfo info;
+        PerformanceMetricTypeInfo info;
 
-        info.m_benchmarkMetric = T_Info::Enum;
-        info.name              = T_Info::Name();
-        info.abbrev            = T_Info::Abbrev();
+        info.m_performanceMetric = T_Info::Enum;
+        info.name                = T_Info::Name();
+        info.abbrev              = T_Info::Abbrev();
 
         addInfoObject(info);
     }
 
-    void BenchmarkMetricTypeInfo::registerAllTypeInfo()
+    void PerformanceMetricTypeInfo::registerAllTypeInfo()
     {
-        registerTypeInfo<BenchmarkMetric::Best>();
-        registerTypeInfo<BenchmarkMetric::CUEfficiency>();
-        registerTypeInfo<BenchmarkMetric::Overall>();
+        registerTypeInfo<PerformanceMetric::Best>();
+        registerTypeInfo<PerformanceMetric::CUEfficiency>();
+        registerTypeInfo<PerformanceMetric::Overall>();
     }
 
-    void BenchmarkMetricTypeInfo::registerAllTypeInfoOnce()
+    void PerformanceMetricTypeInfo::registerAllTypeInfoOnce()
     {
         static int call_once = (registerAllTypeInfo(), 0);
     }
 
-    void BenchmarkMetricTypeInfo::addInfoObject(BenchmarkMetricTypeInfo const& info)
+    void PerformanceMetricTypeInfo::addInfoObject(PerformanceMetricTypeInfo const& info)
     {
         auto toLower = [](std::string tmp) {
             std::transform(tmp.begin(), tmp.end(), tmp.begin(), ::tolower);
             return tmp;
         };
 
-        data[info.m_benchmarkMetric] = info;
+        data[info.m_performanceMetric] = info;
 
         // Add some flexibility to names registry. Accept abbreviations and
         // lower case versions of the strings
-        typeNames[info.name]            = info.m_benchmarkMetric;
-        typeNames[toLower(info.name)]   = info.m_benchmarkMetric;
-        typeNames[info.abbrev]          = info.m_benchmarkMetric;
-        typeNames[toLower(info.abbrev)] = info.m_benchmarkMetric;
+        typeNames[info.name]            = info.m_performanceMetric;
+        typeNames[toLower(info.name)]   = info.m_performanceMetric;
+        typeNames[info.abbrev]          = info.m_performanceMetric;
+        typeNames[toLower(info.abbrev)] = info.m_performanceMetric;
     }
 
-    BenchmarkMetricTypeInfo const& BenchmarkMetricTypeInfo::Get(int index)
+    PerformanceMetricTypeInfo const& PerformanceMetricTypeInfo::Get(int index)
     {
-        return Get(static_cast<BenchmarkMetric>(index));
+        return Get(static_cast<PerformanceMetric>(index));
     }
 
-    BenchmarkMetricTypeInfo const& BenchmarkMetricTypeInfo::Get(BenchmarkMetric t)
+    PerformanceMetricTypeInfo const& PerformanceMetricTypeInfo::Get(PerformanceMetric t)
     {
         registerAllTypeInfoOnce();
 
         auto iter = data.find(t);
         if(iter == data.end())
             throw std::runtime_error(
-                concatenate("Invalid benchmark metric: ", static_cast<int>(t)));
+                concatenate("Invalid performance metric: ", static_cast<int>(t)));
 
         return iter->second;
     }
 
-    BenchmarkMetricTypeInfo const& BenchmarkMetricTypeInfo::Get(std::string const& str)
+    PerformanceMetricTypeInfo const& PerformanceMetricTypeInfo::Get(std::string const& str)
     {
         registerAllTypeInfoOnce();
 
         auto iter = typeNames.find(str);
         if(iter == typeNames.end())
-            throw std::runtime_error(concatenate("Invalid benchmark metric: ", str));
+            throw std::runtime_error(concatenate("Invalid performance metric: ", str));
 
         return Get(iter->second);
     }
 
-    std::ostream& operator<<(std::ostream& stream, const BenchmarkMetric& t)
+    std::ostream& operator<<(std::ostream& stream, const PerformanceMetric& t)
     {
         return stream << ToString(t);
     }
 
-    std::istream& operator>>(std::istream& stream, BenchmarkMetric& t)
+    std::istream& operator>>(std::istream& stream, PerformanceMetric& t)
     {
         std::string strValue;
         stream >> strValue;
 
-        t = BenchmarkMetricTypeInfo::Get(strValue).m_benchmarkMetric;
+        t = PerformanceMetricTypeInfo::Get(strValue).m_performanceMetric;
 
         return stream;
     }
