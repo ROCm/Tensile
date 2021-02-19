@@ -6,6 +6,8 @@
 - Support offset for each input/output buffer in Tensile
 - support support ldc != ldd for all GEMM kernel
 
+### Fixed
+- Fixed MasterSolutionLibrary having duplicated hardware rows
 
 ## [Tensile 4.26.0 for ROCm 4.1.0]
 ### Added
