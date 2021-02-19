@@ -129,18 +129,13 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       os.environ["CMAKE_CXX_COMPILER"] = globalParameters["CmakeCxxCompiler"]
 
     objectFilename = base + '.o'
-    objectFilepath = os.path.join(buildPath, objectFilename)
-
     soFilename = base + '.so'
-    soFilepath = os.path.join(buildPath, soFilename)
 
     def isSupported(arch):
         return globalParameters["AsmCaps"][arch]["SupportedISA"] and \
                globalParameters["AsmCaps"][arch]["SupportedSource"]
 
-
     if (CxxCompiler == "hipcc"):
-
       archs = []
       cmdlineArchs = []
       for arch in globalParameters['SupportedISA']:
