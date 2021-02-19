@@ -1079,9 +1079,10 @@ namespace Tensile
                     }
                     else if(problem.benchmarkMetric() == BenchmarkMetric::Best)
                     {
-                        // TODO logic to determine if should use or not this metric or not
-                        // based on problem sizes and/or number of flops
-                        return false;
+                        // True if total flops below a constant threshold
+                        // Current threshold chosen naively as the flops for a
+                        // 1500x1500 square matrix multiply
+                        return problem.flopCount() < size_t(1500ll * 1500ll * 1500ll * 2);
                     }
                     else
                     {
