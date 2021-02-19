@@ -104,9 +104,6 @@ def main( config ):
     shutil_copy(
         os.path.join(globalParameters["SourcePath"], "FindHIP.cmake"),
         globalParameters["WorkingPath"] )
-    shutil_copy(
-        os.path.join(globalParameters["SourcePath"], "FindHCC.cmake"),
-        globalParameters["WorkingPath"] )
 
   ##############################################################################
   # Read Logic Files

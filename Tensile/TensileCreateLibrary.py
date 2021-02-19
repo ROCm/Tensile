@@ -139,39 +139,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
                globalParameters["AsmCaps"][arch]["SupportedSource"]
 
 
-    if (CxxCompiler == 'hcc'):
-
-      archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
-             if isSupported(arch)]
-      archFlags = ['--amdgpu-target=' + arch for arch in archs]    # hcc
-
-      hipFlags = subprocess.check_output([which('hcc-config'), '--cxxflags']).decode().split(' ')
-      # when HCC_HOME is defined -I/opt/rocm/include is *not* part of
-      # hcc-config --cxxflags; so we need hipconfig -C to be safe
-      hipFlags += subprocess.check_output([which('hipconfig'), '-C']).decode().split(' ')
-      hipLinkFlags = subprocess.check_output([which('hcc-config'), '--ldflags', '--shared']).decode().split(' ')
-
-      hipFlags += ['-I', outputPath, '-fPIC']
-
-      compileArgs = [which('hcc')] + hipFlags + [kernelFile, '-c', '-o', objectFilepath]
-
-      linkArgs = [globalParameters['AssemblerPath']] + hipLinkFlags + archFlags + [objectFilepath, '-shared', '-o', soFilepath]
-      extractArgs = [globalParameters['ExtractKernelPath'], '-i', os.path.join(buildPath,soFilename)]
-
-      if globalParameters["PrintCodeCommands"]:
-        print(' '.join(compileArgs))
-      subprocess.check_call(compileArgs)
-
-      if globalParameters["PrintCodeCommands"]:
-        print(' '.join(linkArgs))
-      subprocess.check_call(linkArgs)
-
-      if globalParameters["PrintCodeCommands"]:
-        print(' '.join(extractArgs))
-      subprocess.check_call(extractArgs, cwd=buildPath)
-
-      coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
-    elif (CxxCompiler == "hipcc"):
+    if (CxxCompiler == "hipcc"):
 
       archs = []
       cmdlineArchs = []
@@ -1069,10 +1037,7 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
   cxxCompiler = globalParameters["CxxCompiler"]
 
   # Source based kernels are built for all supported architectures
-  if (cxxCompiler == 'hcc'):
-    sourceArchs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
-               if isSupported(arch)]
-  elif (cxxCompiler == 'hipcc'):
+  if (cxxCompiler == 'hipcc'):
     sourceArchs = []
     for arch in globalParameters['SupportedISA']:
       if isSupported(arch):
@@ -1122,14 +1087,12 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
       allSources += asmKernelNames
 
     for kernelName in (allSources):
-      # Hcc compiler expects to have a different extension than hipclang.
-      # Hcc compiler also makes one file per architecture
-      if (cxxCompiler == 'hcc' or cxxCompiler == 'hipcc'):
+      if (cxxCompiler == 'hipcc'):
         sourceLibFiles += ["%s.so-000-%s.hsaco" % (kernelName, arch) for arch in sourceArchs]
       else:
         raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
   else: # Merge
-    if (cxxCompiler == 'hcc' or cxxCompiler == 'hipcc'):
+    if (cxxCompiler == 'hipcc'):
       sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
     else:
       raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
@@ -1343,7 +1306,7 @@ def TensileCreateLibrary():
   argParser.add_argument("LogicPath",       help="Path to LibraryLogic.yaml files.")
   argParser.add_argument("OutputPath",      help="Where to write library files?")
   argParser.add_argument("RuntimeLanguage", help="Which runtime language?", choices=["OCL", "HIP", "HSA"])
-  argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hcc", "hipcc"],       action="store", default="hipcc")
+  argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hipcc"],       action="store", default="hipcc")
   argParser.add_argument("--cmake-cxx-compiler",     dest="CmakeCxxCompiler",  action="store")
   argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["V2", "V3"], action="store", default="V3")
   argParser.add_argument("--architecture",           dest="Architecture",      choices=["all", "gfx000", "gfx803", "gfx900", "gfx906:xnack-", "gfx908:xnack-"], action="store", default="all")
