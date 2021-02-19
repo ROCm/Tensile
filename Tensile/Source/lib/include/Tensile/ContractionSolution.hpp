@@ -181,11 +181,8 @@ namespace Tensile
                                                       double totalGranularity,
                                                       int    globalSplitU) const;
 
-        TAMetricProblemScore computeProblemScore(Hardware const& hardware,
-                                                 double          M,
-                                                 double          N,
-                                                 double          K,
-                                                 double          NumBatches) const;
+        TAMetricProblemScore computeProblemScore(
+            Hardware const& hardware, double M, double N, double K, double NumBatches) const;
 
         double computeTileAwareMetric(TAMetricProblemScore pp,
                                       TAMetricProblemScore ppReference) const;
@@ -279,9 +276,9 @@ namespace Tensile
 
         struct LinearModel
         {
-            double slope = 1.0;
+            double slope     = 1.0;
             double intercept = 0.0;
-            double max = 1000.0;
+            double max       = 1000.0;
         };
 
         int         index = 0;

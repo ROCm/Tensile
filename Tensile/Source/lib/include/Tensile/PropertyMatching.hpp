@@ -494,8 +494,12 @@ namespace Tensile
                     {
                         model_K = iter->key[2];
                     }
-                    bestDistance = theMatch->computeTAMScore(
-                        object, hardware, (double)model_M, (double)model_N, (double)model_K, (double)model_NumBatches);
+                    bestDistance = theMatch->computeTAMScore(object,
+                                                             hardware,
+                                                             (double)model_M,
+                                                             (double)model_N,
+                                                             (double)model_K,
+                                                             (double)model_NumBatches);
                 }
 
                 iter++;
@@ -520,8 +524,12 @@ namespace Tensile
                         {
                             model_K = iter->key[2];
                         }
-                        double nextDistance = theMatch->computeTAMScore(
-                            object, hardware, (double)model_M, (double)model_N, (double)model_K, (double)model_NumBatches);
+                        double nextDistance = theMatch->computeTAMScore(object,
+                                                                        hardware,
+                                                                        (double)model_M,
+                                                                        (double)model_N,
+                                                                        (double)model_K,
+                                                                        (double)model_NumBatches);
 
                         if(nextDistance < bestDistance)
                         {
