@@ -12,7 +12,7 @@ def test_spatial_in():
     pcc = ConvolutionConfig(spatial=[14,15])
     p = conv.makeProblem(n=64, c=1024, k=256, pcc=pcc)
     assert(p[0] == [210, 256, 64, 1024])
-    assert(p[1] == [1, -1, 215040])
+    assert(p[1] == [1, 210, 215040])
     assert(p[2] == [-1, -1, 0])
 
 def test_spatial_parm():
@@ -26,7 +26,7 @@ def test_spatial_parm():
     pcc = ConvolutionConfig()
     p = conv.makeProblem(n=64, c=1024, k=256, pcc=pcc)
     assert(p[0] == [182, 256, 64, 1024])
-    assert(p[1] == [1, -1, 186368])
+    assert(p[1] == [1, 182, 186368])
     assert(p[2] == [-1, -1, 0])
 
 
@@ -41,7 +41,7 @@ def test_stride():
     log.debug(conv.printUsage(z))
     p = conv.makeProblem(n=64, c=1024, k=256, pcc=conv.cc)
     assert(p[0] == [5, 7, 256, 64, 1024])
-    assert(p[1] == [3, 28, -1, 186368])
+    assert(p[1] == [3, 28, 182, 186368])
     assert(p[2] == [-1, -1, 0])
 
 
@@ -57,7 +57,7 @@ def test_stride_filter():
     log.debug(conv.printUsage(z))
     p = conv.makeProblem(n=64, c=1024, k=256, pcc=conv.cc)
     assert(p[0] == [4, 6, 256, 64, 3, 4, 1024])
-    assert(p[1] == [1, 14, 3, 28, -1, 186368])
+    assert(p[1] == [1, 14, 3, 28, 182, 186368])
     assert(p[2] == [-1, -1, -1, -1, 0])
 
 def test_stride_filter_dilated():
@@ -73,7 +73,7 @@ def test_stride_filter_dilated():
     log.debug(conv.printUsage(z))
     p = conv.makeProblem(n=64, c=1024, k=256, pcc=conv.cc)
     assert(p[0] == [2, 5, 256, 64, 3, 4, 1024])
-    assert(p[1] == [3, 28, 3, 28, -1, 186368])
+    assert(p[1] == [3, 28, 3, 28, 182, 186368])
     assert(p[2] == [-1, -1, -1, -1, 0])
 
 def test_spatial_unspecified():

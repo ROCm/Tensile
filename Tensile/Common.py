@@ -1683,14 +1683,15 @@ def assignGlobalParameters( config ):
   # The alternative would be to install the `distro` package.
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
   try:
-    output = subprocess.run(["dpkg", "-l", "hip-rocclr"], check=True, stdout=subprocess.PIPE).stdout.decode()
+    output = subprocess.run(["hipcc", "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
 
     for line in output.split('\n'):
-      if 'hipcc' in line:
+      if 'HIP' in line:
         globalParameters['HipClangVersion'] = line.split()[2]
+        print1("# Found  hipcc version " + globalParameters['HipClangVersion'])
 
   except (subprocess.CalledProcessError, OSError) as e:
-      printWarning("Error: {} looking for package {}: {}".format('dpkg', 'hip-rocclr', e))
+      printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))
 
   for key in config:
     value = config[key]

@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -20,6 +20,7 @@
 ################################################################################
 
 from . import Properties
+import copy
 
 class HardwarePredicate(Properties.Predicate):
     @classmethod
@@ -68,8 +69,10 @@ class HardwarePredicate(Properties.Predicate):
             assert myProcPred.tag == otherProcPred.tag == "Processor", "Invalid processor predicate"
 
             # Downgrade to base class so that we don't recurse
-            myProcPred.__class__ = otherProcPred.__class__ = Properties.Predicate
-            return myProcPred < otherProcPred
+            myProcPredCopy = copy.deepcopy(myProcPred)
+            otherProcPredCopy = copy.deepcopy(otherProcPred)
+            myProcPredCopy.__class__ = otherProcPredCopy.__class__ = Properties.Predicate
+            return myProcPredCopy < otherProcPredCopy
 
         # Higher priority given to higher CU count
         return myCUCount > otherCUCount
