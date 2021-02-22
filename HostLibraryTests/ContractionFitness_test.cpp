@@ -23,7 +23,7 @@
  * SOFTWARE.
  *
  *******************************************************************************/
- 
+
 #include <gtest/gtest.h>
 
 #include <Tensile/AMDGPU.hpp>

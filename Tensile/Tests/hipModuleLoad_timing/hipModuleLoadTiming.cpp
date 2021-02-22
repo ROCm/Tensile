@@ -23,7 +23,7 @@
  * SOFTWARE.
  *
  *******************************************************************************/
- 
+
 #include <chrono>
 #include <fstream>
 #include <hip/hip_runtime_api.h>
