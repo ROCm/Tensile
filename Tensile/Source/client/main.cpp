@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -191,6 +191,10 @@ namespace Tensile
                                                                                   "specifying once applies to all problem sizes, "
                                                                                   "otherwise specify once per problem size.")
 
+                ("convolution-problem",      vector_default_empty<std::string>(), "Specify a Convolution problem size. Comma-separated list of sizes:"
+                                                                                  "Spatial(w,h,d),Filter(x,y,z),Stride(v,u,#),"
+                                                                                  "Dilation(j,l,^),Pad start(q,p,$),Pad end(q_,p_,$_)")
+
                 ("a-zero-pads",                vector_default_empty<std::string>(), "Comma-separated tuple(s) of anchor dim,"
                                                                                   "summation dim, leading pad, trailing pad."
                                                                                   "Each tuple must be separated with a semi-colon.")
@@ -364,6 +368,8 @@ namespace Tensile
             parse_arg_ints(args, "a-zero-pads");
             parse_arg_ints(args, "b-zero-pads");
 
+            if(args["convolution-vs-contraction"].as<bool>())
+                parse_arg_ints(args, "convolution-problem");
             return args;
         }
 

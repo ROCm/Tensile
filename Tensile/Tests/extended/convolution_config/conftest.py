@@ -50,7 +50,7 @@ def run_contraction(tensile_args, tmp_path, run_generate_yaml, request, tensile_
 
 @pytest.fixture
 def run_convolution_vs_contraction(tensile_args, tmp_path, file_with_test_name, tensile_script_path):
-    def run(conv, problemType={}, solution=Solutions.defaultSolution(), dataType='s'):
+    def run(conv, problemType={}, solution=Solutions.src1, dataType='s'):
         config = YamlBuilder.ConvolutionVsContraction(conv, solution, dataType)
         configFile = file_with_test_name(".conv.yaml")
         config.write(configFile)

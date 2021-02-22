@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -89,6 +89,7 @@ namespace Tensile
             std::vector<std::vector<size_t>> m_dStrides;
             std::vector<std::vector<size_t>> m_aZeroPads;
             std::vector<std::vector<size_t>> m_bZeroPads;
+            std::vector<std::vector<size_t>> m_convProblemSizes;
 
             TensorOps m_aOps;
             TensorOps m_bOps;

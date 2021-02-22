@@ -12,7 +12,7 @@ def test_stride2x3():
     e= { 'n':64, 'c':256, 'h':20, 'w':14, 'k':1024, 'x':1, 'y':1, 'u':2, 'v':3 }
     ec = ConvProblem(e, conv)
     assert (ec.sizes == (5, 10, e['k'], e['n'], e['c']))
-    assert (ec.stridesA == (3, 28, -1, 71680))
+    assert (ec.stridesA == (3, 28, e['h'] * e['w'], 71680))
 
 def test_stride2x3_defaults():
     z={} # problemType definition
@@ -24,7 +24,7 @@ def test_stride2x3_defaults():
     e= { 'n':64, 'c':256, 'h':20, 'w':14, 'k':1024}
     ec = ConvProblem(e, conv)
     assert (ec.sizes == (5, 10, e['k'], e['n'], e['c']))
-    assert (ec.stridesA == (3, 28, -1, 71680))
+    assert (ec.stridesA == (3, 28, e['h'] * e['w'], 71680))
 
 @pytest.mark.skip(reason="no X filter, ZeroPadA has one entry and it is for Y filter")
 def test_pad_4x1():
