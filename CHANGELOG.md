@@ -10,6 +10,7 @@
 - Refactor ConvolutionVsContraction
 
 ### Fixed
+- Fixed MasterSolutionLibrary having duplicated hardware rows
 - channel stride is incorrect when converting conv problem into tensor contraction problem
 
 ## [Tensile 4.26.0 for ROCm 4.1.0]
