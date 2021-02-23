@@ -177,17 +177,17 @@ class ShiftVectorComponentsVALU(ShiftVectorComponents):
                     for s in range(0, r):
                         if tP["isA"]: # shift d0
                             dst = (s) \
-                                    + vectorIdx * vw + tt * kernel["ThreadTile0"]
+                                + vectorIdx * vw + tt * kernel["ThreadTile0"]
                             src = (s+vw-r) \
-                                    + vectorIdx * vw + tt * kernel["ThreadTile0"]
+                                + vectorIdx * vw + tt * kernel["ThreadTile0"]
                             comment = "rC[%u+%u*VW+%u*TT%s] = rC[%u+%u*VW+%u*TT%s]" \
-                                    % (s, vectorIdx, tt, writer.tileChar0, \
-                                    s+vw-r, vectorIdx, tt, writer.tileChar0 )
+                                % (s, vectorIdx, tt, writer.tileChar0, \
+                                s+vw-r, vectorIdx, tt, writer.tileChar0 )
                         else: # shift d1
                             dst = (tt) \
-                                    + vectorIdx*vw*kernel["ThreadTile0"] + s * kernel["ThreadTile0"]
+                                + vectorIdx*vw*kernel["ThreadTile0"] + s * kernel["ThreadTile0"]
                             src = (tt) \
-                                    + vectorIdx * vw*kernel["ThreadTile0"] + (s+vw-r) * kernel["ThreadTile0"]
+                                + vectorIdx * vw*kernel["ThreadTile0"] + (s+vw-r) * kernel["ThreadTile0"]
                             comment = "rC[%u+%u*TT%s*VW+%u*TT%s] = rC[%u+%u*TT%s*VW+%u*TT%s]" \
                                 % (tt, vectorIdx, writer.tileChar0, s, writer.tileChar0, \
                                 tt, vectorIdx, writer.tileChar0, \
@@ -300,17 +300,17 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
 
         kStr = ""
 
-        glvw                                             = tP["glvw"]
-        numThreadInWave                        = globalParameters["WavefrontWidth"]
-        MIBShape0                                    = kernel["MatrixInstM"] * kernel["MatrixInstBM"]
-        numContinuousOutput                = kernel["MIOutputVectorWidth"]
-        numOutputThreads1                    = kernel["MatrixInstN"]
-        numOutputThreads0                    = kernel["MatrixInstBM"] if (kernel["MatrixInstM"] == 4) else (numThreadInWave // numOutputThreads1)
-        numSubOutputPerWave0             = numOutputThreads0 * numContinuousOutput
+        glvw                       = tP["glvw"]
+        numThreadInWave            = globalParameters["WavefrontWidth"]
+        MIBShape0                  = kernel["MatrixInstM"] * kernel["MatrixInstBM"]
+        numContinuousOutput        = kernel["MIOutputVectorWidth"]
+        numOutputThreads1          = kernel["MatrixInstN"]
+        numOutputThreads0          = kernel["MatrixInstBM"] if (kernel["MatrixInstM"] == 4) else (numThreadInWave // numOutputThreads1)
+        numSubOutputPerWave0       = numOutputThreads0 * numContinuousOutput
         numSubOutputGroupsPerWave0 = MIBShape0 // numSubOutputPerWave0
-        numShiftBlock                            = numContinuousOutput // glvw
-        numOutputElements                    = numSubOutputGroupsPerWave0 * numContinuousOutput * kernel["MIWaveTile"][0]
-        subTile1                                     = kernel["MIWaveTile"][1] if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstBN"] * kernel["MIWaveTile"][1]
+        numShiftBlock              = numContinuousOutput // glvw
+        numOutputElements          = numSubOutputGroupsPerWave0 * numContinuousOutput * kernel["MIWaveTile"][0]
+        subTile1                   = kernel["MIWaveTile"][1] if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstBN"] * kernel["MIWaveTile"][1]
 
         # labels for reminder of vectorwidth
         svrLabels = []
@@ -340,16 +340,16 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         # wgMT value
         tmpSgpr = writer.getTmpSgpr(2).idx()
         tmpVgpr = writer.vgprPool.checkOut(2)
-        dummy     = writer.vgprPool.checkOut(1)
-        wgMT        = writer.vgprPool.checkOut(1)
-        wg            = tP["prevWg"] if writer.prefetchAcrossPersistent else tP["wg"]
+        dummy   = writer.vgprPool.checkOut(1)
+        wgMT    = writer.vgprPool.checkOut(1)
+        wg      = tP["prevWg"] if writer.prefetchAcrossPersistent else tP["wg"]
 
         # get M size of edge block
         mtReg = writer.vgprPool.checkOut(1)
-        kStr += inst("v_mov_b32"        , vgpr(wgMT), sgpr(wg), "")
+        kStr += inst("v_mov_b32"    , vgpr(wgMT), sgpr(wg), "")
         kStr += inst("v_mul_i32_i24", vgpr(wgMT), hex(-kernel[tP["mt"]]), vgpr(wgMT), "wg*MT")
         kStr += inst("_v_add_co_u32", vgpr(wgMT), "vcc", sgpr("SizesFree+%u"%tP["idx"]), vgpr(wgMT), "wgMT = Size - wg*MT")
-        kStr += inst("v_mov_b32"        , vgpr(mtReg), hex(kernel[tP["mt"]]), "MT")
+        kStr += inst("v_mov_b32"    , vgpr(mtReg), hex(kernel[tP["mt"]]), "MT")
         kStr += inst("v_cmp_lt_u32" , sgpr(tmpSgpr,2), vgpr(wgMT), vgpr(mtReg), "wgMT < MT" )
         kStr += inst("v_cndmask_b32", vgpr(wgMT), vgpr(mtReg), vgpr(wgMT), sgpr(tmpSgpr,2), "wgMT = (wgMT < MT) ? wgMT : MT" )
 
@@ -407,7 +407,7 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
                 # we have 8 blocks for MT-M 64 with mfma 32x32x2. 64/2(thread group)/4(continous output)
                 for ot in range(0, numSubOutputGroupsPerWave0):
                     packIdx = wt * numSubOutputGroupsPerWave0 + ot
-                    grpVal    = wt * numSubOutputGroupsPerWave0 * kernel["MIWaveGroup"][0] + ot
+                    grpVal  = wt * numSubOutputGroupsPerWave0 * kernel["MIWaveGroup"][0] + ot
                     kStr += inst("v_cmp_eq_u32", "vcc", vgpr(gReg), hex(grpVal), "wgMT/8 == %u" % packIdx )
                     kStr += inst("s_cbranch_vccnz label_%04u" % sviLabels[(r-1)][packIdx], "branch to shift d%u, r=%u, v=%u" % (tP["idx"], r, packIdx))
 
