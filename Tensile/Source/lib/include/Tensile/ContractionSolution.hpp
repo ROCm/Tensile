@@ -110,7 +110,7 @@ namespace Tensile
             size_t memGlobalWrites = 0;
         };
 
-        struct Granularites
+        struct Granularities
         {
             double numTiles0  = 0.0; //! number of tiles in 0 dimension
             double numTiles1  = 0.0; //! number of tiles in 1 dimension
@@ -142,7 +142,7 @@ namespace Tensile
 
         struct ProjectedPerformance
         {
-            Granularites granularites;
+            Granularities granularities;
 
             double speedGFlops = 0.0; //! final gflops projection
             int    CUs         = 0;
@@ -152,7 +152,7 @@ namespace Tensile
 
         struct TAMetricProblemScore
         {
-            Granularites granularites;
+            Granularities granularites;
 
             int CUs = 0;
 
@@ -168,7 +168,7 @@ namespace Tensile
    */
         size_t requiredWorkspaceSize(Problem const& problem) const;
 
-        Granularites computeGranularites(
+        Granularities computeGranularities(
             Hardware const& hardware, double M, double N, double K, double NumBatches) const;
 
         StaticPerformanceModel staticPerformanceModel(double M,

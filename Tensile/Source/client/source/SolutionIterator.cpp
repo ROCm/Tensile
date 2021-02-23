@@ -123,7 +123,7 @@ namespace Tensile
                                                 Hardware const&            hardware,
                                                 ContractionSolution const& solution) {
                     auto projPerf = solution.projectedPerformance(problem, hardware);
-                    return projPerf.granularites.totalGranularity >= granThresh;
+                    return projPerf.granularities.totalGranularity >= granThresh;
                 });
             }
             return criteria;

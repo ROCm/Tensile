@@ -1040,10 +1040,10 @@ namespace Tensile
         return size;
     }
 
-    ContractionSolution::Granularites ContractionSolution::computeGranularites(
+    ContractionSolution::Granularities ContractionSolution::computeGranularities(
         Hardware const& hardware, double M, double N, double K, double NumBatches) const
     {
-        ContractionSolution::Granularites granularites;
+        ContractionSolution::Granularities granularities;
 
         double MT0           = sizeMapping.macroTile.x;
         double MT1           = sizeMapping.macroTile.y;
@@ -1062,56 +1062,57 @@ namespace Tensile
         double GlobalSplitU = sizeMapping.globalSplitU;
         double LocalSplitU  = sizeMapping.workGroupSize.z;
 
-        granularites.MT0 = MT0;
-        granularites.MT1 = MT1;
-        granularites.GSU = GlobalSplitU;
-        granularites.LSU = LocalSplitU;
-        granularites.CUs = NumCUs;
+        granularities.MT0 = MT0;
+        granularities.MT1 = MT1;
+        granularities.GSU = GlobalSplitU;
+        granularities.LSU = LocalSplitU;
+        granularities.CUs = NumCUs;
 
-        granularites.numTiles0 = M / MT0;
-        granularites.numTiles1 = N / MT1;
+        granularities.numTiles0 = M / MT0;
+        granularities.numTiles1 = N / MT1;
 
-        granularites.tile0Granularity = granularites.numTiles0 / ceil(granularites.numTiles0);
-        granularites.tile1Granularity = granularites.numTiles1 / ceil(granularites.numTiles1);
+        granularities.tile0Granularity = granularities.numTiles0 / ceil(granularities.numTiles0);
+        granularities.tile1Granularity = granularities.numTiles1 / ceil(granularities.numTiles1);
 
-        granularites.tilesPerCu
-            = (NumBatches * ceil(granularites.numTiles0) * ceil(granularites.numTiles1))
+        granularities.tilesPerCu
+            = (NumBatches * ceil(granularities.numTiles0) * ceil(granularities.numTiles1))
               / (NumCUs / GlobalSplitU / LocalSplitU);
 
-        granularites.totalTiles      = ceil(granularites.numTiles0) * ceil(granularites.numTiles1);
-        granularites.natTilesPerCu   = NumBatches * granularites.totalTiles / NumCUs;
-        granularites.suTilesPerCu    = (granularites.totalTiles * GlobalSplitU) / NumCUs;
-        granularites.suCuGranularity = granularites.suTilesPerCu / ceil(granularites.suTilesPerCu);
+        granularities.totalTiles    = ceil(granularities.numTiles0) * ceil(granularities.numTiles1);
+        granularities.natTilesPerCu = NumBatches * granularities.totalTiles / NumCUs;
+        granularities.suTilesPerCu  = (granularities.totalTiles * GlobalSplitU) / NumCUs;
+        granularities.suCuGranularity
+            = granularities.suTilesPerCu / ceil(granularities.suTilesPerCu);
 
-        granularites.waveGranularity = std::min(
+        granularities.waveGranularity = std::min(
             1.00,
-            static_cast<double>(floor(granularites.tilesPerCu + 1.0) * sizeMapping.workGroupSize.x
+            static_cast<double>(floor(granularities.tilesPerCu + 1.0) * sizeMapping.workGroupSize.x
                                 * sizeMapping.workGroupSize.y * sizeMapping.workGroupSize.z)
                 / pAMDGPU->wavefrontSize / pAMDGPU->simdPerCu);
 
-        granularites.waves
+        granularities.waves
             = ceil((sizeMapping.workGroupSize.x * sizeMapping.workGroupSize.y) / wavefrontSize);
 
-        granularites.suWavesPerSimdx2
-            = (granularites.suTilesPerCu * granularites.waves) / (2 * simdPerCu);
-        granularites.suWaveGranularity
-            = granularites.suWavesPerSimdx2 * ceil(granularites.suWavesPerSimdx2);
+        granularities.suWavesPerSimdx2
+            = (granularities.suTilesPerCu * granularities.waves) / (2 * simdPerCu);
+        granularities.suWaveGranularity
+            = granularities.suWavesPerSimdx2 * ceil(granularities.suWavesPerSimdx2);
 
         double nat_tiles_per_cu
-            = NumBatches * ceil(granularites.numTiles0) * ceil(granularites.numTiles1) / NumCUs;
-        granularites.natCuGranularity = ceil(nat_tiles_per_cu) * ceil(nat_tiles_per_cu) / NumCUs;
+            = NumBatches * ceil(granularities.numTiles0) * ceil(granularities.numTiles1) / NumCUs;
+        granularities.natCuGranularity = ceil(nat_tiles_per_cu) * ceil(nat_tiles_per_cu) / NumCUs;
 
-        granularites.cuGranularity = granularites.tilesPerCu / ceil(granularites.tilesPerCu);
+        granularities.cuGranularity = granularities.tilesPerCu / ceil(granularities.tilesPerCu);
 
-        granularites.totalGranularity = granularites.tile0Granularity
-                                        * granularites.tile1Granularity * granularites.cuGranularity
-                                        * granularites.waveGranularity;
+        granularities.totalGranularity
+            = granularities.tile0Granularity * granularities.tile1Granularity
+              * granularities.cuGranularity * granularities.waveGranularity;
 
-        granularites.totalTileAwareGranularity
-            = granularites.tile0Granularity * granularites.tile1Granularity
-              * granularites.suCuGranularity * granularites.suWaveGranularity;
+        granularities.totalTileAwareGranularity
+            = granularities.tile0Granularity * granularities.tile1Granularity
+              * granularities.suCuGranularity * granularities.suWaveGranularity;
 
-        return granularites;
+        return granularities;
     }
 
     ContractionSolution::ProjectedPerformance
@@ -1149,7 +1150,7 @@ namespace Tensile
         }
         double K = problem.boundSize(0); // TODO - fix for multiple summations
 
-        pp.granularites = ContractionSolution::computeGranularites(hardware, M, N, K, NumBatches);
+        pp.granularities = ContractionSolution::computeGranularities(hardware, M, N, K, NumBatches);
 
         auto it = ideals.begin();
 
@@ -1170,18 +1171,18 @@ namespace Tensile
             it++;
         }
 
-        double MT0    = pp.granularites.MT0;
-        double MT1    = pp.granularites.MT1;
-        double NumCUs = pp.granularites.CUs;
+        double MT0    = pp.granularities.MT0;
+        double MT1    = pp.granularities.MT1;
+        double NumCUs = pp.granularities.CUs;
 
-        double GlobalSplitU         = pp.granularites.GSU;
-        double LocalSplitU          = pp.granularites.LSU;
+        double GlobalSplitU         = pp.granularities.GSU;
+        double LocalSplitU          = pp.granularities.LSU;
         double IdealGranularityPerf = closestKPerformance;
 
         pp.staticModel = staticPerformanceModel(
-            M, N, K, NumBatches, MT0, MT1, NumCUs, pp.granularites.totalGranularity, GlobalSplitU);
+            M, N, K, NumBatches, MT0, MT1, NumCUs, pp.granularities.totalGranularity, GlobalSplitU);
 
-        pp.speedGFlops = IdealGranularityPerf * pp.granularites.totalGranularity;
+        pp.speedGFlops = IdealGranularityPerf * pp.granularities.totalGranularity;
         pp.CUs         = NumCUs;
 
         return pp;
@@ -1191,7 +1192,7 @@ namespace Tensile
         Hardware const& hardware, double M, double N, double K, double NumBatches) const
     {
         ContractionSolution::TAMetricProblemScore pp;
-        pp.granularites = ContractionSolution::computeGranularites(hardware, M, N, K, NumBatches);
+        pp.granularites = ContractionSolution::computeGranularities(hardware, M, N, K, NumBatches);
 
         pp.M = M;
         pp.N = N;
@@ -1308,15 +1309,15 @@ namespace Tensile
     std::ostream& operator<<(std::ostream&                                    stream,
                              ContractionSolution::ProjectedPerformance const& pp)
     {
-        return stream << " numTiles0=" << pp.granularites.numTiles0
-                      << " numTiles1=" << pp.granularites.numTiles1
-                      << " tilesPerCu=" << pp.granularites.tilesPerCu
+        return stream << " numTiles0=" << pp.granularities.numTiles0
+                      << " numTiles1=" << pp.granularities.numTiles1
+                      << " tilesPerCu=" << pp.granularities.tilesPerCu
 
-                      << " totalGranularity=" << pp.granularites.totalGranularity
-                      << " tile0Granularity=" << pp.granularites.tile0Granularity
-                      << " tile1Granularity=" << pp.granularites.tile1Granularity
-                      << " cuGranularity=" << pp.granularites.cuGranularity
-                      << " waveGranularity=" << pp.granularites.waveGranularity
+                      << " totalGranularity=" << pp.granularities.totalGranularity
+                      << " tile0Granularity=" << pp.granularities.tile0Granularity
+                      << " tile1Granularity=" << pp.granularities.tile1Granularity
+                      << " cuGranularity=" << pp.granularities.cuGranularity
+                      << " waveGranularity=" << pp.granularities.waveGranularity
 
                       << " speedGFlops=" << pp.speedGFlops
 

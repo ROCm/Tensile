@@ -47,16 +47,15 @@ def isValidArch(archName, currentArch):
     arch = gfxArch(archName)
     return currentArch == arch
 
-
 ##############################################################################
 # createLibraryForBenchmark
-#
-# takes the path of existing logic files as input and adds the summation
-# model for each of the solutions. This is used in the Tile Aware Metirc
-# Selection.
-#
 ##############################################################################
 def createLibraryForBenchmark(logicPath, libraryPath, currentPath):
+    """
+    takes the path of existing logic files as input and adds the summation
+    model for each of the solutions. This is used in the Tile Aware Metirc
+    Selection.
+    """
 
     pythonExePath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "bin", "TensileCreateLibrary")
     args = [pythonExePath, \
