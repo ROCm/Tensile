@@ -26,9 +26,9 @@ from ..AsmUtils import inst, vgpr, sgpr, accvgpr, staticMultiply, vectorStaticDi
 class ShiftVectorComponentsVALU(ShiftVectorComponents):
     kernel = {"EnableMatrixInstruction": False}
 
-    ##############################################################################
-    # Shift Vector Components d0,1
-    ##############################################################################
+    """
+    Shift Vector Components d0,1
+    """
     def __call__(self, writer, kernel, tP):
         kStr = ""
 
@@ -274,9 +274,9 @@ class ShiftVectorComponentsVALU(ShiftVectorComponents):
 class ShiftVectorComponentsMFMA(ShiftVectorComponents):
     kernel = {"EnableMatrixInstruction": True}
 
-    ##############################################################################
-    # Shift Vector Components d0,1
-    ##############################################################################
+    """
+    Shift Vector Components d0,1
+    """
     def __call__(self, writer, kernel, tP):
         """ when we enable shift ptr with vectorwidth(2), we shift global read on edge block when size % vectorwidth != 0.
             For example if M size == 3 vector width == 2, we want to do global read for [0-1] and [2-3].

@@ -26,13 +26,13 @@ from ..AsmUtils import vectorStaticDivideAndRemainder, staticMultiply, vgpr, sgp
 class ComputeStoreVgprsVALU(ComputeStoreVgprs):
     kernel = {"EnableMatrixInstruction": False}
 
-    ##############################################################################
-    # computeStoreVgprs
-    # Compute workitem/TT offsets in VGPRS
-    # and coord0/coord1
-    # tid0Scale specifies the number of output elements in 0/coalesced dim
-    # that should be written by each work-item in each batch element.
-    ##############################################################################
+    """
+    computeStoreVgprs
+    Compute workitem/TT offsets in VGPRS
+    and coord0/coord1
+    tid0Scale specifies the number of output elements in 0/coalesced dim
+    that should be written by each work-item in each batch element.
+    """
     def __call__(self, writer, kernel, divisor, tid0Scale, tid1Scale):
 
         kStr = ""
@@ -128,13 +128,13 @@ class ComputeStoreVgprsVALU(ComputeStoreVgprs):
 class ComputeStoreVgprsMFMA(ComputeStoreVgprs):
     kernel = {"EnableMatrixInstruction": True}
 
-    ##############################################################################
-    # computeStoreVgprs
-    # Compute workitem/TT offsets in VGPRS
-    # and coord0/coord1
-    # tid0Scale specifies the number of output elements in 0/coalesced dim
-    # that should be written by each work-item in each batch element.
-    ##############################################################################
+    """
+    computeStoreVgprs
+    Compute workitem/TT offsets in VGPRS
+    and coord0/coord1
+    tid0Scale specifies the number of output elements in 0/coalesced dim
+    that should be written by each work-item in each batch element.
+    """
     def __call__(self, writer, kernel, divisor, tid0Scale, tid1Scale):
 
         # writer.coord0

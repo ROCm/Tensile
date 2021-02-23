@@ -27,11 +27,11 @@ from math import ceil
 class LocalReadVALU(LocalRead):
     kernel = {"EnableMatrixInstruction": False}
 
-    ##############################################################################
-    # Local Read: Do It A/B
-    # iui = Inner Unroll Idx
-    # epsi = expand pointer swap index. Only used for PAP
-    ##############################################################################
+    """
+    Local Read: Do It A/B
+    iui = Inner Unroll Idx
+    epsi = expand pointer swap index. Only used for PAP
+    """
     def __call__(self, writer, bufferIdx, iui, epsi, tP):
         kernel = writer.kernel
 
@@ -115,11 +115,11 @@ class LocalReadVALU(LocalRead):
 class LocalReadMFMA(LocalRead):
     kernel = {"EnableMatrixInstruction": True}
 
-    ##############################################################################
-    # Local Read: Do It A/B
-    # iui = Inner Unroll Idx
-    # epsi = expand pointer swap index. Only used for PAP
-    ##############################################################################
+    """
+    Local Read: Do It A/B
+    iui = Inner Unroll Idx
+    epsi = expand pointer swap index. Only used for PAP
+    """
     def __call__(self, writer, bufferIdx, iui, epsi, tP):
         kernel = writer.kernel
 

@@ -25,11 +25,11 @@ from ..Common import globalParameters
 class NotLocalFullTileElementsVALU(NotLocalFullTileElements):
     kernel = {"EnableMatrixInstruction": False}
 
-    ##############################################################################
-    # Partition thread-tile into writeElements for store code
-    # This function creates the writeElement mapping for full tiles
-    # (ie non-edge cases)
-    ##############################################################################
+    """
+    Partition thread-tile into writeElements for store code
+    This function creates the writeElement mapping for full tiles
+    (ie non-edge cases)
+    """
     def __call__(self, writer, kernel, edge):
         elements        = []
         vectorwidth = 0
@@ -55,11 +55,11 @@ class NotLocalFullTileElementsVALU(NotLocalFullTileElements):
 class NotLocalFullTileElementsMFMA(NotLocalFullTileElements):
     kernel = {"EnableMatrixInstruction": True}
 
-    ##############################################################################
-    # Partition thread-tile into writeElements for store code
-    # This function creates the writeElement mapping for full tiles
-    # (ie non-edge cases)
-    ##############################################################################
+    """
+    Partition thread-tile into writeElements for store code
+    This function creates the writeElement mapping for full tiles
+    (ie non-edge cases)
+    """
     def __call__(self, writer, kernel, edge):
         elements        = []
         vectorwidth = 0
