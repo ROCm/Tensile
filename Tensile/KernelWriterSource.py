@@ -1713,20 +1713,15 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read Addresses: Tile Assignment A
+  # Local Read Addresses: Tile Assignment
   ##############################################################################
-  def lraTileAssignmentA(self, kernel, tP):
+  def lraTileAssignment(self, kernel, tP):
     kStr = ""
-    kStr += "  unsigned int lr%s = (serial %% SG%s);%s" \
-        % (tP["tileChar"], self.tileChar0, self.endLine)
-    return kStr
-
-  ##############################################################################
-  # Local Read Addresses: Tile Assignment B
-  ##############################################################################
-  def lraTileAssignmentB(self, kernel, tP):
-    kStr = ""
-    kStr += "  unsigned int lr%s = (serial / SG%s) %% SG%s;%s" \
+    if tP["tileChar"] == 'A':
+      kStr += "  unsigned int lr%s = (serial %% SG%s);%s" \
+          % (tP["tileChar"], self.tileChar0, self.endLine)
+    elif tP["tileChar"] == 'B':
+      kStr += "  unsigned int lr%s = (serial / SG%s) %% SG%s;%s" \
         % (tP["tileChar"], self.tileChar0, self.tileChar1, self.endLine)
     return kStr
 

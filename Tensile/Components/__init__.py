@@ -31,4 +31,5 @@ __all__ = [
     "ShiftVectorComponents",
     "ComputeStoreVgprs",
     "NotLocalFullTileElements",
+    "LraTileAssignment",
     ]

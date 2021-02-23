@@ -230,6 +230,12 @@ class NotLocalFullTileElements(Component):
     """
     pass
 
+class LraTileAssignment(Component):
+    """
+    Lra tile assignment block.
+    """
+    pass
+
 # Importing here allows auto-registry of components in the Components directory.
 # Each file must be listed in __all__ in Components/__init__.py
 # "noqa" prevents linter from complaining here.

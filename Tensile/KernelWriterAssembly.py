@@ -4946,181 +4946,16 @@ class KernelWriterAssembly(KernelWriter):
 
 
   ##############################################################################
-  # Local Read Addresses: Tile Assignment A/B
+  # Local Read Addresses: Tile Assignment
   ##############################################################################
-  def lraTileAssignmentMFMA(self, kernel, tP):
+  def lraTileAssignment(self, kernel, tP):
     kStr = ""
 
-    # alloc vgpr
-    wReg    = self.vgprPool.checkOut(1,"wReg") # quotient
-    tReg    = self.vgprPool.checkOut(1,"tReg") # remainder
-    kReg    = self.vgprPool.checkOut(1,"kReg") # remainder
-    tmpVgpr = self.vgprPool.checkOut(2,"tmpVgpr")
-    dummy   = self.vgprPool.checkOut(1,"dummy")
-
-     # alloc sgpr
-    tmpSgpr = self.getTmpSgpr(1).idx()
-
-    # get constant parameter
-    tc               = tP["tensorChar"]
-    tIdx             = tP["tensorIdx"]
-    waveWidth        = globalParameters["WavefrontWidth"]
-    inputPerThread   = max(self.lrvwA,self.lrvwB)
-    LdsPad           = kernel["LdsPad%s" % tc] if kernel["LdsBlockSizePerPad%s" % tc] == 0 else 0
-
-    # parameter for get each type index
-    dividendForKId   = kernel["MatrixInstM"] * kernel["MatrixInstB"]
-    num1DBlocks      = kernel["MatrixInstBM"]   if (tc == 'A') else kernel["MatrixInstBN"]
-    num1DWaves       = kernel["MIWaveGroup"][0] if (tc == 'A') else kernel["MIWaveGroup"][1]
-    dividedForBlkId  = kernel["MatrixInstM"]    if (tc == 'A') else (kernel["MatrixInstM"] * kernel["MatrixInstBM"])
-    dividedForWaveId = waveWidth                if (tc == 'A') else (waveWidth * kernel["MIWaveGroup"][0])
-
-    # strider for each type of index
-    umlds            = kernel["UnrollMajorLDS%s" % tP["tensorChar"]]
-    mt               = kernel["MacroTile%u" % tIdx]
-    strideTile       = kernel["_DepthULds"] + LdsPad if umlds else 1
-    strideK          = inputPerThread            if umlds else (mt + LdsPad) * inputPerThread
-    strideBlock      = kernel["MatrixInstM"] * strideTile
-    strideWave       = kernel["MatrixInstM"] * num1DBlocks * strideTile
-
-    # tile offset
-    kStr += vectorStaticRemainder(dummy, kReg, "Serial", waveWidth, tmpVgpr, tmpSgpr, \
-      "0. thread id in wave: wtid = tid %% wavelength(%u)" % waveWidth)
-    kStr += vectorStaticRemainder(dummy, tReg, kReg, kernel["MatrixInstN"], tmpVgpr, tmpSgpr, \
-      "1. N offset: nIdx = wtid %% MI_N(%u)" % kernel["MatrixInstN"])
-    kStr += staticMultiply(vgpr(tReg), vgpr(tReg), strideTile, sgpr(tmpSgpr), \
-      "1. N offset: nOffset = nIdx * nStride(%u)" % strideTile)
-
-    # block offset
-    kStr += vectorStaticDivide(wReg, kReg, dividedForBlkId, tmpVgpr, tmpSgpr, \
-      "2. block offset: bnIdx = wtid / dividedForBlkId(%u)" % dividedForBlkId)
-    kStr += vectorStaticRemainder(dummy, wReg, wReg, num1DBlocks, tmpVgpr, tmpSgpr, \
-      "2. block offset: bnIdx = bnIdx %% num1DBlocks(%u)" % num1DBlocks)
-    kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideBlock, sgpr(tmpSgpr), \
-      "2. block offset: bnOffset = bnIdx * strideBlock(%u)" % strideBlock)
-    kStr += inst("v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
-      "3. add N and block offset: bnOffset = block and N offset")
-
-    # unroll offset
-    kStr += vectorStaticDivide(kReg, kReg, dividendForKId, tmpVgpr, tmpSgpr, \
-      "4. K offset: kIdx = wtid / (MIN(%u) * MIBB(%u))" % (kernel["MatrixInstN"], kernel["MatrixInstB"]))
-    kStr += staticMultiply(vgpr(kReg), vgpr(kReg), strideK, sgpr(tmpSgpr), \
-      "4. K offset: lrKOffset = kIdx * mStride(%u)" % strideK)
-    kStr += inst("v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
-      "5. offset in wave: lrOffset = bnOffset + lrKOffset")
-
-    # wave offset
-    if num1DWaves > 1:
-      kStr += vectorStaticDivide(wReg, "Serial", dividedForWaveId, tmpVgpr, tmpSgpr, \
-        "6. wave offset in N dimen: wtid = tid / dividedForWaveId(%u)" % dividedForWaveId)
-      kStr += vectorStaticRemainder(dummy, wReg, wReg, num1DWaves, tmpVgpr, tmpSgpr, \
-        "6. wave offset in M dimen: wtid0 = wtid / num1DWaves(%u)" % num1DWaves)
-      kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideWave, sgpr(tmpSgpr), \
-        "6. wave offset in M dimen: wOffset = wtid0 * W0Stride(%u)" % strideWave)
-      kStr += inst("v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
-        "7. final local read offset: flrOffset = lrOffset + WOffset")
-
-    # release register
-    tP["gpr"]["lro"] = tReg
-    self.vgprPool.checkIn(wReg)
-    self.vgprPool.checkIn(kReg)
-    self.vgprPool.checkIn(tmpVgpr)
-    self.vgprPool.checkIn(dummy)
+    component = Component.LraTileAssignment.find(self)
+    if component:
+      kStr += component(self, kernel, tP)
 
     return kStr
-
-
-  ##############################################################################
-  # Local Read Addresses: Tile Assignment A
-  ##############################################################################
-  def lraTileAssignmentVALUA(self, kernel, tP):
-    kStr = ""
-
-    # allocate resource
-    qReg = self.vgprPool.checkOut(1,"qReg") # quotient
-    rReg = self.vgprPool.checkOut(1,"rReg") # remainder
-    tmpVgpr = self.vgprPool.checkOut(2,"tmpVgpr")
-    tmpSgpr = self.getTmpSgpr(1).idx()
-
-    # constant
-    dividendReg = "Serial" # local serial
-    divisor = kernel["SubGroup0"]
-
-    # generate instruction
-    kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, tmpVgpr, tmpSgpr)
-
-    # release and return resource
-    tP["gpr"]["lro"] = rReg
-    self.tmplroB = qReg
-    self.vgprPool.checkIn(tmpVgpr)
-
-    return kStr
-
-
-  ##############################################################################
-  # Local Read Addresses: Tile Assignment A
-  ##############################################################################
-  def lraTileAssignmentA(self, kernel, tP):
-    kStr = ""
-
-    kStr += "%slr%s = serial %% SG%s%s%s" \
-        % (self.commentPrefix, tP["tileChar"], tP["tileChar"], \
-        self.commentSuffix, self.endLine)
-
-    if kernel["EnableMatrixInstruction"]:
-      kStr += self.lraTileAssignmentMFMA(kernel, tP)
-    else:
-      kStr += self.lraTileAssignmentVALUA(kernel, tP)
-
-    return kStr
-
-
-  ##############################################################################
-  # Local Read Addresses: Tile Assignment B
-  ##############################################################################
-  def lraTileAssignmentVALUB(self, kernel, tP):
-    kStr = ""
-
-    # allocate resources
-    qReg    = self.vgprPool.checkOut(1,"qReg") # quotient
-    rReg    = self.vgprPool.checkOut(1,"rReg") # remainder
-    tmpVgpr = self.vgprPool.checkOut(2,"tmpVgpr")
-    tmpSgpr = self.getTmpSgpr(1).idx()
-
-    # constant
-    divisor = kernel["SubGroup1"]
-    dividendReg = self.tmplroB
-
-    # generate instruction
-    kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, tmpVgpr, tmpSgpr)
-
-    # release and return resource
-    tP["gpr"]["lro"] = rReg
-
-    self.vgprPool.checkIn(self.tmplroB) # old
-    self.vgprPool.checkIn(qReg)
-    self.vgprPool.checkIn(tmpVgpr)
-
-    return kStr
-
-
-  ##############################################################################
-  # Local Read Addresses: Tile Assignment B
-  ##############################################################################
-  def lraTileAssignmentB(self, kernel, tP):
-    kStr = ""
-
-    kStr += "%slr%s = (serial / SG%s) %% SG%s%s%s" \
-        % (self.commentPrefix, tP["tileChar"], tP["tileChar"], \
-        tP["tileChar"], self.commentSuffix, self.endLine)
-
-    if kernel["EnableMatrixInstruction"]:
-      kStr += self.lraTileAssignmentMFMA(kernel, tP)
-    else:
-      kStr += self.lraTileAssignmentVALUB(kernel, tP)
-
-    return kStr
-
 
   ##############################################################################
   # Local Read Addresses: Final Offset A/B
@@ -7764,10 +7599,10 @@ class KernelWriterAssembly(KernelWriter):
             self.oriLraB = self.vgprPool.checkOut(1, "OriLocalReadAddrB")
             kStr += inst("v_mov_b32", vgpr(self.oriLraB), vgpr("LocalReadAddrB"), "back up LRA for persistent kernel + wider local read")
 
-        kStr += (self.lraTileAssignmentMFMA(kernel, self.tPA))
+        kStr += (self.lraTileAssignment(kernel, self.tPA))
         kStr += (self.lraFinalOffset(kernel, self.tPA))
         kStr += (self.lraDeclareAddresses(kernel, self.tPA))
-        kStr += (self.lraTileAssignmentMFMA(kernel, self.tPB))
+        kStr += (self.lraTileAssignment(kernel, self.tPB))
         kStr += (self.lraFinalOffset(kernel, self.tPB))
         kStr += (self.lraDeclareAddresses(kernel, self.tPB))
         imod.addCode(kStr)
