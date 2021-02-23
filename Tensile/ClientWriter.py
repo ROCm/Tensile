@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -631,6 +631,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         convValidation = problemType.convolution and globalParameters["ConvolutionVsContraction"];
         if convValidation:
             param('convolution-identifier', problemType.convolution.identifier())
+        param('performance-metric', globalParameters["PerformanceMetric"])
         param('problem-identifier', problemType.operationIdentifier)
         param('a-type',     problemType.aType.toEnum())
         param('b-type',     problemType.bType.toEnum())

@@ -26,6 +26,7 @@
 
 #include <Tensile/ArithmeticUnitTypes.hpp>
 #include <Tensile/KernelLanguageTypes.hpp>
+#include <Tensile/PerformanceMetricTypes.hpp>
 #include <Tensile/Tensile.hpp>
 
 #include <Tensile/ContractionProblem_fwd.hpp>
@@ -552,6 +553,16 @@ namespace Tensile
             return m_kernelLanguage;
         }
 
+        void setPerformanceMetric(PerformanceMetric value)
+        {
+            m_performanceMetric = value;
+        }
+
+        PerformanceMetric performanceMetric() const
+        {
+            return m_performanceMetric;
+        }
+
         void setDeterministicMode(bool value)
         {
             m_deterministicMode = value;
@@ -734,14 +745,15 @@ namespace Tensile
         std::string m_sumNames;
         std::string m_operationIdentifier;
 
-        bool           m_transA;
-        bool           m_transB;
-        bool           m_stridedBatched          = true;
-        bool           m_highPrecisionAccumulate = false;
-        bool           m_deterministicMode       = false;
-        bool           m_eligibleForPK           = true;
-        ArithmeticUnit m_arithmeticUnit          = ArithmeticUnit::Any;
-        KernelLanguage m_kernelLanguage          = KernelLanguage::Any;
+        bool              m_transA;
+        bool              m_transB;
+        bool              m_stridedBatched          = true;
+        bool              m_highPrecisionAccumulate = false;
+        bool              m_deterministicMode       = false;
+        bool              m_eligibleForPK           = true;
+        ArithmeticUnit    m_arithmeticUnit          = ArithmeticUnit::Any;
+        KernelLanguage    m_kernelLanguage          = KernelLanguage::Any;
+        PerformanceMetric m_performanceMetric       = PerformanceMetric::Overall;
 
         DataType m_alphaType = DataType::None; // if not assigned, will follow d-type
         DataType m_betaType  = DataType::None; // for bwd-compatible

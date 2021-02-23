@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -51,7 +51,7 @@ class GranularitySelectionLibrary:
     @classmethod
     def FromOriginalState(cls, d, indices):
         origTable = d[1]
-        #indices = d[9]["TileSelectionIndices"]
+        #indices = d[9]['TileSelectionIndices']
         #  entry = {'key': key, 'value': value, 'speed': row[1][1]}
         entries = []
         for row in origTable:
@@ -218,19 +218,23 @@ class MasterSolutionLibrary:
     @classmethod
     def FromOriginalState(cls, d, origSolutions, solutionClass=Contractions.Solution, libraryOrder = None):
         if libraryOrder is None:
-            libraryOrder = ['Hardware', 'OperationIdentifier', 'Predicates', 'Matching']
+            libraryOrder = ['Hardware', 'OperationIdentifier', 'PerformanceMetric', 'Predicates', 'Matching']
 
         deviceSection = d[1:4]
         origProblemType = d[4]
         #origSolutions = d[5]
         origLibrary = d[6:8]
 
+        perfMetric = 'Overall'
+        if len(d) > 10:
+            perfMetric = d[10]
+
         problemType = Contractions.ProblemType.FromOriginalState(origProblemType)
 
         if len(d) > 9 and d[9]:
             # It's a Granularity library
-            assert libraryOrder[-1] == "Matching"
-            libraryOrder[-1] = "Granularity"
+            assert libraryOrder[-1] == 'Matching'
+            libraryOrder[-1] = 'Granularity'
 
         allSolutions = [solutionClass.FromSolutionStruct(s, deviceSection) for s in origSolutions]
         cls.FixSolutionIndices(allSolutions)
@@ -243,24 +247,24 @@ class MasterSolutionLibrary:
                 library = matchingLibrary
 
             elif libName == 'Granularity':
-                selectionIndices = d[9]["TileSelectionIndices"]
+                selectionIndices = d[9]['TileSelectionIndices']
                 library = GranularitySelectionLibrary.FromOriginalState(origLibrary, selectionIndices)
 
             elif libName == 'Hardware':
 
                 if isinstance(deviceSection[1], dict):
                     architectureProps = deviceSection[1]
-                    assert "Architecture" in architectureProps, "Invalid device section [1]"
-                    assert "CUCount" in architectureProps, "Invalid device section [1]"
-                    devicePart = architectureProps["Architecture"]
-                    cuCount = architectureProps["CUCount"]
+                    assert 'Architecture' in architectureProps, 'Invalid device section [1]'
+                    assert 'CUCount' in architectureProps, 'Invalid device section [1]'
+                    devicePart = architectureProps['Architecture']
+                    cuCount = architectureProps['CUCount']
                 else:
                     devicePart = deviceSection[1]
                     cuCount = None
 
                 newLib = PredicateLibrary(tag='Hardware')
                 if devicePart == 'fallback':
-                    pred = Hardware.HardwarePredicate("TruePred")
+                    pred = Hardware.HardwarePredicate('TruePred')
                 else:
                     pred = Hardware.HardwarePredicate.FromHardware(Common.gfxArch(devicePart), cuCount)
 
@@ -282,8 +286,18 @@ class MasterSolutionLibrary:
 
                 newLib = ProblemMapLibrary(prop, mapping)
                 library = newLib
+
+            elif libName == 'PerformanceMetric':
+                if perfMetric != 'Overall':
+                    predicate = Properties.Predicate(tag=perfMetric)
+                else:
+                    predicate = Properties.Predicate(tag='TruePred')
+                newLib = PredicateLibrary(tag='Problem')
+                newLib.rows.append({'predicate': predicate, 'library': library})
+                library = newLib
+
             else:
-                raise ValueError("Unknown value " + libName)
+                raise ValueError('Unknown value ' + libName)
 
         rv = cls(solutions, library)
         return rv
@@ -340,9 +354,8 @@ class MasterSolutionLibrary:
 
     @property
     def cpp_base_class(self):
-        return "SolutionLibrary<ContractionProblem, ContractionSolution>"
+        return 'SolutionLibrary<ContractionProblem, ContractionSolution>'
 
     @property
     def cpp_class(self):
-        return "MasterSolutionLibrary<ContractionProblem, ContractionSolution>"
-
+        return 'MasterSolutionLibrary<ContractionProblem, ContractionSolution>'

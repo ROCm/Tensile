@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,7 +36,7 @@ namespace Tensile
 {
     /**
  * \ingroup Tensile
- * \defgroup Arithmetic unit type Info
+ * \defgroup ArithmeticUnits Arithmetic unit type Info
  *
  * @brief Definitions and metadata on supported arithmetic unit types.
  */
@@ -93,9 +93,7 @@ namespace Tensile
  * \brief Compile-time accessible arithmetic unit type metadata.
  */
     template <ArithmeticUnit T_Enum>
-    struct ArithmeticUnitInfo
-    {
-    };
+    struct ArithmeticUnitInfo;
 
     template <ArithmeticUnit T_Enum>
     struct BaseArithmeticUnitInfo
