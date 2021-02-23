@@ -40,8 +40,8 @@ if(TENSILE_NEW_CLIENT)
     set(TENSILE_STATIC_ONLY  ON CACHE BOOL "Disable exposing Tensile symbols in a shared library.")
 
     if(NOT DEFINED CXX_VERSION_STRING)
-        if(CMAKE_CXX_COMPILER MATCHES ".*/hipcc$" OR CMAKE_CXX_COMPILER MATCHES ".*/hcc$")
-          # Determine if CXX Compiler is hcc, hip-clang or nvcc
+        if(CMAKE_CXX_COMPILER MATCHES ".*/hipcc$")
+          # Determine if CXX Compiler is hip-clang or nvcc
           execute_process(COMMAND ${CMAKE_CXX_COMPILER} "--version" OUTPUT_VARIABLE CXX_OUTPUT
                   OUTPUT_STRIP_TRAILING_WHITESPACE
                   ERROR_STRIP_TRAILING_WHITESPACE)
@@ -82,16 +82,6 @@ if(TENSILE_NEW_CLIENT)
         endif()
     endif()
 
-    #set(TENSILE_CXX_COMPILER "${CMAKE_CXX_COMPILER}")
-    #if(TENSILE_USE_HIP)
-    #    string(FIND "${CMAKE_CXX_COMPILER}" "hcc"   cxx_hcc)
-    #    string(FIND "${CMAKE_CXX_COMPILER}" "hipcc" cxx_hipcc)
-
-    #    if(cxx_hcc EQUAL "-1" AND cxx_hipcc EQUAL "-1")
-    #        set(TENSILE_CXX_COMPILER "${HIP_BIN_INSTALL_DIR}/hcc")
-    #    endif()
-    #endif()
-
     add_subdirectory(lib)
 
     if(TENSILE_BUILD_CLIENT)
@@ -116,7 +106,7 @@ else()
     set_property( CACHE Tensile_RUNTIME_LANGUAGE PROPERTY STRINGS HIP OCL )
     set(Tensile_CODE_OBJECT_VERSION V2 CACHE STRING "Which code object version to use")
     set_property( CACHE Tensile_CODE_OBJECT_VERSION PROPERTY STRINGS V2 V3)
-    set_property( CACHE Tensile_COMPILER PROPERTY STRINGS hcc hipcc)
+    set_property( CACHE Tensile_COMPILER PROPERTY STRINGS hipcc)
     set(Tensile_ARCHITECTURE all CACHE STRING "Which GPU architecture to use")
     set_property( CACHE Tensile_ARCHITECTURE PROPERTY STRINGS all gfx000 gfx900 gfx906:xnack- gfx908:xnack-)
     set_property( CACHE Tensile_LIBRARY_FORMAT PROPERTY STRINGS yaml msgpack)
@@ -198,7 +188,7 @@ else()
       find_package( HIP REQUIRED )
       set (CMAKE_CXX_COMPILER ${HIPCC})
       target_include_directories( ${ClientName} SYSTEM
-        PUBLIC  ${HIP_INCLUDE_DIRS} ${HCC_INCLUDE_DIRS} )
+        PUBLIC  ${HIP_INCLUDE_DIRS} )
       target_link_libraries( ${ClientName} PUBLIC ${HSA_LIBRARIES} )
       target_compile_definitions( ${ClientName} PUBLIC
         -DTensile_RUNTIME_LANGUAGE_OCL=0
@@ -218,7 +208,7 @@ else()
       TensileCreateLibraryCmake(
         ${Tensile_LOGIC_PATH}           # path
         ${Tensile_RUNTIME_LANGUAGE}     # HIP or OCL
-        ${Tensile_COMPILER}             # hcc or hipcc
+        ${Tensile_COMPILER}             # hipcc
         ${Tensile_CODE_OBJECT_VERSION}  # V2 or V3
         ${Tensile_ARCHITECTURE}         # all, gfx000, gfx803, gfx900, gfx906:xnack-, gfx908:xnack-
         ${Tensile_LIBRARY_FORMAT}       # yaml or msgpack

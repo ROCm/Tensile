@@ -40,7 +40,7 @@ Pre-Requisites:
   >=Anaconda 3.6 (or install python3.6 or higher, python3-pip/pip3, python3-yaml, python3-setuptools, python3-distutils,
       python3-venv, wheel, setuptools, pyyaml, msgpack, matplotlib, pandas, and numpy)
   >=llvm-6.0-dev, >=cmake3.5, zlib1g-dev
-  <=rocm3.0 stack for hcc, >=rocm3.3 stack for hip-clang
+  >=rocm3.3 stack for hip-clang
 
 About
 This is the master tuning script. It does the following:

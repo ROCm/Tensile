@@ -93,11 +93,6 @@ def configMarks(filepath, rootDir, availableArchs):
         if markNamed(ArchSkip) in marks:
             marks.append(pytest.mark.skip)
 
-    # Environment specific marks
-    isHccEnv = True if locateExe("/opt/rocm/bin", "hcc") != None else False
-    if isHccEnv and markNamed("skip-hcc") in marks:
-        marks.append(pytest.mark.skip)
-
     validate = True
     validateAll = False
     try:
