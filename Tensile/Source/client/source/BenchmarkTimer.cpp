@@ -104,7 +104,7 @@ namespace Tensile
                 = m_solution.projectedPerformance(m_problem, m_hardware);
 
             double gflops      = m_problem.flopCount() / (timePerEnqueue_us) / 1000.0;
-            double tiles       = pp.tilesPerCu * perf.CUs;
+            int    tiles       = pp.tilesPerCu * perf.CUs;
             int    usedCus     = std::min(tiles, perf.CUs);
             double gflopsPerCu = gflops / usedCus;
 
