@@ -206,6 +206,30 @@ class Signature(Component):
     """
     pass
 
+class LocalRead(Component):
+    """
+    Local read block.
+    """
+    pass
+
+class ShiftVectorComponents(Component):
+    """
+    Shift vector components block.
+    """
+    pass
+
+class ComputeStoreVgprs(Component):
+    """
+    Compute store vgprs block.
+    """
+    pass
+
+class NotLocalFullTileElements(Component):
+    """
+    Not local full tile elements block.
+    """
+    pass
+
 # Importing here allows auto-registry of components in the Components directory.
 # Each file must be listed in __all__ in Components/__init__.py
 # "noqa" prevents linter from complaining here.
