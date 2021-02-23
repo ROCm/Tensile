@@ -21,7 +21,7 @@
 
 from ..Component import ComputeStoreVgprs
 from ..Common import globalParameters
-from ..AsmUtils import vectorStaticDivideAndRemainder, staticMultiply, vgpr, sgpr, inst
+from ..AsmUtils import vectorStaticDivideAndRemainder, staticMultiply, vgpr, sgpr, inst, vectorStaticDivide, vectorStaticRemainder
 
 class ComputeStoreVgprsVALU(ComputeStoreVgprs):
     kernel = {"EnableMatrixInstruction": False}
@@ -135,7 +135,7 @@ class ComputeStoreVgprsMFMA(ComputeStoreVgprs):
     # tid0Scale specifies the number of output elements in 0/coalesced dim
     # that should be written by each work-item in each batch element.
     ##############################################################################
-    def __call__(self, kernel, divisor, tid0Scale, tid1Scale):
+    def __call__(self, writer, kernel, divisor, tid0Scale, tid1Scale):
 
         # writer.coord0
         # writer.coord1

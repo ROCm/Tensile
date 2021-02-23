@@ -21,7 +21,7 @@
 
 from ..Component import ShiftVectorComponents
 from ..Common import globalParameters
-from ..AsmUtils import inst, vgpr, sgpr, vectorStaticDivide, vectorStaticRemainder, vectorStaticDivideAndRemainder
+from ..AsmUtils import inst, vgpr, sgpr, accvgpr, staticMultiply, vectorStaticDivide, vectorStaticRemainder, vectorStaticDivideAndRemainder, log2
 
 class ShiftVectorComponentsVALU(ShiftVectorComponents):
     kernel = {"EnableMatrixInstruction": False}

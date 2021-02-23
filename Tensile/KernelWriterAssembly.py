@@ -25,9 +25,9 @@ from .Component import Component
 from .KernelWriter import KernelWriter
 from .SolutionStructs import isPackedIndex
 from .Utils import ceil_divide, roundUpToNearestMultiple
-from .AsmUtils import *
+from .AsmUtils import inst, vgpr, sgpr, log2, vectorStaticDivideAndRemainder, vectorStaticDivide, vectorStaticRemainder, scalarStaticDivideAndRemainder, staticMultiply, scalarStaticMultiply
 
-from math import log, ceil, trunc, modf
+from math import ceil, trunc, modf
 from copy import deepcopy
 import collections
 import traceback
