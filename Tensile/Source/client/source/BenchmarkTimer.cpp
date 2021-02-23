@@ -105,7 +105,7 @@ namespace Tensile
 
             double gflops      = m_problem.flopCount() / (timePerEnqueue_us) / 1000.0;
             double tiles       = pp.tilesPerCu * perf.CUs;
-            int    usedCus     = (tiles > perf.CUs) ? perf.CUs : tiles;
+            int    usedCus     = std::min(tiles, perf.CUs);
             double gflopsPerCu = gflops / usedCus;
 
             uint64_t gflopsUint = static_cast<uint64_t>(round(gflops));
