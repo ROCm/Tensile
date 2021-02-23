@@ -1,5 +1,5 @@
 /**
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -995,10 +995,10 @@ namespace Tensile
         auto cInfo = DataTypeInfo::Get(problemType.cType);
         auto dInfo = DataTypeInfo::Get(problemType.dType);
 
-//        double l2ReadBwMultiplier = perf.l2ReadBwMul;
-        spm.memReadBytesA         = (NumBatches * M * N * K) / MT1 * aInfo.elementSize;
-        spm.memReadBytesB         = (NumBatches * M * N * K) / MT0 * bInfo.elementSize;
-        spm.memReadBytesC         = (NumBatches * M * N) * betaReads * cInfo.elementSize;
+        //        double l2ReadBwMultiplier = perf.l2ReadBwMul;
+        spm.memReadBytesA = (NumBatches * M * N * K) / MT1 * aInfo.elementSize;
+        spm.memReadBytesB = (NumBatches * M * N * K) / MT0 * bInfo.elementSize;
+        spm.memReadBytesC = (NumBatches * M * N) * betaReads * cInfo.elementSize;
 
         if(GlobalSplitU == 1)
             spm.memWriteBytesD = (NumBatches * M * N) * (1 + betaWrites) * dInfo.elementSize;
@@ -1017,16 +1017,16 @@ namespace Tensile
                              + spm.memReadBytesC / cInfo.elementSize;
         spm.memGlobalWrites = spm.memWriteBytesD / dInfo.elementSize;
 
-//        double readEfficiency   = perf.readEff;
-//        double l2ReadHit        = perf.l2ReadHitRate;
-//        double l2WriteHit       = perf.l2WriteHitRate;
-//        double frequency        = perf.clock;
-//        double memFrequency     = perf.memClock;
-//        double memBandwidthMBps = perf.memBandwidthMBps;
-//        double l2BandwidthMBps  = perf.memBandwidthMBps * perf.l2ReadBwMul;
-//        double peakMFlops       = perf.peakGFlops * 1000.0;
-//
-//        double flops = 2.0 * l2ReadBwMultiplier * NumBatches * M * N * K;
+        //        double readEfficiency   = perf.readEff;
+        //        double l2ReadHit        = perf.l2ReadHitRate;
+        //        double l2WriteHit       = perf.l2WriteHitRate;
+        //        double frequency        = perf.clock;
+        //        double memFrequency     = perf.memClock;
+        //        double memBandwidthMBps = perf.memBandwidthMBps;
+        //        double l2BandwidthMBps  = perf.memBandwidthMBps * perf.l2ReadBwMul;
+        //        double peakMFlops       = perf.peakGFlops * 1000.0;
+        //
+        //        double flops = 2.0 * l2ReadBwMultiplier * NumBatches * M * N * K;
 
         return spm;
     }

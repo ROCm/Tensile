@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright 2020-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -170,8 +170,8 @@ namespace Tensile
         void AllSolutionsIterator::preSolution(ContractionSolution const& solution)
         {
             {
-                std::string idx = "-1";
-                auto iter = solution.info.find("SolutionIndex");
+                std::string idx  = "-1";
+                auto        iter = solution.info.find("SolutionIndex");
                 if(iter != solution.info.end())
                     idx = iter->second;
                 m_reporter->report(ResultKey::SolutionLibraryIndex, idx);
@@ -235,8 +235,8 @@ namespace Tensile
         void BestSolutionIterator::preSolution(ContractionSolution const& solution)
         {
             {
-                std::string idx = "-1";
-                auto iter = solution.info.find("SolutionIndex");
+                std::string idx  = "-1";
+                auto        iter = solution.info.find("SolutionIndex");
                 if(iter != solution.info.end())
                     idx = iter->second;
                 m_reporter->report(ResultKey::SolutionLibraryIndex, idx);
