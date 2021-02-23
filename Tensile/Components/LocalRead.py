@@ -23,6 +23,7 @@ from ..Component import LocalRead
 from ..Common import globalParameters
 from .. import Code
 from ..AsmUtils import vgpr
+from math import ceil
 
 class LocalReadVALU(LocalRead):
     kernel = {"EnableMatrixInstruction": False}
