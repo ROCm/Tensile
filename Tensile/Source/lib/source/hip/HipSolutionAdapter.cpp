@@ -29,16 +29,6 @@
 
 #include <cstddef>
 
-#if 0
-hipError_t hipHccModuleLaunchKernel(hipFunction_t f, uint32_t globalWorkSizeX,
-                                    uint32_t globalWorkSizeY, uint32_t globalWorkSizeZ,
-                                    uint32_t localWorkSizeX, uint32_t localWorkSizeY,
-                                    uint32_t localWorkSizeZ, size_t sharedMemBytes,
-                                    hipStream_t hStream, void** kernelParams, void** extra,
-                                    hipEvent_t startEvent = nullptr,
-                                    hipEvent_t stopEvent = nullptr);
-#endif
-
 #include <Tensile/Debug.hpp>
 #include <Tensile/EmbeddedData.hpp>
 #include <Tensile/hip/HipSolutionAdapter.hpp>

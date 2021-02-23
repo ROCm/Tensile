@@ -224,9 +224,6 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
         shutil.copy(
             os.path.join(globalParameters["SourcePath"], "FindHIP.cmake"),
             globalParameters["WorkingPath"] )
-        shutil.copy(
-            os.path.join(globalParameters["SourcePath"], "FindHCC.cmake"),
-            globalParameters["WorkingPath"] )
     else:
       pushWorkingPath("source")
 

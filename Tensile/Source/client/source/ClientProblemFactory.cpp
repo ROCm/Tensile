@@ -97,6 +97,10 @@ namespace Tensile
 
             m_beta = DataInitialization::getValue<double>(args["init-beta"].as<InitMode>());
 
+            if(args["convolution-vs-contraction"].as<bool>())
+                m_convProblemSizes
+                    = args["convolution-problem"].as<std::vector<std::vector<size_t>>>();
+
             m_problems = createProblems();
         }
 
@@ -191,6 +195,9 @@ namespace Tensile
                 rv.back().setKernelLanguage(m_kernelLanguage);
                 rv.back().setDeterministicMode(m_deterministicMode);
                 rv.back().setArithmeticUnit(m_arithmeticUnit);
+
+                if(m_convProblemSizes.size())
+                    rv.back().setConvProblemSizes(m_convProblemSizes[i]);
             }
 
             return rv;

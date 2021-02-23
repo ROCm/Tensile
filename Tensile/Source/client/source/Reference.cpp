@@ -1,7 +1,7 @@
 /**
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -466,17 +466,28 @@ namespace Tensile
             ConvolutionProblem::LoopCounts counts;
             counts.setupForData(convProblem, problem);
 
+            convProblem.validate(problem, counts);
+
             TensorDescriptor activationTensor = convProblem.setupDataActivation(counts, problem);
             TensorDescriptor weightTensor     = convProblem.setupForwardWeights(counts, problem);
             TensorDescriptor outputTensor     = convProblem.setupDataOutput(counts, problem);
 
+            auto formatA = counts.formatA();
+            auto formatB = counts.formatB();
+            auto formatD = counts.formatD();
+
+            size_t padShift
+                = std::accumulate(problem.aZeroPad().begin(),
+                                  problem.aZeroPad().end(),
+                                  0,
+                                  [](size_t sum, const ContractionProblem::ZeroPad& zp) {
+                                      return sum + zp.padStart;
+                                  });
             if(db1)
             {
                 std::cout << "SolveCPUConvolution:\n";
-                std::cout << "  formatA=" << convProblem.formatA().description() << "\n";
-                std::cout << "  formatB=" << convProblem.formatB().weights().description() << "\n";
                 std::cout << "  activationTensor=" << activationTensor << "\n";
-                std::cout << " " << counts.description() << "\n";
+                std::cout << "counts:" << std::endl << counts.description() << "\n";
             }
 
             // Loops always traverse in same order but addressing in memory can be flexible to support different activation
@@ -488,7 +499,6 @@ namespace Tensile
                     for(size_t n = 0; n < counts.batchCount; n++)
                     {
                         std::vector<size_t> spatialCoord(ConvolutionProblem::MaxNumSpatialDims, 0);
-                        std::vector<size_t> filterCoord(ConvolutionProblem::MaxNumSpatialDims, 0);
 
                         CoordNumbered(spatialIndex,
                                       spatialCoord.begin(),
@@ -497,87 +507,89 @@ namespace Tensile
                                       counts.scount.end());
 
                         Accumulator value(0);
+                        size_t      filterCoordCount
+                            = CoordCount(counts.filterCount.begin(), counts.filterCount.end());
                         for(size_t cin = 0; cin < counts.cinCount; cin++)
-                            for(filterCoord[2] = 0; filterCoord[2] < counts.fcount[2];
-                                filterCoord[2]++)
-                                for(filterCoord[1] = 0; filterCoord[1] < counts.fcount[1];
-                                    filterCoord[1]++)
-                                    for(filterCoord[0] = 0; filterCoord[0] < counts.fcount[0];
-                                        filterCoord[0]++)
-                                    {
-                                        // Save coordinates from the looop and compute memeory index
-                                        // Each component stores in appropriate memory order
-                                        std::vector<size_t> aCoord(activationTensor.dimensions(),
-                                                                   0);
-                                        std::vector<size_t> bCoord(weightTensor.dimensions(), 0);
+                            for(size_t filterIndex = 0; filterIndex < filterCoordCount;
+                                filterIndex++)
+                            {
 
-                                        aCoord[convProblem.formatA().batchPosition()]   = n;
-                                        aCoord[convProblem.formatA().channelPosition()] = cin;
-                                        for(auto i = 0;
-                                            i < convProblem.formatA().spatialPositions().size();
-                                            i++)
-                                            aCoord[convProblem.formatA().spatialPositions()[i]]
-                                                = spatialCoord[i];
+                                std::vector<size_t> filterCoord(counts.filterCount.size(), 0);
+                                CoordNumbered(filterIndex,
+                                              filterCoord.begin(),
+                                              filterCoord.end(),
+                                              counts.filterCount.begin(),
+                                              counts.filterCount.end());
 
-                                        // add filters to address calc, if they have non-unit strides:
-                                        for(int fi = ConvolutionProblem::MaxNumSpatialDims - 1;
-                                            fi >= 0;
-                                            fi--)
-                                        {
-                                            auto fp = convProblem.formatA().filterPositions()[fi];
-                                            if(fp != ConvolutionProblem::InvalidPos)
-                                                aCoord[fp] = filterCoord[fi];
-                                            else
-                                                assert(filterCoord[fi] == 0);
-                                        }
+                                // Save coordinates from the looop and compute memeory index
+                                // Each component stores in appropriate memory order
+                                std::vector<int64_t> aCoord(activationTensor.dimensions(), 0);
+                                std::vector<int64_t> bCoord(weightTensor.dimensions(), 0);
 
-                                        bCoord[convProblem.formatB().weights().coutPosition()]
-                                            = cout;
-                                        bCoord[convProblem.formatB().weights().cinPosition()] = cin;
-                                        for(int fi = ConvolutionProblem::MaxNumSpatialDims - 1;
-                                            fi >= 0;
-                                            fi--)
-                                        {
-                                            auto fp = convProblem.formatB()
-                                                          .weights()
-                                                          .filterPositions()[fi];
-                                            if(fp != ConvolutionProblem::InvalidPos)
-                                                bCoord[fp] = filterCoord[fi];
-                                            else
-                                                assert(filterCoord[fi] == 0);
-                                        }
+                                aCoord[formatA.batchPosition()]   = n;
+                                aCoord[formatA.channelPosition()] = cin;
+                                for(auto i = 0; i < formatA.spatialPositions().size(); i++)
+                                    aCoord[formatA.spatialPositions()[i]] = spatialCoord[i];
 
-                                        auto aIndex = activationTensor.index(aCoord);
-                                        auto aVal   = Transform<typename Inputs::AType>::Input(
-                                            inputs.a[aIndex], false);
+                                // add filters to address calc, if they have non-unit strides:
+                                for(int fi = 0; fi < counts.filterCount.size(); fi++)
+                                {
+                                    auto fp = formatA.filterPositions()[fi];
+                                    if(fp != ConvolutionProblem::InvalidPos)
+                                        aCoord[fp] = filterCoord[fi];
+                                }
 
-                                        auto bIndex = weightTensor.index(bCoord);
-                                        auto bVal   = Transform<typename Inputs::BType>::Input(
-                                            inputs.b[bIndex], false);
+                                bCoord[formatB.weights().coutPosition()] = cout;
+                                bCoord[formatB.weights().cinPosition()]  = cin;
+                                for(int fi = 0; fi < counts.filterCount.size(); fi++)
+                                {
+                                    auto fp = formatB.weights().filterPositions()[fi];
+                                    if(fp != ConvolutionProblem::InvalidPos)
+                                        bCoord[fp] = filterCoord[fi];
+                                }
 
-                                        if(db2)
-                                        {
-                                            std::cout
-                                                << "  n,cin,spatialCoord,cout=" << n << "," << cin
-                                                << ","
-                                                << "," << cout << ","
-                                                << " spatialCoord[2,1,0]=" << spatialCoord[2] << ","
-                                                << spatialCoord[1] << "," << spatialCoord[0]
-                                                << " filterCoord[2,1,0]=" << filterCoord[2] << ","
-                                                << filterCoord[1] << "," << filterCoord[0]
-                                                << " aIndex=" << aIndex << " bIndex=" << bIndex
-                                                << " aVal=" << aVal << " bVal=" << bVal << "\n";
-                                        }
-                                        value += static_cast<Accumulator>(aVal * bVal);
-                                    }
+                                auto aIndex     = activationTensor.index(aCoord) - padShift;
+                                bool inZeroPads = std::accumulate(
+                                    problem.aZeroPad().begin(),
+                                    problem.aZeroPad().end(),
+                                    false,
+                                    [&](bool ret, const ContractionProblem::ZeroPad& zp) {
+                                        return ret
+                                               || inZeroPad(problem,
+                                                            zp,
+                                                            activationTensor,
+                                                            aCoord,
+                                                            aCoord[zp.boundPos]);
+                                    });
+
+                                auto aVal = inZeroPads ? static_cast<typename Inputs::AType>(0.0)
+                                                       : Transform<typename Inputs::AType>::Input(
+                                                           inputs.a[aIndex], false);
+
+                                auto bIndex = weightTensor.index(bCoord);
+                                auto bVal   = Transform<typename Inputs::BType>::Input(
+                                    inputs.b[bIndex], false);
+
+                                if(db2)
+                                {
+                                    std::cout << "  n,cin,spatialCoord,cout=" << n << "," << cin
+                                              << ","
+                                              << "," << cout << ","
+                                              << " spatialCoord[2,1,0]=" << spatialCoord[2] << ","
+                                              << spatialCoord[1] << "," << spatialCoord[0]
+                                              << " filterCoord[2,1,0]=" << filterCoord[2] << ","
+                                              << filterCoord[1] << "," << filterCoord[0]
+                                              << " aIndex=" << aIndex << " bIndex=" << bIndex
+                                              << " aVal=" << aVal << " bVal=" << bVal << "\n";
+                                }
+
+                                value += static_cast<Accumulator>(aVal * bVal);
+                            }
                         std::vector<size_t> dCoord(outputTensor.dimensions(), 0);
-                        dCoord[convProblem.formatD().activation().batchPosition()]   = n;
-                        dCoord[convProblem.formatD().activation().channelPosition()] = cout;
-                        for(auto i = 0;
-                            i < convProblem.formatD().activation().spatialPositions().size();
-                            i++)
-                            dCoord[convProblem.formatD().activation().spatialPositions()[i]]
-                                = spatialCoord[i];
+                        dCoord[formatD.activation().batchPosition()]   = n;
+                        dCoord[formatD.activation().channelPosition()] = cout;
+                        for(auto i = 0; i < formatD.activation().spatialPositions().size(); i++)
+                            dCoord[formatD.activation().spatialPositions()[i]] = spatialCoord[i];
 
                         auto dIndex = outputTensor.index(dCoord);
                         if(db1)
