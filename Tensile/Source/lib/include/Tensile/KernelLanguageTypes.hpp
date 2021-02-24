@@ -94,9 +94,7 @@ namespace Tensile
  * \brief Compile-time accessible kernel language type metadata.
  */
     template <KernelLanguage T_Enum>
-    struct KernelLanguageInfo
-    {
-    };
+    struct KernelLanguageInfo;
 
     template <KernelLanguage T_Enum>
     struct BaseKernelLanguageInfo

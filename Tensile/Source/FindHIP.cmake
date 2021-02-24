@@ -102,29 +102,10 @@ else()
 
     message(STATUS "HIPCC = ${HIPCC}")
 
-  if( DEFINED HIPCC)
-
-          set( HIP_PLATFORM "hcc" ) #fix this when final container is available
-    #export the environment variable, so that HIPCC can find it.
-          set(ENV{HIP_PLATFORM} "hcc")
-      # set (CMAKE_CXX_COMPILER ${HIPCC})
-
-  endif()
-
   include(FindPackageHandleStandardArgs)
   find_package_handle_standard_args(
     HIP
     FOUND_VAR HIP_FOUND
     REQUIRED_VARS HIP_PATH HIP_INCLUDE_DIRS HIPCC)
 
-  if( HIP_FOUND AND CMAKE_CXX_COMPILER MATCHES ".*/hcc$" )
-    find_dependency(HCC REQUIRED)
-
-    message(STATUS "HCC_FOUND = ${HCC_FOUND}")
-    message(STATUS "HCC = ${HCC}")
-    message(STATUS "HCC_INCLUDE_DIRS = ${HCC_INCLUDE_DIRS}")
-    message(STATUS "HSA_LIBRARIES = ${HSA_LIBRARIES}")
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-command-line-argument")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-command-line-argument")
-  endif()
 endif()

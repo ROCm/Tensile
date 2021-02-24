@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -130,9 +130,9 @@ def readLibraryLogicForSchedule( filename ):
   data = yaml.load(stream, yaml.SafeLoader)
   stream.close()
 
-  # verify
-  if len(data) < 6:
-    printExit("len(%s) %u < 7" % (filename, len(data)))
+  # verify data has all the fields we need
+  if len(data) < 9:
+    printExit("Library logic file %s is missing required fields (len = %u < 9)" % (filename, len(data)))
 
   # parse out objects
   versionString     = data[0]["MinimumRequiredVersion"]
@@ -264,7 +264,10 @@ class Writer:
       tileSelectionIndices = logicTuple[6]
       tileSelectionLogic["TileSelectionIndices"] = tileSelectionIndices
       data.append(tileSelectionLogic)
+    else:
+      data.append(None)
 
+    data.append(logicTuple[7])
     return data
 
 class YAMLWriter(Writer):
@@ -295,7 +298,7 @@ class MessagePackWriter(Writer):
       try:
         msgpack.pack(data, f)
       except NameError:
-        printExit("You must install MessagePack for Python to use Tensile (to parse config files). See https://github.com/msgpack/msgpack-python for installation instructions.") 
+        printExit("You must install MessagePack for Python to use Tensile (to parse config files). See https://github.com/msgpack/msgpack-python for installation instructions.")
 
 
   def writeLibraryLogicForSchedule(self, filePath, schedulePrefix, architectureName, \
@@ -315,4 +318,4 @@ class MessagePackWriter(Writer):
     except IOError:
       printExit("Cannot open file: %s" % filename)
     except NameError:
-      printExit("You must install MessagePack for Python to use Tensile (to parse config files). See https://github.com/msgpack/msgpack-python for installation instructions.") 
+      printExit("You must install MessagePack for Python to use Tensile (to parse config files). See https://github.com/msgpack/msgpack-python for installation instructions.")

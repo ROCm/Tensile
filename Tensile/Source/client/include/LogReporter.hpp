@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -93,6 +93,12 @@ namespace Tensile
                 using namespace ResultKey;
                 auto logLevel = args["log-level"].as<LogLevel>();
                 std::cout << "Log level: " << logLevel << std::endl;
+
+                PerformanceMetric metric = args["performance-metric"].as<PerformanceMetric>();
+                // Default to 'Overall' benchmarking if CUEfficiency not specified
+                const std::string perfUnit
+                    = (metric == PerformanceMetric::CUEfficiency ? SpeedGFlopsPerCu : SpeedGFlops);
+
                 return std::shared_ptr<LogReporter>(new LogReporter(logLevel,
                                                                     {BenchmarkRunNumber,
                                                                      ProblemProgress,
@@ -102,7 +108,7 @@ namespace Tensile
                                                                      SolutionName,
                                                                      Validation,
                                                                      TimeUS,
-                                                                     SpeedGFlops,
+                                                                     perfUnit,
                                                                      Empty,
                                                                      TotalGranularity,
                                                                      TilesPerCu,

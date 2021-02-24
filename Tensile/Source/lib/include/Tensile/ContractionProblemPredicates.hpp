@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -1053,6 +1053,41 @@ namespace Tensile
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     return problem.stridedBatched() == value;
+                }
+            };
+
+            struct CUEfficiency : public Predicate_CRTP<CUEfficiency, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+
+                CUEfficiency() = default;
+
+                static std::string Type()
+                {
+                    return "CUEfficiency";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    if(problem.performanceMetric() == PerformanceMetric::CUEfficiency)
+                    {
+                        return true;
+                    }
+                    else if(problem.performanceMetric() == PerformanceMetric::Best)
+                    {
+                        // True if total flops below a constant threshold
+                        // Current threshold chosen naively as the flops for a
+                        // 1500x1500 square matrix multiply
+                        return problem.flopCount() < size_t(1500ll * 1500ll * 1500ll * 2);
+                    }
+                    else
+                    {
+                        return false;
+                    }
                 }
             };
         } // namespace Contraction

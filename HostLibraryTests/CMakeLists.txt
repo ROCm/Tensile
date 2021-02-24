@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -133,6 +133,7 @@ if(TENSILE_USE_LLVM)
         ContractionLibraryLoading_test.cpp
         ContractionFitness_test.cpp
         llvm/ArithmeticUnitPredicate_test.cpp
+        llvm/CUEfficiencyPredicate_test.cpp
         llvm/DeterministicModePredicate_test.cpp
         llvm/KernelLanguagePredicate_test.cpp
         llvm/LLVMYAMLContraction_test.cpp
@@ -192,4 +193,3 @@ endif()
 if(TENSILE_USE_OPENMP)
     target_link_libraries(TensileTests PRIVATE "${OpenMP_EXE_LINKER_FLAGS}")
 endif()
-

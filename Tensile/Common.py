@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -50,7 +50,8 @@ workingDirectoryStack = []
 ########################################
 # common
 ########################################
-globalParameters["MinimumRequiredVersion"] = "0.0.0"  # which version of tensile is required to handle all the features required by this configuration file
+globalParameters["MinimumRequiredVersion"] = "0.0.0" # which version of tensile is required to handle all the features required by this configuration file
+globalParameters["PerformanceMetric"] = "Overall"    # performance metric for benchmarking; one of {Overall, CUEfficiency}
 globalParameters["PrintLevel"] = 1                # how much info to print in generator. 0=none, 1=standard, 2=verbose
 globalParameters["ClientLogLevel"] = 3            # the log level of client. 0=Error, 1=Terse, 2=Verbose, 3=Debug (Aligned with ResultReporter.hpp)
 # benchmarking
@@ -221,7 +222,6 @@ globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to us
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source") # path to Tensile/Source/
 globalParameters["HipClangVersion"] = "0,0,0"
-globalParameters["HccVersion"] = "0,0,0"
 
 # default runtime is selected based on operating system, user can override
 if os.name == "nt":
@@ -1494,9 +1494,6 @@ def GetAsmCaps(isaVersion):
 
   rv["SupportedSource"] = True
 
-  if globalParameters["CxxCompiler"] == "hcc" and isaVersion[0] == 10:
-    rv["SupportedISA"] = 0
-
   return rv
 
 def GetArchCaps(isaVersion):
@@ -1654,15 +1651,10 @@ def assignGlobalParameters( config ):
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
   elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hipcc":
     globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang++")
-  elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hcc":
-    globalParameters["AssemblerPath"] = locateExe(globalParameters["ROCmBinPath"], "hcc")
 
   globalParameters["ROCmSMIPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm-smi")
-  if globalParameters["CxxCompiler"] == "hcc":
-    globalParameters["ExtractKernelPath"] = locateExe(globalParameters["ROCmBinPath"], "extractkernel")
-  else:
-    globalParameters["ExtractKernelPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "hip/bin"), "extractkernel")
-    globalParameters["ClangOffloadBundlerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang-offload-bundler")
+  globalParameters["ExtractKernelPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "hip/bin"), "extractkernel")
+  globalParameters["ClangOffloadBundlerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang-offload-bundler")
 
   if "ROCmAgentEnumeratorPath" in config:
     globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
@@ -1705,19 +1697,15 @@ def assignGlobalParameters( config ):
   # The alternative would be to install the `distro` package.
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
   try:
-    if globalParameters["CxxCompiler"] == "hipcc":
-      output = subprocess.run(["dpkg", "-l", "hip-rocclr"], check=True, stdout=subprocess.PIPE).stdout.decode()
-    elif globalParameters["CxxCompiler"] == "hcc":
-      output = subprocess.run(["dpkg", "-l", "hcc"], check=True, stdout=subprocess.PIPE).stdout.decode()
+    output = subprocess.run(["hipcc", "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
 
     for line in output.split('\n'):
-      if 'hipcc' in line:
+      if 'HIP' in line:
         globalParameters['HipClangVersion'] = line.split()[2]
-      elif 'hcc' in line:
-        globalParameters['HccVersion'] = line.split()[2]
+        print1("# Found  hipcc version " + globalParameters['HipClangVersion'])
 
   except (subprocess.CalledProcessError, OSError) as e:
-      printWarning("Error: {} looking for package {}: {}".format('dpkg', 'hip-rocclr', e))
+      printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))
 
   for key in config:
     value = config[key]

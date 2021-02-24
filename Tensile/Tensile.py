@@ -116,7 +116,7 @@ def addCommonArguments(argParser):
       help="use serial kernel and solution names")
   argParser.add_argument("--no-merge-files", dest="noMergeFiles", action="store_true", \
       help="kernels and solutions written to individual files")
-  argParser.add_argument("--cxx-compiler", dest="CxxCompiler", choices=["hcc", "hipcc"], \
+  argParser.add_argument("--cxx-compiler", dest="CxxCompiler", choices=["hipcc"], \
       action="store", default="hipcc", help="select which compiler to use")
   argParser.add_argument("--library-format", dest="LibraryFormat", choices=["yaml", "msgpack"], \
       action="store", default="yaml", help="select which library format to use")
@@ -192,8 +192,6 @@ def Tensile(userArgs):
       help="path where to conduct benchmark")
   argParser.add_argument("--version", action="version", \
       version="%(prog)s {version}".format(version=__version__))
-  # argParser.add_argument("--hcc-version", dest="HccVersion", \
-  #     help="This can affect what opcodes are emitted by the assembler")
   addCommonArguments(argParser)
 
   # parse arguments

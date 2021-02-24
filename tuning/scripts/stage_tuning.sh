@@ -1,5 +1,26 @@
 #!/bin/bash
 
+################################################################################
+# Copyright 2018-2021 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
+# ies of the Software, and to permit persons to whom the Software is furnished
+# to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
+# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
+# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+################################################################################
+
 function make_tensile_tuning() {
 
   local FILE_PATH=$1
@@ -17,7 +38,7 @@ function make_tensile_tuning() {
     echo "#!/bin/sh"
     echo "if [ ! -d 3_LibraryLogic ] || [ -z \"\$(ls -A 3_LibraryLogic)\" ]; then"
     echo "  touch time.begin"
-    echo "  ${TENSILE}/Tensile/bin/Tensile ${FILE_NAME} ./ > make.out 2>&1"
+    echo "  ${TENSILE}/Tensile/bin/Tensile ${FILE_NAME} ./ > tuning.out 2>&1"
     echo "  touch time.end"
     echo "fi"
   } > runTensileTuning.sh
@@ -79,7 +100,7 @@ done
   echo "for dir in${DIRS}"
   echo "do"
   echo "  cd build-\${dir} || exit"
-  echo "  ./doit.sh > doit-errs 2>&1"
+  echo "  ./runTensileTuning.sh > tuning-errs.out 2>&1"
   echo "  cd .."
   echo "done"
 } >> "${DOIT}"

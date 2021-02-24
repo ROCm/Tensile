@@ -1,3 +1,24 @@
+################################################################################
+# Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
+# ies of the Software, and to permit persons to whom the Software is furnished
+# to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
+# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
+# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+################################################################################
+
 import pytest
 import subprocess
 from collections import namedtuple
@@ -50,7 +71,7 @@ def run_contraction(tensile_args, tmp_path, run_generate_yaml, request, tensile_
 
 @pytest.fixture
 def run_convolution_vs_contraction(tensile_args, tmp_path, file_with_test_name, tensile_script_path):
-    def run(conv, problemType={}, solution=Solutions.defaultSolution(), dataType='s'):
+    def run(conv, problemType={}, solution=Solutions.src1, dataType='s'):
         config = YamlBuilder.ConvolutionVsContraction(conv, solution, dataType)
         configFile = file_with_test_name(".conv.yaml")
         config.write(configFile)
