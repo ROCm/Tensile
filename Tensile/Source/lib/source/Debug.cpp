@@ -114,6 +114,11 @@ namespace Tensile
         return m_value2 & 0x1;
     }
 
+    bool Debug::enableDebugSelection() const
+    {
+        return m_debugSelection;
+    }
+
     Debug::Debug()
         : m_value(DEBUG_SM)
         , m_value2(DEBUG_SM2)
@@ -129,6 +134,10 @@ namespace Tensile
         const char* naive = std::getenv("TENSILE_NAIVE_SEARCH");
         if(naive)
             m_naivePropertySearch = strtol(naive, nullptr, 0) != 0;
+
+        const char* db_select = std::getenv("TENSILE_TAM_SELECTION_ENABLE");
+        if(db_select)
+            m_debugSelection = strtol(db_select, nullptr, 0) != 0;
     }
 
 } // namespace Tensile

@@ -61,6 +61,7 @@ namespace Tensile
                 iot::mapRequired(io, "debugKernel", s.debugKernel);
                 iot::mapRequired(io, "info", s.info);
                 iot::mapOptional(io, "ideals", s.ideals);
+                iot::mapOptional(io, "linearModel", s.linearModel);
 
                 iot::mapRequired(io, "sizeMapping", s.sizeMapping);
                 iot::mapRequired(io, "problemType", s.problemType);
@@ -116,6 +117,20 @@ namespace Tensile
                 iot::mapOptional(io, "useInitialStridesAB", s.useInitialStridesAB);
                 iot::mapOptional(io, "useInitialStridesCD", s.useInitialStridesCD);
                 iot::mapOptional(io, "stridedBatched", s.stridedBatched);
+            }
+
+            const static bool flow = false;
+        };
+
+        template <typename IO>
+        struct MappingTraits<ContractionSolution::LinearModel, IO>
+        {
+            using iot = IOTraits<IO>;
+            static void mapping(IO& io, ContractionSolution::LinearModel& s)
+            {
+                iot::mapOptional(io, "slope", s.slope);
+                iot::mapOptional(io, "intercept", s.intercept);
+                iot::mapOptional(io, "max", s.max);
             }
 
             const static bool flow = false;

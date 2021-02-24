@@ -1040,6 +1040,81 @@ namespace Tensile
         return size;
     }
 
+    ContractionSolution::Granularities ContractionSolution::computeGranularities(
+        Hardware const& hardware, double M, double N, double K, double NumBatches) const
+    {
+        ContractionSolution::Granularities granularities;
+
+        double MT0           = sizeMapping.macroTile.x;
+        double MT1           = sizeMapping.macroTile.y;
+        double NumCUs        = perf.CUs;
+        double wavefrontSize = 64; //defaults to 64
+        double simdPerCu     = 4;
+
+        AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
+        if(pAMDGPU != nullptr)
+        {
+            NumCUs        = pAMDGPU->computeUnitCount;
+            wavefrontSize = pAMDGPU->wavefrontSize;
+            simdPerCu     = pAMDGPU->simdPerCu;
+        }
+
+        double GlobalSplitU = sizeMapping.globalSplitU;
+        double LocalSplitU  = sizeMapping.workGroupSize.z;
+
+        granularities.MT0 = MT0;
+        granularities.MT1 = MT1;
+        granularities.GSU = GlobalSplitU;
+        granularities.LSU = LocalSplitU;
+        granularities.CUs = NumCUs;
+
+        granularities.numTiles0 = M / MT0;
+        granularities.numTiles1 = N / MT1;
+
+        granularities.tile0Granularity = granularities.numTiles0 / ceil(granularities.numTiles0);
+        granularities.tile1Granularity = granularities.numTiles1 / ceil(granularities.numTiles1);
+
+        granularities.tilesPerCu
+            = (NumBatches * ceil(granularities.numTiles0) * ceil(granularities.numTiles1))
+              / (NumCUs / GlobalSplitU / LocalSplitU);
+
+        granularities.totalTiles    = ceil(granularities.numTiles0) * ceil(granularities.numTiles1);
+        granularities.natTilesPerCu = NumBatches * granularities.totalTiles / NumCUs;
+        granularities.suTilesPerCu  = (granularities.totalTiles * GlobalSplitU) / NumCUs;
+        granularities.suCuGranularity
+            = granularities.suTilesPerCu / ceil(granularities.suTilesPerCu);
+
+        granularities.waveGranularity = std::min(
+            1.00,
+            static_cast<double>(floor(granularities.tilesPerCu + 1.0) * sizeMapping.workGroupSize.x
+                                * sizeMapping.workGroupSize.y * sizeMapping.workGroupSize.z)
+                / pAMDGPU->wavefrontSize / pAMDGPU->simdPerCu);
+
+        granularities.waves
+            = ceil((sizeMapping.workGroupSize.x * sizeMapping.workGroupSize.y) / wavefrontSize);
+
+        granularities.suWavesPerSimdx2
+            = (granularities.suTilesPerCu * granularities.waves) / (2 * simdPerCu);
+        granularities.suWaveGranularity
+            = granularities.suWavesPerSimdx2 * ceil(granularities.suWavesPerSimdx2);
+
+        double nat_tiles_per_cu
+            = NumBatches * ceil(granularities.numTiles0) * ceil(granularities.numTiles1) / NumCUs;
+        granularities.natCuGranularity = ceil(nat_tiles_per_cu) * ceil(nat_tiles_per_cu) / NumCUs;
+
+        granularities.cuGranularity = granularities.tilesPerCu / ceil(granularities.tilesPerCu);
+
+        granularities.totalGranularity
+            = granularities.tile0Granularity * granularities.tile1Granularity
+              * granularities.cuGranularity * granularities.waveGranularity;
+
+        granularities.totalTileAwareGranularity
+            = granularities.tile0Granularity * granularities.tile1Granularity
+              * granularities.suCuGranularity * granularities.suWaveGranularity;
+
+        return granularities;
+    }
+
     ContractionSolution::ProjectedPerformance
         ContractionSolution::projectedPerformance(Problem const&  problem,
                                                   Hardware const& hardware) const
@@ -1075,6 +1150,8 @@ namespace Tensile
         }
         double K = problem.boundSize(0); // TODO - fix for multiple summations
 
+        pp.granularities = ContractionSolution::computeGranularities(hardware, M, N, K, NumBatches);
+
         auto it = ideals.begin();
 
         int    closestK            = -1;
@@ -1094,45 +1171,130 @@ namespace Tensile
             it++;
         }
 
-        double MT0 = sizeMapping.macroTile.x;
-        double MT1 = sizeMapping.macroTile.y;
+        double MT0    = pp.granularities.MT0;
+        double MT1    = pp.granularities.MT1;
+        double NumCUs = pp.granularities.CUs;
 
-        double NumCUs = perf.CUs;
-
-        AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
-        if(pAMDGPU != nullptr)
-        {
-            NumCUs = pAMDGPU->computeUnitCount;
-        }
-
-        double GlobalSplitU         = sizeMapping.globalSplitU;
-        double LocalSplitU          = sizeMapping.workGroupSize.z;
+        double GlobalSplitU         = pp.granularities.GSU;
+        double LocalSplitU          = pp.granularities.LSU;
         double IdealGranularityPerf = closestKPerformance;
 
-        pp.numTiles0 = M / MT0;
-        pp.numTiles1 = N / MT1;
-
-        pp.tilesPerCu = (NumBatches * ceil(pp.numTiles0) * ceil(pp.numTiles1))
-                        / (NumCUs / GlobalSplitU / LocalSplitU);
-        pp.tile0Granularity = pp.numTiles0 / ceil(pp.numTiles0);
-        pp.tile1Granularity = pp.numTiles1 / ceil(pp.numTiles1);
-
-        pp.waveGranularity = std::min(
-            1.00,
-            static_cast<double>(floor(pp.tilesPerCu + 1.0) * sizeMapping.workGroupSize.x
-                                * sizeMapping.workGroupSize.y * sizeMapping.workGroupSize.z)
-                / pAMDGPU->wavefrontSize / pAMDGPU->simdPerCu);
-
-        pp.cuGranularity = pp.tilesPerCu / ceil(pp.tilesPerCu);
-        pp.totalGranularity
-            = pp.tile0Granularity * pp.tile1Granularity * pp.cuGranularity * pp.waveGranularity;
-
-        pp.speedGFlops = IdealGranularityPerf * pp.totalGranularity;
-
         pp.staticModel = staticPerformanceModel(
-            M, N, K, NumBatches, MT0, MT1, NumCUs, pp.totalGranularity, GlobalSplitU);
+            M, N, K, NumBatches, MT0, MT1, NumCUs, pp.granularities.totalGranularity, GlobalSplitU);
+
+        pp.speedGFlops = IdealGranularityPerf * pp.granularities.totalGranularity;
+        pp.CUs         = NumCUs;
 
         return pp;
+    }
+
+    ContractionSolution::TAMetricProblemScore ContractionSolution::computeProblemScore(
+        Hardware const& hardware, double M, double N, double K, double NumBatches) const
+    {
+        ContractionSolution::TAMetricProblemScore pp;
+        pp.granularites = ContractionSolution::computeGranularities(hardware, M, N, K, NumBatches);
+
+        pp.M = M;
+        pp.N = N;
+        pp.K = K;
+
+        double slope     = linearModel.slope;
+        double intercept = linearModel.intercept;
+        double perf_max  = linearModel.max;
+
+        double sum_value        = K;
+        double sum_perf0        = sum_value / (intercept + (slope * sum_value));
+        pp.summationPerformance = 1000.0 * sum_perf0 / perf_max;
+
+        return pp;
+    }
+
+    double ContractionSolution::computeTileAwareMetric(
+        ContractionSolution::TAMetricProblemScore pp,
+        ContractionSolution::TAMetricProblemScore ppReference) const
+    {
+        double metric = 0.0;
+
+        double tile0GranularityDim = abs(log(ppReference.granularites.tile0Granularity)
+                                         - log(pp.granularites.tile0Granularity));
+        metric                     = tile0GranularityDim;
+
+        double tile1GranularityDim = abs(log(ppReference.granularites.tile1Granularity)
+                                         - log(pp.granularites.tile1Granularity));
+        metric += tile1GranularityDim;
+
+        double natCuGranularityDim = abs(log(ppReference.granularites.natCuGranularity)
+                                         - log(pp.granularites.natCuGranularity));
+        metric += natCuGranularityDim;
+
+        double suCuGranularityDim = abs(log(ppReference.granularites.suCuGranularity)
+                                        - log(pp.granularites.suCuGranularity));
+        metric += suCuGranularityDim;
+
+        double suWaveGranularityDim = abs(log(ppReference.granularites.suWaveGranularity)
+                                          - log(pp.granularites.suWaveGranularity));
+        metric += suWaveGranularityDim;
+
+        double natTilesPerCuDim
+            = abs(log(ppReference.granularites.natTilesPerCu) - log(pp.granularites.natTilesPerCu));
+        metric += natTilesPerCuDim;
+
+        double suTilesPerCuDim
+            = abs(log(ppReference.granularites.suTilesPerCu) - log(pp.granularites.suTilesPerCu));
+        metric += suTilesPerCuDim;
+
+        double summationPerformanceDim
+            = abs(ppReference.summationPerformance - pp.summationPerformance);
+        metric += summationPerformanceDim;
+
+        return metric;
+    }
+
+    double ContractionSolution::computeTAMScore(Problem const&  problem,
+                                                Hardware const& hardware,
+                                                double          model_M,
+                                                double          model_N,
+                                                double          model_K,
+                                                double          model_NumBatches) const
+    {
+        double M = 1.0, N = 1.0;
+        if(problem.freeIndicesA().size() > 1 || sizeMapping.packBatchDims & 0x1)
+        {
+            std::vector<size_t> packedIndices
+                = generatePackedIndicesA(problem, sizeMapping.packBatchDims);
+            for(auto pi = packedIndices.begin(); pi != packedIndices.end(); pi++)
+                M *= problem.a().sizes()[*pi];
+        }
+        else
+            M = problem.freeSizeA(0);
+
+        if(problem.freeIndicesB().size() > 1 || sizeMapping.packBatchDims & 0x2)
+        {
+            std::vector<size_t> packedIndices
+                = generatePackedIndicesB(problem, sizeMapping.packBatchDims);
+            for(auto pi = packedIndices.begin(); pi != packedIndices.end(); pi++)
+                N *= problem.b().sizes()[*pi];
+        }
+        else
+            N = problem.freeSizeB(0);
+
+        double NumBatches = 1;
+        if(sizeMapping.packBatchDims == 0)
+        {
+            for(size_t i = 0; i < problem.batchIndices().size(); i++)
+                NumBatches *= problem.batchSize(i);
+        }
+        double K = problem.boundSize(0); // TODO - fix for multiple summations
+
+        ContractionSolution::TAMetricProblemScore pp
+            = computeProblemScore(hardware, M, N, K, NumBatches);
+
+        ContractionSolution::TAMetricProblemScore ppReference
+            = computeProblemScore(hardware, model_M, model_N, model_K, model_NumBatches);
+
+        double distance = computeTileAwareMetric(pp, ppReference);
+
+        return distance;
     }
 
     std::ostream& operator<<(std::ostream&                                      stream,
@@ -1147,14 +1309,15 @@ namespace Tensile
     std::ostream& operator<<(std::ostream&                                    stream,
                              ContractionSolution::ProjectedPerformance const& pp)
     {
-        return stream << " numTiles0=" << pp.numTiles0 << " numTiles1=" << pp.numTiles1
-                      << " tilesPerCu=" << pp.tilesPerCu
+        return stream << " numTiles0=" << pp.granularities.numTiles0
+                      << " numTiles1=" << pp.granularities.numTiles1
+                      << " tilesPerCu=" << pp.granularities.tilesPerCu
 
-                      << " totalGranularity=" << pp.totalGranularity
-                      << " tile0Granularity=" << pp.tile0Granularity
-                      << " tile1Granularity=" << pp.tile1Granularity
-                      << " cuGranularity=" << pp.cuGranularity
-                      << " waveGranularity=" << pp.waveGranularity
+                      << " totalGranularity=" << pp.granularities.totalGranularity
+                      << " tile0Granularity=" << pp.granularities.tile0Granularity
+                      << " tile1Granularity=" << pp.granularities.tile1Granularity
+                      << " cuGranularity=" << pp.granularities.cuGranularity
+                      << " waveGranularity=" << pp.granularities.waveGranularity
 
                       << " speedGFlops=" << pp.speedGFlops
 

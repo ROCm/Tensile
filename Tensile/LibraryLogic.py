@@ -27,6 +27,7 @@ from . import SolutionSelectionLibrary
 
 from copy import deepcopy
 from sys import stdout
+
 import array
 import csv
 import os

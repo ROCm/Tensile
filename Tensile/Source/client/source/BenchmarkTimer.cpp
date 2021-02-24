@@ -83,14 +83,14 @@ namespace Tensile
                 = solution.projectedPerformance(m_problem, m_hardware);
             m_solution = solution;
 
-            m_reporter->report(ResultKey::Tile0Granularity, pp.tile0Granularity);
-            m_reporter->report(ResultKey::Tile1Granularity, pp.tile1Granularity);
-            m_reporter->report(ResultKey::CuGranularity, pp.cuGranularity);
-            m_reporter->report(ResultKey::WaveGranularity, pp.waveGranularity);
-            m_reporter->report(ResultKey::TotalGranularity, pp.totalGranularity);
+            m_reporter->report(ResultKey::Tile0Granularity, pp.granularities.tile0Granularity);
+            m_reporter->report(ResultKey::Tile1Granularity, pp.granularities.tile1Granularity);
+            m_reporter->report(ResultKey::CuGranularity, pp.granularities.cuGranularity);
+            m_reporter->report(ResultKey::WaveGranularity, pp.granularities.waveGranularity);
+            m_reporter->report(ResultKey::TotalGranularity, pp.granularities.totalGranularity);
 
             m_reporter->report(ResultKey::NumCus, perf.CUs);
-            m_reporter->report(ResultKey::TilesPerCu, pp.tilesPerCu);
+            m_reporter->report(ResultKey::TilesPerCu, pp.granularities.tilesPerCu);
             m_reporter->report(ResultKey::MemReadBytes, pp.staticModel.memReadBytes);
             m_reporter->report(ResultKey::MemWriteBytes, pp.staticModel.memWriteBytesD);
         }
@@ -104,7 +104,7 @@ namespace Tensile
                 = m_solution.projectedPerformance(m_problem, m_hardware);
 
             double gflops      = m_problem.flopCount() / (timePerEnqueue_us) / 1000.0;
-            int    tiles       = pp.tilesPerCu * perf.CUs;
+            int    tiles       = pp.granularities.tilesPerCu * perf.CUs;
             int    usedCus     = std::min(tiles, perf.CUs);
             double gflopsPerCu = gflops / usedCus;
 
