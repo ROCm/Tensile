@@ -1717,12 +1717,13 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def lraTileAssignment(self, kernel, tP):
     kStr = ""
-    if tP["tileChar"] == 'A':
+    if tP["tensorChar"] == 'A':
       kStr += "  unsigned int lr%s = (serial %% SG%s);%s" \
           % (tP["tileChar"], self.tileChar0, self.endLine)
-    elif tP["tileChar"] == 'B':
+    elif tP["tensorChar"] == 'B':
       kStr += "  unsigned int lr%s = (serial / SG%s) %% SG%s;%s" \
         % (tP["tileChar"], self.tileChar0, self.tileChar1, self.endLine)
+
     return kStr
 
   ##############################################################################
