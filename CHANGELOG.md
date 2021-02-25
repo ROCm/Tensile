@@ -1,6 +1,6 @@
 # Change Log for Tensile
 
-## [(Unreleased) Tensile 4.27.0 for ROCm 4.2.0]
+## [Tensile 4.27.0 for ROCm 4.2.0]
 ### Added
 - Benchmarking and library support for CU efficiency vs. overall speed
 - support general batch GEMM
