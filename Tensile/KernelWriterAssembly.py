@@ -3764,7 +3764,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["WaveSeparateGlobalRead%s"%tc]:
       kStr += inst("v_readfirstlane_b32", sgpr(tmpSgpr), vgpr("Serial"), "WaveIdxWavefrontWidth")
-      kStr += inst("s_lshr_b32", sgpr(tmpSgpr), sgpr(tmpSgpr), hex(log2(globalParameters["WavefrontWidth"])), "WaveId")
+      kStr += inst("s_lshr_b32", sgpr(tmpSgpr), sgpr(tmpSgpr), hex(log2(self.kernel["WavefrontSize"])), "WaveId")
       kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr), kernel[tP["lsp"]] * tP["nrp"], \
           "Global Read Wave: each wave loads continuous lsp(%u)*nrp(%u) columns" % (kernel[tP["lsp"]], tP["nrp"]))
       kStr += inst("_v_add_u32", vgpr(qReg), sgpr(tmpSgpr), vgpr(qReg), \
@@ -10797,6 +10797,9 @@ class KernelWriterAssembly(KernelWriter):
       tmpS01 = tmpSgpr
       tmpS23 = tmpSgpr+2
 
+      laneSGPRCount = self.kernelWriter.laneSGPRCount
+      wavefrontSize = kernel["WavefrontSize"]
+
       # Now do the edge check and compute the address in bytes:
       if kernel["BufferStore"]:
         if edge and (not kernel["StoreRemapVectorWidth"] or (kernel["StoreRemapVectorWidth"] and beta)):
@@ -10810,13 +10813,13 @@ class KernelWriterAssembly(KernelWriter):
               sgpr("PackedSize1") if len(kernel["PackedC1IndicesX"]) > 1 \
               else kw.sizeRef(kernel["ProblemType"]["Index1"])
 
-          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(self.coord0Vgpr), sizeBoundary[0], "coord0 < size0" )
-          kStr += inst("v_cmp_lt_u32",  sgpr(mask,2), vgpr(self.coord1Vgpr), sizeBoundary[1], "coord1 < size1" )
-          kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "in0 && in1" )
+          kStr += inst("v_cmp_lt_u32", sgpr(tmpS01,laneSGPRCount), vgpr(self.coord0Vgpr), sizeBoundary[0], "coord0 < size0" )
+          kStr += inst("v_cmp_lt_u32", sgpr(mask,laneSGPRCount), vgpr(self.coord1Vgpr), sizeBoundary[1], "coord1 < size1" )
+          kStr += inst("s_and_b{}".format(wavefrontSize), sgpr(mask,laneSGPRCount), sgpr(tmpS01,laneSGPRCount), sgpr(mask,laneSGPRCount), "in0 && in1" )
       else:
-        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(self.coord0Vgpr), sgpr("SizesFree+0"), "coord0 < size0" )
-        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.coord1Vgpr), sgpr("SizesFree+1"), "coord1 < size1" )
-        kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
+        kStr += inst("v_cmp_lt_u32", sgpr(tmpS01,laneSGPRCount), vgpr(self.coord0Vgpr), sgpr("SizesFree+0"), "coord0 < size0" )
+        kStr += inst("v_cmp_lt_u32", sgpr(tmpS23,laneSGPRCount), vgpr(self.coord1Vgpr), sgpr("SizesFree+1"), "coord1 < size1" )
+        kStr += inst("s_and_b{}".format(wavefrontSize),  sgpr(mask,laneSGPRCount), sgpr(tmpS01,laneSGPRCount), sgpr(tmpS23,laneSGPRCount), "in0 && in1" )
 
         if (beta or atomic):
           kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
@@ -10931,12 +10934,14 @@ class KernelWriterAssembly(KernelWriter):
       Generate code for final C read/D write address
       """
 
+      laneSGPRCount = self.kernelWriter.laneSGPRCount
+
       kStr = ""
       if kernel["BufferStore"]:
         kStr += self.emitScaleToBpe(kernel, ss, tmpVgpr, singleUpdate, tc)
         if edge and (not kernel["StoreRemapVectorWidth"] or (kernel["StoreRemapVectorWidth"] and beta)):
           kStr += inst("v_cndmask_b32", vgpr(self.addrVgpr), -1, vgpr(self.addrVgpr), \
-                       sgpr(mask,2), "LD%s clip if OOB. offset" % tc )
+                       sgpr(mask,laneSGPRCount), "LD%s clip if OOB. offset" % tc )
       else:
         # store a copy of the offset in 2 of the tmpVgpr for D
         kStr += inst("_v_add_co_u32",  vgpr(addr+0), self.kernelWriter.vcc, vgpr(BufAddr+0), vgpr(tmpVgpr+2), \
@@ -11180,18 +11185,16 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_readfirstlane_b32", sgpr("Alpha"), vgpr(alphaVgprTmp), "restore alpha sgpr")
       self.vgprPool.checkIn(alphaVgprTmp)
 
-      #jgolds look at moving these converted values back to scalar regs and free up the VGPRs
-      # ethan if using (h,h,h,h,s,s) + HPA then the host should pass in an F32 alpha, we don't have to do the cvt
       if beta:
+        #jgolds look at moving these converted values back to scalar regs and free up the VGPRs
         # TODO - for hpa the host should pass in an F32 alpha so we don't have to do it here
-        if kernel["ProblemType"]["HighPrecisionAccumulate"]:
-          self.betaVgpr = self.vgprPool.checkOut(1, "beta")
-          kStr += inst("v_mov_b32", vgpr(self.betaVgpr), sgpr("Beta"), "sgpr -> vgpr b/c op_sel")
-          kStr += inst("v_cvt_f32_f16", vgpr(self.betaVgpr), vgpr(self.betaVgpr), "convert beta to fp32")
-          if self.betaInSgpr:
-            kStr += inst("v_readfirstlane_b32", sgpr("Beta"), vgpr(self.betaVgpr), "restore beta sgpr")
-            self.vgprPool.checkIn(self.betaVgpr)
-            self.betaVgpr = None
+        self.betaVgpr = self.vgprPool.checkOut(1, "beta")
+        kStr += inst("v_mov_b32", vgpr(self.betaVgpr), sgpr("Beta"), "sgpr -> vgpr b/c op_sel")
+        kStr += inst("v_cvt_f32_f16", vgpr(self.betaVgpr), vgpr(self.betaVgpr), "convert beta to fp32")
+        if self.betaInSgpr:
+          kStr += inst("v_readfirstlane_b32", sgpr("Beta"), vgpr(self.betaVgpr), "restore beta sgpr")
+          self.vgprPool.checkIn(self.betaVgpr)
+          self.betaVgpr = None
 
     ########################################
     # Vgprs
@@ -11886,6 +11889,13 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.applyAlpha(kernel, gwvw, ss.elementSumIdx, elementIdx, tmpS01)
 
       if not kernel["BufferStore"]:
+        offsetSrc = (tmpVgpr+2) if beta else addr
+
+        kStr += inst("_v_add_co_u32",  vgpr(addr+0), self.vcc, vgpr(addrD+0), \
+            vgpr(offsetSrc+0), "addr = D + index*bytes (lo)" )
+        kStr += inst("_v_addc_co_u32", vgpr(addr+1), self.vcc, vgpr(addrD+1), \
+            vgpr(offsetSrc+1), self.vcc, "addr = D + index*bytes (hi)")
+
         # restore full exec mask for calculating addr of next element
         if edge and (beta or atomic):
           kStr += inst("s_mov_b64", "exec", -1, "full mask -1 -> exec" )
