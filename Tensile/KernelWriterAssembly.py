@@ -7234,7 +7234,7 @@ class KernelWriterAssembly(KernelWriter):
                           comment="load one flat value").toStr()
 
                 # restore full exec mask
-                kStr += inst("s_or_saveexec_b64", self.vcc, sgpr(fullExec,2), \
+                kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr(fullExec,self.laneSGPRCount), \
                     "all threads active")
 
                 # increment address by 1 element (BPE)
@@ -8833,7 +8833,7 @@ class KernelWriterAssembly(KernelWriter):
         # end shift reset mask and jump out
         kStr += inst("s_mov_b64", sgpr(tmpSgpr,2), \
             "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
-        kStr += inst("s_or_saveexec_b64", self.vcc, sgpr(tmpSgpr,2), "all threads active")
+        kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr(tmpSgpr,self.laneSGPRCount), "all threads active")
         kStr += inst("s_branch label_%04u"%svrLabels[vw-1], "done shifting" )
     #kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), "location=%u"%location) location *= 2
     #kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
@@ -9028,7 +9028,7 @@ class KernelWriterAssembly(KernelWriter):
 
           # end shift reset mask and jump out
           kStr += inst("s_mov_b64", sgpr(tmpSgpr,2), "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
-          kStr += inst("s_or_saveexec_b64", self.vcc, sgpr(tmpSgpr,2), "all threads active")
+          kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr(tmpSgpr,self.laneSGPRCount), "all threads active")
           kStr += inst("s_branch label_%04u" % svrLabels[glvw-1], "done shifting" )
 
     kStr += "label_%04u: // end shift0%s" % (svrLabels[glvw-1], self.endLine)
