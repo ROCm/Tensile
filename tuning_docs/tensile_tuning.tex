@@ -104,14 +104,14 @@ The results of the tuning will produce the ideal kernel from within the kernel s
 
 \section{Basic Example (Hello Tensile Tuning)}
 
-As a simple example of running the tuning application, look at the configuration file tuning.yaml. This provides Tensile with the specifications for a simple tuning run using Tensile: the content will be described in more detail latter in this document. The following example shows how to execute a full round of tuning using Tensile.
+As a simple example of running the tuning application, look at the configuration file \emph{tuning.yaml}. This provides Tensile with the specifications for a simple tuning run using Tensile: the content will be described in more detail latter in this document. The following example shows how to execute a full round of tuning using Tensile.
 
 \begin{lstlisting}[language=bash,breaklines=true]
 
 # clone Tensile
 git clone https://github.com/ROCmSoftwarePlatform/Tensile.git
 
-# setup tuning run
+# set up tuning run
 cd Tensile
 mkdir build
 cd build
@@ -212,18 +212,18 @@ The tensile tuning application is executed using the following command:
 ./Tensile/bin/Tensile config_file output_path
 \end{lstlisting}
 
-\begin{verbatim}
+\begin{lstlisting}
 arguments:
  config_file           benchmark config.yaml file
  output_path           path where to conduct benchmark
-\end{verbatim}
+\end{lstlisting}
 
 Tensile takes a tuning configuration file \emph{tuning\_config.yaml} as input. This file provides all the specification of the tuning, including the global context---such as the print level and build type (Release|Debug)---as well as the sets of parameters used to specify the problem, sizes and definition of the kernels used for benchmarking. Tensile will produce, as a result of the tuning, a \emph{Cijk\_Ailk\_Bljk.yaml} file (called the logic file) which contains all the information needed to build the final Tensile library. This includes the kernel objects and the definitions of the mappings which map a given input to the optimized kernel for that input.
 
 
 \subsection{The Tensile Tuning Configuration}
 
-The Tensile tuning configuration (tuning.yaml file) defines the context which drives the tuning for a complete or partial tuning pass. There are 4 sections defined in this configuration which do not directly correspond to the directories defined in the previous section. The sections are
+The Tensile tuning configuration (\emph{tuning.yaml}) defines the context which drives the tuning for a complete or partial tuning pass. There are 4 sections defined in this configuration which do not directly correspond to the directories defined in the previous section. The sections are
 
 \begin{description}
 \item[GlobalParameters] The set of parameters which provides context for the entire tuning exercise.
@@ -636,7 +636,7 @@ The Tensile components (logic files) which rocblas uses as the default library a
 
 The process for tuning is done incrementally. We do not perform the tuning on the full set of sizes for each exercise, but rather in stages as the need arises, such as when there is a particular size that is of interest. This means that the final product contains the sizes and kernels from many separate tuning exercise. Therefore, the results of each tuning exercise must be merged. To do so, there is a utility that merges the results of the logic contained in separate files. This script is located in the Tensile repo under Tensile/Tensile/Utilities.
 
-\begin{verbatim}
+\begin{lstlisting}
 usage: merge.py [-h] [--force_merge FORCE_MERGE]
 original_dir incremental_dir output_dir
 
@@ -650,7 +650,7 @@ optional arguments:
 --force_merge FORCE_MERGE
 Merge previously known sizes unconditionally. Default
 behavior if not arcturus
-\end{verbatim}
+\end{lstlisting}
 
 The merge script takes an input path which contains the previous logic and an incremental directory containing the new logic which is being merged into the previous results---this is the newly tuned logic. The output path, then, contains the merged results. The merging process is done in two parts: the first is the merge and the second is called the massage. We stage everything by merging the results into the archive path (this is the un-massaged logic):
 
@@ -827,7 +827,7 @@ The Tensile library's independence from rocBLAS enables us to build and use the 
 There are two options for insuring that the version of the library that gets generated using the same version TensileCreateLibrary as the one used in the rocBLAS build.
 
 \paragraph{Explicit Reference to Tensile During Build}
-By default rocBLAS, is linked to a specific version (or git commit) of Tensile. You can override the default reference and import a local version of Tensile into rocBLAS during the build using the -t option of install.sh when building rocBLAS. In this case, build rocBLAS using
+By default rocBLAS, is linked to a specific version (or git commit) of Tensile. You can override the default reference and import a local version of Tensile into rocBLAS during the build using the -t option of \emph{install.sh} when building rocBLAS. In this case, build rocBLAS using
 
 \begin{lstlisting}[language=bash]
 ./install.sh -c -t /path/to/repo/Tensile
@@ -855,12 +855,12 @@ ROCBLAS_TENSILE_LIBPATH=path/to/drop/new/tensile/library ./rocblas-bench --yaml 
 \subsubsection{The TensileCreateLibrary Command}
 The TensileCreateLibrary application takes, as input, a path containing the Tensile logic files and generates a Tensile library. The generated library contains the library artifacts and code objects that contain the kernels as well as the selection logic---that is, the logic for selecting the kernel to be executed. A example execution of the create library application is shown below.
 
-\begin{verbatim}
+\begin{lstlisting}
 Tensile/bin/TensileCreateLibrary <Options...> <LogicPath> <OutputPath> <RuntimeLanguage>
 
 [-h] Display usage help
 
-[--cxx-compiler {hcc,hipcc}] Compiler override (default hipcc).
+[--cxx-compiler {hipcc}] Compiler override (default hipcc).
 
 [--code-object-version {V2,V3}] Code object version override (default V3).
 
@@ -902,7 +902,7 @@ LogicPath Path to LibraryLogic yaml files.
 OutputPath Output directory.
 
 {OCL,HIP,HSA} Chosen runtime language.
-\end{verbatim}
+\end{lstlisting}
 
 \begin{lstlisting}[language=bash]
 /path/to/tensile-rep/Tensile/bin/TensileCreateLibrary --merge-files --no-legacy-components --no-short-file-names --no-library-print-debug --code-object-version=V3 --cxx-compiler=hipcc --library-format=msgpack path/to/new/logic path/to/drop/new/tensile HIP
@@ -935,7 +935,7 @@ Tensile provides a set of automation scripts for simplifying the tuning process.
 
 \subsection{rocBLAS Logging Information}
 
-rocBLAS logging provides information about the rocBLAS functions which get called during an application process as well as the size information of the call. This can be enabled by setting the ROCBLAS\_LAYER environment variable. The two settings that get used as input into the automation are ROCBLAS\_LAYER=2 or ROCBLAS\_LAYER=4. These each produce output about the rocBLAS calls in different formats.
+rocBLAS logging provides information about the rocBLAS functions which get called during an application as well as the size information of the calls. This logging is enabled by setting the ROCBLAS\_LAYER environment variable. The two settings that get used as input into the tuning automation are ROCBLAS\_LAYER=2 and ROCBLAS\_LAYER=4; these each produce output about the rocBLAS calls in different formats.
 
 \begin{lstlisting}[language=bash,breaklines=true]
 ROCBLAS_LAYER=2
@@ -956,40 +956,45 @@ In either case, the automation tools are able to parse out the relevant informat
 
 \subsection{Tuning Automation Scripts}
 
-The typical tuning exercise starts with a particular application which links to the rocBLAS library and calls gemm. The application is run with the logging enabled by setting the ROCBLAS\_LAYER environment variable. The output of the log is used as input to the tuning automation.
+The typical tuning exercise starts with a particular application which links to the rocBLAS library and calls gemm. The application is run with logging enabled by setting the ROCBLAS\_LAYER environment variable. The output of the log is used as input to the tuning automation.
+
+All of the tuning scripts described below take a working directory as their first argument. For a given tuning exercise, this should be the same directory for each script as subsequent scripts require the outputs of previous ones.
 
 \subsubsection{The provision\_tuning.sh Script}
 
-The first step of the tuning is set up using the provision\_tuning.sh script. This script provisions a repo of Tensile as well as generates a set of configurations and other artifacts used during tuning. An example call is
+The first step of the tuning is set up using the \emph{provision\_tuning.sh} script. This script generates a set of configurations and other artifacts used during tuning, as well as provisions a copy of the Tensile development repo if a local version of Tensile is not specified. An example call is
 
 
 \begin{lstlisting}[language=bash,breaklines=true]
-./tuning/scripts/provision_tuning.sh -w tensile_tuning -z logs/inception-rocblas-configs_unique.log -o tf_inception.yaml -y sgemm -l vega20
+./tuning/scripts/provision_tuning.sh tensile_tuning logs/inception-rocblas-configs_unique.log tf_inception.yaml vega20
 \end{lstlisting}
 
 \noindent
-The options for the tuning provisioning are as follows:
+All possible arguments for the script are as follows:
 
-\begin{verbatim}
-provision_tuning.sh
+\begin{lstlisting}
+Usage: ./provision_tuning.sh WORKING_PATH LOG_PATH OUTPUT_SUFFIX.yaml LIBRARY [options]
+  where LIBRARY = {arcturus | vega20 | vega10 | mi25 | r9nano | hip}
 
-[-w|--working-path <path>]                 # the working path
-[-z | --size-log <logfile path>]           # the rocblas logfile
-[-f|--tensile-fork <username>]             # tensile fork
-[-b|--branch <branch>]                     # tensile branch
-[-c <github commit id>]                    # tensile commit id
-[-t|--tag <github tag>]                    # github tag
-[-o|--output <configuration filename>]     # the configuration name
-[-y | --type <data type>]                  # the datatype hsd
-[-l | --library <library/schedule>]        # library (vega20|vega10|arcturus)
-[-m | --mfma]
-[-r | --rk]
-[-s | --disable-strides]
-[--problem-definition <gemm/batch/both]
-[-n]
-[[-h|--help]
-
-\end{verbatim}
+Options:
+-h | --help                   Display this help message
+-n | --network NAME           Neural network name. If this is set, LOG_PATH should be a directory. Will only tune log files with this string in the file name
+-p | --tensile-path PATH      Path to existing Tensile (will not provision new copy)
+Options for provisioning Tensile:
+-f | --tensile-fork USERNAME  Tensile fork to use
+-b | --branch BRANCH          Tensile branch to use
+-c | --commit COMMIT_ID       Tensile commit to use
+-t | --tag GITHUB_TAG         Tensile tag to use
+-i | --id ID                  ID to append to Tensile directory name
+Options for config generation:
+-t | --tile-aware             Use tile-aware method. (limited support)
+-m | --mfma                   Use MFMA kernels
+-r | --rk                     Use replacement kernels (sgemm only)
+-s | --disable-strides        Disable leading dimensions and strides in tuning file
+--initialization {rand_int | trig_float | hpl} (=rand_int)  Data initialization for matrices
+--problem-definition {gemm | batch | both} (=both)          Which problem types to tune
+--client {new | old | both} (=new)                          Which Tensile runtime client to use
+\end{lstlisting}
 
 After this script is run, the following artifacts are generated and available in the tensile\_tuning directory, which is created as a result of the script.
 
@@ -998,153 +1003,145 @@ After this script is run, the following artifacts are generated and available in
 
  \item The \textbf{configs} directory contains the benchmark configuration/input yaml files used by Tensile
 
- \item The \textbf{make} directory is used as a working directory during construction of the artifacts
+ \item The \textbf{make} directory contains scripts for running the generated configs with Tensile
 
- \item The \textbf{logs} directory has the logs for the merge script, the reference and tuned rocBLAS build, all Tensile runs and the rocblas-bench verification results
+ \item The \textbf{scripts} directory has rocblas-bench scripts and rocblas-bench yaml files. Currently only the yaml files are used
 
- \item The \textbf{scripts} directory has all rocblas-bench scripts that are called by this script
-
- \item The \textbf{scripts2} directory is used to run tests for the updated tuned logic using the new Tensile Client Library by setting the \\ROCBLAS\_TENSILE\_LIB\_CLIENT environment variable
+ \item The \textbf{scripts2} directory has rocblas-bench scripts and rocblas-bench yaml files with the ROCBLAS\_TENSILE\_LIB\_CLIENT environment variable set for the tuned Tensile library. Currently unused
 
  \item The \textbf{sizes} directory has a csv file that shows the parsed log file parameters in a comma-separated format
 
- \item The \textbf{tensile/Tensile} directory has a copy of the Tensile develop repo, which used to run Tensile on nn/nt/tn types and to collect the benchmark configuration and logic files
+ \item If a local version of Tensile is not provided, the \textbf{tensile/Tensile} directory containes the provisioned copy of Tensile.
 
 \end{itemize}
 
 \subsubsection{The provision\_verification.sh Script}
 
-The provision\_verification.sh script provisions a copy of rocBLAS and builds a reference version of the Tensile library as well as a new version with the tuned sizes included. An example execution is
+The \emph{provision\_verification.sh} prepares the library files for generating the tuned Tensile library for use with rocBLAS and builds said Tensile library. It also provisions and builds a copy of rocBLAS if a local version is not specified. An example call is
 
 \begin{lstlisting}[language=bash,breaklines=true]
-./tuning/scripts/provision_verification.sh -w validate -r tensile_tuning/tensile/Tensile -l vega20
+./tuning/scripts/provision_verification.sh tensile_tuning tensile_tuning/tensile/Tensile vega20
 \end{lstlisting}
 
-\begin{verbatim}
-provision_verification.sh
+\noindent
+All possible arguments for the script are as follows:
 
-[-w|--working-path <path>]
-[-r <Tensile reference>]
-[-b|--branch <branch>]
-[-c | --commit <github commit id>]
-[-t|--tag <githup tag>]
-[-l|--library <gpu library>]
-[-n|--no-merge]
-[--no-massage]
-[--rocblas-fork <username>]
-[-h|--help]
-\end{verbatim}
+\begin{lstlisting}
+Usage: ./provision_verification.sh WORKING_PATH TENSILE_PATH LIBRARY [options]
+  where LIBRARY = {arcturus | vega20 | vega10 | mi25 | r9nano | hip}
 
-After running the script, the \textbf{validate/library} directory has the exact, massage, and merge library logic files available
+Options:
+-h | --help                   Display this help message
+-p | --rocblas-path PATH      Path to existing rocBLAS (will not provision new copy)
+-f | --rocblas-fork USERNAME  rocBLAS fork to use
+-b | --branch BRANCH          rocBLAS branch to use
+-c | --commit COMMIT_ID       rocBLAS commit to use
+-t | --tag GITHUP_TAG         rocBLAS tag to use
+-i | --id ID                  ID to append to rocBLAS directory name
+-s | --sclk                   Frequency of sclk in MHz
+-n | --no-merge               Skip merge step
+--no-massage                  Skip massage step
+--log-dir                     Directory for logs
+--redo                        Force logic preparation, merge, massage, and library build steps to be redone
+\end{lstlisting}
+
+After running the script, the \textbf{logs} directory will contain the logs for the merge, massage, and rocBLAS build steps. The \textbf{library} directory will have the exact, massage, and merge library logic files available:
 
 \begin{itemize}
-	\item \textbf{exact} is what's available in 3\_LibraryLogic after running Tensile using the config file
-	\item \textbf{merge} has the exact files merged with the file that is already in rocBLAS
-	\item \textbf{massage} adds the special Ldc/Ldd kernels to the merged yaml files, only if using gfx900/906 and if hpa hgemm sizes are not used
+	\item \textbf{exact} contains the library file(s) available in 3\_LibraryLogic after running Tensile using the config file(s)
+	\item \textbf{merge} has the exact file(s) merged with the file(s) that are already in rocBLAS
+	\item \textbf{massage} adds the special Ldc/Ldd kernels to the merged files (only if using gfx900/906 and hpa hgemm sizes are not used)
 \end{itemize}
+
+\noindent
+If a local version of rocBLAS is not provided, the \textbf{rocblas/rocBLAS} directory contains the provisioned (and built) copy of rocBLAS. Note that this script should be run with \lstinline{--no-massage} if tuning for arcturus or if tuning any hpa-hgemm sizes.
 
 \subsubsection{The run\_validation.sh Script}
 
-This script will run the tests for both the reference and validation versions of the Tensile library.
+The \emph{run\_validation.sh} script benchmarks the problems for both the reference and tuned versions of the Tensile library. An example call is
 
 \begin{lstlisting}[language=bash,breaklines=true]
-./tuning/scripts/run_validation.sh -w validate -s tensile_tuning/scripts
+./tuning/scripts/run_validation.sh tensile_tuning tensile_tuning/rocBLAS/
 \end{lstlisting}
 
-\begin{verbatim}
-[-w|--working-path <path>]
-[-s|--test-scripts <path to test yamls]
-[-i | id]
-[-h|--help]
-\end{verbatim}
+After running the script, the \textbf{benchmarks} directory will contain the benchmark results for the reference and tuned versions of the library in the respective subdirectories.
 
 \subsubsection{The analyze\_results.sh Script}
 
-Finally, after the results are benchmarked using the reference and new versions of Tensile, they may be analyzed using the analyze\_results.sh script. An example is
+Finally, after the results are benchmarked using the reference and tuned versions of Tensile, they may be analyzed using the \emph{analyze\_results.sh} script. An example call is
 
 \begin{lstlisting}[language=bash,breaklines=true]
-./tuning/scripts/analyze-results.sh -o analysis -s 2 -f 1301 -r validate/rocblas/rocBLAS-reference/build/release/clients/staging/results -b validate/rocblas/rocBLAS-verify/build/release/clients/staging/results
+./tuning/scripts/analyze_results.sh tensile_tuning inception-rocblas-configs_unique.log vega20 -s 2 -f 1301
 \end{lstlisting}
 
-\begin{verbatim}
-analyze-results.sh
+\noindent
+All possible arguments for the script are as follows:
 
-[-b|--benchmark-path <benchmark results path>]
-[-r|--reference-path <reference results path>]
-[-o|--output <output path>]
-[-f]
-[-s]
-[-z]
-[-g|--gpu]
-[-m|--mfma]
-[-c|--count]
-[-h|--help]
-\end{verbatim}
+\begin{lstlisting}
+Usage: ./analyze_results.sh WORKING_PATH LOG_PATH LIBRARY [options]
+  where LIBRARY = {arcturus | vega20 | vega10 | mi25 | r9nano | hip}
 
-After running this script, the final analysis will get generated which compares the old and new versions of the library. The \textbf{analysis} directory provides the spreadsheets that show performance data in xlsx and csv format; the \textbf{final} subdirectory has the final spreadsheet.
+Options:
+-h | --help             Display this help message
+-s | --size             Data size
+-f | --sclk             Frequency of sclk in MHz
+-m | --mfma             Was MFMA enabled
+-c | --count            Sets all cases where count=1 to count=10
+-n | --no-plot          Skip plotting
+\end{lstlisting}
+
+After running this script, the \textbf{analysis} directory will contain analysis of the reference and tuned benchmark results along with a comparison of the two---all in respective subdirectories.
 
 \subsubsection{Automation Usage Example}
 
 \begin{lstlisting}[language=bash,breaklines=true]
 # provisions Tensile for tuning
-./tuning/scripts/provision_tuning.sh -w tensile_tuning -z logs/gemm.log -o tf_inception.yaml -y sgemm -l vega20
+./tuning/scripts/provision_tuning.sh tensile_tuning logs/inception-rocblas-configs_unique.log tf_inception.yaml vega20
 
-cd tensile_tuning/tensile/Tensile
+cd tensile_tuning/make
 
 # does the actual tuning using the generated configuration
-./doit-all.sh
+./runTensileTuning-all.sh
 
-cd ../../..
+cd ../..
 
-# provisions the verirications, including building rocblas-bench
-./tuning/scripts/provision_verification.sh -w validate -r tensile_tuning/tensile/Tensile -l vega20
+# provisions the verifications, including building rocblas-bench
+./tuning/scripts/provision_verification.sh tensile_tuning tensile_tuning/tensile/Tensile vega20
 
 # runs the actual benchmarks for the old and new versions of the library
-./tuning/scripts/run_validation.sh -w validate -s tensile_tuning/scripts
+./tuning/scripts/run_validation.sh tensile_tuning tensile_tuning/rocBLAS/
 
-# analysis the results
-./tuning/scripts/analyze-results.sh -o analysis -s 2 -f 1372 -z tensile_tuning/scripts/*-all.sh -r validate/rocblas/rocBLAS-reference/build/release/clients/staging/results1 -b validate/rocblas/rocBLAS-reference/build/release/clients/staging/results2
+# analysis of the results
+./tuning/scripts/analyze_results.sh tensile_tuning inception-rocblas-configs_unique.log vega20 -s 2 -f 1301
 \end{lstlisting}
 
 \subsubsection{The master\_tuning\_script.sh Script}
 
-Each of the previous results can be run independently, and they separate out each of the steps in one pass of the tuning workflow. The master\_tuning\_script.sh script combines the complete workflow without intervention. It takes the same rocBLAS log file information as described in the previous part of this section as input and runs the full process end to end, thus, combining all the steps mention above. An example execution:
+Each of the previous scripts can be run independently, separating out each of the steps in one pass of the tuning workflow. The \emph{master\_tuning\_script.sh} script combines the complete workflow without intervention. It takes the same rocBLAS log file information as described in the previous part of this section as input and runs the full process end to end. All possible arguments for the script are as follows:
 
-\begin{lstlisting}[language=bash,breaklines=true]
-tuning/scripts/master_tuning_script.sh -o output_dir -z path_to_log_file
+\begin{lstlisting}
+Usage: ./master_tuning_script.sh WORKING_DIR LOG_PATH [options]
+
+Options:
+-h | --help             Display this help message
+-n | --network          String to search for in filenames in log directory
+--tensile-path PATH     Path to existing Tensile (will not provision new copy)
+--rocblas-path PATH     Path to existing rocBLAS (will not provision new copy)
+-y | --data-type        Data type of sizes that you want to tune (sgemm, dgemm, hgemm only)
+-t | --tile-aware       Use tile-aware method. (limited support)
+-m | --mfma             Use MFMA kernels
+-r | --rk               Use replacement kernels (sgemm only)
+-s | --disable-strides  Disable leading dimensions and strides in tuning file
+-f | --sclk             Frequency of sclk in MHz
+-c | --count            Sets all cases where count=1 to count=10
+-d | --dependencies     Install required dependencies (dependencies are not installed by default)
+--redo                  Force logic preparation, merge, massage, and library build steps to be redone
+-l | --library \
+    {arcturus | vega20 | vega10 | mi25 | r9nano | hip}      GPU used for tuning (arcturus, mi25, mi50, mi60, r7, v340 only)
+--initialization {rand_int | trig_float | hpl} (=rand_int)  Data initialization for matrices
+--problem-definition {gemm | batch | both} (=both)          Which problem types to tune
+--client {new | old | both} (=new)                          Which Tensile runtime client to use
 \end{lstlisting}
-
-\begin{verbatim}
-master_tuning_script.sh
-
-[-o|--output-dir] Output directory for all tuning-related files
-[-z|--log] Pass in log file with rocblas-bench calls, or directory of log files if using network tuning
-[-y|--data-type] Optional. Data type of sizes that you want to tune (sgemm, dgemm, hgemm only)
-[-g|--gpu] Optional. GPU used for tuning (arcturus, mi25, mi50, mi60, r7, v340 only)
-[-f|--sclk] Optional. Frequency of sclk in MHz
-[-d|--no-dependencies] Optional. Skip installing required dependencies (dependencies are installed by default)
-[-n|--network] Optional. String to search for in filenames in log directory
-[--client] Optional. Choose Tensile client version. (new, old, both, default=new)
-[-m|--mfma] Optional. Use MFMA kernels (default=false)
-[-r|--rk] Optional. Use replacement kernels (sgemm only, default=false)
-[-c|--count] Optional. Sets all cases where count=1 to count=10 (default=false)
-[-t|--tile-aware] Optional. Use tile-aware method. (limited support, default=false)
-[-s|--disable-strides] Optional. Disable leading dimensions and strides in tuning file (default=false)
-[-v|--verification] Optional. Enable verification when running sizes in rocblas-bench (default=false, always true if arcturus)
-[-i|--initialization] Optional. Initialize matrices when benchmarking (rand_int, trig_float, hpl, default=rand_int)
-[--disable-hpa] Optional. Disable high precision accumulate in hgemm sizes (default=false)
-[--number] Optional. Set script number (view scripts/performance in rocBLAS directory, default=1)
-[-u|--username] Optional. Specify which Tensile fork to use (default=ROCmSoftwarePlatform)
-[--rocblas-fork] Optional. Specify which rocBLAS fork to use (default=ROCmSoftwarePlatform)
-[-b|--branch] Optional. Specify which Tensile branch to use (default=develop)
-[--rocblas-branch] Optional. Specify which rocBLAS branch to use (default=develop)
-[-p|--public] Optional. Specify whether you want to use rocBLAS (public) repo (default=false)
-[--one-type] Optional. Only tune one matrix type (nn, nt, or tn)
-[--omit-type] Optional. Ignore one matrix type when tuning (nn, nt, or tn)
-[--problem-definition] Optional. Specify gemm, strided batched, or both sizes (gemm, batch, or both, default=both)
-[--hcc] Optional. Use hcc compiler (default=false)
-[--rocm-path] Optional. Define ROCM_PATH, the location of the rocm stack (default=/opt/rocm)
-\end{verbatim}
 
 \section{Tuning Considerations}
 
@@ -1886,9 +1883,9 @@ These are the valid Tensile tuning parameters with descriptions:
 
 When Tensile or Tensile Create Library produces the kernels, it generates names for those kernels based on the parameters which are used to generate each kernel. The naming convention used is based on the name of the parameters involved. The part of the name produced from the parameter is an abbreviation of the name concatenated with the value of the parameter. For example, GlobalSplitU = 4 will produce a name part GSU4. The full name of a kernel looks like the following:
 
-\begin{verbatim}
+\begin{lstlisting}
 Cijk_Ailk_Bljk_SB_MT128x128x16_SE_GSU1_K1_TT8_8_WG16_16_1.s.
-\end{verbatim}
+\end{lstlisting}
 
 Any library will contain a large set of parameters that are common to all the kernels in the library so, in the final library, those parameters are not included as part of the naming of the kernels in that library. This reduces the name as the full set of parameters is rather large.
 

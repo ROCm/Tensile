@@ -1,7 +1,7 @@
 /**
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@
 
 #include <Tensile/ArithmeticUnitTypes.hpp>
 #include <Tensile/KernelLanguageTypes.hpp>
+#include <Tensile/PerformanceMetricTypes.hpp>
 #include <Tensile/Tensile.hpp>
 
 #include <Tensile/ContractionProblem_fwd.hpp>
@@ -485,6 +486,15 @@ namespace Tensile
             return m_problemStrides;
         }
 
+        std::vector<size_t> const& convProblemSizes() const
+        {
+            return m_convProblemSizes;
+        }
+        void setConvProblemSizes(std::vector<size_t>& convProblemSizes)
+        {
+            m_convProblemSizes.assign(convProblemSizes.begin(), convProblemSizes.end());
+        }
+
         void setAlphaType(DataType type)
         {
             m_alphaType = type;
@@ -541,6 +551,16 @@ namespace Tensile
         KernelLanguage kernelLanguage() const
         {
             return m_kernelLanguage;
+        }
+
+        void setPerformanceMetric(PerformanceMetric value)
+        {
+            m_performanceMetric = value;
+        }
+
+        PerformanceMetric performanceMetric() const
+        {
+            return m_performanceMetric;
         }
 
         void setDeterministicMode(bool value)
@@ -725,14 +745,15 @@ namespace Tensile
         std::string m_sumNames;
         std::string m_operationIdentifier;
 
-        bool           m_transA;
-        bool           m_transB;
-        bool           m_stridedBatched          = true;
-        bool           m_highPrecisionAccumulate = false;
-        bool           m_deterministicMode       = false;
-        bool           m_eligibleForPK           = true;
-        ArithmeticUnit m_arithmeticUnit          = ArithmeticUnit::Any;
-        KernelLanguage m_kernelLanguage          = KernelLanguage::Any;
+        bool              m_transA;
+        bool              m_transB;
+        bool              m_stridedBatched          = true;
+        bool              m_highPrecisionAccumulate = false;
+        bool              m_deterministicMode       = false;
+        bool              m_eligibleForPK           = true;
+        ArithmeticUnit    m_arithmeticUnit          = ArithmeticUnit::Any;
+        KernelLanguage    m_kernelLanguage          = KernelLanguage::Any;
+        PerformanceMetric m_performanceMetric       = PerformanceMetric::Overall;
 
         DataType m_alphaType = DataType::None; // if not assigned, will follow d-type
         DataType m_betaType  = DataType::None; // for bwd-compatible
@@ -753,6 +774,7 @@ namespace Tensile
 
         std::vector<size_t> m_problemSizes;
         std::vector<size_t> m_problemStrides;
+        std::vector<size_t> m_convProblemSizes;
 
         bool   m_transposeC01;
         double m_beta;

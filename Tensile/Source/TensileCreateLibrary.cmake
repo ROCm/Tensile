@@ -171,7 +171,7 @@ function(TensileCreateLibraryCmake
       #find_package( HIP REQUIRED )
       set (CMAKE_CXX_COMPILER ${HIPCC})
       target_include_directories( Tensile SYSTEM
-        PUBLIC  ${HIP_INCLUDE_DIRS} ${HCC_INCLUDE_DIRS} )
+        PUBLIC  ${HIP_INCLUDE_DIRS} )
       target_link_libraries( Tensile PUBLIC ${HSA_LIBRARIES} )
       target_compile_definitions( Tensile PUBLIC
         -DTensile_RUNTIME_LANGUAGE_OCL=0 -DTensile_RUNTIME_LANGUAGE_HIP=1 )

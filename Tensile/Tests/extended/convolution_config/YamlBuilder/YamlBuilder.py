@@ -1,3 +1,24 @@
+################################################################################
+# Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
+# ies of the Software, and to permit persons to whom the Software is furnished
+# to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
+# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
+# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+################################################################################
+
 import os
 import subprocess
 import copy, operator, pytest
@@ -415,12 +436,13 @@ class YamlBuilder:
             problem['d'] = spatialIn[2]
         problems.append(problem)
 
-        if problemLevel==2:
-            problems += cls.genProblems(conv, nRange=(1,2,8), ckRange=[64], spatialRange=(7,14,56))
-        elif problemLevel==3:
-            problems += cls.genProblems(conv, nRange=(1,2,8), ckRange=range(127,129), spatialRange=(7,14,56))
-        elif problemLevel==4:
-            problems += cls.genProblems(conv, nRange=(1,2,8), ckRange=range(127,129), spatialRange=(7,56,73,111,194))
+        if not conv.cc.spatial:
+          if problemLevel==2:
+              problems += cls.genProblems(conv, nRange=(1,2,8), ckRange=[64], spatialRange=(7,14,56))
+          elif problemLevel==3:
+              problems += cls.genProblems(conv, nRange=(1,2,8), ckRange=range(127,129), spatialRange=(7,14,56))
+          elif problemLevel==4:
+              problems += cls.genProblems(conv, nRange=(1,2,8), ckRange=range(127,129), spatialRange=(7,56,73,111,194))
 
         #try:
         #    asize = cls.memSize(problemType["IndexAssignmentsA"], problems)
@@ -439,7 +461,7 @@ class YamlBuilder:
         Generates a YamlBuilder object that will run in
         ConvolutionVsContraction mode.
         """
-        obj = cls.ConvolutionContraction(conv, {}, solution, problemFunc=cls.ProblemSizes, problemLevel=1, dataType=dataType)
+        obj = cls.ConvolutionContraction(conv, {}, solution, problemFunc=cls.ProblemSizes, problemLevel=2, dataType=dataType)
         obj.doc["GlobalParameters"]["ConvolutionVsContraction"] = 1
         for problem in obj.doc["BenchmarkProblems"]:
             problem[0]["OperationType"] = conv.convolutionType

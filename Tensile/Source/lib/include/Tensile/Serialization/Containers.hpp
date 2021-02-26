@@ -122,6 +122,12 @@ namespace Tensile
         };
 
         template <typename IO>
+        struct CustomMappingTraits<std::map<std::string, double>, IO>
+            : public DefaultCustomMappingTraits<std::map<std::string, double>, IO, false, true>
+        {
+        };
+
+        template <typename IO>
         struct CustomMappingTraits<std::map<int, double>, IO>
             : public DefaultCustomMappingTraits<std::map<int, double>, IO, false, true>
         {

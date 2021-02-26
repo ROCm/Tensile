@@ -654,22 +654,29 @@ def mapTypeName(inputName):
         outputName = "h"
     elif inputName == "f64_r":
         outputName = "d"
+    elif inputName == "bf16_r":
+        outputName = "b"
     else:
         outputName = inputName
 
     return outputName
 
 def getDataTypeDef(problemDefinition):
-
+    inType = None
+    destType = None
     computeType = None
     if problemDefinition["r"]:
-        computeType = mapTypeName(problemDefinition["r"])
-    elif problemDefinition["compute_type"]:
-        computeType = mapTypeName(problemDefinition["compute_type"])
+        t = mapTypeName(problemDefinition["r"])
+        inType = t
+        destType = t
+        computeType = t
     else:
-        computeType = "s"
+        # assuming a == b and c == d (and they all exist)
+        inType = mapTypeName(problemDefinition["a_type"])
+        destType = mapTypeName(problemDefinition["c_type"])
+        computeType = mapTypeName(problemDefinition["compute_type"])
 
-    return computeType
+    return (inType, destType, computeType)
 
 def UpdateOutputMapping(mapper, problemDefinition):
     # "f","transposeA","transposeB"
@@ -677,7 +684,6 @@ def UpdateOutputMapping(mapper, problemDefinition):
     transposeA = problemDefinition["transposeA"]
     transposeB = problemDefinition["transposeB"]
     t = getDataTypeDef(problemDefinition)
-
     key = (f,transposeA,transposeB,t)
 
     lineDefinition = None
@@ -847,7 +853,7 @@ def GetStride(problemDefinition,param):
 
     return tn[param]
 
-def BuildRocBLASBenchmarkCall(problemDefinition,disableStrides="false",initialization="rand_int"):
+def BuildRocBLASBenchmarkCall(problemDefinition,disableStrides=False,initialization="rand_int"):
     f = problemDefinition["f"]
     keys = rocblas_key_mapping[f]
 
@@ -857,44 +863,57 @@ def BuildRocBLASBenchmarkCall(problemDefinition,disableStrides="false",initializ
         value = problemDefinition[param]
         if ("ld" in param or "stride" in param) and int(value) == 0:
             value = GetStride(problemDefinition,param)
-        if ("ld" not in param and "stride" not in param) or disableStrides == "false":
+        if ("ld" not in param and "stride" not in param) or not disableStrides:
             rocblas_call += " %s %s" % (key,value)
     rocblas_call += " --initialization %s" % (initialization)
 
     return rocblas_call
 
-def ConvertToYAML(problemDefinition,disableStrides="false"):
+def ConvertToYAML(problemDefinition,disableStrides=False):
     f = problemDefinition["f"]
     keys = rocblas_key_mapping[f]
     convertKey = {"r":"rocblas_function","a_type":"a_type","b_type":"b_type","c_type":"c_type","d_type":"d_type","compute_type":"compute_type","transposeA":"transA","transposeB":"transB","m":"M","n":"N","k":"K","alpha":"alpha","lda":"lda","ldb":"ldb","beta":"beta","ldc":"ldc","ldd":"ldd","stride_a":"stride_a","stride_b":"stride_b","stride_c":"stride_c","stride_d":"stride_d","batch_count":"batch_count","algo":"algo","solution_index":"solution_index","flags":"flags","i":"iters"}
     rocblasValue = {"h":"rocblas_hgemm","f16_r":"rocblas_hgemm","s":"rocblas_sgemm","f32_r":"rocblas_sgemm","d":"rocblas_dgemm","f64_r": "rocblas_dgemm", "?":"rocblas_gemm_ex"}
-    alternateType = {"f32":"s", "f64": "d", "f16": "h"}
+    alternateType = {"f32":"s", "f64":"d", "f16":"h"}
 
     rocblas_call = "- {"
     lock = False
+
+    # TODO: this logic needs to be tested more extensively
+    funcName = ""
+    ex = False
+    if "-r" in keys:
+        funcName = rocblasValue[problemDefinition["r"]]
+    elif "--a_type" in keys:
+        funcName = "rocblas_gemm"
+        ex = True
+    else:
+        # shouldn't happen
+        exit -1
+
+    if "strided" in f:
+        funcName += "_strided"
+    if "batched" in f:
+        funcName += "_batched"
+    if ex:
+        funcName += "_ex"
+    rocblas_call +=  "rocblas_function: %s, " % funcName
+
     for key in keys:
+        if key == "-f" or key == "-r":
+            continue
+
         param = key.replace("-","")
-        if param == "f":
-            continue
         value = problemDefinition[param]
-        modKey = convertKey[param]
-        if ("stride" in modKey and value == 0) or ("batch" in modKey and value == 1) or ("type" in modKey and value == None):
-            continue
-        if "-r" not in keys and not lock:
-            rocblas_call += "%s: %s, " % ("rocblas_function",rocblasValue["?"])
-            lock = True
-        elif param == "r":
-            for dType in rocblasValue.keys():
-                if problemDefinition[param] == dType:
-                    value = rocblasValue[dType]
-            if problemDefinition["stride_a"] != 0:
-                value += "_strided_batched"
+        yamlKey = convertKey[param]
+
         if ("ld" in param or "stride" in param) and int(value) == 0:
             value = GetStride(problemDefinition,param)
-        if ("call_count" not in modKey) and ("iters" not in modKey):
-            rocblas_call += "%s: %s, " % (modKey,value)
+        if ("call_count" not in yamlKey) and ("iters" not in yamlKey):
+            rocblas_call += "%s: %s, " % (yamlKey,value)
         else:
-            rocblas_call +=  "%s: %s " % (modKey,value)
+            rocblas_call +=  "%s: %s " % (yamlKey,value)
+
     rocblas_call += "}"
 
     return rocblas_call

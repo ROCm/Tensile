@@ -1,9 +1,5 @@
-if(CMAKE_CXX_COMPILER MATCHES ".*/hcc$")
-    set(COMPILER "hcc")
-else()
-    set(COMPILER "hipcc")
-    set(CODE_OBJECT_VERSION "V3")
-endif()
+set(COMPILER "hipcc")
+set(CODE_OBJECT_VERSION "V3")
 
 TensileCreateLibraryFiles(
     "${CMAKE_CURRENT_SOURCE_DIR}/../configs/lite_configs"

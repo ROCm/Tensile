@@ -1,11 +1,18 @@
 # Change Log for Tensile
 
-## [(Unreleased) Tensile 4.27.0 for ROCm 4.2.0]
+## [Tensile 4.27.0 for ROCm 4.2.0]
 ### Added
+- Benchmarking and library support for CU efficiency vs. overall speed
 - support general batch GEMM
 - Support offset for each input/output buffer in Tensile
 - support support ldc != ldd for all GEMM kernel
 
+### Optimizations
+- Refactor ConvolutionVsContraction
+
+### Fixed
+- Fixed MasterSolutionLibrary having duplicated hardware rows
+- channel stride is incorrect when converting conv problem into tensor contraction problem
 
 ## [Tensile 4.26.0 for ROCm 4.1.0]
 ### Added

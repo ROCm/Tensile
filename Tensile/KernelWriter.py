@@ -1475,9 +1475,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       # tile assignments
       kl.append(self.comment("local read addresses: tile assignments a"))
-      kl.append(self.lraTileAssignmentA(kernel, tensorParametersA))
+      kl.append(self.lraTileAssignment(kernel, tensorParametersA))
       kl.append(self.comment("local read addresses: tile assignments b"))
-      kl.append(self.lraTileAssignmentB(kernel, tensorParametersB))
+      kl.append(self.lraTileAssignment(kernel, tensorParametersB))
 
 
       # final offsets
@@ -3155,24 +3155,17 @@ class KernelWriter(metaclass=abc.ABCMeta):
     return ""
 
   ##############################################################################
-  # Local Read Addresses: Tile Assignment A
+  # Local Read Addresses: Tile Assignment
   ##############################################################################
   @abc.abstractmethod
-  def lraTileAssignmentA(self, kernel, tA):
-    return ""
-
-  ##############################################################################
-  # Local Read Addresses: Tile Assignment B
-  ##############################################################################
-  @abc.abstractmethod
-  def lraTileAssignmentB(self, kernel, tB):
+  def lraTileAssignment(self, kernel, tP):
     return ""
 
   ##############################################################################
   # Local Read Addresses: Final Offset A/B
   ##############################################################################
   @abc.abstractmethod
-  def lraFinalOffset(self, kernel, tA):
+  def lraFinalOffset(self, kernel, tP):
     return ""
 
   ##############################################################################

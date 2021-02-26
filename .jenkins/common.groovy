@@ -5,11 +5,11 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
 {
     project.paths.construct_build_prefix()
 
-    String compiler = jobName.contains('hipclang') ? 'hipcc' : 'hcc'
+    String compiler = 'hipcc'
     String pythonVersion = 'py36'
-    String cov = jobName.contains('hipclang') ? "V3" : "V2"
+    String cov = "V3"
     String buildType = debug ? 'Debug' : 'RelWithDebInfo'
-    String parallelJobs = jobName.contains('hipclang') ? "export HIPCC_COMPILE_FLAGS_APPEND=-parallel-jobs=2" : ":"
+    String parallelJobs = "export HIPCC_COMPILE_FLAGS_APPEND=-parallel-jobs=2"
 
     // comment
 
@@ -31,7 +31,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             ####
             tox --version
             export TENSILE_COMPILER=${compiler}
-            tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --tensile-options=--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing-\$gpuArch.csv
+            tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --junit-xml=\$(pwd)/python_unit_tests.xml --timing-file=\$(pwd)/timing-\$gpuArch.csv
 
             mkdir build
             pushd build
@@ -85,7 +85,7 @@ def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest
 {
     def test_dir =  "Tensile/Tests"
 
-    String compiler = jobName.contains('hipclang') ? 'hipcc' : 'hcc'
+    String compiler = 'hipcc'
     String pythonVersion = 'py36'
     String markSkipHostTest = skipHostTest ? "#" : ""
 
@@ -109,7 +109,7 @@ def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest
             ####
             tox --version
             export TENSILE_COMPILER=${compiler}
-            tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --tensile-options=--cxx-compiler=${compiler} --timing-file=\$(pwd)/timing-\$gpuArch.csv
+            tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --timing-file=\$(pwd)/timing-\$gpuArch.csv
             PY_ERR=\$?
             date
 

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -35,19 +35,26 @@ namespace Tensile
         std::shared_ptr<ResultFileReporter>
             ResultFileReporter::Default(po::variables_map const& args)
         {
-            return std::make_shared<ResultFileReporter>(args["results-file"].as<std::string>(),
-                                                        args["csv-export-extra-cols"].as<bool>(),
-                                                        args["csv-merge-same-problems"].as<bool>());
+            return std::make_shared<ResultFileReporter>(
+                args["results-file"].as<std::string>(),
+                args["csv-export-extra-cols"].as<bool>(),
+                args["csv-merge-same-problems"].as<bool>(),
+                args["performance-metric"].as<PerformanceMetric>());
         }
 
         ResultFileReporter::ResultFileReporter(std::string const& filename,
                                                bool               exportExtraCols,
-                                               bool               mergeSameProblems)
+                                               bool               mergeSameProblems,
+                                               PerformanceMetric  performanceMetric)
             : m_output(filename)
             , m_extraCol(exportExtraCols)
             , m_mergeSameProblems(mergeSameProblems)
+            , m_performanceMetric(performanceMetric)
         {
-            m_output.setHeaderForKey(ResultKey::ProblemIndex, "GFlops");
+            if(m_performanceMetric == PerformanceMetric::CUEfficiency)
+                m_output.setHeaderForKey(ResultKey::ProblemIndex, "GFlopsPerCU");
+            else // Default to 'Overall' benchmarking if CUEfficiency not specified
+                m_output.setHeaderForKey(ResultKey::ProblemIndex, "GFlops");
         }
 
         template <typename T>
@@ -81,9 +88,12 @@ namespace Tensile
                     }
                 }
             }
-            else if(key == ResultKey::SpeedGFlops)
+            else if((key == ResultKey::SpeedGFlops
+                     && m_performanceMetric == PerformanceMetric::Overall)
+                    || (key == ResultKey::SpeedGFlopsPerCu
+                        && m_performanceMetric == PerformanceMetric::CUEfficiency))
             {
-                // cascade from BenchmarkTimer, SpeedGFlops second
+                // cascade from BenchmarkTimer, SpeedGFlops or SpeedGFlopsPerCU second
                 if(!m_invalidSolution)
                 {
                     m_output.setValueForKey(m_solutionName, value);
