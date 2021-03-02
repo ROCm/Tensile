@@ -3015,6 +3015,7 @@ class KernelWriterAssembly(KernelWriter):
     # Dynamic Scalar Divide
     kStr += self.comment3("Dynamic Scalar Divide: vQuotient=vDividend/vDivisor; vRemainder=vDividend%vDivisor;")
     kStr += ".macro DYNAMIC_VECTOR_DIVIDE vQuotient vRemainder vDividend vDivisor vTmp0 vTmp1 sTmp%s" % self.endLine
+    sTmpStr = "s[\\sTmp]" if (self.kernel["WavefrontSize"] == 32) else "s[\\sTmp:\\sTmp+1]"
     kStr += inst("v_cvt_f32_u32", "v[\\vQuotient]",  "v[\\vDivisor]",  "" )
     kStr += inst("v_rcp_f32",     "v[\\vQuotient]",  "v[\\vQuotient]", "" )
     kStr += inst("v_mul_f32",     "v[\\vQuotient]",  "0x4f800000",     "v[\\vQuotient]", "" )
@@ -3022,22 +3023,22 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("v_mul_lo_u32",  "v[\\vRemainder]", "v[\\vDivisor]", "v[\\vQuotient]", "" )
     kStr += inst("v_mul_hi_u32",  "v[\\vTmp0]",      "v[\\vDivisor]", "v[\\vQuotient]", "" )
     kStr += inst("_v_sub_co_u32",     "v[\\vTmp1]",      self.vcc, hex(0),    "v[\\vRemainder]", "" )
-    kStr += inst("v_cmp_ne_i32",  "s[\\sTmp:\\sTmp+1]", hex(0),        "v[\\vTmp0]", "" )
-    kStr += inst("v_cndmask_b32", "v[\\vRemainder]", "v[\\vTmp1]",     "v[\\vRemainder]", "s[\\sTmp:\\sTmp+1]", "" )
+    kStr += inst("v_cmp_ne_i32",  sTmpStr, hex(0),        "v[\\vTmp0]", "" )
+    kStr += inst("v_cndmask_b32", "v[\\vRemainder]", "v[\\vTmp1]",     "v[\\vRemainder]", sTmpStr, "" )
     kStr += inst("v_mul_hi_u32",  "v[\\vRemainder]", "v[\\vRemainder]", "v[\\vQuotient]", "" )
     kStr += inst("_v_sub_co_u32",     "v[\\vTmp0]",      self.vcc,            "v[\\vQuotient]", "v[\\vRemainder]", "" )
     kStr += inst("_v_add_co_u32",     "v[\\vQuotient]",  self.vcc,            "v[\\vQuotient]", "v[\\vRemainder]", "" )
-    kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vQuotient]", "v[\\vTmp0]", "s[\\sTmp:\\sTmp+1]", "" )
+    kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vQuotient]", "v[\\vTmp0]", sTmpStr, "" )
     kStr += inst("v_mul_hi_u32",  "v[\\vQuotient]",  "v[\\vQuotient]", "v[\\vDividend]", "" )
     kStr += inst("v_mul_lo_u32",  "v[\\vRemainder]", "v[\\vQuotient]", "v[\\vDivisor]", "" )
     kStr += inst("_v_sub_co_u32",     "v[\\vTmp0]",      self.vcc,            "v[\\vDividend]", "v[\\vRemainder]", "" )
-    kStr += inst("v_cmp_ge_u32",  "s[\\sTmp:\\sTmp+1]", "v[\\vDividend]", "v[\\vRemainder]", "" )
+    kStr += inst("v_cmp_ge_u32",  sTmpStr, "v[\\vDividend]", "v[\\vRemainder]", "" )
     kStr += inst("_v_add_co_u32",     "v[\\vRemainder]", self.vcc,            hex(1), "v[\\vQuotient]", "" )
     kStr += inst("_v_add_co_u32",     "v[\\vTmp1]",      self.vcc, -1,        "v[\\vQuotient]", "" )
     kStr += inst("v_cmp_le_u32",  self.vcc,             "v[\\vDivisor]", "v[\\vTmp0]", "" )
-    kStr += inst("s_and_b64",     self.vcc,             "s[\\sTmp:\\sTmp+1]", self.vcc, "" )
+    kStr += inst("s_and_b{}".format(self.kernel["WavefrontSize"]),     self.vcc,             sTmpStr,         self.vcc,     "" )
     kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vQuotient]", "v[\\vRemainder]", self.vcc, "" )
-    kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vTmp1]",     "v[\\vQuotient]", "s[\\sTmp:\\sTmp+1]", "" )
+    kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vTmp1]",     "v[\\vQuotient]", sTmpStr, "" )
     kStr += inst("v_cmp_ne_i32",  self.vcc, hex(0),     "v[\\vDivisor]", "" )
     kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  -1, "v[\\vQuotient]", self.vcc, "final result" )
     kStr += inst("v_mul_lo_u32",  "v[\\vRemainder]", "v[\\vQuotient]", "v[\\vDivisor]", "" )
@@ -7362,7 +7363,7 @@ class KernelWriterAssembly(KernelWriter):
                         "loopCounter*strideSum >= ElementEdge ?")
 
       if i>0:
-        codeMod.addInst("s_or_b64", self.vcc, self.vcc, sgpr(tmpSgpr,self.laneSGPRCount),"combine elementEdge masks")
+        codeMod.addInst("s_or_b{}".format(self.kernel["WavefrontSize"]), self.vcc, self.vcc, sgpr(tmpSgpr,self.laneSGPRCount),"combine elementEdge masks")
 
       if i==len(zps)-1:
         codeMod.addInst("v_cndmask_b32", vgpr(addrV), vgpr(offsetVgpr), -1, self.vcc, \
@@ -13040,14 +13041,14 @@ class KernelWriterAssembly(KernelWriter):
   def assertCmpCommon(self, cond, val0, val1, cookie=-1):
     kStr = ""
     if self.db["EnableAsserts"]:
-      kStr += inst("s_or_saveexec_b64", sgpr("SaveExecMask",2), 0, \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), 0, \
           "assert: saved execmask")
 
       kStr += inst("_v_cmpx_%s"%cond, self.vcc, val0, val1, "v_cmp" )
 
       kStr += self.assertCommon(cookie)
 
-      kStr += inst("s_or_saveexec_b64", self.vcc, sgpr("SaveExecMask",2), \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: restore execmask")
 
     return kStr
@@ -13115,15 +13116,15 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr += inst("s_and_b32", stmp, sval, multiple2-1, "mask" )
       kStr += inst("s_cmp_eq_u32", stmp, 0, "if maskedBits==0 then SCC=1 == no fault" )
-      kStr += inst("s_mov_b64", sgpr("SaveExecMask",2), -1, "")
-      kStr += inst("s_cmov_b64", sgpr("SaveExecMask", 2),  0, "Clear exec mask")
+      kStr += inst("s_mov_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), -1, "")
+      kStr += inst("s_cmov_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask", self.laneSGPRCount),  0, "Clear exec mask")
 
-      kStr += inst("s_and_saveexec_b64", sgpr("SaveExecMask",2), sgpr("SaveExecMask",2), \
+      kStr += inst("s_and_saveexec_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: saved execmask")
 
       kStr += self.assertCommon(cookie)
 
-      kStr += inst("s_or_saveexec_b64", self.vcc, sgpr("SaveExecMask",2), \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: restore execmask")
 
     return kStr
@@ -13131,15 +13132,15 @@ class KernelWriterAssembly(KernelWriter):
   def assert_s_eq(self, sval0, sval1, cookie=-1):
     kStr = ""
     if self.db["EnableAsserts"]:
-      kStr += inst("s_and_saveexec_b64", sgpr("SaveExecMask",2), sgpr("SaveExecMask",2), \
+      kStr += inst("s_and_saveexec_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: saved execmask")
 
-      kStr += inst("s_mov_b64", sgpr("SaveExecMask",2), -1, "")
+      kStr += inst("s_mov_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), -1, "")
       kStr += inst("s_cmp_eq_u32", sval0, sval1, "cmp")
-      kStr += inst("s_cmov_b64", sgpr("SaveExecMask", 2),  0, "No assert if SCC=1")
+      kStr += inst("s_cmov_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask", self.laneSGPRCount),  0, "No assert if SCC=1")
 
       kStr += self.assertCommon(cookie)
-      kStr += inst("s_or_saveexec_b64", self.vcc, sgpr("SaveExecMask",2), \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: restore execmask")
 
       return kStr
@@ -13148,14 +13149,14 @@ class KernelWriterAssembly(KernelWriter):
   def assert_scc_is_1(self, cookie=-1):
     kStr = ""
     if self.db["EnableAsserts"]:
-      kStr += inst("s_and_saveexec_b64", sgpr("SaveExecMask",2), sgpr("SaveExecMask",2), \
+      kStr += inst("s_and_saveexec_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: saved execmask")
 
-      kStr += inst("s_mov_b64", sgpr("SaveExecMask",2), -1, "")
-      kStr += inst("s_cmov_b64", sgpr("SaveExecMask", 2),  0, "No assert if SCC=1")
+      kStr += inst("s_mov_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), -1, "")
+      kStr += inst("s_cmov_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask", self.laneSGPRCount),  0, "No assert if SCC=1")
 
       kStr += self.assertCommon(cookie)
-      kStr += inst("s_or_saveexec_b64", self.vcc, sgpr("SaveExecMask",2), \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: restore execmask")
 
       return kStr
@@ -13163,15 +13164,15 @@ class KernelWriterAssembly(KernelWriter):
   def assert_scc_is_0(self, cookie=-1):
     kStr = ""
     if self.db["EnableAsserts"]:
-      kStr += inst("s_and_saveexec_b64", sgpr("SaveExecMask",2), sgpr("SaveExecMask",2), \
+      kStr += inst("s_and_saveexec_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: saved execmask")
 
-      kStr += inst("s_mov_b64", sgpr("SaveExecMask",2), -1, "")
-      kStr += inst("s_cmov_b64", sgpr("SaveExecMask", 2),  0, "")
-      kStr += inst("s_not_b64", sgpr("SaveExecMask",2), sgpr("SaveExecMask", 2), "Assert if SCC==1")
+      kStr += inst("s_mov_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), -1, "")
+      kStr += inst("s_cmov_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask", self.laneSGPRCount),  0, "")
+      kStr += inst("s_not_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), sgpr("SaveExecMask", self.laneSGPRCount), "Assert if SCC==1")
 
       kStr += self.assertCommon(cookie)
-      kStr += inst("s_or_saveexec_b64", self.vcc, sgpr("SaveExecMask",2), \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: restore execmask")
 
       return kStr
@@ -13180,11 +13181,11 @@ class KernelWriterAssembly(KernelWriter):
   def assert_vcc_all_true(self, cookie=-1):
     kStr = ""
     if self.db["EnableAsserts"]:
-      kStr += inst("s_or_saveexec_b64", sgpr("SaveExecMask",2), 0, \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), 0, \
           "assert: saved execmask")
-      kStr += inst("s_mov_b64", "exec", self.vcc, "Predicate based on VCC")
+      kStr += inst("s_mov_b{}".format(self.kernel["WavefrontSize"]), self.exec, self.vcc, "Predicate based on VCC")
       kStr += self.assertCommon(cookie)
-      kStr += inst("s_or_saveexec_b64", self.vcc, sgpr("SaveExecMask",2), \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: restore execmask")
     return kStr
 
@@ -13192,11 +13193,11 @@ class KernelWriterAssembly(KernelWriter):
   def assert_vcc_all_false(self, cookie=-1):
     kStr = ""
     if self.db["EnableAsserts"]:
-      kStr += inst("s_or_saveexec_b64", sgpr("SaveExecMask",2), 0, \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), 0, \
           "assert: saved execmask")
-      kStr += inst("s_not_b64", "exec", self.vcc, "Predicate based on !VCC")
+      kStr += inst("s_not_b{}".format(self.kernel["WavefrontSize"]), self.exec, self.vcc, "Predicate based on !VCC")
       kStr += self.assertCommon(cookie)
-      kStr += inst("s_or_saveexec_b64", self.vcc, sgpr("SaveExecMask",2), \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: restore execmask")
     return kStr
 
