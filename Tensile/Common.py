@@ -251,8 +251,11 @@ globalParameters["PerfModelReadEfficiency"] = 0.85
 globalParameters["MaxWorkspaceSize"] = 32 * 1024 * 1024 # max workspace for training (32M)
 globalParameters["MinKForGSU"] = 256 # min K size to use GlobalSplitU algorithm (only for HPA now)
 
-# control if a solution is run for a given problem
+# controls for if a solution is run for a given problem
+globalParameters["RunCriteriaVerify"] = False
 globalParameters["GranularityThreshold"] = 0.0
+globalParameters["MemThroughputThreshold"] = 0.0
+globalParameters["MinLDSUtilization"] = 0.0
 
 globalParameters["PristineOnGPU"] = True # use Pristine memory on Tensile trainning verification or not
 

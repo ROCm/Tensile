@@ -42,9 +42,9 @@ namespace Tensile
         namespace po = boost::program_options;
 
         /**
- * Not an iterator by the traditional definition but I can't think of a better
- * name
- */
+         * Not an iterator by the traditional definition but I can't think of a better
+         * name
+        */
         class SolutionIterator : public RunListener
         {
         public:
@@ -129,7 +129,15 @@ namespace Tensile
         class AllSolutionsIterator : public SolutionIterator
         {
         public:
-            using RunCriteria = std::vector<std::function<bool(
+            enum class FilterResult : int
+            {
+                Run,
+                LowGranularity,
+                LowMemoryThroughput
+            };
+            using FR = FilterResult;
+
+            using RunCriteria = std::vector<std::function<FR(
                 ContractionProblem const&, Hardware const&, ContractionSolution const&)>>;
 
             static RunCriteria
@@ -141,7 +149,8 @@ namespace Tensile
                                  std::shared_ptr<Hardware> hardware,
                                  int                       firstSolutionIdx,
                                  int                       numSolutions,
-                                 RunCriteria               runCriteria = RunCriteria());
+                                 RunCriteria               runCriteria    = RunCriteria(),
+                                 bool                      criteriaVerify = false);
 
             virtual void preProblem(ContractionProblem const& problem) override;
             virtual void postProblem() override;
@@ -160,8 +169,13 @@ namespace Tensile
             int m_currentSolutionIdx;
             int m_numSolutionsSkipped;
 
+            bool        m_criteriaVerify;
             RunCriteria m_runCriteria;
         };
+
+        std::string   ToString(AllSolutionsIterator::FR fr);
+        std::string   TypeAbbrev(AllSolutionsIterator::FR fr);
+        std::ostream& operator<<(std::ostream& stream, AllSolutionsIterator::FR const& fr);
 
         class BestSolutionIterator : public SolutionIterator
         {

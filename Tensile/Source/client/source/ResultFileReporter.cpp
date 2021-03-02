@@ -70,6 +70,11 @@ namespace Tensile
                     m_invalidSolution = true;
                 }
             }
+            else if(key == ResultKey::WouldSkip)
+            {
+                m_wouldSkip       = true;
+                m_wouldSkipReason = value;
+            }
             else if(key == ResultKey::SolutionName)
             {
                 m_solutionName = valueStr;
@@ -96,7 +101,14 @@ namespace Tensile
                 // cascade from BenchmarkTimer, SpeedGFlops or SpeedGFlopsPerCU second
                 if(!m_invalidSolution)
                 {
-                    m_output.setValueForKey(m_solutionName, value);
+                    if(m_wouldSkip)
+                    {
+                        m_output.setValueForKey(m_solutionName, valueStr + ":" + m_wouldSkipReason);
+                    }
+                    else
+                    {
+                        m_output.setValueForKey(m_solutionName, value);
+                    }
 
                     int64_t gflops = std::stoull(valueStr);
                     if(m_fastestGflops < gflops)
@@ -257,6 +269,7 @@ namespace Tensile
         {
             m_solutionName    = "";
             m_invalidSolution = false;
+            m_wouldSkip       = false;
         }
 
         void ResultFileReporter::finalizeReport()

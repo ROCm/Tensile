@@ -72,6 +72,8 @@ namespace Tensile
             bool              m_invalidSolution = false;
             bool              m_extraCol;
             bool              m_mergeSameProblems;
+            bool              m_wouldSkip       = false;
+            std::string       m_wouldSkipReason = "";
             PerformanceMetric m_performanceMetric;
             // for extra columns
             std::string m_winnerSolution;

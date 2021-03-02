@@ -87,6 +87,7 @@ namespace Tensile
             const std::string SolutionWinner       = "solution-winner";
 
             // Performance-related
+            const std::string WouldSkip        = "would-skip";
             const std::string Validation       = "validation";
             const std::string TimeUS           = "time-us";
             const std::string SpeedGFlops      = "gflops";

@@ -45,15 +45,13 @@ namespace Tensile
             }
             else
             {
-                int firstSolutionIdx = args["solution-start-idx"].as<int>();
-                int numSolutions     = args["num-solutions"].as<int>();
-
                 return std::make_shared<AllSolutionsIterator>(
                     library,
                     hardware,
-                    firstSolutionIdx,
-                    numSolutions,
-                    AllSolutionsIterator::CreateCriteria(library, hardware, args));
+                    args["solution-start-idx"].as<int>(),
+                    args["num-solutions"].as<int>(),
+                    AllSolutionsIterator::CreateCriteria(library, hardware, args),
+                    args["run-criteria-verify"].as<bool>());
             }
         }
 
@@ -116,13 +114,13 @@ namespace Tensile
             std::shared_ptr<Hardware>                                  hardware,
             po::variables_map const&                                   args)
         {
-            RunCriteria criteria;
-
             double granThresh = args["granularity-threshold"].as<double>();
-            double memThresh  = 1.0; // = args["memory-throughput-threshold"].as<double>();
-            double minLDSUtil = 0.75; // = args["minimum-lds-utilization"].as<double>();
+            double memThresh  = args["mem-throughput-threshold"].as<double>();
+            double minLDSUtil = args["min-lds-utilization"].as<double>();
+
             PerformanceMetric perfMetric = args["performance-metric"].as<PerformanceMetric>();
 
+            RunCriteria criteria;
             if(granThresh > 0.0)
             {
                 criteria.push_back([granThresh, perfMetric](ContractionProblem const&  problem,
@@ -135,7 +133,7 @@ namespace Tensile
                     if(perfMetric == PerformanceMetric::CUEfficiency)
                         totalGran /= projPerf.cuGranularity;
 
-                    return totalGran >= granThresh;
+                    return (totalGran >= granThresh) ? FR::Run : FR::LowGranularity;
                 });
             }
             if(memThresh > 0.0)
@@ -143,7 +141,8 @@ namespace Tensile
                 criteria.push_back([memThresh](ContractionProblem const&  problem,
                                                Hardware const&            hardware,
                                                ContractionSolution const& solution) {
-                    // TODO need: alu-rate, bytes-per-cu, cycles-per-cu (check total flop calculation)
+                    // TODO need: memory readBW and numChannels
+                    // TODO get ALU from yaml file
                     size_t K   = problem.boundSize(0); // TODO - fix for multiple summations
                     size_t GSU = solution.sizeMapping.globalSplitU;
                     size_t LSU = solution.sizeMapping.workGroupSize.z;
@@ -154,7 +153,7 @@ namespace Tensile
 
                     size_t bpe = DataTypeInfo::Get(problem.a().dataType()).elementSize;
 
-                    size_t aluRate = 128; // TODO hardcoded for testing
+                    size_t aluRate = 512; // same yaml as used in efficiency conversion script
                     double bytesPerCU
                         = (MT0 * tileK * bpe) + (MT1 * tileK * bpe) + (MT0 * MT1 * bpe);
                     double cyclesPerCU
@@ -166,19 +165,24 @@ namespace Tensile
                     double memRate       = perf.readEff * l2BWperCU;
                     double compMemFactor = memRate / roofline;
 
-                    return compMemFactor >= memThresh;
+                    // std::cout << bpe << std::endl;
+                    // std::cout << bytesPerCU << std::endl;
+                    // std::cout << cyclesPerCU << std::endl;
+                    // std::cout << roofline << std::endl;
+
+                    return (compMemFactor >= memThresh) ? FR::Run : FR::LowMemoryThroughput;
                 });
             }
-            if(minLDSUtil > 0.0)
-            {
-                criteria.push_back([minLDSUtil](ContractionProblem const&  problem,
-                                                Hardware const&            hardware,
-                                                ContractionSolution const& solution) {
-                    // TODO need: LDS used by kernel
-                    bool toReturn = true;
-                    return toReturn;
-                });
-            }
+            // if(minLDSUtil > 0.0)
+            // {
+            //     criteria.push_back([minLDSUtil](ContractionProblem const&  problem,
+            //                                     Hardware const&            hardware,
+            //                                     ContractionSolution const& solution) {
+            //         // TODO get actual LDS used by kernel
+            //         double LDSUtil = 1.0;
+            //         return LDSUtil >= minLDSUtil;
+            //     });
+            // }
             return criteria;
         }
 
@@ -187,10 +191,12 @@ namespace Tensile
             std::shared_ptr<Hardware>                                  hardware,
             int                                                        firstSolutionIdx,
             int                                                        numSolutions,
-            RunCriteria                                                runCriteria)
+            RunCriteria                                                runCriteria,
+            bool                                                       criteriaVerify)
             : SolutionIterator(library, hardware)
             , m_numSolutionsSkipped(0)
             , m_runCriteria(runCriteria)
+            , m_criteriaVerify(criteriaVerify)
         {
             m_firstSolutionIdx = firstSolutionIdx;
 
@@ -222,9 +228,9 @@ namespace Tensile
         {
             int numSolutions = m_lastSolutionIdx - m_firstSolutionIdx + 1;
 
-            std::stringstream solRun;
-            solRun << numSolutions - m_numSolutionsSkipped << "/" << numSolutions;
-            m_reporter->report(ResultKey::SolutionsRun, solRun.str());
+            std::string val = std::to_string(numSolutions - m_numSolutionsSkipped) + "/"
+                              + std::to_string(numSolutions);
+            m_reporter->report(ResultKey::SolutionsRun, val);
         }
 
         void AllSolutionsIterator::preSolution(ContractionSolution const& solution)
@@ -269,14 +275,58 @@ namespace Tensile
 
             for(auto const& criterion : m_runCriteria)
             {
-                if(!criterion(m_problem, *m_hardware, *solution))
+                FR result = criterion(m_problem, *m_hardware, *solution);
+                if(result != FR::Run)
                 {
                     m_numSolutionsSkipped++;
-                    m_reporter->report(ResultKey::Validation, "SKIPPED");
-                    return false;
+                    if(m_criteriaVerify)
+                    {
+                        m_reporter->report(ResultKey::WouldSkip, TypeAbbrev(result));
+                        return true;
+                    }
+                    else
+                    {
+                        m_reporter->report(ResultKey::Validation, "SKIPPED: " + ToString(result));
+                        return false;
+                    }
                 }
             }
             return true;
+        }
+
+        std::string ToString(AllSolutionsIterator::FR fr)
+        {
+            switch(fr)
+            {
+            case AllSolutionsIterator::FR::Run:
+                return "Run";
+            case AllSolutionsIterator::FR::LowGranularity:
+                return "LowGranularity";
+            case AllSolutionsIterator::FR::LowMemoryThroughput:
+                return "LowMemoryThroughput";
+            default:;
+            }
+            return "Invalid";
+        }
+
+        std::string TypeAbbrev(AllSolutionsIterator::FR fr)
+        {
+            switch(fr)
+            {
+            case AllSolutionsIterator::FR::Run:
+                return "run";
+            case AllSolutionsIterator::FR::LowGranularity:
+                return "grn";
+            case AllSolutionsIterator::FR::LowMemoryThroughput:
+                return "mem";
+            default:;
+            }
+            return "Invalid";
+        }
+
+        std::ostream& operator<<(std::ostream& stream, const AllSolutionsIterator::FR& fr)
+        {
+            return stream << ToString(fr);
         }
 
         BestSolutionIterator::BestSolutionIterator(

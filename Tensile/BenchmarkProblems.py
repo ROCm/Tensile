@@ -370,17 +370,17 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ############################################################################
     # Winners -> Determined Parameters
     ############################################################################
-    if not enableTileSelection:
-        results = getResults(resultsFileName, solutions, enableTileSelection, newResultsFileName)
-        currentTime = time.time()
-        elapsedTime = currentTime - startTime
-        print1("# Finish GetResults - %.3fs\n" % (elapsedTime))
-        print2("CSV Results: %s" % results)
-        #winners.addResults(benchmarkStep.hardcodedParameters, \
-            #benchmarkPermutations, solutions, results)
-        currentTime = time.time()
-        elapsedTime = currentTime - startTime
-        print1("# Finish Adding Results - %.3fs\n" % (elapsedTime))
+    # if not enableTileSelection:
+    #     results = getResults(resultsFileName, solutions, enableTileSelection, newResultsFileName)
+    #     currentTime = time.time()
+    #     elapsedTime = currentTime - startTime
+    #     print1("# Finish GetResults - %.3fs\n" % (elapsedTime))
+    #     print2("CSV Results: %s" % results)
+    #     winners.addResults(benchmarkStep.hardcodedParameters, \
+    #         benchmarkPermutations, solutions, results)
+    #     currentTime = time.time()
+    #     elapsedTime = currentTime - startTime
+    #     print1("# Finish Adding Results - %.3fs\n" % (elapsedTime))
 
     ############################################################################
     # Write Solutions YAML

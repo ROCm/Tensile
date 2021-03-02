@@ -200,13 +200,15 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
   print1("\n# Score: %.0f ms" % (score/1000))
   logicAnalyzer.prepareLogic(rangeLogic) # convert indices to sizes, -1
 
-  ######################################
-  # Range Logic
   exactLogic = logicAnalyzer.exactWinners
-  print1("# Exact Logic:\n")
-  print1("%s"%exactLogic)
+  print1("# Exact Logic:")
+  print1(exactLogic)
 
-  #selectionSolutionsIdsList = list(selectionSolutionsIds)
+  for key, value in logicAnalyzer.wouldSkipWinner.items():
+    if value:
+      printWarning("Winning solution would have been skipped by solution filtering criteria for problem size {}".format(key))
+
+
   return (problemType, logicAnalyzer.solutions, logicAnalyzer.indexOrder, \
        exactLogic, rangeLogic, selectionSolutions, selectionSolutionsIdsList, logicAnalyzer.perfMetric)
 
@@ -355,6 +357,7 @@ class LogicAnalyzer:
 
     # Each entry in exactWinners is a 2D array [solutionIdx, perf]
     self.exactWinners = {}
+    self.wouldSkipWinner = {}
 
     """
     # map problem sizes -> index
@@ -431,8 +434,8 @@ class LogicAnalyzer:
     if csvHasWinner:
       # the column of the two are fixed (GFlops, SizeI/J/K/L, LDD/C/A/B, TotalFlops, WinnerGFlops, WinnerTimeUs, WinnerIdx, WinnerName)
       # the order are implemented in ResultFileReporter.cpp (NewClient) and Client.h (OldClient)
-      columnOfWinnerGFlops = 10
-      columnOfWinnerIdx = 12
+      columnOfWinnerGFlops = 11
+      columnOfWinnerIdx = 13
 
     # iterate over rows
     rowIdx = 0
@@ -472,17 +475,24 @@ class LogicAnalyzer:
             # Faster. Get the winner info from csv directly, avoid an extra loop
             winnerGFlops = float(row[columnOfWinnerGFlops])
             winnerIdx = int(row[columnOfWinnerIdx])
+            wouldSkipWinner = True if ":" in row[solutionStartIdx + winnerIdx] else False
           else:
             # Old code. TODO - Can we get rid of this in the future?
             # solution gflops
             solutionIdx = 0
             winnerIdx = -1
             winnerGFlops = -1
+            wouldSkipWinner = False
             for i in range(solutionStartIdx, rowLength):
-              gflops = float(row[i])
+
+              gflops_ws = row[i].strip().split(":")
+              gflops = float(gflops_ws[0])
+              wouldSkip = True if len(gflops_ws) > 1 else False
+
               if gflops > winnerGFlops:
                 winnerIdx = solutionIdx
                 winnerGFlops = gflops
+                wouldSkipWinner = wouldSkip
               solutionIdx += 1
 
           if winnerIdx != -1:
@@ -493,6 +503,7 @@ class LogicAnalyzer:
             else:
               self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
               #print "new exact", problemSize, "CSV index=", winnerIdx, self.exactWinners[problemSize]
+            self.wouldSkipWinner[problemSize] = wouldSkipWinner
 
         # Range Problem Size
         elif problemSize in self.rangeProblemSizes:
