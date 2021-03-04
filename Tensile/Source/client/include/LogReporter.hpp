@@ -96,7 +96,7 @@ namespace Tensile
                                                         Stream&                  stream)
             {
                 bool dumpTensors = args["dump-tensors"].as<bool>();
-                bool printHex = args["print-tensor-hex"].as<bool>();
+                bool printHex    = args["print-tensor-hex"].as<bool>();
                 using namespace ResultKey;
                 auto logLevel = args["log-level"].as<LogLevel>();
                 std::cout << "Log level: " << logLevel << std::endl;

@@ -343,9 +343,7 @@ namespace Tensile
     std::ostream& operator<<(std::ostream& stream, const TensorDescriptor& t);
 
     template <typename T>
-    inline void WriteTensor1DHex(std::ostream&           stream,
-                          T*                      data,
-                          TensorDescriptor const& desc)
+    inline void WriteTensor1DHex(std::ostream& stream, T* data, TensorDescriptor const& desc)
     {
         stream << std::hex;
         if(desc.sizes()[0] > 0)
@@ -356,9 +354,8 @@ namespace Tensile
     }
 
     template <>
-    inline void WriteTensor1DHex<float>(std::ostream&           stream,
-                                 float*                  data,
-                                 TensorDescriptor const& desc)
+    inline void
+        WriteTensor1DHex<float>(std::ostream& stream, float* data, TensorDescriptor const& desc)
     {
         stream << std::hex;
         if(desc.sizes()[0] > 0)
@@ -369,9 +366,8 @@ namespace Tensile
     }
 
     template <>
-    inline void WriteTensor1DHex<double>(std::ostream&          stream,
-                                  double*                data,
-                                  TensorDescriptor const& desc)
+    inline void
+        WriteTensor1DHex<double>(std::ostream& stream, double* data, TensorDescriptor const& desc)
     {
         stream << std::hex;
         if(desc.sizes()[0] > 0)
@@ -386,7 +382,7 @@ namespace Tensile
                        T*                      data,
                        TensorDescriptor const& desc,
                        bool                    decorated = true,
-                       bool                    printHex = false)
+                       bool                    printHex  = false)
     {
         if(desc.dimensions() != 1)
             throw std::runtime_error(
@@ -412,10 +408,10 @@ namespace Tensile
 
     template <typename T>
     inline void WriteTensorHex(std::ostream&           stream,
-                            T const*                data,
-                            TensorDescriptor const& desc,
-                            T const*                ptrValue  = nullptr,
-                            bool                    decorated = true)
+                               T const*                data,
+                               TensorDescriptor const& desc,
+                               T const*                ptrValue  = nullptr,
+                               bool                    decorated = true)
     {
         auto const&         sizes = desc.sizes();
         std::vector<size_t> coord(desc.dimensions(), 0);
@@ -467,10 +463,10 @@ namespace Tensile
 
     template <>
     inline void WriteTensorHex<float>(std::ostream&           stream,
-                                   float const*            data,
-                                   TensorDescriptor const& desc,
-                                   float const*            ptrValue,
-                                   bool                    decorated)
+                                      float const*            data,
+                                      TensorDescriptor const& desc,
+                                      float const*            ptrValue,
+                                      bool                    decorated)
     {
         auto const&         sizes = desc.sizes();
         std::vector<size_t> coord(desc.dimensions(), 0);
@@ -505,7 +501,8 @@ namespace Tensile
 
                 for(coord[0] = 1; coord[0] < sizes[0]; coord[0]++)
                 {
-                    stream << " " << *reinterpret_cast<const uint32_t*>(&localPtr[coord[0] * stride0]);
+                    stream << " "
+                           << *reinterpret_cast<const uint32_t*>(&localPtr[coord[0] * stride0]);
                 }
 
                 stream << std::endl;
@@ -522,10 +519,10 @@ namespace Tensile
 
     template <>
     inline void WriteTensorHex<double>(std::ostream&           stream,
-                                    double const*           data,
-                                    TensorDescriptor const& desc,
-                                    double const*           ptrValue,
-                                    bool                    decorated)
+                                       double const*           data,
+                                       TensorDescriptor const& desc,
+                                       double const*           ptrValue,
+                                       bool                    decorated)
     {
         auto const&         sizes = desc.sizes();
         std::vector<size_t> coord(desc.dimensions(), 0);
@@ -560,7 +557,8 @@ namespace Tensile
 
                 for(coord[0] = 1; coord[0] < sizes[0]; coord[0]++)
                 {
-                    stream << " " << *reinterpret_cast<const uint64_t*>(&localPtr[coord[0] * stride0]);
+                    stream << " "
+                           << *reinterpret_cast<const uint64_t*>(&localPtr[coord[0] * stride0]);
                 }
 
                 stream << std::endl;
@@ -589,7 +587,7 @@ namespace Tensile
                      TensorDescriptor const& desc,
                      T const*                ptrValue  = nullptr,
                      bool                    decorated = true,
-                     bool                    printHex = false)
+                     bool                    printHex  = false)
     {
         stream << "Tensor(";
         streamJoin(stream, desc.sizes(), ", ");
