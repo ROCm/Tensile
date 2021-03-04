@@ -580,6 +580,7 @@ namespace Tensile
  * \param desc Tensor descriptor
  * \param ptrValue Pointer value to print to describe the location of the data.
  * \param decorated Print brackets [] to indicate start/end of tensor dims
+ * \param printHex Print tensor data in hex format
  */
     template <typename T>
     void WriteTensor(std::ostream&           stream,
