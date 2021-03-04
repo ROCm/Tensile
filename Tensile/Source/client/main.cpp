@@ -146,6 +146,7 @@ namespace Tensile
                 ("print-tensor-ref",         po::value<bool>()->default_value(false), "Print reference tensor D.")
 
                 ("dump-tensors",             po::value<bool>()->default_value(false), "Binary dump tensors instead of printing.")
+                ("print-tensor-hex",         po::value<bool>()->default_value(false), "Print tensor data in hex format.")
 
                 ("convolution-identifier",   po::value<std::string>(), "Convolution problem identifer:  ConvolutionType_ActFormat_FilterFormat_Filter_Stride_Dilation_Groups.  Example: ConvolutionBackwardWeights_NCHW_filter:3x3_stride:1x1_dilation:1x1_groups:1.  Batch count, spacial dimensions (H,W,D), Cin and Cout filters are determined by the problem dimensions.")
                 ("convolution-vs-contraction",  po::value<bool>()->default_value(false), "Compare reference convolution against contraction.")

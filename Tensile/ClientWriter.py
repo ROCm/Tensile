@@ -670,7 +670,9 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         if globalParameters["PrintTensorD"]:
           param("print-tensor-d",         1)
         if globalParameters["PrintTensorRef"]:
-          param("print-tensor-ref",         1)
+          param("print-tensor-ref",       1)
+        if globalParameters["PrintTensorHex"]:
+          param("print-tensor-hex",       1)
 
         param("bounds-check",             boundsCheckName(int(globalParameters["BoundsCheck"])))
         param("print-valids",             globalParameters["ValidationPrintValids"])

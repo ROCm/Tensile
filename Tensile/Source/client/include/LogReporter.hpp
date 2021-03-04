@@ -48,11 +48,13 @@ namespace Tensile
             LogReporter(LogLevel                           level,
                         std::initializer_list<const char*> keys,
                         std::ostream&                      stream,
-                        bool                               dumpTensors)
+                        bool                               dumpTensors,
+                        bool                               printHex = false)
                 : m_level(level)
                 , m_stream(stream)
                 , m_csvOutput(stream)
                 , m_dumpTensors(dumpTensors)
+                , m_printHex(printHex)
             {
                 for(auto const& key : keys)
                     m_csvOutput.setHeaderForKey(key, key);
@@ -61,11 +63,13 @@ namespace Tensile
             LogReporter(LogLevel                           level,
                         std::initializer_list<std::string> keys,
                         std::ostream&                      stream,
-                        bool                               dumpTensors)
+                        bool                               dumpTensors,
+                        bool                               printHex = false)
                 : m_level(level)
                 , m_stream(stream)
                 , m_csvOutput(stream)
                 , m_dumpTensors(dumpTensors)
+                , m_printHex(printHex)
             {
                 for(auto const& key : keys)
                     m_csvOutput.setHeaderForKey(key, key);
@@ -74,12 +78,14 @@ namespace Tensile
             LogReporter(LogLevel                           level,
                         std::initializer_list<std::string> keys,
                         std::shared_ptr<std::ostream>      stream,
-                        bool                               dumpTensors)
+                        bool                               dumpTensors,
+                        bool                               printHex = false)
                 : m_level(level)
                 , m_stream(*stream)
                 , m_ownedStream(stream)
                 , m_csvOutput(stream)
                 , m_dumpTensors(dumpTensors)
+                , m_printHex(printHex)
             {
                 for(auto const& key : keys)
                     m_csvOutput.setHeaderForKey(key, key);
@@ -90,6 +96,7 @@ namespace Tensile
                                                         Stream&                  stream)
             {
                 bool dumpTensors = args["dump-tensors"].as<bool>();
+                bool printHex = args["print-tensor-hex"].as<bool>();
                 using namespace ResultKey;
                 auto logLevel = args["log-level"].as<LogLevel>();
                 std::cout << "Log level: " << logLevel << std::endl;
@@ -127,7 +134,8 @@ namespace Tensile
                                                                      HardwareSampleCount,
                                                                      EnqueueTime},
                                                                     stream,
-                                                                    dumpTensors));
+                                                                    dumpTensors,
+                                                                    printHex));
             }
 
             static std::shared_ptr<LogReporter> Default(po::variables_map const& args)
@@ -218,7 +226,7 @@ namespace Tensile
                     else
                     {
                         m_stream << name << ": " << tensor << std::endl;
-                        WriteTensor(m_stream, data, tensor, ptrVal);
+                        WriteTensor(m_stream, data, tensor, ptrVal, true, m_printHex);
                     }
                 }
             }
@@ -305,6 +313,7 @@ namespace Tensile
             bool m_firstRun    = true;
             bool m_inSolution  = false;
             bool m_dumpTensors = false;
+            bool m_printHex    = false;
 
             LogLevel m_rowLevel;
 
