@@ -293,11 +293,11 @@ namespace Tensile
                 rv.numWorkGroups.z *= problem.batchSize(i);
         }
 
-        rv.numWorkGroups.x = CeilDivide(rv.numWorkGroups.x, sizeMapping.macroTile.x);
-        rv.numWorkGroups.y = CeilDivide(rv.numWorkGroups.y, sizeMapping.macroTile.y);
-
         if(problem.transposeC01())
             std::swap(rv.numWorkGroups.x, rv.numWorkGroups.y);
+
+        rv.numWorkGroups.x = CeilDivide(rv.numWorkGroups.x, sizeMapping.macroTile.x);
+        rv.numWorkGroups.y = CeilDivide(rv.numWorkGroups.y, sizeMapping.macroTile.y);
 
         uint32_t problemNumGroupTiles0 = rv.numWorkGroups.x;
         uint32_t problemNumGroupTiles1 = rv.numWorkGroups.y;

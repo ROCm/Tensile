@@ -296,7 +296,7 @@ for i in validThreadTileSides:
     validThreadTiles.append([i, j])
 
 validActivationFormats = ('NCHW', 'NHWC', 'CNHW', 'NCDHW', 'NDHWC', 'CNDHW')
-validWeightFormats = ('KCYX', "CKYX", "CYXK",  'KCZYX', 'CKZYX', 'CZYXK')
+validWeightFormats = ('KCYX', "KYXC", "CKYX", "CYXK",  'KCZYX', 'CKZYX', 'CZYXK')
 validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 48, 96, 192, 384, 768 ]
 validMacroTiles = []
 validISA = [(0,0,0)]

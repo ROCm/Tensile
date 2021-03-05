@@ -37,7 +37,7 @@ class LraTileAssignmentVALU(LraTileAssignment):
         tmpVgpr = writer.vgprPool.checkOutAligned(2,2,"tmpVgpr")
         tmpSgpr = writer.getTmpSgpr(1).idx()
 
-        if tP["tensorChar"] == 'A':
+        if tP["tileIdx"] == 0:
             kStr += "%slr%s = serial %% SG%s%s%s" \
                     % (writer.commentPrefix, tP["tileChar"], tP["tileChar"], \
                     writer.commentSuffix, writer.endLine)
@@ -51,15 +51,15 @@ class LraTileAssignmentVALU(LraTileAssignment):
 
             # release and return resource
             tP["gpr"]["lro"] = rReg
-            writer.tmplroB = qReg
-        elif tP["tensorChar"] == 'B':
+            writer.tmplro = qReg
+        else:
             kStr += "%slr%s = (serial / SG%s) %% SG%s%s%s" \
                     % (writer.commentPrefix, tP["tileChar"], tP["tileChar"], \
                     tP["tileChar"], writer.commentSuffix, writer.endLine)
 
             # constant
             divisor = kernel["SubGroup1"]
-            dividendReg = writer.tmplroB
+            dividendReg = writer.tmplro
 
             # generate instruction
             kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, tmpVgpr, tmpSgpr)
@@ -67,7 +67,7 @@ class LraTileAssignmentVALU(LraTileAssignment):
             # release and return resource
             tP["gpr"]["lro"] = rReg
 
-            writer.vgprPool.checkIn(writer.tmplroB) # old
+            writer.vgprPool.checkIn(writer.tmplro) # old
             writer.vgprPool.checkIn(qReg)
 
         writer.vgprPool.checkIn(tmpVgpr)
@@ -99,21 +99,21 @@ class LraTileAssignmentMFMA(LraTileAssignment):
 
         # get constant parameter
         tc               = tP["tensorChar"]
-        tIdx             = tP["tensorIdx"]
+        tile01           = tP["tile01Idx"]
         waveWidth        = writer.kernel["WavefrontSize"]
         inputPerThread   = max(writer.lrvwA,writer.lrvwB)
         LdsPad           = kernel["LdsPad%s" % tc] if kernel["LdsBlockSizePerPad%s" % tc] == 0 else 0
 
         # parameter for get each type index
         dividendForKId   = kernel["MatrixInstM"] * kernel["MatrixInstB"]
-        num1DBlocks      = kernel["MatrixInstBM"]   if (tc == 'A') else kernel["MatrixInstBN"]
-        num1DWaves       = kernel["MIWaveGroup"][0] if (tc == 'A') else kernel["MIWaveGroup"][1]
-        dividedForBlkId  = kernel["MatrixInstM"]    if (tc == 'A') else (kernel["MatrixInstM"] * kernel["MatrixInstBM"])
-        dividedForWaveId = waveWidth                if (tc == 'A') else (waveWidth * kernel["MIWaveGroup"][0])
+        num1DBlocks      = kernel["MatrixInstBM"]   if (tile01 == 0) else kernel["MatrixInstBN"]
+        num1DWaves       = kernel["MIWaveGroup"][0] if (tile01 == 0) else kernel["MIWaveGroup"][1]
+        dividedForBlkId  = kernel["MatrixInstM"]    if (tile01 == 0) else (kernel["MatrixInstM"] * kernel["MatrixInstBM"])
+        dividedForWaveId = waveWidth                if (tile01 == 0) else (waveWidth * kernel["MIWaveGroup"][0])
 
         # strider for each type of index
         umlds            = kernel["UnrollMajorLDS%s" % tP["tensorChar"]]
-        mt               = kernel["MacroTile%u" % tIdx]
+        mt               = kernel["MacroTile%u" % tile01]
         strideTile       = kernel["_DepthULds"] + LdsPad if umlds else 1
         strideK          = inputPerThread                        if umlds else (mt + LdsPad) * inputPerThread
         strideBlock      = kernel["MatrixInstM"] * strideTile
