@@ -49,7 +49,7 @@ namespace Tensile
  */
         namespace Contraction
         {
-            struct FreeSizeAMultiple : public Predicate_CRTP<FreeSizeAMultiple, ContractionProblem>
+            struct Free0SizeMultiple : public Predicate_CRTP<Free0SizeMultiple, ContractionProblem>
             {
                 enum
                 {
@@ -59,8 +59,8 @@ namespace Tensile
                 size_t index;
                 size_t value;
 
-                FreeSizeAMultiple() = default;
-                FreeSizeAMultiple(size_t index, size_t value)
+                Free0SizeMultiple() = default;
+                Free0SizeMultiple(size_t index, size_t value)
                     : index(index)
                     , value(value)
                 {
@@ -68,16 +68,19 @@ namespace Tensile
 
                 static std::string Type()
                 {
-                    return "FreeSizeAMultiple";
+                    return "Free0SizeMultiple";
                 }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.freeSizeA(index) % value == 0;
+                    return (!problem.transposeC01() ? problem.freeSizeA(index)
+                                                    : problem.freeSizeB(index))
+                               % value
+                           == 0;
                 }
             };
 
-            struct FreeSizeBMultiple : public Predicate_CRTP<FreeSizeBMultiple, ContractionProblem>
+            struct Free1SizeMultiple : public Predicate_CRTP<Free1SizeMultiple, ContractionProblem>
             {
                 enum
                 {
@@ -87,8 +90,8 @@ namespace Tensile
                 size_t index;
                 size_t value;
 
-                FreeSizeBMultiple() = default;
-                FreeSizeBMultiple(size_t index, size_t value)
+                Free1SizeMultiple() = default;
+                Free1SizeMultiple(size_t index, size_t value)
                     : index(index)
                     , value(value)
                 {
@@ -96,12 +99,15 @@ namespace Tensile
 
                 static std::string Type()
                 {
-                    return "FreeSizeBMultiple";
+                    return "Free1SizeMultiple";
                 }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.freeSizeB(index) % value == 0;
+                    return (!problem.transposeC01() ? problem.freeSizeB(index)
+                                                    : problem.freeSizeA(index))
+                               % value
+                           == 0;
                 }
             };
 

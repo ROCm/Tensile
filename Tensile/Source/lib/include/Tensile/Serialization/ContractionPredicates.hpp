@@ -56,8 +56,8 @@ namespace Tensile
             static SubclassMap GetSubclasses()
             {
                 SubclassMap rv({
-                    Base::template Pair<Predicates::Contraction::FreeSizeAMultiple>(),
-                    Base::template Pair<Predicates::Contraction::FreeSizeBMultiple>(),
+                    Base::template Pair<Predicates::Contraction::Free0SizeMultiple>(),
+                    Base::template Pair<Predicates::Contraction::Free1SizeMultiple>(),
                     Base::template Pair<Predicates::Contraction::BatchSizeMultiple>(),
                     Base::template Pair<Predicates::Contraction::BatchSizeEqual>(),
                     Base::template Pair<Predicates::Contraction::BoundSizeMultiple>(),
@@ -105,14 +105,14 @@ namespace Tensile
             = ContractionProblemPredicateSMT<IO>::GetSubclasses();
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::FreeSizeAMultiple, IO>
-            : public AutoMappingTraits<Predicates::Contraction::FreeSizeAMultiple, IO>
+        struct MappingTraits<Predicates::Contraction::Free0SizeMultiple, IO>
+            : public AutoMappingTraits<Predicates::Contraction::Free0SizeMultiple, IO>
         {
         };
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::FreeSizeBMultiple, IO>
-            : public AutoMappingTraits<Predicates::Contraction::FreeSizeBMultiple, IO>
+        struct MappingTraits<Predicates::Contraction::Free1SizeMultiple, IO>
+            : public AutoMappingTraits<Predicates::Contraction::Free1SizeMultiple, IO>
         {
         };
 

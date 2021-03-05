@@ -53,6 +53,8 @@ class ComputeStoreVgprsVALU(ComputeStoreVgprs):
         tid0 = writer.vgprPool.checkOut(1, "tid0")
         tid1 = writer.vgprPool.checkOut(1, "tid1")
 
+        packedC1 = kernel["PackedC1IndicesX"]
+
         if kernel["BufferStore"]:
             writer.cinRowPtr    = writer.vgprPool.checkOut(1, "cinRowPtr")
             writer.coutRowPtr = writer.vgprPool.checkOut(1, "coutRowPtr")
@@ -74,8 +76,6 @@ class ComputeStoreVgprsVALU(ComputeStoreVgprs):
             # TODO-packed
             # Eventually need to modify if supporting packed coord1, to start just assert if that case is detected
             #--
-            packedC1 = kernel["PackedC1IndicesX"]
-            assert (len(packedC1) == 1) # would need to extract/scale indices from coord1
             strideC1 = "StrideC%s" % (writer.indexChars[packedC1[0]])
             kStr += inst("v_mul_lo_u32", vgpr(writer.cinRowPtr),
                          vgpr(tid1), sgpr(strideC1), \
@@ -117,6 +117,9 @@ class ComputeStoreVgprsVALU(ComputeStoreVgprs):
                 sgpr(wgMT1), \
                 vgpr(tid1), \
                 "coord1 = tid1*VW + wg1*MT1")
+
+        if len(packedC1) > 1:
+          kStr += writer.extractPackedCoord1ToRowStart(kernel, packedC1, tid1, 'D')
 
         writer.coord0 = tid0
         writer.coord1 = tid1
@@ -223,6 +226,10 @@ class ComputeStoreVgprsMFMA(ComputeStoreVgprs):
         # macro tile 1 part
         kStr += inst("s_mul_i32", sgpr(tmpSgpr), kernel["MacroTile1"], sgpr(wg1), "wgp1 * MT1")
         kStr += inst("_v_add_u32", vgpr(tid1), sgpr(tmpSgpr), vgpr(tid1), "coord 1 = (tid0%MI_m) + waveG1*MIB_n + MT1*SG1")
+
+        # extract packed rowStart vgpr
+        if len(packedC1) > 1:
+          kStr += writer.extractPackedCoord1ToRowStart(kernel, packedC1, tid1, 'D')
 
         # release resource
         writer.vgprPool.checkIn(dummy)

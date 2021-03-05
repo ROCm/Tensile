@@ -64,14 +64,16 @@ class MAC_F32_Plain(MAC):
         priority = Component.Priority.find(writer)
         macIdx = 0
 
-        for b in range(0, kernel["ThreadTile1"]):
-            for a in range(0, kernel["ThreadTile0"]):
+        for idx1 in range(0, kernel["ThreadTile1"]):
+            for idx0 in range(0, kernel["ThreadTile0"]):
                 for iui in range(0, innerUnroll):
-                    vars["a"] = a
-                    vars["b"] = b
+                    vars["idx0"] = idx0
+                    vars["idx1"] = idx1
+                    vars["a"] = idx0 if writer.tPB["tile01Idx"] else idx1
+                    vars["b"] = idx1 if writer.tPB["tile01Idx"] else idx0
                     vars["iui"] = iui
 
-                    vars["cStr"] = "v[vgprValuC + {a} + {b}*{ThreadTile0}]".format_map(vars)
+                    vars["cStr"] = "v[vgprValuC + {idx0} + {idx1}*{ThreadTile0}]".format_map(vars)
                     vars["aStr"] = "v[vgprValuA_X{m}_I{iui} + {a}]".format_map(vars)
                     vars["bStr"] = "v[vgprValuB_X{m}_I{iui} + {b}]".format_map(vars)
 

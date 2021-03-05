@@ -231,6 +231,12 @@ class Convolution:
       nidx = i ; i+=1
       kidx = i ; i+=1
       sumIdx = i
+    elif formatD in ("CHWN", "CDHWN"):
+      i = 0
+      nidx = i ; i+=1
+      sidx = i ; i+=len(sdims)
+      kidx = i ; i+=1
+      sumIdx = i
     else:
       raise RuntimeError ("unknown formatD '%s'"%formatD)
 
@@ -263,6 +269,8 @@ class Convolution:
       self.registerA( [RegDim(nidx,Fbs.Batch,ndim)] + self.spatialRegDims + self.filterRegDims + chinRegDim )
     elif formatA in ("CNHW", "CNDHW"):
       self.registerA( chinRegDim + [RegDim(nidx,Fbs.Batch,ndim)] + self.spatialRegDims + self.filterRegDims )
+    elif formatA in ("CHWN", "CDHWN"):
+      self.registerA( chinRegDim + self.spatialRegDims + self.filterRegDims + [RegDim(nidx,Fbs.Batch,ndim)] )
     else:
       raise RuntimeError ("unknown formatA '%s'"%formatA)
 
@@ -291,6 +299,9 @@ class Convolution:
     elif nonFilterDims[-1].dim==cdim:
       setStride = True
       cdim.strideA = 1
+    elif nonFilterDims[-1].dim==ndim:
+      setStride = True
+      ndim.strideA = 1
 
     if self.filterRegDims and self.regDimsA[-1].dim == self.filterRegDims[-1].dim:
       if self.filterRegDims[-1].dim.shortChar in self.ValidLowestFilterDim:
@@ -334,10 +345,11 @@ class Convolution:
           rv.append([anchorIdx, sumIdx, -1, -1])
     return rv
 
-  def makeZeroPadProblemType(self, zps, padStart, padEnd, cc):
+  def makeZeroPadProblemType(self, zps, padStart, padEnd, c, cc):
     """ Convert padStart/padEnd into the format expected by ProblemType ZeroPad* """
     rv = []
-    ss = 1
+    ss = c if self.regDimsA[0].dim.shortChar == 'C' else 1
+
     for (i,zp) in enumerate(zps):
       (anchorIdx, sumIdx) = zp[:2]
       rv.append([anchorIdx, sumIdx, padStart[i]*ss, padEnd[i]*ss])
@@ -607,11 +619,13 @@ class Convolution:
 
     #print ("spatialOut=", spatialOut, "padStart=", pcc.padStart, "padEnd=", pcc.padEnd)
 
+    cScalar = c if self.regDimsA[0].dim.shortChar == 'C' else 1
+
     for fi,filterValue in enumerate(pcc.fil):
       try:
         pos = self.convolutionDims[chr(ord('X')+fi)].idx
         sizes[pos] = filterValue
-        astrides[pos] = pcc.dilation[0] if fi==0 else pcc.spatial[fi-1]*pcc.dilation[fi]
+        astrides[pos] = pcc.dilation[0]*cScalar if fi==0 else pcc.spatial[fi-1]*pcc.dilation[fi]*cScalar
       except KeyError:
         None
 
@@ -619,14 +633,13 @@ class Convolution:
       spatialName="DHW"[3-self.formatNumSpatialDims:]
       pos=self.convolutionDims[spatialName].idx
       sizes[pos] = reduce((lambda x, y: x * y), spatialOut) # product of all spatial dimes
-      astrides[pos] = pcc.stride[0]
+      astrides[pos] = pcc.stride[0]*cScalar
     else:
       for si,sout in enumerate(spatialOut):
         spatialChars=['W','H','D']
         pos = self.convolutionDims[spatialChars[si]].idx
         sizes[pos] = sout
-
-        astrides[pos]=pcc.stride[0] if si==0 else pcc.spatial[si-1]*pcc.stride[si]
+        astrides[pos]=pcc.stride[0]*cScalar if si==0 else pcc.spatial[si-1]*pcc.stride[si]*cScalar
 
     assert all(i!=-1 for i in sizes)
 
@@ -1453,7 +1466,7 @@ class ConvProblem(Problem):
 
     (sizes, stridesA, stridesB) = convolution.makeProblem(e['n'], e['c'], e['k'], self.convConfig)
     zeroPadA = convolution.makeZeroPadProblemType(convolution.problemTypeOut["ZeroPadA"],
-        self.convConfig.padStart, self.convConfig.padEnd, self.convConfig)
+        self.convConfig.padStart, self.convConfig.padEnd, e['c'], self.convConfig)
 
     Problem.__init__(self, sizes, stridesA, stridesB=stridesB, zeroPadA=zeroPadA, count=e['count'])
 
@@ -2477,6 +2490,9 @@ class Solution:
       state["SubGroupB"] = state["SubGroup1"]
       state["MacroTileA"] = state["MacroTile0"]
       state["MacroTileB"] = state["MacroTile1"]
+      if state["EnableMatrixInstruction"]:
+        state["MIWaveTileA"] = state["MIWaveTile"][0]
+        state["MIWaveTileB"] = state["MIWaveTile"][1]
     else:
       state["ThreadTileB"] = state["ThreadTile0"]
       state["ThreadTileA"] = state["ThreadTile1"]
@@ -2484,6 +2500,9 @@ class Solution:
       state["SubGroupA"] = state["SubGroup1"]
       state["MacroTileB"] = state["MacroTile0"]
       state["MacroTileA"] = state["MacroTile1"]
+      if state["EnableMatrixInstruction"]:
+        state["MIWaveTileA"] = state["MIWaveTile"][1]
+        state["MIWaveTileB"] = state["MIWaveTile"][0]
 
     Solution.checkAndAssignWaveSeparateGlobalRead(state, 'A')
     Solution.checkAndAssignWaveSeparateGlobalRead(state, 'B')
@@ -2560,15 +2579,19 @@ class Solution:
     if problemType["Index0"] in problemType["IndexAssignmentsA"]:
       tc0 = 'A'
       tc1 = 'B'
+      batch0Mask = 0x1
+      batch1Mask = 0x2
     else:
       tc0 = 'B'
       tc1 = 'A'
+      batch0Mask = 0x2
+      batch1Mask = 0x1
     assert(isPackedIndex(state, problemType["Index01A"], 0x1))
     assert(isPackedIndex(state, problemType["Index01B"], 0x2))
 
     # Pack all the dimensions (batch and free) of A into grid[0]
     for idx in problemType["IndexAssignments%s"%tc0]:
-      if isPackedIndex(state, idx, 0x1):
+      if isPackedIndex(state, idx, batch0Mask):
         assert (idx < problemType["NumIndicesC"])
         state["PackedC0IdxChars"].append("%s" % indexChars[idx])
         state["PackedC0IndicesX"].append(idx)
@@ -2576,7 +2599,7 @@ class Solution:
     state["PackedC1IdxChars"] = []
     state["PackedC1IndicesX"] = []
     for idx in problemType["IndexAssignments%s"%tc1]:
-      if isPackedIndex(state, idx, 0x2):
+      if isPackedIndex(state, idx, batch1Mask):
         assert (idx < problemType["NumIndicesC"])
         state["PackedC1IdxChars"].append("%s" % indexChars[idx])
         state["PackedC1IndicesX"].append(idx)
@@ -2833,18 +2856,18 @@ class Solution:
 
       # how many elements to load
       if state["ProblemType"]["TLUA"]:
-        totalElementsCoalescedA = state["MacroTile0"]
+        totalElementsCoalescedA = state["MacroTileA"]
         totalElementsPerpA = depthU
       else:
         totalElementsCoalescedA = depthU
-        totalElementsPerpA = state["MacroTile0"]
+        totalElementsPerpA = state["MacroTileA"]
 
       if state["ProblemType"]["TLUB"]:
-        totalElementsCoalescedB = state["MacroTile1"]
+        totalElementsCoalescedB = state["MacroTileB"]
         totalElementsPerpB = depthU
       else:
         totalElementsCoalescedB = depthU
-        totalElementsPerpB = state["MacroTile1"]
+        totalElementsPerpB = state["MacroTileB"]
 
       totalElementsA = totalElementsCoalescedA * totalElementsPerpA
       totalElementsB = totalElementsCoalescedB * totalElementsPerpB
@@ -3126,23 +3149,23 @@ class Solution:
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
 
     if state["UnrollMajorLDSA"]:
-      ldsNumElementsA = (state["_DepthULds"] + state["LdsPadA"]) * state["MacroTile0"]
+      ldsNumElementsA = (state["_DepthULds"] + state["LdsPadA"]) * state["MacroTileA"]
       padInterval = state["LdsBlockSizePerPadA"] // bpeAB
       if padInterval != 0:
-        ldsNumElementsA = int((state["_DepthULds"] * state["MacroTile0"]) / padInterval * (padInterval + state["LdsPadA"]))
+        ldsNumElementsA = int((state["_DepthULds"] * state["MacroTileA"]) / padInterval * (padInterval + state["LdsPadA"]))
       ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA, ldsAlign)
     else:
-      ldsNumElementsA = state["_DepthULds"] * (state["MacroTile0"] + state["LdsPadA"])
+      ldsNumElementsA = state["_DepthULds"] * (state["MacroTileA"] + state["LdsPadA"])
       ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA, ldsAlign)
 
     if state["UnrollMajorLDSB"]:
-      ldsNumElementsB = (state["_DepthULds"] + state["LdsPadB"]) * state["MacroTile1"]
+      ldsNumElementsB = (state["_DepthULds"] + state["LdsPadB"]) * state["MacroTileB"]
       padInterval = state["LdsBlockSizePerPadB"] // bpeAB
       if padInterval != 0:
-        ldsNumElementsB = int((state["_DepthULds"] * state["MacroTile1"]) / padInterval * (padInterval + state["LdsPadB"]))
+        ldsNumElementsB = int((state["_DepthULds"] * state["MacroTileB"]) / padInterval * (padInterval + state["LdsPadB"]))
       ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB, ldsAlign)
     else:
-      ldsNumElementsB = state["_DepthULds"] * (state["MacroTile1"] + state["LdsPadB"])
+      ldsNumElementsB = state["_DepthULds"] * (state["MacroTileB"] + state["LdsPadB"])
       ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB, ldsAlign)
 
     # todo, can the alignment be a power of 2?
@@ -3554,7 +3577,8 @@ class Solution:
     # likely have more performant options.
     for tc in ('A', 'B'):
       if problemType["ZeroPad%s"%tc] and state["KernelLanguage"] == "Assembly":
-        if state["GlobalLoadVectorWidth%s"%tc] != 1:
+        if state["GlobalLoadVectorWidth%s"%tc] != 1 \
+            and problemType["IndexAssignments%s"%tc][0] in problemType["ZeroPad%s"%tc][0][0:1]:
           reject(state, "asm ZeroPad requires GlobalLoadVectorWidth==1")
         if not bufferLoad:
           reject(state, "asm ZeroPad requires BufferLoad")

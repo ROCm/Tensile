@@ -617,8 +617,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # calculate the data index of this mfma used for A and B
           # if i // kernel["MIWaveTile"][0]==0, mfma will use new A (need to take iu into account)
           # if i % kernel["MIWaveTile"][0]==0, mfma will use new B
-          packAIdx += instPerPack if i//(kernel["MIWaveTile"][0]+kernel["MIWaveTile"][0]*kernel["MIWaveTile"][1]*(i//(kernel["MIWaveTile"][0]*kernel["MIWaveTile"][1]))) == 0 else 0
-          packBIdx += instPerPack if i % kernel["MIWaveTile"][0] == 0 else 0
+          packAIdx += instPerPack if i//(kernel["MIWaveTileA"]+kernel["MIWaveTileA"]*kernel["MIWaveTileB"]*(i//(kernel["MIWaveTileA"]*kernel["MIWaveTileB"]))) == 0 else 0
+          packBIdx += instPerPack if i % kernel["MIWaveTileA"] == 0 else 0
           # blockWidth < 1, means 0.5 or 0.25 (BF,H,Int8)
           packAIdx = packAIdx if self.tPA["localReadInstruction"].blockWidth < 1 else 0
           packBIdx = packBIdx if self.tPB["localReadInstruction"].blockWidth < 1 else 0
@@ -880,8 +880,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # calculate the data index of this mfma used for A and B
           # if i // kernel["MIWaveTile"][0]==0, mfma will use new A (need to take iu into account)
           # if i % kernel["MIWaveTile"][0]==0, mfma will use new B
-          packAIdx += instPerPack if i//(kernel["MIWaveTile"][0]+kernel["MIWaveTile"][0]*kernel["MIWaveTile"][1]*(i//(kernel["MIWaveTile"][0]*kernel["MIWaveTile"][1]))) == 0 else 0
-          packBIdx += instPerPack if i % kernel["MIWaveTile"][0] == 0 else 0
+          packAIdx += instPerPack if i//(kernel["MIWaveTileA"]+kernel["MIWaveTileA"]*kernel["MIWaveTileB"]*(i//(kernel["MIWaveTileA"]*kernel["MIWaveTileB"]))) == 0 else 0
+          packBIdx += instPerPack if i % kernel["MIWaveTileA"] == 0 else 0
           # blockWidth < 1, means 0.5 or 0.25 (BF,H,Int8)
           packAIdx = packAIdx if self.tPA["localReadInstruction"].blockWidth < 1 else 0
           packBIdx = packBIdx if self.tPB["localReadInstruction"].blockWidth < 1 else 0
@@ -1478,11 +1478,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.comment3("Local Read Addresses"))
 
       # tile assignments
-      kl.append(self.comment("local read addresses: tile assignments a"))
-      kl.append(self.lraTileAssignment(kernel, tensorParametersA))
-      kl.append(self.comment("local read addresses: tile assignments b"))
-      kl.append(self.lraTileAssignment(kernel, tensorParametersB))
-
+      kl.append(self.comment("local read addresses: tile assignments a/b"))
+      kl.append(self.lraTileAssignment(kernel, tensorParametersA, tensorParametersB))
 
       # final offsets
       kl.append(self.comment("local read addresses: final offsets a"))
@@ -2869,8 +2866,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     tensorParametersA["PackBatchDims"] = kernel["PackBatchDims"] if kernel["PackBatchDims"] & 0x1 else 0
     tensorParametersB["PackBatchDims"] = kernel["PackBatchDims"] if kernel["PackBatchDims"] & 0x2 else 0
-    tensorParametersA["PackedIndices"] = kernel["PackedC0IndicesX"]
-    tensorParametersB["PackedIndices"] = kernel["PackedC1IndicesX"]
+    tensorParametersA["PackedIndices"] = kernel["PackedC%uIndicesX"%self.tPA["tile01Idx"]]
+    tensorParametersB["PackedIndices"] = kernel["PackedC%uIndicesX"%self.tPB["tile01Idx"]]
 
   @staticmethod
   def zpForSumIdx(sumIdx, zeroPad):
@@ -2964,6 +2961,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       tP["tensorIdx"] = 0                                   # tensor index A=0, B=1
       tP["tileChar"] = self.tileCharA                       # tile char I0 or J1
       tP["tileIdx"] = kernel["ProblemType"]["Index01A"]     # is the tile dimension of A the 0th or 1th index, i.e. Aki, tileIdx=0
+      tP["tile01Idx"] = 1 if tP["tileIdx"] else 0
       tP["lsc"] = "LSCA"                                    # load size coalesced A, number of elements that get loaded along coalesced dimension with each load
       tP["lsp"] = "LSPA"                                    # load size perpendicular A, number of elements that get loaded along non-coalesced dimension with each load
       tP["lvc"] = "LVCA"                                    # "load size" in terms of number of short-vectors and not elements
@@ -2973,11 +2971,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #tP["ruv"] = self.readUnrollDimVectorA
       #tP["nlvc"] = self.numReadVectorComponentsA
       #tP["nwvc"] = self.numWriteVectorComponentsA
-      tP["wg"] = "WorkGroup0"                               # these are storing the actual strong to lookup the number from kernel dictionary
-      tP["prevWg"] = "PrevWorkGroup0"                       # used for prefetch-across-persistent
-      tP["sg"] = "SubGroup0"
-      tP["tt"] = "ThreadTile0"
-      tP["mt"] = "MacroTile0"
+      tP["wg"] = "WorkGroup%u" % (tP["tile01Idx"])# these are storing the actual strong to lookup the number from kernel dictionary
+      tP["prevWg"] = "PrevWorkGroup0"                       # used for prefetch-across-persistent #NHWC TO-do
+      tP["sg"] = "SubGroup%u" % (tP["tile01Idx"])
+      tP["tt"] = "ThreadTile%u" % (tP["tile01Idx"])
+      tP["mt"] = "MacroTile%u" % (tP["tile01Idx"])
       tP["grcg"] = self.globalReadCoalesceGroupA            # global reads are coalesced along threads
       tP["grcv"] = kernel["GlobalReadCoalesceVectorA"]      # global reads are vector reads, and lds writes will be components if transposing
       tP["tlu"] = kernel["ProblemType"]["TLUA"]             # thread stride is less than unroll stride, i.e., not transposing matrix
@@ -3019,6 +3017,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       tP["tensorIdx"] = 1
       tP["tileChar"] = self.tileCharB
       tP["tileIdx"] = kernel["ProblemType"]["Index01B"]
+      tP["tile01Idx"] = 1 if tP["tileIdx"] else 0
       tP["lsc"] = "LSCB"
       tP["lsp"] = "LSPB"
       tP["lvc"] = "LVCB"
@@ -3028,11 +3027,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #tP["ruv"] = self.readUnrollDimVectorB
       #tP["nlvc"] = self.numReadVectorComponentsB
       #tP["nwvc"] = self.numWriteVectorComponentsB
-      tP["wg"] = "WorkGroup1"
+      tP["wg"] = "WorkGroup%u" % (tP["tile01Idx"])
       tP["prevWg"] = "PrevWorkGroup1"
-      tP["sg"] = "SubGroup1"
-      tP["tt"] = "ThreadTile1"
-      tP["mt"] = "MacroTile1"
+      tP["sg"] = "SubGroup%u" % (tP["tile01Idx"])
+      tP["tt"] = "ThreadTile%u" % (tP["tile01Idx"])
+      tP["mt"] = "MacroTile%u" % (tP["tile01Idx"])
       tP["grcg"] = self.globalReadCoalesceGroupB
       tP["grcv"] = kernel["GlobalReadCoalesceVectorB"]
       tP["tlu"] = kernel["ProblemType"]["TLUB"]
@@ -3180,7 +3179,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # Local Read Addresses: Tile Assignment
   ##############################################################################
   @abc.abstractmethod
-  def lraTileAssignment(self, kernel, tP):
+  def lraTileAssignment(self, kernel, tPA, tPB):
     return ""
 
   ##############################################################################
