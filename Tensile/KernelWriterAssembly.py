@@ -3015,6 +3015,7 @@ class KernelWriterAssembly(KernelWriter):
     # Dynamic Scalar Divide
     kStr += self.comment3("Dynamic Scalar Divide: vQuotient=vDividend/vDivisor; vRemainder=vDividend%vDivisor;")
     kStr += ".macro DYNAMIC_VECTOR_DIVIDE vQuotient vRemainder vDividend vDivisor vTmp0 vTmp1 sTmp%s" % self.endLine
+    sTmpStr = "s[\\sTmp]" if (self.kernel["WavefrontSize"] == 32) else "s[\\sTmp:\\sTmp+1]"
     kStr += inst("v_cvt_f32_u32", "v[\\vQuotient]",  "v[\\vDivisor]",  "" )
     kStr += inst("v_rcp_f32",     "v[\\vQuotient]",  "v[\\vQuotient]", "" )
     kStr += inst("v_mul_f32",     "v[\\vQuotient]",  "0x4f800000",     "v[\\vQuotient]", "" )
@@ -3022,22 +3023,22 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("v_mul_lo_u32",  "v[\\vRemainder]", "v[\\vDivisor]", "v[\\vQuotient]", "" )
     kStr += inst("v_mul_hi_u32",  "v[\\vTmp0]",      "v[\\vDivisor]", "v[\\vQuotient]", "" )
     kStr += inst("_v_sub_co_u32",     "v[\\vTmp1]",      self.vcc, hex(0),    "v[\\vRemainder]", "" )
-    kStr += inst("v_cmp_ne_i32",  "s[\\sTmp:\\sTmp+1]", hex(0),        "v[\\vTmp0]", "" )
-    kStr += inst("v_cndmask_b32", "v[\\vRemainder]", "v[\\vTmp1]",     "v[\\vRemainder]", "s[\\sTmp:\\sTmp+1]", "" )
+    kStr += inst("v_cmp_ne_i32",  sTmpStr, hex(0),        "v[\\vTmp0]", "" )
+    kStr += inst("v_cndmask_b32", "v[\\vRemainder]", "v[\\vTmp1]",     "v[\\vRemainder]", sTmpStr, "" )
     kStr += inst("v_mul_hi_u32",  "v[\\vRemainder]", "v[\\vRemainder]", "v[\\vQuotient]", "" )
     kStr += inst("_v_sub_co_u32",     "v[\\vTmp0]",      self.vcc,            "v[\\vQuotient]", "v[\\vRemainder]", "" )
     kStr += inst("_v_add_co_u32",     "v[\\vQuotient]",  self.vcc,            "v[\\vQuotient]", "v[\\vRemainder]", "" )
-    kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vQuotient]", "v[\\vTmp0]", "s[\\sTmp:\\sTmp+1]", "" )
+    kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vQuotient]", "v[\\vTmp0]", sTmpStr, "" )
     kStr += inst("v_mul_hi_u32",  "v[\\vQuotient]",  "v[\\vQuotient]", "v[\\vDividend]", "" )
     kStr += inst("v_mul_lo_u32",  "v[\\vRemainder]", "v[\\vQuotient]", "v[\\vDivisor]", "" )
     kStr += inst("_v_sub_co_u32",     "v[\\vTmp0]",      self.vcc,            "v[\\vDividend]", "v[\\vRemainder]", "" )
-    kStr += inst("v_cmp_ge_u32",  "s[\\sTmp:\\sTmp+1]", "v[\\vDividend]", "v[\\vRemainder]", "" )
+    kStr += inst("v_cmp_ge_u32",  sTmpStr, "v[\\vDividend]", "v[\\vRemainder]", "" )
     kStr += inst("_v_add_co_u32",     "v[\\vRemainder]", self.vcc,            hex(1), "v[\\vQuotient]", "" )
     kStr += inst("_v_add_co_u32",     "v[\\vTmp1]",      self.vcc, -1,        "v[\\vQuotient]", "" )
     kStr += inst("v_cmp_le_u32",  self.vcc,             "v[\\vDivisor]", "v[\\vTmp0]", "" )
-    kStr += inst("s_and_b64",     self.vcc,             "s[\\sTmp:\\sTmp+1]", self.vcc, "" )
+    kStr += inst("s_and_b{}".format(self.kernel["WavefrontSize"]),     self.vcc,             sTmpStr,         self.vcc,     "" )
     kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vQuotient]", "v[\\vRemainder]", self.vcc, "" )
-    kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vTmp1]",     "v[\\vQuotient]", "s[\\sTmp:\\sTmp+1]", "" )
+    kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  "v[\\vTmp1]",     "v[\\vQuotient]", sTmpStr, "" )
     kStr += inst("v_cmp_ne_i32",  self.vcc, hex(0),     "v[\\vDivisor]", "" )
     kStr += inst("v_cndmask_b32", "v[\\vQuotient]",  -1, "v[\\vQuotient]", self.vcc, "final result" )
     kStr += inst("v_mul_lo_u32",  "v[\\vRemainder]", "v[\\vQuotient]", "v[\\vDivisor]", "" )
@@ -3764,7 +3765,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["WaveSeparateGlobalRead%s"%tc]:
       kStr += inst("v_readfirstlane_b32", sgpr(tmpSgpr), vgpr("Serial"), "WaveIdxWavefrontWidth")
-      kStr += inst("s_lshr_b32", sgpr(tmpSgpr), sgpr(tmpSgpr), hex(log2(globalParameters["WavefrontWidth"])), "WaveId")
+      kStr += inst("s_lshr_b32", sgpr(tmpSgpr), sgpr(tmpSgpr), hex(log2(self.kernel["WavefrontSize"])), "WaveId")
       kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr), kernel[tP["lsp"]] * tP["nrp"], \
           "Global Read Wave: each wave loads continuous lsp(%u)*nrp(%u) columns" % (kernel[tP["lsp"]], tP["nrp"]))
       kStr += inst("_v_add_u32", vgpr(qReg), sgpr(tmpSgpr), vgpr(qReg), \
@@ -5887,8 +5888,7 @@ class KernelWriterAssembly(KernelWriter):
     tailLoop = loopIdx < 0
     if tailLoop:
       loopIdx = self.unrollIdx
-      loopChar = self.indexChars[ \
-          kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+      loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx]]
       loopLabelBegin = self.getNamedLabel("TailLoopBegin%s%s"%(loopChar, "_G2L%s"%uDu if uDu is not None else "") )
       loopLabelEnd = self.getNamedLabel("TailLoopEnd%s%s"%(loopChar, "_G2L%s"%uDu if uDu is not None else "") )
       loopLabelEndOddExit = self.getNamedLabel("TailLoopEnd%s_oddexit"%(loopChar) )
@@ -5903,6 +5903,8 @@ class KernelWriterAssembly(KernelWriter):
         unrollInc      *= kernel["MatrixInstK"]
         KinInnerUnroll *= kernel["MatrixInstK"]
       if kernel["AssertSummationElementMultiple"] % KinInnerUnroll == 0:
+        unrollInc *= kernel["InnerUnroll"]
+      elif (kernel["LocalDotLayout"] == 2) and (kernel["InnerUnroll"] == 2):
         unrollInc *= kernel["InnerUnroll"]
 
       kStr += self.comment("closeLoop loop%s finalLoop=%d tailLoop=%d" % (loopChar, finalLoop, tailLoop))
@@ -6312,12 +6314,39 @@ class KernelWriterAssembly(KernelWriter):
 
     return mfmaMod
 
+
+  def removeExtraUnroll(self, kernel):
+    kStr = ""
+    loopCounterName = self.loopCounterName(kernel, self.unrollIdx)
+    tmpSgpr = self.getTmpSgpr(1).idx()
+
+    kStr += inst("s_cmp_eq_u32", sgpr(loopCounterName), hex(kernel["LocalDotLayout"]-1), f'leftover L == {kernel["LocalDotLayout"]-1}?')
+    kStr += inst("s_lshl_b32", sgpr(tmpSgpr), "scc", hex(log2(self.bpeAB*8)), "shift lenghth for remove unused unroll")
+
+    for blockA in range(0, kernel["ThreadTile0"]//2):
+      for iui in range(0, kernel["InnerUnroll"]):
+        aStr = f'ValuA_X0_I{iui}+{blockA}'
+        kStr += inst("v_lshlrev_b32", vgpr(aStr), sgpr(tmpSgpr), vgpr(aStr), "remove unused unroll")
+
+    for blockB in range(0, kernel["ThreadTile1"]//2):
+      for iui in range(0, kernel["InnerUnroll"]):
+        bStr = f'ValuB_X0_I{iui}+{blockB}'
+        kStr += inst("v_lshlrev_b32", vgpr(bStr), sgpr(tmpSgpr), vgpr(bStr), "remove unused unroll")
+
+    return kStr
+
+
   ##############################################################################
   # MAC Iteration
   ##############################################################################
-  def macIter(self, kernel, bufferIdx, iuiCount, useMacro):
-    if not self.do["MAC"]: return ""
+  def macIter(self, kernel, bufferIdx, iuiCount, useMacro, isTail=False):
     imod = Code.Module("macIter_X%u_I%u"%(bufferIdx, iuiCount))
+
+    if not self.do["MAC"]: return imod
+
+    if isTail and (kernel["InnerUnroll"] == 2) and (kernel["LocalDotLayout"] == 2) \
+        and ((kernel["AssertSummationElementMultiple"] % kernel["LocalDotLayout"]) != 0):
+      imod.addText(self.removeExtraUnroll(kernel))
 
     if kernel["ProblemType"]["DataType"].isHalf():
       imod.addInst(".align32 8, 0xbf800001", "align v_pk_fma")   # Align v_pk_fma instructions used in MAC_ blocks
@@ -7206,7 +7235,7 @@ class KernelWriterAssembly(KernelWriter):
                           comment="load one flat value").toStr()
 
                 # restore full exec mask
-                kStr += inst("s_or_saveexec_b64", self.vcc, sgpr(fullExec,2), \
+                kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr(fullExec,self.laneSGPRCount), \
                     "all threads active")
 
                 # increment address by 1 element (BPE)
@@ -7334,7 +7363,7 @@ class KernelWriterAssembly(KernelWriter):
                         "loopCounter*strideSum >= ElementEdge ?")
 
       if i>0:
-        codeMod.addInst("s_or_b64", self.vcc, self.vcc, sgpr(tmpSgpr,self.laneSGPRCount),"combine elementEdge masks")
+        codeMod.addInst("s_or_b{}".format(self.kernel["WavefrontSize"]), self.vcc, self.vcc, sgpr(tmpSgpr,self.laneSGPRCount),"combine elementEdge masks")
 
       if i==len(zps)-1:
         codeMod.addInst("v_cndmask_b32", vgpr(addrV), vgpr(offsetVgpr), -1, self.vcc, \
@@ -8805,7 +8834,7 @@ class KernelWriterAssembly(KernelWriter):
         # end shift reset mask and jump out
         kStr += inst("s_mov_b64", sgpr(tmpSgpr,2), \
             "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
-        kStr += inst("s_or_saveexec_b64", self.vcc, sgpr(tmpSgpr,2), "all threads active")
+        kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr(tmpSgpr,self.laneSGPRCount), "all threads active")
         kStr += inst("s_branch label_%04u"%svrLabels[vw-1], "done shifting" )
     #kStr += inst("s_mov_b32", sgpr(sgprLoc), hex(location), "location=%u"%location) location *= 2
     #kStr += inst("v_or_b32", vgpr(vgprPath), sgpr(sgprLoc), vgpr(vgprPath), "path+=location")
@@ -9000,7 +9029,7 @@ class KernelWriterAssembly(KernelWriter):
 
           # end shift reset mask and jump out
           kStr += inst("s_mov_b64", sgpr(tmpSgpr,2), "0xFFFFFFFFFFFFFFFF", "to restore all threads active")
-          kStr += inst("s_or_saveexec_b64", self.vcc, sgpr(tmpSgpr,2), "all threads active")
+          kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr(tmpSgpr,self.laneSGPRCount), "all threads active")
           kStr += inst("s_branch label_%04u" % svrLabels[glvw-1], "done shifting" )
 
     kStr += "label_%04u: // end shift0%s" % (svrLabels[glvw-1], self.endLine)
@@ -10797,6 +10826,9 @@ class KernelWriterAssembly(KernelWriter):
       tmpS01 = tmpSgpr
       tmpS23 = tmpSgpr+2
 
+      laneSGPRCount = self.kernelWriter.laneSGPRCount
+      wavefrontSize = kernel["WavefrontSize"]
+
       # Now do the edge check and compute the address in bytes:
       if kernel["BufferStore"]:
         if edge and (not kernel["StoreRemapVectorWidth"] or (kernel["StoreRemapVectorWidth"] and beta)):
@@ -10810,13 +10842,13 @@ class KernelWriterAssembly(KernelWriter):
               sgpr("PackedSize1") if len(kernel["PackedC1IndicesX"]) > 1 \
               else kw.sizeRef(kernel["ProblemType"]["Index1"])
 
-          kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(self.coord0Vgpr), sizeBoundary[0], "coord0 < size0" )
-          kStr += inst("v_cmp_lt_u32",  sgpr(mask,2), vgpr(self.coord1Vgpr), sizeBoundary[1], "coord1 < size1" )
-          kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "in0 && in1" )
+          kStr += inst("v_cmp_lt_u32", sgpr(tmpS01,laneSGPRCount), vgpr(self.coord0Vgpr), sizeBoundary[0], "coord0 < size0" )
+          kStr += inst("v_cmp_lt_u32", sgpr(mask,laneSGPRCount), vgpr(self.coord1Vgpr), sizeBoundary[1], "coord1 < size1" )
+          kStr += inst("s_and_b{}".format(wavefrontSize), sgpr(mask,laneSGPRCount), sgpr(tmpS01,laneSGPRCount), sgpr(mask,laneSGPRCount), "in0 && in1" )
       else:
-        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS01,2), vgpr(self.coord0Vgpr), sgpr("SizesFree+0"), "coord0 < size0" )
-        kStr += inst("v_cmp_lt_u32",  sgpr(tmpS23,2), vgpr(self.coord1Vgpr), sgpr("SizesFree+1"), "coord1 < size1" )
-        kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "in0 && in1" )
+        kStr += inst("v_cmp_lt_u32", sgpr(tmpS01,laneSGPRCount), vgpr(self.coord0Vgpr), sgpr("SizesFree+0"), "coord0 < size0" )
+        kStr += inst("v_cmp_lt_u32", sgpr(tmpS23,laneSGPRCount), vgpr(self.coord1Vgpr), sgpr("SizesFree+1"), "coord1 < size1" )
+        kStr += inst("s_and_b{}".format(wavefrontSize),  sgpr(mask,laneSGPRCount), sgpr(tmpS01,laneSGPRCount), sgpr(tmpS23,laneSGPRCount), "in0 && in1" )
 
         if (beta or atomic):
           kStr += inst("s_mov_b64", "exec", sgpr(mask,2), "sgprs -> exec" )
@@ -10931,12 +10963,14 @@ class KernelWriterAssembly(KernelWriter):
       Generate code for final C read/D write address
       """
 
+      laneSGPRCount = self.kernelWriter.laneSGPRCount
+
       kStr = ""
       if kernel["BufferStore"]:
         kStr += self.emitScaleToBpe(kernel, ss, tmpVgpr, singleUpdate, tc)
         if edge and (not kernel["StoreRemapVectorWidth"] or (kernel["StoreRemapVectorWidth"] and beta)):
           kStr += inst("v_cndmask_b32", vgpr(self.addrVgpr), -1, vgpr(self.addrVgpr), \
-                       sgpr(mask,2), "LD%s clip if OOB. offset" % tc )
+                       sgpr(mask,laneSGPRCount), "LD%s clip if OOB. offset" % tc )
       else:
         # store a copy of the offset in 2 of the tmpVgpr for D
         kStr += inst("_v_add_co_u32",  vgpr(addr+0), self.kernelWriter.vcc, vgpr(BufAddr+0), vgpr(tmpVgpr+2), \
@@ -11180,18 +11214,16 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_readfirstlane_b32", sgpr("Alpha"), vgpr(alphaVgprTmp), "restore alpha sgpr")
       self.vgprPool.checkIn(alphaVgprTmp)
 
-      #jgolds look at moving these converted values back to scalar regs and free up the VGPRs
-      # ethan if using (h,h,h,h,s,s) + HPA then the host should pass in an F32 alpha, we don't have to do the cvt
       if beta:
+        #jgolds look at moving these converted values back to scalar regs and free up the VGPRs
         # TODO - for hpa the host should pass in an F32 alpha so we don't have to do it here
-        if kernel["ProblemType"]["HighPrecisionAccumulate"]:
-          self.betaVgpr = self.vgprPool.checkOut(1, "beta")
-          kStr += inst("v_mov_b32", vgpr(self.betaVgpr), sgpr("Beta"), "sgpr -> vgpr b/c op_sel")
-          kStr += inst("v_cvt_f32_f16", vgpr(self.betaVgpr), vgpr(self.betaVgpr), "convert beta to fp32")
-          if self.betaInSgpr:
-            kStr += inst("v_readfirstlane_b32", sgpr("Beta"), vgpr(self.betaVgpr), "restore beta sgpr")
-            self.vgprPool.checkIn(self.betaVgpr)
-            self.betaVgpr = None
+        self.betaVgpr = self.vgprPool.checkOut(1, "beta")
+        kStr += inst("v_mov_b32", vgpr(self.betaVgpr), sgpr("Beta"), "sgpr -> vgpr b/c op_sel")
+        kStr += inst("v_cvt_f32_f16", vgpr(self.betaVgpr), vgpr(self.betaVgpr), "convert beta to fp32")
+        if self.betaInSgpr:
+          kStr += inst("v_readfirstlane_b32", sgpr("Beta"), vgpr(self.betaVgpr), "restore beta sgpr")
+          self.vgprPool.checkIn(self.betaVgpr)
+          self.betaVgpr = None
 
     ########################################
     # Vgprs
@@ -11886,6 +11918,13 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.applyAlpha(kernel, gwvw, ss.elementSumIdx, elementIdx, tmpS01)
 
       if not kernel["BufferStore"]:
+        offsetSrc = (tmpVgpr+2) if beta else addr
+
+        kStr += inst("_v_add_co_u32",  vgpr(addr+0), self.vcc, vgpr(addrD+0), \
+            vgpr(offsetSrc+0), "addr = D + index*bytes (lo)" )
+        kStr += inst("_v_addc_co_u32", vgpr(addr+1), self.vcc, vgpr(addrD+1), \
+            vgpr(offsetSrc+1), self.vcc, "addr = D + index*bytes (hi)")
+
         # restore full exec mask for calculating addr of next element
         if edge and (beta or atomic):
           kStr += inst("s_mov_b64", "exec", -1, "full mask -1 -> exec" )
@@ -11941,6 +11980,9 @@ class KernelWriterAssembly(KernelWriter):
       #  - Need a solution for the mask.  Can move to all buffer or can fix?
 
       # atomic loop label
+      wavelen = self.kernel["WavefrontSize"]
+      laneSGPRC = self.laneSGPRCount
+
       element = batchElements[0]
       d1 = element[0]
       d0 = element[1]
@@ -12082,37 +12124,38 @@ class KernelWriterAssembly(KernelWriter):
               if avi == 0:
                 # use u64 for DGEMM
                 if kernel["ProblemType"]["DestDataType"].isDouble():
-                  kStr += inst("v_cmp_ne_u64", sgpr(tmpS01,2), vgpr(atomicDestVgpr,2), \
+                  kStr += inst("v_cmp_ne_u64", sgpr(tmpS01,laneSGPRC), vgpr(atomicDestVgpr,2), \
                       vgpr(dataV+2,2), "c read during atomic == c read during prior load (avi=%u, first)"%avi )
                 else:
-                  kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(atomicDestVgpr), \
+                  kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,laneSGPRC), vgpr(atomicDestVgpr), \
                       vgpr(dataV+1), "c read during atomic == c read during prior load (avi=%u, first)"%avi )
               else:
                 if kernel["ProblemType"]["DestDataType"].isDouble():
-                  kStr += inst("v_cmp_ne_u64", sgpr(tmpS23,2), vgpr(atomicDestVgpr,2), \
+                  kStr += inst("v_cmp_ne_u64", sgpr(tmpS23,laneSGPRC), vgpr(atomicDestVgpr,2), \
                       vgpr(dataV+2,2), "c read during atomic != c read during prior load" )
                 else:
-                  kStr += inst("v_cmp_ne_u32", sgpr(tmpS23,2), vgpr(atomicDestVgpr), \
+                  kStr += inst("v_cmp_ne_u32", sgpr(tmpS23,laneSGPRC), vgpr(atomicDestVgpr), \
                       vgpr(dataV+1), "c read during atomic == c read during prior load (avi=%u)"%avi )
-                kStr += inst("s_or_b64", sgpr(tmpS01,2), sgpr(tmpS01,2), sgpr(tmpS23,2), "combine with tmp mask")
+                kStr += inst("s_or_b{}".format(wavelen), sgpr(tmpS01,laneSGPRC), \
+                      sgpr(tmpS01,laneSGPRC), sgpr(tmpS23,laneSGPRC), "combine with tmp mask")
 
             if kernel["DisableAtomicFail"]:
-              kStr += inst("s_mov_b64",  sgpr(mask,2), 0, "DisableAtomicFail, force 0" )
+              kStr += inst("s_mov_b{}".format(wavelen),  sgpr(mask,laneSGPRC), 0, "DisableAtomicFail, force 0" )
             else:
-              kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
+              kStr += inst("s_and_b{}".format(wavelen),  sgpr(mask,laneSGPRC), sgpr(tmpS01,laneSGPRC), sgpr(mask,laneSGPRC), "inBounds & must try again" )
 
           else:
             for avi in range(0, gwvw//atomicW):
               dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
               atomicDestVgpr = dataV if kernel["BufferStore"] else dataV+2
               if kernel["DisableAtomicFail"]:
-                kStr += inst("s_mov_b64",  sgpr(mask,2), 0, "DisableAtomicFail, force 0" )
+                kStr += inst("s_mov_b{}".format(wavelen),  sgpr(mask,laneSGPRC), 0, "DisableAtomicFail, force 0" )
               else:
                 if kernel["ProblemType"]["DestDataType"].isDouble():
-                  kStr += inst("v_cmp_ne_u64", sgpr(mask,2), vgpr(atomicDestVgpr,2), \
+                  kStr += inst("v_cmp_ne_u64", sgpr(mask,laneSGPRC), vgpr(atomicDestVgpr,2), \
                       vgpr(dataV+2,2), "c read during atomic != c read during prior load" )
                 else:
-                  kStr += inst("v_cmp_ne_u32", sgpr(mask,2), vgpr(atomicDestVgpr), \
+                  kStr += inst("v_cmp_ne_u32", sgpr(mask,laneSGPRC), vgpr(atomicDestVgpr), \
                       vgpr(dataV+1), "c read during atomic != c read during prior load" )
 
         # or masks together to check early exit
@@ -12120,8 +12163,8 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mov_b64", sgpr(tmpS01,2), hex(0), "empty mask" )
         for elementIdx in range(0, len(batchElements)):
           mask = ss.elementMask[elementIdx]
-          kStr += inst("s_or_b64", sgpr(tmpS01,2), sgpr(mask,2), sgpr(tmpS01,2), "or to add threads" )
-        kStr += inst("s_or_saveexec_b64", sgpr(tmpS23,2), sgpr(tmpS01,2), "apply combined mask" )
+          kStr += inst("s_or_b{}".format(wavelen), sgpr(tmpS01,laneSGPRC), sgpr(mask,laneSGPRC), sgpr(tmpS01,laneSGPRC), "or to add threads" )
+        kStr += inst("s_or_saveexec_b{}".format(wavelen), sgpr(tmpS23,laneSGPRC), sgpr(tmpS01,laneSGPRC), "apply combined mask" )
         kStr += inst("s_cbranch_execz", "label_%04u" % labelAfterAtomicLoop, "if exec is zero skip loop" )
 
         # begin atomic loop
@@ -12199,23 +12242,23 @@ class KernelWriterAssembly(KernelWriter):
 
             # compare success
             if kernel["ProblemType"]["DestDataType"].isDouble():
-              kStr += inst("v_cmp_ne_u64", sgpr(tmpS01,2), vgpr(data+2,2), vgpr(atomicDestVgpr,2), \
+              kStr += inst("v_cmp_ne_u64", sgpr(tmpS01,laneSGPRC), vgpr(data+2,2), vgpr(atomicDestVgpr,2), \
                   "c read during atomic != c read during prior load" )
             else:
-              kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,2), vgpr(data+1), vgpr(atomicDestVgpr), \
+              kStr += inst("v_cmp_ne_u32", sgpr(tmpS01,laneSGPRC), vgpr(data+1), vgpr(atomicDestVgpr), \
                   "c read during atomic == c read during prior load" )
             # update element mask
-            kStr += inst("s_and_b64",  sgpr(mask,2), sgpr(tmpS01,2), sgpr(mask,2), "inBounds & must try again" )
+            kStr += inst("s_and_b{}".format(wavelen),  sgpr(mask,laneSGPRC), sgpr(tmpS01,laneSGPRC), sgpr(mask,laneSGPRC), "inBounds & must try again" )
 
         # or masks together
         kStr += self.comment("or masks to check for exit")
-        kStr += inst("s_mov_b64", sgpr(tmpS01,2), hex(0), "empty mask" )
+        kStr += inst("s_mov_b{}".format(wavelen), sgpr(tmpS01,laneSGPRC), hex(0), "empty mask" )
         for elementIdx in range(0, len(batchElements)):
           mask = ss.elementMask[elementIdx]
-          kStr += inst("s_or_b64", sgpr(tmpS01,2), sgpr(mask,2), sgpr(tmpS01,2), "or to add threads" )
+          kStr += inst("s_or_b{}".format(wavelen), sgpr(tmpS01,laneSGPRC), sgpr(mask,laneSGPRC), sgpr(tmpS01,laneSGPRC), "or to add threads" )
 
         # apply combined masks and exit
-        kStr += inst("s_or_saveexec_b64", sgpr(tmpS23,2), sgpr(tmpS01,2), "apply combined mask" )
+        kStr += inst("s_or_saveexec_b{}".format(wavelen), sgpr(tmpS23,laneSGPRC), sgpr(tmpS01,laneSGPRC), "apply combined mask" )
         kStr += inst("s_cbranch_execnz", "label_%04u" % label, "try again if not complete" )
         kStr += "label_%04u:%s" % (labelAfterAtomicLoop, self.endLine)
         kStr += inst("s_mov_b64", "exec", -1, "full mask -> exec" )
@@ -12998,14 +13041,14 @@ class KernelWriterAssembly(KernelWriter):
   def assertCmpCommon(self, cond, val0, val1, cookie=-1):
     kStr = ""
     if self.db["EnableAsserts"]:
-      kStr += inst("s_or_saveexec_b64", sgpr("SaveExecMask",2), 0, \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), 0, \
           "assert: saved execmask")
 
       kStr += inst("_v_cmpx_%s"%cond, self.vcc, val0, val1, "v_cmp" )
 
       kStr += self.assertCommon(cookie)
 
-      kStr += inst("s_or_saveexec_b64", self.vcc, sgpr("SaveExecMask",2), \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: restore execmask")
 
     return kStr
@@ -13073,15 +13116,15 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr += inst("s_and_b32", stmp, sval, multiple2-1, "mask" )
       kStr += inst("s_cmp_eq_u32", stmp, 0, "if maskedBits==0 then SCC=1 == no fault" )
-      kStr += inst("s_mov_b64", sgpr("SaveExecMask",2), -1, "")
-      kStr += inst("s_cmov_b64", sgpr("SaveExecMask", 2),  0, "Clear exec mask")
+      kStr += inst("s_mov_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), -1, "")
+      kStr += inst("s_cmov_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask", self.laneSGPRCount),  0, "Clear exec mask")
 
-      kStr += inst("s_and_saveexec_b64", sgpr("SaveExecMask",2), sgpr("SaveExecMask",2), \
+      kStr += inst("s_and_saveexec_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: saved execmask")
 
       kStr += self.assertCommon(cookie)
 
-      kStr += inst("s_or_saveexec_b64", self.vcc, sgpr("SaveExecMask",2), \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: restore execmask")
 
     return kStr
@@ -13089,15 +13132,15 @@ class KernelWriterAssembly(KernelWriter):
   def assert_s_eq(self, sval0, sval1, cookie=-1):
     kStr = ""
     if self.db["EnableAsserts"]:
-      kStr += inst("s_and_saveexec_b64", sgpr("SaveExecMask",2), sgpr("SaveExecMask",2), \
+      kStr += inst("s_and_saveexec_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: saved execmask")
 
-      kStr += inst("s_mov_b64", sgpr("SaveExecMask",2), -1, "")
+      kStr += inst("s_mov_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), -1, "")
       kStr += inst("s_cmp_eq_u32", sval0, sval1, "cmp")
-      kStr += inst("s_cmov_b64", sgpr("SaveExecMask", 2),  0, "No assert if SCC=1")
+      kStr += inst("s_cmov_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask", self.laneSGPRCount),  0, "No assert if SCC=1")
 
       kStr += self.assertCommon(cookie)
-      kStr += inst("s_or_saveexec_b64", self.vcc, sgpr("SaveExecMask",2), \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: restore execmask")
 
       return kStr
@@ -13106,14 +13149,14 @@ class KernelWriterAssembly(KernelWriter):
   def assert_scc_is_1(self, cookie=-1):
     kStr = ""
     if self.db["EnableAsserts"]:
-      kStr += inst("s_and_saveexec_b64", sgpr("SaveExecMask",2), sgpr("SaveExecMask",2), \
+      kStr += inst("s_and_saveexec_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: saved execmask")
 
-      kStr += inst("s_mov_b64", sgpr("SaveExecMask",2), -1, "")
-      kStr += inst("s_cmov_b64", sgpr("SaveExecMask", 2),  0, "No assert if SCC=1")
+      kStr += inst("s_mov_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), -1, "")
+      kStr += inst("s_cmov_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask", self.laneSGPRCount),  0, "No assert if SCC=1")
 
       kStr += self.assertCommon(cookie)
-      kStr += inst("s_or_saveexec_b64", self.vcc, sgpr("SaveExecMask",2), \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: restore execmask")
 
       return kStr
@@ -13121,15 +13164,15 @@ class KernelWriterAssembly(KernelWriter):
   def assert_scc_is_0(self, cookie=-1):
     kStr = ""
     if self.db["EnableAsserts"]:
-      kStr += inst("s_and_saveexec_b64", sgpr("SaveExecMask",2), sgpr("SaveExecMask",2), \
+      kStr += inst("s_and_saveexec_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: saved execmask")
 
-      kStr += inst("s_mov_b64", sgpr("SaveExecMask",2), -1, "")
-      kStr += inst("s_cmov_b64", sgpr("SaveExecMask", 2),  0, "")
-      kStr += inst("s_not_b64", sgpr("SaveExecMask",2), sgpr("SaveExecMask", 2), "Assert if SCC==1")
+      kStr += inst("s_mov_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), -1, "")
+      kStr += inst("s_cmov_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask", self.laneSGPRCount),  0, "")
+      kStr += inst("s_not_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), sgpr("SaveExecMask", self.laneSGPRCount), "Assert if SCC==1")
 
       kStr += self.assertCommon(cookie)
-      kStr += inst("s_or_saveexec_b64", self.vcc, sgpr("SaveExecMask",2), \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: restore execmask")
 
       return kStr
@@ -13138,11 +13181,11 @@ class KernelWriterAssembly(KernelWriter):
   def assert_vcc_all_true(self, cookie=-1):
     kStr = ""
     if self.db["EnableAsserts"]:
-      kStr += inst("s_or_saveexec_b64", sgpr("SaveExecMask",2), 0, \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), 0, \
           "assert: saved execmask")
-      kStr += inst("s_mov_b64", "exec", self.vcc, "Predicate based on VCC")
+      kStr += inst("s_mov_b{}".format(self.kernel["WavefrontSize"]), self.exec, self.vcc, "Predicate based on VCC")
       kStr += self.assertCommon(cookie)
-      kStr += inst("s_or_saveexec_b64", self.vcc, sgpr("SaveExecMask",2), \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: restore execmask")
     return kStr
 
@@ -13150,11 +13193,11 @@ class KernelWriterAssembly(KernelWriter):
   def assert_vcc_all_false(self, cookie=-1):
     kStr = ""
     if self.db["EnableAsserts"]:
-      kStr += inst("s_or_saveexec_b64", sgpr("SaveExecMask",2), 0, \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), 0, \
           "assert: saved execmask")
-      kStr += inst("s_not_b64", "exec", self.vcc, "Predicate based on !VCC")
+      kStr += inst("s_not_b{}".format(self.kernel["WavefrontSize"]), self.exec, self.vcc, "Predicate based on !VCC")
       kStr += self.assertCommon(cookie)
-      kStr += inst("s_or_saveexec_b64", self.vcc, sgpr("SaveExecMask",2), \
+      kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: restore execmask")
     return kStr
 
