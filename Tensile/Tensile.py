@@ -27,12 +27,17 @@ import os
 import sys
 import argparse
 from .Common import globalParameters, print1, ensurePath, \
-    assignGlobalParameters, restoreDefaultGlobalParameters, HR
+    assignGlobalParameters, restoreDefaultGlobalParameters, HR, printWarning
 from . import BenchmarkProblems
 from . import ClientWriter
 from . import LibraryIO
 from . import LibraryLogic
 from . import __version__
+
+try:
+  import yaml
+except ImportError:
+  printExit("You must install PyYAML to use Tensile (to parse config files). See http://pyyaml.org/wiki/PyYAML for installation instructions.")
 
 ###############################################################################
 # Execute Steps in Config
@@ -172,6 +177,39 @@ def argUpdatedGlobalParameters(args):
 
   return rv
 
+def processHardwareSpecsFile(config):
+  print1("MemThroughputThreshold {} > 0: getting hardware specs from {}".format( \
+    globalParameters["MemThroughputThreshold"], globalParameters["HardwareSpecsPath"]) \
+  )
+
+  error = True
+  try:
+    schedule = config["LibraryLogic"]["ScheduleName"]
+
+    try:
+      f = open(globalParameters["HardwareSpecsPath"])
+      specs = yaml.safe_load(f)
+
+      globalParameters["ALURates"] = specs[schedule]["ALU"]
+      globalParameters["L2Speed"] = specs[schedule]["L2Speed"]
+      error = False
+
+    except OSError as e:
+      printWarning("Error reading hardware specs yaml file: {}".format(e))
+    except yaml.YAMLError as e:
+      printWarning("YAML error: {}".format(e))
+    except KeyError as e:
+      printWarning("Key error in hardware specs yaml file: {}".format(e))
+
+  except KeyError as e:
+    printWarning("Could not get schedule from config file")
+
+  if error:
+    print1("Setting MemThroughputThreshold to 0")
+    globalParameters["MemThroughputThreshold"] = 0.0
+  else:
+    print1("Success")
+
 ################################################################################
 # Tensile
 # - below entry points call here
@@ -233,8 +271,9 @@ def Tensile(userArgs):
     print("Overriding {0}={1}".format(key, value))
     globalParameters[key] = value
 
-  #globalParameters["NewClient"] = 2
-  #globalParameters["PrintCodeCommands"] = True
+  # hardware specs are needed for MemThroughputThreshold filtering criteria
+  if globalParameters["MemThroughputThreshold"] > 0.0:
+    processHardwareSpecsFile(config)
 
   # Execute Steps in the config script
   executeStepsInConfig(config)

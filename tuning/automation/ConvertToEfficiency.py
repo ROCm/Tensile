@@ -87,7 +87,7 @@ def main():
 
                 sched = data[1]
                 type = typeIndexToName[data[4]["DataType"]]
-                alu = specs[sched][mfmaKey][type]
+                alu = specs["ALU"][sched][mfmaKey][type]
 
                 # get CU count
                 if args.per_cu:

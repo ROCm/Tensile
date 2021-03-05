@@ -117,15 +117,17 @@ namespace Tensile
             double granThresh = args["granularity-threshold"].as<double>();
             double memThresh  = args["mem-throughput-threshold"].as<double>();
             double minLDSUtil = args["min-lds-utilization"].as<double>();
+            int    l2Speed    = args["l2-speed"].as<int>();
+            int    aluRate    = args["alu-rate"].as<int>();
 
             PerformanceMetric perfMetric = args["performance-metric"].as<PerformanceMetric>();
 
             RunCriteria criteria;
             if(granThresh > 0.0)
             {
-                criteria.push_back([granThresh, perfMetric](ContractionProblem const&  problem,
-                                                            Hardware const&            hardware,
-                                                            ContractionSolution const& solution) {
+                criteria.push_back([=](ContractionProblem const&  problem,
+                                       Hardware const&            hardware,
+                                       ContractionSolution const& solution) {
                     auto   projPerf  = solution.projectedPerformance(problem, hardware);
                     double totalGran = projPerf.totalGranularity;
 
@@ -138,9 +140,9 @@ namespace Tensile
             }
             if(memThresh > 0.0)
             {
-                criteria.push_back([memThresh](ContractionProblem const&  problem,
-                                               Hardware const&            hardware,
-                                               ContractionSolution const& solution) {
+                criteria.push_back([=](ContractionProblem const&  problem,
+                                       Hardware const&            hardware,
+                                       ContractionSolution const& solution) {
                     // TODO need: memory readBW and numChannels
                     // TODO get ALU from yaml file
                     size_t K   = problem.boundSize(0); // TODO - fix for multiple summations
@@ -153,24 +155,15 @@ namespace Tensile
 
                     size_t bpe = DataTypeInfo::Get(problem.a().dataType()).elementSize;
 
-                    size_t aluRate = 512; // same yaml as used in efficiency conversion script
                     double bytesPerCU
                         = (MT0 * tileK * bpe) + (MT1 * tileK * bpe) + (MT0 * MT1 * bpe);
-                    double cyclesPerCU
-                        = double(MT0 * MT1 * tileK * problem.flopsPerMac()) / aluRate;
-                    double roofline = bytesPerCU / cyclesPerCU;
+                    double cycles   = double(MT0 * MT1 * tileK * problem.flopsPerMac()) / aluRate;
+                    double roofline = bytesPerCU / cycles; // bytes / CU / cycle
 
-                    //                 readBW * numChannels
-                    double l2BWperCU     = 32 * 64 / perf.CUs; // TODO hardcoded for testing
-                    double memRate       = perf.readEff * l2BWperCU;
-                    double compMemFactor = memRate / roofline;
+                    double l2SpeedPerCU   = l2Speed / perf.CUs; // bytes / CU / cycle
+                    double memToCompRatio = l2SpeedPerCU / roofline;
 
-                    // std::cout << bpe << std::endl;
-                    // std::cout << bytesPerCU << std::endl;
-                    // std::cout << cyclesPerCU << std::endl;
-                    // std::cout << roofline << std::endl;
-
-                    return (compMemFactor >= memThresh) ? FR::Run : FR::LowMemoryThroughput;
+                    return (memToCompRatio >= memThresh) ? FR::Run : FR::LowMemoryThroughput;
                 });
             }
             // if(minLDSUtil > 0.0)

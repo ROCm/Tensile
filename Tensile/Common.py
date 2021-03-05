@@ -256,6 +256,7 @@ globalParameters["RunCriteriaVerify"] = False
 globalParameters["GranularityThreshold"] = 0.0
 globalParameters["MemThroughputThreshold"] = 0.0
 globalParameters["MinLDSUtilization"] = 0.0
+globalParameters["HardwareSpecsPath"] = "hardware_specs.yaml"
 
 globalParameters["PristineOnGPU"] = True # use Pristine memory on Tensile trainning verification or not
 

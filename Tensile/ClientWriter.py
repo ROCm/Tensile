@@ -707,6 +707,12 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param("library-update-comment",   globalParameters["LibraryUpdateComment"])
 
 
+        mfmaKey = "mfma" if globalParameters["IsMFMA"] else "non_mfma"
+        typeKey = problemType.aType.toChar()
+
+        param("alu-rate",                 globalParameters["ALURates"][mfmaKey][typeKey])
+        param("l2-speed",                 globalParameters["L2Speed"])
+
 def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection, configBase = "ClientParameters", libraryFile = None):
 
     if tileAwareSelection:

@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -222,6 +222,8 @@ class BenchmarkProcess:
     ############################################################################
     # Ensure only valid solution parameters were requested
     validParameterNames = set(validParameters.keys())
+    globalParameters["IsMFMA"] = False
+
     for paramDictList in [configBenchmarkCommonParameters, \
         configForkParameters, configBenchmarkForkParameters, \
         configBenchmarkJoinParameters]:
@@ -231,6 +233,9 @@ class BenchmarkProcess:
             if paramName in ["ProblemSizes"]:
               continue
             else:
+              if paramName == "MatrixInstruction":
+                globalParameters["IsMFMA"] = True
+
               if paramName not in validParameterNames:
                 printExit("Invalid parameter name: %s\nValid parameters are %s." \
                     % (paramName, sorted(validParameterNames)))
@@ -711,6 +716,3 @@ class BenchmarkStep:
 
   def __repr__(self):
     return self.__str__()
-
-
-
