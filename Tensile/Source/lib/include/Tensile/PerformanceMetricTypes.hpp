@@ -53,7 +53,7 @@ namespace Tensile
     {
         Best,
         CUEfficiency,
-        Overall,
+        DeviceEfficiency,
         Count
     };
 
@@ -125,8 +125,8 @@ namespace Tensile
     {
     };
     template <>
-    struct PerformanceMetricInfo<PerformanceMetric::Overall>
-        : public BasePerformanceMetricInfo<PerformanceMetric::Overall>
+    struct PerformanceMetricInfo<PerformanceMetric::DeviceEfficiency>
+        : public BasePerformanceMetricInfo<PerformanceMetric::DeviceEfficiency>
     {
     };
 

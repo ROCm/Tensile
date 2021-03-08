@@ -42,8 +42,8 @@ namespace Tensile
             return "Best";
         case PerformanceMetric::CUEfficiency:
             return "CUEfficiency";
-        case PerformanceMetric::Overall:
-            return "Overall";
+        case PerformanceMetric::DeviceEfficiency:
+            return "DeviceEfficiency";
 
         case PerformanceMetric::Count:
         default:;
@@ -59,8 +59,8 @@ namespace Tensile
             return "Best";
         case PerformanceMetric::CUEfficiency:
             return "CUEff";
-        case PerformanceMetric::Overall:
-            return "Ovrl";
+        case PerformanceMetric::DeviceEfficiency:
+            return "DvEff";
 
         case PerformanceMetric::Count:
         default:;
@@ -86,7 +86,7 @@ namespace Tensile
     {
         registerTypeInfo<PerformanceMetric::Best>();
         registerTypeInfo<PerformanceMetric::CUEfficiency>();
-        registerTypeInfo<PerformanceMetric::Overall>();
+        registerTypeInfo<PerformanceMetric::DeviceEfficiency>();
     }
 
     void PerformanceMetricTypeInfo::registerAllTypeInfoOnce()
