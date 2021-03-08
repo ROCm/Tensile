@@ -129,12 +129,19 @@ namespace Tensile
         class AllSolutionsIterator : public SolutionIterator
         {
         public:
-            enum class FilterResult : int
+            enum class TestResult : int
             {
                 Run,
                 LowGranularity,
                 LowMemoryThroughput
             };
+            struct FilterResult
+            {
+                TestResult reason;
+                double     value;
+                double     thresh;
+            };
+            using TR = TestResult;
             using FR = FilterResult;
 
             using RunCriteria = std::vector<std::function<FR(
@@ -173,9 +180,9 @@ namespace Tensile
             RunCriteria m_runCriteria;
         };
 
-        std::string   ToString(AllSolutionsIterator::FR fr);
-        std::string   TypeAbbrev(AllSolutionsIterator::FR fr);
-        std::ostream& operator<<(std::ostream& stream, AllSolutionsIterator::FR const& fr);
+        std::string   ToString(AllSolutionsIterator::TR tr);
+        std::string   TypeAbbrev(AllSolutionsIterator::TR tr);
+        std::ostream& operator<<(std::ostream& stream, AllSolutionsIterator::TR const& tr);
 
         class BestSolutionIterator : public SolutionIterator
         {

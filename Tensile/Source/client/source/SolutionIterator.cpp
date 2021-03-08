@@ -135,7 +135,8 @@ namespace Tensile
                     if(perfMetric == PerformanceMetric::CUEfficiency)
                         totalGran /= projPerf.cuGranularity;
 
-                    return (totalGran >= granThresh) ? FR::Run : FR::LowGranularity;
+                    TestResult tr = (totalGran >= granThresh) ? TR::Run : TR::LowGranularity;
+                    return FR{tr, totalGran, granThresh};
                 });
             }
             if(memThresh > 0.0)
@@ -163,7 +164,9 @@ namespace Tensile
                     double l2SpeedPerCU   = l2Speed / perf.CUs; // bytes / CU / cycle
                     double memToCompRatio = l2SpeedPerCU / roofline;
 
-                    return (memToCompRatio >= memThresh) ? FR::Run : FR::LowMemoryThroughput;
+                    TestResult tr
+                        = (memToCompRatio >= memThresh) ? TR::Run : TR::LowMemoryThroughput;
+                    return FR{tr, memToCompRatio, memThresh};
                 });
             }
             // if(minLDSUtil > 0.0)
@@ -268,18 +271,20 @@ namespace Tensile
 
             for(auto const& criterion : m_runCriteria)
             {
-                FR result = criterion(m_problem, *m_hardware, *solution);
-                if(result != FR::Run)
+                FR fr = criterion(m_problem, *m_hardware, *solution);
+                if(fr.value < fr.thresh)
                 {
                     m_numSolutionsSkipped++;
                     if(m_criteriaVerify)
                     {
-                        m_reporter->report(ResultKey::WouldSkip, TypeAbbrev(result));
+                        m_reporter->report(ResultKey::WouldSkip,
+                                           TypeAbbrev(fr.reason) + ":" + std::to_string(fr.value));
                         return true;
                     }
                     else
                     {
-                        m_reporter->report(ResultKey::Validation, "SKIPPED: " + ToString(result));
+                        m_reporter->report(ResultKey::Validation,
+                                           "SKIPPED: " + ToString(fr.reason));
                         return false;
                     }
                 }
@@ -287,39 +292,39 @@ namespace Tensile
             return true;
         }
 
-        std::string ToString(AllSolutionsIterator::FR fr)
+        std::string ToString(AllSolutionsIterator::TR tr)
         {
-            switch(fr)
+            switch(tr)
             {
-            case AllSolutionsIterator::FR::Run:
+            case AllSolutionsIterator::TR::Run:
                 return "Run";
-            case AllSolutionsIterator::FR::LowGranularity:
+            case AllSolutionsIterator::TR::LowGranularity:
                 return "LowGranularity";
-            case AllSolutionsIterator::FR::LowMemoryThroughput:
+            case AllSolutionsIterator::TR::LowMemoryThroughput:
                 return "LowMemoryThroughput";
             default:;
             }
             return "Invalid";
         }
 
-        std::string TypeAbbrev(AllSolutionsIterator::FR fr)
+        std::string TypeAbbrev(AllSolutionsIterator::TR tr)
         {
-            switch(fr)
+            switch(tr)
             {
-            case AllSolutionsIterator::FR::Run:
+            case AllSolutionsIterator::TR::Run:
                 return "run";
-            case AllSolutionsIterator::FR::LowGranularity:
+            case AllSolutionsIterator::TR::LowGranularity:
                 return "grn";
-            case AllSolutionsIterator::FR::LowMemoryThroughput:
+            case AllSolutionsIterator::TR::LowMemoryThroughput:
                 return "mem";
             default:;
             }
             return "Invalid";
         }
 
-        std::ostream& operator<<(std::ostream& stream, const AllSolutionsIterator::FR& fr)
+        std::ostream& operator<<(std::ostream& stream, const AllSolutionsIterator::TR& tr)
         {
-            return stream << ToString(fr);
+            return stream << ToString(tr);
         }
 
         BestSolutionIterator::BestSolutionIterator(

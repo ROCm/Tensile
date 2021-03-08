@@ -207,10 +207,10 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
   for key, value in logicAnalyzer.wouldSkipWinner.items():
     if value:
       if key in logicAnalyzer.winnersNotSkipped:
-        printWarning("Winning solution would have been skipped by solution filtering criteria for problem size {}:\n\t"
-                     "{} vs {} (idx, GFlops)".format(key, logicAnalyzer.exactWinners[key], logicAnalyzer.winnersNotSkipped[key]))
+        printWarning("Winning solution would have been skipped by solution filtering criteria for problem size {} because of {}---"
+                     "{} vs {} (idx, GFlops)".format(key, logicAnalyzer.winnerSkipReason[key], logicAnalyzer.exactWinners[key], logicAnalyzer.winnersNotSkipped[key]))
       else:
-        printWarning("All solutions would have been skipped by solution filtering criteria for problem size {}".format(key))
+        printWarning("All solutions would have been skipped by solution filtering criteria for problem size {}. Winner skipped because of {}".format(key, logicAnalyzer.winnerSkipReason[key]))
 
   return (problemType, logicAnalyzer.solutions, logicAnalyzer.indexOrder, \
        exactLogic, rangeLogic, selectionSolutions, selectionSolutionsIdsList, logicAnalyzer.perfMetric)
@@ -361,6 +361,7 @@ class LogicAnalyzer:
     # Each entry in exactWinners is a 2D array [solutionIdx, perf]
     self.exactWinners = {}
     self.wouldSkipWinner = {}
+    self.winnerSkipReason = {}
     self.winnersNotSkipped = {}
 
     """
@@ -443,6 +444,7 @@ class LogicAnalyzer:
           winnerGFlops = -1
           winnerGFlopsNotSkipped = -1
           wouldSkipWinner = False
+          wouldSkipReason = ("", 0)
           for i in range(solutionStartIdx, rowLength):
 
             gflops_ws = row[i].strip().split(":")
@@ -453,6 +455,8 @@ class LogicAnalyzer:
               winnerIdx = solutionIdx
               winnerGFlops = gflops
               wouldSkipWinner = wouldSkip
+              if wouldSkip:
+                wouldSkipReason = (gflops_ws[1], gflops_ws[2])
 
             if gflops > winnerGFlopsNotSkipped and not wouldSkip:
               winnerGFlopsNotSkipped = gflops
@@ -468,6 +472,7 @@ class LogicAnalyzer:
             self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
 
           self.wouldSkipWinner[problemSize] = wouldSkipWinner
+          self.winnerSkipReason[problemSize] = wouldSkipReason
 
         if winnerIdxNotSkipped != -1:
           if problemSize in self.winnersNotSkipped:
