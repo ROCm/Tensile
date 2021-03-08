@@ -206,9 +206,11 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
 
   for key, value in logicAnalyzer.wouldSkipWinner.items():
     if value:
-      printWarning("Winning solution would have been skipped by solution filtering criteria for problem size {}:\n\t"
-                  "{} vs {} (idx, GFlops)".format(key, logicAnalyzer.exactWinners[key], logicAnalyzer.winnersNotSkipped[key]))
-
+      if key in logicAnalyzer.winnersNotSkipped:
+        printWarning("Winning solution would have been skipped by solution filtering criteria for problem size {}:\n\t"
+                     "{} vs {} (idx, GFlops)".format(key, logicAnalyzer.exactWinners[key], logicAnalyzer.winnersNotSkipped[key]))
+      else:
+        printWarning("All solutions would have been skipped by solution filtering criteria for problem size {}".format(key))
 
   return (problemType, logicAnalyzer.solutions, logicAnalyzer.indexOrder, \
        exactLogic, rangeLogic, selectionSolutions, selectionSolutionsIdsList, logicAnalyzer.perfMetric)
@@ -462,12 +464,17 @@ class LogicAnalyzer:
           if problemSize in self.exactWinners:
             if winnerGFlops > self.exactWinners[problemSize][1]:
               self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
-              self.winnersNotSkipped[problemSize] = [solutionMap[winnerIdxNotSkipped], winnerGFlopsNotSkipped]
           else:
             self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
-            self.winnersNotSkipped[problemSize] = [solutionMap[winnerIdxNotSkipped], winnerGFlopsNotSkipped]
 
           self.wouldSkipWinner[problemSize] = wouldSkipWinner
+
+        if winnerIdxNotSkipped != -1:
+          if problemSize in self.winnersNotSkipped:
+            if winnerGFlopsNotSkipped > self.winnersNotSkipped[problemSize][1]:
+              self.winnersNotSkipped[problemSize] = [solutionMap[winnerIdxNotSkipped], winnerGFlopsNotSkipped]
+          else:
+            self.winnersNotSkipped[problemSize] = [solutionMap[winnerIdxNotSkipped], winnerGFlopsNotSkipped]
 
 
       # Range Problem Size
