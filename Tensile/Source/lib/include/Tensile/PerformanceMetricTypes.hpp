@@ -51,7 +51,7 @@ namespace Tensile
  */
     enum class PerformanceMetric : int
     {
-        Best,
+        Auto,
         CUEfficiency,
         DeviceEfficiency,
         Count
@@ -115,8 +115,8 @@ namespace Tensile
     constexpr PerformanceMetric BasePerformanceMetricInfo<T_Enum>::Enum;
 
     template <>
-    struct PerformanceMetricInfo<PerformanceMetric::Best>
-        : public BasePerformanceMetricInfo<PerformanceMetric::Best>
+    struct PerformanceMetricInfo<PerformanceMetric::Auto>
+        : public BasePerformanceMetricInfo<PerformanceMetric::Auto>
     {
     };
     template <>
