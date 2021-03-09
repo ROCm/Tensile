@@ -1,3 +1,6 @@
+TestParameters:
+  marks: [emulation, emulation4]
+
 GlobalParameters:
   NumElementsToValidate: 16384
   DataInitTypeBeta: 2 # the bug is in the non-OptNLL code path of persitent kernel

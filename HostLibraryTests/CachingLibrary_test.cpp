@@ -212,7 +212,8 @@ TEST(Hashing, AMDGPU)
     std::vector<AMDGPU::Processor> processors{AMDGPU::Processor::gfx803,
                                               AMDGPU::Processor::gfx900,
                                               AMDGPU::Processor::gfx906,
-                                              AMDGPU::Processor::gfx908};
+                                              AMDGPU::Processor::gfx908,
+                                              AMDGPU::Processor::gfx90a};
 
     std::vector<int> counts{16, 20, 40, 56, 60, 64};
 

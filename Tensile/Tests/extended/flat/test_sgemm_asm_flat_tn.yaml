@@ -1,3 +1,6 @@
+TestParameters:
+  marks: [skip-gfx90a] # not supported by arch
+
 # benchmark assembly and source kernels
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0

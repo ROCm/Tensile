@@ -61,7 +61,7 @@ globalParameters["PreciseKernelTime"] = True      # T=On hip, use the timestamps
 globalParameters["CodeFromFiles"] = True          # if False byte arrays will be generated during Benchmarking phase as before
 globalParameters["SortProblems"] = False          # sort problems by size; else use order in YAML file
 globalParameters["PinClocks"] = False             # T=pin gpu clocks and fan, F=don't
-globalParameters["HardwareMonitor"] = True        # False: disable benchmarking client monitoring clocks using rocm-smi.
+globalParameters["HardwareMonitor"] = False        # False: disable benchmarking client monitoring clocks using rocm-smi.
 globalParameters["NumBenchmarks"] = 1             # how many benchmark data points to collect per problem/solution
 globalParameters["SyncsPerBenchmark"] = 1         # how iterations of the stream synchronization for-loop to do per benchmark data point
 globalParameters["EnqueuesPerSync"] = 1           # how many solution enqueues to perform per synchronization
@@ -201,7 +201,7 @@ globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
 globalParameters["MaxFileName"] = 128             # If a file name would be longer than this, shorten it with a hash.
-globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (10,1,0), (10,1,1)]             # assembly kernels writer supports these architectures
+globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (9,0,10), (10,1,0), (10,1,1)] # assembly kernels writer supports these architectures
 globalParameters["GenerateManifestAndExit"] = False               # Output manifest file with list of expected library objects and exit
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
 globalParameters["NewClient"] = 2                                 # 1=Run old+new client, 2=run new client only (All In)
@@ -258,7 +258,8 @@ defaultGlobalParameters = deepcopy(globalParameters)
 
 # Translate GPU targets to filter filenames in Tensile_LOGIC directory
 architectureMap = {'all':'_','gfx000':'none', 'gfx803':'r9nano',
-    'gfx900':'vega10', 'gfx906:xnack-':'vega20', 'gfx908:xnack-':'arcturus'}
+    'gfx900':'vega10', 'gfx906:xnack-':'vega20', 'gfx908:xnack-':'arcturus',
+    'gfx90a:xnack-':'aldebaran'}
 
 def getArchitectureName(gfxName):
   if gfxName in architectureMap:
@@ -304,6 +305,8 @@ validMFMA["H"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16
 validMFMA["S"] = [[32,32,1,2], [32,32,2,1], [16,16,1,4], [16,16,4,1], [4,4,1,16]]
 validMFMA["B"] = [[32,32,2,2], [32,32,4,1], [16,16,2,4], [16,16,8,1], [4,4,2,16]]
 validMFMA["4xi8"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
+validMFMA["D"] = [[16,16,4,1], [4,4,4,4]]
+validMFMA["B1k"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
 validMFMA["C"] = validMFMA["S"]
 validMFMA["I8"] = validMFMA["4xi8"]
 validTT = 16
@@ -316,7 +319,7 @@ for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["4xi8"]]:
           for wave_m in range (3):
             for wave_n in range(3):
               validMFMA["_format9"].append([MI[0],MI[1],MI[2],MI[3],2**bm,tt0,tt1,2**wave_m, 2**wave_n])
-validMatrixInstructions = [[], [-1]] + validMFMA["H"] + validMFMA["S"] + validMFMA["B"] + validMFMA["4xi8"]
+validMatrixInstructions = [[], [-1]] + validMFMA["H"] + validMFMA["S"] + validMFMA["B"] + validMFMA["4xi8"] + validMFMA["D"] + validMFMA["B1k"]
 validMatrixInstructions = validMatrixInstructions + validMFMA["_format9"]
 
 # The supported typed GEMM, each entry is (Ti, To, Tc).
@@ -755,7 +758,7 @@ validParameters = {
     "MacroTile":                  validMacroTiles,      # MT0 = wg0*tt0, MT1 = wg1*tt1
 
     # MatrixInstruction: (M x N x K x B)
-    # XDLOPS tile definition, only valid for gfx908
+    # XDLOPS tile definition, only valid for gfx908, gfx90a
     # MxNxKxB specifies matrix instruction variants
     #  MxNxB determines the shape of the C tile each instruction worked on
     #      K determines the unroll depth
@@ -1230,7 +1233,7 @@ defaultProblemType = {
 
     "DataType":                 0,                # data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
     "DestDataType":             0,                # destination data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
-    "ComputeDataType":             0,             # compute data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
+    "ComputeDataType":          0,                # compute data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
     "UseBeta":                  True,             # =True use beta parameter (asm will check for B=0 and optimize the write for that), =False don't use beta parameter
     "HighPrecisionAccumulate":  False,            # f32 += f16*f16
     "SilentHighPrecisionAccumulate": False,       # Keep kernel names the same for HPA mode.  Useful for testing.
@@ -1470,6 +1473,8 @@ def GetAsmCaps(isaVersion):
   rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "", False, "-mllvm --amdhsa-code-object-version=2")
 
   rv["HasMFMA"]         = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
+  rv["HasMFMA_f64"]     = tryAssembler(isaVersion, "v_mfma_f64_16x16x4f64 v[0:7], v[32:33], v[36:37], v[0:7]")
+  rv["HasMFMA_bf16_1k"] = tryAssembler(isaVersion, "v_mfma_f32_32x32x4bf16_1k a[0:31], v[32:33], v[36:37], a[0:31]")
 
   rv["v_mac_f16"]       = tryAssembler(isaVersion, "v_mac_f16 v47, v36, v34")
   rv["v_fma_f16"]       = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
@@ -1498,11 +1503,11 @@ def GetAsmCaps(isaVersion):
 
 def GetArchCaps(isaVersion):
   rv = {}
-  rv["HasEccHalf"]       = (isaVersion == (9,0,6) or isaVersion == (9,0,8))
-  rv["Waitcnt0Disabled"] = (isaVersion == (9,0,8))
-  rv["SeparateVscnt"]    = (isaVersion[0] == 10)
-  rv["CMPXWritesSGPR"]   = (isaVersion[0] != 10)
-  rv["HasWave32"]        = (isaVersion[0] == 10)
+  rv["HasEccHalf"]       = (isaVersion==(9,0,6) or isaVersion==(9,0,8) or isaVersion==(9,0,10))
+  rv["Waitcnt0Disabled"] = (isaVersion == (9,0,8) or isaVersion==(9,0,10))
+  rv["SeparateVscnt"]    = isaVersion[0] == 10
+  rv["CMPXWritesSGPR"]   = isaVersion[0] != 10
+  rv["HasWave32"]        = isaVersion[0] == 10
 
   return rv
 
@@ -1521,6 +1526,7 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
   args = [globalParameters["AssemblerPath"], '-x', 'assembler',
           '-target', 'amdgcn-amdhsa',
           '-mcpu='+gfxName(isaVersion),
+          '-mcode-object-version=3',
           *options,
           '-']
 
@@ -1530,6 +1536,7 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
   if debug:
     print("isaVersion: ", isaVersion)
     print("asm_cmd:", ' '.join(args))
+    print("asmString: ", asmString)
     print("output: ", output)
     print("return code: ", result.returncode)
 
@@ -1539,12 +1546,12 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
 
 def gfxArch(name):
     import re
-    match = re.search(r'gfx(\d{3,})', name)
+    match = re.search(r'gfx(\S{3,})', name)
     if not match: return None
 
     ipart = match.group(1)
 
-    step = int(ipart[-1])
+    step = int(ipart[-1], 16)
     ipart = ipart[:-1]
 
     minor = int(ipart[-1])
@@ -1557,7 +1564,9 @@ def gfxArch(name):
     return rv
 
 def gfxName(arch):
-    return 'gfx' + ''.join(map(str,arch))
+    # convert last digit to hex because reasons
+    name = str(arch[0]) + str(arch[1]) + ('%x' % arch[2])
+    return 'gfx' + ''.join(map(str,name))
 
 def restoreDefaultGlobalParameters():
   """
@@ -1667,7 +1676,7 @@ def assignGlobalParameters( config ):
       arch = gfxArch(line.strip())
       if arch is not None:
         if arch in globalParameters["SupportedISA"]:
-          print1("# Detected local GPU with ISA: gfx" + ''.join(map(str,arch)))
+          print1("# Detected local GPU with ISA: " + gfxName(arch))
           globalParameters["CurrentISA"] = arch
         line = process.stdout.readline().decode()
     if globalParameters["CurrentISA"] == (0,0,0):

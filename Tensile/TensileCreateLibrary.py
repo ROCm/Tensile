@@ -29,7 +29,8 @@ from . import EmbeddedData
 from . import LibraryIO
 from . import Utils
 from .Common import globalParameters, HR, print1, print2, printExit, ensurePath, \
-    CHeader, CMakeHeader, assignGlobalParameters, listToInitializer, architectureMap
+                    CHeader, CMakeHeader, assignGlobalParameters, \
+                    listToInitializer, gfxName, architectureMap
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
@@ -76,7 +77,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
       archs[tuple(k['ISA'])].append(k)
     coFiles = []
     for arch, archKernels in archs.items():
-      archName = 'gfx'+''.join(map(str,arch))
+      archName = gfxName(arch)
       objectFiles = list([kernelWriterAssembly.getKernelFileBase(k) + '.o' \
                           for k in archKernels \
                           if k['KernelLanguage'] == 'Assembly'])
@@ -139,12 +140,12 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       cmdlineArchs = []
       for arch in globalParameters['SupportedISA']:
         if isSupported(arch):
-          if (arch == (9,0,6) or arch == (9,0,8)):
-            archs += ['gfx'+''.join(map(str,arch))+'-xnack-']
-            cmdlineArchs += ['gfx'+''.join(map(str,arch))+':xnack-']
+          if (arch == (9,0,6) or arch == (9,0,8) or arch == (9,0,10)):
+            archs += [gfxName(arch) + '-xnack-']
+            cmdlineArchs += [gfxName(arch) + ':xnack-']
           else:
-            archs += ['gfx'+''.join(map(str,arch))]
-            cmdlineArchs += ['gfx'+''.join(map(str,arch))]
+            archs += [gfxName(arch)]
+            cmdlineArchs += [gfxName(arch)]
 
       archFlags = ['--offload-arch=' + arch for arch in cmdlineArchs]
 
@@ -1035,17 +1036,17 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
     sourceArchs = []
     for arch in globalParameters['SupportedISA']:
       if isSupported(arch):
-        if (arch == (9,0,6) or arch == (9,0,8)):
-          sourceArchs += ['gfx'+''.join(map(str,arch))+'-xnack-']
+        if (arch == (9,0,6) or arch == (9,0,8) or arch == (9,0,10)):
+          sourceArchs += [gfxName(arch) + '-xnack-']
         else:
-          sourceArchs += ['gfx'+''.join(map(str,arch))]
+          sourceArchs += [gfxName(arch)]
   else:
     raise RuntimeError("Unknown compiler %s" % cxxCompiler)
 
   # Asm based kernels target the configured ISA
   asmArchs = collections.defaultdict(list)
   for (kernelName, kernel) in zip(asmKernelNames, asmKernels):
-    asmArchs[kernelName].append('gfx'+''.join(map(str, tuple(kernel['ISA']))))
+    asmArchs[kernelName].append(gfxName(kernel['ISA']))
 
   # Build list of solution files
   if globalParameters["LegacyComponents"]:
@@ -1303,7 +1304,7 @@ def TensileCreateLibrary():
   argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hipcc"],       action="store", default="hipcc")
   argParser.add_argument("--cmake-cxx-compiler",     dest="CmakeCxxCompiler",  action="store")
   argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["V2", "V3"], action="store", default="V3")
-  argParser.add_argument("--architecture",           dest="Architecture",      choices=["all", "gfx000", "gfx803", "gfx900", "gfx906:xnack-", "gfx908:xnack-"], action="store", default="all")
+  argParser.add_argument("--architecture",           dest="Architecture",      choices=["all", "gfx000", "gfx803", "gfx900", "gfx906:xnack-", "gfx908:xnack-", "gfx90a:xnack-"], action="store", default="all")
   argParser.add_argument("--merge-files",            dest="MergeFiles",        action="store_true")
   argParser.add_argument("--no-merge-files",         dest="MergeFiles",        action="store_false")
   argParser.add_argument("--short-file-names",       dest="ShortNames",        action="store_true")
@@ -1512,7 +1513,7 @@ def TensileCreateLibrary():
     # write logic
     writeLogic(outputPath, logicData, solutionWriter)
 
-  archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
+  archs = [gfxName(arch) for arch in globalParameters['SupportedISA'] \
              if globalParameters["AsmCaps"][arch]["SupportedISA"]]
   newLibraryDir = ensurePath(os.path.join(outputPath, 'library'))
 

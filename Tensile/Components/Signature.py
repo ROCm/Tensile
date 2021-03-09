@@ -20,7 +20,9 @@
 ################################################################################
 
 from ..Component import Signature
-from ..Common import globalParameters
+from ..Common import globalParameters, gfxName
+
+from math import ceil
 
 srcValueTypeDict = {
     "f16":  "Struct",
@@ -344,8 +346,8 @@ class SignatureCOV3(Signature):
         kStr = self.commentHeader()
 
         # begin kernel descriptor
-        kStr += ".amdgcn_target \"amdgcn-amd-amdhsa--gfx%s\"%s" \
-            % ("".join(map(str,writer.version)), writer.endLine)
+        kStr += ".amdgcn_target \"amdgcn-amd-amdhsa--%s\"%s" \
+            % (gfxName(writer.version), writer.endLine)
 
         kStr += ".text%s" % writer.endLine
         kStr += ".protected %s%s" % (writer.kernelName, writer.endLine)
@@ -383,8 +385,20 @@ class SignatureCOV3(Signature):
         # register allocation
         totalVgprs = writer.vgprPool.size()
         totalSgprs = writer.sgprPool.size()
+
+        # accumulator offset for gfx90a
+        vgprCount = totalVgprs
+        if writer.version == (9,0,10):
+            agprStart = ceil(totalVgprs/4)*4
+            if writer.agprPool.size() != 0:
+                agprStart = ceil(totalVgprs/8)*8
+                vgprCount = agprStart + writer.agprPool.size()
+
+            tWord = ".amdhsa_accum_offset"
+            kStr += "  %s %u // accvgpr offset%s" % (tWord, agprStart, writer.endLine)
+
         tWord = ".amdhsa_next_free_vgpr"
-        kStr += "  %s %u // vgprs%s" % (tWord, totalVgprs, writer.endLine)
+        kStr += "  %s %u // vgprs%s" % (tWord, vgprCount, writer.endLine)
         tWord = ".amdhsa_next_free_sgpr"
         kStr += "  %s %u // sgprs%s" % (tWord, totalSgprs, writer.endLine)
 

@@ -1146,9 +1146,12 @@ def writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
 
     maxMT = getMaxSolutionSizes(solutions, solutionSummationSizes)
 
-    maxMN = 1296 * maxMT[0] * maxMT[1]
-    maxMK = 36 * maxMT[0] * maxMT[2]
-    maxNK = 36 * maxMT[1] * maxMT[2]
+    #maxMN = 1296 * maxMT[0] * maxMT[1]
+    #maxMK = 36 * maxMT[0] * maxMT[2]
+    #maxNK = 36 * maxMT[1] * maxMT[2]
+    maxMN = maxMT[0] * maxMT[1]
+    maxMK = maxMT[0] * maxMT[2]
+    maxNK = maxMT[1] * maxMT[2]
 
     maximumA = max(maximumA, maxMK)
     maximumB = max(maximumB, maxNK)

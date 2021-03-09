@@ -20,17 +20,18 @@
 ################################################################################
 
 from . import Properties
+from . import Common
 import copy
 
 class HardwarePredicate(Properties.Predicate):
     @classmethod
     def FromISA(cls, isa):
-        gfxArch = 'gfx'+''.join(map(str, isa))
+        gfxArch = Common.gfxName(isa)
         return cls("AMDGPU", value=cls("Processor", value=gfxArch))
 
     @classmethod
     def FromHardware(cls, isa, cuCount=None):
-        gfxArch = 'gfx'+''.join(map(str, isa))
+        gfxArch = Common.gfxName(isa)
         if cuCount == None:
             return cls("AMDGPU", value=cls("Processor", value=gfxArch))
         else:

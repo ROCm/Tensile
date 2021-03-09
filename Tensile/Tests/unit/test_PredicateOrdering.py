@@ -63,6 +63,7 @@ def predicate_library_objects():
     objs = [PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,0))}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,6))}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,8))}]),
+            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,10))}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,0,8), 60)}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,0,8), 64)}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate('TruePred')}])
