@@ -1,6 +1,6 @@
 
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -94,7 +94,7 @@ def GenerateSummations(userArgs):
         finalPath = ensurePath(os.path.join(currentPath, "final"))
         localLogicPath = ensurePath(os.path.join(currentPath, "logic"))
         localLogicFilePath = os.path.join(localLogicPath, logicFileBaseName)
-        
+
         logic = LibraryIO.readLibraryLogicForSchedule(logicFileName)
 
         (scheduleName, deviceNames, problemType, solutionsForSchedule, \
@@ -105,9 +105,9 @@ def GenerateSummations(userArgs):
         for s in solutionsForSchedule:
             s_state = s._state
             name = Solution.getNameMin(s_state, naming)
-            s_state["SolutionNameMin"] = name          
+            s_state["SolutionNameMin"] = name
             isa = s_state["ISA"]
-            s_state["ISA"] = list(isa) 
+            s_state["ISA"] = list(isa)
 
         exactLogic0 = {}
         for e in exactLogic:
@@ -135,7 +135,7 @@ def GenerateSummations(userArgs):
 
         libraryPath = libPath
         clientBuildDir = os.path.join(outputPath, "client")
-        problemTypeObj1 = problemType1.state   
+        problemTypeObj1 = problemType1.state
 
         problemSizes = ProblemSizes(problemTypeObj1, exactList)
         dataPath = ensurePath(os.path.join(outputPath, logicFileStem, "data"))
@@ -167,17 +167,17 @@ def GenerateSummations(userArgs):
         index_keys = working_data.SizeL.unique()
         solutionsDF = working_data.filter(like='Cij')
         perf_max = solutionsDF.max().max().item()
-    
+
         for s in solutionsForSchedule1:
             s_state = s._state
             solution_name = s_state["SolutionNameMin"]
-            perf_raw = working_data[solution_name] 
+            perf_raw = working_data[solution_name]
             perf = (1000*index_keys) / perf_raw
             model = np.polyfit(x=index_keys, y=perf, deg=1)
             slope = model[0].item()
             intercept = model[1].item()
             linearModel = {"slope": slope, "intercept": intercept, "max": perf_max}
-        
+
             s["LinearModel"] = deepcopy(linearModel)
 
             isa = s_state["ISA"]

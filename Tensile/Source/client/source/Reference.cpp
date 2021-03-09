@@ -166,8 +166,10 @@ namespace Tensile
                 {
                     std::ostringstream msg;
                     msg << "Unsupported nullptr for";
-                    if(!inputs.a) msg << " A";
-                    if(!inputs.b) msg << " B";
+                    if(!inputs.a)
+                        msg << " A";
+                    if(!inputs.b)
+                        msg << " B";
                     msg << " when Alpha !=0";
 
                     throw std::runtime_error(msg.str());
@@ -631,4 +633,3 @@ namespace Tensile
         }
     } // namespace Client
 } // namespace Tensile
-

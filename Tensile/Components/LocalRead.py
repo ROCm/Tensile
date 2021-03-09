@@ -47,7 +47,7 @@ class LocalReadVALU(LocalRead):
         valuIdx           = 0
         numVectorsPerTile = (kernel["ThreadTile%u"%tP["tensorIdx"]]//kernel["VectorWidth"])
         numReadsPerVector = (kernel["VectorWidth"] * tP["bpe"]) // (blockWidth*4) # bytes/register
-    
+
         for vIdx in range(0, numVectorsPerTile):
             for rIdx in range(0, numReadsPerVector):
                 localReadCode = imod.addCode (Code.Module("LocalRead%s Valu%u"%(tc,valuIdx)))
@@ -108,7 +108,7 @@ class LocalReadVALU(LocalRead):
 
                     elif kernel["ProblemType"]["DataType"].isSingle():
                         localReadCode.addCode(writer.assert_eq( dbgVgpr, 1.0) )
-    
+
         return imod, pack
 
 
