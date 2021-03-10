@@ -36,7 +36,7 @@ from . import LibraryIO
 from . import ClientWriter
 from .Common import assignGlobalParameters, ensurePath, globalParameters, \
     gfxName, gfxArch, printExit, getArchitectureName
-from .SolutionStructs import ProblemSizes, Solution
+from .SolutionStructs import ProblemSizes
 
 
 def getArchitecture(isaName):
@@ -46,6 +46,36 @@ def getArchitecture(isaName):
 def isValidArch(archName, currentArch):
     arch = gfxArch(archName)
     return currentArch == arch
+
+# Including readSolutionRaw and writeRawLogic in this file. It is not clear that
+# this functionality is needed outside the scope of this utility. 
+def readSolutionRaw(filename):
+    try:
+        stream = open(filename, "r")
+    except IOError:
+        print ("Cannot open file: %s" % filename )
+        return None
+    data = yaml.load(stream, yaml.SafeLoader)
+    stream.close()
+    
+    versionString     = data[0]
+    scheduleName      = data[1]
+    architectureName  = data[2]
+    deviceNames       = data[3]
+    problemTypeState  = data[4]
+    solutionStates    = data[5]
+    indexOrder        = data[6]
+    exactLogic        = data[7]
+    rangeLogic        = data[8]
+    otherFields       = []
+
+    dataLength = len(data)
+    if dataLength > 9:
+        for idx in range(9, dataLength):
+            otherFields.append(deepcopy(data[idx]))
+    
+    return (versionString, scheduleName, architectureName, deviceNames,\
+        problemTypeState, solutionStates, indexOrder, exactLogic, rangeLogic, otherFields)
 
 ##############################################################################
 # createLibraryForBenchmark
@@ -95,35 +125,23 @@ def GenerateSummations(userArgs):
         localLogicPath = ensurePath(os.path.join(currentPath, "logic"))
         localLogicFilePath = os.path.join(localLogicPath, logicFileBaseName)
         
+        # Here we read in two version of the logic the first one fills the solutions with
+        # defaults and modifies some of the parameters. The final logic file should be the 
+        # same as the initial logic with the summation model added. To preseve the original
+        # logic we also read in the raw unaltered version of the logic and stage the content
+        # to write the final logic.
         logic = LibraryIO.readLibraryLogicForSchedule(logicFileName)
+        rawLogic = readSolutionRaw(logicFileName)
 
-        (scheduleName, deviceNames, problemType, solutionsForSchedule, \
-           indexOrder, exactLogic, rangeLogic, _, architectureName) = logic
+        (versionStringR, scheduleNameR, architectureNameR, deviceNamesR, problemTypeStateR,\
+            solutionStatesR, indexOrderR, exactLogicR, rangeLogicR, otherFieldsR) =\
+            rawLogic
 
-        naming = Solution.getMinNaming(solutionsForSchedule)
+        (_, _, problemType, solutionsForSchedule, \
+           _, _, _, _, _) = logic
 
-        for s in solutionsForSchedule:
-            s_state = s._state
-            name = Solution.getNameMin(s_state, naming)
-            s_state["SolutionNameMin"] = name          
-            isa = s_state["ISA"]
-            s_state["ISA"] = list(isa) 
-
-        exactLogic0 = {}
-        for e in exactLogic:
-            exactLogic0[tuple(e[0])] = e[1]
-
-        logicTuple = (problemType, solutionsForSchedule, indexOrder, exactLogic0, rangeLogic)
-        LibraryIO.configWriter("yaml").writeLibraryLogicForSchedule(localLogicPath, \
-            scheduleName, architectureName, \
-            deviceNames, logicTuple)
-
+        copyfile(logicFileName, localLogicFilePath)
         createLibraryForBenchmark(localLogicPath, libPath, currentPath)
-
-        logic1 = LibraryIO.readLibraryLogicForSchedule(localLogicFilePath)
-
-        (scheduleName1, deviceNames1, problemType1, solutionsForSchedule1, \
-           indexOrder1, exactLogic1, rangeLogic1, _, architectureName1) = logic1
 
         exactList = []
 
@@ -134,18 +152,18 @@ def GenerateSummations(userArgs):
             exactList.append(e)
 
         libraryPath = libPath
-        clientBuildDir = os.path.join(outputPath, "client")
-        problemTypeObj1 = problemType1.state   
+        clientBuildDir = os.path.join(outputPath, "client") 
+        problemTypeObj = problemType.state
 
-        problemSizes = ProblemSizes(problemTypeObj1, exactList)
+        problemSizes = ProblemSizes(problemTypeObj, exactList)
         dataPath = ensurePath(os.path.join(outputPath, logicFileStem, "data"))
         configFilePath = ensurePath(os.path.join(outputPath, logicFileStem, "configs"))
         dataFilePath = os.path.join(dataPath, "benchmark.csv")
         configFile = os.path.join(configFilePath, "ClientParameters.ini")
         scriptPath = ensurePath(os.path.join(outputPath, logicFileStem, "script"))
-        ClientWriter.CreateBenchmarkClientParametersForSizes(libraryPath, problemSizes, dataFilePath, configFile, problemTypeObj1)
-        ClientWriter.runNewClient(scriptPath, configFile, clientBuildDir)
 
+        ClientWriter.CreateBenchmarkClientParametersForSizes(libraryPath, problemSizes, dataFilePath, configFile, problemTypeObj)
+        ClientWriter.runNewClient(scriptPath, configFile, clientBuildDir)
 
         tensileLibraryFile = os.path.join(libPath, "library", "TensileLibrary.yaml")
 
@@ -155,44 +173,49 @@ def GenerateSummations(userArgs):
 
         libSolutions = tensileLibrary["solutions"]
 
-        mapper={}
+        libSolutionNames = []
         for s in libSolutions:
-            key=s["name"]
-            value=s["info"]["SolutionNameMin"]
-            mapper[key]=value
+            kenelName=s["name"]
+            libSolutionNames.append(kenelName)
 
-        data_df=pd.read_csv(dataFilePath)
-        working_data = data_df.rename(str.strip,axis='columns').rename(columns=mapper)
+        working_data=pd.read_csv(dataFilePath).rename(str.strip,axis='columns')
 
         index_keys = working_data.SizeL.unique()
         solutionsDF = working_data.filter(like='Cij')
+
         perf_max = solutionsDF.max().max().item()
-    
-        for s in solutionsForSchedule1:
-            s_state = s._state
-            solution_name = s_state["SolutionNameMin"]
-            perf_raw = working_data[solution_name] 
+
+        solutionIndex = 0
+        for s in solutionsForSchedule:
+            s_stateR = solutionStatesR[solutionIndex]
+            kenelName = libSolutionNames[solutionIndex]
+            solutionIndex += 1
+            perf_raw = working_data[kenelName] 
             perf = (1000*index_keys) / perf_raw
             model = np.polyfit(x=index_keys, y=perf, deg=1)
             slope = model[0].item()
             intercept = model[1].item()
             linearModel = {"slope": slope, "intercept": intercept, "max": perf_max}
+            s_stateR["LinearModel"] = deepcopy(linearModel)
+
+        rawLogicData = []
+        rawLogicData.append(deepcopy(versionStringR))
+        rawLogicData.append(deepcopy(scheduleNameR))
+        rawLogicData.append(deepcopy(architectureNameR))
+        rawLogicData.append(deepcopy(deviceNamesR))
+        rawLogicData.append(deepcopy(problemTypeStateR))
+        rawLogicData.append(deepcopy(solutionStatesR))
+        rawLogicData.append(deepcopy(indexOrderR))
+        rawLogicData.append(deepcopy(exactLogicR))
+        rawLogicData.append(deepcopy(rangeLogicR))
+        for idx in range(0, len(otherFieldsR)):
+            rawLogicData.append(otherFieldsR[idx])
         
-            s["LinearModel"] = deepcopy(linearModel)
-
-            isa = s_state["ISA"]
-            s_state["ISA"] = list(isa)
-
-        exactLogic1 = {}
-        for e in exactLogic:
-            exactLogic1[tuple(e[0])] = e[1]
-
-        logicTuple1 = (problemType1, solutionsForSchedule1, indexOrder1, exactLogic1, rangeLogic1)
-        LibraryIO.configWriter("yaml").writeLibraryLogicForSchedule(finalPath, \
-            scheduleName1, architectureName1, \
-            deviceNames1, logicTuple1)
-
         localFinalLogic = os.path.join(finalPath, logicFileBaseName)
+
+        yamlWriter = LibraryIO.YAMLWriter()
+        yamlWriter.write(localFinalLogic, rawLogicData)
+
         outputFinal = ensurePath(os.path.join(outputPath, "final"))
         finalLogic = os.path.join(outputFinal, logicFileBaseName)
 
