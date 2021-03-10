@@ -47,8 +47,9 @@ def isValidArch(archName, currentArch):
     arch = gfxArch(archName)
     return currentArch == arch
 
-# Including readSolutionRaw and writeRawLogic in this file. It is not clear that
-# this functionality is needed outside the scope of this utility. 
+# Including readSolutionRaw in this file. It is not clear that
+# this functionality is needed outside the scope of this utility.
+# For this utility we need the unaltered data. 
 def readSolutionRaw(filename):
     try:
         stream = open(filename, "r")
