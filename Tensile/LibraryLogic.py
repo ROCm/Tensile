@@ -247,7 +247,6 @@ class LogicAnalyzer:
     self.solutionGroupMap = []
     self.solutions = []
     solutionsHash = {} # for accelerating lookups
-
     totalSolutions = 0
     for solutionGroupIdx in range(0, len(solutionsList)):
       solutionGroup = solutionsList[solutionGroupIdx]

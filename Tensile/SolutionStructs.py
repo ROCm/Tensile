@@ -179,7 +179,7 @@ class Convolution:
         'UseBeta', 'UseInitialStridesAB', "AllowNoFreeDims", \
         ]
   SummarySolutionProperties=[\
-        'AssertSizeEqual', 'AssertStrideAEqual', 'AssertStrideBEqual', \
+        'AssertSizeEqual', 'AssertStrideAEqual', 'AssertStrideBEqual', 'AssertSizeInRange'\
         ]
 
   # valid lowest filter dimensions, these we can attach compile-time constant strides:
@@ -3590,6 +3590,9 @@ class Solution:
   # Get Name Min
   @ staticmethod
   def getNameMin(state, requiredParameters):
+    if state["CustomKernelName"]:
+      return state["CustomKernelName"]
+
     name = ""
     first = True
     # put problem first

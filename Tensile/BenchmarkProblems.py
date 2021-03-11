@@ -36,12 +36,14 @@ from . import LibraryIO
 from . import Utils
 from .BenchmarkStructs import BenchmarkProcess, constructForkPermutations
 from .ClientWriter import runClient, writeClientParameters, writeClientConfig
-from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, startTime
+from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, \
+                    startTime, defaultBenchmarkCommonParameters
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionStructs import Solution, ProblemType, ProblemSizes
 from .SolutionWriter import SolutionWriter
 from .TensileCreateLibrary import writeSolutionsAndKernels, writeCMake, buildObjectFileNames
+from . import ReplacementKernels
 
 ############################################################################
 # generateForkedSolutions
@@ -234,7 +236,6 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 
     benchmarkPermutations = constructForkPermutations(benchmarkStep.benchmarkParameters)
     maxPossibleSolutions = len(benchmarkPermutations) * numHardcoded
-
     ############################################################################
     # Enumerate Solutions = Hardcoded * Benchmark
     ############################################################################
@@ -245,7 +246,6 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 
     solutions = generateForkedSolutions (benchmarkProcess.problemType, benchmarkStep.hardcodedParameters, \
         benchmarkPermutations, theWinners, benchmarkStep.initialSolutionParameters)
-
     # remove hardcoded that don't have any valid benchmarks
     removeHardcoded = list([x for i,x in enumerate(benchmarkStep.hardcodedParameters) if len(solutions[i]) == 0])
     validHardcoded =  list([x for i,x in enumerate(benchmarkStep.hardcodedParameters) if len(solutions[i]) > 0])
@@ -265,12 +265,22 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     elif winners.winners=={}:
       print1("# Populating initial winners (%u solutions)\n" % len(benchmarkStep.hardcodedParameters))
       for hcParm in benchmarkStep.hardcodedParameters:
-        winners.winners[FrozenDictionary(hcParm)] = [{},-1]
+        if hcParm:    #If hcParm isn't empty dict
+          winners.winners[FrozenDictionary(hcParm)] = [{},-1]
 
     print1("# Actual Solutions: %u / %u\n" % ( len(solutions), \
         maxPossibleSolutions ))
 
-
+    # add replacement kernels
+    for kernelName in problemSizeGroupConfig.get("CustomKernels", []):
+      kernelConfig = ReplacementKernels.getCustomKernelConfig(kernelName+".s")
+      print(kernelConfig)
+      kernelConfig["KernelLanguage"] = "Assembly"   #Replacement kernels are always assembly kernels?
+      kernelConfig["CustomKernelName"] = kernelName
+      customSolution = Solution(kernelConfig)
+      customSolution._name = kernelName
+      solutions.append([customSolution])
+ 
     # create linear list
     solutionList = list(itertools.chain.from_iterable(solutions))
 
@@ -287,6 +297,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
           print2("#    (%u:%u) %s" % (i, j, \
               Solution.getNameFull(solution) ))
       print2(HR)
+
 
     # write benchmarkFiles
     writeBenchmarkFiles(stepBaseDir, solutionList, benchmarkStep.problemSizes, \
@@ -381,6 +392,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
         currentTime = time.time()
         elapsedTime = currentTime - startTime
         print1("# Finish Adding Results - %.3fs\n" % (elapsedTime))
+
 
     ############################################################################
     # Write Solutions YAML
@@ -662,6 +674,7 @@ class WinningParameterDict:
     print1("# Adding Results to Solution Database")
     for hardcodedIdx,hardcodedResults in Utils.tqdm(enumerate(results)):
       if not hardcodedResults: continue
+      if hardcodedIdx >= len(hardcodedParameterList): break
 
       hardcodedParameters = hardcodedParameterList[hardcodedIdx]
       winningIdx = -1
@@ -878,7 +891,7 @@ def main( config ):
           shutil.copy( granularityFileName, newGranularityFileName )
       else:
         print1("# %s_%02u already benchmarked; skipping." % (str(problemTypeObj), problemSizeGroupIdx) )
-
+  
   popWorkingPath()
 
   if globalParameters["ExitOnFails"] and totalTestFails:

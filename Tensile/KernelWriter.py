@@ -22,7 +22,7 @@
 from . import Code
 from . import Common
 from .Common import globalParameters, CHeader, roundUp
-from .ReplacementKernels import ReplacementKernels
+from . import ReplacementKernels 
 from .SolutionStructs import Solution
 
 import abc
@@ -3564,7 +3564,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
     return fileBase
 
   def getKernelName(self, kernel):
-    kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
+    if kernel["CustomKernelName"]:
+      kernelName = kernel["CustomKernelName"]
+    elif globalParameters["ShortNames"]:
+      kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
     return kernelName
 
   def getKernelSource(self, kernel):
@@ -3664,11 +3667,15 @@ for codeObjectFileName in codeObjectFileNames:
     return bytearrayFileName
 
   def getReplacementKernelPath(self, kernel):
-    if not kernel["ReplacementKernel"]:
+    if not kernel["ReplacementKernel"] and not kernel["CustomKernelName"]:
       return None
-
+    
     kernelName = self.getKernelName(kernel)
-    return ReplacementKernels.Get(kernelName)
+
+    if kernel["ReplacementKernel"]:
+      return ReplacementKernels.Get(kernelName)
+    else: #Custom Kernel
+      return os.path.join(ReplacementKernels.customKernelDirectory, (kernelName + ".s"))
 
   def shortenFileBase(self, kernel):
     base = self.getKernelName(kernel)
