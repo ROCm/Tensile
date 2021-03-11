@@ -20,6 +20,7 @@
 ################################################################################
 
 from .Common import globalParameters
+from yaml import safe_load
 
 import os
 
@@ -95,3 +96,36 @@ class ReplacementKernels:
     @classmethod
     def Get(cls, kernelName):
         return cls.Instance().get(kernelName)
+
+customKernelDirectory = os.path.join(os.path.dirname(os.path.realpath(__file__)), "CustomKernels")
+
+def getCustomKernelContents(name, directory=customKernelDirectory):
+    try:
+        with open(os.path.join(directory, name)) as f:
+            return f.read()
+    except:
+        print("ERROR: Failed to find replacement kernel: {}".format(os.path.join(directory, name)))
+        return None
+
+def getCustomKernelConfigAndAssembly(name, directory=customKernelDirectory):
+    contents  = getCustomKernelContents(name, directory)
+    config = ""
+    assembly = ""
+    inConfig = False
+    for line in contents.splitlines():
+        if   line == "---": inConfig = True; print("into config")
+        elif line == "...": inConfig = False; print("out of config")
+        elif      inConfig: config   += line + "\n"
+        else              : assembly += line + "\n"
+
+    return (config, assembly)  
+
+def getCustomKernelConfig(name, directory=customKernelDirectory):
+    rawConfig, _ = getCustomKernelConfigAndAssembly(name, directory)
+    try:
+        return safe_load(rawConfig)["custom.config"]
+    except:
+        print("ERROR: Failed to read configuration for replacement kernel: {}".format(name))
+
+def getCustomKernelSourceAndMetadata(name, directory=customKernelDirectory):
+    return None

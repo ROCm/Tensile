@@ -670,6 +670,7 @@ validParameters = {
     # Dictionary of pairs of {index, constValue}.
     # Index is a member of the global index assignments.
     "AssertSizeEqual":    -1,
+    "AssertSizeInRange":  -1,
 
     # Generate code inside kernel to check Assertions on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
@@ -1040,6 +1041,7 @@ validParameters = {
 
     # Replaces assembly kernels if they are found in the directory Tensile/Tensile/ReplacementKernels
     "ReplacementKernel":          [False, True],
+    "CustomKernelName":            -1,
 
     "MinVgprNumber":                list(range(0,256)),
 
@@ -1108,6 +1110,7 @@ defaultBenchmarkCommonParameters = [
     {"AssertStrideCEqual":        [ {} ] },
     {"AssertStrideDEqual":        [ {} ] },
     {"AssertSizeEqual":           [ {} ] },
+    {"AssertSizeInRange":         [ {} ] },
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
@@ -1153,6 +1156,7 @@ defaultBenchmarkCommonParameters = [
     {"NonTemporalA":              [ 0 ] },
     {"NonTemporalB":              [ 0 ] },
     {"ReplacementKernel":         [ False ] },
+    {"CustomKernelName":          [ "" ] },
     {"MinVgprNumber":             [0]},
     {"MaxVgprNumber":             [256]},
     {"StoreRemapVectorWidth":     [ 0 ] },

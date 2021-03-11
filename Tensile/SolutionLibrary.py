@@ -217,6 +217,7 @@ class MasterSolutionLibrary:
                 solutionsSoFar.add(solution.index)
     @classmethod
     def FromOriginalState(cls, d, origSolutions, solutionClass=Contractions.Solution, libraryOrder = None):
+
         if libraryOrder is None:
             libraryOrder = ['Hardware', 'OperationIdentifier', 'PerformanceMetric', 'Predicates', 'Matching']
 
