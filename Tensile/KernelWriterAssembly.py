@@ -9188,7 +9188,6 @@ class KernelWriterAssembly(KernelWriter):
       def __init__(self, kernelWriter, kernel, ss, gwvw, edge, beta, atomic):
         self.gwvw = gwvw
 
-
         if ss.optSingleColVgpr:
           # use one vgpr (allocated in ss.sharedColVgprs) for all addressing
           # - need 0 additional vgpr per element.
@@ -9196,18 +9195,24 @@ class KernelWriterAssembly(KernelWriter):
         else:
           self.numVgprsPerAddr = kernelWriter.rpgo if kernel["BufferStore"] else kernelWriter.rpga
 
-        if ss.optSharedMask:
-          self.numSgprsPerElement = 0
-          self.fixedSgprsPerBatch = kernelWriter.laneSGPRCount
+        if ss.optSGPRUsage == 'BufferLoad_Mask':
+          self.numMaskSgprPerElement = 0
+          self.numMaskSgprPerBatch   = 0
+          self.numTempSgprPerBatch   = kernelWriter.laneSGPRCount
+        elif ss.optSGPRUsage == 'BufferLoad_Edge_Mask':
+          self.numMaskSgprPerElement = 0
+          self.numMaskSgprPerBatch   = kernelWriter.laneSGPRCount
+          self.numTempSgprPerBatch   = 2 * kernelWriter.laneSGPRCount
         else:
-          self.numSgprsPerElement = kernelWriter.laneSGPRCount
-          self.fixedSgprsPerBatch = 3*kernelWriter.laneSGPRCount
+          self.numMaskSgprPerElement = kernelWriter.laneSGPRCount
+          self.numMaskSgprPerBatch   = 0
+          self.numTempSgprPerBatch   = 2 * kernelWriter.laneSGPRCount
 
-        if self.numSgprsPerElement:
+        if self.numMaskSgprPerElement:
           numSgprAvailable = kernelWriter.maxSgprs - kernelWriter.sgprPool.size() + kernelWriter.sgprPool.availableBlockAtEnd()
           numSgprAvailable = numSgprAvailable & ~0x1 # make sure it's aligned
           #print("numSgprAvailable=", numSgprAvailable)
-          self.numElementsPerBatchLimitedBySgprs = (numSgprAvailable - self.fixedSgprsPerBatch) // self.numSgprsPerElement
+          self.numElementsPerBatchLimitedBySgprs = (numSgprAvailable - self.numTempSgprPerBatch - self.numMaskSgprPerBatch) // self.numMaskSgprPerElement
         else:
           self.numElementsPerBatchLimitedBySgprs = 9999 # no limit
 
@@ -9215,7 +9220,6 @@ class KernelWriterAssembly(KernelWriter):
           kernelWriter.overflowedResources = 2
           self.numElementsPerBatchLimitedBySgprs = 1 # dummy value
             #assert self.numElementsPerBatchLimitedBySgprs > 0, "numElementsPerBatchLimitedBySgprs=0 for %s"%self.kernelName
-
 
         if atomic:
           # flat atomics have another VGPR to allow different data for return#
@@ -9296,8 +9300,9 @@ class KernelWriterAssembly(KernelWriter):
         self.optSingleColVgpr = 0 # BOZO, hack to disable this
         self.optSharedColVgpr = 0# BOZO, hack to disable this
 
-      self.optSharedMask  = kernel["BufferStore"] and not edge and not atomic
-
+      self.optSGPRUsage = None
+      if kernel["BufferStore"] and (not atomic):
+        self.optSGPRUsage = 'BufferLoad_Edge_Mask' if edge else 'BufferLoad_Mask'
 
       # can't have both of these enabled:
       assert (not (self.optSingleColVgpr and self.optSharedColVgpr))
@@ -9460,7 +9465,10 @@ class KernelWriterAssembly(KernelWriter):
 
         self.elementData.append(data)
         if batchElementSgprs != None:
-          mask = batchElementSgprs + elementIdx * self.cfg.numSgprsPerElement # elementSgprs+0
+          if self.optSGPRUsage:
+            mask = batchElementSgprs
+          else:
+            mask = batchElementSgprs + self.cfg.numMaskSgprPerBatch + elementIdx * self.cfg.numMaskSgprPerElement
           self.elementMask.append(mask)
 
         #print "Edge=", edge, element
@@ -9544,12 +9552,10 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr = ""
       if scale1 == 1:
-        kStr += inst("_v_add_u32", destV, src0, \
-                  src1, comment)
+        kStr += inst("_v_add_u32", destV, src0, src1, comment)
       else:
         kStr += inst("s_mul_i32", sgpr(tmpS01), src1, scale1, "scale stride")
-        kStr += inst("_v_add_u32", destV, src0,  \
-                        sgpr(tmpS01), comment)
+        kStr += inst("_v_add_u32", destV, src0,  sgpr(tmpS01), comment)
       return kStr
 
 
@@ -9794,7 +9800,7 @@ class KernelWriterAssembly(KernelWriter):
 
 
     # TODO - mask should be part of AddrCalc state not passed as parm
-    def emitAddressSetupCode(self, kernel, ss, tmpVgpr, tmpS01, edge, beta, atomic, mask, elementIdx, addr):
+    def emitAddressSetupCode(self, kernel, ss, tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addr):
       """
       Generate code to set up the address vgpr
       Input:
@@ -9892,6 +9898,7 @@ class KernelWriterAssembly(KernelWriter):
                         "new lds write address += shift column * Lds byte Stride")
             kStr += inst("v_cndmask_b32", vgpr(kw.storeRemapLW), vgpr(kw.storeRemapLW), vgpr(vTmp1), \
                           sgpr(sTmp1,sgprCnt), "set new rowStart if meet conditions" )
+
           kStr += "\n"
 
       return kStr
@@ -9988,9 +9995,9 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def checkIsEdge(self, kernel, tmpSgpr, isEdgeTarget):
     kStr = ""
-    tmpS01 = tmpSgpr
-    tmpS23 = tmpS01 + 2
-    tmpS45 = tmpS23 + 2
+    tmpS0  = tmpSgpr
+    tmpS1  = tmpS0 + 1
+    tmpS23 = tmpS1 + 1
 
     if self.prefetchAcrossPersistent:
       wg0="PrevWorkGroup0"
@@ -10010,19 +10017,18 @@ class KernelWriterAssembly(KernelWriter):
         sgpr("PackedSize1") if len(kernel["PackedC1IndicesX"]) > 1 \
         else self.sizeRef(kernel["ProblemType"]["Index1"])
 
-    kStr += scalarStaticDivideAndRemainder(tmpS23, tmpS01, sizeBoundary[0], \
-        kernel["MacroTile0"], tmpS45, 2)
+    kStr += scalarStaticDivideAndRemainder(tmpS1, tmpS0, sizeBoundary[0], kernel["MacroTile0"], tmpS23, 2)
     # s23 = nwg0-1
-    kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups0"), "" )
-    kStr += inst("s_cmp_ge_u32", sgpr(wg0), sgpr(tmpS23), "wg0 >= nwg0-1 ?")
-    kStr += inst("s_cselect_b32", sgpr(tmpS01), sgpr(tmpS01), 0, "set rMT0")
+    kStr += inst("s_add_u32", sgpr(tmpS1), hex(-1), sgpr("NumWorkGroups0"), "" )
+    kStr += inst("s_cmp_ge_u32", sgpr(wg0), sgpr(tmpS1), "wg0 >= nwg0-1 ?")
+    kStr += inst("s_cselect_b32", sgpr(tmpS0), sgpr(tmpS0), 0, "set rMT0")
     # s01 now = myMT0 = wg0 < nwg0-1 ? MT0 : rMT0
 
     # if rMT0 > 0 goto label_B?_E1
     if self.do["EdgeWrite"]:
-      kStr += inst("s_cmpk_gt_u32", sgpr(tmpS01), hex(0), "rMT0 > 0")
+      kStr += inst("s_cmpk_gt_u32", sgpr(tmpS0), hex(0), "rMT0 > 0")
       if self.db["ForceEdgeStores"]:
-        kStr += inst("s_cmp_eq_u32", sgpr(tmpS01), sgpr(tmpS01), "ForceEdgeStores!")
+        kStr += inst("s_cmp_eq_u32", sgpr(tmpS0), sgpr(tmpS0), "ForceEdgeStores!")
       kStr += inst("s_cbranch_scc1 %s" % isEdgeTarget, "jump if edges required")
 
     # check edge1 ###
@@ -10031,18 +10037,17 @@ class KernelWriterAssembly(KernelWriter):
     # --
 
     # s23 = rMT1 = Size1 % MT1
-    kStr += scalarStaticDivideAndRemainder(tmpS23, tmpS01, sizeBoundary[1], \
-        kernel["MacroTile1"], tmpS45, 2)
+    kStr += scalarStaticDivideAndRemainder(tmpS1, tmpS0, sizeBoundary[1], kernel["MacroTile1"], tmpS23, 2)
     # s01 now = myMT1 = wg1 < nwg1-1 ? MT1 : rMT1
 
     # s23 = nwg1-1
-    kStr += inst("s_add_u32", sgpr(tmpS23), hex(-1), sgpr("NumWorkGroups1"), "" )
-    kStr += inst("s_cmp_ge_u32", sgpr(wg1), sgpr(tmpS23), "wg1 >= nwg1-1")
-    kStr += inst("s_cselect_b32", sgpr(tmpS01), sgpr(tmpS01), 0, "set rMT1")
+    kStr += inst("s_add_u32", sgpr(tmpS1), hex(-1), sgpr("NumWorkGroups1"), "" )
+    kStr += inst("s_cmp_ge_u32", sgpr(wg1), sgpr(tmpS1), "wg1 >= nwg1-1")
+    kStr += inst("s_cselect_b32", sgpr(tmpS0), sgpr(tmpS0), 0, "set rMT1")
 
     # if rMT1 > 0 goto label_B?_E1
     if self.do["EdgeWrite"]:
-      kStr += inst("s_cmpk_gt_u32", sgpr(tmpS01), hex(0), "rMT1 > 0")
+      kStr += inst("s_cmpk_gt_u32", sgpr(tmpS0), hex(0), "rMT1 > 0")
       kStr += inst("s_cbranch_scc1 %s" % isEdgeTarget, "jump if edges required")
 
     return kStr
@@ -10178,7 +10183,7 @@ class KernelWriterAssembly(KernelWriter):
     # Sgprs
 
     # allocate tmps for the store header (before the batch implementations)
-    tmpSgpr = self.getTmpSgpr(6).idx()
+    tmpSgpr = self.getTmpSgpr(4).idx()
 
     # branch B1 or B0
     betaLabel = self.getNamedLabelUnique("GW_Beta")
@@ -10267,7 +10272,7 @@ class KernelWriterAssembly(KernelWriter):
         # TODO: Minimum elems for StoreRemap
         # TODO: Which of DataType or DestDataType is in a better sense? 0114: Check Using DestDataType + HSS
         minElements = 2 if (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) else 1
-        minNeeded = minElements*numVgprsPerElement
+        minNeeded = minElements * numVgprsPerElement
         shrinkDb = 0
         if shrinkDb:
           print("numVgprAvailable=", numVgprAvailable, "minElements=", minElements, "minNeeded=", minNeeded)
@@ -10370,20 +10375,21 @@ class KernelWriterAssembly(KernelWriter):
         #  numElementsPerBatch = numVectorsPerBatch * kernel["GlobalWriteVectorWidth"]
         numBatches = max(1, ceil_divide(len(elements[edgeI]),numElementsPerBatch))
 
-        numSgprs = self.ss.cfg.fixedSgprsPerBatch + self.ss.cfg.numSgprsPerElement*numElementsPerBatch
+        numSgprs = self.ss.cfg.numTempSgprPerBatch + self.ss.cfg.numMaskSgprPerBatch + self.ss.cfg.numMaskSgprPerElement * numElementsPerBatch
+
         if self.db["PrintStoreRegisterDb"]:
           print("edgeI", edgeI, "NumBatches", numBatches, "NumElementsPerBatch", numElementsPerBatch, "numVgprsPerElement", numVgprsPerElement, "len(elements[edgeI])", len(elements[edgeI]))
-          print ("numSgprs=", numSgprs, "sgprPool.size()=", self.sgprPool.size(), \
-                  "fixedSgprsPerBatch=", self.ss.cfg.fixedSgprsPerBatch, "numSgprsPerElement=", self.ss.cfg.numSgprsPerElement)
+          print ("numSgprs=", numSgprs, "sgprPool.size()=", self.sgprPool.size(), "numTempSgprPerBatch=", self.ss.cfg.numTempSgprPerBatch,
+                 "numMaskSgprPerBatch=", self.ss.cfg.numMaskSgprPerBatch, "numMaskSgprPerElement=", self.ss.cfg.numMaskSgprPerElement)
           print(self.sgprPool.state())
-        kStr += self.comment("edge=%d, allocate %u sgpr. perBatch=%u perElement=%u elementsPerBatch=%u"%\
-            (edgeI, numSgprs, self.ss.cfg.fixedSgprsPerBatch, self.ss.cfg.numSgprsPerElement, numElementsPerBatch))
+        kStr += self.comment("edge=%d, allocate %u sgpr. perBatchTmpS=%u perBatchMaskS=%u perElementMaskS=%u elementsPerBatch=%u" %
+            (edgeI, numSgprs, self.ss.cfg.numTempSgprPerBatch, self.ss.cfg.numMaskSgprPerBatch, self.ss.cfg.numMaskSgprPerElement, numElementsPerBatch))
         #kStr += "// storeStats, %d, %d, %d\n"% (edgeI, numSgprs, numElementsPerBatch)
         # so if we don't have *GPR resources to handle a larger batch then need
         # to mark overflowedResources rather than generate a kernel that won't work.
         tmpSgpr = self.getTmpSgpr(numSgprs, 2).idx()
 
-        elementSgprs = tmpSgpr + self.ss.cfg.fixedSgprsPerBatch
+        elementSgprs = tmpSgpr + self.ss.cfg.numTempSgprPerBatch
 
         codeAccVgprRead = deepcopy(self.codeAccVgprRead) if self.serializedStore else None
         for batchIdx in range(0, numBatches):
@@ -10781,8 +10787,8 @@ class KernelWriterAssembly(KernelWriter):
       tmpVgpr, batchElementSgprs, tmpSgpr, codeAccVgprRead):
     kStr = ""
 
-    kStr += self.comment1("optSingleColVgpr=%u optSharedColVgpr=%u optSharedMask=%u optSrdIncForRow=%u" % \
-              (ss.optSingleColVgpr, ss.optSharedColVgpr, ss.optSharedMask, ss.optSrdIncForRow))
+    kStr += self.comment1("optSingleColVgpr=%u optSharedColVgpr=%u optSGPRUsage=%s optSrdIncForRow=%u" % \
+              (ss.optSingleColVgpr, ss.optSharedColVgpr, ss.optSGPRUsage, ss.optSrdIncForRow))
     if atomic:
       # all kinds of code relies on this assumption:
       assert(atomicW <= gwvw)
@@ -10845,7 +10851,7 @@ class KernelWriterAssembly(KernelWriter):
       vc1 = element[2]
       vc0 = element[3]
 
-      kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpVgpr, tmpS01, edge, beta, atomic, mask, elementIdx, addr)
+      kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addr)
 
       if edge:
         kStr += addrCalc.edgeProtectCode(kernel, edge, beta, atomic, mask, tmpSgpr)
