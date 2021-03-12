@@ -113,8 +113,8 @@ def getCustomKernelConfigAndAssembly(name, directory=customKernelDirectory):
     assembly = ""
     inConfig = False
     for line in contents.splitlines():
-        if   line == "---": inConfig = True; print("into config")
-        elif line == "...": inConfig = False; print("out of config")
+        if   line == "---": inConfig = True
+        elif line == "...": inConfig = False
         elif      inConfig: config   += line + "\n"
         else              : assembly += line + "\n"
 
