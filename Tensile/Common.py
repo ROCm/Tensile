@@ -669,8 +669,9 @@ validParameters = {
     # Assertions that require stride to be specified value.
     # Dictionary of pairs of {index, constValue}.
     # Index is a member of the global index assignments.
-    "AssertSizeEqual":    -1,
-    "AssertSizeInRange":  -1,
+    "AssertSizeEqual":       -1,
+    "AssertSizeGreaterThan": -1,
+    "AssertSizeLessThan":    -1,
 
     # Generate code inside kernel to check Assertions on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
@@ -1110,7 +1111,8 @@ defaultBenchmarkCommonParameters = [
     {"AssertStrideCEqual":        [ {} ] },
     {"AssertStrideDEqual":        [ {} ] },
     {"AssertSizeEqual":           [ {} ] },
-    {"AssertSizeInRange":         [ {} ] },
+    {"AssertSizeGreaterThan":     [ {} ] },
+    {"AssertSizeLessThan":        [ {} ] },
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 

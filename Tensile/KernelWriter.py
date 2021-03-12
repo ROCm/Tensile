@@ -3578,17 +3578,16 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # get kernel name
   ##############################################################################
   def getKernelFileBase(self, kernel):
-    if globalParameters["ShortNames"]:
+    if kernel["CustomKernelName"]:
+      fileBase = kernel["CustomKernelName"]
+    elif globalParameters["ShortNames"]:
       fileBase = Solution.getNameSerial(kernel, self.kernelSerialNaming)
     else:
       fileBase = self.shortenFileBase(kernel)
     return fileBase
 
   def getKernelName(self, kernel):
-    if kernel["CustomKernelName"]:
-      kernelName = kernel["CustomKernelName"]
-    elif globalParameters["ShortNames"]:
-      kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
+    kernelName = Solution.getNameMin(kernel, self.kernelMinNaming)
     return kernelName
 
   def getKernelSource(self, kernel):

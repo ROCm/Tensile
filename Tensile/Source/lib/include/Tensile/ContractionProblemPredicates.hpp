@@ -400,7 +400,7 @@ namespace Tensile
                 }
             };
 
-            struct SizeInRange : public Predicate_CRTP<SizeInRange, ContractionProblem>
+            struct SizeGreaterThan : public Predicate_CRTP<SizeGreaterThan, ContractionProblem>
             {
                 enum
                 {
@@ -408,10 +408,10 @@ namespace Tensile
                     HasValue = true
                 };
                 size_t index;     
-                std::array<size_t, 2> value;
+                size_t value;
 
-                SizeInRange() = default;
-                SizeInRange(size_t index, std::array<size_t, 2> value)
+                SizeGreaterThan() = default;
+                SizeGreaterThan(size_t index, size_t value)
                     : index(index)
                     , value(value)
                 {
@@ -419,12 +419,12 @@ namespace Tensile
 
                 static std::string Type()
                 {
-                    return "SizeInRange";
+                    return "SizeGreaterThan";
                 }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return (value[0] <= problem.size(index)) && (problem.size(index) < value[1]);
+                    return (problem.size(index) > value);
                 }
 
                 virtual bool debugEval(ContractionProblem const& problem,
@@ -432,13 +432,51 @@ namespace Tensile
                 {
                     bool rv = (*this)(problem);
 
-                    stream << *this << ": (" << value[0] << " <= " << problem.size(index) 
-                           << " < " << value[1] << ") == " << rv;
+                    stream << *this << ": (" << problem.size(index) 
+                           << " > " << value << ") == " << rv;
 
                     return rv;
                 }
             };
 
+            struct SizeLessThan : public Predicate_CRTP<SizeLessThan, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = true,
+                    HasValue = true
+                };
+                size_t index;     
+                size_t value;
+
+                SizeLessThan() = default;
+                SizeLessThan(size_t index, size_t value)
+                    : index(index)
+                    , value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "SizeLessThan";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return (problem.size(index) < value);
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.size(index) 
+                           << " < " << value << ") == " << rv;
+
+                    return rv;
+                }
+            };
 
             struct StrideAEqual : public Predicate_CRTP<StrideAEqual, ContractionProblem>
             {

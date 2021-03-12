@@ -179,7 +179,8 @@ class Convolution:
         'UseBeta', 'UseInitialStridesAB', "AllowNoFreeDims", \
         ]
   SummarySolutionProperties=[\
-        'AssertSizeEqual', 'AssertStrideAEqual', 'AssertStrideBEqual', 'AssertSizeInRange'\
+        'AssertSizeEqual', 'AssertStrideAEqual', 'AssertStrideBEqual', 'AssertSizeInRange',\
+         'AssertSizeGreaterThan', 'AssertSizeLessThan'
         ]
 
   # valid lowest filter dimensions, these we can attach compile-time constant strides:
