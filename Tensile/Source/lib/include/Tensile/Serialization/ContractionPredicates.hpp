@@ -65,7 +65,6 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::LeadingFree0SizesGreaterOrEqual>(),
                     Base::template Pair<Predicates::Contraction::LeadingFree1SizesGreaterOrEqual>(),
                     Base::template Pair<Predicates::Contraction::SizeEqual>(),
-                    Base::template Pair<Predicates::Contraction::SizeInRange>(),
                     Base::template Pair<Predicates::Contraction::SizeGreaterThan>(),
                     Base::template Pair<Predicates::Contraction::SizeLessThan>(),
                     Base::template Pair<Predicates::Contraction::StrideAEqual>(),
@@ -158,12 +157,6 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::SizeEqual, IO>
             : public AutoMappingTraits<Predicates::Contraction::SizeEqual, IO>
-        {
-        };
-
-        template <typename IO>
-        struct MappingTraits<Predicates::Contraction::SizeInRange, IO>
-            : public AutoMappingTraits<Predicates::Contraction::SizeInRange, IO>
         {
         };
 

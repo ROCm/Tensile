@@ -253,6 +253,9 @@ globalParameters["MinKForGSU"] = 256 # min K size to use GlobalSplitU algorithm 
 # control if a solution is run for a given problem
 globalParameters["GranularityThreshold"] = 0.0
 
+# directory where custom kernels are located
+globalParameters["CustomKernelDirectory"] = os.path.join(os.path.dirname(os.path.realpath(__file__)), "CustomKernels")
+
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 
@@ -1025,6 +1028,20 @@ validParameters = {
 
     # Replaces assembly kernels if they are found in the directory Tensile/Tensile/ReplacementKernels
     "ReplacementKernel":          [False, True],
+
+    # Name of the custom kernel located in globalParameters["CustomKernelDirectory"].
+    # a custom kernel is a user written assembly kernel with its associated configuration parameters included in a custom.config section  
+    # inside the yaml block between the --- and ... markers.  These parameters are only used for information purposes, not kernel generation.
+    # Ex:
+    # custom.config:
+    #   ProblemType:
+    #     OperationType: GEMM
+    #     etc...
+    #   ThreadTile: [8, 8]
+    #   etc...
+    # 
+    # Custom kernels can be included in a BenchmarkProblemSizeGroup by having their name (without file extension) listed under the "CustomKernels" 
+    # category alongside InitialSolutionParameters, BenchmarkCommonParameters, etc...
     "CustomKernelName":            -1,
 
     "MinVgprNumber":                list(range(0,256)),
