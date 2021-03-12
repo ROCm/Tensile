@@ -20,7 +20,7 @@
 ################################################################################
 
 from .Common import globalParameters
-from yaml import safe_load
+import yaml
 
 import os
 
@@ -97,35 +97,29 @@ class ReplacementKernels:
     def Get(cls, kernelName):
         return cls.Instance().get(kernelName)
 
-customKernelDirectory = os.path.join(os.path.dirname(os.path.realpath(__file__)), "CustomKernels")
-
-def getCustomKernelContents(name, directory=customKernelDirectory):
+def getCustomKernelContents(name, directory=globalParameters["CustomKernelDirectory"]):
     try:
         with open(os.path.join(directory, name)) as f:
             return f.read()
     except:
-        print("ERROR: Failed to find replacement kernel: {}".format(os.path.join(directory, name)))
-        return None
+        raise RuntimeError("Failed to find replacement kernel: {}".format(os.path.join(directory, name)))
 
-def getCustomKernelConfigAndAssembly(name, directory=customKernelDirectory):
+def getCustomKernelConfigAndAssembly(name, directory=globalParameters["CustomKernelDirectory"]):
     contents  = getCustomKernelContents(name, directory)
-    config = ""
-    assembly = ""
+    config = "\n"    #Yaml configuration properties
+    assembly = "" 
     inConfig = False
     for line in contents.splitlines():
-        if   line == "---": inConfig = True
-        elif line == "...": inConfig = False
+        if   line == "---": inConfig = True                          #Beginning of yaml section
+        elif line == "...": inConfig = False                         #End of yaml section
         elif      inConfig: config   += line + "\n"
-        else              : assembly += line + "\n"
+        else              : assembly += line + "\n"; config += "\n"  #Second statement to keep line numbers consistent for yaml errors
 
     return (config, assembly)  
 
-def getCustomKernelConfig(name, directory=customKernelDirectory):
+def getCustomKernelConfig(name, directory=globalParameters["CustomKernelDirectory"]):
     rawConfig, _ = getCustomKernelConfigAndAssembly(name, directory)
     try:
-        return safe_load(rawConfig)["custom.config"]
-    except:
-        print("ERROR: Failed to read configuration for replacement kernel: {}".format(name))
-
-def getCustomKernelSourceAndMetadata(name, directory=customKernelDirectory):
-    return None
+        return yaml.safe_load(rawConfig)["custom.config"]
+    except yaml.scanner.ScannerError as e:
+        raise RuntimeError("Failed to read configuration for custom kernel: {0}\nDetails:\n{1}".format(name, e))

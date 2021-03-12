@@ -179,7 +179,7 @@ class Convolution:
         'UseBeta', 'UseInitialStridesAB', "AllowNoFreeDims", \
         ]
   SummarySolutionProperties=[\
-        'AssertSizeEqual', 'AssertStrideAEqual', 'AssertStrideBEqual', 'AssertSizeInRange',\
+        'AssertSizeEqual', 'AssertStrideAEqual', 'AssertStrideBEqual',\
          'AssertSizeGreaterThan', 'AssertSizeLessThan'
         ]
 
@@ -1782,7 +1782,7 @@ class Solution:
         for (key,value) in self["ProblemType"].convolution.solutionParms.items():
             self._state[key]=value
     Solution.assignDerivedParameters(self._state)
-    self._name = None
+    self._name = config.get('CustomKernelName', None)
 
     self.initHelperKernelObjests()
 

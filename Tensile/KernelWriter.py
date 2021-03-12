@@ -3695,7 +3695,7 @@ for codeObjectFileName in codeObjectFileNames:
     if kernel["ReplacementKernel"]:
       return ReplacementKernels.Get(kernelName)
     else: #Custom Kernel
-      return os.path.join(ReplacementKernels.customKernelDirectory, (kernelName + ".s"))
+      return os.path.join(globalParameters["CustomKernelDirectory"], (kernelName + ".s"))
 
   def shortenFileBase(self, kernel):
     base = self.getKernelName(kernel)
