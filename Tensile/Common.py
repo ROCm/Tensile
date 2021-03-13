@@ -257,9 +257,12 @@ globalParameters["GranularityThreshold"] = 0.0
 defaultGlobalParameters = deepcopy(globalParameters)
 
 # Translate GPU targets to filter filenames in Tensile_LOGIC directory
-architectureMap = {'all':'_','gfx000':'none', 'gfx803':'r9nano',
-    'gfx900':'vega10', 'gfx906:xnack-':'vega20', 'gfx908:xnack-':'arcturus',
-    'gfx90a:xnack-':'aldebaran'}
+architectureMap = {
+  'all':'_','gfx000':'none', 'gfx803':'r9nano', 'gfx900':'vega10',
+  'gfx906':'vega20', 'gfx906:xnack+':'vega20', 'gfx906:xnack-':'vega20',
+  'gfx908':'arcturus','gfx908:xnack+':'arcturus', 'gfx908:xnack-':'arcturus',
+  'gfx90a':'aldebaran', 'gfx90a:xnack+':'aldebaran', 'gfx90a:xnack-':'aldebaran'
+}
 
 def getArchitectureName(gfxName):
   if gfxName in architectureMap:
@@ -1470,7 +1473,7 @@ def GetAsmCaps(isaVersion):
   rv["HasAddLshl"]      = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
   rv["HasLshlOr"]       = tryAssembler(isaVersion, "v_lshl_or_b32 v47, v36, 0x2, v34")
   rv["HasSMulHi"]       = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
-  rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "", False, "-mllvm --amdhsa-code-object-version=2")
+  rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "", False, "-mcode-object-version=2")
 
   rv["HasMFMA"]         = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
   rv["HasMFMA_f64"]     = tryAssembler(isaVersion, "v_mfma_f64_16x16x4f64 v[0:7], v[32:33], v[36:37], v[0:7]")

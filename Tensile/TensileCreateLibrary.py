@@ -141,6 +141,9 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       for arch in globalParameters['SupportedISA']:
         if isSupported(arch):
           if (arch == (9,0,6) or arch == (9,0,8) or arch == (9,0,10)):
+            if (arch == (9,0,10)):
+              archs += [gfxName(arch) + '-xnack+']
+              cmdlineArchs += [gfxName(arch) + ':xnack+']
             archs += [gfxName(arch) + '-xnack-']
             cmdlineArchs += [gfxName(arch) + ':xnack-']
           else:
@@ -242,9 +245,9 @@ def prepAsmOldClient():
     defaultIsa = (9,0,0)
     assemblerFile.write( \
       "${ASM} -x assembler -target amdgcn-amd-amdhsa %s $@ -c -o $f.o $f.s\n" % \
-      ("-mllvm --amdhsa-code-object-version=2" if \
+      ("-mcode-object-version=2" if \
       globalParameters["AsmCaps"][defaultIsa]["HasCodeObjectV3"] and \
-      globalParameters["CodeObjectVersion"] == "V2" else "-mllvm --amdhsa-code-object-version=4"))
+      globalParameters["CodeObjectVersion"] == "V2" else "-mcode-object-version=4"))
     assemblerFile.write("${ASM} -target amdgcn-amd-amdhsa $f.o -o $f.co\n")
   assemblerFile.close()
   os.chmod(assemblerFileName, 0o777)
@@ -1037,6 +1040,8 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
     for arch in globalParameters['SupportedISA']:
       if isSupported(arch):
         if (arch == (9,0,6) or arch == (9,0,8) or arch == (9,0,10)):
+          if (arch == (9,0,10)):
+            sourceArchs += [gfxName(arch) + '-xnack+']
           sourceArchs += [gfxName(arch) + '-xnack-']
         else:
           sourceArchs += [gfxName(arch)]
@@ -1304,7 +1309,7 @@ def TensileCreateLibrary():
   argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hipcc"],       action="store", default="hipcc")
   argParser.add_argument("--cmake-cxx-compiler",     dest="CmakeCxxCompiler",  action="store")
   argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["V2", "V3"], action="store", default="V3")
-  argParser.add_argument("--architecture",           dest="Architecture",      choices=["all", "gfx000", "gfx803", "gfx900", "gfx906:xnack-", "gfx908:xnack-", "gfx90a:xnack-"], action="store", default="all")
+  argParser.add_argument("--architecture",           dest="Architecture",      choices=["all", "gfx000", "gfx803", "gfx900", "gfx906:xnack-", "gfx908:xnack-", "gfx90a:xnack+", "gfx90a:xnack-"], action="store", default="all")
   argParser.add_argument("--merge-files",            dest="MergeFiles",        action="store_true")
   argParser.add_argument("--no-merge-files",         dest="MergeFiles",        action="store_false")
   argParser.add_argument("--short-file-names",       dest="ShortNames",        action="store_true")
