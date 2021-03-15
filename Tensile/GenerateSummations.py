@@ -134,6 +134,11 @@ def GenerateSummations(userArgs):
         logic = LibraryIO.readLibraryLogicForSchedule(logicFileName)
         rawLogic = readSolutionRaw(logicFileName)
 
+        # If we cannot read the logic file then skip it
+        if rawLogic == None or logic == None:
+            print ("Error reading the file: %s. skipping." % logicFileName)
+            continue
+
         (versionStringR, scheduleNameR, architectureNameR, deviceNamesR, problemTypeStateR,\
             solutionStatesR, indexOrderR, exactLogicR, rangeLogicR, otherFieldsR) =\
             rawLogic
