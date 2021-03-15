@@ -59,7 +59,7 @@ TEST(CUEfficiencyPredicate, CUEfficiency)
     EXPECT_EQ((*p)(large), true);
 }
 
-TEST(CUEfficiencyPredicate, Overall)
+TEST(CUEfficiencyPredicate, DeviceEfficiency)
 {
     std::string mydoc = "type: And\n"
                         "value: [{type: TruePred}, \n"
@@ -79,8 +79,8 @@ TEST(CUEfficiencyPredicate, Overall)
     ContractionProblem large = ContractionProblem::GEMM(
         false, false, 10'000, 10'000, 10'000, 10'000, 10'000, 10'000, 1, false, 1);
 
-    small.setPerformanceMetric(PerformanceMetric::Overall);
-    large.setPerformanceMetric(PerformanceMetric::Overall);
+    small.setPerformanceMetric(PerformanceMetric::DeviceEfficiency);
+    large.setPerformanceMetric(PerformanceMetric::DeviceEfficiency);
 
     EXPECT_EQ((*p)(small), false);
     EXPECT_EQ((*p)(large), false);
@@ -110,8 +110,8 @@ TEST(CUEfficiencyPredicate, Best)
     ContractionProblem large = ContractionProblem::GEMM(
         false, false, 10'000, 10'000, 10'000, 10'000, 10'000, 10'000, 1, false, 1);
 
-    small.setPerformanceMetric(PerformanceMetric::Best);
-    large.setPerformanceMetric(PerformanceMetric::Best);
+    small.setPerformanceMetric(PerformanceMetric::Auto);
+    large.setPerformanceMetric(PerformanceMetric::Auto);
 
     EXPECT_EQ((*p)(small), true);
     EXPECT_EQ((*p)(large), false);
