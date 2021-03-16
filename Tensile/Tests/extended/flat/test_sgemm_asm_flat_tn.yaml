@@ -1,5 +1,5 @@
 TestParameters:
-  marks: [skip-gfx90a] # not supported by arch
+  marks: [xfail] # alignment issues causes overflow
 
 # benchmark assembly and source kernels
 GlobalParameters:
