@@ -47,37 +47,6 @@ def isValidArch(archName, currentArch):
     arch = gfxArch(archName)
     return currentArch == arch
 
-# Including readSolutionRaw in this file. It is not clear that
-# this functionality is needed outside the scope of this utility.
-# For this utility we need the unaltered data. 
-def readSolutionRaw(filename):
-    try:
-        stream = open(filename, "r")
-    except IOError:
-        print ("Cannot open file: %s" % filename )
-        return None
-    data = yaml.load(stream, yaml.SafeLoader)
-    stream.close()
-    
-    versionString     = data[0]
-    scheduleName      = data[1]
-    architectureName  = data[2]
-    deviceNames       = data[3]
-    problemTypeState  = data[4]
-    solutionStates    = data[5]
-    indexOrder        = data[6]
-    exactLogic        = data[7]
-    rangeLogic        = data[8]
-    otherFields       = []
-
-    dataLength = len(data)
-    if dataLength > 9:
-        for idx in range(9, dataLength):
-            otherFields.append(deepcopy(data[idx]))
-    
-    return (versionString, scheduleName, architectureName, deviceNames,\
-        problemTypeState, solutionStates, indexOrder, exactLogic, rangeLogic, otherFields)
-
 ##############################################################################
 # createLibraryForBenchmark
 ##############################################################################
@@ -132,12 +101,11 @@ def GenerateSummations(userArgs):
         # logic we also read in the raw unaltered version of the logic and stage the content
         # to write the final logic.
         logic = LibraryIO.readLibraryLogicForSchedule(logicFileName)
-        rawLogic = readSolutionRaw(logicFileName)
+        rawLogic = LibraryIO.readRawLibraryLogic(logicFileName)
 
         # If we cannot read the logic file then skip it
         if rawLogic == None or logic == None:
-            print ("Error reading the file: %s. skipping." % logicFileName)
-            continue
+            printExit("Error reading the file: %s. skipping." % logicFileName)
 
         (versionStringR, scheduleNameR, architectureNameR, deviceNamesR, problemTypeStateR,\
             solutionStatesR, indexOrderR, exactLogicR, rangeLogicR, otherFieldsR) =\
@@ -192,11 +160,9 @@ def GenerateSummations(userArgs):
         perf_max = solutionsDF.max().max().item()
 
         solutionIndex = 0
-        for s in solutionsForSchedule:
-            s_stateR = solutionStatesR[solutionIndex]
-            kenelName = libSolutionNames[solutionIndex]
+        for s_stateR, kernelName in zip(solutionStatesR, libSolutionNames):
             solutionIndex += 1
-            perf_raw = working_data[kenelName] 
+            perf_raw = working_data[kernelName] 
             perf = (1000*index_keys) / perf_raw
             model = np.polyfit(x=index_keys, y=perf, deg=1)
             slope = model[0].item()
@@ -215,7 +181,7 @@ def GenerateSummations(userArgs):
         rawLogicData.append(deepcopy(exactLogicR))
         rawLogicData.append(deepcopy(rangeLogicR))
         for idx in range(0, len(otherFieldsR)):
-            rawLogicData.append(otherFieldsR[idx])
+            rawLogicData.append(deepcopy(otherFieldsR[idx]))
         
         localFinalLogic = os.path.join(finalPath, logicFileBaseName)
 

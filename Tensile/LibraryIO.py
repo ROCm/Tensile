@@ -119,6 +119,38 @@ def readSolutions( filename ):
   return (problemSizes, solutions)
 
 ################################################################################
+# Read Raw Library Logic from YAML
+################################################################################
+def readRawLibraryLogic(filename):
+  """ Encode library logic """
+  try:
+      stream = open(filename, "r")
+  except IOError:
+      print ("Cannot open file: %s" % filename )
+      return None
+  data = yaml.load(stream, yaml.SafeLoader)
+  stream.close()
+    
+  versionString     = data[0]
+  scheduleName      = data[1]
+  architectureName  = data[2]
+  deviceNames       = data[3]
+  problemTypeState  = data[4]
+  solutionStates    = data[5]
+  indexOrder        = data[6]
+  exactLogic        = data[7]
+  rangeLogic        = data[8]
+  otherFields       = []
+
+  dataLength = len(data)
+  if dataLength > 9:
+      for idx in range(9, dataLength):
+          otherFields.append(data[idx])
+    
+  return (versionString, scheduleName, architectureName, deviceNames,\
+      problemTypeState, solutionStates, indexOrder, exactLogic, rangeLogic, otherFields)
+
+################################################################################
 # Read Library Logic from YAML
 ################################################################################
 def readLibraryLogicForSchedule( filename ):
