@@ -65,7 +65,7 @@ Components can be categorized in different files in the `Tensile/Components` dir
 """
 
 import abc
-import collections
+from collections.abc import Mapping
 import inspect
 
 def PartialMatch(pattern, obj, debug=False, level=0):

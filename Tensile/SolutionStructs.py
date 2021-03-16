@@ -35,6 +35,7 @@ from .KernelWriterConversion import KernelWriterConversion
 from .CustomKernels import isCustomKernelConfig
 
 from collections import namedtuple,OrderedDict
+from collections.abc import Mapping
 from copy import deepcopy
 from enum import Enum
 from functools import reduce

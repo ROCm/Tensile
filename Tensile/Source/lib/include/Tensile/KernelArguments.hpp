@@ -92,8 +92,6 @@ namespace Tensile
         bool m_log;
     };
 
-    TENSILE_API std::ostream& operator<<(std::ostream& stream, const KernelArguments& t);
-
     template <typename T>
     inline void KernelArguments::append(std::string const& name, T value)
     {

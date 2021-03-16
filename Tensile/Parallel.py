@@ -30,7 +30,7 @@ def CPUThreadCount(enable=True):
     return 0
   else:
     if os.name == "nt":
-      cpu_count = 1
+      cpu_count = 1 # os.cpu_count()
     else:
       cpu_count = len(os.sched_getaffinity(0))
     cpuThreads = globalParameters["CpuThreads"]

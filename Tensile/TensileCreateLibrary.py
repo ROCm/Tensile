@@ -91,37 +91,25 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
           coFile = os.path.join(os.path.normcase(destArchDir), 'TensileLibrary_{}.co'.format(archName))
 
         if os.name == "nt":
-          # On Windows, processing the objectFiles list in a single chunk makes the
-          # command line (including spaces) exceeds the limit of 8191 characters.
-          rv = ["C:\\hip\\bin\\clang++.exe", "-target", "amdgcn-amd-amdhsa", "-o", "-"]
-          L0 = len(" ".join(rv))
+          # On Windows, the objectFiles list command line (including spaces) 
+          # exceeds the limit of 8191 characters, so using response file
 
-          l = L0
-          slice = []
-          with open(coFile, 'wb') as file:
-            for obj in objectFiles:
-              if l + len(obj) < 8100 and obj != objectFiles[-1]:
-                  slice.append(obj)
-                  l = len(" ".join(slice))
-              else:
-                  if obj == objectFiles[-1]:
-                      slice.append(obj)
-                      l = len(" ".join(slice))
-                      newslice = []
-                  else:
-                      newslice = [obj]
-                  args = kernelWriterAssembly.getLinkCodeObjectArgs(slice, "-")
-                  result = subprocess.check_output(args, cwd=str(asmDir))
-                  file.write(result)
-                  file.flush()
+          responseArgs = objectFiles
+          responseFile = os.path.join(asmDir, 'clangArgs.txt')
+          with open(responseFile, 'wt') as file:
+            file.write( " ".join(responseArgs) )
+            file.flush()
 
-                  l = L0 + len(" ".join(newslice))
-                  slice = newslice
+          args = [globalParameters['AssemblerPath'], '-target', 'amdgcn-amd-amdhsa', '-o', coFile, '@clangArgs.txt']
+          subprocess.check_call(args, cwd=asmDir)
         else:
           args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
           subprocess.check_call(args, cwd=asmDir)
-          coFiles.append(coFile)
+
+        coFiles.append(coFile)
       else:
+        # no mergefiles
+        
         assemblyKernelNames = [kernelWriterAssembly.getKernelFileBase(k) for k in archKernels]
         origCOFiles = [os.path.join(asmDir,  k + '.co') for k in assemblyKernelNames]
         newCOFiles  = []
@@ -265,28 +253,10 @@ def prepAsmOldClient():
       "asm.%s"%("bat" if os.name=="nt" else "sh"))
   assemblerFile = open(os.path.normcase(assemblerFileName), "w")
   if os.name == "nt":
-    if globalParameters["PrintLevel"] <2:
-      assemblerFile.write("echo off\n")
-    assemblerFile.write("rem usage: asm.bat kernelName ASM_ARGS\n")
-    assemblerFile.write("rem example: asm.bat kernelName -mcpu=gfx900\n")
-    assemblerFile.write("set f=%1\n")
-    assemblerFile.write("set Args=%2\n")
-    assemblerFile.write(":Parse\n")
-    assemblerFile.write("shift\n")
-    assemblerFile.write("set First=%2\n")
-    assemblerFile.write("if not defined First goto :EndParse\n")
-    assemblerFile.write("  set Args=%Args%=%First%\n")
-    assemblerFile.write("  goto :Parse\n")
-    assemblerFile.write(":EndParse\n")
-    assemblerFile.write("set ASM=%s\n"%globalParameters["AssemblerPath"])
-    # cannot use globalParameters["CurrentISA"] because it might be (0,0,0)
-    defaultIsa = (9,0,0)
-    assemblerFile.write( \
-      "%ASM% -x assembler -target amdgcn-amd-amdhsa {0} %Args% -c -o %f%.o %f%.s\n".format( \
-      "-mno-code-object-v3" if \
-      globalParameters["AsmCaps"][defaultIsa]["HasCodeObjectV3"] and \
-      globalParameters["CodeObjectVersion"] == "V2" else "-mcode-object-v3"))
-    assemblerFile.write("%ASM% -target amdgcn-amd-amdhsa %f%.o -o %f%.co\n")
+    # oldClient not used on windows but could now likely use else code with clang
+    assemblerFile.write("echo Windows: Copying instead of Assembling\n")
+    assemblerFile.write("copy %1.s %1.o\n")
+    assemblerFile.write("copy %1.o %1.co\n")
   else:
     assemblerFile.write("#!/bin/sh %s\n" % ("-x" if globalParameters["PrintLevel"] >=2  else ""))
     assemblerFile.write("# usage: asm.sh kernelName ASM_ARGS\n")
@@ -1575,9 +1545,13 @@ def TensileCreateLibrary():
 
   codeObjectFiles = writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions,
                                              kernels, kernelHelperOjbs, solutionWriter, kernelWriterSource, kernelWriterAssembly)
+  
+  bothLibSet = set(sourceLibPaths + asmLibPaths)
+  setA = set( map( os.path.normcase, set(codeObjectFiles) ) ) 
+  setB = set( map( os.path.normcase, bothLibSet ) )
 
-  sanityCheck0 = set(codeObjectFiles) - set(sourceLibPaths + asmLibPaths)
-  sanityCheck1 = set(sourceLibPaths + asmLibPaths) - set(codeObjectFiles)
+  sanityCheck0 = setA - setB 
+  sanityCheck1 = setB - setA 
 
   if globalParameters["PrintCodeCommands"]:
     print("codeObjectFiles:", codeObjectFiles);
