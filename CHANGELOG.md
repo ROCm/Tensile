@@ -1,4 +1,7 @@
 # Change Log for Tensile
+## [(Unreleased) Tensile 4.28.0 for ROCm 4.3.0]
+### Fixed
+- TensileCreateLibrary crash with relative output and --merge-files
 
 ## [Tensile 4.27.0 for ROCm 4.2.0]
 ### Added
