@@ -95,7 +95,7 @@ namespace Tensile
                 std::cout << "Log level: " << logLevel << std::endl;
 
                 PerformanceMetric metric = args["performance-metric"].as<PerformanceMetric>();
-                // Default to 'DeviceEfficiency' benchmarking if CUEfficiency not specified
+                // Default to 'Overall' benchmarking if CUEfficiency not specified
                 const std::string perfUnit
                     = (metric == PerformanceMetric::CUEfficiency ? SpeedGFlopsPerCu : SpeedGFlops);
 

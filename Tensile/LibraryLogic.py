@@ -442,12 +442,12 @@ class LogicAnalyzer:
         # get unit (gflops or gflops/cu) of benchmark data
         perfUnit = row[0]
         if perfUnit == "GFlops":
-          self.perfMetric = "DeviceEfficiency"
+          self.perfMetric = "Overall"
         elif perfUnit == "GFlopsPerCU":
           self.perfMetric = "CUEfficiency"
         else:
-          printWarning("Performance unit %s in %s is unrecognized: assuming GFlops (device efficiency)" % (perfUnit, dataFileName))
-          self.perfMetric = "DeviceEfficiency"
+          printWarning("Performance unit %s in %s is unrecognized: assuming GFlops (overall)" % (perfUnit, dataFileName))
+          self.perfMetric = "Overall"
 
         # get the length of each row, and derive the first column of the solution instead of using wrong "solutionStartIdx = totalSizeIdx + 1"
         rowLength = len(row)

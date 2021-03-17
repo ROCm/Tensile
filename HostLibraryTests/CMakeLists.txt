@@ -26,8 +26,6 @@ project(TensileHostLibraryTest)
 set( CMAKE_CXX_STANDARD 14 )
 set( CMAKE_CXX_EXTENSIONS OFF )
 
-list(APPEND CMAKE_PREFIX_PATH $ENV{ROCM_PATH} /opt/rocm)
-
 option(TENSILE_USE_HIP       "Use the Hip runtime." ON)
 option(TENSILE_USE_LLVM      "Use LLVM for parsing config files." ON)
 option(TENSILE_USE_MSGPACK   "Use msgpack for parsing config files." ON)
@@ -129,13 +127,7 @@ set(test_sources ${test_sources}
 )
 
 if(TENSILE_USE_LLVM)
-    find_package(LLVM 13.0 QUIET CONFIG)
-    if(NOT LLVM_FOUND)
-        find_package(LLVM 12.0 QUIET CONFIG)
-        if(NOT LLVM_FOUND)
-            find_package(LLVM REQUIRED CONFIG)
-        endif()
-    endif()
+    find_package(LLVM 6.0 REQUIRED CONFIG)
 
     set(test_sources ${test_sources}
         ContractionLibraryLoading_test.cpp
