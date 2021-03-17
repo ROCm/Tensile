@@ -149,8 +149,8 @@ def GenerateSummations(userArgs):
 
         libSolutionNames = []
         for s in libSolutions:
-            kenelName=s["name"]
-            libSolutionNames.append(kenelName)
+            kernelName=s["name"]
+            libSolutionNames.append(kernelName)
 
         working_data=pd.read_csv(dataFilePath).rename(str.strip,axis='columns')
 
