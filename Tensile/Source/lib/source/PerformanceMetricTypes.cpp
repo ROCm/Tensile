@@ -38,12 +38,12 @@ namespace Tensile
     {
         switch(d)
         {
-        case PerformanceMetric::Auto:
-            return "Auto";
+        case PerformanceMetric::Best:
+            return "Best";
         case PerformanceMetric::CUEfficiency:
             return "CUEfficiency";
-        case PerformanceMetric::DeviceEfficiency:
-            return "DeviceEfficiency";
+        case PerformanceMetric::Overall:
+            return "Overall";
 
         case PerformanceMetric::Count:
         default:;
@@ -55,12 +55,12 @@ namespace Tensile
     {
         switch(d)
         {
-        case PerformanceMetric::Auto:
-            return "Auto";
+        case PerformanceMetric::Best:
+            return "Best";
         case PerformanceMetric::CUEfficiency:
             return "CUEff";
-        case PerformanceMetric::DeviceEfficiency:
-            return "DvEff";
+        case PerformanceMetric::Overall:
+            return "Ovrl";
 
         case PerformanceMetric::Count:
         default:;
@@ -84,9 +84,9 @@ namespace Tensile
 
     void PerformanceMetricTypeInfo::registerAllTypeInfo()
     {
-        registerTypeInfo<PerformanceMetric::Auto>();
+        registerTypeInfo<PerformanceMetric::Best>();
         registerTypeInfo<PerformanceMetric::CUEfficiency>();
-        registerTypeInfo<PerformanceMetric::DeviceEfficiency>();
+        registerTypeInfo<PerformanceMetric::Overall>();
     }
 
     void PerformanceMetricTypeInfo::registerAllTypeInfoOnce()

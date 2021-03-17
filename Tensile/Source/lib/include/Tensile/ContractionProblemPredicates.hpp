@@ -1077,7 +1077,7 @@ namespace Tensile
                     {
                         return true;
                     }
-                    else if(problem.performanceMetric() == PerformanceMetric::Auto)
+                    else if(problem.performanceMetric() == PerformanceMetric::Best)
                     {
                         // True if total flops below a constant threshold
                         // Current threshold chosen naively as the flops for a

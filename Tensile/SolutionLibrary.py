@@ -225,7 +225,7 @@ class MasterSolutionLibrary:
         #origSolutions = d[5]
         origLibrary = d[6:8]
 
-        perfMetric = 'DeviceEfficiency'
+        perfMetric = 'Overall'
         if len(d) > 10:
             perfMetric = d[10]
 
@@ -288,7 +288,7 @@ class MasterSolutionLibrary:
                 library = newLib
 
             elif libName == 'PerformanceMetric':
-                if perfMetric != 'DeviceEfficiency':
+                if perfMetric != 'Overall':
                     predicate = Properties.Predicate(tag=perfMetric)
                 else:
                     predicate = Properties.Predicate(tag='TruePred')

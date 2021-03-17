@@ -53,7 +53,7 @@ namespace Tensile
         {
             if(m_performanceMetric == PerformanceMetric::CUEfficiency)
                 m_output.setHeaderForKey(ResultKey::ProblemIndex, "GFlopsPerCU");
-            else // Default to 'DeviceEfficiency' benchmarking if CUEfficiency not specified
+            else // Default to 'Overall' benchmarking if CUEfficiency not specified
                 m_output.setHeaderForKey(ResultKey::ProblemIndex, "GFlops");
         }
 
@@ -89,7 +89,7 @@ namespace Tensile
                 }
             }
             else if((key == ResultKey::SpeedGFlops
-                     && m_performanceMetric == PerformanceMetric::DeviceEfficiency)
+                     && m_performanceMetric == PerformanceMetric::Overall)
                     || (key == ResultKey::SpeedGFlopsPerCu
                         && m_performanceMetric == PerformanceMetric::CUEfficiency))
             {
