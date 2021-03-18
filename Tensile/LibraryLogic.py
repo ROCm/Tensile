@@ -1440,7 +1440,7 @@ def generateLogic(config, benchmarkDataPath, libraryLogicPath):
         printExit("%s doesn't exist for %s" % (dataFileName, fileBase) )
       if not os.path.exists(solutionsFileName):
         printExit("%s doesn't exist for %s" % (solutionsFileName, fileBase) )
-      (problemSizes, solutions) = LibraryIO.readSolutions(solutionsFileName)
+      (problemSizes, solutions) = LibraryIO.parseSolutionsFile(solutionsFileName)
       if len(solutions) == 0:
         printExit("%s doesn't contains any solutions." % (solutionsFileName) )
       problemType = solutions[0]["ProblemType"]
@@ -1450,12 +1450,16 @@ def generateLogic(config, benchmarkDataPath, libraryLogicPath):
           dataFileName, solutionsFileName, selectionFileName, solutions) )
 
   for problemType in problemTypes:
-    logicTuple = analyzeProblemType( problemType, problemTypes[problemType], \
-        analysisParameters)
+    logicTuple = analyzeProblemType(problemType, problemTypes[problemType], analysisParameters)
 
-    LibraryIO.configWriter("yaml").writeLibraryLogicForSchedule(globalParameters["WorkingPath"], \
-        analysisParameters["ScheduleName"], analysisParameters["ArchitectureName"], \
-        analysisParameters["DeviceNames"], logicTuple)
+    filename = os.path.join(globalParameters["WorkingPath"], \
+        "{}_{}".format(analysisParameters["ScheduleName"], str(problemType)))
+
+    data = LibraryIO.createLibraryLogic(analysisParameters["ScheduleName"], \
+        analysisParameters["ArchitectureName"], analysisParameters["DeviceNames"], logicTuple)
+
+    print2("# writeYAML( {} )".format(filename))
+    LibraryIO.writeYAML(filename, data)
 
   currentTime = time.time()
   elapsedTime = currentTime - startTime
