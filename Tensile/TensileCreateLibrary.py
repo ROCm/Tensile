@@ -1340,6 +1340,7 @@ def TensileCreateLibrary():
   libraryFormat = args.LibraryFormat
   print2("OutputPath: %s" % outputPath)
   ensurePath(outputPath)
+  outputPath = os.path.abspath(outputPath)
   arguments = {}
   arguments["RuntimeLanguage"] = args.RuntimeLanguage
   arguments["CodeObjectVersion"] = args.CodeObjectVersion
