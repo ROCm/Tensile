@@ -1,3 +1,6 @@
+TestParameters:
+  marks: [emulation, emulation3]
+
 # benchmark assembly and source kernels
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0

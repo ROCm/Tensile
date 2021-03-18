@@ -1874,7 +1874,16 @@ class Solution:
       state["MatrixInstBN"]        = state["MIBlock"][5]
 
       state["LocalSplitU"]         = 1
-      state["MIOutputVectorWidth"] = 4
+      state["MIOutputVectorWidth"] = 1 if (state["MatrixInstM"] == 4 and state["ProblemType"]["DataType"].isDouble()) else 4
+      state["MIRegPerOut"]         = 2 if state["ProblemType"]["DataType"].isDouble() else 1
+
+      if state["ProblemType"]["DataType"].isDouble() and state["StoreVectorWidth"] != 1:
+          reject(state, "DGEMM MFMA currently requires StoreVectorWidth=1")
+
+      # for dgemm mfma accumulate instructions can use either the accumulate registers or arch registers
+      state["MIUseAccVgpr"] = True
+      if state["ProblemType"]["DataType"].isDouble():
+        state["MIUseAccVgpr"] = True # switch to false if testing using arch registers
 
       if state["MatrixInstM"] == 4:
         state["ThreadTile0"] = state["MIWaveTile"][0] * state["MIOutputVectorWidth"]
@@ -2248,9 +2257,14 @@ class Solution:
       state["MatrixInstruction"] = [state["MatrixInstruction"][0],state["MatrixInstruction"][1],state["MatrixInstruction"][2],state["MatrixInstruction"][3]]
 
     if state["MatrixInstruction"] != [] and len(state["MatrixInstruction"]) == 4:
+      state["MFMA_BF16_1K"] = False
       if not (state["ProblemType"]["DataType"].toChar() in validMFMA and \
         state["MatrixInstruction"] in validMFMA[state["ProblemType"]["DataType"].toChar()]):
-        reject(state, "MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
+        if state["ProblemType"]["DataType"].isBFloat16() and \
+          state["MatrixInstruction"] in validMFMA["B1k"]:
+          state["MFMA_BF16_1K"] = True
+        else:
+          reject(state, "MatrixInstruction %s not valid for DataType %s" % (state["MatrixInstruction"], state["ProblemType"]["DataType"]))
       if (state["ThreadTile"][1] % state["MatrixInstruction"][0]) != 0:
         reject(state, "invalide ThreadTile1 %u for MatrixInstM %u" % (state["ThreadTile"][1], state["MatrixInstruction"][0]))
 
@@ -2281,6 +2295,9 @@ class Solution:
       state['MIWaveTile']      = [1, 1]
       state['MIWaveTile'][0]   = state["ThreadTile"][0]
       state['MIWaveTile'][1]   = state["ThreadTile"][1] // state["MatrixInstruction"][1]
+
+      # set MIInputPerThread
+      state['MIInputPerThread'] = state["MatrixInstruction"][0] * state["MatrixInstruction"][2] * state["MatrixInstruction"][3] // 64
 
     else:
       state["EnableMatrixInstruction"] = False
@@ -2409,6 +2426,7 @@ class Solution:
 
     if state["EnableMatrixInstruction"]:
       if not (state["ProblemType"]["DataType"].isSingle() \
+              or state["ProblemType"]["DataType"].isDouble() \
               or state["ProblemType"]["DataType"].isBFloat16() \
               or state["ProblemType"]["DataType"].isHalf() \
               or state["ProblemType"]["DataType"].isSingleComplex() \
@@ -3046,18 +3064,18 @@ class Solution:
     # Default LocalReadVectorWidth
     if state["LocalReadVectorWidth"] == -1:
       if state["EnableMatrixInstruction"]:
-        state["LocalReadVectorWidth"] = state["ProblemType"]["DataType"].numMIInput()
+        state["LocalReadVectorWidth"] = state["MIInputPerThread"]
       else:
-        state["LocalReadVectorWidth"] = state["VectorWidth"]
+        state["LocalReadVectorWidth"] = state["VectorWidth"]    
     else:
       if state["EnableMatrixInstruction"]:
-        if state["LocalReadVectorWidth"] < state["ProblemType"]["DataType"].numMIInput():
-          reject(state, "LocalReadVectorWidth < %u" %(state["ProblemType"]["DataType"].numMIInput()))
-        if state["LocalReadVectorWidth"] > state["ProblemType"]["DataType"].numMIInput() and not state["TransposeLDS"]:
-          reject(state, "LocalReadVectorWidth require TLDS")
+        if state["LocalReadVectorWidth"] < state["MIInputPerThread"]:
+          reject(state, "LocalReadVectorWidth < %u" %(state["MIInputPerThread"]))
+        if state["LocalReadVectorWidth"] > state["MIInputPerThread"] and not state["TransposeLDS"]:
+          reject(state, "LocalReadVectorWidth require Transpose LDS")
       else:
         if state["LocalReadVectorWidth"] != state["VectorWidth"]:
-          reject(state, "not support LRVW != VW with nonMI kernel")
+          reject(state, "LocalReadVectorWidth must equal VectorWidth for non MI kernels")
 
     # set pad as readRegs to avoid unaligned read
     optPad = state["LocalReadVectorWidth"]
@@ -3299,7 +3317,7 @@ class Solution:
     # prefetch wider read iteration > LoopIters, no enough iterations for prefetching
     if state["EnableMatrixInstruction"] and state["PrefetchLocalRead"] > 0:
       # Mulitple = WLR-size / input-size = how many iters could be covered by one WLR ?
-      wlrMultiple = state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput()
+      wlrMultiple = state["LocalReadVectorWidth"]//state["MIInputPerThread"]
       if wlrMultiple == 0:
         reject(state, "LocalReadVectorWidth %u is less than MIInput" % (state["LocalReadVectorWidth"]))
         return
@@ -3329,12 +3347,12 @@ class Solution:
           reject(state, "TransposeLds requires TLUA=0 or TLUB=0")
     if state["EnableMatrixInstruction"]:
       # enable widerLocalRead
-      if state["LocalReadVectorWidth"] > state["ProblemType"]["DataType"].numMIInput():
+      if state["LocalReadVectorWidth"] > state["MIInputPerThread"]:
         # wider localRead support 2 types
         # 1. prefetch all lds to register
         # 2. using larger InnerUnroll
         if not (state["PrefetchLocalRead"] >= state["LoopIters"] and state["InnerUnroll"] == 1) and \
-          not state["InnerUnroll"] >= state["LocalReadVectorWidth"]//state["ProblemType"]["DataType"].numMIInput():
+          not state["InnerUnroll"] >= state["LocalReadVectorWidth"] // state["MIInputPerThread"]:
           reject(state, "wider localRead only support (PrefetchLocalRead %u >= LoopIters %u) or (InnerUnroll %u > LocalReadxN)" % (state["PrefetchLocalRead"],state["LoopIters"],state["InnerUnroll"]))
 
     if state["DepthULdsDivisor"] > 1:
@@ -3684,7 +3702,9 @@ class Solution:
   ########################################
   @ staticmethod
   def getParameterValueAbbreviation( key, value ):
-    if isinstance(value, str):
+    if key == 'ISA':
+      return str(value[0]) + str(value[1]) + ('%x' % value[2])
+    elif isinstance(value, str):
       return ''.join([c for c in value if c.isupper()])
     elif isinstance(value, bool):
       return "1" if value else "0"
@@ -3695,7 +3715,7 @@ class Solution:
         return "n%01u" % abs(value)
     elif isinstance(value, ProblemType):
       return str(value)
-    elif isinstance(value, tuple) or key == 'ISA':
+    elif isinstance(value, tuple):
       abbrev = ""
       for i in range(0, len(value)):
         abbrev += str(value[i])

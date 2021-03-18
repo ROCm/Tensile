@@ -152,7 +152,7 @@ class LocalReadMFMA(LocalRead):
             numReadsPerVector = tP["bpe"] * writer.lrvwA // int(blockWidth * 4) # bytes/register
         else:
             numReadsPerVector = tP["bpe"] * writer.lrvwB // int(blockWidth * 4) # bytes/register
-        numVgpr           = int(ceil(blockWidth))
+        numVgpr  = int(ceil(blockWidth))
 
         # pack register
         needPack = blockWidth < 1
@@ -184,7 +184,7 @@ class LocalReadMFMA(LocalRead):
                     packCode.addInst("v_or_b32", destVgpr, destVgpr, highVgpr, "pack two half Vgpr to one Vgpr")
                     destVgpr = highVgpr
 
-                isHigh8Bits    = (blockWidth == 0.25) and ( ((rIdx % 4) % 2) == 1) # 1,3
+                isHigh8Bits  = (blockWidth == 0.25) and ( ((rIdx % 4) % 2) == 1) # 1,3
                 isHigh16Bits = (blockWidth == 0.25) and ( ((rIdx % 4) //2) == 1) # 2,3
                 if needPack:
                     if isHigh8Bits or isHigh16Bits:

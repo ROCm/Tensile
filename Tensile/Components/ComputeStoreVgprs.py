@@ -58,7 +58,7 @@ class ComputeStoreVgprsVALU(ComputeStoreVgprs):
             writer.cinRowPtr    = writer.vgprPool.checkOut(1, "cinRowPtr")
             writer.coutRowPtr = writer.vgprPool.checkOut(1, "coutRowPtr")
 
-        tmpV0 = writer.vgprPool.checkOut(2)
+        tmpV0 = writer.vgprPool.checkOutAligned(2,2)
         kStr += vectorStaticDivideAndRemainder(tid1, tid0, "Serial", divisor, \
                 tmpV0, tmpS0)
         kStr += staticMultiply(vgpr(tid0), vgpr(tid0), tid0Scale, sgpr(tmpS1))
@@ -139,7 +139,7 @@ class ComputeStoreVgprsMFMA(ComputeStoreVgprs):
 
         # writer.coord0
         # writer.coord1
-        # writer.cinRowPtr    : C buffer coulmn offset
+        # writer.cinRowPtr  : C buffer coulmn offset
         # writer.coutRowPtr : D buffer coulmn offset
 
         # alloc resources
@@ -152,7 +152,7 @@ class ComputeStoreVgprsMFMA(ComputeStoreVgprs):
         wave_id = writer.vgprPool.checkOut(1)
 
         tmpVgpr0 = writer.vgprPool.checkOut(1,"tmpVgpr0")
-        tmpVgpr1 = writer.vgprPool.checkOut(2,"tmpVgpr1")
+        tmpVgpr1 = writer.vgprPool.checkOutAligned(2,2,"tmpVgpr1")
         dummy    = writer.vgprPool.checkOut(1,"dummy")
         tmpSgpr  = writer.getTmpSgpr(1).idx()
 
@@ -173,8 +173,14 @@ class ComputeStoreVgprsMFMA(ComputeStoreVgprs):
 
 
         if kernel["MatrixInstM"] == 4:
-            divisor =    kernel["MatrixInstN"] * kernel["MatrixInstBM"]
-            kStr   += vectorStaticRemainder(dummy, tmpVgpr0, "Serial", globalParameters["WavefrontWidth"], tmpVgpr1, tmpSgpr)
+            remainder = globalParameters["WavefrontWidth"]
+            divisor =  kernel["MatrixInstN"] * kernel["MatrixInstBM"]
+            if kernel["ProblemType"]["DataType"].isDouble():
+                divisor *= 4
+                if kernel["MatrixInstBM"] < 4:
+                    remainder = 16
+                    divisor = 8
+            kStr += vectorStaticRemainder(dummy, tmpVgpr0, "Serial", remainder, tmpVgpr1, tmpSgpr)
             kStr   += vectorStaticDivide(tmpVgpr0, tmpVgpr0, divisor, tmpVgpr1, tmpSgpr)
             kStr   += staticMultiply(vgpr(tmpVgpr0), vgpr(tmpVgpr0), kernel["MatrixInstN"], sgpr(tmpSgpr))
             kStr   += inst("v_add_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), "coordination 1 = wave_id1 + tid1")
@@ -189,13 +195,19 @@ class ComputeStoreVgprsMFMA(ComputeStoreVgprs):
         # coord 0 : wave part
         kStr += vectorStaticRemainder(dummy, tmpVgpr0, wave_id, kernel["MIWaveGroup"][0], tmpVgpr1, tmpSgpr)
         kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr0), hex(MIBShape0), vgpr(tmpVgpr0), "wave coordination offset 0")
+        if kernel["MatrixInstM"] == 4 and kernel["ProblemType"]["DataType"].isDouble():
+            divisor =  kernel["MatrixInstN"] * kernel["MatrixInstM"]
+            kStr += vectorStaticDivide(tid0, "Serial", divisor, tmpVgpr1, tmpSgpr)
+            kStr += vectorStaticRemainder(dummy, tid0, tid0, kernel["MatrixInstN"], tmpVgpr1, tmpSgpr)
+            kStr += inst("v_add_u32", vgpr(tmpVgpr0), vgpr(tmpVgpr0), vgpr(tid0), "WAAA")
 
         # coord 0 : thread part
         kStr += vectorStaticRemainder(dummy, tid0, "Serial", globalParameters["WavefrontWidth"], tmpVgpr1, tmpSgpr)
         kStr += vectorStaticDivide(tid0, tid0, kernel["MatrixInstM"], tmpVgpr1, tmpSgpr)
         if kernel["MatrixInstM"] == 4:
             kStr += vectorStaticRemainder(dummy, tid0, tid0, kernel["MatrixInstBM"], tmpVgpr1, tmpSgpr)
-        kStr += inst("v_lshlrev_b32", vgpr(tid0), hex(2), vgpr(tid0), "thread0 * 4 : mfma output 4 continuous outputs")
+        if kernel["MatrixInstM"] == 4 or not kernel["ProblemType"]["DataType"].isDouble():
+            kStr += inst("v_lshlrev_b32", vgpr(tid0), hex(2), vgpr(tid0), "thread0 * 4 : mfma output 4 continuous outputs")
         kStr += inst("v_add_u32", vgpr(tid0), vgpr(tmpVgpr0), vgpr(tid0), "coordination 0 = wave_id0 + tid0")
 
         if writer.prefetchAcrossPersistent:

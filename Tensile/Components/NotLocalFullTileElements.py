@@ -74,12 +74,12 @@ class NotLocalFullTileElementsMFMA(NotLocalFullTileElements):
         MFMAcontinoutsOuptut = kernel["MIOutputVectorWidth"]
 
         if kernel["MatrixInstM"] == 4:
-            totalTT0                         = kernel["MIWaveTile"][0] * MFMAcontinoutsOuptut
-            totalTT1                         = kernel["MIWaveTile"][1]
+            totalTT0            = kernel["MIWaveTile"][0] * MFMAcontinoutsOuptut
+            totalTT1            = kernel["MIWaveTile"][1]
         else:
-            outputsPerThread         = kernel["MatrixInstM"] * kernel["MatrixInstN"] // globalParameters["WavefrontWidth"]
-            totalTT0                         = kernel["MatrixInstBM"] * kernel["MIWaveTile"][0] * outputsPerThread
-            totalTT1                         = kernel["MatrixInstBN"] * kernel["MIWaveTile"][1]
+            outputsPerThread    = kernel["MatrixInstM"] * kernel["MatrixInstN"] // globalParameters["WavefrontWidth"]
+            totalTT0            = kernel["MatrixInstBM"] * kernel["MIWaveTile"][0] * outputsPerThread
+            totalTT1            = kernel["MatrixInstBN"] * kernel["MIWaveTile"][1]
 
         for tt1 in range(0, totalTT1):
             for vc1 in range(0, 1):

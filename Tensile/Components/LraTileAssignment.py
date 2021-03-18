@@ -35,7 +35,7 @@ class LraTileAssignmentVALU(LraTileAssignment):
         # allocate resources
         qReg    = writer.vgprPool.checkOut(1,"qReg") # quotient
         rReg    = writer.vgprPool.checkOut(1,"rReg") # remainder
-        tmpVgpr = writer.vgprPool.checkOut(2,"tmpVgpr")
+        tmpVgpr = writer.vgprPool.checkOutAligned(2,2,"tmpVgpr")
         tmpSgpr = writer.getTmpSgpr(1).idx()
 
         if tP["tensorChar"] == 'A':
@@ -92,7 +92,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         wReg    = writer.vgprPool.checkOut(1,"wReg") # quotient
         tReg    = writer.vgprPool.checkOut(1,"tReg") # remainder
         kReg    = writer.vgprPool.checkOut(1,"kReg") # remainder
-        tmpVgpr = writer.vgprPool.checkOut(2,"tmpVgpr")
+        tmpVgpr = writer.vgprPool.checkOutAligned(2,2,"tmpVgpr")
         dummy   = writer.vgprPool.checkOut(1,"dummy")
 
          # alloc sgpr
