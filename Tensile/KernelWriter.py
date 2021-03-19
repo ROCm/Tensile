@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -1297,10 +1297,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
             self.globalReadIncrements.addCode(Code.Module("globalReadIncrementA"))
             self.globalReadIncrements.addCode(Code.Module("globalReadIncrementB"))
         if not isLastLoop:
-          self.localWriteACode, tmpCheckedOutVgprA = self.localWriteDo(kernel, tensorParametersA, (uDu+1)%kernel["DepthULdsDivisor"])  # local write in loopcnt N targets data for loopcnt N+1
-          self.localWriteBCode, tmpCheckedOutVgprB = self.localWriteDo(kernel, tensorParametersB, (uDu+1)%kernel["DepthULdsDivisor"])
-          self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprA)
-          self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprB)
+          self.localWriteACode = self.localWriteDo(kernel, tensorParametersA, (uDu+1)%kernel["DepthULdsDivisor"])  # local write in loopcnt N targets data for loopcnt N+1
+          self.localWriteBCode = self.localWriteDo(kernel, tensorParametersB, (uDu+1)%kernel["DepthULdsDivisor"])
         else:
           self.localWriteACode = Code.Module()
           self.localWriteBCode = Code.Module()
@@ -1521,7 +1519,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl += self.setupNewTile(kernel, tensorParametersA, tensorParametersB, isPap=False, isOptNLL=False)
 
     pack = [ Code.Module() for i in range (self.numVgprBuffer+1) ]
-    self.tmpCheckedOutLWVgprs = []
     self.preLoopLocalWriteCode = None
 
     if kernel["PrefetchGlobalRead"]:
@@ -1542,10 +1539,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       if self.enable["LocalWrite"]:
         # local write
-        self.preLoopLocalWriteCode, tmpCheckedOutVgprA, tmpCheckedOutVgprB = self.preLoopLocalWriteDo(kernel, tensorParametersA, tensorParametersB)
+        self.preLoopLocalWriteCode = self.preLoopLocalWriteDo(kernel, tensorParametersA, tensorParametersB)
         kl.append(self.preLoopLocalWriteCode)
-        self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprA)
-        self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprB)
         # swap local ptrs
         kl.append(self.comment("local write swap a"))
         kl.append(self.localWriteSwapOffsets(kernel, tensorParametersA))
@@ -1615,12 +1610,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel, "4sync for global read"))
 
-      # Begin Unroll: make sure we correctly checked-in the temp VGPR used for Int8 LocalWrite
       kl.append(self.comment("Begin Each Unroll: Check VGPR.checkin for INT8 LW"))
-      for vgpr in self.tmpCheckedOutLWVgprs:
-        if vgpr != -1:
-          self.vgprPool.checkIn(vgpr)
-      self.tmpCheckedOutLWVgprs = []
 
       if self.enable["GlobalRead"]:
         # unrolled loop: global read A, B
@@ -1644,10 +1634,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.globalReadIncrements.addCode(Code.Module("globalReadIncrementB"))
 
       if self.enable["LocalWrite"]:
-        self.localWriteACode, tmpCheckedOutVgprA = self.localWriteDo(kernel, tensorParametersA)
-        self.localWriteBCode, tmpCheckedOutVgprB = self.localWriteDo(kernel, tensorParametersB)
-        self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprA)
-        self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprB)
+        self.localWriteACode = self.localWriteDo(kernel, tensorParametersA)
+        self.localWriteBCode = self.localWriteDo(kernel, tensorParametersB)
       else:
         self.localWriteACode = Code.Module()
         self.localWriteBCode = Code.Module()
@@ -1672,13 +1660,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kl.append(self.syncThreads(kernel, "PGR=0, prior iter done reading lds"))
         if self.enable["LocalWrite"]:
           kl.append(self.comment("local write a"))
-          tempLWCodeModA, tmpCheckedOutVgprA = self.localWriteDo(kernel, tensorParametersA)
+          tempLWCodeModA = self.localWriteDo(kernel, tensorParametersA)
           kl.append(tempLWCodeModA)
           kl.append(self.comment("local write b"))
-          tempLWCodeModB, tmpCheckedOutVgprB = self.localWriteDo(kernel, tensorParametersB)
+          tempLWCodeModB = self.localWriteDo(kernel, tensorParametersB)
           kl.append(tempLWCodeModB)
-          self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprA)
-          self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprB)
         if self.enable["Wait"]:
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "2prefetch wait for local write"))
         if self.enable["Sync"]:
@@ -1742,10 +1728,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
           # ...update local write code
           if self.enable["LocalWrite"]:
-            self.localWriteACode, tmpCheckedOutVgprA = self.localWriteDo(kernel, tensorParametersA, (uDu+1)%kernel["DepthULdsDivisor"])  # local write in loopcnt N targets data for loopcnt N+1
-            self.localWriteBCode, tmpCheckedOutVgprB = self.localWriteDo(kernel, tensorParametersB, (uDu+1)%kernel["DepthULdsDivisor"])
-            self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprA)
-            self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprB)
+            self.localWriteACode = self.localWriteDo(kernel, tensorParametersA, (uDu+1)%kernel["DepthULdsDivisor"])  # local write in loopcnt N targets data for loopcnt N+1
+            self.localWriteBCode = self.localWriteDo(kernel, tensorParametersB, (uDu+1)%kernel["DepthULdsDivisor"])
           else:
             self.localWriteACode = Code.Module()
             self.localWriteBCode = Code.Module()
@@ -1780,13 +1764,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
               kl.append(self.syncThreads(kernel, "PGR=0, prior iter done reading lds"))
             if self.enable["LocalWrite"]:
               kl.append(self.comment("local write a"))
-              tempLWCodeModA, tmpCheckedOutVgprA = self.localWriteDo(kernel, tensorParametersA, (uDu+writeForNextLoop)%kernel["DepthULdsDivisor"])
+              tempLWCodeModA = self.localWriteDo(kernel, tensorParametersA, (uDu+writeForNextLoop)%kernel["DepthULdsDivisor"])
               kl.append(tempLWCodeModA)
               kl.append(self.comment("local write b"))
-              tempLWCodeModB, tmpCheckedOutVgprB = self.localWriteDo(kernel, tensorParametersB, (uDu+writeForNextLoop)%kernel["DepthULdsDivisor"])
+              tempLWCodeModB = self.localWriteDo(kernel, tensorParametersB, (uDu+writeForNextLoop)%kernel["DepthULdsDivisor"])
               kl.append(tempLWCodeModB)
-              self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprA)
-              self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprB)
             if self.enable["Wait"]:
               kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "2prefetch wait for local write"))
             if self.enable["Sync"]:
@@ -2090,12 +2072,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       kl.append(self.closeLoop(kernel, self.unrollIdx, finalLoop))
 
-    # SafeCheck Before NLL: make sure we correctly checked-in the temp VGPR used for Int8 LocalWrite
     kl.append(self.comment("Before NLL: Check VGPR.checkin for INT8 LW"))
-    for vgpr in self.tmpCheckedOutLWVgprs:
-      if vgpr != -1:
-        self.vgprPool.checkIn(vgpr)
-    self.tmpCheckedOutLWVgprs = []
 
     if kernel["PrefetchGlobalRead"] == 2:
       kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False, isNGLL=True, pack=pack)
@@ -2193,13 +2170,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kl.append(self.localWriteInitPointers(kernel, tensorParametersA))
           kl.append(self.localWriteInitPointers(kernel, tensorParametersB))
           kl.append(self.comment("local write a"))
-          tempLWCodeModA, tmpCheckedOutVgprA = self.localWriteDo(kernel, tensorParametersA, None)
+          tempLWCodeModA = self.localWriteDo(kernel, tensorParametersA, None)
           kl.append(tempLWCodeModA)
           kl.append(self.comment("local write b"))
-          tempLWCodeModB, tmpCheckedOutVgprB = self.localWriteDo(kernel, tensorParametersB, None)
+          tempLWCodeModB = self.localWriteDo(kernel, tensorParametersB, None)
           kl.append(tempLWCodeModB)
-          self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprA)
-          self.tmpCheckedOutLWVgprs.append(tmpCheckedOutVgprB)
         # change local read policy from wider local read to one unit of K at a time
         kl.append(self.comment("Recalc local read offsets"))
         kl.append(self.recalcLocalReadAddressesAB(kernel))
@@ -2209,14 +2184,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel))
         #kl.append(self.dumpLds(kernel, 0, 8))
-
-        # TailLoop: make sure we correctly checked-in the temp VGPR used for Int8 LocalWrite
-        # TODO- INT8: check if we can put this outside 'for uDu'
-        kl.append(self.comment("TailLoop: Check VGPR.checkin for INT8 LW"))
-        for vgpr in self.tmpCheckedOutLWVgprs:
-          if vgpr != -1:
-            self.vgprPool.checkIn(vgpr)
-        self.tmpCheckedOutLWVgprs = []
 
         # tail: re-init local read addresses
         if kernel["PrefetchGlobalRead"]:
@@ -2240,7 +2207,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         tailLoopInnerUnroll = 1
         if (kernel["AssertSummationElementMultiple"] % KinInnerUnroll == 0):
           tailLoopInnerUnroll = kernel["InnerUnroll"]
-        elif (kernel["LocalDotLayout"] == 2) and (kernel["InnerUnroll"] == 2):
+        elif (kernel["LocalDotLayout"] > 1) and (kernel["InnerUnroll"] == kernel["LocalDotLayout"]):
           tailLoopInnerUnroll = kernel["InnerUnroll"]
 
         pack[0] = Code.Module()

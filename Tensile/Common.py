@@ -1507,6 +1507,9 @@ def GetAsmCaps(isaVersion):
   rv["v_dot2_f32_f16"]  = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
   rv["v_dot2c_f32_f16"] = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34")
 
+  rv["v_dot4c_i32_i8"]  = tryAssembler(isaVersion, "v_dot4c_i32_i8 v47, v36, v34")
+  rv["v_dot4_i32_i8"]   = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34")
+
   rv["v_mac_f32"]       = tryAssembler(isaVersion, "v_mac_f32 v20, v21, v22")
   rv["v_fma_f32"]       = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")
   rv["v_fmac_f32"]      = tryAssembler(isaVersion, "v_fmac_f32 v20, v21, v22")

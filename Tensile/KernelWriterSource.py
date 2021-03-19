@@ -2516,13 +2516,13 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def preLoopLocalWriteDo(self, kernel, tPA, tPB):
     kStr = ""
-    LWCodeA, dummy = self.localWriteDo(kernel, tPA)
-    LWCodeB, dummy = self.localWriteDo(kernel, tPB)
+    LWCodeA = self.localWriteDo(kernel, tPA)
+    LWCodeB = self.localWriteDo(kernel, tPB)
     kStr += self.comment("local write a")
     kStr += LWCodeA
     kStr += self.comment("local write b")
     kStr += LWCodeB
-    return kStr, dummy, dummy
+    return kStr
 
   ##############################################################################
   # Replace the determined vmcnt in PreLoop LocalWrite
@@ -2535,7 +2535,6 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localWriteDo(self, kernel, tP, uDu=0):
     kStr = ""
-    tmpVgprStartIdxForLSHR = -1 # not used in source, just align the return with assembly
     if self.language == "HIP":
       kStr += "#pragma clang diagnostic push" + self.endLine
       kStr += "#pragma clang diagnostic ignored \"-Wconditional-uninitialized\"" + self.endLine
@@ -2560,7 +2559,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "    for (unsigned int i = serial; i < LDS_NUM_ELEMENTS; i+=NUM_THREADS) {%s" % self.endLine
       kStr += "      printf(\\\"lds[%%06u] = %%.0f\\\\n\\\", i, localMemory[i]);%s" % self.endLine
       kStr += "    }" + self.endLine
-    return kStr, tmpVgprStartIdxForLSHR
+    return kStr
 
   ##############################################################################
   # Local Read: Swap Offsets A/B
