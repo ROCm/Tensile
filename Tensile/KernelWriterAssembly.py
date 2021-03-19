@@ -577,7 +577,7 @@ class KernelWriterAssembly(KernelWriter):
           '-target', 'amdgcn-amd-amdhsa']
 
     if archHasV3:
-      rv += ['-mllvm --amdhsa-code-object-version=2' if globalParameters["CodeObjectVersion"] == "V2" else '-mllvm --amdhsa-code-object-version=4']
+      rv += ['-mcode-object-version=2' if globalParameters["CodeObjectVersion"] == "V2" else '-mcode-object-version=4']
 
     rv += ['-mcpu=' + gfxName(isa)]
 
