@@ -48,8 +48,6 @@ import sys
 import time
 from copy import deepcopy
 
-from functools import partial
-
 ################################################################################
 def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
     """
@@ -1281,7 +1279,6 @@ def WriteClientLibraryFromSolutions(solutionList, libraryWorkingPath, tensileSou
 
   return (codeObjectFiles, newLibrary)
 
-
 ################################################################################
 # Tensile Create Library
 ################################################################################
@@ -1446,13 +1443,6 @@ def TensileCreateLibrary():
     for solution in solutionsForSchedule:
       if solution not in solutions:
         solutions.append(solution)
-
-    # if globalParameters["PackageLibrary"]:
-    #   if architectureName in masterLibraries:
-    #     masterLibraries[architectureName].merge(deepcopy(newLibrary))
-    #   else:
-    #     masterLibraries[architectureName] = deepcopy(newLibrary)
-    #     masterLibraries[architectureName].version = args.version
 
   kernels, kernelHelperOjbs, _ = generateKernelObjectsFromSolutions(solutions)
 

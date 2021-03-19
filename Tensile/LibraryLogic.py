@@ -1455,10 +1455,10 @@ def generateLogic(config, benchmarkDataPath, libraryLogicPath):
     filename = os.path.join(globalParameters["WorkingPath"], \
         "{}_{}".format(analysisParameters["ScheduleName"], str(problemType)))
 
+    print2("# writing library logic YAML {}".format(filename))
     data = LibraryIO.createLibraryLogic(analysisParameters["ScheduleName"], \
         analysisParameters["ArchitectureName"], analysisParameters["DeviceNames"], logicTuple)
 
-    print2("# writeYAML( {} )".format(filename))
     LibraryIO.writeYAML(filename, data)
 
   currentTime = time.time()
