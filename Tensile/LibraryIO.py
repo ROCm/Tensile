@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .Common import print2, printExit, printWarning, versionIsCompatible
+from .Common import printExit, printWarning, versionIsCompatible
 from .SolutionStructs import Solution, ProblemSizes, ProblemType
 from . import __version__
 from . import Common
@@ -105,8 +105,8 @@ def parseSolutionsFile(filename):
 def parseSolutionsData(data, srcFile="?"):
     """Parses problem sizes and solutions from the data of a solutions file."""
 
-    if len(data) < 2:
-        printExit("Solution file {} is missing required fields (len = {} < 2".format(srcFile, len(data)))
+    if len(data) < 3:
+        printExit("Solution file {} is missing required fields (len = {} < 3".format(srcFile, len(data)))
 
     versionString = data[0]["MinimumRequiredVersion"]
     if not versionIsCompatible(versionString):

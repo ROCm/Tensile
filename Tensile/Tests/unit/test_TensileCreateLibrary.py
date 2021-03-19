@@ -183,7 +183,7 @@ def test_CreateBenchmarkClientParametersForSizes(tmpdir):
     metadataFilepath = os.path.join(libraryPath, "metadata.yaml")
 
 
-    metadataFile = LibraryIO.readConfig(metadataFilepath)
+    metadataFile = LibraryIO.readYAML(metadataFilepath)
     problemTypeDict = metadataFile["ProblemType"]
     sizes = [{"Exact": [196, 256, 64, 1024]}]
     problemSizes = SolutionStructs.ProblemSizes(problemTypeDict, sizes)
