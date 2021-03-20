@@ -825,7 +825,8 @@ class KernelWriterSource(KernelWriter):
     else:
       s += "extern \"C\"\n"
       s += "__global__ "
-    s += "void %s" % ( kernelName )
+    # the new default of 1024 degrades HGEMM performance too much
+    s += "void\n__launch_bounds__(256)\n%s" % ( kernelName )
     s += "(" + self.endLine
     # pointers
     globalStr = "__global "
