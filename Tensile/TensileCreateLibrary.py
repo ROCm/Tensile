@@ -1253,7 +1253,7 @@ def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, 
   newLibrary = MasterSolutionLibrary.BenchmarkingLibrary(solutions)
   newLibrary.applyNaming(kernelMinNaming)
 
-  LibraryIO.YAMLWriter().write(newLibraryFile, Utils.state(newLibrary))
+  LibraryIO.writeYAML(newLibraryFile, Utils.state(newLibrary))
 
   return (codeObjectFiles, newLibrary)
 
@@ -1273,7 +1273,7 @@ def WriteClientLibraryFromSolutions(solutionList, libraryWorkingPath, tensileSou
   mataDataFilePath = os.path.join(effectiveWorkingPath, 'metadata.yaml')
 
   metaData = {"ProblemType":problemType}
-  LibraryIO.YAMLWriter().write(mataDataFilePath, metaData)
+  LibraryIO.writeYAML(mataDataFilePath, metaData)
 
   codeObjectFiles, newLibrary = writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutionList, cxxCompiler )
 
@@ -1516,26 +1516,28 @@ def TensileCreateLibrary():
              if globalParameters["AsmCaps"][arch]["SupportedISA"]]
   newLibraryDir = ensurePath(os.path.join(outputPath, 'library'))
 
-  tensileLibraryFilename = "TensileLibrary"
   if globalParameters["PackageLibrary"]:
     for archName, newMasterLibrary in masterLibraries.items():
       if (archName in archs):
         archPath = ensurePath(os.path.join(newLibraryDir, archName))
-        masterFile = os.path.join(archPath, tensileLibraryFilename)
+        masterFile = os.path.join(archPath, "TensileLibrary")
         newMasterLibrary.applyNaming(kernelMinNaming)
         LibraryIO.write(masterFile, Utils.state(newMasterLibrary), args.LibraryFormat)
   else:
-    masterFile = os.path.join(newLibraryDir, tensileLibraryFilename)
+    masterFile = os.path.join(newLibraryDir, "TensileLibrary")
     fullMasterLibrary.applyNaming(kernelMinNaming)
     LibraryIO.write(masterFile, Utils.state(fullMasterLibrary), args.LibraryFormat)
 
   theMasterLibrary = fullMasterLibrary
   if globalParameters["PackageLibrary"]:
     theMasterLibrary = list(masterLibraries.values())[0]
+
   if args.EmbedLibrary is not None:
       embedFileName = os.path.join(outputPath, "library/{}.cpp".format(args.EmbedLibrary))
       with EmbeddedData.EmbeddedDataFile(embedFileName) as embedFile:
-          embedFile.embed_file(theMasterLibrary.cpp_base_class, masterFile, nullTerminated=True,
+
+          ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
+          embedFile.embed_file(theMasterLibrary.cpp_base_class, masterFile + ext, nullTerminated=True,
                                key=args.EmbedLibraryKey)
 
           for co in Utils.tqdm(codeObjectFiles):

@@ -24,7 +24,6 @@ from .SolutionStructs import Solution, ProblemSizes, ProblemType
 from . import __version__
 from . import Common
 from . import SolutionLibrary
-import os
 
 try:
     import yaml

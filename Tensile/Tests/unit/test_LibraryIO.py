@@ -23,11 +23,9 @@ import os
 from copy import deepcopy
 
 import yaml
-from yaml.loader import SafeLoader
 
 from Tensile.__init__ import __version__
 import Tensile.LibraryIO as LibraryIO
-import pytest
 
 version = "- {MinimumRequiredVersion: " + __version__ + "}\n"
 

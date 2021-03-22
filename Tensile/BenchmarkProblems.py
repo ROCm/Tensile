@@ -551,9 +551,8 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
       globalParameters["WorkingPath"], globalParameters["CxxCompiler"], [problemType], solutions, kernels, kernelHelperOjbs, \
       solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
 
-  newLibraryFilename = "TensileLibrary"
   newLibraryDir = ensurePath(os.path.join(globalParameters["WorkingPath"], 'library'))
-  newLibraryFile = os.path.join(newLibraryDir, newLibraryFilename)
+  newLibraryFile = os.path.join(newLibraryDir, "TensileLibrary")
   newLibrary = SolutionLibrary.MasterSolutionLibrary.BenchmarkingLibrary(solutions)
   newLibrary.applyNaming(kernelMinNaming)
   LibraryIO.write(newLibraryFile, Utils.state(newLibrary), globalParameters["LibraryFormat"])
