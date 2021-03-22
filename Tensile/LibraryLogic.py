@@ -1453,7 +1453,7 @@ def generateLogic(config, benchmarkDataPath, libraryLogicPath):
     logicTuple = analyzeProblemType(problemType, problemTypes[problemType], analysisParameters)
 
     filename = os.path.join(globalParameters["WorkingPath"], \
-        "{}_{}".format(analysisParameters["ScheduleName"], str(problemType)))
+        "{}_{}".format(analysisParameters["ScheduleName"], str(problemType) + ".yaml"))
 
     print2("# writing library logic YAML {}".format(filename))
     data = LibraryIO.createLibraryLogic(analysisParameters["ScheduleName"], \
