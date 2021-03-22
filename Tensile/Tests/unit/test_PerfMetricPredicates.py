@@ -65,3 +65,10 @@ def test_perf_metric_library_merge_dups(libraries):
         lib.merge(lib2)
 
     assert len(lib.rows) == 2
+
+    def getPred(row):
+        return row['predicate']
+    rowPreds = map(getPred, lib.rows)
+
+    assert Predicate('CUEfficiency') in rowPreds
+    assert Predicate('TruePred') in rowPreds

@@ -101,3 +101,12 @@ def test_hardware_library_merge_dups(libraries):
         lib.merge(lib2)
 
     assert len(lib.rows) == 4
+
+    def getPred(row):
+        return row['predicate']
+    rowPreds = map(getPred, lib.rows)
+
+    assert HardwarePredicate.FromISA((9,0,0)) in rowPreds
+    assert HardwarePredicate.FromISA((9,0,6)) in rowPreds
+    assert HardwarePredicate.FromISA((9,0,8)) in rowPreds
+    assert HardwarePredicate('TruePred') in rowPreds
