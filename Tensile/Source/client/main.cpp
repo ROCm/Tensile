@@ -43,8 +43,8 @@
 #include "SolutionIterator.hpp"
 #include "TimingEvents.hpp"
 
-#include "LogReporter.hpp"
 #include "LibraryUpdateReporter.hpp"
+#include "LogReporter.hpp"
 #include "MetaResultReporter.hpp"
 #include "PerformanceReporter.hpp"
 #include "ResultFileReporter.hpp"
@@ -251,7 +251,8 @@ namespace Tensile
             int deviceIdx = args["device-idx"].as<int>();
 
             if(deviceIdx >= deviceCount)
-                throw std::runtime_error(concatenate("Invalid device index ", deviceIdx, " (", deviceCount, " total found.)"));
+                throw std::runtime_error(concatenate(
+                    "Invalid device index ", deviceIdx, " (", deviceCount, " total found.)"));
 
             HIP_CHECK_EXC(hipSetDevice(deviceIdx));
 
@@ -618,7 +619,6 @@ int main(int argc, const char* argv[])
 
                                 listeners.postEnqueues(startEvents, stopEvents);
                                 listeners.validateEnqueues(inputs, startEvents, stopEvents);
-
                             }
 
                             listeners.postSyncs();

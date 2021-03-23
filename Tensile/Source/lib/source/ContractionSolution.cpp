@@ -995,9 +995,9 @@ namespace Tensile
         auto cInfo = DataTypeInfo::Get(problemType.cType);
         auto dInfo = DataTypeInfo::Get(problemType.dType);
 
-        spm.memReadBytesA         = (NumBatches * M * N * K) / MT1 * aInfo.elementSize;
-        spm.memReadBytesB         = (NumBatches * M * N * K) / MT0 * bInfo.elementSize;
-        spm.memReadBytesC         = (NumBatches * M * N) * betaReads * cInfo.elementSize;
+        spm.memReadBytesA = (NumBatches * M * N * K) / MT1 * aInfo.elementSize;
+        spm.memReadBytesB = (NumBatches * M * N * K) / MT0 * bInfo.elementSize;
+        spm.memReadBytesC = (NumBatches * M * N) * betaReads * cInfo.elementSize;
 
         if(GlobalSplitU == 1)
             spm.memWriteBytesD = (NumBatches * M * N) * (1 + betaWrites) * dInfo.elementSize;

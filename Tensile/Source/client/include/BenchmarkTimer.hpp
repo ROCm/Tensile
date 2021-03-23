@@ -87,11 +87,11 @@ namespace Tensile
             virtual int  error() const override;
 
         private:
-            const int m_numWarmups;
-            const int m_numBenchmarks;
-            const int m_numEnqueuesPerSync;
-            const int m_numSyncsPerBenchmark;
-            const int m_numEnqueuesPerSolution;
+            const int    m_numWarmups;
+            const int    m_numBenchmarks;
+            const int    m_numEnqueuesPerSync;
+            const int    m_numSyncsPerBenchmark;
+            const int    m_numEnqueuesPerSolution;
             const size_t m_minFlopsPerSync = 0;
 
             const bool m_useGPUTimer;

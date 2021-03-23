@@ -305,7 +305,7 @@ namespace Tensile
                 return;
             m_cpuResultBuffer.reset();
 
-            uint8_t * buffer;
+            uint8_t* buffer;
             HIP_CHECK_EXC(hipHostMalloc(&buffer, bytes, 0));
             m_cpuResultBuffer.reset(buffer, hipFree);
             m_cpuResultBufferSize = bytes;

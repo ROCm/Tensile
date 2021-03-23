@@ -125,7 +125,7 @@ namespace Tensile
 
             ConvolutionProblem m_convolutionProblem;
 
-            size_t m_cpuResultBufferSize = 0;
+            size_t                   m_cpuResultBufferSize = 0;
             std::shared_ptr<uint8_t> m_cpuResultBuffer;
 
             ContractionProblem m_problem;

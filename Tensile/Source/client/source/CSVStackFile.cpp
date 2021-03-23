@@ -47,7 +47,8 @@ namespace Tensile
         {
         }
 
-        CSVStackFile::CSVStackFile(std::shared_ptr<std::ostream> stream, std::string const& separator)
+        CSVStackFile::CSVStackFile(std::shared_ptr<std::ostream> stream,
+                                   std::string const&            separator)
             : m_stream(stream)
             , m_separator(separator)
         {

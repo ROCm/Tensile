@@ -170,8 +170,8 @@ namespace Tensile
         void AllSolutionsIterator::preSolution(ContractionSolution const& solution)
         {
             {
-                std::string idx = "-1";
-                auto iter = solution.info.find("SolutionIndex");
+                std::string idx  = "-1";
+                auto        iter = solution.info.find("SolutionIndex");
                 if(iter != solution.info.end())
                     idx = iter->second;
                 m_reporter->report(ResultKey::SolutionLibraryIndex, idx);
@@ -235,8 +235,8 @@ namespace Tensile
         void BestSolutionIterator::preSolution(ContractionSolution const& solution)
         {
             {
-                std::string idx = "-1";
-                auto iter = solution.info.find("SolutionIndex");
+                std::string idx  = "-1";
+                auto        iter = solution.info.find("SolutionIndex");
                 if(iter != solution.info.end())
                     idx = iter->second;
                 m_reporter->report(ResultKey::SolutionLibraryIndex, idx);

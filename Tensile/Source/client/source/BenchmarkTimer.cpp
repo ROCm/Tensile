@@ -173,7 +173,7 @@ namespace Tensile
             if(m_minFlopsPerSync > 0)
             {
                 size_t flopsInProblem = m_problem.flopCount();
-                enqueuesByFlops = CeilDivide(m_minFlopsPerSync, flopsInProblem);
+                enqueuesByFlops       = CeilDivide(m_minFlopsPerSync, flopsInProblem);
             }
 
             return std::max<size_t>(m_numEnqueuesPerSync, enqueuesByFlops);

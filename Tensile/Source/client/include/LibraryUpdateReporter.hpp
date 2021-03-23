@@ -48,7 +48,7 @@ namespace Tensile
                                                                        bool addComment);
 
             /// This one will not close the stream.  Useful for writing to cout.
-            LibraryUpdateReporter(std::ostream & stream, bool addComment);
+            LibraryUpdateReporter(std::ostream& stream, bool addComment);
             /// This one has shared ownership of the stream.
             LibraryUpdateReporter(std::shared_ptr<std::ostream> stream, bool addComment);
 
@@ -76,15 +76,14 @@ namespace Tensile
 
             bool m_addComment = false;
 
-            int64_t m_curSolutionIdx = -1;
+            int64_t     m_curSolutionIdx = -1;
             std::string m_curSolutionName;
-            int64_t m_curSolutionSpeed = -1;
-            bool m_curSolutionPassed = false;
+            int64_t     m_curSolutionSpeed  = -1;
+            bool        m_curSolutionPassed = false;
 
-            int64_t m_fastestSolutionIdx = -1;
+            int64_t     m_fastestSolutionIdx = -1;
             std::string m_fastestSolutionName;
-            int64_t m_fastestSolutionSpeed = -1;
-
+            int64_t     m_fastestSolutionSpeed = -1;
         };
     } // namespace Client
 } // namespace Tensile

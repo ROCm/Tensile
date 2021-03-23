@@ -40,9 +40,9 @@ namespace Tensile
         class CSVStackFile
         {
         public:
-            CSVStackFile(std::string const& filename, std::string const& separator=", ");
-            CSVStackFile(std::ostream& stream, std::string const& separator=", ");
-            CSVStackFile(std::shared_ptr<std::ostream> stream, std::string const& separator=", ");
+            CSVStackFile(std::string const& filename, std::string const& separator = ", ");
+            CSVStackFile(std::ostream& stream, std::string const& separator = ", ");
+            CSVStackFile(std::shared_ptr<std::ostream> stream, std::string const& separator = ", ");
 
             ~CSVStackFile();
 

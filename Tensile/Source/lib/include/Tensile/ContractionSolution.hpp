@@ -248,10 +248,10 @@ namespace Tensile
             size_t staggerStrideShift = 0;
             int    workGroupMapping   = 0;
 
-            size_t packBatchDims     = 0;
-            int    packSummationDims = 0;
-            int    magicDivAlg       = 1;
-            int    persistentKernel  = 0;
+            size_t packBatchDims              = 0;
+            int    packSummationDims          = 0;
+            int    magicDivAlg                = 1;
+            int    persistentKernel           = 0;
             bool   persistentKernelAlongBatch = false;
 
             bool sourceKernel = false;
