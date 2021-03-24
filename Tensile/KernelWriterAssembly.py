@@ -6095,9 +6095,14 @@ class KernelWriterAssembly(KernelWriter):
             for v in ccVgprs:
               if v is not None: self.vgprPool.checkIn(v)
           else:
-            imod.addCode("v_mfma_%s_%ux%ux%u%s%s %s[%u:%u], %s, %s, %s[%u:%u]%s" \
-                         % (miOutTypeName, kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], miInTypeName,
-                            mfma_1k, accumRegType, accStart, accEnd, aStr, bStr, accumRegType, accStart, accEnd, self.endLine))
+            if kernel["SourceSwap"]:
+              imod.addCode("v_mfma_%s_%ux%ux%u%s%s %s[%u:%u], %s, %s, %s[%u:%u]%s" \
+                          % (miOutTypeName, kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], miInTypeName,
+                              mfma_1k, accumRegType, accStart, accEnd, bStr, aStr, accumRegType, accStart, accEnd, self.endLine))
+            else:
+              imod.addCode("v_mfma_%s_%ux%ux%u%s%s %s[%u:%u], %s, %s, %s[%u:%u]%s" \
+                          % (miOutTypeName, kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], miInTypeName,
+                              mfma_1k, accumRegType, accStart, accEnd, aStr, bStr, accumRegType, accStart, accEnd, self.endLine))
 
     # release register
     if kReg is not None: self.vgprPool.checkIn(kReg)
@@ -9280,7 +9285,10 @@ class KernelWriterAssembly(KernelWriter):
 
             coordOffset1  = bIdx1 * kernel["MatrixInstN"]
             coordOffset1 += wtIdex * kernel["MatrixInstN"] *  kernel["MatrixInstBN"] * kernel["MIWaveGroup"][1]
-            coordOffset1 += vc1
+            if kernel["SourceSwap"]:
+              coordOffset1 += vc0 * 4
+            else:
+              coordOffset1 += vc1
         else:
           if kernel["LocalSplitU"] > 1:
             strideD1 = (kernel["NumThreads"]*kernel["VectorWidth"]//kernel["MacroTile0"])
@@ -9308,7 +9316,10 @@ class KernelWriterAssembly(KernelWriter):
             coordOffset0  = eIdx0  * (globalParameters["WavefrontWidth"] // kernel["MatrixInstN"]) * MFMAContinuousOutputs
             coordOffset0 += bIdx0  * kernel["MatrixInstM"]
             coordOffset0 += wtIdex * kernel["MatrixInstM"] *  kernel["MatrixInstBM"] * kernel["MIWaveGroup"][0]
-            coordOffset0 += vc0    * (4 if kernel["ProblemType"]["DataType"].isDouble() else 1)
+            if kernel["SourceSwap"]:
+              coordOffset0 += vc1
+            else:
+              coordOffset0 += vc0    * (4 if kernel["ProblemType"]["DataType"].isDouble() else 1)
         else:
           coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
 
@@ -10325,30 +10336,45 @@ class KernelWriterAssembly(KernelWriter):
       extraFields += " glc, slc, dlc"
 
     if useBuffer:
+      rv = Code.Module("Global Read")
       tailFields = "offen offset:%u"%offset
+      if offset > 4095:
+        if soffset == 0 or soffset == "0":
+          tailFields = "offen offset:0"
+          soffset = sgpr(self.getTmpSgpr(1).idx())
+          rv.addCode(inst("s_mov_b32", soffset, offset, "large offset"))
+        else:
+          assert 0, "offset too large and soffset set"
       if extraFields != "":
         tailFields += ", %s"% extraFields
       if bpl==1 and hi16:
-        return Code.GlobalReadInst("buffer_load_ubyte_d16_hi", vgpr(destVgpr, rpv*4), addr0, \
-                  addr1, soffset, tailFields, comment)
+        rv.addCode(Code.GlobalReadInst("buffer_load_ubyte_d16_hi", vgpr(destVgpr, rpv*4), addr0, \
+                  addr1, soffset, tailFields, comment))
+        return rv
       elif bpl==1 and not hi16:
-        return Code.GlobalReadInst("buffer_load_ubyte_d16", vgpr(destVgpr, rpv*4), addr0, \
-                  addr1, soffset, tailFields, comment)
+        rv.addCode(Code.GlobalReadInst("buffer_load_ubyte_d16", vgpr(destVgpr, rpv*4), addr0, \
+                  addr1, soffset, tailFields, comment))
+        return rv
       elif bpl==2 and hi16:
-        return Code.GlobalReadInst("buffer_load_short_d16_hi", vgpr(destVgpr, rpv*2), addr0, \
-                  addr1, soffset, tailFields, comment)
+        rv.addCode(Code.GlobalReadInst("buffer_load_short_d16_hi", vgpr(destVgpr, rpv*2), addr0, \
+                  addr1, soffset, tailFields, comment))
+        return rv
       elif bpl==2 and not hi16:
-        return Code.GlobalReadInst("buffer_load_short_d16", vgpr(destVgpr, rpv*2), addr0, \
-                  addr1, soffset, tailFields, comment)
+        rv.addCode(Code.GlobalReadInst("buffer_load_short_d16", vgpr(destVgpr, rpv*2), addr0, \
+                  addr1, soffset, tailFields, comment))
+        return rv
       elif bpl==4:
-        return Code.GlobalReadInst("buffer_load_dword", vgpr(destVgpr, rpv), addr0, \
-                  addr1, soffset, tailFields, comment)
+        rv.addCode(Code.GlobalReadInst("buffer_load_dword", vgpr(destVgpr, rpv), addr0, \
+                  addr1, soffset, tailFields, comment))
+        return rv
       elif bpl==8:
-        return Code.GlobalReadInst("buffer_load_dwordx2", vgpr(destVgpr, rpv), addr0, \
-                  addr1, soffset, tailFields, comment)
+        rv.addCode(Code.GlobalReadInst("buffer_load_dwordx2", vgpr(destVgpr, rpv), addr0, \
+                  addr1, soffset, tailFields, comment))
+        return rv
       elif bpl==16:
-        return Code.GlobalReadInst("buffer_load_dwordx4", vgpr(destVgpr, rpv), addr0, \
-                  addr1, soffset, tailFields, comment)
+        rv.addCode(Code.GlobalReadInst("buffer_load_dwordx4", vgpr(destVgpr, rpv), addr0, \
+                  addr1, soffset, tailFields, comment))
+        return rv
       elif bpl==32:
         # split into two dwordx4 loads. Second load offset is +0.5 bpl
         tailFields1 = "offen offset:%u"%(offset + bpl/2)
@@ -10360,10 +10386,10 @@ class KernelWriterAssembly(KernelWriter):
                   addr1, soffset, tailFields, comment))
         rv.addCode(Code.GlobalReadInst("buffer_load_dwordx4", vgpr(int(destVgpr + rpv/2), rpv/2), addr0, \
                   addr1, soffset, tailFields1, comment))
-        return rv
-
       else:
         assert 0, "chooseGlobalRead: bad bpl"
+
+      return rv
 
     else:
       if bpl==2 and hi16:
@@ -10391,28 +10417,34 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     if useBuffer:
+      tmpSgpr = 0
+      if offset > 4095:
+        tmpSgpr = sgpr(self.getTmpSgpr(1).idx())
+        kStr += inst("s_mov_b32", tmpSgpr, offset, "large offset")
+        offset = 0
+
       if bps==2 and hi16:
         kStr += inst("buffer_store_short_d16_hi", vgpr(srcVgpr, rpv*2), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "store D")
+                  addr1, tmpSgpr, "offen", "offset:%u"%offset, extraFields, "store D")
       elif bps==2 and not hi16:
         kStr += inst("buffer_store_short", vgpr(srcVgpr, rpv*2), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "store D")
+                  addr1, tmpSgpr, "offen", "offset:%u"%offset, extraFields, "store D")
       elif bps==4:
         kStr += inst("buffer_store_dword", vgpr(srcVgpr, rpv), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "store D")
+                  addr1, tmpSgpr, "offen", "offset:%u"%offset, extraFields, "store D")
       elif bps==8:
         kStr += inst("buffer_store_dwordx2", vgpr(srcVgpr, rpv), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "store D")
+                  addr1, tmpSgpr, "offen", "offset:%u"%offset, extraFields, "store D")
       elif bps==16:
         kStr += inst("buffer_store_dwordx4", vgpr(srcVgpr, rpv), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "store D")
+                  addr1, tmpSgpr, "offen", "offset:%u"%offset, extraFields, "store D")
       elif bps == 32:
         # split into two dwordx4 loads. Offset the second by +0.5 bps
         kStr += inst("buffer_store_dwordx4", vgpr(srcVgpr, rpv/2), addr0, \
-                  addr1, 0, "offen", "offset:%u"%offset, extraFields, "store D")
+                  addr1, tmpSgpr, "offen", "offset:%u"%offset, extraFields, "store D")
 
         kStr += inst("buffer_store_dwordx4", vgpr(int(srcVgpr +rpv/2), rpv/2), addr0, \
-                  addr1, 0, "offen", "offset:%u"%(int(offset+bps/2)), extraFields, "store D")
+                  addr1, tmpSgpr, "offen", "offset:%u"%(int(offset+bps/2)), extraFields, "store D")
       else:
         assert 0, "bad bps"
     else:
@@ -11681,16 +11713,28 @@ class KernelWriterAssembly(KernelWriter):
         acc2arch[i] = i
         arch2acc[i] = i
     else:
-      OutputsPerMFMA1B = kernel["MatrixInstM"] * kernel["MatrixInstN"] // globalParameters["WavefrontWidth"] * kernel["MIRegPerOut"]
-      for wgIdx1 in range(0, kernel["MIWaveTile"][1]):
-        for wgIdx0 in range(0, kernel["MIWaveTile"][0]):
-          for bIdx1 in range(0, kernel["MatrixInstBN"]):
-            for bIdx0 in range(0, kernel["MatrixInstBM"]):
-              for tIdx in range(0, OutputsPerMFMA1B):
-                src = tIdx + OutputsPerMFMA1B * (bIdx0 + kernel["MatrixInstBM"] * (bIdx1 + kernel["MatrixInstBN"] * (wgIdx0 + kernel["MIWaveTile"][0] * wgIdx1)))
-                dst = tIdx + OutputsPerMFMA1B * (bIdx0 + kernel["MatrixInstBM"] * (wgIdx0 + kernel["MIWaveTile"][0] * (bIdx1 + kernel["MatrixInstBN"] * wgIdx1)))
+      if kernel["SourceSwap"]:
+        OutputsPerMFMA = kernel["MatrixInstM"] * kernel["MatrixInstN"] // globalParameters["WavefrontWidth"]
+        for wgIdx1 in range(0, kernel["MIWaveTile"][1]):
+          for tIdx1 in range(0, OutputsPerMFMA):
+            for wgIdx0 in range(0, kernel["MIWaveTile"][0]):
+              for tIdx0 in range(0, kernel["MIRegPerOut"]):
+                # TODO MatrixInstBM and BN support
+                src = tIdx0 + kernel["MIRegPerOut"] * (tIdx1 + OutputsPerMFMA * (wgIdx0 + kernel["MIWaveTile"][0] * wgIdx1))
+                dst = tIdx0 + kernel["MIRegPerOut"] * (wgIdx0 + kernel["MIWaveTile"][0] * (tIdx1 + OutputsPerMFMA * wgIdx1))
                 acc2arch[src] = dst
                 arch2acc[dst] = src
+      else:
+        OutputsPerMFMA1B = kernel["MatrixInstM"] * kernel["MatrixInstN"] // globalParameters["WavefrontWidth"] * kernel["MIRegPerOut"]
+        for wgIdx1 in range(0, kernel["MIWaveTile"][1]):
+          for wgIdx0 in range(0, kernel["MIWaveTile"][0]):
+            for bIdx1 in range(0, kernel["MatrixInstBN"]):
+              for bIdx0 in range(0, kernel["MatrixInstBM"]):
+                for tIdx in range(0, OutputsPerMFMA1B):
+                  src = tIdx + OutputsPerMFMA1B * (bIdx0 + kernel["MatrixInstBM"] * (bIdx1 + kernel["MatrixInstBN"] * (wgIdx0 + kernel["MIWaveTile"][0] * wgIdx1)))
+                  dst = tIdx + OutputsPerMFMA1B * (bIdx0 + kernel["MatrixInstBM"] * (wgIdx0 + kernel["MIWaveTile"][0] * (bIdx1 + kernel["MatrixInstBN"] * wgIdx1)))
+                  acc2arch[src] = dst
+                  arch2acc[dst] = src
 
     return acc2arch, arch2acc
 

@@ -3194,6 +3194,17 @@ class Solution:
       else:
         state["StoreRemapVectorWidth"] = defaultRemap
 
+    if state["SourceSwap"]:
+      if not state["EnableMatrixInstruction"]:
+        reject(state, "SourceSwap only applies to MatrixInstruction kernels")
+        return
+      if not state["ProblemType"]["DataType"].isDouble():
+        reject(state, "SourceSwap currently only available for dgemm")
+        return
+      if state["StoreRemapVectorWidth"]:
+        reject(state, "SourceSwap not compatibile with StoreRemap")
+        return
+
     #check not support cases and calculate lds resources
     if state["StoreRemapVectorWidth"]:
       if not state["EnableMatrixInstruction"]:
