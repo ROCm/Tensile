@@ -104,7 +104,6 @@ function(TensileCreateLibraryFiles
 
   # Single value settings
   set(oneValueArgs
-       ARCHITECTURE
        CODE_OBJECT_VERSION
        COMPILER
        COMPILER_PATH
@@ -115,7 +114,11 @@ function(TensileCreateLibraryFiles
        VAR_PREFIX
        )
 
-  set(multiValueArgs "")
+  # Multi value settings
+  set(multiValueArgs
+       ARCHITECTURE
+       )
+
   cmake_parse_arguments(Tensile "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
   if(Tensile_UNPARSED_ARGUMENTS)
@@ -184,7 +187,8 @@ function(TensileCreateLibraryFiles
   endif()
 
   if(Tensile_ARCHITECTURE)
-    set(Options ${Options} "--architecture=${Tensile_ARCHITECTURE}")
+    string (REPLACE ";" "\\\\\\\;" archString "${Tensile_ARCHITECTURE}")
+    set(Options ${Options} "--architecture=${archString}")
   endif()
 
   if(Tensile_LIBRARY_FORMAT)
@@ -212,10 +216,12 @@ function(TensileCreateLibraryFiles
       # Create the manifest file of the output libraries.
       set(Tensile_CREATE_MANIFEST_COMMAND ${CommandLine} "--generate-manifest-and-exit")
       set(Tensile_MANIFEST_FILE_PATH "${Tensile_OUTPUT_PATH}/library/TensileManifest.txt")
+      message(STATUS "Tensile_MANIFEST_FILE_PATH: ${Tensile_MANIFEST_FILE_PATH}")
 
       execute_process(
         COMMAND ${Tensile_CREATE_MANIFEST_COMMAND}
-        RESULT_VARIABLE Tensile_CREATE_MANIFEST_RESULT)
+        RESULT_VARIABLE Tensile_CREATE_MANIFEST_RESULT
+        COMMAND_ECHO STDOUT)
 
       if(Tensile_CREATE_MANIFEST_RESULT OR (NOT EXISTS ${Tensile_MANIFEST_FILE_PATH}))
         message(FATAL_ERROR "Error creating Tensile library: ${Tensile_CREATE_MANIFEST_RESULT}")
@@ -228,6 +234,7 @@ function(TensileCreateLibraryFiles
         COMMENT "Generating Tensile Libraries"
         OUTPUT ${Tensile_EMBED_LIBRARY_SOURCE};${Tensile_MANIFEST_CONTENTS}
         COMMAND ${CommandLine}
+        COMMAND_ECHO STDOUT
       )
 
       set("${Tensile_VAR_PREFIX}_ALL_FILES" ${Tensile_MANIFEST_CONTENTS} PARENT_SCOPE)
