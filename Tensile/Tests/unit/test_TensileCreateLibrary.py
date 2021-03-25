@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2020-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -61,12 +61,12 @@ def test_generateSolutions():
     hardcodedParametersFilePath = os.path.join(dataDir, "library_data", "hardcodedParameters.yaml")
     initialSolutionParametersFilePath = os.path.join(dataDir, "library_data", "initialSolutionParameters.yaml")
 
-    problemType = LibraryIO.readConfig(problemTypeFilePath)["ProblemType"]
+    problemType = LibraryIO.readYAML(problemTypeFilePath)["ProblemType"]
     problemTypeObject = SolutionStructs.ProblemType(problemType)
-    hardcodedParameters = LibraryIO.readConfig(hardcodedParametersFilePath)
-    initialSolutionParameters = LibraryIO.readConfig(initialSolutionParametersFilePath)
+    hardcodedParameters = LibraryIO.readYAML(hardcodedParametersFilePath)
+    initialSolutionParameters = LibraryIO.readYAML(initialSolutionParametersFilePath)
 
-    solutionList = BenchmarkProblems.generateForkedSolutions (problemTypeObject, hardcodedParameters, [initialSolutionParameters])
+    solutionList = BenchmarkProblems.generateForkedSolutions(problemTypeObject, hardcodedParameters, [initialSolutionParameters])
 
     assert len(solutionList) == 2
 
@@ -78,7 +78,7 @@ def test_loadSolutions(caplog):
     dataDir = os.path.realpath(os.path.join(scriptDir, "..", "test_data", "unit"))
     solutionsFilePath = os.path.join(dataDir, "solutions", "solutions_nn_3.yaml")
 
-    fileSolutions = LibraryIO.readSolutions(solutionsFilePath)
+    fileSolutions = LibraryIO.parseSolutionsFile(solutionsFilePath)
     solutions = fileSolutions[1]
     kernels, _, _ = TensileCreateLibrary.generateKernelObjectsFromSolutions(solutions)
     assert len(solutions) == 3
@@ -128,7 +128,7 @@ def test_WriteClientLibraryFromSolutions(tmpdir):
     dataDir = os.path.realpath(os.path.join(scriptDir, "..", "test_data", "unit"))
     solutionsFilePath = os.path.join(dataDir, "solutions", "solutions_nn_3.yaml")
 
-    fileSolutions = LibraryIO.readSolutions(solutionsFilePath)
+    fileSolutions = LibraryIO.parseSolutionsFile(solutionsFilePath)
     solutions = fileSolutions[1]
 
     Common.setWorkingPath(buildWorkingPath)
@@ -183,7 +183,7 @@ def test_CreateBenchmarkClientParametersForSizes(tmpdir):
     metadataFilepath = os.path.join(libraryPath, "metadata.yaml")
 
 
-    metadataFile = LibraryIO.readConfig(metadataFilepath)
+    metadataFile = LibraryIO.readYAML(metadataFilepath)
     problemTypeDict = metadataFile["ProblemType"]
     sizes = [{"Exact": [196, 256, 64, 1024]}]
     problemSizes = SolutionStructs.ProblemSizes(problemTypeDict, sizes)
@@ -193,7 +193,3 @@ def test_CreateBenchmarkClientParametersForSizes(tmpdir):
     ClientWriter.CreateBenchmarkClientParametersForSizes(testDataPath, problemSizes, dataFilePath, configFile)
 
     assert os.path.exists(configFile) == 1
-
-
-
-

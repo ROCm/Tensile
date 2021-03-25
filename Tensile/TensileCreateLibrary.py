@@ -1253,7 +1253,7 @@ def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, 
   newLibrary = MasterSolutionLibrary.BenchmarkingLibrary(solutions)
   newLibrary.applyNaming(kernelMinNaming)
 
-  LibraryIO.YAMLWriter().write(newLibraryFile, Utils.state(newLibrary))
+  LibraryIO.writeYAML(newLibraryFile, Utils.state(newLibrary))
 
   return (codeObjectFiles, newLibrary)
 
@@ -1273,7 +1273,7 @@ def WriteClientLibraryFromSolutions(solutionList, libraryWorkingPath, tensileSou
   mataDataFilePath = os.path.join(effectiveWorkingPath, 'metadata.yaml')
 
   metaData = {"ProblemType":problemType}
-  LibraryIO.YAMLWriter().write(mataDataFilePath, metaData)
+  LibraryIO.writeYAML(mataDataFilePath, metaData)
 
   codeObjectFiles, newLibrary = writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutionList, cxxCompiler )
 
@@ -1414,7 +1414,7 @@ def TensileCreateLibrary():
   solutions = []
   logicData = {} # keys are problemTypes, values are schedules
 
-  libraries = Common.ParallelMap(LibraryIO.readLibraryLogicForSchedule, logicFiles, "Reading logic files")
+  libraries = Common.ParallelMap(LibraryIO.parseLibraryLogicFile, logicFiles, "Reading logic files")
 
   masterLibraries = {}
   fullMasterLibrary = None
@@ -1422,34 +1422,27 @@ def TensileCreateLibrary():
     (scheduleName, deviceNames, problemType, solutionsForSchedule, \
        indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) = logic
 
-    if not globalParameters["PackageLibrary"]:
-      if fullMasterLibrary is None:
-        fullMasterLibrary = deepcopy(newLibrary)
-        fullMasterLibrary.version = args.version
-      else:
-        fullMasterLibrary.merge(deepcopy(newLibrary))
-
-    if globalParameters["PackageLibrary"]:
-      if architectureName in masterLibraries:
-        masterLibraries[architectureName].merge(deepcopy(newLibrary))
-      else:
-        masterLibraries[architectureName] = deepcopy(newLibrary)
-
-    if problemType not in logicData:
-      logicData[problemType] = []
-    logicData[problemType].append((scheduleName, deviceNames, \
-        solutionsForSchedule, indexOrder, exactLogic, rangeLogic ))
-    for solution in solutionsForSchedule:
-      if solution not in solutions:
-        solutions.append(solution)
-
     if globalParameters["PackageLibrary"]:
       if architectureName in masterLibraries:
         masterLibraries[architectureName].merge(deepcopy(newLibrary))
       else:
         masterLibraries[architectureName] = deepcopy(newLibrary)
         masterLibraries[architectureName].version = args.version
+    else:
+      if fullMasterLibrary is None:
+        fullMasterLibrary = deepcopy(newLibrary)
+        fullMasterLibrary.version = args.version
+      else:
+        fullMasterLibrary.merge(deepcopy(newLibrary))
 
+    if problemType not in logicData:
+      logicData[problemType] = []
+    logicData[problemType].append((scheduleName, deviceNames, \
+        solutionsForSchedule, indexOrder, exactLogic, rangeLogic ))
+
+    for solution in solutionsForSchedule:
+      if solution not in solutions:
+        solutions.append(solution)
 
   kernels, kernelHelperOjbs, _ = generateKernelObjectsFromSolutions(solutions)
 
@@ -1523,28 +1516,28 @@ def TensileCreateLibrary():
              if globalParameters["AsmCaps"][arch]["SupportedISA"]]
   newLibraryDir = ensurePath(os.path.join(outputPath, 'library'))
 
-  libraryWriter = LibraryIO.configWriter(args.LibraryFormat)
-  tensileLibraryFilename = "TensileLibrary.yaml" if args.LibraryFormat == "yaml" \
-                           else "TensileLibrary.dat"
   if globalParameters["PackageLibrary"]:
     for archName, newMasterLibrary in masterLibraries.items():
       if (archName in archs):
         archPath = ensurePath(os.path.join(newLibraryDir, archName))
-        masterFile = os.path.join(archPath, tensileLibraryFilename)
+        masterFile = os.path.join(archPath, "TensileLibrary")
         newMasterLibrary.applyNaming(kernelMinNaming)
-        libraryWriter.write(masterFile, Utils.state(newMasterLibrary))
+        LibraryIO.write(masterFile, Utils.state(newMasterLibrary), args.LibraryFormat)
   else:
-    masterFile = os.path.join(newLibraryDir, tensileLibraryFilename)
+    masterFile = os.path.join(newLibraryDir, "TensileLibrary")
     fullMasterLibrary.applyNaming(kernelMinNaming)
-    libraryWriter.write(masterFile, Utils.state(fullMasterLibrary))
+    LibraryIO.write(masterFile, Utils.state(fullMasterLibrary), args.LibraryFormat)
 
   theMasterLibrary = fullMasterLibrary
   if globalParameters["PackageLibrary"]:
     theMasterLibrary = list(masterLibraries.values())[0]
+
   if args.EmbedLibrary is not None:
       embedFileName = os.path.join(outputPath, "library/{}.cpp".format(args.EmbedLibrary))
       with EmbeddedData.EmbeddedDataFile(embedFileName) as embedFile:
-          embedFile.embed_file(theMasterLibrary.cpp_base_class, masterFile, nullTerminated=True,
+
+          ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
+          embedFile.embed_file(theMasterLibrary.cpp_base_class, masterFile + ext, nullTerminated=True,
                                key=args.EmbedLibraryKey)
 
           for co in Utils.tqdm(codeObjectFiles):

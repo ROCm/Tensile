@@ -130,7 +130,7 @@ def main( config ):
   for logicFileName in logicFiles:
     (scheduleName, deviceNames, problemType, solutionsForType, \
         indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) \
-        = LibraryIO.readLibraryLogicForSchedule(logicFileName)
+        = LibraryIO.parseLibraryLogicFile(logicFileName)
     if problemType["DataType"].isHalf():
         enableHalf = True
     functions.append((scheduleName, problemType))
@@ -734,7 +734,7 @@ def CreateBenchmarkClientParametersForSizes(libraryRootPath, problemSizes, dataF
       metaDataFilePath = os.path.join(libraryPath, "metadata.yaml")
       if not os.path.exists(metaDataFilePath):
         printExit ("meta data file %s does not exist" % metaDataFilePath)
-      metaData = LibraryIO.readConfig(metaDataFilePath)
+      metaData = LibraryIO.readYAML(metaDataFilePath)
       problemTypeDict = metaData["ProblemType"]
       problemType = ContractionsProblemType.FromOriginalState(problemTypeDict)
 

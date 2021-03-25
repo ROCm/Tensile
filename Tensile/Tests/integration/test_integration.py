@@ -124,7 +124,7 @@ def test_integration(useGlobalParameters, builddir, getLogicFileDir,
     clientParametersPaths = []
     isaStr = "".join([str(e) for e in Common.globalParameters["CurrentISA"]])
     for logicFileName in logicFiles:
-      (scheduleName, _, problemType, _, _, exactLogic, _, newLibrary, archName) = LibraryIO.readLibraryLogicForSchedule(logicFileName)
+      (scheduleName, _, problemType, _, _, exactLogic, _, newLibrary, archName) = LibraryIO.parseLibraryLogicFile(logicFileName)
       problemSizes = ProblemSizesMock(random.sample(exactLogic, min(len(exactLogic), 16))) # sample at most 16 problems
       if isaStr in archName:
         clientParametersPaths.append(ClientWriter.writeClientConfig(
