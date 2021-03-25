@@ -26,10 +26,6 @@ import argparse
 from copy import deepcopy
 from collections import defaultdict
 from enum import Enum
-<<<<<<< HEAD
-=======
-import pdb
->>>>>>> 444a13dde92b0edded5a49d67aff9ba4d7c3ed22
 
 verbosity = 1
 
@@ -172,11 +168,7 @@ class SolutionUpdate(Enum):
     Append =1
     Reject =2
 
-<<<<<<< HEAD
 # returns (action[, replacedIndex]) or None if nothing is replaced
-=======
-# returns (efficiency[, replacedIndex]) or None if nothing is replaced
->>>>>>> 444a13dde92b0edded5a49d67aff9ba4d7c3ed22
 def findOriginalSolutionToUpdate(incSolution, incSize, incEff, origSolutionData, origSolutionDict, forceMerge, includeKernelVariants = False):
     try:
         origSolutions = origSolutionDict[tuple(incSize)]
@@ -255,18 +247,10 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True, includeKernelVarian
         if result == SolutionUpdate.Append:
             solutionPool, kernelIndex = addKernel(solutionPool, incSolution)
             solutionMap.append([incSize,[kernelIndex, incEff]])
-<<<<<<< HEAD
-=======
-            #pdb.set_trace()
->>>>>>> 444a13dde92b0edded5a49d67aff9ba4d7c3ed22
         elif result == SolutionUpdate.Replace:
             assert(index)
             replacedIndex = index[0]
             solutionPool, kernelIndex = addKernel(solutionPool, incSolution)
-<<<<<<< HEAD
-=======
-            pdb.set_trace()
->>>>>>> 444a13dde92b0edded5a49d67aff9ba4d7c3ed22
             solutionMap[replacedIndex][1] = [kernelIndex, incEff]
 
     verbose(numOrigRemoved, "unused kernels removed from base logic file")
