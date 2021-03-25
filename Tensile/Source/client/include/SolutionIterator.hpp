@@ -129,22 +129,19 @@ namespace Tensile
         class AllSolutionsIterator : public SolutionIterator
         {
         public:
-            enum class TestResult : int
+            enum class FilterTest : int
             {
-                Run,
-                LowGranularity,
-                LowMemoryThroughput
+                Granularity,
+                MemoryThroughput
             };
             struct FilterResult
             {
-                TestResult reason;
-                double     value;
-                double     thresh;
+                FilterTest  test;
+                bool        passed;
+                std::string msg;
             };
-            using TR = TestResult;
-            using FR = FilterResult;
 
-            using RunCriteria = std::vector<std::function<FR(
+            using RunCriteria = std::vector<std::function<FilterResult(
                 ContractionProblem const&, Hardware const&, ContractionSolution const&)>>;
 
             static RunCriteria
@@ -179,10 +176,6 @@ namespace Tensile
             bool        m_criteriaVerify;
             RunCriteria m_runCriteria;
         };
-
-        std::string   ToString(AllSolutionsIterator::TR tr);
-        std::string   TypeAbbrev(AllSolutionsIterator::TR tr);
-        std::ostream& operator<<(std::ostream& stream, AllSolutionsIterator::TR const& tr);
 
         class BestSolutionIterator : public SolutionIterator
         {

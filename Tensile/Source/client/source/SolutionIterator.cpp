@@ -128,15 +128,15 @@ namespace Tensile
                 criteria.push_back([=](ContractionProblem const&  problem,
                                        Hardware const&            hardware,
                                        ContractionSolution const& solution) {
-                    auto   projPerf  = solution.projectedPerformance(problem, hardware);
-                    double totalGran = projPerf.totalGranularity;
+                    auto   grans = solution.projectedPerformance(problem, hardware).granularities;
+                    double totalGran = grans.totalGranularity;
 
-                    // For CUEfficiency benchmarking, low CU granularity is OK
+                    // For CUEfficiency benchmarking, low CU granularity is OK (even desired)
                     if(perfMetric == PerformanceMetric::CUEfficiency)
-                        totalGran /= projPerf.cuGranularity;
+                        totalGran /= grans.cuGranularity;
 
-                    TestResult tr = (totalGran >= granThresh) ? TR::Run : TR::LowGranularity;
-                    return FR{tr, totalGran, granThresh};
+                    std::string msg = "gran:" + std::to_string(totalGran);
+                    return FilterResult{FilterTest::Granularity, totalGran >= granThresh, msg};
                 });
             }
             if(memThresh > 0.0)
@@ -144,9 +144,7 @@ namespace Tensile
                 criteria.push_back([=](ContractionProblem const&  problem,
                                        Hardware const&            hardware,
                                        ContractionSolution const& solution) {
-                    // TODO need: memory readBW and numChannels
-                    // TODO get ALU from yaml file
-                    size_t K   = problem.boundSize(0); // TODO - fix for multiple summations
+                    size_t K   = problem.boundSize(0); // TODO - fix for multiple summations?
                     size_t GSU = solution.sizeMapping.globalSplitU;
                     size_t LSU = solution.sizeMapping.workGroupSize.z;
                     size_t MT0 = solution.sizeMapping.macroTile.x;
@@ -164,21 +162,11 @@ namespace Tensile
                     double l2SpeedPerCU   = l2Speed / perf.CUs; // bytes / CU / cycle
                     double memToCompRatio = l2SpeedPerCU / roofline;
 
-                    TestResult tr
-                        = (memToCompRatio >= memThresh) ? TR::Run : TR::LowMemoryThroughput;
-                    return FR{tr, memToCompRatio, memThresh};
+                    std::string msg = "mem:" + std::to_string(memToCompRatio);
+                    return FilterResult{
+                        FilterTest::MemoryThroughput, memToCompRatio >= memThresh, msg};
                 });
             }
-            // if(minLDSUtil > 0.0)
-            // {
-            //     criteria.push_back([minLDSUtil](ContractionProblem const&  problem,
-            //                                     Hardware const&            hardware,
-            //                                     ContractionSolution const& solution) {
-            //         // TODO get actual LDS used by kernel
-            //         double LDSUtil = 1.0;
-            //         return LDSUtil >= minLDSUtil;
-            //     });
-            // }
             return criteria;
         }
 
@@ -271,60 +259,23 @@ namespace Tensile
 
             for(auto const& criterion : m_runCriteria)
             {
-                FR fr = criterion(m_problem, *m_hardware, *solution);
-                if(fr.value < fr.thresh)
+                FilterResult fr = criterion(m_problem, *m_hardware, *solution);
+                if(!fr.passed)
                 {
                     m_numSolutionsSkipped++;
                     if(m_criteriaVerify)
                     {
-                        m_reporter->report(ResultKey::WouldSkip,
-                                           TypeAbbrev(fr.reason) + ":" + std::to_string(fr.value));
+                        m_reporter->report(ResultKey::WouldSkip, fr.msg);
                         return true;
                     }
                     else
                     {
-                        m_reporter->report(ResultKey::Validation,
-                                           "SKIPPED: " + ToString(fr.reason));
+                        m_reporter->report(ResultKey::Validation, "SKIPPED: " + fr.msg);
                         return false;
                     }
                 }
             }
             return true;
-        }
-
-        std::string ToString(AllSolutionsIterator::TR tr)
-        {
-            switch(tr)
-            {
-            case AllSolutionsIterator::TR::Run:
-                return "Run";
-            case AllSolutionsIterator::TR::LowGranularity:
-                return "LowGranularity";
-            case AllSolutionsIterator::TR::LowMemoryThroughput:
-                return "LowMemoryThroughput";
-            default:;
-            }
-            return "Invalid";
-        }
-
-        std::string TypeAbbrev(AllSolutionsIterator::TR tr)
-        {
-            switch(tr)
-            {
-            case AllSolutionsIterator::TR::Run:
-                return "run";
-            case AllSolutionsIterator::TR::LowGranularity:
-                return "grn";
-            case AllSolutionsIterator::TR::LowMemoryThroughput:
-                return "mem";
-            default:;
-            }
-            return "Invalid";
-        }
-
-        std::ostream& operator<<(std::ostream& stream, const AllSolutionsIterator::TR& tr)
-        {
-            return stream << ToString(tr);
         }
 
         BestSolutionIterator::BestSolutionIterator(
