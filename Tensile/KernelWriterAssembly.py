@@ -427,7 +427,7 @@ class PreLoopVmcntCase(Enum):
   Undefined = 0
   Basic_Load = 1
   OptNLL_Store = 2
-  OrdNLL_B0_Store = 3
+  OrdNLL_E1_Store = 3
   OrdNLL_B1_Store = 4
 
 ################################################################################
@@ -1144,25 +1144,25 @@ class KernelWriterAssembly(KernelWriter):
     #
     # a dictionary storing the vmcnt numbers for each case:
     # case 1: first PK-Loop (no previous store), cnt = #-basic-globalload
-    # case 2: after Opt.NLL (no Beta), cnt = #-prev-store (no beta,edge) +  #-basic-globalload
-    # case 3: after Ord.NLL (no Beta), cnt = #-prev-store (no beta) +  #-basic-globalload
+    # case 2: after Opt.NLL (no Beta), cnt = #-prev-store (no beta,no edge) +  #-basic-globalload
+    # case 3: after Ord.NLL (with Edge but No Beta), cnt = #-prev-store (edge store) +  #-basic-globalload
     # case 4: after Ord.NLL (with Beta), cnt = no needed for vmcnt
     self.preLoopVmcntDict = { \
       PreLoopVmcntCase.Basic_Load:0, \
       PreLoopVmcntCase.OptNLL_Store:0, \
-      PreLoopVmcntCase.OrdNLL_B0_Store:0 }
+      PreLoopVmcntCase.OrdNLL_E1_Store:0 }
       # Case4: No need to count store vmcnt for next PreLoop since OrdNLL_B1_Store already has vmcnts waiting for loading beta
       # PreLoopVmcntCase.OrdNLL_B1_Store:0 }
 
     # a dictionary storing the keywords to be replaced for each case:
     # case 1: replace the vmcnt("Basic_Load") with vmcnt(N)
     # case 2: replace the vmcnt("OptNLL_Store" + "Basic_Load") with vmcnt(M1+N)
-    # case 3: replace the vmcnt("OrdNLL_B0_Store" + "Basic_Load") with vmcnt(M2+N)
+    # case 3: replace the vmcnt("OrdNLL_E1_Store" + "Basic_Load") with vmcnt(M2+N)
     # case 4: s_waitcnt vmcnt will be removed, no need to replace
     self.preLoopCaseToReplaceKWList = { \
       PreLoopVmcntCase.Basic_Load     :[PreLoopVmcntCase.Basic_Load], \
       PreLoopVmcntCase.OptNLL_Store   :[PreLoopVmcntCase.Basic_Load, PreLoopVmcntCase.OptNLL_Store], \
-      PreLoopVmcntCase.OrdNLL_B0_Store:[PreLoopVmcntCase.Basic_Load, PreLoopVmcntCase.OrdNLL_B0_Store] }
+      PreLoopVmcntCase.OrdNLL_E1_Store:[PreLoopVmcntCase.Basic_Load, PreLoopVmcntCase.OrdNLL_E1_Store] }
       # PreLoopVmcntCase.OrdNLL_B1_Store:[PreLoopVmcntCase.Basic_Load, PreLoopVmcntCase.OrdNLL_B1_Store] }
 
     self.useManualVmcnt = False
@@ -7781,10 +7781,10 @@ class KernelWriterAssembly(KernelWriter):
       return imod, tmpCheckedOutVgprA, tmpCheckedOutVgprB
 
     # Opt for PAP waitcnt, 4 cases:
-    # one for the first PK-loop, one for Opt-NLL, one for Ord-NLL, No beta / one for Beta
+    # one for the first PK-loop, one for Opt-NLL, one for Edge, one for Beta
     basic_gl_Label = self.getNamedLabel("Basic_GL_Label")
     optNLL_lw_Label = self.getNamedLabel("OptNLL_LW_Label")
-    ordNLL_B0_lw_Label = self.getNamedLabel("OrdNLL_B0_LW_Label")
+    ordNLL_E1_lw_Label = self.getNamedLabel("OrdNLL_E1_LW_Label")
     ordNLL_B1_lw_Label = self.getNamedLabel("OrdNLL_B1_LW_Label")
     lwEnd_Label = self.getNamedLabel("PreLoopLWEnd")
 
@@ -7813,10 +7813,11 @@ class KernelWriterAssembly(KernelWriter):
 
     BranchMod.addInst("s_cmp_eq_u32", sgpr("PreLoopLWVmcntCase"), hex(2), "Case 2: Prev PK-Loop is Opt-NLL?")
     BranchMod.addInst("s_cbranch_scc1", optNLL_lw_Label, "jump to Case 2")
-    BranchMod.addInst("s_cmp_eq_u32", sgpr("PreLoopLWVmcntCase"), hex(3), "Case 3: Prev PK-Loop is Ord-NLL with no beta?")
-    BranchMod.addInst("s_cbranch_scc1", ordNLL_B0_lw_Label, "jump to Case 3")
-    BranchMod.addInst("s_cmp_eq_u32", sgpr("PreLoopLWVmcntCase"), hex(4), "Case 4: Prev PK-Loop is Ord-NLL with beta?")
-    BranchMod.addInst("s_cbranch_scc1", ordNLL_B1_lw_Label, "jump to Case 4")
+    BranchMod.addInst("s_cmp_eq_u32", sgpr("PreLoopLWVmcntCase"), hex(3), "Case 3: Prev PK-Loop is Ord-NLL with edge?")
+    BranchMod.addInst("s_cbranch_scc1", ordNLL_E1_lw_Label, "jump to Case 3")
+    if kernel["ProblemType"]["UseBeta"]:
+      BranchMod.addInst("s_cmp_eq_u32", sgpr("PreLoopLWVmcntCase"), hex(4), "Case 4: Prev PK-Loop is Ord-NLL with beta?")
+      BranchMod.addInst("s_cbranch_scc1", ordNLL_B1_lw_Label, "jump to Case 4")
 
     # Fast duplicate LWDoCodeTemplate four times to different placeholder keywords for later replacement (after global write)
     # can avoid calling localWriteDo() for several times
@@ -7844,26 +7845,27 @@ class KernelWriterAssembly(KernelWriter):
     LWDoCase2Mod.addInst("s_branch", lwEnd_Label, "finish case, jump to end of LW")
 
     # CASE 3:
-    # replace vmcnt("__placeholder__ + Basic_Load - Decrement") to vmcnt("OrdNLL_B0_Store + Basic_Load - Decrement")
-    currCaseKW = PreLoopVmcntCase( PreLoopVmcntCase.OrdNLL_B0_Store ).name
+    # replace vmcnt("__placeholder__ + Basic_Load - Decrement") to vmcnt("OrdNLL_E1_Store + Basic_Load - Decrement")
+    currCaseKW = PreLoopVmcntCase( PreLoopVmcntCase.OrdNLL_E1_Store ).name
     LWDoCase3Mod = imod.addCode(Code.Module(currCaseKW))
-    LWDoCase3Mod.addText("\n%s:" % ordNLL_B0_lw_Label)
+    LWDoCase3Mod.addText("\n%s:" % ordNLL_E1_lw_Label)
     LWDoCase3Mod.addComment1("prev-global-store-cnt = %s, global-load-cnt = %s"%(currCaseKW, basicVmcntKW))
     for item in codeTemplateStrList:
       LWDoCase3Mod.addText(str(item).replace("__placeholder__",currCaseKW))
     LWDoCase3Mod.addInst("s_branch", lwEnd_Label, "finish case, jump to end of LW")
 
-    # CASE 4:
-    # replace vmcnt("__placeholder__ + Basic_Load - Decrement") to vmcnt("OrdNLL_B1_Store + Basic_Load - Decrement")
-    currCaseKW = PreLoopVmcntCase( PreLoopVmcntCase.OrdNLL_B1_Store ).name
-    LWDoCase4Mod = imod.addCode(Code.Module(currCaseKW))
-    LWDoCase4Mod.addText("\n%s:" % ordNLL_B1_lw_Label)
-    # special for case 4, prev store already did vmcnt(n) for loading beta, we don't need any vmcnt here
-    # so only keep the lines without s_waitcnt vmcnt( __placeholder__ ), otherwise, discard them
-    # LWDoCase4Mod.addComment1("prev-global-store-cnt = %s, global-load-cnt = %s"%(currCaseKW, basicVmcntKW))
-    for item in codeTemplateStrList:
-      if (str(item).find("__placeholder__") == -1):
-        LWDoCase4Mod.addText(str(item))
+    if kernel["ProblemType"]["UseBeta"]:
+      # CASE 4:
+      # replace vmcnt("__placeholder__ + Basic_Load - Decrement") to vmcnt("OrdNLL_B1_Store + Basic_Load - Decrement")
+      currCaseKW = PreLoopVmcntCase( PreLoopVmcntCase.OrdNLL_B1_Store ).name
+      LWDoCase4Mod = imod.addCode(Code.Module(currCaseKW))
+      LWDoCase4Mod.addText("\n%s:" % ordNLL_B1_lw_Label)
+      # special for case 4, prev store already did vmcnt(n) for loading beta, we don't need any vmcnt here
+      # so only keep the lines without s_waitcnt vmcnt( __placeholder__ ), otherwise, discard them
+      # LWDoCase4Mod.addComment1("prev-global-store-cnt = %s, global-load-cnt = %s"%(currCaseKW, basicVmcntKW))
+      for item in codeTemplateStrList:
+        if (str(item).find("__placeholder__") == -1):
+          LWDoCase4Mod.addText(str(item))
     # End
     imod.addText("\n%s:" % lwEnd_Label)
 
@@ -7874,7 +7876,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def replacePreLoopLWVmcnt(self, kernel):
     # This replaces the vmcnt keywords with the actual number
-    # ("Basic_Load"/"OptNLL_Store"/"OrdNLL_B0_Store"/"OrdNLL_B1_Store")
+    # ("Basic_Load"/"OptNLL_Store"/"OrdNLL_E1_Store"/"OrdNLL_B1_Store")
 
     maxVmcnt = globalParameters["AsmCaps"][self.version]["MaxVmcnt"]
 
@@ -10209,22 +10211,6 @@ class KernelWriterAssembly(KernelWriter):
       if beta:
         kStr += "%s:\n"%(betaLabel)
 
-      # if len(betas) == 1, then is for OptNLL (case 2), else is OrdNLL (case 3,4)
-      if self.canOptimizePreLoopLWVmcnt:
-        if len(betas) > 1:            # betas = [False,True], OrdNLL
-          if beta:                    # case 3 = no beta / case 4 = beta
-            case = 4
-            self.currPreLoopVmcntCase = PreLoopVmcntCase.OrdNLL_B1_Store
-          else:
-            case = 3
-            self.currPreLoopVmcntCase = PreLoopVmcntCase.OrdNLL_B0_Store
-          kStr += inst("s_mov_b32", sgpr("PreLoopLWVmcntCase"), hex(case), \
-            "for optimizing next PreLoop LWVmcnt, set to Case%u: OrdNLL and %sbeta"%(case, "" if beta else "no "))
-        else:                         # betas = [False], OptNLL
-          self.currPreLoopVmcntCase = PreLoopVmcntCase.OptNLL_Store
-          kStr += inst("s_mov_b32", sgpr("PreLoopLWVmcntCase"), hex(2), \
-            "for optimizing next PreLoop LW vmcnt, set to Case2: OptNLL")
-
       ########################################
       # branch if Edge0 or Edge1
       if False in edges and True in edges:
@@ -10233,6 +10219,17 @@ class KernelWriterAssembly(KernelWriter):
       # by now we either jumped to E1 or stayed at E0
       for edge in edges:
         kStr += "%s:%s"%(writeLabels[beta][edge], self.endLine)
+
+        if self.canOptimizePreLoopLWVmcnt:
+          if beta:
+            self.currPreLoopVmcntCase = PreLoopVmcntCase.OrdNLL_B1_Store
+          elif edge:
+            self.currPreLoopVmcntCase = PreLoopVmcntCase.OrdNLL_E1_Store
+          else:
+            self.currPreLoopVmcntCase = PreLoopVmcntCase.OptNLL_Store
+          kStr += inst("s_mov_b32", sgpr("PreLoopLWVmcntCase"), hex(self.currPreLoopVmcntCase.value), \
+            "for optimizing next PreLoop LW vmcnt, set to Case%u"%self.currPreLoopVmcntCase.value)
+          self.preLoopVmcntDict[self.currPreLoopVmcntCase] = 0 #reset vmcnt
 
         # for storeRemap edge case, non-beta still can enable vector stores
         if kernel["StoreRemapVectorWidth"] and not beta:
