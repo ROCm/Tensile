@@ -196,7 +196,7 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
   logicAnalyzer.scoreLogicComplexity(rangeLogic, logicComplexity)
   print2("# Range Logic Complexity: %s" % logicComplexity)
   score = logicAnalyzer.scoreRangeForLogic( \
-      logicAnalyzer.globalIndexRange, rangeLogic)
+     logicAnalyzer.globalIndexRange, rangeLogic)
   print1("\n# Score: %.0f ms" % (score/1000))
   logicAnalyzer.prepareLogic(rangeLogic) # convert indices to sizes, -1
 
@@ -298,34 +298,15 @@ class LogicAnalyzer:
         self.exactProblemSizes.add(tuple(problem.sizes))
 
       # add ranges
-      #print "ProblemSizes", problemSizes.sizes
-      #FIXME-problem
       self.rangeProblemSizes.update([tuple(problem.sizes) for problem in problemSizes.problems])
-      for rangeSize in problemSizes.ranges:
 
-        if globalParameters["ExpandRanges"]:
-          # Treat ranges as pile of exacts:
-          for rsize in rangeSize.problemSizes:
-            self.exactProblemSizes.add(tuple(rsize))
-        else:
-          # Create the ranges info in the logic file
-          #print "RangeSize", rangeSize
-          sizedIdx = 0
-          mappedIdx = 0
-          for i in range(0, self.numIndices):
-            if rangeSize.indexIsSized[i]:
-              index = rangeSize.indicesSized[sizedIdx]
-              sizedIdx += 1
-            else:
-              index = rangeSize.indicesSized[ \
-                rangeSize.indicesMapped[mappedIdx]]
-              mappedIdx += 1
-            currentSize = index[0]
-            currentStride = index[1]
-            while currentSize <= index[3]:
-              unifiedProblemSizes[i].add(currentSize)
-              currentSize += currentStride
-              currentStride += index[2]
+      # Treat ranges as pile of exacts:
+      if not globalParameters["ExpandRanges"]:
+        printWarning("ExpandRanges=False no longer supported; treating as True")
+      for rangeSize in problemSizes.ranges:
+        for rsize in rangeSize.problemSizes:
+          self.exactProblemSizes.add(tuple(rsize))
+
     for i in range(0, len(unifiedProblemSizes)):
       unifiedProblemSizes[i] = sorted(list(unifiedProblemSizes[i]))
     print2("UnifiedProblemSizes: %s" % unifiedProblemSizes)
@@ -481,7 +462,6 @@ class LogicAnalyzer:
           else:
             self.winnersNotSkipped[problemSize] = [solutionMap[winnerIdxNotSkipped], winnerGFlopsNotSkipped]
 
-
       # Range Problem Size
       elif problemSize in self.rangeProblemSizes:
         problemIndices = []
@@ -500,13 +480,13 @@ class LogicAnalyzer:
         printExit("Huh? %s has ProblemSize %s which isn't in its yaml" \
             % ( dataFileName, list(problemSize)) )
 
-
+    ##################################################################
     # open file
-    print("reading datafile", dataFileName)
+    print1("Reading datafile " + dataFileName)
     try:
       dataFile = open(dataFileName, "r")
     except IOError:
-      printExit("Can't open \"%s\" to get data" % dataFileName )
+      printExit("Can't open \"{}\" to get data".format(dataFileName))
 
     # column indices
     csvFile = csv.reader(dataFile)
@@ -525,7 +505,7 @@ class LogicAnalyzer:
     # iterate over rows
     rowIdx = 0
     for row in csvFile:
-      rowIdx+=1
+      rowIdx += 1
       if rowIdx == 1:
         # get unit (gflops or gflops/cu) of benchmark data
         perfUnit = row[0]
@@ -534,17 +514,15 @@ class LogicAnalyzer:
         elif perfUnit == "GFlopsPerCU":
           self.perfMetric = "CUEfficiency"
         else:
-          printWarning("Performance unit %s in %s is unrecognized: assuming GFlops (device efficiency)" % (perfUnit, dataFileName))
+          printWarning("Performance unit {} in {} is unrecognized: assuming GFlops (device efficiency)".format(perfUnit, dataFileName))
           self.perfMetric = "DeviceEfficiency"
 
         # get the length of each row, and derive the first column of the solution instead of using wrong "solutionStartIdx = totalSizeIdx + 1"
         rowLength = len(row)
         solutionStartIdx = rowLength - numSolutions
-        continue
       else:
         getBestNonSkipped = True if globalParameters["RunCriteriaVerify"] else False
         getWinner(row, getBestNonSkipped)
-    #print self.data
 
 
   ##############################################################################

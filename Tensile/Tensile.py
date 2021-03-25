@@ -27,7 +27,7 @@ import os
 import sys
 import argparse
 from .Common import globalParameters, print1, ensurePath, \
-    assignGlobalParameters, restoreDefaultGlobalParameters, HR, printWarning
+    assignGlobalParameters, restoreDefaultGlobalParameters, HR, printWarning, printExit
 from . import BenchmarkProblems
 from . import ClientWriter
 from . import LibraryIO

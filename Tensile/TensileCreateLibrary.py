@@ -28,7 +28,7 @@ from . import Common
 from . import EmbeddedData
 from . import LibraryIO
 from . import Utils
-from .Common import globalParameters, HR, print1, print2, printExit, ensurePath, \
+from .Common import globalParameters, HR, print1, print2, printWarning, printExit, ensurePath, \
                     CHeader, CMakeHeader, assignGlobalParameters, \
                     listToInitializer, gfxName, architectureMap
 from .KernelWriterAssembly import KernelWriterAssembly
@@ -729,7 +729,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
                                     solutionsForSchedule, exactLogic, \
                                     solutionNamesForSchedule, True)
     if rangeLogic != None:
-      print("** warning: ignored ranges in logic file, these should have been expanded with ExpandRanges=1 during Tensile phase 3")
+      printWarning("Ignored ranges in logic file; these should have been expanded with ExpandRanges=1 during Tensile phase 3")
     s += "  /* exact mappings */\n"
     s += exactLogicStr
     s += "\n  return nullptr;\n"
