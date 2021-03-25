@@ -193,8 +193,8 @@ def rawLibraryLogic(data):
 
     dataLength = len(data)
     if dataLength > 9:
-            for idx in range(9, dataLength):
-                    otherFields.append(data[idx])
+        for idx in range(9, dataLength):
+            otherFields.append(data[idx])
 
     return (versionString, scheduleName, architectureName, deviceNames,\
             problemTypeState, solutionStates, indexOrder, exactLogic, rangeLogic, otherFields)
