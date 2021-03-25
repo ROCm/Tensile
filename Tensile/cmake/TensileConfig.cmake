@@ -234,7 +234,6 @@ function(TensileCreateLibraryFiles
         COMMENT "Generating Tensile Libraries"
         OUTPUT ${Tensile_EMBED_LIBRARY_SOURCE};${Tensile_MANIFEST_CONTENTS}
         COMMAND ${CommandLine}
-        COMMAND_ECHO STDOUT
       )
 
       set("${Tensile_VAR_PREFIX}_ALL_FILES" ${Tensile_MANIFEST_CONTENTS} PARENT_SCOPE)
