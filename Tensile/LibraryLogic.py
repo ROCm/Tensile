@@ -205,12 +205,14 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
   print1(exactLogic)
 
   for key, value in logicAnalyzer.wouldSkipWinner.items():
-    if value:
+    if value[0]: # (bool, (str, float))
       if key in logicAnalyzer.winnersNotSkipped:
-        printWarning("Winning solution would have been skipped by solution filtering criteria for problem size {} because of {}---"
-                     "{} vs {} (idx, GFlops)".format(key, logicAnalyzer.winnerSkipReason[key], logicAnalyzer.exactWinners[key], logicAnalyzer.winnersNotSkipped[key]))
+        printWarning("Winning solution would have been skipped by solution filtering criteria for "
+            "problem size {} because of {}---{} vs {} (idx, Perf)".format( \
+            key, value[1], logicAnalyzer.exactWinners[key], logicAnalyzer.winnersNotSkipped[key]))
       else:
-        printWarning("All solutions would have been skipped by solution filtering criteria for problem size {}. Winner skipped because of {}".format(key, logicAnalyzer.winnerSkipReason[key]))
+        printWarning("All solutions would have been skipped by solution filtering criteria for "
+            "problem size {}. Winner skipped because of {}".format(key, value[1]))
 
   return (problemType, logicAnalyzer.solutions, logicAnalyzer.indexOrder, \
        exactLogic, rangeLogic, selectionSolutions, selectionSolutionsIdsList, logicAnalyzer.perfMetric)
@@ -290,28 +292,28 @@ class LogicAnalyzer:
     unifiedProblemSizes = []
     for i in range(0, self.numIndices):
       unifiedProblemSizes.append(set())
+
     self.exactProblemSizes = set()
-    self.rangeProblemSizes = set()
+
+    # Treat ranges as pile of exacts:
+    if not globalParameters["ExpandRanges"]:
+      printWarning("ExpandRanges=False no longer supported; treating as True")
+
     for problemSizes in problemSizesList:
       # add exacts
       for problem in problemSizes.exacts:
         self.exactProblemSizes.add(tuple(problem.sizes))
 
       # add ranges
-      self.rangeProblemSizes.update([tuple(problem.sizes) for problem in problemSizes.problems])
-
-      # Treat ranges as pile of exacts:
-      if not globalParameters["ExpandRanges"]:
-        printWarning("ExpandRanges=False no longer supported; treating as True")
       for rangeSize in problemSizes.ranges:
         for rsize in rangeSize.problemSizes:
           self.exactProblemSizes.add(tuple(rsize))
 
     for i in range(0, len(unifiedProblemSizes)):
       unifiedProblemSizes[i] = sorted(list(unifiedProblemSizes[i]))
+
     print2("UnifiedProblemSizes: %s" % unifiedProblemSizes)
     print2("ExactProblemSizes: %s" % self.exactProblemSizes)
-    print2("RangeProblemSizes: %s" % self.rangeProblemSizes)
 
     # problem size index <-> size
     self.problemSizeToIndex = []
@@ -341,9 +343,8 @@ class LogicAnalyzer:
 
     # Each entry in exactWinners is a 2D array [solutionIdx, perf]
     self.exactWinners = {}
-    self.wouldSkipWinner = {}
-    self.winnerSkipReason = {}
     self.winnersNotSkipped = {}
+    self.wouldSkipWinner = {}
 
     """
     # map problem sizes -> index
@@ -401,84 +402,72 @@ class LogicAnalyzer:
   ##############################################################################
   def addFromCSV(self, dataFileName, numSolutions, solutionMap):
 
-    def getWinner(row, bestNonSkipped):
+    def getWinner(row, runCriteriaVerify):
       # get problem size
       problemSize = []
       for i in range(problemSizeStartIdx, totalSizeIdx):
         problemSize.append(int(row[i]))
       problemSize = tuple(problemSize)
 
-      # Exact Problem Size
       if problemSize in self.exactProblemSizes:
 
-        if csvHasWinner and not bestNonSkipped:
-          # Faster. Get the winner info from csv directly, avoid an extra loop
-          winnerGFlops = float(row[columnOfWinnerGFlops])
+        winnerIdx            = -1
+        winnerPerf           = -1
+        winnerIdxNotSkipped  = -1
+        winnerPerfNotSkipped = -1
+        wouldSkipWinner      = False
+        wouldSkipReason      = ("", 0)
+
+        # Get the winner info from csv directly if it exists and not in filter verify mode
+        if csvHasWinner and not runCriteriaVerify:
+          winnerPerf = float(row[columnOfWinnerGFlops])
           winnerIdx = int(row[columnOfWinnerIdx])
-          wouldSkipWinner = True if ":" in row[solutionStartIdx + winnerIdx] else False
         else:
-          # Old code. TODO - Can we get rid of this in the future?
-          # solution gflops
+          # TODO Can get rid of this if we make CSVExportWinner always True
+          # In that case, logic for non-skipped winner needs to move to C++ client
+
           solutionIdx = 0
-          winnerIdx = -1
-          winnerIdxNotSkipped = -1
-          winnerGFlops = -1
-          winnerGFlopsNotSkipped = -1
-          wouldSkipWinner = False
-          wouldSkipReason = ("", 0)
           for i in range(solutionStartIdx, rowLength):
 
-            gflops_ws = row[i].strip().split(":")
-            gflops = float(gflops_ws[0])
-            wouldSkip = True if len(gflops_ws) > 1 else False
+            # In verify mode, if a solution would have been skipped the entry is of the form
+            #   performance:skipReason:value
+            # Non-skipped solutions are the same as normal i.e. just "performance"
+            values = row[i].strip().split(":")
+            perf = float(values[0]) # gflops or gflops/cu
+            wouldSkip = True if len(values) > 1 else False
 
-            if gflops > winnerGFlops:
+            if perf > winnerPerf:
               winnerIdx = solutionIdx
-              winnerGFlops = gflops
+              winnerPerf = perf
               wouldSkipWinner = wouldSkip
               if wouldSkip:
-                wouldSkipReason = (gflops_ws[1], gflops_ws[2])
+                wouldSkipReason = (values[1], values[2])
 
-            if gflops > winnerGFlopsNotSkipped and not wouldSkip:
-              winnerGFlopsNotSkipped = gflops
+            if perf > winnerPerfNotSkipped and not wouldSkip:
+              winnerPerfNotSkipped = perf
               winnerIdxNotSkipped = solutionIdx
 
             solutionIdx += 1
 
+        # Update winner
         if winnerIdx != -1:
-          if problemSize in self.exactWinners:
-            if winnerGFlops > self.exactWinners[problemSize][1]:
-              self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
-          else:
-            self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerGFlops]
+          if problemSize not in self.exactWinners or \
+              winnerPerf > self.exactWinners[problemSize][1]:
+            self.exactWinners[problemSize] = [solutionMap[winnerIdx], winnerPerf]
 
-          self.wouldSkipWinner[problemSize] = wouldSkipWinner
-          self.winnerSkipReason[problemSize] = wouldSkipReason
+          self.wouldSkipWinner[problemSize] = (wouldSkipWinner, wouldSkipReason)
 
+        # Update not-skipped winner (verify mode only)
         if winnerIdxNotSkipped != -1:
-          if problemSize in self.winnersNotSkipped:
-            if winnerGFlopsNotSkipped > self.winnersNotSkipped[problemSize][1]:
-              self.winnersNotSkipped[problemSize] = [solutionMap[winnerIdxNotSkipped], winnerGFlopsNotSkipped]
-          else:
-            self.winnersNotSkipped[problemSize] = [solutionMap[winnerIdxNotSkipped], winnerGFlopsNotSkipped]
+          if problemSize not in self.winnersNotSkipped or \
+              winnerPerfNotSkipped > self.winnersNotSkipped[problemSize][1]:
+            self.winnersNotSkipped[problemSize] = \
+                [solutionMap[winnerIdxNotSkipped], winnerPerfNotSkipped]
 
-      # Range Problem Size
-      elif problemSize in self.rangeProblemSizes:
-        problemIndices = []
-        for i in range(0, self.numIndices):
-          problemIndices.append(self.problemSizeToIndex[i][problemSize[i]])
-        serialIdx = self.indicesToSerial(0, problemIndices)
-        # solution gflops
-        solutionIdx = 0
-        for i in range(solutionStartIdx, rowLength):
-          gflops = float(row[i])
-          self.data[serialIdx+solutionMap[solutionIdx]] = gflops
-          solutionIdx += 1
-
-      # Unknown Problem Size
+      # Unknown Problem Size: TODO not sure if this can happen
       else:
-        printExit("Huh? %s has ProblemSize %s which isn't in its yaml" \
-            % ( dataFileName, list(problemSize)) )
+        printExit("{} has ProblemSize {} which isn't in its yaml" \
+            .format(dataFileName, list(problemSize)))
 
     ##################################################################
     # open file
@@ -521,8 +510,7 @@ class LogicAnalyzer:
         rowLength = len(row)
         solutionStartIdx = rowLength - numSolutions
       else:
-        getBestNonSkipped = True if globalParameters["RunCriteriaVerify"] else False
-        getWinner(row, getBestNonSkipped)
+        getWinner(row, globalParameters["RunCriteriaVerify"])
 
 
   ##############################################################################
