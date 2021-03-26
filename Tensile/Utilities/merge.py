@@ -1,3 +1,24 @@
+################################################################################
+# Copyright 2020-2021 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
+# ies of the Software, and to permit persons to whom the Software is furnished
+# to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
+# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
+# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+################################################################################
+
 import yaml
 import os
 import sys
@@ -154,15 +175,12 @@ def findSolutionWithIndex(solutionData, solIndex):
 def addSolutionTagToKeys(solutionMap, solutionPool):
     return [[keys + [getSolutionTag(findSolutionWithIndex(solutionPool, idx))], [idx, eff]] 
             for [keys, [idx, eff]] in solutionMap]
-    #for keys, [idx, eff] in solutionMap:
-    #    solutionTag = getSolutionTag(findSolutionWithIndex(solutionData, idx))
-    #    keys.append(solutionTag)
 
 def removeSolutionTagFromKeys(solutionMap):
     return [[keys[:-1], [idx, incEff]] for keys, [idx, incEff] in solutionMap] 
 
 # returns merged logic data as list
-def mergeLogic(origData, incData, forceMerge, trimSize=True, includeKernelVariants=True):
+def mergeLogic(origData, incData, forceMerge, trimSize=True, appendMFMA=False):
     origNumSizes = len(origData[7])
     origNumSolutions = len(origData[5])
 
@@ -184,15 +202,12 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True, includeKernelVarian
     solutionPool = deepcopy(origData[5])
     solutionMap = deepcopy(origData[7])
 
-    if includeKernelVariants:
+    if appendMFMA:
         solutionMap = addSolutionTagToKeys(solutionMap, solutionPool)
         incData[7] = addSolutionTagToKeys(incData[7], incData[5])
 
     origDict = {tuple(origSize): [i, origEff] for i, [origSize, [origIndex, origEff]] in enumerate(origData[7])}
     for incSize, [incIndex, incEff] in incData[7]:
-        #incSolution = [s for s in incData[5] if s["SolutionIndex"]==incIndex] # TODO this is slow
-        #assert len(incSolution)==1
-        #incSolution = incSolution[0]
         incSolution = findSolutionWithIndex(incData[5], incIndex)
 
         try:
@@ -216,7 +231,7 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True, includeKernelVarian
     verbose(numOrigRemoved, "unused kernels removed from base logic file")
     verbose(numIncRemoved, "unused kernels removed from incremental logic file")
 
-    if includeKernelVariants:
+    if appendMFMA:
         solutionMap = removeSolutionTagFromKeys(solutionMap)
 
     mergedData = deepcopy(origData)
@@ -230,7 +245,7 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True, includeKernelVarian
 
     return [mergedData, numSizesAdded, numSolutionsAdded, numSolutionsRemoved]
 
-def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSize=True):
+def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSize=True, appendMFMA=False):
     originalFiles = allFiles(originalDir)
     incrementalFiles = allFiles(incrementalDir)
     ensurePath(outputPath)
@@ -244,7 +259,8 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSi
         origFile = os.path.join(originalDir, basename)
         forceMerge = defaultForceMergePolicy(incFile) if forceMerge is None else forceMerge
 
-        msg("Base logic file:", origFile, "| Incremental:", incFile, "| Merge policy: %s"%("Forced" if forceMerge else "Winner"), "| Trim size:", trimSize)
+        msg("Base logic file:", origFile, "| Incremental:", incFile, "| Merge policy: %s"%("Forced" if forceMerge else "Winner"), "| Trim size:", trimSize,
+        "| Append MFMA:", append_mfma)
         origData = loadData(origFile)
         incData = loadData(incFile)
 
@@ -253,7 +269,7 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSi
         origData = reindexSolutions(origData)
         incData = reindexSolutions(incData)
 
-        mergedData, *stats = mergeLogic(origData, incData, forceMerge, trimSize)
+        mergedData, *stats = mergeLogic(origData, incData, forceMerge, trimSize, appendMFMA)
         msg(stats[0], "size(s) and", stats[1], "kernel(s) added,", stats[2], "kernel(s) removed")
 
         with open(os.path.join(outputPath, basename), "w") as outFile:
@@ -269,6 +285,7 @@ if __name__ == "__main__":
     argParser.add_argument("-v", "--verbosity", help="0: summary, 1: verbose, 2: debug", default=1, type=int)
     argParser.add_argument("--force_merge", help="Merge previously known sizes unconditionally. Default behavior if not arcturus", default="none")
     argParser.add_argument("--notrim", help="Do not trim long size format down to short format (m,n,b,k). Default is --trim", action="store_false")
+    argParser.add_argument("--append_mfma", help="Include both a MFMA and non-MFMA kernel in the solution map for each size if possible", action="store_true")
 
     args = argParser.parse_args(sys.argv[1:])
     originalDir = args.original_dir
@@ -277,9 +294,10 @@ if __name__ == "__main__":
     verbosity = args.verbosity
     forceMerge = args.force_merge.lower()
     trimSize = args.notrim
+    appendMFMA = args.append_mfma
 
     if forceMerge in ["none"]: forceMerge=None
     elif forceMerge in ["true", "1"]: forceMerge=True
     elif forceMerge in ["false", "0"]: forceMerge=False
 
-    avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSize)
+    avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSize, appendMFMA)
