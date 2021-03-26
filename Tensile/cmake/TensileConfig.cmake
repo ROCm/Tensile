@@ -145,60 +145,60 @@ function(TensileCreateLibraryFiles
   endif()
 
   if(Tensile_MERGE_FILES)
-    set(Options ${Options} "--merge-files")
+    set(Options "${Options}" "--merge-files")
   else()
-    set(Options ${Options} "--no-merge-files")
+    set(Options "${Options}" "--no-merge-files")
   endif()
 
   if(Tensile_GENERATE_PACKAGE)
-    set(Options ${Options} "--package-library")
+    set(Options "${Options}" "--package-library")
   endif()
 
   if(Tensile_SHORT_FILE_NAMES)
-    set(Options ${Options} "--short-file-names")
+    set(Options "${Options}" "--short-file-names")
   else()
-    set(Options ${Options} "--no-short-file-names")
+    set(Options "${Options}" "--no-short-file-names")
   endif()
 
   if(Tensile_PRINT_DEBUG)
-    set(Options ${Options} "--library-print-debug")
+    set(Options "${Options}" "--library-print-debug")
   else()
-    set(Options ${Options} "--no-library-print-debug")
+    set(Options "${Options}" "--no-library-print-debug")
   endif()
 
   if(Tensile_EMBED_LIBRARY)
-    set(Options ${Options} "--embed-library=${Tensile_EMBED_LIBRARY}")
+    set(Options "${Options}" "--embed-library=${Tensile_EMBED_LIBRARY}")
   endif()
 
   if(Tensile_EMBED_KEY)
-    set(Options ${Options} "--embed-library-key=${Tensile_EMBED_KEY}")
+    set(Options "${Options}" "--embed-library-key=${Tensile_EMBED_KEY}")
   endif()
 
   if(Tensile_CODE_OBJECT_VERSION)
-    set(Options ${Options} "--code-object-version=${Tensile_CODE_OBJECT_VERSION}")
+    set(Options "${Options}" "--code-object-version=${Tensile_CODE_OBJECT_VERSION}")
   endif()
 
   if(Tensile_COMPILER)
-    set(Options ${Options} "--cxx-compiler=${Tensile_COMPILER}")
+    set(Options "${Options}" "--cxx-compiler=${Tensile_COMPILER}")
   endif()
 
   if(Tensile_COMPILER_PATH)
-    set(Options ${Options} "--cmake-cxx-compiler=${Tensile_COMPILER_PATH}")
+    set(Options "${Options}" "--cmake-cxx-compiler=${Tensile_COMPILER_PATH}")
   endif()
 
   if(Tensile_ARCHITECTURE)
-    string (REPLACE ";" "\\\\\\\;" archString "${Tensile_ARCHITECTURE}")
-    set(Options ${Options} "--architecture=${archString}")
+    string (REPLACE ";" "\;" archString "${Tensile_ARCHITECTURE}")
+    set(Options "${Options}" "--architecture=${archString}")
   endif()
 
   if(Tensile_LIBRARY_FORMAT)
-    set(Options ${Options} "--library-format=${Tensile_LIBRARY_FORMAT}")
+    set(Options "${Options}" "--library-format=${Tensile_LIBRARY_FORMAT}")
     if(Tensile_LIBRARY_FORMAT MATCHES "yaml")
         target_compile_definitions( TensileHost PUBLIC -DTENSILE_YAML=1)
     endif()
   endif()
 
-  set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
+  set(CommandLine "${Script}" "${Options}" "${Tensile_LOGIC_PATH}" "${Tensile_OUTPUT_PATH}" "HIP")
   message(STATUS "Tensile_CREATE_COMMAND: ${CommandLine}")
 
   if(Tensile_EMBED_LIBRARY)
@@ -214,7 +214,7 @@ function(TensileCreateLibraryFiles
       endif()
 
       # Create the manifest file of the output libraries.
-      set(Tensile_CREATE_MANIFEST_COMMAND ${CommandLine} "--generate-manifest-and-exit")
+      set(Tensile_CREATE_MANIFEST_COMMAND "${CommandLine}" "--generate-manifest-and-exit")
       set(Tensile_MANIFEST_FILE_PATH "${Tensile_OUTPUT_PATH}/library/TensileManifest.txt")
       message(STATUS "Tensile_MANIFEST_FILE_PATH: ${Tensile_MANIFEST_FILE_PATH}")
 
@@ -223,20 +223,20 @@ function(TensileCreateLibraryFiles
         RESULT_VARIABLE Tensile_CREATE_MANIFEST_RESULT
         COMMAND_ECHO STDOUT)
 
-      if(Tensile_CREATE_MANIFEST_RESULT OR (NOT EXISTS ${Tensile_MANIFEST_FILE_PATH}))
+      if(Tensile_CREATE_MANIFEST_RESULT OR (NOT EXISTS "${Tensile_MANIFEST_FILE_PATH}"))
         message(FATAL_ERROR "Error creating Tensile library: ${Tensile_CREATE_MANIFEST_RESULT}")
       endif()
 
       # Defer the actual call of the TensileCreateLibraries to 'make' time as needed.
       # Read the manifest file and declare the files as expected output.
-      file(STRINGS ${Tensile_MANIFEST_FILE_PATH} Tensile_MANIFEST_CONTENTS)
+      file(STRINGS "${Tensile_MANIFEST_FILE_PATH}" Tensile_MANIFEST_CONTENTS)
       add_custom_command(
         COMMENT "Generating Tensile Libraries"
-        OUTPUT ${Tensile_EMBED_LIBRARY_SOURCE};${Tensile_MANIFEST_CONTENTS}
+        OUTPUT "${Tensile_EMBED_LIBRARY_SOURCE}";"${Tensile_MANIFEST_CONTENTS}"
         COMMAND ${CommandLine}
       )
 
-      set("${Tensile_VAR_PREFIX}_ALL_FILES" ${Tensile_MANIFEST_CONTENTS} PARENT_SCOPE)
+      set("${Tensile_VAR_PREFIX}_ALL_FILES" "${Tensile_MANIFEST_CONTENTS}" PARENT_SCOPE)
 
       # Create a chained library build target.
       # We've declared the manifest contents as output of the custom
