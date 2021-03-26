@@ -249,6 +249,12 @@ namespace Tensile
                                        reinterpret_cast<std::complex<float> const*>(data),
                                        tensor,
                                        reinterpret_cast<std::complex<float> const*>(ptrVal));
+                    else if(tensor.dataType() == DataType::Double)
+                        logTensorTyped(level,
+                                       name,
+                                       reinterpret_cast<double const*>(data),
+                                       tensor,
+                                       reinterpret_cast<double const*>(ptrVal));
                     else if(tensor.dataType() == DataType::Int32)
                         logTensorTyped(level,
                                        name,

@@ -45,14 +45,13 @@ class DataType:
             'libEnum': 'tensileDataTypeFloat',
             'isIntegral': False,
             'isComplex': False,
-            'packing': 1,
-            'miInput' : 1,
+            'packing': 1
         },
         {
             'char': 'D',
             'name': 'double',
             'nameAbbrev': 'f64',
-            'miOutTypeNameAbbrev': 'NONE', # not supported for MI
+            'miOutTypeNameAbbrev': 'f64',
             'enum': 'Double',
             'reg': 2,
             'ocl': 'double',
@@ -61,8 +60,7 @@ class DataType:
             'libEnum': 'tensileDataTypeDouble',
             'isIntegral': False,
             'isComplex': False,
-            'packing': 1,
-            'miInput' : 1,
+            'packing': 1
         },
         {
             'char': 'C',
@@ -77,8 +75,7 @@ class DataType:
             'libEnum': 'tensileDataTypeComplexFloat',
             'isIntegral': False,
             'isComplex': True,
-            'packing': 1,
-            'miInput' : 1,
+            'packing': 1
         },
         {
             'char': 'Z',
@@ -93,8 +90,7 @@ class DataType:
             'libEnum': 'tensileDataTypeComplexDouble',
             'isIntegral': False,
             'isComplex': True,
-            'packing': 1,
-            'miInput' : 1,
+            'packing': 1
         },
         {
             'char': 'H',
@@ -109,8 +105,7 @@ class DataType:
             'libEnum': 'tensileDataTypeHalf',
             'isIntegral': False,
             'isComplex': False,
-            'packing': 1,
-            'miInput' : 4,
+            'packing': 1
         },
         {
             'char': '4xi8',
@@ -125,8 +120,7 @@ class DataType:
             'libEnum': 'tensileDataTypeInt8x4',
             'isIntegral': True,
             'isComplex': False,
-            'packing': 4,
-            'miInput' : 4,
+            'packing': 4
         },
         {
             'char': 'I',
@@ -141,8 +135,7 @@ class DataType:
             'libEnum': 'tensileDataTypeInt32',
             'isIntegral': True,
             'isComplex': False,
-            'packing': 1,
-            'miInput' : 1,
+            'packing': 1
         },
         {
             'char': 'B',
@@ -157,8 +150,7 @@ class DataType:
             'libEnum': 'tensileDataTypeBFloat16',
             'isIntegral': False,
             'isComplex': False,
-            'packing': 1,
-            'miInput' : 2,
+            'packing': 1
         },
         {
             'char': 'I8',
@@ -173,8 +165,7 @@ class DataType:
             'libEnum': 'tensileDataTypeInt8',   # old client
             'isIntegral': True,
             'isComplex': False,
-            'packing': 1,
-            'miInput' : 4,
+            'packing': 1
         },
     ]
     lookup = {}
@@ -271,8 +262,6 @@ class DataType:
         return self.properties['reg']
     def numBytes(self):
         return int(self.numRegisters() * 4)
-    def numMIInput(self):
-        return self.properties['miInput']
     def MIOutputTypeNameAbbrev(self):
         return self.properties['miOutTypeNameAbbrev']
     def flopsPerMac(self):
