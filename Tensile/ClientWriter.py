@@ -701,7 +701,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param("run-criteria-verify",      globalParameters["RunCriteriaVerify"])
         param("granularity-threshold",    globalParameters["GranularityThreshold"])
         param("mem-throughput-threshold", globalParameters["MemThroughputThreshold"])
-        param("min-lds-utilization",      globalParameters["MinLDSUtilization"])
+
         param("pristine-on-gpu",          globalParameters["PristineOnGPU"])
         param("library-update-file",      globalParameters["LibraryUpdateFile"])
         param("library-update-comment",   globalParameters["LibraryUpdateComment"])
@@ -710,8 +710,12 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         mfmaKey = "mfma" if globalParameters["IsMFMA"] else "non_mfma"
         typeKey = problemType.aType.toChar()
 
-        param("alu-rate",                 globalParameters["ALURates"][mfmaKey][typeKey])
-        param("l2-speed",                 globalParameters["L2Speed"])
+        if (globalParameters["MemThroughputThreshold"] > 0.0):
+          try:
+            param("alu-rate",                 globalParameters["ALURates"][mfmaKey][typeKey])
+            param("l2-speed",                 globalParameters["L2Speed"])
+          except Exception as e:
+            printExit("Exception when setting alu-rate or l2-speed: {}".format(e))
 
 def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection, configBase = "ClientParameters", libraryFile = None):
 

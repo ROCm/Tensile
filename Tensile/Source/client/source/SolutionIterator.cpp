@@ -116,7 +116,6 @@ namespace Tensile
         {
             double granThresh = args["granularity-threshold"].as<double>();
             double memThresh  = args["mem-throughput-threshold"].as<double>();
-            double minLDSUtil = args["min-lds-utilization"].as<double>();
             int    l2Speed    = args["l2-speed"].as<int>();
             int    aluRate    = args["alu-rate"].as<int>();
 

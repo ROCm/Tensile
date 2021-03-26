@@ -240,7 +240,6 @@ namespace Tensile
                 ("run-criteria-verify",      po::value<bool>()->default_value(false), "Benchmark skipped solutions and verify they aren't winners")
                 ("granularity-threshold",    po::value<double>()->default_value(0.0), "Don't run a solution if total granularity is below")
                 ("mem-throughput-threshold", po::value<double>()->default_value(0.0), "Don't run a solution if mem throughput is below")
-                ("min-lds-utilization",      po::value<double>()->default_value(0.0), "Don't run a solution if LDS utilization is below")
 
                 ("alu-rate",                 po::value<int>()->default_value(0), "ALU rate in flops / cu / cycle. Used for mem throughput solution filtering")
                 ("l2-speed",                 po::value<int>()->default_value(0), "L2 cache speed in bytes / cycle. Used for mem throughput solution filtering")

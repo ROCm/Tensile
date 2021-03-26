@@ -34,10 +34,7 @@ from . import LibraryIO
 from . import LibraryLogic
 from . import __version__
 
-try:
-  import yaml
-except ImportError:
-  printExit("You must install PyYAML to use Tensile (to parse config files). See http://pyyaml.org/wiki/PyYAML for installation instructions.")
+import yaml
 
 ###############################################################################
 # Execute Steps in Config
@@ -179,30 +176,27 @@ def argUpdatedGlobalParameters(args):
 
 def processHardwareSpecsFile(config):
   print1("MemThroughputThreshold {} > 0: getting hardware specs from {}".format( \
-    globalParameters["MemThroughputThreshold"], globalParameters["HardwareSpecsPath"]) \
-  )
+      globalParameters["MemThroughputThreshold"], globalParameters["HardwareSpecsPath"]))
 
   error = True
   try:
     schedule = config["LibraryLogic"]["ScheduleName"]
-
     try:
-      f = open(globalParameters["HardwareSpecsPath"])
-      specs = yaml.safe_load(f)
+      specs = LibraryIO.readYAML(globalParameters["HardwareSpecsPath"])
 
       globalParameters["ALURates"] = specs[schedule]["ALU"]
       globalParameters["L2Speed"] = specs[schedule]["L2Speed"]
       error = False
 
     except OSError as e:
-      printWarning("Error reading hardware specs yaml file: {}".format(e))
+      printExit("Error reading hardware specs yaml file: {}".format(e))
     except yaml.YAMLError as e:
-      printWarning("YAML error: {}".format(e))
+      printExit("YAML error in hardware specs yaml file: {}".format(e))
     except KeyError as e:
-      printWarning("Key error in hardware specs yaml file: {}".format(e))
+      printExit("Key error in hardware specs yaml file: {}".format(e))
 
   except KeyError as e:
-    printWarning("Could not get schedule from config file")
+    printExit("Could not get schedule from config file")
 
   if error:
     print1("Setting MemThroughputThreshold to 0")

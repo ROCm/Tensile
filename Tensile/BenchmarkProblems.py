@@ -370,6 +370,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ############################################################################
     # Winners -> Determined Parameters
     ############################################################################
+    # This code is not currently needed; updates to CSV format have broken, so commenting out for now
     # if not enableTileSelection:
     #     results = getResults(resultsFileName, solutions, enableTileSelection, newResultsFileName)
     #     currentTime = time.time()
