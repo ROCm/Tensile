@@ -53,7 +53,8 @@ def fixSizeInconsistencies(sizes, fileType):
     duplicates = list()
     for i in range(0,len(sizes)):
         currSize = sizes[i][0]
-        if len(currSize) == 8:
+        # >= so size will be trimmed when a SolutionTag is included
+        if len(currSize) >= 8:
             currSize = currSize[:-4]
             if currSize in (item for index in sizes for item in index):
                 duplicates.append(i-len(duplicates))
@@ -148,18 +149,23 @@ def debug(*args, **kwargs):
     if verbosity < 2: return
     msg(*args, **kwargs)
 
+# Tags distinguishing solution types
+# Can be added to size key to allow solutions of each type to be present 
+# in logic file for a given size
 class SolutionTag(IntEnum):
-    DEFAULT = 0
-    MFMA    = 1
+    NONE = 0
+    MFMA = 1
 
     def __str__(self):
-        return ["Default", "MFMA"][self]
-    
+        return ["None", "MFMA"][self]
+    def __repr__(self):
+        return str(self)
+
 def getSolutionTag(solution):
     if solution["EnableMatrixInstruction"] or solution["MatrixInstruction"]:
         return SolutionTag.MFMA
     else:
-        return SolutionTag.DEFAULT
+        return SolutionTag.NONE
 
 def findSolutionWithIndex(solutionData, solIndex):
     # Check solution at the index corresponding to solIndex first
@@ -173,14 +179,14 @@ def findSolutionWithIndex(solutionData, solIndex):
         return solution[0]
 
 def addSolutionTagToKeys(solutionMap, solutionPool):
-    return [[keys + [getSolutionTag(findSolutionWithIndex(solutionPool, idx))], [idx, eff]] 
+    return [[[getSolutionTag(findSolutionWithIndex(solutionPool, idx))] + keys, [idx, eff]] 
             for [keys, [idx, eff]] in solutionMap]
 
 def removeSolutionTagFromKeys(solutionMap):
-    return [[keys[:-1], [idx, incEff]] for keys, [idx, incEff] in solutionMap] 
+    return [[keys[1:], [idx, incEff]] for keys, [idx, incEff] in solutionMap] 
 
 # returns merged logic data as list
-def mergeLogic(origData, incData, forceMerge, trimSize=True, appendMFMA=False):
+def mergeLogic(origData, incData, forceMerge, trimSize=True, addMfmaTag=False):
     origNumSizes = len(origData[7])
     origNumSolutions = len(origData[5])
 
@@ -190,6 +196,11 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True, appendMFMA=False):
     verbose(origNumSizes, "sizes and", origNumSolutions, "kernels in base logic file")
     verbose(incNumSizes, "sizes and", incNumSolutions, "kernels in incremental logic file")
 
+    # Add SolutionTag to distinguish mfma and non-mfma solutions
+    if addMfmaTag:
+        origData[7] = addSolutionTagToKeys(origData[7], origData[5])
+        incData[7] = addSolutionTagToKeys(incData[7], incData[5])
+
     if trimSize:
         # trim 8-tuple gemm size format to 4-tuple [m, n, b, k]
         # TODO future gemm size could include dictionary format so need robust preprocessing
@@ -198,13 +209,9 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True, appendMFMA=False):
 
     origData, numOrigRemoved = removeUnusedKernels(origData, "Base logic file: ")
     incData, numIncRemoved = removeUnusedKernels(incData, "Inc logic file: ")
-
+ 
     solutionPool = deepcopy(origData[5])
     solutionMap = deepcopy(origData[7])
-
-    if appendMFMA:
-        solutionMap = addSolutionTagToKeys(solutionMap, solutionPool)
-        incData[7] = addSolutionTagToKeys(incData[7], incData[5])
 
     origDict = {tuple(origSize): [i, origEff] for i, [origSize, [origIndex, origEff]] in enumerate(origData[7])}
     for incSize, [incIndex, incEff] in incData[7]:
@@ -221,7 +228,7 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True, appendMFMA=False):
                 solutionPool, index = addKernel(solutionPool, incSolution)
                 solutionMap[j][1] = [index, incEff]
             else:
-                verbose("[X]", incSize, " already exists but does not improve in performance.", end="")
+                verbose("[X]", incSize, "already exists but does not improve in performance.", end="")
                 verbose("Efficiency:", origEff, "->", incEff)
         except KeyError:
             verbose("[-]", incSize, "has been added to solution table, Efficiency: N/A ->", incEff)
@@ -230,8 +237,9 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True, appendMFMA=False):
 
     verbose(numOrigRemoved, "unused kernels removed from base logic file")
     verbose(numIncRemoved, "unused kernels removed from incremental logic file")
-
-    if appendMFMA:
+    
+    # Remove SolutionTag for yaml output
+    if addMfmaTag:
         solutionMap = removeSolutionTagFromKeys(solutionMap)
 
     mergedData = deepcopy(origData)
@@ -245,7 +253,7 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True, appendMFMA=False):
 
     return [mergedData, numSizesAdded, numSolutionsAdded, numSolutionsRemoved]
 
-def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSize=True, appendMFMA=False):
+def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSize=True, addMfmaTag=False):
     originalFiles = allFiles(originalDir)
     incrementalFiles = allFiles(incrementalDir)
     ensurePath(outputPath)
@@ -260,7 +268,7 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSi
         forceMerge = defaultForceMergePolicy(incFile) if forceMerge is None else forceMerge
 
         msg("Base logic file:", origFile, "| Incremental:", incFile, "| Merge policy: %s"%("Forced" if forceMerge else "Winner"), "| Trim size:", trimSize,
-        "| Append MFMA:", append_mfma)
+        "| Add MFMA tag:", addMfmaTag)
         origData = loadData(origFile)
         incData = loadData(incFile)
 
@@ -269,13 +277,57 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSi
         origData = reindexSolutions(origData)
         incData = reindexSolutions(incData)
 
-        mergedData, *stats = mergeLogic(origData, incData, forceMerge, trimSize, appendMFMA)
+        mergedData, *stats = mergeLogic(origData, incData, forceMerge, trimSize, addMfmaTag)
         msg(stats[0], "size(s) and", stats[1], "kernel(s) added,", stats[2], "kernel(s) removed")
 
         with open(os.path.join(outputPath, basename), "w") as outFile:
             yaml.safe_dump(mergedData,outFile,default_flow_style=None)
         msg("File written to", os.path.join(outputPath, basename))
         msg("------------------------------")
+
+# partialLogicFilePaths: list of full paths to partial logic files
+# outputDir: Directory to write the final result to
+# forceMerge:
+# trimSize:
+# Expects: that all the partial logic files
+# have the same base name, but are located
+# in different folders.
+# Provides: one final logic file that is the
+# merged result of all partial files.
+# This is useful for when a tuning task is
+# shared between multiple machines who each
+# will provide a partial result.
+def mergePartialLogics(partialLogicFilePaths, outputDir, forceMerge, trimSize=True, addMfmaTag=False):
+    logicFiles = deepcopy(partialLogicFilePaths)
+    ensurePath(outputDir)
+
+    baseLogicFile = logicFiles.pop(0)
+    baseLogicData = loadData(baseLogicFile)
+    msg("Base logic file:", baseLogicFile)
+    for f in logicFiles:
+        forceMerge = defaultForceMergePolicy(f) if forceMerge is None else forceMerge
+
+        msg("Incremental file:", f, "| Merge policy: %s"%("Forced" if forceMerge else "Winner"), "| Trim size:", trimSize)
+        incLogicData = loadData(f)
+
+        # So far "SolutionIndex" in logic yamls has zero impact on actual 1-1 size mapping (but the order of the Solution does)
+        # since mergeLogic() takes that value very seriously so we reindex them here so it doesn't choke on duplicated SolutionIndex
+        baseLogicData = reindexSolutions(baseLogicData)
+        incLogicData = reindexSolutions(incLogicData)
+
+        mergedData, *stats = mergeLogic(baseLogicData, incLogicData, forceMerge, trimSize, addMfmaTag)
+        msg(stats[0], "size(s) and", stats[1], "kernel(s) added,", stats[2], "kernel(s) removed")
+
+        # Use the merged data as the base data for the next partial logic file
+        baseLogicData = deepcopy(mergedData)
+
+
+    baseFileName = os.path.basename(baseLogicFile)
+    outputFilePath = os.path.join(outputDir, baseFileName)
+    with open(outputFilePath, "w") as outFile:
+        yaml.safe_dump(baseLogicData, outFile, default_flow_style=None)
+    msg("File written to", outputFilePath)
+    msg("------------------------------")
 
 if __name__ == "__main__":
     argParser = argparse.ArgumentParser()
@@ -285,7 +337,7 @@ if __name__ == "__main__":
     argParser.add_argument("-v", "--verbosity", help="0: summary, 1: verbose, 2: debug", default=1, type=int)
     argParser.add_argument("--force_merge", help="Merge previously known sizes unconditionally. Default behavior if not arcturus", default="none")
     argParser.add_argument("--notrim", help="Do not trim long size format down to short format (m,n,b,k). Default is --trim", action="store_false")
-    argParser.add_argument("--append_mfma", help="Include both a MFMA and non-MFMA kernel in the solution map for each size if possible", action="store_true")
+    argParser.add_argument("--add_mfma_tag", help="Add a tag to the size key for usage of MFMA instructions, allowing for both a MFMA and non-MFMA kernel to exist for the same size. Default doesn't add this tag.", action="store_true")
 
     args = argParser.parse_args(sys.argv[1:])
     originalDir = args.original_dir
@@ -294,10 +346,10 @@ if __name__ == "__main__":
     verbosity = args.verbosity
     forceMerge = args.force_merge.lower()
     trimSize = args.notrim
-    appendMFMA = args.append_mfma
+    addMfmaTag = args.add_mfma_tag
 
     if forceMerge in ["none"]: forceMerge=None
     elif forceMerge in ["true", "1"]: forceMerge=True
     elif forceMerge in ["false", "0"]: forceMerge=False
 
-    avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSize, appendMFMA)
+    avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSize, addMfmaTag)
