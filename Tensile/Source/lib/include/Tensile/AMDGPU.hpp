@@ -48,11 +48,21 @@ namespace Tensile
 
         enum class Processor : int
         {
+            // matching enum used in hipGcnArch
+            // only including supported types
+            //gfx000  =  0,
+            //gfx701  =  1,
+            //gfx801  =  2,
+            //gfx802  =  3,
             gfx803  = 803,
             gfx900  = 900,
             gfx906  = 906,
             gfx908  = 908,
-            gfx1010 = 1010
+            gfx90a  = 910,
+            gfx1010 = 1010,
+            gfx1011 = 1011
+            //gfx1011 = 10,
+            //gfx1012 = 11
         };
 
         AMDGPU();

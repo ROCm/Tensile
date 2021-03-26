@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2020-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +24,7 @@ import itertools
 import copy
 from Tensile.Hardware import HardwarePredicate
 from Tensile.SolutionLibrary import PredicateLibrary
+
 
 def test_hardware_predicate_comparison():
     a = HardwarePredicate.FromISA((9,0,0))
@@ -59,10 +60,11 @@ def test_hardware_predicate_comparison():
     assert not d < d
     assert not e < e
 
-def predicate_library_objects():
+def hardware_library_objects_order():
     objs = [PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,0))}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,6))}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,8))}]),
+            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,10))}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,0,8), 60)}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,0,8), 64)}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate('TruePred')}])
@@ -70,8 +72,8 @@ def predicate_library_objects():
 
     return [copy.deepcopy(libs) for libs in itertools.permutations(objs)]
 
-@pytest.mark.parametrize("libraries", predicate_library_objects())
-def test_predicate_library_merge(libraries):
+@pytest.mark.parametrize("libraries", hardware_library_objects_order())
+def test_hardware_library_merge_order(libraries):
     lib = libraries[0]
     for lib2 in libraries[1:]:
         lib.merge(lib2)
@@ -81,3 +83,30 @@ def test_predicate_library_merge(libraries):
     assert lib.rows[1]['predicate'] == HardwarePredicate.FromHardware((9,0,8), 60)
     for r in lib.rows[:-1]:
         assert r['predicate'] != HardwarePredicate('TruePred')
+
+def hardware_library_objects_dups():
+    objs = [PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,0)), 'library': PredicateLibrary()}]),
+            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,6)), 'library': PredicateLibrary()}]),
+            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,6)), 'library': PredicateLibrary()}]),
+            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,8)), 'library': PredicateLibrary()}]),
+            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate('TruePred'),      'library': PredicateLibrary()}])
+    ]
+
+    return [copy.deepcopy(libs) for libs in itertools.permutations(objs)]
+
+@pytest.mark.parametrize("libraries", hardware_library_objects_dups())
+def test_hardware_library_merge_dups(libraries):
+    lib = libraries[0]
+    for lib2 in libraries[1:]:
+        lib.merge(lib2)
+
+    assert len(lib.rows) == 4
+
+    def getPred(row):
+        return row['predicate']
+    rowPreds = map(getPred, lib.rows)
+
+    assert HardwarePredicate.FromISA((9,0,0)) in rowPreds
+    assert HardwarePredicate.FromISA((9,0,6)) in rowPreds
+    assert HardwarePredicate.FromISA((9,0,8)) in rowPreds
+    assert HardwarePredicate('TruePred') in rowPreds

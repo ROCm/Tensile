@@ -96,7 +96,7 @@ namespace Tensile
                                                                                   "specified, we will use the embedded code "
                                                                                   "object(s) if available.")
 
-                ("performance-metric",       po::value<PerformanceMetric>()->default_value(PerformanceMetric::Overall), "Metric for benchmarking results")
+                ("performance-metric",       po::value<PerformanceMetric>()->default_value(PerformanceMetric::DeviceEfficiency), "Metric for benchmarking results")
 
                 ("problem-identifier",       po::value<std::string>(), "Problem identifer (Einstein notation). Either "
                                                                        "this or free/batch/bound must be specified.")
@@ -451,12 +451,10 @@ int main(int argc, const char* argv[])
         numProblems = problems.size();
     int lastProblemIdx = firstProblemIdx + numProblems - 1;
 
-    int firstSolutionIdx = args["solution-start-idx"].as<int>();
-    int numSolutions     = args["num-solutions"].as<int>();
-
-    bool gpuTimer = args["use-gpu-timer"].as<bool>();
-
-    bool runKernels = !args["selection-only"].as<bool>();
+    int  firstSolutionIdx = args["solution-start-idx"].as<int>();
+    int  numSolutions     = args["num-solutions"].as<int>();
+    bool gpuTimer         = args["use-gpu-timer"].as<bool>();
+    bool runKernels       = !args["selection-only"].as<bool>();
 
     if(firstSolutionIdx < 0)
         firstSolutionIdx = library->solutions.begin()->first;
@@ -555,15 +553,18 @@ int main(int argc, const char* argv[])
                             auto kernels = solution->solve(problem, *inputs, *hardware);
 
                             size_t       warmupInvocations = listeners.numWarmupRuns();
-                            size_t       eventCount        = kernels.size();
+                            size_t       eventCount        = gpuTimer ? kernels.size() : 0;
                             TimingEvents warmupStartEvents(warmupInvocations, eventCount);
                             TimingEvents warmupStopEvents(warmupInvocations, eventCount);
 
                             for(int i = 0; i < warmupInvocations; i++)
                             {
                                 listeners.preWarmup();
-                                adapter.launchKernels(
-                                    kernels, stream, warmupStartEvents[i], warmupStopEvents[i]);
+                                if(gpuTimer)
+                                    adapter.launchKernels(
+                                        kernels, stream, warmupStartEvents[i], warmupStopEvents[i]);
+                                else
+                                    adapter.launchKernels(kernels, stream, nullptr, nullptr);
                                 listeners.postWarmup();
                             }
 

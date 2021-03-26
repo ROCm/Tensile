@@ -36,7 +36,7 @@ from . import LibraryIO
 from . import ClientWriter
 from .Common import assignGlobalParameters, ensurePath, globalParameters, \
     gfxName, gfxArch, printExit, getArchitectureName
-from .SolutionStructs import ProblemSizes, Solution
+from .SolutionStructs import ProblemSizes
 
 
 def getArchitecture(isaName):
@@ -95,35 +95,27 @@ def GenerateSummations(userArgs):
         localLogicPath = ensurePath(os.path.join(currentPath, "logic"))
         localLogicFilePath = os.path.join(localLogicPath, logicFileBaseName)
         
+        # Here we read in two version of the logic the first one fills the solutions with
+        # defaults and modifies some of the parameters. The final logic file should be the 
+        # same as the initial logic with the summation model added. To preseve the original
+        # logic we also read in the raw unaltered version of the logic and stage the content
+        # to write the final logic.
         logic = LibraryIO.readLibraryLogicForSchedule(logicFileName)
+        rawLogic = LibraryIO.readRawLibraryLogic(logicFileName)
 
-        (scheduleName, deviceNames, problemType, solutionsForSchedule, \
-           indexOrder, exactLogic, rangeLogic, _, architectureName) = logic
+        # If we cannot read the logic file then skip it
+        if rawLogic == None or logic == None:
+            printExit("Error reading the file: %s. skipping." % logicFileName)
 
-        naming = Solution.getMinNaming(solutionsForSchedule)
+        (versionStringR, scheduleNameR, architectureNameR, deviceNamesR, problemTypeStateR,\
+            solutionStatesR, indexOrderR, exactLogicR, rangeLogicR, otherFieldsR) =\
+            rawLogic
 
-        for s in solutionsForSchedule:
-            s_state = s._state
-            name = Solution.getNameMin(s_state, naming)
-            s_state["SolutionNameMin"] = name          
-            isa = s_state["ISA"]
-            s_state["ISA"] = list(isa) 
+        (_, _, problemType, solutionsForSchedule, \
+           _, _, _, _, _) = logic
 
-        exactLogic0 = {}
-        for e in exactLogic:
-            exactLogic0[tuple(e[0])] = e[1]
-
-        logicTuple = (problemType, solutionsForSchedule, indexOrder, exactLogic0, rangeLogic)
-        LibraryIO.configWriter("yaml").writeLibraryLogicForSchedule(localLogicPath, \
-            scheduleName, architectureName, \
-            deviceNames, logicTuple)
-
+        copyfile(logicFileName, localLogicFilePath)
         createLibraryForBenchmark(localLogicPath, libPath, currentPath)
-
-        logic1 = LibraryIO.readLibraryLogicForSchedule(localLogicFilePath)
-
-        (scheduleName1, deviceNames1, problemType1, solutionsForSchedule1, \
-           indexOrder1, exactLogic1, rangeLogic1, _, architectureName1) = logic1
 
         exactList = []
 
@@ -134,18 +126,18 @@ def GenerateSummations(userArgs):
             exactList.append(e)
 
         libraryPath = libPath
-        clientBuildDir = os.path.join(outputPath, "client")
-        problemTypeObj1 = problemType1.state   
+        clientBuildDir = os.path.join(outputPath, "client") 
+        problemTypeObj = problemType.state
 
-        problemSizes = ProblemSizes(problemTypeObj1, exactList)
+        problemSizes = ProblemSizes(problemTypeObj, exactList)
         dataPath = ensurePath(os.path.join(outputPath, logicFileStem, "data"))
         configFilePath = ensurePath(os.path.join(outputPath, logicFileStem, "configs"))
         dataFilePath = os.path.join(dataPath, "benchmark.csv")
         configFile = os.path.join(configFilePath, "ClientParameters.ini")
         scriptPath = ensurePath(os.path.join(outputPath, logicFileStem, "script"))
-        ClientWriter.CreateBenchmarkClientParametersForSizes(libraryPath, problemSizes, dataFilePath, configFile, problemTypeObj1)
-        ClientWriter.runNewClient(scriptPath, configFile, clientBuildDir)
 
+        ClientWriter.CreateBenchmarkClientParametersForSizes(libraryPath, problemSizes, dataFilePath, configFile, problemTypeObj)
+        ClientWriter.runNewClient(scriptPath, configFile, clientBuildDir)
 
         tensileLibraryFile = os.path.join(libPath, "library", "TensileLibrary.yaml")
 
@@ -155,44 +147,47 @@ def GenerateSummations(userArgs):
 
         libSolutions = tensileLibrary["solutions"]
 
-        mapper={}
+        libSolutionNames = []
         for s in libSolutions:
-            key=s["name"]
-            value=s["info"]["SolutionNameMin"]
-            mapper[key]=value
+            kernelName=s["name"]
+            libSolutionNames.append(kernelName)
 
-        data_df=pd.read_csv(dataFilePath)
-        working_data = data_df.rename(str.strip,axis='columns').rename(columns=mapper)
+        working_data=pd.read_csv(dataFilePath).rename(str.strip,axis='columns')
 
         index_keys = working_data.SizeL.unique()
         solutionsDF = working_data.filter(like='Cij')
+
         perf_max = solutionsDF.max().max().item()
-    
-        for s in solutionsForSchedule1:
-            s_state = s._state
-            solution_name = s_state["SolutionNameMin"]
-            perf_raw = working_data[solution_name] 
+
+        solutionIndex = 0
+        for s_stateR, kernelName in zip(solutionStatesR, libSolutionNames):
+            solutionIndex += 1
+            perf_raw = working_data[kernelName] 
             perf = (1000*index_keys) / perf_raw
             model = np.polyfit(x=index_keys, y=perf, deg=1)
             slope = model[0].item()
             intercept = model[1].item()
             linearModel = {"slope": slope, "intercept": intercept, "max": perf_max}
+            s_stateR["LinearModel"] = deepcopy(linearModel)
+
+        rawLogicData = []
+        rawLogicData.append(deepcopy(versionStringR))
+        rawLogicData.append(deepcopy(scheduleNameR))
+        rawLogicData.append(deepcopy(architectureNameR))
+        rawLogicData.append(deepcopy(deviceNamesR))
+        rawLogicData.append(deepcopy(problemTypeStateR))
+        rawLogicData.append(deepcopy(solutionStatesR))
+        rawLogicData.append(deepcopy(indexOrderR))
+        rawLogicData.append(deepcopy(exactLogicR))
+        rawLogicData.append(deepcopy(rangeLogicR))
+        for idx in range(0, len(otherFieldsR)):
+            rawLogicData.append(deepcopy(otherFieldsR[idx]))
         
-            s["LinearModel"] = deepcopy(linearModel)
-
-            isa = s_state["ISA"]
-            s_state["ISA"] = list(isa)
-
-        exactLogic1 = {}
-        for e in exactLogic:
-            exactLogic1[tuple(e[0])] = e[1]
-
-        logicTuple1 = (problemType1, solutionsForSchedule1, indexOrder1, exactLogic1, rangeLogic1)
-        LibraryIO.configWriter("yaml").writeLibraryLogicForSchedule(finalPath, \
-            scheduleName1, architectureName1, \
-            deviceNames1, logicTuple1)
-
         localFinalLogic = os.path.join(finalPath, logicFileBaseName)
+
+        yamlWriter = LibraryIO.YAMLWriter()
+        yamlWriter.write(localFinalLogic, rawLogicData)
+
         outputFinal = ensurePath(os.path.join(outputPath, "final"))
         finalLogic = os.path.join(outputFinal, logicFileBaseName)
 

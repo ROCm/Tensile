@@ -2578,13 +2578,25 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # MergeRead 0: ds_readAx1 ds_readBx1 mfma | ds_readAx1 ds_readBx1 mfma | => ds_readAx2 ds_readBx1 mfma | ds_readBx1 mfma |
     # MergeRead 1: ds_readAx1 ds_readBx1 mfma | ds_readAx1 ds_readAx1 mfma | => ds_readAx2 ds_readBx1 ds_readBx1 mfma | mfma |
     MergeRead = 0
-    self.lrvwA = kernel["LocalReadVectorWidth"] if not kernel["ProblemType"]["TLUA"] or MergeRead else kernel["ProblemType"]["DataType"].numMIInput()
-    self.lrvwB = kernel["LocalReadVectorWidth"] if not kernel["ProblemType"]["TLUB"] or MergeRead else kernel["ProblemType"]["DataType"].numMIInput()
+    if not kernel["ProblemType"]["TLUA"] or MergeRead:
+      self.lrvwA = kernel["LocalReadVectorWidth"]
+    else:
+      if kernel["EnableMatrixInstruction"]:
+        self.lrvwA = kernel["MIInputPerThread"]
+      else:
+        self.lrvwA = 1
+    if not kernel["ProblemType"]["TLUB"] or MergeRead:
+      self.lrvwB = kernel["LocalReadVectorWidth"]
+    else:
+      if kernel["EnableMatrixInstruction"]:
+        self.lrvwB = kernel["MIInputPerThread"]
+      else:
+        self.lrvwB = 1
 
     # Wider LocalRead
     if kernel["EnableMatrixInstruction"]:
-      self.numReadsIterCoalescedA = self.lrvwA//kernel["ProblemType"]["DataType"].numMIInput()
-      self.numReadsIterCoalescedB = self.lrvwB//kernel["ProblemType"]["DataType"].numMIInput()
+      self.numReadsIterCoalescedA = self.lrvwA // kernel["MIInputPerThread"]
+      self.numReadsIterCoalescedB = self.lrvwB // kernel["MIInputPerThread"]
     else:
       self.numReadsIterCoalescedA  = 1
       self.numReadsIterCoalescedB  = 1

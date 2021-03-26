@@ -95,7 +95,7 @@ namespace Tensile
                 std::cout << "Log level: " << logLevel << std::endl;
 
                 PerformanceMetric metric = args["performance-metric"].as<PerformanceMetric>();
-                // Default to 'Overall' benchmarking if CUEfficiency not specified
+                // Default to 'DeviceEfficiency' benchmarking if CUEfficiency not specified
                 const std::string perfUnit
                     = (metric == PerformanceMetric::CUEfficiency ? SpeedGFlopsPerCu : SpeedGFlops);
 
@@ -249,6 +249,12 @@ namespace Tensile
                                        reinterpret_cast<std::complex<float> const*>(data),
                                        tensor,
                                        reinterpret_cast<std::complex<float> const*>(ptrVal));
+                    else if(tensor.dataType() == DataType::Double)
+                        logTensorTyped(level,
+                                       name,
+                                       reinterpret_cast<double const*>(data),
+                                       tensor,
+                                       reinterpret_cast<double const*>(ptrVal));
                     else if(tensor.dataType() == DataType::Int32)
                         logTensorTyped(level,
                                        name,

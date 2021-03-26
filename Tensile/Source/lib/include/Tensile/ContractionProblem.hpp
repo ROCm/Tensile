@@ -753,7 +753,7 @@ namespace Tensile
         bool              m_eligibleForPK           = true;
         ArithmeticUnit    m_arithmeticUnit          = ArithmeticUnit::Any;
         KernelLanguage    m_kernelLanguage          = KernelLanguage::Any;
-        PerformanceMetric m_performanceMetric       = PerformanceMetric::Overall;
+        PerformanceMetric m_performanceMetric       = PerformanceMetric::DeviceEfficiency;
 
         DataType m_alphaType = DataType::None; // if not assigned, will follow d-type
         DataType m_betaType  = DataType::None; // for bwd-compatible
