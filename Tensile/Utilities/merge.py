@@ -1,31 +1,9 @@
-################################################################################
-# Copyright 2020-2021 Advanced Micro Devices, Inc. All rights reserved.
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-################################################################################
-
 import yaml
 import os
 import sys
 import argparse
 from copy import deepcopy
-from collections import defaultdict
-from enum import Enum
+from enum import IntEnum
 
 verbosity = 1
 
@@ -149,8 +127,21 @@ def debug(*args, **kwargs):
     if verbosity < 2: return
     msg(*args, **kwargs)
 
+class SolutionTag(IntEnum):
+    DEFAULT = 0
+    MFMA    = 1
+
+    def __str__(self):
+        return ["Default", "MFMA"][self]
+    
+def getSolutionTag(solution):
+    if solution["EnableMatrixInstruction"] or solution["MatrixInstruction"]:
+        return SolutionTag.MFMA
+    else:
+        return SolutionTag.DEFAULT
+
 def findSolutionWithIndex(solutionData, solIndex):
-    #Return index if 
+    # Check solution at the index corresponding to solIndex first
     solution = solutionData[solIndex]
     if solution["SolutionIndex"] == solIndex:
         return solution
@@ -160,52 +151,18 @@ def findSolutionWithIndex(solutionData, solIndex):
         assert(len(solution) == 1)
         return solution[0]
 
-def usingMFMA(solution):
-    return solution["EnableMatrixInstruction"] or solution["MatrixInstruction"]
+def addSolutionTagToKeys(solutionMap, solutionPool):
+    return [[keys + [getSolutionTag(findSolutionWithIndex(solutionPool, idx))], [idx, eff]] 
+            for [keys, [idx, eff]] in solutionMap]
+    #for keys, [idx, eff] in solutionMap:
+    #    solutionTag = getSolutionTag(findSolutionWithIndex(solutionData, idx))
+    #    keys.append(solutionTag)
 
-class SolutionUpdate(Enum):
-    Replace=0
-    Append =1
-    Reject =2
-
-# returns (action[, replacedIndex]) or None if nothing is replaced
-def findOriginalSolutionToUpdate(incSolution, incSize, incEff, origSolutionData, origSolutionDict, forceMerge, includeKernelVariants = False):
-    try:
-        origSolutions = origSolutionDict[tuple(incSize)]
-        origJ, origIndex, origEff = origSolutions[0]
-        originalSolution = None
-        if includeKernelVariants:
-            for j, index, eff in origSolutions:
-                solution = findSolutionWithIndex(origSolutionData, index)
-                if usingMFMA(solution) == usingMFMA(incSolution):
-                    origJ, origIndex, origEff = j, index, eff
-                    originalSolution = solution
-                    break
-            if not originalSolution:
-                verbose("[O]", incSize, "already exists but has a different value for EnableMatrixInstruction."
-                                        " New entry has been added to the solution table")
-                return SolutionUpdate.Append, 
-        else:
-            originalSolution = findSolutionWithIndex(origSolutionData, origIndex)
-        
-        if incEff > origEff or forceMerge:
-            if incEff > origEff:
-                verbose("[O]", incSize, "already exists and has improved in performance.", end="")
-            elif forceMerge:
-                verbose("[!]", incSize, "already exists but does not improve in performance.", end="")
-            verbose("Efficiency:", origEff, "->", incEff, "(force_merge=True)" if forceMerge else "")
-            return SolutionUpdate.Replace, origJ
-        else:
-            verbose("[X]", incSize, " already exists but does not improve in performance.", end="")
-            verbose("Efficiency:", origEff, "->", incEff)
-    except KeyError:
-        verbose("[-]", incSize, "has been added to solution table, Efficiency: N/A ->", incEff)
-        return SolutionUpdate.Append,
-    
-    return SolutionUpdate.Reject,
+def removeSolutionTagFromKeys(solutionMap):
+    return [[keys[:-1], [idx, incEff]] for keys, [idx, incEff] in solutionMap] 
 
 # returns merged logic data as list
-def mergeLogic(origData, incData, forceMerge, trimSize=True, includeKernelVariants=False):
+def mergeLogic(origData, incData, forceMerge, trimSize=True, includeKernelVariants=True):
     origNumSizes = len(origData[7])
     origNumSolutions = len(origData[5])
 
@@ -214,8 +171,6 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True, includeKernelVarian
 
     verbose(origNumSizes, "sizes and", origNumSolutions, "kernels in base logic file")
     verbose(incNumSizes, "sizes and", incNumSolutions, "kernels in incremental logic file")
-
-    unmergedKernelParameters = {"EnableMatrixInstruction": False} if includeKernelVariants else {}
 
     if trimSize:
         # trim 8-tuple gemm size format to 4-tuple [m, n, b, k]
@@ -229,32 +184,40 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True, includeKernelVarian
     solutionPool = deepcopy(origData[5])
     solutionMap = deepcopy(origData[7])
 
-    origDict = {} 
-    for i, [origSize, [origIndex, origEff]] in enumerate(origData[7]):
-        origDict[tuple(origSize)] = origDict.get(tuple(origSize), []) + [[i, origIndex, origEff]] 
+    if includeKernelVariants:
+        solutionMap = addSolutionTagToKeys(solutionMap, solutionPool)
+        incData[7] = addSolutionTagToKeys(incData[7], incData[5])
 
+    origDict = {tuple(origSize): [i, origEff] for i, [origSize, [origIndex, origEff]] in enumerate(origData[7])}
     for incSize, [incIndex, incEff] in incData[7]:
+        #incSolution = [s for s in incData[5] if s["SolutionIndex"]==incIndex] # TODO this is slow
+        #assert len(incSolution)==1
+        #incSolution = incSolution[0]
         incSolution = findSolutionWithIndex(incData[5], incIndex)
 
-        result, *index = findOriginalSolutionToUpdate(incSolution,  
-                                                      incSize, 
-                                                      incEff, 
-                                                      origData[5], 
-                                                      origDict, 
-                                                      forceMerge,
-                                                      includeKernelVariants)
-
-        if result == SolutionUpdate.Append:
-            solutionPool, kernelIndex = addKernel(solutionPool, incSolution)
-            solutionMap.append([incSize,[kernelIndex, incEff]])
-        elif result == SolutionUpdate.Replace:
-            assert(index)
-            replacedIndex = index[0]
-            solutionPool, kernelIndex = addKernel(solutionPool, incSolution)
-            solutionMap[replacedIndex][1] = [kernelIndex, incEff]
+        try:
+            j, origEff = origDict[tuple(incSize)]
+            if incEff > origEff or forceMerge:
+                if incEff > origEff:
+                    verbose("[O]", incSize, "already exists and has improved in performance.", end="")
+                elif forceMerge:
+                    verbose("[!]", incSize, "already exists but does not improve in performance.", end="")
+                verbose("Efficiency:", origEff, "->", incEff, "(force_merge=True)" if forceMerge else "")
+                solutionPool, index = addKernel(solutionPool, incSolution)
+                solutionMap[j][1] = [index, incEff]
+            else:
+                verbose("[X]", incSize, " already exists but does not improve in performance.", end="")
+                verbose("Efficiency:", origEff, "->", incEff)
+        except KeyError:
+            verbose("[-]", incSize, "has been added to solution table, Efficiency: N/A ->", incEff)
+            solutionPool, index = addKernel(solutionPool, incSolution)
+            solutionMap.append([incSize,[index, incEff]])
 
     verbose(numOrigRemoved, "unused kernels removed from base logic file")
     verbose(numIncRemoved, "unused kernels removed from incremental logic file")
+
+    if includeKernelVariants:
+        solutionMap = removeSolutionTagFromKeys(solutionMap)
 
     mergedData = deepcopy(origData)
     mergedData[5] = solutionPool
@@ -290,7 +253,7 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSi
         origData = reindexSolutions(origData)
         incData = reindexSolutions(incData)
 
-        mergedData, *stats = mergeLogic(origData, incData, forceMerge, trimSize, True)
+        mergedData, *stats = mergeLogic(origData, incData, forceMerge, trimSize)
         msg(stats[0], "size(s) and", stats[1], "kernel(s) added,", stats[2], "kernel(s) removed")
 
         with open(os.path.join(outputPath, basename), "w") as outFile:
