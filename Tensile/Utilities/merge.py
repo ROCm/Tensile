@@ -153,11 +153,11 @@ def debug(*args, **kwargs):
 # Can be added to size key to allow solutions of each type to be present 
 # in logic file for a given size
 class SolutionTag(IntEnum):
-    NONE = 0
+    VALU = 0
     MFMA = 1
 
     def __str__(self):
-        return ["None", "MFMA"][self]
+        return ["VALU", "MFMA"][self]
     def __repr__(self):
         return str(self)
 
@@ -165,7 +165,7 @@ def getSolutionTag(solution):
     if solution["EnableMatrixInstruction"] or solution["MatrixInstruction"]:
         return SolutionTag.MFMA
     else:
-        return SolutionTag.NONE
+        return SolutionTag.VALU
 
 def findSolutionWithIndex(solutionData, solIndex):
     # Check solution at the index corresponding to solIndex first
