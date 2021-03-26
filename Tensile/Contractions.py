@@ -280,6 +280,8 @@ class ProblemPredicate(Properties.Predicate):
             return extractDimPredicate(cls, key, value, "SizeGreaterThan")
         if key == "AssertSizeLessThan":
             return extractDimPredicate(cls, key, value, "SizeLessThan")
+        if key == "AssertSizeMultiple":
+            return extractDimPredicate(cls, key, value, "SizeMultiple")
 
         # TODO - remove this when logic files have been updated
         if key == 'AssertMinApproxSize':

@@ -180,7 +180,7 @@ class Convolution:
         ]
   SummarySolutionProperties=[\
         'AssertSizeEqual', 'AssertStrideAEqual', 'AssertStrideBEqual',\
-         'AssertSizeGreaterThan', 'AssertSizeLessThan'
+         'AssertSizeGreaterThan', 'AssertSizeLessThan', "AssertSizeMultiple"
         ]
 
   # valid lowest filter dimensions, these we can attach compile-time constant strides:
