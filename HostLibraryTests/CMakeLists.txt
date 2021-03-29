@@ -79,7 +79,7 @@ if(TENSILE_USE_HIP)
     find_package(HIP REQUIRED CONFIG PATHS $ENV{ROCM_PATH} /opt/rocm)
 endif()
 
-if(TENSILE_USE_OPENMP)
+if(TENSILE_USE_OPENMP AND NOT TARGET custom_openmp_cxx)
 
     # Workaround for https://gitlab.kitware.com/cmake/cmake/-/issues/21787
     # ensures we link to HIP's libomp and get an rpath to it.
