@@ -1309,7 +1309,7 @@ def TensileCreateLibrary():
   argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hipcc"],       action="store", default="hipcc")
   argParser.add_argument("--cmake-cxx-compiler",     dest="CmakeCxxCompiler",  action="store")
   argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["V2", "V3"], action="store", default="V3")
-  argParser.add_argument("--architecture",           dest="Architecture",      choices=["all", "gfx000", "gfx803", "gfx900", "gfx906:xnack-", "gfx908:xnack-", "gfx90a:xnack+", "gfx90a:xnack-"], action="store", default="all")
+  argParser.add_argument("--architecture",           dest="Architecture",      type=str, action="store", default="all", help="Supported archs: " + " ".join(architectureMap.keys()))
   argParser.add_argument("--merge-files",            dest="MergeFiles",        action="store_true")
   argParser.add_argument("--no-merge-files",         dest="MergeFiles",        action="store_false")
   argParser.add_argument("--short-file-names",       dest="ShortNames",        action="store_true")
@@ -1392,17 +1392,21 @@ def TensileCreateLibrary():
   if not os.path.exists(logicPath):
     printExit("LogicPath %s doesn't exist" % logicPath)
 
-  for key in architectureMap:
-    if arguments["Architecture"] == key:
-      arguments["Architecture"] = architectureMap[key]
+  archs = arguments["Architecture"].split(";")
+  logicArchs = set()
+  for arch in archs:
+    if arch in architectureMap:
+      logicArchs.add(architectureMap[arch])
+    else:
+      printExit("Architecture %s not supported" % arch)
 
   # Recursive directory search
   logicFiles = []
   for root, dirs, files in os.walk(logicPath):
     logicFiles += [os.path.join(root, f) for f in files
                        if os.path.splitext(f)[1]==".yaml" \
-                       and arguments["Architecture"] in os.path.splitext(f)[0] \
-                       or "hip" in os.path.splitext(f)[0] ]
+                       and (any(logicArch in os.path.splitext(f)[0] for logicArch in logicArchs) \
+                       or "hip" in os.path.splitext(f)[0]) ]
 
   print1("# LibraryLogicFiles:" % logicFiles)
   for logicFile in logicFiles:
