@@ -34,7 +34,7 @@ endif()
 
 target_include_directories(TensileClient PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")# "${rocm_smi_root}/include")
 
-target_link_libraries(TensileClient TensileHost ${Boost_LIBRARIES} rocm_smi)
+target_link_libraries(TensileClient PRIVATE TensileHost ${Boost_LIBRARIES} rocm_smi)
 if(TENSILE_USE_OPENMP)
     target_link_libraries(TensileClient PRIVATE custom_openmp_cxx)
 endif()
