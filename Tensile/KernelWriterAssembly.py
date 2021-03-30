@@ -10591,8 +10591,8 @@ class KernelWriterAssembly(KernelWriter):
 
         # double precision complex
         elif kernel["ProblemType"]["ComputeDataType"].isDoubleComplex():
-          vtmp1 = self.vgprPool.checkOut(2)
-          vtmp2 = self.vgprPool.checkOut(2)
+          vtmp1 = self.vgprPool.checkOutAligned(2, 2)
+          vtmp2 = self.vgprPool.checkOutAligned(2, 2)
           # tmp1 = a.real * b.real
           kStr += inst("v_mul_f64", vgpr(vtmp1,2), sgpr("Alpha+0",2), vgpr("ValuC+%u"%(sumIdxV*4+0),2), "")
           # tmp2 = a.imag * b.real
