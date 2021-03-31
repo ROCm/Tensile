@@ -203,16 +203,15 @@ globalParameters["MaxFileName"] = 64              # If a file name would be long
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (9,0,10), (10,1,0), (10,1,1), (10,1,2), (10,3,0)] # assembly kernels writer supports these architectures
 
 globalParameters["GenerateManifestAndExit"] = False               # Output manifest file with list of expected library objects and exit
-globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
+globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory
 globalParameters["NewClient"] = 2                                 # 1=Run old+new client, 2=run new client only (All In)
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
 globalParameters["LibraryClientPath"] = "4_LibraryClient"         # subdirectory for building example library client
-#globalParameters["BenchmarkClientVersion"] = "Both"               # Old, New, Both
-globalParameters["ClientExecutionLockPath"] = None # Path for a file lock to ensure only one client is executed at once.  filelock module is required if this is enabled.
-globalParameters["LibraryUpdateFile"] = "" # File for outputing indices and speeds for updating a library logic file
-globalParameters["LibraryUpdateComment"] = False # Include comment in library update file
+globalParameters["ClientExecutionLockPath"] = None                # Path for a file lock to ensure only one client is executed at once.  filelock module is required if this is enabled.
+globalParameters["LibraryUpdateFile"] =                           # File name for writing indices and speeds suitable for updating an existing library logic file
+globalParameters["LibraryUpdateComment"] = False                  # Include solution name as a comment in the library update file
 
 # internal, i.e., gets set during startup
 globalParameters["CurrentISA"] = (0,0,0)

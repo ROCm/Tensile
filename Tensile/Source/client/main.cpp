@@ -225,9 +225,9 @@ namespace Tensile
                 ("log-file-append",          po::value<bool>()->default_value(false),                "Append to log file.")
                 ("log-level",                po::value<LogLevel>()->default_value(LogLevel::Debug),  "Log level")
 
-                ("library-update-file",      po::value<std::string>()->default_value(""), "File name which will have indices "
-                                                                       "and speeds suitable for updating "
-                                                                       "an existing library logic file.")
+                ("library-update-file",      po::value<std::string>()->default_value(""), "File name for writing indices "
+                                                                                          "and speeds suitable for updating "
+                                                                                          "an existing library logic file.")
                 ("library-update-comment",   po::value<bool>()->default_value(false), "Include solution name as a "
                                                                                       "comment in library update "
                                                                                       "file.")

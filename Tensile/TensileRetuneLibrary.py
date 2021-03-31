@@ -19,51 +19,25 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from Tensile import BenchmarkProblems, ClientExecutable, SolutionLibrary
-import os
-import sys
-import filecmp
-import argparse
-import shutil
-from .Common import globalParameters, print1, printExit, ensurePath, \
-    assignGlobalParameters, pushWorkingPath, popWorkingPath, restoreDefaultGlobalParameters, HR
-from .Tensile import addCommonArguments
-from .SolutionStructs import ProblemSizes
+from . import BenchmarkProblems
+from . import ClientExecutable
 from . import ClientWriter
 from . import LibraryIO
+from .Common import globalParameters, print1, printExit, ensurePath, assignGlobalParameters, \
+                    pushWorkingPath, popWorkingPath, restoreDefaultGlobalParameters, HR
+from .Tensile import addCommonArguments
+from .SolutionStructs import ProblemSizes
 from . import __version__
 
+import argparse
+import os
+import shutil
+import sys
 
-def TensileReturnLibrary(userArgs):
+
+def parseCurrentLibrary(libPath):
     global globalParameters
 
-    print1("")
-    print1(HR)
-    print1("#")
-    print1("#  Tensile Retune Library v{}".format(__version__))
-
-    # setup argument parsing
-    argParser = argparse.ArgumentParser()
-    argParser.add_argument("library_file", type=os.path.realpath, help="library logic file to retune")
-    argParser.add_argument("output_path", help="path where to conduct benchmark")
-    addCommonArguments(argParser)
-    args = argParser.parse_args(userArgs)
-
-    libPath = args.library_file
-
-    print1("#  Library Logic: {}".format(libPath))
-    print1("#")
-    print1(HR)
-    print1("")
-
-    # setup global parameters
-    outPath = ensurePath(os.path.abspath(args.output_path))
-    restoreDefaultGlobalParameters()
-    assignGlobalParameters({"LibraryFormat": "msgpack",
-                            "OutputPath": outPath,
-                            "WorkingPath": outPath})
-
-    # read and parse library logic file
     libYaml = LibraryIO.readYAML(libPath)
     fields = LibraryIO.parseLibraryLogicData(libYaml, libPath)
     (_, _, problemType, solutions, _, exactLogic, _, _, _) = fields
@@ -78,11 +52,14 @@ def TensileReturnLibrary(userArgs):
         sizes.append({"Exact": size})
     problemSizes = ProblemSizes(problemType, sizes)
 
-    ############################################################################
-    # setup and run benchmarking
-    # TODO mostly copy-pasted from BenchmarkProblems.benchmarkProblemType
+    return (libYaml, solutions, problemSizes)
+
+
+def runBenchmarking(solutions, problemSizes, outPath):
+    # TODO some copy-pasting from BenchmarkProblems.benchmarkProblemType
     # could use a refactor to elimate duplicated code
-    ############################################################################
+    global globalParameters
+
     ClientExecutable.getClientExecutable()
 
     shortName = "benchmark"
@@ -143,14 +120,57 @@ def TensileReturnLibrary(userArgs):
     if returncode:
         printExit("BenchmarkProblems: Benchmark Process exited with code %u" % returncode)
 
-    # read update yaml from benchmark client and update logic
-    updateLogic = LibraryIO.readYAML(updateFile)
-    libYaml[7] = updateLogic
+    return updateFile
 
-    # write updated yaml (does not overwrite original)
+
+def TensileRetuneLibrary(userArgs):
+    global globalParameters
+
+    print1("")
+    print1(HR)
+    print1("#")
+    print1("#  Tensile Retune Library v{}".format(__version__))
+
+    # setup argument parsing
+    argParser = argparse.ArgumentParser()
+    argParser.add_argument("library_file", type=os.path.realpath, help="library logic file to retune")
+    argParser.add_argument("output_path", help="path where to conduct benchmark")
+    addCommonArguments(argParser)
+    args = argParser.parse_args(userArgs)
+
+    libPath = args.library_file
+
+    print1("#  Library Logic: {}".format(libPath))
+    print1("#")
+    print1(HR)
+    print1("")
+
+    # setup global parameters
+    outPath = ensurePath(os.path.abspath(args.output_path))
+    restoreDefaultGlobalParameters()
+    assignGlobalParameters({"LibraryFormat": "msgpack",
+                            "OutputPath": outPath,
+                            "WorkingPath": outPath})
+
+    # run main steps
+    (rawYaml, solutions, problemSizes) = parseCurrentLibrary(libPath)
+    updateFile = runBenchmarking(solutions, problemSizes, outPath)
+
+    # read update yaml from benchmark client and update logic
+    print1("")
+    print1(HR)
+    print1("# Reading update file from Benchmarking Client")
+    updateLogic = LibraryIO.readYAML(updateFile)
+    rawYaml[7] = updateLogic
+
+    # write updated library logic (does not overwrite original)
     libName = os.path.basename(libPath)
     outFile = os.path.join(outPath, libName)
-    LibraryIO.writeYAML(outFile, libYaml, explicit_start=False, explicit_end=False)
+
+    print1("# Writing updated Library Logic: {}".format(outFile))
+    LibraryIO.writeYAML(outFile, rawYaml, explicit_start=False, explicit_end=False)
+    print(HR)
+
 
 def main():
-    TensileReturnLibrary(sys.argv[1:])
+    TensileRetuneLibrary(sys.argv[1:])
