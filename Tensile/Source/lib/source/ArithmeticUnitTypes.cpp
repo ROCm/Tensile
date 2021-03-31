@@ -74,6 +74,10 @@ namespace Tensile
     void ArithmeticUnitTypeInfo::registerAllTypeInfoOnce()
     {
         static int call_once = (registerAllTypeInfo(), 0);
+
+        // Use the variable to quiet the compiler.
+        if(call_once)
+            return;
     }
 
     void ArithmeticUnitTypeInfo::addInfoObject(ArithmeticUnitTypeInfo const& info)

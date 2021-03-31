@@ -670,7 +670,11 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         if globalParameters["PrintTensorD"]:
           param("print-tensor-d",         1)
         if globalParameters["PrintTensorRef"]:
-          param("print-tensor-ref",         1)
+          param("print-tensor-ref",       1)
+        if globalParameters["DumpTensors"]:
+          param("dump-tensors",           1)
+        if globalParameters["ExitOnFails"] > 1:
+          param("exit-on-error", 1)
 
         param("bounds-check",             boundsCheckName(int(globalParameters["BoundsCheck"])))
         param("print-valids",             globalParameters["ValidationPrintValids"])
@@ -695,6 +699,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param("log-level",                ClientLogLevel(globalParameters["ClientLogLevel"]).name)
         param("max-workspace-size",       globalParameters["MaxWorkspaceSize"])
         param("granularity-threshold",    globalParameters["GranularityThreshold"])
+        param("pristine-on-gpu",          globalParameters["PristineOnGPU"])
 
 def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection, configBase = "ClientParameters", libraryFile = None):
 

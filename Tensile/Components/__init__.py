@@ -25,6 +25,7 @@ def use(): pass
 __all__ = [
     "MAC_F16",
     "MAC_F16_HPA",
+    "MAC_F32",
     "Priority",
     "Signature",
     "LocalRead",

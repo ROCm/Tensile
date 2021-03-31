@@ -91,29 +91,33 @@ def createLibraryLogic(suffix):
     # combine all components
     return prefixData + [problemType] + [[sol0, sol1]] + sizeData + suffixData
 
-def test_parseSolutionsData():
-    # paths to test data
-    scriptDir = os.path.dirname(os.path.realpath(__file__))
-    dataDir = os.path.realpath(os.path.join(scriptDir, "..", "test_data", "unit"))
-    solutionsPath = os.path.realpath(os.path.join( \
-            dataDir, "solutions", "solutions_nn_3.yaml"))
+def test_parseSolutionsData(useGlobalParameters):
+    with useGlobalParameters():
+        # paths to test data
+        scriptDir = os.path.dirname(os.path.realpath(__file__))
+        dataDir = os.path.realpath(os.path.join(scriptDir, "..", "test_data", "unit"))
+        solutionsPath = os.path.realpath(os.path.join( \
+                dataDir, "solutions", "solutions_nn_3.yaml"))
 
-    solutions = LibraryIO.readYAML(solutionsPath)
+        solutions = LibraryIO.readYAML(solutionsPath)
 
-    LibraryIO.parseSolutionsData(solutions, "test_parseSolutionsData")
-    assert True
+        LibraryIO.parseSolutionsData(solutions, "test_parseSolutionsData")
+        assert True
 
-def test_parseLibraryLogicData_legacy():
-    LibraryIO.parseLibraryLogicData(createLibraryLogic(legacyLogicSuffix), \
-            "test_parseLibraryLogicData_legacy")
-    assert True
+def test_parseLibraryLogicData_legacy(useGlobalParameters):
+    with useGlobalParameters():
+        LibraryIO.parseLibraryLogicData(createLibraryLogic(legacyLogicSuffix), \
+                "test_parseLibraryLogicData_legacy")
+        assert True
 
-def test_parseLibraryLogicData_dvEff():
-    LibraryIO.parseLibraryLogicData(createLibraryLogic(dvEffLogicSuffix), \
-            "test_parseLibraryLogicData_dvEff")
-    assert True
+def test_parseLibraryLogicData_dvEff(useGlobalParameters):
+    with useGlobalParameters():
+        LibraryIO.parseLibraryLogicData(createLibraryLogic(dvEffLogicSuffix), \
+                "test_parseLibraryLogicData_dvEff")
+        assert True
 
-def test_parseLibraryLogicData_cuEff():
-    LibraryIO.parseLibraryLogicData(createLibraryLogic(cuEffLogicSuffix), \
-            "test_parseLibraryLogicData_cuEff")
-    assert True
+def test_parseLibraryLogicData_cuEff(useGlobalParameters):
+    with useGlobalParameters():
+        LibraryIO.parseLibraryLogicData(createLibraryLogic(cuEffLogicSuffix), \
+                "test_parseLibraryLogicData_cuEff")
+        assert True

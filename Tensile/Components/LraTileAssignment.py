@@ -20,7 +20,6 @@
 ################################################################################
 
 from ..Component import LraTileAssignment
-from ..Common import globalParameters
 from ..AsmUtils import inst, vgpr, sgpr, vectorStaticDivideAndRemainder, vectorStaticDivide, staticMultiply, vectorStaticRemainder
 
 class LraTileAssignmentVALU(LraTileAssignment):
@@ -101,7 +100,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         # get constant parameter
         tc               = tP["tensorChar"]
         tIdx             = tP["tensorIdx"]
-        waveWidth        = globalParameters["WavefrontWidth"]
+        waveWidth        = writer.kernel["WavefrontSize"]
         inputPerThread   = max(writer.lrvwA,writer.lrvwB)
         LdsPad           = kernel["LdsPad%s" % tc] if kernel["LdsBlockSizePerPad%s" % tc] == 0 else 0
 
@@ -135,7 +134,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             "2. block offset: bnIdx = bnIdx %% num1DBlocks(%u)" % num1DBlocks)
         kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideBlock, sgpr(tmpSgpr), \
             "2. block offset: bnOffset = bnIdx * strideBlock(%u)" % strideBlock)
-        kStr += inst("v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
+        kStr += inst("_v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
             "3. add N and block offset: bnOffset = block and N offset")
 
         # unroll offset
@@ -143,7 +142,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             "4. K offset: kIdx = wtid / (MIN(%u) * MIBB(%u))" % (kernel["MatrixInstN"], kernel["MatrixInstB"]))
         kStr += staticMultiply(vgpr(kReg), vgpr(kReg), strideK, sgpr(tmpSgpr), \
             "4. K offset: lrKOffset = kIdx * mStride(%u)" % strideK)
-        kStr += inst("v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
+        kStr += inst("_v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
             "5. offset in wave: lrOffset = bnOffset + lrKOffset")
 
         # wave offset
@@ -154,7 +153,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
                 "6. wave offset in M dimen: wtid0 = wtid / num1DWaves(%u)" % num1DWaves)
             kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideWave, sgpr(tmpSgpr), \
                 "6. wave offset in M dimen: wOffset = wtid0 * W0Stride(%u)" % strideWave)
-            kStr += inst("v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
+            kStr += inst("_v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
                 "7. final local read offset: flrOffset = lrOffset + WOffset")
 
         # release register
