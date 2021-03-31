@@ -209,8 +209,10 @@ globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
 globalParameters["LibraryClientPath"] = "4_LibraryClient"         # subdirectory for building example library client
-globalParameters["BenchmarkClientVersion"] = "Both"               # Old, New, Both
+#globalParameters["BenchmarkClientVersion"] = "Both"               # Old, New, Both
 globalParameters["ClientExecutionLockPath"] = None # Path for a file lock to ensure only one client is executed at once.  filelock module is required if this is enabled.
+globalParameters["LibraryUpdateFile"] = "" # File for outputing indices and speeds for updating a library logic file
+globalParameters["LibraryUpdateComment"] = False # Include comment in library update file
 
 # internal, i.e., gets set during startup
 globalParameters["CurrentISA"] = (0,0,0)

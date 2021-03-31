@@ -19,6 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
+import copy
 from .Common import printExit, printWarning, versionIsCompatible
 from .SolutionStructs import Solution, ProblemSizes, ProblemType
 from . import __version__
@@ -48,10 +49,18 @@ def write(filename_noExt, data, format="yaml"):
     else:
         printExit("Unrecognized format {}".format(format))
 
-def writeYAML(filename, data):
+def writeYAML(filename, data, **kwags):
     """Writes data to file in YAML format."""
+    # set default kwags for yaml dump
+    if "explicit_start" not in kwags:
+        kwags["explicit_start"] = True
+    if "explicit_end" not in kwags:
+        kwags["explicit_end"] = True
+    if "default_flow_style" not in kwags:
+        kwags["default_flow_style"] = None
+
     with open(filename, "w") as f:
-        yaml.dump(data, f, explicit_start=True, explicit_end=True, default_flow_style=None)
+        yaml.dump(data, f, **kwags)
 
 def writeMsgPack(filename, data):
     """Writes data to file in Message Pack format."""
@@ -139,15 +148,16 @@ def parseLibraryLogicData(data, srcFile="?"):
     if len(data) < 9:
         printExit("Library logic file {} is missing required fields (len = {} < 9)".format(srcFile, len(data)))
 
-    versionString     = data[0]["MinimumRequiredVersion"]
-    scheduleName      = data[1]
-    architectureName  = data[2] if isinstance(data[2], str) else data[2]["Architecture"]
-    deviceNames       = data[3]
-    problemTypeState  = data[4]
-    solutionStates    = data[5]
-    indexOrder        = data[6]
-    exactLogic        = data[7]
-    rangeLogic        = data[8]
+    dataCpy = copy.deepcopy(data)
+    versionString     = dataCpy[0]["MinimumRequiredVersion"]
+    scheduleName      = dataCpy[1]
+    architectureName  = dataCpy[2] if isinstance(dataCpy[2], str) else dataCpy[2]["Architecture"]
+    deviceNames       = dataCpy[3]
+    problemTypeState  = dataCpy[4]
+    solutionStates    = dataCpy[5]
+    indexOrder        = dataCpy[6]
+    exactLogic        = dataCpy[7]
+    rangeLogic        = dataCpy[8]
 
     if not versionIsCompatible(versionString):
         printWarning("Version = {} in library logic file {} does not match Tensile version = {}" \
@@ -173,7 +183,7 @@ def parseLibraryLogicData(data, srcFile="?"):
                     .format(srcFile, problemType, solutionObject["ProblemType"]))
         solutions.append(solutionObject)
 
-    newLibrary = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data, solutions)
+    newLibrary = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(dataCpy, solutions)
 
     return (scheduleName, deviceNames, problemType, solutions, indexOrder, \
             exactLogic, rangeLogic, newLibrary, architectureName)
