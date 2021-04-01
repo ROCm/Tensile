@@ -173,7 +173,7 @@ def findSolutionWithIndex(solutionData, solIndex):
     if solution["SolutionIndex"] == solIndex:
         return solution
     else:
-        print("Searching for index...")
+        verbose("Searching for index...")
         solution = [s for s in solutionData if s["SolutionIndex"]==solIndex]
         assert(len(solution) == 1)
         return solution[0]
@@ -197,9 +197,26 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True, addMfmaTag=False):
     verbose(incNumSizes, "sizes and", incNumSolutions, "kernels in incremental logic file")
 
     # Add SolutionTag to distinguish mfma and non-mfma solutions
+    origTaggedSizes = addSolutionTagToKeys(origData[7], origData[5])
+    incTaggedSizes  = addSolutionTagToKeys(incData[7],  incData[5])
     if addMfmaTag:
-        origData[7] = addSolutionTagToKeys(origData[7], origData[5])
-        incData[7] = addSolutionTagToKeys(incData[7], incData[5])
+        origData[7] = origTaggedSizes
+        incData[7]  = incTaggedSizes
+    # Print warning if addMfmaTag=False results in removed sizes
+    else:
+        origSet       = {tuple(size) for size, [_, _] in origData[7]}
+        origTaggedSet = {tuple(size) for size, [_, _] in origTaggedSizes}
+        incSet        = {tuple(size) for size, [_, _] in incData[7]}
+        incTaggedSet  = {tuple(size) for size, [_, _] in incTaggedSizes}
+
+        if len(origSet) != len(origTaggedSet):
+            verbose("Warning:", len(origTaggedSet) - len(origSet), "duplicate sizes are present in base logic",
+                    "that may not be handled correctly unless --add_mfma_tag is used")
+        if len(incSet) != len(incTaggedSet):
+            verbose("Warning:", len(incTaggedSet) - len(incSet), "duplicate sizes are present in incremental logic",
+                    "that may not be handled correctly unless --add_mfma_tag is used")
+
+
 
     if trimSize:
         # trim 8-tuple gemm size format to 4-tuple [m, n, b, k]
@@ -209,7 +226,7 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True, addMfmaTag=False):
 
     origData, numOrigRemoved = removeUnusedKernels(origData, "Base logic file: ")
     incData, numIncRemoved = removeUnusedKernels(incData, "Inc logic file: ")
- 
+
     solutionPool = deepcopy(origData[5])
     solutionMap = deepcopy(origData[7])
 

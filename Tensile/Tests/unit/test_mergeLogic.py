@@ -104,6 +104,92 @@ trimmedSize=r"""
     - [42, 999.9]
 """
 
+mfmaMergeBaseLogic=logicPrefix+r"""
+-
+  - SolutionIndex: 0
+    SolutionNameMin: MFMA_base
+    EnableMatrixInstruction: True
+    MatrixInstruction: [16, 16, 4, 1]
+  - SolutionIndex: 1
+    SolutionNameMin: VALU_base
+    EnableMatrixInstruction: False
+    MatrixInstruction: []
+- DummyIndexAssignment
+"""
+
+mfmaMergeIncLogic=logicPrefix+r"""
+-
+  - SolutionIndex: 0
+    SolutionNameMin: MFMA_inc
+    EnableMatrixInstruction: True
+    MatrixInstruction: [16, 16, 4, 1]
+  - SolutionIndex: 1
+    SolutionNameMin: VALU_inc
+    EnableMatrixInstruction: False
+    MatrixInstruction: []
+- DummyIndexAssignment
+"""
+
+mfmaMergeBaseSizes=r"""
+-
+  - - [128, 128, 1, 128]
+    - [0, 3.0]
+  - - [128, 128, 1, 128]
+    - [1, 6.0] 
+  - - [130, 128, 1, 128]
+    - [1, 9.0]
+  - - [131, 128, 1, 128]
+    - [0, 12.0]
+"""
+
+mfmaMergeIncFasterSizes=r"""
+-
+  - - [128, 128, 1, 128]
+    - [0, 4.0]
+  - - [128, 128, 1, 128]
+    - [1, 7.0] 
+  - - [131, 128, 1, 128]
+    - [0, 13.0]
+  - - [130, 128, 1, 128]
+    - [1, 10.0]
+"""
+
+mfmaMergeIncSlowerSizes=r"""
+-
+  - - [128, 128, 1, 128]
+    - [0, 2.0]
+  - - [128, 128, 1, 128]
+    - [1, 5.0] 
+  - - [131, 128, 1, 128]
+    - [0, 11.0]
+  - - [130, 128, 1, 128]
+    - [1, 8.0]
+"""
+
+mfmaMergeIncNotMatchingMFMA=r""" 
+-
+  - - [130, 128, 1, 128]
+    - [0, 7.0]
+  - - [131, 128, 1, 128]
+    - [1, 12.0]
+"""
+
+mfmaMergeResNotMatchingMFMA=r"""
+-
+  - - [128, 128, 1, 128]
+    - [0, 3.0]
+  - - [128, 128, 1, 128]
+    - [1, 6.0] 
+  - - [130, 128, 1, 128]
+    - [1, 9.0]
+  - - [131, 128, 1, 128]
+    - [0, 12.0]
+  - - [130, 128, 1, 128]
+    - [2, 7.0]
+  - - [131, 128, 1, 128]
+    - [3, 12.0]
+"""
+
 def checkUniqueSolution(solutionPool):
   uniq = set()
   # note: any([False or None, True or None]) -> True
@@ -193,6 +279,41 @@ def test_mergeLogic(baseLogic, incLogic, expectedStats, expectedSizes, expectedS
 def test_checkUniqueSolution(input, expected):
   data = yaml.load(input, yaml.SafeLoader)
   assert checkUniqueSolution(data[5]) == expected
+
+@pytest.mark.parametrize("baseLogic, incLogic, expectedSizesYaml, expectedSolutions", [
+# test case #1: Slower sizes in incremental logic file
+  (mfmaMergeBaseLogic+mfmaMergeBaseSizes, mfmaMergeIncLogic+mfmaMergeIncSlowerSizes, 
+   mfmaMergeBaseSizes, ["MFMA_base", "VALU_base"]),
+# test case #2: Faster sizes in incremental logic file
+  (mfmaMergeBaseLogic+mfmaMergeBaseSizes, mfmaMergeIncLogic+mfmaMergeIncFasterSizes, 
+   mfmaMergeIncFasterSizes, ["MFMA_inc", "VALU_inc"]),
+# test case #3: Test that VALU size is included alongside MFMA size, and vice versa (regardless of efficiency)
+  (mfmaMergeBaseLogic+mfmaMergeBaseSizes, mfmaMergeIncLogic+mfmaMergeIncNotMatchingMFMA, 
+   mfmaMergeResNotMatchingMFMA, ["MFMA_base", "VALU_base", "MFMA_inc", "VALU_inc"])
+])
+def test_mfmaMergeLogic(baseLogic, incLogic, expectedSizesYaml, expectedSolutions):
+  baseData      = yaml.load(baseLogic, yaml.SafeLoader)
+  incData       = yaml.load(incLogic,  yaml.SafeLoader)
+  expectedSizes = yaml.load(expectedSizesYaml, yaml.SafeLoader)[0]
+
+  mergedData, _, _, _ = mergeLogic(baseData, incData, False, True, True)
+
+  solutionIndices = {s['SolutionNameMin']: s['SolutionIndex'] for s in mergedData[5]} # size -> solutionName
+
+  #Ensure all correct solutions are present in merged data
+  for solution in expectedSolutions:
+    assert solution in solutionIndices.keys()
+
+  assert len(expectedSolutions) == len(mergedData[5])
+
+  #Convert expected sizes to use mergedData's solution indices
+  expectedSizes = [ [size, [solutionIndices[expectedSolutions[solIndex]], eff]] for size, [solIndex, eff] in expectedSizes ]
+
+  #Ensure all expected sizes are present in merged data
+  for item in expectedSizes:
+    assert item in mergedData[7]
+  
+  assert len(expectedSizes) == len(mergedData[7])
 
 if __name__ == "__main__":
     # test_mergeLogic(baseLogic, incLogic, [1,2,2], [(1024, 1024, 1, 1024), (256, 256, 1, 256), (128, 128, 1, 128), (64, 64, 1, 64)], [ "InUseForSize256or1024xxx", "InUseForSize256or1024xxx", "InUseForSize128xxx", "InUseForSize128or64"])
