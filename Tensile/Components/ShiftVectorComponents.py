@@ -387,8 +387,12 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         kStr += writer.comment("mReg : decide which thread have to deal with this M-size")
         mReg = writer.vgprPool.checkOut(1)
         if kernel["ProblemType"]["DataType"].isDouble():
-            kStr += vectorStaticRemainder(dummy, mReg, wgMT, numContinuousOutput, tmpVgpr, tmpSgpr)
-            kStr += vectorStaticDivide(mReg, mReg, numContinuousOutput // 2, tmpVgpr, tmpSgpr)
+            if kernel["SourceSwap"]:
+                kStr += vectorStaticRemainder(dummy, mReg, wgMT, MIBShape0, tmpVgpr, tmpSgpr)
+                kStr += vectorStaticDivide(mReg, mReg, glvw, tmpVgpr, tmpSgpr)
+            else:
+                kStr += vectorStaticRemainder(dummy, mReg, wgMT, numContinuousOutput, tmpVgpr, tmpSgpr)
+                kStr += vectorStaticDivide(mReg, mReg, numContinuousOutput // 2, tmpVgpr, tmpSgpr)
         else:
             kStr += vectorStaticDivide(mReg, wgMT, numContinuousOutput, tmpVgpr, tmpSgpr)
             kStr += vectorStaticRemainder(dummy, mReg, mReg, numOutputThreads0, tmpVgpr, tmpSgpr)
@@ -397,8 +401,12 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         kStr += writer.comment("tReg : thread group id [0-31] or [32-63] for mfma 32x32x2")
         tReg = writer.vgprPool.checkOut(1)
         if kernel["ProblemType"]["DataType"].isDouble():
-            kStr += vectorStaticDivide(tReg, "Serial", kernel["MatrixInstN"] * 2, tmpVgpr, tmpSgpr)
-            kStr += vectorStaticRemainder(dummy, tReg, tReg, numOutputThreads0 // 2, tmpVgpr, tmpSgpr)
+            if kernel["SourceSwap"]:
+                kStr += vectorStaticDivide(tReg, "Serial", glvw, tmpVgpr, tmpSgpr)
+                kStr += vectorStaticRemainder(dummy, tReg, tReg, numOutputThreads1 // 2, tmpVgpr, tmpSgpr)
+            else:
+                kStr += vectorStaticDivide(tReg, "Serial", kernel["MatrixInstN"] * 2, tmpVgpr, tmpSgpr)
+                kStr += vectorStaticRemainder(dummy, tReg, tReg, numOutputThreads0 // 2, tmpVgpr, tmpSgpr)
         else:
             kStr += vectorStaticDivide(tReg, "Serial", kernel["MatrixInstN"], tmpVgpr, tmpSgpr)
             kStr += vectorStaticRemainder(dummy, tReg, tReg, numOutputThreads0, tmpVgpr, tmpSgpr)
@@ -438,16 +446,20 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
                     kStr += "label_%04u:%s" % (sviLabels[r-1][packIdx], writer.endLine)
 
                     # mask if last thread in thread#-tile column
-                    kStr += inst("v_cmpx_eq_u32", sgpr(tmpSgpr,2), vgpr(tReg), vgpr(mReg), "(serial % 64) / 32 == (wgMT/4)%2" )
+                    cmt = "(serial % 64) / 32 == (wgMT/4)%2"
+                    if kernel["SourceSwap"]:
+                        cmt = "(serial / glvw) % wt0 == (wgMT % mib0) / glvw"
+                    kStr += inst("v_cmpx_eq_u32", sgpr(tmpSgpr,2), vgpr(tReg), vgpr(mReg), cmt )
 
-                    # decide to jump to block wich handle element of shfit block (subtile)
-                    # for vector widht 2 with continuous 4, we have 1, 3 case to handle
-                    for outIdx in range(0, numShiftBlock):
-                        if kernel["ProblemType"]["DataType"].isDouble():
-                            kStr += inst("v_cmp_eq_u32", "vcc", vgpr(eReg), hex(outIdx), "wgMT %% 4 == %u" % (outIdx) )
-                        else:
-                            kStr += inst("v_cmp_eq_u32", "vcc", vgpr(eReg), hex(outIdx*glvw+r), "wgMT %% 4 == %u" % (outIdx*2+1) )
-                        kStr += inst("s_cbranch_vccnz label_%04u" % svoLabels[(r-1)][packIdx][outIdx], "branch to shift d%u, r=%u, v=%u, o=%u" % (tP["idx"], r, packIdx, outIdx))
+                    if not kernel["SourceSwap"]:
+                        # decide to jump to block wich handle element of shfit block (subtile)
+                        # for vector widht 2 with continuous 4, we have 1, 3 case to handle
+                        for outIdx in range(0, numShiftBlock):
+                            if kernel["ProblemType"]["DataType"].isDouble():
+                                kStr += inst("v_cmp_eq_u32", "vcc", vgpr(eReg), hex(outIdx), "wgMT %% 4 == %u" % (outIdx) )
+                            else:
+                                kStr += inst("v_cmp_eq_u32", "vcc", vgpr(eReg), hex(outIdx*glvw+r), "wgMT %% 4 == %u" % (outIdx*2+1) )
+                            kStr += inst("s_cbranch_vccnz label_%04u" % svoLabels[(r-1)][packIdx][outIdx], "branch to shift d%u, r=%u, v=%u, o=%u" % (tP["idx"], r, packIdx, outIdx))
 
                     # blocks to handle shfiting
                     for outIdx in range(0, numShiftBlock):
@@ -455,18 +467,22 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
                         for subTile1Idx in range(0, subTile1):
                             for shiftIdx in range(0, r):
                                 if kernel["ProblemType"]["DataType"].isDouble():
-                                    dstVgpr = 2 * (subTile1Idx * numOutputElements + packIdx * numContinuousOutput + outIdx + shiftIdx)
                                     tmpVgpr2 = writer.vgprPool.checkOutAligned(2,2)
 
+                                    dstVgpr = 2 * (subTile1Idx * numOutputElements + packIdx * numContinuousOutput + outIdx + shiftIdx)
+                                    if kernel["SourceSwap"]:
+                                        dstVgpr = 2 * (subTile1Idx * numOutputElements + outIdx * kernel["MIWaveTile"][0] + packIdx + shiftIdx)
+
+                                    swapSize = 1 if kernel["SourceSwap"] else 16
                                     kStr += inst("v_accvgpr_read_b32", vgpr(tmpVgpr), accvgpr(arch2acc[dstVgpr]), "")
                                     kStr += inst("s_nop", "1", "v_accvgpr read vgpr after write vgpr: 2 wait states")
-                                    kStr += inst("ds_swizzle_b32", vgpr(tmpVgpr2), vgpr(tmpVgpr), "offset:swizzle(SWAP, 16)", "swizzle edge values")
+                                    kStr += inst("ds_swizzle_b32", vgpr(tmpVgpr2), vgpr(tmpVgpr), "offset:swizzle(SWAP, {})".format(swapSize), "swizzle edge values")
                                     kStr += inst("s_waitcnt", "0", "wait for swizzle operation")
                                     kStr += inst("v_accvgpr_write_b32", accvgpr(arch2acc[dstVgpr]), vgpr(tmpVgpr2), "")
 
                                     kStr += inst("v_accvgpr_read_b32", vgpr(tmpVgpr), accvgpr(arch2acc[dstVgpr]+1), "")
                                     kStr += inst("s_nop", "1", "v_accvgpr read vgpr after write vgpr: 2 wait states")
-                                    kStr += inst("ds_swizzle_b32", vgpr(tmpVgpr2), vgpr(tmpVgpr), "offset:swizzle(SWAP, 16)", "swizzle edge values")
+                                    kStr += inst("ds_swizzle_b32", vgpr(tmpVgpr2), vgpr(tmpVgpr), "offset:swizzle(SWAP, {})".format(swapSize), "swizzle edge values")
                                     kStr += inst("s_waitcnt", "0", "wait for swizzle operation")
                                     kStr += inst("v_accvgpr_write_b32", accvgpr(arch2acc[dstVgpr]+1), vgpr(tmpVgpr2), "")
 

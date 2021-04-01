@@ -282,58 +282,54 @@ class ComputeStoreVgprsMFMASwap(ComputeStoreVgprs):
 
         kStr = ""
 
-        # coord 1 : wave part
         kStr += vectorStaticDivide(wave_id, "Serial", globalParameters["WavefrontWidth"], tmpVgpr1, tmpSgpr)
-        kStr += vectorStaticDivide(tid1, wave_id, kernel["MIWaveGroup"][0], tmpVgpr1, tmpSgpr)
-        kStr += inst("v_mul_lo_u32", vgpr(tid1), hex(MIBShape1), vgpr(tid1), "wave coordination offset 1")
 
+        # coord 1 : wave part
+        kStr += vectorStaticDivide(tmpVgpr0, wave_id, kernel["MIWaveGroup"][0], tmpVgpr1, tmpSgpr)
+        kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr0), hex(MIBShape1), vgpr(tmpVgpr0), "wave coordination offset 1")
+        # if kernel["MatrixInstM"] == 4 and kernel["ProblemType"]["DataType"].isDouble():
+        #     divisor =  kernel["MatrixInstN"] * kernel["MatrixInstM"]
+        #     kStr += vectorStaticDivide(tid1, "Serial", divisor, tmpVgpr1, tmpSgpr)
+        #     kStr += vectorStaticRemainder(dummy, tid1, tid1, kernel["MatrixInstN"], tmpVgpr1, tmpSgpr)
+        #     kStr += inst("v_add_u32", vgpr(tmpVgpr0), vgpr(tmpVgpr0), vgpr(tid1), "WAAA")
+
+        # coord 1 : thread part
+        kStr += vectorStaticRemainder(dummy, tid1, "Serial", globalParameters["WavefrontWidth"], tmpVgpr1, tmpSgpr)
+        kStr += vectorStaticDivide(tid1, tid1, kernel["MatrixInstM"], tmpVgpr1, tmpSgpr)
+        if kernel["MatrixInstM"] == 4:
+            kStr += vectorStaticRemainder(dummy, tid1, tid1, kernel["MatrixInstBM"], tmpVgpr1, tmpSgpr)
+        if kernel["MatrixInstM"] == 4 or not kernel["ProblemType"]["DataType"].isDouble():
+            kStr += inst("v_lshlrev_b32", vgpr(tid1), hex(2), vgpr(tid1), "thread0 * 4 : mfma output 4 continuous outputs")
+        kStr += inst("v_add_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), "coordination 1 = wave_id1 + tid1")
+
+        # coord 1 : offset part
         packedC1 = kernel["PackedC1IndicesX"]
         strideC1 = "StrideC%s" % (writer.indexChars[packedC1[0]])
         strideD1 = "StrideD%s" % (writer.indexChars[packedC1[0]])
-        kStr += inst("v_mul_lo_u32", vgpr(tid1), vgpr(tid1), sgpr(strideD1), " offset 1")
-
-        # coord 1 : thread part
-        kStr += vectorStaticRemainder(dummy, tmpVgpr0, "Serial", kernel["MatrixInstN"], tmpVgpr1, tmpSgpr)
-        kStr += inst("v_add_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), "coordination 1 = wave_id1 + tid1")
-
-
-        if kernel["MatrixInstM"] == 4:
-            remainder = globalParameters["WavefrontWidth"]
-            divisor =  kernel["MatrixInstN"] * kernel["MatrixInstBM"]
-            if kernel["ProblemType"]["DataType"].isDouble():
-                divisor *= 4
-                if kernel["MatrixInstBM"] < 4:
-                    remainder = 16
-                    divisor = 8
-            kStr += vectorStaticRemainder(dummy, tmpVgpr0, "Serial", remainder, tmpVgpr1, tmpSgpr)
-            kStr   += vectorStaticDivide(tmpVgpr0, tmpVgpr0, divisor, tmpVgpr1, tmpSgpr)
-            kStr   += staticMultiply(vgpr(tmpVgpr0), vgpr(tmpVgpr0), kernel["MatrixInstN"], sgpr(tmpSgpr))
-            kStr   += inst("v_add_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), "coordination 1 = wave_id1 + tid1")
-
-        # coord 1 : offset part
-        # kStr += inst("v_mul_lo_u32", vgpr(writer.cinRowPtr), vgpr(tid1), sgpr(strideC1), " offset 1")
-        # kStr += inst("v_mul_lo_u32", vgpr(writer.coutRowPtr), vgpr(tid1), sgpr(strideD1), " offset 1")
-        kStr += inst("v_mul_lo_u32", vgpr(writer.cinRowPtr), vgpr(tid1), 1, " offset 1")
-        kStr += inst("v_mul_lo_u32", vgpr(writer.coutRowPtr), vgpr(tid1), 1, " offset 1")
+        kStr += inst("v_mul_lo_u32", vgpr(writer.cinRowPtr), vgpr(tid1), sgpr(strideC1), " offset 1")
+        kStr += inst("v_mul_lo_u32", vgpr(writer.coutRowPtr), vgpr(tid1), sgpr(strideD1), " offset 1")
 
         # coord 0 : wave part
-        kStr += vectorStaticRemainder(dummy, tmpVgpr0, wave_id, kernel["MIWaveGroup"][0], tmpVgpr1, tmpSgpr)
-        kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr0), hex(MIBShape0), vgpr(tmpVgpr0), "wave coordination offset 0")
-        if kernel["MatrixInstM"] == 4 and kernel["ProblemType"]["DataType"].isDouble():
-            divisor =  kernel["MatrixInstN"] * kernel["MatrixInstM"]
-            kStr += vectorStaticDivide(tid0, "Serial", divisor, tmpVgpr1, tmpSgpr)
-            kStr += vectorStaticRemainder(dummy, tid0, tid0, kernel["MatrixInstN"], tmpVgpr1, tmpSgpr)
-            kStr += inst("v_add_u32", vgpr(tmpVgpr0), vgpr(tmpVgpr0), vgpr(tid0), "WAAA")
+        kStr += vectorStaticRemainder(dummy, tid0, wave_id, kernel["MIWaveGroup"][0], tmpVgpr1, tmpSgpr)
+        kStr += inst("v_mul_lo_u32", vgpr(tid0), hex(MIBShape0), vgpr(tid0), "wave coordination offset 0")
 
         # coord 0 : thread part
-        kStr += vectorStaticRemainder(dummy, tid0, "Serial", globalParameters["WavefrontWidth"], tmpVgpr1, tmpSgpr)
-        kStr += vectorStaticDivide(tid0, tid0, kernel["MatrixInstM"], tmpVgpr1, tmpSgpr)
-        kStr += inst("v_mul_lo_u32", vgpr(tid0), vgpr(tid0), sgpr(strideD1), "offset 0")
-        if kernel["MatrixInstM"] == 4:
-            kStr += vectorStaticRemainder(dummy, tid0, tid0, kernel["MatrixInstBM"], tmpVgpr1, tmpSgpr)
-        if kernel["MatrixInstM"] == 4 or not kernel["ProblemType"]["DataType"].isDouble():
-            kStr += inst("v_lshlrev_b32", vgpr(tid0), hex(2), vgpr(tid0), "thread0 * 4 : mfma output 4 continuous outputs")
+        kStr += vectorStaticRemainder(dummy, tmpVgpr0, "Serial", kernel["MatrixInstN"], tmpVgpr1, tmpSgpr)
         kStr += inst("v_add_u32", vgpr(tid0), vgpr(tmpVgpr0), vgpr(tid0), "coordination 0 = wave_id0 + tid0")
+
+
+        # if kernel["MatrixInstM"] == 4:
+        #     remainder = globalParameters["WavefrontWidth"]
+        #     divisor =  kernel["MatrixInstN"] * kernel["MatrixInstBM"]
+        #     if kernel["ProblemType"]["DataType"].isDouble():
+        #         divisor *= 4
+        #         if kernel["MatrixInstBM"] < 4:
+        #             remainder = 16
+        #             divisor = 8
+        #     kStr += vectorStaticRemainder(dummy, tmpVgpr0, "Serial", remainder, tmpVgpr1, tmpSgpr)
+        #     kStr   += vectorStaticDivide(tmpVgpr0, tmpVgpr0, divisor, tmpVgpr1, tmpSgpr)
+        #     kStr   += staticMultiply(vgpr(tmpVgpr0), vgpr(tmpVgpr0), kernel["MatrixInstN"], sgpr(tmpSgpr))
+        #     kStr   += inst("v_add_u32", vgpr(tid0), vgpr(tmpVgpr0), vgpr(tid0), "coordination 1 = wave_id1 + tid1")
 
         if writer.prefetchAcrossPersistent:
             wg0="PrevWorkGroup0"
