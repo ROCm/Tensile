@@ -1735,7 +1735,7 @@ def assignGlobalParameters( config ):
     output = subprocess.run(["hipcc", "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
 
     for line in output.split('\n'):
-      if 'HIP' in line:
+      if 'HIP version' in line:
         globalParameters['HipClangVersion'] = line.split()[2]
         print1("# Found  hipcc version " + globalParameters['HipClangVersion'])
 
