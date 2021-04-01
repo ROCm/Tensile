@@ -48,13 +48,13 @@ TEST(MultipleSolutionsPerSize, ArithmeticUnit)
 
     auto SolutionMFMA = std::make_shared<ContractionSolution>();
     auto SolutionVALU = std::make_shared<ContractionSolution>();
-    
+
     SolutionMFMA->problemPredicate = std::make_shared<Predicates::Contraction::ArithmeticUnitCompatible>(ArithmeticUnit::MFMA);
     SolutionVALU->problemPredicate = std::make_shared<Predicates::Contraction::ArithmeticUnitCompatible>(ArithmeticUnit::VALU);
-    
+
     SolutionMFMA->index = 0;
     SolutionVALU->index = 1;
-    
+
     SolutionMap<ContractionSolution> map(
         {{0, SolutionMFMA}, {1, SolutionVALU}});
 

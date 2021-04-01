@@ -150,7 +150,7 @@ def debug(*args, **kwargs):
     msg(*args, **kwargs)
 
 # Tags distinguishing solution types
-# Can be added to size key to allow solutions of each type to be present 
+# Can be added to size key to allow solutions of each type to be present
 # in logic file for a given size
 class SolutionTag(IntEnum):
     VALU = 0
@@ -179,11 +179,11 @@ def findSolutionWithIndex(solutionData, solIndex):
         return solution[0]
 
 def addSolutionTagToKeys(solutionMap, solutionPool):
-    return [[[getSolutionTag(findSolutionWithIndex(solutionPool, idx))] + keys, [idx, eff]] 
+    return [[[getSolutionTag(findSolutionWithIndex(solutionPool, idx))] + keys, [idx, eff]]
             for [keys, [idx, eff]] in solutionMap]
 
 def removeSolutionTagFromKeys(solutionMap):
-    return [[keys[1:], [idx, incEff]] for keys, [idx, incEff] in solutionMap] 
+    return [[keys[1:], [idx, incEff]] for keys, [idx, incEff] in solutionMap]
 
 # returns merged logic data as list
 def mergeLogic(origData, incData, forceMerge, trimSize=True, addMfmaTag=False):
@@ -254,7 +254,7 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True, addMfmaTag=False):
 
     verbose(numOrigRemoved, "unused kernels removed from base logic file")
     verbose(numIncRemoved, "unused kernels removed from incremental logic file")
-    
+
     # Remove SolutionTag for yaml output
     if addMfmaTag:
         solutionMap = removeSolutionTagFromKeys(solutionMap)

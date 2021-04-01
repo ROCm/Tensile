@@ -135,7 +135,7 @@ mfmaMergeBaseSizes=r"""
   - - [128, 128, 1, 128]
     - [0, 3.0]
   - - [128, 128, 1, 128]
-    - [1, 6.0] 
+    - [1, 6.0]
   - - [130, 128, 1, 128]
     - [1, 9.0]
   - - [131, 128, 1, 128]
@@ -147,7 +147,7 @@ mfmaMergeIncFasterSizes=r"""
   - - [128, 128, 1, 128]
     - [0, 4.0]
   - - [128, 128, 1, 128]
-    - [1, 7.0] 
+    - [1, 7.0]
   - - [131, 128, 1, 128]
     - [0, 13.0]
   - - [130, 128, 1, 128]
@@ -159,14 +159,14 @@ mfmaMergeIncSlowerSizes=r"""
   - - [128, 128, 1, 128]
     - [0, 2.0]
   - - [128, 128, 1, 128]
-    - [1, 5.0] 
+    - [1, 5.0]
   - - [131, 128, 1, 128]
     - [0, 11.0]
   - - [130, 128, 1, 128]
     - [1, 8.0]
 """
 
-mfmaMergeIncNotMatchingMFMA=r""" 
+mfmaMergeIncNotMatchingMFMA=r"""
 -
   - - [130, 128, 1, 128]
     - [0, 7.0]
@@ -179,7 +179,7 @@ mfmaMergeResNotMatchingMFMA=r"""
   - - [128, 128, 1, 128]
     - [0, 3.0]
   - - [128, 128, 1, 128]
-    - [1, 6.0] 
+    - [1, 6.0]
   - - [130, 128, 1, 128]
     - [1, 9.0]
   - - [131, 128, 1, 128]
@@ -282,13 +282,13 @@ def test_checkUniqueSolution(input, expected):
 
 @pytest.mark.parametrize("baseLogic, incLogic, expectedSizesYaml, expectedSolutions", [
 # test case #1: Slower sizes in incremental logic file
-  (mfmaMergeBaseLogic+mfmaMergeBaseSizes, mfmaMergeIncLogic+mfmaMergeIncSlowerSizes, 
+  (mfmaMergeBaseLogic+mfmaMergeBaseSizes, mfmaMergeIncLogic+mfmaMergeIncSlowerSizes,
    mfmaMergeBaseSizes, ["MFMA_base", "VALU_base"]),
 # test case #2: Faster sizes in incremental logic file
-  (mfmaMergeBaseLogic+mfmaMergeBaseSizes, mfmaMergeIncLogic+mfmaMergeIncFasterSizes, 
+  (mfmaMergeBaseLogic+mfmaMergeBaseSizes, mfmaMergeIncLogic+mfmaMergeIncFasterSizes,
    mfmaMergeIncFasterSizes, ["MFMA_inc", "VALU_inc"]),
 # test case #3: Test that VALU size is included alongside MFMA size, and vice versa (regardless of efficiency)
-  (mfmaMergeBaseLogic+mfmaMergeBaseSizes, mfmaMergeIncLogic+mfmaMergeIncNotMatchingMFMA, 
+  (mfmaMergeBaseLogic+mfmaMergeBaseSizes, mfmaMergeIncLogic+mfmaMergeIncNotMatchingMFMA,
    mfmaMergeResNotMatchingMFMA, ["MFMA_base", "VALU_base", "MFMA_inc", "VALU_inc"])
 ])
 def test_mfmaMergeLogic(baseLogic, incLogic, expectedSizesYaml, expectedSolutions):
@@ -312,7 +312,7 @@ def test_mfmaMergeLogic(baseLogic, incLogic, expectedSizesYaml, expectedSolution
   #Ensure all expected sizes are present in merged data
   for item in expectedSizes:
     assert item in mergedData[7]
-  
+
   assert len(expectedSizes) == len(mergedData[7])
 
 if __name__ == "__main__":
