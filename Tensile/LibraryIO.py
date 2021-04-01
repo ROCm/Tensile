@@ -148,16 +148,15 @@ def parseLibraryLogicData(data, srcFile="?"):
     if len(data) < 9:
         printExit("Library logic file {} is missing required fields (len = {} < 9)".format(srcFile, len(data)))
 
-    dataCpy = copy.deepcopy(data)
-    versionString     = dataCpy[0]["MinimumRequiredVersion"]
-    scheduleName      = dataCpy[1]
-    architectureName  = dataCpy[2] if isinstance(dataCpy[2], str) else dataCpy[2]["Architecture"]
-    deviceNames       = dataCpy[3]
-    problemTypeState  = dataCpy[4]
-    solutionStates    = dataCpy[5]
-    indexOrder        = dataCpy[6]
-    exactLogic        = dataCpy[7]
-    rangeLogic        = dataCpy[8]
+    versionString     = data[0]["MinimumRequiredVersion"]
+    scheduleName      = data[1]
+    architectureName  = data[2] if isinstance(data[2], str) else data[2]["Architecture"]
+    deviceNames       = data[3]
+    problemTypeState  = data[4]
+    solutionStates    = data[5]
+    indexOrder        = data[6]
+    exactLogic        = data[7]
+    rangeLogic        = data[8]
 
     if not versionIsCompatible(versionString):
         printWarning("Version = {} in library logic file {} does not match Tensile version = {}" \
@@ -183,7 +182,7 @@ def parseLibraryLogicData(data, srcFile="?"):
                     .format(srcFile, problemType, solutionObject["ProblemType"]))
         solutions.append(solutionObject)
 
-    newLibrary = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(dataCpy, solutions)
+    newLibrary = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data, solutions)
 
     return (scheduleName, deviceNames, problemType, solutions, indexOrder, \
             exactLogic, rangeLogic, newLibrary, architectureName)

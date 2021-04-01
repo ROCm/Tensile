@@ -30,6 +30,7 @@ from .SolutionStructs import ProblemSizes
 from . import __version__
 
 import argparse
+import copy
 import os
 import shutil
 import sys
@@ -39,7 +40,8 @@ def parseCurrentLibrary(libPath):
     global globalParameters
 
     libYaml = LibraryIO.readYAML(libPath)
-    fields = LibraryIO.parseLibraryLogicData(libYaml, libPath)
+    # parseLibraryLogicData mutates the original data, so make a copy
+    fields = LibraryIO.parseLibraryLogicData(copy.deepcopy(libYaml), libPath)
     (_, _, problemType, solutions, _, exactLogic, _, _, _) = fields
 
     # get performance metric

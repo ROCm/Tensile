@@ -210,7 +210,7 @@ globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
 globalParameters["LibraryClientPath"] = "4_LibraryClient"         # subdirectory for building example library client
 globalParameters["ClientExecutionLockPath"] = None                # Path for a file lock to ensure only one client is executed at once.  filelock module is required if this is enabled.
-globalParameters["LibraryUpdateFile"] =                           # File name for writing indices and speeds suitable for updating an existing library logic file
+globalParameters["LibraryUpdateFile"] = ""                        # File name for writing indices and speeds suitable for updating an existing library logic file
 globalParameters["LibraryUpdateComment"] = False                  # Include solution name as a comment in the library update file
 
 # internal, i.e., gets set during startup
