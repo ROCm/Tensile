@@ -10338,7 +10338,9 @@ class KernelWriterAssembly(KernelWriter):
     if useBuffer:
       rv = Code.Module("Global Read")
       tailFields = "offen offset:%u"%offset
-      if offset > 4095:
+      # buffer_load offset field is 12-bit.
+      # if offset >= 4096, use soffset instead
+      if offset >= 4096:
         if soffset == 0 or soffset == "0":
           tailFields = "offen offset:0"
           soffset = sgpr(self.getTmpSgpr(1).idx())
@@ -10418,7 +10420,9 @@ class KernelWriterAssembly(KernelWriter):
 
     if useBuffer:
       tmpSgpr = 0
-      if offset > 4095:
+      # buffer_load offset field is 12-bit.
+      # if offset >= 4096, use soffset instead
+      if offset >= 4096:
         tmpSgpr = sgpr(self.getTmpSgpr(1).idx())
         kStr += inst("s_mov_b32", tmpSgpr, offset, "large offset")
         offset = 0
