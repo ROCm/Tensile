@@ -19,7 +19,6 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-import copy
 from .Common import printExit, printWarning, versionIsCompatible
 from .SolutionStructs import Solution, ProblemSizes, ProblemType
 from . import __version__

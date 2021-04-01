@@ -50,5 +50,7 @@ setup(
     "tensile_sgemm = Tensile.Tensile:TensileSGEMM5760",
     # Run tensile benchmark from cluster
     "TensileBenchmarkCluster = Tensile.TensileBenchmarkCluster:main",
+    # Retune library logic file
+    "TensileRetuneLibrary = Tensile.TensileRetuneLibrary:main"
     ]}
   )
