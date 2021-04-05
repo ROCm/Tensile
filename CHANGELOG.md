@@ -2,6 +2,8 @@
 ## [(Unreleased) Tensile 4.28.0 for ROCm 4.3.0]
 ### Fixed
 - TensileCreateLibrary crash with relative output and --merge-files
+### Changed
+- Change cmake_minimum_required to VERSION 3.13
 
 ## [Tensile 4.27.0 for ROCm 4.2.0]
 ### Added
