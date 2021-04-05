@@ -439,7 +439,7 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
                     cmt = "(serial % 64) / 32 == (wgMT/4)%2"
                     if kernel["SourceSwap"]:
                         cmt = "(serial / glvw) % wt0 == (wgMT % mib0) / glvw"
-                    kStr += inst("v_cmpx_eq_u32", sgpr(tmpSgpr,writer.laneSGPRCount), vgpr(tReg), vgpr(mReg), "(serial % 64) / 32 == (wgMT/4)%2" )
+                    kStr += inst("v_cmpx_eq_u32", sgpr(tmpSgpr,writer.laneSGPRCount), vgpr(tReg), vgpr(mReg), cmt )
 
                     if not kernel["SourceSwap"]:
                         # decide to jump to block wich handle element of shfit block (subtile)
