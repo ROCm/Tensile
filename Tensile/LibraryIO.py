@@ -48,18 +48,18 @@ def write(filename_noExt, data, format="yaml"):
     else:
         printExit("Unrecognized format {}".format(format))
 
-def writeYAML(filename, data, **kwags):
+def writeYAML(filename, data, **kwargs):
     """Writes data to file in YAML format."""
     # set default kwags for yaml dump
-    if "explicit_start" not in kwags:
-        kwags["explicit_start"] = True
-    if "explicit_end" not in kwags:
-        kwags["explicit_end"] = True
-    if "default_flow_style" not in kwags:
-        kwags["default_flow_style"] = None
+    if "explicit_start" not in kwargs:
+        kwargs["explicit_start"] = True
+    if "explicit_end" not in kwargs:
+        kwargs["explicit_end"] = True
+    if "default_flow_style" not in kwargs:
+        kwargs["default_flow_style"] = None
 
     with open(filename, "w") as f:
-        yaml.dump(data, f, **kwags)
+        yaml.dump(data, f, **kwargs)
 
 def writeMsgPack(filename, data):
     """Writes data to file in Message Pack format."""

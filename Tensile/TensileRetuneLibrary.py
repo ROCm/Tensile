@@ -23,6 +23,7 @@ from . import BenchmarkProblems
 from . import ClientExecutable
 from . import ClientWriter
 from . import LibraryIO
+from . import Common
 from .Common import globalParameters, print1, printExit, ensurePath, assignGlobalParameters, \
                     pushWorkingPath, popWorkingPath, restoreDefaultGlobalParameters, HR
 from .Tensile import addCommonArguments
@@ -37,8 +38,6 @@ import sys
 
 
 def parseCurrentLibrary(libPath):
-    global globalParameters
-
     libYaml = LibraryIO.readYAML(libPath)
     # parseLibraryLogicData mutates the original data, so make a copy
     fields = LibraryIO.parseLibraryLogicData(copy.deepcopy(libYaml), libPath)
@@ -46,7 +45,7 @@ def parseCurrentLibrary(libPath):
 
     # get performance metric
     if len(libYaml) > 10:
-        globalParameters["PerformanceMetric"] = libYaml[10]
+        Common.globalParameters["PerformanceMetric"] = libYaml[10]
 
     # process exactLogic into ProblemSizes
     sizes = []
@@ -60,8 +59,6 @@ def parseCurrentLibrary(libPath):
 def runBenchmarking(solutions, problemSizes, outPath):
     # TODO some copy-pasting from BenchmarkProblems.benchmarkProblemType
     # could use a refactor to elimate duplicated code
-    global globalParameters
-
     ClientExecutable.getClientExecutable()
 
     shortName = "benchmark"
@@ -108,7 +105,7 @@ def runBenchmarking(solutions, problemSizes, outPath):
     resultsDir = os.path.normpath(os.path.join(globalParameters["WorkingPath"], "../../Data"))
     ensurePath(resultsDir)
     updateFile = os.path.join(resultsDir, "update.yaml")
-    globalParameters["LibraryUpdateFile"] = updateFile
+    Common.globalParameters["LibraryUpdateFile"] = updateFile
 
     BenchmarkProblems.writeBenchmarkFiles(benchmarkDir, solutions, problemSizes, shortName, filesToCopy, [])
 
@@ -126,8 +123,6 @@ def runBenchmarking(solutions, problemSizes, outPath):
 
 
 def TensileRetuneLibrary(userArgs):
-    global globalParameters
-
     print1("")
     print1(HR)
     print1("#")
