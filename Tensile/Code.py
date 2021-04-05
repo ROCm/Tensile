@@ -310,7 +310,7 @@ class WaitCnt (Module):
     self.version = version
     self.lgkmcnt = lgkmcnt
     self.vmcnt   = vmcnt
-    self.comment = comment
+    self.comment = "lgkmcnt={} vmcnt={}".format(lgkmcnt, vmcnt) + comment
 
     # let this derived class play nicely with Module.prettyPrint()
     self.__dict__.update(self.instructions().__dict__)
@@ -387,7 +387,7 @@ class  MFMAInst (Inst):
       numOfRowsperMfma = 1
       numOfRowInsts = self.kernel["ThreadTile0"]/numOfRowsperMfma
       #numOfColInsts = kernel["ThreadTile1"]/kernel["MatrixInstN"]
-      numOfDstRgs = (self.kernel["MatrixInstN"] * self.kernel["MatrixInstM"] * self.kernel["MatrixInstB"] // globalParameters["WavefrontWidth"])
+      numOfDstRgs = (self.kernel["MatrixInstN"] * self.kernel["MatrixInstM"] * self.kernel["MatrixInstB"] // self.kernel["WavefrontSize"])
       if self.kernel["ProblemType"]["DataType"].isSingle():
         for iui in range(0, self.innerUnroll):
            cStr = "a[(%u+%u*%u)*%u):((((%u+%u*%u)*%u)+%u)-1)]" % (self.aIdx,self.bIdx,numOfRowInsts,numOfDstRgs,self.aIdx,numOfDstRgs,self.bIdx,numOfRowInsts,numOfDstRgs)
@@ -658,7 +658,7 @@ class  MacInst (Inst):
               % ("vgprValuB_X%u_I%u"%(self.PLR,iui), self.bIdx)
           #if a==0 and b==0:
           #  kStr += dump(aStr)
-          kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
+          kStr += "_v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
           ##if macIdx == self.kernel["PerformanceWaitLocation"]:
           ##    kStr += "s_waitcnt lgkmcnt(%u) // extra wait for performance%s" \
           ##        % (self.kernel["PerformanceWaitCount"], self.endLine)
@@ -737,7 +737,8 @@ class SrdUpperFields10XX(BitfieldStructure):
               ("index_stride",   ctypes.c_uint, 2),
               ("add_tid_enable", ctypes.c_uint, 1),
               ("resource_level", ctypes.c_uint, 1),
-              ("_unusedB",       ctypes.c_uint, 3),
+              ("_unusedB",       ctypes.c_uint, 1),
+              ("LLC_noalloc",    ctypes.c_uint, 2),
               ("oob_select",     ctypes.c_uint, 2),
               ("type",           ctypes.c_uint, 2)]
 

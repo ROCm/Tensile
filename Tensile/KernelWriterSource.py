@@ -825,7 +825,8 @@ class KernelWriterSource(KernelWriter):
     else:
       s += "extern \"C\"\n"
       s += "__global__ "
-    s += "void %s" % ( kernelName )
+    # the new default of 1024 degrades HGEMM performance too much
+    s += "void\n__launch_bounds__(256)\n%s" % ( kernelName )
     s += "(" + self.endLine
     # pointers
     globalStr = "__global "
@@ -2135,7 +2136,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # MAC Iteration
   ##############################################################################
-  def macIter(self, kernel, black, iuiCount, useMacro):
+  def macIter(self, kernel, black, iuiCount, useMacro, isTail=False):
     kStr = ""
     for iui in range(0,iuiCount):
         kStr += "%sMAC_%ux%u" % (self.indent, \

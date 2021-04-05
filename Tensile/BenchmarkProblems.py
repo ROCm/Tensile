@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -551,12 +551,11 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
       globalParameters["WorkingPath"], globalParameters["CxxCompiler"], [problemType], solutions, kernels, kernelHelperOjbs, \
       solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
 
-  newLibraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
   newLibraryDir = ensurePath(os.path.join(globalParameters["WorkingPath"], 'library'))
-  newLibraryFile = os.path.join(newLibraryDir, newLibraryFilename)
+  newLibraryFile = os.path.join(newLibraryDir, "TensileLibrary")
   newLibrary = SolutionLibrary.MasterSolutionLibrary.BenchmarkingLibrary(solutions)
   newLibrary.applyNaming(kernelMinNaming)
-  LibraryIO.configWriter(globalParameters["LibraryFormat"]).write(newLibraryFile, Utils.state(newLibrary))
+  LibraryIO.write(newLibraryFile, Utils.state(newLibrary), globalParameters["LibraryFormat"])
 
   codeObjectFiles = [os.path.relpath(f, globalParameters["WorkingPath"]) for f in codeObjectFiles]
 

@@ -124,6 +124,12 @@ boost::filesystem::path TestData::ProgramLocation()
 TestData::TestData()
     : m_dataDir(ProgramLocation().parent_path() / "data")
 {
+    if(!boost::filesystem::is_directory(m_dataDir))
+    {
+        auto newValue = ProgramLocation().parent_path().parent_path() / "data";
+        if(boost::filesystem::is_directory(newValue))
+            m_dataDir = newValue;
+    }
 }
 
 TestData::TestData(std::string const& dataDir)

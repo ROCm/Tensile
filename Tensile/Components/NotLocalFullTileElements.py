@@ -20,7 +20,6 @@
 ################################################################################
 
 from ..Component import NotLocalFullTileElements
-from ..Common import globalParameters
 
 class NotLocalFullTileElementsVALU(NotLocalFullTileElements):
     kernel = {"EnableMatrixInstruction": False}
@@ -78,7 +77,7 @@ class NotLocalFullTileElementsMFMA(NotLocalFullTileElements):
             totalTT0            = kernel["MIWaveTile"][0] * MFMAcontinoutsOuptut
             totalTT1            = kernel["MIWaveTile"][1]
         else:
-            outputsPerThread    = kernel["MatrixInstM"] * kernel["MatrixInstN"] // globalParameters["WavefrontWidth"]
+            outputsPerThread    = kernel["MatrixInstM"] * kernel["MatrixInstN"] // writer.kernel["WavefrontSize"]
             totalTT0            = kernel["MatrixInstBM"] * kernel["MIWaveTile"][0] * outputsPerThread
             totalTT1            = kernel["MatrixInstBN"] * kernel["MIWaveTile"][1]
 
@@ -117,7 +116,7 @@ class NotLocalFullTileElementsMFMASwap(NotLocalFullTileElements):
             totalTT0            = kernel["MIWaveTile"][0] * MFMAcontinoutsOuptut
             totalTT1            = kernel["MIWaveTile"][1]
         else:
-            outputsPerThread    = kernel["MatrixInstM"] * kernel["MatrixInstN"] // globalParameters["WavefrontWidth"]
+            outputsPerThread    = kernel["MatrixInstM"] * kernel["MatrixInstN"] // writer.kernel["WavefrontSize"]
             totalTT0            = kernel["MatrixInstBM"] * kernel["MIWaveTile"][0] * outputsPerThread
             totalTT1            = kernel["MatrixInstBN"] * kernel["MIWaveTile"][1]
 

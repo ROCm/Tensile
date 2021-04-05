@@ -138,7 +138,7 @@ function(TensileCreateLibraryCmake
     add_library(Tensile ${options} ${Tensile_SOURCE_FILES})
     # specify gpu targets
     if( Tensile_ARCHITECTURE MATCHES "all" )
-      set( Tensile_HIP_ISA "gfx803" "gfx900" "gfx906" "gfx908")
+      set( Tensile_HIP_ISA "gfx803" "gfx900" "gfx906" "gfx908" "gfx1010" "gfx1011" "gfx1012" "gfx1030")
     else()
       set( Tensile_HIP_ISA ${Tensile_ARCHITECTURE})
     endif()
