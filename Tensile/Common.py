@@ -807,6 +807,9 @@ validParameters = {
     # -1:  Use dwordx2 if support SRVW, or set SRVW to 0
     "StoreRemapVectorWidth":      [-1,0,1,2,4,8],
 
+    # SourceSwap: Optimizes MatrixInstruction store pattern by swapping mfma input order.
+    "SourceSwap":                 [False, True],
+
     # Disable overlapping AB-tile vgpr and read/write addr vgprs with C-tile vgprs
     # Valid only for MatrixInstruction enabled kernels, which by default overlaps
     # C-tile w/ AB-tile until it's due for v_accvgpr_read before the writeback. Illustrated below:
@@ -1152,6 +1155,7 @@ defaultBenchmarkCommonParameters = [
     {"MinVgprNumber":             [0]},
     {"MaxVgprNumber":             [256]},
     {"StoreRemapVectorWidth":     [ 0 ] },
+    {"SourceSwap":                [ False ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = []
