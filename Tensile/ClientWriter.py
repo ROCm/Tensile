@@ -701,6 +701,9 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param("granularity-threshold",    globalParameters["GranularityThreshold"])
         param("pristine-on-gpu",          globalParameters["PristineOnGPU"])
 
+        param("library-update-file",      globalParameters["LibraryUpdateFile"])
+        param("library-update-comment",   globalParameters["LibraryUpdateComment"])
+
 def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection, configBase = "ClientParameters", libraryFile = None):
 
     if tileAwareSelection:
