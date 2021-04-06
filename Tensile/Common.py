@@ -1709,11 +1709,6 @@ def assignGlobalParameters( config ):
     if result.returncode:
       printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], result.returncode))
 
-  # TODO Remove this when rocm-smi supports gfx90a
-  if globalParameters["CurrentISA"] == (9,0,10):
-    printWarning("HardwareMonitor currently disabled for gfx90a")
-    globalParameters["HardwareMonitor"] = False
-
   globalParameters["AsmCaps"] = {}
   globalParameters["ArchCaps"] = {}
 
