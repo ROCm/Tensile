@@ -162,18 +162,17 @@ class SolutionTag(IntEnum):
         return str(self)
 
 def getSolutionTag(solution):
-    if solution["EnableMatrixInstruction"] or solution["MatrixInstruction"]:
+    if solution.get("EnableMatrixInstruction", False) or solution.get("MatrixInstruction", False):
         return SolutionTag.MFMA
     else:
         return SolutionTag.VALU
 
 def findSolutionWithIndex(solutionData, solIndex):
     # Check solution at the index corresponding to solIndex first
-    solution = solutionData[solIndex]
-    if solution["SolutionIndex"] == solIndex:
-        return solution
+    if solIndex < len(solutionData) and solutionData[solIndex]["SolutionIndex"] == solIndex:
+        return solutionData[solIndex]
     else:
-        verbose("Searching for index...")
+        debug("Searching for index...")
         solution = [s for s in solutionData if s["SolutionIndex"]==solIndex]
         assert(len(solution) == 1)
         return solution[0]
