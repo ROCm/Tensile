@@ -116,6 +116,7 @@ set(test_sources ${test_sources}
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp
     ContractionFitness_test.cpp
+    MultipleSolutionsPerSize_test.cpp
     DataTypes_test.cpp
     EmbeddedData_test.cpp
     KernelArguments_test.cpp
@@ -137,6 +138,7 @@ if(TENSILE_USE_LLVM)
     set(test_sources ${test_sources}
         ContractionLibraryLoading_test.cpp
         ContractionFitness_test.cpp
+        MultipleSolutionsPerSize_test.cpp
         llvm/ArithmeticUnitPredicate_test.cpp
         llvm/CUEfficiencyPredicate_test.cpp
         llvm/DeterministicModePredicate_test.cpp
