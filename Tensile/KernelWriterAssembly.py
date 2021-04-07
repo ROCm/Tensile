@@ -5915,10 +5915,10 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # End Summation
   ##############################################################################
-  def endSummation(self, kernel):
+  def endSummation(self, kernel, label = None):
     kStr = ""
 
-    kStr += "%s:\n" % self.getNamedLabelUnique("Summation_End")
+    kStr += "%s:\n" % (self.getNamedLabelUnique("Summation_End") if label is None else label)
 
     if self.overlapVgprC:
       # After summation loop, valuC is due for Acc->Arch read and is thus locked out.
@@ -6320,7 +6320,7 @@ class KernelWriterAssembly(KernelWriter):
   # isPap means this is the PAP iteration, need to adjust the loop exit
   # isOptNLL : this is for the store-interleaved NLL optimization
   ##############################################################################
-  def openSumAtLeastUnroll(self, kernel, prefetch, isPap, isOptNLL):
+  def openSumAtLeastUnroll(self, kernel, prefetch, isOptNLL, isPap):
     kStr = ""
     if prefetch:
       kStr += self.checkLastIter(kernel)
@@ -6341,6 +6341,15 @@ class KernelWriterAssembly(KernelWriter):
             % self.getNamedLabel(labelName), \
             "skip prefetch loads since numIter==0")
     elif isOptNLL:
+
+      # When OptNLL + PAP enabled, but is the last tile so isPap=False (brief: T,T,F),
+      # We don't need to append the code here (checking Alpha,Beta,Tail) since it is shared with (T,T,T)
+      # Somehow we still need to do the register-pool backup...
+      if self.prefetchAcrossPersistent and not isPap:
+        self.savedVgprPool = deepcopy(self.vgprPool)
+        self.savedSgprPool = deepcopy(self.sgprPool)
+        return ""
+
       skipOptNLL = self.getNamedLabel("OptNLL_End")
       tmpSgpr = self.getTmpSgpr(2).idx()
 
@@ -6413,7 +6422,7 @@ class KernelWriterAssembly(KernelWriter):
           "skip if tail loop required")
 
       # The prefetch across persistent for OptNLL case
-      if self.prefetchAcrossPersistent: # can we use isPap input arg?
+      if self.prefetchAcrossPersistent and isPap:
         kStr += str(self.openPrefetchAcrossPersistent(kernel, isOptNLL=True))
         newTileCodes = self.setupNewTile(kernel, self.tPA, self.tPB, isPap=True, isOptNLL=True)
         codes = '\n'.join([str(x) for x in newTileCodes])
@@ -6460,7 +6469,7 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   ##############################################################################
-  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL, isNGLL):
+  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL, isPap, isNGLL):
     kStr = ""
     if not prefetch:
       if isNGLL:
@@ -6468,8 +6477,9 @@ class KernelWriterAssembly(KernelWriter):
         kStr += "label_%04u:%s" % (toPGR1, self.endLine)
       else:
         if isOptNLL:
+          endSumLabel = self.getNamedLabel("Summation_End_OptNLL")
           # If is PAP inside OptNLL: Swap the LRO (if EPS, depends on if BreakAtEvenIter)
-          if self.prefetchAcrossPersistent:
+          if self.prefetchAcrossPersistent and isPap:
             if kernel["ExpandPointerSwap"]:
               kStr += inst("s_cmp_eq_u32", sgpr("BreakAtEvenIter"), 1, "test if BreakAtEvenIter==1 ?")
               kStr += inst("s_cbranch_scc1", self.getLabelTarget("SkipLroSwap"), "Skip LROSwap if BreakAtEvenIter==1")
@@ -6482,24 +6492,32 @@ class KernelWriterAssembly(KernelWriter):
             if kernel["ExpandPointerSwap"]:
               kStr += self.getLabelDef("SkipLroSwap", "Skip LRO Swap\n")
 
-          kStr += self.comment1("Stores for OptNLL")
-          kStr += self.endSummation(kernel)
+            # Jump to Summation
+            kStr += inst("s_branch", "%s"%endSumLabel, "jump to Summation End")
+            kStr += "\n"
+            # Append label for pure OptNLL (no PAP interleaved)
+            kStr += "%s:\n" % self.getNamedLabel("SkipTo_PureOptNLL_LastTile")
 
-          # perhaps could work with LSU>1 by adding other indices here, but not tested
-          assert (kernel["LocalSplitU"] == 1)
-          kStr += self.notLocalSplitUGlobalWriteIndices(kernel)
+          else:
+            kStr += self.comment1("Stores for OptNLL")
+            kStr += self.endSummation(kernel, endSumLabel)
 
-          # add stores for opt NLL
-          (fullVw, elements) = self.notLocalFullTileElements(kernel, False)
-          kStr += self.globalWriteElements(kernel, [fullVw], [elements], applyAlpha=False, betas=[False], edges=[False])
+            # perhaps could work with LSU>1 by adding other indices here, but not tested
+            assert (kernel["LocalSplitU"] == 1)
+            kStr += self.notLocalSplitUGlobalWriteIndices(kernel)
 
-          self.cleanupGlobalWrite(kernel)
-          kStr += "\n"
-          kStr += str(self.functionEnd(kernel, False))
-          #kStr += inst("s_branch %s"%summationEnd, "skip the OptNLL")
+            # add stores for opt NLL
+            (fullVw, elements) = self.notLocalFullTileElements(kernel, False)
+            kStr += self.globalWriteElements(kernel, [fullVw], [elements], applyAlpha=False, betas=[False], edges=[False])
 
-          label = self.getNamedLabel("OptNLL_End")
-          kStr += "%s:%s" % (label, self.endLine)
+            self.cleanupGlobalWrite(kernel)
+            kStr += "\n"
+            kStr += str(self.functionEnd(kernel, False))
+            #kStr += inst("s_branch %s"%summationEnd, "skip the OptNLL")
+
+            label = self.getNamedLabel("OptNLL_End")
+            kStr += "%s:%s" % (label, self.endLine)
+
         else:
           label = self.getNamedLabel("PrefetchGlobalLastIterEnd")
           kStr += "%s:%s" % (label, self.endLine)
@@ -11535,7 +11553,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   ##############################################################################
   def openPrefetchAcrossPersistent(self, kernel, isOptNLL):
-    label = "SkipPrefetchAcrossPersistent_OptNLL" if isOptNLL else "SkipPrefetchAcrossPersistent"
+    label = "SkipTo_PureOptNLL_LastTile" if isOptNLL else "SkipPrefetchAcrossPersistent"
     imod = Code.Module()
     stmp = self.getTmpSgpr(1).idx()
     imod.addCode(self.comment3("PrefetchAcrossPersistent - Open"))
@@ -11543,7 +11561,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["PersistentKernelAlongBatch"]:
       imod.addInst("s_mul_i32", sgpr(stmp), sgpr(stmp), sgpr("NumWorkGroups2"), "Total WG-0 x 1 x 2")
     imod.addInst("s_cmp_ge_u32", sgpr("SerialWorkGroupIter"), sgpr(stmp), "outside legal WG?")
-    imod.addInst("s_cbranch_scc1", self.getNamedLabel(label), "skip pf if OOB")
+    imod.addInst("s_cbranch_scc1", self.getNamedLabel(label), "skip pf if OOB - last tile no PAP, go to pure OptNLL")
     #imod.addInst("s_branch", self.getLabelTarget("SkipPrefetchAcrossPersistent"), "skip pf if OOB")
     return imod
 
