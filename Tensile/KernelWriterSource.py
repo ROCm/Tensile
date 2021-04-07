@@ -3178,6 +3178,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "#undef LDS_OFFSET_BLK%s" % (self.endLine)
       kStr += "#undef LDS_NUM_ELEMENTS%s" % (self.endLine)
       kStr += "#undef NUM_THREADS%s" % (self.endLine)
+      kStr += "#undef PAD%s" % (self.endLine)
       kStr += "#undef WORK_GROUP_MAPPING%s" % (self.endLine)
       kStr += "#undef VECTOR_WIDTH%s" % (self.endLine)
       kStr += "#undef GLOBAL_LOAD_VECTOR_WIDTH_A%s" % (self.endLine)

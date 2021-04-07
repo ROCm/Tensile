@@ -11559,7 +11559,8 @@ class KernelWriterAssembly(KernelWriter):
     # Update the store cnt to preLoopVmcntDict for Case2/3
     # (No need to update for Case0:'Undefined' or Case4:'OrdNLL_B1_Store')
     if self.currPreLoopVmcntCase in self.preLoopVmcntDict:
-      self.preLoopVmcntDict[self.currPreLoopVmcntCase] += storesIssued
+      if (self.version[0] != 10):
+        self.preLoopVmcntDict[self.currPreLoopVmcntCase] += storesIssued
 
     return kStr
 
