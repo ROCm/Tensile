@@ -2,9 +2,12 @@
 ## [(Unreleased) Tensile 4.28.0 for ROCm 4.3.0]
 ### Added
 - TensileRetuneLibrary for updating existing library logic files
+- Support GFX1030
+- Support NHWC
 
 ### Fixed
 - TensileCreateLibrary crash with relative output and --merge-files
+
 ### Changed
 - Change cmake_minimum_required to VERSION 3.13
 
