@@ -10229,7 +10229,10 @@ class KernelWriterAssembly(KernelWriter):
             self.currPreLoopVmcntCase = PreLoopVmcntCase.OptNLL_Store
           kStr += inst("s_mov_b32", sgpr("PreLoopLWVmcntCase"), hex(self.currPreLoopVmcntCase.value), \
             "for optimizing next PreLoop LW vmcnt, set to Case%u"%self.currPreLoopVmcntCase.value)
-          self.preLoopVmcntDict[self.currPreLoopVmcntCase] = 0 #reset vmcnt
+          # reset vmcnt if the dict has this key (OptNLL_Store, OrdNLL_E1_Store),
+          # OrdNLL_B1_Store is excluded
+          if self.currPreLoopVmcntCase in self.preLoopVmcntDict:
+            self.preLoopVmcntDict[self.currPreLoopVmcntCase] = 0
 
         # for storeRemap edge case, non-beta still can enable vector stores
         if kernel["StoreRemapVectorWidth"] and not beta:
