@@ -290,10 +290,10 @@ class ProblemPredicate(Properties.Predicate):
                 return None
 
             if key == "AssertFree0ElementMultiple":
-                tag = "FreeSizeAMultiple"
+                tag = "Free0SizeMultiple"
                 index = 0
             elif key == "AssertFree1ElementMultiple":
-                tag = "FreeSizeBMultiple"
+                tag = "Free1SizeMultiple"
                 index = 0
             elif key == "AssertSummationElementMultiple":
                 tag = "BoundSizeMultiple"

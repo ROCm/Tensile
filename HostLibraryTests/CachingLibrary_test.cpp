@@ -212,7 +212,8 @@ TEST(Hashing, AMDGPU)
     std::vector<AMDGPU::Processor> processors{AMDGPU::Processor::gfx803,
                                               AMDGPU::Processor::gfx900,
                                               AMDGPU::Processor::gfx906,
-                                              AMDGPU::Processor::gfx908};
+                                              AMDGPU::Processor::gfx908,
+                                              AMDGPU::Processor::gfx90a};
 
     std::vector<int> counts{16, 20, 40, 56, 60, 64};
 
@@ -259,6 +260,8 @@ TEST(Hashing, Tuple2)
     TwoInts tup;
 
     size_t h = std::hash<TwoInts>()(tup);
+    if(h) // Use the code to quiet the compiler.
+        return;
 }
 
 TEST(CachingLibrary, Simple)

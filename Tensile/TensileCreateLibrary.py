@@ -29,7 +29,8 @@ from . import EmbeddedData
 from . import LibraryIO
 from . import Utils
 from .Common import globalParameters, HR, print1, print2, printExit, ensurePath, \
-    CHeader, CMakeHeader, assignGlobalParameters, listToInitializer, architectureMap
+                    CHeader, CMakeHeader, assignGlobalParameters, \
+                    listToInitializer, gfxName, architectureMap
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
@@ -76,7 +77,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
       archs[tuple(k['ISA'])].append(k)
     coFiles = []
     for arch, archKernels in archs.items():
-      archName = 'gfx'+''.join(map(str,arch))
+      archName = gfxName(arch)
       objectFiles = list([kernelWriterAssembly.getKernelFileBase(k) + '.o' \
                           for k in archKernels \
                           if k['KernelLanguage'] == 'Assembly'])
@@ -139,12 +140,15 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       cmdlineArchs = []
       for arch in globalParameters['SupportedISA']:
         if isSupported(arch):
-          if (arch == (9,0,6) or arch == (9,0,8)):
-            archs += ['gfx'+''.join(map(str,arch))+'-xnack-']
-            cmdlineArchs += ['gfx'+''.join(map(str,arch))+':xnack-']
+          if (arch == (9,0,6) or arch == (9,0,8) or arch == (9,0,10)):
+            if (arch == (9,0,10)):
+              archs += [gfxName(arch) + '-xnack+']
+              cmdlineArchs += [gfxName(arch) + ':xnack+']
+            archs += [gfxName(arch) + '-xnack-']
+            cmdlineArchs += [gfxName(arch) + ':xnack-']
           else:
-            archs += ['gfx'+''.join(map(str,arch))]
-            cmdlineArchs += ['gfx'+''.join(map(str,arch))]
+            archs += [gfxName(arch)]
+            cmdlineArchs += [gfxName(arch)]
 
       archFlags = ['--offload-arch=' + arch for arch in cmdlineArchs]
 
@@ -241,9 +245,9 @@ def prepAsmOldClient():
     defaultIsa = (9,0,0)
     assemblerFile.write( \
       "${ASM} -x assembler -target amdgcn-amd-amdhsa %s $@ -c -o $f.o $f.s\n" % \
-      ("-mllvm --amdhsa-code-object-version=2" if \
+      ("-mcode-object-version=2" if \
       globalParameters["AsmCaps"][defaultIsa]["HasCodeObjectV3"] and \
-      globalParameters["CodeObjectVersion"] == "V2" else "-mllvm --amdhsa-code-object-version=4"))
+      globalParameters["CodeObjectVersion"] == "V2" else "-mcode-object-version=4"))
     assemblerFile.write("${ASM} -target amdgcn-amd-amdhsa $f.o -o $f.co\n")
   assemblerFile.close()
   os.chmod(assemblerFileName, 0o777)
@@ -263,18 +267,32 @@ def prepAsmNewClient(kernelWriterAssembly):
     assemblerFile.write("copy %1.o %1.co\n")
   else:
     assemblerFile.write("#!/bin/sh {log}\n".format(log = "-x" if globalParameters["PrintLevel"] >=2  else ""))
-    assemblerFile.write("# usage: asm-new.sh kernelName(no extension)\n")
+    assemblerFile.write("# usage: asm-new.sh kernelName(no extension) [--wave32]\n")
 
     assemblerFile.write("f=$1\n")
     assemblerFile.write("shift\n")
+    assemblerFile.write('if [ ! -z "$1" ] && [ "$1" = "--wave32" ]; then\n')
+    assemblerFile.write("    wave=32\n")
+    assemblerFile.write("    shift\n")
+    assemblerFile.write("else\n")
+    assemblerFile.write("    wave=64\n")
+    assemblerFile.write("fi\n")
+
 
     isa = globalParameters["CurrentISA"]
     assemblerFile.write("h={gfxName}\n".format(gfxName = Common.gfxName(isa)))
 
-    cArgs = kernelWriterAssembly.getCompileArgs("$f.s", "$f.o", useGlobalISA=True)
+    cArgs32 = kernelWriterAssembly.getCompileArgs("$f.s", "$f.o", isa=isa, wavefrontSize=32)
+    cArgs64 = kernelWriterAssembly.getCompileArgs("$f.s", "$f.o", isa=isa, wavefrontSize=64)
     lArgs = kernelWriterAssembly.getLinkCodeObjectArgs(["$f.o"], "$f.co")
 
-    assemblerFile.write(" ".join(cArgs) + "\n")
+    assemblerFile.write("if [ $wave -eq 32 ]; then\n")
+    assemblerFile.write(" ".join(cArgs32) + "\n")
+    assemblerFile.write("else\n")
+    assemblerFile.write(" ".join(cArgs64) + "\n")
+    assemblerFile.write("fi\n")
+
+
     assemblerFile.write(" ".join(lArgs) + "\n")
 
     assemblerFile.write("cp $f.co ../../../library/${f}_$h.co\n")
@@ -1035,17 +1053,19 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
     sourceArchs = []
     for arch in globalParameters['SupportedISA']:
       if isSupported(arch):
-        if (arch == (9,0,6) or arch == (9,0,8)):
-          sourceArchs += ['gfx'+''.join(map(str,arch))+'-xnack-']
+        if (arch == (9,0,6) or arch == (9,0,8) or arch == (9,0,10)):
+          if (arch == (9,0,10)):
+            sourceArchs += [gfxName(arch) + '-xnack+']
+          sourceArchs += [gfxName(arch) + '-xnack-']
         else:
-          sourceArchs += ['gfx'+''.join(map(str,arch))]
+          sourceArchs += [gfxName(arch)]
   else:
     raise RuntimeError("Unknown compiler %s" % cxxCompiler)
 
   # Asm based kernels target the configured ISA
   asmArchs = collections.defaultdict(list)
   for (kernelName, kernel) in zip(asmKernelNames, asmKernels):
-    asmArchs[kernelName].append('gfx'+''.join(map(str, tuple(kernel['ISA']))))
+    asmArchs[kernelName].append(gfxName(kernel['ISA']))
 
   # Build list of solution files
   if globalParameters["LegacyComponents"]:
@@ -1247,7 +1267,7 @@ def writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutions, 
   newLibrary = MasterSolutionLibrary.BenchmarkingLibrary(solutions)
   newLibrary.applyNaming(kernelMinNaming)
 
-  LibraryIO.YAMLWriter().write(newLibraryFile, Utils.state(newLibrary))
+  LibraryIO.writeYAML(newLibraryFile, Utils.state(newLibrary))
 
   return (codeObjectFiles, newLibrary)
 
@@ -1267,7 +1287,7 @@ def WriteClientLibraryFromSolutions(solutionList, libraryWorkingPath, tensileSou
   mataDataFilePath = os.path.join(effectiveWorkingPath, 'metadata.yaml')
 
   metaData = {"ProblemType":problemType}
-  LibraryIO.YAMLWriter().write(mataDataFilePath, metaData)
+  LibraryIO.writeYAML(mataDataFilePath, metaData)
 
   codeObjectFiles, newLibrary = writeBenchmarkClientFiles(libraryWorkingPath, tensileSourcePath, solutionList, cxxCompiler )
 
@@ -1303,7 +1323,7 @@ def TensileCreateLibrary():
   argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hipcc"],       action="store", default="hipcc")
   argParser.add_argument("--cmake-cxx-compiler",     dest="CmakeCxxCompiler",  action="store")
   argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["V2", "V3"], action="store", default="V3")
-  argParser.add_argument("--architecture",           dest="Architecture",      choices=["all", "gfx000", "gfx803", "gfx900", "gfx906:xnack-", "gfx908:xnack-"], action="store", default="all")
+  argParser.add_argument("--architecture",           dest="Architecture",      type=str, action="store", default="all", help="Supported archs: " + " ".join(architectureMap.keys()))
   argParser.add_argument("--merge-files",            dest="MergeFiles",        action="store_true")
   argParser.add_argument("--no-merge-files",         dest="MergeFiles",        action="store_false")
   argParser.add_argument("--short-file-names",       dest="ShortNames",        action="store_true")
@@ -1340,6 +1360,7 @@ def TensileCreateLibrary():
   libraryFormat = args.LibraryFormat
   print2("OutputPath: %s" % outputPath)
   ensurePath(outputPath)
+  outputPath = os.path.abspath(outputPath)
   arguments = {}
   arguments["RuntimeLanguage"] = args.RuntimeLanguage
   arguments["CodeObjectVersion"] = args.CodeObjectVersion
@@ -1385,17 +1406,21 @@ def TensileCreateLibrary():
   if not os.path.exists(logicPath):
     printExit("LogicPath %s doesn't exist" % logicPath)
 
-  for key in architectureMap:
-    if arguments["Architecture"] == key:
-      arguments["Architecture"] = architectureMap[key]
+  archs = arguments["Architecture"].split(";")
+  logicArchs = set()
+  for arch in archs:
+    if arch in architectureMap:
+      logicArchs.add(architectureMap[arch])
+    else:
+      printExit("Architecture %s not supported" % arch)
 
   # Recursive directory search
   logicFiles = []
   for root, dirs, files in os.walk(logicPath):
     logicFiles += [os.path.join(root, f) for f in files
                        if os.path.splitext(f)[1]==".yaml" \
-                       and arguments["Architecture"] in os.path.splitext(f)[0] \
-                       or "hip" in os.path.splitext(f)[0] ]
+                       and (any(logicArch in os.path.splitext(f)[0] for logicArch in logicArchs) \
+                       or "hip" in os.path.splitext(f)[0]) ]
 
   print1("# LibraryLogicFiles:" % logicFiles)
   for logicFile in logicFiles:
@@ -1407,7 +1432,7 @@ def TensileCreateLibrary():
   solutions = []
   logicData = {} # keys are problemTypes, values are schedules
 
-  libraries = Common.ParallelMap(LibraryIO.readLibraryLogicForSchedule, logicFiles, "Reading logic files")
+  libraries = Common.ParallelMap(LibraryIO.parseLibraryLogicFile, logicFiles, "Reading logic files")
 
   masterLibraries = {}
   fullMasterLibrary = None
@@ -1415,34 +1440,27 @@ def TensileCreateLibrary():
     (scheduleName, deviceNames, problemType, solutionsForSchedule, \
        indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) = logic
 
-    if not globalParameters["PackageLibrary"]:
-      if fullMasterLibrary is None:
-        fullMasterLibrary = deepcopy(newLibrary)
-        fullMasterLibrary.version = args.version
-      else:
-        fullMasterLibrary.merge(deepcopy(newLibrary))
-
-    if globalParameters["PackageLibrary"]:
-      if architectureName in masterLibraries:
-        masterLibraries[architectureName].merge(deepcopy(newLibrary))
-      else:
-        masterLibraries[architectureName] = deepcopy(newLibrary)
-
-    if problemType not in logicData:
-      logicData[problemType] = []
-    logicData[problemType].append((scheduleName, deviceNames, \
-        solutionsForSchedule, indexOrder, exactLogic, rangeLogic ))
-    for solution in solutionsForSchedule:
-      if solution not in solutions:
-        solutions.append(solution)
-
     if globalParameters["PackageLibrary"]:
       if architectureName in masterLibraries:
         masterLibraries[architectureName].merge(deepcopy(newLibrary))
       else:
         masterLibraries[architectureName] = deepcopy(newLibrary)
         masterLibraries[architectureName].version = args.version
+    else:
+      if fullMasterLibrary is None:
+        fullMasterLibrary = deepcopy(newLibrary)
+        fullMasterLibrary.version = args.version
+      else:
+        fullMasterLibrary.merge(deepcopy(newLibrary))
 
+    if problemType not in logicData:
+      logicData[problemType] = []
+    logicData[problemType].append((scheduleName, deviceNames, \
+        solutionsForSchedule, indexOrder, exactLogic, rangeLogic ))
+
+    for solution in solutionsForSchedule:
+      if solution not in solutions:
+        solutions.append(solution)
 
   kernels, kernelHelperOjbs, _ = generateKernelObjectsFromSolutions(solutions)
 
@@ -1512,32 +1530,32 @@ def TensileCreateLibrary():
     # write logic
     writeLogic(outputPath, logicData, solutionWriter)
 
-  archs = ['gfx'+''.join(map(str,arch)) for arch in globalParameters['SupportedISA'] \
+  archs = [gfxName(arch) for arch in globalParameters['SupportedISA'] \
              if globalParameters["AsmCaps"][arch]["SupportedISA"]]
   newLibraryDir = ensurePath(os.path.join(outputPath, 'library'))
 
-  libraryWriter = LibraryIO.configWriter(args.LibraryFormat)
-  tensileLibraryFilename = "TensileLibrary.yaml" if args.LibraryFormat == "yaml" \
-                           else "TensileLibrary.dat"
   if globalParameters["PackageLibrary"]:
     for archName, newMasterLibrary in masterLibraries.items():
       if (archName in archs):
         archPath = ensurePath(os.path.join(newLibraryDir, archName))
-        masterFile = os.path.join(archPath, tensileLibraryFilename)
+        masterFile = os.path.join(archPath, "TensileLibrary")
         newMasterLibrary.applyNaming(kernelMinNaming)
-        libraryWriter.write(masterFile, Utils.state(newMasterLibrary))
+        LibraryIO.write(masterFile, Utils.state(newMasterLibrary), args.LibraryFormat)
   else:
-    masterFile = os.path.join(newLibraryDir, tensileLibraryFilename)
+    masterFile = os.path.join(newLibraryDir, "TensileLibrary")
     fullMasterLibrary.applyNaming(kernelMinNaming)
-    libraryWriter.write(masterFile, Utils.state(fullMasterLibrary))
+    LibraryIO.write(masterFile, Utils.state(fullMasterLibrary), args.LibraryFormat)
 
   theMasterLibrary = fullMasterLibrary
   if globalParameters["PackageLibrary"]:
     theMasterLibrary = list(masterLibraries.values())[0]
+
   if args.EmbedLibrary is not None:
       embedFileName = os.path.join(outputPath, "library/{}.cpp".format(args.EmbedLibrary))
       with EmbeddedData.EmbeddedDataFile(embedFileName) as embedFile:
-          embedFile.embed_file(theMasterLibrary.cpp_base_class, masterFile, nullTerminated=True,
+
+          ext = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
+          embedFile.embed_file(theMasterLibrary.cpp_base_class, masterFile + ext, nullTerminated=True,
                                key=args.EmbedLibraryKey)
 
           for co in Utils.tqdm(codeObjectFiles):

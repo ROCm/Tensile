@@ -23,7 +23,6 @@ from . import __version__
 from . import Parallel
 from collections import OrderedDict
 from copy import deepcopy
-from subprocess import Popen, PIPE
 
 
 import math
@@ -96,7 +95,7 @@ globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kerne
 globalParameters["GenerateSourcesAndExit"] = False # Exit after kernel source generation.
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
-globalParameters["ExitOnFails"] = 1     # Exit if failures detected.
+globalParameters["ExitOnFails"] = 1     # 1: Exit after benchmark run if failures detected.  2: Exit during benchmark run.
 globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel generation.  0=no threading, -1 == nproc, N=min(nproc,N).  TODO - 0 sometimes fails with a kernel name error?  0 does not check error codes correctly
 # FROM MERGE
 #globalParameters["CpuThreads"] = -4         # How many CPU threads to use for kernel generation.  0=no threading, <0 == nproc*abs(CpuThreads), N=min(nproc,N)
@@ -181,12 +180,11 @@ globalParameters["PrintTensorRef"] = 0          # Print reference tensor.  0x1=a
 globalParameters["PrintIndexAssignments"] = 0      # Print the tensor index assignment info
 globalParameters["PrintWinnersOnly"] = False      # Only print the solutions which become the fastest
 globalParameters["PrintCodeCommands"] = False  # print the commands used to generate the code objects (asm,link,hip-clang, etc)
+globalParameters["DumpTensors"] = False        # If True, dump tensors to binary files instead of printing them.
 
 # TODO - remove this when NewClient is mainstream
 globalParameters["OldClientSourceTmp"] = True      # Use an intermediate sourceTmp dir to detect file changes and minimize rebuilds on old client
 
-# PrintMaxCols applies to dimensions where multiple cols are printed per line.
-# PrintMaxRows applies to dimensions where one row is printed per line
 # If PrintMax* is greater than the dimension, the middle elements will be repaced with "..."
 
 
@@ -200,17 +198,20 @@ globalParameters["MaxLDS"] = 65536                # max LDS a kernel should atte
 globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
-globalParameters["MaxFileName"] = 128             # If a file name would be longer than this, shorten it with a hash.
-globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (10,1,0), (10,1,1)]             # assembly kernels writer supports these architectures
+
+globalParameters["MaxFileName"] = 64              # If a file name would be longer than this, shorten it with a hash.
+globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (9,0,10), (10,1,0), (10,1,1), (10,1,2), (10,3,0)] # assembly kernels writer supports these architectures
+
 globalParameters["GenerateManifestAndExit"] = False               # Output manifest file with list of expected library objects and exit
-globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory.
+globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory
 globalParameters["NewClient"] = 2                                 # 1=Run old+new client, 2=run new client only (All In)
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
 globalParameters["LibraryClientPath"] = "4_LibraryClient"         # subdirectory for building example library client
-globalParameters["BenchmarkClientVersion"] = "Both"               # Old, New, Both
-globalParameters["ClientExecutionLockPath"] = None # Path for a file lock to ensure only one client is executed at once.  filelock module is required if this is enabled.
+globalParameters["ClientExecutionLockPath"] = None                # Path for a file lock to ensure only one client is executed at once.  filelock module is required if this is enabled.
+globalParameters["LibraryUpdateFile"] = ""                        # File name for writing indices and speeds suitable for updating an existing library logic file
+globalParameters["LibraryUpdateComment"] = False                  # Include solution name as a comment in the library update file
 
 # internal, i.e., gets set during startup
 globalParameters["CurrentISA"] = (0,0,0)
@@ -256,12 +257,19 @@ globalParameters["GranularityThreshold"] = 0.0
 # directory where custom kernels are located
 globalParameters["CustomKernelDirectory"] = os.path.join(os.path.dirname(os.path.realpath(__file__)), "CustomKernels")
 
+globalParameters["PristineOnGPU"] = True # use Pristine memory on Tensile trainning verification or not
+
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 
 # Translate GPU targets to filter filenames in Tensile_LOGIC directory
-architectureMap = {'all':'_','gfx000':'none', 'gfx803':'r9nano',
-    'gfx900':'vega10', 'gfx906:xnack-':'vega20', 'gfx908:xnack-':'arcturus'}
+architectureMap = {
+  'all':'_','gfx000':'none', 'gfx803':'r9nano', 'gfx900':'vega10',
+  'gfx906':'vega20', 'gfx906:xnack+':'vega20', 'gfx906:xnack-':'vega20',
+  'gfx908':'arcturus','gfx908:xnack+':'arcturus', 'gfx908:xnack-':'arcturus',
+  'gfx90a':'aldebaran', 'gfx90a:xnack+':'aldebaran', 'gfx90a:xnack-':'aldebaran',
+  'gfx1010':'navi10', 'gfx1011':'navi11', 'gfx1012':'navi12', 'gfx1030':'navi21'
+}
 
 def getArchitectureName(gfxName):
   if gfxName in architectureMap:
@@ -291,7 +299,7 @@ for i in validThreadTileSides:
     validThreadTiles.append([i, j])
 
 validActivationFormats = ('NCHW', 'NHWC', 'CNHW', 'NCDHW', 'NDHWC', 'CNDHW')
-validWeightFormats = ('KCYX', "CKYX", "CYXK",  'KCZYX', 'CKZYX', 'CZYXK')
+validWeightFormats = ('KCYX', "KYXC", "CKYX", "CYXK",  'KCZYX', 'CKZYX', 'CZYXK')
 validMacroTileSides = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 6, 12, 24, 48, 96, 192, 384, 768 ]
 validMacroTiles = []
 validISA = [(0,0,0)]
@@ -307,6 +315,8 @@ validMFMA["H"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16
 validMFMA["S"] = [[32,32,1,2], [32,32,2,1], [16,16,1,4], [16,16,4,1], [4,4,1,16]]
 validMFMA["B"] = [[32,32,2,2], [32,32,4,1], [16,16,2,4], [16,16,8,1], [4,4,2,16]]
 validMFMA["4xi8"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
+validMFMA["D"] = [[16,16,4,1], [4,4,4,4]]
+validMFMA["B1k"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
 validMFMA["C"] = validMFMA["S"]
 validMFMA["I8"] = validMFMA["4xi8"]
 validTT = 16
@@ -319,7 +329,7 @@ for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["4xi8"]]:
           for wave_m in range (3):
             for wave_n in range(3):
               validMFMA["_format9"].append([MI[0],MI[1],MI[2],MI[3],2**bm,tt0,tt1,2**wave_m, 2**wave_n])
-validMatrixInstructions = [[], [-1]] + validMFMA["H"] + validMFMA["S"] + validMFMA["B"] + validMFMA["4xi8"]
+validMatrixInstructions = [[], [-1]] + validMFMA["H"] + validMFMA["S"] + validMFMA["B"] + validMFMA["4xi8"] + validMFMA["D"] + validMFMA["B1k"]
 validMatrixInstructions = validMatrixInstructions + validMFMA["_format9"]
 
 # The supported typed GEMM, each entry is (Ti, To, Tc).
@@ -759,8 +769,12 @@ validParameters = {
     "ThreadTile":                 validThreadTiles,
     "MacroTile":                  validMacroTiles,      # MT0 = wg0*tt0, MT1 = wg1*tt1
 
+    # Which instruction to use for MAC: MAD or FMA
+    "MACInstruction":             ["MAD", "FMA"],
+    "WavefrontSize":              [32, 64],
+
     # MatrixInstruction: (M x N x K x B)
-    # XDLOPS tile definition, only valid for gfx908
+    # XDLOPS tile definition, only valid for gfx908, gfx90a
     # MxNxKxB specifies matrix instruction variants
     #  MxNxB determines the shape of the C tile each instruction worked on
     #      K determines the unroll depth
@@ -798,6 +812,9 @@ validParameters = {
     # Suggest optimum value: fp32 = [2,4], fp16 or bf16 = [4,8] (dwordx2 and dowrdx4)
     # -1:  Use dwordx2 if support SRVW, or set SRVW to 0
     "StoreRemapVectorWidth":      [-1,0,1,2,4,8],
+
+    # SourceSwap: Optimizes MatrixInstruction store pattern by swapping mfma input order.
+    "SourceSwap":                 [False, True],
 
     # Disable overlapping AB-tile vgpr and read/write addr vgprs with C-tile vgprs
     # Valid only for MatrixInstruction enabled kernels, which by default overlaps
@@ -1142,6 +1159,8 @@ defaultBenchmarkCommonParameters = [
     {"WorkGroupMappingType":      [ "B" ] },
     {"WorkGroupMapping":          [ 8 ] },
     {"ThreadTile":                [ [4,4] ] },
+    {"MACInstruction":            [ '' ]},
+    {"WavefrontSize":             [ 64 ]},
     {"MatrixInstruction":         [ [] ] },
     {"DisableVgprOverlapping":    [ False ] },
     {"1LDSBuffer":                [ 0 ] },
@@ -1160,6 +1179,7 @@ defaultBenchmarkCommonParameters = [
     {"MinVgprNumber":             [0]},
     {"MaxVgprNumber":             [256]},
     {"StoreRemapVectorWidth":     [ 0 ] },
+    {"SourceSwap":                [ False ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = []
@@ -1253,7 +1273,7 @@ defaultProblemType = {
 
     "DataType":                 0,                # data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
     "DestDataType":             0,                # destination data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
-    "ComputeDataType":             0,             # compute data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
+    "ComputeDataType":          0,                # compute data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
     "UseBeta":                  True,             # =True use beta parameter (asm will check for B=0 and optimize the write for that), =False don't use beta parameter
     "HighPrecisionAccumulate":  False,            # f32 += f16*f16
     "SilentHighPrecisionAccumulate": False,       # Keep kernel names the same for HPA mode.  Useful for testing.
@@ -1490,20 +1510,32 @@ def GetAsmCaps(isaVersion):
   rv["HasAddLshl"]      = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
   rv["HasLshlOr"]       = tryAssembler(isaVersion, "v_lshl_or_b32 v47, v36, 0x2, v34")
   rv["HasSMulHi"]       = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
-  rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "", False, "-mllvm --amdhsa-code-object-version=2")
+  rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "", False, "-mcode-object-version=2")
 
   rv["HasMFMA"]         = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
+  rv["HasMFMA_f64"]     = tryAssembler(isaVersion, "v_mfma_f64_16x16x4f64 v[0:7], v[32:33], v[36:37], v[0:7]")
+  rv["HasMFMA_bf16_1k"] = tryAssembler(isaVersion, "v_mfma_f32_32x32x4bf16_1k a[0:31], v[32:33], v[36:37], a[0:31]")
 
   rv["v_mac_f16"]       = tryAssembler(isaVersion, "v_mac_f16 v47, v36, v34")
+
   rv["v_fma_f16"]       = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
+  rv["v_fmac_f16"]      = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34")
+
   rv["v_pk_fma_f16"]    = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0]")
+  rv["v_pk_fmac_f16"]   = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34")
+
   rv["v_mad_mix_f32"]   = tryAssembler(isaVersion, "v_mad_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
   rv["v_fma_mix_f32"]   = tryAssembler(isaVersion, "v_fma_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
 
   rv["v_dot2_f32_f16"]  = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
   rv["v_dot2c_f32_f16"] = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34")
 
+  rv["v_mac_f32"]       = tryAssembler(isaVersion, "v_mac_f32 v20, v21, v22")
+  rv["v_fma_f32"]       = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")
+  rv["v_fmac_f32"]      = tryAssembler(isaVersion, "v_fmac_f32 v20, v21, v22")
+
   rv["HasAtomicAdd"]    = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
+
 
   if tryAssembler(isaVersion, "s_waitcnt vmcnt(63)"):
     rv["MaxVmcnt"] = 63
@@ -1521,11 +1553,11 @@ def GetAsmCaps(isaVersion):
 
 def GetArchCaps(isaVersion):
   rv = {}
-  rv["HasEccHalf"]       = (isaVersion == (9,0,6) or isaVersion == (9,0,8))
-  rv["Waitcnt0Disabled"] = (isaVersion == (9,0,8))
-  rv["SeparateVscnt"]    = (isaVersion[0] == 10)
-  rv["CMPXWritesSGPR"]   = (isaVersion[0] != 10)
-  rv["HasWave32"]        = (isaVersion[0] == 10)
+  rv["HasEccHalf"]       = (isaVersion==(9,0,6) or isaVersion==(9,0,8) or isaVersion==(9,0,10))
+  rv["Waitcnt0Disabled"] = (isaVersion == (9,0,8) or isaVersion==(9,0,10))
+  rv["SeparateVscnt"]    = isaVersion[0] == 10
+  rv["CMPXWritesSGPR"]   = isaVersion[0] != 10
+  rv["HasWave32"]        = isaVersion[0] == 10
 
   return rv
 
@@ -1544,6 +1576,7 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
   args = [globalParameters["AssemblerPath"], '-x', 'assembler',
           '-target', 'amdgcn-amdhsa',
           '-mcpu='+gfxName(isaVersion),
+          '-mcode-object-version=3',
           *options,
           '-']
 
@@ -1553,6 +1586,7 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
   if debug:
     print("isaVersion: ", isaVersion)
     print("asm_cmd:", ' '.join(args))
+    print("asmString: ", asmString)
     print("output: ", output)
     print("return code: ", result.returncode)
 
@@ -1562,12 +1596,12 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
 
 def gfxArch(name):
     import re
-    match = re.search(r'gfx(\d{3,})', name)
+    match = re.search(r'gfx(\S{3,})', name)
     if not match: return None
 
     ipart = match.group(1)
 
-    step = int(ipart[-1])
+    step = int(ipart[-1], 16)
     ipart = ipart[:-1]
 
     minor = int(ipart[-1])
@@ -1580,7 +1614,9 @@ def gfxArch(name):
     return rv
 
 def gfxName(arch):
-    return 'gfx' + ''.join(map(str,arch))
+    # convert last digit to hex because reasons
+    name = str(arch[0]) + str(arch[1]) + ('%x' % arch[2])
+    return 'gfx' + ''.join(map(str,name))
 
 def restoreDefaultGlobalParameters():
   """
@@ -1615,7 +1651,7 @@ def printCapTable(parameters):
     return [cap] + [('1' if cap in caps[arch] and caps[arch][cap] else '0') for arch in archs]
 
   allAsmCaps = set(itertools.chain(*[caps.keys() for arch, caps in parameters["AsmCaps"].items()]))
-  allAsmCaps = sorted(allAsmCaps)
+  allAsmCaps = sorted(allAsmCaps, key=lambda k: (k.split("_")[-1], k))
   asmCapRows = [capRow(parameters["AsmCaps"], cap) for cap in allAsmCaps]
 
   allArchCaps = set(itertools.chain(*[caps.keys() for arch, caps in parameters["ArchCaps"].items()]))
@@ -1684,19 +1720,23 @@ def assignGlobalParameters( config ):
 
   # read current gfx version
   if os.name != "nt" and globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
-    process = Popen([globalParameters["ROCmAgentEnumeratorPath"], "-t", "GPU"], stdout=PIPE)
-    line = process.stdout.readline().decode()
-    while line != "":
+    command = [globalParameters["ROCmAgentEnumeratorPath"]]#, "-t", "GPU"]
+    result = subprocess.run(command, stdout=subprocess.PIPE)
+    for line in result.stdout.decode().split("\n"):
       arch = gfxArch(line.strip())
       if arch is not None:
         if arch in globalParameters["SupportedISA"]:
-          print1("# Detected local GPU with ISA: gfx" + ''.join(map(str,arch)))
+          print1("# Detected local GPU with ISA: " + gfxName(arch))
           globalParameters["CurrentISA"] = arch
-        line = process.stdout.readline().decode()
     if globalParameters["CurrentISA"] == (0,0,0):
       printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
-    if process.returncode:
-      printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
+    if result.returncode:
+      printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], result.returncode))
+
+  # TODO Remove this when rocm-smi supports gfx90a
+  if globalParameters["CurrentISA"] == (9,0,10):
+    printWarning("HardwareMonitor currently disabled for gfx90a")
+    globalParameters["HardwareMonitor"] = False
 
   globalParameters["AsmCaps"] = {}
   globalParameters["ArchCaps"] = {}
@@ -1723,7 +1763,7 @@ def assignGlobalParameters( config ):
     output = subprocess.run(["hipcc", "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
 
     for line in output.split('\n'):
-      if 'HIP' in line:
+      if 'HIP version' in line:
         globalParameters['HipClangVersion'] = line.split()[2]
         print1("# Found  hipcc version " + globalParameters['HipClangVersion'])
 
@@ -1736,7 +1776,15 @@ def assignGlobalParameters( config ):
       printWarning("Global parameter %s = %s unrecognised." % ( key, value ))
     globalParameters[key] = value
 
-
+def setupRestoreClocks():
+  import atexit
+  def restoreClocks():
+    if globalParameters["PinClocks"]:
+      rsmi = globalParameters["ROCmSMIPath"]
+      subprocess.call([rsmi, "-d", "0", "--resetclocks"])
+      subprocess.call([rsmi, "-d", "0", "--setfan", "50"])
+  atexit.register(restoreClocks)
+setupRestoreClocks()
 
 ################################################################################
 # Assign Parameters
@@ -1862,7 +1910,7 @@ class ProgressBar:
 
 # Append copyrights to all files generated by tensile since they belong to Tensile intellectual property
 CMakeHeader = """################################################################################
-# Copyright (C) 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -1891,7 +1939,7 @@ CMakeHeader = """###############################################################
 """
 
 CHeader = """/*******************************************************************************
-* Copyright (C) 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+* Copyright (C) 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal

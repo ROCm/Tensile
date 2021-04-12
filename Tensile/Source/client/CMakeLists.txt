@@ -11,6 +11,7 @@ set(client_sources
     source/DataInitialization.cpp
     source/HardwareMonitor.cpp
     source/HardwareMonitorListener.cpp
+    source/LibraryUpdateReporter.cpp
     source/MetaRunListener.cpp
     source/PerformanceReporter.cpp
     source/ProgressListener.cpp
@@ -34,17 +35,16 @@ endif()
 
 target_include_directories(TensileClient PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")# "${rocm_smi_root}/include")
 
-target_link_libraries(TensileClient TensileHost ${Boost_LIBRARIES} rocm_smi)
+target_link_libraries(TensileClient PRIVATE TensileHost ${Boost_LIBRARIES} rocm_smi)
+if(TENSILE_USE_OPENMP)
+    target_link_libraries(TensileClient PRIVATE custom_openmp_cxx)
+endif()
 
 add_executable(tensile_client main.cpp)
 
 target_link_libraries(tensile_client PRIVATE TensileHost TensileClient ${Boost_LIBRARIES})
-if(OpenMP_FOUND)
-    target_link_libraries(tensile_client PRIVATE "${OpenMP_EXE_LINKER_FLAGS}")
-else()
-    set(OPENMP_LIBRARY /usr/lib/x86_64-linux-gnu/libomp.so)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OPENMP_LIBRARY}")
-    target_link_libraries(tensile_client PRIVATE "${OpenMP_EXE_LINKER_FLAGS}")
+if(TENSILE_USE_OPENMP)
+    target_link_libraries(tensile_client PRIVATE custom_openmp_cxx)
 endif()
 
 foreach(arch IN LISTS TENSILE_GPU_ARCHS)

@@ -79,6 +79,7 @@ namespace Tensile
                 {
                     std::ostringstream msg;
                     solution.hardwarePredicate->debugEval(*m_hardware, msg);
+                    msg << std::endl;
                     m_reporter->log(LogLevel::Verbose, msg.str());
                 }
 
@@ -94,6 +95,7 @@ namespace Tensile
                 {
                     std::ostringstream msg;
                     solution.problemPredicate->debugEval(m_problem, msg);
+                    msg << std::endl;
                     m_reporter->log(LogLevel::Verbose, msg.str());
                 }
 
@@ -167,6 +169,13 @@ namespace Tensile
 
         void AllSolutionsIterator::preSolution(ContractionSolution const& solution)
         {
+            {
+                std::string idx  = "-1";
+                auto        iter = solution.info.find("SolutionIndex");
+                if(iter != solution.info.end())
+                    idx = iter->second;
+                m_reporter->report(ResultKey::SolutionLibraryIndex, idx);
+            }
             m_reporter->report(ResultKey::SolutionIndex, m_currentSolutionIdx);
             m_reporter->report(ResultKey::SolutionProgress,
                                concatenate(m_currentSolutionIdx, "/", m_lastSolutionIdx));
@@ -225,6 +234,14 @@ namespace Tensile
 
         void BestSolutionIterator::preSolution(ContractionSolution const& solution)
         {
+            {
+                std::string idx  = "-1";
+                auto        iter = solution.info.find("SolutionIndex");
+                if(iter != solution.info.end())
+                    idx = iter->second;
+                m_reporter->report(ResultKey::SolutionLibraryIndex, idx);
+            }
+
             m_reporter->report(ResultKey::SolutionIndex, 0);
             m_reporter->report(ResultKey::SolutionProgress, "1/1");
         }

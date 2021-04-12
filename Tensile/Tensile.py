@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -30,8 +30,8 @@ from .Common import globalParameters, print1, ensurePath, \
     assignGlobalParameters, restoreDefaultGlobalParameters, HR
 from . import BenchmarkProblems
 from . import ClientWriter
-from . import LibraryLogic
 from . import LibraryIO
+from . import LibraryLogic
 from . import __version__
 
 ###############################################################################
@@ -215,7 +215,7 @@ def Tensile(userArgs):
     globalParameters['LibraryFormat'] = args.LibraryFormat
 
   # read config
-  config = LibraryIO.readConfig( configPath )
+  config = LibraryIO.readYAML( configPath )
   globalParameters["ConfigPath"] = configPath
 
   # assign global parameters
@@ -281,4 +281,3 @@ def TensileSGEMM5760():
 # installed "tensile" command
 def main():
     Tensile(sys.argv[1:])
-

@@ -38,6 +38,7 @@ class LocalReadVALU(LocalRead):
         writer.localReadDoCnt += 1
 
         tc                = tP["tensorChar"]
+        tile01            = tP["tile01Idx"]
         imod              = Code.Module("LocalReadDo%s_I%s"%(tc,iui))
         pack              = Code.Module("pack%s_I%s"%(tc,iui))
         instruction       = tP["localReadInstruction"]
@@ -45,7 +46,7 @@ class LocalReadVALU(LocalRead):
         blockWidth        = instruction.blockWidth
         offsetMultiplier  = 1 # instruction.offsetMultiplier
         valuIdx           = 0
-        numVectorsPerTile = (kernel["ThreadTile%u"%tP["tensorIdx"]]//kernel["VectorWidth"])
+        numVectorsPerTile = (kernel["ThreadTile%u"%tile01]//kernel["VectorWidth"])
         numReadsPerVector = (kernel["VectorWidth"] * tP["bpe"]) // (blockWidth*4) # bytes/register
     
         for vIdx in range(0, numVectorsPerTile):
@@ -58,7 +59,7 @@ class LocalReadVALU(LocalRead):
                 paramList.append(vgpr("LocalReadAddr%s"%tc))
 
                 for oIdx in range(0, numOffsets):
-                    paramList.append(((rIdx*blockWidth + kernel["SubGroup%u"%tP["tensorIdx"]] * (vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
+                    paramList.append(((rIdx*blockWidth + kernel["SubGroup%u"%tile01] * (vIdx*numOffsets+oIdx)*kernel["VectorWidth"] \
                       + tP["localReadOffset"]) * tP["bpe"] + tP["localReadSwapByteOffset"]) // offsetMultiplier)
                     # print("Debug: Matrix{}, rIdx offset {}, vIdx offset {}, bpe {}, net offset {}".format( \
                     #     tP["tensorChar"], \
@@ -68,7 +69,7 @@ class LocalReadVALU(LocalRead):
                     #     paramList[-1]))
                 paramTuple = tuple(paramList)
                 comment = "L -> Reg lro=%d swapByteOffset=%u ti=%u vIdx=%u rIdx=%u oIdx=%u buffer=%u iui=%u"\
-                    %(tP["localReadOffset"],tP["localReadSwapByteOffset"],kernel["SubGroup%u"%tP["tensorIdx"]], vIdx, rIdx, oIdx, bufferIdx, iui)
+                    %(tP["localReadOffset"],tP["localReadSwapByteOffset"],kernel["SubGroup%u"%tile01], vIdx, rIdx, oIdx, bufferIdx, iui)
                 localReadCode.addCode(Code.LocalReadInst(instruction.IssueLatency,instruction.toCodeInst(paramTuple), comment))
                 valuIdx += blockWidth
 
@@ -132,7 +133,7 @@ class LocalReadMFMA(LocalRead):
             writer.localReadDoCntA += 1
         else:
             writer.localReadDoCntB += 1
-        tIdx             = tP["tensorIdx"]
+        tile01           = tP["tile01Idx"]
         instruction      = tP["localReadInstruction"]
 
         numOffsets       = instruction.numOffsets
@@ -147,12 +148,12 @@ class LocalReadMFMA(LocalRead):
             tileStride   = kernel["_DepthULds"] + LdsPad
             UnrollStride = 1
 
-        numVectorsPerTile = kernel["MIWaveTile"][tIdx]
+        numVectorsPerTile = kernel["MIWaveTile"][tile01]
         if tc == "A":
             numReadsPerVector = tP["bpe"] * writer.lrvwA // int(blockWidth * 4) # bytes/register
         else:
             numReadsPerVector = tP["bpe"] * writer.lrvwB // int(blockWidth * 4) # bytes/register
-        numVgpr           = int(ceil(blockWidth))
+        numVgpr  = int(ceil(blockWidth))
 
         # pack register
         needPack = blockWidth < 1
@@ -184,7 +185,7 @@ class LocalReadMFMA(LocalRead):
                     packCode.addInst("v_or_b32", destVgpr, destVgpr, highVgpr, "pack two half Vgpr to one Vgpr")
                     destVgpr = highVgpr
 
-                isHigh8Bits    = (blockWidth == 0.25) and ( ((rIdx % 4) % 2) == 1) # 1,3
+                isHigh8Bits  = (blockWidth == 0.25) and ( ((rIdx % 4) % 2) == 1) # 1,3
                 isHigh16Bits = (blockWidth == 0.25) and ( ((rIdx % 4) //2) == 1) # 2,3
                 if needPack:
                     if isHigh8Bits or isHigh16Bits:
@@ -206,7 +207,7 @@ class LocalReadMFMA(LocalRead):
                 paramList.append(vgpr("LocalReadAddr%s"%tc))
 
                 for oIdx in range(0, numOffsets):
-                    offset_val = (vIdx * numOffsets+oIdx) * MIWaveGropuShape[tIdx] * tileStride
+                    offset_val = (vIdx * numOffsets+oIdx) * MIWaveGropuShape[tile01] * tileStride
                     offset_val = (rIdx * UnrollStride + offset_val + tP["localReadOffset"]) * tP["bpe"]
                     if (kernel["LdsBlockSizePerPad%s"%tc] != 0) and (kernel["LdsPad%s"%tc] != 0):
                         offset_val = offset_val + (offset_val // kernel["LdsBlockSizePerPad%s"%tc]) * kernel["LdsPad%s"%tc] * tP["bpe"]
@@ -215,7 +216,7 @@ class LocalReadMFMA(LocalRead):
 
                 paramTuple = tuple(paramList)
                 comment = "L -> Reg lro=%d swapByteOffset=%u ti=%u vIdx=%u rIdx=%u oIdx=%u buffer=%u iui=%u" \
-                        % (tP["localReadOffset"], tP["localReadSwapByteOffset"], MIWaveGropuShape[tIdx], vIdx, rIdx, oIdx, bufferIdx, iui)
+                        % (tP["localReadOffset"], tP["localReadSwapByteOffset"], MIWaveGropuShape[tile01], vIdx, rIdx, oIdx, bufferIdx, iui)
 
                 highBits = highBitsForHalf or isHigh16Bits
                 localReadCode.addCode(Code.LocalReadInst(instruction.IssueLatency,instruction.toCodeInst(paramTuple, 0, highBits), comment))

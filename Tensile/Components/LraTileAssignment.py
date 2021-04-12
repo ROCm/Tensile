@@ -20,7 +20,6 @@
 ################################################################################
 
 from ..Component import LraTileAssignment
-from ..Common import globalParameters
 from ..AsmUtils import inst, vgpr, sgpr, vectorStaticDivideAndRemainder, vectorStaticDivide, staticMultiply, vectorStaticRemainder
 
 class LraTileAssignmentVALU(LraTileAssignment):
@@ -35,10 +34,10 @@ class LraTileAssignmentVALU(LraTileAssignment):
         # allocate resources
         qReg    = writer.vgprPool.checkOut(1,"qReg") # quotient
         rReg    = writer.vgprPool.checkOut(1,"rReg") # remainder
-        tmpVgpr = writer.vgprPool.checkOut(2,"tmpVgpr")
+        tmpVgpr = writer.vgprPool.checkOutAligned(2,2,"tmpVgpr")
         tmpSgpr = writer.getTmpSgpr(1).idx()
 
-        if tP["tensorChar"] == 'A':
+        if tP["tileIdx"] == 0:
             kStr += "%slr%s = serial %% SG%s%s%s" \
                     % (writer.commentPrefix, tP["tileChar"], tP["tileChar"], \
                     writer.commentSuffix, writer.endLine)
@@ -52,15 +51,15 @@ class LraTileAssignmentVALU(LraTileAssignment):
 
             # release and return resource
             tP["gpr"]["lro"] = rReg
-            writer.tmplroB = qReg
-        elif tP["tensorChar"] == 'B':
+            writer.tmplro = qReg
+        else:
             kStr += "%slr%s = (serial / SG%s) %% SG%s%s%s" \
                     % (writer.commentPrefix, tP["tileChar"], tP["tileChar"], \
                     tP["tileChar"], writer.commentSuffix, writer.endLine)
 
             # constant
             divisor = kernel["SubGroup1"]
-            dividendReg = writer.tmplroB
+            dividendReg = writer.tmplro
 
             # generate instruction
             kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, tmpVgpr, tmpSgpr)
@@ -68,7 +67,7 @@ class LraTileAssignmentVALU(LraTileAssignment):
             # release and return resource
             tP["gpr"]["lro"] = rReg
 
-            writer.vgprPool.checkIn(writer.tmplroB) # old
+            writer.vgprPool.checkIn(writer.tmplro) # old
             writer.vgprPool.checkIn(qReg)
 
         writer.vgprPool.checkIn(tmpVgpr)
@@ -92,7 +91,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         wReg    = writer.vgprPool.checkOut(1,"wReg") # quotient
         tReg    = writer.vgprPool.checkOut(1,"tReg") # remainder
         kReg    = writer.vgprPool.checkOut(1,"kReg") # remainder
-        tmpVgpr = writer.vgprPool.checkOut(2,"tmpVgpr")
+        tmpVgpr = writer.vgprPool.checkOutAligned(2,2,"tmpVgpr")
         dummy   = writer.vgprPool.checkOut(1,"dummy")
 
          # alloc sgpr
@@ -100,21 +99,21 @@ class LraTileAssignmentMFMA(LraTileAssignment):
 
         # get constant parameter
         tc               = tP["tensorChar"]
-        tIdx             = tP["tensorIdx"]
-        waveWidth        = globalParameters["WavefrontWidth"]
+        tile01           = tP["tile01Idx"]
+        waveWidth        = writer.kernel["WavefrontSize"]
         inputPerThread   = max(writer.lrvwA,writer.lrvwB)
         LdsPad           = kernel["LdsPad%s" % tc] if kernel["LdsBlockSizePerPad%s" % tc] == 0 else 0
 
         # parameter for get each type index
         dividendForKId   = kernel["MatrixInstM"] * kernel["MatrixInstB"]
-        num1DBlocks      = kernel["MatrixInstBM"]   if (tc == 'A') else kernel["MatrixInstBN"]
-        num1DWaves       = kernel["MIWaveGroup"][0] if (tc == 'A') else kernel["MIWaveGroup"][1]
-        dividedForBlkId  = kernel["MatrixInstM"]    if (tc == 'A') else (kernel["MatrixInstM"] * kernel["MatrixInstBM"])
-        dividedForWaveId = waveWidth                if (tc == 'A') else (waveWidth * kernel["MIWaveGroup"][0])
+        num1DBlocks      = kernel["MatrixInstBM"]   if (tile01 == 0) else kernel["MatrixInstBN"]
+        num1DWaves       = kernel["MIWaveGroup"][0] if (tile01 == 0) else kernel["MIWaveGroup"][1]
+        dividedForBlkId  = kernel["MatrixInstM"]    if (tile01 == 0) else (kernel["MatrixInstM"] * kernel["MatrixInstBM"])
+        dividedForWaveId = waveWidth                if (tile01 == 0) else (waveWidth * kernel["MIWaveGroup"][0])
 
         # strider for each type of index
         umlds            = kernel["UnrollMajorLDS%s" % tP["tensorChar"]]
-        mt               = kernel["MacroTile%u" % tIdx]
+        mt               = kernel["MacroTile%u" % tile01]
         strideTile       = kernel["_DepthULds"] + LdsPad if umlds else 1
         strideK          = inputPerThread                        if umlds else (mt + LdsPad) * inputPerThread
         strideBlock      = kernel["MatrixInstM"] * strideTile
@@ -135,7 +134,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             "2. block offset: bnIdx = bnIdx %% num1DBlocks(%u)" % num1DBlocks)
         kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideBlock, sgpr(tmpSgpr), \
             "2. block offset: bnOffset = bnIdx * strideBlock(%u)" % strideBlock)
-        kStr += inst("v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
+        kStr += inst("_v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
             "3. add N and block offset: bnOffset = block and N offset")
 
         # unroll offset
@@ -143,7 +142,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             "4. K offset: kIdx = wtid / (MIN(%u) * MIBB(%u))" % (kernel["MatrixInstN"], kernel["MatrixInstB"]))
         kStr += staticMultiply(vgpr(kReg), vgpr(kReg), strideK, sgpr(tmpSgpr), \
             "4. K offset: lrKOffset = kIdx * mStride(%u)" % strideK)
-        kStr += inst("v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
+        kStr += inst("_v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
             "5. offset in wave: lrOffset = bnOffset + lrKOffset")
 
         # wave offset
@@ -154,7 +153,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
                 "6. wave offset in M dimen: wtid0 = wtid / num1DWaves(%u)" % num1DWaves)
             kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideWave, sgpr(tmpSgpr), \
                 "6. wave offset in M dimen: wOffset = wtid0 * W0Stride(%u)" % strideWave)
-            kStr += inst("v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
+            kStr += inst("_v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
                 "7. final local read offset: flrOffset = lrOffset + WOffset")
 
         # release register

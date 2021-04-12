@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.13)
 
 project(TensileHostLibraryTest)
 
@@ -79,22 +79,19 @@ if(TENSILE_USE_HIP)
     find_package(HIP REQUIRED CONFIG PATHS $ENV{ROCM_PATH} /opt/rocm)
 endif()
 
-if(TENSILE_USE_OPENMP)
-    #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_OPENMP")
-    find_package(OpenMP QUIET)
-    if (OPENMP_FOUND)
-        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-        set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-    else()
-        if(EXISTS /etc/redhat-release)
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp=libgomp")
-        else()
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
-            set(OPENMP_LIBRARY /usr/lib/x86_64-linux-gnu/libomp.so)
-            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OPENMP_LIBRARY}")
-        endif()
-    endif()
+if(TENSILE_USE_OPENMP AND NOT TARGET custom_openmp_cxx)
+
+    # Workaround for https://gitlab.kitware.com/cmake/cmake/-/issues/21787
+    # ensures we link to HIP's libomp and get an rpath to it.
+    add_library(custom_openmp_cxx INTERFACE)
+
+    if(TENSILE_USE_HIP)
+        target_compile_options(custom_openmp_cxx INTERFACE "-fopenmp")
+        target_link_options(custom_openmp_cxx INTERFACE "-fopenmp")
+    else ()
+        find_package(OpenMP REQUIRED)
+        target_link_libraries(custom_openmp_cxx INTERFACE OpenMP::OpenMP_CXX)
+    endif ()
 endif()
 
 add_subdirectory(configs)
@@ -119,6 +116,7 @@ set(test_sources ${test_sources}
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp
     ContractionFitness_test.cpp
+    MultipleSolutionsPerSize_test.cpp
     DataTypes_test.cpp
     EmbeddedData_test.cpp
     KernelArguments_test.cpp
@@ -140,6 +138,7 @@ if(TENSILE_USE_LLVM)
     set(test_sources ${test_sources}
         ContractionLibraryLoading_test.cpp
         ContractionFitness_test.cpp
+        MultipleSolutionsPerSize_test.cpp
         llvm/ArithmeticUnitPredicate_test.cpp
         llvm/CUEfficiencyPredicate_test.cpp
         llvm/DeterministicModePredicate_test.cpp
@@ -199,5 +198,5 @@ if(TENSILE_USE_HIP)
 endif()
 
 if(TENSILE_USE_OPENMP)
-    target_link_libraries(TensileTests PRIVATE "${OpenMP_EXE_LINKER_FLAGS}")
+    target_link_libraries(TensileTests PRIVATE custom_openmp_cxx)
 endif()
