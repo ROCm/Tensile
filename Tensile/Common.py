@@ -254,6 +254,9 @@ globalParameters["MinKForGSU"] = 256 # min K size to use GlobalSplitU algorithm 
 # control if a solution is run for a given problem
 globalParameters["GranularityThreshold"] = 0.0
 
+# directory where custom kernels are located
+globalParameters["CustomKernelDirectory"] = os.path.join(os.path.dirname(os.path.realpath(__file__)), "CustomKernels")
+
 globalParameters["PristineOnGPU"] = True # use Pristine memory on Tensile trainning verification or not
 
 # directory where custom kernels are located
