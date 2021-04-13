@@ -305,7 +305,7 @@ namespace Tensile
                 {
                     if(logLevel >= LogLevel::Verbose)
                         std::cout << "Loading " << filename << std::endl;
-                    adapter.loadCodeObjectFile(filename);
+                    HIP_CHECK_EXC(adapter.loadCodeObjectFile(filename));
                 }
             }
         }
@@ -587,10 +587,13 @@ int main(int argc, const char* argv[])
                             {
                                 listeners.preWarmup();
                                 if(gpuTimer)
-                                    adapter.launchKernels(
-                                        kernels, stream, warmupStartEvents[i], warmupStopEvents[i]);
+                                    HIP_CHECK_EXC(adapter.launchKernels(kernels,
+                                                                        stream,
+                                                                        warmupStartEvents[i],
+                                                                        warmupStopEvents[i]));
                                 else
-                                    adapter.launchKernels(kernels, stream, nullptr, nullptr);
+                                    HIP_CHECK_EXC(
+                                        adapter.launchKernels(kernels, stream, nullptr, nullptr));
                                 listeners.postWarmup();
                             }
 
@@ -611,10 +614,11 @@ int main(int argc, const char* argv[])
                                 for(int j = 0; j < enq; j++)
                                 {
                                     if(gpuTimer)
-                                        adapter.launchKernels(
-                                            kernels, stream, startEvents[j], stopEvents[j]);
+                                        HIP_CHECK_EXC(adapter.launchKernels(
+                                            kernels, stream, startEvents[j], stopEvents[j]));
                                     else
-                                        adapter.launchKernels(kernels, stream, nullptr, nullptr);
+                                        HIP_CHECK_EXC(adapter.launchKernels(
+                                            kernels, stream, nullptr, nullptr));
                                 }
 
                                 listeners.postEnqueues(startEvents, stopEvents);
