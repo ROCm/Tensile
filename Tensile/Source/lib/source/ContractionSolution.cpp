@@ -363,8 +363,8 @@ namespace Tensile
 
         if(sizeMapping.globalAccumulation)
         {
-            rv.args.append<void const*>("ws0", inputs.ws);
-            rv.args.append<void const*>("ws1", inputs.ws);
+            rv.args.append<void const*>("ws_d", inputs.ws);
+            rv.args.append<void const*>("ws_c", inputs.ws);
         }
         else if(problemType.stridedBatched)
         {
@@ -407,14 +407,14 @@ namespace Tensile
             size_t wsStride = startStrideCD ? d.sizes()[0] : 1;
             for(size_t i = startStrideCD; i < d.dimensions(); i++)
             {
-                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW", i), wsStride);
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW_D", i), wsStride);
                 wsStride *= d.sizes()[i];
             }
 
             wsStride = startStrideCD ? d.sizes()[0] : 1;
             for(size_t i = startStrideCD; i < c.dimensions(); i++)
             {
-                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW", i), wsStride);
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW_C", i), wsStride);
                 wsStride *= d.sizes()[i];
             }
         }

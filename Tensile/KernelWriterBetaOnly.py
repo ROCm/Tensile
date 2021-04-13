@@ -58,7 +58,10 @@ class KernelWriterBetaOnly(KernelWriterBase):
 
     # pointers
     ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-    ptrStr = "float" if self.state["_GlobalAccumulation"] else ptrStr
+    if self.state["_GlobalAccumulation"]:
+      ptrStr = self.state["ProblemType"]["ComputeDataType"].toDevice(self.language)
+      if self.state["ProblemType"]["DataType"].isHalf() and self.state["ProblemType"]["HighPrecisionAccumulate"]:
+        ptrStr = "float"
     isStridedBuffer = self.state["ProblemType"]["StridedBatched"] or self.state["_GlobalAccumulation"]
     ptrStr += "" if isStridedBuffer else "*"
     batch   = "" if isStridedBuffer else "Batch"
@@ -218,7 +221,9 @@ class KernelWriterBetaOnly(KernelWriterBase):
     ########################################
     # zero
     if globalAccum:
-      ptrStr = "float"
+      ptrStr = problemType["ComputeDataType"].toDevice(self.language)
+      if problemType["DataType"].isHalf() and problemType["HighPrecisionAccumulate"]:
+        ptrStr = "float"
     else:
       ptrStr = problemType["DataType"].toDevice(self.language)
     kStr += "#define SCALAR_ZERO ((%s)(0))%s" % (ptrStr, self.endLine )
@@ -226,10 +231,7 @@ class KernelWriterBetaOnly(KernelWriterBase):
     ########################################
     # zero
     computeType = problemType["ComputeDataType"].toDevice(self.language)
-    if problemType["DataType"].isComplex():
-      kStr += "  if((beta.s0 == 0) && (beta.s1 == 0)) {%s" % self.endLine
-    else:
-      kStr += "  if(beta == SCALAR_ZERO) {%s" % self.endLine
+    kStr += "  if( beta == (%s)0) {%s" % (computeType, self.endLine)
     kStr += "    D[idxD] = SCALAR_ZERO;%s" % self.endLine
     kStr += "  } else {%s" % self.endLine
     kStr += "    D[idxD] = ((%s)(C[idxC])) * beta;%s" % (computeType, self.endLine)
