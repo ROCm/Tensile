@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -63,78 +63,43 @@ namespace Tensile
                 hipModuleUnload(module);
         }
 
-        void SolutionAdapter::loadCodeObjectFile(std::string const& path)
+        hipError_t SolutionAdapter::loadCodeObjectFile(std::string const& path)
         {
             hipModule_t module;
-            try
-            {
-                auto error = hipModuleLoad(&module, path.c_str());
 
-                if(error == hipErrorFileNotFound)
-                {
-                    throw std::runtime_error(
-                        concatenate("Code object file '", path, "' not found."));
-                }
-                else if(error == hipErrorUnknown || error == hipErrorSharedObjectInitFailed)
-                {
-                    return;
-                }
-                else
-                {
-                    HIP_CHECK_EXC_MESSAGE(error, path);
-                }
+            HIP_CHECK_RETURN(hipModuleLoad(&module, path.c_str()));
 
-                if(m_debug)
-                    std::cout << "loaded code object" << path << std::endl;
-            }
-            catch(std::runtime_error const& exc)
-            {
-                std::cout << exc.what() << std::endl;
-                return;
-            }
+            if(m_debug)
+                std::cout << "loaded code object" << path << std::endl;
 
             {
                 std::lock_guard<std::mutex> guard(m_access);
                 m_modules.push_back(module);
                 m_loadedModuleNames.push_back(concatenate("File ", path));
             }
+            return hipSuccess;
         }
 
-        void SolutionAdapter::loadCodeObjectBytes(std::vector<uint8_t> const& bytes)
+        hipError_t SolutionAdapter::loadCodeObjectBytes(std::vector<uint8_t> const& bytes)
         {
-            loadCodeObject(bytes.data());
+            return loadCodeObject(bytes.data());
         }
 
-        void SolutionAdapter::loadCodeObject(const void* image)
+        hipError_t SolutionAdapter::loadCodeObject(const void* image)
         {
             hipModule_t module;
-            try
-            {
-                auto error = hipModuleLoadData(&module, image);
 
-                if(error == hipErrorUnknown || error == hipErrorSharedObjectInitFailed)
-                {
-                    return;
-                }
-                else
-                {
-                    HIP_CHECK_EXC(error);
-                }
+            HIP_CHECK_RETURN(hipModuleLoadData(&module, image));
 
-                if(m_debug)
-                    std::cout << "loaded code object data." << std::endl;
-            }
-            catch(std::runtime_error const& exc)
-            {
-                std::cout << exc.what() << std::endl;
-                return;
-            }
+            if(m_debug)
+                std::cout << "loaded code object data." << std::endl;
 
             {
                 std::lock_guard<std::mutex> guard(m_access);
                 m_modules.push_back(module);
                 m_loadedModuleNames.push_back("Module from bytes");
             }
+            return hipSuccess;
         }
 
         void SolutionAdapter::loadEmbeddedCodeObjects()
@@ -191,48 +156,51 @@ namespace Tensile
             }
         }
 
-        void SolutionAdapter::initKernel(std::string const& name)
+        hipError_t SolutionAdapter::initKernel(std::string const& name)
         {
-            getKernel(name);
+            hipFunction_t function;
+            return getKernel(function, name);
         }
 
-        hipFunction_t SolutionAdapter::getKernel(std::string const& name)
+        hipError_t SolutionAdapter::getKernel(hipFunction_t& rv, std::string const& name)
         {
             std::unique_lock<std::mutex> guard(m_access);
+            hipError_t                   err = hipSuccess;
 
             auto it = m_kernels.find(name);
             if(it != m_kernels.end())
-                return it->second;
+            {
+                rv = it->second;
+                return err;
+            }
 
             for(auto module : m_modules)
             {
-                hipFunction_t rv;
-                auto          err = hipModuleGetFunction(&rv, module, name.c_str());
+                err = hipModuleGetFunction(&rv, module, name.c_str());
 
                 if(err == hipSuccess)
                 {
                     m_kernels[name] = rv;
-                    return rv;
+                    return err;
                 }
                 else if(err != hipErrorNotFound)
                 {
-                    HIP_CHECK_EXC(err);
+                    return err;
                 }
             }
 
-            throw std::runtime_error(
-                concatenate("Kernel ", name, " not found in any loaded module."));
+            return err;
         }
 
-        void SolutionAdapter::launchKernel(KernelInvocation const& kernel)
+        hipError_t SolutionAdapter::launchKernel(KernelInvocation const& kernel)
         {
-            launchKernel(kernel, nullptr, nullptr, nullptr);
+            return launchKernel(kernel, nullptr, nullptr, nullptr);
         }
 
-        void SolutionAdapter::launchKernel(KernelInvocation const& kernel,
-                                           hipStream_t             stream,
-                                           hipEvent_t              startEvent,
-                                           hipEvent_t              stopEvent)
+        hipError_t SolutionAdapter::launchKernel(KernelInvocation const& kernel,
+                                                 hipStream_t             stream,
+                                                 hipEvent_t              startEvent,
+                                                 hipEvent_t              stopEvent)
         {
             if(m_debug)
             {
@@ -245,13 +213,14 @@ namespace Tensile
             {
                 std::cout << "DEBUG: Skip kernel execution" << std::endl;
                 if(startEvent != nullptr)
-                    HIP_CHECK_EXC(hipEventRecord(startEvent, stream));
+                    HIP_CHECK_RETURN(hipEventRecord(startEvent, stream));
                 if(stopEvent != nullptr)
-                    HIP_CHECK_EXC(hipEventRecord(stopEvent, stream));
-                return;
+                    HIP_CHECK_RETURN(hipEventRecord(stopEvent, stream));
+                return hipSuccess;
             }
 
-            hipFunction_t function = getKernel(kernel.kernelName);
+            hipFunction_t function;
+            HIP_CHECK_RETURN(getKernel(function, kernel.kernelName));
 
             void*  kernelArgs = const_cast<void*>(kernel.args.data());
             size_t argsSize   = kernel.args.size();
@@ -262,32 +231,36 @@ namespace Tensile
                                        &argsSize,
                                        HIP_LAUNCH_PARAM_END};
 
-            HIP_CHECK_EXC(hipExtModuleLaunchKernel(function,
-                                                   kernel.numWorkItems.x,
-                                                   kernel.numWorkItems.y,
-                                                   kernel.numWorkItems.z,
-                                                   kernel.workGroupSize.x,
-                                                   kernel.workGroupSize.y,
-                                                   kernel.workGroupSize.z,
-                                                   kernel.sharedMemBytes, // sharedMem
-                                                   stream, // stream
-                                                   nullptr,
-                                                   (void**)&hipLaunchParams,
-                                                   startEvent, // event
-                                                   stopEvent // event
-                                                   ));
+            HIP_CHECK_RETURN(hipExtModuleLaunchKernel(function,
+                                                      kernel.numWorkItems.x,
+                                                      kernel.numWorkItems.y,
+                                                      kernel.numWorkItems.z,
+                                                      kernel.workGroupSize.x,
+                                                      kernel.workGroupSize.y,
+                                                      kernel.workGroupSize.z,
+                                                      kernel.sharedMemBytes, // sharedMem
+                                                      stream, // stream
+                                                      nullptr,
+                                                      (void**)&hipLaunchParams,
+                                                      startEvent, // event
+                                                      stopEvent // event
+                                                      ));
+            return hipSuccess;
         }
 
-        void SolutionAdapter::launchKernels(std::vector<KernelInvocation> const& kernels)
+        hipError_t SolutionAdapter::launchKernels(std::vector<KernelInvocation> const& kernels)
         {
             for(auto const& k : kernels)
-                launchKernel(k);
+            {
+                HIP_CHECK_RETURN(launchKernel(k));
+            }
+            return hipSuccess;
         }
 
-        void SolutionAdapter::launchKernels(std::vector<KernelInvocation> const& kernels,
-                                            hipStream_t                          stream,
-                                            hipEvent_t                           startEvent,
-                                            hipEvent_t                           stopEvent)
+        hipError_t SolutionAdapter::launchKernels(std::vector<KernelInvocation> const& kernels,
+                                                  hipStream_t                          stream,
+                                                  hipEvent_t                           startEvent,
+                                                  hipEvent_t                           stopEvent)
         {
             auto first = kernels.begin();
             auto last  = kernels.end() - 1;
@@ -302,14 +275,15 @@ namespace Tensile
                 if(iter == last)
                     kStop = stopEvent;
 
-                launchKernel(*iter, stream, kStart, kStop);
+                HIP_CHECK_RETURN(launchKernel(*iter, stream, kStart, kStop));
             }
+            return hipSuccess;
         }
 
-        void SolutionAdapter::launchKernels(std::vector<KernelInvocation> const& kernels,
-                                            hipStream_t                          stream,
-                                            std::vector<hipEvent_t> const&       startEvents,
-                                            std::vector<hipEvent_t> const&       stopEvents)
+        hipError_t SolutionAdapter::launchKernels(std::vector<KernelInvocation> const& kernels,
+                                                  hipStream_t                          stream,
+                                                  std::vector<hipEvent_t> const&       startEvents,
+                                                  std::vector<hipEvent_t> const&       stopEvents)
         {
             if(kernels.size() != startEvents.size() || kernels.size() != stopEvents.size())
                 throw std::runtime_error(concatenate("Must have an equal number of kernels (",
@@ -322,8 +296,9 @@ namespace Tensile
 
             for(size_t i = 0; i < kernels.size(); i++)
             {
-                launchKernel(kernels[i], stream, startEvents[i], stopEvents[i]);
+                HIP_CHECK_RETURN(launchKernel(kernels[i], stream, startEvents[i], stopEvents[i]));
             }
+            return hipSuccess;
         }
 
         std::ostream& operator<<(std::ostream& stream, SolutionAdapter const& adapter)
