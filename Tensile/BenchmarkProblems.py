@@ -254,7 +254,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 
     benchmarkStep.hardcodedParameters = validHardcoded
 
-    if removesExist:
+    if removesExist and "CustomKernels" not in problemSizeGroupConfig:
       print1("# Updating winners since enumeration removed unused hardcoded solutions.  removeHardcoded=%u winners=%u" %(len(removeHardcoded), len(winners.winners)))
       winners.wpdUpdate( benchmarkStep.hardcodedParameters )
       if globalParameters["PrintLevel"] >= 1:
@@ -262,12 +262,10 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       numHardcoded = len(benchmarkStep.hardcodedParameters )
       # remove from solution 2D list also
       solutions = list([s for s in solutions if len(s) > 0])
-    elif winners.winners=={}:
+    elif winners.winners=={} and "CustomKernels" not in problemSizeGroupConfig:
       print1("# Populating initial winners (%u solutions)\n" % len(benchmarkStep.hardcodedParameters))
       for hcParm in benchmarkStep.hardcodedParameters:
-        if hcParm:    #If hcParm isn't empty dict
-          winners.winners[FrozenDictionary(hcParm)] = [{},-1]
-
+        winners.winners[FrozenDictionary(hcParm)] = [{},-1]
     print1("# Actual Solutions: %u / %u\n" % ( len(solutions), \
         maxPossibleSolutions ))
 
@@ -282,7 +280,8 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       kernelConfig["CustomKernelName"] = kernelName
       customSolution = Solution(kernelConfig)
       solutions.append([customSolution])
- 
+      benchmarkStep.hardcodedParameters.append(customSolution._state)
+
     # create linear list
     solutionList = list(itertools.chain.from_iterable(solutions))
 
@@ -329,7 +328,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     for hardcodedParam in removeHardcoded:
       benchmarkStep.hardcodedParameters.remove(hardcodedParam)
 
-    if removesExist:
+    if removesExist and "CustomKernels" not in problemSizeGroupConfig:
       print1("# Updating winners since kernelwriter removed unused hardcoded solutions.  removeHardcoded=%u winners=%u" %(len(removeHardcoded), len(winners.winners)))
       winners.wpdUpdate( benchmarkStep.hardcodedParameters )
       numHardcoded = len(benchmarkStep.hardcodedParameters )
@@ -379,11 +378,10 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     else:
       print1("# Already benchmarked; skipping.")
 
-
     ############################################################################
     # Winners -> Determined Parameters
     ############################################################################
-    if not enableTileSelection:
+    if not enableTileSelection and "CustomKernels" not in problemSizeGroupConfig:
         results = getResults(resultsFileName, solutions, enableTileSelection, newResultsFileName)
         currentTime = time.time()
         elapsedTime = currentTime - startTime
@@ -675,7 +673,7 @@ class WinningParameterDict:
     print1("# Adding Results to Solution Database")
     for hardcodedIdx,hardcodedResults in Utils.tqdm(enumerate(results)):
       if not hardcodedResults: continue
-      if hardcodedIdx >= len(hardcodedParameterList): break
+      #if hardcodedIdx >= len(hardcodedParameterList): break
 
       hardcodedParameters = hardcodedParameterList[hardcodedIdx]
       winningIdx = -1

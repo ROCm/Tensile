@@ -1782,7 +1782,7 @@ class Solution:
         for (key,value) in self["ProblemType"].convolution.solutionParms.items():
             self._state[key]=value
     Solution.assignDerivedParameters(self._state)
-    self._name = config.get('CustomKernelName', None)
+    self._name = config["CustomKernelName"] if config["CustomKernelName"] else None
 
     self.initHelperKernelObjests()
 
@@ -2833,7 +2833,7 @@ class Solution:
     #  - state["MatrixInstK"], ...
     # Outputs:
     #  - totalVectorsCoalescedA, totalVectorsCoalescedB, totalElementsPerpA, totalElementsPerpB, state["DepthU"]
-    ########################################
+    #######################################
     while True: # exit criteria at end
       validDepthU = True
       # peek LoopIters
@@ -2980,6 +2980,7 @@ class Solution:
         else:
           reject(state, "No valid DepthU found")
           return
+   
     ########################################
     # end DepthU loop
     ########################################

@@ -56,7 +56,6 @@ custom.config:
   WorkGroup: [  8, 16,  1 ]
   DepthU: 8
   VectorWidth: 4
-  AssertSizeMultiple: {0: 256, 3: 512} 
 amdhsa.version:
   - 1
   - 0
