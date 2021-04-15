@@ -8408,53 +8408,14 @@ class KernelWriterAssembly(KernelWriter):
     if component:
       return component(self, kernel, tP)
 
+
   ##############################################################################
   # Complex Declare Tmp Registers - SKIP
   ##############################################################################
   def complexDeclareTmpRegisters(self, kernel):
     kStr = ""
     return kStr
-    #if kernel["ProblemType"]["DataType"].value == DataType.complexSingle:
-    #  kStr += "  float type_mac_tmp" + self.endLine
-    #if kernel["ProblemType"]["DataType"].value == DataType.complexDouble:
-    #  kStr += "  double type_mac_tmp" + self.endLine
-    #return kStr
 
-  ##############################################################################
-  # isLds = true if querying about LDS operations (which can use dword operations)
-  #     isLds=False if we want element step for the VALU add operations
-  ##############################################################################
-  def getLocalSplitUElementStep(self, kernel, isLds):
-
-    if isLds and \
-       kernel["VectorWidth"]*self.bpeCinternal >= 8 and \
-       kernel["GlobalWriteVectorWidth"]*self.bpeCinternal >= 8:
-      useDwordX2 = 1
-    else:
-      useDwordX2 = 0
-
-    #useDwordX2 = 0
-
-    if kernel["ProblemType"]["DataType"].isHalf() and not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-      assert(kernel["VectorWidth"]%2 == 0)
-      elementStep = 2*(useDwordX2+1)
-    # TODO: LocalSplitU - INT8
-    elif kernel["ProblemType"]["DataType"].isInt8x4() or \
-         kernel["ProblemType"]["DataType"].isBFloat16() or \
-         kernel["ProblemType"]["DataType"].isHalf() or \
-         kernel["ProblemType"]["DataType"].isSingle():
-      elementStep = 1*(useDwordX2+1)
-    elif kernel["ProblemType"]["DataType"].isDouble() or \
-         kernel["ProblemType"]["DataType"].isSingleComplex():
-      if isLds:
-        assert (useDwordX2==1)
-      elementStep = 1
-    elif kernel["ProblemType"]["DataType"].isDoubleComplex():
-      if isLds:
-        assert (useDwordX2==1)
-      elementStep = 1
-
-    return (elementStep, useDwordX2)
 
   ##############################################################################
   # LocalSplitU: Local Write
@@ -8539,8 +8500,17 @@ class KernelWriterAssembly(KernelWriter):
     #            |                     |                  |               |
     # LDS Addr  0x0                  0x80               0x100           0x400
 
-    # Perhaps could optimize this into something simpler with fewer bank conflicts
-    (elementStep, useDwordX2) = self.getLocalSplitUElementStep(kernel, True)
+    bytesPerElem = kernel["ProblemType"]["ComputeDataType"].numBytes()
+    regsPerElem  = kernel["ProblemType"]["ComputeDataType"].numRegisters()
+    if kernel["ProblemType"]["DataType"].isHalf() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
+      bytesPerElem = 4
+      regsPerElem = 1
+
+    bytesPerVector = kernel["VectorWidth"] * bytesPerElem
+    bytesPerStep = min(bytesPerVector, 16) # max length of ds inst is 16 bytes(128bits)
+    regsPerStep  = int((bytesPerStep+3)//4)
+    elementStep = bytesPerStep // bytesPerElem
+
     for j in range(0, kernel["ThreadTile1"]//kernel["VectorWidth"]):
       for i in range(0, kernel["ThreadTile0"]//kernel["VectorWidth"]):
         for s in range(0, kernel["VectorWidth"]):
@@ -8556,19 +8526,11 @@ class KernelWriterAssembly(KernelWriter):
                 + i*kernel["VectorWidth"] \
                 + s*kernel["ThreadTile0"] \
                 + j*kernel["ThreadTile0"]*kernel["VectorWidth"]
-            writeOffset /= elementStep
-            if useDwordX2:
-              regIdx = regIdx*self.bpeCinternal // 4
-              kStr += inst("ds_write_b64", vgpr(addr), vgpr("ValuC+%u"%regIdx,2), \
-                           "offset:%u"%(elementStep*writeOffset*self.bpeCinternal),
-                           "j=%u i=%u s=%u vc=%u"%(j,i,s,vc))
-            else:
-              regIdx //= elementStep
-              kStr += inst("ds_write_b32", vgpr(addr), vgpr("ValuC+%u"%regIdx), \
-                           "offset:%u"%(elementStep*writeOffset*self.bpeCinternal),
-                           "j=%u i=%u s=%u vc=%u"%(j,i,s,vc))
-            # ds_write value
-            #kStr += dump(vgpr(regIdx))
+            regIdx = int(regIdx * regsPerElem)
+
+            kStr += inst(f"ds_write_b{bytesPerStep*8}", vgpr(addr), vgpr("ValuC+%u"%regIdx, regsPerStep), \
+                "offset:%u"%(writeOffset*self.bpeCinternal), "j=%u i=%u s=%u vc=%u"%(j,i,s,vc))
+
     kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for all writes")
     if self.archCaps["SeparateVscnt"]:
       kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
@@ -8581,29 +8543,43 @@ class KernelWriterAssembly(KernelWriter):
   # LocalSplitU: Local Read
   ##############################################################################
   def localSplitULocalRead(self, kernel):
-    kStr = ""
-    tmpSgpr = self.getTmpSgpr(1).idx()
+    # alloc resource
+    tmpSgpr  = self.getTmpSgpr(1).idx()
     baseAddr = self.vgprPool.checkOut(1,"baseAddr")
+
+    # calculate parameters
+    bytesPerElem = kernel["ProblemType"]["ComputeDataType"].numBytes()
+    regsPerElem  = kernel["ProblemType"]["ComputeDataType"].numRegisters()
+    if kernel["ProblemType"]["DataType"].isHalf() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
+      bytesPerElem = 4
+      regsPerElem = 1
+
+    bytesPerVector = kernel["GlobalWriteVectorWidth"] * bytesPerElem
+    bytesPerStep = 16
+    while (bytesPerVector % bytesPerStep) != 0:
+      bytesPerStep //= 2
+    regsPerStep  = int((bytesPerStep+3)//4)
+    elementStep = bytesPerStep // bytesPerElem
+
+    # generate source
+    kStr = ""
     kStr += staticMultiply(vgpr(baseAddr), vgpr("Serial"), kernel["GlobalWriteVectorWidth"]*self.bpeAB, sgpr(tmpSgpr))
-    (elementStep, useDwordX2) = self.getLocalSplitUElementStep(kernel, True)
     # Load values for each subgroup
     for r in range(0, kernel["LocalSplitU"]):
       for i in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
         for s in range(0, kernel["GlobalWriteVectorWidth"], elementStep):
           offset = s + i*kernel["NumThreads"]*kernel["GlobalWriteVectorWidth"] + r * kernel["MacroTile0"]*kernel["MacroTile1"]
-          regIdx = s + i*kernel["GlobalWriteVectorWidth"] + r*kernel["GlobalWriteVectorWidth"]*kernel["NumGlobalWriteVectorsPerThread"]
-          if useDwordX2:
-            regIdx = regIdx * self.bpeCinternal // 4
-            kStr += inst("ds_read_b64", vgpr("ValuC+%u"%regIdx,2), \
-                vgpr(baseAddr), "offset:%u"%(offset*self.bpeCinternal), "r=%u i=%u s=%u"%(r,i,s))
-          else:
-            regIdx //= elementStep
-            kStr += inst("ds_read_b32", vgpr("ValuC+%u"%regIdx), \
-                vgpr(baseAddr), "offset:%u"%(offset*self.bpeCinternal), "r=%u i=%u s=%u"%(r,i,s))
+          regIdx = int((s + i*kernel["GlobalWriteVectorWidth"] + r*kernel["GlobalWriteVectorWidth"]*kernel["NumGlobalWriteVectorsPerThread"]) * regsPerElem)
+          kStr += inst(f"ds_read_b{bytesPerStep*8}", vgpr("ValuC+%u"%regIdx,regsPerStep), vgpr(baseAddr), \
+              "offset:%u"%(offset*self.bpeCinternal), "r=%u i=%u s=%u"%(r,i,s))
     kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for all reads")
+
     if self.archCaps["SeparateVscnt"]:
       kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
+
+    # free resources
     self.vgprPool.checkIn(baseAddr)
+
     return kStr
 
   ##############################################################################
@@ -8611,55 +8587,42 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def localSplitUReduction(self, kernel):
     kStr = ""
-    (elementStep, useDwordX2) = self.getLocalSplitUElementStep(kernel, False)
+
+    is_pack16 = kernel["ProblemType"]["DataType"].isHalf() and (not kernel["ProblemType"]["HighPrecisionAccumulate"])
+    elementStep = 2 if is_pack16 else 1
+    regsPerElem = kernel["ProblemType"]["DataType"].numRegisters()
+
     for r in range(1, kernel["LocalSplitU"]):
       for i in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
-        for s in range(0, kernel["GlobalWriteVectorWidth"],elementStep):
-          cIdx = s + i*kernel["GlobalWriteVectorWidth"]
-          regIdx = s + i*kernel["GlobalWriteVectorWidth"] \
-              + r*kernel["GlobalWriteVectorWidth"]*kernel["NumGlobalWriteVectorsPerThread"]
+        for s in range(0, kernel["GlobalWriteVectorWidth"], elementStep):
+          cIdx = int((s + i * kernel["GlobalWriteVectorWidth"]) * regsPerElem)
+          regIdx = int((s + i * kernel["GlobalWriteVectorWidth"] + r * kernel["GlobalWriteVectorWidth"] * kernel["NumGlobalWriteVectorsPerThread"]) * regsPerElem)
 
-          # TODO- Seems need to fix for HPA
-          if (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-            cIdx //= elementStep
-            regIdx //= elementStep
-
-            kStr += inst("v_pk_add_f16", vgpr("ValuC+%u"%cIdx), \
-                vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), "c[%u] += c[%u]"%(cIdx, regIdx) )
-
-          # TODO: LocalSplitU - INT8
+          if kernel["ProblemType"]["DataType"].isHalf() and (not kernel["ProblemType"]["HighPrecisionAccumulate"]):
+            kStr += inst("v_pk_add_f16", vgpr("ValuC+%u"%cIdx), vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), \
+                         "c[%u] += c[%u]"%(cIdx, regIdx) )
           elif kernel["ProblemType"]["DataType"].isInt8x4():
-            cIdx //= elementStep
-            regIdx //= elementStep
-            # assume v_add_i32 can be used in place of v_add_f32
-            # may need to add saturation directive to v_add_i32 instruction to clamp integer arithmetic
-            kStr += inst("_v_add_i32", vgpr("ValuC+%u"%cIdx), \
-                vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), "c[%u] += c[%u]"%(cIdx, regIdx) )
+            kStr += inst("_v_add_i32", vgpr("ValuC+%u"%cIdx), vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), \
+                         "c[%u] += c[%u]"%(cIdx, regIdx))
+
           elif kernel["ProblemType"]["DataType"].isSingle():
-            cIdx //= elementStep
-            regIdx //= elementStep
-            kStr += inst("v_add_f32", vgpr("ValuC+%u"%cIdx), \
-                vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), "c[%u] += c[%u]"%(cIdx, regIdx) )
+            kStr += inst("v_add_f32", vgpr("ValuC+%u"%cIdx), vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), \
+                         "c[%u] += c[%u]"%(cIdx, regIdx))
           elif kernel["ProblemType"]["DataType"].isDouble():
-            cIdx *= 2
-            regIdx *= 2 # for doubles, each element takes two regs
-            kStr += inst("v_add_f64", vgpr("ValuC+%u"%cIdx,2), \
-                vgpr("ValuC+%u" % regIdx,2), vgpr("ValuC+%u"%cIdx,2), "c[%u] += c[%u]"%(cIdx, regIdx) )
+            kStr += inst("v_add_f64", vgpr("ValuC+%u"%cIdx,2), vgpr("ValuC+%u" % regIdx,2), vgpr("ValuC+%u"%cIdx,2), \
+                         "c[%u] += c[%u]"%(cIdx, regIdx))
           elif kernel["ProblemType"]["DataType"].isSingleComplex():
-            cIdx *= 2
-            regIdx *= 2
-            kStr += inst("v_add_f32", vgpr("ValuC+%u"%cIdx), \
-                vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), "c[%u] += c[%u], real part"%(cIdx, regIdx) )
-            kStr += inst("v_add_f32", vgpr("ValuC+%u"%(cIdx+1)), \
-                vgpr("ValuC+%u" % (regIdx+1)), vgpr("ValuC+%u"%(cIdx+1)), "c[%u] += c[%u], imaginary part"%(cIdx+1, regIdx+1) )
+            kStr += inst("v_add_f32", vgpr("ValuC+%u"%(cIdx+0)), vgpr("ValuC+%u" % (regIdx+0)), vgpr("ValuC+%u"%(cIdx+0)), \
+                         "c[%u] += c[%u], real part"%(cIdx, regIdx) )
+            kStr += inst("v_add_f32", vgpr("ValuC+%u"%(cIdx+1)), vgpr("ValuC+%u" % (regIdx+1)), vgpr("ValuC+%u"%(cIdx+1)), \
+                         "c[%u] += c[%u], imaginary part"%(cIdx+1, regIdx+1) )
           elif kernel["ProblemType"]["DataType"].isDoubleComplex():
-            cIdx *= 4
-            regIdx *= 4
-            kStr += inst("v_add_f64", vgpr("ValuC+%u"%cIdx), \
-                vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), "c[%u] += c[%u], real part"%(cIdx, regIdx) )
-            kStr += inst("v_add_f64", vgpr("ValuC+%u"%(cIdx+2)), \
-                vgpr("ValuC+%u" % (regIdx+2)), vgpr("ValuC+%u"%(cIdx+2)), "c[%u] += c[%u], imaginary part"%(cIdx+2, regIdx+2) )
+            kStr += inst("v_add_f64", vgpr("ValuC+%u"%(cIdx+0),2), vgpr("ValuC+%u" % (regIdx+0),2), vgpr("ValuC+%u"%(cIdx+0),2), \
+                         "c[%u] += c[%u], real part"%(cIdx, regIdx) )
+            kStr += inst("v_add_f64", vgpr("ValuC+%u"%(cIdx+2),2), vgpr("ValuC+%u" % (regIdx+2),2), vgpr("ValuC+%u"%(cIdx+2),2), \
+                         "c[%u] += c[%u], imaginary part"%(cIdx+2, regIdx+2) )
           else:
+            # TODO: hpa_half, int8
             assert(0) # unsupported data type, need to modify here and LSU write/read code
     return kStr
 
