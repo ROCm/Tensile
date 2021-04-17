@@ -827,6 +827,37 @@ validParameters = {
     # AtomicAddC: If CEqualsD and Beta=1, use atomic add instead of load/store.
     "AtomicAddC":                 [False, True],
 
+    # Following parameters are designed for store scheduling.
+    # (store stands for load from C (with beta) and store to C/D)
+    #
+    # we want to hide store behind unroll loop
+    #   1. if we can launch 2 WorkGroups per CU (occupancy >= 2, large M/N)
+    #   2. if there are remaining global memory bandwidth in unroll loop (compute bound kernel)
+    #
+    # we can hide store behind the other WG's loop by lowering priority of store
+    #   priority of loop is the same as priority of store
+    #     WG0: ￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣\__
+    #         |<-- loop --->|<-- store -->|end
+    #
+    #     WG1: ___________________________/￣￣￣￣￣￣￣￣￣￣￣￣\__
+    #         |<--------- loop ------------------->|<-- store -->|end
+    #
+    #   priority of loop is higher than priority of store
+    #     WG0: ￣￣￣￣￣￣￣\____________________
+    #         |<-- loop --->|<------ store ----->|end
+    #
+    #     WG1: _____________/￣￣￣￣￣\__________________
+    #         |<------- loop -------->|<----- store ---->|end
+    "StorePriorityOpt":           [False, True],
+    #
+    # If we issue store in short period of time, kernel will become from compute bound to memory bound
+    # 0 means issue instructions as many as possible if VGPR available
+    "NumElementsPerBatchStore":   list(range(0, 256)),
+    #
+    # There are index or address calculation between global instructions.
+    # issue global instruction b2b has better performance
+    "GroupLoadStore":             [False, True],
+
     # Disable overlapping AB-tile vgpr and read/write addr vgprs with C-tile vgprs
     # Valid only for MatrixInstruction enabled kernels, which by default overlaps
     # C-tile w/ AB-tile until it's due for v_accvgpr_read before the writeback. Illustrated below:
@@ -1201,6 +1232,9 @@ defaultBenchmarkCommonParameters = [
     {"StoreRemapVectorWidth":     [ 0 ] },
     {"SourceSwap":                [ False ] },
     {"AtomicAddC":                [ False ] },
+    {"StorePriorityOpt":          [ False ] },
+    {"NumElementsPerBatchStore":  [ 0 ] },
+    {"GroupLoadStore":            [ False ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = []
