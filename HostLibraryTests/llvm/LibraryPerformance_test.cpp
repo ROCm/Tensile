@@ -180,6 +180,7 @@ TEST_P(LibraryPerformanceTest, Solve)
 
     if(solution)
     {
+        inputs.beta = problem.beta();
         for(int i = 0; i < 100000; i++)
         {
             solution->solve(problem, inputs, hardware);
@@ -194,7 +195,7 @@ TEST_P(LibraryPerformanceTest, FindAndSolve)
         auto                          problem  = RandomGEMM();
         auto                          solution = library->findBestSolution(problem, hardware);
         float                         a, b, c, d;
-        TypedContractionInputs<float> inputs{&a, &b, &c, &d, 1.0, 2.0};
+        TypedContractionInputs<float> inputs{&a, &b, &c, &d, 1.0, float(problem.beta())};
 
         if(solutionRequired)
             ASSERT_NE(solution, nullptr) << i << problem;

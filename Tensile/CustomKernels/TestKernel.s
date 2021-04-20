@@ -50,12 +50,16 @@ custom.config:
     TransposeB: False
     UseBeta: True
     Batched: True
+    LdcEqualsLdd: True
   LoopDoWhile: False
   WorkGroupMapping:  1
   ThreadTile: [ 8, 8 ]
   WorkGroup: [  8, 16,  1 ]
   DepthU: 8
   VectorWidth: 4
+  AssertAlphaValue: 1
+  AssertBetaValue: 1
+  AssertCEqualsD: True
 amdhsa.version:
   - 1
   - 0

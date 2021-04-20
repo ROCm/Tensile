@@ -274,7 +274,10 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       kernelConfig = ReplacementKernels.getCustomKernelConfig(kernelName+".s")
       # test if problem type matches with configuration file
       if kernelConfig['ProblemType'] != benchmarkStep.initialSolutionParameters['ProblemType']:
-        raise RuntimeError("The problem type in the config file does not match that of the custom kernel, {0}.".format(kernelName))
+        msg  = "The problem type in the config file does not match that of the custom kernel, {0}.".format(kernelName)
+        msg += "Config problem type:\n" + str(benchmarkStep.initialSolutionParameters['ProblemType'])
+        msg += "\nCustom kernel problem type:\n" + str(kernelConfig['ProblemType'])
+        raise RuntimeError(msg)
 
       kernelConfig["KernelLanguage"] = "Assembly"   # replacement kernels are always assembly kernels?
       kernelConfig["CustomKernelName"] = kernelName
