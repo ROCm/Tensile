@@ -30,6 +30,8 @@ from .AsmUtils import inst, vgpr, sgpr, log2, vectorStaticDivideAndRemainder, ve
 from math import ceil, trunc, modf
 from copy import deepcopy
 import collections
+import os
+import shlex
 import traceback
 from enum import Enum
 
@@ -598,7 +600,9 @@ class KernelWriterAssembly(KernelWriter):
 
     archHasV3 = globalParameters["AsmCaps"][isa]["HasCodeObjectV3"]
 
-    rv = [globalParameters['AssemblerPath'],
+    launcher = shlex.split(os.environ.get('Tensile_ASM_COMPILER_LAUNCHER', ''))
+
+    rv = launcher + [globalParameters['AssemblerPath'],
           '-x', 'assembler',
           '-target', 'amdgcn-amd-amdhsa']
 
