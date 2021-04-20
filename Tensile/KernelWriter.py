@@ -23,6 +23,7 @@ from . import Code
 from . import Common
 from .Common import globalParameters, CHeader, roundUp
 from . import ReplacementKernels 
+from .ReplacementKernels import isCustomKernelConfig
 from .SolutionStructs import Solution
 
 import abc
@@ -3578,7 +3579,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # get kernel name
   ##############################################################################
   def getKernelFileBase(self, kernel):
-    if kernel["CustomKernelName"]:
+    if isCustomKernelConfig(kernel): #kernel["CustomKernelName"]:
       fileBase = kernel["CustomKernelName"]
     elif globalParameters["ShortNames"]:
       fileBase = Solution.getNameSerial(kernel, self.kernelSerialNaming)
@@ -3687,7 +3688,7 @@ for codeObjectFileName in codeObjectFileNames:
     return bytearrayFileName
 
   def getReplacementKernelPath(self, kernel):
-    if not kernel["ReplacementKernel"] and not kernel["CustomKernelName"]:
+    if not kernel["ReplacementKernel"] and not isCustomKernelConfig(kernel): #kernel["CustomKernelName"]:
       return None
     
     kernelName = self.getKernelName(kernel)
@@ -3726,7 +3727,7 @@ for codeObjectFileName in codeObjectFileNames:
     if replacementKernel is not None:
       self.tPA = tensorParametersA = {}
       self.tPB = tensorParametersB = {}
-      if kernel["CustomKernelName"]:
+      if isCustomKernelConfig(kernel): #kernel["CustomKernelName"]:
         # ISA version, such as 803
         self.kernel = kernel
         self.language = "ASM"

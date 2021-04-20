@@ -32,6 +32,8 @@ from .Utils import roundUpToNearestMultiple
 from .KernelWriterBetaOnly import KernelWriterBetaOnly
 from .KernelWriterConversion import KernelWriterConversion
 
+from .ReplacementKernels import isCustomKernelConfig
+
 from collections import namedtuple,OrderedDict
 from copy import deepcopy
 from enum import Enum
@@ -1782,7 +1784,7 @@ class Solution:
         for (key,value) in self["ProblemType"].convolution.solutionParms.items():
             self._state[key]=value
     Solution.assignDerivedParameters(self._state)
-    self._name = config["CustomKernelName"] if config["CustomKernelName"] else None
+    self._name = config["CustomKernelName"] if isCustomKernelConfig(config) else None #config["CustomKernelName"] else None
 
     self.initHelperKernelObjests()
 
@@ -3659,7 +3661,7 @@ class Solution:
   # Get Name Min
   @ staticmethod
   def getNameMin(state, requiredParameters):
-    if state["CustomKernelName"]:
+    if isCustomKernelConfig(state): #state["CustomKernelName"]:
       return state["CustomKernelName"]
 
     name = ""

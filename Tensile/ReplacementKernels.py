@@ -97,6 +97,9 @@ class ReplacementKernels:
     def Get(cls, kernelName):
         return cls.Instance().get(kernelName)
 
+def isCustomKernelConfig(config):
+    return "CustomKernelName" in config and config["CustomKernelName"]
+
 def getCustomKernelContents(name, directory=globalParameters["CustomKernelDirectory"]):
     try:
         with open(os.path.join(directory, name)) as f:
