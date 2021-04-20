@@ -282,6 +282,15 @@ class ProblemPredicate(Properties.Predicate):
             return extractDimPredicate(cls, key, value, "SizeLessThan")
         if key == "AssertSizeMultiple":
             return extractDimPredicate(cls, key, value, "SizeMultiple")
+        
+        #Alpha and beta value assertions
+        if key == "AssertAlphaValue":
+            return cls("AlphaValue", value=value) if value != False else None
+        if key == "AssertBetaValue":
+            return cls("BetaValue", value=value) if value != False else None
+
+        if key == "AssertCEqualsD":
+            return cls("CEqualsD") if value != False else None
 
         # TODO - remove this when logic files have been updated
         if key == 'AssertMinApproxSize':

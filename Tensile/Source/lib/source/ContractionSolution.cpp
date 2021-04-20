@@ -827,6 +827,29 @@ namespace Tensile
             throw std::runtime_error(msg.c_str());
         }
 
+        // Check if alpha matches problem definition
+        if(problem.alphaRestriction() != ScalarValue::Any && problem.alphaRestriction() != toScalarValueEnum(inputs.alpha))
+        {
+            std::stringstream inputValue;
+            inputValue << inputs.alpha;
+            std::string msg = std::string("Alpha value ") + inputValue.str() + 
+                              std::string(" doesn't match that set in problem: ") + ToString(problem.alphaRestriction());
+            throw std::runtime_error(msg.c_str());
+        }
+
+        // Check if beta matches problem definition
+        if(problem.betaRestriction() != ScalarValue::Any && problem.betaRestriction() != toScalarValueEnum(inputs.beta))
+        {
+            std::stringstream inputValue;
+            inputValue << inputs.beta;
+            std::string msg = std::string("Beta value ") + inputValue.str() + 
+                              std::string(" doesn't match that set in problem: ") + ToString(problem.betaRestriction());
+            throw std::runtime_error(msg.c_str());
+        }
+
+        if(problem.cEqualsD() && inputs.c != inputs.d)
+            throw std::runtime_error("ContractionProblem has cEqualsD set, but pointers for c and d are not equal");
+
         std::vector<KernelInvocation> rv;
 
         if(sizeMapping.globalSplitU > 1 && sizeMapping.globalAccumulation != 2)

@@ -691,6 +691,34 @@ namespace Tensile
                 }
             };
 
+            struct CEqualsD : public Predicate_CRTP<CEqualsD, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+                static std::string Type()
+                {
+                    return "CEqualsD";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.cEqualsD();
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << this->type() << "(problem.cEqualsD() == True) == " << rv;
+
+                    return rv;
+                }
+            };
+
             struct BetaZero : public Predicate_CRTP<BetaZero, ContractionProblem>
             {
                 enum
@@ -839,6 +867,64 @@ namespace Tensile
                 {
                     return problem.arithmeticUnit() == value
                            || problem.arithmeticUnit() == ArithmeticUnit::Any;
+                }
+            };
+
+            struct AlphaValue
+                : public Predicate_CRTP<AlphaValue, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+
+                ScalarValue value;
+
+                AlphaValue() = default;
+                AlphaValue(ScalarValue value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "AlphaValue";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.alphaRestriction() == value
+                           || value == ScalarValue::Any;
+                }
+            };
+
+            struct BetaValue
+                : public Predicate_CRTP<BetaValue, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+
+                ScalarValue value;
+
+                BetaValue() = default;
+                BetaValue(ScalarValue value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "BetaValue";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.betaRestriction() == value
+                           || value == ScalarValue::Any;
                 }
             };
 

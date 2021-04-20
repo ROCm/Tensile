@@ -680,6 +680,13 @@ validParameters = {
     "AssertSizeLessThan":    -1,
     "AssertSizeMultiple":    -1,
 
+    #Assert values for alpha and beta
+    "AssertBetaValue":       [False, 1, -1],
+    "AssertAlphaValue":      [False, 1, -1],
+
+    #Assert C==D
+    "AssertCEqualsD": [False, True],
+
     # Generate code inside kernel to check Assertions on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
 
@@ -1135,6 +1142,9 @@ defaultBenchmarkCommonParameters = [
     {"AssertSizeGreaterThan":     [ {} ] },
     {"AssertSizeMultiple":        [ {} ] },
     {"AssertSizeLessThan":        [ {} ] },
+    {"AssertAlphaValue":          [ False ]},
+    {"AssertBetaValue":           [ False ]},
+    {"AssertCEqualsD":            [ False ]},
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 

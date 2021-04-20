@@ -3726,9 +3726,7 @@ for codeObjectFileName in codeObjectFileNames:
     if replacementKernel is not None:
       self.tPA = tensorParametersA = {}
       self.tPB = tensorParametersB = {}
-      if not kernel["CustomKernelName"]:
-        self.initKernel(kernel, tensorParametersA, tensorParametersB )
-      else:
+      if kernel["CustomKernelName"]:
         # ISA version, such as 803
         self.kernel = kernel
         self.language = "ASM"
@@ -3739,6 +3737,8 @@ for codeObjectFileName in codeObjectFileNames:
           defaultIsa = (9,0,0)
           print("warning: ISA:", self.version, " is not supported; overriding with ", defaultIsa)
           self.version = defaultIsa
+      else: 
+        self.initKernel(kernel, tensorParametersA, tensorParametersB )
 
       shutil.copyfile(replacementKernel, assemblyFileName)
       if globalParameters["PrintLevel"] >= 1:
