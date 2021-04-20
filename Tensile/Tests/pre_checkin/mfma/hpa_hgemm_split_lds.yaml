@@ -43,6 +43,7 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - VectorWidth: [4, 8]
         - 1LDSBuffer: [0, 1]
+        - StaggerU: [0,32]
         - PersistentKernel: [0, 1]
         - PersistentKernelAlongBatch: [False]
         - PrefetchAcrossPersistent: [0, 1]

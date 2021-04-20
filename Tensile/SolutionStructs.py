@@ -2542,11 +2542,6 @@ class Solution:
         print2("PAP requires Assembly, PK!=0, PGR==1, SuppressNoLoadLoop=True, forcing PAP=False")
         state["PrefetchAcrossPersistent"] = False
 
-    # TODO- fix this, avoid the bug for now
-    if state["PrefetchAcrossPersistent"] and state["StaggerU"] == 0:
-        print2("PAP has some defects so far and would cause error when SU=0, disable PAP temporarily")
-        state["PrefetchAcrossPersistent"] = False
-
     problemType = state["ProblemType"]
     if not problemType["UseInitialStridesAB"]:
       for (tc) in ('A','B'):
@@ -3107,7 +3102,7 @@ class Solution:
       if state["EnableMatrixInstruction"]:
         state["LocalReadVectorWidth"] = state["MIInputPerThread"]
       else:
-        state["LocalReadVectorWidth"] = state["VectorWidth"]    
+        state["LocalReadVectorWidth"] = state["VectorWidth"]
     else:
       if state["EnableMatrixInstruction"]:
         if state["LocalReadVectorWidth"] < state["MIInputPerThread"]:

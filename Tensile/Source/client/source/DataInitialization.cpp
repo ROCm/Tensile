@@ -73,6 +73,8 @@ namespace Tensile
                 return "TrigAbsCos";
             case InitMode::RandomNarrow:
                 return "RandomNarrow";
+            case InitMode::NegOne:
+                return "NegOne";
 
             case InitMode::Count:
                 break;
@@ -126,6 +128,8 @@ namespace Tensile
                 mode = InitMode::TrigAbsCos;
             else if(strValue == ToString(InitMode::RandomNarrow))
                 mode = InitMode::RandomNarrow;
+            else if(strValue == ToString(InitMode::NegOne))
+                mode = InitMode::NegOne;
             else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
             {
                 int value = atoi(strValue.c_str());

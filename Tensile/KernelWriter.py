@@ -1211,7 +1211,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if kernel["PrefetchGlobalRead"]:
       pfi = 1
       kl.append(self.comment("prefetch: global -> local"))
-      kl.append(self.openSumAtLeastUnroll(kernel, prefetch=True, isPap=isPap, isOptNLL=isOptNLL))
+      kl.append(self.openSumAtLeastUnroll(kernel, prefetch=True, isOptNLL=isOptNLL, isPap=isPap))
       if isPap and isOptNLL:
         if self.enable["GlobalRead"]:
           self.dtlsM0UpdateACode = self.directToLdsM0Update(kernel, 0, tensorParametersA)
@@ -1250,7 +1250,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   #
   # isOptNLL : the NLL is to be optimized for the alpha=1 and non-edge case
   ##############################################################################
-  def noLoadLoop( self, kernel, tensorParametersA, tensorParametersB, isOptNLL, isNGLL, pack ):
+  def noLoadLoop( self, kernel, tensorParametersA, tensorParametersB, isOptNLL, isPap, isNGLL, pack ):
     kl = []
     pflr     = self.numItersPLR
     localWriteEndIter = kernel["LoopIters"] - self.numItersPLR - 1
@@ -1260,7 +1260,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.perIterLocalWriteCode = self.perIterLocalWriteCodeNGLL
       self.perIterLocalWriteCanSkip = [ 0 for i in range (kernel["LoopIters"]) ]
     else:
-      kl.append(self.comment3("%s NoLoadLoop - Begin") % ("Opt." if isOptNLL else "Ord."))
+      if not isOptNLL:
+        kl.append(self.comment3("Ord. NoLoadLoop - Begin"))
+      else:
+        kl.append(self.comment3("Opt. NoLoadLoop %s PAP - Begin") % ("With" if isPap else "Without"))
       self.dtlsM0UpdateACode = Code.StructuredModule()
       self.globalReadACode = Code.StructuredModule() # empty
       self.dtlsM0UpdateBCode = Code.StructuredModule()
@@ -1272,7 +1275,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.localWriteBCode = Code.Module()
 
     # the scheduled GlobalRead,Inc code of PAP is inside openSumAtLeastUnroll (if PAP=on)
-    kl.append(self.openSumAtLeastUnroll(kernel, prefetch=False, isPap=False, isOptNLL=isOptNLL))
+    kl.append(self.openSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=isOptNLL, isPap=isPap))
 
     if not self.numItersPLR:
       if self.enable["Wait"]:
@@ -1438,7 +1441,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           item.tempVgpr = None
       pack[luIdx] = Code.Module()
 
-    kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=isOptNLL, isNGLL=isNGLL))
+    kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=isOptNLL, isPap=isPap, isNGLL=isNGLL))
 
     return kl
 
@@ -1593,7 +1596,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 if iui*self.numReadsIterCoalescedB < kernel["InnerUnroll"]:
                   kl.append(self.comment("local read inc b"))
                   kl.append(self.localReadInc(kernel, iui, tensorParametersB))
-      kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=True, isOptNLL=False, isNGLL=False))
+      kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=True, isOptNLL=False, isPap=False, isNGLL=False))
 
     # open unrolled summation loop
     kl.append(self.comment3("Unrolled Loop(s) - Begin"))
@@ -2096,7 +2099,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.tmpCheckedOutLWVgprs = []
 
     if kernel["PrefetchGlobalRead"] == 2:
-      kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False, isNGLL=True, pack=pack)
+      kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False, isPap=False, isNGLL=True, pack=pack)
 
     # This "NoLoad" loop is a copy of the unroll loop but with global loads + LDS writes removed
     # doShadowInit is required since this pushes up the store SRD initialization before the NLL
@@ -2109,14 +2112,25 @@ class KernelWriter(metaclass=abc.ABCMeta):
            kernel["BufferLoad"] and kernel["BufferStore"] and self.doShadowInit and \
            kernel["LocalSplitU"]==1 and kernel["GlobalSplitU"] == 1 and \
            self.actualSummationLoops==1:
-          self.saveLocalPointers(kernel)
 
+          # three different noLoadLoops:
+          # 1. OptNLL & PAP global-read interleaved (only for PAP=ON)
+          # 2. OptNLL : No PAP global-read (For PAP=OFF, or PAP=ON but the last tile)
+          # 3. OrdinaryNLL (Not Opt.)
+          if self.prefetchAcrossPersistent:
+            self.saveLocalPointers(kernel)
+            # deepCopy packCode for OptNLL noLoadLoop
+            deepCopyPack = copy.deepcopy(pack)
+            kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=True, isPap=True, isNGLL=False, pack=deepCopyPack)
+            self.restoreLocalPointers(kernel)
+
+          self.saveLocalPointers(kernel)
           # deepCopy packCode for OptNLL noLoadLoop
           deepCopyPack = copy.deepcopy(pack)
-          kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=True, isNGLL=False, pack=deepCopyPack)
+          kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=True, isPap=False, isNGLL=False, pack=deepCopyPack)
           self.restoreLocalPointers(kernel)
 
-        kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False, isNGLL=False, pack=pack)
+        kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False, isPap=False, isNGLL=False, pack=pack)
       # if PGR, last few iterations will have PLR,
       # and those PLR will not be used(register not checkIn) if without NoLoadLoop
       else:
@@ -3319,11 +3333,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # At Least 1 Unroll
   ##############################################################################
   @abc.abstractmethod
-  def openSumAtLeastUnroll(self, kernel, prefetch, isPap, isOptNLL):
+  def openSumAtLeastUnroll(self, kernel, prefetch, isOptNLL, isPap):
     return ""
 
   @abc.abstractmethod
-  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL, isNGLL):
+  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL, isPap, isNGLL):
     return ""
 
   ##############################################################################
