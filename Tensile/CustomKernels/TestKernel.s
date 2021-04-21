@@ -57,9 +57,11 @@ custom.config:
   WorkGroup: [  8, 16,  1 ]
   DepthU: 8
   VectorWidth: 4
-  AssertAlphaValue: 1
+  PersistentKernel: 1
+  AssertAlphaValue: -1
   AssertBetaValue: 1
   AssertCEqualsD: True
+
 amdhsa.version:
   - 1
   - 0
