@@ -1,5 +1,6 @@
 # Change Log for Tensile
-## [(Unreleased) Tensile 4.28.0 for ROCm 4.3.0]
+
+## [Tensile 4.28.0 for ROCm 4.3.0]
 ### Added
 - TensileRetuneLibrary for updating existing library logic files
 - Support GFX1030
