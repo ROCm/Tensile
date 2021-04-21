@@ -22,8 +22,8 @@
 from . import Code
 from . import Common
 from .Common import globalParameters, CHeader, roundUp
-from . import ReplacementKernels 
-from .ReplacementKernels import isCustomKernelConfig
+from .ReplacementKernels import ReplacementKernels as ReplacementKernels, \
+                                isCustomKernelConfig as isCustomKernelConfig
 from .SolutionStructs import Solution
 
 import abc
@@ -3707,10 +3707,10 @@ for codeObjectFileName in codeObjectFileNames:
     
     kernelName = self.getKernelName(kernel)
 
-    if kernel["ReplacementKernel"]:
-      return ReplacementKernels.Get(kernelName)
-    else: #Custom Kernel
+    if isCustomKernelConfig(kernel):
       return os.path.join(globalParameters["CustomKernelDirectory"], (kernelName + ".s"))
+    else: # Replacement kernel
+      return ReplacementKernels.Get(kernelName)
 
   def shortenFileBase(self, kernel):
     base = self.getKernelName(kernel)
