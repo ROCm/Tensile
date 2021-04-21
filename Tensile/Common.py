@@ -1072,6 +1072,10 @@ validParameters = {
     # category alongside InitialSolutionParameters, BenchmarkCommonParameters, etc...
     "CustomKernelName":            -1,
 
+    # Will allow a kernel to be accepted even when checks determine it's not viable.
+    # Intended for use with custom kernels which have confirmed to be correct
+    "NoReject":                    [False, True],
+
     "MinVgprNumber":                list(range(0,256)),
 
     "MaxVgprNumber":                list(range(0,257)),
@@ -1191,6 +1195,7 @@ defaultBenchmarkCommonParameters = [
     {"NonTemporalB":              [ 0 ] },
     {"ReplacementKernel":         [ False ] },
     {"CustomKernelName":          [ "" ] },
+    {"NoReject":                  [ False ]},
     {"MinVgprNumber":             [0]},
     {"MaxVgprNumber":             [256]},
     {"StoreRemapVectorWidth":     [ 0 ] },

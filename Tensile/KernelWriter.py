@@ -3593,7 +3593,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # get kernel name
   ##############################################################################
   def getKernelFileBase(self, kernel):
-    if isCustomKernelConfig(kernel): #kernel["CustomKernelName"]:
+    if isCustomKernelConfig(kernel):
       fileBase = kernel["CustomKernelName"]
     elif globalParameters["ShortNames"]:
       fileBase = Solution.getNameSerial(kernel, self.kernelSerialNaming)
@@ -3741,7 +3741,7 @@ for codeObjectFileName in codeObjectFileNames:
     if replacementKernel is not None:
       self.tPA = tensorParametersA = {}
       self.tPB = tensorParametersB = {}
-      if isCustomKernelConfig(kernel): #kernel["CustomKernelName"]:
+      if isCustomKernelConfig(kernel):
         # ISA version, such as 803
         self.kernel = kernel
         self.language = "ASM"

@@ -48,6 +48,8 @@ import sys
 ########################################
 # Print a reject message :
 def reject(state, *args):
+  if "NoReject" in state and state["NoReject"]:
+    return
   if globalParameters["PrintSolutionRejectionReason"]:
     sys.stdout.write("\nreject: ")
     for a in args:
@@ -1784,8 +1786,7 @@ class Solution:
         for (key,value) in self["ProblemType"].convolution.solutionParms.items():
             self._state[key]=value
     Solution.assignDerivedParameters(self._state)
-    self._name = config["CustomKernelName"] if isCustomKernelConfig(config) else None #config["CustomKernelName"] else None
-
+    self._name = config["CustomKernelName"] if isCustomKernelConfig(config) else None
     self.initHelperKernelObjests()
 
   # these keys are copied from ProblemType to internal that may be overridden
@@ -1967,22 +1968,22 @@ class Solution:
       pv = state["NumThreads"]//totalVectors
       if not state["FractionalLoad"]:
         if state["NumThreads"] % totalVectors != 0:
-          reject(None, "NumThreads %u %% totalVectors %u != 0" \
+          reject(state, "NumThreads %u %% totalVectors %u != 0" \
               % (state["NumThreads"], totalVectors))
           validDepthU = False
         if pv * totalVectors != state["NumThreads"]:
-          reject(None, "pv %u * totalVectors %u != NumThreads %u" \
+          reject(state, "pv %u * totalVectors %u != NumThreads %u" \
               % (pv, totalVectors, state["NumThreads"]))
           validDepthU = False
         if grvw % pv != 0:
-          reject(None, "GlobalReadVectorWidth %u %% pv %u != 0" \
+          reject(state, "GlobalReadVectorWidth %u %% pv %u != 0" \
               % (grvw, pv))
           validDepthU = False
     else:
       pv = 1 # no partial vector required
       if totalVectors % state["NumThreads"] != 0:
         if not state["FractionalLoad"]:
-          reject(None, "totalVectors %u %% NumThreads %u != 0" \
+          reject(state, "totalVectors %u %% NumThreads %u != 0" \
               % (totalVectors, state["NumThreads"]))
           validDepthU = False
 
@@ -3592,6 +3593,12 @@ class Solution:
     if state["UnrollIncIsDepthU"] and globalParameters["NewClient"] != 2:
       raise RuntimeError ("Legacy client does not support UnrollIncIsDepthU=1 (ASEM issues), aborting")
 
+    # Ensure AssertCEqualsD is always used with LdcEqualsLdd --DISABLED CURRENTLY
+    #if state["AssertCEqualsD"]:
+    #  if not ("LdcEqualsLdd" in state["ProblemType"] and state["ProblemType"]["LdcEqualsLdd"]):
+    #    import pdb; pdb.set_trace()
+    #    reject(state, "AssertCEqualsD requires LdcEqualsLdd=True")
+
     state["AssignedDerivedParameters"] = True
 
 
@@ -3656,7 +3663,7 @@ class Solution:
   # Get Name Min
   @ staticmethod
   def getNameMin(state, requiredParameters):
-    if isCustomKernelConfig(state): #state["CustomKernelName"]:
+    if isCustomKernelConfig(state):
       return state["CustomKernelName"]
 
     name = ""

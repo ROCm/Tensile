@@ -254,8 +254,38 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 
     benchmarkStep.hardcodedParameters = validHardcoded
 
+    # add custom kernels to list of solutions
+    customKernelList = problemSizeGroupConfig.get("CustomKernels", [])
+    customKernelWildcard = False
+    if customKernelList == ["*"]:
+      customKernelList = [fname[:-2] for fname in os.listdir(globalParameters["CustomKernelDirectory"]) if fname.endswith(".s")]
+      customKernelWildcard = True
+    for kernelName in customKernelList:
+      kernelConfig = ReplacementKernels.getCustomKernelConfig(kernelName+".s")
+      # test if problem type matches with configuration file
+      kernelConfig["KernelLanguage"] = "Assembly"   # replacement kernels are always assembly kernels?
+      kernelConfig["CustomKernelName"] = kernelName
+      customSolution = Solution(kernelConfig)
+      if customSolution["ProblemType"] != benchmarkProcess.problemType:
+        if not customKernelWildcard:
+          missingParams = [p for p in benchmarkProcess.problemType if p not in customSolution["ProblemType"]] 
+          extraParams   = [p for p in customSolution["ProblemType"] if p not in benchmarkProcess.problemType] 
+          msg  = "The problem type in the config file does not match that of the custom kernel, {0}.".format(kernelName)
+          msg += "\nMissing config parameters:\n" + str(missingParams)
+          msg += "\nExtra custom kernel parameters:\n" + str(extraParams)
+          raise RuntimeError(msg)
+      else:
+        print1("# Including custom kernel {}".format(kernelName))
+        maxPossibleSolutions += 1
+        if customSolution["Valid"]:
+          solutions.append([customSolution])
+          benchmarkStep.hardcodedParameters.append(customSolution._state)
+        elif globalParameters["PrintSolutionRejectionReason"]:
+          print1("rejecting solution %s" % str(customSolution))
+
     if removesExist and "CustomKernels" not in problemSizeGroupConfig:
-      print1("# Updating winners since enumeration removed unused hardcoded solutions.  removeHardcoded=%u winners=%u" %(len(removeHardcoded), len(winners.winners)))
+      print1("# Updating winners since enumeration removed unused hardcoded solutions.  removeHardcoded=%u winners=%u" \
+             %(len(removeHardcoded), len(winners.winners)))
       winners.wpdUpdate( benchmarkStep.hardcodedParameters )
       if globalParameters["PrintLevel"] >= 1:
         print1("")
@@ -268,22 +298,6 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
         winners.winners[FrozenDictionary(hcParm)] = [{},-1]
     print1("# Actual Solutions: %u / %u\n" % ( len(solutions), \
         maxPossibleSolutions ))
-
-    # add custom kernels to solutions
-    for kernelName in problemSizeGroupConfig.get("CustomKernels", []):
-      kernelConfig = ReplacementKernels.getCustomKernelConfig(kernelName+".s")
-      # test if problem type matches with configuration file
-
-      kernelConfig["KernelLanguage"] = "Assembly"   # replacement kernels are always assembly kernels?
-      kernelConfig["CustomKernelName"] = kernelName
-      customSolution = Solution(kernelConfig)
-      if customSolution['ProblemType'] != benchmarkProcess.problemType:
-        msg  = "The problem type in the config file does not match that of the custom kernel, {0}.".format(kernelName)
-        msg += "\nConfig problem type:\n" + str(benchmarkProcess.problemType)
-        msg += "\nCustom kernel problem type:\n" + str(customSolution['ProblemType'])
-        raise RuntimeError(msg)
-      solutions.append([customSolution])
-      benchmarkStep.hardcodedParameters.append(customSolution._state)
 
     # create linear list
     solutionList = list(itertools.chain.from_iterable(solutions))
