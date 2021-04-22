@@ -51,6 +51,7 @@ custom.config:
     UseBeta: True
     Batched: True
     LdcEqualsLdd: True
+  //MatrixInstruction: [16, 16, 4, 1]
   LoopDoWhile: False
   WorkGroupMapping:  1
   ThreadTile: [ 8, 8 ]
@@ -60,6 +61,10 @@ custom.config:
   AssertAlphaValue: -1
   AssertBetaValue: 1
   AssertCEqualsD: True
+  AssertSizeGreaterThan: {}
+  AssertSizeLessThan: {}
+  AssertSizeEqual: {3: 512}
+  AssertSizeMultiple: {0: 128, 1: 128}
 
 amdhsa.version:
   - 1

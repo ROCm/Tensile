@@ -3607,17 +3607,20 @@ class Solution:
   # create a dictionary with booleans on whether to include parameter in name
   @staticmethod
   def getMinNaming(objs):
+    nonCKObjs = [obj for obj in objs if not isCustomKernelConfig(obj)]
+    
     # early return
-    if len(objs) == 0:
+    if len(nonCKObjs) == 0:
       return {}
+
     # determine keys
     requiredParameters = {}
-    if isinstance(objs[0], Solution):
-      keys = list(objs[0]._state.keys())
+    if isinstance(nonCKObjs[0], Solution):
+      keys = list(nonCKObjs[0]._state.keys())
     else:
-      keys = list(objs[0].keys())
+      keys = list(nonCKObjs[0].keys())
     # only 1, rather than name being nothing, it'll be everything
-    if len(objs) == 1:
+    if len(nonCKObjs) == 1:
       for key in keys:
         if key in list(validParameters.keys()):
           requiredParameters[key] = False
@@ -3625,8 +3628,8 @@ class Solution:
       for key in keys:
         required = False
         if key in list(validParameters.keys()):
-          for i in range(1, len(objs)):
-            if objs[0][key] != objs[i][key]:
+          for i in range(1, len(nonCKObjs)):
+            if nonCKObjs[0][key] != nonCKObjs[i][key]:
               required = True
               break
         if required:
@@ -3646,6 +3649,7 @@ class Solution:
     requiredParameters["MatrixInstB"]       = False # always prepended
     requiredParameters["MatrixInstBM"]      = False # always prepended
     requiredParameters["MatrixInstBN"]      = False # always prepended
+    requiredParameters["CustomKernelName"]  = False # Will not affect naming
 
     requiredParameters["Kernel"]       = True  # distinguish kernels from solutions
                                                # for single-source compilation
