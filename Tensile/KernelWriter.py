@@ -617,8 +617,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # calculate the data index of this mfma used for A and B
           # if i // kernel["MIWaveTile"][0]==0, mfma will use new A (need to take iu into account)
           # if i % kernel["MIWaveTile"][0]==0, mfma will use new B
-          packAIdx += instPerPack if i//(kernel["MIWaveTile"][0]+kernel["MIWaveTile"][0]*kernel["MIWaveTile"][1]*(i//(kernel["MIWaveTile"][0]*kernel["MIWaveTile"][1]))) == 0 else 0
-          packBIdx += instPerPack if i % kernel["MIWaveTile"][0] == 0 else 0
+          packAIdx += instPerPack if i//(kernel["MIWaveTileA"]+kernel["MIWaveTileA"]*kernel["MIWaveTileB"]*(i//(kernel["MIWaveTileA"]*kernel["MIWaveTileB"]))) == 0 else 0
+          packBIdx += instPerPack if i % kernel["MIWaveTileA"] == 0 else 0
           # blockWidth < 1, means 0.5 or 0.25 (BF,H,Int8)
           packAIdx = packAIdx if self.tPA["localReadInstruction"].blockWidth < 1 else 0
           packBIdx = packBIdx if self.tPB["localReadInstruction"].blockWidth < 1 else 0
@@ -880,8 +880,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # calculate the data index of this mfma used for A and B
           # if i // kernel["MIWaveTile"][0]==0, mfma will use new A (need to take iu into account)
           # if i % kernel["MIWaveTile"][0]==0, mfma will use new B
-          packAIdx += instPerPack if i//(kernel["MIWaveTile"][0]+kernel["MIWaveTile"][0]*kernel["MIWaveTile"][1]*(i//(kernel["MIWaveTile"][0]*kernel["MIWaveTile"][1]))) == 0 else 0
-          packBIdx += instPerPack if i % kernel["MIWaveTile"][0] == 0 else 0
+          packAIdx += instPerPack if i//(kernel["MIWaveTileA"]+kernel["MIWaveTileA"]*kernel["MIWaveTileB"]*(i//(kernel["MIWaveTileA"]*kernel["MIWaveTileB"]))) == 0 else 0
+          packBIdx += instPerPack if i % kernel["MIWaveTileA"] == 0 else 0
           # blockWidth < 1, means 0.5 or 0.25 (BF,H,Int8)
           packAIdx = packAIdx if self.tPA["localReadInstruction"].blockWidth < 1 else 0
           packBIdx = packBIdx if self.tPB["localReadInstruction"].blockWidth < 1 else 0
@@ -978,8 +978,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
           localReads  = item.countType(Code.LocalReadInst)
           localWrites = item.countType(Code.LocalWriteInst)
           if self.numVgprBuffer:
-            # here the reads are prefetches so can skip them in the waitcnt
-            lgkmcnt += localReads
+            # SQ: If PrefetchLocalRead = 1 and DepthU == LocalSplitU, then there is no double
+            #  buffering and we must wait for all localReads but not localWrites.
+            #  In that case, LoopIters == 1:
+            if kernel["LoopIters"] > 1:
+              # here the reads are prefetches so can skip them in the waitcnt
+              lgkmcnt += localReads
             # and the writes are targetting another section of LDS and are
             # synchronized through a different waitnct than this one
             # (which is always just before the macs)
@@ -1206,7 +1210,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if kernel["PrefetchGlobalRead"]:
       pfi = 1
       kl.append(self.comment("prefetch: global -> local"))
-      kl.append(self.openSumAtLeastUnroll(kernel, prefetch=True, isPap=isPap, isOptNLL=isOptNLL))
+      kl.append(self.openSumAtLeastUnroll(kernel, prefetch=True, isOptNLL=isOptNLL, isPap=isPap))
       if isPap and isOptNLL:
         if self.enable["GlobalRead"]:
           self.dtlsM0UpdateACode = self.directToLdsM0Update(kernel, 0, tensorParametersA)
@@ -1245,7 +1249,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   #
   # isOptNLL : the NLL is to be optimized for the alpha=1 and non-edge case
   ##############################################################################
-  def noLoadLoop( self, kernel, tensorParametersA, tensorParametersB, isOptNLL, isNGLL, pack ):
+  def noLoadLoop( self, kernel, tensorParametersA, tensorParametersB, isOptNLL, isPap, isNGLL, pack ):
     kl = []
     pflr     = self.numItersPLR
     localWriteEndIter = kernel["LoopIters"] - self.numItersPLR - 1
@@ -1255,7 +1259,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.perIterLocalWriteCode = self.perIterLocalWriteCodeNGLL
       self.perIterLocalWriteCanSkip = [ 0 for i in range (kernel["LoopIters"]) ]
     else:
-      kl.append(self.comment3("%s NoLoadLoop - Begin") % ("Opt." if isOptNLL else "Ord."))
+      if not isOptNLL:
+        kl.append(self.comment3("Ord. NoLoadLoop - Begin"))
+      else:
+        kl.append(self.comment3("Opt. NoLoadLoop %s PAP - Begin") % ("With" if isPap else "Without"))
       self.dtlsM0UpdateACode = Code.StructuredModule()
       self.globalReadACode = Code.StructuredModule() # empty
       self.dtlsM0UpdateBCode = Code.StructuredModule()
@@ -1267,7 +1274,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.localWriteBCode = Code.Module()
 
     # the scheduled GlobalRead,Inc code of PAP is inside openSumAtLeastUnroll (if PAP=on)
-    kl.append(self.openSumAtLeastUnroll(kernel, prefetch=False, isPap=False, isOptNLL=isOptNLL))
+    kl.append(self.openSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=isOptNLL, isPap=isPap))
 
     if not self.numItersPLR:
       if self.enable["Wait"]:
@@ -1433,7 +1440,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           item.tempVgpr = None
       pack[luIdx] = Code.Module()
 
-    kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=isOptNLL, isNGLL=isNGLL))
+    kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=isOptNLL, isPap=isPap, isNGLL=isNGLL))
 
     return kl
 
@@ -1474,11 +1481,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.comment3("Local Read Addresses"))
 
       # tile assignments
-      kl.append(self.comment("local read addresses: tile assignments a"))
-      kl.append(self.lraTileAssignment(kernel, tensorParametersA))
-      kl.append(self.comment("local read addresses: tile assignments b"))
-      kl.append(self.lraTileAssignment(kernel, tensorParametersB))
-
+      kl.append(self.comment("local read addresses: tile assignments a/b"))
+      kl.append(self.lraTileAssignment(kernel, tensorParametersA, tensorParametersB))
 
       # final offsets
       kl.append(self.comment("local read addresses: final offsets a"))
@@ -1591,7 +1595,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 if iui*self.numReadsIterCoalescedB < kernel["InnerUnroll"]:
                   kl.append(self.comment("local read inc b"))
                   kl.append(self.localReadInc(kernel, iui, tensorParametersB))
-      kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=True, isOptNLL=False, isNGLL=False))
+      kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=True, isOptNLL=False, isPap=False, isNGLL=False))
 
     # open unrolled summation loop
     kl.append(self.comment3("Unrolled Loop(s) - Begin"))
@@ -2094,7 +2098,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.tmpCheckedOutLWVgprs = []
 
     if kernel["PrefetchGlobalRead"] == 2:
-      kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False, isNGLL=True, pack=pack)
+      kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False, isPap=False, isNGLL=True, pack=pack)
 
     # This "NoLoad" loop is a copy of the unroll loop but with global loads + LDS writes removed
     # doShadowInit is required since this pushes up the store SRD initialization before the NLL
@@ -2107,14 +2111,25 @@ class KernelWriter(metaclass=abc.ABCMeta):
            kernel["BufferLoad"] and kernel["BufferStore"] and self.doShadowInit and \
            kernel["LocalSplitU"]==1 and kernel["GlobalSplitU"] == 1 and \
            self.actualSummationLoops==1:
-          self.saveLocalPointers(kernel)
 
+          # three different noLoadLoops:
+          # 1. OptNLL & PAP global-read interleaved (only for PAP=ON)
+          # 2. OptNLL : No PAP global-read (For PAP=OFF, or PAP=ON but the last tile)
+          # 3. OrdinaryNLL (Not Opt.)
+          if self.prefetchAcrossPersistent:
+            self.saveLocalPointers(kernel)
+            # deepCopy packCode for OptNLL noLoadLoop
+            deepCopyPack = copy.deepcopy(pack)
+            kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=True, isPap=True, isNGLL=False, pack=deepCopyPack)
+            self.restoreLocalPointers(kernel)
+
+          self.saveLocalPointers(kernel)
           # deepCopy packCode for OptNLL noLoadLoop
           deepCopyPack = copy.deepcopy(pack)
-          kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=True, isNGLL=False, pack=deepCopyPack)
+          kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=True, isPap=False, isNGLL=False, pack=deepCopyPack)
           self.restoreLocalPointers(kernel)
 
-        kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False, isNGLL=False, pack=pack)
+        kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False, isPap=False, isNGLL=False, pack=pack)
       # if PGR, last few iterations will have PLR,
       # and those PLR will not be used(register not checkIn) if without NoLoadLoop
       else:
@@ -2232,10 +2247,15 @@ class KernelWriter(metaclass=abc.ABCMeta):
         KinInnerUnroll = kernel["InnerUnroll"]
         if kernel["EnableMatrixInstruction"]:
           KinInnerUnroll *= kernel["MatrixInstK"]
-        tailLoopInnerUnroll = kernel["InnerUnroll"] if (kernel["AssertSummationElementMultiple"] % KinInnerUnroll == 0) else 1
+
+        tailLoopInnerUnroll = 1
+        if (kernel["AssertSummationElementMultiple"] % KinInnerUnroll == 0):
+          tailLoopInnerUnroll = kernel["InnerUnroll"]
+        elif (kernel["LocalDotLayout"] == 2) and (kernel["InnerUnroll"] == 2):
+          tailLoopInnerUnroll = kernel["InnerUnroll"]
 
         pack[0] = Code.Module()
-        for iui in range(0,tailLoopInnerUnroll):
+        for iui in range(0, tailLoopInnerUnroll):
           if self.enable["LocalRead"]:
             # Reading 16-bit data from LDS requires packing when ECC enabled
             kl.append(self.comment("local read a"))
@@ -2262,11 +2282,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
               self.vgprPool.checkIn(item.tempVgpr)
               item.tempVgpr = None
           pack[0] = Code.Module()
+
         if self.enable["MAC"]:
           if kernel["EnableMatrixInstruction"]:
             kl.append(self.mfmaIter(kernel, 0, tailLoopInnerUnroll, True))
           else:
-            kl.append(self.macIter(kernel, 0, tailLoopInnerUnroll, True))
+            kl.append(self.macIter(kernel, 0, tailLoopInnerUnroll, True, True))
 
         kl.append(self.closeLoop(kernel, -1, True, uDu if kernel["DepthULdsDivisor"]>1 else None))
     # always emit the skip-tail-loop label
@@ -2859,8 +2880,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     tensorParametersA["PackBatchDims"] = kernel["PackBatchDims"] if kernel["PackBatchDims"] & 0x1 else 0
     tensorParametersB["PackBatchDims"] = kernel["PackBatchDims"] if kernel["PackBatchDims"] & 0x2 else 0
-    tensorParametersA["PackedIndices"] = kernel["PackedC0IndicesX"]
-    tensorParametersB["PackedIndices"] = kernel["PackedC1IndicesX"]
+    tensorParametersA["PackedIndices"] = kernel["PackedC%uIndicesX"%self.tPA["tile01Idx"]]
+    tensorParametersB["PackedIndices"] = kernel["PackedC%uIndicesX"%self.tPB["tile01Idx"]]
 
   @staticmethod
   def zpForSumIdx(sumIdx, zeroPad):
@@ -2954,6 +2975,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       tP["tensorIdx"] = 0                                   # tensor index A=0, B=1
       tP["tileChar"] = self.tileCharA                       # tile char I0 or J1
       tP["tileIdx"] = kernel["ProblemType"]["Index01A"]     # is the tile dimension of A the 0th or 1th index, i.e. Aki, tileIdx=0
+      tP["tile01Idx"] = 1 if tP["tileIdx"] else 0
       tP["lsc"] = "LSCA"                                    # load size coalesced A, number of elements that get loaded along coalesced dimension with each load
       tP["lsp"] = "LSPA"                                    # load size perpendicular A, number of elements that get loaded along non-coalesced dimension with each load
       tP["lvc"] = "LVCA"                                    # "load size" in terms of number of short-vectors and not elements
@@ -2963,11 +2985,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #tP["ruv"] = self.readUnrollDimVectorA
       #tP["nlvc"] = self.numReadVectorComponentsA
       #tP["nwvc"] = self.numWriteVectorComponentsA
-      tP["wg"] = "WorkGroup0"                               # these are storing the actual strong to lookup the number from kernel dictionary
-      tP["prevWg"] = "PrevWorkGroup0"                       # used for prefetch-across-persistent
-      tP["sg"] = "SubGroup0"
-      tP["tt"] = "ThreadTile0"
-      tP["mt"] = "MacroTile0"
+      tP["wg"] = "WorkGroup%u" % (tP["tile01Idx"])# these are storing the actual strong to lookup the number from kernel dictionary
+      tP["prevWg"] = "PrevWorkGroup0"                       # used for prefetch-across-persistent #NHWC TO-do
+      tP["sg"] = "SubGroup%u" % (tP["tile01Idx"])
+      tP["tt"] = "ThreadTile%u" % (tP["tile01Idx"])
+      tP["mt"] = "MacroTile%u" % (tP["tile01Idx"])
       tP["grcg"] = self.globalReadCoalesceGroupA            # global reads are coalesced along threads
       tP["grcv"] = kernel["GlobalReadCoalesceVectorA"]      # global reads are vector reads, and lds writes will be components if transposing
       tP["tlu"] = kernel["ProblemType"]["TLUA"]             # thread stride is less than unroll stride, i.e., not transposing matrix
@@ -3009,6 +3031,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       tP["tensorIdx"] = 1
       tP["tileChar"] = self.tileCharB
       tP["tileIdx"] = kernel["ProblemType"]["Index01B"]
+      tP["tile01Idx"] = 1 if tP["tileIdx"] else 0
       tP["lsc"] = "LSCB"
       tP["lsp"] = "LSPB"
       tP["lvc"] = "LVCB"
@@ -3018,11 +3041,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #tP["ruv"] = self.readUnrollDimVectorB
       #tP["nlvc"] = self.numReadVectorComponentsB
       #tP["nwvc"] = self.numWriteVectorComponentsB
-      tP["wg"] = "WorkGroup1"
+      tP["wg"] = "WorkGroup%u" % (tP["tile01Idx"])
       tP["prevWg"] = "PrevWorkGroup1"
-      tP["sg"] = "SubGroup1"
-      tP["tt"] = "ThreadTile1"
-      tP["mt"] = "MacroTile1"
+      tP["sg"] = "SubGroup%u" % (tP["tile01Idx"])
+      tP["tt"] = "ThreadTile%u" % (tP["tile01Idx"])
+      tP["mt"] = "MacroTile%u" % (tP["tile01Idx"])
       tP["grcg"] = self.globalReadCoalesceGroupB
       tP["grcv"] = kernel["GlobalReadCoalesceVectorB"]
       tP["tlu"] = kernel["ProblemType"]["TLUB"]
@@ -3170,7 +3193,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # Local Read Addresses: Tile Assignment
   ##############################################################################
   @abc.abstractmethod
-  def lraTileAssignment(self, kernel, tP):
+  def lraTileAssignment(self, kernel, tPA, tPB):
     return ""
 
   ##############################################################################
@@ -3302,18 +3325,18 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # useMacro : if true, call the MAC* macro. If False, inline the MACs
   ##############################################################################
   @abc.abstractmethod
-  def macIter(self, kernel, bufferIdx, iuiCount, useMacro):
+  def macIter(self, kernel, bufferIdx, iuiCount, useMacro, isTail=False):
     return ""
 
   ##############################################################################
   # At Least 1 Unroll
   ##############################################################################
   @abc.abstractmethod
-  def openSumAtLeastUnroll(self, kernel, prefetch, isPap, isOptNLL):
+  def openSumAtLeastUnroll(self, kernel, prefetch, isOptNLL, isPap):
     return ""
 
   @abc.abstractmethod
-  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL, isNGLL):
+  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL, isPap, isNGLL):
     return ""
 
   ##############################################################################

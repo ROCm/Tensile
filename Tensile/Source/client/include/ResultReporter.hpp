@@ -39,6 +39,7 @@ namespace Tensile
         {
             Error = 0,
             Terse,
+            Normal,
             Verbose,
             Debug,
             Count
@@ -77,11 +78,12 @@ namespace Tensile
             const std::string ProblemSizes = "problem-sizes";
 
             // Solution information
-            const std::string SolutionName      = "solution";
-            const std::string SolutionIndex     = "solution-index";
-            const std::string SolutionProgress  = "solution-progress";
-            const std::string SolutionWinnerIdx = "solution-winner-idx";
-            const std::string SolutionWinner    = "solution-winner";
+            const std::string SolutionName         = "solution";
+            const std::string SolutionIndex        = "solution-index";
+            const std::string SolutionLibraryIndex = "solution-library-index";
+            const std::string SolutionProgress     = "solution-progress";
+            const std::string SolutionWinnerIdx    = "solution-winner-idx";
+            const std::string SolutionWinner       = "solution-winner";
 
             // Performance-related
             const std::string Validation       = "validation";

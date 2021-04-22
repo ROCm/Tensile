@@ -79,7 +79,7 @@ TEST(LLVMYAMLContractionTest, Predicate)
     std::string mydoc = "type: And\n"
                         "value: [{type: TruePred}, \n"
                         "        {type: Not, value: {type: FalsePred}},\n"
-                        "        {type: FreeSizeAMultiple, index: 0, value: 2}]";
+                        "        {type: Free0SizeMultiple, index: 0, value: 2}]";
     llvm::yaml::Input yin(mydoc);
 
     std::shared_ptr<Predicates::Predicate<ContractionProblem>> p;
@@ -136,7 +136,7 @@ TEST(LLVMYAMLContractionTest, ContractionLibrary)
                         "        library:\n"
                         "          type: Problem\n"
                         "          rows:\n"
-                        "              - predicate: { type: FreeSizeAMultiple, "
+                        "              - predicate: { type: Free0SizeMultiple, "
                         "index: 0, value: 2 }\n"
                         "                library: { type: Single, index: 0 }\n"
                         "";

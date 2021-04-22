@@ -293,11 +293,11 @@ namespace Tensile
                 rv.numWorkGroups.z *= problem.batchSize(i);
         }
 
-        rv.numWorkGroups.x = CeilDivide(rv.numWorkGroups.x, sizeMapping.macroTile.x);
-        rv.numWorkGroups.y = CeilDivide(rv.numWorkGroups.y, sizeMapping.macroTile.y);
-
         if(problem.transposeC01())
             std::swap(rv.numWorkGroups.x, rv.numWorkGroups.y);
+
+        rv.numWorkGroups.x = CeilDivide(rv.numWorkGroups.x, sizeMapping.macroTile.x);
+        rv.numWorkGroups.y = CeilDivide(rv.numWorkGroups.y, sizeMapping.macroTile.y);
 
         uint32_t problemNumGroupTiles0 = rv.numWorkGroups.x;
         uint32_t problemNumGroupTiles1 = rv.numWorkGroups.y;
@@ -995,10 +995,9 @@ namespace Tensile
         auto cInfo = DataTypeInfo::Get(problemType.cType);
         auto dInfo = DataTypeInfo::Get(problemType.dType);
 
-        double l2ReadBwMultiplier = perf.l2ReadBwMul;
-        spm.memReadBytesA         = (NumBatches * M * N * K) / MT1 * aInfo.elementSize;
-        spm.memReadBytesB         = (NumBatches * M * N * K) / MT0 * bInfo.elementSize;
-        spm.memReadBytesC         = (NumBatches * M * N) * betaReads * cInfo.elementSize;
+        spm.memReadBytesA = (NumBatches * M * N * K) / MT1 * aInfo.elementSize;
+        spm.memReadBytesB = (NumBatches * M * N * K) / MT0 * bInfo.elementSize;
+        spm.memReadBytesC = (NumBatches * M * N) * betaReads * cInfo.elementSize;
 
         if(GlobalSplitU == 1)
             spm.memWriteBytesD = (NumBatches * M * N) * (1 + betaWrites) * dInfo.elementSize;
@@ -1016,17 +1015,6 @@ namespace Tensile
                              + spm.memReadBytesB / bInfo.elementSize
                              + spm.memReadBytesC / cInfo.elementSize;
         spm.memGlobalWrites = spm.memWriteBytesD / dInfo.elementSize;
-
-        double readEfficiency   = perf.readEff;
-        double l2ReadHit        = perf.l2ReadHitRate;
-        double l2WriteHit       = perf.l2WriteHitRate;
-        double frequency        = perf.clock;
-        double memFrequency     = perf.memClock;
-        double memBandwidthMBps = perf.memBandwidthMBps;
-        double l2BandwidthMBps  = perf.memBandwidthMBps * perf.l2ReadBwMul;
-        double peakMFlops       = perf.peakGFlops * 1000.0;
-
-        double flops = 2.0 * l2ReadBwMultiplier * NumBatches * M * N * K;
 
         return spm;
     }

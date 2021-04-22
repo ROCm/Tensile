@@ -43,6 +43,7 @@
 #include "SolutionIterator.hpp"
 #include "TimingEvents.hpp"
 
+#include "LibraryUpdateReporter.hpp"
 #include "LogReporter.hpp"
 #include "MetaResultReporter.hpp"
 #include "PerformanceReporter.hpp"
@@ -124,7 +125,7 @@ namespace Tensile
                 ("init-d",                   po::value<InitMode>()->default_value(InitMode::Zero), "Initialization for D")
                 ("init-alpha",               po::value<InitMode>()->default_value(InitMode::Two), "Initialization for alpha")
                 ("init-beta",                po::value<InitMode>()->default_value(InitMode::Two), "Initialization for beta")
-                ("pristine-on-gpu",          po::value<bool>()->default_value(false), "Keep a pristine copy of inputs on GPU for performance")
+                ("pristine-on-gpu",          po::value<bool>()->default_value(true), "Keep a pristine copy of inputs on GPU for performance")
                 ("c-equal-d",                po::value<bool>()->default_value(false), "C equals D")
                 ("offset-a",                 po::value<size_t>()->default_value(0), "buffer a start offset")
                 ("offset-b",                 po::value<size_t>()->default_value(0), "buffer b start offset")
@@ -155,9 +156,11 @@ namespace Tensile
                 ("platform-idx",             po::value<int>()->default_value(0), "OpenCL Platform Index")
 
                 ("num-warmups",              po::value<int>()->default_value(0), "Number of warmups to run")
+                ("sync-after-warmups",       po::value<bool>()->default_value(true), "Synchronize GPU after warmup kernel runs")
                 ("num-benchmarks",           po::value<int>()->default_value(1), "Number of benchmarks to run")
-                ("num-enqueues-per-sync",    po::value<int>()->default_value(1), "Enqueues per sync")
+                ("num-enqueues-per-sync",    po::value<int>()->default_value(1), "Enqueues per sync, will affect by min-flops-per-sync")
                 ("num-syncs-per-benchmark",  po::value<int>()->default_value(1), "Syncs per benchmark")
+                ("min-flops-per-sync",       po::value<size_t>()->default_value(0), "Minimum number of flops per sync to increase stability for small problems.")
                 ("use-gpu-timer",            po::value<bool>()->default_value(true), "Use GPU timer")
                 ("sleep-percent",            po::value<int>()->default_value(0), "Sleep percentage")
                 ("hardware-monitor",         po::value<bool>()->default_value(true), "Use hardware monitor.")
@@ -221,7 +224,16 @@ namespace Tensile
                 ("log-file",                 po::value<std::string>(),                               "File name for output log.")
                 ("log-file-append",          po::value<bool>()->default_value(false),                "Append to log file.")
                 ("log-level",                po::value<LogLevel>()->default_value(LogLevel::Debug),  "Log level")
-                ("exit-on-failure",          po::value<bool>()->default_value(false), "Exit run early on failed kernels.")
+
+                ("library-update-file",      po::value<std::string>()->default_value(""), "File name for writing indices "
+                                                                                          "and speeds suitable for updating "
+                                                                                          "an existing library logic file.")
+                ("library-update-comment",   po::value<bool>()->default_value(false), "Include solution name as a "
+                                                                                      "comment in library update "
+                                                                                      "file.")
+
+
+                ("exit-on-error",            po::value<bool>()->default_value(false), "Exit run early on failed kernels or other errors.")
                 ("selection-only",           po::value<bool>()->default_value(false), "Don't run any solutions, only print kernel selections.")
                 ("max-workspace-size",       po::value<size_t>()->default_value(32*1024*1024), "Max workspace for training")
                 ("granularity-threshold",    po::value<double>()->default_value(0.0), "Don't run a solution if total granularity is below")
@@ -233,7 +245,16 @@ namespace Tensile
 
         std::shared_ptr<Hardware> GetHardware(po::variables_map const& args)
         {
-            HIP_CHECK_EXC(hipSetDevice(args["device-idx"].as<int>()));
+            int deviceCount = 0;
+            HIP_CHECK_EXC(hipGetDeviceCount(&deviceCount));
+
+            int deviceIdx = args["device-idx"].as<int>();
+
+            if(deviceIdx >= deviceCount)
+                throw std::runtime_error(concatenate(
+                    "Invalid device index ", deviceIdx, " (", deviceCount, " total found.)"));
+
+            HIP_CHECK_EXC(hipSetDevice(deviceIdx));
 
             return hip::GetCurrentDevice();
         }
@@ -355,7 +376,10 @@ namespace Tensile
                 auto configFiles = args["config-file"].as<std::vector<std::string>>();
                 for(auto filename : configFiles)
                 {
+                    std::cout << "loading config file " << filename << std::endl;
                     std::ifstream file(filename.c_str());
+                    if(file.bad())
+                        throw std::runtime_error(concatenate("Could not open ", filename));
                     po::store(po::parse_config_file(file, options), args);
                 }
             }
@@ -455,6 +479,7 @@ int main(int argc, const char* argv[])
     int  numSolutions     = args["num-solutions"].as<int>();
     bool gpuTimer         = args["use-gpu-timer"].as<bool>();
     bool runKernels       = !args["selection-only"].as<bool>();
+    bool exitOnError      = args["exit-on-error"].as<bool>();
 
     if(firstSolutionIdx < 0)
         firstSolutionIdx = library->solutions.begin()->first;
@@ -499,6 +524,7 @@ int main(int argc, const char* argv[])
     // will be missing
     reporters->addReporter(LogReporter::Default(args));
     reporters->addReporter(ResultFileReporter::Default(args));
+    reporters->addReporter(LibraryUpdateReporter::Default(args));
 
     if(args.count("log-file"))
     {
@@ -506,7 +532,7 @@ int main(int argc, const char* argv[])
         auto        logFile  = std::make_shared<std::ofstream>(
             filename.c_str(), args["log-file-append"].as<bool>() ? std::ios::app : std::ios::out);
 
-        reporters->addReporter(LogReporter::Default(args, logFile));
+        reporters->addReporter(LogReporter::Default(args, logFile, LogLevel::Normal));
     }
 
     listeners.setReporter(reporters);
@@ -573,10 +599,10 @@ int main(int argc, const char* argv[])
                             size_t syncs = listeners.numSyncs();
                             size_t enq   = listeners.numEnqueuesPerSync();
 
+                            listeners.preSyncs();
+
                             for(int i = 0; i < syncs; i++)
                             {
-                                listeners.preSyncs();
-
                                 TimingEvents startEvents(enq, eventCount);
                                 TimingEvents stopEvents(enq, eventCount);
 
@@ -593,9 +619,9 @@ int main(int argc, const char* argv[])
 
                                 listeners.postEnqueues(startEvents, stopEvents);
                                 listeners.validateEnqueues(inputs, startEvents, stopEvents);
-
-                                listeners.postSyncs();
                             }
+
+                            listeners.postSyncs();
                         }
                     }
                     catch(std::runtime_error const& err)
@@ -607,6 +633,9 @@ int main(int argc, const char* argv[])
                 }
 
                 listeners.postSolution();
+
+                if(exitOnError && listeners.error() > 0)
+                    return listeners.error();
             }
 
             listeners.postProblem();

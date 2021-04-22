@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.13)
 
 # Override all paths arguments as they do not work properly
 list(APPEND CMAKE_PREFIX_PATH $ENV{ROCM_PATH} /opt/rocm)
@@ -51,7 +51,7 @@ if(TENSILE_NEW_CLIENT)
     endif()
 
     if(CMAKE_CXX_COMPILER STREQUAL "hipcc")
-      set(TENSILE_GPU_ARCHS gfx803 gfx900 gfx906:xnack- gfx908:xnack- gfx90a:xnack- gfx1010 CACHE STRING "GPU architectures")
+      set(TENSILE_GPU_ARCHS gfx803 gfx900 gfx906:xnack- gfx908:xnack- gfx90a:xnack- gfx1010 gfx1011 gfx1012 gfx1030 CACHE STRING "GPU architectures")
     else()
       set(TENSILE_GPU_ARCHS gfx803 gfx900 gfx906 gfx908 gfx90a CACHE STRING "GPU architectures")
     endif()
@@ -65,21 +65,17 @@ if(TENSILE_NEW_CLIENT)
     endif()
 
     if(TENSILE_USE_OPENMP)
-        #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_OPENMP")
-        find_package(OpenMP QUIET)
-        if (OPENMP_FOUND)
-            set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-            set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-            set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+        # Workaround for https://gitlab.kitware.com/cmake/cmake/-/issues/21787
+        # ensures we link to HIP's libomp and get an rpath to it.
+        add_library(custom_openmp_cxx INTERFACE)
+
+        if(TENSILE_USE_HIP)
+            target_compile_options(custom_openmp_cxx INTERFACE "-fopenmp")
+            target_link_options(custom_openmp_cxx INTERFACE "-fopenmp")
         else ()
-            if(EXISTS /etc/redhat-release)
-                set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp=libgomp")
-            else()
-                set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
-                set(OPENMP_LIBRARY /usr/lib/x86_64-linux-gnu/libomp.so)
-                set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OPENMP_LIBRARY}")
-            endif()
-        endif()
+            find_package(OpenMP REQUIRED)
+            target_link_libraries(custom_openmp_cxx INTERFACE OpenMP::OpenMP_CXX)
+        endif ()
     endif()
 
     add_subdirectory(lib)
@@ -108,7 +104,7 @@ else()
     set_property( CACHE Tensile_CODE_OBJECT_VERSION PROPERTY STRINGS V2 V3)
     set_property( CACHE Tensile_COMPILER PROPERTY STRINGS hipcc)
     set(Tensile_ARCHITECTURE all CACHE STRING "Which GPU architecture to use")
-    set_property( CACHE Tensile_ARCHITECTURE PROPERTY STRINGS all gfx000 gfx900 gfx906:xnack- gfx908:xnack- gfx90a:xnack-)
+    set_property( CACHE Tensile_ARCHITECTURE PROPERTY STRINGS all gfx000 gfx900 gfx906:xnack- gfx908:xnack- gfx90a:xnack- gfx1010 gfx1011 gfx1012 gfx1030)
     set_property( CACHE Tensile_LIBRARY_FORMAT PROPERTY STRINGS yaml msgpack)
 
     message( STATUS "Tensile_CODE_OBJECT_VERSION from Tensile/Source/CMakeLists.txt: ${Tensile_CODE_OBJECT_VERSION}")
@@ -210,7 +206,7 @@ else()
         ${Tensile_RUNTIME_LANGUAGE}     # HIP or OCL
         ${Tensile_COMPILER}             # hipcc
         ${Tensile_CODE_OBJECT_VERSION}  # V2 or V3
-        ${Tensile_ARCHITECTURE}         # all, gfx000, gfx803, gfx900, gfx906:xnack-, gfx908:xnack-, gfx90a:xnack-
+        ${Tensile_ARCHITECTURE}         # all, gfx000, gfx803, gfx900, gfx906:xnack-, gfx908:xnack-, gfx90a:xnack-, gfx1010, gfx1011, gfx1012, gfx1030
         ${Tensile_LIBRARY_FORMAT}       # yaml or msgpack
         ${Tensile_MERGE_FILES}          # ON or OFF
         ${Tensile_SHORT_FILE_NAMES}     # ON or OFF

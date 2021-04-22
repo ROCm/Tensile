@@ -1,6 +1,6 @@
 
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -94,14 +94,14 @@ def GenerateSummations(userArgs):
         finalPath = ensurePath(os.path.join(currentPath, "final"))
         localLogicPath = ensurePath(os.path.join(currentPath, "logic"))
         localLogicFilePath = os.path.join(localLogicPath, logicFileBaseName)
-        
+
         # Here we read in two version of the logic the first one fills the solutions with
-        # defaults and modifies some of the parameters. The final logic file should be the 
+        # defaults and modifies some of the parameters. The final logic file should be the
         # same as the initial logic with the summation model added. To preseve the original
         # logic we also read in the raw unaltered version of the logic and stage the content
         # to write the final logic.
-        logic = LibraryIO.readLibraryLogicForSchedule(logicFileName)
-        rawLogic = LibraryIO.readRawLibraryLogic(logicFileName)
+        logic    = LibraryIO.parseLibraryLogicFile(logicFileName)
+        rawLogic = LibraryIO.rawLibraryLogic(logicFileName)
 
         # If we cannot read the logic file then skip it
         if rawLogic == None or logic == None:
@@ -126,7 +126,7 @@ def GenerateSummations(userArgs):
             exactList.append(e)
 
         libraryPath = libPath
-        clientBuildDir = os.path.join(outputPath, "client") 
+        clientBuildDir = os.path.join(outputPath, "client")
         problemTypeObj = problemType.state
 
         problemSizes = ProblemSizes(problemTypeObj, exactList)
@@ -162,7 +162,7 @@ def GenerateSummations(userArgs):
         solutionIndex = 0
         for s_stateR, kernelName in zip(solutionStatesR, libSolutionNames):
             solutionIndex += 1
-            perf_raw = working_data[kernelName] 
+            perf_raw = working_data[kernelName]
             perf = (1000*index_keys) / perf_raw
             model = np.polyfit(x=index_keys, y=perf, deg=1)
             slope = model[0].item()
@@ -182,7 +182,7 @@ def GenerateSummations(userArgs):
         rawLogicData.append(deepcopy(rangeLogicR))
         for idx in range(0, len(otherFieldsR)):
             rawLogicData.append(deepcopy(otherFieldsR[idx]))
-        
+
         localFinalLogic = os.path.join(finalPath, logicFileBaseName)
 
         yamlWriter = LibraryIO.YAMLWriter()

@@ -132,7 +132,7 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, 
         if doRemainder:
             kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), rComment)
             kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(qReg), sgpr(tmpSgpr), rComment)
-            kStr += inst("_v_sub_co_u32", vgpr(rReg), "vcc", vgpr(dReg), vgpr(tmpVgpr), rComment)
+            kStr += inst("_v_sub_u32", vgpr(rReg), vgpr(dReg), vgpr(tmpVgpr), rComment)
     return kStr
 
 def vectorStaticDivide(qReg, dReg, divisor, tmpVgpr, tmpSgpr, comment=""):
@@ -172,7 +172,7 @@ def vectorStaticRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, comment="
         kStr += inst("v_mov_b32", vgpr(qReg), vgpr(tmpVgpr), comment)
         kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), comment)
         kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(qReg), sgpr(tmpSgpr), comment)
-        kStr += inst("_v_sub_co_u32", vgpr(rReg), "vcc", vgpr(dReg), vgpr(tmpVgpr), comment)
+        kStr += inst("_v_sub_u32", vgpr(rReg), vgpr(dReg), vgpr(tmpVgpr), comment)
     return kStr
 
 # only used for loop unroll and GlobalSplitU

@@ -231,6 +231,12 @@ class Convolution:
       nidx = i ; i+=1
       kidx = i ; i+=1
       sumIdx = i
+    elif formatD in ("CHWN", "CDHWN"):
+      i = 0
+      nidx = i ; i+=1
+      sidx = i ; i+=len(sdims)
+      kidx = i ; i+=1
+      sumIdx = i
     else:
       raise RuntimeError ("unknown formatD '%s'"%formatD)
 
@@ -263,6 +269,8 @@ class Convolution:
       self.registerA( [RegDim(nidx,Fbs.Batch,ndim)] + self.spatialRegDims + self.filterRegDims + chinRegDim )
     elif formatA in ("CNHW", "CNDHW"):
       self.registerA( chinRegDim + [RegDim(nidx,Fbs.Batch,ndim)] + self.spatialRegDims + self.filterRegDims )
+    elif formatA in ("CHWN", "CDHWN"):
+      self.registerA( chinRegDim + self.spatialRegDims + self.filterRegDims + [RegDim(nidx,Fbs.Batch,ndim)] )
     else:
       raise RuntimeError ("unknown formatA '%s'"%formatA)
 
@@ -291,6 +299,9 @@ class Convolution:
     elif nonFilterDims[-1].dim==cdim:
       setStride = True
       cdim.strideA = 1
+    elif nonFilterDims[-1].dim==ndim:
+      setStride = True
+      ndim.strideA = 1
 
     if self.filterRegDims and self.regDimsA[-1].dim == self.filterRegDims[-1].dim:
       if self.filterRegDims[-1].dim.shortChar in self.ValidLowestFilterDim:
@@ -334,10 +345,11 @@ class Convolution:
           rv.append([anchorIdx, sumIdx, -1, -1])
     return rv
 
-  def makeZeroPadProblemType(self, zps, padStart, padEnd, cc):
+  def makeZeroPadProblemType(self, zps, padStart, padEnd, c, cc):
     """ Convert padStart/padEnd into the format expected by ProblemType ZeroPad* """
     rv = []
-    ss = 1
+    ss = c if self.regDimsA[0].dim.shortChar == 'C' else 1
+
     for (i,zp) in enumerate(zps):
       (anchorIdx, sumIdx) = zp[:2]
       rv.append([anchorIdx, sumIdx, padStart[i]*ss, padEnd[i]*ss])
@@ -607,11 +619,13 @@ class Convolution:
 
     #print ("spatialOut=", spatialOut, "padStart=", pcc.padStart, "padEnd=", pcc.padEnd)
 
+    cScalar = c if self.regDimsA[0].dim.shortChar == 'C' else 1
+
     for fi,filterValue in enumerate(pcc.fil):
       try:
         pos = self.convolutionDims[chr(ord('X')+fi)].idx
         sizes[pos] = filterValue
-        astrides[pos] = pcc.dilation[0] if fi==0 else pcc.spatial[fi-1]*pcc.dilation[fi]
+        astrides[pos] = pcc.dilation[0]*cScalar if fi==0 else pcc.spatial[fi-1]*pcc.dilation[fi]*cScalar
       except KeyError:
         None
 
@@ -619,14 +633,13 @@ class Convolution:
       spatialName="DHW"[3-self.formatNumSpatialDims:]
       pos=self.convolutionDims[spatialName].idx
       sizes[pos] = reduce((lambda x, y: x * y), spatialOut) # product of all spatial dimes
-      astrides[pos] = pcc.stride[0]
+      astrides[pos] = pcc.stride[0]*cScalar
     else:
       for si,sout in enumerate(spatialOut):
         spatialChars=['W','H','D']
         pos = self.convolutionDims[spatialChars[si]].idx
         sizes[pos] = sout
-
-        astrides[pos]=pcc.stride[0] if si==0 else pcc.spatial[si-1]*pcc.stride[si]
+        astrides[pos]=pcc.stride[0]*cScalar if si==0 else pcc.spatial[si-1]*pcc.stride[si]*cScalar
 
     assert all(i!=-1 for i in sizes)
 
@@ -1453,7 +1466,7 @@ class ConvProblem(Problem):
 
     (sizes, stridesA, stridesB) = convolution.makeProblem(e['n'], e['c'], e['k'], self.convConfig)
     zeroPadA = convolution.makeZeroPadProblemType(convolution.problemTypeOut["ZeroPadA"],
-        self.convConfig.padStart, self.convConfig.padEnd, self.convConfig)
+        self.convConfig.padStart, self.convConfig.padEnd, e['c'], self.convConfig)
 
     Problem.__init__(self, sizes, stridesA, stridesB=stridesB, zeroPadA=zeroPadA, count=e['count'])
 
@@ -1891,9 +1904,9 @@ class Solution:
         state["SubGroup0"]   = state["MIWaveGroup"][0] * state["MatrixInstM"] * state["MatrixInstBM"] // state["MIOutputVectorWidth"]
         state["SubGroup1"]   = state["MIWaveGroup"][1] * state["MatrixInstN"] * state["MatrixInstBN"]
       else:
-        state["ThreadTile0"] = state["MatrixInstBM"] * state["MIWaveTile"][0] * (state["MatrixInstM"] * state["MatrixInstN"] // globalParameters["WavefrontWidth"])
+        state["ThreadTile0"] = state["MatrixInstBM"] * state["MIWaveTile"][0] * (state["MatrixInstM"] * state["MatrixInstN"] // state["WavefrontSize"])
         state["ThreadTile1"] = state["MatrixInstBN"] * state["MIWaveTile"][1]
-        state["SubGroup0"]   = state["MIWaveGroup"][0] * (globalParameters["WavefrontWidth"] // state["MatrixInstN"])
+        state["SubGroup0"]   = state["MIWaveGroup"][0] * (state["WavefrontSize"] // state["MatrixInstN"])
         state["SubGroup1"]   = state["MIWaveGroup"][1] * state["MatrixInstN"]
 
     elif EnableMatrixInstruction == False:
@@ -1992,7 +2005,7 @@ class Solution:
   def setGlobalLoadTileDimClassic(state, tc, numLoads, totalVectorsCoalesced, totalElementsPerp):
 
     if state["WaveSeparateGlobalRead%s"%tc]:
-      totalElementsPerp = roundupRatio(totalElementsPerp, state["NumThreads"] // globalParameters["WavefrontWidth"])
+      totalElementsPerp = roundupRatio(totalElementsPerp, state["NumThreads"] // state["WavefrontSize"])
 
     # nlc = 1
     if state["NumLoadsCoalesced%s"%tc] == 1 :
@@ -2059,7 +2072,7 @@ class Solution:
       state["LSP%s"%tc] = state["MacroTile%s"%tc] // state["NumLoadsPerpendicular%s"%tc]
 
     if state["WaveSeparateGlobalRead%s"%tc]:
-      state["LSP%s"%tc] = roundupRatio(state["LSP%s"%tc], state["NumThreads"] // globalParameters["WavefrontWidth"])
+      state["LSP%s"%tc] = roundupRatio(state["LSP%s"%tc], state["NumThreads"] // state["WavefrontSize"])
 
     return True
 
@@ -2251,7 +2264,7 @@ class Solution:
       state["ThreadTile"][0] = state["MatrixInstruction"][5]
       state["ThreadTile"][1] = state["MatrixInstruction"][6] * state["MatrixInstruction"][1]
       state["WorkGroup"][0] = state["MatrixInstruction"][4] * state["MatrixInstruction"][0] * state["MatrixInstruction"][7]
-      state["WorkGroup"][1] = waves*globalParameters["WavefrontWidth"] // state["WorkGroup"][0]
+      state["WorkGroup"][1] = waves*state["WavefrontSize"] // state["WorkGroup"][0]
       #print("9-tuple: ", state["MatrixInstruction"], " TT=", state["ThreadTile"], " WG=", state["WorkGroup"])
     if state["MatrixInstruction"]:
       state["MatrixInstruction"] = [state["MatrixInstruction"][0],state["MatrixInstruction"][1],state["MatrixInstruction"][2],state["MatrixInstruction"][3]]
@@ -2286,7 +2299,7 @@ class Solution:
       state["MIBlock"][5] = MIBlock_BN
 
       # set MIWaveGroup
-      numOfWave                = (state["WorkGroup"][0] * state["WorkGroup"][1]) // globalParameters["WavefrontWidth"]
+      numOfWave                = (state["WorkGroup"][0] * state["WorkGroup"][1]) // state["WavefrontSize"]
       state['MIWaveGroup']     = [1, 1]
       state['MIWaveGroup'][0]  = min((miwg0 // state["MatrixInstruction"][0]) // MIBlock_BM, numOfWave)
       state['MIWaveGroup'][1]  = numOfWave // state['MIWaveGroup'][0]
@@ -2308,7 +2321,7 @@ class Solution:
   @staticmethod
   def checkAndAssignWaveSeparateGlobalRead(state, tc):
     # check can we use WaveSeparateGlobalRead
-    numOfWaves = state["NumThreads"] // globalParameters["WavefrontWidth"]
+    numOfWaves = state["NumThreads"] // state["WavefrontSize"]
     if state["WaveSeparateGlobalRead%s"%tc]:
       if state["FractionalLoad"] != 0:
         reject(state, "didn't support WaveSeparateGlobalRead with FractionalLoad(%u) != 0" % state["FractionalLoad"])
@@ -2334,7 +2347,7 @@ class Solution:
       print2("can't use DirectToLds for BF16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
       return False
 
-    if state["NumThreads"] % globalParameters["WavefrontWidth"] != 0:
+    if state["NumThreads"] % state["WavefrontSize"] != 0:
       return False
 
     if state["GlobalLoadVectorWidth%c"%tc] * numBytes != 4:
@@ -2344,7 +2357,7 @@ class Solution:
       return False
 
     if state["WaveSeparateGlobalRead%c" % tc]:
-      if state["LSC%c"%tc] * state["LSP%c"%tc] * numBytes != globalParameters["WavefrontWidth"] * 4:
+      if state["LSC%c"%tc] * state["LSP%c"%tc] * numBytes != state["WavefrontSize"] * 4:
         return False
     else:
       if state["LSC%c"%tc] * state["LSP%c"%tc] * numBytes != state["NumThreads"] * 4:
@@ -2353,13 +2366,13 @@ class Solution:
     if (state["LdsBlockSizePerPad%c"%tc] == 0) \
         and (state["LdsPad%c"%tc] != 0):
 #        and ((state["LSC%c"%tc] * numBytes) != (state["NumThreads"] * 4)): // TODO:
-#        and ((state["LSC%c"%tc] * numBytes) % (globalParameters["WavefrontWidth"] * 4) != 0):
+#        and ((state["LSC%c"%tc] * numBytes) % (state["WavefrontSize"] * 4) != 0):
       return False
 
     if (state["LdsBlockSizePerPad%c"%tc] != 0) \
         and (state["LdsPad%c"%tc] != 0) \
-        and (state["LdsBlockSizePerPad%c"%tc] != globalParameters["WavefrontWidth"] * 4):
-#        and (state["LdsBlockSizePerPad%tc"] % (globalParameters["WavefrontWidth"] * 4) != 0): // TODO:
+        and (state["LdsBlockSizePerPad%c"%tc] != state["WavefrontSize"] * 4):
+#        and (state["LdsBlockSizePerPad%tc"] % (state["WavefrontSize"] * 4) != 0): // TODO:
       return False
 
     return True
@@ -2424,6 +2437,20 @@ class Solution:
     if state["DisableVgprOverlapping"] is True and state["EnableMatrixInstruction"] is not True:
       reject(state, "Non-MI kernels are already non-overlapping in pre-allocated registers")
 
+    # F32 only for now but we should extend this for other data types as well.
+    isa = tuple(state["ISA"])
+    if "MACInstruction" not in state or state["MACInstruction"] not in validParameters["MACInstruction"]:
+      if globalParameters["AsmCaps"][isa]["v_mac_f32"]:
+        state["MACInstruction"] = "MAC"
+      else:
+        state["MACInstruction"] = "FMA"
+
+    if state["WavefrontSize"] == 32 and not globalParameters["ArchCaps"][isa]["HasWave32"]:
+      reject(state, "WavefrontSize=32 not supported for ISA {}".format(isa))
+
+    if state["WavefrontSize"] == 32 and state["KernelLanguage"] == "Source":
+      reject(state, "WavefrontSize=32 not yet supported for source kernels.")
+
     if state["EnableMatrixInstruction"]:
       if not (state["ProblemType"]["DataType"].isSingle() \
               or state["ProblemType"]["DataType"].isDouble() \
@@ -2463,6 +2490,9 @@ class Solution:
       state["SubGroupB"] = state["SubGroup1"]
       state["MacroTileA"] = state["MacroTile0"]
       state["MacroTileB"] = state["MacroTile1"]
+      if state["EnableMatrixInstruction"]:
+        state["MIWaveTileA"] = state["MIWaveTile"][0]
+        state["MIWaveTileB"] = state["MIWaveTile"][1]
     else:
       state["ThreadTileB"] = state["ThreadTile0"]
       state["ThreadTileA"] = state["ThreadTile1"]
@@ -2470,6 +2500,9 @@ class Solution:
       state["SubGroupA"] = state["SubGroup1"]
       state["MacroTileB"] = state["MacroTile0"]
       state["MacroTileA"] = state["MacroTile1"]
+      if state["EnableMatrixInstruction"]:
+        state["MIWaveTileA"] = state["MIWaveTile"][1]
+        state["MIWaveTileB"] = state["MIWaveTile"][0]
 
     Solution.checkAndAssignWaveSeparateGlobalRead(state, 'A')
     Solution.checkAndAssignWaveSeparateGlobalRead(state, 'B')
@@ -2504,11 +2537,6 @@ class Solution:
          state["SuppressNoLoadLoop"]:
         # TODO- do we need to support PGR2 ?
         print2("PAP requires Assembly, PK!=0, PGR==1, SuppressNoLoadLoop=True, forcing PAP=False")
-        state["PrefetchAcrossPersistent"] = False
-
-    # TODO- fix this, avoid the bug for now
-    if state["PrefetchAcrossPersistent"] and state["StaggerU"] == 0:
-        print2("PAP has some defects so far and would cause error when SU=0, disable PAP temporarily")
         state["PrefetchAcrossPersistent"] = False
 
     problemType = state["ProblemType"]
@@ -2546,15 +2574,19 @@ class Solution:
     if problemType["Index0"] in problemType["IndexAssignmentsA"]:
       tc0 = 'A'
       tc1 = 'B'
+      batch0Mask = 0x1
+      batch1Mask = 0x2
     else:
       tc0 = 'B'
       tc1 = 'A'
+      batch0Mask = 0x2
+      batch1Mask = 0x1
     assert(isPackedIndex(state, problemType["Index01A"], 0x1))
     assert(isPackedIndex(state, problemType["Index01B"], 0x2))
 
     # Pack all the dimensions (batch and free) of A into grid[0]
     for idx in problemType["IndexAssignments%s"%tc0]:
-      if isPackedIndex(state, idx, 0x1):
+      if isPackedIndex(state, idx, batch0Mask):
         assert (idx < problemType["NumIndicesC"])
         state["PackedC0IdxChars"].append("%s" % indexChars[idx])
         state["PackedC0IndicesX"].append(idx)
@@ -2562,7 +2594,7 @@ class Solution:
     state["PackedC1IdxChars"] = []
     state["PackedC1IndicesX"] = []
     for idx in problemType["IndexAssignments%s"%tc1]:
-      if isPackedIndex(state, idx, 0x2):
+      if isPackedIndex(state, idx, batch1Mask):
         assert (idx < problemType["NumIndicesC"])
         state["PackedC1IdxChars"].append("%s" % indexChars[idx])
         state["PackedC1IndicesX"].append(idx)
@@ -2776,7 +2808,7 @@ class Solution:
       depthU     = 2
       depthULds  = 2
       maxDepthU  = globalParameters["MaxDepthU"]
-      numOfWaves = state["NumThreads"] // globalParameters["WavefrontWidth"]
+      numOfWaves = state["NumThreads"] // state["WavefrontSize"]
       if state["ProblemType"]["TLUA"] and state["WaveSeparateGlobalReadA"]:
         depthU = max(depthU, numOfWaves)
       if state["ProblemType"]["TLUB"] and state["WaveSeparateGlobalReadB"]:
@@ -2819,18 +2851,18 @@ class Solution:
 
       # how many elements to load
       if state["ProblemType"]["TLUA"]:
-        totalElementsCoalescedA = state["MacroTile0"]
+        totalElementsCoalescedA = state["MacroTileA"]
         totalElementsPerpA = depthU
       else:
         totalElementsCoalescedA = depthU
-        totalElementsPerpA = state["MacroTile0"]
+        totalElementsPerpA = state["MacroTileA"]
 
       if state["ProblemType"]["TLUB"]:
-        totalElementsCoalescedB = state["MacroTile1"]
+        totalElementsCoalescedB = state["MacroTileB"]
         totalElementsPerpB = depthU
       else:
         totalElementsCoalescedB = depthU
-        totalElementsPerpB = state["MacroTile1"]
+        totalElementsPerpB = state["MacroTileB"]
 
       totalElementsA = totalElementsCoalescedA * totalElementsPerpA
       totalElementsB = totalElementsCoalescedB * totalElementsPerpB
@@ -3066,7 +3098,7 @@ class Solution:
       if state["EnableMatrixInstruction"]:
         state["LocalReadVectorWidth"] = state["MIInputPerThread"]
       else:
-        state["LocalReadVectorWidth"] = state["VectorWidth"]    
+        state["LocalReadVectorWidth"] = state["VectorWidth"]
     else:
       if state["EnableMatrixInstruction"]:
         if state["LocalReadVectorWidth"] < state["MIInputPerThread"]:
@@ -3112,23 +3144,23 @@ class Solution:
     ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
 
     if state["UnrollMajorLDSA"]:
-      ldsNumElementsA = (state["_DepthULds"] + state["LdsPadA"]) * state["MacroTile0"]
+      ldsNumElementsA = (state["_DepthULds"] + state["LdsPadA"]) * state["MacroTileA"]
       padInterval = state["LdsBlockSizePerPadA"] // bpeAB
       if padInterval != 0:
-        ldsNumElementsA = int((state["_DepthULds"] * state["MacroTile0"]) / padInterval * (padInterval + state["LdsPadA"]))
+        ldsNumElementsA = int((state["_DepthULds"] * state["MacroTileA"]) / padInterval * (padInterval + state["LdsPadA"]))
       ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA, ldsAlign)
     else:
-      ldsNumElementsA = state["_DepthULds"] * (state["MacroTile0"] + state["LdsPadA"])
+      ldsNumElementsA = state["_DepthULds"] * (state["MacroTileA"] + state["LdsPadA"])
       ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA, ldsAlign)
 
     if state["UnrollMajorLDSB"]:
-      ldsNumElementsB = (state["_DepthULds"] + state["LdsPadB"]) * state["MacroTile1"]
+      ldsNumElementsB = (state["_DepthULds"] + state["LdsPadB"]) * state["MacroTileB"]
       padInterval = state["LdsBlockSizePerPadB"] // bpeAB
       if padInterval != 0:
-        ldsNumElementsB = int((state["_DepthULds"] * state["MacroTile1"]) / padInterval * (padInterval + state["LdsPadB"]))
+        ldsNumElementsB = int((state["_DepthULds"] * state["MacroTileB"]) / padInterval * (padInterval + state["LdsPadB"]))
       ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB, ldsAlign)
     else:
-      ldsNumElementsB = state["_DepthULds"] * (state["MacroTile1"] + state["LdsPadB"])
+      ldsNumElementsB = state["_DepthULds"] * (state["MacroTileB"] + state["LdsPadB"])
       ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB, ldsAlign)
 
     # todo, can the alignment be a power of 2?
@@ -3194,6 +3226,17 @@ class Solution:
       else:
         state["StoreRemapVectorWidth"] = defaultRemap
 
+    if state["SourceSwap"]:
+      if not state["EnableMatrixInstruction"]:
+        reject(state, "SourceSwap only applies to MatrixInstruction kernels")
+        return
+      if not state["ProblemType"]["DataType"].isDouble():
+        reject(state, "SourceSwap currently only available for dgemm")
+        return
+      if state["StoreRemapVectorWidth"]:
+        reject(state, "SourceSwap not compatibile with StoreRemap")
+        return
+
     #check not support cases and calculate lds resources
     if state["StoreRemapVectorWidth"]:
       if not state["EnableMatrixInstruction"]:
@@ -3227,11 +3270,11 @@ class Solution:
         reject(state, "StoreRemapVectorWidth %u is not allowed for this data type" % state["StoreRemapVectorWidth"])
         return
 
-      if state["StoreRemapVectorWidth"] * globalParameters["WavefrontWidth"] < state["MacroTile0"]:
+      if state["StoreRemapVectorWidth"] * state["WavefrontSize"] < state["MacroTile0"]:
         reject(state, "storeRemap: Per wave single global write instruction doesn't enough to write one M column." + \
                " Please use larger StoreRemapVectorWidth.")
         return
-      if (state["MacroTile0"]*state["MatrixInstN"])//state["MIWaveGroup"][0] < state["StoreRemapVectorWidth"]*globalParameters["WavefrontWidth"]:
+      if (state["MacroTile0"]*state["MatrixInstN"])//state["MIWaveGroup"][0] < state["StoreRemapVectorWidth"]*state["WavefrontSize"]:
         reject(state, "storeRemap: number elements of lds less than per wave per local read elements." + \
                " Please use smaller StoreRemapVectorWidth.")
         return
@@ -3281,8 +3324,8 @@ class Solution:
     if ldl > 1:
       # Disable DirectToLds for LDL > 1. Necessary because we need to swizzle the input data
       state["DirectToLds"] = False
-      if (state["AssertSummationElementMultiple"] % ldl != 0):
-        reject(state, "LocalDotLayout > 1 only supports ASEM a multiple of LDL")
+      if (state["AssertSummationElementMultiple"] % ldl != 0) and (ldl != 2):
+        reject(state, "LocalDotLayout > 1 only supports ASEM a multiple of LDL, except ldl = 2")
         return
       if (state["ProblemType"]["HighPrecisionAccumulate"] != True or state["InnerUnroll"] != ldl):
         reject(state, "LocalDotLayout > 1 only supports HighPrecisionAccumulate set to true and InnerUnroll equal to LocalDotLayout")
@@ -3529,7 +3572,8 @@ class Solution:
     # likely have more performant options.
     for tc in ('A', 'B'):
       if problemType["ZeroPad%s"%tc] and state["KernelLanguage"] == "Assembly":
-        if state["GlobalLoadVectorWidth%s"%tc] != 1:
+        if state["GlobalLoadVectorWidth%s"%tc] != 1 \
+            and problemType["IndexAssignments%s"%tc][0] in problemType["ZeroPad%s"%tc][0][0:1]:
           reject(state, "asm ZeroPad requires GlobalLoadVectorWidth==1")
         if not bufferLoad:
           reject(state, "asm ZeroPad requires BufferLoad")
@@ -3697,6 +3741,11 @@ class Solution:
   ########################################
   @ staticmethod
   def getParameterNameAbbreviation( name ):
+    specialValues = {
+      'MACInstruction': '' # Conflicts with MatrixInstruction, but _MAD and _FMA should be enough differentiation for the kernel name.
+    }
+    if name in specialValues: return specialValues[name]
+
     return ''.join([c for c in name if not c.islower()])
 
   ########################################
@@ -3731,7 +3780,7 @@ class Solution:
       s =  "_".join(["%d%d"%(pos,k) for pos,k in value.items()])
       return s
     else:
-      printExit("Parameter \"%s\" is new object type" % str(value) )
+      printExit('Parameter {key}={value} is new object type ({t})'.format(key=key, value=value, t=type(value)))
       return str(value)
 
 

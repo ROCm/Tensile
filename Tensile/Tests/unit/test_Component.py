@@ -71,7 +71,11 @@ def vega10():
                    'v_dot2c_f32_f16': False,
                    'v_dot2_f32_f16': False,
                    "v_mad_mix_f32": True,
-                   "v_fma_mix_f32": False}
+                   "v_fma_mix_f32": False,
+                   "v_mac_f32": True,
+                   "v_fma_f32": True,
+                   "v_fmac_f32": False,
+                   }
     }
 
 @pytest.fixture
@@ -82,7 +86,10 @@ def navi10():
                    'v_dot2c_f32_f16': False,
                    'v_dot2_f32_f16': False,
                    "v_mad_mix_f32": False,
-                   "v_fma_mix_f32": True}
+                   "v_fma_mix_f32": True,
+                   "v_mac_f32": True,
+                   "v_fma_f32": True,
+                   "v_fmac_f32": True}
     }
 
 @pytest.fixture
@@ -93,7 +100,10 @@ def navi12():
                    'v_dot2c_f32_f16': True,
                    'v_dot2_f32_f16': True,
                    "v_mad_mix_f32": False,
-                   "v_fma_mix_f32": True}
+                   "v_fma_mix_f32": True,
+                   "v_mac_f32": True,
+                   "v_fma_f32": True,
+                   "v_fmac_f32": True}
     }
 
 @pytest.fixture
@@ -145,13 +155,13 @@ def test_find(navi10, f16):
     writer = MockWriter(**navi10, **f16)
 
     found = Component.MAC.find(writer)
-    assert isinstance(found, Components.MAC_F16.FMA_NonPacked)
+    assert isinstance(found, Components.MAC_F16.FMA_F16_NonPacked)
 
 def test_find2(vega10, f16_hpa):
     writer = MockWriter(**vega10, **f16_hpa)
 
     found = Component.MAC.find(writer)
-    assert isinstance(found, Components.MAC_F16_HPA.FMA_HPA_MAD_MIX)
+    assert isinstance(found, Components.MAC_F16_HPA.FMA_F16_HPA_MAD_MIX)
 
 def test_MAC_F16_FMA_NonPacked(navi10, f16):
     writer = MockWriter(**navi10, **f16)
@@ -161,7 +171,7 @@ def test_MAC_F16_FMA_NonPacked(navi10, f16):
     print(kernelText)
 
 def test_componentPath():
-    assert Components.MAC_F16.FMA_NonPacked.componentPath() == ["Component", "MAC", "FMA_NonPacked"]
+    assert Components.MAC_F16.FMA_F16_NonPacked.componentPath() == ["Component", "MAC", "FMA_F16_NonPacked"]
 
 def test_find_macs(useGlobalParameters, f16, f16_hpa, f16_hpa_ldl):
     with useGlobalParameters() as globals:

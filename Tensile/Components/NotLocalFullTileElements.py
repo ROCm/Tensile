@@ -20,7 +20,6 @@
 ################################################################################
 
 from ..Component import NotLocalFullTileElements
-from ..Common import globalParameters
 
 class NotLocalFullTileElementsVALU(NotLocalFullTileElements):
     kernel = {"EnableMatrixInstruction": False}
@@ -53,7 +52,8 @@ class NotLocalFullTileElementsVALU(NotLocalFullTileElements):
         return (vectorwidth, elements)
 
 class NotLocalFullTileElementsMFMA(NotLocalFullTileElements):
-    kernel = {"EnableMatrixInstruction": True}
+    kernel = {"EnableMatrixInstruction": True,
+              "SourceSwap": False}
 
     """
     Partition thread-tile into writeElements for store code
@@ -77,7 +77,7 @@ class NotLocalFullTileElementsMFMA(NotLocalFullTileElements):
             totalTT0            = kernel["MIWaveTile"][0] * MFMAcontinoutsOuptut
             totalTT1            = kernel["MIWaveTile"][1]
         else:
-            outputsPerThread    = kernel["MatrixInstM"] * kernel["MatrixInstN"] // globalParameters["WavefrontWidth"]
+            outputsPerThread    = kernel["MatrixInstM"] * kernel["MatrixInstN"] // writer.kernel["WavefrontSize"]
             totalTT0            = kernel["MatrixInstBM"] * kernel["MIWaveTile"][0] * outputsPerThread
             totalTT1            = kernel["MatrixInstBN"] * kernel["MIWaveTile"][1]
 
@@ -87,5 +87,45 @@ class NotLocalFullTileElementsMFMA(NotLocalFullTileElements):
                     for vc0 in range(0, MFMAcontinoutsOuptut, vectorwidth): # note step by vectorwidth
                         element = (tt1, tt0, vc1, vc0)
                         elements.append(element)
+
+        return (vectorwidth, elements)
+
+class NotLocalFullTileElementsMFMASwap(NotLocalFullTileElements):
+    kernel = {"EnableMatrixInstruction": True,
+              "SourceSwap": True}
+
+    """
+    Partition thread-tile into writeElements for store code
+    This function creates the writeElement mapping for full tiles
+    (ie non-edge cases)
+    """
+    def __call__(self, writer, kernel, edge):
+        elements        = []
+        vectorwidth = 0
+
+        if edge:
+            vectorwidth = kernel["StoreVectorWidth"] if kernel["_VectorStore"] else 1
+            vectorwidth = min(vectorwidth, writer.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
+        else:
+            vectorwidth = kernel["StoreVectorWidth"] if kernel["_VectorStore"] else 1
+            vectorwidth = min(vectorwidth, writer.maxGwvw(kernel))
+
+        MFMAcontinoutsOuptut = kernel["MIOutputVectorWidth"]
+
+        if kernel["MatrixInstM"] == 4:
+            totalTT0            = kernel["MIWaveTile"][0] * MFMAcontinoutsOuptut
+            totalTT1            = kernel["MIWaveTile"][1]
+        else:
+            outputsPerThread    = kernel["MatrixInstM"] * kernel["MatrixInstN"] // writer.kernel["WavefrontSize"]
+            totalTT0            = kernel["MatrixInstBM"] * kernel["MIWaveTile"][0] * outputsPerThread
+            totalTT1            = kernel["MatrixInstBN"] * kernel["MIWaveTile"][1]
+
+        for tt1 in range(0, totalTT1):
+            for vc1 in range(0, 1):
+                for vc0 in range(0, MFMAcontinoutsOuptut, vectorwidth): # note step by vectorwidth
+                    for tt0 in range(0, totalTT0 // MFMAcontinoutsOuptut):
+                        element = (tt1, tt0, vc1, vc0)
+                        elements.append(element)
+
 
         return (vectorwidth, elements)
