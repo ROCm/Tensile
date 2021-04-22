@@ -3689,7 +3689,7 @@ class Solution:
         name += "SN_"
     for key in sorted(state.keys()):
       if key in requiredParameters and key[0] != '_':
-        if requiredParameters[key]:
+        if requiredParameters[key] and key != "CustomKernelName":
           if not first:
             name += "_"
           else:
