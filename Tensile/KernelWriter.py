@@ -3704,7 +3704,7 @@ for codeObjectFileName in codeObjectFileNames:
   def getReplacementKernelPath(self, kernel):
     if not kernel["ReplacementKernel"] and not isCustomKernelConfig(kernel): #kernel["CustomKernelName"]:
       return None
-    
+
     kernelName = self.getKernelName(kernel)
 
     if isCustomKernelConfig(kernel):
@@ -3742,6 +3742,7 @@ for codeObjectFileName in codeObjectFileNames:
       self.tPA = tensorParametersA = {}
       self.tPB = tensorParametersB = {}
       if isCustomKernelConfig(kernel):
+        kernelFoundMessage = "Custom kernel filename "
         # ISA version, such as 803
         self.kernel = kernel
         self.language = "ASM"
@@ -3753,11 +3754,12 @@ for codeObjectFileName in codeObjectFileNames:
           print("warning: ISA:", self.version, " is not supported; overriding with ", defaultIsa)
           self.version = defaultIsa
       else: 
+        kernelFoundMessage = "replacement_assemblyFilename "
         self.initKernel(kernel, tensorParametersA, tensorParametersB )
 
       shutil.copyfile(replacementKernel, assemblyFileName)
       if globalParameters["PrintLevel"] >= 1:
-        print("replacement_assemblyFilename %s" % assemblyFileName)
+        print(kernelFoundMessage + assemblyFileName)
     else:
       kernelSource = self.getKernelSource(kernel)
 

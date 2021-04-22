@@ -293,6 +293,7 @@ class RegisterPool:
     else:
       if 0:
         traceback.print_stack(None)
+        import pdb; pdb.set_trace()
       printWarning("RegisterPool::checkIn('%s',%s) but it was never checked out"%(self.pool[start].tag, start))
     #traceback.print_stack(None)
 

@@ -296,6 +296,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       print1("# Populating initial winners (%u solutions)\n" % len(benchmarkStep.hardcodedParameters))
       for hcParm in benchmarkStep.hardcodedParameters:
         winners.winners[FrozenDictionary(hcParm)] = [{},-1]
+
     print1("# Actual Solutions: %u / %u\n" % ( len(solutions), \
         maxPossibleSolutions ))
 
@@ -315,7 +316,6 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
           print2("#    (%u:%u) %s" % (i, j, \
               Solution.getNameFull(solution) ))
       print2(HR)
-
 
     # write benchmarkFiles
     writeBenchmarkFiles(stepBaseDir, solutionList, benchmarkStep.problemSizes, \
@@ -690,7 +690,6 @@ class WinningParameterDict:
     print1("# Adding Results to Solution Database")
     for hardcodedIdx,hardcodedResults in Utils.tqdm(enumerate(results)):
       if not hardcodedResults: continue
-      #if hardcodedIdx >= len(hardcodedParameterList): break
 
       hardcodedParameters = hardcodedParameterList[hardcodedIdx]
       winningIdx = -1
