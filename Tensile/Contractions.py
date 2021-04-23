@@ -285,9 +285,9 @@ class ProblemPredicate(Properties.Predicate):
         
         #Alpha and beta value assertions
         if key == "AssertAlphaValue":
-            return cls("AlphaValue", value=value) if value != False else None
+            return cls("AlphaValue", value=str(value)) if value != False else None
         if key == "AssertBetaValue":
-            return cls("BetaValue", value=value) if value != False else None
+            return cls("BetaValue", value=str(value)) if value != False else None
 
         if key == "AssertCEqualsD":
             return cls("CEqualsD") if value != False else None
