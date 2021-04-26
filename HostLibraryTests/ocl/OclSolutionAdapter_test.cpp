@@ -149,7 +149,7 @@ float eventTotalTime_ms(cl::Event const& event)
 
 // Manual initialization of CL context and devices
 // Use embedded library
-TEST(ClSolutionAdapterTest, TestInitKernel)
+TEST(OclSolutionAdapterTest, TestInitKernel)
 {
     // Initialize adapter
     ocl::SolutionAdapter adapter;
@@ -159,7 +159,7 @@ TEST(ClSolutionAdapterTest, TestInitKernel)
     EXPECT_NO_THROW(adapter.initKernel("Cijk_S"));
 }
 
-TEST(ClSolutionAdapterTest, BetaOnlyKernel_Zero_Manual_Embedded)
+TEST(OclSolutionAdapterTest, BetaOnlyKernel_Zero_Manual_Embedded)
 {
     // Manually discover platform, context and devices
     std::vector<cl::Platform> platforms;
@@ -232,7 +232,7 @@ TEST(ClSolutionAdapterTest, BetaOnlyKernel_Zero_Manual_Embedded)
     validate(reference, result);
 }
 
-TEST(ClSolutionAdapterTest, BetaOnlyKernel_Zero_Default_Embedded)
+TEST(OclSolutionAdapterTest, BetaOnlyKernel_Zero_Default_Embedded)
 {
     // Initialize adapter for default device
     ocl::SolutionAdapter adapter;
@@ -275,7 +275,7 @@ TEST(ClSolutionAdapterTest, BetaOnlyKernel_Zero_Default_Embedded)
     validate(reference, result);
 }
 
-TEST(ClSolutionAdapterTest, BetaOnlyKernel_Zero_Default_NonEmbedded)
+TEST(OclSolutionAdapterTest, BetaOnlyKernel_Zero_Default_NonEmbedded)
 {
     // Initialize adapter for default device
     ocl::SolutionAdapter adapter;
@@ -323,7 +323,7 @@ TEST(ClSolutionAdapterTest, BetaOnlyKernel_Zero_Default_NonEmbedded)
     validate(reference, result);
 }
 
-TEST(ClSolutionAdapterTest, BetaOnlyKernel_Nonzero)
+TEST(OclSolutionAdapterTest, BetaOnlyKernel_Nonzero)
 {
     // Initialize adapter for default device
     ocl::SolutionAdapter adapter(false);
@@ -376,7 +376,7 @@ TEST(ClSolutionAdapterTest, BetaOnlyKernel_Nonzero)
 #ifdef TENSILE_USE_HIP
 
 // Simultaneously launch the same kernel using both OpenCL and HIP
-TEST(ClSolutionAdapterTest, PlayNiceWithHip)
+TEST(OclSolutionAdapterTest, PlayNiceWithHip)
 {
     /////////////////////////////////////////////////////////////
     // First, do the OCL version
@@ -464,7 +464,7 @@ TEST(ClSolutionAdapterTest, PlayNiceWithHip)
 #endif // TENSILE_USE_HIP
 
 // Test the timings of single kernel launches
-TEST(ClSolutionAdapterTest, TimingSingle)
+TEST(OclSolutionAdapterTest, TimingSingle)
 {
     // Initialize adapter for default device
     ocl::SolutionAdapter adapter(false);
@@ -523,7 +523,7 @@ TEST(ClSolutionAdapterTest, TimingSingle)
 
 // Test the functionality profiling multiple kernel launches,
 // or group kernel launch.
-TEST(ClSolutionAdapterTest, TimingMulti)
+TEST(OclSolutionAdapterTest, TimingMulti)
 {
     // Initialize adapter for default device
     ocl::SolutionAdapter adapter(false);
