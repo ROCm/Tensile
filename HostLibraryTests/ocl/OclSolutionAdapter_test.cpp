@@ -27,7 +27,7 @@
 #ifndef CL_HPP_ENABLE_EXCEPTIONS
 #error \
     "This implementation relies on CL exceptions to be enabled. Please define CL_HPP_ENABLE_EXCEPTIONS"
-#endif
+#endif // CL_HPP_ENABLE_EXCEPTIONS
 
 #include <CL/cl2.hpp>
 
@@ -47,7 +47,7 @@
 #ifdef TENSILE_USE_HIP
 #include <Tensile/hip/HipSolutionAdapter.hpp>
 #include <Tensile/hip/HipUtils.hpp>
-#endif
+#endif // TENSILE_USE_HIP
 
 using namespace Tensile;
 
@@ -85,8 +85,8 @@ KernelInvocation initKernelParams(Tensile::TensorDescriptor const& desc,
     k.args.append<unsigned int>("size0", desc.sizes()[0]);
     k.args.append<unsigned int>("size1", desc.sizes()[1]);
     k.args.append<unsigned int>("size2", desc.sizes()[2]);
-    //k.args.append<unsigned int>("offsetD", desc.offset());
-    //k.args.append<unsigned int>("offsetC", desc.offset());
+    k.args.append<unsigned int>("offsetD", desc.offset());
+    k.args.append<unsigned int>("offsetC", desc.offset());
     k.args.append<float>("beta", beta);
 
     return k;
@@ -122,13 +122,12 @@ auto profileEvent(cl::Event const& event) -> std::tuple<size_t, size_t, size_t, 
     auto startTick  = event.getProfilingInfo<CL_PROFILING_COMMAND_START>();
     auto endTick    = event.getProfilingInfo<CL_PROFILING_COMMAND_END>();
 
-    auto queueTime_ms   = static_cast<float>(submitTick - queueTick) * 1.0e-6;
-    auto submitTime_ms  = static_cast<float>(startTick - submitTick) * 1.0e-6;
-    auto executeTime_ms = static_cast<float>(endTick - startTick) * 1.0e-6;
-    auto totalTime_ms   = static_cast<float>(endTick - queueTick) * 1.0e-6;
-
     if(Debug::Instance().printPropertyEvaluation())
     {
+        auto queueTime_ms   = static_cast<float>(submitTick - queueTick) * 1.0e-6;
+        auto submitTime_ms  = static_cast<float>(startTick - submitTick) * 1.0e-6;
+        auto executeTime_ms = static_cast<float>(endTick - startTick) * 1.0e-6;
+        auto totalTime_ms   = static_cast<float>(endTick - queueTick) * 1.0e-6;
         std::cout << "PROFILING(ms): <queue | submit | exec | total>  = <" << queueTime_ms << " | "
                   << submitTime_ms << " | " << executeTime_ms << " | " << totalTime_ms << ">\n";
     }
@@ -376,7 +375,7 @@ TEST(ClSolutionAdapterTest, BetaOnlyKernel_Nonzero)
 
 #ifdef TENSILE_USE_HIP
 
-// Simultaneously launch the same kernel using
+// Simultaneously launch the same kernel using both OpenCL and HIP
 TEST(ClSolutionAdapterTest, PlayNiceWithHip)
 {
     /////////////////////////////////////////////////////////////

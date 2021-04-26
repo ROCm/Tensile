@@ -35,10 +35,10 @@
 #include <numeric>
 #include <vector>
 
-#include "DataTypes.hpp"
-#include "Debug.hpp"
-#include "Macros.hpp"
-#include "Utils.hpp"
+#include <Tensile/DataTypes.hpp>
+#include <Tensile/Debug.hpp>
+#include <Tensile/Macros.hpp>
+#include <Tensile/Utils.hpp>
 
 namespace Tensile
 {

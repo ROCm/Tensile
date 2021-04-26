@@ -132,8 +132,6 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Nonzero)
     HIP_CHECK_EXC(hipMemcpy(&c_initial_value, c_d, sizeof(float), hipMemcpyDeviceToHost));
     float d_final_value = c_initial_value * beta;
 
-    std::cout << "FINAL VALUE: " << d_final_value << std::endl;
-
     KernelInvocation k;
 
     k.kernelName      = "Cijk_S";
@@ -162,7 +160,7 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Nonzero)
     k.args.append<unsigned int>("offsetC", desc.offset());
     k.args.append<float>("beta", beta);
 
-    hip::SolutionAdapter adapter(true);
+    hip::SolutionAdapter adapter(false);
     adapter.loadEmbeddedCodeObjects("kernels_lite_mixed");
 
     adapter.launchKernel(k);
