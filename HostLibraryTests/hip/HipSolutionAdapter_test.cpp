@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -132,6 +132,8 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Nonzero)
     HIP_CHECK_EXC(hipMemcpy(&c_initial_value, c_d, sizeof(float), hipMemcpyDeviceToHost));
     float d_final_value = c_initial_value * beta;
 
+    std::cout << "FINAL VALUE: " << d_final_value << std::endl;
+
     KernelInvocation k;
 
     k.kernelName      = "Cijk_S";
@@ -160,7 +162,7 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Nonzero)
     k.args.append<unsigned int>("offsetC", desc.offset());
     k.args.append<float>("beta", beta);
 
-    hip::SolutionAdapter adapter(false);
+    hip::SolutionAdapter adapter(true);
     adapter.loadEmbeddedCodeObjects("kernels_lite_mixed");
 
     adapter.launchKernel(k);

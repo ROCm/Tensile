@@ -1,5 +1,5 @@
 /**
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -57,6 +57,35 @@ namespace Tensile
         size_t      size() const;
 
         friend std::ostream& operator<<(std::ostream& stream, const KernelArguments& t);
+        friend class const_iterator;
+
+        using ArgPair = std::pair<void const*, size_t>;
+        class const_iterator : public std::iterator<std::input_iterator_tag, ArgPair>
+        {
+        public:
+            const_iterator(KernelArguments const& args);
+            const_iterator(KernelArguments const& args, std::string const& name);
+            const_iterator(const const_iterator& other) = default;
+            const_iterator& operator++();
+            const_iterator  operator++(int);
+            bool            operator==(const const_iterator& rhs) const;
+            bool            operator!=(const const_iterator& rhs) const;
+            ArgPair const&  operator*() const;
+            ArgPair const*  operator->() const;
+            void            reset();
+            template <typename T>
+            operator T() const;
+
+        private:
+            void assignCurrentArg();
+
+            std::vector<std::string>::const_iterator m_currentArg;
+            KernelArguments const&                   m_args;
+            ArgPair                                  m_value;
+        };
+
+        const_iterator begin() const;
+        const_iterator end() const;
 
     private:
         enum
@@ -93,6 +122,8 @@ namespace Tensile
     };
 
     TENSILE_API std::ostream& operator<<(std::ostream& stream, const KernelArguments& t);
+    TENSILE_API KernelArguments::const_iterator begin(KernelArguments const&);
+    TENSILE_API KernelArguments::const_iterator end(KernelArguments const&);
 
     template <typename T>
     inline void KernelArguments::append(std::string const& name, T value)
@@ -206,5 +237,15 @@ namespace Tensile
 
         m_argRecords[name] = record;
         m_names.push_back(name);
+    }
+
+    template <typename T>
+    KernelArguments::const_iterator::operator T() const
+    {
+        if(sizeof(T) != m_value.second)
+        {
+            throw std::bad_cast();
+        }
+        return *reinterpret_cast<T*>(const_cast<void*>(m_value.first));
     }
 } // namespace Tensile

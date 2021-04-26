@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -35,10 +35,10 @@
 #include <numeric>
 #include <vector>
 
-#include <Tensile/DataTypes.hpp>
-#include <Tensile/Debug.hpp>
-#include <Tensile/Macros.hpp>
-#include <Tensile/Utils.hpp>
+#include "DataTypes.hpp"
+#include "Debug.hpp"
+#include "Macros.hpp"
+#include "Utils.hpp"
 
 namespace Tensile
 {
