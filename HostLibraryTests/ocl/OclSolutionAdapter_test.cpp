@@ -568,7 +568,7 @@ TEST(OclSolutionAdapterTest, TimingMulti)
     int                  i = 0;
     for(auto ev : kernelEvents)
     {
-        timings_ms[i++] = eventExecTime_ms(ev);
+        timings_ms[i++] = eventTotalTime_ms(ev);
     }
 
     //Second, test one aggregate event
@@ -578,11 +578,12 @@ TEST(OclSolutionAdapterTest, TimingMulti)
 
     auto groupTime_ms = eventTotalTime_ms(groupEvent);
     auto avgInd_ms    = timings_ms.sum() / timings_ms.size();
-    auto diff         = fabs(groupTime_ms - timings_ms.sum());
+    auto diff         = fabs(groupTime_ms - timings_ms.sum()) / timings_ms.size();
 
     if(Debug::Instance().printPropertyEvaluation())
     {
-        std::cout << "Total Time: " << groupTime_ms << std::endl;
+        std::cout << "Summed Time (ms): " << timings_ms.sum() << std::endl;
+        std::cout << "Group Time (ms): " << groupTime_ms << std::endl;
         std::cout << "Diff: " << diff << std::endl;
     }
 
