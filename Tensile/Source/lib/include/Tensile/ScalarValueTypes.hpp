@@ -64,7 +64,7 @@ namespace Tensile
 
     /**
  * \ingroup ScalarValue
- * \brief Runtime accessible arithmetic unit type metadata
+ * \brief Runtime accessible scalar value type metadata
  */
     struct ScalarValueTypeInfo
     {
@@ -90,7 +90,7 @@ namespace Tensile
 
     /**
  * \ingroup ScalarValue
- * \brief Compile-time accessible arithmetic unit type metadata.
+ * \brief Compile-time accessible scalar type metadata.
  */
     template <ScalarValue T_Enum>
     struct ScalarValueInfo;
@@ -129,10 +129,15 @@ namespace Tensile
     {
     };
 
+
+    /**
+*  \ingroup ScalarValue
+*  \brief Gets ScalarValue enum from value. Returns ScalarValue::Any if there is no match.
+*/
     template<typename T>
     ScalarValue toScalarValueEnum(T value)
     {
-        if(value == T(1))
+        if(     value == T(1))
             return ScalarValue::One;
         else if(value == T(-1))
             return ScalarValue::NegativeOne;
