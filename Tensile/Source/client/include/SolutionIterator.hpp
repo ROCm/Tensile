@@ -153,8 +153,9 @@ namespace Tensile
                                  std::shared_ptr<Hardware> hardware,
                                  int                       firstSolutionIdx,
                                  int                       numSolutions,
-                                 RunCriteria               runCriteria    = RunCriteria(),
-                                 bool                      criteriaVerify = false);
+                                 RunCriteria               runCriteria     = RunCriteria(),
+                                 bool                      criteriaVerify  = false,
+                                 int                       criteriaMinSize = 0);
 
             virtual void preProblem(ContractionProblem const& problem) override;
             virtual void postProblem() override;
@@ -174,6 +175,7 @@ namespace Tensile
             int m_numSolutionsSkipped;
 
             bool        m_criteriaVerify;
+            int         m_criteriaMinSize;
             RunCriteria m_runCriteria;
         };
 

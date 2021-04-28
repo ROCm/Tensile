@@ -701,6 +701,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param("run-criteria-verify",      globalParameters["RunCriteriaVerify"])
         param("granularity-threshold",    globalParameters["GranularityThreshold"])
         param("mem-throughput-threshold", globalParameters["MemThroughputThreshold"])
+        param("run-criteria-min-size",    globalParameters["RunCriteriaMinSize"])
 
         param("pristine-on-gpu",          globalParameters["PristineOnGPU"])
         param("library-update-file",      globalParameters["LibraryUpdateFile"])

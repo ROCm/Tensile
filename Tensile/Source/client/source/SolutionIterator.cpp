@@ -51,7 +51,8 @@ namespace Tensile
                     args["solution-start-idx"].as<int>(),
                     args["num-solutions"].as<int>(),
                     AllSolutionsIterator::CreateCriteria(library, hardware, args),
-                    args["run-criteria-verify"].as<bool>());
+                    args["run-criteria-verify"].as<bool>(),
+                    args["run-criteria-min-size"].as<int>());
             }
         }
 
@@ -175,11 +176,13 @@ namespace Tensile
             int                                                        firstSolutionIdx,
             int                                                        numSolutions,
             RunCriteria                                                runCriteria,
-            bool                                                       criteriaVerify)
+            bool                                                       criteriaVerify,
+            int                                                        criteriaMinSize)
             : SolutionIterator(library, hardware)
             , m_numSolutionsSkipped(0)
             , m_runCriteria(runCriteria)
             , m_criteriaVerify(criteriaVerify)
+            , m_criteriaMinSize(criteriaMinSize)
         {
             m_firstSolutionIdx = firstSolutionIdx;
 
@@ -255,6 +258,16 @@ namespace Tensile
 
             if(!checkSolution(*solution))
                 return false;
+
+            // TODO this doesn't work for general tensor contraction with packed dims
+            size_t M = m_problem.freeSizeA(0);
+            size_t N = m_problem.freeSizeB(0);
+            size_t K = m_problem.boundSize(0);
+
+            if(std::min({M, N, K}) < m_criteriaMinSize)
+            {
+                return true;
+            }
 
             for(auto const& criterion : m_runCriteria)
             {

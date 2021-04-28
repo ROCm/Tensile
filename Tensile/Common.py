@@ -255,6 +255,7 @@ globalParameters["MinKForGSU"] = 256 # min K size to use GlobalSplitU algorithm 
 globalParameters["RunCriteriaVerify"] = False
 globalParameters["GranularityThreshold"] = 0.0
 globalParameters["MemThroughputThreshold"] = 0.0
+globalParameters["RunCriteriaMinSize"] = 1000 # minimum size of each dimension (except batch) to enable filtering
 globalParameters["HardwareSpecsPath"] = None
 
 globalParameters["PristineOnGPU"] = True # use Pristine memory on Tensile trainning verification or not

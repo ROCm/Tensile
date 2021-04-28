@@ -240,6 +240,7 @@ namespace Tensile
                 ("run-criteria-verify",      po::value<bool>()->default_value(false), "Benchmark skipped solutions and verify they aren't winners")
                 ("granularity-threshold",    po::value<double>()->default_value(0.0), "Don't run a solution if total granularity is below")
                 ("mem-throughput-threshold", po::value<double>()->default_value(0.0), "Don't run a solution if mem throughput is below")
+                ("run-criteria-min-size",    po::value<int>()->default_value(0),      "Minimum size of each dimension (except batch) to enable filtering")
 
                 ("alu-rate",                 po::value<int>()->default_value(0), "ALU rate in flops / cu / cycle. Used for mem throughput solution filtering")
                 ("l2-speed",                 po::value<int>()->default_value(0), "L2 cache speed in bytes / cycle. Used for mem throughput solution filtering")
@@ -533,14 +534,6 @@ int main(int argc, const char* argv[])
         listeners.addListener(std::make_shared<BenchmarkTimer>(args, *hardware));
         listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
     }
-
-    auto reporters = std::make_shared<MetaResultReporter>();
-    reporters->addReporter(PerformanceReporter::Default(args));
-
-    // PerformanceReporter needs to be called before these two, or else values
-    // will be missing
-    reporters->addReporter(LogReporter::Default(args));
-    reporters->addReporter(ResultFileReporter::Default(args));
 
     if(args.count("log-file"))
     {
