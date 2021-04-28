@@ -707,12 +707,10 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param("library-update-file",      globalParameters["LibraryUpdateFile"])
         param("library-update-comment",   globalParameters["LibraryUpdateComment"])
 
-
-        mfmaKey = "mfma" if globalParameters["IsMFMA"] else "non_mfma"
-        typeKey = problemType.aType.toChar()
-
         if (globalParameters["MemThroughputThreshold"] > 0.0):
           try:
+            mfmaKey = "mfma" if globalParameters["IsMFMA"] else "non_mfma"
+            typeKey = problemType.aType.toChar()
             param("alu-rate",                 globalParameters["ALURates"][mfmaKey][typeKey])
             param("l2-speed",                 globalParameters["L2Speed"])
           except Exception as e:
