@@ -1807,15 +1807,13 @@ def assignGlobalParameters( config ):
           print1("# Detected local GPU with ISA: " + gfxName(arch))
           globalParameters["CurrentISA"] = arch
     else:
-      process = subprocess.run([globalParameters["ROCmAgentEnumeratorPath"], "-t", "GPU"], stdout=PIPE)
-      line = process.stdout.readline().decode()
-      while line != "":
+      process = subprocess.run([globalParameters["ROCmAgentEnumeratorPath"], "-t", "GPU"], stdout=subprocess.PIPE)
+      for line in process.stdout.decode().split("\n"):
         arch = gfxArch(line.strip())
         if arch is not None:
           if arch in globalParameters["SupportedISA"]:
             print1("# Detected local GPU with ISA: gfx" + ''.join(map(str,arch)))
             globalParameters["CurrentISA"] = arch
-        line = process.stdout.readline().decode()
     if globalParameters["CurrentISA"] == (0,0,0):
       printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
     if process.returncode:
