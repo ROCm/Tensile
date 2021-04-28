@@ -210,7 +210,7 @@ if(TENSILE_USE_HIP)
 endif()
 
 if(TENSILE_USE_OPENCL)
-    set(test_sources ${test_sources} ${OCL_TEST_SOURCES})
+
     add_dependencies(TensileTests ${OCL_TEST_COPY_TARGET_DEPS})
 
     # Make sure the embedded libraries are not stripped
