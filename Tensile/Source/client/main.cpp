@@ -301,12 +301,26 @@ namespace Tensile
             }
             else
             {
+                //only trigger exception when failed to load all code objects.
+                bool       loaded   = false;
+                hipError_t retError = hipSuccess;
+
                 for(auto const& filename : filenames)
                 {
+                    hipError_t ret;
+
                     if(logLevel >= LogLevel::Verbose)
                         std::cout << "Loading " << filename << std::endl;
-                    HIP_CHECK_EXC(adapter.loadCodeObjectFile(filename));
+                    ret = adapter.loadCodeObjectFile(filename);
+
+                    if(ret == hipSuccess)
+                        loaded = true;
+                    else
+                        retError = ret;
                 }
+
+                if(!loaded)
+                    HIP_CHECK_EXC(retError);
             }
         }
 
