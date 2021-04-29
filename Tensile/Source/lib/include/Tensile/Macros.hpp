@@ -33,7 +33,7 @@
  * Marks a symbol as being visible from outside of a shared library which
  * Tensile is a part of.
  */
-#ifdef _MSC_VER 
+#ifdef _WIN32 
 #define TENSILE_API  __declspec(dllexport)
 #else
 #define TENSILE_API __attribute__ ((visibility("default")))

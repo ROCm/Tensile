@@ -1651,7 +1651,7 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
 
 def gfxArch(name):
     import re
-    match = re.search(r'gfx([0-9a-fA-F]+).*', name)
+    match = re.search(r'gfx([0-9a-fA-F]{3,}).*', name)
     if not match: return None
 
     ipart = match.group(1)
@@ -1812,7 +1812,7 @@ def assignGlobalParameters( config ):
         arch = gfxArch(line.strip())
         if arch is not None:
           if arch in globalParameters["SupportedISA"]:
-            print1("# Detected local GPU with ISA: gfx" + ''.join(map(str,arch)))
+            print1("# Detected local GPU with ISA: " + gfxName(arch))
             globalParameters["CurrentISA"] = arch
     if globalParameters["CurrentISA"] == (0,0,0):
       printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])

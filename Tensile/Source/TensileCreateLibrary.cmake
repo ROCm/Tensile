@@ -109,8 +109,13 @@ function(TensileCreateLibraryCmake
   if($ENV{TENSILE_SKIP_LIBRARY})
     message(STATUS "Skipping build of ${Tensile_OUTPUT_PATH}")
   else()
+    if (WIN32)
+      set(CommandLine ${VIRTUALENV_BIN_DIR}/${VIRTUALENV_PYTHON_EXENAME} ${Tensile_CREATE_COMMAND})
+    else()
+      set(CommandLine ${Tensile_CREATE_COMMAND})
+    endif()
     execute_process(
-      COMMAND ${VIRTUALENV_BIN_DIR}/${VIRTUALENV_PYTHON_EXENAME} ${Tensile_CREATE_COMMAND}
+      COMMAND ${CommandLine}
       RESULT_VARIABLE Tensile_CREATE_RESULT
     )
     if(Tensile_CREATE_RESULT)
