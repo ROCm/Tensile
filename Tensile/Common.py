@@ -1058,7 +1058,7 @@ validParameters = {
     "ReplacementKernel":          [False, True],
 
     # Name of the custom kernel located in globalParameters["CustomKernelDirectory"].
-    # a custom kernel is a user written assembly kernel with its associated configuration parameters included in a custom.config section  
+    # a custom kernel is a user written assembly kernel with its associated configuration parameters included in a custom.config section
     # inside the yaml block between the --- and ... markers.  These parameters are only used for information purposes, not kernel generation.
     # Ex:
     # custom.config:
@@ -1067,8 +1067,8 @@ validParameters = {
     #     etc...
     #   ThreadTile: [8, 8]
     #   etc...
-    # 
-    # Custom kernels can be included in a BenchmarkProblemSizeGroup by having their name (without file extension) listed under the "CustomKernels" 
+    #
+    # Custom kernels can be included in a BenchmarkProblemSizeGroup by having their name (without file extension) listed under the "CustomKernels"
     # category alongside InitialSolutionParameters, BenchmarkCommonParameters, etc...
     "CustomKernelName":            -1,
 

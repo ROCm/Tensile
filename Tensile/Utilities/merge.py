@@ -214,8 +214,8 @@ def getSolutionTag(solution):
 
     tagTuple = tagTuple + (strToScalarValueTag(AlphaValueTag, solution.get("AssertAlphaValue", "Any")),)
     tagTuple = tagTuple + (strToScalarValueTag(BetaValueTag, solution.get("AssertBetaValue",  "Any")),)
-    
-    tagTuple = tagTuple + (CEqualsDTag.C_EQ_D if solution.get("AssertCEqualsD", False) else CEqualsDTag.C_NEQ_D ,) 
+
+    tagTuple = tagTuple + (CEqualsDTag.C_EQ_D if solution.get("AssertCEqualsD", False) else CEqualsDTag.C_NEQ_D ,)
 
     return tagTuple
 
@@ -238,18 +238,19 @@ def removeSolutionTagFromKeys(solutionMap):
 
 # To be used with add_solution_tags to allow faster general solutions to supercede slower specific ones
 def findFastestCompatibleSolution(origDict, sizeMapping):
-    tagList = sizeMapping[0]
+    tags = sizeMapping[0]
     # Tag of form (MFMATag, AlphaValueTag, BetaValueTag, CEqualsDTag)
-    compatibleTagList = [tagList]
+    compatibleTagList = [tags]
 
-    # 
-    if tagList[1] != AlphaValueTag.ANY:
+    # Add all compatible tags to the list
+    if tags[1] != AlphaValueTag.ANY:
         compatibleTagList = compatibleTagList + [(t[0], AlphaValueTag.ANY) + t[2:] for t in compatibleTagList]
-    if tagList[2] != BetaValueTag.ANY:
+    if tags[2] != BetaValueTag.ANY:
         compatibleTagList = compatibleTagList + [t[:2] + (BetaValueTag.ANY,) + t[3:] for t in compatibleTagList]
-    if tagList[3] != CEqualsDTag.C_NEQ_D:
+    if tags[3] != CEqualsDTag.C_NEQ_D:
         compatibleTagList = compatibleTagList + [t[:3] + (CEqualsDTag.C_NEQ_D,) + t[4:] for t in compatibleTagList]
 
+    #Find the fastest efficiency of all compatible tags
     maxEfficiency = 0
     for tag in compatibleTagList:
         result = origDict.get((tag,) + sizeMapping[1:], None)
@@ -257,8 +258,8 @@ def findFastestCompatibleSolution(origDict, sizeMapping):
             _, eff = origDict[(tag,) + sizeMapping[1:]]
             maxEfficiency = max(maxEfficiency, eff)
 
-    return maxEfficiency 
-        
+    return maxEfficiency
+
 
 # returns merged logic data as list
 def mergeLogic(origData, incData, forceMerge, trimSize=True, addSolutionTags=False):
@@ -432,7 +433,7 @@ if __name__ == "__main__":
     argParser.add_argument("-v", "--verbosity", help="0: summary, 1: verbose, 2: debug", default=1, type=int)
     argParser.add_argument("--force_merge", help="Merge previously known sizes unconditionally. Default behavior if not arcturus", default="none")
     argParser.add_argument("--notrim", help="Do not trim long size format down to short format (m,n,b,k). Default is --trim", action="store_false")
-    argParser.add_argument("--add_solution_tags", help="Add tags to the size key for solution properies, allowing for solutions with different requirements " 
+    argParser.add_argument("--add_solution_tags", help="Add tags to the size key for solution properies, allowing for solutions with different requirements "
                            "to exist for the same size. Default doesn't add this tag.", action="store_true")
 
     args = argParser.parse_args(sys.argv[1:])

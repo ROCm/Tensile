@@ -22,7 +22,7 @@
 from . import Code
 from . import Common
 from .Common import globalParameters, CHeader, roundUp
-from .ReplacementKernels import ReplacementKernels as ReplacementKernels
+from .ReplacementKernels import ReplacementKernels
 from .CustomKernels import isCustomKernelConfig
 from .SolutionStructs import Solution
 
@@ -3753,7 +3753,7 @@ for codeObjectFileName in codeObjectFileNames:
           defaultIsa = (9,0,0)
           print("warning: ISA:", self.version, " is not supported; overriding with ", defaultIsa)
           self.version = defaultIsa
-      else: 
+      else:
         kernelFoundMessage = "replacement_assemblyFilename "
         self.initKernel(kernel, tensorParametersA, tensorParametersB )
 

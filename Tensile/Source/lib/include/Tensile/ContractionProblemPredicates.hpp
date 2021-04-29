@@ -407,7 +407,7 @@ namespace Tensile
                     HasIndex = true,
                     HasValue = true
                 };
-                size_t index;     
+                size_t index;
                 size_t value;
 
                 SizeGreaterThan() = default;
@@ -432,7 +432,7 @@ namespace Tensile
                 {
                     bool rv = (*this)(problem);
 
-                    stream << *this << ": (" << problem.size(index) 
+                    stream << *this << ": (" << problem.size(index)
                            << " > " << value << ") == " << rv;
 
                     return rv;
@@ -446,7 +446,7 @@ namespace Tensile
                     HasIndex = true,
                     HasValue = true
                 };
-                size_t index;     
+                size_t index;
                 size_t value;
 
                 SizeLessThan() = default;
@@ -471,7 +471,7 @@ namespace Tensile
                 {
                     bool rv = (*this)(problem);
 
-                    stream << *this << ": (" << problem.size(index) 
+                    stream << *this << ": (" << problem.size(index)
                            << " < " << value << ") == " << rv;
 
                     return rv;
@@ -485,7 +485,7 @@ namespace Tensile
                     HasIndex = true,
                     HasValue = true
                 };
-                size_t index;     
+                size_t index;
                 size_t value;
 
                 SizeMultiple() = default;
@@ -510,7 +510,7 @@ namespace Tensile
                 {
                     bool rv = (*this)(problem);
 
-                    stream << *this << ": (" << problem.size(index) 
+                    stream << *this << ": (" << problem.size(index)
                            << " % " << value << " == 0) == " << rv;
 
                     return rv;

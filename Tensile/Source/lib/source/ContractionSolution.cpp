@@ -832,7 +832,7 @@ namespace Tensile
         {
             std::stringstream inputValue;
             inputValue << inputs.alpha;
-            std::string msg = std::string("Alpha value ") + inputValue.str() + 
+            std::string msg = std::string("Alpha value ") + inputValue.str() +
                               std::string(" doesn't match that set in problem: ") + ToString(problem.alphaRestriction());
             throw std::runtime_error(msg.c_str());
         }
@@ -842,7 +842,7 @@ namespace Tensile
         {
             std::stringstream inputValue;
             inputValue << inputs.beta;
-            std::string msg = std::string("Beta value ") + inputValue.str() + 
+            std::string msg = std::string("Beta value ") + inputValue.str() +
                               std::string(" doesn't match that set in problem: ") + ToString(problem.betaRestriction());
             throw std::runtime_error(msg.c_str());
         }

@@ -275,8 +275,8 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       if customSolution["ProblemType"] != benchmarkProcess.problemType:
         # Raise error if this kernel was specifically requested and problem type doesn't match
         if not customKernelWildcard:
-          missingParams = [p for p in benchmarkProcess.problemType if p not in customSolution["ProblemType"]] 
-          extraParams   = [p for p in customSolution["ProblemType"] if p not in benchmarkProcess.problemType] 
+          missingParams = [p for p in benchmarkProcess.problemType if p not in customSolution["ProblemType"]]
+          extraParams   = [p for p in customSolution["ProblemType"] if p not in benchmarkProcess.problemType]
           msg  = "The problem type in the config file does not match that of the custom kernel, {0}.".format(kernelName)
           msg += "\nMissing config parameters:\n" + str(missingParams)
           msg += "\nExtra custom kernel parameters:\n" + str(extraParams)
@@ -359,7 +359,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 
     if removesExist:
       if "CustomKernels" not in problemSizeGroupConfig:
-        print1("# Updating winners since kernelwriter removed unused hardcoded solutions.  removeHardcoded=%u winners=%u" 
+        print1("# Updating winners since kernelwriter removed unused hardcoded solutions.  removeHardcoded=%u winners=%u"
                %(len(removeHardcoded), len(winners.winners)))
         winners.wpdUpdate( benchmarkStep.hardcodedParameters )
       numHardcoded = len(benchmarkStep.hardcodedParameters )
@@ -920,7 +920,7 @@ def main( config ):
           shutil.copy( granularityFileName, newGranularityFileName )
       else:
         print1("# %s_%02u already benchmarked; skipping." % (str(problemTypeObj), problemSizeGroupIdx) )
-  
+
   popWorkingPath()
 
   if globalParameters["ExitOnFails"] and totalTestFails:

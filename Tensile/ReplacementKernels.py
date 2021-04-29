@@ -20,7 +20,6 @@
 ################################################################################
 
 from .Common import globalParameters
-import yaml
 
 import os
 
