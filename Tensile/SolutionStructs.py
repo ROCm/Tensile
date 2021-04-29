@@ -32,7 +32,7 @@ from .Utils import roundUpToNearestMultiple
 from .KernelWriterBetaOnly import KernelWriterBetaOnly
 from .KernelWriterConversion import KernelWriterConversion
 
-from .ReplacementKernels import isCustomKernelConfig
+from .CustomKernels import isCustomKernelConfig
 
 from collections import namedtuple,OrderedDict
 from copy import deepcopy

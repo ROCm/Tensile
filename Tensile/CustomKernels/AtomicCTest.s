@@ -51,7 +51,6 @@ custom.config:
     UseBeta: True
     Batched: True
     LdcEqualsLdd: True
-  //MatrixInstruction: [16, 16, 4, 1]
   LoopDoWhile: False
   WorkGroupMapping:  1
   ThreadTile: [ 8, 8 ]

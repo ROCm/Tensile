@@ -22,8 +22,8 @@
 from . import Code
 from . import Common
 from .Common import globalParameters, CHeader, roundUp
-from .ReplacementKernels import ReplacementKernels as ReplacementKernels, \
-                                isCustomKernelConfig as isCustomKernelConfig
+from .ReplacementKernels import ReplacementKernels as ReplacementKernels
+from .CustomKernels import isCustomKernelConfig
 from .SolutionStructs import Solution
 
 import abc
