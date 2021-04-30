@@ -4,6 +4,7 @@
 - Custom Kernel mechanism for adding custom assembly kernels to Tensile
 - New assertions for problems sizes, alpha/beta values, and C equals D
 
+
 ## [Tensile 4.28.0 for ROCm 4.3.0]
 ### Added
 - TensileRetuneLibrary for updating existing library logic files
