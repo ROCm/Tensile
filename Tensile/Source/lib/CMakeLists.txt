@@ -77,6 +77,7 @@ endif()
 
 if(TENSILE_USE_OPENCL)
     set(tensile_sources ${tensile_sources}
+        source/ocl/OclHardware.cpp
         source/ocl/OclSolutionAdapter.cpp
         source/ocl/OclUtils.cpp
         )

@@ -33,6 +33,7 @@
 
 #include <gtest/gtest.h>
 
+#include <Tensile/ocl/OclHardware.hpp>
 #include <Tensile/ocl/OclSolutionAdapter.hpp>
 #include <Tensile/ocl/OclUtils.hpp>
 
@@ -40,11 +41,14 @@
 #include <Tensile/TensorDescriptor.hpp>
 #include <Tensile/Utils.hpp>
 
+#include "TestData.hpp"
+
 #include <string>
 #include <valarray>
 #include <vector>
 
 #ifdef TENSILE_USE_HIP
+#include <Tensile/hip/HipHardware.hpp>
 #include <Tensile/hip/HipSolutionAdapter.hpp>
 #include <Tensile/hip/HipUtils.hpp>
 #endif // TENSILE_USE_HIP
@@ -152,10 +156,10 @@ float eventTotalTime_ms(cl::Event const& event)
 TEST(OclSolutionAdapterTest, TestInitKernel)
 {
     // Initialize adapter
-    ocl::SolutionAdapter adapter;
+    ocl::SolutionAdapter adapter(false);
     adapter.loadEmbeddedCodeObjects("ocl_kernels_lite_mixed");
 
-    EXPECT_THROW(adapter.initKernel("NoSuchKernel"), std::runtime_error);
+    EXPECT_THROW(adapter.initKernel("NoSuchKernel"), cl::Error);
     EXPECT_NO_THROW(adapter.initKernel("Cijk_S"));
 }
 
@@ -278,13 +282,11 @@ TEST(OclSolutionAdapterTest, BetaOnlyKernel_Zero_Default_Embedded)
 TEST(OclSolutionAdapterTest, BetaOnlyKernel_Zero_Default_NonEmbedded)
 {
     // Initialize adapter for default device
-    ocl::SolutionAdapter adapter;
-    adapter.loadCodeObjectFile("data/kernels_lite_mixed/Cijk_S.so-000-gfx803-xnack-.hsaco");
-    adapter.loadCodeObjectFile("data/kernels_lite_mixed/Cijk_S.so-000-gfx900-xnack-.hsaco");
-    adapter.loadCodeObjectFile("data/kernels_lite_mixed/Cijk_S.so-000-gfx906-xnack-.hsaco");
-    adapter.loadCodeObjectFile("data/kernels_lite_mixed/Cijk_S.so-000-gfx908-xnack-.hsaco");
-    adapter.loadCodeObjectFile("data/kernels_lite_mixed/Cijk_S.so-000-gfx1010-xnack-.hsaco");
-    adapter.loadCodeObjectFile("data/kernels_lite_mixed/Cijk_S.so-000-gfx1011-xnack-.hsaco");
+    ocl::SolutionAdapter adapter(false);
+    for(auto file : TestData::Instance().glob("ocl_kernels_lite_mixed/Cijk_S.so*.hsaco"))
+    {
+        adapter.loadCodeObjectFile(file.native());
+    }
 
     // Initialize command queue for default device
     auto queue = cl::CommandQueue::getDefault();
@@ -591,4 +593,40 @@ TEST(OclSolutionAdapterTest, TimingMulti)
     // correlates with the sum of the individual
     // group timings (within avg 1 kernel deviation)
     ASSERT_LT(diff, avgInd_ms) << diff;
+}
+
+// Test the functionality profiling multiple kernel launches,
+// or group kernel launch.
+TEST(OclSolutionAdapterTest, HardwareTest)
+{
+    int  deviceId = 0;
+    auto oclProps = ocl::clGetDevicePropertiesAMD(deviceId);
+
+    hipDeviceProp_t hipProps;
+    hipGetDeviceProperties(&hipProps, deviceId);
+
+    // Match the hip properties interface as much as possible
+    ASSERT_EQ(oclProps.name, hipProps.name);
+    ASSERT_EQ(oclProps.totalGlobalMem, hipProps.totalGlobalMem);
+    ASSERT_EQ(oclProps.sharedMemPerBlock, hipProps.sharedMemPerBlock);
+    ASSERT_EQ(oclProps.warpSize, hipProps.warpSize);
+    ASSERT_EQ(oclProps.maxThreadsPerBlock, hipProps.maxThreadsPerBlock);
+    ASSERT_EQ(oclProps.maxThreadsDim[0], hipProps.maxThreadsDim[0]);
+    ASSERT_EQ(oclProps.maxThreadsDim[1], hipProps.maxThreadsDim[1]);
+    ASSERT_EQ(oclProps.maxThreadsDim[2], hipProps.maxThreadsDim[2]);
+    ASSERT_EQ(oclProps.maxGridSize[0], hipProps.maxGridSize[0]);
+    ASSERT_EQ(oclProps.maxGridSize[1], hipProps.maxGridSize[1]);
+    ASSERT_EQ(oclProps.maxGridSize[2], hipProps.maxGridSize[2]);
+    ASSERT_EQ(oclProps.clockRate, hipProps.clockRate);
+    ASSERT_EQ(oclProps.multiProcessorCount, hipProps.multiProcessorCount);
+    ASSERT_EQ(oclProps.pciBusID, hipProps.pciBusID);
+    ASSERT_EQ(oclProps.pciDeviceID, hipProps.pciDeviceID);
+    ASSERT_EQ(oclProps.maxSharedMemoryPerMultiProcessor, hipProps.maxSharedMemoryPerMultiProcessor);
+    ASSERT_EQ(oclProps.gcnArch, hipProps.gcnArch);
+
+    // Check that AMDGPU objects match
+    auto oclGPU = std::dynamic_pointer_cast<AMDGPU>(ocl::GetDevice(oclProps));
+    auto hipGPU = std::dynamic_pointer_cast<AMDGPU>(hip::GetDevice(hipProps));
+
+    ASSERT_EQ(*oclGPU, *hipGPU);
 }

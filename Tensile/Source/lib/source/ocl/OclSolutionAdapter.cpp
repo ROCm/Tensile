@@ -98,13 +98,18 @@ namespace Tensile
 
                 addModule(concatenate("File ", path), progModule);
             }
-            catch(std::runtime_error const& exc)
+            // Binary might not be for this specific device, which is OK.
+            catch(cl::BuildError const& e)
             {
                 if(m_debug)
                 {
-                    std::cout << exc.what() << std::endl;
+                    std::cerr << "Error code: " << e.err() << " " << e.what() << std::endl;
+                    for(auto const& log : e.getBuildLog())
+                    {
+                        std::cerr << "Device: " << std::get<0>(log).getInfo<CL_DEVICE_NAME>() << " "
+                                  << std::get<1>(log) << std::endl;
+                    }
                 }
-                return;
             }
         }
 
@@ -121,13 +126,18 @@ namespace Tensile
 
                 addModule("Module from bytes", progModule);
             }
-            catch(std::runtime_error const& exc)
+            // Binary might not be for this specific device, which is OK.
+            catch(cl::BuildError const& e)
             {
                 if(m_debug)
                 {
-                    std::cout << exc.what() << std::endl;
+                    std::cerr << "Error code: " << e.err() << " " << e.what() << std::endl;
+                    for(auto const& log : e.getBuildLog())
+                    {
+                        std::cerr << "Device: " << std::get<0>(log).getInfo<CL_DEVICE_NAME>() << " "
+                                  << std::get<1>(log) << std::endl;
+                    }
                 }
-                return;
             }
         }
 
@@ -157,7 +167,6 @@ namespace Tensile
 
             std::vector<cl::Program> newModules;
             newModules.reserve(embeddedData.size());
-
             for(size_t i = 0; i < embeddedData.size(); i++)
             {
                 try
@@ -169,11 +178,17 @@ namespace Tensile
                         std::cout << "Loaded code object for key " << key << std::endl;
                     }
                 }
-                catch(std::runtime_error const& exc)
+                // Binary might not be for this specific device, which is OK.
+                catch(cl::BuildError const& e)
                 {
                     if(m_debug)
                     {
-                        std::cout << "Skipping module import... Reason: " << exc.what();
+                        std::cerr << "Error code: " << e.err() << " " << e.what() << std::endl;
+                        for(auto const& log : e.getBuildLog())
+                        {
+                            std::cerr << "Device: " << std::get<0>(log).getInfo<CL_DEVICE_NAME>()
+                                      << " " << std::get<1>(log) << std::endl;
+                        }
                     }
                 }
             }
@@ -208,17 +223,23 @@ namespace Tensile
                 {
                     return m_kernels[name] = cl::Kernel(module, name.c_str());
                 }
+                // Kernel may not exist in all modules
                 catch(cl::Error& e)
                 {
                     if(e.err() != CL_INVALID_KERNEL_NAME)
                     {
+                        if(m_debug)
+                        {
+                            std::cerr << "KernelError: " << e.err() << std::endl;
+                        }
                         throw e;
                     }
                 }
             }
 
-            throw std::runtime_error(
-                concatenate("Kernel ", name, " not found in any loaded module."));
+            throw cl::Error(
+                CL_INVALID_KERNEL_NAME,
+                concatenate("Kernel ", name, " not found in any loaded module.").c_str());
         }
 
         void SolutionAdapter::launchKernel(KernelInvocation const& kernel)
@@ -237,6 +258,7 @@ namespace Tensile
                           << kernel.numWorkItems << std::endl;
                 std::cout << kernel.args;
             }
+
             if(m_debugSkipLaunch)
             {
                 std::cout << "DEBUG: Skip kernel execution" << std::endl;
@@ -267,7 +289,9 @@ namespace Tensile
         void SolutionAdapter::launchKernels(std::vector<KernelInvocation> const& kernels)
         {
             for(auto const& k : kernels)
+            {
                 launchKernel(k);
+            }
         }
 
         void SolutionAdapter::launchKernels(std::vector<KernelInvocation> const& kernels,
@@ -290,11 +314,13 @@ namespace Tensile
                                             std::vector<cl::Event>&              timingEvents)
         {
             if(kernels.size() != timingEvents.size())
+            {
                 throw std::runtime_error(concatenate("Must have an equal number of kernels (",
                                                      kernels.size(),
                                                      "), and timing events. (",
                                                      timingEvents.size(),
                                                      ")"));
+            }
 
             for(size_t i = 0; i < kernels.size(); i++)
             {
@@ -325,7 +351,9 @@ namespace Tensile
             {
                 stream << "[" << std::endl;
                 for(auto const& name : adapter.m_loadedModuleNames)
+                {
                     stream << name << std::endl;
+                }
 
                 stream << "]";
             }

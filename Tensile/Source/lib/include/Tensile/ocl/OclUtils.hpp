@@ -50,6 +50,7 @@ namespace Tensile
 
     namespace ocl
     {
+        class oclDeviceProp_t;
 
         cl::Program clModuleLoad(cl::Context                    context,
                                  std::vector<cl::Device> const& devices,
@@ -57,6 +58,11 @@ namespace Tensile
         cl::Program clModuleLoadData(cl::Context                       context,
                                      std::vector<cl::Device> const&    devices,
                                      std::vector<unsigned char> const& bytes);
+
+        oclDeviceProp_t clGetDevicePropertiesAMD();
+        oclDeviceProp_t clGetDevicePropertiesAMD(int deviceId);
+        oclDeviceProp_t clGetDevicePropertiesAMD(int deviceId, cl::Context context);
+        oclDeviceProp_t clGetDevicePropertiesAMD(cl::Device device);
 
     } // namespace ocl
 

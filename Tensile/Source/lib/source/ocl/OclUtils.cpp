@@ -24,14 +24,37 @@
  *
  *******************************************************************************/
 
-#include <CL/cl.hpp>
+#include <CL/cl2.hpp>
+#include <CL/cl_ext.h>
+
+#include <Tensile/AMDGPU.hpp>
 #include <Tensile/Utils.hpp>
+#include <Tensile/ocl/OclHardware.hpp>
 #include <Tensile/ocl/OclUtils.hpp>
 
 // std includes
 #include <fstream>
 #include <string>
 #include <vector>
+
+namespace cl
+{
+    std::ostream& operator<<(std::ostream& stream, Buffer buffer)
+    {
+        return stream << static_cast<void*>(buffer());
+    }
+
+    // Add some definitions for extended device queries (cl_ext.h)
+    namespace detail
+    {
+        CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_BOARD_NAME_AMD, std::string);
+        CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info, CL_DEVICE_MAX_WORK_GROUP_SIZE_AMD, size_t);
+        CL_HPP_DECLARE_PARAM_TRAITS_(cl_device_info,
+                                     CL_DEVICE_TOPOLOGY_AMD,
+                                     cl_device_topology_amd);
+    }
+
+} // namespace cl
 
 namespace Tensile
 {
@@ -62,43 +85,126 @@ namespace Tensile
                                      std::vector<unsigned char> const& bytes)
         {
             std::vector<cl_int> binErrs;
-            cl_int              err = 0;
-            cl::Program         program
-                = cl::Program{context, devices, {{bytes.data(), bytes.size()}}, &binErrs, &err};
-
-            if(err != CL_SUCCESS)
-            {
-                throw std::runtime_error(
-                    concatenate("Failed to create program from binary file with code: ", err));
-            }
+            cl::Program         program = cl::Program{context, devices, {bytes}, &binErrs, nullptr};
 
             for(auto& binErr : binErrs)
             {
                 if(binErr != CL_SUCCESS)
                 {
-                    throw std::runtime_error(concatenate("Binary error with code: ", binErr));
+                    throw cl::Error(binErr, "Binary error code in Program creation");
                 }
             }
 
-            if((err = program.build(devices)) != CL_SUCCESS)
-            {
-                auto buildLog = program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(devices[0]);
-
-                throw std::runtime_error(
-                    concatenate("Build error with code: ", err, ": ", buildLog));
-            }
+            program.build(devices);
 
             return program;
+        }
+
+        oclDeviceProp_t clGetDevicePropertiesAMD()
+        {
+            auto device = cl::Device::getDefault();
+            return clGetDevicePropertiesAMD(device);
+        }
+
+        oclDeviceProp_t clGetDevicePropertiesAMD(int deviceId)
+        {
+            auto context = cl::Context::getDefault();
+            return clGetDevicePropertiesAMD(deviceId, context);
+        }
+
+        oclDeviceProp_t clGetDevicePropertiesAMD(int deviceId, cl::Context context)
+        {
+            auto devices = context.getInfo<CL_CONTEXT_DEVICES>();
+
+            if(0 <= deviceId && deviceId < devices.size())
+            {
+                return clGetDevicePropertiesAMD(devices[deviceId]);
+            }
+            else
+            {
+                throw cl::Error(CL_INVALID_DEVICE, "Device index out of range");
+            }
+        }
+
+        AMDGPU::Processor toProcessorId(std::string const& deviceString)
+        {
+            if(deviceString.find("gfx803") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx803;
+            }
+            else if(deviceString.find("gfx900") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx900;
+            }
+            else if(deviceString.find("gfx906") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx906;
+            }
+            else if(deviceString.find("gfx908") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx908;
+            }
+            else if(deviceString.find("gfx910") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx90a;
+            }
+            else if(deviceString.find("gfx1010") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx1010;
+            }
+            else if(deviceString.find("gfx1011") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx1011;
+            }
+            else if(deviceString.find("gfx1012") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx1012;
+            }
+            else if(deviceString.find("gfx1030") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx1030;
+            }
+            else
+            {
+                return static_cast<AMDGPU::Processor>(0);
+            }
+        }
+
+        oclDeviceProp_t clGetDevicePropertiesAMD(cl::Device device)
+        {
+            auto            topology         = device.getInfo<CL_DEVICE_TOPOLOGY_AMD>();
+            auto            maxWorkItemSizes = device.getInfo<CL_DEVICE_MAX_WORK_ITEM_SIZES>();
+            auto            maxWorkGroupSize = device.getInfo<CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS>();
+            oclDeviceProp_t result           = {
+                device.getInfo<CL_DEVICE_BOARD_NAME_AMD>(), //std::string name;
+                device.getInfo<CL_DEVICE_GLOBAL_MEM_SIZE>(), // size_t totalGlobalMem;
+                device.getInfo<
+                    CL_DEVICE_LOCAL_MEM_SIZE>(), // size_t sharedMemPerBlock; CL_DEVICE_LOCAL_MEM_SIZE
+                (int)device.getInfo<
+                    CL_DEVICE_WAVEFRONT_WIDTH_AMD>(), //int warpSize; CL_WARP_SIZE_NV CL_DEVICE_WAVEFRONT_WIDTH_AMD
+                (int)device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE_AMD>(), //int maxThreadsPerBlock;
+                {0, 0, 0}, //int maxThreadsDim[3];
+                {std::numeric_limits<int>::max(),
+                 std::numeric_limits<int>::max(),
+                 std::numeric_limits<int>::max()}, //int maxGridSize[3];
+                (int)device.getInfo<CL_DEVICE_MAX_CLOCK_FREQUENCY>()
+                    * 1000, //int clockRate; CL_DEVICE_MAX_CLOCK_FREQUENCY
+                (int)device.getInfo<
+                    CL_DEVICE_MAX_COMPUTE_UNITS>(), // int multiProcessorCount; CL_MAX_COMPUTE_UNITS
+                topology.pcie.bus, //int pciBusID; CL_DEVICE_TOPOLOGY_AMD / CL_DEVICE_PCI_BUS_ID_NV
+                topology.pcie.device, // int pciDeviceID;
+                device.getInfo<
+                    CL_DEVICE_LOCAL_MEM_SIZE_PER_COMPUTE_UNIT_AMD>(), //size_t maxSharedMemoryPerMultiProcessor;
+                (int)toProcessorId(device.getInfo<CL_DEVICE_NAME>()) //int gcnArch;
+            };
+
+            result.maxThreadsDim[0] = maxWorkItemSizes[0];
+            result.maxThreadsDim[1] = maxWorkItemSizes[1];
+            result.maxThreadsDim[2] = maxWorkItemSizes[2];
+
+            return result;
         }
 
     } // namespace ocl
 
 } // namespace Tensile
-
-namespace cl
-{
-    std::ostream& operator<<(std::ostream& stream, Buffer buffer)
-    {
-        return stream << static_cast<void*>(buffer());
-    }
-} // namespace cl
