@@ -32,6 +32,8 @@ from .Utils import roundUpToNearestMultiple
 from .KernelWriterBetaOnly import KernelWriterBetaOnly
 from .KernelWriterConversion import KernelWriterConversion
 
+from .CustomKernels import isCustomKernelConfig
+
 from collections import namedtuple,OrderedDict
 from copy import deepcopy
 from enum import Enum
@@ -46,6 +48,9 @@ import sys
 ########################################
 # Print a reject message :
 def reject(state, *args):
+  if state and "NoReject" in state and state["NoReject"]:
+    return
+
   if globalParameters["PrintSolutionRejectionReason"]:
     sys.stdout.write("\nreject: ")
     for a in args:
@@ -179,7 +184,8 @@ class Convolution:
         'UseBeta', 'UseInitialStridesAB', "AllowNoFreeDims", \
         ]
   SummarySolutionProperties=[\
-        'AssertSizeEqual', 'AssertStrideAEqual', 'AssertStrideBEqual', \
+        'AssertSizeEqual', 'AssertStrideAEqual', 'AssertStrideBEqual',\
+         'AssertSizeGreaterThan', 'AssertSizeLessThan', "AssertSizeMultiple"
         ]
 
   # valid lowest filter dimensions, these we can attach compile-time constant strides:
@@ -1781,8 +1787,7 @@ class Solution:
         for (key,value) in self["ProblemType"].convolution.solutionParms.items():
             self._state[key]=value
     Solution.assignDerivedParameters(self._state)
-    self._name = None
-
+    self._name = config["CustomKernelName"] if isCustomKernelConfig(config) else None
     self.initHelperKernelObjests()
 
   # these keys are copied from ProblemType to internal that may be overridden
@@ -2827,7 +2832,7 @@ class Solution:
     #  - state["MatrixInstK"], ...
     # Outputs:
     #  - totalVectorsCoalescedA, totalVectorsCoalescedB, totalElementsPerpA, totalElementsPerpB, state["DepthU"]
-    ########################################
+    #######################################
     while True: # exit criteria at end
       validDepthU = True
       # peek LoopIters
@@ -3588,6 +3593,12 @@ class Solution:
     if state["UnrollIncIsDepthU"] and globalParameters["NewClient"] != 2:
       raise RuntimeError ("Legacy client does not support UnrollIncIsDepthU=1 (ASEM issues), aborting")
 
+    # Ensure AssertCEqualsD is always used with LdcEqualsLdd --DISABLED CURRENTLY
+    #if state["AssertCEqualsD"]:
+    #  if not ("LdcEqualsLdd" in state["ProblemType"] and state["ProblemType"]["LdcEqualsLdd"]):
+    #    import pdb; pdb.set_trace()
+    #    reject(state, "AssertCEqualsD requires LdcEqualsLdd=True")
+
     state["AssignedDerivedParameters"] = True
 
 
@@ -3595,17 +3606,20 @@ class Solution:
   # create a dictionary with booleans on whether to include parameter in name
   @staticmethod
   def getMinNaming(objs):
+    nonCKObjs = [obj for obj in objs if not isCustomKernelConfig(obj)]
+
     # early return
-    if len(objs) == 0:
+    if len(nonCKObjs) == 0:
       return {}
+
     # determine keys
     requiredParameters = {}
-    if isinstance(objs[0], Solution):
-      keys = list(objs[0]._state.keys())
+    if isinstance(nonCKObjs[0], Solution):
+      keys = list(nonCKObjs[0]._state.keys())
     else:
-      keys = list(objs[0].keys())
+      keys = list(nonCKObjs[0].keys())
     # only 1, rather than name being nothing, it'll be everything
-    if len(objs) == 1:
+    if len(nonCKObjs) == 1:
       for key in keys:
         if key in list(validParameters.keys()):
           requiredParameters[key] = False
@@ -3613,8 +3627,8 @@ class Solution:
       for key in keys:
         required = False
         if key in list(validParameters.keys()):
-          for i in range(1, len(objs)):
-            if objs[0][key] != objs[i][key]:
+          for i in range(1, len(nonCKObjs)):
+            if nonCKObjs[0][key] != nonCKObjs[i][key]:
               required = True
               break
         if required:
@@ -3634,6 +3648,7 @@ class Solution:
     requiredParameters["MatrixInstB"]       = False # always prepended
     requiredParameters["MatrixInstBM"]      = False # always prepended
     requiredParameters["MatrixInstBN"]      = False # always prepended
+    requiredParameters["CustomKernelName"]  = False # Will not affect naming
 
     requiredParameters["Kernel"]       = True  # distinguish kernels from solutions
                                                # for single-source compilation
@@ -3652,6 +3667,9 @@ class Solution:
   # Get Name Min
   @ staticmethod
   def getNameMin(state, requiredParameters):
+    if isCustomKernelConfig(state):
+      return state["CustomKernelName"]
+
     name = ""
     first = True
     # put problem first
@@ -3674,7 +3692,7 @@ class Solution:
         name += "SN_"
     for key in sorted(state.keys()):
       if key in requiredParameters and key[0] != '_':
-        if requiredParameters[key]:
+        if requiredParameters[key] and key != "CustomKernelName":
           if not first:
             name += "_"
           else:

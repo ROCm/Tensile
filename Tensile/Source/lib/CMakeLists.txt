@@ -41,6 +41,7 @@ set(tensile_sources  ${tensile_sources}
     source/KernelArguments.cpp
     source/KernelLanguageTypes.cpp
     source/PerformanceMetricTypes.cpp
+    source/ScalarValueTypes.cpp
     source/TensorDescriptor.cpp
     source/TensorOps.cpp
     source/Tensile.cpp

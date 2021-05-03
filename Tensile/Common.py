@@ -254,6 +254,9 @@ globalParameters["MinKForGSU"] = 256 # min K size to use GlobalSplitU algorithm 
 # control if a solution is run for a given problem
 globalParameters["GranularityThreshold"] = 0.0
 
+# directory where custom kernels are located
+globalParameters["CustomKernelDirectory"] = os.path.join(os.path.dirname(os.path.realpath(__file__)), "CustomKernels")
+
 globalParameters["PristineOnGPU"] = True # use Pristine memory on Tensile trainning verification or not
 
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
@@ -669,7 +672,17 @@ validParameters = {
     # Assertions that require stride to be specified value.
     # Dictionary of pairs of {index, constValue}.
     # Index is a member of the global index assignments.
-    "AssertSizeEqual":    -1,
+    "AssertSizeEqual":       -1,
+    "AssertSizeGreaterThan": -1,
+    "AssertSizeLessThan":    -1,
+    "AssertSizeMultiple":    -1,
+
+    #Assert values for alpha and beta
+    "AssertBetaValue":       [False, 1, -1],
+    "AssertAlphaValue":      [False, 1, -1],
+
+    #Assert C==D
+    "AssertCEqualsD": [False, True],
 
     # Generate code inside kernel to check Assertions on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
@@ -1041,6 +1054,25 @@ validParameters = {
     # Replaces assembly kernels if they are found in the directory Tensile/Tensile/ReplacementKernels
     "ReplacementKernel":          [False, True],
 
+    # Name of the custom kernel located in globalParameters["CustomKernelDirectory"].
+    # a custom kernel is a user written assembly kernel with its associated configuration parameters included in a custom.config section
+    # inside the yaml block between the --- and ... markers.  These parameters are only used for information purposes, not kernel generation.
+    # Ex:
+    # custom.config:
+    #   ProblemType:
+    #     OperationType: GEMM
+    #     etc...
+    #   ThreadTile: [8, 8]
+    #   etc...
+    #
+    # Custom kernels can be included in a BenchmarkProblemSizeGroup by having their name (without file extension) listed under the "CustomKernels"
+    # category alongside InitialSolutionParameters, BenchmarkCommonParameters, etc...
+    "CustomKernelName":            -1,
+
+    # Will allow a kernel to be accepted even when checks determine it's not viable.
+    # Intended for use with custom kernels which have confirmed to be correct
+    "NoReject":                    [False, True],
+
     "MinVgprNumber":                list(range(0,256)),
 
     "MaxVgprNumber":                list(range(0,257)),
@@ -1108,6 +1140,12 @@ defaultBenchmarkCommonParameters = [
     {"AssertStrideCEqual":        [ {} ] },
     {"AssertStrideDEqual":        [ {} ] },
     {"AssertSizeEqual":           [ {} ] },
+    {"AssertSizeGreaterThan":     [ {} ] },
+    {"AssertSizeMultiple":        [ {} ] },
+    {"AssertSizeLessThan":        [ {} ] },
+    {"AssertAlphaValue":          [ False ]},
+    {"AssertBetaValue":           [ False ]},
+    {"AssertCEqualsD":            [ False ]},
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
@@ -1153,6 +1191,8 @@ defaultBenchmarkCommonParameters = [
     {"NonTemporalA":              [ 0 ] },
     {"NonTemporalB":              [ 0 ] },
     {"ReplacementKernel":         [ False ] },
+    {"CustomKernelName":          [ "" ] },
+    {"NoReject":                  [ False ]},
     {"MinVgprNumber":             [0]},
     {"MaxVgprNumber":             [256]},
     {"StoreRemapVectorWidth":     [ 0 ] },

@@ -23,6 +23,7 @@ from . import Code
 from . import Common
 from .Common import globalParameters, CHeader, roundUp
 from .ReplacementKernels import ReplacementKernels
+from .CustomKernels import isCustomKernelConfig
 from .SolutionStructs import Solution
 
 import abc
@@ -3592,7 +3593,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # get kernel name
   ##############################################################################
   def getKernelFileBase(self, kernel):
-    if globalParameters["ShortNames"]:
+    if isCustomKernelConfig(kernel):
+      fileBase = kernel["CustomKernelName"]
+    elif globalParameters["ShortNames"]:
       fileBase = Solution.getNameSerial(kernel, self.kernelSerialNaming)
     else:
       fileBase = self.shortenFileBase(kernel)
@@ -3699,11 +3702,15 @@ for codeObjectFileName in codeObjectFileNames:
     return bytearrayFileName
 
   def getReplacementKernelPath(self, kernel):
-    if not kernel["ReplacementKernel"]:
+    if not kernel["ReplacementKernel"] and not isCustomKernelConfig(kernel): #kernel["CustomKernelName"]:
       return None
 
     kernelName = self.getKernelName(kernel)
-    return ReplacementKernels.Get(kernelName)
+
+    if isCustomKernelConfig(kernel):
+      return os.path.join(globalParameters["CustomKernelDirectory"], (kernelName + ".s"))
+    else: # Replacement kernel
+      return ReplacementKernels.Get(kernelName)
 
   def shortenFileBase(self, kernel):
     base = self.getKernelName(kernel)
@@ -3734,11 +3741,25 @@ for codeObjectFileName in codeObjectFileNames:
     if replacementKernel is not None:
       self.tPA = tensorParametersA = {}
       self.tPB = tensorParametersB = {}
-      self.initKernel(kernel, tensorParametersA, tensorParametersB )
+      if isCustomKernelConfig(kernel):
+        kernelFoundMessage = "Custom kernel filename "
+        # ISA version, such as 803
+        self.kernel = kernel
+        self.language = "ASM"
+        self.version = globalParameters["CurrentISA"]
+        if "ISA" in kernel:
+          self.version = tuple(kernel["ISA"])
+        if not globalParameters["AsmCaps"][self.version]["SupportedISA"]:
+          defaultIsa = (9,0,0)
+          print("warning: ISA:", self.version, " is not supported; overriding with ", defaultIsa)
+          self.version = defaultIsa
+      else:
+        kernelFoundMessage = "replacement_assemblyFilename "
+        self.initKernel(kernel, tensorParametersA, tensorParametersB )
 
       shutil.copyfile(replacementKernel, assemblyFileName)
       if globalParameters["PrintLevel"] >= 1:
-        print("replacement_assemblyFilename %s" % assemblyFileName)
+        print(kernelFoundMessage + assemblyFileName)
     else:
       kernelSource = self.getKernelSource(kernel)
 

@@ -94,6 +94,13 @@ namespace Tensile
         }
     }
 
+    template <typename T, size_t N>
+    inline std::ostream& operator<<(std::ostream& stream, std::array<T, N> const& array)
+    {
+        streamJoin(stream, array, ", ");
+        return stream;
+    }
+
     template <typename T>
     inline std::ostream& stream_write(std::ostream& stream, T const& val)
     {
@@ -122,13 +129,6 @@ namespace Tensile
             return "";
 
         return concatenate(vals...);
-    }
-
-    template <typename T, size_t N>
-    inline std::ostream& operator<<(std::ostream& stream, std::array<T, N> const& array)
-    {
-        streamJoin(stream, array, ", ");
-        return stream;
     }
 
     class StreamRead
