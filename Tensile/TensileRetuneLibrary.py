@@ -60,6 +60,8 @@ def parseCurrentLibrary(libPath, skipRK):
 
     if skipRK:
         solutions = [s for s in solutions if not s["ReplacementKernel"]]
+        for i, s in enumerate(solutions):
+            s["SolutionIndex"] = i
 
     problemSizes = ProblemSizes(problemType, sizes)
 
