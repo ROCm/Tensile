@@ -1715,6 +1715,18 @@ def printCapTable(parameters):
 
   printTable([headerRow] + asmCapRows + archCapRows)
 
+def which(p):
+    exes = [p+x for x in ['', '.exe', '.bat']]
+    system_path = os.environ['PATH'].split(os.pathsep)
+    if p == 'hipcc' and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
+        return os.environ['CMAKE_CXX_COMPILER']
+    for dirname in system_path+[globalParameters["ROCmBinPath"]]:
+        for exe in exes:
+            candidate = os.path.join(os.path.expanduser(dirname), exe)
+            if os.path.isfile(candidate):
+                return candidate
+    return None
+
 ################################################################################
 ################################################################################
 def assignGlobalParameters( config ):
@@ -1837,10 +1849,11 @@ def assignGlobalParameters( config ):
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
   try:
     if os.name == "nt":
-      compiler = "hipcc.bat"
+      compileArgs = ['perl'] + [which('hipcc')] + ['--version']
+      output = subprocess.run(compileArgs, check=True, stdout=subprocess.PIPE).stdout.decode()
     else:
       compiler = "hipcc"
-    output = subprocess.run([compiler, "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
+      output = subprocess.run([compiler, "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
 
     for line in output.split('\n'):
       if 'HIP version' in line:

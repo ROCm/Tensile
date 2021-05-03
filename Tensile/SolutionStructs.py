@@ -819,7 +819,7 @@ class Convolution:
 ################################################################################
 # ProblemType
 # name of solution should begin with name of problemType, and arguments can be listed out explicitly
-class ProblemType(collections.abc.Mapping):
+class ProblemType(Mapping):
   ########################################
   def __init__(self, config):
     self.state = {}

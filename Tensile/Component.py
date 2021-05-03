@@ -77,8 +77,8 @@ def PartialMatch(pattern, obj, debug=False, level=0):
             if debug:
                 print("{indent}call({obj}) == False".format(indent=indent, obj=obj))
             return False
-    elif isinstance(pattern, collections.abc.Mapping) and \
-         isinstance(obj, collections.abc.Mapping):
+    elif isinstance(pattern, Mapping) and \
+         isinstance(obj, Mapping):
         for key, value in pattern.items():
             if key not in obj:
                 if debug:
