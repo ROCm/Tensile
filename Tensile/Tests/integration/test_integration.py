@@ -40,7 +40,7 @@ def getLogicFileDir(builddir):
   # selected files to destination folder
   cmd = """#!/bin/bash
   set -x
-  wget -nc https://api.github.com/repos/ROCmSoftwarePlatform/rocBLAS/releases/latest | tee log
+  wget -nc https://api.github.com/repos/ROCmSoftwarePlatform/rocBLAS/releases/latest
   weblink=$(grep -oP '(?<="zipball_url": ")[a-zA-Z:/\.\-0-9]*' latest)
   wget -nc $weblink
   archive=$(basename $weblink)
