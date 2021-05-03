@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -186,14 +186,10 @@ namespace Tensile
 
         void CSVStackFile::setValueForKey(std::string const& key, double const& value)
         {
-            if(value > 0.01)
-            {
-                std::ostringstream ss;
-                ss << std::fixed << std::setprecision(2) << value;
-                setValueForKey(key, ss.str());
-            }
-            else
-                setValueForKey(key, boost::lexical_cast<std::string>(value));
+
+            std::ostringstream ss;
+            ss << std::setprecision(6) << value;
+            setValueForKey(key, ss.str());
         }
     } // namespace Client
 } // namespace Tensile
