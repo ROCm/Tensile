@@ -177,7 +177,7 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       launcher = shlex.split(os.environ.get('Tensile_CXX_COMPILER_LAUNCHER', ''))
 
       if os.name == "nt":
-        hipFlags += ['-fms-extensions', '-fms-compatibility', '-fPIC', '-Wno-deprecated-declarations']
+        hipFlags += ['-std=c++14', '-fms-extensions', '-fms-compatibility', '-fPIC', '-Wno-deprecated-declarations']
         compileArgs = launcher + [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', os.path.join(buildPath, objectFilename)]
       else:
         compileArgs = launcher + [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', os.path.join(buildPath, objectFilename)]
