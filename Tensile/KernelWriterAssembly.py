@@ -10710,8 +10710,11 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx, rpv, \
                   addr0, addr1, addrCalc.globalOffset, ntStr)
       elif kernel["ProblemType"]["DestDataType"].isDouble() or kernel["ProblemType"]["DestDataType"].isSingleComplex():
-        kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx*2, rpv, \
-                  addr0, addr1, addrCalc.globalOffset, ntStr)
+        if kernel["AtomicAddC"] and not edge:
+          kStr += inst("buffer_atomic_add_f64", vgpr(sumIdx*2, 2), vgpr(addrCalc.addrVgpr), sgpr("SrdD", 4), "0", "offen offset:{}".format(addrCalc.globalOffset), "AtomicAddC")
+        else:
+          kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx*2, rpv, \
+                    addr0, addr1, addrCalc.globalOffset, ntStr)
       elif kernel["ProblemType"]["DestDataType"].isDoubleComplex():
         rps = kernel["ProblemType"]["DestDataType"].numRegisters()
         kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx*rps, rpv, \
@@ -10953,7 +10956,9 @@ class KernelWriterAssembly(KernelWriter):
       if edge:
         kStr += addrCalc.edgeProtectCode(kernel, edge, beta, atomic, mask, tmpSgpr)
 
-      if beta:
+      atomicAddC = kernel["AtomicAddC"] and not edge
+
+      if beta and not atomicAddC:
         kStr += addrCalc.emitLdChange(kernel, ss, 'C', edge, beta, mask, (elementIdx == 0), tmpVgpr, addr, addrC)
         kStr += self.readCInput(kernel, ss, addrCalc, vc0, data, gwvw, addr, tmpS01)
         loadsIssued += 1
@@ -11418,7 +11423,8 @@ class KernelWriterAssembly(KernelWriter):
             vmcnt = min(vmcnt, maxVmcnt)
             #print "wmvcnt=", vmcnt
             kStr += "\n"
-            kStr += inst("s_waitcnt", "vmcnt(%u)"%vmcnt, "wait C (interleaved) " + vmComment)
+            if not atomicAddC:
+              kStr += inst("s_waitcnt", "vmcnt(%u)"%vmcnt, "wait C (interleaved) " + vmComment)
 
             # PreLoop LWVmcnt: When a vmcnt(cnt) is inserted here, means the GlobalLoad for PAP is finished
             # So the preLoopVmcntDict value is meaningless since we no longer need to wait in next PreLoop
@@ -11482,8 +11488,9 @@ class KernelWriterAssembly(KernelWriter):
 
             elif kernel["ProblemType"]["DestDataType"].isDouble():
               # dataV+0 = new c = old c*beta
-              kStr += inst("v_fma_f64", vgpr("ValuC+%u"%(sumIdxV*2),2), vgpr(dataV+0,2), sgpr("Beta",2), vgpr("ValuC+%u"%(sumIdxV*2),2), \
-                  "finalSum = sum*alpha + C*beta")
+              if not atomicAddC:
+                kStr += inst("v_fma_f64", vgpr("ValuC+%u"%(sumIdxV*2),2), vgpr(dataV+0,2), sgpr("Beta",2), vgpr("ValuC+%u"%(sumIdxV*2),2), \
+                    "finalSum = sum*alpha + C*beta")
 
             # single precision complex
             elif kernel["ProblemType"]["DestDataType"].isSingleComplex():
