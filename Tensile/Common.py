@@ -877,6 +877,12 @@ validParameters = {
     # 0 means issue instructions as many as possible if VGPR available
     "NumElementsPerBatchStore":   list(range(0, 256)),
     #
+    # add sync after per batch store in order to store contiguous elements
+    # add sleep after per batch store in order to distribute store over whole loops
+    # NOTE: this parameter is highly depends on size_k
+    # 0 means no sync and sleep
+    "StoreSyncOpt":               list(range(0, 256)),
+    #
     # There are index or address calculation between global instructions.
     # issue global instruction b2b has better performance
     "GroupLoadStore":             [False, True],
@@ -1263,6 +1269,7 @@ defaultBenchmarkCommonParameters = [
     {"AtomicAddC":                [ False ] },
     {"StorePriorityOpt":          [ False ] },
     {"NumElementsPerBatchStore":  [ 0 ] },
+    {"StoreSyncOpt":              [ 0 ] },
     {"GroupLoadStore":            [ False ] },
     ]
 # benchmark these solution independently

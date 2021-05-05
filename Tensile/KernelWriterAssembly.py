@@ -10984,6 +10984,11 @@ class KernelWriterAssembly(KernelWriter):
 
     kStr += self.comment1("optSingleColVgpr=%u optSharedColVgpr=%u optSGPRUsage=%s optSrdIncForRow=%u" % \
               (ss.optSingleColVgpr, ss.optSharedColVgpr, ss.optSGPRUsage, ss.optSrdIncForRow))
+
+    if kernel["StoreSyncOpt"]:
+      kStr += "s_sleep %d // optimization: sync and wait\n" %(kernel["StoreSyncOpt"]-1)
+      kStr += "s_barrier\n"
+
     if atomic:
       # all kinds of code relies on this assumption:
       assert(atomicW <= gwvw)
@@ -11104,6 +11109,10 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_mov_b{}".format(kernel["WavefrontSize"]), self.exec, -1, "full mask -1 -> exec" )
 
     kStr += loadCInputCode
+
+    if beta and kernel["StoreSyncOpt"]:
+      kStr += "s_sleep %d // optimization: sync and wait\n" %(kernel["StoreSyncOpt"]-1)
+      kStr += "s_barrier\n"
 
     ########################################
     # AccVgpr read
