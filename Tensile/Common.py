@@ -1817,6 +1817,9 @@ def assignGlobalParameters( config ):
     if globalParameters["CurrentISA"] == (0,0,0):
       printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
     if process.returncode:
+      if os.name == "nt":
+        globalParameters["CurrentISA"] = (9,0,6)
+        printWarning("Failed to detect so forcing (gfx906) on windows")
       printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
 
   # TODO Remove this when rocm-smi supports gfx90a
