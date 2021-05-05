@@ -1913,10 +1913,12 @@ def popWorkingPath():
   else:
     globalParameters["WorkingPath"] = workingDirectoryStack.pop()
 def ensurePath( path ):
+  if os.path.exists(os.path.normcase(path)):
+    return path
   try:
     os.makedirs(path)
   except OSError:
-    pass
+    printExit("Failed to create directory \"%s\" " % (path) )
   return path
 def setWorkingPath( fullPathName ):
   # Warning: this is not thread-safe, modifies the global WorkingPath!
