@@ -3242,6 +3242,17 @@ class Solution:
         reject(state, "SourceSwap not compatibile with StoreRemap")
         return
 
+    if state["AtomicAddC"]:
+      if not state["ProblemType"]["DataType"].isDouble():
+        reject(state, "AtomicAddC currently only available for dgemm")
+        return
+      if state["AssertBetaValue"] != 1:
+        reject(state, "AtomicAddC requires AssertBetaValue = 1")
+        return
+      if not state["AssertCEqualsD"]:
+        reject(state, "AtomicAddC requires AssertCEqualsD")
+        return
+
     #check not support cases and calculate lds resources
     if state["StoreRemapVectorWidth"]:
       if not state["EnableMatrixInstruction"]:
