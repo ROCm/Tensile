@@ -81,7 +81,7 @@ class DataType:
             'char': 'Z',
             'name': 'complexDouble',
             'nameAbbrev': 'f64c',
-            'miOutTypeNameAbbrev': 'NONE', # not supported for MI
+            'miOutTypeNameAbbrev': 'f64',
             'enum': 'ComplexDouble',
             'reg': 4,
             'ocl': 'double2',
