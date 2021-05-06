@@ -93,6 +93,7 @@ namespace Tensile
         };
 
         std::ostream& operator<<(std::ostream& stream, SolutionAdapter const& adapter);
+        std::ostream& operator<<(std::ostream& stream, std::shared_ptr<SolutionAdapter> const& ptr);
 
     } // namespace ocl
 } // namespace Tensile

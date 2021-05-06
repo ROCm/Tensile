@@ -26,31 +26,31 @@
 
 #include <gtest/gtest.h>
 
-#include "HipBackend.hpp"
+#include "OclBackend.hpp"
 #include "RunGEMMKernelTest.hpp"
 
 using namespace Tensile;
 
-// Create kernel tests and inputs with HIP backend
-using RunGEMMKernelTestHip       = RunGEMMKernelTest<HipBackend>;
-using RunGEMMKernelTestHipParams = RunGEMMKernelTestParams<HipBackend>;
+// Differentiate now on the OclBackend
+using RunGEMMKernelTestOcl       = RunGEMMKernelTest<OclBackend>;
+using RunGEMMKernelTestOclParams = RunGEMMKernelTestParams<OclBackend>;
 
-// Define which tests we want to run with HIP
-TEST_P(RunGEMMKernelTestHip, TestBestSolution)
+// Define GEMMKernelTest for OpenCL
+TEST_P(RunGEMMKernelTestOcl, TestBestSolution)
 {
     auto param     = GetParam();
     auto typedTest = std::get<0>(param);
     typedTest->TestBestSolution();
 }
 
-TEST_P(RunGEMMKernelTestHip, TestAllSolutions)
+TEST_P(RunGEMMKernelTestOcl, TestAllSolutions)
 {
     auto param     = GetParam();
     auto typedTest = std::get<0>(param);
     typedTest->TestAllSolutions();
 }
 
-TEST_P(RunGEMMKernelTestHip, TestAlphaZero)
+TEST_P(RunGEMMKernelTestOcl, TestAlphaZero)
 {
     auto param     = GetParam();
     auto typedTest = std::get<0>(param);
@@ -58,7 +58,7 @@ TEST_P(RunGEMMKernelTestHip, TestAlphaZero)
     typedTest->TestBestSolution();
 }
 
-TEST_P(RunGEMMKernelTestHip, TestAlphaZeroSigned)
+TEST_P(RunGEMMKernelTestOcl, TestAlphaZeroSigned)
 {
     auto param     = GetParam();
     auto typedTest = std::get<0>(param);
@@ -66,7 +66,7 @@ TEST_P(RunGEMMKernelTestHip, TestAlphaZeroSigned)
     typedTest->TestBestSolution();
 }
 
-TEST_P(RunGEMMKernelTestHip, TestAlphaZeroABNull)
+TEST_P(RunGEMMKernelTestOcl, TestAlphaZeroABNull)
 {
     auto param     = GetParam();
     auto typedTest = std::get<0>(param);
@@ -85,11 +85,10 @@ TEST_P(RunGEMMKernelTestHip, TestAlphaZeroABNull)
     ASSERT_EQ(fail, false);
 }
 
-// Enqueue the hip tests
 INSTANTIATE_TEST_SUITE_P(
-    HipSolutionAdapter,
-    RunGEMMKernelTestHip,
-    ::testing::Combine(::testing::ValuesIn(RunGEMMKernelTestHipParams::TypedTests()),
-                       ::testing::ValuesIn(RunGEMMKernelTestHipParams::TestProblems()),
-                       ::testing::ValuesIn(RunGEMMKernelTestHipParams::TestLibraries()),
-                       ::testing::ValuesIn(RunGEMMKernelTestHipParams::TestMemoryAlignments())));
+    OclSolutionAdapter,
+    RunGEMMKernelTestOcl,
+    ::testing::Combine(::testing::ValuesIn(RunGEMMKernelTestOclParams::TypedTests()),
+                       ::testing::ValuesIn(RunGEMMKernelTestOclParams::TestProblems()),
+                       ::testing::ValuesIn(RunGEMMKernelTestOclParams::TestLibraries()),
+                       ::testing::ValuesIn(RunGEMMKernelTestOclParams::TestMemoryAlignments())));

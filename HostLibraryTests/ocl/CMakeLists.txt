@@ -23,6 +23,7 @@ add_dependencies(copy_ocl_kernels_lite_mixed OCL_LITE_MIXED_LIBRARY_TARGET)
 
 set(test_sources ${test_sources}
     ocl/OclSolutionAdapter_test.cpp
+    ocl/RunGEMMKernel_test.cpp
     PARENT_SCOPE)
 
 set(OCL_TEST_LIBRARIES ocl_test_kernels_lite_mixed PARENT_SCOPE)
