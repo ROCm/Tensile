@@ -3565,8 +3565,11 @@ class Solution:
           if latencyLeft < 0:
             numMfmaForNextLoopLR += 1
             latencyLeft = max(miLatencyLeft - issueLatencyB*2,0)
-        # in PGR2, we need 2 mfma for global read increments
-        lwStartMfmaIndex = 2
+        # In PGR2, localWrites should be scheduled after globalReadInc
+        numGRIncInst = 12 if not state["StaggerU"] else 18
+        numInstPerMfma = max(roundUp(miLatencyLeft/2),1)
+        numMfmaToSched = roundUp(numGRIncInst/numInstPerMfma)
+        lwStartMfmaIndex = 1 + numMfmaToSched
         # for 1LDSB, we have to issue localwrites after localreads
         if state["1LDSBuffer"] and numVgprBuffer >= state["LoopIters"]:
           if numReadPerVectorA != 1 or numReadPerVectorB !=1:

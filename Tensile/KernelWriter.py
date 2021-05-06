@@ -243,14 +243,37 @@ class KernelWriter(metaclass=abc.ABCMeta):
       itemsGRToSched = itemsGRToSchedTemp
 
       itemsGRIncToSched = []
-      itemsGRIncToSched.append(globalReadIncACode)
-      for i in range(numEmptyGlobalReadIncCode):
-        imod = Code.Module()
-        itemsGRIncToSched.append(imod)
-      itemsGRIncToSched.append(globalReadIncBCode)
-      for i in range(numEmptyGlobalReadIncCode):
-        imod = Code.Module()
-        itemsGRIncToSched.append(imod)
+      if kernel["EnableMatrixInstruction"] and kernel["ScheduleIterAlg"] == 3:
+        # skip to schedule global read for PGR2 first mfma
+        if kernel["PrefetchGlobalRead"] == 2:
+          for i in range(numEmptyGlobalReadIncCode+1):
+            imod = Code.Module()
+            itemsGRIncToSched.append(imod)
+        numInst = globalReadIncACode.countType(Code.Inst) + globalReadIncBCode.countType(Code.Inst)
+        numInstPerMfma = max(roundUp(self.miLatencyLeft/2),1)
+        numMfmaToSched = roundUp(numInst/numInstPerMfma)
+        globalReadIncItems = globalReadIncACode.flatitems() + globalReadIncBCode.flatitems()
+        for j in range(numMfmaToSched):
+          imod = Code.Module()
+          count = 0
+          while globalReadIncItems and count < numInstPerMfma:
+            tempInst = globalReadIncItems.pop(0)
+            imod.addCode(tempInst)
+            if tempInst.countType(Code.Inst):
+              count += 1
+          itemsGRIncToSched.append(imod)
+          for i in range(numEmptyGlobalReadIncCode):
+            imod = Code.Module()
+            itemsGRIncToSched.append(imod)
+      else:
+        itemsGRIncToSched.append(globalReadIncACode)
+        for i in range(numEmptyGlobalReadIncCode):
+          imod = Code.Module()
+          itemsGRIncToSched.append(imod)
+        itemsGRIncToSched.append(globalReadIncBCode)
+        for i in range(numEmptyGlobalReadIncCode):
+          imod = Code.Module()
+          itemsGRIncToSched.append(imod)
 
       if kernel["EnableMatrixInstruction"] and kernel["ScheduleIterAlg"] == 3:
         # Loop in PGR1: GlobalRead -> GlobalReadInc -> LocalWrite
