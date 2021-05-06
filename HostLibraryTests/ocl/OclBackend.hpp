@@ -137,7 +137,7 @@ struct OclBackend
             cl_buffer_region subRegion  = {offsetBytes, subBufSize};
             bufferObj.mSubBuf           = bufferObj.mBuf.createSubBuffer(
                 bufFlags, CL_BUFFER_CREATE_TYPE_REGION, &subRegion);
-            return reinterpret_cast<float*>(bufferObj.mSubBuf());
+            return reinterpret_cast<T*>(bufferObj.mSubBuf());
         }
     }
 

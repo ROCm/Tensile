@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -163,9 +163,34 @@ TEST_P(LibraryPerformanceTest, FindCachedSolution)
 
 TEST_P(LibraryPerformanceTest, Solve)
 {
-    float                         a, b, c, d;
-    TypedContractionInputs<float> inputs{&a, &b, &c, &d, 1.0, 2.0};
+    float                                a, b, c, d;
+    ContractionProblem                   problem;
+    std::shared_ptr<ContractionSolution> solution;
 
+    for(int i = 0; i < 10 && solution == nullptr; i++)
+    {
+        problem  = RandomGEMM();
+        solution = library->findBestSolution(problem, hardware);
+
+        if(solutionRequired)
+        {
+            EXPECT_NE(solution, nullptr) << problem;
+        }
+    }
+
+    if(solution)
+    {
+        TypedContractionInputs<float> inputs{&a, &b, &c, &d, 1.0, float(problem.beta())};
+        for(int i = 0; i < 100000; i++)
+        {
+            solution->solve(problem, inputs, hardware);
+        }
+    }
+}
+
+TEST_P(LibraryPerformanceTest, SolveWithLog)
+{
+    float                                a, b, c, d;
     ContractionProblem                   problem;
     std::shared_ptr<ContractionSolution> solution;
 
@@ -180,6 +205,8 @@ TEST_P(LibraryPerformanceTest, Solve)
 
     if(solution)
     {
+        TypedContractionInputs<float> inputs{&a, &b, &c, &d, 1.0, float(problem.beta())};
+        solution->kernelArgsLog = true;
         for(int i = 0; i < 100000; i++)
         {
             solution->solve(problem, inputs, hardware);
@@ -194,13 +221,35 @@ TEST_P(LibraryPerformanceTest, FindAndSolve)
         auto                          problem  = RandomGEMM();
         auto                          solution = library->findBestSolution(problem, hardware);
         float                         a, b, c, d;
-        TypedContractionInputs<float> inputs{&a, &b, &c, &d, 1.0, 2.0};
+        TypedContractionInputs<float> inputs{&a, &b, &c, &d, 1.0, float(problem.beta())};
 
         if(solutionRequired)
             ASSERT_NE(solution, nullptr) << i << problem;
 
         if(solution != nullptr)
             solution->solve(problem, inputs, hardware);
+    }
+}
+
+TEST_P(LibraryPerformanceTest, FindAndSolveWithLog)
+{
+    for(int i = 0; i < 100000; i++)
+    {
+        auto                          problem  = RandomGEMM();
+        auto                          solution = library->findBestSolution(problem, hardware);
+        float                         a, b, c, d;
+        TypedContractionInputs<float> inputs{&a, &b, &c, &d, 1.0, float(problem.beta())};
+
+        if(solutionRequired)
+        {
+            ASSERT_NE(solution, nullptr) << i << problem;
+        }
+
+        if(solution != nullptr)
+        {
+            solution->kernelArgsLog = true;
+            solution->solve(problem, inputs, hardware);
+        }
     }
 }
 

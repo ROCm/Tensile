@@ -53,8 +53,6 @@
 
 using namespace Tensile;
 
-#define ASSERT_RB(exp) ASSERT_EQ((exp), rocblas_status_success)
-
 namespace std
 {
     template <>
@@ -264,7 +262,7 @@ auto TypedGEMMKernelTest<TypedInputs, DeviceBackend>::createProblem(ProblemParam
             a, nop, b, nop, c, nop, d, nop, freeIndices, batchIndices, boundIndices, beta);
     }
 }
-class OclBackend;
+
 template <typename TypedInputs, typename DeviceBackend>
 void TypedGEMMKernelTest<TypedInputs, DeviceBackend>::SetUp(ProblemParams const&       probParams,
                                                             SolutionParams const&      solParams,
