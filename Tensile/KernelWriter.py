@@ -351,14 +351,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadACode.footer)
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadBCode.footer)
 
-    if kernel["1LDSBuffer"]:
-      barrier = Code.Module()
-      barrier.addComment0("1 LDS buffer: read-sync-write")
-      barrier.addInst("s_waitcnt lgkmcnt(0)","")
-      barrier.addInst("s_barrier","")
-      if self.localWriteACode.items():
-        self.localWriteACode.items()[0].items().insert(0,barrier)
-
     # Now schedule the writes:
     if not self.scheduleLocalWrite:
       # if no scheduleLocalWrite - just add writes to localWritelocalWriteEndIter
@@ -680,6 +672,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
         iterCode.addCode(item)
 
       iterCode.addInst("s_setprio ","1","Raise priority while processing macs")
+      if kernel["1LDSBuffer"]:
+        barrier = Code.Module()
+        barrier.addComment0("1 LDS buffer: read-sync-write")
+        barrier.addInst("s_waitcnt lgkmcnt(0)","")
+        barrier.addInst("s_barrier","")
+        iterCode.addCode(barrier)
       iterCode.addCode(localWriteCode)
       iterCode.addCode(pointerLWCode)
       iterCode.addCode(pointerLRCode)
@@ -844,7 +842,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # if start to schedule localwrite, but still have localreads not scheduled yet,
         # reject to use 1LDSB, since it will write and read same lds buffer at same time.
         # TODO: force to schedule all remaining localreads before start to schedule localwrite.
-        if mfmaIndex > self.lwStartMfmaIndex and mfmaIndex <= max(self.lwEndMfmaIndex,self.barrierMfmaIndex) and \
+        if mfmaIndex >= self.lwStartMfmaIndex and mfmaIndex <= max(self.lwEndMfmaIndex,self.barrierMfmaIndex) and \
           localReadItemsThisLoop and kernel["1LDSBuffer"]:
           self.overflowedResources = 5
         for j in range(readLeft):
@@ -884,6 +882,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
         ####
         # scheduled local write
         ####
+        if kernel["1LDSBuffer"] and mfmaIndex == self.lwStartMfmaIndex - 1:
+          barrier = Code.Module()
+          barrier.addComment0("1 LDS buffer: read-sync-write")
+          barrier.addInst("s_waitcnt lgkmcnt(0)","")
+          barrier.addInst("s_barrier","")
+          iterCode.addCode(barrier)
+
         if (mfmaIndex >= self.lwStartMfmaIndex):
           for j in range(self.numLocalWriteModPerMfma):
             # in case there are localWrite and globalread in same iteration
