@@ -32,33 +32,26 @@
 /* Begin Kernel                           */
 /******************************************/
 
-.hsa_code_object_version 2,0
-.hsa_code_object_isa 9, 0, 8, "AMD", "AMDGPU"
+.amdgcn_target "amdgcn-amd-amdhsa--gfx908"
 .text
-.protected Cijk_Alik_Bljk_SB_MT64x128x32_SE_1LDSB0_APM1_ABV0_ACED0_AF0EM8_AF1EM1_AMAS3_ASAE01_ASCE01_ASEM8_AAC0_BL1_DTL0_DVO0_EPS1_FL0_GRVW4_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_LRVW4_MAC_MDA2_NLCA1_NLCB1_ONLL1_OPLV0_PK0_PAP0_PGR1_PLR1_RK1_SIA1_SS0_SU32_SUM0_SUS256_SRVW0_SVW4_SNLL0_TT4_4_TLDS0_USFGRO1_VAW1_VS1_VW4_WSGRA0_WSGRB0_WS64_WG16_32_1_WGM8
-.globl Cijk_Alik_Bljk_SB_MT64x128x32_SE_1LDSB0_APM1_ABV0_ACED0_AF0EM8_AF1EM1_AMAS3_ASAE01_ASCE01_ASEM8_AAC0_BL1_DTL0_DVO0_EPS1_FL0_GRVW4_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_LRVW4_MAC_MDA2_NLCA1_NLCB1_ONLL1_OPLV0_PK0_PAP0_PGR1_PLR1_RK1_SIA1_SS0_SU32_SUM0_SUS256_SRVW0_SVW4_SNLL0_TT4_4_TLDS0_USFGRO1_VAW1_VS1_VW4_WSGRA0_WSGRB0_WS64_WG16_32_1_WGM8
+.protected Translated1
+.globl Translated1
 .p2align 8
-.type Cijk_Alik_Bljk_SB_MT64x128x32_SE_1LDSB0_APM1_ABV0_ACED0_AF0EM8_AF1EM1_AMAS3_ASAE01_ASCE01_ASEM8_AAC0_BL1_DTL0_DVO0_EPS1_FL0_GRVW4_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_LRVW4_MAC_MDA2_NLCA1_NLCB1_ONLL1_OPLV0_PK0_PAP0_PGR1_PLR1_RK1_SIA1_SS0_SU32_SUM0_SUS256_SRVW0_SVW4_SNLL0_TT4_4_TLDS0_USFGRO1_VAW1_VS1_VW4_WSGRA0_WSGRB0_WS64_WG16_32_1_WGM8,@function
-.amdgpu_hsa_kernel Cijk_Alik_Bljk_SB_MT64x128x32_SE_1LDSB0_APM1_ABV0_ACED0_AF0EM8_AF1EM1_AMAS3_ASAE01_ASCE01_ASEM8_AAC0_BL1_DTL0_DVO0_EPS1_FL0_GRVW4_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_LRVW4_MAC_MDA2_NLCA1_NLCB1_ONLL1_OPLV0_PK0_PAP0_PGR1_PLR1_RK1_SIA1_SS0_SU32_SUM0_SUS256_SRVW0_SVW4_SNLL0_TT4_4_TLDS0_USFGRO1_VAW1_VS1_VW4_WSGRA0_WSGRB0_WS64_WG16_32_1_WGM8
-Cijk_Alik_Bljk_SB_MT64x128x32_SE_1LDSB0_APM1_ABV0_ACED0_AF0EM8_AF1EM1_AMAS3_ASAE01_ASCE01_ASEM8_AAC0_BL1_DTL0_DVO0_EPS1_FL0_GRVW4_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_LRVW4_MAC_MDA2_NLCA1_NLCB1_ONLL1_OPLV0_PK0_PAP0_PGR1_PLR1_RK1_SIA1_SS0_SU32_SUM0_SUS256_SRVW0_SVW4_SNLL0_TT4_4_TLDS0_USFGRO1_VAW1_VS1_VW4_WSGRA0_WSGRB0_WS64_WG16_32_1_WGM8:
-.amd_kernel_code_t
-  is_ptr64 = 1
-  enable_sgpr_kernarg_segment_ptr = 1
-  kernarg_segment_byte_size = 148 // bytes of kern args
-  workitem_vgpr_count = 108 // vgprs
-  wavefront_sgpr_count = 98 // sgprs
-  compute_pgm_rsrc1_vgprs = 26 // floor((108-1)/4)
-  compute_pgm_rsrc1_sgprs = 12 // floor((98-1)/8)
-  compute_pgm_rsrc2_tidig_comp_cnt = 0 // 1D wg
-  compute_pgm_rsrc2_tgid_x_en = 1 // wg.x
-  compute_pgm_rsrc2_tgid_y_en = 1 // wg.y
-  compute_pgm_rsrc2_tgid_z_en = 1 // wg.z
-  workgroup_group_segment_byte_size = 60000// lds bytes
-  compute_pgm_rsrc2_user_sgpr = 2 // vcc
-  kernarg_segment_alignment = 4
-  group_segment_alignment = 4
-  private_segment_alignment = 4
-.end_amd_kernel_code_t
+.type Translated1,@function
+.section .rodata,#alloc
+.p2align 6
+.amdhsa_kernel Translated1
+  .amdhsa_user_sgpr_kernarg_segment_ptr 1
+  .amdhsa_next_free_vgpr 108 // vgprs
+  .amdhsa_next_free_sgpr 98 // sgprs
+  .amdhsa_group_segment_fixed_size 60000 // lds bytes
+  .amdhsa_private_segment_fixed_size 0
+  .amdhsa_system_sgpr_workgroup_id_x 1
+  .amdhsa_system_sgpr_workgroup_id_y 1
+  .amdhsa_system_sgpr_workgroup_id_z 1
+  .amdhsa_system_vgpr_workitem_id 0
+.end_amdhsa_kernel
+.text
 
 /******************************************/
 /* Optimizations and Config:              */
@@ -70,178 +63,248 @@ Cijk_Alik_Bljk_SB_MT64x128x32_SE_1LDSB0_APM1_ABV0_ACED0_AF0EM8_AF1EM1_AMAS3_ASAE
 /* DirectToLdsA=False */
 /* DirectToLdsB=False */
 /* UseSgprForGRO=1 */
-.amd_amdgpu_hsa_metadata
-Version: [ 1, 0 ]
-Kernels:
-  - Name: Cijk_Alik_Bljk_SB_MT64x128x32_SE_1LDSB0_APM1_ABV0_ACED0_AF0EM8_AF1EM1_AMAS3_ASAE01_ASCE01_ASEM8_AAC0_BL1_DTL0_DVO0_EPS1_FL0_GRVW4_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_LRVW4_MAC_MDA2_NLCA1_NLCB1_ONLL1_OPLV0_PK0_PAP0_PGR1_PLR1_RK1_SIA1_SS0_SU32_SUM0_SUS256_SRVW0_SVW4_SNLL0_TT4_4_TLDS0_USFGRO1_VAW1_VS1_VW4_WSGRA0_WSGRB0_WS64_WG16_32_1_WGM8
-    SymbolName: 'Cijk_Alik_Bljk_SB_MT64x128x32_SE_1LDSB0_APM1_ABV0_ACED0_AF0EM8_AF1EM1_AMAS3_ASAE01_ASCE01_ASEM8_AAC0_BL1_DTL0_DVO0_EPS1_FL0_GRVW4_GSU1_ISA908_IU1_K1_KLA_LBSPP0_LPA0_LPB0_LDL1_LRVW4_MAC_MDA2_NLCA1_NLCB1_ONLL1_OPLV0_PK0_PAP0_PGR1_PLR1_RK1_SIA1_SS0_SU32_SUM0_SUS256_SRVW0_SVW4_SNLL0_TT4_4_TLDS0_USFGRO1_VAW1_VS1_VW4_WSGRA0_WSGRB0_WS64_WG16_32_1_WGM8@kd'
-    Language: OpenCL C
-    LanguageVersion: [ 2, 0 ]
-    Args:
-      - Name:            sizeC
-        Size:            8
-        Align:           8
-        ValueKind:       ByValue
-        ValueType:       I64
-      - Name:            sizeA
-        Size:            8
-        Align:           8
-        ValueKind:       ByValue
-        ValueType:       I64
-      - Name:            sizeB
-        Size:            8
-        Align:           8
-        ValueKind:       ByValue
-        ValueType:       I64
-      - Name:            D
-        Size:            8
-        Align:           8
-        ValueKind:       GlobalBuffer
-        ValueType:       F32
-        AddrSpaceQual:   Generic
-      - Name:            C
-        Size:            8
-        Align:           8
-        ValueKind:       GlobalBuffer
-        ValueType:       F32
-        AddrSpaceQual:   Generic
-      - Name:            A
-        Size:            8
-        Align:           8
-        ValueKind:       GlobalBuffer
-        ValueType:       F32
-        AddrSpaceQual:   Generic
-      - Name:            B
-        Size:            8
-        Align:           8
-        ValueKind:       GlobalBuffer
-        ValueType:       F32
-        AddrSpaceQual:   Generic
-      - Name:            alpha
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       F32
-      - Name:            beta
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       F32
-      - Name:            strideD0
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            strideD1
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            strideC0
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            strideC1
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            strideA0
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            strideA1
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            strideB0
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            strideB1
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            SizesFree0
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            SizesFree1
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            SizesFree2
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            SizesSum0
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            OrigStaggerUIter
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       I32
-      - Name:            NumWorkGroups0
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            NumWorkGroups1
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            MagicNumberProblemNumGroupTiles0
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            GridNumWorkGroups0
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            NumFullBlocks
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            WgmRemainder1
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            MagicNumberWgmRemainder1
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-      - Name:            padding
-        Size:            4
-        Align:           4
-        ValueKind:       ByValue
-        ValueType:       U32
-    CodeProps:
-      KernargSegmentSize: 148
-      GroupSegmentFixedSize: 60000
-      PrivateSegmentFixedSize: 0
-      KernargSegmentAlign:  8
-      WavefrontSize:        64
-      NumSGPRs:             98
-      NumVGPRs:             108
-      MaxFlatWorkGroupSize: 512
-.end_amd_amdgpu_hsa_metadata
+.amdgpu_metadata
+---
+custom.config:
+  ProblemType:
+    OperationType: GEMM
+    DataType: s
+    TransposeA: True
+    TransposeB: False
+    UseBeta: True
+    Batched: True
+  LdcEqualsLdd: True
+  1LDSBuffer: 0
+  AggressivePerfMode: 1
+  BufferLoad: True
+  DepthU: 32
+  DirectToLds: False
+  DisableVgprOverlapping: False
+  ExpandPointerSwap: True
+  FractionalLoad: 0
+  GlobalReadVectorWidth: 4
+  GlobalSplitU: 1
+  InnerUnroll: 1
+  KernelLanguage: A
+  LdsBlockSizePerPad: 0
+  LdsPadA: 0
+  LdsPadB: 0
+  LocalDotLayout: 1
+  LocalReadVectorWidth: 4
+  MagicDivAlg: 2
+  NumLoadsCoalescedA: 1
+  NumLoadsCoalescedB: 1
+  OptNoLoadLoop: 1
+  OptPreLoopVmcnt: False
+  PersistentKernel: 0
+  PrefetchAcrossPersistent: 0
+  PrefetchGlobalRead: 1
+  PrefetchLocalRead: 1
+  ScheduleIterAlg: 1
+  StaggerU: 32
+  StaggerUMapping: 0
+  StaggerUStride: 256
+  StoreRemapVectorWidth: 0
+  StoreVectorWidth: 4
+  SuppressNoLoadLoop: False
+  ThreadTile: [ 4, 4 ]
+  TransposeLDS: 0
+  UseSgprForGRO: 1
+  VectorAtomicWidth: 1
+  VectorStore: 1
+  VectorWidth: 4
+  WaveSeparateGlobalReadA: 0
+  WaveSeparateGlobalReadB: 0
+  WorkGroup: [ 16, 32, 1 ]
+  WorkGroupMapping: 8
+  ISA: [9, 0, 8]
+  AssertFree0ElementMultiple: 8
+  AssertFree1ElementMultiple: 1
+  AssertMinApproxSize: 3
+  AssertStrideAEqual: {0: 1}
+  AssertStrideCEqual: {0: 1}
+  AssertSummationElementMultiple: 8
+  AssertSizeMultiple: {0: 64, 1: 128, 3: 64}
+  AssertSizeGreaterThan: {3: 191} 
+
+amdhsa.version:
+  - 1
+  - 0
+amdhsa.kernels:
+  - .name: Translated1
+    .symbol: 'Translated1.kd'
+    .language:                   OpenCL C
+    .language_version:
+      - 2
+      - 0
+    .args:
+      - .name:            sizeC
+        .size:            8
+        .offset:          0
+        .value_kind:      by_value
+        .value_type:      u64
+      - .name:            sizeA
+        .size:            8
+        .offset:          8
+        .value_kind:      by_value
+        .value_type:      u64
+      - .name:            sizeB
+        .size:            8
+        .offset:          16
+        .value_kind:      by_value
+        .value_type:      u64
+      - .name:            D
+        .size:            8
+        .offset:          24
+        .value_kind:      global_buffer
+        .value_type:      f32
+        .address_space:   generic
+      - .name:            C
+        .size:            8
+        .offset:          32
+        .value_kind:      global_buffer
+        .value_type:      f32
+        .address_space:   generic
+      - .name:            A
+        .size:            8
+        .offset:          40
+        .value_kind:      global_buffer
+        .value_type:      f32
+        .address_space:   generic
+      - .name:            B
+        .size:            8
+        .offset:          48
+        .value_kind:      global_buffer
+        .value_type:      f32
+        .address_space:   generic
+      - .name:            alpha
+        .size:            4
+        .offset:          56
+        .value_kind:      by_value
+        .value_type:      f32
+      - .name:            beta
+        .size:            4
+        .offset:          60
+        .value_kind:      by_value
+        .value_type:      f32
+      - .name:            strideD0
+        .size:            4
+        .offset:          64
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            strideD1
+        .size:            4
+        .offset:          68
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            strideC0
+        .size:            4
+        .offset:          72
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            strideC1
+        .size:            4
+        .offset:          76
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            strideA0
+        .size:            4
+        .offset:          80
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            strideA1
+        .size:            4
+        .offset:          84
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            strideB0
+        .size:            4
+        .offset:          88
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            strideB1
+        .size:            4
+        .offset:          92
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            SizesFree0
+        .size:            4
+        .offset:          96
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            SizesFree1
+        .size:            4
+        .offset:          100
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            SizesFree2
+        .size:            4
+        .offset:          104
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            SizesSum0
+        .size:            4
+        .offset:          108
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            OrigStaggerUIter
+        .size:            4
+        .offset:          112
+        .value_kind:      by_value
+        .value_type:      i32
+      - .name:            NumWorkGroups0
+        .size:            4
+        .offset:          116
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            NumWorkGroups1
+        .size:            4
+        .offset:          120
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            MagicNumberProblemNumGroupTiles0
+        .size:            4
+        .offset:          124
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            GridNumWorkGroups0
+        .size:            4
+        .offset:          128
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            NumFullBlocks
+        .size:            4
+        .offset:          132
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            WgmRemainder1
+        .size:            4
+        .offset:          136
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            MagicNumberWgmRemainder1
+        .size:            4
+        .offset:          140
+        .value_kind:      by_value
+        .value_type:      u32
+      - .name:            padding
+        .size:            4
+        .offset:          144
+        .value_kind:      by_value
+        .value_type:      u32
+    .group_segment_fixed_size:   60000
+    .kernarg_segment_align:      8
+    .kernarg_segment_size:       152
+    .max_flat_workgroup_size:    512
+    .private_segment_fixed_size: 0
+    .sgpr_count:                 98
+    .sgpr_spill_count:           0
+    .vgpr_count:                 108
+    .vgpr_spill_count:           0
+    .wavefront_size:             64
+...
+.end_amdgpu_metadata
+Translated1:
 
 /******************************************/
 /* Asm syntax workarounds                 */

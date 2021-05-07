@@ -98,7 +98,7 @@ namespace Tensile
                 {
                     m_output.setValueForKey(m_solutionName, value);
 
-                    int64_t gflops = std::stoull(valueStr);
+                    double gflops = std::stod(valueStr);
                     if(m_fastestGflops < gflops)
                     {
                         m_winnerSolution    = m_solutionName;
@@ -233,8 +233,8 @@ namespace Tensile
             m_winnerSolution    = "";
             m_currSolutionIdx   = -1;
             m_winnerSolutionIdx = -1;
-            m_fastestGflops     = -1;
-            m_fasterTimeUS      = -1;
+            m_fastestGflops     = -1.0;
+            m_fasterTimeUS      = -1.0;
 
             if(!m_mergeSameProblems)
             {

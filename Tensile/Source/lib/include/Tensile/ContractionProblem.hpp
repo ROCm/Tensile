@@ -27,6 +27,7 @@
 #include <Tensile/ArithmeticUnitTypes.hpp>
 #include <Tensile/KernelLanguageTypes.hpp>
 #include <Tensile/PerformanceMetricTypes.hpp>
+#include <Tensile/ScalarValueTypes.hpp>
 #include <Tensile/Tensile.hpp>
 
 #include <Tensile/ContractionProblem_fwd.hpp>
@@ -495,6 +496,16 @@ namespace Tensile
             m_convProblemSizes.assign(convProblemSizes.begin(), convProblemSizes.end());
         }
 
+        void setCEqualsD(bool cEqualsD)
+        {
+            m_cEqualsD = cEqualsD;
+        }
+
+        bool cEqualsD() const
+        {
+            return m_cEqualsD;
+        }
+
         void setAlphaType(DataType type)
         {
             m_alphaType = type;
@@ -505,6 +516,16 @@ namespace Tensile
             return m_alphaType;
         }
 
+        void setAlphaRestriction(ScalarValue alpha)
+        {
+            m_alphaRestriction = alpha;
+        }
+
+        ScalarValue alphaRestriction() const
+        {
+            return m_alphaRestriction;
+        }
+
         void setBetaType(DataType type)
         {
             m_betaType = type;
@@ -513,6 +534,16 @@ namespace Tensile
         DataType betaType() const
         {
             return m_betaType;
+        }
+
+        void setBetaRestriction(ScalarValue beta)
+        {
+            m_betaRestriction = beta;
+        }
+
+        ScalarValue betaRestriction() const
+        {
+            return m_betaRestriction;
         }
 
         void setStridedBatched(bool value)
@@ -747,6 +778,7 @@ namespace Tensile
 
         bool              m_transA;
         bool              m_transB;
+        bool              m_cEqualsD                = false;
         bool              m_stridedBatched          = true;
         bool              m_highPrecisionAccumulate = false;
         bool              m_deterministicMode       = false;
@@ -757,6 +789,9 @@ namespace Tensile
 
         DataType m_alphaType = DataType::None; // if not assigned, will follow d-type
         DataType m_betaType  = DataType::None; // for bwd-compatible
+
+        ScalarValue m_alphaRestriction  = ScalarValue::Any; // restrictions on the alpha value used
+        ScalarValue m_betaRestriction   = ScalarValue::Any; // restrictions on the beta value used
 
         FreeIndices  m_freeIndicesA; //< in same order as IndexAssignmentsA
         FreeIndices  m_freeIndicesB; //< in same order as IndexAssignmentsB

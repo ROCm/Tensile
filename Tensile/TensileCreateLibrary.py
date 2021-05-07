@@ -42,6 +42,7 @@ import collections
 import itertools
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -156,7 +157,9 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
       hipFlags += ['-I', outputPath]
 
-      compileArgs = [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', os.path.join(buildPath, objectFilename)]
+      launcher = shlex.split(os.environ.get('Tensile_CXX_COMPILER_LAUNCHER', ''))
+
+      compileArgs = launcher + [which('hipcc')] + hipFlags + archFlags + [kernelFile, '-c', '-o', os.path.join(buildPath, objectFilename)]
 
       if globalParameters["PrintCodeCommands"]:
         print('hipcc:', ' '.join(compileArgs))
