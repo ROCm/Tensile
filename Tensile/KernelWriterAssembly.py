@@ -10742,7 +10742,7 @@ class KernelWriterAssembly(KernelWriter):
                   addr0, addr1, addrCalc.globalOffset, ntStr)
       elif kernel["ProblemType"]["DestDataType"].isDouble() or kernel["ProblemType"]["DestDataType"].isSingleComplex():
         if kernel["AtomicAddC"] and not edge:
-          kStr += inst("buffer_atomic_add_f64", vgpr(sumIdx*2, 2), vgpr(addrCalc.addrVgpr), sgpr("SrdD", 4), "0", "offen offset:{}".format(addrCalc.globalOffset), "AtomicAddC")
+          kStr += inst("buffer_atomic_add_f64", vgpr(sumIdx*2, 2), vgpr(addrCalc.addrDVgpr), sgpr("SrdD", 4), "0", "offen offset:{}".format(addrCalc.globalOffset), "AtomicAddC")
         else:
           kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx*2, rpv, \
                     addr0, addr1, addrCalc.globalOffset, ntStr)
