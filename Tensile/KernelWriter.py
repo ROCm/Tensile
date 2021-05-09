@@ -893,6 +893,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
           barrier.addInst("s_barrier","")
           iterCode.addCode(barrier)
 
+        if kernel["StorePriorityOpt"] and kernel["PrefetchGlobalRead"] == 2 and \
+            mfmaIndex == self.lwStartMfmaIndex:
+          iterCode.addInst("s_setprio 3","store optimization")
+
         if (mfmaIndex >= self.lwStartMfmaIndex):
           for j in range(self.numLocalWriteModPerMfma):
             # in case there are localWrite and globalread in same iteration
@@ -928,6 +932,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if mfmaIndex == self.barrierMfmaIndex and self.numItersPLR:
           iterCode.addCode(waitLWCode)
           iterCode.addCode(syncCode)
+
+        if kernel["StorePriorityOpt"] and kernel["PrefetchGlobalRead"] == 2 and \
+            mfmaIndex == self.barrierMfmaIndex and self.numItersPLR:
+          iterCode.addInst("s_setprio 0","store optimization")
 
         ####
         # scheduled local read for next loop
