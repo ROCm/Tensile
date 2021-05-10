@@ -31,6 +31,7 @@ import os
 import shutil
 import subprocess
 import copy
+from math import ceil
 from itertools import zip_longest
 
 ################################################################################
@@ -114,11 +115,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
     globalReadIncACode  = self.globalReadIncrements.findNamedItem("globalReadIncrementA")
     globalReadIncBCode  = self.globalReadIncrements.findNamedItem("globalReadIncrementB")
 
-    if uDu == 0 and kernel["DepthULdsDivisor"] > 1:
+    if uDu == 0 and kernel.enabledSplitLDS and kernel["PrefetchGlobalRead"]:
       globalReadIncACode  = Code.Module()
       globalReadIncBCode  = Code.Module()
-    
-    if uDu > 0 and kernel["DepthULdsDivisor"] > 1:
+
+    if uDu > 0 and kernel.enabledSplitLDS:
       self.globalReadACode = Code.StructuredModule() # empty
       self.globalReadBCode = Code.StructuredModule() # empty
 
@@ -325,11 +326,41 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # so we offset lwEndMfmaIndex by 1 mfma
       if kernel["PrefetchGlobalRead"] == 2 and self.numLocalWriteModPerMfma % PRECISION != 0:
         numMfmaBetweenLWandBarrier -= 1
-      self.lwEndMfmaIndex = max(self.barrierMfmaIndex - numMfmaBetweenLWandBarrier,0) if self.numItersPLR else numMfmaPerIter*kernel["LoopIters"] - 1
+      def assignParamSplitLds(numMfmaBetweenLWandBarrier):
+        if not kernel.enabledSplitLDS:
+          return numMfmaBetweenLWandBarrier
+        # how many local reads in terms of mfma indices (height)
+        # total number of instructions (total) minus the instructions prefetched outside of loop (spent), divided by mfma bubble (width)
+        issueLatency = max(self.localReadInstructionA.IssueLatency, self.localReadInstructionB.IssueLatency) * 2
+        width = self.miLatencyLeft // issueLatency
+        width = max(width, 1)
+        spent = self.numItersPLR * (self.numReadsPerIterA + self.numReadsPerIterB)
+        total = kernel["LoopIters"]//self.numIterPerCoalescedReadA*self.numReadsPerIterA + \
+                kernel["LoopIters"]//self.numIterPerCoalescedReadB*self.numReadsPerIterB
+        height = int(ceil((total-spent)/width))
+        # how many local writes
+        localWritesToSched = self.localWriteACode.countType(Code.LocalWriteInst) + \
+                             self.localWriteBCode.countType(Code.LocalWriteInst)
+        localWritesPerMfma = self.numLocalWriteModPerMfma // 100 # was scaled 100
+        # _numMfmaBetweenLastLWandBarrier: a function of 'spacing', which is num of mfma instructions until local write starts
+        _numMfmaBetweenLastLWandBarrier = lambda spacing : self.barrierMfmaIndex + 1 - localWritesToSched//localWritesPerMfma - spacing
+        addrIncToSched = sum(1 for codemod in [globalReadIncACode, globalReadIncBCode] if len(codemod.items()))
+        if uDu==0:
+          if kernel["1LDSBuffer"] and kernel["PrefetchLocalRead"] > 1:
+            # space the stream of local writes so that 1st local write is scheduled after last local read,
+            # but give it 2 mfma's worth of headroom
+            spacing = 2 + height
+          else:
+            # can start ds_write/buffer_load as soon as loop starts, but give it 1 mfma's worth of headroom
+            spacing = 1
+        else:
+          # query how much spacing we have by calling lambda(0), minus the original 'numMfmaBetweenLWandBarrier'
+          # we get the spacing that results in exactly 'numMfmaBetweenLWandBarrier' between last write and barrier
+          spacing = _numMfmaBetweenLastLWandBarrier(0) - numMfmaBetweenLWandBarrier + addrIncToSched - 1
+        return max(0, _numMfmaBetweenLastLWandBarrier(spacing))
 
-      if kernel["DepthULdsDivisor"] > 1:
-        # SplitLDS's schedule looks like: # (LW/GR) x N -> (GR address increment) x 2
-        self.lwEndMfmaIndex = min(self.lwEndMfmaIndex + 2, numMfmaPerIter*kernel["LoopIters"] - 1)
+      numMfmaBetweenLWandBarrier = assignParamSplitLds(numMfmaBetweenLWandBarrier)
+      self.lwEndMfmaIndex = max(self.barrierMfmaIndex - numMfmaBetweenLWandBarrier,0) if self.numItersPLR else numMfmaPerIter*kernel["LoopIters"] - 1
       localWriteEndIter = self.lwEndMfmaIndex//numMfmaPerIter
       localWriteEndIter = min(kernel["LoopIters"] - 1, localWriteEndIter)
       assert localWriteEndIter < kernel["LoopIters"]
@@ -358,10 +389,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       # Add all loads from middle as individual schedulable items
       # when using PGR2, put global read instruction right after corresponding localWrite instruction
-      if kernel["PrefetchGlobalRead"] == 2 or kernel["DepthULdsDivisor"] > 1:
+      if kernel["PrefetchGlobalRead"] == 2 or kernel.enabledSplitLDS:
         itemsGRToSched =  []
         itemsGRToSchedLater = list(self.globalReadACode.middle.items()) + \
                          list(self.globalReadBCode.middle.items())
+        if kernel.enabledSetPrioSplitLDS and itemsGRToSchedLater:
+          itemsGRToSchedLater.insert(1, Code.Inst("s_setprio", "3", "top priority for load"))
+          itemsGRToSchedLater.insert(len(itemsGRToSchedLater), Code.Inst("s_setprio", "0", ""))
       else:
         itemsGRToSched =  list(self.globalReadACode.middle.items()) + \
                         list(self.globalReadBCode.middle.items())
@@ -580,11 +614,16 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
           imod.addCode(item)
           # schedule global instrction that need to be scheduled later
-          if itemsGRToSchedLater:
-            if localwriteCnt % PRECISION == (numLocalWritesPerSched % PRECISION):
-              itemGR = itemsGRToSchedLater.pop(0)
+          if localwriteCnt % PRECISION == (numLocalWritesPerSched % PRECISION):
+            reads = 0
+            while itemsGRToSchedLater:
+              itemGR = itemsGRToSchedLater[0]
+              reads = reads + itemGR.countType(Code.GlobalReadInst)
+              if reads > 1:
+                break
               imod.addCode(itemGR)
               readsToWait = readsToWait + itemGR.countType(Code.GlobalReadInst) # GR instruction increments vmcnt
+              itemsGRToSchedLater.pop(0)
           localwriteCnt += 1
           self.perIterLocalWriteCode[u].addCode(imod)
 
@@ -892,6 +931,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 vacancy["letencyLeft"] -= localRead.IssueLatency * 2
                 vacancy["items"].addCode(localRead)
                 localReadItemsThisLoop.remove(localRead)
+                if vacancy["atMfmaIndex"] > self.lwStartMfmaIndex - 1 and kernel["1LDSBuffer"]:
+                  self.overflowedResources = 5
                 # update waitCnt
                 if self.numItersPLR:
                   for readsIter in range(vacancy["atIter"], iteration + self.numItersPLR):
@@ -949,7 +990,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # reject to use 1LDSB, since it will write and read same lds buffer at same time.
         # TODO: force to schedule all remaining localreads before start to schedule localwrite.
         if mfmaIndex >= self.lwStartMfmaIndex and mfmaIndex <= max(self.lwEndMfmaIndex,self.barrierMfmaIndex) and \
-          localReadItemsThisLoop and kernel["1LDSBuffer"]:
+          localReadItemsThisLoop and localWriteCode.countType(Code.LocalWriteInst) and kernel["1LDSBuffer"]:
           self.overflowedResources = 5
         for j in range(readLeft):
           if localReadItemsThisLoop:
@@ -1538,6 +1579,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if isLastLoop:
         extraComment += " (last unrolled loop)"
       else:
+        if kernel.enabledSplitLDS:
+            extraComment += f" (uDu={uDu}) "
         if isResetLroIter:
             extraComment += " (reset local read pointers iteration) "
         if isSwapAndResetLwoIter:
@@ -1853,7 +1896,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       unrollLoopHeaderCodeScheduled = False
       if not kernel["PrefetchGlobalRead"]:
         unrollLoopHeaderCodeScheduled = True
-        self.makeSchedule(kernel, tensorParametersA, tensorParametersB, localWriteEndIter, -1)
+        self.makeSchedule(kernel, tensorParametersA, tensorParametersB, localWriteEndIter)
         kl.append(str(self.unrollLoopHeaderCode))
 
       # if not prefetch global, localWrite before mac's
@@ -1976,6 +2019,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if kernel["ScheduleIterAlg"] == 3:
           isSwapAndResetLwoIter = (u == self.lwEndMfmaIndex//(self.numMfmaPerIter))
         extraComment = ""
+        if kernel.enabledSplitLDS:
+          extraComment += f" (uDu={uDu}) "
         if isResetLroIter:
           extraComment += " (reset local read pointers iteration) "
         if isSwapAndResetLwoIter:
@@ -2346,7 +2391,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.oriLwaA = None # back up original local write address vgpr
       self.oriLwaB = None
       for uDu in range(0, kernel["DepthULdsDivisor"]):
-        if kernel["DepthULdsDivisor"] > 1:
+        if kernel.enabledSplitLDS:
           # change local write poilcy from interleave-K to fractional as tail loop
           # iterate LDS read address one unit of K at a time
           kl.append(self.comment("Recalc local write offsets"))
@@ -2388,7 +2433,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kl.append(self.localReadInitPointers(kernel, tensorParametersB))
         # tail: macs
         kl.append(self.comment("tail loop: macs"))
-        kl.append(self.openLoop(kernel, -1, uDu if kernel["DepthULdsDivisor"]>1 else None))
+        kl.append(self.openLoop(kernel, -1, uDu if kernel.enabledSplitLDS else None))
 
         # Try to use InnerUnroll in the tail loop if allowed:
         KinInnerUnroll = kernel["InnerUnroll"]
@@ -2436,7 +2481,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           else:
             kl.append(self.macIter(kernel, 0, tailLoopInnerUnroll, True, True))
 
-        kl.append(self.closeLoop(kernel, -1, True, uDu if kernel["DepthULdsDivisor"]>1 else None))
+        kl.append(self.closeLoop(kernel, -1, True, uDu if kernel.enabledSplitLDS else None))
     # always emit the skip-tail-loop label
     kl.append(self.closeLoop(kernel, -1, None, emitEndLabelOnly=True))
     # tail: close

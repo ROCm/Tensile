@@ -89,7 +89,7 @@ BenchmarkProblems:
     # test cases for a regression case in scheduler due to recent refactor to do
     # scheduling which depends on the information provided by the instruction type
     #
-    # since some part of the codes were still in form of raw string, they were eff`ectively ignored by the scheduler
+    # since some part of the codes were still in form of raw string, they were effectively ignored by the scheduler
     #
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
