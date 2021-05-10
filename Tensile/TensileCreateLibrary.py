@@ -125,7 +125,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
     return coFiles
 
 def which(p):
-    exes = [p+x for x in ['', '.exe', '.bat']]
+    exes = [p+x for x in ['.bat', '', '.exe']]  # bat may be front end for file with no extension
     system_path = os.environ['PATH'].split(os.pathsep)
     if p == 'hipcc' and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
         return os.environ['CMAKE_CXX_COMPILER']
@@ -1437,7 +1437,7 @@ def TensileCreateLibrary():
   if not os.path.exists(logicPath):
     printExit("LogicPath %s doesn't exist" % logicPath)
 
-  archs = arguments["Architecture"].split(";")
+  archs = arguments["Architecture"].split("_")
   logicArchs = set()
   for arch in archs:
     if arch in architectureMap:

@@ -190,16 +190,17 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--cmake-cxx-compiler=${Tensile_COMPILER_PATH}")
   endif()
 
-  if(Tensile_ARCHITECTURE)
-    string (REPLACE ";" "\\\\\\\;" archString "${Tensile_ARCHITECTURE}")
-    set(Options ${Options} "--architecture=${archString}")
-  endif()
-
   if(Tensile_LIBRARY_FORMAT)
     set(Options ${Options} "--library-format=${Tensile_LIBRARY_FORMAT}")
     if(Tensile_LIBRARY_FORMAT MATCHES "yaml")
         target_compile_definitions( TensileHost PUBLIC -DTENSILE_YAML=1)
     endif()
+  endif()
+  
+  if(Tensile_ARCHITECTURE)
+    string (REPLACE ";" "_" archString "${Tensile_ARCHITECTURE}")
+    # uses _ separator to avoid cmake ; list interpretation, decoded in TensileCreateLibrary
+    set(Options ${Options} "--architecture=${archString}")
   endif()
 
   if (WIN32)
@@ -221,11 +222,11 @@ function(TensileCreateLibraryFiles
           set(Tensile_VAR_PREFIX TENSILE)
       endif()
 
-      # Create the manifest file of the output libraries.
-      set(Tensile_CREATE_MANIFEST_COMMAND ${CommandLine} "--generate-manifest-and-exit")
       set(Tensile_MANIFEST_FILE_PATH "${Tensile_OUTPUT_PATH}/library/TensileManifest.txt")
       message(STATUS "Tensile_MANIFEST_FILE_PATH: ${Tensile_MANIFEST_FILE_PATH}")
 
+      # Create the manifest file of the output libraries.
+      set(Tensile_CREATE_MANIFEST_COMMAND ${CommandLine} "--generate-manifest-and-exit")
       execute_process(
         COMMAND ${Tensile_CREATE_MANIFEST_COMMAND}
         RESULT_VARIABLE Tensile_CREATE_MANIFEST_RESULT
