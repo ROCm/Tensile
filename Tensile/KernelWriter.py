@@ -134,8 +134,19 @@ class KernelWriter(metaclass=abc.ABCMeta):
       numMfmaBetweenLWandBarrier = 2 if kernel["MatrixInstM"] == 32 else 3
       if kernel["PrefetchGlobalRead"] == 2:
         numMfmaBetweenLWandBarrier -= 1
-      self.numGlobalReadInsPerMfma = roundUp(kernel["GlobalReadPerMfma"]*100)
-      self.numLocalWriteModPerMfma = roundUp(kernel["LocalWritePerMfma"]*100)
+      if kernel["GlobalReadPerMfma"] == -2:
+        self.numGlobalReadInsPerMfma = 200 if kernel["MatrixInstM"] == 32 and not kernel["ProblemType"]["TLUA"] and not kernel["ProblemType"]["TLUB"] and kernel["TransposeLDS"] and not kernel["1LDSBuffer"] else 100
+      else:
+        self.numGlobalReadInsPerMfma = roundUp(kernel["GlobalReadPerMfma"]*100)
+      if kernel["LocalWritePerMfma"] == -2:
+        readsLatencyA = self.numReadsPerIterA/numMfmaPerIter if self.numReadsIterCoalescedA == 1 else 0
+        readsLatencyB = self.numReadsPerIterB/numMfmaPerIter if self.numReadsIterCoalescedB == 1 else 0
+        readsLatency = roundUp(readsLatencyA+readsLatencyB)*2
+        if kernel["1LDSBuffer"] and self.numVgprBuffer >= kernel["LoopIters"]:
+          readsLatency = 0
+        self.numLocalWriteModPerMfma = max((self.miLatencyLeft - readsLatency)//(self.tPA["localWriteInstruction"].IssueLatency*2),1)*100
+      else:
+        self.numLocalWriteModPerMfma = roundUp(kernel["LocalWritePerMfma"]*100)
       ##################################
       numGlobalReadInsPerIter = numMfmaPerIter * self.numGlobalReadInsPerMfma
       numLocalWriteModPerIter = numMfmaPerIter * self.numLocalWriteModPerMfma
@@ -195,8 +206,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       assert localWriteEndIter < kernel["LoopIters"]
       assert self.lwEndMfmaIndex < numMfmaPerIter*kernel["LoopIters"]
     else:
-      numGlobalReadInsPerIter = roundUp(kernel["GlobalReadPerMfma"] * 100)
-      numLocalWriteModPerIter = roundUp(kernel["LocalWritePerMfma"] * 100)
+      numGlobalReadInsPerIter = roundUp(kernel["GlobalReadPerMfma"] * 100) if kernel["GlobalReadPerMfma"] != -2 else 100
+      numLocalWriteModPerIter = roundUp(kernel["LocalWritePerMfma"] * 100) if kernel["LocalWritePerMfma"] != -2 else 100
       numEmptyGlobalReadIncCode = numGlobalReadInsPerIter - 1
 
     numLocalWritesPerSched = numLocalWriteModPerIter if kernel["ScheduleIterAlg"] != 3 else self.numLocalWriteModPerMfma
