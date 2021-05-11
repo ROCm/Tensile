@@ -6239,11 +6239,28 @@ class KernelWriterAssembly(KernelWriter):
             if ccB:
               ccVgprs[2] = self.vgprPool.checkOutAligned(numRegistersOut, numRegistersOut, "negate i1")
               ccInsts[2] = inst(v_add, vgpr(ccVgprs[2], numRegistersOut), "-"+ar, "0", "Ar=-Ar")
+
+            Str00 = ar
+            Str10 = vgpr(ccVgprs[0], numRegistersOut) if ccVgprs[0] else ai
+            Str20 = vgpr(ccVgprs[1], numRegistersOut) if ccVgprs[1] else ai
+            Str30 = vgpr(ccVgprs[2], numRegistersOut) if ccVgprs[2] else ar
+            Str01 = br
+            Str11 = bi
+            Str21 = br
+            Str31 = bi
+            if kernel["SourceSwap"] and kernel["ProblemType"]["DataType"].isDoubleComplex():
+                # so far, support DoubleComplex only
+                # swap Str0? and Str1?
+                Str00, Str01 = Str01, Str00
+                Str10, Str11 = Str11, Str10
+                Str20, Str21 = Str21, Str20
+                Str30, Str31 = Str31, Str30
+
             imod.addInst("".join([inst for inst in ccInsts if inst is not None]) + \
-                         v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart            , accEnd            , ar                                    , br, accStart            , accEnd            ), "Cr += Ar*Br")
-            imod.addInst(v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart            , accEnd            , vgpr(ccVgprs[0], numRegistersOut) if ccVgprs[0] else ai, bi, accStart            , accEnd            ), "Cr += %sAi*Bi"%("-" if ccVgprs[0] else ""))
-            imod.addInst(v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart+accImOffset, accEnd+accImOffset, vgpr(ccVgprs[1], numRegistersOut) if ccVgprs[1] else ai, br, accStart+accImOffset, accEnd+accImOffset), "Ci += %sAi*Br"%("-" if ccVgprs[1] else ""))
-            imod.addInst(v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart+accImOffset, accEnd+accImOffset, vgpr(ccVgprs[2], numRegistersOut) if ccVgprs[2] else ar, bi, accStart+accImOffset, accEnd+accImOffset), "Ci += %sAr*Bi"%("-" if ccVgprs[2] else ""))
+                         v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart            , accEnd            , Str00, Str01, accStart            , accEnd            ), "Cr += Ar*Br")
+            imod.addInst(v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart            , accEnd            , Str10, Str11, accStart            , accEnd            ), "Cr += %sAi*Bi"%("-" if ccVgprs[0] else ""))
+            imod.addInst(v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart+accImOffset, accEnd+accImOffset, Str20, Str21, accStart+accImOffset, accEnd+accImOffset), "Ci += %sAi*Br"%("-" if ccVgprs[1] else ""))
+            imod.addInst(v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart+accImOffset, accEnd+accImOffset, Str30, Str31, accStart+accImOffset, accEnd+accImOffset), "Ci += %sAr*Bi"%("-" if ccVgprs[2] else ""))
 
             for v in ccVgprs:
               if v is not None: self.vgprPool.checkIn(v)

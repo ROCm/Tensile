@@ -3235,8 +3235,8 @@ class Solution:
       if not state["EnableMatrixInstruction"]:
         reject(state, "SourceSwap only applies to MatrixInstruction kernels")
         return
-      if not state["ProblemType"]["DataType"].isDouble():
-        reject(state, "SourceSwap currently only available for dgemm")
+      if not (state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex()):
+        reject(state, "SourceSwap currently only available for dgemm or zgemm")
         return
       if state["StoreRemapVectorWidth"]:
         reject(state, "SourceSwap not compatibile with StoreRemap")
