@@ -14,6 +14,7 @@ def runCI =
     nodeDetails, jobName ->
 
     def prj = new rocProject('Tensile', 'PreCheckin')
+    prj.defaults.ccache = true
 
     // Define test architectures, optional rocm version argument is available
     def nodes = new dockerNodes(nodeDetails, jobName, prj)
