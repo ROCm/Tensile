@@ -1760,8 +1760,8 @@ def assignGlobalParameters( config ):
   globalParameters["ROCmPath"] = "/opt/rocm"
   if "ROCM_PATH" in os.environ:
     globalParameters["ROCmPath"] = os.environ.get("ROCM_PATH")
-  if os.name == "nt" and "HIP_PATH" in os.environ:
-    globalParameters["ROCmPath"] = os.environ.get("HIP_PATH") # windows has no ROCM
+  if os.name == "nt" and "HIP_DIR" in os.environ:
+    globalParameters["ROCmPath"] = os.environ.get("HIP_DIR") # windows has no ROCM
   globalParameters["CmakeCxxCompiler"] = None
   if "CMAKE_CXX_COMPILER" in os.environ:
     globalParameters["CmakeCxxCompiler"] = os.environ.get("CMAKE_CXX_COMPILER")
