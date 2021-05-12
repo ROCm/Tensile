@@ -54,6 +54,7 @@ struct RunGEMMKernelTestParams
     // Runtime input generation
     static std::vector<std::shared_ptr<TestInterface>> TypedTests();
     static std::vector<ProblemParams>                  TestProblems();
+    static std::vector<ProblemParams>                  TestProblemsExtended();
     static std::vector<SolutionParams>                 TestLibraries();
     static std::vector<MemoryPageAlignment>            TestMemoryAlignments();
 

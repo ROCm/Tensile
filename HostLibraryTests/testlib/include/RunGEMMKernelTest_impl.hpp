@@ -120,15 +120,7 @@ auto RunGEMMKernelTestParams<DeviceBackend>::TestProblems() -> std::vector<Probl
         std::make_tuple(false, true, 234, 123, 634, 245, 768, 249, 1.5, 12),
         std::make_tuple(true, false, 234, 123, 634, 768, 768, 249, 1.5, 12),
         std::make_tuple(true, true, 234, 123, 634, 768, 768, 249, 1.5, 12),
-        TestInterface::RandomGEMMParams,
-        TestInterface::RandomGEMMParams,
-        TestInterface::RandomGEMMParams,
-        TestInterface::RandomGEMMParams,
-        TestInterface::RandomGEMMParams,
-        TestInterface::RandomGEMMParams,
-        TestInterface::RandomGEMMParams,
-        TestInterface::RandomGEMMParams,
-        TestInterface::RandomGEMMParams,
+
         std::make_tuple(false, false, 1, 4, 6, 1, 6, 1, 1.5, 1),
         std::make_tuple(false, false, 4, 1, 6, 4, 6, 4, 1.5, 1),
         std::make_tuple(false, false, 4, 4, 1, 4, 1, 4, 1.5, 1),
@@ -145,6 +137,24 @@ auto RunGEMMKernelTestParams<DeviceBackend>::TestProblems() -> std::vector<Probl
         std::make_tuple(true, true, 4, 1, 6, 6, 1, 4, 1.5, 1),
         std::make_tuple(true, true, 4, 4, 1, 1, 4, 4, 1.5, 1),
 
+        TestInterface::RandomGEMMParams,
+        TestInterface::RandomGEMMParams};
+}
+
+template <typename DeviceBackend>
+auto RunGEMMKernelTestParams<DeviceBackend>::TestProblemsExtended() -> std::vector<ProblemParams>
+{
+    return std::vector<ProblemParams>{
+
+        TestInterface::RandomGEMMParams,
+        TestInterface::RandomGEMMParams,
+        TestInterface::RandomGEMMParams,
+        TestInterface::RandomGEMMParams,
+        TestInterface::RandomGEMMParams,
+        TestInterface::RandomGEMMParams,
+        TestInterface::RandomGEMMParams,
+        TestInterface::RandomGEMMParams,
+        TestInterface::RandomGEMMParams,
         std::make_tuple(false, true, 1, 128, 256, 1, 270, 49928, 1.5, 1),
         std::make_tuple(false, true, 384, 1, 384, 384, 270, 49928, 1.5, 1),
         std::make_tuple(true, true, 4, 4, 1, 1, 4, 4, 1.5, 1),
@@ -255,7 +265,7 @@ template <typename DeviceBackend>
 auto RunGEMMKernelTestParams<DeviceBackend>::TestMemoryAlignments()
     -> std::vector<MemoryPageAlignment>
 {
-    return std::vector<MemoryPageAlignment>{MemoryPageAlignment::END};
+    return std::vector<MemoryPageAlignment>{MemoryPageAlignment::BEGIN, MemoryPageAlignment::END};
 }
 
 ///////////////////////////////////////////////////////////////

@@ -93,3 +93,11 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(RunGEMMKernelTestHipParams::TestProblems()),
                        ::testing::ValuesIn(RunGEMMKernelTestHipParams::TestLibraries()),
                        ::testing::ValuesIn(RunGEMMKernelTestHipParams::TestMemoryAlignments())));
+
+INSTANTIATE_TEST_SUITE_P(
+    HipSolutionAdapter_Extended,
+    RunGEMMKernelTestHip,
+    ::testing::Combine(::testing::ValuesIn(RunGEMMKernelTestHipParams::TypedTests()),
+                       ::testing::ValuesIn(RunGEMMKernelTestHipParams::TestProblemsExtended()),
+                       ::testing::ValuesIn(RunGEMMKernelTestHipParams::TestLibraries()),
+                       ::testing::ValuesIn(RunGEMMKernelTestHipParams::TestMemoryAlignments())));

@@ -92,3 +92,11 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(RunGEMMKernelTestOclParams::TestProblems()),
                        ::testing::ValuesIn(RunGEMMKernelTestOclParams::TestLibraries()),
                        ::testing::ValuesIn(RunGEMMKernelTestOclParams::TestMemoryAlignments())));
+
+INSTANTIATE_TEST_SUITE_P(
+    OclSolutionAdapter_Extended,
+    RunGEMMKernelTestOcl,
+    ::testing::Combine(::testing::ValuesIn(RunGEMMKernelTestOclParams::TypedTests()),
+                       ::testing::ValuesIn(RunGEMMKernelTestOclParams::TestProblemsExtended()),
+                       ::testing::ValuesIn(RunGEMMKernelTestOclParams::TestLibraries()),
+                       ::testing::ValuesIn(RunGEMMKernelTestOclParams::TestMemoryAlignments())));
