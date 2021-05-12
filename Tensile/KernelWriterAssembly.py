@@ -1123,7 +1123,7 @@ class KernelWriterAssembly(KernelWriter):
       self.version = defaultIsa
 
     if kernel["EnableMatrixInstruction"]:
-      if kernel["ProblemType"]["DataType"].isDouble() and not self.asmCaps["HasMFMA_f64"]:
+      if (kernel["ProblemType"]["DataType"].isDouble() or kernel["ProblemType"]["DataType"].isDoubleComplex()) and not self.asmCaps["HasMFMA_f64"]:
         raise RuntimeError("FP64 MatrixInstruction not supported for {0}".format(self.version))
       elif not self.asmCaps["HasMFMA"]:
         raise RuntimeError("MatrixInstruction not supported for {0}".format(self.version))
@@ -6113,7 +6113,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # calculate constant
     numRegistersIn   = kernel["ProblemType"]["DataType"].numRegisters()
-    numRegistersOut  = 2 if kernel["ProblemType"]["DataType"].isDouble() else 1
+    numRegistersOut  = 2 if kernel["ProblemType"]["DataType"].isDouble() or kernel["ProblemType"]["DataType"].isDoubleComplex() else 1
     loopCounterName  = self.loopCounterName(kernel, self.unrollIdx)
     accs_per_wave    = kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"] \
                        / self.kernel["WavefrontSize"] * numRegistersOut
@@ -6227,34 +6227,53 @@ class KernelWriterAssembly(KernelWriter):
           bStr     = vgpr("ValuB_X%u_I%u+%u+%u+%u" % (vgprBufferB_new, iuiB_new, b_new, vgprBufferB_new_offset, iuiB_new_offset), vgprPerInput)
           Str0 = aStr if self.tPB["tile01Idx"] else bStr
           Str1 = bStr if self.tPB["tile01Idx"] else aStr
-          if kernel["ProblemType"]["DataType"].isSingleComplex():
+          if kernel["ProblemType"]["DataType"].isComplex():
             # override because complex mul is emulated by 4 mfma insts
             # TODO: adopt component system
-            miInTypeName = "f32"
+            miInTypeName = miOutTypeName #"f32" for SingleComplex, "f64" for DoubleComplex
             ccA = kernel["ProblemType"]["ComplexConjugateA"]
             ccB = kernel["ProblemType"]["ComplexConjugateB"]
             ccVgprs = [None]*3 # three terms that can be negated: [real1, imag0, imag1]
             ccInsts = [None]*3
             accImOffset = self.AccVgprImagNumOffset(kernel)
-            ar = vgpr("ValuA_X%u_I%u+%u+%u+%u"   % (vgprBufferA_new, iuiA_new, a_new, vgprBufferA_new_offset, iuiA_new_offset), 1)
-            ai = vgpr("ValuA_X%u_I%u+%u+%u+%u+1" % (vgprBufferA_new, iuiA_new, a_new, vgprBufferA_new_offset, iuiA_new_offset), 1)
-            br = vgpr("ValuB_X%u_I%u+%u+%u+%u"   % (vgprBufferB_new, iuiB_new, b_new, vgprBufferB_new_offset, iuiB_new_offset), 1)
-            bi = vgpr("ValuB_X%u_I%u+%u+%u+%u+1" % (vgprBufferB_new, iuiB_new, b_new, vgprBufferB_new_offset, iuiB_new_offset), 1)
+            # vpgr A,B setting. In complex case, numRegistersIn does not match. Use numRegistersOut instead
+            ar = vgpr("ValuA_X%u_I%u+%u+%u+%u"   % (vgprBufferA_new, iuiA_new, a_new, vgprBufferA_new_offset, iuiA_new_offset), numRegistersOut)
+            ai = vgpr("ValuA_X%u_I%u+%u+%u+%u+%u" % (vgprBufferA_new, iuiA_new, a_new, vgprBufferA_new_offset, iuiA_new_offset, numRegistersOut), numRegistersOut)
+            br = vgpr("ValuB_X%u_I%u+%u+%u+%u"   % (vgprBufferB_new, iuiB_new, b_new, vgprBufferB_new_offset, iuiB_new_offset), numRegistersOut)
+            bi = vgpr("ValuB_X%u_I%u+%u+%u+%u+%u" % (vgprBufferB_new, iuiB_new, b_new, vgprBufferB_new_offset, iuiB_new_offset, numRegistersOut), numRegistersOut)
             v_mfma = "v_mfma_%s_%ux%ux%u%s "%(miOutTypeName, kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], miInTypeName)
+            v_add = "v_add_" + miOutTypeName
             if ccA == ccB:
-              ccVgprs[0] = self.vgprPool.checkOut(1, "negate r1")
-              ccInsts[0] = inst("v_sub_f32", vgpr(ccVgprs[0]), "0", ai, "Ai=-Ai")
+              ccVgprs[0] = self.vgprPool.checkOutAligned(numRegistersOut, numRegistersOut, "negate r1")
+              ccInsts[0] = inst(v_add, vgpr(ccVgprs[0], numRegistersOut), "-"+ai, "0", "Ai=-Ai")
             if ccA:
-              ccVgprs[1] = self.vgprPool.checkOut(1, "negate i0")
-              ccInsts[1] = inst("v_sub_f32", vgpr(ccVgprs[1]), "0", ai, "Ai=-Ai")
+              ccVgprs[1] = self.vgprPool.checkOutAligned(numRegistersOut, numRegistersOut, "negate i0")
+              ccInsts[1] = inst(v_add, vgpr(ccVgprs[1], numRegistersOut), "-"+ai, "0", "Ai=-Ai")
             if ccB:
-              ccVgprs[2] = self.vgprPool.checkOut(1, "negate i1")
-              ccInsts[2] = inst("v_sub_f32", vgpr(ccVgprs[2]), "0", ar, "Ar=-Ar")
+              ccVgprs[2] = self.vgprPool.checkOutAligned(numRegistersOut, numRegistersOut, "negate i1")
+              ccInsts[2] = inst(v_add, vgpr(ccVgprs[2], numRegistersOut), "-"+ar, "0", "Ar=-Ar")
+
+            Str00 = ar
+            Str10 = vgpr(ccVgprs[0], numRegistersOut) if ccVgprs[0] else ai
+            Str20 = vgpr(ccVgprs[1], numRegistersOut) if ccVgprs[1] else ai
+            Str30 = vgpr(ccVgprs[2], numRegistersOut) if ccVgprs[2] else ar
+            Str01 = br
+            Str11 = bi
+            Str21 = br
+            Str31 = bi
+            if kernel["SourceSwap"] and kernel["ProblemType"]["DataType"].isDoubleComplex():
+                # so far, support DoubleComplex only
+                # swap Str0? and Str1?
+                Str00, Str01 = Str01, Str00
+                Str10, Str11 = Str11, Str10
+                Str20, Str21 = Str21, Str20
+                Str30, Str31 = Str31, Str30
+
             imod.addInst("".join([inst for inst in ccInsts if inst is not None]) + \
-                         v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart            , accEnd            , ar                                    , br, accStart            , accEnd            ), "Cr += Ar*Br")
-            imod.addInst(v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart            , accEnd            , vgpr(ccVgprs[0]) if ccVgprs[0] else ai, bi, accStart            , accEnd            ), "Cr += %sAi*Bi"%("-" if ccVgprs[0] else ""))
-            imod.addInst(v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart+accImOffset, accEnd+accImOffset, vgpr(ccVgprs[1]) if ccVgprs[1] else ai, br, accStart+accImOffset, accEnd+accImOffset), "Ci += %sAi*Br"%("-" if ccVgprs[1] else ""))
-            imod.addInst(v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart+accImOffset, accEnd+accImOffset, vgpr(ccVgprs[2]) if ccVgprs[2] else ar, bi, accStart+accImOffset, accEnd+accImOffset), "Ci += %sAr*Bi"%("-" if ccVgprs[2] else ""))
+                         v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart            , accEnd            , Str00, Str01, accStart            , accEnd            ), "Cr += Ar*Br")
+            imod.addInst(v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart            , accEnd            , Str10, Str11, accStart            , accEnd            ), "Cr += %sAi*Bi"%("-" if ccVgprs[0] else ""))
+            imod.addInst(v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart+accImOffset, accEnd+accImOffset, Str20, Str21, accStart+accImOffset, accEnd+accImOffset), "Ci += %sAi*Br"%("-" if ccVgprs[1] else ""))
+            imod.addInst(v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart+accImOffset, accEnd+accImOffset, Str30, Str31, accStart+accImOffset, accEnd+accImOffset), "Ci += %sAr*Bi"%("-" if ccVgprs[2] else ""))
 
             for v in ccVgprs:
               if v is not None: self.vgprPool.checkIn(v)
@@ -9559,7 +9578,7 @@ class KernelWriterAssembly(KernelWriter):
             if kernel["SourceSwap"]:
               coordOffset0 += vc1
             else:
-              coordOffset0 += vc0    * (4 if kernel["ProblemType"]["DataType"].isDouble() else 1)
+              coordOffset0 += vc0    * (4 if (kernel["ProblemType"]["DataType"].isDouble() or kernel["ProblemType"]["DataType"].isDoubleComplex()) else 1)
         else:
           coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
 
@@ -12043,22 +12062,46 @@ class KernelWriterAssembly(KernelWriter):
 
     self.codeAccVgprRead = Code.Module("AccVgprRead")
     self.codeAccVgprRead.itemList = [None] * len(acc2arch) * self.agprMultiplier
-
     if kernel["ProblemType"]["DataType"].isComplex():
       accImOffset = self.AccVgprImagNumOffset(kernel)
       rpe = self.bpeCinternal//self.bpr
-      for i, e in enumerate(acc2arch):
-        if kernel["ProblemType"]["DataType"].isSingleComplex():
-          realNumIdx = acc2arch[i]*rpe+0
-          imagNumIdx = acc2arch[i]*rpe+1
-          self.codeAccVgprRead.itemList[realNumIdx] = Code.Inst("v_accvgpr_read_b32",
-                                                            vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % realNumIdx),
-                                                            "acc%u" % i,
-                                                            "copy areg (real) to vreg[%u]"%realNumIdx)
-          self.codeAccVgprRead.itemList[imagNumIdx] = Code.Inst("v_accvgpr_read_b32",
-                                                            vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % imagNumIdx),
-                                                            "acc%u" % (i+accImOffset),
-                                                            "copy areg (imag) to vreg[%u]"%imagNumIdx)
+      if kernel["ProblemType"]["DataType"].isSingleComplex():
+        for i, e in enumerate(acc2arch):
+            realNumIdx = acc2arch[i]*rpe+0
+            imagNumIdx = acc2arch[i]*rpe+1
+            self.codeAccVgprRead.itemList[realNumIdx] = Code.Inst("v_accvgpr_read_b32",
+                                                              vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % realNumIdx),
+                                                              "acc%u" % i,
+                                                              "copy areg (real) to vreg[%u]"%realNumIdx)
+            self.codeAccVgprRead.itemList[imagNumIdx] = Code.Inst("v_accvgpr_read_b32",
+                                                              vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % imagNumIdx),
+                                                              "acc%u" % (i+accImOffset),
+                                                              "copy areg (imag) to vreg[%u]"%imagNumIdx)
+      else: # DoubleComplex
+        for i, e in enumerate(acc2arch):
+          idx = i // 2
+          if i % 2 == 0:
+            # real f64
+            realNumIdx = acc2arch[idx]*rpe
+            self.codeAccVgprRead.itemList[realNumIdx]   = Code.Inst("v_accvgpr_read_b32",
+                                                              vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % realNumIdx),
+                                                              "acc%u" % (idx*2),
+                                                              "copy areg (real) to vreg[%u]"%realNumIdx)
+            self.codeAccVgprRead.itemList[realNumIdx+1] = Code.Inst("v_accvgpr_read_b32",
+                                                              vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % (realNumIdx+1)),
+                                                              "acc%u" % (idx*2+1),
+                                                              "copy areg (real) to vreg[%u]"%(realNumIdx+1))
+          else:
+            # imaginary f64
+            imagNumIdx = acc2arch[idx]*rpe + 2
+            self.codeAccVgprRead.itemList[imagNumIdx] = Code.Inst("v_accvgpr_read_b32",
+                                                              vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % imagNumIdx),
+                                                              "acc%u" % (idx*2+accImOffset),
+                                                              "copy areg (imag) to vreg[%u]"%imagNumIdx)
+            self.codeAccVgprRead.itemList[imagNumIdx+1] = Code.Inst("v_accvgpr_read_b32",
+                                                              vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % (imagNumIdx+1)),
+                                                              "acc%u" % (idx*2+1+accImOffset),
+                                                              "copy areg (imag) to vreg[%u]"%(imagNumIdx+1))
     else:
       for i, e in enumerate(acc2arch):
         self.codeAccVgprRead.itemList[acc2arch[i]] = Code.Inst("v_accvgpr_read_b32", \

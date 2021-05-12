@@ -1893,7 +1893,7 @@ class Solution:
 
       state["LocalSplitU"]         = 1
       state["MIOutputVectorWidth"] = 1 if (state["MatrixInstM"] == 4 and state["ProblemType"]["DataType"].isDouble()) else 4
-      state["MIRegPerOut"]         = 2 if state["ProblemType"]["DataType"].isDouble() else 1
+      state["MIRegPerOut"]         = 2 if state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex() else 1
 
       if state["ProblemType"]["DataType"].isDouble() and state["StoreVectorWidth"] != 1:
           reject(state, "DGEMM MFMA currently requires StoreVectorWidth=1")
@@ -2461,7 +2461,7 @@ class Solution:
               or state["ProblemType"]["DataType"].isDouble() \
               or state["ProblemType"]["DataType"].isBFloat16() \
               or state["ProblemType"]["DataType"].isHalf() \
-              or state["ProblemType"]["DataType"].isSingleComplex() \
+              or state["ProblemType"]["DataType"].isComplex() \
               or state["ProblemType"]["DataType"].isInt8()):
         reject(state, "didn't support Matrix Instruction with type %s" % str(state["ProblemType"]["DataType"]))
       if not state["MIBlock"] or len(state["MIBlock"]) != 6:
@@ -3238,8 +3238,8 @@ class Solution:
       if not state["EnableMatrixInstruction"]:
         reject(state, "SourceSwap only applies to MatrixInstruction kernels")
         return
-      if not state["ProblemType"]["DataType"].isDouble():
-        reject(state, "SourceSwap currently only available for dgemm")
+      if not (state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex()):
+        reject(state, "SourceSwap currently only available for dgemm or zgemm")
         return
       if state["StoreRemapVectorWidth"]:
         reject(state, "SourceSwap not compatibile with StoreRemap")
