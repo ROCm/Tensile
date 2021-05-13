@@ -1,5 +1,5 @@
 /**
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -363,8 +363,8 @@ namespace Tensile
 
         if(sizeMapping.globalAccumulation)
         {
-            rv.args.append<void const*>("ws", inputs.ws);
-            rv.args.append<void const*>("ws", inputs.ws);
+            rv.args.append<void const*>("ws0", inputs.ws);
+            rv.args.append<void const*>("ws1", inputs.ws);
         }
         else if(problemType.stridedBatched)
         {
@@ -813,8 +813,7 @@ namespace Tensile
                                                                   TypedInputs const& inputs,
                                                                   Hardware const&    hardware) const
     {
-        bool debug = Debug::Instance().printKernelArguments();
-
+        bool debug = Debug::Instance().printKernelArguments() || this->kernelArgsLog;
         // Check for nullptrs if alpha is non-zero.
         if((inputs.alpha != static_cast<typename TypedInputs::AlphaType>(0) /*&& k!=0*/)
            && ((problem.stridedBatched() && (inputs.a == nullptr || inputs.b == nullptr))

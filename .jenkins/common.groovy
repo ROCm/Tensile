@@ -88,6 +88,7 @@ def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest
     String compiler = 'hipcc'
     String pythonVersion = 'py36'
     String markSkipHostTest = skipHostTest ? "#" : ""
+    String markSkipExtendedTest = !test_marks.contains("extended") ? "--gtest_filter=-\"*Extended*\"" : ""
 
     def command = """#!/usr/bin/env bash
             set -x
@@ -100,7 +101,7 @@ def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest
             gpuArch=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
 
             ${markSkipHostTest}pushd build
-            ${markSkipHostTest}./TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
+            ${markSkipHostTest}./TensileTests ${markSkipExtendedTest} --gtest_output=xml:host_test_output.xml --gtest_color=yes
             ${markSkipHostTest}HOST_ERR=\$?
             ${markSkipHostTest}popd
 

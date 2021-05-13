@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -172,7 +172,9 @@ else( )
 
   # UNKNOWN implies on windows I can use the .lib file for IMPORTED_LOCATION
   # we don't care about the location of opencl.dll, it's installed in system directories
-  add_library( opencl UNKNOWN IMPORTED )
+  if (WIN32)
+    add_library( opencl UNKNOWN IMPORTED )
+  endif()
 
   set_target_properties( opencl PROPERTIES
     INTERFACE_INCLUDE_DIRECTORIES "${OPENCL_INCLUDE_DIRS}"
