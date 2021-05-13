@@ -24,34 +24,33 @@
  *
  *******************************************************************************/
 
-#pragma once
+#ifndef OCL_SOLUTION_ADAPTER_HPP
+#define OCL_SOLUTION_ADAPTER_HPP
 
 #include <Tensile/Tensile.hpp>
-#include <hip/hip_runtime.h>
+#include <Tensile/ocl/OclFwd.hpp>
 
 #include <mutex>
 
 namespace Tensile
 {
-    namespace hip
+    namespace ocl
     {
-        class SolutionAdapter : public Tensile::SolutionAdapter
+        class SolutionAdapter final : public Tensile::SolutionAdapter
         {
         public:
             SolutionAdapter();
             SolutionAdapter(bool debug);
             SolutionAdapter(bool debug, std::string const& name);
-            ~SolutionAdapter();
+            SolutionAdapter(bool               debug,
+                            std::string const& name,
+                            cl::Context        context,
+                            cl::Device         device);
+            ~SolutionAdapter() final = default;
 
-            virtual std::string name() const
-            {
-                return m_name;
-            }
+            std::string name() const final;
 
             void loadCodeObjectFile(std::string const& path);
-
-            void loadCodeObject(const void* image);
-
             void loadCodeObjectBytes(std::vector<uint8_t> const& bytes);
 
             void loadEmbeddedCodeObjects();
@@ -59,34 +58,34 @@ namespace Tensile
 
             void launchKernel(KernelInvocation const& kernel);
             void launchKernel(KernelInvocation const& kernel,
-                              hipStream_t             stream,
-                              hipEvent_t              startEvent,
-                              hipEvent_t              stopEvent);
+                              cl::CommandQueue        stream,
+                              cl::Event*              timingEvent = nullptr);
 
             void launchKernels(std::vector<KernelInvocation> const& kernels);
+            void launchKernels(std::vector<KernelInvocation> const& kernels,
+                               cl::CommandQueue                     stream,
+                               cl::Event*                           timingEvent = nullptr);
 
             void launchKernels(std::vector<KernelInvocation> const& kernels,
-                               hipStream_t                          stream,
-                               hipEvent_t                           startEvent,
-                               hipEvent_t                           stopEvent);
-
-            void launchKernels(std::vector<KernelInvocation> const& kernels,
-                               hipStream_t                          stream,
-                               std::vector<hipEvent_t> const&       startEvents,
-                               std::vector<hipEvent_t> const&       stopEvents);
+                               cl::CommandQueue                     stream,
+                               std::vector<cl::Event>&              timingEvents);
 
             void initKernel(std::string const& name);
 
         private:
-            hipFunction_t getKernel(std::string const& name);
+            cl::Kernel getKernel(std::string const& name);
+            void       addModule(std::string const& name, cl::Program const& module);
+            void addModules(std::string const& groupName, std::vector<cl::Program> const& modules);
 
             std::mutex m_access;
 
-            std::vector<hipModule_t>                       m_modules;
-            std::unordered_map<std::string, hipFunction_t> m_kernels;
-            bool                                           m_debug           = false;
-            bool                                           m_debugSkipLaunch = false;
-            std::string                                    m_name            = "HipSolutionAdapter";
+            std::vector<cl::Program>                    m_modules;
+            cl::Context                                 m_context;
+            cl::Device                                  m_device;
+            std::unordered_map<std::string, cl::Kernel> m_kernels;
+            bool                                        m_debug           = false;
+            bool                                        m_debugSkipLaunch = false;
+            std::string                                 m_name            = "OclSolutionAdapter";
 
             std::vector<std::string> m_loadedModuleNames;
 
@@ -95,5 +94,8 @@ namespace Tensile
 
         std::ostream& operator<<(std::ostream& stream, SolutionAdapter const& adapter);
         std::ostream& operator<<(std::ostream& stream, std::shared_ptr<SolutionAdapter> const& ptr);
-    } // namespace hip
+
+    } // namespace ocl
 } // namespace Tensile
+
+#endif //OCL_SOLUTION_ADAPTER_HPP

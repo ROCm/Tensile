@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -1894,7 +1894,7 @@ class Solution:
 
       state["LocalSplitU"]         = 1
       state["MIOutputVectorWidth"] = 1 if (state["MatrixInstM"] == 4 and state["ProblemType"]["DataType"].isDouble()) else 4
-      state["MIRegPerOut"]         = 2 if state["ProblemType"]["DataType"].isDouble() else 1
+      state["MIRegPerOut"]         = 2 if state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex() else 1
 
       if state["ProblemType"]["DataType"].isDouble() and state["StoreVectorWidth"] != 1:
           reject(state, "DGEMM MFMA currently requires StoreVectorWidth=1")
@@ -2462,7 +2462,7 @@ class Solution:
               or state["ProblemType"]["DataType"].isDouble() \
               or state["ProblemType"]["DataType"].isBFloat16() \
               or state["ProblemType"]["DataType"].isHalf() \
-              or state["ProblemType"]["DataType"].isSingleComplex() \
+              or state["ProblemType"]["DataType"].isComplex() \
               or state["ProblemType"]["DataType"].isInt8()):
         reject(state, "didn't support Matrix Instruction with type %s" % str(state["ProblemType"]["DataType"]))
       if not state["MIBlock"] or len(state["MIBlock"]) != 6:
@@ -2759,6 +2759,9 @@ class Solution:
       if state["MacroTile0"]*state["MacroTile1"] % state["NumThreads"] != 0:
         reject(state, "LocalSplitU but MT0*MT1=%u elements doesn't divide into NumThreads=%u" \
             % (state["MacroTile0"]*state["MacroTile1"], state["NumThreads"]))
+        return
+      if state["ProblemType"]["DataType"].isInt8():
+        reject(state, "int8 doesn't support LocalSplitU")
         return
 
     # GlobalSplitU doesn't work with some other things:
@@ -3236,8 +3239,8 @@ class Solution:
       if not state["EnableMatrixInstruction"]:
         reject(state, "SourceSwap only applies to MatrixInstruction kernels")
         return
-      if not state["ProblemType"]["DataType"].isDouble():
-        reject(state, "SourceSwap currently only available for dgemm")
+      if not (state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex()):
+        reject(state, "SourceSwap currently only available for dgemm or zgemm")
         return
       if state["StoreRemapVectorWidth"]:
         reject(state, "SourceSwap not compatibile with StoreRemap")
@@ -3337,16 +3340,38 @@ class Solution:
     if state["KernelLanguage"] != "Assembly" and state["InnerUnroll"] != 1:
       reject(state, "InnerUnroll only supported on assembly")
     state["LoopUnroll"] //= state["InnerUnroll"]
+
+    # check LocalDotLayout
     ldl = state["LocalDotLayout"]
-    if ldl > 1:
-      # Disable DirectToLds for LDL > 1. Necessary because we need to swizzle the input data
+    if ldl> 1:
       state["DirectToLds"] = False
-      if (state["AssertSummationElementMultiple"] % ldl != 0) and (ldl != 2):
-        reject(state, "LocalDotLayout > 1 only supports ASEM a multiple of LDL, except ldl = 2")
-        return
-      if (state["ProblemType"]["HighPrecisionAccumulate"] != True or state["InnerUnroll"] != ldl):
-        reject(state, "LocalDotLayout > 1 only supports HighPrecisionAccumulate set to true and InnerUnroll equal to LocalDotLayout")
-        return
+
+      if state["KernelLanguage"] == "Assembly":
+        if state["EnableMatrixInstruction"]:
+          reject(state, "doesn't support LocalDotLayout > 1 in MFMA mode")
+        else: # VALU mode
+          if state["ProblemType"]["DataType"].isInt8():
+            if (ldl != 4) or (state["ProblemType"]["HighPrecisionAccumulate"] != True):
+              reject(state, "Only support Int8 HPA and LocalDotLayout 4")
+              return
+          elif state["ProblemType"]["DataType"].isHalf():
+            if ldl > 2:
+              reject(state, "doesn't support FP16 with LocalDotLayout > 2")
+              return
+            elif (ldl == 2) and (state["ProblemType"]["HighPrecisionAccumulate"] != True):
+              reject(state, "doesn't support non HPA FP16 with LocalDotLayout == 2")
+              return
+          else: # other type
+              reject(state, "doesn't support LocalDotLayout with type {}".format(str(state["ProblemType"]["DataType"])))
+              return
+
+          if ldl != state["InnerUnroll"]:
+            reject(state, "only support LocalDotLayout = InnerUnroll when LocalDotLayout > 1")
+            return
+
+          if ((state["LSPA"] % ldl) != 0) or ((state["LSPB"] % ldl) != 0):
+            reject(state, "LSPA/B should be multiple of LocalDotLayout")
+            return
 
     if 0:
       print("info: ", pvar(state, "LoopUnroll"), " LDS Stats:", pvar(state, "LdsOffsetA"), pvar(state, "LdsOffsetB"))

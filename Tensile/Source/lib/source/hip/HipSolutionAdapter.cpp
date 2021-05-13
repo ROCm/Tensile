@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -343,6 +343,18 @@ namespace Tensile
                    << " total modules)" << std::endl;
 
             return stream;
+        }
+
+        std::ostream& operator<<(std::ostream& stream, std::shared_ptr<SolutionAdapter> const& ptr)
+        {
+            if(ptr)
+            {
+                return stream << "*" << *ptr;
+            }
+            else
+            {
+                return stream << "(nullptr)";
+            }
         }
     } // namespace hip
 } // namespace Tensile

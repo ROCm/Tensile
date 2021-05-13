@@ -318,6 +318,7 @@ validMFMA["4xi8"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4
 validMFMA["D"] = [[16,16,4,1], [4,4,4,4]]
 validMFMA["B1k"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
 validMFMA["C"] = validMFMA["S"]
+validMFMA["Z"] = validMFMA["D"]
 validMFMA["I8"] = validMFMA["4xi8"]
 validTT = 16
 validMFMA["_format9"] = []
@@ -1584,6 +1585,9 @@ def GetAsmCaps(isaVersion):
 
   rv["v_dot2_f32_f16"]  = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
   rv["v_dot2c_f32_f16"] = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34")
+
+  rv["v_dot4c_i32_i8"]  = tryAssembler(isaVersion, "v_dot4c_i32_i8 v47, v36, v34")
+  rv["v_dot4_i32_i8"]   = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34")
 
   rv["v_mac_f32"]       = tryAssembler(isaVersion, "v_mac_f32 v20, v21, v22")
   rv["v_fma_f32"]       = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")
