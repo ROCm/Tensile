@@ -284,15 +284,27 @@ class KernelWriter(metaclass=abc.ABCMeta):
           loadsToSched = len(itemsGRIncToSched)
         else:
           loadsToSched = len(itemsGRToSched)
+
+        # Here is to adjust scheduling silently in order to have validation pass.
+        # Better way is to use larger globalReadPerMfma.
+        ## schedule more instructions at first iteration if no enough mfma to schedule globalRead
         self.grEndMfmaIndex = max(0, roundUp(loadsToSched/self.numGlobalReadInsPerMfma) - 1)
         if self.grEndMfmaIndex > self.lwEndMfmaIndex:
           schedNumForIter0 = numGlobalReadInsPerIter + (self.grEndMfmaIndex - self.lwEndMfmaIndex) * self.numGlobalReadInsPerMfma
           self.grEndMfmaIndex = self.lwEndMfmaIndex
         else:
           schedNumForIter0 = numGlobalReadInsPerIter
-        endIter = roundUp((len(itemsGRToSched)+len(itemsGRIncToSched))/numMfmaPerIter)
+        if kernel["PrefetchGlobalRead"] == 1:
+          globalReadIncEndMfmaIndex = self.grEndMfmaIndex + roundUp(len(itemsGRIncToSched)/self.numGlobalReadInsPerMfma)
+          endIter = roundUp((globalReadIncEndMfmaIndex+1)/numMfmaPerIter)
+        else:
+          endIter = roundUp((self.grEndMfmaIndex+1)/numMfmaPerIter)
+        ## schedule more instructions at first iteration if no enough mfma to schedule globalRead + globalReadInc
         if endIter > kernel["LoopIters"]:
           endIter = kernel["LoopIters"]
+          if kernel["PrefetchGlobalRead"] == 1:
+            schedNumForIter0 += (globalReadIncEndMfmaIndex+1 - kernel["LoopIters"]*numMfmaPerIter) * self.numGlobalReadInsPerMfma
+
       # SIA 1 or 2
       # distribute the instructions in itemsGRToSched evenly as possible to iterations: perIterGlobalReadCode[0,endIter)
       # last one is perIterGlobalReadCode[endIter-1],
@@ -312,9 +324,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
         else:
           # schedule b2b for readCnt > 2 (True for bigger TT)
           schedNumForIter0 = numGlobalReadInsPerIter
-
-      if schedDb & 0x1:
-        print("makeSchedule-gr, readCnt=", readCnt, "schedNumForIter0=", schedNumForIter0, "endIter=", endIter)
 
       # insert dtlsM0UpdateACode dtlsM0UpdateBCode code
       if self.globalReadACode.middle.items():
@@ -341,12 +350,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         except IndexError:
           break # itemsGRToSched is 0-length, no code left to schedule
 
-      # here is to avoid globalReadInc code not add in
-      if kernel["EnableMatrixInstruction"] and kernel["ScheduleIterAlg"] == 3:
-        for item in itemsGRToSched:
-          self.perIterGlobalReadCode[endIter-1].addCode(item)
-      else:
-        assert not itemsGRToSched # should have scheduled everything already, itemsGRToSched should be empty
+      assert not itemsGRToSched # should have scheduled everything already, itemsGRToSched should be empty
 
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadACode.footer)
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadBCode.footer)
