@@ -23,7 +23,7 @@ import pytest
 import os
 from Tensile.CustomKernels import getCustomKernelConfig, getCustomKernelContents
 from Tensile.BenchmarkProblems import generateCustomKernelSolution
-from Tensile.Common import globalParameters, assignGlobalParameters
+from Tensile.Common import assignGlobalParameters
 import yaml
 
 testKernelDir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "customKernels")

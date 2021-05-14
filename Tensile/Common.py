@@ -976,6 +976,8 @@ validParameters = {
     # Typically matching 16 bytes is good choice since the stores will be optimally coalesced with 16 bytes/WI.
     # -1 means use the largest vector width up to 128 bits.
     # Using a VW too large which results in >16bytes/thread isn't supported
+    # For MFMA non SourceSwap: this parameter didn't take effect
+    # For MFMA SourceSwap: this parameter only take effect on A buffer for now
     "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8 ],
 
     # If 0, store 1 element per instruction.

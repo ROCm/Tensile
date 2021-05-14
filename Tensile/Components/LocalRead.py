@@ -138,7 +138,8 @@ class LocalReadMFMA(LocalRead):
 
         numOffsets       = instruction.numOffsets
         blockWidth       = instruction.blockWidth
-        MIWaveGropuShape = [ kernel["MatrixInstM"] * kernel["MatrixInstBM"] * kernel["MIWaveGroup"][0], \
+        vectorWidth      = kernel["VectorWidth"] if kernel["SourceSwap"] else 1 # TODO: nonSwap VectorWidth
+        MIWaveGroupShape = [ kernel["MatrixInstM"] * kernel["MatrixInstBM"] * kernel["MIWaveGroup"][0] * vectorWidth, \
                              kernel["MatrixInstN"] * kernel["MatrixInstBN"] * kernel["MIWaveGroup"][1] ]
 
         LdsPad           = kernel["LdsPad%s"%tc] if kernel["LdsBlockSizePerPad%s"%tc] == 0 else 0
@@ -148,11 +149,12 @@ class LocalReadMFMA(LocalRead):
             tileStride   = kernel["_DepthULds"] + LdsPad
             UnrollStride = 1
 
-        numVectorsPerTile = kernel["MIWaveTile"][tile01]
+        numReadPerTileVector = vectorWidth if (tile01 == 0) else 1
+        numVectorsPerTile    = kernel["MIWaveTile"][tile01] // numReadPerTileVector
         if tc == "A":
-            numReadsPerVector = tP["bpe"] * writer.lrvwA // int(blockWidth * 4) # bytes/register
+            numReadsPerUnroll = tP["bpe"] * writer.lrvwA // int(blockWidth * 4) # bytes/register
         else:
-            numReadsPerVector = tP["bpe"] * writer.lrvwB // int(blockWidth * 4) # bytes/register
+            numReadsPerUnroll = tP["bpe"] * writer.lrvwB // int(blockWidth * 4) # bytes/register
         numVgpr  = int(ceil(blockWidth))
 
         # pack register
@@ -166,105 +168,106 @@ class LocalReadMFMA(LocalRead):
 
         valufIdx = 0
         for vIdx in range(0, numVectorsPerTile):
-            valuiIdx = int(valufIdx)
-            localReadCode = imod.addCode (Code.Module("LocalRead%s Valu%u"%(tc,valuiIdx)))
-            if needPack:
-                packCode = pack.addCode (Code.Module("packCode"))
-
-            for rIdx in range(0, numReadsPerVector):
+            for eIdx in range(0, numReadPerTileVector):
                 valuiIdx = int(valufIdx)
-                baseLRVgpr = vgpr("Valu%s_X%u_I%u+%u"%(tc, bufferIdx, iui, valuiIdx), numVgpr)
-                destVgpr = baseLRVgpr
-
-                # pack for blockWidth 0.5 type
-                highBitsForHalf = (blockWidth == 0.5) and ((rIdx % 2) == 1) # rIdx = 1
-                if needPack and highBitsForHalf:
-                    # highVgpr = vgpr(tmpVgprIdx + valuiIdx)
-                    highVgpr = vgpr(tmpVgprIdx)
-                    tmpVgprIdx += 1
-                    packCode.addInst("v_or_b32", destVgpr, destVgpr, highVgpr, "pack two half Vgpr to one Vgpr")
-                    destVgpr = highVgpr
-
-                isHigh8Bits  = (blockWidth == 0.25) and ( ((rIdx % 4) % 2) == 1) # 1,3
-                isHigh16Bits = (blockWidth == 0.25) and ( ((rIdx % 4) //2) == 1) # 2,3
+                localReadCode = imod.addCode (Code.Module("LocalRead%s Valu%u"%(tc,valuiIdx)))
                 if needPack:
-                    if isHigh8Bits or isHigh16Bits:
+                    packCode = pack.addCode (Code.Module("packCode"))
+
+                for rIdx in range(0, numReadsPerUnroll):
+                    valuiIdx = int(valufIdx)
+                    baseLRVgpr = vgpr("Valu%s_X%u_I%u+%u"%(tc, bufferIdx, iui, valuiIdx), numVgpr)
+                    destVgpr = baseLRVgpr
+
+                    # pack for blockWidth 0.5 type
+                    highBitsForHalf = (blockWidth == 0.5) and ((rIdx % 2) == 1) # rIdx = 1
+                    if needPack and highBitsForHalf:
+                        # highVgpr = vgpr(tmpVgprIdx + valuiIdx)
                         highVgpr = vgpr(tmpVgprIdx)
-                        destVgpr = highVgpr
-                    if isHigh8Bits:
-                        lowVgpr = vgpr(tmpVgprIdx-1) if isHigh16Bits else baseLRVgpr
-                        packCode.addInst("_v_lshl_or_b32", lowVgpr, highVgpr, "0x8", lowVgpr, "pack two int8 Vgpr to one half Vgpr")
-                        if isHigh16Bits:
-                            packCode.addInst("v_or_b32", baseLRVgpr, baseLRVgpr, lowVgpr, "pack two half Vgpr to one Vgpr")
-                    if isHigh8Bits or isHigh16Bits:
                         tmpVgprIdx += 1
+                        packCode.addInst("v_or_b32", destVgpr, destVgpr, highVgpr, "pack two half Vgpr to one Vgpr")
+                        destVgpr = highVgpr
 
-                valufIdx += blockWidth
+                    isHigh8Bits  = (blockWidth == 0.25) and ( ((rIdx % 4) % 2) == 1) # 1,3
+                    isHigh16Bits = (blockWidth == 0.25) and ( ((rIdx % 4) //2) == 1) # 2,3
+                    if needPack:
+                        if isHigh8Bits or isHigh16Bits:
+                            highVgpr = vgpr(tmpVgprIdx)
+                            destVgpr = highVgpr
+                        if isHigh8Bits:
+                            lowVgpr = vgpr(tmpVgprIdx-1) if isHigh16Bits else baseLRVgpr
+                            packCode.addInst("_v_lshl_or_b32", lowVgpr, highVgpr, "0x8", lowVgpr, "pack two int8 Vgpr to one half Vgpr")
+                            if isHigh16Bits:
+                                packCode.addInst("v_or_b32", baseLRVgpr, baseLRVgpr, lowVgpr, "pack two half Vgpr to one Vgpr")
+                        if isHigh8Bits or isHigh16Bits:
+                            tmpVgprIdx += 1
 
-                # load read instrution
-                paramList = []
-                paramList.append(destVgpr)
-                paramList.append(vgpr("LocalReadAddr%s"%tc))
+                    valufIdx += blockWidth
 
-                for oIdx in range(0, numOffsets):
-                    offset_val = (vIdx * numOffsets+oIdx) * MIWaveGropuShape[tile01] * tileStride
-                    offset_val = (rIdx * UnrollStride + offset_val + tP["localReadOffset"]) * tP["bpe"]
-                    if (kernel["LdsBlockSizePerPad%s"%tc] != 0) and (kernel["LdsPad%s"%tc] != 0):
-                        offset_val = offset_val + (offset_val // kernel["LdsBlockSizePerPad%s"%tc]) * kernel["LdsPad%s"%tc] * tP["bpe"]
-                    offset_val = offset_val + tP["localReadSwapByteOffset"]
-                    paramList.append(int(offset_val))
+                    # load read instrution
+                    paramList = []
+                    paramList.append(destVgpr)
+                    paramList.append(vgpr("LocalReadAddr%s"%tc))
 
-                paramTuple = tuple(paramList)
-                comment = "L -> Reg lro=%d swapByteOffset=%u ti=%u vIdx=%u rIdx=%u oIdx=%u buffer=%u iui=%u" \
-                        % (tP["localReadOffset"], tP["localReadSwapByteOffset"], MIWaveGropuShape[tile01], vIdx, rIdx, oIdx, bufferIdx, iui)
+                    for oIdx in range(0, numOffsets):
+                        offset_val = (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride
+                        offset_val = (rIdx * UnrollStride + offset_val + tP["localReadOffset"]) * tP["bpe"]
+                        if (kernel["LdsBlockSizePerPad%s"%tc] != 0) and (kernel["LdsPad%s"%tc] != 0):
+                            offset_val = offset_val + (offset_val // kernel["LdsBlockSizePerPad%s"%tc]) * kernel["LdsPad%s"%tc] * tP["bpe"]
+                        offset_val = offset_val + tP["localReadSwapByteOffset"]
+                        paramList.append(int(offset_val))
 
-                highBits = highBitsForHalf or isHigh16Bits
-                localReadCode.addCode(Code.LocalReadInst(instruction.IssueLatency,instruction.toCodeInst(paramTuple, 0, highBits), comment))
+                    paramTuple = tuple(paramList)
+                    comment = "L -> Reg lro=%d swapByteOffset=%u ti=%u vIdx=%u rIdx=%u oIdx=%u buffer=%u iui=%u" \
+                            % (tP["localReadOffset"], tP["localReadSwapByteOffset"], MIWaveGroupShape[tile01], vIdx, rIdx, oIdx, bufferIdx, iui)
 
-                # TODO - handle vector-load
-                tmpSgpr = writer.getTmpSgpr(1).idx()
-                if writer.db["CheckValue1%s"%tc] and not writer.inTailLoop:
+                    highBits = highBitsForHalf or isHigh16Bits
+                    localReadCode.addCode(Code.LocalReadInst(instruction.IssueLatency,instruction.toCodeInst(paramTuple, 0, highBits), comment))
 
-                    dbgVgpr = destVgpr
-                    dbgVgprList = destVgpr.split("v[")
-                    if len(dbgVgprList) == 1: # vIdx, no []
-                        dbgVgpr = dbgVgprList[0]
-                    else:
-                        # We only check the first one now
-                        # TODO: Handle vector, but need to take care the last one
-                        dbgVgprList = (dbgVgprList[1].split("]")[0]).split(':')
-                        dbgVgpr = "v[%s]"%dbgVgprList[0]
+                    # TODO - handle vector-load
+                    tmpSgpr = writer.getTmpSgpr(1).idx()
+                    if writer.db["CheckValue1%s"%tc] and not writer.inTailLoop:
 
-                    localReadCode.addInst("s_waitcnt lgkmcnt(0)", "CheckValue1 wait for LDS read")
-                    if writer.archCaps["SeparateVscnt"]:
-                        localReadCode.addInst( "s_waitcnt_vscnt", "null", "0", "")
+                        dbgVgpr = destVgpr
+                        dbgVgprList = destVgpr.split("v[")
+                        if len(dbgVgprList) == 1: # vIdx, no []
+                            dbgVgpr = dbgVgprList[0]
+                        else:
+                            # We only check the first one now
+                            # TODO: Handle vector, but need to take care the last one
+                            dbgVgprList = (dbgVgprList[1].split("]")[0]).split(':')
+                            dbgVgpr = "v[%s]"%dbgVgprList[0]
 
-                    if kernel["ProblemType"]["DataType"].isHalf():
-                        hexValue = hex(0x3c003c00)     # packed 1s
-                        if needPack:
-                            hexValue = hex(0x3c000000) if highBitsForHalf else hex(0x00003c00)
-                        localReadCode.addInst("s_mov_b32", sgpr(tmpSgpr), hexValue,"CheckValue1: FP16")
-                        localReadCode.addCode(writer.assert_eq( dbgVgpr, sgpr(tmpSgpr)))
+                        localReadCode.addInst("s_waitcnt lgkmcnt(0)", "CheckValue1 wait for LDS read")
+                        if writer.archCaps["SeparateVscnt"]:
+                            localReadCode.addInst( "s_waitcnt_vscnt", "null", "0", "")
 
-                    elif kernel["ProblemType"]["DataType"].isBFloat16():
-                        hexValue = hex(0x3f803f80)     # packed 1s
-                        if needPack:
-                            hexValue = hex(0x3f800000) if highBitsForHalf else hex(0x00003f80)
-                        localReadCode.addInst("s_mov_b32", sgpr(tmpSgpr), hexValue,"CheckValue1: BF16")
-                        localReadCode.addCode(writer.assert_eq( dbgVgpr, sgpr(tmpSgpr)))
-
-                    if kernel["ProblemType"]["DataType"].isInt8():
-                        if needPack:
-                            hexValue = hex(0x00010000) if isHigh16Bits else hex(0x00000001)
-                            localReadCode.addInst("s_mov_b32", sgpr(tmpSgpr), hexValue,"CheckValue1: INT8")
+                        if kernel["ProblemType"]["DataType"].isHalf():
+                            hexValue = hex(0x3c003c00)     # packed 1s
+                            if needPack:
+                                hexValue = hex(0x3c000000) if highBitsForHalf else hex(0x00003c00)
+                            localReadCode.addInst("s_mov_b32", sgpr(tmpSgpr), hexValue,"CheckValue1: FP16")
                             localReadCode.addCode(writer.assert_eq( dbgVgpr, sgpr(tmpSgpr)))
 
-                    # TODO - Check if this works. But need this? MFMA would use INT8
-                    elif kernel["ProblemType"]["DataType"].isInt8x4():
-                        localReadCode.addInst("s_mov_b32", sgpr(tmpSgpr), hex(0x01010101),"CheckValue1: INT8x4")
-                        localReadCode.addCode(writer.assert_eq( dbgVgpr, sgpr(tmpSgpr)))
+                        elif kernel["ProblemType"]["DataType"].isBFloat16():
+                            hexValue = hex(0x3f803f80)     # packed 1s
+                            if needPack:
+                                hexValue = hex(0x3f800000) if highBitsForHalf else hex(0x00003f80)
+                            localReadCode.addInst("s_mov_b32", sgpr(tmpSgpr), hexValue,"CheckValue1: BF16")
+                            localReadCode.addCode(writer.assert_eq( dbgVgpr, sgpr(tmpSgpr)))
 
-                    elif kernel["ProblemType"]["DataType"].isSingle():
-                        localReadCode.addCode(writer.assert_eq( dbgVgpr, 1.0) )
+                        if kernel["ProblemType"]["DataType"].isInt8():
+                            if needPack:
+                                hexValue = hex(0x00010000) if isHigh16Bits else hex(0x00000001)
+                                localReadCode.addInst("s_mov_b32", sgpr(tmpSgpr), hexValue,"CheckValue1: INT8")
+                                localReadCode.addCode(writer.assert_eq( dbgVgpr, sgpr(tmpSgpr)))
+
+                        # TODO - Check if this works. But need this? MFMA would use INT8
+                        elif kernel["ProblemType"]["DataType"].isInt8x4():
+                            localReadCode.addInst("s_mov_b32", sgpr(tmpSgpr), hex(0x01010101),"CheckValue1: INT8x4")
+                            localReadCode.addCode(writer.assert_eq( dbgVgpr, sgpr(tmpSgpr)))
+
+                        elif kernel["ProblemType"]["DataType"].isSingle():
+                            localReadCode.addCode(writer.assert_eq( dbgVgpr, 1.0) )
 
         return imod, pack

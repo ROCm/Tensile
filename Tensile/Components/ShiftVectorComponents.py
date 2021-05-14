@@ -262,7 +262,8 @@ class ShiftVectorComponentsVALU(ShiftVectorComponents):
         writer.vgprPool.checkIn(vReg)
         return kStr
 
-class ShiftVectorComponentsMFMA(ShiftVectorComponents):
+
+class ShiftVectorComponentsMFMASourceSwap(ShiftVectorComponents):
     kernel = {"EnableMatrixInstruction": True}
 
     """
@@ -283,7 +284,7 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
             we have numSubOutputGroupsPerWave0 which is 4 (kernel[tP["mt"]](64) // numSubOutputPerWave0(8))
 
             So we do shift back by below alorithm.
-            1. check if M_size % vectorwidth != 0, return if == 0
+            1. check if M_size % GlobalLoadVectorWidth != 0, return if == 0
             2. decide which subgroup we need to shift, M_size(3) means 3/8 = group 0
             3. decide which thread we need to shift, we have different groups of thread, (0-31) for first group, (32-63) for second group.
             4. decide which shift block (subTile1) we want to shift. for ex [0-1], [1-2], we want to shift second subtile
@@ -291,44 +292,54 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
 
         kStr = ""
 
-        glvw                       = tP["glvw"]
-        numThreadInWave            = writer.kernel["WavefrontSize"]
-        MIBShape0                  = kernel["MatrixInstM"] * kernel["MatrixInstBM"]
-        numContinuousOutput        = kernel["MIOutputVectorWidth"]
-        numOutputThreads1          = kernel["MatrixInstN"]
-        numOutputThreads0          = kernel["MatrixInstBM"] if (kernel["MatrixInstM"] == 4) else (numThreadInWave // numOutputThreads1)
-        numSubOutputPerWave0       = numOutputThreads0 * numContinuousOutput
-        numSubOutputGroupsPerWave0 = MIBShape0 // numSubOutputPerWave0
-        numShiftBlock              = numContinuousOutput // glvw
-        if kernel["ProblemType"]["DataType"].isDouble():
-            numShiftBlock *= 2
-        numOutputElements          = numSubOutputGroupsPerWave0 * numContinuousOutput * kernel["MIWaveTile"][0]
-        subTile1                   = kernel["MIWaveTile"][1] if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstBN"] * kernel["MIWaveTile"][1]
+        regPerElem      = kernel["MIRegPerOut"]
+        glvw            = tP["glvw"]
+        numThreadInWave = writer.kernel["WavefrontSize"]
+        vectorWidth     = kernel["VectorWidth"] if kernel["SourceSwap"] else 1
+        numContOutput0  = 1 if kernel["SourceSwap"] else kernel["MIOutputVectorWidth"]
+        allContOutput0  = numContOutput0 * vectorWidth
+        matrixInstM     = kernel["MatrixInstM"] * kernel["MatrixInstBM"] if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstM"]
+        matrixInstN     = kernel["MatrixInstN"] * kernel["MatrixInstBN"] if (kernel["MatrixInstN"] == 4) else kernel["MatrixInstN"]
+        matrixInstBM    = 1 if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstBM"]
+        matrixInstBN    = 1 if (kernel["MatrixInstN"] == 4) else kernel["MatrixInstBN"]
 
-        # labels for reminder of vectorwidth
-        svrLabels = []
-        # label for reminder of subgroup
-        sviLabels = []
-        # label for reminder of shift block(subtile)
-        svoLabels = []
+        accImOffset     = writer.AccVgprImagNumOffset(kernel)
 
+        threadInterval  = 1 if kernel["SourceSwap"] else matrixInstN
+        numThreadIn0    = matrixInstM if kernel["SourceSwap"] else (numThreadInWave // matrixInstN)
+
+        OutBlocksInMI   = (matrixInstM * matrixInstN) // numThreadInWave // numContOutput0
+        OutBlocksInMI   = 1 if kernel["SourceSwap"] else OutBlocksInMI
+
+        subMBShape0     = (matrixInstM * vectorWidth) if kernel["SourceSwap"] else ((numThreadInWave // matrixInstN) * numContOutput0)
+        MBShape0        = subMBShape0 * OutBlocksInMI
+        MIBShape0       = MBShape0 * matrixInstBM
+        WGShape0        = MIBShape0 * kernel["MIWaveGroup"][0]
+        miOuterTT0      = kernel["MIWaveTile"][0] // vectorWidth
+
+        numOutputs1     = (matrixInstM * matrixInstN // numThreadInWave) if kernel["SourceSwap"] else 1
+        numOutputs1     = numOutputs1 * matrixInstBN * kernel["MIWaveTile"][1]
+
+        # labels for reminder of GlobalLoadVectorWidth
+        glvwLabels = []
+        MBblockLabels = []
+        VWBlockLabels = []
         for i in range(0, glvw):
-            r = (i+1) % glvw    # r = [1,2,3,...,glvw-1, 0], the last one svrLabels[glvw-1] stores for r=0 -> no shift
-            label = writer.getLabelNum("ShiftVectorComponents%u_R%u" % (tP["idx"], r) )
-            svrLabels.append(label)
-            tmpLabels = []
-            tmp2Labels = []
-            for wt in range(0, kernel["MIWaveTile"][0]):
-                for v in range(0, numSubOutputGroupsPerWave0):
-                    label = writer.getLabelNum("ShiftVectorComponents%u_R%u_WT%u_V%u" % (tP["idx"], r, wt, v) )
-                    tmpLabels.append(label)
-                    tmp2Labels2 = []
-                    for o in range(0, numShiftBlock):
-                        label = writer.getLabelNum("ShiftVectorComponents%u_R%u_Wt%u_V%u_O%u" % (tP["idx"], r, wt, v, o) )
-                        tmp2Labels2.append(label)
-                    tmp2Labels.append(tmp2Labels2)
-            sviLabels.append(tmpLabels)
-            svoLabels.append(tmp2Labels)
+            r = (i+1) % glvw    # r = [1,2,3,...,glvw-1, 0], the last one glvwLabels[glvw-1] stores for r=0 -> no shift
+            label = writer.getLabelNum("ShiftVectorComponents%u_GLVW%u" % (tP["idx"], r) )
+            glvwLabels.append(label)
+            subMBLabels = []
+            subVWBlockLabels = []
+            for mb in range(0, OutBlocksInMI * matrixInstBM * miOuterTT0):
+                label = writer.getLabelNum("ShiftVectorComponents%u_GLVW%u_BM%u" % (tP["idx"], r, mb))
+                subMBLabels.append(label)
+                sub2VWBlockLabels = []
+                for vw in range(0, max(1, allContOutput0//glvw)):
+                    label = writer.getLabelNum("ShiftVectorComponents%u_GLVW%u_BM%u_VW%u" % (tP["idx"], r, mb, vw))
+                    sub2VWBlockLabels.append(label)
+                subVWBlockLabels.append(sub2VWBlockLabels)
+            MBblockLabels.append(subMBLabels)
+            VWBlockLabels.append(subVWBlockLabels)
 
         # wgMT value
         tmpSgpr = writer.getTmpSgpr(writer.laneSGPRCount).idx()
@@ -347,9 +358,9 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         kStr += inst("v_cndmask_b32", vgpr(wgMT), vgpr(mtReg), vgpr(wgMT), sgpr(tmpSgpr,writer.laneSGPRCount), "wgMT = (wgMT < MT) ? wgMT : MT" )
 
         wReg = writer.vgprPool.checkOut(1)
+        sReg = writer.vgprPool.checkOut(1)
         kStr += vectorStaticDivide(wReg, "Serial", writer.kernel["WavefrontSize"], tmpVgpr, tmpSgpr)
         kStr += vectorStaticRemainder(dummy, wReg, wReg, kernel["MIWaveGroup"][0], tmpVgpr, tmpSgpr)
-        sReg = writer.vgprPool.checkOut(1)
         kStr += vectorStaticDivide(sReg, wgMT, MIBShape0, tmpVgpr, tmpSgpr)
         kStr += vectorStaticRemainder(dummy, sReg, sReg, kernel["MIWaveGroup"][0], tmpVgpr, tmpSgpr)
         kStr += inst("v_cmp_eq_u32" , sgpr(tmpSgpr,writer.laneSGPRCount), vgpr(sReg), vgpr(wReg), "wave_id0 == block_belong_to_wave0?" )
@@ -357,60 +368,47 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         writer.vgprPool.checkIn(mtReg)
         writer.vgprPool.checkIn(sReg)
 
-        # gReg : group id of numSubOutputGroupsPerWave0
-        kStr += writer.comment("gReg : group id of numSubOutputGroupsPerWave0")
-        gReg = writer.vgprPool.checkOut(1)
-        kStr += staticMultiply(vgpr(wReg), vgpr(wReg), MIBShape0 // numSubOutputPerWave0, sgpr(tmpSgpr))
-        kStr += vectorStaticDivide(gReg, wgMT, numSubOutputPerWave0, tmpVgpr, tmpSgpr)
-        kStr += inst("_v_sub_u32", vgpr(gReg), vgpr(gReg), vgpr(wReg), "")
+        # mbReg: which mb block meed to shift, mb(matrixInstM*VectorWidth)
+        kStr += writer.comment("mbReg: which mb block meed to shift, mb(matrixInstM(%u) * VectorWidth(%u))" % (matrixInstM, allContOutput0))
+        mbReg = writer.vgprPool.checkOut(1)
+        tReg  = writer.vgprPool.checkOut(1)
+        kStr += vectorStaticDivide(mbReg, wgMT, subMBShape0, tmpVgpr, tmpSgpr)
+        kStr += staticMultiply(vgpr(tReg), vgpr(wReg), (matrixInstBM * OutBlocksInMI), sgpr(tmpSgpr))
+        kStr += inst("_v_sub_u32", vgpr(mbReg), vgpr(mbReg), vgpr(tReg), "")
+        writer.vgprPool.checkIn(tReg)
+
+        # gbReg: glvw block id
+        kStr += writer.comment("gbReg: glvw block id")
+        gbReg = writer.vgprPool.checkOut(1)
+        kStr += vectorStaticDivide(gbReg, wgMT, glvw, tmpVgpr, tmpSgpr)
+
+        # tgbReg: thread in glvw block
+        kStr += writer.comment("tgbReg: glvw block id")
+        tgbReg = writer.vgprPool.checkOut(1)
+        kStr += vectorStaticDivide(tgbReg, "Serial", threadInterval, tmpVgpr, tmpSgpr)
+        kStr += vectorStaticRemainder(dummy, tgbReg, tgbReg, numThreadIn0, tmpVgpr, tmpSgpr)
+        kStr += staticMultiply(vgpr(tgbReg), vgpr(tgbReg), allContOutput0, sgpr(tmpSgpr))
+        kStr += vectorStaticDivide(tgbReg, tgbReg, glvw, tmpVgpr, tmpSgpr)
+        kStr += staticMultiply(vgpr(wReg), vgpr(wReg), MIBShape0//glvw, sgpr(tmpSgpr))
+        kStr += inst("_v_add_co_u32", vgpr(tgbReg), writer.vcc, vgpr(wReg), vgpr(tgbReg), "tgbReg = ((tid % MFMA_M) * VW + wave_id0 * MIB) / GLVW")
+        kStr += inst("_v_sub_u32", vgpr(gbReg), vgpr(gbReg), vgpr(tgbReg), "")
         writer.vgprPool.checkIn(wReg)
+        writer.vgprPool.checkIn(tgbReg)
 
-        # eReg : use to disguish which shift block (sub-tile) we need to deal with
-        kStr += writer.comment("eReg : use to disguish which shift block (sub-tile) we need to deal with")
-        eReg = writer.vgprPool.checkOut(1)
-        if kernel["ProblemType"]["DataType"].isDouble():
-            kStr += vectorStaticDivide(eReg, wgMT, numContinuousOutput, tmpVgpr, tmpSgpr)
-            kStr += vectorStaticRemainder(dummy, eReg, eReg, numContinuousOutput, tmpVgpr, tmpSgpr)
-        else:
-            kStr += vectorStaticRemainder(dummy, eReg, wgMT, numContinuousOutput, tmpVgpr, tmpSgpr)
-
-        # mReg : decide which thread have to deal with this M-size
-        kStr += writer.comment("mReg : decide which thread have to deal with this M-size")
-        mReg = writer.vgprPool.checkOut(1)
-        if kernel["ProblemType"]["DataType"].isDouble():
-            if kernel["SourceSwap"]:
-                kStr += vectorStaticRemainder(dummy, mReg, wgMT, MIBShape0, tmpVgpr, tmpSgpr)
-                kStr += vectorStaticDivide(mReg, mReg, glvw, tmpVgpr, tmpSgpr)
-            else:
-                kStr += vectorStaticRemainder(dummy, mReg, wgMT, numContinuousOutput, tmpVgpr, tmpSgpr)
-                kStr += vectorStaticDivide(mReg, mReg, numContinuousOutput // 2, tmpVgpr, tmpSgpr)
-        else:
-            kStr += vectorStaticDivide(mReg, wgMT, numContinuousOutput, tmpVgpr, tmpSgpr)
-            kStr += vectorStaticRemainder(dummy, mReg, mReg, numOutputThreads0, tmpVgpr, tmpSgpr)
-
-        # tReg : thread group id [0-31] or [32-63] for mfma 32x32x2
-        kStr += writer.comment("tReg : thread group id [0-31] or [32-63] for mfma 32x32x2")
-        tReg = writer.vgprPool.checkOut(1)
-        if kernel["ProblemType"]["DataType"].isDouble():
-            if kernel["SourceSwap"]:
-                kStr += vectorStaticDivide(tReg, "Serial", glvw, tmpVgpr, tmpSgpr)
-                kStr += vectorStaticRemainder(dummy, tReg, tReg, numOutputThreads1 // 2, tmpVgpr, tmpSgpr)
-            else:
-                kStr += vectorStaticDivide(tReg, "Serial", kernel["MatrixInstN"] * 2, tmpVgpr, tmpSgpr)
-                kStr += vectorStaticRemainder(dummy, tReg, tReg, numOutputThreads0 // 2, tmpVgpr, tmpSgpr)
-        else:
-            kStr += vectorStaticDivide(tReg, "Serial", kernel["MatrixInstN"], tmpVgpr, tmpSgpr)
-            kStr += vectorStaticRemainder(dummy, tReg, tReg, numOutputThreads0, tmpVgpr, tmpSgpr)
+        kStr += writer.comment("vwReg: glvw in which vw block?")
+        vwReg = writer.vgprPool.checkOut(1)
+        kStr += inst("v_and_b32", vgpr(vwReg), allContOutput0-1, vgpr(wgMT), "permute register between threads")
+        kStr += inst("v_lshrrev_b32", vgpr(vwReg), log2(glvw), vgpr(vwReg), "permute register between threads")
 
         # rReg : reminder of M_size % vectorwidth
         # decide to jump to block which handle this case, M_size % vector width
-        kStr += writer.comment("rReg : reminder of M_size % vectorwidth")
+        kStr += writer.comment("rReg : reminder of M_size % GlobalLoadVectorWidth")
         rReg = writer.vgprPool.checkOut(1)
         kStr += vectorStaticRemainder(dummy, rReg, wgMT, glvw, tmpVgpr, tmpSgpr)
         for r in range(1, glvw):
             kStr += inst("v_cmp_eq_u32", writer.vcc, vgpr(rReg), hex(r), "wgMT%%VW == %u"%r )
-            kStr += inst("s_cbranch_vccnz label_%04u" % svrLabels[(r-1)], "branch to shift d%u r=%u"%(tP["idx"], r))
-        kStr += inst("s_branch label_%04u"%svrLabels[glvw-1], "no shifting" )
+            kStr += inst("s_cbranch_vccnz label_%04u" % glvwLabels[(r-1)], "branch to shift d%u r=%u"%(tP["idx"], r))
+        kStr += inst("s_branch label_%04u"%glvwLabels[glvw-1], "no shifting" )
         writer.vgprPool.checkIn(rReg)
 
         _, arch2acc = writer.AccToArchMapper(kernel)
@@ -418,94 +416,77 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         # blocks for handle M_size % vector width
         for r in range(1, glvw):
             kStr += writer.comment3("shift d%u r=%u"%(tP["idx"], r))
-            kStr += "label_%04u:%s" % (svrLabels[r-1], writer.endLine)
+            kStr += "label_%04u:%s" % (glvwLabels[r-1], writer.endLine)
+            for tt in range(0, miOuterTT0):
+                for bm in range(0, matrixInstBM):
+                    for ob in range(0, OutBlocksInMI):
+                        label  = ob + OutBlocksInMI * (bm + matrixInstBM * tt)
+                        target = ob + OutBlocksInMI * (bm + matrixInstBM * kernel["MIWaveGroup"][0] * tt)
+                        kStr += inst("v_cmp_eq_u32", writer.vcc, vgpr(mbReg), hex(target), "")
+                        kStr += inst("s_cbranch_vccnz label_%04u" % MBblockLabels[r-1][label], "branch to shift d%u r%u mb%u" % (tP["idx"], r, label))
 
-            for wt in range(0, kernel["MIWaveTile"][0]):
-                # decide to jump to block wich handle sub group id for numSubOutputGroupsPerWave0
-                # we have 8 blocks for MT-M 64 with mfma 32x32x2. 64/2(thread group)/4(continous output)
-                for ot in range(0, numSubOutputGroupsPerWave0):
-                    packIdx = wt * numSubOutputGroupsPerWave0 + ot
-                    grpVal  = wt * numSubOutputGroupsPerWave0 * kernel["MIWaveGroup"][0] + ot
-                    kStr += inst("v_cmp_eq_u32", writer.vcc, vgpr(gReg), hex(grpVal), "wgMT/8 == %u" % packIdx )
-                    kStr += inst("s_cbranch_vccnz label_%04u" % sviLabels[(r-1)][packIdx], "branch to shift d%u, r=%u, v=%u" % (tP["idx"], r, packIdx))
+        for r in range(1, glvw):
+            for mb in range(0, miOuterTT0 * matrixInstBM * OutBlocksInMI):
+                kStr += writer.comment3("shift d%u r=%u mb=%u"%(tP["idx"], r, mb))
+                kStr += "label_%04u: // r%u mb%u %s" % (MBblockLabels[r-1][mb], r, mb, writer.endLine)
+                for vw in range(0, max(1, allContOutput0//glvw)):
+                    kStr += inst("v_cmp_eq_u32", writer.vcc, vgpr(vwReg), hex(vw), "")
+                    kStr += inst("s_cbranch_vccnz label_%04u" % VWBlockLabels[r-1][mb][vw], "branch to shift d%u r%u mb%u vw%u" % (tP["idx"], r, mb, vw))
 
-            for wt in range(0, kernel["MIWaveTile"][0]):
-                # blocks for handle sub group id for numSubOutputGroupsPerWave0
-                for ot in range(0, numSubOutputGroupsPerWave0):
-                    packIdx = wt * numSubOutputGroupsPerWave0 + ot
-                    kStr += writer.comment("shift d%u r=%u v=%u" % (tP["idx"], r, packIdx))
-                    kStr += "label_%04u:%s" % (sviLabels[r-1][packIdx], writer.endLine)
+        # blocks for handle M_size % vector width
+        tReg  = writer.vgprPool.checkOut(min(glvw, allContOutput0))
+        for r in range(1, glvw):
+            for tt in range(0, miOuterTT0):
+                for bm in range(0, matrixInstBM):
+                    for ob in range(0, OutBlocksInMI):
+                        mb = ob + OutBlocksInMI * (bm + matrixInstBM * tt)
+                        for vw in range(0, max(1, allContOutput0//glvw)):
+                            kStr += writer.comment3("shift d%u r=%u mb=%u vw%d"%(tP["idx"], r, mb, vw))
+                            kStr += "label_%04u: // r%u mb%u vw%u %s" % (VWBlockLabels[r-1][mb][vw], r, mb, vw, writer.endLine)
+                            kStr += inst("s_mov_b32", sgpr(tmpSgpr), (((ob*subMBShape0 + bm*MBShape0 + tt*WGShape0) // glvw) + vw), "")
+                            kStr += inst("v_cmpx_eq_u32", sgpr(tmpSgpr, writer.laneSGPRCount), vgpr(gbReg), sgpr(tmpSgpr), "is thread in edge glvw region" )
+                            kStr += inst("v_and_b32", vgpr(tmpVgpr), kernel["WavefrontSize"]-1, vgpr("Serial"), "permute register between threads")
+                            kStr += inst("v_lshlrev_b32", vgpr(tmpVgpr), log2(writer.bpr), vgpr(tmpVgpr), "permute register between threads")
 
-                    cmt = "(serial % 64) / 32 == (wgMT/4)%2"
-                    if kernel["SourceSwap"]:
-                        cmt = "(serial / glvw) % wt0 == (wgMT % mib0) / glvw"
-                    kStr += inst("v_cmpx_eq_u32", sgpr(tmpSgpr,writer.laneSGPRCount), vgpr(tReg), vgpr(mReg), cmt )
+                            for ot in range(numOutputs1):
+                                for c  in range(writer.agprMultiplier):
+                                    for nr in range(regPerElem):
+                                        for e in range(min(r, allContOutput0)):
+                                            src = (e+(glvw-r)) % allContOutput0
+                                            srcVgpr = src + (vw * glvw) + allContOutput0 * (mb + ot * miOuterTT0 * matrixInstBM * OutBlocksInMI)
+                                            srcVgpr = arch2acc[srcVgpr] * regPerElem + nr + c * accImOffset
+                                            kStr += inst("v_accvgpr_read_b32", vgpr(tReg+e), accvgpr(srcVgpr), "glvw %u mb %u tt1 %u r %u" % (r, mb, ot, nr))
 
-                    if not kernel["SourceSwap"]:
-                        # decide to jump to block wich handle element of shfit block (subtile)
-                        # for vector widht 2 with continuous 4, we have 1, 3 case to handle
-                        for outIdx in range(0, numShiftBlock):
-                            if kernel["ProblemType"]["DataType"].isDouble():
-                                kStr += inst("v_cmp_eq_u32", writer.vcc, vgpr(eReg), hex(outIdx), "wgMT %% 4 == %u" % (outIdx) )
-                            else:
-                                kStr += inst("v_cmp_eq_u32", writer.vcc, vgpr(eReg), hex(outIdx*glvw+r), "wgMT %% 4 == %u" % (outIdx*2+1) )
-                            kStr += inst("s_cbranch_vccnz label_%04u" % svoLabels[(r-1)][packIdx][outIdx], "branch to shift d%u, r=%u, v=%u, o=%u" % (tP["idx"], r, packIdx, outIdx))
-
-                    # blocks to handle shfiting
-                    for outIdx in range(0, numShiftBlock):
-                        kStr += "label_%04u:%s" % (svoLabels[(r-1)][packIdx][outIdx], writer.endLine)
-                        for subTile1Idx in range(0, subTile1):
-                            for shiftIdx in range(0, r):
-                                if kernel["ProblemType"]["DataType"].isDouble():
-                                    tmpVgpr2 = writer.vgprPool.checkOutAligned(2,2)
-
-                                    dstVgpr = 2 * (subTile1Idx * numOutputElements + packIdx * numContinuousOutput + outIdx + shiftIdx)
-                                    if kernel["SourceSwap"]:
-                                        dstVgpr = 2 * (subTile1Idx * numOutputElements + outIdx * kernel["MIWaveTile"][0] + packIdx + shiftIdx)
-
-                                    swapSize = 1 if kernel["SourceSwap"] else 16
-                                    kStr += inst("v_accvgpr_read_b32", vgpr(tmpVgpr), accvgpr(arch2acc[dstVgpr]), "")
-                                    kStr += inst("s_nop", "1", "v_accvgpr read vgpr after write vgpr: 2 wait states")
-                                    kStr += inst("ds_swizzle_b32", vgpr(tmpVgpr2), vgpr(tmpVgpr), "offset:swizzle(SWAP, {})".format(swapSize), "swizzle edge values")
-                                    kStr += inst("s_waitcnt", "0", "wait for swizzle operation")
-                                    kStr += inst("v_accvgpr_write_b32", accvgpr(arch2acc[dstVgpr]), vgpr(tmpVgpr2), "")
-
-                                    kStr += inst("v_accvgpr_read_b32", vgpr(tmpVgpr), accvgpr(arch2acc[dstVgpr]+1), "")
-                                    kStr += inst("s_nop", "1", "v_accvgpr read vgpr after write vgpr: 2 wait states")
-                                    kStr += inst("ds_swizzle_b32", vgpr(tmpVgpr2), vgpr(tmpVgpr), "offset:swizzle(SWAP, {})".format(swapSize), "swizzle edge values")
-                                    kStr += inst("s_waitcnt", "0", "wait for swizzle operation")
-                                    kStr += inst("v_accvgpr_write_b32", accvgpr(arch2acc[dstVgpr]+1), vgpr(tmpVgpr2), "")
-
-                                    writer.vgprPool.checkIn(tmpVgpr2)
-                                else:
-                                    dstVgpr = subTile1Idx * numOutputElements + packIdx * numContinuousOutput + outIdx * glvw + shiftIdx
-                                    srcVgpr = subTile1Idx * numOutputElements + packIdx * numContinuousOutput + outIdx * glvw + shiftIdx + (glvw - r)
-                                    if writer.serializedStore:
-                                        kStr += inst("v_accvgpr_read_b32", vgpr(tmpVgpr), accvgpr(arch2acc[srcVgpr]), "")
                                         kStr += inst("s_nop", "1", "v_accvgpr read vgpr after write vgpr: 2 wait states")
-                                        kStr += inst("v_accvgpr_write_b32", accvgpr(arch2acc[dstVgpr]), vgpr(tmpVgpr), "acc%u = acc%u"%(arch2acc[dstVgpr], arch2acc[srcVgpr]))
-                                        if writer.agprMultiplier == 2:
-                                            accImOffset = writer.AccVgprImagNumOffset(kernel)
-                                            kStr += inst("v_accvgpr_read_b32", vgpr(tmpVgpr), accvgpr(arch2acc[srcVgpr]+accImOffset), "")
-                                            kStr += inst("s_nop", "1", "v_accvgpr read vgpr after write vgpr: 2 wait states")
-                                            kStr += inst("v_accvgpr_write_b32", accvgpr(arch2acc[dstVgpr]+accImOffset), vgpr(tmpVgpr), "acc%u (imag)= acc%u (imag)"%(arch2acc[dstVgpr] + accImOffset, arch2acc[srcVgpr] + accImOffset))
-                                    else:
-                                        kStr += inst("v_mov_b32", vgpr(dstVgpr), vgpr(srcVgpr), "")
 
-                    # end shift reset mask and jump out
-                    all1mask = "0xFFFFFFFF" if (kernel["WavefrontSize"] == 32) else "0xFFFFFFFFFFFFFFFF"
-                    kStr += inst("s_mov_b{}".format(kernel["WavefrontSize"]), sgpr(tmpSgpr,writer.laneSGPRCount), all1mask, "to restore all threads active")
-                    kStr += inst("s_or_saveexec_b{}".format(kernel["WavefrontSize"]), writer.vcc, sgpr(tmpSgpr,writer.laneSGPRCount), "all threads active")
-                    kStr += inst("s_branch label_%04u" % svrLabels[glvw-1], "done shifting" )
+                                        for e in range(min(r, allContOutput0)):
+                                            crossThread = (e+(glvw-r)) // allContOutput0
+                                            if crossThread != 0:
+                                                kStr += inst("ds_bpermute_b32", vgpr(tReg+e), vgpr(tmpVgpr), vgpr(tReg+e), "offset:{}".format(crossThread*threadInterval*4), "permute edge values")
 
-        kStr += "label_%04u: // end shift0%s" % (svrLabels[glvw-1], writer.endLine)
+                                        kStr += inst("s_waitcnt", "0", "wait for swizzle operation")
+
+                                        for e in range(min(r, allContOutput0)):
+                                            dstVgpr = e + (vw * glvw) + allContOutput0 * (mb + ot * miOuterTT0 * matrixInstBM * OutBlocksInMI)
+                                            dstVgpr = arch2acc[dstVgpr] * regPerElem + nr + c * accImOffset
+                                            kStr += inst("v_accvgpr_write_b32", accvgpr(dstVgpr), vgpr(tReg+e), "")
+
+                            # end shift reset mask and jump out
+                            all1mask = "0xFFFFFFFF" if (kernel["WavefrontSize"] == 32) else "0xFFFFFFFFFFFFFFFF"
+                            kStr += inst("s_mov_b{}".format(kernel["WavefrontSize"]), sgpr(tmpSgpr, writer.laneSGPRCount), all1mask, "to restore all threads active")
+                            kStr += inst("s_or_saveexec_b{}".format(kernel["WavefrontSize"]), writer.vcc, sgpr(tmpSgpr,writer.laneSGPRCount), "all threads active")
+                            kStr += inst("s_branch label_%04u" % glvwLabels[glvw-1], "done shifting" )
+                            kStr += writer.endLine
+
+        kStr += "label_%04u: // end shift0%s" % (glvwLabels[glvw-1], writer.endLine)
+        writer.vgprPool.checkIn(tReg)
 
         # checkin scratch vgprs
         writer.vgprPool.checkIn(tmpVgpr)
         writer.vgprPool.checkIn(wgMT)
         writer.vgprPool.checkIn(dummy)
-        writer.vgprPool.checkIn(gReg)
-        writer.vgprPool.checkIn(eReg)
-        writer.vgprPool.checkIn(mReg)
-        writer.vgprPool.checkIn(tReg)
+        writer.vgprPool.checkIn(gbReg)
+        writer.vgprPool.checkIn(vwReg)
+        writer.vgprPool.checkIn(mbReg)
+
         return kStr

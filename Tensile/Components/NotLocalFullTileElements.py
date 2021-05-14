@@ -101,31 +101,33 @@ class NotLocalFullTileElementsMFMASwap(NotLocalFullTileElements):
     """
     def __call__(self, writer, kernel, edge):
         elements        = []
-        vectorwidth = 0
+        storeVectorWidth = 0
 
         if edge:
-            vectorwidth = kernel["StoreVectorWidth"] if kernel["_VectorStore"] else 1
-            vectorwidth = min(vectorwidth, writer.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
+            storeVectorWidth = kernel["StoreVectorWidth"] if kernel["_VectorStore"] else 1
+            storeVectorWidth = min(storeVectorWidth, writer.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
         else:
-            vectorwidth = kernel["StoreVectorWidth"] if kernel["_VectorStore"] else 1
-            vectorwidth = min(vectorwidth, writer.maxGwvw(kernel))
+            storeVectorWidth = kernel["StoreVectorWidth"] if kernel["_VectorStore"] else 1
+            storeVectorWidth = min(storeVectorWidth, writer.maxGwvw(kernel))
 
         MFMAcontinoutsOuptut = kernel["MIOutputVectorWidth"]
+        VWTT0                = kernel["VectorWidth"]
 
         if kernel["MatrixInstM"] == 4:
-            totalTT0            = kernel["MIWaveTile"][0] * MFMAcontinoutsOuptut
-            totalTT1            = kernel["MIWaveTile"][1]
+            outputsPerThread    = MFMAcontinoutsOuptut
+            totalTT0            = kernel["MIWaveTile"][0]
+            totalTT1            = kernel["MIWaveTile"][1] * MFMAcontinoutsOuptut
         else:
             outputsPerThread    = kernel["MatrixInstM"] * kernel["MatrixInstN"] // writer.kernel["WavefrontSize"]
-            totalTT0            = kernel["MatrixInstBM"] * kernel["MIWaveTile"][0] * outputsPerThread
-            totalTT1            = kernel["MatrixInstBN"] * kernel["MIWaveTile"][1]
+            totalTT0            = kernel["MatrixInstBM"] * kernel["MIWaveTile"][0]
+            totalTT1            = kernel["MatrixInstBN"] * kernel["MIWaveTile"][1] * outputsPerThread
 
-        for tt1 in range(0, totalTT1):
-            for vc1 in range(0, 1):
-                for vc0 in range(0, MFMAcontinoutsOuptut, vectorwidth): # note step by vectorwidth
-                    for tt0 in range(0, totalTT0 // MFMAcontinoutsOuptut):
+        for tt1 in range(0, totalTT1//MFMAcontinoutsOuptut):
+            for vc1 in range(0, MFMAcontinoutsOuptut):
+                for tt0 in range(0, totalTT0//VWTT0):
+                    for vc0 in range(0, VWTT0, storeVectorWidth): # note step by storeVectorWidth
                         element = (tt1, tt0, vc1, vc0)
                         elements.append(element)
 
 
-        return (vectorwidth, elements)
+        return (storeVectorWidth, elements)

@@ -1892,11 +1892,11 @@ class Solution:
       state["MatrixInstBN"]        = state["MIBlock"][5]
 
       state["LocalSplitU"]         = 1
-      state["MIOutputVectorWidth"] = 1 if (state["MatrixInstM"] == 4 and state["ProblemType"]["DataType"].isDouble()) else 4
-      state["MIRegPerOut"]         = 2 if state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex() else 1
+      state["MIOutputVectorWidth"] = 1 if (state["ProblemType"]["DataType"].MIOutputTypeNameAbbrev() == 'f64') else 4
+      state["MIRegPerOut"]         = 2 if (state["ProblemType"]["DataType"].MIOutputTypeNameAbbrev() == 'f64') else 1
 
-      if state["ProblemType"]["DataType"].isDouble() and state["StoreVectorWidth"] != 1:
-          reject(state, "DGEMM MFMA currently requires StoreVectorWidth=1")
+      if (not state["SourceSwap"]) and state["ProblemType"]["DataType"].isDouble() and state["StoreVectorWidth"] != 1:
+        reject(state, "DGEMM MFMA (non-SourceSwap) currently requires StoreVectorWidth=1")
 
       # for dgemm mfma accumulate instructions can use either the accumulate registers or arch registers
       state["MIUseAccVgpr"] = True
@@ -2676,7 +2676,10 @@ class Solution:
           state["VectorWidth"] //= 2
 
     # TT0,1 both must be multiples of VW, b/c of rC, rA, rB
-    if not state["EnableMatrixInstruction"]:
+    if state["EnableMatrixInstruction"]:
+      if state["SourceSwap"] and ((state["MIWaveTile"][0] % state["VectorWidth"]) != 0):
+        reject(state, "MIWaveTile0(%u) should be multiple of VectorWidth(%u)" % (state["MIWaveTile"][0], state["VectorWidth"]))
+    else:
       if state["ThreadTile0"] % state["VectorWidth"] != 0 \
           or state["ThreadTile1"] % state["VectorWidth"] != 0:
         reject(state, "ThreadTile0 %u or ThreadTile1 %u not a multiple of VectorWidth %u" \
@@ -2719,10 +2722,15 @@ class Solution:
       #TODO : re-enable later after running testlists
       #state["StoreVectorWidth"] = state["VectorWidth"]
       # use wider store for best store optimization
-      if state["ProblemType"]["DataType"].numRegisters() <= 1:
+      if state["SourceSwap"]:
+        state["StoreVectorWidth"] = state["VectorWidth"]
+      elif state["ProblemType"]["DataType"].numRegisters() <= 1:
         state["StoreVectorWidth"] = 4
       else:
         state["StoreVectorWidth"] = 4//state["ProblemType"]["DataType"].numRegisters()
+
+    if ((state["VectorWidth"] % state["StoreVectorWidth"]) != 0) and state["SourceSwap"]:
+      reject(state, "MFMA SourceSwap mode doesn't support vw(%u) with svw(%u)" % (state["VectorWidth"], state["StoreVectorWidth"]))
 
     if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
       # reject - VW too big
@@ -2889,11 +2897,17 @@ class Solution:
           validDepthU = False
 
         if state["EnableMatrixInstruction"] and state["GlobalLoadVectorWidthA"]:
-          partialA = state["ProblemType"]["TLUA"] and (state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"] != 0)
-          if partialA and state["GlobalLoadVectorWidthA"] > state["MIOutputVectorWidth"]:
+          partialA    = state["ProblemType"]["TLUA"] and (state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"] != 0)
+          matrixInstN = (state["MatrixInstN"] * state["MatrixInstBN"]) if (state["MatrixInstN"] == 4) else state["MatrixInstN"]
+          glvwAlimit  = state["MIOutputVectorWidth"] * (state["WavefrontSize"] // matrixInstN)
+
+          cond1 = not state["SourceSwap"]
+          cond2 = partialA
+          cond3 = state["GlobalLoadVectorWidthA"] > glvwAlimit
+          if cond1 and cond2 and cond3:
             #reduce GLVA if GLVA larger than MIOVW
-            tva = totalElementsA // state["MIOutputVectorWidth"]
-            if not Solution.setGlobalLoadVectorWidth(state, "A", tva, state["MIOutputVectorWidth"]):
+            tva = totalElementsA // glvwAlimit
+            if not Solution.setGlobalLoadVectorWidth(state, "A", tva, glvwAlimit):
               validDepthU = False
 
       if validDepthU and state["KernelLanguage"] == "Assembly" \
@@ -3223,23 +3237,37 @@ class Solution:
     if state["StoreRemapVectorWidth"] == -1:
       # use de_read_b64 as default in storeRemap to avoid bank conflict
       defaultRemap = 8 // state["ProblemType"]["DataType"].numBytes()
+      defaultRemap = max(defaultRemap,state["MacroTile0"]//state["WavefrontSize"])
       ldsRemapPad = max(defaultRemap,state["MIOutputVectorWidth"])
       ldsNumElementsRemapC = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"] * state["MIWaveGroup"][1]
       ldsNumElementsRemapC *= (2 if state["_GlobalAccumulation"] else 1) # FP32 output FP16 Data
       ldsSize = ldsNumElementsRemapC * state["ProblemType"]["DataType"].numBytes()
       if not math.log(state["MacroTile0"],2).is_integer() or \
           ldsSize > globalParameters["MaxLDS"] or \
+          state["SourceSwap"] or \
           (state["GlobalSplitU"] > 1) and (state["_GlobalAccumulation"] != 'MultipleBuffer'):
         state["StoreRemapVectorWidth"] = 0
       else:
         state["StoreRemapVectorWidth"] = defaultRemap
 
+    # GuaranteeNoPartial
+    if state["ProblemType"]["TLUA"]:
+      state["GuaranteeNoPartialA"] = state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
+    else:
+      state["GuaranteeNoPartialA"] = True
+
+    if state["ProblemType"]["TLUB"]:
+      state["GuaranteeNoPartialB"] = state["AssertFree1ElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
+    else:
+      state["GuaranteeNoPartialB"] = True
+
+    # SourceSwap
     if state["SourceSwap"]:
       if not state["EnableMatrixInstruction"]:
         reject(state, "SourceSwap only applies to MatrixInstruction kernels")
         return
-      if not (state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex()):
-        reject(state, "SourceSwap currently only available for dgemm or zgemm")
+      if (state["ProblemType"]["DataType"].MIOutputTypeNameAbbrev() != 'f64') and (not state["GuaranteeNoPartialB"]):
+        reject(state, "SourceSwap doesn't implement shiftptr of B yet")
         return
       if state["StoreRemapVectorWidth"]:
         reject(state, "SourceSwap not compatibile with StoreRemap")
@@ -3495,15 +3523,6 @@ class Solution:
     # So check for the cases where the unroll loop can
     # generate partial loads here and reject PBC solutions:
     # For non-TLU the free dim is in perp dim - should always be TRUE?  TODO
-    if state["ProblemType"]["TLUA"]:
-      state["GuaranteeNoPartialA"] = state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
-    else:
-      state["GuaranteeNoPartialA"] = True
-
-    if state["ProblemType"]["TLUB"]:
-      state["GuaranteeNoPartialB"] = state["AssertFree1ElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
-    else:
-      state["GuaranteeNoPartialB"] = True
 
     #--
     # ShiftPtr can't use UseSgprForGRO since it needs to modify the VGPR pointers
@@ -3511,13 +3530,8 @@ class Solution:
       if not state["GuaranteeNoPartialA"] or not state["GuaranteeNoPartialB"]:
         state["_UseSgprForGRO"] = False
         #reject(state, "PBC with wide load has insufficient overlap guarantees- try GRVW=1 or adding appropriate Assert*ElementMultiple")
-    if state["EnableMatrixInstruction"]:
-      cont1 = not state["GuaranteeNoPartialA"]
-      cont2 = ((state["MIOutputVectorWidth"] % state["GlobalLoadVectorWidthA"]) != 0)
-      if cont1 and cont2:
-        reject(state, "MIOutputVectorWidth %u %% GlobalLoadVectorWidthA %u must be 0" % \
-          (state["MIOutputVectorWidth"], state["GlobalLoadVectorWidthA"]))
 
+    if state["EnableMatrixInstruction"]:
       cont1 = not state["GuaranteeNoPartialB"]
       cont2 = ((state["MatrixInstN"] % state["GlobalLoadVectorWidthB"]) != 0)
       if cont1 and cont2:
