@@ -1798,7 +1798,7 @@ def assignGlobalParameters( config ):
   else:
     if os.name == "nt":
       globalParameters["ClangOffloadBundlerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang-offload-bundler.exe")
-    else:  
+    else:
       globalParameters["ClangOffloadBundlerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang-offload-bundler")
 
   if "ROCmAgentEnumeratorPath" in config:
@@ -1927,11 +1927,11 @@ def popWorkingPath():
       os.path.split(globalParameters["WorkingPath"])[0]
   else:
     globalParameters["WorkingPath"] = workingDirectoryStack.pop()
-def ensurePath( path ):
-  if os.path.exists(os.path.normcase(path)):
-    return path
+def ensurePath(path):
   try:
     os.makedirs(path)
+  except FileExistsError:
+    pass
   except OSError:
     printExit("Failed to create directory \"%s\" " % (path) )
   return path
