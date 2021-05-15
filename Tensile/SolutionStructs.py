@@ -3512,6 +3512,8 @@ class Solution:
           (state["ProblemType"]["DataType"].numRegisters(),state["GlobalReadVectorWidth"],state["DepthULdsDivisor"]))
 
     if state["LocalWritePerMfma"] == -1:
+      # Get optmizaed LWPM for PGR2
+      # optmized value is as wide as possible to avoid hitting vmem FIFO
       if state["PrefetchGlobalRead"] == 2:
         numLoadsA = state["DepthU"]*state["MacroTile0"]//state["GlobalLoadVectorWidthA"]//state["NumThreads"]
         numLoadsB = state["DepthU"]*state["MacroTile1"]//state["GlobalLoadVectorWidthB"]//state["NumThreads"]
@@ -3526,9 +3528,6 @@ class Solution:
         numReadPerVectorB = bpeAB * lrvwB // int(blockWidthB * 4)
         numReadsPerIterB = state["InnerUnroll"]*(state["MIWaveTile"][1] * numReadPerVectorB)
 
-        numMfmaBetweenLWandBarrier = 2 if state["MatrixInstM"] == 32 else 3
-        if state["PrefetchGlobalRead"] == 2:
-          numMfmaBetweenLWandBarrier -= 1
         numItersPLR = state["PrefetchLocalRead"]%state["LoopIters"]
         numVgprBuffer = state["LoopIters"] if state["PrefetchLocalRead"] > state["LoopIters"] else state["PrefetchLocalRead"]
         issueLatencyA = 2 if state["TransposeLDS"] and not state["ProblemType"]["TLUA"] and state["LocalReadVectorWidth"]*bpeAB == 16 else 1
@@ -3539,88 +3538,112 @@ class Solution:
         # give 1 quad-cycle buffer to prevend bubble from sync
         miLatencyBuffer = 1
         miLatencyLeft = max(miLatency - miLatencyBuffer - miIssueLatency,0)
-        numMfmaForNextLoopLR = 1
+        #########
+        # Get localWriteEnd
+        #########
+        numMfmaForLR = 1
         latencyLeft = miLatencyLeft
         # ds_read[A][0]
         for i in range(numReadPerVectorA):
           latencyLeft -= issueLatencyA*2
           if latencyLeft < 0:
-            numMfmaForNextLoopLR += 1
+            numMfmaForLR += 1
             latencyLeft = max(miLatencyLeft - issueLatencyA*2,0)
         # ds_read[B][0]
         for i in range(numReadPerVectorB):
           latencyLeft -= issueLatencyB*2
           if latencyLeft < 0:
-            numMfmaForNextLoopLR += 1
+            numMfmaForLR += 1
             latencyLeft = max(miLatencyLeft - issueLatencyB*2,0)
         # ds_read[A][1:]
         for i in range(numReadsPerIterA-numReadPerVectorA):
           latencyLeft -= issueLatencyA*2
           if latencyLeft < 0:
-            numMfmaForNextLoopLR += 1
+            numMfmaForLR += 1
             latencyLeft = max(miLatencyLeft - issueLatencyA*2,0)
         # ds_read[B][1:]
         for i in range(numReadsPerIterB-numReadPerVectorB):
           latencyLeft -= issueLatencyB*2
           if latencyLeft < 0:
-            numMfmaForNextLoopLR += 1
+            numMfmaForLR += 1
             latencyLeft = max(miLatencyLeft - issueLatencyB*2,0)
-        # In PGR2, localWrites should be scheduled after globalReadInc
-        numGRIncInst = 12 if not state["StaggerU"] else 18
-        numInstPerMfma = max(roundUp(miLatencyLeft/2),1)
-        numMfmaToSched = roundUp(numGRIncInst/numInstPerMfma)
-        lwStartMfmaIndex = 1 + numMfmaToSched
-        # for 1LDSB, we have to issue localwrites after localreads
-        if state["1LDSBuffer"] and numVgprBuffer >= state["LoopIters"]:
-          if numReadPerVectorA != 1 or numReadPerVectorB !=1:
-            numHalfReads = (numReadPerVectorA//2)*state["InnerUnroll"]*state["MIWaveTile"][0] + (numReadPerVectorB//2)*state["InnerUnroll"]*state["MIWaveTile"][1]
-            numMfmaForHalfRead = 1
-            latencyLeft = miLatencyLeft
-            for i in range(numHalfReads):
-              latencyLeft -= 2
-              if latencyLeft < 0:
-                numMfmaForHalfRead += 1
-                latencyLeft = max(miLatencyLeft - 2, 0)
-            lwStartMfmaIndex = numMfmaPerIter * (state["LoopIters"] - 1 - numItersPLR) + numMfmaForHalfRead
-          else:
-            numReads = (numReadsPerIterA+numReadsPerIterB) * (state["LoopIters"]//(state["LocalReadVectorWidth"]//state["MIInputPerThread"]) - numItersPLR)
-            numMfmaForCurrentLoopLR = 1
-            latencyLeft = miLatencyLeft
-            for i in range(numReads):
-              latencyLeft -= issueLatencyB*2
-              if latencyLeft < 0:
-                numMfmaForCurrentLoopLR += 1
-                latencyLeft = max(miLatencyLeft - issueLatencyB*2,0)
-            if state["MIWaveTile"][0] * state["MIWaveTile"][1] > 1:
-              numMfmaForCurrentLoopLR += 1
-            lwStartMfmaIndex = numMfmaForCurrentLoopLR
         # to calculate number of mfma we need to wait before data arrive from lds to vgpr.
         # latency: 40 quad-cycle for 4 word, 20 quad-cycle for 2 word, 10 quad-cycle for 1 word / half word
+        numMfmaForNextLoopLR = numMfmaForLR
         latencyForLR = roundUp(blockWidthB)*10
         latencyForLR -= max(latencyLeft,0) # remaining latency in mfma
+        latencyForLR -= miLatency # last LR will have 1 mfma latency
         while latencyForLR > 0:
           latencyForLR -= miLatency
           numMfmaForNextLoopLR += 1
-          if state["1LDSBuffer"]:
-            lwStartMfmaIndex += 1
-        if state["1LDSBuffer"] and not numVgprBuffer >= state["LoopIters"]:
-          lwStartMfmaIndex = numMfmaPerIter * (state["LoopIters"] - 1 - numItersPLR) + numMfmaForNextLoopLR
-        # last iteration LR will have 1 mfma latency in default, because there is no any instruction after last mfma
-        numMfmaForNextLoopLR = max(numMfmaForNextLoopLR - 1, 1)
         # final index definition
         numMfmaForNextLoopLR = min(numMfmaForNextLoopLR, numMfmaPerIter - 1)
         barrierMfmaIndex = numMfmaPerIter*(state["LoopIters"]-numItersPLR+1) - numMfmaForNextLoopLR - 1 if numItersPLR else 0
+        numMfmaBetweenLWandBarrier = 2 if state["MatrixInstM"] == 32 else 3
         lwEndMfmaIndex = max(barrierMfmaIndex - numMfmaBetweenLWandBarrier,0) if numItersPLR else numMfmaPerIter*state["LoopIters"] - 1
+        #########
+        # Get localWriteStart
+        #########
+        if not state["1LDSBuffer"]:
+          # In PGR2, localWrites should be scheduled after globalReadInc
+          numGRIncInst = 12 if not state["StaggerU"] else 18
+          numInstPerMfma = max(roundUp(miLatencyLeft/2),1)
+          numMfmaToSched = roundUp(numGRIncInst/numInstPerMfma)
+          lwStartMfmaIndex = 1 + numMfmaToSched
+        else:
+          # for 1LDSB, we have to issue localwrites after localreads
+          # we have enough vgprBuffer to schedule localRead in the front of loop
+          if numVgprBuffer == state["LoopIters"]:
+            # fp16 or bf16, we read 1 element to vgprBuffer the other element to tempVgpr.
+            # since each iteration shares same tempVgpr, only read-to-vgprBuffer can 
+            # be scheduled in the front of loop.
+            # localwrite have to start after last read-to-tempVgpr.
+            if numReadPerVectorA != 1 or numReadPerVectorB !=1:
+              numHalfReads = (numReadPerVectorA//2)*state["InnerUnroll"]*state["MIWaveTile"][0] + (numReadPerVectorB//2)*state["InnerUnroll"]*state["MIWaveTile"][1]
+              numMfmaForHalfRead = 1
+              latencyLeft = miLatencyLeft
+              for i in range(numHalfReads):
+                latencyLeft -= 2
+                if latencyLeft < 0:
+                  numMfmaForHalfRead += 1
+                  latencyLeft = max(miLatencyLeft - 2, 0)
+              lwStartMfmaIndex = numMfmaPerIter * (state["LoopIters"] - 1 - numItersPLR) + numMfmaForHalfRead
+            else:
+              numReads = (numReadsPerIterA+numReadsPerIterB) * (state["LoopIters"]//(state["LocalReadVectorWidth"]//state["MIInputPerThread"]) - numItersPLR)
+              numMfmaForCurrentLoopLR = 1
+              latencyLeft = miLatencyLeft
+              for i in range(numReads):
+                latencyLeft -= issueLatencyB*2
+                if latencyLeft < 0:
+                  numMfmaForCurrentLoopLR += 1
+                  latencyLeft = max(miLatencyLeft - issueLatencyB*2,0)
+              if state["MIWaveTile"][0] * state["MIWaveTile"][1] > 1:
+                numMfmaForCurrentLoopLR += 1
+              lwStartMfmaIndex = numMfmaForCurrentLoopLR
+          else:
+            lwStartMfmaIndex = numMfmaPerIter * (state["LoopIters"] - 1 - numItersPLR) + numMfmaForLR
+          # to calculate number of mfma we need to wait before data arrive from lds to vgpr.
+          # latency: 40 quad-cycle for 4 word, 20 quad-cycle for 2 word, 10 quad-cycle for 1 word / half word
+          latencyForLR = roundUp(blockWidthB)*10
+          latencyForLR -= max(latencyLeft,0) # remaining latency in mfma
+          while latencyForLR > 0:
+            latencyForLR -= miLatency
+            lwStartMfmaIndex += 1
+        #########
+        # Get localWritePerMfma
+        #########
         temp1 = 0
         temp2 = 100
         writesToSched = (numLoadsA+numLoadsB-1)*100
         loop = 0
-        numMfmaCanSched = max(lwEndMfmaIndex-lwStartMfmaIndex+1,1)
+        if lwStartMfmaIndex > lwEndMfmaIndex:
+          lwStartMfmaIndex = lwEndMfmaIndex
+        numMfmaCanSched = lwEndMfmaIndex - lwStartMfmaIndex + 1
         while temp1 != temp2 and loop < 10:
           loop += 1
           temp1 = temp2
           temp2 = roundUp((writesToSched+1 + temp1 + temp1%100 - (writesToSched+1) % temp1)/numMfmaCanSched)
-        state["LocalWritePerMfma"] = temp1/100
+        state["LocalWritePerMfma"] = temp2/100
       else:
         state["LocalWritePerMfma"] = 1
 
