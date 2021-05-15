@@ -500,7 +500,7 @@ validParameters = {
     # Range from 0.01 to 5
     #         0.1 means 1 GR per 10 mfma
     #           5 means 5 GR per 1 mfma
-    "GlobalReadPerMfma":       [ i/100 for i in range(1,500)] + [ -2 ],
+    "GlobalReadPerMfma":       [ i/100 for i in range(1,3200)] + [ -2 ],
 
     # For MatrixInstruction and SIA3, number of LocalWriteInstruction between mfma
     # the purpose of this parameter is to control density of local write instruction scheduling
@@ -513,7 +513,7 @@ validParameters = {
     #         0.1 means 1 LW per 10 mfma
     #           5 means 5 LW per 1 mfma
     # -1 will use an optimized setting
-    "LocalWritePerMfma":       [ i/100 for i in range(1,500)] + [ -1, -2 ],
+    "LocalWritePerMfma":       [ i/100 for i in range(1,3200)] + [ -1, -2, -3 ],
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
