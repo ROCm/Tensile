@@ -134,7 +134,7 @@ def runBenchmarking(solutions, problemSizes, outPath, update):
     # TODO make this work with TileAware selection
     returncode = ClientWriter.runClient(libraryLogicPath, forBenchmark, False)
     if returncode:
-        printWarning("BenchmarkProblems: Benchmark Process exited with code {}".format(returncode))
+        printWarning("Benchmarking Client exited with code {}. Trying to continue".format(returncode))
 
     # write solutions yaml file
     for sol in solutions:
@@ -204,7 +204,7 @@ def TensileRetuneLibrary(userArgs):
 
     overrideParameters = argUpdatedGlobalParameters(args)
     for key, value in overrideParameters.items():
-        print("Overriding {0}={1}".format(key, value))
+        print1("Overriding {0}={1}".format(key, value))
         Common.globalParameters[key] = value
 
     # parse library logic then setup and run benchmarks
