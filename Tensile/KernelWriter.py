@@ -99,8 +99,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # blindly follows the plan set in unrollLoopHeaderCode and perIterCode
   ##############################################################################
   def makeSchedule(self, kernel, tensorParametersA, tensorParametersB, localWriteEndIter, uDu=0):
-    # 0x2=print GR and LW code blocks, 0x1= print info messages
-    schedDb = 0
 
     currentIsa = globalParameters["CurrentISA"]
     maxVmcnt = globalParameters["AsmCaps"][currentIsa]["MaxVmcnt"]
@@ -176,9 +174,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.barrierMfmaIndex = numMfmaPerIter*(kernel["LoopIters"]-self.numItersPLR+1) - self.numMfmaForNextLoopLR - 1 if self.numItersPLR else 0
       numMfmaBetweenLWandBarrier = 2 if kernel["MatrixInstM"] == 32 else 3
       self.lwEndMfmaIndex = max(self.barrierMfmaIndex - numMfmaBetweenLWandBarrier,0) if self.numItersPLR else numMfmaPerIter*kernel["LoopIters"] - 1
+
       #########
-      # assign optimized value
+      # Internally assign an optimized LWPM value for PGR2
       #########
+      # strategy is to distribute LW/GR as wide as possible to avoid hitting vmem FIFO
+      # LWPM = (LW_End - LW_Start) / numLW
       if kernel["LocalWritePerMfma"] == -3 and kernel["PrefetchGlobalRead"] == 2:
         #########
         # Get localWriteStart
@@ -191,13 +192,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
           lwStartMfmaIndex = 1 + numMfmaToSched
         else:
           # for 1LDSB, we have to issue localwrites after localreads
-          # we have enough vgprBuffer to schedule localRead in the front of loop
           if self.numVgprBuffer == kernel["LoopIters"]:
-            # fp16 or bf16, we read 1 element to vgprBuffer the other element to tempVgpr.
-            # since each iteration shares same tempVgpr, only read-to-vgprBuffer can
-            # be scheduled in the front of loop.
-            # localwrite have to start after last read-to-tempVgpr.
+            # we have enough vgprBuffer to schedule localRead in the front of loop
             if self.numReadPerVectorA != 1 or self.numReadPerVectorB !=1:
+              # fp16 or bf16, we read 1 element to vgprBuffer the other element to tempVgpr.
+              # since each iteration shares same tempVgpr, only read-to-vgprBuffer can
+              # be scheduled in the front of loop.
+              # localwrite have to start after last read-to-tempVgpr.
               numHalfReads = (self.numReadPerVectorA//2)*kernel["InnerUnroll"]*kernel["MIWaveTileA"] + (self.numReadPerVectorB//2)*kernel["InnerUnroll"]*kernel["MIWaveTileB"]
               numMfmaForHalfRead = 1
               latencyLeft = self.miLatencyLeft
@@ -246,6 +247,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
           temp2 = roundUp((writesToSched+1 + temp1 + temp1%100 - (writesToSched+1) % temp1)/numMfmaCanSched)
         numLocalWriteModPerMfma = temp2
 
+      #####
+      # Assign GRPM and LWPM
+      #####
       if kernel["GlobalReadPerMfma"] == -2:
         self.numGlobalReadInsPerMfma = 200 if kernel["MatrixInstM"] == 32 and not kernel["ProblemType"]["TLUA"] and not kernel["ProblemType"]["TLUB"] and kernel["TransposeLDS"] and not kernel["1LDSBuffer"] else 100
       else:
@@ -262,6 +266,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.numLocalWriteModPerMfma = numLocalWriteModPerMfma if kernel["PrefetchGlobalRead"] == 2 else 100
       else:
         self.numLocalWriteModPerMfma = roundUp(kernel["LocalWritePerMfma"]*100)
+
       ##################################
       numGlobalReadInsPerIter = numMfmaPerIter * self.numGlobalReadInsPerMfma
       numLocalWriteModPerIter = numMfmaPerIter * self.numLocalWriteModPerMfma
@@ -326,8 +331,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       itemsGRIncToSched = []
       if kernel["EnableMatrixInstruction"] and kernel["ScheduleIterAlg"] == 3:
-        # skip to schedule global read for PGR2 first mfma
+        # for SIA3, we can break GlobalReadIncCode to avoid mfma bubbles
         if kernel["PrefetchGlobalRead"] == 2:
+          # skip to schedule global read for PGR2 first mfma
           for i in range(numEmptyGlobalReadIncCode+1):
             imod = Code.Module()
             itemsGRIncToSched.append(imod)
@@ -471,17 +477,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
         for i in range(numLocalWritesPerSched + numLocalWritesPerSched % 100 - len(itemsLWToSchedTemp) % numLocalWritesPerSched):
           itemsLWToSchedTemp.append(Code.Module())
       itemsLWToSched = itemsLWToSchedTemp
-      if 1:
-        # This counts the number of modules which contain a ds_write
-        # Scheduler below keeps all writes in the same module in same iteration
-        # so this is better match to what it is trying to do
-        # writesToSched = sum(1 for item in itemsLWToSched if item.countType(Code.LocalWriteInst))
-        writesToSched = len(itemsLWToSched)
-      else:
-        # count the number of writes, this doesn't match how they are
-        # scheduled so pushes writes up too far
-        writesToSched = self.localWriteACode.countType(Code.LocalWriteInst) + \
-                     self.localWriteBCode.countType(Code.LocalWriteInst)
+      # This counts the number of modules which contain a ds_write
+      # Scheduler below keeps all writes in the same module in same iteration
+      # so this is better match to what it is trying to do
+      # writesToSched = sum(1 for item in itemsLWToSched if item.countType(Code.LocalWriteInst))
+      writesToSched = len(itemsLWToSched)
       # assign schedule index
       if kernel["EnableMatrixInstruction"] and kernel["ScheduleIterAlg"] == 3:
         self.lwStartMfmaIndex = self.lwEndMfmaIndex - max(1,roundUp(writesToSched/numLocalWritesPerSched)) + 1
@@ -496,29 +496,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if startIter < lastLoadIter:
           startIter = lastLoadIter
 
-      if schedDb & 0x2:
-        print ("gra=", self.globalReadACode.middle.prettyPrint())
-        print ("lwa=", self.localWriteACode.prettyPrint())
-
-        print ("grb=", self.globalReadBCode.middle.prettyPrint())
-        print ("lwb=", self.localWriteBCode.prettyPrint())
-      if schedDb & 0x1:
-        print ("makeSchedule-lw: writesToSched=", writesToSched, "lastLoadIter=", lastLoadIter, \
-              "startIter=", startIter, "localWriteEndIter=", localWriteEndIter)
-
       readsToWait = len(list(self.localWriteACode.items())) + len(list(self.localWriteBCode.items()))
       readsToWaitNGLL = readsToWait
-      if self.scheduleGlobalRead:
-        # Number of write blocks should match number of reads.
-        # Note for TLU=0 cases we will have multiple writes/load - but these are all in same write module
-        # So number of moules should match:
-        if 0:
-            if not kernel["DirectToLdsA"]:
-              assert self.globalReadACode.middle.countType(Code.GlobalReadInst) == \
-                  len(list(self.localWriteACode.items()))
-            if not kernel["DirectToLdsB"]:
-              assert self.globalReadBCode.middle.countType(Code.GlobalReadInst) == \
-                  len(list(self.localWriteBCode.items()))
 
       localwriteCnt = 0
       for u in range(startIter, localWriteEndIter+1):
@@ -546,18 +525,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
             # TODO - can schedule these writes across iters, should figure this out above
             readsToWait = readsToWait - 1
             readsToWaitNGLL = readsToWaitNGLL - 1
-            # TODO - gfx9 supports higher max VMCNT
-            if 1:
-              if uDu < kernel["DepthULdsDivisor"]-1:
-                imod.addComment0("no wait vmcnt except for in the last subLdsLoop")
-              else:
-                imod.addCode(Code.WaitCnt(self.version, -1, min(maxVmcnt, readsToWait), \
-                  "wait for global read before writing to local"))
-                imodNGLL.addCode(Code.WaitCnt(self.version, -1, min(maxVmcnt, readsToWaitNGLL), \
-                  "wait for global read before writing to local"))
+            if uDu < kernel["DepthULdsDivisor"]-1:
+              imod.addComment0("no wait vmcnt except for in the last subLdsLoop")
             else:
-              print("warning - scheduleLocalWrite adding conservative vmcnt(0)")
-              imod.addCode(Code.WaitCnt(self.version, -1, 0, "conservative waitcnt"))
+              imod.addCode(Code.WaitCnt(self.version, -1, min(maxVmcnt, readsToWait), \
+                "wait for global read before writing to local"))
+              imodNGLL.addCode(Code.WaitCnt(self.version, -1, min(maxVmcnt, readsToWaitNGLL), \
+                "wait for global read before writing to local"))
 
           imod.addCode(item)
           # schedule global instrction that need to be scheduled later
