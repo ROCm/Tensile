@@ -3515,18 +3515,18 @@ class Solution:
       # Get optmizaed LWPM for PGR2
       # optmized value is as wide as possible to avoid hitting vmem FIFO
       if state["PrefetchGlobalRead"] == 2:
-        numLoadsA = state["DepthU"]*state["MacroTile0"]//state["GlobalLoadVectorWidthA"]//state["NumThreads"]
-        numLoadsB = state["DepthU"]*state["MacroTile1"]//state["GlobalLoadVectorWidthB"]//state["NumThreads"]
-        numMfmaPerIter = state["MIWaveTile"][0] * state["MIWaveTile"][1] * state["InnerUnroll"]
+        numLoadsA = state["DepthU"]*state["MacroTileA"]//state["GlobalLoadVectorWidthA"]//state["NumThreads"]
+        numLoadsB = state["DepthU"]*state["MacroTileB"]//state["GlobalLoadVectorWidthB"]//state["NumThreads"]
+        numMfmaPerIter = state["MIWaveTileA"] * state["MIWaveTileB"] * state["InnerUnroll"]
         lrvwA = state["LocalReadVectorWidth"] if not state["ProblemType"]["TLUA"] else state["MIInputPerThread"]
         lrvwB = state["LocalReadVectorWidth"] if not state["ProblemType"]["TLUB"] else state["MIInputPerThread"]
         blockWidthA = state["LocalReadVectorWidth"]/(4/bpeAB) if state["TransposeLDS"] and not state["ProblemType"]["TLUA"] else bpeAB/4
         blockWidthB = state["LocalReadVectorWidth"]/(4/bpeAB) if state["TransposeLDS"] and not state["ProblemType"]["TLUB"] else bpeAB/4
 
         numReadPerVectorA = bpeAB * lrvwA // int(blockWidthA * 4)
-        numReadsPerIterA = state["InnerUnroll"]*(state["MIWaveTile"][0] * numReadPerVectorA)
+        numReadsPerIterA = state["InnerUnroll"]*(state["MIWaveTileA"] * numReadPerVectorA)
         numReadPerVectorB = bpeAB * lrvwB // int(blockWidthB * 4)
-        numReadsPerIterB = state["InnerUnroll"]*(state["MIWaveTile"][1] * numReadPerVectorB)
+        numReadsPerIterB = state["InnerUnroll"]*(state["MIWaveTileB"] * numReadPerVectorB)
 
         numItersPLR = state["PrefetchLocalRead"]%state["LoopIters"]
         numVgprBuffer = state["LoopIters"] if state["PrefetchLocalRead"] > state["LoopIters"] else state["PrefetchLocalRead"]
@@ -3599,7 +3599,7 @@ class Solution:
             # be scheduled in the front of loop.
             # localwrite have to start after last read-to-tempVgpr.
             if numReadPerVectorA != 1 or numReadPerVectorB !=1:
-              numHalfReads = (numReadPerVectorA//2)*state["InnerUnroll"]*state["MIWaveTile"][0] + (numReadPerVectorB//2)*state["InnerUnroll"]*state["MIWaveTile"][1]
+              numHalfReads = (numReadPerVectorA//2)*state["InnerUnroll"]*state["MIWaveTileA"] + (numReadPerVectorB//2)*state["InnerUnroll"]*state["MIWaveTileB"]
               numMfmaForHalfRead = 1
               latencyLeft = miLatencyLeft
               for i in range(numHalfReads):
@@ -3617,7 +3617,7 @@ class Solution:
                 if latencyLeft < 0:
                   numMfmaForCurrentLoopLR += 1
                   latencyLeft = max(miLatencyLeft - issueLatencyB*2,0)
-              if state["MIWaveTile"][0] * state["MIWaveTile"][1] > 1:
+              if state["MIWaveTileA"] * state["MIWaveTileB"] > 1:
                 numMfmaForCurrentLoopLR += 1
               lwStartMfmaIndex = numMfmaForCurrentLoopLR
           else:

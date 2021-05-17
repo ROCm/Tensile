@@ -198,7 +198,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             # be scheduled in the front of loop.
             # localwrite have to start after last read-to-tempVgpr.
             if self.numReadPerVectorA != 1 or self.numReadPerVectorB !=1:
-              numHalfReads = (self.numReadPerVectorA//2)*kernel["InnerUnroll"]*kernel["MIWaveTile"][0] + (self.numReadPerVectorB//2)*kernel["InnerUnroll"]*kernel["MIWaveTile"][1]
+              numHalfReads = (self.numReadPerVectorA//2)*kernel["InnerUnroll"]*kernel["MIWaveTileA"] + (self.numReadPerVectorB//2)*kernel["InnerUnroll"]*kernel["MIWaveTileB"]
               numMfmaForHalfRead = 1
               latencyLeft = self.miLatencyLeft
               for i in range(numHalfReads):
@@ -216,7 +216,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 if latencyLeft < 0:
                   numMfmaForCurrentLoopLR += 1
                   latencyLeft = max(self.miLatencyLeft - tensorParametersB["localReadInstruction"].IssueLatency*2,0)
-              if kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] > 1:
+              if kernel["MIWaveTileA"] * kernel["MIWaveTileB"] > 1:
                 numMfmaForCurrentLoopLR += 1
               lwStartMfmaIndex = numMfmaForCurrentLoopLR
           else:
@@ -234,8 +234,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if lwStartMfmaIndex > self.lwEndMfmaIndex:
           lwStartMfmaIndex = self.lwEndMfmaIndex
         numMfmaCanSched = self.lwEndMfmaIndex - lwStartMfmaIndex + 1
-        numLoadsA = kernel["DepthU"]*kernel["MacroTile0"]//kernel["GlobalLoadVectorWidthA"]//kernel["NumThreads"]
-        numLoadsB = kernel["DepthU"]*kernel["MacroTile1"]//kernel["GlobalLoadVectorWidthB"]//kernel["NumThreads"]
+        numLoadsA = kernel["DepthU"]*kernel["MacroTileA"]//kernel["GlobalLoadVectorWidthA"]//kernel["NumThreads"]
+        numLoadsB = kernel["DepthU"]*kernel["MacroTileB"]//kernel["GlobalLoadVectorWidthB"]//kernel["NumThreads"]
         writesToSched = (numLoadsA + numLoadsB - 1) * 100
         temp1 = 0
         temp2 = 100
