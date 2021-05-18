@@ -3337,6 +3337,8 @@ class KernelWriterAssembly(KernelWriter):
 
       # kStr += legacyGetKernelArgs(kernel)
 
+      if kernel.enabledSetPrioSplitLDS:
+        kStr += inst("s_setprio", "1", "prioritize init code so as to issue load sooner")
       kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for %u bytes of kern args" % self.kernArgOffset )
 
       if not kernel["ProblemType"]["StridedBatched"]:
@@ -9018,6 +9020,8 @@ class KernelWriterAssembly(KernelWriter):
 
     # Global Write
     ntStr = ""
+    if kernel.enabledSetPrioSplitLDS:
+      kStr += inst("s_setprio", "1", "")
     if kernel["NonTemporalC"]%2==1:
       ntStr += " glc"
     if kernel["NonTemporalC"]//2==1:
@@ -11116,6 +11120,8 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # AccVgpr read
+    if kernel.enabledSetPrioSplitLDS:
+      kStr += inst("s_setprio", "0", "")
     if codeAccVgprRead is not None:
       assert(self.serializedStore) # sanity check
       regsPerScalar = self.bpeCinternal//self.bpr # register per scalar

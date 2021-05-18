@@ -4093,3 +4093,7 @@ class Solution(collections.abc.Mapping):
   @property
   def enabledSplitLDS(self):
     return self["DepthULdsDivisor"] > 1
+
+  @property
+  def enabledSetPrioSplitLDS(self):
+    return self.enabledSplitLDS and True
