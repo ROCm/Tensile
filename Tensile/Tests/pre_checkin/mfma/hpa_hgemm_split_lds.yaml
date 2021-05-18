@@ -79,18 +79,14 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - GlobalReadVectorWidth: [4]
         - LocalReadVectorWidth: [8]
-        - 1LDSBuffer: [0]
+        - 1LDSBuffer: [0,1]
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [128], [128], [1], [256] ]
+          - Range: [ [1280], [1280], [1], [2560] ]
 
-    # test cases for a regression case in scheduler due to recent refactor to do
-    # scheduling which depends on the information provided by the instruction type
-    #
-    # since some part of the codes were still in form of raw string, they were effectively ignored by the scheduler
-    #
+    # test cases for a regression case in scheduler due to recent refactor
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
@@ -113,6 +109,34 @@ BenchmarkProblems:
         - LocalReadVectorWidth: [8]
         - 1LDSBuffer: [0,1]
         - StaggerU: [0,16]
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [128], [128], [1], [256] ]
+
+    # test case for one LDS buffer  + SplitLDS
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+      ForkParameters:
+        - TransposeLDS: [1]
+        - MatrixInstruction:
+          - [32, 32, 8, 1, 1, 1, 3, 4, 1]  # 128x96
+        - PrefetchLocalRead: [5]
+        - PrefetchGlobalRead: [1]
+        - ThreadTile:
+          - [ 1, 32 ] # param ignored since 9-tuple MI format
+        - WorkGroup:
+          - [ 16, 16, 1 ] # param ignored since 9-tuple MI format
+        - DepthU: [64]
+        - DepthULdsDivisor: [2]
+        - ScheduleIterAlg: [3]
+        - GlobalReadVectorWidth: [8]
+        - LocalReadVectorWidth: [8]
+        - 1LDSBuffer: [1]
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
