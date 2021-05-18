@@ -21,7 +21,7 @@
 
 from . import Code
 from . import Common
-from .Common import globalParameters, CHeader, roundUp
+from .Common import globalParameters, CHeader, roundUp, Backup
 from .ReplacementKernels import ReplacementKernels
 from .CustomKernels import isCustomKernelConfig
 from .SolutionStructs import Solution
@@ -115,11 +115,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
     globalReadIncACode  = self.globalReadIncrements.findNamedItem("globalReadIncrementA")
     globalReadIncBCode  = self.globalReadIncrements.findNamedItem("globalReadIncrementB")
 
-    if uDu == 0 and kernel.enabledSplitLDS and kernel["PrefetchGlobalRead"]:
+    if uDu < kernel["DepthULdsDivisor"] - 1 and kernel.enabledSplitLDS and kernel["PrefetchGlobalRead"]:
       globalReadIncACode  = Code.Module()
       globalReadIncBCode  = Code.Module()
 
-    if uDu > 0 and kernel.enabledSplitLDS:
+    if uDu != kernel["DepthULdsDivisor"] - 2 and kernel.enabledSplitLDS:
+      # hack RAII object for auto restore
+      grBackup = Backup(self, globalReadACode = self.globalReadACode, globalReadBCode = self.globalReadBCode)
       self.globalReadACode = Code.StructuredModule() # empty
       self.globalReadBCode = Code.StructuredModule() # empty
 
@@ -345,7 +347,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # _numMfmaBetweenLastLWandBarrier: a function of 'spacing', which is num of mfma instructions until local write starts
         _numMfmaBetweenLastLWandBarrier = lambda spacing : self.barrierMfmaIndex + 1 - localWritesToSched//localWritesPerMfma - spacing
         addrIncToSched = sum(1 for codemod in [globalReadIncACode, globalReadIncBCode] if len(codemod.items()))
-        if uDu==0:
+        if uDu < kernel["DepthULdsDivisor"] - 1:
           if kernel["1LDSBuffer"] and kernel["PrefetchLocalRead"] > 1:
             # space the stream of local writes so that 1st local write is scheduled after last local read,
             # but give it 2 mfma's worth of headroom
