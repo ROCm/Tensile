@@ -2646,10 +2646,13 @@ class Solution(collections.abc.Mapping):
     # Set up stagger shift:
     bpeAB = int(4*state["ProblemType"]["DataType"].numRegisters())
     # (1<<staggerStrideShift) is number of loop iterations to traverse the stride
+    if state["StaggerU"] == 0:
+      state["StaggerUMapping"] = 0
+      state["StaggerUStride"] = 0
     try:
         staggerStrideShift = (int)(math.ceil(math.log(state["StaggerUStride"] / \
                 (state["DepthU"] * bpeAB), 2)))
-    except ValueError:
+    except ValueError: # i.e., StaggerUStride == 0
         staggerStrideShift = 0
     if staggerStrideShift < 0:
       reject(state, "StaggerUStride=%u is less than size of DepthU=%u * BytesPerElement=%u" \
@@ -2657,8 +2660,6 @@ class Solution(collections.abc.Mapping):
       return
     #print "staggerStrideShift=", staggerStrideShift, "depthu=", state["DepthU"]
     state["_staggerStrideShift"] = staggerStrideShift
-    if state["StaggerU"] == 0:
-      state["StaggerUMapping"] = 0
 
     # VectorWidth default handling
     if state["VectorWidth"] < 1:
