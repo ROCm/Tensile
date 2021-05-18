@@ -635,7 +635,10 @@ int main(int argc, const char* argv[])
                 listeners.postSolution();
 
                 if(exitOnError && listeners.error() > 0)
-                    return listeners.error();
+                {
+                    // error range in shell is [0-255]
+                    return std::min(listeners.error(), 255);
+                }
             }
 
             listeners.postProblem();
@@ -646,5 +649,6 @@ int main(int argc, const char* argv[])
 
     listeners.finalizeReport();
 
-    return listeners.error();
+    // error range in shell is [0-255]
+    return std::min(listeners.error(), 255);
 }

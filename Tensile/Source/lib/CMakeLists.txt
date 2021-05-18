@@ -76,6 +76,14 @@ if(TENSILE_USE_HIP)
         )
 endif()
 
+if(TENSILE_USE_OPENCL)
+    set(tensile_sources ${tensile_sources}
+        source/ocl/OclHardware.cpp
+        source/ocl/OclSolutionAdapter.cpp
+        source/ocl/OclUtils.cpp
+        )
+endif()
+
 include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_library (TensileHost STATIC ${tensile_sources})
@@ -125,6 +133,15 @@ if(TENSILE_USE_HIP)
     if(WIN32)
         target_compile_options( TensileHost PUBLIC -Wno-deprecated-declarations -Wno-ignored-attributes -Wdll-attribute-on-redeclaration -fdelayed-template-parsing )
     endif()
+endif()
+
+if(TENSILE_USE_OPENCL)
+    find_package(OpenCL REQUIRED)
+    target_compile_definitions(TensileHost PUBLIC CL_TARGET_OPENCL_VERSION=200)
+    target_compile_definitions(TensileHost PUBLIC CL_HPP_TARGET_OPENCL_VERSION=200)
+    target_compile_definitions(TensileHost PUBLIC CL_HPP_ENABLE_EXCEPTIONS)
+    target_link_libraries(TensileHost PUBLIC ${OPENCL_LIBRARIES})
+    target_include_directories(TensileHost PUBLIC ${OPENCL_INCLUDE_DIRS})
 endif()
 
 if(false)

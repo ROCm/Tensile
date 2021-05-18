@@ -1,4 +1,6 @@
-# headers
+TestParameters:
+  marks: [skip-gfx900, skip-gfx906, skip-gfx908, skip-gfx90a] # not supported by arch
+
 GlobalParameters:
   MinimumRequiredVersion: 4.9.0
   NumElementsToValidate: -1
@@ -22,7 +24,7 @@ BenchmarkProblems:
       InitialSolutionParameters:
       BenchmarkCommonParameters:
       ForkParameters:
-        - KernelLanguage: ["Source"]
+        - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
         - PrefetchLocalRead:  [True]
         - PrefetchGlobalRead: [True]
@@ -33,6 +35,36 @@ BenchmarkProblems:
           - [  8,  8,  1 ]
           - [ 16, 16,  1 ]
         - DepthU: [32]
+        - VectorWidth: [4, 8]
+        - InnerUnroll: [1, 2]
+        - LdsPadA: [0,3]
+        - LdsPadB: [0,3]
+        - GlobalSplitU: [1, 3]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [[128, 3, 138], 0, [1,1,3], [1024, 3, 1034]]
+
+    - # BenchmarkProblemSizeGroup - iu4
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+      ForkParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - PrefetchLocalRead:  [True]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [  4,  4 ]
+          - [  8,  8 ]
+        - WorkGroup:
+          - [  8,  8,  1 ]
+          - [ 16, 16,  1 ]
+        - DepthU: [32]
+        - VectorWidth: [4, 8]
+        - LocalDotLayout: [4]
+        - InnerUnroll: [4]
         - LdsPadA: [0,3]
         - LdsPadB: [0,3]
         - GlobalSplitU: [1, 3]

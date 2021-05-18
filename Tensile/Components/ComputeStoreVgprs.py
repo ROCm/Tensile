@@ -208,7 +208,7 @@ class ComputeStoreVgprsMFMA(ComputeStoreVgprs):
         kStr += vectorStaticDivide(tid0, tid0, kernel["MatrixInstM"], tmpVgpr1, tmpSgpr)
         if kernel["MatrixInstM"] == 4:
             kStr += vectorStaticRemainder(dummy, tid0, tid0, kernel["MatrixInstBM"], tmpVgpr1, tmpSgpr)
-        if kernel["MatrixInstM"] == 4 or not kernel["ProblemType"]["DataType"].isDouble():
+        if kernel["MatrixInstM"] == 4 or not (kernel["ProblemType"]["DataType"].isDouble() or kernel["ProblemType"]["DataType"].isDoubleComplex()):
             kStr += inst("v_lshlrev_b32", vgpr(tid0), hex(2), vgpr(tid0), "thread0 * 4 : mfma output 4 continuous outputs")
         kStr += inst("_v_add_u32", vgpr(tid0), vgpr(tmpVgpr0), vgpr(tid0), "coordination 0 = wave_id0 + tid0")
 
@@ -303,7 +303,7 @@ class ComputeStoreVgprsMFMASwap(ComputeStoreVgprs):
         kStr += vectorStaticDivide(tid1, tid1, kernel["MatrixInstM"], tmpVgpr1, tmpSgpr)
         if kernel["MatrixInstM"] == 4:
             kStr += vectorStaticRemainder(dummy, tid1, tid1, kernel["MatrixInstBM"], tmpVgpr1, tmpSgpr)
-        if kernel["MatrixInstM"] == 4 or not kernel["ProblemType"]["DataType"].isDouble():
+        if kernel["MatrixInstM"] == 4 or not (kernel["ProblemType"]["DataType"].isDouble() or kernel["ProblemType"]["DataType"].isDoubleComplex()):
             kStr += inst("v_lshlrev_b32", vgpr(tid1), hex(2), vgpr(tid1), "thread0 * 4 : mfma output 4 continuous outputs")
         kStr += inst("v_add_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), "coordination 1 = wave_id1 + tid1")
 
