@@ -121,7 +121,6 @@ namespace Tensile
         bool m_log;
     };
 
-    TENSILE_API std::ostream& operator<<(std::ostream& stream, const KernelArguments& t);
     TENSILE_API KernelArguments::const_iterator begin(KernelArguments const&);
     TENSILE_API KernelArguments::const_iterator end(KernelArguments const&);
   

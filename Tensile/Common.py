@@ -1655,7 +1655,7 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
 
 def gfxArch(name):
     import re
-    match = re.search(r'gfx([0-9a-fA-F]{3,}).*', name)
+    match = re.search(r'gfx([0-9a-fA-F]{3,})', name)
     if not match: return None
 
     ipart = match.group(1)
@@ -1677,6 +1677,37 @@ def gfxName(arch):
     name = str(arch[0]) + str(arch[1]) + ('%x' % arch[2])
     return 'gfx' + ''.join(map(str,name))
 
+def detectGlobalCurrentISA():
+  """
+  Returns returncode if detection failure
+  """
+  global globalParameters
+  
+  if globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
+    process = subprocess.run([globalParameters["ROCmAgentEnumeratorPath"]], stdout=subprocess.PIPE)
+    if os.name == "nt":
+      line = ""
+      for line_in in process.stdout.decode().splitlines():
+        if 'gcnArchName' in line_in:
+          line += line_in.split()[1]
+          break # detemine if hipinfo will support multiple arch
+      arch = gfxArch(line.strip())
+      if arch is not None:
+        if arch in globalParameters["SupportedISA"]:
+          print1("# Detected local GPU with ISA: " + gfxName(arch))
+          globalParameters["CurrentISA"] = arch
+    else:
+      for line in process.stdout.decode().split("\n"):
+        arch = gfxArch(line.strip())
+        if arch is not None:
+          if arch in globalParameters["SupportedISA"]:
+            print1("# Detected local GPU with ISA: " + gfxName(arch))
+            globalParameters["CurrentISA"] = arch
+    if (process.returncode):
+      printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
+    return process.returncode
+  return 0
+      
 def restoreDefaultGlobalParameters():
   """
   Restores `globalParameters` back to defaults.
@@ -1805,34 +1836,13 @@ def assignGlobalParameters( config ):
     globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
 
   # read current gfx version
-  if globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
+  returncode = detectGlobalCurrentISA()
+  if globalParameters["CurrentISA"] == (0,0,0):
+    printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
+  if returncode:
     if os.name == "nt":
-      process = subprocess.run([globalParameters["ROCmAgentEnumeratorPath"]], stdout=subprocess.PIPE)
-      line = ""
-      for line_in in process.stdout.decode().splitlines():
-        if 'gcnArchName' in line_in:
-          line += line_in.split()[1]
-          break
-      arch = gfxArch(line.strip())
-      if arch is not None:
-        if arch in globalParameters["SupportedISA"]:
-          print1("# Detected local GPU with ISA: " + gfxName(arch))
-          globalParameters["CurrentISA"] = arch
-    else:
-      process = subprocess.run([globalParameters["ROCmAgentEnumeratorPath"], "-t", "GPU"], stdout=subprocess.PIPE)
-      for line in process.stdout.decode().split("\n"):
-        arch = gfxArch(line.strip())
-        if arch is not None:
-          if arch in globalParameters["SupportedISA"]:
-            print1("# Detected local GPU with ISA: " + gfxName(arch))
-            globalParameters["CurrentISA"] = arch
-    if globalParameters["CurrentISA"] == (0,0,0):
-      printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
-    if process.returncode:
-      if os.name == "nt":
-        globalParameters["CurrentISA"] = (9,0,6)
-        printWarning("Failed to detect so forcing (gfx906) on windows")
-      printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
+      globalParameters["CurrentISA"] = (9,0,6)
+      printWarning("Failed to detect ISA so forcing (gfx906) on windows")
 
   # TODO Remove this when rocm-smi supports gfx90a
   if globalParameters["CurrentISA"] == (9,0,10):
