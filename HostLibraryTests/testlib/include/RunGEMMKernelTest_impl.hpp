@@ -145,10 +145,6 @@ template <typename DeviceBackend>
 auto RunGEMMKernelTestParams<DeviceBackend>::TestProblemsExtended() -> std::vector<ProblemParams>
 {
     return std::vector<ProblemParams>{
-
-        TestInterface::RandomGEMMParams,
-        TestInterface::RandomGEMMParams,
-        TestInterface::RandomGEMMParams,
         TestInterface::RandomGEMMParams,
         TestInterface::RandomGEMMParams,
         TestInterface::RandomGEMMParams,
