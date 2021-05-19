@@ -1895,9 +1895,6 @@ class Solution:
       state["MIOutputVectorWidth"] = 1 if (state["ProblemType"]["DataType"].MIOutputTypeNameAbbrev() == 'f64') else 4
       state["MIRegPerOut"]         = 2 if (state["ProblemType"]["DataType"].MIOutputTypeNameAbbrev() == 'f64') else 1
 
-      if (not state["SourceSwap"]) and state["ProblemType"]["DataType"].isDouble() and state["StoreVectorWidth"] != 1:
-        reject(state, "DGEMM MFMA (non-SourceSwap) currently requires StoreVectorWidth=1")
-
       # for dgemm mfma accumulate instructions can use either the accumulate registers or arch registers
       state["MIUseAccVgpr"] = True
       if state["ProblemType"]["DataType"].isDouble():
@@ -2679,6 +2676,7 @@ class Solution:
     if state["EnableMatrixInstruction"]:
       if state["SourceSwap"] and ((state["MIWaveTile"][0] % state["VectorWidth"]) != 0):
         reject(state, "MIWaveTile0(%u) should be multiple of VectorWidth(%u)" % (state["MIWaveTile"][0], state["VectorWidth"]))
+        return
     else:
       if state["ThreadTile0"] % state["VectorWidth"] != 0 \
           or state["ThreadTile1"] % state["VectorWidth"] != 0:
@@ -2729,16 +2727,25 @@ class Solution:
       else:
         state["StoreVectorWidth"] = 4//state["ProblemType"]["DataType"].numRegisters()
 
-    if ((state["VectorWidth"] % state["StoreVectorWidth"]) != 0) and state["SourceSwap"]:
-      reject(state, "MFMA SourceSwap mode doesn't support vw(%u) with svw(%u)" % (state["VectorWidth"], state["StoreVectorWidth"]))
+    if state["EnableMatrixInstruction"]:
+      if state["SourceSwap"]:
+        if ((state["VectorWidth"] % state["StoreVectorWidth"]) != 0):
+          reject(state, "MFMA SourceSwap mode doesn't support vw(%u) with svw(%u)" % (state["VectorWidth"], state["StoreVectorWidth"]))
+          return
+      else:
+        if ((state["MIOutputVectorWidth"] % state["StoreVectorWidth"]) != 0):
+          reject(state, "MFMA non-SourceSwap mode doesn't support miovw(%u) with svw(%u)" % (state["MIOutputVectorWidth"], state["StoreVectorWidth"]))
+          return
 
-    if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
-      # reject - VW too big
+    # reject - VW too big
+    if (state["VectorWidth"] * state["ProblemType"]["DataType"].numBytes()) > 16:
       reject(state, "VW * DataType.numBytes() > 16")
+      return
 
-    if state["GlobalReadVectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
-      # reject - GRVW too big
+    # reject - GRVW too big
+    if (state["GlobalReadVectorWidth"] * state["ProblemType"]["DataType"].numBytes()) > 16:
       reject(state, "GRVW * DataType.numBytes() > 16")
+      return
 
     # LocalSplitU too large?
     numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
@@ -2897,18 +2904,38 @@ class Solution:
           validDepthU = False
 
         if state["EnableMatrixInstruction"] and state["GlobalLoadVectorWidthA"]:
-          partialA    = state["ProblemType"]["TLUA"] and (state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"] != 0)
-          matrixInstN = (state["MatrixInstN"] * state["MatrixInstBN"]) if (state["MatrixInstN"] == 4) else state["MatrixInstN"]
-          glvwAlimit  = state["MIOutputVectorWidth"] * (state["WavefrontSize"] // matrixInstN)
+          partialA = state["ProblemType"]["TLUA"] and (state["AssertFree0ElementMultiple"] % state["GlobalLoadVectorWidthA"] != 0)
+          if partialA:
+            glvwAlimit = 16 // state["ProblemType"]["DataType"].numBytes()
+            if state["SourceSwap"]:
+              matrixInstM = (state["MatrixInstM"] * state["MatrixInstBM"]) if (state["MatrixInstM"] == 4) else state["MatrixInstM"]
+              glvwAlimit = matrixInstM * state["VectorWidth"]
+            else:
+              matrixInstN = (state["MatrixInstN"] * state["MatrixInstBN"]) if (state["MatrixInstN"] == 4) else state["MatrixInstN"]
+              glvwAlimit  = state["MIOutputVectorWidth"] * (state["WavefrontSize"] // matrixInstN)
 
-          cond1 = not state["SourceSwap"]
-          cond2 = partialA
-          cond3 = state["GlobalLoadVectorWidthA"] > glvwAlimit
-          if cond1 and cond2 and cond3:
-            #reduce GLVA if GLVA larger than MIOVW
-            tva = totalElementsA // glvwAlimit
-            if not Solution.setGlobalLoadVectorWidth(state, "A", tva, glvwAlimit):
-              validDepthU = False
+            # reduce GLVA if GLVA larger than MIOVW
+            if state["GlobalLoadVectorWidthA"] > glvwAlimit:
+              tva = totalElementsA // glvwAlimit
+              if not Solution.setGlobalLoadVectorWidth(state, "A", tva, glvwAlimit):
+                validDepthU = False
+
+        if state["EnableMatrixInstruction"] and state["GlobalLoadVectorWidthB"]:
+          partialB = state["ProblemType"]["TLUB"] and (state["AssertFree1ElementMultiple"] % state["GlobalLoadVectorWidthB"] != 0)
+          if partialB:
+            glvwBlimit = 16 // state["ProblemType"]["DataType"].numBytes()
+            if state["SourceSwap"]:
+              matrixInstM = (state["MatrixInstM"] * state["MatrixInstBM"]) if (state["MatrixInstM"] == 4) else state["MatrixInstM"]
+              glvwBlimit  = state["MIOutputVectorWidth"] * (state["WavefrontSize"] // matrixInstM)
+            # else:  # use origin shiftptr for B
+            #   matrixInstN = (state["MatrixInstN"] * state["MatrixInstBN"]) if (state["MatrixInstN"] == 4) else state["MatrixInstN"]
+            #   glvwBlimit = matrixInstN # not support state["VectorWidth"] for B yet
+
+            # reduce GLVB if GLVB larger than MIOVW
+            if state["GlobalLoadVectorWidthB"] > glvwBlimit:
+              tvb = totalElementsB // glvwBlimit
+              if not Solution.setGlobalLoadVectorWidth(state, "B", tvb, glvwBlimit):
+                validDepthU = False
 
       if validDepthU and state["KernelLanguage"] == "Assembly" \
         and (state["ProblemType"]["DataType"].isHalf() \
@@ -3265,9 +3292,6 @@ class Solution:
     if state["SourceSwap"]:
       if not state["EnableMatrixInstruction"]:
         reject(state, "SourceSwap only applies to MatrixInstruction kernels")
-        return
-      if (state["ProblemType"]["DataType"].MIOutputTypeNameAbbrev() != 'f64') and (not state["GuaranteeNoPartialB"]):
-        reject(state, "SourceSwap doesn't implement shiftptr of B yet")
         return
       if state["StoreRemapVectorWidth"]:
         reject(state, "SourceSwap not compatibile with StoreRemap")
