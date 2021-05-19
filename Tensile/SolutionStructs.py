@@ -3520,6 +3520,10 @@ class Solution:
         numMfmaPerIter = state["MIWaveTileA"] * state["MIWaveTileB"] * state["InnerUnroll"]
         lrvwA = state["LocalReadVectorWidth"] if not state["ProblemType"]["TLUA"] else state["MIInputPerThread"]
         lrvwB = state["LocalReadVectorWidth"] if not state["ProblemType"]["TLUB"] else state["MIInputPerThread"]
+        numReadsIterCoalescedA = lrvwA // state["MIInputPerThread"]
+        numReadsIterCoalescedB = lrvwB // state["MIInputPerThread"]
+        numIterPerCoalescedReadA = max(1,numReadsIterCoalescedA//state["InnerUnroll"])
+        numIterPerCoalescedReadB = max(1,numReadsIterCoalescedB//state["InnerUnroll"])
         blockWidthA = state["LocalReadVectorWidth"]/(4/bpeAB) if state["TransposeLDS"] and not state["ProblemType"]["TLUA"] else bpeAB/4
         blockWidthB = state["LocalReadVectorWidth"]/(4/bpeAB) if state["TransposeLDS"] and not state["ProblemType"]["TLUB"] else bpeAB/4
 
@@ -3609,22 +3613,44 @@ class Solution:
                   latencyLeft = max(miLatencyLeft - 2, 0)
               lwStartMfmaIndex = numMfmaPerIter * (state["LoopIters"] - 1 - numItersPLR) + numMfmaForHalfRead
             else:
-              numReads = (numReadsPerIterA+numReadsPerIterB) * (state["LoopIters"]//(state["LocalReadVectorWidth"]//state["MIInputPerThread"]) - numItersPLR)
               numMfmaForCurrentLoopLR = 1
               latencyLeft = miLatencyLeft
-              for i in range(numReads):
-                latencyLeft -= issueLatencyB*2
-                if latencyLeft < 0:
-                  numMfmaForCurrentLoopLR += 1
-                  latencyLeft = max(miLatencyLeft - issueLatencyB*2,0)
-              if state["MIWaveTileA"] * state["MIWaveTileB"] > 1:
-                numMfmaForCurrentLoopLR += 1
+              for u in range(state["LoopIters"] - numItersPLR):
+                doReadA = (u < state["LoopIters"]//numIterPerCoalescedReadA - numItersPLR)
+                doReadB = (u < state["LoopIters"]//numIterPerCoalescedReadB - numItersPLR)
+                # ds_read[A][0]
+                for i in range(numReadPerVectorA * doReadA):
+                  latencyLeft -= issueLatencyA*2
+                  if latencyLeft < 0:
+                    numMfmaForCurrentLoopLR += 1
+                    latencyLeft = max(miLatencyLeft - issueLatencyA*2,0)
+                # ds_read[B][0]
+                for i in range(numReadPerVectorB * doReadB):
+                  latencyLeft -= issueLatencyB*2
+                  if latencyLeft < 0:
+                    numMfmaForCurrentLoopLR += 1
+                    latencyLeft = max(miLatencyLeft - issueLatencyB*2,0)
+                # ds_read[A][1:]
+                for i in range((numReadsPerIterA - numReadPerVectorA) * doReadA):
+                  latencyLeft -= issueLatencyA*2
+                  if latencyLeft < 0:
+                    numMfmaForCurrentLoopLR += 1
+                    latencyLeft = max(miLatencyLeft - issueLatencyA*2,0)
+                # ds_read[B][1:]
+                for i in range((numReadsPerIterB - numReadPerVectorB) * doReadB):
+                  latencyLeft -= issueLatencyB*2
+                  if latencyLeft < 0:
+                    numMfmaForCurrentLoopLR += 1
+                    latencyLeft = max(miLatencyLeft - issueLatencyB*2,0)
               lwStartMfmaIndex = numMfmaForCurrentLoopLR
           else:
             lwStartMfmaIndex = numMfmaPerIter * (state["LoopIters"] - 1 - numItersPLR) + numMfmaForLR
           # to calculate number of mfma we need to wait before data arrive from lds to vgpr.
           # latency: 40 quad-cycle for 4 word, 20 quad-cycle for 2 word, 10 quad-cycle for 1 word / half word
-          latencyForLR = roundUp(blockWidthB)*10
+          if numIterPerCoalescedReadB > numIterPerCoalescedReadA:
+            latencyForLR = roundUp(blockWidthA) * 10
+          else:
+            latencyForLR = roundUp(blockWidthB) * 10
           latencyForLR -= max(latencyLeft,0) # remaining latency in mfma
           while latencyForLR > 0:
             latencyForLR -= miLatency
@@ -3632,18 +3658,18 @@ class Solution:
         #########
         # Get localWritePerMfma
         #########
-        temp1 = 0
-        temp2 = 100
+        oldValue = 0
+        newValue = 100
         writesToSched = (numLoadsA+numLoadsB-1)*100
         loop = 0
         if lwStartMfmaIndex > lwEndMfmaIndex:
           lwStartMfmaIndex = lwEndMfmaIndex
         numMfmaCanSched = lwEndMfmaIndex - lwStartMfmaIndex + 1
-        while temp1 != temp2 and loop < 10:
+        while oldValue != newValue and loop < 10:
           loop += 1
-          temp1 = temp2
-          temp2 = roundUp((writesToSched+1 + temp1 + temp1%100 - (writesToSched+1) % temp1)/numMfmaCanSched)
-        state["LocalWritePerMfma"] = temp2/100
+          oldValue = newValue
+          newValue = roundUp((writesToSched+1 + oldValue + oldValue%100 - (writesToSched+1) % oldValue)/numMfmaCanSched)
+        state["LocalWritePerMfma"] = newValue/100
       else:
         state["LocalWritePerMfma"] = 1
 
