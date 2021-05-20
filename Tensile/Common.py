@@ -497,11 +497,11 @@ validParameters = {
     # the purpose of this parameter is to control density of global read instruction scheduling
     # Scheduling global read back to back can have better memory efficiency
     # However, when full of vmem FIFO, it will block other instruction to be issued
-    # Range from 0.01 to 5
+    # Range from 0.01 to 32
     #         0.1 means 1 GR per 10 mfma
     #           5 means 5 GR per 1 mfma
     "GlobalReadPerMfma":       [ i/100 for i in range(1,3200)] + [ -2 ],
-
+    #
     # For MatrixInstruction and SIA3, number of LocalWriteInstruction between mfma
     # the purpose of this parameter is to control density of local write instruction scheduling
     # In PGR1, we want to schedule local write more denser, so we can have more
@@ -509,10 +509,12 @@ validParameters = {
     # In PGR2, since LW is followed by GR, every LW has same whole loop latecy
     #          to hide global read. We want to schedule LW less denser, can
     #          avoid full of vmem FIFO.
-    # Range from 0.01 to 5
+    # Range from 0.01 to 32
     #         0.1 means 1 LW per 10 mfma
     #           5 means 5 LW per 1 mfma
-    # -1 will use an optimized setting
+    # -1 will derived an optimized value and override LWPM silently
+    # -2 is used to support old logic yaml
+    # -3 will derived an optimized value internally
     "LocalWritePerMfma":       [ i/100 for i in range(1,3200)] + [ -1, -2, -3 ],
 
     # LDD Support

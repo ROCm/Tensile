@@ -265,22 +265,47 @@ class KernelWriter(metaclass=abc.ABCMeta):
         oldValue = 0
         newValue = 100
         loop = 0
+        #   1. number of padded writesToSched is (numWrites - 1) * 100 + 1
+        #     LW ---99--- LW ---99--- LW
+        #   2. we need to pad it to multiple of LWPM
+        #     LW ---99--- LW ---99--- LW --?--
+        #     | ------- multiple of LWPM ---- |
+        #   3. if LWPM is not nultiple of 100, we need extra empty instructions to schedule GR for PGR2
+        #     LW ---99--- LW ---99--- LW --?-- --?--
+        #     | ------- multiple of LWPM ---- |-LWPM-|
+        #   4. then we put GR into padded writesToSched
+        #       put GR after LW + LWPM of empty inst, so that we can offset GR 1 mfma with LW if possible
+        #     Ex. LWPM = 0.25
+        #         LW --24- GR ------74------ LW --24- GR ------74------ LW --24- GR --24-
+        #     mfma--24-mfma--24-mfma--24-mfma--24-mfma--24-mfma--24-mfma--24-mfma--24-mfma
         # we need LWPM to get precise LWPM
         # so we iterate formula 10 times to get LWPM
         while oldValue != newValue and loop < 10:
           loop += 1
           oldValue = newValue
-          newValue = roundUp((writesToSched+1 + oldValue + oldValue%100 - (writesToSched+1) % oldValue) / numMfmaCanSched)
+          newValue = roundUp((writesToSched+1 + (oldValue - (writesToSched+1) % oldValue) + oldValue%100) / numMfmaCanSched)
         numLocalWriteModPerMfma = newValue
 
       #####
       # Assign GRPM and LWPM
       #####
+      # HOW THIS WORK
+      # padding each globalReadInstruction to 100 with empty instruction, 
+      # each mfma will schedule intructions GRPM*100 times from padded globalReadInstruction.
+      #   Ex. GRPM = 0.5
+      #        GR ---------99--------- GR --------99---------- GR
+      #   mfma --49-- mfma --49-- mfma --49-- mfma --49-- mfma --49--
       if kernel["GlobalReadPerMfma"] == -2:
         self.numGlobalReadInsPerMfma = 200 if kernel["MatrixInstM"] == 32 and not kernel["ProblemType"]["TLUA"] and not kernel["ProblemType"]["TLUB"] and kernel["TransposeLDS"] and not kernel["1LDSBuffer"] else 100
       else:
         self.numGlobalReadInsPerMfma = roundUp(kernel["GlobalReadPerMfma"]*100)
 
+      # HOW THIS WORK
+      # padding each globalReadInstruction to 100 with empty instruction, 
+      # each mfma will schedule intructions GRPM*100 times from padded globalReadInstruction.
+      #   Ex. LWPM = 0.5
+      #        LW ---------99--------- LW --------99---------- LW
+      #   mfma --49-- mfma --49-- mfma --49-- mfma --49-- mfma --49--
       if kernel["LocalWritePerMfma"] == -2:
         readsLatencyA = self.numReadsPerIterA/numMfmaPerIter if self.numReadsIterCoalescedA == 1 else 0
         readsLatencyB = self.numReadsPerIterB/numMfmaPerIter if self.numReadsIterCoalescedB == 1 else 0
