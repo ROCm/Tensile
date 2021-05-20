@@ -182,7 +182,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #########
       # strategy is to distribute LW/GR as wide as possible to avoid hitting vmem FIFO
       # LWPM = (LW_End - LW_Start) / numLW
-      if kernel["LocalWritePerMfma"] == -3 and kernel["PrefetchGlobalRead"] == 2:
+      if kernel["LocalWritePerMfma"] == -3:
         #########
         # Get localWriteStart
         #########
@@ -314,7 +314,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
           readsLatency = 0
         self.numLocalWriteModPerMfma = max((self.miLatencyLeft - readsLatency)//(self.tPA["localWriteInstruction"].IssueLatency*2),1)*100
       elif kernel["LocalWritePerMfma"] == -3:
-        self.numLocalWriteModPerMfma = numLocalWriteModPerMfma if kernel["PrefetchGlobalRead"] == 2 else 100
+        if kernel["PrefetchGlobalRead"] == 1 and kernel["1LDSBuffer"]:
+          self.numLocalWriteModPerMfma = max(numLocalWriteModPerMfma,100)
+        else:
+          self.numLocalWriteModPerMfma = numLocalWriteModPerMfma
       else:
         self.numLocalWriteModPerMfma = roundUp(kernel["LocalWritePerMfma"]*100)
 
