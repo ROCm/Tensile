@@ -1795,6 +1795,8 @@ def assignGlobalParameters( config ):
   globalParameters["ROCmPath"] = "/opt/rocm"
   if "ROCM_PATH" in os.environ:
     globalParameters["ROCmPath"] = os.environ.get("ROCM_PATH")
+  if "TENSILE_ROCM_PATH" in os.environ:
+    globalParameters["ROCmPath"] = os.environ.get("TENSILE_ROCM_PATH")
   if os.name == "nt" and "HIP_DIR" in os.environ:
     globalParameters["ROCmPath"] = os.environ.get("HIP_DIR") # windows has no ROCM
   globalParameters["CmakeCxxCompiler"] = None
