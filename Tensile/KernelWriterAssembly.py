@@ -6478,6 +6478,8 @@ class KernelWriterAssembly(KernelWriter):
     if prefetch:
       kStr += self.checkLastIter(kernel)
       if not isPap:
+        if kernel["StorePriorityOpt"]:
+          kStr += inst("s_setprio 0", "optimization store")
         if self.doShadowInit:
           kStr += inst("s_cbranch_scc1 %s"\
               % self.getNamedLabel("ShadowInitStart"), \

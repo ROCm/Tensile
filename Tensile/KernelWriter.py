@@ -1010,7 +1010,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           iterCode.addCode(barrier)
 
         if kernel["StorePriorityOpt"] and kernel["PrefetchGlobalRead"] == 2 and \
-            mfmaIndex == self.lwStartMfmaIndex:
+            (mfmaIndex == self.lwStartMfmaIndex or mfmaIndex == self.barrierMfmaIndex+2) :
           iterCode.addInst("s_setprio 3","store optimization")
 
         if (mfmaIndex >= self.lwStartMfmaIndex):
@@ -1048,10 +1048,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if mfmaIndex == self.barrierMfmaIndex and self.numItersPLR:
           iterCode.addCode(waitLWCode)
           iterCode.addCode(syncCode)
-
-        if kernel["StorePriorityOpt"] and kernel["PrefetchGlobalRead"] == 2 and \
-            mfmaIndex == self.barrierMfmaIndex and self.numItersPLR:
-          iterCode.addInst("s_setprio 0","store optimization")
 
         ####
         # scheduled local read for next loop
@@ -1137,6 +1133,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # scheduled mfma
         ####
         iterCode.addCode(macIterItems.pop(0) if macIterItems else Code.Module())
+
+        if kernel["StorePriorityOpt"] and kernel["PrefetchGlobalRead"] == 2 and \
+            (mfmaIndex == self.barrierMfmaIndex or mfmaIndex == (kernel["LoopIters"] * numMfmaPerIter - 1)):
+          iterCode.addInst("s_setprio 0","store optimization")
     else:
       assert 0, "Unsupported scheduleIterAlg=%u"%self.scheduleIterAlg
 
