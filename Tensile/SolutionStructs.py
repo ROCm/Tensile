@@ -3299,6 +3299,13 @@ class Solution:
         reject(state, "SourceSwap not compatibile with StoreRemap")
         return
 
+    # check if need to use lds init Acc vgprs
+    state["LdsInitCVgprs"] = False
+    if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasVmAcc"] and \
+         state["EnableMatrixInstruction"] and state["StorePriorityOpt"] and \
+         state["ProblemType"]["DataType"].isDouble():
+      state["LdsInitCVgprs"] = True
+
     if state["AtomicAddC"]:
       if not state["ProblemType"]["DataType"].isDouble():
         reject(state, "AtomicAddC currently only available for dgemm")
