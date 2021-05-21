@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,8 +20,8 @@
  * THE SOFTWARE.
  *******************************************************************************/
 
-#ifndef TENSILE_H
-#define TENSILE_H
+#ifndef TENSILETYPES_H
+#define TENSILETYPES_H
 #include "tensile_bfloat16.h"
 #include <algorithm>
 #include <iostream>
@@ -31,9 +31,6 @@
 
 #include <cstddef>
 
-#ifdef _WIN32
-#include <windows.h>
-#endif
 
 // OpenCL
 #if Tensile_RUNTIME_LANGUAGE_OCL
@@ -569,18 +566,11 @@ struct ProblemProperties
         , _allBatchBStridesAreZero(allBatchBStridesAreZero)
         , _db(0)
     {
-#ifdef _WIN32
-        const DWORD nSize = _MAX_PATH;
-        static char db[nSize];
-        GetEnvironmentVariableA("TENSILE_DB", db, nSize);
-        _db = strtol(db,nullptr,0);
-#else
         const char* db = std::getenv("TENSILE_DB");
         if(db)
         {
             _db = strtol(db, nullptr, 0);
         }
-#endif
     }
 
     // Constructor used to compute assertions for a specified problem size

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,16 +22,9 @@
 
 #pragma once
 
-#if defined(max)
-#undef max
-#endif
 #include <cstddef>
 #include <limits>
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#endif
 
 /*******************************************************************************
  * Functions to map from ProblemDims to the best available solution
@@ -203,16 +196,6 @@ public:
             _exactMap.insert({pkey, solutionIdx});
         }
 
-#ifdef _WIN32
-        const DWORD nSize = _MAX_PATH;
-        static char db[nSize];
-        GetEnvironmentVariableA("TENSILE_DB", db, nSize);
-        _db = strtol(db,nullptr,0);
-
-        static char alg[nSize];
-        GetEnvironmentVariableA("TENSILE_FIND_ALG", alg, nSize); // If <0 see Algo enumeration, or >=0 specified specific solution index
-        _findAlg = strtol(alg,nullptr,0);
-#else
         const char* db = std::getenv("TENSILE_DB");
         if(db)
         {
@@ -225,7 +208,7 @@ public:
         {
             _findAlg = strtol(alg, nullptr, 0);
         }
-#endif
+
         if(_db & 0x1)
             printf("TENSILE_FIND_ALGO= %d (%s)\n", _findAlg, algoString(_findAlg));
     }
