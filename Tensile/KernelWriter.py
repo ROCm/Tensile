@@ -295,10 +295,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #   Ex. GRPM = 0.5
       #        GR ---------99--------- GR --------99---------- GR
       #   mfma --49-- mfma --49-- mfma --49-- mfma --49-- mfma --49--
-      if kernel["GlobalReadPerMfma"] == -2:
-        self.numGlobalReadInsPerMfma = 200 if kernel["MatrixInstM"] == 32 and not kernel["ProblemType"]["TLUA"] and not kernel["ProblemType"]["TLUB"] and kernel["TransposeLDS"] and not kernel["1LDSBuffer"] else 100
-      else:
-        self.numGlobalReadInsPerMfma = roundUp(kernel["GlobalReadPerMfma"]*100)
+      self.numGlobalReadInsPerMfma = roundUp(kernel["GlobalReadPerMfma"]*100)
+      # if kernel["GlobalReadPerMfma"] == -2:
+      #   self.numGlobalReadInsPerMfma = 200 if kernel["MatrixInstM"] == 32 and not kernel["ProblemType"]["TLUA"] and not kernel["ProblemType"]["TLUB"] and kernel["TransposeLDS"] and not kernel["1LDSBuffer"] else 100
 
       # HOW THIS WORK
       # padding each globalReadInstruction to 100 with empty instruction, 
@@ -311,15 +310,15 @@ class KernelWriter(metaclass=abc.ABCMeta):
           self.numLocalWriteModPerMfma = max(numLocalWriteModPerMfma,100)
         else:
           self.numLocalWriteModPerMfma = numLocalWriteModPerMfma
-      # elif kernel["LocalWritePerMfma"] == -2:
+      else:
+        self.numLocalWriteModPerMfma = roundUp(kernel["LocalWritePerMfma"]*100)
+      # if kernel["LocalWritePerMfma"] == -2:
       #   readsLatencyA = self.numReadsPerIterA/numMfmaPerIter if self.numReadsIterCoalescedA == 1 else 0
       #   readsLatencyB = self.numReadsPerIterB/numMfmaPerIter if self.numReadsIterCoalescedB == 1 else 0
       #   readsLatency = roundUp(readsLatencyA+readsLatencyB)*2
       #   if kernel["1LDSBuffer"] and self.numVgprBuffer >= kernel["LoopIters"]:
       #     readsLatency = 0
       #   self.numLocalWriteModPerMfma = max((self.miLatencyLeft - readsLatency)//(self.tPA["localWriteInstruction"].IssueLatency*2),1)*100
-      else:
-        self.numLocalWriteModPerMfma = roundUp(kernel["LocalWritePerMfma"]*100)
 
       ##################################
       numGlobalReadInsPerIter = numMfmaPerIter * self.numGlobalReadInsPerMfma
