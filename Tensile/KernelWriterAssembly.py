@@ -5289,8 +5289,17 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["EnableMatrixInstruction"] and kernel["MIUseAccVgpr"]:
       kStr = ""
       self.agprPool.remove(0, self.totalAgprs, "ValuC")
-      for i in range(0, self.totalAgprs):
-        kStr += inst("v_accvgpr_write", "acc%u"%i, hex(0), "init Acc vgprs")
+
+      if not kernel["LdsInitCVgprs"]:
+        for i in range(0, self.totalAgprs):
+          kStr += inst("v_accvgpr_write", "acc%u"%i, hex(0), "init Acc vgprs")
+      else:
+        # use lds to init vgpr
+        tmpAddr = self.vgprPool.checkOut(1,"tmp vgpr for init Acc registers")
+        kStr += inst("v_mov_b32", vgpr(tmpAddr), self.LdsOOB, "set out-of-bound addr")
+        for i in range(0, self.totalAgprs):
+          kStr += inst("ds_read_b32", "acc%u"%i, vgpr(tmpAddr), "offset:0", "init Acc vgprs")
+        self.vgprPool.checkIn(tmpAddr)
 
       # TODO: Remove debug code when finished
       # for debug, write 42 and check results
