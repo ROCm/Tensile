@@ -9501,7 +9501,9 @@ class KernelWriterAssembly(KernelWriter):
       elif self.optSingleColVgpr:
         self.numAddrVgpr = 1
         self.sharedColDVgprs = kernelWriter.vgprPool.checkOut(1, "sharedColDVgprs")
-        if kernel["GroupLoadStore"] and kernel["ProblemType"]["UseBeta"]:
+        self.singleColDAddrUpdated = False
+        self.singleColCAddrUpdated = False
+        if kernel["ProblemType"]["UseBeta"]:
           self.sharedColCVgprs = kernelWriter.vgprPool.checkOut(1, "sharedColCVgprs")
         else:
           self.sharedColCVgprs = self.sharedColDVgprs
@@ -9906,12 +9908,18 @@ class KernelWriterAssembly(KernelWriter):
         assert (kw.coord0 == self.coord0Vgpr) # elementAddr assignment above assumes these are the same
         if singleUpdate:
           updatedAddr = True
-          kStr += inst("_v_add_lshl_u32", \
-            vgpr(addrVgpr), \
-            vgpr(rowPtr), \
-            vgpr(elementVgpr), \
-            hex(log2(kw.bpeCexternal)), \
-            "optSingleColVgpr scaleToBpe: sharedAddrVgpr <- cinRowPtr + coord0, scaled by BPE. BSHERE:coord0=%d, coord0Vgpr=%d"%(kw.coord0, self.coord0Vgpr))
+          singleColAddrUpdated = ss.singleColCAddrUpdated if (tc == 'C') else ss.singleColDAddrUpdated
+          if not singleColAddrUpdated or not ss.optSrdIncForRow:
+            if tc == 'C':
+              ss.singleColCAddrUpdated = True
+            else:
+              ss.singleColDAddrUpdated = True
+            kStr += inst("_v_add_lshl_u32", \
+              vgpr(addrVgpr), \
+              vgpr(rowPtr), \
+              vgpr(elementVgpr), \
+              hex(log2(kw.bpeCexternal)), \
+              "optSingleColVgpr scaleToBpe: sharedAddrVgpr <- cinRowPtr + coord0, scaled by BPE. BSHERE:coord0=%d, coord0Vgpr=%d"%(kw.coord0, self.coord0Vgpr))
       elif ss.optSharedColVgpr:
         # Need an address calculation for the first address in each row:
         if d1==0 and vc1==0:
@@ -10452,6 +10460,9 @@ class KernelWriterAssembly(KernelWriter):
 
         # print("numVgprsPerAddr=%u, numVgprsPerDataPerVI=%u, numVgprPerValuC=%u"%(self.ss.cfg.numVgprsPerAddr, self.ss.cfg.numVgprsPerDataPerVI, self.ss.cfg.numVgprPerValuC))
         numVgprsPerElement = self.ss.cfg.numVgprPerValuC*gwvw + self.ss.cfg.numVgprsPerAddr + int(ceil(self.ss.cfg.numVgprsPerDataPerVI * gwvw))
+
+        if kernel["GroupLoadStore"] and kernel["ProblemType"]["UseBeta"]:
+          numVgprsPerElement += self.ss.cfg.numVgprsPerAddr
 
         #print self.vgprPool.state()
         # Use VGPR up to next occupancy threshold:
@@ -11742,9 +11753,9 @@ class KernelWriterAssembly(KernelWriter):
     for elementIdx in range(0, len(batchElements)):
       if not ss.sharedColDVgprs:
         addrDVgpr = ss.elementAddr[elementIdx].addrDVgpr
+        addrCVgpr = ss.elementAddr[elementIdx].addrCVgpr
         self.vgprPool.checkIn(addrDVgpr)
-        if kernel["GroupLoadStore"] and kernel["ProblemType"]["UseBeta"]:
-          addrCVgpr = ss.elementAddr[elementIdx].addrCVgpr
+        if addrCVgpr != addrDVgpr:
           self.vgprPool.checkIn(addrCVgpr)
 
       data = ss.elementData[elementIdx]
