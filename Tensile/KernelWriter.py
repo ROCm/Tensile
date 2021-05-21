@@ -182,7 +182,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #########
       # strategy is to distribute LW/GR as wide as possible to avoid hitting vmem FIFO
       # LWPM = (LW_End - LW_Start) / numLW
-      if kernel["LocalWritePerMfma"] == -3:
+      if kernel["LocalWritePerMfma"] == -1:
         #########
         # Get localWriteStart
         #########
@@ -306,18 +306,18 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #   Ex. LWPM = 0.5
       #        LW ---------99--------- LW --------99---------- LW
       #   mfma --49-- mfma --49-- mfma --49-- mfma --49-- mfma --49--
-      if kernel["LocalWritePerMfma"] == -2:
-        readsLatencyA = self.numReadsPerIterA/numMfmaPerIter if self.numReadsIterCoalescedA == 1 else 0
-        readsLatencyB = self.numReadsPerIterB/numMfmaPerIter if self.numReadsIterCoalescedB == 1 else 0
-        readsLatency = roundUp(readsLatencyA+readsLatencyB)*2
-        if kernel["1LDSBuffer"] and self.numVgprBuffer >= kernel["LoopIters"]:
-          readsLatency = 0
-        self.numLocalWriteModPerMfma = max((self.miLatencyLeft - readsLatency)//(self.tPA["localWriteInstruction"].IssueLatency*2),1)*100
-      elif kernel["LocalWritePerMfma"] == -3:
+      if kernel["LocalWritePerMfma"] == -1:
         if kernel["PrefetchGlobalRead"] == 1 and kernel["1LDSBuffer"]:
           self.numLocalWriteModPerMfma = max(numLocalWriteModPerMfma,100)
         else:
           self.numLocalWriteModPerMfma = numLocalWriteModPerMfma
+      # elif kernel["LocalWritePerMfma"] == -2:
+      #   readsLatencyA = self.numReadsPerIterA/numMfmaPerIter if self.numReadsIterCoalescedA == 1 else 0
+      #   readsLatencyB = self.numReadsPerIterB/numMfmaPerIter if self.numReadsIterCoalescedB == 1 else 0
+      #   readsLatency = roundUp(readsLatencyA+readsLatencyB)*2
+      #   if kernel["1LDSBuffer"] and self.numVgprBuffer >= kernel["LoopIters"]:
+      #     readsLatency = 0
+      #   self.numLocalWriteModPerMfma = max((self.miLatencyLeft - readsLatency)//(self.tPA["localWriteInstruction"].IssueLatency*2),1)*100
       else:
         self.numLocalWriteModPerMfma = roundUp(kernel["LocalWritePerMfma"]*100)
 
