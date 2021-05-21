@@ -1437,7 +1437,7 @@ def TensileCreateLibrary():
   if not os.path.exists(logicPath):
     printExit("LogicPath %s doesn't exist" % logicPath)
 
-  archs = arguments["Architecture"].split("_")
+  archs = arguments["Architecture"].split(";")
   logicArchs = set()
   for arch in archs:
     if arch in architectureMap:

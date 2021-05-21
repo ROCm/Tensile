@@ -198,17 +198,18 @@ function(TensileCreateLibraryFiles
   endif()
   
   if(Tensile_ARCHITECTURE)
-    string (REPLACE ";" "_" archString "${Tensile_ARCHITECTURE}")
-    # uses _ separator to avoid cmake ; list interpretation, decoded in TensileCreateLibrary
-    set(Options ${Options} "--architecture=${archString}")
+    set(ListOptions "--architecture=${Tensile_ARCHITECTURE}")
+  else()
+    set(ListOptions "")
   endif()
 
   if (WIN32)
-    set(CommandLine ${VIRTUALENV_BIN_DIR}/${VIRTUALENV_PYTHON_EXENAME} ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
+    set(Script ${VIRTUALENV_BIN_DIR}/${VIRTUALENV_PYTHON_EXENAME} ${Script} ${Options})
   else()
-    set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
+    set(Script ${Script} ${Options})
   endif()
-  message(STATUS "Tensile_CREATE_COMMAND: ${CommandLine}")
+  set(PathArgs ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
+  message(STATUS "Tensile_CREATE_COMMAND:" ${Script} "${ListOptions}" ${PathArgs})
 
   if(Tensile_EMBED_LIBRARY)
       set(Tensile_EMBED_LIBRARY_SOURCE "${Tensile_OUTPUT_PATH}/library/${Tensile_EMBED_LIBRARY}.cpp")
@@ -226,9 +227,8 @@ function(TensileCreateLibraryFiles
       message(STATUS "Tensile_MANIFEST_FILE_PATH: ${Tensile_MANIFEST_FILE_PATH}")
 
       # Create the manifest file of the output libraries.
-      set(Tensile_CREATE_MANIFEST_COMMAND ${CommandLine} "--generate-manifest-and-exit")
       execute_process(
-        COMMAND ${Tensile_CREATE_MANIFEST_COMMAND}
+        COMMAND ${Script} "${ListOptions}" ${PathArgs} "--generate-manifest-and-exit"
         RESULT_VARIABLE Tensile_CREATE_MANIFEST_RESULT
         COMMAND_ECHO STDOUT)
 
@@ -242,7 +242,7 @@ function(TensileCreateLibraryFiles
       add_custom_command(
         COMMENT "Generating Tensile Libraries"
         OUTPUT ${Tensile_EMBED_LIBRARY_SOURCE};${Tensile_MANIFEST_CONTENTS}
-        COMMAND ${CommandLine}
+        COMMAND ${Script} "${ListOptions}" ${PathArgs} 
       )
 
       set("${Tensile_VAR_PREFIX}_ALL_FILES" ${Tensile_MANIFEST_CONTENTS} PARENT_SCOPE)
