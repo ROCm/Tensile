@@ -37,13 +37,13 @@ from . import Utils
 from .BenchmarkStructs import BenchmarkProcess, constructForkPermutations, checkForValidParameters
 from .ClientWriter import runClient, writeClientParameters, writeClientConfig
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, \
-                    startTime, defaultBenchmarkCommonParameters, validParameters
+                    startTime, validParameters
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionStructs import Solution, ProblemType, ProblemSizes
 from .SolutionWriter import SolutionWriter
 from .TensileCreateLibrary import writeSolutionsAndKernels, writeCMake, buildObjectFileNames
-from .CustomKernels import isCustomKernelConfig, getCustomKernelConfig
+from .CustomKernels import getCustomKernelConfig
 
 ############################################################################
 # generateForkedSolutions

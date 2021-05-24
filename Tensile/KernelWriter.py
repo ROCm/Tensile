@@ -2292,7 +2292,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kl.append(self.shiftVectorComponents(kernel, tensorParametersA))
 
         # shift vector components d1, for MFMA version, B never entered this
-        if not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB and not kernel["EnableMatrixInstruction"]:
+        if not kernel["GuaranteeNoPartialB"] and self.readTileDimVectorB:
           kl.append(self.comment("shift vector components d1"))
           kl.append(self.shiftVectorComponents(kernel, tensorParametersB))
 
