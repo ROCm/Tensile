@@ -27,7 +27,7 @@ from .SolutionStructs import isPackedIndex
 from .Utils import ceil_divide, roundUpToNearestMultiple
 from .AsmUtils import inst, vgpr, sgpr, log2, vectorStaticDivideAndRemainder, vectorStaticDivide, vectorStaticRemainder, scalarStaticDivideAndRemainder, staticMultiply, scalarStaticMultiply
 
-from math import ceil, trunc, modf
+from math import ceil, trunc, modf, log
 from copy import deepcopy
 import collections
 import os
@@ -2777,7 +2777,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["BufferLoad"] or kernel["BufferStore"]:
       kStr += self.comment1("2GB limit - set offsets to -1 to exceed this and clamp")
-      kStr += self.macroRegister("BufferLimit", "0x80000000")
+      kStr += self.macroRegister("BufferLimit", "0xffffffff")
       #TODO-64 : This is max 32-bit negative value, the tail loop
       # does incrementally step through the GRO and increment GRO
       # which are initialized with this value
@@ -5335,7 +5335,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += scalarStaticDivideAndRemainder(quotient, None, dividend, divisor, tmpSgpr, 0)
         kStr += self.calculateLoopNumIterGsu(kernel, "UnrollLoopLastIter", tmpSgpr)
         kStr += inst ("s_mul_i32", sgpr("UnrollLoopLastIter"), sgpr("UnrollLoopLastIter"), "DepthU", "scale")
-
       else:
         kStr += inst ("s_mov_b32", sgpr("UnrollLoopLastIter"), self.loopSizeRef(kernel, self.unrollIdx), "init")
 
@@ -5499,8 +5498,22 @@ class KernelWriterAssembly(KernelWriter):
     remainder = "GSUSumIdx+1" # numIterPerWgRemainder
     dividend = tmpSgpr+2 # numIterMyWg
     divisor = kernel["GlobalSplitU"]
-    kStr += inst("s_mov_b32", sgpr(dividend), loopCounter, "copy for divide IterGsu" )
-    kStr += scalarStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpSgpr, 1)
+    if log(divisor,2).is_integer():
+      kStr += inst("s_mov_b32", sgpr(dividend), loopCounter, "copy for divide IterGsu" )
+      kStr += scalarStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpSgpr, 1)
+    else:
+      qReg = self.vgprPool.checkOut(1,"qReg")
+      rReg = self.vgprPool.checkOut(1,"rReg")
+      dReg = self.vgprPool.checkOut(1,"dReg")
+      tmpVgpr = self.vgprPool.checkOutAligned(2,2,"tmpReg")
+      kStr += inst("v_mov_b32", vgpr(dReg), loopCounter, "copy for divide IterGsu")
+      kStr += vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr)
+      kStr += inst("v_readfirstlane_b32", sgpr(quotient), vgpr(qReg), "")
+      kStr += inst("v_readfirstlane_b32", sgpr(remainder), vgpr(rReg), "")
+      self.vgprPool.checkIn(tmpVgpr)
+      self.vgprPool.checkIn(dReg)
+      self.vgprPool.checkIn(rReg)
+      self.vgprPool.checkIn(qReg)
 
     # if gsuSumIdx < numIterPerWgRemainder
     kStr += inst("s_add_u32", sgpr(tmpSgpr), "1", \
