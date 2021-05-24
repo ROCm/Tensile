@@ -3511,7 +3511,7 @@ class Solution:
         reject(state, "SplitLDS requires wider GlobalReadVectorWidth (assert RegisterPerElem (%f) * GRVW (%u) // DepthULdsDivisor (%u) >= 1"%
           (state["ProblemType"]["DataType"].numRegisters(),state["GlobalReadVectorWidth"],state["DepthULdsDivisor"]))
 
-    if state["LocalWritePerMfma"] == -3:
+    if state["LocalWritePerMfma"] == -2:
       # Get optmizaed LWPM for PGR2
       # optmized value is as wide as possible to avoid hitting vmem FIFO
       numLoadsA = state["DepthU"]*state["MacroTileA"]//state["GlobalLoadVectorWidthA"]//state["NumThreads"]

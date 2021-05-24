@@ -297,8 +297,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #        GR ---------99--------- GR --------99---------- GR
       #   mfma --49-- mfma --49-- mfma --49-- mfma --49-- mfma --49--
       self.numGlobalReadInsPerMfma = roundUp(kernel["GlobalReadPerMfma"]*PRECISION)
-      # if kernel["GlobalReadPerMfma"] == -2:
-      #   self.numGlobalReadInsPerMfma = 200 if kernel["MatrixInstM"] == 32 and not kernel["ProblemType"]["TLUA"] and not kernel["ProblemType"]["TLUB"] and kernel["TransposeLDS"] and not kernel["1LDSBuffer"] else 100
 
       # HOW THIS WORK
       # padding each globalReadInstruction to 100 with empty instruction, 
@@ -313,13 +311,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
           self.numLocalWriteModPerMfma = numLocalWriteModPerMfma
       else:
         self.numLocalWriteModPerMfma = roundUp(kernel["LocalWritePerMfma"]*PRECISION)
-      # if kernel["LocalWritePerMfma"] == -2:
-      #   readsLatencyA = self.numReadsPerIterA/numMfmaPerIter if self.numReadsIterCoalescedA == 1 else 0
-      #   readsLatencyB = self.numReadsPerIterB/numMfmaPerIter if self.numReadsIterCoalescedB == 1 else 0
-      #   readsLatency = roundUp(readsLatencyA+readsLatencyB)*2
-      #   if kernel["1LDSBuffer"] and self.numVgprBuffer >= kernel["LoopIters"]:
-      #     readsLatency = 0
-      #   self.numLocalWriteModPerMfma = max((self.miLatencyLeft - readsLatency)//(self.tPA["localWriteInstruction"].IssueLatency*2),1)*100
 
       ##################################
       numGlobalReadInsPerIter = numMfmaPerIter * self.numGlobalReadInsPerMfma

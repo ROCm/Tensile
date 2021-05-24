@@ -513,8 +513,7 @@ validParameters = {
     #         0.1 means 1 LW per 10 mfma
     #           5 means 5 LW per 1 mfma
     # -1 will derived an optimized value internally
-    # -2 is used to support old logic yaml
-    # -3 will derived an optimized value and override LWPM silently
+    # -2 will derived an optimized value and override LWPM silently (debug only, not recommended)
     "LocalWritePerMfma":       [ i/100 for i in range(1,3200)] + [ -1 ],
 
     # LDD Support
