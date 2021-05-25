@@ -199,7 +199,7 @@ function(TensileCreateLibraryFiles
   
   if(Tensile_ARCHITECTURE)
     string (REPLACE ";" "_" archString "${Tensile_ARCHITECTURE}")
-    # uses _ separator to avoid cmake ; list interpretation, decoded in TensileCreateLibrary
+    # uses _ separator to avoid cmake ; list interpretation, either ; or _ decoded in TensileCreateLibrary
     set(Options ${Options} "--architecture=${archString}")
   endif()
 

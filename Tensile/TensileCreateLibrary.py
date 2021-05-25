@@ -1437,7 +1437,10 @@ def TensileCreateLibrary():
   if not os.path.exists(logicPath):
     printExit("LogicPath %s doesn't exist" % logicPath)
 
-  archs = arguments["Architecture"].split("_")
+  if ";" in arguments["Architecture"]:
+    archs = arguments["Architecture"].split(";") # user arg list format
+  else:
+    archs = arguments["Architecture"].split("_") # workaround for cmake list in list issue
   logicArchs = set()
   for arch in archs:
     if arch in architectureMap:
@@ -1554,8 +1557,8 @@ def TensileCreateLibrary():
   sanityCheck1 = setB - setA 
 
   if globalParameters["PrintCodeCommands"]:
-    print("codeObjectFiles:", codeObjectFiles);
-    print("sourceLibPaths + asmLibPaths:", sourceLibPaths + asmLibPaths);
+    print("codeObjectFiles:", codeObjectFiles)
+    print("sourceLibPaths + asmLibPaths:", sourceLibPaths + asmLibPaths)
 
   assert len(sanityCheck0) == 0, "Unexpected code object files: {}".format(sanityCheck0)
   if not globalParameters["GenerateSourcesAndExit"]:
