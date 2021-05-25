@@ -208,8 +208,8 @@ function(TensileCreateLibraryFiles
   else()
     set(Script ${Script} ${Options})
   endif()
-  set(PathArgs ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} "HIP")
-  message(STATUS "Tensile_CREATE_COMMAND: ${Script} ${ListOptions} ${PathArgs}")
+  set(PathArgs ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
+  message(STATUS "Tensile_CREATE_COMMAND:" ${Script} "${ListOptions}" ${PathArgs})
 
   if(Tensile_EMBED_LIBRARY)
       set(Tensile_EMBED_LIBRARY_SOURCE "${Tensile_OUTPUT_PATH}/library/${Tensile_EMBED_LIBRARY}.cpp")
