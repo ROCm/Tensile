@@ -70,7 +70,7 @@ class LocalReadVALU(LocalRead):
                 paramTuple = tuple(paramList)
                 comment = "L -> Reg lro=%d swapByteOffset=%u ti=%u vIdx=%u rIdx=%u oIdx=%u buffer=%u iui=%u"\
                     %(tP["localReadOffset"],tP["localReadSwapByteOffset"],kernel["SubGroup%u"%tile01], vIdx, rIdx, oIdx, bufferIdx, iui)
-                localReadCode.addCode(Code.LocalReadInst(instruction.IssueLatency,instruction.toCodeInst(paramTuple), comment))
+                localReadCode.addCode(Code.LocalReadInst(instruction.IssueLatency,False,instruction.toCodeInst(paramTuple), comment))
                 valuIdx += blockWidth
 
                 # TODO - handle vector-load
@@ -173,7 +173,6 @@ class LocalReadMFMA(LocalRead):
                 localReadCode = imod.addCode (Code.Module("LocalRead%s Valu%u"%(tc,valuiIdx)))
                 if needPack:
                     packCode = pack.addCode (Code.Module("packCode"))
-
                 for rIdx in range(0, numReadsPerUnroll):
                     valuiIdx = int(valufIdx)
                     baseLRVgpr = vgpr("Valu%s_X%u_I%u+%u"%(tc, bufferIdx, iui, valuiIdx), numVgpr)
@@ -222,7 +221,8 @@ class LocalReadMFMA(LocalRead):
                             % (tP["localReadOffset"], tP["localReadSwapByteOffset"], MIWaveGroupShape[tile01], vIdx, rIdx, oIdx, bufferIdx, iui)
 
                     highBits = highBitsForHalf or isHigh16Bits
-                    localReadCode.addCode(Code.LocalReadInst(instruction.IssueLatency,instruction.toCodeInst(paramTuple, 0, highBits), comment))
+                    readToTempVgpr = highBitsForHalf or isHigh8Bits or isHigh16Bits
+                    localReadCode.addCode(Code.LocalReadInst(instruction.IssueLatency,readToTempVgpr,instruction.toCodeInst(paramTuple, 0, highBits), comment))
 
                     # TODO - handle vector-load
                     tmpSgpr = writer.getTmpSgpr(1).idx()

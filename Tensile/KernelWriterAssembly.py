@@ -2140,10 +2140,11 @@ class KernelWriterAssembly(KernelWriter):
     self.localReadDoCntB   = 0
 
     if kernel["EnableMatrixInstruction"]:
-      self.miLatency = kernel["MatrixInstM"] // 2 - 2
+      self.miLatency = kernel["MatrixInstM"] // 2
+      miIssueLatency = 2
       # give 1 quad-cycle buffer to prevend bubble from sync
-      self.miLatencyBuffer = 1
-      self.miLatency -= self.miLatencyBuffer
+      miLatencyBuffer = 1
+      self.miLatencyLeft = max(self.miLatency - miLatencyBuffer - miIssueLatency,0)
 
     # pre-determine labels in order
     unrollChar = self.indexChars[ \
@@ -10983,6 +10984,11 @@ class KernelWriterAssembly(KernelWriter):
 
     kStr += self.comment1("optSingleColVgpr=%u optSharedColVgpr=%u optSGPRUsage=%s optSrdIncForRow=%u" % \
               (ss.optSingleColVgpr, ss.optSharedColVgpr, ss.optSGPRUsage, ss.optSrdIncForRow))
+
+    if kernel["StoreSyncOpt"]:
+      kStr += "s_sleep %d // optimization: sync and wait\n" %(kernel["StoreSyncOpt"]-1)
+      kStr += "s_barrier\n"
+
     if atomic:
       # all kinds of code relies on this assumption:
       assert(atomicW <= gwvw)
@@ -11103,6 +11109,10 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_mov_b{}".format(kernel["WavefrontSize"]), self.exec, -1, "full mask -1 -> exec" )
 
     kStr += loadCInputCode
+
+    if beta and kernel["StoreSyncOpt"]:
+      kStr += "s_sleep %d // optimization: sync and wait\n" %(kernel["StoreSyncOpt"]-1)
+      kStr += "s_barrier\n"
 
     ########################################
     # AccVgpr read
