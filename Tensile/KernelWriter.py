@@ -343,9 +343,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # how many local writes
         localWritesToSched = self.localWriteACode.countType(Code.LocalWriteInst) + \
                              self.localWriteBCode.countType(Code.LocalWriteInst)
-        localWritesPerMfma = self.numLocalWriteModPerMfma // 100 # was scaled 100
+        localWritesPerMfma = self.numLocalWriteModPerMfma / PRECISION # was scaled by PRECISION
         # _numMfmaBetweenLastLWandBarrier: a function of 'spacing', which is num of mfma instructions until local write starts
-        _numMfmaBetweenLastLWandBarrier = lambda spacing : self.barrierMfmaIndex + 1 - localWritesToSched//localWritesPerMfma - spacing
+        _numMfmaBetweenLastLWandBarrier = lambda spacing : self.barrierMfmaIndex + 1 - ceil(localWritesToSched/localWritesPerMfma) - spacing
         addrIncToSched = sum(1 for codemod in [globalReadIncACode, globalReadIncBCode] if len(codemod.items()))
         if uDu < kernel["DepthULdsDivisor"] - 1:
           if kernel["1LDSBuffer"] and kernel["PrefetchLocalRead"] > 1:
