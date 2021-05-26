@@ -1,5 +1,5 @@
 /**
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -283,7 +283,8 @@ namespace Tensile
 
         int         index = 0;
         std::string kernelName;
-        bool        debugKernel = false;
+        bool        debugKernel   = false;
+        bool        kernelArgsLog = false;
 
         std::shared_ptr<Predicates::Predicate<Problem>> problemPredicate
             = std::make_shared<Predicates::True<Problem>>();

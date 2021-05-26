@@ -55,6 +55,21 @@ def fillMissingParametersWithDefaults(parameterConfigurationList, defaultParamet
         benchmarkParameters.append(paramDict)
   return benchmarkParameters
 
+def checkForValidParameters(params, validParameterNames):
+  for paramName in params:
+    if paramName in ["ProblemSizes"]:
+      continue
+    else:
+      if paramName not in validParameterNames:
+        raise RuntimeError("Invalid parameter name: %s\nValid parameters are %s." \
+            % (paramName, sorted(validParameterNames)))
+      paramValues = params[paramName]
+      for paramValue in paramValues:
+        if validParameters[paramName] != -1 and paramValue not in validParameters[paramName]:
+          raise RuntimeError("Invalid parameter value: %s = %s\nValid values for %s are %s%s." \
+                    % (paramName, paramValue, paramName, validParameters[paramName][:32],
+                        " (only first 32 combos printed)\nRefer to Common.py for more info" if len(validParameters[paramName])>32 else ""))
+
 def constructForkPermutations(forkParametersConfig):
   totalPermutations = 1
   for param in forkParametersConfig:
@@ -227,19 +242,10 @@ class BenchmarkProcess:
         configBenchmarkJoinParameters]:
       if paramDictList != None:
         for paramDict in paramDictList:
-          for paramName in paramDict:
-            if paramName in ["ProblemSizes"]:
-              continue
-            else:
-              if paramName not in validParameterNames:
-                printExit("Invalid parameter name: %s\nValid parameters are %s." \
-                    % (paramName, sorted(validParameterNames)))
-              paramValues = paramDict[paramName]
-              for paramValue in paramValues:
-                if validParameters[paramName] != -1 and paramValue not in validParameters[paramName]:
-                  printExit("Invalid parameter value: %s = %s\nValid values for %s are %s%s." \
-                            % (paramName, paramValue, paramName, validParameters[paramName][:32],
-                               " (only first 32 combos printed)\nRefer to Common.py for more info" if len(validParameters[paramName])>32 else ""))
+          try:
+            checkForValidParameters(paramDict, validParameterNames)
+          except RuntimeError as e:
+            printExit(str(e))
 
 
     ############################################################################

@@ -1,78 +1,44 @@
+# headers
 GlobalParameters:
-  MinimumRequiredVersion: 4.2.0
+  MinimumRequiredVersion: 4.9.0
   NumElementsToValidate: -1
   BoundsCheck: True
   KernelTime: True
-  NewClient: 2
-  MergeFiles: False
 
 BenchmarkProblems:
-
-  - # hgemm NN
+  -
     - # ProblemType
       OperationType: GEMM
-      DataType: 4xi8
+      DataType: I8
       DestDataType: I
       HighPrecisionAccumulate: True
       TransposeA: False
       TransposeB: False
       UseBeta: True
       Batched: True
+      StridedBatched: True
 
-    - # BenchmarkProblemSizeGroup - Source
+    - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
       BenchmarkCommonParameters:
-        - LoopTail: [True]
-        - EdgeType: ["ShiftPtr"]
-        - KernelLanguage: ["Source"]
       ForkParameters:
-        - GlobalSplitU: [1, 3]
-        - PrefetchLocalRead: [True]
-        - PrefetchGlobalRead: [False]
+        - KernelLanguage: ["Source"]
+        - EdgeType: ["ShiftPtr"]
+        - PrefetchLocalRead:  [True]
+        - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 2, 4 ]
-          - [ 4, 8 ]
-          - [ 16, 8 ]
+          - [  4,  4 ]
+          - [  8,  8 ]
         - WorkGroup:
-          - [ 32,  4,  1 ]
           - [  8,  8,  1 ]
-        - DepthU: [8]
-        - VectorWidth: [-1]
-        - AssertSummationElementMultiple: [1,2]
-        - AssertFree0ElementMultiple: [1,2]
+          - [ 16, 16,  1 ]
+        - DepthU: [32]
+        - LdsPadA: [0,3]
+        - LdsPadB: [0,3]
+        - GlobalSplitU: [1, 3]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
-
-
-#below moved to nightly
-#   - # BenchmarkProblemSizeGroup - Source
-#     InitialSolutionParameters:
-#     BenchmarkCommonParameters:
-#       - LoopTail: [True]
-#       - EdgeType: ["ShiftPtr"]
-#       - KernelLanguage: ["Source"]
-#     ForkParameters:
-#       - GlobalSplitU: [1, 3]
-#       - PrefetchLocalRead: [False]
-#       - PrefetchGlobalRead: [True]
-#       - ThreadTile:
-#         - [ 4, 2 ]
-#         - [ 4, 8 ]
-#         - [ 8, 8 ]
-#       - WorkGroup:
-#         - [ 16, 16,  1 ]
-#         - [  8,  8,  1 ]
-#       - DepthU: [16]
-#       - VectorWidth: [-1]
-#       - AssertSummationElementMultiple: [1,2]
-#       - AssertFree0ElementMultiple: [1,2]
-#     BenchmarkForkParameters:
-#     JoinParameters:
-#     BenchmarkJoinParameters:
-#     BenchmarkFinalParameters:
-#       - ProblemSizes:
-#         - Range: [ [127,1,129], 0, [2], [63,1,65] ]
+          - Range: [[128, 3, 138], 0, [1,1,3], [1024, 3, 1034]]

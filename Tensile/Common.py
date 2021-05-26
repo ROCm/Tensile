@@ -254,6 +254,9 @@ globalParameters["MinKForGSU"] = 256 # min K size to use GlobalSplitU algorithm 
 # control if a solution is run for a given problem
 globalParameters["GranularityThreshold"] = 0.0
 
+# directory where custom kernels are located
+globalParameters["CustomKernelDirectory"] = os.path.join(os.path.dirname(os.path.realpath(__file__)), "CustomKernels")
+
 globalParameters["PristineOnGPU"] = True # use Pristine memory on Tensile trainning verification or not
 
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
@@ -315,6 +318,7 @@ validMFMA["4xi8"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4
 validMFMA["D"] = [[16,16,4,1], [4,4,4,4]]
 validMFMA["B1k"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
 validMFMA["C"] = validMFMA["S"]
+validMFMA["Z"] = validMFMA["D"]
 validMFMA["I8"] = validMFMA["4xi8"]
 validTT = 16
 validMFMA["_format9"] = []
@@ -669,7 +673,17 @@ validParameters = {
     # Assertions that require stride to be specified value.
     # Dictionary of pairs of {index, constValue}.
     # Index is a member of the global index assignments.
-    "AssertSizeEqual":    -1,
+    "AssertSizeEqual":       -1,
+    "AssertSizeGreaterThan": -1,
+    "AssertSizeLessThan":    -1,
+    "AssertSizeMultiple":    -1,
+
+    #Assert values for alpha and beta
+    "AssertBetaValue":       [False, 1, -1],
+    "AssertAlphaValue":      [False, 1, -1],
+
+    #Assert C==D
+    "AssertCEqualsD": [False, True],
 
     # Generate code inside kernel to check Assertions on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
@@ -810,6 +824,40 @@ validParameters = {
 
     # SourceSwap: Optimizes MatrixInstruction store pattern by swapping mfma input order.
     "SourceSwap":                 [False, True],
+
+    # AtomicAddC: If CEqualsD and Beta=1, use atomic add instead of load/store.
+    "AtomicAddC":                 [False, True],
+
+    # Following parameters are designed for store scheduling.
+    # (store stands for load from C (with beta) and store to C/D)
+    #
+    # we want to hide store behind unroll loop
+    #   1. if we can launch 2 WorkGroups per CU (occupancy >= 2, large M/N)
+    #   2. if there are remaining global memory bandwidth in unroll loop (compute bound kernel)
+    #
+    # we can hide store behind the other WG's loop by lowering priority of store
+    #   priority of loop is the same as priority of store
+    #     WG0: ￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣\__
+    #         |<-- loop --->|<-- store -->|end
+    #
+    #     WG1: ___________________________/￣￣￣￣￣￣￣￣￣￣￣￣\__
+    #         |<--------- loop ------------------->|<-- store -->|end
+    #
+    #   priority of loop is higher than priority of store
+    #     WG0: ￣￣￣￣￣￣￣\____________________
+    #         |<-- loop --->|<------ store ----->|end
+    #
+    #     WG1: _____________/￣￣￣￣￣\__________________
+    #         |<------- loop -------->|<----- store ---->|end
+    "StorePriorityOpt":           [False, True],
+    #
+    # If we issue store in short period of time, kernel will become from compute bound to memory bound
+    # 0 means issue instructions as many as possible if VGPR available
+    "NumElementsPerBatchStore":   list(range(0, 256)),
+    #
+    # There are index or address calculation between global instructions.
+    # issue global instruction b2b has better performance
+    "GroupLoadStore":             [False, True],
 
     # Disable overlapping AB-tile vgpr and read/write addr vgprs with C-tile vgprs
     # Valid only for MatrixInstruction enabled kernels, which by default overlaps
@@ -1041,6 +1089,25 @@ validParameters = {
     # Replaces assembly kernels if they are found in the directory Tensile/Tensile/ReplacementKernels
     "ReplacementKernel":          [False, True],
 
+    # Name of the custom kernel located in globalParameters["CustomKernelDirectory"].
+    # a custom kernel is a user written assembly kernel with its associated configuration parameters included in a custom.config section
+    # inside the yaml block between the --- and ... markers.  These parameters are only used for information purposes, not kernel generation.
+    # Ex:
+    # custom.config:
+    #   ProblemType:
+    #     OperationType: GEMM
+    #     etc...
+    #   ThreadTile: [8, 8]
+    #   etc...
+    #
+    # Custom kernels can be included in a BenchmarkProblemSizeGroup by having their name (without file extension) listed under the "CustomKernels"
+    # category alongside InitialSolutionParameters, BenchmarkCommonParameters, etc...
+    "CustomKernelName":            -1,
+
+    # Will allow a kernel to be accepted even when checks determine it's not viable.
+    # Intended for use with custom kernels which have confirmed to be correct
+    "NoReject":                    [False, True],
+
     "MinVgprNumber":                list(range(0,256)),
 
     "MaxVgprNumber":                list(range(0,257)),
@@ -1108,6 +1175,12 @@ defaultBenchmarkCommonParameters = [
     {"AssertStrideCEqual":        [ {} ] },
     {"AssertStrideDEqual":        [ {} ] },
     {"AssertSizeEqual":           [ {} ] },
+    {"AssertSizeGreaterThan":     [ {} ] },
+    {"AssertSizeMultiple":        [ {} ] },
+    {"AssertSizeLessThan":        [ {} ] },
+    {"AssertAlphaValue":          [ False ]},
+    {"AssertBetaValue":           [ False ]},
+    {"AssertCEqualsD":            [ False ]},
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
@@ -1153,10 +1226,16 @@ defaultBenchmarkCommonParameters = [
     {"NonTemporalA":              [ 0 ] },
     {"NonTemporalB":              [ 0 ] },
     {"ReplacementKernel":         [ False ] },
+    {"CustomKernelName":          [ "" ] },
+    {"NoReject":                  [ False ]},
     {"MinVgprNumber":             [0]},
     {"MaxVgprNumber":             [256]},
     {"StoreRemapVectorWidth":     [ 0 ] },
     {"SourceSwap":                [ False ] },
+    {"AtomicAddC":                [ False ] },
+    {"StorePriorityOpt":          [ False ] },
+    {"NumElementsPerBatchStore":  [ 0 ] },
+    {"GroupLoadStore":            [ False ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = []
@@ -1506,6 +1585,9 @@ def GetAsmCaps(isaVersion):
 
   rv["v_dot2_f32_f16"]  = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
   rv["v_dot2c_f32_f16"] = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34")
+
+  rv["v_dot4c_i32_i8"]  = tryAssembler(isaVersion, "v_dot4c_i32_i8 v47, v36, v34")
+  rv["v_dot4_i32_i8"]   = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34")
 
   rv["v_mac_f32"]       = tryAssembler(isaVersion, "v_mac_f32 v20, v21, v22")
   rv["v_fma_f32"]       = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")

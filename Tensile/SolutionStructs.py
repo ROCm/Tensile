@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -32,6 +32,8 @@ from .Utils import roundUpToNearestMultiple
 from .KernelWriterBetaOnly import KernelWriterBetaOnly
 from .KernelWriterConversion import KernelWriterConversion
 
+from .CustomKernels import isCustomKernelConfig
+
 from collections import namedtuple,OrderedDict
 from copy import deepcopy
 from enum import Enum
@@ -46,6 +48,9 @@ import sys
 ########################################
 # Print a reject message :
 def reject(state, *args):
+  if state and "NoReject" in state and state["NoReject"]:
+    return
+
   if globalParameters["PrintSolutionRejectionReason"]:
     sys.stdout.write("\nreject: ")
     for a in args:
@@ -179,7 +184,8 @@ class Convolution:
         'UseBeta', 'UseInitialStridesAB', "AllowNoFreeDims", \
         ]
   SummarySolutionProperties=[\
-        'AssertSizeEqual', 'AssertStrideAEqual', 'AssertStrideBEqual', \
+        'AssertSizeEqual', 'AssertStrideAEqual', 'AssertStrideBEqual',\
+         'AssertSizeGreaterThan', 'AssertSizeLessThan', "AssertSizeMultiple"
         ]
 
   # valid lowest filter dimensions, these we can attach compile-time constant strides:
@@ -1781,8 +1787,7 @@ class Solution:
         for (key,value) in self["ProblemType"].convolution.solutionParms.items():
             self._state[key]=value
     Solution.assignDerivedParameters(self._state)
-    self._name = None
-
+    self._name = config["CustomKernelName"] if isCustomKernelConfig(config) else None
     self.initHelperKernelObjests()
 
   # these keys are copied from ProblemType to internal that may be overridden
@@ -1888,7 +1893,7 @@ class Solution:
 
       state["LocalSplitU"]         = 1
       state["MIOutputVectorWidth"] = 1 if (state["MatrixInstM"] == 4 and state["ProblemType"]["DataType"].isDouble()) else 4
-      state["MIRegPerOut"]         = 2 if state["ProblemType"]["DataType"].isDouble() else 1
+      state["MIRegPerOut"]         = 2 if state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex() else 1
 
       if state["ProblemType"]["DataType"].isDouble() and state["StoreVectorWidth"] != 1:
           reject(state, "DGEMM MFMA currently requires StoreVectorWidth=1")
@@ -2456,7 +2461,7 @@ class Solution:
               or state["ProblemType"]["DataType"].isDouble() \
               or state["ProblemType"]["DataType"].isBFloat16() \
               or state["ProblemType"]["DataType"].isHalf() \
-              or state["ProblemType"]["DataType"].isSingleComplex() \
+              or state["ProblemType"]["DataType"].isComplex() \
               or state["ProblemType"]["DataType"].isInt8()):
         reject(state, "didn't support Matrix Instruction with type %s" % str(state["ProblemType"]["DataType"]))
       if not state["MIBlock"] or len(state["MIBlock"]) != 6:
@@ -2754,6 +2759,9 @@ class Solution:
         reject(state, "LocalSplitU but MT0*MT1=%u elements doesn't divide into NumThreads=%u" \
             % (state["MacroTile0"]*state["MacroTile1"], state["NumThreads"]))
         return
+      if state["ProblemType"]["DataType"].isInt8():
+        reject(state, "int8 doesn't support LocalSplitU")
+        return
 
     # GlobalSplitU doesn't work with some other things:
     if state["GlobalSplitU"] > 1:
@@ -2827,7 +2835,7 @@ class Solution:
     #  - state["MatrixInstK"], ...
     # Outputs:
     #  - totalVectorsCoalescedA, totalVectorsCoalescedB, totalElementsPerpA, totalElementsPerpB, state["DepthU"]
-    ########################################
+    #######################################
     while True: # exit criteria at end
       validDepthU = True
       # peek LoopIters
@@ -3230,11 +3238,22 @@ class Solution:
       if not state["EnableMatrixInstruction"]:
         reject(state, "SourceSwap only applies to MatrixInstruction kernels")
         return
-      if not state["ProblemType"]["DataType"].isDouble():
-        reject(state, "SourceSwap currently only available for dgemm")
+      if not (state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex()):
+        reject(state, "SourceSwap currently only available for dgemm or zgemm")
         return
       if state["StoreRemapVectorWidth"]:
         reject(state, "SourceSwap not compatibile with StoreRemap")
+        return
+
+    if state["AtomicAddC"]:
+      if not state["ProblemType"]["DataType"].isDouble():
+        reject(state, "AtomicAddC currently only available for dgemm")
+        return
+      if state["AssertBetaValue"] != 1:
+        reject(state, "AtomicAddC requires AssertBetaValue = 1")
+        return
+      if not state["AssertCEqualsD"]:
+        reject(state, "AtomicAddC requires AssertCEqualsD")
         return
 
     #check not support cases and calculate lds resources
@@ -3320,16 +3339,38 @@ class Solution:
     if state["KernelLanguage"] != "Assembly" and state["InnerUnroll"] != 1:
       reject(state, "InnerUnroll only supported on assembly")
     state["LoopUnroll"] //= state["InnerUnroll"]
+
+    # check LocalDotLayout
     ldl = state["LocalDotLayout"]
-    if ldl > 1:
-      # Disable DirectToLds for LDL > 1. Necessary because we need to swizzle the input data
+    if ldl> 1:
       state["DirectToLds"] = False
-      if (state["AssertSummationElementMultiple"] % ldl != 0) and (ldl != 2):
-        reject(state, "LocalDotLayout > 1 only supports ASEM a multiple of LDL, except ldl = 2")
-        return
-      if (state["ProblemType"]["HighPrecisionAccumulate"] != True or state["InnerUnroll"] != ldl):
-        reject(state, "LocalDotLayout > 1 only supports HighPrecisionAccumulate set to true and InnerUnroll equal to LocalDotLayout")
-        return
+
+      if state["KernelLanguage"] == "Assembly":
+        if state["EnableMatrixInstruction"]:
+          reject(state, "doesn't support LocalDotLayout > 1 in MFMA mode")
+        else: # VALU mode
+          if state["ProblemType"]["DataType"].isInt8():
+            if (ldl != 4) or (state["ProblemType"]["HighPrecisionAccumulate"] != True):
+              reject(state, "Only support Int8 HPA and LocalDotLayout 4")
+              return
+          elif state["ProblemType"]["DataType"].isHalf():
+            if ldl > 2:
+              reject(state, "doesn't support FP16 with LocalDotLayout > 2")
+              return
+            elif (ldl == 2) and (state["ProblemType"]["HighPrecisionAccumulate"] != True):
+              reject(state, "doesn't support non HPA FP16 with LocalDotLayout == 2")
+              return
+          else: # other type
+              reject(state, "doesn't support LocalDotLayout with type {}".format(str(state["ProblemType"]["DataType"])))
+              return
+
+          if ldl != state["InnerUnroll"]:
+            reject(state, "only support LocalDotLayout = InnerUnroll when LocalDotLayout > 1")
+            return
+
+          if ((state["LSPA"] % ldl) != 0) or ((state["LSPB"] % ldl) != 0):
+            reject(state, "LSPA/B should be multiple of LocalDotLayout")
+            return
 
     if 0:
       print("info: ", pvar(state, "LoopUnroll"), " LDS Stats:", pvar(state, "LdsOffsetA"), pvar(state, "LdsOffsetB"))
@@ -3588,6 +3629,12 @@ class Solution:
     if state["UnrollIncIsDepthU"] and globalParameters["NewClient"] != 2:
       raise RuntimeError ("Legacy client does not support UnrollIncIsDepthU=1 (ASEM issues), aborting")
 
+    # Ensure AssertCEqualsD is always used with LdcEqualsLdd --DISABLED CURRENTLY
+    #if state["AssertCEqualsD"]:
+    #  if not ("LdcEqualsLdd" in state["ProblemType"] and state["ProblemType"]["LdcEqualsLdd"]):
+    #    import pdb; pdb.set_trace()
+    #    reject(state, "AssertCEqualsD requires LdcEqualsLdd=True")
+
     state["AssignedDerivedParameters"] = True
 
 
@@ -3595,17 +3642,20 @@ class Solution:
   # create a dictionary with booleans on whether to include parameter in name
   @staticmethod
   def getMinNaming(objs):
+    nonCKObjs = [obj for obj in objs if not isCustomKernelConfig(obj)]
+
     # early return
-    if len(objs) == 0:
+    if len(nonCKObjs) == 0:
       return {}
+
     # determine keys
     requiredParameters = {}
-    if isinstance(objs[0], Solution):
-      keys = list(objs[0]._state.keys())
+    if isinstance(nonCKObjs[0], Solution):
+      keys = list(nonCKObjs[0]._state.keys())
     else:
-      keys = list(objs[0].keys())
+      keys = list(nonCKObjs[0].keys())
     # only 1, rather than name being nothing, it'll be everything
-    if len(objs) == 1:
+    if len(nonCKObjs) == 1:
       for key in keys:
         if key in list(validParameters.keys()):
           requiredParameters[key] = False
@@ -3613,8 +3663,8 @@ class Solution:
       for key in keys:
         required = False
         if key in list(validParameters.keys()):
-          for i in range(1, len(objs)):
-            if objs[0][key] != objs[i][key]:
+          for i in range(1, len(nonCKObjs)):
+            if nonCKObjs[0][key] != nonCKObjs[i][key]:
               required = True
               break
         if required:
@@ -3634,6 +3684,7 @@ class Solution:
     requiredParameters["MatrixInstB"]       = False # always prepended
     requiredParameters["MatrixInstBM"]      = False # always prepended
     requiredParameters["MatrixInstBN"]      = False # always prepended
+    requiredParameters["CustomKernelName"]  = False # Will not affect naming
 
     requiredParameters["Kernel"]       = True  # distinguish kernels from solutions
                                                # for single-source compilation
@@ -3652,6 +3703,9 @@ class Solution:
   # Get Name Min
   @ staticmethod
   def getNameMin(state, requiredParameters):
+    if isCustomKernelConfig(state):
+      return state["CustomKernelName"]
+
     name = ""
     first = True
     # put problem first
@@ -3674,7 +3728,7 @@ class Solution:
         name += "SN_"
     for key in sorted(state.keys()):
       if key in requiredParameters and key[0] != '_':
-        if requiredParameters[key]:
+        if requiredParameters[key] and key != "CustomKernelName":
           if not first:
             name += "_"
           else:

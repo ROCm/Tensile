@@ -301,12 +301,26 @@ namespace Tensile
             }
             else
             {
+                //only trigger exception when failed to load all code objects.
+                bool       loaded   = false;
+                hipError_t retError = hipSuccess;
+
                 for(auto const& filename : filenames)
                 {
+                    hipError_t ret;
+
                     if(logLevel >= LogLevel::Verbose)
                         std::cout << "Loading " << filename << std::endl;
-                    adapter.loadCodeObjectFile(filename);
+                    ret = adapter.loadCodeObjectFile(filename);
+
+                    if(ret == hipSuccess)
+                        loaded = true;
+                    else
+                        retError = ret;
                 }
+
+                if(!loaded)
+                    HIP_CHECK_EXC(retError);
             }
         }
 
@@ -587,10 +601,13 @@ int main(int argc, const char* argv[])
                             {
                                 listeners.preWarmup();
                                 if(gpuTimer)
-                                    adapter.launchKernels(
-                                        kernels, stream, warmupStartEvents[i], warmupStopEvents[i]);
+                                    HIP_CHECK_EXC(adapter.launchKernels(kernels,
+                                                                        stream,
+                                                                        warmupStartEvents[i],
+                                                                        warmupStopEvents[i]));
                                 else
-                                    adapter.launchKernels(kernels, stream, nullptr, nullptr);
+                                    HIP_CHECK_EXC(
+                                        adapter.launchKernels(kernels, stream, nullptr, nullptr));
                                 listeners.postWarmup();
                             }
 
@@ -611,10 +628,11 @@ int main(int argc, const char* argv[])
                                 for(int j = 0; j < enq; j++)
                                 {
                                     if(gpuTimer)
-                                        adapter.launchKernels(
-                                            kernels, stream, startEvents[j], stopEvents[j]);
+                                        HIP_CHECK_EXC(adapter.launchKernels(
+                                            kernels, stream, startEvents[j], stopEvents[j]));
                                     else
-                                        adapter.launchKernels(kernels, stream, nullptr, nullptr);
+                                        HIP_CHECK_EXC(adapter.launchKernels(
+                                            kernels, stream, nullptr, nullptr));
                                 }
 
                                 listeners.postEnqueues(startEvents, stopEvents);
@@ -635,7 +653,10 @@ int main(int argc, const char* argv[])
                 listeners.postSolution();
 
                 if(exitOnError && listeners.error() > 0)
-                    return listeners.error();
+                {
+                    // error range in shell is [0-255]
+                    return std::min(listeners.error(), 255);
+                }
             }
 
             listeners.postProblem();
@@ -646,5 +667,6 @@ int main(int argc, const char* argv[])
 
     listeners.finalizeReport();
 
-    return listeners.error();
+    // error range in shell is [0-255]
+    return std::min(listeners.error(), 255);
 }

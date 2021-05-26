@@ -41,6 +41,7 @@ set(tensile_sources  ${tensile_sources}
     source/KernelArguments.cpp
     source/KernelLanguageTypes.cpp
     source/PerformanceMetricTypes.cpp
+    source/ScalarValueTypes.cpp
     source/TensorDescriptor.cpp
     source/TensorOps.cpp
     source/Tensile.cpp
@@ -72,6 +73,14 @@ if(TENSILE_USE_HIP)
     set(tensile_sources ${tensile_sources}
         source/hip/HipSolutionAdapter.cpp
         source/hip/HipHardware.cpp
+        )
+endif()
+
+if(TENSILE_USE_OPENCL)
+    set(tensile_sources ${tensile_sources}
+        source/ocl/OclHardware.cpp
+        source/ocl/OclSolutionAdapter.cpp
+        source/ocl/OclUtils.cpp
         )
 endif()
 
@@ -121,6 +130,15 @@ if(TENSILE_USE_HIP)
     #add_subdirectory(client)
     target_link_libraries( TensileHost PUBLIC ${HSA_LIBRARIES} hip::device )
 
+endif()
+
+if(TENSILE_USE_OPENCL)
+    find_package(OpenCL REQUIRED)
+    target_compile_definitions(TensileHost PUBLIC CL_TARGET_OPENCL_VERSION=200)
+    target_compile_definitions(TensileHost PUBLIC CL_HPP_TARGET_OPENCL_VERSION=200)
+    target_compile_definitions(TensileHost PUBLIC CL_HPP_ENABLE_EXCEPTIONS)
+    target_link_libraries(TensileHost PUBLIC ${OPENCL_LIBRARIES})
+    target_include_directories(TensileHost PUBLIC ${OPENCL_INCLUDE_DIRS})
 endif()
 
 if(false)

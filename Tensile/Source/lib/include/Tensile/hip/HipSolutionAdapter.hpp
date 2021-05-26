@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -48,37 +48,37 @@ namespace Tensile
                 return m_name;
             }
 
-            void loadCodeObjectFile(std::string const& path);
+            hipError_t loadCodeObjectFile(std::string const& path);
 
-            void loadCodeObject(const void* image);
+            hipError_t loadCodeObject(const void* image);
 
-            void loadCodeObjectBytes(std::vector<uint8_t> const& bytes);
+            hipError_t loadCodeObjectBytes(std::vector<uint8_t> const& bytes);
 
             void loadEmbeddedCodeObjects();
             void loadEmbeddedCodeObjects(std::string const& key);
 
-            void launchKernel(KernelInvocation const& kernel);
-            void launchKernel(KernelInvocation const& kernel,
-                              hipStream_t             stream,
-                              hipEvent_t              startEvent,
-                              hipEvent_t              stopEvent);
+            hipError_t launchKernel(KernelInvocation const& kernel);
+            hipError_t launchKernel(KernelInvocation const& kernel,
+                                    hipStream_t             stream,
+                                    hipEvent_t              startEvent,
+                                    hipEvent_t              stopEvent);
 
-            void launchKernels(std::vector<KernelInvocation> const& kernels);
+            hipError_t launchKernels(std::vector<KernelInvocation> const& kernels);
 
-            void launchKernels(std::vector<KernelInvocation> const& kernels,
-                               hipStream_t                          stream,
-                               hipEvent_t                           startEvent,
-                               hipEvent_t                           stopEvent);
+            hipError_t launchKernels(std::vector<KernelInvocation> const& kernels,
+                                     hipStream_t                          stream,
+                                     hipEvent_t                           startEvent,
+                                     hipEvent_t                           stopEvent);
 
-            void launchKernels(std::vector<KernelInvocation> const& kernels,
-                               hipStream_t                          stream,
-                               std::vector<hipEvent_t> const&       startEvents,
-                               std::vector<hipEvent_t> const&       stopEvents);
+            hipError_t launchKernels(std::vector<KernelInvocation> const& kernels,
+                                     hipStream_t                          stream,
+                                     std::vector<hipEvent_t> const&       startEvents,
+                                     std::vector<hipEvent_t> const&       stopEvents);
 
-            void initKernel(std::string const& name);
+            hipError_t initKernel(std::string const& name);
 
         private:
-            hipFunction_t getKernel(std::string const& name);
+            hipError_t getKernel(hipFunction_t& rv, std::string const& name);
 
             std::mutex m_access;
 
@@ -94,5 +94,6 @@ namespace Tensile
         };
 
         std::ostream& operator<<(std::ostream& stream, SolutionAdapter const& adapter);
+        std::ostream& operator<<(std::ostream& stream, std::shared_ptr<SolutionAdapter> const& ptr);
     } // namespace hip
 } // namespace Tensile

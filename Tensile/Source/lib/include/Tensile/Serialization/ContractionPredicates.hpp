@@ -65,11 +65,17 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::LeadingFree0SizesGreaterOrEqual>(),
                     Base::template Pair<Predicates::Contraction::LeadingFree1SizesGreaterOrEqual>(),
                     Base::template Pair<Predicates::Contraction::SizeEqual>(),
+                    Base::template Pair<Predicates::Contraction::SizeGreaterThan>(),
+                    Base::template Pair<Predicates::Contraction::SizeLessThan>(),
+                    Base::template Pair<Predicates::Contraction::SizeMultiple>(),
                     Base::template Pair<Predicates::Contraction::StrideAEqual>(),
                     Base::template Pair<Predicates::Contraction::StrideBEqual>(),
                     Base::template Pair<Predicates::Contraction::StrideCEqual>(),
                     Base::template Pair<Predicates::Contraction::StrideDEqual>(),
                     Base::template Pair<Predicates::Contraction::LDCEqualsLDD>(),
+                    Base::template Pair<Predicates::Contraction::CEqualsD>(),
+                    Base::template Pair<Predicates::Contraction::AlphaValue>(),
+                    Base::template Pair<Predicates::Contraction::BetaValue>(),
                     Base::template Pair<Predicates::Contraction::BetaZero>(),
                     Base::template Pair<Predicates::Contraction::BetaOne>(),
                     Base::template Pair<Predicates::Contraction::HighPrecisionAccumulateEqual>(),
@@ -159,6 +165,24 @@ namespace Tensile
         };
 
         template <typename IO>
+        struct MappingTraits<Predicates::Contraction::SizeGreaterThan, IO>
+            : public AutoMappingTraits<Predicates::Contraction::SizeGreaterThan, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::SizeLessThan, IO>
+            : public AutoMappingTraits<Predicates::Contraction::SizeLessThan, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::SizeMultiple, IO>
+            : public AutoMappingTraits<Predicates::Contraction::SizeMultiple, IO>
+        {
+        };
+
+        template <typename IO>
         struct MappingTraits<Predicates::Contraction::StrideAEqual, IO>
             : public AutoMappingTraits<Predicates::Contraction::StrideAEqual, IO>
         {
@@ -185,6 +209,24 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::LDCEqualsLDD, IO>
             : public AutoMappingTraits<Predicates::Contraction::LDCEqualsLDD, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::CEqualsD, IO>
+            : public AutoMappingTraits<Predicates::Contraction::CEqualsD, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::AlphaValue, IO>
+            : public AutoMappingTraits<Predicates::Contraction::AlphaValue, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::BetaValue, IO>
+            : public AutoMappingTraits<Predicates::Contraction::BetaValue, IO>
         {
         };
 

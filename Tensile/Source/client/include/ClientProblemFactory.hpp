@@ -79,6 +79,7 @@ namespace Tensile
             bool              m_stridedBatched;
             bool              m_highPrecisionAccumulate;
             bool              m_deterministicMode;
+            bool              m_cEqualsD;
             ArithmeticUnit    m_arithmeticUnit;
             KernelLanguage    m_kernelLanguage;
             PerformanceMetric m_performanceMetric;
@@ -103,6 +104,8 @@ namespace Tensile
             size_t m_dOffset;
 
             double m_beta;
+            double m_alpha;
+
         };
 
     } // namespace Client
