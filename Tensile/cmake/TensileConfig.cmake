@@ -22,11 +22,15 @@
 include(CMakeParseArguments)
 
 if(NOT DEFINED Tensile_ROOT)
-# Compute the installation prefix relative to this file.
-get_filename_component(Tensile_PREFIX "${CMAKE_CURRENT_LIST_FILE}" PATH)
-get_filename_component(Tensile_PREFIX "${Tensile_PREFIX}" PATH)
+    # Compute the installation prefix relative to this file.
+    get_filename_component(Tensile_PREFIX "${CMAKE_CURRENT_LIST_FILE}" PATH)
+    get_filename_component(Tensile_PREFIX "${Tensile_PREFIX}" PATH)
 
-execute_process(COMMAND "${Tensile_PREFIX}/bin/TensileGetPath" OUTPUT_VARIABLE Tensile_ROOT)
+    if (WIN32)
+        execute_process(COMMAND "${Tensile_PREFIX}/bin/TensileGetPath.exe" OUTPUT_VARIABLE Tensile_ROOT)
+    else()
+        execute_process(COMMAND "${Tensile_PREFIX}/bin/TensileGetPath" OUTPUT_VARIABLE Tensile_ROOT)
+    endif()
 endif()
 list(APPEND CMAKE_MODULE_PATH "${Tensile_ROOT}/Source/cmake/")
 list(APPEND CMAKE_MODULE_PATH "${Tensile_ROOT}/Source/")
@@ -186,19 +190,24 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--cmake-cxx-compiler=${Tensile_COMPILER_PATH}")
   endif()
 
-  if(Tensile_ARCHITECTURE)
-    string (REPLACE ";" "\\\\\\\;" archString "${Tensile_ARCHITECTURE}")
-    set(Options ${Options} "--architecture=${archString}")
-  endif()
-
   if(Tensile_LIBRARY_FORMAT)
     set(Options ${Options} "--library-format=${Tensile_LIBRARY_FORMAT}")
     if(Tensile_LIBRARY_FORMAT MATCHES "yaml")
         target_compile_definitions( TensileHost PUBLIC -DTENSILE_YAML=1)
     endif()
   endif()
+  
+  if(Tensile_ARCHITECTURE)
+    string (REPLACE ";" "_" archString "${Tensile_ARCHITECTURE}")
+    # uses _ separator to avoid cmake ; list interpretation, either ; or _ decoded in TensileCreateLibrary
+    set(Options ${Options} "--architecture=${archString}")
+  endif()
 
-  set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
+  if (WIN32)
+    set(CommandLine ${VIRTUALENV_BIN_DIR}/${VIRTUALENV_PYTHON_EXENAME} ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
+  else()
+    set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
+  endif()
   message(STATUS "Tensile_CREATE_COMMAND: ${CommandLine}")
 
   if(Tensile_EMBED_LIBRARY)
@@ -213,11 +222,11 @@ function(TensileCreateLibraryFiles
           set(Tensile_VAR_PREFIX TENSILE)
       endif()
 
-      # Create the manifest file of the output libraries.
-      set(Tensile_CREATE_MANIFEST_COMMAND ${CommandLine} "--generate-manifest-and-exit")
       set(Tensile_MANIFEST_FILE_PATH "${Tensile_OUTPUT_PATH}/library/TensileManifest.txt")
       message(STATUS "Tensile_MANIFEST_FILE_PATH: ${Tensile_MANIFEST_FILE_PATH}")
 
+      # Create the manifest file of the output libraries.
+      set(Tensile_CREATE_MANIFEST_COMMAND ${CommandLine} "--generate-manifest-and-exit")
       execute_process(
         COMMAND ${Tensile_CREATE_MANIFEST_COMMAND}
         RESULT_VARIABLE Tensile_CREATE_MANIFEST_RESULT

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,14 +24,20 @@
 #define TOOLS_H
 
 #include <string>
+#include <chrono>
 #ifdef Tensile_RESUME_BENCHMARK
 #include <fstream>
 #endif
-#ifdef WIN32
-#include "Windows.h"
-#else
-#include <time.h>
-#endif
+
+
+/*******************************************************************************
+ * cross platform helpers
+ ******************************************************************************/
+
+/* read_env is an alternative to std::getenv for potential use if getenv has issues on windows
+   returns nullptr if the environment variable doesn't exist 
+   read_env returns a pointer to thread local static on windows so should be used but not held on to outside of caller's thread frame */
+const char* read_env(const char* env_var);
 
 /*******************************************************************************
  * Timer
@@ -39,13 +45,6 @@
 class TensileTimer
 {
 public:
-    TensileTimer();
-    void   start();
-    double elapsed_sec();
-    double elapsed_ms();
-    double elapsed_us();
-    double elapsed_ns();
-
     static const double billion;
     static const double million;
     static const double thousand;
@@ -53,15 +52,32 @@ public:
     static const double reciprical_million;
     static const double reciprical_thousand;
 
+    TensileTimer();
+    void   start();
+
+    // elapsed time in seconds
+    double elapsed_sec()
+    {
+        return elapsed_ns() * reciprical_billion;
+    }
+
+    // elapsed time in milliseconds
+    double elapsed_ms()
+    {
+        return elapsed_ns() * reciprical_million;
+    }
+
+    // elapsed time in microseconds
+    double elapsed_us()
+    {
+        return elapsed_ns() * reciprical_thousand;
+    }
+
+    double elapsed_ns();
+
 private:
-#ifdef WIN32
-    LARGE_INTEGER startTime;
-    LARGE_INTEGER frequency;
-#else
-    const clockid_t clock_type = CLOCK_MONOTONIC;
-    // const clockid_t clock_type = CLOCK_MONOTONIC_RAW;
-    timespec startTime;
-#endif
+    std::chrono::nanoseconds m_startTime;
+
 };
 
 #define tensileMin(a, b) (((a) < (b)) ? (a) : (b))

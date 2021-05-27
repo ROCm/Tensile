@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -19,18 +19,40 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  *******************************************************************************/
+#ifdef _WIN32
+#include <winbase.h>
+#endif
 
-#include "Tools.h"
 #include <cmath>
 #include <ctype.h>
+#include <stdlib.h>
 
-// QueryPerformanceFrequency is defined to return in units of counts per second
-// QueryPerformanceCounter is defined to return in units of counts
-// counts / (counts / seconds) == seconds, as the native windows time unit
+#include "Tools.h"
 
-// However, in practice the frequency of QueryPerformanceFrequency() has a
-// resolution measured in nano-seconds on modern hardware, so it possible to
-// return meaningful information on the nano-second time scale
+
+/*******************************************************************************
+ * Cross platform helpers
+ ******************************************************************************/
+
+const char* read_env(const char* env_var)
+{
+#ifdef _WIN32
+    const DWORD nSize = _MAX_PATH;
+    static thread_local char lpBuffer[nSize];
+    DWORD len = GetEnvironmentVariableA(env_var, lpBuffer, nSize);
+    if (len && len < nSize)
+        return lpBuffer;
+    else 
+        return nullptr; // variable not found or longer than nSize
+#else
+    return std::getenv(env_var);
+#endif
+}
+
+
+/*******************************************************************************
+ * Timer
+ ******************************************************************************/
 
 const double TensileTimer::billion             = 1E9;
 const double TensileTimer::million             = 1E6;
@@ -41,69 +63,21 @@ const double TensileTimer::reciprical_thousand = 1E-3;
 
 TensileTimer::TensileTimer()
 {
-#ifdef WIN32
-    QueryPerformanceFrequency(&frequency);
-#else
-    // nothing
-#endif
 }
 
 void TensileTimer::start()
 {
-#ifdef WIN32
-    QueryPerformanceCounter(&startTime);
-#else
-    clock_gettime(clock_type, &startTime);
-#endif
+    auto now = std::chrono::steady_clock::now();
+    m_startTime = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
 }
 
-// elapsed time in seconds
-double TensileTimer::elapsed_sec()
-{
-    return elapsed_ns() * reciprical_billion;
-}
-
-// elapsed time in milliseconds
-double TensileTimer::elapsed_ms()
-{
-    return elapsed_ns() * reciprical_million;
-}
-
-// elapsed time in microseconds
-double TensileTimer::elapsed_us()
-{
-    return elapsed_ns() * reciprical_thousand;
-}
-
-// elapsed time in microseconds
+// elapsed time in nanoseconds
 double TensileTimer::elapsed_ns()
 {
-    double return_elapsed_ns = 0;
-#ifdef WIN32
-    LARGE_INTEGER currentTime;
-    QueryPerformanceCounter(&currentTime);
+    auto now = std::chrono::steady_clock::now();
+    auto currentTime = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
 
-    double delta_time = static_cast<double>(currentTime.QuadPart - startTime.QuadPart);
-    delta_time /= frequency.QuadPart;
-    return_elapsed_ns = delta_time * billion;
-#else
-    timespec currentTime;
-    clock_gettime(clock_type, &currentTime);
+    double return_elapsed_ns = static_cast<double>(currentTime) - static_cast<double>(m_startTime);
 
-    // Commented out for subtle subtraction bug; explained below
-    // return_elapsed_ns = (currentTime.tv_sec - startTime.tv_sec)*billion
-    //    + (currentTime.tv_nsec - startTime.tv_nsec);
-
-    // (currentTime.tv_nsec - startTime.tv_nsec) might be negative, if a 'second'
-    // boundary crossed and tv_nsec reset to 0 Convert to double type before
-    // subtracting to properly borrow from seconds when nano-seconds would be
-    // negative
-
-    double d_startTime
-        = static_cast<double>(startTime.tv_sec) * billion + static_cast<double>(startTime.tv_nsec);
-    double d_currentTime = static_cast<double>(currentTime.tv_sec) * billion
-                           + static_cast<double>(currentTime.tv_nsec);
-    return_elapsed_ns = d_currentTime - d_startTime;
-#endif
     return return_elapsed_ns;
 }

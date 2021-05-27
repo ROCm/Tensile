@@ -36,6 +36,7 @@ from .KernelWriterConversion import KernelWriterConversion
 from .CustomKernels import isCustomKernelConfig
 
 from collections import namedtuple,OrderedDict
+from collections.abc import Mapping
 from copy import deepcopy
 from enum import Enum
 from functools import reduce
@@ -819,7 +820,7 @@ class Convolution:
 ################################################################################
 # ProblemType
 # name of solution should begin with name of problemType, and arguments can be listed out explicitly
-class ProblemType(collections.abc.Mapping):
+class ProblemType(Mapping):
   ########################################
   def __init__(self, config):
     self.state = {}

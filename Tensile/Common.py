@@ -226,7 +226,7 @@ globalParameters["HipClangVersion"] = "0,0,0"
 
 # default runtime is selected based on operating system, user can override
 if os.name == "nt":
-  globalParameters["RuntimeLanguage"] = "OCL"
+  globalParameters["RuntimeLanguage"] = "HIP" #"OCL"
 else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
@@ -1691,7 +1691,7 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
 
 def gfxArch(name):
     import re
-    match = re.search(r'gfx(\S{3,})', name)
+    match = re.search(r'gfx([0-9a-fA-F]{3,})', name)
     if not match: return None
 
     ipart = match.group(1)
@@ -1713,6 +1713,37 @@ def gfxName(arch):
     name = str(arch[0]) + str(arch[1]) + ('%x' % arch[2])
     return 'gfx' + ''.join(map(str,name))
 
+def detectGlobalCurrentISA():
+  """
+  Returns returncode if detection failure
+  """
+  global globalParameters
+  
+  if globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
+    process = subprocess.run([globalParameters["ROCmAgentEnumeratorPath"]], stdout=subprocess.PIPE)
+    if os.name == "nt":
+      line = ""
+      for line_in in process.stdout.decode().splitlines():
+        if 'gcnArchName' in line_in:
+          line += line_in.split()[1]
+          break # detemine if hipinfo will support multiple arch
+      arch = gfxArch(line.strip())
+      if arch is not None:
+        if arch in globalParameters["SupportedISA"]:
+          print1("# Detected local GPU with ISA: " + gfxName(arch))
+          globalParameters["CurrentISA"] = arch
+    else:
+      for line in process.stdout.decode().split("\n"):
+        arch = gfxArch(line.strip())
+        if arch is not None:
+          if arch in globalParameters["SupportedISA"]:
+            print1("# Detected local GPU with ISA: " + gfxName(arch))
+            globalParameters["CurrentISA"] = arch
+    if (process.returncode):
+      printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
+    return process.returncode
+  return 0
+      
 def restoreDefaultGlobalParameters():
   """
   Restores `globalParameters` back to defaults.
@@ -1755,6 +1786,18 @@ def printCapTable(parameters):
 
   printTable([headerRow] + asmCapRows + archCapRows)
 
+def which(p):
+    exes = [p+x for x in ['', '.exe', '.bat']]
+    system_path = os.environ['PATH'].split(os.pathsep)
+    if p == 'hipcc' and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
+        return os.environ['CMAKE_CXX_COMPILER']
+    for dirname in system_path+[globalParameters["ROCmBinPath"]]:
+        for exe in exes:
+            candidate = os.path.join(os.path.expanduser(dirname), exe)
+            if os.path.isfile(candidate):
+                return candidate
+    return None
+
 ################################################################################
 ################################################################################
 def assignGlobalParameters( config ):
@@ -1790,6 +1833,8 @@ def assignGlobalParameters( config ):
     globalParameters["ROCmPath"] = os.environ.get("ROCM_PATH")
   if "TENSILE_ROCM_PATH" in os.environ:
     globalParameters["ROCmPath"] = os.environ.get("TENSILE_ROCM_PATH")
+  if os.name == "nt" and "HIP_DIR" in os.environ:
+    globalParameters["ROCmPath"] = os.environ.get("HIP_DIR") # windows has no ROCM
   globalParameters["CmakeCxxCompiler"] = None
   if "CMAKE_CXX_COMPILER" in os.environ:
     globalParameters["CmakeCxxCompiler"] = os.environ.get("CMAKE_CXX_COMPILER")
@@ -1797,36 +1842,45 @@ def assignGlobalParameters( config ):
   globalParameters["ROCmBinPath"] = os.path.join(globalParameters["ROCmPath"], "bin")
 
   # ROCm Agent Enumerator Path
-  globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm_agent_enumerator")
+  if os.name == "nt":
+    globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "hipinfo.exe")
+  else:
+    globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm_agent_enumerator")
+
   if "CxxCompiler" in config:
     globalParameters["CxxCompiler"] = config["CxxCompiler"]
 
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
   elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hipcc":
-    globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang++")
+    if os.name == "nt":
+      globalParameters["AssemblerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang++.exe")
+    else:
+      globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang++")
 
   globalParameters["ROCmSMIPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm-smi")
+
   globalParameters["ExtractKernelPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "hip/bin"), "extractkernel")
-  globalParameters["ClangOffloadBundlerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang-offload-bundler")
+
+  if "TENSILE_ROCM_OFFLOAD_BUNDLER_PATH" in os.environ:
+    globalParameters["ClangOffloadBundlerPath"] = os.environ.get("TENSILE_ROCM_OFFLOAD_BUNDLER_PATH")
+  else:
+    if os.name == "nt":
+      globalParameters["ClangOffloadBundlerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang-offload-bundler.exe")
+    else:
+      globalParameters["ClangOffloadBundlerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang-offload-bundler")
 
   if "ROCmAgentEnumeratorPath" in config:
     globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
 
   # read current gfx version
-  if os.name != "nt" and globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
-    command = [globalParameters["ROCmAgentEnumeratorPath"]]#, "-t", "GPU"]
-    result = subprocess.run(command, stdout=subprocess.PIPE)
-    for line in result.stdout.decode().split("\n"):
-      arch = gfxArch(line.strip())
-      if arch is not None:
-        if arch in globalParameters["SupportedISA"]:
-          print1("# Detected local GPU with ISA: " + gfxName(arch))
-          globalParameters["CurrentISA"] = arch
-    if globalParameters["CurrentISA"] == (0,0,0):
-      printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
-    if result.returncode:
-      printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], result.returncode))
+  returncode = detectGlobalCurrentISA()
+  if globalParameters["CurrentISA"] == (0,0,0):
+    printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
+  if returncode:
+    if os.name == "nt":
+      globalParameters["CurrentISA"] = (9,0,6)
+      printWarning("Failed to detect ISA so forcing (gfx906) on windows")
 
   # TODO Remove this when rocm-smi supports gfx90a
   if globalParameters["CurrentISA"] == (9,0,10):
@@ -1855,7 +1909,12 @@ def assignGlobalParameters( config ):
   # The alternative would be to install the `distro` package.
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
   try:
-    output = subprocess.run(["hipcc", "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
+    if os.name == "nt":
+      compileArgs = ['perl'] + [which('hipcc')] + ['--version']
+      output = subprocess.run(compileArgs, check=True, stdout=subprocess.PIPE).stdout.decode()
+    else:
+      compiler = "hipcc"
+      output = subprocess.run([compiler, "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
 
     for line in output.split('\n'):
       if 'HIP version' in line:
@@ -1916,11 +1975,13 @@ def popWorkingPath():
       os.path.split(globalParameters["WorkingPath"])[0]
   else:
     globalParameters["WorkingPath"] = workingDirectoryStack.pop()
-def ensurePath( path ):
+def ensurePath(path):
   try:
     os.makedirs(path)
-  except OSError:
+  except FileExistsError:
     pass
+  except OSError:
+    printExit("Failed to create directory \"%s\" " % (path) )
   return path
 def setWorkingPath( fullPathName ):
   # Warning: this is not thread-safe, modifies the global WorkingPath!

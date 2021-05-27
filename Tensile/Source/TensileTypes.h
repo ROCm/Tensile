@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -20,8 +20,8 @@
  * THE SOFTWARE.
  *******************************************************************************/
 
-#ifndef TENSILE_H
-#define TENSILE_H
+#ifndef TENSILETYPES_H
+#define TENSILETYPES_H
 #include "tensile_bfloat16.h"
 #include <algorithm>
 #include <iostream>
@@ -30,6 +30,7 @@
 #include <vector>
 
 #include <cstddef>
+
 
 // OpenCL
 #if Tensile_RUNTIME_LANGUAGE_OCL
