@@ -305,8 +305,15 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #        LW ---------99--------- LW --------99---------- LW
       #   mfma --49-- mfma --49-- mfma --49-- mfma --49-- mfma --49--
       if kernel["LocalWritePerMfma"] == -1:
-        if kernel["PrefetchGlobalRead"] == 1 and kernel["1LDSBuffer"]:
-          self.numLocalWriteModPerMfma = max(numLocalWriteModPerMfma,PRECISION)
+        if kernel["PrefetchGlobalRead"] == 1:
+          # In PGR1:
+          #   Larger LWPM can provide more latency to hide global read
+          #   However, larger LWPM may cause mfma bubbles
+          #   we set LWPM to 1 unless it requires larger LWPM to enable 1LDSB
+          if kernel["1LDSBuffer"]:
+            self.numLocalWriteModPerMfma = max(numLocalWriteModPerMfma,PRECISION)
+          else:
+            self.numLocalWriteModPerMfma = PRECISION
         else:
           self.numLocalWriteModPerMfma = numLocalWriteModPerMfma
       else:
