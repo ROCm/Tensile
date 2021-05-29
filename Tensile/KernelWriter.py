@@ -456,6 +456,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
       else:
         # reads and incs are scheduled in iters range(0..endIter)
         endIter = roundUp((len(itemsGRToSched) + len(itemsGRIncToSched)) / numGlobalReadInsPerIter)
+        # FIXME:
+        # above formula precisely count number of GR + GRInc
+        # however it has regression issue with tuned yaml with default GRPM.
+        # below formula follows old logic to add 2 to the instruction count, so it may has larger schedNumForIter0
+        # we should use above formula with GRPM tuning for better performance
+        # NOTE: both formula pass validation test
+        endIter = roundUp((len(itemsGRToSched) + len(itemsGRIncToSched) + 2*PRECISION) / numGlobalReadInsPerIter)
         if endIter > localWriteEndIter:
           # Front-load some of the buffer loads if we don't have enough loop iters:
           # could use a different/smarter algorithm to space out the loads?
