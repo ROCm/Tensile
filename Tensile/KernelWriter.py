@@ -305,8 +305,15 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #        LW ---------99--------- LW --------99---------- LW
       #   mfma --49-- mfma --49-- mfma --49-- mfma --49-- mfma --49--
       if kernel["LocalWritePerMfma"] == -1:
-        if kernel["PrefetchGlobalRead"] == 1 and kernel["1LDSBuffer"]:
-          self.numLocalWriteModPerMfma = max(numLocalWriteModPerMfma,PRECISION)
+        if kernel["PrefetchGlobalRead"] == 1:
+          # In PGR1:
+          #   Larger LWPM can provide more latency to hide global read
+          #   However, larger LWPM may cause mfma bubbles
+          #   we set LWPM to 1 unless it requires larger LWPM to enable 1LDSB
+          if kernel["1LDSBuffer"]:
+            self.numLocalWriteModPerMfma = max(numLocalWriteModPerMfma,PRECISION)
+          else:
+            self.numLocalWriteModPerMfma = PRECISION
         else:
           self.numLocalWriteModPerMfma = numLocalWriteModPerMfma
       else:
@@ -449,6 +456,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
       else:
         # reads and incs are scheduled in iters range(0..endIter)
         endIter = roundUp((len(itemsGRToSched) + len(itemsGRIncToSched)) / numGlobalReadInsPerIter)
+        # FIXME:
+        # above formula precisely count number of GR + GRInc
+        # however it has regression issue with tuned yaml with default GRPM.
+        # below formula follows old logic to add 2 to the instruction count, so it may has larger schedNumForIter0
+        # we should use above formula with GRPM tuning for better performance
+        # NOTE: both formula pass validation test
+        endIter = roundUp((len(itemsGRToSched) + len(itemsGRIncToSched) + 2*PRECISION) / numGlobalReadInsPerIter)
         if endIter > localWriteEndIter:
           # Front-load some of the buffer loads if we don't have enough loop iters:
           # could use a different/smarter algorithm to space out the loads?
