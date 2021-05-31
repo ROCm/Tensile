@@ -65,7 +65,6 @@ BenchmarkProblems:
           - [ 4, 4 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-
         - PrefetchGlobalRead: [1,2]
         - PrefetchLocalRead: [1,5,9]
         - DepthU: [32,64]

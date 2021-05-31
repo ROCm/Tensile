@@ -2693,7 +2693,7 @@ class Solution(collections.abc.Mapping):
       and state["ProblemType"]["DataType"].isHalf():
 
       # Vector-width must be at least 2 for Half (since unroll loop uses packed operations?)
-      if state["VectorWidth"] < 2:
+      if (not state["EnableMatrixInstruction"]) and state["VectorWidth"] < 2:
         reject(state, "VectorWidth must be >= 2 for half")
       if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
         if not state["ProblemType"]["HighPrecisionAccumulate"] and state["AssertFree0ElementMultiple"] % 2 != 0:
@@ -2701,9 +2701,8 @@ class Solution(collections.abc.Mapping):
           reject(state, "Archs with HasEccHalf require AF0EM%2==0 except for HPA kernels")
 
     # Some restrictions for int8:
-    if state["KernelLanguage"] == "Assembly" \
-      and state["ProblemType"]["DataType"].isInt8():
-      if state["VectorWidth"] < 4:
+    if state["KernelLanguage"] == "Assembly" and state["ProblemType"]["DataType"].isInt8():
+      if (not state["EnableMatrixInstruction"]) and state["VectorWidth"] < 4:
         reject(state, "VectorWidth must be >= 4 for Int8")
 
     #if state["KernelLanguage"] == "Assembly" and state["PackSummationDims"]:
@@ -2804,11 +2803,10 @@ class Solution(collections.abc.Mapping):
        and not state["ProblemType"]["DataType"].isHalf():
          reject (state, "VectorAtomicWidth>=2 only supported for half")
 
-    if state["ProblemType"]["DataType"].isHalf() and \
-      state["KernelLanguage"] == "Assembly":
+    if state["ProblemType"]["DataType"].isHalf() and state["KernelLanguage"] == "Assembly":
 
-      if state["VectorWidth"] < 2:
-        reject(state, "Assembly half requires VectorWidth >= 2")
+      if (not state["EnableMatrixInstruction"]) and state["VectorWidth"] < 2:
+        reject(state, "Assembly half requires VectorWidth >= 2 for non-MFMA mode")
 
       if state["GlobalSplitU"] > 1 and (not state["_GlobalAccumulation"]):
         if state["VectorAtomicWidth"] < 2:
@@ -3263,16 +3261,16 @@ class Solution(collections.abc.Mapping):
 
     if state["StoreRemapVectorWidth"] == -1:
       # use de_read_b64 as default in storeRemap to avoid bank conflict
-      defaultRemap = 8 // state["ProblemType"]["DataType"].numBytes()
-      defaultRemap = max(defaultRemap,state["MacroTile0"]//state["WavefrontSize"])
-      ldsRemapPad = max(defaultRemap,state["MIOutputVectorWidth"])
+      defaultRemap = 8 // state["ProblemType"]["DestDataType"].numBytes()
+      defaultRemap = max(defaultRemap, state["MacroTile0"]//state["WavefrontSize"])
+      ldsRemapPad = max(defaultRemap, state["MIOutputVectorWidth"])
       ldsNumElementsRemapC = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"] * state["MIWaveGroup"][1]
       if state["_GlobalAccumulation"]:
         computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
         if state["ProblemType"]["DataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]:
           computeBytes = DataType('single').numBytes()
         ldsNumElementsRemapC *= (computeBytes / state["ProblemType"]["DestDataType"].numBytes())
-      ldsSize = ldsNumElementsRemapC * state["ProblemType"]["DataType"].numBytes()
+      ldsSize = ldsNumElementsRemapC * state["ProblemType"]["DestDataType"].numBytes()
       if not math.log(state["MacroTile0"],2).is_integer() or \
           ldsSize > globalParameters["MaxLDS"] or \
           state["SourceSwap"] or \
