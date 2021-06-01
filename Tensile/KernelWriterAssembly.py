@@ -10274,6 +10274,9 @@ class KernelWriterAssembly(KernelWriter):
       numTmpVgpr = 2 + 3 # GLOBAL_OFFSET_C needs 3, plus 2 tmps?
     tmpVgpr = self.vgprPool.checkOutAligned(numTmpVgpr, 2, "store tmps")
 
+    isHpaBF16 = kernel["ProblemType"]["DestDataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]
+    bf16CVTVgpr = self.vgprPool.checkOut(4) if isHpaBF16 else None
+
     ########################################
     # Sgprs
 
@@ -10516,7 +10519,7 @@ class KernelWriterAssembly(KernelWriter):
 
           kStr += self.globalWriteBatch(kernel, self.ss, batchIdx, applyAlpha, beta, edge, atomic, gwvw, atomicW, \
               elementsThisBatch, self.coord0, self.coord1, self.addrD, self.addrC, \
-              tmpVgpr, \
+              tmpVgpr, bf16CVTVgpr, \
               elementSgprs, tmpSgpr, codeAccVgprRead, codeMulAlpha)
         # TODO - if this is the last tile, don't need to jump to next instruction
         kStr += inst("s_branch", "label_%s"%endLabel, "jump to end")
@@ -10528,6 +10531,8 @@ class KernelWriterAssembly(KernelWriter):
     # End label
     kStr += "label_%s:%s"%(endLabel, self.endLine)
     self.vgprPool.checkIn(tmpVgpr)
+    if bf16CVTVgpr is not None:
+      self.vgprPool.checkIn(bf16CVTVgpr)
     return kStr
 
 
@@ -10897,7 +10902,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def globalWriteBatch(self, kernel, ss, batchIdx, applyAlpha, beta, edge, atomic, gwvw, atomicW, \
       batchElements, coord0, coord1, addrD, addrC, \
-      tmpVgpr, batchElementSgprs, tmpSgpr, codeAccVgprRead, codeMulAlpha):
+      tmpVgpr, bf16CVTVgpr, batchElementSgprs, tmpSgpr, codeAccVgprRead, codeMulAlpha):
     kStr = ""
 
     kStr += self.comment1("optSingleColVgpr=%u optSharedColVgpr=%u optSGPRUsage=%s optSrdIncForRow=%u" % \
@@ -11423,7 +11428,7 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += self.bomb() # can see store addresses just before the store inst
 
       if kernel["ProblemType"]["DestDataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-        vgprBf16Temp = self.vgprPool.checkOut(4)
+        vgprBf16Temp = bf16CVTVgpr
         vgprBf16Mask = vgprBf16Temp + 1
         vgprFp32Nan = vgprBf16Temp + 2
         vgprBf16Inc = vgprBf16Temp + 3
@@ -11598,10 +11603,7 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr += storeCode
 
-      if kernel["ProblemType"]["DestDataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-        self.vgprPool.checkIn(vgprBf16Temp)
-
-          #kStr += self.bomb(5)
+      #kStr += self.bomb(5)
       if self.db["CheckStoreC"]>=0:
         useBuffer = kernel["BufferStore"]
         # Note - CheckStoreC won't work for EDGE store cases since they load 0 for OOB, would need more sophisticated check
