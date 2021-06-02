@@ -10524,11 +10524,16 @@ class KernelWriterAssembly(KernelWriter):
         codeAccVgprRead = deepcopy(self.codeAccVgprRead) if self.serializedStore else None
         codeMulAlpha    = deepcopy(self.codeMulAlpha) if self.serializedStore else None
 
+        self.alphaBeforeLoadC = False
         if kernel["MIArchVgpr"]:
           if applyAlpha:
             codeAccVgprRead = None
           else:
             codeMulAlpha    = None
+
+          #Only apply when 2 wave optimization features are enabled
+          if (kernel["StorePriorityOpt"] or ["StoreSyncOpt"]) and beta:
+            self.alphaBeforeLoadC = True
 
         for batchIdx in range(0, numBatches):
           elementStartIdx = batchIdx * numElementsPerBatch
@@ -10985,6 +10990,19 @@ class KernelWriterAssembly(KernelWriter):
     if edge and self.db["AssertNoEdge"]:
       kStr += self.bomb() # should not get here
 
+    ########################################
+    # rC *= alpha
+    if not kernel["InterleaveAlpha"] and applyAlpha and self.alphaBeforeLoadC:
+      kStr += self.comment("rC *= alpha batchEements=%s"%batchElements)
+      if codeMulAlpha is None:
+        for elementIdx in range(0, len(batchElements)):
+          kStr += self.applyAlpha(kernel, gwvw, ss.elementSumIdx, elementIdx, tmpS01)
+      else:
+          regsPerScalar = self.bpeCinternal//self.bpr # register per scalar
+          for elementIdx in range(0, len(batchElements)):
+            for vi in range(0, gwvw):
+              kStr += str(codeMulAlpha.items().pop(0)).replace("__placeholder__", str(ss.elementSumIdx[elementIdx]*regsPerScalar + regsPerScalar*vi ))
+
     loadCInputCode = ""
     for elementIdx in range(0, len(batchElements)):
       element = batchElements[elementIdx]
@@ -11076,7 +11094,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # rC *= alpha
-    if not kernel["InterleaveAlpha"] and applyAlpha:
+    if not kernel["InterleaveAlpha"] and applyAlpha and not self.alphaBeforeLoadC:
       kStr += self.comment("rC *= alpha batchEements=%s"%batchElements)
       if codeMulAlpha is None:
         for elementIdx in range(0, len(batchElements)):
@@ -12067,6 +12085,8 @@ class KernelWriterAssembly(KernelWriter):
     self.codeMulAlpha = Code.Module("MulAlpha")
     self.codeMulAlpha.itemList = [None] * complexMultiplier * len(acc2arch)
     accImOffset = self.AccVgprImagNumOffset(kernel)
+    # only support Dgemm for now
+    assert(kernel["ProblemType"]["ComputeDataType"].isDouble())
     for i in range(len(acc2arch)):
       for cm in range(complexMultiplier):
         destIdx = (acc2arch[i]*complexMultiplier + cm)
