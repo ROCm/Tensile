@@ -887,6 +887,10 @@ validParameters = {
     # There are index or address calculation between global instructions.
     # issue global instruction b2b has better performance
     "GroupLoadStore":             [False, True],
+    #
+    # In order to remove the copying from Acc vgpr to Arch vgpr, only use Arch vgprs for v_mfma_xxx.
+    # Only support for kernel whose totalVgpr counts less than 256 and gcn that has control bit ACC_CD.
+    "MIArchVgpr":               [False, True],
 
     # Disable overlapping AB-tile vgpr and read/write addr vgprs with C-tile vgprs
     # Valid only for MatrixInstruction enabled kernels, which by default overlaps
@@ -1272,6 +1276,7 @@ defaultBenchmarkCommonParameters = [
     {"NumElementsPerBatchStore":  [ 0 ] },
     {"StoreSyncOpt":              [ 0 ] },
     {"GroupLoadStore":            [ False ] },
+    {"MIArchVgpr":                [ False ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = []

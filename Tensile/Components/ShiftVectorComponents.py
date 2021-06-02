@@ -341,6 +341,7 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
 
         numOutputsPrep  = (matrixInstCoal * matrixInstPrep // numThreadInWave) if conThInProcDim else 1
         numOutputsPrep  = numOutputsPrep * matrixInstBPrep * miWaveTitlePrep
+        complexMultiplier = 2 if kernel["ProblemType"]["DataType"].isComplex() else 1
 
         # unify process for dimension M/N
         regStrideCoal = 1                                                                if tP["isA"] else numOutputsPrep
@@ -478,20 +479,18 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
                             kStr += inst("v_lshlrev_b32", vgpr(tmpVgpr), log2(writer.bpr), vgpr(tmpVgpr), "permute register between threads")
 
                             for ot in range(numOutputsPrep):
-                                for c  in range(writer.agprMultiplier):
+                                for c  in range(complexMultiplier):
                                     for nr in range(regPerElem):
+                                        copyInstStr = "v_accvgpr_read_b32" if not kernel["MIArchVgpr"] else "v_mov_b32"
                                         for e in range(min(r, allContOutCoal)):
                                             src = (e+(glvw-r)) % allContOutCoal
                                             srcVgpr = (src + (vw * glvw) + allContOutCoal * mb) * regStrideCoal
                                             srcVgpr = srcVgpr + ot * regStridePrep
-                                            if writer.serializedStore:
-                                                srcVgpr = arch2acc[srcVgpr] * regPerElem + nr + c * accImOffset
-                                                kStr += inst("v_accvgpr_read_b32", vgpr(tReg+e), accvgpr(srcVgpr), "glvw %u mb %u tt1 %u r %u" % (r, mb, ot, nr))
-                                            else:
-                                                srcVgpr = ((srcVgpr * writer.agprMultiplier) + c) * regPerElem + nr
-                                                kStr += inst("v_mov_b32", vgpr(tReg+e), vgpr(srcVgpr), "glvw %u mb %u tt1 %u r %u" % (r, mb, ot, nr))
+                                            srcVgpr = arch2acc[srcVgpr] * regPerElem + nr + c * accImOffset
+                                            srcStr = accvgpr(srcVgpr) if not kernel["MIArchVgpr"] else vgpr(srcVgpr)
+                                            kStr += inst(copyInstStr, vgpr(tReg+e), srcStr, "glvw %u mb %u tt1 %u r %u" % (r, mb, ot, nr))
 
-                                        if writer.serializedStore:
+                                        if not kernel["MIArchVgpr"]:
                                             kStr += inst("s_nop", "1", "v_accvgpr read vgpr after write vgpr: 2 wait states")
 
                                         needWait = False
@@ -504,15 +503,13 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
                                         if needWait:
                                             kStr += inst("s_waitcnt", "0", "wait for swizzle operation")
 
+                                        copyInstStr = "v_accvgpr_write_b32" if not kernel["MIArchVgpr"] else "v_mov_b32"
                                         for e in range(min(r, allContOutCoal)):
                                             dstVgpr = (e + (vw * glvw) + allContOutCoal * mb) * regStrideCoal
                                             dstVgpr = dstVgpr + ot * regStridePrep
-                                            if writer.serializedStore:
-                                                dstVgpr = arch2acc[dstVgpr] * regPerElem + nr + c * accImOffset
-                                                kStr += inst("v_accvgpr_write_b32", accvgpr(dstVgpr), vgpr(tReg+e), "")
-                                            else:
-                                                dstVgpr = ((dstVgpr * writer.agprMultiplier) + c) * regPerElem + nr
-                                                kStr += inst("v_mov_b32", vgpr(dstVgpr), vgpr(tReg+e), "")
+                                            dstVgpr = arch2acc[dstVgpr] * regPerElem + nr + c * accImOffset
+                                            dstStr = accvgpr(dstVgpr) if not kernel["MIArchVgpr"] else vgpr(dstVgpr)
+                                            kStr += inst(copyInstStr, dstStr, vgpr(tReg+e), "")
 
                             # end shift reset mask and jump out
                             all1mask = "0xFFFFFFFF" if (kernel["WavefrontSize"] == 32) else "0xFFFFFFFFFFFFFFFF"

@@ -567,7 +567,6 @@ class KernelWriterAssembly(KernelWriter):
     self.localReadOffsetA = 0
     self.localReadOffsetB = 0
     self.inTailLoop = False
-    self.overlapVgprC = False
     self.serializedStore = False
 
   @property
@@ -1289,7 +1288,6 @@ class KernelWriterAssembly(KernelWriter):
 
     self.kernelName = self.getKernelName(kernel)
     self.inTailLoop = False
-    self.overlapVgprC = False
     self.serializedStore = False
 
     # registers per element
@@ -1646,9 +1644,11 @@ class KernelWriterAssembly(KernelWriter):
     # VGPR Assignment
     ####################################
     vgprIdx = 0
+    self.totalAgprs = 0
 
     self.startVgprValuC = vgprIdx; vgprIdx += self.numVgprValuC
-    if kernel["EnableMatrixInstruction"] and not kernel["DisableVgprOverlapping"] and kernel["MIUseAccVgpr"]:
+
+    if kernel["EnableMatrixInstruction"]:
       # MI kernels can overlap C-tile w/ AB-tile up until writeback. Illustrated below:
       # |<-------------- valuC -------------->|
       # |------------|-----------|xx|---------|
@@ -1657,10 +1657,15 @@ class KernelWriterAssembly(KernelWriter):
       #              startVgprReuse ^         ^
       #                             lastValuC ^
       # TODO a bit tricky. Better to manage all GPRs solely through RegisterPool
-      self.overlapVgprC = True
-      vgprIdx = 0
-      self.serializedStore = True # TODO: make serialized store default with MI kernels
-      self.numVgprValuC = 0
+      self.serializedStore = True
+
+      ########################################
+      # AGPR Allocation
+      ########################################
+      if not kernel["MIArchVgpr"]:
+        self.totalAgprs = self.numVgprValuC
+        vgprIdx = 0
+        self.numVgprValuC = 0
 
     PLR = kernel["PrefetchLocalRead"] if kernel["PrefetchLocalRead"] < kernel["LoopIters"] else kernel["LoopIters"] - 1
     valuBlocks = (1+PLR) * kernel["InnerUnroll"]
@@ -1806,7 +1811,7 @@ class KernelWriterAssembly(KernelWriter):
     #  minVgprTmp += 2
     #vgprIdx += minVgprTmp
     #print2("%3u vgprs <- %s" % (vgprIdx, self.kernelName) )
-    self.startVgprReuse = vgprIdx # for register reuse; see flag 'overlapVgprC'
+    self.startVgprReuse = vgprIdx # for register reuse;
 
     self.totalVgprs = max(vgprIdx, self.numVgprValuC)
     if self.totalVgprs < kernel["MinVgprNumber"] or self.totalVgprs > kernel["MaxVgprNumber"]:
@@ -2057,17 +2062,6 @@ class KernelWriterAssembly(KernelWriter):
       self.undefineSgpr("OrigStaggerUIter")  # Original stagger register.  Only needed for Persistent
 
     ########################################
-    # AGPR Allocation
-    ########################################
-    self.totalAgprs = 0
-    if kernel["EnableMatrixInstruction"] and kernel["MIUseAccVgpr"]:
-      # complex multiplication is emulated by 4 matrix instructions operating on real and imaginary numbers
-      # multiplier 2 indicates complex mul requires equal share of extra vgprs to store the imaginary part
-      self.agprMultiplier = 2 if kernel["ProblemType"]["DataType"].isComplex() else 1
-      self.destAgprs  = kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"] // kernel["WavefrontSize"] * kernel["MIRegPerOut"]
-      self.totalAgprs = self.destAgprs * kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] * self.agprMultiplier
-
-    ########################################
     # Register Pools
     ########################################
     #print "TotalVgprs", self.totalVgprs
@@ -2082,22 +2076,8 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.add(self.startVgprValuA, \
         self.lastValuAB - self.startVgprValuA, "ValuAB") # Add as available
 
-    if self.serializedStore:
-      self.vgprPool.addRange(self.startVgprReuse, self.vgprPool.size()-1)
-    elif self.overlapVgprC:
-      # |<-------------- valuC -------------->|
-      # |oooooooooooo|xxxxxxxxxxx|xx|ooooooooo|
-      #   lastValuAB ^           ^  ^         ^
-      #         lastVgprForReads ^  ^         ^
-      #              startVgprReuse ^         ^
-      #                             lastValuC ^
-      # Add to vgprPool the 4th segment of the C-tile shown above.
-      # TODO possible to add 2nd segment (r/w pointers) when prefetching is off.
-      self.vgprPool.add(self.startVgprReuse, max(0, self.numVgprValuC-self.startVgprReuse), \
-        "unused c-tile vgprs")
-    else:
-      self.vgprPool.add(self.startVgprValuC, \
-        self.numVgprValuC, "ValuC-Block") # Add as available
+    self.vgprPool.add(self.startVgprValuC, \
+      self.numVgprValuC, "ValuC-Block") # Add as available
     #print self.vgprPool.state()
 
     self.agprPool = RegisterPool(self.totalAgprs, 'a', defaultPreventOverflow=False, printRP=0)
@@ -2636,8 +2616,8 @@ class KernelWriterAssembly(KernelWriter):
     # VGPR Macros
     ########################################
     kStr += self.comment3("VGPR Assignments")
-    kStr += self.comment1("ValuC range: [%u-%u), %s, %s"%(self.startVgprValuC, self.startVgprValuC+self.numVgprValuC, \
-      "overlapValuC enabled" if self.overlapVgprC else "", "serializedStore enabled" if self.serializedStore else ""))
+    kStr += self.comment1("ValuC range: [%u-%u), %s"%(self.startVgprValuC, self.startVgprValuC+self.numVgprValuC, \
+                           "serializedStore enabled" if self.serializedStore else ""))
     kStr += self.macroRegister("vgprValuC", self.startVgprValuC)
 
     kStr += self.comment1("ValuA/B   Xn=PLR buffer idx,  In=InnerUnroll idx")
@@ -5264,57 +5244,28 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def initC(self, kernel):
     kStr = ""
-    if self.overlapVgprC:
-      # |<-------------- valuC -------------->|
-      # |xxxxxxxxxxxx|xxxxxxxxxxx|xx|ooooooooo|
-      #   lastValuAB ^           ^  ^         ^
-      #         lastVgprForReads ^  ^         ^
-      #              startVgprReuse ^         ^
-      #                             lastValuC ^
-      # AB-tiles are removed from the vgprPool in summation loop
-      kStr += self.comment("initC: remove AB-tile %u-%u from pool"%(self.startVgprValuA, self.lastValuAB-self.startVgprValuA))
-      self.vgprPool.remove(self.startVgprValuA, self.lastValuAB-self.startVgprValuA, "remove AB tile")
-    else:
-      # remove the C regs from the pool since we are about to write them here:
-      kStr += self.comment("initC: remove C-tile %u-%u from pool"%(self.startVgprValuC, self.startVgprValuC+self.numVgprValuC))
-      self.vgprPool.remove(self.startVgprValuC, self.numVgprValuC, "ValuC")
-      kStr += self.comment("initC: remove AB-tile %u-%u from pool"%(self.startVgprValuA, self.lastValuAB))
-      self.vgprPool.remove(self.startVgprValuA, \
-          self.lastValuAB - self.startVgprValuA, "ValuAB")
+    kStr += self.comment("initC: remove C-tile %u-%u from pool"%(self.startVgprValuC, self.startVgprValuC+self.numVgprValuC))
+    self.vgprPool.remove(self.startVgprValuC, self.numVgprValuC, "ValuC")
+    self.agprPool.remove(0, self.totalAgprs, "ValuC")
+    kStr += self.comment("initC: remove AB-tile %u-%u from pool"%(self.startVgprValuA, self.lastValuAB))
+    self.vgprPool.remove(self.startVgprValuA, self.lastValuAB - self.startVgprValuA, "ValuAB")
 
-    for i in range(0, self.numVgprValuC):
-      kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "initC")
+    numCVgpr = max(self.numVgprValuC, self.totalAgprs)
 
-    # if using MFMAs, initialize ACC VGPRS as well
-    if kernel["EnableMatrixInstruction"] and kernel["MIUseAccVgpr"]:
-      kStr = ""
-      self.agprPool.remove(0, self.totalAgprs, "ValuC")
+    if kernel["LdsInitCVgprs"]:
+      tmpAddr = self.vgprPool.checkOut(1,"tmp vgpr for lds init C registers")
+      kStr += inst("v_mov_b32", vgpr(tmpAddr), self.LdsOOB, "set out-of-bound addr")
 
+    for i in range(0, numCVgpr):
+      copyInsStr = "v_mov_b32" if self.numVgprValuC else "v_accvgpr_write"
+      regStr = vgpr("ValuC+%u"%i) if self.numVgprValuC else "acc%u"%i
       if not kernel["LdsInitCVgprs"]:
-        for i in range(0, self.totalAgprs):
-          kStr += inst("v_accvgpr_write", "acc%u"%i, hex(0), "init Acc vgprs")
+        kStr += inst(copyInsStr, regStr, hex(0), "initC")
       else:
-        # use lds to init vgpr
-        tmpAddr = self.vgprPool.checkOut(1,"tmp vgpr for init Acc registers")
-        kStr += inst("v_mov_b32", vgpr(tmpAddr), self.LdsOOB, "set out-of-bound addr")
-        for i in range(0, self.totalAgprs):
-          kStr += inst("ds_read_b32", "acc%u"%i, vgpr(tmpAddr), "offset:0", "init Acc vgprs")
-        self.vgprPool.checkIn(tmpAddr)
+        kStr += inst("ds_read_b32", regStr, vgpr(tmpAddr), "offset:0", "initC")
 
-      # TODO: Remove debug code when finished
-      # for debug, write 42 and check results
-      # write 42 into vgprs
-      #for i in range(0, self.totalAgprs):
-      #  kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), "0x"+struct.pack('>f', 42.0).hex(), "write 42")
-      # copy over to agprs
-      #for i in range(0, self.totalAgprs):
-      #  kStr += inst("v_accvgpr_write", "acc%u"%i, vgpr("ValuC+%u"%i), "write 42 into agprs")
-      # restore vgprs
-      #for i in range(0, self.totalAgprs):
-      #  kStr += inst("v_mov_b32", vgpr("ValuC+%u"%i), hex(0), "restore 0")
-      #kStr += "s_barrier // debug\n"
-      #kStr += "s_waitcnt lgkmcnt(0) & vmcnt(0)\n"
-      #kStr += self.bomb()
+    if kernel["LdsInitCVgprs"]:
+      self.vgprPool.checkIn(tmpAddr)
 
     if kernel["PersistentKernel"]:
       # Move to next serial wg early since SerialWorkGroupIter is checked in several places below including tail loop which has multiple entry points
@@ -6057,40 +6008,8 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["StorePriorityOpt"]:
       kStr += inst("s_setprio 0", "optimization store")
 
-    if self.overlapVgprC:
-      # After summation loop, valuC is due for Acc->Arch read and is thus locked out.
-      # if valuC includes lastVgprForReads, then there's nothing to do here
-      # (Note: the last remaining part in valuC will be removed in MapAcctoArchRegs())
-      # |<-------------- valuC -------------->|
-      # |xxxxxxxxxxxx|xxxxxxxxxxx|xx|ooooooooo|
-      #   lastValuAB ^           ^  ^         ^
-      #         lastVgprForReads ^  ^         ^
-      #              startVgprReuse ^         ^
-      #                             lastValuC ^
-      # if valuC does not include all of lastVgprForReads, we can reuse the
-      # non-overlapped part of lastVgprForReads
-      # |<-------------- valuC -------------->|
-      # |xxxxxxxxxxxxxxxxxxxxx|xxxxxxxxxxxxxxx|oooooo|xx|
-      #            lastValuAB ^     lastValuC ^      ^  ^
-      #                             lastVgprForReads ^  ^
-      #                                  startVgprReuse ^
-      vbegin = self.numVgprValuC
-      vsize = max(0, self.lastVgprForReads-self.numVgprValuC)
-
-      # remove the C regs from the pool since we are about to write them here:
-      # lastValuAB, lastVgprForReads have already been removed prior to hitting this function
-      # we are removing the last remainder (4th segment) of the valuC from register pool
-      # |<-------------- valuC -------------->|
-      # |xxxxxxxxxxxx|xxxxxxxxxxx|xx|xxxxxxxxx|
-      #   lastValuAB ^           ^  ^         ^
-      #         lastVgprForReads ^  ^         ^
-      #              startVgprReuse ^         ^
-      #                             lastValuC ^
-      kStr += self.comment1("endSummation: remove C-tile [%u, %u) from pool"%(self.startVgprReuse, self.startVgprReuse+max(0, self.numVgprValuC-self.startVgprReuse)))
-      self.vgprPool.remove(self.startVgprReuse, max(0, self.numVgprValuC-self.startVgprReuse), "ValuC")
-    else:
-      vbegin = self.startVgprValuA
-      vsize = self.lastVgprForReads - self.startVgprValuA
+    vbegin = self.startVgprValuA
+    vsize = self.lastVgprForReads - self.startVgprValuA
 
     self.vgprPool.add(vbegin, vsize, "endSummation")
     kStr += self.comment1("endSummation: add vgpr [%u...%u) to pool" % \
@@ -6128,9 +6047,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
 
     # copy accumulated C from agpr to vgpr
-    if kernel["EnableMatrixInstruction"] and kernel["MIUseAccVgpr"]:
-      #for i in range(0, self.totalAgprs):
-      #  kStr += inst("v_accvgpr_read_b32", vgpr("ValuC+%u"%i), "acc%u"%i, "copy areg to vreg")
+    if kernel["EnableMatrixInstruction"]:
       #TODO avoid s_nop if its possible
       instCycles = kernel["MatrixInstM"] // 2 # 32x32 is 64 cycles, 16x16 is 32 cycles, 4x4 is 8 cycles
       kStr += "s_nop %u\n" % instCycles
@@ -6159,7 +6076,7 @@ class KernelWriterAssembly(KernelWriter):
     vgprPerInput     = int(numMIInput * numRegistersIn)
     shiftPerElement  = int(numRegistersIn * 32)
     s_nop            = 0
-    accumRegType     = "a" if kernel["MIUseAccVgpr"] else "v"
+    accumRegType     = "a" if not kernel["MIArchVgpr"] else "v"
     mfma_1k          = "_1k" if kernel["MFMA_BF16_1K"] else ""
 
     if tail and self.prefetchAcrossPersistent0:
@@ -6604,9 +6521,6 @@ class KernelWriterAssembly(KernelWriter):
       # a few here shouldn't affect kernel's overall vgpr consumption.
       # the following code is for reference and will be removed in the future
       """
-      if self.overlapVgprC:
-        return kStr # exit early since they are already in the pool
-
       added = [] # track registers added to pool
       if kernel["PrefetchGlobalRead"]:
         if not kernel["DirectToLdsA"]:
@@ -9415,7 +9329,6 @@ class KernelWriterAssembly(KernelWriter):
           self.numVgprsPerDataPerVI = 0.0
 
         if kernelWriter.serializedStore:
-          assert(kernel["EnableMatrixInstruction"]==True)
           #self.numVgprPerValuC = kernel["MIRegPerOut"]
           self.numVgprPerValuC = kernelWriter.bpeCinternal//kernelWriter.bpr # vgpr needed from register pool
         else:
@@ -9688,21 +9601,8 @@ class KernelWriterAssembly(KernelWriter):
             bestVw = kernel["StoreVectorWidth"]
 
           if kernel["EnableMatrixInstruction"]:
-            if kw.serializedStore:
-              alignment = self.cfg.numVgprPerValuC * self.cfg.gwvw
-              sumIdx    = kw.vgprPool.checkOutAligned(self.cfg.numVgprPerValuC*self.cfg.gwvw, alignment, "vgprValuC") // self.cfg.numVgprPerValuC
-              # print("checked out vgpr %u"%sumIdx)
-              # print(kw.vgprPool.state())
-            else:
-              vectorWidth0 = kernel["VectorWidth"]         if kernel["SourceSwap"] else kernel["MIOutputVectorWidth"]
-              vectorWidth1 = kernel["MIOutputVectorWidth"] if kernel["SourceSwap"] else 1
-
-              d1_stride = 1 if kernel["SourceSwap"] else ((matrixInstM * matrixInstN) // self.kernel["WavefrontSize"])
-              d1_stride = d1_stride * matrixInstBM * kernel["MIWaveTile"][0]
-
-              sumIdx = kw.startVgprValuC
-              sumIdx = sumIdx + (vc0 + d0 * vectorWidth0)
-              sumIdx = sumIdx + (vc1 + d1 * vectorWidth1) * d1_stride
+            alignment = self.cfg.numVgprPerValuC * self.cfg.gwvw
+            sumIdx    = kw.vgprPool.checkOutAligned(self.cfg.numVgprPerValuC*self.cfg.gwvw, alignment, "vgprValuC") // self.cfg.numVgprPerValuC
           else:
             sumIdx = kw.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
         self.elementSumIdx.append(sumIdx) # sumIdx is an element idx, need to div/2 for half
@@ -9713,7 +9613,6 @@ class KernelWriterAssembly(KernelWriter):
       if self.kernelWriter.serializedStore is False:
         return # early exit; currently only serializedStore==True checks out C-tile from register pool
 
-      assert(self.kernelWriter.overlapVgprC) # sanity check
       if len(self.elementSumIdx) > 0:
         for i in self.elementSumIdx:
           self.kernelWriter.vgprPool.checkIn(i * self.cfg.numVgprPerValuC)
@@ -11152,7 +11051,6 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # AccVgpr read
     if codeAccVgprRead is not None:
-      assert(self.serializedStore) # sanity check
       regsPerScalar = self.bpeCinternal//self.bpr # register per scalar
       # loop over store instructions within one batch
       for elementIdx in range(0, len(batchElements)):
@@ -11161,7 +11059,8 @@ class KernelWriterAssembly(KernelWriter):
           # loop over registers within one scalar
           for rIdx in range(0, regsPerScalar):
             kStr += str(codeAccVgprRead.items().pop(0)).replace("__placeholder__", str(ss.elementSumIdx[elementIdx]*regsPerScalar + regsPerScalar*vi + rIdx))
-      kStr += inst("s_nop 1", "2 wait states required before reading vgpr")
+      if not kernel["MIArchVgpr"]:
+        kStr += inst("s_nop 1", "2 wait states required before reading vgpr")
 
     ########################################
     # rC *= alpha
@@ -12116,17 +12015,23 @@ class KernelWriterAssembly(KernelWriter):
 
     acc2arch, _ = self.AccToArchMapper(kernel)
 
+    complexMultiplier = 2 if kernel["ProblemType"]["DataType"].isComplex() else 1
     self.codeAccVgprRead = Code.Module("AccVgprRead")
-    self.codeAccVgprRead.itemList = [None] * kernel["MIRegPerOut"] * self.agprMultiplier * len(acc2arch)
+    self.codeAccVgprRead.itemList = [None] * kernel["MIRegPerOut"] * complexMultiplier * len(acc2arch)
     accImOffset = self.AccVgprImagNumOffset(kernel)
     for i in range(len(acc2arch)):
-      for cm in range(self.agprMultiplier):
+      for cm in range(complexMultiplier):
         for r in range(kernel["MIRegPerOut"]):
-          idx = (acc2arch[i]*self.agprMultiplier + cm) * kernel["MIRegPerOut"] + r
-          self.codeAccVgprRead.itemList[idx] = Code.Inst("v_accvgpr_read_b32",
-                                                            vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % idx),
-                                                            "acc%u" % ((i * kernel["MIRegPerOut"] + r) + (cm*accImOffset)),
-                                                          "copy areg to vreg[%u]" % idx)
+          destIdx = (acc2arch[i]*complexMultiplier + cm) * kernel["MIRegPerOut"] + r
+          srcIdx = ((i * kernel["MIRegPerOut"] + r) + (cm*accImOffset))
+          if not kernel["MIArchVgpr"]:
+            self.codeAccVgprRead.itemList[destIdx] = Code.Inst("v_accvgpr_read_b32",
+                                                              vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % destIdx),
+                                                              "acc%u"%srcIdx, "copy acc to vreg[%u]" % destIdx)
+          else:
+            self.codeAccVgprRead.itemList[destIdx] = Code.Inst("v_mov_b32",
+                                                              vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % destIdx),
+                                                              vgpr("ValuC+%u"%srcIdx), "copy MI out reg to vreg[%u]" % destIdx)
 
     return kStr if self.serializedStore else kStr+str(self.codeAccVgprRead)
 
