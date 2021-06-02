@@ -568,6 +568,8 @@ class KernelWriterAssembly(KernelWriter):
     self.localReadOffsetB = 0
     self.inTailLoop = False
     self.serializedStore = False
+    self.codeAccVgprRead = None
+    self.codeMulAlpha = None
 
   @property
   def vcc(self) -> str:
@@ -6049,9 +6051,11 @@ class KernelWriterAssembly(KernelWriter):
     # copy accumulated C from agpr to vgpr
     if kernel["EnableMatrixInstruction"]:
       #TODO avoid s_nop if its possible
-      instCycles = kernel["MatrixInstM"] // 2 # 32x32 is 64 cycles, 16x16 is 32 cycles, 4x4 is 8 cycles
-      kStr += "s_nop %u\n" % instCycles
+      #instCycles = kernel["MatrixInstM"] // 2 # 32x32 is 64 cycles, 16x16 is 32 cycles, 4x4 is 8 cycles
+      #kStr += "s_nop %u\n" % instCycles
       kStr += self.MapAcctoArchRegs(kernel,option=0)
+      if kernel["MIArchVgpr"]:
+        kStr += self.MulMIoutAlphaToArch(kernel)
 
     return kStr
 
@@ -10518,6 +10522,14 @@ class KernelWriterAssembly(KernelWriter):
         elementSgprs = tmpSgpr + self.ss.cfg.numTempSgprPerBatch
 
         codeAccVgprRead = deepcopy(self.codeAccVgprRead) if self.serializedStore else None
+        codeMulAlpha    = deepcopy(self.codeMulAlpha) if self.serializedStore else None
+
+        if kernel["MIArchVgpr"]:
+          if applyAlpha:
+            codeAccVgprRead = None
+          else:
+            codeMulAlpha    = None
+
         for batchIdx in range(0, numBatches):
           elementStartIdx = batchIdx * numElementsPerBatch
           elementStopIdx = min( elementStartIdx + numElementsPerBatch, len(elements[edgeI]) )
@@ -10533,7 +10545,7 @@ class KernelWriterAssembly(KernelWriter):
           kStr += self.globalWriteBatch(kernel, self.ss, batchIdx, applyAlpha, beta, edge, atomic, gwvw, atomicW, \
               elementsThisBatch, self.coord0, self.coord1, self.addrD, self.addrC, \
               tmpVgpr, \
-              elementSgprs, tmpSgpr, codeAccVgprRead)
+              elementSgprs, tmpSgpr, codeAccVgprRead, codeMulAlpha)
         # TODO - if this is the last tile, don't need to jump to next instruction
         kStr += inst("s_branch", "label_%s"%endLabel, "jump to end")
         del self.ss
@@ -10913,7 +10925,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def globalWriteBatch(self, kernel, ss, batchIdx, applyAlpha, beta, edge, atomic, gwvw, atomicW, \
       batchElements, coord0, coord1, addrD, addrC, \
-      tmpVgpr, batchElementSgprs, tmpSgpr, codeAccVgprRead):
+      tmpVgpr, batchElementSgprs, tmpSgpr, codeAccVgprRead, codeMulAlpha):
     kStr = ""
 
     kStr += self.comment1("optSingleColVgpr=%u optSharedColVgpr=%u optSGPRUsage=%s optSrdIncForRow=%u" % \
@@ -11066,8 +11078,14 @@ class KernelWriterAssembly(KernelWriter):
     # rC *= alpha
     if not kernel["InterleaveAlpha"] and applyAlpha:
       kStr += self.comment("rC *= alpha batchEements=%s"%batchElements)
-      for elementIdx in range(0, len(batchElements)):
-        kStr += self.applyAlpha(kernel, gwvw, ss.elementSumIdx, elementIdx, tmpS01)
+      if codeMulAlpha is None:
+        for elementIdx in range(0, len(batchElements)):
+          kStr += self.applyAlpha(kernel, gwvw, ss.elementSumIdx, elementIdx, tmpS01)
+      else:
+          regsPerScalar = self.bpeCinternal//self.bpr # register per scalar
+          for elementIdx in range(0, len(batchElements)):
+            for vi in range(0, gwvw):
+              kStr += str(codeMulAlpha.items().pop(0)).replace("__placeholder__", str(ss.elementSumIdx[elementIdx]*regsPerScalar + regsPerScalar*vi ))
 
     ########################################
     # Atomic
@@ -12026,15 +12044,38 @@ class KernelWriterAssembly(KernelWriter):
           srcIdx = ((i * kernel["MIRegPerOut"] + r) + (cm*accImOffset))
           if not kernel["MIArchVgpr"]:
             self.codeAccVgprRead.itemList[destIdx] = Code.Inst("v_accvgpr_read_b32",
-                                                              vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % destIdx),
+                                                              vgpr("ValuC+__placeholder__"),
                                                               "acc%u"%srcIdx, "copy acc to vreg[%u]" % destIdx)
           else:
             self.codeAccVgprRead.itemList[destIdx] = Code.Inst("v_mov_b32",
-                                                              vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % destIdx),
+                                                              vgpr("ValuC+__placeholder__"),
                                                               vgpr("ValuC+%u"%srcIdx), "copy MI out reg to vreg[%u]" % destIdx)
 
-    return kStr if self.serializedStore else kStr+str(self.codeAccVgprRead)
+    return kStr
 
+  ##############################################################################
+  # MulMIoutAlphaToArch
+  # function to handle MFMA alpha*MIout to Arch VGPR regsiter
+  ##############################################################################
+  def MulMIoutAlphaToArch(self, kernel):
+    kStr = ""
+    kStr += self.comment("Multiply MI out register with Alpha -> C Vgpr register")
+
+    acc2arch, _ = self.AccToArchMapper(kernel)
+
+    complexMultiplier = 2 if kernel["ProblemType"]["DataType"].isComplex() else 1
+    self.codeMulAlpha = Code.Module("MulAlpha")
+    self.codeMulAlpha.itemList = [None] * complexMultiplier * len(acc2arch)
+    accImOffset = self.AccVgprImagNumOffset(kernel)
+    for i in range(len(acc2arch)):
+      for cm in range(complexMultiplier):
+        destIdx = (acc2arch[i]*complexMultiplier + cm)
+        srcIdx = ((i * kernel["MIRegPerOut"] ) + (cm*accImOffset))
+        self.codeMulAlpha.itemList[destIdx] = Code.Inst("v_mul_f64", vgpr("ValuC+__placeholder__",2),
+                                                         sgpr("Alpha",2),
+                                                         vgpr("ValuC+%u"%srcIdx,2), "Multiply MI out reg with alpha")
+
+    return kStr
 
   # Perform 32-bit scalar mul and save u64 result in two SGPR
   # src0 and src1 are 32-bit unsigned ints in scalar sgpr or small int constants (<64?))
