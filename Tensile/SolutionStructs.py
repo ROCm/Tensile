@@ -1897,11 +1897,6 @@ class Solution:
       state["MIOutputVectorWidth"] = 1 if (state["ProblemType"]["DataType"].MIOutputTypeNameAbbrev() == 'f64') else 4
       state["MIRegPerOut"]         = 2 if (state["ProblemType"]["DataType"].MIOutputTypeNameAbbrev() == 'f64') else 1
 
-      # for dgemm mfma accumulate instructions can use either the accumulate registers or arch registers
-      state["MIUseAccVgpr"] = True
-      if state["ProblemType"]["DataType"].isDouble():
-        state["MIUseAccVgpr"] = True # switch to false if testing using arch registers
-
       if state["MatrixInstM"] == 4:
         state["ThreadTile0"] = state["MIWaveTile"][0] * state["MIOutputVectorWidth"]
         state["ThreadTile1"] = state["MIWaveTile"][1]
@@ -2437,9 +2432,6 @@ class Solution:
       state["ExpandPointerSwap"] = 1
       state["1LDSBuffer"] = 1
       print2("\nSet SIA=2, force PrefetchLocalRead=1, ExpandPointerSwap=1, 1LDSBuffer=1")
-
-    if state["DisableVgprOverlapping"] is True and state["EnableMatrixInstruction"] is not True:
-      reject(state, "Non-MI kernels are already non-overlapping in pre-allocated registers")
 
     # F32 only for now but we should extend this for other data types as well.
     isa = tuple(state["ISA"])
@@ -3305,6 +3297,12 @@ class Solution:
          state["EnableMatrixInstruction"] and state["StorePriorityOpt"] and \
          state["ProblemType"]["DataType"].isDouble():
       state["LdsInitCVgprs"] = True
+
+    if state["MIArchVgpr"]:
+      if not globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasVmAcc"] or \
+         not state["EnableMatrixInstruction"]:
+        reject(state, "MIArchVgpr requires gcn support ACC_CD bit for MatrixInstruction")
+        return
 
     if state["AtomicAddC"]:
       if not state["ProblemType"]["DataType"].isDouble():
