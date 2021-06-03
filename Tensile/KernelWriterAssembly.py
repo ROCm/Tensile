@@ -8588,8 +8588,8 @@ class KernelWriterAssembly(KernelWriter):
   def localSplitUReduction(self, kernel):
     kStr = ""
 
-    is_pack16 = kernel["ProblemType"]["DataType"].isHalf() and (not kernel["ProblemType"]["HighPrecisionAccumulate"])
-    elementStep = 2 if is_pack16 else 1
+    is_non_hpa_fp16 = kernel["ProblemType"]["DataType"].isHalf() and (not kernel["ProblemType"]["HighPrecisionAccumulate"])
+    elementStep = 2 if is_non_hpa_fp16 else 1
     regsPerElem = kernel["ProblemType"]["DataType"].numRegisters()
 
     for r in range(1, kernel["LocalSplitU"]):
@@ -8598,7 +8598,7 @@ class KernelWriterAssembly(KernelWriter):
           cIdx = int((s + i * kernel["GlobalWriteVectorWidth"]) * regsPerElem)
           regIdx = int((s + i * kernel["GlobalWriteVectorWidth"] + r * kernel["GlobalWriteVectorWidth"] * kernel["NumGlobalWriteVectorsPerThread"]) * regsPerElem)
 
-          if kernel["ProblemType"]["DataType"].isHalf() and (not kernel["ProblemType"]["HighPrecisionAccumulate"]):
+          if is_non_hpa_fp16:
             kStr += inst("v_pk_add_f16", vgpr("ValuC+%u"%cIdx), vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), \
                          "c[%u] += c[%u]"%(cIdx, regIdx) )
           elif kernel["ProblemType"]["DataType"].isInt8x4():
