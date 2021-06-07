@@ -1,8 +1,7 @@
 import os, subprocess, shlex, shutil, random, pytest
+from filelock import FileLock
 from Tensile import ClientWriter, LibraryIO, Common
 from Tensile.SolutionStructs import ProblemType, ProblemSizesMock
-
-from filelock import FileLock
 
 # 1. Call TensileCreateLibrary
 # 2. Get client instance from ClientExecutable()
@@ -14,7 +13,7 @@ from filelock import FileLock
 #   --library-format=msgpack is currently known to fail
 #   --short-file-names is currently known to fail
 
-def downloadLogicFiles(builddir):
+def downloadLogicFiles(logicDir):
   prefix = "library/src/blas3/Tensile/Logic/asm_full"
   testData = {
     "pre_checkin" : [
@@ -34,14 +33,13 @@ def downloadLogicFiles(builddir):
     ]
   }
 
-  destDir = os.path.join(builddir, "logic_yaml")
-  shutil.rmtree(destDir, ignore_errors=True)
+  parentDir = os.path.dirname(logicDir)
+  shutil.rmtree(logicDir, ignore_errors=True)
 
   # basically to query the latest zip release weblink, download it and unzip
   # selected files to destination folder
   cmd = """#!/bin/bash
   set -x
-  echo $$
   wget -nc https://api.github.com/repos/ROCmSoftwarePlatform/rocBLAS/releases/latest
   weblink=$(grep -oP '(?<="zipball_url": ")[a-zA-Z:/\.\-0-9]*' latest)
   wget -nc $weblink
@@ -50,32 +48,32 @@ def downloadLogicFiles(builddir):
   """
   for schedule in list(testData.keys()):
     for f in testData[schedule]:
-      dir = os.path.join(destDir, schedule)
+      dir = os.path.join(logicDir, schedule)
       Common.ensurePath(dir)
       cmd += "unzip -j -d %s -x $archive ${rootDir}%s\n"%(dir, os.path.join(prefix,f))
 
-  scriptFile = os.path.join(builddir,"get_logic.sh")
-  with open(scriptFile, "w") as file: file.write(cmd)
+  scriptFile = os.path.join(parentDir,"get_logic.sh")
+  with open(scriptFile, "w") as file:
+    file.write(cmd)
   os.chmod(scriptFile, 0o777)
 
-  subprocess.run(scriptFile, cwd=builddir, check=True)
-  return destDir
+  subprocess.run(scriptFile, cwd=parentDir, check=True)
 
 @pytest.fixture(scope="session")
 def getLogicFileDir(tmp_path_factory, worker_id):
 
   if worker_id == "master":
-    root_tmp_dir = tmp_path_factory.getbasetemp()
-    destDir = os.path.join(root_tmp_dir, "logic_yaml")
-    downloadLogicFiles(root_tmp_dir)
+    rootTmpDir = tmp_path_factory.getbasetemp()
+    destDir = os.path.join(rootTmpDir, "logic_yaml")
+    downloadLogicFiles(destDir)
   else:
-    root_tmp_dir = tmp_path_factory.getbasetemp().parent
-    destDir = os.path.join(root_tmp_dir, "logic_yaml")
-    lockPath = os.path.join(root_tmp_dir, "get_logic.lock")
+    rootTmpDir = tmp_path_factory.getbasetemp().parent
+    destDir = os.path.join(rootTmpDir, "logic_yaml")
+    lockPath = os.path.join(rootTmpDir, "get_logic.lock")
 
     with FileLock(lockPath):
       if not os.path.isdir(destDir):
-        downloadLogicFiles(root_tmp_dir)
+        downloadLogicFiles(destDir)
 
   return destDir
 
@@ -163,4 +161,4 @@ def test_integration(useGlobalParameters, builddir, getLogicFileDir,
     enableTileSelection = False
     returncode = ClientWriter.runClient(logicFileDir, forBenchmark, enableTileSelection, clientParametersPaths)
 
-  assert(returncode == 0)
+    assert(returncode == 0)
