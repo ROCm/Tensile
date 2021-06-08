@@ -1459,11 +1459,11 @@ def generateLogic(config, benchmarkDataPath, libraryLogicPath):
     data = LibraryIO.createLibraryLogic(analysisParameters["ScheduleName"], \
         analysisParameters["ArchitectureName"], analysisParameters["DeviceNames"], logicTuple)
 
-    LibraryIO.writeYAML(filename, data)
+    LibraryIO.writeYAML(filename, data, explicit_start=False, explicit_end=False)
 
   currentTime = time.time()
   elapsedTime = currentTime - startTime
-  print1("%s\n# Finish Analysing data to in %s - %.3fs\n%s" % (HR, os.path.split(libraryLogicPath)[0], elapsedTime, HR) )
+  print1("%s\n# Finish Analysing data to %s in %.3fs\n%s" % (HR, os.path.split(libraryLogicPath)[0], elapsedTime, HR) )
   popWorkingPath()
 
 

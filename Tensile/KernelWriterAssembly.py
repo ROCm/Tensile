@@ -27,7 +27,7 @@ from .SolutionStructs import isPackedIndex
 from .Utils import ceil_divide, roundUpToNearestMultiple
 from .AsmUtils import inst, vgpr, sgpr, log2, vectorStaticDivideAndRemainder, vectorStaticDivide, vectorStaticRemainder, scalarStaticDivideAndRemainder, staticMultiply, scalarStaticMultiply
 
-from math import ceil, trunc, modf
+from math import ceil, trunc, modf, log
 from copy import deepcopy
 import collections
 import os
@@ -1123,7 +1123,7 @@ class KernelWriterAssembly(KernelWriter):
       self.version = defaultIsa
 
     if kernel["EnableMatrixInstruction"]:
-      if (kernel["ProblemType"]["DataType"].isDouble() or kernel["ProblemType"]["DataType"].isDoubleComplex()) and not self.asmCaps["HasMFMA_f64"]:
+      if (kernel["ProblemType"]["DataType"].MIOutputTypeNameAbbrev() == 'f64') and (not self.asmCaps["HasMFMA_f64"]):
         raise RuntimeError("FP64 MatrixInstruction not supported for {0}".format(self.version))
       elif not self.asmCaps["HasMFMA"]:
         raise RuntimeError("MatrixInstruction not supported for {0}".format(self.version))
@@ -2140,10 +2140,11 @@ class KernelWriterAssembly(KernelWriter):
     self.localReadDoCntB   = 0
 
     if kernel["EnableMatrixInstruction"]:
-      self.miLatency = kernel["MatrixInstM"] // 2 - 2
+      self.miLatency = kernel["MatrixInstM"] // 2
+      miIssueLatency = 2
       # give 1 quad-cycle buffer to prevend bubble from sync
-      self.miLatencyBuffer = 1
-      self.miLatency -= self.miLatencyBuffer
+      miLatencyBuffer = 1
+      self.miLatencyLeft = max(self.miLatency - miLatencyBuffer - miIssueLatency,0)
 
     # pre-determine labels in order
     unrollChar = self.indexChars[ \
@@ -2777,7 +2778,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["BufferLoad"] or kernel["BufferStore"]:
       kStr += self.comment1("2GB limit - set offsets to -1 to exceed this and clamp")
-      kStr += self.macroRegister("BufferLimit", "0x80000000")
+      kStr += self.macroRegister("BufferLimit", "0xffffffff")
       #TODO-64 : This is max 32-bit negative value, the tail loop
       # does incrementally step through the GRO and increment GRO
       # which are initialized with this value
@@ -5213,10 +5214,22 @@ class KernelWriterAssembly(KernelWriter):
   def longBranch(self, label):
     kStr = ""
     tmpSgpr = self.getTmpSgpr(3).idx()
+    positiveLabel = self.getNamedLabelUnique("Positive")
     kStr += inst("s_getpc_B64", sgpr(tmpSgpr,2), "addr of next instr")
-    kStr += inst("s_add_u32", sgpr(tmpSgpr+2), "%s"%label, hex(4), "target branch offset")
-    kStr += inst("s_add_u32", sgpr(tmpSgpr), sgpr(tmpSgpr), sgpr(tmpSgpr+2), "add target branch offset")
-    kStr += inst("s_addc_u32", sgpr(tmpSgpr+1), 0, sgpr(tmpSgpr+1), "add high and carry")
+    kStr += inst("s_add_i32",  sgpr(tmpSgpr+2), "%s"%label, hex(4), "target branch offset")
+    kStr += inst("s_cmp_ge_i32", sgpr(tmpSgpr+2), hex(0), "check positive or negative")
+    kStr += inst("s_cbranch_scc1 label_%s" % positiveLabel, "jump when positive")
+
+    # negative offset
+    kStr += inst("s_abs_i32",  sgpr(tmpSgpr+2), sgpr(tmpSgpr+2), "abs offset")
+    kStr += inst("s_sub_u32",  sgpr(tmpSgpr),   sgpr(tmpSgpr),   sgpr(tmpSgpr+2), "sub target branch offset")
+    kStr += inst("s_subb_u32", sgpr(tmpSgpr+1), sgpr(tmpSgpr+1), 0, "sub high and carry")
+    kStr += inst("s_setpc_b64", sgpr(tmpSgpr,2), "branch to %s"%label)
+
+    # positive offset
+    kStr += "label_%s:%s"%(positiveLabel, self.endLine)
+    kStr += inst("s_add_u32",  sgpr(tmpSgpr), sgpr(tmpSgpr), sgpr(tmpSgpr+2), "add target branch offset")
+    kStr += inst("s_addc_u32", sgpr(tmpSgpr+1), sgpr(tmpSgpr+1), 0, "add high and carry")
     kStr += inst("s_setpc_b64", sgpr(tmpSgpr,2), "branch to %s"%label)
     return kStr
 
@@ -5323,7 +5336,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += scalarStaticDivideAndRemainder(quotient, None, dividend, divisor, tmpSgpr, 0)
         kStr += self.calculateLoopNumIterGsu(kernel, "UnrollLoopLastIter", tmpSgpr)
         kStr += inst ("s_mul_i32", sgpr("UnrollLoopLastIter"), sgpr("UnrollLoopLastIter"), "DepthU", "scale")
-
       else:
         kStr += inst ("s_mov_b32", sgpr("UnrollLoopLastIter"), self.loopSizeRef(kernel, self.unrollIdx), "init")
 
@@ -5487,8 +5499,22 @@ class KernelWriterAssembly(KernelWriter):
     remainder = "GSUSumIdx+1" # numIterPerWgRemainder
     dividend = tmpSgpr+2 # numIterMyWg
     divisor = kernel["GlobalSplitU"]
-    kStr += inst("s_mov_b32", sgpr(dividend), loopCounter, "copy for divide IterGsu" )
-    kStr += scalarStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpSgpr, 1)
+    if log(divisor,2).is_integer():
+      kStr += inst("s_mov_b32", sgpr(dividend), loopCounter, "copy for divide IterGsu" )
+      kStr += scalarStaticDivideAndRemainder(quotient, remainder, dividend, divisor, tmpSgpr, 1)
+    else:
+      qReg = self.vgprPool.checkOut(1,"qReg")
+      rReg = self.vgprPool.checkOut(1,"rReg")
+      dReg = self.vgprPool.checkOut(1,"dReg")
+      tmpVgpr = self.vgprPool.checkOutAligned(2,2,"tmpReg")
+      kStr += inst("v_mov_b32", vgpr(dReg), loopCounter, "copy for divide IterGsu")
+      kStr += vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr)
+      kStr += inst("v_readfirstlane_b32", sgpr(quotient), vgpr(qReg), "")
+      kStr += inst("v_readfirstlane_b32", sgpr(remainder), vgpr(rReg), "")
+      self.vgprPool.checkIn(tmpVgpr)
+      self.vgprPool.checkIn(dReg)
+      self.vgprPool.checkIn(rReg)
+      self.vgprPool.checkIn(qReg)
 
     # if gsuSumIdx < numIterPerWgRemainder
     kStr += inst("s_add_u32", sgpr(tmpSgpr), "1", \
@@ -6113,7 +6139,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # calculate constant
     numRegistersIn   = kernel["ProblemType"]["DataType"].numRegisters()
-    numRegistersOut  = 2 if kernel["ProblemType"]["DataType"].isDouble() or kernel["ProblemType"]["DataType"].isDoubleComplex() else 1
+    numRegistersOut  = kernel["MIRegPerOut"]
     loopCounterName  = self.loopCounterName(kernel, self.unrollIdx)
     accs_per_wave    = kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"] \
                        / self.kernel["WavefrontSize"] * numRegistersOut
@@ -6219,14 +6245,15 @@ class KernelWriterAssembly(KernelWriter):
           accIdx   = idx1 * kernel["MIWaveTile"][0] + idx0
           accStart = accIdx * accs_per_wave
           accEnd   = accStart + accs_per_wave - 1
-          idxA = idx0 if self.tPB["tile01Idx"] else idx1
-          idxB = idx1 if self.tPB["tile01Idx"] else idx0
-          a_new = idxA*vgprPerInput*self.numReadsIterCoalescedA
-          b_new = idxB*vgprPerInput*self.numReadsIterCoalescedB
+          idxA     = idx0 if self.tPB["tile01Idx"] else idx1
+          idxB     = idx1 if self.tPB["tile01Idx"] else idx0
+          a_new    = idxA*vgprPerInput*self.numReadsIterCoalescedA
+          b_new    = idxB*vgprPerInput*self.numReadsIterCoalescedB
           aStr     = vgpr("ValuA_X%u_I%u+%u+%u+%u" % (vgprBufferA_new, iuiA_new, a_new, vgprBufferA_new_offset, iuiA_new_offset), vgprPerInput)
           bStr     = vgpr("ValuB_X%u_I%u+%u+%u+%u" % (vgprBufferB_new, iuiB_new, b_new, vgprBufferB_new_offset, iuiB_new_offset), vgprPerInput)
-          Str0 = aStr if self.tPB["tile01Idx"] else bStr
-          Str1 = bStr if self.tPB["tile01Idx"] else aStr
+          Str0     = aStr if self.tPB["tile01Idx"] else bStr
+          Str1     = bStr if self.tPB["tile01Idx"] else aStr
+
           if kernel["ProblemType"]["DataType"].isComplex():
             # override because complex mul is emulated by 4 mfma insts
             # TODO: adopt component system
@@ -6252,28 +6279,15 @@ class KernelWriterAssembly(KernelWriter):
             if ccB:
               ccVgprs[2] = self.vgprPool.checkOutAligned(numRegistersOut, numRegistersOut, "negate i1")
               ccInsts[2] = inst(v_add, vgpr(ccVgprs[2], numRegistersOut), "-"+ar, "0", "Ar=-Ar")
-
-            Str00 = ar
-            Str10 = vgpr(ccVgprs[0], numRegistersOut) if ccVgprs[0] else ai
-            Str20 = vgpr(ccVgprs[1], numRegistersOut) if ccVgprs[1] else ai
-            Str30 = vgpr(ccVgprs[2], numRegistersOut) if ccVgprs[2] else ar
-            Str01 = br
-            Str11 = bi
-            Str21 = br
-            Str31 = bi
-            if kernel["SourceSwap"] and kernel["ProblemType"]["DataType"].isDoubleComplex():
-                # so far, support DoubleComplex only
-                # swap Str0? and Str1?
-                Str00, Str01 = Str01, Str00
-                Str10, Str11 = Str11, Str10
-                Str20, Str21 = Str21, Str20
-                Str30, Str31 = Str31, Str30
-
+            (src0, src1) = (br, ar) if kernel["SourceSwap"] else (ar, br)
             imod.addInst("".join([inst for inst in ccInsts if inst is not None]) + \
-                         v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart            , accEnd            , Str00, Str01, accStart            , accEnd            ), "Cr += Ar*Br")
-            imod.addInst(v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart            , accEnd            , Str10, Str11, accStart            , accEnd            ), "Cr += %sAi*Bi"%("-" if ccVgprs[0] else ""))
-            imod.addInst(v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart+accImOffset, accEnd+accImOffset, Str20, Str21, accStart+accImOffset, accEnd+accImOffset), "Ci += %sAi*Br"%("-" if ccVgprs[1] else ""))
-            imod.addInst(v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart+accImOffset, accEnd+accImOffset, Str30, Str31, accStart+accImOffset, accEnd+accImOffset), "Ci += %sAr*Bi"%("-" if ccVgprs[2] else ""))
+                         v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart            , accEnd,             src0, src1, accStart            , accEnd            ), "Cr += Ar*Br")
+            (src0, src1) = (bi, (vgpr(ccVgprs[0], numRegistersOut) if ccVgprs[0] else ai)) if kernel["SourceSwap"] else ((vgpr(ccVgprs[0], numRegistersOut) if ccVgprs[0] else ai), bi)
+            imod.addInst(v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart            , accEnd,             src0, src1, accStart            , accEnd            ), "Cr += %sAi*Bi"%("-" if ccVgprs[0] else ""))
+            (src0, src1) = (br, (vgpr(ccVgprs[1], numRegistersOut) if ccVgprs[1] else ai)) if kernel["SourceSwap"] else ((vgpr(ccVgprs[1], numRegistersOut) if ccVgprs[1] else ai), br)
+            imod.addInst(v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart+accImOffset, accEnd+accImOffset, src0, src1, accStart+accImOffset, accEnd+accImOffset), "Ci += %sAi*Br"%("-" if ccVgprs[1] else ""))
+            (src0, src1) = (bi, (vgpr(ccVgprs[2], numRegistersOut) if ccVgprs[2] else ar)) if kernel["SourceSwap"] else ((vgpr(ccVgprs[2], numRegistersOut) if ccVgprs[2] else ar), bi)
+            imod.addInst(v_mfma + "a[%u:%u], %s, %s, a[%u:%u]"%(accStart+accImOffset, accEnd+accImOffset, src0, src1, accStart+accImOffset, accEnd+accImOffset), "Ci += %sAr*Bi"%("-" if ccVgprs[2] else ""))
 
             for v in ccVgprs:
               if v is not None: self.vgprPool.checkIn(v)
@@ -6886,16 +6900,16 @@ class KernelWriterAssembly(KernelWriter):
 
       psdPackedBits = "DepthU" if prefetchIndex>0 else unrollLoopCounter
       incCodeA.addComment1("extract indices here from %s"%psdPackedBits)
-      for os in reversed(range(problemType["NumIndicesSummation"])):
-        sumDim  = problemType["IndicesSummation"][os]
+      for oSum in reversed(range(problemType["NumIndicesSummation"])):
+        sumDim  = problemType["IndicesSummation"][oSum]
         sumChar = self.indexChars[sumDim]
-        firstIter = (os==problemType["NumIndicesSummation"]-1)
-        lastIter  = (os==0)
+        firstIter = (oSum==problemType["NumIndicesSummation"]-1)
+        lastIter  = (oSum==0)
 
         incCodeA.addComment1("extract index %s"%sumChar)
 
         if not lastIter:
-          if os==self.unrollIdx and kernel["GlobalSplitU"] > 1:
+          if oSum==self.unrollIdx and kernel["GlobalSplitU"] > 1:
             # GSU divides the first loop counter size by some amount
             size = "GsuNumIter%s"%sumChar
           else:
@@ -6907,7 +6921,7 @@ class KernelWriterAssembly(KernelWriter):
             psdPackedBits2 = sgpr(tmpSgpr+2)
             incCodeA.addInst("s_mov_b32", psdPackedBits2, psdPackedBits, "copy psdPackedBits")
 
-          if os==self.unrollIdx and kernel["GlobalSplitU"] > 1:
+          if oSum==self.unrollIdx and kernel["GlobalSplitU"] > 1:
             # compare GSUA
             # cmov into temps for Size,Abit,Shift
             # divide and go.
@@ -6948,10 +6962,10 @@ class KernelWriterAssembly(KernelWriter):
           assert(not self.use64bPackSumOffset)
           if firstIter:
             #incCodeA.addText(self.s_mul_u64_u32(inc{'A'}+0, inc{'A'}+1, tmpSgpr+1, sgpr["GlobalReadIncs%s+%d"]))
-            incCodeA.addInst("s_mul_i32", sgpr(inc[tc]), iterX, sgpr("GlobalReadIncs%s+%d"%(tc,os)),
+            incCodeA.addInst("s_mul_i32", sgpr(inc[tc]), iterX, sgpr("GlobalReadIncs%s+%d"%(tc,oSum)),
                               "psdOffset%s += scale iter%s"%(tc,sumChar))
           else:
-            incCodeA.addInst("s_mul_i32", sgpr(tmpSgpr+2), iterX, sgpr("GlobalReadIncs%s+%d"%(tc,os)), "Scale iter%s"%sumChar)
+            incCodeA.addInst("s_mul_i32", sgpr(tmpSgpr+2), iterX, sgpr("GlobalReadIncs%s+%d"%(tc,oSum)), "Scale iter%s"%sumChar)
             incCodeA.addInst("s_add_u32", sgpr(inc[tc]+0), sgpr(inc[tc]+0), sgpr(tmpSgpr+2), "psdOffset%s += scale iter%s"%(tc,sumChar))
             #incCodeA.addText(self.s_mul_u64_u32(tmp+0, inc{'A'}+1, tmpSgpr+1, sgpr["GlobalReadIncsA"]))
 
@@ -9157,8 +9171,9 @@ class KernelWriterAssembly(KernelWriter):
                 hex(log2(kernel["MatrixInstN"])), vgpr(tid0), \
                 "tid / matrixInstN")
 
-    kStr += inst("v_lshlrev_b32", vgpr(coord0), hex(log2(kernel["MIOutputVectorWidth"])), vgpr(coord0), \
-                  "lds coord0 offset *= 4 (each thread hold 4 element)")
+    if kernel["MIOutputVectorWidth"] > 1:
+      kStr += inst("v_lshlrev_b32", vgpr(coord0), hex(log2(kernel["MIOutputVectorWidth"])), vgpr(coord0), \
+                    "lds coord0 offset *= 4 (each thread hold 4 element)")
 
     kStr += inst("v_mad_u32_u24", vgpr(coord0), kernel["MatrixInstM"]*kernel["MatrixInstBM"], vgpr(waveCoord0), vgpr(coord0), \
                   "coord0 += waveCoord0 * wave M shape(blockM*MiM)")
@@ -9517,6 +9532,12 @@ class KernelWriterAssembly(KernelWriter):
 
       kw = self.kernelWriter
 
+      if kernel["EnableMatrixInstruction"]:
+        matrixInstM  = (kernel["MatrixInstM"] * kernel["MatrixInstBM"]) if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstM"]
+        matrixInstN  = (kernel["MatrixInstN"] * kernel["MatrixInstBN"]) if (kernel["MatrixInstN"] == 4) else kernel["MatrixInstN"]
+        matrixInstBM = 1                                                if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstBM"]
+        matrixInstBN = 1                                                if (kernel["MatrixInstN"] == 4) else kernel["MatrixInstBN"]
+
       lastData = 0
       for elementIdx in range(0, len(batchElements)):
         # Create the AddrCalc for each memory load/store
@@ -9536,18 +9557,20 @@ class KernelWriterAssembly(KernelWriter):
 
         coordOffset1 = 0
         if kernel["EnableMatrixInstruction"]:
-          if kernel["MatrixInstM"] == 4:
-            coordOffset1 = d1 * kernel["MatrixInstN"] *  kernel["MatrixInstBN"] * kernel["MIWaveGroup"][1] + vc1
-          else:
-            bIdx1  = d1 % kernel["MatrixInstBN"]
-            wtIdex = (d1 // kernel["MatrixInstBN"]) % kernel["MIWaveTile"][1]
+          MFMAContinuousOutputs = kernel["MIOutputVectorWidth"] if kernel["SourceSwap"] else 1
+          OutputsPerMIMN        = (matrixInstM * matrixInstN // self.kernel["WavefrontSize"]) if kernel["SourceSwap"] else 1
 
-            coordOffset1  = bIdx1 * kernel["MatrixInstN"]
-            coordOffset1 += wtIdex * kernel["MatrixInstN"] *  kernel["MatrixInstBN"] * kernel["MIWaveGroup"][1]
-            if kernel["SourceSwap"]:
-              coordOffset1 += vc0 * 4
-            else:
-              coordOffset1 += vc1
+          eIdx1        = d1 % (OutputsPerMIMN // MFMAContinuousOutputs)
+          remain_d1    = d1 // (OutputsPerMIMN // MFMAContinuousOutputs)
+
+          bIdx1     = remain_d1 % matrixInstBN
+          remain_d1 = remain_d1 // matrixInstBN
+          wtIdex    = remain_d1 % kernel["MIWaveTile"][1]
+
+          coordOffset1  = eIdx1 * (self.kernel["WavefrontSize"] // matrixInstN) * MFMAContinuousOutputs
+          coordOffset1 += bIdx1 * matrixInstN
+          coordOffset1 += wtIdex * matrixInstN *  matrixInstBN * kernel["MIWaveGroup"][1]
+          coordOffset1 += vc1
         else:
           if kernel["LocalSplitU"] > 1:
             strideD1 = (kernel["NumThreads"]*kernel["VectorWidth"]//kernel["MacroTile0"])
@@ -9560,25 +9583,21 @@ class KernelWriterAssembly(KernelWriter):
         # gpr and offset assignments for element
         coordOffset0 = 0
         if kernel["EnableMatrixInstruction"]:
-          if kernel["MatrixInstM"] == 4:
-            coordOffset0 = d0 * kernel["MatrixInstM"] *  kernel["MatrixInstBM"] * kernel["MIWaveGroup"][0] + vc0
-          else:
-            MFMAContinuousOutputs = kernel["MIOutputVectorWidth"]
-            OutputsPerMIMN        = kernel["MatrixInstM"] * kernel["MatrixInstN"] // self.kernel["WavefrontSize"]
+          vectorWidth = kernel["VectorWidth"] if kernel["SourceSwap"] else 1 # TODO: nonSwap VectorWidth
+          MFMAContinuousOutputs = 1 if kernel["SourceSwap"] else kernel["MIOutputVectorWidth"]
+          OutputsPerMIMN        = 1 if kernel["SourceSwap"] else matrixInstM * matrixInstN // self.kernel["WavefrontSize"]
 
-            eIdx0        = d0 % (OutputsPerMIMN // MFMAContinuousOutputs)
-            remain_d0    = d0 // (OutputsPerMIMN // MFMAContinuousOutputs)
-            bIdx0        = remain_d0 % kernel["MatrixInstBM"]
-            remain_d0    = remain_d0 // kernel["MatrixInstBM"]
-            wtIdex       = remain_d0 % kernel["MIWaveTile"][0]
+          eIdx0        = d0 % (OutputsPerMIMN // MFMAContinuousOutputs)
+          remain_d0    = d0 // (OutputsPerMIMN // MFMAContinuousOutputs)
 
-            coordOffset0  = eIdx0  * (self.kernel["WavefrontSize"] // kernel["MatrixInstN"]) * MFMAContinuousOutputs
-            coordOffset0 += bIdx0  * kernel["MatrixInstM"]
-            coordOffset0 += wtIdex * kernel["MatrixInstM"] *  kernel["MatrixInstBM"] * kernel["MIWaveGroup"][0]
-            if kernel["SourceSwap"]:
-              coordOffset0 += vc1
-            else:
-              coordOffset0 += vc0    * (4 if (kernel["ProblemType"]["DataType"].isDouble() or kernel["ProblemType"]["DataType"].isDoubleComplex()) else 1)
+          bIdx0        = remain_d0 % matrixInstBM
+          remain_d0    = remain_d0 // matrixInstBM
+          wtIdex       = remain_d0 % kernel["MIWaveTile"][0]
+
+          coordOffset0  = eIdx0  * vectorWidth * (self.kernel["WavefrontSize"] // matrixInstM) * MFMAContinuousOutputs
+          coordOffset0 += bIdx0  * vectorWidth * matrixInstM
+          coordOffset0 += wtIdex * vectorWidth * matrixInstM * matrixInstBM * kernel["MIWaveGroup"][0]
+          coordOffset0 += vc0
         else:
           coordOffset0 = d0 * kernel["SubGroup0"]*kernel["VectorWidth"] + vc0
 
@@ -9648,26 +9667,34 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["LocalSplitU"] > 1:
           sumIdx = kw.startVgprValuC + vc0 + d1*kernel["VectorWidth"]
         else:
-          bestVw = kernel["VectorWidth"]
-          elementsLoadedPerVw = kernel["NumThreads"]*bestVw
-          elementsLoadedPerbestVw = kernel["NumThreads"]*kernel["StoreVectorWidth"]
+          bestVw                  = kernel["VectorWidth"]
+          elementsLoadedPerVw     = kernel["NumThreads"] * bestVw
+          elementsLoadedPerbestVw = kernel["NumThreads"] * kernel["StoreVectorWidth"]
+
           if elementsLoadedPerVw < elementsLoadedPerbestVw:
             bestVw = kernel["StoreVectorWidth"]
+
           if kernel["EnableMatrixInstruction"]:
             if kw.serializedStore:
               alignment = self.cfg.numVgprPerValuC * self.cfg.gwvw
-              sumIdx    = kw.vgprPool.checkOutAligned(self.cfg.numVgprPerValuC*self.cfg.gwvw, alignment, "vgprValuC")//self.cfg.numVgprPerValuC
+              sumIdx    = kw.vgprPool.checkOutAligned(self.cfg.numVgprPerValuC*self.cfg.gwvw, alignment, "vgprValuC") // self.cfg.numVgprPerValuC
               # print("checked out vgpr %u"%sumIdx)
               # print(kw.vgprPool.state())
-            elif kernel["MatrixInstM"] == 4:
-              sumIdx    = kw.startVgprValuC + vc0 + (d0 * kernel["MIOutputVectorWidth"]) + d1 * (kernel["MIOutputVectorWidth"] * kernel["MIWaveTile"][0])
             else:
-              d1_stride = ((kernel["MatrixInstM"] * kernel["MatrixInstN"]) // self.kernel["WavefrontSize"]) * kernel["MatrixInstBM"] * kernel["MIWaveTile"][0]
-              sumIdx    = kw.startVgprValuC + vc0 + (d0 * kernel["MIOutputVectorWidth"]) + (d1 * d1_stride)
+              vectorWidth0 = kernel["VectorWidth"]         if kernel["SourceSwap"] else kernel["MIOutputVectorWidth"]
+              vectorWidth1 = kernel["MIOutputVectorWidth"] if kernel["SourceSwap"] else 1
+
+              d1_stride = 1 if kernel["SourceSwap"] else ((matrixInstM * matrixInstN) // self.kernel["WavefrontSize"])
+              d1_stride = d1_stride * matrixInstBM * kernel["MIWaveTile"][0]
+
+              sumIdx = kw.startVgprValuC
+              sumIdx = sumIdx + (vc0 + d0 * vectorWidth0)
+              sumIdx = sumIdx + (vc1 + d1 * vectorWidth1) * d1_stride
           else:
             sumIdx = kw.startVgprValuC + vc0 + d0*kernel["VectorWidth"] + vc1*kernel["ThreadTile0"] + d1*kernel["VectorWidth"]*kernel["ThreadTile0"]
         self.elementSumIdx.append(sumIdx) # sumIdx is an element idx, need to div/2 for half
         self.lastCoordOffset1 = coordOffset1
+
 
     def checkInTempVgprC(self):
       if self.kernelWriter.serializedStore is False:
@@ -10029,7 +10056,7 @@ class KernelWriterAssembly(KernelWriter):
       #   For MFMA shift pointer, correct data is stored in another thread.
       #   Therefore, MFMA cannot use v_mov to amend store data
       #   It needs to modify the coord1 of thread directly.
-      if not kernel["GuaranteeNoPartialB"] and kw.readTileDimVectorB and kernel["EnableMatrixInstruction"] and edge:
+      if (not kernel["SourceSwap"]) and (not kernel["GuaranteeNoPartialB"]) and kw.readTileDimVectorB and kernel["EnableMatrixInstruction"] and edge:
         (d1,d0,vc1,vc0) = self.element
         if (d1 == vc1 == d0 == vc0 == 0) or self.newCoord1:
           sgprCnt = self.kernelWriter.laneSGPRCount
@@ -10970,6 +10997,11 @@ class KernelWriterAssembly(KernelWriter):
 
     kStr += self.comment1("optSingleColVgpr=%u optSharedColVgpr=%u optSGPRUsage=%s optSrdIncForRow=%u" % \
               (ss.optSingleColVgpr, ss.optSharedColVgpr, ss.optSGPRUsage, ss.optSrdIncForRow))
+
+    if kernel["StoreSyncOpt"]:
+      kStr += "s_sleep %d // optimization: sync and wait\n" %(kernel["StoreSyncOpt"]-1)
+      kStr += "s_barrier\n"
+
     if atomic:
       # all kinds of code relies on this assumption:
       assert(atomicW <= gwvw)
@@ -11090,6 +11122,10 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_mov_b{}".format(kernel["WavefrontSize"]), self.exec, -1, "full mask -1 -> exec" )
 
     kStr += loadCInputCode
+
+    if beta and kernel["StoreSyncOpt"]:
+      kStr += "s_sleep %d // optimization: sync and wait\n" %(kernel["StoreSyncOpt"]-1)
+      kStr += "s_barrier\n"
 
     ########################################
     # AccVgpr read
@@ -11795,7 +11831,7 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["PersistentKernelAlongBatch"]:
         imod.addInst("s_mul_i32", sgpr(stmp), sgpr(stmp), sgpr("NumWorkGroups2"), "Total WG-0 x 1 x 2")
       imod.addInst("s_cmp_ge_u32", sgpr("SerialWorkGroupIter"), sgpr(stmp), "outside legal WG?")
-      imod.addInst("s_cbranch_scc0", self.getLabelTarget("PersistentLoopStart"), "persistent loop back")
+      imod.addCode(self.longBranchScc0(self.getLabelTarget("PersistentLoopStart")))
     if addLabel:
       imod.addCode(Code.Label(self.getLabelNum("KernelEnd"), "KernelEnd"))
     imod.addInst("s_endpgm", "Kernel End")
@@ -12002,7 +12038,7 @@ class KernelWriterAssembly(KernelWriter):
 
   def AccVgprImagNumOffset(self, kernel):
     acc2arch, _ = self.AccToArchMapper(kernel)
-    return len(acc2arch)
+    return len(acc2arch) * kernel["MIRegPerOut"]
 
   ##############################################################################
   # AccToArchMapper
@@ -12015,34 +12051,32 @@ class KernelWriterAssembly(KernelWriter):
     acc2arch = dict()
     arch2acc = dict()
 
-    if kernel["MatrixInstM"] == 4:
-      numInst = kernel["MIOutputVectorWidth"] * kernel["MIWaveTile"][0] * kernel["MIWaveTile"][1] * kernel["MIRegPerOut"]
-      for i in range(0, numInst):
-        acc2arch[i] = i
-        arch2acc[i] = i
-    else:
-      if kernel["SourceSwap"]:
-        OutputsPerMFMA = kernel["MatrixInstM"] * kernel["MatrixInstN"] // self.kernel["WavefrontSize"]
-        for wgIdx1 in range(0, kernel["MIWaveTile"][1]):
-          for tIdx1 in range(0, OutputsPerMFMA):
-            for wgIdx0 in range(0, kernel["MIWaveTile"][0]):
-              for tIdx0 in range(0, kernel["MIRegPerOut"]):
-                # TODO MatrixInstBM and BN support
-                src = tIdx0 + kernel["MIRegPerOut"] * (tIdx1 + OutputsPerMFMA * (wgIdx0 + kernel["MIWaveTile"][0] * wgIdx1))
-                dst = tIdx0 + kernel["MIRegPerOut"] * (wgIdx0 + kernel["MIWaveTile"][0] * (tIdx1 + OutputsPerMFMA * wgIdx1))
+    matrixInstM  = (kernel["MatrixInstM"] * kernel["MatrixInstBM"]) if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstM"]
+    matrixInstN  = (kernel["MatrixInstN"] * kernel["MatrixInstBN"]) if (kernel["MatrixInstN"] == 4) else kernel["MatrixInstN"]
+    matrixInstBM = 1                                                if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstBM"]
+    matrixInstBN = 1                                                if (kernel["MatrixInstN"] == 4) else kernel["MatrixInstBN"]
+
+    OutputsPerMFMA1B = matrixInstM * matrixInstN // self.kernel["WavefrontSize"]
+    VectorWidth0     = kernel["VectorWidth"] if kernel["SourceSwap"] else 1
+    outerTT0         = kernel["MIWaveTile"][0] // VectorWidth0
+    VectorWidth1     = 1
+    outerTT1         = kernel["MIWaveTile"][1] // VectorWidth1
+
+    for wgIdx1 in range(0, outerTT1):
+      for wgIdx0 in range(0, outerTT0):
+        for bIdx1 in range(0, matrixInstBN):
+          for bIdx0 in range(0, matrixInstBM):
+            for tIdx in range(0, OutputsPerMFMA1B):
+              for vw0 in range(0, VectorWidth0):
+                src, dst = 0, 0
+                if kernel["SourceSwap"]:
+                  src = tIdx + OutputsPerMFMA1B * (bIdx0 + matrixInstBM * (bIdx1 + matrixInstBN * (vw0 + VectorWidth0 * (wgIdx0 + outerTT0 * wgIdx1))))
+                  dst = vw0 + VectorWidth0 * (bIdx0 + matrixInstBM * (wgIdx0 + outerTT0 * (tIdx + OutputsPerMFMA1B * (bIdx1 + matrixInstBN * wgIdx1))))
+                else:
+                  src = tIdx + OutputsPerMFMA1B * (bIdx1 + matrixInstBN * (bIdx0 + matrixInstBM * (wgIdx0 + outerTT0 * wgIdx1)))
+                  dst = tIdx + OutputsPerMFMA1B * (bIdx0 + matrixInstBM * (wgIdx0 + outerTT0 * (bIdx1 + matrixInstBN * wgIdx1)))
                 acc2arch[src] = dst
                 arch2acc[dst] = src
-      else:
-        OutputsPerMFMA1B = kernel["MatrixInstM"] * kernel["MatrixInstN"] // self.kernel["WavefrontSize"] * kernel["MIRegPerOut"]
-        for wgIdx1 in range(0, kernel["MIWaveTile"][1]):
-          for wgIdx0 in range(0, kernel["MIWaveTile"][0]):
-            for bIdx1 in range(0, kernel["MatrixInstBN"]):
-              for bIdx0 in range(0, kernel["MatrixInstBM"]):
-                for tIdx in range(0, OutputsPerMFMA1B):
-                  src = tIdx + OutputsPerMFMA1B * (bIdx0 + kernel["MatrixInstBM"] * (bIdx1 + kernel["MatrixInstBN"] * (wgIdx0 + kernel["MIWaveTile"][0] * wgIdx1)))
-                  dst = tIdx + OutputsPerMFMA1B * (bIdx0 + kernel["MatrixInstBM"] * (wgIdx0 + kernel["MIWaveTile"][0] * (bIdx1 + kernel["MatrixInstBN"] * wgIdx1)))
-                  acc2arch[src] = dst
-                  arch2acc[dst] = src
 
     return acc2arch, arch2acc
 
@@ -12061,53 +12095,16 @@ class KernelWriterAssembly(KernelWriter):
     acc2arch, _ = self.AccToArchMapper(kernel)
 
     self.codeAccVgprRead = Code.Module("AccVgprRead")
-    self.codeAccVgprRead.itemList = [None] * len(acc2arch) * self.agprMultiplier
-    if kernel["ProblemType"]["DataType"].isComplex():
-      accImOffset = self.AccVgprImagNumOffset(kernel)
-      rpe = self.bpeCinternal//self.bpr
-      if kernel["ProblemType"]["DataType"].isSingleComplex():
-        for i, e in enumerate(acc2arch):
-            realNumIdx = acc2arch[i]*rpe+0
-            imagNumIdx = acc2arch[i]*rpe+1
-            self.codeAccVgprRead.itemList[realNumIdx] = Code.Inst("v_accvgpr_read_b32",
-                                                              vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % realNumIdx),
-                                                              "acc%u" % i,
-                                                              "copy areg (real) to vreg[%u]"%realNumIdx)
-            self.codeAccVgprRead.itemList[imagNumIdx] = Code.Inst("v_accvgpr_read_b32",
-                                                              vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % imagNumIdx),
-                                                              "acc%u" % (i+accImOffset),
-                                                              "copy areg (imag) to vreg[%u]"%imagNumIdx)
-      else: # DoubleComplex
-        for i, e in enumerate(acc2arch):
-          idx = i // 2
-          if i % 2 == 0:
-            # real f64
-            realNumIdx = acc2arch[idx]*rpe
-            self.codeAccVgprRead.itemList[realNumIdx]   = Code.Inst("v_accvgpr_read_b32",
-                                                              vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % realNumIdx),
-                                                              "acc%u" % (idx*2),
-                                                              "copy areg (real) to vreg[%u]"%realNumIdx)
-            self.codeAccVgprRead.itemList[realNumIdx+1] = Code.Inst("v_accvgpr_read_b32",
-                                                              vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % (realNumIdx+1)),
-                                                              "acc%u" % (idx*2+1),
-                                                              "copy areg (real) to vreg[%u]"%(realNumIdx+1))
-          else:
-            # imaginary f64
-            imagNumIdx = acc2arch[idx]*rpe + 2
-            self.codeAccVgprRead.itemList[imagNumIdx] = Code.Inst("v_accvgpr_read_b32",
-                                                              vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % imagNumIdx),
-                                                              "acc%u" % (idx*2+accImOffset),
-                                                              "copy areg (imag) to vreg[%u]"%imagNumIdx)
-            self.codeAccVgprRead.itemList[imagNumIdx+1] = Code.Inst("v_accvgpr_read_b32",
-                                                              vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % (imagNumIdx+1)),
-                                                              "acc%u" % (idx*2+1+accImOffset),
-                                                              "copy areg (imag) to vreg[%u]"%(imagNumIdx+1))
-    else:
-      for i, e in enumerate(acc2arch):
-        self.codeAccVgprRead.itemList[acc2arch[i]] = Code.Inst("v_accvgpr_read_b32", \
-                                                    vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % acc2arch[i]),
-                                                    "acc%u" % i,
-                                                    "copy areg to vreg[%u]"%acc2arch[i])
+    self.codeAccVgprRead.itemList = [None] * kernel["MIRegPerOut"] * self.agprMultiplier * len(acc2arch)
+    accImOffset = self.AccVgprImagNumOffset(kernel)
+    for i in range(len(acc2arch)):
+      for cm in range(self.agprMultiplier):
+        for r in range(kernel["MIRegPerOut"]):
+          idx = (acc2arch[i]*self.agprMultiplier + cm) * kernel["MIRegPerOut"] + r
+          self.codeAccVgprRead.itemList[idx] = Code.Inst("v_accvgpr_read_b32",
+                                                            vgpr("ValuC+__placeholder__") if self.serializedStore else vgpr("ValuC+%u" % idx),
+                                                            "acc%u" % ((i * kernel["MIRegPerOut"] + r) + (cm*accImOffset)),
+                                                          "copy areg to vreg[%u]" % idx)
 
     return kStr if self.serializedStore else kStr+str(self.codeAccVgprRead)
 

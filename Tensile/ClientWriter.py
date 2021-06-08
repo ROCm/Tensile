@@ -277,7 +277,7 @@ def getBuildOldClientScript(libraryLogicPath, forBenchmark):
       % (echoLine, q, HR, q, q, q, q, HR, q))
   runScriptFile.write("cmake --build . --config %s%s\n" \
       % (globalParameters["CMakeBuildType"], " -- -j 8" \
-      if os.name != "nt" else "") )
+      if os.name != "nt" else "") ) # getBuildOldClientScript not used on windows
 
   return runScriptFile.getvalue()
 

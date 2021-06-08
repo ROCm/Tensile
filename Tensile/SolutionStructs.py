@@ -25,7 +25,8 @@ from .Common import assignParameterRequired, assignParameterWithDefault, \
                     print2, printExit, \
                     validActivationFormats, validConvolutionConfig, \
                     validMFMA, validParameters, validWeightFormats, \
-                    validGEMMTypes, typesUsingNewNaming
+                    validGEMMTypes, typesUsingNewNaming, \
+                    roundUp
 from .DataType import DataType
 from .Utils import roundUpToNearestMultiple
 
@@ -35,6 +36,7 @@ from .KernelWriterConversion import KernelWriterConversion
 from .CustomKernels import isCustomKernelConfig
 
 from collections import namedtuple,OrderedDict
+from collections.abc import Mapping
 from copy import deepcopy
 from enum import Enum
 from functools import reduce
@@ -818,7 +820,7 @@ class Convolution:
 ################################################################################
 # ProblemType
 # name of solution should begin with name of problemType, and arguments can be listed out explicitly
-class ProblemType(collections.abc.Mapping):
+class ProblemType(Mapping):
   ########################################
   def __init__(self, config):
     self.state = {}
@@ -1892,11 +1894,8 @@ class Solution:
       state["MatrixInstBN"]        = state["MIBlock"][5]
 
       state["LocalSplitU"]         = 1
-      state["MIOutputVectorWidth"] = 1 if (state["MatrixInstM"] == 4 and state["ProblemType"]["DataType"].isDouble()) else 4
-      state["MIRegPerOut"]         = 2 if state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex() else 1
-
-      if state["ProblemType"]["DataType"].isDouble() and state["StoreVectorWidth"] != 1:
-          reject(state, "DGEMM MFMA currently requires StoreVectorWidth=1")
+      state["MIOutputVectorWidth"] = 1 if (state["ProblemType"]["DataType"].MIOutputTypeNameAbbrev() == 'f64') else 4
+      state["MIRegPerOut"]         = 2 if (state["ProblemType"]["DataType"].MIOutputTypeNameAbbrev() == 'f64') else 1
 
       # for dgemm mfma accumulate instructions can use either the accumulate registers or arch registers
       state["MIUseAccVgpr"] = True
@@ -2642,7 +2641,6 @@ class Solution:
                                state["PrefetchAcrossPersistent"] and \
                                bufferLoad
 
-
     #print("PackedC0IdxChars", state["PackedC0IdxChars"])
     #print("PackedC1IdxChars", state["PackedC1IdxChars"])
 
@@ -2676,7 +2674,11 @@ class Solution:
           state["VectorWidth"] //= 2
 
     # TT0,1 both must be multiples of VW, b/c of rC, rA, rB
-    if not state["EnableMatrixInstruction"]:
+    if state["EnableMatrixInstruction"]:
+      if state["SourceSwap"] and ((state["MIWaveTile"][0] % state["VectorWidth"]) != 0):
+        reject(state, "MIWaveTile0(%u) should be multiple of VectorWidth(%u)" % (state["MIWaveTile"][0], state["VectorWidth"]))
+        return
+    else:
       if state["ThreadTile0"] % state["VectorWidth"] != 0 \
           or state["ThreadTile1"] % state["VectorWidth"] != 0:
         reject(state, "ThreadTile0 %u or ThreadTile1 %u not a multiple of VectorWidth %u" \
@@ -2719,18 +2721,32 @@ class Solution:
       #TODO : re-enable later after running testlists
       #state["StoreVectorWidth"] = state["VectorWidth"]
       # use wider store for best store optimization
-      if state["ProblemType"]["DataType"].numRegisters() <= 1:
+      if state["SourceSwap"]:
+        state["StoreVectorWidth"] = state["VectorWidth"]
+      elif state["ProblemType"]["DataType"].numRegisters() <= 1:
         state["StoreVectorWidth"] = 4
       else:
         state["StoreVectorWidth"] = 4//state["ProblemType"]["DataType"].numRegisters()
 
-    if state["VectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
-      # reject - VW too big
-      reject(state, "VW * DataType.numBytes() > 16")
+    if state["EnableMatrixInstruction"]:
+      if state["SourceSwap"]:
+        if ((state["VectorWidth"] % state["StoreVectorWidth"]) != 0):
+          reject(state, "MFMA SourceSwap mode doesn't support vw(%u) with svw(%u)" % (state["VectorWidth"], state["StoreVectorWidth"]))
+          return
+      else:
+        if ((state["MIOutputVectorWidth"] % state["StoreVectorWidth"]) != 0):
+          reject(state, "MFMA non-SourceSwap mode doesn't support miovw(%u) with svw(%u)" % (state["MIOutputVectorWidth"], state["StoreVectorWidth"]))
+          return
 
-    if state["GlobalReadVectorWidth"]*state["ProblemType"]["DataType"].numBytes() > 16:
-      # reject - GRVW too big
+    # reject - VW too big
+    if (state["VectorWidth"] * state["ProblemType"]["DataType"].numBytes()) > 16:
+      reject(state, "VW * DataType.numBytes() > 16")
+      return
+
+    # reject - GRVW too big
+    if (state["GlobalReadVectorWidth"] * state["ProblemType"]["DataType"].numBytes()) > 16:
       reject(state, "GRVW * DataType.numBytes() > 16")
+      return
 
     # LocalSplitU too large?
     numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
@@ -2889,12 +2905,38 @@ class Solution:
           validDepthU = False
 
         if state["EnableMatrixInstruction"] and state["GlobalLoadVectorWidthA"]:
-          partialA = state["ProblemType"]["TLUA"] and (state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"] != 0)
-          if partialA and state["GlobalLoadVectorWidthA"] > state["MIOutputVectorWidth"]:
-            #reduce GLVA if GLVA larger than MIOVW
-            tva = totalElementsA // state["MIOutputVectorWidth"]
-            if not Solution.setGlobalLoadVectorWidth(state, "A", tva, state["MIOutputVectorWidth"]):
-              validDepthU = False
+          partialA = state["ProblemType"]["TLUA"] and (state["AssertFree0ElementMultiple"] % state["GlobalLoadVectorWidthA"] != 0)
+          if partialA:
+            glvwAlimit = 16 // state["ProblemType"]["DataType"].numBytes()
+            if state["SourceSwap"]:
+              matrixInstM = (state["MatrixInstM"] * state["MatrixInstBM"]) if (state["MatrixInstM"] == 4) else state["MatrixInstM"]
+              glvwAlimit = matrixInstM * state["VectorWidth"]
+            else:
+              matrixInstN = (state["MatrixInstN"] * state["MatrixInstBN"]) if (state["MatrixInstN"] == 4) else state["MatrixInstN"]
+              glvwAlimit  = state["MIOutputVectorWidth"] * (state["WavefrontSize"] // matrixInstN)
+
+            # reduce GLVA if GLVA larger than MIOVW
+            if state["GlobalLoadVectorWidthA"] > glvwAlimit:
+              tva = totalElementsA // glvwAlimit
+              if not Solution.setGlobalLoadVectorWidth(state, "A", tva, glvwAlimit):
+                validDepthU = False
+
+        if state["EnableMatrixInstruction"] and state["GlobalLoadVectorWidthB"]:
+          partialB = state["ProblemType"]["TLUB"] and (state["AssertFree1ElementMultiple"] % state["GlobalLoadVectorWidthB"] != 0)
+          if partialB:
+            glvwBlimit = 16 // state["ProblemType"]["DataType"].numBytes()
+            if state["SourceSwap"]:
+              matrixInstM = (state["MatrixInstM"] * state["MatrixInstBM"]) if (state["MatrixInstM"] == 4) else state["MatrixInstM"]
+              glvwBlimit  = state["MIOutputVectorWidth"] * (state["WavefrontSize"] // matrixInstM)
+            # else:  # use origin shiftptr for B
+            #   matrixInstN = (state["MatrixInstN"] * state["MatrixInstBN"]) if (state["MatrixInstN"] == 4) else state["MatrixInstN"]
+            #   glvwBlimit = matrixInstN # not support state["VectorWidth"] for B yet
+
+            # reduce GLVB if GLVB larger than MIOVW
+            if state["GlobalLoadVectorWidthB"] > glvwBlimit:
+              tvb = totalElementsB // glvwBlimit
+              if not Solution.setGlobalLoadVectorWidth(state, "B", tvb, glvwBlimit):
+                validDepthU = False
 
       if validDepthU and state["KernelLanguage"] == "Assembly" \
         and (state["ProblemType"]["DataType"].isHalf() \
@@ -3223,23 +3265,35 @@ class Solution:
     if state["StoreRemapVectorWidth"] == -1:
       # use de_read_b64 as default in storeRemap to avoid bank conflict
       defaultRemap = 8 // state["ProblemType"]["DataType"].numBytes()
+      defaultRemap = max(defaultRemap,state["MacroTile0"]//state["WavefrontSize"])
       ldsRemapPad = max(defaultRemap,state["MIOutputVectorWidth"])
       ldsNumElementsRemapC = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"] * state["MIWaveGroup"][1]
       ldsNumElementsRemapC *= (2 if state["_GlobalAccumulation"] else 1) # FP32 output FP16 Data
       ldsSize = ldsNumElementsRemapC * state["ProblemType"]["DataType"].numBytes()
       if not math.log(state["MacroTile0"],2).is_integer() or \
           ldsSize > globalParameters["MaxLDS"] or \
-          (state["GlobalSplitU"] > 1) and (state["_GlobalAccumulation"] != 'MultipleBuffer'):
+          state["SourceSwap"] or \
+          (state["GlobalSplitU"] > 1) and (state["_GlobalAccumulation"] != 'MultipleBuffer') or \
+          state["MatrixInstBN"] > 1 and state["MatrixInstN"] == 4:
         state["StoreRemapVectorWidth"] = 0
       else:
         state["StoreRemapVectorWidth"] = defaultRemap
 
+    # GuaranteeNoPartial
+    if state["ProblemType"]["TLUA"]:
+      state["GuaranteeNoPartialA"] = state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
+    else:
+      state["GuaranteeNoPartialA"] = True
+
+    if state["ProblemType"]["TLUB"]:
+      state["GuaranteeNoPartialB"] = state["AssertFree1ElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
+    else:
+      state["GuaranteeNoPartialB"] = True
+
+    # SourceSwap
     if state["SourceSwap"]:
       if not state["EnableMatrixInstruction"]:
         reject(state, "SourceSwap only applies to MatrixInstruction kernels")
-        return
-      if not (state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex()):
-        reject(state, "SourceSwap currently only available for dgemm or zgemm")
         return
       if state["StoreRemapVectorWidth"]:
         reject(state, "SourceSwap not compatibile with StoreRemap")
@@ -3458,6 +3512,172 @@ class Solution:
         reject(state, "SplitLDS requires wider GlobalReadVectorWidth (assert RegisterPerElem (%f) * GRVW (%u) // DepthULdsDivisor (%u) >= 1"%
           (state["ProblemType"]["DataType"].numRegisters(),state["GlobalReadVectorWidth"],state["DepthULdsDivisor"]))
 
+    if state["LocalWritePerMfma"] == -2:
+      # Get optmizaed LWPM for PGR2
+      # optmized value is as wide as possible to avoid hitting vmem FIFO
+      numLoadsA = state["DepthU"]*state["MacroTileA"]//state["GlobalLoadVectorWidthA"]//state["NumThreads"]
+      numLoadsB = state["DepthU"]*state["MacroTileB"]//state["GlobalLoadVectorWidthB"]//state["NumThreads"]
+      numMfmaPerIter = state["MIWaveTileA"] * state["MIWaveTileB"] * state["InnerUnroll"]
+      lrvwA = state["LocalReadVectorWidth"] if not state["ProblemType"]["TLUA"] else state["MIInputPerThread"]
+      lrvwB = state["LocalReadVectorWidth"] if not state["ProblemType"]["TLUB"] else state["MIInputPerThread"]
+      numReadsIterCoalescedA = lrvwA // state["MIInputPerThread"]
+      numReadsIterCoalescedB = lrvwB // state["MIInputPerThread"]
+      numIterPerCoalescedReadA = max(1,numReadsIterCoalescedA//state["InnerUnroll"])
+      numIterPerCoalescedReadB = max(1,numReadsIterCoalescedB//state["InnerUnroll"])
+      blockWidthA = state["LocalReadVectorWidth"]/(4/bpeAB) if state["TransposeLDS"] and not state["ProblemType"]["TLUA"] else bpeAB/4
+      blockWidthB = state["LocalReadVectorWidth"]/(4/bpeAB) if state["TransposeLDS"] and not state["ProblemType"]["TLUB"] else bpeAB/4
+
+      numReadPerVectorA = bpeAB * lrvwA // int(blockWidthA * 4)
+      numReadsPerIterA = state["InnerUnroll"]*(state["MIWaveTileA"] * numReadPerVectorA)
+      numReadPerVectorB = bpeAB * lrvwB // int(blockWidthB * 4)
+      numReadsPerIterB = state["InnerUnroll"]*(state["MIWaveTileB"] * numReadPerVectorB)
+
+      numItersPLR = state["PrefetchLocalRead"]%state["LoopIters"]
+      numVgprBuffer = state["LoopIters"] if state["PrefetchLocalRead"] > state["LoopIters"] else state["PrefetchLocalRead"]
+      issueLatencyA = 2 if state["TransposeLDS"] and not state["ProblemType"]["TLUA"] and state["LocalReadVectorWidth"]*bpeAB == 16 else 1
+      issueLatencyB = 2 if state["TransposeLDS"] and not state["ProblemType"]["TLUB"] and state["LocalReadVectorWidth"]*bpeAB == 16 else 1
+
+      miLatency = state["MatrixInstM"] // 2
+      miIssueLatency = 2
+      # give 1 quad-cycle buffer to prevend bubble from sync
+      miLatencyBuffer = 1
+      miLatencyLeft = max(miLatency - miLatencyBuffer - miIssueLatency,0)
+      #########
+      # Get localWriteEnd
+      #########
+      numMfmaForLR = 1
+      latencyLeft = miLatencyLeft
+      # ds_read[A][0]
+      for i in range(numReadPerVectorA):
+        latencyLeft -= issueLatencyA*2
+        if latencyLeft < 0:
+          numMfmaForLR += 1
+          latencyLeft = max(miLatencyLeft - issueLatencyA*2,0)
+      # ds_read[B][0]
+      for i in range(numReadPerVectorB):
+        latencyLeft -= issueLatencyB*2
+        if latencyLeft < 0:
+          numMfmaForLR += 1
+          latencyLeft = max(miLatencyLeft - issueLatencyB*2,0)
+      # ds_read[A][1:]
+      for i in range(numReadsPerIterA-numReadPerVectorA):
+        latencyLeft -= issueLatencyA*2
+        if latencyLeft < 0:
+          numMfmaForLR += 1
+          latencyLeft = max(miLatencyLeft - issueLatencyA*2,0)
+      # ds_read[B][1:]
+      for i in range(numReadsPerIterB-numReadPerVectorB):
+        latencyLeft -= issueLatencyB*2
+        if latencyLeft < 0:
+          numMfmaForLR += 1
+          latencyLeft = max(miLatencyLeft - issueLatencyB*2,0)
+      # to calculate number of mfma we need to wait before data arrive from lds to vgpr.
+      # latency: 40 quad-cycle for 4 word, 20 quad-cycle for 2 word, 10 quad-cycle for 1 word / half word
+      numMfmaForNextLoopLR = numMfmaForLR
+      latencyForLR = roundUp(blockWidthB)*10
+      latencyForLR -= max(latencyLeft,0) # remaining latency in mfma
+      latencyForLR -= miLatency # last LR will have 1 mfma latency
+      while latencyForLR > 0:
+        latencyForLR -= miLatency
+        numMfmaForNextLoopLR += 1
+      # final index definition
+      numMfmaForNextLoopLR = min(numMfmaForNextLoopLR, numMfmaPerIter - 1)
+      barrierMfmaIndex = numMfmaPerIter*(state["LoopIters"]-numItersPLR+1) - numMfmaForNextLoopLR - 1 if numItersPLR else 0
+      numMfmaBetweenLWandBarrier = 2 if state["MatrixInstM"] == 32 else 3
+      lwEndMfmaIndex = max(barrierMfmaIndex - numMfmaBetweenLWandBarrier,0) if numItersPLR else numMfmaPerIter*state["LoopIters"] - 1
+      #########
+      # Get localWriteStart
+      #########
+      if not state["1LDSBuffer"]:
+        # In PGR2, localWrites should be scheduled after globalReadInc
+        numGRIncInst = 12 if not state["StaggerU"] else 18
+        numInstPerMfma = max(roundUp(miLatencyLeft/2),1)
+        numMfmaToSched = roundUp(numGRIncInst/numInstPerMfma)
+        lwStartMfmaIndex = 1 + numMfmaToSched
+      else:
+        # for 1LDSB, we have to issue localwrites after localreads
+        # we have enough vgprBuffer to schedule localRead in the front of loop
+        if numVgprBuffer == state["LoopIters"]:
+          # fp16 or bf16, we read 1 element to vgprBuffer the other element to tempVgpr.
+          # since each iteration shares same tempVgpr, only read-to-vgprBuffer can
+          # be scheduled in the front of loop.
+          # localwrite have to start after last read-to-tempVgpr.
+          if numReadPerVectorA != 1 or numReadPerVectorB !=1:
+            numHalfReads = (numReadPerVectorA//2)*state["InnerUnroll"]*state["MIWaveTileA"] + (numReadPerVectorB//2)*state["InnerUnroll"]*state["MIWaveTileB"]
+            numMfmaForHalfRead = 1
+            latencyLeft = miLatencyLeft
+            for i in range(numHalfReads):
+              latencyLeft -= 2
+              if latencyLeft < 0:
+                numMfmaForHalfRead += 1
+                latencyLeft = max(miLatencyLeft - 2, 0)
+            lwStartMfmaIndex = numMfmaPerIter * (state["LoopIters"] - 1 - numItersPLR) + numMfmaForHalfRead
+          else:
+            numMfmaForCurrentLoopLR = 1
+            latencyLeft = miLatencyLeft
+            for u in range(state["LoopIters"] - numItersPLR):
+              doReadA = (u < state["LoopIters"]//numIterPerCoalescedReadA - numItersPLR)
+              doReadB = (u < state["LoopIters"]//numIterPerCoalescedReadB - numItersPLR)
+              # ds_read[A][0]
+              for i in range(numReadPerVectorA * doReadA):
+                latencyLeft -= issueLatencyA*2
+                if latencyLeft < 0:
+                  numMfmaForCurrentLoopLR += 1
+                  latencyLeft = max(miLatencyLeft - issueLatencyA*2,0)
+              # ds_read[B][0]
+              for i in range(numReadPerVectorB * doReadB):
+                latencyLeft -= issueLatencyB*2
+                if latencyLeft < 0:
+                  numMfmaForCurrentLoopLR += 1
+                  latencyLeft = max(miLatencyLeft - issueLatencyB*2,0)
+              # ds_read[A][1:]
+              for i in range((numReadsPerIterA - numReadPerVectorA) * doReadA):
+                latencyLeft -= issueLatencyA*2
+                if latencyLeft < 0:
+                  numMfmaForCurrentLoopLR += 1
+                  latencyLeft = max(miLatencyLeft - issueLatencyA*2,0)
+              # ds_read[B][1:]
+              for i in range((numReadsPerIterB - numReadPerVectorB) * doReadB):
+                latencyLeft -= issueLatencyB*2
+                if latencyLeft < 0:
+                  numMfmaForCurrentLoopLR += 1
+                  latencyLeft = max(miLatencyLeft - issueLatencyB*2,0)
+            lwStartMfmaIndex = numMfmaForCurrentLoopLR
+        else:
+          lwStartMfmaIndex = numMfmaPerIter * (state["LoopIters"] - 1 - numItersPLR) + numMfmaForLR
+        # to calculate number of mfma we need to wait before data arrive from lds to vgpr.
+        # latency: 40 quad-cycle for 4 word, 20 quad-cycle for 2 word, 10 quad-cycle for 1 word / half word
+        if numIterPerCoalescedReadB > numIterPerCoalescedReadA:
+          latencyForLR = roundUp(blockWidthA) * 10
+        else:
+          latencyForLR = roundUp(blockWidthB) * 10
+        latencyForLR -= max(latencyLeft,0) # remaining latency in mfma
+        while latencyForLR > 0:
+          latencyForLR -= miLatency
+          lwStartMfmaIndex += 1
+      #########
+      # Get localWritePerMfma
+      #########
+      oldValue = 0
+      newValue = 100
+      writesToSched = (numLoadsA+numLoadsB-1)*100
+      loop = 0
+      if lwStartMfmaIndex > lwEndMfmaIndex:
+        lwStartMfmaIndex = lwEndMfmaIndex
+      numMfmaCanSched = lwEndMfmaIndex - lwStartMfmaIndex + 1
+      while oldValue != newValue and loop < 10:
+        loop += 1
+        oldValue = newValue
+        newValue = roundUp((writesToSched+1 + (oldValue - (writesToSched+1) % oldValue) + oldValue%100)/numMfmaCanSched)
+      localWritePerMfma = newValue/100
+      if state["PrefetchGlobalRead"] == 1 and state["1LDSBuffer"]:
+        state["LocalWritePerMfma"] = max(localWritePerMfma,1)
+      else:
+        state["LocalWritePerMfma"] = localWritePerMfma
+
+    if state["GlobalReadPerMfma"] > 1 and state["PrefetchGlobalRead"] == 2:
+      reject(state, "GlobalReadPerMfma need to be 1 if PGR2")
+
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
     # LDS loads always write 4 bytes apart so can use only 4-byte operations
@@ -3495,15 +3715,6 @@ class Solution:
     # So check for the cases where the unroll loop can
     # generate partial loads here and reject PBC solutions:
     # For non-TLU the free dim is in perp dim - should always be TRUE?  TODO
-    if state["ProblemType"]["TLUA"]:
-      state["GuaranteeNoPartialA"] = state["AssertFree0ElementMultiple"]%state["GlobalLoadVectorWidthA"]==0
-    else:
-      state["GuaranteeNoPartialA"] = True
-
-    if state["ProblemType"]["TLUB"]:
-      state["GuaranteeNoPartialB"] = state["AssertFree1ElementMultiple"]%state["GlobalLoadVectorWidthB"]==0
-    else:
-      state["GuaranteeNoPartialB"] = True
 
     #--
     # ShiftPtr can't use UseSgprForGRO since it needs to modify the VGPR pointers
@@ -3511,13 +3722,8 @@ class Solution:
       if not state["GuaranteeNoPartialA"] or not state["GuaranteeNoPartialB"]:
         state["_UseSgprForGRO"] = False
         #reject(state, "PBC with wide load has insufficient overlap guarantees- try GRVW=1 or adding appropriate Assert*ElementMultiple")
-    if state["EnableMatrixInstruction"]:
-      cont1 = not state["GuaranteeNoPartialA"]
-      cont2 = ((state["MIOutputVectorWidth"] % state["GlobalLoadVectorWidthA"]) != 0)
-      if cont1 and cont2:
-        reject(state, "MIOutputVectorWidth %u %% GlobalLoadVectorWidthA %u must be 0" % \
-          (state["MIOutputVectorWidth"], state["GlobalLoadVectorWidthA"]))
 
+    if state["EnableMatrixInstruction"]:
       cont1 = not state["GuaranteeNoPartialB"]
       cont2 = ((state["MatrixInstN"] % state["GlobalLoadVectorWidthB"]) != 0)
       if cont1 and cont2:
@@ -3832,6 +4038,14 @@ class Solution:
       return abbrev
     elif isinstance(value, dict):
       s =  "_".join(["%d%d"%(pos,k) for pos,k in value.items()])
+      return s
+    elif isinstance(value, float):
+      val1 = int(value)
+      val2 = int(round(value*100)) - int(value)*100
+      if val2 > 0:
+        s =  "%dp%s" % (val1,str(val2).zfill(2))
+      else:
+        s = "%d" % (val1)
       return s
     else:
       printExit('Parameter {key}={value} is new object type ({t})'.format(key=key, value=value, t=type(value)))

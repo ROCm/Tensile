@@ -226,7 +226,7 @@ globalParameters["HipClangVersion"] = "0,0,0"
 
 # default runtime is selected based on operating system, user can override
 if os.name == "nt":
-  globalParameters["RuntimeLanguage"] = "OCL"
+  globalParameters["RuntimeLanguage"] = "HIP" #"OCL"
 else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
@@ -492,6 +492,29 @@ validParameters = {
     # 1: do optimization, in PAP, this can avoid ds_write waiting for previous global store
     # Can always be True, set to False for debugging or comparison
     "OptPreLoopVmcnt":            [False, True],
+
+    # For MatrixInstruction and SIA3, number of GlobalReadInstruction between mfma
+    # the purpose of this parameter is to control density of global read instruction scheduling
+    # Scheduling global read back to back can have better memory efficiency
+    # However, when full of vmem FIFO, it will block other instruction to be issued
+    # Range from 0.01 to 32
+    #         0.1 means 1 GR per 10 mfma
+    #           5 means 5 GR per 1 mfma
+    "GlobalReadPerMfma":       [ i/100 for i in range(1,3200)],
+    #
+    # For MatrixInstruction and SIA3, number of LocalWriteInstruction between mfma
+    # the purpose of this parameter is to control density of local write instruction scheduling
+    # In PGR1, we want to schedule local write more denser, so we can have more
+    #          latency to hide global read
+    # In PGR2, since LW is followed by GR, every LW has same whole loop latecy
+    #          to hide global read. We want to schedule LW less denser, can
+    #          avoid full of vmem FIFO.
+    # Range from 0.01 to 32
+    #         0.1 means 1 LW per 10 mfma
+    #           5 means 5 LW per 1 mfma
+    # -1 will derived an optimized value internally
+    # -2 will derived an optimized value and override LWPM silently (debug only, not recommended)
+    "LocalWritePerMfma":       [ i/100 for i in range(1,3200)] + [ -1 ],
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
@@ -855,6 +878,12 @@ validParameters = {
     # 0 means issue instructions as many as possible if VGPR available
     "NumElementsPerBatchStore":   list(range(0, 256)),
     #
+    # add sync after per batch store in order to store contiguous elements
+    # add sleep after per batch store in order to distribute store over whole loops
+    # NOTE: this parameter is highly depends on size_k
+    # 0 means no sync and sleep
+    "StoreSyncOpt":               list(range(0, 256)),
+    #
     # There are index or address calculation between global instructions.
     # issue global instruction b2b has better performance
     "GroupLoadStore":             [False, True],
@@ -976,6 +1005,8 @@ validParameters = {
     # Typically matching 16 bytes is good choice since the stores will be optimally coalesced with 16 bytes/WI.
     # -1 means use the largest vector width up to 128 bits.
     # Using a VW too large which results in >16bytes/thread isn't supported
+    # For MFMA non SourceSwap: this parameter didn't take effect
+    # For MFMA SourceSwap: this parameter only take effect on A buffer for now
     "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8 ],
 
     # If 0, store 1 element per instruction.
@@ -1157,6 +1188,10 @@ defaultBenchmarkCommonParameters = [
     {"OptPreLoopVmcnt":           [ True ] },
 
     {"LdcEqualsLdd":              [ False ] },
+
+    {"GlobalReadPerMfma":         [ 1 ] },
+    {"LocalWritePerMfma":         [ -1 ] },
+
     {"InterleaveAlpha":           [ 0 ] },
     {"OptNoLoadLoop":             [ 1 ] },
     {"PrefetchAcrossPersistent":  [ 0 ] },
@@ -1235,6 +1270,7 @@ defaultBenchmarkCommonParameters = [
     {"AtomicAddC":                [ False ] },
     {"StorePriorityOpt":          [ False ] },
     {"NumElementsPerBatchStore":  [ 0 ] },
+    {"StoreSyncOpt":              [ 0 ] },
     {"GroupLoadStore":            [ False ] },
     ]
 # benchmark these solution independently
@@ -1655,7 +1691,7 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
 
 def gfxArch(name):
     import re
-    match = re.search(r'gfx(\S{3,})', name)
+    match = re.search(r'gfx([0-9a-fA-F]{3,})', name)
     if not match: return None
 
     ipart = match.group(1)
@@ -1677,6 +1713,37 @@ def gfxName(arch):
     name = str(arch[0]) + str(arch[1]) + ('%x' % arch[2])
     return 'gfx' + ''.join(map(str,name))
 
+def detectGlobalCurrentISA():
+  """
+  Returns returncode if detection failure
+  """
+  global globalParameters
+  
+  if globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
+    process = subprocess.run([globalParameters["ROCmAgentEnumeratorPath"]], stdout=subprocess.PIPE)
+    if os.name == "nt":
+      line = ""
+      for line_in in process.stdout.decode().splitlines():
+        if 'gcnArchName' in line_in:
+          line += line_in.split()[1]
+          break # detemine if hipinfo will support multiple arch
+      arch = gfxArch(line.strip())
+      if arch is not None:
+        if arch in globalParameters["SupportedISA"]:
+          print1("# Detected local GPU with ISA: " + gfxName(arch))
+          globalParameters["CurrentISA"] = arch
+    else:
+      for line in process.stdout.decode().split("\n"):
+        arch = gfxArch(line.strip())
+        if arch is not None:
+          if arch in globalParameters["SupportedISA"]:
+            print1("# Detected local GPU with ISA: " + gfxName(arch))
+            globalParameters["CurrentISA"] = arch
+    if (process.returncode):
+      printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
+    return process.returncode
+  return 0
+      
 def restoreDefaultGlobalParameters():
   """
   Restores `globalParameters` back to defaults.
@@ -1719,6 +1786,18 @@ def printCapTable(parameters):
 
   printTable([headerRow] + asmCapRows + archCapRows)
 
+def which(p):
+    exes = [p+x for x in ['', '.exe', '.bat']]
+    system_path = os.environ['PATH'].split(os.pathsep)
+    if p == 'hipcc' and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
+        return os.environ['CMAKE_CXX_COMPILER']
+    for dirname in system_path+[globalParameters["ROCmBinPath"]]:
+        for exe in exes:
+            candidate = os.path.join(os.path.expanduser(dirname), exe)
+            if os.path.isfile(candidate):
+                return candidate
+    return None
+
 ################################################################################
 ################################################################################
 def assignGlobalParameters( config ):
@@ -1754,6 +1833,8 @@ def assignGlobalParameters( config ):
     globalParameters["ROCmPath"] = os.environ.get("ROCM_PATH")
   if "TENSILE_ROCM_PATH" in os.environ:
     globalParameters["ROCmPath"] = os.environ.get("TENSILE_ROCM_PATH")
+  if os.name == "nt" and "HIP_DIR" in os.environ:
+    globalParameters["ROCmPath"] = os.environ.get("HIP_DIR") # windows has no ROCM
   globalParameters["CmakeCxxCompiler"] = None
   if "CMAKE_CXX_COMPILER" in os.environ:
     globalParameters["CmakeCxxCompiler"] = os.environ.get("CMAKE_CXX_COMPILER")
@@ -1761,36 +1842,45 @@ def assignGlobalParameters( config ):
   globalParameters["ROCmBinPath"] = os.path.join(globalParameters["ROCmPath"], "bin")
 
   # ROCm Agent Enumerator Path
-  globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm_agent_enumerator")
+  if os.name == "nt":
+    globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "hipinfo.exe")
+  else:
+    globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm_agent_enumerator")
+
   if "CxxCompiler" in config:
     globalParameters["CxxCompiler"] = config["CxxCompiler"]
 
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
   elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hipcc":
-    globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang++")
+    if os.name == "nt":
+      globalParameters["AssemblerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang++.exe")
+    else:
+      globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang++")
 
   globalParameters["ROCmSMIPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm-smi")
+
   globalParameters["ExtractKernelPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "hip/bin"), "extractkernel")
-  globalParameters["ClangOffloadBundlerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang-offload-bundler")
+
+  if "TENSILE_ROCM_OFFLOAD_BUNDLER_PATH" in os.environ:
+    globalParameters["ClangOffloadBundlerPath"] = os.environ.get("TENSILE_ROCM_OFFLOAD_BUNDLER_PATH")
+  else:
+    if os.name == "nt":
+      globalParameters["ClangOffloadBundlerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang-offload-bundler.exe")
+    else:
+      globalParameters["ClangOffloadBundlerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang-offload-bundler")
 
   if "ROCmAgentEnumeratorPath" in config:
     globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
 
   # read current gfx version
-  if os.name != "nt" and globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
-    command = [globalParameters["ROCmAgentEnumeratorPath"]]#, "-t", "GPU"]
-    result = subprocess.run(command, stdout=subprocess.PIPE)
-    for line in result.stdout.decode().split("\n"):
-      arch = gfxArch(line.strip())
-      if arch is not None:
-        if arch in globalParameters["SupportedISA"]:
-          print1("# Detected local GPU with ISA: " + gfxName(arch))
-          globalParameters["CurrentISA"] = arch
-    if globalParameters["CurrentISA"] == (0,0,0):
-      printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
-    if result.returncode:
-      printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], result.returncode))
+  returncode = detectGlobalCurrentISA()
+  if globalParameters["CurrentISA"] == (0,0,0):
+    printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
+  if returncode:
+    if os.name == "nt":
+      globalParameters["CurrentISA"] = (9,0,6)
+      printWarning("Failed to detect ISA so forcing (gfx906) on windows")
 
   # TODO Remove this when rocm-smi supports gfx90a
   if globalParameters["CurrentISA"] == (9,0,10):
@@ -1819,7 +1909,12 @@ def assignGlobalParameters( config ):
   # The alternative would be to install the `distro` package.
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
   try:
-    output = subprocess.run(["hipcc", "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
+    if os.name == "nt":
+      compileArgs = ['perl'] + [which('hipcc')] + ['--version']
+      output = subprocess.run(compileArgs, check=True, stdout=subprocess.PIPE).stdout.decode()
+    else:
+      compiler = "hipcc"
+      output = subprocess.run([compiler, "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
 
     for line in output.split('\n'):
       if 'HIP version' in line:
@@ -1880,11 +1975,13 @@ def popWorkingPath():
       os.path.split(globalParameters["WorkingPath"])[0]
   else:
     globalParameters["WorkingPath"] = workingDirectoryStack.pop()
-def ensurePath( path ):
+def ensurePath(path):
   try:
     os.makedirs(path)
-  except OSError:
+  except FileExistsError:
     pass
+  except OSError:
+    printExit("Failed to create directory \"%s\" " % (path) )
   return path
 def setWorkingPath( fullPathName ):
   # Warning: this is not thread-safe, modifies the global WorkingPath!
