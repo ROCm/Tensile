@@ -25,6 +25,7 @@ from .Component import Component
 from .KernelWriter import KernelWriter
 from .SolutionStructs import isPackedIndex
 from .Utils import ceil_divide, roundUpToNearestMultiple
+from .DataType import DataType
 from .AsmUtils import inst, vgpr, sgpr, log2, vectorStaticDivideAndRemainder, vectorStaticDivide, vectorStaticRemainder, scalarStaticDivideAndRemainder, staticMultiply, scalarStaticMultiply
 
 from math import ceil, trunc, modf
@@ -8503,8 +8504,8 @@ class KernelWriterAssembly(KernelWriter):
     bytesPerElem = kernel["ProblemType"]["ComputeDataType"].numBytes()
     regsPerElem  = kernel["ProblemType"]["ComputeDataType"].numRegisters()
     if kernel["ProblemType"]["DataType"].isHalf() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-      bytesPerElem = 4
-      regsPerElem = 1
+      bytesPerElem = DataType('single').numBytes()
+      regsPerElem  = DataType('single').numRegisters()
 
     bytesPerVector = kernel["VectorWidth"] * bytesPerElem
     bytesPerStep = min(bytesPerVector, 16) # max length of ds inst is 16 bytes(128bits)
@@ -8551,8 +8552,8 @@ class KernelWriterAssembly(KernelWriter):
     bytesPerElem = kernel["ProblemType"]["ComputeDataType"].numBytes()
     regsPerElem  = kernel["ProblemType"]["ComputeDataType"].numRegisters()
     if kernel["ProblemType"]["DataType"].isHalf() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-      bytesPerElem = 4
-      regsPerElem = 1
+      bytesPerElem = DataType('single').numBytes()
+      regsPerElem  = DataType('single').numRegisters()
 
     bytesPerVector = kernel["GlobalWriteVectorWidth"] * bytesPerElem
     bytesPerStep = 16

@@ -843,7 +843,8 @@ class KernelWriterSource(KernelWriter):
     if kernel["_GlobalAccumulation"]:
       ptrStr = kernel["ProblemType"]["ComputeDataType"].toDevice(self.language)
       if kernel["ProblemType"]["DataType"].isHalf() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-        ptrStr = "float"
+        ptrStr = DataType('single').toDevice(self.language)
+
     isStridedBuffer = kernel["ProblemType"]["StridedBatched"] or kernel["_GlobalAccumulation"]
     ptrStr  += ("" if isStridedBuffer else "*")
     batchStr = ("" if isStridedBuffer else "Batch")

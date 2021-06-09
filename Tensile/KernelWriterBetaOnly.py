@@ -22,6 +22,7 @@
 from copy import deepcopy
 
 from .Common import globalParameters, CHeader
+from .DataType import DataType
 from .KernelWriterBase import KernelWriterBase
 
 class KernelWriterBetaOnly(KernelWriterBase):
@@ -61,7 +62,7 @@ class KernelWriterBetaOnly(KernelWriterBase):
     if self.state["_GlobalAccumulation"]:
       ptrStr = self.state["ProblemType"]["ComputeDataType"].toDevice(self.language)
       if self.state["ProblemType"]["DataType"].isHalf() and self.state["ProblemType"]["HighPrecisionAccumulate"]:
-        ptrStr = "float"
+        ptrStr = DataType('single').toDevice(self.language)
     isStridedBuffer = self.state["ProblemType"]["StridedBatched"] or self.state["_GlobalAccumulation"]
     ptrStr += "" if isStridedBuffer else "*"
     batch   = "" if isStridedBuffer else "Batch"
@@ -223,7 +224,7 @@ class KernelWriterBetaOnly(KernelWriterBase):
     if globalAccum:
       ptrStr = problemType["ComputeDataType"].toDevice(self.language)
       if problemType["DataType"].isHalf() and problemType["HighPrecisionAccumulate"]:
-        ptrStr = "float"
+        ptrStr = DataType('single').toDevice(self.language)
     else:
       ptrStr = problemType["DataType"].toDevice(self.language)
     kStr += "#define SCALAR_ZERO ((%s)(0))%s" % (ptrStr, self.endLine )

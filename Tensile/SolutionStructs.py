@@ -2408,8 +2408,8 @@ class Solution:
         computeName  = state["ProblemType"]["ComputeDataType"].toName()
         computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
         if state["ProblemType"]["DataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]:
-          computeName  = 'single'
-          computeBytes = 4
+          computeName  = DataType('single').toName()
+          computeBytes = DataType('single').numBytes()
 
         if state["GlobalSplitUAlgorithm"] == 'SingleBuffer':
           if computeName != state["ProblemType"]["DestDataType"].toName():
@@ -3234,7 +3234,7 @@ class Solution:
       if state["_GlobalAccumulation"]:
         computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
         if state["ProblemType"]["DataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]:
-          computeBytes = 4
+          computeBytes = DataType('single').numBytes()
         ldsNumElementsRemapC *= (computeBytes / state["ProblemType"]["DestDataType"].numBytes())
       ldsSize = ldsNumElementsRemapC * state["ProblemType"]["DataType"].numBytes()
       if not math.log(state["MacroTile0"],2).is_integer() or \
@@ -3297,7 +3297,7 @@ class Solution:
       if state["_GlobalAccumulation"]:
         numReg = state["ProblemType"]["ComputeDataType"].numRegisters()
         if state["ProblemType"]["DataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]:
-          numReg = 1
+          numReg = DataType('single').numRegisters()
       srMaxVw = int(storeInstMaxWidth/numReg)
       if srMinVw > state["StoreRemapVectorWidth"] or srMaxVw < state["StoreRemapVectorWidth"]:
         reject(state, "StoreRemapVectorWidth %u is not allowed for this data type" % state["StoreRemapVectorWidth"])
@@ -3317,7 +3317,7 @@ class Solution:
       if state["_GlobalAccumulation"]:
         computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
         if state["ProblemType"]["DataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]:
-          computeBytes = 4
+          computeBytes = DataType('single').numBytes()
         multiplier = computeBytes // state["ProblemType"]["DataType"].numBytes()
       elif state["ProblemType"]["DestDataType"].numBytes() > state["ProblemType"]["DataType"].numBytes():
         # Determine ratio of output to input element size.
