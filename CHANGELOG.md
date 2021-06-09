@@ -1,5 +1,5 @@
 # Change Log for Tensile
-## [(Unreleased) Tensile 4.29.0 for ROCm 4.4.0]
+## [Tensile 4.29.0 for ROCm 4.4.0]
 ### Added
 - Custom Kernel mechanism for adding custom assembly kernels to Tensile
 - New assertions for problems sizes, alpha/beta values, and C equals D
