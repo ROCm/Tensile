@@ -1,5 +1,5 @@
 /**
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -363,8 +363,8 @@ namespace Tensile
 
         if(sizeMapping.globalAccumulation)
         {
-            rv.args.append<void const*>("ws", inputs.ws);
-            rv.args.append<void const*>("ws", inputs.ws);
+            rv.args.append<void const*>("ws0", inputs.ws);
+            rv.args.append<void const*>("ws1", inputs.ws);
         }
         else if(problemType.stridedBatched)
         {
@@ -813,8 +813,7 @@ namespace Tensile
                                                                   TypedInputs const& inputs,
                                                                   Hardware const&    hardware) const
     {
-        bool debug = Debug::Instance().printKernelArguments();
-
+        bool debug = Debug::Instance().printKernelArguments() || this->kernelArgsLog;
         // Check for nullptrs if alpha is non-zero.
         if((inputs.alpha != static_cast<typename TypedInputs::AlphaType>(0) /*&& k!=0*/)
            && ((problem.stridedBatched() && (inputs.a == nullptr || inputs.b == nullptr))
@@ -826,6 +825,29 @@ namespace Tensile
                               + std::string(" when Alpha !=0\n");
             throw std::runtime_error(msg.c_str());
         }
+
+        // Check if alpha matches problem definition
+        if(problem.alphaRestriction() != ScalarValue::Any && problem.alphaRestriction() != toScalarValueEnum(inputs.alpha))
+        {
+            std::stringstream inputValue;
+            inputValue << inputs.alpha;
+            std::string msg = std::string("Alpha value ") + inputValue.str() +
+                              std::string(" doesn't match that set in problem: ") + ToString(problem.alphaRestriction());
+            throw std::runtime_error(msg.c_str());
+        }
+
+        // Check if beta matches problem definition
+        if(problem.betaRestriction() != ScalarValue::Any && problem.betaRestriction() != toScalarValueEnum(inputs.beta))
+        {
+            std::stringstream inputValue;
+            inputValue << inputs.beta;
+            std::string msg = std::string("Beta value ") + inputValue.str() +
+                              std::string(" doesn't match that set in problem: ") + ToString(problem.betaRestriction());
+            throw std::runtime_error(msg.c_str());
+        }
+
+        if(problem.cEqualsD() && inputs.c != inputs.d)
+            throw std::runtime_error("ContractionProblem has cEqualsD set, but pointers for c and d are not equal");
 
         std::vector<KernelInvocation> rv;
 

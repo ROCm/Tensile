@@ -28,6 +28,7 @@
 #include "TensorUtils.h"
 #include "Tools.h"
 #include <assert.h>
+#include <chrono>
 #include <cstring>
 #include <ctime>
 #include <fstream>
@@ -35,7 +36,7 @@
 #include <iostream>
 #include <set>
 #include <sys/time.h>
-#include <unistd.h>
+#include <thread>
 
 TensileTimer  timer;
 TensileTimer  apiTimer;
@@ -913,7 +914,7 @@ bool callLibrary(DestDataType*   initialD,
     if(sleepPercent)
     {
         unsigned int sleepMicroSeconds = (timeNs * 10 * sleepPercent) / 1e6;
-        usleep(sleepMicroSeconds);
+        std::this_thread::sleep_for(std::chrono::microseconds(sleepMicroSeconds));
     }
 
     timeNs /= (numSyncsPerBenchmark * numEnqueuesPerSync);
@@ -1319,7 +1320,7 @@ bool benchmarkAllSolutions(DestDataType*   initialD,
             if(sleepPercent)
             {
                 unsigned int sleepMicroSeconds = (timeNs * 10 * sleepPercent) / 1e6;
-                usleep(sleepMicroSeconds);
+                std::this_thread::sleep_for(std::chrono::microseconds(sleepMicroSeconds));
             }
 
             *problem_gpu_time_ms += timeNs / 1e6;
@@ -2060,7 +2061,7 @@ bool benchmarkAllSolutionsForSize(unsigned int problemIdx,
         if(sleepPercent)
         {
             unsigned int sleepMicroSeconds = (timeNs * 10 * sleepPercent) / 1e6;
-            usleep(sleepMicroSeconds);
+            std::this_thread::sleep_for(std::chrono::microseconds(sleepMicroSeconds));
         }
 
         *problem_gpu_time_ms += timeNs / 1e6;

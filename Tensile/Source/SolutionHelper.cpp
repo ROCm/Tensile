@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,13 +24,10 @@
 #include "Tools.h"
 #include <cstddef>
 #include <mutex>
-#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
-#ifdef WIN32
-__declspec(thread) KernelMap kernelMap;
-#else
 thread_local KernelMap kernelMap;
-#endif
 
 /*******************************************************************************
  * Compile OpenCL kernels
@@ -133,6 +130,7 @@ TensileStatus SolutionLock::getFunction(hipFunction_t*       f,
     if(!_deviceFunctions[deviceId])
     {
         std::lock_guard<std::mutex> loadModuleLock(_loadModuleMutex);
+        struct stat                 fileStat;
         hipModule_t                 module = nullptr;
         if(!_deviceFunctions[deviceId])
         {
@@ -140,7 +138,7 @@ TensileStatus SolutionLock::getFunction(hipFunction_t*       f,
             {
                 std::string pk1 = "assembly/" + kernelName + ".co";
                 std::string pk2 = "../source/assembly/" + kernelName + ".co";
-                if(access(pk2.c_str(), R_OK) != 0)
+                if(stat(pk2.c_str(),&fileStat) < 0 || (fileStat.st_mode & S_IFMT) != S_IFREG)
                     e = hipModuleLoad(&module, pk1.c_str());
                 else
                     e = hipModuleLoad(&module, pk2.c_str());

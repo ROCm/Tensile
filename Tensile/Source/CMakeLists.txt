@@ -183,9 +183,17 @@ else()
     elseif( Tensile_RUNTIME_LANGUAGE MATCHES "HIP")
       find_package( HIP REQUIRED )
       set (CMAKE_CXX_COMPILER ${HIPCC})
-      target_include_directories( ${ClientName} SYSTEM
-        PUBLIC  ${HIP_INCLUDE_DIRS} )
-      target_link_libraries( ${ClientName} PUBLIC ${HSA_LIBRARIES} )
+      if( WIN32 )
+        target_include_directories( ${ClientName} SYSTEM
+          PUBLIC  ${HIP_INCLUDE_DIRS} )
+        # Avoid spurious warnings with Visual Studio
+        target_compile_options( ${ClientName} PRIVATE
+          -Wno-deprecated-declarations)
+      else()
+        target_include_directories( ${ClientName} SYSTEM
+          PUBLIC  ${HIP_INCLUDE_DIRS} )
+        target_link_libraries( ${ClientName} PUBLIC ${HSA_LIBRARIES} )
+      endif()
       target_compile_definitions( ${ClientName} PUBLIC
         -DTensile_RUNTIME_LANGUAGE_OCL=0
         -DTensile_RUNTIME_LANGUAGE_HIP=1

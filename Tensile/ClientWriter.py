@@ -54,6 +54,7 @@ class DataInitName(Enum):
   TrigAbsSin = 14
   TrigAbsCos = 15
   RandomNarrow = 16
+  NegOne = 17
 
 class ClientLogLevel(Enum):
   Error = 0
@@ -276,7 +277,7 @@ def getBuildOldClientScript(libraryLogicPath, forBenchmark):
       % (echoLine, q, HR, q, q, q, q, HR, q))
   runScriptFile.write("cmake --build . --config %s%s\n" \
       % (globalParameters["CMakeBuildType"], " -- -j 8" \
-      if os.name != "nt" else "") )
+      if os.name != "nt" else "") ) # getBuildOldClientScript not used on windows
 
   return runScriptFile.getvalue()
 

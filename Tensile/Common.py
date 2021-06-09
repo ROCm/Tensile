@@ -226,7 +226,7 @@ globalParameters["HipClangVersion"] = "0,0,0"
 
 # default runtime is selected based on operating system, user can override
 if os.name == "nt":
-  globalParameters["RuntimeLanguage"] = "OCL"
+  globalParameters["RuntimeLanguage"] = "HIP" #"OCL"
 else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
@@ -253,6 +253,9 @@ globalParameters["MinKForGSU"] = 256 # min K size to use GlobalSplitU algorithm 
 
 # control if a solution is run for a given problem
 globalParameters["GranularityThreshold"] = 0.0
+
+# directory where custom kernels are located
+globalParameters["CustomKernelDirectory"] = os.path.join(os.path.dirname(os.path.realpath(__file__)), "CustomKernels")
 
 globalParameters["PristineOnGPU"] = True # use Pristine memory on Tensile trainning verification or not
 
@@ -315,6 +318,7 @@ validMFMA["4xi8"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4
 validMFMA["D"] = [[16,16,4,1], [4,4,4,4]]
 validMFMA["B1k"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
 validMFMA["C"] = validMFMA["S"]
+validMFMA["Z"] = validMFMA["D"]
 validMFMA["I8"] = validMFMA["4xi8"]
 validTT = 16
 validMFMA["_format9"] = []
@@ -488,6 +492,29 @@ validParameters = {
     # 1: do optimization, in PAP, this can avoid ds_write waiting for previous global store
     # Can always be True, set to False for debugging or comparison
     "OptPreLoopVmcnt":            [False, True],
+
+    # For MatrixInstruction and SIA3, number of GlobalReadInstruction between mfma
+    # the purpose of this parameter is to control density of global read instruction scheduling
+    # Scheduling global read back to back can have better memory efficiency
+    # However, when full of vmem FIFO, it will block other instruction to be issued
+    # Range from 0.01 to 32
+    #         0.1 means 1 GR per 10 mfma
+    #           5 means 5 GR per 1 mfma
+    "GlobalReadPerMfma":       [ i/100 for i in range(1,3200)],
+    #
+    # For MatrixInstruction and SIA3, number of LocalWriteInstruction between mfma
+    # the purpose of this parameter is to control density of local write instruction scheduling
+    # In PGR1, we want to schedule local write more denser, so we can have more
+    #          latency to hide global read
+    # In PGR2, since LW is followed by GR, every LW has same whole loop latecy
+    #          to hide global read. We want to schedule LW less denser, can
+    #          avoid full of vmem FIFO.
+    # Range from 0.01 to 32
+    #         0.1 means 1 LW per 10 mfma
+    #           5 means 5 LW per 1 mfma
+    # -1 will derived an optimized value internally
+    # -2 will derived an optimized value and override LWPM silently (debug only, not recommended)
+    "LocalWritePerMfma":       [ i/100 for i in range(1,3200)] + [ -1 ],
 
     # LDD Support
     # Allow LDD and StrideD to != LDC and StrideC for LDD <= LDC and LDD == M
@@ -669,7 +696,17 @@ validParameters = {
     # Assertions that require stride to be specified value.
     # Dictionary of pairs of {index, constValue}.
     # Index is a member of the global index assignments.
-    "AssertSizeEqual":    -1,
+    "AssertSizeEqual":       -1,
+    "AssertSizeGreaterThan": -1,
+    "AssertSizeLessThan":    -1,
+    "AssertSizeMultiple":    -1,
+
+    #Assert values for alpha and beta
+    "AssertBetaValue":       [False, 1, -1],
+    "AssertAlphaValue":      [False, 1, -1],
+
+    #Assert C==D
+    "AssertCEqualsD": [False, True],
 
     # Generate code inside kernel to check Assertions on Tensor dimensions
     "CheckTensorDimAsserts":               [False, True],
@@ -811,6 +848,46 @@ validParameters = {
     # SourceSwap: Optimizes MatrixInstruction store pattern by swapping mfma input order.
     "SourceSwap":                 [False, True],
 
+    # AtomicAddC: If CEqualsD and Beta=1, use atomic add instead of load/store.
+    "AtomicAddC":                 [False, True],
+
+    # Following parameters are designed for store scheduling.
+    # (store stands for load from C (with beta) and store to C/D)
+    #
+    # we want to hide store behind unroll loop
+    #   1. if we can launch 2 WorkGroups per CU (occupancy >= 2, large M/N)
+    #   2. if there are remaining global memory bandwidth in unroll loop (compute bound kernel)
+    #
+    # we can hide store behind the other WG's loop by lowering priority of store
+    #   priority of loop is the same as priority of store
+    #     WG0: ￣￣￣￣￣￣￣￣￣￣￣￣￣￣￣\__
+    #         |<-- loop --->|<-- store -->|end
+    #
+    #     WG1: ___________________________/￣￣￣￣￣￣￣￣￣￣￣￣\__
+    #         |<--------- loop ------------------->|<-- store -->|end
+    #
+    #   priority of loop is higher than priority of store
+    #     WG0: ￣￣￣￣￣￣￣\____________________
+    #         |<-- loop --->|<------ store ----->|end
+    #
+    #     WG1: _____________/￣￣￣￣￣\__________________
+    #         |<------- loop -------->|<----- store ---->|end
+    "StorePriorityOpt":           [False, True],
+    #
+    # If we issue store in short period of time, kernel will become from compute bound to memory bound
+    # 0 means issue instructions as many as possible if VGPR available
+    "NumElementsPerBatchStore":   list(range(0, 256)),
+    #
+    # add sync after per batch store in order to store contiguous elements
+    # add sleep after per batch store in order to distribute store over whole loops
+    # NOTE: this parameter is highly depends on size_k
+    # 0 means no sync and sleep
+    "StoreSyncOpt":               list(range(0, 256)),
+    #
+    # There are index or address calculation between global instructions.
+    # issue global instruction b2b has better performance
+    "GroupLoadStore":             [False, True],
+
     # Disable overlapping AB-tile vgpr and read/write addr vgprs with C-tile vgprs
     # Valid only for MatrixInstruction enabled kernels, which by default overlaps
     # C-tile w/ AB-tile until it's due for v_accvgpr_read before the writeback. Illustrated below:
@@ -928,6 +1005,8 @@ validParameters = {
     # Typically matching 16 bytes is good choice since the stores will be optimally coalesced with 16 bytes/WI.
     # -1 means use the largest vector width up to 128 bits.
     # Using a VW too large which results in >16bytes/thread isn't supported
+    # For MFMA non SourceSwap: this parameter didn't take effect
+    # For MFMA SourceSwap: this parameter only take effect on A buffer for now
     "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8 ],
 
     # If 0, store 1 element per instruction.
@@ -1041,6 +1120,25 @@ validParameters = {
     # Replaces assembly kernels if they are found in the directory Tensile/Tensile/ReplacementKernels
     "ReplacementKernel":          [False, True],
 
+    # Name of the custom kernel located in globalParameters["CustomKernelDirectory"].
+    # a custom kernel is a user written assembly kernel with its associated configuration parameters included in a custom.config section
+    # inside the yaml block between the --- and ... markers.  These parameters are only used for information purposes, not kernel generation.
+    # Ex:
+    # custom.config:
+    #   ProblemType:
+    #     OperationType: GEMM
+    #     etc...
+    #   ThreadTile: [8, 8]
+    #   etc...
+    #
+    # Custom kernels can be included in a BenchmarkProblemSizeGroup by having their name (without file extension) listed under the "CustomKernels"
+    # category alongside InitialSolutionParameters, BenchmarkCommonParameters, etc...
+    "CustomKernelName":            -1,
+
+    # Will allow a kernel to be accepted even when checks determine it's not viable.
+    # Intended for use with custom kernels which have confirmed to be correct
+    "NoReject":                    [False, True],
+
     "MinVgprNumber":                list(range(0,256)),
 
     "MaxVgprNumber":                list(range(0,257)),
@@ -1090,6 +1188,10 @@ defaultBenchmarkCommonParameters = [
     {"OptPreLoopVmcnt":           [ True ] },
 
     {"LdcEqualsLdd":              [ False ] },
+
+    {"GlobalReadPerMfma":         [ 1 ] },
+    {"LocalWritePerMfma":         [ -1 ] },
+
     {"InterleaveAlpha":           [ 0 ] },
     {"OptNoLoadLoop":             [ 1 ] },
     {"PrefetchAcrossPersistent":  [ 0 ] },
@@ -1108,6 +1210,12 @@ defaultBenchmarkCommonParameters = [
     {"AssertStrideCEqual":        [ {} ] },
     {"AssertStrideDEqual":        [ {} ] },
     {"AssertSizeEqual":           [ {} ] },
+    {"AssertSizeGreaterThan":     [ {} ] },
+    {"AssertSizeMultiple":        [ {} ] },
+    {"AssertSizeLessThan":        [ {} ] },
+    {"AssertAlphaValue":          [ False ]},
+    {"AssertBetaValue":           [ False ]},
+    {"AssertCEqualsD":            [ False ]},
     {"CheckTensorDimAsserts"      : [ False ] },
     {"CheckDimOverflow"           : [ 0 ] },
 
@@ -1153,10 +1261,17 @@ defaultBenchmarkCommonParameters = [
     {"NonTemporalA":              [ 0 ] },
     {"NonTemporalB":              [ 0 ] },
     {"ReplacementKernel":         [ False ] },
+    {"CustomKernelName":          [ "" ] },
+    {"NoReject":                  [ False ]},
     {"MinVgprNumber":             [0]},
     {"MaxVgprNumber":             [256]},
     {"StoreRemapVectorWidth":     [ 0 ] },
     {"SourceSwap":                [ False ] },
+    {"AtomicAddC":                [ False ] },
+    {"StorePriorityOpt":          [ False ] },
+    {"NumElementsPerBatchStore":  [ 0 ] },
+    {"StoreSyncOpt":              [ 0 ] },
+    {"GroupLoadStore":            [ False ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = []
@@ -1507,6 +1622,9 @@ def GetAsmCaps(isaVersion):
   rv["v_dot2_f32_f16"]  = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
   rv["v_dot2c_f32_f16"] = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34")
 
+  rv["v_dot4c_i32_i8"]  = tryAssembler(isaVersion, "v_dot4c_i32_i8 v47, v36, v34")
+  rv["v_dot4_i32_i8"]   = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34")
+
   rv["v_mac_f32"]       = tryAssembler(isaVersion, "v_mac_f32 v20, v21, v22")
   rv["v_fma_f32"]       = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")
   rv["v_fmac_f32"]      = tryAssembler(isaVersion, "v_fmac_f32 v20, v21, v22")
@@ -1573,7 +1691,7 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
 
 def gfxArch(name):
     import re
-    match = re.search(r'gfx(\S{3,})', name)
+    match = re.search(r'gfx([0-9a-fA-F]{3,})', name)
     if not match: return None
 
     ipart = match.group(1)
@@ -1595,6 +1713,37 @@ def gfxName(arch):
     name = str(arch[0]) + str(arch[1]) + ('%x' % arch[2])
     return 'gfx' + ''.join(map(str,name))
 
+def detectGlobalCurrentISA():
+  """
+  Returns returncode if detection failure
+  """
+  global globalParameters
+  
+  if globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
+    process = subprocess.run([globalParameters["ROCmAgentEnumeratorPath"]], stdout=subprocess.PIPE)
+    if os.name == "nt":
+      line = ""
+      for line_in in process.stdout.decode().splitlines():
+        if 'gcnArchName' in line_in:
+          line += line_in.split()[1]
+          break # detemine if hipinfo will support multiple arch
+      arch = gfxArch(line.strip())
+      if arch is not None:
+        if arch in globalParameters["SupportedISA"]:
+          print1("# Detected local GPU with ISA: " + gfxName(arch))
+          globalParameters["CurrentISA"] = arch
+    else:
+      for line in process.stdout.decode().split("\n"):
+        arch = gfxArch(line.strip())
+        if arch is not None:
+          if arch in globalParameters["SupportedISA"]:
+            print1("# Detected local GPU with ISA: " + gfxName(arch))
+            globalParameters["CurrentISA"] = arch
+    if (process.returncode):
+      printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
+    return process.returncode
+  return 0
+      
 def restoreDefaultGlobalParameters():
   """
   Restores `globalParameters` back to defaults.
@@ -1637,6 +1786,18 @@ def printCapTable(parameters):
 
   printTable([headerRow] + asmCapRows + archCapRows)
 
+def which(p):
+    exes = [p+x for x in ['', '.exe', '.bat']]
+    system_path = os.environ['PATH'].split(os.pathsep)
+    if p == 'hipcc' and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
+        return os.environ['CMAKE_CXX_COMPILER']
+    for dirname in system_path+[globalParameters["ROCmBinPath"]]:
+        for exe in exes:
+            candidate = os.path.join(os.path.expanduser(dirname), exe)
+            if os.path.isfile(candidate):
+                return candidate
+    return None
+
 ################################################################################
 ################################################################################
 def assignGlobalParameters( config ):
@@ -1672,6 +1833,8 @@ def assignGlobalParameters( config ):
     globalParameters["ROCmPath"] = os.environ.get("ROCM_PATH")
   if "TENSILE_ROCM_PATH" in os.environ:
     globalParameters["ROCmPath"] = os.environ.get("TENSILE_ROCM_PATH")
+  if os.name == "nt" and "HIP_DIR" in os.environ:
+    globalParameters["ROCmPath"] = os.environ.get("HIP_DIR") # windows has no ROCM
   globalParameters["CmakeCxxCompiler"] = None
   if "CMAKE_CXX_COMPILER" in os.environ:
     globalParameters["CmakeCxxCompiler"] = os.environ.get("CMAKE_CXX_COMPILER")
@@ -1679,36 +1842,45 @@ def assignGlobalParameters( config ):
   globalParameters["ROCmBinPath"] = os.path.join(globalParameters["ROCmPath"], "bin")
 
   # ROCm Agent Enumerator Path
-  globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm_agent_enumerator")
+  if os.name == "nt":
+    globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "hipinfo.exe")
+  else:
+    globalParameters["ROCmAgentEnumeratorPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm_agent_enumerator")
+
   if "CxxCompiler" in config:
     globalParameters["CxxCompiler"] = config["CxxCompiler"]
 
   if "TENSILE_ROCM_ASSEMBLER_PATH" in os.environ:
     globalParameters["AssemblerPath"] = os.environ.get("TENSILE_ROCM_ASSEMBLER_PATH")
   elif globalParameters["AssemblerPath"] is None and globalParameters["CxxCompiler"] == "hipcc":
-    globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang++")
+    if os.name == "nt":
+      globalParameters["AssemblerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang++.exe")
+    else:
+      globalParameters["AssemblerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang++")
 
   globalParameters["ROCmSMIPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm-smi")
+
   globalParameters["ExtractKernelPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "hip/bin"), "extractkernel")
-  globalParameters["ClangOffloadBundlerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang-offload-bundler")
+
+  if "TENSILE_ROCM_OFFLOAD_BUNDLER_PATH" in os.environ:
+    globalParameters["ClangOffloadBundlerPath"] = os.environ.get("TENSILE_ROCM_OFFLOAD_BUNDLER_PATH")
+  else:
+    if os.name == "nt":
+      globalParameters["ClangOffloadBundlerPath"] = locateExe(globalParameters["ROCmBinPath"], "clang-offload-bundler.exe")
+    else:
+      globalParameters["ClangOffloadBundlerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang-offload-bundler")
 
   if "ROCmAgentEnumeratorPath" in config:
     globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
 
   # read current gfx version
-  if os.name != "nt" and globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
-    command = [globalParameters["ROCmAgentEnumeratorPath"]]#, "-t", "GPU"]
-    result = subprocess.run(command, stdout=subprocess.PIPE)
-    for line in result.stdout.decode().split("\n"):
-      arch = gfxArch(line.strip())
-      if arch is not None:
-        if arch in globalParameters["SupportedISA"]:
-          print1("# Detected local GPU with ISA: " + gfxName(arch))
-          globalParameters["CurrentISA"] = arch
-    if globalParameters["CurrentISA"] == (0,0,0):
-      printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
-    if result.returncode:
-      printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], result.returncode))
+  returncode = detectGlobalCurrentISA()
+  if globalParameters["CurrentISA"] == (0,0,0):
+    printWarning("Did not detect SupportedISA: %s; cannot benchmark assembly kernels." % globalParameters["SupportedISA"])
+  if returncode:
+    if os.name == "nt":
+      globalParameters["CurrentISA"] = (9,0,6)
+      printWarning("Failed to detect ISA so forcing (gfx906) on windows")
 
   # TODO Remove this when rocm-smi supports gfx90a
   if globalParameters["CurrentISA"] == (9,0,10):
@@ -1737,7 +1909,12 @@ def assignGlobalParameters( config ):
   # The alternative would be to install the `distro` package.
   # See https://docs.python.org/3.7/library/platform.html#platform.linux_distribution
   try:
-    output = subprocess.run(["hipcc", "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
+    if os.name == "nt":
+      compileArgs = ['perl'] + [which('hipcc')] + ['--version']
+      output = subprocess.run(compileArgs, check=True, stdout=subprocess.PIPE).stdout.decode()
+    else:
+      compiler = "hipcc"
+      output = subprocess.run([compiler, "--version"], check=True, stdout=subprocess.PIPE).stdout.decode()
 
     for line in output.split('\n'):
       if 'HIP version' in line:
@@ -1798,11 +1975,13 @@ def popWorkingPath():
       os.path.split(globalParameters["WorkingPath"])[0]
   else:
     globalParameters["WorkingPath"] = workingDirectoryStack.pop()
-def ensurePath( path ):
+def ensurePath(path):
   try:
     os.makedirs(path)
-  except OSError:
+  except FileExistsError:
     pass
+  except OSError:
+    printExit("Failed to create directory \"%s\" " % (path) )
   return path
 def setWorkingPath( fullPathName ):
   # Warning: this is not thread-safe, modifies the global WorkingPath!

@@ -22,6 +22,9 @@
 
 #ifndef REFERENCE_CPU_H
 #define REFERENCE_CPU_H
+#if defined(max)
+#undef max
+#endif
 #include "MathTemplates.h"
 #include "TensileTypes.h"
 #include <assert.h>

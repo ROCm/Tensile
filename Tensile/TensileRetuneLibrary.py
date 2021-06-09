@@ -23,10 +23,11 @@ from . import BenchmarkProblems
 from . import ClientExecutable
 from . import ClientWriter
 from . import LibraryIO
+from . import LibraryLogic
 from . import Common
-from .Common import globalParameters, print1, printExit, ensurePath, assignGlobalParameters, \
+from .Common import globalParameters, print1, printWarning, ensurePath, assignGlobalParameters, \
                     pushWorkingPath, popWorkingPath, restoreDefaultGlobalParameters, HR
-from .Tensile import addCommonArguments
+from .Tensile import addCommonArguments, argUpdatedGlobalParameters
 from .SolutionStructs import ProblemSizes
 from . import __version__
 
@@ -37,7 +38,7 @@ import shutil
 import sys
 
 
-def parseCurrentLibrary(libPath):
+def parseCurrentLibrary(libPath, skipRK):
     libYaml = LibraryIO.readYAML(libPath)
     # parseLibraryLogicData mutates the original data, so make a copy
     fields = LibraryIO.parseLibraryLogicData(copy.deepcopy(libYaml), libPath)
@@ -49,14 +50,28 @@ def parseCurrentLibrary(libPath):
 
     # process exactLogic into ProblemSizes
     sizes = []
-    for (size, _) in exactLogic:
+    for (size, mapping) in exactLogic:
+        if skipRK:
+            sol = solutions[mapping[0]]
+            if sol["ReplacementKernel"]:
+                continue
+
         sizes.append({"Exact": size})
+
+    if skipRK:
+        solutions = [s for s in solutions if not s["ReplacementKernel"]]
+
+    # remove duplicate solutions and reindex
+    solutions = [v1 for i, v1 in enumerate(solutions) if not any(v1 == v2 for v2 in solutions[:i])]
+    for i, s in enumerate(solutions):
+        s["SolutionIndex"] = i
+
     problemSizes = ProblemSizes(problemType, sizes)
 
     return (libYaml, solutions, problemSizes)
 
 
-def runBenchmarking(solutions, problemSizes, outPath):
+def runBenchmarking(solutions, problemSizes, outPath, update):
     # TODO some copy-pasting from BenchmarkProblems.benchmarkProblemType
     # could use a refactor to elimate duplicated code
     ClientExecutable.getClientExecutable()
@@ -64,8 +79,16 @@ def runBenchmarking(solutions, problemSizes, outPath):
     shortName = "benchmark"
     benchmarkDir = os.path.join(outPath, shortName)
     sourceDir = os.path.join(benchmarkDir, "source")
-    ensurePath(sourceDir)
+    resultsDir = os.path.normpath(os.path.join(globalParameters["WorkingPath"], "Data"))
+    libraryFile = os.path.join(resultsDir, "benchmark.yaml")
 
+    ensurePath(sourceDir)
+    ensurePath(resultsDir)
+
+    if update:
+        Common.globalParameters["LibraryUpdateFile"] = os.path.join(resultsDir, "update.yaml")
+
+    # legacy
     pushWorkingPath(shortName)
     pushWorkingPath("source")
 
@@ -100,12 +123,7 @@ def runBenchmarking(solutions, problemSizes, outPath):
         shutil.copy(
             os.path.join(globalParameters["SourcePath"], "FindHIP.cmake"),
             globalParameters["WorkingPath"] )
-
-    # make directory for results and set update yaml file
-    resultsDir = os.path.normpath(os.path.join(globalParameters["WorkingPath"], "../../Data"))
-    ensurePath(resultsDir)
-    updateFile = os.path.join(resultsDir, "update.yaml")
-    Common.globalParameters["LibraryUpdateFile"] = updateFile
+    # end legacy
 
     BenchmarkProblems.writeBenchmarkFiles(benchmarkDir, solutions, problemSizes, shortName, filesToCopy, [])
 
@@ -115,11 +133,21 @@ def runBenchmarking(solutions, problemSizes, outPath):
     forBenchmark = True
     # TODO make this work with TileAware selection
     returncode = ClientWriter.runClient(libraryLogicPath, forBenchmark, False)
-
     if returncode:
-        printExit("BenchmarkProblems: Benchmark Process exited with code %u" % returncode)
+        printWarning("Benchmarking Client exited with code {}. Trying to continue".format(returncode))
 
-    return updateFile
+    # write solutions yaml file
+    for sol in solutions:
+        sol["ISA"] = list(sol["ISA"])
+    LibraryIO.writeSolutions(libraryFile, problemSizes, [solutions])
+
+    popWorkingPath() # benchmark
+
+    # copy results to expected directory
+    out = os.path.join(globalParameters["WorkingPath"], "2_BenchmarkData")
+    ensurePath(out)
+    shutil.copy(os.path.join(resultsDir, "benchmark.csv"), os.path.join(out, "benchmark.csv"))
+    shutil.copy(os.path.join(resultsDir, "benchmark.yaml"), os.path.join(out, "benchmark.yaml"))
 
 
 def TensileRetuneLibrary(userArgs):
@@ -128,45 +156,83 @@ def TensileRetuneLibrary(userArgs):
     print1("#")
     print1("#  Tensile Retune Library v{}".format(__version__))
 
-    # setup argument parsing
+    # argument parsing and related setup
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("library_file", type=os.path.realpath, help="library logic file to retune")
-    argParser.add_argument("output_path", help="path where to conduct benchmark")
+    argParser.add_argument("LogicFile", type=os.path.realpath,
+                           help="Library logic file to retune")
+    argParser.add_argument("OutputPath",
+                           help="Where to run benchmarks and output results")
+    argParser.add_argument("--update-method", "-u", dest="updateMethod",
+                           choices=["remake", "update", "both"], default="remake",
+                           help="Method for making new library logic file")
+    argParser.add_argument("--skip-replacement-kernels", "-s", dest="skipRK", action="store_true",
+                           help="Exclude sizes and solutions related to replacement kernels. "
+                                "Forces update-method to 'remake'")
+
     addCommonArguments(argParser)
     args = argParser.parse_args(userArgs)
 
-    libPath = args.library_file
-
+    libPath = args.LogicFile
     print1("#  Library Logic: {}".format(libPath))
     print1("#")
     print1(HR)
     print1("")
 
-    # setup global parameters
-    outPath = ensurePath(os.path.abspath(args.output_path))
+    if args.skipRK and args.updateMethod != "remake":
+        printWarning("--skip-replacement-kernels=true only compatable with --update-method=remake:"
+                     "\n\tsetting --update-method=remake")
+        args.updateMethod = "remake"
+
+    if args.updateMethod == "remake":
+        update = False
+        remake = True
+    elif args.updateMethod == "update":
+        update = True
+        remake = False
+    else: # args.updateMethod == "both"
+        update = True
+        remake = True
+
+    ##############################################
+    # Retuning
+    ##############################################
+    outPath = ensurePath(os.path.abspath(args.OutputPath))
     restoreDefaultGlobalParameters()
     assignGlobalParameters({"LibraryFormat": "msgpack",
                             "OutputPath": outPath,
                             "WorkingPath": outPath})
 
-    # run main steps
-    (rawYaml, solutions, problemSizes) = parseCurrentLibrary(libPath)
-    updateFile = runBenchmarking(solutions, problemSizes, outPath)
+    overrideParameters = argUpdatedGlobalParameters(args)
+    for key, value in overrideParameters.items():
+        print1("Overriding {0}={1}".format(key, value))
+        Common.globalParameters[key] = value
 
-    # read update yaml from benchmark client and update logic
-    print1("")
-    print1(HR)
-    print1("# Reading update file from Benchmarking Client")
-    updateLogic = LibraryIO.readYAML(updateFile)
-    rawYaml[7] = updateLogic
+    # parse library logic then setup and run benchmarks
+    (rawYaml, solutions, problemSizes) = parseCurrentLibrary(libPath, args.skipRK)
+    runBenchmarking(solutions, problemSizes, outPath, update)
 
-    # write updated library logic (does not overwrite original)
-    libName = os.path.basename(libPath)
-    outFile = os.path.join(outPath, libName)
+    if remake:
+        # write library logic file
+        LibraryLogic.main({"ScheduleName": rawYaml[1],
+                           "ArchitectureName": rawYaml[2],
+                           "DeviceNames": rawYaml[3] })
 
-    print1("# Writing updated Library Logic: {}".format(outFile))
-    LibraryIO.writeYAML(outFile, rawYaml, explicit_start=False, explicit_end=False)
-    print(HR)
+    if update:
+        # read update yaml from benchmark client and update logic
+        print1("")
+        print1(HR)
+        print1("# Reading update file from Benchmarking Client")
+        updateFile = os.path.join(outPath, "Data", "update.yaml")
+        updateLogic = LibraryIO.readYAML(updateFile)
+        rawYaml[7] = updateLogic
+
+        # write updated library logic (does not overwrite original)
+        libName = os.path.basename(libPath)
+        outFile = os.path.join(outPath, libName)
+
+        print1("# Writing updated Library Logic: {}".format(outFile))
+        LibraryIO.writeYAML(outFile, rawYaml, explicit_start=False, explicit_end=False)
+        print1(HR)
 
 
 def main():
