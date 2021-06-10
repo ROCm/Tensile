@@ -1,9 +1,9 @@
 # Change Log for Tensile
-## [(Unreleased) Tensile 4.29.0 for ROCm 4.4.0]
+## [Tensile 4.29.0 for ROCm 4.4.0]
 ### Added
 - Custom Kernel mechanism for adding custom assembly kernels to Tensile
 - New assertions for problems sizes, alpha/beta values, and C equals D
-
+- Support setting VectorWidth in M dimension in MFMA SourceSwap configuration
 
 ## [Tensile 4.28.0 for ROCm 4.3.0]
 ### Added
