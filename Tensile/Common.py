@@ -1658,7 +1658,7 @@ def GetArchCaps(isaVersion):
   rv["SeparateVscnt"]    = isaVersion[0] == 10
   rv["CMPXWritesSGPR"]   = isaVersion[0] != 10
   rv["HasWave32"]        = isaVersion[0] == 10
-  rv["HasVmAcc"]         = (isaVersion==(9,0,10))
+  rv["HasAccCD"]         = (isaVersion==(9,0,10))
 
   return rv
 

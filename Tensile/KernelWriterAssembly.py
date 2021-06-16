@@ -12081,19 +12081,24 @@ class KernelWriterAssembly(KernelWriter):
 
     acc2arch, _ = self.AccToArchMapper(kernel)
 
-    complexMultiplier = 2 if kernel["ProblemType"]["DataType"].isComplex() else 1
     self.codeMulAlpha = Code.Module("MulAlpha")
-    self.codeMulAlpha.itemList = [None] * complexMultiplier * len(acc2arch)
-    accImOffset = self.AccVgprImagNumOffset(kernel)
-    # only support Dgemm for now
-    assert(kernel["ProblemType"]["ComputeDataType"].isDouble())
+    self.codeMulAlpha.itemList = [None] * len(acc2arch)
     for i in range(len(acc2arch)):
-      for cm in range(complexMultiplier):
-        destIdx = (acc2arch[i]*complexMultiplier + cm)
-        srcIdx = ((i * kernel["MIRegPerOut"] ) + (cm*accImOffset))
+      destIdx = acc2arch[i]
+      srcIdx  = i * kernel["MIRegPerOut"]
+      if kernel["ProblemType"]["ComputeDataType"].isDouble():
         self.codeMulAlpha.itemList[destIdx] = Code.Inst("v_mul_f64", vgpr("ValuC+__placeholder__",2),
-                                                         sgpr("Alpha",2),
-                                                         vgpr("ValuC+%u"%srcIdx,2), "Multiply MI out reg with alpha")
+                                                       sgpr("Alpha",2),
+                                                       vgpr("ValuC+%u"%srcIdx,2), "Multiply MI out reg with alpha")
+      elif kernel["ProblemType"]["ComputeDataType"].isSingle() or \
+          (kernel["ProblemType"]["ComputeDataType"].isHalf() and kernel["ProblemType"]["HighPrecisionAccumulate"]):
+        self.codeMulAlpha.itemList[destIdx] = Code.Inst("v_mul_f32", vgpr("ValuC+__placeholder__"),
+                                                       sgpr("Alpha"),
+                                                       vgpr("ValuC+%u"%srcIdx), "Multiply MI out reg with alpha")
+      elif kernel["ProblemType"]["ComputeDataType"].isInt32():
+        self.codeMulAlpha.itemList[destIdx] = Code.Inst("v_mul_lo_u32", vgpr("ValuC+__placeholder__"),
+                                                       sgpr("Alpha"),
+                                                       vgpr("ValuC+%u"%srcIdx), "Multiply MI out reg with alpha")
 
     return kStr
 
