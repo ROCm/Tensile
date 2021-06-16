@@ -704,10 +704,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       iterCode.addCode(waitCode)
 
       # interleave pack code
-      # BF16: each packCode is for one 32-bit reg,  1 packing inst: half-to-single x1
-      # FP16: each packCode is for two 32-bit regs, 2 packing inst: half-to-single x2
-      # INT8: each packCode is for one 32-bit regs, 3 packing inst: byte-to-half x2 + half-to-single x1
-      instPerPack = 3 if kernel["ProblemType"]["DataType"].isInt8() else ( 1 if kernel["ProblemType"]["DataType"].isBFloat16() else 2 )
+      # BF16 or FP16: each packCode is for one 32-bit reg,  1 packing inst: half-to-single x1
+      # INT8        : each packCode is for one 32-bit regs, 3 packing inst: byte-to-half x2 + half-to-single x1
+      instPerRegPack = 1 / kernel["ProblemType"]["DataType"].numRegisters() - 1
+      instPerPack    = int(kernel["MIInputPerThread"] * kernel["ProblemType"]["DataType"].numRegisters() * instPerRegPack)
       packItems = []
       for iui in range(kernel["InnerUnroll"]):
         packINtems = [ [] for j in range(max(self.numReadsIterCoalescedA,self.numReadsIterCoalescedB)) ]
@@ -854,8 +854,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # since the mfma reuse B first =>    for A: mfma[A][B]
       # we need 1 vector A and 1 vector B for first mfma
       # then we prepare remaining A, then remaining B
+      # BF16 or FP16: each packCode is for one 32-bit reg,  1 packing inst: half-to-single x1
+      # INT8        : each packCode is for one 32-bit regs, 3 packing inst: byte-to-half x2 + half-to-single x1
       ####
-      instPerPack = 3 if kernel["ProblemType"]["DataType"].isInt8() else ( 1 if kernel["ProblemType"]["DataType"].isBFloat16() else 2 )
+      instPerRegPack = 1 / kernel["ProblemType"]["DataType"].numRegisters() - 1
+      instPerPack    = int(kernel["MIInputPerThread"] * kernel["ProblemType"]["DataType"].numRegisters() * instPerRegPack)
       packItems = []
       for iui in range(kernel["InnerUnroll"]):
         packINtems = [ [] for j in range(max(self.numReadsIterCoalescedA,self.numReadsIterCoalescedB)) ]
