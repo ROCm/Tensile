@@ -4097,4 +4097,7 @@ class Solution(collections.abc.Mapping):
 
   @property
   def enabledSetPrioSplitLDS(self):
-    return self.enabledSplitLDS and True
+    # The interaction between SplitLDS's priority policy and StorePriorityOpt's is yet to be
+    # investigated. For now, disable SplitLDS's priority policy when StorePriorityOpt is present
+    # TODO: determine suitable priority policy when both are present
+    return self.enabledSplitLDS and not self["StorePriorityOpt"]
