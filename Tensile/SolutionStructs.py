@@ -3293,13 +3293,13 @@ class Solution:
 
     # check if need to use lds init Acc vgprs
     state["LdsInitCVgprs"] = False
-    if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasAccCD"] and \
+    if globalParameters["ArchCaps"][isa]["HasAccCD"] and \
          state["EnableMatrixInstruction"] and state["StorePriorityOpt"] and \
          state["ProblemType"]["DataType"].isDouble():
       state["LdsInitCVgprs"] = True
 
     if state["MIArchVgpr"]:
-      if not globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasAccCD"] or \
+      if not globalParameters["ArchCaps"][isa]["HasAccCD"] or \
          not state["EnableMatrixInstruction"]:
         reject(state, "MIArchVgpr requires gcn support ACC_CD bit for MatrixInstruction")
         return
