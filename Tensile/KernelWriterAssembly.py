@@ -567,9 +567,6 @@ class KernelWriterAssembly(KernelWriter):
     self.localReadOffsetA = 0
     self.localReadOffsetB = 0
     self.inTailLoop = False
-    self.serializedStore = False
-    self.codeAccVgprRead = None
-    self.codeMulAlpha = None
 
   @property
   def vcc(self) -> str:
@@ -1291,6 +1288,8 @@ class KernelWriterAssembly(KernelWriter):
     self.kernelName = self.getKernelName(kernel)
     self.inTailLoop = False
     self.serializedStore = False
+    self.codeAccVgprRead = None
+    self.codeMulAlpha = None
 
     # registers per element
     self.bpr = 4 # all registers are 32bit
@@ -10525,15 +10524,14 @@ class KernelWriterAssembly(KernelWriter):
         codeMulAlpha    = deepcopy(self.codeMulAlpha) if self.serializedStore else None
 
         self.alphaBeforeLoadC = False
-        if kernel["MIArchVgpr"]:
-          if applyAlpha:
-            codeAccVgprRead = None
-          else:
-            codeMulAlpha    = None
+        if kernel["MIArchVgpr"] and applyAlpha:
+          codeAccVgprRead = None
 
           #Only apply when 2 wave optimization features are enabled
           if (kernel["StorePriorityOpt"] or ["StoreSyncOpt"]) and beta:
             self.alphaBeforeLoadC = True
+        else:
+          codeMulAlpha = None
 
         for batchIdx in range(0, numBatches):
           elementStartIdx = batchIdx * numElementsPerBatch
