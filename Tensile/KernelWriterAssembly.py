@@ -1681,7 +1681,7 @@ class KernelWriterAssembly(KernelWriter):
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
       # if PGR = True, PAP coubld be possibly enabled, we move G2LA later to prevent it from being reclaimed
       # otherwise, put G2L here since it can overlap valu
-      if not kernel["PrefetchGlobalRead"] and kernel["DepthULdsDivisor"] == 1: # g2l can overlap valu
+      if not kernel["PrefetchGlobalRead"] and not kernel.enabledSplitLDS: # g2l can overlap valu
         self.startVgprG2LA = self.startVgprValuA
         vgprIdx = self.startVgprValuA \
             + max(self.numVgprValuAPerBlock*valuBlocks, self.numVgprG2LA)
@@ -1693,7 +1693,7 @@ class KernelWriterAssembly(KernelWriter):
     if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
       # if PGR = True, PAP coubld be possibly enabled, we move G2LB later to prevent it from being reclaimed
       # otherwise, put G2L here since it can overlap valu
-      if not kernel["PrefetchGlobalRead"] and kernel["DepthULdsDivisor"] == 1: # g2l can overlap valu
+      if not kernel["PrefetchGlobalRead"] and not kernel.enabledSplitLDS: # g2l can overlap valu
         self.startVgprG2LB = self.startVgprValuB
         vgprIdx = self.startVgprValuB \
             + max(self.numVgprValuBPerBlock*valuBlocks, self.numVgprG2LB)
@@ -3318,6 +3318,8 @@ class KernelWriterAssembly(KernelWriter):
 
       # kStr += legacyGetKernelArgs(kernel)
 
+      if kernel.enabledSetPrioSplitLDS:
+        kStr += inst("s_setprio", "1", "prioritize init code so as to issue load sooner")
       kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for %u bytes of kern args" % self.kernArgOffset )
 
       if not kernel["ProblemType"]["StridedBatched"]:
@@ -4842,7 +4844,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     uReg = tP["gpr"]["uReg2" if kernel["GlobalSplitU"] > 1 else "uReg"]
     kStr += self.comment1("lwaUnrollAssignment%s = %s" % (tP["tensorChar"], vgpr(uReg)))
-    if kernel["DepthULdsDivisor"] > 1 and kernel["UnrollMajorLDS%s" % tP["tensorChar"]]:
+    if kernel.enabledSplitLDS and kernel["UnrollMajorLDS%s" % tP["tensorChar"]]:
       if self.inTailLoop:
         subIterReg = self.vgprPool.checkOut(1, "subIterReg")
         kStr += self.comment1("Each wg writes 1/%u of G2L data to LDS"%kernel["DepthULdsDivisor"])
@@ -4995,7 +4997,7 @@ class KernelWriterAssembly(KernelWriter):
                    "Mask load so out-of-gr-tile bounds returns 0")
       self.vgprPool.checkIn(tmpVgpr)
 
-    elif self.inTailLoop and kernel["DepthULdsDivisor"]>1: # where (DepthU for global read) != (DepthU for compute)
+    elif self.inTailLoop and kernel.enabledSplitLDS: # where (DepthU for global read) != (DepthU for compute)
       tmpSgpr = self.getTmpSgpr(1).idx()
 
       # only for TN tensor + TN lds layout
@@ -5910,9 +5912,9 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cbranch_scc1 %s"%(loopLabelEndOddExit), "exit Loop%s"%loopChar )
     else: #finalLoop:
 
-      if tailLoop and kernel["DepthULdsDivisor"] > 1:
+      if tailLoop and kernel.enabledSplitLDS:
         tailLoopLabelEnd = self.getNamedLabel(
-          "TailLoopEnd%s%s"%(loopChar, "_G2L%s"%(kernel["DepthULdsDivisor"]-1) if kernel["DepthULdsDivisor"] > 1 else "") )
+          "TailLoopEnd%s%s"%(loopChar, "_G2L%s"%(kernel["DepthULdsDivisor"]-1) if kernel.enabledSplitLDS else "") )
         kStr += inst("s_cbranch_scc1", tailLoopLabelEnd, "break Loop%s"%loopChar)
         thresForNextSubLoop = (uDu+1)*(kernel["_DepthULds"])
         kStr += inst("s_cmp_ge_u32", sgpr("OrigLoopCounter"), thresForNextSubLoop,
@@ -7795,7 +7797,7 @@ class KernelWriterAssembly(KernelWriter):
       # TODO: If DepthULdsDivisor>1, local read addr is incremented for each K the loop iterates, which
       # upon second sub-loop needs to be reset to its original value. Backing up local read address would
       # be nicer than recomputing them
-      if kernel["DepthULdsDivisor"] > 1 or ((self.numReadsIterCoalescedA > 1 or self.numReadsIterCoalescedB > 1) and kernel["MatrixInstB"] == 1): #and tP["isB"]:
+      if kernel.enabledSplitLDS or ((self.numReadsIterCoalescedA > 1 or self.numReadsIterCoalescedB > 1) and kernel["MatrixInstB"] == 1): #and tP["isB"]:
         self.numReadsIterCoalescedA = 1
         self.numReadsIterCoalescedB = 1
         self.lrvwA = kernel["MIInputPerThread"]
@@ -8959,6 +8961,8 @@ class KernelWriterAssembly(KernelWriter):
 
     # Global Write
     ntStr = ""
+    if kernel.enabledSetPrioSplitLDS:
+      kStr += inst("s_setprio", "1", "")
     if kernel["NonTemporalC"]%2==1:
       ntStr += " glc"
     if kernel["NonTemporalC"]//2==1:
@@ -11078,6 +11082,8 @@ class KernelWriterAssembly(KernelWriter):
 
     ########################################
     # AccVgpr read
+    if kernel.enabledSetPrioSplitLDS:
+      kStr += inst("s_setprio", "0", "")
     if codeAccVgprRead is not None:
       regsPerScalar = self.bpeCinternal//self.bpr # register per scalar
       # loop over store instructions within one batch
@@ -11916,7 +11922,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr = ""
       if self.archCaps["SeparateVscnt"]:
         kStr += inst("s_waitcnt_lgkmcnt", "null", "0", "extra navi wait")
-      elif kernel["DepthULdsDivisor"] > 1 or kernel["ScheduleIterAlg"] == 2 \
+      elif kernel.enabledSplitLDS or kernel["ScheduleIterAlg"] == 2 \
         or kernel["PrefetchGlobalRead"] == 2 or self.prefetchAcrossPersistent:
         kStr += "// Skip force waitcnt0" + self.endLine
       elif self.archCaps["Waitcnt0Disabled"]:

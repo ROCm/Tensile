@@ -1742,7 +1742,7 @@ def isExtractableIndex(ks, index, tc='x'):
 ################################################################################
 # Solution
 ################################################################################
-class Solution:
+class Solution(collections.abc.Mapping):
 
   ########################################
   def __init__(self, config):
@@ -1799,8 +1799,8 @@ class Solution:
   ########################################
   # get a list of kernel parameters for this solution
   def getKernels(self):
-    kernel = deepcopy(self._state)
-    kernel.update({"Kernel": True})
+    kernel = deepcopy(self)
+    kernel._state.update({"Kernel": True})
     kernels = []
     kernels.append(kernel)
     return kernels
@@ -2639,10 +2639,13 @@ class Solution:
     # Set up stagger shift:
     bpeAB = int(4*state["ProblemType"]["DataType"].numRegisters())
     # (1<<staggerStrideShift) is number of loop iterations to traverse the stride
+    if state["StaggerU"] == 0:
+      state["StaggerUMapping"] = 0
+      state["StaggerUStride"] = 0
     try:
         staggerStrideShift = (int)(math.ceil(math.log(state["StaggerUStride"] / \
                 (state["DepthU"] * bpeAB), 2)))
-    except ValueError:
+    except ValueError: # i.e., StaggerUStride == 0
         staggerStrideShift = 0
     if staggerStrideShift < 0:
       reject(state, "StaggerUStride=%u is less than size of DepthU=%u * BytesPerElement=%u" \
@@ -2650,8 +2653,6 @@ class Solution:
       return
     #print "staggerStrideShift=", staggerStrideShift, "depthu=", state["DepthU"]
     state["_staggerStrideShift"] = staggerStrideShift
-    if state["StaggerU"] == 0:
-      state["StaggerUMapping"] = 0
 
     # VectorWidth default handling
     if state["VectorWidth"] < 1:
@@ -3505,10 +3506,6 @@ class Solution:
           reject(state, "wider localRead only support (PrefetchLocalRead %u >= LoopIters %u) or (InnerUnroll %u > LocalReadxN)" % (state["PrefetchLocalRead"],state["LoopIters"],state["InnerUnroll"]))
 
     if state["DepthULdsDivisor"] > 1:
-      if not (state["ProblemType"]["DataType"].isHalf() or \
-              state["ProblemType"]["DataType"].isBFloat16() or \
-              state["ProblemType"]["DataType"].isSingle()):
-        reject(state, "DepthULdsDivisor > 1 does not support DataType other than F16, BF16 or F32 yet.")
       if state["PrefetchGlobalRead"] == 2:
         reject(state, "DepthULdsDivisor > 1 does not support PrefetchGlobalRead=2")
       if state["ScheduleIterAlg"] != 3:
@@ -3519,8 +3516,8 @@ class Solution:
         reject(state, "DepthULdsDivisor > 1: Only works with TN problem layout and TransposeLDS")
       if state["PrefetchGlobalRead"]==1 and state["PrefetchLocalRead"]==0:
         reject(state, "PGR1 + PLR0 in SplitLDS requires double G2L buffer which is yet to be implemented")
-      if state["ProblemType"]["DataType"].numRegisters()*state["GlobalReadVectorWidth"]//state["DepthULdsDivisor"] < 1:
-        reject(state, "SplitLDS requires wider GlobalReadVectorWidth (assert RegisterPerElem (%f) * GRVW (%u) // DepthULdsDivisor (%u) >= 1"%
+      if state["ProblemType"]["DataType"].numRegisters()*state["GlobalReadVectorWidth"] < state["DepthULdsDivisor"]:
+        reject(state, "SplitLDS requires wider GlobalReadVectorWidth; needs RegisterPerElem (%f) * GRVW (%u) >= DepthULdsDivisor (%u)"%
           (state["ProblemType"]["DataType"].numRegisters(),state["GlobalReadVectorWidth"],state["DepthULdsDivisor"]))
 
     if state["LocalWritePerMfma"] == -2:
@@ -4105,3 +4102,14 @@ class Solution:
     if result is NotImplemented:
       return result
     return not result
+
+  @property
+  def enabledSplitLDS(self):
+    return self["DepthULdsDivisor"] > 1
+
+  @property
+  def enabledSetPrioSplitLDS(self):
+    # The interaction between SplitLDS's priority policy and StorePriorityOpt's is yet to be
+    # investigated. For now, disable SplitLDS's priority policy when StorePriorityOpt is present
+    # TODO: determine suitable priority policy when both are present
+    return self.enabledSplitLDS and not self["StorePriorityOpt"]
