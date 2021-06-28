@@ -1,6 +1,7 @@
 *.pyc
 *.sw*
 *.xml
+!rtest.xml
 *.vscode
 Tensile.egg-info
 build*
