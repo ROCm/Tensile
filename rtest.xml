@@ -2,38 +2,23 @@
 <!DOCTYPE testset SYSTEM "/usr/local/share/rtest.dtd">
 <testset>
     <fileversion>0.1</fileversion>
-    <var name="COMPILER">hipcc</var>
     <var name="PYTHON_VERSION">py36</var>
-    <var name="SKIP_HOST"></var>
+    <var name="SKIP_HOST">#</var>
     <var name="SKIP_HOST_EXTENDED"></var>
     <var name="GPU_ARCH"></var>
-    <var name="TEST_DIR"></var>
-    <var name="TEST_MARKS"></var>
-    <test sets="osdb,psdb,host">
-        <always>
-            <env name="PATH">/opt/rocm/bin:$PATH</env>
-            <run name="host-tests">
-                {SKIP_HOST} pushd build
-                {SKIP_HOST} ./TensileTests {SKIP_HOST_EXTENDED} --gtest_output=xml:host_test_output.xml --gtest_color=yes
-                {SKIP_HOST} HOST_ERR=$?
-                {SKIP_HOST} [[ $HOST_ERR -ne 0 ]] &amp;&amp; echo -n $HOST_ERR > host_err
-                {SKIP_HOST} popd
-            </run>
-        </always>
+    <var name="TEST_DIR">Tensile/Tests</var>
+    <var name="TEST_MARKS">*</var>
+
+    <test sets="psdb,osdb,host">
+        <run name="host_tests">{SKIP_HOST} ./TensileTests {SKIP_HOST_EXTENDED} --gtest_output=xml:host_test_output.xml --gtest_color=yes</run>
     </test>
-    <test sets="osdb,psdb,tox">
-        <always>
-            <env name="PATH">/opt/rocm/bin:$PATH</env>
-            <!-- temporary fix to remedy incorrect home directory -->
-            <env name="HOME">/home/jenkins</env>
-            <env name="TENSILE_COMPILER">{COMPILER}</env>
-            <run name="tox-tests">
-                tox --version
-                tox -v --workdir /tmp/.tensile-tox -e {PYTHON_VERSION} -- {TEST_DIR} -m "{TEST_MARKS}" --timing-file=$PWD/timing-{GPU_ARCH}.csv
-                PY_ERR=$?
-                [[ $PY_ERR -ne 0 ]] &amp;&amp; echo -n $PY_ERR > py_err
-                date
-            </run>
-        </always>
+    <test sets="psdb">
+        <run name="pre_checkin">tox -v --workdir /tmp/.tensile-tox -e {PYTHON_VERSION} -- {TEST_DIR} -m "pre_checkin" --timing-file=$PWD/timing-{GPU_ARCH}.csv</run>
+    </test>
+    <test sets="osdb">
+        <run name="pre_checkin_extended">tox -v --workdir /tmp/.tensile-tox -e {PYTHON_VERSION} -- {TEST_DIR} -m "pre_checkin or extended" --timing-file=$PWD/timing-{GPU_ARCH}.csv</run>
+    </test>
+    <test sets="custom">
+        <run name="custom_marks">tox -v --workdir /tmp/.tensile-tox -e {PYTHON_VERSION} -- {TEST_DIR} -m "{TEST_MARKS}" --timing-file=$PWD/timing-{GPU_ARCH}.csv</run>
     </test>
 </testset>
