@@ -88,33 +88,40 @@ def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest
     String compiler = 'hipcc'
     String pythonVersion = 'py36'
     String markSkipHostTest = skipHostTest ? "#" : ""
-    String markSkipExtendedTest = !test_marks.contains("extended") ? '--gtest_filter=-"*Extended*"' : ""
+    String markSkipExtendedTest = !test_marks.contains("extended") ? "--gtest_filter=-\"*Extended*\"" : ""
 
-    String command = """#!/usr/bin/env bash
+    def command = """#!/usr/bin/env bash
             set -x
 
             hostname
 
+            export PATH=/opt/rocm/bin:\$PATH
             cd ${project.paths.project_build_prefix}
 
-            rtest.py -t host \
-                -a SKIP_HOST "${markSkipHostTest}" \
-                -a SKIP_HOST_EXTENDED "${markSkipExtendedTest}
+            gpuArch=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
 
-            rtest.py -t tox \
-                -a PYTHON_VERSION "${pythonVersion}" \
-                -a GPU_ARCH "\$(/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1)" \
-                -a TEST_DIR "${test_dir}" \
-                -a TEST_MARKS "${test_marks}"
+            ${markSkipHostTest}pushd build
+            ${markSkipHostTest}./TensileTests ${markSkipExtendedTest} --gtest_output=xml:host_test_output.xml --gtest_color=yes
+            ${markSkipHostTest}HOST_ERR=\$?
+            ${markSkipHostTest}popd
 
-            ${markSkipHostTest}if [[ -e host_err ]]
+            #### temporary fix to remedy incorrect home directory
+            export HOME=/home/jenkins
+            ####
+            tox --version
+            export TENSILE_COMPILER=${compiler}
+            tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --timing-file=\$(pwd)/timing-\$gpuArch.csv
+            PY_ERR=\$?
+            date
+
+            ${markSkipHostTest}if [[ \$HOST_ERR -ne 0 ]]
             ${markSkipHostTest}then
-            ${markSkipHostTest}    exit \$(cat host_err)
+            ${markSkipHostTest}    exit \$HOST_ERR
             ${markSkipHostTest}fi
 
-            if [[ -e py_err ]]
+            if [[ \$PY_ERR -ne 0 ]]
             then
-                exit \$(cat py_err)
+                exit \$PY_ERR
             fi
         """
 
