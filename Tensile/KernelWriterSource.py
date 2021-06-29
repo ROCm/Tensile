@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -531,7 +531,6 @@ class KernelWriterSource(KernelWriter):
 
     if kernel["ProblemType"]["DataType"].isReal():
       # real data
-
       if ((kernel["ThreadTileA"] % 2 == 0) and (kernel["ProblemType"]["DataType"].isHalf())):
         if kernel["ProblemType"]["HighPrecisionAccumulate"]:
           kStr += "#define TYPE_MAC(MULA0,MULB0,DST0,MULA1,MULB1,DST1) " + self.endLinePP
@@ -620,10 +619,17 @@ class KernelWriterSource(KernelWriter):
           "  DST.s1 = MAC( -MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
 
       if kernel["GlobalSplitU"] > 1: # 1st kernel will have taken care of B
-        if kernel["ProblemType"]["UseBeta"]:
-          kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) atomicAddType(&(DST), (ALPHA)*(REG));"
-        else:
-          kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG) atomicAddType(&(DST), (ALPHA)*(REG));"
+        if kernel["_GlobalAccumulation"] != 'MultipleBuffer': # 1st kernel would take care of Beta
+          if kernel["ProblemType"]["UseBeta"]:
+            kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) atomicAddType(&(DST), (ALPHA)*(REG));" + self.endLine
+          else:
+            kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG) atomicAddType(&(DST), (ALPHA)*(REG));" + self.endLine
+        elif kernel["_GlobalAccumulation"] == 'MultipleBuffer': # 2nd kernel would take care of Alpha and Beta
+          if kernel["ProblemType"]["UseBeta"]:
+            kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) DST = (REG);" + self.endLine
+          else:
+            kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG) DST = (REG);" + self.endLine
+
       else:
         if kernel["ProblemType"]["UseBeta"]:
           # dst = alpha*reg + beta*dst
@@ -833,8 +839,12 @@ class KernelWriterSource(KernelWriter):
     if self.language == "HIP":
       #s += "  hipLaunchParm lp," + self.endLine
       globalStr = ""
-    ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language) \
-        if not kernel["_GlobalAccumulation"] else "float"
+    ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
+    if kernel["_GlobalAccumulation"]:
+      ptrStr = kernel["ProblemType"]["ComputeDataType"].toDevice(self.language)
+      if kernel["ProblemType"]["DataType"].isHalf() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
+        ptrStr = DataType('single').toDevice(self.language)
+
     isStridedBuffer = kernel["ProblemType"]["StridedBatched"] or kernel["_GlobalAccumulation"]
     ptrStr  += ("" if isStridedBuffer else "*")
     batchStr = ("" if isStridedBuffer else "Batch")
@@ -2871,8 +2881,22 @@ class KernelWriterSource(KernelWriter):
             % (self.indexChars[i])
         if isPackedIndex(kernel,i):
           kStr += "0; // define, will be set below%s" % (self.endLine)
-        else:
+        elif kernel["ProblemType"]["StridedBatched"] or kernel["_GlobalAccumulation"]:
           kStr += "(wg%s);%s" % (self.indexChars[i], self.endLine)
+        else:
+          kStr += "0;%s" % (self.endLine)
+
+    if kernel["_GlobalAccumulation"] == 'MultipleBuffer':
+      indexChar = self.indexChars[0]
+      kStr += "  %s strideW = 1 + (size%s - 1) " % (self.uint64Str, indexChar)
+      for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
+        strideStr = "1"
+        for j in range(0, i):
+          strideStr += " * size%s" % (self.indexChars[j])
+        indexChar = self.indexChars[i]
+        kStr += " + (size%s - 1) * %s" % (indexChar, strideStr)
+      kStr += ";" + self.endLine
+
     return kStr
 
   ##############################################################################

@@ -2395,22 +2395,26 @@ class Solution(collections.abc.Mapping):
         state['_'+s] = state[s]
         #del state[s]
 
-    dataType = state["ProblemType"]["DataType"]
-    state["_GlobalAccumulation"] = None
-    if ((dataType.isBFloat16() or dataType.isHalf())
-        and state["ProblemType"]["HighPrecisionAccumulate"]
-        and state["GlobalSplitU"] > 1):
-      if state["GlobalSplitUAlgorithm"] == "SingleBuffer":
-        state["_GlobalAccumulation"] = 'SingleBuffer'
-      if state["GlobalSplitUAlgorithm"] == "MultipleBuffer":
-        state["_GlobalAccumulation"] = 'MultipleBuffer'
-
-    if state["_GlobalAccumulation"] == 'SingleBuffer':
-      state["_WorkspaceSizePerElemC"] = 4
-    elif state["_GlobalAccumulation"] == 'MultipleBuffer':
-      state["_WorkspaceSizePerElemC"] = 4 * state["GlobalSplitU"]
-    else:
+    if ("_GlobalAccumulation" not in state) or ("_WorkspaceSizePerElemC" not in state):
+      state["_GlobalAccumulation"] = None
       state["_WorkspaceSizePerElemC"] = 0
+      if state["GlobalSplitU"] > 1:
+        computeName  = state["ProblemType"]["ComputeDataType"].toName()
+        computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
+        if state["ProblemType"]["DataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]:
+          computeName  = DataType('single').toName()
+          computeBytes = DataType('single').numBytes()
+
+        if state["GlobalSplitUAlgorithm"] == 'SingleBuffer':
+          if computeName != state["ProblemType"]["DestDataType"].toName():
+            state["_GlobalAccumulation"] = 'SingleBuffer'
+        elif state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':
+          state["_GlobalAccumulation"] = 'MultipleBuffer'
+
+        if state["_GlobalAccumulation"] == 'SingleBuffer':
+          state["_WorkspaceSizePerElemC"] = computeBytes
+        elif state["_GlobalAccumulation"] == 'MultipleBuffer':
+          state["_WorkspaceSizePerElemC"] = computeBytes * state["GlobalSplitU"]
 
     if state["VectorStore"] == -1:
         state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel
@@ -2743,12 +2747,13 @@ class Solution(collections.abc.Mapping):
 
     # LocalSplitU too large?
     numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
+
     if numElementsPerWorkGroup < state["NumThreads"]:
       reject(state, "NumElementsPerWorkGroup %u < NumThreads %u; reduce LocalSplitU" \
           % (numElementsPerWorkGroup, state["NumThreads"]))
       return
-    state["NumElementsPerThread"] = numElementsPerWorkGroup // \
-        state["NumThreads"]
+
+    state["NumElementsPerThread"] = numElementsPerWorkGroup // state["NumThreads"]
     state["GlobalWriteVectorWidth"] = min(state["VectorWidth"], state["NumElementsPerThread"] )
     if state["NumElementsPerThread"] % state["GlobalWriteVectorWidth"] != 0:
       reject(state, "LSU NumElementsPerThread %u not divisible into GWVW %u" \
@@ -2779,12 +2784,13 @@ class Solution(collections.abc.Mapping):
         return
       # added GSU support for DGEMM
       supported = \
-        state["ProblemType"]["DataType"].isSingle() or \
+        (state["ProblemType"]["DataType"].isSingle()) or \
         (state["ProblemType"]["DataType"].isDouble() and state["BufferStore"]) or \
-        state["ProblemType"]["DestDataType"].isInt32() or \
-        (state["KernelLanguage"] == "Assembly" and \
-         (state["ProblemType"]["DataType"].isHalf() and not state["ProblemType"]["HighPrecisionAccumulate"]) or \
-         state["_GlobalAccumulation"])
+        (state["ProblemType"]["DestDataType"].isInt32()) or \
+        (state["KernelLanguage"] == "Assembly" and
+            (state["ProblemType"]["DataType"].isHalf() and not state["ProblemType"]["HighPrecisionAccumulate"]) or
+            (state["_GlobalAccumulation"])
+        )
       if not supported:
         reject(state, "GlobalSplitU only compatible with single or asm and (half or mixed) precision")
         return
@@ -3261,7 +3267,11 @@ class Solution(collections.abc.Mapping):
       defaultRemap = max(defaultRemap,state["MacroTile0"]//state["WavefrontSize"])
       ldsRemapPad = max(defaultRemap,state["MIOutputVectorWidth"])
       ldsNumElementsRemapC = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"] * state["MIWaveGroup"][1]
-      ldsNumElementsRemapC *= (2 if state["_GlobalAccumulation"] else 1) # FP32 output FP16 Data
+      if state["_GlobalAccumulation"]:
+        computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
+        if state["ProblemType"]["DataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]:
+          computeBytes = DataType('single').numBytes()
+        ldsNumElementsRemapC *= (computeBytes / state["ProblemType"]["DestDataType"].numBytes())
       ldsSize = ldsNumElementsRemapC * state["ProblemType"]["DataType"].numBytes()
       if not math.log(state["MacroTile0"],2).is_integer() or \
           ldsSize > globalParameters["MaxLDS"] or \
@@ -3349,7 +3359,11 @@ class Solution(collections.abc.Mapping):
       storeInstMinWidth = 1 # minimum dwordx1
       storeInstMaxWidth = 4 # maximum dwordx4
       srMinVw = max(storeInstMinWidth, int(storeInstMinWidth/state["ProblemType"]["DestDataType"].numRegisters()))
-      numReg  = 1 if state["_GlobalAccumulation"] else state["ProblemType"]["DestDataType"].numRegisters()
+      numReg  = state["ProblemType"]["DestDataType"].numRegisters()
+      if state["_GlobalAccumulation"]:
+        numReg = state["ProblemType"]["ComputeDataType"].numRegisters()
+        if state["ProblemType"]["DataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]:
+          numReg = DataType('single').numRegisters()
       srMaxVw = int(storeInstMaxWidth/numReg)
       if srMinVw > state["StoreRemapVectorWidth"] or srMaxVw < state["StoreRemapVectorWidth"]:
         reject(state, "StoreRemapVectorWidth %u is not allowed for this data type" % state["StoreRemapVectorWidth"])
@@ -3367,8 +3381,10 @@ class Solution(collections.abc.Mapping):
       ldsNumElementsRemapC = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"] * state["MIWaveGroup"][1]
 
       if state["_GlobalAccumulation"]:
-        # FP32 output FP16 Data
-        multiplier = 2
+        computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
+        if state["ProblemType"]["DataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]:
+          computeBytes = DataType('single').numBytes()
+        multiplier = computeBytes // state["ProblemType"]["DataType"].numBytes()
       elif state["ProblemType"]["DestDataType"].numBytes() > state["ProblemType"]["DataType"].numBytes():
         # Determine ratio of output to input element size.
         # SRVW remaps output so we need to scale up resources.
