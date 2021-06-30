@@ -129,7 +129,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [250, 250, 1, 8000000]
+          - Exact: [80, 80, 1, 8000000]
 
   ########################################
   # TT / TLUA = 0, TLUB = 1
