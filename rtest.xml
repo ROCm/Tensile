@@ -13,12 +13,12 @@
         <run name="host_tests">{SKIP_HOST} ./TensileTests {SKIP_HOST_EXTENDED} --gtest_output=xml:host_test_output.xml --gtest_color=yes</run>
     </test>
     <test sets="psdb">
-        <run name="pre_checkin">tox -v --workdir /tmp/.tensile-tox -e {PYTHON_VERSION} -- {TEST_DIR} -m "pre_checkin" --timing-file=$PWD/timing-{GPU_ARCH}.csv</run>
+        <run name="pre_checkin">tox -v --workdir /tmp/.tensile-tox -e {PYTHON_VERSION} -- {TEST_DIR} -m "pre_checkin" --timing-file=$PWD/timing-psdb-{GPU_ARCH}.csv</run>
     </test>
     <test sets="osdb">
-        <run name="pre_checkin_extended">tox -v --workdir /tmp/.tensile-tox -e {PYTHON_VERSION} -- {TEST_DIR} -m "pre_checkin or extended" --timing-file=$PWD/timing-{GPU_ARCH}.csv</run>
+        <run name="pre_checkin_extended">tox -v --workdir /tmp/.tensile-tox -e {PYTHON_VERSION} -- {TEST_DIR} -m "pre_checkin or extended" --timing-file=$PWD/timing-osdb-{GPU_ARCH}.csv</run>
     </test>
     <test sets="custom">
-        <run name="custom_marks">tox -v --workdir /tmp/.tensile-tox -e {PYTHON_VERSION} -- {TEST_DIR} -m "{TEST_MARKS}" --timing-file=$PWD/timing-{GPU_ARCH}.csv</run>
+        <run name="custom_marks">tox -v --workdir /tmp/.tensile-tox -e {PYTHON_VERSION} -- {TEST_DIR} -m "{TEST_MARKS}" --timing-file=$PWD/timing-custom-{GPU_ARCH}.csv</run>
     </test>
 </testset>
