@@ -401,31 +401,6 @@ class ZeroPadReg:
   def isMatch(self, perp, sPerp, para, sPara):
     return self.perp==perp and self.sPerp==sPerp and self.para==para and self.sPara==sPara
 
-class VgprOccupancyCurve:
-  def __init__(self):
-    self._vgprOccupancy = [0]*(256+1)
-    for i in range(0,   24+1): self._vgprOccupancy[i] = 10
-    for i in range(25,  28+1): self._vgprOccupancy[i] = 9
-    for i in range(29,  32+1): self._vgprOccupancy[i] = 8
-    for i in range(33,  36+1): self._vgprOccupancy[i] = 7
-    for i in range(37,  40+1): self._vgprOccupancy[i] = 6
-    for i in range(41,  48+1): self._vgprOccupancy[i] = 5
-    for i in range(49,  64+1): self._vgprOccupancy[i] = 4
-    for i in range(65,  84+1): self._vgprOccupancy[i] = 3
-    for i in range(85, 128+1): self._vgprOccupancy[i] = 2
-    for i in range(129,256+1): self._vgprOccupancy[i] = 1
-  def __call__(self, index):
-    if index < 0 or index > 256:
-      return 0
-    return self._vgprOccupancy[index]
-  def __getitem__(self, item):
-    return self(item)
-  def __len__(self):
-    return len(self._vgprOccupancy)
-
-vgprOccupancy = VgprOccupancyCurve()
-
-
 class PreLoopVmcntCase(Enum):
   Undefined = 0
   Basic_Load = 1
@@ -557,6 +532,7 @@ class KernelWriterAssembly(KernelWriter):
     self.maxVgprs = 256
     # max allowed is 112 out of 112 , 6 is used by hardware 4 SGPRs are wasted
     self.maxSgprs = 102
+    self.maxOccupancy = 10
 
     self.endLine = "\n"
     self.syncStr = "s_barrier"
@@ -631,39 +607,55 @@ class KernelWriterAssembly(KernelWriter):
 
     return rv
 
+  def getVgprOccupancy(self, numThreads, vgprs, unifiedVgprRegs=False):
+    multiplier = int(ceil(max(numThreads, 256) / 256.0)) # example: wg=512 multiplier=2, 1024=4
+    maxOccupancy = self.maxOccupancy//multiplier
+
+    vgprAllocateAligned = 4    if not unifiedVgprRegs else 8
+    totalVgprs = self.maxVgprs if not unifiedVgprRegs else self.maxVgprs*2
+    vgprsAligned = int(ceil(vgprs/vgprAllocateAligned))*vgprAllocateAligned
+    vgprsAligned *= multiplier
+
+    if   vgprsAligned > totalVgprs:  return 0
+    elif vgprsAligned < 1:           return maxOccupancy
+    occupancy = min(totalVgprs//vgprsAligned, maxOccupancy)
+
+    #print("vgprs = ", vgprs, "vgprsAligned = ", vgprsAligned, "unifiedVgprRegs = " ,unifiedVgprRegs, "Occupancy = ", occupancy)
+
+    return occupancy
+
   ########################################
-  @staticmethod
-  def getOccupancy(numThreads, vgprs, ldsSize, accvgprs=0):
-    multiplier = int(ceil(max(numThreads, 256) / 256.0))
-    # example: wg=512 multiplier=2, 1024=4
+  def getOccupancy(self, numThreads, vgprs, ldsSize, accvgprs=0, unifiedVgprRegs=False):
 
-    ldsLimitedOccupancy = KernelWriterAssembly.getLdsLimitedOccupancy(ldsSize)
+    ldsLimitedOccupancy = self.getLdsLimitedOccupancy(ldsSize)
 
-    vgprs *= multiplier
-    vgprLimitedOccupancy =  vgprOccupancy[vgprs]
-
-    accvgprs *= multiplier
-    accvgprLimitedOccupancy =  vgprOccupancy[accvgprs]
+    if not unifiedVgprRegs:
+      vgprLimitedOccupancy    = self.getVgprOccupancy(numThreads, vgprs,          unifiedVgprRegs)
+      accvgprLimitedOccupancy = self.getVgprOccupancy(numThreads, accvgprs,       unifiedVgprRegs)
+    else:
+      vgprLimitedOccupancy    = self.getVgprOccupancy(numThreads, vgprs+accvgprs, unifiedVgprRegs)
+      accvgprLimitedOccupancy = vgprLimitedOccupancy
 
     return min(ldsLimitedOccupancy, vgprLimitedOccupancy, accvgprLimitedOccupancy)
 
   # TODO: also consider sgpr
-  @staticmethod
-  def getMaxRegsForOccupancy(numThreads, vgprs, ldsSize, accvgprs=0):
-    multiplier = int(ceil(max(numThreads, 256) / 256.0))
-    vgprs*=multiplier # convert to per simd vgpr count
-                      # eg, 512-thread wg means 2 waves per simd, meaning vgpr count per simd is 2x the vgpr count per wave
+  def getMaxRegsForOccupancy(self, numThreads, vgprs, ldsSize, accvgprs=0, unifiedVgprRegs=False):
     lastVgprs = vgprs
-    initOccupancy = KernelWriterAssembly.getOccupancy(numThreads, vgprs, ldsSize, accvgprs)
-    while vgprs < len(vgprOccupancy):
+    considerAccVgprs = 0       if not unifiedVgprRegs else accvgprs
+    totalVgprs = self.maxVgprs if not unifiedVgprRegs else self.maxVgprs*2
+
+    initOccupancy = self.getOccupancy(numThreads, vgprs, ldsSize, accvgprs, unifiedVgprRegs)
+    if initOccupancy == 0: return lastVgprs
+
+    while (vgprs + considerAccVgprs) < totalVgprs and vgprs < self.maxVgprs:
       vgprs += 1
-      if vgprOccupancy[vgprs] >= initOccupancy:
+      if self.getVgprOccupancy(numThreads, vgprs + considerAccVgprs, unifiedVgprRegs) >= initOccupancy:
         lastVgprs = vgprs
         next
       else:
         break
 
-    return lastVgprs//multiplier # convert back to per wave vgpr count
+    return lastVgprs
 
   @staticmethod
   def getLdsLimitedOccupancy(ldsSize):
@@ -1120,6 +1112,10 @@ class KernelWriterAssembly(KernelWriter):
       defaultIsa = (9,0,0)
       print("warning: ISA:", self.version, " is not supported; overriding with ", defaultIsa)
       self.version = defaultIsa
+
+    self.unifiedVgprRegs = False
+    if globalParameters["ArchCaps"][self.version]["ArchAccUnifiedRegs"]:
+      self.unifiedVgprRegs = True
 
     if kernel["EnableMatrixInstruction"]:
       if (kernel["ProblemType"]["DataType"].MIOutputTypeNameAbbrev() == 'f64') and (not self.asmCaps["HasMFMA_f64"]):
@@ -10348,7 +10344,8 @@ class KernelWriterAssembly(KernelWriter):
 
         #print self.vgprPool.state()
         # Use VGPR up to next occupancy threshold:
-        maxVgprs = self.getMaxRegsForOccupancy(kernel["NumThreads"], self.vgprPool.size(), self.getLdsSize(kernel), self.agprPool.size())
+        maxVgprs = self.getMaxRegsForOccupancy(kernel["NumThreads"], self.vgprPool.size(), \
+                                               self.getLdsSize(kernel), self.agprPool.size(), self.unifiedVgprRegs)
         if self.serializedStore: # get aggresive when serializedStore is on; not necessarily exclusive to this parameter
           len(elements[edgeI])
           tl = []
@@ -10374,9 +10371,10 @@ class KernelWriterAssembly(KernelWriter):
           print("numVgprAvailable=", numVgprAvailable, "minElements=", minElements, "minNeeded=", minNeeded)
         if numVgprAvailable < minNeeded:
           gwvwOrig = gwvw
-          currentOccupancy = self.getOccupancy(kernel["NumThreads"], self.getLdsSize(kernel), self.vgprPool.size(), self.agprPool.size())
+          currentOccupancy = self.getOccupancy(kernel["NumThreads"], self.getLdsSize(kernel), \
+              self.vgprPool.size(), self.agprPool.size(), self.unifiedVgprRegs)
           futureOccupancy = self.getOccupancy(kernel["NumThreads"], self.getLdsSize(kernel), \
-              self.vgprPool.size() - numVgprAvailable + minNeeded, self.agprPool.size())
+              self.vgprPool.size() - numVgprAvailable + minNeeded, self.agprPool.size(), self.unifiedVgprRegs)
 
           if shrinkDb:
             print("currentOccupancy=%u futureOccupancy=%u VGPRs=%u numVgprAvail=%u vgprPerElem=%u" \
@@ -11774,7 +11772,8 @@ class KernelWriterAssembly(KernelWriter):
       self.overflowedResources = 2
 
     if kernel["ScheduleIterAlg"] == 2 and \
-        self.getOccupancy(kernel["NumThreads"], self.vgprPool.size(), self.getLdsSize(kernel), self.agprPool.size()) < 2:
+        self.getOccupancy(kernel["NumThreads"], self.vgprPool.size(), \
+        self.getLdsSize(kernel), self.agprPool.size(), self.unifiedVgprRegs) < 2:
       self.overflowedResources = 6
 
     vgprPerCU = 65536
