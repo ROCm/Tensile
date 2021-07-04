@@ -1100,6 +1100,8 @@ validParameters = {
     "PerformanceWaitCount":       list(range(-1, 16)),
 
     # add gls or slc after global memory read/writes to change cacheing, not cacheing the writes is promising and improved performance a tiny bit
+    # 1: glc, 2: slc, 3: glc+slc
+    "NonTemporalD":               list(range(0,4)),
     "NonTemporalC":               list(range(0,4)),
     "NonTemporalA":               list(range(0,4)),
     "NonTemporalB":               list(range(0,4)),
@@ -1276,6 +1278,7 @@ defaultBenchmarkCommonParameters = [
     {"PerformanceSyncLocation":   [ -1 ] },
     {"PerformanceWaitLocation":   [ -1 ] },
     {"PerformanceWaitCount":      [ -1 ] },
+    {"NonTemporalD":              [ 0 ] },
     {"NonTemporalC":              [ 0 ] },
     {"NonTemporalA":              [ 0 ] },
     {"NonTemporalB":              [ 0 ] },
