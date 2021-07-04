@@ -8924,9 +8924,9 @@ class KernelWriterAssembly(KernelWriter):
     ntStr = ""
     if kernel.enabledSetPrioSplitLDS:
       kStr += inst("s_setprio", "1", "")
-    if kernel["NonTemporalC"]%2==1:
+    if kernel["NonTemporalD"]%2==1:
       ntStr += " glc"
-    if kernel["NonTemporalC"]//2==1:
+    if kernel["NonTemporalD"]//2==1:
       ntStr += " slc"
 
     addr1 = sgpr("SrdD", 4)
@@ -10693,9 +10693,9 @@ class KernelWriterAssembly(KernelWriter):
       # if GWVW > Vw, might need to support loops to
       # implement wider stores
       ntStr = ""
-      if kernel["NonTemporalC"]%2==1:
+      if kernel["NonTemporalD"]%2==1:
         ntStr += " glc"
-      if kernel["NonTemporalC"]//2==1:
+      if kernel["NonTemporalD"]//2==1:
         ntStr += " slc"
 
       bps = self.bpeCexternal * ss.cfg.gwvw
@@ -10873,13 +10873,19 @@ class KernelWriterAssembly(KernelWriter):
       addr0 = vgpr(addr,2)
       addr1 = ""
 
+    extraStr = ""
+    if kernel["NonTemporalC"]%2==1:
+      extraStr += " glc"
+    if kernel["NonTemporalC"]//2==1:
+      extraStr += " slc"
+
     if ss.optSrdIncForRow and addrCalc.rowInc:
       kStr += addrCalc.incrementToNextRow(kernel, "C", ss, tmpS01)
 
     if kernel["ProblemType"]["DestDataType"].isHalf():
       kStr += self.chooseGlobalRead(useBuffer, bps, data, \
                 addr0, addr1, soffset=0, offset=addrCalc.globalOffset, \
-                extraFields="", hi16=vc0 % 2,
+                extraFields=extraStr, hi16=vc0 % 2,
                 comment="load C for beta calc").toStr()
     elif kernel["ProblemType"]["DestDataType"].isBFloat16() or \
          kernel["ProblemType"]["DestDataType"].isInt32() or \
@@ -10889,7 +10895,7 @@ class KernelWriterAssembly(KernelWriter):
          kernel["ProblemType"]["DestDataType"].isDoubleComplex():
       kStr += self.chooseGlobalRead(useBuffer, bps, data, \
                 addr0, addr1, soffset=0, offset=addrCalc.globalOffset, \
-                extraFields="", \
+                extraFields=extraStr, \
                 comment="load C for beta calc").toStr()
 
     return kStr
