@@ -11748,7 +11748,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["PersistentKernelAlongBatch"]:
       imod.addInst("s_mul_i32", sgpr(stmp), sgpr(stmp), sgpr("NumWorkGroups2"), "Total WG-0 x 1 x 2")
     imod.addInst("s_cmp_ge_u32", sgpr("SerialWorkGroupIter"), sgpr(stmp), "outside legal WG?")
-    if useBufferOOB and kernel["PrefetchAcrossPersistentMode"] == 1:
+    if useBufferOOB:
       maskTmp = self.sgprPool.checkOutAligned(2, 2)
       vtmp = self.vgprPool.checkOut(1)
       imod.addInst("s_cselect_b32", sgpr(maskTmp), 0, hex(0xffffffff), "mask 1")
@@ -11771,8 +11771,7 @@ class KernelWriterAssembly(KernelWriter):
     label = "SkipPrefetchAcrossPersistent_OptNLL" if isOptNLL else "SkipPrefetchAcrossPersistent"
     imod = Code.Module()
     # imod.addCode(Code.WaitCnt(self.version, 0,0, "bozo, conservative wait"))
-    addLabel = kernel["PrefetchAcrossPersistentMode"] != 1 or not useBufferOOB
-    if addLabel:
+    if not useBufferOOB:
       imod.addCode("%s: //%s"%(self.getNamedLabel(label), "SkipPrefetchAcrossPersistent"))
     imod.addCode(self.comment3("PrefetchAcrossPersistent - Close"))
     #imod.addText(self.bomb())

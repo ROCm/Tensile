@@ -1308,7 +1308,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #    so we still do this part when "isPap & not OptNLL"
       # 2. if tile edge, then we still need to add all these codes even isPap
 
-      # self.dontAppendCode = isPap and isOptNLL and (not needShift)
       self.dontAppendCode = isPap and kernel["PrefetchAcrossPersistentMode"] == 1 and (not needShift)
       # tile assignments
       kl.append(self.comment("global read addresses: tile offset assignment a"))
@@ -1408,7 +1407,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       # if PAP, no need to reset LWA, but if not OptNLL, we still do this (due to TailLoop)
 
-      # self.dontAppendCode = isPap and isOptNLL
       self.dontAppendCode = isPap and kernel["PrefetchAcrossPersistentMode"] == 1
       # first offsets
       kl.append(self.comment("local write addresses: first offset a"))
@@ -1550,6 +1548,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if self.prefetchAcrossPersistent and kernel["PrefetchAcrossPersistentMode"] == 1 and isPap and not isOptNLL:
       kStr = ""
       kStr += str(self.openPrefetchAcrossPersistent(kernel, isOptNLL=False, useBufferOOB=True))
+      # For PAPMode 1, using isOptNLL true to generate prefetch code
       newTileCodes = self.setupNewTile(kernel, self.tPA, self.tPB, isPap=True, isOptNLL=True)
       codes = '\n'.join([str(x) for x in newTileCodes])
       kStr += codes
@@ -2530,7 +2529,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(str(self.openPrefetchAcrossPersistent(kernel, isOptNLL=False)))
       kl += self.setupNewTile(kernel, self.tPA, self.tPB, isPap=True, isOptNLL=False)
       kl.append(str(self.closePrefetchAcrossPersistent(kernel, isOptNLL=False)))
-    
+
     kl.append(self.endSummation(kernel))
     if self.enable["PostLoop"]:
       if not self.doShadowInit:
