@@ -539,6 +539,12 @@ validParameters = {
     # the next tile in the sequence.
     "PrefetchAcrossPersistent":    [0, 1],
 
+    # Changes the behaviour of prefetch across persistent.
+    # Mode 0 is default, works for all sizes
+    # Mode 1 disables static tile setup for prefetch and merges prefetch with ord. noLoadLoop,
+    #   requires AssertSummationElementMultiple == DepthU
+    "PrefetchAcrossPersistentMode": [0, 1],
+
     "BufferLoad":                 [ False, True ],
     "BufferStore":                [ False, True ],
 
@@ -1206,6 +1212,7 @@ defaultBenchmarkCommonParameters = [
     {"InterleaveAlpha":           [ 0 ] },
     {"OptNoLoadLoop":             [ 1 ] },
     {"PrefetchAcrossPersistent":  [ 0 ] },
+    {"PrefetchAcrossPersistentMode": [ 0 ] },
 
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
