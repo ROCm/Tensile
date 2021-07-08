@@ -2534,6 +2534,13 @@ class Solution(collections.abc.Mapping):
         # TODO- do we need to support PGR2 ?
         print2("PAP requires Assembly, PK!=0, PGR==1, SuppressNoLoadLoop=True, forcing PAP=False")
         state["PrefetchAcrossPersistent"] = False
+      if state["PrefetchAcrossPersistentMode"] == 1 and state["AssertSummationElementMultiple"] != state["DepthU"]:
+        reject(state, "PAPMode 1 requires AssertSummationElementMultiple == DepthU")
+        return
+    else:
+      if state["PrefetchAcrossPersistentMode"] != 1:
+        reject(state, "PAPMode requires PrefetchAcrossPersistent enabled")
+        return
 
     problemType = state["ProblemType"]
     if not problemType["UseInitialStridesAB"]:
