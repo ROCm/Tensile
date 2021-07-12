@@ -2538,7 +2538,7 @@ class Solution(collections.abc.Mapping):
         reject(state, "PAPMode 1 requires AssertSummationElementMultiple == DepthU")
         return
     else:
-      if state["PrefetchAcrossPersistentMode"] != 1:
+      if state["PrefetchAcrossPersistentMode"] != 0:
         reject(state, "PAPMode requires PrefetchAcrossPersistent enabled")
         return
 
