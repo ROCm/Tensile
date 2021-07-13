@@ -67,9 +67,14 @@ def fixSizeInconsistencies(sizes, fileType):
         verbose(len(duplicates), "duplicate size(s) removed from", fileType, "logic file")
     return sizes_, len(sizes_)
 
-# remove dict key "SolutionIndex" from dict
+# remove dict keys "SolutionIndex" and "SolutionNameMin" from dict
+# update dependant parameters if StaggerU == 0
 def cmpHelper(sol):
-    return {k:v for k, v in sol.items() if k!="SolutionIndex"}
+    if sol["StaggerU"] == 0:
+        sol["StaggerUMapping"] = 0
+        sol["StaggerUStride"] = 0
+        sol["_staggerStrideShift"] = 0
+    return {k:v for k, v in sol.items() if k!="SolutionIndex" and k!="SolutionNameMin"}
 
 def addKernel(solutionPool, solution):
     for item in solutionPool:
