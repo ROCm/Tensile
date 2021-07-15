@@ -34,10 +34,13 @@ baseLogic=logicPrefix + r"""
 -
   - SolutionIndex: 2
     SolutionNameMin: InUseForSize256
+    InUseForSize256: 0
   - SolutionIndex: 1
     SolutionNameMin: UnusedSolution
+    UnusedSolution: 0
   - SolutionIndex: 0
     SolutionNameMin: InUseForSize128or64
+    InUseForSize128or64: 0
 - DummyIndexAssignment
 -
   - - [256, 256, 1, 256]
@@ -52,8 +55,10 @@ incLogic=logicPrefix + r"""
 -
   - SolutionIndex: 39
     SolutionNameMin: InUseForSize256or1024xxx
+    InUseForSize256or1024xxx: 0
   - SolutionIndex: 1
     SolutionNameMin: InUseForSize128xxx
+    InUseForSize128xxx: 0
 - DummyIndexAssignment
 -
   - - [128, 128, 1, 128]
@@ -68,16 +73,20 @@ notUniqueSolution=logicPrefix+r"""
 -
   - SolutionIndex: 0
     SolutionNameMin: Kernel0
+    Kernel0: 0
   - SolutionIndex: 1
     SolutionNameMin: Kernel0
+    Kernel0: 0
 """
 
 uniqueSolution=logicPrefix+r"""
 -
   - SolutionIndex: 0
     SolutionNameMin: Kernel0
+    Kernel0: 0
   - SolutionIndex: 1
     SolutionNameMin: Kernel1
+    Kernel1: 0
 """
 
 notTrimmedSize=r"""
@@ -108,10 +117,12 @@ mfmaMergeBaseLogic=logicPrefix+r"""
 -
   - SolutionIndex: 0
     SolutionNameMin: MFMA_base
+    MFMA_base: 0
     EnableMatrixInstruction: True
     MatrixInstruction: [16, 16, 4, 1]
   - SolutionIndex: 1
     SolutionNameMin: VALU_base
+    VALU_base: 0
     EnableMatrixInstruction: False
     MatrixInstruction: []
 - DummyIndexAssignment
@@ -121,10 +132,12 @@ mfmaMergeIncLogic=logicPrefix+r"""
 -
   - SolutionIndex: 0
     SolutionNameMin: MFMA_inc
+    MFMA_inc: 0
     EnableMatrixInstruction: True
     MatrixInstruction: [16, 16, 4, 1]
   - SolutionIndex: 1
     SolutionNameMin: VALU_inc
+    VALU_inc: 0
     EnableMatrixInstruction: False
     MatrixInstruction: []
 - DummyIndexAssignment
