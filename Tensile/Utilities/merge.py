@@ -67,9 +67,9 @@ def fixSizeInconsistencies(sizes, fileType):
         verbose(len(duplicates), "duplicate size(s) removed from", fileType, "logic file")
     return sizes_, len(sizes_)
 
-# remove dict key "SolutionIndex" from dict
+# remove dict keys "SolutionIndex" and "SolutionNameMin" from dict
 def cmpHelper(sol):
-    return {k:v for k, v in sol.items() if k!="SolutionIndex"}
+    return {k:v for k, v in sol.items() if k!="SolutionIndex" and k!="SolutionNameMin"}
 
 def addKernel(solutionPool, solution):
     for item in solutionPool:
@@ -85,6 +85,14 @@ def addKernel(solutionPool, solution):
         debug("...A new kernel has been added", end="")
     debug("({}) {}".format(index, solutionPool[index]["SolutionNameMin"] if "SolutionNameMin" in solutionPool[index] else "(SolutionName N/A)"))
     return solutionPool, index
+
+# update dependant parameters if StaggerU == 0
+def sanitizeSolutions(solList):
+    for sol in solList:
+        if sol.get("StaggerU") == 0:
+            sol["StaggerUMapping"] = 0
+            sol["StaggerUStride"] = 0
+            sol["_staggerStrideShift"] = 0
 
 def removeUnusedKernels(origData, prefix=""):
     origNumSolutions = len(origData[5])
@@ -300,6 +308,8 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True, addSolutionTags=Fal
         [origData[7], origNumSizes] = fixSizeInconsistencies(origData[7], "base")
         [incData[7], incNumSizes] = fixSizeInconsistencies(incData[7], "incremental")
 
+    sanitizeSolutions(origData[5])
+    sanitizeSolutions(incData[5])
     origData, numOrigRemoved = removeUnusedKernels(origData, "Base logic file: ")
     incData, numIncRemoved = removeUnusedKernels(incData, "Inc logic file: ")
 
