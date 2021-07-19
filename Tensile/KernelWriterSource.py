@@ -3139,10 +3139,10 @@ class KernelWriterSource(KernelWriter):
             kStr += self.endLine
     return kStr
 
-  def openPrefetchAcrossPersistent(self, kernel, isOptNLL):
+  def openPrefetchAcrossPersistent(self, kernel, isOptNLL, useBufferOOB=False):
     return ""
 
-  def closePrefetchAcrossPersistent(self, kernel, isOptNLL):
+  def closePrefetchAcrossPersistent(self, kernel, isOptNLL, useBufferOOB=False):
     return ""
 
   ##############################################################################

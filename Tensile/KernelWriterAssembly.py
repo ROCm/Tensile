@@ -11704,7 +11704,7 @@ class KernelWriterAssembly(KernelWriter):
 
   ##############################################################################
   ##############################################################################
-  def openPrefetchAcrossPersistent(self, kernel, isOptNLL):
+  def openPrefetchAcrossPersistent(self, kernel, isOptNLL, useBufferOOB=False):
     label = "SkipTo_PureOptNLL_LastTile" if isOptNLL else "SkipPrefetchAcrossPersistent"
     imod = Code.Module()
     stmp = self.getTmpSgpr(1).idx()
@@ -11713,17 +11713,31 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["PersistentKernelAlongBatch"]:
       imod.addInst("s_mul_i32", sgpr(stmp), sgpr(stmp), sgpr("NumWorkGroups2"), "Total WG-0 x 1 x 2")
     imod.addInst("s_cmp_ge_u32", sgpr("SerialWorkGroupIter"), sgpr(stmp), "outside legal WG?")
-    imod.addInst("s_cbranch_scc1", self.getNamedLabel(label), "skip pf if OOB - last tile no PAP, go to pure OptNLL")
+    if useBufferOOB:
+      maskTmp = self.sgprPool.checkOutAligned(2, 2)
+      vtmp = self.vgprPool.checkOut(1)
+      imod.addInst("s_cselect_b32", sgpr(maskTmp), 0, hex(0xffffffff), "mask 1")
+      imod.addInst("s_mov_b32", sgpr(maskTmp+1), sgpr(maskTmp), "mask 2")
+      imod.addInst("s_mov_b32", sgpr(stmp), "BufferOOB", "OOB")
+      imod.addInst("v_mov_b32", vgpr(vtmp), sgpr(stmp), "OOB V")
+      imod.addInst("v_cndmask_b32", "v[vgprGlobalReadOffsetA]", vgpr(vtmp), "v[vgprGlobalReadOffsetA]", sgpr(maskTmp, 2), "mask 3")
+      imod.addInst("v_cndmask_b32", "v[vgprGlobalReadOffsetB]", vgpr(vtmp), "v[vgprGlobalReadOffsetB]", sgpr(maskTmp, 2), "mask 4")
+      self.sgprPool.checkIn(maskTmp)
+      self.vgprPool.checkIn(vtmp)
+    else:
+      imod.addInst("s_cbranch_scc1", self.getNamedLabel(label), "skip pf if OOB - last tile no PAP, go to pure OptNLL")
+
     #imod.addInst("s_branch", self.getLabelTarget("SkipPrefetchAcrossPersistent"), "skip pf if OOB")
     return imod
 
   ##############################################################################
   ##############################################################################
-  def closePrefetchAcrossPersistent(self, kernel, isOptNLL):
+  def closePrefetchAcrossPersistent(self, kernel, isOptNLL, useBufferOOB=False):
     label = "SkipPrefetchAcrossPersistent_OptNLL" if isOptNLL else "SkipPrefetchAcrossPersistent"
     imod = Code.Module()
     # imod.addCode(Code.WaitCnt(self.version, 0,0, "bozo, conservative wait"))
-    imod.addCode("%s: //%s"%(self.getNamedLabel(label), "SkipPrefetchAcrossPersistent"))
+    if not useBufferOOB:
+      imod.addCode("%s: //%s"%(self.getNamedLabel(label), "SkipPrefetchAcrossPersistent"))
     imod.addCode(self.comment3("PrefetchAcrossPersistent - Close"))
     #imod.addText(self.bomb())
     return imod

@@ -1307,7 +1307,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #    but since there are some vgpr value is used in the later lwaFirstOffset (when not OptNLL, such as "lwoT")
       #    so we still do this part when "isPap & not OptNLL"
       # 2. if tile edge, then we still need to add all these codes even isPap
-      self.dontAppendCode = isPap and isOptNLL and (not needShift)
+
+      self.dontAppendCode = isPap and kernel["PrefetchAcrossPersistentMode"] == 1 and (not needShift)
       # tile assignments
       kl.append(self.comment("global read addresses: tile offset assignment a"))
       kl.append(self.graTileAssignment(kernel, tensorParametersA))
@@ -1405,7 +1406,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.lwaUnrollAssignment(kernel, tensorParametersB))
 
       # if PAP, no need to reset LWA, but if not OptNLL, we still do this (due to TailLoop)
-      self.dontAppendCode = isPap and isOptNLL
+
+      self.dontAppendCode = isPap and kernel["PrefetchAcrossPersistentMode"] == 1
       # first offsets
       kl.append(self.comment("local write addresses: first offset a"))
       kl.append(self.lwaFirstOffset(kernel, tensorParametersA))
@@ -1542,6 +1544,16 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     # the scheduled GlobalRead,Inc code of PAP is inside openSumAtLeastUnroll (if PAP=on)
     kl.append(self.openSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=isOptNLL, isPap=isPap))
+
+    if self.prefetchAcrossPersistent and kernel["PrefetchAcrossPersistentMode"] == 1 and isPap and not isOptNLL:
+      kStr = ""
+      kStr += str(self.openPrefetchAcrossPersistent(kernel, isOptNLL=False, useBufferOOB=True))
+      # For PAPMode 1, using isOptNLL true to generate prefetch code
+      newTileCodes = self.setupNewTile(kernel, self.tPA, self.tPB, isPap=True, isOptNLL=True)
+      codes = '\n'.join([str(x) for x in newTileCodes])
+      kStr += codes
+      kStr += str(self.closePrefetchAcrossPersistent(kernel, isOptNLL=False, useBufferOOB=True))
+      kl.append(kStr)
 
     if not self.numItersPLR:
       if self.enable["Wait"]:
@@ -2350,7 +2362,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=True, isPap=False, isNGLL=False, pack=deepCopyPack)
           self.restoreLocalPointers(kernel)
 
-        kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False, isPap=False, isNGLL=False, pack=pack)
+        papMode = self.prefetchAcrossPersistent and kernel["PrefetchAcrossPersistentMode"] == 1
+        kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False, isPap=papMode, isNGLL=False, pack=pack)
       # if PGR, last few iterations will have PLR,
       # and those PLR will not be used(register not checkIn) if without NoLoadLoop
       else:
@@ -2512,7 +2525,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.globalReadIncrementAB(kernel, i, 0))
       kl.append(self.closeLoop(kernel, i, True))
 
-    if self.prefetchAcrossPersistent:
+    if self.prefetchAcrossPersistent and kernel["PrefetchAcrossPersistentMode"] != 1:
       kl.append(str(self.openPrefetchAcrossPersistent(kernel, isOptNLL=False)))
       kl += self.setupNewTile(kernel, self.tPA, self.tPB, isPap=True, isOptNLL=False)
       kl.append(str(self.closePrefetchAcrossPersistent(kernel, isOptNLL=False)))
@@ -3722,11 +3735,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
     return ""
 
   @abc.abstractmethod
-  def openPrefetchAcrossPersistent(self, kernel, isOptNLL=False):
+  def openPrefetchAcrossPersistent(self, kernel, isOptNLL=False, useBufferOOB=False):
     return ""
 
   @abc.abstractmethod
-  def closePrefetchAcrossPersistent(self, kernel, isOptNLL=False):
+  def closePrefetchAcrossPersistent(self, kernel, isOptNLL=False, useBufferOOB=False):
     return ""
 
   ##############################################################################
