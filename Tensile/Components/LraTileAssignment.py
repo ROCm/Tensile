@@ -92,6 +92,8 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         tReg    = writer.vgprPool.checkOut(1,"tReg") # remainder
         kReg    = writer.vgprPool.checkOut(1,"kReg") # remainder
         tmpVgpr = writer.vgprPool.checkOutAligned(2,2,"tmpVgpr")
+        #ldsVgpr = writer.vgprPool.checkOut(1,"ldsVgpr1")
+        #ldsVgpr1 = writer.vgprPool.checkOut(1,"ldsVgpr1")
         dummy   = writer.vgprPool.checkOut(1,"dummy")
 
          # alloc sgpr
@@ -128,9 +130,31 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             "0. thread id in wave: wtid = tid %% wavelength(%u)" % waveWidth)
         kStr += vectorStaticRemainder(dummy, tReg, kReg, kernel["MatrixInstN"], tmpVgpr, tmpSgpr, \
             "1. N offset: nIdx = wtid %% MI_N(%u)" % kernel["MatrixInstN"])
+
+        #if (kernel["DirectToLds%s" % tP["tensorChar"]]):
+          ## x2/x4 directToLds stores 8/16 bytes into LDS like below
+          ##(dword lane_num)  0 2 1 3 4 6 5 7....  32 lanes
+          ## below code is reswapping lane 2 and lane1 
+          
+        #  kStr += inst("v_and_b32", vgpr(ldsVgpr), vgpr(tReg), hex(3), \
+        #    "1. bit-and Noffset lanes of 0,1,2,3  ldsVgpr=N offset and 3")
+        #  kStr += inst("v_and_b32", vgpr(ldsVgpr1), vgpr(ldsVgpr), hex(1), \
+        #    "2. maks off even lanes  0,1,0,1  ldsVgpr1=ldsVGPR and 1")
+        #  kStr += inst("v_mul_lo_u32", vgpr(ldsVgpr1), vgpr(ldsVgpr1), hex(2), \
+        #    "3. switch odd lanes into even lanes (step1)  0,2,0,2  ldsVgpr1=ldsVgpr1 mul 2")
+        #  kStr += inst("v_and_b32", vgpr(ldsVgpr), vgpr(ldsVgpr), hex(2), \
+        #    "4. swtich odd lanes into even lanes(step2) ldsVgpr= ldsVgpr and 2")
+        #  kStr += inst("_v_add_u32", vgpr(ldsVgpr), vgpr(ldsVgpr), hex(ldsVgpr), \
+        #    "5. swizzled  lanes into 0,2,1,3  ldsVgpr= ldsVgpr add ldsVgpr1")
+        #  kStr += inst("v_lshrrev_b32", vgpr(ldsVgpr1), vgpr(tReg), hex(2), \
+        #    "")
+        #  kStr += inst("v_mul_lo_u32", vgpr(ldsVgpr1), vgpr(ldsVgpr1), hex(4), \
+        #    "")
+        #  kStr += inst("_v_add_u32", vgpr(tReg), vgpr(ldsVgpr1), hex(ldsVgpr), \
+        #    "6. swizzled  lanes 0,2,1,3 N offst mIdx = ldsVgpr add ldsVgpr1")
+
         kStr += staticMultiply(vgpr(tReg), vgpr(tReg), strideTile, sgpr(tmpSgpr), \
             "1. N offset: nOffset = nIdx * nStride(%u)" % strideTile)
-
         # block offset
         kStr += vectorStaticDivide(wReg, kReg, dividedForBlkId, tmpVgpr, tmpSgpr, \
             "2. block offset: bnIdx = wtid / dividedForBlkId(%u)" % dividedForBlkId)

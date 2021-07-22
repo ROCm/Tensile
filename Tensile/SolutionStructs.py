@@ -2338,28 +2338,45 @@ class Solution(collections.abc.Mapping):
   def isDirectToLdsDoable(state, tc):
     numBytes = state["ProblemType"]["DataType"].numBytes()
 
-    if state["ProblemType"]["DataType"].isHalf() and state["AssertSummationElementMultiple"] % 2 != 0:
+    # x2/x4 support for directToLds
+     
+    # numelements_perlane = 4/numBytes
+    # TN with transposeLDS feature should work as long as state["AssertSummationElementMultiple"] % (numelements_perlane*2) = 0 
+    #                                                     state["AssertSummationElementMultiple"] % (numelements_perlane*4) = 0
+
+    ##NT 
+    ## use only for f32 & DGEMM and TLU = 1
+    ##TN
+    ## use for all precisions with TransposeLDS=1
+
+    if state["ProblemType"]["DataType"].isHalf() and state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc])  != 0:
       print2("can't use DirectToLds for FP16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
       return False
 
-    if state["ProblemType"]["DataType"].isBFloat16() and state["AssertSummationElementMultiple"] % 2 != 0:
+    if state["ProblemType"]["DataType"].isBFloat16() and state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc]) != 0:
       print2("can't use DirectToLds for BF16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
       return False
 
     if state["NumThreads"] % state["WavefrontSize"] != 0:
       return False
 
-    if state["GlobalLoadVectorWidth%c"%tc] * numBytes != 4:
-      return False
+    
+    #commnted out to support x2/x4
+    #if state["GlobalLoadVectorWidth%c"%tc] * numBytes != 4:
+    #  return False
 
     if state["ProblemType"]["TLU%c"%tc] == state["UnrollMajorLDS%c" % tc]:
       return False
 
+    ## avoid picking x2&x4 for precisions < f32/f64 in [ProblemType][TLU] == TRUE
+    if state["ProblemType"]["TLU%c"%tc] and state["GlobalLoadVectorWidth%c"%tc] * numBytes > 4 and numBytes < 4:
+      return False
+
     if state["WaveSeparateGlobalRead%c" % tc]:
-      if state["LSC%c"%tc] * state["LSP%c"%tc] * numBytes != state["WavefrontSize"] * 4:
+      if state["LSC%c"%tc] * state["LSP%c"%tc] * numBytes != state["WavefrontSize"] * state["GlobalLoadVectorWidth%c"%tc] * numBytes:
         return False
     else:
-      if state["LSC%c"%tc] * state["LSP%c"%tc] * numBytes != state["NumThreads"] * 4:
+      if state["LSC%c"%tc] * state["LSP%c"%tc] * numBytes != state["NumThreads"] * state["GlobalLoadVectorWidth%c"%tc] * numBytes:
         return False
 
     if (state["LdsBlockSizePerPad%c"%tc] == 0) \
@@ -2370,7 +2387,7 @@ class Solution(collections.abc.Mapping):
 
     if (state["LdsBlockSizePerPad%c"%tc] != 0) \
         and (state["LdsPad%c"%tc] != 0) \
-        and (state["LdsBlockSizePerPad%c"%tc] != state["WavefrontSize"] * 4):
+        and (state["LdsBlockSizePerPad%c"%tc] != state["WavefrontSize"] * state["GlobalLoadVectorWidth%c"%tc] * numBytes):
 #        and (state["LdsBlockSizePerPad%tc"] % (state["WavefrontSize"] * 4) != 0): // TODO:
       return False
 
@@ -3144,11 +3161,17 @@ class Solution(collections.abc.Mapping):
     if state["LocalReadVectorWidth"] == -1:
       if state["EnableMatrixInstruction"]:
         state["LocalReadVectorWidth"] = state["MIInputPerThread"]
+        # enable less than state["MIInputPerThread"] 
+        # for fp64 this means ds_read_b32 
+        if ((state["DirectToLdsA"] and state["ProblemType"]["TLUA"]) or \
+            (state["DirectToLdsB"] and state["ProblemType"]["TLUB"])): 
+             state["LocalReadVectorWidth"] = 1 if (state["ProblemType"]["DataType"].numBytes() >= 4) else state["LocalReadVectorWidth"]
       else:
         state["LocalReadVectorWidth"] = state["VectorWidth"]
     else:
       if state["EnableMatrixInstruction"]:
-        if state["LocalReadVectorWidth"] < state["MIInputPerThread"]:
+        ## support LocalReadVectorWidth < miInputPerThread for directToLdsX2/X4
+        if state["LocalReadVectorWidth"] < state["MIInputPerThread"] and not (state["DirectToLdsA"] or state["DirectToLdsB"]):
           reject(state, "LocalReadVectorWidth < %u" %(state["MIInputPerThread"]))
         if state["LocalReadVectorWidth"] > state["MIInputPerThread"] and not state["TransposeLDS"]:
           reject(state, "LocalReadVectorWidth require Transpose LDS")
@@ -3174,6 +3197,9 @@ class Solution(collections.abc.Mapping):
           state["LdsPadA"] = max(state["GlobalReadVectorWidth"],optPad)
         else:
           state["LdsPadA"] = state["VectorWidth"]
+        ## turn-off padding for directToLds
+        if state["EnableMatrixInstruction"] and state["TransposeLDS"] and state["DirectToLdsA"]:
+          state["LdsPadA"] = 0 
       assert(state["LdsPadA"] >= 0)
     if state["LdsPadB"] == -1:
       if state["ProblemType"]["TLUB"]:
@@ -3183,6 +3209,8 @@ class Solution(collections.abc.Mapping):
           state["LdsPadB"] = max(state["GlobalReadVectorWidth"],optPad)
         else:
           state["LdsPadB"] = state["VectorWidth"]
+        if state["EnableMatrixInstruction"] and state["TransposeLDS"] and state["DirectToLdsB"]:
+          state["LdsPadB"] = 0 
       assert(state["LdsPadB"] >= 0)
 
     if (state["UnrollMajorLDSA"] or state["UnrollMajorLDSB"]) and (not state["EnableMatrixInstruction"]):
@@ -3714,6 +3742,7 @@ class Solution(collections.abc.Mapping):
       if Solution.isDirectToLdsDoable(state, 'A'):
         state["DirectToLdsA"] = True
         state["LocalWriteUseSgprA"] = True
+        print("DirectToLdsA", state["DirectToLdsA"])
 
       if Solution.isDirectToLdsDoable(state, 'B'):
         state["DirectToLdsB"] = True
