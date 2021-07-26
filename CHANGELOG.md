@@ -1,4 +1,9 @@
 # Change Log for Tensile
+## [(Unreleased) Tensile 4.30.0]
+### Fixed
+- Fix merge.py keeping duplicate solutions
+- Fix ScheduleIterAlg 2,3 cases for aldebaran
+
 ## [Tensile 4.29.0 for ROCm 4.4.0]
 ### Added
 - Custom Kernel mechanism for adding custom assembly kernels to Tensile
