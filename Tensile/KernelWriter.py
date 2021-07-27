@@ -32,7 +32,7 @@ import shutil
 import subprocess
 import copy
 from math import ceil
-from itertools import zip_longest
+#from itertools import zip_longest
 
 ################################################################################
 # Kernel Writer
@@ -121,7 +121,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     if uDu != kernel["DepthULdsDivisor"] - 2 and kernel.enabledSplitLDS:
       # hack RAII object for auto restore
-      grBackup = Backup(self, globalReadACode = self.globalReadACode, globalReadBCode = self.globalReadBCode)
+      Backup(self, globalReadACode = self.globalReadACode, globalReadBCode = self.globalReadBCode)
       self.globalReadACode = Code.StructuredModule() # empty
       self.globalReadBCode = Code.StructuredModule() # empty
 
@@ -1187,7 +1187,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       assert 0, "Unsupported scheduleIterAlg=%u"%self.scheduleIterAlg
 
     if isinstance(waitCode, Code.WaitCnt):
-      currentIsa = globalParameters["CurrentISA"]
+#      currentIsa = globalParameters["CurrentISA"]
 
       # Set the waitCount, based on the new iter schedule
       lgkmcnt = waitCode.lgkmcnt
@@ -2189,13 +2189,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
             MacIteritems = MacIteritems[:-1]
             MacIteritems.pop(1)
           #print("number MacItems\n",len(MacIteritems))
-          waitGlobalRead = 1 if u==0 and kernel["PrefetchGlobalRead"] and self.numVgprBuffer else -1
+#          waitGlobalRead = 1 if u==0 and kernel["PrefetchGlobalRead"] and self.numVgprBuffer else -1
           blockWidth = tensorParametersA["localReadInstruction"].blockWidth
           numVectorsPerTileA = (kernel["ThreadTile%u"%tensorParametersA["tensorIdx"]]/kernel["VectorWidth"])
           numReadsPerVectorA = (kernel["VectorWidth"] * tensorParametersA["bpe"] ) / (blockWidth*4)
           numVectorsPerTileB = (kernel["ThreadTile%u"%tensorParametersB["tensorIdx"]]/kernel["VectorWidth"])
           TotalnumLdsFetches = numVectorsPerTileA*numReadsPerVectorA + numVectorsPerTileB*numReadsPerVectorA
-          waitLocalWrite = -1
+#          waitLocalWrite = -1
           ## Rules for applying kernel["UnrollLoopEfficiencyEnable"]
           ## if A+B fetches <= 3 no split approach
           if not TotalnumLdsFetches > 3:

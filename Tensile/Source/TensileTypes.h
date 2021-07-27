@@ -31,7 +31,6 @@
 
 #include <cstddef>
 
-
 // OpenCL
 #if Tensile_RUNTIME_LANGUAGE_OCL
 #include "CL/cl.h"

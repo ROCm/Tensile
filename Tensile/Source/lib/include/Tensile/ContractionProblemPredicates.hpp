@@ -432,8 +432,8 @@ namespace Tensile
                 {
                     bool rv = (*this)(problem);
 
-                    stream << *this << ": (" << problem.size(index)
-                           << " > " << value << ") == " << rv;
+                    stream << *this << ": (" << problem.size(index) << " > " << value
+                           << ") == " << rv;
 
                     return rv;
                 }
@@ -471,8 +471,8 @@ namespace Tensile
                 {
                     bool rv = (*this)(problem);
 
-                    stream << *this << ": (" << problem.size(index)
-                           << " < " << value << ") == " << rv;
+                    stream << *this << ": (" << problem.size(index) << " < " << value
+                           << ") == " << rv;
 
                     return rv;
                 }
@@ -502,7 +502,7 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return ( (problem.size(index) % value) == 0 );
+                    return ((problem.size(index) % value) == 0);
                 }
 
                 virtual bool debugEval(ContractionProblem const& problem,
@@ -510,8 +510,8 @@ namespace Tensile
                 {
                     bool rv = (*this)(problem);
 
-                    stream << *this << ": (" << problem.size(index)
-                           << " % " << value << " == 0) == " << rv;
+                    stream << *this << ": (" << problem.size(index) << " % " << value
+                           << " == 0) == " << rv;
 
                     return rv;
                 }
@@ -870,8 +870,7 @@ namespace Tensile
                 }
             };
 
-            struct AlphaValue
-                : public Predicate_CRTP<AlphaValue, ContractionProblem>
+            struct AlphaValue : public Predicate_CRTP<AlphaValue, ContractionProblem>
             {
                 enum
                 {
@@ -894,13 +893,11 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.alphaRestriction() == value
-                           || value == ScalarValue::Any;
+                    return problem.alphaRestriction() == value || value == ScalarValue::Any;
                 }
             };
 
-            struct BetaValue
-                : public Predicate_CRTP<BetaValue, ContractionProblem>
+            struct BetaValue : public Predicate_CRTP<BetaValue, ContractionProblem>
             {
                 enum
                 {
@@ -923,8 +920,7 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.betaRestriction() == value
-                           || value == ScalarValue::Any;
+                    return problem.betaRestriction() == value || value == ScalarValue::Any;
                 }
             };
 

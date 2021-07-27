@@ -790,8 +790,8 @@ namespace Tensile
         DataType m_alphaType = DataType::None; // if not assigned, will follow d-type
         DataType m_betaType  = DataType::None; // for bwd-compatible
 
-        ScalarValue m_alphaRestriction  = ScalarValue::Any; // restrictions on the alpha value used
-        ScalarValue m_betaRestriction   = ScalarValue::Any; // restrictions on the beta value used
+        ScalarValue m_alphaRestriction = ScalarValue::Any; // restrictions on the alpha value used
+        ScalarValue m_betaRestriction  = ScalarValue::Any; // restrictions on the beta value used
 
         FreeIndices  m_freeIndicesA; //< in same order as IndexAssignmentsA
         FreeIndices  m_freeIndicesB; //< in same order as IndexAssignmentsB

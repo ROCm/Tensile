@@ -105,7 +105,6 @@ namespace Tensile
 
             double m_beta;
             double m_alpha;
-
         };
 
     } // namespace Client
