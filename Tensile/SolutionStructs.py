@@ -2360,10 +2360,10 @@ class Solution(collections.abc.Mapping):
     if state["NumThreads"] % state["WavefrontSize"] != 0:
       return False
 
-    
-    #commnted out to support x2/x4
-    #if state["GlobalLoadVectorWidth%c"%tc] * numBytes != 4:
-    #  return False
+    # GLVW*BPe only for precision(s) < 4 (bpe)
+    if (state["ProblemType"]["TLU%c"%tc] == True and numBytes < 4): 
+      if state["GlobalLoadVectorWidth%c"%tc] * numBytes != 4:
+        return False
 
     if state["ProblemType"]["TLU%c"%tc] == state["UnrollMajorLDS%c" % tc]:
       return False
@@ -3737,16 +3737,25 @@ class Solution(collections.abc.Mapping):
     # Note for these matrices LSC is same as MacroTile dim
     # MatrixInstruction rules:
     # DirectToLDS is supported for TLU=0  (make sure transposeLDS=1)
-    # LDS (load size coalesced) * LSPA must load some multiple of 256 bytes. each DirecToLds instruction provides 256 bytes
+    # LDS (load size coalesced) * LSPA must load some multiple of 256 bytes.
+    # added support for loadX2/loadx4 .
+    # x2/x4 (use x4 for better load efficiency)
+    # x2/x4 support for NT layout for f64/f32   TN layout (f16/bf16/f32/f64) with transposeLDS=1
+    # ignore x2/x4 precision < 4 bytes in NT layout
     if state["DirectToLds"]:
       if Solution.isDirectToLdsDoable(state, 'A'):
         state["DirectToLdsA"] = True
         state["LocalWriteUseSgprA"] = True
-        print("DirectToLdsA", state["DirectToLdsA"])
+        #1LDS buffer must be 0 for DirectToLdsA
+        state["1LDSBuffer"] = 0
+        #print("DirectToLdsA", state["DirectToLdsA"])
 
       if Solution.isDirectToLdsDoable(state, 'B'):
         state["DirectToLdsB"] = True
         state["LocalWriteUseSgprB"] = True
+        #1LDS buffer must be 0 for DirectToLdsA
+        state["1LDSBuffer"] = 0
+        #print("DirectToLdsB", state["DirectToLdsB"])
 
       # Update parent variable so kernel display is accurate
       state["DirectToLds"] = state["DirectToLdsA"] or state["DirectToLdsB"]

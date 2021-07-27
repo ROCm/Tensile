@@ -5117,13 +5117,21 @@ class KernelWriterAssembly(KernelWriter):
       "LSU offset: stirde = MT%u(%u) + PAD%u(%u)" % (tile01, kernel["MacroTile%u" % tile01], tile01, LdsPad))
     kStr += inst("v_mul_lo_u32", vgpr(sgid), sgpr(tmpSgpr), vgpr(sgid), \
       "LSU offset: lsuoffset = sgid*(MT%u+PAD)"%tile01)
+    if kernel["EnableMatrixInstruction"]: 
+      if (kernel["DirectToLds%s" % tP["tensorChar"]] and kernel["ProblemType"]["TLU%s" % tP["tensorChar"]]):
+        kStr += inst("v_lshlrev_b32", vgpr(sgid), hex(log2(tP["bpe"])), vgpr(sgid),  \
+                "LSU offset: lsuoffset = lsuoffset * bpe");
     if not kernel["EnableMatrixInstruction"] and kernel["VectorWidth"] > 1:
       kStr += staticMultiply(vgpr(tP["gpr"]["lro"]), vgpr(tP["gpr"]["lro"]), kernel["VectorWidth"], sgpr(tmpSgpr), \
       "Final Offset: lr%sOffset * VW" % tc)
 
     # final offset
-    kStr += inst("_v_add_lshl_u32", vgpr("LocalReadAddr%s"%tc), vgpr(sgid), vgpr(tP["gpr"]["lro"]), hex(log2(tP["bpe"])), \
-      "Final Offset: offset = (lro%s*VW+lsuoffset)*bpe" % tile01 )
+    if (kernel["DirectToLds%s" % tP["tensorChar"]] and kernel["ProblemType"]["TLU%s" % tP["tensorChar"]]):
+      kStr += inst("_v_add_u32", vgpr("LocalReadAddr%s"%tc), vgpr(sgid), vgpr(tP["gpr"]["lro"]), \
+        "Final Offset: offset = (lro%s*VW+lsuoffset)" % tile01 )
+    else:
+      kStr += inst("_v_add_lshl_u32", vgpr("LocalReadAddr%s"%tc), vgpr(sgid), vgpr(tP["gpr"]["lro"]), hex(log2(tP["bpe"])), \
+        "Final Offset: offset = (lro%s*VW+lsuoffset)*bpe" % tile01 )
 
     # LdsBlockSizePerPad: add padding
     if kernel["LdsBlockSizePerPad%s"%tc] != 0 and kernel["LdsPad%s"%tc] !=0:
