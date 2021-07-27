@@ -2344,10 +2344,10 @@ class Solution(collections.abc.Mapping):
     # TN with transposeLDS feature should work as long as state["AssertSummationElementMultiple"] % (numelements_perlane*2) = 0 
     #                                                     state["AssertSummationElementMultiple"] % (numelements_perlane*4) = 0
 
-    ##NT 
-    ## use only for f32 & DGEMM and TLU = 1
-    ##TN
-    ## use for all precisions with TransposeLDS=1
+    #NT 
+    # use only for f32 & DGEMM and TLU = 1
+    #TN
+    # use for all precisions with TransposeLDS=1
 
     if state["ProblemType"]["DataType"].isHalf() and state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc])  != 0:
       print2("can't use DirectToLds for FP16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
@@ -2368,7 +2368,7 @@ class Solution(collections.abc.Mapping):
     if state["ProblemType"]["TLU%c"%tc] == state["UnrollMajorLDS%c" % tc]:
       return False
 
-    ## avoid picking x2&x4 for precisions < f32/f64 in [ProblemType][TLU] == TRUE
+    # avoid picking x2&x4 for precisions < f32/f64 in [ProblemType][TLU] == TRUE
     if state["ProblemType"]["TLU%c"%tc] and state["GlobalLoadVectorWidth%c"%tc] * numBytes > 4 and numBytes < 4:
       return False
 
@@ -3170,7 +3170,7 @@ class Solution(collections.abc.Mapping):
         state["LocalReadVectorWidth"] = state["VectorWidth"]
     else:
       if state["EnableMatrixInstruction"]:
-        ## support LocalReadVectorWidth < miInputPerThread for directToLdsX2/X4
+        # support LocalReadVectorWidth < miInputPerThread for directToLdsX2/X4
         if state["LocalReadVectorWidth"] < state["MIInputPerThread"] and not (state["DirectToLdsA"] or state["DirectToLdsB"]):
           reject(state, "LocalReadVectorWidth < %u" %(state["MIInputPerThread"]))
         if state["LocalReadVectorWidth"] > state["MIInputPerThread"] and not state["TransposeLDS"]:

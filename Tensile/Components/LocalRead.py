@@ -117,7 +117,7 @@ class LocalReadMFMA(LocalRead):
     kernel = {"EnableMatrixInstruction": True}
 
     """
-    ocal Read: Do It A/B
+    Local Read: Do It A/B
     iui = Inner Unroll Idx
     epsi = expand pointer swap index. Only used for PAP
     """
@@ -149,15 +149,15 @@ class LocalReadMFMA(LocalRead):
         if kernel["UnrollMajorLDS%s" % tP["tensorChar"]]:
             tileStride   = kernel["_DepthULds"] + LdsPad
             UnrollStride = 1
-        ## special case for fp64 and 
+        # special case for fp64 and 
         if kernel["DirectToLds%s" % tP["tensorChar"]] and kernel["ProblemType"]["TLU%s" % tP["tensorChar"]] and tP["bpe"] != int(blockWidth * 4):
            directToLdsStride = True 
 
         numReadPerTileVector = vectorWidth if (tile01 == 0) else 1
         numVectorsPerTile    = kernel["MIWaveTile"][tile01] // numReadPerTileVector
-        ## overloading numReadsPerUnroll for DirectToLds x2/x4 case when blockWidth of instruction < LocalReadVectorWidth
-        ## fp64 TLU=1 reading 0.5element/lane/read..
-        ## for TLU=0 case, blockWidth and LRVW should match
+        # overloading numReadsPerUnroll for DirectToLds x2/x4 case when blockWidth of instruction < LocalReadVectorWidth
+        # fp64 TLU=1 reading 0.5element/lane/read..
+        # for TLU=0 case, blockWidth and LRVW should match
         if tc == "A":
             numReadsPerUnroll = tP["bpe"] * writer.lrvwA // int(blockWidth * 4) # bytes/register
         else:
