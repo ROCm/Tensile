@@ -138,7 +138,7 @@ TensileStatus SolutionLock::getFunction(hipFunction_t*       f,
             {
                 std::string pk1 = "assembly/" + kernelName + ".co";
                 std::string pk2 = "../source/assembly/" + kernelName + ".co";
-                if(stat(pk2.c_str(),&fileStat) < 0 || (fileStat.st_mode & S_IFMT) != S_IFREG)
+                if(stat(pk2.c_str(), &fileStat) < 0 || (fileStat.st_mode & S_IFMT) != S_IFREG)
                     e = hipModuleLoad(&module, pk1.c_str());
                 else
                     e = hipModuleLoad(&module, pk2.c_str());

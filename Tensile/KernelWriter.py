@@ -21,7 +21,7 @@
 
 from . import Code
 from . import Common
-from .Common import globalParameters, CHeader, roundUp
+from .Common import globalParameters, CHeader, roundUp, Backup
 from .ReplacementKernels import ReplacementKernels
 from .CustomKernels import isCustomKernelConfig
 from .SolutionStructs import Solution
@@ -31,6 +31,7 @@ import os
 import shutil
 import subprocess
 import copy
+from math import ceil
 from itertools import zip_longest
 
 ################################################################################
@@ -114,11 +115,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
     globalReadIncACode  = self.globalReadIncrements.findNamedItem("globalReadIncrementA")
     globalReadIncBCode  = self.globalReadIncrements.findNamedItem("globalReadIncrementB")
 
-    if uDu == 0 and kernel["DepthULdsDivisor"] > 1:
+    if uDu < kernel["DepthULdsDivisor"] - 1 and kernel.enabledSplitLDS and kernel["PrefetchGlobalRead"]:
       globalReadIncACode  = Code.Module()
       globalReadIncBCode  = Code.Module()
-    
-    if uDu > 0 and kernel["DepthULdsDivisor"] > 1:
+
+    if uDu != kernel["DepthULdsDivisor"] - 2 and kernel.enabledSplitLDS:
+      # hack RAII object for auto restore
+      grBackup = Backup(self, globalReadACode = self.globalReadACode, globalReadBCode = self.globalReadBCode)
       self.globalReadACode = Code.StructuredModule() # empty
       self.globalReadBCode = Code.StructuredModule() # empty
 
@@ -332,11 +335,41 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # so we offset lwEndMfmaIndex by 1 mfma
       if kernel["PrefetchGlobalRead"] == 2 and self.numLocalWriteModPerMfma % PRECISION != 0:
         numMfmaBetweenLWandBarrier -= 1
-      self.lwEndMfmaIndex = max(self.barrierMfmaIndex - numMfmaBetweenLWandBarrier,0) if self.numItersPLR else numMfmaPerIter*kernel["LoopIters"] - 1
+      def assignParamSplitLds(numMfmaBetweenLWandBarrier):
+        if not kernel.enabledSplitLDS:
+          return numMfmaBetweenLWandBarrier
+        # how many local reads in terms of mfma indices (height)
+        # total number of instructions (total) minus the instructions prefetched outside of loop (spent), divided by mfma bubble (width)
+        issueLatency = max(self.localReadInstructionA.IssueLatency, self.localReadInstructionB.IssueLatency) * 2
+        width = self.miLatencyLeft // issueLatency
+        width = max(width, 1)
+        spent = self.numItersPLR * (self.numReadsPerIterA + self.numReadsPerIterB)
+        total = kernel["LoopIters"]//self.numIterPerCoalescedReadA*self.numReadsPerIterA + \
+                kernel["LoopIters"]//self.numIterPerCoalescedReadB*self.numReadsPerIterB
+        height = int(ceil((total-spent)/width))
+        # how many local writes
+        localWritesToSched = self.localWriteACode.countType(Code.LocalWriteInst) + \
+                             self.localWriteBCode.countType(Code.LocalWriteInst)
+        localWritesPerMfma = self.numLocalWriteModPerMfma / PRECISION # was scaled by PRECISION
+        # _numMfmaBetweenLastLWandBarrier: a function of 'spacing', which is num of mfma instructions until local write starts
+        _numMfmaBetweenLastLWandBarrier = lambda spacing : self.barrierMfmaIndex + 1 - ceil(localWritesToSched/localWritesPerMfma) - spacing
+        addrIncToSched = sum(1 for codemod in [globalReadIncACode, globalReadIncBCode] if len(codemod.items()))
+        if uDu < kernel["DepthULdsDivisor"] - 1:
+          if kernel["1LDSBuffer"] and kernel["PrefetchLocalRead"] > 1:
+            # space the stream of local writes so that 1st local write is scheduled after last local read,
+            # but give it 2 mfma's worth of headroom
+            spacing = 2 + height
+          else:
+            # can start ds_write/buffer_load as soon as loop starts, but give it 1 mfma's worth of headroom
+            spacing = 1
+        else:
+          # query how much spacing we have by calling lambda(0), minus the original 'numMfmaBetweenLWandBarrier'
+          # we get the spacing that results in exactly 'numMfmaBetweenLWandBarrier' between last write and barrier
+          spacing = _numMfmaBetweenLastLWandBarrier(0) - numMfmaBetweenLWandBarrier + addrIncToSched - 1
+        return max(0, _numMfmaBetweenLastLWandBarrier(spacing))
 
-      if kernel["DepthULdsDivisor"] > 1:
-        # SplitLDS's schedule looks like: # (LW/GR) x N -> (GR address increment) x 2
-        self.lwEndMfmaIndex = min(self.lwEndMfmaIndex + 2, numMfmaPerIter*kernel["LoopIters"] - 1)
+      numMfmaBetweenLWandBarrier = assignParamSplitLds(numMfmaBetweenLWandBarrier)
+      self.lwEndMfmaIndex = max(self.barrierMfmaIndex - numMfmaBetweenLWandBarrier,0) if self.numItersPLR else numMfmaPerIter*kernel["LoopIters"] - 1
       localWriteEndIter = self.lwEndMfmaIndex//numMfmaPerIter
       localWriteEndIter = min(kernel["LoopIters"] - 1, localWriteEndIter)
       assert localWriteEndIter < kernel["LoopIters"]
@@ -365,10 +398,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       # Add all loads from middle as individual schedulable items
       # when using PGR2, put global read instruction right after corresponding localWrite instruction
-      if kernel["PrefetchGlobalRead"] == 2 or kernel["DepthULdsDivisor"] > 1:
+      if kernel["PrefetchGlobalRead"] == 2 or kernel.enabledSplitLDS:
         itemsGRToSched =  []
         itemsGRToSchedLater = list(self.globalReadACode.middle.items()) + \
                          list(self.globalReadBCode.middle.items())
+        if kernel.enabledSetPrioSplitLDS and itemsGRToSchedLater:
+          itemsGRToSchedLater.insert(1, Code.Inst("s_setprio", "3", "top priority for load"))
+          itemsGRToSchedLater.insert(len(itemsGRToSchedLater), Code.Inst("s_setprio", "0", ""))
       else:
         itemsGRToSched =  list(self.globalReadACode.middle.items()) + \
                         list(self.globalReadBCode.middle.items())
@@ -594,11 +630,16 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
           imod.addCode(item)
           # schedule global instrction that need to be scheduled later
-          if itemsGRToSchedLater:
-            if localwriteCnt % PRECISION == (numLocalWritesPerSched % PRECISION):
-              itemGR = itemsGRToSchedLater.pop(0)
+          if localwriteCnt % PRECISION == (numLocalWritesPerSched % PRECISION):
+            reads = 0
+            while itemsGRToSchedLater:
+              itemGR = itemsGRToSchedLater[0]
+              reads = reads + itemGR.countType(Code.GlobalReadInst)
+              if reads > 1:
+                break
               imod.addCode(itemGR)
               readsToWait = readsToWait + itemGR.countType(Code.GlobalReadInst) # GR instruction increments vmcnt
+              itemsGRToSchedLater.pop(0)
           localwriteCnt += 1
           self.perIterLocalWriteCode[u].addCode(imod)
 
@@ -704,10 +745,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       iterCode.addCode(waitCode)
 
       # interleave pack code
-      # BF16: each packCode is for one 32-bit reg,  1 packing inst: half-to-single x1
-      # FP16: each packCode is for two 32-bit regs, 2 packing inst: half-to-single x2
-      # INT8: each packCode is for one 32-bit regs, 3 packing inst: byte-to-half x2 + half-to-single x1
-      instPerPack = 3 if kernel["ProblemType"]["DataType"].isInt8() else ( 1 if kernel["ProblemType"]["DataType"].isBFloat16() else 2 )
+      # BF16 or FP16: each packCode is for one 32-bit reg,  1 packing inst: half-to-single x1
+      # INT8        : each packCode is for one 32-bit regs, 3 packing inst: byte-to-half x2 + half-to-single x1
+      instPerRegPack = 1 / kernel["ProblemType"]["DataType"].numRegisters() - 1
+      instPerPack    = int(kernel["MIInputPerThread"] * kernel["ProblemType"]["DataType"].numRegisters() * instPerRegPack)
       packItems = []
       for iui in range(kernel["InnerUnroll"]):
         packINtems = [ [] for j in range(max(self.numReadsIterCoalescedA,self.numReadsIterCoalescedB)) ]
@@ -854,8 +895,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # since the mfma reuse B first =>    for A: mfma[A][B]
       # we need 1 vector A and 1 vector B for first mfma
       # then we prepare remaining A, then remaining B
+      # BF16 or FP16: each packCode is for one 32-bit reg,  1 packing inst: half-to-single x1
+      # INT8        : each packCode is for one 32-bit regs, 3 packing inst: byte-to-half x2 + half-to-single x1
       ####
-      instPerPack = 3 if kernel["ProblemType"]["DataType"].isInt8() else ( 1 if kernel["ProblemType"]["DataType"].isBFloat16() else 2 )
+      instPerRegPack = 1 / kernel["ProblemType"]["DataType"].numRegisters() - 1
+      instPerPack    = int(kernel["MIInputPerThread"] * kernel["ProblemType"]["DataType"].numRegisters() * instPerRegPack)
       packItems = []
       for iui in range(kernel["InnerUnroll"]):
         packINtems = [ [] for j in range(max(self.numReadsIterCoalescedA,self.numReadsIterCoalescedB)) ]
@@ -906,6 +950,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 vacancy["letencyLeft"] -= localRead.IssueLatency * 2
                 vacancy["items"].addCode(localRead)
                 localReadItemsThisLoop.remove(localRead)
+                if vacancy["atMfmaIndex"] > self.lwStartMfmaIndex - 1 and kernel["1LDSBuffer"]:
+                  self.overflowedResources = 5
                 # update waitCnt
                 if self.numItersPLR:
                   for readsIter in range(vacancy["atIter"], iteration + self.numItersPLR):
@@ -963,7 +1009,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # reject to use 1LDSB, since it will write and read same lds buffer at same time.
         # TODO: force to schedule all remaining localreads before start to schedule localwrite.
         if mfmaIndex >= self.lwStartMfmaIndex and mfmaIndex <= max(self.lwEndMfmaIndex,self.barrierMfmaIndex) and \
-          localReadItemsThisLoop and kernel["1LDSBuffer"]:
+          localReadItemsThisLoop and localWriteCode.countType(Code.LocalWriteInst) and kernel["1LDSBuffer"]:
           self.overflowedResources = 5
         for j in range(readLeft):
           if localReadItemsThisLoop:
@@ -1010,7 +1056,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           iterCode.addCode(barrier)
 
         if kernel["StorePriorityOpt"] and kernel["PrefetchGlobalRead"] == 2 and \
-            mfmaIndex == self.lwStartMfmaIndex:
+            (mfmaIndex == self.lwStartMfmaIndex or mfmaIndex == self.barrierMfmaIndex+2) :
           iterCode.addInst("s_setprio 3","store optimization")
 
         if (mfmaIndex >= self.lwStartMfmaIndex):
@@ -1048,10 +1094,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if mfmaIndex == self.barrierMfmaIndex and self.numItersPLR:
           iterCode.addCode(waitLWCode)
           iterCode.addCode(syncCode)
-
-        if kernel["StorePriorityOpt"] and kernel["PrefetchGlobalRead"] == 2 and \
-            mfmaIndex == self.barrierMfmaIndex and self.numItersPLR:
-          iterCode.addInst("s_setprio 0","store optimization")
 
         ####
         # scheduled local read for next loop
@@ -1137,6 +1179,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # scheduled mfma
         ####
         iterCode.addCode(macIterItems.pop(0) if macIterItems else Code.Module())
+
+        if kernel["StorePriorityOpt"] and kernel["PrefetchGlobalRead"] == 2 and \
+            (mfmaIndex == self.barrierMfmaIndex or mfmaIndex == (kernel["LoopIters"] * numMfmaPerIter - 1)):
+          iterCode.addInst("s_setprio 0","store optimization")
     else:
       assert 0, "Unsupported scheduleIterAlg=%u"%self.scheduleIterAlg
 
@@ -1261,7 +1307,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #    but since there are some vgpr value is used in the later lwaFirstOffset (when not OptNLL, such as "lwoT")
       #    so we still do this part when "isPap & not OptNLL"
       # 2. if tile edge, then we still need to add all these codes even isPap
-      self.dontAppendCode = isPap and isOptNLL and (not needShift)
+
+      self.dontAppendCode = isPap and kernel["PrefetchAcrossPersistentMode"] == 1 and (not needShift)
       # tile assignments
       kl.append(self.comment("global read addresses: tile offset assignment a"))
       kl.append(self.graTileAssignment(kernel, tensorParametersA))
@@ -1359,7 +1406,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.lwaUnrollAssignment(kernel, tensorParametersB))
 
       # if PAP, no need to reset LWA, but if not OptNLL, we still do this (due to TailLoop)
-      self.dontAppendCode = isPap and isOptNLL
+
+      self.dontAppendCode = isPap and kernel["PrefetchAcrossPersistentMode"] == 1
       # first offsets
       kl.append(self.comment("local write addresses: first offset a"))
       kl.append(self.lwaFirstOffset(kernel, tensorParametersA))
@@ -1497,6 +1545,16 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # the scheduled GlobalRead,Inc code of PAP is inside openSumAtLeastUnroll (if PAP=on)
     kl.append(self.openSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=isOptNLL, isPap=isPap))
 
+    if self.prefetchAcrossPersistent and kernel["PrefetchAcrossPersistentMode"] == 1 and isPap and not isOptNLL:
+      kStr = ""
+      kStr += str(self.openPrefetchAcrossPersistent(kernel, isOptNLL=False, useBufferOOB=True))
+      # For PAPMode 1, using isOptNLL true to generate prefetch code
+      newTileCodes = self.setupNewTile(kernel, self.tPA, self.tPB, isPap=True, isOptNLL=True)
+      codes = '\n'.join([str(x) for x in newTileCodes])
+      kStr += codes
+      kStr += str(self.closePrefetchAcrossPersistent(kernel, isOptNLL=False, useBufferOOB=True))
+      kl.append(kStr)
+
     if not self.numItersPLR:
       if self.enable["Wait"]:
         if kernel["DirectToLdsA"] or kernel["DirectToLdsB"]:
@@ -1552,6 +1610,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if isLastLoop:
         extraComment += " (last unrolled loop)"
       else:
+        if kernel.enabledSplitLDS:
+            extraComment += f" (uDu={uDu}) "
         if isResetLroIter:
             extraComment += " (reset local read pointers iteration) "
         if isSwapAndResetLwoIter:
@@ -1867,7 +1927,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       unrollLoopHeaderCodeScheduled = False
       if not kernel["PrefetchGlobalRead"]:
         unrollLoopHeaderCodeScheduled = True
-        self.makeSchedule(kernel, tensorParametersA, tensorParametersB, localWriteEndIter, -1)
+        self.makeSchedule(kernel, tensorParametersA, tensorParametersB, localWriteEndIter)
         kl.append(str(self.unrollLoopHeaderCode))
 
       # if not prefetch global, localWrite before mac's
@@ -1990,6 +2050,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if kernel["ScheduleIterAlg"] == 3:
           isSwapAndResetLwoIter = (u == self.lwEndMfmaIndex//(self.numMfmaPerIter))
         extraComment = ""
+        if kernel.enabledSplitLDS:
+          extraComment += f" (uDu={uDu}) "
         if isResetLroIter:
           extraComment += " (reset local read pointers iteration) "
         if isSwapAndResetLwoIter:
@@ -2300,7 +2362,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=True, isPap=False, isNGLL=False, pack=deepCopyPack)
           self.restoreLocalPointers(kernel)
 
-        kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False, isPap=False, isNGLL=False, pack=pack)
+        papMode = self.prefetchAcrossPersistent and kernel["PrefetchAcrossPersistentMode"] == 1
+        kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False, isPap=papMode, isNGLL=False, pack=pack)
       # if PGR, last few iterations will have PLR,
       # and those PLR will not be used(register not checkIn) if without NoLoadLoop
       else:
@@ -2360,7 +2423,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.oriLwaA = None # back up original local write address vgpr
       self.oriLwaB = None
       for uDu in range(0, kernel["DepthULdsDivisor"]):
-        if kernel["DepthULdsDivisor"] > 1:
+        if kernel.enabledSplitLDS:
           # change local write poilcy from interleave-K to fractional as tail loop
           # iterate LDS read address one unit of K at a time
           kl.append(self.comment("Recalc local write offsets"))
@@ -2402,7 +2465,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kl.append(self.localReadInitPointers(kernel, tensorParametersB))
         # tail: macs
         kl.append(self.comment("tail loop: macs"))
-        kl.append(self.openLoop(kernel, -1, uDu if kernel["DepthULdsDivisor"]>1 else None))
+        kl.append(self.openLoop(kernel, -1, uDu if kernel.enabledSplitLDS else None))
 
         # Try to use InnerUnroll in the tail loop if allowed:
         KinInnerUnroll = kernel["InnerUnroll"]
@@ -2450,7 +2513,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           else:
             kl.append(self.macIter(kernel, 0, tailLoopInnerUnroll, True, True))
 
-        kl.append(self.closeLoop(kernel, -1, True, uDu if kernel["DepthULdsDivisor"]>1 else None))
+        kl.append(self.closeLoop(kernel, -1, True, uDu if kernel.enabledSplitLDS else None))
     # always emit the skip-tail-loop label
     kl.append(self.closeLoop(kernel, -1, None, emitEndLabelOnly=True))
     # tail: close
@@ -2462,7 +2525,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.globalReadIncrementAB(kernel, i, 0))
       kl.append(self.closeLoop(kernel, i, True))
 
-    if self.prefetchAcrossPersistent:
+    if self.prefetchAcrossPersistent and kernel["PrefetchAcrossPersistentMode"] != 1:
       kl.append(str(self.openPrefetchAcrossPersistent(kernel, isOptNLL=False)))
       kl += self.setupNewTile(kernel, self.tPA, self.tPB, isPap=True, isOptNLL=False)
       kl.append(str(self.closePrefetchAcrossPersistent(kernel, isOptNLL=False)))
@@ -3672,11 +3735,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
     return ""
 
   @abc.abstractmethod
-  def openPrefetchAcrossPersistent(self, kernel, isOptNLL=False):
+  def openPrefetchAcrossPersistent(self, kernel, isOptNLL=False, useBufferOOB=False):
     return ""
 
   @abc.abstractmethod
-  def closePrefetchAcrossPersistent(self, kernel, isOptNLL=False):
+  def closePrefetchAcrossPersistent(self, kernel, isOptNLL=False, useBufferOOB=False):
     return ""
 
   ##############################################################################

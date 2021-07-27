@@ -389,13 +389,11 @@ class SignatureCOV3(Signature):
         totalVgprs = writer.vgprPool.size()
         totalSgprs = writer.sgprPool.size()
 
-        # accumulator offset for gfx90a
+        # accumulator offset for Unified Register Files
         vgprCount = totalVgprs
-        if writer.version == (9,0,10):
-            agprStart = ceil(totalVgprs/4)*4
-            if writer.agprPool.size() != 0:
-                agprStart = ceil(totalVgprs/8)*8
-                vgprCount = agprStart + writer.agprPool.size()
+        if writer.archCaps["ArchAccUnifiedRegs"]:
+            agprStart = ceil(totalVgprs/8)*8
+            vgprCount = agprStart + writer.agprPool.size()
 
             tWord = ".amdhsa_accum_offset"
             kStr += "  %s %u // accvgpr offset%s" % (tWord, agprStart, writer.endLine)

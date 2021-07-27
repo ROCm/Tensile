@@ -22,6 +22,9 @@
 from Tensile.Utilities.merge import cmpHelper, fixSizeInconsistencies, removeUnusedKernels, mergeLogic
 import yaml, pytest
 
+# the merge scripts does not differentiate solutions based on index or name
+# so "DummyParam" is used to mark if solutions should be equal or not
+
 logicPrefix = r"""
 - DummyVersionRequirement
 - DummyLanguage
@@ -34,10 +37,13 @@ baseLogic=logicPrefix + r"""
 -
   - SolutionIndex: 2
     SolutionNameMin: InUseForSize256
+    DummyParam: InUseForSize256
   - SolutionIndex: 1
     SolutionNameMin: UnusedSolution
+    DummyParam: UnusedSolution
   - SolutionIndex: 0
     SolutionNameMin: InUseForSize128or64
+    DummyParam: InUseForSize128or64
 - DummyIndexAssignment
 -
   - - [256, 256, 1, 256]
@@ -52,8 +58,10 @@ incLogic=logicPrefix + r"""
 -
   - SolutionIndex: 39
     SolutionNameMin: InUseForSize256or1024xxx
+    DummyParam: InUseForSize256or1024xxx
   - SolutionIndex: 1
     SolutionNameMin: InUseForSize128xxx
+    DummyParam: InUseForSize128xxx
 - DummyIndexAssignment
 -
   - - [128, 128, 1, 128]
@@ -68,16 +76,20 @@ notUniqueSolution=logicPrefix+r"""
 -
   - SolutionIndex: 0
     SolutionNameMin: Kernel0
+    DummyParam: Kernel0
   - SolutionIndex: 1
     SolutionNameMin: Kernel0
+    DummyParam: Kernel0
 """
 
 uniqueSolution=logicPrefix+r"""
 -
   - SolutionIndex: 0
     SolutionNameMin: Kernel0
+    DummyParam: Kernel0
   - SolutionIndex: 1
     SolutionNameMin: Kernel1
+    DummyParam: Kernel1
 """
 
 notTrimmedSize=r"""
@@ -108,10 +120,12 @@ mfmaMergeBaseLogic=logicPrefix+r"""
 -
   - SolutionIndex: 0
     SolutionNameMin: MFMA_base
+    DummyParam: MFMA_base
     EnableMatrixInstruction: True
     MatrixInstruction: [16, 16, 4, 1]
   - SolutionIndex: 1
     SolutionNameMin: VALU_base
+    DummyParam: VALU_base
     EnableMatrixInstruction: False
     MatrixInstruction: []
 - DummyIndexAssignment
@@ -121,10 +135,12 @@ mfmaMergeIncLogic=logicPrefix+r"""
 -
   - SolutionIndex: 0
     SolutionNameMin: MFMA_inc
+    DummyParam: MFMA_inc
     EnableMatrixInstruction: True
     MatrixInstruction: [16, 16, 4, 1]
   - SolutionIndex: 1
     SolutionNameMin: VALU_inc
+    DummyParam: VALU_inc
     EnableMatrixInstruction: False
     MatrixInstruction: []
 - DummyIndexAssignment

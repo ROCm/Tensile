@@ -22,6 +22,7 @@
 from copy import deepcopy
 
 from .Common import globalParameters, CHeader
+from .DataType import DataType
 from .KernelWriterBase import KernelWriterBase
 
 class KernelWriterConversion(KernelWriterBase):
@@ -35,6 +36,9 @@ class KernelWriterConversion(KernelWriterBase):
     # derive parameter
     self.language = "HIP"
     self.kernelName = self.getKernelName()
+    self.datatype = self.state["ProblemType"]["ComputeDataType"].toDevice(self.language)
+    if self.state["ProblemType"]["DataType"].isHalf() and self.state["ProblemType"]["HighPrecisionAccumulate"]:
+      self.datatype = DataType('single').toDevice(self.language)
 
     # determine chars for fast access
     self.indexChars = []
@@ -62,7 +66,7 @@ class KernelWriterConversion(KernelWriterBase):
     bStr = '' if self.state["ProblemType"]["StridedBatched"] else 'Batch'
 
     kStr += "  " + ptrStr + " * " + bStr + "D," + self.endLine
-    kStr += "  " + "float * W," + self.endLine
+    kStr += "  " + self.datatype + " * W," + self.endLine
     kStr += "  " + ptrStr + " const * " + bStr + "C," + self.endLine
 
     # alpha & beta
@@ -232,16 +236,16 @@ class KernelWriterConversion(KernelWriterBase):
       kStr += " + (size%s - 1) * strideW%s" % (indexChar, indexChar)
     kStr += ";" + self.endLine
 
-    kStr += "  float accum = 0.0f;%s" % self.endLine
+    kStr += "  " + self.datatype + " accum = 0;%s" % self.endLine
     kStr += "  for (int i=0; i<gsu; i++) {%s" % self.endLine
     kStr += "    accum += W[idxW];%s" % self.endLine
     kStr += "    idxW  += strideW;%s" % self.endLine
     kStr += "  }%s" % self.endLine
 
     kStr += "  if( beta == (%s)0)%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine)
-    kStr += "    accum = ((float)alpha) * accum;%s" % (self.endLine)
+    kStr += "    accum = ((" + self.datatype + ")alpha) * accum;%s" % (self.endLine)
     kStr += "  else%s" % self.endLine
-    kStr += "    accum = (((float)alpha) * accum + ((float)beta) * ((float)C[idxC]));%s" % (self.endLine)
+    kStr += "    accum = (((" + self.datatype + ")alpha) * accum + ((" + self.datatype + ")beta) * ((" + self.datatype + ")C[idxC]));" + self.endLine
 
     typeStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
     kStr += "  D[idxD] = (%s)accum;%s" % (typeStr, self.endLine)

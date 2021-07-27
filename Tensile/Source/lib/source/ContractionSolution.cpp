@@ -363,8 +363,8 @@ namespace Tensile
 
         if(sizeMapping.globalAccumulation)
         {
-            rv.args.append<void const*>("ws0", inputs.ws);
-            rv.args.append<void const*>("ws1", inputs.ws);
+            rv.args.append<void const*>("ws_d", inputs.ws);
+            rv.args.append<void const*>("ws_c", inputs.ws);
         }
         else if(problemType.stridedBatched)
         {
@@ -407,14 +407,14 @@ namespace Tensile
             size_t wsStride = startStrideCD ? d.sizes()[0] : 1;
             for(size_t i = startStrideCD; i < d.dimensions(); i++)
             {
-                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW", i), wsStride);
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW_D", i), wsStride);
                 wsStride *= d.sizes()[i];
             }
 
             wsStride = startStrideCD ? d.sizes()[0] : 1;
             for(size_t i = startStrideCD; i < c.dimensions(); i++)
             {
-                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW", i), wsStride);
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW_C", i), wsStride);
                 wsStride *= d.sizes()[i];
             }
         }
@@ -827,27 +827,32 @@ namespace Tensile
         }
 
         // Check if alpha matches problem definition
-        if(problem.alphaRestriction() != ScalarValue::Any && problem.alphaRestriction() != toScalarValueEnum(inputs.alpha))
+        if(problem.alphaRestriction() != ScalarValue::Any
+           && problem.alphaRestriction() != toScalarValueEnum(inputs.alpha))
         {
             std::stringstream inputValue;
             inputValue << inputs.alpha;
-            std::string msg = std::string("Alpha value ") + inputValue.str() +
-                              std::string(" doesn't match that set in problem: ") + ToString(problem.alphaRestriction());
+            std::string msg = std::string("Alpha value ") + inputValue.str()
+                              + std::string(" doesn't match that set in problem: ")
+                              + ToString(problem.alphaRestriction());
             throw std::runtime_error(msg.c_str());
         }
 
         // Check if beta matches problem definition
-        if(problem.betaRestriction() != ScalarValue::Any && problem.betaRestriction() != toScalarValueEnum(inputs.beta))
+        if(problem.betaRestriction() != ScalarValue::Any
+           && problem.betaRestriction() != toScalarValueEnum(inputs.beta))
         {
             std::stringstream inputValue;
             inputValue << inputs.beta;
-            std::string msg = std::string("Beta value ") + inputValue.str() +
-                              std::string(" doesn't match that set in problem: ") + ToString(problem.betaRestriction());
+            std::string msg = std::string("Beta value ") + inputValue.str()
+                              + std::string(" doesn't match that set in problem: ")
+                              + ToString(problem.betaRestriction());
             throw std::runtime_error(msg.c_str());
         }
 
         if(problem.cEqualsD() && inputs.c != inputs.d)
-            throw std::runtime_error("ContractionProblem has cEqualsD set, but pointers for c and d are not equal");
+            throw std::runtime_error(
+                "ContractionProblem has cEqualsD set, but pointers for c and d are not equal");
 
         std::vector<KernelInvocation> rv;
 

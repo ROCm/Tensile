@@ -539,6 +539,12 @@ validParameters = {
     # the next tile in the sequence.
     "PrefetchAcrossPersistent":    [0, 1],
 
+    # Changes the behaviour of prefetch across persistent.
+    # Mode 0 is default, works for all sizes
+    # Mode 1 disables static tile setup for prefetch and merges prefetch with ord. noLoadLoop,
+    #   requires AssertSummationElementMultiple == DepthU
+    "PrefetchAcrossPersistentMode": [0, 1],
+
     "BufferLoad":                 [ False, True ],
     "BufferStore":                [ False, True ],
 
@@ -887,6 +893,10 @@ validParameters = {
     # There are index or address calculation between global instructions.
     # issue global instruction b2b has better performance
     "GroupLoadStore":             [False, True],
+    #
+    # In order to remove the copying from Acc vgpr to Arch vgpr, only use Arch vgprs for v_mfma_xxx.
+    # Only support for kernel whose totalVgpr counts less than 256 and gcn that has control bit ACC_CD.
+    "MIArchVgpr":               [False, True],
 
     # Disable overlapping AB-tile vgpr and read/write addr vgprs with C-tile vgprs
     # Valid only for MatrixInstruction enabled kernels, which by default overlaps
@@ -1046,17 +1056,24 @@ validParameters = {
     # -3 : Only allow min(GLVWA,GLVWB) < VW ?
     "DepthU":                     depthUs,
 
-    # DepthULdsDivisor determines how we pipeline the data from global memory to LDS
+    # DepthULdsDivisor (Split LDS) determines how we pipeline the data from global memory to LDS
     # Instead of moving all in-flight data from the register buffer (G2L) to the LDS at once, we divide the G2L buffer into N portions and
     # write each portion of the G2L to LDS, read from LDS and do the actual matrix multiply-accumulate, before moving on to the portion and so on.
     # This helps cut down LDS usage by the value of the divisor. Helps increase CU occupancy or DepthU if kernel was previously LDS limited.
     #
-    # The premise of this parameter is to be able to fetch all 256B (equivalent to 128 half's or 64 single's) in a TN laid-out problem size,
-    # maximizing L2 channel efficiency, therefore this parameter only works for TN buffer layout
+    # The premise is to be able to fetch 256B (equivalent to 128 half's or 64 single's) in TN layout problems to maximize L2 utilization. This
+    # was previously a problem for TN since it implies DepthU is large, and that leads to oversubscription of LDS.
     #
-    # Implementation-wise, for now it only supports ScheduleIterAlg=3 and TransposeLDS=1
-    # In addition, it does not work with DirectToLds=1 because it needs the in-flight data to reside in registers
-    "DepthULdsDivisor":           [1, 2], # [4, 8] not tested yet
+    # Preconditions:
+    # ScheduleIterAlg=3, TransposeLDS=1, PGR=0/1 exlcuding 2, DirectToLds=0 (DirectToLds=0 because part of the data loaded *need* to reside in registers),
+    # nRegs per load >= DepthULdsDivisor (since we artificially require at least 1 register per LDS write)
+    #
+    # Example: DepthULdsDivisor=2
+    # v0, v1, v2, v3 | v0, v1, v2, v3 | ... ----> unroll dim
+    # -----Thd 0----- -----Thd 1-----   ...
+    # 1st subloop writes v0,v1 to LDS
+    # 2nd subloop writes v2,v3 to LDS
+    "DepthULdsDivisor":           [1, 2, 4],
 
     # integer ammount of padding to put into LDS, in 2016 this didn't seem to help performance, profilers were showing that channel conflicts weren't really hurting
     # performance so this has been deprecated and probably doesn't work
@@ -1195,6 +1212,7 @@ defaultBenchmarkCommonParameters = [
     {"InterleaveAlpha":           [ 0 ] },
     {"OptNoLoadLoop":             [ 1 ] },
     {"PrefetchAcrossPersistent":  [ 0 ] },
+    {"PrefetchAcrossPersistentMode": [ 0 ] },
 
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
@@ -1224,7 +1242,7 @@ defaultBenchmarkCommonParameters = [
     {"StaggerUMapping":           [ 0 ] },    # recommend [0,1]
     {"MagicDivAlg":               [ 2 ] },
     {"GlobalSplitU":              [ 1 ] },
-    {"GlobalSplitUAlgorithm":     [ "MultipleBuffer" ] },
+    {"GlobalSplitUAlgorithm":     [ "SingleBuffer" ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },
     {"MacroTileShapeMin":         [ 1 ] },
@@ -1272,6 +1290,7 @@ defaultBenchmarkCommonParameters = [
     {"NumElementsPerBatchStore":  [ 0 ] },
     {"StoreSyncOpt":              [ 0 ] },
     {"GroupLoadStore":            [ False ] },
+    {"MIArchVgpr":                [ False ] },
     ]
 # benchmark these solution independently
 defaultForkParameters = []
@@ -1648,11 +1667,13 @@ def GetAsmCaps(isaVersion):
 
 def GetArchCaps(isaVersion):
   rv = {}
-  rv["HasEccHalf"]       = (isaVersion==(9,0,6) or isaVersion==(9,0,8) or isaVersion==(9,0,10))
-  rv["Waitcnt0Disabled"] = (isaVersion == (9,0,8) or isaVersion==(9,0,10))
-  rv["SeparateVscnt"]    = isaVersion[0] == 10
-  rv["CMPXWritesSGPR"]   = isaVersion[0] != 10
-  rv["HasWave32"]        = isaVersion[0] == 10
+  rv["HasEccHalf"]         = (isaVersion==(9,0,6) or isaVersion==(9,0,8) or isaVersion==(9,0,10))
+  rv["Waitcnt0Disabled"]   = (isaVersion == (9,0,8) or isaVersion==(9,0,10))
+  rv["SeparateVscnt"]      = isaVersion[0] == 10
+  rv["CMPXWritesSGPR"]     = isaVersion[0] != 10
+  rv["HasWave32"]          = isaVersion[0] == 10
+  rv["HasAccCD"]           = (isaVersion==(9,0,10))
+  rv["ArchAccUnifiedRegs"] = (isaVersion==(9,0,10))
 
   return rv
 
@@ -2063,6 +2084,19 @@ class ProgressBar:
     sys.stdout.flush()
 
   def finish(self): pass
+
+from copy import copy
+class Backup:
+  """RAII class to restore backed up fields from object"""
+  fields = {}
+  object = None
+  def __init__(self, object, **fields):
+    self.object = object
+    for k, v in fields.items():
+        self.fields[k] = copy(v)
+  def __del__(self):
+    for k, v in self.fields.items():
+        setattr(self.object, k, v)
 
 # Append copyrights to all files generated by tensile since they belong to Tensile intellectual property
 CMakeHeader = """################################################################################

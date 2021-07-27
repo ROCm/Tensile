@@ -1742,7 +1742,7 @@ def isExtractableIndex(ks, index, tc='x'):
 ################################################################################
 # Solution
 ################################################################################
-class Solution:
+class Solution(collections.abc.Mapping):
 
   ########################################
   def __init__(self, config):
@@ -1799,8 +1799,8 @@ class Solution:
   ########################################
   # get a list of kernel parameters for this solution
   def getKernels(self):
-    kernel = deepcopy(self._state)
-    kernel.update({"Kernel": True})
+    kernel = deepcopy(self)
+    kernel._state.update({"Kernel": True})
     kernels = []
     kernels.append(kernel)
     return kernels
@@ -1896,11 +1896,6 @@ class Solution:
       state["LocalSplitU"]         = 1
       state["MIOutputVectorWidth"] = 1 if (state["ProblemType"]["DataType"].MIOutputTypeNameAbbrev() == 'f64') else 4
       state["MIRegPerOut"]         = 2 if (state["ProblemType"]["DataType"].MIOutputTypeNameAbbrev() == 'f64') else 1
-
-      # for dgemm mfma accumulate instructions can use either the accumulate registers or arch registers
-      state["MIUseAccVgpr"] = True
-      if state["ProblemType"]["DataType"].isDouble():
-        state["MIUseAccVgpr"] = True # switch to false if testing using arch registers
 
       if state["MatrixInstM"] == 4:
         state["ThreadTile0"] = state["MIWaveTile"][0] * state["MIOutputVectorWidth"]
@@ -2400,22 +2395,26 @@ class Solution:
         state['_'+s] = state[s]
         #del state[s]
 
-    dataType = state["ProblemType"]["DataType"]
-    state["_GlobalAccumulation"] = None
-    if ((dataType.isBFloat16() or dataType.isHalf())
-        and state["ProblemType"]["HighPrecisionAccumulate"]
-        and state["GlobalSplitU"] > 1):
-      if state["GlobalSplitUAlgorithm"] == "SingleBuffer":
-        state["_GlobalAccumulation"] = 'SingleBuffer'
-      if state["GlobalSplitUAlgorithm"] == "MultipleBuffer":
-        state["_GlobalAccumulation"] = 'MultipleBuffer'
-
-    if state["_GlobalAccumulation"] == 'SingleBuffer':
-      state["_WorkspaceSizePerElemC"] = 4
-    elif state["_GlobalAccumulation"] == 'MultipleBuffer':
-      state["_WorkspaceSizePerElemC"] = 4 * state["GlobalSplitU"]
-    else:
+    if ("_GlobalAccumulation" not in state) or ("_WorkspaceSizePerElemC" not in state):
+      state["_GlobalAccumulation"] = None
       state["_WorkspaceSizePerElemC"] = 0
+      if state["GlobalSplitU"] > 1:
+        computeName  = state["ProblemType"]["ComputeDataType"].toName()
+        computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
+        if state["ProblemType"]["DataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]:
+          computeName  = DataType('single').toName()
+          computeBytes = DataType('single').numBytes()
+
+        if state["GlobalSplitUAlgorithm"] == 'SingleBuffer':
+          if computeName != state["ProblemType"]["DestDataType"].toName():
+            state["_GlobalAccumulation"] = 'SingleBuffer'
+        elif state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':
+          state["_GlobalAccumulation"] = 'MultipleBuffer'
+
+        if state["_GlobalAccumulation"] == 'SingleBuffer':
+          state["_WorkspaceSizePerElemC"] = computeBytes
+        elif state["_GlobalAccumulation"] == 'MultipleBuffer':
+          state["_WorkspaceSizePerElemC"] = computeBytes * state["GlobalSplitU"]
 
     if state["VectorStore"] == -1:
         state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel
@@ -2437,9 +2436,6 @@ class Solution:
       state["ExpandPointerSwap"] = 1
       state["1LDSBuffer"] = 1
       print2("\nSet SIA=2, force PrefetchLocalRead=1, ExpandPointerSwap=1, 1LDSBuffer=1")
-
-    if state["DisableVgprOverlapping"] is True and state["EnableMatrixInstruction"] is not True:
-      reject(state, "Non-MI kernels are already non-overlapping in pre-allocated registers")
 
     # F32 only for now but we should extend this for other data types as well.
     isa = tuple(state["ISA"])
@@ -2542,6 +2538,13 @@ class Solution:
         # TODO- do we need to support PGR2 ?
         print2("PAP requires Assembly, PK!=0, PGR==1, SuppressNoLoadLoop=True, forcing PAP=False")
         state["PrefetchAcrossPersistent"] = False
+      if state["PrefetchAcrossPersistentMode"] == 1 and state["AssertSummationElementMultiple"] != state["DepthU"]:
+        reject(state, "PAPMode 1 requires AssertSummationElementMultiple == DepthU")
+        return
+    else:
+      if state["PrefetchAcrossPersistentMode"] != 0:
+        reject(state, "PAPMode requires PrefetchAcrossPersistent enabled")
+        return
 
     problemType = state["ProblemType"]
     if not problemType["UseInitialStridesAB"]:
@@ -2647,10 +2650,13 @@ class Solution:
     # Set up stagger shift:
     bpeAB = int(4*state["ProblemType"]["DataType"].numRegisters())
     # (1<<staggerStrideShift) is number of loop iterations to traverse the stride
+    if state["StaggerU"] == 0:
+      state["StaggerUMapping"] = 0
+      state["StaggerUStride"] = 0
     try:
         staggerStrideShift = (int)(math.ceil(math.log(state["StaggerUStride"] / \
                 (state["DepthU"] * bpeAB), 2)))
-    except ValueError:
+    except ValueError: # i.e., StaggerUStride == 0
         staggerStrideShift = 0
     if staggerStrideShift < 0:
       reject(state, "StaggerUStride=%u is less than size of DepthU=%u * BytesPerElement=%u" \
@@ -2658,8 +2664,6 @@ class Solution:
       return
     #print "staggerStrideShift=", staggerStrideShift, "depthu=", state["DepthU"]
     state["_staggerStrideShift"] = staggerStrideShift
-    if state["StaggerU"] == 0:
-      state["StaggerUMapping"] = 0
 
     # VectorWidth default handling
     if state["VectorWidth"] < 1:
@@ -2696,7 +2700,7 @@ class Solution:
       and state["ProblemType"]["DataType"].isHalf():
 
       # Vector-width must be at least 2 for Half (since unroll loop uses packed operations?)
-      if state["VectorWidth"] < 2:
+      if (not state["EnableMatrixInstruction"]) and state["VectorWidth"] < 2:
         reject(state, "VectorWidth must be >= 2 for half")
       if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
         if not state["ProblemType"]["HighPrecisionAccumulate"] and state["AssertFree0ElementMultiple"] % 2 != 0:
@@ -2704,9 +2708,8 @@ class Solution:
           reject(state, "Archs with HasEccHalf require AF0EM%2==0 except for HPA kernels")
 
     # Some restrictions for int8:
-    if state["KernelLanguage"] == "Assembly" \
-      and state["ProblemType"]["DataType"].isInt8():
-      if state["VectorWidth"] < 4:
+    if state["KernelLanguage"] == "Assembly" and state["ProblemType"]["DataType"].isInt8():
+      if (not state["EnableMatrixInstruction"]) and state["VectorWidth"] < 4:
         reject(state, "VectorWidth must be >= 4 for Int8")
 
     #if state["KernelLanguage"] == "Assembly" and state["PackSummationDims"]:
@@ -2750,12 +2753,13 @@ class Solution:
 
     # LocalSplitU too large?
     numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
+
     if numElementsPerWorkGroup < state["NumThreads"]:
       reject(state, "NumElementsPerWorkGroup %u < NumThreads %u; reduce LocalSplitU" \
           % (numElementsPerWorkGroup, state["NumThreads"]))
       return
-    state["NumElementsPerThread"] = numElementsPerWorkGroup // \
-        state["NumThreads"]
+
+    state["NumElementsPerThread"] = numElementsPerWorkGroup // state["NumThreads"]
     state["GlobalWriteVectorWidth"] = min(state["VectorWidth"], state["NumElementsPerThread"] )
     if state["NumElementsPerThread"] % state["GlobalWriteVectorWidth"] != 0:
       reject(state, "LSU NumElementsPerThread %u not divisible into GWVW %u" \
@@ -2786,12 +2790,13 @@ class Solution:
         return
       # added GSU support for DGEMM
       supported = \
-        state["ProblemType"]["DataType"].isSingle() or \
+        (state["ProblemType"]["DataType"].isSingle()) or \
         (state["ProblemType"]["DataType"].isDouble() and state["BufferStore"]) or \
-        state["ProblemType"]["DestDataType"].isInt32() or \
-        (state["KernelLanguage"] == "Assembly" and \
-         (state["ProblemType"]["DataType"].isHalf() and not state["ProblemType"]["HighPrecisionAccumulate"]) or \
-         state["_GlobalAccumulation"])
+        (state["ProblemType"]["DestDataType"].isInt32()) or \
+        (state["KernelLanguage"] == "Assembly" and
+            (state["ProblemType"]["DataType"].isHalf() and not state["ProblemType"]["HighPrecisionAccumulate"]) or
+            (state["_GlobalAccumulation"])
+        )
       if not supported:
         reject(state, "GlobalSplitU only compatible with single or asm and (half or mixed) precision")
         return
@@ -2805,11 +2810,10 @@ class Solution:
        and not state["ProblemType"]["DataType"].isHalf():
          reject (state, "VectorAtomicWidth>=2 only supported for half")
 
-    if state["ProblemType"]["DataType"].isHalf() and \
-      state["KernelLanguage"] == "Assembly":
+    if state["ProblemType"]["DataType"].isHalf() and state["KernelLanguage"] == "Assembly":
 
-      if state["VectorWidth"] < 2:
-        reject(state, "Assembly half requires VectorWidth >= 2")
+      if (not state["EnableMatrixInstruction"]) and state["VectorWidth"] < 2:
+        reject(state, "Assembly half requires VectorWidth >= 2 for non-MFMA mode")
 
       if state["GlobalSplitU"] > 1 and (not state["_GlobalAccumulation"]):
         if state["VectorAtomicWidth"] < 2:
@@ -3264,12 +3268,16 @@ class Solution:
 
     if state["StoreRemapVectorWidth"] == -1:
       # use de_read_b64 as default in storeRemap to avoid bank conflict
-      defaultRemap = 8 // state["ProblemType"]["DataType"].numBytes()
-      defaultRemap = max(defaultRemap,state["MacroTile0"]//state["WavefrontSize"])
-      ldsRemapPad = max(defaultRemap,state["MIOutputVectorWidth"])
+      defaultRemap = 8 // state["ProblemType"]["DestDataType"].numBytes()
+      defaultRemap = max(defaultRemap, state["MacroTile0"]//state["WavefrontSize"])
+      ldsRemapPad = max(defaultRemap, state["MIOutputVectorWidth"])
       ldsNumElementsRemapC = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"] * state["MIWaveGroup"][1]
-      ldsNumElementsRemapC *= (2 if state["_GlobalAccumulation"] else 1) # FP32 output FP16 Data
-      ldsSize = ldsNumElementsRemapC * state["ProblemType"]["DataType"].numBytes()
+      if state["_GlobalAccumulation"]:
+        computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
+        if state["ProblemType"]["DataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]:
+          computeBytes = DataType('single').numBytes()
+        ldsNumElementsRemapC *= (computeBytes / state["ProblemType"]["DestDataType"].numBytes())
+      ldsSize = ldsNumElementsRemapC * state["ProblemType"]["DestDataType"].numBytes()
       if not math.log(state["MacroTile0"],2).is_integer() or \
           ldsSize > globalParameters["MaxLDS"] or \
           state["SourceSwap"] or \
@@ -3297,6 +3305,25 @@ class Solution:
         return
       if state["StoreRemapVectorWidth"]:
         reject(state, "SourceSwap not compatibile with StoreRemap")
+        return
+
+    # check if need to use lds init Acc vgprs
+    state["LdsInitCVgprs"] = False
+    if globalParameters["ArchCaps"][isa]["HasAccCD"] and \
+         state["EnableMatrixInstruction"] and state["StorePriorityOpt"] and \
+         state["ProblemType"]["DataType"].isDouble():
+      state["LdsInitCVgprs"] = True
+
+    if state["MIArchVgpr"]:
+      if not globalParameters["ArchCaps"][isa]["HasAccCD"] or \
+         not state["EnableMatrixInstruction"]:
+        reject(state, "MIArchVgpr requires gcn support ACC_CD bit for MatrixInstruction")
+        return
+      if not (state["ProblemType"]["ComputeDataType"].isDouble() or \
+              state["ProblemType"]["ComputeDataType"].isSingle() or \
+              (state["ProblemType"]["ComputeDataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]) or \
+              state["ProblemType"]["ComputeDataType"].isInt32()):
+        reject(state, "MIArchVgpr now only support fp64, fp32, fp16, int8 MatrixInstruction.")
         return
 
     if state["AtomicAddC"]:
@@ -3337,7 +3364,11 @@ class Solution:
       storeInstMinWidth = 1 # minimum dwordx1
       storeInstMaxWidth = 4 # maximum dwordx4
       srMinVw = max(storeInstMinWidth, int(storeInstMinWidth/state["ProblemType"]["DestDataType"].numRegisters()))
-      numReg  = 1 if state["_GlobalAccumulation"] else state["ProblemType"]["DestDataType"].numRegisters()
+      numReg  = state["ProblemType"]["DestDataType"].numRegisters()
+      if state["_GlobalAccumulation"]:
+        numReg = state["ProblemType"]["ComputeDataType"].numRegisters()
+        if state["ProblemType"]["DataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]:
+          numReg = DataType('single').numRegisters()
       srMaxVw = int(storeInstMaxWidth/numReg)
       if srMinVw > state["StoreRemapVectorWidth"] or srMaxVw < state["StoreRemapVectorWidth"]:
         reject(state, "StoreRemapVectorWidth %u is not allowed for this data type" % state["StoreRemapVectorWidth"])
@@ -3355,8 +3386,10 @@ class Solution:
       ldsNumElementsRemapC = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"] * state["MIWaveGroup"][1]
 
       if state["_GlobalAccumulation"]:
-        # FP32 output FP16 Data
-        multiplier = 2
+        computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
+        if state["ProblemType"]["DataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]:
+          computeBytes = DataType('single').numBytes()
+        multiplier = computeBytes // state["ProblemType"]["DataType"].numBytes()
       elif state["ProblemType"]["DestDataType"].numBytes() > state["ProblemType"]["DataType"].numBytes():
         # Determine ratio of output to input element size.
         # SRVW remaps output so we need to scale up resources.
@@ -3494,10 +3527,6 @@ class Solution:
           reject(state, "wider localRead only support (PrefetchLocalRead %u >= LoopIters %u) or (InnerUnroll %u > LocalReadxN)" % (state["PrefetchLocalRead"],state["LoopIters"],state["InnerUnroll"]))
 
     if state["DepthULdsDivisor"] > 1:
-      if not (state["ProblemType"]["DataType"].isHalf() or \
-              state["ProblemType"]["DataType"].isBFloat16() or \
-              state["ProblemType"]["DataType"].isSingle()):
-        reject(state, "DepthULdsDivisor > 1 does not support DataType other than F16, BF16 or F32 yet.")
       if state["PrefetchGlobalRead"] == 2:
         reject(state, "DepthULdsDivisor > 1 does not support PrefetchGlobalRead=2")
       if state["ScheduleIterAlg"] != 3:
@@ -3508,8 +3537,8 @@ class Solution:
         reject(state, "DepthULdsDivisor > 1: Only works with TN problem layout and TransposeLDS")
       if state["PrefetchGlobalRead"]==1 and state["PrefetchLocalRead"]==0:
         reject(state, "PGR1 + PLR0 in SplitLDS requires double G2L buffer which is yet to be implemented")
-      if state["ProblemType"]["DataType"].numRegisters()*state["GlobalReadVectorWidth"]//state["DepthULdsDivisor"] < 1:
-        reject(state, "SplitLDS requires wider GlobalReadVectorWidth (assert RegisterPerElem (%f) * GRVW (%u) // DepthULdsDivisor (%u) >= 1"%
+      if state["ProblemType"]["DataType"].numRegisters()*state["GlobalReadVectorWidth"] < state["DepthULdsDivisor"]:
+        reject(state, "SplitLDS requires wider GlobalReadVectorWidth; needs RegisterPerElem (%f) * GRVW (%u) >= DepthULdsDivisor (%u)"%
           (state["ProblemType"]["DataType"].numRegisters(),state["GlobalReadVectorWidth"],state["DepthULdsDivisor"]))
 
     if state["LocalWritePerMfma"] == -2:
@@ -4094,3 +4123,14 @@ class Solution:
     if result is NotImplemented:
       return result
     return not result
+
+  @property
+  def enabledSplitLDS(self):
+    return self["DepthULdsDivisor"] > 1
+
+  @property
+  def enabledSetPrioSplitLDS(self):
+    # The interaction between SplitLDS's priority policy and StorePriorityOpt's is yet to be
+    # investigated. For now, disable SplitLDS's priority policy when StorePriorityOpt is present
+    # TODO: determine suitable priority policy when both are present
+    return self.enabledSplitLDS and not self["StorePriorityOpt"]

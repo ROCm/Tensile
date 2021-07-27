@@ -123,7 +123,7 @@ namespace Tensile
 
     TENSILE_API KernelArguments::const_iterator begin(KernelArguments const&);
     TENSILE_API KernelArguments::const_iterator end(KernelArguments const&);
-  
+
     template <typename T>
     inline void KernelArguments::append(std::string const& name, T value)
     {

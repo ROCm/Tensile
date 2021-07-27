@@ -23,12 +23,11 @@
 #ifndef TOOLS_H
 #define TOOLS_H
 
-#include <string>
 #include <chrono>
+#include <string>
 #ifdef Tensile_RESUME_BENCHMARK
 #include <fstream>
 #endif
-
 
 /*******************************************************************************
  * cross platform helpers
@@ -53,7 +52,7 @@ public:
     static const double reciprical_thousand;
 
     TensileTimer();
-    void   start();
+    void start();
 
     // elapsed time in seconds
     double elapsed_sec()
@@ -77,7 +76,6 @@ public:
 
 private:
     std::chrono::nanoseconds m_startTime;
-
 };
 
 #define tensileMin(a, b) (((a) < (b)) ? (a) : (b))
