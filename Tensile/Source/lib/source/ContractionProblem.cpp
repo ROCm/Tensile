@@ -699,7 +699,8 @@ namespace Tensile
         , m_beta(beta)
         , m_workspaceSize(workspaceSize)
     {
-        m_betaRestriction = toScalarValueEnum(m_beta); // Set enum using beta to potentially allow for faster solutions
+        m_betaRestriction = toScalarValueEnum(
+            m_beta); // Set enum using beta to potentially allow for faster solutions
         consistencyCheck();
         normalize();
     }

@@ -25,7 +25,6 @@
 #include <cstddef>
 #include <limits>
 
-
 /*******************************************************************************
  * Functions to map from ProblemDims to the best available solution
  *   - Provides efficient hash tables for lookup with thread-safe access

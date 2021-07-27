@@ -72,8 +72,8 @@ namespace Tensile
         static ScalarValueTypeInfo const& Get(ScalarValue t);
         static ScalarValueTypeInfo const& Get(std::string const& str);
 
-        ScalarValue    m_value;
-        std::string    name;
+        ScalarValue m_value;
+        std::string name;
 
     private:
         static void registerAllTypeInfo();
@@ -85,7 +85,7 @@ namespace Tensile
         static void addInfoObject(ScalarValueTypeInfo const& info);
 
         static std::map<ScalarValue, ScalarValueTypeInfo> data;
-        static std::map<std::string, ScalarValue>            typeNames;
+        static std::map<std::string, ScalarValue>         typeNames;
     };
 
     /**
@@ -114,13 +114,11 @@ namespace Tensile
     constexpr ScalarValue BaseScalarValueInfo<T_Enum>::Enum;
 
     template <>
-    struct ScalarValueInfo<ScalarValue::Any>
-        : public BaseScalarValueInfo<ScalarValue::Any>
+    struct ScalarValueInfo<ScalarValue::Any> : public BaseScalarValueInfo<ScalarValue::Any>
     {
     };
     template <>
-    struct ScalarValueInfo<ScalarValue::One>
-        : public BaseScalarValueInfo<ScalarValue::One>
+    struct ScalarValueInfo<ScalarValue::One> : public BaseScalarValueInfo<ScalarValue::One>
     {
     };
     template <>
@@ -129,15 +127,14 @@ namespace Tensile
     {
     };
 
-
     /**
 *  \ingroup ScalarValue
 *  \brief Gets ScalarValue enum from value. Returns ScalarValue::Any if there is no match.
 */
-    template<typename T>
+    template <typename T>
     ScalarValue toScalarValueEnum(T value)
     {
-        if(     value == T(1))
+        if(value == T(1))
             return ScalarValue::One;
         else if(value == T(-1))
             return ScalarValue::NegativeOne;
@@ -161,4 +158,3 @@ namespace std
         }
     };
 } // namespace std
-

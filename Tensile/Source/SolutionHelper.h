@@ -72,9 +72,7 @@ struct SolutionLock
                               const unsigned char* codeFromExe);
 };
 
-
-extern thread_local KernelMap                 kernelMap;
-
+extern thread_local KernelMap kernelMap;
 
 /*******************************************************************************
  * Compile/Load Kernels

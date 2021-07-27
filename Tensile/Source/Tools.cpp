@@ -29,7 +29,6 @@
 
 #include "Tools.h"
 
-
 /*******************************************************************************
  * Cross platform helpers
  ******************************************************************************/
@@ -37,18 +36,17 @@
 const char* read_env(const char* env_var)
 {
 #ifdef _WIN32
-    const DWORD nSize = _MAX_PATH;
+    const DWORD              nSize = _MAX_PATH;
     static thread_local char lpBuffer[nSize];
-    DWORD len = GetEnvironmentVariableA(env_var, lpBuffer, nSize);
-    if (len && len < nSize)
+    DWORD                    len = GetEnvironmentVariableA(env_var, lpBuffer, nSize);
+    if(len && len < nSize)
         return lpBuffer;
-    else 
+    else
         return nullptr; // variable not found or longer than nSize
 #else
     return std::getenv(env_var);
 #endif
 }
-
 
 /*******************************************************************************
  * Timer
@@ -61,21 +59,21 @@ const double TensileTimer::reciprical_billion  = 1E-9;
 const double TensileTimer::reciprical_million  = 1E-6;
 const double TensileTimer::reciprical_thousand = 1E-3;
 
-TensileTimer::TensileTimer()
-{
-}
+TensileTimer::TensileTimer() {}
 
 void TensileTimer::start()
 {
     auto now = std::chrono::steady_clock::now();
-    m_startTime = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
+    m_startTime
+        = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
 }
 
 // elapsed time in nanoseconds
 double TensileTimer::elapsed_ns()
 {
     auto now = std::chrono::steady_clock::now();
-    auto currentTime = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
+    auto currentTime
+        = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
 
     double return_elapsed_ns = static_cast<double>(currentTime) - static_cast<double>(m_startTime);
 

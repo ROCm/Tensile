@@ -32,7 +32,7 @@
 namespace Tensile
 {
     std::map<ScalarValue, ScalarValueTypeInfo> ScalarValueTypeInfo::data;
-    std::map<std::string, ScalarValue>            ScalarValueTypeInfo::typeNames;
+    std::map<std::string, ScalarValue>         ScalarValueTypeInfo::typeNames;
 
     std::string ToString(ScalarValue d)
     {
