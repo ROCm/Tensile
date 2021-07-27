@@ -92,7 +92,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         tReg    = writer.vgprPool.checkOut(1,"tReg") # remainder
         kReg    = writer.vgprPool.checkOut(1,"kReg") # remainder
         tmpVgpr = writer.vgprPool.checkOutAligned(2,2,"tmpVgpr")
-        ldsVgpr = writer.vgprPool.checkOut(1,"ldsVgpr1")
+        ldsVgpr = writer.vgprPool.checkOut(1,"ldsVgpr")
         ldsVgpr1 = writer.vgprPool.checkOut(1,"ldsVgpr1")
         dummy   = writer.vgprPool.checkOut(1,"dummy")
 
@@ -131,19 +131,19 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         kStr += vectorStaticRemainder(dummy, tReg, kReg, kernel["MatrixInstN"], tmpVgpr, tmpSgpr, \
             "1. N offset: nIdx = wtid %% MI_N(%u)" % kernel["MatrixInstN"])
 
-        ## offset calculation for TLU=1
+        # offset calculation for TLU=1
         if (kernel["DirectToLds%s" % tP["tensorChar"]] and kernel["ProblemType"]["TLU%s" % tP["tensorChar"]]):
-          ## x2/x4 directToLds stores 8/16 bytes into LDS like below
-          ## address offset in LDS in bytes
-          ## DWORD# written by LDS_DMA
-          ##  address offset in LDS (byte offseet)    
-          ##  0    4    8    12    16   20   24   28   32   36   40   44    48    52   56   60 
-          ##  data dword#:                            
-          ##  0    4    8    12    2    6    10   14    1   5    9    13     3    7    11   15
-          ##  Noffset calculation for VW =1 (BPe=8) / VW =2 (BPE=4)
-          ##  use direcToLds for best VW and GRVW case; other cases requires bit more lane manipulation..
-          ##  offset calculation  for B might benefit from some optimization. 
-          ##  offset calcualtion for x2/x4  is basically manipulation lane offset based on layout
+          # x2/x4 directToLds stores 8/16 bytes into LDS like below
+          # address offset in LDS in bytes
+          # DWORD# written by LDS_DMA
+          #  address offset in LDS (byte offseet)    
+          #  0    4    8    12    16   20   24   28   32   36   40   44    48    52   56   60 
+          #  data dword#:                            
+          #  0    4    8    12    2    6    10   14    1   5    9    13     3    7    11   15
+          #  Noffset calculation for VW =1 (BPe=8) / VW =2 (BPE=4)
+          #  use direcToLds for best VW and GRVW case; other cases requires bit more lane manipulation..
+          #  offset calculation  for B might benefit from some optimization. 
+          #  offset calcualtion for x2/x4  is basically manipulation lane offset based on layout
           
           if (kernel["VectorWidth"] * tP["bpe"] == 8):
             kStr += inst("v_lshrrev_b32", vgpr(ldsVgpr),  hex(3), vgpr(tReg),        "1. magic  offset calc")
@@ -152,7 +152,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             kStr += inst("v_lshlrev_b32", vgpr(ldsVgpr1), hex(2),  vgpr(ldsVgpr1),   "1. magic  offset calc")
             kStr += inst("_v_add_u32",    vgpr(ldsVgpr1), hex(16), vgpr(ldsVgpr1),   "1. magic  offset calc")
             kStr += inst("_v_add_u32",    vgpr(tReg), vgpr(ldsVgpr1), vgpr(ldsVgpr), "1. Noffset:NIdx = magic_func(vw,bpe,grvw)")
-          elif (kernel["VectorWidth"] * tP["bpe"] == 16):   ## most prefered case
+          elif (kernel["VectorWidth"] * tP["bpe"] == 16):   # most prefered case
               if (tP["isA"]):
                 kStr += inst("v_lshrrev_b32", vgpr(ldsVgpr),  hex(2), vgpr(tReg),    "1. magic  offset calc")
                 kStr += inst("v_lshlrev_b32", vgpr(ldsVgpr),  hex(6), vgpr(ldsVgpr), "1. magic  offset calc")
@@ -179,9 +179,9 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             kStr += inst("v_lshrrev_b32", vgpr(ldsVgpr),  hex(2), vgpr(tReg),           "1.magic  offset calc")
             kStr += inst("v_lshlrev_b32", vgpr(ldsVgpr),  hex(6), vgpr(ldsVgpr),        "1.magic  offset calc")
             kStr += inst("_v_add_u32",    vgpr(tReg), vgpr(ldsVgpr1), vgpr(ldsVgpr),    "1 Noffset:NIdx = magic_func(vw,bpe,grvw)")
-        ##else:  ## TLU case for should work fine mostly (
-               ## addition of summation index partial accumulation should satisfy associative property
-               ## TODO (re-check for different MFMA_MXNXK instructions
+        #else: # TLU case for should work fine mostly (
+               # addition of summation index partial accumulation should satisfy associative property
+               # TODO (re-check for different MFMA_MXNXK instructions
                
 
         kStr += staticMultiply(vgpr(tReg), vgpr(tReg), strideTile, sgpr(tmpSgpr), \
