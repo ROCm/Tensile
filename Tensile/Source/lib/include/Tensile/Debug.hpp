@@ -67,6 +67,8 @@ namespace Tensile
 
         bool enableDebugSelection() const;
 
+        int getSolutionIndex() const;
+
     private:
         friend LazySingleton<Debug>;
 
@@ -74,6 +76,7 @@ namespace Tensile
         int  m_value2;
         bool m_naivePropertySearch = false;
         bool m_debugSelection      = false;
+        int  m_solution_index        = -1;
 
         Debug();
     };
