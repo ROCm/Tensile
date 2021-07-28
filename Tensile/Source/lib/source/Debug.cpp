@@ -119,6 +119,11 @@ namespace Tensile
         return m_debugSelection;
     }
 
+    int Debug::getSolutionIndex() const
+    {
+        return m_solution_index;
+    }
+
     Debug::Debug()
         : m_value(DEBUG_SM)
         , m_value2(DEBUG_SM2)
@@ -138,6 +143,10 @@ namespace Tensile
         const char* db_select = std::getenv("TENSILE_TAM_SELECTION_ENABLE");
         if(db_select)
             m_debugSelection = strtol(db_select, nullptr, 0) != 0;
+
+        const char* solution_index = std::getenv("TENSILE_SOLUTION_INDEX");
+        if(solution_index)
+            m_solution_index = strtol(solution_index, nullptr, 0);
     }
 
 } // namespace Tensile
