@@ -231,6 +231,8 @@ namespace Tensile
                                        &argsSize,
                                        HIP_LAUNCH_PARAM_END};
 
+            if(startEvent != nullptr)
+                HIP_CHECK_RETURN(hipEventRecord(startEvent, stream));
             HIP_CHECK_RETURN(hipExtModuleLaunchKernel(function,
                                                       kernel.numWorkItems.x,
                                                       kernel.numWorkItems.y,
@@ -242,9 +244,11 @@ namespace Tensile
                                                       stream, // stream
                                                       nullptr,
                                                       (void**)&hipLaunchParams,
-                                                      startEvent, // event
-                                                      stopEvent // event
+                                                      nullptr, // event
+                                                      nullptr // event
                                                       ));
+            if(stopEvent != nullptr)
+                HIP_CHECK_RETURN(hipEventRecord(stopEvent, stream));
             return hipSuccess;
         }
 
