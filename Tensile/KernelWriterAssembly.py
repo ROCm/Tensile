@@ -9887,7 +9887,7 @@ class KernelWriterAssembly(KernelWriter):
 
 
     # TODO - mask should be part of AddrCalc state not passed as parm
-    def emitAddressSetupCode(self, kernel, ss, tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addr):
+    def emitAddressSetupCode(self, kernel, ss, tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addrVgpr):
       """
       Generate code to set up the address vgpr
       Input:
@@ -9918,8 +9918,8 @@ class KernelWriterAssembly(KernelWriter):
           else: # just a group index
             kStr += ", sgprWorkGroup%u"%i
         kStr += ", %s%s" % ((tmpVgpr+2), kw.endLine)
-        kStr += inst("v_mov_b32", vgpr(tmpVgpr+2), vgpr(addr+0), "temp store offset 0")
-        kStr += inst("v_mov_b32", vgpr(tmpVgpr+3), vgpr(addr+1), "temp store offset 1")
+        kStr += inst("v_mov_b32", vgpr(tmpVgpr+2), vgpr(addrVgpr+0), "temp store offset 0")
+        kStr += inst("v_mov_b32", vgpr(tmpVgpr+3), vgpr(addrVgpr+1), "temp store offset 1")
 
       # Move the row ptr VGPR
       # optSrdIncForRow moves the SRD so don't move here
@@ -9994,13 +9994,12 @@ class KernelWriterAssembly(KernelWriter):
       return kStr
 
 
-    def emitLdChange(self, kernel, ss, tc, edge, beta, mask, singleUpdate, tmpVgpr, addr, BufAddr):
+    def emitLdChange(self, kernel, ss, tc, edge, beta, mask, singleUpdate, tmpVgpr, addrVgpr, BufAddr):
       """
       Generate code for final C read/D write address
       """
 
       laneSGPRCount = self.kernelWriter.laneSGPRCount
-      addrVgpr = self.addrCVgpr if (tc == 'C') else self.addrDVgpr
 
       kStr = ""
       if kernel["BufferStore"]:
@@ -10010,10 +10009,10 @@ class KernelWriterAssembly(KernelWriter):
                        sgpr(mask,laneSGPRCount), "LD%s clip if OOB. offset" % tc )
       else:
         # store a copy of the offset in 2 of the tmpVgpr for D
-        kStr += inst("_v_add_co_u32",  vgpr(addr+0), self.kernelWriter.vcc, vgpr(BufAddr+0), vgpr(tmpVgpr+2), \
-                     "addr = C(D) + index*bytes (lo)" )
-        kStr += inst("_v_addc_co_u32", vgpr(addr+1), self.kernelWriter.vcc, vgpr(BufAddr+1), vgpr(tmpVgpr+3), \
-                     self.kernelWriter.vcc, "addr = C(D) + index*bytes (hi)")
+        kStr += inst("_v_add_co_u32",  vgpr(addrVgpr+0), self.kernelWriter.vcc, vgpr(BufAddr+0), vgpr(tmpVgpr+2), \
+                     "addrVgpr = C(D) + index*bytes (lo)" )
+        kStr += inst("_v_addc_co_u32", vgpr(addrVgpr+1), self.kernelWriter.vcc, vgpr(BufAddr+1), vgpr(tmpVgpr+3), \
+                     self.kernelWriter.vcc, "addrVgpr = C(D) + index*bytes (hi)")
       return kStr
 
 
@@ -10976,7 +10975,8 @@ class KernelWriterAssembly(KernelWriter):
     loadCInputCode = ""
     for elementIdx in range(0, len(batchElements)):
       element = batchElements[elementIdx]
-      addr = ss.elementAddr[elementIdx].addrCVgpr
+      addrCVgpr = ss.elementAddr[elementIdx].addrCVgpr
+      addrDVgpr = ss.elementAddr[elementIdx].addrDVgpr
       addrCalc = ss.elementAddr[elementIdx]
       data = ss.elementData[elementIdx]
       mask = ss.elementMask[elementIdx]
@@ -10986,7 +10986,7 @@ class KernelWriterAssembly(KernelWriter):
       vc1 = element[2]
       vc0 = element[3]
 
-      kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addr)
+      kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addrDVgpr)
 
       if edge:
         kStr += addrCalc.edgeProtectCode(kernel, edge, beta, atomic, mask, tmpSgpr)
@@ -10994,14 +10994,14 @@ class KernelWriterAssembly(KernelWriter):
       atomicAddC = kernel["AtomicAddC"] and not edge
 
       if beta and not atomicAddC:
-        kStr += addrCalc.emitLdChange(kernel, ss, 'C', edge, beta, mask, (elementIdx == 0), tmpVgpr, addr, addrC)
+        kStr += addrCalc.emitLdChange(kernel, ss, 'C', edge, beta, mask, (elementIdx == 0), tmpVgpr, addrCVgpr, addrC)
         if kernel["GroupLoadStore"]:
-          loadCInputCode += self.readCInput(kernel, ss, addrCalc, vc0, data, gwvw, addr, tmpS01)
+          loadCInputCode += self.readCInput(kernel, ss, addrCalc, vc0, data, gwvw, addrCVgpr, tmpS01)
         else:
-          kStr += self.readCInput(kernel, ss, addrCalc, vc0, data, gwvw, addr, tmpS01)
+          kStr += self.readCInput(kernel, ss, addrCalc, vc0, data, gwvw, addrCVgpr, tmpS01)
         loadsIssued += 1
 
-      kStr += addrCalc.emitLdChange(kernel, ss, 'D', edge, beta, mask, (elementIdx == len(batchElements)-1), tmpVgpr, addr, addrD)
+      kStr += addrCalc.emitLdChange(kernel, ss, 'D', edge, beta, mask, (elementIdx == len(batchElements)-1), tmpVgpr, addrDVgpr, addrD)
 
       if atomic and (not self.useAtomicAdd):
         # load c into data+1 because of CAS structure
@@ -11015,10 +11015,10 @@ class KernelWriterAssembly(KernelWriter):
           bpm = self.bpeCexternal * atomicW
           useBuffer = kernel["BufferStore"]
           if kernel["BufferStore"]: # yes, BufferStore here - use same addressing regs for this load
-            addr0 = vgpr(addr)
+            addr0 = vgpr(addrDVgpr)
             addr1 = sgpr("SrdD", 4)
           else:
-            addr0 = vgpr(addr,2)
+            addr0 = vgpr(addrDVgpr,2)
             addr1 = ""
           # Calculate vgpr Indx for 32-bit/64-bit instruction
           # DGEMM use SRCS[2] register
@@ -11031,12 +11031,12 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.applyAlpha(kernel, gwvw, ss.elementSumIdx, elementIdx, tmpS01)
 
       if not kernel["BufferStore"]:
-        offsetSrc = (tmpVgpr+2) if beta else addr
+        offsetSrc = (tmpVgpr+2) if beta else addrDVgpr
 
-        kStr += inst("_v_add_co_u32",  vgpr(addr+0), self.vcc, vgpr(addrD+0), \
-            vgpr(offsetSrc+0), "addr = D + index*bytes (lo)" )
-        kStr += inst("_v_addc_co_u32", vgpr(addr+1), self.vcc, vgpr(addrD+1), \
-            vgpr(offsetSrc+1), self.vcc, "addr = D + index*bytes (hi)")
+        kStr += inst("_v_add_co_u32",  vgpr(addrDVgpr+0), self.vcc, vgpr(addrD+0), \
+            vgpr(offsetSrc+0), "addrDVgpr = D + index*bytes (lo)" )
+        kStr += inst("_v_addc_co_u32", vgpr(addrDVgpr+1), self.vcc, vgpr(addrD+1), \
+            vgpr(offsetSrc+1), self.vcc, "addrDVgpr = D + index*bytes (hi)")
 
         # restore full exec mask for calculating addr of next element
         if edge and (beta or atomic):
