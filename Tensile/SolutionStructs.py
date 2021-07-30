@@ -2369,7 +2369,11 @@ class Solution(collections.abc.Mapping):
       return False
 
     # avoid picking x2&x4 for precisions < f32/f64 in [ProblemType][TLU] == TRUE
-    if state["ProblemType"]["TLU%c"%tc] and state["GlobalLoadVectorWidth%c"%tc] * numBytes > 4 and numBytes < 4:
+    if not state["EnableMatrixInstruction"]:
+      if state["GlobalLoadVectorWidth%c"%tc] * numBytes * state["WavefrontSize"] > 256:
+       return False
+
+    if state["ProblemType"]["TLU%c"%tc] and numBytes < 4 and state["GlobalLoadVectorWidth%c"%tc] * numBytes > 4:
       return False
 
     if state["WaveSeparateGlobalRead%c" % tc]:
@@ -3269,6 +3273,42 @@ class Solution(collections.abc.Mapping):
     #print("ldsNumElementsAB", ldsNumElementsAB)
 
 
+
+    # Determine if we can load directly-to-LDS.
+    # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
+    # LDS loads always write 4 bytes apart so can use only 4-byte operations
+    #   TODO - for doubles we need to add something special here?
+    # The matrix must not require transposing since that is done by reading to VGPR and writing in different order
+    # The LSC (load size coalesced) must load some multiple of 256 bytes since that is what each DirectToLds load provides
+    # Note for these matrices LSC is same as MacroTile dim
+    # MatrixInstruction rules:
+    # DirectToLDS is supported for TLU=0  (make sure transposeLDS=1)
+    # LDS (load size coalesced) * LSPA must load some multiple of 256 bytes.
+    # added support for loadX2/loadx4 .
+    # x2/x4 (use x4 for better load efficiency)
+    # x2/x4 support for NT layout for f64/f32   TN layout (f16/bf16/f32/f64) with transposeLDS=1
+    # ignore x2/x4 precision < 4 bytes in NT layout
+    if state["DirectToLds"]:
+      if Solution.isDirectToLdsDoable(state, 'A'):
+        state["DirectToLdsA"] = True
+        state["LocalWriteUseSgprA"] = True
+        #print("DirectToLdsA", state["DirectToLdsA"])
+
+      if Solution.isDirectToLdsDoable(state, 'B'):
+        state["DirectToLdsB"] = True
+        state["LocalWriteUseSgprB"] = True
+        #print("DirectToLdsB", state["DirectToLdsB"])
+
+      # Update parent variable so kernel display is accurate
+      state["DirectToLds"] = state["DirectToLdsA"] or state["DirectToLdsB"]
+      if state["1LDSBuffer"] == -1 and state["DirectToLds"]:
+        #1LDS buffer must be 0 for DirectToLdsA
+        state["1LDSBuffer"] = 0
+
+    if state["EnableMatrixInstruction"]:
+      if state["DirectToLds"] and state["1LDSBuffer"]:
+        reject(state, "1LDSBuffer must be 0 for directToLds") 
+
     if state["1LDSBuffer"] == -1:
       if ldsNumElementsAB * state["ProblemType"]["DataType"].numBytes() > globalParameters["MaxLDS"]:
         state["1LDSBuffer"] = 1
@@ -3728,38 +3768,6 @@ class Solution(collections.abc.Mapping):
     if state["GlobalReadPerMfma"] > 1 and state["PrefetchGlobalRead"] == 2:
       reject(state, "GlobalReadPerMfma need to be 1 if PGR2")
 
-    # Determine if we can load directly-to-LDS.
-    # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
-    # LDS loads always write 4 bytes apart so can use only 4-byte operations
-    #   TODO - for doubles we need to add something special here?
-    # The matrix must not require transposing since that is done by reading to VGPR and writing in different order
-    # The LSC (load size coalesced) must load some multiple of 256 bytes since that is what each DirectToLds load provides
-    # Note for these matrices LSC is same as MacroTile dim
-    # MatrixInstruction rules:
-    # DirectToLDS is supported for TLU=0  (make sure transposeLDS=1)
-    # LDS (load size coalesced) * LSPA must load some multiple of 256 bytes.
-    # added support for loadX2/loadx4 .
-    # x2/x4 (use x4 for better load efficiency)
-    # x2/x4 support for NT layout for f64/f32   TN layout (f16/bf16/f32/f64) with transposeLDS=1
-    # ignore x2/x4 precision < 4 bytes in NT layout
-    if state["DirectToLds"]:
-      if Solution.isDirectToLdsDoable(state, 'A'):
-        state["DirectToLdsA"] = True
-        state["LocalWriteUseSgprA"] = True
-        #1LDS buffer must be 0 for DirectToLdsA
-        state["1LDSBuffer"] = 0
-        #print("DirectToLdsA", state["DirectToLdsA"])
-
-      if Solution.isDirectToLdsDoable(state, 'B'):
-        state["DirectToLdsB"] = True
-        state["LocalWriteUseSgprB"] = True
-        #1LDS buffer must be 0 for DirectToLdsA
-        state["1LDSBuffer"] = 0
-        #print("DirectToLdsB", state["DirectToLdsB"])
-
-      # Update parent variable so kernel display is accurate
-      state["DirectToLds"] = state["DirectToLdsA"] or state["DirectToLdsB"]
-
     if state["UseInstOffsetForGRO"] == -1:
       state["UseInstOffsetForGRO"] = 1 if state["DirectToLds"] else 0
 
@@ -3782,6 +3790,9 @@ class Solution(collections.abc.Mapping):
       if not state["GuaranteeNoPartialA"] or not state["GuaranteeNoPartialB"]:
         state["_UseSgprForGRO"] = False
         #reject(state, "PBC with wide load has insufficient overlap guarantees- try GRVW=1 or adding appropriate Assert*ElementMultiple")
+
+
+           
 
     if state["EnableMatrixInstruction"]:
       cont1 = not state["GuaranteeNoPartialB"]
