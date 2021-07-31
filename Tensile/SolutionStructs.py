@@ -2373,8 +2373,10 @@ class Solution(collections.abc.Mapping):
       if state["GlobalLoadVectorWidth%c"%tc] * numBytes * state["WavefrontSize"] > 256:
        return False
 
-    if state["ProblemType"]["TLU%c"%tc] and numBytes < 4 and state["GlobalLoadVectorWidth%c"%tc] * numBytes > 4:
+    # TODO revisit fp32 case for failure
+    if state["ProblemType"]["TLU%c"%tc] and numBytes < 8 and state["GlobalLoadVectorWidth%c"%tc] * numBytes > 4:
       return False
+
 
     if state["WaveSeparateGlobalRead%c" % tc]:
       if state["LSC%c"%tc] * state["LSP%c"%tc] * numBytes != state["WavefrontSize"] * state["GlobalLoadVectorWidth%c"%tc] * numBytes:

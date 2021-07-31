@@ -131,8 +131,8 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         kStr += vectorStaticRemainder(dummy, tReg, kReg, kernel["MatrixInstN"], tmpVgpr, tmpSgpr, \
             "1. N offset: nIdx = wtid %% MI_N(%u)" % kernel["MatrixInstN"])
 
-        # offset calculation for TLU=1
-        if (kernel["DirectToLds%s" % tP["tensorChar"]] and kernel["ProblemType"]["TLU%s" % tP["tensorChar"]]):
+        # offset calculation for TLU=1 when glvw * bpe * wavefrontsize > 256
+        if (kernel["DirectToLds%s" % tP["tensorChar"]] and kernel["ProblemType"]["TLU%s" % tP["tensorChar"]] and (kernel["GlobalLoadVectorWidth%c"%tP["tensorChar"]] * tP["bpe"] * kernel["WavefrontSize"] > 256)):
           # x2/x4 directToLds stores 8/16 bytes into LDS like below
           # address offset in LDS in bytes
           # DWORD# written by LDS_DMA
@@ -179,7 +179,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             kStr += inst("v_lshrrev_b32", vgpr(ldsVgpr),  hex(2), vgpr(tReg),           "1.magic  offset calc")
             kStr += inst("v_lshlrev_b32", vgpr(ldsVgpr),  hex(6), vgpr(ldsVgpr),        "1.magic  offset calc")
             kStr += inst("_v_add_u32",    vgpr(tReg), vgpr(ldsVgpr1), vgpr(ldsVgpr),    "1 Noffset:NIdx = magic_func(vw,bpe,grvw)")
-        #else: # TLU case for should work fine mostly (
+        #else: # TLU=0 case for should work fine mostly (
                # addition of summation index partial accumulation should satisfy associative property
                # TODO (re-check for different MFMA_MXNXK instructions
                
@@ -195,7 +195,9 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             "2. block offset: bnOffset = bnIdx * strideBlock(%u)" % strideBlock)
         kStr += inst("_v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
             "3. add N and block offset: bnOffset = block and N offset")
-        if not (kernel["DirectToLds%s" % tP["tensorChar"]] and kernel["ProblemType"]["TLU%s" % tP["tensorChar"]]):
+        if not (kernel["DirectToLds%s" % tP["tensorChar"]] and  \
+                kernel["GlobalLoadVectorWidth%c"%tP["tensorChar"]] * tP["bpe"] > 4 and  \
+                kernel["ProblemType"]["TLU%s" % tP["tensorChar"]]):
           kStr += staticMultiply(vgpr(tReg), vgpr(tReg), vectorWidth, sgpr(tmpSgpr), \
             "3. apply VectorWidth: bnOffset = bnOffset * vw(%u)" % vectorWidth)
 
@@ -204,7 +206,9 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             "4. K offset: kIdx = wtid / (MIN(%u) * MIBB(%u))" % (kernel["MatrixInstN"], kernel["MatrixInstB"]))
         kStr += staticMultiply(vgpr(kReg), vgpr(kReg), strideK, sgpr(tmpSgpr), \
             "4. K offset: lrKOffset = kIdx * mStride(%u)" % strideK)
-        if (kernel["DirectToLds%s" % tP["tensorChar"]] and kernel["ProblemType"]["TLU%s" % tP["tensorChar"]]):
+        if (kernel["DirectToLds%s" % tP["tensorChar"]] and  \
+            kernel["GlobalLoadVectorWidth%c"%tP["tensorChar"]] * tP["bpe"] > 4 and  \
+            kernel["ProblemType"]["TLU%s" % tP["tensorChar"]]):
           kStr += inst("v_lshlrev_b32", vgpr(kReg), hex(log2(tP["bpe"])), vgpr(kReg), \
             "4. lrKoffset = lrkOffset * bpe")
         kStr += inst("_v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
@@ -218,7 +222,10 @@ class LraTileAssignmentMFMA(LraTileAssignment):
                 "6. wave offset in M dimen: wtid0 = wtid / num1DWaves(%u)" % num1DWaves)
             kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideWave, sgpr(tmpSgpr), \
                 "6. wave offset in M dimen: wOffset = wtid0 * W0Stride(%u)" % strideWave)
-            if (kernel["DirectToLds%s" % tP["tensorChar"]] and kernel["ProblemType"]["TLU%s" % tP["tensorChar"]]):
+            #TODO fix bpe scaling for LDSDma
+            if (kernel["DirectToLds%s" % tP["tensorChar"]] and \
+                kernel["GlobalLoadVectorWidth%c"%tP["tensorChar"]] * tP["bpe"] > 4 and  \
+                kernel["ProblemType"]["TLU%s" % tP["tensorChar"]]):
               kStr += inst("v_lshlrev_b32", vgpr(wReg), hex(log2(tP["bpe"])), vgpr(wReg), \
                 "6. wave offset in M dimen: wOffset = wOffset * bpe")
             kStr += inst("_v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
