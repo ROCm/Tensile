@@ -1100,10 +1100,6 @@ class KernelWriterAssembly(KernelWriter):
     # the VGPRs that are used for the GRO offset checking
     assert not (kernel["_UseSgprForGRO"] and self.checkGRO)
 
-    # Debug mode to explore combining VGPRs.
-    # Saves VGPRs but doesn't generate correct answer
-    self.combineLocalAddresses = 0
-
     # ISA version, such as 803
     self.version = globalParameters["CurrentISA"]
     if "ISA" in kernel:
@@ -1566,8 +1562,7 @@ class KernelWriterAssembly(KernelWriter):
     #jgolds bpeCinternal because we are allocating accumulation registers here
     self.numVgprValuC = (kernel["ThreadTile0"]*kernel["ThreadTile1"]*self.bpeCinternal)//self.bpr
 
-    PLR = kernel["PrefetchLocalRead"] if kernel["PrefetchLocalRead"] < kernel["LoopIters"] else kernel["LoopIters"] - 1
-    valuBlocks = (1+PLR) * kernel["InnerUnroll"]
+    valuBlocks = (self.numVgprBuffer) * kernel["InnerUnroll"]
     if kernel["EnableMatrixInstruction"]:
       self.numVgprValuAPerBlock = kernel["MIWaveTileA"] * kernel["MIInputPerThread"] * tPA["bpe"] // self.bpr
       self.numVgprValuBPerBlock = kernel["MIWaveTileB"] * kernel["MIInputPerThread"] * tPB["bpe"] // self.bpr
@@ -1730,15 +1725,16 @@ class KernelWriterAssembly(KernelWriter):
         vgprIdx = 0
         self.numVgprValuC = 0
 
-    PLR = kernel["PrefetchLocalRead"] if kernel["PrefetchLocalRead"] < kernel["LoopIters"] else kernel["LoopIters"] - 1
-    valuBlocks = (1+PLR) * kernel["InnerUnroll"]
-
     # TODO: alignment hack, figure out a better solution
     vgprIdx = ((vgprIdx+1)//2)*2
     # Avoid bank conflict between VgprA and VgprC
     if (self.version[0] == 10) and ((vgprIdx % 4) == (self.startVgprValuC % 4)):
       vgprIdx += 1
-    self.startVgprValuA = vgprIdx; vgprIdx += self.numVgprValuA
+    self.startVgprValuA = vgprIdx
+    vgprIdx += self.numVgprValuA
+    if self.localReadInstructionA.blockWidth < 1:
+      self.startVgprValuAPack = vgprIdx
+      vgprIdx += self.numVgprValuAPerBlock * kernel["InnerUnroll"] * self.numVgprBufferPack * (int(1/self.localReadInstructionA.blockWidth) - 1)
     self.startVgprG2LA = None
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
       # if PGR = True, PAP coubld be possibly enabled, we move G2LA later to prevent it from being reclaimed
@@ -1750,7 +1746,11 @@ class KernelWriterAssembly(KernelWriter):
 
     # TODO: alignment hack, figure out a better solution
     vgprIdx = ((vgprIdx+1)//2)*2
-    self.startVgprValuB = vgprIdx; vgprIdx += self.numVgprValuB
+    self.startVgprValuB = vgprIdx
+    vgprIdx += self.numVgprValuB
+    if self.localReadInstructionB.blockWidth < 1:
+      self.startVgprValuBPack = vgprIdx
+      vgprIdx += self.numVgprValuBPerBlock * kernel["InnerUnroll"] * self.numVgprBufferPack * (int(1/self.localReadInstructionB.blockWidth) - 1)
     self.startVgprG2LB = None
     if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
       # if PGR = True, PAP coubld be possibly enabled, we move G2LB later to prevent it from being reclaimed
@@ -1779,18 +1779,12 @@ class KernelWriterAssembly(KernelWriter):
     #----------------------------------
 
     if not kernel["LocalWriteUseSgprA"]:
-      if self.combineLocalAddresses:
-        self.startVgprLocalWriteAddressesA = self.startVgprLocalReadAddressesA
-      else:
-        self.startVgprLocalWriteAddressesA = vgprIdx
-        vgprIdx += self.numVgprLocalWriteAddressesA
+      self.startVgprLocalWriteAddressesA = vgprIdx
+      vgprIdx += self.numVgprLocalWriteAddressesA
 
     if not kernel["LocalWriteUseSgprB"]:
-      if self.combineLocalAddresses:
-        self.startVgprLocalWriteAddressesB = self.startVgprLocalReadAddressesA
-      else:
-        self.startVgprLocalWriteAddressesB = vgprIdx
-        vgprIdx += self.numVgprLocalWriteAddressesB
+      self.startVgprLocalWriteAddressesB = vgprIdx
+      vgprIdx += self.numVgprLocalWriteAddressesB
 
     # BufferLoad:
     # Uses a resource descriptor (SRD) which is stored in 4 SGPRs and thus shared by all work-items.
@@ -1864,11 +1858,8 @@ class KernelWriterAssembly(KernelWriter):
 
     self.startVgprLocalReadAddressesA = vgprIdx
     vgprIdx += self.numVgprLocalReadAddressesA
-    if self.combineLocalAddresses:
-      self.startVgprLocalReadAddressesB = self.startVgprLocalReadAddressesA
-    else:
-      self.startVgprLocalReadAddressesB = vgprIdx
-      vgprIdx += self.numVgprLocalReadAddressesB
+    self.startVgprLocalReadAddressesB = vgprIdx
+    vgprIdx += self.numVgprLocalReadAddressesB
 
     if kernel["ProblemType"]["Fp16AltImpl"]:
       self.G2Lpipe0 = vgprIdx
@@ -2537,8 +2528,7 @@ class KernelWriterAssembly(KernelWriter):
     # MACs
     kStr += self.comment3("%dx%d thread-tile" \
         % (kernel["ThreadTile0"], kernel["ThreadTile1"]) )
-    PLR = kernel["PrefetchLocalRead"] if kernel["PrefetchLocalRead"] < kernel["LoopIters"] else kernel["LoopIters"] - 1
-    for m in range(0, 1+PLR):
+    for m in range(0, self.numVgprBuffer):
       # Create a special macro that does one K iter if needed:
       ext = "_OneIUI" if oneIUI else ""
       if useMacro:
@@ -2764,25 +2754,35 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment1("ValuA/B   Xn=PLR buffer idx,  In=InnerUnroll idx")
     # PLR index: from X0 to X<LoopIters-1> (at most) -> VGPRs will be duplicated LoopIters times (at most)
     # eg, if LoopIters = 4, there would be at most 4*VGPRs
-    # PLR = kernel["PrefetchLocalRead"] if kernel["PrefetchLocalRead"] < kernel["LoopIters"] else kernel["LoopIters"] - 1
-    PLR = min(kernel["PrefetchLocalRead"], kernel["LoopIters"]-1)
+    PLR = self.numVgprBuffer
     ri = 0
     if self.numVgprValuA > 0: # Do not generate vgprValuA if numVgprValuA is 0
-      for bi in range(0,PLR+1): # buffer indices
+      for bi in range(0,PLR): # buffer indices
         for iui in range(0, kernel["InnerUnroll"]):
           kStr += self.macroRegister("vgprValuA_X%u_I%u"%(bi,iui), self.startVgprValuA+ri)
           ri += self.numVgprValuAPerBlock
-    if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
-        kStr += self.macroRegister("vgprG2LA", self.startVgprG2LA)
-
+      ri = 0
+      for data in range(1,int(1/self.tPA["localReadInstruction"].blockWidth)):
+        for bi in range(0,PLR): # buffer indices
+          if bi % self.numVgprBufferPack == 0:
+            ri = (data-1) * kernel["InnerUnroll"] * self.numVgprBufferPack * self.numVgprValuAPerBlock
+          for iui in range(0, kernel["InnerUnroll"]):
+            kStr += self.macroRegister("vgprValuA_X%u_I%u_D%u"%(bi,iui,data), self.startVgprValuAPack+ri)
+            ri += self.numVgprValuAPerBlock
     ri = 0
     if self.numVgprValuB > 0: # Do not generate vgprValuB if numVgprValuB is 0
-      for bi in range(0,PLR+1): # buffer indices
+      for bi in range(0,PLR): # buffer indices
         for iui in range(0, kernel["InnerUnroll"]):
           kStr += self.macroRegister("vgprValuB_X%u_I%u"%(bi,iui), self.startVgprValuB+ri)
           ri += self.numVgprValuBPerBlock
-    if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
-        kStr += self.macroRegister("vgprG2LB", self.startVgprG2LB)
+      ri = 0
+      for data in range(1,int(1/self.tPB["localReadInstruction"].blockWidth)):
+        for bi in range(0,PLR): # buffer indices
+          if bi % self.numVgprBufferPack == 0:
+            ri = (data-1) * kernel["InnerUnroll"] * self.numVgprBufferPack * self.numVgprValuBPerBlock
+          for iui in range(0, kernel["InnerUnroll"]):
+            kStr += self.macroRegister("vgprValuB_X%u_I%u_D%u"%(bi,iui,data), self.startVgprValuBPack+ri)
+            ri += self.numVgprValuBPerBlock
     if not kernel["LocalWriteUseSgprA"] and self.numVgprLocalWriteAddressesA > 0:
       kStr += self.macroRegister("vgprLocalWriteAddrA", \
           self.startVgprLocalWriteAddressesA)
@@ -2814,6 +2814,11 @@ class KernelWriterAssembly(KernelWriter):
           self.startVgprGlobalReadAddressesA)
       kStr += self.macroRegister("vgprGlobalReadAddrB", \
           self.startVgprGlobalReadAddressesB)
+
+    if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
+        kStr += self.macroRegister("vgprG2LA", self.startVgprG2LA)
+    if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
+        kStr += self.macroRegister("vgprG2LB", self.startVgprG2LB)
 
     for tc in ('A','B'):
       for zpr in self.zeroPadRegs[tc].values():
@@ -6420,10 +6425,8 @@ class KernelWriterAssembly(KernelWriter):
 
     vbegin = self.startVgprValuA
     vsize = self.lastVgprForReads - self.startVgprValuA
-
     self.vgprPool.add(vbegin, vsize, "endSummation")
-    kStr += self.comment1("endSummation: add vgpr [%u...%u) to pool" % \
-            (vbegin, vbegin+vsize))
+    kStr += self.comment1("endSummation: add vgpr [%u...%u) to pool" % (vbegin, vbegin+vsize))
 
     lastRegTag=None
     for i in range(self.lastPostLoopSgpr, self.sgprPool.size()):

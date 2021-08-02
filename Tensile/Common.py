@@ -384,36 +384,21 @@ validParameters = {
     #                                                              |-> prefetch reads
     "PrefetchGlobalRead":         [ 0, 1, 2 ],
 
-    # number of iteration prefetch local reads from lds to VGPRs buffer = PLR % LoopIter
-    # number of VGPRs buffer = min(PLR+1,LoopIters)
-    # LoopIters = DepthU / LocalSplitU
-    # (LoopIters /= MatrixInstruction_K)
-    # ex. MT64x128x16_MI32x32x4x2_PLR1, we'll have 4 LoopIters, prefetch read 1 iteration, with 2 VGPRs buffer (2=min(1+1,4))
-    #     befor loop:       plr[0]
-    #           loop: iter0:plr[1] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[0], iter3:plr[0] MAC_r[1]
-    #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[0], iter3:       MAC_r[1]
-    #
-    # ex. MT64x128x16_MI32x32x4x2_PLR3, we'll have 4 LoopIters, prefetch read 3 iteration, with 4 VGPRs buffer (4=min(3+1,4))
-    #     befor loop:       plr[0] plr[1] plr[2]
-    #           loop: iter0:plr[3] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[2], iter3:plr[2] MAC_r[3]
-    #   no load loop: iter0:plr[3] MAC_r[0], iter1:       MAC_r[1], iter2:       MAC_r[2], iter3:       MAC_r[3]
-    #
-    # ex. MT64x128x16_MI32x32x4x2_PLR5, we'll have 4 LoopIters, prefetch read 5%4=1 iteration, with 4 VGPRs buffer (4=min(5+1,4))
-    #     befor loop:       plr[0]
-    #           loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:plr[0] MAC_r[3]
-    #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:       MAC_r[3]
-    #
-    # ex. MT64x128x16_MI32x32x4x2_PLR5_LRVW8, we'll have 4 LoopIters, prefetch read 5%4=1 iteration, with 4 VGPRs buffer (4=min(5+1,4)) , each read read 2 iterations
-    #     befor loop:       plr[0:1]
-    #           loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:plr[0:1] MAC_r[3]
-    #   no load loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:         MAC_r[3]
-    #
-    # ex. MT64x128x16_MI32x32x4x2_PLR7, we'll have 4 LoopIters, prefetch read 7%4=3 iteration, with 4 VGPRs buffer (=min(7+1,4)) --> Exactly the same as PLR3
-    #     befor loop:       plr[0]
-    #           loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:plr[0] MAC_r[3]
-    #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:       MAC_r[3]
+    # number of iteration prefetch local reads from lds to VGPRs buffer = PLR
     "PrefetchLocalRead":          list(range(128+1)),
 
+    # MatrixInstruction Only
+    # If set ClusterLocalRead, each iteration dedicated vgprBuffer for localRead
+    # So we can schedule these localReads to the front of the loop
+    "ClusterLocalRead":           [0,1],
+    # For bytes per element less than 4 (FP16, BF16, INT8 ...),
+    # we have to read 1 element to dedicated vgprBuffer, other elements to other vgprBuffers, then pack them into 1 register.
+    # This increase usage of vgpr and might decrease occupancy.
+    # CLRP=0: each iteration share PLR+1 vgprBuffer.
+    # CLRP=1: each iteration has dedicated vgprBuffer for packing.
+    "ClusterLocalReadPack":       [0,1],
+
+    # MatrixInstruction Only
     # We use double LDS buffer when PrefetchGlobalRead.
     # While it reads data from LDS[0]/[1], it prefetch global data and writes to LDS[1]/[0]
     # If we can make sure all data are read from LDS to register before writing data to LDS, we can use 1 LDS buffer to save LDS memory.
@@ -1218,6 +1203,8 @@ defaultBenchmarkCommonParameters = [
     {"GlobalReadCoalesceGroupB":  [ True ] },
     {"PrefetchGlobalRead":        [ 1 ] },
     {"PrefetchLocalRead":         [ 1 ] },
+    {"ClusterLocalRead":          [ 0 ] },
+    {"ClusterLocalReadPack":      [ 0 ] },
     {"UnrollMemFence":            [ False ] },
     {"GlobalRead2A":              [ True ] },
     {"GlobalRead2B":              [ True ] },

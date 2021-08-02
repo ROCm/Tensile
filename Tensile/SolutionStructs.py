@@ -3754,16 +3754,19 @@ class Solution(collections.abc.Mapping):
       reject(state, "LoopIters need to greater than 0")
       return
 
-    # PLR > 2xLoopIters is redundant setting
-    # TODO- Why need to x2 ? Why not (if state["PrefetchLocalRead"] >= state["LoopIters"]:)
-    if state["PrefetchLocalRead"] >= 2*state["LoopIters"]:
-      reject(state, "Reject since PrefetchLocalRead %u >= 2x LoopIters %u" % (state["PrefetchLocalRead"],state["LoopIters"]))
+    # Since we use PLR >= LoopIters for allocating numberOfIters vgprBuffer for a while
+    # we need to support both PLR >= LoopIters and CLR parameter for solutions in rocBLAS
+    if state["ClusterLocalRead"] and state["PrefetchLocalRead"] >= state["LoopIters"] and not state["ScheduleIterAlg"] == 2:
+      reject(state, "\"PLR >= LoopIters\" expression has been deprecated, please use ClusterLocalRead with PLR < LoopIters")
 
-    # reject low performance
-    if state["PrefetchLocalRead"]%state["LoopIters"] > 1:
-      reject(state, "PrefetchLocalRead: %u, LoopIters: %u performance is low" % (state["PrefetchLocalRead"],state["LoopIters"]))
+    if state["ClusterLocalReadPack"]:
+      if not state["EnableMatrixInstruction"] or not state["ProblemType"]["DataType"].numRegisters() < 1:
+        reject(state, "CLRP only support Matrixinstruction")
+      if not state["ClusterLocalRead"]:
+        reject(state, "no meaning if set CLRP without CLR")
 
-    # prefetch wider read iteration > LoopIters, no enough iterations for prefetching
+
+    # reject iterations are not enough to use wider local read
     if state["EnableMatrixInstruction"] and state["PrefetchLocalRead"] > 0:
       # Mulitple = WLR-size / input-size = how many iters could be covered by one WLR ?
       wlrMultiple = state["LocalReadVectorWidth"]//state["MIInputPerThread"]
@@ -3778,10 +3781,9 @@ class Solution(collections.abc.Mapping):
         reject(state, "LocalReadVectorWidth %u cannot be distributed evenly, LoopIters %u should be divisible by WLR-Multiple %u" \
           % (state["LocalReadVectorWidth"], state["LoopIters"], wlrMultiple))
 
-      PLR = (state["PrefetchLocalRead"] % state["LoopIters"])
-      if PLR != 0 and state["LoopIters"] - (PLR * wlrMultiple) <= 0 :
+      if state["LoopIters"] - (state["PrefetchLocalRead"] * wlrMultiple) < 0 :
         reject(state, "with PrefetchLocalRead %u LoopIters %u LocalReadVectorWidth %u, not enough LoopIters to prefetch %ux%u iterations, " \
-          % (state["PrefetchLocalRead"],state["LoopIters"],state["LocalReadVectorWidth"], PLR , wlrMultiple) )
+          % (state["PrefetchLocalRead"],state["LoopIters"],state["LocalReadVectorWidth"], state["PrefetchLocalRead"] , wlrMultiple) )
 
     # # reject conditions with lower performance
     # if state["ScheduleIterAlg"] == 2 and \
@@ -3801,8 +3803,9 @@ class Solution(collections.abc.Mapping):
         # 1. prefetch all lds to register
         # 2. using larger InnerUnroll
         if not (state["PrefetchLocalRead"] >= state["LoopIters"] and state["InnerUnroll"] == 1) and \
+          not state["ClusterLocalRead"] and \
           not state["InnerUnroll"] >= state["LocalReadVectorWidth"] // state["MIInputPerThread"]:
-          reject(state, "wider localRead only support (PrefetchLocalRead %u >= LoopIters %u) or (InnerUnroll %u > LocalReadxN)" % (state["PrefetchLocalRead"],state["LoopIters"],state["InnerUnroll"]))
+          reject(state, "wider localRead only support ClusterLocalRead or (InnerUnroll > WiderLocalReadxN)")
 
     if state["DepthULdsDivisor"] > 1:
       if state["PrefetchGlobalRead"] == 2:
@@ -3813,7 +3816,7 @@ class Solution(collections.abc.Mapping):
         reject(state, "DepthULdsDivisor > 1 does not support DirectToLds")
       if state["ProblemType"]["TLUA"] or state["ProblemType"]["TLUA"] or not state["TransposeLDS"]:
         reject(state, "DepthULdsDivisor > 1: Only works with TN problem layout and TransposeLDS")
-      if state["PrefetchGlobalRead"]==1 and state["PrefetchLocalRead"]==0:
+      if state["PrefetchGlobalRead"] == 1 and state["PrefetchLocalRead"] == 0:
         reject(state, "PGR1 + PLR0 in SplitLDS requires double G2L buffer which is yet to be implemented")
       if state["ProblemType"]["DataType"].numRegisters()*state["GlobalReadVectorWidth"] < state["DepthULdsDivisor"]:
         reject(state, "SplitLDS requires wider GlobalReadVectorWidth; needs RegisterPerElem (%f) * GRVW (%u) >= DepthULdsDivisor (%u)"%

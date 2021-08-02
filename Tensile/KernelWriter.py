@@ -207,7 +207,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         else:
           # for 1LDSB, we have to issue localwrites after localreads
           if self.numVgprBuffer == kernel["LoopIters"]:
-            if self.numReadPerVectorA != 1 or self.numReadPerVectorB !=1:
+            if (self.numReadPerVectorA != 1 or self.numReadPerVectorB !=1) and not self.numVgprBufferPack == kernel["LoopIters"]:
             # fp16 or bf16, we read 1 element to vgprBuffer the other element to tempVgpr.
             # since each iteration shares same tempVgpr, only read-to-vgprBuffer can
             # be scheduled in the front of loop.
@@ -1085,7 +1085,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       ####
       # scheduled local read to previous iterations
       ####
-      if self.numVgprBuffer >= kernel["LoopIters"]:
+      if self.numVgprBuffer == kernel["LoopIters"]:
         for vacancy in self.localReadsVacancy:
           # {"items","letencyLeft","atIter","atMfmaIndex","noReadsAtThisIter"}
           for localRead in list(localReadItemsThisLoop):
@@ -1441,7 +1441,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         for item in list(iterCode.items()):
           localReads  = item.countType(Code.LocalReadInst)
           localWrites = item.countType(Code.LocalWriteInst)
-          if self.numVgprBuffer:
+          if self.numItersPLR:
             # SQ: If PrefetchLocalRead = 1 and DepthU == LocalSplitU, then there is no double
             #  buffering and we must wait for all localReads but not localWrites.
             #  In that case, LoopIters == 1:
@@ -1898,7 +1898,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             extraComment += " (swap local read pointers iteration) "
 
       kl.append(self.comment("iter %u%s"%(u,extraComment)))
-      plrIdx = ((u+pflr) % (self.numVgprBuffer+1)) % kernel["LoopIters"]
+      plrIdx = (u+pflr) % self.numVgprBuffer
       localReads = Code.Module()
 
       pointerLWCode = Code.Module()
@@ -2020,7 +2020,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if kernel["StoreCInUnrollPostLoop"] and isPap and not isNGLL:
           kl.append(self.generateStoreInUnrollPostLoop(kernel, isOptNLL))
 
-      luIdx = (u) % (self.numVgprBuffer+1) # local to use for MACs
+      luIdx = u % self.numVgprBuffer # local to use for MACs
+
       if self.enable["MAC"]:
         if kernel["EnableMatrixInstruction"]:
           # NGLL case, use first set
@@ -2037,11 +2038,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
       subIterCode = self.makeSubIterSchedule(kernel, localReads, \
                       u, pointerLWCode, pointerLRCode, waitCode, macIterCode, waitLWCode, syncCode, pack[luIdx])
       kl.append(subIterCode)
-      # vgpr.checkin for all the checked-out vgpr in LocalRead
-      for item in list(pack[luIdx].items()):
-        if item.tempVgpr != None:
-          self.vgprPool.checkIn(item.tempVgpr)
-          item.tempVgpr = None
       pack[luIdx] = Code.Module()
 
     if NLLlast and isPap:
@@ -2270,7 +2266,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         extraComment += " (swap local read pointers iteration) "
 
       kl.append(self.comment("iter %u%s"%(u,extraComment)))
-      plrIdx = ((u+pflr) % (self.numVgprBuffer+1)) % kernel["LoopIters"]
+      plrIdx = (u+pflr) % self.numVgprBuffer
 
       localReads = Code.Module()
       localReadsA = Code.Module()
@@ -2400,7 +2396,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
               -1, 0, 0, \
               "wait for prior local read local write")
 
-      luIdx = (u) % (self.numVgprBuffer+1) # local to use for MACs
+      luIdx = u % self.numVgprBuffer # local to use for MACs
       if self.enable["MAC"]:
         if kernel["EnableMatrixInstruction"]:
           vregSetIdxMFMA = lc * kernel["LoopIters"] + uIdx
@@ -2426,16 +2422,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
         subIterCode = self.makeSubIterSchedule(kernel, localReads, \
                         u, pointerLWCode, pointerLRCode, waitCode, macIterCode, waitLWCode, syncCode, pack[luIdx])
         kl.append(subIterCode) # add scheduled "other", local reads, local writes
-        for item in list(pack[luIdx].items()):
-          if item.tempVgpr != None:
-            self.vgprPool.checkIn(item.tempVgpr)
-            item.tempVgpr = None
-        pack[luIdx] = Code.Module()
       else:
         macIterCode = Code.Module()
         MacitemsReorder = []
         if self.enable["MAC"]:
-          luIdx = (u) % (self.numVgprBuffer+1) # local to use for MACs
+          luIdx = u % self.numVgprBuffer # local to use for MACs
           macIterCode.addCode(self.macCode(kernel, luIdx, kernel["InnerUnroll"] ))
         MacIteritems = macIterCode.flatitems()
         #remove last and second entry from list if AggressiveMode is set
@@ -2675,7 +2666,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.openPersistentLoop(kernel))
       kl += self.setupNewTile(kernel, tensorParametersA, tensorParametersB, isPap=False, isOptNLL=False)
 
-    pack = [ Code.Module() for i in range (self.numVgprBuffer+1) ]
+    pack = [ Code.Module() for i in range(self.numVgprBuffer) ]
     self.preLoopLocalWriteCode = None
 
     if kernel["PrefetchGlobalRead"]:
@@ -2876,12 +2867,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       # if PGR, last few iterations will have PLR,
       # and those PLR will not be used(register not checkIn) if without NoLoadLoop
-      else:
-        for i in range(self.numVgprBuffer):
-          for item in list(pack[i].items()):
-            if item.tempVgpr != None:
-              self.vgprPool.checkIn(item.tempVgpr)
-              item.tempVgpr = None
 
     if self.staggerU and self.actualSummationLoops>1:
       kl.append(self.comment("remove stagger offsets"))
@@ -3030,11 +3015,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
           if kernel["EnableMatrixInstruction"]:
             kl.append(pack[0])
-            # vgpr.checkin for all the checked-out vgpr in LocalRead
-            for item in list(pack[0].items()):
-              if item.tempVgpr != None:
-                self.vgprPool.checkIn(item.tempVgpr)
-                item.tempVgpr = None
             pack[0] = Code.Module()
 
           if self.enable["MAC"]:
@@ -3349,21 +3329,26 @@ class KernelWriter(metaclass=abc.ABCMeta):
     vwa = kernel["GlobalLoadVectorWidthA"]
     vwb = kernel["GlobalLoadVectorWidthB"]
 
-    self.numItersPLR = kernel["PrefetchLocalRead"]%kernel["LoopIters"]
-    self.numVgprBuffer = kernel["LoopIters"] if kernel["PrefetchLocalRead"] > kernel["LoopIters"] else kernel["PrefetchLocalRead"]
-    # merge N iteration's read into 1 iteration if can't coalesce read
-    # ex, A can coalesce read, B can't
-    # MergeRead 0: ds_readAx1 ds_readBx1 mfma | ds_readAx1 ds_readBx1 mfma | => ds_readAx2 ds_readBx1 mfma | ds_readBx1 mfma |
-    # MergeRead 1: ds_readAx1 ds_readBx1 mfma | ds_readAx1 ds_readAx1 mfma | => ds_readAx2 ds_readBx1 ds_readBx1 mfma | mfma |
-    MergeRead = 0
-    if not kernel["ProblemType"]["TLUA"] or MergeRead:
+    if kernel["EnableMatrixInstruction"]:
+      WLR = kernel["LocalReadVectorWidth"]//kernel["MIInputPerThread"]
+      self.numItersPLR = kernel["PrefetchLocalRead"]%(kernel["LoopIters"]//WLR)
+    else:
+      self.numItersPLR = kernel["PrefetchLocalRead"]%(kernel["LoopIters"])
+
+    if kernel["PrefetchLocalRead"] > kernel["LoopIters"] - 1  or kernel["ClusterLocalRead"]:
+      self.numVgprBuffer = kernel["LoopIters"]
+    else:
+      self.numVgprBuffer = kernel["PrefetchLocalRead"] + 1
+    self.numVgprBufferPack = self.numVgprBuffer if kernel["ClusterLocalReadPack"] else self.numItersPLR + 1
+
+    if not kernel["ProblemType"]["TLUA"]:
       self.lrvwA = kernel["LocalReadVectorWidth"]
     else:
       if kernel["EnableMatrixInstruction"]:
         self.lrvwA = kernel["MIInputPerThread"]
       else:
         self.lrvwA = 1
-    if not kernel["ProblemType"]["TLUB"] or MergeRead:
+    if not kernel["ProblemType"]["TLUB"]:
       self.lrvwB = kernel["LocalReadVectorWidth"]
     else:
       if kernel["EnableMatrixInstruction"]:
