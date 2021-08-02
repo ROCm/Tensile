@@ -136,6 +136,7 @@ class LocalReadMFMA(LocalRead):
         tile01           = tP["tile01Idx"]
         instruction      = tP["localReadInstruction"]
 
+        directToLdsStride = False 
         numOffsets       = instruction.numOffsets
         blockWidth       = instruction.blockWidth
         vectorWidth      = kernel["VectorWidth"] if kernel["SourceSwap"] else 1 # TODO: nonSwap VectorWidth
@@ -148,9 +149,15 @@ class LocalReadMFMA(LocalRead):
         if kernel["UnrollMajorLDS%s" % tP["tensorChar"]]:
             tileStride   = kernel["_DepthULds"] + LdsPad
             UnrollStride = 1
+        # special case for fp64 and 
+        if kernel["DirectToLds%s" % tP["tensorChar"]] and kernel["ProblemType"]["TLU%s" % tP["tensorChar"]] and tP["bpe"] != int(blockWidth * 4):
+           directToLdsStride = True 
 
         numReadPerTileVector = vectorWidth if (tile01 == 0) else 1
         numVectorsPerTile    = kernel["MIWaveTile"][tile01] // numReadPerTileVector
+        # overloading numReadsPerUnroll for DirectToLds x2/x4 case when blockWidth of instruction < LocalReadVectorWidth
+        # fp64 TLU=1 reading 0.5element/lane/read..
+        # for TLU=0 case, blockWidth and LRVW should match
         if tc == "A":
             numReadsPerUnroll = tP["bpe"] * writer.lrvwA // int(blockWidth * 4) # bytes/register
         else:
@@ -209,8 +216,8 @@ class LocalReadMFMA(LocalRead):
                     paramList.append(vgpr("LocalReadAddr%s"%tc))
 
                     for oIdx in range(0, numOffsets):
-                        offset_val = (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride
-                        offset_val = (rIdx * UnrollStride + offset_val + tP["localReadOffset"]) * tP["bpe"]
+                        offset_val = ((vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride if directToLdsStride else (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride
+                        offset_val = (rIdx*32 + eIdx*16 + (offset_val + tP["localReadOffset"]) * (tP["bpe"]))  if directToLdsStride else (rIdx * UnrollStride + offset_val + tP["localReadOffset"]) * tP["bpe"]
                         if (kernel["LdsBlockSizePerPad%s"%tc] != 0) and (kernel["LdsPad%s"%tc] != 0):
                             offset_val = offset_val + (offset_val // kernel["LdsBlockSizePerPad%s"%tc]) * kernel["LdsPad%s"%tc] * tP["bpe"]
                         offset_val = offset_val + tP["localReadSwapByteOffset"]
