@@ -150,7 +150,9 @@ class LocalReadMFMA(LocalRead):
             tileStride   = kernel["_DepthULds"] + LdsPad
             UnrollStride = 1
         # special case for fp64 and 
-        if kernel["DirectToLds%s" % tP["tensorChar"]] and kernel["ProblemType"]["TLU%s" % tP["tensorChar"]] and tP["bpe"] != int(blockWidth * 4):
+        # TODO re-work offset for ds_b64
+        if kernel["DirectToLds%s" % tP["tensorChar"]] and \
+           kernel["ProblemType"]["TLU%s" % tP["tensorChar"]] and tP["bpe"] == 8:
            directToLdsStride = True 
 
         numReadPerTileVector = vectorWidth if (tile01 == 0) else 1

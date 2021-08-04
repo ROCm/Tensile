@@ -5118,7 +5118,9 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("v_mul_lo_u32", vgpr(sgid), sgpr(tmpSgpr), vgpr(sgid), \
       "LSU offset: lsuoffset = sgid*(MT%u+PAD)"%tile01)
     if kernel["EnableMatrixInstruction"]: 
-      if (kernel["DirectToLds%s" % tP["tensorChar"]] and kernel["ProblemType"]["TLU%s" % tP["tensorChar"]]):
+      if (kernel["DirectToLds%s" % tP["tensorChar"]] and \
+          kernel["GlobalLoadVectorWidth%c"%tP["tensorChar"]] * tP["bpe"] > 4 and  \
+          kernel["ProblemType"]["TLU%s" % tP["tensorChar"]]):
         kStr += inst("v_lshlrev_b32", vgpr(sgid), hex(log2(tP["bpe"])), vgpr(sgid),  \
                 "LSU offset: lsuoffset = lsuoffset * bpe");
     if not kernel["EnableMatrixInstruction"] and kernel["VectorWidth"] > 1:
@@ -5126,7 +5128,9 @@ class KernelWriterAssembly(KernelWriter):
       "Final Offset: lr%sOffset * VW" % tc)
 
     # final offset
-    if (kernel["DirectToLds%s" % tP["tensorChar"]] and kernel["ProblemType"]["TLU%s" % tP["tensorChar"]]):
+    if (kernel["DirectToLds%s" % tP["tensorChar"]] and \
+        kernel["GlobalLoadVectorWidth%c"%tP["tensorChar"]] * tP["bpe"] > 4 and  \
+        kernel["ProblemType"]["TLU%s" % tP["tensorChar"]]):
       kStr += inst("_v_add_u32", vgpr("LocalReadAddr%s"%tc), vgpr(sgid), vgpr(tP["gpr"]["lro"]), \
         "Final Offset: offset = (lro%s*VW+lsuoffset)" % tile01 )
     else:
