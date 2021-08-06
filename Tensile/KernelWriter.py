@@ -3602,7 +3602,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # mode: 0=prefetch, 1=unroll loop, 2=guardK
   ##############################################################################
   @abc.abstractmethod
-  def globalReadDo(self, kernel, mode, tP, vregSetIdx):
+  def globalReadDo(self, kernel, mode, tP, vregSetIdx=0):
     return ""
 
   ##############################################################################

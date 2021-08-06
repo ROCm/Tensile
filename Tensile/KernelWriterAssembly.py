@@ -7529,7 +7529,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Global Read: Do It A/B
   ##############################################################################
-  def globalReadDo(self, kernel, mode, tP, vregSetIdx):
+  def globalReadDo(self, kernel, mode, tP, vregSetIdx=0):
     tc = tP["tensorChar"]
     problemType = self.kernel["ProblemType"]
     imod = Code.StructuredModule("globalReadDo%s_%u"%(tc,mode))
