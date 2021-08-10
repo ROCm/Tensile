@@ -1904,12 +1904,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # M0 update for directToLds
         vregSetIdxGR = 0
         if (kernel["DirectToVgprA"]):
-          vregSetIdxGR = (1 + lc ) % 2 # toggle vreg set for DirectToVgpr. TODO: need to make sure if this logic is correct or not
+          vregSetIdxGR = (1 + lc ) % 2 # toggle vreg set for DirectToVgpr.
         self.dtlsM0UpdateACode = self.directToLdsM0Update(kernel, 1, tensorParametersA)
         self.globalReadACode = self.globalReadDo(kernel, 1, tensorParametersA, vregSetIdxGR)
         vregSetIdxGR = 0
         if (kernel["DirectToVgprB"]):
-          vregSetIdxGR = (1 + lc ) % 2 # toggle vreg set for DirectToVgpr. TODO: need to make sure if this logic is correct or not
+          vregSetIdxGR = (1 + lc ) % 2 # toggle vreg set for DirectToVgpr.
         self.dtlsM0UpdateBCode = self.directToLdsM0Update(kernel, 1, tensorParametersB)
         self.globalReadBCode = self.globalReadDo(kernel, 1, tensorParametersB, vregSetIdxGR)
       else:

@@ -2340,7 +2340,7 @@ class Solution(collections.abc.Mapping):
   # determine can we use DirectToVgpr
   @staticmethod
   def isDirectToVgprDoable(state, tc):
-    # With MatricInstruction only (tentative)
+    # With MatrixInstruction only (tentative)
     if not state["EnableMatrixInstruction"] :
       print2("DirectToVgpr is for MatrixInstruction only")
       return False
@@ -3356,21 +3356,21 @@ class Solution(collections.abc.Mapping):
         state["DirectToLdsA"] = True
         state["LocalWriteUseSgprA"] = True
         #print("DirectToLdsA", state["DirectToLdsA"])
-        # DorectToLsdA + DirectToVgprA does not work. Not enable DorectToLsdA if DirectToVgprA is true
+        # DirectToLdsA + DirectToVgprA does not work. Not enable DirectToLdsA if DirectToVgprA is true
         if state["DirectToVgprA"]:
           state["DirectToLdsA"] = False
           state["LocalWriteUseSgprA"] = False
-          print2("DirectToLdsA is disabled because DirecttoVgprA is true")
+          print2("DirectToLdsA is disabled because DirectToVgprA is true")
 
       if Solution.isDirectToLdsDoable(state, 'B'):
         state["DirectToLdsB"] = True
         state["LocalWriteUseSgprB"] = True
         #print("DirectToLdsB", state["DirectToLdsB"])
-        # DorectToLsdB + DirectToVgprB does not work. Not enable DorectToLsdB if DirectToVgprB is true
+        # DirectToLdsB + DirectToVgprB does not work. Not enable DirectToLdsB if DirectToVgprB is true
         if state["DirectToVgprB"]:
           state["DirectToLdsB"] = False
           state["LocalWriteUseSgprB"] = False
-          print2("DirectToLdsB is disabled because DirecttoVgprB is true")
+          print2("DirectToLdsB is disabled because DirectToVgprB is true")
 
       # Update parent variable so kernel display is accurate
       state["DirectToLds"] = state["DirectToLdsA"] or state["DirectToLdsB"]

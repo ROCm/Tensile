@@ -6222,22 +6222,16 @@ class KernelWriterAssembly(KernelWriter):
             aStr = vgpr("ValuA_X%u_I%u+%u+%u" % (m, iui, a*vgprPerInput, bk), 1)
             if kernel["DirectToVgprA"]:
               # overwrite aStr for DirectToVgprA
-              tmp   =  0
-              tmp   = (tmp + iui) * kernel["MIWaveTileA"]
-              tmp   = (tmp + a) * vgprPerInput + bk
-              tmp   += vregSetIdx * numVgprPerBlockA
-              aStr  = vgpr("G2LA+%u" % (tmp), 1)
+              tmpVregIdx = (iui * kernel["MIWaveTileA"] + a) * vgprPerInput + bk + vregSetIdx * numVgprPerBlockA
+              aStr  = vgpr("G2LA+%u" % (tmpVregIdx), 1)
             shiftK.addCode(inst("v_cndmask_b32", aStr, aStr, hex(0), sgpr(tmpSgpr, 2), "set 0 if K_idx >= sizeL"))
         for b in range(0, kernel["MIWaveTileB"]):
           for iui in range(0, innerUnroll):
             bStr = vgpr("ValuB_X%u_I%u+%u+%u" % (m, iui, b*vgprPerInput, bk), 1)
             if kernel["DirectToVgprB"]:
               # overwrite bStr for DirectToVgprB
-              tmp   =  0
-              tmp   = (tmp + iui) * kernel["MIWaveTileB"]
-              tmp   = (tmp + b) * vgprPerInput + bk
-              tmp   += vregSetIdx * numVgprPerBlockB
-              bStr  = vgpr("G2LB+%u" % (tmp), 1)
+              tmpVregIdx = (iui * kernel["MIWaveTileB"] + b) * vgprPerInput + bk + vregSetIdx * numVgprPerBlockB
+              bStr  = vgpr("G2LB+%u" % (tmpVregIdx), 1)
             shiftK.addCode(inst("v_cndmask_b32", bStr, bStr, hex(0), sgpr(tmpSgpr, 2), "set 0 if K_idx >= sizeL"))
 
       # replace 0 for same thread
@@ -6256,22 +6250,17 @@ class KernelWriterAssembly(KernelWriter):
             iuiA_new_offset = iui%self.numReadsIterCoalescedA*vgprPerInput
             a_new = a*vgprPerInput*self.numReadsIterCoalescedA
             aStr = vgpr("ValuA_X%u_I%u+%u+%u+%u" % (vgprBufferA_new, iuiA_new, a_new, vgprBufferA_new_offset, iuiA_new_offset), vgprPerInput)
+            tmpVregIdx = 0
             if kernel["DirectToVgprA"]:
               # overwrite aStr for DirectToVgprA
-              tmp   =  0
-              tmp   = (tmp + iui) * kernel["MIWaveTileA"]
-              tmp   = (tmp + a) * vgprPerInput
-              tmp   += vregSetIdx * numVgprPerBlockA
-              aStr  = vgpr("G2LA+%u" % (tmp), vgprPerInput)
+              tmpVregIdx = (iui * kernel["MIWaveTileA"] + a) * vgprPerInput + vregSetIdx * numVgprPerBlockA
+              aStr  = vgpr("G2LA+%u" % (tmpVregIdx), vgprPerInput)
             shiftK.addCode(inst("v_lshlrev_b%u" % (vgprPerInput*32), vgpr(abReg, vgprPerInput), sgpr(tmpSgpr+2), aStr, ""))
             for bk in range(0, vgprPerInput):
               aStr  = vgpr("ValuA_X%u_I%u+%u+%u+%u+%u" % (vgprBufferA_new, iuiA_new, a_new, vgprBufferA_new_offset, iuiA_new_offset, bk), 1)
               if kernel["DirectToVgprA"]:
                 # overwrite aStr for DirectToVgprA
-                tmp   =  0
-                tmp   = (tmp + iui) * kernel["MIWaveTileA"]
-                tmp   = (tmp + a) * vgprPerInput + bk
-                tmp   += vregSetIdx * numVgprPerBlockA
+                tmp   = tmpVregIdx + bk
                 aStr  = vgpr("G2LA+%u" % (tmp), vgprPerInput)
               shiftK.addCode(inst("v_cndmask_b32", aStr, aStr, vgpr(abReg+bk), sgpr(tmpSgpr, 2), ""))
         for b in range(0, kernel["MIWaveTileB"]):
@@ -6280,22 +6269,17 @@ class KernelWriterAssembly(KernelWriter):
             iuiB_new_offset = iui%self.numReadsIterCoalescedB*vgprPerInput
             b_new = b*vgprPerInput*self.numReadsIterCoalescedB
             bStr = vgpr("ValuB_X%u_I%u+%u+%u+%u" % (vgprBufferB_new, iuiB_new, b_new, vgprBufferB_new_offset, iuiB_new_offset), vgprPerInput)
+            tmpVregIdx = 0
             if kernel["DirectToVgprB"]:
               # overwrite bStr for DirectToVgprB
-              tmp   = 0
-              tmp   = (tmp + iui) * kernel["MIWaveTileB"]
-              tmp   = (tmp + b) * vgprPerInput
-              tmp   += vregSetIdx * numVgprPerBlockB
-              bStr  = vgpr("G2LB+%u" % (tmp), vgprPerInput)
+              tmpVregIdx = (iui * kernel["MIWaveTileB"] + b) * vgprPerInput + vregSetIdx * numVgprPerBlockB
+              bStr  = vgpr("G2LB+%u" % (tmpVregIdx), vgprPerInput)
             shiftK.addCode(inst("v_lshlrev_b%u" % (vgprPerInput*32), vgpr(abReg, vgprPerInput), sgpr(tmpSgpr+2), bStr, ""))
             for bk in range(0, vgprPerInput):
               bStr = vgpr("ValuB_X%u_I%u+%u+%u+%u+%u" % (vgprBufferB_new, iuiB_new, b_new, vgprBufferB_new_offset, iuiB_new_offset, bk), 1)
               if kernel["DirectToVgprB"]:
                 # overwrite bStr for DirectToVgprB
-                tmp   = 0
-                tmp   = (tmp + iui) * kernel["MIWaveTileB"]
-                tmp   = (tmp + b) * vgprPerInput + bk
-                tmp   += vregSetIdx * numVgprPerBlockB
+                tmp   = tmpVregIdx + bk
                 bStr  = vgpr("G2LB+%u" % (tmp), 1)
               shiftK.addCode(inst("v_cndmask_b32", bStr, bStr, vgpr(abReg+bk), sgpr(tmpSgpr, 2), ""))
 
@@ -6324,14 +6308,12 @@ class KernelWriterAssembly(KernelWriter):
           bStr     = vgpr("ValuB_X%u_I%u+%u+%u+%u" % (vgprBufferB_new, iuiB_new, b_new, vgprBufferB_new_offset, iuiB_new_offset), vgprPerInput)
           if kernel["DirectToVgprA"]:
               # overwrite aStr for DirectToVgprA
-              tmp   = 0 #m * innerUnroll
-              tmp   = (tmp + iui) * kernel["MIWaveTileA"] * vgprPerInput
+              tmp   = iui * kernel["MIWaveTileA"] * vgprPerInput
               a_new += vregSetIdx * numVgprPerBlockA + tmp
               aStr  = vgpr("G2LA+%u+%u+%u" % (a_new, vgprBufferA_new_offset, iuiA_new_offset), vgprPerInput)
           if kernel["DirectToVgprB"]:
               # overwrite bStr for DirectToVgprB
-              tmp   = 0
-              tmp   = (tmp + iui) * kernel["MIWaveTileB"] * vgprPerInput
+              tmp   = iui * kernel["MIWaveTileB"] * vgprPerInput
               b_new += vregSetIdx * numVgprPerBlockB + tmp
               bStr  = vgpr("G2LB+%u+%u+%u" % (b_new, vgprBufferB_new_offset, iuiB_new_offset), vgprPerInput)
           Str0     = aStr if self.tPB["tile01Idx"] else bStr
@@ -12076,6 +12058,7 @@ class KernelWriterAssembly(KernelWriter):
   # SyncThreads
   ##############################################################################
   def syncThreads(self, kernel, comment=""):
+
     if kernel["NumThreads"] > self.kernel["WavefrontSize"] and self.do["Sync"]:
       kStr = ""
       if self.archCaps["SeparateVscnt"]:
