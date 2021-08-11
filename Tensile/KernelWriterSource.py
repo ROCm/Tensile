@@ -2393,7 +2393,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read: Do It A/B
   ##############################################################################
-  def globalReadDo(self, kernel, mode, tP):
+  def globalReadDo(self, kernel, mode, tP, vregSetIdx=0):
     kStr = ""
     tc = tP["tensorChar"]
 

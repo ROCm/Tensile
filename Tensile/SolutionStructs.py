@@ -2009,7 +2009,11 @@ class Solution(collections.abc.Mapping):
     # nlc = 1
     if state["NumLoadsCoalesced%s"%tc] == 1 :
       foundValid = False
-      for nlc in range(1, int(state["NumLoads%s"%tc]+1)):
+      nlcStart = 1
+      if state["DirectToVgpr%s"%tc] and not (tc == 'A' and state["SourceSwap"] and state["GlobalReadVectorWidth"] > 1):
+        # adjust nlc for DirectToVgpr (except for DirectToVgprA + SourceSwap + GlobalReadVectorWidth > 1)
+        nlcStart = state["MIWaveTile%s"%tc]
+      for nlc in range(nlcStart, int(state["NumLoads%s"%tc]+1)):
         nlp = state["NumLoads%s"%tc] // nlc
         if state["NumLoads%s"%tc] % nlc == 0 \
             and totalVectorsCoalesced % nlc == 0 \
@@ -2331,6 +2335,41 @@ class Solution(collections.abc.Mapping):
       if not state["ProblemType"]["TLU%s"%tc] and (state["MacroTile%s" % tc] % numOfWaves != 0):
         reject(state, "dind't support WaveSeparateGlobalRead when MacroTile is not multiple of wave %u in TLU%s" % (state["MacroTile%s"%tc], tc))
 
+
+  ########################################
+  # determine can we use DirectToVgpr
+  @staticmethod
+  def isDirectToVgprDoable(state, tc):
+    # With MatrixInstruction only (tentative)
+    if not state["EnableMatrixInstruction"] :
+      print2("DirectToVgpr is for MatrixInstruction only")
+      return False
+
+    # Double only (tentative)
+    if not state["ProblemType"]["DataType"].isDouble() :
+      print2("so far, DirectToVgpr is for dobule only")
+      return False
+
+    # Problem type Check. Support N (for A) T (for B) only
+    if not state["ProblemType"]["TLU%c"%tc]:
+      print2("DirectToVgpr%c supports only N (for A) T (for B) format"%tc)
+      return False
+
+    # MIWaveGroup check
+    #  for A, MIWaveGroup should be [4, 1]
+    #  for B, MIWaveGroup should be [1, 4]
+    # This is to limit the number of Vgpr
+    if tc == 'A' and not (state['MIWaveGroup'][0] == 4 and state['MIWaveGroup'][1] == 1):
+      print2("MIWaveGroup should be [4, 1] for DirectToVgprA. Current value is [%s]"%state['MIWaveGroup'])
+      return False
+    if tc == 'B' and not (state['MIWaveGroup'][0] == 1 and state['MIWaveGroup'][1] == 4):
+      print2("MIWaveGroup should be [1, 4] for DirectToVgprB. Current value is [%s]"%state['MIWaveGroup'])
+      return False
+
+    # Does not work with DirectToLDS
+    # -> this will be checked after DirectToLDS doable check is done
+
+    return True
 
   ########################################
   # determine can we use DirectToLds
@@ -2871,6 +2910,15 @@ class Solution(collections.abc.Mapping):
 
     state["_DepthULds"] = state["DepthU"]//state["DepthULdsDivisor"] # internal
 
+    # Determine if we can load directly-to-Vgpr
+    # Need to be done before calling setGlobalLoadVectorWidth and setGlobalLoadTileDimClassic
+    if state["DirectToVgprA"]:
+      if not Solution.isDirectToVgprDoable(state, 'A'):
+        state["DirectToVgprA"] = False
+    if state["DirectToVgprB"]:
+      if not  Solution.isDirectToVgprDoable(state, 'B'):
+        state["DirectToVgprB"] = False
+
     ########################################
     # Search DepthU
     # Inputs:
@@ -2924,11 +2972,17 @@ class Solution(collections.abc.Mapping):
         if not Solution.setGlobalLoadTileDimFractional(state, "B", depthU):
           validDepthU = False
       else:
-        tva = totalElementsA // state["GlobalReadVectorWidth"]
-        tvb = totalElementsB // state["GlobalReadVectorWidth"]
-        if not Solution.setGlobalLoadVectorWidth(state, "A", tva, state["GlobalReadVectorWidth"]):
+        GlobalReadVectorWidth = state["GlobalReadVectorWidth"]
+        if state["DirectToVgprA"] and not state["SourceSwap"]:
+          GlobalReadVectorWidth = 1 # adjust GlobalReadVectorWidth to 1 in DirectToVgpr case (except for DirectToVgprA + SourceSwap)
+        tva = totalElementsA // GlobalReadVectorWidth
+        if not Solution.setGlobalLoadVectorWidth(state, "A", tva, GlobalReadVectorWidth):
           validDepthU = False
-        if not Solution.setGlobalLoadVectorWidth(state, "B", tvb, state["GlobalReadVectorWidth"]):
+        GlobalReadVectorWidth = state["GlobalReadVectorWidth"]
+        if state["DirectToVgprB"]:
+          GlobalReadVectorWidth = 1 # adjust GlobalReadVectorWidth to 1 in DirectToVgpr case
+        tvb = totalElementsB // GlobalReadVectorWidth
+        if not Solution.setGlobalLoadVectorWidth(state, "B", tvb, GlobalReadVectorWidth):
           validDepthU = False
 
         if state["EnableMatrixInstruction"] and state["GlobalLoadVectorWidthA"]:
@@ -3302,11 +3356,21 @@ class Solution(collections.abc.Mapping):
         state["DirectToLdsA"] = True
         state["LocalWriteUseSgprA"] = True
         #print("DirectToLdsA", state["DirectToLdsA"])
+        # DirectToLdsA + DirectToVgprA does not work. Not enable DirectToLdsA if DirectToVgprA is true
+        if state["DirectToVgprA"]:
+          state["DirectToLdsA"] = False
+          state["LocalWriteUseSgprA"] = False
+          print2("DirectToLdsA is disabled because DirectToVgprA is true")
 
       if Solution.isDirectToLdsDoable(state, 'B'):
         state["DirectToLdsB"] = True
         state["LocalWriteUseSgprB"] = True
         #print("DirectToLdsB", state["DirectToLdsB"])
+        # DirectToLdsB + DirectToVgprB does not work. Not enable DirectToLdsB if DirectToVgprB is true
+        if state["DirectToVgprB"]:
+          state["DirectToLdsB"] = False
+          state["LocalWriteUseSgprB"] = False
+          print2("DirectToLdsB is disabled because DirectToVgprB is true")
 
       # Update parent variable so kernel display is accurate
       state["DirectToLds"] = state["DirectToLdsA"] or state["DirectToLdsB"]
@@ -3847,7 +3911,7 @@ class Solution(collections.abc.Mapping):
       # 40 is based on current SGPR usage, this may need to be tuned in the future:
       numLoadsA = state["NumLoadsCoalescedA"]*state["NumLoadsPerpendicularA"]
       numLoadsB = state["NumLoadsCoalescedB"]*state["NumLoadsPerpendicularB"]
-      if numLoadsA + numLoadsB > 35:
+      if numLoadsA + numLoadsB > 35 or state["DirectToVgprA"] or state["DirectToVgprB"]: # force _UseSgprForGRO = 0 if DirectToVgpr is enabled
         #print "info: Disabling UseSgprForGRO since predicting too many SGPR will be used"
         state["_UseSgprForGRO"] = 0
       else:

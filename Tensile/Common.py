@@ -548,6 +548,11 @@ validParameters = {
     "BufferLoad":                 [ False, True ],
     "BufferStore":                [ False, True ],
 
+    # Attempt to load directly from global memory into Vgpr.
+    # Assembly only
+    "DirectToVgprA":              [ False, True ],
+    "DirectToVgprB":              [ False, True ],
+
     # Attempt to load directly from global memory into LDS.
     # Assembly only
     # Requires BufferLoad, assembler support for lds modifier on buffer
@@ -1219,6 +1224,8 @@ defaultBenchmarkCommonParameters = [
 
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
+    {"DirectToVgprA":             [ False ] },
+    {"DirectToVgprB":             [ False ] },
     {"DirectToLds":               [ False ] },
     {"UseSgprForGRO":             [ -1 ] },
     {"UseInstOffsetForGRO":       [ 0 ] },
