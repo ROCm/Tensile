@@ -10063,7 +10063,7 @@ class KernelWriterAssembly(KernelWriter):
         # flat: in-bounds exec mask
         # global offset macro (requires 3 tmpVgpr)
         # final address = C + index*bytes
-        kStr += "GLOBAL_OFFSET_C %u" % addr
+        kStr += "GLOBAL_OFFSET_C %u" % addrVgpr
         for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
           if i == kernel["ProblemType"]["Index0"]:
             kStr += ", %s" % (self.coord0Vgpr)
