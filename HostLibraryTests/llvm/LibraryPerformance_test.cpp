@@ -141,23 +141,45 @@ TEST_P(LibraryPerformanceTest, FindSolution)
 
 TEST_P(LibraryPerformanceTest, FindCachedSolution)
 {
-    for(int i = 0; i < 100; i++)
+
+    int maxCacheSize = 1e6;
+    int cacheSize = 100;
+    std::string f_name = "";
+
+    for(int c = cacheSize; c <= maxCacheSize; c *= 10)
     {
-        auto problem  = RandomGEMM();
+        for(int i = 0; i < 100; i++)
+        {
+            auto problem  = RandomGEMM();
+            auto solution = library->findBestSolution(problem, hardware);
+
+            //if(solutionRequired)
+            //    ASSERT_NE(solution, nullptr) << i << problem;
+        }
+
+        f_name = "cacheSize_" + std::to_string(c) + ".txt";
+        std::ofstream f;
+        f.open(f_name);	
+
+        auto problem = RandomGEMM();
+
         auto solution = library->findBestSolution(problem, hardware);
 
-        if(solutionRequired)
-            ASSERT_NE(solution, nullptr) << i << problem;
-    }
+        for(int i = 1; i < 1000000; i++)
+        {
+            auto start = std::chrono::steady_clock::now();
 
-    auto problem = RandomGEMM();
+            auto solution = library->findBestSolution(problem, hardware);
 
-    for(int i = 0; i < 1000000; i++)
-    {
-        auto solution = library->findBestSolution(problem, hardware);
+            auto end = std::chrono::steady_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+            f << elapsed << "\n";
 
-        if(solutionRequired)
-            ASSERT_NE(solution, nullptr) << i << problem;
+            //if(solutionRequired)
+            //    ASSERT_NE(solution, nullptr) << i << problem;
+        }
+
+        f.close();
     }
 }
 
@@ -290,17 +312,17 @@ std::vector<LibraryPerformanceTest::ParamType> GetLibraries(std::string const& e
 
     for(auto const& gpu : gpus)
     {
-        rv.push_back(std::make_tuple(gpu, "KernelsLite." + ext, false, false));
-        rv.push_back(std::make_tuple(gpu, "KernelsLiteMixed." + ext, false, true));
-        rv.push_back(std::make_tuple(gpu, "KernelsLiteNavi." + ext, true, false));
-        rv.push_back(std::make_tuple(gpu, "KernelsTileLite." + ext, false, false));
-        rv.push_back(std::make_tuple(gpu, "rocBLAS_Full." + ext, false, true));
+        //rv.push_back(std::make_tuple(gpu, "KernelsLite." + ext, false, false));
+        //rv.push_back(std::make_tuple(gpu, "KernelsLiteMixed." + ext, false, true));
+        //rv.push_back(std::make_tuple(gpu, "KernelsLiteNavi." + ext, true, false));
+        //rv.push_back(std::make_tuple(gpu, "KernelsTileLite." + ext, false, false));
+        //rv.push_back(std::make_tuple(gpu, "rocBLAS_Full." + ext, false, true));
     }
 
     rv.push_back(std::make_tuple(
         AMDGPU(AMDGPU::Processor::gfx908, 64, "Arcturus"), "rocBLAS_Full." + ext, false, true));
-    rv.push_back(std::make_tuple(
-        AMDGPU(AMDGPU::Processor::gfx1010, 40, "Navi"), "KernelsLiteNavi." + ext, true, false));
+    //rv.push_back(std::make_tuple(
+    //    AMDGPU(AMDGPU::Processor::gfx1010, 40, "Navi"), "KernelsLiteNavi." + ext, true, false));
 
     return rv;
 }
