@@ -118,8 +118,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
       globalReadIncACode  = Code.Module()
       globalReadIncBCode  = Code.Module()
 
+    grBackup = None
     if uDu != kernel["DepthULdsDivisor"] - 2 and kernel.enabledSplitLDS:
       # hack RAII object for auto restore
+      # withhold issuing global read codes until in the 2nd last subloop, meaning we empty the code
+      # modules in other subloops.
       grBackup = Backup(self, globalReadACode = self.globalReadACode, globalReadBCode = self.globalReadBCode)
       self.globalReadACode = Code.StructuredModule() # empty
       self.globalReadBCode = Code.StructuredModule() # empty
@@ -653,6 +656,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # should never run out of items to schedule
       assert not itemsLWToSched # should have scheduled everthing already
 
+    if grBackup is not None:
+      del grBackup
 
   ##############################################################################
   # Schedule work into the each unroll loop iteration
