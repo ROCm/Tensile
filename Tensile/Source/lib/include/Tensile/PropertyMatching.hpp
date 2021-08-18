@@ -346,7 +346,7 @@ namespace Tensile
                     std::cout << "Considered " << considered << "% of entries." << std::endl;
                 }
 
-                if(T_Debug)
+                if(T_Debug && bestMatch)
                     std::cout << "Solution index selected: " << bestMatch->index << std::endl;
 
                 return std::make_tuple(bestMatch, bestDistance);
@@ -417,7 +417,7 @@ namespace Tensile
                     iter++;
                 }
 
-                if(T_Debug)
+                if(T_Debug && bestMatch)
                     std::cout << "Solution index selected: " << bestMatch->index << std::endl;
 
                 return std::make_tuple(bestMatch, bestDistance);
