@@ -3037,10 +3037,16 @@ class Solution(collections.abc.Mapping):
 
 
       # Now convert elements to vectors based on GlobalReadVectorWidth
-      totalVectorsCoalescedA = totalElementsCoalescedA // state["GlobalLoadVectorWidthA"]
-      totalVectorsCoalescedB = totalElementsCoalescedB // state["GlobalLoadVectorWidthB"]
-      totalVectorsA = totalElementsA // state["GlobalLoadVectorWidthA"]
-      totalVectorsB = totalElementsB // state["GlobalLoadVectorWidthB"]
+      GlobalLoadVectorWidthA = state["GlobalLoadVectorWidthA"]
+      GlobalLoadVectorWidthB = state["GlobalLoadVectorWidthB"]
+      if GlobalLoadVectorWidthA == 0:
+        GlobalLoadVectorWidthA = GlobalReadVectorWidth
+      if GlobalLoadVectorWidthB == 0:
+        GlobalLoadVectorWidthB = GlobalReadVectorWidth
+      totalVectorsCoalescedA = totalElementsCoalescedA // GlobalLoadVectorWidthA
+      totalVectorsCoalescedB = totalElementsCoalescedB // GlobalLoadVectorWidthB
+      totalVectorsA = totalElementsA // GlobalLoadVectorWidthA
+      totalVectorsB = totalElementsB // GlobalLoadVectorWidthB
 
       if 0:
         print("info:", pvar(state, "NumThreads"), pvar(state, "DepthU"), pvar(state, "DepthULdsDivisor"),
