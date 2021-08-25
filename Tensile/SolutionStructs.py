@@ -2009,8 +2009,8 @@ class Solution(collections.abc.Mapping):
     if state["NumLoadsCoalesced%s"%tc] == 1 :
       foundValid = False
       nlcStart = 1
-      if state["DirectToVgpr%s"%tc] and not (tc == 'A' and state["SourceSwap"] and state["GlobalReadVectorWidth"] > 1):
-        # adjust nlc for DirectToVgpr (except for DirectToVgprA + SourceSwap + GlobalReadVectorWidth > 1)
+      if state["DirectToVgpr%s"%tc] and not (state["GlobalLoadVectorWidth%s"%tc] > 1):
+        # adjust nlc for DirectToVgpr (except for GlobalLoadVectorWidth > 1)
         nlcStart = state["MIWaveTile%s"%tc]
       for nlc in range(nlcStart, int(state["NumLoads%s"%tc]+1)):
         nlp = state["NumLoads%s"%tc] // nlc
@@ -2972,8 +2972,11 @@ class Solution(collections.abc.Mapping):
           validDepthU = False
       else:
         GlobalReadVectorWidth = state["GlobalReadVectorWidth"]
-        if state["DirectToVgprA"] and not state["SourceSwap"]:
-          GlobalReadVectorWidth = 1 # adjust GlobalReadVectorWidth to 1 in DirectToVgpr case (except for DirectToVgprA + SourceSwap)
+        if state["DirectToVgprA"]:
+          if not state["SourceSwap"]:
+            GlobalReadVectorWidth = 1 # adjust GlobalReadVectorWidth to 1 in DirectToVgpr case (except for DirectToVgprA + SourceSwap)
+          elif state["VectorWidth"] == 2 and GlobalReadVectorWidth == 1:
+            GlobalReadVectorWidth = 2 # adjust GlobalReadVectorWidth to 2 in this case (VW = 2 + GRVW = 1 does not work)
         tva = totalElementsA // GlobalReadVectorWidth
         if not Solution.setGlobalLoadVectorWidth(state, "A", tva, GlobalReadVectorWidth):
           validDepthU = False
@@ -3034,10 +3037,16 @@ class Solution(collections.abc.Mapping):
 
 
       # Now convert elements to vectors based on GlobalReadVectorWidth
-      totalVectorsCoalescedA = totalElementsCoalescedA // state["GlobalReadVectorWidth"]
-      totalVectorsCoalescedB = totalElementsCoalescedB // state["GlobalReadVectorWidth"]
-      totalVectorsA = totalElementsA // state["GlobalReadVectorWidth"]
-      totalVectorsB = totalElementsB // state["GlobalReadVectorWidth"]
+      GlobalLoadVectorWidthA = state["GlobalLoadVectorWidthA"]
+      GlobalLoadVectorWidthB = state["GlobalLoadVectorWidthB"]
+      if GlobalLoadVectorWidthA == 0:
+        GlobalLoadVectorWidthA = GlobalReadVectorWidth
+      if GlobalLoadVectorWidthB == 0:
+        GlobalLoadVectorWidthB = GlobalReadVectorWidth
+      totalVectorsCoalescedA = totalElementsCoalescedA // GlobalLoadVectorWidthA
+      totalVectorsCoalescedB = totalElementsCoalescedB // GlobalLoadVectorWidthB
+      totalVectorsA = totalElementsA // GlobalLoadVectorWidthA
+      totalVectorsB = totalElementsB // GlobalLoadVectorWidthB
 
       if 0:
         print("info:", pvar(state, "NumThreads"), pvar(state, "DepthU"), pvar(state, "DepthULdsDivisor"),
@@ -3376,6 +3385,12 @@ class Solution(collections.abc.Mapping):
       if state["1LDSBuffer"] == -1 and state["DirectToLds"]:
         #1LDS buffer must be 0 for DirectToLdsA
         state["1LDSBuffer"] = 0
+
+    # set NoLdsWriteCode if DirectToLds + DirectToVgpr or DirectToLdsA+B is enabled
+    state["NoLdsWriteCode"] = False
+    if (state["DirectToVgprA"] and state["DirectToLdsB"]) or (state["DirectToVgprB"] and state["DirectToLdsA"]) or \
+        (state["DirectToLdsA"] and state["DirectToLdsB"]):
+      state["NoLdsWriteCode"] = True
 
     if state["EnableMatrixInstruction"]:
       if state["DirectToLds"] and state["1LDSBuffer"]:

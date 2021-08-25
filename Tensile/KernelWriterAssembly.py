@@ -7564,9 +7564,18 @@ class KernelWriterAssembly(KernelWriter):
     #  imod.header.addInst("s_mul_i32", sgpr(zpTmp), self.strideRef(tc,freeDim), sgpr(zpTmp), "scale by stride")
     #  imod.header.addInst("s_lshl_b32", sgpr(zpTmp), sgpr(zpTmp), log2(self.bpeAB), "scale by bpe")
 
-    if tP["isA"] and (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]):
+    # set the first tc for below wait code for DirectToLds
+    # if DirectToVgprA is enabled, change the first to B
+    tc1st = 'A'
+    if kernel["DirectToVgprA"]:
+      tc1st = 'B'
+
+    if tc == tc1st and (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]):
       imod.header.addText(self.comment1("before DirectToLds load, ensure prior ds_reads have finished"))
-      imod.header.addText(self.syncThreads(kernel))
+      if (kernel["DirectToVgprA"] or kernel["DirectToVgprB"]): # do not generate sync here if DirectToVgpr is enabled
+        imod.header.addText("s_waitcnt lgkmcnt(0)" + self.endLine)
+      else:
+        imod.header.addText(self.syncThreads(kernel))
 
 
     if guardK:
@@ -8029,12 +8038,19 @@ class KernelWriterAssembly(KernelWriter):
     self.vmcntDec = 0
     # Template LWDoCode, not added to imod. Using "__placeholder__" ( vmcnt("__placeholder__ + Basic_Load - Decrement") )
     LWDoCodeTemplate = Code.Module()
-    LWDoA = self.localWriteDo(kernel, tPA)
-    LWDoB = self.localWriteDo(kernel, tPB)
-    LWDoCodeTemplate.addText(self.comment("local write a"))
-    LWDoCodeTemplate.addCode(LWDoA)
-    LWDoCodeTemplate.addText(self.comment("local write b"))
-    LWDoCodeTemplate.addCode(LWDoB)
+    if not kernel["NoLdsWriteCode"]:
+      LWDoA = self.localWriteDo(kernel, tPA)
+      LWDoB = self.localWriteDo(kernel, tPB)
+      LWDoCodeTemplate.addText(self.comment("local write a"))
+      LWDoCodeTemplate.addCode(LWDoA)
+      LWDoCodeTemplate.addText(self.comment("local write b"))
+      LWDoCodeTemplate.addCode(LWDoB)
+    else:
+        # no local write code case(DirectToVgpr + DirectToLds)
+        # add only wait for global read here
+        LWDoCodeTemplate.addText(self.comment("global read wait in no local write case"))
+        LWDoCodeTemplate.addText("s_waitcnt vmcnt(__placeholder__+0+0)\n")
+
     codeTemplateStrList = LWDoCodeTemplate.flatitems()
     self.useManualVmcnt = False
     # "Basic_Load" should == the final number of vmcnt-decrement ( Since "Basic_Load - Decrement" would be 0 )
