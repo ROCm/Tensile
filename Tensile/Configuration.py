@@ -729,11 +729,15 @@ class ExpressionEvaluator(object):
             # fields ('n')
             return node.n
 
+        elif nodeType == "Constant":
+            # fields ('kind', 'value')
+            return node.value
+
         elif nodeType == "Str":
             # fields ('s')
             return node.s
 
-        assert 0, "Unknown node type"
+        assert 0, "Unknown node type: {0}".format(nodeType)
 
 # Everything stored as a Parameter object, which has
 # value, default value and type attributes
