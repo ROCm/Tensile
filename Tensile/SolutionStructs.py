@@ -3264,29 +3264,39 @@ class Solution(collections.abc.Mapping):
     state["UnrollMajorLDSA"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUA"])
     state["UnrollMajorLDSB"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUB"])
 
-    if state["LdsBlockSizePerPad"] == -1:
-      if state["MatrixInstruction"] and state["TransposeLDS"]:
-        state["LdsBlockSizePerPad"] = 128
-        if state["_DepthULds"]*state["ProblemType"]["DataType"].numBytes() > state["LdsBlockSizePerPad"]:
-          state["LdsBlockSizePerPad"] = int(2**(math.ceil(math.log(state["_DepthULds"]*state["ProblemType"]["DataType"].numBytes(), 2))))
+    if state["LdsBlockSizePerPadA"] == -1:
+      if state["UnrollMajorLDSA"]:
+        state["LdsBlockSizePerPadA"] = roundUpToNearestMultiple(state["_DepthULds"] * state["ProblemType"]["DataType"].numBytes(), 128)
+        if state["SourceSwap"] and state["_DepthULds"] * state["ProblemType"]["DataType"].numBytes() * state["VectorWidth"] > 128:
+          state["LdsBlockSizePerPadA"] = roundUpToNearestMultiple(state["_DepthULds"] * state["ProblemType"]["DataType"].numBytes() * state["VectorWidth"], 128)
       else:
-        state["LdsBlockSizePerPad"] = 0
+        state["LdsBlockSizePerPadA"] = 0
 
-    state["LdsBlockSizePerPadA"] = state["LdsBlockSizePerPad"] if state["UnrollMajorLDSA"] else 0
-    state["LdsBlockSizePerPadB"] = state["LdsBlockSizePerPad"] if state["UnrollMajorLDSB"] else 0
+    if state["LdsBlockSizePerPadB"] == -1:
+      if state["UnrollMajorLDSB"]:
+        state["LdsBlockSizePerPadB"] = roundUpToNearestMultiple(state["_DepthULds"] * state["ProblemType"]["DataType"].numBytes(), 128)
+      else:
+        state["LdsBlockSizePerPadB"] = 0
 
     if state["EnableMatrixInstruction"]:
       if state["LdsBlockSizePerPadA"]:
         if not state["UnrollMajorLDSA"]:
           reject(state, "didn't support LdsBlockSizePerPadA on tile major LDS yet")
-        if state["LdsBlockSizePerPadA"] < state["_DepthULds"]*state["ProblemType"]["DataType"].numBytes():
-          reject(state, "reject: DepthULds %u x bpe > LdsBlockSizePerPadA %u" % (state["_DepthULds"], state["LdsBlockSizePerPad"]))
-
+        if state["UnrollMajorLDSA"]:
+          if state["LdsBlockSizePerPadA"] % (state["_DepthULds"] * state["ProblemType"]["DataType"].numBytes()) != 0:
+            reject(state, "reject: LdsBlockSizePerPadA %u mod DepthULds %u x bpe != 0" % (state["LdsBlockSizePerPadA"],state["_DepthULds"]))
+          if (state["LdsBlockSizePerPadA"] // (state["_DepthULds"] * state["ProblemType"]["DataType"].numBytes())) % state["LSPA"] != 0 and \
+              state["LSPA"] % (state["LdsBlockSizePerPadA"] // (state["_DepthULds"] * state["ProblemType"]["DataType"].numBytes())) != 0:
+            reject(state, "can't pad by addrVgpr or instOffset")
       if state["LdsBlockSizePerPadB"]:
         if not state["UnrollMajorLDSB"]:
           reject(state, "didn't support LdsBlockSizePerPadB on tile major LDS yet")
-        if state["LdsBlockSizePerPadB"] < state["_DepthULds"]*state["ProblemType"]["DataType"].numBytes():
-          reject(state, "reject: DepthULds %u x bpe > LdsBlockSizePerPadB %u" % (state["_DepthULds"], state["LdsBlockSizePerPad"]))
+        if state["UnrollMajorLDSB"]:
+          if state["LdsBlockSizePerPadB"] % state["_DepthULds"] * state["ProblemType"]["DataType"].numBytes() != 0:
+            reject(state, "reject: LdsBlockSizePerPadB %u mod DepthULds %u x bpe != 0" % (state["LdsBlockSizePerPadB"],state["_DepthULds"]))
+          if (state["LdsBlockSizePerPadB"] // (state["_DepthULds"] * state["ProblemType"]["DataType"].numBytes())) % state["LSPB"] != 0 and \
+              state["LSPB"] % (state["LdsBlockSizePerPadB"] // (state["_DepthULds"] * state["ProblemType"]["DataType"].numBytes())) != 0:
+            reject(state, "can't pad by addrVgpr or instOffset")
     else:
       if state["UnrollMajorLDSA"] or state["UnrollMajorLDSB"]:
         reject(state, "didn't support UnrollMajorLDS in VALU mode yet")

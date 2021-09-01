@@ -1100,6 +1100,8 @@ validParameters = {
     # 0 means disable LdsBlockSizePerPad,
     # -1 means round up to nearest power of 2 begin with 128
     "LdsBlockSizePerPad":          [-1, 0, 64, 128, 256, 512, 1024],
+    "LdsBlockSizePerPadA":         [-1, 0, 64, 128, 256, 512, 1024],
+    "LdsBlockSizePerPadB":         [-1, 0, 64, 128, 256, 512, 1024],
 
     # Transpose LDS format. Local store in Coalsced dimension , same as optimized global fetch dimension . applicable only in TLU=0 case for miSIMD(s)
     # TODO: No code for -1 ?
@@ -1188,6 +1190,8 @@ defaultBenchmarkCommonParameters = [
     {"LdsPadA":                   [ 0 ] },
     {"LdsPadB":                   [ 0 ] },
     {"LdsBlockSizePerPad":        [ 0 ] },
+    {"LdsBlockSizePerPadA":       [ 0 ] },
+    {"LdsBlockSizePerPadB":       [ 0 ] },
     {"TransposeLDS":              [ 0 ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
