@@ -8855,6 +8855,8 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["UnrollMajorLDS%s" % tP["tensorChar"]]:
           inc = kernel["LocalSplitU"] * tP["bpe"]
         inc *= kernel["MatrixInstK"]
+      if (kernel["LdsBlockSizePerPad%s"%tc] != 0) and (kernel["LdsPad%s"%tc] != 0):
+        inc = inc + (inc // kernel["LdsBlockSizePerPad%s"%tc]) * kernel["LdsPad%s"%tc] * tP["bpe"]
       tmpSgpr = self.getTmpSgpr(1).idx()
       kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(inc), "inc")
       kStr += inst("_v_add_co_u32", \

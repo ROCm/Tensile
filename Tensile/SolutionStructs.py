@@ -3270,18 +3270,22 @@ class Solution(collections.abc.Mapping):
         if state["SourceSwap"] and state["_DepthULds"] * state["ProblemType"]["DataType"].numBytes() * state["VectorWidth"] > 128:
           state["LdsBlockSizePerPadA"] = roundUpToNearestMultiple(state["_DepthULds"] * state["ProblemType"]["DataType"].numBytes() * state["VectorWidth"], 128)
       else:
-        state["LdsBlockSizePerPadA"] = 0
+        if state["MatrixInstB"] == 1 and state["MatrixInstM"] == 16:
+          state["LdsBlockSizePerPadA"] = (state["MatrixInstK"] // 4) * state["MacroTile0"] * state["ProblemType"]["DataType"].numBytes()
+        else:
+          state["LdsBlockSizePerPadA"] = 0
 
     if state["LdsBlockSizePerPadB"] == -1:
       if state["UnrollMajorLDSB"]:
         state["LdsBlockSizePerPadB"] = roundUpToNearestMultiple(state["_DepthULds"] * state["ProblemType"]["DataType"].numBytes(), 128)
       else:
-        state["LdsBlockSizePerPadB"] = 0
+        if state["MatrixInstB"] == 1 and state["MatrixInstM"] == 16:
+          state["LdsBlockSizePerPadB"] = (state["MatrixInstK"] // 4) * state["MacroTile1"] * state["ProblemType"]["DataType"].numBytes()
+        else:
+          state["LdsBlockSizePerPadB"] = 0
 
     if state["EnableMatrixInstruction"]:
       if state["LdsBlockSizePerPadA"]:
-        if not state["UnrollMajorLDSA"]:
-          reject(state, "didn't support LdsBlockSizePerPadA on tile major LDS yet")
         if state["UnrollMajorLDSA"]:
           if state["LdsBlockSizePerPadA"] % (state["_DepthULds"] * state["ProblemType"]["DataType"].numBytes()) != 0:
             reject(state, "reject: LdsBlockSizePerPadA %u mod DepthULds %u x bpe != 0" % (state["LdsBlockSizePerPadA"],state["_DepthULds"]))
@@ -3289,8 +3293,6 @@ class Solution(collections.abc.Mapping):
               state["LSPA"] % (state["LdsBlockSizePerPadA"] // (state["_DepthULds"] * state["ProblemType"]["DataType"].numBytes())) != 0:
             reject(state, "can't pad by addrVgpr or instOffset")
       if state["LdsBlockSizePerPadB"]:
-        if not state["UnrollMajorLDSB"]:
-          reject(state, "didn't support LdsBlockSizePerPadB on tile major LDS yet")
         if state["UnrollMajorLDSB"]:
           if state["LdsBlockSizePerPadB"] % state["_DepthULds"] * state["ProblemType"]["DataType"].numBytes() != 0:
             reject(state, "reject: LdsBlockSizePerPadB %u mod DepthULds %u x bpe != 0" % (state["LdsBlockSizePerPadB"],state["_DepthULds"]))
@@ -3338,7 +3340,14 @@ class Solution(collections.abc.Mapping):
         optPad *= 2
     if state["LdsPadA"] == -1:
       if state["ProblemType"]["TLUA"]:
-        state["LdsPadA"] = 0
+        if state["EnableMatrixInstruction"]:
+          state["LdsPadA"] = 0
+          if state["MatrixInstB"] == 1 and state["MatrixInstM"] == 16:
+            state["LdsPadA"] = ((16 * state["ProblemType"]["DataType"].numBytes() + (state["MatrixInstK"] // 4) * state["MacroTile0"] * state["ProblemType"]["DataType"].numBytes()) % 128) // state["ProblemType"]["DataType"].numBytes()
+          if state["SourceSwap"] and state["VectorWidth"] > 1:
+            pass
+        else:
+          state["LdsPadA"] = 0
       else:
         if state["EnableMatrixInstruction"] and state["TransposeLDS"]:
           state["LdsPadA"] = max(state["GlobalReadVectorWidth"],optPad)
@@ -3350,7 +3359,12 @@ class Solution(collections.abc.Mapping):
       assert(state["LdsPadA"] >= 0)
     if state["LdsPadB"] == -1:
       if state["ProblemType"]["TLUB"]:
-        state["LdsPadB"] = 0
+        if state["EnableMatrixInstruction"]:
+          state["LdsPadB"] = 0
+          if state["MatrixInstB"] == 1 and state["MatrixInstM"] == 16:
+            state["LdsPadB"] = ((16 * state["ProblemType"]["DataType"].numBytes() + (state["MatrixInstK"] // 4) * state["MacroTile1"] * state["ProblemType"]["DataType"].numBytes()) % 128) // state["ProblemType"]["DataType"].numBytes()
+        else:
+          state["LdsPadB"] = 0
       else:
         if state["EnableMatrixInstruction"] and state["TransposeLDS"]:
           state["LdsPadB"] = max(state["GlobalReadVectorWidth"],optPad)
