@@ -1852,8 +1852,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
             self.globalReadIncrements.addCode(Code.Module("globalReadIncrementA"))
             self.globalReadIncrements.addCode(Code.Module("globalReadIncrementB"))
         if not isLastLoop:
-          self.localWriteACode = self.localWriteDo(kernel, tensorParametersA, (uDu+1)%kernel["DepthULdsDivisor"])  # local write in loopcnt N targets data for loopcnt N+1
-          self.localWriteBCode = self.localWriteDo(kernel, tensorParametersB, (uDu+1)%kernel["DepthULdsDivisor"])
+          if self.enable["LocalWrite"]:
+            self.localWriteACode = self.localWriteDo(kernel, tensorParametersA, (uDu+1)%kernel["DepthULdsDivisor"])  # local write in loopcnt N targets data for loopcnt N+1
+            self.localWriteBCode = self.localWriteDo(kernel, tensorParametersB, (uDu+1)%kernel["DepthULdsDivisor"])
         else:
           self.localWriteACode = Code.Module()
           self.localWriteBCode = Code.Module()
