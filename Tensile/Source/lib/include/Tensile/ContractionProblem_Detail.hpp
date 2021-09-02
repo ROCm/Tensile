@@ -121,18 +121,49 @@ namespace std
     {
         inline size_t operator()(Tensile::ContractionProblem const& problem) const
         {
-            return Tensile::hash_combine(problem.operationIdentifier(),
+            /*std::cerr << sizeof(problem.operationIdentifier()) + 
+                                         sizeof(problem.a()) + 
+                                         sizeof(problem.b()) +
+                                         sizeof(problem.c()) +
+                                         sizeof(problem.d()) +
+                                         sizeof(problem.highPrecisionAccumulate()) +
+                                         sizeof(problem.kernelLanguage()) +
+                                         sizeof(problem.deterministicMode()) +
+                                         sizeof(problem.arithmeticUnit()) +
+                                         sizeof(problem.workspaceSize()) +
+                                         sizeof(problem.stridedBatched()) +
+                                         sizeof(problem.performanceMetric()) << std::endl;
+	    */
+
+            auto res = hash_combine(problem.operationIdentifier(), 
                                          problem.a(),
                                          problem.b(),
                                          problem.c(),
                                          problem.d(),
                                          problem.highPrecisionAccumulate(),
                                          problem.kernelLanguage(),
-                                         problem.deterministicMode(),
-                                         problem.arithmeticUnit(),
-                                         problem.workspaceSize(),
-                                         problem.stridedBatched(),
+                                         problem.deterministicMode(), 
+                                         problem.arithmeticUnit(), 
+                                         problem.workspaceSize(), 
+                                         problem.stridedBatched(), 
                                          problem.performanceMetric());
+
+    	    size_t size = 0;
+	    size = sizeof(problem.operationIdentifier()) +
+			problem.a().byteSize() +
+			problem.b().byteSize() +
+			problem.c().byteSize() +
+			problem.d().byteSize() +
+                        sizeof(problem.highPrecisionAccumulate()) +
+                        sizeof(problem.kernelLanguage()) +
+                        sizeof(problem.deterministicMode()) +
+                        sizeof(problem.arithmeticUnit()) +
+                        sizeof(problem.workspaceSize()) +
+                        sizeof(problem.stridedBatched()) +
+                        sizeof(problem.performanceMetric());
+	    std::cerr << size << std::endl;
+
+	    return res;
         }
     };
 

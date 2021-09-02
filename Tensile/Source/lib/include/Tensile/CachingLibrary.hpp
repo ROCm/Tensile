@@ -100,10 +100,23 @@ namespace Tensile
             return rv;
         }
 
+	std::size_t packSize() { std::cerr << std::endl; return 0; }
+
+	template <typename First, typename... Ks>
+	std::size_t packSize(First first, Ks... rest)
+	{
+		std::cerr << sizeof first << " ";
+		return sizeof first + packSize(rest...);
+	}
+
         template <typename... Ks>
         void add(Value const& value, Ks const&... ks)
         {
             std::lock_guard<std::shared_timed_mutex> lock(m_mutex);
+
+	    //packSize(ks...);
+            //std::cerr << packSize(ks...) << std::endl;
+	    //std::cerr << sizeof(value) << std::endl;
 
             add_impl(m_map, value, ks...);
         }

@@ -329,6 +329,14 @@ namespace Tensile
 
         friend std::ostream& operator<<(std::ostream& stream, const TensorDescriptor& t);
 
+	size_t byteSize() const
+	{
+		return sizeof(std::vector<size_t>) + (sizeof(size_t) * m_sizes.size()) +
+			sizeof(std::vector<size_t>) + (sizeof(size_t) * m_strides.size()) +
+			3 * sizeof(size_t) +
+			sizeof(m_dataType);
+	}
+
     private:
         std::vector<size_t> m_sizes;
         std::vector<size_t> m_strides;

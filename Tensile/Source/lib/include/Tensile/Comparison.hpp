@@ -142,8 +142,8 @@ namespace Tensile
     }
 
     /**
- * Combines a number of already-hashed values.
- */
+     * Combines a number of already-hashed values.
+     */
     template <typename... Ts>
     inline size_t combine_hashes(size_t a, Ts... rest)
     {
@@ -165,9 +165,11 @@ namespace Tensile
     template <typename T, typename... Ts>
     inline size_t hash_combine(T const& val, Ts const&... more)
     {
+	//size_t mine = sizeof(val);
         size_t mine = std::hash<T>()(val);
         size_t rest = hash_combine(more...);
 
+	//return mine + rest;
         return combine_hashes(mine, rest);
     }
 

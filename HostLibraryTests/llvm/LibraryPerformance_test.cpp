@@ -141,46 +141,47 @@ TEST_P(LibraryPerformanceTest, FindSolution)
 
 TEST_P(LibraryPerformanceTest, FindCachedSolution)
 {
+    //int maxCacheSize = 1e6;
+    //int cacheSize = 100;
+    //std::string f_name = "";
 
-    int maxCacheSize = 1e6;
-    int cacheSize = 100;
-    std::string f_name = "";
-
-    for(int c = cacheSize; c <= maxCacheSize; c *= 10)
-    {
+    //for(int c = cacheSize; c <= maxCacheSize; c *= 10)
+    //{
         for(int i = 0; i < 100; i++)
         {
             auto problem  = RandomGEMM();
             auto solution = library->findBestSolution(problem, hardware);
 
+            //std::cerr << sizeof(*solution) << std::endl;
+
             //if(solutionRequired)
             //    ASSERT_NE(solution, nullptr) << i << problem;
         }
 
-        f_name = "cacheSize_" + std::to_string(c) + ".txt";
-        std::ofstream f;
-        f.open(f_name);	
+        //f_name = "cacheSize_" + std::to_string(c) + ".txt";
+        //std::ofstream f;
+        //f.open(f_name);
 
-        auto problem = RandomGEMM();
 
-        auto solution = library->findBestSolution(problem, hardware);
+        //auto solution = library->findBestSolution(problem, hardware);
 
         for(int i = 1; i < 1000000; i++)
         {
-            auto start = std::chrono::steady_clock::now();
+            //auto start = std::chrono::steady_clock::now();
 
+            auto problem = RandomGEMM();
             auto solution = library->findBestSolution(problem, hardware);
 
-            auto end = std::chrono::steady_clock::now();
-            auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-            f << elapsed << "\n";
+            //auto end = std::chrono::steady_clock::now();
+            //auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+            //f << elapsed << "\n";
 
             //if(solutionRequired)
             //    ASSERT_NE(solution, nullptr) << i << problem;
         }
 
-        f.close();
-    }
+    //    f.close();
+    //}
 }
 
 TEST_P(LibraryPerformanceTest, Solve)
