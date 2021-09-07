@@ -151,25 +151,25 @@ class KernelWriter(metaclass=abc.ABCMeta):
       miLatencyLeft = self.miLatencyLeft
       for iui in range(kernel["InnerUnroll"]):
         # ds_read[A][0]
-        for i in range(self.numReadPerVectorA):
+        for i in range(self.numReadsPerUnrollA):
           latencyLeft -= tensorParametersA["localReadInstruction"].IssueLatency*2
           if latencyLeft < 0:
             self.numMfmaForLR += 1
             latencyLeft = max(miLatencyLeft - tensorParametersA["localReadInstruction"].IssueLatency*2,0)
         # ds_read[B][0]
-        for i in range(self.numReadPerVectorB):
+        for i in range(self.numReadsPerUnrollB):
           latencyLeft -= tensorParametersB["localReadInstruction"].IssueLatency*2
           if latencyLeft < 0:
             self.numMfmaForLR += 1
             latencyLeft = max(miLatencyLeft - tensorParametersB["localReadInstruction"].IssueLatency*2,0)
         # ds_read[A][1:]
-        for i in range(self.numReadsPerIterA//kernel["InnerUnroll"]-self.numReadPerVectorA):
+        for i in range(self.numReadsPerIterA//kernel["InnerUnroll"]-self.numReadsPerUnrollA):
           latencyLeft -= tensorParametersA["localReadInstruction"].IssueLatency*2
           if latencyLeft < 0:
             self.numMfmaForLR += 1
             latencyLeft = max(miLatencyLeft - tensorParametersA["localReadInstruction"].IssueLatency*2,0)
         # ds_read[B][1:]
-        for i in range(self.numReadsPerIterB//kernel["InnerUnroll"]-self.numReadPerVectorB):
+        for i in range(self.numReadsPerIterB//kernel["InnerUnroll"]-self.numReadsPerUnrollB):
           latencyLeft -= tensorParametersB["localReadInstruction"].IssueLatency*2
           if latencyLeft < 0:
             self.numMfmaForLR += 1
@@ -206,13 +206,19 @@ class KernelWriter(metaclass=abc.ABCMeta):
           lwStartMfmaIndex = 1 + numMfmaToSched
         else:
           # for 1LDSB, we have to issue localwrites after localreads
-          if self.numVgprBuffer == kernel["LoopIters"]:
-            if (self.numReadPerVectorA != 1 or self.numReadPerVectorB !=1) and not self.numVgprBufferPack == kernel["LoopIters"]:
+          if kernel["ClusterLocalRead"]:
+            if ((self.numReadsPerUnrollA != 1 and not(self.lrvwTileA > 1 and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()))) or \
+              self.numReadsPerUnrollB != 1) and not kernel["ClusterLocalReadPack"]:
             # fp16 or bf16, we read 1 element to vgprBuffer the other element to tempVgpr.
             # since each iteration shares same tempVgpr, only read-to-vgprBuffer can
             # be scheduled in the front of loop.
               # localwrite have to start after last read-to-tempVgpr.
-              numHalfReads = (self.numReadPerVectorA//2)*kernel["InnerUnroll"]*kernel["MIWaveTileA"] + (self.numReadPerVectorB//2)*kernel["InnerUnroll"]*kernel["MIWaveTileB"]
+              if self.lrvwTileA > 1 and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()):
+                numHalfReadsA = 0
+              else:
+                numHalfReadsA = (self.numReadsPerUnrollA//2)*kernel["InnerUnroll"]*kernel["MIWaveTileA"]
+              numHalfReadsB = (self.numReadsPerUnrollB//2)*kernel["InnerUnroll"]*kernel["MIWaveTileB"]
+              numHalfReads = numHalfReadsA + numHalfReadsB
               numMfmaForHalfRead = 1
               latencyLeft = self.miLatencyLeft
               for i in range(numHalfReads):
@@ -233,25 +239,25 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 doReadB = doReadB and (not kernel["DirectToVgprB"])
                 for iui in range(kernel["InnerUnroll"]):
                   # ds_read[A][0]
-                  for i in range(self.numReadPerVectorA * doReadA):
+                  for i in range(self.numReadsPerUnrollA * doReadA):
                     latencyLeft -= tensorParametersA["localReadInstruction"].IssueLatency*2
                     if latencyLeft < 0:
                       numMfmaForCurrentLoopLR += 1
                       latencyLeft = max(self.miLatencyLeft - tensorParametersA["localReadInstruction"].IssueLatency*2,0)
                   # ds_read[B][0]
-                  for i in range(self.numReadPerVectorB * doReadB):
+                  for i in range(self.numReadsPerUnrollB * doReadB):
                     latencyLeft -= tensorParametersB["localReadInstruction"].IssueLatency*2
                     if latencyLeft < 0:
                       numMfmaForCurrentLoopLR += 1
                       latencyLeft = max(self.miLatencyLeft - tensorParametersB["localReadInstruction"].IssueLatency*2,0)
                   # ds_read[A][1:]
-                  for i in range((self.numReadsPerIterA//kernel["InnerUnroll"] - self.numReadPerVectorA) * doReadA):
+                  for i in range((self.numReadsPerIterA//kernel["InnerUnroll"] - self.numReadsPerUnrollA) * doReadA):
                     latencyLeft -= tensorParametersA["localReadInstruction"].IssueLatency*2
                     if latencyLeft < 0:
                       numMfmaForCurrentLoopLR += 1
                       latencyLeft = max(self.miLatencyLeft - tensorParametersA["localReadInstruction"].IssueLatency*2,0)
                   # ds_read[B][1:]
-                  for i in range((self.numReadsPerIterB//kernel["InnerUnroll"] - self.numReadPerVectorB) * doReadB):
+                  for i in range((self.numReadsPerIterB//kernel["InnerUnroll"] - self.numReadsPerUnrollB) * doReadB):
                     latencyLeft -= tensorParametersB["localReadInstruction"].IssueLatency*2
                     if latencyLeft < 0:
                       numMfmaForCurrentLoopLR += 1
@@ -1306,8 +1312,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           packAIdx += instPerPack if i//(kernel["MIWaveTileA"]+kernel["MIWaveTileA"]*kernel["MIWaveTileB"]*(i//(kernel["MIWaveTileA"]*kernel["MIWaveTileB"]))) == 0 else 0
           packBIdx += instPerPack if i % kernel["MIWaveTileA"] == 0 else 0
           # blockWidth < 1, means 0.5 or 0.25 (BF,H,Int8)
-          packAIdx = packAIdx if self.tPA["localReadInstruction"].blockWidth < 1 else 0
-          packBIdx = packBIdx if self.tPB["localReadInstruction"].blockWidth < 1 else 0
+          packAIdx = packAIdx if self.tPA["bpe"] < 4 and not kernel["UnrollMajorLDSA"] else 0
+          packBIdx = packBIdx if self.tPB["bpe"] < 4 and not kernel["UnrollMajorLDSB"] else 0
           numPack = (packAIdx + packBIdx)
           iterCode.addComment0("pack scheduling: packAIdx:%u, packBIdx:%u" %(packAIdx,packBIdx))
           # we put 2 pack in each mfma
@@ -3339,27 +3345,35 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.numVgprBuffer = kernel["LoopIters"]
     else:
       self.numVgprBuffer = kernel["PrefetchLocalRead"] + 1
-    self.numVgprBufferPack = self.numVgprBuffer if kernel["ClusterLocalReadPack"] else self.numItersPLR + 1
 
-    if not kernel["ProblemType"]["TLUA"]:
-      self.lrvwA = kernel["LocalReadVectorWidth"]
+    if kernel["ClusterLocalReadPack"]:
+      self.numVgprBufferPackA = kernel["LoopIters"]
+      self.numVgprBufferPackB = kernel["LoopIters"]
     else:
-      if kernel["EnableMatrixInstruction"]:
-        self.lrvwA = kernel["MIInputPerThread"]
-      else:
-        self.lrvwA = 1
-    if not kernel["ProblemType"]["TLUB"]:
-      self.lrvwB = kernel["LocalReadVectorWidth"]
+      self.numVgprBufferPackA = self.numItersPLR + 1
+      self.numVgprBufferPackB = self.numItersPLR + 1
+
+    if kernel["SourceSwap"] and kernel["VectorWidth"] > 1 and not kernel["UnrollMajorLDSA"]:
+      self.lrvwTileA = kernel["VectorWidth"]
     else:
-      if kernel["EnableMatrixInstruction"]:
-        self.lrvwB = kernel["MIInputPerThread"]
-      else:
-        self.lrvwB = 1
+      self.lrvwTileA = 1
+
+    if self.lrvwTileA > 1 and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isInt8()):
+      self.numVgprBufferPackA = 1
+
+    if kernel["UnrollMajorLDSA"]:
+      self.lrvwUnrollA = kernel["LocalReadVectorWidth"]
+    else:
+      self.lrvwUnrollA = 1
+    if kernel["UnrollMajorLDSB"]:
+      self.lrvwUnrollB = kernel["LocalReadVectorWidth"]
+    else:
+      self.lrvwUnrollB = 1
 
     # Wider LocalRead
     if kernel["EnableMatrixInstruction"]:
-      self.numReadsIterCoalescedA = self.lrvwA // kernel["MIInputPerThread"]
-      self.numReadsIterCoalescedB = self.lrvwB // kernel["MIInputPerThread"]
+      self.numReadsIterCoalescedA = ceil(self.lrvwUnrollA / kernel["MIInputPerThread"])
+      self.numReadsIterCoalescedB = ceil(self.lrvwUnrollB / kernel["MIInputPerThread"])
     else:
       self.numReadsIterCoalescedA  = 1
       self.numReadsIterCoalescedB  = 1

@@ -2784,13 +2784,24 @@ class Solution(collections.abc.Mapping):
     if state["VectorWidth"] < 1:
       if state["EnableMatrixInstruction"]:
         regPerElem = state["ProblemType"]["DataType"].numRegisters()
-        # half: regPE=0.5, vw=2 / int8: regPE=0.25, vw=4
-        state["VectorWidth"] = int(1//regPerElem) if (regPerElem < 1) else 1
+        if state["SourceSwap"]:
+          optVW = int(4 // regPerElem)
+          while 1:
+            if state["MIWaveTile"][0] % optVW == 0:
+              state["VectorWidth"] = optVW
+              break
+            else:
+              optVW //= 2
+        else:
+          state["VectorWidth"] = 1
       else:
         state["VectorWidth"] = int(4 / state["ProblemType"]["DataType"].numRegisters())
         while state["ThreadTile0"] % state["VectorWidth"] != 0 \
             or state["ThreadTile1"] % state["VectorWidth"] != 0:
           state["VectorWidth"] //= 2
+
+    if state["EnableMatrixInstruction"] and not state["SourceSwap"] and state["VectorWidth"] > 1:
+      reject(state, "not implement VectorWidth without SourceSwap")
 
     # TT0,1 both must be multiples of VW, b/c of rC, rA, rB
     if state["EnableMatrixInstruction"]:
@@ -3344,8 +3355,9 @@ class Solution(collections.abc.Mapping):
           state["LdsPadA"] = 0
           if state["MatrixInstB"] == 1 and state["MatrixInstM"] == 16:
             state["LdsPadA"] = ((16 * state["ProblemType"]["DataType"].numBytes() + (state["MatrixInstK"] // 4) * state["MacroTile0"] * state["ProblemType"]["DataType"].numBytes()) % 128) // state["ProblemType"]["DataType"].numBytes()
-          if state["SourceSwap"] and state["VectorWidth"] > 1:
-            pass
+            # ds_read_b128 will offset 16 bank per 16 thread
+            if state["SourceSwap"] and state["VectorWidth"] * state["ProblemType"]["DataType"].numBytes() == 16 and not state["ProblemType"]["DataType"].isDouble():
+              state["LdsPadA"] = ((16 * state["ProblemType"]["DataType"].numBytes() + (state["MatrixInstK"] // 4) * state["MacroTile0"] * state["ProblemType"]["DataType"].numBytes() + 64) % 128) // state["ProblemType"]["DataType"].numBytes()
         else:
           state["LdsPadA"] = 0
       else:

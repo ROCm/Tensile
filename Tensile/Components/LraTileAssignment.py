@@ -103,7 +103,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         tc               = tP["tensorChar"]
         tile01           = tP["tile01Idx"]
         waveWidth        = writer.kernel["WavefrontSize"]
-        inputPerThread   = max(writer.lrvwA,writer.lrvwB)
+        inputPerThread   = kernel["LocalReadVectorWidth"] if not writer.inTailLoop else kernel["MIInputPerThread"]
         LdsPad           = kernel["LdsPad%s" % tc] if kernel["LdsBlockSizePerPad%s" % tc] == 0 else 0
 
         # parameter for get each type index
