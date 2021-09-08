@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, printExit, CHeader, printWarning, listToInitializer, ClientExecutionLock
+from .Common import globalParameters, pushWorkingPath, popWorkingPath, print1, printExit, CHeader, printWarning, listToInitializer, ClientExecutionLock
 from . import ClientExecutable
 from . import Common
 from . import LibraryIO
@@ -149,10 +149,7 @@ def main( config ):
   # Write Generated Header
   ##############################################################################
   forBenchmark = False
-  solutions = None
   problemSizes = None
-  stepName = None
-  solutionSummationSizes = None
   popWorkingPath() # source
 
   ##############################################################################
@@ -263,10 +260,8 @@ def writeRunScript(path, forBenchmark, enableTileSelection, configPaths=None):
   runScriptName = os.path.join(path, \
     "run.%s" % ("bat" if os.name == "nt" else "sh") )
   runScriptFile = open(runScriptName, "w")
-  echoLine = "@echo." if os.name == "nt" else "echo"
   if os.name != "nt":
     runScriptFile.write("#!/bin/bash\n\n")
-  q = "" if os.name == "nt" else "\""
 
   runScriptFile.write("set -ex\n")
 
@@ -315,7 +310,6 @@ fi
         runScriptFile.write("%s -d 0 --resetclocks\n" % globalParameters["ROCmSMIPath"])
         runScriptFile.write("%s -d 0 --setfan 50\n" % globalParameters["ROCmSMIPath"])
   else:
-    executablePath = os.path.join(globalParameters["WorkingPath"])
     for configFile in configPaths:
       runScriptFile.write("{} --config-file {} {} --best-solution 1\n".format(ClientExecutable.getClientExecutable(), configFile, globalParameters["ClientArgs"]))
   if os.name != "nt":

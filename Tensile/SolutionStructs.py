@@ -39,7 +39,6 @@ from collections.abc import Mapping
 from copy import deepcopy
 from enum import Enum
 from functools import reduce
-from warnings import warn
 
 import collections
 import math

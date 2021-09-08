@@ -19,8 +19,6 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .Common import printExit
-from .CSVReader import readCSV
 from .SolutionStructs import Solution
 
 import csv

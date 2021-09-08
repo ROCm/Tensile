@@ -21,7 +21,6 @@
 
 import collections
 import csv
-import filecmp
 import itertools
 import os
 import shutil
@@ -35,7 +34,7 @@ from . import SolutionLibrary
 from . import LibraryIO
 from . import Utils
 from .BenchmarkStructs import BenchmarkProcess, constructForkPermutations, checkForValidParameters
-from .ClientWriter import runClient, writeClientParameters, writeClientConfig
+from .ClientWriter import runClient, writeClientConfig
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, \
                     startTime, validParameters
 from .KernelWriterAssembly import KernelWriterAssembly
