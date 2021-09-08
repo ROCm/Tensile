@@ -14,4 +14,3 @@ GlobalParameters:
   MergeFiles: True
   KernelTime: True
   SolutionSelectionAlg: 1
-  NewClient: 2

@@ -3820,16 +3820,6 @@ class Solution(collections.abc.Mapping):
         if not bufferLoad:
           reject(state, "asm ZeroPad requires BufferLoad")
 
-    if state["MagicDivAlg"] == 2 and globalParameters["NewClient"] != 2:
-      warn("Legacy client does not support MagicDivAlg==2, forcing MagicDivAlg=1")
-      state["MagicDivAlg"] = 1
-
-    if state["PackSummationDims"] == 2 and globalParameters["NewClient"] != 2:
-      raise RuntimeError ("Legacy client does not support PackSummationDims (ASEM issues), aborting")
-
-    if state["UnrollIncIsDepthU"] and globalParameters["NewClient"] != 2:
-      raise RuntimeError ("Legacy client does not support UnrollIncIsDepthU=1 (ASEM issues), aborting")
-
     # Ensure AssertCEqualsD is always used with LdcEqualsLdd --DISABLED CURRENTLY
     #if state["AssertCEqualsD"]:
     #  if not ("LdcEqualsLdd" in state["ProblemType"] and state["ProblemType"]["LdcEqualsLdd"]):

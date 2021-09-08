@@ -4191,7 +4191,7 @@ for codeObjectFileName in codeObjectFileNames:
           self.writeByteArrayScript()
           coFile = self.getSingleCodeObjectFile(kernel)
 
-          if globalParameters["CodeFromFiles"] or globalParameters["NewClient"] > 1:
+          if globalParameters["CodeFromFiles"]:
             # I guess in this case we are making sure that the code object file exists by executing the code
             # above but we aren't placing it into the source.
             return (0, "")

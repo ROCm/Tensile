@@ -202,41 +202,25 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     ensurePath(sourceDir)
 
     filesToCopy = []
-    if globalParameters["OldClientSourceTmp"]:
-      pushWorkingPath("sourceTmp")
-      filesToCopy = [
-          "SolutionMapper.h",
-          "Client.cpp",
-          "Client.h",
-          "CMakeLists.txt",
-          "DeviceStats.h",
-          "TensorUtils.h",
-          "MathTemplates.cpp",
-          "MathTemplates.h",
-          "TensileTypes.h",
-          "tensile_bfloat16.h",
-          "KernelHeader.h",
-          "ReferenceCPU.h",
-          "SolutionHelper.cpp",
-          "SolutionHelper.h",
-          "Tools.cpp",
-          "Tools.h",
-          ]
+    pushWorkingPath("source")
+    filesToCopy = [
+        "TensileTypes.h",
+        "tensile_bfloat16.h",
+        "KernelHeader.h",
+        ]
 
-      for f in filesToCopy:
-        shutil.copy(
-            os.path.join(globalParameters["SourcePath"], f),
-            globalParameters["WorkingPath"] )
-      if globalParameters["RuntimeLanguage"] == "OCL":
-        shutil.copy(
-            os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
-            globalParameters["WorkingPath"] )
-      else:
-        shutil.copy(
-            os.path.join(globalParameters["SourcePath"], "FindHIP.cmake"),
-            globalParameters["WorkingPath"] )
+    for f in filesToCopy:
+      shutil.copy(
+          os.path.join(globalParameters["SourcePath"], f),
+          globalParameters["WorkingPath"] )
+    if globalParameters["RuntimeLanguage"] == "OCL":
+      shutil.copy(
+          os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
+          globalParameters["WorkingPath"] )
     else:
-      pushWorkingPath("source")
+      shutil.copy(
+          os.path.join(globalParameters["SourcePath"], "FindHIP.cmake"),
+          globalParameters["WorkingPath"] )
 
     ############################################################################
     # Enumerate Benchmark Permutations
@@ -366,23 +350,6 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       # remove from solution 2D list also
       solutions = list([s for s in solutions if len(s) > 0])
 
-    if globalParameters["OldClientSourceTmp"]:
-      print1("# Copying files that differ from sourceTmp -> source")
-      sourceTmp = globalParameters["WorkingPath"]
-      files = os.listdir(sourceTmp)
-      for f in files:
-        f0 = os.path.join(sourceTmp, f)
-        f1 = os.path.join(sourceDir, f)
-        if os.path.isdir(f0):
-          #print "cpDir:", f0, f1
-          if os.path.isdir(f1):
-            shutil.rmtree( f1, True )
-          shutil.copytree( f0, f1 )
-        elif not os.path.exists(f1) or not filecmp.cmp(f0, f1):
-          #print "cp:", f0, f1
-          shutil.copy( f0, f1 )
-      shutil.rmtree( sourceTmp, True )
-
     popWorkingPath() # source
 
     ############################################################################
@@ -393,7 +360,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     if benchmarkStep.isFinal():
       resultsFileBaseFinal = resultsFileBase
     resultsFileName = resultsFileBase + ".csv"
-    newResultsFileName = resultsFileBase + "-new.csv" if globalParameters["NewClient"] == 1 else None
+    newResultsFileName = None # Add another results file to generate diff
     solutionsFileName = resultsFileBase + ".yaml"
     if not os.path.exists(resultsFileName) or \
         globalParameters["ForceRedoBenchmarkProblems"]:
@@ -649,11 +616,6 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
     shutil.copy( os.path.join(globalParameters["SourcePath"], fileName), \
       outputPath )
 
-  if globalParameters["NewClient"] != 2:
-      forBenchmark = True
-      writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-          filesToCopy, stepBaseDir, solutionSummationSizes, solutionWriter)
-
 
 ################################################################################
 # FrozenDictionary
@@ -867,8 +829,7 @@ class WinningParameterDict:
 # Main
 ################################################################################
 def main( config ):
-  if globalParameters["NewClient"]:
-    ClientExecutable.getClientExecutable()
+  ClientExecutable.getClientExecutable()
 
   dataPath = os.path.join(globalParameters["WorkingPath"], \
       globalParameters["BenchmarkDataPath"])

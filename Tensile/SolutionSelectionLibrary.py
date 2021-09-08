@@ -97,69 +97,6 @@ def updateValidSolutions(validSolutions, analyzerSolutions, solutionMinNaming):
   return selectionSolutionsIdsList
 
 
-def analyzeSolutionSelectionOldClient( problemType, problemSizeGroups):
-
-  dataFileNameList = []
-  performanceMap = {}
-  solutionsHash = {}
-
-  for problemSizeGroup in problemSizeGroups:
-    dataFileName = problemSizeGroup[3]
-    dataFileNameList.append(dataFileName)
-    solutionsFileName = problemSizeGroup[2]
-
-    # solutions are already read and kept in problemSizeGroups, no need to call LibraryIO.readSolutions(solutionsFileName) again
-    solutions = problemSizeGroup[4]
-    if len(solutions) == 0:
-      printExit("%s doesn't contains any solutions." % (solutionsFileName) )
-
-    csvData = readCSV(dataFileName)
-
-    rowIdx = 0
-    summationKeys = None
-
-    for row in csvData:
-      if rowIdx == 0:
-        print(rowIdx)
-        summationKeys = getSummationKeys(row)
-      else:
-        if len(row) > 1:
-          solution = solutions[rowIdx - 1]
-          keyBase = makeKey(row)
-          idx=7
-          perfData = {}
-          for summationKey in summationKeys:
-            key = "%s_%s" % (keyBase,summationKey)
-            value = float(row[idx])
-            perfData[summationKey] = value
-            idx+=1
-
-            if not solution in solutionsHash:
-              dataMap = {}
-              solutionsHash[solution] = dataMap
-
-            updateIfGT(solutionsHash[solution], summationKey, value)
-
-            if not key in performanceMap:
-              performanceMap[key] = (solution, value)
-            else:
-              _,valueOld = performanceMap[key]
-              if value > valueOld:
-                performanceMap[key] = (solution, value)
-      rowIdx+=1
-
-  validSolutions = []
-  validSolutionSet = set([])
-
-  for key in performanceMap:
-    solution, _ = performanceMap[key]
-    validSolutionSet.add(solution)
-
-  for validSolution in validSolutionSet:
-    dataMap = solutionsHash[validSolution]
-    validSolutions.append((validSolution,dataMap))
-  return validSolutions
-
 def analyzeSolutionSelection(problemType, selectionFileNameList, numSolutionsPerGroup, solutionGroupMap, solutionsList):
 
   performanceMap = {}
