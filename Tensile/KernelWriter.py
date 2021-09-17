@@ -1152,7 +1152,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # reject to use 1LDSB, since it will write and read same lds buffer at same time.
         # TODO: force to schedule all remaining localreads before start to schedule localwrite.
         if mfmaIndex >= self.lwStartMfmaIndex and mfmaIndex <= max(self.lwEndMfmaIndex,self.barrierMfmaIndex) and \
-          localReadItemsThisLoop and localWriteCode.countType(Code.LocalWriteInst) and kernel["1LDSBuffer"]:
+          localReadItemsThisLoop and (localWriteCode.countType(Code.LocalWriteInst) or not kernel.enabledSplitLDS) and kernel["1LDSBuffer"]:
           self.overflowedResources = 5
         for j in range(readLeft):
           if localReadItemsThisLoop:
