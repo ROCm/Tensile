@@ -3100,7 +3100,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.defineMACMacro(kernel, 1, True) # define OneIter case
 
     if self.overflowedResources:
-      print("")
       if self.overflowedResources == 1:
         msg = "too many vgprs"
       elif self.overflowedResources == 2:
@@ -3116,7 +3115,8 @@ class KernelWriterAssembly(KernelWriter):
       else:
         msg = "unknown"
 
-      printWarning("%s overflowed resources.  errorCode=%d, msg=\"%s\", vgprs=%u, sgprs=%u" \
+      if globalParameters["PrintSolutionRejectionReason"]:
+        printWarning("%s overflowed resources.  errorCode=%d, msg=\"%s\", vgprs=%u, sgprs=%u" \
           % (self.kernelName, self.overflowedResources, msg, \
           self.vgprPool.size(), self.sgprPool.size()))
       kStr += "s_endpgm // overflowed resources\n"
