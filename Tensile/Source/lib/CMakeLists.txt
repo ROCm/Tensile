@@ -99,14 +99,9 @@ if(TENSILE_USE_LLVM OR TENSILE_USE_MSGPACK)
 endif()
 
 if(TENSILE_USE_MSGPACK)
+    find_package(msgpack REQUIRED)
     target_compile_definitions(TensileHost PUBLIC -DTENSILE_MSGPACK=1)
-
-    find_package(msgpack)
-    if(TARGET msgpackc-static)
-        target_link_libraries(TensileHost PRIVATE msgpackc-static)
-    else()
-        target_link_libraries(TensileHost PRIVATE msgpackc)
-    endif()
+    target_include_directories(TensileHost PRIVATE "${msgpack_DIR}/include")
 endif()
 
 if(TENSILE_USE_LLVM)
