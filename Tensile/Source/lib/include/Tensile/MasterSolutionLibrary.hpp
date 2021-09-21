@@ -29,8 +29,8 @@
 #include <map>
 #include <memory>
 
+#include <Tensile/Debug.hpp>
 #include <Tensile/SolutionLibrary.hpp>
-
 #include <Tensile/Tensile.hpp>
 
 namespace Tensile
@@ -84,7 +84,28 @@ namespace Tensile
                                                              double*          fitness
                                                              = nullptr) const override
         {
-            return library->findBestSolution(problem, hardware, fitness);
+            const int solution_index = Debug::Instance().getSolutionIndex();
+
+            if(solution_index >= 0)
+            {
+                std::cout << "Tensile will use solution index: " << solution_index << std::endl;
+                std::cout
+                    << "Warning: Tensile will only work for a particular transpose and data type."
+                    << std::endl;
+                std::cout << "Set TENSILE_SOLUTION_INDEX to a negative number to restore the "
+                             "default behavior."
+                          << std::endl;
+
+                auto selected_solution = solutions.at(solution_index);
+
+                if((*selected_solution->problemPredicate)(problem)
+                   && (*selected_solution->hardwarePredicate)(hardware))
+                    return selected_solution;
+                else
+                    return nullptr;
+            }
+            else
+                return library->findBestSolution(problem, hardware, fitness);
         }
 
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,

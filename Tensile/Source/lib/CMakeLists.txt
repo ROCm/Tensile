@@ -21,8 +21,6 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14" )
-
 if(NOT DEFINED TENSILE_ROOT)
     get_filename_component(TENSILE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}" DIRECTORY)
 endif()
@@ -87,6 +85,12 @@ endif()
 include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_library (TensileHost STATIC ${tensile_sources})
+
+set_target_properties(TensileHost
+                      PROPERTIES
+                      CXX_STANDARD 14
+                      CXX_STANDARD_REQUIRED ON
+                      CXX_EXTENSIONS OFF)
 
 target_include_directories(TensileHost INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
