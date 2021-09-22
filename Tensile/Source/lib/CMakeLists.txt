@@ -101,7 +101,14 @@ endif()
 if(TENSILE_USE_MSGPACK)
     find_package(msgpack REQUIRED)
     target_compile_definitions(TensileHost PUBLIC -DTENSILE_MSGPACK=1)
-    target_include_directories(TensileHost PRIVATE "${msgpack_DIR}/include")
+
+    if(DEFINED msgpackc-cxx)
+        # Target defines include headers
+        target_link_libraries(TensileHost PRIVATE msgpackc-cxx)
+    else()
+        # Otherwise include C++ headers manually
+        target_include_directories(TensileHost PRIVATE "${msgpack_DIR}/include")
+    endif()
 endif()
 
 if(TENSILE_USE_LLVM)
