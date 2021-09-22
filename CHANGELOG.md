@@ -1,16 +1,14 @@
 # Change Log for Tensile
-## [(Unreleased) Tensile 4.30.0]
-### Fixed
-- Fix merge.py keeping duplicate solutions
-- Fix ScheduleIterAlg 2,3 cases for aldebaran
-
-## [Tensile 4.29.0 for ROCm 4.4.0]
+## Tensile 4.30.0 for ROCm 4.5.0
 ### Added
 - Custom Kernel mechanism for adding custom assembly kernels to Tensile
 - New assertions for problems sizes, alpha/beta values, and C equals D
 - Support setting VectorWidth in M dimension in MFMA SourceSwap configuration
+### Fixed
+- Fix merge.py keeping duplicate solutions
+- Fix ScheduleIterAlg 2,3 cases for aldebaran
 
-## [Tensile 4.28.0 for ROCm 4.3.0]
+## Tensile 4.28.0 for ROCm 4.3.0
 ### Added
 - TensileRetuneLibrary for updating existing library logic files
 - Support GFX1030
@@ -22,7 +20,7 @@
 ### Changed
 - Change cmake_minimum_required to VERSION 3.13
 
-## [Tensile 4.27.0 for ROCm 4.2.0]
+## Tensile 4.27.0 for ROCm 4.2.0
 ### Added
 - Benchmarking and library support for CU efficiency vs. overall speed
 - support general batch GEMM
@@ -36,7 +34,7 @@
 - Fixed MasterSolutionLibrary having duplicated hardware rows
 - channel stride is incorrect when converting conv problem into tensor contraction problem
 
-## [Tensile 4.26.0 for ROCm 4.1.0]
+## Tensile 4.26.0 for ROCm 4.1.0
 ### Added
 - Make messagepack python dependency optional
 - TensileCreateLibraryFiles: auto create target for build time lib generation
