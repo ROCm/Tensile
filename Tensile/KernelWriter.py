@@ -4191,12 +4191,12 @@ for codeObjectFileName in codeObjectFileNames:
           self.writeByteArrayScript()
           coFile = self.getSingleCodeObjectFile(kernel)
 
-          if globalParameters["CodeFromFiles"]:
-            # I guess in this case we are making sure that the code object file exists by executing the code
-            # above but we aren't placing it into the source.
-            return (0, "")
+          # I guess in this case we are making sure that the code object file exists by executing the code
+          # above but we aren't placing it into the source.
+          return (0, "")
 
-          return (0, self.getFileCobaDefinition(kernelName, os.path.join(asmPath, coFile)))
+          # Old client debug option
+          # return (0, self.getFileCobaDefinition(kernelName, os.path.join(asmPath, coFile)))
 
       else:
         return (0, self.getKernelSource(kernel))
