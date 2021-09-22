@@ -1,8 +1,3 @@
-
-#set(CMAKE_CXX_COMPILER ${HIP_HIPCC_EXECUTABLE})
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14" )
-
 set(client_sources
     source/BenchmarkTimer.cpp
     source/CSVStackFile.cpp
@@ -26,6 +21,12 @@ set(client_sources
 find_package(Boost  COMPONENTS program_options filesystem REQUIRED)
 
 add_library(TensileClient STATIC ${client_sources})
+
+set_target_properties(TensileClient
+                      PROPERTIES
+                      CXX_STANDARD 14
+                      CXX_STANDARD_REQUIRED ON
+                      CXX_EXTENSIONS OFF)
 
 find_package(ROCmSMI QUIET)
 if(NOT ROCmSMI_FOUND)

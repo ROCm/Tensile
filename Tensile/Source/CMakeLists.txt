@@ -150,17 +150,16 @@ else()
           -DTensile_RESUME_BENCHMARK )
     endif()
     ###############################################################################
-    # Visual Studio or HIPCC
-    if(MSVC)
-      set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP" ) # parallel build
-    endif()
-
     if (UNIX)
       # the Tensile library doesn't require c++11, but client/ReferenceCPU does
       # with addition of bfloat16 library requires c++14
-      #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14"  )
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wno-deprecated-declarations" )
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__HIP_HCC_COMPAT_MODE__=1")
+      set_target_properties(TensileClient
+                            PROPERTIES
+                            CXX_STANDARD 14
+                            CXX_STANDARD_REQUIRED ON
+                            CXX_EXTENSIONS OFF)
+      target_compile_options(TensileClient PRIVATE "-Wno-deprecated-declarations")
+      target_compile_definitions(TensileClient PRIVATE "-D__HIP_HCC_COMPAT_MODE__=1")
     endif()
 
     if(Tensile_MERGE_FILES)

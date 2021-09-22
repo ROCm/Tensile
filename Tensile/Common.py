@@ -548,6 +548,11 @@ validParameters = {
     "BufferLoad":                 [ False, True ],
     "BufferStore":                [ False, True ],
 
+    # Attempt to load directly from global memory into Vgpr.
+    # Assembly only
+    "DirectToVgprA":              [ False, True ],
+    "DirectToVgprB":              [ False, True ],
+
     # Attempt to load directly from global memory into LDS.
     # Assembly only
     # Requires BufferLoad, assembler support for lds modifier on buffer
@@ -558,8 +563,9 @@ validParameters = {
     # local write offset with an SGPR.
     # For an 8x8 TT with PrefetchGlobalRead=1 this can save 33 VGPRs.
     #    - Requirements for DirectToLds=1:
-    #      GlobalLoadVectorWidth? = 1
+    #      GlobalLoadVectorWidth = 1/2/4
     #      TransposeLDS = 1 for TLU=0 case
+    # DirectToLds support for x2/x4 (1st part of async_copy() support)
     "DirectToLds":                [ False, True ],
 
     # Load options:
@@ -1099,6 +1105,8 @@ validParameters = {
     "PerformanceWaitCount":       list(range(-1, 16)),
 
     # add gls or slc after global memory read/writes to change cacheing, not cacheing the writes is promising and improved performance a tiny bit
+    # 1: glc, 2: slc, 3: glc+slc
+    "NonTemporalD":               list(range(0,4)),
     "NonTemporalC":               list(range(0,4)),
     "NonTemporalA":               list(range(0,4)),
     "NonTemporalB":               list(range(0,4)),
@@ -1216,6 +1224,8 @@ defaultBenchmarkCommonParameters = [
 
     {"BufferLoad":                [ True ] },
     {"BufferStore":               [ True ] },
+    {"DirectToVgprA":             [ False ] },
+    {"DirectToVgprB":             [ False ] },
     {"DirectToLds":               [ False ] },
     {"UseSgprForGRO":             [ -1 ] },
     {"UseInstOffsetForGRO":       [ 0 ] },
@@ -1275,6 +1285,7 @@ defaultBenchmarkCommonParameters = [
     {"PerformanceSyncLocation":   [ -1 ] },
     {"PerformanceWaitLocation":   [ -1 ] },
     {"PerformanceWaitCount":      [ -1 ] },
+    {"NonTemporalD":              [ 0 ] },
     {"NonTemporalC":              [ 0 ] },
     {"NonTemporalA":              [ 0 ] },
     {"NonTemporalB":              [ 0 ] },
