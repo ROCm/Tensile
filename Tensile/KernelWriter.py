@@ -4189,7 +4189,7 @@ for codeObjectFileName in codeObjectFileNames:
           return (0, "")
         else:
           self.writeByteArrayScript()
-          # coFile = self.getSingleCodeObjectFile(kernel)
+          self.getSingleCodeObjectFile(kernel)
 
           # I guess in this case we are making sure that the code object file exists by executing the code
           # above but we aren't placing it into the source.
