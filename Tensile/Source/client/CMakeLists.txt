@@ -42,6 +42,11 @@ if(TENSILE_USE_OPENMP)
 endif()
 
 add_executable(tensile_client main.cpp)
+set_target_properties(tensile_client
+                      PROPERTIES
+                      CXX_STANDARD 14
+                      CXX_STANDARD_REQUIRED ON
+                      CXX_EXTENSIONS OFF)
 
 target_link_libraries(tensile_client PRIVATE TensileHost TensileClient ${Boost_LIBRARIES})
 if(TENSILE_USE_OPENMP)
