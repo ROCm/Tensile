@@ -102,12 +102,18 @@ if(TENSILE_USE_MSGPACK)
     find_package(msgpack REQUIRED)
     target_compile_definitions(TensileHost PUBLIC -DTENSILE_MSGPACK=1)
 
-    if(DEFINED msgpackc-cxx)
-        # Target defines include headers
-        target_link_libraries(TensileHost PRIVATE msgpackc-cxx)
-    else()
-        # Otherwise include C++ headers manually
-        target_include_directories(TensileHost PRIVATE "${msgpack_DIR}/include")
+    if(TARGET msgpackc-cxx)
+        get_target_property(msgpack_inc msgpackc-cxx INTERFACE_INCLUDE_DIRECTORIES)
+    elseif(TARGET msgpackc)
+        get_target_property(msgpack_inc msgpackc INTERFACE_INCLUDE_DIRECTORIES)
+    endif()
+
+    if(DEFINED msgpack_inc)
+        # include C++ headers manually
+        # External header includes included as system files
+        target_include_directories(TensileHost 
+            SYSTEM PRIVATE $<BUILD_INTERFACE:${msgpack_inc}>
+        )
     endif()
 endif()
 
