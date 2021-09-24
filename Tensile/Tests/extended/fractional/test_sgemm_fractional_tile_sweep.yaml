@@ -17,7 +17,6 @@ GlobalParameters:
   DataInitTypeC: 3
   KernelTime: True
   CodeFromFiles: True
-  NewClient: 2
 
 BenchmarkProblems:
 

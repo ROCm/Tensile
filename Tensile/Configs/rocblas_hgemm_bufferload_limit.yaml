@@ -1,7 +1,6 @@
 GlobalParameters:
   BoundsCheck: False
   KernelTime: True
-  NewClient: 2
   PrintSolutionRejectionReason: True
   # NumElementsToValidate: 65535
   # CMakeBuildType: Debug

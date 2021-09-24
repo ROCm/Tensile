@@ -7,7 +7,6 @@ GlobalParameters:
   ValidationMaxToPrint: 4
   DataInitTypeAB: 1
   DataInitTypeC: 1
-  NewClient: 2
 
 BenchmarkProblems:
 

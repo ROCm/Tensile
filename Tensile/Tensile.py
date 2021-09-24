@@ -233,7 +233,6 @@ def Tensile(userArgs):
     print("Overriding {0}={1}".format(key, value))
     globalParameters[key] = value
 
-  #globalParameters["NewClient"] = 2
   #globalParameters["PrintCodeCommands"] = True
 
   # Execute Steps in the config script

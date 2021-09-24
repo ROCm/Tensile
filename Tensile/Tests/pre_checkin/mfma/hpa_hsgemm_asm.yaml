@@ -5,7 +5,6 @@ GlobalParameters:
   NumElementsToValidate: 65536
   BoundsCheck: True
   KernelTime: True
-  NewClient: 2
 
 BenchmarkProblems:
   ########################################

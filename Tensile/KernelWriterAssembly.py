@@ -3150,100 +3150,6 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
 
-  def legacyGetKernelArgs(self, kernel):
-    kStr = ""
-
-    # comment out original getKernArg, in case we need it back
-    kStr += self.getKernArg("Tensor2dSizeA+0")
-    kStr += self.getKernArg("Tensor2dSizeA+1")
-    kStr += self.getKernArg("Tensor2dSizeB+0")
-    kStr += self.getKernArg("Tensor2dSizeB+1")
-
-    kStr += self.getKernArg("AddressD")
-    kStr += self.getKernArg("AddressD+1")
-    kStr += self.getKernArg("AddressC")
-    kStr += self.getKernArg("AddressC+1")
-    kStr += self.getKernArg("AddressA")
-    kStr += self.getKernArg("AddressA+1")
-    kStr += self.getKernArg("AddressB")
-    kStr += self.getKernArg("AddressB+1")
-
-    # for half precision or smaller, data is padded to fill up 32-bits
-    if kernel["ProblemType"]["DataType"].isHalf() or \
-       kernel["ProblemType"]["DataType"].isBFloat16() or \
-       kernel["ProblemType"]["DataType"].isSingle() or \
-       kernel["ProblemType"]["DataType"].isInt8x4():
-      kStr += self.getKernArg("Alpha")
-    elif kernel["ProblemType"]["DataType"].isDouble() or \
-         kernel["ProblemType"]["DataType"].isSingleComplex():
-      kStr += self.getKernArg("Alpha+0")
-      kStr += self.getKernArg("Alpha+1")
-    elif kernel["ProblemType"]["DataType"].isDoubleComplex():
-      kStr += self.getKernArg("Alpha+0")
-      kStr += self.getKernArg("Alpha+1")
-      kStr += self.getKernArg("Alpha+2")
-      kStr += self.getKernArg("Alpha+3")
-
-    if kernel["ProblemType"]["UseBeta"]:
-      if kernel["ProblemType"]["DataType"].isHalf() or \
-         kernel["ProblemType"]["DataType"].isBFloat16() or \
-         kernel["ProblemType"]["DataType"].isSingle() or \
-         kernel["ProblemType"]["DataType"].isInt8x4():
-        kStr += self.getKernArg("Beta")
-      elif kernel["ProblemType"]["DataType"].isDouble() or \
-           kernel["ProblemType"]["DataType"].isSingleComplex():
-        kStr += self.getKernArg("Beta+0")
-        kStr += self.getKernArg("Beta+1")
-      elif kernel["ProblemType"]["DataType"].isDoubleComplex():
-        kStr += self.getKernArg("Beta+0")
-        kStr += self.getKernArg("Beta+1")
-        kStr += self.getKernArg("Beta+2")
-        kStr += self.getKernArg("Beta+3")
-    for i in range(0, self.numSgprStridesD):
-      kStr += self.getKernArg("StridesD+%u"%i)
-    for i in range(0, self.numSgprStridesC):
-      kStr += self.getKernArg("StridesC+%u"%i)
-    for i in range(0, self.numSgprStridesA):
-      kStr += self.getKernArg("StridesA+%u"%i)
-    for i in range(0, self.numSgprStridesB):
-      kStr += self.getKernArg("StridesB+%u"%i)
-    for i in range(0, self.numSgprSizesFree):
-      kStr += self.getKernArg("SizesFree+%u"%i)
-    for i in range(0, self.numSgprSizesSum):
-      kStr += self.getKernArg("SizesSum+%u"%i)
-    for magicName in self.sumMagicParms:
-      kStr += self.getKernArg("MagicNumberSize%s"%magicName)
-      kStr += self.getKernArg("MagicShiftSize%s"%magicName)
-
-    for idxChar in kernel["PackedC0IdxChars"][:-1]:
-      kStr += self.getKernArg("MagicNumberSize%s"%idxChar)
-      kStr += self.getKernArg("MagicShiftSize%s"%idxChar)
-    for idxChar in kernel["PackedC1IdxChars"][:-1]:
-      kStr += self.getKernArg("MagicNumberSize%s"%idxChar)
-      kStr += self.getKernArg("MagicShiftSize%s"%idxChar)
-
-    for idx in kernel["ProblemType"]["IndicesSummation"]:
-      for tc in ('A','B'):
-        for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
-          (freeDim, sumDim, padStart, padEnd) = zp
-          if sumDim == idx:
-            freeDimChar = globalParameters["IndexChars"][freeDim]
-            sumDimChar  = globalParameters["IndexChars"][sumDim]
-            kStr += self.getKernArg("PadStart%s%s%s"%(tc, freeDimChar, sumDimChar))
-            kStr += self.getKernArg("PadEnd%s%s%s"%(tc, freeDimChar, sumDimChar))
-
-    kStr += self.getKernArg("OrigStaggerUIter", self.staggerU)
-
-    kStr += self.getKernArg("NumWorkGroups0")
-    kStr += self.getKernArg("NumWorkGroups1")
-    kStr += self.getKernArg("MagicNumberProblemNumGroupTiles0", kernel["PersistentKernel"])
-    kStr += self.getKernArg("GridNumWorkGroups0", kernel["PersistentKernel"])
-    kStr += self.getKernArg("NumFullBlocks")
-    kStr += self.getKernArg("WgmRemainder1")
-    kStr += self.getKernArg("MagicNumberWgmRemainder1")
-
-    return kStr
-
 
   ##############################################################################
   # code phrase for load batched address from array of buffer pointer
@@ -3345,8 +3251,6 @@ class KernelWriterAssembly(KernelWriter):
       # currently align sgpr to kernel argument memory, and use s_load_dwordxN to load argument as large as possible in one instruction
       # however, in order to match sgpr to kernel argument memory, some unnecessarily sgpr will also be defined, and caused wasting of sgpr.
       # TODO: more efficient way is to organize both sgpr and kernel argument memory in API
-
-      # kStr += legacyGetKernelArgs(kernel)
 
       if kernel.enabledSetPrioSplitLDS:
         kStr += inst("s_setprio", "1", "prioritize init code so as to issue load sooner")

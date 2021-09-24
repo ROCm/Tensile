@@ -26,7 +26,6 @@ GlobalParameters:
   PrintTensorA: 0
   PrintTensorB: 0
   PrintTensorD: 0
-  NewClient: 0
 
 BenchmarkProblems:
   ########################################

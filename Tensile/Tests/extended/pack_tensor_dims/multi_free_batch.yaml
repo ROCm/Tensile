@@ -20,7 +20,6 @@ GlobalParameters:
   KernelTime: True
   LibraryPrintDebug: 0
   CpuThreads: 0
-  NewClient: 2
 
 BenchmarkProblems:
 

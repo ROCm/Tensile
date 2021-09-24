@@ -4,7 +4,6 @@ TestParameters:
 GlobalParameters:
   NumElementsToValidate: 16384
   KernelTime: True
-  NewClient: 2
   BoundsCheck: True
 
 BenchmarkProblems:
