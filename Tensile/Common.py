@@ -1690,7 +1690,10 @@ def assignGlobalParameters( config ):
 
   globalParameters["ROCmSMIPath"] = locateExe(globalParameters["ROCmBinPath"], "rocm-smi")
   globalParameters["ExtractKernelPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "hip/bin"), "extractkernel")
-  globalParameters["ClangOffloadBundlerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang-offload-bundler")
+  if "TENSILE_ROCM_OFFLOAD_BUNDLER_PATH" in os.environ:
+    globalParameters["ClangOffloadBundlerPath"] = os.environ.get("TENSILE_ROCM_OFFLOAD_BUNDLER_PATH")
+  else:
+    globalParameters["ClangOffloadBundlerPath"] = locateExe(os.path.join(globalParameters["ROCmPath"], "llvm/bin"), "clang-offload-bundler")
 
   if "ROCmAgentEnumeratorPath" in config:
     globalParameters["ROCmAgentEnumeratorPath"] = config["ROCmAgentEnumeratorPath"]
