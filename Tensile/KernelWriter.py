@@ -4216,7 +4216,7 @@ for codeObjectFileName in codeObjectFileNames:
     kernelName = self.getKernelName(kernel)
     fileString = "" # CHeader
     if self.language == "HIP" or self.language == "OCL":
-      if not globalParameters["MergeFiles"]:
+      if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
         fileString += CHeader
         fileString += "#pragma once\n\n"
         if self.language == "HIP":
@@ -4232,7 +4232,7 @@ for codeObjectFileName in codeObjectFileNames:
         fileString += self.functionSignature(kernel)
         fileString += ";\n"
     else:
-      if not globalParameters["MergeFiles"]:
+      if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
         fileString += "#pragma once\n\n"
       if not globalParameters["CodeFromFiles"]:
         fileString += "extern const unsigned char %s_coba[]; // code object byte array\n" % kernelName

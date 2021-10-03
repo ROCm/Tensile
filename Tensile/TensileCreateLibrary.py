@@ -84,7 +84,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
                           if k['KernelLanguage'] == 'Assembly'])
       if len(objectFiles) == 0:
         continue
-      if globalParameters["MergeFiles"]:
+      if globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
         coFile = os.path.join(destDir, 'TensileLibrary_{}.co'.format(archName))
         if "PackageLibrary" in globalParameters and globalParameters["PackageLibrary"]:
           destArchDir = ensurePath(os.path.join(destDir, archName))
@@ -318,47 +318,106 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
     kernelsWithBuildErrs: Dictionary to be updated with kernels that have errors
     kernelSourceFile:     File to write source data to
     kernelHeaderFile:     File to write header data to
-  """
 
+  Returns: 
+    sourceFilenames:      Array containing source kernel filenames 
+  """
   sourceFilenames = []
 
+  # Find kernels to write
+  kernelsToWrite = []
   for (err,src,header,kernelName) in results:
+
+    # Keep track of kernels with errors
     if err:
       kernelsWithBuildErrs[kernelName] = err
-      #print "*** warning: invalid kernel#%s"%kernelName
 
-    # Don't create a file for empty kernels.
-    #####
+    # Don't create a file for empty kernels
     if len(src.strip()) == 0:
       continue
+    kernelsToWrite.append((err, src, header, kernelName))
+  
+  # Write kernel data to files
+  if globalParameters["MergeFiles"]:
 
-    #if kernelSourceFile:
+    # Merge all kernels into one file
+    if globalParameters["NumMergedFiles"] == 1: 
+      sourceFilenames.append(os.path.join(os.path.normcase(outputPath), "Kernels.cpp"))
+      for (err,src,header,kernelName) in kernelsToWrite:
+        kernelSourceFile.write(src)
+        kernelHeaderFile.write(header)
+
+    # Merge kernels into n seperate files
+    else: 
+
+      # Calculate num of kernels per file
+      numValidKernels = len(kernelsToWrite)
+      numMergedFiles = globalParameters["NumMergedFiles"]
+      if numMergedFiles > numValidKernels:
+        numMergedFiles = numValidKernels
+      kernelsPerFile = int(numValidKernels / numMergedFiles)
+    
+      # Write kernels to files
+      fileIndex = 0
+      curNumKernelsWritten = 0
+      
+      for i, (err,src,header,kernelName) in enumerate(kernelsToWrite):
+        kernelName = "Kernels" + str(fileIndex)
+
+        # Open a new kernel .cpp file for writing
+        if not kernelSourceFile or kernelSourceFile.closed:
+          filename = os.path.join(outputPath, "Kernels", kernelName + ".cpp")
+          sourceFilenames.append(filename)
+          kernelSourceFile = open(filename, "w")
+          kernelSourceFile.write(CHeader)
+          kernelSourceFile.write("#include \"" + os.path.join(outputPath, "Kernels", kernelName + ".h") + "\"\n")
+
+        # Open a new kernel .h file for writing
+        if not kernelHeaderFile or kernelHeaderFile.closed:
+          kernelHeaderFile = open(os.path.join(outputPath, "Kernels", kernelName + ".h"), "w")
+          kernelHeaderFile.write("#pragma once\n")
+          if globalParameters["RuntimeLanguage"] == "HIP":
+            kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
+            kernelHeaderFile.write("#include <hip/hip_fp16.h>\n\n")
+          kernelHeaderFile.write("#include <KernelHeader.h>\n\n")
+          kernelHeaderFile.write(CHeader)
+
+        # Write kernel to file
+        kernelSourceFile.write(src)
+        kernelHeaderFile.write(header)
+        curNumKernelsWritten += 1
+        
+        # Prepare for next group of kernels by closing previous files
+        if (curNumKernelsWritten >= kernelsPerFile and not (fileIndex + 1 == numMergedFiles)) or i == numValidKernels-1:
+          kernelSourceFile.close()
+          kernelHeaderFile.close()
+          curNumKernelsWritten = 0
+          fileIndex += 1
+
+  # Write kernels into seperate files
+  else: 
+    for (err,src,header,kernelName) in kernelsToWrite:
+
       # write kernel.cpp
-    if not globalParameters["MergeFiles"]:
       filename = os.path.join(outputPath, "Kernels", kernelName+".cpp")
       sourceFilenames.append(filename)
       kernelSourceFile = open(filename, "w")
       kernelSourceFile.write(CHeader)
-
-    kernelSourceFile.write(src)
-
-    if not globalParameters["MergeFiles"]:
+      kernelSourceFile.write(src)
       kernelSourceFile.close()
-        # write kernel.h
+
+      # write kernel.h
       kernelHeaderFile = open(os.path.join(outputPath, "Kernels", kernelName+".h"), "w")
       kernelHeaderFile.write(CHeader)
-
-    kernelHeaderFile.write(header)
-
-    if not globalParameters["MergeFiles"]:
+      kernelHeaderFile.write(header)
       kernelHeaderFile.close()
-
+  
   return sourceFilenames
 
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
 ################################################################################
-def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, kernels, kernelHelperOjbs, \
+def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, kernels, kernelHelperObjs, \
     solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=False):
   start = time.time()
 
@@ -377,17 +436,16 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   kernelSourceFile = None
   kernelHeaderFile = None
 
-  if not globalParameters["MergeFiles"]:
+  if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
     ensurePath(os.path.join(outputPath, "Kernels"))
 
   ##############################################################################
   # Write Kernels
   ##############################################################################
-  if globalParameters["MergeFiles"]:
+  if globalParameters["MergeFiles"] and globalParameters["NumMergedFiles"] == 1:
     kernelSourceFilename = os.path.join(os.path.normcase(outputPath), "Kernels.cpp")
     kernelHeaderFilename = os.path.join(os.path.normcase(outputPath), "Kernels.h")
 
-    kernelFiles.append(kernelSourceFilename)
     kernelSourceFile = open(kernelSourceFilename, "w")
     kernelHeaderFile = open(kernelHeaderFilename, "w")
     kernelSourceFile.write(CHeader)
@@ -437,11 +495,11 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     printExit("** kernel compilation failure **")
 
   # handle helper kernel function
-  for ko in kernelHelperOjbs:
+  for ko in kernelHelperObjs:
     kernelName = ko.getKernelName()
 
     # write kernel.cpp
-    if not globalParameters["MergeFiles"]:
+    if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
       kernelSourceFilename = os.path.join(outputPath, "Kernels", kernelName+".cpp")
       kernelSourceFile = open(kernelSourceFilename, "w")
       kernelSourceFile.write(CHeader)
@@ -452,21 +510,21 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     if err:
       print("*** warning: invalid kernel#%u"%kernelName)
 
-    if not globalParameters["MergeFiles"]:
+    if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
       kernelSourceFile.close()
 
     # write kernel.h
-    if not globalParameters["MergeFiles"]:
+    if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
       kernelHeaderFile = open(os.path.join(os.path.normcase(outputPath), "Kernels", kernelName + ".h"), "w")
       kernelHeaderFile.write(CHeader)
 
     kernelHeaderFile.write( ko.getHeaderFileString())
 
-    if not globalParameters["MergeFiles"]:
+    if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
       kernelHeaderFile.close()
 
   # close merged
-  if globalParameters["MergeFiles"]:
+  if globalParameters["MergeFiles"] and globalParameters["NumMergedFiles"] == 1:
     if kernelSourceFile:
       kernelSourceFile.close()
     if kernelHeaderFile:
@@ -490,7 +548,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 def writeLogic(outputPath, logicData, solutionWriter ):
   print1("# Writing Library Logic")
 
-  if not globalParameters["MergeFiles"]:
+  if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
     ensurePath(os.path.join(outputPath, "Logic"))
 
   # Tensile.h
@@ -505,7 +563,6 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   ih += "#include \"Tensile.h\"\n"
 
   # Tensile.cpp
-
   sourceIncludes = ""
   sourceIncludes += "#include \"Solutions.h\"\n"
   sourceIncludes += "#include \"Tensile.h\"\n"
@@ -582,7 +639,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
       solutionNamesForProblemType.append(solutionName)
 
     # reset problemType source
-    if not globalParameters["MergeFiles"]:
+    if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
       filePrefix = "Tensile_%s" % (problemType)
       s = sourceIncludes
 
@@ -709,7 +766,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
     s += "}\n"
 
     # open and close problemType files
-    if not globalParameters["MergeFiles"]:
+    if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
       logicSourceFile = open(os.path.join(os.path.normcase(outputPath), "Logic", \
           "%s.cpp" % filePrefix), "w")
       logicSourceFile.write(s)
@@ -719,7 +776,7 @@ def writeLogic(outputPath, logicData, solutionWriter ):
   s += writeTensileInitialize(logicData)
 
   # close merged files
-  if globalParameters["MergeFiles"]:
+  if globalParameters["MergeFiles"] and globalParameters["NumMergedFiles"] == 1:
     logicSourceFile = open(os.path.join(os.path.normcase(outputPath), \
         "Tensile.cpp"), "w")
     logicSourceFile.write(s)
@@ -931,12 +988,12 @@ def copyStaticFiles(outputPath):
 
   return libraryStaticFiles
 
-def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembly, solutions, kernels, kernelHelperOjbs):
+def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembly, solutions, kernels, kernelHelperObjs):
 
   # Build lists of output object names
   sourceKernelNames = []
   asmKernelNames = []
-  kernelHelperOjbNmaes = []
+  kernelHelperObjNames = []
 
   solutionFiles = []
   sourceKernelFiles = []
@@ -954,7 +1011,7 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
   for kernel in asmKernels:
     asmKernelNames += [kernelWriterAssembly.getKernelFileBase(kernel)]
 
-  kernelHelperOjbNmaes = [ko.getKernelName() for ko in kernelHelperOjbs]
+  kernelHelperObjNames = [ko.getKernelName() for ko in kernelHelperObjs]
 
   cxxCompiler = globalParameters["CxxCompiler"]
 
@@ -971,7 +1028,16 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
 
   # Build a list of source files
   if not globalParameters["MergeFiles"]:
-    for kernelName in (sourceKernelNames + asmKernelNames + kernelHelperOjbNmaes):
+    for kernelName in (sourceKernelNames + asmKernelNames + kernelHelperObjNames):
+      sourceKernelFiles += [
+        "%s.h"   % (kernelName),
+        "%s.cpp" % (kernelName)]
+  elif globalParameters["NumMergedFiles"] > 1:
+    for kernelIndex in range(0, globalParameters["NumMergedFiles"]):
+      sourceKernelFiles += [
+        "Kernels%s.h"   % str(kernelIndex),
+        "Kernels%s.cpp" % str(kernelIndex)]
+    for kernelName in (kernelHelperObjNames):
       sourceKernelFiles += [
         "%s.h"   % (kernelName),
         "%s.cpp" % (kernelName)]
@@ -988,13 +1054,21 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
   # Build a list of lib names from source
   if not globalParameters["MergeFiles"]:
 
-    allSources = sourceKernelNames + kernelHelperOjbNmaes
+    allSources = sourceKernelNames + kernelHelperObjNames
 
     for kernelName in (allSources):
       if (cxxCompiler == 'hipcc'):
         sourceLibFiles += ["%s.so-000-%s.hsaco" % (kernelName, arch) for arch in sourceArchs]
       else:
         raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
+  elif globalParameters["NumMergedFiles"] > 1:
+    if (cxxCompiler == 'hipcc'):
+      for kernelIndex in range(0, globalParameters["NumMergedFiles"]):
+        sourceLibFiles += ["Kernels%d.so-000-%s.hsaco" % (kernelIndex, arch) for arch in sourceArchs]
+      for kernelName in kernelHelperObjNames:
+        sourceLibFiles += ["%s.so-000-%s.hsaco" % (kernelName, arch) for arch in sourceArchs]
+    else:
+      raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
   else: # Merge
     if (cxxCompiler == 'hipcc'):
       sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
@@ -1022,7 +1096,7 @@ def buildObjectFilePaths(prefixDir, solutionFiles, sourceKernelFiles, asmKernelF
 
   # Build full paths for source kernel files
   sourceKernelDir = ""
-  if not globalParameters["MergeFiles"]:
+  if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
     sourceKernelDir = os.path.join(prefixDir, "Kernels")
   else:
     sourceKernelDir = prefixDir
@@ -1099,7 +1173,7 @@ def writeCMake(outputPath, solutionFiles, kernelFiles, libraryStaticFiles):
 def generateKernelObjectsFromSolutions(solutions):
   # create solution writer and kernel writer
   kernels = []
-  kernelHelperOjbs = []
+  kernelHelperObjs = []
   kernelHelperNames = set()
 
   for solution in solutions:
@@ -1111,10 +1185,10 @@ def generateKernelObjectsFromSolutions(solutions):
     for ko in solutionHelperKernels:
       kname = ko.getKernelName()
       if kname not in kernelHelperNames:
-        kernelHelperOjbs.append(ko)
+        kernelHelperObjs.append(ko)
         kernelHelperNames.add(kname)
 
-  return (kernels, kernelHelperOjbs, kernelHelperNames)
+  return (kernels, kernelHelperObjs, kernelHelperNames)
 
 ################################################################################
 # Write Benchmark Client Files
@@ -1198,6 +1272,7 @@ def TensileCreateLibrary():
   argParser.add_argument("--architecture",           dest="Architecture",      type=str, action="store", default="all", help="Supported archs: " + " ".join(architectureMap.keys()))
   argParser.add_argument("--merge-files",            dest="MergeFiles",        action="store_true")
   argParser.add_argument("--no-merge-files",         dest="MergeFiles",        action="store_false")
+  argParser.add_argument("--num-merged-files",       dest="NumMergedFiles",    type=int, default=1, help="Number of files the kernels should be written into.")
   argParser.add_argument("--short-file-names",       dest="ShortNames",        action="store_true")
   argParser.add_argument("--no-short-file-names",    dest="ShortNames",        action="store_false")
   argParser.add_argument("--library-print-debug",    dest="LibraryPrintDebug", action="store_true")
@@ -1239,6 +1314,7 @@ def TensileCreateLibrary():
   if args.CmakeCxxCompiler:
     os.environ["CMAKE_CXX_COMPILER"] = args.CmakeCxxCompiler
   arguments["MergeFiles"] = args.MergeFiles
+  arguments["NumMergedFiles"] = args.NumMergedFiles
   arguments["ShortNames"] = args.ShortNames
   arguments["LibraryPrintDebug"] = args.LibraryPrintDebug
   arguments["CodeFromFiles"] = False
@@ -1330,7 +1406,7 @@ def TensileCreateLibrary():
       if solution not in solutions:
         solutions.append(solution)
 
-  kernels, kernelHelperOjbs, _ = generateKernelObjectsFromSolutions(solutions)
+  kernels, kernelHelperObjs, _ = generateKernelObjectsFromSolutions(solutions)
 
   # if any kernels are assembly, append every ISA supported
   solutionWriter, kernelWriterSource, kernelWriterAssembly, \
@@ -1344,7 +1420,7 @@ def TensileCreateLibrary():
    asmKernelFiles,
    sourceLibFiles,
    asmLibFiles) = buildObjectFileNames(solutionWriter, kernelWriterSource, \
-    kernelWriterAssembly, solutions, kernels, kernelHelperOjbs)
+    kernelWriterAssembly, solutions, kernels, kernelHelperObjs)
 
   (_,
    _,
@@ -1381,7 +1457,7 @@ def TensileCreateLibrary():
   problemTypes = list(logicData.keys())
 
   codeObjectFiles = writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions,
-                                             kernels, kernelHelperOjbs, solutionWriter, kernelWriterSource, kernelWriterAssembly)
+                                             kernels, kernelHelperObjs, solutionWriter, kernelWriterSource, kernelWriterAssembly)
   
   bothLibSet = set(sourceLibPaths + asmLibPaths)
   setA = set( map( os.path.normcase, set(codeObjectFiles) ) ) 

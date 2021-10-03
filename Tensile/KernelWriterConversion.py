@@ -282,7 +282,7 @@ class KernelWriterConversion(KernelWriterBase):
 
   def getHeaderFileString(self):
     fileString = "" # CHeader
-    if not globalParameters["MergeFiles"]:
+    if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
       fileString += CHeader
       fileString += "#pragma once\n\n"
       fileString += "\n"
@@ -299,7 +299,7 @@ class KernelWriterConversion(KernelWriterBase):
 
   def getSourceFileString(self):
     fileString = ""
-    if not globalParameters["MergeFiles"]:
+    if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
       fileString += "\n"
       fileString += "#include \"%s.h\"\n" % self.kernelName
       fileString += "\n"
