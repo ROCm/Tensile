@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -150,12 +150,10 @@ class BenchmarkProcess:
   Steps in config need to be expanded and missing elements need to be assigned a default.
   """
 
-  def __init__(self, problemTypeConfig, problemSizeGroupConfig ):
+  def __init__(self, problemTypeConfig, problemSizeGroupConfig):
 
     self.problemType = ProblemType(problemTypeConfig)
-    self.isBatched = True \
-        if "Batched" in problemTypeConfig and problemTypeConfig["Batched"] \
-        else False
+    self.isBatched = "Batched" in problemTypeConfig and problemTypeConfig["Batched"]
     print2("# BenchmarkProcess beginning %s" % str(self.problemType))
 
     # read initial solution parameters
@@ -213,20 +211,18 @@ class BenchmarkProcess:
     ############################################################################
     # (I-0) get 6 phases from config
     configBenchmarkCommonParameters = config["BenchmarkCommonParameters"] \
-        if "BenchmarkCommonParameters" in config \
-        else [{"ProblemSizes": defaultBatchedProblemSizes}] \
-        if isbatched \
-        else [{"ProblemSizes": defaultProblemSizes}]
+        if "BenchmarkCommonParameters" in config else []
     configForkParameters = config["ForkParameters"] \
         if "ForkParameters" in config else []
-    configBenchmarkForkParameters = config["BenchmarkForkParameters"] \
-        if "BenchmarkForkParameters" in config \
-        else []
-    configJoinParameters = config["JoinParameters"] \
-        if "JoinParameters" in config else []
-    configBenchmarkJoinParameters = config["BenchmarkJoinParameters"] \
-        if "BenchmarkJoinParameters" in config \
-        else []
+
+    # TODO cleanup error messages
+    if config.get("BenchmarkForkParameters") is not None:
+      print("no longer supported")
+    if config.get("JoinParameters") is not None:
+      print("no longer supported")
+    if config.get("BenchmarkJoinParameters") is not None:
+      print("no longer supported")
+
     configBenchmarkFinalParameters = config["BenchmarkFinalParameters"] \
         if "BenchmarkFinalParameters" in config and config["BenchmarkFinalParameters"] != None \
         and len(config["BenchmarkFinalParameters"]) > 0 \
@@ -238,8 +234,7 @@ class BenchmarkProcess:
     # Ensure only valid solution parameters were requested
     validParameterNames = set(validParameters.keys())
     for paramDictList in [configBenchmarkCommonParameters, \
-        configForkParameters, configBenchmarkForkParameters, \
-        configBenchmarkJoinParameters]:
+        configForkParameters]:
       if paramDictList != None:
         for paramDict in paramDictList:
           try:
@@ -247,35 +242,15 @@ class BenchmarkProcess:
           except RuntimeError as e:
             printExit(str(e))
 
-
-    ############################################################################
-    # (I-1) get current problem sizes
-    currentProblemSizes = defaultBatchedProblemSizes \
-        if isbatched \
-        else defaultProblemSizes
-    if configBenchmarkCommonParameters != None:
-      if len(configBenchmarkCommonParameters) > 0:
-        if "ProblemSizes" in configBenchmarkCommonParameters[0]:
-          # user specified, so use it, remove it from config and insert later
-          currentProblemSizes = \
-            configBenchmarkCommonParameters[0]["ProblemSizes"]
-          del configBenchmarkCommonParameters[0]
-    # into common we put in all Dcommon that
-    # don't show up in Ccommon/Cfork/CBfork/Cjoin/CBjoin
-    # followed by Ccommon
-    self.benchmarkCommonParameters = [{"ProblemSizes": currentProblemSizes}]
-    # need to use deepcopy to prevent default parameters from being washed-out later
-
-    benchmarkCommonParameters = fillMissingParametersWithDefaults([ configBenchmarkCommonParameters, \
-            configForkParameters, configBenchmarkForkParameters, \
-            configJoinParameters, configBenchmarkJoinParameters], deepcopy(defaultBenchmarkCommonParameters))
+    # TODO warn/guard against BenchmarkCommons that have mor than one value
+    benchmarkCommonParameters = fillMissingParametersWithDefaults( \
+        [configBenchmarkCommonParameters, configForkParameters], \
+        deepcopy(defaultBenchmarkCommonParameters))
     self.benchmarkCommonParameters.extend(benchmarkCommonParameters)
 
     if configBenchmarkCommonParameters != None:
       for paramDict in configBenchmarkCommonParameters:
         self.benchmarkCommonParameters.append(paramDict)
-    else: # make empty
-      self.benchmarkCommonParameters = [{"ProblemSizes": currentProblemSizes}]
 
     ############################################################################
     # (I-2) into fork we put in all Dfork that
@@ -286,8 +261,7 @@ class BenchmarkProcess:
     for paramDict in deepcopy(defaultForkParameters):
       for paramName in paramDict:
         if not hasParam( paramName, [ self.benchmarkCommonParameters, \
-            configForkParameters, configBenchmarkForkParameters, \
-            configJoinParameters, configBenchmarkJoinParameters]) \
+            configForkParameters]) \
             or paramName == "ProblemSizes":
           self.forkParameters.append(paramDict)
     if configForkParameters != None:
@@ -297,86 +271,12 @@ class BenchmarkProcess:
       self.forkParameters = []
 
     ############################################################################
-    # (I-3) get current problem sizes
-    if configBenchmarkForkParameters != None:
-      if len(configBenchmarkForkParameters) > 0:
-        if "ProblemSizes" in configBenchmarkForkParameters[0]:
-          # user specified, so use it, remove it from config and insert later
-          currentProblemSizes = configBenchmarkForkParameters[0]["ProblemSizes"]
-          del configBenchmarkForkParameters[0]
-    # into Bfork we put in all DBfork that
-    # don't show up in Bcommon/Bfork/CBfork/Cjoin/CBjoin
-    # followed by CBforked
-    self.benchmarkForkParameters = [{"ProblemSizes": currentProblemSizes}]
-    # need to use deepcopy to prevent default parameters from being washed-out later
-    for paramDict in deepcopy(defaultBenchmarkForkParameters):
-      for paramName in paramDict:
-        if not hasParam( paramName, [ self.benchmarkCommonParameters, \
-            self.forkParameters, configBenchmarkForkParameters, \
-            configJoinParameters, configBenchmarkJoinParameters]) \
-            or paramName == "ProblemSizes":
-          self.benchmarkForkParameters.append(paramDict)
-    if configBenchmarkForkParameters != None:
-      for paramDict in configBenchmarkForkParameters:
-        self.benchmarkForkParameters.append(paramDict)
-    else: # make empty
-      self.benchmarkForkParameters = [{"ProblemSizes": currentProblemSizes}]
-
-    ############################################################################
-    # (I-4) into join we put in all non-derrived Djoin that
-    # don't show up in Bcommon/Bfork/CBfork/Cjoin/CBjoin
-    # followed by CBforked
-    self.joinParameters = []
-    # need to use deepcopy to prevent default parameters from being washed-out later
-    for paramName in deepcopy(defaultJoinParameters):
-      if not hasParam( paramName, [ self.benchmarkCommonParameters, \
-          self.forkParameters, self.benchmarkForkParameters, \
-          configJoinParameters, configBenchmarkJoinParameters]) \
-          or paramName == "ProblemSizes":
-        if "JoinParameters" not in config \
-            or (paramName != "MacroTile"):
-          self.joinParameters.append(paramName)
-    if configJoinParameters != None:
-      for paramName in configJoinParameters:
-        self.joinParameters.append(paramName)
-    else: # make empty
-        self.joinParameters = []
-
-    ############################################################################
-    # (I-5) benchmark join
-    if configBenchmarkJoinParameters != None:
-      if len(configBenchmarkJoinParameters) > 0:
-        if "ProblemSizes" in configBenchmarkJoinParameters[0]:
-          # user specified, so use it, remove it from config and insert later
-          currentProblemSizes = configBenchmarkJoinParameters[0]["ProblemSizes"]
-          del configBenchmarkJoinParameters[0]
-    # into Bjoin we put in all DBjoin that
-    # don't show up in Bcommon/Bfork/BBfork/Bjoin/CBjoin
-    # followed by CBjoin
-    self.benchmarkJoinParameters = [{"ProblemSizes": currentProblemSizes}]
-    # need to use deepcopy to prevent default parameters from being washed-out later
-    for paramDict in deepcopy(defaultBenchmarkJoinParameters):
-      for paramName in paramDict:
-        if not hasParam( paramName, [ self.benchmarkCommonParameters, \
-            self.forkParameters, self.benchmarkForkParameters, \
-            self.joinParameters, configBenchmarkJoinParameters]) \
-            or paramName == "ProblemSizes":
-          self.benchmarkJoinParameters.append(paramDict)
-    if configBenchmarkJoinParameters != None:
-      for paramDict in configBenchmarkJoinParameters:
-        self.benchmarkJoinParameters.append(paramDict)
-    else: # make empty
-      self.benchmarkJoinParameters = [{"ProblemSizes": currentProblemSizes}]
-
-    ############################################################################
     # (I-6) benchmark final sizes
     self.benchmarkFinalParameters = configBenchmarkFinalParameters
     # no other parameters besides problem sizes
 
-
     ############################################################################
     # (I-7) any default param with 1 value will be hardcoded; move to beginning
-
     singleValues = getSingleValues([self.benchmarkCommonParameters, \
         self.forkParameters, self.benchmarkForkParameters, \
         self.benchmarkJoinParameters])
@@ -385,23 +285,6 @@ class BenchmarkProcess:
       self.hardcodedParameters[0][paramName] = paramValue
       self.singleValueParameters[paramName] = [ paramValue ]
       self.initialSolutionParameters[paramName] = paramValue
-
-    ############################################################################
-    # (I-8) if fork and join, but no benchmark fork, append dummy benchmarkFork
-    if len(self.forkParameters) > 0 and len(self.joinParameters) > 0 \
-        and (len(self.benchmarkForkParameters) == 0 \
-        or (len(self.benchmarkForkParameters) == 1 \
-        and hasParam("ProblemSizes", self.benchmarkForkParameters)) ):
-      self.benchmarkForkParameters.append({"BenchmarkFork": [0]})
-
-    ############################################################################
-    # (I-9) if join, but no benchmark join, append dummy benchmarkJoin
-    #if len(self.joinParameters) > 0 \
-    #    and (len(self.benchmarkJoinParameters) == 0 \
-    #    or (len(self.benchmarkJoinParameters) == 1 \
-    #    and hasParam("ProblemSizes", self.benchmarkJoinParameters)) ):
-    #  self.benchmarkJoinParameters.append({"BenchmarkJoin": [0]})
-    # No, this is handles by Final Benchmark
 
     ############################################################################
     # (I-10) Parameter Lists
@@ -417,23 +300,6 @@ class BenchmarkProcess:
     print2("ForkParameters:")
     for param in self.forkParameters:
       print2("    %s" % param)
-    # benchmarkForkParameters
-    print2("BenchmarkForkParameters:")
-    for step in self.benchmarkForkParameters:
-      print2("    %s" % step)
-    # joinParameters
-    print2("JoinParameters:")
-    for param in self.joinParameters:
-      print2("    %s" % param)
-    # benchmarkJoinParameters
-    print2("BenchmarkJoinParameters:")
-    for step in self.benchmarkJoinParameters:
-      print2("    %s" % step)
-    # benchmarkFinalParameters
-    print2("BenchmarkFinalParameters:")
-    for step in self.benchmarkFinalParameters:
-      print2("    %s" % step)
-
 
   ##############################################################################
   # (II) convert lists of parameters to benchmark steps
@@ -444,13 +310,6 @@ class BenchmarkProcess:
     print1("# Convert Parameters to Steps")
     print2("####################################################################")
     print2("")
-
-    ############################################################################
-    # (II-1) benchmark common parameters
-    print2("")
-    print2("####################################################################")
-    print1("# Benchmark Common Parameters")
-    self.addStepsForParameters( self.benchmarkCommonParameters  )
 
     ############################################################################
     # (II-2) fork parameters
@@ -464,117 +323,6 @@ class BenchmarkProcess:
       self.forkHardcodedParameters(forkPermutations)
 
     ############################################################################
-    # (II-3) benchmark fork parameters
-    print2("")
-    print2("####################################################################")
-    print1("# Benchmark Fork Parameters")
-    self.addStepsForParameters( self.benchmarkForkParameters  )
-
-    ############################################################################
-    # (II-4.1) join parameters
-    # answer should go in hard-coded parameters
-    # does it remove the prior forks? Yes.
-    print2("")
-    print2("####################################################################")
-    print1("# Join Parameters")
-    macroTileJoinSet = set()
-    totalPermutations = 1
-    if len(self.joinParameters) > 0:
-      for joinName in self.joinParameters:
-        # joining a parameter with only a single value
-        if hasParam(joinName, self.singleValueParameters):
-          pass
-        elif hasParam(joinName, self.forkParameters):
-          # count permutations
-          for param in self.forkParameters:
-            for name in param: # only 1
-              if name == joinName:
-                values = param[name]
-                localPermutations = len(values)
-                print2("JoinParameter %s has %u possibilities" % (joinName, localPermutations))
-                totalPermutations *= localPermutations
-
-        ##########################################################################
-        # (II-4.2) Join MacroTile
-        elif joinName == "MacroTile":
-          print2("JoinParam: MacroTile")
-          # get possible WorkGroupEdges from forked
-          print2("currentForkParameters = %s" % str(self.forkParameters))
-          threadTileValues = []
-          workGroupValues = []
-          # todo having MacroTile as join parameter causes trouble if
-          # one parameter is benchmarked rather than forked
-          # however, this may still be the right way to do it
-
-          # count permutations
-          for paramList in [self.benchmarkCommonParameters, \
-              self.forkParameters, self.benchmarkForkParameters, \
-              self.benchmarkJoinParameters, self.singleValueParameters ]:
-            if hasParam("ThreadTile", paramList):
-              threadTileValues = getParamValues("ThreadTile", paramList)
-            if hasParam("WorkGroup", paramList):
-              workGroupValues = getParamValues("WorkGroup", paramList)
-          macroTilePermutations = len(workGroupValues) * len(threadTileValues)
-          print2("# Total JoinMacroTile Permutations: %u" % macroTilePermutations)
-
-          # enumerate permutations
-          for i in range(0, macroTilePermutations):
-            pIdx = i
-            workGroupIdx = pIdx % len(workGroupValues)
-            pIdx //= len(workGroupValues)
-            threadTileIdx = pIdx % len(threadTileValues)
-
-            workGroup = workGroupValues[workGroupIdx]
-            threadTile = threadTileValues[threadTileIdx]
-
-            macroTile0 = workGroup[0]*threadTile[0]
-            macroTile1 = workGroup[1]*threadTile[1]
-            macroTileJoinSet.add((macroTile0, macroTile1))
-          totalPermutations *= len(macroTileJoinSet)
-          print2("JoinMacroTileSet(%u): %s" % (len(macroTileJoinSet), macroTileJoinSet) )
-
-        # invalid join parameter
-        else:
-          validJoinNames = ["MacroTile"]
-          for validParam in self.forkParameters:
-            for validName in validParam: # only 1
-              validJoinNames.append(validName)
-          printExit("JoinParameter \"%s\" not in %s" % (joinName, validJoinNames) )
-
-      ############################################################################
-      # (II-4.4) Enumerate Permutations Other * MacroTile * DepthU
-      macroTiles = list(macroTileJoinSet)
-      print2("# TotalJoinPermutations = %u" % ( totalPermutations) )
-      joinPermutations = []
-      for i in range(0, totalPermutations):
-        joinPermutations.append({})
-        pIdx = i
-        for joinName in self.joinParameters:
-          if hasParam(joinName, self.forkParameters):
-            for paramDict in self.forkParameters: # hardcodedPermutations
-              if joinName in paramDict:
-                paramValues = paramDict[joinName]
-                valueIdx = pIdx % len(paramValues)
-                joinPermutations[i][joinName] = paramValues[valueIdx]
-                pIdx //= len(paramValues)
-                break
-          elif joinName == "MacroTile":
-            valueIdx = pIdx % len(macroTiles)
-            pIdx //= len(macroTiles)
-            joinPermutations[i]["MacroTile0"] = macroTiles[valueIdx][0]
-            joinPermutations[i]["MacroTile1"] = macroTiles[valueIdx][1]
-      if len(joinPermutations) > 0:
-        self.joinHardcodedParameters(joinPermutations)
-
-
-    ############################################################################
-    # (II-5) benchmark join parameters
-    print2("")
-    print2("####################################################################")
-    print1("# Benchmark Join Parameters")
-    self.addStepsForParameters( self.benchmarkJoinParameters  )
-
-    ############################################################################
     # (II-6) benchmark final
     print2("")
     print2("####################################################################")
@@ -586,7 +334,8 @@ class BenchmarkProcess:
         problemSizes = problemSizesDict["ProblemSizes"]
         self.currentProblemSizes = ProblemSizes(self.problemType, problemSizes)
         currentBenchmarkParameters = {}
-        checkCDBufferAndStrides(self.problemType, self.currentProblemSizes, globalParameters["CEqualD"])
+        checkCDBufferAndStrides(self.problemType, \
+            self.currentProblemSizes, globalParameters["CEqualD"])
         benchmarkStep = BenchmarkStep(
             self.hardcodedParameters,
             currentBenchmarkParameters,
@@ -595,7 +344,6 @@ class BenchmarkProcess:
             self.benchmarkStepIdx )
         self.benchmarkSteps.append(benchmarkStep)
         self.benchmarkStepIdx+=1
-
 
   ##############################################################################
   # For list of config parameters convert to steps and append to steps list
@@ -617,7 +365,8 @@ class BenchmarkProcess:
               % ( paramName, str(self.problemType) ) )
       if len(currentBenchmarkParameters) > 0:
         print2("Adding BenchmarkStep for %s" % str(currentBenchmarkParameters))
-        checkCDBufferAndStrides(self.problemType, self.currentProblemSizes, globalParameters["CEqualD"])
+        checkCDBufferAndStrides(self.problemType, self.currentProblemSizes, \
+            globalParameters["CEqualD"])
         benchmarkStep = BenchmarkStep(
             self.hardcodedParameters,
             currentBenchmarkParameters,
@@ -642,13 +391,6 @@ class BenchmarkProcess:
     updatedHardcodedParameters = forkHardcodedParameters( self.hardcodedParameters, update )
       #updatedHardcodedParameters.append(permutation)
     self.hardcodedParameters = updatedHardcodedParameters
-
-  ##############################################################################
-  # contract old permutations of hardcoded parameters based on new
-  ##############################################################################
-  def joinHardcodedParameters( self, update ):
-    self.hardcodedParameters = update
-    return
 
   def __len__(self):
     return len(self.benchmarkSteps)
@@ -717,6 +459,3 @@ class BenchmarkStep:
 
   def __repr__(self):
     return self.__str__()
-
-
-
