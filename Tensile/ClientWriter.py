@@ -28,8 +28,7 @@ from .SolutionStructs import ProblemType, ProblemSizesMock
 import os
 import subprocess
 import shlex
-from shutil import copy as shutil_copy
-from shutil import rmtree
+import shutil
 from enum import Enum
 
 from .Contractions import FreeIndex
@@ -75,29 +74,21 @@ def main( config ):
   ##############################################################################
   pushWorkingPath("source")
   filesToCopy = [
-      "SolutionMapper.h",
-      "Client.cpp",
-      "Client.h",
-      "DeviceStats.h",
-      "ReferenceCPU.h",
-      "TensorUtils.h",
-      "MathTemplates.cpp",
-      "MathTemplates.h",
+      "TensileTypes.h",
+      "tensile_bfloat16.h",
       "KernelHeader.h",
-      "Tools.h",
-      "TensileCreateLibrary.cmake",
       ]
 
   for f in filesToCopy:
-    shutil_copy(
+    shutil.copy(
         os.path.join(globalParameters["SourcePath"], f),
         globalParameters["WorkingPath"] )
   if globalParameters["RuntimeLanguage"] == "OCL":
-    shutil_copy(
+    shutil.copy(
         os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
         globalParameters["WorkingPath"] )
   else:
-    shutil_copy(
+    shutil.copy(
         os.path.join(globalParameters["SourcePath"], "FindHIP.cmake"),
         globalParameters["WorkingPath"] )
 
@@ -157,7 +148,7 @@ def main( config ):
   ##############################################################################
   # if redo=true, clobber the build directory
   if globalParameters["ForceRedoLibraryClient"]:
-    rmtree(os.path.join(globalParameters["WorkingPath"], "build"), \
+    shutil.rmtree(os.path.join(globalParameters["WorkingPath"], "build"), \
         ignore_errors=True)
 
   forBenchmark = False
