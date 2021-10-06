@@ -34,8 +34,8 @@ from . import LibraryIO
 from . import Utils
 from .BenchmarkStructs import BenchmarkProcess, constructForkPermutations, checkForValidParameters
 from .ClientWriter import runClient, writeClientConfig
-from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, printExit, printWarning, ensurePath, \
-                    startTime, validParameters
+from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, \
+    printExit, printWarning, ensurePath, startTime, validParameters
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionStructs import Solution, ProblemType, ProblemSizes
@@ -43,10 +43,8 @@ from .SolutionWriter import SolutionWriter
 from .TensileCreateLibrary import writeSolutionsAndKernels, writeCMake, buildObjectFileNames
 from .CustomKernels import getCustomKernelConfig
 
-############################################################################
-# generateForkedSolutions
-############################################################################
-def generateForkedSolutions (problemType, hardcodedParameters, benchmarkPermutations, initialSolutionParameters=None):
+
+def generateForkedSolutions (problemType, constantParams, benchmarkPermutations):
   """this creates a set or solutions based on the forked parameters using
      a set of common parameters from which to fork from
 
@@ -59,43 +57,26 @@ def generateForkedSolutions (problemType, hardcodedParameters, benchmarkPermutat
 
   Returns:
   list: Soutions list
-
   """
+  print1("# Enumerating Solutions")
 
   solutions = []
-  numHardcoded = len(hardcodedParameters)
+  for benchmarkPermutation in benchmarkPermutations:
+    solution = {"ProblemType": deepcopy(problemType.state)}
+    solution.update(constantParams)
+    solution.update(benchmarkPermutation)
 
-  print1("# Enumerating Solutions")
-  solutionSet = set()
-
-  for hardcodedIdx in Utils.tqdm(range(0, numHardcoded), "Enumerating Solutions"):
-    solutions.append([])
-    hardcodedParamDict = hardcodedParameters[hardcodedIdx]
-    for benchmarkPermutation in benchmarkPermutations:
-      solution = {"ProblemType": deepcopy(problemType.state)}
-      solution.update(benchmarkPermutation)
-      solution.update(hardcodedParamDict)
-
-      # append default parameters where necessary
-      if initialSolutionParameters:
-        for initialSolutionParameterName in initialSolutionParameters:
-          if initialSolutionParameterName not in solution:
-            solution[initialSolutionParameterName] = \
-              initialSolutionParameters[initialSolutionParameterName]
-
-      # TODO check if solution matches problem size for exact tile kernels
-      solutionObject = Solution(solution)
-      if solutionObject["Valid"]:
-        if solutionObject not in solutionSet:
-          solutionSet.add(solutionObject)
-          solutions[hardcodedIdx].append(solutionObject)
-      else:
-        if globalParameters["PrintSolutionRejectionReason"]:
-          print1("rejecting solution %s" % str(solutionObject))
+    # TODO check if solution matches problem size for exact tile kernels
+    solutionObject = Solution(solution)
+    if solutionObject["Valid"]:
+      solutions.append(solutionObject)
+    elif globalParameters["PrintSolutionRejectionReason"]:
+      print1("rejecting solution " + str(solutionObject))
 
   return solutions
 
 def generateCustomKernelSolution(kernelName, directory=globalParameters["CustomKernelDirectory"]):
+    """Temp docs"""
     kernelConfig = getCustomKernelConfig(kernelName, directory)
     checkForValidParameters({p: [kernelConfig[p]] for p in kernelConfig if p != "ProblemType"}, set(validParameters.keys()))
     # test if problem type matches with configuration file
@@ -104,12 +85,8 @@ def generateCustomKernelSolution(kernelName, directory=globalParameters["CustomK
 
     return Solution(kernelConfig)
 
-################################################################################
-# Benchmark Problem Type
-################################################################################
-def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
-    problemSizeGroupIdx ):
-
+def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, problemSizeGroupIdx):
+  """Temp docs"""
   benchmarkTestFails = 0
 
   # convert config to full benchmark process (resolves defaults)
@@ -118,8 +95,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
   print1("# Converting Config to BenchmarkProcess Object")
   print1(HR)
   print1("")
-  benchmarkProcess = BenchmarkProcess( problemTypeConfig, \
-      problemSizeGroupConfig )
+  benchmarkProcess = BenchmarkProcess(problemTypeConfig, problemSizeGroupConfig)
 
   enableTileSelection = benchmarkProcess.problemType["TileAwareSelection"]
   problemTypeName = str(benchmarkProcess.problemType)
@@ -130,20 +106,15 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
   totalBenchmarkSteps = len(benchmarkProcess)
   resultsFileBaseFinal = None
 
-  print1("# NumBenchmarkSteps: %u" % totalBenchmarkSteps)
+  print1("# NumBenchmarkSteps: {}".format(totalBenchmarkSteps))
   print1("")
   print1(HR)
   print1("# Done Creating BenchmarkProcess Object")
   print1(HR)
 
-  ##############################################################################
-  # For Each Benchmark Step
-  ##############################################################################
+
   for benchmarkStepIdx in range(0, totalBenchmarkSteps):
-
     benchmarkStep = benchmarkProcess[benchmarkStepIdx]
-
-    numHardcoded = len(benchmarkStep.hardcodedParameters)
     stepName = str(benchmarkStep)
     shortName = benchmarkStep.abbreviation()
 
@@ -151,26 +122,17 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     print1(HR)
     currentTime = time.time()
     elapsedTime = currentTime - startTime
-    print1("# BenchmarkStep: %s - %s %.3fs" % (problemSizeGroupName, stepName, elapsedTime))
-    print1("# NumProblems: %u" % benchmarkStep.problemSizes.totalProblemSizes)
-    print1("# BenchmarkParameters:")
-
-    for paramName in benchmarkStep.benchmarkParameters:
-      paramValues = benchmarkStep.benchmarkParameters[paramName]
-      printStr = "#     %s = { %s" % (paramName, paramValues[0])
-      for paramValueIdx in range(1, len(paramValues)):
-        printStr += ", %s" % str(paramValues[paramValueIdx])
-      printStr += " }"
-      print1(printStr)
+    print1("# Benchmark Step: {} - {} {:.3f}s".format(problemSizeGroupName, stepName, elapsedTime))
+    print1("# Num Sizes: {}".format(benchmarkStep.problemSizes.totalProblemSizes))
+    print1("# Fork Parameters:")
+    for k, v in benchmarkStep.forkParams.items():
+      print1("#     {}: {}".format(k, v))
 
     pushWorkingPath(shortName)
 
-    ############################################################################
-    # Copy Files to Benchmark Source Directory
-    ############################################################################
+    # copy files to benchmark source directory
     stepBaseDir = globalParameters["WorkingPath"]
-    sourceDir = \
-      os.path.join(stepBaseDir, "source" )
+    sourceDir = os.path.join(stepBaseDir, "source" )
     ensurePath(sourceDir)
 
     filesToCopy = []
@@ -194,29 +156,11 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
           os.path.join(globalParameters["SourcePath"], "FindHIP.cmake"),
           globalParameters["WorkingPath"] )
 
-    ############################################################################
-    # Enumerate Benchmark Permutations
-    ############################################################################
-    solutions = []
-
-    benchmarkPermutations = constructForkPermutations(benchmarkStep.benchmarkParameters)
-    maxPossibleSolutions = len(benchmarkPermutations) * numHardcoded
-
-    ############################################################################
-    # Enumerate Solutions = Hardcoded * Benchmark
-    ############################################################################
+    # enumerate benchmark permutations and create resulting solution objects
+    benchmarkPermutations = constructForkPermutations(benchmarkStep.forkParams)
+    maxPossibleSolutions = len(benchmarkPermutations) #* numHardcoded
     solutions = generateForkedSolutions(benchmarkProcess.problemType, \
-        benchmarkStep.hardcodedParameters, benchmarkPermutations, \
-        benchmarkStep.initialSolutionParameters)
-
-    # remove hardcoded that don't have any valid benchmarks
-    removeHardcoded = list([x for i, x in enumerate(benchmarkStep.hardcodedParameters) \
-        if len(solutions[i]) == 0])
-    validHardcoded =  list([x for i, x in enumerate(benchmarkStep.hardcodedParameters) \
-        if len(solutions[i]) > 0])
-
-    removesExist = len(removeHardcoded) > 0
-    benchmarkStep.hardcodedParameters = validHardcoded
+        benchmarkStep.constantParams, benchmarkPermutations)
 
     # add custom kernels to list of solutions
     customKernelList = problemSizeGroupConfig.get("CustomKernels", [])
@@ -233,10 +177,13 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
       if customSolution["ProblemType"] != benchmarkProcess.problemType:
         # Raise error if this kernel was specifically requested and problem type doesn't match
         if not customKernelWildcard:
-          missingParams = [p for p in benchmarkProcess.problemType if p not in customSolution["ProblemType"]]
-          extraParams   = [p for p in customSolution["ProblemType"] if p not in benchmarkProcess.problemType]
+          missingParams = [p for p in benchmarkProcess.problemType \
+              if p not in customSolution["ProblemType"]]
+          extraParams   = [p for p in customSolution["ProblemType"] \
+              if p not in benchmarkProcess.problemType]
+
           msg  = "The problem type in the config file does not match" \
-              "that of the custom kernel, {0}.".format(kernelName)
+                 "that of the custom kernel, {0}.".format(kernelName)
           msg += "\nMissing config parameters:\n" + str(missingParams)
           msg += "\nExtra custom kernel parameters:\n" + str(extraParams)
           raise RuntimeError(msg)
@@ -246,22 +193,15 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
         print1("# Added {} to solutions".format(kernelName))
         maxPossibleSolutions += 1
         if customSolution["Valid"]:
-          solutions.append([customSolution])
-          benchmarkStep.hardcodedParameters.append(customSolution._state)
+          solutions.append(customSolution)
         elif globalParameters["PrintSolutionRejectionReason"]:
-          print1("rejecting solution %s" % str(customSolution))
+          print1("rejecting solution " + str(customSolution))
 
-    numHardcoded = len(benchmarkStep.hardcodedParameters )
-    if removesExist:
-      solutions = list([s for s in solutions if len(s) > 0])
+    print1("# Actual Solutions: {} / {} after SolutionStructs\n" \
+        .format(len(solutions), maxPossibleSolutions))
 
-    print1("# Actual Solutions: %u / %u after SolutionStructs\n" % ( len(solutions), \
-        maxPossibleSolutions ))
-
-    # create linear list
-    solutionList = list(itertools.chain.from_iterable(solutions))
-
-    if len(solutionList) == 0:
+    # handle no valid solutions
+    if len(solutions) == 0:
         msg = "Your parameters resulted in 0 valid solutions."
         if globalParameters["PrintSolutionRejectionReason"]:
             msg += "\nExamine reject and backtrace messages above to see why" \
@@ -270,65 +210,32 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
             msg += "\nYou should re-run with \"PrintSolutionRejectionReason: True\"" \
                 "to see why each parameter combination was rejected."
         printExit(msg)
+
     if globalParameters["PrintLevel"] >= 1:
-      for i,solutionsForHardcoded in enumerate(solutions):
-        for j, solution in enumerate(solutionsForHardcoded):
-          print2("#    (%u:%u) %s" % (i, j, \
-              Solution.getNameFull(solution) ))
+      for solution in solutions:
+        print2("#    (%u:%u) %s" % (0, 0, Solution.getNameFull(solution) ))
       print2(HR)
 
     # write benchmarkFiles
-    writeBenchmarkFiles(stepBaseDir, solutionList, benchmarkStep.problemSizes, \
+    prevCount = len(solutions)
+    writeBenchmarkFiles(stepBaseDir, solutions, benchmarkStep.problemSizes, \
         shortName, filesToCopy, benchmarkProcess.solutionSummationSizes)
+    # ^ this mutates solutions
 
-    removeSolutions = []
-    for i in range(0, len(solutions)):
-      solutionsForHardcoded = solutions[i]
-      removeSolutions.append([])
-      for j in range(0, len(solutionsForHardcoded)):
-        solution = solutionsForHardcoded[j]
-        if solutionList.count(solution) == 0:
-          removeSolutions[i].append(solution)
-
-    for i in range(0, len(solutions)):
-      solutionsForHardcoded = solutions[i]
-      for j in range(0, len(removeSolutions[i])):
-          solutionsForHardcoded.remove(removeSolutions[i][j])
-
-    # remove hardcoded that don't have any valid benchmarks
-    removeHardcoded = []
-    for hardcodedIdx in range(0, numHardcoded):
-      if len(solutions[hardcodedIdx]) == 0:
-        hardcodedParamDict = benchmarkStep.hardcodedParameters[hardcodedIdx]
-        removeHardcoded.append(hardcodedParamDict)
-    removesExist = len(removeHardcoded) > 0
-    for hardcodedParam in removeHardcoded:
-      benchmarkStep.hardcodedParameters.remove(hardcodedParam)
-
-    if removesExist:
-      numHardcoded = len(benchmarkStep.hardcodedParameters )
-      # remove from solution 2D list also
-      prevCount = len(solutions)
-      solutions = list([s for s in solutions if len(s) > 0])
-      print1("# Actual Solutions: %u / %u after KernelWriter\n" \
-            % (len(solutions), prevCount ))
+    print1("# Actual Solutions: %u / %u after KernelWriter\n" \
+          % (len(solutions), prevCount ))
 
     popWorkingPath() # source
 
-    ############################################################################
-    # Run Benchmark Script
-    ############################################################################
+    # run benchmarking client
     resultsFileBase = os.path.normpath(os.path.join( \
         globalParameters["WorkingPath"], "../Data", shortName))
     if benchmarkStep.isFinal():
       resultsFileBaseFinal = resultsFileBase
     resultsFileName = resultsFileBase + ".csv"
-    newResultsFileName = None # Add another results file to generate diff
     solutionsFileName = resultsFileBase + ".yaml"
-    if not os.path.exists(resultsFileName) or \
-        globalParameters["ForceRedoBenchmarkProblems"]:
 
-
+    if not os.path.exists(resultsFileName) or globalParameters["ForceRedoBenchmarkProblems"]:
       libraryLogicPath = None
       forBenchmark = True
       returncode = runClient(libraryLogicPath, forBenchmark, enableTileSelection)
@@ -339,11 +246,8 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
     else:
       print1("# Already benchmarked; skipping.")
 
-    ############################################################################
-    # Write Solutions YAML
-    ############################################################################
-    LibraryIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, \
-        solutions )
+    # write solutions YAML
+    LibraryIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, solutions)
 
     # End Iteration
     popWorkingPath() # stepName
@@ -357,6 +261,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, \
 # End benchmarkProblemType()
 
 def compareResults(old, new, name):
+    """Temp doc"""
     import math
     if name == " WinnerIdx":
       return 0
@@ -383,11 +288,8 @@ def compareResults(old, new, name):
 
     return abs((old-new)/old)
 
-################################################################################
-# Read GFlop/s from file
-################################################################################
 def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileName=None):
-
+  """Temp docs"""
   print1("# Get Results from CSV")
   try:
     resultsFile = open(resultsFileName, "r")
@@ -459,19 +361,14 @@ def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileNa
     diffFile.close()
   return results
 
-
-################################################################################
-# Write Benchmark Files
-################################################################################
-def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToCopy, solutionSummationSizes):
+def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
+    stepName, filesToCopy, solutionSummationSizes):
+  """Temp doc"""
   if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Solutions"))
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Kernels"))
 
-  ##############################################################################
-  # Min Naming
-  ##############################################################################
-
+  # min Naming
   kernels = []
   kernelHelperOjbs = []
 
@@ -507,6 +404,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   codeObjectFiles = writeSolutionsAndKernels( \
       globalParameters["WorkingPath"], globalParameters["CxxCompiler"], [problemType], solutions, kernels, kernelHelperOjbs, \
       solutionWriter, kernelWriterSource, kernelWriterAssembly, errorTolerant=True )
+  # ^ this is where solutions is mutated
 
   newLibraryDir = ensurePath(os.path.join(globalParameters["WorkingPath"], 'library'))
   newLibraryFile = os.path.join(newLibraryDir, "TensileLibrary")
@@ -545,9 +443,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
   if len(solutions) == 0:
     printExit("write solutions and kernels results 0 valid soultion.")
 
-  ##############################################################################
-  # Write CMake
-  ##############################################################################
+  # write CMake
   outputPath = globalParameters["WorkingPath"]
 
   (solutionFiles,
@@ -564,9 +460,6 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToC
       outputPath )
 
 
-################################################################################
-# Main
-################################################################################
 def main(config):
   """Entry point for the "BenchmarkProblems" section of a Tensile config yaml"""
   ClientExecutable.getClientExecutable()

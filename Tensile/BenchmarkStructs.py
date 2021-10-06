@@ -21,23 +21,11 @@
 
 from copy import copy, deepcopy
 from .Common import print1, print2, printWarning, defaultSolution, \
-    defaultProblemSizes, defaultBenchmarkFinalProblemSizes, \
-    defaultBatchedProblemSizes, defaultBatchedBenchmarkFinalProblemSizes, \
-    defaultBenchmarkCommonParameters, hasParam, getParamValues, printExit, \
-    validParameters, defaultSolutionSummationSizes, globalParameters
+    defaultBenchmarkFinalProblemSizes, defaultBatchedBenchmarkFinalProblemSizes, \
+    defaultBenchmarkCommonParameters, hasParam, printExit, \
+    validParameters, globalParameters
 from .SolutionStructs import Solution, ProblemType, ProblemSizes
 
-
-def forkHardcodedParameters(basePermutations, update):
-  """Temp doc"""
-  updatedHardcodedParameters = []
-  for oldPermutation in basePermutations:
-    for newPermutation in update:
-      permutation = {}
-      permutation.update(oldPermutation)
-      permutation.update(newPermutation)
-      updatedHardcodedParameters.append(permutation)
-  return updatedHardcodedParameters
 
 def getDefaultsForMissingParameters(parameterConfigurationList, defaultParameters):
   """Temp doc"""
@@ -68,20 +56,17 @@ def checkForValidParameters(params, validParameterNames):
 def constructForkPermutations(forkParametersConfig):
   """Temp doc"""
   totalPermutations = 1
-  for param in forkParametersConfig:
-    for name in param: # only 1
-      values = param[name]
-      totalPermutations *= len(values)
+  for k, v in forkParametersConfig.items():
+    totalPermutations *= len(v)
   forkPermutations = []
   for i in range(0, totalPermutations):
     forkPermutations.append({})
     pIdx = i
-    for param in forkParametersConfig:
-      for name in param:
-        values = deepcopy(param[name])
-        valueIdx = pIdx % len(values)
-        forkPermutations[i][name] = values[valueIdx]
-        pIdx //= len(values)
+    for k, v in forkParametersConfig.items():
+      values = deepcopy(v)
+      valueIdx = pIdx % len(v)
+      forkPermutations[i][k] = values[valueIdx]
+      pIdx //= len(values)
   return forkPermutations
 
 def getSingleValues(parameterSetList):
@@ -114,6 +99,7 @@ def checkCDBufferAndStrides(problemType, problemSizes, isCEqualD):
 class BenchmarkProcess:
   """
   Steps in config need to be expanded and missing elements need to be assigned a default.
+  TODO better docs
   """
 
   def __init__(self, problemTypeConfig, problemSizeGroupConfig):
@@ -126,32 +112,19 @@ class BenchmarkProcess:
     self.initialSolutionParameters = { "ProblemType": problemTypeConfig }
     self.initialSolutionParameters.update(defaultSolution)
 
-    # fill in missing steps using defaults
-    self.benchmarkCommonParameters = []
-    self.forkParameters = []
-    self.benchmarkFinalParameters = []
-    self.benchmarkSteps = []
-    self.hardcodedParameters = [{}]
-    self.singleValueParameters = {} # keep
-    self.solutionSummationSizes = []
-
+    # fill parameter values from config
+    self.singleValueParameters = {}
     self.multiValueParameters = {}
+    self.getConfigParameter(self.isBatched, problemSizeGroupConfig)
 
-    # (I)
-    self.fillInMissingStepsWithDefaults(self.isBatched, problemSizeGroupConfig)
-
-    # convert list of parameters to list of steps
+    # convert parameter lists to steps
+    # currently only 1 benchmark step is possible, more may be added back later
     self.currentProblemSizes = []
     self.benchmarkStepIdx = 0
-
-    # (II)
     self.convertParametersToSteps()
 
-
-  ##############################################################################
-  # (I) Create lists of param, filling in missing params from defaults
-  ##############################################################################
-  def fillInMissingStepsWithDefaults(self, isbatched, config):
+  def getConfigParameter(self, isbatched, config):
+    """Temp doc"""
     print2("")
     print2("####################################################################")
     print1("# Filling in Parameters With Defaults")
@@ -176,12 +149,11 @@ class BenchmarkProcess:
     defaultSizes = [{"ProblemSizes": defaultBatchedBenchmarkFinalProblemSizes}] if isbatched \
         else [{"ProblemSizes": defaultBenchmarkFinalProblemSizes}]
 
-    self.solutionSummationSizes    = defaultSolutionSummationSizes
-    self.benchmarkCommonParameters = config.get("BenchmarkCommonParameters", [])
-    self.forkParameters            = config.get("ForkParameters", [])
+    benchmarkCommonParameters      = config.get("BenchmarkCommonParameters", [])
+    forkParameters                 = config.get("ForkParameters", [])
     self.benchmarkFinalParameters  = config.get("BenchmarkFinalParameters", defaultSizes)
 
-    configParameters = self.benchmarkCommonParameters + self.forkParameters
+    configParameters = benchmarkCommonParameters + forkParameters
 
     # ensure only valid solution parameters were requested
     validParameterNames = set(validParameters.keys())
@@ -191,95 +163,55 @@ class BenchmarkProcess:
       except RuntimeError as e:
         printExit(str(e))
 
+    # get defaults for parameters not specified in config file
     missingParameters = getDefaultsForMissingParameters( \
         configParameters, deepcopy(defaultBenchmarkCommonParameters))
 
-    ############################################################################
-    # (I-7) any default param with 1 value will be hardcoded; move to beginning
-    singleValues = getSingleValues([missingParameters, self.benchmarkCommonParameters, \
-        self.forkParameters])
-    for paramName in singleValues:
-      paramValue = singleValues[paramName]
-      self.hardcodedParameters[0][paramName] = paramValue
-      self.singleValueParameters[paramName] = [ paramValue ]
-      self.initialSolutionParameters[paramName] = paramValue
+    # split parameters into single value and multi-value
+    self.singleValueParameters = getSingleValues([missingParameters, configParameters])
 
-    ############################################################################
-    # (I-10) Parameter Lists
-    # benchmarkCommonParameters
-    print2("HardcodedParameters:")
-    for paramName in self.hardcodedParameters[0]:
-      paramValues = self.hardcodedParameters[0][paramName]
-      print2("    %s: %s" % (paramName, paramValues))
-    print2("BenchmarkCommonParameters:")
-    for step in self.benchmarkCommonParameters:
-      print2("    %s" % step)
-    # forkParameters
-    print2("ForkParameters:")
-    for param in self.forkParameters:
-      print2("    %s" % param)
+    # above function call removes singles
+    self.multiValueParameters = {}
+    for paramDict in configParameters:
+      for param, values in paramDict.items():
+        self.multiValueParameters[param] = values
 
-  ##############################################################################
-  # (II) convert lists of parameters to benchmark steps
-  ##############################################################################
+    # print summary of parameter values
+    print2("Single Value Parameters:")
+    for k, v in self.singleValueParameters.items():
+      print2("    {}: {}".format(k, v))
+    print2("Multi-Value Parameters:")
+    for k, v in self.multiValueParameters.items():
+      print2("    {}: {}".format(k, v))
+
   def convertParametersToSteps(self):
+    """Temp doc"""
     print2("")
     print2("####################################################################")
-    print1("# Convert Parameters to Benchmark Step")
+    print1("# Convert Parameters to Benchmark Step(s)")
     print2("####################################################################")
     print2("")
 
-    ############################################################################
-    # (II-2) fork parameters
-    # calculate permutations of
-    print2("")
-    print2("####################################################################")
-    print1("# Fork Parameters")
-    print2(self.forkParameters)
-    forkPermutations = constructForkPermutations(self.forkParameters)
-    if len(forkPermutations) > 0:
-      self.forkHardcodedParameters(forkPermutations)
-
-    ############################################################################
-    # (II-6) benchmark final
+    # currently only a single step is supported
     print2("")
     print2("####################################################################")
     print1("# Benchmark Final")
     for problemSizesDict in self.benchmarkFinalParameters:
-      if "SolutionSummationSizes" in problemSizesDict:
-        self.solutionSummationSizes = problemSizesDict["SolutionSummationSizes"]
-      else:
         problemSizes = problemSizesDict["ProblemSizes"]
         self.currentProblemSizes = ProblemSizes(self.problemType, problemSizes)
-        currentBenchmarkParameters = {}
         checkCDBufferAndStrides(self.problemType, \
             self.currentProblemSizes, globalParameters["CEqualD"])
-        benchmarkStep = BenchmarkStep(
-            self.hardcodedParameters,
-            currentBenchmarkParameters,
-            self.initialSolutionParameters,
-            self.currentProblemSizes,
+        benchmarkStep = BenchmarkStep( \
+            self.multiValueParameters, \
+            self.singleValueParameters, \
+            self.currentProblemSizes, \
             self.benchmarkStepIdx )
         self.benchmarkSteps.append(benchmarkStep)
         self.benchmarkStepIdx+=1
 
-  ##############################################################################
-  # Add new permutations of hardcoded parameters to old permutations of params
-  ##############################################################################
-  def forkHardcodedParameters( self, update ):
-    #updatedHardcodedParameters = []
-    #for oldPermutation in self.hardcodedParameters:
-      #for newPermutation in update:
-      #  permutation = {}
-      #  permutation.update(oldPermutation)
-      #  permutation.update(newPermutation)
-      #  updatedHardcodedParameters.append(permutation)
-    updatedHardcodedParameters = forkHardcodedParameters( self.hardcodedParameters, update )
-      #updatedHardcodedParameters.append(permutation)
-    self.hardcodedParameters = updatedHardcodedParameters
-
   def __len__(self):
     return len(self.benchmarkSteps)
+
   def __getitem__(self, key):
     return self.benchmarkSteps[key]
 
@@ -288,59 +220,47 @@ class BenchmarkProcess:
     for step in self.benchmarkSteps:
       string += str(step)
     return string
+
   def __repr__(self):
     return self.__str__()
 
-################################################################################
-# Benchmark Step
-################################################################################
-class BenchmarkStep:
 
-  def __init__(self, hardcodedParameters, \
-      benchmarkParameters, initialSolutionParameters, problemSizes, idx):
-    # what is my step Idx
+class BenchmarkStep:
+  """Temp doc"""
+
+  def __init__(self, forkParams, constantParams, problemSizes, idx):
+    """Temp doc"""
+    #TODO see if deepcopy really needed
+    self.forkParams = deepcopy(forkParams)
+    self.constantParams = deepcopy(constantParams)
+    self.problemSizes = deepcopy(problemSizes)
     self.stepIdx = idx
 
-    # what parameters don't need to be benchmarked because hard-coded or forked
-    # it's a list of dictionaries, each element a permutation
-    self.hardcodedParameters = deepcopy(hardcodedParameters)
-    #if len(self.hardcodedParameters) == 0:
-    #  printExit("hardcodedParameters is empty")
-
-    # what parameters will I benchmark
-    self.benchmarkParameters = deepcopy(benchmarkParameters)
-    #if len(self.benchmarkParameters) == 0:
-    #  printExit("benchmarkParameters is empty")
-
-    # what solution parameters do I use for what hasn't been benchmarked
-    self.initialSolutionParameters = initialSolutionParameters
-
-    # what problem sizes do I benchmark
-    self.problemSizes = deepcopy(problemSizes)
-
-    print2("# Creating BenchmarkStep [BP]=%u [HCP]=%u [P]=%u" \
-        % ( len(benchmarkParameters), len(hardcodedParameters), \
-        problemSizes.totalProblemSizes))
+    print2("# Creating BenchmarkStep: {} fork params and {} sizes" \
+        .format( len(forkParams), problemSizes.totalProblemSizes))
 
   def isFinal(self):
-    return len(self.benchmarkParameters) == 0
+    """Temp doc"""
+    # currently only one benchmark step is possible
+    return True
 
   def abbreviation(self):
-    string = "%02u" % self.stepIdx
+    """Temp doc"""
+    string = "{:02d}".format(self.stepIdx)
     if self.isFinal():
       string += "_Final"
     else:
       for param in self.benchmarkParameters:
-        string += "_%s" % Solution.getParameterNameAbbreviation(param)
+        string += "_" + Solution.getParameterNameAbbreviation(param)
     return string
 
   def __str__(self):
-    string = "%02u" % self.stepIdx
+    string = "{:02d}".format(self.stepIdx)
     if self.isFinal():
       string += "_Final"
     else:
       for param in self.benchmarkParameters:
-        string += "_%s" % str(param)
+        string += "_" + str(param)
     return string
 
   def __repr__(self):
