@@ -23,19 +23,13 @@ from copy import copy, deepcopy
 from .Common import print1, print2, printWarning, defaultSolution, \
     defaultProblemSizes, defaultBenchmarkFinalProblemSizes, \
     defaultBatchedProblemSizes, defaultBatchedBenchmarkFinalProblemSizes, \
-    defaultBenchmarkCommonParameters, hasParam, \
-    defaultBenchmarkJoinParameters, getParamValues, defaultForkParameters, \
-    defaultBenchmarkForkParameters, defaultJoinParameters, printExit, \
+    defaultBenchmarkCommonParameters, hasParam, getParamValues, printExit, \
     validParameters, defaultSolutionSummationSizes, globalParameters
 from .SolutionStructs import Solution, ProblemType, ProblemSizes
 
 
-### modularize benchmark steps construction
-
-##############################################################################
-# forkHardcodedParameters
-##############################################################################
-def forkHardcodedParameters( basePermutations, update ):
+def forkHardcodedParameters(basePermutations, update):
+  """Temp doc"""
   updatedHardcodedParameters = []
   for oldPermutation in basePermutations:
     for newPermutation in update:
@@ -45,17 +39,18 @@ def forkHardcodedParameters( basePermutations, update ):
       updatedHardcodedParameters.append(permutation)
   return updatedHardcodedParameters
 
-def fillMissingParametersWithDefaults(parameterConfigurationList, defaultParameters):
-
+def getDefaultsForMissingParameters(parameterConfigurationList, defaultParameters):
+  """Temp doc"""
   benchmarkParameters = []
   for paramDict in defaultParameters:
     for paramName in paramDict:
-      if not hasParam( paramName, parameterConfigurationList) \
+      if not hasParam(paramName, parameterConfigurationList) \
           or paramName == "ProblemSizes":
         benchmarkParameters.append(paramDict)
   return benchmarkParameters
 
 def checkForValidParameters(params, validParameterNames):
+  """Temp doc"""
   for paramName in params:
     if paramName in ["ProblemSizes"]:
       continue
@@ -71,6 +66,7 @@ def checkForValidParameters(params, validParameterNames):
                         " (only first 32 combos printed)\nRefer to Common.py for more info" if len(validParameters[paramName])>32 else ""))
 
 def constructForkPermutations(forkParametersConfig):
+  """Temp doc"""
   totalPermutations = 1
   for param in forkParametersConfig:
     for name in param: # only 1
@@ -89,7 +85,7 @@ def constructForkPermutations(forkParametersConfig):
   return forkPermutations
 
 def getSingleValues(parameterSetList):
-  ############################################################################
+  """Temp doc"""
   singleVaules = {}
   for stepList in parameterSetList:
     for paramDict in copy(stepList):
@@ -105,37 +101,8 @@ def getSingleValues(parameterSetList):
 
   return singleVaules
 
-##############################################################################
-# assignParameters
-##############################################################################
-def assignParameters(problemTypeConfig, configBenchmarkCommonParameters, configForkParameters):
-
-  problemTypeObj = ProblemType(problemTypeConfig)
-  initialSolutionParameters = { "ProblemType": problemTypeConfig }
-  initialSolutionParameters.update(defaultSolution)
-
-  hardcodedParameters = []
-  benchmarkCommonParameters = fillMissingParametersWithDefaults([configBenchmarkCommonParameters, configForkParameters], defaultBenchmarkCommonParameters)
-  if configBenchmarkCommonParameters != None:
-    for paramDict in configBenchmarkCommonParameters:
-      benchmarkCommonParameters.append(paramDict)
-
-  singleValues = getSingleValues([benchmarkCommonParameters, configForkParameters])
-  for paramName in singleValues:
-    paramValue = singleValues[paramName]
-    initialSolutionParameters[paramName] = paramValue
-
-  forkPermutations = constructForkPermutations(configForkParameters)
-  if len(forkPermutations) > 0:
-    hardcodedParameters = forkHardcodedParameters([initialSolutionParameters], forkPermutations)
-
-  return (problemTypeObj, hardcodedParameters, initialSolutionParameters)
-
-
-##############################################################################
-# check LDD == LDC if CEqualD"
-##############################################################################
 def checkCDBufferAndStrides(problemType, problemSizes, isCEqualD):
+  """Temp doc"""
   if isCEqualD and problemType["OperationType"] == "GEMM":
     for problem in problemSizes.problems:
       ldd = problem.sizes[problemType["IndexAssignmentsLD"][0]]
@@ -146,45 +113,29 @@ def checkCDBufferAndStrides(problemType, problemSizes, isCEqualD):
 
 class BenchmarkProcess:
   """
-  Benchmark Process
   Steps in config need to be expanded and missing elements need to be assigned a default.
   """
 
   def __init__(self, problemTypeConfig, problemSizeGroupConfig):
-
+    """Temp doc"""
     self.problemType = ProblemType(problemTypeConfig)
     self.isBatched = "Batched" in problemTypeConfig and problemTypeConfig["Batched"]
     print2("# BenchmarkProcess beginning %s" % str(self.problemType))
 
-    # read initial solution parameters
+    # create initial solution parameters
     self.initialSolutionParameters = { "ProblemType": problemTypeConfig }
     self.initialSolutionParameters.update(defaultSolution)
-    if "InitialSolutionParameters" not in problemSizeGroupConfig:
-      print2("No InitialSolutionParameters; using defaults.")
-    else:
-      if problemSizeGroupConfig["InitialSolutionParameters"] != None:
-        for paramDict in problemSizeGroupConfig["InitialSolutionParameters"]:
-          for paramName in paramDict:
-            paramValueList = paramDict[paramName]
-            if isinstance(paramValueList, list):
-              if len(paramValueList) != 1:
-                printWarning("InitialSolutionParameters must have length=1: %s:%s" % (paramName, paramValueList))
-              self.initialSolutionParameters[paramName] = paramValueList[0]
-            else:
-              self.initialSolutionParameters[paramName] = paramValueList
-    print2("# InitialSolutionParameters: %s" % str(self.initialSolutionParameters))
 
     # fill in missing steps using defaults
     self.benchmarkCommonParameters = []
     self.forkParameters = []
-    self.benchmarkForkParameters = []
-    self.joinParameters = []
-    self.benchmarkJoinParameters = []
     self.benchmarkFinalParameters = []
     self.benchmarkSteps = []
     self.hardcodedParameters = [{}]
-    self.singleValueParameters = {}
+    self.singleValueParameters = {} # keep
     self.solutionSummationSizes = []
+
+    self.multiValueParameters = {}
 
     # (I)
     self.fillInMissingStepsWithDefaults(self.isBatched, problemSizeGroupConfig)
@@ -207,79 +158,46 @@ class BenchmarkProcess:
     print2("####################################################################")
     print2("")
 
-    self.solutionSummationSizes = defaultSolutionSummationSizes
-    ############################################################################
-    # (I-0) get 6 phases from config
-    configBenchmarkCommonParameters = config["BenchmarkCommonParameters"] \
-        if "BenchmarkCommonParameters" in config else []
-    configForkParameters = config["ForkParameters"] \
-        if "ForkParameters" in config else []
+    # check for no longer supported legacy benchmark steps
+    badParams = ["InitialSolutionParameters", "BenchmarkForkParameters", \
+                 "JoinParameters", "BenchmarkJoinParameters"]
+    badsInConfig = []
 
-    # TODO cleanup error messages
-    if config.get("BenchmarkForkParameters") is not None:
-      print("no longer supported")
-    if config.get("JoinParameters") is not None:
-      print("no longer supported")
-    if config.get("BenchmarkJoinParameters") is not None:
-      print("no longer supported")
+    for p in badParams:
+      if config.get(p) is not None:
+        badsInConfig.append(p)
 
-    configBenchmarkFinalParameters = config["BenchmarkFinalParameters"] \
-        if "BenchmarkFinalParameters" in config and config["BenchmarkFinalParameters"] != None \
-        and len(config["BenchmarkFinalParameters"]) > 0 \
-        else [{"ProblemSizes": defaultBatchedBenchmarkFinalProblemSizes}] \
-        if isbatched \
+    if len(badsInConfig) == 1:
+      printExit("Benchmark step {} is no longer supported".format("'" + badsInConfig[0] + "'"))
+    elif len(badsInConfig) > 1:
+      printExit("Benchmark steps {} are no longer supported".format(badsInConfig))
+
+    # get supported legacy benchmark steps
+    defaultSizes = [{"ProblemSizes": defaultBatchedBenchmarkFinalProblemSizes}] if isbatched \
         else [{"ProblemSizes": defaultBenchmarkFinalProblemSizes}]
 
-    ############################################################################
-    # Ensure only valid solution parameters were requested
+    self.solutionSummationSizes    = defaultSolutionSummationSizes
+    self.benchmarkCommonParameters = config.get("BenchmarkCommonParameters", [])
+    self.forkParameters            = config.get("ForkParameters", [])
+    self.benchmarkFinalParameters  = config.get("BenchmarkFinalParameters", defaultSizes)
+
+    configParameters = self.benchmarkCommonParameters + self.forkParameters
+
+    # ensure only valid solution parameters were requested
     validParameterNames = set(validParameters.keys())
-    for paramDictList in [configBenchmarkCommonParameters, \
-        configForkParameters]:
-      if paramDictList != None:
-        for paramDict in paramDictList:
-          try:
-            checkForValidParameters(paramDict, validParameterNames)
-          except RuntimeError as e:
-            printExit(str(e))
+    for paramDict in configParameters:
+      try:
+        checkForValidParameters(paramDict, validParameterNames)
+      except RuntimeError as e:
+        printExit(str(e))
 
-    # TODO warn/guard against BenchmarkCommons that have mor than one value
-    benchmarkCommonParameters = fillMissingParametersWithDefaults( \
-        [configBenchmarkCommonParameters, configForkParameters], \
-        deepcopy(defaultBenchmarkCommonParameters))
-    self.benchmarkCommonParameters.extend(benchmarkCommonParameters)
-
-    if configBenchmarkCommonParameters != None:
-      for paramDict in configBenchmarkCommonParameters:
-        self.benchmarkCommonParameters.append(paramDict)
-
-    ############################################################################
-    # (I-2) into fork we put in all Dfork that
-    # don't show up in Bcommon/Cfork/CBfork/Cjoin/CBjoin
-    # followed by Cfork
-    self.forkParameters = []
-    # need to use deepcopy to prevent default parameters from being washed-out later
-    for paramDict in deepcopy(defaultForkParameters):
-      for paramName in paramDict:
-        if not hasParam( paramName, [ self.benchmarkCommonParameters, \
-            configForkParameters]) \
-            or paramName == "ProblemSizes":
-          self.forkParameters.append(paramDict)
-    if configForkParameters != None:
-      for paramDict in configForkParameters:
-        self.forkParameters.append(paramDict)
-    else: # make empty
-      self.forkParameters = []
-
-    ############################################################################
-    # (I-6) benchmark final sizes
-    self.benchmarkFinalParameters = configBenchmarkFinalParameters
-    # no other parameters besides problem sizes
+    missingParameters = getDefaultsForMissingParameters( \
+        configParameters, deepcopy(defaultBenchmarkCommonParameters))
 
     ############################################################################
     # (I-7) any default param with 1 value will be hardcoded; move to beginning
-    singleValues = getSingleValues([self.benchmarkCommonParameters, \
-        self.forkParameters, self.benchmarkForkParameters, \
-        self.benchmarkJoinParameters])
+    singleValues = getSingleValues([missingParameters, self.benchmarkCommonParameters, \
+        self.forkParameters])
     for paramName in singleValues:
       paramValue = singleValues[paramName]
       self.hardcodedParameters[0][paramName] = paramValue
@@ -307,7 +225,7 @@ class BenchmarkProcess:
   def convertParametersToSteps(self):
     print2("")
     print2("####################################################################")
-    print1("# Convert Parameters to Steps")
+    print1("# Convert Parameters to Benchmark Step")
     print2("####################################################################")
     print2("")
 
@@ -344,38 +262,6 @@ class BenchmarkProcess:
             self.benchmarkStepIdx )
         self.benchmarkSteps.append(benchmarkStep)
         self.benchmarkStepIdx+=1
-
-  ##############################################################################
-  # For list of config parameters convert to steps and append to steps list
-  ##############################################################################
-  def addStepsForParameters(self, configParameterList):
-    print2("# AddStepsForParameters: %s" % configParameterList)
-    for paramConfig in configParameterList:
-      if isinstance(paramConfig, dict):
-        if "ProblemSizes" in paramConfig:
-          self.currentProblemSizes = ProblemSizes(self.problemType, paramConfig["ProblemSizes"])
-          continue
-      currentBenchmarkParameters = {}
-      for paramName in paramConfig:
-        paramValues = paramConfig[paramName]
-        if isinstance(paramValues, list):
-          currentBenchmarkParameters[paramName] = paramValues
-        else:
-          printExit("Parameter \"%s\" for ProblemType %s must be formatted as a list but isn't" \
-              % ( paramName, str(self.problemType) ) )
-      if len(currentBenchmarkParameters) > 0:
-        print2("Adding BenchmarkStep for %s" % str(currentBenchmarkParameters))
-        checkCDBufferAndStrides(self.problemType, self.currentProblemSizes, \
-            globalParameters["CEqualD"])
-        benchmarkStep = BenchmarkStep(
-            self.hardcodedParameters,
-            currentBenchmarkParameters,
-            self.initialSolutionParameters,
-            self.currentProblemSizes,
-            self.benchmarkStepIdx )
-        self.benchmarkSteps.append(benchmarkStep)
-        self.benchmarkStepIdx+=1
-
 
   ##############################################################################
   # Add new permutations of hardcoded parameters to old permutations of params

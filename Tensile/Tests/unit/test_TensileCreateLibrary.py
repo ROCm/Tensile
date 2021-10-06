@@ -34,25 +34,6 @@ import yaml
 
 mylogger = logging.getLogger()
 
-def test_assignParameters():
-    problemTypeConfig = \
-        {"Batched": True, "DataType": "s", "OperationType": "GEMM", "TransposeA": False, "TransposeB": False, "UseBeta": True}
-
-    benchmarkCommonParameters = [{"LoopTail": [True]}, {"KernelLanguage": ["Assembly"]}, \
-        {"EdgeType": ["ShiftPtr"]}, {"GlobalSplitU": [1]}, {"VectorWidth": [-1]}, {"FractionalLoad": [1]}, \
-        {"PrefetchGlobalRead": [True]}]
-
-    configForkParameters = \
-        [{"WorkGroup": [[16, 16, 1]]}, {"ThreadTile": [[4, 4],[8, 8]]}]
-
-    problemTypeObj, hardcodedParameters, initialSolutionParameters = \
-        BenchmarkStructs.assignParameters(problemTypeConfig, benchmarkCommonParameters, configForkParameters)
-
-
-    assert problemTypeObj != None
-    assert hardcodedParameters != None
-    assert initialSolutionParameters != None
-
 def test_generateSolutions(useGlobalParameters):
     with useGlobalParameters():
         scriptDir = os.path.dirname(os.path.realpath(__file__))
