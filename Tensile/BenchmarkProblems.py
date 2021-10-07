@@ -32,7 +32,7 @@ from . import ClientExecutable
 from . import SolutionLibrary
 from . import LibraryIO
 from . import Utils
-from .BenchmarkStructs import BenchmarkProcess, constructForkPermutations, checkForValidParameters
+from .BenchmarkStructs import BenchmarkProcess, checkParametersAreValid, constructForkPermutations
 from .ClientWriter import runClient, writeClientConfig
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, \
         printExit, printWarning, ensurePath, startTime, validParameters
@@ -41,7 +41,7 @@ from .KernelWriterSource import KernelWriterSource
 from .SolutionStructs import Solution, ProblemType, ProblemSizes
 from .SolutionWriter import SolutionWriter
 from .TensileCreateLibrary import writeSolutionsAndKernels, writeCMake, buildObjectFileNames
-from .CustomKernels import getCustomKernelConfig
+from .CustomKernels import getAllCustomKernelNames, getCustomKernelConfig
 
 
 def generateForkedSolutions (problemType, constantParams, benchmarkPermutations):
@@ -78,7 +78,7 @@ def generateForkedSolutions (problemType, constantParams, benchmarkPermutations)
 def generateCustomKernelSolution(kernelName, directory=globalParameters["CustomKernelDirectory"]):
     """Temp docs"""
     kernelConfig = getCustomKernelConfig(kernelName, directory)
-    checkForValidParameters({p: [kernelConfig[p]] for p in kernelConfig if p != "ProblemType"}, set(validParameters.keys()))
+    checkParametersAreValid({p: [kernelConfig[p]] for p in kernelConfig if p != "ProblemType"}, validParameters)
     # test if problem type matches with configuration file
     kernelConfig["KernelLanguage"] = "Assembly"   # replacement kernels are always assembly kernels?
     kernelConfig["CustomKernelName"] = kernelName
@@ -116,7 +116,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, problemSize
     for benchmarkStepIdx in range(0, totalBenchmarkSteps):
         benchmarkStep = benchmarkProcess[benchmarkStepIdx]
         stepName = str(benchmarkStep)
-        shortName = benchmarkStep.abbreviation()
+        shortName = stepName
 
         print1("\n")
         print1(HR)
@@ -157,32 +157,23 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, problemSize
                     globalParameters["WorkingPath"] )
 
         # enumerate benchmark permutations and create resulting solution objects
-        benchmarkPermutations = constructForkPermutations(benchmarkStep.forkParams)
-        maxPossibleSolutions = len(benchmarkPermutations) #* numHardcoded
+        forkPermutations = constructForkPermutations(benchmarkStep.forkParams)
+        maxPossibleSolutions = len(forkPermutations) #* numHardcoded
         solutions = generateForkedSolutions(benchmarkProcess.problemType, \
-                benchmarkStep.constantParams, benchmarkPermutations)
+                benchmarkStep.constantParams, forkPermutations)
 
-        # add custom kernels to list of solutions
-        customKernelList = problemSizeGroupConfig.get("CustomKernels", [])
-        customKernelWildcard = False
-        if customKernelList == ["*"]:
-            customKernelList = \
-                    [fname[:-2] for fname in os.listdir(globalParameters["CustomKernelDirectory"]) \
-                    if fname.endswith(".s")]
-            customKernelWildcard = True
-
-        for kernelName in customKernelList:
+        for kernelName in benchmarkStep.customKernels:
             print1("# Processing custom kernel {}".format(kernelName))
             customSolution = generateCustomKernelSolution(kernelName)
             if customSolution["ProblemType"] != benchmarkProcess.problemType:
                 # Raise error if this kernel was specifically requested and problem type doesn't match
-                if not customKernelWildcard:
+                if not benchmarkStep.customKernelWildcard:
                     missingParams = [p for p in benchmarkProcess.problemType \
                             if p not in customSolution["ProblemType"]]
                     extraParams   = [p for p in customSolution["ProblemType"] \
                             if p not in benchmarkProcess.problemType]
 
-                    msg  = "The problem type in the config file does not match" \
+                    msg  = "The problem type in the config file does not match " \
                                  "that of the custom kernel, {0}.".format(kernelName)
                     msg += "\nMissing config parameters:\n" + str(missingParams)
                     msg += "\nExtra custom kernel parameters:\n" + str(extraParams)
@@ -219,7 +210,7 @@ def benchmarkProblemType( problemTypeConfig, problemSizeGroupConfig, problemSize
         # write benchmarkFiles
         prevCount = len(solutions)
         writeBenchmarkFiles(stepBaseDir, solutions, benchmarkStep.problemSizes, \
-                shortName, filesToCopy, benchmarkProcess.solutionSummationSizes)
+                shortName, filesToCopy, [])
         # ^ this mutates solutions
 
         print1("# Actual Solutions: %u / %u after KernelWriter\n" \
