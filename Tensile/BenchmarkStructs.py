@@ -24,8 +24,7 @@ from .Common import print1, print2, hasParam, printExit, \
         defaultBenchmarkFinalProblemSizes, defaultBatchedBenchmarkFinalProblemSizes, \
         defaultBenchmarkCommonParameters, validParameters, globalParameters
 from .CustomKernels import getAllCustomKernelNames
-from .SolutionStructs import Solution, ProblemType, ProblemSizes
-from Tensile import CustomKernels
+from .SolutionStructs import ProblemType, ProblemSizes
 
 
 def getDefaultsForMissingParameters(paramList, defaultParams):
@@ -41,7 +40,7 @@ def getDefaultsForMissingParameters(paramList, defaultParams):
 def checkParametersAreValid(params, validParams):
     """Ensures paramaters in params exist and have valid values as specified by validParames"""
     for name, values in params.items():
-        if name in ["ProblemSizes"]:
+        if name == "ProblemSizes":
             continue
 
         if name not in validParams:
@@ -88,19 +87,19 @@ class BenchmarkProcess:
         """Create from the two sections of a config for a BenchmarkProblem"""
         self.problemType = ProblemType(problemTypeConfig)
         self.isBatched = "Batched" in problemTypeConfig and problemTypeConfig["Batched"]
-        print2("# BenchmarkProcess beginning %s" % str(self.problemType))
+        print2("# BenchmarkProcess beginning {}".format(self.problemType))
 
         # fill parameter values from config
         self.singleValueParams = {}
-        self.multiValueParams = {}
-        self.customKernels = []
-        self.sizes = None
+        self.multiValueParams  = {}
+        self.customKernels     = []
+        self.sizes             = None
         self.getConfigParameters(self.isBatched, problemSizeGroupConfig)
 
         # convert parameter lists to steps
         # previously, multiple benchmark steps were possible
         # currently only 1 benchmark step is possible; more may be added back later
-        self.benchmarkSteps = []
+        self.benchmarkSteps   = []
         self.benchmarkStepIdx = 0
         self.convertParametersToSteps()
 
@@ -222,11 +221,11 @@ class BenchmarkStep:
 
     def __init__(self, forkParams, constantParams, customKernels, problemSizes, idx):
         """Basic constructor storing each argument"""
-        self.forkParams = forkParams
+        self.forkParams     = forkParams
         self.constantParams = constantParams
-        self.customKernels = customKernels
-        self.problemSizes = problemSizes
-        self.stepIdx = idx
+        self.customKernels  = customKernels
+        self.problemSizes   = problemSizes
+        self.stepIdx        = idx
 
         self.customKernelWildcard = False
         if self.customKernels == ["*"]:

@@ -110,9 +110,9 @@ def parseSolutionsFile(filename):
 
 def parseSolutionsData(data, srcFile="?"):
     """Parses problem sizes and solutions from the data of a solutions file."""
-
     if len(data) < 3:
-        printExit("Solution file {} is missing required fields (len = {} < 3".format(srcFile, len(data)))
+        printExit("Solution file {} is missing required fields (len = {} < 3" \
+                .format(srcFile, len(data)))
 
     versionString = data[0]["MinimumRequiredVersion"]
     if not versionIsCompatible(versionString):
@@ -142,9 +142,9 @@ def parseLibraryLogicFile(filename):
 
 def parseLibraryLogicData(data, srcFile="?"):
     """Parses the data of a library logic file."""
-
     if len(data) < 9:
-        printExit("Library logic file {} is missing required fields (len = {} < 9)".format(srcFile, len(data)))
+        printExit("Library logic file {} is missing required fields (len = {} < 9)" \
+                .format(srcFile, len(data)))
 
     versionString     = data[0]["MinimumRequiredVersion"]
     scheduleName      = data[1]

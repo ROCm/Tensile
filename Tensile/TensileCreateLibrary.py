@@ -91,7 +91,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
           coFile = os.path.join(os.path.normcase(destArchDir), 'TensileLibrary_{}.co'.format(archName))
 
         if os.name == "nt":
-          # On Windows, the objectFiles list command line (including spaces) 
+          # On Windows, the objectFiles list command line (including spaces)
           # exceeds the limit of 8191 characters, so using response file
 
           responseArgs = objectFiles
@@ -109,7 +109,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
         coFiles.append(coFile)
       else:
         # no mergefiles
-        
+
         assemblyKernelNames = [kernelWriterAssembly.getKernelFileBase(k) for k in archKernels]
         origCOFiles = [os.path.join(asmDir,  k + '.co') for k in assemblyKernelNames]
         newCOFiles  = []
@@ -319,8 +319,8 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
     kernelSourceFile:     File to write source data to
     kernelHeaderFile:     File to write header data to
 
-  Returns: 
-    sourceFilenames:      Array containing source kernel filenames 
+  Returns:
+    sourceFilenames:      Array containing source kernel filenames
   """
   sourceFilenames = []
 
@@ -336,19 +336,19 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
     if len(src.strip()) == 0:
       continue
     kernelsToWrite.append((err, src, header, kernelName))
-  
+
   # Write kernel data to files
   if globalParameters["MergeFiles"]:
 
     # Merge all kernels into one file
-    if globalParameters["NumMergedFiles"] == 1: 
+    if globalParameters["NumMergedFiles"] == 1:
       sourceFilenames.append(os.path.join(os.path.normcase(outputPath), "Kernels.cpp"))
       for (err,src,header,kernelName) in kernelsToWrite:
         kernelSourceFile.write(src)
         kernelHeaderFile.write(header)
 
     # Merge kernels into n seperate files
-    else: 
+    else:
 
       # Calculate num of kernels per file
       numValidKernels = len(kernelsToWrite)
@@ -358,7 +358,7 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
 
       # Number of kernels per file (except the last file which gets this plus any remainder)
       kernelsPerFile = numValidKernels // numMergedFiles
-    
+
       # Group kernel sources and headers into a list of lists for writing
       kernelSourceList = []
       kernelHeaderList = []
@@ -399,7 +399,7 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
             kernelHeaderFile.write(header)
 
   # Write kernels into seperate files
-  else: 
+  else:
     for (err,src,header,kernelName) in kernelsToWrite:
 
       # write kernel.cpp
@@ -417,7 +417,7 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
       kernelHeaderFile.write(CHeader)
       kernelHeaderFile.write(header)
       kernelHeaderFile.close()
-  
+
   return sourceFilenames
 
 ################################################################################
@@ -987,7 +987,9 @@ def getSolutionAndKernelWriters(solutions, kernels):
 ################################################################################
 # copy static cpp files and headers
 ################################################################################
-def copyStaticFiles(outputPath):
+def copyStaticFiles(outputPath=None):
+  if outputPath is None:
+    outputPath = globalParameters["WorkingPath"]
   libraryStaticFiles = [
     "TensileTypes.h",
     "tensile_bfloat16.h",
@@ -1454,7 +1456,7 @@ def TensileCreateLibrary():
   if globalParameters["GenerateManifestAndExit"] == True:
     return
 
-  # generate cmake for the source kernels
+  # generate cmake for the source kernels,
   if not arguments["GenerateSourcesAndExit"]:
     writeCMake(outputPath, solutionFiles, sourceKernelFiles, staticFiles)
 
@@ -1468,13 +1470,13 @@ def TensileCreateLibrary():
 
   codeObjectFiles = writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions,
                                              kernels, kernelHelperObjs, solutionWriter, kernelWriterSource, kernelWriterAssembly)
-  
+
   bothLibSet = set(sourceLibPaths + asmLibPaths)
-  setA = set( map( os.path.normcase, set(codeObjectFiles) ) ) 
+  setA = set( map( os.path.normcase, set(codeObjectFiles) ) )
   setB = set( map( os.path.normcase, bothLibSet ) )
 
-  sanityCheck0 = setA - setB 
-  sanityCheck1 = setB - setA 
+  sanityCheck0 = setA - setB
+  sanityCheck1 = setB - setA
 
   if globalParameters["PrintCodeCommands"]:
     print("codeObjectFiles:", codeObjectFiles)
@@ -1519,4 +1521,3 @@ def TensileCreateLibrary():
   print1("# Tensile Library Writer DONE")
   print1(HR)
   print1("")
-  

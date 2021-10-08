@@ -19,11 +19,12 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .Common import globalParameters, pushWorkingPath, popWorkingPath, print1, printExit, CHeader, printWarning, listToInitializer, ClientExecutionLock
 from . import ClientExecutable
 from . import Common
 from . import LibraryIO
+from .Common import globalParameters, pushWorkingPath, popWorkingPath, print1, printExit, CHeader, printWarning, listToInitializer, ClientExecutionLock
 from .SolutionStructs import ProblemType, ProblemSizesMock
+from .TensileCreateLibrary import copyStaticFiles
 
 import os
 import subprocess
@@ -60,6 +61,7 @@ class ClientLogLevel(Enum):
   Verbose = 2
   Debug = 3
 
+
 ################################################################################
 # Main
 ################################################################################
@@ -68,29 +70,8 @@ def main( config ):
       globalParameters["LibraryLogicPath"])
   stepBaseDir = pushWorkingPath(globalParameters["LibraryClientPath"])
 
-
-  ##############################################################################
-  # Copy Source Files
-  ##############################################################################
   pushWorkingPath("source")
-  filesToCopy = [
-      "TensileTypes.h",
-      "tensile_bfloat16.h",
-      "KernelHeader.h",
-      ]
-
-  for f in filesToCopy:
-    shutil.copy(
-        os.path.join(globalParameters["SourcePath"], f),
-        globalParameters["WorkingPath"] )
-  if globalParameters["RuntimeLanguage"] == "OCL":
-    shutil.copy(
-        os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
-        globalParameters["WorkingPath"] )
-  else:
-    shutil.copy(
-        os.path.join(globalParameters["SourcePath"], "FindHIP.cmake"),
-        globalParameters["WorkingPath"] )
+  copyStaticFiles()
 
   ##############################################################################
   # Read Logic Files
