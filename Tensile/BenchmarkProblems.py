@@ -80,20 +80,19 @@ def generateCustomKernelSolutions(problemType, customKernels, failOnMismatch):
         if solution["ProblemType"] != problemType:
             # Raise error if this kernel was specifically requested and problem type doesn't match
             if failOnMismatch:
-                foo = [(k,tuple(v)) if type(v) is list else (k,v) \
-                        for k,v in problemType.items()]
-                bar = [(k,tuple(v)) if type(v) is list else (k,v) \
-                        for k,v in solution["ProblemType"].items()]
+                benchmarkSet = set([(k,tuple(v)) if type(v) is list else (k,v) \
+                        for k,v in problemType.items()])
+                customSet = set([(k,tuple(v)) if type(v) is list else (k,v) \
+                        for k,v in solution["ProblemType"].items()])
 
-                benchmarkSet = set(foo)
-                customSet    = set(bar)
                 msg = "The problem type in the config file does not match " \
                         "that of the custom kernel, {}.".format(kernelName) \
-                        + "\nDifferent benchmark parameters:\n" \
-                        + str(benchmarkSet - (customSet & benchmarkSet)) \
-                        + "\nDifferent custom kernel parameters:\n" \
-                        +  str(customSet - (customSet & benchmarkSet))
-                raise RuntimeError(msg)
+                        + "\nDiffering parameters:\n" \
+                        + "\tConfig values:\n\t" \
+                        + str(sorted(benchmarkSet - (customSet & benchmarkSet))) \
+                        + "\n\tCustom kernel values:\n\t" \
+                        +  str(sorted(customSet - (customSet & benchmarkSet)))
+                printExit(msg)
             else:
                 print1("# Rejected {}: Problem Type doesn't match".format(kernelName))
         else:
