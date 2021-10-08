@@ -253,7 +253,6 @@ class YamlBuilder:
                 "MergeFiles": True,
                 "KernelTime": True,
                 "SolutionSelectionAlg": 1,
-                "NewClient": 2,
                 "DataInitTypeAlpha": 1, # use optimized OptNoLoadLoop, if available
                 "DataInitTypeC": 4, # NANs
                 "DataInitTypeD": 4, # NANs

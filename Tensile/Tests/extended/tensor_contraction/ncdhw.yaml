@@ -14,7 +14,6 @@ GlobalParameters:
   MergeFiles: True
   KernelTime: True
   SolutionSelectionAlg: 1
-  NewClient: 2
   DataInitTypeAB: 1
   DataInitTypeC: 1
   DataInitTypeD: 0

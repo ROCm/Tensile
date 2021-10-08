@@ -39,13 +39,13 @@ function(TensileCreateLibraryCmake
 # to avoid breaking applications which us this
   if (ARGN)
     list (GET ARGN 0 Tensile_PACKAGE_LIBRARY)
-    list (GET ARGN 1 Tensile_INCLUDE_LEGACY_CODE)
+    # list (GET ARGN 1 Tensile_INCLUDE_LEGACY_CODE)
   else()
     set(Tensile_PACKAGE_LIBRARY OFF)
-    set(Tensile_INCLUDE_LEGACY_CODE ON)
+    # set(Tensile_INCLUDE_LEGACY_CODE ON)
   endif()
 
-  set(options PACKAGE_LIBRARY Tensile_INCLUDE_LEGACY_CODE)
+  # set(options PACKAGE_LIBRARY Tensile_INCLUDE_LEGACY_CODE)
   message(STATUS "Tensile_RUNTIME_LANGUAGE    from TensileCreateLibraryCmake : ${Tensile_RUNTIME_LANGUAGE}")
   message(STATUS "Tensile_CODE_OBJECT_VERSION from TensileCreateLibraryCmake : ${Tensile_CODE_OBJECT_VERSION}")
   message(STATUS "Tensile_COMPILER            from TensileCreateLibraryCmake : ${Tensile_COMPILER}")
@@ -71,11 +71,6 @@ function(TensileCreateLibraryCmake
 
   if(${Tensile_PACKAGE_LIBRARY})
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--package-library")
-  endif()
-
-  if( NOT ${Tensile_INCLUDE_LEGACY_CODE})
-    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--no-legacy-components")
-    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--new-client-only")
   endif()
 
   if(${Tensile_SHORT_FILE_NAMES})
@@ -120,68 +115,6 @@ function(TensileCreateLibraryCmake
     )
     if(Tensile_CREATE_RESULT)
       message(FATAL_ERROR "Error generating kernels")
-    endif()
-  endif()
-
-  if ( ${Tensile_INCLUDE_LEGACY_CODE} )
-  # glob generated source files
-    if( Tensile_MERGE_FILES )
-      file(GLOB Tensile_SOURCE_FILES
-        ${Tensile_SOURCE_PATH}/*.cpp
-        )
-    else()
-      file(GLOB Tensile_SOURCE_FILES
-        ${Tensile_SOURCE_PATH}/*.cpp
-        ${Tensile_SOURCE_PATH}/Kernels/*.cpp
-        ${Tensile_SOURCE_PATH}/Solutions/*.cpp
-        ${Tensile_SOURCE_PATH}/Logic/*.cpp
-        )
-    endif()
-  endif()
-
-  if ( ${Tensile_INCLUDE_LEGACY_CODE} )
-    # create Tensile Library
-    set(options)
-    add_library(Tensile ${options} ${Tensile_SOURCE_FILES})
-    # specify gpu targets
-    if( Tensile_ARCHITECTURE MATCHES "all" )
-      set( Tensile_HIP_ISA "gfx803" "gfx900" "gfx906" "gfx908" "gfx1010" "gfx1011" "gfx1012" "gfx1030")
-    else()
-      set( Tensile_HIP_ISA ${Tensile_ARCHITECTURE})
-    endif()
-    foreach( target ${Tensile_HIP_ISA} )
-      target_link_libraries( Tensile PRIVATE --amdgpu-target=${target} )
-    endforeach()
-    if( Tensile_MERGE_FILES )
-      target_include_directories(Tensile
-        PUBLIC $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}> )
-    else()
-      target_include_directories(Tensile PUBLIC
-        $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}>
-        $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}/Kernels>
-        $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}/Solutions>
-        $<BUILD_INTERFACE:${Tensile_SOURCE_PATH}/Logic>
-        $<INSTALL_INTERFACE:include> )
-    endif()
-  endif()
-
-  if ( ${Tensile_INCLUDE_LEGACY_CODE} )
-    # define language for library source
-    if( Tensile_RUNTIME_LANGUAGE MATCHES "OCL")
-      #find_package(OpenCL "1.2" REQUIRED)
-      target_link_libraries( Tensile ${OPENCL_LIBRARIES} )
-      target_compile_definitions( Tensile PUBLIC
-        -DTensile_RUNTIME_LANGUAGE_OCL=1 -DTensile_RUNTIME_LANGUAGE_HIP=0 )
-      target_include_directories( Tensile SYSTEM
-        PUBLIC  ${OPENCL_INCLUDE_DIRS} )
-    else()
-      #find_package( HIP REQUIRED )
-      set (CMAKE_CXX_COMPILER ${HIPCC})
-      target_include_directories( Tensile SYSTEM
-        PUBLIC  ${HIP_INCLUDE_DIRS} )
-      target_link_libraries( Tensile PUBLIC ${HSA_LIBRARIES} )
-      target_compile_definitions( Tensile PUBLIC
-        -DTensile_RUNTIME_LANGUAGE_OCL=0 -DTensile_RUNTIME_LANGUAGE_HIP=1 )
     endif()
   endif()
 

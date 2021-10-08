@@ -13,7 +13,6 @@ GlobalParameters:
   PrintSolutionRejectionReason: 1
   PrintConvolutionUsage: 1
   CEqualD: 1
-  NewClient: 2
 
 BenchmarkProblems:
   -

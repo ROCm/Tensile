@@ -39,7 +39,6 @@ from collections.abc import Mapping
 from copy import deepcopy
 from enum import Enum
 from functools import reduce
-from warnings import warn
 
 import collections
 import math
@@ -1858,6 +1857,10 @@ class Solution(collections.abc.Mapping):
   # assign tile sizes
   @staticmethod
   def assignProblemIndependentDerivedParameters(state):
+
+    if globalParameters["NewClient"] != 2:
+      print("WARNING: Old client deprecated, NewClient parameter being set to 2.")
+      globalParameters["NewClient"] = 2
 
     if "AssignedProblemIndependentDerivedParameters" in state:
       if state["AssignedProblemIndependentDerivedParameters"]:
@@ -3819,16 +3822,6 @@ class Solution(collections.abc.Mapping):
           reject(state, "asm ZeroPad requires GlobalLoadVectorWidth==1")
         if not bufferLoad:
           reject(state, "asm ZeroPad requires BufferLoad")
-
-    if state["MagicDivAlg"] == 2 and globalParameters["NewClient"] != 2:
-      warn("Legacy client does not support MagicDivAlg==2, forcing MagicDivAlg=1")
-      state["MagicDivAlg"] = 1
-
-    if state["PackSummationDims"] == 2 and globalParameters["NewClient"] != 2:
-      raise RuntimeError ("Legacy client does not support PackSummationDims (ASEM issues), aborting")
-
-    if state["UnrollIncIsDepthU"] and globalParameters["NewClient"] != 2:
-      raise RuntimeError ("Legacy client does not support UnrollIncIsDepthU=1 (ASEM issues), aborting")
 
     # Ensure AssertCEqualsD is always used with LdcEqualsLdd --DISABLED CURRENTLY
     #if state["AssertCEqualsD"]:

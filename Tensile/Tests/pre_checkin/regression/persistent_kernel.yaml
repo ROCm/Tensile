@@ -7,7 +7,6 @@ GlobalParameters:
 # disable BoundsCheck for now to avoid crash
   BoundsCheck: False
   KernelTime: True
-  NewClient: 2
 
 BenchmarkProblems:
   - # sgemm NN

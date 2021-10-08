@@ -248,7 +248,7 @@ fi
 # TODO: way to set which Tensile to use for create library?
 # TODO: get correct Python version
 CREATE_LIBRARY_EXE=${ROCBLAS_PATH}/build/release/virtualenv/lib/python3.6/site-packages/Tensile/bin/TensileCreateLibrary
-CREATE_LIBRARY_ARGS=(--merge-files --no-legacy-components --no-short-file-names \
+CREATE_LIBRARY_ARGS=(--merge-files --no-short-file-names \
   --no-library-print-debug --code-object-version=V3 --cxx-compiler=hipcc \
   --library-format=msgpack "${MERGE_PATH}" "${TENSILE_LIBRARY_PATH}" HIP)
 

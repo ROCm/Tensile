@@ -21,8 +21,6 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14" )
-
 if(NOT DEFINED TENSILE_ROOT)
     get_filename_component(TENSILE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}" DIRECTORY)
 endif()
@@ -88,6 +86,12 @@ include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 add_library (TensileHost STATIC ${tensile_sources})
 
+set_target_properties(TensileHost
+                      PROPERTIES
+                      CXX_STANDARD 14
+                      CXX_STANDARD_REQUIRED ON
+                      CXX_EXTENSIONS OFF)
+
 target_include_directories(TensileHost INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 if(TENSILE_USE_LLVM OR TENSILE_USE_MSGPACK)
@@ -95,13 +99,21 @@ if(TENSILE_USE_LLVM OR TENSILE_USE_MSGPACK)
 endif()
 
 if(TENSILE_USE_MSGPACK)
+    find_package(msgpack REQUIRED)
     target_compile_definitions(TensileHost PUBLIC -DTENSILE_MSGPACK=1)
 
-    find_package(msgpack)
-    if(TARGET msgpackc-static)
-        target_link_libraries(TensileHost PRIVATE msgpackc-static)
-    else()
-        target_link_libraries(TensileHost PRIVATE msgpackc)
+    if(TARGET msgpackc-cxx)
+        get_target_property(msgpack_inc msgpackc-cxx INTERFACE_INCLUDE_DIRECTORIES)
+    elseif(TARGET msgpackc)
+        get_target_property(msgpack_inc msgpackc INTERFACE_INCLUDE_DIRECTORIES)
+    endif()
+
+    if(DEFINED msgpack_inc)
+        # include C++ headers manually
+        # External header includes included as system files
+        target_include_directories(TensileHost 
+            SYSTEM PRIVATE $<BUILD_INTERFACE:${msgpack_inc}>
+        )
     endif()
 endif()
 

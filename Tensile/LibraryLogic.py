@@ -122,11 +122,8 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
     print1("(%2u) %s : %s" % (i, Solution.getNameMin(s, solutionMinNaming), Solution.getNameFull(s)))
 
   if enableTileSelection:
-    if globalParameters["NewClient"] == 2:
-      validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelection(problemType, selectionFileNameList, \
-          logicAnalyzer.numSolutionsPerGroup,  logicAnalyzer.solutionGroupMap, solutionsList)
-    else:
-      validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelectionOldClient(problemType, problemSizeGroups)
+    validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelection(problemType, selectionFileNameList, \
+        logicAnalyzer.numSolutionsPerGroup,  logicAnalyzer.solutionGroupMap, solutionsList)
 
     validSelectionSolutionsIncluded = []
     validSelectionSolutionsRemainder = []
@@ -430,7 +427,7 @@ class LogicAnalyzer:
     csvHasWinner = "_CSVWinner" in dataFileName
     if csvHasWinner:
       # the column of the two are fixed (GFlops, SizeI/J/K/L, LDD/C/A/B, TotalFlops, WinnerGFlops, WinnerTimeUs, WinnerIdx, WinnerName)
-      # the order are implemented in ResultFileReporter.cpp (NewClient) and Client.h (OldClient)
+      # the order are implemented in ResultFileReporter.cpp
       columnOfWinnerGFlops = 10
       columnOfWinnerIdx = 12
 
