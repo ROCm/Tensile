@@ -125,10 +125,16 @@ class BenchmarkProcess:
         elif len(badsInConfig) > 1:
             printExit("Benchmark steps {} are no longer supported".format(badsInConfig))
 
-        # get supported legacy benchmark steps
-        benchmarkCommonParams = config.get("BenchmarkCommonParameters", [])
-        forkParams            = config.get("ForkParameters", [])
-        self.customKernels    = config.get("CustomKernels", [])
+        # get supported benchmark steps
+        def getNonNoneFromConfig(key, default):
+            if config.get(key) is not None:
+                return config[key]
+            else:
+                return default
+
+        benchmarkCommonParams = getNonNoneFromConfig("BenchmarkCommonParameters", [])
+        forkParams            = getNonNoneFromConfig("ForkParameters", [])
+        self.customKernels    = getNonNoneFromConfig("CustomKernels", [])
 
         if "BenchmarkFinalParameters" in config:
             sizes = config["BenchmarkFinalParameters"][0]["ProblemSizes"]
