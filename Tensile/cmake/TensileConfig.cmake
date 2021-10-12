@@ -93,10 +93,6 @@ function(TensileCreateLibraryFiles
          Tensile_OUTPUT_PATH
          )
 
-  if(NOT TENSILE_NEW_CLIENT)
-    message(FATAL_ERROR "TensileCreateLibraryFiles function should only be called for new client.")
-  endif()
-
   # Boolean options
   set(options
        MERGE_FILES
@@ -140,8 +136,6 @@ function(TensileCreateLibraryFiles
   endif()
 
   message(STATUS "Tensile script: ${Script}")
-
-  set(Options "--new-client-only" "--no-legacy-components")
 
   # Older NO_MERGE_FILES flag overrides MERGE_FILES option.
   if(Tensile_NO_MERGE_FILES)

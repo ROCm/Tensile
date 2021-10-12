@@ -22,7 +22,6 @@ GlobalParameters:
   DataInitTypeB: 3
   DataInitTypeC: 3
   DataInitTypeBeta: 0
-  NewClient: 0
 
 BenchmarkProblems:
   ########################################

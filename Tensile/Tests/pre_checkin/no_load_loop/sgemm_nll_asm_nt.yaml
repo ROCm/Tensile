@@ -22,7 +22,6 @@ GlobalParameters:
   DataTypeInitAlpha: 1
   DataTypeInitBeta: 0
   KernelTime: True
-  NewClient: 2
 
 BenchmarkProblems:
 

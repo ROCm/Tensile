@@ -14,7 +14,6 @@ GlobalParameters:
   MergeFiles: True
   KernelTime: True
   SolutionSelectionAlg: 1
-  NewClient: 2
   CpuThreads: 0
 BenchmarkProblems:
   -

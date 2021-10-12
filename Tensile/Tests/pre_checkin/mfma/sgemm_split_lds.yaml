@@ -4,7 +4,6 @@ TestParameters:
 GlobalParameters:
   NumElementsToValidate: 65536
   BoundsCheck: True
-  NewClient: 2
 BenchmarkProblems:
 
   ########################################

@@ -20,7 +20,6 @@ GlobalParameters:
   KernelTime: True
   LibraryPrintDebug: 1
   PrintSolutionRejectionReason: 1
-  NewClient: 2
 
 BenchmarkProblems:
 

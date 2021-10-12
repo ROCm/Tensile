@@ -93,22 +93,9 @@ def runBenchmarking(solutions, problemSizes, outPath, update):
     pushWorkingPath("source")
 
     filesToCopy = [
-        "SolutionMapper.h",
-        "Client.cpp",
-        "Client.h",
-        "CMakeLists.txt",
-        "DeviceStats.h",
-        "TensorUtils.h",
-        "MathTemplates.cpp",
-        "MathTemplates.h",
         "TensileTypes.h",
         "tensile_bfloat16.h",
         "KernelHeader.h",
-        "ReferenceCPU.h",
-        "SolutionHelper.cpp",
-        "SolutionHelper.h",
-        "Tools.cpp",
-        "Tools.h",
         ]
 
     for f in filesToCopy:

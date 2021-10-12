@@ -4,7 +4,6 @@ GlobalParameters:
   NumElementsToValidate: -1
   BoundsCheck: True
   KernelTime: True
-  NewClient: 2
   BufferOffsetA: 128
   BufferOffsetB: 256
   BufferOffsetC: 384
