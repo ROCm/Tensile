@@ -29,7 +29,6 @@ import argparse
 from .Common import globalParameters, print1, ensurePath, \
     assignGlobalParameters, restoreDefaultGlobalParameters, HR
 from . import BenchmarkProblems
-from . import ClientWriter
 from . import LibraryIO
 from . import LibraryLogic
 from . import __version__
@@ -78,11 +77,7 @@ def executeStepsInConfig( config ):
   # Write Client
   ##############################################################################
   if "LibraryClient" in config:
-    if config["LibraryClient"] != None:
-      libraryClientConfig = config["LibraryClient"]
-    else:
-      libraryClientConfig = {}
-    ClientWriter.main( libraryClientConfig )
+    print("WARNING: Old client deprecated, LibraryClient step ignored")
     print1("")
 
 def addCommonArguments(argParser):
