@@ -28,28 +28,9 @@ import Tensile.LibraryIO as LibraryIO
 import Tensile.Common as Common
 import Tensile.ClientWriter as ClientWriter
 import Tensile.SolutionStructs as SolutionStructs
-import Tensile.BenchmarkProblems as BenchmarkProblems
-import Tensile.BenchmarkStructs as BenchmarkStructs
 import yaml
 
 mylogger = logging.getLogger()
-
-def test_generateSolutions(useGlobalParameters):
-    with useGlobalParameters():
-        scriptDir = os.path.dirname(os.path.realpath(__file__))
-        dataDir = os.path.realpath(os.path.join(scriptDir, "..", "test_data", "unit"))
-        problemTypeFilePath = os.path.join(dataDir, "library_data", "problemType.yaml")
-        hardcodedParametersFilePath = os.path.join(dataDir, "library_data", "hardcodedParameters.yaml")
-        initialSolutionParametersFilePath = os.path.join(dataDir, "library_data", "initialSolutionParameters.yaml")
-
-        problemType = LibraryIO.readYAML(problemTypeFilePath)["ProblemType"]
-        problemTypeObject = SolutionStructs.ProblemType(problemType)
-        hardcodedParameters = LibraryIO.readYAML(hardcodedParametersFilePath)
-        initialSolutionParameters = LibraryIO.readYAML(initialSolutionParametersFilePath)
-
-        solutionList = BenchmarkProblems.generateForkedSolutions (problemTypeObject, hardcodedParameters, [initialSolutionParameters])
-
-        assert len(solutionList) == 2
 
 def test_loadSolutions(caplog, useGlobalParameters):
     with useGlobalParameters():
