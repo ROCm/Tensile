@@ -355,59 +355,65 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
       numMergedFiles = globalParameters["NumMergedFiles"]
       if numMergedFiles > numValidKernels:
         numMergedFiles = numValidKernels
-      kernelsPerFile = int(numValidKernels / numMergedFiles)
+
+      # Number of kernels per file (except the last file which gets this plus any remainder)
+      kernelsPerFile = numValidKernels // numMergedFiles
     
-      # Write kernels to files
-      fileIndex = 0
-      curNumKernelsWritten = 0
-      
-      for i, (err,src,header,kernelName) in enumerate(kernelsToWrite):
+      # Group kernel sources and headers into a list of lists for writing
+      kernelSourceList = []
+      kernelHeaderList = []
+      for kernelIndex, (_,src,header,_) in enumerate(kernelsToWrite):
+        makeNewFilegroup = kernelIndex % kernelsPerFile == 0
+        isNotLastFile = len(kernelSourceList) < numMergedFiles
+        if makeNewFilegroup and isNotLastFile:
+          kernelHeaderList.append([])
+          kernelSourceList.append([])
+        kernelHeaderList[-1].append(src)
+        kernelSourceList[-1].append(header)
+
+      # Write source files
+      for fileIndex, kernelSources in enumerate(kernelSourceList):
         kernelName = "Kernels" + str(fileIndex)
+        kernelFilePath = os.path.join(outputPath, "Kernels", kernelName)
 
-        # Open a new kernel .cpp file for writing
-        if not kernelSourceFile or kernelSourceFile.closed:
-          filename = os.path.join(outputPath, "Kernels", kernelName + ".cpp")
-          sourceFilenames.append(filename)
-          kernelSourceFile = open(filename, "w")
+        with open(kernelFilePath + ".cpp", "w", encoding="utf-8") as kernelSourceFile:
           kernelSourceFile.write(CHeader)
-          kernelSourceFile.write("#include \"" + os.path.join(outputPath, "Kernels", kernelName + ".h") + "\"\n")
+          kernelSourceFile.write('#include "{}.h"\n'.format(kernelName))
+          sourceFilenames.append(kernelFilePath + ".cpp")
+          for src in kernelSources:
+            kernelSourceFile.write(src)
 
-        # Open a new kernel .h file for writing
-        if not kernelHeaderFile or kernelHeaderFile.closed:
-          kernelHeaderFile = open(os.path.join(outputPath, "Kernels", kernelName + ".h"), "w")
+      # Write header files
+      for fileIndex, kernelHeaders in enumerate(kernelHeaderList):
+        kernelName = "Kernels" + str(fileIndex)
+        kernelFilePath = os.path.join(outputPath, "Kernels", kernelName)
+
+        with open(kernelFilePath + ".h", "w", encoding="utf-8") as kernelHeaderFile:
+          kernelHeaderFile.write(CHeader)
           kernelHeaderFile.write("#pragma once\n")
           if globalParameters["RuntimeLanguage"] == "HIP":
             kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
             kernelHeaderFile.write("#include <hip/hip_fp16.h>\n\n")
           kernelHeaderFile.write("#include <KernelHeader.h>\n\n")
-          kernelHeaderFile.write(CHeader)
-
-        # Write kernel to file
-        kernelSourceFile.write(src)
-        kernelHeaderFile.write(header)
-        curNumKernelsWritten += 1
-        
-        # Prepare for next group of kernels by closing previous files
-        if (curNumKernelsWritten >= kernelsPerFile and not (fileIndex + 1 == numMergedFiles)) or i == numValidKernels-1:
-          kernelSourceFile.close()
-          kernelHeaderFile.close()
-          curNumKernelsWritten = 0
-          fileIndex += 1
+          for header in kernelHeaders:
+            kernelHeaderFile.write(header)
 
   # Write kernels into seperate files
   else: 
     for (err,src,header,kernelName) in kernelsToWrite:
 
       # write kernel.cpp
-      filename = os.path.join(outputPath, "Kernels", kernelName+".cpp")
-      sourceFilenames.append(filename)
-      kernelSourceFile = open(filename, "w")
+      filepath = os.path.join(outputPath, "Kernels", kernelName)
+      sourceFilename = filepath + ".cpp"
+      sourceFilenames.append(sourceFilename)
+      kernelSourceFile = open(sourceFilename, "w", encoding="utf-8")
       kernelSourceFile.write(CHeader)
       kernelSourceFile.write(src)
       kernelSourceFile.close()
 
       # write kernel.h
-      kernelHeaderFile = open(os.path.join(outputPath, "Kernels", kernelName+".h"), "w")
+      headerFilename = filepath + ".h"
+      kernelHeaderFile = open(headerFilename, "w", encoding="utf-8")
       kernelHeaderFile.write(CHeader)
       kernelHeaderFile.write(header)
       kernelHeaderFile.close()
@@ -494,12 +500,18 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     print("\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier")
     printExit("** kernel compilation failure **")
 
+  # Put all kernel helper objects into the first merged kernel file
+  if globalParameters["NumMergedFiles"] > 1 and len(kernelFiles) > 0:
+    kernelFilename = kernelFiles[0].replace(".cpp", "")
+    kernelSourceFile = open(kernelFilename + ".cpp", 'a', encoding="utf-8")
+    kernelHeaderFile = open(kernelFilename + ".h", 'a', encoding="utf-8")
+
   # handle helper kernel function
   for ko in kernelHelperObjs:
     kernelName = ko.getKernelName()
 
     # write kernel.cpp
-    if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
+    if not globalParameters["MergeFiles"]:
       kernelSourceFilename = os.path.join(outputPath, "Kernels", kernelName+".cpp")
       kernelSourceFile = open(kernelSourceFilename, "w")
       kernelSourceFile.write(CHeader)
@@ -510,21 +522,21 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     if err:
       print("*** warning: invalid kernel#%u"%kernelName)
 
-    if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
+    if not globalParameters["MergeFiles"]:
       kernelSourceFile.close()
 
     # write kernel.h
-    if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
+    if not globalParameters["MergeFiles"]:
       kernelHeaderFile = open(os.path.join(os.path.normcase(outputPath), "Kernels", kernelName + ".h"), "w")
       kernelHeaderFile.write(CHeader)
 
-    kernelHeaderFile.write( ko.getHeaderFileString())
+    kernelHeaderFile.write(ko.getHeaderFileString())
 
-    if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
+    if not globalParameters["MergeFiles"]:
       kernelHeaderFile.close()
 
   # close merged
-  if globalParameters["MergeFiles"] and globalParameters["NumMergedFiles"] == 1:
+  if globalParameters["MergeFiles"]:
     if kernelSourceFile:
       kernelSourceFile.close()
     if kernelHeaderFile:
@@ -1065,8 +1077,6 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
     if (cxxCompiler == 'hipcc'):
       for kernelIndex in range(0, globalParameters["NumMergedFiles"]):
         sourceLibFiles += ["Kernels%d.so-000-%s.hsaco" % (kernelIndex, arch) for arch in sourceArchs]
-      for kernelName in kernelHelperObjNames:
-        sourceLibFiles += ["%s.so-000-%s.hsaco" % (kernelName, arch) for arch in sourceArchs]
     else:
       raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
   else: # Merge
@@ -1509,3 +1519,4 @@ def TensileCreateLibrary():
   print1("# Tensile Library Writer DONE")
   print1(HR)
   print1("")
+  

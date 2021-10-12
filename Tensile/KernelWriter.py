@@ -4216,7 +4216,7 @@ for codeObjectFileName in codeObjectFileNames:
     kernelName = self.getKernelName(kernel)
     fileString = "" # CHeader
     if self.language == "HIP" or self.language == "OCL":
-      if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
+      if not globalParameters["MergeFiles"]:
         fileString += CHeader
         fileString += "#pragma once\n\n"
         if self.language == "HIP":
