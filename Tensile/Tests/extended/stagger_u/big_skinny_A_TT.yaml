@@ -6,7 +6,6 @@ GlobalParameters:
   PinClocks: False
   SleepPercent: 200
   DataInitTypeBeta : 0
-  NewClient: 2
   # Debugging
   LibraryPrintDebug: True
   NumElementsToValidate: 1000

@@ -10,7 +10,6 @@ GlobalParameters:
   DataInitTypeAlpha: 1
   EnqueuesPerSync: 100
   KernelTime: True
-  NewClient: 2
   PrintConvolutionUsage: 0
   PrintSolutionRejectionReason: 1
 

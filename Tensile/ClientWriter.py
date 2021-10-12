@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, printExit, CHeader, printWarning, listToInitializer, ClientExecutionLock
+from .Common import globalParameters, pushWorkingPath, popWorkingPath, print1, printExit, CHeader, printWarning, listToInitializer, ClientExecutionLock
 from . import ClientExecutable
 from . import Common
 from . import LibraryIO
@@ -35,7 +35,6 @@ from enum import Enum
 from .Contractions import FreeIndex
 from .Contractions import ProblemType as ContractionsProblemType
 
-# NOTE- For NewClient only
 class DataInitName(Enum):
   Zero = 0
   One = 1
@@ -93,10 +92,6 @@ def main( config ):
     shutil_copy(
         os.path.join(globalParameters["SourcePath"], f),
         globalParameters["WorkingPath"] )
-  if globalParameters["NewClient"] < 2:
-    shutil_copy(
-        os.path.join(globalParameters["SourcePath"], "CMakeLists.txt"),
-        globalParameters["WorkingPath"] )
   if globalParameters["RuntimeLanguage"] == "OCL":
     shutil_copy(
         os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
@@ -118,7 +113,7 @@ def main( config ):
   functionNames = []
   enableHalf = False
 
-  createLibraryScript = getBuildNewClientLibraryScript(stepBaseDir, libraryLogicPath)
+  createLibraryScript = getBuildClientLibraryScript(stepBaseDir, libraryLogicPath)
   subprocess.run(shlex.split(createLibraryScript), cwd=stepBaseDir)
   coList = []
   yamlList = []
@@ -154,14 +149,7 @@ def main( config ):
   # Write Generated Header
   ##############################################################################
   forBenchmark = False
-  solutions = None
   problemSizes = None
-  stepName = None
-  solutionSummationSizes = None
-  if globalParameters["NewClient"] != 2:
-    if logicFiles:
-      writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-          functions, solutionSummationSizes, stepBaseDir)
   popWorkingPath() # source
 
   ##############################################################################
@@ -185,9 +173,9 @@ def main( config ):
 ################################################################################
 def runNewClient(scriptPath, clientParametersPath, clientBuildDir=None):
 
-  newClientExe = ClientExecutable.getClientExecutable(clientBuildDir)
+  clientExe = ClientExecutable.getClientExecutable(clientBuildDir)
   iniFile = "--config-file={}".format(clientParametersPath)
-  args = [newClientExe, iniFile]
+  args = [clientExe, iniFile]
 
   try:
     subprocess.run(args, check=True)
@@ -199,89 +187,19 @@ def runClient(libraryLogicPath, forBenchmark, enableTileSelection, configPaths=N
   # write runScript
   pushWorkingPath("build")
   path = globalParameters["WorkingPath"]
-  if globalParameters["NewClient"] < 2:
-    buildScriptName = writeBuildOldClientScript(path, libraryLogicPath, forBenchmark)
-    runScriptName = writeRunScript(path,  forBenchmark, enableTileSelection, configPaths)
 
-    subprocess.check_call(buildScriptName, cwd=path)
+  runScriptName = writeRunScript(path, forBenchmark, enableTileSelection, configPaths)
+  with ClientExecutionLock():
+    process = subprocess.Popen(runScriptName, cwd=path)
+    process.communicate()
 
-    # run runScript
-    with ClientExecutionLock():
-      process = subprocess.Popen(runScriptName, cwd=path)
-      process.communicate()
+  if process.returncode:
+    printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
+  popWorkingPath() # build
 
-    if process.returncode:
-      printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
-    popWorkingPath() # build
-    return process.returncode
-  else:
+  return process.returncode
 
-    runScriptName = writeRunScript(path, forBenchmark, enableTileSelection, configPaths)
-    with ClientExecutionLock():
-      process = subprocess.Popen(runScriptName, cwd=path)
-      process.communicate()
-
-    if process.returncode:
-      printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
-    popWorkingPath() # build
-    return process.returncode
-
-def getBuildOldClientScript(libraryLogicPath, forBenchmark):
-  import io
-  runScriptFile = io.StringIO()
-  q = "" if os.name == "nt" else "\""
-  echoLine = "@echo." if os.name == "nt" else "echo"
-  runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
-      % (echoLine, q, HR, q, q, q, q, HR, q))
-  runScriptFile.write("cmake")
-  # runtime and kernel language
-  runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" % globalParameters["RuntimeLanguage"])
-  runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
-  runScriptFile.write(" -DTensile_COMPILER=%s" % globalParameters["CxxCompiler"])
-  runScriptFile.write(" -DTensile_ARCHITECTURE=%s" % globalParameters["Architecture"])
-  runScriptFile.write(" -DTensile_LIBRARY_FORMAT=%s" % globalParameters["LibraryFormat"])
-  if globalParameters["EnableHalf"]:
-    runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
-  if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
-    runScriptFile.write(" -DTensile_RESUME_BENCHMARK=ON")
-  else:
-    runScriptFile.write(" -DTensile_RESUME_BENCHMARK=OFF")
-  if forBenchmark:
-    # for benchmark client
-    runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
-  else:
-    # for library client
-    runScriptFile.write(" -DTensile_ROOT=%s" % globalParameters["ScriptPath"] )
-    runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
-    runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
-    runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \
-        % ("ON" if globalParameters["LibraryPrintDebug"] else "OFF"))
-    runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
-        % ("ON" if globalParameters["ShortNames"] else "OFF"))
-  if globalParameters["CMakeCXXFlags"]:
-    runScriptFile.write("  -DCMAKE_CXX_FLAGS=%s" % globalParameters["CMakeCXXFlags"] )
-  if globalParameters["CMakeCFlags"]:
-    runScriptFile.write("  -DCMAKE_C_FLAGS=%s" % globalParameters["CMakeCFlags"] )
-  if globalParameters["NewClient"] == 2:
-    runScriptFile.write(" -DTENSILE_NEW_CLIENT=ON")
-  else:
-    runScriptFile.write(" -DTENSILE_NEW_CLIENT=OFF")
-  runScriptFile.write("  -DCMAKE_BUILD_TYPE=%s" % (globalParameters["CMakeBuildType"]))
-  # for both
-  if os.name == "nt":
-    runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
-  runScriptFile.write(" -DTensile_MERGE_FILES=%s" \
-      % ("ON" if globalParameters["MergeFiles"] else "OFF"))
-  runScriptFile.write(" ../source\n")
-  runScriptFile.write("%s && echo %s%s%s && echo %s# Building Client%s && echo %s%s%s\n" \
-      % (echoLine, q, HR, q, q, q, q, HR, q))
-  runScriptFile.write("cmake --build . --config %s%s\n" \
-      % (globalParameters["CMakeBuildType"], " -- -j 8" \
-      if os.name != "nt" else "") ) # getBuildOldClientScript not used on windows
-
-  return runScriptFile.getvalue()
-
-def getBuildNewClientLibraryScript(buildPath, libraryLogicPath):
+def getBuildClientLibraryScript(buildPath, libraryLogicPath):
   import io
   runScriptFile = io.StringIO()
 
@@ -292,8 +210,6 @@ def getBuildNewClientLibraryScript(buildPath, libraryLogicPath):
     callCreateLibraryCmd += " --merge-files"
   else:
     callCreateLibraryCmd += " --no-merge-files"
-
-  callCreateLibraryCmd += " --no-legacy-components"
 
   if globalParameters["ShortNames"]:
     callCreateLibraryCmd += " --short-file-names"
@@ -308,10 +224,6 @@ def getBuildNewClientLibraryScript(buildPath, libraryLogicPath):
   if globalParameters["GenerateManifestAndExit"]:
     callCreateLibraryCmd += " --generate-manifest-and-exit"
 
-  # Function won't get called if NewClient !=2, but don't want to make assumption
-  if "NewClient" in globalParameters and globalParameters["NewClient"] == 2:
-      callCreateLibraryCmd += " --new-client-only"
-
   callCreateLibraryCmd += " --architecture=" + globalParameters["Architecture"]
   callCreateLibraryCmd += " --code-object-version=" + globalParameters["CodeObjectVersion"]
   callCreateLibraryCmd += " --cxx-compiler=" + globalParameters["CxxCompiler"]
@@ -325,46 +237,31 @@ def getBuildNewClientLibraryScript(buildPath, libraryLogicPath):
 
   return runScriptFile.getvalue()
 
-def writeBuildNewClientLibraryScript(path, libraryLogicPath):
+def writeBuildClientLibraryScript(path, libraryLogicPath):
   filename = os.path.join(path, \
     "build.%s" % ("bat" if os.name == "nt" else "sh") )
   with open(filename, "w") as file:
     file.write("#!/bin/bash\n\n")
     file.write("set -ex\n")
-    file.write(getBuildNewClientLibraryScript(path, libraryLogicPath))
+    file.write(getBuildClientLibraryScript(path, libraryLogicPath))
 
   if os.name != "nt":
     os.chmod(filename, 0o777)
   return filename
-
-def writeBuildOldClientScript(path, libraryLogicPath, forBenchmark):
-  filename = os.path.join(path, \
-    "build.%s" % ("bat" if os.name == "nt" else "sh") )
-  with open(filename, "w") as file:
-    file.write("#!/bin/bash\n\n")
-    file.write("set -ex\n")
-    file.write(getBuildOldClientScript(libraryLogicPath, forBenchmark))
-
-  if os.name != "nt":
-    os.chmod(filename, 0o777)
-  return filename
-
 
 def writeRunScript(path, forBenchmark, enableTileSelection, configPaths=None):
   if configPaths is None:
     configPaths = []
     configPaths.append(os.path.join(globalParameters["WorkingPath"], "../source/ClientParameters.ini"))
-    if enableTileSelection is True and globalParameters["NewClient"] == 2:
+    if enableTileSelection is True:
       configPaths.append(os.path.join(globalParameters["WorkingPath"], "../source/ClientParameters_Granularity.ini"))
 
   # create run.bat or run.sh which builds and runs
   runScriptName = os.path.join(path, \
     "run.%s" % ("bat" if os.name == "nt" else "sh") )
   runScriptFile = open(runScriptName, "w")
-  echoLine = "@echo." if os.name == "nt" else "echo"
   if os.name != "nt":
     runScriptFile.write("#!/bin/bash\n\n")
-  q = "" if os.name == "nt" else "\""
 
   runScriptFile.write("set -ex\n")
 
@@ -387,45 +284,12 @@ def writeRunScript(path, forBenchmark, enableTileSelection, configPaths=None):
     if globalParameters["DataInitTypeB"] == -1 :
         globalParameters["DataInitTypeB"] = globalParameters["DataInitTypeAB"]
 
-    if globalParameters["NewClient"] < 2:
-      runScriptFile.write("./client")
-      clp = ""
-      clp += " --platform-idx %u" % globalParameters["Platform"]
-      clp += " --device-idx %u" % globalParameters["Device"]
-      clp += " --init-alpha %u" % globalParameters["DataInitTypeAlpha"]
-      clp += " --init-beta %u" % globalParameters["DataInitTypeBeta"]
-      clp += " --init-d %u" % globalParameters["DataInitTypeD"]
-      clp += " --init-c %u" % globalParameters["DataInitTypeC"]
-      clp += " --init-a %u" % globalParameters["DataInitTypeA"]
-      clp += " --init-b %u" % globalParameters["DataInitTypeB"]
-      clp += " --c-equal-d %u" % globalParameters["CEqualD"]
-      clp += " --print-valids %u" % globalParameters["ValidationPrintValids"]
-      clp += " --print-max %u" % globalParameters["ValidationMaxToPrint"]
-      clp += " --num-benchmarks %u" % globalParameters["NumBenchmarks"]
-      clp += " --num-elements-to-validate %u" % globalParameters["NumElementsToValidate"]
-      clp += " --num-enqueues-per-sync %u" % globalParameters["EnqueuesPerSync"]
-      clp += " --num-syncs-per-benchmark %u" % globalParameters["SyncsPerBenchmark"]
-      clp += " --use-gpu-timer %u" % globalParameters["KernelTime"]
-      clp += " --sleep-percent %u" % globalParameters["SleepPercent"]
-      clp += " --benchmark-solutions %u" % enableTileSelection
-      clp += " --csv-export-extra-cols %u" % globalParameters["CSVExportWinner"]
-      if "ClientArgs" in globalParameters:
-        clientParams = globalParameters["ClientArgs"]
-        if clientParams:
-          clp += " " + globalParameters["ClientArgs"]
-      runScriptFile.write(clp)
-      runScriptFile.write("\n")
-      runScriptFile.write("ERR1=$?\n")
-    else:
-      runScriptFile.write("ERR1=0\n")
+    runScriptFile.write("ERR1=0\n")
 
-    if globalParameters["NewClient"]:
-      newClientExe = ClientExecutable.getClientExecutable()
-      for configFile in configPaths:
-        runScriptFile.write("{} --config-file {} {}\n".format(newClientExe, configFile, globalParameters["NewClientArgs"]))
-      runScriptFile.write("ERR2=$?\n\n")
-    else:
-      runScriptFile.write("ERR2=0\n")
+    clientExe = ClientExecutable.getClientExecutable()
+    for configFile in configPaths:
+      runScriptFile.write("{} --config-file {} {}\n".format(clientExe, configFile, globalParameters["ClientArgs"]))
+    runScriptFile.write("ERR2=$?\n\n")
 
     runScriptFile.write("""
 ERR=0
@@ -446,19 +310,8 @@ fi
         runScriptFile.write("%s -d 0 --resetclocks\n" % globalParameters["ROCmSMIPath"])
         runScriptFile.write("%s -d 0 --setfan 50\n" % globalParameters["ROCmSMIPath"])
   else:
-    executablePath = os.path.join(globalParameters["WorkingPath"])
-    if globalParameters["NewClient"] < 2:
-      if os.name == "nt":
-        executablePath = os.path.join(executablePath, \
-            globalParameters["CMakeBuildType"], \
-            "client.exe")
-      else:
-        executablePath = os.path.join(executablePath, "client")
-      runScriptFile.write("%s && echo %s%s%s && echo %s# Library Client:%s && echo %s# %s%s && %s\n" \
-        % (echoLine, q, HR, q, q, q, q, executablePath, q, executablePath) )
-    if globalParameters["NewClient"]:
-      for configFile in configPaths:
-        runScriptFile.write("{} --config-file {} {} --best-solution 1\n".format(ClientExecutable.getClientExecutable(), configFile, globalParameters["NewClientArgs"]))
+    for configFile in configPaths:
+      runScriptFile.write("{} --config-file {} {} --best-solution 1\n".format(ClientExecutable.getClientExecutable(), configFile, globalParameters["ClientArgs"]))
   if os.name != "nt":
     runScriptFile.write("exit $ERR\n")
   runScriptFile.close()
@@ -719,10 +572,7 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
     if tileAwareSelection:
       resultsFileName = os.path.join(stepBaseDir, "../Data", stepName+"_Granularity.csv")
     else:
-      if globalParameters["NewClient"] == 1:
-          resultsFileName = os.path.join(stepBaseDir, "../Data", stepName+"-new.csv")
-      else:
-          resultsFileName = os.path.join(stepBaseDir, "../Data", stepName+".csv")
+      resultsFileName = os.path.join(stepBaseDir, "../Data", stepName+".csv")
 
     newSolution = next(iter(newLibrary.solutions.values()))
     sourceDir = os.path.join(stepBaseDir, "source")

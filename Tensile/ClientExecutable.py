@@ -58,7 +58,6 @@ def clientExecutableEnvironment(builddir=None):
     builddir = Common.ensurePath(builddir)
 
     options = {'CMAKE_BUILD_TYPE': globalParameters["CMakeBuildType"],
-               'TENSILE_NEW_CLIENT': 'ON',
                'TENSILE_USE_MSGPACK': 'ON',
                'TENSILE_USE_LLVM': 'ON',
                'Tensile_LIBRARY_FORMAT': globalParameters["LibraryFormat"],

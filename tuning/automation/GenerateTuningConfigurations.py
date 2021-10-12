@@ -526,7 +526,6 @@ def OutputConfigs(problemMapper, configPath, outputName, library, tileAware, mfm
             newConfig.globalParameters = deepcopy(defaultHeader)
             if rk:
                 newConfig.globalParameters["MergeFiles"] = True
-            newConfig.globalParameters["NewClient"] = clientVal
             newConfig.globalParameters["DataInitTypeBeta"] = initBetaVal
             newConfig.libraryLogic = deepcopy(libraryLogicMapper[library])
             newConfig.libraryClient = True
