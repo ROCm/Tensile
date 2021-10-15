@@ -12283,17 +12283,17 @@ class KernelWriterAssembly(KernelWriter):
       sgprDst = CorD + "AddrInc"
       kStr += inst("s_mul_i32", sgpr(sgprDst), sgpr(sgprStride), mulValue4, "scale Stride{} *= numRows({}) * bpe".format(CorD, numRows4))
     elif kernel["MIWaveGroup"][1] == 4:
-      singleInstStride = 256 # fixed value. TODO: use proper parameter(s) to calculate this value
-      backToLeft = -3 * singleInstStride # fixed value. TODO: use proper parameter(s) to calculate this value
+      singleInstStride = 256 # only fixed value supported.
+      backToLeft = -3 * singleInstStride # only fixed value supported.
       # 1. every 4 iterations
       numRows4 = 4
-      mulValue4 = numRows4 * bpe # fixed value (4line * 8 Byte) TODO: use proper parameter(s) to calculate this value
+      mulValue4 = numRows4 * bpe # only fixed value supported (4line * 8 Byte)
       sgprDst = CorD + "AddrInc4"
       kStr += inst("s_mul_i32", sgpr(sgprDst), sgpr(sgprStride), mulValue4, "scale Stride{} *= numRows({}) * bpe".format(CorD, numRows4))
       kStr += inst("s_addk_i32", sgpr(sgprDst), hex(backToLeft), "")
       # 2. every 16 iterations
       numRows16 = (64 - numRows4 * 3)
-      mulValue16 = numRows16 * bpe # fixed value (64 - 4 * 3) * 8 Byte = 416) TODO: use proper parameter(s) to calculate this value
+      mulValue16 = numRows16 * bpe # only fixed value supported (64 - 4 * 3) * 8 Byte = 416)
       sgprDst = CorD + "AddrInc16"
       # 416 is too large. Need to split into 2 instructions (movk and mul)
       kStr += inst("s_movk_i32", sgpr(sgprDst), mulValue16, "")
