@@ -1788,7 +1788,7 @@ class Solution(collections.abc.Mapping):
             self._state[key]=value
     Solution.assignDerivedParameters(self._state)
     self._name = config["CustomKernelName"] if isCustomKernelConfig(config) else None
-    self.initHelperKernelObjests()
+    self.initHelperKernelObjects()
 
   # these keys are copied from ProblemType to internal that may be overridden
   InternalKeys = ["UseSgprForGRO","VectorStore"]
@@ -1806,7 +1806,7 @@ class Solution(collections.abc.Mapping):
 
   ########################################
   # create Helper Kernels
-  def initHelperKernelObjests(self):
+  def initHelperKernelObjects(self):
     self.initBetaOnlyKernelObjects()
     self.initConversionKernelObjects()
 
