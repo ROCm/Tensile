@@ -149,30 +149,31 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.numMfmaForLR = 1
       latencyLeft = self.miLatencyLeft
       miLatencyLeft = self.miLatencyLeft
-      # ds_read[A][0]
-      for i in range(self.numReadPerVectorA):
-        latencyLeft -= tensorParametersA["localReadInstruction"].IssueLatency*2
-        if latencyLeft < 0:
-          self.numMfmaForLR += 1
-          latencyLeft = max(miLatencyLeft - tensorParametersA["localReadInstruction"].IssueLatency*2,0)
-      # ds_read[B][0]
-      for i in range(self.numReadPerVectorB):
-        latencyLeft -= tensorParametersB["localReadInstruction"].IssueLatency*2
-        if latencyLeft < 0:
-          self.numMfmaForLR += 1
-          latencyLeft = max(miLatencyLeft - tensorParametersB["localReadInstruction"].IssueLatency*2,0)
-      # ds_read[A][1:]
-      for i in range(self.numReadsPerIterA-self.numReadPerVectorA):
-        latencyLeft -= tensorParametersA["localReadInstruction"].IssueLatency*2
-        if latencyLeft < 0:
-          self.numMfmaForLR += 1
-          latencyLeft = max(miLatencyLeft - tensorParametersA["localReadInstruction"].IssueLatency*2,0)
-      # ds_read[B][1:]
-      for i in range(self.numReadsPerIterB-self.numReadPerVectorB):
-        latencyLeft -= tensorParametersB["localReadInstruction"].IssueLatency*2
-        if latencyLeft < 0:
-          self.numMfmaForLR += 1
-          latencyLeft = max(miLatencyLeft - tensorParametersB["localReadInstruction"].IssueLatency*2,0)
+      for iui in range(kernel["InnerUnroll"]):
+        # ds_read[A][0]
+        for i in range(self.numReadPerVectorA):
+          latencyLeft -= tensorParametersA["localReadInstruction"].IssueLatency*2
+          if latencyLeft < 0:
+            self.numMfmaForLR += 1
+            latencyLeft = max(miLatencyLeft - tensorParametersA["localReadInstruction"].IssueLatency*2,0)
+        # ds_read[B][0]
+        for i in range(self.numReadPerVectorB):
+          latencyLeft -= tensorParametersB["localReadInstruction"].IssueLatency*2
+          if latencyLeft < 0:
+            self.numMfmaForLR += 1
+            latencyLeft = max(miLatencyLeft - tensorParametersB["localReadInstruction"].IssueLatency*2,0)
+        # ds_read[A][1:]
+        for i in range(self.numReadsPerIterA//kernel["InnerUnroll"]-self.numReadPerVectorA):
+          latencyLeft -= tensorParametersA["localReadInstruction"].IssueLatency*2
+          if latencyLeft < 0:
+            self.numMfmaForLR += 1
+            latencyLeft = max(miLatencyLeft - tensorParametersA["localReadInstruction"].IssueLatency*2,0)
+        # ds_read[B][1:]
+        for i in range(self.numReadsPerIterB//kernel["InnerUnroll"]-self.numReadPerVectorB):
+          latencyLeft -= tensorParametersB["localReadInstruction"].IssueLatency*2
+          if latencyLeft < 0:
+            self.numMfmaForLR += 1
+            latencyLeft = max(miLatencyLeft - tensorParametersB["localReadInstruction"].IssueLatency*2,0)
       # to calculate number of mfma we need to wait before data arrive from lds to vgpr.
       # latency: 40 quad-cycle for 4 word, 20 quad-cycle for 2 word, 10 quad-cycle for 1 word / half word
       self.numMfmaForNextLoopLR = self.numMfmaForLR
@@ -230,30 +231,31 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 # disable LocalRead if DirectToVgpr is enabled
                 doReadA = doReadA and (not kernel["DirectToVgprA"])
                 doReadB = doReadB and (not kernel["DirectToVgprB"])
-                # ds_read[A][0]
-                for i in range(self.numReadPerVectorA * doReadA):
-                  latencyLeft -= tensorParametersA["localReadInstruction"].IssueLatency*2
-                  if latencyLeft < 0:
-                    numMfmaForCurrentLoopLR += 1
-                    latencyLeft = max(self.miLatencyLeft - tensorParametersA["localReadInstruction"].IssueLatency*2,0)
-                # ds_read[B][0]
-                for i in range(self.numReadPerVectorB * doReadB):
-                  latencyLeft -= tensorParametersB["localReadInstruction"].IssueLatency*2
-                  if latencyLeft < 0:
-                    numMfmaForCurrentLoopLR += 1
-                    latencyLeft = max(self.miLatencyLeft - tensorParametersB["localReadInstruction"].IssueLatency*2,0)
-                # ds_read[A][1:]
-                for i in range((self.numReadsPerIterA - self.numReadPerVectorA) * doReadA):
-                  latencyLeft -= tensorParametersA["localReadInstruction"].IssueLatency*2
-                  if latencyLeft < 0:
-                    numMfmaForCurrentLoopLR += 1
-                    latencyLeft = max(self.miLatencyLeft - tensorParametersA["localReadInstruction"].IssueLatency*2,0)
-                # ds_read[B][1:]
-                for i in range((self.numReadsPerIterB - self.numReadPerVectorB) * doReadB):
-                  latencyLeft -= tensorParametersB["localReadInstruction"].IssueLatency*2
-                  if latencyLeft < 0:
-                    numMfmaForCurrentLoopLR += 1
-                    latencyLeft = max(self.miLatencyLeft - tensorParametersB["localReadInstruction"].IssueLatency*2,0)
+                for iui in range(kernel["InnerUnroll"]):
+                  # ds_read[A][0]
+                  for i in range(self.numReadPerVectorA * doReadA):
+                    latencyLeft -= tensorParametersA["localReadInstruction"].IssueLatency*2
+                    if latencyLeft < 0:
+                      numMfmaForCurrentLoopLR += 1
+                      latencyLeft = max(self.miLatencyLeft - tensorParametersA["localReadInstruction"].IssueLatency*2,0)
+                  # ds_read[B][0]
+                  for i in range(self.numReadPerVectorB * doReadB):
+                    latencyLeft -= tensorParametersB["localReadInstruction"].IssueLatency*2
+                    if latencyLeft < 0:
+                      numMfmaForCurrentLoopLR += 1
+                      latencyLeft = max(self.miLatencyLeft - tensorParametersB["localReadInstruction"].IssueLatency*2,0)
+                  # ds_read[A][1:]
+                  for i in range((self.numReadsPerIterA//kernel["InnerUnroll"] - self.numReadPerVectorA) * doReadA):
+                    latencyLeft -= tensorParametersA["localReadInstruction"].IssueLatency*2
+                    if latencyLeft < 0:
+                      numMfmaForCurrentLoopLR += 1
+                      latencyLeft = max(self.miLatencyLeft - tensorParametersA["localReadInstruction"].IssueLatency*2,0)
+                  # ds_read[B][1:]
+                  for i in range((self.numReadsPerIterB//kernel["InnerUnroll"] - self.numReadPerVectorB) * doReadB):
+                    latencyLeft -= tensorParametersB["localReadInstruction"].IssueLatency*2
+                    if latencyLeft < 0:
+                      numMfmaForCurrentLoopLR += 1
+                      latencyLeft = max(self.miLatencyLeft - tensorParametersB["localReadInstruction"].IssueLatency*2,0)
               lwStartMfmaIndex = numMfmaForCurrentLoopLR
           else:
             lwStartMfmaIndex = numMfmaPerIter * (kernel["LoopIters"] - 1 - self.numItersPLR) + self.numMfmaForLR
