@@ -12279,7 +12279,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["MIWaveGroup"][1] == 1:
       # 1. every iteration
       numRows4 = 4
-      mulValue4 = numRows4 * bpe # fixed value (4line * 8 Byte) TODO: use proper parameter(s) to calculate this value
+      mulValue4 = numRows4 * bpe # only fixed value supported (4line * 8 Byte)
       sgprDst = CorD + "AddrInc"
       kStr += inst("s_mul_i32", sgpr(sgprDst), sgpr(sgprStride), mulValue4, "scale Stride{} *= numRows({}) * bpe".format(CorD, numRows4))
     elif kernel["MIWaveGroup"][1] == 4:
