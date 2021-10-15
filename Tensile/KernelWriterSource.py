@@ -2136,7 +2136,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # End Summation
   ##############################################################################
-  def endSummation(self,kernel):
+  def endSummation(self,kernel, label = None, isOptNLL = False):
     return ""
 
   ##############################################################################
@@ -3312,4 +3312,88 @@ class KernelWriterSource(KernelWriter):
   # MapAcctoArch
   ##############################################################################
   def MapAcctoArchRegs(self, kernel, option):
+    return ""
+
+  ##############################################################################
+  # openmovaccVgpr
+  ##############################################################################
+  def openmovaccVgpr(self, kernel):
+    return ""
+
+  ##############################################################################
+  # getAccVgprCode
+  ##############################################################################
+  def getAccVgprCode(self,kernel,odd):
+    return ""
+
+  ##############################################################################
+  # closemovaccVgprAddrInc
+  ##############################################################################
+  def closemovaccVgprAddrInc(self, kernel):
+    return ""
+
+  ##############################################################################
+  # closemovaccVgpr
+  ##############################################################################
+  def closemovaccVgpr(self, kernel):
+    return ""
+
+  ##############################################################################
+  # generateOddCodeForStoreCInUnroll
+  ##############################################################################
+  def generateOddCodeForStoreCInUnroll(self,kernel):
+    return ""
+
+  ##############################################################################
+  # init for StoreCInUnroll
+  ##############################################################################
+  def initStoreCInUnroll(self, kernel):
+    return ""
+
+  ##############################################################################
+  # init for StoreCInUnroll per PersistentLoop
+  ##############################################################################
+  def initStoreCInUnrollPerPersistentLoop(self, kernel):
+    return ""
+
+  ##############################################################################
+  # swap SrdC and SrdCbackup, SrdD and SrdDbackup
+  ##############################################################################
+  def swapSrdCDandBackup(self, kernel):
+    return ""
+
+  ##############################################################################
+  # C/D address increment value for StoreCInUnroll
+  ##############################################################################
+  def generateCorDaddrIncrementForStoreCInUnroll(self, kernel, CorD):
+    return ""
+
+  ##############################################################################
+  # restore SrdCbackup and SrdDbackup
+  ##############################################################################
+  def restoreSrdCandDBackup(self, kernel):
+    return ""
+
+  ##############################################################################
+  # set storeC sync objects
+  ##############################################################################
+  def setStoreCsyncObject(self, kernel):
+    return ""
+
+  ##############################################################################
+  # reset storeC sync objects
+  ##############################################################################
+  def resetStoreCsyncObject(self, kernel):
+    return ""
+
+  ##############################################################################
+  # end process for StoreCInUnroll per PersistentLoop (OptNLL)
+  ##############################################################################
+  def endProcessPersistentLoopforStoreCInUnrollOptNLL(self, kernel):
+    return ""
+
+  ##############################################################################
+  # end process for StoreCInUnroll per PersistentLoop (NoOptNLL)
+  ##############################################################################
+  def endProcessPersistentLoopforStoreCInUnrollNoOptNLL(self, kernel):
     return ""
