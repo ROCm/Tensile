@@ -1049,10 +1049,7 @@ namespace Tensile
 
     size_t ContractionProblem::flopsPerMac() const
     {
-        if(m_a.dataType() == DataType::Int8x4 && m_b.dataType() == DataType::Int8x4)
-            return 4 * 2;
-        else
-            return 2;
+        return 2 * DataTypeInfo::Get(m_a.dataType()).packing;
     }
 
     size_t ContractionProblem::flopCount() const
