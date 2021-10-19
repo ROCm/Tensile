@@ -47,6 +47,7 @@ def generateForkedSolutions(problemType, constantParams, forkPermutations):
     print1("# Enumerating Solutions")
 
     solutions = []
+    solutionSet = set()
     for perm in forkPermutations:
         solution = {"ProblemType": deepcopy(problemType.state)}
         solution.update(constantParams)
@@ -55,7 +56,9 @@ def generateForkedSolutions(problemType, constantParams, forkPermutations):
         # TODO check if solution matches problem size for exact tile kernels
         solutionObject = Solution(solution)
         if solutionObject["Valid"]:
-            solutions.append(solutionObject)
+            if solutionObject not in solutionSet:
+                solutionSet.add(solutionObject)
+                solutions.append(solutionObject)
         elif globalParameters["PrintSolutionRejectionReason"]:
             print1("rejecting solution " + str(solutionObject))
 
