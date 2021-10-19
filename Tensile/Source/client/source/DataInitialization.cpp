@@ -75,6 +75,10 @@ namespace Tensile
                 return "RandomNarrow";
             case InitMode::NegOne:
                 return "NegOne";
+            case InitMode::Max:
+                return "Max";
+            case InitMode::DenormMin:
+                return "DenormMin";
 
             case InitMode::Count:
                 break;
@@ -130,6 +134,10 @@ namespace Tensile
                 mode = InitMode::RandomNarrow;
             else if(strValue == ToString(InitMode::NegOne))
                 mode = InitMode::NegOne;
+            else if(strValue == ToString(InitMode::Max))
+                mode = InitMode::Max;
+            else if(strValue == ToString(InitMode::DenormMin))
+                mode = InitMode::DenormMin;
             else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
             {
                 int value = atoi(strValue.c_str());

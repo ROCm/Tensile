@@ -939,6 +939,9 @@ validParameters = {
     # assume atomics always work correctly.
     "DisableAtomicFail": [False, True],
 
+    # alternate implementation for fp16 HPA MFMA
+    "Fp16AltImpl": [False, True],
+
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
     #       - Recommended min is enough WG to use all resources on the CU
@@ -1308,6 +1311,7 @@ defaultBenchmarkCommonParameters = [
     {"GroupLoadStore":            [ False ] },
     {"MIArchVgpr":                [ False ] },
     {"StoreCInUnroll":            [ False ] },
+    {"Fp16AltImpl":               [ False ] }
     ]
 # benchmark these solution independently
 defaultForkParameters = []
@@ -1511,11 +1515,14 @@ defaultProblemType = {
     "MirrorDimsB":              [],
 
     # for LD description
-    "NumIndicesLD":            4,
+    "NumIndicesLD":             4,
     "IndexAssignmentsLD":       [3, 4, 5, 6],      # order is LDD, LDC, LDA, LDB
 
     # Tile aware solution selection
-    "TileAwareSelection":       False
+    "TileAwareSelection":       False,
+
+    # FP16 Alternate Implementation
+    "Fp16AltImpl":              False
     }
 
 defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]
