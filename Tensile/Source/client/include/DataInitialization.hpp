@@ -65,6 +65,8 @@ namespace Tensile
             TrigAbsCos, // 15
             RandomNarrow, // 16
             NegOne, // 17
+            Max, // 18
+            DenormMin, // 19
             Count
         };
 
@@ -164,6 +166,10 @@ namespace Tensile
                     return getValue<T, InitMode::BadOutput>();
                 case InitMode::NegOne:
                     return getValue<T, InitMode::NegOne>();
+                case InitMode::Max:
+                    return getValue<T, InitMode::Max>();
+                case InitMode::DenormMin:
+                    return getValue<T, InitMode::DenormMin>();
                 case InitMode::SerialIdx:
                 case InitMode::SerialDim0:
                 case InitMode::SerialDim1:
@@ -224,6 +230,13 @@ namespace Tensile
                     break;
                 case InitMode::NegOne:
                     initArray<T, InitMode::NegOne>(array, elements);
+                    break;
+                case InitMode::Max:
+                    initArray<T, InitMode::Max>(array, elements);
+                    break;
+                case InitMode::DenormMin:
+                    initArray<T, InitMode::DenormMin>(array, elements);
+                    break;
                 case InitMode::SerialIdx:
                 case InitMode::SerialDim0:
                 case InitMode::SerialDim1:
@@ -272,6 +285,12 @@ namespace Tensile
                     break;
                 case InitMode::NegOne:
                     initArray<T, InitMode::NegOne>(array, tensor);
+                    break;
+                case InitMode::Max:
+                    initArray<T, InitMode::Max>(array, tensor);
+                    break;
+                case InitMode::DenormMin:
+                    initArray<T, InitMode::DenormMin>(array, tensor);
                     break;
                 case InitMode::SerialIdx:
                     initArraySerialIdx<T>(array, tensor);
@@ -507,6 +526,16 @@ namespace Tensile
             return -1.0f;
         }
         template <>
+        inline float DataInitialization::getValue<float, InitMode::Max>()
+        {
+            return std::numeric_limits<float>::max();
+        }
+        template <>
+        inline float DataInitialization::getValue<float, InitMode::DenormMin>()
+        {
+            return std::numeric_limits<float>::denorm_min();
+        }
+        template <>
         inline float DataInitialization::getValue<float, InitMode::NaN>()
         {
             return std::numeric_limits<float>::quiet_NaN();
@@ -553,6 +582,16 @@ namespace Tensile
         inline double DataInitialization::getValue<double, InitMode::NegOne>()
         {
             return -1.0;
+        }
+        template <>
+        inline double DataInitialization::getValue<double, InitMode::Max>()
+        {
+            return std::numeric_limits<double>::max();
+        }
+        template <>
+        inline double DataInitialization::getValue<double, InitMode::DenormMin>()
+        {
+            return std::numeric_limits<double>::denorm_min();
         }
         template <>
         inline double DataInitialization::getValue<double, InitMode::NaN>()
@@ -606,6 +645,23 @@ namespace Tensile
         {
             return std::complex<float>(-1.0f, 0.0f);
         }
+
+        template <>
+        inline std::complex<float>
+            DataInitialization::getValue<std::complex<float>, InitMode::Max>()
+        {
+            return std::complex<float>(std::numeric_limits<float>::max(),
+                                       std::numeric_limits<float>::max());
+        }
+
+        template <>
+        inline std::complex<float>
+            DataInitialization::getValue<std::complex<float>, InitMode::DenormMin>()
+        {
+            return std::complex<float>(std::numeric_limits<float>::denorm_min(),
+                                       std::numeric_limits<float>::denorm_min());
+        }
+
         template <>
         inline std::complex<float>
             DataInitialization::getValue<std::complex<float>, InitMode::NaN>()
@@ -669,6 +725,20 @@ namespace Tensile
         }
         template <>
         inline std::complex<double>
+            DataInitialization::getValue<std::complex<double>, InitMode::Max>()
+        {
+            return std::complex<double>(std::numeric_limits<double>::max(),
+                                        std::numeric_limits<double>::max());
+        }
+        template <>
+        inline std::complex<double>
+            DataInitialization::getValue<std::complex<double>, InitMode::DenormMin>()
+        {
+            return std::complex<double>(std::numeric_limits<double>::denorm_min(),
+                                        std::numeric_limits<double>::denorm_min());
+        }
+        template <>
+        inline std::complex<double>
             DataInitialization::getValue<std::complex<double>, InitMode::NaN>()
         {
             return std::complex<double>(std::numeric_limits<double>::quiet_NaN(),
@@ -724,6 +794,16 @@ namespace Tensile
             return -1;
         }
         template <>
+        inline int32_t DataInitialization::getValue<int32_t, InitMode::Max>()
+        {
+            return std::numeric_limits<int32_t>::max();
+        }
+        template <>
+        inline int32_t DataInitialization::getValue<int32_t, InitMode::DenormMin>()
+        {
+            return std::numeric_limits<int32_t>::denorm_min();
+        }
+        template <>
         inline int32_t DataInitialization::getValue<int32_t, InitMode::NaN>()
         {
             throw std::runtime_error("NaN not available for int32_t.");
@@ -770,6 +850,16 @@ namespace Tensile
         inline Int8x4 DataInitialization::getValue<Int8x4, InitMode::NegOne>()
         {
             return Int8x4{-1, -1, -1, -1};
+        }
+        template <>
+        inline Int8x4 DataInitialization::getValue<Int8x4, InitMode::Max>()
+        {
+            return Int8x4{127, 127, 127, 127};
+        }
+        template <>
+        inline Int8x4 DataInitialization::getValue<Int8x4, InitMode::DenormMin>()
+        {
+            return Int8x4{1, 1, 1, 1};
         }
         template <>
         inline Int8x4 DataInitialization::getValue<Int8x4, InitMode::NaN>()
@@ -824,6 +914,16 @@ namespace Tensile
         inline Half DataInitialization::getValue<Half, InitMode::NegOne>()
         {
             return static_cast<Half>(-1);
+        }
+        template <>
+        inline Half DataInitialization::getValue<Half, InitMode::Max>()
+        {
+            return static_cast<Half>(65504.0);
+        }
+        template <>
+        inline Half DataInitialization::getValue<Half, InitMode::DenormMin>()
+        {
+            return static_cast<Half>(0.000000059604645);
         }
         template <>
         inline Half DataInitialization::getValue<Half, InitMode::NaN>()
@@ -888,6 +988,16 @@ namespace Tensile
             return static_cast<BFloat16>(-1);
         }
         template <>
+        inline BFloat16 DataInitialization::getValue<BFloat16, InitMode::Max>()
+        {
+            throw std::runtime_error("Not yet implemented.");
+        }
+        template <>
+        inline BFloat16 DataInitialization::getValue<BFloat16, InitMode::DenormMin>()
+        {
+            throw std::runtime_error("Not yet implemented.");
+        }
+        template <>
         inline BFloat16 DataInitialization::getValue<BFloat16, InitMode::NaN>()
         {
             return static_cast<BFloat16>(std::numeric_limits<float>::quiet_NaN());
@@ -934,6 +1044,16 @@ namespace Tensile
         inline int8_t DataInitialization::getValue<int8_t, InitMode::NegOne>()
         {
             return -1;
+        }
+        template <>
+        inline int8_t DataInitialization::getValue<int8_t, InitMode::Max>()
+        {
+            return 127;
+        }
+        template <>
+        inline int8_t DataInitialization::getValue<int8_t, InitMode::DenormMin>()
+        {
+            return 1;
         }
         template <>
         inline int8_t DataInitialization::getValue<int8_t, InitMode::NaN>()

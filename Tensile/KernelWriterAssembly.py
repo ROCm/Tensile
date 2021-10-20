@@ -1126,6 +1126,9 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["MFMA_BF16_1K"] and not self.asmCaps["HasMFMA_bf16_1k"]:
         raise RuntimeError("BF16_1k MatrixInstruction not supported for {0}".format(self.version))
 
+      if kernel["ProblemType"]["Fp16AltImpl"] and not self.asmCaps["HasMFMA_bf16_1k"]:
+        raise RuntimeError("Fp16AltImpl not supported for {0}".format(self.version))
+
     self.AsmBugs = {}
     self.AsmBugs["ExplicitCO"] = globalParameters["AsmCaps"][self.version]["HasExplicitCO"]
     self.AsmBugs["ExplicitNC"] = globalParameters["AsmCaps"][self.version]["HasExplicitNC"]
@@ -1675,6 +1678,9 @@ class KernelWriterAssembly(KernelWriter):
 
     numVgprAddressDbg = self.rpga if globalParameters["DebugKernel"] else 0
 
+    if kernel["ProblemType"]["Fp16AltImpl"]:
+      self.numG2LpipeRegisters = 2
+
     ####################################
     # num vgprs: c write address
     # 1 address where to write first value
@@ -1846,6 +1852,11 @@ class KernelWriterAssembly(KernelWriter):
     else:
       self.startVgprLocalReadAddressesB = vgprIdx
       vgprIdx += self.numVgprLocalReadAddressesB
+
+    if kernel["ProblemType"]["Fp16AltImpl"]:
+      self.G2Lpipe0 = vgprIdx
+      self.G2Lpipe1 = self.G2Lpipe0 + 1
+      vgprIdx += 2
 
     self.startVgprAddressDbg = vgprIdx
     vgprIdx += numVgprAddressDbg
@@ -2789,6 +2800,10 @@ class KernelWriterAssembly(KernelWriter):
             self.GlobalReadOffsetC)
       kStr += self.macroRegister("vgprGlobalWriteOffsetD", \
           self.GlobalWriteOffsetD)
+
+    if kernel["ProblemType"]["Fp16AltImpl"]:
+      kStr += self.macroRegister("vgprG2Lpipe0", self.G2Lpipe0)
+      kStr += self.macroRegister("vgprG2Lpipe1", self.G2Lpipe1)
 
     # Serial is always the last register in the pool so the store
     # code doesn't have to deal with fragmentation
@@ -6166,13 +6181,13 @@ class KernelWriterAssembly(KernelWriter):
                        / self.kernel["WavefrontSize"] * numRegistersOut
     dividerFortidInK = kernel["MatrixInstN"] * kernel["MatrixInstB"]
     numMIInput       = kernel["MIInputPerThread"]
-    miInTypeName     = kernel["ProblemType"]["DataType"].toNameAbbrev() # v_mfma_[...xK]<InType>
+    miInTypeName     = "bf16" if kernel["ProblemType"]["Fp16AltImpl"] else kernel["ProblemType"]["DataType"].toNameAbbrev() # v_mfma_[...xK]<InType>
     miOutTypeName    = kernel["ProblemType"]["DataType"].MIOutputTypeNameAbbrev() # v_mfma_<OutType>..
     vgprPerInput     = int(numMIInput * numRegistersIn)
     shiftPerElement  = int(numRegistersIn * 32)
     s_nop            = 0
     accumRegType     = "a" if not kernel["MIArchVgpr"] else "v"
-    mfma_1k          = "_1k" if kernel["MFMA_BF16_1K"] else ""
+    mfma_1k          = "_1k" if (kernel["MFMA_BF16_1K"] or kernel["ProblemType"]["Fp16AltImpl"]) else ""
     accStoreCIdx     = self.startaccValuC1 if kernel["StoreCInUnroll"] and lastKinloop else 0
 
     if tail and self.prefetchAcrossPersistent0:
@@ -8325,6 +8340,15 @@ class KernelWriterAssembly(KernelWriter):
                 paramList.append(vgpr("G2L%s+%u"%(tP["tensorChar"], g2lIdx), blockWidth))
               if self.db["ForceInputValue%s"%tc]:
                 localWriteCode.addInst("v_mov_b32", vgpr("G2L%s+%u"%(tc, g2lIdx)), self.db["ForceValue%s"%tc], "ForceInputValue")
+              if kernel["ProblemType"]["Fp16AltImpl"]:
+                numIters = 1 if blockWidth <= 1 else blockWidth 
+                for iter in range(0, numIters):
+                   vgprsrc = vgpr("G2L%s+%u"%(tc, g2lIdx+iter))
+                   vgprsrc += " src0_sel:WORD_1"
+                   localWriteCode.addInst("v_cvt_f32_f16", vgpr("G2Lpipe0"), vgpr("G2L%s+%u"%(tc, g2lIdx+iter)),"")
+                   localWriteCode.addInst("v_cvt_f32_f16", vgpr("G2Lpipe1"), vgprsrc,"")
+                   localWriteCode.addInst("v_pack_b32_f16", vgpr("G2L%s+%u"%(tc, g2lIdx+iter)), vgpr("G2Lpipe0"),vgpr("G2Lpipe1"), "op_sel:[1,1,0]","")
+
 
             for oIdx in range(0, numOffsets):
               paramList.append(offset)

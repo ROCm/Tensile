@@ -319,6 +319,9 @@ class ProblemPredicate(Properties.Predicate):
 
         if key.startswith('Assert'):
             raise RuntimeError("Unknown assertion key: {}".format(key))
+        
+        if key == "Fp16AltImpl":
+            return cls("Fp16AltImpl") if value != False else None
 
     @classmethod
     def CompoundPredicates(cls, state, problemType):
