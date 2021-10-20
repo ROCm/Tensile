@@ -518,7 +518,7 @@ def getResults(resultsFileName, solutions, enableTileSelection, newResultsFileNa
 # Write Benchmark Files
 ################################################################################
 def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, stepName, filesToCopy, solutionSummationSizes):
-  if not globalParameters["MergeFiles"]:
+  if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Solutions"))
     ensurePath(os.path.join(globalParameters["WorkingPath"], "Kernels"))
 
