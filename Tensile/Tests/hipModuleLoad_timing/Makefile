@@ -1,7 +1,7 @@
-CXX=/opt/rocm/hip/bin/hipcc
-LIBFLAGS=-L/opt/rocm/hip/lib/
+CXX=/opt/rocm/bin/hipcc
+LIBFLAGS=-L/opt/rocm/lib/
 LIBS=-lamdhip64
-INCFLAGS=-I/opt/rocm/hip/include/
+INCFLAGS=-I/opt/rocm/include/
 
 hipModuleLoadTiming.out: hipModuleLoadTiming.o
 	$(CXX) -o $@ $(LIBFLAGS) $^
