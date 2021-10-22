@@ -7156,7 +7156,7 @@ class KernelWriterAssembly(KernelWriter):
           sgpr(maxAddrSgpr+1), \
           "prepend address upper")
       # sgpr->vgpr
-      maxAddrVgpr = self.vgprPool.checkOut(2, "maxAddrVgpr")
+      maxAddrVgpr = self.vgprPool.checkOutAligned(2, 2, "maxAddrVgpr")
       kStr += inst("v_mov_b32", vgpr(maxAddrVgpr+0), sgpr(maxAddrSgpr+0), "sgpr->vgpr")
       kStr += inst("v_mov_b32", vgpr(maxAddrVgpr+1), sgpr(maxAddrSgpr+1), "sgpr->vgpr")
 
