@@ -37,7 +37,7 @@ REDO=false
 
 HELP_STR="
 Pre-Requisites:
-  >=Anaconda 3.6 (or install python3.6 or higher, python3-pip/pip3, python3-yaml, python3-setuptools, python3-distutils,
+  >=python3.6 or higher, python3-pip/pip3, python3-yaml, python3-setuptools, python3-distutils,
       python3-venv, wheel, setuptools, pyyaml, msgpack, matplotlib, pandas, and numpy)
   >=llvm-6.0-dev, >=cmake3.5, zlib1g-dev
   >=rocm3.3 stack for hip-clang
@@ -141,12 +141,6 @@ if ${DEPENDENCIES}; then
 
   # add required python dependencies
   pip3 install setuptools --upgrade && pip3 install wheel && pip3 install pyyaml msgpack
-
-  # download and install Anaconda to ensure the spreadsheet can be generated
-  if [ -z "$(ls -A ~/anaconda)" ]; then
-    wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh -O ~/anaconda3.7.sh && \
-    bash ~/anaconda3.7.sh -b -p ~/anaconda && eval "$(~/anaconda/bin/conda shell.bash hook)"
-  fi
 
   # Install Gtest
   if [ -z "$(ls -A /usr/src/gtest/googletest-release-1.10.0)" ]; then

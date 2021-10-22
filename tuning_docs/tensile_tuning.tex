@@ -1217,14 +1217,7 @@ libmsgpack-dev libmsgpackc2 wget
 \noindent Then install:
 
 \begin{lstlisting}[language=bash,breaklines=true]
-pip3 install setuptools --upgrade && pip3 install wheel && pip3 install pyyaml msgpack
-\end{lstlisting}
-
-\noindent Download and install Anaconda to ensure the spreadsheet can be generated:
-
-\begin{lstlisting}[language=bash,breaklines=true]
-wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh -O ~/anaconda3.7.sh && \
-bash ~/anaconda3.7.sh -b -p ~/anaconda && eval "$(~/anaconda/bin/conda shell.bash hook)"
+pip3 install setuptools --upgrade && pip3 install wheel && pip3 install pyyaml msgpack openpyxl pandas
 \end{lstlisting}
 
 \section{Appendix B - Tensile Tuning Parameters}
