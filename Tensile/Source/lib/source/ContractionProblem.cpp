@@ -1049,7 +1049,7 @@ namespace Tensile
 
     size_t ContractionProblem::flopsPerMac() const
     {
-        return 2;
+        return 2 * DataTypeInfo::Get(m_a.dataType()).packing;
     }
 
     size_t ContractionProblem::flopCount() const

@@ -1295,6 +1295,27 @@ namespace Tensile
                     }
                 }
             };
+
+            struct Fp16AltImpl : public Predicate_CRTP<Fp16AltImpl, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+
+                Fp16AltImpl() = default;
+
+                static std::string Type()
+                {
+                    return "Fp16AltImpl";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.fp16AltImpl();
+                }
+            };
         } // namespace Contraction
 
         /**

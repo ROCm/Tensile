@@ -218,7 +218,7 @@ class MasterSolutionLibrary:
     @classmethod
     def FromOriginalState(cls, d, origSolutions, solutionClass=Contractions.Solution, libraryOrder = None):
         if libraryOrder is None:
-            libraryOrder = ['Hardware', 'OperationIdentifier', 'PerformanceMetric', 'Predicates', 'Matching']
+            libraryOrder = ['Hardware', 'OperationIdentifier', 'PerformanceMetric', 'Fp16AltImpl', 'Predicates', 'Matching']
 
         deviceSection = d[1:4]
         origProblemType = d[4]
@@ -226,8 +226,12 @@ class MasterSolutionLibrary:
         origLibrary = d[6:8]
 
         perfMetric = 'DeviceEfficiency'
-        if len(d) > 10:
+        if len(d) > 10 and d[10]:
             perfMetric = d[10]
+
+        fp16AltImpl = False
+        if len(d) > 11 and d[11]:
+            fp16AltImpl = True
 
         problemType = Contractions.ProblemType.FromOriginalState(origProblemType)
 
@@ -290,6 +294,15 @@ class MasterSolutionLibrary:
             elif libName == 'PerformanceMetric':
                 if perfMetric != 'DeviceEfficiency':
                     predicate = Properties.Predicate(tag=perfMetric)
+                else:
+                    predicate = Properties.Predicate(tag='TruePred')
+                newLib = PredicateLibrary(tag='Problem')
+                newLib.rows.append({'predicate': predicate, 'library': library})
+                library = newLib
+
+            elif libName == 'Fp16AltImpl':
+                if fp16AltImpl:
+                    predicate = Properties.Predicate(tag='Fp16AltImpl')
                 else:
                     predicate = Properties.Predicate(tag='TruePred')
                 newLib = PredicateLibrary(tag='Problem')

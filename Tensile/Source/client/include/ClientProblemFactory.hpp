@@ -83,6 +83,7 @@ namespace Tensile
             ArithmeticUnit    m_arithmeticUnit;
             KernelLanguage    m_kernelLanguage;
             PerformanceMetric m_performanceMetric;
+            bool              m_fp16AltImpl;
 
             std::vector<std::vector<size_t>> m_problemSizes;
             std::vector<std::vector<size_t>> m_aStrides;

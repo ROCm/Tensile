@@ -646,7 +646,7 @@ validParameters = {
     #  - Tail loop can be unrolled up to InnerUnroll amount if AssertSummationElementMultiple%InnerUnroll==0
     #
     # 1 indicates no assertion (since all sizes are multiples of 1)
-    "AssertSummationElementMultiple": [1,2,4,8],
+    "AssertSummationElementMultiple": [1,2,4,8,16],
 
     # Kernel generator will assume that the FreeIndex[0] size is some multiple of the element size
     # and use this to optimize the kernel.
@@ -896,6 +896,15 @@ validParameters = {
     # issue global instruction b2b has better performance
     "GroupLoadStore":             [False, True],
     #
+    # Do storeC (output of GEMM) in unroll Loop; When PK enabled, storeC Code section can be
+    # moved into unroll Loop code section for tiles[0..N-2], storeC scheduled in PK[1..N-1] 
+    # Enable this feature when PK is enabled
+    # Enable this feature when you have 2 or More Tiles/CU
+    # disable StoreSyncOpt, StorePriorityOpt,GroupLoadStore feature when this feature is enabled
+    # enable PersistentKernel , PrefetchAcrossPersistent
+    "StoreCInUnroll":             [False, True],
+
+
     # In order to remove the copying from Acc vgpr to Arch vgpr, only use Arch vgprs for v_mfma_xxx.
     # Only support for kernel whose totalVgpr counts less than 256 and gcn that has control bit ACC_CD.
     "MIArchVgpr":               [False, True],
@@ -929,6 +938,9 @@ validParameters = {
 
     # assume atomics always work correctly.
     "DisableAtomicFail": [False, True],
+
+    # alternate implementation for fp16 HPA MFMA
+    "Fp16AltImpl": [False, True],
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
@@ -1298,6 +1310,8 @@ defaultBenchmarkCommonParameters = [
     {"StoreSyncOpt":              [ 0 ] },
     {"GroupLoadStore":            [ False ] },
     {"MIArchVgpr":                [ False ] },
+    {"StoreCInUnroll":            [ False ] },
+    {"Fp16AltImpl":               [ False ] }
     ]
 # benchmark these solution independently
 defaultForkParameters = []
@@ -1501,11 +1515,14 @@ defaultProblemType = {
     "MirrorDimsB":              [],
 
     # for LD description
-    "NumIndicesLD":            4,
+    "NumIndicesLD":             4,
     "IndexAssignmentsLD":       [3, 4, 5, 6],      # order is LDD, LDC, LDA, LDB
 
     # Tile aware solution selection
-    "TileAwareSelection":       False
+    "TileAwareSelection":       False,
+
+    # FP16 Alternate Implementation
+    "Fp16AltImpl":              False
     }
 
 defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]

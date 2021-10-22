@@ -1183,6 +1183,7 @@ class ProblemType(Mapping):
     # Other
     if self["UseBeta"]: name += "B"
     if self["HighPrecisionAccumulate"] and not self["SilentHighPrecisionAccumulate"]: name += "H"
+    if self["Fp16AltImpl"]: name += "R"
     if self["UseInitialStridesAB"]: name += "I"
     if self["UseInitialStridesCD"]: name += "Ic"
 
@@ -2344,17 +2345,20 @@ class Solution(collections.abc.Mapping):
   def isDirectToVgprDoable(state, tc):
     # With MatrixInstruction only (tentative)
     if not state["EnableMatrixInstruction"] :
-      print2("DirectToVgpr is for MatrixInstruction only")
+      #print2("DirectToVgpr is for MatrixInstruction only")
+      reject(state, "DirectToVgpr is for MatrixInstruction only")
       return False
 
     # Double only (tentative)
     if not state["ProblemType"]["DataType"].isDouble() :
-      print2("so far, DirectToVgpr is for dobule only")
+      #print2("so far, DirectToVgpr is for dobule only")
+      reject(state, "so far, DirectToVgpr is for dobule only")
       return False
 
     # Problem type Check. Support N (for A) T (for B) only
     if not state["ProblemType"]["TLU%c"%tc]:
-      print2("DirectToVgpr%c supports only N (for A) T (for B) format"%tc)
+      #print2("DirectToVgpr%c supports only N (for A) T (for B) format"%tc)
+      reject(state, "DirectToVgpr%c supports only N (for A) T (for B) format"%tc)
       return False
 
     # MIWaveGroup check
@@ -2362,10 +2366,18 @@ class Solution(collections.abc.Mapping):
     #  for B, MIWaveGroup should be [1, 4]
     # This is to limit the number of Vgpr
     if tc == 'A' and not (state['MIWaveGroup'][0] == 4 and state['MIWaveGroup'][1] == 1):
-      print2("MIWaveGroup should be [4, 1] for DirectToVgprA. Current value is [%s]"%state['MIWaveGroup'])
+      #print2("MIWaveGroup should be [4, 1] for DirectToVgprA. Current value is [%s]"%state['MIWaveGroup'])
+      reject(state, "MIWaveGroup should be [4, 1] for DirectToVgprA. Current value is [%s]"%state['MIWaveGroup'])
       return False
     if tc == 'B' and not (state['MIWaveGroup'][0] == 1 and state['MIWaveGroup'][1] == 4):
-      print2("MIWaveGroup should be [1, 4] for DirectToVgprB. Current value is [%s]"%state['MIWaveGroup'])
+      #print2("MIWaveGroup should be [1, 4] for DirectToVgprB. Current value is [%s]"%state['MIWaveGroup'])
+      reject(state, "MIWaveGroup should be [1, 4] for DirectToVgprB. Current value is [%s]"%state['MIWaveGroup'])
+      return False
+
+    # Does not work with WaveSeparateGlobalRead
+    if state["WaveSeparateGlobalRead%c"%tc]:
+      #print2("DirectToVgpr%c does not supports WaveSeparateGlobalRead%c"%(tc, tc))
+      reject(state, "DirectToVgpr%c does not supports WaveSeparateGlobalRead%c"%(tc, tc))
       return False
 
     # Does not work with DirectToLDS
@@ -2916,10 +2928,12 @@ class Solution(collections.abc.Mapping):
     # Need to be done before calling setGlobalLoadVectorWidth and setGlobalLoadTileDimClassic
     if state["DirectToVgprA"]:
       if not Solution.isDirectToVgprDoable(state, 'A'):
-        state["DirectToVgprA"] = False
+        #state["DirectToVgprA"] = False
+        return  # rejected
     if state["DirectToVgprB"]:
       if not  Solution.isDirectToVgprDoable(state, 'B'):
-        state["DirectToVgprB"] = False
+        #state["DirectToVgprB"] = False
+        return  # rejected
 
     ########################################
     # Search DepthU
@@ -3488,6 +3502,13 @@ class Solution(collections.abc.Mapping):
         reject(state, "AtomicAddC requires AssertCEqualsD")
         return
 
+    if state["ProblemType"]["Fp16AltImpl"]:
+      if not (state["ProblemType"]["DataType"].isHalf() and \
+              state["ProblemType"]["HighPrecisionAccumulate"] and \
+              state["EnableMatrixInstruction"]):
+        reject(state, "Fp16AltImpl requires FP16 HPA MFMA")
+        return
+
     #check not support cases and calculate lds resources
     if state["StoreRemapVectorWidth"]:
       if not state["EnableMatrixInstruction"]:
@@ -3577,6 +3598,42 @@ class Solution(collections.abc.Mapping):
     if state["KernelLanguage"] != "Assembly" and state["InnerUnroll"] != 1:
       reject(state, "InnerUnroll only supported on assembly")
     state["LoopUnroll"] //= state["InnerUnroll"]
+
+    #constraints for StoreCInUnroll feature
+    if state["StoreCInUnroll"]:
+      if not state["ProblemType"]["DataType"].isDouble():
+        reject(state, "StoreCInUnroll currently only available for dgemm")
+        return
+      if state["MIArchVgpr"]:
+        reject(state, "MIArchVgpr is not supported for StoreCinUnroll")
+        return
+      if not state["PersistentKernel"]:
+        reject(state, "StoreCInUnroll requires PersistentKernel feature")
+        return
+      if not state["PrefetchAcrossPersistent"]:
+        reject(state, "StoreCInUnroll requires PrefetchAcrossPersistent feature")
+        return
+      if state["VectorWidth"] != 2:
+        reject(state, "StoreCInUnroll requires VectorWidth=2")
+        return
+      if state["AtomicAddC"] and state["StoreVectorWidth"] != 1:
+        reject(state, "StoreCInUnroll requires AtomicAddC with StoreVectorWidth=1")
+        return
+      if state["ScheduleGlobalRead"] != 1:
+        reject(state, "StoreCInUnroll requires ScheduleGlobalRead=1")
+        return
+      if state["PrefetchGlobalRead"] != 1:
+        reject(state, "StoreCInUnroll requires PrefetchGlobalRead=1")
+        return
+      if not state["ExpandPointerSwap"]:
+        reject(state, "StoreCInUnroll requires ExpandPointerSwap")
+        return
+      if state["ScheduleIterAlg"] != 3:
+        reject(state, "StoreCInUnroll requires ScheduleIterAlg=3")
+        return
+      if state['MIWaveGroup'][1] != 1 and state['MIWaveGroup'][1] != 4:
+        reject(state, "StoreCInUnroll requires [MIWaveGroup][1]=1 or 4")
+        return
 
     # check LocalDotLayout
     ldl = state["LocalDotLayout"]
@@ -3879,9 +3936,10 @@ class Solution(collections.abc.Mapping):
     requiredParameters["MatrixInstBM"]      = False # always prepended
     requiredParameters["MatrixInstBN"]      = False # always prepended
     requiredParameters["CustomKernelName"]  = False # Will not affect naming
+    requiredParameters["Fp16AltImpl"]       = False # Will show up as a different type
 
-    requiredParameters["Kernel"]       = True  # distinguish kernels from solutions
-                                               # for single-source compilation
+    requiredParameters["Kernel"]            = True  # distinguish kernels from solutions
+                                                    # for single-source compilation
     return requiredParameters
 
   ########################################

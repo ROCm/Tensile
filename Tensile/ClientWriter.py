@@ -54,6 +54,8 @@ class DataInitName(Enum):
   TrigAbsCos = 15
   RandomNarrow = 16
   NegOne = 17
+  Max = 18
+  DenormMin = 19
 
 class ClientLogLevel(Enum):
   Error = 0
@@ -557,6 +559,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
 
         param("library-update-file",      globalParameters["LibraryUpdateFile"])
         param("library-update-comment",   globalParameters["LibraryUpdateComment"])
+
 
 def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection, configBase = "ClientParameters", libraryFile = None):
 
