@@ -143,11 +143,11 @@ if ${DEPENDENCIES}; then
   pip3 install setuptools --upgrade && pip3 install wheel && pip3 install pyyaml msgpack
 
   # Install Gtest
-  if [ -z "$(ls -A /usr/src/gtest/googletest-release-1.10.0)" ]; then
+  if [ -z "$(ls -A /usr/src/gtest/googletest-release-1.11.0)" ]; then
     sudo mkdir -p /usr/src/gtest && pushd /usr/src/gtest && \
-    sudo wget https://github.com/google/googletest/archive/release-1.10.0.tar.gz  && \
-    sudo tar -xvf release-1.10.0.tar.gz  && \
-    pushd googletest-release-1.10.0 && \
+    sudo wget https://github.com/google/googletest/archive/release-1.11.0.tar.gz  && \
+    sudo tar -xvf release-1.11.0.tar.gz  && \
+    pushd googletest-release-1.11.0 && \
     sudo mkdir build && pushd build || exit && sudo cmake .. && sudo make && sudo make install \
       && popd || exit && popd || exit && popd || exit
   fi
