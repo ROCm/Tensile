@@ -60,7 +60,7 @@ def apply_print_exception(item, *args):
     sys.stdout.flush()
     sys.stderr.flush()
 
-def ProcessingPool(enable=True):
+def ProcessingPool(enable=True, maxTasksPerChild=None):
   import multiprocessing
   import multiprocessing.dummy
 
@@ -69,9 +69,9 @@ def ProcessingPool(enable=True):
   if (not enable) or threadCount <= 1:
     return multiprocessing.dummy.Pool(1)
 
-  return multiprocessing.Pool(threadCount)
+  return multiprocessing.Pool(threadCount, maxtasksperchild=maxTasksPerChild)
 
-def ParallelMap(function, objects, message="", enable=True, method=None):
+def ParallelMap(function, objects, message="", enable=True, method=None, maxTasksPerChild=None):
   """
   Generally equivalent to list(map(function, objects)), possibly executing in parallel.
 
@@ -85,7 +85,7 @@ def ParallelMap(function, objects, message="", enable=True, method=None):
   """
   from .Common import globalParameters
   threadCount = CPUThreadCount(enable)
-  pool = ProcessingPool(enable)
+  pool = ProcessingPool(enable, maxTasksPerChild)
 
   if threadCount <= 1 and globalParameters["ShowProgressBar"]:
     # Provide a progress bar for single-threaded operation.

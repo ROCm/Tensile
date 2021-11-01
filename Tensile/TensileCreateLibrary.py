@@ -468,7 +468,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   prepAsm(kernelWriterAssembly)
 
   kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
-  results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap)
+  results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap, maxTasksPerChild=1)
 
   removeKernels = []
   removeSolutions = []
@@ -1187,18 +1187,56 @@ def generateKernelObjectsFromSolutions(solutions):
   kernelHelperNames = set()
 
   for solution in solutions:
-    solutionKernels = solution.getKernels()
-    for kernel in solutionKernels:
-      if kernel not in kernels:
-        kernels.append(kernel)
+    kernels += solution.getKernels()
     solutionHelperKernels = solution.getHelperKernelObjects()
+    kernelHelperObjs += solutionHelperKernels
     for ko in solutionHelperKernels:
-      kname = ko.getKernelName()
-      if kname not in kernelHelperNames:
-        kernelHelperObjs.append(ko)
-        kernelHelperNames.add(kname)
+      kernelHelperNames.add(ko.getKernelName())
 
+  # remove duplicates while preserving order
+  kernels = list(dict.fromkeys(kernels)) 
+  kernelHelperObjs = list(dict.fromkeys(kernelHelperObjs))
   return (kernels, kernelHelperObjs, kernelHelperNames)
+
+################################################################################
+# Generate Logic Data and Solutions
+################################################################################
+def generateLogicDataAndSolutions(logicFiles, args):
+  libraries = Common.ParallelMap(LibraryIO.parseLibraryLogicFile, logicFiles, "Reading logic files")
+
+  solutions = []
+  logicData = {} # keys are problemTypes, values are schedules
+
+  masterLibraries = {}
+  fullMasterLibrary = None
+  for logic in Utils.tqdm(libraries, "Processing logic data"):
+    (scheduleName, deviceNames, problemType, solutionsForSchedule, \
+       indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) = logic
+
+    if globalParameters["PackageLibrary"]:
+      if architectureName in masterLibraries:
+        masterLibraries[architectureName].merge(deepcopy(newLibrary))
+      else:
+        masterLibraries[architectureName] = deepcopy(newLibrary)
+        masterLibraries[architectureName].version = args.version
+    else:
+      if fullMasterLibrary is None:
+        fullMasterLibrary = deepcopy(newLibrary)
+        fullMasterLibrary.version = args.version
+      else:
+        fullMasterLibrary.merge(deepcopy(newLibrary))
+
+    if problemType not in logicData:
+      logicData[problemType] = []
+    logicData[problemType].append((scheduleName, deviceNames, \
+        solutionsForSchedule, indexOrder, exactLogic, rangeLogic ))
+
+    for solution in solutionsForSchedule:
+      solutions.append(solution)
+  
+  # remove duplicates while preserving order
+  solutions = list(dict.fromkeys(solutions)) 
+  return logicData, solutions, masterLibraries, fullMasterLibrary
 
 ################################################################################
 # Write Benchmark Client Files
@@ -1383,38 +1421,9 @@ def TensileCreateLibrary():
   ##############################################################################
   # Parse config files
   ##############################################################################
-  solutions = []
-  logicData = {} # keys are problemTypes, values are schedules
 
-  libraries = Common.ParallelMap(LibraryIO.parseLibraryLogicFile, logicFiles, "Reading logic files")
-
-  masterLibraries = {}
-  fullMasterLibrary = None
-  for logic in Utils.tqdm(libraries, "Processing logic data"):
-    (scheduleName, deviceNames, problemType, solutionsForSchedule, \
-       indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) = logic
-
-    if globalParameters["PackageLibrary"]:
-      if architectureName in masterLibraries:
-        masterLibraries[architectureName].merge(deepcopy(newLibrary))
-      else:
-        masterLibraries[architectureName] = deepcopy(newLibrary)
-        masterLibraries[architectureName].version = args.version
-    else:
-      if fullMasterLibrary is None:
-        fullMasterLibrary = deepcopy(newLibrary)
-        fullMasterLibrary.version = args.version
-      else:
-        fullMasterLibrary.merge(deepcopy(newLibrary))
-
-    if problemType not in logicData:
-      logicData[problemType] = []
-    logicData[problemType].append((scheduleName, deviceNames, \
-        solutionsForSchedule, indexOrder, exactLogic, rangeLogic ))
-
-    for solution in solutionsForSchedule:
-      if solution not in solutions:
-        solutions.append(solution)
+  # Parse logicData, solutions, and masterLibraries from logic files
+  logicData, solutions, masterLibraries, fullMasterLibrary = generateLogicDataAndSolutions(logicFiles, args)
 
   kernels, kernelHelperObjs, _ = generateKernelObjectsFromSolutions(solutions)
 
