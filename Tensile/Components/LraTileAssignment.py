@@ -227,22 +227,14 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             tmpSgpr2 = writer.getTmpSgpr(1).idx()
             kStr += inst("v_and_b32", vgpr(tmp1), hex(maskBitsLow), vgpr(kReg), \
               "4. Offset adjustment (swap row and col index) for DirectToLds + %s > 1"%tP["lsc"])
-            kStr += inst("v_and_b32", vgpr(tmp2), hex(maskBitsHigh), vgpr(kReg), \
-              "4. Offset adjustment (swap row and col index) for DirectToLds + %s > 1"%tP["lsc"])
-            kStr += inst("v_lshlrev_b32", vgpr(tmp1), hex(scaleShift), vgpr(tmp1), \
-              "4. Offset adjustment (swap row and col index) for DirectToLds + %s > 1"%tP["lsc"])
-            kStr += inst("v_lshrrev_b32", vgpr(tmp2), hex(scaleShift), vgpr(tmp2), \
-              "4. Offset adjustment (swap row and col index) for DirectToLds + %s > 1"%tP["lsc"])
-            kStr += inst("v_or_b32", vgpr(tmp1), vgpr(tmp1), vgpr(tmp2), \
-              "4. Offset adjustment (swap row and col index) for DirectToLds + %s > 1"%tP["lsc"])
-            kStr += inst("s_mov_b32", sgpr(tmpSgpr2), hex(maskBitsAll), \
-              "4. Offset adjustment (swap row and col index) for DirectToLds + %s > 1"%tP["lsc"])
-            kStr += inst("v_not_b32", vgpr(tmp2), sgpr(tmpSgpr2), \
-              "4. Offset adjustment (swap row and col index) for DirectToLds + %s > 1"%tP["lsc"])
-            kStr += inst("v_and_b32", vgpr(kReg), vgpr(tmp2), vgpr(kReg), \
-              "4. Offset adjustment (swap row and col index) for DirectToLds + %s > 1"%tP["lsc"])
-            kStr += inst("v_or_b32", vgpr(kReg), vgpr(tmp1), vgpr(kReg), \
-              "4. Offset adjustment (swap row and col index) for DirectToLds + %s > 1"%tP["lsc"])
+            kStr += inst("v_and_b32", vgpr(tmp2), hex(maskBitsHigh), vgpr(kReg), "")
+            kStr += inst("v_lshlrev_b32", vgpr(tmp1), hex(scaleShift), vgpr(tmp1), "")
+            kStr += inst("v_lshrrev_b32", vgpr(tmp2), hex(scaleShift), vgpr(tmp2), "")
+            kStr += inst("v_or_b32", vgpr(tmp1), vgpr(tmp1), vgpr(tmp2), "")
+            kStr += inst("s_mov_b32", sgpr(tmpSgpr2), hex(maskBitsAll), "")
+            kStr += inst("v_not_b32", vgpr(tmp2), sgpr(tmpSgpr2), "")
+            kStr += inst("v_and_b32", vgpr(kReg), vgpr(tmp2), vgpr(kReg), "")
+            kStr += inst("v_or_b32", vgpr(kReg), vgpr(tmp1), vgpr(kReg), "")
             writer.vgprPool.checkIn(tmp1)
             writer.vgprPool.checkIn(tmp2)
         kStr += inst("_v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
