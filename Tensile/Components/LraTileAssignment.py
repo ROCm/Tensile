@@ -211,6 +211,40 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             kernel["ProblemType"]["TLU%s" % tP["tensorChar"]]):
           kStr += inst("v_lshlrev_b32", vgpr(kReg), hex(log2(tP["bpe"])), vgpr(kReg), \
             "4. lrKoffset = lrkOffset * bpe")
+          if tP["nrc"] > 1:
+            # DirectToLds + above conditions, swap offset_val bits to adjust LDS offset
+            waveDiff = 1
+            scale = tP["nrc"]
+            scaleShift = log2(scale) # assuming scale is power of 2
+            scaleShift += int(log2(waveDiff))
+            ldsLineSize = kernel["WavefrontSize"] * kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"]
+            ldsLineSize //= scale
+            maskBitsLow = (scale - 1) * ldsLineSize
+            maskBitsHigh = maskBitsLow * scale * waveDiff
+            maskBitsAll = (maskBitsLow | maskBitsHigh)
+            tmp1    = writer.vgprPool.checkOut(1,"tmp1")
+            tmp2    = writer.vgprPool.checkOut(1,"tmp2")
+            tmpSgpr2 = writer.getTmpSgpr(1).idx()
+            kStr += inst("v_and_b32", vgpr(tmp1), hex(maskBitsLow), vgpr(kReg), \
+              "4. Offset adjustment (swap row and col index) for DirectToLds + %s > 1"%tP["lsc"])
+            kStr += inst("v_and_b32", vgpr(tmp2), hex(maskBitsHigh), vgpr(kReg), \
+              "4. Offset adjustment (swap row and col index) for DirectToLds + %s > 1"%tP["lsc"])
+            kStr += inst("v_lshlrev_b32", vgpr(tmp1), hex(scaleShift), vgpr(tmp1), \
+              "4. Offset adjustment (swap row and col index) for DirectToLds + %s > 1"%tP["lsc"])
+            kStr += inst("v_lshrrev_b32", vgpr(tmp2), hex(scaleShift), vgpr(tmp2), \
+              "4. Offset adjustment (swap row and col index) for DirectToLds + %s > 1"%tP["lsc"])
+            kStr += inst("v_or_b32", vgpr(tmp1), vgpr(tmp1), vgpr(tmp2), \
+              "4. Offset adjustment (swap row and col index) for DirectToLds + %s > 1"%tP["lsc"])
+            kStr += inst("s_mov_b32", sgpr(tmpSgpr2), hex(maskBitsAll), \
+              "4. Offset adjustment (swap row and col index) for DirectToLds + %s > 1"%tP["lsc"])
+            kStr += inst("v_not_b32", vgpr(tmp2), sgpr(tmpSgpr2), \
+              "4. Offset adjustment (swap row and col index) for DirectToLds + %s > 1"%tP["lsc"])
+            kStr += inst("v_and_b32", vgpr(kReg), vgpr(tmp2), vgpr(kReg), \
+              "4. Offset adjustment (swap row and col index) for DirectToLds + %s > 1"%tP["lsc"])
+            kStr += inst("v_or_b32", vgpr(kReg), vgpr(tmp1), vgpr(kReg), \
+              "4. Offset adjustment (swap row and col index) for DirectToLds + %s > 1"%tP["lsc"])
+            writer.vgprPool.checkIn(tmp1)
+            writer.vgprPool.checkIn(tmp2)
         kStr += inst("_v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
             "5. offset in wave: lrOffset = bnOffset + lrKOffset")
 

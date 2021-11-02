@@ -21,7 +21,7 @@
 
 from ..Component import LocalRead
 from .. import Code
-from ..AsmUtils import vgpr, sgpr
+from ..AsmUtils import vgpr, sgpr, log2
 from math import ceil
 
 class LocalReadVALU(LocalRead):
@@ -223,6 +223,27 @@ class LocalReadMFMA(LocalRead):
                         if (kernel["LdsBlockSizePerPad%s"%tc] != 0) and (kernel["LdsPad%s"%tc] != 0):
                             offset_val = offset_val + (offset_val // kernel["LdsBlockSizePerPad%s"%tc]) * kernel["LdsPad%s"%tc] * tP["bpe"]
                         offset_val = offset_val + tP["localReadSwapByteOffset"]
+                        if (kernel["DirectToLds%s" % tP["tensorChar"]] and  \
+                            kernel["GlobalLoadVectorWidth%c"%tP["tensorChar"]] * tP["bpe"] > 4 and  \
+                            kernel["ProblemType"]["TLU%s" % tP["tensorChar"]] and \
+                            tP["nrc"]> 1):
+                          # DirectToLds + above conditions, swap offset_val bits to adjust LDS offset
+                          # need to swap col and row index
+                          waveDiff = 1
+                          scale = tP["nrc"]
+                          scaleShift = int(log2(scale)) # assuming scale is power of 2
+                          scaleShift += int(log2(waveDiff))
+                          ldsLineSize = kernel["WavefrontSize"] * kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"]
+                          ldsLineSize //= scale
+                          maskBitsLow = (scale - 1) * ldsLineSize
+                          maskBitsHigh = maskBitsLow * scale * waveDiff
+                          maskBitsAll = (maskBitsLow | maskBitsHigh)
+                          tmp1 = offset_val & maskBitsLow
+                          tmp2 = offset_val & maskBitsHigh
+                          tmp1 <<= scaleShift
+                          tmp2 >>= scaleShift
+                          tmp1 = tmp1 | tmp2
+                          offset_val = (offset_val & (~maskBitsAll)) | tmp1
                         paramList.append(int(offset_val))
 
                     paramTuple = tuple(paramList)
