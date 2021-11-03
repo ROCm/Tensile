@@ -1569,7 +1569,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read Addresses: Addresses A/B
   ##############################################################################
-  def graAddresses(self, kernel, tP):
+  def graAddresses(self, kernel, tP, isPap=False):
     kStr = ""
 
     for perp in range(0, tP["nrp"]):
@@ -2059,7 +2059,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Open Loop
   ##############################################################################
-  def openLoop(self, kernel, loopIdx, uDu=0):
+  def openLoop(self, kernel, loopIdx, uDu=0, noLabelGen=False, beginLabelOnly=False):
     problemType = kernel["ProblemType"]
     tailLoop = loopIdx < 0
     if tailLoop:
@@ -2097,7 +2097,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Close Loop
   ##############################################################################
-  def closeLoop(self, kernel, loopIdx, finalLoop, uDu=0, emitEndLabelOnly=False):
+  def closeLoop(self, kernel, loopIdx, finalLoop, uDu=0, emitEndLabelOnly=False, oddLabel=False):
     kStr = ""
     if emitEndLabelOnly:
       return kStr
@@ -2845,6 +2845,12 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
+  # globalWriteWorkGroupInitBeforePersistentLoop:
+  ##############################################################################
+  def globalWriteWorkGroupInitBeforePersistentLoop(self, kernel):
+    return ""
+
+  ##############################################################################
   # globalWriteWorkGroupInit:
   ##############################################################################
   def globalWriteWorkGroupInit(self, kernel):
@@ -3317,7 +3323,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # openmovaccVgpr
   ##############################################################################
-  def openmovaccVgpr(self, kernel):
+  def openmovaccVgpr(self, kernel, backupSgpr):
     return ""
 
   ##############################################################################
@@ -3327,15 +3333,9 @@ class KernelWriterSource(KernelWriter):
     return ""
 
   ##############################################################################
-  # closemovaccVgprAddrInc
-  ##############################################################################
-  def closemovaccVgprAddrInc(self, kernel):
-    return ""
-
-  ##############################################################################
   # closemovaccVgpr
   ##############################################################################
-  def closemovaccVgpr(self, kernel):
+  def closemovaccVgpr(self, kernel, backupSgpr):
     return ""
 
   ##############################################################################
@@ -3351,9 +3351,15 @@ class KernelWriterSource(KernelWriter):
     return ""
 
   ##############################################################################
-  # init for StoreCInUnroll per PersistentLoop
+  # init for StoreCInUnroll per Persistent Loop
   ##############################################################################
   def initStoreCInUnrollPerPersistentLoop(self, kernel):
+    return ""
+
+  ##############################################################################
+  # init for StoreCInUnroll per Unroll Loop
+  ##############################################################################
+  def initStoreCInUnrollPerUnrollLoop(self, kernel, odd):
     return ""
 
   ##############################################################################
@@ -3365,7 +3371,13 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # C/D address increment value for StoreCInUnroll
   ##############################################################################
-  def generateCorDaddrIncrementForStoreCInUnroll(self, kernel, CorD):
+  def generateCorDaddrIncrementForStoreCInUnroll(self, kernel, CorD, odd, tmpSgprWork):
+    return ""
+
+  ##############################################################################
+  # generate post process for StoreCInUnroll loop
+  ##############################################################################
+  def generatePostProcessForStoreCInUnrollLoop(self, kernel, odd):
     return ""
 
   ##############################################################################

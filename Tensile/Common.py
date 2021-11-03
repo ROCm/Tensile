@@ -903,7 +903,13 @@ validParameters = {
     # disable StoreSyncOpt, StorePriorityOpt,GroupLoadStore feature when this feature is enabled
     # enable PersistentKernel , PrefetchAcrossPersistent
     "StoreCInUnroll":             [False, True],
-
+    #
+    # StoreCInUnrollInterval is to specify the MFMA interval between 2 StoreC/AtomicAdd.
+    # (This is effective only for StoreVectorWidth=1)
+    # Actual MCMA interval is StoreCInUnrollInterval * (1/ LocalWritePerMfma).
+    # For example, if StoreCInUnrollInterval=3, LocalWritePerMfma=0.5, StoreC/AtomicAddC inserted
+    # at every 6 MFMAs (interval = 6)
+    "StoreCInUnrollInterval":     list(range(1, 16)),
 
     # In order to remove the copying from Acc vgpr to Arch vgpr, only use Arch vgprs for v_mfma_xxx.
     # Only support for kernel whose totalVgpr counts less than 256 and gcn that has control bit ACC_CD.
@@ -1311,6 +1317,7 @@ defaultBenchmarkCommonParameters = [
     {"GroupLoadStore":            [ False ] },
     {"MIArchVgpr":                [ False ] },
     {"StoreCInUnroll":            [ False ] },
+    {"StoreCInUnrollInterval":    [ 2 ] },
     {"Fp16AltImpl":               [ False ] }
     ]
 # benchmark these solution independently

@@ -3319,6 +3319,10 @@ class Solution(collections.abc.Mapping):
     else:
       ldsNumElementsA = state["_DepthULds"] * (state["MacroTileA"] + state["LdsPadA"])
       ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA, ldsAlign)
+    if state["DirectToVgprA"]:
+      # DirectToVgpr does not use LDS. Set to 0.
+      ldsNumElementsA = 0
+      ldsNumElementsAlignedA = 0
 
     if state["UnrollMajorLDSB"]:
       ldsNumElementsB = (state["_DepthULds"] + state["LdsPadB"]) * state["MacroTileB"]
@@ -3329,6 +3333,10 @@ class Solution(collections.abc.Mapping):
     else:
       ldsNumElementsB = state["_DepthULds"] * (state["MacroTileB"] + state["LdsPadB"])
       ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB, ldsAlign)
+    if state["DirectToVgprB"]:
+      # DirectToVgpr does not use LDS. Set to 0.
+      ldsNumElementsB = 0
+      ldsNumElementsAlignedB = 0
 
     # todo, can the alignment be a power of 2?
     state["LdsOffsetA"] = 0
