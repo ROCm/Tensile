@@ -1320,19 +1320,12 @@ defaultBenchmarkCommonParameters = [
     {"StoreCInUnrollInterval":    [ 2 ] },
     {"Fp16AltImpl":               [ False ] }
     ]
-# benchmark these solution independently
-defaultForkParameters = []
-defaultBenchmarkForkParameters = []
-defaultJoinParameters = []
-defaultBenchmarkJoinParameters = []
 
-# dictionary of defaults comprised for 1st option for each parameter
+# dictionary of defaults comprised of default option for each parameter
 defaultSolution = {}
-for paramList in [defaultBenchmarkCommonParameters, defaultForkParameters, \
-    defaultBenchmarkForkParameters,defaultBenchmarkJoinParameters]:
-  for paramDict in paramList:
-    for key, value in paramDict.items():
-      defaultSolution[key] = value[0]
+for paramDict in defaultBenchmarkCommonParameters:
+  for key, value in paramDict.items():
+    defaultSolution[key] = value[0]
 # other non-benchmark options for solutions
 
 # valid fields in ConvolutionConfig and explanations:
@@ -1770,7 +1763,7 @@ def detectGlobalCurrentISA():
   Returns returncode if detection failure
   """
   global globalParameters
-  
+
   if globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
     process = subprocess.run([globalParameters["ROCmAgentEnumeratorPath"]], stdout=subprocess.PIPE)
     if os.name == "nt":
@@ -1795,7 +1788,7 @@ def detectGlobalCurrentISA():
       printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
     return process.returncode
   return 0
-      
+
 def restoreDefaultGlobalParameters():
   """
   Restores `globalParameters` back to defaults.
