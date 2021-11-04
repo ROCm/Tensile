@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,6 +33,7 @@
 #include <Tensile/MapLibrary.hpp>
 #include <Tensile/MasterSolutionLibrary.hpp>
 #include <Tensile/MatchingLibrary.hpp>
+#include <Tensile/NewMatchingLibrary.hpp>
 #include <Tensile/SingleSolutionLibrary.hpp>
 #include <Tensile/SolutionLibrary.hpp>
 
@@ -47,6 +48,8 @@ namespace Tensile
         = ProblemSelectionLibrary<ContractionProblem, ContractionSolution>;
     using ContractionProblemMatchingLibrary
         = ProblemMatchingLibrary<ContractionProblem, ContractionSolution>;
+    using ContractionExactMatchingLibrary
+        = NewMatchingLibrary<ContractionProblem, ContractionSolution>;
     using ContractionProblemMapLibrary = ProblemMapLibrary<ContractionProblem, ContractionSolution>;
     using ContractionProblemPredicate  = ProblemPredicate<ContractionProblem>;
     using ContractionGranularitySelectionLibrary

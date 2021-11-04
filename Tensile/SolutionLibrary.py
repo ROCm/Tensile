@@ -144,6 +144,65 @@ class MatchingLibrary:
         self.table = table
         self.distance = distance
 
+class NewMatchingLibrary:
+    Tag = 'NewMatching'
+    StateKeys = [('type', 'tag'), 'properties', 'table', 'distance']
+
+    @classmethod
+    def FromOriginalState(cls, d, solutions):
+        indices = d[0]
+        origTable = d[1]
+
+        propertyKeys = {
+                2:lambda: Properties.Property('FreeSizeA', index=0),
+                3:lambda: Properties.Property('FreeSizeB', index=0),
+                #0:lambda: Properties.Property('BatchSize', index=0),
+                1:lambda: Properties.Property('BoundSize', index=0)
+            }
+
+        properties = list([propertyKeys[i]() for i in indices if i in propertyKeys])
+        keyOrder = [i for i,j in enumerate(indices) if j in propertyKeys]
+
+        table = []
+
+        distance = 'Euclidean'
+
+        for row in origTable:
+            try:
+                index = row[1][0]
+                value = SingleSolutionLibrary(solutions[index])
+                key = list([row[0][i] for i in keyOrder])
+                #key = list(row[0][0:len(properties)])
+                entry = {'key': key, 'value': value, 'speed': row[1][1]}
+                table.append(entry)
+            except KeyError:
+                pass
+
+        table.sort(key=lambda r: r['key'])
+
+        return cls(properties, table, distance)
+
+    @property
+    def tag(self):
+        return self.__class__.Tag
+
+    def merge(self, other):
+        assert self.__class__ == other.__class__ \
+                and self.properties == other.properties \
+                and self.distance == other.distance
+
+        self.table += other.table
+
+        self.table.sort(key=lambda r: r['key'])
+
+    def remapSolutionIndices(self,indexMap):
+        pass
+
+    def __init__(self, properties, table, distance):
+        self.properties = properties
+        self.table = table
+        self.distance = distance
+
 class ProblemMapLibrary:
     Tag = 'ProblemMap'
     StateKeys = [('type', 'tag'), ('property', 'mappingProperty'), ('map', 'mapping')]
@@ -225,6 +284,11 @@ class MasterSolutionLibrary:
         #origSolutions = d[5]
         origLibrary = d[6:8]
 
+        if len(d) > 9 and d[9]:
+            # It's a Granularity library
+            assert libraryOrder[-1] == 'Matching'
+            libraryOrder[-1] = 'Granularity'
+
         perfMetric = 'DeviceEfficiency'
         if len(d) > 10 and d[10]:
             perfMetric = d[10]
@@ -233,12 +297,11 @@ class MasterSolutionLibrary:
         if len(d) > 11 and d[11]:
             fp16AltImpl = True
 
-        problemType = Contractions.ProblemType.FromOriginalState(origProblemType)
+        matching = 'Default'
+        if len(d) > 12 and d[12]:
+            matching = d[12]
 
-        if len(d) > 9 and d[9]:
-            # It's a Granularity library
-            assert libraryOrder[-1] == 'Matching'
-            libraryOrder[-1] = 'Granularity'
+        problemType = Contractions.ProblemType.FromOriginalState(origProblemType)
 
         allSolutions = [solutionClass.FromSolutionStruct(s, deviceSection) for s in origSolutions]
         cls.FixSolutionIndices(allSolutions)
@@ -247,8 +310,19 @@ class MasterSolutionLibrary:
 
         for libName in reversed(libraryOrder):
             if libName == 'Matching':
-                matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, allSolutions)
-                library = matchingLibrary
+                if matching == 'Default':
+                    predicate = Properties.Predicate(tag='TruePred')
+                    matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, allSolutions)
+                elif matching == 'Exact':
+                    predicate = Properties.Predicate(tag='ExactMatching')
+                    matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, allSolutions)
+                elif matching == 'New':
+                    predicate = Properties.Predicate(tag='TruePred')
+                    matchingLibrary = NewMatchingLibrary.FromOriginalState(origLibrary, allSolutions)
+                else:
+                    raise RuntimeError("unregongnized matching library type")
+                library = PredicateLibrary(tag='Problem')
+                library.rows.append({'predicate': predicate, 'library': matchingLibrary})
 
             elif libName == 'Granularity':
                 selectionIndices = d[9]['TileSelectionIndices']

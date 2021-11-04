@@ -1369,6 +1369,27 @@ namespace Tensile
                     return problem.fp16AltImpl();
                 }
             };
+
+            struct ExactMatching : public Predicate_CRTP<ExactMatching, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+
+                ExactMatching() = default;
+
+                static std::string Type()
+                {
+                    return "ExactMatching";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return true;
+                }
+            };
         } // namespace Contraction
 
         /**

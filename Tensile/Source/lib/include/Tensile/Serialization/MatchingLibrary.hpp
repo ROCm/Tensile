@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,6 +29,7 @@
 #include <Tensile/Debug.hpp>
 #include <Tensile/Distance.hpp>
 #include <Tensile/MatchingLibrary.hpp>
+#include <Tensile/NewMatchingLibrary.hpp>
 
 #include <cstddef>
 #include <unordered_set>
@@ -144,6 +145,128 @@ namespace Tensile
                 {
                     success
                         = mappingDistance<Key, Matching::JSDivergence<Key>>(io, lib, properties);
+                }
+                else if(distanceType == "Manhattan")
+                {
+                    success = mappingDistance<Key, Matching::ManhattanDistance<Key>>(
+                        io, lib, properties);
+                }
+                else if(distanceType == "Ratio")
+                {
+                    success
+                        = mappingDistance<Key, Matching::RatioDistance<Key>>(io, lib, properties);
+                }
+                else if(distanceType == "Random")
+                {
+                    success
+                        = mappingDistance<Key, Matching::RandomDistance<Key>>(io, lib, properties);
+                }
+                else
+                {
+                    iot::setError(io, concatenate("Unknown distance function", distanceType));
+                }
+
+                return success;
+            }
+
+            template <typename Key, typename Distance>
+            static bool mappingDistance(IO& io, Library& lib, Properties const& properties)
+            {
+                using Table = Matching::DistanceMatchingTable<Key,
+                                                              MyProblem,
+                                                              Element,
+                                                              std::shared_ptr<MySolution>,
+                                                              Distance>;
+
+                std::shared_ptr<Table> table;
+
+                if(iot::outputting(io))
+                {
+                    table = std::dynamic_pointer_cast<Table>(lib.table);
+                    if(!table)
+                        return false;
+                }
+                else
+                {
+                    table             = std::make_shared<Table>();
+                    table->properties = properties;
+                    lib.table         = table;
+                }
+
+                MappingTraits<Table, IO>::mapping(io, *table);
+
+                return true;
+            }
+
+            const static bool flow = false;
+        };
+
+        template <typename MyProblem, typename MySolution, typename IO>
+        struct MappingTraits<NewMatchingLibrary<MyProblem, MySolution>, IO>
+        {
+            using Library    = NewMatchingLibrary<MyProblem, MySolution>;
+            using Properties = typename Library::Table::Properties;
+            using Element    = typename Library::Element;
+
+            using iot = IOTraits<IO>;
+
+            static void mapping(IO& io, Library& lib)
+            {
+                Properties properties;
+                if(iot::outputting(io))
+                {
+                    properties = lib.table->properties;
+                }
+
+                iot::mapRequired(io, "properties", properties);
+
+                bool success = false;
+                if(properties.size() == 0)
+                    iot::setError(io, "Matching table must have at least one property.");
+                else if(properties.size() == 1)
+                    success = mappingKey<std::array<int64_t, 1>>(io, lib, properties);
+                else if(properties.size() == 2)
+                    success = mappingKey<std::array<int64_t, 2>>(io, lib, properties);
+                else if(properties.size() == 3)
+                    success = mappingKey<std::array<int64_t, 3>>(io, lib, properties);
+                else if(properties.size() == 4)
+                    success = mappingKey<std::array<int64_t, 4>>(io, lib, properties);
+                else if(properties.size() == 5)
+                    success = mappingKey<std::array<int64_t, 5>>(io, lib, properties);
+                else if(properties.size() == 6)
+                    success = mappingKey<std::array<int64_t, 6>>(io, lib, properties);
+                else if(properties.size() == 7)
+                    success = mappingKey<std::array<int64_t, 7>>(io, lib, properties);
+                else if(properties.size() == 8)
+                    success = mappingKey<std::array<int64_t, 8>>(io, lib, properties);
+                else if(properties.size() == 9)
+                    success = mappingKey<std::array<int64_t, 9>>(io, lib, properties);
+                else if(properties.size() == 10)
+                    success = mappingKey<std::array<int64_t, 10>>(io, lib, properties);
+
+                if(!success)
+                    success = mappingKey<std::vector<int64_t>>(io, lib, properties);
+
+                if(!success)
+                    iot::setError(io, "Can't write out key: wrong type.");
+            }
+
+            template <typename Key>
+            static bool mappingKey(IO& io, Library& lib, Properties const& properties)
+            {
+                std::string distanceType;
+
+                if(iot::outputting(io))
+                    distanceType = lib.table->distanceType();
+
+                iot::mapRequired(io, "distance", distanceType);
+
+                bool success = false;
+
+                if(distanceType == "Euclidean")
+                {
+                    success = mappingDistance<Key, Matching::EuclideanDistance<Key>>(
+                        io, lib, properties);
                 }
                 else if(distanceType == "Manhattan")
                 {

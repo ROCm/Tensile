@@ -42,7 +42,7 @@ namespace Tensile
  * to the size asked for.
  */
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
-    struct ProblemMatchingLibrary : public SolutionLibrary<MyProblem, MySolution>
+    struct NewMatchingLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
         using Element = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
         using Table   = Matching::MatchingTable<MyProblem, Element, std::shared_ptr<MySolution>>;
@@ -50,7 +50,7 @@ namespace Tensile
 
         static std::string Type()
         {
-            return "Matching";
+            return "ExactMatching";
         }
         virtual std::string type() const override
         {
@@ -69,7 +69,7 @@ namespace Tensile
                                                              double*          fitness
                                                              = nullptr) const override
         {
-            bool useDebugSelection = Debug::Instance().enableDebugSelection();
+            //bool useDebugSelection = Debug::Instance().enableDebugSelection();
 
             typename Table::Transform transform
                 = [&](Element library) -> std::shared_ptr<MySolution> {
@@ -89,7 +89,7 @@ namespace Tensile
             std::shared_ptr<MySolution> solution;
             std::tie(solution, *fitness) = table->findBestMatch(problem, transform);
             return solution;
-            //}
+            // }
         }
 
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
