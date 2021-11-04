@@ -1370,7 +1370,7 @@ namespace Tensile
                 }
             };
 
-            struct ExactMatching : public Predicate_CRTP<ExactMatching, ContractionProblem>
+            struct EqualityMatching : public Predicate_CRTP<EqualityMatching, ContractionProblem>
             {
                 enum
                 {
@@ -1378,11 +1378,11 @@ namespace Tensile
                     HasValue = false
                 };
 
-                ExactMatching() = default;
+                EqualityMatching() = default;
 
                 static std::string Type()
                 {
-                    return "ExactMatching";
+                    return "EqualityMatching";
                 }
 
                 virtual bool operator()(ContractionProblem const& problem) const override

@@ -313,8 +313,8 @@ class MasterSolutionLibrary:
                 if matching == 'Default':
                     predicate = Properties.Predicate(tag='TruePred')
                     matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, allSolutions)
-                elif matching == 'Exact':
-                    predicate = Properties.Predicate(tag='ExactMatching')
+                elif matching == 'Equality':
+                    predicate = Properties.Predicate(tag='EqualityMatching')
                     matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, allSolutions)
                 elif matching == 'New':
                     predicate = Properties.Predicate(tag='TruePred')

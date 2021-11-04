@@ -94,7 +94,7 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::StridedBatchedEqual>(),
                     Base::template Pair<Predicates::Contraction::CUEfficiency>(),
                     Base::template Pair<Predicates::Contraction::Fp16AltImpl>(),
-                    Base::template Pair<Predicates::Contraction::ExactMatching>(),
+                    Base::template Pair<Predicates::Contraction::EqualityMatching>(),
                 });
 
                 auto gmap = Generic::GetSubclasses();
@@ -342,8 +342,8 @@ namespace Tensile
         };
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::ExactMatching, IO>
-            : public AutoMappingTraits<Predicates::Contraction::ExactMatching, IO>
+        struct MappingTraits<Predicates::Contraction::EqualityMatching, IO>
+            : public AutoMappingTraits<Predicates::Contraction::EqualityMatching, IO>
         {
         };
     } // namespace Serialization

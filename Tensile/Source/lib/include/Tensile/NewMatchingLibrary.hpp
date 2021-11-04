@@ -50,7 +50,7 @@ namespace Tensile
 
         static std::string Type()
         {
-            return "ExactMatching";
+            return "NewMatching";
         }
         virtual std::string type() const override
         {
