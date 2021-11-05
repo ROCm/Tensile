@@ -69,27 +69,16 @@ namespace Tensile
                                                              double*          fitness
                                                              = nullptr) const override
         {
-            //bool useDebugSelection = Debug::Instance().enableDebugSelection();
-
             typename Table::Transform transform
                 = [&](Element library) -> std::shared_ptr<MySolution> {
                 return library->findBestSolution(problem, hardware);
             };
 
-            // if(useDebugSelection)
-            // {
-            //     std::shared_ptr<MySolution> evaluationSolution
-            //         = table->findBestEvaluationSolution(problem, hardware, transform);
-            //     return evaluationSolution;
-            // }
-            // else
-            // {
             double localFitness = std::numeric_limits<double>::max();
             fitness             = (fitness) ? fitness : &localFitness;
             std::shared_ptr<MySolution> solution;
             std::tie(solution, *fitness) = table->findBestMatch(problem, transform);
             return solution;
-            // }
         }
 
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
