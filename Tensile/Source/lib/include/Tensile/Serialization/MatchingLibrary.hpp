@@ -268,6 +268,10 @@ namespace Tensile
                     success = mappingDistance<Key, Matching::EuclideanDistance<Key>>(
                         io, lib, properties);
                 }
+                else if(distanceType == "Equality")
+                {
+                    success = mappingDistance<Key, Matching::Equality<Key>>(io, lib, properties);
+                }
                 else if(distanceType == "Manhattan")
                 {
                     success = mappingDistance<Key, Matching::ManhattanDistance<Key>>(

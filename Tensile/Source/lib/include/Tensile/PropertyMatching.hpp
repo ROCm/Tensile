@@ -181,6 +181,7 @@ namespace Tensile
             std::tuple<ReturnValue, double> findBestKeyMatch_BinSearch(Key const& key,
                                                                        Transform  transform) const
             {
+                std::cout << "doing a bin search" << std::endl;
                 if(this->table.empty())
                     return std::make_tuple(this->nullValue, std::numeric_limits<double>::max());
 
@@ -562,6 +563,115 @@ namespace Tensile
 
             std::vector<Entry> table;
             Distance           distance;
+
+        protected:
+            ReturnValue nullValue;
+        };
+
+        template <typename Key, typename Object, typename Value, typename ReturnValue>
+        class DistanceMatchingTable<Key, Object, Value, ReturnValue, Matching::Equality<Key>>
+            : public MatchingTable<Object, Value, ReturnValue>
+        {
+        public:
+            using Base       = MatchingTable<Object, Value, ReturnValue>;
+            using Entry      = MatchingTableEntry<Key, Value>;
+            using Transform  = typename Base::Transform;
+            using Properties = typename Base::Properties;
+            using Equality   = Matching::Equality<Key>;
+
+            DistanceMatchingTable(ReturnValue nullValue = ReturnValue())
+                : nullValue(nullValue)
+            {
+            }
+
+            DistanceMatchingTable(Properties const& properties,
+                                  ReturnValue       nullValue = ReturnValue())
+                : Base(properties)
+                , nullValue(nullValue)
+            {
+            }
+
+            DistanceMatchingTable(Equality const&   equality,
+                                  Properties const& properties,
+                                  ReturnValue       nullValue = ReturnValue())
+                : Base(properties)
+                , nullValue(nullValue)
+                , equality(equality)
+            {
+            }
+
+            virtual std::string distanceType() const override
+            {
+                return Equality::Type();
+            }
+
+            virtual std::tuple<ReturnValue, double>
+                findBestMatch(Object const& object, Transform transform) const override
+            {
+                return findBestKeyMatch(keyForProblem(object), transform);
+            }
+
+            virtual std::vector<Value> matchesInOrder(Object const& object) const override
+            {
+                return keyMatchesInOrder(keyForProblem(object));
+            }
+
+            std::tuple<ReturnValue, double> findBestKeyMatch(Key const& key,
+                                                             Transform  transform) const
+            {
+                std::cout << "temp equality matching" << std::endl;
+                return std::make_tuple(this->nullValue, std::numeric_limits<double>::max());
+            }
+
+            std::vector<Value> keyMatchesInOrder(Key const& key) const
+            {
+                std::vector<std::pair<double, size_t>> indices(this->table.size());
+
+                for(size_t i = 0; i < this->table.size(); i++)
+                    indices[i] = std::make_pair(equality(key, this->table[i].key), i);
+
+                std::sort(indices.begin(), indices.end());
+
+                std::vector<Value> result;
+                result.reserve(this->table.size());
+
+                for(auto const& entry : indices)
+                    result.push_back(this->table[entry.second].value);
+
+                return result;
+            }
+
+            Key keyForProblem(Object const& object) const
+            {
+                bool debug = Debug::Instance().printPropertyEvaluation();
+
+                Key myKey = KeyFactory<Key>::MakeKey(this->properties.size());
+
+                for(int i = 0; i < this->properties.size(); i++)
+                    myKey[i] = (*this->properties[i])(object);
+
+                if(debug)
+                {
+                    std::cout << "Object key: ";
+                    streamJoin(std::cout, myKey, ", ");
+                    std::cout << std::endl;
+                }
+
+                return myKey;
+            }
+
+            virtual std::string description() const override
+            {
+                std::string rv = concatenate(
+                    "Table: Properties: ", this->properties, ", ", table.size(), " rows, ");
+
+                rv += concatenate("Distance: ", Equality::Type());
+
+                return rv;
+            }
+
+            std::vector<Entry> table;
+            Equality           equality;
 
         protected:
             ReturnValue nullValue;

@@ -90,7 +90,7 @@ class MatchingLibrary:
     StateKeys = [('type', 'tag'), 'properties', 'table', 'distance']
 
     @classmethod
-    def FromOriginalState(cls, d, solutions):
+    def FromOriginalState(cls, d, solutions, distance='Euclidean'):
         indices = d[0]
         origTable = d[1]
 
@@ -105,8 +105,6 @@ class MatchingLibrary:
         keyOrder = [i for i,j in enumerate(indices) if j in propertyKeys]
 
         table = []
-
-        distance = 'Euclidean'
 
         for row in origTable:
             try:
@@ -312,17 +310,19 @@ class MasterSolutionLibrary:
             if libName == 'Matching':
                 if matching == 'Default':
                     predicate = Properties.Predicate(tag='TruePred')
-                    matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, allSolutions)
+                    matchingLib = MatchingLibrary.FromOriginalState( \
+                            origLibrary, allSolutions, 'Euclidean')
                 elif matching == 'Equality':
                     predicate = Properties.Predicate(tag='EqualityMatching')
-                    matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, allSolutions)
+                    matchingLib = MatchingLibrary.FromOriginalState( \
+                            origLibrary, allSolutions, 'Equality')
                 elif matching == 'New':
                     predicate = Properties.Predicate(tag='TruePred')
-                    matchingLibrary = NewMatchingLibrary.FromOriginalState(origLibrary, allSolutions)
+                    matchingLib = NewMatchingLibrary.FromOriginalState(origLibrary, allSolutions)
                 else:
                     raise RuntimeError("unregongnized matching library type")
                 library = PredicateLibrary(tag='Problem')
-                library.rows.append({'predicate': predicate, 'library': matchingLibrary})
+                library.rows.append({'predicate': predicate, 'library': matchingLib})
 
             elif libName == 'Granularity':
                 selectionIndices = d[9]['TileSelectionIndices']

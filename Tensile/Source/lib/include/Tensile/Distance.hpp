@@ -1,5 +1,5 @@
 /**
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -65,6 +65,30 @@ namespace Tensile
         public:
             virtual std::string type() const = 0;
             virtual ~Distance()              = default;
+        };
+
+        // Not really a distance, but defined as one for template specialization purposes
+        template <typename Key>
+        struct Equality : public Distance<Key>
+        {
+            enum
+            {
+                HasIndex = false,
+                HasValue = false
+            };
+            static std::string Type()
+            {
+                return "Equality";
+            }
+            virtual std::string type() const override
+            {
+                return Type();
+            }
+
+            inline bool operator()(Key const& p1, Key const& p2) const
+            {
+                return p1 == p2;
+            }
         };
 
         template <typename Key>
