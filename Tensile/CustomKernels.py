@@ -31,6 +31,9 @@ def isCustomKernelConfig(config):
 def getCustomKernelFilepath(name, directory=globalParameters["CustomKernelDirectory"]):
     return os.path.join(directory, (name + ".s"))
 
+def getAllCustomKernelNames(directory=globalParameters["CustomKernelDirectory"]):
+    return [fname[:-2] for fname in os.listdir(directory) if fname.endswith(".s")]
+
 def getCustomKernelContents(name, directory=globalParameters["CustomKernelDirectory"]):
     try:
         with open(getCustomKernelFilepath(name, directory)) as f:
@@ -41,7 +44,7 @@ def getCustomKernelContents(name, directory=globalParameters["CustomKernelDirect
 def getCustomKernelConfigAndAssembly(name, directory=globalParameters["CustomKernelDirectory"]):
     contents  = getCustomKernelContents(name, directory)
     config = "\n"    #Yaml configuration properties
-    assembly = "" 
+    assembly = ""
     inConfig = False
     for line in contents.splitlines():
         if   line == "---": inConfig = True                          #Beginning of yaml section
@@ -49,7 +52,7 @@ def getCustomKernelConfigAndAssembly(name, directory=globalParameters["CustomKer
         elif      inConfig: config   += line + "\n"
         else              : assembly += line + "\n"; config += "\n"  #Second statement to keep line numbers consistent for yaml errors
 
-    return (config, assembly)  
+    return (config, assembly)
 
 def getCustomKernelConfig(name, directory=globalParameters["CustomKernelDirectory"]):
     rawConfig, _ = getCustomKernelConfigAndAssembly(name, directory)

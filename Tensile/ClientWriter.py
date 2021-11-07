@@ -19,17 +19,17 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .Common import globalParameters, pushWorkingPath, popWorkingPath, print1, printExit, CHeader, printWarning, listToInitializer, ClientExecutionLock
 from . import ClientExecutable
 from . import Common
 from . import LibraryIO
+from .Common import globalParameters, pushWorkingPath, popWorkingPath, print1, printExit, CHeader, printWarning, listToInitializer, ClientExecutionLock
 from .SolutionStructs import ProblemType, ProblemSizesMock
+from .TensileCreateLibrary import copyStaticFiles
 
 import os
 import subprocess
 import shlex
-from shutil import copy as shutil_copy
-from shutil import rmtree
+import shutil
 from enum import Enum
 
 from .Contractions import FreeIndex
@@ -63,6 +63,7 @@ class ClientLogLevel(Enum):
   Verbose = 2
   Debug = 3
 
+
 ################################################################################
 # Main
 ################################################################################
@@ -71,37 +72,8 @@ def main( config ):
       globalParameters["LibraryLogicPath"])
   stepBaseDir = pushWorkingPath(globalParameters["LibraryClientPath"])
 
-
-  ##############################################################################
-  # Copy Source Files
-  ##############################################################################
   pushWorkingPath("source")
-  filesToCopy = [
-      "SolutionMapper.h",
-      "Client.cpp",
-      "Client.h",
-      "DeviceStats.h",
-      "ReferenceCPU.h",
-      "TensorUtils.h",
-      "MathTemplates.cpp",
-      "MathTemplates.h",
-      "KernelHeader.h",
-      "Tools.h",
-      "TensileCreateLibrary.cmake",
-      ]
-
-  for f in filesToCopy:
-    shutil_copy(
-        os.path.join(globalParameters["SourcePath"], f),
-        globalParameters["WorkingPath"] )
-  if globalParameters["RuntimeLanguage"] == "OCL":
-    shutil_copy(
-        os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
-        globalParameters["WorkingPath"] )
-  else:
-    shutil_copy(
-        os.path.join(globalParameters["SourcePath"], "FindHIP.cmake"),
-        globalParameters["WorkingPath"] )
+  copyStaticFiles()
 
   ##############################################################################
   # Read Logic Files
@@ -159,7 +131,7 @@ def main( config ):
   ##############################################################################
   # if redo=true, clobber the build directory
   if globalParameters["ForceRedoLibraryClient"]:
-    rmtree(os.path.join(globalParameters["WorkingPath"], "build"), \
+    shutil.rmtree(os.path.join(globalParameters["WorkingPath"], "build"), \
         ignore_errors=True)
 
   forBenchmark = False

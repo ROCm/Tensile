@@ -28,16 +28,6 @@ BenchmarkProblems:
 
     - # BenchmarkProblemSizeGroup - Standard
       InitialSolutionParameters:
-        - AssertMinApproxSize: [0]
-        - AssertStrideBEqual: [ { 0: 1 } ]
-        - BufferLoad: [True] #
-        - GlobalReadVectorWidth: [1]
-        - UseSgprForGRO: [1]
-        - VectorAtomicWidth: [1]
-        - DirectToLds: True
-        - EnableMatrixInstruction: True
-        - VectorWidth: [1]
-        - LoopTail: True
       BenchmarkCommonParameters:
         - AssertMinApproxSize: [0]
         - AssertStrideBEqual: [ { 0: 1 } ]
@@ -58,8 +48,6 @@ BenchmarkProblems:
         - VectorWidth: [1]
       BenchmarkForkParameters:
       JoinParameters:
-        - MacroTile
-        - GlobalSplitU
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:

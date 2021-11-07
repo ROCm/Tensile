@@ -45,6 +45,25 @@
 /* UseSgprForGRO=False */
 .amdgpu_metadata
 ---
+custom.config:
+   ProblemType:
+      OperationType: GEMM
+      DataType: D
+      TransposeA: False
+      TransposeB: False
+      UseBeta: True
+      Batched: True
+   MatrixInstruction: [ 16, 16, 4, 1 ]
+   ThreadTile: [ 2, 128 ]
+   WorkGroup: [ 64, 4, 1 ]
+   DepthU: 16
+   VectorWidth: 2
+   SourceSwap: 1
+   GlobalReadVectorWidth: 2
+   StaggerUStride: 128
+   StaggerU: 4
+   WorkGroupMapping: 4
+   AssertSizeMultiple: {3: 32}
 amdhsa.version:
   - 1
   - 0
@@ -2229,7 +2248,7 @@ s_cbranch_scc0 OptNLL_End_16                       // skip if tail loop required
 /*  grEndMfmaIndex:0, lwStartMfmaIndex:48, lwEndMfmaIndex:48  */
 /*  numMfmaForLR:13, barrierMfmaIndex:50  */
 /*  mfmaIndex:0  */
-s_waitcnt lgkmcnt(0)                               // lgkmcnt=0 vmcnt=-1wait for prior local read local write old=0, new=0 newLW=0 newLR=0
+s_waitcnt lgkmcnt(0) vmcnt(3)                               // lgkmcnt=0 vmcnt=-1wait for prior local read local write old=0, new=0 newLW=0 newLR=0
 v_mfma_f64_16x16x4f64 v[0:7], v[vgprValuB_X0_I0+0+0+0:vgprValuB_X0_I0+0+0+0+1], v[vgprValuA_X0_I1+0+0+0:vgprValuA_X0_I1+0+0+0+1], v[0:7]
 /*  mfmaIndex:1  */
 ds_read_b128 v[vgprValuB_X2_I0+0:vgprValuB_X2_I0+0+3], v[vgprLocalReadAddrB] offset:64 // L -> Reg lro=8 swapByteOffset=0 ti=16 vIdx=0 eIdx=0 rIdx=0 oIdx=0 buffer=2 iui=0
@@ -2285,7 +2304,7 @@ v_mfma_f64_16x16x4f64 v[120:127], v[vgprValuB_X0_I0+28+0+0:vgprValuB_X0_I0+28+0+
 /*  numMfmaForLR:13, barrierMfmaIndex:50  */
 /*  mfmaIndex:16  */
 /* localReadsVacancy: letencyLeft 5 */
-s_waitcnt lgkmcnt(0)                               // lgkmcnt=0 vmcnt=-1wait for prior local read local write old=1, new=1 newLW=0 newLR=0
+s_waitcnt lgkmcnt(0) vmcnt(2)                               // lgkmcnt=0 vmcnt=-1wait for prior local read local write old=1, new=1 newLW=0 newLR=0
 v_mfma_f64_16x16x4f64 v[0:7], v[vgprValuB_X0_I0+0+2+0:vgprValuB_X0_I0+0+2+0+1], v[vgprValuA_X1_I1+0+0+0:vgprValuA_X1_I1+0+0+0+1], v[0:7]
 /*  mfmaIndex:17  */
 /* localReadsVacancy: letencyLeft 5 */
@@ -2343,7 +2362,7 @@ v_mfma_f64_16x16x4f64 v[120:127], v[vgprValuB_X0_I0+28+2+0:vgprValuB_X0_I0+28+2+
 /*  numMfmaForLR:13, barrierMfmaIndex:50  */
 /*  mfmaIndex:32  */
 /* localReadsVacancy: letencyLeft 5 */
-s_waitcnt lgkmcnt(0)                               // lgkmcnt=0 vmcnt=-1wait for prior local read local write old=0, new=0 newLW=0 newLR=0
+s_waitcnt lgkmcnt(0) vmcnt(1)                               // lgkmcnt=0 vmcnt=-1wait for prior local read local write old=0, new=0 newLW=0 newLR=0
 v_mfma_f64_16x16x4f64 v[0:7], v[vgprValuB_X2_I0+0+0+0:vgprValuB_X2_I0+0+0+0+1], v[vgprValuA_X2_I1+0+0+0:vgprValuA_X2_I1+0+0+0+1], v[0:7]
 /*  mfmaIndex:33  */
 /* localReadsVacancy: letencyLeft 5 */
@@ -2400,7 +2419,7 @@ v_mfma_f64_16x16x4f64 v[120:127], v[vgprValuB_X2_I0+28+0+0:vgprValuB_X2_I0+28+0+
 /*  grEndMfmaIndex:0, lwStartMfmaIndex:48, lwEndMfmaIndex:48  */
 /*  numMfmaForLR:13, barrierMfmaIndex:50  */
 /*  mfmaIndex:48  */
-s_waitcnt lgkmcnt(0)                               // lgkmcnt=0 vmcnt=-1wait for prior local read local write old=0, new=0 newLW=0 newLR=0
+s_waitcnt lgkmcnt(0) vmcnt(0)                               // lgkmcnt=0 vmcnt=-1wait for prior local read local write old=0, new=0 newLW=0 newLR=0
 v_mfma_f64_16x16x4f64 v[0:7], v[vgprValuB_X2_I0+0+2+0:vgprValuB_X2_I0+0+2+0+1], v[vgprValuA_X3_I1+0+0+0:vgprValuA_X3_I1+0+0+0+1], v[0:7]
 /*  mfmaIndex:49  */
 v_mfma_f64_16x16x4f64 v[8:15], v[vgprValuB_X2_I0+0+2+0:vgprValuB_X2_I0+0+2+0+1], v[vgprValuA_X3_I1+2+0+0:vgprValuA_X3_I1+2+0+0+1], v[8:15]
