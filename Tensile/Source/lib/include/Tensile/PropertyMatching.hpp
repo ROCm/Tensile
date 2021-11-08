@@ -371,7 +371,7 @@ namespace Tensile
             std::tuple<ReturnValue, double> findBestKeyMatch_BinSearch(Key const& key,
                                                                        Transform  transform) const
             {
-                std::cout << "doing a bin search" << std::endl;
+                std::cout << "distance matching" << std::endl;
                 if(this->table.empty())
                     return std::make_tuple(this->nullValue, std::numeric_limits<double>::max());
 
@@ -660,8 +660,13 @@ namespace Tensile
             std::tuple<ReturnValue, double> findBestKeyMatch(Key const& key,
                                                              Transform  transform) const
             {
-                std::cout << "temp equality matching" << std::endl;
-                return std::make_tuple(this->nullValue, std::numeric_limits<double>::max());
+                std::cout << "equality matching" << std::endl;
+                auto comp = [](Entry const& e, Key const& key) { return e.key < key; };
+                auto iter = std::lower_bound(table.begin(), table.end(), key, comp);
+
+                return (iter->key == key)
+                           ? std::make_tuple(transform(iter->value), 0.0)
+                           : std::make_tuple(this->nullValue, std::numeric_limits<double>::max());
             }
         };
     } // namespace Matching

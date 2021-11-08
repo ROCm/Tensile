@@ -87,7 +87,14 @@ namespace Tensile
 
             inline bool operator()(Key const& p1, Key const& p2) const
             {
-                return p1 == p2;
+                double distance = 0.0;
+
+                for(int i = 0; i < p1.size(); i++)
+                {
+                    double di = p1[i] - p2[i];
+                    distance += di * di;
+                }
+                return distance;
             }
         };
 

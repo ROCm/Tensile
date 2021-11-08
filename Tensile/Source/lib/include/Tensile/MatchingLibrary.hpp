@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright 2019-2020 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -76,20 +76,20 @@ namespace Tensile
                 return library->findBestSolution(problem, hardware);
             };
 
-            // if(useDebugSelection)
-            // {
-            //     std::shared_ptr<MySolution> evaluationSolution
-            //         = table->findBestEvaluationSolution(problem, hardware, transform);
-            //     return evaluationSolution;
-            // }
-            // else
-            // {
-            double localFitness = std::numeric_limits<double>::max();
-            fitness             = (fitness) ? fitness : &localFitness;
-            std::shared_ptr<MySolution> solution;
-            std::tie(solution, *fitness) = table->findBestMatch(problem, transform);
-            return solution;
-            //}
+            if(useDebugSelection)
+            {
+                std::shared_ptr<MySolution> evaluationSolution
+                    = table->findBestEvaluationSolution(problem, hardware, transform);
+                return evaluationSolution;
+            }
+            else
+            {
+                double localFitness = std::numeric_limits<double>::max();
+                fitness             = (fitness) ? fitness : &localFitness;
+                std::shared_ptr<MySolution> solution;
+                std::tie(solution, *fitness) = table->findBestMatch(problem, transform);
+                return solution;
+            }
         }
 
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
