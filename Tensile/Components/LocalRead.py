@@ -136,7 +136,6 @@ class LocalReadMFMA(LocalRead):
         tile01           = tP["tile01Idx"]
         instruction      = tP["localReadInstruction"]
 
-        directToLdsStride = False 
         numOffsets       = instruction.numOffsets
         blockWidth       = instruction.blockWidth
         vectorWidth      = kernel["VectorWidth"] if kernel["SourceSwap"] else 1 # TODO: nonSwap VectorWidth
@@ -149,11 +148,6 @@ class LocalReadMFMA(LocalRead):
         if kernel["UnrollMajorLDS%s" % tP["tensorChar"]]:
             tileStride   = kernel["_DepthULds"] + LdsPad
             UnrollStride = 1
-        # special case for fp64 and 
-        # TODO re-work offset for ds_b64
-        if kernel["DirectToLds%s" % tP["tensorChar"]] and \
-           kernel["ProblemType"]["TLU%s" % tP["tensorChar"]] and tP["bpe"] == 8:
-           directToLdsStride = True 
 
         numReadPerTileVector = vectorWidth if (tile01 == 0) else 1
         numVectorsPerTile    = kernel["MIWaveTile"][tile01] // numReadPerTileVector
@@ -218,32 +212,76 @@ class LocalReadMFMA(LocalRead):
                     paramList.append(vgpr("LocalReadAddr%s"%tc))
 
                     for oIdx in range(0, numOffsets):
-                        offset_val = ((vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride if directToLdsStride else (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride
-                        offset_val = (rIdx*32 + eIdx*16 + (offset_val + tP["localReadOffset"]) * (tP["bpe"]))  if directToLdsStride else (rIdx * UnrollStride + offset_val + tP["localReadOffset"]) * tP["bpe"]
+                        if (kernel["DirectToLds%s" % tP["tensorChar"]] and  \
+                            kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"] > 4):
+                          # directToLds special case
+                          rIdxMod = rIdx % 2
+                          rIdxDiv = rIdx // 2
+                          offset_val = (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride
+                          offset_val = (rIdxDiv * UnrollStride + offset_val + tP["localReadOffset"]) * tP["bpe"]  + rIdxMod * writer.bpr
+                        else:
+                          # normal case
+                          offset_val = (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride
+                          offset_val = (rIdx * UnrollStride + offset_val + tP["localReadOffset"]) * tP["bpe"]
                         if (kernel["LdsBlockSizePerPad%s"%tc] != 0) and (kernel["LdsPad%s"%tc] != 0):
                             offset_val = offset_val + (offset_val // kernel["LdsBlockSizePerPad%s"%tc]) * kernel["LdsPad%s"%tc] * tP["bpe"]
                         offset_val = offset_val + tP["localReadSwapByteOffset"]
-                        if (kernel["DirectToLds%s" % tP["tensorChar"]] and  \
-                            kernel["GlobalLoadVectorWidth%c"%tP["tensorChar"]] * tP["bpe"] > 4 and  \
-                            kernel["ProblemType"]["TLU%s" % tP["tensorChar"]] and \
-                            tP["nrc"]> 1):
-                          # DirectToLds + above conditions, swap offset_val bits to adjust LDS offset
-                          # need to swap col and row index
-                          waveDiff = 1
-                          scale = tP["nrc"]
-                          scaleShift = int(log2(scale)) # assuming scale is power of 2
-                          scaleShift += int(log2(waveDiff))
-                          ldsLineSize = kernel["WavefrontSize"] * kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"]
-                          ldsLineSize //= scale
-                          maskBitsLow = (scale - 1) * ldsLineSize
-                          maskBitsHigh = maskBitsLow * scale * waveDiff
-                          maskBitsAll = (maskBitsLow | maskBitsHigh)
-                          tmp1 = offset_val & maskBitsLow
-                          tmp2 = offset_val & maskBitsHigh
-                          tmp1 <<= scaleShift
-                          tmp2 >>= scaleShift
-                          tmp1 = tmp1 | tmp2
-                          offset_val = (offset_val & (~maskBitsAll)) | tmp1
+                        if (kernel["DirectToLds%s" % tc] and  \
+                            kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"] > 4):
+
+                          # another address conversion for DirectToLds + NumLoadsCoalesced > 1
+                          if tP["grcg"]:
+                            if tP["grcv"]:
+                              divisorName = tP["lvc"]
+                            else:
+                              # Fractional load use the more accurate lsc, multiply by VW later
+                              divisorName = tP["lsc"]
+                          else:
+                            if tP["grcv"]:
+                              divisorName = tP["lsp"]
+                            else:
+                              divisorName = tP["lvp"]
+                          divisor = kernel[divisorName]
+                          if divisor < writer.kernel["WavefrontSize"]:
+                            # DirectToLds + above conditions, swap offset_val bits to adjust LDS offset
+                            # need to swap col and row index
+                            #waveDiff = 1 if kernel["WaveSeparateGlobalRead%c"%tc] else kernel["NumThreads"]//kernel["WavefrontSize"]
+                            waveDiff = 1
+                            if (not kernel["WaveSeparateGlobalRead%c"%tc]) and tP["glvw"] == 1:
+                              waveDiff = kernel["NumThreads"]//kernel["WavefrontSize"]
+                            scale = tP["nrc"]
+                            scaleShift = int(log2(scale)) # assuming scale is power of 2
+                            scaleShift += int(log2(waveDiff))
+                            ldsLineSize = kernel["WavefrontSize"] * kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"]
+                            ldsLineSize //= scale
+                            maskBitsLow = (scale - 1) * ldsLineSize
+                            maskBitsHigh = maskBitsLow * scale * waveDiff
+                            maskBitsAll = (maskBitsLow | maskBitsHigh)
+                            tmp1 = offset_val & maskBitsLow
+                            tmp2 = offset_val & maskBitsHigh
+                            tmp1 <<= scaleShift
+                            tmp2 >>= scaleShift
+                            tmp1 = tmp1 | tmp2
+                            offset_val = (offset_val & (~maskBitsAll)) | tmp1
+
+                          # offset conversion for DirectToLds
+                          # TLU=0 case, modify bit3-6 of offset_val as follows
+                          # (bit2<<3) | (bit3 <<1) | (bit4>>2) | (bit5>>2)
+                          bit2 = offset_val & 4
+                          bit3 = offset_val & 8
+                          bit4 = offset_val & 16
+                          bit5 = offset_val & 32
+                          if (kernel["VectorWidth"] * tP["bpe"] == 8):
+                            # dword_x2 case
+                            # (bit2<<3) | (bit3 >>1) | (bit4>>1) | (bit5>>1)
+                            newVal = (bit2<<3) | (bit3 >>1) | (bit4>>1) | (bit5>>1)
+                          else:  #if (kernel["VectorWidth"] * tP["bpe"] == 16):  # most preferred case
+                            # dword_x4 case
+                            # (bit2<<3) | (bit3 <<1) | (bit4>>2) | (bit5>>2)
+                            newVal = (bit2<<3) | (bit3 <<1) | (bit4>>2) | (bit5>>2)
+                          offset_val = offset_val & (~0x3c)
+                          offset_val = offset_val | newVal
+
                         paramList.append(int(offset_val))
 
                     paramTuple = tuple(paramList)
