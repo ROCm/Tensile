@@ -1087,7 +1087,7 @@ namespace Tensile
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     const uint64_t TWO_POW_32 = 4294967296;
-                    return problem.a().strides()[1] * problem.a().elementBytes() * value
+                    return problem.d().strides()[1] * problem.d().elementBytes() * value
                            < TWO_POW_32;
                 }
 
@@ -1101,8 +1101,8 @@ namespace Tensile
                 {
                     bool rv = (*this)(problem);
 
-                    stream << *this << ": (" << problem.a().strides()[1] << " * "
-                           << problem.a().elementBytes() << " * " << value << " < 4294967296"
+                    stream << *this << ": (" << problem.d().strides()[1] << " * "
+                           << problem.d().elementBytes() << " * " << value << " < 4294967296"
                            << ") == " << rv;
 
                     return rv;
