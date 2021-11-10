@@ -207,17 +207,21 @@ class KernelWriter(metaclass=abc.ABCMeta):
         else:
           # for 1LDSB, we have to issue localwrites after localreads
           if kernel["ClusterLocalRead"]:
-            if ((self.numReadsPerUnrollA != 1 and not(self.lrvwTileA > 1 and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()))) or \
-              self.numReadsPerUnrollB != 1) and not kernel["ClusterLocalReadPack"]:
             # fp16 or bf16, we read 1 element to vgprBuffer the other element to tempVgpr.
             # since each iteration shares same tempVgpr, only read-to-vgprBuffer can
             # be scheduled in the front of loop.
+            if ((not kernel["UnrollMajorLDSA"] and self.lrvwTileA * kernel["ProblemType"]["DataType"].numBytes() < 4) or \
+              (not kernel["UnrollMajorLDSB"] and self.lrvwTileB * kernel["ProblemType"]["DataType"].numBytes() < 4)) and \
+              not kernel["ClusterLocalReadPack"]:
               # localwrite have to start after last read-to-tempVgpr.
-              if self.lrvwTileA > 1 and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()):
+              if not kernel["UnrollMajorLDSA"] and self.lrvwTileA * kernel["ProblemType"]["DataType"].numBytes() >= 4:
                 numHalfReadsA = 0
               else:
                 numHalfReadsA = (self.numReadsPerUnrollA//2)*kernel["InnerUnroll"]*kernel["MIWaveTileA"]
-              numHalfReadsB = (self.numReadsPerUnrollB//2)*kernel["InnerUnroll"]*kernel["MIWaveTileB"]
+              if not kernel["UnrollMajorLDSB"] and self.lrvwTileB * kernel["ProblemType"]["DataType"].numBytes() >= 4:
+                numHalfReadsB = 0
+              else:
+                numHalfReadsB = (self.numReadsPerUnrollB//2)*kernel["InnerUnroll"]*kernel["MIWaveTileB"]
               numHalfReads = numHalfReadsA + numHalfReadsB
               numMfmaForHalfRead = 1
               latencyLeft = self.miLatencyLeft
@@ -2442,9 +2446,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
           MacIteritems.pop(1)
         #print("number MacItems\n",len(MacIteritems))
         blockWidth = tensorParametersA["localReadInstruction"].blockWidth
-        numVectorsPerTileA = (kernel["ThreadTile%u"%tensorParametersA["tensorIdx"]]/kernel["VectorWidth"])
-        numReadsPerVectorA = (kernel["VectorWidth"] * tensorParametersA["bpe"] ) / (blockWidth*4)
-        numVectorsPerTileB = (kernel["ThreadTile%u"%tensorParametersB["tensorIdx"]]/kernel["VectorWidth"])
+        numVectorsPerTileA = (kernel["ThreadTile%u"%tensorParametersA["tensorIdx"]]/kernel["VectorWidthA"])
+        numReadsPerVectorA = (kernel["VectorWidthA"] * tensorParametersA["bpe"] ) / (blockWidth*4)
+        numVectorsPerTileB = (kernel["ThreadTile%u"%tensorParametersB["tensorIdx"]]/kernel["VectorWidthB"])
         TotalnumLdsFetches = numVectorsPerTileA*numReadsPerVectorA + numVectorsPerTileB*numReadsPerVectorA
         ## Rules for applying kernel["UnrollLoopEfficiencyEnable"]
         ## if A+B fetches <= 3 no split approach
@@ -2507,22 +2511,22 @@ class KernelWriter(metaclass=abc.ABCMeta):
             for iter in range(0,numGroups):
               if len(AitemsToReorder):
                 localReads.addText(self.comment("local read a"))
-                numLocalReads = roundUp((ldsItems[iter][0])/kernel["VectorWidth"])
+                numLocalReads = roundUp((ldsItems[iter][0])/kernel["VectorWidthA"])
                 ##print("number ds items A(%u..%u)\n"%(iter,numLocalReads))
                 for idx in range(0,numLocalReads):
                   localReads.addCode(AitemsToReorder[0])
                   AitemsToReorder = AitemsToReorder[1:]
               if len(BitemsToReorder):
-                numLocalReads = roundUp(ldsItems[iter][1]/kernel["VectorWidth"])
+                numLocalReads = roundUp(ldsItems[iter][1]/kernel["VectorWidthA"])
                 ##print("number ds items B(%u..%u)\n"%(iter,numLocalReads))
                 localReads.addText(self.comment("local read b"))
                 for items in range(0,numLocalReads):
                   localReads.addCode(BitemsToReorder[0])
                   BitemsToReorder = BitemsToReorder[1:]
               if iter == 0:
-                waitCntItems[iter] = TotalnumLdsFetches - ((ldsItems[iter][0])/kernel["VectorWidth"] + (ldsItems[iter][1])/kernel["VectorWidth"])
+                waitCntItems[iter] = TotalnumLdsFetches - ((ldsItems[iter][0])/kernel["VectorWidthA"] + (ldsItems[iter][1])/kernel["VectorWidthA"])
               elif iter+1 != numGroups:
-                waitCntItems[iter] = TotalnumLdsFetches - ((ldsItems[iter][0])/kernel["VectorWidth"] + (ldsItems[iter][1])/kernel["VectorWidth"] + waitCntItems[iter-1])
+                waitCntItems[iter] = TotalnumLdsFetches - ((ldsItems[iter][0])/kernel["VectorWidthA"] + (ldsItems[iter][1])/kernel["VectorWidthA"] + waitCntItems[iter-1])
               else:
                 waitCntItems[iter] = 0
               #print("Waitcnt(%u..%u)\n"%(iter,waitCntItems[iter]))
@@ -3353,13 +3357,19 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.numVgprBufferPackA = self.numItersPLR + 1
       self.numVgprBufferPackB = self.numItersPLR + 1
 
-    if kernel["SourceSwap"] and kernel["VectorWidth"] > 1 and not kernel["UnrollMajorLDSA"]:
-      self.lrvwTileA = kernel["VectorWidth"]
+    if kernel["SourceSwap"] and not kernel["UnrollMajorLDSA"]:
+      self.lrvwTileA = kernel["VectorWidthA"]
     else:
       self.lrvwTileA = 1
+    if kernel["SourceSwap"] and not kernel["UnrollMajorLDSB"]:
+      self.lrvwTileB = kernel["VectorWidthB"]
+    else:
+      self.lrvwTileB = 1
 
     if self.lrvwTileA > 1 and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isInt8()):
       self.numVgprBufferPackA = 1
+    if self.lrvwTileB > 1 and (kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16() or kernel["ProblemType"]["DataType"].isInt8()):
+      self.numVgprBufferPackB = 1
 
     if kernel["UnrollMajorLDSA"]:
       self.lrvwUnrollA = kernel["LocalReadVectorWidth"]
@@ -3400,7 +3410,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       else: # read components, write components
         self.readTileDimComponentsA = False # Scalar
         self.readTileDimVectorA = False # Scalar
-        self.readUnrollDimComponentsA = kernel["VectorWidth"] > 1 # Components
+        self.readUnrollDimComponentsA = kernel["VectorWidthA"] > 1 # Components
         self.readUnrollDimVectorA = False # Components
         self.numReadsTileVecCompA = 1
         self.numReadsUnrollVecCompA = vwa
@@ -3415,7 +3425,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.numReadsUnrollVecCompA = vwa
         self.numReadsTileVecCompA = 1
       else: # read components, write vectors
-        self.readTileDimComponentsA = kernel["VectorWidth"] > 1 # Components
+        self.readTileDimComponentsA = kernel["VectorWidthA"] > 1 # Components
         self.readTileDimVectorA = False # Components
         self.readUnrollDimComponentsA = False # Scalar
         self.readUnrollDimVectorA = False # Scalar
@@ -3508,7 +3518,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       else:
         self.readTileDimComponentsB = False # Scalar
         self.readTileDimVectorB = False # Scalar
-        self.readUnrollDimComponentsB = kernel["VectorWidth"] > 1 # Components
+        self.readUnrollDimComponentsB = kernel["VectorWidthB"] > 1 # Components
         self.readUnrollDimVectorB = False # Components
         # NEW
         self.numReadsTileVecCompB = 1
@@ -3524,7 +3534,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.numReadsUnrollVecCompB = vwb
         self.numReadsTileVecCompB = 1
       else:
-        self.readTileDimComponentsB = kernel["VectorWidth"] > 1 # Components
+        self.readTileDimComponentsB = kernel["VectorWidthB"] > 1 # Components
         self.readTileDimVectorB = False # Components
         self.readUnrollDimComponentsB = False # Scalar
         self.readUnrollDimVectorB = False # Scalar

@@ -281,7 +281,7 @@ class ComputeStoreVgprsMFMASwap(ComputeStoreVgprs):
         kStr += vectorStaticRemainder(dummy, tid1, "Serial", writer.kernel["WavefrontSize"], tmpVgpr1, tmpSgpr)
         kStr += vectorStaticDivide(tid1, tid1, matrixInstM, tmpVgpr1, tmpSgpr)
         kStr += staticMultiply(vgpr(tid1), vgpr(tid1), kernel["MIOutputVectorWidth"], sgpr(tmpSgpr), "thread0 * continuous_output")
-        kStr += inst("v_add_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), "coordination 1 = wave_id1 + tid1")
+        kStr += inst("_v_add_lshl_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), log2(kernel["VectorWidthB"]), "coordination 1 = (wave_id1 + tid1) * vwB")
 
         # coord 1 : offset part
         packedC1 = kernel["PackedC1IndicesX"]
@@ -296,7 +296,7 @@ class ComputeStoreVgprsMFMASwap(ComputeStoreVgprs):
 
         # coord 0 : thread part
         kStr += vectorStaticRemainder(dummy, tmpVgpr0, "Serial", matrixInstM, tmpVgpr1, tmpSgpr)
-        kStr += inst("_v_add_lshl_u32", vgpr(tid0), vgpr(tmpVgpr0), vgpr(tid0), log2(kernel["VectorWidth"]), "coordination 0 = wave_id0 + tid0")
+        kStr += inst("_v_add_lshl_u32", vgpr(tid0), vgpr(tmpVgpr0), vgpr(tid0), log2(kernel["VectorWidthA"]), "coordination 0 = (wave_id0 + tid0) * vwA")
 
         if writer.prefetchAcrossPersistent:
             wg0="PrevWorkGroup0"

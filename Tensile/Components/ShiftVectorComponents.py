@@ -32,6 +32,7 @@ class ShiftVectorComponentsVALU(ShiftVectorComponents):
         kStr = ""
 
         # glvw
+        tc = tP["tensorChar"]
         vw = tP["glvw"]
         numVectors = kernel[tP["tt"]]//vw
         # labels
@@ -66,7 +67,7 @@ class ShiftVectorComponentsVALU(ShiftVectorComponents):
 
         # qReg
         qReg = writer.vgprPool.checkOut(1,"qReg")
-        divisor = kernel["VectorWidth"] # vw
+        divisor = kernel["VectorWidth%s"%tc] # vw
         kStr += vectorStaticDivide(qReg, wgMT, divisor, \
                 tmpVgpr, tmpSgpr)
 
@@ -105,17 +106,17 @@ class ShiftVectorComponentsVALU(ShiftVectorComponents):
 
         # which glvw vector of thread to shift? wgMT / (SG0*VW) -> (wgMT%VW) / glvw
         # (wgMT/(WG0*VW))*(VW/glvw) + (wgMT%VW) / glvw
-        if True:#tP["tensorIdx"] > kernel["VectorWidth"]:
+        if True:#tP["tensorIdx"] > kernel["VectorWidth%s"%tc]:
             mvReg = writer.vgprPool.checkOut(1,"mvReg")
-            divisor = kernel[tP["sg"]]*kernel["VectorWidth"]
+            divisor = kernel[tP["sg"]]*kernel["VectorWidth%s"%tc]
             kStr += vectorStaticDivide(mvReg, wgMT, divisor, \
                     tmpVgpr, tmpSgpr)
-            if vw < kernel["VectorWidth"]:
-                kStr += inst("v_lshlrev_b32", vgpr(mvReg), hex(log2(kernel["VectorWidth"]//vw)), vgpr(mvReg), "vId *= VW/glvw")
+            if vw < kernel["VectorWidth%s"%tc]:
+                kStr += inst("v_lshlrev_b32", vgpr(mvReg), hex(log2(kernel["VectorWidth%s"%tc]//vw)), vgpr(mvReg), "vId *= VW/glvw")
         #kStr += dump(vgpr(mvReg))
 
         vReg = writer.vgprPool.checkOut(1,"vReg")
-        divisor = kernel["VectorWidth"]
+        divisor = kernel["VectorWidth%s"%tc]
         kStr += vectorStaticRemainder(dummy, vReg, wgMT, divisor, \
                 tmpVgpr, tmpSgpr)
         vRegD = writer.vgprPool.checkOut(1,"vRegD")
@@ -125,7 +126,7 @@ class ShiftVectorComponentsVALU(ShiftVectorComponents):
                 tmpVgpr, tmpSgpr)
         #kStr += dump(vgpr(vReg))
 
-        if True:#tP["tensorIdx"] > kernel["VectorWidth"]:
+        if True:#tP["tensorIdx"] > kernel["VectorWidth%s"%tc]:
             kStr += inst("_v_add_co_u32", vgpr(vReg), writer.vcc, vgpr(mvReg), vgpr(vReg), "vId = 2 components")
             writer.vgprPool.checkIn(mvReg)
             writer.vgprPool.checkIn(vRegD)
@@ -299,11 +300,12 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
             return kStr
 
         # common parameter
+        tc              = tP["tensorChar"]
         regPerElem      = kernel["MIRegPerOut"]
         glvw            = tP["glvw"]
         numThreadInWave = writer.kernel["WavefrontSize"]
         accImOffset     = writer.AccVgprImagNumOffset(kernel)
-        vectorWidth     = kernel["VectorWidth"] if (kernel["SourceSwap"] and tP["isA"]) else 1
+        vectorWidth     = kernel["VectorWidth%s"%tc]
 
         # use to handle MatrixInst 4x4
         matrixInstM     = kernel["MatrixInstM"] * kernel["MatrixInstBM"] if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstM"]
@@ -327,10 +329,10 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         threadInterval  = 1 if conThInProcDim else matrixInstPrep
         numThreadInCoal = matrixInstCoal if conThInProcDim else (numThreadInWave // matrixInstPrep)
 
-        numContOutCoal  = 1 if conThInProcDim else kernel["MIOutputVectorWidth"]
-        allContOutCoal  = numContOutCoal * vectorWidth
+        numContOutCoal  = vectorWidth if conThInProcDim else kernel["MIOutputVectorWidth"] * vectorWidth
+        allContOutCoal  = numContOutCoal
 
-        OutBlocksInMI   = (matrixInstCoal * matrixInstPrep) // numThreadInWave // numContOutCoal
+        OutBlocksInMI   = (vectorWidth * matrixInstCoal * matrixInstPrep) // numThreadInWave // numContOutCoal
         OutBlocksInMI   = 1 if conThInProcDim else OutBlocksInMI
 
         subMBShapeCoal  = (matrixInstCoal * vectorWidth) if conThInProcDim else ((numThreadInWave // matrixInstPrep) * numContOutCoal)

@@ -20,6 +20,7 @@
 ################################################################################
 
 from ..Component import NotLocalFullTileElements
+from math import ceil
 
 class NotLocalFullTileElementsVALU(NotLocalFullTileElements):
     kernel = {"EnableMatrixInstruction": False}
@@ -34,18 +35,18 @@ class NotLocalFullTileElementsVALU(NotLocalFullTileElements):
         vectorwidth = 0
 
         if edge:
-            vectorwidth = kernel["VectorWidth"] if kernel["_VectorStore"] else 1
+            vectorwidth = kernel["VectorWidthA"] if kernel["_VectorStore"] else 1
             vectorwidth = min(vectorwidth, writer.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
-            assert(kernel["VectorWidth"] % vectorwidth == 0)
+            assert(kernel["VectorWidthA"] % vectorwidth == 0)
         else:
-            vectorwidth = kernel["VectorWidth"] if kernel["_VectorStore"] else 1
+            vectorwidth = kernel["VectorWidthA"] if kernel["_VectorStore"] else 1
             vectorwidth = min(vectorwidth, writer.maxGwvw(kernel))
 
         # Full tile loop:
-        for tt1 in range(0, kernel["ThreadTile1"]//kernel["VectorWidth"]):
-            for vc1 in range(0, kernel["VectorWidth"]):
-                for tt0 in range(0, kernel["ThreadTile0"]//kernel["VectorWidth"]):
-                    for vc0 in range(0, kernel["VectorWidth"], vectorwidth): # note step by fullVw
+        for tt1 in range(0, kernel["ThreadTile1"]//kernel["VectorWidthB"]):
+            for vc1 in range(0, kernel["VectorWidthB"]):
+                for tt0 in range(0, kernel["ThreadTile0"]//kernel["VectorWidthA"]):
+                    for vc0 in range(0, kernel["VectorWidthA"], vectorwidth): # note step by fullVw
                         element = (tt1, tt0, vc1, vc0)
                         elements.append(element)
 
@@ -85,12 +86,12 @@ class NotLocalFullTileElementsMFMA(NotLocalFullTileElements):
 
         totalTT0     = totalTT0                      if kernel["SourceSwap"] else (totalTT0 * outputsPerThread)
         totalTT1     = (totalTT1 * outputsPerThread) if kernel["SourceSwap"] else totalTT1
-        vectorWidth0 = kernel["VectorWidth"]         if kernel["SourceSwap"] else kernel["MIOutputVectorWidth"]
-        vectorWidth1 = kernel["MIOutputVectorWidth"] if kernel["SourceSwap"] else 1
+        vectorWidth0 = kernel["VectorWidthA"]        if kernel["SourceSwap"] else kernel["MIOutputVectorWidth"]
+        vectorWidth1 = kernel["MIOutputVectorWidth"] * kernel["VectorWidthB"] if kernel["SourceSwap"] else kernel["VectorWidthB"]
 
-        for tt1 in range(0, totalTT1//vectorWidth1):
+        for tt1 in range(0, ceil(totalTT1/vectorWidth1)):
             for vc1 in range(0, vectorWidth1):
-                for tt0 in range(0, totalTT0//vectorWidth0):
+                for tt0 in range(0, ceil(totalTT0/vectorWidth0)):
                     for vc0 in range(0, vectorWidth0, storeVectorWidth): # note step by storeVectorWidth
                         element = (tt1, tt0, vc1, vc0)
                         elements.append(element)

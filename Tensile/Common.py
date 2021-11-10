@@ -1030,6 +1030,8 @@ validParameters = {
     # For MFMA non SourceSwap: this parameter didn't take effect
     # For MFMA SourceSwap: this parameter only take effect on A buffer for now
     "VectorWidth":                [ -1, 1, 2, 3, 4, 6, 8 ],
+    "VectorWidthA":               [ -1, 1, 2, 3, 4, 6, 8 ],
+    "VectorWidthB":               [ -1, 1, 2, 3, 4, 6, 8 ],
 
     # If 0, store 1 element per instruction.
     # If 1, store vector-width elements per instruction.
@@ -1195,6 +1197,8 @@ defaultBenchmarkCommonParameters = [
     {"TransposeLDS":              [ 0 ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
+    {"VectorWidthA":              [ -1 ] },
+    {"VectorWidthB":              [ -1 ] },
     {"VectorStore":               [ -1 ] },
     {"StoreVectorWidth":         [ -1 ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
