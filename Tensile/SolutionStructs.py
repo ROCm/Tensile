@@ -2787,10 +2787,13 @@ class Solution(collections.abc.Mapping):
           or state["ThreadTile1"] % state["VectorWidth"] != 0:
         state["VectorWidth"] //= 2
 
+    state["UnrollMajorLDSA"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUA"])
+    state["UnrollMajorLDSB"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUB"])
+
     if state["EnableMatrixInstruction"]:
       if state["VectorWidthA"] == -1:
         regPerElem = state["ProblemType"]["DataType"].numRegisters()
-        if state["SourceSwap"]:
+        if state["SourceSwap"] and not state["UnrollMajorLDSA"]:
           optVW = int(4 // regPerElem)
           while 1:
             if state["MIWaveTile"][0] % optVW == 0:
@@ -2802,7 +2805,7 @@ class Solution(collections.abc.Mapping):
           state["VectorWidthA"] = 1
       if state["VectorWidthB"] == -1:
         regPerElem = state["ProblemType"]["DataType"].numRegisters()
-        if state["SourceSwap"]:
+        if state["SourceSwap"] and not state["UnrollMajorLDSB"]:
           optVW = int(4 // regPerElem)
           while 1:
             if state["MIWaveTile"][1] % optVW == 0:
@@ -3275,8 +3278,6 @@ class Solution(collections.abc.Mapping):
     ########################################
     # LDS
     ########################################
-    state["UnrollMajorLDSA"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUA"])
-    state["UnrollMajorLDSB"]     = state["TransposeLDS"] and (not state["ProblemType"]["TLUB"])
 
     if state["LdsBlockSizePerPadA"] == -1:
       if state["UnrollMajorLDSA"]:
@@ -3285,7 +3286,7 @@ class Solution(collections.abc.Mapping):
           state["LdsBlockSizePerPadA"] = roundUpToNearestMultiple(state["_DepthULds"] * state["ProblemType"]["DataType"].numBytes() * state["VectorWidthA"], 128)
       else:
         if state["MatrixInstB"] == 1 and state["MatrixInstM"] == 16:
-          state["LdsBlockSizePerPadA"] = (state["MatrixInstK"] // 4) * state["MacroTile0"] * state["ProblemType"]["DataType"].numBytes()
+          state["LdsBlockSizePerPadA"] = state["MacroTile0"] * state["ProblemType"]["DataType"].numBytes() * state["LocalReadVectorWidth"]
         else:
           state["LdsBlockSizePerPadA"] = 0
 
@@ -3296,7 +3297,7 @@ class Solution(collections.abc.Mapping):
           state["LdsBlockSizePerPadB"] = roundUpToNearestMultiple(state["_DepthULds"] * state["ProblemType"]["DataType"].numBytes() * state["VectorWidthB"], 128)
       else:
         if state["MatrixInstB"] == 1 and state["MatrixInstM"] == 16:
-          state["LdsBlockSizePerPadB"] = (state["MatrixInstK"] // 4) * state["MacroTile1"] * state["ProblemType"]["DataType"].numBytes()
+          state["LdsBlockSizePerPadB"] = state["MacroTile1"] * state["ProblemType"]["DataType"].numBytes() * state["LocalReadVectorWidth"]
         else:
           state["LdsBlockSizePerPadB"] = 0
 
@@ -3355,42 +3356,42 @@ class Solution(collections.abc.Mapping):
           (readRegs == 4 or readRegs == 1):
         optPad *= 2
     if state["LdsPadA"] == -1:
-      if state["ProblemType"]["TLUA"]:
+      if not state["UnrollMajorLDSA"]:
         if state["EnableMatrixInstruction"]:
           state["LdsPadA"] = 0
           if state["MatrixInstB"] == 1 and state["MatrixInstM"] == 16:
-            state["LdsPadA"] = ((16 * state["ProblemType"]["DataType"].numBytes() + (state["MatrixInstK"] // 4) * state["MacroTile0"] * state["ProblemType"]["DataType"].numBytes()) % 128) // state["ProblemType"]["DataType"].numBytes()
+            state["LdsPadA"] = ((16 * state["ProblemType"]["DataType"].numBytes() + state["MacroTile0"] * state["ProblemType"]["DataType"].numBytes() * state["LocalReadVectorWidth"]) % 128) // state["ProblemType"]["DataType"].numBytes()
             # ds_read_b128 will offset 16 bank per 16 thread
             if state["SourceSwap"] and state["VectorWidthA"] * state["ProblemType"]["DataType"].numBytes() == 16 and not state["ProblemType"]["DataType"].isDouble():
-              state["LdsPadA"] = ((16 * state["ProblemType"]["DataType"].numBytes() + (state["MatrixInstK"] // 4) * state["MacroTile0"] * state["ProblemType"]["DataType"].numBytes() + 64) % 128) // state["ProblemType"]["DataType"].numBytes()
+              state["LdsPadA"] = ((16 * state["ProblemType"]["DataType"].numBytes() + state["MacroTile0"] * state["ProblemType"]["DataType"].numBytes() * state["LocalReadVectorWidth"] + 64) % 128) // state["ProblemType"]["DataType"].numBytes()
         else:
-          state["LdsPadA"] = 0
+          if state["ProblemType"]["TLUA"]:
+            state["LdsPadA"] = 0
+          else:
+            state["LdsPadA"] = state["VectorWidthA"]
       else:
-        if state["EnableMatrixInstruction"] and state["TransposeLDS"]:
-          state["LdsPadA"] = max(state["GlobalReadVectorWidth"],optPad)
-        else:
-          state["LdsPadA"] = state["VectorWidthA"]
+        state["LdsPadA"] = max(state["GlobalLoadVectorWidthA"],optPad)
         ## turn-off padding for directToLds
-        if state["EnableMatrixInstruction"] and state["TransposeLDS"] and state["DirectToLdsA"]:
+        if state["DirectToLdsA"]:
           state["LdsPadA"] = 0 
       assert(state["LdsPadA"] >= 0)
     if state["LdsPadB"] == -1:
-      if state["ProblemType"]["TLUB"]:
+      if not state["UnrollMajorLDSB"]:
         if state["EnableMatrixInstruction"]:
           state["LdsPadB"] = 0
           if state["MatrixInstB"] == 1 and state["MatrixInstM"] == 16:
-            state["LdsPadB"] = ((16 * state["ProblemType"]["DataType"].numBytes() + (state["MatrixInstK"] // 4) * state["MacroTile1"] * state["ProblemType"]["DataType"].numBytes()) % 128) // state["ProblemType"]["DataType"].numBytes()
+            state["LdsPadB"] = ((16 * state["ProblemType"]["DataType"].numBytes() + state["MacroTile1"] * state["ProblemType"]["DataType"].numBytes() * state["LocalReadVectorWidth"]) % 128) // state["ProblemType"]["DataType"].numBytes()
             # ds_read_b128 will offset 16 bank per 16 thread
             if state["SourceSwap"] and state["VectorWidthB"] * state["ProblemType"]["DataType"].numBytes() == 16 and not state["ProblemType"]["DataType"].isDouble():
-              state["LdsPadB"] = ((16 * state["ProblemType"]["DataType"].numBytes() + (state["MatrixInstK"] // 4) * state["MacroTile1"] * state["ProblemType"]["DataType"].numBytes() + 64) % 128) // state["ProblemType"]["DataType"].numBytes()
+              state["LdsPadB"] = ((16 * state["ProblemType"]["DataType"].numBytes() + state["MacroTile1"] * state["ProblemType"]["DataType"].numBytes() * state["LocalReadVectorWidth"] + 64) % 128) // state["ProblemType"]["DataType"].numBytes()
         else:
-          state["LdsPadB"] = 0
+          if state["ProblemType"]["TLUB"]:
+            state["LdsPadB"] = 0
+          else:
+            state["LdsPadB"] = state["VectorWidthB"]
       else:
-        if state["EnableMatrixInstruction"] and state["TransposeLDS"]:
-          state["LdsPadB"] = max(state["GlobalReadVectorWidth"],optPad)
-        else:
-          state["LdsPadB"] = state["VectorWidthB"]
-        if state["EnableMatrixInstruction"] and state["TransposeLDS"] and state["DirectToLdsB"]:
+        state["LdsPadB"] = max(state["GlobalLoadVectorWidthB"],optPad)
+        if state["DirectToLdsB"]:
           state["LdsPadB"] = 0 
       assert(state["LdsPadB"] >= 0)
 
