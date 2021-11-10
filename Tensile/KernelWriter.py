@@ -1616,11 +1616,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     if self.prefetchAcrossPersistent and kernel["PrefetchAcrossPersistentMode"] == 1 and isPap and not isOptNLL:
       kStr = ""
-      kStr += str(self.openPrefetchAcrossPersistent(kernel, isOptNLL=False, useBufferOOB=True))
+      #kStr += str(self.openPrefetchAcrossPersistent(kernel, isOptNLL=False, useBufferOOB=True))
       # For PAPMode 1, using isOptNLL true to generate prefetch code
       newTileCodes = self.setupNewTile(kernel, self.tPA, self.tPB, isPap=True, isOptNLL=True)
       codes = '\n'.join([str(x) for x in newTileCodes])
       kStr += codes
+      # openPrefetchAcrossPersistent should be after newTileCodes to set correct values to ShadowLimit
+      kStr += str(self.openPrefetchAcrossPersistent(kernel, isOptNLL=False, useBufferOOB=True))
       kStr += str(self.closePrefetchAcrossPersistent(kernel, isOptNLL=False, useBufferOOB=True))
       kl.append(kStr)
 
@@ -2543,7 +2545,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.comment("local write swap offsets b"))
         kl.append(self.localWriteSwapOffsets(kernel, tensorParametersB))
 
-    if kernel["StoreCInUnroll"]:
+    if kernel["StoreCInUnroll"] and kernel["ExpandPointerSwap"]:
       if self.enable["LocalRead"]:
         kl.append(self.comment("local read swap offsets a"))
         kl.append(self.localReadSwapOffsets(kernel, expand, tensorParametersA))
