@@ -1063,7 +1063,6 @@ namespace Tensile
                 }
             };
 
-
             struct BufferLoadOffsetLimitCheck_Beta
                 : public Predicate_CRTP<BufferLoadOffsetLimitCheck_Beta, ContractionProblem>
             {
@@ -1095,7 +1094,7 @@ namespace Tensile
                     {
                         const uint64_t TWO_POW_32 = 4294967296;
                         return problem.c().strides()[1] * problem.c().elementBytes() * value
-                            < TWO_POW_32;
+                               < TWO_POW_32;
                     }
                 }
 
@@ -1116,8 +1115,6 @@ namespace Tensile
                     return rv;
                 }
             };
-
-
 
             struct BufferStoreOffsetLimitCheck
                 : public Predicate_CRTP<BufferStoreOffsetLimitCheck, ContractionProblem>
