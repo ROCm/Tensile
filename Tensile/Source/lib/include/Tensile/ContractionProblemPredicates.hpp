@@ -1063,6 +1063,62 @@ namespace Tensile
                 }
             };
 
+
+            struct BufferLoadOffsetLimitCheck_Beta
+                : public Predicate_CRTP<BufferLoadOffsetLimitCheck_Beta, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                size_t value;
+
+                BufferLoadOffsetLimitCheck_Beta() = default;
+                BufferLoadOffsetLimitCheck_Beta(size_t value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "BufferLoadOffsetLimitCheck_Beta";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    if (problem.c().empty() || problem.beta() == 0) 
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        const uint64_t TWO_POW_32 = 4294967296;
+                        return problem.c().strides()[1] * problem.c().elementBytes() * value
+                            < TWO_POW_32;
+                    }
+                }
+
+                virtual std::string toString() const override
+                {
+                    return concatenate(this->type(), "(MT1:", value, ")");
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.c().strides()[1] << " * "
+                           << problem.c().elementBytes() << " * " << value << " < 4294967296"
+                           << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
+
+
             struct BufferStoreOffsetLimitCheck
                 : public Predicate_CRTP<BufferStoreOffsetLimitCheck, ContractionProblem>
             {
