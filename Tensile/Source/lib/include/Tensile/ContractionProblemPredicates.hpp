@@ -1087,7 +1087,7 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    if (problem.c().empty() || problem.beta() == 0) 
+                    if(problem.c().empty() || problem.beta() == 0)
                     {
                         return true;
                     }
