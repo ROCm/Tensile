@@ -2866,6 +2866,12 @@ class Solution(collections.abc.Mapping):
       reject(state, "GRVW * DataType.numBytes() > 16")
       return
 
+    # reject - SVW too big
+    if (state["LocalSplitU"] == 1 and state["EnableMatrixInstruction"]) and \
+      (state["StoreVectorWidth"] * state["ProblemType"]["DestDataType"].numBytes()) > 32:
+      reject(state, "SVW * DataType.numBytes() > 32")
+      return
+
     # LocalSplitU too large?
     numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
 
