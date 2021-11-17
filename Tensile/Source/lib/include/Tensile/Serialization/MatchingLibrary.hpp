@@ -28,6 +28,7 @@
 
 #include <Tensile/Distance.hpp>
 #include <Tensile/MatchingLibrary.hpp>
+#include <Tensile/Debug.hpp>
 
 #include <cstddef>
 #include <unordered_set>
@@ -129,9 +130,19 @@ namespace Tensile
 
                 bool success = false;
 
+		const bool jsd = Debug::Instance().useJSD();
+
+		if(jsd)
+		  distanceType = "JSD";
+
                 if(distanceType == "Euclidean")
                 {
                     success = mappingDistance<Key, Matching::EuclideanDistance<Key>>(
+                        io, lib, properties);
+                }
+		else if(distanceType == "JSD")
+                {
+                    success = mappingDistance<Key, Matching::JSDivergence<Key>>(
                         io, lib, properties);
                 }
                 else if(distanceType == "Manhattan")

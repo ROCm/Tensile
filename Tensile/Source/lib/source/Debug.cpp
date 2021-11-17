@@ -119,6 +119,11 @@ namespace Tensile
         return m_debugSelection;
     }
 
+    bool Debug::useJSD() const
+    {
+      return m_jsd;
+    }
+
     int Debug::getSolutionIndex() const
     {
         return m_solution_index;
@@ -147,6 +152,10 @@ namespace Tensile
         const char* solution_index = std::getenv("TENSILE_SOLUTION_INDEX");
         if(solution_index)
             m_solution_index = strtol(solution_index, nullptr, 0);
+
+	const char* jsd = std::getenv("USE_JSD");
+        if(jsd)
+            m_jsd = strtol(jsd, nullptr, 0);
     }
 
 } // namespace Tensile

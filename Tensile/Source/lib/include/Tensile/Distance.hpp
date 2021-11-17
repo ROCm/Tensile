@@ -182,6 +182,93 @@ namespace Tensile
         };
 
         template <typename Key>
+        struct JSDivergence : public Distance<Key>
+	{
+	  enum
+	    {
+	     HasIndex = false,
+	     HasValue = false
+            };
+	  
+	  static std::string Type()
+	  {
+	    return "JSD";
+	  }
+	  virtual std::string type() const override
+	  {
+	    return Type();
+	  }
+	  
+	  double kl_divergence(double *p, double *q) const
+	  {
+	    double acc = 0.0;
+	    int dims = 3;
+	    
+	    for(int i = 0; i < dims; i++)
+	      acc += p[i] * std::log(p[i]/q[i]);
+	    
+	    return acc;
+	  }
+	  
+	  void normalize(Key const& p, Key const& q, double *norm_p, double *norm_q) const
+	  {
+	    int const dims = 3;
+	    double sum_p = 0.0;
+	    double sum_q = 0.0;
+	    
+	    for(int i = 0; i < dims; i++)
+	      {
+		sum_p += p[i];
+		sum_q += q[i];
+	      }
+	    
+	    for(int i=0; i<dims; i++)
+	      {
+		norm_p[i] = p[i]/sum_p;
+		norm_q[i] = q[i]/sum_q;
+	      }
+	    
+	  }
+	
+	  inline double operator()(Key const& p1, Key const& p2) const
+	  {
+	    double distance = 0.0;
+
+	    double norm_p[3];
+	    double norm_q[3];
+	    double m[3];
+
+	    this->normalize(p1, p2, norm_p, norm_q);
+
+	    for(int i = 0; i < p1.size(); i++)
+	      m[i] = 0.5 * (norm_p[i] + norm_q[i]);
+
+	    distance = 0.5 * this->kl_divergence(norm_p, m) + 0.5 * this->kl_divergence(norm_q, m);
+
+	    return distance;
+	  }
+	
+	  inline bool improvementPossible(Key const& p1,
+					  Key const& p2,
+					  size_t     idx,
+					  double     bestDistance) const
+	  {
+	    double norm_p[3];
+	    double norm_q[3];
+	    double m;
+	  
+	    this->normalize(p1, p2, norm_p, norm_q);
+
+	    m = 0.5 * (norm_p[idx] + norm_q[idx]);
+	  
+	    double d0 = 0.5 * (norm_p[idx] * std::log(norm_p[idx]/m)) +
+	      0.5 * (norm_q[idx] * std::log(norm_q[idx]/m));
+
+	    return (d0 < bestDistance) || (p1 == p2);
+	  }
+	};
+
+        template <typename Key>
         struct RandomDistance : public Distance<Key>
         {
             enum
