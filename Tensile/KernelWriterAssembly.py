@@ -1737,7 +1737,7 @@ class KernelWriterAssembly(KernelWriter):
       vgprIdx += 1
     self.startVgprValuA = vgprIdx
     vgprIdx += self.numVgprValuA
-    if self.tPA["bpe"] < 4 and not kernel["UnrollMajorLDSA"]:
+    if kernel["EnableMatrixInstruction"] and self.tPA["bpe"] < 4 and not kernel["UnrollMajorLDSA"]:
       self.startVgprValuAPack = vgprIdx
       if self.lrvwTileA > 1:
         vgprIdx += ceil(kernel["VectorWidthA"] * self.tPA["bpe"] / self.bpr) * kernel["MIWaveTileA"] // kernel["VectorWidthA"] * kernel["InnerUnroll"] * self.numVgprBuffer * kernel["MIInputPerThread"]
@@ -1756,7 +1756,7 @@ class KernelWriterAssembly(KernelWriter):
     vgprIdx = ((vgprIdx+1)//2)*2
     self.startVgprValuB = vgprIdx
     vgprIdx += self.numVgprValuB
-    if self.tPB["bpe"] < 4 and not kernel["UnrollMajorLDSB"]:
+    if kernel["EnableMatrixInstruction"] and self.tPB["bpe"] < 4 and not kernel["UnrollMajorLDSB"]:
       self.startVgprValuBPack = vgprIdx
       if self.lrvwTileB > 1:
         vgprIdx += ceil(kernel["VectorWidthB"] * self.tPB["bpe"] / self.bpr) * kernel["MIWaveTileB"] // kernel["VectorWidthB"] * kernel["InnerUnroll"] * self.numVgprBuffer * kernel["MIInputPerThread"]
@@ -1777,7 +1777,8 @@ class KernelWriterAssembly(KernelWriter):
     self.lastValuAB = vgprIdx
     #----------------------------------
 
-    if ((self.tPA["bpe"] < 4 and not kernel["UnrollMajorLDSA"]) or (self.tPB["bpe"] < 4 and not kernel["UnrollMajorLDSB"])) \
+    if kernel["EnableMatrixInstruction"] and \
+        ((self.tPA["bpe"] < 4 and not kernel["UnrollMajorLDSA"]) or (self.tPB["bpe"] < 4 and not kernel["UnrollMajorLDSB"])) \
         and kernel["ProblemType"]["DataType"].isInt8():
       self.startVgprValuPackTemp = vgprIdx
       vgprIdx += 1
@@ -2802,7 +2803,7 @@ class KernelWriterAssembly(KernelWriter):
             kStr += self.macroRegister("vgprValuA_X%u_I%u"%(bi,iui), self.startVgprValuA+ri)
             ri += self.numVgprValuAPerBlock
         ri = 0
-        if self.tPA["bpe"] < 4 and not kernel["UnrollMajorLDSA"]:
+        if kernel["EnableMatrixInstruction"] and self.tPA["bpe"] < 4 and not kernel["UnrollMajorLDSA"]:
           for data in range(1,int(self.bpr/self.tPA["bpe"])):
             for bi in range(0,PLR): # buffer indices
               if bi % self.numVgprBufferPackA == 0:
@@ -2832,7 +2833,7 @@ class KernelWriterAssembly(KernelWriter):
             kStr += self.macroRegister("vgprValuB_X%u_I%u"%(bi,iui), self.startVgprValuB+ri)
             ri += self.numVgprValuBPerBlock
         ri = 0
-        if self.tPB["bpe"] < 4 and not kernel["UnrollMajorLDSB"]:
+        if kernel["EnableMatrixInstruction"] and self.tPB["bpe"] < 4 and not kernel["UnrollMajorLDSB"]:
           for data in range(1,int(self.bpr/self.tPB["bpe"])):
             for bi in range(0,PLR): # buffer indices
               if bi % self.numVgprBufferPackB == 0:
@@ -2877,7 +2878,8 @@ class KernelWriterAssembly(KernelWriter):
     if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
         kStr += self.macroRegister("vgprG2LB", self.startVgprG2LB)
 
-    if ((self.tPA["bpe"] < 4 and not kernel["UnrollMajorLDSA"]) or (self.tPB["bpe"] < 4 and not kernel["UnrollMajorLDSB"])) \
+    if kernel["EnableMatrixInstruction"] and \
+        ((self.tPA["bpe"] < 4 and not kernel["UnrollMajorLDSA"]) or (self.tPB["bpe"] < 4 and not kernel["UnrollMajorLDSB"])) \
         and kernel["ProblemType"]["DataType"].isInt8():
       kStr += self.macroRegister("vgprPackTemp", self.startVgprValuPackTemp)
 
