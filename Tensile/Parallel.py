@@ -30,7 +30,7 @@ def CPUThreadCount(enable=True):
     return 0
   else:
     if os.name == "nt":
-      cpu_count = 1 # os.cpu_count()
+      cpu_count = os.cpu_count()
     else:
       cpu_count = len(os.sched_getaffinity(0))
     cpuThreads = globalParameters["CpuThreads"]
@@ -60,6 +60,11 @@ def apply_print_exception(item, *args):
     sys.stdout.flush()
     sys.stderr.flush()
 
+def OverwriteGlobalParameters(newGlobalParameters):
+  from . import Common
+  Common.globalParameters.clear()
+  Common.globalParameters.update(newGlobalParameters)
+
 def ProcessingPool(enable=True, maxTasksPerChild=None):
   import multiprocessing
   import multiprocessing.dummy
@@ -69,7 +74,11 @@ def ProcessingPool(enable=True, maxTasksPerChild=None):
   if (not enable) or threadCount <= 1:
     return multiprocessing.dummy.Pool(1)
 
-  return multiprocessing.Pool(threadCount, maxtasksperchild=maxTasksPerChild)
+  if multiprocessing.get_start_method() == "spawn":
+    from . import Common
+    return multiprocessing.Pool(threadCount, initializer=OverwriteGlobalParameters, maxtasksperchild=maxTasksPerChild, initargs=(Common.globalParameters,))
+  else:
+    return multiprocessing.Pool(threadCount, maxtasksperchild=maxTasksPerChild)
 
 def ParallelMap(function, objects, message="", enable=True, method=None, maxTasksPerChild=None):
   """
