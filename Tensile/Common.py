@@ -1674,45 +1674,47 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
 def GetAsmCaps(isaVersion):
   """ Determine assembler capabilities by testing short instructions sequences """
   rv = {}
-  rv["SupportedISA"]    = tryAssembler(isaVersion, "")
-  rv["HasExplicitCO"]   = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,1")
-  rv["HasExplicitNC"]   = tryAssembler(isaVersion, "v_add_nc_u32 v0,v0,1")
+  rv["SupportedISA"]      = tryAssembler(isaVersion, "")
+  rv["HasExplicitCO"]     = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,1")
+  rv["HasExplicitNC"]     = tryAssembler(isaVersion, "v_add_nc_u32 v0,v0,1")
 
-  rv["HasDirectToLds"]  = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
-  rv["HasAddLshl"]      = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
-  rv["HasLshlOr"]       = tryAssembler(isaVersion, "v_lshl_or_b32 v47, v36, 0x2, v34")
-  rv["HasSMulHi"]       = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
-  rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "", False, "-mcode-object-version=2")
+  rv["HasDirectToLds"]    = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds") \
+                            or tryAssembler(isaVersion, "buffer_load_b32 v40, v36, s[24:27], s28 offen offset:0 lds")
+  rv["HasAddLshl"]        = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
+  rv["HasLshlOr"]         = tryAssembler(isaVersion, "v_lshl_or_b32 v47, v36, 0x2, v34")
+  rv["HasSMulHi"]         = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
+  rv["HasCodeObjectV3"]   = tryAssembler(isaVersion, "", False, "-mcode-object-version=2")
 
-  rv["HasMFMA"]         = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
-  rv["HasMFMA_f64"]     = tryAssembler(isaVersion, "v_mfma_f64_16x16x4f64 v[0:7], v[32:33], v[36:37], v[0:7]")
-  rv["HasMFMA_bf16_1k"] = tryAssembler(isaVersion, "v_mfma_f32_32x32x4bf16_1k a[0:31], v[32:33], v[36:37], a[0:31]")
+  rv["HasMFMA"]           = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
+  rv["HasMFMA_f64"]       = tryAssembler(isaVersion, "v_mfma_f64_16x16x4f64 v[0:7], v[32:33], v[36:37], v[0:7]")
+  rv["HasMFMA_bf16_1k"]   = tryAssembler(isaVersion, "v_mfma_f32_32x32x4bf16_1k a[0:31], v[32:33], v[36:37], a[0:31]")
 
-  rv["v_mac_f16"]       = tryAssembler(isaVersion, "v_mac_f16 v47, v36, v34")
+  rv["v_mac_f16"]         = tryAssembler(isaVersion, "v_mac_f16 v47, v36, v34")
 
-  rv["v_fma_f16"]       = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
-  rv["v_fmac_f16"]      = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34")
+  rv["v_fma_f16"]         = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
+  rv["v_fmac_f16"]        = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34")
 
-  rv["v_pk_fma_f16"]    = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0]")
-  rv["v_pk_fmac_f16"]   = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34")
+  rv["v_pk_fma_f16"]      = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0]")
+  rv["v_pk_fmac_f16"]     = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34")
 
-  rv["v_mad_mix_f32"]   = tryAssembler(isaVersion, "v_mad_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
-  rv["v_fma_mix_f32"]   = tryAssembler(isaVersion, "v_fma_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
+  rv["v_mad_mix_f32"]     = tryAssembler(isaVersion, "v_mad_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
+  rv["v_fma_mix_f32"]     = tryAssembler(isaVersion, "v_fma_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
 
-  rv["v_dot2_f32_f16"]  = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
-  rv["v_dot2c_f32_f16"] = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34")
+  rv["v_dot2_f32_f16"]    = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
+  rv["v_dot2c_f32_f16"]   = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34") \
+                            or tryAssembler(isaVersion, "v_dot2acc_f32_f16 v47, v36, v34")
 
-  rv["v_dot4c_i32_i8"]  = tryAssembler(isaVersion, "v_dot4c_i32_i8 v47, v36, v34")
-  rv["v_dot4_i32_i8"]   = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34")
-  rv["VOP3v_dot4_i32_i8"]   = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34, v47")
+  rv["v_dot4_i32_i8"]     = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34")
+  rv["v_dot4c_i32_i8"]    = tryAssembler(isaVersion, "v_dot4c_i32_i8 v47, v36, v34")
+  rv["VOP3v_dot4_i32_i8"] = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34, v47")
 
-  rv["v_mac_f32"]       = tryAssembler(isaVersion, "v_mac_f32 v20, v21, v22")
-  rv["v_fma_f32"]       = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")
-  rv["v_fmac_f32"]      = tryAssembler(isaVersion, "v_fmac_f32 v20, v21, v22")
+  rv["v_mac_f32"]         = tryAssembler(isaVersion, "v_mac_f32 v20, v21, v22")
+  rv["v_fma_f32"]         = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")
+  rv["v_fmac_f32"]        = tryAssembler(isaVersion, "v_fmac_f32 v20, v21, v22")
 
-  rv["v_fma_f64"]       = tryAssembler(isaVersion, "v_fma_f64 v[20:21], v[22:23], v[24:25], v[20:21]")
+  rv["v_fma_f64"]         = tryAssembler(isaVersion, "v_fma_f64 v[20:21], v[22:23], v[24:25], v[20:21]")
 
-  rv["HasAtomicAdd"]    = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
+  rv["HasAtomicAdd"]      = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
 
 
   if tryAssembler(isaVersion, "s_waitcnt vmcnt(63)"):
