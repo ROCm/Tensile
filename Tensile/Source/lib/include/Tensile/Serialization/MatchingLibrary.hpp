@@ -130,32 +130,32 @@ namespace Tensile
 
                 bool success = false;
 
-		const bool jsd = Debug::Instance().useJSD();
+		const int use_metric = Debug::Instance().useMetric();
 
-		if(jsd)
-		  distanceType = "JSD";
+                if(use_metric != -1)
+                  distanceType = "";
 
-                if(distanceType == "Euclidean")
+                if(use_metric == 2 || distanceType == "Euclidean")
                 {
                     success = mappingDistance<Key, Matching::EuclideanDistance<Key>>(
                         io, lib, properties);
                 }
-		else if(distanceType == "JSD")
+		else if(use_metric == 3 || distanceType == "JSD")
                 {
                     success = mappingDistance<Key, Matching::JSDivergence<Key>>(
                         io, lib, properties);
                 }
-                else if(distanceType == "Manhattan")
+                else if(use_metric == 1 || distanceType == "Manhattan")
                 {
                     success = mappingDistance<Key, Matching::ManhattanDistance<Key>>(
                         io, lib, properties);
                 }
-                else if(distanceType == "Ratio")
+                else if(use_metric == 0 || distanceType == "Ratio")
                 {
                     success
                         = mappingDistance<Key, Matching::RatioDistance<Key>>(io, lib, properties);
                 }
-                else if(distanceType == "Random")
+                else if(use_metric == 4 || distanceType == "Random")
                 {
                     success
                         = mappingDistance<Key, Matching::RandomDistance<Key>>(io, lib, properties);

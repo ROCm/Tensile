@@ -67,7 +67,7 @@ namespace Tensile
 
         bool enableDebugSelection() const;
 
-        bool useJSD() const;
+        int useMetric() const;
 
         int getSolutionIndex() const;
 
@@ -77,7 +77,7 @@ namespace Tensile
         int  m_value;
         int  m_value2;
         bool m_naivePropertySearch = false;
-        bool m_jsd                 = false;
+        int  m_use_metric          = -1;
         bool m_debugSelection      = false;
         int  m_solution_index      = -1;
 

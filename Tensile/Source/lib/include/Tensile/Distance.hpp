@@ -64,6 +64,7 @@ namespace Tensile
         {
         public:
             virtual std::string type() const = 0;
+            virtual int get_distance_id() = 0;
             virtual ~Distance()              = default;
         };
 
@@ -82,6 +83,11 @@ namespace Tensile
             virtual std::string type() const override
             {
                 return Type();
+            }
+
+  	    int get_distance_id() override
+            {
+                return 0;
             }
 
             inline double operator()(Key const& p1, Key const& p2) const
@@ -119,6 +125,11 @@ namespace Tensile
             virtual std::string type() const override
             {
                 return Type();
+            }
+
+	    int get_distance_id() override
+            {
+                return 1;
             }
 
             inline double operator()(Key const& p1, Key const& p2) const
@@ -159,6 +170,11 @@ namespace Tensile
                 return Type();
             }
 
+	    int get_distance_id() override
+            {
+                return 2;
+            }
+
             inline double operator()(Key const& p1, Key const& p2) const
             {
                 double distance = 0.0;
@@ -192,12 +208,17 @@ namespace Tensile
 	  
 	  static std::string Type()
 	  {
-	    return "JSD";
+	      return "JSD";
 	  }
 	  virtual std::string type() const override
 	  {
-	    return Type();
+	      return Type();
 	  }
+
+	  int get_distance_id() override
+          {
+              return 3;
+          }
 	  
 	  double kl_divergence(double *p, double *q) const
 	  {
@@ -284,6 +305,11 @@ namespace Tensile
             virtual std::string type() const override
             {
                 return Type();
+            }
+
+	    int get_distance_id() override
+            {
+                return 4;
             }
 
             inline double operator()(Key const& p1, Key const& p2) const
