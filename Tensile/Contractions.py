@@ -374,6 +374,10 @@ class ProblemPredicate(Properties.Predicate):
             # value is also a dict for better readibility, client side need to handel the serialization
             rv += [cls('BufferLoadOffsetLimitCheck', value=subrv)]
 
+        # When doing globol write, may need to load matrix C if beta !=0
+        if 'BufferLoad' in state and state['BufferLoad'] == True:
+            rv += [cls('BufferLoadOffsetLimitCheck_Beta', value=state['MacroTile1'])]
+
         # similiar check is applied for bufferstore,
         # for bufferstore offset, test if the bot-right offset < 2^32,
         # it should be StrideA*MT1, so we need to output MT1 and use the StrideA of problem in host-side for predication
