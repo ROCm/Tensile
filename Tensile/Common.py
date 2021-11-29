@@ -646,7 +646,7 @@ validParameters = {
     #  - Tail loop can be unrolled up to InnerUnroll amount if AssertSummationElementMultiple%InnerUnroll==0
     #
     # 1 indicates no assertion (since all sizes are multiples of 1)
-    "AssertSummationElementMultiple": [1,2,4,8,16],
+    "AssertSummationElementMultiple": [1,2,4,8,16,32],
 
     # Kernel generator will assume that the FreeIndex[0] size is some multiple of the element size
     # and use this to optimize the kernel.
@@ -910,6 +910,13 @@ validParameters = {
     # For example, if StoreCInUnrollInterval=3, LocalWritePerMfma=0.5, StoreC/AtomicAddC inserted
     # at every 6 MFMAs (interval = 6)
     "StoreCInUnrollInterval":     list(range(1, 16)),
+    #
+    # StoreCInUnrollExact is to optimize specific K size by removing arbitrary K support code
+    # 128x128 tile case, only K=512 is covered by StoreCInUnroll
+    "StoreCInUnrollExact":        [False, True],
+    #
+    # StoreCInUnrollPostLoop is to add extra post loop to execute remaining LoadC/StoreC for K < supported minimumK for StoreCInUnroll
+    "StoreCInUnrollPostLoop":     [False, True],
 
     # In order to remove the copying from Acc vgpr to Arch vgpr, only use Arch vgprs for v_mfma_xxx.
     # Only support for kernel whose totalVgpr counts less than 256 and gcn that has control bit ACC_CD.
@@ -1099,15 +1106,15 @@ validParameters = {
     # performance so this has been deprecated and probably doesn't work
     # -1 means use same padding as the VectorWidth if TLU=0 else 0.  (Padding only helps when transpose is required)
     # With MatrixInstruciton: -1 means max(GRVW,MIInput) if TLU=0
-    "LdsPadA":                     [ -1, 0, 1, 2, 3, 4, 8, 16],
-    "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8, 16],
+    "LdsPadA":                     [ -1, 0, 1, 2, 3, 4, 8, 16, 32],
+    "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8, 16, 32],
 
     # Padding boundary for LDS. defines block-size for pad insertion. for every 'LdsBlockSizePerPad' bytes, LDS padding (pad value from LdsPad parameter)
     # is added (readOffset aware of the pad and adjusts offset value based on this parameter value).
     # Only support LdsBlockSizePerPad >= unrollDepth * BPE
     # 0 means disable LdsBlockSizePerPad,
     # -1 means round up to nearest power of 2 begin with 128
-    "LdsBlockSizePerPad":          [-1, 0, 64, 128, 256, 512],
+    "LdsBlockSizePerPad":          [-1, 0, 64, 128, 256, 512, 1024],
 
     # Transpose LDS format. Local store in Coalsced dimension , same as optimized global fetch dimension . applicable only in TLU=0 case for miSIMD(s)
     # TODO: No code for -1 ?
@@ -1317,7 +1324,9 @@ defaultBenchmarkCommonParameters = [
     {"GroupLoadStore":            [ False ] },
     {"MIArchVgpr":                [ False ] },
     {"StoreCInUnroll":            [ False ] },
-    {"StoreCInUnrollInterval":    [ 2 ] },
+    {"StoreCInUnrollInterval":    [ 1 ] },
+    {"StoreCInUnrollExact":       [ False ] },
+    {"StoreCInUnrollPostLoop":    [ False ] },
     {"Fp16AltImpl":               [ False ] }
     ]
 
