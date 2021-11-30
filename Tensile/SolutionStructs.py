@@ -2743,9 +2743,11 @@ class Solution(collections.abc.Mapping):
         state["SuppressNoLoadLoop"] = 0
 
     if state["ExpandPointerSwap"] == 1:
-      # Pointer swap only used if PGR>=1 - so set ExpandPointerSwap=0 here
+      # Pointer swap only used if PGR==1 or (PGR>1 and double) - so set ExpandPointerSwap=0 here
+      # So far, EPS=1 and PGR>1 works only with double.
       #if not (bufferLoad and state["PrefetchGlobalRead"] == 1):
-      if not (bufferLoad and state["PrefetchGlobalRead"] >= 1):
+      if not (bufferLoad and ( state["PrefetchGlobalRead"] == 1 \
+              or (state["PrefetchGlobalRead"] > 1 and state["ProblemType"]["DataType"].isDouble()))):
         state["ExpandPointerSwap"] = 0
       # EPS not supported with SplitLDS yet
       if state["DepthULdsDivisor"] > 1:
