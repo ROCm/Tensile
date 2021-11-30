@@ -1099,11 +1099,14 @@ namespace Tensile
         granularities.suCuGranularity
             = granularities.suTilesPerCu / ceil(granularities.suTilesPerCu);
 
-        granularities.waveGranularity = std::min(
-            1.00,
-            static_cast<double>(floor(granularities.tilesPerCu + 1.0) * sizeMapping.workGroupSize.x
-                                * sizeMapping.workGroupSize.y * sizeMapping.workGroupSize.z)
-                / pAMDGPU->wavefrontSize / pAMDGPU->simdPerCu);
+        if(pAMDGPU)
+        {
+            granularities.waveGranularity = std::min(
+                1.00,
+                static_cast<double>(floor(granularities.tilesPerCu + 1.0) * sizeMapping.workGroupSize.x
+                                    * sizeMapping.workGroupSize.y * sizeMapping.workGroupSize.z)
+                    / pAMDGPU->wavefrontSize / pAMDGPU->simdPerCu);
+        }
 
         granularities.waves
             = ceil((sizeMapping.workGroupSize.x * sizeMapping.workGroupSize.y) / wavefrontSize);
@@ -1169,7 +1172,6 @@ namespace Tensile
 
         auto it = ideals.begin();
 
-        int    closestK            = -1;
         int    closestKMeasure     = std::numeric_limits<int>::max();
         double closestKPerformance = 0.0;
 
@@ -1180,7 +1182,6 @@ namespace Tensile
             if(myMeasure < closestKMeasure)
             {
                 closestKMeasure     = myMeasure;
-                closestK            = myK;
                 closestKPerformance = it->second;
             }
             it++;
@@ -1191,7 +1192,6 @@ namespace Tensile
         double NumCUs = pp.granularities.CUs;
 
         double GlobalSplitU         = pp.granularities.GSU;
-        double LocalSplitU          = pp.granularities.LSU;
         double IdealGranularityPerf = closestKPerformance;
 
         pp.staticModel = staticPerformanceModel(
@@ -1228,11 +1228,9 @@ namespace Tensile
         ContractionSolution::TAMetricProblemScore pp,
         ContractionSolution::TAMetricProblemScore ppReference) const
     {
-        double metric = 0.0;
-
         double tile0GranularityDim = abs(log(ppReference.granularites.tile0Granularity)
                                          - log(pp.granularites.tile0Granularity));
-        metric                     = tile0GranularityDim;
+        double metric = tile0GranularityDim;
 
         double tile1GranularityDim = abs(log(ppReference.granularites.tile1Granularity)
                                          - log(pp.granularites.tile1Granularity));

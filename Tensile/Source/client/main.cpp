@@ -498,16 +498,10 @@ int main(int argc, const char* argv[])
     if(firstSolutionIdx < 0)
         firstSolutionIdx = library->solutions.begin()->first;
 
-    int lastSolutionIdx;
     if(numSolutions < 0)
     {
         auto iter = library->solutions.end();
         iter--;
-        lastSolutionIdx = iter->first;
-    }
-    else
-    {
-        lastSolutionIdx = firstSolutionIdx + numSolutions - 1;
     }
 
     size_t maxWorkspaceSizeLimit = args["max-workspace-size"].as<size_t>();

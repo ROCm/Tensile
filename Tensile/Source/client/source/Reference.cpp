@@ -67,7 +67,6 @@ namespace Tensile
                 // Check to see if the element coordinate is below or above the zero-pad
                 // range The comparison is done in the element domain.
                 assert(zp.anchorPos != -1); // ensure initialized.
-                const auto sumPos      = problem.toBoundsPos(zp.boundIndex);
                 int64_t anchorRelCoord = anchorCoord[zp.anchorPos] * tensor.strides()[zp.anchorPos]
                                          + sumCoord * tensor.strides()[zp.boundPos];
                 // elementEdge calculation:
@@ -82,29 +81,29 @@ namespace Tensile
 
                 bool rv = anchorRelCoord < zp.padStart || anchorRelCoord >= elementEdge;
 
-                bool checkUnsignedRangeOpt = false;
-                if(checkUnsignedRangeOpt)
-                {
-                    unsigned anchorRelCoord2
-                        = anchorCoord[zp.anchorPos] * tensor.strides()[zp.anchorPos]
-                          + sumCoord * tensor.strides()[zp.boundPos] - zp.padStart;
+                // bool checkUnsignedRangeOpt = false;
+                // if(checkUnsignedRangeOpt)
+                // {
+                //     unsigned anchorRelCoord2
+                //         = anchorCoord[zp.anchorPos] * tensor.strides()[zp.anchorPos]
+                //           + sumCoord * tensor.strides()[zp.boundPos] - zp.padStart;
 
-                    unsigned elementEdge2
-                        = tensor.sizes().at(zp.anchorPos) * tensor.strides()[zp.anchorPos]
-                          + (tensor.sizes().at(zp.boundPos) - 1) * tensor.strides()[zp.boundPos]
-                          - zp.padEnd - zp.padStart;
-                    bool rv2 = anchorRelCoord >= elementEdge2;
-                    assert(rv == rv2);
-                }
+                //     unsigned elementEdge2
+                //         = tensor.sizes().at(zp.anchorPos) * tensor.strides()[zp.anchorPos]
+                //           + (tensor.sizes().at(zp.boundPos) - 1) * tensor.strides()[zp.boundPos]
+                //           - zp.padEnd - zp.padStart;
+                //     bool rv2 = anchorRelCoord >= elementEdge2;
+                //     assert(rv == rv2);
+                // }
 
-                if(0)
-                {
-                    std::cout << "  rv=" << rv << " anchorCoord=" << anchorCoord[zp.anchorPos]
-                              << " boundIndex=" << zp.boundIndex << " sumCoord=" << sumCoord
-                              << " anchorRelCoord=" << anchorRelCoord << " padStart=" << zp.padStart
-                              << " stride=" << tensor.strides()[zp.anchorPos]
-                              << " edge=" << elementEdge << " padEnd=" << zp.padEnd << "\n";
-                }
+                // if(0)
+                // {
+                //     std::cout << "  rv=" << rv << " anchorCoord=" << anchorCoord[zp.anchorPos]
+                //               << " boundIndex=" << zp.boundIndex << " sumCoord=" << sumCoord
+                //               << " anchorRelCoord=" << anchorRelCoord << " padStart=" << zp.padStart
+                //               << " stride=" << tensor.strides()[zp.anchorPos]
+                //               << " edge=" << elementEdge << " padEnd=" << zp.padEnd << "\n";
+                // }
                 return rv;
             }
             else
@@ -164,10 +163,10 @@ namespace Tensile
                 if(op.type == TensorOp::Type::ComplexConjugate)
                     bConjugate = true;
 
-            std::vector<size_t> freeASize(problem.freeIndicesA().size());
-            std::vector<size_t> freeBSize(problem.freeIndicesB().size());
-            std::vector<size_t> batchSize(problem.batchIndices().size());
-            std::vector<size_t> boundSize(problem.boundIndices().size());
+            std::vector<size_t> freeASize(freeIndicesA.size());
+            std::vector<size_t> freeBSize(freeIndicesB.size());
+            std::vector<size_t> batchSize(batchIndices.size());
+            std::vector<size_t> boundSize(boundIndices.size());
 
             for(int i = 0; i < freeASize.size(); i++)
                 freeASize[i] = problem.freeSizeA(i);

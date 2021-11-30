@@ -38,7 +38,7 @@
 #include <Tensile/Debug.hpp>
 #include <Tensile/EmbeddedData.hpp>
 #include <Tensile/Utils.hpp>
-
+ 
 namespace Tensile
 {
     namespace ocl
@@ -232,7 +232,7 @@ namespace Tensile
                         {
                             std::cerr << "KernelError: " << e.err() << std::endl;
                         }
-                        throw e;
+                        throw;
                     }
                 }
             }

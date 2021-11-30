@@ -50,14 +50,11 @@ TEST(KernelArguments, Simple)
         float  z;
         char   t;
 
+        char padd[3]; 
+
         size_t k;
 
     } ref;
-
-    // Padding bytes would be left uninitialized in the struct but will be
-    // zero-filled by the KernelArguments class.  Set them to zero to prevent a
-    // test failure.
-    memset(&ref, 0, sizeof(ref));
 
     ref.d = array.data();
     ref.c = array.data() + 1;
@@ -68,6 +65,9 @@ TEST(KernelArguments, Simple)
     ref.z = 16.0f;
     ref.t = 'w';
     ref.k = std::numeric_limits<size_t>::max();
+    // Ensure padding bytes are zero filled to prevent a test failure 
+    // when comparing with KernelArguments
+    memset(ref.padd, 0, sizeof(ref.padd));
 
     args.append("d", ref.d);
     args.append("c", ref.c);
@@ -115,15 +115,12 @@ TEST(KernelArguments, Binding)
         double y;
         float  z;
         char   t;
+        
+        char padd[3]; 
 
         size_t k;
 
     } ref;
-
-    // Padding bytes would be left uninitialized in the struct but will be
-    // zero-filled by the KernelArguments class.  Set them to zero to prevent a
-    // test failure.
-    memset(&ref, 0, sizeof(ref));
 
     ref.d = array.data();
     ref.c = array.data() + 1;
@@ -134,6 +131,9 @@ TEST(KernelArguments, Binding)
     ref.z = 16.0f;
     ref.t = 'w';
     ref.k = std::numeric_limits<size_t>::max();
+    // Ensure padding bytes are zero filled to prevent a test failure 
+    // when comparing with KernelArguments
+    memset(ref.padd, 0, sizeof(ref.padd));
 
     args.append("d", ref.d);
     args.append("c", ref.c);
@@ -203,11 +203,6 @@ TEST(KernelArguments, Iterator)
         }
 
     } ref;
-
-    // Padding bytes would be left uninitialized in the struct but will be
-    // zero-filled by the KernelArguments class.  Set them to zero to prevent a
-    // test failure.
-    memset(&ref, 0, sizeof(ref));
 
     ref.d = array.data();
     ref.c = array.data() + 1;
