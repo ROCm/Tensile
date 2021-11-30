@@ -1980,8 +1980,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
            (kernel["DirectToVgprA"] and kernel["DirectToLdsB"] or kernel["DirectToVgprB"] and kernel["DirectToLdsA"])) \
           or kernel["PrefetchGlobalRead"]==2
         # no need local read wait if LocalReadVectorWidth==2 and u is odd.
-        # In that case, Prefetch local read covers both u = 0 and 1 (so far, limit to double only)
-        condSkip = kernel["LocalReadVectorWidth"]==2 and (u%2 != 0) and kernel["ProblemType"]["DataType"].isDouble()
+        # In that case, Prefetch local read covers both u = 0 and 1 (so far, limit to MFMA+double only)
+        condSkip = kernel["LocalReadVectorWidth"]==2 and (u%2 != 0) and kernel["EnableMatrixInstruction"] and kernel["ProblemType"]["DataType"].isDouble()
         if cond1 and (not condSkip):
           waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, \
               -1, 0, 0, \
@@ -2028,7 +2028,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           item.tempVgpr = None
       pack[luIdx] = Code.Module()
 
-    if NLLlast:
+    if NLLlast and isPap:
       # reset or swap local write offset
       # If DirectToLds is True, first LDS buffer is already used by lds global read and offset already points first one
       # Swap/Reset is not necessary
@@ -2377,8 +2377,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           (kernel["DirectToVgprA"] and kernel["DirectToLdsB"] or kernel["DirectToVgprB"] and kernel["DirectToLdsA"])) \
           or kernel["PrefetchGlobalRead"]==2
         # no need local read wait if LocalReadVectorWidth==2 and u is odd.
-        # In that case, Prefetch local read covers both u = 0 and 1 (so far, limit to double only)
-        condSkip = kernel["LocalReadVectorWidth"]==2 and (u%2 != 0) and kernel["ProblemType"]["DataType"].isDouble()
+        # In that case, Prefetch local read covers both u = 0 and 1 (so far, limit to MFMA+double only)
+        condSkip = kernel["LocalReadVectorWidth"]==2 and (u%2 != 0) and kernel["EnableMatrixInstruction"] and kernel["ProblemType"]["DataType"].isDouble()
         if cond1 and (not condSkip):
           waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, \
               -1, 0, 0, \

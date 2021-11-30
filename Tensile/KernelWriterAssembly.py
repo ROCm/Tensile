@@ -7039,7 +7039,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += "label_%04u:%s" % (toPGR1, self.endLine)
       else:
         if isOptNLL:
-          #endSumLabel = self.getNamedLabel("Summation_End_OptNLL")
+            endSumLabel = self.getNamedLabel("Summation_End_OptNLL")
           ## If is PAP inside OptNLL: Swap the LRO (if EPS, depends on if BreakAtEvenIter)
           #if self.prefetchAcrossPersistent and isPap:
           #  # in PrefetcGlobalRead=2 case, local read swap is already done in NGLL
@@ -7055,7 +7055,7 @@ class KernelWriterAssembly(KernelWriter):
 
           #else:
             kStr += self.comment1("Stores for OptNLL")
-            #kStr += self.endSummation(kernel, endSumLabel, isOptNLL)
+            kStr += self.endSummation(kernel, endSumLabel, isOptNLL)
 
             # perhaps could work with LSU>1 by adding other indices here, but not tested
             assert (kernel["LocalSplitU"] == 1)
