@@ -2384,7 +2384,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # DirectToLds M0 update: Do It A/B
   ##############################################################################
-  def directToLdsM0Update(self, kernel, mode, tP):
+  def directToLdsM0Update(self, kernel, mode, tP, usePlaceHolder=False):
     tc = tP["tensorChar"]
     imod = Code.Module("directToLdsM0Update%s_%u"%(tc,mode))
     return imod
@@ -2482,7 +2482,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write: Swap Offsets A/B
   ##############################################################################
-  def localWriteSwapOffsets(self, kernel, tP):
+  def localWriteSwapOffsets(self, kernel, internalPointerSwap, tP):
     kStr = ""
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
@@ -2497,7 +2497,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write: Reset Offsets A/B
   ##############################################################################
-  def localWriteResetOffsets(self, kernel, tP):
+  def localWriteResetOffsets(self, kernel, internalPointerSwap, tP):
     kStr = ""
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
@@ -3339,12 +3339,6 @@ class KernelWriterSource(KernelWriter):
     return ""
 
   ##############################################################################
-  # generateOddCodeForStoreCInUnroll
-  ##############################################################################
-  def generateOddCodeForStoreCInUnroll(self,kernel):
-    return ""
-
-  ##############################################################################
   # init for StoreCInUnroll
   ##############################################################################
   def initStoreCInUnroll(self, kernel):
@@ -3359,7 +3353,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # init for StoreCInUnroll per Unroll Loop
   ##############################################################################
-  def initStoreCInUnrollPerUnrollLoop(self, kernel, odd):
+  def initStoreCInUnrollPerUnrollLoop(self, kernel, needInit):
     return ""
 
   ##############################################################################
@@ -3377,7 +3371,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # generate post process for StoreCInUnroll loop
   ##############################################################################
-  def generatePostProcessForStoreCInUnrollLoop(self, kernel, odd):
+  def generatePostProcessForStoreCInUnrollLoop(self, kernel, needPost):
     return ""
 
   ##############################################################################
@@ -3408,4 +3402,22 @@ class KernelWriterSource(KernelWriter):
   # end process for StoreCInUnroll per PersistentLoop (NoOptNLL)
   ##############################################################################
   def endProcessPersistentLoopforStoreCInUnrollNoOptNLL(self, kernel):
+    return ""
+
+  ##############################################################################
+  # number of storeC code in template for StoreCInUnroll
+  ##############################################################################
+  def getNumberOfStoreCInTemplate(self, kernel):
+    return ""
+
+  ##############################################################################
+  # number of LoadC code in template for StoreCInUnroll
+  ##############################################################################
+  def getNumberOfLoadCInForLoadC(self, kernel):
+    return ""
+
+  ##############################################################################
+  # generate storeCInUnroll post loop code
+  ##############################################################################
+  def generateStoreInUnrollPostLoop(self, kernel, isOptNLL):
     return ""
