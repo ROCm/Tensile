@@ -8,7 +8,6 @@ GlobalParameters:
   DataInitTypeBeta : 0
   PrintSolutionRejectionReason: 0
   PrintWinnersOnly: 1
-  NewClient: 2
 
 BenchmarkProblems:
   ########################################

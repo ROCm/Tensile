@@ -85,6 +85,7 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::TypesEqual>(),
                     Base::template Pair<Predicates::Contraction::OperationIdentifierEqual>(),
                     Base::template Pair<Predicates::Contraction::BufferLoadOffsetLimitCheck>(),
+                    Base::template Pair<Predicates::Contraction::BufferLoadOffsetLimitCheck_Beta>(),
                     Base::template Pair<Predicates::Contraction::BufferStoreOffsetLimitCheck>(),
                     Base::template Pair<Predicates::Contraction::WorkspaceCheck>(),
                     Base::template Pair<Predicates::Contraction::PersistentKernelCheck>(),
@@ -92,6 +93,7 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::CDStridesEqual>(),
                     Base::template Pair<Predicates::Contraction::StridedBatchedEqual>(),
                     Base::template Pair<Predicates::Contraction::CUEfficiency>(),
+                    Base::template Pair<Predicates::Contraction::Fp16AltImpl>(),
                 });
 
                 auto gmap = Generic::GetSubclasses();
@@ -285,6 +287,12 @@ namespace Tensile
         };
 
         template <typename IO>
+        struct MappingTraits<Predicates::Contraction::BufferLoadOffsetLimitCheck_Beta, IO>
+            : public AutoMappingTraits<Predicates::Contraction::BufferLoadOffsetLimitCheck_Beta, IO>
+        {
+        };
+
+        template <typename IO>
         struct MappingTraits<Predicates::Contraction::BufferStoreOffsetLimitCheck, IO>
             : public AutoMappingTraits<Predicates::Contraction::BufferStoreOffsetLimitCheck, IO>
         {
@@ -323,6 +331,12 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::CUEfficiency, IO>
             : public AutoMappingTraits<Predicates::Contraction::CUEfficiency, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::Fp16AltImpl, IO>
+            : public AutoMappingTraits<Predicates::Contraction::Fp16AltImpl, IO>
         {
         };
     } // namespace Serialization

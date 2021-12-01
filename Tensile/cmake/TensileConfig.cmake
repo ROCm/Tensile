@@ -93,10 +93,6 @@ function(TensileCreateLibraryFiles
          Tensile_OUTPUT_PATH
          )
 
-  if(NOT TENSILE_NEW_CLIENT)
-    message(FATAL_ERROR "TensileCreateLibraryFiles function should only be called for new client.")
-  endif()
-
   # Boolean options
   set(options
        MERGE_FILES
@@ -116,6 +112,7 @@ function(TensileCreateLibraryFiles
        LIBRARY_FORMAT
        TENSILE_ROOT
        VAR_PREFIX
+       CPU_THREADS
        )
 
   # Multi value settings
@@ -140,8 +137,6 @@ function(TensileCreateLibraryFiles
   endif()
 
   message(STATUS "Tensile script: ${Script}")
-
-  set(Options "--new-client-only" "--no-legacy-components")
 
   # Older NO_MERGE_FILES flag overrides MERGE_FILES option.
   if(Tensile_NO_MERGE_FILES)
@@ -188,6 +183,10 @@ function(TensileCreateLibraryFiles
 
   if(Tensile_COMPILER_PATH)
     set(Options ${Options} "--cmake-cxx-compiler=${Tensile_COMPILER_PATH}")
+  endif()
+
+  if(Tensile_CPU_THREADS)
+    set(Options ${Options} "--jobs=${Tensile_CPU_THREADS}")
   endif()
 
   if(Tensile_LIBRARY_FORMAT)

@@ -104,14 +104,6 @@ def configMarks(filepath, rootDir, availableArchs):
     except KeyError:
         pass
 
-    try:
-        if doc["GlobalParameters"]["NewClient"] == 2:
-            marks.append(markNamed("NewClientOnly"))
-        if doc["GlobalParameters"]["NewClient"] == 0:
-            marks.append(markNamed("OldClientOnly"))
-    except KeyError:
-        pass
-
     if validate:
         marks.append(pytest.mark.validate)
     if validateAll:

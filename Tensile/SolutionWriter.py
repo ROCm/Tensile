@@ -931,7 +931,7 @@ class SolutionWriter:
   ##############################################################################
   def getHeaderString(self, solution):
     s = ""
-    if not globalParameters["MergeFiles"]:
+    if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
       s += "#pragma once\n\n"
       s += "#include \"TensileTypes.h\"\n"
       s += "#include \"SolutionHelper.h\"\n"

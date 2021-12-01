@@ -117,6 +117,7 @@ globalParameters["UnrollLoopEfficiencyEnable"] = False   # if True split(S) MAC&
 globalParameters["CMakeBuildType"] = "Release"            # whether benchmark clients and library client should be release or debug
 globalParameters["PrintSolutionRejectionReason"] = False  # when a solution is marked as invalid, print why
 globalParameters["LibraryFormat"] = "yaml"                # set library backend (either yaml or msgpack)
+globalParameters["EmbedLibrary"] = None                   # whether library should be embedded or not
 
 # True/False: CSV will/won't export WinnerGFlops, WinnerTimeUS, WinnerIdx, WinnerName.
 # TODO - if no side-effect, we can set default to True. This can make analyzing "LibraryLogic" (AddFromCSV) faster
@@ -136,20 +137,19 @@ globalParameters["CSVMergeSameProblemID"] = False
 # trig_float initializes with the sin function to have non-zero values in the mantissa
 # and exponent. It cannot be used for int8 or int32. Need to use tensileAlmostEqual
 # not tensileEqual for checking the result.
-# NOTE- the following comments explaining the DataInitType are for OldClient and should be obsolete.
-#       For NewClient, please read ClientWriter.py, the DataInitName(Enum)
+# See ClientWriter.py, the DataInitName(Enum) for a list of initialization patterns
 #       - Problem-Independent: 0=0, 1=1, 2=2, 3=rand, 4=Nan, 5=Infinity, 6=BadInput(Nan), 7=BadOutput(Inf), 16=RandomNarrow
 #       - Problem-dependent: 8=SerialID, 9=SerialDim0, 10=SerialDim1, 11=Identity, 12~15= Cos/Sin, Abs or Not
 #       For A, B, C, D: All the InitMode (0~16) can be used
 #       For Alpha/Beta: Only problem-independent init (0~7, 16) can be used,
 #                       problem-dependent init (8~15) would cause a exception (Invalid InitMode) in New Client
-globalParameters["DataInitTypeAB"] = 3            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN, 5=serial-in-u, 6=trig_float.  Can be overridden by the DataInitTypeA or DataInitTypeB.  Eventually DataInitTypeAB will be retired.
-globalParameters["DataInitTypeA"] = -1            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN, 5=serial-in-u, 6=trig_float.  -1 uses value from DataInitTypeAB
-globalParameters["DataInitTypeB"] = -1            # 0=0, 1=1, 2=serial, 3=rand, 4=NaN, 5=serial-in-u, 6=trig_float.  -1 uses value from DataInitTypeAB
-globalParameters["DataInitTypeC"]  = 3            # 0=0, 1=1, 2=serial, 3=rand, 4=Na, 5=serial-in-uN, 6=trig_float.
-globalParameters["DataInitTypeD"]  = 0            # 0=0, 1=1, 2=serial, 3=rand, 4=Na, 5=serial-in-uN, 6=trig_float.
-globalParameters["DataInitTypeAlpha"] = 2         # 0=0, 1=1, 2=2, 3=rand, 4=NaN
-globalParameters["DataInitTypeBeta"] = 2          # 0=0, 1=1, 2=2, 3=rand, 4=NaN
+globalParameters["DataInitTypeAB"] = 3
+globalParameters["DataInitTypeA"] = -1
+globalParameters["DataInitTypeB"] = -1
+globalParameters["DataInitTypeC"]  = 3
+globalParameters["DataInitTypeD"]  = 0
+globalParameters["DataInitTypeAlpha"] = 2
+globalParameters["DataInitTypeBeta"] = 2
 globalParameters["CEqualD"] = False               # Set to true if testing for the case where the pointer to C is the same as D.
 globalParameters["BufferOffsetA"] = 0             # data offset of buffer A
 globalParameters["BufferOffsetB"] = 0             # data offset of buffer B
@@ -182,9 +182,6 @@ globalParameters["PrintWinnersOnly"] = False      # Only print the solutions whi
 globalParameters["PrintCodeCommands"] = False  # print the commands used to generate the code objects (asm,link,hip-clang, etc)
 globalParameters["DumpTensors"] = False        # If True, dump tensors to binary files instead of printing them.
 
-# TODO - remove this when NewClient is mainstream
-globalParameters["OldClientSourceTmp"] = True      # Use an intermediate sourceTmp dir to detect file changes and minimize rebuilds on old client
-
 # If PrintMax* is greater than the dimension, the middle elements will be repaced with "..."
 
 
@@ -198,13 +195,14 @@ globalParameters["MaxLDS"] = 65536                # max LDS a kernel should atte
 globalParameters["MaxDepthU"] = 256               # max DepthU value to allow
 globalParameters["ShortNames"] = False            # on windows kernel names can get too long; =True will convert solution/kernel names to serial ids
 globalParameters["MergeFiles"] = True             # F=store every solution and kernel in separate file; T=store all solutions in single file
+globalParameters["NumMergedFiles"] = 1            # The number of files that kernels should be split between when merging
 
 globalParameters["MaxFileName"] = 64              # If a file name would be longer than this, shorten it with a hash.
 globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (9,0,10), (10,1,0), (10,1,1), (10,1,2), (10,3,0)] # assembly kernels writer supports these architectures
 
 globalParameters["GenerateManifestAndExit"] = False               # Output manifest file with list of expected library objects and exit
+globalParameters["NewClient"] = 2                                 # Old client deprecated: NewClient must be set to 2.
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory
-globalParameters["NewClient"] = 2                                 # 1=Run old+new client, 2=run new client only (All In)
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
 globalParameters["LibraryLogicPath"] = "3_LibraryLogic"           # subdirectory for library logic produced by analysis
@@ -237,9 +235,7 @@ globalParameters["Architecture"] = "all"
 # might be deprecated
 globalParameters["EnableHalf"] = False
 globalParameters["ClientArgs"] = ""
-globalParameters["NewClientArgs"] = ""
 globalParameters["PackageLibrary"] = False
-globalParameters["LegacyComponents"] = True
 
 # perf model
 globalParameters["PerfModelL2ReadHits"] = 0.0
@@ -268,7 +264,7 @@ architectureMap = {
   'gfx906':'vega20', 'gfx906:xnack+':'vega20', 'gfx906:xnack-':'vega20',
   'gfx908':'arcturus','gfx908:xnack+':'arcturus', 'gfx908:xnack-':'arcturus',
   'gfx90a':'aldebaran', 'gfx90a:xnack+':'aldebaran', 'gfx90a:xnack-':'aldebaran',
-  'gfx1010':'navi10', 'gfx1011':'navi11', 'gfx1012':'navi12', 'gfx1030':'navi21'
+  'gfx1010':'navi10', 'gfx1011':'navi12', 'gfx1012':'navi14', 'gfx1030':'navi21'
 }
 
 def getArchitectureName(gfxName):
@@ -322,7 +318,7 @@ validMFMA["Z"] = validMFMA["D"]
 validMFMA["I8"] = validMFMA["4xi8"]
 validTT = 16
 validMFMA["_format9"] = []
-for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["4xi8"]]:
+for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["4xi8"], validMFMA["D"]]:
   for MI in MFMA:
     for bm in range(int(math.log(MI[3],2))+1):
       for tt0 in range(1,validTT+1):
@@ -650,7 +646,7 @@ validParameters = {
     #  - Tail loop can be unrolled up to InnerUnroll amount if AssertSummationElementMultiple%InnerUnroll==0
     #
     # 1 indicates no assertion (since all sizes are multiples of 1)
-    "AssertSummationElementMultiple": [1,2,4,8],
+    "AssertSummationElementMultiple": [1,2,4,8,16],
 
     # Kernel generator will assume that the FreeIndex[0] size is some multiple of the element size
     # and use this to optimize the kernel.
@@ -900,6 +896,21 @@ validParameters = {
     # issue global instruction b2b has better performance
     "GroupLoadStore":             [False, True],
     #
+    # Do storeC (output of GEMM) in unroll Loop; When PK enabled, storeC Code section can be
+    # moved into unroll Loop code section for tiles[0..N-2], storeC scheduled in PK[1..N-1] 
+    # Enable this feature when PK is enabled
+    # Enable this feature when you have 2 or More Tiles/CU
+    # disable StoreSyncOpt, StorePriorityOpt,GroupLoadStore feature when this feature is enabled
+    # enable PersistentKernel , PrefetchAcrossPersistent
+    "StoreCInUnroll":             [False, True],
+    #
+    # StoreCInUnrollInterval is to specify the MFMA interval between 2 StoreC/AtomicAdd.
+    # (This is effective only for StoreVectorWidth=1)
+    # Actual MCMA interval is StoreCInUnrollInterval * (1/ LocalWritePerMfma).
+    # For example, if StoreCInUnrollInterval=3, LocalWritePerMfma=0.5, StoreC/AtomicAddC inserted
+    # at every 6 MFMAs (interval = 6)
+    "StoreCInUnrollInterval":     list(range(1, 16)),
+
     # In order to remove the copying from Acc vgpr to Arch vgpr, only use Arch vgprs for v_mfma_xxx.
     # Only support for kernel whose totalVgpr counts less than 256 and gcn that has control bit ACC_CD.
     "MIArchVgpr":               [False, True],
@@ -933,6 +944,9 @@ validParameters = {
 
     # assume atomics always work correctly.
     "DisableAtomicFail": [False, True],
+
+    # alternate implementation for fp16 HPA MFMA
+    "Fp16AltImpl": [False, True],
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
@@ -1302,20 +1316,16 @@ defaultBenchmarkCommonParameters = [
     {"StoreSyncOpt":              [ 0 ] },
     {"GroupLoadStore":            [ False ] },
     {"MIArchVgpr":                [ False ] },
+    {"StoreCInUnroll":            [ False ] },
+    {"StoreCInUnrollInterval":    [ 2 ] },
+    {"Fp16AltImpl":               [ False ] }
     ]
-# benchmark these solution independently
-defaultForkParameters = []
-defaultBenchmarkForkParameters = []
-defaultJoinParameters = []
-defaultBenchmarkJoinParameters = []
 
-# dictionary of defaults comprised for 1st option for each parameter
+# dictionary of defaults comprised of default option for each parameter
 defaultSolution = {}
-for paramList in [defaultBenchmarkCommonParameters, defaultForkParameters, \
-    defaultBenchmarkForkParameters,defaultBenchmarkJoinParameters]:
-  for paramDict in paramList:
-    for key, value in paramDict.items():
-      defaultSolution[key] = value[0]
+for paramDict in defaultBenchmarkCommonParameters:
+  for key, value in paramDict.items():
+    defaultSolution[key] = value[0]
 # other non-benchmark options for solutions
 
 # valid fields in ConvolutionConfig and explanations:
@@ -1505,11 +1515,14 @@ defaultProblemType = {
     "MirrorDimsB":              [],
 
     # for LD description
-    "NumIndicesLD":            4,
+    "NumIndicesLD":             4,
     "IndexAssignmentsLD":       [3, 4, 5, 6],      # order is LDD, LDC, LDA, LDB
 
     # Tile aware solution selection
-    "TileAwareSelection":       False
+    "TileAwareSelection":       False,
+
+    # FP16 Alternate Implementation
+    "Fp16AltImpl":              False
     }
 
 defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]
@@ -1750,7 +1763,7 @@ def detectGlobalCurrentISA():
   Returns returncode if detection failure
   """
   global globalParameters
-  
+
   if globalParameters["CurrentISA"] == (0,0,0) and globalParameters["ROCmAgentEnumeratorPath"]:
     process = subprocess.run([globalParameters["ROCmAgentEnumeratorPath"]], stdout=subprocess.PIPE)
     if os.name == "nt":
@@ -1775,7 +1788,7 @@ def detectGlobalCurrentISA():
       printWarning("%s exited with code %u" % (globalParameters["ROCmAgentEnumeratorPath"], process.returncode))
     return process.returncode
   return 0
-      
+
 def restoreDefaultGlobalParameters():
   """
   Restores `globalParameters` back to defaults.
@@ -1932,6 +1945,11 @@ def assignGlobalParameters( config ):
   globalParameters["SupportedISA"] = list([i for i in globalParameters["SupportedISA"] if globalParameters["AsmCaps"][i]["SupportedISA"]])
 
   validParameters["ISA"] = [(0,0,0), *globalParameters["SupportedISA"]]
+
+  if "MergeFiles" in config and "NumMergedFiles" in config:
+    if not config["MergeFiles"] and config["NumMergedFiles"] > 1:
+      config["NumMergedFiles"] = 1 
+      printWarning("--num-merged-files and --no-merge-files specified, ignoring --num-merged-files")
 
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of

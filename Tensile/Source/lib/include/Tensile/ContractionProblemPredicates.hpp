@@ -1063,6 +1063,59 @@ namespace Tensile
                 }
             };
 
+            struct BufferLoadOffsetLimitCheck_Beta
+                : public Predicate_CRTP<BufferLoadOffsetLimitCheck_Beta, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                size_t value;
+
+                BufferLoadOffsetLimitCheck_Beta() = default;
+                BufferLoadOffsetLimitCheck_Beta(size_t value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "BufferLoadOffsetLimitCheck_Beta";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    if(problem.c().empty() || problem.beta() == 0)
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        const uint64_t TWO_POW_32 = 4294967296;
+                        return problem.c().strides()[1] * problem.c().elementBytes() * value
+                               < TWO_POW_32;
+                    }
+                }
+
+                virtual std::string toString() const override
+                {
+                    return concatenate(this->type(), "(MT1:", value, ")");
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.c().strides()[1] << " * "
+                           << problem.c().elementBytes() << " * " << value << " < 4294967296"
+                           << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
             struct BufferStoreOffsetLimitCheck
                 : public Predicate_CRTP<BufferStoreOffsetLimitCheck, ContractionProblem>
             {
@@ -1087,7 +1140,7 @@ namespace Tensile
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     const uint64_t TWO_POW_32 = 4294967296;
-                    return problem.a().strides()[1] * problem.a().elementBytes() * value
+                    return problem.d().strides()[1] * problem.d().elementBytes() * value
                            < TWO_POW_32;
                 }
 
@@ -1101,8 +1154,8 @@ namespace Tensile
                 {
                     bool rv = (*this)(problem);
 
-                    stream << *this << ": (" << problem.a().strides()[1] << " * "
-                           << problem.a().elementBytes() << " * " << value << " < 4294967296"
+                    stream << *this << ": (" << problem.d().strides()[1] << " * "
+                           << problem.d().elementBytes() << " * " << value << " < 4294967296"
                            << ") == " << rv;
 
                     return rv;
@@ -1293,6 +1346,27 @@ namespace Tensile
                     {
                         return false;
                     }
+                }
+            };
+
+            struct Fp16AltImpl : public Predicate_CRTP<Fp16AltImpl, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+
+                Fp16AltImpl() = default;
+
+                static std::string Type()
+                {
+                    return "Fp16AltImpl";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.fp16AltImpl();
                 }
             };
         } // namespace Contraction

@@ -82,7 +82,6 @@ def isSkippedTest(testYamls, mergeFiles, libraryFormat, shortNames, legacyCompon
     # for more extensive tests,
     # we run only on single combination of build params
     if (mergeFiles           == True
-        and legacyComponents == False
         and shortNames       == False
         and libraryFormat    == "yaml"
         and legacyComponents == False):
@@ -124,7 +123,7 @@ def test_integration(useGlobalParameters, builddir, getLogicFileDir,
                            ):
     Common.ensurePath(outputDir)
 
-    createLibraryScript = ClientWriter.getBuildNewClientLibraryScript(outputDir, logicFileDir)
+    createLibraryScript = ClientWriter.getBuildClientLibraryScript(outputDir, logicFileDir)
     subprocess.run(shlex.split(createLibraryScript), cwd=outputDir, check=True)
 
     coList = []

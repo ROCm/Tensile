@@ -28,47 +28,9 @@ import Tensile.LibraryIO as LibraryIO
 import Tensile.Common as Common
 import Tensile.ClientWriter as ClientWriter
 import Tensile.SolutionStructs as SolutionStructs
-import Tensile.BenchmarkProblems as BenchmarkProblems
-import Tensile.BenchmarkStructs as BenchmarkStructs
 import yaml
 
 mylogger = logging.getLogger()
-
-def test_assignParameters():
-    problemTypeConfig = \
-        {"Batched": True, "DataType": "s", "OperationType": "GEMM", "TransposeA": False, "TransposeB": False, "UseBeta": True}
-
-    benchmarkCommonParameters = [{"LoopTail": [True]}, {"KernelLanguage": ["Assembly"]}, \
-        {"EdgeType": ["ShiftPtr"]}, {"GlobalSplitU": [1]}, {"VectorWidth": [-1]}, {"FractionalLoad": [1]}, \
-        {"PrefetchGlobalRead": [True]}]
-
-    configForkParameters = \
-        [{"WorkGroup": [[16, 16, 1]]}, {"ThreadTile": [[4, 4],[8, 8]]}]
-
-    problemTypeObj, hardcodedParameters, initialSolutionParameters = \
-        BenchmarkStructs.assignParameters(problemTypeConfig, benchmarkCommonParameters, configForkParameters)
-
-
-    assert problemTypeObj != None
-    assert hardcodedParameters != None
-    assert initialSolutionParameters != None
-
-def test_generateSolutions(useGlobalParameters):
-    with useGlobalParameters():
-        scriptDir = os.path.dirname(os.path.realpath(__file__))
-        dataDir = os.path.realpath(os.path.join(scriptDir, "..", "test_data", "unit"))
-        problemTypeFilePath = os.path.join(dataDir, "library_data", "problemType.yaml")
-        hardcodedParametersFilePath = os.path.join(dataDir, "library_data", "hardcodedParameters.yaml")
-        initialSolutionParametersFilePath = os.path.join(dataDir, "library_data", "initialSolutionParameters.yaml")
-
-        problemType = LibraryIO.readYAML(problemTypeFilePath)["ProblemType"]
-        problemTypeObject = SolutionStructs.ProblemType(problemType)
-        hardcodedParameters = LibraryIO.readYAML(hardcodedParametersFilePath)
-        initialSolutionParameters = LibraryIO.readYAML(initialSolutionParametersFilePath)
-
-        solutionList = BenchmarkProblems.generateForkedSolutions (problemTypeObject, hardcodedParameters, [initialSolutionParameters])
-
-        assert len(solutionList) == 2
 
 def test_loadSolutions(caplog, useGlobalParameters):
     with useGlobalParameters():

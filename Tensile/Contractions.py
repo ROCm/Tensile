@@ -319,6 +319,9 @@ class ProblemPredicate(Properties.Predicate):
 
         if key.startswith('Assert'):
             raise RuntimeError("Unknown assertion key: {}".format(key))
+        
+        if key == "Fp16AltImpl":
+            return cls("Fp16AltImpl") if value != False else None
 
     @classmethod
     def CompoundPredicates(cls, state, problemType):
@@ -370,6 +373,10 @@ class ProblemPredicate(Properties.Predicate):
             subrv['DUorMT0'] = state['DepthU'] if TLUA else state['MacroTile0']
             # value is also a dict for better readibility, client side need to handel the serialization
             rv += [cls('BufferLoadOffsetLimitCheck', value=subrv)]
+
+        # When doing globol write, may need to load matrix C if beta !=0
+        if 'BufferLoad' in state and state['BufferLoad'] == True:
+            rv += [cls('BufferLoadOffsetLimitCheck_Beta', value=state['MacroTile1'])]
 
         # similiar check is applied for bufferstore,
         # for bufferstore offset, test if the bot-right offset < 2^32,

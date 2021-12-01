@@ -88,45 +88,9 @@ def runBenchmarking(solutions, problemSizes, outPath, update):
     if update:
         Common.globalParameters["LibraryUpdateFile"] = os.path.join(resultsDir, "update.yaml")
 
-    # legacy
     pushWorkingPath(shortName)
     pushWorkingPath("source")
-
-    filesToCopy = [
-        "SolutionMapper.h",
-        "Client.cpp",
-        "Client.h",
-        "CMakeLists.txt",
-        "DeviceStats.h",
-        "TensorUtils.h",
-        "MathTemplates.cpp",
-        "MathTemplates.h",
-        "TensileTypes.h",
-        "tensile_bfloat16.h",
-        "KernelHeader.h",
-        "ReferenceCPU.h",
-        "SolutionHelper.cpp",
-        "SolutionHelper.h",
-        "Tools.cpp",
-        "Tools.h",
-        ]
-
-    for f in filesToCopy:
-        shutil.copy(
-            os.path.join(globalParameters["SourcePath"], f),
-            globalParameters["WorkingPath"] )
-    if globalParameters["RuntimeLanguage"] == "OCL":
-        shutil.copy(
-            os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
-            globalParameters["WorkingPath"] )
-    else:
-        shutil.copy(
-            os.path.join(globalParameters["SourcePath"], "FindHIP.cmake"),
-            globalParameters["WorkingPath"] )
-    # end legacy
-
-    BenchmarkProblems.writeBenchmarkFiles(benchmarkDir, solutions, problemSizes, shortName, filesToCopy, [])
-
+    BenchmarkProblems.writeBenchmarkFiles(benchmarkDir, solutions, problemSizes, shortName, [])
     popWorkingPath() # source
 
     libraryLogicPath = None

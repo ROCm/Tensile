@@ -880,14 +880,10 @@ Tensile/bin/TensileCreateLibrary <Options...> <LogicPath> <OutputPath> <RuntimeL
 
 [--package-library]
 
-[--no-legacy-components] Don't generate solution source code for old client.
-
 [--embed-library EMBEDLIBRARY] Embed (new) library files into static variables.
     Specify the name of the library.
 
 [--embed-library-key EMBEDLIBRARYKEY] Prefix embedded symbols with EMBEDLIBRARYKEY.
-
-[--new-client-only] Only build libraries for the new client.
 
 [--version VERSION] Embed version into library files.
 
@@ -905,7 +901,7 @@ OutputPath Output directory.
 \end{lstlisting}
 
 \begin{lstlisting}[language=bash]
-/path/to/tensile-rep/Tensile/bin/TensileCreateLibrary --merge-files --no-legacy-components --no-short-file-names --no-library-print-debug --code-object-version=V3 --cxx-compiler=hipcc --library-format=msgpack path/to/new/logic path/to/drop/new/tensile HIP
+/path/to/tensile-rep/Tensile/bin/TensileCreateLibrary --merge-files --no-short-file-names --no-library-print-debug --code-object-version=V3 --cxx-compiler=hipcc --library-format=msgpack path/to/new/logic path/to/drop/new/tensile HIP
 \end{lstlisting}
 
 \section{Tuning Automation}
@@ -1221,14 +1217,7 @@ libmsgpack-dev libmsgpackc2 wget
 \noindent Then install:
 
 \begin{lstlisting}[language=bash,breaklines=true]
-pip3 install setuptools --upgrade && pip3 install wheel && pip3 install pyyaml msgpack
-\end{lstlisting}
-
-\noindent Download and install Anaconda to ensure the spreadsheet can be generated:
-
-\begin{lstlisting}[language=bash,breaklines=true]
-wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh -O ~/anaconda3.7.sh && \
-bash ~/anaconda3.7.sh -b -p ~/anaconda && eval "$(~/anaconda/bin/conda shell.bash hook)"
+pip3 install setuptools --upgrade && pip3 install wheel && pip3 install pyyaml msgpack openpyxl pandas
 \end{lstlisting}
 
 \section{Appendix B - Tensile Tuning Parameters}
