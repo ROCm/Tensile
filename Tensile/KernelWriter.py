@@ -1778,6 +1778,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.localWriteACode = Code.Module()
       self.localWriteBCode = Code.Module()
 
+    # the scheduled GlobalRead,Inc code of PAP is inside openSumAtLeastUnroll (if PAP=on)
+    isPapTmp = isPap
+    if kernel["PrefetchGlobalRead"]==2:
+      # PGR=2 case, set isPap only if isNGLL is True. This is to generate NewTile code at NGLL in PAP + PGR=2 case
+      isPapTmp = isPap and not isNGLL
+    kStrOpenSum = self.openSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=isOptNLL, isPap=isPapTmp)
+
     #if self.prefetchAcrossPersistent and kernel["PrefetchAcrossPersistentMode"] == 1 and isPap:
     if self.prefetchAcrossPersistent and isPap:
     #if self.prefetchAcrossPersistent and isPap \
@@ -1785,6 +1792,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kStr = ""
       #kStr += str(self.openPrefetchAcrossPersistent(kernel, isOptNLL=False, useBufferOOB=True))
       # For PAPMode 1, using isOptNLL true to generate prefetch code
+
+      if kernel["PrefetchAcrossPersistentMode"] == 0:
+        # generate openSumAtLeastUnroll code here
+        kStr += kStrOpenSum
+        kStrOpenSum = "" # empty OpenSum str to avoid inserting it again
 
       # isPap and kernel["PrefetchAcrossPersistentMode"] == 1 and isOptNLL==False,
       # no need to append NewTile code because it is already generated in OptNLL code
@@ -1808,12 +1820,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kStr += str(self.closePrefetchAcrossPersistent(kernel, isOptNLL=False, useBufferOOB=True))
       kl.append(kStr)
 
-    # the scheduled GlobalRead,Inc code of PAP is inside openSumAtLeastUnroll (if PAP=on)
-    isPapTmp = isPap
-    if kernel["PrefetchGlobalRead"]==2:
-      # PGR=2 case, set isPap only if isNGLL is True. This is to generate NewTile code at NGLL in PAP + PGR=2 case
-      isPapTmp = isPap and not isNGLL
-    kl.append(self.openSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=isOptNLL, isPap=isPapTmp))
+    kl.append(kStrOpenSum)
 
     if not self.numItersPLR:
       if self.enable["Wait"]:
@@ -2841,7 +2848,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # keep StoreCInUnrollPreCode for the next noLoadLoop
           if kernel["StoreCInUnroll"]:
             StoreCUnrollPreCodeBackup = copy.deepcopy(self.StoreCUnrollPreCode)
-          kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=True, isPap=self.prefetchAcrossPersistent, isNGLL=False, pack=deepCopyPack)
+          isPap = self.prefetchAcrossPersistent
+          kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=True, isPap=isPap, isNGLL=False, pack=deepCopyPack)
           self.restoreLocalPointers(kernel)
           # restore StoreCInUnroll related parameters
           if kernel["StoreCInUnroll"]:

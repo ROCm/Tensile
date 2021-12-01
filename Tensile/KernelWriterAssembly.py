@@ -6863,20 +6863,26 @@ class KernelWriterAssembly(KernelWriter):
   def openSumAtLeastUnroll(self, kernel, prefetch, isOptNLL, isPap):
     kStr = ""
     if prefetch:
-      if not isPap:
+      if not isOptNLL:
         kStr += self.checkLastIter(kernel)
-        if kernel["StorePriorityOpt"]:
-          kStr += inst("s_setprio 0", "optimization store")
-        if self.doShadowInit:
-          kStr += inst("s_cbranch_scc1 %s"\
-              % self.getNamedLabel("ShadowInitStart"), \
-              "skip to ShadowInitStart iter b/c numIter==0")
+        if not isPap:
+          if kernel["StorePriorityOpt"]:
+            kStr += inst("s_setprio 0", "optimization store")
+          if self.doShadowInit:
+            kStr += inst("s_cbranch_scc1 %s"\
+                % self.getNamedLabel("ShadowInitStart"), \
+                "skip to ShadowInitStart iter b/c numIter==0")
+          else:
+            loopChar = self.indexChars[ \
+                kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
+            labelName = self.getNamedLabel("LoopEnd%s"%loopChar)
+            kStr += inst("s_cbranch_scc1 %s" % labelName,
+                "skip to unrollLoop end loop%s iter b/c numIter==0" % loopChar)
         else:
-          loopChar = self.indexChars[ \
-              kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
-          labelName = self.getNamedLabel("LoopEnd%s"%loopChar)
-          kStr += inst("s_cbranch_scc1 %s" % labelName,
-              "skip to unrollLoop end loop%s iter b/c numIter==0" % loopChar)
+          labelName =  "SkipPrefetchAcrossPersistent"
+          kStr += inst("s_cbranch_scc1 %s"\
+              % self.getNamedLabel(labelName), \
+              "skip prefetch loads since numIter==0")
     elif isOptNLL:
 
       # When OptNLL + PAP enabled, but is the last tile so isPap=False (brief: T,T,F),
@@ -8527,7 +8533,9 @@ class KernelWriterAssembly(KernelWriter):
       for item in codeTemplateStrList:
         if (str(item).find("__placeholder__") == -1):
           LWDoCase4Mod.addText(str(item))
-      LWDoCase4Mod.addInst("s_branch", lwEnd_Label, "finish case, jump to end of LW")
+      # if StoreCInUnroll is not enabled, this is the last case. No jump necessary.
+      if kernel["StoreCInUnroll"]:
+        LWDoCase4Mod.addInst("s_branch", lwEnd_Label, "finish case, jump to end of LW")
 
     if kernel["StoreCInUnroll"]:
       # CASE 5:
