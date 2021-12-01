@@ -6314,9 +6314,6 @@ class KernelWriterAssembly(KernelWriter):
           # Generate local read address code only if DirectToVgpr is not enabled
           if not kernel["DirectToVgprB"]:
             oddIterCode.addText(self.localReadSwapOffsets(kernel, False, self.tPB))
-          # add odd code for StoreCInUnroll
-          if kernel["StoreCInUnroll"]:
-            oddIterCode.addText(self.generateOddCodeForStoreCInUnroll(kernel))
 
           # generate even code here (so far, for PrefetchGlobalRead=2 only)
           evenIterCode = Code.Module()
@@ -7046,20 +7043,7 @@ class KernelWriterAssembly(KernelWriter):
       else:
         if isOptNLL:
             endSumLabel = self.getNamedLabel("Summation_End_OptNLL")
-          ## If is PAP inside OptNLL: Swap the LRO (if EPS, depends on if BreakAtEvenIter)
-          #if self.prefetchAcrossPersistent and isPap:
-          #  # in PrefetcGlobalRead=2 case, local read swap is already done in NGLL
-          #  if not kernel["PrefetchGlobalRead"] == 2:
-          #    # local read swap offset code
-          #    kStr += self.getLocalReadSwapOffset(kernel, 1)
 
-          #  # Jump to Summation
-          #  kStr += inst("s_branch", "%s"%endSumLabel, "jump to Summation End")
-          #  kStr += "\n"
-          #  # Append label for pure OptNLL (no PAP interleaved)
-          #  kStr += "%s:\n" % self.getNamedLabel("SkipTo_PureOptNLL_LastTile")
-
-          #else:
             kStr += self.comment1("Stores for OptNLL")
             kStr += self.endSummation(kernel, endSumLabel, isOptNLL)
 
@@ -13537,18 +13521,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", "m0", hex(clampSize), "LDS clamp at %u bytes"%(clampSize) )
     second = kStr
     return first, second
-
-  ##############################################################################
-  # generateOddCodeForStoreCInUnroll
-  ##############################################################################
-  def generateOddCodeForStoreCInUnroll(self,kernel):
-    kStr = ""
-    # no Odd code for StoreCInUnroll so far
-    #kStr += self.comment("Odd code for StoreCInUnroll")
-    # add StoreCIndex0 by inc1
-    #inc1 = self.getAccVgprInc1(kernel)
-    #kStr += inst("s_addk_i32", sgpr("StoreCIndex0"), inc1,  "")
-    return kStr
 
   ##############################################################################
   # MulMIoutAlphaToArch

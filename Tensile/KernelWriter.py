@@ -4451,13 +4451,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
   def closemovaccVgpr(self, kernel, backupSgpr):
     return ""
 
-  ##############################################################################
-  # generateOddCodeForStoreCInUnroll
-  ##############################################################################
-  @abc.abstractmethod
-  def generateOddCodeForStoreCInUnroll(self,kernel):
-    return ""
-
 
   ##############################################################################
   #

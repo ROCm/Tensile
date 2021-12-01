@@ -3339,12 +3339,6 @@ class KernelWriterSource(KernelWriter):
     return ""
 
   ##############################################################################
-  # generateOddCodeForStoreCInUnroll
-  ##############################################################################
-  def generateOddCodeForStoreCInUnroll(self,kernel):
-    return ""
-
-  ##############################################################################
   # init for StoreCInUnroll
   ##############################################################################
   def initStoreCInUnroll(self, kernel):
