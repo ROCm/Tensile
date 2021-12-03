@@ -38,7 +38,7 @@
 #include <Tensile/Debug.hpp>
 #include <Tensile/EmbeddedData.hpp>
 #include <Tensile/Utils.hpp>
- 
+
 namespace Tensile
 {
     namespace ocl

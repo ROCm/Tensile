@@ -145,9 +145,9 @@ namespace Tensile
             struct timeval tmnow;
             struct tm*     tm;
             gettimeofday(&tmnow, NULL); // microsecond resolution
-            tm             = localtime(&tmnow.tv_sec);
+            tm = localtime(&tmnow.tv_sec);
             std::cout.fill('0');
-            
+
             std::ostringstream msg;
             msg.fill('0');
             msg << (tm->tm_year + 1900) << "-" << std::setw(2) << (tm->tm_mon + 1) << "-"

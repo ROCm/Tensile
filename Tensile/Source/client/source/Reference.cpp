@@ -80,30 +80,6 @@ namespace Tensile
                       - zp.padEnd;
 
                 bool rv = anchorRelCoord < zp.padStart || anchorRelCoord >= elementEdge;
-
-                // bool checkUnsignedRangeOpt = false;
-                // if(checkUnsignedRangeOpt)
-                // {
-                //     unsigned anchorRelCoord2
-                //         = anchorCoord[zp.anchorPos] * tensor.strides()[zp.anchorPos]
-                //           + sumCoord * tensor.strides()[zp.boundPos] - zp.padStart;
-
-                //     unsigned elementEdge2
-                //         = tensor.sizes().at(zp.anchorPos) * tensor.strides()[zp.anchorPos]
-                //           + (tensor.sizes().at(zp.boundPos) - 1) * tensor.strides()[zp.boundPos]
-                //           - zp.padEnd - zp.padStart;
-                //     bool rv2 = anchorRelCoord >= elementEdge2;
-                //     assert(rv == rv2);
-                // }
-
-                // if(0)
-                // {
-                //     std::cout << "  rv=" << rv << " anchorCoord=" << anchorCoord[zp.anchorPos]
-                //               << " boundIndex=" << zp.boundIndex << " sumCoord=" << sumCoord
-                //               << " anchorRelCoord=" << anchorRelCoord << " padStart=" << zp.padStart
-                //               << " stride=" << tensor.strides()[zp.anchorPos]
-                //               << " edge=" << elementEdge << " padEnd=" << zp.padEnd << "\n";
-                // }
                 return rv;
             }
             else

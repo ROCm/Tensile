@@ -311,27 +311,25 @@ public:
     // Constructor accepts variable number of sizes:
     template <typename... Ts>
     explicit ProblemKey(Ts... args)
-    : _db(0)
+        : _db(0)
     {
         init<NumSizes - 1>(args...);
     }
 
-    
     template <int FirstStride,
               int LastStrideD,
               int LastStrideC,
               int LastStrideA,
               int LastStrideB,
               int NumDimSizes>
-    explicit
-    ProblemKey(const ProblemDims<FirstStride,
-                                 LastStrideD,
-                                 LastStrideC,
-                                 LastStrideA,
-                                 LastStrideB,
-                                 NumDimSizes>& pdims) 
-                                 : _db(0),
-                                 _equalStrides(true)
+    explicit ProblemKey(const ProblemDims<FirstStride,
+                                          LastStrideD,
+                                          LastStrideC,
+                                          LastStrideA,
+                                          LastStrideB,
+                                          NumDimSizes>& pdims)
+        : _db(0)
+        , _equalStrides(true)
     {
         for(int i = 0; i < NumSizes; i++)
         {
@@ -581,7 +579,7 @@ struct ProblemProperties
     // Constructor used to compute assertions for a specified problem size
     template <class ProblemDimsType>
     ProblemProperties(const ProblemDimsType& pdims, const ProblemType* props)
-    : _db(0)
+        : _db(0)
     {
         _summationElementMultiple = 1; // problem summation element multiple
         auto sumSize              = pdims.sizes(props->lastSummationIdx());

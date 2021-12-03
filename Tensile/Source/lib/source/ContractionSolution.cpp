@@ -1060,19 +1060,15 @@ namespace Tensile
     {
         ContractionSolution::Granularities granularities;
 
-        double MT0           = sizeMapping.macroTile.x;
-        double MT1           = sizeMapping.macroTile.y;
-        double NumCUs        = perf.CUs;
-        double wavefrontSize = 64; //defaults to 64
-        double simdPerCu     = 4;
+        double MT0 = sizeMapping.macroTile.x;
+        double MT1 = sizeMapping.macroTile.y;
 
         AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
-        if(pAMDGPU != nullptr)
-        {
-            NumCUs        = pAMDGPU->computeUnitCount;
-            wavefrontSize = pAMDGPU->wavefrontSize;
-            simdPerCu     = pAMDGPU->simdPerCu;
-        }
+        assert(pAMDGPU);
+
+        double NumCUs        = pAMDGPU->computeUnitCount;
+        double wavefrontSize = pAMDGPU->wavefrontSize;
+        double simdPerCu     = pAMDGPU->simdPerCu;
 
         double GlobalSplitU = sizeMapping.globalSplitU;
         double LocalSplitU  = sizeMapping.workGroupSize.z;
@@ -1099,14 +1095,11 @@ namespace Tensile
         granularities.suCuGranularity
             = granularities.suTilesPerCu / ceil(granularities.suTilesPerCu);
 
-        if(pAMDGPU)
-        {
-            granularities.waveGranularity = std::min(
-                1.00,
-                static_cast<double>(floor(granularities.tilesPerCu + 1.0) * sizeMapping.workGroupSize.x
-                                    * sizeMapping.workGroupSize.y * sizeMapping.workGroupSize.z)
-                    / pAMDGPU->wavefrontSize / pAMDGPU->simdPerCu);
-        }
+        granularities.waveGranularity = std::min(
+            1.00,
+            static_cast<double>(floor(granularities.tilesPerCu + 1.0) * sizeMapping.workGroupSize.x
+                                * sizeMapping.workGroupSize.y * sizeMapping.workGroupSize.z)
+                / pAMDGPU->wavefrontSize / pAMDGPU->simdPerCu);
 
         granularities.waves
             = ceil((sizeMapping.workGroupSize.x * sizeMapping.workGroupSize.y) / wavefrontSize);
@@ -1230,7 +1223,7 @@ namespace Tensile
     {
         double tile0GranularityDim = abs(log(ppReference.granularites.tile0Granularity)
                                          - log(pp.granularites.tile0Granularity));
-        double metric = tile0GranularityDim;
+        double metric              = tile0GranularityDim;
 
         double tile1GranularityDim = abs(log(ppReference.granularites.tile1Granularity)
                                          - log(pp.granularites.tile1Granularity));

@@ -92,7 +92,7 @@ namespace Tensile
     void PerformanceMetricTypeInfo::registerAllTypeInfoOnce()
     {
         static int call_once = (registerAllTypeInfo(), 0);
-        
+
         // Use the variable to quiet the compiler.
         if(call_once)
             return;
