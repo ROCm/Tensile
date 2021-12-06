@@ -232,7 +232,7 @@ namespace Tensile
                         {
                             std::cerr << "KernelError: " << e.err() << std::endl;
                         }
-                        throw e;
+                        throw;
                     }
                 }
             }

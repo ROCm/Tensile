@@ -456,17 +456,7 @@ namespace Tensile
             Type const* resultData      = resultBuffer + elementsBeforeData;
             Type const* resultAfterData = resultData + tensor.totalAllocatedElements();
 
-            int printed = 0;
-
-            bool doPrint = m_printMax < 0 || printed < m_printMax;
-
-            size_t errors = 0;
-
             size_t boundsCheckElements = 0;
-
-            bool printedPreBuffer    = false;
-            bool printedInsideBuffer = false;
-            bool printedPostBuffer   = false;
 
             for(ptrdiff_t i = 0; i < elementsBeforeData; i++)
             {

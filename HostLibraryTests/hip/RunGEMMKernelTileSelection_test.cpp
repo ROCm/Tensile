@@ -176,20 +176,17 @@ struct RunGEMMKernelSolutionSelectionTest : public ::testing::TestWithParam<Cont
 #endif
     }
 
-}
+    void TearDown() override
+    {
+        hipFree(a_d);
+        hipFree(b_d);
+        hipFree(c_d);
+        hipFree(d_d);
+        hipFree(d_ref_d);
 
-void TearDown() override
-{
-    hipFree(a_d);
-    hipFree(b_d);
-    hipFree(c_d);
-    hipFree(d_d);
-    hipFree(d_ref_d);
-
-    hipDeviceReset();
-}
-}
-;
+        hipDeviceReset();
+    }
+};
 
 TEST_P(RunGEMMKernelSolutionSelectionTest, KernelsTileSelection)
 {

@@ -52,8 +52,6 @@ TEST(ContractionLibraryLoadingTest, MultipleKernels)
         EXPECT_EQ(solution->name(), "Cijk_Ailk_Bljk_SB_MT128x128x08_K1");
     }
 
-    return;
-
     {
         ContractionProblem p
             = ContractionProblem::GEMM(false, true, 4, 4, 4, 4, 4, 4, 1.5, false, 2);

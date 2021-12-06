@@ -79,9 +79,9 @@ namespace Tensile
             {
                 // cascade from BenchmarkTimer, Time-US first
                 ++m_currSolutionIdx;
-                double timeUS = std::stod(valueStr);
                 if(!m_invalidSolution)
                 {
+                    double timeUS = std::stod(valueStr);
                     if(m_fasterTimeUS < 0 || m_fasterTimeUS > timeUS)
                     {
                         m_fasterTimeUS = timeUS;

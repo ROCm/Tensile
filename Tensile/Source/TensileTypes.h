@@ -225,7 +225,7 @@ public:
 
     // Constructor accepts variable number of sizes:
     template <typename... Ts>
-    ProblemDims(Ts... args)
+    explicit ProblemDims(Ts... args)
     {
         init<NumSizes>(args...);
     };
@@ -257,7 +257,7 @@ public:
                      - FirstStride + LastStrideB - FirstStride + idx];
     }
 
-    int numSizes() const
+    static int numSizes()
     {
         return NumSizes;
     };
@@ -310,7 +310,8 @@ public:
 
     // Constructor accepts variable number of sizes:
     template <typename... Ts>
-    ProblemKey(Ts... args)
+    explicit ProblemKey(Ts... args)
+        : _db(0)
     {
         init<NumSizes - 1>(args...);
     }
@@ -321,12 +322,14 @@ public:
               int LastStrideA,
               int LastStrideB,
               int NumDimSizes>
-    ProblemKey(const ProblemDims<FirstStride,
-                                 LastStrideD,
-                                 LastStrideC,
-                                 LastStrideA,
-                                 LastStrideB,
-                                 NumDimSizes>& pdims)
+    explicit ProblemKey(const ProblemDims<FirstStride,
+                                          LastStrideD,
+                                          LastStrideC,
+                                          LastStrideA,
+                                          LastStrideB,
+                                          NumDimSizes>& pdims)
+        : _db(0)
+        , _equalStrides(true)
     {
         for(int i = 0; i < NumSizes; i++)
         {
@@ -378,7 +381,8 @@ public:
     {
         return _sizes[i];
     };
-    int numSizes() const
+
+    static int numSizes()
     {
         return NumSizes;
     };
@@ -398,13 +402,13 @@ public:
 
 private:
     template <int I>
-    void init(SizeType v)
+    void init(const SizeType& v)
     {
         _sizes[NumSizes - I - 1] = v;
     }
 
     template <int I, typename... Ts>
-    void init(SizeType v, Ts... args)
+    void init(const SizeType& v, Ts... args)
     {
         _sizes[NumSizes - I - 1] = v;
         init<I - 1>(args...);
@@ -575,6 +579,7 @@ struct ProblemProperties
     // Constructor used to compute assertions for a specified problem size
     template <class ProblemDimsType>
     ProblemProperties(const ProblemDimsType& pdims, const ProblemType* props)
+        : _db(0)
     {
         _summationElementMultiple = 1; // problem summation element multiple
         auto sumSize              = pdims.sizes(props->lastSummationIdx());
@@ -645,7 +650,7 @@ struct ProblemProperties
             bool isb = props->isBatchIdx(idx);
             // Would need to fix for UseInitialStrides
             auto stride = strideIdx == 0 ? 1 : pdims.strideA(strideIdx - 1);
-            if(props->isBatchIdx(idx) and stride != 0)
+            if(isb && stride != 0)
             {
                 _allBatchAStridesAreZero = 0;
             }
@@ -659,7 +664,7 @@ struct ProblemProperties
             bool isb = props->isBatchIdx(idx);
             // Would need to fix for UseInitialStrides
             auto stride = strideIdx == 0 ? 1 : pdims.strideB(strideIdx - 1);
-            if(props->isBatchIdx(idx) and stride != 0)
+            if(isb && stride != 0)
             {
                 _allBatchBStridesAreZero = 0;
             }
