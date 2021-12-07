@@ -26,9 +26,9 @@
 
 #pragma once
 
+#include <Tensile/Debug.hpp>
 #include <Tensile/Distance.hpp>
 #include <Tensile/MatchingLibrary.hpp>
-#include <Tensile/Debug.hpp>
 
 #include <cstddef>
 #include <unordered_set>
@@ -130,32 +130,32 @@ namespace Tensile
 
                 bool success = false;
 
-		const int use_metric = Debug::Instance().useMetric();
+                std::string tensile_metric = Debug::Instance().getMetric();
 
-                if(use_metric != -1)
-                  distanceType = "";
+                if(!tensile_metric.empty())
+                    distanceType = tensile_metric;
 
-                if(use_metric == 2 || distanceType == "Euclidean")
+                if(distanceType == "Euclidean")
                 {
                     success = mappingDistance<Key, Matching::EuclideanDistance<Key>>(
                         io, lib, properties);
                 }
-		else if(use_metric == 3 || distanceType == "JSD")
+                else if(distanceType == "JSD")
                 {
-                    success = mappingDistance<Key, Matching::JSDivergence<Key>>(
-                        io, lib, properties);
+                    success
+                        = mappingDistance<Key, Matching::JSDivergence<Key>>(io, lib, properties);
                 }
-                else if(use_metric == 1 || distanceType == "Manhattan")
+                else if(distanceType == "Manhattan")
                 {
                     success = mappingDistance<Key, Matching::ManhattanDistance<Key>>(
                         io, lib, properties);
                 }
-                else if(use_metric == 0 || distanceType == "Ratio")
+                else if(distanceType == "Ratio")
                 {
                     success
                         = mappingDistance<Key, Matching::RatioDistance<Key>>(io, lib, properties);
                 }
-                else if(use_metric == 4 || distanceType == "Random")
+                else if(distanceType == "Random")
                 {
                     success
                         = mappingDistance<Key, Matching::RandomDistance<Key>>(io, lib, properties);

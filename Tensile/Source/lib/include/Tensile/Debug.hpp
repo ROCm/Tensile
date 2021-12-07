@@ -67,19 +67,19 @@ namespace Tensile
 
         bool enableDebugSelection() const;
 
-        int useMetric() const;
+        std::string getMetric() const;
 
         int getSolutionIndex() const;
 
     private:
         friend LazySingleton<Debug>;
 
-        int  m_value;
-        int  m_value2;
-        bool m_naivePropertySearch = false;
-        int  m_use_metric          = -1;
-        bool m_debugSelection      = false;
-        int  m_solution_index      = -1;
+        int         m_value;
+        int         m_value2;
+        bool        m_naivePropertySearch = false;
+        bool        m_debugSelection      = false;
+        int         m_solution_index      = -1;
+        std::string m_metric              = "";
 
         Debug();
     };

@@ -119,9 +119,9 @@ namespace Tensile
         return m_debugSelection;
     }
 
-    int Debug::useMetric() const
+    std::string Debug::getMetric() const
     {
-      return m_use_metric;
+        return m_metric;
     }
 
     int Debug::getSolutionIndex() const
@@ -153,9 +153,9 @@ namespace Tensile
         if(solution_index)
             m_solution_index = strtol(solution_index, nullptr, 0);
 
-	const char* use_metric = std::getenv("USE_METRIC");
-        if(use_metric)
-            m_use_metric = strtol(use_metric, nullptr, 0);
+        const char* tensile_metric = std::getenv("TENSILE_METRIC");
+        if(tensile_metric)
+            m_metric = tensile_metric;
     }
 
 } // namespace Tensile
