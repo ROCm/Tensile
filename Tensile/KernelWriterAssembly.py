@@ -2150,7 +2150,7 @@ class KernelWriterAssembly(KernelWriter):
     # dedicated sgpr(S) for storeC VGPR indexing
     # sgpr semaphore for message synchroization between different part of code section
     if kernel["StoreCInUnroll"]:
-      needAddrC = not globalParameters["CEqualD"] and kernel["ProblemType"]["UseBeta"]
+      needAddrC = not kernel["AssertCEqualsD"] and kernel["ProblemType"]["UseBeta"]
       self.defineSgpr("StoreCIndex0",1)
       self.defineSgpr("StoreCOffsetAddr",1)
       self.defineSgpr("StoreCEnableCountInit",1)
@@ -11669,7 +11669,7 @@ class KernelWriterAssembly(KernelWriter):
           data = "G2LC+%s"%(elementIdx*gwvw*regsPerScalar)
           tmpS01 = "StoreCOffsetAddr"
           LoadCCodeStr = self.readCInput(kernel, ss, addrCalc, vc0, data, gwvw, addrCVgpr, tmpS01)
-          if globalParameters["CEqualD"]:
+          if kernel["AssertCEqualsD"]:
             # CEqualsD case, use SrdD instead of SrdC
             LoadCCodeStr = LoadCCodeStr.replace('SrdC', 'SrdD')
           LoadCCodeMod.addCode(LoadCCodeStr)
@@ -12234,11 +12234,11 @@ class KernelWriterAssembly(KernelWriter):
               if kernel["StoreCInUnroll"] and not atomicAddC and not edge:
                 # generate beta code
                 vregIdx = vi*regsPerScalar + elementIdx*gwvw*regsPerScalar
-                if globalParameters["DataInitTypeBeta"] == 1:
-                  if globalParameters["DataInitTypeAlpha"] == 1 or globalParameters["DataInitTypeAlpha"] == 17:
+                if kernel["AssertBetaValue"] == 1:
+                  if kernel["AssertAlphaValue"] == 1 or kernel["AssertAlphaValue"] == -1:
                     # beta == 1 and alpha == 1 or -1 case. Use add instead of fma
                     minusStr = ""
-                    if globalParameters["DataInitTypeAlpha"] == 17:
+                    if kernel["AssertAlphaValue"] == -1:
                       # special case for alpha == -1. Add"-" before src0
                       minusStr = "-"
                     BetaCodeMod.addCode(inst("v_add_f64", vgpr("L2GC+%u"%(vregIdx),2), minusStr + vgpr("L2GC+%u"%(vregIdx),2), vgpr("G2LC+%u"%(vregIdx),2),"finalSum = sum*alpha + C*beta"))
@@ -12578,10 +12578,10 @@ class KernelWriterAssembly(KernelWriter):
     edges = [False]
     applyAlpha = True
     # disable alpha for the following scenarios
-    #   alpha = 0 or 1
+    #   alpha = 1
     #   beta == 1 and not Atomic
-    if globalParameters["DataInitTypeAlpha"] == 0 or globalParameters["DataInitTypeAlpha"] == 1 or \
-       (globalParameters["DataInitTypeBeta"] == 1 and not kernel["AtomicAddC"]):
+    if kernel["AssertAlphaValue"] == 1 or \
+       (kernel["AssertBetaValue"] == 1 and not kernel["AtomicAddC"]):
       applyAlpha = False
     self.notLocalSplitUGlobalWriteIndices(kernel)
     (fullVw, elements) = self.notLocalFullTileElements(kernel, False)
@@ -12622,7 +12622,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def initStoreCInUnroll(self, kernel):
     kStr = ""
-    needAddrC = not globalParameters["CEqualD"] and kernel["ProblemType"]["UseBeta"]
+    needAddrC = not kernel["AssertCEqualsD"] and kernel["ProblemType"]["UseBeta"]
     kStr += self.comment("Initialization for StoreCInUnroll")
 
     # reset StoreC sync object
@@ -12733,7 +12733,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def swapSrdCDandBackup(self, kernel):
     kStr = ""
-    needAddrC = not globalParameters["CEqualD"] and kernel["ProblemType"]["UseBeta"]
+    needAddrC = not kernel["AssertCEqualsD"] and kernel["ProblemType"]["UseBeta"]
     if kernel["BufferStore"]:
       tmpSgpr  = self.getTmpSgpr(2,2).idx()
       # swap SrcC/D and SrcC/DBackup
@@ -12752,7 +12752,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def restoreSrdCandDBackup(self, kernel):
     kStr = ""
-    needAddrC = not globalParameters["CEqualD"] and kernel["ProblemType"]["UseBeta"]
+    needAddrC = not kernel["AssertCEqualsD"] and kernel["ProblemType"]["UseBeta"]
     if kernel["BufferStore"]:
       if needAddrC:
         kStr += inst("s_mov_b64", sgpr("SrdC", 2), sgpr("SrdCBackup", 2), "Restore SrcC and SrcCBackup")
@@ -12893,7 +12893,7 @@ class KernelWriterAssembly(KernelWriter):
   # 2-2) check enable count and apply new values when necessary
   ##############################################################################
   def generatePostProcessForStoreCInUnrollLoop(self, kernel, needPost):
-    needAddrC = (not globalParameters["CEqualD"]) and kernel["ProblemType"]["UseBeta"]
+    needAddrC = (not kernel["AssertCEqualsD"]) and kernel["ProblemType"]["UseBeta"]
 
     postProcessList = []
     finalAddrIncList = []
@@ -12931,6 +12931,12 @@ class KernelWriterAssembly(KernelWriter):
           postProcessList.append(inst("s_cselect_b32", sgpr(tmpSgprDinc), hex(0), sgpr("DAddrInc"),  \
                                       "set SrdD increment value to 0 when StoreCAvail==0"))
 
+          if needAddrC:
+            if not kernel["StoreCInUnrollExact"]:
+              # generate final SrdC increment value
+              postProcessList.append(inst("s_cselect_b32", sgpr(tmpSgprCinc), hex(0), sgpr("CAddrInc"),
+                                          "set SrdC increment value to 0 when StoreCAvail==0"))
+
     else:
       # even lc case (Unroll Loop 1/2)
 
@@ -12941,12 +12947,11 @@ class KernelWriterAssembly(KernelWriter):
           # generate final SrdD increment value
           postProcessList.append(inst("s_and_b32", sgpr(tmpSgprDinc), sgpr("StoreCAvail"), sgpr("DAddrInc"),  \
                                       "set SrdD increment value to 0 when StoreCAvail==0"))
-
-    if needAddrC:
-      if not kernel["StoreCInUnrollExact"]:
-        # generate final SrdC increment value
-        postProcessList.append(inst("s_cselect_b32", sgpr(tmpSgprCinc), hex(0), sgpr("CAddrInc"),  
-                                    "set SrdC increment value to 0 when StoreCAvail==0"))
+          if needAddrC:
+            if not kernel["StoreCInUnrollExact"]:
+              # generate final SrdC increment value
+              postProcessList.append(inst("s_and_b32", sgpr(tmpSgprCinc), sgpr("StoreCAvail"), sgpr("CAddrInc"),
+                                          "set SrdC increment value to 0 when StoreCAvail==0"))
 
     # increment gpr index
     if needPost:
@@ -12965,7 +12970,7 @@ class KernelWriterAssembly(KernelWriter):
     if needAddrC:
       sgprSrd = "SrdC"
       sgprSrd1 = sgprSrd + "+1"
-      if not kernel["StoreCInUnrollExact"]:
+      if not kernel["StoreCInUnrollExact"] and not kernel["StoreCInUnrollPostLoop"]:
         src2 = tmpSgprCinc
       else:
         src2 = "CAddrInc"
@@ -13120,13 +13125,12 @@ class KernelWriterAssembly(KernelWriter):
         loopCount = 2
         for lc in range(loopCount):
           # generate LoadC code
-          needAddrC = (not globalParameters["CEqualD"]) and kernel["ProblemType"]["UseBeta"]
+          needAddrC = (not kernel["AssertCEqualsD"]) and kernel["ProblemType"]["UseBeta"]
           for x in self.LoadCTemplate.items():
             kStrPL += str(x)
           # Addr C inrement code
           if needAddrC:
-            kStrPL = self.generateCorDaddrIncrementForStoreCInUnroll(kernel, "C", (lc % 2) == 0, tmpSgprWork)
-            self.LoadCUnrollCode.addText(kStrPL)
+            kStrPL += self.generateCorDaddrIncrementForStoreCInUnroll(kernel, "C", (lc % 2) == 0, tmpSgprWork)
 
           # these 3 items need to be in the same set
           #  open gpr indexing

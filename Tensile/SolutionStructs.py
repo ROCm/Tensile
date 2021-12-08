@@ -3660,6 +3660,9 @@ class Solution(collections.abc.Mapping):
       if not state["PrefetchAcrossPersistent"]:
         reject(state, "StoreCInUnroll requires PrefetchAcrossPersistent feature")
         return
+      if state["PrefetchAcrossPersistentMode"] == 0:
+        reject(state, "StoreCInUnroll requires PrefetchAcrossPersistentMode")
+        return
       if state["VectorWidth"] != 2:
         reject(state, "StoreCInUnroll requires VectorWidth=2")
         return
