@@ -551,8 +551,6 @@ TEST(OclSolutionAdapterTest, TimingMulti)
     float       initialC = 0.0f;
     queue.enqueueReadBuffer(buffer_C, CL_TRUE, 0, sizeof(float), &initialC);
 
-    const float expectedD = initialC * beta;
-
     // Prepare kernel and args
     auto k = initKernelParams(desc,
                               static_cast<float*>((void*)buffer_D()),
