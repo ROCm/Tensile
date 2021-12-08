@@ -481,14 +481,20 @@ class KernelWriter(metaclass=abc.ABCMeta):
             itemsGRIncToSched.append(imod)
         numInst = globalReadIncACode.countType(Code.Inst) + globalReadIncBCode.countType(Code.Inst)
         numInstPerMfma = max(roundUp(self.miLatencyLeft/2),1)
-        globalReadIncItems = globalReadIncACode.flatitems() + globalReadIncBCode.flatitems()
+
+        globalReadInc1 = globalReadIncACode.flatitems()
+        globalReadInc2 = globalReadIncBCode.flatitems()
+        if kernel["DirectToVgprA"]:
+          # swap the order of readInc for DTVA
+          globalReadInc1, globalReadInc2 = globalReadInc2, globalReadInc1
+        globalReadIncItems = globalReadInc1 + globalReadInc2
         if kernel["StoreCInUnroll"] and  kernel["PrefetchGlobalRead"] == 2:
           # PGR=2 + StoreCInUnroll case, add first LoadC after IncA, second LoadC (if exist) after IncB
           tmpList = list(self.LoadCUnrollCode.itemList)
           dummyList = [ Code.Module() for i in range (numInstPerMfma - 1) ]
           if len(tmpList) > 0:
             # first LoadC
-            globalReadIncItems = globalReadIncACode.flatitems() + tmpList[0:1] + dummyList + globalReadIncBCode.flatitems()
+            globalReadIncItems = globalReadInc1 + tmpList[0:1] + dummyList + globalReadInc2
           if len(tmpList) > 1:
             # second LoadC
             globalReadIncItems += tmpList[1:]
@@ -4866,7 +4872,7 @@ for codeObjectFileName in codeObjectFileNames:
       needInc  = (not isLast) or kernel["StoreCInUnrollPostLoop"]
       backupSgpr = self.getTmpSgpr(2).idx()  # allocate all tmp register here
       tmpSgprWork = backupSgpr + 1
-      needAddrC = (not globalParameters["CEqualD"]) and kernel["ProblemType"]["UseBeta"]
+      needAddrC = (not kernel["AssertCEqualsD"]) and kernel["ProblemType"]["UseBeta"]
 
       # inc code is necessary if ExpandPointerSwap is False
       needPost = needPost or not kernel["ExpandPointerSwap"]
