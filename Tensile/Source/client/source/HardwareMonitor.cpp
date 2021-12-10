@@ -324,7 +324,6 @@ namespace Tensile
 
                 rsmi_frequencies_t freq;
 
-                uint64_t newValue = 0;
                 auto status = rsmi_dev_gpu_clk_freq_get(m_smiDeviceIndex, m_clockMetrics[i], &freq);
                 if(status != RSMI_STATUS_SUCCESS)
                 {

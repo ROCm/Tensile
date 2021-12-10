@@ -2384,6 +2384,16 @@ class Solution(collections.abc.Mapping):
       reject(state, "DirectToVgpr%c does not supports NumLoadsCoalesced%c > 1"%(tc, tc))
       return False
 
+    # Does not work with ExpandPointerSwap = False
+    if not state["ExpandPointerSwap"]:
+      reject(state, "DirectToVgpr%c does not supports ExpandPointerSwap = False"%(tc))
+      return False
+
+    # Requre AssertSummationElementMultiple is multiple of (DepthU * 2)
+    if state["AssertSummationElementMultiple"] % (state["DepthU"] * 2) != 0:
+      reject(state, "DirectToVgpr%c requires AssertSummationElementMultipl is integer multiple of (DepthU * 2)"%(tc))
+      return False
+
     # Does not work with DirectToLDS
     # -> this will be checked after DirectToLDS doable check is done
 
@@ -2464,6 +2474,17 @@ class Solution(collections.abc.Mapping):
 #        and (state["LdsBlockSizePerPad%tc"] % (state["WavefrontSize"] * 4) != 0): // TODO:
       print2("can't use DirectToLds for LdsBlockSizePerPad%c != 0 and LdsPad%c != 0 and \
               LdsBlockSizePerPad%c != WavefrontSize * GlobalLoadVectorWidth%c * bpe"%(tc, tc, tc, tc))
+      return False
+
+    # so far, DirectToLds does not work well with PGR=2
+    # performance is not good and a lot of ds_read for DTL can cause scheduling issue(need fix)
+    if state["PrefetchGlobalRead"] == 2:
+      print2("can't use DirectToLds for PrefetchGlobalRead == 2")
+      return False
+
+    # so far, DirectToLds does not work with LRVW=2
+    if state["LocalReadVectorWidth"] == 2:
+      print2("can't use DirectToLds for LocalReadVectorWidth == 2")
       return False
 
     return True
@@ -2625,13 +2646,15 @@ class Solution(collections.abc.Mapping):
     if state["PrefetchAcrossPersistent"]:
       if state["KernelLanguage"] == "Source" or \
          state["PersistentKernel"] == 0 or \
-         state["PrefetchGlobalRead"] != 1 or \
+         state["PrefetchGlobalRead"] == 0 or \
          state["SuppressNoLoadLoop"]:
-        # TODO- do we need to support PGR2 ?
-        print2("PAP requires Assembly, PK!=0, PGR==1, SuppressNoLoadLoop=True, forcing PAP=False")
+        print2("PAP requires Assembly, PK!=0, PGR!=0, SuppressNoLoadLoop=True, forcing PAP=False")
         state["PrefetchAcrossPersistent"] = False
-      if state["PrefetchAcrossPersistentMode"] == 1 and state["AssertSummationElementMultiple"] != state["DepthU"]:
-        reject(state, "PAPMode 1 requires AssertSummationElementMultiple == DepthU")
+      if state["PrefetchAcrossPersistentMode"] == 1 and state["AssertSummationElementMultiple"] % state["DepthU"] != 0:
+        reject(state, "PAPMode 1 requires AssertSummationElementMultiple is integer multiple of DepthU")
+        return
+      if state["PrefetchAcrossPersistentMode"] == 0 and state["PrefetchGlobalRead"] == 2:
+        reject(state, "PAPMode 0 does not support PGR=2")
         return
     else:
       if state["PrefetchAcrossPersistentMode"] != 0:
@@ -2720,11 +2743,11 @@ class Solution(collections.abc.Mapping):
         state["SuppressNoLoadLoop"] = 0
 
     if state["ExpandPointerSwap"] == 1:
-      # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
-      if not (bufferLoad and state["PrefetchGlobalRead"] == 1):
-        state["ExpandPointerSwap"] = 0
-      # EPS not supported with PGR=2 yet
-      if state["PrefetchGlobalRead"] == 2:
+      # Pointer swap only used if PGR==1 or (PGR>1 and double) - so set ExpandPointerSwap=0 here
+      # So far, EPS=1 and PGR>1 works only with double.
+      #if not (bufferLoad and state["PrefetchGlobalRead"] == 1):
+      if not (bufferLoad and ( state["PrefetchGlobalRead"] == 1 \
+              or (state["PrefetchGlobalRead"] > 1 and state["ProblemType"]["DataType"].isDouble()))):
         state["ExpandPointerSwap"] = 0
       # EPS not supported with SplitLDS yet
       if state["DepthULdsDivisor"] > 1:
@@ -3637,6 +3660,9 @@ class Solution(collections.abc.Mapping):
       if not state["PrefetchAcrossPersistent"]:
         reject(state, "StoreCInUnroll requires PrefetchAcrossPersistent feature")
         return
+      if state["PrefetchAcrossPersistentMode"] == 0:
+        reject(state, "StoreCInUnroll requires PrefetchAcrossPersistentMode")
+        return
       if state["VectorWidth"] != 2:
         reject(state, "StoreCInUnroll requires VectorWidth=2")
         return
@@ -3646,8 +3672,8 @@ class Solution(collections.abc.Mapping):
       if state["ScheduleGlobalRead"] != 1:
         reject(state, "StoreCInUnroll requires ScheduleGlobalRead=1")
         return
-      if state["PrefetchGlobalRead"] != 1:
-        reject(state, "StoreCInUnroll requires PrefetchGlobalRead=1")
+      if state["PrefetchGlobalRead"] == 0:
+        reject(state, "StoreCInUnroll requires PrefetchGlobalRead!=0")
         return
       if not state["ExpandPointerSwap"]:
         reject(state, "StoreCInUnroll requires ExpandPointerSwap")
@@ -3657,6 +3683,20 @@ class Solution(collections.abc.Mapping):
         return
       if state['MIWaveGroup'][1] != 1 and state['MIWaveGroup'][1] != 4:
         reject(state, "StoreCInUnroll requires [MIWaveGroup][1]=1 or 4")
+        return
+      if state["StoreCInUnrollExact"] and state["StoreCInUnrollPostLoop"] :
+        reject(state, "StoreCInUnrollPostLoop does not work with StoreCInUnrollExact")
+        return
+      if state["AssertSummationElementMultiple"] % (state["DepthU"] * 2) != 0:
+        reject(state, "StoreCInUnroll requires AssertSummationElementMultiple = integer multiple of (DepthU * 2)")
+        return
+    else:
+      # reject if StoreCInUnroll related paramter is enabled
+      if state["StoreCInUnrollPostLoop"] :
+        reject(state, "StoreCInUnrollPostLoop requires StoreCInUnroll")
+        return
+      if state["StoreCInUnrollExact"] :
+        reject(state, "StoreCInUnrollExact requires StoreCInUnroll")
         return
 
     # check LocalDotLayout

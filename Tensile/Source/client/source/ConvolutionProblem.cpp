@@ -155,7 +155,7 @@ namespace Tensile
                                      + identifier);
 
         m_filterPositions.clear();
-        if((identifier == "KCYX" and !transposeCK) || (identifier == "CKYX" and transposeCK))
+        if((identifier == "KCYX" && !transposeCK) || (identifier == "CKYX" && transposeCK))
         {
 
             assert(formatNumSpatialDims == 2);
@@ -174,7 +174,7 @@ namespace Tensile
             m_cinPosition  = position++;
             m_coutPosition = position;
         }
-        else if((identifier == "CKYX" and !transposeCK) || (identifier == "KCYX" and transposeCK))
+        else if((identifier == "CKYX" && !transposeCK) || (identifier == "KCYX" && transposeCK))
         {
             assert(formatNumSpatialDims == 2);
             size_t position = 0;
@@ -322,7 +322,6 @@ namespace Tensile
         for(auto part = parts.begin() + 4; part != parts.end(); part++)
         {
             std::vector<std::string> flags;
-            std::vector<std::string> xvals;
             boost::split(flags, *part, boost::algorithm::is_any_of(":"));
             assert(flags.size() == 2); // must be key:value pair
 
@@ -568,7 +567,7 @@ namespace Tensile
     }
 
     template <typename T>
-    static std::string delimitedVector(const std::vector<T>& v, std::string delimiter)
+    static std::string delimitedVector(const std::vector<T>& v, const std::string& delimiter)
     {
         std::ostringstream rv;
 
