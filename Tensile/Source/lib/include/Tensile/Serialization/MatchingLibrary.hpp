@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <Tensile/Debug.hpp>
 #include <Tensile/Distance.hpp>
 #include <Tensile/MatchingLibrary.hpp>
 
@@ -129,10 +130,20 @@ namespace Tensile
 
                 bool success = false;
 
+                std::string tensile_metric = Debug::Instance().getMetric();
+
+                if(!tensile_metric.empty())
+                    distanceType = tensile_metric;
+
                 if(distanceType == "Euclidean")
                 {
                     success = mappingDistance<Key, Matching::EuclideanDistance<Key>>(
                         io, lib, properties);
+                }
+                else if(distanceType == "JSD")
+                {
+                    success
+                        = mappingDistance<Key, Matching::JSDivergence<Key>>(io, lib, properties);
                 }
                 else if(distanceType == "Manhattan")
                 {
