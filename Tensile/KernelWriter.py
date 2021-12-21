@@ -2654,13 +2654,15 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if kernel["PersistentKernel"]:
       kl.append( self.checkAlphaBetaForHPA(kernel))
 
-    # init code for StoreCInUnroll (only once before persistent kernel loop)
-    if self.storeCInUnroll:
-      kl.append(self.initStoreCInUnroll(kernel))
-
     if self.prefetchAcrossPersistent:
       # SrdC/D init before persistent loop
       kl.append(self.globalWriteWorkGroupInitBeforePersistentLoop(kernel))
+
+      # init code for StoreCInUnroll (only once before persistent kernel loop)
+      # SrdC/D init has to be done beforehand
+      if self.storeCInUnroll:
+        kl.append(self.initStoreCInUnroll(kernel))
+
       # first prefetch is outside persistent loop, subsequent prefetch will
       # be integrated into no-load-loop
       kl += self.setupNewTile(kernel, tensorParametersA, tensorParametersB, isPap=False, isOptNLL=False)

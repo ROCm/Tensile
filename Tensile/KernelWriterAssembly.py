@@ -12640,6 +12640,11 @@ class KernelWriterAssembly(KernelWriter):
       tmpSgpr  = self.getTmpSgpr(1).idx()
       kStr += inst("s_mov_b32", sgpr(tmpSgpr), "BufferOOB", "" )
       kStr += inst("v_mov_b32", vgpr("GlobalBufferOOB"), sgpr(tmpSgpr), "" )
+      # initialize srdC/DBackup to avoid accessing memory beyond the largest legal address
+      if kernel["BufferStore"]:
+        if needAddrC:
+          kStr += inst("s_mov_b64", sgpr("SrdCBackup", 2), sgpr("SrdC", 2), "Initialize SrcCBackup")
+        kStr += inst("s_mov_b64", sgpr("SrdDBackup", 2), sgpr("SrdD", 2), "Initialize SrcDBackup")
 
     return kStr
 
@@ -13100,6 +13105,11 @@ class KernelWriterAssembly(KernelWriter):
       StartLabelName = "StoreCInUnrollPostLoopStart" + OptName
       EndLabelName = "StoreCInUnrollPostLoopEnd" + OptName
       kStr += self.comment1("StoreCInUnroll PostLoop (%s NLL)"%OptName)
+
+      # StorePriorityOpt
+      if kernel["StorePriorityOpt"]:
+        kStr += inst("s_setprio 0","store optimization")
+
       # generate start label
       kStr += self.getNamedLabelDef(StartLabelName)
 
@@ -13158,6 +13168,10 @@ class KernelWriterAssembly(KernelWriter):
 
           for x in self.StoreCTemplate.items():
             kStrPL += str(x)
+          # StorSyncOpt
+          if kernel["StoreSyncOpt"]:
+            kStrPL += "s_sleep %d // optimization: sync and wait\n" %(kernel["StoreSyncOpt"]-1)
+            kStrPL += "s_barrier\n"
           # add all finalAddrInc code after the last StoreC (in the same item)
           for item in (postProcessList + finalAddrIncList):
             kStrPL += item
