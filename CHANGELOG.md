@@ -1,6 +1,24 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.31.0
+## Tensile 4.31.0 for ROCm 5.0.0
+### Added
+- DirectToLds support (x2/x4)
+- DirectToVgpr support for DGEMM
+- Parameter to control number of files kernels are merged into to better parallelize kernel compilation
+- FP16 alternate implementation for HPA HGEMM on aldebaran
+### Optimized
+- Add DGEMM NN custom kernel for HPL on aldebaran
+### Changed
+- Update tensile_client executable to std=c++14
+### Removed
+- Remove unused old Tensile client code
+### Fixed
+- Fix hipErrorInvalidHandle during benchmarks
+- Fix addrVgpr for atomic GSU
+- Fix for Python 3.8: add case for Constant nodeType
+- Fix architecture mapping for gfx1011 and gfx1012
+- Fix PrintSolutionRejectionReason verbiage in KernelWriter.py
+- Fix vgpr alignment problem when enabling flat buffer load
 
 ## Tensile 4.30.0 for ROCm 4.5.0
 ### Added
