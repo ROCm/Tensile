@@ -1,5 +1,5 @@
 /**
- * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -371,7 +371,6 @@ namespace Tensile
             std::tuple<ReturnValue, double> findBestKeyMatch_BinSearch(Key const& key,
                                                                        Transform  transform) const
             {
-                std::cout << "distance matching" << std::endl;
                 if(this->table.empty())
                     return std::make_tuple(this->nullValue, std::numeric_limits<double>::max());
 
@@ -660,7 +659,6 @@ namespace Tensile
             std::tuple<ReturnValue, double> findBestKeyMatch(Key const& key,
                                                              Transform  transform) const
             {
-                std::cout << "equality matching" << std::endl;
                 auto comp = [](Entry const& e, Key const& key) { return e.key < key; };
                 auto iter = std::lower_bound(table.begin(), table.end(), key, comp);
 
