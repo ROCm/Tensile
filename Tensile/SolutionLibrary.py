@@ -236,7 +236,7 @@ class MasterSolutionLibrary:
         if len(d) > 11 and d[11]:
             fp16AltImpl = True
 
-        matching = 'Default'
+        matching = 'Euclidean'
         if len(d) > 12 and d[12]:
             matching = d[12]
 
@@ -249,16 +249,13 @@ class MasterSolutionLibrary:
 
         for libName in reversed(libraryOrder):
             if libName == 'Matching':
-                if matching == 'Default':
-                    predicate = Properties.Predicate(tag='TruePred')
-                    matchingLib = MatchingLibrary.FromOriginalState( \
-                            origLibrary, allSolutions, 'Euclidean')
-                elif matching == 'Equality':
+                if matching == 'Equality':
                     predicate = Properties.Predicate(tag='EqualityMatching')
-                    matchingLib = MatchingLibrary.FromOriginalState( \
-                            origLibrary, allSolutions, 'Equality')
                 else:
-                    raise ValueError('Unknown library type ' + libName)
+                    predicate = Properties.Predicate(tag='TruePred')
+
+                matchingLib = MatchingLibrary.FromOriginalState( \
+                        origLibrary, allSolutions, matching)
                 library = PredicateLibrary(tag='Problem')
                 library.rows.append({'predicate': predicate, 'library': matchingLib})
 
