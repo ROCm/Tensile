@@ -250,9 +250,6 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple
                 solutionState["ProblemType"]["DestDataType"].value
         solutionState["ProblemType"]["ComputeDataType"] = \
                 solutionState["ProblemType"]["ComputeDataType"].value
-
-        solutionState["ISA"] = list(solutionState["ISA"])
-        #solutionState["Fp16AltImpl"] = True
         solutionList.append(solutionState)
 
     if tileSelection:
@@ -266,9 +263,6 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple
                     solutionState["ProblemType"]["DestDataType"].value
             solutionState["ProblemType"]["ComputeDataType"] = \
                     solutionState["ProblemType"]["ComputeDataType"].value
-
-
-
             solutionList.append(solutionState)
 
     data.append(solutionList)
@@ -276,10 +270,10 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple
     data.append(indexOrder)
 
     # exactLogic
-    # exactLogicList = []
-    # for key in exactLogic:
-    #     exactLogicList.append([list(key), exactLogic[key]])
-    data.append(exactLogic)
+    exactLogicList = []
+    for key in exactLogic:
+        exactLogicList.append([list(key), exactLogic[key]])
+    data.append(exactLogicList)
 
     # rangeLogic
     data.append(rangeLogic)

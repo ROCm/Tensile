@@ -19,12 +19,9 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-
-from . import LibraryIO
-
 from . import Common
-from .Common import assignGlobalParameters, globalParameters, print1, ensurePath, \
-        restoreDefaultGlobalParameters, HR
+from . import LibraryIO
+from .Common import assignGlobalParameters, print1, restoreDefaultGlobalParameters, HR
 from .Tensile import addCommonArguments, argUpdatedGlobalParameters
 from . import __version__
 
@@ -34,7 +31,7 @@ import os
 import sys
 
 
-def TensileRetuneLibrary(userArgs):
+def TensileUpdateLibrary(userArgs):
     print1("")
     print1(HR)
     print1("#")
@@ -44,8 +41,8 @@ def TensileRetuneLibrary(userArgs):
     argParser = argparse.ArgumentParser()
     argParser.add_argument("LogicFile", type=os.path.realpath,
                            help="Library logic file to update")
-    argParser.add_argument("OutputFile",
-                           help="Output file for update logic file")
+    argParser.add_argument("OutputPath", type=os.path.realpath,
+                           help="Where to place updated logic file")
 
     addCommonArguments(argParser)
     args = argParser.parse_args(userArgs)
@@ -56,10 +53,7 @@ def TensileRetuneLibrary(userArgs):
     print1(HR)
     print1("")
 
-
-    ##############################################
-    # Retuning
-    ##############################################
+    # setup global parameters
     restoreDefaultGlobalParameters()
     assignGlobalParameters({})
     overrideParameters = argUpdatedGlobalParameters(args)
@@ -67,21 +61,44 @@ def TensileRetuneLibrary(userArgs):
         print1("Overriding {0}={1}".format(key, value))
         Common.globalParameters[key] = value
 
-
-    #outPath = ensurePath(os.path.abspath(args.OutputPath))
+    # update logic file
+    outPath = Common.ensurePath(os.path.abspath(args.OutputPath))
+    filename = os.path.basename(libPath)
+    outFile = os.path.join(outPath, filename)
 
     libYaml = LibraryIO.readYAML(libPath)
     # parseLibraryLogicData mutates the original data, so make a copy
     fields = LibraryIO.parseLibraryLogicData(copy.deepcopy(libYaml), libPath)
-    (scheduleName, deviceNames, problemType, solutions, indexOrder, \
-            exactLogic, rangeLogic, newLibrary, architectureName) = fields
+    (_, _, problemType, solutions, _, _, _, _, _) = fields
 
-    logicTuple = (problemType, solutions, indexOrder, exactLogic, rangeLogic, None, None, None)
-    #print(exactLogic)
-    updated = LibraryIO.createLibraryLogic(scheduleName, architectureName, deviceNames, logicTuple)
+    # problem type object to state
+    problemTypeState = problemType.state
+    problemTypeState["DataType"] = problemTypeState["DataType"].value
+    problemTypeState["DestDataType"] = problemTypeState["DestDataType"].value
+    problemTypeState["ComputeDataType"] = problemTypeState["ComputeDataType"].value
 
-    LibraryIO.writeYAML(args.OutputFile, updated, explicit_start=False, explicit_end=False)
+    # solution objects to state
+    solutionList = []
+    for solution in solutions:
+        solutionState = solution.getAttributes()
+        solutionState["ProblemType"] = solutionState["ProblemType"].state
+        solutionState["ProblemType"]["DataType"] = \
+                solutionState["ProblemType"]["DataType"].value
+        solutionState["ProblemType"]["DestDataType"] = \
+                solutionState["ProblemType"]["DestDataType"].value
+        solutionState["ProblemType"]["ComputeDataType"] = \
+                solutionState["ProblemType"]["ComputeDataType"].value
+
+        solutionState["ISA"] = list(solutionState["ISA"])
+        solutionState["Fp16AltImpl"] = True
+        solutionList.append(solutionState)
+
+    # update yaml
+    libYaml[0] = {"MinimumRequiredVersion":__version__}
+    libYaml[4] = problemTypeState
+    libYaml[5] = solutionList
+    LibraryIO.writeYAML(outFile, libYaml, explicit_start=False, explicit_end=False)
 
 
 def main():
-    TensileRetuneLibrary(sys.argv[1:])
+    TensileUpdateLibrary(sys.argv[1:])
