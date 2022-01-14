@@ -850,9 +850,14 @@ class ProblemType(Mapping):
       else:
         if "DataType" in config:
           self["ComputeDataType"] = DataType(config["DataType"])
+          self["DestDataType"] = DataType(config["DataType"])
         else:
           printExit("NO compute data type, or dest data type, or data type specified")
           self["DataType"] = DataType(0)
+
+    # Modifying ComputeDataType for HHS_BH: if (HHH+HPA), convert it to HHS_BH by setting ComputeDataType to s.
+    if self["ComputeDataType"].isHalf() and DataType(config["DataType"]).isHalf() and self["HighPrecisionAccumulate"]:
+      self["ComputeDataType"] = DataType('s')
 
     self.convolution = None
     if self["OperationType"] == "GEMM":
@@ -968,6 +973,7 @@ class ProblemType(Mapping):
 
     # TODO- Migrate ([H/H/H]+HPA) to ([H/H/S]+HPA)
     # Note that we need to do a little change in rocBLAS and logic yaml
+    # Currently, ([H/H/S]+HPA) is implemented, but due to some kenerl naming conflict, we use HBH kernels instead HHS_BH. 
 
   ########################################
   def initGEMM(self):

@@ -71,7 +71,11 @@ def getDstValueType(kernel, cov):
     return dstValueType
 
 def getCptValueType(kernel, cov):
-    cptValueType = cptValueTypeDict[kernel["ProblemType"]["DataType"].toNameAbbrev()]
+    if kernel["ProblemType"]["DataType"].isHalf() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
+        cptValueType = cptValueTypeDict[kernel["ProblemType"]["ComputeDataType"].toNameAbbrev()] # for HHS case, this will be handled in HBH kernels.
+    else:
+        cptValueType = cptValueTypeDict[kernel["ProblemType"]["DataType"].toNameAbbrev()]
+
     if cov == "V3":
         cptValueType = cptValueType.lower()
     return cptValueType
