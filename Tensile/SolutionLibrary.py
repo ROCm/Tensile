@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -90,7 +90,7 @@ class MatchingLibrary:
     StateKeys = [('type', 'tag'), 'properties', 'table', 'distance']
 
     @classmethod
-    def FromOriginalState(cls, d, solutions):
+    def FromOriginalState(cls, d, solutions, distance='Euclidean'):
         indices = d[0]
         origTable = d[1]
 
@@ -105,8 +105,6 @@ class MatchingLibrary:
         keyOrder = [i for i,j in enumerate(indices) if j in propertyKeys]
 
         table = []
-
-        distance = 'Euclidean'
 
         for row in origTable:
             try:
@@ -225,6 +223,11 @@ class MasterSolutionLibrary:
         #origSolutions = d[5]
         origLibrary = d[6:8]
 
+        if len(d) > 9 and d[9]:
+            # It's a Granularity library
+            assert libraryOrder[-1] == 'Matching'
+            libraryOrder[-1] = 'Granularity'
+
         perfMetric = 'DeviceEfficiency'
         if len(d) > 10 and d[10]:
             perfMetric = d[10]
@@ -233,12 +236,11 @@ class MasterSolutionLibrary:
         if len(d) > 11 and d[11]:
             fp16AltImpl = True
 
-        problemType = Contractions.ProblemType.FromOriginalState(origProblemType)
+        matching = 'Euclidean'
+        if len(d) > 12 and d[12]:
+            matching = d[12]
 
-        if len(d) > 9 and d[9]:
-            # It's a Granularity library
-            assert libraryOrder[-1] == 'Matching'
-            libraryOrder[-1] = 'Granularity'
+        problemType = Contractions.ProblemType.FromOriginalState(origProblemType)
 
         allSolutions = [solutionClass.FromSolutionStruct(s, deviceSection) for s in origSolutions]
         cls.FixSolutionIndices(allSolutions)
@@ -247,8 +249,15 @@ class MasterSolutionLibrary:
 
         for libName in reversed(libraryOrder):
             if libName == 'Matching':
-                matchingLibrary = MatchingLibrary.FromOriginalState(origLibrary, allSolutions)
-                library = matchingLibrary
+                if matching == 'Equality':
+                    predicate = Properties.Predicate(tag='EqualityMatching')
+                else:
+                    predicate = Properties.Predicate(tag='TruePred')
+
+                matchingLib = MatchingLibrary.FromOriginalState( \
+                        origLibrary, allSolutions, matching)
+                library = PredicateLibrary(tag='Problem')
+                library.rows.append({'predicate': predicate, 'library': matchingLib})
 
             elif libName == 'Granularity':
                 selectionIndices = d[9]['TileSelectionIndices']
