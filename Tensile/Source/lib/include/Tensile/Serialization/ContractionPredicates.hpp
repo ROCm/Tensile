@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -94,6 +94,7 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::StridedBatchedEqual>(),
                     Base::template Pair<Predicates::Contraction::CUEfficiency>(),
                     Base::template Pair<Predicates::Contraction::Fp16AltImpl>(),
+                    Base::template Pair<Predicates::Contraction::EqualityMatching>(),
                 });
 
                 auto gmap = Generic::GetSubclasses();
@@ -337,6 +338,12 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::Fp16AltImpl, IO>
             : public AutoMappingTraits<Predicates::Contraction::Fp16AltImpl, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::EqualityMatching, IO>
+            : public AutoMappingTraits<Predicates::Contraction::EqualityMatching, IO>
         {
         };
     } // namespace Serialization

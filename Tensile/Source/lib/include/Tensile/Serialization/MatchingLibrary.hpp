@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -139,6 +139,10 @@ namespace Tensile
                 {
                     success = mappingDistance<Key, Matching::EuclideanDistance<Key>>(
                         io, lib, properties);
+                }
+                else if(distanceType == "Equality")
+                {
+                    success = mappingDistance<Key, Matching::Equality<Key>>(io, lib, properties);
                 }
                 else if(distanceType == "JSD")
                 {
