@@ -1,5 +1,11 @@
 # Change Log for Tensile
 
+## (Unreleased) Tensile 4.32.0
+### Added
+- better control of parallelism to control memory usage
+### Removed
+- Remove no longer supported benchmarking steps
+
 ## Tensile 4.31.0 for ROCm 5.0.0
 ### Added
 - DirectToLds support (x2/x4)

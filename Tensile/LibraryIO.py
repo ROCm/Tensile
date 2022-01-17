@@ -71,17 +71,16 @@ def writeSolutions(filename, problemSizes, solutions):
 
     # convert objects to nested dictionaries
     solutionStates = []
-    for hardcoded in solutions:
-        for solution in hardcoded:
-            solutionState = solution.getAttributes()
-            solutionState["ProblemType"] = solutionState["ProblemType"].state
-            solutionState["ProblemType"]["DataType"] = \
-                    solutionState["ProblemType"]["DataType"].value
-            solutionState["ProblemType"]["DestDataType"] = \
-                    solutionState["ProblemType"]["DestDataType"].value
-            solutionState["ProblemType"]["ComputeDataType"] = \
-                    solutionState["ProblemType"]["ComputeDataType"].value
-            solutionStates.append(solutionState)
+    for solution in solutions:
+        solutionState = solution.getAttributes()
+        solutionState["ProblemType"] = solutionState["ProblemType"].state
+        solutionState["ProblemType"]["DataType"] = \
+                solutionState["ProblemType"]["DataType"].value
+        solutionState["ProblemType"]["DestDataType"] = \
+                solutionState["ProblemType"]["DestDataType"].value
+        solutionState["ProblemType"]["ComputeDataType"] = \
+                solutionState["ProblemType"]["ComputeDataType"].value
+        solutionStates.append(solutionState)
     # write dictionaries
     with open(filename, "w") as f:
         f.write("- MinimumRequiredVersion: %s\n" % __version__ )
@@ -111,9 +110,9 @@ def parseSolutionsFile(filename):
 
 def parseSolutionsData(data, srcFile="?"):
     """Parses problem sizes and solutions from the data of a solutions file."""
-
     if len(data) < 3:
-        printExit("Solution file {} is missing required fields (len = {} < 3".format(srcFile, len(data)))
+        printExit("Solution file {} is missing required fields (len = {} < 3" \
+                .format(srcFile, len(data)))
 
     versionString = data[0]["MinimumRequiredVersion"]
     if not versionIsCompatible(versionString):
@@ -143,9 +142,9 @@ def parseLibraryLogicFile(filename):
 
 def parseLibraryLogicData(data, srcFile="?"):
     """Parses the data of a library logic file."""
-
     if len(data) < 9:
-        printExit("Library logic file {} is missing required fields (len = {} < 9)".format(srcFile, len(data)))
+        printExit("Library logic file {} is missing required fields (len = {} < 9)" \
+                .format(srcFile, len(data)))
 
     versionString     = data[0]["MinimumRequiredVersion"]
     scheduleName      = data[1]

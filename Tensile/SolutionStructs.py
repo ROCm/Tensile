@@ -2080,6 +2080,11 @@ class Solution(collections.abc.Mapping):
     if state["WaveSeparateGlobalRead%s"%tc]:
       state["LSP%s"%tc] = roundupRatio(state["LSP%s"%tc], state["NumThreads"] // state["WavefrontSize"])
 
+    # DirectToVgpr + NumLoadsCoalesced > 1 check again because NumLoadsCoalesced can be changed here
+    if state["DirectToVgpr%c"%tc] and state["NumLoadsCoalesced%c"%tc] > 1:
+      reject(state, "DirectToVgpr%c does not supports NumLoadsCoalesced%c > 1"%(tc, tc))
+      return False
+
     return True
 
 
@@ -2345,19 +2350,16 @@ class Solution(collections.abc.Mapping):
   def isDirectToVgprDoable(state, tc):
     # With MatrixInstruction only (tentative)
     if not state["EnableMatrixInstruction"] :
-      #print2("DirectToVgpr is for MatrixInstruction only")
       reject(state, "DirectToVgpr is for MatrixInstruction only")
       return False
 
     # Double only (tentative)
     if not state["ProblemType"]["DataType"].isDouble() :
-      #print2("so far, DirectToVgpr is for dobule only")
       reject(state, "so far, DirectToVgpr is for dobule only")
       return False
 
     # Problem type Check. Support N (for A) T (for B) only
     if not state["ProblemType"]["TLU%c"%tc]:
-      #print2("DirectToVgpr%c supports only N (for A) T (for B) format"%tc)
       reject(state, "DirectToVgpr%c supports only N (for A) T (for B) format"%tc)
       return False
 
@@ -2366,18 +2368,30 @@ class Solution(collections.abc.Mapping):
     #  for B, MIWaveGroup should be [1, 4]
     # This is to limit the number of Vgpr
     if tc == 'A' and not (state['MIWaveGroup'][0] == 4 and state['MIWaveGroup'][1] == 1):
-      #print2("MIWaveGroup should be [4, 1] for DirectToVgprA. Current value is [%s]"%state['MIWaveGroup'])
       reject(state, "MIWaveGroup should be [4, 1] for DirectToVgprA. Current value is [%s]"%state['MIWaveGroup'])
       return False
     if tc == 'B' and not (state['MIWaveGroup'][0] == 1 and state['MIWaveGroup'][1] == 4):
-      #print2("MIWaveGroup should be [1, 4] for DirectToVgprB. Current value is [%s]"%state['MIWaveGroup'])
       reject(state, "MIWaveGroup should be [1, 4] for DirectToVgprB. Current value is [%s]"%state['MIWaveGroup'])
       return False
 
     # Does not work with WaveSeparateGlobalRead
     if state["WaveSeparateGlobalRead%c"%tc]:
-      #print2("DirectToVgpr%c does not supports WaveSeparateGlobalRead%c"%(tc, tc))
       reject(state, "DirectToVgpr%c does not supports WaveSeparateGlobalRead%c"%(tc, tc))
+      return False
+
+    # Does not work with NumLoadsCoalesced>1
+    if state["NumLoadsCoalesced%c"%tc] > 1:
+      reject(state, "DirectToVgpr%c does not supports NumLoadsCoalesced%c > 1"%(tc, tc))
+      return False
+
+    # Does not work with ExpandPointerSwap = False
+    if not state["ExpandPointerSwap"]:
+      reject(state, "DirectToVgpr%c does not supports ExpandPointerSwap = False"%(tc))
+      return False
+
+    # Requre AssertSummationElementMultiple is multiple of (DepthU * 2)
+    if state["AssertSummationElementMultiple"] % (state["DepthU"] * 2) != 0:
+      reject(state, "DirectToVgpr%c requires AssertSummationElementMultipl is integer multiple of (DepthU * 2)"%(tc))
       return False
 
     # Does not work with DirectToLDS
@@ -2411,43 +2425,66 @@ class Solution(collections.abc.Mapping):
       return False
 
     if state["NumThreads"] % state["WavefrontSize"] != 0:
+      print2("can't use DirectToLds for NumThreads % WavefrontSize != 0")
       return False
 
     # GLVW*BPe only for precision(s) < 4 (bpe)
-    if (state["ProblemType"]["TLU%c"%tc] == True and numBytes < 4): 
+    #if (state["ProblemType"]["TLU%c"%tc] == True and numBytes < 4): 
+    if (numBytes < 4): 
       if state["GlobalLoadVectorWidth%c"%tc] * numBytes != 4:
+        print2("can't use DirectToLds for bpe < 4 and GlobalLoadVectorWidth * numBytes != 4"%tc)
         return False
 
     if state["ProblemType"]["TLU%c"%tc] == state["UnrollMajorLDS%c" % tc]:
+      print2("can't use DirectToLds for TLU%c == UnrollMajorLDS%c"%(tc, tc))
       return False
 
     # avoid picking x2&x4 for precisions < f32/f64 in [ProblemType][TLU] == TRUE
     if not state["EnableMatrixInstruction"]:
       if state["GlobalLoadVectorWidth%c"%tc] * numBytes * state["WavefrontSize"] > 256:
-       return False
+        print2("can't use DirectToLds for not EnableMatrixInstruction and GlobalLoadVectorWidth%c * bpe * WavefrontSize > 256"%tc)
+        return False
 
     # TODO revisit fp32 case for failure
-    if state["ProblemType"]["TLU%c"%tc] and numBytes < 8 and state["GlobalLoadVectorWidth%c"%tc] * numBytes > 4:
+    #if state["ProblemType"]["TLU%c"%tc] and numBytes < 8 and state["GlobalLoadVectorWidth%c"%tc] * numBytes > 4:
+    if numBytes < 8 and state["GlobalLoadVectorWidth%c"%tc] * numBytes > 4:
+      print2("can't use DirectToLds for TLU%c and bpe < 8 and GlobalLoadVectorWidth%c * bpe > 4"%(tc, tc))
       return False
 
 
     if state["WaveSeparateGlobalRead%c" % tc]:
       if state["LSC%c"%tc] * state["LSP%c"%tc] * numBytes != state["WavefrontSize"] * state["GlobalLoadVectorWidth%c"%tc] * numBytes:
+        print2("can't use DirectToLds for LSC%c and LSP%c * bpe!= WavefrontSize * GlobalLoadVectorWidth%c * bpe > 4"%(tc, tc, tc))
         return False
     else:
       if state["LSC%c"%tc] * state["LSP%c"%tc] * numBytes != state["NumThreads"] * state["GlobalLoadVectorWidth%c"%tc] * numBytes:
+        print2("can't use DirectToLds for LSC%c and LSP%c * bpe != NumThreads * GlobalLoadVectorWidth%c * bpe > 4"%(tc, tc, tc))
         return False
 
     if (state["LdsBlockSizePerPad%c"%tc] == 0) \
         and (state["LdsPad%c"%tc] != 0):
 #        and ((state["LSC%c"%tc] * numBytes) != (state["NumThreads"] * 4)): // TODO:
 #        and ((state["LSC%c"%tc] * numBytes) % (state["WavefrontSize"] * 4) != 0):
+      print2("can't use DirectToLds for LdsBlockSizePerPad%c == 0 and LdsPad%c != 0"%(tc, tc))
       return False
 
     if (state["LdsBlockSizePerPad%c"%tc] != 0) \
         and (state["LdsPad%c"%tc] != 0) \
         and (state["LdsBlockSizePerPad%c"%tc] != state["WavefrontSize"] * state["GlobalLoadVectorWidth%c"%tc] * numBytes):
 #        and (state["LdsBlockSizePerPad%tc"] % (state["WavefrontSize"] * 4) != 0): // TODO:
+      print2("can't use DirectToLds for LdsBlockSizePerPad%c != 0 and LdsPad%c != 0 and \
+              LdsBlockSizePerPad%c != WavefrontSize * GlobalLoadVectorWidth%c * bpe"%(tc, tc, tc, tc))
+      return False
+
+    # so far, DirectToLds does not work well with PGR=2
+    # performance is not good and a lot of ds_read for DTL can cause scheduling issue(need fix)
+    if state["PrefetchGlobalRead"] == 2:
+      print2("can't use DirectToLds for PrefetchGlobalRead == 2")
+      return False
+
+    # so far, DirectToLds does not work with LRVW=2
+    if state["LocalReadVectorWidth"] == 2:
+      print2("can't use DirectToLds for LocalReadVectorWidth == 2")
       return False
 
     return True
@@ -2609,13 +2646,15 @@ class Solution(collections.abc.Mapping):
     if state["PrefetchAcrossPersistent"]:
       if state["KernelLanguage"] == "Source" or \
          state["PersistentKernel"] == 0 or \
-         state["PrefetchGlobalRead"] != 1 or \
+         state["PrefetchGlobalRead"] == 0 or \
          state["SuppressNoLoadLoop"]:
-        # TODO- do we need to support PGR2 ?
-        print2("PAP requires Assembly, PK!=0, PGR==1, SuppressNoLoadLoop=True, forcing PAP=False")
+        print2("PAP requires Assembly, PK!=0, PGR!=0, SuppressNoLoadLoop=True, forcing PAP=False")
         state["PrefetchAcrossPersistent"] = False
-      if state["PrefetchAcrossPersistentMode"] == 1 and state["AssertSummationElementMultiple"] != state["DepthU"]:
-        reject(state, "PAPMode 1 requires AssertSummationElementMultiple == DepthU")
+      if state["PrefetchAcrossPersistentMode"] == 1 and state["AssertSummationElementMultiple"] % state["DepthU"] != 0:
+        reject(state, "PAPMode 1 requires AssertSummationElementMultiple is integer multiple of DepthU")
+        return
+      if state["PrefetchAcrossPersistentMode"] == 0 and state["PrefetchGlobalRead"] == 2:
+        reject(state, "PAPMode 0 does not support PGR=2")
         return
     else:
       if state["PrefetchAcrossPersistentMode"] != 0:
@@ -2704,11 +2743,11 @@ class Solution(collections.abc.Mapping):
         state["SuppressNoLoadLoop"] = 0
 
     if state["ExpandPointerSwap"] == 1:
-      # Pointer swap only used if PGR=1 - so set ExpandPointerSwap=0 here
-      if not (bufferLoad and state["PrefetchGlobalRead"] == 1):
-        state["ExpandPointerSwap"] = 0
-      # EPS not supported with PGR=2 yet
-      if state["PrefetchGlobalRead"] == 2:
+      # Pointer swap only used if PGR==1 or (PGR>1 and double) - so set ExpandPointerSwap=0 here
+      # So far, EPS=1 and PGR>1 works only with double.
+      #if not (bufferLoad and state["PrefetchGlobalRead"] == 1):
+      if not (bufferLoad and ( state["PrefetchGlobalRead"] == 1 \
+              or (state["PrefetchGlobalRead"] > 1 and state["ProblemType"]["DataType"].isDouble()))):
         state["ExpandPointerSwap"] = 0
       # EPS not supported with SplitLDS yet
       if state["DepthULdsDivisor"] > 1:
@@ -3319,6 +3358,10 @@ class Solution(collections.abc.Mapping):
     else:
       ldsNumElementsA = state["_DepthULds"] * (state["MacroTileA"] + state["LdsPadA"])
       ldsNumElementsAlignedA = roundUpToNearestMultiple(ldsNumElementsA, ldsAlign)
+    if state["DirectToVgprA"]:
+      # DirectToVgpr does not use LDS. Set to 0.
+      ldsNumElementsA = 0
+      ldsNumElementsAlignedA = 0
 
     if state["UnrollMajorLDSB"]:
       ldsNumElementsB = (state["_DepthULds"] + state["LdsPadB"]) * state["MacroTileB"]
@@ -3329,6 +3372,10 @@ class Solution(collections.abc.Mapping):
     else:
       ldsNumElementsB = state["_DepthULds"] * (state["MacroTileB"] + state["LdsPadB"])
       ldsNumElementsAlignedB = roundUpToNearestMultiple(ldsNumElementsB, ldsAlign)
+    if state["DirectToVgprB"]:
+      # DirectToVgpr does not use LDS. Set to 0.
+      ldsNumElementsB = 0
+      ldsNumElementsAlignedB = 0
 
     # todo, can the alignment be a power of 2?
     state["LdsOffsetA"] = 0
@@ -3613,6 +3660,9 @@ class Solution(collections.abc.Mapping):
       if not state["PrefetchAcrossPersistent"]:
         reject(state, "StoreCInUnroll requires PrefetchAcrossPersistent feature")
         return
+      if state["PrefetchAcrossPersistentMode"] == 0:
+        reject(state, "StoreCInUnroll requires PrefetchAcrossPersistentMode")
+        return
       if state["VectorWidth"] != 2:
         reject(state, "StoreCInUnroll requires VectorWidth=2")
         return
@@ -3622,8 +3672,8 @@ class Solution(collections.abc.Mapping):
       if state["ScheduleGlobalRead"] != 1:
         reject(state, "StoreCInUnroll requires ScheduleGlobalRead=1")
         return
-      if state["PrefetchGlobalRead"] != 1:
-        reject(state, "StoreCInUnroll requires PrefetchGlobalRead=1")
+      if state["PrefetchGlobalRead"] == 0:
+        reject(state, "StoreCInUnroll requires PrefetchGlobalRead!=0")
         return
       if not state["ExpandPointerSwap"]:
         reject(state, "StoreCInUnroll requires ExpandPointerSwap")
@@ -3633,6 +3683,20 @@ class Solution(collections.abc.Mapping):
         return
       if state['MIWaveGroup'][1] != 1 and state['MIWaveGroup'][1] != 4:
         reject(state, "StoreCInUnroll requires [MIWaveGroup][1]=1 or 4")
+        return
+      if state["StoreCInUnrollExact"] and state["StoreCInUnrollPostLoop"] :
+        reject(state, "StoreCInUnrollPostLoop does not work with StoreCInUnrollExact")
+        return
+      if state["AssertSummationElementMultiple"] % (state["DepthU"] * 2) != 0:
+        reject(state, "StoreCInUnroll requires AssertSummationElementMultiple = integer multiple of (DepthU * 2)")
+        return
+    else:
+      # reject if StoreCInUnroll related paramter is enabled
+      if state["StoreCInUnrollPostLoop"] :
+        reject(state, "StoreCInUnrollPostLoop requires StoreCInUnroll")
+        return
+      if state["StoreCInUnrollExact"] :
+        reject(state, "StoreCInUnrollExact requires StoreCInUnroll")
         return
 
     # check LocalDotLayout

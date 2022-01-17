@@ -22,7 +22,7 @@
 import pytest
 import os
 from Tensile.CustomKernels import getCustomKernelConfig, getCustomKernelContents
-from Tensile.BenchmarkProblems import generateCustomKernelSolution
+from Tensile.BenchmarkProblems import getCustomKernelSolutionObj
 from Tensile.Common import assignGlobalParameters
 import yaml
 
@@ -38,7 +38,7 @@ def test_FindCustomKernel(objs):
         assert False
 
 configResult = yaml.safe_load(
-"""  
+"""
 ProblemType:
     OperationType: GEMM
     DataType: s
@@ -62,7 +62,7 @@ def test_ReadCustomKernelConfig(objs):
     try:
         name, directory, result = objs
         config = getCustomKernelConfig(name, directory)
-        config["custom.config"] = result  
+        config["custom.config"] = result
     except:
         assert False
 
@@ -72,7 +72,7 @@ def test_CreateSolutionFromCustomKernel(objs):
         assignGlobalParameters({})
 
         name, directory = objs
-        solution = generateCustomKernelSolution(name, directory)
+        solution = getCustomKernelSolutionObj(name, directory)
         assert solution["Valid"]
     except:
         assert False

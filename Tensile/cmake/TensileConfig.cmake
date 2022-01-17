@@ -112,6 +112,7 @@ function(TensileCreateLibraryFiles
        LIBRARY_FORMAT
        TENSILE_ROOT
        VAR_PREFIX
+       CPU_THREADS
        )
 
   # Multi value settings
@@ -182,6 +183,10 @@ function(TensileCreateLibraryFiles
 
   if(Tensile_COMPILER_PATH)
     set(Options ${Options} "--cmake-cxx-compiler=${Tensile_COMPILER_PATH}")
+  endif()
+
+  if(Tensile_CPU_THREADS)
+    set(Options ${Options} "--jobs=${Tensile_CPU_THREADS}")
   endif()
 
   if(Tensile_LIBRARY_FORMAT)

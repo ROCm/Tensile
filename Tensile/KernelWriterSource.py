@@ -1569,7 +1569,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read Addresses: Addresses A/B
   ##############################################################################
-  def graAddresses(self, kernel, tP):
+  def graAddresses(self, kernel, tP, isPap=False):
     kStr = ""
 
     for perp in range(0, tP["nrp"]):
@@ -2059,7 +2059,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Open Loop
   ##############################################################################
-  def openLoop(self, kernel, loopIdx, uDu=0):
+  def openLoop(self, kernel, loopIdx, uDu=0, noLabelGen=False, beginLabelOnly=False):
     problemType = kernel["ProblemType"]
     tailLoop = loopIdx < 0
     if tailLoop:
@@ -2097,7 +2097,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Close Loop
   ##############################################################################
-  def closeLoop(self, kernel, loopIdx, finalLoop, uDu=0, emitEndLabelOnly=False):
+  def closeLoop(self, kernel, loopIdx, finalLoop, uDu=0, emitEndLabelOnly=False, oddLabel=False):
     kStr = ""
     if emitEndLabelOnly:
       return kStr
@@ -2384,7 +2384,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # DirectToLds M0 update: Do It A/B
   ##############################################################################
-  def directToLdsM0Update(self, kernel, mode, tP):
+  def directToLdsM0Update(self, kernel, mode, tP, usePlaceHolder=False):
     tc = tP["tensorChar"]
     imod = Code.Module("directToLdsM0Update%s_%u"%(tc,mode))
     return imod
@@ -2482,7 +2482,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write: Swap Offsets A/B
   ##############################################################################
-  def localWriteSwapOffsets(self, kernel, tP):
+  def localWriteSwapOffsets(self, kernel, internalPointerSwap, tP):
     kStr = ""
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
@@ -2497,7 +2497,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write: Reset Offsets A/B
   ##############################################################################
-  def localWriteResetOffsets(self, kernel, tP):
+  def localWriteResetOffsets(self, kernel, internalPointerSwap, tP):
     kStr = ""
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
@@ -2843,6 +2843,12 @@ class KernelWriterSource(KernelWriter):
       #kStr += "printf(\"post: serial:%%u wg0:%%u wg1:%%u globalC0I:%%u globalCK=%%u\\n\", serial, wg0I, wg1J, globalC0I, globalCK);%s" % (self.endLine)
 
     return kStr
+
+  ##############################################################################
+  # globalWriteWorkGroupInitBeforePersistentLoop:
+  ##############################################################################
+  def globalWriteWorkGroupInitBeforePersistentLoop(self, kernel):
+    return ""
 
   ##############################################################################
   # globalWriteWorkGroupInit:
@@ -3317,7 +3323,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # openmovaccVgpr
   ##############################################################################
-  def openmovaccVgpr(self, kernel):
+  def openmovaccVgpr(self, kernel, backupSgpr):
     return ""
 
   ##############################################################################
@@ -3327,21 +3333,9 @@ class KernelWriterSource(KernelWriter):
     return ""
 
   ##############################################################################
-  # closemovaccVgprAddrInc
-  ##############################################################################
-  def closemovaccVgprAddrInc(self, kernel):
-    return ""
-
-  ##############################################################################
   # closemovaccVgpr
   ##############################################################################
-  def closemovaccVgpr(self, kernel):
-    return ""
-
-  ##############################################################################
-  # generateOddCodeForStoreCInUnroll
-  ##############################################################################
-  def generateOddCodeForStoreCInUnroll(self,kernel):
+  def closemovaccVgpr(self, kernel, backupSgpr):
     return ""
 
   ##############################################################################
@@ -3351,9 +3345,15 @@ class KernelWriterSource(KernelWriter):
     return ""
 
   ##############################################################################
-  # init for StoreCInUnroll per PersistentLoop
+  # init for StoreCInUnroll per Persistent Loop
   ##############################################################################
   def initStoreCInUnrollPerPersistentLoop(self, kernel):
+    return ""
+
+  ##############################################################################
+  # init for StoreCInUnroll per Unroll Loop
+  ##############################################################################
+  def initStoreCInUnrollPerUnrollLoop(self, kernel, needInit):
     return ""
 
   ##############################################################################
@@ -3365,7 +3365,13 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # C/D address increment value for StoreCInUnroll
   ##############################################################################
-  def generateCorDaddrIncrementForStoreCInUnroll(self, kernel, CorD):
+  def generateCorDaddrIncrementForStoreCInUnroll(self, kernel, CorD, odd, tmpSgprWork):
+    return ""
+
+  ##############################################################################
+  # generate post process for StoreCInUnroll loop
+  ##############################################################################
+  def generatePostProcessForStoreCInUnrollLoop(self, kernel, needPost):
     return ""
 
   ##############################################################################
@@ -3396,4 +3402,22 @@ class KernelWriterSource(KernelWriter):
   # end process for StoreCInUnroll per PersistentLoop (NoOptNLL)
   ##############################################################################
   def endProcessPersistentLoopforStoreCInUnrollNoOptNLL(self, kernel):
+    return ""
+
+  ##############################################################################
+  # number of storeC code in template for StoreCInUnroll
+  ##############################################################################
+  def getNumberOfStoreCInTemplate(self, kernel):
+    return ""
+
+  ##############################################################################
+  # number of LoadC code in template for StoreCInUnroll
+  ##############################################################################
+  def getNumberOfLoadCInForLoadC(self, kernel):
+    return ""
+
+  ##############################################################################
+  # generate storeCInUnroll post loop code
+  ##############################################################################
+  def generateStoreInUnrollPostLoop(self, kernel, isOptNLL):
     return ""

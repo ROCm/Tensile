@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <Tensile/Debug.hpp>
 #include <Tensile/Distance.hpp>
 #include <Tensile/MatchingLibrary.hpp>
 
@@ -129,10 +130,24 @@ namespace Tensile
 
                 bool success = false;
 
+                std::string tensile_metric = Debug::Instance().getMetric();
+
+                if(!tensile_metric.empty())
+                    distanceType = tensile_metric;
+
                 if(distanceType == "Euclidean")
                 {
                     success = mappingDistance<Key, Matching::EuclideanDistance<Key>>(
                         io, lib, properties);
+                }
+                else if(distanceType == "Equality")
+                {
+                    success = mappingDistance<Key, Matching::Equality<Key>>(io, lib, properties);
+                }
+                else if(distanceType == "JSD")
+                {
+                    success
+                        = mappingDistance<Key, Matching::JSDivergence<Key>>(io, lib, properties);
                 }
                 else if(distanceType == "Manhattan")
                 {

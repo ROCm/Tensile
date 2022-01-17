@@ -55,9 +55,10 @@ TEST(KernelArguments, Simple)
     } ref;
 
     // Padding bytes would be left uninitialized in the struct but will be
-    // zero-filled by the KernelArguments class.  Set them to zero to prevent a
-    // test failure.
-    memset(&ref, 0, sizeof(ref));
+    // zero-filled by the KernelArguments class. Set them to zero to prevent a
+    // test failure. The cast to void* is to avoid the warning about potential
+    // invalid floating point configurations.
+    memset((void*)&ref, 0, sizeof(ref));
 
     ref.d = array.data();
     ref.c = array.data() + 1;
@@ -121,9 +122,10 @@ TEST(KernelArguments, Binding)
     } ref;
 
     // Padding bytes would be left uninitialized in the struct but will be
-    // zero-filled by the KernelArguments class.  Set them to zero to prevent a
-    // test failure.
-    memset(&ref, 0, sizeof(ref));
+    // zero-filled by the KernelArguments class. Set them to zero to prevent a
+    // test failure. The cast to void* is to avoid the warning about potential
+    // invalid floating point configurations.
+    memset((void*)&ref, 0, sizeof(ref));
 
     ref.d = array.data();
     ref.c = array.data() + 1;
@@ -203,11 +205,6 @@ TEST(KernelArguments, Iterator)
         }
 
     } ref;
-
-    // Padding bytes would be left uninitialized in the struct but will be
-    // zero-filled by the KernelArguments class.  Set them to zero to prevent a
-    // test failure.
-    memset(&ref, 0, sizeof(ref));
 
     ref.d = array.data();
     ref.c = array.data() + 1;
