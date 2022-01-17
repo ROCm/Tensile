@@ -1,5 +1,5 @@
 ###############################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +38,7 @@ import shutil
 import sys
 
 
-def parseCurrentLibrary(libPath, skipRK):
+def parseCurrentLibrary(libPath, skipRK, sizePath):
     libYaml = LibraryIO.readYAML(libPath)
     # parseLibraryLogicData mutates the original data, so make a copy
     fields = LibraryIO.parseLibraryLogicData(copy.deepcopy(libYaml), libPath)
@@ -50,13 +50,16 @@ def parseCurrentLibrary(libPath, skipRK):
 
     # process exactLogic into ProblemSizes
     sizes = []
-    for (size, mapping) in exactLogic:
-        if skipRK:
-            sol = solutions[mapping[0]]
-            if sol["ReplacementKernel"]:
-                continue
+    if sizePath is None:
+        for (size, mapping) in exactLogic:
+            if skipRK:
+                sol = solutions[mapping[0]]
+                if sol["ReplacementKernel"]:
+                    continue
 
-        sizes.append({"Exact": size})
+            sizes.append({"Exact": size})
+    else:
+        sizes = LibraryIO.readYAML(sizePath)
 
     if skipRK:
         solutions = [s for s in solutions if not s["ReplacementKernel"]]
@@ -103,7 +106,7 @@ def runBenchmarking(solutions, problemSizes, outPath, update):
     # write solutions yaml file
     for sol in solutions:
         sol["ISA"] = list(sol["ISA"])
-    LibraryIO.writeSolutions(libraryFile, problemSizes, [solutions])
+    LibraryIO.writeSolutions(libraryFile, problemSizes, solutions)
 
     popWorkingPath() # benchmark
 
@@ -124,8 +127,10 @@ def TensileRetuneLibrary(userArgs):
     argParser = argparse.ArgumentParser()
     argParser.add_argument("LogicFile", type=os.path.realpath,
                            help="Library logic file to retune")
-    argParser.add_argument("OutputPath",
+    argParser.add_argument("OutputPath", type=os.path.realpath,
                            help="Where to run benchmarks and output results")
+    argParser.add_argument("SizeFile", type=os.path.realpath, nargs="?",
+                           help="Yaml file with sizes to tune", default=None)
     argParser.add_argument("--update-method", "-u", dest="updateMethod",
                            choices=["remake", "update", "both"], default="remake",
                            help="Method for making new library logic file")
@@ -137,6 +142,7 @@ def TensileRetuneLibrary(userArgs):
     args = argParser.parse_args(userArgs)
 
     libPath = args.LogicFile
+    sizePath = args.SizeFile
     print1("#  Library Logic: {}".format(libPath))
     print1("#")
     print1(HR)
@@ -172,7 +178,7 @@ def TensileRetuneLibrary(userArgs):
         Common.globalParameters[key] = value
 
     # parse library logic then setup and run benchmarks
-    (rawYaml, solutions, problemSizes) = parseCurrentLibrary(libPath, args.skipRK)
+    (rawYaml, solutions, problemSizes) = parseCurrentLibrary(libPath, args.skipRK, sizePath)
     runBenchmarking(solutions, problemSizes, outPath, update)
 
     if remake:
