@@ -1,5 +1,5 @@
 /**
- * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,6 +30,7 @@
 
 #include <Tensile/Tensile.hpp>
 
+#include <Tensile/Activation.hpp>
 #include <Tensile/ContractionProblem_fwd.hpp>
 #include <Tensile/DataTypes.hpp>
 #include <Tensile/Predicates.hpp>
@@ -236,6 +237,16 @@ namespace Tensile
                                                TypedInputs const& inputs,
                                                Hardware const&    hardware) const;
 
+        template <typename TypedInputs, bool T_Debug>
+        KernelInvocation generateActivationOnlyCall(Problem const&     problem,
+                                                    TypedInputs const& inputs,
+                                                    Hardware const&    hardware) const;
+
+        template <typename TypedInputs>
+        std::string activationOnlyKernelName(Problem const&     problem,
+                                             TypedInputs const& inputs,
+                                             Hardware const&    hardware) const;
+
         struct SizeMapping
         {
             dim3 workGroupSize;
@@ -262,17 +273,18 @@ namespace Tensile
 
         struct ProblemType
         {
-            std::string operationIdentifier;
-            DataType    aType                   = DataType::Float;
-            DataType    bType                   = DataType::Float;
-            DataType    cType                   = DataType::Float;
-            DataType    dType                   = DataType::Float;
-            bool        highPrecisionAccumulate = false;
-            bool        useBeta                 = true;
-            bool        useInitialStridesAB     = false;
-            bool        useInitialStridesCD     = false;
-            bool        stridedBatched          = true;
-            bool        fp16AltImpl             = false;
+            std::string    operationIdentifier;
+            DataType       aType                   = DataType::Float;
+            DataType       bType                   = DataType::Float;
+            DataType       cType                   = DataType::Float;
+            DataType       dType                   = DataType::Float;
+            bool           highPrecisionAccumulate = false;
+            bool           useBeta                 = true;
+            bool           useInitialStridesAB     = false;
+            bool           useInitialStridesCD     = false;
+            bool           stridedBatched          = true;
+            bool           fp16AltImpl             = false;
+            ActivationType activationType          = ActivationType::None;
         };
 
         struct LinearModel

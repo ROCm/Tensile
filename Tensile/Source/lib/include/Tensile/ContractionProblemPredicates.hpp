@@ -1390,6 +1390,33 @@ namespace Tensile
                     return true;
                 }
             };
+
+            // Activation
+            struct ActivationEqual : public Predicate_CRTP<ActivationEqual, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                ActivationType value;
+
+                ActivationEqual() = default;
+                ActivationEqual(ActivationType value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "Activation";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.activationType() == value;
+                }
+            };
         } // namespace Contraction
 
         /**

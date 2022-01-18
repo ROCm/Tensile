@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -80,6 +80,8 @@ def writeSolutions(filename, problemSizes, solutions):
                 solutionState["ProblemType"]["DestDataType"].value
         solutionState["ProblemType"]["ComputeDataType"] = \
                 solutionState["ProblemType"]["ComputeDataType"].value
+        solutionState["ProblemType"]["ActivationType"] = \
+                solutionState["ProblemType"]["ActivationType"].value
         solutionStates.append(solutionState)
     # write dictionaries
     with open(filename, "w") as f:
@@ -238,6 +240,8 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple
             problemTypeState["DestDataType"].value
     problemTypeState["ComputeDataType"] = \
             problemTypeState["ComputeDataType"].value
+    problemTypeState["ActivationType"] = \
+            problemTypeState["ActivationType"].value
     data.append(problemTypeState)
     # solutions
     solutionList = []
@@ -250,6 +254,8 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple
                 solutionState["ProblemType"]["DestDataType"].value
         solutionState["ProblemType"]["ComputeDataType"] = \
                 solutionState["ProblemType"]["ComputeDataType"].value
+        solutionState["ProblemType"]["ActivationType"] = \
+                solutionState["ProblemType"]["ActivationType"].value
         solutionList.append(solutionState)
 
     if tileSelection:
@@ -263,6 +269,8 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple
                     solutionState["ProblemType"]["DestDataType"].value
             solutionState["ProblemType"]["ComputeDataType"] = \
                     solutionState["ProblemType"]["ComputeDataType"].value
+            solutionState["ProblemType"]["ActivationType"] = \
+                    solutionState["ProblemType"]["ActivationType"].value
             solutionList.append(solutionState)
 
     data.append(solutionList)

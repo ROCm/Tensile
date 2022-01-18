@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,7 @@ from . import LibraryIO
 from .Common import globalParameters, pushWorkingPath, popWorkingPath, print1, printExit, CHeader, printWarning, listToInitializer, ClientExecutionLock
 from .SolutionStructs import ProblemType, ProblemSizesMock
 from .TensileCreateLibrary import copyStaticFiles
+from .ActivationType import ActivationType
 
 import os
 import subprocess
@@ -424,12 +425,17 @@ def dataInitParams(problemType):
     if initA == -1: initA = globalParameters['DataInitTypeAB']
     if initB == -1: initB = globalParameters['DataInitTypeAB']
 
-    return [('init-a',     DataInitName(initA).name),
-            ('init-b',     DataInitName(initB).name),
-            ('init-c',     DataInitName(initC).name),
-            ('init-d',     DataInitName(initD).name),
-            ('init-alpha', DataInitName(initAlpha).name),
-            ('init-beta',  DataInitName(initBeta).name)]
+    dataInitList = [('init-a',            DataInitName(initA).name),
+                    ('init-b',            DataInitName(initB).name),
+                    ('init-c',            DataInitName(initC).name),
+                    ('init-d',            DataInitName(initD).name),
+                    ('init-alpha',        DataInitName(initAlpha).name),
+                    ('init-beta',         DataInitName(initBeta).name)]
+    for idx in globalParameters["DataInitTypeActivationArgs"]:
+      dataInitList.append(('init-activation-args', DataInitName(idx).name))
+    actype = ActivationType(globalParameters["ActivationTypeIfAll"])
+    dataInitList.append(('init-activationtype-if-all', actype.toEnum()))
+    return dataInitList
 
 def boundsCheckName(mode):
     if mode == 0: return 'Disable'
@@ -476,6 +482,9 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
                 param(key,value)
             if convValidation:
               param('convolution-problem', problemType.convolution.identifier(problem))
+
+        param('activation-type', problemType.activationType.toEnum())
+        param('activation-no-fuse', globalParameters["ActivationNoFuse"])
 
         param("device-idx",               globalParameters["Device"])
 

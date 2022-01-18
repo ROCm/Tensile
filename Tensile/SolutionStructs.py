@@ -31,6 +31,10 @@ from .Utils import roundUpToNearestMultiple
 
 from .KernelWriterBetaOnly import KernelWriterBetaOnly
 from .KernelWriterConversion import KernelWriterConversion
+from .KernelWriterActivationEnumHeader import KernelWriterActivationEnumHeader
+from .KernelWriterActivationOnly import KernelWriterActivationOnly
+
+from .ActivationType import ActivationType
 
 from .CustomKernels import isCustomKernelConfig
 
@@ -906,6 +910,16 @@ class ProblemType(Mapping):
           if anchorDim not in self.state["IndexAssignments%s"%tc]:
               printExit("SetConstStride%s=%s anchorDim=%u is not in IndexAssignments%s"%(tc, sc, anchorDim, tc))
 
+    # Activation
+    if "Activation" in config:
+      typeStr = 'all' if config["Activation"] else 'none'
+      self["ActivationType"] = ActivationType(typeStr)
+      # Currently not an option for user.
+      self["ActivationHPA"] = self["HighPrecisionAccumulate"] if self["DestDataType"].isBFloat16() else False
+    else:
+      self["ActivationType"] = ActivationType('none')
+      self["ActivationHPA"] = False
+
   ################################################################################
   # Assign and check the 3-datatypes EXPLICTLY for better maintenance:
   # Target: to avoid some hack-code/workaround/ambiguous code
@@ -974,7 +988,7 @@ class ProblemType(Mapping):
 
     # TODO- Migrate ([H/H/H]+HPA) to ([H/H/S]+HPA)
     # Note that we need to do a little change in rocBLAS and logic yaml
-    # Currently, ([H/H/S]+HPA) is implemented, but due to some kernel naming conflict, we use HBH kernels instead of HHS_BH. 
+    # Currently, ([H/H/S]+HPA) is implemented, but due to some kernel naming conflict, we use HBH kernels instead of HHS_BH.
 
   ########################################
   def initGEMM(self):
@@ -1817,6 +1831,8 @@ class Solution(collections.abc.Mapping):
   def initHelperKernelObjects(self):
     self.initBetaOnlyKernelObjects()
     self.initConversionKernelObjects()
+    self.initActivationEnumHeaderObjects()
+    self.initActivationOnlyKernelObjects()
 
 
   ########################################
@@ -1840,13 +1856,33 @@ class Solution(collections.abc.Mapping):
       state["ProblemType"] = deepcopy(self["ProblemType"])
       state["KernelLanguage"] = "Source"
       state["_GlobalAccumulation"] = self["_GlobalAccumulation"]
+      state["WavefrontSize"] = self["WavefrontSize"]
       self.conversionKernelObjects.append(KernelWriterConversion(state))
 
+  def initActivationEnumHeaderObjects(self):
+    self.activationEnumHeaderObjects = []
+    if ((self["ProblemType"]["ActivationType"] != 'none') and (self["ProblemType"]["ActivationType"] == 'all')) :
+      state = {}
+      state["ProblemType"] = deepcopy(self["ProblemType"])
+      state["KernelLanguage"] = "Source"
+      self.activationEnumHeaderObjects.append(KernelWriterActivationEnumHeader(state))
+
+  def initActivationOnlyKernelObjects(self):
+    self.activationOnlyKernelObjects = []
+    if (((self["GlobalSplitU"] > 1) and (not self["_GlobalAccumulation"])) or (globalParameters["ActivationNoFuse"] == True)) \
+      and (self["ProblemType"]["ActivationType"] != 'none') :
+      state = {}
+      state["ProblemType"] = deepcopy(self["ProblemType"])
+      state["KernelLanguage"] = "Source"
+      state["_GlobalAccumulation"] = self["_GlobalAccumulation"]
+      state["WavefrontSize"] = self["WavefrontSize"]
+      self.activationOnlyKernelObjects.append(KernelWriterActivationOnly(state))
 
   ########################################
   # get Helper Kernels
   def getHelperKernelObjects(self):
-    return self.betaOnlyKernelObjects + self.conversionKernelObjects
+    return self.betaOnlyKernelObjects + self.conversionKernelObjects + \
+           self.activationEnumHeaderObjects + self.activationOnlyKernelObjects
 
 
   ########################################
@@ -4110,6 +4146,12 @@ class Solution(collections.abc.Mapping):
             first = False
           name += "%s%s" % ( Solution.getParameterNameAbbreviation(key), \
               Solution.getParameterValueAbbreviation(key, state[key]) )
+    if "ProblemType" in state:
+      if ((state["ProblemType"]["ActivationType"] != 'none') and globalParameters["ActivationNoFuse"] == False):
+        if state["ProblemType"]["ActivationType"] == 'all':
+          name += "_ACTIVATION"
+        else:
+          name += "_%s"%str(state["ProblemType"]["ActivationType"]).upper()
     return name
 
   ########################################

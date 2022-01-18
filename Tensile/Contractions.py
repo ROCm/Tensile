@@ -19,6 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
+from .ActivationType import ActivationType
 from .DataType import DataType
 from . import Hardware
 from . import Properties
@@ -59,7 +60,7 @@ class BoundIndex:
 
 class ProblemType:
     StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType',
-                 'useBeta', 'highPrecisionAccumulate', 'useInitialStridesAB', 'useInitialStridesCD', 'stridedBatched']
+                 'useBeta', 'highPrecisionAccumulate', 'useInitialStridesAB', 'useInitialStridesCD', 'stridedBatched', 'activationType']
     @classmethod
     def FromOriginalState(cls, d):
         indices = [None]*d['TotalIndices']
@@ -163,6 +164,10 @@ class ProblemType:
 
         rv.batched = d['Batched']
 
+        rv.activationType = ActivationType('none')
+        if 'ActivationType' in d:
+          rv.activationType = d['ActivationType']
+
         return rv
 
     def __init__(self, freeIndices=None, batchIndices=None, boundIndices=None, aDims=None, bDims=None, cDims=None, dDims=None):
@@ -239,6 +244,7 @@ class ProblemType:
             predicates.append(ProblemPredicate("OperationIdentifierEqual", value=self.operationIdentifier))
             if not self.useBeta:
                 predicates.append(ProblemPredicate("BetaZero"))
+            predicates.append(ProblemPredicate("Activation", value=self.activationType))
             predicates.append(ProblemPredicate("StridedBatched", value=self.stridedBatched))
 
         if includeType:

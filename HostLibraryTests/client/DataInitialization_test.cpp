@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -100,6 +100,10 @@ public:
         args.insert({"offset-c", val((size_t)0, false)});
         args.insert({"offset-d", val((size_t)0, false)});
         args.insert({"strided-batched", val(false, false)});
+        args.insert({"activation-type", val(ActivationType::None, false)});
+        args.insert({"init-activation-args", val(std::vector<InitMode>(1, InitMode::Two), false)});
+        args.insert({"init-activationtype-if-all", val(ActivationType::Relu, false)});
+        args.insert({"activation-no-fuse", val(false, false)});
 
         TensorDescriptor a(TypeInfo<typename TypedInputs::AType>::Enum, {10, 10, 1});
         TensorDescriptor b(TypeInfo<typename TypedInputs::BType>::Enum, {10, 10, 1});

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <Tensile/Activation.hpp>
 #include <Tensile/ArithmeticUnitTypes.hpp>
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/KernelLanguageTypes.hpp>
@@ -84,6 +85,7 @@ namespace Tensile
             KernelLanguage    m_kernelLanguage;
             PerformanceMetric m_performanceMetric;
             bool              m_fp16AltImpl;
+            ActivationType    m_activationType;
 
             std::vector<std::vector<size_t>> m_problemSizes;
             std::vector<std::vector<size_t>> m_aStrides;

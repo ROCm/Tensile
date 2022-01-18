@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -333,6 +333,10 @@ namespace Tensile
             , m_dInit(args["init-d"].as<InitMode>())
             , m_alphaInit(args["init-alpha"].as<InitMode>())
             , m_betaInit(args["init-beta"].as<InitMode>())
+            , m_activationArgsInit(args["init-activation-args"].as<std::vector<InitMode>>())
+            , m_activationType(ActivationType::None)
+            , m_activationTypeIfAll(ActivationType::Relu)
+            , m_activationNoFuse(false)
             , m_aBufferOffset(args["offset-a"].as<size_t>())
             , m_bBufferOffset(args["offset-b"].as<size_t>())
             , m_cBufferOffset(args["offset-c"].as<size_t>())
@@ -406,6 +410,13 @@ namespace Tensile
             }
             m_problemDependentData = IsProblemDependent(m_aInit) || IsProblemDependent(m_bInit)
                                      || IsProblemDependent(m_cInit) || IsProblemDependent(m_dInit);
+
+            if(args.count("activation-type"))
+                m_activationType = args["activation-type"].as<ActivationType>();
+            if(args.count("init-activationtype-if-all"))
+                m_activationTypeIfAll = args["init-activationtype-if-all"].as<ActivationType>();
+            if(args.count("activation-no-fuse"))
+                m_activationNoFuse = args["activation-no-fuse"].as<bool>();
         }
 
         DataInitialization::~DataInitialization() {}

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,6 +33,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include <Tensile/Activation.hpp>
 #include <Tensile/ArithmeticUnitTypes.hpp>
 #include <Tensile/DataTypes.hpp>
 #include <Tensile/KernelLanguageTypes.hpp>
@@ -362,6 +363,21 @@ namespace Tensile
                 {
                     auto const& info = DataTypeInfo::Get(i);
                     iot::enumCase(io, value, info.name.c_str(), info.dataType);
+                }
+            }
+        };
+
+        template <typename IO>
+        struct EnumTraits<ActivationType, IO>
+        {
+            using iot = IOTraits<IO>;
+
+            static void enumeration(IO& io, ActivationType& value)
+            {
+                for(int i = 0; i < static_cast<int>(ActivationType::Count); i++)
+                {
+                    auto const& info = static_cast<ActivationType>(i);
+                    iot::enumCase(io, value, Tensile::ToString(info).c_str(), info);
                 }
             }
         };

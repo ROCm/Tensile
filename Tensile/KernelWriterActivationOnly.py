@@ -22,11 +22,10 @@
 from copy import deepcopy
 
 from .Common import globalParameters, CHeader
-from .DataType import DataType
 from .Activation import ActivationInline
 from .KernelWriterBase import KernelWriterBase
 
-class KernelWriterConversion(KernelWriterBase):
+class KernelWriterActivationOnly(KernelWriterBase):
 
   def __init__(self, state):
     super().__init__()
@@ -38,9 +37,6 @@ class KernelWriterConversion(KernelWriterBase):
     # derive parameter
     self.language = "HIP"
     self.kernelName = self.getKernelName()
-    self.datatype = self.state["ProblemType"]["ComputeDataType"].toDevice(self.language)
-    if self.state["ProblemType"]["DataType"].isHalf() and self.state["ProblemType"]["HighPrecisionAccumulate"]:
-      self.datatype = DataType('single').toDevice(self.language)
 
     # determine chars for fast access
     self.indexChars = []
@@ -55,34 +51,32 @@ class KernelWriterConversion(KernelWriterBase):
   def functionSignature(self):
     kStr = ""
 
-    # kernel name
+    # self.state name
     kStr += self.endLine
-    kStr += "extern \"C\"\n"
+    kStr += "extern \"C\"" + self.endLine
     kStr += "__global__ "
     kStr += "void %s" % ( self.kernelName )
     kStr += "(" + self.endLine
 
     # pointers
     ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-    ptrStr += '' if self.state["ProblemType"]["StridedBatched"] else '*'
-    bStr = '' if self.state["ProblemType"]["StridedBatched"] else 'Batch'
+    isStridedBuffer = self.state["ProblemType"]["StridedBatched"]
+    ptrStr += "" if isStridedBuffer else "*"
+    batch   = "" if isStridedBuffer else "Batch"
+    kStr += "  " + ptrStr + " * " + batch + "D," + self.endLine
 
-    kStr += "  " + ptrStr + " * " + bStr + "D," + self.endLine
-    kStr += "  " + self.datatype + " * W," + self.endLine
-    kStr += "  " + ptrStr + " const * " + bStr + "C," + self.endLine
+    ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
+    isStridedBuffer = self.state["ProblemType"]["StridedBatched"]
+    ptrStr += "" if isStridedBuffer else "*"
+    batch   = "" if isStridedBuffer else "Batch"
 
-    # alpha & beta
-    kStr += "  %s const alpha,%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine)
-    kStr += "  %s const beta,%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine)
-
-    # activation
-    if ((self.state["ProblemType"]["ActivationType"] != 'none') and (globalParameters["ActivationNoFuse"] == False)):
+    if self.state["ProblemType"]["ActivationType"] != 'none':
+      if self.state["ProblemType"]["ActivationType"] == 'all':
+        kStr += "  Tensile::ActivationType const activationType,%s" % (self.endLine)
       activationCDataType = self.state["ProblemType"]["ComputeDataType"] if self.state["ProblemType"]["ActivationHPA"] else \
                             self.state["ProblemType"]["DestDataType"]
       for name in self.state["ProblemType"]["ActivationType"].getAdditionalArgStringList():
         kStr += "  %s const %s,%s" % (activationCDataType.toDevice(self.language), name, self.endLine)
-      if self.state["ProblemType"]["ActivationType"] == 'all':
-        kStr += "  Tensile::ActivationType const activationType,%s" % (self.endLine)
 
     # strides
     firstStrideCD = 1
@@ -91,29 +85,25 @@ class KernelWriterConversion(KernelWriterBase):
     lastStrideC = self.state["ProblemType"]["NumIndicesC"]
     for i in range(firstStrideCD, lastStrideC):
       kStr += "  unsigned int const strideD%s,%s" % (self.indexChars[i], self.endLine)
-    for i in range(firstStrideCD, lastStrideC):
-      kStr += "  unsigned int const strideW%s,%s" % (self.indexChars[i], self.endLine)
-    for i in range(firstStrideCD, lastStrideC):
-      kStr += "  unsigned int const strideC%s,%s" % (self.indexChars[i], self.endLine)
 
     # sizes
     for i in range(0, self.state["ProblemType"]["NumIndicesC"]):
       kStr += "  unsigned int const size%s,%s" % (self.indexChars[i], self.endLine)
 
     # offset
-    kStr += "  unsigned int offsetD,%s" % self.endLine
-    kStr += "  unsigned int offsetC,%s" % self.endLine
-
-    # gsu
-    kStr += "  unsigned int const gsu)%s" % self.endLine
+    kStr += "  unsigned int offsetD)%s" % self.endLine
 
     return kStr
 
 
+  ##############################################################################
+  # Kernel Body Beta-Only
+  ##############################################################################
   def kernelBody(self):
+    problemType = self.state["ProblemType"]
+
     kStr = ""
     kStr += "{%s" % self.endLine
-    problemType = self.state["ProblemType"]
 
     ########################################
     # defined initial strides
@@ -128,10 +118,6 @@ class KernelWriterConversion(KernelWriterBase):
       lastStrideC = 1
     for i in range(firstStride, lastStrideC):
       kStr += "#define strideD" + self.indexChars[i] + " 1" + self.endLine
-    for i in range(firstStride, lastStrideC):
-      kStr += "#define strideW" + self.indexChars[i] + " 1" + self.endLine
-    for i in range(firstStride, lastStrideC):
-      kStr += "#define strideC" + self.indexChars[i] + " 1" + self.endLine
 
     ########################################
     # GLOBAL_D()
@@ -143,28 +129,6 @@ class KernelWriterConversion(KernelWriterBase):
     for i in range(1, problemType["NumIndicesC"]):
       indexChar = self.indexChars[i]
       kStr += " + (IDX%s)*strideD%s" % (indexChar, indexChar)
-    kStr += " ))" + self.endLine
-
-    # GLOBAL_W()
-    kStr += "#define GLOBAL_W(IDX%s" % self.indexChars[0]
-    for i in range(1, problemType["NumIndicesC"]):
-      kStr += ", IDX%s" % self.indexChars[i]
-    indexChar = self.indexChars[0]
-    kStr += ") (( (IDX%s)*strideW%s" % (indexChar, indexChar)
-    for i in range(1, problemType["NumIndicesC"]):
-      indexChar = self.indexChars[i]
-      kStr += " + (IDX%s)*strideW%s" % (indexChar, indexChar)
-    kStr += " ))" + self.endLine
-
-    # GLOBAL_C()
-    kStr += "#define GLOBAL_C(IDX%s" % self.indexChars[0]
-    for i in range(1, problemType["NumIndicesC"]):
-      kStr += ", IDX%s" % self.indexChars[i]
-    indexChar = self.indexChars[0]
-    kStr += ") (( (IDX%s)*strideC%s" % (indexChar, indexChar)
-    for i in range(1, problemType["NumIndicesC"]):
-      indexChar = self.indexChars[i]
-      kStr += " + (IDX%s)*strideC%s" % (indexChar, indexChar)
     kStr += " ))" + self.endLine
 
     ########################################
@@ -189,7 +153,6 @@ class KernelWriterConversion(KernelWriterBase):
 
     nonTileFreeIndices = []
 
-    ########################################
     # apply batch
     if not self.state["ProblemType"]["StridedBatched"]:
       nonTileFreeIndices = list(range(0, self.state["ProblemType"]["NumIndicesC"]))
@@ -206,83 +169,45 @@ class KernelWriterConversion(KernelWriterBase):
 
       ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
       kStr += "  " + ptrStr + " * D = BatchD[wg];" + self.endLine
-      ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-      kStr += "  " + ptrStr + " const* C = BatchC[wg];" + self.endLine
 
-    ########################################
     # apply offset
     kStr += self.endLine
     kStr += "  D = D + offsetD;" + self.endLine
-    kStr += "  C = C + offsetC;" + self.endLine
 
+
+    kStr += self.endLine
     ########################################
     # D index
-    kStr += self.endLine
     kStr += "  %s idxD = GLOBAL_D( (%s)" % (self.uint64Str, self.uint64Str)
     for i in range(problemType["NumIndicesC"]):
+      tmpStr = ''
+      if i in nonTileFreeIndices:
+        tmpStr = '0'
+      else:
+        tmpStr = 'id%d' % i
       kStr += ', ' if i else ''
-      kStr += '0'  if i in nonTileFreeIndices else ('id%d' % i)
-    kStr += ");%s" % (self.endLine)
-
-    # W index
-    kStr += "  %s idxW = GLOBAL_W( (%s)" % (self.uint64Str, self.uint64Str)
-    for i in range(problemType["NumIndicesC"]):
-      kStr += ', ' if i else ''
-      kStr += 'id%d' % i
-    kStr += ");%s" % (self.endLine)
-
-    # D index
-    kStr += "  %s idxC = GLOBAL_C( (%s)" % (self.uint64Str, self.uint64Str)
-    for i in range(problemType["NumIndicesC"]):
-      kStr += ', ' if i else ''
-      kStr += '0'  if i in nonTileFreeIndices else ('id%d' % i)
+      kStr += tmpStr
     kStr += ");%s" % (self.endLine)
 
     ########################################
-    # multi buffers GSU: Accumulate all GSU buffer
-    indexChar = self.indexChars[0]
-    kStr += "  %s strideW = 1 + (size%s - 1) * strideW%s" % (self.uint64Str, indexChar, indexChar)
-    for i in range(1, problemType["NumIndicesC"]):
-      indexChar = self.indexChars[i]
-      kStr += " + (size%s - 1) * strideW%s" % (indexChar, indexChar)
-    kStr += ";" + self.endLine
-
-    kStr += "  " + self.datatype + " accum = 0;%s" % self.endLine
-    kStr += "  for (int i=0; i<gsu; i++) {%s" % self.endLine
-    kStr += "    accum += W[idxW];%s" % self.endLine
-    kStr += "    idxW  += strideW;%s" % self.endLine
-    kStr += "  }%s" % self.endLine
-
-    kStr += "  if( beta == (%s)0)%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine)
-    kStr += "    accum = ((" + self.datatype + ")alpha) * accum;%s" % (self.endLine)
-    kStr += "  else%s" % self.endLine
-    kStr += "    accum = (((" + self.datatype + ")alpha) * accum + ((" + self.datatype + ")beta) * ((" + self.datatype + ")C[idxC]));" + self.endLine
-
+    # Activation
     typeStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-    if ((self.state["ProblemType"]["ActivationType"] != 'none') and (globalParameters["ActivationNoFuse"] == False)):
-      typeActivationStr = self.state["ProblemType"]["ComputeDataType"].toDevice(self.language) if self.state["ProblemType"]["ActivationHPA"] else \
-                          self.state["ProblemType"]["DestDataType"].toDevice(self.language)
+    typeActivationStr = self.state["ProblemType"]["ComputeDataType"].toDevice(self.language) if self.state["ProblemType"]["ActivationHPA"] else \
+                        self.state["ProblemType"]["DestDataType"].toDevice(self.language)
+    if self.state["ProblemType"]["ActivationType"] != 'none':
       names = ""
       if self.state["ProblemType"]["ActivationType"] == 'all':
         names += ", activationType"
       for name in self.state["ProblemType"]["ActivationType"].getAdditionalArgStringList():
         names += (", " + name)
-      kStr += "  D[idxD] = (%s)activation((%s)accum%s);%s" % (typeStr, typeActivationStr, names, self.endLine)
-    else:
-      kStr += "  D[idxD] = (%s)accum;%s" % (typeStr, self.endLine)
+      kStr += "  D[idxD] = (%s)activation((%s)D[idxD]%s);%s" % (typeStr, typeActivationStr, names, self.endLine)
 
     ########################################
     # end
     kStr += "}%s" % self.endLine
     for i in range(firstStride, lastStrideC):
       kStr += "#undef strideD" + self.indexChars[i] + self.endLine
-    for i in range(firstStride, lastStrideC):
-      kStr += "#undef strideW" + self.indexChars[i] + self.endLine
-    for i in range(firstStride, lastStrideC):
-      kStr += "#undef strideC" + self.indexChars[i] + self.endLine
     kStr += "#undef GLOBAL_D%s" % (self.endLine)
-    kStr += "#undef GLOBAL_W%s" % (self.endLine)
-    kStr += "#undef GLOBAL_C%s" % (self.endLine)
 
     return kStr
 
@@ -290,21 +215,35 @@ class KernelWriterConversion(KernelWriterBase):
   def getKernelName(self):
     indexChars = globalParameters["IndexChars"]
     # C dimensions
-    name = "C"
+    name = "D"
     for i in range(0, self.state["ProblemType"]["NumIndicesC"]):
       name += indexChars[i].lower()
     name += "_"
     name += self.state["ProblemType"]["DestDataType"].toChar()
-    name += "" if self.state["ProblemType"]["StridedBatched"] else "_GB"
-    name += "_PostGSU"
-    if ((self.state["ProblemType"]["ActivationType"] != 'none') and (globalParameters["ActivationNoFuse"] == False)):
-      if self.state["ProblemType"]["ActivationType"] == 'all':
-        name += "_ACTIVATION"
-      else:
-        name += "_%s"%str(self.state["ProblemType"]["ActivationType"]).upper()
+    if self.state["ProblemType"]["ActivationType"] == 'all':
+      name += "_%s"%"ACTIVATION"
+    elif self.state["ProblemType"]["ActivationType"] != 'none':
+      name += "_%s"%str(self.state["ProblemType"]["ActivationType"]).upper()
 
     return name
 
+
+  def getSourceFileString(self):
+    fileString = ""
+    if not globalParameters["MergeFiles"]:
+      fileString += "\n"
+      fileString += "#include \"%s.h\"\n" % self.kernelName
+      fileString += "\n"
+
+    activationCDataType = self.state["ProblemType"]["ComputeDataType"] if self.state["ProblemType"]["ActivationHPA"] else \
+                          self.state["ProblemType"]["DestDataType"]
+    activation = ActivationInline(self.state["WavefrontSize"], \
+                          activationCDataType)
+    fileString += activation.generateInlineAssemblyFunction(self.state["ProblemType"]["ActivationType"])
+    fileString += self.functionSignature()
+    fileString += self.kernelBody()
+
+    return (0, fileString)
 
   def getHeaderFileString(self):
     fileString = "" # CHeader
@@ -324,21 +263,3 @@ class KernelWriterConversion(KernelWriterBase):
     fileString += ";\n"
 
     return fileString
-
-
-  def getSourceFileString(self):
-    fileString = ""
-    if not globalParameters["MergeFiles"]:
-      fileString += "\n"
-      fileString += "#include \"%s.h\"\n" % self.kernelName
-      fileString += "\n"
-
-    activationCDataType = self.state["ProblemType"]["ComputeDataType"] if self.state["ProblemType"]["ActivationHPA"] else \
-                          self.state["ProblemType"]["DestDataType"]
-    activation = ActivationInline(self.state["WavefrontSize"], \
-                          activationCDataType)
-    fileString += activation.generateInlineAssemblyFunction(self.state["ProblemType"]["ActivationType"])
-    fileString += self.functionSignature()
-    fileString += self.kernelBody()
-
-    return (0, fileString)

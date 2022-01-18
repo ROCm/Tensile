@@ -1,7 +1,7 @@
 /**
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -111,6 +111,107 @@ namespace Tensile
             using LMultT = std::conditional_t<needAccumCast, Accumulator, TypeL>;
             using RMultT = std::conditional_t<needAccumCast, Accumulator, TypeR>;
             return static_cast<Accumulator>(static_cast<LMultT>(l) * static_cast<RMultT>(r));
+        }
+
+        template <typename T>
+        typename std::enable_if<std::is_same<float, T>::value || std::is_same<Half, T>::value
+                                    || std::is_same<BFloat16, T>::value,
+                                T>::type
+            Activation(ActivationType activationType,
+                       T              val,
+                       ActivationType activationType2,
+                       std::vector<T> args)
+        {
+            // Only cast to float in BFloat16
+            constexpr bool needCast = std::is_same<BFloat16, T>();
+            using castT             = std::conditional_t<needCast, float, T>;
+            auto new_type
+                = activationType == ActivationType::All ? activationType2 : activationType;
+            if(new_type == ActivationType::Abs)
+            {
+                return static_cast<T>(std::max(static_cast<castT>(val), -static_cast<castT>(val)));
+            }
+            else if(new_type == ActivationType::Exp)
+            {
+                return static_cast<T>(exp(static_cast<castT>(val)));
+            }
+            else if(new_type == ActivationType::Gelu)
+            {
+                auto castedVal = static_cast<castT>(val);
+                auto k0        = static_cast<castT>(0.7978845608028654);
+                auto k1        = static_cast<castT>(0.044715);
+                // float(0.5 * x * (1 + tanh(k0 * x * (1 + k1 * x * x))));
+                auto tmp = (static_cast<castT>(1)
+                            + multiply<castT>(k1, multiply<castT>(castedVal, castedVal)));
+                tmp      = multiply<castT>(k0, multiply<castT>(castedVal, tmp));
+                tmp      = static_cast<castT>(1) + static_cast<castT>(tanh(tmp));
+                tmp = multiply<castT>(static_cast<castT>(0.5f), multiply<castT>(castedVal, tmp));
+                return static_cast<T>(tmp);
+            }
+            else if(new_type == ActivationType::Leakyrelu)
+            {
+                assert((args.size() == getAdditionalArgNum(activationType)));
+                auto tmp = static_cast<castT>(val);
+                tmp      = tmp > static_cast<castT>(0.f) ? tmp : multiply<castT>(tmp, args[0]);
+                return (T)(tmp);
+            }
+            else if(new_type == ActivationType::Relu)
+            {
+                return (T)(std::max(0.f, static_cast<float>(val)));
+            }
+            else if(new_type == ActivationType::Sigmoid)
+            {
+                return static_cast<T>(1.f
+                                      / (1.f + static_cast<castT>(exp(-static_cast<castT>(val)))));
+            }
+            else if(new_type == ActivationType::Tanh)
+            {
+                return multiply<T>(
+                    tanh(multiply<castT>(static_cast<castT>(val), static_cast<castT>(args[0]))),
+                    static_cast<castT>(args[1]));
+            }
+            return val;
+        }
+
+        template <typename T>
+        typename std::enable_if<std::is_same<double, T>::value || std::is_same<int32_t, T>::value,
+                                T>::type
+            Activation(ActivationType activationType,
+                       T              val,
+                       ActivationType activationType2,
+                       std::vector<T> args)
+        {
+            auto new_type
+                = activationType == ActivationType::All ? activationType2 : activationType;
+            if(new_type == ActivationType::Abs)
+            {
+                return static_cast<T>(std::abs(val));
+            }
+            else if(new_type == ActivationType::Relu)
+            {
+                return static_cast<T>(std::max(static_cast<T>(0.0), val));
+            }
+            else if(new_type == ActivationType::Leakyrelu)
+            {
+                assert((args.size() == getAdditionalArgNum(activationType)));
+                val = val > 0 ? val : val * args[0];
+                return val;
+            }
+            return val;
+        }
+
+        template <typename T>
+        typename std::enable_if<!std::is_same<Half, T>::value && !std::is_same<float, T>::value
+                                    && !std::is_same<double, T>::value
+                                    && !std::is_same<BFloat16, T>::value
+                                    && !std::is_same<int32_t, T>::value,
+                                T>::type
+            Activation(ActivationType activationType,
+                       T              val,
+                       ActivationType activationType2,
+                       std::vector<T> args)
+        {
+            return val;
         }
 
         template <typename Inputs, typename Accumulator>
@@ -314,6 +415,11 @@ namespace Tensile
                     multiply<Accumulator>(inputs.alpha, value)
                     + ((beta == zero) ? static_cast<Accumulator>(zero)
                                       : multiply<Accumulator>(beta, inputs.c[cIndex])));
+                // Activation adds here
+                inputs.d[dIndex] = Activation(problem.activationType(),
+                                              inputs.d[dIndex],
+                                              inputs.activationTypeIfAllArg,
+                                              inputs.activationArgs);
             }
         }
 

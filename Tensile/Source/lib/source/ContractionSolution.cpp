@@ -1,5 +1,5 @@
 /**
- * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -399,6 +399,36 @@ namespace Tensile
                 rv.args.append<typename TypedInputs::BetaType>("beta_2", inputs.beta);
         }
 
+        if(!isSourceKernel())
+        {
+            if((problem.activationType() != ActivationType::None)
+               && (inputs.activationNoFuseArg == false) && (!sizeMapping.globalAccumulation))
+            {
+                for(int i = 0; i < inputs.activationArgs.size(); i++)
+                {
+                    std::string name = "activation_" + std::to_string(i);
+                    if(std::is_same<typename TypedInputs::DType, Half>::value)
+                    {
+                        rv.args.append<typename TypedInputs::DType>((name + "_pk").c_str(),
+                                                                    inputs.activationArgs[i]);
+                    }
+                    else if(std::is_same<typename TypedInputs::DType, BFloat16>::value)
+                    {
+                        // BFloat16 to float32.
+                        rv.args.append<uint16_t>((name + "_append").c_str(),
+                                                 static_cast<uint16_t>(0));
+                    }
+                    rv.args.append<typename TypedInputs::DType>(name.c_str(),
+                                                                inputs.activationArgs[i]);
+                }
+                if(problem.activationType() == ActivationType::All)
+                {
+                    rv.args.append<uint32_t>("activationType",
+                                             static_cast<uint32_t>(inputs.activationTypeIfAllArg));
+                }
+            }
+        }
+
         size_t startStrideCD = problemType.useInitialStridesCD ? 0 : 1;
         size_t startStrideAB = problemType.useInitialStridesAB ? 0 : 1;
 
@@ -759,6 +789,23 @@ namespace Tensile
         else
             rv.args.append<typename TypedInputs::BetaType>("beta", 0.0f);
 
+        if((problem.activationType() != ActivationType::None)
+           && (inputs.activationNoFuseArg == false))
+        {
+            for(int i = 0; i < inputs.activationArgs.size(); i++)
+            {
+                std::string    name     = "activation_" + std::to_string(i);
+                constexpr bool needCast = std::is_same<BFloat16, typename TypedInputs::DType>();
+                using castT = std::conditional_t<needCast, float, typename TypedInputs::DType>;
+                rv.args.append<castT>(name.c_str(), static_cast<castT>(inputs.activationArgs[i]));
+            }
+            if(problem.activationType() == ActivationType::All)
+            {
+                rv.args.append<uint32_t>("activationType",
+                                         static_cast<uint32_t>(inputs.activationTypeIfAllArg));
+            }
+        }
+
         for(size_t i = 1; i < d.dimensions(); i++)
             rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideD", i), d.strides()[i]);
 
@@ -804,6 +851,110 @@ namespace Tensile
         }
 
         name += "_PostGSU";
+
+        if(problem.activationType() != ActivationType::None)
+        {
+            name += "_ACTIVATION";
+        }
+
+        return name;
+    }
+
+    template <typename TypedInputs, bool T_Debug>
+    KernelInvocation ContractionSolution::generateActivationOnlyCall(Problem const&     problem,
+                                                                     TypedInputs const& inputs,
+                                                                     Hardware const& hardware) const
+    {
+        TensorDescriptor const& d = problem.d();
+
+        KernelInvocation rv;
+
+        rv.args = KernelArguments(T_Debug);
+
+        rv.args.reserve(512, 64);
+
+        rv.kernelName = activationOnlyKernelName(problem, inputs, hardware);
+
+        rv.workGroupSize.x = 256;
+        rv.workGroupSize.y = 1;
+        rv.workGroupSize.z = 1;
+
+        size_t wiX = 1;
+        size_t wiY = 1;
+        size_t wiZ = 1;
+        for(size_t i = 0; i < problem.freeIndicesA().size(); i++)
+            wiX *= problem.freeSizeA(i);
+        for(size_t i = 0; i < problem.freeIndicesB().size(); i++)
+            wiY *= problem.freeSizeB(i);
+        for(size_t i = 0; i < problem.batchIndices().size(); i++)
+            wiZ *= problem.batchSize(i);
+
+        rv.numWorkGroups.x = CeilDivide(wiX * wiY * wiZ, rv.workGroupSize.x);
+        rv.numWorkGroups.y = 1;
+        rv.numWorkGroups.z = 1;
+
+        rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
+        rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
+        rv.numWorkItems.z = rv.workGroupSize.z * rv.numWorkGroups.z;
+
+        if(problemType.stridedBatched)
+            rv.args.append<typename TypedInputs::DType*>("D", inputs.d);
+        else
+            rv.args.append<typename TypedInputs::DType const* const*>("batchD", inputs.batchD);
+
+        if(problem.activationType() != ActivationType::None)
+        {
+            for(int i = 0; i < inputs.activationArgs.size(); i++)
+            {
+                std::string    name     = "activation_" + std::to_string(i);
+                constexpr bool needCast = std::is_same<BFloat16, typename TypedInputs::DType>();
+                using castT = std::conditional_t<needCast, float, typename TypedInputs::DType>;
+                rv.args.append<castT>(name.c_str(), static_cast<castT>(inputs.activationArgs[i]));
+            }
+            if(problem.activationType() == ActivationType::All)
+            {
+                rv.args.append<uint32_t>("activationType",
+                                         static_cast<uint32_t>(inputs.activationTypeIfAllArg));
+            }
+        }
+
+        if(sizeMapping.globalAccumulation)
+        {
+            size_t stride = d.sizes()[0];
+            for(size_t i = 1; i < d.dimensions(); i++)
+            {
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW", i),
+                                         d.sizes()[i] == 1 ? 0 : stride);
+                stride *= d.sizes()[i];
+            }
+        }
+        else
+        {
+            for(size_t i = 1; i < d.dimensions(); i++)
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideD", i),
+                                         d.sizes()[i] == 1 ? 0 : d.strides()[i]);
+        }
+
+        int idx = 0;
+        for(auto size : problem.d().sizes())
+        {
+            rv.args.append<uint32_t>(concatenate_if<T_Debug>("size_", idx), size);
+            idx++;
+        }
+
+        rv.args.append<uint32_t>("offsetD", d.offset());
+
+        return rv;
+    }
+
+    template <typename TypedInputs>
+    std::string ContractionSolution::activationOnlyKernelName(Problem const&     problem,
+                                                              TypedInputs const& inputs,
+                                                              Hardware const&    hardware) const
+    {
+        std::string name = concatenate(
+            "D", problem.cNames(), "_", TypeInfo<typename TypedInputs::DType>::Abbrev());
+        name += "_ACTIVATION";
 
         return name;
     }
@@ -877,6 +1028,18 @@ namespace Tensile
             else
                 rv.push_back(
                     generateOutputConversionCall<TypedInputs, false>(problem, inputs, hardware));
+        }
+
+        if(((sizeMapping.globalSplitU > 1 && (!sizeMapping.globalAccumulation))
+            || inputs.activationNoFuseArg)
+           && (problem.activationType() != ActivationType::None))
+        {
+            if(debug)
+                rv.push_back(
+                    generateActivationOnlyCall<TypedInputs, true>(problem, inputs, hardware));
+            else
+                rv.push_back(
+                    generateActivationOnlyCall<TypedInputs, false>(problem, inputs, hardware));
         }
 
         return rv;

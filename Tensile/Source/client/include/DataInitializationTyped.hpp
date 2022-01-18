@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -644,6 +644,16 @@ namespace Tensile
                     inputs.alpha = getValue<AlphaType>(m_alphaInit);
                     inputs.beta  = getValue<BetaType>(m_betaInit);
 
+                    inputs.activationTypeIfAllArg = m_activationTypeIfAll;
+                    inputs.activationNoFuseArg    = m_activationNoFuse;
+                    for(int i = 0; i < getAdditionalArgNum(problem.activationType()); i++)
+                    {
+                        InitMode mode = (i == m_activationArgsInit.size())
+                                            ? m_activationArgsInit[m_activationArgsInit.size() - 1]
+                                            : m_activationArgsInit[i];
+                        inputs.activationArgs.push_back(getValue<DType>(mode));
+                    }
+
                     m_problem = problem;
                 }
             }
@@ -663,6 +673,16 @@ namespace Tensile
 
                 inputs.alpha = getValue<AlphaType>(m_alphaInit);
                 inputs.beta  = getValue<BetaType>(m_betaInit);
+
+                inputs.activationTypeIfAllArg = m_activationTypeIfAll;
+                inputs.activationNoFuseArg    = m_activationNoFuse;
+                for(int i = 0; i < getAdditionalArgNum(m_problem.activationType()); i++)
+                {
+                    InitMode mode = (i == m_activationArgsInit.size())
+                                        ? m_activationArgsInit[m_activationArgsInit.size() - 1]
+                                        : m_activationArgsInit[i];
+                    inputs.activationArgs.push_back(getValue<DType>(mode));
+                }
             }
 
             hipMemcpyKind getCopyKind(std::shared_ptr<ManagedInputs> dst,
@@ -723,6 +743,10 @@ namespace Tensile
 
                 dst->alpha = src->alpha;
                 dst->beta  = src->beta;
+
+                dst->activationTypeIfAllArg = src->activationTypeIfAllArg;
+                dst->activationNoFuseArg    = src->activationNoFuseArg;
+                dst->activationArgs         = src->activationArgs;
             }
 
             void copyInputs(std::shared_ptr<ManagedInputs> dst,
@@ -781,6 +805,10 @@ namespace Tensile
 
                     dst->alpha = src->alpha;
                     dst->beta  = src->beta;
+
+                    dst->activationTypeIfAllArg = src->activationTypeIfAllArg;
+                    dst->activationNoFuseArg    = src->activationNoFuseArg;
+                    dst->activationArgs         = src->activationArgs;
                 }
                 else if(m_curBoundsCheck == BoundsCheckMode::GuardPageBack)
                 {
@@ -828,6 +856,10 @@ namespace Tensile
 
                     dst->alpha = src->alpha;
                     dst->beta  = src->beta;
+
+                    dst->activationTypeIfAllArg = src->activationTypeIfAllArg;
+                    dst->activationNoFuseArg    = src->activationNoFuseArg;
+                    dst->activationArgs         = src->activationArgs;
                 }
                 else
                 {

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -65,7 +65,7 @@ namespace Tensile
             , m_bOffset(args["offset-b"].as<size_t>())
             , m_cOffset(args["offset-c"].as<size_t>())
             , m_dOffset(args["offset-d"].as<size_t>())
-
+            , m_activationType(ActivationType::None)
         {
             if(args.count("problem-identifier"))
                 ContractionProblem::IdentifierToIndices(
@@ -103,6 +103,9 @@ namespace Tensile
             if(args["convolution-vs-contraction"].as<bool>())
                 m_convProblemSizes
                     = args["convolution-problem"].as<std::vector<std::vector<size_t>>>();
+
+            if(args.count("activation-type"))
+                m_activationType = args["activation-type"].as<ActivationType>();
 
             m_problems = createProblems();
         }
@@ -203,6 +206,7 @@ namespace Tensile
                 rv.back().setDeterministicMode(m_deterministicMode);
                 rv.back().setArithmeticUnit(m_arithmeticUnit);
                 rv.back().setFp16AltImpl(m_fp16AltImpl);
+                rv.back().setActivationType(m_activationType);
 
                 if(m_convProblemSizes.size())
                     rv.back().setConvProblemSizes(m_convProblemSizes[i]);

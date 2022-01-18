@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -237,6 +237,11 @@ namespace Tensile
                 ("selection-only",           po::value<bool>()->default_value(false), "Don't run any solutions, only print kernel selections.")
                 ("max-workspace-size",       po::value<size_t>()->default_value(32*1024*1024), "Max workspace for training")
                 ("granularity-threshold",    po::value<double>()->default_value(0.0), "Don't run a solution if total granularity is below")
+
+                ("activation-type",           po::value<ActivationType>()->default_value(ActivationType::None), "An activation type")
+                ("init-activationtype-if-all",po::value<ActivationType>()->default_value(ActivationType::Relu), "An extra activation type argument if activation-type=all")
+                ("init-activation-args",      po::value<std::vector<InitMode>>()->default_value(std::vector<InitMode>(1, InitMode::Two), "[]"), "Activation args init")
+                ("activation-no-fuse",        po::value<bool>()->default_value(false), "Don't fuse elementwise kernel for debug")
                 ;
             // clang-format on
 
@@ -353,6 +358,13 @@ namespace Tensile
             args.at(name).value() = v;
         }
 
+        void parse_activation_int(po::variables_map& args, std::string const& name)
+        {
+            auto type = args[name].as<ActivationType>();
+
+            args.at(name).value() = boost::any(type);
+        }
+
         void fix_data_types(po::variables_map& args)
         {
             auto type = args["type"].as<DataType>();
@@ -410,6 +422,16 @@ namespace Tensile
 
             if(args["convolution-vs-contraction"].as<bool>())
                 parse_arg_ints(args, "convolution-problem");
+            parse_activation_int(args, "activation-type");
+            parse_activation_int(args, "init-activationtype-if-all");
+            if(args.count("init-activationtype-if-all")
+               && (args["init-activationtype-if-all"].as<ActivationType>() == ActivationType::All
+                   || args["init-activationtype-if-all"].as<ActivationType>()
+                          == ActivationType::None))
+            {
+                throw std::runtime_error(
+                    "init-activationtype-if-all must be a valid type except none and all.");
+            }
             return args;
         }
 

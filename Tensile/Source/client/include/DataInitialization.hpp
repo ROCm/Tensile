@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -456,8 +456,10 @@ namespace Tensile
             };
 
         protected:
-            InitMode m_aInit, m_bInit, m_cInit, m_dInit;
-            InitMode m_alphaInit, m_betaInit;
+            InitMode              m_aInit, m_bInit, m_cInit, m_dInit;
+            InitMode              m_alphaInit, m_betaInit;
+            std::vector<InitMode> m_activationArgsInit;
+            ActivationType        m_activationTypeIfAll;
 
             size_t m_aBufferOffset;
             size_t m_bBufferOffset;
@@ -476,6 +478,9 @@ namespace Tensile
 
             bool m_cEqualsD;
             bool m_convolutionVsContraction;
+
+            ActivationType m_activationType;
+            bool           m_activationNoFuse;
 
             int m_elementsToValidate = 0;
 
