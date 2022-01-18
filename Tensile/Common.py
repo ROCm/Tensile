@@ -896,7 +896,7 @@ validParameters = {
     "GroupLoadStore":             [False, True],
     #
     # Do storeC (output of GEMM) in unroll Loop; When PK enabled, storeC Code section can be
-    # moved into unroll Loop code section for tiles[0..N-2], storeC scheduled in PK[1..N-1] 
+    # moved into unroll Loop code section for tiles[0..N-2], storeC scheduled in PK[1..N-1]
     # Enable this feature when PK is enabled
     # Enable this feature when you have 2 or More Tiles/CU
     # disable StoreSyncOpt, StorePriorityOpt,GroupLoadStore feature when this feature is enabled
@@ -1956,7 +1956,7 @@ def assignGlobalParameters( config ):
 
   if "MergeFiles" in config and "NumMergedFiles" in config:
     if not config["MergeFiles"] and config["NumMergedFiles"] > 1:
-      config["NumMergedFiles"] = 1 
+      config["NumMergedFiles"] = 1
       printWarning("--num-merged-files and --no-merge-files specified, ignoring --num-merged-files")
 
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future

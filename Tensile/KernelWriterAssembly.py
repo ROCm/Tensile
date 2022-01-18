@@ -7727,8 +7727,8 @@ class KernelWriterAssembly(KernelWriter):
                   else:
                     padInterval = (self.kernel["WavefrontSize"] if kernel["WaveSeparateGlobalRead%c"%tc] else kernel["NumThreads"]) * self.bpr
                     ldsInc += (ldsInc // padInterval) * kernel["LdsPad%s"%tc] * tP["bpe"]
-                  #print("ldsInc", ldsInc) 
-                  #print("GlobalLoadVectorWidth", kernel["GlobalLoadVectorWidth%c"%tc]) 
+                  #print("ldsInc", ldsInc)
+                  #print("GlobalLoadVectorWidth", kernel["GlobalLoadVectorWidth%c"%tc])
                   #print("bpr", self.bpr)
                   if kernel["UseInstOffsetForGRO"]:
                     # buffer_load only support 12 bit instruction offset
@@ -8846,7 +8846,7 @@ class KernelWriterAssembly(KernelWriter):
               if self.db["ForceInputValue%s"%tc]:
                 localWriteCode.addInst("v_mov_b32", vgpr("G2L%s+%u"%(tc, g2lIdx)), self.db["ForceValue%s"%tc], "ForceInputValue")
               if kernel["ProblemType"]["Fp16AltImpl"]:
-                numIters = 1 if blockWidth <= 1 else blockWidth 
+                numIters = 1 if blockWidth <= 1 else blockWidth
                 for iter in range(0, numIters):
                    vgprsrc = vgpr("G2L%s+%u"%(tc, g2lIdx+iter))
                    vgprsrc += " src0_sel:WORD_1"
