@@ -90,7 +90,6 @@ def TensileUpdateLibrary(userArgs):
                 solutionState["ProblemType"]["ComputeDataType"].value
 
         solutionState["ISA"] = list(solutionState["ISA"])
-        solutionState["Fp16AltImpl"] = True
         solutionList.append(solutionState)
 
     # update yaml
