@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -195,7 +195,7 @@ function(TensileCreateLibraryFiles
         target_compile_definitions( TensileHost PUBLIC -DTENSILE_YAML=1)
     endif()
   endif()
-  
+
   if(Tensile_ARCHITECTURE)
     string (REPLACE ";" "_" archString "${Tensile_ARCHITECTURE}")
     # uses _ separator to avoid cmake ; list interpretation, either ; or _ decoded in TensileCreateLibrary
@@ -223,6 +223,17 @@ function(TensileCreateLibraryFiles
 
       set(Tensile_MANIFEST_FILE_PATH "${Tensile_OUTPUT_PATH}/library/TensileManifest.txt")
       message(STATUS "Tensile_MANIFEST_FILE_PATH: ${Tensile_MANIFEST_FILE_PATH}")
+
+      if($ENV{ENABLE_ADDRESS_SANITIZER})
+        # Must populate LD_PRELOAD with ASAN runtime if ASAN is being used.
+        # Find the ASAN RT with compiler and update env for Tensile call.
+        execute_process(
+          COMMAND ${CMAKE_CXX_COMPILER} --print-file-name=libclang_rt.asan-x86_64.so
+          OUTPUT_VARIABLE ASAN_LIB_PATH
+          COMMAND_ECHO STDOUT)
+        string(STRIP ${ASAN_LIB_PATH} ASAN_LIB_PATH)
+        set(CommandLine env LD_PRELOAD=${ASAN_LIB_PATH} ${CommandLine})
+      endif()
 
       # Create the manifest file of the output libraries.
       set(Tensile_CREATE_MANIFEST_COMMAND ${CommandLine} "--generate-manifest-and-exit")

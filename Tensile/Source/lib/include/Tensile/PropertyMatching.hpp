@@ -1,5 +1,5 @@
 /**
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,19 +36,19 @@
 namespace Tensile
 {
     /**
- * \ingroup Tensile
- * \defgroup PropertyMatching Property Matching
- *
- * @brief Distance-based matching of Property values to a table.
- *
- * Generic algorithm for comparing an object to a table of predefined
- * values based on Property objects and a Distance function. Used for
- * MatchingLibrary.
- */
+     * \ingroup Tensile
+     * \defgroup PropertyMatching Property Matching
+     *
+     * @brief Distance-based matching of Property values to a table.
+     *
+     * Generic algorithm for comparing an object to a table of predefined
+     * values based on Property objects and a Distance function. Used for
+     * MatchingLibrary.
+     */
 
     /**
- * \ingroup PropertyMatching
- */
+     * \ingroup PropertyMatching
+     */
     namespace Matching
     {
         template <typename Key, typename Value>
@@ -90,9 +90,9 @@ namespace Tensile
         };
 
         /**
- * This exists to provide an abstraction around the different syntax of creating
- * a vector of a size given at runtime vs. creating an array with a fixed size.
- */
+         * This exists to provide an abstraction around the different syntax of creating
+         * a vector of a size given at runtime vs. creating an array with a fixed size.
+         */
         template <typename Key>
         struct KeyFactory
         {
@@ -116,12 +116,16 @@ namespace Tensile
             }
         };
 
+        /**
+         * Shared code between the generic DistanceMatchingTable and the specialization
+         * for the special Equality distance
+         */
         template <typename Key,
                   typename Object,
                   typename Value,
                   typename ReturnValue,
                   typename Distance>
-        class DistanceMatchingTable : public MatchingTable<Object, Value, ReturnValue>
+        class DistanceMatchingCommon : public MatchingTable<Object, Value, ReturnValue>
         {
         public:
             using Base       = MatchingTable<Object, Value, ReturnValue>;
@@ -129,30 +133,216 @@ namespace Tensile
             using Transform  = typename Base::Transform;
             using Properties = typename Base::Properties;
 
-            DistanceMatchingTable(ReturnValue nullValue = ReturnValue())
+            DistanceMatchingCommon(ReturnValue nullValue = ReturnValue())
                 : nullValue(nullValue)
             {
             }
 
-            DistanceMatchingTable(Properties const& properties,
-                                  ReturnValue       nullValue = ReturnValue())
+            DistanceMatchingCommon(Properties const& properties,
+                                   ReturnValue       nullValue = ReturnValue())
                 : Base(properties)
                 , nullValue(nullValue)
             {
             }
 
-            DistanceMatchingTable(Distance const&   distance,
-                                  Properties const& properties,
-                                  ReturnValue       nullValue = ReturnValue())
+            DistanceMatchingCommon(Distance const&   distance,
+                                   Properties const& properties,
+                                   ReturnValue       nullValue = ReturnValue())
                 : Base(properties)
                 , nullValue(nullValue)
                 , distance(distance)
             {
             }
 
+            virtual std::tuple<ReturnValue, double> findBestKeyMatch(Key const& key,
+                                                                     Transform transform) const = 0;
+
+            virtual std::tuple<ReturnValue, double>
+                findBestMatch(Object const& object, Transform transform) const override
+            {
+                return findBestKeyMatch(keyForProblem(object), transform);
+            }
+
+            virtual ReturnValue findBestEvaluationSolution(Object const&   object,
+                                                           Hardware const& hardware,
+                                                           Transform       transform) const override
+            {
+                double bestDistance = std::numeric_limits<double>::max();
+
+                auto iter = this->table.begin();
+                if(iter == this->table.end())
+                    return this->nullValue;
+
+                ReturnValue theMatch = transform(iter->value);
+
+                ReturnValue bestMatch = theMatch;
+                if(theMatch != nullptr)
+                {
+                    size_t model_M          = iter->key[0];
+                    size_t model_N          = iter->key[1];
+                    size_t model_K          = 1;
+                    size_t model_NumBatches = 1;
+
+                    if(iter->key.size() > 3)
+                    {
+                        model_K          = iter->key[3];
+                        model_NumBatches = iter->key[2];
+                    }
+                    else
+                    {
+                        model_K = iter->key[2];
+                    }
+                    bestDistance = theMatch->computeTAMScore(object,
+                                                             hardware,
+                                                             (double)model_M,
+                                                             (double)model_N,
+                                                             (double)model_K,
+                                                             (double)model_NumBatches);
+                }
+
+                iter++;
+
+                while(iter != this->table.end())
+                {
+                    auto nextMatch = transform(iter->value);
+
+                    if(nextMatch != nullptr)
+                    {
+                        size_t model_M          = iter->key[0];
+                        size_t model_N          = iter->key[1];
+                        size_t model_K          = 1;
+                        size_t model_NumBatches = 1;
+
+                        if(iter->key.size() > 3)
+                        {
+                            model_K          = iter->key[3];
+                            model_NumBatches = iter->key[2];
+                        }
+                        else
+                        {
+                            model_K = iter->key[2];
+                        }
+                        double nextDistance = theMatch->computeTAMScore(object,
+                                                                        hardware,
+                                                                        (double)model_M,
+                                                                        (double)model_N,
+                                                                        (double)model_K,
+                                                                        (double)model_NumBatches);
+
+                        if(nextDistance < bestDistance)
+                        {
+                            bestMatch    = nextMatch;
+                            bestDistance = nextDistance;
+                        }
+                    }
+
+                    ++iter;
+                }
+
+                return bestMatch;
+            }
+
+            virtual std::vector<Value> matchesInOrder(Object const& object) const override
+            {
+                return keyMatchesInOrder(keyForProblem(object));
+            }
+
+            std::vector<Value> keyMatchesInOrder(Key const& key) const
+            {
+                std::vector<std::pair<double, size_t>> indices(this->table.size());
+
+                for(size_t i = 0; i < this->table.size(); i++)
+                    indices[i] = std::make_pair(distance(key, this->table[i].key), i);
+
+                std::sort(indices.begin(), indices.end());
+
+                std::vector<Value> result;
+                result.reserve(this->table.size());
+
+                for(auto const& entry : indices)
+                    result.push_back(this->table[entry.second].value);
+
+                return result;
+            }
+
+            Key keyForProblem(Object const& object) const
+            {
+                bool debug = Debug::Instance().printPropertyEvaluation();
+
+                Key myKey = KeyFactory<Key>::MakeKey(this->properties.size());
+
+                for(int i = 0; i < this->properties.size(); i++)
+                    myKey[i] = (*this->properties[i])(object);
+
+                if(debug)
+                {
+                    std::cout << "Object key: ";
+                    streamJoin(std::cout, myKey, ", ");
+                    std::cout << std::endl;
+                }
+
+                return myKey;
+            }
+
+            virtual std::string description() const override
+            {
+                std::string rv = concatenate(
+                    "Table: Properties: ", this->properties, ", ", table.size(), " rows, ");
+
+                rv += concatenate("Distance: ", Distance::Type());
+
+                return rv;
+            }
+
             virtual std::string distanceType() const override
             {
                 return Distance::Type();
+            }
+
+        protected:
+            std::vector<Entry> table;
+            Distance           distance;
+
+            ReturnValue nullValue;
+        };
+
+        /**
+         * Generic version of DistanceMatchingTable
+         */
+        template <typename Key,
+                  typename Object,
+                  typename Value,
+                  typename ReturnValue,
+                  typename Distance>
+        class DistanceMatchingTable
+            : public DistanceMatchingCommon<Key, Object, Value, ReturnValue, Distance>
+        {
+        public:
+            using Base       = MatchingTable<Object, Value, ReturnValue>;
+            using Entry      = MatchingTableEntry<Key, Value>;
+            using Transform  = typename Base::Transform;
+            using Properties = typename Base::Properties;
+            using Common     = DistanceMatchingCommon<Key, Object, Value, ReturnValue, Distance>;
+            using Common::distance;
+            using Common::nullValue;
+            using Common::table;
+
+            DistanceMatchingTable(ReturnValue nullValue = ReturnValue())
+                : Common(nullValue)
+            {
+            }
+
+            DistanceMatchingTable(Properties const& properties,
+                                  ReturnValue       nullValue = ReturnValue())
+                : Common(properties, nullValue)
+            {
+            }
+
+            DistanceMatchingTable(Distance const&   distance,
+                                  Properties const& properties,
+                                  ReturnValue       nullValue = ReturnValue())
+                : Common(distance, properties, nullValue)
+            {
             }
 
             std::tuple<ReturnValue, double> findBestKeyMatch(Key const& key,
@@ -422,149 +612,60 @@ namespace Tensile
 
                 return std::make_tuple(bestMatch, bestDistance);
             }
+        };
 
-            std::vector<Value> keyMatchesInOrder(Key const& key) const
+        /**
+         * Specialization of DistanceMatchingTable for Equality Distance. This special case will
+         * only select key in the table if it exactly matches the provided key
+         */
+        template <typename Key, typename Object, typename Value, typename ReturnValue>
+        class DistanceMatchingTable<Key, Object, Value, ReturnValue, Matching::Equality<Key>>
+            : public DistanceMatchingCommon<Key,
+                                            Object,
+                                            Value,
+                                            ReturnValue,
+                                            Matching::Equality<Key>>
+        {
+        public:
+            using Base       = MatchingTable<Object, Value, ReturnValue>;
+            using Entry      = MatchingTableEntry<Key, Value>;
+            using Transform  = typename Base::Transform;
+            using Properties = typename Base::Properties;
+            using Equality   = Matching::Equality<Key>;
+            using Common
+                = DistanceMatchingCommon<Key, Object, Value, ReturnValue, Matching::Equality<Key>>;
+            using Common::distance;
+            using Common::nullValue;
+            using Common::table;
+
+            DistanceMatchingTable(ReturnValue nullValue = ReturnValue())
+                : Common(nullValue)
             {
-                std::vector<std::pair<double, size_t>> indices(this->table.size());
-
-                for(size_t i = 0; i < this->table.size(); i++)
-                    indices[i] = std::make_pair(distance(key, this->table[i].key), i);
-
-                std::sort(indices.begin(), indices.end());
-
-                std::vector<Value> result;
-                result.reserve(this->table.size());
-
-                for(auto const& entry : indices)
-                    result.push_back(this->table[entry.second].value);
-
-                return result;
             }
 
-            Key keyForProblem(Object const& object) const
+            DistanceMatchingTable(Properties const& properties,
+                                  ReturnValue       nullValue = ReturnValue())
+                : Common(properties, nullValue)
             {
-                bool debug = Debug::Instance().printPropertyEvaluation();
-
-                Key myKey = KeyFactory<Key>::MakeKey(this->properties.size());
-
-                for(int i = 0; i < this->properties.size(); i++)
-                    myKey[i] = (*this->properties[i])(object);
-
-                if(debug)
-                {
-                    std::cout << "Object key: ";
-                    streamJoin(std::cout, myKey, ", ");
-                    std::cout << std::endl;
-                }
-
-                return myKey;
             }
 
-            virtual std::tuple<ReturnValue, double>
-                findBestMatch(Object const& object, Transform transform) const override
+            DistanceMatchingTable(Equality const&   distance,
+                                  Properties const& properties,
+                                  ReturnValue       nullValue = ReturnValue())
+                : Common(distance, properties, nullValue)
             {
-                return findBestKeyMatch(keyForProblem(object), transform);
             }
 
-            virtual std::vector<Value> matchesInOrder(Object const& object) const override
+            std::tuple<ReturnValue, double> findBestKeyMatch(Key const& key,
+                                                             Transform  transform) const
             {
-                return keyMatchesInOrder(keyForProblem(object));
+                auto comp = [](Entry const& e, Key const& key) { return e.key < key; };
+                auto iter = std::lower_bound(table.begin(), table.end(), key, comp);
+
+                return (iter->key == key)
+                           ? std::make_tuple(transform(iter->value), 0.0)
+                           : std::make_tuple(this->nullValue, std::numeric_limits<double>::max());
             }
-
-            virtual ReturnValue findBestEvaluationSolution(Object const&   object,
-                                                           Hardware const& hardware,
-                                                           Transform       transform) const override
-            {
-                double bestDistance = std::numeric_limits<double>::max();
-
-                auto iter = this->table.begin();
-                if(iter == this->table.end())
-                    return this->nullValue;
-
-                ReturnValue theMatch = transform(iter->value);
-
-                ReturnValue bestMatch = theMatch;
-                if(theMatch != nullptr)
-                {
-                    size_t model_M          = iter->key[0];
-                    size_t model_N          = iter->key[1];
-                    size_t model_K          = 1;
-                    size_t model_NumBatches = 1;
-
-                    if(iter->key.size() > 3)
-                    {
-                        model_K          = iter->key[3];
-                        model_NumBatches = iter->key[2];
-                    }
-                    else
-                    {
-                        model_K = iter->key[2];
-                    }
-                    bestDistance = theMatch->computeTAMScore(object,
-                                                             hardware,
-                                                             (double)model_M,
-                                                             (double)model_N,
-                                                             (double)model_K,
-                                                             (double)model_NumBatches);
-                }
-
-                iter++;
-
-                while(iter != this->table.end())
-                {
-                    auto nextMatch = transform(iter->value);
-
-                    if(nextMatch != nullptr)
-                    {
-                        size_t model_M          = iter->key[0];
-                        size_t model_N          = iter->key[1];
-                        size_t model_K          = 1;
-                        size_t model_NumBatches = 1;
-
-                        if(iter->key.size() > 3)
-                        {
-                            model_K          = iter->key[3];
-                            model_NumBatches = iter->key[2];
-                        }
-                        else
-                        {
-                            model_K = iter->key[2];
-                        }
-                        double nextDistance = theMatch->computeTAMScore(object,
-                                                                        hardware,
-                                                                        (double)model_M,
-                                                                        (double)model_N,
-                                                                        (double)model_K,
-                                                                        (double)model_NumBatches);
-
-                        if(nextDistance < bestDistance)
-                        {
-                            bestMatch    = nextMatch;
-                            bestDistance = nextDistance;
-                        }
-                    }
-
-                    ++iter;
-                }
-
-                return bestMatch;
-            }
-
-            virtual std::string description() const override
-            {
-                std::string rv = concatenate(
-                    "Table: Properties: ", this->properties, ", ", table.size(), " rows, ");
-
-                rv += concatenate("Distance: ", Distance::Type());
-
-                return rv;
-            }
-
-            std::vector<Entry> table;
-            Distance           distance;
-
-        protected:
-            ReturnValue nullValue;
         };
     } // namespace Matching
 } // namespace Tensile

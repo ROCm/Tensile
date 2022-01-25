@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -1367,6 +1367,27 @@ namespace Tensile
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     return problem.fp16AltImpl();
+                }
+            };
+
+            struct EqualityMatching : public Predicate_CRTP<EqualityMatching, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+
+                EqualityMatching() = default;
+
+                static std::string Type()
+                {
+                    return "EqualityMatching";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return true;
                 }
             };
         } // namespace Contraction
