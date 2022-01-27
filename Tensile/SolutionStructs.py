@@ -973,7 +973,7 @@ class ProblemType(Mapping):
 
     # TODO- Migrate ([H/H/H]+HPA) to ([H/H/S]+HPA)
     # Note that we need to do a little change in rocBLAS and logic yaml
-    # Currently, ([H/H/S]+HPA) is implemented, but due to some kenerl naming conflict, we use HBH kernels instead HHS_BH. 
+    # Currently, ([H/H/S]+HPA) is implemented, but due to some kernel naming conflict, we use HBH kernels instead of HHS_BH. 
 
   ########################################
   def initGEMM(self):
