@@ -857,6 +857,7 @@ class ProblemType(Mapping):
 
     # Modifying ComputeDataType for HHS_BH: if (HHH+HPA), convert it to HHS_BH by setting ComputeDataType to s.
     if self["ComputeDataType"].isHalf() and DataType(config["DataType"]).isHalf() and self["HighPrecisionAccumulate"]:
+      print2("DataType == f16 and HPA == True; setting compute data type to f32")
       self["ComputeDataType"] = DataType('s')
 
     self.convolution = None
