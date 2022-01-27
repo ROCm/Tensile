@@ -72,7 +72,7 @@ def getDstValueType(kernel, cov):
 
 def getCptValueType(kernel, cov):
     if kernel["ProblemType"]["DataType"].isHalf() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-        cptValueType = cptValueTypeDict[kernel["ProblemType"]["ComputeDataType"].toNameAbbrev()] # for HHS case, this will be handled in HBH kernels.
+        cptValueType = "F32"
     else:
         cptValueType = cptValueTypeDict[kernel["ProblemType"]["DataType"].toNameAbbrev()]
 
