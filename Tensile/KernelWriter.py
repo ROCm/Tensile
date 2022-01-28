@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -689,13 +689,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       readsToWait = len(list(self.localWriteACode.items())) + len(list(self.localWriteBCode.items()))
       readsToWaitDTV = 0
       # add waitcnt for DirectToVgpr. Delaying wait for DirectToVgpr global read
-      if kernel["DirectToVgprA"]:
-        # readsToWait += kernel["NumLoadsPerpendicularA"] * kernel["NumLoadsCoalescedA"] * self.numReadVectorComponentsA
-        # Except for PGR=2, add the number of global read with DirectToVgpr
-        readsToWaitDTV += len(list(self.globalReadACode.middle.items()))
-      elif kernel["DirectToVgprB"]:
-        # readsToWait += kernel["NumLoadsPerpendicularB"] * kernel["NumLoadsCoalescedB"] * self.numReadVectorComponentsB
-        # Except for PGR=2, add the number of global read with DirectToVgpr
+      if kernel["DirectToVgprA"] or kernel["DirectToVgprB"]:
+        # DirectToVgprA case, actual A load is in self.globalReadBCode (due to swap).
+        # Need to check self.globalReadBCode
         readsToWaitDTV += len(list(self.globalReadBCode.middle.items()))
       # add waitcnt for StoreCInUnroll. Delaying wait for Load C
       readsToWait += numGlobalReadC
@@ -742,7 +738,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           if kernel["StoreCInUnroll"] or kernel["PrefetchGlobalRead"]==2:
             if "s_waitcnt" in str(item) and "__placeholder__" in str(item):
               # waitcnt adjustment for StoreCInUnroll
-              readsToWaitAdjust = readsToWait - numGlobalReadC
+              readsToWaitAdjust = readsToWait + readsToWaitDTV - numGlobalReadC
               if kernel["PrefetchGlobalRead"]==2:
                 # PGR=2 special cases
                 if (kernel["AtomicAddC"] or not kernel["ProblemType"]["UseBeta"]):
@@ -1349,6 +1345,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
         numLoadVgpr = len(list(globalReadCodeDTV.items()))
         if numLoadVgpr > 0:
           interval = roundUp(numMfmaPerIter / origLenGlobalReadCodeDTV)
+          if kernel["ProblemType"]["DataType"].isDoubleComplex() and (kernel["MIWaveTile"][0] // kernel["VectorWidth"]) > 1:
+            # adjustment for double complex
+            # limit the max of interval up to 4 if (kernel["MIWaveTile"][0] // kernel["VectorWidth"]) > 1
+            interval = min(4, interval)
           numInstToInsert = roundUp(origLenGlobalReadCodeDTV / numMfmaPerIter)
           remainingTimesToInsert = roundUp(numLoadVgpr / numInstToInsert)
           insertMfmaIndex = kernel["LoopIters"] * numMfmaPerIter - 1 - interval * (remainingTimesToInsert - 1)
@@ -4903,16 +4903,12 @@ for codeObjectFileName in codeObjectFileNames:
       kStr = ""
       for x in self.AlphaOpTemplate.items():
         kStr += str(x)
+
       if kStr != "":
         self.StoreCUnrollPreCode.addText(kStr)
 
       # count the number of items before StoreC (before beta)
       self.numItemsBeforeStoreC = len(list(self.StoreCUnrollPreCode.items()))
-
-      # Beta
-      kStrBeta = ""
-      for x in self.BetaOpTemplate.items():
-        kStrBeta += str(x)
 
       # StoreC
 
@@ -4925,6 +4921,15 @@ for codeObjectFileName in codeObjectFileNames:
       while n >= numMfma:
         self.StoreCUnrollCode.addText("")
         n -= numMfma
+
+      # Beta
+      kStrBeta = ""
+      for x in self.BetaOpTemplate.items():
+        kStrBeta += str(x)
+      # double complex case, put beta instruction separately
+      if kStrBeta != "" and kernel["ProblemType"]["DestDataType"].isDoubleComplex():
+        self.StoreCUnrollCode.addText(kStrBeta)
+        kStrBeta = ""
 
       # insert items in postProcessList between StoreC/AtomicAdd (StoreVectorWidth=1 only)
       imod = Code.Module()
