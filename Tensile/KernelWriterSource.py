@@ -2140,12 +2140,6 @@ class KernelWriterSource(KernelWriter):
     return ""
 
   ##############################################################################
-  # Convert Alpha, Beta from F16 to F32 for HPA
-  ##############################################################################
-  def checkAlphaBetaForHPA(self,kernel):
-    return ""
-
-  ##############################################################################
   # MAC Iteration
   ##############################################################################
   def macIter(self, kernel, black, iuiCount, useMacro, isTail=False):
