@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,16 +19,18 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
+# This script only gets called by CMake
 
-# Even though we don't support python 2, this is still packaged sometimes with python 2.
-from __future__ import print_function
-
-# hardcoded tensile version; also in Tensile/Source/TensileConfigVersion.cmake
-__version__ = "4.32.1"
-
-def PrintTensileRoot():
+try:
+    from Tensile import TensileUpdateLibrary
+except ImportError:
     import os.path
+    import sys
+    parentdir = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", ".."))
+    sys.path.append(parentdir)
 
-    print(os.path.dirname(__file__), end='')
+    from Tensile import TensileUpdateLibrary
 
-
+# script run from commandline
+if __name__ == "__main__":
+    TensileUpdateLibrary.main()
