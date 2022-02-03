@@ -2650,10 +2650,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # on each unroll iteration.
         self.doShadowInit = 1 # 1 is just store setup
 
-    # for PersistentKernel with HPA mode, we can do the alpha, beta conversion f16->f32 only once outside the PK-loop
-    if kernel["PersistentKernel"]:
-      kl.append( self.checkAlphaBetaForHPA(kernel))
-
     if self.prefetchAcrossPersistent:
       # SrdC/D init before persistent loop
       kl.append(self.globalWriteWorkGroupInitBeforePersistentLoop(kernel))
@@ -4066,14 +4062,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def endSummation(self, kernel, label = None, isOptNLL = False):
     return ""
-
-  ##############################################################################
-  # Convert Alpha, Beta from F16 to F32 for HPA
-  ##############################################################################
-  @abc.abstractmethod
-  def checkAlphaBetaForHPA(self, kernel):
-    return ""
-
+  
   ##############################################################################
   # MAC Iteration
   # useMacro : if true, call the MAC* macro. If False, inline the MACs

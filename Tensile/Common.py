@@ -339,7 +339,7 @@ validGEMMTypes = [ ('D','D','D'), ('S','S','S'), ('Z','Z','Z'), ('C','C','C'), \
 
 # These type are newly supported and we would like to use a better file naming for them: _TiToTc_
 # For the rest of the typed, we keep them with old existing naming.
-typesUsingNewNaming = [ ('H','H','S'), ('H','S','S'), ('B','S','S'),('I8','I','I')]
+typesUsingNewNaming = [ ('H','S','S'), ('B','S','S'),('I8','I','I')]   # ('H','H','S') is removed bcs we are merging this case in HBH
 
 validParameters = {
     "LoopDoWhile":                [ False, True ], # Source. True=DoWhile, False=For loop

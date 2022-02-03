@@ -4,7 +4,7 @@
 # Version will be bumped in Tensile/__init__.py and in .yaml files
 
 OLD_VERSION="4.31.0"
-NEW_VERSION="4.32.0"
+NEW_VERSION="4.32.1"
 
 OLD_MINIMUM_REQUIRED_VERSION="MinimumRequiredVersion: 4.7.2"
 NEW_MINIMUM_REQUIRED_VERSION="MinimumRequiredVersion: 4.8.0"
