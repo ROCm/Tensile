@@ -6687,56 +6687,56 @@ class KernelWriterAssembly(KernelWriter):
             offsetVgpr = [0,0,0]
             forceGenerate = ccA and ccB # so far, v_add is always necessary for ccA and ccB case
             if ccA == ccB:
-              arryaIndex = 0
+              arrayIndex = 0
               # set up offset and number of tmp vgpr to check out
               numVgpr = numRegistersOut
               if not forceGenerate:
-                if ai not in zgemmVaddSrcCheck[arryaIndex]:
+                if ai not in zgemmVaddSrcCheck[arrayIndex]:
                   # not generated before. add new one
-                  offsetVgpr[arryaIndex] = len(zgemmVaddSrcCheck[arryaIndex]) * numRegistersOut
-                  numVgpr = (len(zgemmVaddSrcCheck[arryaIndex]) + 1) * numRegistersOut
+                  offsetVgpr[arrayIndex] = len(zgemmVaddSrcCheck[arrayIndex]) * numRegistersOut
+                  numVgpr = (len(zgemmVaddSrcCheck[arrayIndex]) + 1) * numRegistersOut
                 else:
                   # already generated before. get index
-                  offsetVgpr[arryaIndex] = zgemmVaddSrcCheck[arryaIndex].index(ai) * numRegistersOut
-              ccVgprs[arryaIndex] = self.vgprPool.checkOutAligned(numVgpr, numRegistersOut, "negate r1")
+                  offsetVgpr[arrayIndex] = zgemmVaddSrcCheck[arrayIndex].index(ai) * numRegistersOut
+              ccVgprs[arrayIndex] = self.vgprPool.checkOutAligned(numVgpr, numRegistersOut, "negate r1")
               # generate negate code only when same code is not generated (avoid generating same (redundant) code again
-              if forceGenerate or (ai not in zgemmVaddSrcCheck[arryaIndex]):
-                ccInsts[arryaIndex] = inst(v_add, vgpr(ccVgprs[arryaIndex] + offsetVgpr[arryaIndex], numRegistersOut), "-"+ai, "0", "Ai=-Ai")
-                zgemmVaddSrcCheck[arryaIndex].append(ai)
+              if forceGenerate or (ai not in zgemmVaddSrcCheck[arrayIndex]):
+                ccInsts[arrayIndex] = inst(v_add, vgpr(ccVgprs[arrayIndex] + offsetVgpr[arrayIndex], numRegistersOut), "-"+ai, "0", "Ai=-Ai")
+                zgemmVaddSrcCheck[arrayIndex].append(ai)
             if ccA:
-              arryaIndex = 1
+              arrayIndex = 1
               # set up offset and number of tmp vgpr to check out
               numVgpr = numRegistersOut
               if not forceGenerate:
-                if ai not in zgemmVaddSrcCheck[arryaIndex]:
+                if ai not in zgemmVaddSrcCheck[arrayIndex]:
                   # not generated before. add new one
-                  offsetVgpr[arryaIndex] = len(zgemmVaddSrcCheck[arryaIndex]) * numRegistersOut
-                  numVgpr = (len(zgemmVaddSrcCheck[arryaIndex]) + 1) * numRegistersOut
+                  offsetVgpr[arrayIndex] = len(zgemmVaddSrcCheck[arrayIndex]) * numRegistersOut
+                  numVgpr = (len(zgemmVaddSrcCheck[arrayIndex]) + 1) * numRegistersOut
                 else:
                   # already generated before. get index
-                  offsetVgpr[arryaIndex] = zgemmVaddSrcCheck[arryaIndex].index(ai) * numRegistersOut
-              ccVgprs[arryaIndex] = self.vgprPool.checkOutAligned(numVgpr, numRegistersOut, "negate i0")
+                  offsetVgpr[arrayIndex] = zgemmVaddSrcCheck[arrayIndex].index(ai) * numRegistersOut
+              ccVgprs[arrayIndex] = self.vgprPool.checkOutAligned(numVgpr, numRegistersOut, "negate i0")
               # generate negate code only when same code is not generated (avoid generating same (redundant) code again
-              if forceGenerate or (ai not in zgemmVaddSrcCheck[arryaIndex]):
-                ccInsts[arryaIndex] = inst(v_add, vgpr(ccVgprs[arryaIndex] + offsetVgpr[arryaIndex], numRegistersOut), "-"+ai, "0", "Ai=-Ai")
-                zgemmVaddSrcCheck[arryaIndex].append(ai)
+              if forceGenerate or (ai not in zgemmVaddSrcCheck[arrayIndex]):
+                ccInsts[arrayIndex] = inst(v_add, vgpr(ccVgprs[arrayIndex] + offsetVgpr[arrayIndex], numRegistersOut), "-"+ai, "0", "Ai=-Ai")
+                zgemmVaddSrcCheck[arrayIndex].append(ai)
             if ccB:
-              arryaIndex = 2
+              arrayIndex = 2
               # set up offset and number of tmp vgpr to check out
               numVgpr = numRegistersOut
               if not forceGenerate:
-                if ar not in zgemmVaddSrcCheck[arryaIndex]:
+                if ar not in zgemmVaddSrcCheck[arrayIndex]:
                   # not generated before. add new one
-                  offsetVgpr[arryaIndex] = len(zgemmVaddSrcCheck[arryaIndex]) * numRegistersOut
-                  numVgpr = (len(zgemmVaddSrcCheck[arryaIndex]) + 1) * numRegistersOut
+                  offsetVgpr[arrayIndex] = len(zgemmVaddSrcCheck[arrayIndex]) * numRegistersOut
+                  numVgpr = (len(zgemmVaddSrcCheck[arrayIndex]) + 1) * numRegistersOut
                 else:
                   # already generated before. get index
-                  offsetVgpr[arryaIndex] = zgemmVaddSrcCheck[arryaIndex].index(ar) * numRegistersOut
-              ccVgprs[arryaIndex] = self.vgprPool.checkOutAligned(numVgpr, numRegistersOut, "negate i1")
+                  offsetVgpr[arrayIndex] = zgemmVaddSrcCheck[arrayIndex].index(ar) * numRegistersOut
+              ccVgprs[arrayIndex] = self.vgprPool.checkOutAligned(numVgpr, numRegistersOut, "negate i1")
               # generate negate code only when same code is not generated (avoid generating same (redundant) code again
-              if forceGenerate or (ai not in zgemmVaddSrcCheck[arryaIndex]):
-                ccInsts[arryaIndex] = inst(v_add, vgpr(ccVgprs[arryaIndex] + offsetVgpr[arryaIndex], numRegistersOut), "-"+ar, "0", "Ar=-Ar")
-                zgemmVaddSrcCheck[arryaIndex].append(ar)
+              if forceGenerate or (ai not in zgemmVaddSrcCheck[arrayIndex]):
+                ccInsts[arrayIndex] = inst(v_add, vgpr(ccVgprs[arrayIndex] + offsetVgpr[arrayIndex], numRegistersOut), "-"+ar, "0", "Ar=-Ar")
+                zgemmVaddSrcCheck[arrayIndex].append(ar)
             (src0, src1) = (br, ar) if kernel["SourceSwap"] else (ar, br)
             imod.addInst("".join([inst for inst in ccInsts if inst is not None]) + \
                          v_mfma + "%s[%u:%u], %s, %s, %s[%u:%u]"%(accumRegType, accStart            , accEnd            , src0, src1, accumRegType, accStartSrc1   , accEndSrc1   ), "Cr += Ar*Br")
@@ -11619,9 +11619,10 @@ class KernelWriterAssembly(KernelWriter):
       BetaCodeMod = Code.Module("Beta")
       accVgprRead = Code.Module("movaccVgpr")
       StoreCCodeMod = Code.Module("StoreC")
+      self.StoreCUnrollLoadCWaitComment = "waitcnt for LoadC" # this will be used later to identify waitcnt for loadC
       if not atomicAddC and kernel["ProblemType"]["UseBeta"]:
         # put waitcnt for loadC before beta code
-        BetaCodeMod.addText("s_waitcnt vmcnt(__placeholder__) // waitcnt for LoadC\n")
+        BetaCodeMod.addText("s_waitcnt vmcnt(__placeholder__) // %s\n"%self.StoreCUnrollLoadCWaitComment)
 
     # add persistent kernel loopend code for StoreCInUnroll here after global offset calculation (only for the first batch)
     if isOptNLL and kernel["StoreCInUnroll"] and batchIdx == 0:
@@ -13012,44 +13013,40 @@ class KernelWriterAssembly(KernelWriter):
       # here, we check if sgprStoreCEnableCount<=0
 
       if not kernel["StoreCInUnrollExact"]:
-        # not set to 0 if StoreCInUnrollPostLoop is enabled (always need to increment these values)
-        if not kernel["StoreCInUnrollPostLoop"]:
-          conditionComment = "if StoreCEnableCount<=0"
-          # select increment value or 0 depending on sgprStoreCEnableCount value
-          postProcessList.append(inst("s_cmp_le_i32", sgpr("StoreCEnableCount"), hex(0), "set scc if StoreCEnableCount<=0"))
-          # generate final gpr index increment value
-          postProcessList.append(inst("s_cselect_b32", sgpr(tmpSgprGprIdxInc), hex(0), sgpr(tmpSgprGprIdxInc),  \
-                                      "set gpr index increment value to 0 %s"%conditionComment))
-          # generate final SrdD increment value
-          postProcessList.append(inst("s_cselect_b32", sgpr(tmpSgprDinc), hex(0), sgpr("DAddrInc"),  \
-                                      "set SrdD increment value to 0 when StoreCAvail==0"))
+        conditionComment = "if StoreCEnableCount<=0"
+        # select increment value or 0 depending on sgprStoreCEnableCount value
+        postProcessList.append(inst("s_cmp_le_i32", sgpr("StoreCEnableCount"), hex(0), "set scc if StoreCEnableCount<=0"))
+        # generate final gpr index increment value
+        postProcessList.append(inst("s_cselect_b32", sgpr(tmpSgprGprIdxInc), hex(0), sgpr(tmpSgprGprIdxInc),  \
+                                    "set gpr index increment value to 0 %s"%conditionComment))
+        # generate final SrdD increment value
+        postProcessList.append(inst("s_cselect_b32", sgpr(tmpSgprDinc), hex(0), sgpr("DAddrInc"),  \
+                                    "set SrdD increment value to 0 when StoreCAvail==0"))
 
-          if needAddrC:
-            if not kernel["StoreCInUnrollExact"]:
-              # generate final SrdC increment value
-              postProcessList.append(inst("s_cselect_b32", sgpr(tmpSgprCinc), hex(0), sgpr("CAddrInc"),
-                                          "set SrdC increment value to 0 when StoreCAvail==0"))
+        if needAddrC:
+          if not kernel["StoreCInUnrollExact"]:
+            # generate final SrdC increment value
+            postProcessList.append(inst("s_cselect_b32", sgpr(tmpSgprCinc), hex(0), sgpr("CAddrInc"),
+                                        "set SrdC increment value to 0 when StoreCAvail==0"))
 
     else:
       # even lc case (Unroll Loop 1/2)
 
       if not kernel["StoreCInUnrollExact"]:
-        # not set to 0 if StoreCInUnrollPostLoop is enabled (always need to increment these values)
-        if not kernel["StoreCInUnrollPostLoop"]:
-          # generate final SrdD increment value
-          DAddrInc = sgpr("DAddrInc")
-          if self.StoreCInUnrollAddrIncHoffset > 0:
-            DAddrInc = hex(self.StoreCInUnrollAddrIncHoffset)
-          postProcessList.append(inst("s_and_b32", sgpr(tmpSgprDinc), sgpr("StoreCAvail"), DAddrInc,  \
-                                      "set SrdD increment value to 0 when StoreCAvail==0"))
-          if needAddrC:
-            if not kernel["StoreCInUnrollExact"]:
-              # generate final SrdC increment value
-              CAddrInc = sgpr("CAddrInc")
-              if self.StoreCInUnrollAddrIncHoffset > 0:
-                CAddrInc = hex(self.StoreCInUnrollAddrIncHoffset)
-              postProcessList.append(inst("s_and_b32", sgpr(tmpSgprCinc), sgpr("StoreCAvail"), CAddrInc,
-                                          "set SrdC increment value to 0 when StoreCAvail==0"))
+        # generate final SrdD increment value
+        DAddrInc = sgpr("DAddrInc")
+        if self.StoreCInUnrollAddrIncHoffset > 0:
+          DAddrInc = hex(self.StoreCInUnrollAddrIncHoffset)
+        postProcessList.append(inst("s_and_b32", sgpr(tmpSgprDinc), sgpr("StoreCAvail"), DAddrInc,  \
+                                    "set SrdD increment value to 0 when StoreCAvail==0"))
+        if needAddrC:
+          if not kernel["StoreCInUnrollExact"]:
+            # generate final SrdC increment value
+            CAddrInc = sgpr("CAddrInc")
+            if self.StoreCInUnrollAddrIncHoffset > 0:
+              CAddrInc = hex(self.StoreCInUnrollAddrIncHoffset)
+            postProcessList.append(inst("s_and_b32", sgpr(tmpSgprCinc), sgpr("StoreCAvail"), CAddrInc,
+                                        "set SrdC increment value to 0 when StoreCAvail==0"))
 
     # increment gpr index
     if needPost:
@@ -13058,7 +13055,7 @@ class KernelWriterAssembly(KernelWriter):
     # increment SrdD
     sgprSrd = "SrdD"
     sgprSrd1 = sgprSrd + "+1"
-    if not kernel["StoreCInUnrollExact"] and not kernel["StoreCInUnrollPostLoop"]:
+    if not kernel["StoreCInUnrollExact"]:
       src2 = tmpSgprDinc
     else:
       src2 = "DAddrInc"
@@ -13068,7 +13065,7 @@ class KernelWriterAssembly(KernelWriter):
     if needAddrC:
       sgprSrd = "SrdC"
       sgprSrd1 = sgprSrd + "+1"
-      if not kernel["StoreCInUnrollExact"] and not kernel["StoreCInUnrollPostLoop"]:
+      if not kernel["StoreCInUnrollExact"]:
         src2 = tmpSgprCinc
       else:
         src2 = "CAddrInc"

@@ -2387,9 +2387,9 @@ class Solution(collections.abc.Mapping):
       reject(state, "DirectToVgpr%c does not supports WaveSeparateGlobalRead%c"%(tc, tc))
       return False
 
-    # Does not work with NumLoadsCoalesced>1 + DGEMM
-    if state["ProblemType"]["DataType"].isDouble() and state["NumLoadsCoalesced%c"%tc] > 1:
-      reject(state, "DirectToVgpr%c does not supports NumLoadsCoalesced%c > 1 for dgemm"%(tc, tc))
+    # Does not work with NumLoadsCoalesced>1
+    if state["NumLoadsCoalesced%c"%tc] > 1:
+      reject(state, "DirectToVgpr%c does not supports NumLoadsCoalesced%c > 1"%(tc, tc))
       return False
 
     # Does not work with ExpandPointerSwap = False
@@ -2497,7 +2497,12 @@ class Solution(collections.abc.Mapping):
 
     # Does not work with NumLoadsCoalesced>2 + DGEMM
     if state["ProblemType"]["DataType"].isDouble() and state["NumLoadsCoalesced%c"%tc] > 2:
-      reject(state, "DirectToLds%c does not supports NumLoadsCoalesced%c > 1 for dgemm"%(tc, tc))
+      reject(state, "DirectToLds%c does not supports NumLoadsCoalesced%c > 2 for dgemm"%(tc, tc))
+      return False
+
+    # Does not work with NumLoadsCoalesced>1 + ZGEMM
+    if state["ProblemType"]["DataType"].isDoubleComplex() and state["NumLoadsCoalesced%c"%tc] > 1:
+      reject(state, "DirectToLds%c does not supports NumLoadsCoalesced%c > 1 for zgemm"%(tc, tc))
       return False
 
     return True
@@ -3704,6 +3709,9 @@ class Solution(collections.abc.Mapping):
         return
       if state["AssertSummationElementMultiple"] % (state["DepthU"] * 2) != 0:
         reject(state, "StoreCInUnroll requires AssertSummationElementMultiple = integer multiple of (DepthU * 2)")
+        return
+      if not state["SourceSwap"]:
+        reject(state, "StoreCInUnroll requires SourceSwap feature")
         return
     else:
       # reject if StoreCInUnroll related paramter is enabled

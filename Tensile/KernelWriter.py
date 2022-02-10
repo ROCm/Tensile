@@ -399,7 +399,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # to schedule global read for DTV after lwEndMfmaIndex or execute PostLoop after StoreC in NoLoadLoop
       if (kernel["PrefetchGlobalRead"] == 2 and (kernel["DirectToVgprA"] or kernel["DirectToVgprB"])) or \
          (lastLoop and kernel["StoreCInUnrollPostLoop"]):
-        self.lwEndMfmaIndex = min(self.lwEndMfmaIndex, numMfmaPerIter * (kernel["LoopIters"] - 1))
+        self.lwEndMfmaIndex = min(self.lwEndMfmaIndex, numMfmaPerIter * (kernel["LoopIters"] - 1) - 1)
       localWriteEndIter = self.lwEndMfmaIndex//numMfmaPerIter
       localWriteEndIter = min(kernel["LoopIters"] - 1, localWriteEndIter)
       assert localWriteEndIter < kernel["LoopIters"]
@@ -612,6 +612,16 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       assert not itemsGRToSched # should have scheduled everything already, itemsGRToSched should be empty
 
+      # adjustment for StoreCInUnroll
+      # lastLoop case, make the last perIterGlobalReadCode[] (LoopIters-1) empty
+      # otherwise, mixing global read inc code and StoreCInUnroll post code could cause memory access issue
+      if kernel["StoreCInUnroll"] and lastLoop:
+        lastIter = kernel["LoopIters"] - 1
+        prevLastIter = max(0, lastIter - 1)
+        if prevLastIter < lastIter:
+          while self.perIterGlobalReadCode[lastIter].items():
+            self.perIterGlobalReadCode[prevLastIter].addCode(self.perIterGlobalReadCode[lastIter].items().pop(0))
+
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadACode.footer)
       self.perIterGlobalReadCode[endIter-1].addCode(self.globalReadBCode.footer)
 
@@ -746,6 +756,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
                   if not firstIter:
                     # PGR=2 and not firstIter case, __placeholder__ includes num of storeC from previous Iter
                     readsToWaitAdjust += readsToWaitAdjustForStoreC
+                else:
+                  # Load C case
+                  # adjustment for waitcnt for loadC
+                  if kernel["StoreCInUnroll"] and self.StoreCUnrollLoadCWaitComment in str(item):
+                    # readsToWaitDTV should not be added for loadC waitcnt
+                    readsToWaitAdjust -= readsToWaitDTV
               if kernel["NoLdsWriteCode"]:
                 # DirectToLds or DirectToVgpr for both A and B case, use  the number of global read for both A and B as vmcnt
                 readsToWaitAdjust = len(list(self.globalReadACode.middle.items())) + len(list(self.globalReadBCode.middle.items()))
@@ -823,8 +839,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
     localWriteCode = self.perIterLocalWriteCode[iteration]
     isBarrier = kernel["LoopIters"] - self.numItersPLR
     hasLocalRead = localReadCode.countType(Code.LocalReadInst)
-    if kernel["StoreCInUnroll"]:
-      storeCUnrollPostCodeList = list(self.StoreCUnrollPostCode.items())
     # Default schedule is other, local reads, then local writes:
     if self.scheduleIterAlg==0:
       # simple schedule, just add the modules in-order
@@ -1360,14 +1374,18 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # scheduled StoreCInUnrollPostProcess
         ####
         if kernel["StoreCInUnroll"]:
-          numItems = len(storeCUnrollPostCodeList)
-          if numItems > 0:
+          numItems = len(self.StoreCUnrollPostCode.items())
+          # need to make sure all global read inc is already generated
+          # (iteration should be the last one)
+          if numItems > 0 and iteration == kernel["LoopIters"] - 1 and len(globalReadCode.items()) == 0:
+            totalMfma = kernel["LoopIters"] * numMfmaPerIter
             interval = 1
-            numInstToInsert = 1
+            numInstToInsert = roundUp(numItems / (totalMfma - mfmaIndex))
             remainingTimesToInsert = roundUp(numItems / numInstToInsert)
-            insertMfmaIndex = kernel["LoopIters"] * numMfmaPerIter - 2 - interval * (remainingTimesToInsert - 1)
-            if mfmaIndex == insertMfmaIndex:
-              iterCode.addCode(storeCUnrollPostCodeList.pop(0))
+            insertMfmaIndex = totalMfma - 2 - interval * (remainingTimesToInsert - 1)
+            if mfmaIndex >= insertMfmaIndex:
+              for i in range(numInstToInsert):
+                iterCode.addCode(self.StoreCUnrollPostCode.items().pop(0))
 
         if kernel["StorePriorityOpt"] and kernel["PrefetchGlobalRead"] == 2 and \
             (mfmaIndex == self.barrierMfmaIndex or mfmaIndex == (kernel["LoopIters"] * numMfmaPerIter - 1)):
@@ -2849,15 +2867,17 @@ class KernelWriter(metaclass=abc.ABCMeta):
           self.saveLocalPointers(kernel)
           # deepCopy packCode for OptNLL noLoadLoop
           deepCopyPack = copy.deepcopy(pack)
-          # keep StoreCInUnrollPreCode for the next noLoadLoop
+          # keep StoreCInUnrollPreCode, StoreCUnrollPostCode for the next noLoadLoop
           if kernel["StoreCInUnroll"]:
             StoreCUnrollPreCodeBackup = copy.deepcopy(self.StoreCUnrollPreCode)
+            StoreCUnrollPostCodeBackup = copy.deepcopy(self.StoreCUnrollPostCode)
           isPap = self.prefetchAcrossPersistent
           kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=True, isPap=isPap, isNGLL=False, pack=deepCopyPack)
           self.restoreLocalPointers(kernel)
           # restore StoreCInUnroll related parameters
           if kernel["StoreCInUnroll"]:
             self.StoreCUnrollPreCode = StoreCUnrollPreCodeBackup
+            self.StoreCUnrollPostCode = StoreCUnrollPostCodeBackup
             self.StoreCUnrollLoopCodeStarted = 0
 
         papMode = self.prefetchAcrossPersistent and kernel["PrefetchAcrossPersistentMode"] == 1
@@ -4916,11 +4936,17 @@ for codeObjectFileName in codeObjectFileNames:
       # this must be the first item in self.StoreCUnrollCode.
       self.StoreCUnrollCode.addComment0(self.StoreCUnrollStartComment)
       # add necessary dummy based on number of mfma instructions between local write items
-      numMfma = 1 if kernel["LocalWritePerMfma"] == -1 else roundUp(1/kernel["LocalWritePerMfma"])
+      # put enough interval (=3) for LocalWritePerMfma == -1 case
+      numMfma = 3 if kernel["LocalWritePerMfma"] == -1 else roundUp(1/kernel["LocalWritePerMfma"])
       n = self.numItemsBeforeStoreC - numMfma # first numMfma items are inserted at the start comment and following mfmas
       while n >= numMfma:
         self.StoreCUnrollCode.addText("")
         n -= numMfma
+
+      # insert items in postProcessList between StoreC/AtomicAdd (StoreVectorWidth=1 only)
+      imod = Code.Module()
+      imod.addComment0(self.StoreCUnrollStoreStartComment)
+      StartComment = str(imod)
 
       # Beta
       kStrBeta = ""
@@ -4928,14 +4954,12 @@ for codeObjectFileName in codeObjectFileNames:
         kStrBeta += str(x)
       # double complex case, put beta instruction separately
       if kStrBeta != "" and kernel["ProblemType"]["DestDataType"].isDoubleComplex():
-        self.StoreCUnrollCode.addText(kStrBeta)
+        # combine beta code with first StoreC comment to avoid generating beta before alpha
+        self.StoreCUnrollCode.addText(kStrBeta + StartComment)
         kStrBeta = ""
+        StartComment = ""
 
-      # insert items in postProcessList between StoreC/AtomicAdd (StoreVectorWidth=1 only)
-      imod = Code.Module()
-      imod.addComment0(self.StoreCUnrollStoreStartComment)
-      StartComment = str(imod)
-      # number of instructions(items) of increment code betwwen MFMAs
+      # number of instructions(items) of increment code between MFMAs
       putCount =  1
       postProcessListIndex = 0
       # generate post process for StoreCInUnroll loop
