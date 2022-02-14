@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -2087,9 +2087,10 @@ class Solution(collections.abc.Mapping):
     if state["WaveSeparateGlobalRead%s"%tc]:
       state["LSP%s"%tc] = roundupRatio(state["LSP%s"%tc], state["NumThreads"] // state["WavefrontSize"])
 
-    # DirectToVgpr + NumLoadsCoalesced > 1 check again because NumLoadsCoalesced can be changed here
-    if state["DirectToVgpr%c"%tc] and state["NumLoadsCoalesced%c"%tc] > 1:
-      reject(state, "DirectToVgpr%c does not supports NumLoadsCoalesced%c > 1"%(tc, tc))
+    # DirectToVgpr + NumLoadsCoalesced > 1 + DGEMM check again because NumLoadsCoalesced can be changed here
+    if state["ProblemType"]["DataType"].isDouble() and \
+       state["DirectToVgpr%c"%tc] and state["NumLoadsCoalesced%c"%tc] > 1:
+      reject(state, "DirectToVgpr%c does not supports NumLoadsCoalesced%c > 1 for dgemm"%(tc, tc))
       return False
 
     return True
@@ -2360,9 +2361,9 @@ class Solution(collections.abc.Mapping):
       reject(state, "DirectToVgpr is for MatrixInstruction only")
       return False
 
-    # Double only (tentative)
-    if not state["ProblemType"]["DataType"].isDouble() :
-      reject(state, "so far, DirectToVgpr is for dobule only")
+    # Double/DoubleComplex only (tentative)
+    if not (state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex()):
+      reject(state, "so far, DirectToVgpr is for dobule or double complex only")
       return False
 
     # Problem type Check. Support N (for A) T (for B) only
@@ -2492,6 +2493,16 @@ class Solution(collections.abc.Mapping):
     # so far, DirectToLds does not work with LRVW=2
     if state["LocalReadVectorWidth"] == 2:
       print2("can't use DirectToLds for LocalReadVectorWidth == 2")
+      return False
+
+    # Does not work with NumLoadsCoalesced>2 + DGEMM
+    if state["ProblemType"]["DataType"].isDouble() and state["NumLoadsCoalesced%c"%tc] > 2:
+      reject(state, "DirectToLds%c does not supports NumLoadsCoalesced%c > 2 for dgemm"%(tc, tc))
+      return False
+
+    # Does not work with NumLoadsCoalesced>1 + ZGEMM
+    if state["ProblemType"]["DataType"].isDoubleComplex() and state["NumLoadsCoalesced%c"%tc] > 1:
+      reject(state, "DirectToLds%c does not supports NumLoadsCoalesced%c > 1 for zgemm"%(tc, tc))
       return False
 
     return True
@@ -2750,11 +2761,12 @@ class Solution(collections.abc.Mapping):
         state["SuppressNoLoadLoop"] = 0
 
     if state["ExpandPointerSwap"] == 1:
-      # Pointer swap only used if PGR==1 or (PGR>1 and double) - so set ExpandPointerSwap=0 here
+      # Pointer swap only used if PGR==1 or (PGR>1 and double/double complex) - so set ExpandPointerSwap=0 here
       # So far, EPS=1 and PGR>1 works only with double.
       #if not (bufferLoad and state["PrefetchGlobalRead"] == 1):
       if not (bufferLoad and ( state["PrefetchGlobalRead"] == 1 \
-              or (state["PrefetchGlobalRead"] > 1 and state["ProblemType"]["DataType"].isDouble()))):
+              or (state["PrefetchGlobalRead"] > 1 and \
+                  (state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex())))):
         state["ExpandPointerSwap"] = 0
       # EPS not supported with SplitLDS yet
       if state["DepthULdsDivisor"] > 1:
@@ -3541,7 +3553,8 @@ class Solution(collections.abc.Mapping):
       if not (state["ProblemType"]["ComputeDataType"].isDouble() or \
               state["ProblemType"]["ComputeDataType"].isSingle() or \
               (state["ProblemType"]["ComputeDataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]) or \
-              state["ProblemType"]["ComputeDataType"].isInt32()):
+              state["ProblemType"]["ComputeDataType"].isInt32() or \
+              state["ProblemType"]["ComputeDataType"].isDoubleComplex()):
         reject(state, "MIArchVgpr now only support fp64, fp32, fp16, int8 MatrixInstruction.")
         return
 
@@ -3655,8 +3668,8 @@ class Solution(collections.abc.Mapping):
 
     #constraints for StoreCInUnroll feature
     if state["StoreCInUnroll"]:
-      if not state["ProblemType"]["DataType"].isDouble():
-        reject(state, "StoreCInUnroll currently only available for dgemm")
+      if not (state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex()):
+        reject(state, "StoreCInUnroll currently only available for dgemm/zgemm")
         return
       if state["MIArchVgpr"]:
         reject(state, "MIArchVgpr is not supported for StoreCinUnroll")
@@ -3670,8 +3683,8 @@ class Solution(collections.abc.Mapping):
       if state["PrefetchAcrossPersistentMode"] == 0:
         reject(state, "StoreCInUnroll requires PrefetchAcrossPersistentMode")
         return
-      if state["VectorWidth"] != 2:
-        reject(state, "StoreCInUnroll requires VectorWidth=2")
+      if state["ProblemType"]["DataType"].isDouble() and state["VectorWidth"] != 2:
+        reject(state, "StoreCInUnroll requires VectorWidth=2 for dgemm")
         return
       if state["AtomicAddC"] and state["StoreVectorWidth"] != 1:
         reject(state, "StoreCInUnroll requires AtomicAddC with StoreVectorWidth=1")
@@ -3696,6 +3709,9 @@ class Solution(collections.abc.Mapping):
         return
       if state["AssertSummationElementMultiple"] % (state["DepthU"] * 2) != 0:
         reject(state, "StoreCInUnroll requires AssertSummationElementMultiple = integer multiple of (DepthU * 2)")
+        return
+      if not state["SourceSwap"]:
+        reject(state, "StoreCInUnroll requires SourceSwap feature")
         return
     else:
       # reject if StoreCInUnroll related paramter is enabled
