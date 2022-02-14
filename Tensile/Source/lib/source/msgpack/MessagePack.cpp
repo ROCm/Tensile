@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright 2020-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +28,7 @@
 
 #include <Tensile/msgpack/Loading.hpp>
 
-#include <stdio.h>
+#include <fstream>
 
 namespace Tensile
 {
@@ -72,50 +72,50 @@ namespace Tensile
         MessagePackLoadLibraryFile(std::string const& filename)
     {
         // parse file into a msgpack::object_handle
-        FILE* f = fopen(filename.c_str(), "rb");
-        if (!f)
-        {
-            if(Debug::Instance().printDataInit())
-                perror("Error loading msgpack data");
-
-            return nullptr;
-        }
-
         msgpack::object_handle result;
         try
         {
-            constexpr size_t buffer_size = 1 << 19;
+            std::ifstream in(filename, std::ios::in | std::ios::binary);
+            if(!in.is_open())
+            {
+                if(Debug::Instance().printDataInit())
+                    std::cout << "Error loading " << filename << " (msgpack):\nFailed to open file"
+                              << std::endl;
+
+                return nullptr;
+            }
 
             msgpack::unpacker unp;
-            bool finished_parsing;
+            bool              finished_parsing;
+            constexpr size_t  buffer_size = 1 << 19;
             do
             {
                 unp.reserve_buffer(buffer_size);
-                size_t bytes_read = fread(unp.buffer(), 1, buffer_size, f);
-                unp.buffer_consumed(bytes_read);
+                in.read(unp.buffer(), buffer_size);
+                unp.buffer_consumed(in.gcount());
                 finished_parsing = unp.next(result); // may throw msgpack::parse_error
-            } while(!finished_parsing && !ferror(f));
+            } while(!finished_parsing && !in.fail());
 
             if(!finished_parsing)
             {
-                if(feof(f))
-                    std::cerr << "Unexpected end of file: " << filename << std::endl;
-                else
-                    perror("Error reading Tensile library file");
+                if(Debug::Instance().printDataInit())
+                {
+                    const char* const error_str
+                        = in.eof() ? "Unexpected end of file" : "Read failure";
+                    std::cout << "Error loading " << filename << " (msgpack):\n"
+                              << error_str << std::endl;
+                }
 
-                fclose(f);
                 return nullptr;
             }
         }
         catch(std::runtime_error const& exc)
         {
             if(Debug::Instance().printDataInit())
-                std::cerr << "Error loading msgpack data:" << std::endl << exc.what() << std::endl;
+                std::cout << "Error loading msgpack data:\n" << exc.what() << std::endl;
 
-            fclose(f);
             return nullptr;
         }
-        fclose(f);
 
         // copy data from msgpack::object_handle into MasterSolutionLibrary
         try
@@ -130,7 +130,7 @@ namespace Tensile
             if(!min.error.empty())
             {
                 std::ostringstream msg;
-                msg << "Error loading msgpack data:" << std::endl;
+                msg << "Error loading msgpack data:\n";
                 for(auto const& err : min.error)
                     msg << err << std::endl;
 
@@ -142,7 +142,7 @@ namespace Tensile
         catch(std::runtime_error const& exc)
         {
             if(Debug::Instance().printDataInit())
-                std::cerr << "Error loading msgpack data:" << std::endl << exc.what() << std::endl;
+                std::cout << "Error loading msgpack data:\n" << exc.what() << std::endl;
 
             return nullptr;
         }
