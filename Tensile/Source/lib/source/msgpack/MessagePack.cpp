@@ -28,7 +28,7 @@
 
 #include <Tensile/msgpack/Loading.hpp>
 
-#include <fstream>
+#include <stdio.h>
 
 namespace Tensile
 {
@@ -71,19 +71,78 @@ namespace Tensile
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
         MessagePackLoadLibraryFile(std::string const& filename)
     {
+        // parse file into a msgpack::object_handle
+        FILE* f = fopen(filename.c_str(), "rb");
+        if (!f)
+        {
+            if(Debug::Instance().printDataInit())
+                perror("Error loading msgpack data");
+
+            return nullptr;
+        }
+
+        msgpack::object_handle result;
         try
         {
-            std::ifstream        in(filename, std::ios::in | std::ios::binary);
-            std::vector<uint8_t> data((std::istreambuf_iterator<char>(in)),
-                                      std::istreambuf_iterator<char>());
+            constexpr size_t buffer_size = 1 << 19;
 
-            return MessagePackLoadLibraryData<MyProblem, MySolution>(data);
+            msgpack::unpacker unp;
+            bool finished_parsing;
+            do
+            {
+                unp.reserve_buffer(buffer_size);
+                size_t bytes_read = fread(unp.buffer(), 1, buffer_size, f);
+                unp.buffer_consumed(bytes_read);
+                finished_parsing = unp.next(result); // may throw msgpack::parse_error
+            } while(!finished_parsing && !ferror(f));
+
+            if(!finished_parsing)
+            {
+                if(feof(f))
+                    std::cerr << "Unexpected end of file: " << filename << std::endl;
+                else
+                    perror("Error reading Tensile library file");
+
+                fclose(f);
+                return nullptr;
+            }
         }
         catch(std::runtime_error const& exc)
         {
             if(Debug::Instance().printDataInit())
-                std::cout << "Error loading " << filename << "(msgpack):" << std::endl
-                          << exc.what() << std::endl;
+                std::cerr << "Error loading msgpack data:" << std::endl << exc.what() << std::endl;
+
+            fclose(f);
+            return nullptr;
+        }
+        fclose(f);
+
+        // copy data from msgpack::object_handle into MasterSolutionLibrary
+        try
+        {
+            std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
+
+            Serialization::MessagePackInput min(result.get());
+
+            Serialization::PointerMappingTraits<Tensile::MasterContractionLibrary,
+                                                Serialization::MessagePackInput>::mapping(min, rv);
+
+            if(!min.error.empty())
+            {
+                std::ostringstream msg;
+                msg << "Error loading msgpack data:" << std::endl;
+                for(auto const& err : min.error)
+                    msg << err << std::endl;
+
+                throw std::runtime_error(msg.str());
+            }
+
+            return rv;
+        }
+        catch(std::runtime_error const& exc)
+        {
+            if(Debug::Instance().printDataInit())
+                std::cerr << "Error loading msgpack data:" << std::endl << exc.what() << std::endl;
 
             return nullptr;
         }
