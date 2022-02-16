@@ -45,6 +45,7 @@ namespace Tensile
     {
         // Problem-indept. from 0~7, and 16 (fixed values for every problem)
         // And problem-dept. from 8~15 (values depend on problem)
+        // RandomNegPosLimited: integer -128~128. fp -1.0~1.0
         enum class InitMode
         {
             Zero = 0, // 0
@@ -67,6 +68,7 @@ namespace Tensile
             NegOne, // 17
             Max, // 18
             DenormMin, // 19
+            RandomNegPosLimited, // 20
             Count
         };
 
@@ -170,6 +172,8 @@ namespace Tensile
                     return getValue<T, InitMode::Max>();
                 case InitMode::DenormMin:
                     return getValue<T, InitMode::DenormMin>();
+                case InitMode::RandomNegPosLimited:
+                    return getValue<T, InitMode::RandomNegPosLimited>();
                 case InitMode::SerialIdx:
                 case InitMode::SerialDim0:
                 case InitMode::SerialDim1:
@@ -236,6 +240,9 @@ namespace Tensile
                     break;
                 case InitMode::DenormMin:
                     initArray<T, InitMode::DenormMin>(array, elements);
+                    break;
+                case InitMode::RandomNegPosLimited:
+                    initArray<T, InitMode::RandomNegPosLimited>(array, elements);
                     break;
                 case InitMode::SerialIdx:
                 case InitMode::SerialDim0:
@@ -315,6 +322,9 @@ namespace Tensile
                     break;
                 case InitMode::TrigAbsCos:
                     initArrayTrig<T, true, true>(array, tensor);
+                    break;
+                case InitMode::RandomNegPosLimited:
+                    initArray<T, InitMode::RandomNegPosLimited>(array, tensor);
                     break;
                 case InitMode::Count:
                     throw std::runtime_error("Invalid InitMode.");
@@ -1422,6 +1432,81 @@ namespace Tensile
         inline int8_t DataInitialization::getValue<int8_t, InitMode::RandomNarrow>()
         {
             return getValue<int8_t, InitMode::Random>();
+        }
+
+        template <typename T>
+        inline T getValueWithUpperLowerBoundFP()
+        {
+            return static_cast<T>(-1.0
+                                  + static_cast<double>(rand())
+                                        / static_cast<double>(RAND_MAX / (1.0 - (-1.0))));
+        }
+
+        template <typename T>
+        inline T getValueWithUpperLowerBoundInteger()
+        {
+            return static_cast<T>(-128 + rand() % (128 - (-128) + 1));
+        }
+
+        template <>
+        inline float DataInitialization::getValue<float, InitMode::RandomNegPosLimited>()
+        {
+            return getValueWithUpperLowerBoundFP<float>();
+        }
+
+        template <>
+        inline double DataInitialization::getValue<double, InitMode::RandomNegPosLimited>()
+        {
+            return getValueWithUpperLowerBoundFP<double>();
+        }
+
+        template <>
+        inline BFloat16 DataInitialization::getValue<BFloat16, InitMode::RandomNegPosLimited>()
+        {
+            return getValueWithUpperLowerBoundFP<BFloat16>();
+        }
+
+        template <>
+        inline Half DataInitialization::getValue<Half, InitMode::RandomNegPosLimited>()
+        {
+            return getValueWithUpperLowerBoundFP<Half>();
+        }
+
+        template <>
+        inline std::complex<float>
+            DataInitialization::getValue<std::complex<float>, InitMode::RandomNegPosLimited>()
+        {
+            return std::complex<float>(getValueWithUpperLowerBoundFP<float>(),
+                                       getValueWithUpperLowerBoundFP<float>());
+        }
+
+        template <>
+        inline std::complex<double>
+            DataInitialization::getValue<std::complex<double>, InitMode::RandomNegPosLimited>()
+        {
+            return std::complex<double>(getValueWithUpperLowerBoundFP<double>(),
+                                        getValueWithUpperLowerBoundFP<double>());
+        }
+
+        template <>
+        inline int32_t DataInitialization::getValue<int32_t, InitMode::RandomNegPosLimited>()
+        {
+            return getValueWithUpperLowerBoundInteger<int32_t>();
+        }
+
+        template <>
+        inline Int8x4 DataInitialization::getValue<Int8x4, InitMode::RandomNegPosLimited>()
+        {
+            return Int8x4{getValueWithUpperLowerBoundInteger<int8_t>(),
+                          getValueWithUpperLowerBoundInteger<int8_t>(),
+                          getValueWithUpperLowerBoundInteger<int8_t>(),
+                          getValueWithUpperLowerBoundInteger<int8_t>()};
+        }
+
+        template <>
+        inline int8_t DataInitialization::getValue<int8_t, InitMode::RandomNegPosLimited>()
+        {
+            return getValueWithUpperLowerBoundInteger<int8_t>();
         }
     } // namespace Client
 } // namespace Tensile
