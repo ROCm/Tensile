@@ -19,8 +19,15 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
+import ctypes
+import math
+import struct
+
+
 from .ActivationType import ActivationType
 from .AsmUtils import inst, vgpr, sgpr, RegisterPool
+from .Common import printExit
+
 
 ################################################################################
 # How to add an activation
@@ -47,13 +54,13 @@ from .AsmUtils import inst, vgpr, sgpr, RegisterPool
 #    Example,
 #    ```
 #    sgprinf, regInitStr = self.getRegAndInitAssembly('s', False, 1, \
-#        ActivationMagicNumbers["Float16Max"], "Float16Max", "float16 max")
+#        "0x3f4c422a", "FloatGeluK0", "float gelu k0")
 #    ```
 #    this will generate ``regInitStr`` as
 #    ```
-#    s_mov_b32 sXX, "0x7bff" // float16 max
+#    s_mov_b32 sXX, "0x3f4c422a" // float16 max
 #    ```
-#    if the key "Float16Max" is not found in sgprDict
+#    if the key "FloatGeluK0" is not found in sgprDict
 # 2. class ActivationRegisterPool
 #    A wrapper of RegisterPool. All the checkOut-ed registers will be checkIn-ed
 #    at the end of the numBatches for loop.
@@ -61,18 +68,14 @@ from .AsmUtils import inst, vgpr, sgpr, RegisterPool
 #    activation's gwvw for loop.
 ################################################################################
 
-ActivationMagicNumbers = {"FloatPosInvln2": "0x3fb8aa3b", \
-                      "FloatNegInvln2": "0xbfb8aa3b", \
-                      "Float16PKPosInvln2": "0x3dc53dc5", \
-                      "Float16PKNegInvln2": "0xbdc5bdc5", \
-                      "DoublePosInvln2": ["0x652b82fe", "0x3ff71547"], \
-                      "FloatMax": "0x7f7fffff", \
-                      "Float16Max": "0x7bff", \
-                      "FloatGeluK0": "0x3f4c422a", \
-                      "Float16PKGeluK0": "0x3a623a62", \
-                      "FloatGeluK1": "0x3d372713", \
-                      "Float16PKGeluK1": "0x29b929b9", \
-                      "Float16PKOne": "0x3c003c00" }
+ActivationMagicNumbers = {"FloatGeluK0": 0x3f4c422a, \
+                          "FloatGeluK1": 0x3d372713, \
+                          "Float16GeluK1": 0x29b9, \
+                          "Float16PKOne": 0x3c00 }
+
+# float32 union
+class floatUnion(ctypes.Union):
+  _fields_ = [('u', ctypes.c_uint), ('f', ctypes.c_float)]
 
 # Internal use
 class ActivationRegisterPool:
@@ -144,7 +147,7 @@ class Activation:
     elif (activationType == 'sigmoid'):
       kStr += self.getSigmoidAssembly(cDataType, vgprIdx)
     elif (activationType == 'tanh'):
-      kStr += self.getTanhAssembly(cDataType, vgprIdx, "activationAlpha", "activationBeta")
+      kStr += self.getTanhAssembly(cDataType, 1, vgprIdx, "activationAlpha", "activationBeta")
     elif (activationType == 'gelu'):
       kStr += self.getGeluAssembly(cDataType, vgprIdx)
     return kStr
@@ -198,6 +201,17 @@ class Activation:
   def setUsePK(self, usePK):
     self.usePK = usePK
   # Internal use
+  def magicNumToStr(self, cDataType, *args):
+    if len(args) == 1:
+      magicNum = args[0]
+      uint32 = ctypes.c_uint(magicNum).value
+      if self.usePK and cDataType.isHalf():
+        uint32 = ((uint32 << 16) | uint32)
+      magicNumStr = str(hex(uint32))
+    else:
+      raise RuntimeError("Currently does not support multiple args.")
+    return magicNumStr
+  # Internal use
   def getAbsAssembly(self, cDataType, vgprIdx):
     kStr = ""
     if cDataType.isHalf() or cDataType.isBFloat16():
@@ -214,12 +228,32 @@ class Activation:
     else:
       raise RuntimeError("Unsupported data type %s."%cDataType.toDevice("HIP"))
     return kStr
+  # Internal Use
+  def getExpMagicStrAndComment(self, cDataType, coef):
+    # Double = [0x652b82fe, 0x3ff71547]
+    # Float  = 0x3fb8aa3b
+    if cDataType.isDouble():
+      printExit("Currently Exp Magic to string is not supported for double.")
+    invLn2 = floatUnion(f=math.log(math.e,2))
+    value = coef * invLn2.f
+    commentStr = str(hex(floatUnion(f=coef).u))
+    coefUnion = floatUnion(f=value)
+    if cDataType.isHalf():
+      magicNum = struct.unpack('<H', struct.pack('<e', coefUnion.f))[0]
+      if self.usePK:
+        magicNum = ctypes.c_uint(magicNum).value
+        magicNum = ((magicNum << 16) | magicNum)
+    elif cDataType.isSingle():
+      magicNum = coefUnion.u
+    magicNumStr = str(hex(magicNum))
+    commentStr = "%s = (%s * invln2(%s))"%(magicNumStr, commentStr, str(hex(invLn2.u)))
+    return magicNumStr, commentStr
   # Internal use
-  def getExpAssembly(self, cDataType, sign, vgprIdx):
+  def getExpAssembly(self, cDataType, coef, vgprIdx):
     kStr = ""
     if cDataType.isHalf():
-      tag = "Float16PKPosInvln2" if (sign > 0) else "Float16PKNegInvln2"
-      sgprmagic, regInitStr = self.getRegAndInitAssembly('s', False, 1, ActivationMagicNumbers[tag], tag, "exp(x) magic number")
+      magicNumStr, commentStr = self.getExpMagicStrAndComment(cDataType, coef)
+      sgprmagic, regInitStr = self.getRegAndInitAssembly('s', False, 1, magicNumStr, magicNumStr, "exp(x) %s"%commentStr)
       kStr += regInitStr
       if self.usePK:
         kStr += self.inst("v_pk_mul_f16", self.getVgprStr(vgprIdx), sgpr(sgprmagic), self.getVgprStr(vgprIdx), "exp step 1" )
@@ -231,8 +265,8 @@ class Activation:
         kStr += self.inst("v_mul_f16", self.getVgprStr(vgprIdx), sgpr(sgprmagic), self.getVgprStr(vgprIdx), "exp step 1" )
         kStr += self.inst("v_exp_f16", self.getVgprStr(vgprIdx), self.getVgprStr(vgprIdx), "exp step 2" )
     elif cDataType.isSingle():
-      tag = "FloatPosInvln2" if (sign > 0) else "FloatNegInvln2"
-      kStr += self.inst("v_mul_f32", self.getVgprStr(vgprIdx), ActivationMagicNumbers[tag], self.getVgprStr(vgprIdx), "exp step 1" )
+      magicNumStr, commentStr = self.getExpMagicStrAndComment(cDataType, coef)
+      kStr += self.inst("v_mul_f32", self.getVgprStr(vgprIdx), magicNumStr, self.getVgprStr(vgprIdx), "exp step 1: %s"%commentStr )
       kStr += self.inst("v_exp_f32", self.getVgprStr(vgprIdx), self.getVgprStr(vgprIdx), "exp step 2" )
     else:
       raise RuntimeError("Unsupported data type %s."%cDataType.toDevice("HIP"))
@@ -242,39 +276,50 @@ class Activation:
     # Gelu(x) = 0.5 * x * (1 + tanh(k0 * x * (1 + k1 * x * x)))
     if cDataType.isHalf():
       pkStr = "_pk" if self.usePK else ""
-      sgprk0, regK0InitStr = self.getRegAndInitAssembly('s', False, 1, ActivationMagicNumbers["Float16PKGeluK0"], "Float16PKGeluK0", "gelu k0")
-      kStr += regK0InitStr
-      sgprk1, regK1InitStr = self.getRegAndInitAssembly('s', False, 1, ActivationMagicNumbers["Float16PKGeluK1"], "Float16PKGeluK1", "gelu k1")
+      flt16GeluK0Str = self.magicNumToStr(cDataType, ActivationMagicNumbers["Float16GeluK1"])
+      sgprk1, regK1InitStr = self.getRegAndInitAssembly('s', False, 1, flt16GeluK0Str, "Float16GeluK1", "gelu k1")
       kStr += regK1InitStr
       vgprtmp, needInit = self.vgprActivationPool.registerTemp(1, 'gelu vgpr temp', "activation exp")
       kStr += self.inst("v%s_mul_f16"%pkStr, vgpr(vgprtmp), self.getVgprStr(vgprIdx), self.getVgprStr(vgprIdx), "x * x" )
-      vgprOne, regOneInitStr = self.getRegAndInitAssembly('v', True, 1, ActivationMagicNumbers["Float16PKOne"], "Float16PKOne", "1 in float16 pk format")
-      kStr += regOneInitStr
-      kStr += self.inst("v%s_fma_f16"%pkStr, vgpr(vgprtmp), vgpr(vgprtmp), sgpr(sgprk1), vgpr(vgprOne), "x^2 * k1 + 1" )
+      if self.usePK:
+        flt16OneStr = self.magicNumToStr(cDataType, ActivationMagicNumbers["Float16PKOne"])
+        vgprOne, regOneInitStr = self.getRegAndInitAssembly('v', True, 1, flt16OneStr, "Float16PKOne", "1 in float16 pk format")
+        kStr += regOneInitStr
+        vgprOneStr = vgpr(vgprOne)
+      else:
+        regOneInitStr = ""
+        vgprOneStr = 1.0
+      kStr += self.inst("v%s_fma_f16"%pkStr, vgpr(vgprtmp), vgpr(vgprtmp), sgpr(sgprk1), vgprOneStr, "x^2 * k1 + 1" )
       kStr += self.inst("v%s_mul_f16"%pkStr, vgpr(vgprtmp), self.getVgprStr(vgprIdx), vgpr(vgprtmp), "x * (x^2 * k1 + 1)" )
-      kStr += self.inst("v%s_mul_f16"%pkStr, vgpr(vgprtmp), sgpr(sgprk0), vgpr(vgprtmp), "k0 * x * (x^2 * k1 + 1)" )
+      coef = floatUnion(u=ActivationMagicNumbers["FloatGeluK0"])
       self.gprIsTempGpr = True
-      kStr += self.getTanhAssembly(cDataType, vgprtmp, "", "")
+      kStr += self.getTanhAssembly(cDataType, coef.f, vgprtmp, "", "")
       self.gprIsTempGpr = False
-      kStr += self.inst("v%s_add_f16"%pkStr, vgpr(vgprtmp), vgpr(vgprOne), vgpr(vgprtmp), "1 + tanh(...)" )
+      kStr += self.inst("v%s_add_f16"%pkStr, vgpr(vgprtmp), vgprOneStr, vgpr(vgprtmp), "1 + tanh(...)" )
       if regOneInitStr:
         self.vgprActivationPool.unregisterTemp(vgprOne)
       kStr += self.inst("v%s_mul_f16"%pkStr, vgpr(vgprtmp), self.getVgprStr(vgprIdx), vgpr(vgprtmp), "x * (1 + tanh(...))" )
-      vgpr0Five, reg0FiveInitStr = self.getRegAndInitAssembly('v', True, 1, "0x38003800", "Float16PK0Five", "0.5 in float16 pk format")
-      kStr += reg0FiveInitStr
-      kStr += self.inst("v%s_mul_f16"%pkStr, self.getVgprStr(vgprIdx), vgpr(vgpr0Five), vgpr(vgprtmp), "0.5 * x * (1 + tanh(...))" )
+      if self.usePK:
+        vgpr0Five, reg0FiveInitStr = self.getRegAndInitAssembly('v', True, 1, "0x38003800", "Float16PK0Five", "0.5 in float16 pk format")
+        kStr += reg0FiveInitStr
+        vgpr0FiveStr = vgpr(vgpr0Five)
+      else:
+        reg0FiveInitStr = ""
+        vgpr0FiveStr = 0.5
+      kStr += self.inst("v%s_mul_f16"%pkStr, self.getVgprStr(vgprIdx), vgpr0FiveStr, vgpr(vgprtmp), "0.5 * x * (1 + tanh(...))" )
       if reg0FiveInitStr:
         self.vgprActivationPool.unregisterTemp(vgpr0Five)
       self.vgprActivationPool.unregisterTemp(vgprtmp)
     elif cDataType.isSingle():
       vgprtmp, needInit = self.vgprActivationPool.registerTemp(1, 'gelu vgpr temp', "activation exp")
       kStr += self.inst("v_mul_f32", vgpr(vgprtmp), self.getVgprStr(vgprIdx), self.getVgprStr(vgprIdx), "x * x" )
-      kStr += self.inst("v_mul_f32", vgpr(vgprtmp), ActivationMagicNumbers["FloatGeluK1"], vgpr(vgprtmp), "k1 * x * x" )
+      fltGeluK0Str = self.magicNumToStr(cDataType, ActivationMagicNumbers["FloatGeluK1"])
+      kStr += self.inst("v_mul_f32", vgpr(vgprtmp), fltGeluK0Str, vgpr(vgprtmp), "k1 * x * x" )
       kStr += self.inst("v_add_f32", vgpr(vgprtmp), 1.0, vgpr(vgprtmp), "1 + k1 * x * x" )
       kStr += self.inst("v_mul_f32", vgpr(vgprtmp), self.getVgprStr(vgprIdx), vgpr(vgprtmp), "x * (1 + k1 * x * x)" )
-      kStr += self.inst("v_mul_f32", vgpr(vgprtmp), ActivationMagicNumbers["FloatGeluK0"], vgpr(vgprtmp), "k0 * x * (1 + k1 * x * x)" )
+      coef = floatUnion(u=ActivationMagicNumbers["FloatGeluK0"])
       self.gprIsTempGpr = True
-      kStr += self.getTanhAssembly(cDataType, vgprtmp, "", "")
+      kStr += self.getTanhAssembly(cDataType, coef.f, vgprtmp, "", "")
       self.gprIsTempGpr = False
       kStr += self.inst("v_add_f32", vgpr(vgprtmp), 1.0, vgpr(vgprtmp), "1 + tanh(...)" )
       kStr += self.inst("v_mul_f32", vgpr(vgprtmp), self.getVgprStr(vgprIdx), vgpr(vgprtmp), "x * (1 + tanh(...))" )
@@ -334,16 +379,17 @@ class Activation:
     kStr = ""
     kStr += self.getExpAssembly(cDataType, -1, vgprIdx)
     if cDataType.isHalf():
-      sgpr1, regInitStr = self.getRegAndInitAssembly('s', False, 1, ActivationMagicNumbers["Float16PKOne"], "Float16PKOne", "1 in pk float16 format")
-      kStr += regInitStr
       if self.usePK:
+        flt16OneStr = self.magicNumToStr(cDataType, ActivationMagicNumbers["Float16PKOne"])
+        sgpr1, regInitStr = self.getRegAndInitAssembly('s', False, 1, flt16OneStr, "Float16PKOne", "1 in pk float16 format")
+        kStr += regInitStr
         kStr += self.inst("v_pk_add_f16", self.getVgprStr(vgprIdx), self.getVgprStr(vgprIdx), sgpr(sgpr1), "1 + exp(-x)" )
         for i in range(0, 2):
           vgprsrc = self.getVgprStr(vgprIdx)
           vgprsrc += " dst_sel:WORD_%d dst_unused:UNUSED_PRESERVE src0_sel:WORD_%d"%(i, i)
           kStr += self.inst("v_rcp_f16", self.getVgprStr(vgprIdx), vgprsrc, "1 / (1 + exp(-x))" )
       else:
-        kStr += self.inst("v_add_f16", self.getVgprStr(vgprIdx), self.getVgprStr(vgprIdx), sgpr(sgpr1), "1 + exp(-x)" )
+        kStr += self.inst("v_add_f16", self.getVgprStr(vgprIdx), 1.0, self.getVgprStr(vgprIdx), "1 + exp(-x)" )
         kStr += self.inst("v_rcp_f16", self.getVgprStr(vgprIdx), self.getVgprStr(vgprIdx), "1 / (1 + exp(-x))" )
     elif cDataType.isSingle():
       kStr += self.inst("v_add_f32", self.getVgprStr(vgprIdx), 1.0, self.getVgprStr(vgprIdx), "1 + exp(-x)" )
@@ -351,31 +397,24 @@ class Activation:
     else:
       raise RuntimeError("Unsupported data type %s."%cDataType.toDevice("HIP"))
     return kStr
-  def getTanhAssembly(self, cDataType, vgprIdx, activationAlpha, activationBeta):
+  def getTanhAssembly(self, cDataType, coef, vgprIdx, activationAlpha, activationBeta):
     kStr = ""
     if cDataType.isHalf():
       pkStr = "_pk" if self.usePK else ""
       # We don't need s_pack_ll_b32_b16 cause the input is already duplicated
       if activationAlpha:
-        newVgprAlpha, regInitStr = self.getRegAndInitAssembly('v', False, 1, "0x40004000", "newVgprAlpha", "new vgpr alpha")
-        if (not self.tanhInitAlpha):
-          vgprTwo, regTwoInitStr = self.getRegAndInitAssembly('v', True, 1, "0x40004000", "Float16PK(2)", "2 in float16")
-          kStr += regTwoInitStr
-          kStr += self.inst("v%s_mul_f16"%pkStr, vgpr(newVgprAlpha), vgpr(vgprTwo), self.getSgprStr(activationAlpha), "new alpha = 2 * alpha")
-          if regTwoInitStr:
-            self.vgprActivationPool.unregisterTemp(vgprTwo)
-          self.tanhInitAlpha = True
-        kStr += self.inst("v%s_mul_f16"%pkStr, self.getVgprStr(vgprIdx), vgpr(newVgprAlpha), self.getVgprStr(vgprIdx), "x * alpha")
+        kStr += self.inst("v%s_mul_f16"%pkStr, self.getVgprStr(vgprIdx), self.getSgprStr(activationAlpha), self.getVgprStr(vgprIdx), "x * alpha")
+      coef = coef * 2
+      kStr += self.getExpAssembly(cDataType, coef, vgprIdx)
+      if self.usePK:
+        flt16OneStr = self.magicNumToStr(cDataType, ActivationMagicNumbers["Float16PKOne"])
+        vgprOne, regOneInitStr = self.getRegAndInitAssembly('v', True, 1, flt16OneStr, "Float16PKOne", "1 in pk float16 format")
+        kStr += regOneInitStr
+        vgprOneStr = vgpr(vgprOne)
       else:
-        vgprTwo, regTwoInitStr = self.getRegAndInitAssembly('v', True, 1, "0x40004000", "Float16PK(2)", "2 in float16")
-        kStr += regTwoInitStr
-        kStr += self.inst("v%s_mul_f16"%pkStr, self.getVgprStr(vgprIdx), vgpr(vgprTwo), self.getVgprStr(vgprIdx), "2 * x")
-        if regTwoInitStr:
-          self.vgprActivationPool.unregisterTemp(vgprTwo)
-      kStr += self.getExpAssembly(cDataType, 1, vgprIdx)
-      vgprOne, regOneInitStr = self.getRegAndInitAssembly('v', True, 1, ActivationMagicNumbers["Float16PKOne"], "Float16PKOne", "1 in pk float16 format")
-      kStr += regOneInitStr
-      kStr += self.inst("v%s_add_f16"%pkStr, self.getVgprStr(vgprIdx), vgpr(vgprOne), self.getVgprStr(vgprIdx), "e^2x + 1")
+        regOneInitStr = ""
+        vgprOneStr = 1.0
+      kStr += self.inst("v%s_add_f16"%pkStr, self.getVgprStr(vgprIdx), vgprOneStr, self.getVgprStr(vgprIdx), "e^2x + 1")
       if self.usePK:
         for i in range(0, 2):
           vgprsrc = self.getVgprStr(vgprIdx)
@@ -383,9 +422,14 @@ class Activation:
           kStr += self.inst("v_rcp_f16", self.getVgprStr(vgprIdx), vgprsrc, "1 / (1 + exp(-x))" )
       else:
         kStr += self.inst("v_rcp_f16", self.getVgprStr(vgprIdx), self.getVgprStr(vgprIdx), "1 / (1 + exp(-x))" )
-      vgprTwo, regNegTwoInitStr = self.getRegAndInitAssembly('v', True, 1, "0xc000c000", "Float16PK(-2)", "-2 in float16")
-      kStr += regNegTwoInitStr
-      kStr += self.inst("v%s_fma_f16"%pkStr, self.getVgprStr(vgprIdx), self.getVgprStr(vgprIdx), vgpr(vgprTwo), vgpr(vgprOne), "tanh(x) = (1 / (e^2x + 1)) * (-2) + 1")
+      if self.usePK:
+        vgprTwo, regNegTwoInitStr = self.getRegAndInitAssembly('v', True, 1, "0xc000c000", "Float16PK(-2)", "-2 in float16")
+        kStr += regNegTwoInitStr
+        vgprTwoStr = vgpr(vgprTwo)
+      else:
+        regNegTwoInitStr = ""
+        vgprTwoStr = -2.0
+      kStr += self.inst("v%s_fma_f16"%pkStr, self.getVgprStr(vgprIdx), vgprTwoStr, self.getVgprStr(vgprIdx), vgprOneStr, "tanh(x) = (1 / (e^2x + 1)) * (-2) + 1")
       if regNegTwoInitStr:
         self.vgprActivationPool.unregisterTemp(vgprTwo)
       if regOneInitStr:
@@ -395,8 +439,8 @@ class Activation:
     elif cDataType.isSingle():
       if activationAlpha:
         kStr += self.inst("v_mul_f32", self.getVgprStr(vgprIdx), self.getSgprStr(activationAlpha), self.getVgprStr(vgprIdx), "x * alpha")
-      kStr += self.inst("v_mul_f32", self.getVgprStr(vgprIdx), 2.0, self.getVgprStr(vgprIdx), "2 * x")
-      kStr += self.getExpAssembly(cDataType, 1, vgprIdx)
+      coef = coef * 2
+      kStr += self.getExpAssembly(cDataType, coef, vgprIdx)
       kStr += self.inst("v_add_f32", self.getVgprStr(vgprIdx), 1.0, self.getVgprStr(vgprIdx), "e^2x + 1")
       kStr += self.inst("v_rcp_f32", self.getVgprStr(vgprIdx), self.getVgprStr(vgprIdx), "1 / (e^2x + 1)")
       kStr += self.inst("v_fma_f32", self.getVgprStr(vgprIdx), -2.0, self.getVgprStr(vgprIdx), 1.0, "(-2) * (1 / (e^2x + 1)) + 1")
@@ -510,7 +554,7 @@ class ActivationInline:
       kStr += self.getRequiredRegStr(asm, vgprPool.size(), sgprPool.size())
     elif (activationType == 'tanh'):
       kStr += (asm + " // tanh\n")
-      kStr += activation.getTanhAssembly(self.dataType, 0, 1, 2)
+      kStr += activation.getTanhAssembly(self.dataType, 1, 0, 1, 2)
       kStr += addSpace(asm, ": \"+v\"(value) : \"s\"(alpha), \"s\"(beta)\n")
       kStr += self.getRequiredRegStr(asm, vgprPool.size(), sgprPool.size())
     else:

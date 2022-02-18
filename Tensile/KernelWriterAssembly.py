@@ -1687,7 +1687,7 @@ class KernelWriterAssembly(KernelWriter):
     self.numSgprOffsetA = 1
     self.numSgprOffsetB = 1
     self.numActivationTypeArgSize = 0 # Will change to 1 if activationType == All
-    self.numActivationArgSize = max(1, int(kernel["ProblemType"]["DestDataType"].numBytes() / 4))
+    self.numActivationArgSize = max(1, int(kernel["ProblemType"]["DestDataType"].numRegisters()))
     self.numactivationArgTotalSize = self.numActivationArgSize * kernel["ProblemType"]["ActivationType"].getAdditionalArgNum()
     self.numSgprAddressDbg = self.rpga if globalParameters["DebugKernel"] else 0
 
