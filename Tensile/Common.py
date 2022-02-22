@@ -538,7 +538,6 @@ validParameters = {
     # Changes the behaviour of prefetch across persistent.
     # Mode 0 is default, works for all sizes
     # Mode 1 disables static tile setup for prefetch and merges prefetch with ord. noLoadLoop,
-    #   requires AssertSummationElementMultiple == DepthU
     "PrefetchAcrossPersistentMode": [0, 1],
 
     "BufferLoad":                 [ False, True ],
