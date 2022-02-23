@@ -339,6 +339,7 @@ namespace Tensile
             , m_betaInit(args["init-beta"].as<InitMode>())
             , m_activationArgsInit(args["init-activation-args"].as<std::vector<InitMode>>())
             , m_activationType(ActivationType::None)
+            , m_activationHPA(false)
             , m_activationTypeIfAll(ActivationType::Relu)
             , m_activationNoFuse(false)
             , m_aBufferOffset(args["offset-a"].as<size_t>())
@@ -417,6 +418,8 @@ namespace Tensile
 
             if(args.count("activation-type"))
                 m_activationType = args["activation-type"].as<ActivationType>();
+            if(args.count("activation-hpa"))
+                m_activationHPA = args["activation-hpa"].as<bool>();
             if(args.count("init-activationtype-if-all"))
                 m_activationTypeIfAll = args["init-activationtype-if-all"].as<ActivationType>();
             if(args.count("activation-no-fuse"))

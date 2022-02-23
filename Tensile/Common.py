@@ -1538,7 +1538,8 @@ defaultProblemType = {
     "Fp16AltImpl":              False,
 
     # Activation
-    "Activation":               False
+    "Activation":               False,
+    "ActivationHPA":            False
     }
 
 defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]

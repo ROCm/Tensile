@@ -60,7 +60,8 @@ class BoundIndex:
 
 class ProblemType:
     StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType',
-                 'useBeta', 'highPrecisionAccumulate', 'useInitialStridesAB', 'useInitialStridesCD', 'stridedBatched', 'activationType']
+                 'useBeta', 'highPrecisionAccumulate', 'useInitialStridesAB', 'useInitialStridesCD', 'stridedBatched',
+                 'activationType', 'activationHPA']
     @classmethod
     def FromOriginalState(cls, d):
         indices = [None]*d['TotalIndices']
@@ -167,6 +168,9 @@ class ProblemType:
         rv.activationType = ActivationType('none')
         if 'ActivationType' in d:
           rv.activationType = d['ActivationType']
+        rv.activationHPA = False
+        if 'ActivationHPA' in d:
+          rv.activationHPA = d['ActivationHPA']
 
         return rv
 
@@ -250,6 +254,7 @@ class ProblemType:
         if includeType:
             predicates.append(ProblemPredicate("TypesEqual", value=(self.aType, self.bType, self.cType, self.dType)))
             predicates.append(ProblemPredicate("HighPrecisionAccumulate", value=self.highPrecisionAccumulate))
+            predicates.append(ProblemPredicate("ActivationHPA", value=self.activationHPA))
 
         return predicates
 

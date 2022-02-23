@@ -96,6 +96,7 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::Fp16AltImpl>(),
                     Base::template Pair<Predicates::Contraction::EqualityMatching>(),
                     Base::template Pair<Predicates::Contraction::ActivationEqual>(),
+                    Base::template Pair<Predicates::Contraction::ActivationHPAEqual>(),
                 });
 
                 auto gmap = Generic::GetSubclasses();
@@ -351,6 +352,12 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::ActivationEqual, IO>
             : public AutoMappingTraits<Predicates::Contraction::ActivationEqual, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::ActivationHPAEqual, IO>
+            : public AutoMappingTraits<Predicates::Contraction::ActivationHPAEqual, IO>
         {
         };
     } // namespace Serialization

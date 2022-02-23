@@ -239,6 +239,7 @@ namespace Tensile
                 ("granularity-threshold",    po::value<double>()->default_value(0.0), "Don't run a solution if total granularity is below")
 
                 ("activation-type",           po::value<ActivationType>()->default_value(ActivationType::None), "An activation type")
+                ("activation-hpa",            po::value<bool>()->default_value(false), "Use the same data type as high precision accumulate.")
                 ("init-activationtype-if-all",po::value<ActivationType>()->default_value(ActivationType::Relu), "An extra activation type argument if activation-type=all")
                 ("init-activation-args",      po::value<std::vector<InitMode>>()->default_value(std::vector<InitMode>(1, InitMode::Two), "[]"), "Activation args init")
                 ("activation-no-fuse",        po::value<bool>()->default_value(false), "Don't fuse elementwise kernel for debug")

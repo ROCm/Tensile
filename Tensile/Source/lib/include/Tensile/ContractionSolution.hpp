@@ -285,6 +285,7 @@ namespace Tensile
             bool           stridedBatched          = true;
             bool           fp16AltImpl             = false;
             ActivationType activationType          = ActivationType::None;
+            bool           activationHPA           = false;
         };
 
         struct LinearModel

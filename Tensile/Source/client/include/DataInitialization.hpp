@@ -490,6 +490,7 @@ namespace Tensile
             bool m_convolutionVsContraction;
 
             ActivationType m_activationType;
+            bool           m_activationHPA;
             bool           m_activationNoFuse;
 
             int m_elementsToValidate = 0;

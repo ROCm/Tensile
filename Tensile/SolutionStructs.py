@@ -22,7 +22,7 @@
 from .Common import assignParameterRequired, assignParameterWithDefault, \
                     defaultProblemType, defaultSolution, \
                     globalParameters, \
-                    print2, printExit, \
+                    print2, printWarning, printExit, \
                     validActivationFormats, validConvolutionConfig, \
                     validMFMA, validParameters, validWeightFormats, \
                     validGEMMTypes, typesUsingNewNaming
@@ -914,11 +914,23 @@ class ProblemType(Mapping):
     if "Activation" in config:
       typeStr = 'all' if config["Activation"] else 'none'
       self["ActivationType"] = ActivationType(typeStr)
-      # Currently not an option for user.
-      self["ActivationHPA"] = self["HighPrecisionAccumulate"] if self["DestDataType"].isBFloat16() else False
     else:
       self["ActivationType"] = ActivationType('none')
+    if "ActivationHPA" in config:
+      self["ActivationHPA"] = config["ActivationHPA"]
+    else:
       self["ActivationHPA"] = False
+
+    if self["ActivationType"] != 'none':
+      if ((not self["HighPrecisionAccumulate"]) and self["ActivationHPA"]):
+          printExit("Must enable HighPrecisionAccumulate to use ActivationHPA.")
+      if ((self["HighPrecisionAccumulate"]) and (not self["ActivationHPA"]) and self["DestDataType"].isBFloat16()):
+          printWarning("BFloat16 only supports ActivationHPA = True if HighPrecisionAccumulate = True. ActivationHPA will be set to True automatically.")
+          self["ActivationHPA"] = True
+      if self["ActivationHPA"] and (self["DestDataType"].isSingle() or self["DestDataType"].isDouble()):
+        printWarning("Single and Double does not support ActivationHPA. ActivationHPA will be set to False automatically.")
+        self["ActivationHPA"] = False
+
 
   ################################################################################
   # Assign and check the 3-datatypes EXPLICTLY for better maintenance:
@@ -1211,6 +1223,14 @@ class ProblemType(Mapping):
     # precision and other
     # name += "_SB" if self["StridedBatched"] else "_GB"
     name += "" if self["StridedBatched"] else "_GB" # legacy
+
+    # Activation Naming
+    if ((self["ActivationType"] != 'none') and globalParameters["ActivationNoFuse"] == False):
+      if self["ActivationType"] == 'all':
+        name += "_A"
+      else:
+        name += "_%s"%str(self["ActivationType"]).upper()
+    if self["ActivationHPA"]: name += "H"
 
     return name
 
@@ -4146,12 +4166,6 @@ class Solution(collections.abc.Mapping):
             first = False
           name += "%s%s" % ( Solution.getParameterNameAbbreviation(key), \
               Solution.getParameterValueAbbreviation(key, state[key]) )
-    if "ProblemType" in state:
-      if ((state["ProblemType"]["ActivationType"] != 'none') and globalParameters["ActivationNoFuse"] == False):
-        if state["ProblemType"]["ActivationType"] == 'all':
-          name += "_ACTIVATION"
-        else:
-          name += "_%s"%str(state["ProblemType"]["ActivationType"]).upper()
     return name
 
   ########################################

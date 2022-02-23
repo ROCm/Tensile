@@ -850,12 +850,23 @@ namespace Tensile
             name += "_GB";
         }
 
-        name += "_PostGSU";
-
         if(problem.activationType() != ActivationType::None)
         {
-            name += "_ACTIVATION";
+            if(problem.activationType() == ActivationType::All)
+                name += "_A";
+            else
+            {
+                std::string actName = ToString(problem.activationType());
+                std::transform(actName.begin(), actName.end(), actName.begin(), ::toupper);
+                name += actName;
+            }
         }
+        if(problem.activationHPA())
+        {
+            name += "h";
+        }
+
+        name += "_PostGSU";
 
         return name;
     }
@@ -954,7 +965,21 @@ namespace Tensile
     {
         std::string name = concatenate(
             "D", problem.cNames(), "_", TypeInfo<typename TypedInputs::DType>::Abbrev());
-        name += "_ACTIVATION";
+        if(problem.activationType() != ActivationType::None)
+        {
+            if(problem.activationType() == ActivationType::All)
+                name += "_A";
+            else
+            {
+                std::string actName = ToString(problem.activationType());
+                std::transform(actName.begin(), actName.end(), actName.begin(), ::toupper);
+                name += actName;
+            }
+        }
+        if(problem.activationHPA())
+        {
+            name += "h";
+        }
 
         return name;
     }

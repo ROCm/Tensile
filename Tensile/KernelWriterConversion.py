@@ -296,13 +296,13 @@ class KernelWriterConversion(KernelWriterBase):
     name += "_"
     name += self.state["ProblemType"]["DestDataType"].toChar()
     name += "" if self.state["ProblemType"]["StridedBatched"] else "_GB"
-    name += "_PostGSU"
     if ((self.state["ProblemType"]["ActivationType"] != 'none') and (globalParameters["ActivationNoFuse"] == False)):
       if self.state["ProblemType"]["ActivationType"] == 'all':
-        name += "_ACTIVATION"
+        name += "_A"
       else:
         name += "_%s"%str(self.state["ProblemType"]["ActivationType"]).upper()
-
+      name += ("h" if self.state["ProblemType"]["ActivationHPA"] else "")
+    name += "_PostGSU"
     return name
 
 

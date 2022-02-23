@@ -115,7 +115,9 @@ namespace Tensile
                                         lhs.fp16AltImpl(),
                                         rhs.fp16AltImpl(),
                                         lhs.activationType(),
-                                        rhs.activationType());
+                                        rhs.activationType(),
+                                        lhs.activationHPA(),
+                                        rhs.activationHPA());
         }
     };
 } // namespace Tensile
@@ -140,7 +142,8 @@ namespace std
                                          problem.stridedBatched(),
                                          problem.performanceMetric(),
                                          problem.fp16AltImpl(),
-                                         problem.activationType());
+                                         problem.activationType(),
+                                         problem.activationHPA());
         }
     };
 

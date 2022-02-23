@@ -221,9 +221,10 @@ class KernelWriterActivationOnly(KernelWriterBase):
     name += "_"
     name += self.state["ProblemType"]["DestDataType"].toChar()
     if self.state["ProblemType"]["ActivationType"] == 'all':
-      name += "_%s"%"ACTIVATION"
+      name += "_%s"%"A"
     elif self.state["ProblemType"]["ActivationType"] != 'none':
       name += "_%s"%str(self.state["ProblemType"]["ActivationType"]).upper()
+    name += ("h" if self.state["ProblemType"]["ActivationHPA"] else "")
 
     return name
 

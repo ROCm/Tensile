@@ -12187,7 +12187,7 @@ class KernelWriterAssembly(KernelWriter):
                   # c.imag += a.imag * b.real
                   BetaCodeMod.addCode("v_fma_f64 %s, %s, %s, %s%s" % (vgpr("L2GC+%u"%(vregIdx+2),2), vgpr("G2LC+%u"%(vregIdx+2),2), sgpr("Beta+0",2), vgpr("L2GC+%u"%(vregIdx+2),2), self.endLine))
 
-          # Activation for BFloat16 (calculates in float32 if in HighPrecisionAccumulate)
+          # Activation using HighPrecisionAccumulate type
           insertActivationAfterPacked = False
           if ((kernel["ProblemType"]["ActivationType"] != 'none') and \
             (kernel["_GlobalAccumulation"] != 'MultipleBuffer') and (globalParameters["ActivationNoFuse"] == False)):
@@ -12195,6 +12195,12 @@ class KernelWriterAssembly(KernelWriter):
               # Still use BFloat16 for abs.
               if kernel["ProblemType"]["DestDataType"].isBFloat16() and \
                  ((kernel["ProblemType"]["ActivationType"] == 'abs') or (activationEnumStrList[index] == 'abs')):
+                insertActivationAfterPacked = True
+              elif kernel["ProblemType"]["DestDataType"].isHalf() and \
+                 ((kernel["ProblemType"]["ActivationType"] == 'abs') or (activationEnumStrList[index] == 'abs')) or \
+                 ((kernel["ProblemType"]["ActivationType"] == 'relu') or (activationEnumStrList[index] == 'relu')) or \
+                 ((kernel["ProblemType"]["ActivationType"] == 'leakyrelu') or (activationEnumStrList[index] == 'leakyrelu')) or \
+                 ((kernel["ProblemType"]["ActivationType"] == 'clippedrelu') or (activationEnumStrList[index] == 'clippedrelu')):
                 insertActivationAfterPacked = True
               else:
                 for vi in range(0, gwvw):

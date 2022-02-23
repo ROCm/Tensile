@@ -86,6 +86,7 @@ namespace Tensile
             PerformanceMetric m_performanceMetric;
             bool              m_fp16AltImpl;
             ActivationType    m_activationType;
+            bool              m_activationHPA;
 
             std::vector<std::vector<size_t>> m_problemSizes;
             std::vector<std::vector<size_t>> m_aStrides;

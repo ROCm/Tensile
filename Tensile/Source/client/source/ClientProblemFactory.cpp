@@ -66,6 +66,7 @@ namespace Tensile
             , m_cOffset(args["offset-c"].as<size_t>())
             , m_dOffset(args["offset-d"].as<size_t>())
             , m_activationType(ActivationType::None)
+            , m_activationHPA(false)
         {
             if(args.count("problem-identifier"))
                 ContractionProblem::IdentifierToIndices(
@@ -106,6 +107,8 @@ namespace Tensile
 
             if(args.count("activation-type"))
                 m_activationType = args["activation-type"].as<ActivationType>();
+            if(args.count("activation-hpa"))
+                m_activationHPA = args["activation-hpa"].as<bool>();
 
             m_problems = createProblems();
         }
@@ -207,6 +210,7 @@ namespace Tensile
                 rv.back().setArithmeticUnit(m_arithmeticUnit);
                 rv.back().setFp16AltImpl(m_fp16AltImpl);
                 rv.back().setActivationType(m_activationType);
+                rv.back().setActivationHPA(m_activationHPA);
 
                 if(m_convProblemSizes.size())
                     rv.back().setConvProblemSizes(m_convProblemSizes[i]);

@@ -485,6 +485,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
               param('convolution-problem', problemType.convolution.identifier(problem))
 
         param('activation-type', problemType.activationType.toEnum())
+        param('activation-hpa', problemType.activationHPA)
         param('activation-no-fuse', globalParameters["ActivationNoFuse"])
 
         param("device-idx",               globalParameters["Device"])

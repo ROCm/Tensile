@@ -624,6 +624,16 @@ namespace Tensile
             return m_activationType;
         }
 
+        void setActivationHPA(bool value)
+        {
+            m_activationHPA = value;
+        }
+
+        bool activationHPA() const
+        {
+            return m_activationHPA;
+        }
+
         /// Largest of the free and bound indices.  Does not include batch size.
         size_t maxProblemSize() const
         {
@@ -806,6 +816,7 @@ namespace Tensile
         bool              m_eligibleForPK           = true;
         bool              m_fp16AltImpl             = false;
         ActivationType    m_activationType          = ActivationType::None;
+        bool              m_activationHPA           = false;
         ArithmeticUnit    m_arithmeticUnit          = ArithmeticUnit::Any;
         KernelLanguage    m_kernelLanguage          = KernelLanguage::Any;
         PerformanceMetric m_performanceMetric       = PerformanceMetric::DeviceEfficiency;
