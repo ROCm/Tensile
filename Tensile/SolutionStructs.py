@@ -2669,41 +2669,6 @@ class Solution(collections.abc.Mapping):
       print2("PersistentKernelAlongBatch not support GSU on HIP, forcing PersistentKernelAlongBatch = False")
       state["PersistentKernelAlongBatch"] = False
 
-    bufferLoad = state["BufferLoad"] and state["KernelLanguage"] == "Assembly"
-
-    # NoTailLoop condition check
-    # So far, NoTailLoop option is not exposed.
-    validNoTailLoop = True
-    invalidComment = ""
-    if not bufferLoad:
-      validNoTailLoop = False
-      invalidComment = "does not support BufferLoad=0"
-    if not (state["ProblemType"]["TLUA"] or state["ProblemType"]["TLUB"]):
-      validNoTailLoop = False
-      invalidComment = "does not support TLUA=False and TLUB=False"
-    # NoTailLoop parameter initialization. Set True for the following cases
-    #  1. ASEM is multiple of DepthU. TailLoop code will not be used in this case.
-    #  2. PrefetchAcrossPersistent and PrefetchAcrossPersistentMode
-    #    PrefetchAcrossPersistentMode does not support TailLoop (TLU is necessary for NoTTai
-    #  3. DirectToVgpr is enabled
-    # Except for case 1, validNoTailLoop should be True to enable NoTailLoop.
-    # Otherwise, it will be rejected.
-    state["NoTailLoop"] = False
-    if state["AssertSummationElementMultiple"] % state["DepthU"] == 0:
-      state["NoTailLoop"] = True
-    elif state["PrefetchAcrossPersistent"] and state["PrefetchAcrossPersistentMode"] == 1:
-      if not validNoTailLoop:
-        reject(state, "PAP + PAPMode + PrefetchAcrossPersistentMode%%DepthU!=0 %s to enable NoTailLoop"%invalidComment)
-        return
-      else:
-        state["NoTailLoop"] = True
-    elif state["DirectToVgprA"] or state["DirectToVgprA"]:
-      if not validNoTailLoop:
-        reject(state, "DirectToVgpr + PrefetchAcrossPersistentMode%%DepthU!=0 %s to enable NoTailLoop"%invalidComment)
-        return
-      else:
-        state["NoTailLoop"] = True
-
     if state["PrefetchAcrossPersistent"]:
       if state["KernelLanguage"] == "Source" or \
          state["PersistentKernel"] == 0 or \
@@ -2787,6 +2752,7 @@ class Solution(collections.abc.Mapping):
     packedC0 = len(state["PackedC0IdxChars"])>1
     packedC1 = len(state["PackedC1IdxChars"])>1
 
+    bufferLoad = state["BufferLoad"] and state["KernelLanguage"] == "Assembly"
     if not bufferLoad:
       state["DirectToLds"] = False
       state["_UseSgprForGRO"] = False
@@ -3310,6 +3276,39 @@ class Solution(collections.abc.Mapping):
        state["LdsPadA"] != state["LdsPadB"]:
       reject(state, "Source KernelLanguage only supports LdsPadA == LdsPadB")
       return
+
+    # NoTailLoop condition check
+    # So far, NoTailLoop option is not exposed.
+    validNoTailLoop = True
+    invalidComment = ""
+    if not bufferLoad:
+      validNoTailLoop = False
+      invalidComment = "does not support BufferLoad=0"
+    if not (state["ProblemType"]["TLUA"] or state["ProblemType"]["TLUB"]):
+      validNoTailLoop = False
+      invalidComment = "does not support TLUA=False and TLUB=False"
+    # NoTailLoop parameter initialization. Set True for the following cases
+    #  1. ASEM is multiple of DepthU. TailLoop code will not be used in this case.
+    #  2. PrefetchAcrossPersistent and PrefetchAcrossPersistentMode
+    #    PrefetchAcrossPersistentMode does not support TailLoop (TLU is necessary for NoTTai
+    #  3. DirectToVgpr is enabled
+    # Except for case 1, validNoTailLoop should be True to enable NoTailLoop.
+    # Otherwise, it will be rejected.
+    state["NoTailLoop"] = False
+    if state["AssertSummationElementMultiple"] % state["DepthU"] == 0:
+      state["NoTailLoop"] = True
+    elif state["PrefetchAcrossPersistent"] and state["PrefetchAcrossPersistentMode"] == 1:
+      if not validNoTailLoop:
+        reject(state, "PAP + PAPMode + PrefetchAcrossPersistentMode%%DepthU!=0 %s to enable NoTailLoop"%invalidComment)
+        return
+      else:
+        state["NoTailLoop"] = True
+    elif state["DirectToVgprA"] or state["DirectToVgprA"]:
+      if not validNoTailLoop:
+        reject(state, "DirectToVgpr + PrefetchAcrossPersistentMode%%DepthU!=0 %s to enable NoTailLoop"%invalidComment)
+        return
+      else:
+        state["NoTailLoop"] = True
 
     ########################################
     # LDS
