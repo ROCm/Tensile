@@ -119,6 +119,7 @@ class Activation:
   # Public function
   def __init__(self, checkOutSgpr, checkInSgpr, checkOutVgpr, checkInVgpr, vcc) -> None:
     self.inst = inst
+    self.addGprPrefix = False
     self.gprInlineAsmMode = False
     self.gprIsTempGpr = False
 
@@ -132,6 +133,9 @@ class Activation:
     self.sgprActivationPool.unregisterAll()
     self.vgprActivationPool.unregisterAll()
     self.tanhInitAlpha = False
+  # Public function. If true, generated code will add "ValuC+" before the given working v(s)gpr index.
+  def setAddGprPrefix(self, value):
+    self.addGprPrefix = value
   # Public function
   def generateAssembly(self, cDataType, activationType, vgprIdx):
     kStr = ""
@@ -167,7 +171,7 @@ class Activation:
     if len(args) == 1:
       args = args[0]
 
-    if isinstance(args[0], int) and (not self.gprIsTempGpr):
+    if isinstance(args[0], int) and self.addGprPrefix and (not self.gprIsTempGpr):
       vgprStr = "ValuC+%u"%args[0]
     else:
       vgprStr = args[0]

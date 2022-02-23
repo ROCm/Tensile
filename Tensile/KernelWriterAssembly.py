@@ -12201,6 +12201,7 @@ class KernelWriterAssembly(KernelWriter):
                  ((kernel["ProblemType"]["ActivationType"] == 'relu') or (activationEnumStrList[index] == 'relu')):
                 insertActivationAfterPacked = True
               else:
+                activation.setAddGprPrefix(True)
                 for vi in range(0, gwvw):
                   vgprIdx = ss.elementSumIdx[elementIdx] + vi
                   if kernel["ProblemType"]["ActivationType"] == 'all':
@@ -12208,6 +12209,7 @@ class KernelWriterAssembly(KernelWriter):
                       kStr += activation.generateAssembly(activationCDataType, activationEnumStrList[index], vgprIdx)
                   else:
                     kStr += activation.generateAssembly(activationCDataType, kernel["ProblemType"]["ActivationType"], vgprIdx)
+                activation.setAddGprPrefix(False)
             else:
               insertActivationAfterPacked = True
 
