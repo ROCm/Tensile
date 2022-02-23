@@ -12198,9 +12198,7 @@ class KernelWriterAssembly(KernelWriter):
                 insertActivationAfterPacked = True
               elif kernel["ProblemType"]["DestDataType"].isHalf() and \
                  ((kernel["ProblemType"]["ActivationType"] == 'abs') or (activationEnumStrList[index] == 'abs')) or \
-                 ((kernel["ProblemType"]["ActivationType"] == 'relu') or (activationEnumStrList[index] == 'relu')) or \
-                 ((kernel["ProblemType"]["ActivationType"] == 'leakyrelu') or (activationEnumStrList[index] == 'leakyrelu')) or \
-                 ((kernel["ProblemType"]["ActivationType"] == 'clippedrelu') or (activationEnumStrList[index] == 'clippedrelu')):
+                 ((kernel["ProblemType"]["ActivationType"] == 'relu') or (activationEnumStrList[index] == 'relu')):
                 insertActivationAfterPacked = True
               else:
                 for vi in range(0, gwvw):

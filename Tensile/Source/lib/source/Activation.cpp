@@ -35,6 +35,8 @@ namespace Tensile
         {
         case ActivationType::Abs:
             return "Abs";
+        case ActivationType::Clippedrelu:
+            return "Clippedrelu";
         case ActivationType::Exp:
             return "Exp";
         case ActivationType::Gelu:
@@ -68,6 +70,10 @@ namespace Tensile
         if(strValue == ToString(ActivationType::Abs))
         {
             t = ActivationType::Abs;
+        }
+        else if(strValue == ToString(ActivationType::Clippedrelu))
+        {
+            t = ActivationType::Clippedrelu;
         }
         else if(strValue == ToString(ActivationType::Exp))
         {
@@ -111,6 +117,7 @@ namespace Tensile
     int getAdditionalArgNum(ActivationType d)
     {
         std::map<ActivationType, int> argMap;
+        argMap.insert(std::pair<ActivationType, int>(ActivationType::Clippedrelu, 2));
         argMap.insert(std::pair<ActivationType, int>(ActivationType::Leakyrelu, 1));
         argMap.insert(std::pair<ActivationType, int>(ActivationType::Tanh, 2));
 

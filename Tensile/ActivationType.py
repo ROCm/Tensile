@@ -73,15 +73,16 @@ class ActivationType:
   lookupVeri = OrderedDict([('exp',       ActivationTypeRegister('exp', 0,       True,  True, False,   False, False, False, False)) ])
 
   # Note: The BFloat16 gemm uses Single type activations. The int8 gemm uses int32 type activations.
-                                                                           # Half,Single,Double,BFloat16,  Int8, Int16, Int32
-  lookup = OrderedDict([('abs',       ActivationTypeRegister('abs', 0,       True,  True,  True,    True, False, False,  True)), \
-                        ('gelu',      ActivationTypeRegister('gelu', 0,      True,  True, False,   False, False, False, False)), \
-                        ('leakyrelu', ActivationTypeRegister('leakyrelu', 0, True,  True,  True,   False, False, False,  True)), \
-                        ('relu',      ActivationTypeRegister('relu', 0,      True,  True,  True,   False, False, False,  True)), \
-                        ('sigmoid',   ActivationTypeRegister('sigmoid', 0,   True,  True, False,   False, False, False, False)), \
-                        ('tanh',      ActivationTypeRegister('tanh', 2,      True,  True, False,   False, False, False, False)), \
-                        ('none',      ActivationTypeRegister('none', 0)), \
-                        ('all',       ActivationTypeRegister('all', 0)) ])
+                                                                               # Half,Single,Double,BFloat16,  Int8, Int16, Int32
+  lookup = OrderedDict([('abs',         ActivationTypeRegister('abs', 0,         True,  True,  True,    True, False, False,  True)), \
+                        ('clippedrelu', ActivationTypeRegister('clippedrelu', 2, True,  True,  True,   False, False, False,  True)), \
+                        ('gelu',        ActivationTypeRegister('gelu', 0,        True,  True, False,   False, False, False, False)), \
+                        ('leakyrelu',   ActivationTypeRegister('leakyrelu', 1,   True,  True,  True,   False, False, False,  True)), \
+                        ('relu',        ActivationTypeRegister('relu', 0,        True,  True,  True,   False, False, False,  True)), \
+                        ('sigmoid',     ActivationTypeRegister('sigmoid', 0,     True,  True, False,   False, False, False, False)), \
+                        ('tanh',        ActivationTypeRegister('tanh', 2,        True,  True, False,   False, False, False, False)), \
+                        ('none',        ActivationTypeRegister('none', 0)), \
+                        ('all',         ActivationTypeRegister('all', 0)) ])
   def __init__(self, value):
     if isinstance(value, str):
       strValue = value.lower()

@@ -138,6 +138,8 @@ class Activation:
 
     if (activationType == 'abs'):
       kStr += self.getAbsAssembly(cDataType, vgprIdx)
+    elif (activationType == 'clippedrelu'):
+      kStr += self.getClippedReluAssembly(cDataType, vgprIdx, "activationAlpha", "activationBeta")
     elif (activationType == 'exp'):
       kStr += self.getExpAssembly(cDataType, 1, vgprIdx)
     elif (activationType == 'leakyrelu'):
@@ -227,6 +229,30 @@ class Activation:
       kStr += self.inst("v_max_i32", self.getVgprStr(vgprIdx), vgpr(vgprtemp), self.getVgprStr(vgprIdx), "y = max(x, x2)")
     else:
       raise RuntimeError("Unsupported data type %s."%cDataType.toDevice("HIP"))
+    return kStr
+  # Internal Use
+  def getClippedReluAssembly(self, cDataType, vgprIdx, activationAlpha, activationBeta):
+    kStr = ""
+    if cDataType.isHalf():
+      for i in range(0, 2):
+        instStr = "%s src0_sel:WORD_%d src1_sel:WORD_0"%(self.getSgprStr(activationAlpha), i)
+        kStr += self.inst("v_cmp_ge_f16", self.vcc, self.getVgprStr(vgprIdx), instStr, "x > alpha ?")
+        vcc = self.vcc + " dst_sel:WORD_%d dst_unused:UNUSED_PRESERVE src0_sel:WORD_%d src1_sel:WORD_%d"%(i, i, i)
+        kStr += self.inst("v_cndmask_b32", self.getVgprStr(vgprIdx), 0.0, self.getVgprStr(vgprIdx), vcc, "set x to 0 if < alpha")
+      kStr += self.inst("v_pk_min_f16", self.getVgprStr(vgprIdx), self.getSgprStr(activationBeta), self.getVgprStr(vgprIdx), "min(x, beta)")
+    elif cDataType.isSingle():
+      kStr += self.inst("v_cmp_ge_f32", self.vcc, self.getVgprStr(vgprIdx), self.getSgprStr(activationAlpha), "x >= alpha ?")
+      kStr += self.inst("v_cndmask_b32", self.getVgprStr(vgprIdx), 0.0, self.getVgprStr(vgprIdx), self.vcc, "set x to 0 if < alpha")
+      kStr += self.inst("v_min_f32", self.getVgprStr(vgprIdx), self.getSgprStr(activationBeta), self.getVgprStr(vgprIdx), "min(x, beta)")
+    elif cDataType.isDouble():
+      kStr += self.inst("v_cmp_ge_f64", self.vcc, self.getVgprStr(vgprIdx, 2), self.getSgprStr(activationAlpha, 2), "x >= alpha ?")
+      kStr += self.inst("v_cndmask_b32", self.getVgprStr(vgprIdx), 0, self.getVgprStr(vgprIdx), self.vcc, "set x to 0 if < 0")
+      kStr += self.inst("v_cndmask_b32", self.getVgprStr(vgprIdx+1), 0, self.getVgprStr(vgprIdx+1), self.vcc, "set x to 0 if < 0")
+      kStr += self.inst("v_min_f64", self.getVgprStr(vgprIdx, 2), self.getSgprStr(activationBeta, 2), self.getVgprStr(vgprIdx, 2), "min(x, beta)")
+    elif cDataType.isInt32():
+      kStr += self.inst("v_cmp_ge_i32", self.vcc, self.getVgprStr(vgprIdx), self.getSgprStr(activationAlpha), "x >= alpha ?")
+      kStr += self.inst("v_cndmask_b32", self.getVgprStr(vgprIdx), 0.0, self.getVgprStr(vgprIdx), self.vcc, "set x to 0 if < alpha")
+      kStr += self.inst("v_min_i32", self.getVgprStr(vgprIdx), self.getSgprStr(activationBeta), self.getVgprStr(vgprIdx), "min(x, beta)")
     return kStr
   # Internal Use
   def getExpMagicStrAndComment(self, cDataType, coef):
@@ -523,6 +549,11 @@ class ActivationInline:
         kStr += (padSpacesStr + "value = abs(value);\n")
       else:
         raise RuntimeError("Unrecognized data type %s."%self.dataType)
+    elif (activationType == 'clippedrelu'):
+      if (self.dataType.isSingle() or self.dataType.isHalf() or self.dataType.isDouble()):
+        kStr += (padSpacesStr + "value = (value >= alpha) ? min(value, beta) : 0.0;\n")
+      elif self.dataType.isInt32():
+        kStr += (padSpacesStr + "value = (value >= alpha) ? min(value, beta) : 0;\n")
     elif (activationType == 'exp'):
       kStr += (asm + "// Exp\n")
       kStr += activation.getExpAssembly(self.dataType, 1, 0)

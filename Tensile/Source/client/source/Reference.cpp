@@ -131,6 +131,13 @@ namespace Tensile
             {
                 return static_cast<T>(std::max(static_cast<castT>(val), -static_cast<castT>(val)));
             }
+            else if(new_type == ActivationType::Clippedrelu)
+            {
+                if(val >= args[0])
+                    return static_cast<T>(
+                        std::min(static_cast<castT>(val), static_cast<castT>(args[1])));
+                return static_cast<T>(0.0);
+            }
             else if(new_type == ActivationType::Exp)
             {
                 return static_cast<T>(exp(static_cast<castT>(val)));
@@ -186,6 +193,12 @@ namespace Tensile
             if(new_type == ActivationType::Abs)
             {
                 return static_cast<T>(std::abs(val));
+            }
+            else if(new_type == ActivationType::Clippedrelu)
+            {
+                if(val >= args[0])
+                    return static_cast<T>(std::min(val, args[1]));
+                return static_cast<T>(0);
             }
             else if(new_type == ActivationType::Relu)
             {

@@ -53,6 +53,7 @@ namespace Tensile
     enum class ActivationType : uint32_t
     {
         Abs = 0,
+        Clippedrelu,
         Gelu,
         Leakyrelu,
         Relu,
