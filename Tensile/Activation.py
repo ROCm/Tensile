@@ -70,12 +70,44 @@ from .Common import printExit
 
 ActivationMagicNumbers = {"FloatGeluK0": 0x3f4c422a, \
                           "FloatGeluK1": 0x3d372713, \
-                          "Float16GeluK1": 0x29b9, \
-                          "Float16PKOne": 0x3c00 }
+                          "Float16GeluK1": 0x29b9 }
 
 # float32 union
 class floatUnion(ctypes.Union):
   _fields_ = [('u', ctypes.c_uint), ('f', ctypes.c_float)]
+
+def removeStringAfter(inputStr, symbolStr):
+  pos = inputStr.find(symbolStr)
+  if pos != -1:
+    inputStr = inputStr[:pos]
+  return inputStr
+
+# Only compatible with funsion inst in AsmUtils.py
+def extractLastInst(kStr):
+  lastInstEndPos = kStr.rfind("\n")
+  lastInstStr = kStr[:lastInstEndPos]
+  lastInstStartPos = lastInstStr.rfind("\n")
+  if lastInstStartPos != -1:
+    lastInstStartPos += 1
+  else:
+    lastInstStartPos = 0
+  lastInstStr = lastInstStr[lastInstStartPos:]
+  commentStartPos = lastInstStr.find("//")
+  if commentStartPos != -1:
+    commentStr = lastInstStr[commentStartPos+2:].strip().rstrip()
+  else:
+    commentStr = ""
+  lastInstStr = lastInstStr.replace("\"", "")
+  lastInstStr = removeStringAfter(lastInstStr, "//")
+  lastInstStr = removeStringAfter(lastInstStr, "\\")
+  instList = lastInstStr.strip().split(" ")
+  for idx, value in enumerate(instList):
+    if (value.find(",") == 0):
+      instList[idx] = value[1:]
+    if (value.rfind(",") == len(value) - 1):
+      instList[idx] = value[:len(value) - 1]
+  instList.append(commentStr)
+  return instList, lastInstStartPos
 
 # Internal use
 class ActivationRegisterPool:
@@ -312,12 +344,8 @@ class Activation:
       vgprtmp, needInit = self.vgprActivationPool.registerTemp(1, 'gelu vgpr temp', "activation exp")
       kStr += self.inst("v%s_mul_f16"%pkStr, vgpr(vgprtmp), self.getVgprStr(vgprIdx), self.getVgprStr(vgprIdx), "x * x" )
       if self.usePK:
-        flt16OneStr = self.magicNumToStr(cDataType, ActivationMagicNumbers["Float16PKOne"])
-        vgprOne, regOneInitStr = self.getRegAndInitAssembly('v', True, 1, flt16OneStr, "Float16PKOne", "1 in float16 pk format")
-        kStr += regOneInitStr
-        vgprOneStr = vgpr(vgprOne)
+        vgprOneStr = "1.0 op_sel_hi:[1,1,0,1]"
       else:
-        regOneInitStr = ""
         vgprOneStr = 1.0
       kStr += self.inst("v%s_fma_f16"%pkStr, vgpr(vgprtmp), vgpr(vgprtmp), sgpr(sgprk1), vgprOneStr, "x^2 * k1 + 1" )
       kStr += self.inst("v%s_mul_f16"%pkStr, vgpr(vgprtmp), self.getVgprStr(vgprIdx), vgpr(vgprtmp), "x * (x^2 * k1 + 1)" )
@@ -325,33 +353,39 @@ class Activation:
       self.gprIsTempGpr = True
       kStr += self.getTanhAssembly(cDataType, coef.f, vgprtmp, "", "")
       self.gprIsTempGpr = False
-      kStr += self.inst("v%s_add_f16"%pkStr, vgpr(vgprtmp), vgprOneStr, vgpr(vgprtmp), "1 + tanh(...)" )
-      if regOneInitStr:
-        self.vgprActivationPool.unregisterTemp(vgprOne)
-      kStr += self.inst("v%s_mul_f16"%pkStr, vgpr(vgprtmp), self.getVgprStr(vgprIdx), vgpr(vgprtmp), "x * (1 + tanh(...))" )
-      if self.usePK:
-        vgpr0Five, reg0FiveInitStr = self.getRegAndInitAssembly('v', True, 1, "0x38003800", "Float16PK0Five", "0.5 in float16 pk format")
-        kStr += reg0FiveInitStr
-        vgpr0FiveStr = vgpr(vgpr0Five)
+      instList, lastInstStartPos = extractLastInst(kStr)
+      if (instList[0] == "v%s_fma_f16"%pkStr) and (instList[1] == vgpr(vgprtmp)) and (instList[4] == "1.0"):
+        commentStr = "(" + instList[len(instList) - 1] + ") + 1 (fused)"
+        kStr = kStr[:lastInstStartPos]
+        instList[4] = "2.0 %s"%instList[5] if self.usePK else "2.0"
+        kStr += self.inst(instList[0], instList[1], instList[2], instList[3], instList[4], commentStr)
       else:
-        reg0FiveInitStr = ""
-        vgpr0FiveStr = 0.5
-      kStr += self.inst("v%s_mul_f16"%pkStr, self.getVgprStr(vgprIdx), vgpr0FiveStr, vgpr(vgprtmp), "0.5 * x * (1 + tanh(...))" )
-      if reg0FiveInitStr:
-        self.vgprActivationPool.unregisterTemp(vgpr0Five)
+        lastStr = vgpr(vgprtmp)
+        lastStr += " op_sel_hi:[0,1,1]" if self.usePK else ""
+        kStr += self.inst("v%s_add_f16"%pkStr, vgpr(vgprtmp), 1.0, lastStr, "1 + tanh(...)" )
+      kStr += self.inst("v%s_mul_f16"%pkStr, vgpr(vgprtmp), self.getVgprStr(vgprIdx), vgpr(vgprtmp), "x * (1 + tanh(...))" )
+      lastStr = vgpr(vgprtmp)
+      lastStr += " op_sel_hi:[0,1,1]" if self.usePK else ""
+      kStr += self.inst("v%s_mul_f16"%pkStr, self.getVgprStr(vgprIdx), 0.5, lastStr, "0.5 * x * (1 + tanh(...))" )
       self.vgprActivationPool.unregisterTemp(vgprtmp)
     elif cDataType.isSingle():
       vgprtmp, needInit = self.vgprActivationPool.registerTemp(1, 'gelu vgpr temp', "activation exp")
-      kStr += self.inst("v_mul_f32", vgpr(vgprtmp), self.getVgprStr(vgprIdx), self.getVgprStr(vgprIdx), "x * x" )
       fltGeluK0Str = self.magicNumToStr(cDataType, ActivationMagicNumbers["FloatGeluK1"])
-      kStr += self.inst("v_mul_f32", vgpr(vgprtmp), fltGeluK0Str, vgpr(vgprtmp), "k1 * x * x" )
-      kStr += self.inst("v_add_f32", vgpr(vgprtmp), 1.0, vgpr(vgprtmp), "1 + k1 * x * x" )
+      kStr += self.inst("v_mul_f32", vgpr(vgprtmp), fltGeluK0Str, self.getVgprStr(vgprIdx), "k1 * x" )
+      kStr += self.inst("v_fma_f32", vgpr(vgprtmp), self.getVgprStr(vgprIdx), vgpr(vgprtmp), 1.0, "1 + (k1 * x * x)" )
       kStr += self.inst("v_mul_f32", vgpr(vgprtmp), self.getVgprStr(vgprIdx), vgpr(vgprtmp), "x * (1 + k1 * x * x)" )
       coef = floatUnion(u=ActivationMagicNumbers["FloatGeluK0"])
       self.gprIsTempGpr = True
       kStr += self.getTanhAssembly(cDataType, coef.f, vgprtmp, "", "")
       self.gprIsTempGpr = False
-      kStr += self.inst("v_add_f32", vgpr(vgprtmp), 1.0, vgpr(vgprtmp), "1 + tanh(...)" )
+      instList, lastInstStartPos = extractLastInst(kStr)
+      if (instList[0] == "v_fma_f32") and (instList[1] == vgpr(vgprtmp)) and (instList[4] == "1.0"):
+        commentStr = "(" + instList[len(instList) - 1] + ") + 1 (fused)"
+        kStr = kStr[:lastInstStartPos]
+        instList[4] = 2.0
+        kStr += self.inst(instList[0], instList[1], instList[2], instList[3], instList[4], commentStr)
+      else:
+        kStr += self.inst("v_add_f32", vgpr(vgprtmp), 1.0, vgpr(vgprtmp), "1 + tanh(...)" )
       kStr += self.inst("v_mul_f32", vgpr(vgprtmp), self.getVgprStr(vgprIdx), vgpr(vgprtmp), "x * (1 + tanh(...))" )
       kStr += self.inst("v_mul_f32", self.getVgprStr(vgprIdx), 0.5, vgpr(vgprtmp), "0.5 * x * (1 + tanh(...))" )
       self.vgprActivationPool.unregisterTemp(vgprtmp)
@@ -410,10 +444,8 @@ class Activation:
     kStr += self.getExpAssembly(cDataType, -1, vgprIdx)
     if cDataType.isHalf():
       if self.usePK:
-        flt16OneStr = self.magicNumToStr(cDataType, ActivationMagicNumbers["Float16PKOne"])
-        sgpr1, regInitStr = self.getRegAndInitAssembly('s', False, 1, flt16OneStr, "Float16PKOne", "1 in pk float16 format")
-        kStr += regInitStr
-        kStr += self.inst("v_pk_add_f16", self.getVgprStr(vgprIdx), self.getVgprStr(vgprIdx), sgpr(sgpr1), "1 + exp(-x)" )
+        lastStr = self.getVgprStr(vgprIdx) + " op_sel_hi:[0,1,1]"
+        kStr += self.inst("v_pk_add_f16", self.getVgprStr(vgprIdx), 1.0, lastStr, "1 + exp(-x)" )
         for i in range(0, 2):
           vgprsrc = self.getVgprStr(vgprIdx)
           vgprsrc += " dst_sel:WORD_%d dst_unused:UNUSED_PRESERVE src0_sel:WORD_%d"%(i, i)
@@ -436,15 +468,9 @@ class Activation:
         kStr += self.inst("v%s_mul_f16"%pkStr, self.getVgprStr(vgprIdx), self.getSgprStr(activationAlpha), self.getVgprStr(vgprIdx), "x * alpha")
       coef = coef * 2
       kStr += self.getExpAssembly(cDataType, coef, vgprIdx)
-      if self.usePK:
-        flt16OneStr = self.magicNumToStr(cDataType, ActivationMagicNumbers["Float16PKOne"])
-        vgprOne, regOneInitStr = self.getRegAndInitAssembly('v', True, 1, flt16OneStr, "Float16PKOne", "1 in pk float16 format")
-        kStr += regOneInitStr
-        vgprOneStr = vgpr(vgprOne)
-      else:
-        regOneInitStr = ""
-        vgprOneStr = 1.0
-      kStr += self.inst("v%s_add_f16"%pkStr, self.getVgprStr(vgprIdx), vgprOneStr, self.getVgprStr(vgprIdx), "e^2x + 1")
+      lastStr = self.getVgprStr(vgprIdx)
+      lastStr += " op_sel_hi:[0,1,1]" if self.usePK else ""
+      kStr += self.inst("v%s_add_f16"%pkStr, self.getVgprStr(vgprIdx), 1.0, lastStr, "e^2x + 1")
       if self.usePK:
         for i in range(0, 2):
           vgprsrc = self.getVgprStr(vgprIdx)
@@ -452,18 +478,9 @@ class Activation:
           kStr += self.inst("v_rcp_f16", self.getVgprStr(vgprIdx), vgprsrc, "1 / (1 + exp(-x))" )
       else:
         kStr += self.inst("v_rcp_f16", self.getVgprStr(vgprIdx), self.getVgprStr(vgprIdx), "1 / (1 + exp(-x))" )
-      if self.usePK:
-        vgprTwo, regNegTwoInitStr = self.getRegAndInitAssembly('v', True, 1, "0xc000c000", "Float16PK(-2)", "-2 in float16")
-        kStr += regNegTwoInitStr
-        vgprTwoStr = vgpr(vgprTwo)
-      else:
-        regNegTwoInitStr = ""
-        vgprTwoStr = -2.0
-      kStr += self.inst("v%s_fma_f16"%pkStr, self.getVgprStr(vgprIdx), vgprTwoStr, self.getVgprStr(vgprIdx), vgprOneStr, "tanh(x) = (1 / (e^2x + 1)) * (-2) + 1")
-      if regNegTwoInitStr:
-        self.vgprActivationPool.unregisterTemp(vgprTwo)
-      if regOneInitStr:
-        self.vgprActivationPool.unregisterTemp(vgprOne)
+      lastStr = "1.0"
+      lastStr += " op_sel_hi:[0,1,0,1]" if self.usePK else ""
+      kStr += self.inst("v%s_fma_f16"%pkStr, self.getVgprStr(vgprIdx), -2.0, self.getVgprStr(vgprIdx), lastStr, "tanh(x) = (1 / (e^2x + 1)) * (-2) + 1")
       if activationBeta:
         kStr += self.inst("v%s_mul_f16"%pkStr, self.getVgprStr(vgprIdx), self.getSgprStr(activationBeta), self.getVgprStr(vgprIdx), "beta * tanh(x)")
     elif cDataType.isSingle():
