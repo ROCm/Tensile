@@ -22,16 +22,14 @@
 import ctypes
 import math
 import struct
+from collections import OrderedDict
 
-
-from .ActivationType import ActivationType
 from .AsmUtils import inst, vgpr, sgpr, RegisterPool
-from .Common import printExit
-
+from .Common import printExit, printWarning
 
 ################################################################################
 # How to add an activation
-# 1. Add a new type in ActivationType.py
+# 1. Add a new type in ActivationType
 # 2. Create a new getXXXAssembly function in class Activation
 # 3. Add if-else condition in generateAssembly in class Activation
 # 4. Add if-else condition in generateInlineAssemblyBody in class
@@ -67,6 +65,124 @@ from .Common import printExit
 #    When ActivationType is set to 'all', the registers will be checkIn-ed after
 #    activation's gwvw for loop.
 ################################################################################
+
+################################################################################
+# This is the ActivationType class
+# stringList:
+#   This list stores the names of extra arguments, e.g.
+#   y = (x > 0) ? x : x * alpha
+# lookup:
+#   This dict stores the supported activation types as keys and number of
+#   arguments as values. Insert any new type before 'none' and 'all'. The
+#   sequence of the table should match the enum in Activation.hpp.
+#
+# To add an activation type, see the instruction in Activation.py.
+################################################################################
+
+class ActivationAvailable:
+  def __init__(self, canHalf=False, canSingle=False, canDouble=False, canBFloat16=False, canInt8=False, canInt16=False, canInt32=False):
+    self.half = canHalf
+    self.single = canSingle
+    self.double = canDouble
+    self.bfloat16 = canBFloat16
+    self.int8 = canInt8
+    self.int16 = canInt16
+    self.int32 = canInt32
+
+class ActivationTypeRegister:
+  def __init__(self, name, extraArgs, canHalf=False, canSingle=False, canDouble=False, canBFloat16=False, canInt8=False, canInt16=False, canInt32=False):
+    self.name = name
+    self.extraArgs = extraArgs
+    self.can = ActivationAvailable(canHalf, canSingle, canDouble, canBFloat16, canInt8, canInt16, canInt32)
+  def typeAvailable(self, dataType):
+    if dataType.isHalf() and self.can.half:
+      return True
+    elif dataType.isSingle() and self.can.single:
+      return True
+    elif dataType.isDouble() and self.can.double:
+      return True
+    elif dataType.isBFloat16() and self.can.bfloat16:
+      return True
+    elif dataType.isInt8() and self.can.int8:
+      return True
+    elif dataType.isInt32() and self.can.int32:
+      return True
+    return False
+
+class ActivationType:
+  stringList = ['alpha', 'beta', 'gamma', 'delta' ]
+  # Exp is only for verification. So we will not return exp in the supported list.
+                                                                           # Half,Single,Double,BFloat16,  Int8, Int16, Int32
+  lookupVeri = OrderedDict([('exp',       ActivationTypeRegister('exp', 0,       True,  True, False,   False, False, False, False)) ])
+
+  # Note: The BFloat16 gemm uses Single type activations. The int8 gemm uses int32 type activations.
+                                                                               # Half,Single,Double,BFloat16,  Int8, Int16, Int32
+  lookup = OrderedDict([('abs',         ActivationTypeRegister('abs', 0,         True,  True,  True,    True, False, False,  True)), \
+                        ('clippedrelu', ActivationTypeRegister('clippedrelu', 2, True,  True,  True,   False, False, False,  True)), \
+                        ('gelu',        ActivationTypeRegister('gelu', 0,        True,  True, False,   False, False, False, False)), \
+                        ('leakyrelu',   ActivationTypeRegister('leakyrelu', 1,   True,  True,  True,   False, False, False,  True)), \
+                        ('relu',        ActivationTypeRegister('relu', 0,        True,  True,  True,   False, False, False,  True)), \
+                        ('sigmoid',     ActivationTypeRegister('sigmoid', 0,     True,  True, False,   False, False, False, False)), \
+                        ('tanh',        ActivationTypeRegister('tanh', 2,        True,  True, False,   False, False, False, False)), \
+                        ('none',        ActivationTypeRegister('none', 0)), \
+                        ('all',         ActivationTypeRegister('all', 0)) ])
+  def __init__(self, value):
+    if isinstance(value, str):
+      strValue = value.lower()
+      if strValue in self.lookup:
+        self.value = strValue
+      elif strValue in self.lookupVeri:
+        self.value = strValue
+      else:
+        raise RuntimeError("Unrecognized activation type %s"%value)
+    elif isinstance(value, ActivationType):
+      self.value = value.value
+    else:
+      raise RuntimeError("Unrecognized input type %s, should be string or ActivationType"%str(value))
+  def getAdditionalArgNum(self):
+    if self.value == 'all':
+      maxArgNum = 0
+      for key, activationInst in self.lookup.items():
+        maxArgNum = max(maxArgNum, activationInst.extraArgs)
+      return maxArgNum
+    elif self.value in self.lookup:
+      return self.lookup[self.value].extraArgs
+    return 0
+  def getAdditionalArgStringList(self, addPrefix=True):
+    list = []
+    for i in range(0, self.getAdditionalArgNum()):
+      if addPrefix:
+        list.append("activation" + self.stringList[i].capitalize())
+      else:
+        list.append(self.stringList[i])
+    return list
+  @classmethod
+  def getEnumIndex(cls, enumStr):
+    return list(cls.lookup.keys()).index(enumStr)
+  @classmethod
+  def getEnumStrList(cls, dataType, includeNone = True):
+    enumList = []
+    for key, activationInst in cls.lookup.items():
+      if (((key != 'none') or includeNone) and (key != 'all')):
+        if activationInst.typeAvailable(dataType):
+          enumList.append(key)
+    if not enumList:
+      printWarning("No available activation for this data type %s.\n"%str(dataType))
+    return enumList
+  def state(self): return self.value.capitalize()
+  def __repr__(self):
+    return self.__str__()
+  def __str__(self):
+    return self.value.capitalize()
+  def __eq__(self, other):
+    if isinstance(other, str):
+      return self.value == other.lower()
+    elif isinstance(other, ActivationType):
+      return self.value == other.value
+    else:
+      raise RuntimeError("Unrecognized type in rhs, should be string or ActivationType")
+  def toEnum(self):
+    return self.value.capitalize()
 
 ActivationMagicNumbers = {"FloatGeluK0": 0x3f4c422a, \
                           "FloatGeluK1": 0x3d372713, \

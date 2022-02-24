@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .ActivationType import ActivationType
+from .Activation import ActivationType
 from .DataType import DataType
 from . import Hardware
 from . import Properties

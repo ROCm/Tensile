@@ -28,7 +28,7 @@ from .Utils import ceil_divide
 from .DataType import DataType
 from .AsmUtils import inst, vgpr, sgpr, accvgpr, log2, vectorStaticDivideAndRemainder, vectorStaticDivide, vectorStaticRemainder, scalarStaticDivideAndRemainder, staticMultiply, scalarStaticMultiply, RegisterPool
 from .Activation import Activation
-from .ActivationType import ActivationType
+from .Activation import ActivationType
 
 from math import ceil, trunc, modf, log
 from copy import deepcopy

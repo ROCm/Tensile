@@ -34,7 +34,7 @@ from .KernelWriterConversion import KernelWriterConversion
 from .KernelWriterActivationEnumHeader import KernelWriterActivationEnumHeader
 from .KernelWriterActivationOnly import KernelWriterActivationOnly
 
-from .ActivationType import ActivationType
+from .Activation import ActivationType
 
 from .CustomKernels import isCustomKernelConfig
 
