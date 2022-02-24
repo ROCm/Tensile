@@ -317,14 +317,18 @@ class RegisterPool:
 
   ########################################
   # Size of registers of at least specified blockSize
-  def availableBlock(self, blockSize):
+  def availableBlock(self, blockSize, align):
     if blockSize ==0:
       blockSize = 1
     blocksAvail = 0
     consecAvailable = 0
-    for s in self.pool:
+    #for s in self.pool:
+    for i in range(0, len(self.pool)):
+      s = self.pool[i]
       if s.status == RegisterPool.Status.Available:
-        consecAvailable += 1
+        if not (consecAvailable == 0 and i % align != 0):
+          # do not increment if the first item is not aligned
+          consecAvailable += 1
       else:
         blocksAvail += consecAvailable // blockSize
         consecAvailable = 0
@@ -1815,6 +1819,8 @@ class KernelWriterAssembly(KernelWriter):
          vgprIdx += self.numGlobalReadOffsetsB
 
     else:
+      # TODO: alignment hack, figure out a better solution
+      vgprIdx = ((vgprIdx+1)//2)*2
       self.startVgprGlobalReadAddressesA = vgprIdx
       vgprIdx += numVgprGlobalReadAddressesA
       self.startVgprGlobalReadAddressesB = vgprIdx
@@ -10042,7 +10048,7 @@ class KernelWriterAssembly(KernelWriter):
 
         if atomic:
           # flat atomics have another VGPR to allow different data for return#
-          regsPerElement = 2 if kernel["BufferStore"] else 3
+          regsPerElement = 2 if kernel["BufferStore"] else (3 + 1) # + 1 for alignment
           # The atomic loop processes multiple elements in single instruction
           # so will use VGPR from consec elements? TODO
           self.numVgprsPerDataPerVI = (1.0 * regsPerElement * kernelWriter.bpeCexternal) / kernelWriter.bpr
@@ -11055,7 +11061,15 @@ class KernelWriterAssembly(KernelWriter):
             tl.append(self.vgprPool.checkOut(1, "grow-pool up to next occupancy for GlobalWrite"))
           for t in tl:
             self.vgprPool.checkIn(t)
-        numVgprAvailable = self.vgprPool.availableBlock(numVgprsPerElement)
+        align = 1
+        # align adjustment
+        if self.ss.cfg.numVgprsPerAddr > 1:
+          align = max(align, self.ss.cfg.numVgprsPerAddr)
+        if self.ss.cfg.numVgprPerValuC*gwvw > 1:
+          align = max(align, self.ss.cfg.numVgprPerValuC*gwvw)
+        if int(ceil(self.ss.cfg.numVgprsPerDataPerVI * gwvw)) > 1:
+          align = max(align, int(ceil(self.ss.cfg.numVgprsPerDataPerVI * gwvw)))
+        numVgprAvailable = self.vgprPool.availableBlock(numVgprsPerElement, align)
 
         # Grow the register pool if needed - we need enough regs for at least one element
         # Unfortunate since this means the write logic is setting the VGPR requirement
