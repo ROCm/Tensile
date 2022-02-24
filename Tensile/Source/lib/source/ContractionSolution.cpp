@@ -401,8 +401,8 @@ namespace Tensile
 
         if(!isSourceKernel())
         {
-            if((problem.activationType() != ActivationType::None)
-               && (inputs.activationNoFuseArg == false) && (!sizeMapping.globalAccumulation))
+            if((problem.activationType() != ActivationType::None) && sizeMapping.activationFused
+               && (!sizeMapping.globalAccumulation))
             {
                 for(int i = 0; i < inputs.activationArgs.size(); i++)
                 {
@@ -441,7 +441,7 @@ namespace Tensile
                 if(problem.activationType() == ActivationType::All)
                 {
                     rv.args.append<uint32_t>("activationType",
-                                             static_cast<uint32_t>(inputs.activationTypeIfAllArg));
+                                             static_cast<uint32_t>(problem.activationEnumArg()));
                 }
             }
         }
@@ -806,8 +806,7 @@ namespace Tensile
         else
             rv.args.append<typename TypedInputs::BetaType>("beta", 0.0f);
 
-        if((problem.activationType() != ActivationType::None)
-           && (inputs.activationNoFuseArg == false))
+        if((problem.activationType() != ActivationType::None) && sizeMapping.activationFused)
         {
             for(int i = 0; i < inputs.activationArgs.size(); i++)
             {
@@ -830,7 +829,7 @@ namespace Tensile
             if(problem.activationType() == ActivationType::All)
             {
                 rv.args.append<uint32_t>("activationType",
-                                         static_cast<uint32_t>(inputs.activationTypeIfAllArg));
+                                         static_cast<uint32_t>(problem.activationEnumArg()));
             }
         }
 
@@ -943,6 +942,11 @@ namespace Tensile
 
         if(problem.activationType() != ActivationType::None)
         {
+            if(problem.activationType() == ActivationType::All)
+            {
+                rv.args.append<uint32_t>("activationType",
+                                         static_cast<uint32_t>(problem.activationEnumArg()));
+            }
             for(int i = 0; i < inputs.activationArgs.size(); i++)
             {
                 std::string name = "activation_" + std::to_string(i);
@@ -960,11 +964,6 @@ namespace Tensile
                     rv.args.append<castT>(name.c_str(),
                                           static_cast<castT>(inputs.activationArgs[i]));
                 }
-            }
-            if(problem.activationType() == ActivationType::All)
-            {
-                rv.args.append<uint32_t>("activationType",
-                                         static_cast<uint32_t>(inputs.activationTypeIfAllArg));
             }
         }
 
@@ -1095,7 +1094,7 @@ namespace Tensile
         }
 
         if(((sizeMapping.globalSplitU > 1 && (!sizeMapping.globalAccumulation))
-            || inputs.activationNoFuseArg)
+            || (!sizeMapping.activationFused))
            && (problem.activationType() != ActivationType::None))
         {
             if(debug)

@@ -644,14 +644,25 @@ namespace Tensile
                     inputs.alpha = getValue<AlphaType>(m_alphaInit);
                     inputs.beta  = getValue<BetaType>(m_betaInit);
 
-                    inputs.activationTypeIfAllArg = m_activationTypeIfAll;
-                    inputs.activationNoFuseArg    = m_activationNoFuse;
                     for(int i = 0; i < getAdditionalArgNum(problem.activationType()); i++)
                     {
-                        InitMode mode = (i == m_activationArgsInit.size())
-                                            ? m_activationArgsInit[m_activationArgsInit.size() - 1]
-                                            : m_activationArgsInit[i];
-                        inputs.activationArgs.push_back(getValue<DType>(mode));
+                        double value = 0.0;
+                        if(m_activationAdditionalArgs.empty())
+                        {
+                            value = getValueWithUpperLowerBoundFP<double>(2.0, -2.0);
+                            // Cannot be zero when DType = integers
+                            if(convertDoubleTo<DType>(value) == static_cast<DType>(0))
+                            {
+                                value = std::copysign(std::ceil(std::abs(value)), value);
+                            }
+                        }
+                        else
+                        {
+                            const auto& actArgs = m_activationAdditionalArgs[0];
+                            value
+                                = (i == actArgs.size()) ? actArgs[actArgs.size() - 1] : actArgs[i];
+                        }
+                        inputs.activationArgs.push_back(convertDoubleTo<DType>(value));
                     }
 
                     m_problem = problem;
@@ -674,14 +685,11 @@ namespace Tensile
                 inputs.alpha = getValue<AlphaType>(m_alphaInit);
                 inputs.beta  = getValue<BetaType>(m_betaInit);
 
-                inputs.activationTypeIfAllArg = m_activationTypeIfAll;
-                inputs.activationNoFuseArg    = m_activationNoFuse;
                 for(int i = 0; i < getAdditionalArgNum(m_problem.activationType()); i++)
                 {
-                    InitMode mode = (i == m_activationArgsInit.size())
-                                        ? m_activationArgsInit[m_activationArgsInit.size() - 1]
-                                        : m_activationArgsInit[i];
-                    inputs.activationArgs.push_back(getValue<DType>(mode));
+                    const auto& actArgs = m_activationAdditionalArgs[0];
+                    double value = (i == actArgs.size()) ? actArgs[actArgs.size() - 1] : actArgs[i];
+                    inputs.activationArgs.push_back(convertDoubleTo<DType>(value));
                 }
             }
 
@@ -744,9 +752,7 @@ namespace Tensile
                 dst->alpha = src->alpha;
                 dst->beta  = src->beta;
 
-                dst->activationTypeIfAllArg = src->activationTypeIfAllArg;
-                dst->activationNoFuseArg    = src->activationNoFuseArg;
-                dst->activationArgs         = src->activationArgs;
+                dst->activationArgs = src->activationArgs;
             }
 
             void copyInputs(std::shared_ptr<ManagedInputs> dst,
@@ -806,9 +812,7 @@ namespace Tensile
                     dst->alpha = src->alpha;
                     dst->beta  = src->beta;
 
-                    dst->activationTypeIfAllArg = src->activationTypeIfAllArg;
-                    dst->activationNoFuseArg    = src->activationNoFuseArg;
-                    dst->activationArgs         = src->activationArgs;
+                    dst->activationArgs = src->activationArgs;
                 }
                 else if(m_curBoundsCheck == BoundsCheckMode::GuardPageBack)
                 {
@@ -857,9 +861,7 @@ namespace Tensile
                     dst->alpha = src->alpha;
                     dst->beta  = src->beta;
 
-                    dst->activationTypeIfAllArg = src->activationTypeIfAllArg;
-                    dst->activationNoFuseArg    = src->activationNoFuseArg;
-                    dst->activationArgs         = src->activationArgs;
+                    dst->activationArgs = src->activationArgs;
                 }
                 else
                 {

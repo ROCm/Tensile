@@ -1225,7 +1225,7 @@ class ProblemType(Mapping):
     name += "" if self["StridedBatched"] else "_GB" # legacy
 
     # Activation Naming
-    if ((self["ActivationType"] != 'none') and globalParameters["ActivationNoFuse"] == False):
+    if self["ActivationType"] != 'none':
       if self["ActivationType"] == 'all':
         name += "_A"
       else:
@@ -1760,6 +1760,41 @@ class ProblemSizes:
       s += "  %s" % sizeRange
     return s
 
+################################################################################
+# Activation
+################################################################################
+
+class activationSetting:
+  def __init__(self):
+    self.activationEnum = ""
+class ActivationArgs:
+
+  ########################################
+  def __init__(self, problemType, config):
+    self.settingList = []
+    self.totalProblemSizes = 0
+    if problemType["ActivationType"] == 'none':
+      return
+    if config:
+      for settings in config:
+        actSetting = activationSetting()
+        for dictionary in settings:
+          for sizeTypeKey in dictionary:
+            if sizeTypeKey == "Enum":
+              actSetting.activationEnum = ActivationType(dictionary[sizeTypeKey])
+        if problemType["ActivationType"] == 'all':
+          if (not actSetting.activationEnum):
+            printExit("Must provide an activation enum if Activation is set to True.")
+        else:
+          actSetting.activationEnum = problemType["ActivationType"]
+        self.settingList.append(actSetting)
+        self.totalProblemSizes += 1
+    if (problemType["ActivationType"] == 'all') and (not self.settingList):
+        printExit("Must provide an activation enum in benchmark parameters if Activation is set to True.")
+  def __str__(self):
+    s = "ActivationArgs\n"
+    return s
+
 # kds is class Solution or class Kernel
 # If PackFreeDims=1 then all free dims are packed ; else only 1 free dim/matrix is supported
 # PackBatchDims can pack batches into A or B (has stride==0 requirements for non-packed tensor);
@@ -1876,6 +1911,7 @@ class Solution(collections.abc.Mapping):
       state["ProblemType"] = deepcopy(self["ProblemType"])
       state["KernelLanguage"] = "Source"
       state["_GlobalAccumulation"] = self["_GlobalAccumulation"]
+      state["ActivationFused"] = self["ActivationFused"]
       state["WavefrontSize"] = self["WavefrontSize"]
       self.conversionKernelObjects.append(KernelWriterConversion(state))
 
@@ -1889,12 +1925,13 @@ class Solution(collections.abc.Mapping):
 
   def initActivationOnlyKernelObjects(self):
     self.activationOnlyKernelObjects = []
-    if (((self["GlobalSplitU"] > 1) and (not self["_GlobalAccumulation"])) or (globalParameters["ActivationNoFuse"] == True)) \
+    if (((self["GlobalSplitU"] > 1) and (not self["_GlobalAccumulation"])) or (self["ActivationFused"] == False)) \
       and (self["ProblemType"]["ActivationType"] != 'none') :
       state = {}
       state["ProblemType"] = deepcopy(self["ProblemType"])
       state["KernelLanguage"] = "Source"
       state["_GlobalAccumulation"] = self["_GlobalAccumulation"]
+      state["ActivationFused"] = self["ActivationFused"]
       state["WavefrontSize"] = self["WavefrontSize"]
       self.activationOnlyKernelObjects.append(KernelWriterActivationOnly(state))
 

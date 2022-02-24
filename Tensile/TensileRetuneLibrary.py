@@ -93,7 +93,7 @@ def runBenchmarking(solutions, problemSizes, outPath, update):
 
     pushWorkingPath(shortName)
     pushWorkingPath("source")
-    BenchmarkProblems.writeBenchmarkFiles(benchmarkDir, solutions, problemSizes, shortName, [])
+    BenchmarkProblems.writeBenchmarkFiles(benchmarkDir, solutions, problemSizes , "", shortName, [])
     popWorkingPath() # source
 
     libraryLogicPath = None
@@ -106,7 +106,7 @@ def runBenchmarking(solutions, problemSizes, outPath, update):
     # write solutions yaml file
     for sol in solutions:
         sol["ISA"] = list(sol["ISA"])
-    LibraryIO.writeSolutions(libraryFile, problemSizes, solutions)
+    LibraryIO.writeSolutions(libraryFile, problemSizes, "", solutions)
 
     popWorkingPath() # benchmark
 

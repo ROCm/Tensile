@@ -634,6 +634,16 @@ namespace Tensile
             return m_activationHPA;
         }
 
+        void setActivationEnumArg(ActivationType activationEnumArg)
+        {
+            m_activationEnumArg = activationEnumArg;
+        }
+
+        ActivationType activationEnumArg() const
+        {
+            return m_activationEnumArg;
+        }
+
         /// Largest of the free and bound indices.  Does not include batch size.
         size_t maxProblemSize() const
         {
@@ -816,6 +826,7 @@ namespace Tensile
         bool              m_eligibleForPK           = true;
         bool              m_fp16AltImpl             = false;
         ActivationType    m_activationType          = ActivationType::None;
+        ActivationType    m_activationEnumArg       = ActivationType::None;
         bool              m_activationHPA           = false;
         ArithmeticUnit    m_arithmeticUnit          = ArithmeticUnit::Any;
         KernelLanguage    m_kernelLanguage          = KernelLanguage::Any;
@@ -950,8 +961,6 @@ namespace Tensile
         Alpha alpha = static_cast<Alpha>(0);
         Beta  beta  = static_cast<Beta>(0);
 
-        ActivationType activationTypeIfAllArg = ActivationType::Relu;
-        bool           activationNoFuseArg    = false;
         std::vector<D> activationArgs;
 
         constexpr static uint32_t TypeId()

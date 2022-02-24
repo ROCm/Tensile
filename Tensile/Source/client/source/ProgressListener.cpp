@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -79,6 +79,7 @@ namespace Tensile
             m_reporter->report(ResultKey::LDD, problem.d().strides()[1]);
 
             m_reporter->report(ResultKey::ProblemSizes, problem.problemSizes());
+            m_reporter->report(ResultKey::ActivationType, ToString(problem.activationEnumArg()));
         }
 
         void ProgressListener::postProblem() {}

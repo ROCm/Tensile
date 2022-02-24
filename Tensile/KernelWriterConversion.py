@@ -33,6 +33,7 @@ class KernelWriterConversion(KernelWriterBase):
 
     self.state["ProblemType"] = deepcopy(state["ProblemType"])
     self.state["_GlobalAccumulation"] = state["_GlobalAccumulation"]
+    self.state["ActivationFused"] = state["ActivationFused"]
     self.state["WavefrontSize"] = state["WavefrontSize"]
 
     # derive parameter
@@ -76,7 +77,7 @@ class KernelWriterConversion(KernelWriterBase):
     kStr += "  %s const beta,%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine)
 
     # activation
-    if ((self.state["ProblemType"]["ActivationType"] != 'none') and (globalParameters["ActivationNoFuse"] == False)):
+    if ((self.state["ProblemType"]["ActivationType"] != 'none') and self.state["ActivationFused"]):
       activationCDataType = self.state["ProblemType"]["ComputeDataType"] if self.state["ProblemType"]["ActivationHPA"] else \
                             self.state["ProblemType"]["DestDataType"]
       for name in self.state["ProblemType"]["ActivationType"].getAdditionalArgStringList():
@@ -259,7 +260,7 @@ class KernelWriterConversion(KernelWriterBase):
     kStr += "    accum = (((" + self.datatype + ")alpha) * accum + ((" + self.datatype + ")beta) * ((" + self.datatype + ")C[idxC]));" + self.endLine
 
     typeStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-    if ((self.state["ProblemType"]["ActivationType"] != 'none') and (globalParameters["ActivationNoFuse"] == False)):
+    if ((self.state["ProblemType"]["ActivationType"] != 'none') and self.state["ActivationFused"]):
       typeActivationStr = self.state["ProblemType"]["ComputeDataType"].toDevice(self.language) if self.state["ProblemType"]["ActivationHPA"] else \
                           self.state["ProblemType"]["DestDataType"].toDevice(self.language)
       names = ""
@@ -296,7 +297,7 @@ class KernelWriterConversion(KernelWriterBase):
     name += "_"
     name += self.state["ProblemType"]["DestDataType"].toChar()
     name += "" if self.state["ProblemType"]["StridedBatched"] else "_GB"
-    if ((self.state["ProblemType"]["ActivationType"] != 'none') and (globalParameters["ActivationNoFuse"] == False)):
+    if ((self.state["ProblemType"]["ActivationType"] != 'none') and self.state["ActivationFused"]):
       if self.state["ProblemType"]["ActivationType"] == 'all':
         name += "_A"
       else:

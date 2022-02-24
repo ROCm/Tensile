@@ -1814,7 +1814,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["ProblemType"]["UseBeta"]:
       self.defineSgpr("Beta", numSgprBeta, numSgprBeta)
     if ((kernel["ProblemType"]["ActivationType"] != 'none') and (kernel["_GlobalAccumulation"] != 'MultipleBuffer') \
-        and (globalParameters["ActivationNoFuse"] == False)):
+        and kernel["ActivationFused"]):
       for name in kernel["ProblemType"]["ActivationType"].getAdditionalArgStringList():
           self.defineSgpr(name, self.numActivationArgSize, self.numActivationArgSize)
       if kernel["ProblemType"]["ActivationType"] == 'all':
@@ -1923,7 +1923,7 @@ class KernelWriterAssembly(KernelWriter):
       3 + \
       self.numSgprOffsetD + self.numSgprOffsetC + self.numSgprOffsetA + self.numSgprOffsetB
     if ((kernel["ProblemType"]["ActivationType"] != 'none') and (kernel["_GlobalAccumulation"] != 'MultipleBuffer') \
-        and (globalParameters["ActivationNoFuse"] == False)):
+        and kernel["ActivationFused"]):
       self.numSgprToLoad += self.numActivationTypeArgSize + self.numactivationArgTotalSize
 
     self.argOffsetOffset = (self.numSgprToLoad + 2 - (self.numSgprOffsetD + self.numSgprOffsetC + self.numSgprOffsetA + self.numSgprOffsetB)) * 4
@@ -11994,7 +11994,7 @@ class KernelWriterAssembly(KernelWriter):
       activationLabelEnd = "label_Activation_End_%s"%activationLabelSuffix
       activationLabels = []
       activationEnumStrList = []
-      if ((kernel["_GlobalAccumulation"] != 'MultipleBuffer') and (globalParameters["ActivationNoFuse"] == False) and \
+      if ((kernel["_GlobalAccumulation"] != 'MultipleBuffer') and kernel["ActivationFused"] and \
           (kernel["ProblemType"]["ActivationType"] == 'all')):
         activationEnumStrList = ActivationType.getEnumStrList(activationCDataType)
         for index, enumStr in enumerate(activationEnumStrList):
@@ -12190,7 +12190,7 @@ class KernelWriterAssembly(KernelWriter):
           # Activation using HighPrecisionAccumulate type
           insertActivationAfterPacked = False
           if ((kernel["ProblemType"]["ActivationType"] != 'none') and \
-            (kernel["_GlobalAccumulation"] != 'MultipleBuffer') and (globalParameters["ActivationNoFuse"] == False)):
+            (kernel["_GlobalAccumulation"] != 'MultipleBuffer') and kernel["ActivationFused"]):
             if kernel["ProblemType"]["ActivationHPA"]:
               # Still use BFloat16 for abs.
               if kernel["ProblemType"]["DestDataType"].isBFloat16() and \

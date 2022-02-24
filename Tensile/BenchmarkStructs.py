@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,7 @@ from .Common import print1, print2, hasParam, printExit, \
         defaultBenchmarkFinalProblemSizes, defaultBatchedBenchmarkFinalProblemSizes, \
         defaultBenchmarkCommonParameters, validParameters, globalParameters
 from .CustomKernels import getAllCustomKernelNames
-from .SolutionStructs import ProblemType, ProblemSizes
+from .SolutionStructs import ProblemType, ProblemSizes, ActivationArgs
 
 
 def getDefaultsForMissingParameters(paramList, defaultParams):
@@ -136,8 +136,11 @@ class BenchmarkProcess:
         forkParams            = getNonNoneFromConfig("ForkParameters", [])
         self.customKernels    = getNonNoneFromConfig("CustomKernels", [])
 
+        activationConf = ""
         if "BenchmarkFinalParameters" in config:
-            sizes = config["BenchmarkFinalParameters"][0]["ProblemSizes"]
+            sizes          = config["BenchmarkFinalParameters"][0]["ProblemSizes"]
+            if len(config["BenchmarkFinalParameters"]) == 2:
+                activationConf = config["BenchmarkFinalParameters"][1]["ActivationArgs"]
         else:
             sizes = defaultBatchedBenchmarkFinalProblemSizes if isbatched \
                 else defaultBenchmarkFinalProblemSizes
@@ -146,6 +149,8 @@ class BenchmarkProcess:
                 self.problemSizes, globalParameters["CEqualD"])
 
         configParams = benchmarkCommonParams + forkParams
+
+        self.activationArgs = ActivationArgs(self.problemType, activationConf)
 
         # validate and parse raw parameters into more usable forms
         for paramDict in configParams:
@@ -183,6 +188,7 @@ class BenchmarkProcess:
                 self.singleValueParams, \
                 self.customKernels, \
                 self.problemSizes, \
+                self.activationArgs, \
                 self.benchmarkStepIdx)
         self.benchmarkSteps.append(benchmarkStep)
         self.benchmarkStepIdx += 1
@@ -225,12 +231,13 @@ def constructForkPermutations(forkParams):
 class BenchmarkStep:
     """A single benchmark step which consists of constant and fork parameters and a set of sizes"""
 
-    def __init__(self, forkParams, constantParams, customKernels, problemSizes, idx):
+    def __init__(self, forkParams, constantParams, customKernels, problemSizes, activationArgs, idx):
         """Basic constructor storing each argument"""
         self.forkParams     = forkParams
         self.constantParams = constantParams
         self.customKernels  = customKernels
         self.problemSizes   = problemSizes
+        self.activationArgs = activationArgs
         self.stepIdx        = idx
 
         self.customKernelWildcard = False

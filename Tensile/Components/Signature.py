@@ -262,7 +262,7 @@ class SignatureCOV2(Signature):
             kStr += self.v2Argument(                          "beta", useSize, useAlign,      "ByValue", cptValueType); ka_size += useSize
 
         if ((kernel["ProblemType"]["ActivationType"] != 'none') and (kernel["_GlobalAccumulation"] != 'MultipleBuffer') \
-            and (globalParameters["ActivationNoFuse"] == False)):
+            and kernel["ActivationFused"]):
           activationSize = max(4, kernel["ProblemType"]["DestDataType"].numBytes())
           activationValueType = getActivationValueType(kernel, "V2")
           for name in kernel["ProblemType"]["ActivationType"].getAdditionalArgStringList():
@@ -496,7 +496,7 @@ class SignatureCOV3(Signature):
             kStr += self.v3Argument(                          "beta", useSize, offset,      "by_value", cptValueType); offset += useSize
 
         if ((kernel["ProblemType"]["ActivationType"] != 'none') and (kernel["_GlobalAccumulation"] != 'MultipleBuffer') \
-            and (globalParameters["ActivationNoFuse"] == False)):
+            and kernel["ActivationFused"]):
           activationSize = max(4, kernel["ProblemType"]["DestDataType"].numBytes())
           activationValueType = getActivationValueType(kernel, "V3")
           for name in kernel["ProblemType"]["ActivationType"].getAdditionalArgStringList():

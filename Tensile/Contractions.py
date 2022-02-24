@@ -249,6 +249,14 @@ class ProblemType:
             if not self.useBeta:
                 predicates.append(ProblemPredicate("BetaZero"))
             predicates.append(ProblemPredicate("Activation", value=self.activationType))
+            if self.activationType == 'all':
+                activationCDataType = self.betaType if self.activationHPA else self.dType
+                enumList = ActivationType.getEnumStrList(activationCDataType)
+                wlStr = ""
+                for actType in enumList:
+                    wlStr += ActivationType(actType).toEnum() + ","
+                wlStr = wlStr.rstrip(',')
+                predicates.append(ProblemPredicate("ActivationEnumWhiteList", value=wlStr))
             predicates.append(ProblemPredicate("StridedBatched", value=self.stridedBatched))
 
         if includeType:
@@ -426,6 +434,7 @@ class SizeMapping:
                  'sourceKernel',
                  'globalAccumulation',
                  'workspaceSizePerElemC',
+                 'activationFused'
                  ]
 
     @classmethod
@@ -451,6 +460,7 @@ class SizeMapping:
                    sourceKernel          = d['KernelLanguage'] == 'Source',
                    globalAccumulation    = globalAccum,
                    workspaceSizePerElemC = d['_WorkspaceSizePerElemC'],
+                   activationFused       = d['ActivationFused']
                    )
 
     @classmethod

@@ -66,7 +66,7 @@ def writeMsgPack(filename, data):
     with open(filename, "wb") as f:
         msgpack.pack(data, f)
 
-def writeSolutions(filename, problemSizes, solutions):
+def writeSolutions(filename, problemSizes, activationArgs, solutions):
     """Writes solution YAML file."""
 
     # convert objects to nested dictionaries
@@ -93,7 +93,10 @@ def writeSolutions(filename, problemSizes, solutions):
             for problemExact in problemSizes.exacts:
                 #FIXME-problem, this ignores strides:
                 f.write("  - Exact: %s\n" % str(problemExact))
-
+        if activationArgs:
+            f.write("- ActivationArgs:\n")
+            for setting in activationArgs.settingList:
+                f.write("  - [Enum: %s]\n"%(setting.activationEnum))
         yaml.dump(solutionStates, f, default_flow_style=None)
 
 
@@ -125,9 +128,13 @@ def parseSolutionsData(data, srcFile="?"):
         printExit("Solution file {} doesn't begin with ProblemSizes".format(srcFile))
 
     problemSizesConfig = data[1]["ProblemSizes"]
+    solutionStartIdxInData = 2
+    if len(data) > 2:
+        if "ActivationArgs" in data[2]:
+            solutionStartIdxInData += 1
 
     solutions = []
-    for i in range(2, len(data)):
+    for i in range(solutionStartIdxInData, len(data)):
         solutionState = data[i]
         # force redo the deriving of parameters, make sure old version logic yamls can be validated
         solutionState["AssignedProblemIndependentDerivedParameters"] = False

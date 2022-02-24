@@ -269,6 +269,8 @@ namespace Tensile
 
             int    globalAccumulation    = 0;
             size_t workspaceSizePerElemC = 0;
+
+            bool activationFused = true;
         };
 
         struct ProblemType

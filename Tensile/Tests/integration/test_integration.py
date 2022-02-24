@@ -1,7 +1,7 @@
 import os, subprocess, shlex, shutil, random, pytest
 from filelock import FileLock
 from Tensile import ClientWriter, LibraryIO, Common
-from Tensile.SolutionStructs import ProblemType, ProblemSizesMock
+from Tensile.SolutionStructs import ProblemType, ProblemSizesMock, ActivationArgs
 
 # 1. Call TensileCreateLibrary
 # 2. Get client instance from ClientExecutable()
@@ -143,11 +143,13 @@ def test_integration(useGlobalParameters, builddir, getLogicFileDir,
     for logicFileName in logicFiles:
       (scheduleName, _, problemType, _, _, exactLogic, _, newLibrary, archName) = LibraryIO.parseLibraryLogicFile(logicFileName)
       problemSizes = ProblemSizesMock(random.sample(exactLogic, min(len(exactLogic), 16))) # sample at most 16 problems
+      activationArgs = ActivationArgs(problemType, [[{'Enum': 'relu'}]]) if problemType["ActivationType"] == 'all' else ""
       if isaStr in archName:
         clientParametersPaths.append(ClientWriter.writeClientConfig(
                                       forBenchmark=False,
                                       solutions=None,
                                       problemSizes=problemSizes,
+                                      activationArgs=activationArgs,
                                       stepName=str(ProblemType(problemType)),
                                       stepBaseDir=outputDir,
                                       newLibrary=newLibrary,

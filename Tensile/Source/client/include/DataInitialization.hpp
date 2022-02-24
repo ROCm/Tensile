@@ -144,6 +144,9 @@ namespace Tensile
             virtual std::shared_ptr<ContractionInputs> cpuConvInputs() const = 0;
 
             template <typename T>
+            static inline T convertDoubleTo(double value);
+
+            template <typename T>
             static T getValue(InitMode mode)
             {
                 switch(mode)
@@ -466,10 +469,8 @@ namespace Tensile
             };
 
         protected:
-            InitMode              m_aInit, m_bInit, m_cInit, m_dInit;
-            InitMode              m_alphaInit, m_betaInit;
-            std::vector<InitMode> m_activationArgsInit;
-            ActivationType        m_activationTypeIfAll;
+            InitMode m_aInit, m_bInit, m_cInit, m_dInit;
+            InitMode m_alphaInit, m_betaInit;
 
             size_t m_aBufferOffset;
             size_t m_bBufferOffset;
@@ -491,7 +492,8 @@ namespace Tensile
 
             ActivationType m_activationType;
             bool           m_activationHPA;
-            bool           m_activationNoFuse;
+            // Reserve for multiple argument inputs
+            std::vector<std::vector<double>> m_activationAdditionalArgs;
 
             int m_elementsToValidate = 0;
 
@@ -1436,17 +1438,17 @@ namespace Tensile
         }
 
         template <typename T>
-        inline T getValueWithUpperLowerBoundFP()
+        inline T getValueWithUpperLowerBoundFP(double upper = 1.0, double lower = -1.0)
         {
-            return static_cast<T>(-1.0
+            return static_cast<T>(lower
                                   + static_cast<double>(rand())
-                                        / static_cast<double>(RAND_MAX / (1.0 - (-1.0))));
+                                        / static_cast<double>(RAND_MAX / (upper - lower)));
         }
 
         template <typename T>
-        inline T getValueWithUpperLowerBoundInteger()
+        inline T getValueWithUpperLowerBoundInteger(int upper = 128, int lower = -128)
         {
-            return static_cast<T>(-128 + rand() % (128 - (-128) + 1));
+            return static_cast<T>(lower + rand() % (upper - lower + 1));
         }
 
         template <>
@@ -1508,6 +1510,62 @@ namespace Tensile
         inline int8_t DataInitialization::getValue<int8_t, InitMode::RandomNegPosLimited>()
         {
             return getValueWithUpperLowerBoundInteger<int8_t>();
+        }
+
+        template <>
+        inline float DataInitialization::convertDoubleTo<float>(double value)
+        {
+            return static_cast<float>(value);
+        }
+
+        template <>
+        inline double DataInitialization::convertDoubleTo<double>(double value)
+        {
+            return value;
+        }
+
+        template <>
+        inline BFloat16 DataInitialization::convertDoubleTo<BFloat16>(double value)
+        {
+            return static_cast<BFloat16>(value);
+        }
+
+        template <>
+        inline Half DataInitialization::convertDoubleTo<Half>(double value)
+        {
+            return static_cast<Half>(value);
+        }
+
+        template <>
+        inline std::complex<float>
+            DataInitialization::convertDoubleTo<std::complex<float>>(double value)
+        {
+            throw std::runtime_error("convertDoubleTo not available for std::complex<float>.");
+        }
+
+        template <>
+        inline std::complex<double>
+            DataInitialization::convertDoubleTo<std::complex<double>>(double value)
+        {
+            throw std::runtime_error("convertDoubleTo not available for std::complex<double>.");
+        }
+
+        template <>
+        inline int32_t DataInitialization::convertDoubleTo<int32_t>(double value)
+        {
+            return static_cast<int32_t>(value);
+        }
+
+        template <>
+        inline Int8x4 DataInitialization::convertDoubleTo<Int8x4>(double value)
+        {
+            throw std::runtime_error("convertDoubleTo not available for Int8x4.");
+        }
+
+        template <>
+        inline int8_t DataInitialization::convertDoubleTo<int8_t>(double value)
+        {
+            return static_cast<int8_t>(value);
         }
     } // namespace Client
 } // namespace Tensile

@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -108,7 +108,7 @@ def generateCustomKernelSolutions(problemType, customKernels, failOnMismatch):
     return solutions
 
 def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
-        stepName, solutionSummationSizes):
+        activationArgs, stepName, solutionSummationSizes):
     """Write all the files needed for a given benchmarking step"""
     if not globalParameters["MergeFiles"]:
         ensurePath(os.path.join(globalParameters["WorkingPath"], "Solutions"))
@@ -185,10 +185,10 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
                     idealSize = {"Exact": [idealM, idealN, idealK]}
                     idealSizes.append(idealSize)
         idealProblemSizes = ProblemSizes(problemType, idealSizes)
-        writeClientConfig(True, solutions, idealProblemSizes, stepName, stepBaseDir, \
+        writeClientConfig(True, solutions, idealProblemSizes, activationArgs, stepName, stepBaseDir, \
             newLibrary, codeObjectFiles, True)
     else:
-        writeClientConfig(True, solutions, problemSizes, stepName, stepBaseDir, \
+        writeClientConfig(True, solutions, problemSizes, activationArgs, stepName, stepBaseDir, \
             newLibrary, codeObjectFiles, False)
 
     if len(solutions) == 0:
@@ -230,6 +230,7 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
         elapsedTime = currentTime - startTime
         print1("# Benchmark Step: {} - {} {:.3f}s".format(groupName, stepName, elapsedTime))
         print1("# Num Sizes: {}".format(benchmarkStep.problemSizes.totalProblemSizes))
+        print1("# Activation steps: {}".format(benchmarkStep.activationArgs.totalProblemSizes))
         print1("# Fork Parameters:")
         for k, v in benchmarkStep.forkParams.items():
             print1("#     {}: {}".format(k, v))
@@ -272,7 +273,7 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
         # write benchmarkFiles
         prevCount = len(solutions)
         writeBenchmarkFiles(stepBaseDir, solutions, benchmarkStep.problemSizes, \
-                shortName, [])
+                benchmarkStep.activationArgs, shortName, [])
         # ^ this mutates solutions
 
         print1("# Actual Solutions: {} / {} after KernelWriter\n" \
@@ -301,7 +302,7 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
             print1("# Already benchmarked; skipping.")
 
         # write solutions YAML
-        LibraryIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, solutions)
+        LibraryIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, benchmarkStep.activationArgs, solutions)
 
         # End Iteration
         popWorkingPath() # stepName

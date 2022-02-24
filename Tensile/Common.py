@@ -150,8 +150,7 @@ globalParameters["DataInitTypeC"]  = 3
 globalParameters["DataInitTypeD"]  = 0
 globalParameters["DataInitTypeAlpha"] = 2
 globalParameters["DataInitTypeBeta"] = 2
-globalParameters["DataInitTypeActivationArgs"] = [ 2 ]
-globalParameters["ActivationTypeIfAll"] = 'relu'  # Only works when ActivationType is set to All.
+globalParameters["DataInitValueActivationArgs"] = [2.0, 2.0]
 globalParameters["CEqualD"] = False               # Set to true if testing for the case where the pointer to C is the same as D.
 globalParameters["BufferOffsetA"] = 0             # data offset of buffer A
 globalParameters["BufferOffsetB"] = 0             # data offset of buffer B
@@ -171,9 +170,6 @@ globalParameters["EnableDebugB"] = False          # Enable / Disable CheckValue1
 globalParameters["EnableDebugC"] = False          # Enable / Disable CheckValueC
 globalParameters["ExpectedValueC"] = 16.0         # Expected C Value when CheckValueC, debug for Alpha*A*B
 globalParameters["ForceCExpectedValue"] = False   # Force C to "DebugExpectedValueC", debug for global write
-
-# debug for activation
-globalParameters["ActivationNoFuse"] = False      # Disable activation and create an additional kernel
 
 # Tensor printing controls:
 globalParameters["PrintConvolutionUsage"] = 0      # Print Convolution usage info. 1=tensor fields,2=boilerplate info,4=print tensor mappings for specified ConvProblems
@@ -1192,6 +1188,9 @@ validParameters = {
     "MinVgprNumber":                list(range(0,256)),
 
     "MaxVgprNumber":                list(range(0,257)),
+
+    # Debug use only.
+    "ActivationFused":             [False, True]
     }
 
 
@@ -1331,7 +1330,8 @@ defaultBenchmarkCommonParameters = [
     {"StoreCInUnrollInterval":    [ 1 ] },
     {"StoreCInUnrollExact":       [ False ] },
     {"StoreCInUnrollPostLoop":    [ False ] },
-    {"Fp16AltImpl":               [ False ] }
+    {"Fp16AltImpl":               [ False ] },
+    {"ActivationFused":           [ True  ] }
     ]
 
 # dictionary of defaults comprised of default option for each parameter

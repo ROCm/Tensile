@@ -431,7 +431,7 @@ namespace Tensile
                 // Activation adds here
                 inputs.d[dIndex] = Activation(problem.activationType(),
                                               inputs.d[dIndex],
-                                              inputs.activationTypeIfAllArg,
+                                              problem.activationEnumArg(),
                                               inputs.activationArgs);
             }
         }

@@ -23,7 +23,7 @@ from . import ClientExecutable
 from . import Common
 from . import LibraryIO
 from .Common import globalParameters, pushWorkingPath, popWorkingPath, print1, printExit, CHeader, printWarning, listToInitializer, ClientExecutionLock
-from .SolutionStructs import ProblemType, ProblemSizesMock
+from .SolutionStructs import ProblemType, ProblemSizesMock, ActivationArgs
 from .TensileCreateLibrary import copyStaticFiles
 
 import os
@@ -107,10 +107,12 @@ def main( config ):
     functions.append((scheduleName, problemType))
     functionNames.append("tensile_%s" % (problemType))
     problemSizes = ProblemSizesMock(exactLogic)
+    activationArgs = ActivationArgs(problemType, [[{'Enum': 'relu'}]]) if problemType["ActivationType"] == 'all' else ""
     clientParametersPaths.append(writeClientConfig(
                                   forBenchmark=False,
                                   solutions=None,
                                   problemSizes=problemSizes,
+                                  activationArgs=activationArgs,
                                   stepName=str(ProblemType(problemType)),
                                   stepBaseDir=globalParameters["WorkingPath"],
                                   newLibrary=newLibrary,
@@ -425,17 +427,12 @@ def dataInitParams(problemType):
     if initA == -1: initA = globalParameters['DataInitTypeAB']
     if initB == -1: initB = globalParameters['DataInitTypeAB']
 
-    dataInitList = [('init-a',            DataInitName(initA).name),
-                    ('init-b',            DataInitName(initB).name),
-                    ('init-c',            DataInitName(initC).name),
-                    ('init-d',            DataInitName(initD).name),
-                    ('init-alpha',        DataInitName(initAlpha).name),
-                    ('init-beta',         DataInitName(initBeta).name)]
-    for idx in globalParameters["DataInitTypeActivationArgs"]:
-      dataInitList.append(('init-activation-args', DataInitName(idx).name))
-    actype = ActivationType(globalParameters["ActivationTypeIfAll"])
-    dataInitList.append(('init-activationtype-if-all', actype.toEnum()))
-    return dataInitList
+    return [('init-a',            DataInitName(initA).name),
+            ('init-b',            DataInitName(initB).name),
+            ('init-c',            DataInitName(initC).name),
+            ('init-d',            DataInitName(initD).name),
+            ('init-alpha',        DataInitName(initAlpha).name),
+            ('init-beta',         DataInitName(initBeta).name)]
 
 def boundsCheckName(mode):
     if mode == 0: return 'Disable'
@@ -445,7 +442,7 @@ def boundsCheckName(mode):
     if mode == 4: return 'GuardPageAll'
 
 
-def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, resultsFileName, parametersFilePath, libraryFile=None):
+def writeClientConfigIni(problemSizes, activationArgs, problemType, sourceDir, codeObjectFiles, resultsFileName, parametersFilePath, libraryFile=None):
 
     with open(parametersFilePath, "w") as f:
         def param(key, value):
@@ -483,9 +480,13 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
             if convValidation:
               param('convolution-problem', problemType.convolution.identifier(problem))
 
+        if activationArgs:
+          for setting in activationArgs.settingList:
+            param('activation-enum-args', setting.activationEnum.toEnum())
         param('activation-type', problemType.activationType.toEnum())
         param('activation-hpa', problemType.activationHPA)
-        param('activation-no-fuse', globalParameters["ActivationNoFuse"])
+        if globalParameters["DataInitValueActivationArgs"]:
+          param('activation-additional-args', ','.join(map(str, globalParameters["DataInitValueActivationArgs"])))
 
         param("device-idx",               globalParameters["Device"])
 
@@ -543,7 +544,7 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param("library-update-comment",   globalParameters["LibraryUpdateComment"])
 
 
-def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection, configBase = "ClientParameters", libraryFile = None):
+def writeClientConfig(forBenchmark, solutions, problemSizes, activationArgs, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection, configBase = "ClientParameters", libraryFile = None):
 
     if tileAwareSelection:
       filename = os.path.join(globalParameters["WorkingPath"], "%s_Granularity.ini"%configBase)
@@ -561,7 +562,7 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
 
     newSolution = next(iter(newLibrary.solutions.values()))
     sourceDir = os.path.join(stepBaseDir, "source")
-    writeClientConfigIni(problemSizes, newSolution.problemType, sourceDir, codeObjectFiles, resultsFileName, filename, libraryFile)
+    writeClientConfigIni(problemSizes, activationArgs, newSolution.problemType, sourceDir, codeObjectFiles, resultsFileName, filename, libraryFile)
 
     return filename
 
@@ -582,7 +583,7 @@ def CreateBenchmarkClientParametersForSizes(libraryRootPath, problemSizes, dataF
       problemTypeDict = metaData["ProblemType"]
       problemType = ContractionsProblemType.FromOriginalState(problemTypeDict)
 
-    writeClientConfigIni(problemSizes, problemType, libraryRootPath, codeObjectFiles, dataFilePath, configFile)
+    writeClientConfigIni(problemSizes, "", problemType, libraryRootPath, codeObjectFiles, dataFilePath, configFile)
 
 
 ################################################################################

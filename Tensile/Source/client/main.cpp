@@ -240,9 +240,8 @@ namespace Tensile
 
                 ("activation-type",           po::value<ActivationType>()->default_value(ActivationType::None), "An activation type")
                 ("activation-hpa",            po::value<bool>()->default_value(false), "Use the same data type as high precision accumulate.")
-                ("init-activationtype-if-all",po::value<ActivationType>()->default_value(ActivationType::Relu), "An extra activation type argument if activation-type=all")
-                ("init-activation-args",      po::value<std::vector<InitMode>>()->default_value(std::vector<InitMode>(1, InitMode::Two), "[]"), "Activation args init")
-                ("activation-no-fuse",        po::value<bool>()->default_value(false), "Don't fuse elementwise kernel for debug")
+                ("activation-additional-args",vector_default_empty<std::string>(), "Activation additional floating-point number arguments.")
+                ("activation-enum-args",      po::value<std::vector<ActivationType>>()->default_value(std::vector<ActivationType>(1, ActivationType::None), "[]"), "Activation enum argument.")
                 ;
             // clang-format on
 
@@ -330,33 +329,51 @@ namespace Tensile
             }
         }
 
-        std::vector<size_t> split_ints(std::string const& value)
+        template <typename T>
+        std::vector<T> split_nums(std::string const& value)
         {
             std::vector<std::string> parts;
             boost::split(parts, value, boost::algorithm::is_any_of(",;"));
 
-            std::vector<size_t> rv;
+            std::vector<T> rv;
             rv.reserve(parts.size());
 
             for(auto const& part : parts)
                 if(part != "")
-                    rv.push_back(boost::lexical_cast<size_t>(part));
+                    rv.push_back(boost::lexical_cast<T>(part));
 
             return rv;
         }
 
-        void parse_arg_ints(po::variables_map& args, std::string const& name)
+        template <typename T>
+        void parse_arg_nums(po::variables_map& args, std::string const& name)
         {
             auto inValue = args[name].as<std::vector<std::string>>();
 
-            std::vector<std::vector<size_t>> outValue;
+            std::vector<std::vector<T>> outValue;
             outValue.reserve(inValue.size());
             for(auto const& str : inValue)
-                outValue.push_back(split_ints(str));
+                outValue.push_back(split_nums<T>(str));
 
             boost::any v(outValue);
 
             args.at(name).value() = v;
+        }
+
+        void parse_arg_ints(po::variables_map& args, std::string const& name)
+        {
+            parse_arg_nums<size_t>(args, name);
+        }
+
+        void parse_arg_double(po::variables_map& args, std::string const& name)
+        {
+            parse_arg_nums<double>(args, name);
+        }
+
+        void parse_activation_enum_args(po::variables_map& args, std::string const& name)
+        {
+            auto type             = args[name].as<std::vector<ActivationType>>();
+            args.at(name).value() = boost::any(type);
         }
 
         void parse_activation_int(po::variables_map& args, std::string const& name)
@@ -424,15 +441,8 @@ namespace Tensile
             if(args["convolution-vs-contraction"].as<bool>())
                 parse_arg_ints(args, "convolution-problem");
             parse_activation_int(args, "activation-type");
-            parse_activation_int(args, "init-activationtype-if-all");
-            if(args.count("init-activationtype-if-all")
-               && (args["init-activationtype-if-all"].as<ActivationType>() == ActivationType::All
-                   || args["init-activationtype-if-all"].as<ActivationType>()
-                          == ActivationType::None))
-            {
-                throw std::runtime_error(
-                    "init-activationtype-if-all must be a valid type except none and all.");
-            }
+            parse_activation_enum_args(args, "activation-enum-args");
+            parse_arg_double(args, "activation-additional-args");
             return args;
         }
 
