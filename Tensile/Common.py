@@ -336,7 +336,7 @@ validGEMMTypes = [ ('D','D','D'), ('S','S','S'), ('Z','Z','Z'), ('C','C','C'), \
                   ('H','H','H'), ('H','H','S'), ('H','S','S'), \
                   ('B','B','S'), ('B','S','S'), \
                   ('4xi8','I','I'), \
-                  ('I8','I','I')]
+                  ('I8','I','I'), ('I8','I8','I')]
 
 # These type are newly supported and we would like to use a better file naming for them: _TiToTc_
 # For the rest of the typed, we keep them with old existing naming.

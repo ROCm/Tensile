@@ -200,7 +200,10 @@ class KernelWriterActivationOnly(KernelWriterBase):
         names += ", activationType"
       for name in self.state["ProblemType"]["ActivationType"].getAdditionalArgStringList():
         names += (", " + name)
-      kStr += "  D[idxD] = (%s)activation((%s)D[idxD]%s);%s" % (typeStr, typeActivationStr, names, self.endLine)
+      if self.state["ProblemType"]["DestDataType"].isInt8() and self.state["ProblemType"]["HighPrecisionAccumulate"]:
+        kStr += "  D[idxD] = (%s)min(127, max(-128, activation((%s)D[idxD]%s)));%s" % (typeStr, typeActivationStr, names, self.endLine)
+      else:
+        kStr += "  D[idxD] = (%s)activation((%s)D[idxD]%s);%s" % (typeStr, typeActivationStr, names, self.endLine)
 
     ########################################
     # end

@@ -861,7 +861,9 @@ class KernelWriterAssembly(KernelWriter):
       kernel["LocalWriteUseSgprA"] = False # Requires DirectToLdsA
       kernel["LocalWriteUseSgprB"] = False # Requires DirectToLdsB
 
-    self.useAtomicAdd = self.asmCaps["HasAtomicAdd"] and (kernel["_GlobalAccumulation"] == 'SingleBuffer')
+    # The inst HasAtomicAdd is using is not compatible with int32.
+    self.useAtomicAdd = (self.asmCaps["HasAtomicAdd"] and kernel["ProblemType"]["ComputeDataType"].isSingle()) and \
+                        (kernel["_GlobalAccumulation"] == 'SingleBuffer')
 
     # OptPreLoopVmcnt for PAP:
     # the vmcnt for ds_write in pre-loop can be optimized to skip the store of prev PKLoop
@@ -11211,7 +11213,10 @@ class KernelWriterAssembly(KernelWriter):
         rps = kernel["ProblemType"]["DestDataType"].numRegisters()
         kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx*rps, rpv, \
                   addr0, addr1, addrCalc.globalOffset, ntStr)
-
+      elif kernel["ProblemType"]["DestDataType"].isInt8():
+        if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+          kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx, rpv, \
+                    addr0, addr1, addrCalc.globalOffset, ntStr)
     return kStr
 
 
@@ -11362,6 +11367,11 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.chooseGlobalRead(useBuffer, bps, data, \
                 addr0, addr1, soffset=0, offset=addrCalc.globalOffset, \
                 extraFields=extraStr, hi16=vc0 % 2,
+                comment="load C for beta calc").toStr()
+    elif kernel["ProblemType"]["DestDataType"].isInt8():
+      kStr += self.chooseGlobalRead(useBuffer, bps, data, \
+                addr0, addr1, soffset=0, offset=addrCalc.globalOffset, \
+                extraFields=extraStr, hi16=vc0 % 4,
                 comment="load C for beta calc").toStr()
     elif kernel["ProblemType"]["DestDataType"].isBFloat16() or \
          kernel["ProblemType"]["DestDataType"].isInt32() or \
@@ -12122,7 +12132,21 @@ class KernelWriterAssembly(KernelWriter):
               elif kernel["ProblemType"]["DestDataType"].isSingle():
                 kStr += inst("_v_mac_f32", vgpr("ValuC+%u"%sumIdxV), vgpr(dataV+0), sgpr("Beta"), \
                     "finalSum = sum*alpha + C*beta")
-
+              elif kernel["ProblemType"]["DestDataType"].isInt8():
+                if kernel["ProblemType"]["HighPrecisionAccumulate"]:
+                  assert (gwvw % 4 == 0)
+                  if (vi%4) != 3:
+                    tmpC = self.vgprPool.checkOut(1)
+                    kStr += inst("v_bfe_i32", vgpr(tmpC), vgpr(dataV+0), (vi * 8), 8, "int8 to int32")
+                  else:
+                    tmpC = dataV+0
+                    kStr += inst("v_ashrrev_i32_e32", vgpr(dataV+0), 24, vgpr(dataV+0), "int8 to int32")
+                  kStr += inst("v_mul_lo_u32", vgpr(tmpC), sgpr("Beta"), vgpr(tmpC), \
+                      "C = C*beta")
+                  kStr += inst("_v_add_u32", vgpr("ValuC+%u"%sumIdxV), vgpr(tmpC), vgpr("ValuC+%u"%sumIdxV), \
+                      "finalSum = sum*alpha + C*beta")
+                  if (vi%4) != 3:
+                    self.vgprPool.checkIn(tmpC)
               elif kernel["ProblemType"]["DestDataType"].isInt32():
                 # assume we will need to replace v_mac_f32 with v_add_u32 and s_mul_lo_i32
                 # v_mad_i32_i24
@@ -12240,6 +12264,28 @@ class KernelWriterAssembly(KernelWriter):
                   d = ss.elementSumIdx[elementIdx] + vi//2
                   kStr += inst("v_and_or_b32", vgpr(d), vgpr("ValuC+%u"%sumIdxV), vgpr(vgprBf16Mask), vgpr("ValuC+%u"%(sumIdxV-1)), "pack two bf16 to dword")
                   activationIdxForHighPrecisionAccumulate.append(d)
+              elif kernel["ProblemType"]["DestDataType"].isInt8():
+                assert (gwvw % 4 == 0)
+                if vi%4 == 0:
+                  d = ss.elementSumIdx[elementIdx] + vi//4
+                  tmpLowerBound = self.sgprPool.checkOut(1)
+                  tmpUpperBound = self.vgprPool.checkOut(1)
+                  kStr += inst("s_movk_i32", sgpr(tmpLowerBound), "0xff80", "" )
+                  kStr += inst("v_mov_b32", vgpr(tmpUpperBound), "0x7f", "" )
+                  kStr += inst("v_med3_i32", vgpr("ValuC+%u"%(sumIdxV+0)), vgpr("ValuC+%u"%(sumIdxV+0)), sgpr(tmpLowerBound), vgpr(tmpUpperBound), "" )
+                  kStr += inst("v_med3_i32", vgpr("ValuC+%u"%(sumIdxV+1)), vgpr("ValuC+%u"%(sumIdxV+1)), sgpr(tmpLowerBound), vgpr(tmpUpperBound), "" )
+                  kStr += inst("v_med3_i32", vgpr("ValuC+%u"%(sumIdxV+2)), vgpr("ValuC+%u"%(sumIdxV+2)), sgpr(tmpLowerBound), vgpr(tmpUpperBound), "" )
+                  kStr += inst("v_med3_i32", vgpr("ValuC+%u"%(sumIdxV+3)), vgpr("ValuC+%u"%(sumIdxV+3)), sgpr(tmpLowerBound), vgpr(tmpUpperBound), "" )
+                  self.sgprPool.checkIn(tmpLowerBound)
+                  self.vgprPool.checkIn(tmpUpperBound)
+                  kStr += inst("v_lshlrev_b16", vgpr("ValuC+%u"%(sumIdxV+1)), 8, vgpr("ValuC+%u"%(sumIdxV+1)), "" )
+                  kStr += inst("v_lshlrev_b16", vgpr("ValuC+%u"%(sumIdxV+3)), 8, vgpr("ValuC+%u"%(sumIdxV+3)), "" )
+                  int8CombineStr = vgpr("ValuC+%u"%(sumIdxV+1)) + " dst_sel:DWORD dst_unused:UNUSED_PAD src0_sel:BYTE_0 src1_sel:DWORD"
+                  kStr += inst("v_or_b32", vgpr("ValuC+%u"%(sumIdxV)), vgpr("ValuC+%u"%(sumIdxV)), int8CombineStr, "" )
+                  int8CombineStr = vgpr("ValuC+%u"%(sumIdxV+3)) + " dst_sel:WORD_1 dst_unused:UNUSED_PAD src0_sel:BYTE_0 src1_sel:DWORD"
+                  kStr += inst("v_or_b32", vgpr("ValuC+%u"%(sumIdxV+1)), vgpr("ValuC+%u"%(sumIdxV+2)), int8CombineStr, "" )
+                  int8CombineStr = vgpr("ValuC+%u"%(sumIdxV+1)) + " dst_sel:DWORD dst_unused:UNUSED_PAD src0_sel:WORD_0 src1_sel:DWORD"
+                  kStr += inst("v_or_b32", vgpr(d), vgpr("ValuC+%u"%(sumIdxV)), int8CombineStr, "" )
 
           # Activation
           if insertActivationAfterPacked:

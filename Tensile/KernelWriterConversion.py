@@ -259,6 +259,11 @@ class KernelWriterConversion(KernelWriterBase):
     kStr += "  else%s" % self.endLine
     kStr += "    accum = (((" + self.datatype + ")alpha) * accum + ((" + self.datatype + ")beta) * ((" + self.datatype + ")C[idxC]));" + self.endLine
 
+    if self.state["ProblemType"]["DestDataType"].isInt8() and self.state["ProblemType"]["HighPrecisionAccumulate"]:
+      saturateStr = [ "min(127, max(-128, ", "))" ]
+    else:
+      saturateStr = [ "", "" ]
+
     typeStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
     if ((self.state["ProblemType"]["ActivationType"] != 'none') and self.state["ActivationFused"]):
       typeActivationStr = self.state["ProblemType"]["ComputeDataType"].toDevice(self.language) if self.state["ProblemType"]["ActivationHPA"] else \
@@ -268,9 +273,9 @@ class KernelWriterConversion(KernelWriterBase):
         names += ", activationType"
       for name in self.state["ProblemType"]["ActivationType"].getAdditionalArgStringList():
         names += (", " + name)
-      kStr += "  D[idxD] = (%s)activation((%s)accum%s);%s" % (typeStr, typeActivationStr, names, self.endLine)
+      kStr += "  D[idxD] = (%s)%sactivation((%s)accum%s)%s;%s" % (typeStr, saturateStr[0], typeActivationStr, names, saturateStr[1], self.endLine)
     else:
-      kStr += "  D[idxD] = (%s)accum;%s" % (typeStr, self.endLine)
+      kStr += "  D[idxD] = (%s)%saccum%s;%s" % (typeStr, saturateStr[0], saturateStr[1], self.endLine)
 
     ########################################
     # end

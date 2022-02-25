@@ -227,6 +227,24 @@ namespace Tensile
             return val;
         }
 
+        template <typename T, typename Accumulator>
+        typename std::enable_if<std::is_same<int8_t, T>::value, T>::type
+            SaturateCast(Accumulator val)
+        {
+            if(val > static_cast<Accumulator>(127))
+                val = static_cast<Accumulator>(127);
+            else if(val < static_cast<Accumulator>(-128))
+                val = static_cast<Accumulator>(-128);
+            return static_cast<T>(val);
+        }
+
+        template <typename T, typename Accumulator>
+        typename std::enable_if<!std::is_same<int8_t, T>::value, T>::type
+            SaturateCast(Accumulator val)
+        {
+            return static_cast<T>(val);
+        }
+
         template <typename Inputs, typename Accumulator>
         void ReferenceSolution<Inputs, Accumulator>::SolveCPU(ContractionProblem const& problem,
                                                               Inputs const&             inputs,
@@ -424,7 +442,7 @@ namespace Tensile
                 auto beta = inputs.beta;
                 auto zero = static_cast<typename Inputs::BetaType>(0);
 
-                inputs.d[dIndex] = static_cast<typename Inputs::DType>(
+                inputs.d[dIndex] = SaturateCast<typename Inputs::DType>(
                     multiply<Accumulator>(inputs.alpha, value)
                     + ((beta == zero) ? static_cast<Accumulator>(zero)
                                       : multiply<Accumulator>(beta, inputs.c[cIndex])));
@@ -530,6 +548,12 @@ namespace Tensile
                 auto const& typedInputs
                     = dynamic_cast<ContractionInputs_I32_I32_I32 const&>(inputs);
                 return ReferenceSolution<ContractionInputs_I32_I32_I32>::SolveCPU(
+                    problem, typedInputs, validationStride);
+            }
+            case ContractionInputs_I8_I8_I32::TypeId():
+            {
+                auto const& typedInputs = dynamic_cast<ContractionInputs_I8_I8_I32 const&>(inputs);
+                return ReferenceSolution<ContractionInputs_I8_I8_I32, int32_t>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
             case ContractionInputs_I8_I32_I32::TypeId():

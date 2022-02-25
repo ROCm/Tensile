@@ -1,7 +1,7 @@
 /**
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -79,6 +79,11 @@ namespace Tensile
         {
             return std::fabs(a - b) / (std::fabs(a) + std::fabs(b) + 1)
                    < 0.000000000001; // 15 digits of precision - 2
+        }
+        template <>
+        inline bool AlmostEqual(int8_t a, int8_t b)
+        {
+            return a == b;
         }
         template <>
         inline bool AlmostEqual(int a, int b)

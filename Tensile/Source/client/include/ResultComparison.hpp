@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -89,11 +89,12 @@ namespace Tensile
                         {
                             std::cout << "Index:  Device | Reference" << std::endl;
                         }
-
+                        constexpr bool needCast = std::is_same<int8_t, T>();
+                        using castT             = std::conditional_t<needCast, int, T>;
                         std::cout << "[" << (m_printed) << "] "
                                   << " elem=" << elemNumber << " idx=" << elemIndex << ": "
-                                  << resultValue << (match ? "==" : "!=") << referenceValue
-                                  << std::endl;
+                                  << static_cast<castT>(resultValue) << (match ? "==" : "!=")
+                                  << static_cast<castT>(referenceValue) << std::endl;
 
                         m_printed++;
 

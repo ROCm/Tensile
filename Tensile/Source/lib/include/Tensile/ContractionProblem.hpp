@@ -988,8 +988,10 @@ namespace Tensile
     using ContractionInputs_H_S_S = TypedContractionInputs<Half, Half, float, float>;
 #endif // TENSILE_USE_HALF
     using ContractionInputs_I8x4_I32_I32 = TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>;
-    using ContractionInputs_I8_I32_I32   = TypedContractionInputs<int8_t, int8_t, int32_t, int32_t>;
-    using ContractionInputs_I32_I32_I32  = TypedContractionInputs<int32_t>;
+    using ContractionInputs_I8_I8_I32
+        = TypedContractionInputs<int8_t, int8_t, int8_t, int8_t, int32_t, int32_t>;
+    using ContractionInputs_I8_I32_I32  = TypedContractionInputs<int8_t, int8_t, int32_t, int32_t>;
+    using ContractionInputs_I32_I32_I32 = TypedContractionInputs<int32_t>;
 #ifdef TENSILE_USE_BF16
     using ContractionInputs_B_B_S
         = TypedContractionInputs<BFloat16, BFloat16, BFloat16, BFloat16, float, float>;
