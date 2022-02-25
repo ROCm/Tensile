@@ -1,0 +1,55 @@
+TestParameters:
+  marks: [skip-gfx000, skip-gfx900, skip-gfx906, skip-gfx90a, skip-gfx1010, skip-gfx1011, skip-gfx1012, skip-gfx1030]
+
+GlobalParameters:
+  MinimumRequiredVersion: 4.4.0
+  PrintLevel: 1
+  PrintSolutionRejectionReason: True
+  CMakeBuildType: Release
+  MergeFiles: False
+  KernelTime: True
+
+BenchmarkProblems:
+  ########################################
+  # NN - standard
+  ########################################
+  -
+    - # ProblemType
+      OperationType: GEMM
+      DataType: h
+      TransposeA: False
+      TransposeB: True
+      UseBeta: True
+      Batched: True
+      Activation: True
+      HighPrecisionAccumulate: True
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+      ForkParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - PrefetchLocalRead: [0]
+        - PrefetchGlobalRead: [1]
+        - ThreadTile:
+          - [ 4, 4 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+        - WorkGroupMapping: [1]
+        - DepthU: [ 8 ]
+        - VectorWidth: [2]
+        - GlobalSplitU: [1, 2]
+        - GlobalSplitUAlgorithm: ["MultipleBuffer"]
+        - AssertFree0ElementMultiple: [8]
+        - MatrixInstruction: [[16, 16, 4, 4, 1, 2, 2, 2, 2]]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [512, 480, 1, 512]
+        - ActivationArgs:
+          - [Enum: clippedrelu]
+          - [Enum: gelu]
