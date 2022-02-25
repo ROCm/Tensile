@@ -8968,6 +8968,27 @@ class KernelWriterAssembly(KernelWriter):
 
 
   ##############################################################################
+  # Local Read offset conversion for DirectToLds
+  ##############################################################################
+  def localReadOffsetConvForDTL(self, kernel, tP, offset_val):
+    tc = tP["tensorChar"]
+    bit2 = offset_val & 4
+    bit3 = offset_val & 8
+    bit4 = offset_val & 16
+    bit5 = offset_val & 32
+    if (kernel["GlobalLoadVectorWidth%s"%tc] * tP["bpe"] == 8):
+      # dword_x2 case
+      # (bit2<<3) | (bit3 >>1) | (bit4>>1) | (bit5>>1)
+      newVal = (bit2<<3) | (bit3 >>1) | (bit4>>1) | (bit5>>1)
+    else:  #if (kernel["GlobalLoadVectorWidth%s"%tc] * tP["bpe"] == 16):  # most preferred case
+      # dword_x4 case
+      # (bit2<<3) | (bit3 <<1) | (bit4>>2) | (bit5>>2)
+      newVal = (bit2<<3) | (bit3 <<1) | (bit4>>2) | (bit5>>2)
+    offset_val = offset_val & (~0x3c)
+    offset_val = offset_val | newVal
+    return offset_val
+
+  ##############################################################################
   # Local Read: Increment A/B
   ##############################################################################
   def localReadInc(self, kernel, iui, tP):
@@ -8987,14 +9008,14 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["UnrollMajorLDS%s" % tc]:
           if kernel["DirectToLds%s" % tc] and kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"] > 4:
             # DirectToLds special case. Need special address coonversion
-            if (kernel["GlobalLoadVectorWidth%s"%tc] * tP["bpe"] == 8):
-              inc = 16
-            else: #if (kernel["GlobalLoadVectorWidth%s"%tc] * tP["bpe"] == 16):
-              inc = 8
-            # need to adjust incremet value if iui is odd
-            # second inc case, offset will be 64. inc should be 64 - inc
-            if iui & 1:
-              inc = 64 - inc
+            localReadOffset = kernel["LocalSplitU"] * kernel["MatrixInstK"] * max(self.numReadsIterCoalescedA,self.numReadsIterCoalescedB)
+            localReadOffset *= tP["bpe"]
+            prev_offset_val = 0 if iui == 0 else localReadOffset * iui
+            offset_val = localReadOffset * (iui + 1)
+            # offset conversion or DirectToLds
+            prev_offset_val= self.localReadOffsetConvForDTL(kernel, tP, prev_offset_val)
+            offset_val= self.localReadOffsetConvForDTL(kernel, tP, offset_val)
+            inc = offset_val - prev_offset_val
             matrixInstK = 1 # multiplying matrixInstK is not necessary
             comment = ""
           else:
