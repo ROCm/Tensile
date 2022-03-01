@@ -929,8 +929,10 @@ class ProblemType(Mapping):
     if self["ActivationType"] != 'none':
       if ((not self["HighPrecisionAccumulate"]) and self["ActivationHPA"]):
           printExit("Must enable HighPrecisionAccumulate to use ActivationHPA.")
-      if ((self["HighPrecisionAccumulate"]) and (not self["ActivationHPA"]) and self["DestDataType"].isBFloat16()):
-          printWarning("BFloat16 only supports ActivationHPA = True if HighPrecisionAccumulate = True. ActivationHPA will be set to True automatically.")
+      if ((self["HighPrecisionAccumulate"]) and (not self["ActivationHPA"]) and \
+          (self["DestDataType"].isBFloat16() or self["DestDataType"].isInt8())):
+          printWarning("%s only supports ActivationHPA = True if HighPrecisionAccumulate = True. \
+                        ActivationHPA will be set to True automatically."%str(self["DestDataType"]))
           self["ActivationHPA"] = True
       if self["ActivationHPA"] and (self["DestDataType"].isSingle() or self["DestDataType"].isDouble()):
         printWarning("Single and Double does not support ActivationHPA. ActivationHPA will be set to False automatically.")

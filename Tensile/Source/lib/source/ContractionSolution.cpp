@@ -407,24 +407,18 @@ namespace Tensile
                 for(int i = 0; i < inputs.activationArgs.size(); i++)
                 {
                     std::string name = "activation_" + std::to_string(i);
-                    if(std::is_same<typename TypedInputs::DType, Half>::value)
+                    if(problem.activationHPA()) // Same as hpa type.
                     {
-                        if(problem.activationHPA())
-                        {
-                            constexpr bool needCast
-                                = std::is_same<Half, typename TypedInputs::DType>();
-                            using castT
-                                = std::conditional_t<needCast, float, typename TypedInputs::DType>;
-                            rv.args.append<castT>(name.c_str(),
-                                                  static_cast<castT>(inputs.activationArgs[i]));
-                        }
-                        else
-                        {
-                            rv.args.append<typename TypedInputs::DType>((name + "_pk").c_str(),
-                                                                        inputs.activationArgs[i]);
-                            rv.args.append<typename TypedInputs::DType>(name.c_str(),
-                                                                        inputs.activationArgs[i]);
-                        }
+                        rv.args.append<typename TypedInputs::BetaType>(
+                            name.c_str(),
+                            static_cast<typename TypedInputs::BetaType>(inputs.activationArgs[i]));
+                    }
+                    else if(std::is_same<typename TypedInputs::DType, Half>::value)
+                    {
+                        rv.args.append<typename TypedInputs::DType>((name + "_pk").c_str(),
+                                                                    inputs.activationArgs[i]);
+                        rv.args.append<typename TypedInputs::DType>(name.c_str(),
+                                                                    inputs.activationArgs[i]);
                     }
                     else
                     {
@@ -811,12 +805,11 @@ namespace Tensile
             for(int i = 0; i < inputs.activationArgs.size(); i++)
             {
                 std::string name = "activation_" + std::to_string(i);
-                if(problem.activationHPA() && std::is_same<Half, typename TypedInputs::DType>())
+                if(problem.activationHPA()) // Same as hpa type.
                 {
-                    constexpr bool needCast = std::is_same<Half, typename TypedInputs::DType>();
-                    using castT = std::conditional_t<needCast, float, typename TypedInputs::DType>;
-                    rv.args.append<castT>(name.c_str(),
-                                          static_cast<castT>(inputs.activationArgs[i]));
+                    rv.args.append<typename TypedInputs::BetaType>(
+                        name.c_str(),
+                        static_cast<typename TypedInputs::BetaType>(inputs.activationArgs[i]));
                 }
                 else
                 {
@@ -950,12 +943,11 @@ namespace Tensile
             for(int i = 0; i < inputs.activationArgs.size(); i++)
             {
                 std::string name = "activation_" + std::to_string(i);
-                if(problem.activationHPA() && std::is_same<Half, typename TypedInputs::DType>())
+                if(problem.activationHPA()) // Same as hpa type.
                 {
-                    constexpr bool needCast = std::is_same<Half, typename TypedInputs::DType>();
-                    using castT = std::conditional_t<needCast, float, typename TypedInputs::DType>;
-                    rv.args.append<castT>(name.c_str(),
-                                          static_cast<castT>(inputs.activationArgs[i]));
+                    rv.args.append<typename TypedInputs::BetaType>(
+                        name.c_str(),
+                        static_cast<typename TypedInputs::BetaType>(inputs.activationArgs[i]));
                 }
                 else
                 {

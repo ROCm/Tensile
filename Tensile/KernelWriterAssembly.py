@@ -12221,8 +12221,8 @@ class KernelWriterAssembly(KernelWriter):
                  ((kernel["ProblemType"]["ActivationType"] == 'abs') or (activationEnumStrList[index] == 'abs')):
                 insertActivationAfterPacked = True
               elif kernel["ProblemType"]["DestDataType"].isHalf() and \
-                 ((kernel["ProblemType"]["ActivationType"] == 'abs') or (activationEnumStrList[index] == 'abs')) or \
-                 ((kernel["ProblemType"]["ActivationType"] == 'relu') or (activationEnumStrList[index] == 'relu')):
+                 (((kernel["ProblemType"]["ActivationType"] == 'abs') or (activationEnumStrList[index] == 'abs')) or \
+                 ((kernel["ProblemType"]["ActivationType"] == 'relu') or (activationEnumStrList[index] == 'relu'))):
                 insertActivationAfterPacked = True
               else:
                 activation.setAddGprPrefix(True)
@@ -12280,7 +12280,7 @@ class KernelWriterAssembly(KernelWriter):
                   self.vgprPool.checkIn(tmpUpperBound)
                   kStr += inst("v_lshlrev_b16", vgpr("ValuC+%u"%(sumIdxV+1)), 8, vgpr("ValuC+%u"%(sumIdxV+1)), "" )
                   kStr += inst("v_lshlrev_b16", vgpr("ValuC+%u"%(sumIdxV+3)), 8, vgpr("ValuC+%u"%(sumIdxV+3)), "" )
-                  int8CombineStr = vgpr("ValuC+%u"%(sumIdxV+1)) + " dst_sel:DWORD dst_unused:UNUSED_PAD src0_sel:BYTE_0 src1_sel:DWORD"
+                  int8CombineStr = vgpr("ValuC+%u"%(sumIdxV+1)) + " dst_sel:WORD_0 dst_unused:UNUSED_PAD src0_sel:BYTE_0 src1_sel:DWORD"
                   kStr += inst("v_or_b32", vgpr("ValuC+%u"%(sumIdxV)), vgpr("ValuC+%u"%(sumIdxV)), int8CombineStr, "" )
                   int8CombineStr = vgpr("ValuC+%u"%(sumIdxV+3)) + " dst_sel:WORD_1 dst_unused:UNUSED_PAD src0_sel:BYTE_0 src1_sel:DWORD"
                   kStr += inst("v_or_b32", vgpr("ValuC+%u"%(sumIdxV+1)), vgpr("ValuC+%u"%(sumIdxV+2)), int8CombineStr, "" )

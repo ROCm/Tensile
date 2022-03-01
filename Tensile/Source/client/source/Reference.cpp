@@ -442,15 +442,16 @@ namespace Tensile
                 auto beta = inputs.beta;
                 auto zero = static_cast<typename Inputs::BetaType>(0);
 
-                inputs.d[dIndex] = SaturateCast<typename Inputs::DType>(
-                    multiply<Accumulator>(inputs.alpha, value)
-                    + ((beta == zero) ? static_cast<Accumulator>(zero)
-                                      : multiply<Accumulator>(beta, inputs.c[cIndex])));
+                auto resultD = multiply<Accumulator>(inputs.alpha, value)
+                               + ((beta == zero) ? static_cast<Accumulator>(zero)
+                                                 : multiply<Accumulator>(beta, inputs.c[cIndex]));
                 // Activation adds here
-                inputs.d[dIndex] = Activation(problem.activationType(),
-                                              inputs.d[dIndex],
-                                              problem.activationEnumArg(),
-                                              inputs.activationArgs);
+                std::vector<Accumulator> actArgs;
+                for(int i = 0; i < inputs.activationArgs.size(); i++)
+                    actArgs.push_back(static_cast<Accumulator>(inputs.activationArgs[i]));
+                resultD = Activation(
+                    problem.activationType(), resultD, problem.activationEnumArg(), actArgs);
+                inputs.d[dIndex] = SaturateCast<typename Inputs::DType>(resultD);
             }
         }
 
