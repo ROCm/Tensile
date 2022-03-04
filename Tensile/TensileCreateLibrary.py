@@ -1345,6 +1345,8 @@ def TensileCreateLibrary():
                           default=-1, help="Number of parallel jobs to launch.")
   argParser.add_argument("--verbose", "-v", dest="PrintLevel", type=int,
                           default=1, help="Set printout verbosity level.")
+  argParser.add_argument("--separate-architectures", dest="SeparateArchitectures", action="store_true", 
+                         default=False, help="Separates TensileLibrary file by architecture")
 
   argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
   args = argParser.parse_args()
@@ -1360,6 +1362,7 @@ def TensileCreateLibrary():
   arguments["RuntimeLanguage"] = args.RuntimeLanguage
   arguments["CodeObjectVersion"] = args.CodeObjectVersion
   arguments["Architecture"] = args.Architecture
+  arguments["SeparateArchitectures"] = args.SeparateArchitectures
   arguments["CxxCompiler"] = args.CxxCompiler
   if args.CmakeCxxCompiler:
     os.environ["CMAKE_CXX_COMPILER"] = args.CmakeCxxCompiler
