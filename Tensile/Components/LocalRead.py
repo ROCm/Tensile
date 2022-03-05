@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2021-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -215,8 +215,9 @@ class LocalReadMFMA(LocalRead):
                         if (kernel["DirectToLds%s" % tP["tensorChar"]] and  \
                             kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"] > 4):
                           # directToLds special case
-                          rIdxMod = rIdx % 2
-                          rIdxDiv = rIdx // 2
+                          divVal = 4 if kernel["ProblemType"]["DataType"].isDoubleComplex() else 2
+                          rIdxMod = rIdx % divVal
+                          rIdxDiv = rIdx // divVal
                           offset_val = (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride
                           offset_val = (rIdxDiv * UnrollStride + offset_val + tP["localReadOffset"]) * tP["bpe"]  + rIdxMod * writer.bpr
                         else:
@@ -271,11 +272,11 @@ class LocalReadMFMA(LocalRead):
                           bit3 = offset_val & 8
                           bit4 = offset_val & 16
                           bit5 = offset_val & 32
-                          if (kernel["VectorWidth"] * tP["bpe"] == 8):
+                          if (kernel["GlobalLoadVectorWidth%s"%tc] * tP["bpe"] == 8):
                             # dword_x2 case
                             # (bit2<<3) | (bit3 >>1) | (bit4>>1) | (bit5>>1)
                             newVal = (bit2<<3) | (bit3 >>1) | (bit4>>1) | (bit5>>1)
-                          else:  #if (kernel["VectorWidth"] * tP["bpe"] == 16):  # most preferred case
+                          else:  #if (kernel["GlobalLoadVectorWidth%s"%tc] * tP["bpe"] == 16):  # most preferred case
                             # dword_x4 case
                             # (bit2<<3) | (bit3 <<1) | (bit4>>2) | (bit5>>2)
                             newVal = (bit2<<3) | (bit3 <<1) | (bit4>>2) | (bit5>>2)
