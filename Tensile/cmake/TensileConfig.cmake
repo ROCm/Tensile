@@ -100,6 +100,7 @@ function(TensileCreateLibraryFiles
        SHORT_FILE_NAMES
        PRINT_DEBUG
        GENERATE_PACKAGE
+       SEPARATE_ARCHITECTURES
        )
 
   # Single value settings
