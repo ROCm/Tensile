@@ -79,6 +79,8 @@ namespace Tensile
                 return "Max";
             case InitMode::DenormMin:
                 return "DenormMin";
+            case InitMode::DenormMax:
+                return "DenormMax";
 
             case InitMode::Count:
                 break;
@@ -138,6 +140,8 @@ namespace Tensile
                 mode = InitMode::Max;
             else if(strValue == ToString(InitMode::DenormMin))
                 mode = InitMode::DenormMin;
+            else if(strValue == ToString(InitMode::DenormMax))
+                mode = InitMode::DenormMax;
             else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
             {
                 int value = atoi(strValue.c_str());

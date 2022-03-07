@@ -1,0 +1,64 @@
+TestParameters:
+  marks: [skip-gfx900, skip-gfx906, skip-gfx908, skip-gfx90a]
+
+# benchmark assembly and source kernels
+GlobalParameters:
+  MinimumRequiredVersion: 4.2.0
+  CMakeBuildType: Release
+  PrintLevel: 1
+  ForceRedoBenchmarkProblems: True
+  ForceRedoLibraryLogic: True
+  ForceRedoLibraryClient: True
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
+  NumElementsToValidate: -1
+  BoundsCheck: True
+  ValidationMaxToPrint: 4
+  ValidationPrintValids: False
+  ShortNames: False
+  MergeFiles: True
+  KernelTime: True
+  DataInitTypeA: 18
+  DataInitTypeB: 19
+  DataInitTypeC: 0
+  DataInitTypeAlpha: 1
+  DataInitTypeBeta: 1
+  #PrintTensorD: 0x2
+  #PrintTensorRef: 0x2
+
+BenchmarkProblems:
+
+  - # sgemm NN
+    - # ProblemType
+      OperationType: GEMM
+      DataType: s
+      DestDataType: s
+      TransposeA: False
+      TransposeB: False
+      UseBeta: True
+      Batched: True
+
+    - # BenchmarkProblemSizeGroup - Assembly
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - LoopTail: [True]
+        - EdgeType: ["ShiftPtr"]
+        - KernelLanguage: ["Assembly"]
+      ForkParameters:
+        - GlobalSplitU: [1]
+        - PrefetchLocalRead: [False]
+        - PrefetchGlobalRead: [True]
+        - ThreadTile:
+          - [ 8, 8 ]
+        - WorkGroup:
+          #- [ 32,  4,  1 ]
+          - [  8,  8,  1 ]
+          #- [  4,  8,  4 ]
+        - DepthU: [-3]
+        - VectorWidth: [-1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Range: [ [1024], [1024], [1], [1024] ]
