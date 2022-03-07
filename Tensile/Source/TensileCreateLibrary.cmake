@@ -34,17 +34,18 @@ function(TensileCreateLibraryCmake
     Tensile_MERGE_FILES
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG
-    Tensile_CPU_THREADS )
+    Tensile_CPU_THREADS
+    Tensile_SEPARATE_ARCHITECTURES)
 
 # make Tensile_PACKAGE_LIBRARY and optional parameter
 # to avoid breaking applications which us this
   if (ARGN)
     list (GET ARGN 0 Tensile_PACKAGE_LIBRARY)
-    list (GET ARGN 1 Tensile_SEPARATE_ARCHITECTURES)
+    #list (GET ARGN 1 Tensile_SEPARATE_ARCHITECTURES)
     # list (GET ARGN 1 Tensile_INCLUDE_LEGACY_CODE)
   else()
     set(Tensile_PACKAGE_LIBRARY OFF)
-    set(Tensile_SEPARATE_ARCHITECTURES OFF)
+    #set(Tensile_SEPARATE_ARCHITECTURES OFF)
     # set(Tensile_INCLUDE_LEGACY_CODE ON)
   endif()
 
