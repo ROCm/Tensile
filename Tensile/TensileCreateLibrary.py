@@ -1105,6 +1105,8 @@ def buildObjectFilePaths(prefixDir, solutionFiles, sourceKernelFiles, asmKernelF
   asmKernelPaths = []
   sourceLibPaths = []
   asmLibPaths = []
+  libMetadataPaths = []
+
 
   # Build full paths for source kernel files
   sourceKernelDir = ""
@@ -1125,25 +1127,30 @@ def buildObjectFilePaths(prefixDir, solutionFiles, sourceKernelFiles, asmKernelF
   # Build full paths for source and asm library files
   libDir = os.path.join(prefixDir, "library")
 
+  libraryExt = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
+  if not globalParameters["SeparateArchitectures"]:
+    libMetadataPaths = [ os.path.join(libDir, "TensileLibrary"+libraryExt) ]
+
   for sourceLibFile in sourceLibFiles:
     sourceLibPaths += [ os.path.join(libDir, sourceLibFile) ]
 
   for asmLibFile in asmLibFiles:
+    # Asm lib files are enumerated in the form of
+    # KernelName_gfxXXXXX.co
+    # Strip the gfxXXXX portion and use that as a subdirectory
+    asmLibFileNoExt = str(os.path.splitext(asmLibFile)[0])
+    asmArch = asmLibFileNoExt[asmLibFileNoExt.find("_gfx"):]
     if globalParameters["PackageLibrary"]:
-      # Asm lib files are enumerated in the form of
-      # KernelName_gfxXXXXX.co
-      # Strip the gfxXXXX portion and use that as a subdirectory
-      asmLibFileNoExt = str(os.path.splitext(asmLibFile)[0])
-      asmArch = asmLibFileNoExt[asmLibFileNoExt.find("_gfx"):]
 
       # asmArch contains _gfxXXXX. Don't use the underscore in new path
       asmLibPaths += [ os.path.join(
         libDir, asmArch[1:], asmLibFile.replace(asmArch, ''))]
-
     else:
+      if globalParameters["SeparateArchitectures"]:
+        libMetadataPaths += [ os.path.join(libDir, "TensileLibrary"+asmArch+libraryExt) ]
       asmLibPaths += [ os.path.join(libDir, asmLibFile) ]
 
-  return (solutionPaths, sourceKernelPaths, asmKernelPaths, sourceLibPaths, asmLibPaths)
+  return (solutionPaths, sourceKernelPaths, asmKernelPaths, sourceLibPaths, asmLibPaths, libMetadataPaths)
 
 ################################################################################
 # Write CMake
@@ -1153,7 +1160,7 @@ def writeCMake(outputPath, solutionFiles, kernelFiles, libraryStaticFiles):
 
   # Build output file paths, using relative CMake symbol
   cmakeSrcDir = "${CMAKE_SOURCE_DIR}"
-  (solutionPaths, sourceKernelPaths, asmKernelPaths, sourceLibPaths, asmLibPaths) = \
+  (solutionPaths, sourceKernelPaths, asmKernelPaths, sourceLibPaths, asmLibPaths, _) = \
     buildObjectFilePaths(cmakeSrcDir, solutionFiles, kernelFiles, [], [], [])
 
   # Build full paths the static library files
@@ -1461,7 +1468,8 @@ def TensileCreateLibrary():
    _,
    _,
    sourceLibPaths,
-   asmLibPaths) = buildObjectFilePaths(outputPath, solutionFiles, sourceKernelFiles, \
+   asmLibPaths,
+   libMetadataPaths) = buildObjectFilePaths(outputPath, solutionFiles, sourceKernelFiles, \
     asmKernelFiles, sourceLibFiles, asmLibFiles)
 
   # Generate manifest file
@@ -1472,7 +1480,7 @@ def TensileCreateLibrary():
   libraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
 
   # Manifest file contains YAML file, output library paths and cpp source for embedding.
-  for filePath in [os.path.join(libraryPath, libraryFilename)] + sourceLibPaths + asmLibPaths:
+  for filePath in libMetadataPaths + sourceLibPaths + asmLibPaths:
     generatedFile.write("%s\n" %(filePath) )
   generatedFile.close()
 
