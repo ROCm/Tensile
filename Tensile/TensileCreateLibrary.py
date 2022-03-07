@@ -1211,6 +1211,9 @@ def generateLogicDataAndSolutions(logicFiles, args):
 
   masterLibraries = {}
   fullMasterLibrary = None
+
+  nextSolIndex = 0
+
   for logic in Utils.tqdm(libraries, "Processing logic data"):
     (scheduleName, deviceNames, problemType, solutionsForSchedule, \
        indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) = logic
@@ -1221,6 +1224,14 @@ def generateLogicDataAndSolutions(logicFiles, args):
       else:
         masterLibraries[architectureName] = deepcopy(newLibrary)
         masterLibraries[architectureName].version = args.version
+    elif globalParameters["SeparateArchitectures"]:
+      if architectureName in masterLibraries:
+        nextSolIndex = masterLibraries[architectureName].merge(deepcopy(newLibrary), nextSolIndex)
+      else:
+        masterLibraries[architectureName] = deepcopy(newLibrary)
+        masterLibraries[architectureName].version = args.version
+        masterLibraries[architectureName].remapSolutionIndicesStartingFrom(nextSolIndex)
+        nextSolIndex += max(masterLibraries[architectureName].solutions.keys()) + 1
     else:
       if fullMasterLibrary is None:
         fullMasterLibrary = deepcopy(newLibrary)
@@ -1509,13 +1520,19 @@ def TensileCreateLibrary():
         masterFile = os.path.join(archPath, "TensileLibrary")
         newMasterLibrary.applyNaming(kernelMinNaming)
         LibraryIO.write(masterFile, Utils.state(newMasterLibrary), args.LibraryFormat)
+  elif globalParameters["SeparateArchitectures"]:
+    for archName, newMasterLibrary in masterLibraries.items():
+      if (archName in archs):
+        masterFile = os.path.join(newLibraryDir, "TensileLibrary_"+archName)
+        newMasterLibrary.applyNaming(kernelMinNaming)
+        LibraryIO.write(masterFile, Utils.state(newMasterLibrary), args.LibraryFormat)
   else:
     masterFile = os.path.join(newLibraryDir, "TensileLibrary")
     fullMasterLibrary.applyNaming(kernelMinNaming)
     LibraryIO.write(masterFile, Utils.state(fullMasterLibrary), args.LibraryFormat)
 
   theMasterLibrary = fullMasterLibrary
-  if globalParameters["PackageLibrary"]:
+  if globalParameters["PackageLibrary"] or globalParameters["SeparateArchitectures"]:
     theMasterLibrary = list(masterLibraries.values())[0]
 
   if args.EmbedLibrary is not None:

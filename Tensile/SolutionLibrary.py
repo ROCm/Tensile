@@ -358,10 +358,22 @@ class MasterSolutionLibrary:
         for s in list(self.solutions.values()):
             s.name = OriginalSolution.getNameMin(s.originalSolution.getKernels()[0], naming)
 
-    def merge(self, other):
+    def remapSolutionIndicesStartingFrom(self, curIndex):
+        reIndexMap = {}
+        solutionCopy = self.solutions
+        self.solutions = dict()
+        for k,s in solutionCopy.items():
+            reIndexMap[s.index] = curIndex
+            s.index = curIndex
+            self.solutions[curIndex] = s
+            curIndex += 1
+
+        self.library.remapSolutionIndices(reIndexMap)
+
+    def merge(self, other, startIndex=0):
         assert self.__class__ == other.__class__
 
-        curIndex = max(self.solutions.keys()) + 1
+        curIndex = max(startIndex, max(self.solutions.keys()) + 1)
 
         reIndexMap = {}
         for k,s in other.solutions.items():
@@ -373,6 +385,8 @@ class MasterSolutionLibrary:
         other.library.remapSolutionIndices(reIndexMap)
 
         self.library.merge(other.library)
+
+        return curIndex    #Next unused index
 
     @property
     def cpp_base_class(self):
