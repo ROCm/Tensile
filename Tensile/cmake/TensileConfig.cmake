@@ -150,6 +150,10 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--no-merge-files")
   endif()
 
+  if(Tensile_SEPARATE_ARCHITECTURES)
+    set(Options ${Options} "--separate-architectures")
+  endif()
+
   if(Tensile_GENERATE_PACKAGE)
     set(Options ${Options} "--package-library")
   endif()
