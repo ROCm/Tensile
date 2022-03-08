@@ -1084,12 +1084,16 @@ namespace Tensile
         template <>
         inline BFloat16 DataInitialization::getValue<BFloat16, InitMode::DenormMin>()
         {
-            return static_cast<BFloat16>(DataInitialization::getValue<float, InitMode::DenormMin>());
+            BFloat16 bf16;
+            bf16.data = 0x0001;
+            return bf16;
         }
         template <>
         inline BFloat16 DataInitialization::getValue<BFloat16, InitMode::DenormMax>()
         {
-            return static_cast<BFloat16>(DataInitialization::getValue<float, InitMode::DenormMax>());
+            BFloat16 bf16;
+            bf16.data = 0x007F;
+            return bf16;
         }
         template <>
         inline BFloat16 DataInitialization::getValue<BFloat16, InitMode::NaN>()

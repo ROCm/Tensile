@@ -1,5 +1,5 @@
 TestParameters:
-  marks: [skip-gfx900, skip-gfx906, skip-gfx908, skip-gfx1010, skip-gfx1011, skip-gfx1012, skip-gfx1030, emulation1] # not supported by arch
+  marks: [skip-gfx900, skip-gfx906, skip-gfx908, skip-gfx90a, skip-gfx1010, skip-gfx1011, skip-gfx1012, skip-gfx1030, emulation1] # not supported by arch
 
 GlobalParameters:
   NumElementsToValidate: -1
@@ -9,7 +9,10 @@ GlobalParameters:
   DataInitTypeA: 18
   DataInitTypeB: 19
   DataInitTypeC: 0
+  DataInitTypeAlpha: 2
   DataInitTypeBeta: 1
+  #PrintTensorA: 0x1
+  #PrintTensorB: 0x1
   #PrintTensorD: 0x2
   #PrintTensorRef: 0x2
 
@@ -54,5 +57,6 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           # - Range: [ [1024], [1024], [1], [1024] ]
-          - Range: [ [1024], [1024], [1], [1024] ]
+          #- Range: [ [1024], [1024], [1], [1024] ]
+          - Range: [ [128], [128], [1], [128] ]
 
