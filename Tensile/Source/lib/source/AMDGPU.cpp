@@ -82,6 +82,12 @@ namespace Tensile
             return stream << "gfx1012";
         case AMDGPU::Processor::gfx1030:
             return stream << "gfx1030";
+        case AMDGPU::Processor::gfx1100:
+            return stream << "gfx1100";
+        case AMDGPU::Processor::gfx1101:
+            return stream << "gfx1101";
+        case AMDGPU::Processor::gfx1102:
+            return stream << "gfx1102";
         }
         return stream;
     }
