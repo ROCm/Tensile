@@ -93,11 +93,6 @@ namespace Tensile
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
                                                          Hardware const&  hardware) const = 0;
 
-        /**
-         * Merges libraries together, subclasses and library types must match
-         */
-        virtual void merge(const SolutionLibrary<MyProblem, MySolution>& other){}
-
         virtual std::string type() const        = 0;
         virtual std::string description() const = 0;
     };

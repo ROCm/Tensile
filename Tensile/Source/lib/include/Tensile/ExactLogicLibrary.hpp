@@ -29,8 +29,6 @@
 #include <Tensile/Debug.hpp>
 #include <Tensile/Predicates.hpp>
 #include <Tensile/SolutionLibrary.hpp>
-#include <type_traits>
-#include <algorithm>
 
 namespace Tensile
 {
@@ -54,7 +52,6 @@ namespace Tensile
     template <typename MyProblem, typename MySolution, typename MyPredicate>
     struct ExactLogicLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
-        using ExactLogicType = ExactLogicLibrary<MyProblem, MySolution, MyPredicate>;
         using Row = LibraryRow<MyProblem, MySolution, MyPredicate>;
         std::vector<Row> rows;
 
@@ -104,43 +101,6 @@ namespace Tensile
             }
 
             return rv;
-        }
-
-        /**
-         * Assumes that a partial order is consistent between the two libraries.
-         * If the two libraries have identical elements in different relative orders
-         * behaviour is undefined
-         */
-        virtual void merge(const SolutionLibrary<MyProblem, MySolution>& other) override
-        {
-            try{
-                auto ellPtr = dynamic_cast<const ExactLogicType*>(&other);
-                std::vector<Row> newRows;
-                auto nextToAdd = rows.begin();
-
-                for(auto row : ellPtr->rows){
-                    auto match = find_if(nextToAdd, rows.end(), [&row](auto other){
-                        return row.first.value->toString() == other.first.value->toString();
-                        });
-                    if (match != rows.end()){
-                        for(auto it = nextToAdd; it != match; it++)
-                            newRows.push_back(*it);
-                        nextToAdd = match+1;
-                    } 
-                    //@TODO - Enable recursively for future
-                    //match->merge(row);
-                    newRows.push_back(row);
-
-                }
-
-                for(auto it = nextToAdd; it != rows.end(); it++)
-                    newRows.push_back(*it);
-
-                rows = newRows;
-            }
-            catch(std::bad_cast){
-                std::cerr << "Library merge failed: Library layouts not identical" << std::endl;
-            }
         }
 
         virtual std::string description() const override

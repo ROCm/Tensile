@@ -51,8 +51,6 @@ namespace Tensile
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct MasterSolutionLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
-        using MasterSolutionLibraryType = MasterSolutionLibrary<MyProblem, MySolution>;
-        
         static std::string Type()
         {
             return "Master";
@@ -73,19 +71,6 @@ namespace Tensile
                                    " solutions, next level: ",
                                    library->type(),
                                    ")");
-        }
-
-        virtual void merge(const SolutionLibrary<MyProblem, MySolution>& other) override
-        {
-            try{
-                auto otherLibrary = dynamic_cast<const MasterSolutionLibraryType&>(other);
-                library->merge(*otherLibrary.library);
-
-                otherLibrary.solutions.insert(otherLibrary.solutions.begin(), otherLibrary.solutions.end());
-            }
-            catch(std::bad_cast){
-                std::cerr << "Library merge failed: Library layouts not identical" << std::endl;
-            }
         }
 
         std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> library;
