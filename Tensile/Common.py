@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -538,7 +538,6 @@ validParameters = {
     # Changes the behaviour of prefetch across persistent.
     # Mode 0 is default, works for all sizes
     # Mode 1 disables static tile setup for prefetch and merges prefetch with ord. noLoadLoop,
-    #   requires AssertSummationElementMultiple == DepthU
     "PrefetchAcrossPersistentMode": [0, 1],
 
     "BufferLoad":                 [ False, True ],
@@ -646,7 +645,7 @@ validParameters = {
     #  - Tail loop can be unrolled up to InnerUnroll amount if AssertSummationElementMultiple%InnerUnroll==0
     #
     # 1 indicates no assertion (since all sizes are multiples of 1)
-    "AssertSummationElementMultiple": [1,2,4,8,16,32],
+    "AssertSummationElementMultiple": [1,2,4,8,16,32,64],
 
     # Kernel generator will assume that the FreeIndex[0] size is some multiple of the element size
     # and use this to optimize the kernel.
