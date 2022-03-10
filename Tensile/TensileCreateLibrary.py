@@ -1477,8 +1477,6 @@ def TensileCreateLibrary():
   ensurePath(libraryPath)
   generatedFile = open(os.path.join(libraryPath, "TensileManifest.txt"), "w")
 
-  libraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
-
   # Manifest file contains YAML file, output library paths and cpp source for embedding.
   for filePath in libMetadataPaths + sourceLibPaths + asmLibPaths:
     generatedFile.write("%s\n" %(filePath) )
@@ -1513,9 +1511,9 @@ def TensileCreateLibrary():
     print("codeObjectFiles:", codeObjectFiles)
     print("sourceLibPaths + asmLibPaths:", sourceLibPaths + asmLibPaths)
 
-  #assert len(sanityCheck0) == 0, "Unexpected code object files: {}".format(sanityCheck0)
-  #if not globalParameters["GenerateSourcesAndExit"]:
-  #  assert len(sanityCheck1) == 0, "Missing expected code object files: {}".format(sanityCheck1)
+  assert len(sanityCheck0) == 0, "Unexpected code object files: {}".format(sanityCheck0)
+  if not globalParameters["GenerateSourcesAndExit"]:
+    assert len(sanityCheck1) == 0, "Missing expected code object files: {}".format(sanityCheck1)
 
   archs = [gfxName(arch) for arch in globalParameters['SupportedISA'] \
              if globalParameters["AsmCaps"][arch]["SupportedISA"]]
