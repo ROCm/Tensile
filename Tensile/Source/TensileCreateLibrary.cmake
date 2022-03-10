@@ -41,11 +41,9 @@ function(TensileCreateLibraryCmake
 # to avoid breaking applications which us this
   if (ARGN)
     list (GET ARGN 0 Tensile_PACKAGE_LIBRARY)
-    #list (GET ARGN 1 Tensile_SEPARATE_ARCHITECTURES)
     # list (GET ARGN 1 Tensile_INCLUDE_LEGACY_CODE)
   else()
     set(Tensile_PACKAGE_LIBRARY OFF)
-    #set(Tensile_SEPARATE_ARCHITECTURES OFF)
     # set(Tensile_INCLUDE_LEGACY_CODE ON)
   endif()
 
