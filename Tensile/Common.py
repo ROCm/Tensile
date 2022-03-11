@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -255,6 +255,8 @@ globalParameters["CustomKernelDirectory"] = os.path.join(os.path.dirname(os.path
 
 globalParameters["PristineOnGPU"] = True # use Pristine memory on Tensile trainning verification or not
 
+globalParameters["SeparateArchitectures"] = False # write Tensile library metadata to separate files for each architecture
+
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 
@@ -339,7 +341,7 @@ validGEMMTypes = [ ('D','D','D'), ('S','S','S'), ('Z','Z','Z'), ('C','C','C'), \
 
 # These type are newly supported and we would like to use a better file naming for them: _TiToTc_
 # For the rest of the typed, we keep them with old existing naming.
-typesUsingNewNaming = [ ('H','H','S'), ('H','S','S'), ('B','S','S'),('I8','I','I')]
+typesUsingNewNaming = [ ('H','S','S'), ('B','S','S'),('I8','I','I')]   # ('H','H','S') is removed bcs we are merging this case in HBH
 
 validParameters = {
     "LoopDoWhile":                [ False, True ], # Source. True=DoWhile, False=For loop
@@ -538,7 +540,6 @@ validParameters = {
     # Changes the behaviour of prefetch across persistent.
     # Mode 0 is default, works for all sizes
     # Mode 1 disables static tile setup for prefetch and merges prefetch with ord. noLoadLoop,
-    #   requires AssertSummationElementMultiple == DepthU
     "PrefetchAcrossPersistentMode": [0, 1],
 
     "BufferLoad":                 [ False, True ],
@@ -646,7 +647,7 @@ validParameters = {
     #  - Tail loop can be unrolled up to InnerUnroll amount if AssertSummationElementMultiple%InnerUnroll==0
     #
     # 1 indicates no assertion (since all sizes are multiples of 1)
-    "AssertSummationElementMultiple": [1,2,4,8,16,32],
+    "AssertSummationElementMultiple": [1,2,4,8,16,32,64],
 
     # Kernel generator will assume that the FreeIndex[0] size is some multiple of the element size
     # and use this to optimize the kernel.

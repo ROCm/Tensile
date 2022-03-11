@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -479,7 +479,7 @@ namespace Tensile
                 auto p = std::shared_ptr<T>(ptr, hipFree);
                 if(Debug::Instance().printTensorInfo())
                     std::cout << "info: allocate " << title << " " << std::setw(sizew) << size
-                              << " bytes at " << ptr << "\n";
+                              << " bytes at " << static_cast<void*>(ptr) << "\n";
                 return p;
             }
 
