@@ -34,7 +34,8 @@ function(TensileCreateLibraryCmake
     Tensile_MERGE_FILES
     Tensile_SHORT_FILE_NAMES
     Tensile_LIBRARY_PRINT_DEBUG
-    Tensile_CPU_THREADS )
+    Tensile_CPU_THREADS
+    Tensile_SEPARATE_ARCHITECTURES)
 
 # make Tensile_PACKAGE_LIBRARY and optional parameter
 # to avoid breaking applications which us this
@@ -73,6 +74,10 @@ function(TensileCreateLibraryCmake
 
   if(${Tensile_PACKAGE_LIBRARY})
     set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--package-library")
+  endif()
+
+  if(${Tensile_SEPARATE_ARCHITECTURES})
+    set(Tensile_CREATE_COMMAND ${Tensile_CREATE_COMMAND} "--separate-architectures")
   endif()
 
   if(${Tensile_SHORT_FILE_NAMES})
