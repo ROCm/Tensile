@@ -255,6 +255,8 @@ globalParameters["CustomKernelDirectory"] = os.path.join(os.path.dirname(os.path
 
 globalParameters["PristineOnGPU"] = True # use Pristine memory on Tensile trainning verification or not
 
+globalParameters["SeparateArchitectures"] = False # write Tensile library metadata to separate files for each architecture
+
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 

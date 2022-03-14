@@ -1095,11 +1095,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
       ####
       if self.numVgprBuffer >= kernel["LoopIters"]:
         for vacancy in self.localReadsVacancy:
-          # {"items","letencyLeft","atIter","atMfmaIndex","noReadsAtThisIter"}
+          # {"items","latencyLeft","atIter","atMfmaIndex","noReadsAtThisIter"}
           for localRead in list(localReadItemsThisLoop):
-            if vacancy["letencyLeft"] > localRead.IssueLatency * 2:
+            if vacancy["latencyLeft"] > localRead.IssueLatency * 2:
               if not localRead.readToTempVgpr:
-                vacancy["letencyLeft"] -= localRead.IssueLatency * 2
+                vacancy["latencyLeft"] -= localRead.IssueLatency * 2
                 vacancy["items"].addCode(localRead)
                 localReadItemsThisLoop.remove(localRead)
                 if vacancy["atMfmaIndex"] > self.lwStartMfmaIndex - 1 and kernel["1LDSBuffer"]:
@@ -1113,7 +1113,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
                         self.localReadsWait[readsIter].lgkmcnt += 1
             else:
               # make sure the localread sequence remain the same
-              vacancy["letencyLeft"] = 0
+              vacancy["latencyLeft"] = 0
       numReadsInst = len(localReadItemsThisLoop) if iteration < isBarrier else len(localReadItemsNextLoop)
 
       for i in range(numMfmaPerIter):
@@ -1173,10 +1173,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if not localReadItemsThisLoop and latencyLeft > 0 and iteration < isBarrier and \
             not(mfmaIndex > self.lwStartMfmaIndex and kernel["1LDSBuffer"]):
           item = Code.Module()
-          item.addComment0("localReadsVacancy: letencyLeft %d"%(latencyLeft))
+          item.addComment0("localReadsVacancy: latencyLeft %d"%(latencyLeft))
           iterCode.addCode(item)
           self.localReadsVacancy.append({ "items": item, \
-                                          "letencyLeft": latencyLeft, \
+                                          "latencyLeft": latencyLeft, \
                                           "atIter": iteration, \
                                           "atMfmaIndex": mfmaIndex, \
                                           "noReadsAtThisIter": numReadsInst == 0, \
