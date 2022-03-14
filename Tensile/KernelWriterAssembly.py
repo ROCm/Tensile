@@ -3325,16 +3325,56 @@ class KernelWriterAssembly(KernelWriter):
   # code phrase for load batched address from array of buffer pointer
   ##############################################################################
   def loadBatchedAddress(self, kernel, Batch, tmpSgpr):
+    laneSC = self.laneSGPRCount
     kStr = self.endLine
 
+    # handle Batch C/D
     for idx in kernel["ProblemType"]["IndicesBatch"]:
       if not isPackedIndex(kernel,idx):
         kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(Batch), 0x8, "offset of global buffer address")
         if not kernel["_GlobalAccumulation"]:
           kStr += inst("s_load_dwordx2", sgpr("AddressD", 2), sgpr("AddressD",2), sgpr(tmpSgpr), "load global buffer D address")
           kStr += inst("s_load_dwordx2", sgpr("AddressC", 2), sgpr("AddressC",2), sgpr(tmpSgpr), "load global buffer C address")
+
+    #handle Batch A/B
+    endCheckLabel = self.getNamedLabel(f"label_skip_buffer_deref_{Batch}")
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(1), "check summation size")
+    for i in range(0, self.numSgprSizesSum):
+      kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr("SizesSum+%u"%(i)), sgpr(tmpSgpr), "check summation size")
+    kStr += inst("s_cmp_eq_u32", sgpr(tmpSgpr), hex(0), "skip buffer deref is size of summation is 0")
+    kStr += inst("s_cbranch_scc1", endCheckLabel, "skip buffer deref is size of summation is 0")
+
+    if kernel["ProblemType"]["ComputeDataType"].isDoubleComplex():
+      kStr += inst("v_cmp_eq_f64", sgpr(tmpSgpr, laneSC), sgpr("Alpha", 2), 0.0, "Alpha.real == 0.0 ?")
+      kStr += inst("v_cmp_eq_f64", self.vcc, sgpr("Alpha+2", 2), 0.0, "Alpha.imag == 0.0 ?")
+      kStr += inst(f"s_and_b{kernel['WavefrontSize']}", sgpr(tmpSgpr, laneSC), self.vcc, sgpr(tmpSgpr, laneSC), "Alpha == 0 ?")
+      kStr += inst(f"s_cmp_eq_u{kernel['WavefrontSize']}", sgpr(tmpSgpr, laneSC), hex(0), "branch if alpha == 0")
+      kStr += inst("s_cbranch_scc0 %s" % (endCheckLabel), "branch if alpha == 0")
+    elif kernel["ProblemType"]["ComputeDataType"].isDouble():
+      kStr += inst("v_cmp_eq_f64", self.vcc, sgpr("Alpha", 2), 0.0, "Alpha == 0.0 ?")
+      kStr += inst("s_cbranch_vccnz %s" % (endCheckLabel), "branch if Alpha == 0")
+    elif kernel["ProblemType"]["ComputeDataType"].isSingleComplex():
+      kStr += inst("v_cmp_eq_f32", sgpr(tmpSgpr, laneSC), sgpr("Alpha"), 0.0, "Alpha.real == 0.0f ?")
+      kStr += inst("v_cmp_eq_f32", self.vcc, sgpr("Alpha+1"), 0.0, "Alpha.imag == 0.0f ?")
+      kStr += inst(f"s_and_b{kernel['WavefrontSize']}", sgpr(tmpSgpr, laneSC), self.vcc, sgpr(tmpSgpr, laneSC), "Alpha == 0 ?")
+      kStr += inst(f"s_cmp_eq_u{kernel['WavefrontSize']}", sgpr(tmpSgpr, laneSC), hex(0), "branch if alpha == 0")
+      kStr += inst("s_cbranch_scc0 %s" % (endCheckLabel), "branch if alpha == 0")
+    elif kernel["ProblemType"]["ComputeDataType"].isSingle() or \
+         kernel["ProblemType"]["ComputeDataType"].isHalf() or \
+         kernel["ProblemType"]["ComputeDataType"].isBFloat16():
+      kStr += inst("v_cmp_eq_f32", self.vcc, sgpr("Alpha"), 0.0, "Alpha == 0.0f ?")
+      kStr += inst("s_cbranch_vccnz %s" % (endCheckLabel), "branch if alpha == 0")
+    else: # int32
+      kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), 0, "Alpha == 0 ?")
+      kStr += inst("s_cbranch_scc1 %s" % (endCheckLabel), "branch if alpha == 0")
+
+    kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(Batch), 0x8, "offset of global buffer address")
+    for idx in kernel["ProblemType"]["IndicesBatch"]:
+      if not isPackedIndex(kernel,idx):
         kStr += inst("s_load_dwordx2", sgpr("AddressA", 2), sgpr("AddressA",2), sgpr(tmpSgpr), "load global buffer A address")
         kStr += inst("s_load_dwordx2", sgpr("AddressB", 2), sgpr("AddressB",2), sgpr(tmpSgpr), "load global buffer B address")
+
+    kStr += self.getNamedLabelDef(f"label_skip_buffer_deref_{Batch}")
 
     return kStr
 
@@ -3427,7 +3467,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for %u bytes of kern args" % self.kernArgOffset )
 
       if not kernel["ProblemType"]["StridedBatched"]:
-        tmpSgpr = self.getTmpSgpr(1).idx()
+        tmpSgpr = self.getTmpSgpr(self.laneSGPRCount).idx()
         kStr += self.loadBatchedAddress(kernel, "WorkGroup2", tmpSgpr)
         kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait global buffer address ready")
     else:
@@ -3743,6 +3783,14 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("s_lshl_b32", sgpr(stmp+3), sgpr(stmp+3), hex(log2(self.bpeAB)), "elements offset to bytes offset")
             kStr += inst("s_add_u32",  sgpr("AddressB+0"), sgpr("AddressB+0"), sgpr(stmp+3), "add offset to buffer address")
             kStr += inst("s_addc_u32", sgpr("AddressB+1"), sgpr("AddressB+1"), 0, "add offset to buffer address")
+
+            if self.groOffsetInMacroTile:
+              prePad = self.srdShiftLeft["A"] * self.tPA["bpe"] # leave room in case we have to pointer shift
+              kStr += inst("s_sub_u32",  sgpr("AddressA+0"), sgpr("AddressA+0"), prePad, "pre-pad to make room for possible pointer shift")
+              kStr += inst("s_subb_u32",  sgpr("AddressA+1"), sgpr("AddressA+1"), 0, "pre-pad to make room for possible pointer shift")
+              prePad = self.srdShiftLeft["B"] * self.tPB["bpe"] # leave room in case we have to pointer shift
+              kStr += inst("s_sub_u32",  sgpr("AddressB+0"), sgpr("AddressB+0"), prePad, "pre-pad to make room for possible pointer shift")
+              kStr += inst("s_subb_u32",  sgpr("AddressB+1"), sgpr("AddressB+1"), 0, "pre-pad to make room for possible pointer shift")
 
       else:
         # SerialWorkGroupIter wg0/1
