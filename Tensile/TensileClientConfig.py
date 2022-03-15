@@ -24,7 +24,8 @@ from . import ClientWriter
 from . import LibraryIO
 from .Contractions import ProblemType as ContractionsProblemType
 from .SolutionStructs import ProblemSizes, ProblemType
-from .Common import print1, printExit, assignGlobalParameters, restoreDefaultGlobalParameters, HR
+from .Common import print1, printExit, printWarning, assignGlobalParameters, \
+        restoreDefaultGlobalParameters, HR
 from .Tensile import addCommonArguments, argUpdatedGlobalParameters
 from . import __version__
 
@@ -34,6 +35,7 @@ import sys
 
 
 def getGlobalParams(config):
+    """Try to parse out global parameters from the places it could be"""
     globalParams = None
     try:
         globalParams = config["GlobalParameters"]
@@ -44,15 +46,18 @@ def getGlobalParams(config):
 
 
 def getProblemDict(config):
+    """Try to parse out a problem type dict from the places it could be"""
     problemDict = None
-    try:
+    try: # Tensile Config file (first entry)
         problemDict = config["BenchmarkProblems"][0][0]
+        if len(config["BenchmarkProblems"]) > 1:
+            printWarning("More than one BenchmarkProblem in config file: only using first")
     except:
         pass
     else:
         return problemDict
 
-    try:
+    try: # Solution Selection "base" file
         problemDict = config["ProblemType"]
     except:
         pass
@@ -61,14 +66,19 @@ def getProblemDict(config):
 
 
 def getSizeList(config):
+    """
+    Try to parse out a size list from the places it could be
+    (including the whole config being the list)
+    """
     sizeList = None
-    try:
+    try: # Tensile config file (first entry)
         sizeList = config["BenchmarkProblems"][0][1]["BenchmarkFinalParameters"][0]["ProblemSizes"]
     except:
         pass
     else:
         return sizeList
 
+    # check if whole config looks like a size list
     keep = True
     if type(config) is list:
         for i in config:
@@ -84,7 +94,7 @@ def getSizeList(config):
 
 
 def parseConfig(config):
-
+    """Parse out all data we can get from the config"""
     globalParams = getGlobalParams(config)
     problemDict = getProblemDict(config)
     sizeList = getSizeList(config)
@@ -111,7 +121,7 @@ def TensileClientConfig(userArgs):
     addCommonArguments(argParser)
     args = argParser.parse_args(userArgs)
 
-    # parse config inputs
+    # loop through all configs and parse out all the data we can
     configs = [LibraryIO.readYAML(x) for x in args.ConfigYaml]
 
     globalParams = {}
@@ -119,36 +129,39 @@ def TensileClientConfig(userArgs):
     sizeList = None
 
     for config in configs:
-        # get all information we can get from each config
         (myGlobalParams, myProblemDict, mySizeList) = parseConfig(config)
 
+        # if we got data from the config, keep it
+        # if we already had that data, abort
         if myGlobalParams is not None:
-            if globalParams == {}:
+            if globalParams == {} or globalParams == myGlobalParams:
                 globalParams = myGlobalParams
             else:
-                printExit("duplicate global params")
+                printExit("Multiple definitions for GlobalParameters found:\n{}\nand\n{}"
+                    .format(globalParams, myGlobalParams))
 
         if myProblemDict is not None:
-            if problemDict is None:
+            if problemDict is None or problemDict == myProblemDict:
                 problemDict = myProblemDict
             else:
-                printExit("duplicate problem type")
+                printExit("Multiple definitions for ProblemType found:\n{}\nand\n{}"
+                    .format(problemDict, myProblemDict))
 
-        if mySizeList is not None:
+        if mySizeList is not None or sizeList == mySizeList:
             if sizeList is None:
                 sizeList = mySizeList
             else:
-                printExit("duplicate sizes")
+                printExit("Multiple size lists found:\n{}\nand\n{}"
+                    .format(sizeList, mySizeList))
 
     if problemDict is None:
-        printExit("could not parse problem type from inputs")
+        printExit("No ProblemType found; cannot produce output")
     if sizeList is None:
-        printExit("could not parse size list from inputs")
+        printExit("No SizeList found; cannot produce output")
 
     ssProblemType = ProblemType(problemDict)
     conProblemType = ContractionsProblemType.FromOriginalState(ssProblemType)
-    sizes = ProblemSizes(ssProblemType, sizeList)
-
+    sizes = ProblemSizes(ssProblemType, sizeList) # TODO doesn't seem to work for range sizes
 
     # update globals
     restoreDefaultGlobalParameters()
