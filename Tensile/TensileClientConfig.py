@@ -39,7 +39,7 @@ def getGlobalParams(config):
     globalParams = None
     try:
         globalParams = config["GlobalParameters"]
-    except:
+    except (TypeError, LookupError):
         pass
 
     return globalParams
@@ -52,14 +52,14 @@ def getProblemDict(config):
         problemDict = config["BenchmarkProblems"][0][0]
         if len(config["BenchmarkProblems"]) > 1:
             printWarning("More than one BenchmarkProblem in config file: only using first")
-    except:
+    except (TypeError, LookupError):
         pass
     else:
         return problemDict
 
     try: # Solution Selection "base" file
         problemDict = config["ProblemType"]
-    except:
+    except (TypeError, LookupError):
         pass
 
     return problemDict
@@ -73,7 +73,7 @@ def getSizeList(config):
     sizeList = None
     try: # Tensile config file (first entry)
         sizeList = config["BenchmarkProblems"][0][1]["BenchmarkFinalParameters"][0]["ProblemSizes"]
-    except:
+    except (TypeError, LookupError):
         pass
     else:
         return sizeList
