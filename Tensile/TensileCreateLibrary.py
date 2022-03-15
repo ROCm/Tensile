@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,7 @@ if __name__ == "__main__":
     exit(1)
 
 from . import Common
+from . import ClientExecutable
 from . import EmbeddedData
 from . import LibraryIO
 from . import Utils
@@ -1203,7 +1204,7 @@ def generateKernelObjectsFromSolutions(solutions):
       kernelHelperNames.add(ko.getKernelName())
 
   # remove duplicates while preserving order
-  kernels = list(dict.fromkeys(kernels)) 
+  kernels = list(dict.fromkeys(kernels))
   kernelHelperObjs = list(dict.fromkeys(kernelHelperObjs))
   return (kernels, kernelHelperObjs, kernelHelperNames)
 
@@ -1258,9 +1259,9 @@ def generateLogicDataAndSolutions(logicFiles, args):
         value.merge(deepcopy(masterLibraries["fallback"]))
 
     masterLibraries.pop("fallback")
-  
+
   # remove duplicates while preserving order
-  solutions = list(dict.fromkeys(solutions)) 
+  solutions = list(dict.fromkeys(solutions))
   return logicData, solutions, masterLibraries, fullMasterLibrary
 
 ################################################################################
@@ -1372,6 +1373,9 @@ def TensileCreateLibrary():
                          default=False, help="Separates TensileLibrary file by architecture")
 
   argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
+  argParser.add_argument("--build-client", dest="BuildClient", action="store_true")
+  argParser.add_argument("--client-config", dest="ClientConfig", action="store_true")
+
   args = argParser.parse_args()
 
   logicPath = args.LogicPath
@@ -1557,6 +1561,27 @@ def TensileCreateLibrary():
           for co in Utils.tqdm(codeObjectFiles):
               embedFile.embed_file("SolutionAdapter", co, nullTerminated=False,
                                    key=args.EmbedLibraryKey)
+
+  if args.BuildClient:
+    print1("# Building Tensile Client")
+    ClientExecutable.getClientExecutable(outputPath)
+  if args.ClientConfig:
+
+    # write simple ini for best solution mode linked to library we just made
+    iniFile = os.path.join(outputPath, "best-solution.ini")
+    with open(iniFile, "w") as f:
+      def param(key, value):
+        f.write("{}={}\n".format(key, value))
+
+      libraryFile = masterFile + ".yaml" \
+        if globalParameters["LibraryFormat"] == "yaml" else masterFile + ".dat"
+
+      param("library-file", libraryFile)
+      for coFile in codeObjectFiles:
+        param("code-object", os.path.join(outputPath,coFile))
+
+      param("best-solution", True)
+
 
   print1("# Tensile Library Writer DONE")
   print1(HR)
