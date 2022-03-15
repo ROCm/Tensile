@@ -1064,8 +1064,8 @@ class KernelWriterSource(KernelWriter):
 
       kStr += "  unsigned int wg = " + self.getGroupIdStr + "(2);" + self.endLine
       if not kernel["_GlobalAccumulation"]:
-        kStr += "  DEST_DATA_TYPE      * D = BatchD[wg];" + self.endLine
-        kStr += "  DEST_DATA_TYPE const* C = BatchC[wg];" + self.endLine
+        kStr +=  "  DEST_DATA_TYPE      * D = BatchD[wg];" + self.endLine
+        kStr += f"  DEST_DATA_TYPE const* C = (beta == {zeroStr}) ? nullptr : BatchC[wg];" + self.endLine
       kStr += f"  DATA_TYPE      const* A = ((alpha == {zeroStr}) || (sizeUnroll == 0)) ? nullptr : BatchA[wg];" + self.endLine
       kStr += f"  DATA_TYPE      const* B = ((alpha == {zeroStr}) || (sizeUnroll == 0)) ? nullptr : BatchB[wg];" + self.endLine
 
@@ -1171,8 +1171,8 @@ class KernelWriterSource(KernelWriter):
         if not kernel["ProblemType"]["StridedBatched"]:
           zeroStr = kernel["ProblemType"]["ComputeDataType"].zeroString(self.language, 1)
           if not kernel["_GlobalAccumulation"]:
-            kStr += "  D = BatchD[wgKSerial] + offsetD;%s" % self.endLine
-            kStr += "  C = BatchC[wgKSerial] + offsetC;%s" % self.endLine
+            kStr +=  "  D = BatchD[wgKSerial] + offsetD;%s" % self.endLine
+            kStr += f"  C = ((beta == {zeroStr}) ? nullptr : BatchC[wgKSerial]) + offsetC;%s" % self.endLine
           kStr += f"  A = (((alpha == {zeroStr}) || (sizeUnroll == 0)) ? nullptr : BatchA[wgKSerial]) + offsetA;" + self.endLine
           kStr += f"  B = (((alpha == {zeroStr}) || (sizeUnroll == 0)) ? nullptr : BatchB[wgKSerial]) + offsetB;" + self.endLine
       else:

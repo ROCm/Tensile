@@ -3329,15 +3329,46 @@ class KernelWriterAssembly(KernelWriter):
     kStr = self.endLine
 
     # handle Batch C/D
-    for idx in kernel["ProblemType"]["IndicesBatch"]:
-      if not isPackedIndex(kernel,idx):
-        kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(Batch), 0x8, "offset of global buffer address")
-        if not kernel["_GlobalAccumulation"]:
+    if not kernel["_GlobalAccumulation"]:
+      for idx in kernel["ProblemType"]["IndicesBatch"]:
+        if not isPackedIndex(kernel,idx):
+          kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(Batch), 0x8, "offset of global buffer address")
           kStr += inst("s_load_dwordx2", sgpr("AddressD", 2), sgpr("AddressD",2), sgpr(tmpSgpr), "load global buffer D address")
+
+      endCheckLabel = self.getNamedLabel(f"label_skip_c_buffer_deref_{Batch}")
+      if kernel["ProblemType"]["ComputeDataType"].isDoubleComplex():
+        kStr += inst("v_cmp_eq_f64", sgpr(tmpSgpr, laneSC), sgpr("Beta", 2), 0.0, "Beta.real == 0.0 ?")
+        kStr += inst("v_cmp_eq_f64", self.vcc, sgpr("Beta+2", 2), 0.0, "Beta.imag == 0.0 ?")
+        kStr += inst(f"s_and_b{kernel['WavefrontSize']}", sgpr(tmpSgpr, laneSC), self.vcc, sgpr(tmpSgpr, laneSC), "Beta == 0 ?")
+        kStr += inst(f"s_cmp_eq_u{kernel['WavefrontSize']}", sgpr(tmpSgpr, laneSC), hex(0), "branch if beta == 0")
+        kStr += inst("s_cbranch_scc0 %s" % (endCheckLabel), "branch if beta == 0")
+      elif kernel["ProblemType"]["ComputeDataType"].isDouble():
+        kStr += inst("v_cmp_eq_f64", self.vcc, sgpr("Beta", 2), 0.0, "Beta == 0.0 ?")
+        kStr += inst("s_cbranch_vccnz %s" % (endCheckLabel), "branch if Beta == 0")
+      elif kernel["ProblemType"]["ComputeDataType"].isSingleComplex():
+        kStr += inst("v_cmp_eq_f32", sgpr(tmpSgpr, laneSC), sgpr("Beta"), 0.0, "Beta.real == 0.0f ?")
+        kStr += inst("v_cmp_eq_f32", self.vcc, sgpr("Beta+1"), 0.0, "Beta.imag == 0.0f ?")
+        kStr += inst(f"s_and_b{kernel['WavefrontSize']}", sgpr(tmpSgpr, laneSC), self.vcc, sgpr(tmpSgpr, laneSC), "Beta == 0 ?")
+        kStr += inst(f"s_cmp_eq_u{kernel['WavefrontSize']}", sgpr(tmpSgpr, laneSC), hex(0), "branch if beta == 0")
+        kStr += inst("s_cbranch_scc0 %s" % (endCheckLabel), "branch if beta == 0")
+      elif kernel["ProblemType"]["ComputeDataType"].isSingle() or \
+           kernel["ProblemType"]["ComputeDataType"].isHalf() or \
+           kernel["ProblemType"]["ComputeDataType"].isBFloat16():
+        kStr += inst("v_cmp_eq_f32", self.vcc, sgpr("Beta"), 0.0, "Beta == 0.0f ?")
+        kStr += inst("s_cbranch_vccnz %s" % (endCheckLabel), "branch if beta == 0")
+      else: # int32
+        kStr += inst("s_cmp_eq_u32", sgpr("Beta"), 0, "Beta == 0 ?")
+        kStr += inst("s_cbranch_scc1 %s" % (endCheckLabel), "branch if beta == 0")
+
+      for idx in kernel["ProblemType"]["IndicesBatch"]:
+        if not isPackedIndex(kernel,idx):
+          kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(Batch), 0x8, "offset of global buffer address")
           kStr += inst("s_load_dwordx2", sgpr("AddressC", 2), sgpr("AddressC",2), sgpr(tmpSgpr), "load global buffer C address")
 
+      kStr += self.getNamedLabelDef(f"label_skip_c_buffer_deref_{Batch}")
+
     #handle Batch A/B
-    endCheckLabel = self.getNamedLabel(f"label_skip_buffer_deref_{Batch}")
+    endCheckLabel = self.getNamedLabel(f"label_skip_ab_buffer_deref_{Batch}")
     kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(1), "check summation size")
     for i in range(0, self.numSgprSizesSum):
       kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr("SizesSum+%u"%(i)), sgpr(tmpSgpr), "check summation size")
@@ -3374,7 +3405,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_load_dwordx2", sgpr("AddressA", 2), sgpr("AddressA",2), sgpr(tmpSgpr), "load global buffer A address")
         kStr += inst("s_load_dwordx2", sgpr("AddressB", 2), sgpr("AddressB",2), sgpr(tmpSgpr), "load global buffer B address")
 
-    kStr += self.getNamedLabelDef(f"label_skip_buffer_deref_{Batch}")
+    kStr += self.getNamedLabelDef(f"label_skip_ab_buffer_deref_{Batch}")
 
     return kStr
 
