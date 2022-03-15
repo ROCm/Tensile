@@ -32,15 +32,65 @@ import argparse
 import os
 import sys
 
+
+def getGlobalParams(config):
+    globalParams = None
+    try:
+        globalParams = config["GlobalParameters"]
+    except:
+        pass
+
+    return globalParams
+
+
+def getProblemDict(config):
+    problemDict = None
+    try:
+        problemDict = config["BenchmarkProblems"][0][0]
+    except:
+        pass
+    else:
+        return problemDict
+
+    try:
+        problemDict = config["ProblemType"]
+    except:
+        pass
+
+    return problemDict
+
+
+def getSizeList(config):
+    sizeList = None
+    try:
+        sizeList = config["BenchmarkProblems"][0][1]["BenchmarkFinalParameters"][0]["ProblemSizes"]
+    except:
+        pass
+    else:
+        return sizeList
+
+    keep = True
+    if type(config) is list:
+        for i in config:
+            if not (type(i) is dict and ("Exact" in i or "Range" in i)):
+                keep = False
+                break
+    else:
+        keep = False
+
+    if keep:
+        sizeList = config
+    return sizeList
+
+
 def parseConfig(config):
-    globalParameters = config["GlobalParameters"]
-    ssProblemType = ProblemType(config["BenchmarkProblems"][0][0])
-    problemDict = config["BenchmarkProblems"][0][1]["BenchmarkFinalParameters"][0]["ProblemSizes"]
-    sizes = ProblemSizes(ssProblemType, problemDict)
 
-    conProblemType = ContractionsProblemType.FromOriginalState(ssProblemType)
+    globalParams = getGlobalParams(config)
+    problemDict = getProblemDict(config)
+    sizeList = getSizeList(config)
 
-    return (globalParameters, conProblemType, sizes)
+    return (globalParams, problemDict, sizeList)
+
 
 def TensileClientConfig(userArgs):
     print1("")
@@ -65,33 +115,40 @@ def TensileClientConfig(userArgs):
     configs = [LibraryIO.readYAML(x) for x in args.ConfigYaml]
 
     globalParams = {}
-    problemType = None
-    sizes = []
+    problemDict = None
+    sizeList = None
 
     for config in configs:
         # get all information we can get from each config
-        (myGlobalParams, myProblemType, mySizes) = parseConfig(config)
+        (myGlobalParams, myProblemDict, mySizeList) = parseConfig(config)
 
-        if myGlobalParams != {}:
+        if myGlobalParams is not None:
             if globalParams == {}:
                 globalParams = myGlobalParams
             else:
                 printExit("duplicate global params")
 
-        if myProblemType is not None:
-            if problemType is None:
-                problemType = myProblemType
+        if myProblemDict is not None:
+            if problemDict is None:
+                problemDict = myProblemDict
             else:
                 printExit("duplicate problem type")
 
-        if mySizes is not None:
-            if sizes == []:
-                sizes = mySizes
+        if mySizeList is not None:
+            if sizeList is None:
+                sizeList = mySizeList
             else:
                 printExit("duplicate sizes")
 
-    if problemType is None:
+    if problemDict is None:
         printExit("could not parse problem type from inputs")
+    if sizeList is None:
+        printExit("could not parse size list from inputs")
+
+    ssProblemType = ProblemType(problemDict)
+    conProblemType = ContractionsProblemType.FromOriginalState(ssProblemType)
+    sizes = ProblemSizes(ssProblemType, sizeList)
+
 
     # update globals
     restoreDefaultGlobalParameters()
@@ -103,7 +160,8 @@ def TensileClientConfig(userArgs):
         Common.globalParameters[key] = value
 
     # write output
-    ClientWriter.writeClientConfigIni(sizes, problemType, "", [], "", args.OutputConfig, None)
+    ClientWriter.writeClientConfigIni(sizes, conProblemType, "", [], "", args.OutputConfig, None)
+
 
 def main():
     TensileClientConfig(sys.argv[1:])
