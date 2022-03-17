@@ -8,7 +8,7 @@ GlobalParameters:
   DataInitTypeA: 18
   DataInitTypeB: 19
   DataInitTypeC: 0
-  DataInitTypeAlpha: 1
+  DataInitTypeAlpha: 2
   DataInitTypeBeta: 1
   #PrintTensorD: 0x2
   #PrintTensorRef: 0x2
@@ -56,5 +56,6 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024], [1024], [1], [1024] ]
+          - Range: [ [128], [128], [1], [128] ]
+          # - Range: [ [1024], [1024], [1], [1024] ]
           # - Range: [ [1031], [1031], [8], [1031] ]

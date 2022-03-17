@@ -7,8 +7,9 @@ GlobalParameters:
   KernelTime: True
   PrintSolutionRejectionReason: True
   DataInitTypeA: 18
-  DataInitTypeB: 19
+  DataInitTypeB: 20
   DataInitTypeC: 0
+  DataInitTypeAlpha: 2
   DataInitTypeBeta: 1
   #PrintTensorB: 0x1
   #PrintTensorD: 0x2
@@ -53,5 +54,5 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
+          - Range: [ [128], [128], [1], [128] ]
           # - Range: [ [1024], [1024], [1], [1024] ]
-          - Range: [ [1024], [1024], [1], [1024] ]

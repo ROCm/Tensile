@@ -3,26 +3,16 @@ TestParameters:
 
 # benchmark assembly and source kernels
 GlobalParameters:
-  MinimumRequiredVersion: 4.2.0
-  CMakeBuildType: Release
-  PrintLevel: 1
-  ForceRedoBenchmarkProblems: True
-  ForceRedoLibraryLogic: True
-  ForceRedoLibraryClient: True
-  EnqueuesPerSync: 1
-  SyncsPerBenchmark: 1
   NumElementsToValidate: -1
   BoundsCheck: True
-  ValidationMaxToPrint: 4
-  ValidationPrintValids: False
-  ShortNames: False
-  MergeFiles: True
   KernelTime: True
+  PrintSolutionRejectionReason: True
   DataInitTypeA: 18
-  DataInitTypeB: 19
+  DataInitTypeB: 20
   DataInitTypeC: 0
-  DataInitTypeAlpha: 1
+  DataInitTypeAlpha: 2
   DataInitTypeBeta: 1
+  #PrintTensorB: 0x1
   #PrintTensorD: 0x2
   #PrintTensorRef: 0x2
 
@@ -61,4 +51,5 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [1024], [1024], [1], [1024] ]
+          - Range: [ [128], [128], [1], [128] ]
+          #- Range: [ [1024], [1024], [1], [1024] ]
