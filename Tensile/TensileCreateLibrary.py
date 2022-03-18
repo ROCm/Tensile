@@ -1237,8 +1237,6 @@ def generateLogicDataAndSolutions(logicFiles, args):
       else:
         masterLibraries[architectureName] = deepcopy(newLibrary)
         masterLibraries[architectureName].version = args.version
-        masterLibraries[architectureName].remapSolutionIndicesStartingFrom(nextSolIndex)
-        nextSolIndex += max(masterLibraries[architectureName].solutions.keys()) + 1
     else:
       if fullMasterLibrary is None:
         fullMasterLibrary = deepcopy(newLibrary)
@@ -1253,6 +1251,13 @@ def generateLogicDataAndSolutions(logicFiles, args):
 
     for solution in solutionsForSchedule:
       solutions.append(solution)
+
+  if globalParameters["SeparateArchitectures"] and "fallback" in masterLibraries.keys():
+    for key, value in masterLibraries.items():
+      if key != "fallback":
+        value.merge(deepcopy(masterLibraries["fallback"]))
+
+    masterLibraries.pop("fallback")
   
   # remove duplicates while preserving order
   solutions = list(dict.fromkeys(solutions)) 
