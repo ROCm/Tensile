@@ -51,6 +51,16 @@ namespace Tensile
         {
             hipDeviceProp_t prop;
             HIP_CHECK_EXC(hipGetDeviceProperties(&prop, deviceId));
+#if HIP_VERSION >= 50120531
+            int hip_version;
+            HIP_CHECK_EXC(hipRuntimeGetVersion(&hip_version));
+            if(hip_version >= 50120531)
+            {
+                HIP_CHECK_EXC(hipDeviceGetAttribute(&prop.multiProcessorCount,
+                                                    hipDeviceAttributePhysicalMultiProcessorCount,
+                                                    deviceId));
+            }
+#endif
 
             return GetDevice(prop);
         }
