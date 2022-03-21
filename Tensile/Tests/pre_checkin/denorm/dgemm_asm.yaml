@@ -1,3 +1,6 @@
+TestParameters:
+  marks: []
+
 # benchmark assembly and source kernels
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
@@ -9,22 +12,28 @@ GlobalParameters:
   EnqueuesPerSync: 1
   SyncsPerBenchmark: 1
   NumElementsToValidate: -1
+  BoundsCheck: True
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
   MergeFiles: True
-  DataInitTypeAB: 3
-  DataInitTypeC: 3
+  DataInitTypeA: 18
+  DataInitTypeB: 20
+  DataInitTypeC: 0
+  DataInitTypeAlpha: 2
+  DataInitTypeBeta: 1
   KernelTime: True
+  #PrintTensorD: 0x2
+  #PrintTensorRef: 0x2
 
 BenchmarkProblems:
 
-  - # sgemm TN
+  - # sgemm NN
     - # ProblemType
       OperationType: GEMM
-      DataType: s
-      DestDataType: s
-      TransposeA: True
+      DataType: d
+      DestDataType: d
+      TransposeA: False
       TransposeB: False
       UseBeta: True
       Batched: True
@@ -36,24 +45,22 @@ BenchmarkProblems:
         - EdgeType: ["ShiftPtr"]
         - KernelLanguage: ["Assembly"]
       ForkParameters:
-        - BufferLoad: [0,1]
-        - BufferStore: [0,1]
-        - GlobalSplitU: [1, 3]
-        - PrefetchLocalRead: [True]
-        - PrefetchGlobalRead: [False]
+        - GlobalSplitU: [1]
+        - PrefetchLocalRead: [False]
+        - PrefetchGlobalRead: [True]
         - ThreadTile:
-          - [ 3, 5 ]
+          #- [ 3, 5 ]
           - [ 4, 8 ]
-          - [ 8, 8 ]
+          #- [ 8, 8 ]
         - WorkGroup:
-          - [ 16, 16,  1 ]
-          - [ 32,  4,  1 ]
-        - DepthU: [-4]
+          #- [ 32,  4,  1 ]
+          - [  8,  8,  1 ]
+        - DepthU: [-3]
         - VectorWidth: [-1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Range: [ [127,1,129], 0, [2], [63,1,65] ]
-
+          - Range: [ [128], [128], [1], [128] ]
+          #- Range: [ [1024], [1024], [1], [1024] ]

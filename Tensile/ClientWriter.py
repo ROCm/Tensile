@@ -56,6 +56,7 @@ class DataInitName(Enum):
   NegOne = 17
   Max = 18
   DenormMin = 19
+  DenormMax = 20
 
 class ClientLogLevel(Enum):
   Error = 0

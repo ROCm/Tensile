@@ -1105,6 +1105,8 @@ def buildObjectFilePaths(prefixDir, solutionFiles, sourceKernelFiles, asmKernelF
   asmKernelPaths = []
   sourceLibPaths = []
   asmLibPaths = []
+  libMetadataPaths = []
+
 
   # Build full paths for source kernel files
   sourceKernelDir = ""
@@ -1125,25 +1127,30 @@ def buildObjectFilePaths(prefixDir, solutionFiles, sourceKernelFiles, asmKernelF
   # Build full paths for source and asm library files
   libDir = os.path.join(prefixDir, "library")
 
+  libraryExt = ".yaml" if globalParameters["LibraryFormat"] == "yaml" else ".dat"
+  if not globalParameters["SeparateArchitectures"]:
+    libMetadataPaths = [ os.path.join(libDir, "TensileLibrary"+libraryExt) ]
+
   for sourceLibFile in sourceLibFiles:
     sourceLibPaths += [ os.path.join(libDir, sourceLibFile) ]
 
   for asmLibFile in asmLibFiles:
+    # Asm lib files are enumerated in the form of
+    # KernelName_gfxXXXXX.co
+    # Strip the gfxXXXX portion and use that as a subdirectory
+    asmLibFileNoExt = str(os.path.splitext(asmLibFile)[0])
+    asmArch = asmLibFileNoExt[asmLibFileNoExt.find("_gfx"):]
     if globalParameters["PackageLibrary"]:
-      # Asm lib files are enumerated in the form of
-      # KernelName_gfxXXXXX.co
-      # Strip the gfxXXXX portion and use that as a subdirectory
-      asmLibFileNoExt = str(os.path.splitext(asmLibFile)[0])
-      asmArch = asmLibFileNoExt[asmLibFileNoExt.find("_gfx"):]
 
       # asmArch contains _gfxXXXX. Don't use the underscore in new path
       asmLibPaths += [ os.path.join(
         libDir, asmArch[1:], asmLibFile.replace(asmArch, ''))]
-
     else:
+      if globalParameters["SeparateArchitectures"]:
+        libMetadataPaths += [ os.path.join(libDir, "TensileLibrary"+asmArch+libraryExt) ]
       asmLibPaths += [ os.path.join(libDir, asmLibFile) ]
 
-  return (solutionPaths, sourceKernelPaths, asmKernelPaths, sourceLibPaths, asmLibPaths)
+  return (solutionPaths, sourceKernelPaths, asmKernelPaths, sourceLibPaths, asmLibPaths, libMetadataPaths)
 
 ################################################################################
 # Write CMake
@@ -1153,7 +1160,7 @@ def writeCMake(outputPath, solutionFiles, kernelFiles, libraryStaticFiles):
 
   # Build output file paths, using relative CMake symbol
   cmakeSrcDir = "${CMAKE_SOURCE_DIR}"
-  (solutionPaths, sourceKernelPaths, asmKernelPaths, sourceLibPaths, asmLibPaths) = \
+  (solutionPaths, sourceKernelPaths, asmKernelPaths, sourceLibPaths, asmLibPaths, _) = \
     buildObjectFilePaths(cmakeSrcDir, solutionFiles, kernelFiles, [], [], [])
 
   # Build full paths the static library files
@@ -1211,6 +1218,9 @@ def generateLogicDataAndSolutions(logicFiles, args):
 
   masterLibraries = {}
   fullMasterLibrary = None
+
+  nextSolIndex = 0
+
   for logic in Utils.tqdm(libraries, "Processing logic data"):
     (scheduleName, deviceNames, problemType, solutionsForSchedule, \
        indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) = logic
@@ -1218,6 +1228,12 @@ def generateLogicDataAndSolutions(logicFiles, args):
     if globalParameters["PackageLibrary"]:
       if architectureName in masterLibraries:
         masterLibraries[architectureName].merge(deepcopy(newLibrary))
+      else:
+        masterLibraries[architectureName] = deepcopy(newLibrary)
+        masterLibraries[architectureName].version = args.version
+    elif globalParameters["SeparateArchitectures"]:
+      if architectureName in masterLibraries:
+        nextSolIndex = masterLibraries[architectureName].merge(deepcopy(newLibrary), nextSolIndex)
       else:
         masterLibraries[architectureName] = deepcopy(newLibrary)
         masterLibraries[architectureName].version = args.version
@@ -1235,6 +1251,13 @@ def generateLogicDataAndSolutions(logicFiles, args):
 
     for solution in solutionsForSchedule:
       solutions.append(solution)
+
+  if globalParameters["SeparateArchitectures"] and "fallback" in masterLibraries.keys():
+    for key, value in masterLibraries.items():
+      if key != "fallback":
+        value.merge(deepcopy(masterLibraries["fallback"]))
+
+    masterLibraries.pop("fallback")
   
   # remove duplicates while preserving order
   solutions = list(dict.fromkeys(solutions)) 
@@ -1345,6 +1368,8 @@ def TensileCreateLibrary():
                           default=-1, help="Number of parallel jobs to launch.")
   argParser.add_argument("--verbose", "-v", dest="PrintLevel", type=int,
                           default=1, help="Set printout verbosity level.")
+  argParser.add_argument("--separate-architectures", dest="SeparateArchitectures", action="store_true",
+                         default=False, help="Separates TensileLibrary file by architecture")
 
   argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
   args = argParser.parse_args()
@@ -1360,6 +1385,7 @@ def TensileCreateLibrary():
   arguments["RuntimeLanguage"] = args.RuntimeLanguage
   arguments["CodeObjectVersion"] = args.CodeObjectVersion
   arguments["Architecture"] = args.Architecture
+  arguments["SeparateArchitectures"] = args.SeparateArchitectures
   arguments["CxxCompiler"] = args.CxxCompiler
   if args.CmakeCxxCompiler:
     os.environ["CMAKE_CXX_COMPILER"] = args.CmakeCxxCompiler
@@ -1447,7 +1473,8 @@ def TensileCreateLibrary():
    _,
    _,
    sourceLibPaths,
-   asmLibPaths) = buildObjectFilePaths(outputPath, solutionFiles, sourceKernelFiles, \
+   asmLibPaths,
+   libMetadataPaths) = buildObjectFilePaths(outputPath, solutionFiles, sourceKernelFiles, \
     asmKernelFiles, sourceLibFiles, asmLibFiles)
 
   # Generate manifest file
@@ -1455,10 +1482,8 @@ def TensileCreateLibrary():
   ensurePath(libraryPath)
   generatedFile = open(os.path.join(libraryPath, "TensileManifest.txt"), "w")
 
-  libraryFilename = "TensileLibrary.yaml" if globalParameters["LibraryFormat"] == "yaml" else "TensileLibrary.dat"
-
   # Manifest file contains YAML file, output library paths and cpp source for embedding.
-  for filePath in [os.path.join(libraryPath, libraryFilename)] + sourceLibPaths + asmLibPaths:
+  for filePath in libMetadataPaths + sourceLibPaths + asmLibPaths:
     generatedFile.write("%s\n" %(filePath) )
   generatedFile.close()
 
@@ -1506,13 +1531,19 @@ def TensileCreateLibrary():
         masterFile = os.path.join(archPath, "TensileLibrary")
         newMasterLibrary.applyNaming(kernelMinNaming)
         LibraryIO.write(masterFile, Utils.state(newMasterLibrary), args.LibraryFormat)
+  elif globalParameters["SeparateArchitectures"]:
+    for archName, newMasterLibrary in masterLibraries.items():
+      if archName in archs:
+        masterFile = os.path.join(newLibraryDir, "TensileLibrary_"+archName)
+        newMasterLibrary.applyNaming(kernelMinNaming)
+        LibraryIO.write(masterFile, Utils.state(newMasterLibrary), args.LibraryFormat)
   else:
     masterFile = os.path.join(newLibraryDir, "TensileLibrary")
     fullMasterLibrary.applyNaming(kernelMinNaming)
     LibraryIO.write(masterFile, Utils.state(fullMasterLibrary), args.LibraryFormat)
 
   theMasterLibrary = fullMasterLibrary
-  if globalParameters["PackageLibrary"]:
+  if globalParameters["PackageLibrary"] or globalParameters["SeparateArchitectures"]:
     theMasterLibrary = list(masterLibraries.values())[0]
 
   if args.EmbedLibrary is not None:

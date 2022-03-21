@@ -1,8 +1,34 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.32.0
+## (Unreleased) Tensile 4.33.0
 ### Added
-- better control of parallelism to control memory usage
+- TensileUpdateLibrary for updating old library logic files
+- Support for TensileRetuneLibrary to use sizes from separate file
+- ZGEMM DirectToVgpr/DirectToLds/StoreCInUnroll/MIArchVgpr support
+- Tests for denorm correctness
+- Option to write different architectures to different TensileLibrary files
+### Optimized
+- Optimize MessagePackLoadLibraryFile by switching to fread
+- DGEMM tail loop optimization for PrefetchAcrossPersistentMode=1/DirectToVgpr
+### Changed
+- Alpha/beta datatype remains as F32 for HPA HGEMM
+- Force assembly kernels to not flush denorms
+- Use hipDeviceAttributePhysicalMultiProcessorCount as multiProcessorCount
+### Fixed
+- Fix segmentation fault when run i8 datatype with TENSILE_DB=0x80
+
+## Tensile 4.32.0 for ROCm 5.1.0
+### Added
+- Better control of parallelism to control memory usage
+- Support for multiprocessing on Windows for TensileCreateLibrary
+- New JSD metric and metric selection functionality
+- Initial changes to support two-tier solution selection
+### Optimized
+- Optimized runtime of TensileCreateLibraries by reducing max RAM usage
+- StoreCInUnroll additional optimizations plus adaptive K support
+- DGEMM NN optimizations with PrefetchGlobalRead(PGR)=2 support
+### Changed
+- Update Googletest to 1.11.0
 ### Removed
 - Remove no longer supported benchmarking steps
 

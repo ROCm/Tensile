@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -3363,6 +3363,12 @@ class KernelWriterSource(KernelWriter):
     return ""
 
   ##############################################################################
+  # get address/gpr index increment frequency for StoreCInUnroll
+  ##############################################################################
+  def getAddrGprIdxIncrementFrequencyForStoreCInUnroll(self, kernel):
+    return ""
+
+  ##############################################################################
   # generate post process for StoreCInUnroll loop
   ##############################################################################
   def generatePostProcessForStoreCInUnrollLoop(self, kernel, needPost):
@@ -3413,5 +3419,33 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # generate storeCInUnroll post loop code
   ##############################################################################
-  def generateStoreInUnrollPostLoop(self, kernel, isOptNLL):
+  def generateStoreInUnrollPostLoop(self, kernel, isOptNLL, isDTVodd):
+    return ""
+
+  ##############################################################################
+  # openOddNoLoadLoopForDTV
+  # generate open code for DirectToVgpr + odd exit case in noLoadLoop code
+  ##############################################################################
+  def openOddNoLoadLoopForDTV(self, kernel, isNGLL, name):
+    return ""
+
+  ##############################################################################
+  # closeOddNoLoadLoopForDTV
+  # generate close code for DirectToVgpr + odd exit case in noLoadLoop code
+  ##############################################################################
+  def closeOddNoLoadLoopForDTV(self, kernel, isNGLL, name):
+    return ""
+
+  ##############################################################################
+  # generateEvenEndLabeNoLoadLoopForDTV
+  # generate even end label for DirectToVgpr
+  ##############################################################################
+  def generateEvenEndLabeNoLoadLoopForDTV(self, kernel, isNGLL, name):
+    return ""
+
+  ##############################################################################
+  # generateOddEndVgprCopyForDTV
+  # generate odd end vgpr copy for DirectToVgpr
+  ##############################################################################
+  def generateOddEndVgprCopyForDTV(self, kernel):
     return ""

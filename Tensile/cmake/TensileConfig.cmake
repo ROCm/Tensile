@@ -100,6 +100,7 @@ function(TensileCreateLibraryFiles
        SHORT_FILE_NAMES
        PRINT_DEBUG
        GENERATE_PACKAGE
+       SEPARATE_ARCHITECTURES
        )
 
   # Single value settings
@@ -147,6 +148,10 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--merge-files")
   else()
     set(Options ${Options} "--no-merge-files")
+  endif()
+
+  if(Tensile_SEPARATE_ARCHITECTURES)
+    set(Options ${Options} "--separate-architectures")
   endif()
 
   if(Tensile_GENERATE_PACKAGE)

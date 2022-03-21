@@ -255,6 +255,8 @@ globalParameters["CustomKernelDirectory"] = os.path.join(os.path.dirname(os.path
 
 globalParameters["PristineOnGPU"] = True # use Pristine memory on Tensile trainning verification or not
 
+globalParameters["SeparateArchitectures"] = False # write Tensile library metadata to separate files for each architecture
+
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 
@@ -538,7 +540,6 @@ validParameters = {
     # Changes the behaviour of prefetch across persistent.
     # Mode 0 is default, works for all sizes
     # Mode 1 disables static tile setup for prefetch and merges prefetch with ord. noLoadLoop,
-    #   requires AssertSummationElementMultiple == DepthU
     "PrefetchAcrossPersistentMode": [0, 1],
 
     "BufferLoad":                 [ False, True ],
