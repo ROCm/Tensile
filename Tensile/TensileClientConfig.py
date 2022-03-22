@@ -48,7 +48,7 @@ def getGlobalParams(config):
 def getProblemDict(config):
     """Try to parse out a problem type dict from the places it could be"""
     problemDict = None
-    try: # Tensile Config file (first entry)
+    try:  # Tensile Config file (first entry)
         problemDict = config["BenchmarkProblems"][0][0]
         if len(config["BenchmarkProblems"]) > 1:
             printWarning("More than one BenchmarkProblem in config file: only using first")
@@ -57,7 +57,7 @@ def getProblemDict(config):
     else:
         return problemDict
 
-    try: # Solution Selection "base" file
+    try:  # Solution Selection "base" file
         problemDict = config["ProblemType"]
     except (TypeError, LookupError):
         pass
@@ -71,7 +71,7 @@ def getSizeList(config):
     (including the whole config being the list)
     """
     sizeList = None
-    try: # Tensile config file (first entry)
+    try:  # Tensile config file (first entry)
         sizeList = config["BenchmarkProblems"][0][1]["BenchmarkFinalParameters"][0]["ProblemSizes"]
     except (TypeError, LookupError):
         pass
@@ -112,6 +112,7 @@ def TensileClientConfig(userArgs):
     print1("")
 
     # argument parsing
+    # yapf: disable
     argParser = argparse.ArgumentParser()
     argParser.add_argument("ConfigYaml", type=os.path.realpath, nargs="+",
             help="Config yaml(s) containing parameters and problem and size information")
@@ -119,6 +120,7 @@ def TensileClientConfig(userArgs):
             required=True, help="Path to output resulting client config file")
     argParser.add_argument("--merge-sizes", dest="MergeSizes", action="store_true",
             help="Allow sizes from multiple config files")
+    # yapf: enable
 
     addCommonArguments(argParser)
     args = argParser.parse_args(userArgs)
@@ -139,15 +141,15 @@ def TensileClientConfig(userArgs):
             if globalParams == {} or globalParams == myGlobalParams:
                 globalParams = myGlobalParams
             else:
-                printExit("Multiple definitions for GlobalParameters found:\n{}\nand\n{}"
-                    .format(globalParams, myGlobalParams))
+                printExit("Multiple definitions for GlobalParameters found:\n{}\nand\n{}".format(
+                    globalParams, myGlobalParams))
 
         if myProblemDict is not None:
             if problemDict is None or problemDict == myProblemDict:
                 problemDict = myProblemDict
             else:
-                printExit("Multiple definitions for ProblemType found:\n{}\nand\n{}"
-                    .format(problemDict, myProblemDict))
+                printExit("Multiple definitions for ProblemType found:\n{}\nand\n{}".format(
+                    problemDict, myProblemDict))
 
         if mySizeList is not None:
             if sizeList is None or sizeList == mySizeList:
@@ -156,8 +158,8 @@ def TensileClientConfig(userArgs):
                 sizeList += mySizeList
             else:
                 printExit("Multiple size lists found:\n{}\nand\n{}\n"
-                    "Run with --merge-sizes to keep all size lists found"
-                    .format(sizeList, mySizeList))
+                          "Run with --merge-sizes to keep all size lists found".format(
+                              sizeList, mySizeList))
 
     if problemDict is None:
         printExit("No ProblemType found; cannot produce output")
@@ -166,7 +168,7 @@ def TensileClientConfig(userArgs):
 
     ssProblemType = ProblemType(problemDict)
     conProblemType = ContractionsProblemType.FromOriginalState(ssProblemType)
-    sizes = ProblemSizes(ssProblemType, sizeList) # TODO doesn't seem to work for range sizes
+    sizes = ProblemSizes(ssProblemType, sizeList)  # TODO doesn't seem to work for range sizes
 
     # update globals
     restoreDefaultGlobalParameters()

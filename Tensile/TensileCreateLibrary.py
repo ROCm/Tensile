@@ -1566,8 +1566,8 @@ def TensileCreateLibrary():
   if args.BuildClient:
     print1("# Building Tensile Client")
     ClientExecutable.getClientExecutable(outputPath)
-  if args.ClientConfig:
 
+  if args.ClientConfig:
     # write simple ini for best solution mode linked to library we just made
     iniFile = os.path.join(outputPath, "best-solution.ini")
     with open(iniFile, "w") as f:
