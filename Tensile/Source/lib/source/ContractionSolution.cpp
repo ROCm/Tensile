@@ -894,18 +894,6 @@ namespace Tensile
         auto alphaType = problem.alphaType();
         auto betaType  = problem.betaType();
 
-        // Backward-compatible: when setAlpha/BetaType() wasn't called, use the old way
-        // Could remove after rocBLAS is updated
-        if(alphaType == DataType::None)
-        {
-            alphaType
-                = problemType.aType == DataType::BFloat16 ? DataType::Float : problemType.dType;
-        }
-        if(betaType == DataType::None)
-        {
-            betaType = alphaType;
-        }
-
         auto contractionInputsTypeId = ContractionInputs::TypeId(problemType.aType,
                                                                  problemType.bType,
                                                                  problemType.cType,

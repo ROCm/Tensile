@@ -33,6 +33,7 @@ from . import ClientWriter
 from . import LibraryIO
 from . import LibraryLogic
 from . import __version__
+from datetime import datetime
 
 ###############################################################################
 # Execute Steps in Config
@@ -201,6 +202,7 @@ def Tensile(userArgs):
 
   # 2nd half of splash
   print1("#  Config: %s" % (configPath) )
+  print1("#  Date & Time: %s" % (datetime.now().strftime("%d/%m/%Y %H:%M:%S")) )
   print1("#")
   print1(HR)
   print1("")

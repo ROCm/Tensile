@@ -37,8 +37,6 @@ class KernelWriterConversion(KernelWriterBase):
     self.language = "HIP"
     self.kernelName = self.getKernelName()
     self.datatype = self.state["ProblemType"]["ComputeDataType"].toDevice(self.language)
-    if self.state["ProblemType"]["DataType"].isHalf() and self.state["ProblemType"]["HighPrecisionAccumulate"]:
-      self.datatype = DataType('single').toDevice(self.language)
 
     # determine chars for fast access
     self.indexChars = []
