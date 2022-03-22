@@ -1361,8 +1361,8 @@ def TensileCreateLibrary():
   argParser.add_argument("--version", help="Version string to embed into library file.")
   argParser.add_argument("--generate-manifest-and-exit",   dest="GenerateManifestAndExit", action="store_true",
                           default=False, help="Output manifest file with list of expected library objects and exit.")
-  argParser.add_argument("--library-format", dest="LibraryFormat", choices=["yaml", "msgpack"], \
-      action="store", default="msgpack", help="select which library format to use")
+  argParser.add_argument("--library-format", dest="LibraryFormat", choices=["yaml", "msgpack"],
+                         action="store", default="msgpack", help="select which library format to use")
   argParser.add_argument("--generate-sources-and-exit",   dest="GenerateSourcesAndExit", action="store_true",
                           default=False, help="Output source files only and exit.")
   argParser.add_argument("--jobs", "-j", dest="CpuThreads", type=int,
@@ -1371,10 +1371,11 @@ def TensileCreateLibrary():
                           default=1, help="Set printout verbosity level.")
   argParser.add_argument("--separate-architectures", dest="SeparateArchitectures", action="store_true",
                          default=False, help="Separates TensileLibrary file by architecture")
-
+  argParser.add_argument("--build-client", dest="BuildClient", action="store_true",
+                         help="Build Tensile client")
+  argParser.add_argument("--client-config", dest="ClientConfig", action="store_true",
+                         help="Create client config for setting the library and code object files")
   argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
-  argParser.add_argument("--build-client", dest="BuildClient", action="store_true")
-  argParser.add_argument("--client-config", dest="ClientConfig", action="store_true")
 
   args = argParser.parse_args()
 

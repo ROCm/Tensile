@@ -114,9 +114,11 @@ def TensileClientConfig(userArgs):
     # argument parsing
     argParser = argparse.ArgumentParser()
     argParser.add_argument("ConfigYaml", type=os.path.realpath, nargs="+",
-                           help="Config yaml(s) containing parameters and problem and size information")
-    argParser.add_argument("OutputConfig", type=os.path.realpath,
-                           help="Path to output resulting client config file")
+            help="Config yaml(s) containing parameters and problem and size information")
+    argParser.add_argument("--output-config", "-o", dest="OutputConfig", type=os.path.realpath,
+            required=True, help="Path to output resulting client config file")
+    argParser.add_argument("--merge-sizes", dest="MergeSizes", action="store_true",
+            help="Allow sizes from multiple config files")
 
     addCommonArguments(argParser)
     args = argParser.parse_args(userArgs)
@@ -132,7 +134,7 @@ def TensileClientConfig(userArgs):
         (myGlobalParams, myProblemDict, mySizeList) = parseConfig(config)
 
         # if we got data from the config, keep it
-        # if we already had that data, abort
+        # if we already had that data, warn and exit
         if myGlobalParams is not None:
             if globalParams == {} or globalParams == myGlobalParams:
                 globalParams = myGlobalParams
@@ -147,11 +149,14 @@ def TensileClientConfig(userArgs):
                 printExit("Multiple definitions for ProblemType found:\n{}\nand\n{}"
                     .format(problemDict, myProblemDict))
 
-        if mySizeList is not None or sizeList == mySizeList:
-            if sizeList is None:
+        if mySizeList is not None:
+            if sizeList is None or sizeList == mySizeList:
                 sizeList = mySizeList
+            elif args.MergeSizes:
+                sizeList += mySizeList
             else:
-                printExit("Multiple size lists found:\n{}\nand\n{}"
+                printExit("Multiple size lists found:\n{}\nand\n{}\n"
+                    "Run with --merge-sizes to keep all size lists found"
                     .format(sizeList, mySizeList))
 
     if problemDict is None:
