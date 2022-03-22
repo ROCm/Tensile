@@ -64,16 +64,6 @@ namespace Tensile
             hipDeviceProp_t props;
 
             HIP_CHECK_EXC(hipGetDeviceProperties(&props, hipDeviceIndex));
-#if HIP_VERSION >= 50120531
-            int hip_version;
-            HIP_CHECK_EXC(hipRuntimeGetVersion(&hip_version));
-            if(hip_version >= 50120531)
-            {
-                HIP_CHECK_EXC(hipDeviceGetAttribute(&props.multiProcessorCount,
-                                                    hipDeviceAttributePhysicalMultiProcessorCount,
-                                                    hipDeviceIndex));
-            }
-#endif
 
             uint64_t hipPCIID = 0;
             hipPCIID |= props.pciDeviceID & 0xFF;
