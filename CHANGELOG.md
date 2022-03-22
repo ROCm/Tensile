@@ -1,8 +1,17 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.32.0
+## Tensile 4.32.0 for ROCm 5.1.0
 ### Added
-- better control of parallelism to control memory usage
+- Better control of parallelism to control memory usage
+- Support for multiprocessing on Windows for TensileCreateLibrary
+- New JSD metric and metric selection functionality
+- Initial changes to support two-tier solution selection
+### Optimized
+- Optimized runtime of TensileCreateLibraries by reducing max RAM usage
+- StoreCInUnroll additional optimizations plus adaptive K support
+- DGEMM NN optimizations with PrefetchGlobalRead(PGR)=2 support
+### Changed
+- Update Googletest to 1.11.0
 ### Removed
 - Remove no longer supported benchmarking steps
 
