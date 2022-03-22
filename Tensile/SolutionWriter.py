@@ -298,16 +298,6 @@ class SolutionWriter:
       s += "%shipDeviceProp_t deviceProperties;\n" % (t)
       # TODO - should cache the device properties - expensive to call on each iteration here:
       s += "%shipGetDeviceProperties( &deviceProperties, deviceId );\n" % (t)
-      s += "#if HIP_VERSION >= 50120531\n"
-      s += "%sint hip_version;\n" % (t)
-      s += "%shipRuntimeGetVersion(&hip_version);\n" % (t)
-      s += "%sif(hip_version >= 50120531)\n" (t)
-      s += "%s{\n" (t)
-      s += "%s    hipDeviceGetAttribute(&deviceProperties.multiProcessorCount,\n" (t)
-      s += "%s                          hipDeviceAttributePhysicalMultiProcessorCount,\n" (t)
-      s += "%s                          deviceId);\n" (t)
-      s += "%s}\n" (t)
-      s += "#endif\n"
       s += "%sunsigned int numGroups = totalWorkGroups0 * totalWorkGroups1;\n" % (t)
       s += "%sglobalWorkSize[0][0] = (deviceProperties.multiProcessorCount * %u < numGroups) ? (deviceProperties.multiProcessorCount * %u) : numGroups;\n" \
               % (t, persistent, persistent)
