@@ -1750,6 +1750,13 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
+  # Local Read Addresses offset conversion for DTL + NLC > 1
+  ##############################################################################
+  def lraOffsetConversionForDTLandNLC(self, kernel, tP, offset_val, generateAsm=False, \
+                                      finalVgpr=None, tmp1=None, tmp2=None):
+    return ""
+
+  ##############################################################################
   # Local Read Addresses: Declare Addresses A/B
   ##############################################################################
   def lraDeclareAddresses(self, kernel, tP):
