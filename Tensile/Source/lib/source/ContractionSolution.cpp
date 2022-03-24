@@ -894,6 +894,20 @@ namespace Tensile
         auto alphaType = problem.alphaType();
         auto betaType  = problem.betaType();
 
+        // TODO: Some gtests are passing the "problem" without actually defining the
+        // alpha/beta type (alphaType and betaType remain None).
+        // Until we fix those gtests, we need to keep this condition to adjust the missing
+        // alpha/beta data types.
+        if(alphaType == DataType::None)
+        {
+            alphaType
+                = problemType.aType == DataType::BFloat16 ? DataType::Float : problemType.dType;
+        }
+        if(betaType == DataType::None)
+        {
+            betaType = alphaType;
+        }
+
         auto contractionInputsTypeId = ContractionInputs::TypeId(problemType.aType,
                                                                  problemType.bType,
                                                                  problemType.cType,
