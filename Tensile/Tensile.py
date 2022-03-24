@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,7 +26,7 @@ if __name__ == "__main__":
 import os
 import sys
 import argparse
-from .Common import globalParameters, print1, ensurePath, \
+from .Common import globalParameters, print1, printExit, ensurePath, \
     assignGlobalParameters, restoreDefaultGlobalParameters, HR
 from . import BenchmarkProblems
 from . import ClientWriter
@@ -188,20 +188,33 @@ def Tensile(userArgs):
 
   # setup argument parser
   argParser = argparse.ArgumentParser()
-  argParser.add_argument("config_file", type=os.path.realpath, help="benchmark config.yaml file")
+  argParser.add_argument("config_file", type=os.path.realpath, nargs="+",
+      help="benchmark config.yaml file")
   argParser.add_argument("output_path", \
       help="path where to conduct benchmark")
   argParser.add_argument("--version", action="version", \
       version="%(prog)s {version}".format(version=__version__))
+  argParser.add_argument("--alternate-format", dest="AlternateFormat", action="store_true",
+      help="")
   addCommonArguments(argParser)
 
   # parse arguments
   args = argParser.parse_args(userArgs)
 
-  configPath = args.config_file
+  configPaths = args.config_file
+  altFormat = args.AlternateFormat
+
+  if altFormat and len(configPaths) != 2:
+    printExit("bad call")
+  elif not altFormat and len(configPaths) != 1:
+    printExit("bad call")
+
 
   # 2nd half of splash
-  print1("#  Config: %s" % (configPath) )
+  if len(configPaths) == 1:
+    print1("#  Config: {}".format(configPaths[0]) )
+  else:
+    print1("#  Configs: {} and {}".format(configPaths[0], configPaths[1]) )
   print1("#  Date & Time: %s" % (datetime.now().strftime("%d/%m/%Y %H:%M:%S")) )
   print1("#")
   print1(HR)
@@ -217,8 +230,21 @@ def Tensile(userArgs):
     globalParameters['LibraryFormat'] = args.LibraryFormat
 
   # read config
-  config = LibraryIO.readYAML( configPath )
-  globalParameters["ConfigPath"] = configPath
+  if len(configPaths) == 1:
+    config = LibraryIO.readYAML(configPaths[0])
+  # hacky logic for converting to nicer format # TODO decide on final format and cleanup
+  if len(configPaths) == 2:
+    c1 = LibraryIO.readYAML(configPaths[0])
+    c2 = LibraryIO.readYAML(configPaths[1])
+    config = {}
+    config["GlobalParameters"] = c1["GlobalParameters"]
+    solParams = {"BenchmarkCommonParameters" : c1["BenchmarkCommonParameters"],
+           "ForkParameters" : c1["ForkParameters"],
+           "ForkParametersGroup" : c2
+    }
+    config["BenchmarkProblems"] = [[c1["ProblemType"],solParams]]
+
+  globalParameters["ConfigPath"] = configPaths
 
   # assign global parameters
   if "GlobalParameters" in config:
