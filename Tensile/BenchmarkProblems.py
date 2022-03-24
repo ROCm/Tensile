@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -239,7 +239,7 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
         pushWorkingPath("source")
 
         # enumerate benchmark permutations and create resulting solution objects
-        forkPermutations = constructForkPermutations(benchmarkStep.forkParams)
+        forkPermutations = constructForkPermutations(benchmarkStep.forkParams, benchmarkStep.paramGroups)
         maxPossibleSolutions = len(forkPermutations)
 
         regSolutions = generateForkedSolutions(benchmarkProcess.problemType, \

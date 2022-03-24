@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -29,43 +29,42 @@ from .SolutionStructs import ProblemType, ProblemSizes
 
 def getDefaultsForMissingParameters(paramList, defaultParams):
     """Returns all parameters (with values) in defaultParams not present in paramList"""
-    benchmarkParams = []
+    benchmarkParams = {}
     for paramDict in defaultParams:
-        for paramName in paramDict:
-            if not hasParam(paramName, paramList) \
-                    or paramName == "ProblemSizes":
-                benchmarkParams.append(paramDict)
+        for name, value in paramDict.items():
+            if not hasParam(name, paramList) \
+                    or name == "ProblemSizes":
+                benchmarkParams[name] = value
     return benchmarkParams
 
-def checkParametersAreValid(params, validParams):
+def checkParametersAreValid(param, validParams):
     """Ensures paramaters in params exist and have valid values as specified by validParames"""
-    for name, values in params.items():
-        if name == "ProblemSizes":
-            continue
+    (name, values) = param
+    if name == "ProblemSizes":
+        return
 
-        if name not in validParams:
-            printExit("Invalid parameter name: {}\nValid parameters are {}." \
-                    .format(name, sorted(validParameters.keys())))
+    if name not in validParams:
+        printExit("Invalid parameter name: {}\nValid parameters are {}." \
+                .format(name, sorted(validParameters.keys())))
 
-        for value in values:
-            if validParams[name] != -1 and value not in validParams[name]:
-                msgBase = "Invalid parameter value: {} = {}\nValid values for {} are {}{}."
-                msgExt = " (only first 32 combos printed)\nRefer to Common.py for more info" \
-                        if len(validParams[name])>32 else ""
-                printExit(msgBase.format(name, value, name, validParams[name][:32], msgExt))
+    for value in values:
+        if validParams[name] != -1 and value not in validParams[name]:
+            msgBase = "Invalid parameter value: {} = {}\nValid values for {} are {}{}."
+            msgExt = " (only first 32 combos printed)\nRefer to Common.py for more info" \
+                    if len(validParams[name])>32 else ""
+            printExit(msgBase.format(name, value, name, validParams[name][:32], msgExt))
 
 def separateParameters(paramSetList):
     """Separates paramSetList into parameters with single and multiple values"""
     singleVaules = {}
     multiValues = {}
-    for paramDict in paramSetList:
-        for name, values in paramDict.items():
-            if values == None:
-                printExit("You must specify value(s) for parameter \"{}\"".format(name))
-            if len(values) == 1 and name != "ProblemSizes":
-                singleVaules[name] = values[0]
-            elif len(values) > 1 and name != "ProblemSizes":
-                multiValues[name] = values
+    for name, values in paramSetList.items():
+        if values == None:
+            printExit("You must specify value(s) for parameter \"{}\"".format(name))
+        if len(values) == 1 and name != "ProblemSizes":
+            singleVaules[name] = values[0]
+        elif len(values) > 1 and name != "ProblemSizes":
+            multiValues[name] = values
 
     return singleVaules, multiValues
 
@@ -134,28 +133,52 @@ class BenchmarkProcess:
 
         benchmarkCommonParams = getNonNoneFromConfig("BenchmarkCommonParameters", [])
         forkParams            = getNonNoneFromConfig("ForkParameters", [])
+        self.paramGroups      = getNonNoneFromConfig("GroupForkParameters", [])
         self.customKernels    = getNonNoneFromConfig("CustomKernels", [])
 
         if "BenchmarkFinalParameters" in config:
             sizes = config["BenchmarkFinalParameters"][0]["ProblemSizes"]
+            self.problemSizes = ProblemSizes(self.problemType, sizes)
         else:
-            sizes = defaultBatchedBenchmarkFinalProblemSizes if isbatched \
-                else defaultBenchmarkFinalProblemSizes
+            sizes = []
+
         self.problemSizes = ProblemSizes(self.problemType, sizes)
         checkCDBufferAndStrides(self.problemType, \
                 self.problemSizes, globalParameters["CEqualD"])
 
-        configParams = benchmarkCommonParams + forkParams
+
+        #### new stuff
+        configParams = {}
+        for item in benchmarkCommonParams + forkParams:
+            for k, v in item.items(): # only has 1 key but this is the format of the file so...
+
+                if k not in configParams:
+                    configParams[k] = v # these values are lists
+                else:
+                    configParams[k] += v
+        # get raw params from groups
+        newConfigParams = {}
+        for list in self.paramGroups:
+            for group in list:
+                for k, v in group.items():
+                    if k not in newConfigParams:
+                        newConfigParams[k] = [v] # these values are not lists
+                    else:
+                        newConfigParams[k] += [v]
+        # TODO checks on groups (same params for each entry?, not dups between groups?, others?)
 
         # validate and parse raw parameters into more usable forms
-        for paramDict in configParams:
-            checkParametersAreValid(paramDict, validParameters)
+        for param in configParams.items():
+            checkParametersAreValid(param, validParameters)
+        for param in newConfigParams.items():
+            checkParametersAreValid(param, validParameters)
 
+        # TODO steamline this process of checking, getting missing, and separating
         missingParams = getDefaultsForMissingParameters( \
                 configParams, deepcopy(defaultBenchmarkCommonParameters))
 
         self.singleValueParams, self.multiValueParams \
-                = separateParameters(missingParams + configParams)
+                = separateParameters({**missingParams, **configParams})
 
         # print summary of parameter values
         print2("Single Value Parameters:")
@@ -165,6 +188,11 @@ class BenchmarkProcess:
         print2("Multi-Value Parameters:")
         for k, v in self.multiValueParams.items():
             print2("    {}: {}".format(k, v))
+
+        if len(self.paramGroups) > 0:
+            print2("{} Parameter Group(s):".format(len(self.paramGroups)))
+            for i, group in enumerate(self.paramGroups):
+                print2("    {} entries is group {}".format(len(group), i+1))
 
     def convertParametersToSteps(self):
         """Create benchmark steps based on parsed parameters"""
@@ -181,6 +209,7 @@ class BenchmarkProcess:
         benchmarkStep = BenchmarkStep( \
                 self.multiValueParams, \
                 self.singleValueParams, \
+                self.paramGroups, \
                 self.customKernels, \
                 self.problemSizes, \
                 self.benchmarkStepIdx)
@@ -203,7 +232,7 @@ class BenchmarkProcess:
         return self.__str__()
 
 
-def constructForkPermutations(forkParams):
+def constructForkPermutations(forkParams, paramGroups):
     """Constructs cartesian product of parameter values in forkParams"""
     totalPermutations = 1
     for _, values in forkParams.items():
@@ -219,16 +248,36 @@ def constructForkPermutations(forkParams):
             permutation[name] = values[valueIdx]
             pIdx //= len(values)
         forkPermutations.append(permutation)
-    return forkPermutations
+
+    allPermutations = forkPermutations
+
+    # TODO document and better name
+    # better logic possible?
+    for group in paramGroups:
+        temp = []
+        for paramSet in group:
+
+            currentSet = []
+            for refPerm in allPermutations:
+                perm = deepcopy(refPerm)
+                for k, v in paramSet.items():
+                    perm[k] = v
+                currentSet.append(perm)
+
+            temp += currentSet
+        allPermutations = temp
+
+    return allPermutations
 
 
 class BenchmarkStep:
     """A single benchmark step which consists of constant and fork parameters and a set of sizes"""
 
-    def __init__(self, forkParams, constantParams, customKernels, problemSizes, idx):
+    def __init__(self, forkParams, constantParams, paramGroups, customKernels, problemSizes, idx):
         """Basic constructor storing each argument"""
         self.forkParams     = forkParams
         self.constantParams = constantParams
+        self.paramGroups    = paramGroups
         self.customKernels  = customKernels
         self.problemSizes   = problemSizes
         self.stepIdx        = idx
