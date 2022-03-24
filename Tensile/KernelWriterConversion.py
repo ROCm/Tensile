@@ -22,7 +22,6 @@
 from copy import deepcopy
 
 from .Common import globalParameters, CHeader
-from .DataType import DataType
 from .KernelWriterBase import KernelWriterBase
 
 class KernelWriterConversion(KernelWriterBase):
