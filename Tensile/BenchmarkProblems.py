@@ -31,7 +31,8 @@ from . import SolutionLibrary
 from . import LibraryIO
 from . import Utils
 from .BenchmarkStructs import BenchmarkProcess, checkParametersAreValid, constructForkPermutations
-from .ClientWriter import runClient, writeClientConfig
+from .Contractions import ProblemType as ContractionsProblemType
+from .ClientWriter import runClient, writeClientConfig, writeClientConfigIni
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, \
         printExit, printWarning, ensurePath, startTime, validParameters
 from .KernelWriterAssembly import KernelWriterAssembly
@@ -194,6 +195,8 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
     if len(solutions) == 0:
         printExit("write solutions and kernels results 0 valid soultion.")
 
+    return codeObjectFiles
+
 def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeGroupIdx):
     """Run the benchmarking for a single entry in the BenchmarkProblems of a Tensile config"""
     benchmarkTestFails = 0
@@ -236,57 +239,98 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
 
         pushWorkingPath(shortName)
         stepBaseDir = globalParameters["WorkingPath"]
-        pushWorkingPath("source")
 
-        # enumerate benchmark permutations and create resulting solution objects
-        forkPermutations = constructForkPermutations(benchmarkStep.forkParams, benchmarkStep.paramGroups)
-        maxPossibleSolutions = len(forkPermutations)
-
-        regSolutions = generateForkedSolutions(benchmarkProcess.problemType, \
-                benchmarkStep.constantParams, forkPermutations)
-        kcSolutions = generateCustomKernelSolutions(benchmarkProcess.problemType, \
-                benchmarkStep.customKernels, not benchmarkStep.customKernelWildcard)
-
-        maxPossibleSolutions += len(kcSolutions)
-        solutions = regSolutions + kcSolutions
-
-        print1("# Actual Solutions: {} / {} after SolutionStructs\n" \
-            .format(len(solutions), maxPossibleSolutions))
-
-        # handle no valid solutions
-        if len(solutions) == 0:
-            msg = "Your parameters resulted in 0 valid solutions."
-            if globalParameters["PrintSolutionRejectionReason"]:
-                msg += "\nExamine reject and backtrace messages above to see why" \
-                        "and where solutions were rejected."
-            else:
-                msg += "\nYou should re-run with \"PrintSolutionRejectionReason: True\"" \
-                        "to see why each parameter combination was rejected."
-            printExit(msg)
-
-        if globalParameters["PrintLevel"] >= 1:
-            for solution in solutions:
-                print2("#    ({}:{}) {}".format(0, 0, Solution.getNameFull(solution)) )
-            print2(HR)
-
-        # write benchmarkFiles
-        prevCount = len(solutions)
-        writeBenchmarkFiles(stepBaseDir, solutions, benchmarkStep.problemSizes, \
-                shortName, [])
-        # ^ this mutates solutions
-
-        print1("# Actual Solutions: {} / {} after KernelWriter\n" \
-                .format(len(solutions), prevCount ))
-
-        popWorkingPath() # source
-
-        # run benchmarking client
+        # file paths
         resultsFileBase = os.path.normpath(os.path.join( \
                 globalParameters["WorkingPath"], "../Data", shortName))
         if benchmarkStep.isFinal():
             resultsFileBaseFinal = resultsFileBase
         resultsFileName = resultsFileBase + ".csv"
         solutionsFileName = resultsFileBase + ".yaml"
+
+        # cache stuff here
+        cachePath = os.path.join(stepBaseDir, "cache.txt")
+        pushWorkingPath("source")
+
+        if not os.path.isfile(cachePath):
+            print("no cache found")
+
+            # enumerate benchmark permutations and create resulting solution objects
+            forkPermutations = constructForkPermutations(benchmarkStep.forkParams, benchmarkStep.paramGroups)
+            maxPossibleSolutions = len(forkPermutations)
+
+            regSolutions = generateForkedSolutions(benchmarkProcess.problemType, \
+                    benchmarkStep.constantParams, forkPermutations)
+            kcSolutions = generateCustomKernelSolutions(benchmarkProcess.problemType, \
+                    benchmarkStep.customKernels, not benchmarkStep.customKernelWildcard)
+
+            maxPossibleSolutions += len(kcSolutions)
+            solutions = regSolutions + kcSolutions
+
+            print1("# Actual Solutions: {} / {} after SolutionStructs\n" \
+                .format(len(solutions), maxPossibleSolutions))
+
+            # handle no valid solutions
+            if len(solutions) == 0:
+                msg = "Your parameters resulted in 0 valid solutions."
+                if globalParameters["PrintSolutionRejectionReason"]:
+                    msg += "\nExamine reject and backtrace messages above to see why" \
+                            "and where solutions were rejected."
+                else:
+                    msg += "\nYou should re-run with \"PrintSolutionRejectionReason: True\"" \
+                            "to see why each parameter combination was rejected."
+                printExit(msg)
+
+            if globalParameters["PrintLevel"] >= 1:
+                for solution in solutions:
+                    print2("#    ({}:{}) {}".format(0, 0, Solution.getNameFull(solution)) )
+                print2(HR)
+
+            # write benchmarkFiles
+            prevCount = len(solutions)
+            codeObjectFiles = writeBenchmarkFiles(stepBaseDir, solutions, benchmarkStep.problemSizes, \
+                    shortName, [])
+            # ^ this mutates solutions
+
+            with open(cachePath, "w") as f:
+                cos = [co + "\n" for co in codeObjectFiles]
+                f.writelines(cos)
+
+            print1("# Actual Solutions: {} / {} after KernelWriter\n" \
+                    .format(len(solutions), prevCount ))
+                            # write solutions YAML
+            LibraryIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, solutions)
+
+
+            # run benchmarking client
+        else:
+            print("cache found")
+            with open(cachePath) as f:
+                codeObjectFiles = f.readlines()
+
+            ssProblemType = ProblemType(problemTypeConfig)
+            conProblemType = ContractionsProblemType.FromOriginalState(ssProblemType)
+            outFile = os.path.join(globalParameters["WorkingPath"], "ClientParameters.ini")
+
+            solYaml = LibraryIO.readYAML(solutionsFileName)
+            sizes = []
+            for size in benchmarkStep.problemSizes.ranges:
+                sizes.append({"Range": list(size.sizes)})
+            for size in benchmarkStep.problemSizes.exacts:
+                sizes.append({"Exact": list(size.sizes)})
+            solYaml[1]["ProblemSizes"] = sizes
+            LibraryIO.writeYAML(solutionsFileName, solYaml, sort_keys=False)
+
+            writeClientConfigIni(benchmarkStep.problemSizes,
+                    conProblemType,
+                    globalParameters["WorkingPath"],
+                    codeObjectFiles,
+                    resultsFileName,
+                    outFile
+            )
+
+        popWorkingPath() # source
+
 
         if not os.path.exists(resultsFileName) or globalParameters["ForceRedoBenchmarkProblems"]:
             libraryLogicPath = None
@@ -299,9 +343,6 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
                         .format(returncode))
         else:
             print1("# Already benchmarked; skipping.")
-
-        # write solutions YAML
-        LibraryIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, solutions)
 
         # End Iteration
         popWorkingPath() # stepName
