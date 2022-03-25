@@ -894,8 +894,10 @@ namespace Tensile
         auto alphaType = problem.alphaType();
         auto betaType  = problem.betaType();
 
-        // Backward-compatible: when setAlpha/BetaType() wasn't called, use the old way
-        // Could remove after rocBLAS is updated
+        // TODO: Some gtests are passing the "problem" without actually defining the
+        // alpha/beta type (alphaType and betaType remain None).
+        // Until we fix those gtests, we need to keep this condition to adjust the missing
+        // alpha/beta data types.
         if(alphaType == DataType::None)
         {
             alphaType
