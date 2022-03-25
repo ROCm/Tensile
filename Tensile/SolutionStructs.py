@@ -22,10 +22,10 @@
 from .Common import assignParameterRequired, assignParameterWithDefault, \
                     defaultProblemType, defaultSolution, \
                     globalParameters, \
-                    print2, printExit, \
+                    print2, printExit, printWarning, \
                     validActivationFormats, validConvolutionConfig, \
                     validMFMA, validParameters, validWeightFormats, \
-                    validGEMMTypes, typesUsingNewNaming
+                    validGEMMTypes, HPATypes
 from .DataType import DataType
 from .Utils import roundUpToNearestMultiple
 
@@ -826,6 +826,7 @@ class ProblemType(Mapping):
     for key in defaultProblemType:
       assignParameterWithDefault(self.state, key, config, defaultProblemType)
 
+    # adjusting all data types
     if "DataType" in config:
       self["DataType"] = DataType(config["DataType"])
     else:
@@ -841,7 +842,6 @@ class ProblemType(Mapping):
         printExit("NO dest data type or data type specified")
         self["DataType"] = DataType(0)
 
-
     if "ComputeDataType" in config:
       self["ComputeDataType"] = DataType(config["ComputeDataType"])
     else:
@@ -850,14 +850,18 @@ class ProblemType(Mapping):
       else:
         if "DataType" in config:
           self["ComputeDataType"] = DataType(config["DataType"])
-          self["DestDataType"] = DataType(config["DataType"])
         else:
           printExit("NO compute data type, or dest data type, or data type specified")
           self["DataType"] = DataType(0)
 
-    # Modifying ComputeDataType for HHS_BH: if (HHH+HPA), convert it to HHS_BH by setting ComputeDataType to s.
-    if self["ComputeDataType"].isHalf() and DataType(config["DataType"]).isHalf() and self["HighPrecisionAccumulate"]:
-      print2("DataType == f16 and HPA == True; setting compute data type to f32")
+    # Modifying ComputeDataType for HHH+HPA: if (HHH+HPA), convert it to HHS_BH by setting ComputeDataType to S.
+    if self["ComputeDataType"].isHalf() and self["DataType"].isHalf() and self["HighPrecisionAccumulate"]:
+      printWarning("Inconsistent DataTypes: DataType == f16, DestType == f16, ComputeDataType == f16, but HPA == True (HHH+HPA, no such a type); Converting HHH+HPA to HHS_BH by setting compute data type to f32.")
+      self["ComputeDataType"] = DataType('s')
+
+    # Modifying ComputeDataType for BBB+HPA: if (BBB+HPA), convert it to BBS_BH by setting ComputeDataType to S.
+    if self["ComputeDataType"].isBFloat16() and self["DataType"].isBFloat16() and self["HighPrecisionAccumulate"]:
+      printWarning("Inconsistent DataTypes: DataType == bf16, DestType == bf16, ComputeDataType == bf16, but HPA == True (BBB+HPA, no such a type); Converting BBB+HPA to BBS_BH by setting compute data type to f32.")
       self["ComputeDataType"] = DataType('s')
 
     self.convolution = None
@@ -907,61 +911,9 @@ class ProblemType(Mapping):
               printExit("SetConstStride%s=%s anchorDim=%u is not in IndexAssignments%s"%(tc, sc, anchorDim, tc))
 
   ################################################################################
-  # Assign and check the 3-datatypes EXPLICTLY for better maintenance:
-  # Target: to avoid some hack-code/workaround/ambiguous code
-  #     - Such as fixing Cexternal to DestDataType instead of DataType,
-  #       but now it works well since they are the same
-  #     - Another exmple is the "ComputeDataType" is barely referred in generator
-  #       We use lots of if (DataType==... and HPA==...) which might be tedious
-  #       It's better to make them explict
-
-  # Align the supported GEMM type with rocBLAS: [a/b/c/d/alpha/beta]
-  #   (rocblas/library/include/internal/rocblas_functions.h)
-  # Non_Ex
-  #   - CGEMM:  [C/C/ C/C/ C/C]
-  #   - ZGEMM:  [Z/Z/ Z/Z/ Z/Z]
-  #   - DGEMM:  [D/D/ D/D/ D/D]
-  #   - SGEMM:  [S/S/ S/S/ S/S]
-  #   - HGEMM:  [H/H/ H/H/ H/H] (HPA=F)
-  # _Ex:
-  #   - HGEMM:  [H/H/ H/H/ H/H] (HPA=T), SEE MORE EXPLANATION BELOW
-  #   - HGEMM:  [H/H/ H/H/ S/S] (HPA=T), Somehow we hadn't used this version
-  #   - BFGEMM: [B/B/ B/B/ S/S] (HPA=T), the only supported one
-  #   - IGEMM:  [i8/i8/ I/I/ I/I ], tensile packs 4 i8 to i8x4 with some restrictions
-
-  # DataType        = Input data-type of A/B
-  # DestDataType    = Output data-type of C/D
-  # ComputeDataType = Input data-type of alpha/beta:
-  # Cinternal: basically should == ComputeDataType
-  #   - EXCEPT FOR (H/H/H/H/H/H)+HPA, Cinternal is F32, which is not intuitive
-
-  # But for HGEMM, ComputeDataType is trickier:
-  #   - When rocBLAS invokes with a/b=F16, c/d=F16, compute=F16,
-  #     rocBLAS directly find a well-mapped tensile-kernel
-  #     -> Tensile: [H/H/ H/H/ H/H] & HPA=FALSE is used
-  #        Input Alpha/Beta is Half
-  #
-  #   - When rocBLAS invokes with a/b=F16, c/d=F16, compute=F32,
-  #     rocBLAS turns on HPA, then casts to a compute-type=F16 ver of tensile-kernel
-  #     -> Tensile: [H/H/ H/H/ H/H] & HPA=TRUE is used
-  #        Input Alpha/Beta is still Half
-  #     Which seems not a intuitive mapping for alpha/beta
-  #
-  # Target: The better and consistent logic should be the same as BF16
-  #   - When rocBLAS invokes with a/b=F16, c/d=F16, compute=F32,
-  #     rocBLAS turns on HPA, BUT STILL REMAINS compute-type=F32
-  #     -> Tensile: [H/H/ H/H/ S/S] & HPA=TRUE is used
-  #        Input Alpha/Beta is Float
-  #     That's also how bf16 works
-
-  # Function checkIfSupportedGEMMType:
+   # Function checkIfSupportedGEMMType:
   #   Assures 3 data-types are valid, supported and well-assigned
-  #   Next step TODO-
-  #     - We can start to try generating [H/H/ H/H/ S/S] & HPA
-  #       If Alpha/Beta=S, this also saves a few instructions to cvt from f16->f32 in assembly
-  #     - Also need to do some change in rocBLAS:
-  #       When invoking gemm_ex with a/b=F16, c/d=F16, compute=F32,
-  #       simply reflects to Tensile [H/H/ H/H/ S/S] & HPA kernel
+  #   See the discussion on Common.py for validGEMMTypes
   ################################################################################
   def checkIfSupportedGEMMType(self):
     inType = self["DataType"]
@@ -971,10 +923,6 @@ class ProblemType(Mapping):
     gemmType = ( inType.toChar(), outType.toChar(), computeType.toChar() )
     if gemmType not in validGEMMTypes:
       printExit("This typed-GEMM (Ti, To, Tc) = (%s, %s, %s) is not supported yet."%(gemmType[0],gemmType[1],gemmType[2]))
-
-    # TODO- Migrate ([H/H/H]+HPA) to ([H/H/S]+HPA)
-    # Note that we need to do a little change in rocBLAS and logic yaml
-    # Currently, ([H/H/S]+HPA) is implemented, but due to some kernel naming conflict, we use HBH kernels instead of HHS_BH. 
 
   ########################################
   def initGEMM(self):
@@ -1182,7 +1130,7 @@ class ProblemType(Mapping):
     #   HHS, HSS, BSS and I8II kernels, use a clearer naming _TiToTc_
     # TODO: Distinguish all kernels by _TiToTc_ to be more consistent with rocblas
     gemmType = (self["DataType"].toChar(),self["DestDataType"].toChar(),self["ComputeDataType"].toChar() )
-    if gemmType in typesUsingNewNaming:
+    if gemmType in HPATypes:
       name += self["DestDataType"].toChar()    # Type of C/D
       name += self["ComputeDataType"].toChar() # Type of Alpha/Beta
       name += "_"
@@ -2564,9 +2512,6 @@ class Solution(collections.abc.Mapping):
       if state["GlobalSplitU"] > 1:
         computeName  = state["ProblemType"]["ComputeDataType"].toName()
         computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
-        if state["ProblemType"]["DataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]:
-          computeName  = DataType('single').toName()
-          computeBytes = DataType('single').numBytes()
 
         if state["GlobalSplitUAlgorithm"] == 'SingleBuffer':
           if computeName != state["ProblemType"]["DestDataType"].toName():
@@ -3565,8 +3510,6 @@ class Solution(collections.abc.Mapping):
       ldsNumElementsRemapC = (state["MacroTile0"]+ldsRemapPad)* state["MatrixInstN"] * state["MIWaveGroup"][1]
       if state["_GlobalAccumulation"]:
         computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
-        if state["ProblemType"]["DataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]:
-          computeBytes = DataType('single').numBytes()
         ldsNumElementsRemapC *= (computeBytes / state["ProblemType"]["DestDataType"].numBytes())
       ldsSize = ldsNumElementsRemapC * state["ProblemType"]["DestDataType"].numBytes()
       if not math.log(state["MacroTile0"],2).is_integer() or \
@@ -3610,6 +3553,7 @@ class Solution(collections.abc.Mapping):
          not state["EnableMatrixInstruction"]:
         reject(state, "MIArchVgpr requires gcn support ACC_CD bit for MatrixInstruction")
         return
+
       if not (state["ProblemType"]["ComputeDataType"].isDouble() or \
               state["ProblemType"]["ComputeDataType"].isSingle() or \
               (state["ProblemType"]["ComputeDataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]) or \
@@ -3666,8 +3610,7 @@ class Solution(collections.abc.Mapping):
       numReg  = state["ProblemType"]["DestDataType"].numRegisters()
       if state["_GlobalAccumulation"]:
         numReg = state["ProblemType"]["ComputeDataType"].numRegisters()
-        if state["ProblemType"]["DataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]:
-          numReg = DataType('single').numRegisters()
+
       srMaxVw = int(storeInstMaxWidth/numReg)
       if srMinVw > state["StoreRemapVectorWidth"] or srMaxVw < state["StoreRemapVectorWidth"]:
         reject(state, "StoreRemapVectorWidth %u is not allowed for this data type" % state["StoreRemapVectorWidth"])
@@ -3686,8 +3629,6 @@ class Solution(collections.abc.Mapping):
 
       if state["_GlobalAccumulation"]:
         computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
-        if state["ProblemType"]["DataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]:
-          computeBytes = DataType('single').numBytes()
         multiplier = computeBytes // state["ProblemType"]["DataType"].numBytes()
       elif state["ProblemType"]["DestDataType"].numBytes() > state["ProblemType"]["DataType"].numBytes():
         # Determine ratio of output to input element size.
