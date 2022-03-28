@@ -132,6 +132,7 @@ class BenchmarkProcess:
             else:
                 return default
 
+        # converts list of dicts into a flat dict
         benchmarkCommonParams = dict(itertools.chain(*[x.items() \
                 for x in getNonNoneFromConfig("BenchmarkCommonParameters", [])]))
         forkParams = dict(itertools.chain(*[x.items() \
@@ -215,41 +216,40 @@ class BenchmarkProcess:
 
 
 def constructForkPermutations(forkParams, paramGroups):
-    """Constructs cartesian product of parameter values in forkParams"""
+    """Constructs cartesian product of parameter values in forkParams and paramGroups"""
+
+    myParams = {}
+    myParams.update(forkParams)
+
     totalPermutations = 1
     for _, values in forkParams.items():
         totalPermutations *= len(values)
+
+    # add groups to parameters to fork on
+    for i, group in enumerate(paramGroups):
+        myParams["_group" + str(i)] = group
+        totalPermutations *= len(group)
 
     forkPermutations = []
     for i in range(0, totalPermutations):
         permutation = {}
         pIdx = i
-        for name, v in forkParams.items():
+        for name, v in myParams.items():
             values = deepcopy(v)
             valueIdx = pIdx % len(v)
-            permutation[name] = values[valueIdx]
+
+            # groups have multiple parameters to update
+            if "_group" in name:
+                entry = values[valueIdx]
+                for n2, v2 in entry.items():
+                    permutation[n2] = v2
+            else:
+                permutation[name] = values[valueIdx]
+
             pIdx //= len(values)
         forkPermutations.append(permutation)
 
-    allPermutations = forkPermutations
-
-    # TODO document and better name
-    # better logic possible?
-    for group in paramGroups:
-        temp = []
-        for paramSet in group:
-
-            currentSet = []
-            for refPerm in allPermutations:
-                perm = deepcopy(refPerm)
-                for k, v in paramSet.items():
-                    perm[k] = v
-                currentSet.append(perm)
-
-            temp += currentSet
-        allPermutations = temp
-
-    return allPermutations
+    return forkPermutations
 
 
 class BenchmarkStep:
