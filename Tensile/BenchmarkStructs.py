@@ -20,8 +20,8 @@
 ################################################################################
 
 from copy import deepcopy
+import itertools
 from .Common import print1, print2, hasParam, printExit, \
-        defaultBenchmarkFinalProblemSizes, defaultBatchedBenchmarkFinalProblemSizes, \
         defaultBenchmarkCommonParameters, validParameters, globalParameters
 from .CustomKernels import getAllCustomKernelNames
 from .SolutionStructs import ProblemType, ProblemSizes
@@ -124,61 +124,43 @@ class BenchmarkProcess:
         elif len(badsInConfig) > 1:
             printExit("Benchmark steps {} are no longer supported".format(badsInConfig))
 
-        # get supported benchmark steps
+        # get supported configurations
+        # value in config file may be "None", which we should ignore
         def getNonNoneFromConfig(key, default):
             if config.get(key) is not None:
                 return config[key]
             else:
                 return default
 
-        benchmarkCommonParams = getNonNoneFromConfig("BenchmarkCommonParameters", [])
-        forkParams            = getNonNoneFromConfig("ForkParameters", [])
+        benchmarkCommonParams = dict(itertools.chain(*[x.items() \
+                for x in getNonNoneFromConfig("BenchmarkCommonParameters", [])]))
+        forkParams = dict(itertools.chain(*[x.items() \
+                for x in getNonNoneFromConfig("ForkParameters", [])]))
         self.paramGroups      = getNonNoneFromConfig("GroupForkParameters", [])
         self.customKernels    = getNonNoneFromConfig("CustomKernels", [])
 
         if "BenchmarkFinalParameters" in config:
             sizes = config["BenchmarkFinalParameters"][0]["ProblemSizes"]
-            self.problemSizes = ProblemSizes(self.problemType, sizes)
         else:
             sizes = []
 
         self.problemSizes = ProblemSizes(self.problemType, sizes)
-        checkCDBufferAndStrides(self.problemType, \
-                self.problemSizes, globalParameters["CEqualD"])
+        checkCDBufferAndStrides(self.problemType, self.problemSizes, globalParameters["CEqualD"])
 
+        # validate parameter values
+        configParams = {**benchmarkCommonParams, **forkParams}
+        for param in configParams.items():
+            checkParametersAreValid(param, validParameters)
 
-        #### new stuff
-        configParams = {}
-        for item in benchmarkCommonParams + forkParams:
-            for k, v in item.items(): # only has 1 key but this is the format of the file so...
-
-                if k not in configParams:
-                    configParams[k] = v # these values are lists
-                else:
-                    configParams[k] += v
-        # get raw params from groups
-        newConfigParams = {}
+        # TODO other checks on groups (same params for each entry?, not dups between groups?, others?)
         for list in self.paramGroups:
             for group in list:
                 for k, v in group.items():
-                    if k not in newConfigParams:
-                        newConfigParams[k] = [v] # these values are not lists
-                    else:
-                        newConfigParams[k] += [v]
-        # TODO checks on groups (same params for each entry?, not dups between groups?, others?)
+                    checkParametersAreValid((k, [v]), validParameters)
 
-        # validate and parse raw parameters into more usable forms
-        for param in configParams.items():
-            checkParametersAreValid(param, validParameters)
-        for param in newConfigParams.items():
-            checkParametersAreValid(param, validParameters)
-
-        # TODO steamline this process of checking, getting missing, and separating
-        missingParams = getDefaultsForMissingParameters( \
-                configParams, deepcopy(defaultBenchmarkCommonParameters))
-
-        self.singleValueParams, self.multiValueParams \
-                = separateParameters({**missingParams, **configParams})
+        params = dict(itertools.chain(*[x.items() for x in defaultBenchmarkCommonParameters]))
+        params.update(configParams)
+        self.singleValueParams, self.multiValueParams = separateParameters(params)
 
         # print summary of parameter values
         print2("Single Value Parameters:")
