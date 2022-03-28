@@ -253,7 +253,8 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
         pushWorkingPath("source")
 
         if not os.path.isfile(cachePath):
-            print("no cache found")
+            cache = False
+            print1("No cache found")
 
             # enumerate benchmark permutations and create resulting solution objects
             forkPermutations = constructForkPermutations(benchmarkStep.forkParams, benchmarkStep.paramGroups)
@@ -292,19 +293,17 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
                     shortName, [])
             # ^ this mutates solutions
 
+            # cache code object file names
             with open(cachePath, "w") as f:
                 cos = [co + "\n" for co in codeObjectFiles]
                 f.writelines(cos)
 
             print1("# Actual Solutions: {} / {} after KernelWriter\n" \
                     .format(len(solutions), prevCount ))
-                            # write solutions YAML
-            LibraryIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, solutions)
-
-
-            # run benchmarking client
         else:
-            print("cache found")
+            cache = True
+            solutions = None
+            print1("Cache found")
             with open(cachePath) as f:
                 codeObjectFiles = f.readlines()
 
@@ -312,26 +311,15 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
             conProblemType = ContractionsProblemType.FromOriginalState(ssProblemType)
             outFile = os.path.join(globalParameters["WorkingPath"], "ClientParameters.ini")
 
-            solYaml = LibraryIO.readYAML(solutionsFileName)
-            sizes = []
-            for size in benchmarkStep.problemSizes.ranges:
-                sizes.append({"Range": list(size.sizes)})
-            for size in benchmarkStep.problemSizes.exacts:
-                sizes.append({"Exact": list(size.sizes)})
-            solYaml[1]["ProblemSizes"] = sizes
-            LibraryIO.writeYAML(solutionsFileName, solYaml, sort_keys=False)
+            writeClientConfigIni(benchmarkStep.problemSizes, conProblemType, globalParameters["WorkingPath"], codeObjectFiles, resultsFileName, outFile)
 
-            writeClientConfigIni(benchmarkStep.problemSizes,
-                    conProblemType,
-                    globalParameters["WorkingPath"],
-                    codeObjectFiles,
-                    resultsFileName,
-                    outFile
-            )
+        # I think the size portion of this yaml could be removed,
+        # but for now it's needed, so we update it in the cache case
+        LibraryIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, solutions, cache)
 
         popWorkingPath() # source
 
-
+        # run benchmarking client
         if not os.path.exists(resultsFileName) or globalParameters["ForceRedoBenchmarkProblems"]:
             libraryLogicPath = None
             forBenchmark = True
