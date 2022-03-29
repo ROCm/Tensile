@@ -22,7 +22,7 @@
 from ..Component import Component, MAC
 from ..DataType import DataType
 
-class MAC_F64_Plain(MAC):
+class FMA_F64_Plain(MAC):
     asmCaps = {"v_fma_f64": True}
     kernel = {"ProblemType": {"DataType": DataType(DataType.double)}}
 
@@ -31,15 +31,21 @@ class MAC_F64_Plain(MAC):
         kStr = self.commentHeader()
         priority = Component.Priority.find(writer)
 
+        vars = {}
+        vars["endLine"] = writer.endLine
+        vars["m"] = m
+        vars["ThreadTile0"] = kernel["ThreadTile0"]
+
         for b in range(0, kernel["ThreadTile1"]):
             for a in range(0, kernel["ThreadTile0"]):
                 for iui in range(0, innerUnroll):
-                    cStr = "v[%s+(%u+%u*%u)*2:(%s+%u+%u*%u)*2+1]" % ("vgprValuC", a, b, kernel["ThreadTile0"], "vgprValuC", a, b, kernel["ThreadTile0"])
-                    aStr = "v[%s+%u*2:%s+%u*2+1]" \
-                            % ("vgprValuA_X%u_I%u"%(m,iui) , a, "vgprValuA_X%u_I%u"%(m,iui), a)
-                    bStr = "v[%s+%u*2:%s+%u*2+1]" \
-                            % ("vgprValuB_X%u_I%u"%(m,iui) , b, "vgprValuB_X%u_I%u"%(m,iui), b)
-                    kStr += "v_fma_f64 %s, %s, %s, %s%s" % (cStr, aStr, bStr, cStr, writer.endLine)
+                    vars["a"] = a
+                    vars["b"] = b
+                    vars["iui"] = iui
+                    vars["cStr"] = "v[vgprValuC+({a}+{b}*{ThreadTile0})*2:(vgprValuC+{a}+{b}*{ThreadTile0})*2+1]".format_map(vars)
+                    vars["aStr"] = "v[vgprValuA_X{m}_I{iui}+{a}*2:vgprValuA_X{m}_I{iui}+{a}*2+1]".format_map(vars)
+                    vars["bStr"] = "v[vgprValuB_X{m}_I{iui}+{b}*2:vgprValuB_X{m}_I{iui}+{b}*2+1]".format_map(vars)
+                    kStr += "v_fma_f64 {cStr}, {aStr}, {bStr}, {cStr}{endLine}".format_map(vars)
                     kStr += priority(writer, 1, "Raise priority while processing macs")
 
         kStr += priority(writer, 0, "Reset priority after macs")

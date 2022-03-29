@@ -1990,47 +1990,6 @@ class KernelWriterAssembly(KernelWriter):
         version = "gfx{}{}{}".format(self.version[0], self.version[1], self.version[2])
         kStr += self.comment3("int8x4 not implemented yet for {}:".format(version))
 
-    # single precision complex
-    elif kernel["ProblemType"]["DataType"].isSingleComplex():
-      for b in range(0, kernel["ThreadTile1"]):
-        for a in range(0, kernel["ThreadTile0"]):
-          for iui in range(0, innerUnroll):
-            cStr = "v[%s+(%u+%u*%u)*2]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
-            aStr = "v[%s+%u*2]" % ("vgprValuA_X%u_I%u"%(m,iui) , a)
-            bStr = "v[%s+%u*2]" % ("vgprValuB_X%u_I%u"%(m,iui) , b)
-            kStr += "_v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
-
-            cStr = "v[%s+(%u+%u*%u)*2]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
-            aStr = "v[%s+%u*2+1]" % ("vgprValuA_X%u_I%u"%(m,iui) , a)
-            bStr = "v[%s+%u*2+1]" % ("vgprValuB_X%u_I%u"%(m,iui) , b)
-            if (not kernel["ProblemType"]["ComplexConjugateA"] and not kernel["ProblemType"]["ComplexConjugateB"]) or \
-               (kernel["ProblemType"]["ComplexConjugateA"] and kernel["ProblemType"]["ComplexConjugateB"]):
-              kStr += "_v_mac_f32 %s, -%s, %s%s" % (cStr, aStr, bStr, self.endLine)
-            else:
-              kStr += "_v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
-
-            cStr = "v[%s+(%u+%u*%u)*2+1]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
-            aStr = "v[%s+%u*2]" % ("vgprValuA_X%u_I%u"%(m,iui) , a)
-            bStr = "v[%s+%u*2+1]" % ("vgprValuB_X%u_I%u"%(m,iui) , b)
-            if kernel["ProblemType"]["ComplexConjugateB"]:
-              kStr += "_v_mac_f32 %s, %s, -%s%s" % (cStr, aStr, bStr, self.endLine)
-            else:
-              kStr += "_v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
-
-            cStr = "v[%s+(%u+%u*%u)*2+1]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
-            aStr = "v[%s+%u*2+1]" % ("vgprValuA_X%u_I%u"%(m,iui) , a)
-            bStr = "v[%s+%u*2]" % ("vgprValuB_X%u_I%u"%(m,iui) , b)
-            if kernel["ProblemType"]["ComplexConjugateA"]:
-              kStr += "_v_mac_f32 %s, -%s, %s%s" % (cStr, aStr, bStr, self.endLine)
-            else:
-              kStr += "_v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
-
-            if beAggressive and not doOnce:
-              kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
-              doOnce = True
-      if beAggressive:
-        kStr += "s_setprio 0 // Reset priority after macs %s" % self.endLine
-
     # double precision complex
     elif kernel["ProblemType"]["DataType"].isDoubleComplex():
       for b in range(0, kernel["ThreadTile1"]):
