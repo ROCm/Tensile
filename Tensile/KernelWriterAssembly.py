@@ -439,7 +439,6 @@ class KernelWriterAssembly(KernelWriter):
     return t
 
   ##############################################################################
-  ##############################################################################
   def getUniqLabel(self):
     name = "uniq_label_" + str(len(self.labels))
     return self.getLabelNum(name)
@@ -687,8 +686,6 @@ class KernelWriterAssembly(KernelWriter):
     else:
       self.groOffsetInMacroTile = 0
 
-
-    self.use64bProductOfSums = 0
     self.use64bPackSumOffset = 0  # use 2 SGPR for extracting packed summation dims.  Not supported, but this marks eventual required changes
 
     # use 64-bit buffer limit shadow register
@@ -1422,20 +1419,20 @@ class KernelWriterAssembly(KernelWriter):
     # The base address in the SRD is updated when the algorithm moves to a new tile
     # BufferLoad disables the gptGlobalReadAddr used in flat addressing.
     if kernel["BufferLoad"]:
-       self.startVgprGlobalReadOffsetA = vgprIdx
-       vgprIdx += 1 if kernel["_UseSgprForGRO"] else self.numGlobalReadOffsetsA
-       self.startVgprGlobalReadOffsetB = vgprIdx
-       vgprIdx += 1 if kernel["_UseSgprForGRO"] else self.numGlobalReadOffsetsB
-       # allocate tile offset and unroll offset registers for PK kernel
-       if self.useGlobalReadTileVgpr:
-         self.startVgprGlobalReadTileOffsetA = vgprIdx
-         vgprIdx += tPA["nrt"]
-         self.startVgprGlobalReadUnrollOffsetA = vgprIdx
-         vgprIdx += self.numGlobalReadOffsetsA
-         self.startVgprGlobalReadTileOffsetB = vgprIdx
-         vgprIdx += tPB["nrt"]
-         self.startVgprGlobalReadUnrollOffsetB = vgprIdx
-         vgprIdx += self.numGlobalReadOffsetsB
+      self.startVgprGlobalReadOffsetA = vgprIdx
+      vgprIdx += 1 if kernel["_UseSgprForGRO"] else self.numGlobalReadOffsetsA
+      self.startVgprGlobalReadOffsetB = vgprIdx
+      vgprIdx += 1 if kernel["_UseSgprForGRO"] else self.numGlobalReadOffsetsB
+      # allocate tile offset and unroll offset registers for PK kernel
+      if self.useGlobalReadTileVgpr:
+        self.startVgprGlobalReadTileOffsetA = vgprIdx
+        vgprIdx += tPA["nrt"]
+        self.startVgprGlobalReadUnrollOffsetA = vgprIdx
+        vgprIdx += self.numGlobalReadOffsetsA
+        self.startVgprGlobalReadTileOffsetB = vgprIdx
+        vgprIdx += tPB["nrt"]
+        self.startVgprGlobalReadUnrollOffsetB = vgprIdx
+        vgprIdx += self.numGlobalReadOffsetsB
 
     else:
       # TODO: alignment hack, figure out a better solution
@@ -1973,69 +1970,8 @@ class KernelWriterAssembly(KernelWriter):
     beAggressive = kernel["AggressivePerfMode"]
 
     doOnce = False
-    # half precision is entirely in component system.
-    # bfloat16
-    if kernel["ProblemType"]["DataType"].isBFloat16():
-      if (self.version == (9,0,8) or self.version == (9,0,10)) and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-        for iui in range(0, innerUnroll):
-          for blockA in range(kernel["ThreadTileA"]//2-1, -1, -1):
-            kStr += "v_and_b32     v[vgprValuA_X%u_I%u+%u], 0xffff0000, v[vgprValuA_X%u_I%u+%u]%s" % (m, iui, blockA*2+1, m, iui, blockA, self.endLine)
-            kStr += "v_lshlrev_b32 v[vgprValuA_X%u_I%u+%u], 16,         v[vgprValuA_X%u_I%u+%u]%s" % (m, iui, blockA*2,   m, iui, blockA, self.endLine)
-
-          for blockB in range(kernel["ThreadTileB"]//2-1, -1, -1):
-            kStr += "v_and_b32     v[vgprValuB_X%u_I%u+%u], 0xffff0000, v[vgprValuB_X%u_I%u+%u]%s" % (m, iui, blockB*2+1, m, iui, blockB, self.endLine)
-            kStr += "v_lshlrev_b32 v[vgprValuB_X%u_I%u+%u], 16,         v[vgprValuB_X%u_I%u+%u]%s" % (m, iui, blockB*2,   m, iui, blockB, self.endLine)
-
-        for block1 in range(0, kernel["ThreadTile1"]//2):
-          for block0 in range(0, kernel["ThreadTile0"]//2):
-            if kernel["ProblemType"]["HighPrecisionAccumulate"]:
-              # we treat HighPrecisionAccumulate as expanded packed math
-              for iui in range(0, innerUnroll):
-
-                blockA = block0 if self.tPB["tile01Idx"] else block1
-                blockB = block1 if self.tPB["tile01Idx"] else block0
-
-                aStr0 = "v[%s+%u]" % ("vgprValuA_X%u_I%u"%(m,iui), blockA*2+0)
-                aStr1 = "v[%s+%u]" % ("vgprValuA_X%u_I%u"%(m,iui), blockA*2+1)
-                bStr0 = "v[%s+%u]" % ("vgprValuB_X%u_I%u"%(m,iui), blockB*2+0)
-                bStr1 = "v[%s+%u]" % ("vgprValuB_X%u_I%u"%(m,iui), blockB*2+1)
-
-                cidx = block0*2 + block1*kernel["ThreadTile0"]*2 + 0
-                cStr = "v[%s+%u*2+%u*%u*2+0*2+0]" % ("vgprValuC", block0, block1, kernel["ThreadTile0"]) # *2 b/c of fp32
-                kStr += "v_fma_f32 %s, %s, %s, %s //ValuC[%u]%s" % (cStr, aStr0, bStr0, cStr, cidx, self.endLine)
-
-                if beAggressive and not doOnce:
-                  kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
-                  doOnce = True
-
-                aStr = aStr1 if self.tPB["tile01Idx"] else aStr0
-                bStr = bStr0 if self.tPB["tile01Idx"] else bStr1
-                cidx = block0*2 + block1*kernel["ThreadTile0"]*2 + 1
-                cStr = "v[%s+%u*2+%u*%u*2+0*2+1]" % ("vgprValuC", block0, block1, kernel["ThreadTile0"]) # *2 b/c of fp32
-                kStr += "v_fma_f32 %s, %s, %s, %s //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-
-                aStr = aStr0 if self.tPB["tile01Idx"] else aStr1
-                bStr = bStr1 if self.tPB["tile01Idx"] else bStr0
-                cidx = block0*2 + block1*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 0
-                cStr = "v[%s+%u*2+%u*%u*2+%u*2+0]" % ("vgprValuC", block0, block1, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
-                kStr += "v_fma_f32 %s, %s, %s, %s //ValuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-
-                cidx = block0*2 + block1*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 1
-                cStr = "v[%s+%u*2+%u*%u*2+%u*2+1]" % ("vgprValuC", block0, block1, kernel["ThreadTile0"], kernel["ThreadTile0"]//2)
-                kStr += "v_fma_f32 %s, %s, %s, %s //valuC[%u]%s" % (cStr, aStr1, bStr1, cStr, cidx, self.endLine)
-                """
-                ignore this, not quite correct for mixed precision
-                D.f[31:16] = S0.f[31:16] * S1.f[31:16] + S2.f[31:16]
-                D.f[15:00] = S0.f[15:00] * S1.f[15:00] + S2.f[15:00]
-                C[0] = A[0]*B[0]+D[0]
-                C[1] = A[1]*B[1]+D[1]
-                """
-                #kStr += self.bomb(-13)
-      else:
-        printExit("Bfloat16 not supported for arch=%s" % str(self.version) )
-
     # integer i8x4
-    elif kernel["ProblemType"]["DataType"].isInt8x4():
+    if kernel["ProblemType"]["DataType"].isInt8x4():
       if self.version == (9,0,6) or self.version == (9,0,8) or self.version == (9,0,10) or self.version == (10,3,0):
         for b in range(0, kernel["ThreadTile1"]):
           for a in range(0, kernel["ThreadTile0"]):
@@ -5309,7 +5245,6 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst ("s_mov_b32", sgpr("GsuNumIter%s"%self.loopChar(kernel,self.unrollIdx)), \
                         sgpr("UnrollLoopLastIter"), "save innermost iters for later unpacking")
         for idx in range(self.otherSummations):
-          assert not self.use64bProductOfSums
           kStr += inst ("s_mul_i32", sgpr("UnrollLoopLastIter"), sgpr("UnrollLoopLastIter"), \
                             self.loopSizeRef(kernel, idx), "")
 
