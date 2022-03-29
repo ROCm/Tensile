@@ -1990,23 +1990,6 @@ class KernelWriterAssembly(KernelWriter):
         version = "gfx{}{}{}".format(self.version[0], self.version[1], self.version[2])
         kStr += self.comment3("int8x4 not implemented yet for {}:".format(version))
 
-    # double precision
-    elif kernel["ProblemType"]["DataType"].isDouble():
-      for b in range(0, kernel["ThreadTile1"]):
-        for a in range(0, kernel["ThreadTile0"]):
-          for iui in range(0, innerUnroll):
-            cStr = "v[%s+(%u+%u*%u)*2:(%s+%u+%u*%u)*2+1]" % ("vgprValuC", a, b, kernel["ThreadTile0"], "vgprValuC", a, b, kernel["ThreadTile0"])
-            aStr = "v[%s+%u*2:%s+%u*2+1]" \
-                % ("vgprValuA_X%u_I%u"%(m,iui) , a, "vgprValuA_X%u_I%u"%(m,iui), a)
-            bStr = "v[%s+%u*2:%s+%u*2+1]" \
-                % ("vgprValuB_X%u_I%u"%(m,iui) , b, "vgprValuB_X%u_I%u"%(m,iui), b)
-            kStr += "v_fma_f64 %s, %s, %s, %s%s" % (cStr, aStr, bStr, cStr, self.endLine)
-            if beAggressive and not doOnce:
-              kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
-              doOnce = True
-      if beAggressive:
-        kStr += "s_setprio 0 // Reset priority after macs %s" % self.endLine
-
     # single precision complex
     elif kernel["ProblemType"]["DataType"].isSingleComplex():
       for b in range(0, kernel["ThreadTile1"]):

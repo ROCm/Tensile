@@ -1702,6 +1702,8 @@ def GetAsmCaps(isaVersion):
   rv["v_fma_f32"]       = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")
   rv["v_fmac_f32"]      = tryAssembler(isaVersion, "v_fmac_f32 v20, v21, v22")
 
+  rv["v_fma_f64"]       = tryAssembler(isaVersion, "v_fma_f64 v[20:21], v[22:23], v[24:25], v[20:21]")
+
   rv["HasAtomicAdd"]    = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
 
 
