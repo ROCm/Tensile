@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright 2020-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -56,6 +56,16 @@ namespace Tensile
                                                  double readEff)
         {
             hipGetDeviceProperties(&m_props, deviceIndex);
+#if HIP_VERSION >= 50220730
+            int hip_version;
+            hipRuntimeGetVersion(&hip_version);
+            if(hip_version >= 50220730)
+            {
+                hipDeviceGetAttribute(&m_props.multiProcessorCount,
+                                      hipDeviceAttributePhysicalMultiProcessorCount,
+                                      deviceIndex);
+            }
+#endif
             setNumCUs();
             setMemoryBusWidth();
             setPerfModel(l2ReadHits, l2WriteHits, l2ReadBwMultiplier, readEff);
