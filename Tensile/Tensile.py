@@ -240,7 +240,7 @@ def Tensile(userArgs):
     config["GlobalParameters"] = c1["GlobalParameters"]
     solParams = {"BenchmarkCommonParameters" : c1["BenchmarkCommonParameters"],
            "ForkParameters" : c1["ForkParameters"],
-           "GroupForkParameters" : [c2]
+           "GroupForkParameters" : c2["GroupForkParameters"]
     }
     config["BenchmarkProblems"] = [[c1["ProblemType"],solParams]]
 
