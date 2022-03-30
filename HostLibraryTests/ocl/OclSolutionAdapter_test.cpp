@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -616,7 +616,7 @@ TEST(OclSolutionAdapterTest, HardwareTest)
     ASSERT_EQ(oclProps.maxGridSize[1], hipProps.maxGridSize[1]);
     ASSERT_EQ(oclProps.maxGridSize[2], hipProps.maxGridSize[2]);
     ASSERT_EQ(oclProps.clockRate, hipProps.clockRate);
-    ASSERT_EQ(oclProps.multiProcessorCount, hipProps.multiProcessorCount);
+    // ASSERT_EQ(oclProps.multiProcessorCount, hipProps.multiProcessorCount);
     ASSERT_EQ(oclProps.pciBusID, hipProps.pciBusID);
     ASSERT_EQ(oclProps.pciDeviceID, hipProps.pciDeviceID);
     ASSERT_EQ(oclProps.maxSharedMemoryPerMultiProcessor, hipProps.maxSharedMemoryPerMultiProcessor);
