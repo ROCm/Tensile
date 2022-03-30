@@ -13722,6 +13722,6 @@ class KernelWriterAssembly(KernelWriter):
     if globalParameters["DebugKernel"]:
       tmp = self.vgprPool.checkOut(1,"tmp")
       kStr += inst("v_mov_b32", vgpr(tmp), sgprStore, "debug dump sgpr store")
-      kStr += dump(tmp)
+      kStr += self.dump(tmp)
       self.vgprPool.checkIn(vgpr(tmp))
     return kStr

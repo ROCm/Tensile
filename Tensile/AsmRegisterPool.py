@@ -19,8 +19,9 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .Common import print2
+from .Common import print2, printExit, printWarning
 from .Utils import roundUpToNearestMultiple
+from .AsmUtils import inst, vgpr, sgpr
 import traceback
 from enum import Enum
 
