@@ -36,6 +36,7 @@ class FMA_BF16_HPA(MAC):
         vars["endLine"] = writer.endLine
         vars["m"] = m
         vars["ThreadTile0"] = kernel["ThreadTile0"]
+        vars["ThreadTile0Half"] = kernel["ThreadTile0"] // 2
 
         for iui in range(0, innerUnroll):
             vars["iui"] = iui
@@ -80,11 +81,11 @@ class FMA_BF16_HPA(MAC):
                         vars["aStr"] = vars["aStr0"] if writer.tPB["tile01Idx"] else vars["aStr1"]
                         vars["bStr"] = vars["bStr1"] if writer.tPB["tile01Idx"] else vars["bStr0"]
                         vars["cidx"] = block0*2 + block1*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 0
-                        vars["cStr"] = "v[vgprValuC+{block0}*2+{block1}*{ThreadTile0}*2+{ThreadTile0}/2*2+0]".format_map(vars) # TODO ALEX ThreadTile0 // 2 * 2 FIX
+                        vars["cStr"] = "v[vgprValuC+{block0}*2+{block1}*{ThreadTile0}*2+{ThreadTile0Half}*2+0]".format_map(vars)
                         kStr += "v_fma_f32 {cStr}, {aStr}, {bStr}, {cStr} //ValuC[{cidx}]{endLine}".format_map(vars)
 
                         vars["cidx"] = block0*2 + block1*kernel["ThreadTile0"]*2 + kernel["ThreadTile0"] + 1
-                        vars["cStr"] = "v[vgprValuC+{block0}*2+{block1}*{ThreadTile0}*2+{ThreadTile0}/2*2+1]".format_map(vars) # TODO ALEX ThreadTile0 // 2 * 2 FIX
+                        vars["cStr"] = "v[vgprValuC+{block0}*2+{block1}*{ThreadTile0}*2+{ThreadTile0Half}*2+1]".format_map(vars)
                         kStr += "v_fma_f32 {cStr}, {aStr1}, {bStr1}, {cStr} //valuC[{cidx}]{endLine}".format_map(vars)
                         """
                         ignore this, not quite correct for mixed precision

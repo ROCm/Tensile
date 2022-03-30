@@ -73,7 +73,6 @@ class KernelWriterAssembly(KernelWriter):
     super(KernelWriterAssembly, self).__init__( \
         kernelMinNaming, kernelSerialNaming)
     self.do = {}
-
     self.do["PreLoop"]     = True
     self.do["GlobalReadA"] = True
     self.do["GlobalReadB"] = True
@@ -87,9 +86,7 @@ class KernelWriterAssembly(KernelWriter):
     self.do["PostLoop"]    = True
     self.do["ApplyAlpha"]  = True
     self.do["GlobalWrite"] = True
-
     self.do["EdgeWrite"]   = True
-
     self.do["KeepDirectToLdsAlloc"] = False  # If true, keep regs used for LDS alloc even if not used
 
     # Remove me if 906 can work with beta in SGPR
@@ -157,7 +154,6 @@ class KernelWriterAssembly(KernelWriter):
 
     # can't do both of these since they both override output
     assert (not (self.db["ForceExpectedValue"] and self.db["ForceVSerial"]))
-
 
     self.db["ForceInputValueA"] = False
     self.db["ForceInputValueB"] = False
@@ -253,11 +249,8 @@ class KernelWriterAssembly(KernelWriter):
   def getLinkCodeObjectArgs(self, objectFileNames, coFileName, *moreArgs):
     rv = [globalParameters['AssemblerPath'],
           '-target', 'amdgcn-amd-amdhsa']
-
     rv += moreArgs
-
     rv += ['-o', coFileName] + objectFileNames
-
     return rv
 
   def getVgprOccupancy(self, numThreads, vgprs, unifiedVgprRegs=False):
@@ -326,7 +319,6 @@ class KernelWriterAssembly(KernelWriter):
     return ldsSize
 
   ########################################
-  ########################################
   def sizeRef(self, idx):
     """
     Return sgpr() or const with the specified size
@@ -339,7 +331,6 @@ class KernelWriterAssembly(KernelWriter):
   def loopChar(self, kernel, loopIdx):
     loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]
     return globalParameters["IndexChars"][loopDim]
-
 
   def loopSizeRef(self, kernel, loopIdx):
     loopDim = kernel["ProblemType"]["IndicesSummation"][loopIdx]
@@ -367,7 +358,6 @@ class KernelWriterAssembly(KernelWriter):
   def isConstUnitStride(self, stride):
       return stride.startswith("const")
 
-  ########################################
   ########################################
   def strideRef(self, tc, dim):
     """
@@ -472,7 +462,6 @@ class KernelWriterAssembly(KernelWriter):
 
     printWarning("Could not find valid memory instruction for width=%f" % width)
     return len(instructions)
-
 
   ##############################################################################
   # Select Memory Instruction
@@ -639,7 +628,6 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["PersistentKernel"]:
       self.lastPostLoopSgpr = self.sgprPool.size()
 
-
   ##############################################################################
   # Init Kernel
   ##############################################################################
@@ -693,7 +681,6 @@ class KernelWriterAssembly(KernelWriter):
     # but not implemented or tested
     self.use64bShadowLimit = kernel["Use64bShadowLimit"] and kernel["BufferLoad"] and not kernel["PackSummationDims"]
 
-
     # Check if the address setup code for LWA and GRO causes register growth.
     # This is not an error condition but bears further investigation.
     # In particular if PrefetchAcrossPersistent=1 then the NewTile setup code
@@ -706,7 +693,6 @@ class KernelWriterAssembly(KernelWriter):
     # Rather than waiting for all loads to finish with s_waitcnt vmcnt(0), interleave
     # appropriate vmcnts into the stores so they issue as loads become available
     self.interleaveStoreVmcnt = (not kernel["GroupLoadStore"]) and kernel["BufferStore"]
-
 
     # if >0, shift the start of the SRD left by specified #elements (not bytes)
     # Gives pointer shift some room to move left, even into the previous macro-tile
@@ -1133,7 +1119,6 @@ class KernelWriterAssembly(KernelWriter):
     tPA["localWriteSwapByteOffset"] = 0
     tPB["localWriteSwapByteOffset"] = 0
 
-
     ########################################
     # localRead B
     localReadWidth = (kernel["VectorWidth"] * tPB["bpe"]) // self.bpr
@@ -1313,13 +1298,11 @@ class KernelWriterAssembly(KernelWriter):
     # 1 address where to write first value
     # 1 tmp address where to write current value
 
-
     ####################################
     # VGPR Assignment
     ####################################
     vgprIdx = 0
     self.totalAgprs = 0
-
     self.startVgprValuC = vgprIdx; vgprIdx += self.numVgprValuC
 
     if kernel["EnableMatrixInstruction"]:
@@ -1385,8 +1368,6 @@ class KernelWriterAssembly(KernelWriter):
     # code
     self.lastValuAB = vgprIdx
     #----------------------------------
-
-
     # Point at last VGPR that can be reclaimed for use in the summation loop
     # If more VGPRs are added here be aware of the register reclaim code in
     # endSummation - registers that should be preserved after lastVgprForReads
@@ -1946,7 +1927,6 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["CheckTensorDimAsserts"] : print ("\n***WARNING: CheckTensorDimAsserts enabled, may impact performance\n")
     if kernel["CheckDimOverflow"] : print ("\n***WARNING: CheckDimOverflow enabled, may impact performance\n")
 
-
   ##############################################################################
   # format macro
   def macroRegister(self, name, value):
@@ -1956,9 +1936,7 @@ class KernelWriterAssembly(KernelWriter):
   # Function Prefix
   ##############################################################################
   def functionPrefix(self, kernel):
-    kStr = ""
-
-    return kStr
+    return ""
 
   def defineMACs(self, kernel, m, innerUnroll):
     component = Component.MAC.find(self)
@@ -1970,7 +1948,6 @@ class KernelWriterAssembly(KernelWriter):
     """
     Defines a macro that performs one set of multiply-accumulate operations.
     """
-
 
     kStr = ""
     # Create a macro version that processes just one U iter
@@ -1989,10 +1966,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += ".macro MAC_%ux%u_X%u%s" \
             % (kernel["ThreadTile0"], kernel["ThreadTile1"], m, ext)
       kStr += self.endLine
-
       kStr += self.defineMACs(kernel, m, innerUnroll)
-
-
       if useMacro:
         kStr += ".endm%s" % self.endLine
 
@@ -2115,7 +2089,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += r"    v_add_u32 \dst, vcc, \src0, \src1" + self.endLine
       kStr += r"    v_lshlrev_b32 \dst, \shiftCnt, \dst" + self.endLine
     kStr += ".endm" + self.endLine
-
 
     # Use combined shift+add, where available:
     kStr += self.endLine
@@ -2325,12 +2298,10 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment1("Num VGPR=%u"%self.vgprPool.size())
     kStr += self.comment1("Num AccVGPR=%u"%self.agprPool.size())
 
-
     ########################################
     # SGPR Macros
     ########################################
     kStr += self.comment3("SGPR Assignments")
-
 
     # Emit declarations for all sgprs allocated with defineSgpr
     # in the order they were declared
@@ -2727,9 +2698,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "s_endpgm // overflowed resources\n"
       kStr += ".if 0\n"
 
-
     return kStr
-
 
   ##############################################################################
   # Function Beginning
@@ -2737,7 +2706,6 @@ class KernelWriterAssembly(KernelWriter):
   def functionSignaturePrefix(self, kernel): return ""
   def functionSignatureSuffix(self, kernel): return ""
   def functionBegin(self, kernel): return ""
-
 
   ##############################################################################
   # getKernArg
@@ -2753,8 +2721,6 @@ class KernelWriterAssembly(KernelWriter):
           sgpr("KernArgAddress",2), hex(self.kernArgOffset), "")
     self.kernArgOffset += size
     return kStr
-
-
 
   ##############################################################################
   # code phrase for load batched address from array of buffer pointer
@@ -2773,8 +2739,6 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
-
-  ##############################################################################
   ##############################################################################
   def allocateResources(self, kernel):
     kStr = ""
@@ -3017,7 +2981,6 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(v)
       self.vgprPool.checkIn(nwg0)
 
-
     if self.db["InitLds"]:
       kStr += self.initLds(kernel, self.initLdsValue)
 
@@ -3030,7 +2993,6 @@ class KernelWriterAssembly(KernelWriter):
                 kernel["AssertFree1ElementMultiple"], 0x1003)
 
     return kStr
-
 
   ##############################################################################
   # Perform a magic division (mul by magic number and shift)
@@ -3599,7 +3561,6 @@ class KernelWriterAssembly(KernelWriter):
         tP["gpr"]["tReg"] = None
     return "" if self.dontAppendCode else kStr
 
-
   ##############################################################################
   # Global Read Addresses: Unroll Offsets A/B
   ##############################################################################
@@ -3662,7 +3623,6 @@ class KernelWriterAssembly(KernelWriter):
       #self.vgprPool.checkIn(tP["gpr"]["uReg"])
     return "" if self.dontAppendCode else kStr
 
-
   ##############################################################################
   # Global Read Addresses: Branch A/B
   ##############################################################################
@@ -3673,7 +3633,6 @@ class KernelWriterAssembly(KernelWriter):
   # Global Read Addresses: Shift A/B
   # See if the load (including vw) will extend past the 'free' dim of the
   # tensor.  If so clip to the last legal value which is inside the array
-
   ##############################################################################
   def graShift(self, kernel, tP):
     # FractionalLoad maps addresses in a different way?
@@ -4072,7 +4031,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_add_u32",  sgpr(tileStart+0), sgpr(tileStart+0), sgpr(stmp+0), "accum GsuOffset term to tilestart")
         kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum GsuOffset term to tilestart")
 
-
     # Output : tileStart[0:1] have offset in elements from the 2D start of the tile.
     # if groOffsetInMacroTile=1, 2DStart + tileStart gives the the start of the macro-tile;
     # This is used to compute the limit.
@@ -4097,7 +4055,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_add_u32", prePad, \
                  prePad, sgpr("PadStart%s%s%s"%(tc,freeDimChar, sumDimChar)), \
                  "prepadSgpr += PadStart")
-
 
     if not wroteTileStart:
       kStr += inst("s_mov_b32", sgpr(tileStart+0), 0, "set default tileStart")
@@ -4182,7 +4139,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mov_b32", sgpr("Srd%s+3"%tc), "Srd127_96", "Set bits 127_96 in SRD")
 
     #if tP["isB"]:
-   #   kStr += self.assert_ne(sgpr("WorkGroup1"), 0xA)
+    #  kStr += self.assert_ne(sgpr("WorkGroup1"), 0xA)
 
     if kernel["CheckDimOverflow"]>=2:
       # double-check to make sure the SRD limit is inside the allowed tensor:
@@ -4689,7 +4646,6 @@ class KernelWriterAssembly(KernelWriter):
   def lwaDeclareAddresses(self, kernel, tP):
     return ""
 
-
   ##############################################################################
   # Local Read Addresses: Tile Assignment
   ##############################################################################
@@ -4906,9 +4862,7 @@ class KernelWriterAssembly(KernelWriter):
   # used.
   ##############################################################################
   def openShadowInit(self, kernel):
-    kStr = ""
-    kStr += self.getNamedLabelDef("ShadowInitStart")
-    return kStr
+    return self.getNamedLabelDef("ShadowInitStart")
 
   ##############################################################################
   # closeShadowInit
@@ -5090,7 +5044,6 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
-
   ##############################################################################
   # Declare Loop Num Iterations
   ##############################################################################
@@ -5118,13 +5071,11 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
-
   ##############################################################################
   # Calculate and apply stagger offsets and edge
   # Output: Sets sgpr(StaggerRowMask)
   ##############################################################################
   def declareStaggerParms(self, kernel):
-
     kStr=""
     tmpSgpr = self.getTmpSgpr(2).idx()
     if self.staggerU:
@@ -5245,7 +5196,6 @@ class KernelWriterAssembly(KernelWriter):
 
     return imod
 
-
   ##############################################################################
   # Emit code to compute loop iterations for GSU.
   # See same function in KernelWriterSource.py for background explanation
@@ -5292,7 +5242,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_cmov_b32", loopCounter, sgpr(tmpSgpr), "numIterMyWg++ if needed" )
 
     return kStr
-
 
   ##############################################################################
   # Calculate Loop Num Iter
@@ -5618,7 +5567,6 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
-
   ##############################################################################
   # Close Loop
   # finalLoop : final unroll loop
@@ -5690,7 +5638,6 @@ class KernelWriterAssembly(KernelWriter):
       loopLabelEndEvenExit = self.getNamedLabel("LoopEnd%s_evenexit"%(loopChar) )
       loopCounter = self.loopCounter(kernel, loopIdx)
       kStr += self.comment("closeLoop loop%s finalLoop=%d tailLoop=%d" % (loopChar, finalLoop, tailLoop))
-
 
       if self.unrollIncIsDepthU and loopIdx==self.unrollIdx:
         assert (not kernel["SuppressNoLoadLoop"]) # not accounting for end-of-loop iteration change here in deprecated mode
@@ -5917,14 +5864,8 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  ##############################################################################
   def openLoopCopy(self, kernel, lc):
-    kStr = ""
-
-    kStr += self.getLabelDef("LoopCopy%u"%(lc+1) )
-
-
-    return kStr
+    return self.getLabelDef("LoopCopy%u"%(lc+1) )
 
   ##############################################################################
   # End Summation
@@ -5985,7 +5926,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += self.MulMIoutAlphaToArch(kernel)
 
     return kStr
-
 
   ##############################################################################
   # MFMA Iteration
@@ -6280,7 +6220,6 @@ class KernelWriterAssembly(KernelWriter):
 
     return mfmaMod
 
-
   def removeExtraUnroll(self, kernel):
     kStr = ""
 
@@ -6314,7 +6253,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.endLine
 
     return kStr
-
 
   ##############################################################################
   # MAC Iteration
@@ -6582,7 +6520,6 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  ##############################################################################
   def getLocalReadSwapOffset(self, kernel, labelIndex):
     kStr = ""
     # if AssertSummationElementMultiple is multiple of DepthU * 2, LoopCounter will not be Odd
@@ -6612,7 +6549,6 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.getLabelDef(label, "Skip LRO Swap\n")
     return kStr
 
-  ##############################################################################
   ##############################################################################
   def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL, isPap, isNGLL):
     kStr = ""
@@ -6684,7 +6620,6 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  ##############################################################################
   # incLower must be constant or SGPR unsigned value
   def incrementSrd(self, kernel, tP, incLower, incUpper, checkShadowLimitCopy=True):
     imod = Code.Module("incrementSrd")
@@ -6729,8 +6664,6 @@ class KernelWriterAssembly(KernelWriter):
             "limit -= inc)" )
     return imod
 
-
-  ##############################################################################
   ##############################################################################
   # incLower must be constant or SGPR unsigned value
   def setTailSrd(self, kernel, tP, incLower):
@@ -6863,7 +6796,6 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += dump(vgpr("GlobalReadAddrA+1"))
       #kStr += "s_endpgm\n"
 
-
   def globalReadIncrementAB(self, kernel, loopIdx, prefetchIndex, incs=1):
     imod = Code.Module("globalReadIncrementAB%s")
     problemType = self.kernel["ProblemType"]
@@ -6992,7 +6924,6 @@ class KernelWriterAssembly(KernelWriter):
       self.globalReadIncrement(kernel, incCodeA, loopIdx, self.tPA, prefetchIndex, incs)
       self.globalReadIncrement(kernel, incCodeB, loopIdx, self.tPB, prefetchIndex, incs)
     return imod
-
 
   ##############################################################################
   # Global Read:
@@ -7390,7 +7321,6 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
-
   ##############################################################################
   # guardZeroPad
   # add to code module the code to guard subsequent load
@@ -7479,8 +7409,6 @@ class KernelWriterAssembly(KernelWriter):
         DtldsModule.addText("s_barrier" + self.endLine)
 
     return imod
-
-
 
   ##############################################################################
   # Global Read: Do It A/B
@@ -7718,7 +7646,6 @@ class KernelWriterAssembly(KernelWriter):
     if problemType["ZeroPad%s"%tc]:
       self.vgprPool.checkIn(addrV)
 
-
     return imod
 
   ##############################################################################
@@ -7784,7 +7711,6 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def localWriteInitPointers(self, kernel, tP):
     return ""
-
 
   ##############################################################################
   # Calculate offset to use for LDS write
@@ -8013,7 +7939,6 @@ class KernelWriterAssembly(KernelWriter):
   # Local Write in Prefetch Pass (PreLoop): Do It A/B
   ##############################################################################
   def preLoopLocalWriteDo(self, kernel, tPA, tPB):
-
     imod = Code.Module()
 
     # can't optimize, insert the general LWDo
@@ -8460,7 +8385,6 @@ class KernelWriterAssembly(KernelWriter):
           "init Red,Blk -> Red")
     return kStr
 
-
   ##############################################################################
   # Local Read offset conversion for DirectToLds
   ##############################################################################
@@ -8612,14 +8536,12 @@ class KernelWriterAssembly(KernelWriter):
     if component:
       return component(self, kernel, tP)
 
-
   ##############################################################################
   # Complex Declare Tmp Registers - SKIP
   ##############################################################################
   def complexDeclareTmpRegisters(self, kernel):
     kStr = ""
     return kStr
-
 
   ##############################################################################
   # LocalSplitU: Local Write
@@ -8931,7 +8853,6 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
-
   ##############################################################################
   # computeStoreVgprs
   # Compute workitem/TT offsets in VGPRS
@@ -8940,16 +8861,12 @@ class KernelWriterAssembly(KernelWriter):
   # that should be written by each work-item in each batch element.
   ##############################################################################
   def computeStoreVgprs(self, kernel, divisor, tid0Scale, tid1Scale):
-
     kStr = ""
     kStr += self.comment1("computeStoreVgprs")
-
     component = Component.ComputeStoreVgprs.find(self)
     if component:
       kStr += component(self, kernel, divisor, tid0Scale, tid1Scale)
-
     return kStr
-
 
   ##############################################################################
   # globalWriteWorkGroupInitBeforePersistentLoop:
@@ -9014,7 +8931,6 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  ##############################################################################
   def allocPostLoopSrd(self, kernel, ch):
     kStr = ""
     # Buffer-load uses one base read pointer stored in the SRD - set it here:
@@ -9024,7 +8940,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_mov_b32", sgpr("Srd%s+3"%ch), "Srd127_96", "Set bits 127_96 in post-loop SRD")
     kStr += "\n"
     return kStr
-
 
   ##############################################################################
   # Not LocalSplitU: Global Write Indices
@@ -9103,7 +9018,6 @@ class KernelWriterAssembly(KernelWriter):
         return 1  # flat vector atomic is not tested
       else:
         return 1000  # no limit
-
 
   ##############################################################################
   # Partition thread-tile into writeElements for store code
@@ -9439,7 +9353,6 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
-
   ##############################################################################
   # Not LocalSplitU: Global Write
   # Determine write batching pattern
@@ -9466,7 +9379,6 @@ class KernelWriterAssembly(KernelWriter):
     self.cleanupGlobalWrite(kernel)
 
     return kStr
-
 
   ##############################################################################
   # LocalSplitU: Global Write
@@ -9681,7 +9593,6 @@ class KernelWriterAssembly(KernelWriter):
       # For detecting when we are running first batch
       self.firstBatch = True
 
-
     ##############################################################################
     # Setup data structures to feed store loops:
     #   self.elementAddr, self.elementData, self.elementMask, self.elementSumIdx
@@ -9852,7 +9763,6 @@ class KernelWriterAssembly(KernelWriter):
         self.elementSumIdx.append(sumIdx) # sumIdx is an element idx, need to div/2 for half
         self.lastCoordOffset1 = coordOffset1
 
-
     def checkInTempVgprC(self):
       if self.kernelWriter.serializedStore is False:
         return # early exit; currently only serializedStore==True checks out C-tile from register pool
@@ -9869,7 +9779,6 @@ class KernelWriterAssembly(KernelWriter):
         if (self.sharedColCVgprs != self.sharedColDVgprs):
           self.kernelWriter.vgprPool.checkIn(self.sharedColCVgprs)
       self.checkInTempVgprC()
-
 
   ##############################################################################
   # Fields associated with computing address
@@ -10120,8 +10029,6 @@ class KernelWriterAssembly(KernelWriter):
 
       return kStr
 
-
-
     def edgeProtectCode(self, kernel, edge, beta, atomic, mask, tmpSgpr):
       """
       Generate code to protect address offset in edge case
@@ -10160,7 +10067,6 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_mov_b{}".format(wavefrontSize), self.kernelWriter.exec, sgpr(mask,laneSGPRCount), "sgprs -> exec" )
 
       return kStr
-
 
     # TODO - mask should be part of AddrCalc state not passed as parm
     def emitAddressSetupCode(self, kernel, ss, tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addrVgpr):
@@ -10269,7 +10175,6 @@ class KernelWriterAssembly(KernelWriter):
 
       return kStr
 
-
     def emitLdChange(self, kernel, ss, tc, edge, beta, mask, singleUpdate, tmpVgpr, addrVgpr, BufAddr):
       """
       Generate code for final C read/D write address
@@ -10290,7 +10195,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("_v_addc_co_u32", vgpr(addrVgpr+1), self.kernelWriter.vcc, vgpr(BufAddr+1), vgpr(tmpVgpr+3), \
                      self.kernelWriter.vcc, "addrVgpr = C(D) + index*bytes (hi)")
       return kStr
-
 
     def incrementToNextRow(self, kernel, tc, ss, stmp):
       """
@@ -10430,7 +10334,6 @@ class KernelWriterAssembly(KernelWriter):
       if not self.do["PostLoop"]: return ""
     kStr = ""
     atomic = (kernel["GlobalSplitU"] > 1) and (kernel["_GlobalAccumulation"] != 'MultipleBuffer')
-
 
     # write possibilities and labels
     # if beta/edge combo not specified fall back to global param definition
@@ -10759,7 +10662,6 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(bf16CVTVgpr)
     return kStr
 
-
   ##############################################################################
   # chooseGlobalRead :
   # create the load instruction for requested vector width and other parms
@@ -10769,7 +10671,6 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def chooseGlobalRead(self, useBuffer, bpl, destVgpr, \
                        addr0, addr1, soffset, offset, extraFields, hi16=0, comment="load C"):
-
   # rpv = regs per vector
     rpv = bpl/4.0
 
@@ -10850,7 +10751,6 @@ class KernelWriterAssembly(KernelWriter):
                         addr0, addr1, offset, extraFields, hi16=0):
     """
     create the store instruction for requested vector width and other parms
-
     rpv = regs per vector
     """
 
@@ -10963,7 +10863,6 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
-
   ##############################################################################
   # choose the ADD instruction for combining external C with internal C
   # used in atomic=1 case to compute expected external data
@@ -11072,7 +10971,6 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
-
   ##############################################################################
   # Global Read C Input
   ##############################################################################
@@ -11114,7 +11012,6 @@ class KernelWriterAssembly(KernelWriter):
                 comment="load C for beta calc").toStr()
 
     return kStr
-
 
   ##############################################################################
   # Global Write Batch
@@ -12220,7 +12117,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     if kernel["StoreCInUnroll"]:
       self.PopulateStoreCCode(kernel,tPA, tPB)
-
     return kStr
 
   ##############################################################################
@@ -13254,7 +13150,6 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(tmpAddr)
     return kStr
 
-
   ########################################
   # init lds state
   ########################################
@@ -13375,7 +13270,6 @@ class KernelWriterAssembly(KernelWriter):
                                                               vgpr("ValuC+%u"%srcIdx), "copy MI out reg to vreg[%u]" % destIdx)
 
     return kStr
-
 
   ##############################################################################
   # openmovaccVgpr
@@ -13623,7 +13517,6 @@ class KernelWriterAssembly(KernelWriter):
         self.vgprPool.checkIn(vgprAddr)
       return kStr
 
-
   ##############################################################################
   # assertCommon : Common routine for all assert functions.
   # On entry, we have already set the exec-mask so any enabled lanes should bomb
@@ -13632,11 +13525,9 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
     if self.db["EnableAsserts"]:
       self.printedAssertCnt += 1
-
       # Default cookie for asserts is negative of printed #asserts
       # Can be used to roughly identify which assert in the code is firing
       kStr += self.bomb(cookie if cookie != -1 else -self.printedAssertCnt)
-
     return kStr
 
   ##############################################################################
@@ -13647,14 +13538,10 @@ class KernelWriterAssembly(KernelWriter):
     if self.db["EnableAsserts"]:
       kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), sgpr("SaveExecMask",self.laneSGPRCount), 0, \
           "assert: saved execmask")
-
       kStr += inst("_v_cmpx_%s"%cond, self.vcc, val0, val1, "v_cmp" )
-
       kStr += self.assertCommon(cookie)
-
       kStr += inst("s_or_saveexec_b{}".format(self.kernel["WavefrontSize"]), self.vcc, sgpr("SaveExecMask",self.laneSGPRCount), \
           "assert: restore execmask")
-
     return kStr
 
   ##############################################################################
@@ -13734,7 +13621,6 @@ class KernelWriterAssembly(KernelWriter):
           "assert: restore execmask")
 
       return kStr
-
 
   def assert_scc_is_1(self, cookie=-1):
     kStr = ""
