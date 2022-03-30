@@ -1961,41 +1961,10 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   def defineMACs(self, kernel, m, innerUnroll):
-
     component = Component.MAC.find(self)
     if component:
       return component(self, m, innerUnroll)
-
-    kStr = ""
-    beAggressive = kernel["AggressivePerfMode"]
-
-    doOnce = False
-    # integer i8x4
-    if kernel["ProblemType"]["DataType"].isInt8x4():
-      if self.version == (9,0,6) or self.version == (9,0,8) or self.version == (9,0,10) or self.version == (10,3,0):
-        for b in range(0, kernel["ThreadTile1"]):
-          for a in range(0, kernel["ThreadTile0"]):
-            for iui in range(0, innerUnroll):
-              cidx = a + b*kernel["ThreadTile0"] + 0
-              cStr = "v[%s+%u+%u*%u]" % ("vgprValuC", a, b, kernel["ThreadTile0"])
-              aStr = "v[%s+%u]"       % ("vgprValuA_X%u_I%u"%(m,iui), a)
-              bStr = "v[%s+%u]"       % ("vgprValuB_X%u_I%u"%(m,iui), b)
-              kStr += "v_dot4_i32_i8  %s, %s, %s, %s op_sel:[0,0] op_sel_hi:[1,1] //valuC[%u]%s" % (cStr, aStr, bStr, cStr, cidx, self.endLine)
-              if beAggressive and not doOnce:
-                kStr += "s_setprio 1 // Raise priority while processing macs%s" % self.endLine
-                doOnce = True
-        if beAggressive:
-          kStr += "s_setprio 0 // Reset priority after macs %s" % self.endLine
-      else:
-        version = "gfx{}{}{}".format(self.version[0], self.version[1], self.version[2])
-        kStr += self.comment3("int8x4 not implemented yet for {}:".format(version))
-
-      # other precision
-    else:
-      printExit("Assembly doesn't support %s" % kernel["ProblemType"]["DataType"])
-
-    return kStr
-
+    printExit("Assembly doesn't support %s" % kernel["ProblemType"]["DataType"])
 
   def defineMACMacro(self, kernel, innerUnroll, useMacro):
     """

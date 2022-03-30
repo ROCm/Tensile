@@ -31,6 +31,7 @@ __all__ = [
     "MAC_F64",
     "MAC_F64C",
     "MAC_I8_HPA",
+    "MAC_I8X4",
     "Priority",
     "Signature",
     "LocalRead",
