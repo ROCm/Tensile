@@ -13431,8 +13431,9 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
-  # Perform 32-bit scalar mul and save u64 result in two SGPR
-  # src0 and src1 are 32-bit unsigned ints in scalar sgpr or small int constants (<64?))
+  # Perform 32-bit scalar mul and save 64-bit result in two SGPR
+  # src0 and src1 are 32-bit ints in scalar sgpr or small int constants (<64?))
+  # signed indicates if input and output data is signed
   # return returns in dst0:dest (lower 32-bit in dst0, high 64-bit in dst1))
   def s_mul_int_64_32(self, dst0, dst1, src0, src1, signed, comment):
     kStr = ""
