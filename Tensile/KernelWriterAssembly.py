@@ -6713,8 +6713,20 @@ class KernelWriterAssembly(KernelWriter):
       iuiB_new = (iui//self.numReadsIterCoalescedB)*self.numReadsIterCoalescedB
       iuiB_new_offset = iui%self.numReadsIterCoalescedB*vgprPerInput
       zgemmVaddSrcCheck = [[], [], []] # to avoid generating redundant v_add
-      for idx1 in range(0, kernel["MIWaveTile"][1]):
-        for idx0 in range(0, kernel["MIWaveTile"][0]):
+      outer = 1
+      loopSwap = False
+      # complex case, swap inner loop and outer loop so that idxA comes outer
+      # this is to re-use same tmp vgpr to nagate ai or ar
+      if kernel["ProblemType"]["DataType"].isComplex() and self.tPB["tile01Idx"]:
+        outer = 0
+        loopSwap = True
+      inner = 1 - outer # inner is the opposite of outer
+      for idxOuter in range(0, kernel["MIWaveTile"][outer]):
+        for idxInner in range(0, kernel["MIWaveTile"][inner]):
+          idx0 = idxInner
+          idx1 = idxOuter
+          if loopSwap:
+            idx0, idx1 = idx1, idx0
           accIdx   = idx1 * kernel["MIWaveTile"][0] + idx0
           accStart = accIdx * accs_per_wave
           accEnd   = accStart + accs_per_wave - 1
@@ -6782,53 +6794,23 @@ class KernelWriterAssembly(KernelWriter):
             forceGenerate = ccA and ccB # so far, v_add is always necessary for ccA and ccB case
             if ccA == ccB:
               arrayIndex = 0
-              # set up offset and number of tmp vgpr to check out
-              numVgpr = numRegistersOut
-              if not forceGenerate:
-                if ai not in zgemmVaddSrcCheck[arrayIndex]:
-                  # not generated before. add new one
-                  offsetVgpr[arrayIndex] = len(zgemmVaddSrcCheck[arrayIndex]) * numRegistersOut
-                  numVgpr = (len(zgemmVaddSrcCheck[arrayIndex]) + 1) * numRegistersOut
-                else:
-                  # already generated before. get index
-                  offsetVgpr[arrayIndex] = zgemmVaddSrcCheck[arrayIndex].index(ai) * numRegistersOut
-              ccVgprs[arrayIndex] = self.vgprPool.checkOutAligned(numVgpr, numRegistersOut, "negate r1")
+              ccVgprs[arrayIndex] = self.vgprPool.checkOutAligned(numRegistersOut, numRegistersOut, "negate r1")
               # generate negate code only when same code is not generated (avoid generating same (redundant) code again
               if forceGenerate or (ai not in zgemmVaddSrcCheck[arrayIndex]):
                 ccInsts[arrayIndex] = inst(v_add, vgpr(ccVgprs[arrayIndex] + offsetVgpr[arrayIndex], numRegistersOut), "-"+ai, "0", "Ai=-Ai")
                 zgemmVaddSrcCheck[arrayIndex].append(ai)
             if ccA:
               arrayIndex = 1
-              # set up offset and number of tmp vgpr to check out
-              numVgpr = numRegistersOut
-              if not forceGenerate:
-                if ai not in zgemmVaddSrcCheck[arrayIndex]:
-                  # not generated before. add new one
-                  offsetVgpr[arrayIndex] = len(zgemmVaddSrcCheck[arrayIndex]) * numRegistersOut
-                  numVgpr = (len(zgemmVaddSrcCheck[arrayIndex]) + 1) * numRegistersOut
-                else:
-                  # already generated before. get index
-                  offsetVgpr[arrayIndex] = zgemmVaddSrcCheck[arrayIndex].index(ai) * numRegistersOut
-              ccVgprs[arrayIndex] = self.vgprPool.checkOutAligned(numVgpr, numRegistersOut, "negate i0")
+              ccVgprs[arrayIndex] = self.vgprPool.checkOutAligned(numRegistersOut, numRegistersOut, "negate i0")
               # generate negate code only when same code is not generated (avoid generating same (redundant) code again
               if forceGenerate or (ai not in zgemmVaddSrcCheck[arrayIndex]):
                 ccInsts[arrayIndex] = inst(v_add, vgpr(ccVgprs[arrayIndex] + offsetVgpr[arrayIndex], numRegistersOut), "-"+ai, "0", "Ai=-Ai")
                 zgemmVaddSrcCheck[arrayIndex].append(ai)
             if ccB:
               arrayIndex = 2
-              # set up offset and number of tmp vgpr to check out
-              numVgpr = numRegistersOut
-              if not forceGenerate:
-                if ar not in zgemmVaddSrcCheck[arrayIndex]:
-                  # not generated before. add new one
-                  offsetVgpr[arrayIndex] = len(zgemmVaddSrcCheck[arrayIndex]) * numRegistersOut
-                  numVgpr = (len(zgemmVaddSrcCheck[arrayIndex]) + 1) * numRegistersOut
-                else:
-                  # already generated before. get index
-                  offsetVgpr[arrayIndex] = zgemmVaddSrcCheck[arrayIndex].index(ar) * numRegistersOut
-              ccVgprs[arrayIndex] = self.vgprPool.checkOutAligned(numVgpr, numRegistersOut, "negate i1")
+              ccVgprs[arrayIndex] = self.vgprPool.checkOutAligned(numRegistersOut, numRegistersOut, "negate i1")
               # generate negate code only when same code is not generated (avoid generating same (redundant) code again
-              if forceGenerate or (ai not in zgemmVaddSrcCheck[arrayIndex]):
+              if forceGenerate or (ar not in zgemmVaddSrcCheck[arrayIndex]):
                 ccInsts[arrayIndex] = inst(v_add, vgpr(ccVgprs[arrayIndex] + offsetVgpr[arrayIndex], numRegistersOut), "-"+ar, "0", "Ar=-Ar")
                 zgemmVaddSrcCheck[arrayIndex].append(ar)
             (src0, src1) = (br, ar) if kernel["SourceSwap"] else (ar, br)
