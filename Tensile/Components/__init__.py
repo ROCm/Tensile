@@ -23,10 +23,15 @@ def use(): pass
 
 # This should list all of the files in the 'Components' directory, without extensions.
 __all__ = [
+    "MAC_BF16_HPA",
     "MAC_F16",
     "MAC_F16_HPA",
     "MAC_F32",
+    "MAC_F32C",
+    "MAC_F64",
+    "MAC_F64C",
     "MAC_I8_HPA",
+    "MAC_I8X4",
     "Priority",
     "Signature",
     "LocalRead",

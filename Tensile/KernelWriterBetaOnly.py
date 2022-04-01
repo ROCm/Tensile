@@ -185,8 +185,9 @@ class KernelWriterBetaOnly(KernelWriterBase):
       if not self.state["_GlobalAccumulation"]:
         ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
         kStr += "  " + ptrStr + " * D = BatchD[wg];" + self.endLine
-      ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-      kStr += "  " + ptrStr + " const* C = BatchC[wg];" + self.endLine
+      ptrStr  = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
+      zeroStr = self.state["ProblemType"]["ComputeDataType"].zeroString(self.language, 1)
+      kStr += "  " + ptrStr + f" const* C = (beta == {zeroStr}) ? nullptr : BatchC[wg];" + self.endLine
 
     # apply offset
     kStr += self.endLine

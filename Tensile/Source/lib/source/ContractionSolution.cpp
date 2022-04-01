@@ -814,15 +814,20 @@ namespace Tensile
                                                                   Hardware const&    hardware) const
     {
         bool debug = Debug::Instance().printKernelArguments() || this->kernelArgsLog;
+
+        int boundSize = 1;
+        for(size_t i = 0; i < problem.boundIndices().size(); i++)
+            boundSize *= problem.boundSize(i);
+
         // Check for nullptrs if alpha is non-zero.
-        if((inputs.alpha != static_cast<typename TypedInputs::AlphaType>(0) /*&& k!=0*/)
+        if(((inputs.alpha != static_cast<typename TypedInputs::AlphaType>(0)) && (boundSize != 0))
            && ((problem.stridedBatched() && (inputs.a == nullptr || inputs.b == nullptr))
                || (!problem.stridedBatched()
                    && (inputs.batchA == nullptr || inputs.batchB == nullptr))))
         {
             std::string matrixID = inputs.a == nullptr ? "A" : "B";
             std::string msg      = std::string("Unsupported nullptr for ") + matrixID
-                              + std::string(" when Alpha !=0\n");
+                              + std::string(" when (Alpha !=0) && (K != 0)\n");
             throw std::runtime_error(msg.c_str());
         }
 
