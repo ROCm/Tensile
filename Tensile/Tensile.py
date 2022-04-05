@@ -204,7 +204,7 @@ def Tensile(userArgs):
   configPaths = args.config_file
   altFormat = args.AlternateFormat
 
-  if altFormat and len(configPaths) != 2:
+  if altFormat and len(configPaths) > 2:
     printExit("bad call")
   elif not altFormat and len(configPaths) != 1:
     printExit("bad call")
@@ -230,17 +230,20 @@ def Tensile(userArgs):
     globalParameters['LibraryFormat'] = args.LibraryFormat
 
   # read config
-  if len(configPaths) == 1:
+  if not altFormat:
     config = LibraryIO.readYAML(configPaths[0])
   # hacky logic for converting to nicer format # TODO decide on final format and cleanup
-  if len(configPaths) == 2:
+  else:
     c1 = LibraryIO.readYAML(configPaths[0])
-    c2 = LibraryIO.readYAML(configPaths[1])
+    sizes = []
+    if len(configPaths) == 2:
+      sizes = LibraryIO.readYAML(configPaths[1])
     config = {}
     config["GlobalParameters"] = c1["GlobalParameters"]
     solParams = {"BenchmarkCommonParameters" : c1["BenchmarkCommonParameters"],
            "ForkParameters" : c1["ForkParameters"],
-           "GroupForkParameters" : c2["GroupForkParameters"]
+           "GroupForkParameters" : c1["GroupForkParameters"],
+           "BenchmarkFinalParameters" : [{"ProblemSizes": sizes}]
     }
     config["BenchmarkProblems"] = [[c1["ProblemType"],solParams]]
 
