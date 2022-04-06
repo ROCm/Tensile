@@ -37,6 +37,7 @@ def getDefaultsForMissingParameters(paramList, defaultParams):
                 benchmarkParams[name] = value
     return benchmarkParams
 
+
 def checkParametersAreValid(param, validParams):
     """Ensures paramaters in params exist and have valid values as specified by validParames"""
     (name, values) = param
@@ -54,6 +55,7 @@ def checkParametersAreValid(param, validParams):
                     if len(validParams[name])>32 else ""
             printExit(msgBase.format(name, value, name, validParams[name][:32], msgExt))
 
+
 def separateParameters(paramSetList):
     """Separates paramSetList into parameters with single and multiple values"""
     singleVaules = {}
@@ -67,6 +69,7 @@ def separateParameters(paramSetList):
             multiValues[name] = values
 
     return singleVaules, multiValues
+
 
 def checkCDBufferAndStrides(problemType, problemSizes, isCEqualD):
     """Ensures ldd == ldc when CEqualD"""
@@ -90,15 +93,15 @@ class BenchmarkProcess:
 
         # fill parameter values from config
         self.singleValueParams = {}
-        self.multiValueParams  = {}
-        self.customKernels     = []
-        self.sizes             = None
+        self.multiValueParams = {}
+        self.customKernels = []
+        self.sizes = None
         self.getConfigParameters(self.isBatched, problemSizeGroupConfig)
 
         # convert parameter lists to steps
         # previously, multiple benchmark steps were possible
         # currently only 1 benchmark step is possible; more may be added back later
-        self.benchmarkSteps   = []
+        self.benchmarkSteps = []
         self.benchmarkStepIdx = 0
         self.convertParametersToSteps()
 
@@ -120,7 +123,8 @@ class BenchmarkProcess:
                 badsInConfig.append(p)
 
         if len(badsInConfig) == 1:
-            printExit("Benchmark step {} is no longer supported".format("'" + badsInConfig[0] + "'"))
+            printExit("Benchmark step {} is no longer supported".format("'" + badsInConfig[0] +
+                                                                        "'"))
         elif len(badsInConfig) > 1:
             printExit("Benchmark steps {} are no longer supported".format(badsInConfig))
 
@@ -137,8 +141,8 @@ class BenchmarkProcess:
                 for x in getNonNoneFromConfig("BenchmarkCommonParameters", [])]))
         forkParams = dict(itertools.chain(*[x.items() \
                 for x in getNonNoneFromConfig("ForkParameters", [])]))
-        self.paramGroups      = getNonNoneFromConfig("GroupForkParameters", [])
-        self.customKernels    = getNonNoneFromConfig("CustomKernels", [])
+        self.paramGroups = getNonNoneFromConfig("GroupForkParameters", [])
+        self.customKernels = getNonNoneFromConfig("CustomKernels", [])
 
         if "BenchmarkFinalParameters" in config:
             sizes = config["BenchmarkFinalParameters"][0]["ProblemSizes"]
@@ -175,7 +179,7 @@ class BenchmarkProcess:
         if len(self.paramGroups) > 0:
             print2("{} Parameter Group(s):".format(len(self.paramGroups)))
             for i, group in enumerate(self.paramGroups):
-                print2("    {} entries is group {}".format(len(group), i+1))
+                print2("    {} entries is group {}".format(len(group), i + 1))
 
     def convertParametersToSteps(self):
         """Create benchmark steps based on parsed parameters"""
@@ -257,12 +261,12 @@ class BenchmarkStep:
 
     def __init__(self, forkParams, constantParams, paramGroups, customKernels, problemSizes, idx):
         """Basic constructor storing each argument"""
-        self.forkParams     = forkParams
+        self.forkParams = forkParams
         self.constantParams = constantParams
-        self.paramGroups    = paramGroups
-        self.customKernels  = customKernels
-        self.problemSizes   = problemSizes
-        self.stepIdx        = idx
+        self.paramGroups = paramGroups
+        self.customKernels = customKernels
+        self.problemSizes = problemSizes
+        self.stepIdx = idx
 
         self.customKernelWildcard = False
         if self.customKernels == ["*"]:

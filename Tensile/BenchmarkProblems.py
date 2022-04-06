@@ -65,6 +65,7 @@ def generateForkedSolutions(problemType, constantParams, forkPermutations):
 
     return solutions
 
+
 def getCustomKernelSolutionObj(kernelName, directory=globalParameters["CustomKernelDirectory"]):
     """Creates the Solution object for a custom kernel"""
     kernelConfig = getCustomKernelConfig(kernelName, directory)
@@ -74,6 +75,7 @@ def getCustomKernelSolutionObj(kernelName, directory=globalParameters["CustomKer
     kernelConfig["CustomKernelName"] = kernelName
 
     return Solution(kernelConfig)
+
 
 def generateCustomKernelSolutions(problemType, customKernels, failOnMismatch):
     """Creates a list with a Solution object for each name in customKernel"""
@@ -117,9 +119,9 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
 
     copyStaticFiles()
 
-    kernels           = []
-    kernelHelperOjbs  = []
-    kernelNames       = set()
+    kernels = []
+    kernelHelperOjbs = []
+    kernelNames = set()
     kernelHelperNames = set()
 
     # get unique kernels and kernel helpers
@@ -139,12 +141,12 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
                 kernelHelperNames.add(kname)
 
     solutionSerialNaming = Solution.getSerialNaming(solutions)
-    kernelSerialNaming   = Solution.getSerialNaming(kernels)
-    solutionMinNaming    = Solution.getMinNaming(solutions)
-    kernelMinNaming      = Solution.getMinNaming(kernels)
-    solutionWriter       = SolutionWriter(solutionMinNaming, \
+    kernelSerialNaming = Solution.getSerialNaming(kernels)
+    solutionMinNaming = Solution.getMinNaming(solutions)
+    kernelMinNaming = Solution.getMinNaming(kernels)
+    solutionWriter = SolutionWriter(solutionMinNaming, \
             solutionSerialNaming, kernelMinNaming, kernelSerialNaming)
-    kernelWriterSource   = KernelWriterSource(kernelMinNaming, kernelSerialNaming)
+    kernelWriterSource = KernelWriterSource(kernelMinNaming, kernelSerialNaming)
     kernelWriterAssembly = KernelWriterAssembly(kernelMinNaming, kernelSerialNaming)
 
     # write solution, kernels and CMake
@@ -178,13 +180,13 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
         idealN = 36 * maxMacroTile1
         idealSizes = []
         if problemType["Batched"]:
-                for idealK in solutionSummationSizes:
-                    idealSize = {"Exact": [idealM, idealN, 1, idealK]}
-                    idealSizes.append(idealSize)
+            for idealK in solutionSummationSizes:
+                idealSize = {"Exact": [idealM, idealN, 1, idealK]}
+                idealSizes.append(idealSize)
         else:
-                for idealK in solutionSummationSizes:
-                    idealSize = {"Exact": [idealM, idealN, idealK]}
-                    idealSizes.append(idealSize)
+            for idealK in solutionSummationSizes:
+                idealSize = {"Exact": [idealM, idealN, idealK]}
+                idealSizes.append(idealSize)
         idealProblemSizes = ProblemSizes(problemType, idealSizes)
         writeClientConfig(True, solutions, idealProblemSizes, stepName, stepBaseDir, \
             newLibrary, codeObjectFiles, True)
@@ -196,6 +198,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
         printExit("write solutions and kernels results 0 valid soultion.")
 
     return codeObjectFiles
+
 
 def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeGroupIdx, useCache):
     """Run the benchmarking for a single entry in the BenchmarkProblems of a Tensile config"""
@@ -295,7 +298,7 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
 
             if globalParameters["PrintLevel"] >= 1:
                 for solution in solutions:
-                    print2("#    ({}:{}) {}".format(0, 0, Solution.getNameFull(solution)) )
+                    print2("#    ({}:{}) {}".format(0, 0, Solution.getNameFull(solution)))
                 print2(HR)
 
             # write benchmarkFiles
@@ -306,12 +309,12 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
 
             # write cache data
             cacheData = {
-                    "CodeObjectFiles": codeObjectFiles,
-                    "ConstantParams": benchmarkStep.constantParams,
-                    "ForkParams": benchmarkStep.forkParams,
-                    "ParamGroups": benchmarkStep.paramGroups,
-                    "CustomKernels": benchmarkStep.customKernels,
-                    "CustomKernelWildcard": benchmarkStep.customKernelWildcard
+                "CodeObjectFiles": codeObjectFiles,
+                "ConstantParams": benchmarkStep.constantParams,
+                "ForkParams": benchmarkStep.forkParams,
+                "ParamGroups": benchmarkStep.paramGroups,
+                "CustomKernels": benchmarkStep.customKernels,
+                "CustomKernelWildcard": benchmarkStep.customKernelWildcard
             }
             LibraryIO.writeYAML(cachePath, cacheData)
 
@@ -326,13 +329,14 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
             outFile = os.path.join(globalParameters["WorkingPath"], "ClientParameters.ini")
 
             writeClientConfigIni(benchmarkStep.problemSizes, conProblemType,
-                    globalParameters["WorkingPath"], codeObjectFiles, resultsFileName, outFile)
+                                 globalParameters["WorkingPath"], codeObjectFiles, resultsFileName,
+                                 outFile)
 
         # I think the size portion of this yaml could be removed,
         # but for now it's needed, so we update it even in the cache case
         LibraryIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, solutions, cache)
 
-        popWorkingPath() # source
+        popWorkingPath()  # source
 
         # run benchmarking client
         if not os.path.exists(resultsFileName) or globalParameters["ForceRedoBenchmarkProblems"]:
@@ -348,13 +352,13 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
             print1("# Already benchmarked; skipping.")
 
         # End Iteration
-        popWorkingPath() # stepName
+        popWorkingPath()  # stepName
         currentTime = time.time()
         elapsedTime = currentTime - startTime
         print1("{}\n# {}\n# {}: End - {:.3f}s\n{}\n" \
                 .format(HR, groupName, shortName, elapsedTime, HR))
 
-    popWorkingPath() # ProblemType
+    popWorkingPath()  # ProblemType
     return (resultsFileBaseFinal, benchmarkTestFails)
 
 
@@ -403,14 +407,14 @@ def main(config, useCache):
                         globalParameters["ConfigPath"]) )
 
                 # copy data
-                resultsFileBase     = resultsFileBaseFinal
-                resultsFileName     = resultsFileBase + ".csv"
-                solutionsFileName   = resultsFileBase + ".yaml"
+                resultsFileBase = resultsFileBaseFinal
+                resultsFileName = resultsFileBase + ".csv"
+                solutionsFileName = resultsFileBase + ".yaml"
                 granularityFileName = resultsFileBase + "_Granularity.csv"
-                shutil.copy( resultsFileName, newResultsFileName )
-                shutil.copy( solutionsFileName, newSolutionsFileName )
+                shutil.copy(resultsFileName, newResultsFileName)
+                shutil.copy(solutionsFileName, newSolutionsFileName)
                 if os.path.isfile(granularityFileName):
-                    shutil.copy( granularityFileName, newGranularityFileName )
+                    shutil.copy(granularityFileName, newGranularityFileName)
             else:
                 print1("# {}_{:02d} already benchmarked; skipping." \
                         .format(str(problemTypeObj), idx) )
