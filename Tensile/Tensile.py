@@ -49,7 +49,7 @@ def executeStepsInConfig( config ):
   # Benchmark Problems
   ##############################################################################
   if "BenchmarkProblems" in config:
-    BenchmarkProblems.main( config["BenchmarkProblems"] )
+    BenchmarkProblems.main( config["BenchmarkProblems"], config["UseCache"] )
     print1("")
 
 
@@ -189,13 +189,16 @@ def Tensile(userArgs):
   # setup argument parser
   argParser = argparse.ArgumentParser()
   argParser.add_argument("config_file", type=os.path.realpath, nargs="+",
-      help="benchmark config.yaml file")
+      help="Benchmark config.yaml file")
   argParser.add_argument("output_path", \
-      help="path where to conduct benchmark")
+      help="Path to conduct benchmark and write output files")
   argParser.add_argument("--version", action="version", \
       version="%(prog)s {version}".format(version=__version__))
   argParser.add_argument("--alternate-format", dest="AlternateFormat", action="store_true",
-      help="")
+      help="Alternate format for config_file(s): first file is alternate config "
+      "and optional second file is size list")
+  argParser.add_argument("--no-cache", dest="NoCache", action="store_true",
+      help="Ignore cache; redo parameter forking and solution generation")
   addCommonArguments(argParser)
 
   # parse arguments
@@ -203,12 +206,14 @@ def Tensile(userArgs):
 
   configPaths = args.config_file
   altFormat = args.AlternateFormat
+  useCache = not args.NoCache
 
   if altFormat and len(configPaths) > 2:
-    printExit("bad call")
+    printExit("Only 1 or 2 config_files are accepted for the alternate config format: "
+              "the alternate config file and an optional size list")
   elif not altFormat and len(configPaths) != 1:
-    printExit("bad call")
-
+    printExit("Only 1 config_file is accepted for the default config format. "
+              "Did you mean to add '--alternate-formate'?")
 
   # 2nd half of splash
   if len(configPaths) == 1:
@@ -229,24 +234,26 @@ def Tensile(userArgs):
   if args.LibraryFormat:
     globalParameters['LibraryFormat'] = args.LibraryFormat
 
-  # read config
+  # default config format
   if not altFormat:
     config = LibraryIO.readYAML(configPaths[0])
-  # hacky logic for converting to nicer format # TODO decide on final format and cleanup
+  # convert alternate format into default format
   else:
-    c1 = LibraryIO.readYAML(configPaths[0])
+    base = LibraryIO.readYAML(configPaths[0])
     sizes = []
     if len(configPaths) == 2:
       sizes = LibraryIO.readYAML(configPaths[1])
-    config = {}
-    config["GlobalParameters"] = c1["GlobalParameters"]
-    solParams = {"BenchmarkCommonParameters" : c1["BenchmarkCommonParameters"],
-           "ForkParameters" : c1["ForkParameters"],
-           "GroupForkParameters" : c1["GroupForkParameters"],
-           "BenchmarkFinalParameters" : [{"ProblemSizes": sizes}]
-    }
-    config["BenchmarkProblems"] = [[c1["ProblemType"],solParams]]
 
+    config = {}
+    config["GlobalParameters"] = base["GlobalParameters"]
+    solParams = {"BenchmarkCommonParameters" : base["BenchmarkCommonParameters"],
+        "ForkParameters" : base["ForkParameters"],
+        "GroupForkParameters" : base["GroupForkParameters"],
+        "BenchmarkFinalParameters" : [{"ProblemSizes": sizes}]
+    }
+    config["BenchmarkProblems"] = [[base["ProblemType"], solParams]]
+
+  config["UseCache"] = useCache
   globalParameters["ConfigPath"] = configPaths
 
   # assign global parameters
@@ -263,8 +270,6 @@ def Tensile(userArgs):
   for key, value in overrideParameters.items():
     print("Overriding {0}={1}".format(key, value))
     globalParameters[key] = value
-
-  #globalParameters["PrintCodeCommands"] = True
 
   # Execute Steps in the config script
   executeStepsInConfig(config)

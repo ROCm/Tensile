@@ -197,7 +197,7 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
 
     return codeObjectFiles
 
-def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeGroupIdx):
+def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeGroupIdx, useCache):
     """Run the benchmarking for a single entry in the BenchmarkProblems of a Tensile config"""
     benchmarkTestFails = 0
 
@@ -248,16 +248,27 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
         resultsFileName = resultsFileBase + ".csv"
         solutionsFileName = resultsFileBase + ".yaml"
 
-        # cache stuff here
-        cachePath = os.path.join(stepBaseDir, "cache.txt")
+        # check if we can and should use cache file
+        cachePath = os.path.join(stepBaseDir, "cache.yaml")
         pushWorkingPath("source")
 
-        if not os.path.isfile(cachePath):
-            cache = False
-            print1("No cache found")
+        cache = False
+        if useCache and os.path.isfile(cachePath):
+            c = LibraryIO.readYAML(cachePath)
+            if c["ConstantParams"] == benchmarkStep.constantParams and \
+                    c["ForkParams"] == benchmarkStep.forkParams and \
+                    c["ParamGroups"] == benchmarkStep.paramGroups and \
+                    c["CustomKernels"] == benchmarkStep.customKernels and \
+                    c["CustomKernelWildcard"] == benchmarkStep.customKernelWildcard:
+                cache = True
+                codeObjectFiles = c["CodeObjectFiles"]
+            else:
+                printWarning("Cache data does not match config: redoing solution generation")
 
+        if not cache:
             # enumerate benchmark permutations and create resulting solution objects
-            forkPermutations = constructForkPermutations(benchmarkStep.forkParams, benchmarkStep.paramGroups)
+            forkPermutations = constructForkPermutations(benchmarkStep.forkParams, \
+                    benchmarkStep.paramGroups)
             maxPossibleSolutions = len(forkPermutations)
 
             regSolutions = generateForkedSolutions(benchmarkProcess.problemType, \
@@ -289,32 +300,36 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
 
             # write benchmarkFiles
             prevCount = len(solutions)
-            codeObjectFiles = writeBenchmarkFiles(stepBaseDir, solutions, benchmarkStep.problemSizes, \
-                    shortName, [])
+            codeObjectFiles = writeBenchmarkFiles(stepBaseDir, solutions, \
+                    benchmarkStep.problemSizes, shortName, [])
             # ^ this mutates solutions
 
-            # cache code object file names
-            with open(cachePath, "w") as f:
-                cos = [co + "\n" for co in codeObjectFiles]
-                f.writelines(cos)
+            # write cache data
+            cacheData = {
+                    "CodeObjectFiles": codeObjectFiles,
+                    "ConstantParams": benchmarkStep.constantParams,
+                    "ForkParams": benchmarkStep.forkParams,
+                    "ParamGroups": benchmarkStep.paramGroups,
+                    "CustomKernels": benchmarkStep.customKernels,
+                    "CustomKernelWildcard": benchmarkStep.customKernelWildcard
+            }
+            LibraryIO.writeYAML(cachePath, cacheData)
 
             print1("# Actual Solutions: {} / {} after KernelWriter\n" \
                     .format(len(solutions), prevCount ))
         else:
-            cache = True
             solutions = None
-            print1("Cache found")
-            with open(cachePath) as f:
-                codeObjectFiles = f.readlines()
+            print1("# Using cached solution data")
 
             ssProblemType = ProblemType(problemTypeConfig)
             conProblemType = ContractionsProblemType.FromOriginalState(ssProblemType)
             outFile = os.path.join(globalParameters["WorkingPath"], "ClientParameters.ini")
 
-            writeClientConfigIni(benchmarkStep.problemSizes, conProblemType, globalParameters["WorkingPath"], codeObjectFiles, resultsFileName, outFile)
+            writeClientConfigIni(benchmarkStep.problemSizes, conProblemType,
+                    globalParameters["WorkingPath"], codeObjectFiles, resultsFileName, outFile)
 
         # I think the size portion of this yaml could be removed,
-        # but for now it's needed, so we update it in the cache case
+        # but for now it's needed, so we update it even in the cache case
         LibraryIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, solutions, cache)
 
         popWorkingPath() # source
@@ -343,7 +358,7 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
     return (resultsFileBaseFinal, benchmarkTestFails)
 
 
-def main(config):
+def main(config, useCache):
     """Entry point for the "BenchmarkProblems" section of a Tensile config yaml"""
     ClientExecutable.getClientExecutable()
 
@@ -359,7 +374,7 @@ def main(config):
         else:
             problemSizeGroupConfigs = benchmarkProblemTypeConfig[1:]
 
-        for idx, problemSizeGroupConfig in enumerate(problemSizeGroupConfigs):
+        for idx, sizeGroupConfig in enumerate(problemSizeGroupConfigs):
             print2("ProblemTypeConfig: {}".format(problemTypeConfig))
             problemTypeObj = ProblemType(problemTypeConfig)
             globalParameters["EnableHalf"] = problemTypeObj["DataType"].isHalf()
@@ -380,7 +395,7 @@ def main(config):
 
                 # benchmark problem size group
                 (resultsFileBaseFinal, benchmarkErrors) = \
-                        benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, idx)
+                        benchmarkProblemType(problemTypeConfig, sizeGroupConfig, idx, useCache)
                 totalTestFails += benchmarkErrors
 
                 print("clientExit={} {} for {}" \

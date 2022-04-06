@@ -153,7 +153,7 @@ class BenchmarkProcess:
         for param in configParams.items():
             checkParametersAreValid(param, validParameters)
 
-        # TODO other checks on groups (same params for each entry?, not dups between groups?, others?)
+        # TODO other checks on groups (same params for each entry? no dups between groups?)
         for list in self.paramGroups:
             for group in list:
                 for k, v in group.items():
