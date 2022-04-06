@@ -247,12 +247,16 @@ def Tensile(userArgs):
         if len(configPaths) == 2:
             sizes = LibraryIO.readYAML(configPaths[1])
 
-        config = {}
-        config["GlobalParameters"] = base["GlobalParameters"]
+        config = {"GlobalParameters": base.get("GlobalParameters")}
+        if "LibraryLogic" in base:
+            config["LibraryLogic"] = base["LibraryLogic"]
+        if "LibraryClient" in base:
+            config["LibraryClient"] = None
+
         solParams = {
-            "BenchmarkCommonParameters": base["BenchmarkCommonParameters"],
-            "ForkParameters": base["ForkParameters"],
-            "GroupForkParameters": base["GroupForkParameters"],
+            "BenchmarkCommonParameters": base.get("BenchmarkCommonParameters"),
+            "ForkParameters": base.get("ForkParameters"),
+            "GroupForkParameters": base.get("GroupForkParameters"),
             "BenchmarkFinalParameters": [{
                 "ProblemSizes": sizes
             }]
