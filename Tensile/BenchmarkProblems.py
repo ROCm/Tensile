@@ -69,8 +69,9 @@ def generateForkedSolutions(problemType, constantParams, forkPermutations):
 def getCustomKernelSolutionObj(kernelName, directory=globalParameters["CustomKernelDirectory"]):
     """Creates the Solution object for a custom kernel"""
     kernelConfig = getCustomKernelConfig(kernelName, directory)
-    checkParametersAreValid({p: [kernelConfig[p]] for p in kernelConfig \
-            if p != "ProblemType"}, validParameters)
+    for k, v in kernelConfig.items():
+        if k != "ProblemType":
+            checkParametersAreValid((k, [v]), validParameters)
     kernelConfig["KernelLanguage"] = "Assembly"
     kernelConfig["CustomKernelName"] = kernelName
 
