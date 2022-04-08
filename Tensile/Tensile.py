@@ -248,9 +248,9 @@ def Tensile(userArgs):
             sizes = LibraryIO.readYAML(configPaths[1])
 
         config = {"GlobalParameters": base.get("GlobalParameters")}
-        if "LibraryLogic" in base:
+        if "LibraryLogic" in base and len(sizes) > 0:
             config["LibraryLogic"] = base["LibraryLogic"]
-        if "LibraryClient" in base:
+        if "LibraryClient" in base and len(sizes) > 0:
             config["LibraryClient"] = None
 
         solParams = {

@@ -22,7 +22,8 @@
 from copy import deepcopy
 import itertools
 from .Common import print1, print2, hasParam, printExit, \
-        defaultBenchmarkCommonParameters, validParameters, globalParameters
+        defaultBenchmarkCommonParameters, validParameters, globalParameters, \
+        defaultBatchedBenchmarkFinalProblemSizes, defaultBenchmarkFinalProblemSizes
 from .CustomKernels import getAllCustomKernelNames
 from .SolutionStructs import ProblemType, ProblemSizes
 
@@ -147,7 +148,8 @@ class BenchmarkProcess:
         if "BenchmarkFinalParameters" in config:
             sizes = config["BenchmarkFinalParameters"][0]["ProblemSizes"]
         else:
-            sizes = []
+            sizes = defaultBatchedBenchmarkFinalProblemSizes if isbatched \
+                else defaultBenchmarkFinalProblemSizes
 
         self.problemSizes = ProblemSizes(self.problemType, sizes)
         checkCDBufferAndStrides(self.problemType, self.problemSizes, globalParameters["CEqualD"])
