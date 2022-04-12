@@ -252,11 +252,11 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
         resultsFileName = resultsFileBase + ".csv"
         solutionsFileName = resultsFileBase + ".yaml"
 
-        # check if we can and should use cache file
+        # check if a solution cache exists and if it matches our solution parameters
         cachePath = os.path.join(stepBaseDir, "cache.yaml")
         pushWorkingPath("source")
 
-        cache = False
+        cacheValid = False
         if useCache and os.path.isfile(cachePath):
             c = LibraryIO.readYAML(cachePath)
             if c["ConstantParams"] == benchmarkStep.constantParams and \
@@ -264,12 +264,12 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
                     c["ParamGroups"] == benchmarkStep.paramGroups and \
                     c["CustomKernels"] == benchmarkStep.customKernels and \
                     c["CustomKernelWildcard"] == benchmarkStep.customKernelWildcard:
-                cache = True
+                cacheValid = True
                 codeObjectFiles = c["CodeObjectFiles"]
             else:
                 printWarning("Cache data does not match config: redoing solution generation")
 
-        if not cache:
+        if not cacheValid:
             # enumerate benchmark permutations and create resulting solution objects
             forkPermutations = constructForkPermutations(benchmarkStep.forkParams, \
                     benchmarkStep.paramGroups)
@@ -335,7 +335,7 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
 
         # I think the size portion of this yaml could be removed,
         # but for now it's needed, so we update it even in the cache case
-        LibraryIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, solutions, cache)
+        LibraryIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, solutions, cacheValid)
 
         popWorkingPath()  # source
 

@@ -18,28 +18,14 @@ ForkParameters:
 - WaveSeparateGlobalReadA: [1, false]
 - StaggerUStride: [256, 128]
 - PrefetchGlobalRead: [true, 2]
-GroupForkParameters:
-- - AssertMinApproxSize: 3
-    DepthU: 16
-    InnerUnroll: 1
-    LdsPadB: 0
-    NumLoadsCoalescedA: 1
-    OptNoLoadLoop: 1
-    PrefetchLocalRead: true
-    StaggerU: 32
-    StoreRemapVectorWidth: 0
-    VectorWidth: 4
-    WorkGroup: [16, 16, 1]
-    WorkGroupMapping: 8
-  - AssertMinApproxSize: 0
-    DepthU: 32
-    InnerUnroll: 1
-    LdsPadB: 0
-    NumLoadsCoalescedA: 1
-    OptNoLoadLoop: 1
-    PrefetchLocalRead: true
-    StaggerU: 32
-    StoreRemapVectorWidth: 0
-    VectorWidth: 1
-    WorkGroup: [32, 8, 1]
-    WorkGroupMapping: 8
+- Groups:
+  - - WorkGroup: [8, 8, 1]
+      ThreadTile: [8, 8]
+    - WorkGroup: [16, 16, 1]
+      ThreadTile: [4, 4]
+  - - DepthU: 16
+      WorkGroupMapping: 1
+    - DepthU: 16
+      WorkGroupMapping: 15
+    - DepthU: 8
+      WorkGroupMapping: 8
