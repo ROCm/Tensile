@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -165,13 +165,13 @@ namespace Tensile
         hipError_t SolutionAdapter::getKernel(hipFunction_t& rv, std::string const& name)
         {
             std::unique_lock<std::mutex> guard(m_access);
-            hipError_t                   err = hipSuccess;
+            hipError_t                   err = hipErrorNotFound;
 
             auto it = m_kernels.find(name);
             if(it != m_kernels.end())
             {
                 rv = it->second;
-                return err;
+                return hipSuccess;
             }
 
             for(auto module : m_modules)
