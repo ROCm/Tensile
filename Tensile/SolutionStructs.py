@@ -2941,8 +2941,8 @@ class Solution(collections.abc.Mapping):
     if state["KernelLanguage"] == "Assembly":
         if state["ProblemType"]["TLUA"] and state["ThreadSeparateGlobalReadA"]:
           reject(state, "Assembly ThreadSeparateGlobalReadA requires TLUA=0 ")
-        if state["ProblemType"]["TLUB"] and state["ThreadSeparateGlobalReadA"]:
-          reject(state, "Assembly ThreadSeparateGlobalReadA requires TLUA=0 ")
+        if state["ProblemType"]["TLUB"] and state["ThreadSeparateGlobalReadB"]:
+          reject(state, "Assembly ThreadSeparateGlobalReadB requires TLUB=0 ")
 
 
     ########################################
@@ -3083,7 +3083,6 @@ class Solution(collections.abc.Mapping):
           reject(state, "Int8 requires GLVWA >= 4, current is %u"%state["GlobalLoadVectorWidthA"])
         if state["GlobalLoadVectorWidthB"] < 4:
           reject(state, "Int8 requires GLVWB >= 4, current is %u"%state["GlobalLoadVectorWidthB"])
-
       
 
       # Now convert elements to vectors based on GlobalReadVectorWidth
@@ -3143,11 +3142,12 @@ class Solution(collections.abc.Mapping):
       if validDepthU:
       # check depthU and ThreadSeparateGlobalReadA==1 depthU*bpe <= 64 bytes reject ThreadSeparateGlobalRead =1 
       # only Enable when TN layout
+      # reject  depthU  less than cache line size
         if not state["ProblemType"]["TLUA"]:
-          if ((depthU * state["ProblemType"]["DataType"].numBytes() <= 64) and state["ThreadSeparateGlobalReadA"]):
+          if ((depthU * state["ProblemType"]["DataType"].numBytes() < 128) and state["ThreadSeparateGlobalReadA"]):
             validDepthU= False
         if not state["ProblemType"]["TLUB"]:
-          if ((depthU * state["ProblemType"]["DataType"].numBytes() <= 64) and state["ThreadSeparateGlobalReadA"]):
+          if ((depthU * state["ProblemType"]["DataType"].numBytes() < 128) and state["ThreadSeparateGlobalReadB"]):
             validDepthU= False
 
       # this depthU is valid, done unless user wants to double (for TN)

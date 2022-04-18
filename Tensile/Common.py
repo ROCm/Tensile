@@ -396,7 +396,7 @@ validParameters = {
     "WaveSeparateGlobalReadA":    [ 0, 1 ],
     "WaveSeparateGlobalReadB":    [ 0, 1 ],
 
-    #fragmenting threads required to fetch #elements in coalscing dimension. rather than using contiguous depthu/GLVW  
+    #fragmenting threads required to fetch #elements in coalescing dimension. rather than using contiguous depthu/GLVW  
     #into fragments occupying upper 32 ,lower 32 threads  or fragment into 4 16 threads 
     #use primarily for direct to LDS feature.
     #for example A matrices = Transpose layout
@@ -404,6 +404,8 @@ validParameters = {
     #ThreadSeparateGlobalReadA = 1   DepthU=64 GLVW=8 T0,T1,T2,T3, T32,T33,T34,T35
     #ThreadSeparateGlobalReadA = 2   DepthU=64 GVLW=8 T0,T1,T16,T17,T32,T33,T48,T49  fetching  64 elements  
     # use =2 for 16x16x4 instructions
+
+    # should work wuth WaveSeparateGlobalRead
     
     "ThreadSeparateGlobalReadA":    [ 0, 1, 2 ],
     "ThreadSeparateGlobalReadB":    [ 0, 1, 2 ],
