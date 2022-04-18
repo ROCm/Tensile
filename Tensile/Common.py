@@ -396,6 +396,19 @@ validParameters = {
     "WaveSeparateGlobalReadA":    [ 0, 1 ],
     "WaveSeparateGlobalReadB":    [ 0, 1 ],
 
+    #fragmenting threads required to fetch #elements in coalscing dimension. rather than using contiguous depthu/GLVW  
+    #into fragments occupying upper 32 ,lower 32 threads  or fragment into 4 16 threads 
+    #use primarily for direct to LDS feature.
+    #for example A matrices = Transpose layout
+    #ThreadSeparateGlobalReadA = 0   DepthU=64 GVLW=8 T0,T1,T2,T3,T4,T5,T6,T7  fetching  64 elements  
+    #ThreadSeparateGlobalReadA = 1   DepthU=64 GLVW=8 T0,T1,T2,T3, T32,T33,T34,T35
+    #ThreadSeparateGlobalReadA = 2   DepthU=64 GVLW=8 T0,T1,T16,T17,T32,T33,T48,T49  fetching  64 elements  
+    # use =2 for 16x16x4 instructions
+    
+    "ThreadSeparateGlobalReadA":    [ 0, 1, 2 ],
+    "ThreadSeparateGlobalReadB":    [ 0, 1, 2 ],
+
+
     # PrefetchGlobalRead = 1:
     # Requires 2X LDS space, and VGPRs for buffering data on way into LDS
     #   prefetch / double-buffer reads from global memory -> vgprs -> lds.
@@ -1348,7 +1361,9 @@ defaultBenchmarkCommonParameters = [
     {"StoreCInUnrollInterval":    [ 1 ] },
     {"StoreCInUnrollExact":       [ False ] },
     {"StoreCInUnrollPostLoop":    [ False ] },
-    {"Fp16AltImpl":               [ False ] }
+    {"Fp16AltImpl":               [ False ] },
+    {"ThreadSeparateGlobalReadA": [ 0 ] },
+    {"ThreadSeparateGlobalReadB": [ 0 ] }
     ]
 
 # dictionary of defaults comprised of default option for each parameter

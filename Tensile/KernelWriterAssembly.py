@@ -3415,10 +3415,14 @@ class KernelWriterAssembly(KernelWriter):
 
     dividendReg = "Serial" # local serial
 
-    if kernel["WaveSeparateGlobalRead%s"%tc]:
+    if kernel["WaveSeparateGlobalRead%s"%tc] or kernel["ThreadSeparateGlobalRead%s"%tc]:
+      divisorVal = self.kernel["WavefrontSize"]
+      if kernel["ThreadSeparateGlobalRead%s"%tc]:
+        divisorVal //= kernel["ThreadSeparateGlobalRead%s"%tc] * 2
       dividendReg = self.vgprPool.checkOut(1, "idInWave", self.preventVgprOverflowDuringNewTile)
       dummy       = self.vgprPool.checkOut(1, "dummy", self.preventVgprOverflowDuringNewTile)
-      kStr += vectorStaticRemainder(dummy, dividendReg, "Serial", self.kernel["WavefrontSize"], tmpVgpr, tmpSgpr)
+      kStr += vectorStaticRemainder(dummy, dividendReg, "Serial", divisorVal, tmpVgpr, tmpSgpr)
+      
 
     if kernel["DirectToVgpr%s"%tc]:
       # offset calculation for DirectToVgpr
@@ -3453,17 +3457,37 @@ class KernelWriterAssembly(KernelWriter):
       # release register
       self.vgprPool.checkIn(wReg)
     else:
-      kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, tmpVgpr, tmpSgpr)
+      if kernel["ThreadSeparateGlobalRead%s"%tc]:
+        # fragment depthU among (kernel["ThreadSeparateGlobalRead%s"%tc]*2 groups 
+        if (divisor//(kernel["ThreadSeparateGlobalRead%s"%tc]*2)<4):
+            #bank conflict case: 4 threads fetching different cachelines; to avoid TCP bankconflict use different offsetIdx for cachelines
+            # e.x depthU=64 ThreadSeparatGlobalRead = 2 glvw=4 ; lane 0,1,2,3 offset addressed two different cachelines
+           kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, (divisor // (kernel["ThreadSeparateGlobalRead%s"%tc]*2)) , tmpVgpr, tmpSgpr,doRemainder=False)
+           kStr += vectorStaticRemainder(dummy, rReg, dividendReg, divisor//kernel["ThreadSeparateGlobalRead%s"%tc], tmpVgpr, tmpSgpr)
+        else:
+           kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, (divisor // (kernel["ThreadSeparateGlobalRead%s"%tc]*2)) , tmpVgpr, tmpSgpr)
+      else:
+        kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, tmpVgpr, tmpSgpr)
+      if kernel["ThreadSeparateGlobalRead%s"%tc]:
+        kStr += vectorStaticRemainder(dummy, dividendReg, "Serial",self.kernel["WavefrontSize"], tmpVgpr, tmpSgpr)
+        kStr += inst("v_lshrrev_b32", vgpr(tmpVgpr), hex(log2(self.kernel["WavefrontSize"]//(kernel["ThreadSeparateGlobalRead%s"%tc]*2))), vgpr(dividendReg), "ThreadFragmentsize -- groups ( each group with #threads) required for depthU elements")
+        kStr += inst("v_lshlrev_b32", vgpr(tmpVgpr), hex(log2(divisor//(kernel["ThreadSeparateGlobalRead%s"%tc]*2))),vgpr(tmpVgpr), "ElementIdx")
+        kStr += inst("_v_add_u32", vgpr(rReg), vgpr(tmpVgpr), vgpr(rReg), "update gro-Unroll")
 
-    if kernel["WaveSeparateGlobalRead%s"%tc]:
+    if kernel["WaveSeparateGlobalRead%s"%tc] or kernel["ThreadSeparateGlobalRead%s"%tc]:
       kStr += inst("v_readfirstlane_b32", sgpr(tmpSgpr), vgpr("Serial"), "WaveIdxWavefrontWidth")
       kStr += inst("s_lshr_b32", sgpr(tmpSgpr), sgpr(tmpSgpr), hex(log2(self.kernel["WavefrontSize"])), "WaveId")
-      kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr), kernel[tP["lsp"]] * tP["nrp"], \
+      if kernel["ThreadSeparateGlobalRead%s"%tc]:
+        kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr), divisor, \
+          "Global Read Wave: each wave loads continuous divisor(%u) columns" % (divisor))
+      else:
+        kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr), kernel[tP["lsp"]] * tP["nrp"], \
           "Global Read Wave: each wave loads continuous lsp(%u)*nrp(%u) columns" % (kernel[tP["lsp"]], tP["nrp"]))
       kStr += inst("_v_add_u32", vgpr(qReg), sgpr(tmpSgpr), vgpr(qReg), \
           "Global Read Wave: add back to column index")
       self.vgprPool.checkIn(dividendReg)
       self.vgprPool.checkIn(dummy)
+      
 
     if tP["glvw"] > 1:
       if tP["grcv"] == tP["tlu"]:
@@ -3480,6 +3504,10 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("_v_add_co_u32", vgpr(tReg2), self.vcc, vgpr(tmpVgpr), \
           vgpr(tReg), "gro%s-tile = serial%s%s*VW + (wg%s*MT%s)" \
           % (tc, tOpStr, divisorName, tc, tc) )
+
+    if kernel["ThreadSeparateGlobalRead%s"%tc]:
+      if (divisor//(kernel["ThreadSeparateGlobalRead%s"%tc]*2)<4):
+        kStr += inst("v_and_b32", vgpr(uReg), (divisor*tP["glvw"])-1, vgpr(uReg), "mask off elementIdx crossing cacheline")
 
     if kernel["GlobalSplitU"] > 1:
       uReg2 = self.vgprPool.checkOut(1, "uReg2", self.preventVgprOverflowDuringNewTile)
