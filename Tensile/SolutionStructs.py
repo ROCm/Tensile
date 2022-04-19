@@ -2364,8 +2364,8 @@ class Solution(collections.abc.Mapping):
       reject(state, "DirectToVgpr%c does not supports AssertFree1ElementMultiple %% VectorWidth != 0"%(tc))
       return False
 
-    if kernel["ThreadSeparateGlobalRead%s"%tc]:
-      reject(state, "DirectToVgpr(=%c) does not work with ThreadSeparateGlobalRead(-%c)"%(tc,tc))
+    if state["ThreadSeparateGlobalRead%s"%tc]:
+      reject(state, "DirectToVgpr%c does not work with ThreadSeparateGlobalRead%c"%(tc,tc))
       return False
     
     # Does not work with DirectToLDS
