@@ -2784,8 +2784,9 @@ class Solution(collections.abc.Mapping):
     if state["ExpandPointerSwap"] == 1:
       # Pointer swap only used if PGR==1 or (PGR>1 and double/double complex) - so set ExpandPointerSwap=0 here
       # So far, EPS=1 and PGR>1 works only with double/double complex.
+      # DirectToVgpr case, bufferLoad=False can work with ExpandPointerSwap=1
       #if not (bufferLoad and state["PrefetchGlobalRead"] == 1):
-      if not (( state["PrefetchGlobalRead"] == 1 \
+      if not ((bufferLoad or state["DirectToVgprA"] or state["DirectToVgprB"]) and ( state["PrefetchGlobalRead"] == 1 \
               or (state["PrefetchGlobalRead"] > 1 and \
                   (state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex())))):
         state["ExpandPointerSwap"] = 0
