@@ -34,7 +34,6 @@
 #include <vector>
 
 #include <hip/hip_runtime.h>
-#include <rocm_smi/rocm_smi.h>
 
 #include "HardwareMonitorType.hpp"
 
@@ -55,94 +54,56 @@ namespace Tensile
         public:
             /** Translates the Hip device index into the corresponding device index for
    * ROCm-SMI. */
-
             using clock = std::chrono::steady_clock;
 
             // Monitor at the maximum possible rate.
-            HardwareMonitor(int hipDeviceIndex);
+            HardwareMonitor(int hipDeviceIndex){};
             // Limit collection to once per minPeriod.
-            HardwareMonitor(int hipDeviceIndex, clock::duration minPeriod);
+            HardwareMonitor(int hipDeviceIndex, clock::duration minPeriod){};
 
-            ~HardwareMonitor();
+            ~HardwareMonitor(){};
 
-            void addTempMonitor();
-            void addClockMonitor(ClockType clockType);
-            void addFanSpeedMonitor(uint32_t sensorIndex = 0);
+            void addTempMonitor(){};
+            void addClockMonitor(ClockType clockType){};
+            void addFanSpeedMonitor(uint32_t sensorIndex = 0){};
 
-            double getAverageTemp();
-            double getAverageClock(ClockType clockType);
-            double getAverageFanSpeed(uint32_t sensorIndex = 0);
-            int    getDeviceIndex()
+            double getAverageTemp()
             {
-                return m_hipDeviceIndex;
+                return 0.0;
+            };
+            double getAverageClock(ClockType clockType)
+            {
+                return 0.0;
+            };
+            double getAverageFanSpeed(uint32_t sensorIndex = 0)
+            {
+                return 0.0;
+            };
+            int getDeviceIndex()
+            {
+                return 0;
             }
             size_t getSamples()
             {
-                return m_dataPoints;
+                return 1;
             }
 
             /// Begins monitoring until stop() is called.
-            void start();
+            void start(){};
 
             /// Sends a signal to the monitoring thread to end monitoring.
-            void stop();
+            void stop(){};
 
             /// Begins monitoring immediately, until the event has occurred.
-            void runUntilEvent(hipEvent_t event);
+            void runUntilEvent(hipEvent_t event){};
 
             /// Monitoring will occur from startEvent until stopEvent.
-            void runBetweenEvents(hipEvent_t startEvent, hipEvent_t stopEvent);
+            void runBetweenEvents(hipEvent_t startEvent, hipEvent_t stopEvent){};
 
             /// Waits until monitoring has finished.
             /// Throws an exception if monitoring was started without a stop event
             /// and stop() has not been called.
-            void wait();
-
-        private:
-            static uint32_t GetROCmSMIIndex(int hipDeviceIndex);
-            static void     InitROCmSMI();
-
-            void assertActive();
-            void assertNotActive();
-
-            void clearValues();
-            void collectOnce();
-            void sleepIfNecessary();
-
-            void initThread();
-            void runLoop();
-            void collect(hipEvent_t startEvent, hipEvent_t stopEvent);
-
-            clock::time_point m_lastCollection;
-            clock::time_point m_nextCollection;
-            clock::duration   m_minPeriod;
-
-            std::thread m_thread;
-
-            std::mutex              m_mutex;
-            std::condition_variable m_cv;
-
-            using Task = std::packaged_task<void(void)>;
-            Task              m_task;
-            std::future<void> m_future;
-            std::atomic<bool> m_exit;
-            std::atomic<bool> m_stop;
-            bool              m_hasStopEvent = false;
-
-            int      m_hipDeviceIndex;
-            uint32_t m_smiDeviceIndex;
-
-            size_t m_dataPoints;
-
-            std::vector<std::tuple<rsmi_temperature_type_t, rsmi_temperature_metric_t>>
-                                 m_tempMetrics;
-            std::vector<int64_t> m_tempValues;
-
-            std::vector<rsmi_clk_type_t> m_clockMetrics;
-            std::vector<uint64_t>        m_clockValues;
-
-            std::vector<uint32_t> m_fanMetrics;
-            std::vector<int64_t>  m_fanValues;
+            void wait(){};
         };
     } // namespace Client
 } // namespace Tensile
