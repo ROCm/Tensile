@@ -3214,6 +3214,24 @@ class Solution(collections.abc.Mapping):
     state["LVCB"] = roundupRatio(state["LSCB"] , state["GlobalLoadVectorWidthB"])
     state["LVPB"] = roundupRatio(state["LSPB"] , state["GlobalLoadVectorWidthB"])
 
+    if state["SplitGlobalRead"] > 1:
+      if state["DirectToVgprA"] or state["DirectToVgprB"]:
+        reject(state, "SplitGlobalRead does not work with DirectToVgpr")
+      if state["GlobalReadCoalesceGroupA"]:
+        if state["GlobalReadCoalesceVectorA"]:
+          divisorName = "LVCA"
+        else:
+          # Fractional load use the more accurate lsc, multiply by VW later
+          divisorName = "LSCA"
+      else:
+        if state["GlobalReadCoalesceVectorA"]:
+          divisorName = "LSPA"
+        else:
+          divisorName = "LVPA"
+      divisor = state[divisorName]
+      if state["SplitGlobalRead"] >= divisor:
+        reject(state, "SplitGlobalRead must be less than lvc/lsc/lvp/lsc")
+
     for tc in ('A','B'):
       if problemType["TLU%s"%tc]:
         pos = problemType["IndexAssignments%s"%tc].index(problemType["Index01%s"%tc])
