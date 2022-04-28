@@ -30,15 +30,43 @@
 
 using namespace SolutionSelection;
 
+
+/*
+ * Tests for invalid tree structures
+ * e.g. trees that try go out of bounds, trees with circular paths
+ */
 TEST(DecisionTreeTest, ValidTree)
 {
     DecisionTree test_tree{ {
-        /* start */ { DecisionTree::DT_MSIZE, 7000, 1, 2 }, // right idx OOB
-        /* 1 */     { DecisionTree::DT_RETURN, 0.0, 0, 0 },
+        /* start */ { DecisionTree::DT_MSIZE, 7000, 1, 2 },
+        /* 1 */     { DecisionTree::DT_NSIZE, 3000, 3, 4 },
         /* 2 */     { DecisionTree::DT_RETURN, 0.0, 0, 0 },
+        /* 3 */     { DecisionTree::DT_RETURN, 0.0, 0, 0 },
+        /* 4 */     { DecisionTree::DT_RETURN, 1.0, 0, 0 },
     } };
 
-    EXPECT_TRUE(test_tree.valid(true));
+    /*
+    Makes the following tree:
+    start: (MSIZE <= 7000?)
+                |
+                |
+                |--------------------
+                |                   |
+               YES                  NO
+                |                   |
+                |                   |
+        1:(NSIZE <= 3000?)      2:(RETURN 0.0)
+                |
+                |
+                |--------------------
+                |                   |
+               YES                  NO
+                |                   |
+                |                   |
+        3:(RETURN 0.0)          4:(RETURN 1.0)
+    */
+
+    EXPECT_TRUE(test_tree.valid());
 }
 
 TEST(DecisionTreeTest, InvalidTreeIdxOOB)
@@ -85,6 +113,10 @@ TEST(DecisionTreeTest, InvalidTreeCircularLong)
     EXPECT_FALSE(test_tree.valid());
 }
 
+
+/*
+ * Tests for correct predictions.
+ */
 TEST(DecisionTreeTest, SimplePrediction)
 {
     float EXPECTED_RETURN = 1.0;
