@@ -55,7 +55,7 @@ namespace SolutionSelection
 
         typedef std::array<float, DT_NUM_FEATURES> feature_arr_t;
 
-        struct DecisionTreeNode
+        struct Node
         {
             node_type_t type;       // Type indicates end node, or decision based on associated feature
             float value;            // Return value if end node, otherwise decision threshold
@@ -68,7 +68,7 @@ namespace SolutionSelection
         };
 
 
-        DecisionTree(std::vector<DecisionTreeNode> tree) : _tree{ std::move(tree) } { }
+        DecisionTree(std::vector<Node> tree) : _tree{ std::move(tree) } { }
 
         /****
          * default constructors/assignments/destructor
@@ -83,6 +83,6 @@ namespace SolutionSelection
 
 
         private:
-        std::vector<DecisionTreeNode> _tree;
+        std::vector<Node> _tree;
     }; // class DecisionTree
 } // namespace SolutionSelection

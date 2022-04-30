@@ -26,6 +26,7 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <string>
 
 
 namespace SolutionSelection
@@ -33,8 +34,17 @@ namespace SolutionSelection
     bool DecisionTree::valid(bool verbose)
     {
         int tree_size = _tree.size();
-        DecisionTreeNode current_node;
+        Node current_node;
         bool valid = true;
+
+        if (tree_size == 0)
+        {
+            if (verbose)
+            {
+                std::cout << "Tree invalid: no nodes " << std::endl;
+            }
+            return false;
+        }
 
         // Check for any invalid nodes
         for (int node_idx = 0; node_idx < tree_size; node_idx++)
@@ -87,7 +97,7 @@ namespace SolutionSelection
     {
         int node_idx  = 0;
         int tree_size = _tree.size();
-        DecisionTreeNode current_node;
+        Node current_node;
 
         while (node_idx < tree_size)
         {

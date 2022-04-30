@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2020-2021 Advanced Micro Devices, Inc.
+ * Copyright 2020-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -47,26 +47,33 @@ TEST(DecisionTreeTest, ValidTree)
 
     /*
     Makes the following tree:
-    start: (MSIZE <= 7000?)
-                |
-                |
-                |--------------------
-                |                   |
-               YES                  NO
-                |                   |
-                |                   |
+        start:(MSIZE <= 7000?)
+            |
+            |
+            |------------------------
+            |                       |
+           YES                      NO
+            |                       |
+            |                       |
         1:(NSIZE <= 3000?)      2:(RETURN 0.0)
-                |
-                |
-                |--------------------
-                |                   |
-               YES                  NO
-                |                   |
-                |                   |
+            |
+            |
+            |------------------------
+            |                       |
+           YES                      NO
+            |                       |
+            |                       |
         3:(RETURN 0.0)          4:(RETURN 1.0)
     */
 
     EXPECT_TRUE(test_tree.valid());
+}
+
+TEST(DecisionTreeTest, InvalidTreeEmpty)
+{
+    DecisionTree test_tree{ { } };
+
+    EXPECT_FALSE(test_tree.valid());
 }
 
 TEST(DecisionTreeTest, InvalidTreeIdxOOB)
