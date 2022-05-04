@@ -91,10 +91,8 @@ namespace Tensile
                 auto result = findBestSolution_runner(problem, hardware, fitness);
                 auto end    = std::chrono::steady_clock::now();
 
-                auto time
-                    = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-                //double time = static_cast<double>(duration);
-                std::cout << "Solution selection time: " << time << " nanoseconds" << std::endl;
+                double time = std::chrono::duration<double, std::micro>(end - start).count();
+                std::cout << "Solution selection time: " << time << " us" << std::endl;
 
                 return result;
             }
