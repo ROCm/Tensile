@@ -221,12 +221,28 @@ class LocalReadMFMA(LocalRead):
                     for oIdx in range(0, numOffsets):
                         if (kernel["DirectToLds%s" % tP["tensorChar"]] and  \
                             kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"] > 4):
-                          # directToLds special case
-                          divVal = 4 if kernel["ProblemType"]["DataType"].isDoubleComplex() else 2
-                          rIdxMod = rIdx % divVal
-                          rIdxDiv = rIdx // divVal
-                          offset_val = (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride
-                          offset_val = (rIdxDiv * UnrollStride + offset_val + tP["localReadOffset"]) * tP["bpe"]  + rIdxMod * writer.bpr
+                          if not kernel["UnrollMajorLDS%s" % tP["tensorChar"]]:
+                            # directToLds special case
+                            divVal = 4 if kernel["ProblemType"]["DataType"].isDoubleComplex() else 2
+                            rIdxMod = rIdx % divVal
+                            rIdxDiv = rIdx // divVal
+                            offset_val = (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride
+                            offset_val = (rIdxDiv * UnrollStride + offset_val + tP["localReadOffset"]) * tP["bpe"]  + rIdxMod * writer.bpr
+                            #print("Debug: vIdx:%u eIdx:%u lrdoffset:%u oIdx:%u ustride:%u wgsize:%u,divVal:%u rIdx:%u"%(vIdx,eIdx,tP["localReadOffset"],oIdx,UnrollStride,MIWaveGroupShape[tile01],divVal,rIdx))
+                          else:
+                            divVal = 4 if kernel["ProblemType"]["DataType"].isDoubleComplex() else 2
+                            rIdxMod = rIdx % divVal
+                            rIdxDiv = rIdx // divVal
+                            lrdOffsetMod = kernel["_DepthULds"] if not kernel["ThreadSeparateGlobalRead%c"%tc] else (kernel["_DepthULds"]//(kernel["ThreadSeparateGlobalRead%c"%tc]*2))
+                            offset_val = (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride
+                            offset_val = (rIdxDiv * UnrollStride + offset_val + (tP["localReadOffset"] % lrdOffsetMod)) * tP["bpe"]  + rIdxMod * writer.bpr
+                            if kernel["ThreadSeparateGlobalRead%c"%tc]:
+                              if (tP["localReadOffset"] >= (kernel["_DepthULds"] // (kernel["ThreadSeparateGlobalRead%c"%tc]*2))):
+                                MblockSizePerLoad = (kernel["WavefrontSize"] * kernel["GlobalLoadVectorWidth%c"%tc]) // kernel["_DepthULds"]
+                                unrollKtile = (kernel["_DepthULds"] // (kernel["ThreadSeparateGlobalRead%c"%tc]*2))
+                                print("Debug: vIdx:%u eIdx:%u lrdoffset:%u oIdx:%u ustride:%u wgsize:%u,divVal:%u rIdx:%u offset_val%u"%(vIdx,eIdx,tP["localReadOffset"],oIdx,UnrollStride,MIWaveGroupShape[tile01],divVal,rIdx,offset_val))
+                                offset_val = offset_val + (MblockSizePerLoad * unrollKtile * tP["bpe"])
+                                print("Debug: vIdx:%u eIdx:%u lrdoffset:%u oIdx:%u ustride:%u wgsize:%u,divVal:%u rIdx:%u offset_val%u"%(vIdx,eIdx,tP["localReadOffset"],oIdx,UnrollStride,MIWaveGroupShape[tile01],divVal,rIdx,offset_val))
                         else:
                           # normal case
                           offset_val = (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride
@@ -250,12 +266,13 @@ class LocalReadMFMA(LocalRead):
                           if (kernel["GlobalLoadVectorWidth%s"%tc] * tP["bpe"] == 8):
                             # dword_x2 case
                             # (bit2<<3) | (bit3 >>1) | (bit4>>1) | (bit5>>1)
-                            newVal = (bit2<<3) | (bit3 >>1) | (bit4>>1) | (bit5>>1)
+                            offset_val = offset_val & (~0x24)
+                            newVal = (bit2<<3) | (bit5>>1)
                           else:  #if (kernel["GlobalLoadVectorWidth%s"%tc] * tP["bpe"] == 16):  # most preferred case
                             # dword_x4 case
                             # (bit2<<3) | (bit3 <<1) | (bit4>>2) | (bit5>>2)
+                            offset_val = offset_val & (~0x3c)
                             newVal = (bit2<<3) | (bit3 <<1) | (bit4>>2) | (bit5>>2)
-                          offset_val = offset_val & (~0x3c)
                           offset_val = offset_val | newVal
 
                         paramList.append(int(offset_val))

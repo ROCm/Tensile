@@ -3141,13 +3141,13 @@ class Solution(collections.abc.Mapping):
 
       if validDepthU:
       # check depthU and ThreadSeparateGlobalReadA==1 depthU*bpe <= 64 bytes reject ThreadSeparateGlobalRead =1 
-      # only Enable when TN layout
-      # reject  depthU  less than cache line size
+      # only Enable TLU=1 case
+      # reject depthU for cases requiring < 2 lanes per fragment. deothU * bpe  must be mulitple of cache-line sizes(l2) 
         if not state["ProblemType"]["TLUA"]:
-          if ((depthU * state["ProblemType"]["DataType"].numBytes() < 128) and state["ThreadSeparateGlobalReadA"]):
+          if state["ThreadSeparateGlobalReadA"] and (((depthU//state["GlobalLoadVectorWidthA"])// (2 * state["ThreadSeparateGlobalReadA"])) < 2):
             validDepthU= False
         if not state["ProblemType"]["TLUB"]:
-          if ((depthU * state["ProblemType"]["DataType"].numBytes() < 128) and state["ThreadSeparateGlobalReadB"]):
+          if state["ThreadSeparateGlobalReadB"] and (((depthU//state["GlobalLoadVectorWidthB"])// (2 * state["ThreadSeparateGlobalReadB"])) < 2):
             validDepthU= False
 
       # this depthU is valid, done unless user wants to double (for TN)
@@ -3507,12 +3507,9 @@ class Solution(collections.abc.Mapping):
       if state["DirectToLds"] and state["1LDSBuffer"]:
         reject(state, "1LDSBuffer must be 0 for directToLds") 
 
-
     if state["EnableMatrixInstruction"]:
        if state["ThreadSeparateGlobalReadA"] and not state["DirectToLdsA"]: 
          reject(state, "ThreadSeparateGlobalReadA require DirectToLdsA")
-   
-    if state["EnableMatrixInstruction"]:
        if state["ThreadSeparateGlobalReadB"] and not state["DirectToLdsB"]: 
          reject(state, "ThreadSeparateGlobalReadB require DirectToLdsB")
 

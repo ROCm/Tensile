@@ -1758,6 +1758,12 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
+  # Local Read Addresses for direct LDS : Final Offset A/B
+  ##############################################################################
+  def directToLdsLraOffset(self, kernel, finalVgpr, tP):
+    return ""
+
+  ##############################################################################
   # Local Read Addresses offset conversion for DTL + NLC > 1
   ##############################################################################
   def lraOffsetConversionForDTLandNLC(self, kernel, tP, offset_val, generateAsm=False, \

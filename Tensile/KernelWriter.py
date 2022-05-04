@@ -4190,6 +4190,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
     return ""
 
   ##############################################################################
+  # Local Read Addresses for direct LDS : Final Offset A/B
+  ##############################################################################
+  @abc.abstractmethod
+  def directToLdsLraOffset(self, kernel, finalVgpr, tP):
+    return ""
+
+  ##############################################################################
   # Local Read Addresses offset conversion for DTL + NLC > 1
   ##############################################################################
   @abc.abstractmethod
