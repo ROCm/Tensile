@@ -64,10 +64,11 @@ namespace Tensile
         }
     };
 
-    template <typename Key, typename MyProblem, typename MySolution = typename MyProblem::Solution>
+    template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct DecisionTreeLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
         using Element    = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
+        using Key        = std::array<int64_t, 3>;
         using Tree       = DecisionTree::Tree<Key, Element, std::shared_ptr<MySolution>>;
         using Properties = std::vector<std::shared_ptr<Property<MyProblem>>>;
 

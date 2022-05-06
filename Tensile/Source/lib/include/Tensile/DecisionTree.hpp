@@ -40,18 +40,18 @@ namespace Tensile
      */
     namespace DecisionTree
     {
+        struct Node
+        {
+            int   type;
+            float value;
+            int   nextIdxLeft;
+            int   nextIdxRight;
+        };
+
         template <typename Key, typename Value, typename ReturnValue>
         struct Tree
         {
             using Transform = std::function<ReturnValue(Value)>;
-
-            struct Node
-            {
-                int          type;
-                float        value;
-                unsigned int nextIdxLeft;
-                unsigned int nextIdxRight;
-            };
 
             Tree() = default;
             Tree(std::vector<Key> tree)

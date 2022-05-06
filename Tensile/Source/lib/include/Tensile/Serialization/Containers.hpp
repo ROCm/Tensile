@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,6 +30,7 @@
 
 #include <Tensile/AMDGPUPredicates.hpp>
 #include <Tensile/ContractionProblemPredicates.hpp>
+#include <Tensile/DecisionTreeLibrary.hpp>
 #include <Tensile/ExactLogicLibrary.hpp>
 #include <Tensile/GranularitySelectionLibrary.hpp>
 #include <Tensile/PropertyMatching.hpp>
@@ -195,6 +196,11 @@ namespace Tensile
                   false>
         {
         };
+
+        TENSILE_SERIALIZE_VECTOR(true, Tensile::DecisionTree::Node);
+        TENSILE_SERIALIZE_VECTOR(true,
+                                 Tensile::DecisionTreeLibrary<Tensile::ContractionProblem,
+                                                              Tensile::ContractionSolution>::Tree);
 
         template <typename T, size_t N, typename IO>
         struct SequenceTraits<std::array<T, N>, IO>
