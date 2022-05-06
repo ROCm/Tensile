@@ -105,7 +105,7 @@ namespace Tensile
                 if(result > 0)
                     return tree.getSolution(transform);
             }
-            return nullptr;
+            return std::shared_ptr<MySolution>();
         }
 
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
