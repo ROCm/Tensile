@@ -3421,6 +3421,10 @@ class KernelWriterAssembly(KernelWriter):
       kStr += vectorStaticRemainder(dummy, dividendReg, "Serial", self.kernel["WavefrontSize"], tmpVgpr, tmpSgpr)
 
     splitRead = kernel["SplitGlobalRead"]
+    # Split global read reorders reading rows within lanes of a wavefront
+    # If the wavefront is reading all from a single row, then disable split global read for this tensor
+    if divisor > 64:
+      splitRead = 1
 
     if kernel["DirectToVgpr%s"%tc]:
       # offset calculation for DirectToVgpr
