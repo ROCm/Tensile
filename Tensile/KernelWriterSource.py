@@ -1760,7 +1760,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Read Addresses for direct LDS : Final Offset A/B
   ##############################################################################
-  def directToLdsLraOffset(self, kernel, finalVgpr, tP):
+  def directToLdsLraOffset(self, kernel, finalVgpr, tmp1, tmp2, tP):
     return ""
 
   ##############################################################################

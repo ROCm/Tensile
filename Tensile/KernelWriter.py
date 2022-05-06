@@ -4193,7 +4193,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # Local Read Addresses for direct LDS : Final Offset A/B
   ##############################################################################
   @abc.abstractmethod
-  def directToLdsLraOffset(self, kernel, finalVgpr, tP):
+  def directToLdsLraOffset(self, kernel, finalVgpr, tmp1, tmp2, tP):
     return ""
 
   ##############################################################################

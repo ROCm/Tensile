@@ -3469,6 +3469,8 @@ class KernelWriterAssembly(KernelWriter):
            kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, (divisor // (kernel["ThreadSeparateGlobalRead%s"%tc]*2)) , tmpVgpr, tmpSgpr)
       else:
         kStr += vectorStaticDivideAndRemainder(qReg, rReg, dividendReg, divisor, tmpVgpr, tmpSgpr)
+
+      #split Wavefront threads into groups (ThreadSeparateGlobalRead<<1) fetching depthU/ThreadSeparateGlobalRead<<1 elements per group
       if kernel["ThreadSeparateGlobalRead%s"%tc]:
         kStr += vectorStaticRemainder(dummy, dividendReg, "Serial",self.kernel["WavefrontSize"], tmpVgpr, tmpSgpr)
         kStr += inst("v_lshrrev_b32", vgpr(tmpVgpr), hex(log2(self.kernel["WavefrontSize"]//(kernel["ThreadSeparateGlobalRead%s"%tc]*2))), vgpr(dividendReg), "ThreadFragmentsize -- groups ( each group with #threads) required for depthU elements")
@@ -4829,7 +4831,11 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_lshlrev_b32", vgpr(tP["gpr"]["lro"]), hex(log2(tP["bpe"])), vgpr(tP["gpr"]["lro"]),  \
               "Final Offset: offset = (lro%s*VW)*bpe+lsuoffset*bpr" % tile01);
       kStr += inst("_v_add_u32", finalVgpr, vgpr(sgid), vgpr(tP["gpr"]["lro"]), "")
-      kStr += self.directToLdsLraOffset(kernel,finalVgpr,tP)
+
+      tmp1    = self.vgprPool.checkOut(1,"tmp1")
+      tmp2    = self.vgprPool.checkOut(1,"tmp2")
+
+      kStr += self.directToLdsLraOffset(kernel,finalVgpr,tmp1,tmp2,tP)
 
       if not kernel["ThreadSeparateGlobalRead%s"%tc]:
         if kernel["ProblemType"]["TLU%c"%tc]:
@@ -4838,6 +4844,8 @@ class KernelWriterAssembly(KernelWriter):
                                                            finalVgpr=finalVgpr, tmp1=tmp1, tmp2=tmp2)
           kStr += newStr
 
+      self.vgprPool.checkIn(tmp1)
+      self.vgprPool.checkIn(tmp2)
     else:
       kStr += inst("_v_add_lshl_u32", finalVgpr, vgpr(sgid), vgpr(tP["gpr"]["lro"]), hex(log2(tP["bpe"])), \
         "Final Offset: offset = (lro%s*VW+lsuoffset)*bpe" % tile01 )
@@ -13759,11 +13767,9 @@ class KernelWriterAssembly(KernelWriter):
   #  - VGpr offset register (finalVgpr)
   # return Instruction string
   ##########################################################################
-  def directToLdsLraOffset(self,kernel,finalVgpr,tP):
+  def directToLdsLraOffset(self,kernel,finalVgpr,tmp1,tmp2,tP):
     kStr = ""
 
-    tmp1 = self.vgprPool.checkOut(1,"tmp1")
-    tmp2 = self.vgprPool.checkOut(1,"tmp2")
     tc = tP["tensorChar"]
     # need magic offset calc here (after final offset)
     # offset calculation for TLU=1 when glvw * bpe * wavefrontsize > 256
@@ -13774,7 +13780,7 @@ class KernelWriterAssembly(KernelWriter):
     #  0    4    8    12    16   20   24   28   32   36   40   44    48    52   56   60
     #  data dword#:
     #  0    4    8    12    2    6    10   14    1   5    9    13     3    7    11   15
-    #  Noffset calculation for VW =1 (BPe=8) / VW =2 (BPE=4)
+    #  Noffset calculation for VW =1 (BPE=8) / VW =2 (BPE=4)
     #  use direcToLds for best VW and GRVW case; other cases requires bit more lane manipulation.
     #  offset calculation  for B might benefit from some optimization.
     #  offset calculation for x2/x4  is basically manipulation lane offset based on layout
@@ -13828,8 +13834,6 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("v_lshlrev_b32",vgpr(tmp1),hex(2),vgpr(tmp1),"")
           kStr += inst("_v_add_u32",finalVgpr,finalVgpr,vgpr(tmp1),"")
 
-      self.vgprPool.checkIn(tmp1)
-      self.vgprPool.checkIn(tmp2)
     return kStr
 
 

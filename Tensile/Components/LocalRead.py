@@ -240,9 +240,8 @@ class LocalReadMFMA(LocalRead):
                               if (tP["localReadOffset"] >= (kernel["_DepthULds"] // (kernel["ThreadSeparateGlobalRead%c"%tc]*2))):
                                 MblockSizePerLoad = (kernel["WavefrontSize"] * kernel["GlobalLoadVectorWidth%c"%tc]) // kernel["_DepthULds"]
                                 unrollKtile = (kernel["_DepthULds"] // (kernel["ThreadSeparateGlobalRead%c"%tc]*2))
-                                print("Debug: vIdx:%u eIdx:%u lrdoffset:%u oIdx:%u ustride:%u wgsize:%u,divVal:%u rIdx:%u offset_val%u"%(vIdx,eIdx,tP["localReadOffset"],oIdx,UnrollStride,MIWaveGroupShape[tile01],divVal,rIdx,offset_val))
                                 offset_val = offset_val + (MblockSizePerLoad * unrollKtile * tP["bpe"])
-                                print("Debug: vIdx:%u eIdx:%u lrdoffset:%u oIdx:%u ustride:%u wgsize:%u,divVal:%u rIdx:%u offset_val%u"%(vIdx,eIdx,tP["localReadOffset"],oIdx,UnrollStride,MIWaveGroupShape[tile01],divVal,rIdx,offset_val))
+                                #print("Debug: vIdx:%u eIdx:%u lrdoffset:%u oIdx:%u ustride:%u wgsize:%u,divVal:%u rIdx:%u offset_val%u"%(vIdx,eIdx,tP["localReadOffset"],oIdx,UnrollStride,MIWaveGroupShape[tile01],divVal,rIdx,offset_val))
                         else:
                           # normal case
                           offset_val = (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride
