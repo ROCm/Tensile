@@ -108,6 +108,44 @@ TEST(ContractionSelectionLibraryTest, GPUSelection)
     EXPECT_EQ(lib.findBestSolution(*problem, *v10), genericSolution);
 }
 
+TEST(ContractionSelectionLibraryTest, RegionSelection)
+{
+    // Create solutions
+    auto region1Solution = std::make_shared<ContractionSolution>();
+    auto region2Solution = std::make_shared<ContractionSolution>();
+    auto genericSolution = std::make_shared<ContractionSolution>();
+
+    // Create libraries
+    auto region1Lib = std::make_shared<SingleContractionLibrary>(region1Solution);
+    auto region2Lib = std::make_shared<SingleContractionLibrary>(region2Solution);
+    auto genericLib = std::make_shared<SingleContractionLibrary>(genericSolution);
+
+    // Create region predicate for (6000 <= M < 8000), (6000 <= N < 7000)
+    auto isRegion1 = std::make_shared<Predicates::Contraction::SizeInRegion>(0, std::make_pair(6000, 8000), std::make_pair(6000, 7000));
+
+    // Create region predicate for (6000 <= M < 8000), (7000 <= N < 8000)
+    auto isRegion2 = std::make_shared<Predicates::Contraction::SizeInRegion>(0, std::make_pair(6000, 8000), std::make_pair(7000, 8000));
+
+    // Create fallthrough predicate (i.e. default)
+    ContractionProblemPredicate allProbs(std::make_shared<Predicates::True<ContractionProblem>>());
+
+    // Create hierarchy for region selection
+    ContractionProblemSelectionLibrary::Row Region1Row(isRegion1, region1Lib);
+    ContractionProblemSelectionLibrary::Row Region2Row(isRegion2, region2Lib);
+    ContractionProblemSelectionLibrary::Row GenericRow(allProbs, genericLib);
+    ContractionProblemSelectionLibrary lib({Region1Row, Region2Row, GenericRow});
+
+
+    auto Region1Problem   = ContractionProblem::GEMM(false, false,  7000, 6500, 1000,  7000, 1000, 7000,  1.0, false, 1);
+    auto Region2Problem   = ContractionProblem::GEMM(false, false,  7000, 7500, 1000,  7000, 1000, 7000,  1.0, false, 1);
+    auto OutRegionProblem = ContractionProblem::GEMM(false, false,  5000, 2000, 1000,  5000, 1000, 5000,  1.0, false, 1);
+
+    AMDGPU gpu;
+    EXPECT_EQ(lib.findBestSolution(Region1Problem, gpu),   region1Solution);
+    EXPECT_EQ(lib.findBestSolution(Region2Problem, gpu),   region2Solution);
+    EXPECT_EQ(lib.findBestSolution(OutRegionProblem, gpu), genericSolution);
+}
+
 TEST(ContractionSelectionLibraryTest, TransposeSelection)
 {
     auto NNSolution = std::make_shared<ContractionSolution>();

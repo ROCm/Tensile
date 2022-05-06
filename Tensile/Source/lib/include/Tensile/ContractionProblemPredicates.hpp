@@ -517,6 +517,51 @@ namespace Tensile
                 }
             };
 
+            struct SizeInRegion : public Predicate_CRTP<SizeInRegion, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+                size_t index;
+                std::pair<size_t, size_t> size0_range;
+                std::pair<size_t, size_t> size1_range;
+
+                SizeInRegion() = default;
+                SizeInRegion(size_t index,
+                             std::pair<size_t, size_t> size0_range,
+                             std::pair<size_t, size_t> size1_range)
+                    : index(index)
+                    , size0_range(size0_range)
+                    , size1_range(size1_range)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "SizeInRegion";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return ((size0_range.first <= problem.size(0)) && (problem.size(0) < size0_range.second))
+                        && ((size1_range.first <= problem.size(1)) && (problem.size(1) < size1_range.second));
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    // stream << *this << ": (" << problem.size(index) << " < " << value
+                    //        << ") == " << rv;
+                    stream << " Under Construction ";
+
+                    return rv;
+                }
+            };
+
             struct StrideAEqual : public Predicate_CRTP<StrideAEqual, ContractionProblem>
             {
                 enum
