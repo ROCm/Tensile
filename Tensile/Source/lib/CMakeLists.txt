@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -40,7 +40,6 @@ set(tensile_sources  ${tensile_sources}
     source/KernelLanguageTypes.cpp
     source/PerformanceMetricTypes.cpp
     source/ScalarValueTypes.cpp
-    source/SolutionSelectionDecisionTree.cpp
     source/TensorDescriptor.cpp
     source/TensorOps.cpp
     source/Tensile.cpp
@@ -112,7 +111,7 @@ if(TENSILE_USE_MSGPACK)
     if(DEFINED msgpack_inc)
         # include C++ headers manually
         # External header includes included as system files
-        target_include_directories(TensileHost 
+        target_include_directories(TensileHost
             SYSTEM PRIVATE $<BUILD_INTERFACE:${msgpack_inc}>
         )
     endif()
