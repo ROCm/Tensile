@@ -64,29 +64,31 @@ namespace Tensile
         }
     };
 
-    template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
-    struct DecisionTreeLibrary : public SolutionLibrary<MyProblem, MySolution>
+    template <typename MyProblem, typename MySolution>
+    struct DecisionTreeAbst
     {
-        using Element    = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
-        using Key        = std::array<int64_t, 3>;
-        using Tree       = DecisionTree::Tree<Key, Element, std::shared_ptr<MySolution>>;
         using Properties = std::vector<std::shared_ptr<Property<MyProblem>>>;
+        using Element    = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
 
-        Properties        properties;
+        Properties properties;
+
+        virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
+                                                             Hardware const&  hardware,
+                                                             double* fitness = nullptr) const = 0;
+
+        virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
+                                                         Hardware const&  hardware) const = 0;
+    };
+
+    template <typename MyProblem, typename MySolution, typename Key>
+    struct DecisionTreeImpl : public DecisionTreeAbst<MyProblem, MySolution>
+    {
+        using Base       = DecisionTreeAbst<MyProblem, MySolution>;
+        using Properties = typename Base::Properties;
+        using Element    = typename Base::Element;
+        using Tree       = DecisionTree::Tree<Key, Element, std::shared_ptr<MySolution>>;
+
         std::vector<Tree> trees;
-
-        static std::string Type()
-        {
-            return "DecisionTree";
-        }
-        virtual std::string type() const override
-        {
-            return Type();
-        }
-        virtual std::string description() const override
-        {
-            return "TODO: description";
-        }
 
         virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
                                                              Hardware const&  hardware,
@@ -105,6 +107,7 @@ namespace Tensile
                 if(result > 0)
                     return tree.getSolution(transform);
             }
+            std::cout << "no \"yes\" from tress" << std::endl;
             return std::shared_ptr<MySolution>();
         }
 
@@ -145,6 +148,39 @@ namespace Tensile
             }
 
             return myKey;
+        }
+    };
+
+    template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
+    struct DecisionTreeLibrary : public SolutionLibrary<MyProblem, MySolution>
+    {
+        std::shared_ptr<DecisionTreeAbst<MyProblem, MySolution>> forest;
+
+        virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
+                                                             Hardware const&  hardware,
+                                                             double*          fitness
+                                                             = nullptr) const override
+        {
+            return forest->findBestSolution(problem, hardware, fitness);
+        }
+
+        virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
+                                                         Hardware const&  hardware) const override
+        {
+            return forest->findAllSolutions(problem, hardware);
+        }
+
+        static std::string Type()
+        {
+            return "DecisionTree";
+        }
+        virtual std::string type() const override
+        {
+            return Type();
+        }
+        virtual std::string description() const override
+        {
+            return "TODO: description";
         }
     };
 

@@ -198,9 +198,18 @@ namespace Tensile
         };
 
         TENSILE_SERIALIZE_VECTOR(true, Tensile::DecisionTree::Node);
-        TENSILE_SERIALIZE_VECTOR(true,
-                                 Tensile::DecisionTreeLibrary<Tensile::ContractionProblem,
-                                                              Tensile::ContractionSolution>::Tree);
+        // TENSILE_SERIALIZE_VECTOR(true,
+        //                          Tensile::DecisionTreeLibrary<Tensile::ContractionProblem,
+        //                                                       Tensile::ContractionSolution>::Tree);
+
+        template <typename Key, typename Value, typename ReturnValue, typename IO>
+        struct SequenceTraits<std::vector<Tensile::DecisionTree::Tree<Key, Value, ReturnValue>>, IO>
+            : public DefaultSequenceTraits<
+                  std::vector<Tensile::DecisionTree::Tree<Key, Value, ReturnValue>>,
+                  IO,
+                  false>
+        {
+        };
 
         template <typename T, size_t N, typename IO>
         struct SequenceTraits<std::array<T, N>, IO>

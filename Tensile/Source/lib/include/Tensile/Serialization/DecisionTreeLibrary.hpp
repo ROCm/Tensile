@@ -50,13 +50,26 @@ namespace Tensile
 
             const static bool flow = false;
         };
+        template <typename MyProblem, typename MySolution, typename Key, typename IO>
+        struct MappingTraits<DecisionTreeImpl<MyProblem, MySolution, Key>, IO>
+        {
+            using LibImpl = DecisionTreeImpl<MyProblem, MySolution, Key>;
+            using iot     = IOTraits<IO>;
+
+            static void mapping(IO& io, LibImpl& lib)
+            {
+                iot::mapRequired(io, "trees", lib.trees);
+            }
+
+            const static bool flow = false;
+        };
 
         template <typename MyProblem, typename MySolution, typename IO>
         struct MappingTraits<DecisionTreeLibrary<MyProblem, MySolution>, IO>
         {
             using Library    = DecisionTreeLibrary<MyProblem, MySolution>;
-            using Properties = typename Library::Properties;
-            using Element    = typename Library::Element;
+            using Properties = typename DecisionTreeAbst<MyProblem, MySolution>::Properties;
+            using Element    = typename DecisionTreeAbst<MyProblem, MySolution>::Element;
 
             using iot = IOTraits<IO>;
 
@@ -65,11 +78,68 @@ namespace Tensile
                 Properties properties;
                 if(iot::outputting(io))
                 {
-                    properties = lib.properties;
+                    properties = lib.forest->properties;
                 }
-                iot::mapRequired(io, "properties", lib.properties);
-                iot::mapRequired(io, "trees", lib.trees);
+                iot::mapRequired(io, "properties", properties);
+                // iot::mapRequired(io, "trees", lib.trees);
+
+                bool success = false;
+                if(properties.size() == 0)
+                    iot::setError(io, "Matching table must have at least one property.");
+                else if(properties.size() == 1)
+                    success = mappingKey<std::array<int64_t, 1>>(io, lib, properties);
+                else if(properties.size() == 2)
+                    success = mappingKey<std::array<int64_t, 2>>(io, lib, properties);
+                else if(properties.size() == 3)
+                    success = mappingKey<std::array<int64_t, 3>>(io, lib, properties);
+                else if(properties.size() == 4)
+                    success = mappingKey<std::array<int64_t, 4>>(io, lib, properties);
+                else if(properties.size() == 5)
+                    success = mappingKey<std::array<int64_t, 5>>(io, lib, properties);
+                else if(properties.size() == 6)
+                    success = mappingKey<std::array<int64_t, 6>>(io, lib, properties);
+                else if(properties.size() == 7)
+                    success = mappingKey<std::array<int64_t, 7>>(io, lib, properties);
+                else if(properties.size() == 8)
+                    success = mappingKey<std::array<int64_t, 8>>(io, lib, properties);
+                else if(properties.size() == 9)
+                    success = mappingKey<std::array<int64_t, 9>>(io, lib, properties);
+                else if(properties.size() == 10)
+                    success = mappingKey<std::array<int64_t, 10>>(io, lib, properties);
+
+                if(!success)
+                    success = mappingKey<std::vector<int64_t>>(io, lib, properties);
+
+                if(!success)
+                    iot::setError(io, "Can't write out key: wrong type.");
             }
+
+            template <typename Key>
+            static bool mappingKey(IO& io, Library& lib, Properties const& properties)
+            {
+                using LibImpl = DecisionTreeImpl<MyProblem, MySolution, Key>;
+
+                std::shared_ptr<LibImpl> forest;
+
+                if(iot::outputting(io))
+                {
+                    forest = std::dynamic_pointer_cast<LibImpl>(lib.forest);
+                    if(!forest)
+                        return false;
+                }
+                else
+                {
+                    forest             = std::make_shared<LibImpl>();
+                    forest->properties = properties;
+                    lib.forest         = forest;
+                }
+
+                MappingTraits<LibImpl, IO>::mapping(io, *forest);
+
+                return true;
+            }
+
+            const static bool flow = false;
         };
 
         template <typename IO>
