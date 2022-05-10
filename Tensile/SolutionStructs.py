@@ -2487,6 +2487,20 @@ class Solution(collections.abc.Mapping):
 
     return True
 
+  @staticmethod
+  def getDivisorName(state, tC):
+    if state["GlobalReadCoalesceGroup{}".format(tC)]:
+      if state["GlobalReadCoalesceVector{}".format(tC)]:
+        divisorName = "LVC{}".format(tC)
+      else:
+        # Fractional load use the more accurate lsc, multiply by VW later
+        divisorName = "LSC{}".format(tC)
+    else:
+      if state["GlobalReadCoalesceVector{}".format(tC)]:
+        divisorName = "LSP{}".format(tC)
+      else:
+        divisorName = "LVP{}".format(tC)
+    return divisorName
 
   ########################################
   # assign all derived parameters
@@ -3219,19 +3233,11 @@ class Solution(collections.abc.Mapping):
         reject(state, "SplitGlobalRead not yet supported with DirectToLds")
       if state["DirectToVgprA"] or state["DirectToVgprB"]:
         reject(state, "SplitGlobalRead does not work with DirectToVgpr")
-      if state["GlobalReadCoalesceGroupA"]:
-        if state["GlobalReadCoalesceVectorA"]:
-          divisorName = "LVCA"
-        else:
-          # Fractional load use the more accurate lsc, multiply by VW later
-          divisorName = "LSCA"
-      else:
-        if state["GlobalReadCoalesceVectorA"]:
-          divisorName = "LSPA"
-        else:
-          divisorName = "LVPA"
-      divisor = state[divisorName]
-      if state["SplitGlobalRead"] >= divisor:
+      divisorNameA = Solution.getDivisorName(state, "A")
+      divisorNameB = Solution.getDivisorName(state, "B")
+      divisorA = state[divisorNameA]
+      divisorB = state[divisorNameB]
+      if state["SplitGlobalRead"] >= divisorA and state["SplitGlobalRead"] >= divisorB:
         reject(state, "SplitGlobalRead must be less than lvc/lsc/lvp/lsp")
 
     for tc in ('A','B'):
