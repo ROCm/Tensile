@@ -91,11 +91,6 @@ namespace Tensile
         };
 
         /**
-         * This exists to provide an abstraction around the different syntax of creating
-         * a vector of a size given at runtime vs. creating an array with a fixed size.
-         */
-
-        /**
          * Shared code between the generic DistanceMatchingTable and the specialization
          * for the special Equality distance
          */
@@ -248,7 +243,7 @@ namespace Tensile
             virtual std::string description() const override
             {
                 std::string rv = concatenate(
-                    "Table: Properties: ", this->properties, ", ", table.size(), " rows, ");
+                    "Table: Properties: ", this->properties, ", ", table.size(), " row(s), ");
 
                 rv += concatenate("Distance: ", Distance::Type());
 

@@ -29,6 +29,10 @@ namespace Tensile
 
     namespace ProblemKey
     {
+        /**
+         * This exists to provide an abstraction around the different syntax of creating
+         * a vector of a size given at runtime vs. creating an array with a fixed size.
+         */
         template <typename Key>
         struct KeyFactory
         {

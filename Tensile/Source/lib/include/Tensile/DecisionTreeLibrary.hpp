@@ -40,7 +40,9 @@ namespace Tensile
     /**
      * \ingroup SolutionLibrary
      *
-     * TODO: documentation
+     * Uses a set of decision trees to select a solution. Each decision tree manages
+     * a single solution and decides if said solution will perform well for the size
+     * asked for.
      */
 
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
@@ -60,7 +62,10 @@ namespace Tensile
         }
         virtual std::string description() const override
         {
-            return "TODO: description";
+            if(forest == nullptr)
+                return concatenate(type(), ", forest: nullptr");
+            else
+                return concatenate(type(), ": ", forest->description());
         }
 
         virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,

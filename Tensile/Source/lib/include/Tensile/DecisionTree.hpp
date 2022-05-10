@@ -35,10 +35,17 @@
 namespace Tensile
 {
     /**
-     * \ingroup SolutionSelection
+     * \ingroup Tensile
+     * \defgroup DecisionTree Decision Tree
      *
-     * A Decision tree model for matching kernels to problem types.
-     * See SolSelDecisionTree_test.cpp for usage and expected behaviour.
+     * @brief Tree based decisions on a list of Property values
+     *
+     * Generic decision tress for deciding on an object based on a list of Properties
+     * derived from the object. Used for DecisionTreeLibrary.
+     */
+
+    /**
+     * \ingroup DecisionTree
      */
     namespace DecisionTree
     {
@@ -50,6 +57,13 @@ namespace Tensile
             int   nextIdxRight;
         };
 
+        /**
+         * @brief Generic decision tree
+         *
+         * @tparam Key type used for deciding
+         * @tparam Value type managed by tree
+         * @tparam ReturnValue type returned by tree
+         */
         template <typename Key, typename Value, typename ReturnValue>
         struct Tree
         {
@@ -101,20 +115,45 @@ namespace Tensile
             Value             value;
         };
 
+        /**
+         * @brief Abstract base class for a group of decision trees
+         *
+         * @tparam Object type used to query trees
+         * @tparam Value type managed by trees
+         * @tparam ReturnValue type returned by trees
+         */
         template <typename Object, typename Value, typename ReturnValue>
         struct Forest
         {
             using Properties = std::vector<std::shared_ptr<Property<Object>>>;
             using Transform  = std::function<ReturnValue(Value)>;
 
-            Properties properties;
+            Forest() = default;
+            Forest(Properties const& properties)
+                : properties(properties)
+            {
+            }
+
+            virtual ~Forest() = default;
 
             virtual ReturnValue findBestMatch(Object const& problem, Transform transform) const = 0;
 
             virtual std::set<ReturnValue> matchesInOrder(Object const& problem,
                                                          Transform     transform) const = 0;
+
+            virtual std::string description() const = 0;
+
+            Properties properties;
         };
 
+        /**
+         * @brief Forest that returns first successful prediction from managed trees
+         *
+         * @tparam Key type used by trees for deciding
+         * @tparam Object type used to query trees
+         * @tparam Value type managed by trees
+         * @tparam ReturnValue type returned by trees
+         */
         template <typename Key, typename Object, typename Value, typename ReturnValue>
         struct BasicForest : public Forest<Object, Value, ReturnValue>
         {
@@ -123,7 +162,16 @@ namespace Tensile
             using Transform  = typename Base::Transform;
             using Properties = typename Base::Properties;
 
-            std::vector<Tree> trees;
+            BasicForest(ReturnValue nullValue = ReturnValue())
+                : nullValue(nullValue)
+            {
+            }
+
+            BasicForest(Properties const& properties, ReturnValue nullValue = ReturnValue())
+                : Base(properties)
+                , nullValue(nullValue)
+            {
+            }
 
             virtual ReturnValue findBestMatch(Object const& problem,
                                               Transform     transform) const override
@@ -135,8 +183,7 @@ namespace Tensile
                     if(result > 0)
                         return tree.getSolution(transform);
                 }
-                std::cout << "no \"yes\" from tress" << std::endl;
-                return ReturnValue();
+                return nullValue;
             }
 
             virtual std::set<ReturnValue> matchesInOrder(Object const& problem,
@@ -152,7 +199,15 @@ namespace Tensile
 
                 return rv;
             }
-        };
 
+            virtual std::string description() const override
+            {
+                return concatenate(
+                    "Forest: Properties: ", this->properties, ", ", trees.size(), " tree(s)");
+            }
+
+            std::vector<Tree> trees;
+            ReturnValue       nullValue;
+        };
     } // namespace DecisionTree
 } // namespace Tensile

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,13 +34,13 @@
 namespace Tensile
 {
     /**
- * \ingroup SolutionLibrary
- *
- * Uses a distance function to select kernels based on benchmarks.
- * Benchmarks are performed to determine the optimal kernel at a number of
- * specific sizes. At runtime, we find the benchmarked size that is closest
- * to the size asked for.
- */
+     * \ingroup SolutionLibrary
+     *
+     * Uses a distance function to select solutions based on benchmarks.
+     * Benchmarks are performed to determine the optimal solution at a number of
+     * specific sizes. At runtime, we find the benchmarked size that is closest
+     * to the size asked for.
+     */
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct ProblemMatchingLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
@@ -116,5 +116,4 @@ namespace Tensile
             return rv;
         }
     };
-
 } // namespace Tensile
