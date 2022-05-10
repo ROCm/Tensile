@@ -3215,6 +3215,8 @@ class Solution(collections.abc.Mapping):
     state["LVPB"] = roundupRatio(state["LSPB"] , state["GlobalLoadVectorWidthB"])
 
     if state["SplitGlobalRead"] > 1:
+      if state["DirectToLds"]:
+        reject(state, "SplitGlobalRead not yet supported with DirectToLds")
       if state["DirectToVgprA"] or state["DirectToVgprB"]:
         reject(state, "SplitGlobalRead does not work with DirectToVgpr")
       if state["GlobalReadCoalesceGroupA"]:
