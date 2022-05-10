@@ -399,7 +399,7 @@ validParameters = {
     # Splits global read addresses within a wave into a number of smaller groups
     # The default value of 1 reads the most contiguous elements across lanes,
     # but higher values may help avoid bank conflicts
-    "SplitGlobalRead":            [1, 2, 4, 8, 16, 32],
+    "SplitGlobalRead":            [1, 2, 4, 8],
 
     # PrefetchGlobalRead = 1:
     # Requires 2X LDS space, and VGPRs for buffering data on way into LDS
