@@ -3232,7 +3232,7 @@ class Solution(collections.abc.Mapping):
           divisorName = "LVPA"
       divisor = state[divisorName]
       if state["SplitGlobalRead"] >= divisor:
-        reject(state, "SplitGlobalRead must be less than lvc/lsc/lvp/lsc")
+        reject(state, "SplitGlobalRead must be less than lvc/lsc/lvp/lsp")
 
     for tc in ('A','B'):
       if problemType["TLU%s"%tc]:
