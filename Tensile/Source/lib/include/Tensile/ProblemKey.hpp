@@ -23,6 +23,7 @@
 #pragma once
 
 #include <Tensile/Debug.hpp>
+#include <Tensile/Properties.hpp>
 
 namespace Tensile
 {

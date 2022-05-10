@@ -31,6 +31,7 @@
 #include <vector>
 
 #include <Tensile/ProblemKey.hpp>
+#include <Tensile/Properties.hpp>
 
 namespace Tensile
 {
@@ -70,7 +71,7 @@ namespace Tensile
             using Transform = std::function<ReturnValue(Value)>;
 
             Tree() = default;
-            Tree(std::vector<Key> tree)
+            Tree(std::vector<Node> tree)
                 : tree(std::move(tree))
             {
             }
@@ -109,7 +110,66 @@ namespace Tensile
                 return transform(value);
             }
 
-            bool valid(bool verbose = false) const {}
+            bool valid(bool verbose = false) const
+            {
+                int  treeSize = tree.size();
+                Node currentNode;
+                bool valid = true;
+
+                if(treeSize == 0)
+                {
+                    if(verbose)
+                    {
+                        std::cout << "Tree invalid: no nodes " << std::endl;
+                    }
+                    return false;
+                }
+
+                // Check for any invalid nodes
+                for(int nodeIdx = 0; nodeIdx < treeSize; nodeIdx++)
+                {
+                    currentNode = tree[nodeIdx];
+                    if(currentNode.type != -1)
+                    {
+                        // Avoid OOB on feature array
+                        if(currentNode.type >= std::tuple_size<Key>::value)
+                        {
+                            if(verbose)
+                            {
+                                std::cout << "Node " << std::to_string(nodeIdx)
+                                          << " invalid: Unrecognised type '"
+                                          << std::to_string(currentNode.type) << "'" << std::endl;
+                            }
+                            valid = false;
+                        }
+                        // Avoid OOB on tree
+                        if((currentNode.nextIdxLeft < 0) || (currentNode.nextIdxRight < 0)
+                           || (treeSize <= currentNode.nextIdxLeft)
+                           || (treeSize <= currentNode.nextIdxRight))
+                        {
+                            if(verbose)
+                            {
+                                std::cout << "Node " << std::to_string(nodeIdx)
+                                          << " invalid: child index OOB" << std::endl;
+                            }
+                            valid = false;
+                        }
+                        // Avoid circular trees
+                        if((currentNode.nextIdxLeft <= nodeIdx)
+                           || (currentNode.nextIdxRight <= nodeIdx))
+                        {
+                            if(verbose)
+                            {
+                                std::cout << "Node " << std::to_string(nodeIdx)
+                                          << " invalid: potentially circular tree" << std::endl;
+                            }
+                            valid = false;
+                        }
+                    }
+                }
+
+                return valid;
+            }
 
             std::vector<Node> tree;
             Value             value;

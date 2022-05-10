@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -129,7 +129,7 @@ set(test_sources ${test_sources}
     EmbeddedData_test.cpp
     KernelArguments_test.cpp
     ProjectedPerformance_test.cpp
-    SolSelDecisionTree_test.cpp
+    DecisionTree_test.cpp
     TensorDescriptor_test.cpp
     TestData_test.cpp
     Utils_test.cpp
