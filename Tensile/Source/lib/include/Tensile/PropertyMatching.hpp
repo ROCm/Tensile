@@ -30,6 +30,7 @@
 
 #include <Tensile/Debug.hpp>
 #include <Tensile/Distance.hpp>
+#include <Tensile/ProblemKey.hpp>
 #include <Tensile/Properties.hpp>
 #include <Tensile/Utils.hpp>
 
@@ -93,28 +94,6 @@ namespace Tensile
          * This exists to provide an abstraction around the different syntax of creating
          * a vector of a size given at runtime vs. creating an array with a fixed size.
          */
-        template <typename Key>
-        struct KeyFactory
-        {
-        };
-
-        template <typename T>
-        struct KeyFactory<std::vector<T>>
-        {
-            static std::vector<T> MakeKey(size_t size)
-            {
-                return std::vector<T>(size);
-            }
-        };
-
-        template <typename T, size_t N>
-        struct KeyFactory<std::array<T, N>>
-        {
-            static std::array<T, N> MakeKey(size_t size)
-            {
-                return std::array<T, N>();
-            }
-        };
 
         /**
          * Shared code between the generic DistanceMatchingTable and the specialization
@@ -125,9 +104,8 @@ namespace Tensile
                   typename Value,
                   typename ReturnValue,
                   typename Distance>
-        class DistanceMatchingCommon : public MatchingTable<Object, Value, ReturnValue>
+        struct DistanceMatchingCommon : public MatchingTable<Object, Value, ReturnValue>
         {
-        public:
             using Base       = MatchingTable<Object, Value, ReturnValue>;
             using Entry      = MatchingTableEntry<Key, Value>;
             using Transform  = typename Base::Transform;
@@ -160,7 +138,8 @@ namespace Tensile
             virtual std::tuple<ReturnValue, double>
                 findBestMatch(Object const& object, Transform transform) const override
             {
-                return findBestKeyMatch(keyForProblem(object), transform);
+                return findBestKeyMatch(
+                    ProblemKey::keyForProblem<Key, Object>(object, this->properties), transform);
             }
 
             virtual ReturnValue findBestEvaluationSolution(Object const&   object,
@@ -244,7 +223,8 @@ namespace Tensile
 
             virtual std::vector<Value> matchesInOrder(Object const& object) const override
             {
-                return keyMatchesInOrder(keyForProblem(object));
+                return keyMatchesInOrder(
+                    ProblemKey::keyForProblem<Key, Object>(object, this->properties));
             }
 
             std::vector<Value> keyMatchesInOrder(Key const& key) const
@@ -265,25 +245,6 @@ namespace Tensile
                 return result;
             }
 
-            Key keyForProblem(Object const& object) const
-            {
-                bool debug = Debug::Instance().printPropertyEvaluation();
-
-                Key myKey = KeyFactory<Key>::MakeKey(this->properties.size());
-
-                for(int i = 0; i < this->properties.size(); i++)
-                    myKey[i] = (*this->properties[i])(object);
-
-                if(debug)
-                {
-                    std::cout << "Object key: ";
-                    streamJoin(std::cout, myKey, ", ");
-                    std::cout << std::endl;
-                }
-
-                return myKey;
-            }
-
             virtual std::string description() const override
             {
                 std::string rv = concatenate(
@@ -299,7 +260,6 @@ namespace Tensile
                 return Distance::Type();
             }
 
-        protected:
             std::vector<Entry> table;
             Distance           distance;
 
@@ -314,10 +274,9 @@ namespace Tensile
                   typename Value,
                   typename ReturnValue,
                   typename Distance>
-        class DistanceMatchingTable
+        struct DistanceMatchingTable
             : public DistanceMatchingCommon<Key, Object, Value, ReturnValue, Distance>
         {
-        public:
             using Base       = MatchingTable<Object, Value, ReturnValue>;
             using Entry      = MatchingTableEntry<Key, Value>;
             using Transform  = typename Base::Transform;
@@ -619,14 +578,13 @@ namespace Tensile
          * only select key in the table if it exactly matches the provided key
          */
         template <typename Key, typename Object, typename Value, typename ReturnValue>
-        class DistanceMatchingTable<Key, Object, Value, ReturnValue, Matching::Equality<Key>>
+        struct DistanceMatchingTable<Key, Object, Value, ReturnValue, Matching::Equality<Key>>
             : public DistanceMatchingCommon<Key,
                                             Object,
                                             Value,
                                             ReturnValue,
                                             Matching::Equality<Key>>
         {
-        public:
             using Base       = MatchingTable<Object, Value, ReturnValue>;
             using Entry      = MatchingTableEntry<Key, Value>;
             using Transform  = typename Base::Transform;

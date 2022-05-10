@@ -30,6 +30,8 @@
 #include <functional>
 #include <vector>
 
+#include <Tensile/ProblemKey.hpp>
+
 namespace Tensile
 {
     /**
@@ -97,6 +99,59 @@ namespace Tensile
 
             std::vector<Node> tree;
             Value             value;
+        };
+
+        template <typename Object, typename Value, typename ReturnValue>
+        struct Forest
+        {
+            using Properties = std::vector<std::shared_ptr<Property<Object>>>;
+            using Transform  = std::function<ReturnValue(Value)>;
+
+            Properties properties;
+
+            virtual ReturnValue findBestMatch(Object const& problem, Transform transform) const = 0;
+
+            virtual std::set<ReturnValue> matchesInOrder(Object const& problem,
+                                                         Transform     transform) const = 0;
+        };
+
+        template <typename Key, typename Object, typename Value, typename ReturnValue>
+        struct BasicForest : public Forest<Object, Value, ReturnValue>
+        {
+            using Base       = Forest<Object, Value, ReturnValue>;
+            using Tree       = Tree<Key, Value, ReturnValue>;
+            using Transform  = typename Base::Transform;
+            using Properties = typename Base::Properties;
+
+            std::vector<Tree> trees;
+
+            virtual ReturnValue findBestMatch(Object const& problem,
+                                              Transform     transform) const override
+            {
+                Key key = ProblemKey::keyForProblem<Key, Object>(problem, this->properties);
+                for(Tree const& tree : trees)
+                {
+                    float result = tree.predict(key);
+                    if(result > 0)
+                        return tree.getSolution(transform);
+                }
+                std::cout << "no \"yes\" from tress" << std::endl;
+                return ReturnValue();
+            }
+
+            virtual std::set<ReturnValue> matchesInOrder(Object const& problem,
+                                                         Transform     transform) const override
+            {
+                bool debug = Debug::Instance().printPropertyEvaluation();
+
+                std::set<ReturnValue> rv;
+                for(Tree const& tree : trees)
+                {
+                    rv.insert(tree.getSolution(transform));
+                }
+
+                return rv;
+            }
         };
 
     } // namespace DecisionTree

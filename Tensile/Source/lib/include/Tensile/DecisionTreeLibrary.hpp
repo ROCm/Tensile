@@ -31,6 +31,7 @@
 
 #include <Tensile/Debug.hpp>
 #include <Tensile/DecisionTree.hpp>
+#include <Tensile/ProblemKey.hpp>
 #include <Tensile/Properties.hpp>
 #include <Tensile/Utils.hpp>
 
@@ -41,134 +42,13 @@ namespace Tensile
      *
      * TODO: documentation
      */
-    template <typename Key>
-    struct KeyFactory
-    {
-    };
-
-    template <typename T>
-    struct KeyFactory<std::vector<T>>
-    {
-        static std::vector<T> MakeKey(size_t size)
-        {
-            return std::vector<T>(size);
-        }
-    };
-
-    template <typename T, size_t N>
-    struct KeyFactory<std::array<T, N>>
-    {
-        static std::array<T, N> MakeKey(size_t size)
-        {
-            return std::array<T, N>();
-        }
-    };
-
-    template <typename MyProblem, typename MySolution>
-    struct DecisionTreeAbst
-    {
-        using Properties = std::vector<std::shared_ptr<Property<MyProblem>>>;
-        using Element    = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
-
-        Properties properties;
-
-        virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
-                                                             Hardware const&  hardware,
-                                                             double* fitness = nullptr) const = 0;
-
-        virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
-                                                         Hardware const&  hardware) const = 0;
-    };
-
-    template <typename MyProblem, typename MySolution, typename Key>
-    struct DecisionTreeImpl : public DecisionTreeAbst<MyProblem, MySolution>
-    {
-        using Base       = DecisionTreeAbst<MyProblem, MySolution>;
-        using Properties = typename Base::Properties;
-        using Element    = typename Base::Element;
-        using Tree       = DecisionTree::Tree<Key, Element, std::shared_ptr<MySolution>>;
-
-        std::vector<Tree> trees;
-
-        virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
-                                                             Hardware const&  hardware,
-                                                             double*          fitness
-                                                             = nullptr) const override
-        {
-            typename Tree::Transform transform
-                = [&](Element library) -> std::shared_ptr<MySolution> {
-                return library->findBestSolution(problem, hardware);
-            };
-
-            Key key = keyForProblem(problem);
-            for(Tree const& tree : trees)
-            {
-                float result = tree.predict(key);
-                if(result > 0)
-                    return tree.getSolution(transform);
-            }
-            std::cout << "no \"yes\" from tress" << std::endl;
-            return std::shared_ptr<MySolution>();
-        }
-
-        virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
-                                                         Hardware const&  hardware) const override
-        {
-            typename Tree::Transform transform
-                = [&](Element library) -> std::shared_ptr<MySolution> {
-                return library->findBestSolution(problem, hardware);
-            };
-
-            bool debug = Debug::Instance().printPropertyEvaluation();
-
-            SolutionSet<MySolution> rv;
-
-            for(Tree const& tree : trees)
-            {
-                rv.insert(tree.getSolution(transform));
-            }
-
-            return rv;
-        }
-
-        Key keyForProblem(MyProblem const& object) const
-        {
-            bool debug = Debug::Instance().printPropertyEvaluation();
-
-            Key myKey = KeyFactory<Key>::MakeKey(this->properties.size());
-
-            for(int i = 0; i < this->properties.size(); i++)
-                myKey[i] = (*this->properties[i])(object);
-
-            if(debug)
-            {
-                std::cout << "Object key: ";
-                streamJoin(std::cout, myKey, ", ");
-                std::cout << std::endl;
-            }
-
-            return myKey;
-        }
-    };
 
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct DecisionTreeLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
-        std::shared_ptr<DecisionTreeAbst<MyProblem, MySolution>> forest;
-
-        virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
-                                                             Hardware const&  hardware,
-                                                             double*          fitness
-                                                             = nullptr) const override
-        {
-            return forest->findBestSolution(problem, hardware, fitness);
-        }
-
-        virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
-                                                         Hardware const&  hardware) const override
-        {
-            return forest->findAllSolutions(problem, hardware);
-        }
+        using Element = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
+        using Forest  = DecisionTree::Forest<MyProblem, Element, std::shared_ptr<MySolution>>;
+        std::shared_ptr<Forest> forest;
 
         static std::string Type()
         {
@@ -181,6 +61,28 @@ namespace Tensile
         virtual std::string description() const override
         {
             return "TODO: description";
+        }
+
+        virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
+                                                             Hardware const&  hardware,
+                                                             double*          fitness
+                                                             = nullptr) const override
+        {
+            typename Forest::Transform transform
+                = [&](Element library) -> std::shared_ptr<MySolution> {
+                return library->findBestSolution(problem, hardware);
+            };
+            return forest->findBestMatch(problem, transform);
+        }
+
+        virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
+                                                         Hardware const&  hardware) const override
+        {
+            typename Forest::Transform transform
+                = [&](Element library) -> std::shared_ptr<MySolution> {
+                return library->findBestSolution(problem, hardware);
+            };
+            return forest->matchesInOrder(problem, transform);
         }
     };
 

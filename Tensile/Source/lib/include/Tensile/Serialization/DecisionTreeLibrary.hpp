@@ -36,10 +36,10 @@ namespace Tensile
 {
     namespace Serialization
     {
-        template <typename Key, typename Element, typename Return, typename IO>
-        struct MappingTraits<DecisionTree::Tree<Key, Element, Return>, IO>
+        template <typename Key, typename Value, typename ReturnValue, typename IO>
+        struct MappingTraits<DecisionTree::Tree<Key, Value, ReturnValue>, IO>
         {
-            using Tree = DecisionTree::Tree<Key, Element, Return>;
+            using Tree = DecisionTree::Tree<Key, Value, ReturnValue>;
             using iot  = IOTraits<IO>;
 
             static void mapping(IO& io, Tree& tree)
@@ -47,16 +47,16 @@ namespace Tensile
                 iot::mapRequired(io, "tree", tree.tree);
                 iot::mapRequired(io, "value", tree.value);
             }
-
             const static bool flow = false;
         };
-        template <typename MyProblem, typename MySolution, typename Key, typename IO>
-        struct MappingTraits<DecisionTreeImpl<MyProblem, MySolution, Key>, IO>
-        {
-            using LibImpl = DecisionTreeImpl<MyProblem, MySolution, Key>;
-            using iot     = IOTraits<IO>;
 
-            static void mapping(IO& io, LibImpl& lib)
+        template <typename Key, typename Object, typename Value, typename ReturnValue, typename IO>
+        struct MappingTraits<DecisionTree::BasicForest<Key, Object, Value, ReturnValue>, IO>
+        {
+            using Forest = DecisionTree::BasicForest<Key, Object, Value, ReturnValue>;
+            using iot    = IOTraits<IO>;
+
+            static void mapping(IO& io, Forest& lib)
             {
                 iot::mapRequired(io, "trees", lib.trees);
             }
@@ -68,8 +68,8 @@ namespace Tensile
         struct MappingTraits<DecisionTreeLibrary<MyProblem, MySolution>, IO>
         {
             using Library    = DecisionTreeLibrary<MyProblem, MySolution>;
-            using Properties = typename DecisionTreeAbst<MyProblem, MySolution>::Properties;
-            using Element    = typename DecisionTreeAbst<MyProblem, MySolution>::Element;
+            using Properties = typename Library::Forest::Properties;
+            using Element    = typename Library::Element;
 
             using iot = IOTraits<IO>;
 
@@ -117,24 +117,25 @@ namespace Tensile
             template <typename Key>
             static bool mappingKey(IO& io, Library& lib, Properties const& properties)
             {
-                using LibImpl = DecisionTreeImpl<MyProblem, MySolution, Key>;
+                using Forest = DecisionTree::
+                    BasicForest<Key, MyProblem, Element, std::shared_ptr<MySolution>>;
 
-                std::shared_ptr<LibImpl> forest;
+                std::shared_ptr<Forest> forest;
 
                 if(iot::outputting(io))
                 {
-                    forest = std::dynamic_pointer_cast<LibImpl>(lib.forest);
+                    forest = std::dynamic_pointer_cast<Forest>(lib.forest);
                     if(!forest)
                         return false;
                 }
                 else
                 {
-                    forest             = std::make_shared<LibImpl>();
+                    forest             = std::make_shared<Forest>();
                     forest->properties = properties;
                     lib.forest         = forest;
                 }
 
-                MappingTraits<LibImpl, IO>::mapping(io, *forest);
+                MappingTraits<Forest, IO>::mapping(io, *forest);
 
                 return true;
             }
