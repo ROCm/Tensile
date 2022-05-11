@@ -1337,6 +1337,14 @@ namespace Tensile
                       << " staticModel=[ " << pp.staticModel << " ]";
     }
 
+    std::ostream& operator<<(std::ostream&                             stream,
+                             ContractionSolution::ProblemRegion const& pr)
+    {
+        return stream << " " << pr.M.min <<  "<=M<" << pr.M.max
+                      << " " << pr.N.min <<  "<=N<" << pr.N.max
+                      << " " << pr.K.min <<  "<=K<" << pr.K.max;
+    }
+
     std::ostream& operator<<(std::ostream& stream, BufferLoadCheckPacket const& st)
     {
         return stream << " shiftPtrElemA=" << st.shiftPtrElemA

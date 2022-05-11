@@ -522,19 +522,13 @@ namespace Tensile
                 enum
                 {
                     HasIndex = false,
-                    HasValue = false
+                    HasValue = true
                 };
-                size_t index;
-                std::pair<size_t, size_t> size0_range;
-                std::pair<size_t, size_t> size1_range;
+                ContractionSolution::ProblemRegion value;
 
                 SizeInRegion() = default;
-                SizeInRegion(size_t index,
-                             std::pair<size_t, size_t> size0_range,
-                             std::pair<size_t, size_t> size1_range)
-                    : index(index)
-                    , size0_range(size0_range)
-                    , size1_range(size1_range)
+                SizeInRegion(ContractionSolution::ProblemRegion value)
+                    : value(value)
                 {
                 }
 
@@ -545,8 +539,21 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return ((size0_range.first <= problem.size(0)) && (problem.size(0) < size0_range.second))
-                        && ((size1_range.first <= problem.size(1)) && (problem.size(1) < size1_range.second));
+                    size_t M = problem.freeSizeA(0);
+                    size_t N = problem.freeSizeB(0);
+                    size_t K = problem.boundSize(0);
+                    return (((value.M.min <= M) && (M < value.M.max))
+                         && ((value.N.min <= N) && (N < value.N.max))
+                         && ((value.K.min <= K) && (K < value.K.max)));
+                }
+
+                virtual std::string toString() const override
+                {
+                    return concatenate(this->type(),
+                                        "(M:", value.M.min, "<->", value.M.max,
+                                       ", N:", value.N.min, "<->", value.N.max,
+                                       ", K:", value.K.min, "<->", value.K.max,
+                                       ")");
                 }
 
                 virtual bool debugEval(ContractionProblem const& problem,
@@ -554,9 +561,11 @@ namespace Tensile
                 {
                     bool rv = (*this)(problem);
 
-                    // stream << *this << ": (" << problem.size(index) << " < " << value
-                    //        << ") == " << rv;
-                    stream << " Under Construction ";
+                    stream << *this << ": ("
+                           << " " << value.M.min <<  "<=M<" << value.M.max
+                           << " " << value.N.min <<  "<=N<" << value.N.max
+                           << " " << value.K.min <<  "<=K<" << value.K.max
+                           << ") == " << rv;
 
                     return rv;
                 }

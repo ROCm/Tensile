@@ -275,6 +275,17 @@ namespace Tensile
             bool        fp16AltImpl             = false;
         };
 
+        struct paramBounds {
+            size_t max = -1;
+            size_t min = 0;
+        };
+
+        struct ProblemRegion {
+            paramBounds M;
+            paramBounds N;
+            paramBounds K;
+        };
+
         struct LinearModel
         {
             double slope     = 1.0;
@@ -315,6 +326,8 @@ namespace Tensile
     std::ostream& operator<<(std::ostream&                                      stream,
                              ContractionSolution::StaticPerformanceModel const& spm);
     std::ostream& operator<<(std::ostream&                                    stream,
-                             ContractionSolution::ProjectedPerformance const& spm);
+                             ContractionSolution::ProjectedPerformance const& pp);
+    std::ostream& operator<<(std::ostream&                             stream,
+                             ContractionSolution::ProblemRegion const& pr);
     std::ostream& operator<<(std::ostream& stream, BufferLoadCheckPacket const& st);
 } // namespace Tensile

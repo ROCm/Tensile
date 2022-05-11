@@ -124,6 +124,23 @@ namespace Tensile
         };
 
         template <typename IO>
+        struct MappingTraits<ContractionSolution::ProblemRegion, IO>
+        {
+            using iot = IOTraits<IO>;
+            static void mapping(IO& io, ContractionSolution::ProblemRegion& pr)
+            {
+                iot::mapOptional(io, "MinM", pr.M.min);
+                iot::mapOptional(io, "MaxM", pr.M.max);
+                iot::mapOptional(io, "MinN", pr.N.min);
+                iot::mapOptional(io, "MaxN", pr.N.max);
+                iot::mapOptional(io, "MinK", pr.K.min);
+                iot::mapOptional(io, "MaxK", pr.K.max);
+            }
+
+            const static bool flow = false;
+        };
+
+        template <typename IO>
         struct MappingTraits<ContractionSolution::LinearModel, IO>
         {
             using iot = IOTraits<IO>;
