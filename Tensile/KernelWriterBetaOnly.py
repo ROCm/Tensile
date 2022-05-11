@@ -61,8 +61,7 @@ class KernelWriterBetaOnly(KernelWriterBase):
     ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
     if self.state["_GlobalAccumulation"]:
       ptrStr = self.state["ProblemType"]["ComputeDataType"].toDevice(self.language)
-      if self.state["ProblemType"]["DataType"].isHalf() and self.state["ProblemType"]["HighPrecisionAccumulate"]:
-        ptrStr = DataType('single').toDevice(self.language)
+
     isStridedBuffer = self.state["ProblemType"]["StridedBatched"] or self.state["_GlobalAccumulation"]
     ptrStr += "" if isStridedBuffer else "*"
     batch   = "" if isStridedBuffer else "Batch"
@@ -186,8 +185,9 @@ class KernelWriterBetaOnly(KernelWriterBase):
       if not self.state["_GlobalAccumulation"]:
         ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
         kStr += "  " + ptrStr + " * D = BatchD[wg];" + self.endLine
-      ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-      kStr += "  " + ptrStr + " const* C = BatchC[wg];" + self.endLine
+      ptrStr  = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
+      zeroStr = self.state["ProblemType"]["ComputeDataType"].zeroString(self.language, 1)
+      kStr += "  " + ptrStr + f" const* C = (beta == {zeroStr}) ? nullptr : BatchC[wg];" + self.endLine
 
     # apply offset
     kStr += self.endLine

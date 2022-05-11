@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2021-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -280,10 +280,10 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
             We have numThreadInWave(64) threads.
             number of thread in N is sames as kernel["MatrixInstN"] (32)
             number of thread in M is numThreadInWave/numOutputThreads1 = 2
-            stride of continous output for each thread (numSubOutputPerWave0) is numOutputThreads0 * numContinuousOutput, (8).
+            stride of continuous output for each thread (numSubOutputPerWave0) is numOutputThreads0 * numContinuousOutput, (8).
             we have numSubOutputGroupsPerWave0 which is 4 (kernel[tP["mt"]](64) // numSubOutputPerWave0(8))
 
-            So we do shift back by below alorithm.
+            So we do shift back by below algorithm.
             1. check if M_size % GlobalLoadVectorWidth != 0, return if == 0
             2. decide which subgroup we need to shift, M_size(3) means 3/8 = group 0
             3. decide which thread we need to shift, we have different groups of thread, (0-31) for first group, (32-63) for second group.
@@ -293,7 +293,7 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         kStr = ""
 
         # TODO: use this for non SourceSwap for B?
-        # this part can  suppotr non SourceSwap for B
+        # this part can  support non SourceSwap for B
         # But let non SourceSwap for B go original shiftptr path
         if (not kernel["SourceSwap"]) and tP["isB"]:
             return kStr
@@ -322,7 +322,7 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         miWaveTitlePrep = kernel["MIWaveTile"][1]  if tP["isA"] else kernel["MIWaveTile"][0]
 
         # unify process for SourceSwap and non-SourceSwap
-        conThInProcDim  = kernel["SourceSwap"] ^ tP["isB"] # continuous threads in prcessed dimension(Coalsced dimension)
+        conThInProcDim  = kernel["SourceSwap"] ^ tP["isB"] # continuous threads in processed dimension(Coalesced dimension)
 
         threadInterval  = 1 if conThInProcDim else matrixInstPrep
         numThreadInCoal = matrixInstCoal if conThInProcDim else (numThreadInWave // matrixInstPrep)
@@ -481,12 +481,16 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
                             for ot in range(numOutputsPrep):
                                 for c  in range(complexMultiplier):
                                     for nr in range(regPerElem):
+                                        vgprOffsetForSCIU = 0
+                                        if kernel["StoreCInUnroll"] and writer.enableSingleNLLOpt:
+                                          # single NLL opt case, use second acc register set
+                                          vgprOffsetForSCIU += writer.startaccValuC1
                                         copyInstStr = "v_accvgpr_read_b32" if not kernel["MIArchVgpr"] else "v_mov_b32"
                                         for e in range(min(r, allContOutCoal)):
                                             src = (e+(glvw-r)) % allContOutCoal
                                             srcVgpr = (src + (vw * glvw) + allContOutCoal * mb) * regStrideCoal
                                             srcVgpr = srcVgpr + ot * regStridePrep
-                                            srcVgpr = arch2acc[srcVgpr] * regPerElem + nr + c * accImOffset
+                                            srcVgpr = arch2acc[srcVgpr] * regPerElem + nr + c * accImOffset + vgprOffsetForSCIU
                                             srcStr = accvgpr(srcVgpr) if not kernel["MIArchVgpr"] else vgpr(srcVgpr)
                                             kStr += inst(copyInstStr, vgpr(tReg+e), srcStr, "glvw %u mb %u tt1 %u r %u" % (r, mb, ot, nr))
 
@@ -507,7 +511,7 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
                                         for e in range(min(r, allContOutCoal)):
                                             dstVgpr = (e + (vw * glvw) + allContOutCoal * mb) * regStrideCoal
                                             dstVgpr = dstVgpr + ot * regStridePrep
-                                            dstVgpr = arch2acc[dstVgpr] * regPerElem + nr + c * accImOffset
+                                            dstVgpr = arch2acc[dstVgpr] * regPerElem + nr + c * accImOffset + vgprOffsetForSCIU
                                             dstStr = accvgpr(dstVgpr) if not kernel["MIArchVgpr"] else vgpr(dstVgpr)
                                             kStr += inst(copyInstStr, dstStr, vgpr(tReg+e), "")
 

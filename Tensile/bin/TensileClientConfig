@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 ################################################################################
-# Copyright 2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,24 +20,17 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-def use(): pass
 
-# This should list all of the files in the 'Components' directory, without extensions.
-__all__ = [
-    "MAC_BF16_HPA",
-    "MAC_F16",
-    "MAC_F16_HPA",
-    "MAC_F32",
-    "MAC_F32C",
-    "MAC_F64",
-    "MAC_F64C",
-    "MAC_I8_HPA",
-    "MAC_I8X4",
-    "Priority",
-    "Signature",
-    "LocalRead",
-    "ShiftVectorComponents",
-    "ComputeStoreVgprs",
-    "NotLocalFullTileElements",
-    "LraTileAssignment",
-    ]
+try:
+    from Tensile import TensileClientConfig
+except ImportError:
+    import os.path
+    import sys
+    parentdir = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", ".."))
+    sys.path.append(parentdir)
+
+    from Tensile import TensileClientConfig
+
+# script run from commandline
+if __name__ == "__main__":
+    TensileClientConfig.main()

@@ -312,15 +312,15 @@ validMFMA = {}
 validMFMA["H"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
 validMFMA["S"] = [[32,32,1,2], [32,32,2,1], [16,16,1,4], [16,16,4,1], [4,4,1,16]]
 validMFMA["B"] = [[32,32,2,2], [32,32,4,1], [16,16,2,4], [16,16,8,1], [4,4,2,16]]
-validMFMA["4xi8"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
 validMFMA["D"] = [[16,16,4,1], [4,4,4,4]]
 validMFMA["B1k"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
 validMFMA["C"] = validMFMA["S"]
 validMFMA["Z"] = validMFMA["D"]
-validMFMA["I8"] = validMFMA["4xi8"]
+validMFMA["I8"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
 validTT = 16
 validMFMA["_format9"] = []
-for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["4xi8"], validMFMA["D"]]:
+
+for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["D"]]:
   for MI in MFMA:
     for bm in range(int(math.log(MI[3],2))+1):
       for tt0 in range(1,validTT+1):
@@ -328,20 +328,40 @@ for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["4xi8"], 
           for wave_m in range (3):
             for wave_n in range(3):
               validMFMA["_format9"].append([MI[0],MI[1],MI[2],MI[3],2**bm,tt0,tt1,2**wave_m, 2**wave_n])
-validMatrixInstructions = [[], [-1]] + validMFMA["H"] + validMFMA["S"] + validMFMA["B"] + validMFMA["4xi8"] + validMFMA["D"] + validMFMA["B1k"]
+validMatrixInstructions = [[], [-1]] + validMFMA["H"] + validMFMA["S"] + validMFMA["B"] + validMFMA["D"] + validMFMA["B1k"]
 validMatrixInstructions = validMatrixInstructions + validMFMA["_format9"]
 
 # The supported typed GEMM, each entry is (Ti, To, Tc).
-# This is used in SolutionStruct.py::checkIfSupportedGEMMType()
-validGEMMTypes = [ ('D','D','D'), ('S','S','S'), ('Z','Z','Z'), ('C','C','C'), \
-                  ('H','H','H'), ('H','H','S'), ('H','S','S'), \
-                  ('B','B','S'), ('B','S','S'), \
-                  ('4xi8','I','I'), \
-                  ('I8','I','I')]
+# DataType (Ti)        = The data-type of the input matrices: A/B
+# DestDataType (To)    = The data-type of the output matrices: C/D
+# ComputeDataType (Tc) = The data-type of computaiton: alpha/beta:
+# Cinternal: basically should == ComputeDataType
 
-# These type are newly supported and we would like to use a better file naming for them: _TiToTc_
-# For the rest of the typed, we keep them with old existing naming.
-typesUsingNewNaming = [ ('H','S','S'), ('B','S','S'),('I8','I','I')]   # ('H','H','S') is removed bcs we are merging this case in HBH
+# Align the supported GEMM type with rocBLAS: [A/B/ C/D/ alpha/beta]
+#   (rocblas/library/include/internal/rocblas_functions.h)
+# GEMM (HPA=F, the data type of input, output, and computation are all the same.)
+#   - HGEMM: [H/H/ H/H/ H/H]
+#   - SGEMM: [S/S/ S/S/ S/S]
+#   - DGEMM: [D/D/ D/D/ D/D]
+#   - CGEMM: [C/C/ C/C/ C/C]
+#   - ZGEMM: [Z/Z/ Z/Z/ Z/Z]
+# GEMM_Ex: (HPA=T, Computation is in a higher precision data-type)
+#   - GEMM_EX (HHS): [H/H/ H/H/ S/S]
+#   - GEMM_EX (HSS): [H/H/ S/S/ S/S]
+#   - GEMM_EX (BBS): [B/B/ B/B/ S/S]
+#   - GEMM_EX (BSS): [B/B/ S/S/ S/S]
+#   - GEMM_EX (I8II): [I8/I8/ I/I/ I/I]
+#   - GEMM_EX (4xi8II): [4xi8/4xi8/ I/I/ I/I], tensile packs 4 i8 to 4xi8 with some restrictions
+# This is used in SolutionStruct.py::checkIfSupportedGEMMType()
+validGEMMTypes = [ ('H','H','H'), ('S','S','S'), ('D','D','D'), ('C','C','C'), ('Z','Z','Z'), \
+                   ('H','H','S'), ('H','S','S'), \
+                   ('B','B','S'), ('B','S','S'), \
+                   ('I8','I','I'), ('4xi8','I','I')]
+
+# All HPA types are listed here (HPA=T). The name of the library logic files for these types is:
+# *_TiToTc_BH*.yaml where Ti, Tc, and To are the data types of A/B, C/D, and computation, respectively.
+# The name of the library logic files for non-HPA (HPA=F) types is: *_TiB*.yaml.
+HPATypes = [ ('H','S','S'), ('H','H','S'), ('B','B','S'), ('B','S','S'), ('I8','I','I'), ('4xi8','I','I')]
 
 validParameters = {
     "LoopDoWhile":                [ False, True ], # Source. True=DoWhile, False=For loop
@@ -391,27 +411,27 @@ validParameters = {
     # LoopIters = DepthU / LocalSplitU
     # (LoopIters /= MatrixInstruction_K)
     # ex. MT64x128x16_MI32x32x4x2_PLR1, we'll have 4 LoopIters, prefetch read 1 iteration, with 2 VGPRs buffer (2=min(1+1,4))
-    #     befor loop:       plr[0]
+    #     before loop:       plr[0]
     #           loop: iter0:plr[1] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[0], iter3:plr[0] MAC_r[1]
     #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[0], iter3:       MAC_r[1]
     #
     # ex. MT64x128x16_MI32x32x4x2_PLR3, we'll have 4 LoopIters, prefetch read 3 iteration, with 4 VGPRs buffer (4=min(3+1,4))
-    #     befor loop:       plr[0] plr[1] plr[2]
+    #     before loop:       plr[0] plr[1] plr[2]
     #           loop: iter0:plr[3] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[2], iter3:plr[2] MAC_r[3]
     #   no load loop: iter0:plr[3] MAC_r[0], iter1:       MAC_r[1], iter2:       MAC_r[2], iter3:       MAC_r[3]
     #
     # ex. MT64x128x16_MI32x32x4x2_PLR5, we'll have 4 LoopIters, prefetch read 5%4=1 iteration, with 4 VGPRs buffer (4=min(5+1,4))
-    #     befor loop:       plr[0]
+    #     before loop:       plr[0]
     #           loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:plr[0] MAC_r[3]
     #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:       MAC_r[3]
     #
     # ex. MT64x128x16_MI32x32x4x2_PLR5_LRVW8, we'll have 4 LoopIters, prefetch read 5%4=1 iteration, with 4 VGPRs buffer (4=min(5+1,4)) , each read read 2 iterations
-    #     befor loop:       plr[0:1]
+    #     before loop:       plr[0:1]
     #           loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:plr[0:1] MAC_r[3]
     #   no load loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:         MAC_r[3]
     #
     # ex. MT64x128x16_MI32x32x4x2_PLR7, we'll have 4 LoopIters, prefetch read 7%4=3 iteration, with 4 VGPRs buffer (=min(7+1,4)) --> Exactly the same as PLR3
-    #     befor loop:       plr[0]
+    #     before loop:       plr[0]
     #           loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:plr[0] MAC_r[3]
     #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:       MAC_r[3]
     "PrefetchLocalRead":          list(range(128+1)),
@@ -634,7 +654,7 @@ validParameters = {
     # If modifying or adding Assertions also change ProblemProperties class in TensileTypes.h
 
     # Kernel generator will assume that the summation size is some multiple of the element size
-    # and use this to optimize the kernel.
+    # and uses this to optimize the kernel.
     # This can result in more efficient kernels, but requires runtime checking to ensure the specified
     # summation value meets the requirements.
     # (Recommended AF1EM value is 8 for half, 4 for single, 2 for double)
@@ -650,7 +670,7 @@ validParameters = {
     "AssertSummationElementMultiple": [1,2,4,8,16,32,64],
 
     # Kernel generator will assume that the FreeIndex[0] size is some multiple of the element size
-    # and use this to optimize the kernel.
+    # and uses this to optimize the kernel.
     # FreeIndex[0] is usually letter "I"
     # (Recommended AF0EM value is 8 for half, 4 for single, 2 for double)
     #
@@ -664,13 +684,13 @@ validParameters = {
     #
     # Store Optimizations:
     #  - Can vectorize stores in edge tiles.  Vector width can be up to AF0EM.
-    #   (since C matrix is always coalesced in Free0 index diretion and this assertion guarantees the index element multiple)
+    #   (since C matrix is always coalesced in Free0 index direction and this assertion guarantees the index element multiple)
     #
     # 1 indicates no assertion (since all sizes are multiples of 1)
     "AssertFree0ElementMultiple" : [1,2,4,8],
 
     # Kernel generator will assume that the FreeIndex[1] size is some multiple of the element size
-    # and use this to optimize the kernel.
+    # and uses this to optimize the kernel.
     # FreeIndex[1] is usually letter "J"
     # (Recommended AF1EM value is 8 for half, 4 for single, 2 for double)
 
@@ -681,7 +701,7 @@ validParameters = {
     "AssertFree1ElementMultiple" : [1,2,4,8],
 
     # Some kernels only work for certain sizes, see ProblemProperties in TensileTypes for exact defs
-    "AssertMinApproxSize" : [0,1,2],
+    "AssertMinApproxSize" : [0,1,2,3],
 
 
     # Assertions/Predicates that require stride to be specified value.
@@ -732,7 +752,7 @@ validParameters = {
     #
     # The tile assignment C are same as with StaggerOffset=0 ; the difference is the
     # order that the summation elements are added.
-    # GRO will wrap back to the row start start when the edge is reached.
+    # GRO will wrap back to the row start when the edge is reached.
     #
     # This can be effective for TLU=0 style matrices where the K dimension is a large power-of-2.
     # In this case the start of each row of the tile is separated by an exact power-of-2
@@ -898,7 +918,7 @@ validParameters = {
     "GroupLoadStore":             [False, True],
     #
     # Do storeC (output of GEMM) in unroll Loop; When PK enabled, storeC Code section can be
-    # moved into unroll Loop code section for tiles[0..N-2], storeC scheduled in PK[1..N-1] 
+    # moved into unroll Loop code section for tiles[0..N-2], storeC scheduled in PK[1..N-1]
     # Enable this feature when PK is enabled
     # Enable this feature when you have 2 or More Tiles/CU
     # disable StoreSyncOpt, StorePriorityOpt,GroupLoadStore feature when this feature is enabled
@@ -1677,10 +1697,13 @@ def GetAsmCaps(isaVersion):
 
   rv["v_dot4c_i32_i8"]  = tryAssembler(isaVersion, "v_dot4c_i32_i8 v47, v36, v34")
   rv["v_dot4_i32_i8"]   = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34")
+  rv["VOP3v_dot4_i32_i8"]   = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34, v47")
 
   rv["v_mac_f32"]       = tryAssembler(isaVersion, "v_mac_f32 v20, v21, v22")
   rv["v_fma_f32"]       = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")
   rv["v_fmac_f32"]      = tryAssembler(isaVersion, "v_fmac_f32 v20, v21, v22")
+
+  rv["v_fma_f64"]       = tryAssembler(isaVersion, "v_fma_f64 v[20:21], v[22:23], v[24:25], v[20:21]")
 
   rv["HasAtomicAdd"]    = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
 
@@ -1958,7 +1981,7 @@ def assignGlobalParameters( config ):
 
   if "MergeFiles" in config and "NumMergedFiles" in config:
     if not config["MergeFiles"] and config["NumMergedFiles"] > 1:
-      config["NumMergedFiles"] = 1 
+      config["NumMergedFiles"] = 1
       printWarning("--num-merged-files and --no-merge-files specified, ignoring --num-merged-files")
 
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future

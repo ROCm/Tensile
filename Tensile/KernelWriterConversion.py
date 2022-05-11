@@ -22,7 +22,6 @@
 from copy import deepcopy
 
 from .Common import globalParameters, CHeader
-from .DataType import DataType
 from .KernelWriterBase import KernelWriterBase
 
 class KernelWriterConversion(KernelWriterBase):
@@ -37,8 +36,6 @@ class KernelWriterConversion(KernelWriterBase):
     self.language = "HIP"
     self.kernelName = self.getKernelName()
     self.datatype = self.state["ProblemType"]["ComputeDataType"].toDevice(self.language)
-    if self.state["ProblemType"]["DataType"].isHalf() and self.state["ProblemType"]["HighPrecisionAccumulate"]:
-      self.datatype = DataType('single').toDevice(self.language)
 
     # determine chars for fast access
     self.indexChars = []
@@ -196,7 +193,8 @@ class KernelWriterConversion(KernelWriterBase):
       ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
       kStr += "  " + ptrStr + " * D = BatchD[wg];" + self.endLine
       ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-      kStr += "  " + ptrStr + " const* C = BatchC[wg];" + self.endLine
+      zeroStr = self.state["ProblemType"]["ComputeDataType"].zeroString(self.language, 1)
+      kStr += "  " + ptrStr + f" const* C = (beta == {zeroStr}) ? nullptr : BatchC[wg];" + self.endLine
 
     ########################################
     # apply offset

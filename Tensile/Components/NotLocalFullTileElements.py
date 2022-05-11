@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2021-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -77,7 +77,7 @@ class NotLocalFullTileElementsMFMA(NotLocalFullTileElements):
         matrixInstBM = 1                                              if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstBM"]
         matrixInstBN = 1                                              if (kernel["MatrixInstN"] == 4) else kernel["MatrixInstBN"]
 
-        outputsPerThread = matrixInstM * matrixInstN // writer.kernel["WavefrontSize"]
+        outputsPerThread = matrixInstM * matrixInstN // kernel["WavefrontSize"]
 
         # handle SourceSwap
         totalTT0     = matrixInstBM * kernel["MIWaveTile"][0]
@@ -86,7 +86,8 @@ class NotLocalFullTileElementsMFMA(NotLocalFullTileElements):
         totalTT0     = totalTT0                      if kernel["SourceSwap"] else (totalTT0 * outputsPerThread)
         totalTT1     = (totalTT1 * outputsPerThread) if kernel["SourceSwap"] else totalTT1
         vectorWidth0 = kernel["VectorWidth"]         if kernel["SourceSwap"] else kernel["MIOutputVectorWidth"]
-        vectorWidth1 = kernel["MIOutputVectorWidth"] if kernel["SourceSwap"] else 1
+        MIOutputVectorWidthAdj = writer.lrvwB if writer.allowLRVWforTLUandMI else kernel["MIOutputVectorWidth"]
+        vectorWidth1 = MIOutputVectorWidthAdj if kernel["SourceSwap"] else 1
 
         for tt1 in range(0, totalTT1//vectorWidth1):
             for vc1 in range(0, vectorWidth1):

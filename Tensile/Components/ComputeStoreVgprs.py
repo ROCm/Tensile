@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2021-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -282,6 +282,8 @@ class ComputeStoreVgprsMFMASwap(ComputeStoreVgprs):
         kStr += vectorStaticDivide(tid1, tid1, matrixInstM, tmpVgpr1, tmpSgpr)
         kStr += staticMultiply(vgpr(tid1), vgpr(tid1), kernel["MIOutputVectorWidth"], sgpr(tmpSgpr), "thread0 * continuous_output")
         kStr += inst("v_add_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), "coordination 1 = wave_id1 + tid1")
+        if writer.allowLRVWforTLUandMI and writer.lrvwB > 1:
+          kStr += staticMultiply(vgpr(tid1), vgpr(tid1), writer.lrvwB, sgpr(tmpSgpr), "coordination 1 *= lrvwB")
 
         # coord 1 : offset part
         packedC1 = kernel["PackedC1IndicesX"]

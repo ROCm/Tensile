@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2021-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -104,6 +104,12 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         tile01           = tP["tile01Idx"]
         waveWidth        = writer.kernel["WavefrontSize"]
         inputPerThread   = max(writer.lrvwA,writer.lrvwB)
+        if kernel["DirectToVgprA"]:
+          # DirectToVgprA case, ignore lrvwA
+          inputPerThread = writer.lrvwB
+        elif kernel["DirectToVgprB"]:
+          # DirectToVgprB case, ignore lrvwB
+          inputPerThread = writer.lrvwA
         LdsPad           = kernel["LdsPad%s" % tc] if kernel["LdsBlockSizePerPad%s" % tc] == 0 else 0
 
         # parameter for get each type index
@@ -116,6 +122,11 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             dividedForBlkId  = (kernel["MatrixInstN"] * kernel["MatrixInstBN"]) if (tile01 == 0) else kernel["MatrixInstN"]
         dividedForWaveId = waveWidth if (tile01 == 0) else (waveWidth * kernel["MIWaveGroup"][0])
         vectorWidth      = kernel["VectorWidth"] if ((tile01 == 0) and kernel["SourceSwap"]) else 1 # TODO: nonSwap VectorWidth
+        if writer.allowLRVWforTLUandMI:
+          lrvw = writer.lrvwA if tP["isA"] else writer.lrvwB
+          if lrvw > 1:
+            vectorWidth = lrvw
+          inputPerThread = 1
 
         # strider for each type of index
         umlds            = kernel["UnrollMajorLDS%s" % tc]
