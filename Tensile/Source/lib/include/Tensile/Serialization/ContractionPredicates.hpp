@@ -96,6 +96,7 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::Fp16AltImpl>(),
                     Base::template Pair<Predicates::Contraction::EqualityMatching>(),
                     Base::template Pair<Predicates::Contraction::SizeInRegion>(),
+                    Base::template Pair<Predicates::Contraction::SizeInRange>(),
                 });
 
                 auto gmap = Generic::GetSubclasses();
@@ -351,6 +352,25 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::SizeInRegion, IO>
             : public AutoMappingTraits<Predicates::Contraction::SizeInRegion, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::Range, IO>
+        {
+            using iot = IOTraits<IO>;
+            static void mapping(IO& io, Predicates::Contraction::Range& range)
+            {
+                iot::mapOptional(io, "min", range.min);
+                iot::mapOptional(io, "max", range.max);
+            }
+
+            const static bool flow = false;
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::SizeInRange, IO>
+            : public AutoMappingTraits<Predicates::Contraction::SizeInRange, IO>
         {
         };
     } // namespace Serialization

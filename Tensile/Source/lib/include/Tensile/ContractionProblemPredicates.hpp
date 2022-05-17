@@ -34,6 +34,7 @@
 
 #include <array>
 #include <cstddef>
+#include <limits>
 #include <vector>
 
 namespace Tensile
@@ -543,16 +544,25 @@ namespace Tensile
                     size_t N = problem.freeSizeB(0);
                     size_t K = problem.boundSize(0);
                     return (((value.M.min <= M) && (M < value.M.max))
-                         && ((value.N.min <= N) && (N < value.N.max))
-                         && ((value.K.min <= K) && (K < value.K.max)));
+                            && ((value.N.min <= N) && (N < value.N.max))
+                            && ((value.K.min <= K) && (K < value.K.max)));
                 }
 
                 virtual std::string toString() const override
                 {
                     return concatenate(this->type(),
-                                        "(M:", value.M.min, "<->", value.M.max,
-                                       ", N:", value.N.min, "<->", value.N.max,
-                                       ", K:", value.K.min, "<->", value.K.max,
+                                       "(M:",
+                                       value.M.min,
+                                       "<->",
+                                       value.M.max,
+                                       ", N:",
+                                       value.N.min,
+                                       "<->",
+                                       value.N.max,
+                                       ", K:",
+                                       value.K.min,
+                                       "<->",
+                                       value.K.max,
                                        ")");
                 }
 
@@ -562,10 +572,53 @@ namespace Tensile
                     bool rv = (*this)(problem);
 
                     stream << *this << ": ("
-                           << " " << value.M.min <<  "<=M<" << value.M.max
-                           << " " << value.N.min <<  "<=N<" << value.N.max
-                           << " " << value.K.min <<  "<=K<" << value.K.max
+                           << " " << value.M.min << "<=M<" << value.M.max << " " << value.N.min
+                           << "<=N<" << value.N.max << " " << value.K.min << "<=K<" << value.K.max
                            << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
+            struct Range
+            {
+                size_t min = 0;
+                size_t max = std::numeric_limits<size_t>::max();
+            };
+
+            struct SizeInRange : public Predicate_CRTP<SizeInRegion, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = true,
+                    HasValue = true
+                };
+                size_t index;
+                Range  value;
+
+                SizeInRange() = default;
+                SizeInRange(size_t index, Range value)
+                    : index(index)
+                    , value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "SizeInRange";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return (problem.size(index) >= value.min) && (problem.size(index) <= value.max);
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+                    stream << *this << ": (" << value.min << " <= " << problem.size(index)
+                           << " <= " << value.max << ") == " << rv;
 
                     return rv;
                 }
