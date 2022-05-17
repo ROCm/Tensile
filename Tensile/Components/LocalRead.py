@@ -236,12 +236,14 @@ class LocalReadMFMA(LocalRead):
                             lrdOffsetMod = kernel["_DepthULds"] if not kernel["ThreadSeparateGlobalRead%c"%tc] else (kernel["_DepthULds"]//(kernel["ThreadSeparateGlobalRead%c"%tc]*2))
                             offset_val = (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride
                             offset_val = (rIdxDiv * UnrollStride + offset_val + (tP["localReadOffset"] % lrdOffsetMod)) * tP["bpe"]  + rIdxMod * writer.bpr
+                            #print("Debug: offset_val:%u rIDxDiv:%u vIdx:%u eIdx:%u lrdoffset:%u oIdx:%u ustride:%u wgsize:%u,divVal:%u rIdx:%u"%(offset_val,rIdxDiv,vIdx,eIdx,tP["localReadOffset"],oIdx,UnrollStride,MIWaveGroupShape[tile01],divVal,rIdx))
                             if kernel["ThreadSeparateGlobalRead%c"%tc]:
                               if (tP["localReadOffset"] >= (kernel["_DepthULds"] // (kernel["ThreadSeparateGlobalRead%c"%tc]*2))):
                                 MblockSizePerLoad = (kernel["WavefrontSize"] * kernel["GlobalLoadVectorWidth%c"%tc]) // kernel["_DepthULds"]
                                 unrollKtile = (kernel["_DepthULds"] // (kernel["ThreadSeparateGlobalRead%c"%tc]*2))
-                                offset_val = offset_val + (MblockSizePerLoad * unrollKtile * tP["bpe"])
-                                #print("Debug: vIdx:%u eIdx:%u lrdoffset:%u oIdx:%u ustride:%u wgsize:%u,divVal:%u rIdx:%u offset_val%u"%(vIdx,eIdx,tP["localReadOffset"],oIdx,UnrollStride,MIWaveGroupShape[tile01],divVal,rIdx,offset_val))
+                                print("Debug: LroOffset:%u MblockSizePerLoad:%u unrollKtile:%u offset_val:%u "%(tP["localReadOffset"],MblockSizePerLoad,unrollKtile,offset_val))
+                                offset_val = offset_val + ((MblockSizePerLoad * unrollKtile * tP["bpe"]) * (tP["localReadOffset"] // lrdOffsetMod)) 
+                                #print("Debug: LroOffset:%u MblockSizePerLoad:%u unrollKtile:%u offset_val:%u "%(tP["localReadOffset"],MblockSizePerLoad,unrollKtile,offset_val))
                         else:
                           # normal case
                           offset_val = (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride
