@@ -9601,7 +9601,9 @@ class KernelWriterAssembly(KernelWriter):
         # indicates each vector element is actually half -
         # changes vgpr allocation so two elements share a data vgpr
         # Really only used if gwvw=1 - edge cases
-        self.halfDataRegPerVI = True if gwvw*self.numVgprsPerDataPerVI < 1.0 else False
+        # exception: data vgpr cannot be shared if UseInitialStridesCD is enabled and card enable EccHalf,
+        #            since each buffer_load_short would overwrite undefined 16bit as zero.
+        self.halfDataRegPerVI = gwvw*self.numVgprsPerDataPerVI < 1.0 and not (kernel["ProblemType"]["UseInitialStridesCD"] and kernelWriter.archCaps["HasEccHalf"])
 
     # StoreState constructor:
     def __init__(self, kernelWriter, kernel, gwvw, edge, beta, atomic, elements):
@@ -9844,8 +9846,12 @@ class KernelWriterAssembly(KernelWriter):
                 data = lastData
                 del lastData
           else:
-            data = kw.vgprPool.checkOutAligned(int(self.cfg.numVgprsPerDataPerVI*self.cfg.gwvw), \
-                  int(ceil(self.cfg.numVgprsPerDataPerVI*self.cfg.gwvw)), "writeBatch-data for ei=%u"%elementIdx, preventOverflow=False)
+            if self.cfg.numVgprsPerDataPerVI == 0.5:
+              data = kw.vgprPool.checkOutAligned(int(ceil(self.cfg.numVgprsPerDataPerVI*self.cfg.gwvw)), \
+                    int(ceil(self.cfg.numVgprsPerDataPerVI*self.cfg.gwvw)), "writeBatch-data for ei=%u"%elementIdx, preventOverflow=False)
+            else:
+              data = kw.vgprPool.checkOutAligned(int(self.cfg.numVgprsPerDataPerVI*self.cfg.gwvw), \
+                    int(ceil(self.cfg.numVgprsPerDataPerVI*self.cfg.gwvw)), "writeBatch-data for ei=%u"%elementIdx, preventOverflow=False)
             #data = kw.vgprPool.checkOut(int(self.cfg.numVgprsPerDataPerVI*self.cfg.gwvw), \
             #      "writeBatch-data for ei=%u"%elementIdx, preventOverflow=False)
         else:
@@ -11793,7 +11799,7 @@ class KernelWriterAssembly(KernelWriter):
             sumIdxV = ss.elementSumIdx[elementIdx] + vi
             if kernel["ProblemType"]["DestDataType"].isHalf():
               if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-                if sumIdxV%2==0:
+                if sumIdxV%2==0 or (not self.ss.cfg.halfDataRegPerVI and gwvw==1):
                   # dataV+0 = new c = old c*beta
                   kStr += inst("v_pk_mul_f16", vgpr(dataV), sgpr("Beta"), vgpr(dataV+0), \
                       "%s = C*beta ei=%u vi=%u"%(vgpr(dataV),elementIdx, vi))
