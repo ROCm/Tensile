@@ -59,7 +59,7 @@ namespace Tensile
             static void mapping(IO& io, Library& lib)
             {
                 SolutionMap<MySolution>* ctx
-                    = static_cast<SolutionMap<MySolution>*>(iot::getContext(io));
+                    = static_cast<LibraryIOContext<MySolution>*>(iot::getContext(io));
                 if(ctx == nullptr)
                 {
                     iot::setError(io,

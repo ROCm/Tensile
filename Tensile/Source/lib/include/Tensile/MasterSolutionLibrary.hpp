@@ -42,6 +42,12 @@ namespace Tensile
     template <typename MySolution>
     using SolutionMap = std::map<int, std::shared_ptr<MySolution>>;
 
+    template <typename MySolution>
+    struct LibraryIOContext{
+        std::string             filename;
+        SolutionMap<MySolution> solutions;
+    };
+
     /**
  * \ingroup SolutionLibrary
  *

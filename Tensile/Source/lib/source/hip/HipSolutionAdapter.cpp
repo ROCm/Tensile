@@ -34,6 +34,9 @@
 #include <Tensile/hip/HipSolutionAdapter.hpp>
 #include <Tensile/hip/HipUtils.hpp>
 
+//@TODO add alternative for windows
+#include <glob.h>
+
 namespace Tensile
 {
     namespace hip
@@ -190,6 +193,31 @@ namespace Tensile
             }
 
             return err;
+        }
+
+        hipError_t SolutionAdapter::loadCodeObjectFilePattern(std::string pattern)
+        {
+            std::string wholePattern = m_codeObjectDirectory+pattern;
+
+            glob_t result;
+            result.gl_pathc = 0;
+            result.gl_pathv = nullptr;
+            result.gl_offs  = 0;
+
+            // This way globfree will be called regardless of if an exception is thrown.
+            std::shared_ptr<glob_t> guard(&result, globfree);
+
+            int err = ::glob(wholePattern.c_str(), 0, nullptr, &result);
+
+            for(size_t i = 0; i < result.gl_pathc; i++)
+                loadCodeObjectFile(result.gl_pathv[i]);
+        }
+
+        hipError_t SolutionAdapter::setCodeObjectDirectory(std::string const& path)
+        {
+            m_codeObjectDirectory = path;     
+            //Ensure there's a slash at the end of the path
+            if (m_codeObjectDirectory.back() != "/") m_codeObjectDirectory += "/";
         }
 
         hipError_t SolutionAdapter::launchKernel(KernelInvocation const& kernel)

@@ -26,7 +26,9 @@ from . import Hardware
 from . import Common
 from . import Contractions
 from .SolutionStructs import Solution as OriginalSolution
+from .SolutionStructs import ProblemType as StructProblemType
 from .Utils import state
+from copy import deepcopy
 
 class SingleSolutionLibrary:
     Tag = 'Single'
@@ -84,6 +86,26 @@ class GranularitySelectionLibrary:
             index = self.indices[i]
             if index in indexMap:
                 self.indices[i] = indexMap[index]
+
+class PlaceholderLibrary:
+    Tag = 'Placeholder'
+
+    def __init__(self, name):
+        self.filenamePrefix = name
+
+    @property
+    def tag(self):
+        return self.__class__.Tag
+
+    def state(self):
+        return {'type': self.tag, 'filenamePrefix': self.filenamePrefix }
+
+    def remapSolutionIndices(self,indexMap):
+        pass
+    
+    def merge(self, other):
+        pass
+
 
 class MatchingLibrary:
     Tag = 'Matching'
@@ -213,11 +235,22 @@ class MasterSolutionLibrary:
                 solution.index = maxSolutionIdx
             else:
                 solutionsSoFar.add(solution.index)
+
     @classmethod
     def FromOriginalState(cls, d, origSolutions, solutionClass=Contractions.Solution, libraryOrder = None):
         if libraryOrder is None:
-            libraryOrder = ['Hardware', 'OperationIdentifier', 'PerformanceMetric', 'Fp16AltImpl', 'Predicates', 'Matching']
+            libraryOrder = ['Hardware', 'OperationIdentifier', 'PerformanceMetric', 'Fp16AltImpl', 'Predicates', 'Placeholder', 'Matching']
 
+        placeholderLibrary = None
+
+        if 'Placeholder' in libraryOrder:
+            placeholderIndex = libraryOrder.index('Placeholder')+1
+            placeholderLibrary = MasterSolutionLibrary.FromOriginalState(d, origSolutions, solutionClass, libraryOrder[placeholderIndex:])
+            libraryOrder = libraryOrder[0:placeholderIndex]
+            origSolutions = []
+
+        print(placeholderLibrary)
+       
         deviceSection = d[1:4]
         origProblemType = d[4]
         #origSolutions = d[5]
@@ -247,6 +280,20 @@ class MasterSolutionLibrary:
 
         solutions = {s.index: s for s in allSolutions}
 
+        #@Get device information
+        if isinstance(deviceSection[1], dict):
+            architectureProps = deviceSection[1]
+            assert 'Architecture' in architectureProps, 'Invalid device section [1]'
+            assert 'CUCount' in architectureProps, 'Invalid device section [1]'
+            devicePart = architectureProps['Architecture']
+            cuCount = architectureProps['CUCount']
+        else:
+            devicePart = deviceSection[1]
+            cuCount = None
+
+        placeholderName = "TensileLibrary_"+str(StructProblemType(origProblemType))+"_"+str(devicePart)
+        if cuCount: placeholderName += "_CU"+str(cuCount)
+
         for libName in reversed(libraryOrder):
             if libName == 'Matching':
                 if matching == 'Equality':
@@ -264,7 +311,7 @@ class MasterSolutionLibrary:
                 library = GranularitySelectionLibrary.FromOriginalState(origLibrary, selectionIndices)
 
             elif libName == 'Hardware':
-
+                """
                 if isinstance(deviceSection[1], dict):
                     architectureProps = deviceSection[1]
                     assert 'Architecture' in architectureProps, 'Invalid device section [1]'
@@ -274,7 +321,7 @@ class MasterSolutionLibrary:
                 else:
                     devicePart = deviceSection[1]
                     cuCount = None
-
+                """
                 newLib = PredicateLibrary(tag='Hardware')
                 if devicePart == 'fallback':
                     pred = Hardware.HardwarePredicate('TruePred')
@@ -283,6 +330,7 @@ class MasterSolutionLibrary:
 
                 newLib.rows.append({'predicate': pred, 'library': library})
                 library = newLib
+                
 
             elif libName == 'Predicates':
                 predicates = problemType.predicates(includeBatch=True, includeType=True)
@@ -317,11 +365,18 @@ class MasterSolutionLibrary:
                 newLib = PredicateLibrary(tag='Problem')
                 newLib.rows.append({'predicate': predicate, 'library': library})
                 library = newLib
+            elif libName == 'Placeholder':
+                library = PlaceholderLibrary(placeholderName)
 
             else:
                 raise ValueError('Unknown value ' + libName)
 
         rv = cls(solutions, library)
+        if placeholderLibrary:
+            rv.placeholderLibraries[placeholderName] = deepcopy(placeholderLibrary)
+
+        print(rv.placeholderLibraries)
+
         return rv
 
     @classmethod
@@ -337,6 +392,7 @@ class MasterSolutionLibrary:
         return cls(solutionMap, library)
 
     def __init__(self, solutions, library, version=None):
+        self.placeholderLibraries = {}
         self.solutions = solutions
         self.library = library
         self.version = version
@@ -373,7 +429,14 @@ class MasterSolutionLibrary:
     def merge(self, other, startIndex=0):
         assert self.__class__ == other.__class__
 
-        curIndex = max(startIndex, max(self.solutions.keys()) + 1)
+        curIndex = max(startIndex, max(self.solutions.keys()) + 1) if self.solutions else 0
+
+        #Merge separate library files
+        for name, lib in other.placeholderLibraries.items():
+            if name in self.placeholderLibraries.keys():
+                self.placeholderLibraries[name].merge(lib)
+            else:
+                self.placeholderLibraries[name] = lib
 
         reIndexMap = {}
         for k,s in other.solutions.items():

@@ -43,7 +43,9 @@ namespace Tensile
 
         try
         {
-            auto              inputFile = llvm::MemoryBuffer::getFile(filename);
+            auto inputFile = llvm::MemoryBuffer::getFile(filename);
+            
+            LibraryIOContext  context{filename, nullptr}; 
             llvm::yaml::Input yin((*inputFile)->getMemBufferRef());
 
             yin >> rv;
@@ -73,6 +75,7 @@ namespace Tensile
 
         try
         {
+            LibraryIOContext  context{filename, nullptr};
             llvm::StringRef   dataRef((const char*)data.data(), data.size());
             llvm::yaml::Input yin(dataRef);
 

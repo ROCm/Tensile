@@ -24,6 +24,7 @@ from .SolutionStructs import Solution, ProblemSizes, ProblemType
 from . import __version__
 from . import Common
 from . import SolutionLibrary
+from copy import deepcopy
 
 try:
     import yaml

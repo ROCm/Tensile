@@ -94,9 +94,9 @@ namespace Tensile
 
             static void mapping(IO& io, Library& lib)
             {
-                SolutionMap<MySolution>* ctx
-                    = static_cast<SolutionMap<MySolution>*>(iot::getContext(io));
-                if(ctx == nullptr)
+                LibraryIOContext* ctx
+                    = static_cast<LibraryIOContext<MySolution>*>(iot::getContext(io));
+                if(ctx == nullptr || ctx->solutions == nullptr)
                 {
                     iot::setError(io,
                                   "SingleSolutionLibrary requires that context be set to "
@@ -112,8 +112,8 @@ namespace Tensile
 
                 if(!iot::outputting(io))
                 {
-                    auto iter = ctx->find(index);
-                    if(iter == ctx->end())
+                    auto iter = ctx->solutions->find(index);
+                    if(iter == ctx->solutions->end())
                     {
                         std::ostringstream msg;
                         msg << "Invalid solution index: " << index;
@@ -156,7 +156,10 @@ namespace Tensile
                         lib.solutions[s->index] = s;
                 }
 
-                iot::setContext(io, &lib.solutions);
+                auto ctx           = static_cast<LibraryIOContext<MySolution>*>(iot::getContext(io));
+                context->solutions = &lib.solutions;
+
+                //iot::setContext(io, &lib.solutions);
 
                 std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> innerLibrary;
 
