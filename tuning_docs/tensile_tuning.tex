@@ -5,7 +5,7 @@
 \usepackage{fancyvrb}
 \usepackage[dvipsnames]{xcolor}
 \usepackage{ulem}
-
+\usepackage{longtable}
 \usepackage[english]{babel}
 
 \usepackage[margin=0.75in]{geometry}
@@ -1338,10 +1338,156 @@ Cijk_Ailk_Bljk_SB_MT128x128x16_SE_GSU1_K1_TT8_8_WG16_16_1.s.
 
 Any library will contain a large set of parameters that are common to all the kernels in the library so, in the final library, those parameters are not included as part of the naming of the kernels in that library. This reduces the name as the full set of parameters is rather large.
 
+\section{Parameter Name Abbreviation Mapping}
+\begin{center}
+\begin{small}
+\begin{longtable}{ |c|c| } 
+\caption{Parameter names and their abbreviations. Most abbreviations are a combination of the first letters of each word in a parameter's name. Consequently, abbreviations are not guaranteed to be unique. Derived parameters are not listed. }
+\label{tab:ParameterAbbrMap} 
+ \hline
+ \textbf{Parameter Name} & \textbf{Abbreviation} \\
+ \hline
+ LoopDoWhile & LDW \\
+ LoopTail & LT \\
+ GlobalReadCoalesceGroupA & GRCGA \\
+ GlobalReadCoalesceGroupB & GRCGB \\
+ GlobalReadCoalesceVectorA & GRCVA \\
+ GlobalReadCoalesceVectorB & GRCVB \\
+ WaveSeparateGlobalReadA & WSGRA \\
+ WaveSeparateGlobalReadB & WSGRB \\
+ PrefetchGlobalRead & PGR \\
+ PrefetchLocalRead & PLR \\
+ 1LDSBuffer & 1LDSB \\
+ GlobalSplitU & GSU \\
+ GlobalSplitUAlgorithm & GSUA \\
+ GlobalSplitUWorkGroupMappingRoundRobin & GSUWGMRR \\
+ GlobalSplitUSummationAssignmentRoundRobin & GSUSARR \\
+ UnrollMemFence & UMF \\
+ GlobalRead2A & GR2A \\
+ GlobalRead2B & GR2B \\
+ LocalWrite2A & LW2A \\
+ LocalWrite2B & LW2B \\
+ LocalRead2A & LR2A \\
+ LocalRead2B & LR2B \\
+ SuppressNoLoadLoop & SNLL \\
+ ExpandPointerSwap & EPS \\
+ ScheduleGlobalRead & SGR \\
+ ScheduleLocalWrite & SLW \\
+ ScheduleIterAlg & SIA \\
+ OptPreLoopVmcnt & OPLV \\
+ GlobalReadPerMfma & GRPM \\
+ LocalWritePerMfma & LWPM \\
+ LdcEqualsLdd & LEL \\
+ InterleaveAlpha & IA \\
+ OptNoLoadLoop & ONLL \\
+ PrefetchAcrossPersistent & PAP \\
+ PrefetchAcrossPersistentMode & PAPM \\
+ BufferLoad & BL \\
+ BufferStore & BS \\
+ DirectToVgprA & DTVA \\
+ DirectToVgprB & DTVB \\
+ DirectToLds & DTL \\
+ UseInstOffsetForGRO & UIOFGRO \\
+ UseSgprForGRO & USFGRO \\
+ FractionalLoad & FL \\
+ Use64bShadowLimit & U64SL \\
+ VectorAtomicWidth & VAW \\
+ AssertSummationElementMultiple & ASEM \\
+ AssertFree0ElementMultiple & AF0EM \\
+ AssertFree1ElementMultiple & AF1EM \\
+ AssertMinApproxSize & AMAS \\
+ AssertStrideAEqual & ASAE \\
+ AssertStrideBEqual & ASBE \\
+ AssertStrideCEqual & ASCE \\
+ AssertStrideDEqual & ASDE \\
+ AssertSizeEqual & ASE \\
+ AssertSizeGreaterThan & ASGT \\
+ AssertSizeLessThan & ASLT \\
+ AssertSizeMultiple & ASM \\
+ AssertBetaValue & ABV \\
+ AssertAlphaValue & AAV \\
+ AssertCEqualsD & ACED \\
+ CheckTensorDimAsserts & CTDA \\
+ CheckDimOverflow & CDO \\
+ StaggerU & SU \\
+ StaggerUStride & SUS \\
+ StaggerUMapping & SUM \\
+ MagicDivAlg & MDA \\
+ WorkGroupMapping & WGM \\
+ WorkGroupMappingType & WGMT \\
+ MaxOccupancy & MO \\
+ WorkGroup & WG \\
+ ThreadTile & TT \\
+ MacroTile & MT \\
+ MACInstruction & MAC \\
+ WavefrontSize & WS \\
+ MatrixInstruction & MI \\
+ StoreRemapVectorWidth & SRVW \\
+ SourceSwap & SS \\
+ AtomicAddC & AAC \\
+ StorePriorityOpt & SPO \\
+ NumElementsPerBatchStore & NEPBS \\
+ StoreSyncOpt & SSO \\
+ GroupLoadStore & GLS \\
+ StoreCInUnroll & SCIU \\
+ StoreCInUnrollInterval & SCIUI \\
+ StoreCInUnrollExact & SCIUE \\
+ StoreCInUnrollPostLoop & SCIUPL \\
+ MIArchVgpr & MIAV \\
+ DisableVgprOverlapping & DVO \\
+ DisableKernelPieces & DKP \\
+ DisableAtomicFail & DAF \\
+ Fp16AltImpl & F16AI \\
+ PersistentKernel & PK \\
+ PersistentKernelAlongBatch & PKAB \\
+ PackBatchDims & PBD \\
+ PackFreeDims & PFD \\
+ PackSummationDims & PSD \\
+ UnrollIncIsDepthU & UIIDU \\
+ PackGranularity & PG \\
+ GlobalReadVectorWidth & GRVW \\
+ LocalReadVectorWidth & LRVW \\
+ VectorWidth & VW \\
+ VectorStore & VS \\
+ StoreVectorWidth & SVW \\
+ MacroTileShapeMin & MTSM \\
+ MacroTileShapeMax & MTSM \\
+ NumLoadsCoalescedA & NLCA \\
+ NumLoadsCoalescedB & NLCB \\
+ DepthU & DU \\
+ DepthULdsDivisor & DULD \\
+ LdsPadA & LPA \\
+ LdsPadB & LPB \\
+ LdsBlockSizePerPad & LBSPP \\
+ TransposeLDS & TLDS \\
+ PerformanceSyncLocation & PSL \\
+ PerformanceWaitLocation & PWL \\
+ PerformanceWaitCount & PWC \\
+ NonTemporalD & NTD \\
+ NonTemporalC & NTC \\
+ NonTemporalA & NTA \\
+ NonTemporalB & NTB \\
+ EdgeType & ET \\
+ InnerUnroll & IU \\
+ LocalDotLayout & LDL \\
+ AggressivePerfMode & APM \\
+ KernelLanguage & KL \\
+ ISA & ISA \\
+ ReplacementKernel & RK \\
+ CustomKernelName & CKN \\
+ NoReject & NR \\
+ MinVgprNumber & MVN \\
+ MaxVgprNumber & MVN \\
+ \hline
+\end{longtable}
+\end{small}
+\end{center}
+
 \section{Library Logic Specifications}
 \label{sec:appendixD}
 
 The following is a full list of platform targets that can be used for the library logic generation in Tensile.
+
 
 \begin{minted}[
 gobble=0,breaklines,
