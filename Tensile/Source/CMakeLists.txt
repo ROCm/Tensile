@@ -47,7 +47,7 @@ if(NOT DEFINED CXX_VERSION_STRING)
 endif()
 
 if(CMAKE_CXX_COMPILER STREQUAL "hipcc")
-  set(TENSILE_GPU_ARCHS gfx803 gfx900 gfx906:xnack- gfx908:xnack- gfx90a:xnack- gfx1010 gfx1011 gfx1012 gfx1030 CACHE STRING "GPU architectures")
+  set(TENSILE_GPU_ARCHS gfx803 gfx900 gfx906:xnack- gfx908:xnack- gfx90a:xnack- gfx1010 gfx1011 gfx1012 gfx1030 gfx1031 CACHE STRING "GPU architectures")
 else()
   set(TENSILE_GPU_ARCHS gfx803 gfx900 gfx906 gfx908 gfx90a CACHE STRING "GPU architectures")
 endif()

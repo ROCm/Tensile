@@ -198,7 +198,7 @@ globalParameters["MergeFiles"] = True             # F=store every solution and k
 globalParameters["NumMergedFiles"] = 1            # The number of files that kernels should be split between when merging
 
 globalParameters["MaxFileName"] = 64              # If a file name would be longer than this, shorten it with a hash.
-globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (9,0,10), (10,1,0), (10,1,1), (10,1,2), (10,3,0)] # assembly kernels writer supports these architectures
+globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (9,0,10), (10,1,0), (10,1,1), (10,1,2), (10,3,0),(10,3,1)] # assembly kernels writer supports these architectures
 
 globalParameters["GenerateManifestAndExit"] = False               # Output manifest file with list of expected library objects and exit
 globalParameters["NewClient"] = 2                                 # Old client deprecated: NewClient must be set to 2.
@@ -266,7 +266,7 @@ architectureMap = {
   'gfx906':'vega20', 'gfx906:xnack+':'vega20', 'gfx906:xnack-':'vega20',
   'gfx908':'arcturus','gfx908:xnack+':'arcturus', 'gfx908:xnack-':'arcturus',
   'gfx90a':'aldebaran', 'gfx90a:xnack+':'aldebaran', 'gfx90a:xnack-':'aldebaran',
-  'gfx1010':'navi10', 'gfx1011':'navi12', 'gfx1012':'navi14', 'gfx1030':'navi21'
+  'gfx1010':'navi10', 'gfx1011':'navi12', 'gfx1012':'navi14', 'gfx1030':'navi21', 'gfx1031':'navi22'
 }
 
 def getArchitectureName(gfxName):
