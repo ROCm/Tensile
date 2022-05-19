@@ -52,7 +52,7 @@ namespace Tensile
 
             hipError_t loadCodeObjectFilePattern(std::string pattern);
 
-            hipError_t setCodeObjectDirectory(std::string const& path);
+            void       setCodeObjectDirectory(std::string const& path);
 
             hipError_t loadCodeObject(const void* image);
 

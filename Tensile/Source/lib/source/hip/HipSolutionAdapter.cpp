@@ -209,15 +209,22 @@ namespace Tensile
 
             int err = ::glob(wholePattern.c_str(), 0, nullptr, &result);
 
-            for(size_t i = 0; i < result.gl_pathc; i++)
-                loadCodeObjectFile(result.gl_pathv[i]);
+            auto lastHipError = hipSuccess;
+
+            for(size_t i = 0; i < result.gl_pathc; i++){
+                auto status = loadCodeObjectFile(result.gl_pathv[i]);
+                if (status != hipSuccess)
+                    lastHipError = status;
+            }
+
+            return lastHipError;
         }
 
-        hipError_t SolutionAdapter::setCodeObjectDirectory(std::string const& path)
+        void SolutionAdapter::setCodeObjectDirectory(std::string const& path)
         {
             m_codeObjectDirectory = path;     
             //Ensure there's a slash at the end of the path
-            if (m_codeObjectDirectory.back() != "/") m_codeObjectDirectory += "/";
+            if (m_codeObjectDirectory.back() == '/') m_codeObjectDirectory += '/';
         }
 
         hipError_t SolutionAdapter::launchKernel(KernelInvocation const& kernel)

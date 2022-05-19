@@ -94,8 +94,7 @@ namespace Tensile
 
             static void mapping(IO& io, Library& lib)
             {
-                LibraryIOContext* ctx
-                    = static_cast<LibraryIOContext<MySolution>*>(iot::getContext(io));
+                auto ctx = static_cast<LibraryIOContext<MySolution>*>(iot::getContext(io));
                 if(ctx == nullptr || ctx->solutions == nullptr)
                 {
                     iot::setError(io,
@@ -156,8 +155,9 @@ namespace Tensile
                         lib.solutions[s->index] = s;
                 }
 
-                auto ctx           = static_cast<LibraryIOContext<MySolution>*>(iot::getContext(io));
-                context->solutions = &lib.solutions;
+                auto ctx       = static_cast<LibraryIOContext<MySolution>*>(iot::getContext(io));
+                //ctx->solutions = &lib.solutions;
+                ctx->solutions = &lib.solutions;
 
                 //iot::setContext(io, &lib.solutions);
 

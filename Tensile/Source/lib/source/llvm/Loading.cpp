@@ -45,7 +45,7 @@ namespace Tensile
         {
             auto inputFile = llvm::MemoryBuffer::getFile(filename);
             
-            LibraryIOContext  context{filename, nullptr}; 
+            LibraryIOContext<MySolution>  context{filename, nullptr}; 
             llvm::yaml::Input yin((*inputFile)->getMemBufferRef());
 
             yin >> rv;
@@ -69,15 +69,15 @@ namespace Tensile
 
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-        LLVMLoadLibraryData(std::vector<uint8_t> const& data)
+        LLVMLoadLibraryData(std::vector<uint8_t> const& data, std::string filename)
     {
         std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
         try
         {
-            LibraryIOContext  context{filename, nullptr};
-            llvm::StringRef   dataRef((const char*)data.data(), data.size());
-            llvm::yaml::Input yin(dataRef);
+            LibraryIOContext<MySolution>  context{filename, nullptr};
+            llvm::StringRef               dataRef((const char*)data.data(), data.size());
+            llvm::yaml::Input             yin(dataRef);
 
             yin >> rv;
 
@@ -102,5 +102,5 @@ namespace Tensile
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
         LLVMLoadLibraryData<ContractionProblem, ContractionSolution>(
-            std::vector<uint8_t> const& data);
+            std::vector<uint8_t> const& data, std::string filename="");
 } // namespace Tensile

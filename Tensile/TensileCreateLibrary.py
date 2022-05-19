@@ -69,6 +69,7 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
     return (err, src, header, kernelName, filename)
 
 def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
+    print("###########################\n# Assembly code object files")
     destDir = ensurePath(os.path.join(outputPath, 'library'))
     asmDir = kernelWriterAssembly.getAssemblyDirectory()
     assemblyKernels = list([k for k in kernels if k['KernelLanguage'] == 'Assembly'])
@@ -85,7 +86,10 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
                           for k in archKernels \
                           if k['KernelLanguage'] == 'Assembly' \
                           and 'codeObjectFile' not in k])
-      if len(objectFiles) == 0:
+
+      numObjectFiles = len([1 for k in archKernels if k['KernelLanguage'] == 'Assembly'])
+      
+      if numObjectFiles == 0:
         continue
       if globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
         #coFile = os.path.join(destDir, 'TensileLibrary_{}.co'.format(archName))
@@ -97,9 +101,9 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
         for kernel in archKernels:
           coName = kernel.get("codeObjectFile", None)
           if coName:
-            os.path.join(destDir, '{}.co'.format(coName))
-            coFileMap[coName] += [kernel]
+            coFileMap[os.path.join(destDir, coName+".co")] += [kernelWriterAssembly.getKernelFileBase(kernel) + '.o']
           
+        print("================\n|| Link code object args\n===============")
         for coFile, objectFiles in coFileMap.items():
           print(coFile)
           if os.name == "nt":
@@ -116,7 +120,6 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
             subprocess.check_call(args, cwd=asmDir)
           else:
             args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
-            print(args)
             subprocess.check_call(args, cwd=asmDir)
 
           coFiles.append(coFile)
@@ -320,8 +323,7 @@ def prepAsm(kernelWriterAssembly):
   os.chmod(assemblerFileName, 0o777)
 
 ################################################################################
-def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
-      kernelSourceFile, kernelHeaderFile):
+def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
   """
   Logs errors and writes appropriate info to kernelSourceFile and kernelHeaderFile.
 
@@ -339,6 +341,8 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
 
   # Find kernels to write
   kernelsToWrite = []
+  filesToWrite = collections.defaultdict(list)
+  validKernelCount = 0
   for (err,src,header,kernelName, filename) in results:
 
     # Keep track of kernels with errors
@@ -348,12 +352,55 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
     # Don't create a file for empty kernels
     if len(src.strip()) == 0:
       continue
-    kernelsToWrite.append((err, src, header, kernelName, filename))
-    if filename and filename not in sourceFilenames:
-      sourceFilenames.append(os.path.join(os.path.normcase(outputPath),filename+".cpp"))
+
+    kernelsToWrite.append((err, src, header, kernelName))
+    if globalParameters["MergeFiles"]:
+      if filename:
+        filesToWrite[os.path.join(os.path.normcase(outputPath),filename)].append((err, src, header, kernelName))
+      else:
+        kernelSuffix = ""
+        if globalParameters["NumMergedFiles"] > 1:
+          kernelSuffix = validKernelCount % globalParameters["NumMergedFiles"]
+          
+        filesToWrite[os.path.join(os.path.normcase(outputPath), "Kernels"+kernelSuffix)]\
+          .append((err, src, header, kernelName))
+
+    validKernelCount += 1
+
 
   # Write kernel data to files
   if globalParameters["MergeFiles"]:
+
+    #Parse list of files and write kernels
+    for filename, kernelList in filesToWrite.items():
+      with open(filename+".h", "w", encoding="utf-8") as kernelHeaderFile, \
+           open(filename+".cpp", "w", encoding="utf-8") as kernelSourceFile:
+        
+        kernelSourceFile.write(CHeader)
+        kernelHeaderFile.write(CHeader)
+        kernelSourceFile.write("#include \"Kernels.h\"\n")
+        kernelHeaderFile.write("#pragma once\n")
+        if globalParameters["RuntimeLanguage"] == "HIP":
+          kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
+          kernelHeaderFile.write("#include <hip/hip_ext.h>\n\n")
+        kernelHeaderFile.write("#include \"KernelHeader.h\"\n\n")
+
+        for err,src,header,kernelName in kernelList:
+          kernelSourceFile.write(src)
+          kernelHeaderFile.write(header)
+
+    #@TODO REFACTOR ABOVE TO INCLUDE NOMERGE
+    """if False:
+      kernelSourceFile = open(kernelSourceFilename, "w")
+      kernelHeaderFile = open(kernelHeaderFilename, "w")
+      kernelSourceFile.write(CHeader)
+      kernelHeaderFile.write(CHeader)
+      kernelSourceFile.write("#include \"Kernels.h\"\n")
+      kernelHeaderFile.write("#pragma once\n")
+      if globalParameters["RuntimeLanguage"] == "HIP":
+        kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
+        kernelHeaderFile.write("#include <hip/hip_ext.h>\n\n")
+      kernelHeaderFile.write("#include \"KernelHeader.h\"\n\n")
 
     # Merge all kernels into one file
     if globalParameters["NumMergedFiles"] == 1 and kernelSourceFile and kernelHeaderFile:
@@ -431,9 +478,9 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, \
       kernelHeaderFile = open(headerFilename, "w", encoding="utf-8")
       kernelHeaderFile.write(CHeader)
       kernelHeaderFile.write(header)
-      kernelHeaderFile.close()
+      kernelHeaderFile.close()"""
 
-  return sourceFilenames
+  return [filePrefix+".cpp" for filePrefix in filesToWrite]
 
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
@@ -463,7 +510,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   ##############################################################################
   # Write Kernels
   ##############################################################################
-  if globalParameters["MergeFiles"] and globalParameters["NumMergedFiles"] == 1 and False:
+  if globalParameters["MergeFiles"] and globalParameters["NumMergedFiles"] == 1:
     kernelSourceFilename = os.path.join(os.path.normcase(outputPath), "Kernels.cpp")
     kernelHeaderFilename = os.path.join(os.path.normcase(outputPath), "Kernels.h")
 
@@ -501,7 +548,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   for rel in removeResults:
       results.remove(rel)
 
-  kernelFiles += buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs, kernelSourceFile, kernelHeaderFile)
+  kernelFiles += buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs)
 
   kernelsToBuild = list(kernels)
   if errorTolerant:
@@ -1107,7 +1154,7 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
     # Find all unique arch values for current asm kernels
     uniqueArchs = set(itertools.chain(*asmArchs.values()))
     #asmLibFiles += ["TensileLibrary_%s.co" % (arch) for arch in uniqueArchs]
-    asmLibFiles += list(set([kernel._state["codeObjectFile"] for kernel in kernels if 'codeObjectFile' in kernel._state]))
+    asmLibFiles += list(set([kernel._state["codeObjectFile"]+".co" for kernel in kernels if 'codeObjectFile' in kernel._state]))
   else:
     for asmKernelName, archs in asmArchs.items():
       asmLibFiles += ["%s_%s.co" % (asmKernelName, str(arch)) for arch in archs]
@@ -1549,9 +1596,9 @@ def TensileCreateLibrary():
     print("codeObjectFiles:", codeObjectFiles)
     print("sourceLibPaths + asmLibPaths:", sourceLibPaths + asmLibPaths)
 
-  assert len(sanityCheck0) == 0, "Unexpected code object files: {}".format(sanityCheck0)
-  if not globalParameters["GenerateSourcesAndExit"]:
-    assert len(sanityCheck1) == 0, "Missing expected code object files: {}".format(sanityCheck1)
+  #assert len(sanityCheck0) == 0, "Unexpected code object files: {}".format(sanityCheck0)
+  #if not globalParameters["GenerateSourcesAndExit"]:
+  #  assert len(sanityCheck1) == 0, "Missing expected code object files: {}".format(sanityCheck1)
 
   archs = [gfxName(arch) for arch in globalParameters['SupportedISA'] \
              if globalParameters["AsmCaps"][arch]["SupportedISA"]]
