@@ -203,7 +203,7 @@ The Tensile tuning workflow may be viewed conceptually as a different operation 
 	\label{fig:TensileSteps}
 \end{figure}
 
-The input to Tensile is a tuning configuration file that provides the set of \hyperref[sec:appendixB]{parameters} used to drive the tuning process for a given iteration. Before running Tensile, the user should prepare and drop the configuration (*.yaml) file in the working directory (build*). Upon running Tensile, it reads the configuration file and performs the steps indicated in Figure \ref{fig:TensileSteps}. Each of the steps corresponds to the directories created by the Tensile application located within the working directory:
+The input to Tensile is a tuning configuration file that provides the set of parameters used to drive the tuning process for a given iteration. Before running Tensile, the user should prepare and drop the configuration (*.yaml) file in the working directory (build*). Upon running Tensile, it reads the configuration file and performs the steps indicated in Figure \ref{fig:TensileSteps}. Each of the steps corresponds to the directories created by the Tensile application located within the working directory:
 
 \begin{description}
 	\item[Step 0] This step creates the Tensile client application which is the executable that does the benchmarking. This is found in the directory \textbf{0\_Build}.
@@ -484,7 +484,7 @@ InitialSolutionParameters: null    # not used
 JoinParameters: null               # not used
 \end{minted}
 
-The  {\color{ForestGreen} \bf BenchmarkCommonParameters} and  {\color{ForestGreen} \bf ForkParameters} define the space of kernels used for benchmarking. The benchmark common parameters define the common parameters that---unless overridden by the forked parameters---are defined for all the kernels that get generated for the benchmarking. As described in the \hyperref[sec:forkParams]{forked parameters} section, the fork parameters define a Cartesian product of tuning parameter created from all the combinations of parameters in the parameter lists. A full list of parameters is described in \hyperref[sec:appendixB]{Appendix B}; here, we will focus on the most common parameters that are used during most tuning exercises.
+The  {\color{ForestGreen} \bf BenchmarkCommonParameters} and  {\color{ForestGreen} \bf ForkParameters} define the space of kernels used for benchmarking. The benchmark common parameters define the common parameters that---unless overridden by the forked parameters---are defined for all the kernels that get generated for the benchmarking. As described in the \hyperref[sec:forkParams]{forked parameters} section, the fork parameters define a Cartesian product of tuning parameter created from all the combinations of parameters in the parameter lists. Here we will focus on the most common parameters that are used during most tuning exercises.
 
 {\color{ForestGreen} \bf ThreadTile} = [tt0, tt1] and {\color{ForestGreen} \bf  WorkGroup} = [wg0, wg1, localSplitU ] define the thread tile parameter which defines the dimensions of the C matrix that each thread works on. Together they form the macro tiling {\color{ForestGreen} \bf MacroTile} = [tt0*wg0, tt1*wg1, mt2]. The {\color{ForestGreen} \bf GlobalSplitU} parameter defines how Tensile splits the unroll summation into multiple sections. Other possible considerations for starting the tuning are {\color{ForestGreen} \bf DepthU, VectorWidth} and {\color{ForestGreen} \bf GlobalReadVectorWidth}. The global read vector width Controls desired width (number of elements) for loads from global memory LDS (possable values are [-1, 1, 2, 3, 4, 6, 8 ]). The vector width controls the contiguous elements from the C matrix. The depth U parameter is closely related to the local split U parameter and the combination of the two defines how the loop of the summation dimension is unrolled.
 
@@ -1343,7 +1343,7 @@ Any library will contain a large set of parameters that are common to all the ke
 \begin{small}
 \begin{longtable}{ |c|c| } 
 \caption{Parameter names and their abbreviations. Most abbreviations are a combination of the first letters of each word in a parameter's name. Consequently, abbreviations are not guaranteed to be unique. Derived parameters are not listed. }
-\label{tab:ParameterAbbrMap}\\
+\label{tab:ParameterAbbrMap} \\
  \hline
  \textbf{Parameter Name} & \textbf{Abbreviation} \\
  \hline
