@@ -133,7 +133,6 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         mt               = kernel["MacroTile%u" % tile01]
         strideTile       = kernel["_DepthULds"] + LdsPad if umlds else 1
         if kernel["ThreadSeparateGlobalRead%c"%tc]:
-          strideTile = strideTile // (kernel["ThreadSeparateGlobalRead%c"%tc] * 2)
           #WSGR splits global fetch 2Dtile MblockxdepthU into (WSPR *2)xMblockxdepthU/(WSPR*2)  (Mblock = waveWidth * glvw  / depthU)
           #LDS layout stored as 3Dtile K1xMblockxK0
           #Padding is not allowed in directToLds
@@ -185,18 +184,18 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             kStr += inst("_v_add_u32", vgpr(mReg1), vgpr(mReg1), vgpr(mReg2), \
                   "1. N offset: mOffset =  mIdxlower_stride + m_idx")
           elif (KlanesPerMFrag == 2 and (kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"]) == 16):
-            numMidxPer4ldsLanes =  4 // KlanesPerMFrag
+            numMidxPer4LdsLanes =  4 // KlanesPerMFrag
             MidxScale = KlanesPerMFrag * 4 // tP["bpe"]
             numElementsPerLane = kernel["GlobalLoadVectorWidth%c"%tc]
             kStr += inst("v_and_b32",vgpr(tReg),(MidxRemainder-1),vgpr(tReg), \
               "1. N offset: mIdxlower = mIdx and MblockSizePerLoad")
-            kStr += inst("v_and_b32",vgpr(mReg1),(numMidxPer4Ldslanes-1),vgpr(tReg), \
+            kStr += inst("v_and_b32",vgpr(mReg1),(numMidxPer4LdsLanes-1),vgpr(tReg), \
               "1. N offset: mIdxlower = mIdx and MblockSizePerLoad")
             kStr += staticMultiply(vgpr(mReg1), vgpr(mReg1), MidxScale, sgpr(tmpSgpr), \
               "1. N offset: mIdxlower_offset = nIdxlower * nStride(%u)" % strideTile)
-            kStr += vectorStaticDivide(mReg2, tReg, numMidxPer4ldsLanes, tmpVgpr, tmpSgpr, \
+            kStr += vectorStaticDivide(mReg2, tReg, numMidxPer4LdsLanes, tmpVgpr, tmpSgpr, \
             "1. N offset: nIdx = wtid %% MI_N(%u)" % kernel["MatrixInstN"])
-            kStr += staticMultiply(vgpr(mReg2), vgpr(mReg2), (numElementsPerLane*numMidxPer4ldsLanes*KlanesPerMFrag), sgpr(tmpSgpr), \
+            kStr += staticMultiply(vgpr(mReg2), vgpr(mReg2), (numElementsPerLane*numMidxPer4LdsLanes*KlanesPerMFrag), sgpr(tmpSgpr), \
               "1. N offset: mIdxlower_offset = nIdxlower * nStride(%u)" % strideTile)
             kStr += inst("_v_add_u32", vgpr(mReg1), vgpr(mReg1), vgpr(mReg2), \
                   "1. N offset: mOffset =  mIdxlower_stride + m_idx")

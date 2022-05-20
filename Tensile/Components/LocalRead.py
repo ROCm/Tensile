@@ -241,7 +241,6 @@ class LocalReadMFMA(LocalRead):
                               if (tP["localReadOffset"] >= (kernel["_DepthULds"] // (kernel["ThreadSeparateGlobalRead%c"%tc]*2))):
                                 MblockSizePerLoad = (kernel["WavefrontSize"] * kernel["GlobalLoadVectorWidth%c"%tc]) // kernel["_DepthULds"]
                                 unrollKtile = (kernel["_DepthULds"] // (kernel["ThreadSeparateGlobalRead%c"%tc]*2))
-                                print("Debug: LroOffset:%u MblockSizePerLoad:%u unrollKtile:%u offset_val:%u "%(tP["localReadOffset"],MblockSizePerLoad,unrollKtile,offset_val))
                                 offset_val = offset_val + ((MblockSizePerLoad * unrollKtile * tP["bpe"]) * (tP["localReadOffset"] // lrdOffsetMod)) 
                                 #print("Debug: LroOffset:%u MblockSizePerLoad:%u unrollKtile:%u offset_val:%u "%(tP["localReadOffset"],MblockSizePerLoad,unrollKtile,offset_val))
                         else:
