@@ -1,5 +1,5 @@
 #################################################################################
-# Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -319,7 +319,7 @@ class ProblemPredicate(Properties.Predicate):
 
         if key.startswith('Assert'):
             raise RuntimeError("Unknown assertion key: {}".format(key))
-        
+
         if key == "Fp16AltImpl":
             return cls("Fp16AltImpl") if value != False else None
 
@@ -467,7 +467,7 @@ class Solution:
     HiddenKeys = ['originalSolution']
 
     @classmethod
-    def FromSolutionStruct(cls, solution, deviceInfo=None):
+    def FromSolutionStruct(cls, solution):
         return cls.FromOriginalState(solution._state)
 
     @classmethod

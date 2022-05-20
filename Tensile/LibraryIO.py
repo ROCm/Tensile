@@ -147,32 +147,26 @@ def parseLibraryLogicFile(filename):
 
 def parseLibraryLogicData(data, srcFile="?"):
     """Parses the data of a library logic file."""
-    if len(data) < 9:
-        printExit("Library logic file {} is missing required fields (len = {} < 9)" \
-                .format(srcFile, len(data)))
+    if type(data) is list:
+        data = parseLibraryLogicList(data, srcFile)
 
-    versionString     = data[0]["MinimumRequiredVersion"]
-    scheduleName      = data[1]
-    architectureName  = data[2] if isinstance(data[2], str) else data[2]["Architecture"]
-    deviceNames       = data[3]
-    problemTypeState  = data[4]
-    solutionStates    = data[5]
-    indexOrder        = data[6]
-    exactLogic        = data[7]
-    rangeLogic        = data[8]
+    # TODOBEN better approach?
+    if type(data["Architecture"]) is dict:
+        data["ArchitectureName"]  = data["Architecture"]["Architecture"]
+    else:
+        data["ArchitectureName"] = data["Architecture"]
 
-    if not versionIsCompatible(versionString):
+    if not versionIsCompatible(data["MinimumRequiredVersion"]):
         printWarning("Version = {} in library logic file {} does not match Tensile version = {}" \
-                .format(srcFile, versionString, __version__) )
+                .format(srcFile, data["MinimumRequiredVersion"], __version__) )
 
     # unpack problemType
-    problemType = ProblemType(problemTypeState)
+    problemType = ProblemType(data["ProblemType"])
     # unpack solutions
     solutions = []
-    for i in range(0, len(solutionStates)):
-        solutionState = solutionStates[i]
+    for solutionState in data["Solutions"]:
         if solutionState["KernelLanguage"] == "Assembly":
-            solutionState["ISA"] = Common.gfxArch(architectureName)
+            solutionState["ISA"] = Common.gfxArch(data["ArchitectureName"])
         else:
             solutionState["ISA"] = (0, 0, 0)
         # force redo the deriving of parameters, make sure old version logic yamls can be validated
@@ -187,8 +181,45 @@ def parseLibraryLogicData(data, srcFile="?"):
 
     newLibrary = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data, solutions)
 
-    return (scheduleName, deviceNames, problemType, solutions, indexOrder, \
-            exactLogic, rangeLogic, newLibrary, architectureName)
+    # TODOBEN: fix returns?
+    return (data["ScheduleName"], data["DeviceNames"], problemType, solutions, data["Library"].get("IndexOrder"), \
+            data.get("ExactLogic"), data.get("RangeLogic"), newLibrary, data["ArchitectureName"])
+
+def parseLibraryLogicList(data, srcFile="?"):
+    """Parses the data of a matching table style library logic file."""
+    if len(data) < 9:
+        printExit("Library logic file {} is missing required fields (len = {} < 9)" \
+                .format(srcFile, len(data)))
+
+    rv = {}
+    rv["MinimumRequiredVersion"] = data[0]["MinimumRequiredVersion"]
+    rv["ScheduleName"] = data[1]
+    rv["Architecture"] = data[2]
+    rv["DeviceNames"] = data[3]
+    rv["ProblemType"] = data[4]
+    rv["Solutions"] = data[5]
+
+    # TODOBEN: figure out what to do with these...
+    rv["ExactLogic"] = data[7]
+    rv["RangeLogic"] = data[8]
+
+    # optional fields
+    if len(data) > 10 and data[10]:
+        rv["PerfMetric"] = data[10]
+
+    if len(data) > 11 and data[11]:
+        rv["Fp16AltImpl"] = True
+
+    # library logic fields
+    rv["LibraryType"] = "Matching"
+    rv["Library"] = {}
+    rv["Library"]["indexOrder"] = data[6]
+    rv["Library"]["table"] = data[7]
+    rv["Library"]["distance"] = "Euclidean"
+    if len(data) > 12 and data[12]:
+        rv["Library"]["distance"] = data[12]
+
+    return rv
 
 def rawLibraryLogic(data):
     """Returns a tuple of the data in a library logic file."""

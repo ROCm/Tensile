@@ -44,55 +44,15 @@ class SingleSolutionLibrary:
     def remapSolutionIndices(self,indexMap):
         pass
 
-class GranularitySelectionLibrary:
-    Tag = 'GranularitySelection'
-    StateKeys = [('type', 'tag'), 'indices', 'exact']
-
-    @classmethod
-    def FromOriginalState(cls, d, indices):
-        origTable = d[1]
-        #indices = d[9]['TileSelectionIndices']
-        #  entry = {'key': key, 'value': value, 'speed': row[1][1]}
-        entries = []
-        for row in origTable:
-            try:
-                index = row[1][0]
-                key = list(row[0][0:4])
-                entry = {'key': key, 'value': index }
-                entries.append(entry)
-            except KeyError:
-                pass
-
-
-        return cls(indices, entries)
-
-    @property
-    def tag(self):
-        return self.__class__.Tag
-
-    def merge(self, other):
-        assert self.__class__ == other.__class__
-        self.indices = list(set().union(self.indices, other.indices))
-        self.exact = list(set().union(self.exact, other.exact))
-
-    def __init__(self, indices, exact):
-        self.indices = indices
-        self.exact = exact
-
-    def remapSolutionIndices(self,indexMap):
-        for i in range(0, len(self.indices)):
-            index = self.indices[i]
-            if index in indexMap:
-                self.indices[i] = indexMap[index]
-
 class MatchingLibrary:
     Tag = 'Matching'
     StateKeys = [('type', 'tag'), 'properties', 'table', 'distance']
 
     @classmethod
-    def FromOriginalState(cls, d, solutions, distance='Euclidean'):
-        indices = d[0]
-        origTable = d[1]
+    def FromOriginalState(cls, d, solutions):
+        indices = d["indexOrder"]
+        distance = d["distance"]
+        origTable = d["table"]
 
         propertyKeys = {
                 2:lambda: Properties.Property('FreeSizeA', index=0),
@@ -216,63 +176,53 @@ class MasterSolutionLibrary:
     @classmethod
     def FromOriginalState(cls, d, origSolutions, solutionClass=Contractions.Solution, libraryOrder = None):
         if libraryOrder is None:
-            libraryOrder = ['Hardware', 'OperationIdentifier', 'PerformanceMetric', 'Fp16AltImpl', 'Predicates', 'Matching']
+            libraryOrder = ['Hardware', 'OperationIdentifier', 'PerformanceMetric', 'Fp16AltImpl', 'Predicates', 'Selection']
 
-        deviceSection = d[1:4]
-        origProblemType = d[4]
-        #origSolutions = d[5]
-        origLibrary = d[6:8]
+        problemType = Contractions.ProblemType.FromOriginalState(d["ProblemType"])
 
-        if len(d) > 9 and d[9]:
-            # It's a Granularity library
-            assert libraryOrder[-1] == 'Matching'
-            libraryOrder[-1] = 'Granularity'
-
-        perfMetric = 'DeviceEfficiency'
-        if len(d) > 10 and d[10]:
-            perfMetric = d[10]
-
-        fp16AltImpl = False
-        if len(d) > 11 and d[11]:
-            fp16AltImpl = True
-
-        matching = 'Euclidean'
-        if len(d) > 12 and d[12]:
-            matching = d[12]
-
-        problemType = Contractions.ProblemType.FromOriginalState(origProblemType)
-
-        allSolutions = [solutionClass.FromSolutionStruct(s, deviceSection) for s in origSolutions]
+        allSolutions = [solutionClass.FromSolutionStruct(s) for s in origSolutions]
         cls.FixSolutionIndices(allSolutions)
 
         solutions = {s.index: s for s in allSolutions}
 
         for libName in reversed(libraryOrder):
-            if libName == 'Matching':
-                if matching == 'Equality':
+            if libName == 'Selection':
+
+                if d["LibraryType"] == "Matching":
+                    if d["Library"]["distance"] == 'Equality':
+                        predicate = Properties.Predicate(tag='EqualityMatching')
+                    else:
+                        predicate = Properties.Predicate(tag='TruePred')
+
+                    matchingLib = MatchingLibrary.FromOriginalState( \
+                            d["Library"], allSolutions)
+                    library = PredicateLibrary(tag='Problem')
+                    library.rows.append({'predicate': predicate, 'library': matchingLib})
+                elif d["LibraryType"] == "DecisionTree":
+
+                    # TODOBEN temp test code
                     predicate = Properties.Predicate(tag='EqualityMatching')
-                else:
-                    predicate = Properties.Predicate(tag='TruePred')
+                    testd = {}
+                    testd["distance"] = "Ratio"
+                    testd["indexOrder"] = [2, 3, 0, 1]
+                    testd["table"] = []
 
-                matchingLib = MatchingLibrary.FromOriginalState( \
-                        origLibrary, allSolutions, matching)
-                library = PredicateLibrary(tag='Problem')
-                library.rows.append({'predicate': predicate, 'library': matchingLib})
-
-            elif libName == 'Granularity':
-                selectionIndices = d[9]['TileSelectionIndices']
-                library = GranularitySelectionLibrary.FromOriginalState(origLibrary, selectionIndices)
+                    matchingLib = MatchingLibrary.FromOriginalState( \
+                            testd, allSolutions)
+                    library = PredicateLibrary(tag='Problem')
+                    library.rows.append({'predicate': predicate, 'library': matchingLib})
 
             elif libName == 'Hardware':
 
-                if isinstance(deviceSection[1], dict):
-                    architectureProps = deviceSection[1]
+                # TODOBEN this logic is duplicated in file reading
+                if isinstance(d["Architecture"], dict):
+                    architectureProps = d["Architecture"]
                     assert 'Architecture' in architectureProps, 'Invalid device section [1]'
                     assert 'CUCount' in architectureProps, 'Invalid device section [1]'
                     devicePart = architectureProps['Architecture']
                     cuCount = architectureProps['CUCount']
                 else:
-                    devicePart = deviceSection[1]
+                    devicePart = d["Architecture"]
                     cuCount = None
 
                 newLib = PredicateLibrary(tag='Hardware')
@@ -301,8 +251,8 @@ class MasterSolutionLibrary:
                 library = newLib
 
             elif libName == 'PerformanceMetric':
-                if perfMetric != 'DeviceEfficiency':
-                    predicate = Properties.Predicate(tag=perfMetric)
+                if d.get("PerfMetric", "DeviceEfficiency") != 'DeviceEfficiency':
+                    predicate = Properties.Predicate(tag=d["PerfMetric"])
                 else:
                     predicate = Properties.Predicate(tag='TruePred')
                 newLib = PredicateLibrary(tag='Problem')
@@ -310,7 +260,7 @@ class MasterSolutionLibrary:
                 library = newLib
 
             elif libName == 'Fp16AltImpl':
-                if fp16AltImpl:
+                if d.get("Fp16AltImpl"):
                     predicate = Properties.Predicate(tag='Fp16AltImpl')
                 else:
                     predicate = Properties.Predicate(tag='TruePred')
