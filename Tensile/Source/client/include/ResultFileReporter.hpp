@@ -29,7 +29,7 @@
 #include "CSVStackFile.hpp"
 #include "ResultReporter.hpp"
 
-#include <boost/program_options.hpp>
+#include "program_options.hpp"
 
 #include <cstddef>
 
@@ -37,12 +37,12 @@ namespace Tensile
 {
     namespace Client
     {
-        namespace po = boost::program_options;
+        namespace po = roc;
 
         class ResultFileReporter : public ResultReporter
         {
         public:
-            static std::shared_ptr<ResultFileReporter> Default(po::variables_map const& args);
+            static std::shared_ptr<ResultFileReporter> Default(po::variables_map& args);
 
             ResultFileReporter(std::string const& filename,
                                bool               exportExtraCols,

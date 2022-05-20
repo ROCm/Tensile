@@ -33,7 +33,7 @@ namespace Tensile
     namespace Client
     {
         std::shared_ptr<LibraryUpdateReporter>
-            LibraryUpdateReporter::Default(po::variables_map const& args)
+            LibraryUpdateReporter::Default(po::variables_map& args)
         {
             auto filename = args["library-update-file"].as<std::string>();
             auto comment  = args["library-update-comment"].as<bool>();
@@ -70,7 +70,7 @@ namespace Tensile
         template <typename T>
         void LibraryUpdateReporter::reportValue(std::string const& key, T const& value)
         {
-            std::string valueStr = boost::lexical_cast<std::string>(value);
+            std::string valueStr = roc::lexical_cast_to_string(value);
             //m_stream << key << " = " << valueStr << std::endl;
 
             if(key == ResultKey::Validation)

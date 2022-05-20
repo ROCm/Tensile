@@ -28,7 +28,7 @@
 
 #include <Tensile/MasterSolutionLibrary.hpp>
 
-#include <boost/program_options.hpp>
+#include "program_options.hpp"
 
 #include <functional>
 #include <vector>
@@ -39,7 +39,7 @@ namespace Tensile
 {
     namespace Client
     {
-        namespace po = boost::program_options;
+        namespace po = roc;
 
         /**
  * Not an iterator by the traditional definition but I can't think of a better
