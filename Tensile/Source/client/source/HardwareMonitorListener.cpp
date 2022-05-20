@@ -25,7 +25,6 @@
  *******************************************************************************/
 
 #include "HardwareMonitor.hpp"
-#endif
 
 #include <hip/hip_runtime.h>
 
