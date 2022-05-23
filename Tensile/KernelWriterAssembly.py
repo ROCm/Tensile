@@ -13814,24 +13814,34 @@ class KernelWriterAssembly(KernelWriter):
         if (kernel["GlobalLoadVectorWidth%s"%tc] * tP["bpe"] == 16):
           ##TLU=0 case GLVW=2
           #kStr += vectorStaticDivide(vgpr(tmp1),"Serial",32,tmpVgpr,tmpSgpr)
-          kStr += inst("v_lshrrev_b32",vgpr(tmp1),hex(5),vgpr("Serial"),"")
+          kStr += inst("v_and_b32",vgpr(tmp2),hex(63),vgpr("Serial"),"")
+          kStr += inst("v_lshrrev_b32",vgpr(tmp1),hex(5),vgpr(tmp2),"")
           kStr += inst("v_lshlrev_b32",vgpr(tmp1),hex(2),vgpr(tmp1),"")
-          #kStr += vectorStaticReminder(dummy,vgpr(tmp2),"serial",32,tmpVgpr,tmpSgpr)
-          kStr += inst("v_and_b32",vgpr(tmp2),hex(31),vgpr("Serial"),"")
-          kStr += inst("v_and_b32",vgpr(tmp2),"0x10",vgpr(tmp2),"")
+          kStr += inst("v_and_b32",vgpr(tmp2),hex(31),vgpr(tmp2),"")
+          kStr += inst("v_and_b32",vgpr(tmp2),hex(16),vgpr(tmp2),"")
           kStr += inst("_v_add_u32",vgpr(tmp1),vgpr(tmp1),vgpr(tmp2),"")
           kStr += inst("_v_add_u32",finalVgpr,finalVgpr,vgpr(tmp1),"")
         else:
           ##TLU=0 case GLVW=1
           kStr += inst("v_and_b32",vgpr(tmp2),hex(63),vgpr("Serial"),"")
-          kStr += inst("v_lshrrev_b32",vgpr(tmp1),hex(4),vgpr(tmp2),"")
+          kStr += inst("v_lshrrev_b32",vgpr(tmp1),kernel["MatrixInstM"],vgpr(tmp2),"")
           kStr += inst("v_lshlrev_b32",vgpr(tmp1),hex(2),vgpr(tmp1),"")
           kStr += inst("_v_add_u32",finalVgpr,finalVgpr,vgpr(tmp1),"")
       else:
           ##TLU=0 case GLVW=1
+        if (kernel["GlobalLoadVectorWidth%s"%tc] * tP["bpe"] == 8):
           kStr += inst("v_and_b32",vgpr(tmp2),hex(63),vgpr("Serial"),"")
           kStr += inst("v_lshrrev_b32",vgpr(tmp1),hex(4),vgpr(tmp2),"")
           kStr += inst("v_lshlrev_b32",vgpr(tmp1),hex(2),vgpr(tmp1),"")
+          kStr += inst("_v_add_u32",finalVgpr,finalVgpr,vgpr(tmp1),"")
+        else:
+          #TLU=0 GLVW=2 case
+          kStr += inst("v_and_b32",vgpr(tmp2),hex(63),vgpr("Serial"),"")
+          kStr += inst("v_lshrrev_b32",vgpr(tmp1),hex(5),vgpr(tmp2),"")
+          kStr += inst("v_lshlrev_b32",vgpr(tmp1),hex(2),vgpr(tmp1),"")
+          kStr += inst("v_and_b32",vgpr(tmp2),hex(31),vgpr(tmp2),"")
+          kStr += inst("v_and_b32",vgpr(tmp2),hex(16),vgpr(tmp2),"")
+          kStr += inst("_v_add_u32",vgpr(tmp1),vgpr(tmp1),vgpr(tmp2),"")
           kStr += inst("_v_add_u32",finalVgpr,finalVgpr,vgpr(tmp1),"")
 
     return kStr

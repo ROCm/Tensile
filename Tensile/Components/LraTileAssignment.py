@@ -164,7 +164,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             numElementsPerLane = kernel["GlobalLoadVectorWidth%c"%tc]
             kStr += inst("v_and_b32",vgpr(mReg1),(MidxRemainder-1),vgpr(tReg), \
               "1. N offset: mIdxlower = mIdx and MblockSizePerLoad")
-            kStr += staticMultiply(vgpr(mReg1), vgpr(mReg1), (numElementsPerLane*MidxScale), sgpr(tmpSgpr), \
+            kStr += staticMultiply(vgpr(mReg1), vgpr(mReg1), (numElementsPerLane*KlanesPerMFrag), sgpr(tmpSgpr), \
               "1. N offset: mIdxlower_offset = nIdxlower * nStride(%u)" % strideTile)
           elif ((KlanesPerMFrag == 4 and (kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"]) == 8) or
                 (KlanesPerMFrag == 2 and (kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"]) == 8)):

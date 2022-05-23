@@ -2490,6 +2490,14 @@ class Solution(collections.abc.Mapping):
       reject(state, "can't use DirectToLds if MacroTile%s is not power of 2"%tc)
       return False
 
+    if state["ThreadSeparateGlobalRead%s"%tc] and (numBytes*state["GlobalLoadVectorWidth%c"%tc] > 8):
+      reject(state, "ThreadSeparateGlobalRead%c with GlobalLoadVectorWidth=2 not supported yet."%(tc))
+      return False
+
+    if state["ThreadSeparateGlobalRead%s"%tc] and (numBytes*state["StoreVectorWidth"] > 8):
+      reject(state, "ThreadSeparateGlobalRead%c with StoreVectorWidth=%s not supported yet."%(tc,state["StoreVectorWidth"]))
+      return False
+
     return True
 
 
