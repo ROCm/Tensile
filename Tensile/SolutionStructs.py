@@ -2498,6 +2498,14 @@ class Solution(collections.abc.Mapping):
       reject(state, "ThreadSeparateGlobalRead%c with StoreVectorWidth=%s not supported yet."%(tc,state["StoreVectorWidth"]))
       return False
 
+    if state["ThreadSeparateGlobalRead%s"%tc] and (numBytes*state["VectorWidth"] > 8):
+      reject(state, "ThreadSeparateGlobalRead%c with VectorWidth=%s not supported yet."%(tc,state["VectorWidth"]))
+      return False
+
+    if state["ThreadSeparateGlobalRead%s"%tc] and state["NumLoadsCoalesced%s"%tc] > 1:
+      reject(state, "ThreadSeparateGlobalRead%c does not work with NumLoadsCoalesced > 1."%(tc))
+      return False
+
     return True
 
 
