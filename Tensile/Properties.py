@@ -23,7 +23,7 @@ from .Utils import hash_objs, state
 
 class Property:
     @classmethod
-    def FromState(cls, d):
+    def FromOriginalState(cls, d):
         return cls(d.get('type'), d.get('index'), d.get('value'))
 
     def __init__(self, tag=None, index=None, value=None):
@@ -57,12 +57,6 @@ class Property:
 
 class Predicate(Property):
     @classmethod
-    def FromOriginalState(cls, d, morePreds=None):
-        if morePreds is None: morePreds = []
-        predicates = [p for p in map(cls.FromOriginalKeyPair, d.items()) if p is not None] + morePreds
-        return cls.And(predicates)
-
-    @classmethod
     def And(cls, predicates):
         predicates = tuple(predicates)
         if len(predicates) == 0:
@@ -89,8 +83,13 @@ class Predicate(Property):
         if self.tag == 'TruePred':
             return False
 
+        selfValue = self.value
+        otherValue = other.value
+
+        if other.tag == 'SizeInRange':
+            otherValue = {other.value.get("min", 0), other.value.get("max", -1)}
+        if self.tag == 'SizeInRange':
+            selfValue = {self.value.get("min", 0), self.value.get("max", -1)}
+
         # If neither is a TruePred then just use the default comparison.
-        try:
-            return (self.tag, self.index, self.value) < (other.tag, other.index, other.value)
-        except TypeError:
-            return True
+        return (self.tag, self.index, selfValue) < (other.tag, other.index, otherValue)

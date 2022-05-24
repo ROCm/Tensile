@@ -396,7 +396,8 @@ class ProblemPredicate(Properties.Predicate):
         compoundPreds = cls.CompoundPredicates(d, problemType)
         extraPreds = problemTypePreds + compoundPreds + morePreds
 
-        return super().FromOriginalState(d, extraPreds)
+        predicates = [p for p in map(cls.FromOriginalKeyPair, d.items()) if p is not None] + extraPreds
+        return cls.And(predicates)
 
 class SizeMapping:
     StateKeys = ['workGroup',

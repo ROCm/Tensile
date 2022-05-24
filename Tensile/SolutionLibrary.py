@@ -128,13 +128,9 @@ class DecisionTreeLibrary:
         return self.__class__.Tag
 
     def merge(self, other):
-        # assert self.__class__ == other.__class__ \
-        #         and self.properties == other.properties \
-        #         and self.distance == other.distance
+        raise RuntimeError("DecisionTreeLibrary does not support merging; ensure each library row has a unique predicate")
 
-        # self.table += other.table
-
-        # self.table.sort(key=lambda r: r['key'])
+    def remapSolutionIndices(self,indexMap):
         pass
 
     def __init__(self, properties, trees):
@@ -226,7 +222,6 @@ class MasterSolutionLibrary:
 
         for libName in reversed(libraryOrder):
             if libName == 'Selection':
-
                 if d["LibraryType"] == "Matching":
                     if d["Library"]["distance"] == 'Equality':
                         predicate = Properties.Predicate(tag='EqualityMatching')
@@ -237,14 +232,12 @@ class MasterSolutionLibrary:
                             d["Library"], allSolutions)
                     library = PredicateLibrary(tag='Problem')
                     library.rows.append({'predicate': predicate, 'library': matchingLib})
-                elif d["LibraryType"] == "DecisionTree":
 
-                    # TODOBEN temp test code
+                elif d["LibraryType"] == "DecisionTree":
                     library = PredicateLibrary(tag='Problem')
                     for lib in d["Library"]:
-
                         preds = lib["region"]
-                        predObjs = [Properties.Predicate.FromState(p) for p in preds]
+                        predObjs = [Properties.Predicate.FromOriginalState(p) for p in preds]
 
                         if len(predObjs) == 1:
                             predicate = predObjs[0]
@@ -255,7 +248,6 @@ class MasterSolutionLibrary:
                         library.rows.append({'predicate': predicate, 'library': treeLib})
 
             elif libName == 'Hardware':
-
                 # TODOBEN this logic is duplicated in file reading
                 if isinstance(d["Architecture"], dict):
                     architectureProps = d["Architecture"]
