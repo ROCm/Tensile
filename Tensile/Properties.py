@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,10 @@
 from .Utils import hash_objs, state
 
 class Property:
+    @classmethod
+    def FromState(cls, d):
+        return cls(d.get('type'), d.get('index'), d.get('value'))
+
     def __init__(self, tag=None, index=None, value=None):
         self._tag = tag
         self._index = index
@@ -86,4 +90,7 @@ class Predicate(Property):
             return False
 
         # If neither is a TruePred then just use the default comparison.
-        return (self.tag, self.index, self.value) < (other.tag, other.index, other.value)
+        try:
+            return (self.tag, self.index, self.value) < (other.tag, other.index, other.value)
+        except TypeError:
+            return True

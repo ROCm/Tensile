@@ -20,6 +20,7 @@
 ################################################################################
 
 import itertools
+from typing_extensions import dataclass_transform
 
 from . import Properties
 from . import Hardware
@@ -102,6 +103,44 @@ class MatchingLibrary:
         self.table = table
         self.distance = distance
 
+class DecisionTreeLibrary:
+    Tag= 'DecisionTree'
+    StateKeys = [('type', 'tag'), 'properties', 'trees']
+
+    @classmethod
+    def FromOriginalState(cls, d, solutions):
+        properties = d["properties"]
+        origTrees = d["trees"]
+
+        trees = []
+
+        for tree in origTrees:
+            index = tree["solution"]
+            value = SingleSolutionLibrary(solutions[index])
+
+            entry = {'tree': tree["tree"], 'value': value}
+            trees.append(entry)
+
+        return cls(properties, trees)
+
+    @property
+    def tag(self):
+        return self.__class__.Tag
+
+    def merge(self, other):
+        # assert self.__class__ == other.__class__ \
+        #         and self.properties == other.properties \
+        #         and self.distance == other.distance
+
+        # self.table += other.table
+
+        # self.table.sort(key=lambda r: r['key'])
+        pass
+
+    def __init__(self, properties, trees):
+        self.properties = properties
+        self.trees = trees
+
 class ProblemMapLibrary:
     Tag = 'ProblemMap'
     StateKeys = [('type', 'tag'), ('property', 'mappingProperty'), ('map', 'mapping')]
@@ -138,11 +177,11 @@ class PredicateLibrary:
     def merge(self, other):
         assert self.__class__ == other.__class__ and self.tag == other.tag
 
-        rowdict = {r['predicate']: i  for i,r in enumerate(self.rows)}
+        rowPreds = [r['predicate'] for r in self.rows]
 
         for row in other.rows:
-            if row['predicate'] in rowdict:
-                myRownum = rowdict[row['predicate']]
+            if row['predicate'] in rowPreds:
+                myRownum = rowPreds.index(row['predicate'])
                 self.rows[myRownum]['library'].merge(row['library'])
             else:
                 self.rows.append(row)
@@ -201,16 +240,19 @@ class MasterSolutionLibrary:
                 elif d["LibraryType"] == "DecisionTree":
 
                     # TODOBEN temp test code
-                    predicate = Properties.Predicate(tag='EqualityMatching')
-                    testd = {}
-                    testd["distance"] = "Ratio"
-                    testd["indexOrder"] = [2, 3, 0, 1]
-                    testd["table"] = []
-
-                    matchingLib = MatchingLibrary.FromOriginalState( \
-                            testd, allSolutions)
                     library = PredicateLibrary(tag='Problem')
-                    library.rows.append({'predicate': predicate, 'library': matchingLib})
+                    for lib in d["Library"]:
+
+                        preds = lib["region"]
+                        predObjs = [Properties.Predicate.FromState(p) for p in preds]
+
+                        if len(predObjs) == 1:
+                            predicate = predObjs[0]
+                        else:
+                            predicate = Properties.Predicate.And(predObjs)
+
+                        treeLib = DecisionTreeLibrary.FromOriginalState(lib, allSolutions)
+                        library.rows.append({'predicate': predicate, 'library': treeLib})
 
             elif libName == 'Hardware':
 

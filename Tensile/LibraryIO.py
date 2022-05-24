@@ -147,8 +147,10 @@ def parseLibraryLogicFile(filename):
 
 def parseLibraryLogicData(data, srcFile="?"):
     """Parses the data of a library logic file."""
+    indexOrder = []
     if type(data) is list:
         data = parseLibraryLogicList(data, srcFile)
+        indexOrder = data["Library"].get("IndexOrder")
 
     # TODOBEN better approach?
     if type(data["Architecture"]) is dict:
@@ -181,8 +183,9 @@ def parseLibraryLogicData(data, srcFile="?"):
 
     newLibrary = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data, solutions)
 
-    # TODOBEN: fix returns?
-    return (data["ScheduleName"], data["DeviceNames"], problemType, solutions, data["Library"].get("IndexOrder"), \
+    # TODOBEN: fix returns
+
+    return (data["ScheduleName"], data["DeviceNames"], problemType, solutions, indexOrder, \
             data.get("ExactLogic"), data.get("RangeLogic"), newLibrary, data["ArchitectureName"])
 
 def parseLibraryLogicList(data, srcFile="?"):
