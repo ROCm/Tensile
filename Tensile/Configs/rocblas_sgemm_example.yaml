@@ -16,7 +16,6 @@ GlobalParameters:
   Platform: 0
   Device: 0
   KernelTime: True
-  PinClocks: False # Must be set to False.
   SleepPercent: 0
   DataInitTypeBeta : 0
   PrintSolutionRejectionReason: True # Route rejected configs to std out.
@@ -36,22 +35,16 @@ BenchmarkProblems:
       Batched: True
 
     - # BenchmarkProblemSizeGroup - standard
-      InitialSolutionParameters:
-      # Empty for simplicity. 
-      # Please see https://github.com/ROCmSoftwarePlatform/Tensile/wiki/Benchmark-Protocol
-      # for a detailed explanation.
       BenchmarkCommonParameters:
-      # Specify parameters that are to be considered "determined"
-      # prior to kernel forking.
-        - ProblemSizes:
-          - Exact: [1024, 1024, 1, 512]
+        # Specify parameters that are to take a single value that is
+        # the same for every solution.
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
         - LoopTail: [True]
       ForkParameters:
-      # The following parameters are forked on because they often have an
-      # outsized impact on the performance of a kernel for a given problem 
-      # and a given macro tile.
+        # Specify parameters with a set of values, yielding a 
+        # solution space spanning the cartesian product of all 
+        # parameter sets.
         - PrefetchLocalRead: [False, True]
         - PrefetchGlobalRead: [False, True]
         - ThreadTile:
@@ -65,12 +58,11 @@ BenchmarkProblems:
         - LdsBlockSizePerPad: [-1, 0, 64]
         - DepthU: [4, 8]
         - StoreVectorWidth: [-1, 1, 2, 4]
-      BenchmarkForkParameters:
-      BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-        # Specify the dimensions of the problems that the forked kernels
-        # should be evaluated on.
+          # Specify the dimensions of the problems that the forked kernels
+          # should be evaluated on.
+          - Exact: [2048, 2048, 1, 4096]
           - Range: [ [128, 128, 128, 1408], [128, 128, 128, 1408], [1], [256, 512, 512, 2048] ]
 
 # Specify appropriate parameters for your target device.
