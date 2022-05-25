@@ -96,10 +96,10 @@ namespace Tensile
                     level = args["log-level"].as<LogLevel>();
                 std::cout << "Log level: " << level << std::endl;
 
-                PerformanceMetric metric = args["performance-metric"].as<PerformanceMetric>();
-                // Default to 'DeviceEfficiency' benchmarking if CUEfficiency not specified
+                SolutionSelectionMethod metric = args["solution-selection-method"].as<SolutionSelectionMethod>();
+                // Default to 'DeviceEfficiency' benchmarking if not otherwise specified
                 const std::string perfUnit
-                    = (metric == PerformanceMetric::CUEfficiency ? SpeedGFlopsPerCu : SpeedGFlops);
+                    = (metric == SolutionSelectionMethod::CUEfficiency ? SpeedGFlopsPerCu : SpeedGFlops);
 
                 return std::shared_ptr<LogReporter>(new LogReporter(level,
                                                                     {BenchmarkRunNumber,

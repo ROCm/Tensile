@@ -26,7 +26,7 @@
 
 #include <Tensile/ArithmeticUnitTypes.hpp>
 #include <Tensile/KernelLanguageTypes.hpp>
-#include <Tensile/PerformanceMetricTypes.hpp>
+#include <Tensile/SolutionSelectionMethodTypes.hpp>
 #include <Tensile/ScalarValueTypes.hpp>
 #include <Tensile/Tensile.hpp>
 
@@ -584,14 +584,14 @@ namespace Tensile
             return m_kernelLanguage;
         }
 
-        void setPerformanceMetric(PerformanceMetric value)
+        void setSolutionSelectionMethod(SolutionSelectionMethod value)
         {
-            m_performanceMetric = value;
+            m_solutionSelectionMethod = value;
         }
 
-        PerformanceMetric performanceMetric() const
+        SolutionSelectionMethod solutionSelectionMethod() const
         {
-            return m_performanceMetric;
+            return m_solutionSelectionMethod;
         }
 
         void setDeterministicMode(bool value)
@@ -796,7 +796,7 @@ namespace Tensile
         bool              m_fp16AltImpl             = false;
         ArithmeticUnit    m_arithmeticUnit          = ArithmeticUnit::Any;
         KernelLanguage    m_kernelLanguage          = KernelLanguage::Any;
-        PerformanceMetric m_performanceMetric       = PerformanceMetric::DeviceEfficiency;
+        SolutionSelectionMethod m_solutionSelectionMethod = SolutionSelectionMethod::DeviceEfficiency;
 
         DataType m_alphaType = DataType::None; // if not assigned, will follow d-type
         DataType m_betaType  = DataType::None; // for bwd-compatible

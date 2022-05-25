@@ -49,7 +49,7 @@ namespace Tensile
             , m_stridedBatched(args["strided-batched"].as<bool>())
             , m_highPrecisionAccumulate(args["high-precision-accumulate"].as<bool>())
             , m_kernelLanguage(args["kernel-language"].as<KernelLanguage>())
-            , m_performanceMetric(args["performance-metric"].as<PerformanceMetric>())
+            , m_solutionSelectionMethod(args["solution-selection-method"].as<SolutionSelectionMethod>())
             , m_deterministicMode(args["deterministic-mode"].as<bool>())
             , m_cEqualsD(args["c-equal-d"].as<bool>())
             , m_arithmeticUnit(args["arithmetic-unit"].as<ArithmeticUnit>())
@@ -199,7 +199,7 @@ namespace Tensile
                 rv.back().setStridedBatched(m_stridedBatched);
                 rv.back().setHighPrecisionAccumulate(m_highPrecisionAccumulate);
                 rv.back().setKernelLanguage(m_kernelLanguage);
-                rv.back().setPerformanceMetric(m_performanceMetric);
+                rv.back().setSolutionSelectionMethod(m_solutionSelectionMethod);
                 rv.back().setDeterministicMode(m_deterministicMode);
                 rv.back().setArithmeticUnit(m_arithmeticUnit);
                 rv.back().setFp16AltImpl(m_fp16AltImpl);

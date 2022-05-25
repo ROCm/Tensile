@@ -82,8 +82,8 @@ namespace Tensile
             bool              m_cEqualsD;
             ArithmeticUnit    m_arithmeticUnit;
             KernelLanguage    m_kernelLanguage;
-            PerformanceMetric m_performanceMetric;
             bool              m_fp16AltImpl;
+            SolutionSelectionMethod m_solutionSelectionMethod;
 
             std::vector<std::vector<size_t>> m_problemSizes;
             std::vector<std::vector<size_t>> m_aStrides;

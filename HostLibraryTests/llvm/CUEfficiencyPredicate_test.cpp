@@ -52,8 +52,8 @@ TEST(CUEfficiencyPredicate, CUEfficiency)
     ContractionProblem large = ContractionProblem::GEMM(
         false, false, 10'000, 10'000, 10'000, 10'000, 10'000, 10'000, 1, false, 1);
 
-    small.setPerformanceMetric(PerformanceMetric::CUEfficiency);
-    large.setPerformanceMetric(PerformanceMetric::CUEfficiency);
+    small.setSolutionSelectionMethod(SolutionSelectionMethod::CUEfficiency);
+    large.setSolutionSelectionMethod(SolutionSelectionMethod::CUEfficiency);
 
     EXPECT_EQ((*p)(small), true);
     EXPECT_EQ((*p)(large), true);
@@ -79,8 +79,8 @@ TEST(CUEfficiencyPredicate, DeviceEfficiency)
     ContractionProblem large = ContractionProblem::GEMM(
         false, false, 10'000, 10'000, 10'000, 10'000, 10'000, 10'000, 1, false, 1);
 
-    small.setPerformanceMetric(PerformanceMetric::DeviceEfficiency);
-    large.setPerformanceMetric(PerformanceMetric::DeviceEfficiency);
+    small.setSolutionSelectionMethod(SolutionSelectionMethod::DeviceEfficiency);
+    large.setSolutionSelectionMethod(SolutionSelectionMethod::DeviceEfficiency);
 
     EXPECT_EQ((*p)(small), false);
     EXPECT_EQ((*p)(large), false);
@@ -110,8 +110,8 @@ TEST(CUEfficiencyPredicate, Best)
     ContractionProblem large = ContractionProblem::GEMM(
         false, false, 10'000, 10'000, 10'000, 10'000, 10'000, 10'000, 1, false, 1);
 
-    small.setPerformanceMetric(PerformanceMetric::Auto);
-    large.setPerformanceMetric(PerformanceMetric::Auto);
+    small.setSolutionSelectionMethod(SolutionSelectionMethod::Auto);
+    large.setSolutionSelectionMethod(SolutionSelectionMethod::Auto);
 
     EXPECT_EQ((*p)(small), true);
     EXPECT_EQ((*p)(large), false);

@@ -44,10 +44,10 @@ namespace Tensile
         public:
             static std::shared_ptr<ResultFileReporter> Default(po::variables_map const& args);
 
-            ResultFileReporter(std::string const& filename,
-                               bool               exportExtraCols,
-                               bool               mergeSameProblems,
-                               PerformanceMetric  performanceMetric);
+            ResultFileReporter(std::string const&      filename,
+                               bool                    exportExtraCols,
+                               bool                    mergeSameProblems,
+                               SolutionSelectionMethod solutionSelectionMethod);
 
             virtual void reportValue_string(std::string const& key,
                                             std::string const& value) override;
@@ -72,7 +72,7 @@ namespace Tensile
             bool              m_invalidSolution = false;
             bool              m_extraCol;
             bool              m_mergeSameProblems;
-            PerformanceMetric m_performanceMetric;
+            SolutionSelectionMethod m_solutionSelectionMethod;
             // for extra columns
             std::string m_winnerSolution;
             int64_t     m_currSolutionIdx   = -1;

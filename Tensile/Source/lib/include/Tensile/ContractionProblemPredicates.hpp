@@ -1331,11 +1331,11 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    if(problem.performanceMetric() == PerformanceMetric::CUEfficiency)
+                    if(problem.solutionSelectionMethod() == SolutionSelectionMethod::CUEfficiency)
                     {
                         return true;
                     }
-                    else if(problem.performanceMetric() == PerformanceMetric::Auto)
+                    else if(problem.solutionSelectionMethod() == SolutionSelectionMethod::Auto)
                     {
                         // True if total flops below a constant threshold
                         // Current threshold chosen naively as the flops for a
@@ -1346,6 +1346,27 @@ namespace Tensile
                     {
                         return false;
                     }
+                }
+            };
+
+            struct Experimental : public Predicate_CRTP<Experimental, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+
+                Experimental() = default;
+
+                static std::string Type()
+                {
+                    return "Experimental";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return (problem.solutionSelectionMethod() == SolutionSelectionMethod::Experimental);
                 }
             };
 

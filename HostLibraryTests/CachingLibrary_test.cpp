@@ -204,32 +204,32 @@ TEST(Hashing, ContractionProblem)
     l.setArithmeticUnit(ArithmeticUnit::MFMA);
     EXPECT_EQ(std::hash<ContractionProblem>()(k), std::hash<ContractionProblem>()(l));
 
-    // Test performance metric flag
+    // Test psolution selection method flag
     ContractionProblem m = ContractionProblem::GEMM(false, true, 5, 7, 9, 5, 5, 5, 3.0, false, 5);
     ContractionProblem n = m;
 
-    m.setPerformanceMetric(PerformanceMetric::DeviceEfficiency);
-    n.setPerformanceMetric(PerformanceMetric::CUEfficiency);
+    m.setSolutionSelectionMethod(SolutionSelectionMethod::DeviceEfficiency);
+    n.setSolutionSelectionMethod(SolutionSelectionMethod::CUEfficiency);
     EXPECT_NE(std::hash<ContractionProblem>()(m), std::hash<ContractionProblem>()(n));
 
-    m.setPerformanceMetric(PerformanceMetric::Auto);
-    n.setPerformanceMetric(PerformanceMetric::CUEfficiency);
+    m.setSolutionSelectionMethod(SolutionSelectionMethod::Auto);
+    n.setSolutionSelectionMethod(SolutionSelectionMethod::CUEfficiency);
     EXPECT_NE(std::hash<ContractionProblem>()(m), std::hash<ContractionProblem>()(n));
 
-    m.setPerformanceMetric(PerformanceMetric::Auto);
-    n.setPerformanceMetric(PerformanceMetric::DeviceEfficiency);
+    m.setSolutionSelectionMethod(SolutionSelectionMethod::Auto);
+    n.setSolutionSelectionMethod(SolutionSelectionMethod::DeviceEfficiency);
     EXPECT_NE(std::hash<ContractionProblem>()(m), std::hash<ContractionProblem>()(n));
 
-    m.setPerformanceMetric(PerformanceMetric::Auto);
-    n.setPerformanceMetric(PerformanceMetric::Auto);
+    m.setSolutionSelectionMethod(SolutionSelectionMethod::Auto);
+    n.setSolutionSelectionMethod(SolutionSelectionMethod::Auto);
     EXPECT_EQ(std::hash<ContractionProblem>()(m), std::hash<ContractionProblem>()(n));
 
-    m.setPerformanceMetric(PerformanceMetric::DeviceEfficiency);
-    n.setPerformanceMetric(PerformanceMetric::DeviceEfficiency);
+    m.setSolutionSelectionMethod(SolutionSelectionMethod::DeviceEfficiency);
+    n.setSolutionSelectionMethod(SolutionSelectionMethod::DeviceEfficiency);
     EXPECT_EQ(std::hash<ContractionProblem>()(m), std::hash<ContractionProblem>()(n));
 
-    m.setPerformanceMetric(PerformanceMetric::CUEfficiency);
-    n.setPerformanceMetric(PerformanceMetric::CUEfficiency);
+    m.setSolutionSelectionMethod(SolutionSelectionMethod::CUEfficiency);
+    n.setSolutionSelectionMethod(SolutionSelectionMethod::CUEfficiency);
     EXPECT_EQ(std::hash<ContractionProblem>()(m), std::hash<ContractionProblem>()(n));
 }
 
