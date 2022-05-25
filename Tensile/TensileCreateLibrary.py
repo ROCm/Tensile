@@ -62,9 +62,13 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
         kernelName = kernelWriter.getKernelFileBase(kernel)
         (err, src) = kernelWriter.getSourceFileString(kernel)
         header = kernelWriter.getHeaderFileString(kernel)
+        # will be put in Kernels.h/cpp if None 
         filename = kernel._state.get("codeObjectFile", None)
+        # put hip kernels in Kernels.h/cpp
+        if filename and "fallback" in filename:
+          filename = None
     except RuntimeError:
-        return (1, "", "", kernelName)
+        return (1, "", "", kernelName, None)
 
     return (err, src, header, kernelName, filename)
 
@@ -328,7 +332,7 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
   Logs errors and writes appropriate info to kernelSourceFile and kernelHeaderFile.
 
   Arguments:
-    results:              list of (err, src, header, kernelName)
+    results:              list of (err, src, header, kernelName, filename)
     outputPath:           path to source directory
     kernelsWithBuildErrs: Dictionary to be updated with kernels that have errors
     kernelSourceFile:     File to write source data to
@@ -530,7 +534,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   prepAsm(kernelWriterAssembly)
 
   kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
-  results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap, maxTasksPerChild=1)
+  results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap, maxTasksPerChild=1) 
 
   removeKernels = []
   removeSolutions = []
@@ -1143,6 +1147,8 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
         sourceLibFiles += ["Kernels%d.so-000-%s.hsaco" % (kernelIndex, arch) for arch in sourceArchs]
     else:
       raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
+  #elif True:
+  #  sourceLibFiles += list(set([kernel._state["codeObjectFile"]+".hsaco" for kernel in kernels if 'codeObjectFile' in kernel._state and "fallback" in kernel._state["codeObjectFile"]]))
   else: # Merge
     if (cxxCompiler == 'hipcc'):
       sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
@@ -1154,15 +1160,14 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
     # Find all unique arch values for current asm kernels
     uniqueArchs = set(itertools.chain(*asmArchs.values()))
     #asmLibFiles += ["TensileLibrary_%s.co" % (arch) for arch in uniqueArchs]
-    asmLibFiles += list(set([kernel._state["codeObjectFile"]+".co" for kernel in kernels if 'codeObjectFile' in kernel._state]))
+    asmLibFiles += list(set([kernel._state["codeObjectFile"]+".co" for kernel in kernels if 'codeObjectFile' in kernel._state and "fallback" not in kernel._state["codeObjectFile"]]))
   else:
     for asmKernelName, archs in asmArchs.items():
       asmLibFiles += ["%s_%s.co" % (asmKernelName, str(arch)) for arch in archs]
 
   return (solutionFiles, sourceKernelFiles, asmKernelFiles, sourceLibFiles, asmLibFiles)
 
-def buildObjectFilePaths(prefixDir, solutionFiles, sourceKernelFiles, asmKernelFiles, sourceLibFiles, asmLibFiles):
-
+def buildObjectFilePaths(prefixDir, solutionFiles, sourceKernelFiles, asmKernelFiles, sourceLibFiles, asmLibFiles, masterLibraries):
   solutionPaths = []
   sourceKernelPaths = []
   asmKernelPaths = []
@@ -1196,6 +1201,15 @@ def buildObjectFilePaths(prefixDir, solutionFiles, sourceKernelFiles, asmKernelF
   for sourceLibFile in sourceLibFiles:
     sourceLibPaths += [ os.path.join(libDir, sourceLibFile) ]
 
+  #Use set because of duplicate fallback libraries
+  newMetadataPaths = set()
+  for arch, lib in masterLibraries.items():
+    newMetadataPaths.add(os.path.join(libDir, "TensileLibrary_"+arch+libraryExt))
+    for name, placeholder in lib.placeholderLibraries.items():
+      newMetadataPaths.add(os.path.join(libDir, name+libraryExt))
+
+  libMetadataPaths += list(newMetadataPaths)
+
   for asmLibFile in asmLibFiles:
     # Asm lib files are enumerated in the form of
     # KernelName_gfxXXXXX.co
@@ -1208,22 +1222,25 @@ def buildObjectFilePaths(prefixDir, solutionFiles, sourceKernelFiles, asmKernelF
       asmLibPaths += [ os.path.join(
         libDir, asmArch[1:], asmLibFile.replace(asmArch, ''))]
     else:
-      if globalParameters["SeparateArchitectures"]:
-        libMetadataPaths += [ os.path.join(libDir, "TensileLibrary"+asmArch+libraryExt) ]
+      #if globalParameters["SeparateArchitectures"]:
+      #  libMetadataPaths += [ os.path.join(libDir, "TensileLibrary"+asmArch+libraryExt) ]
       asmLibPaths += [ os.path.join(libDir, asmLibFile) ]
+
+  print("libMetadataPaths========================")
+  print(libMetadataPaths)
 
   return (solutionPaths, sourceKernelPaths, asmKernelPaths, sourceLibPaths, asmLibPaths, libMetadataPaths)
 
 ################################################################################
 # Write CMake
 ################################################################################
-def writeCMake(outputPath, solutionFiles, kernelFiles, libraryStaticFiles):
+def writeCMake(outputPath, solutionFiles, kernelFiles, libraryStaticFiles, masterLibraries):
   print1("# Writing Custom CMake")
 
   # Build output file paths, using relative CMake symbol
   cmakeSrcDir = "${CMAKE_SOURCE_DIR}"
   (solutionPaths, sourceKernelPaths, asmKernelPaths, sourceLibPaths, asmLibPaths, _) = \
-    buildObjectFilePaths(cmakeSrcDir, solutionFiles, kernelFiles, [], [], [])
+    buildObjectFilePaths(cmakeSrcDir, solutionFiles, kernelFiles, [], [], [], masterLibraries)
 
   # Build full paths the static library files
   staticFilePaths = []
@@ -1555,7 +1572,7 @@ def TensileCreateLibrary():
    sourceLibPaths,
    asmLibPaths,
    libMetadataPaths) = buildObjectFilePaths(outputPath, solutionFiles, sourceKernelFiles, \
-    asmKernelFiles, sourceLibFiles, asmLibFiles) #JEREMY - revisit these later
+    asmKernelFiles, sourceLibFiles, asmLibFiles, masterLibraries) #JEREMY - revisit these later
 
   # Generate manifest file
   libraryPath = os.path.join(outputPath, "library")
@@ -1572,7 +1589,7 @@ def TensileCreateLibrary():
 
   # generate cmake for the source kernels,
   if not arguments["GenerateSourcesAndExit"]:
-    writeCMake(outputPath, solutionFiles, sourceKernelFiles, staticFiles)
+    writeCMake(outputPath, solutionFiles, sourceKernelFiles, staticFiles, masterLibraries)
 
   # Make sure to copy the library static files.
   for fileName in staticFiles:
