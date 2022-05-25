@@ -5,7 +5,7 @@ GlobalParameters:
   NumElementsToValidate: -1
   BoundsCheck: True
   KernelTime: True
-  PrintSolutionRejectionReason: True
+  # PrintSolutionRejectionReason: True
 
 BenchmarkProblems:
   ########################################
