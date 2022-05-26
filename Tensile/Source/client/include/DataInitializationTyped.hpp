@@ -135,7 +135,7 @@ namespace Tensile
             using ManagedInputs
                 = ManagedContractionInputs<AType, BType, CType, DType, AlphaType, BetaType>;
 
-            TypedDataInitialization(po::variables_map&    args,
+            TypedDataInitialization(po::variables_map&          args,
                                     ClientProblemFactory const& problemFactory,
                                     size_t                      maxWorkspaceSize = 0)
                 : DataInitialization(args, problemFactory, maxWorkspaceSize)

@@ -85,9 +85,8 @@ namespace Tensile
             }
 
             template <typename Stream>
-            static std::shared_ptr<LogReporter> Default(po::variables_map& args,
-                                                        Stream&                  stream,
-                                                        LogLevel level = LogLevel::Count)
+            static std::shared_ptr<LogReporter>
+                Default(po::variables_map& args, Stream& stream, LogLevel level = LogLevel::Count)
             {
                 bool dumpTensors = args["dump-tensors"].as<bool>();
                 using namespace ResultKey;

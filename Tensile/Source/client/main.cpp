@@ -383,7 +383,7 @@ namespace Tensile
                 else if(strValue == ToString(InitMode::DenormMin))
                     mode = InitMode::DenormMin;
                 else if(strValue == ToString(InitMode::DenormMax))
-                    mode = InitMode::DenormMax; 
+                    mode = InitMode::DenormMax;
                 auto type = args[opt].as<InitMode>();
                 args.at(opt).set(mode);
             }
@@ -418,11 +418,10 @@ namespace Tensile
             }
             else
             {
-                throw std::runtime_error(
-                        concatenate("Can't config ", strValue, " option."));
+                throw std::runtime_error(concatenate("Can't config ", strValue, " option."));
             }
         }
-        
+
         void fix_data_types(pomain::variables_map& args)
         {
             auto type = args["type"].as<DataType>();
@@ -443,7 +442,7 @@ namespace Tensile
 
         pomain::variables_map parse_args(int argc, const char* argv[])
         {
-            auto options = all_options();
+            auto                  options = all_options();
             pomain::variables_map args;
             pomain::store(pomain::parse_command_line(argc, argv, options), args);
             pomain::notify(args);
@@ -453,7 +452,7 @@ namespace Tensile
                 exit(1);
             }
 
-            std::unordered_map<std::string,std::string> unconfig;
+            std::unordered_map<std::string, std::string> unconfig;
             if(args.count("config-file"))
             {
                 auto configFiles = args["config-file"].as<std::vector<std::string>>();
@@ -466,18 +465,17 @@ namespace Tensile
                     pomain::store(pomain::parse_config_file(file, options), args, &unconfig);
                 }
             }
-            
+
             if(!unconfig.empty())
             {
-                for( auto iter = unconfig.begin(); iter != unconfig.end(); iter++)
+                for(auto iter = unconfig.begin(); iter != unconfig.end(); iter++)
                 {
                     std::string opt = iter->first;
                     std::string val = iter->second;
                     parse_unconfig_arg(args, opt, val);
-
                 }
             }
-            
+
             fix_data_types(args);
 
             return args;

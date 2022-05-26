@@ -109,17 +109,17 @@ namespace Tensile
    * Factory function.
    */
             static std::shared_ptr<DataInitialization>
-                Get(roc::variables_map&    args,
+                Get(roc::variables_map&         args,
                     ClientProblemFactory const& problemFactory,
                     size_t                      maxWorkspaceSize = 0);
 
             template <typename TypedInputs>
             static std::shared_ptr<TypedDataInitialization<TypedInputs>>
-                GetTyped(roc::variables_map&    args,
+                GetTyped(roc::variables_map&         args,
                          ClientProblemFactory const& problemFactory,
                          size_t                      maxWorkspaceSize = 0);
 
-            DataInitialization(roc::variables_map&    args,
+            DataInitialization(roc::variables_map&         args,
                                ClientProblemFactory const& problemFactory,
                                size_t                      maxWorkspaceSize = 0);
             ~DataInitialization();

@@ -27,10 +27,10 @@
 #include <ProgressListener.hpp>
 
 #include <cstddef>
-#include <iostream>
-#include <iomanip>
-#include <sstream>
 #include <ctime>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
 
 namespace Tensile
 {
@@ -144,7 +144,7 @@ namespace Tensile
                                                 TimingEvents const&                stopEvents)
         {
             std::time_t result = std::time(nullptr);
-            std::tm* tm = std::localtime(&result);
+            std::tm*    tm     = std::localtime(&result);
 
             std::ostringstream msg;
             msg.fill('0');

@@ -47,7 +47,7 @@ namespace Tensile
         class ReferenceValidator : public RunListener
         {
         public:
-            ReferenceValidator(po::variables_map&            args,
+            ReferenceValidator(po::variables_map&                  args,
                                std::shared_ptr<DataInitialization> dataInit);
 
             virtual bool needMoreBenchmarkRuns() const override;

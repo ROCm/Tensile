@@ -22,9 +22,9 @@
  * THE SOFTWARE.
  */
 
+#include "program_options.hpp"
 #include <ConvolutionProblem.hpp>
 #include <Tensile/ContractionProblem.hpp>
-#include "program_options.hpp"
 #include <vector>
 
 namespace Tensile

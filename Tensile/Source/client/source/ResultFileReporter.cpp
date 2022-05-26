@@ -32,8 +32,7 @@ namespace Tensile
 {
     namespace Client
     {
-        std::shared_ptr<ResultFileReporter>
-            ResultFileReporter::Default(po::variables_map& args)
+        std::shared_ptr<ResultFileReporter> ResultFileReporter::Default(po::variables_map& args)
         {
             return std::make_shared<ResultFileReporter>(
                 args["results-file"].as<std::string>(),

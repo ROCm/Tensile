@@ -6,14 +6,16 @@
 #ifndef PROGRAM_OPTIONS_H
 #define PROGRAM_OPTIONS_H
 
-#include <Tensile/PerformanceMetricTypes.hpp>
-#include <Tensile/DataTypes.hpp>
-#include <Tensile/TensorOps.hpp>
 #include "ResultReporter.hpp"
+#include <Tensile/DataTypes.hpp>
+#include <Tensile/PerformanceMetricTypes.hpp>
+#include <Tensile/TensorOps.hpp>
 
 #include <cinttypes>
 #include <cstdio>
+#include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <map>
 #include <ostream>
 #include <regex>
@@ -22,53 +24,51 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <iostream>
-#include <fstream>
 
 #define DEBUG_ENABLE 0
-#define DEBUG_LOG_PO(__VA_ARGS__) if (DEBUG_ENABLE) printf(__VA_ARGS__)
+#define DEBUG_LOG_PO(__VA_ARGS__) \
+    if(DEBUG_ENABLE)              \
+    printf(__VA_ARGS__)
 
 using namespace Tensile;
 
 namespace roc
 {
     template <typename Target>
-    inline Target lexical_cast(const std::string &arg)
+    inline Target lexical_cast(const std::string& arg)
     {
         Target result = Target(std::stoull(arg, 0, 10));
         return result;
     }
-    
-    inline std::string lexical_cast_to_string(const std::string &arg)
+
+    inline std::string lexical_cast_to_string(const std::string& arg)
     {
         std::string result;
         result = arg;
         return result;
     }
-    
+
     template <typename Source>
-    inline std::string lexical_cast_to_string(const Source &arg)
+    inline std::string lexical_cast_to_string(const Source& arg)
     {
         std::string result;
         result = std::to_string(arg);
         return result;
     }
-    
-    inline std::vector<std::string>& split(
-    std::vector<std::string>& Result,
-    const std::string& Input,
-    std::string Pred)
+
+    inline std::vector<std::string>&
+        split(std::vector<std::string>& Result, const std::string& Input, std::string Pred)
     {
         std::size_t found = std::string::npos;
-        std::size_t prev = 0;
-        while (1)
+        std::size_t prev  = 0;
+        while(1)
         {
             found = std::string::npos;
-            for (auto p : Pred)
+            for(auto p : Pred)
             {
                 found = std::min(Input.find(p, prev), found);
-            }                
-            if (found != std::string::npos)
+            }
+            if(found != std::string::npos)
             {
                 std::string s(Input.begin() + prev, Input.begin() + found);
                 Result.push_back(s);
@@ -81,9 +81,9 @@ namespace roc
         std::string f(Input.begin() + prev, Input.end());
         Result.push_back(f);
         DEBUG_LOG_PO("[split] done\n");
-        return Result;        
+        return Result;
     }
-    
+
     // Regular expression for token delimiters (whitespace and commas)
     static const std::regex program_options_regex{"[, \\f\\n\\r\\t\\v]+",
                                                   std::regex_constants::optimize};
@@ -91,12 +91,12 @@ namespace roc
     {
     public: // structors
         any()
-          : content(0)
+            : content(0)
         {
         }
 
-        any(const any & other)
-          : content(other.content ? other.content->clone() : 0)
+        any(const any& other)
+            : content(other.content ? other.content->clone() : 0)
         {
         }
 
@@ -106,39 +106,37 @@ namespace roc
         }
 
     public: // modifiers
-
-        any & swap(any & rhs)
+        any& swap(any& rhs)
         {
             placeholder* tmp = content;
-            content = rhs.content;
-            rhs.content = tmp;
+            content          = rhs.content;
+            rhs.content      = tmp;
             return *this;
         }
 
-
 #ifdef BOOST_NO_CXX11_RVALUE_REFERENCES
-        template<typename ValueType>
-        any & operator=(const ValueType & rhs)
+        template <typename ValueType>
+        any& operator=(const ValueType& rhs)
         {
             any(rhs).swap(*this);
             return *this;
         }
 
-        any & operator=(any rhs)
+        any& operator=(any rhs)
         {
             rhs.swap(*this);
             return *this;
         }
 
-#else 
-        any & operator=(const any& rhs)
+#else
+        any& operator=(const any& rhs)
         {
             any(rhs).swap(*this);
             return *this;
         }
 
         // move assignment
-        any & operator=(any&& rhs)
+        any& operator=(any&& rhs)
         {
             rhs.swap(*this);
             any().swap(rhs);
@@ -147,7 +145,7 @@ namespace roc
 
         // Perfect forwarding of ValueType
         template <class ValueType>
-        any & operator=(ValueType&& rhs)
+        any& operator=(ValueType&& rhs)
         {
             any(static_cast<ValueType&&>(rhs)).swap(*this);
             return *this;
@@ -155,7 +153,6 @@ namespace roc
 #endif
 
     public: // queries
-
         bool empty() const
         {
             return !content;
@@ -167,50 +164,42 @@ namespace roc
         }
 
     public: // types (public so any_cast can be non-friend)
-
         class placeholder
         {
         public: // structors
-
-            virtual ~placeholder()
-            {
-            }
+            virtual ~placeholder() {}
 
         public: // queries
-        
-            virtual placeholder * clone() const = 0;
-
+            virtual placeholder* clone() const = 0;
         };
 
-        template<typename ValueType>
-        class holder
-          : public placeholder
+        template <typename ValueType>
+        class holder : public placeholder
         {
         public: // structors
-
-            holder(const ValueType & value)
-              : held(value)
+            holder(const ValueType& value)
+                : held(value)
             {
             }
-        public: // queries
 
-            placeholder * clone()
+        public: // queries
+            placeholder* clone()
             {
                 return new holder(held);
             }
 
         public: // representation
-
             ValueType held;
 
         private: // intentionally left unimplemented
-            holder & operator=(const holder &);
+            holder& operator=(const holder&);
         };
+
     public: // representation (public so any_cast can be non-friend)
-        placeholder * content;
+        placeholder* content;
 
     }; //class any
-    
+
     class value_base
     {
     protected:
@@ -276,9 +265,12 @@ namespace roc
         // Set actual value
         value& actual_value(T val)
         {
-            if(m_var_ptr){
+            if(m_var_ptr)
+            {
                 *m_var_ptr = std::move(val);
-            }else{
+            }
+            else
+            {
                 m_var = std::move(val);
             }
             m_has_actual = true;
@@ -298,7 +290,7 @@ namespace roc
             }
             return this;
         }
-        
+
         value& default_value(T val)
         {
             if(!m_has_actual)
@@ -311,7 +303,6 @@ namespace roc
             }
             return *this;
         }
-        
     };
 
     // bool_switch is a value<bool>, which is handled specially
@@ -355,7 +346,7 @@ namespace roc
             else
                 throw std::logic_error("Internal error: Invalid cast");
         }
-        
+
         template <typename T>
         const void set(T& in) const
         {
@@ -367,7 +358,6 @@ namespace roc
             else
                 throw std::logic_error("Internal error: Invalid cast");
         }
-        
     };
 
     using variables_map = std::map<std::string, variable_value>;
@@ -377,9 +367,10 @@ namespace roc
         // desc_option describes a particular option
         class desc_option
         {
-            std::string                                  m_opts;
-            std::shared_ptr<value_base>                  m_val;
-            std::string                                  m_desc;
+            std::string                 m_opts;
+            std::shared_ptr<value_base> m_val;
+            std::string                 m_desc;
+
         public:
             // Constructor with options, value and description
             template <typename T>
@@ -389,7 +380,7 @@ namespace roc
                 , m_desc(std::move(desc))
             {
             }
-            
+
             template <typename T>
             desc_option(std::string opts, value<T> val, std::string desc)
                 : m_opts(std::move(opts))
@@ -429,7 +420,10 @@ namespace roc
             }
 
             // Set a value
-            void set_val(int& argc, char**& argv, std::string inopt, std::unordered_map<std::string,std::string>* p_uncfg) const
+            void set_val(int&                                          argc,
+                         char**&                                       argv,
+                         std::string                                   inopt,
+                         std::unordered_map<std::string, std::string>* p_uncfg) const
             {
                 // We test all supported types with dynamic_cast and parse accordingly
                 DEBUG_LOG_PO("[set_val] start\n");
@@ -438,37 +432,36 @@ namespace roc
                 {
                     DEBUG_LOG_PO("[set_val] skip DEBUG_LOG_PO\n");
                     if(p_uncfg != nullptr)
-                        (*p_uncfg)[std::string(inopt.begin() + 2, inopt.end())] = std::string(*argv);
+                        (*p_uncfg)[std::string(inopt.begin() + 2, inopt.end())]
+                            = std::string(*argv);
                     match = true;
                 }
                 else if(inopt.compare(0, 14, "--bounds-check") == 0)
                 {
                     DEBUG_LOG_PO("[set_val] skip BoundsCheckMode\n");
                     if(p_uncfg != nullptr)
-                        (*p_uncfg)[std::string(inopt.begin() + 2, inopt.end())] = std::string(*argv);
+                        (*p_uncfg)[std::string(inopt.begin() + 2, inopt.end())]
+                            = std::string(*argv);
                     match = true;
                 }
-                else if(inopt == "--problem-size" || 
-                        inopt == "--a-strides" ||
-                        inopt == "--b-strides" ||
-                        inopt == "--c-strides" ||
-                        inopt == "--d-strides" ||
-                        inopt == "--convolution-problem" ||
-                        inopt == "--a-zero-pads" ||
-                        inopt == "--b-zero-pads")
+                else if(inopt == "--problem-size" || inopt == "--a-strides"
+                        || inopt == "--b-strides" || inopt == "--c-strides"
+                        || inopt == "--d-strides" || inopt == "--convolution-problem"
+                        || inopt == "--a-zero-pads" || inopt == "--b-zero-pads")
                 {
                     DEBUG_LOG_PO("[set_val] problem size/a,b,c,d stride\n");
-                    if(auto* ptr = dynamic_cast<value<std::vector<std::vector<size_t>>>*>(m_val.get()))
+                    if(auto* ptr
+                       = dynamic_cast<value<std::vector<std::vector<size_t>>>*>(m_val.get()))
                     {
-                        std::string in(*argv);
+                        std::string              in(*argv);
                         std::vector<std::string> values;
-                        std::vector<size_t> values_int;
-                        std::string spliter(",");
+                        std::vector<size_t>      values_int;
+                        std::string              spliter(",");
                         if(inopt == "--a-zero-pads" || inopt == "--b-zero-pads")
                             spliter = ",;";
                         roc::split(values, in, spliter);
                         size_t tuples = values.size();
-                        auto vals = ptr->get_value();
+                        auto   vals   = ptr->get_value();
                         for(auto v : values)
                         {
                             values_int.push_back(lexical_cast<size_t>(v));
@@ -683,9 +676,9 @@ namespace roc
                     DEBUG_LOG_PO("[set_val] vector<string>\n");
                     if(argc)
                     {
-                        std::string in(*argv);
+                        std::string              in(*argv);
                         std::vector<std::string> values;
-                        std::string spliter(",;");
+                        std::string              spliter(",;");
                         roc::split(values, in, spliter);
                         ptr->actual_value(values);
                         match = true;
@@ -693,7 +686,8 @@ namespace roc
                 }
                 else
                 {
-                    DEBUG_LOG_PO("[set_val] Internal error: Unsupported data type (setting value)\n");
+                    DEBUG_LOG_PO(
+                        "[set_val] Internal error: Unsupported data type (setting value)\n");
                     throw std::logic_error("Internal error: Unsupported data type (setting value)");
                 }
                 if(!match)
@@ -705,7 +699,10 @@ namespace roc
                 --argc;
             }
             // Set a value
-            void set_val(int& argc, const char* argv, std::string inopt, std::unordered_map<std::string,std::string>* p_uncfg) const
+            void set_val(int&                                          argc,
+                         const char*                                   argv,
+                         std::string                                   inopt,
+                         std::unordered_map<std::string, std::string>* p_uncfg) const
             {
                 // We test all supported types with dynamic_cast and parse accordingly
                 DEBUG_LOG_PO("[set_val] start\n");
@@ -724,27 +721,24 @@ namespace roc
                         (*p_uncfg)[std::string(inopt.begin() + 2, inopt.end())] = std::string(argv);
                     match = true;
                 }
-                else if(inopt == "--problem-size" || 
-                        inopt == "--a-strides" ||
-                        inopt == "--b-strides" ||
-                        inopt == "--c-strides" ||
-                        inopt == "--d-strides" ||
-                        inopt == "--convolution-problem" ||
-                        inopt == "--a-zero-pads" ||
-                        inopt == "--b-zero-pads")
+                else if(inopt == "--problem-size" || inopt == "--a-strides"
+                        || inopt == "--b-strides" || inopt == "--c-strides"
+                        || inopt == "--d-strides" || inopt == "--convolution-problem"
+                        || inopt == "--a-zero-pads" || inopt == "--b-zero-pads")
                 {
                     DEBUG_LOG_PO("[set_val] problem size/a,b,c,d stride\n");
-                    if(auto* ptr = dynamic_cast<value<std::vector<std::vector<size_t>>>*>(m_val.get()))
+                    if(auto* ptr
+                       = dynamic_cast<value<std::vector<std::vector<size_t>>>*>(m_val.get()))
                     {
-                        std::string in(argv);
+                        std::string              in(argv);
                         std::vector<std::string> values;
-                        std::vector<size_t> values_int;
-                        std::string spliter(",");
+                        std::vector<size_t>      values_int;
+                        std::string              spliter(",");
                         if(inopt == "--a-zero-pads" || inopt == "--b-zero-pads")
                             spliter = ",;";
                         roc::split(values, in, spliter);
                         size_t tuples = values.size();
-                        auto vals = ptr->get_value();
+                        auto   vals   = ptr->get_value();
                         for(auto v : values)
                         {
                             values_int.push_back(lexical_cast<size_t>(v));
@@ -959,9 +953,9 @@ namespace roc
                     DEBUG_LOG_PO("[set_val] vector<string>\n");
                     if(argc)
                     {
-                        std::string in(argv);
+                        std::string              in(argv);
                         std::vector<std::string> values;
-                        std::string spliter(",;");
+                        std::string              spliter(",;");
                         roc::split(values, in, spliter);
                         ptr->actual_value(values);
                         match = true;
@@ -969,7 +963,8 @@ namespace roc
                 }
                 else
                 {
-                    DEBUG_LOG_PO("[set_val] Internal error: Unsupported data type (setting value)\n");
+                    DEBUG_LOG_PO(
+                        "[set_val] Internal error: Unsupported data type (setting value)\n");
                     throw std::logic_error("Internal error: Unsupported data type (setting value)");
                 }
                 if(!match)
@@ -979,7 +974,6 @@ namespace roc
                 // Skip past the argument's value
                 --argc;
             }
-            
         };
 
         // Description and option list
@@ -1006,8 +1000,11 @@ namespace roc
         };
 
         // Parse an option at the current (argc, argv) position
-        void parse_option(int& argc, std::vector<std::string>& argv, variables_map& vm, bool ignoreUnknown,
-                          std::unordered_map<std::string,std::string>* p_uncfg) const
+        void parse_option(int&                                          argc,
+                          std::vector<std::string>&                     argv,
+                          variables_map&                                vm,
+                          bool                                          ignoreUnknown,
+                          std::unordered_map<std::string, std::string>* p_uncfg) const
         {
             DEBUG_LOG_PO("[parse_option]\n");
             // Iterate across all options
@@ -1026,22 +1023,26 @@ namespace roc
                     // The first option in a list of options is the canonical name
                     if(!canonical_name.length())
                         canonical_name = tok->str();
-                       
+
                     // If the length of the option is 1, it is single-dash; otherwise double-dash
                     const char* prefix = tok->length() == 1 ? "-" : "--";
-                    
+
                     // If option matches
                     DEBUG_LOG_PO("[parse_option] Check if option matches\n");
                     if(argv[argv.size() - argc] == prefix + tok->str())
                     {
-                        
+
                         //++argv;
                         --argc;
 
                         // If option has a value, set it
                         auto got = opt.get_val().get();
-                        if(got){
-                            opt.set_val(argc, argv[argv.size() - argc].c_str(), prefix + tok->str(), p_uncfg);
+                        if(got)
+                        {
+                            opt.set_val(argc,
+                                        argv[argv.size() - argc].c_str(),
+                                        prefix + tok->str(),
+                                        p_uncfg);
                         }
 
                         // Add seen options to map
@@ -1064,10 +1065,13 @@ namespace roc
                 throw std::invalid_argument("Option " + std::string(argv[0]) + " is not defined.");
             }
         }
-        
+
         // Parse an option at the current (argc, argv) position
-        void parse_option(int& argc, char**& argv, variables_map& vm, bool ignoreUnknown,
-                          std::unordered_map<std::string,std::string>* p_uncfg) const
+        void parse_option(int&                                          argc,
+                          char**&                                       argv,
+                          variables_map&                                vm,
+                          bool                                          ignoreUnknown,
+                          std::unordered_map<std::string, std::string>* p_uncfg) const
         {
             DEBUG_LOG_PO("[parse_option]\n");
             // Iterate across all options
@@ -1086,21 +1090,22 @@ namespace roc
                     // The first option in a list of options is the canonical name
                     if(!canonical_name.length())
                         canonical_name = tok->str();
-                      
+
                     // If the length of the option is 1, it is single-dash; otherwise double-dash
                     const char* prefix = tok->length() == 1 ? "-" : "--";
-                    
+
                     // If option matches
                     DEBUG_LOG_PO("[parse_option] Check if option matches\n");
                     if(*argv == prefix + tok->str())
                     {
-                        
+
                         ++argv;
                         --argc;
 
                         // If option has a value, set it
                         auto got = opt.get_val().get();
-                        if(got){
+                        if(got)
+                        {
                             opt.set_val(argc, argv, prefix + tok->str(), p_uncfg);
                         }
 
@@ -1140,11 +1145,11 @@ namespace roc
         }
 
         // Parse all options
-        void parse_options(int&                                         argc,
-                           char**&                                      argv,
-                           variables_map&                               vm,
-                           bool                                         ignoreUnknown = false,
-                           std::unordered_map<std::string,std::string>* p_uncfg = nullptr) const
+        void parse_options(int&                                          argc,
+                           char**&                                       argv,
+                           variables_map&                                vm,
+                           bool                                          ignoreUnknown = false,
+                           std::unordered_map<std::string, std::string>* p_uncfg = nullptr) const
         {
             // Add options with default values to map
             for(const auto& opt : m_optlist)
@@ -1156,7 +1161,7 @@ namespace roc
                 std::string canonical_name = tok->str();
 
                 if(opt.get_val().get() && opt.get_val()->has_default())
-                {   
+                {
                     //DEBUG_LOG_PO("[parse_options] add an option\n");
                     vm[canonical_name] = variable_value(opt.get_val());
                 }
@@ -1165,15 +1170,14 @@ namespace roc
             // Parse options
             while(argc)
                 parse_option(argc, argv, vm, ignoreUnknown, p_uncfg);
-
         }
 
         // Parse all options
-        void parse_options(int&                                         argc,
-                           std::vector<std::string>&                    argv,
-                           variables_map&                               vm,
-                           bool                                         ignoreUnknown = false,
-                           std::unordered_map<std::string,std::string>* p_uncfg = nullptr) const
+        void parse_options(int&                                          argc,
+                           std::vector<std::string>&                     argv,
+                           variables_map&                                vm,
+                           bool                                          ignoreUnknown = false,
+                           std::unordered_map<std::string, std::string>* p_uncfg = nullptr) const
         {
             // Add options with default values to map
             for(const auto& opt : m_optlist)
@@ -1185,7 +1189,7 @@ namespace roc
                 std::string canonical_name = tok->str();
 
                 if(opt.get_val().get() && opt.get_val()->has_default())
-                {   
+                {
                     //DEBUG_LOG_PO("[parse_options] add an option\n");
                     vm[canonical_name] = variable_value(opt.get_val());
                 }
@@ -1194,7 +1198,6 @@ namespace roc
             // Parse options
             while(argc)
                 parse_option(argc, argv, vm, ignoreUnknown, p_uncfg);
-
         }
 
         // Formatted output of command-line arguments description
@@ -1217,18 +1220,18 @@ namespace roc
                     // If the length of the option is 1, it is single-dash; otherwise double-dash
                     const char* prefix = tok->length() == 1 ? "-" : "--";
                     left << delim << (first ? "" : "|") << prefix << tok->str();
-                }  
+                }
 
                 os << std::setw(30) << std::left << left.str() << " " << opt.get_desc() << " ";
                 left.str(std::string());
-                
+
                 // Print the default value of the variable type if it exists
                 // We do not print the default value for bool
                 const value_base* val = opt.get_val().get();
                 if(val && !dynamic_cast<const value<bool>*>(val))
                 {
                     if(val->has_default())
-                    { 
+                    {
                         // We test all supported types with dynamic_cast and print accordingly
                         left << " (Default value is: ";
                         if(dynamic_cast<const value<int32_t>*>(val))
@@ -1250,14 +1253,15 @@ namespace roc
                         else if(dynamic_cast<const value<std::string>*>(val))
                             left << dynamic_cast<const value<std::string>*>(val)->get_value();
                         else if(dynamic_cast<const value<Tensile::PerformanceMetric>*>(val))
-                            left << dynamic_cast<const value<Tensile::PerformanceMetric>*>(val)->get_value();
+                            left << dynamic_cast<const value<Tensile::PerformanceMetric>*>(val)
+                                        ->get_value();
                         else
                             left << "Internal error: Unsupported data type (printing value)";
                         left << ")";
                     }
                 }
                 os << left.str() << "\n\n";
-            } 
+            }
             return os << std::flush;
         }
     };
@@ -1265,8 +1269,9 @@ namespace roc
     // Class representing command line parser
     class parse_command_line
     {
-        variables_map m_vm;
-        std::unordered_map<std::string,std::string> m_unconfig;
+        variables_map                                m_vm;
+        std::unordered_map<std::string, std::string> m_unconfig;
+
     public:
         parse_command_line(int                        argc,
                            const char**               argv,
@@ -1278,7 +1283,7 @@ namespace roc
             --argc;
             desc.parse_options(argc, argv_tmp, m_vm, ignoreUnknown);
         }
-        
+
         parse_command_line(int                        argc,
                            char**                     argv,
                            const options_description& desc,
@@ -1292,23 +1297,23 @@ namespace roc
         // Copy the variables_map
         friend inline void store(const parse_command_line& p, variables_map& vm);
         friend inline void store(const parse_command_line&& p, variables_map& vm);
-
     };
-    
+
     inline void store(const parse_command_line& p, variables_map& vm)
     {
         vm = p.m_vm;
     }
-    
+
     inline void store(const parse_command_line&& p, variables_map& vm)
     {
         vm = std::move(p.m_vm);
     }
-    
+
     class parse_config_file
     {
-        variables_map m_vm;
-        std::unordered_map<std::string,std::string> m_unconfig;
+        variables_map                                m_vm;
+        std::unordered_map<std::string, std::string> m_unconfig;
+
     public:
         parse_config_file(std::ifstream&             file,
                           const options_description& desc,
@@ -1317,20 +1322,20 @@ namespace roc
             DEBUG_LOG_PO("[parse_config_file] start\n");
             //file to argc and argv
             m_unconfig.clear();
-            std::string line;
+            std::string              line;
             std::vector<std::string> vecstr;
-            char **argv;
-            int argc = 0;
-            char str[256];
+            char**                   argv;
+            int                      argc = 0;
+            char                     str[256];
 
             while(std::getline(file, line))
             {
                 std::size_t found = line.find('=');
-                if (found != std::string::npos)
+                if(found != std::string::npos)
                 {
                     std::string front(line.begin(), line.begin() + found);
                     std::string back(line.begin() + found + 1, line.end());
-                    if (back.length())
+                    if(back.length())
                     {
                         vecstr.push_back("--" + front);
                         argc++;
@@ -1344,43 +1349,51 @@ namespace roc
                 }
             }
             argv = new char*[argc + 1]; // Skip [0]
-            for (int i = 0; i < argc; i++)
+            for(int i = 0; i < argc; i++)
             {
-                size_t len = vecstr[i].length();
+                size_t len  = vecstr[i].length();
                 argv[i + 1] = new char[len + 1];
-                for(int j = 0; j < len ; j++)
+                for(int j = 0; j < len; j++)
                 {
                     argv[i + 1][j] = vecstr[i][j];
                 }
-                argv[i + 1][len]='\0';
+                argv[i + 1][len] = '\0';
             }
-            
+
             DEBUG_LOG_PO("[parse_config_file] parse options\n");
             desc.parse_options(argc, vecstr, m_vm, ignoreUnknown, &m_unconfig);
             DEBUG_LOG_PO("[parse_config_file] parse options done\n");
-            
-            for (int i = 0; i < argc; i++)
+
+            for(int i = 0; i < argc; i++)
             {
                 delete[] argv[i + 1];
             }
             delete[] argv;
-            
+
             DEBUG_LOG_PO("[parse_config_file] done\n");
         }
-        
-       // Copy the variables_map
-        friend inline void store(const parse_config_file& p, variables_map& vm, std::unordered_map<std::string,std::string>* p_uncfg);
-        friend inline void store(const parse_config_file&& p, variables_map& vm, std::unordered_map<std::string,std::string>* p_uncfg);
+
+        // Copy the variables_map
+        friend inline void store(const parse_config_file&                      p,
+                                 variables_map&                                vm,
+                                 std::unordered_map<std::string, std::string>* p_uncfg);
+        friend inline void store(const parse_config_file&&                     p,
+                                 variables_map&                                vm,
+                                 std::unordered_map<std::string, std::string>* p_uncfg);
     };
-    
-    inline void store(const parse_config_file& p, variables_map& vm, std::unordered_map<std::string,std::string>* p_uncfg)
+
+    inline void store(const parse_config_file&                      p,
+                      variables_map&                                vm,
+                      std::unordered_map<std::string, std::string>* p_uncfg)
     {
         vm = p.m_vm;
         if(p_uncfg != nullptr)
             *p_uncfg = p.m_unconfig;
     }
-    
-    inline void store(const parse_config_file&& p, variables_map& vm, std::unordered_map<std::string,std::string>* p_uncfg)
+
+    inline void store(const parse_config_file&&                     p,
+                      variables_map&                                vm,
+                      std::unordered_map<std::string, std::string>* p_uncfg)
     {
         vm = std::move(p.m_vm);
         if(p_uncfg != nullptr)
@@ -1389,13 +1402,13 @@ namespace roc
 
     // We can define the notify() function as a no-op for our purposes
     inline void notify(const variables_map&) {}
-    namespace algorithm {
-        
-        inline std::string 
-        is_any_of( const std::string& Set )
+    namespace algorithm
+    {
+
+        inline std::string is_any_of(const std::string& Set)
         {
             std::string result = Set;
-            return result; 
+            return result;
         }
 
     }; // class algorithm
