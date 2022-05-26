@@ -1,6 +1,6 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.33.0
+## Tensile 4.33.0 for ROCm 5.2.0
 ### Added
 - TensileUpdateLibrary for updating old library logic files
 - Support for TensileRetuneLibrary to use sizes from separate file
