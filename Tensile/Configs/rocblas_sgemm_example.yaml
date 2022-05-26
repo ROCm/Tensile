@@ -60,7 +60,7 @@ BenchmarkProblems:
         - StoreVectorWidth: [-1, 1, 2, 4]
       BenchmarkFinalParameters:
         - ProblemSizes:
-          # Specify the dimensions of the problems that the forked kernels
+          # Specify the dimensions of the problems that the solutions
           # should be evaluated on.
           - Exact: [2048, 2048, 1, 4096]
           - Range: [ [128, 128, 128, 1408], [128, 128, 128, 1408], [1], [256, 512, 512, 2048] ]
