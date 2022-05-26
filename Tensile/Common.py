@@ -396,6 +396,11 @@ validParameters = {
     "WaveSeparateGlobalReadA":    [ 0, 1 ],
     "WaveSeparateGlobalReadB":    [ 0, 1 ],
 
+    # Splits global read addresses within a wave into a number of smaller groups
+    # The default value of 1 reads the most contiguous elements across lanes,
+    # but higher values may help avoid bank conflicts
+    "SplitGlobalRead":            [1, 2, 4, 8],
+
     # PrefetchGlobalRead = 1:
     # Requires 2X LDS space, and VGPRs for buffering data on way into LDS
     #   prefetch / double-buffer reads from global memory -> vgprs -> lds.
@@ -1228,13 +1233,14 @@ defaultBenchmarkCommonParameters = [
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
     {"VectorStore":               [ -1 ] },
-    {"StoreVectorWidth":         [ -1 ] },
+    {"StoreVectorWidth":          [ -1 ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"LocalReadVectorWidth":      [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
-    {"WaveSeparateGlobalReadA":    [ 0 ] },
-    {"WaveSeparateGlobalReadB":    [ 0 ] },
+    {"WaveSeparateGlobalReadA":   [ 0 ] },
+    {"WaveSeparateGlobalReadB":   [ 0 ] },
+    {"SplitGlobalRead":           [ 1 ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
     {"GlobalReadCoalesceGroupB":  [ True ] },
     {"PrefetchGlobalRead":        [ 1 ] },
