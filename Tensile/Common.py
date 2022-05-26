@@ -407,7 +407,7 @@ validParameters = {
     #ThreadSeparateGlobalReadA = 1   DepthU=64 GLVW=8 T0,T1,T2,T3, T32,T33,T34,T35
     #ThreadSeparateGlobalReadA = 2   DepthU=64 GVLW=8 T0,T1,T16,T17,T32,T33,T48,T49  fetching  64 elements
     #use =2 for 16x16x4xfp16 instructions
-    #should work wuth WaveSeparateGlobalRead
+    #should work with WaveSeparateGlobalRead
     #Feature should help depthU*bpe requiring more than 4 threads.
     
     "ThreadSeparateGlobalReadA":    [ 0, 1, 2 ],

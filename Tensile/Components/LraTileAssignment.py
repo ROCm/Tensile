@@ -87,13 +87,16 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         kStr += "%slr%s%s%s" \
                 % (writer.commentPrefix, tP["tileChar"], writer.commentSuffix, writer.endLine)
 
+        # get constant parameter
+        tc               = tP["tensorChar"]
         # alloc vgpr
         wReg    = writer.vgprPool.checkOut(1,"wReg") # quotient
         tReg    = writer.vgprPool.checkOut(1,"tReg") # remainder
         kReg    = writer.vgprPool.checkOut(1,"kReg") # remainder
-        mReg    = writer.vgprPool.checkOut(1,"mReg") # remainder
-        mReg1    = writer.vgprPool.checkOut(1,"mReg") # remainder
-        mReg2    = writer.vgprPool.checkOut(1,"mReg") # remainder
+        if kernel["ThreadSeparateGlobalRead%c"%tc]:
+          mReg    = writer.vgprPool.checkOut(1,"mReg") # remainder
+          mReg1    = writer.vgprPool.checkOut(1,"mReg") # remainder
+          mReg2    = writer.vgprPool.checkOut(1,"mReg") # remainder
         tmpVgpr = writer.vgprPool.checkOutAligned(2,2,"tmpVgpr")
         dummy   = writer.vgprPool.checkOut(1,"dummy")
 
@@ -101,7 +104,6 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         tmpSgpr = writer.getTmpSgpr(1).idx()
 
         # get constant parameter
-        tc               = tP["tensorChar"]
         tile01           = tP["tile01Idx"]
         waveWidth        = writer.kernel["WavefrontSize"]
         inputPerThread   = max(writer.lrvwA,writer.lrvwB)
@@ -168,11 +170,11 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             kStr += inst("v_and_b32",vgpr(tReg),(MidxRemainder-1),vgpr(tReg), \
               "1. N offset: nIdx_load = nIdx %% NblockSizePerLoad(%u)" % NblockSizePerLoad)
             kStr += inst("v_and_b32",vgpr(mReg1),(numMidxPer8Ldslanes-1),vgpr(tReg), \
-              "1. N offset: nIdx_lower = mIdx %% numMidxPer8Ldslanes(%u)" % numMidxPer8Ldslanes)
+              "1. N offset: nIdx_lower = nIdx %% numMidxPer8Ldslanes(%u)" % numMidxPer8Ldslanes)
             kStr += staticMultiply(vgpr(mReg1), vgpr(mReg1), MidxScale, sgpr(tmpSgpr), \
               "1. N offset: nIdx_lower_offset = nIdx_lower * nStride(%u)" % MidxScale)
             kStr += vectorStaticDivide(mReg2, tReg, numMidxPer8Ldslanes, tmpVgpr, tmpSgpr, \
-            "1. N offset: nIdx_load = wtid %% nStride(%u)" % numMidxPer8Ldslanes)
+              "1. N offset: nIdx_load = wtid  / nStride(%u)" % numMidxPer8Ldslanes)
             kStr += staticMultiply(vgpr(mReg2), vgpr(mReg2), (kernel["GlobalLoadVectorWidth%c"%tc]*numMidxPer8Ldslanes*KlanesPerMFrag), sgpr(tmpSgpr), \
               "1. N offset: nIdx_load_offset = nIdx_load * nStride(%u)" % (kernel["GlobalLoadVectorWidth%c"%tc]*numMidxPer8Ldslanes*KlanesPerMFrag))
             kStr += inst("_v_add_u32", vgpr(mReg1), vgpr(mReg1), vgpr(mReg2), \
@@ -181,9 +183,9 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             numMidxPer4LdsLanes =  4 // KlanesPerMFrag
             MidxScale = KlanesPerMFrag * 4 // tP["bpe"]
             kStr += inst("v_and_b32",vgpr(tReg),(MidxRemainder-1),vgpr(tReg), \
-              "1. N offset: nIdx_load = mIdx  %%  NblockSizePerLoad(%u)" % NblockSizePerLoad)
+              "1. N offset: nIdx_load = nIdx  %%  NblockSizePerLoad(%u)" % NblockSizePerLoad)
             kStr += inst("v_and_b32",vgpr(mReg1),(numMidxPer4LdsLanes-1),vgpr(tReg), \
-              "1. N offset: nIdx_lower = mIdx %% numMidxPer4LdsLanes(%u)" % numMidxPer4LdsLanes)
+              "1. N offset: nIdx_lower = nIdx %% numMidxPer4LdsLanes(%u)" % numMidxPer4LdsLanes)
             kStr += staticMultiply(vgpr(mReg1), vgpr(mReg1), MidxScale, sgpr(tmpSgpr), \
               "1. N offset: nIdx_lower_offset = nIdxlower * nStride(%u)" % MidxScale)
             kStr += vectorStaticDivide(mReg2, tReg, numMidxPer4LdsLanes, tmpVgpr, tmpSgpr, \
@@ -237,9 +239,10 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         tP["gpr"]["lro"] = tReg
         writer.vgprPool.checkIn(wReg)
         writer.vgprPool.checkIn(kReg)
-        writer.vgprPool.checkIn(mReg)
-        writer.vgprPool.checkIn(mReg1)
-        writer.vgprPool.checkIn(mReg2)
+        if kernel["ThreadSeparateGlobalRead%c"%tc]:
+          writer.vgprPool.checkIn(mReg)
+          writer.vgprPool.checkIn(mReg1)
+          writer.vgprPool.checkIn(mReg2)
         writer.vgprPool.checkIn(tmpVgpr)
         writer.vgprPool.checkIn(dummy)
 

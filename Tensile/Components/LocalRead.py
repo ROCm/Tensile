@@ -238,7 +238,7 @@ class LocalReadMFMA(LocalRead):
                             offset_val = (rIdxDiv * UnrollStride + offset_val + (tP["localReadOffset"] % lrdOffsetMod)) * tP["bpe"]  + rIdxMod * writer.bpr
                             #print("Debug: offset_val:%u rIDxDiv:%u vIdx:%u eIdx:%u lrdoffset:%u oIdx:%u ustride:%u wgsize:%u,divVal:%u rIdx:%u"%(offset_val,rIdxDiv,vIdx,eIdx,tP["localReadOffset"],oIdx,UnrollStride,MIWaveGroupShape[tile01],divVal,rIdx))
                             if kernel["ThreadSeparateGlobalRead%c"%tc]:
-                              if (tP["localReadOffset"] >= (kernel["_DepthULds"] // (kernel["ThreadSeparateGlobalRead%c"%tc]*2))):
+                              if (tP["localReadOffset"] >= lrdOffsetMod):
                                 MblockSizePerLoad = (kernel["WavefrontSize"] * kernel["GlobalLoadVectorWidth%c"%tc]) // kernel["_DepthULds"]
                                 unrollKtile = (kernel["_DepthULds"] // (kernel["ThreadSeparateGlobalRead%c"%tc]*2))
                                 offset_val = offset_val + ((MblockSizePerLoad * unrollKtile * tP["bpe"]) * (tP["localReadOffset"] // lrdOffsetMod)) 
@@ -266,13 +266,12 @@ class LocalReadMFMA(LocalRead):
                           if (kernel["GlobalLoadVectorWidth%s"%tc] * tP["bpe"] == 8):
                             # dword_x2 case
                             # (bit2<<3) | (bit3 >>1) | (bit4>>1) | (bit5>>1)
-                            offset_val = offset_val & (~0x24)
-                            newVal = (bit2<<3) | (bit5>>1)
+                            newVal = (bit2<<3) | (bit3 >>1) | (bit4>>1) | (bit5>>1)
                           else:  #if (kernel["GlobalLoadVectorWidth%s"%tc] * tP["bpe"] == 16):  # most preferred case
                             # dword_x4 case
                             # (bit2<<3) | (bit3 <<1) | (bit4>>2) | (bit5>>2)
-                            offset_val = offset_val & (~0x3c)
                             newVal = (bit2<<3) | (bit3 <<1) | (bit4>>2) | (bit5>>2)
+                          offset_val = offset_val & (~0x3c)
                           offset_val = offset_val | newVal
 
                         paramList.append(int(offset_val))

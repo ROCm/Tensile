@@ -3099,7 +3099,6 @@ class Solution(collections.abc.Mapping):
           reject(state, "Int8 requires GLVWA >= 4, current is %u"%state["GlobalLoadVectorWidthA"])
         if state["GlobalLoadVectorWidthB"] < 4:
           reject(state, "Int8 requires GLVWB >= 4, current is %u"%state["GlobalLoadVectorWidthB"])
-      
 
       # Now convert elements to vectors based on GlobalReadVectorWidth
       GlobalLoadVectorWidthA = state["GlobalLoadVectorWidthA"]
