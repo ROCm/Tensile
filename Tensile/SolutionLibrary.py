@@ -208,95 +208,101 @@ class MasterSolutionLibrary:
                 solution.index = maxSolutionIdx
             else:
                 solutionsSoFar.add(solution.index)
+
+
     @classmethod
     def FromOriginalState(cls, d, origSolutions, solutionClass=Contractions.Solution, libraryOrder = None):
+
+        # functions for creating each "level" of the library
+        def hardware(d, problemType, solutions, library):
+            devicePart = d["ArchitectureName"]
+            cuCount = d["CUCount"]
+
+            newLib = PredicateLibrary(tag='Hardware')
+            if devicePart == 'fallback':
+                pred = Hardware.HardwarePredicate('TruePred')
+            else:
+                pred = Hardware.HardwarePredicate.FromHardware(Common.gfxArch(devicePart), cuCount)
+
+            newLib.rows.append({'predicate': pred, 'library': library})
+            return newLib
+
+        def operationIdentifier(d, problemType, solutions, library):
+            operationID = problemType.operationIdentifier
+            prop = Properties.Property('OperationIdentifier')
+            mapping = {operationID: library}
+
+            newLib = ProblemMapLibrary(prop, mapping)
+            return newLib
+
+        def performanceMetric(d, problemType, solutions, library):
+            if d.get("PerfMetric", "DeviceEfficiency") != 'DeviceEfficiency':
+                predicate = Properties.Predicate(tag=d["PerfMetric"])
+            else:
+                predicate = Properties.Predicate(tag='TruePred')
+            newLib = PredicateLibrary(tag='Problem')
+            newLib.rows.append({'predicate': predicate, 'library': library})
+            return newLib
+
+        def fp16AltImpl(d, problemType, solutions, library):
+            if d.get("Fp16AltImpl"):
+                predicate = Properties.Predicate(tag='Fp16AltImpl')
+            else:
+                predicate = Properties.Predicate(tag='TruePred')
+            newLib = PredicateLibrary(tag='Problem')
+            newLib.rows.append({'predicate': predicate, 'library': library})
+            return newLib
+
+        def predicates(d, problemType, solutions, library):
+            predicates = problemType.predicates(includeBatch=True, includeType=True)
+            predicate = Contractions.ProblemPredicate.And(predicates)
+
+            newLib = PredicateLibrary(tag='Problem')
+            newLib.rows.append({'predicate': predicate, 'library': library})
+            return newLib
+
+        def selection(d, problemType, solutions, library):
+            if d["LibraryType"] == "Matching":
+                if d["Library"]["distance"] == 'Equality':
+                    predicate = Properties.Predicate(tag='EqualityMatching')
+                else:
+                    predicate = Properties.Predicate(tag='TruePred')
+
+                matchingLib = MatchingLibrary.FromOriginalState(d["Library"], solutions)
+                library = PredicateLibrary(tag='Problem')
+                library.rows.append({'predicate': predicate, 'library': matchingLib})
+
+            elif d["LibraryType"] == "DecisionTree":
+                library = PredicateLibrary(tag='Problem')
+                for lib in d["Library"]:
+                    preds = lib["region"]
+                    predObjs = [Properties.Predicate.FromOriginalState(p) for p in preds]
+
+                    if len(predObjs) == 1:
+                        predicate = predObjs[0]
+                    else:
+                        predicate = Properties.Predicate.And(predObjs)
+
+                    treeLib = DecisionTreeLibrary.FromOriginalState(lib, solutions)
+                    library.rows.append({'predicate': predicate, 'library': treeLib})
+
+            return library
+        # end library creation functions
+
         if libraryOrder is None:
-            libraryOrder = ['Hardware', 'OperationIdentifier', 'PerformanceMetric', 'Fp16AltImpl', 'Predicates', 'Selection']
+            libraryOrder = [hardware, operationIdentifier, performanceMetric, fp16AltImpl, predicates, selection]
+        assert libraryOrder[-1] == selection
 
         problemType = Contractions.ProblemType.FromOriginalState(d["ProblemType"])
-
         allSolutions = [solutionClass.FromSolutionStruct(s) for s in origSolutions]
         cls.FixSolutionIndices(allSolutions)
 
-        solutions = {s.index: s for s in allSolutions}
-
+        # library is constructed in reverse order i.e. bottom-up
+        library = None
         for libName in reversed(libraryOrder):
-            if libName == 'Selection':
-                if d["LibraryType"] == "Matching":
-                    if d["Library"]["distance"] == 'Equality':
-                        predicate = Properties.Predicate(tag='EqualityMatching')
-                    else:
-                        predicate = Properties.Predicate(tag='TruePred')
+            library = libName(d, problemType, allSolutions, library)
 
-                    matchingLib = MatchingLibrary.FromOriginalState( \
-                            d["Library"], allSolutions)
-                    library = PredicateLibrary(tag='Problem')
-                    library.rows.append({'predicate': predicate, 'library': matchingLib})
-
-                elif d["LibraryType"] == "DecisionTree":
-                    library = PredicateLibrary(tag='Problem')
-                    for lib in d["Library"]:
-                        preds = lib["region"]
-                        predObjs = [Properties.Predicate.FromOriginalState(p) for p in preds]
-
-                        if len(predObjs) == 1:
-                            predicate = predObjs[0]
-                        else:
-                            predicate = Properties.Predicate.And(predObjs)
-
-                        treeLib = DecisionTreeLibrary.FromOriginalState(lib, allSolutions)
-                        library.rows.append({'predicate': predicate, 'library': treeLib})
-
-            elif libName == 'Hardware':
-                devicePart = d["ArchitectureName"]
-                cuCount = d["CUCount"]
-
-                newLib = PredicateLibrary(tag='Hardware')
-                if devicePart == 'fallback':
-                    pred = Hardware.HardwarePredicate('TruePred')
-                else:
-                    pred = Hardware.HardwarePredicate.FromHardware(Common.gfxArch(devicePart), cuCount)
-
-                newLib.rows.append({'predicate': pred, 'library': library})
-                library = newLib
-
-            elif libName == 'Predicates':
-                predicates = problemType.predicates(includeBatch=True, includeType=True)
-                predicate = Contractions.ProblemPredicate.And(predicates)
-
-                newLib = PredicateLibrary(tag='Problem')
-                newLib.rows.append({'predicate': predicate, 'library': library})
-                library = newLib
-
-            elif libName == 'OperationIdentifier':
-                operationID = problemType.operationIdentifier
-                prop = Properties.Property('OperationIdentifier')
-                mapping = {operationID: library}
-
-                newLib = ProblemMapLibrary(prop, mapping)
-                library = newLib
-
-            elif libName == 'PerformanceMetric':
-                if d.get("PerfMetric", "DeviceEfficiency") != 'DeviceEfficiency':
-                    predicate = Properties.Predicate(tag=d["PerfMetric"])
-                else:
-                    predicate = Properties.Predicate(tag='TruePred')
-                newLib = PredicateLibrary(tag='Problem')
-                newLib.rows.append({'predicate': predicate, 'library': library})
-                library = newLib
-
-            elif libName == 'Fp16AltImpl':
-                if d.get("Fp16AltImpl"):
-                    predicate = Properties.Predicate(tag='Fp16AltImpl')
-                else:
-                    predicate = Properties.Predicate(tag='TruePred')
-                newLib = PredicateLibrary(tag='Problem')
-                newLib.rows.append({'predicate': predicate, 'library': library})
-                library = newLib
-
-            else:
-                raise ValueError('Unknown value ' + libName)
-
+        solutions = {s.index: s for s in allSolutions}
         rv = cls(solutions, library)
         return rv
 
