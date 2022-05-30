@@ -25,6 +25,8 @@ from . import __version__
 from . import Common
 from . import SolutionLibrary
 
+from typing import NamedTuple
+
 try:
     import yaml
 except ImportError:
@@ -141,22 +143,30 @@ def parseSolutionsData(data, srcFile="?"):
     problemSizes = ProblemSizes(problemType, problemSizesConfig)
     return (problemSizes, solutions)
 
+class LibraryLogic(NamedTuple):
+    """Return tuple for parseLibraryLogicData()"""
+    schedule: str
+    architecture: str
+    problemType: ProblemType
+    solutions: list
+    exactLogic: list
+    library: SolutionLibrary.MasterSolutionLibrary
+
 def parseLibraryLogicFile(filename):
     """Wrapper function to read and parse a library logic file."""
     return parseLibraryLogicData(readYAML(filename), filename)
 
 def parseLibraryLogicData(data, srcFile="?"):
     """Parses the data of a library logic file."""
-    indexOrder = []
     if type(data) is list:
         data = parseLibraryLogicList(data, srcFile)
-        indexOrder = data["Library"].get("IndexOrder")
 
-    # TODOBEN better approach?
     if type(data["Architecture"]) is dict:
         data["ArchitectureName"]  = data["Architecture"]["Architecture"]
+        data["CUCount"] = data["Architecture"]["CUCount"]
     else:
         data["ArchitectureName"] = data["Architecture"]
+        data["CUCount"] = None
 
     if not versionIsCompatible(data["MinimumRequiredVersion"]):
         printWarning("Version = {} in library logic file {} does not match Tensile version = {}" \
@@ -183,10 +193,8 @@ def parseLibraryLogicData(data, srcFile="?"):
 
     newLibrary = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data, solutions)
 
-    # TODOBEN: fix returns
-
-    return (data["ScheduleName"], data["DeviceNames"], problemType, solutions, indexOrder, \
-            data.get("ExactLogic"), data.get("RangeLogic"), newLibrary, data["ArchitectureName"])
+    return LibraryLogic(data["ScheduleName"], data["ArchitectureName"], problemType, solutions, \
+            data.get("ExactLogic"), newLibrary)
 
 def parseLibraryLogicList(data, srcFile="?"):
     """Parses the data of a matching table style library logic file."""

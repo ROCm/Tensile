@@ -1,6 +1,6 @@
 
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -110,9 +110,6 @@ def GenerateSummations(userArgs):
             solutionStatesR, indexOrderR, exactLogicR, rangeLogicR, otherFieldsR) =\
             rawLogic
 
-        (_, _, problemType, solutionsForSchedule, \
-           _, _, _, _, _) = logic
-
         copyfile(logicFileName, localLogicFilePath)
         createLibraryForBenchmark(localLogicPath, libPath, currentPath)
 
@@ -126,7 +123,7 @@ def GenerateSummations(userArgs):
 
         libraryPath = libPath
         clientBuildDir = os.path.join(outputPath, "client")
-        problemTypeObj = problemType.state
+        problemTypeObj = logic.problemType.state
 
         problemSizes = ProblemSizes(problemTypeObj, exactList)
         dataPath = ensurePath(os.path.join(outputPath, logicFileStem, "data"))

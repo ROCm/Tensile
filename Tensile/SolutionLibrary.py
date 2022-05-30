@@ -248,16 +248,8 @@ class MasterSolutionLibrary:
                         library.rows.append({'predicate': predicate, 'library': treeLib})
 
             elif libName == 'Hardware':
-                # TODOBEN this logic is duplicated in file reading
-                if isinstance(d["Architecture"], dict):
-                    architectureProps = d["Architecture"]
-                    assert 'Architecture' in architectureProps, 'Invalid device section [1]'
-                    assert 'CUCount' in architectureProps, 'Invalid device section [1]'
-                    devicePart = architectureProps['Architecture']
-                    cuCount = architectureProps['CUCount']
-                else:
-                    devicePart = d["Architecture"]
-                    cuCount = None
+                devicePart = d["ArchitectureName"]
+                cuCount = d["CUCount"]
 
                 newLib = PredicateLibrary(tag='Hardware')
                 if devicePart == 'fallback':

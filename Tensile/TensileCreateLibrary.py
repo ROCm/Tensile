@@ -960,8 +960,7 @@ def generateLogicDataAndSolutions(logicFiles, args):
   nextSolIndex = 0
 
   for logic in Utils.tqdm(libraries, "Processing logic data"):
-    (scheduleName, deviceNames, problemType, solutionsForSchedule, \
-       indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) = logic
+    (_, architectureName, _, solutionsForSchedule, _, newLibrary) = logic
 
     if globalParameters["PackageLibrary"]:
       if architectureName in masterLibraries:
