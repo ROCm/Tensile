@@ -30,7 +30,9 @@ from typing import NamedTuple
 try:
     import yaml
 except ImportError:
-    printExit("You must install PyYAML to use Tensile (to parse config files). See http://pyyaml.org/wiki/PyYAML for installation instructions.")
+    printExit(
+        "You must install PyYAML to use Tensile (to parse config files). See http://pyyaml.org/wiki/PyYAML for installation instructions."
+    )
 
 try:
     import msgpack
@@ -50,6 +52,7 @@ def write(filename_noExt, data, format="yaml"):
     else:
         printExit("Unrecognized format {}".format(format))
 
+
 def writeYAML(filename, data, **kwargs):
     """Writes data to file in YAML format."""
     # set default kwags for yaml dump
@@ -63,10 +66,12 @@ def writeYAML(filename, data, **kwargs):
     with open(filename, "w") as f:
         yaml.dump(data, f, **kwargs)
 
+
 def writeMsgPack(filename, data):
     """Writes data to file in Message Pack format."""
     with open(filename, "wb") as f:
         msgpack.pack(data, f)
+
 
 def writeSolutions(filename, problemSizes, solutions, cache=False):
     """Writes solution YAML file."""
@@ -90,14 +95,14 @@ def writeSolutions(filename, problemSizes, solutions, cache=False):
             solutionStates.append(solutionState)
     # write dictionaries
     with open(filename, "w") as f:
-        f.write("- MinimumRequiredVersion: %s\n" % __version__ )
+        f.write("- MinimumRequiredVersion: {}\n".format(__version__))
         f.write("- ProblemSizes:\n")
         if problemSizes:
             for sizeRange in problemSizes.ranges:
-                f.write("  - Range: %s\n" % sizeRange)
+                f.write("  - Range: {}\n".format(sizeRange))
             for problemExact in problemSizes.exacts:
                 #FIXME-problem, this ignores strides:
-                f.write("  - Exact: %s\n" % str(problemExact))
+                f.write("  - Exact: {}\n".format(problemExact))
 
         yaml.dump(solutionStates, f, default_flow_style=None)
 
@@ -111,9 +116,11 @@ def readYAML(filename):
         data = yaml.load(f, yaml.SafeLoader)
     return data
 
+
 def parseSolutionsFile(filename):
     """Wrapper function to read and parse a solutions file."""
     return parseSolutionsData(readYAML(filename), filename)
+
 
 def parseSolutionsData(data, srcFile="?"):
     """Parses problem sizes and solutions from the data of a solutions file."""
@@ -143,6 +150,7 @@ def parseSolutionsData(data, srcFile="?"):
     problemSizes = ProblemSizes(problemType, problemSizesConfig)
     return (problemSizes, solutions)
 
+
 class LibraryLogic(NamedTuple):
     """Return tuple for parseLibraryLogicData()"""
     schedule: str
@@ -152,9 +160,11 @@ class LibraryLogic(NamedTuple):
     exactLogic: list
     library: SolutionLibrary.MasterSolutionLibrary
 
+
 def parseLibraryLogicFile(filename):
     """Wrapper function to read and parse a library logic file."""
     return parseLibraryLogicData(readYAML(filename), filename)
+
 
 def parseLibraryLogicData(data, srcFile="?"):
     """Parses the data of a library logic file."""
@@ -162,7 +172,7 @@ def parseLibraryLogicData(data, srcFile="?"):
         data = parseLibraryLogicList(data, srcFile)
 
     if type(data["Architecture"]) is dict:
-        data["ArchitectureName"]  = data["Architecture"]["Architecture"]
+        data["ArchitectureName"] = data["Architecture"]["Architecture"]
         data["CUCount"] = data["Architecture"]["CUCount"]
     else:
         data["ArchitectureName"] = data["Architecture"]
@@ -195,6 +205,7 @@ def parseLibraryLogicData(data, srcFile="?"):
 
     return LibraryLogic(data["ScheduleName"], data["ArchitectureName"], problemType, solutions, \
             data.get("ExactLogic"), newLibrary)
+
 
 def parseLibraryLogicList(data, srcFile="?"):
     """Parses the data of a matching table style library logic file."""
@@ -232,18 +243,19 @@ def parseLibraryLogicList(data, srcFile="?"):
 
     return rv
 
+
 def rawLibraryLogic(data):
     """Returns a tuple of the data in a library logic file."""
-    versionString     = data[0]
-    scheduleName      = data[1]
-    architectureName  = data[2]
-    deviceNames       = data[3]
-    problemTypeState  = data[4]
-    solutionStates    = data[5]
-    indexOrder        = data[6]
-    exactLogic        = data[7]
-    rangeLogic        = data[8]
-    otherFields       = []
+    versionString = data[0]
+    scheduleName = data[1]
+    architectureName = data[2]
+    deviceNames = data[3]
+    problemTypeState = data[4]
+    solutionStates = data[5]
+    indexOrder = data[6]
+    exactLogic = data[7]
+    rangeLogic = data[8]
+    otherFields = []
 
     dataLength = len(data)
     if dataLength > 9:
@@ -259,11 +271,11 @@ def rawLibraryLogic(data):
 #################
 def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple):
     """Creates the data for a library logic file suitable for writing to YAML."""
-    problemType   = logicTuple[0]
-    solutions     = logicTuple[1]
-    indexOrder    = logicTuple[2]
-    exactLogic    = logicTuple[3]
-    rangeLogic    = logicTuple[4]
+    problemType = logicTuple[0]
+    solutions = logicTuple[1]
+    indexOrder = logicTuple[2]
+    exactLogic = logicTuple[3]
+    rangeLogic = logicTuple[4]
 
     tileSelection = False
     if len(logicTuple) > 5 and logicTuple[5]:
@@ -271,9 +283,9 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple
 
     data = []
     # Tensile version
-    data.append({"MinimumRequiredVersion":__version__})
+    data.append({"MinimumRequiredVersion": __version__})
     # schedule name
-    data.append(schedulePrefix)     # change from Tensile to vega10
+    data.append(schedulePrefix)  # change from Tensile to vega10
     data.append(architectureName)
     # schedule device names
     data.append(deviceNames)

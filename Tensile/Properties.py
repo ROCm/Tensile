@@ -21,7 +21,9 @@
 
 from .Utils import hash_objs, state
 
+
 class Property:
+
     @classmethod
     def FromOriginalState(cls, d):
         return cls(d.get('type'), d.get('index'), d.get('value'))
@@ -32,11 +34,16 @@ class Property:
         self._value = value
 
     @property
-    def tag(self):   return self._tag
+    def tag(self):
+        return self._tag
+
     @property
-    def index(self): return self._index
+    def index(self):
+        return self._index
+
     @property
-    def value(self): return self._value
+    def value(self):
+        return self._value
 
     def state(self):
         rv = {'type': self.tag}
@@ -56,6 +63,7 @@ class Property:
 
 
 class Predicate(Property):
+
     @classmethod
     def And(cls, predicates):
         predicates = tuple(predicates)

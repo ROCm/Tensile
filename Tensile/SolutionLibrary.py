@@ -20,7 +20,6 @@
 ################################################################################
 
 import itertools
-from typing_extensions import dataclass_transform
 
 from . import Properties
 from . import Hardware
@@ -28,6 +27,7 @@ from . import Common
 from . import Contractions
 from .SolutionStructs import Solution as OriginalSolution
 from .Utils import state
+
 
 class SingleSolutionLibrary:
     Tag = 'Single'
@@ -42,8 +42,9 @@ class SingleSolutionLibrary:
     def state(self):
         return {'type': self.tag, 'index': self.solution.index}
 
-    def remapSolutionIndices(self,indexMap):
+    def remapSolutionIndices(self, indexMap):
         pass
+
 
 class MatchingLibrary:
     Tag = 'Matching'
@@ -56,14 +57,14 @@ class MatchingLibrary:
         origTable = d["table"]
 
         propertyKeys = {
-                2:lambda: Properties.Property('FreeSizeA', index=0),
-                3:lambda: Properties.Property('FreeSizeB', index=0),
-                #0:lambda: Properties.Property('BatchSize', index=0),
-                1:lambda: Properties.Property('BoundSize', index=0)
-            }
+            2: lambda: Properties.Property('FreeSizeA', index=0),
+            3: lambda: Properties.Property('FreeSizeB', index=0),
+            #0:lambda: Properties.Property('BatchSize', index=0),
+            1: lambda: Properties.Property('BoundSize', index=0)
+        }
 
         properties = list([propertyKeys[i]() for i in indices if i in propertyKeys])
-        keyOrder = [i for i,j in enumerate(indices) if j in propertyKeys]
+        keyOrder = [i for i, j in enumerate(indices) if j in propertyKeys]
 
         table = []
 
@@ -95,7 +96,7 @@ class MatchingLibrary:
 
         self.table.sort(key=lambda r: r['key'])
 
-    def remapSolutionIndices(self,indexMap):
+    def remapSolutionIndices(self, indexMap):
         pass
 
     def __init__(self, properties, table, distance):
@@ -103,8 +104,9 @@ class MatchingLibrary:
         self.table = table
         self.distance = distance
 
+
 class DecisionTreeLibrary:
-    Tag= 'DecisionTree'
+    Tag = 'DecisionTree'
     StateKeys = [('type', 'tag'), 'properties', 'trees']
 
     @classmethod
@@ -128,14 +130,17 @@ class DecisionTreeLibrary:
         return self.__class__.Tag
 
     def merge(self, other):
-        raise RuntimeError("DecisionTreeLibrary does not support merging; ensure each library row has a unique predicate")
+        raise RuntimeError(
+            "DecisionTreeLibrary does not support merging; ensure each library row has a unique predicate"
+        )
 
-    def remapSolutionIndices(self,indexMap):
+    def remapSolutionIndices(self, indexMap):
         pass
 
     def __init__(self, properties, trees):
         self.properties = properties
         self.trees = trees
+
 
 class ProblemMapLibrary:
     Tag = 'ProblemMap'
@@ -152,15 +157,16 @@ class ProblemMapLibrary:
     def merge(self, other):
         assert self.__class__ == other.__class__ and self.tag == other.tag and self.mappingProperty == other.mappingProperty
 
-        for key,value in list(other.mapping.items()):
+        for key, value in list(other.mapping.items()):
             if key in self.mapping:
                 self.mapping[key].merge(value)
             else:
                 self.mapping[key] = value
 
-    def remapSolutionIndices(self,indexMap):
-        for key,value in list(self.mapping.items()):
+    def remapSolutionIndices(self, indexMap):
+        for key, value in list(self.mapping.items()):
             value.remapSolutionIndices(indexMap)
+
 
 class PredicateLibrary:
     StateKeys = [('type', 'tag'), 'rows']
@@ -185,9 +191,9 @@ class PredicateLibrary:
         # Sort to ensure consistent fallback logic.
         self.rows.sort(key=lambda x: x['predicate'])
 
-    def remapSolutionIndices(self,indexMap):
+    def remapSolutionIndices(self, indexMap):
         for row in self.rows:
-          row['library'].remapSolutionIndices(indexMap)
+            row['library'].remapSolutionIndices(indexMap)
 
 
 class MasterSolutionLibrary:
@@ -209,9 +215,12 @@ class MasterSolutionLibrary:
             else:
                 solutionsSoFar.add(solution.index)
 
-
     @classmethod
-    def FromOriginalState(cls, d, origSolutions, solutionClass=Contractions.Solution, libraryOrder = None):
+    def FromOriginalState(cls,
+                          origData,
+                          origSolutions,
+                          solutionClass=Contractions.Solution,
+                          libraryOrder=None):
 
         # functions for creating each "level" of the library
         def hardware(d, problemType, solutions, library):
@@ -287,20 +296,23 @@ class MasterSolutionLibrary:
                     library.rows.append({'predicate': predicate, 'library': treeLib})
 
             return library
+
         # end library creation functions
 
         if libraryOrder is None:
-            libraryOrder = [hardware, operationIdentifier, performanceMetric, fp16AltImpl, predicates, selection]
+            libraryOrder = [
+                hardware, operationIdentifier, performanceMetric, fp16AltImpl, predicates, selection
+            ]
         assert libraryOrder[-1] == selection
 
-        problemType = Contractions.ProblemType.FromOriginalState(d["ProblemType"])
+        problemType = Contractions.ProblemType.FromOriginalState(origData["ProblemType"])
         allSolutions = [solutionClass.FromSolutionStruct(s) for s in origSolutions]
         cls.FixSolutionIndices(allSolutions)
 
         # library is constructed in reverse order i.e. bottom-up
         library = None
         for libName in reversed(libraryOrder):
-            library = libName(d, problemType, allSolutions, library)
+            library = libName(origData, problemType, allSolutions, library)
 
         solutions = {s.index: s for s in allSolutions}
         rv = cls(solutions, library)
@@ -311,7 +323,10 @@ class MasterSolutionLibrary:
         solutionObjs = list([Contractions.Solution.FromOriginalState(s._state) for s in solutions])
         cls.FixSolutionIndices(solutionObjs)
 
-        predRows = list([{'predicate': s.problemPredicate, 'library': SingleSolutionLibrary(s)} for s in solutionObjs])
+        predRows = list([{
+            'predicate': s.problemPredicate,
+            'library': SingleSolutionLibrary(s)
+        } for s in solutionObjs])
         library = PredicateLibrary(tag='Problem', rows=predRows)
 
         solutionMap = {s.index: s for s in solutionObjs}
@@ -324,8 +339,10 @@ class MasterSolutionLibrary:
         self.version = version
 
     def state(self):
-        rv = {'solutions': state(iter(list(self.solutions.values()))),
-              'library': state(self.library)}
+        rv = {
+            'solutions': state(iter(list(self.solutions.values()))),
+            'library': state(self.library)
+        }
 
         if self.version is not None:
             rv['version'] = self.version
@@ -334,7 +351,9 @@ class MasterSolutionLibrary:
     def applyNaming(self, naming=None):
         if naming is None:
             #allSolutions = itertools.chain(iter(list(self.solutions.values())), iter(list(self.sourceSolutions.values())))
-            kernels = list(itertools.chain(*[s.originalSolution.getKernels() for s in self.solutions.values()]))
+            kernels = list(
+                itertools.chain(*[s.originalSolution.getKernels()
+                                  for s in self.solutions.values()]))
             naming = OriginalSolution.getMinNaming(kernels)
 
         for s in list(self.solutions.values()):
@@ -344,7 +363,7 @@ class MasterSolutionLibrary:
         reIndexMap = {}
         solutionCopy = self.solutions
         self.solutions = dict()
-        for k,s in solutionCopy.items():
+        for k, s in solutionCopy.items():
             reIndexMap[s.index] = curIndex
             s.index = curIndex
             self.solutions[curIndex] = s
@@ -358,7 +377,7 @@ class MasterSolutionLibrary:
         curIndex = max(startIndex, max(self.solutions.keys()) + 1)
 
         reIndexMap = {}
-        for k,s in other.solutions.items():
+        for k, s in other.solutions.items():
             reIndexMap[s.index] = curIndex
             s.index = curIndex
             self.solutions[curIndex] = s
@@ -368,7 +387,7 @@ class MasterSolutionLibrary:
 
         self.library.merge(other.library)
 
-        return curIndex    #Next unused index
+        return curIndex  #Next unused index
 
     @property
     def cpp_base_class(self):
