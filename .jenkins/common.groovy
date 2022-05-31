@@ -33,13 +33,13 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             export TENSILE_COMPILER=${compiler}
             TENSILE_SYMLINK=/home/jenkins/tensile
             ln -s \$(pwd) \$TENSILE_SYMLINK
-            tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --junit-xml=\$TENSILE_SYMLINK/python_unit_tests.xml --timing-file=\$TENSILE_SYMLINK/timing-\$gpuArch.csv
+            tox -v --workdir /tmp/.tensile-tox -e ${pythonVersion} -- ${test_dir} -m "${test_marks}" --junit-xml=\$TENSILE_SYMLINK/build/python_unit_tests.xml --timing-file=\$TENSILE_SYMLINK/build/timing-\$gpuArch.csv
 
             mkdir build
             pushd build
 
             export PATH=/opt/rocm/bin:$PATH
-            cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DCODE_OBJECT_VERSION=${cov} -DTensile_ROOT=\$TENSILE_SYMLINK/../Tensile ../HostLibraryTests
+            cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DCODE_OBJECT_VERSION=${cov} -DTensile_ROOT=\$TENSILE_SYMLINK/Tensile ../HostLibraryTests
             make -j\$(nproc)
 
             popd
