@@ -34,6 +34,7 @@
 #include <Tensile/MapLibrary.hpp>
 #include <Tensile/MasterSolutionLibrary.hpp>
 #include <Tensile/SingleSolutionLibrary.hpp>
+#include <Tensile/PlaceholderLibrary.hpp>
 
 #include <Tensile/Serialization/Base.hpp>
 #include <Tensile/Serialization/Predicates.hpp>
@@ -42,6 +43,7 @@
 #include <Tensile/Serialization/GranularitySelectionLibrary.hpp>
 #include <Tensile/Serialization/MapLibrary.hpp>
 #include <Tensile/Serialization/MatchingLibrary.hpp>
+#include <Tensile/Serialization/PlaceholderLibrary.hpp>
 
 namespace Tensile
 {
@@ -74,7 +76,8 @@ namespace Tensile
                      Base::template Pair<ProblemSelectionLibrary<MyProblem, MySolution>>(),
                      Base::template Pair<ProblemMapLibrary<MyProblem, MySolution>>(),
                      Base::template Pair<ProblemMatchingLibrary<MyProblem, MySolution>>(),
-                     Base::template Pair<GranularitySelectionLibrary<MyProblem, MySolution>>()});
+                     Base::template Pair<GranularitySelectionLibrary<MyProblem, MySolution>>(),
+                     Base::template Pair<PlaceholderLibrary<MyProblem, MySolution>>()});
             }
         };
 

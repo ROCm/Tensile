@@ -107,7 +107,7 @@ namespace Tensile
         virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
                                                              Hardware const&  hardware,
                                                              double*          fitness
-                                                             = nullptr) const override
+                                                             = nullptr) override
         {
             auto library = lookup(problem, hardware);
 
@@ -118,7 +118,7 @@ namespace Tensile
         }
 
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
-                                                         Hardware const&  hardware) const override
+                                                         Hardware const&  hardware) override
         {
             auto library = lookup(problem, hardware);
 

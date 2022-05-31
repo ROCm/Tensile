@@ -69,7 +69,8 @@ namespace Tensile
         BFloat16,
         Int8,
         Count,
-        None = Count
+        None = Count,
+        Any = Count
     };
 
     std::string   ToString(DataType d);

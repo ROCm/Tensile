@@ -36,6 +36,7 @@
 
 //@TODO add alternative for windows
 #include <glob.h>
+#include <regex>
 
 namespace Tensile
 {
@@ -79,6 +80,11 @@ namespace Tensile
                 std::lock_guard<std::mutex> guard(m_access);
                 m_modules.push_back(module);
                 m_loadedModuleNames.push_back(concatenate("File ", path));
+                
+                //Isolate filename
+                size_t start = path.rfind('/');
+                start        = (start == std::string::npos) ? 0 : start+1;
+                m_loadedCOFiles.insert(std::string(path.begin()+start, path.end()));
             }
             return hipSuccess;
         }
@@ -195,9 +201,16 @@ namespace Tensile
             return err;
         }
 
-        hipError_t SolutionAdapter::loadCodeObjectFilePattern(std::string pattern)
+        hipError_t SolutionAdapter::loadCodeObjectFilesWithDataType(Tensile::AMDGPU hardware, Tensile::DataType dataType)
         {
-            std::string wholePattern = m_codeObjectDirectory+pattern;
+            std::string arch = hardware.archName();
+
+            std::string typeChar = Tensile::TypeAbbrev(dataType);
+
+            if(typeChar == "Invalid")
+                typeChar = ".*";
+
+            std::string pattern = "TensileLibrary_C[a-z]+_A[a-z]+_B[a-z]+_"+typeChar+".*"+arch+".*(\\.co|\\.hsaco)";
 
             glob_t result;
             result.gl_pathc = 0;
@@ -207,14 +220,17 @@ namespace Tensile
             // This way globfree will be called regardless of if an exception is thrown.
             std::shared_ptr<glob_t> guard(&result, globfree);
 
-            int err = ::glob(wholePattern.c_str(), 0, nullptr, &result);
+            int err = ::glob((m_codeObjectDirectory+"*co").c_str(), 0, nullptr, &result);
 
             auto lastHipError = hipSuccess;
 
             for(size_t i = 0; i < result.gl_pathc; i++){
-                auto status = loadCodeObjectFile(result.gl_pathv[i]);
-                if (status != hipSuccess)
-                    lastHipError = status;
+                if (std::regex_search(result.gl_pathv[i], std::regex(pattern)))
+                {
+                    auto status = loadCodeObjectFile(result.gl_pathv[i]);
+                    if (status != hipSuccess)
+                        lastHipError = status;
+                }
             }
 
             return lastHipError;
@@ -224,7 +240,7 @@ namespace Tensile
         {
             m_codeObjectDirectory = path;     
             //Ensure there's a slash at the end of the path
-            if (m_codeObjectDirectory.back() == '/') m_codeObjectDirectory += '/';
+            if (m_codeObjectDirectory.back() != '/') m_codeObjectDirectory += '/';
         }
 
         hipError_t SolutionAdapter::launchKernel(KernelInvocation const& kernel)
@@ -237,6 +253,19 @@ namespace Tensile
                                                  hipEvent_t              startEvent,
                                                  hipEvent_t              stopEvent)
         {
+            if(!kernel.codeObjectFile.empty())
+            {
+                //If required code object file hasn't yet been loaded, load it now
+                m_access.lock();
+                bool loaded = m_loadedCOFiles.find(kernel.codeObjectFile) != m_loadedCOFiles.end();
+                m_access.unlock();
+
+                if(!loaded)
+                {
+                    loadCodeObjectFile(m_codeObjectDirectory+kernel.codeObjectFile);
+                }
+            }
+
             if(m_debug)
             {
                 std::cout << "Kernel " << kernel.kernelName << std::endl;

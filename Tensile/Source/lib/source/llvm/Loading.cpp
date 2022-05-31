@@ -32,6 +32,8 @@
 #include <Tensile/Tensile.hpp>
 #include <Tensile/llvm/YAML.hpp>
 
+#include <cstdio>
+
 namespace Tensile
 {
 
@@ -39,6 +41,7 @@ namespace Tensile
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
         LLVMLoadLibraryFile(std::string const& filename)
     {
+        std::printf("Using llvm load %s\n", filename.c_str());
         std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
         try
@@ -46,7 +49,7 @@ namespace Tensile
             auto inputFile = llvm::MemoryBuffer::getFile(filename);
             
             LibraryIOContext<MySolution>  context{filename, nullptr}; 
-            llvm::yaml::Input yin((*inputFile)->getMemBufferRef());
+            llvm::yaml::Input yin((*inputFile)->getMemBufferRef(), &context);
 
             yin >> rv;
 
@@ -77,7 +80,7 @@ namespace Tensile
         {
             LibraryIOContext<MySolution>  context{filename, nullptr};
             llvm::StringRef               dataRef((const char*)data.data(), data.size());
-            llvm::yaml::Input             yin(dataRef);
+            llvm::yaml::Input             yin(dataRef, &context);
 
             yin >> rv;
 

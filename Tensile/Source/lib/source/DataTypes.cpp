@@ -84,7 +84,6 @@ namespace Tensile
             return "B";
         case DataType::Int8:
             return "I8";
-
         case DataType::Count:;
         }
         return "Invalid";

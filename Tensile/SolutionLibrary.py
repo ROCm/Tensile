@@ -98,7 +98,7 @@ class PlaceholderLibrary:
         return self.__class__.Tag
 
     def state(self):
-        return {'type': self.tag, 'filenamePrefix': self.filenamePrefix }
+        return {'type': self.tag, 'value': self.filenamePrefix }
 
     def remapSolutionIndices(self,indexMap):
         pass

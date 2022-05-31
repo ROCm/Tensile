@@ -44,7 +44,7 @@ namespace Tensile
 
             static void mapping(IO& io, Library& lib)
             {
-                iot::mapRequired(io, "filePrefix", lib.filePrefix);
+                iot::mapRequired(io, "value", lib.filePrefix);
 
                 if(!iot::outputting(io)){
                     auto ctx      = static_cast<LibraryIOContext<MySolution>*>(iot::getContext(io));

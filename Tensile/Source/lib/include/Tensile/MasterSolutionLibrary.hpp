@@ -62,7 +62,7 @@ namespace Tensile
             return "Master";
         }
         std::string type() const override
-        {
+        { 
             return Type();
         }
         std::string description() const override
@@ -88,7 +88,7 @@ namespace Tensile
         virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
                                                              Hardware const&  hardware,
                                                              double*          fitness
-                                                             = nullptr) const override
+                                                             = nullptr) override
         {
             const int solution_index = Debug::Instance().getSolutionIndex();
 
@@ -115,7 +115,7 @@ namespace Tensile
         }
 
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
-                                                         Hardware const&  hardware) const override
+                                                         Hardware const&  hardware) override
         {
             return library->findAllSolutions(problem, hardware);
         }

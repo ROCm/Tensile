@@ -51,6 +51,7 @@ import time
 from copy import deepcopy
 
 ################################################################################
+# JEREMY - Name from kernel
 def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
     """
     Generate source for a single kernel.
@@ -65,8 +66,8 @@ def processKernelSource(kernel, kernelWriterSource, kernelWriterAssembly):
         # will be put in Kernels.h/cpp if None 
         filename = kernel._state.get("codeObjectFile", None)
         # put hip kernels in Kernels.h/cpp
-        if filename and "fallback" in filename:
-          filename = None
+        #if filename and "fallback" in filename:
+        #  filename = None
     except RuntimeError:
         return (1, "", "", kernelName, None)
 
@@ -198,6 +199,8 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
     objectFilename = base + '.o'
     soFilename = base + '.so'
 
+    coFilenames = []
+
     if (CxxCompiler == "hipcc"):
       archs, cmdlineArchs = splitArchs()
 
@@ -227,21 +230,35 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
           matched = re.search("gfx.*$", target)
           if matched:
             arch = re.sub(":", "-", matched.group())
-            outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, arch))
-            bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=%s" % target, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
-            if globalParameters["PrintCodeCommands"]:
-              print(' '.join(bundlerArgs))
-            subprocess.check_call(bundlerArgs)
+            if "TensileLibrary" in base and "fallback" in base:
+              outfile = os.path.join(buildPath, "{0}_{1}.hsaco".format(base, arch))
+            elif "TensileLibrary" in base:
+              if arch in base:
+                outfile = os.path.join(buildPath, base+".hsaco")
+              #If source kernel for other architecture don't compile
+              else:
+                outfile = None
+            else:
+              outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, arch))
+            
+            #Compilation
+            if outfile:
+              coFilenames.append(os.path.split(outfile)[1])
+              bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=%s" % target, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+              if globalParameters["PrintCodeCommands"]:
+                print(' '.join(bundlerArgs))
+              subprocess.check_call(bundlerArgs)
 
       except subprocess.CalledProcessError:
         for i in range(len(archs)):
           outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
+          coFilenames.append(os.path.split(outfile)[1])
           bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
           if globalParameters["PrintCodeCommands"]:
             print(' '.join(bundlerArgs))
           subprocess.check_call(bundlerArgs)
 
-      coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
+      #coFilenames = ["{0}-000-{1}.hsaco".format(soFilename, arch) for arch in archs]
     else:
       raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
 
@@ -371,6 +388,11 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
 
     validKernelCount += 1
 
+  #print("filesToWrite ---------------------------\n", filesToWrite)
+  for path, kernelList in filesToWrite.items():
+    print(path)
+    for (err, src, header, kernelName) in kernelList:
+      print("\t", kernelName)
 
   # Write kernel data to files
   if globalParameters["MergeFiles"]:
@@ -573,8 +595,10 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     kernelHeaderFile = open(kernelFilename + ".h", 'a', encoding="utf-8")
 
   # handle helper kernel function
+  print("HELPER KERNELS------------------\n")
   for ko in kernelHelperObjs:
     kernelName = ko.getKernelName()
+    print("Helper kernel ", kernelName)
 
     # write kernel.cpp
     if not globalParameters["MergeFiles"]:
@@ -1147,8 +1171,9 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
         sourceLibFiles += ["Kernels%d.so-000-%s.hsaco" % (kernelIndex, arch) for arch in sourceArchs]
     else:
       raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
-  #elif True:
-  #  sourceLibFiles += list(set([kernel._state["codeObjectFile"]+".hsaco" for kernel in kernels if 'codeObjectFile' in kernel._state and "fallback" in kernel._state["codeObjectFile"]]))
+  elif True:
+    fallbackLibs = list(set([kernel._state["codeObjectFile"] for kernel in kernels if 'codeObjectFile' in kernel._state and "fallback" in kernel._state["codeObjectFile"]]))
+    sourceLibFiles += ["{0}_{1}.hsaco".format(name, arch) for name, arch in itertools.product(fallbackLibs, sourceArchs)]
   else: # Merge
     if (cxxCompiler == 'hipcc'):
       sourceLibFiles += ["Kernels.so-000-%s.hsaco" % (arch) for arch in sourceArchs]
@@ -1160,7 +1185,14 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
     # Find all unique arch values for current asm kernels
     uniqueArchs = set(itertools.chain(*asmArchs.values()))
     #asmLibFiles += ["TensileLibrary_%s.co" % (arch) for arch in uniqueArchs]
-    asmLibFiles += list(set([kernel._state["codeObjectFile"]+".co" for kernel in kernels if 'codeObjectFile' in kernel._state and "fallback" not in kernel._state["codeObjectFile"]]))
+    asmLibFiles += list(set([kernel._state["codeObjectFile"]+".co" for kernel in kernels 
+                                                                   if 'codeObjectFile' in kernel._state 
+                                                                   and "fallback" not in kernel._state["codeObjectFile"]
+                                                                   and kernel._state['KernelLanguage'] == 'Assembly']))
+    sourceLibFiles += list(set([kernel._state["codeObjectFile"]+".hsaco" for kernel in kernels 
+                                                                         if "codeObjectFile" in kernel._state 
+                                                                         and "fallback" not in kernel._state["codeObjectFile"] 
+                                                                         and kernel._state['KernelLanguage'] == 'Source']))
   else:
     for asmKernelName, archs in asmArchs.items():
       asmLibFiles += ["%s_%s.co" % (asmKernelName, str(arch)) for arch in archs]
@@ -1225,9 +1257,6 @@ def buildObjectFilePaths(prefixDir, solutionFiles, sourceKernelFiles, asmKernelF
       #if globalParameters["SeparateArchitectures"]:
       #  libMetadataPaths += [ os.path.join(libDir, "TensileLibrary"+asmArch+libraryExt) ]
       asmLibPaths += [ os.path.join(libDir, asmLibFile) ]
-
-  print("libMetadataPaths========================")
-  print(libMetadataPaths)
 
   return (solutionPaths, sourceKernelPaths, asmKernelPaths, sourceLibPaths, asmLibPaths, libMetadataPaths)
 
@@ -1337,7 +1366,6 @@ def generateLogicDataAndSolutions(logicFiles, args):
         value.merge(deepcopy(masterLibraries["fallback"]))
 
     masterLibraries.pop("fallback")
-    print(masterLibraries)
     for _, masterLibrary in masterLibraries.items():
       for name, lib in masterLibrary.placeholderLibraries.items():
         #JEREMY - sol is SolutionStructs.Solution
@@ -1350,8 +1378,6 @@ def generateLogicDataAndSolutions(logicFiles, args):
       #for sol in placeholderSolutions: 
     #placeholderSolutions = dict(placeholderSolutions)
 
-  for sol in solutions:
-    print("Original solution ", sol._state["codeObjectFile"])
   # remove duplicates while preserving order
   solutions = list(dict.fromkeys(solutions))
   return logicData, solutions, masterLibraries, fullMasterLibrary
@@ -1574,6 +1600,8 @@ def TensileCreateLibrary():
    libMetadataPaths) = buildObjectFilePaths(outputPath, solutionFiles, sourceKernelFiles, \
     asmKernelFiles, sourceLibFiles, asmLibFiles, masterLibraries) #JEREMY - revisit these later
 
+  print(sourceLibPaths)
+
   # Generate manifest file
   libraryPath = os.path.join(outputPath, "library")
   ensurePath(libraryPath)
@@ -1613,9 +1641,9 @@ def TensileCreateLibrary():
     print("codeObjectFiles:", codeObjectFiles)
     print("sourceLibPaths + asmLibPaths:", sourceLibPaths + asmLibPaths)
 
-  #assert len(sanityCheck0) == 0, "Unexpected code object files: {}".format(sanityCheck0)
-  #if not globalParameters["GenerateSourcesAndExit"]:
-  #  assert len(sanityCheck1) == 0, "Missing expected code object files: {}".format(sanityCheck1)
+  assert len(sanityCheck0) == 0, "Unexpected code object files: {}".format(sanityCheck0)
+  if not globalParameters["GenerateSourcesAndExit"]:
+    assert len(sanityCheck1) == 0, "Missing expected code object files: {}".format(sanityCheck1)
 
   archs = [gfxName(arch) for arch in globalParameters['SupportedISA'] \
              if globalParameters["AsmCaps"][arch]["SupportedISA"]]
@@ -1637,7 +1665,6 @@ def TensileCreateLibrary():
 
         #Write placeholder libraries
         for name, lib in newMasterLibrary.placeholderLibraries.items():
-          print("Name = "+name)
           filename = os.path.join(newLibraryDir, name)
           lib.applyNaming(kernelMinNaming) #@TODO Check to see if kernelMinNaming is correct
           LibraryIO.write(filename, Utils.state(lib), args.LibraryFormat)

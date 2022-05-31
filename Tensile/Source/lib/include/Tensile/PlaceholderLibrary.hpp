@@ -26,8 +26,8 @@
 
 #pragma once
 
-#include <Tensile/SolutionLibrary>
-#include <Tensile>/MasterSolutionLibrary>
+#include <Tensile/SolutionLibrary.hpp>
+#include <Tensile/MasterSolutionLibrary.hpp>
 #include <Tensile/Tensile.hpp>
  
 namespace Tensile{
@@ -40,21 +40,44 @@ namespace Tensile{
         std::string                                                   filePrefix;
         std::string                                                   libraryDirectory;
 
+        PlaceholderLibrary() = default;
+
         //Needs to:
         // load metadata *DONE
         // send new solutions back to MasterSolutionLibrary *DONE
         // tell adapter which code object files are needed
         virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
                                                              Hardware const&  hardware,
-                                                             double* fitness = nullptr) const override
+                                                             double* fitness = nullptr) override
         {
             if (!library){
-                auto newLibrary = LoadLibraryFile((libraryDirectory+"/"+filePrefix).c_str());
-                library = newLibrary->library;
-                solutions->insert(newLibrary->solutions.begin(), newLibrary->solutions.end());
+                #ifdef TENSILE_YAML
+                    std::string suffix = ".yaml";
+                #else
+                    std::string suffix = ".dat";
+                #endif
+
+                auto newLibrary = LoadLibraryFile<MyProblem, MySolution>((libraryDirectory+"/"+filePrefix+suffix).c_str());
+                auto mLibrary   = static_cast<MasterSolutionLibrary<MyProblem, MySolution>*>(newLibrary.get());
+                library = mLibrary->library;
+                solutions->insert(mLibrary->solutions.begin(), mLibrary->solutions.end());
             }
             
-            return library->findBestSolution(problem, hardware, fitness);
+            auto solution = library->findBestSolution(problem, hardware, fitness);
+
+            std::string coFileDependency = filePrefix;
+            
+            if(solution){
+                if(solution->isSourceKernel())
+                    coFileDependency += std::string("_") + hardware.archName()+std::string(".hsaco");
+                else
+                    coFileDependency += std::string(".co");
+                solution->codeObjectFilename = coFileDependency;
+
+                std:: cout << coFileDependency << std::endl;
+            }
+
+            return solution;
         }
 
         /**
@@ -64,12 +87,12 @@ namespace Tensile{
          * May return an empty set if no such object exists.
          */
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
-                                                         Hardware const&  hardware) const override
+                                                         Hardware const&  hardware) override
         {
-             
+             return library->findAllSolutions(problem, hardware);
         }
 
-        static std::string Type() const
+        static std::string Type()
         {
             return "Placeholder";
         } 
@@ -79,7 +102,10 @@ namespace Tensile{
             return Type();
         }
 
-        virtual std::string description() const = 0;
+        virtual std::string description() const override
+        {
+            return this->type();
+        }
     };
 
 } // namespace Tensile

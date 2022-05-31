@@ -119,6 +119,7 @@ namespace Tensile
     {
     public:
         std::string kernelName;
+        std::string codeObjectFile;    //Code object file kernel is located in
 
         dim3   workGroupSize;
         dim3   numWorkGroups;
@@ -145,6 +146,7 @@ namespace Tensile
 
         virtual size_t      id() const          = 0;
         virtual std::string description() const = 0;
+        virtual std::string archName() const    = 0;
     };
 
     /**

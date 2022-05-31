@@ -179,7 +179,7 @@ globalParameters["PrintTensorD"] = 0          # Print TensorD.  0x1=after init; 
 globalParameters["PrintTensorRef"] = 0          # Print reference tensor.  0x1=after init; 0x2=after copy-back; 0x3=both
 globalParameters["PrintIndexAssignments"] = 0      # Print the tensor index assignment info
 globalParameters["PrintWinnersOnly"] = False      # Only print the solutions which become the fastest
-globalParameters["PrintCodeCommands"] = True  # print the commands used to generate the code objects (asm,link,hip-clang, etc)
+globalParameters["PrintCodeCommands"] = False  # print the commands used to generate the code objects (asm,link,hip-clang, etc)
 globalParameters["DumpTensors"] = False        # If True, dump tensors to binary files instead of printing them.
 
 # If PrintMax* is greater than the dimension, the middle elements will be repaced with "..."
