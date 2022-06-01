@@ -74,7 +74,7 @@ namespace Tensile
             HIP_CHECK_RETURN(hipModuleLoad(&module, path.c_str()));
 
             if(m_debug)
-                std::cout << "loaded code object" << path << std::endl;
+                std::cout << "loaded code object " << path << std::endl;
 
             {
                 std::lock_guard<std::mutex> guard(m_access);
@@ -255,6 +255,8 @@ namespace Tensile
         {
             if(!kernel.codeObjectFile.empty())
             {
+                std::cout << "launchKernel::Loading code object files" << std::endl;
+
                 //If required code object file hasn't yet been loaded, load it now
                 m_access.lock();
                 bool loaded = m_loadedCOFiles.find(kernel.codeObjectFile) != m_loadedCOFiles.end();
@@ -262,6 +264,7 @@ namespace Tensile
 
                 if(!loaded)
                 {
+                    std::cout << "launchKernel::loadCodeObjectFile " << m_codeObjectDirectory+kernel.codeObjectFile << std::endl;
                     loadCodeObjectFile(m_codeObjectDirectory+kernel.codeObjectFile);
                 }
             }

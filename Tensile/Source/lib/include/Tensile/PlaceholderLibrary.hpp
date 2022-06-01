@@ -68,8 +68,12 @@ namespace Tensile{
             std::string coFileDependency = filePrefix;
             
             if(solution){
-                if(solution->isSourceKernel())
-                    coFileDependency += std::string("_") + hardware.archName()+std::string(".hsaco");
+                if(solution->isSourceKernel()){
+                    if (coFileDependency.find(hardware.archName()) == std::string::npos)
+                        coFileDependency += std::string("_") + hardware.archName()+std::string(".hsaco");
+                    else
+                        coFileDependency += std::string(".hsaco");
+                }
                 else
                     coFileDependency += std::string(".co");
                 solution->codeObjectFilename = coFileDependency;
