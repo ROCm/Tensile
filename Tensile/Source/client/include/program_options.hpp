@@ -678,9 +678,15 @@ namespace roc
                     {
                         std::string              in(*argv);
                         std::vector<std::string> values;
+                        std::vector<std::string> curr;
+                        std::vector<std::string> concat;
                         std::string              spliter(",;");
                         roc::split(values, in, spliter);
-                        ptr->actual_value(values);
+                        curr = ptr->get_value();
+                        concat.reserve(values.size() + curr.size());
+                        concat.insert(concat.end(), curr.begin(), curr.end());
+                        concat.insert(concat.end(), values.begin(), values.end());
+                        ptr->actual_value(concat);
                         match = true;
                     }
                 }
@@ -955,9 +961,15 @@ namespace roc
                     {
                         std::string              in(argv);
                         std::vector<std::string> values;
+                        std::vector<std::string> curr;
+                        std::vector<std::string> concat;
                         std::string              spliter(",;");
                         roc::split(values, in, spliter);
-                        ptr->actual_value(values);
+                        curr = ptr->get_value();
+                        concat.reserve(values.size() + curr.size());
+                        concat.insert(concat.end(), curr.begin(), curr.end());
+                        concat.insert(concat.end(), values.begin(), values.end());
+                        ptr->actual_value(concat);
                         match = true;
                     }
                 }
