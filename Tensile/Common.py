@@ -220,7 +220,7 @@ globalParameters["WorkingPath"] = os.getcwd()           # path where tensile cal
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source") # path to Tensile/Source/
-globalParameters["HipClangVersion"] = "0,0,0"
+globalParameters["HipClangVersion"] = "0.0.0"
 
 # default runtime is selected based on operating system, user can override
 if os.name == "nt":
@@ -413,6 +413,10 @@ validParameters = {
     "ThreadSeparateGlobalReadA":    [ 0, 1, 2 ],
     "ThreadSeparateGlobalReadB":    [ 0, 1, 2 ],
 
+    # Splits global read addresses within a wave into a number of smaller groups
+    # The default value of 1 reads the most contiguous elements across lanes,
+    # but higher values may help avoid bank conflicts
+    "SplitGlobalRead":            [1, 2, 4, 8],
 
     # PrefetchGlobalRead = 1:
     # Requires 2X LDS space, and VGPRs for buffering data on way into LDS
@@ -719,7 +723,7 @@ validParameters = {
     "AssertFree1ElementMultiple" : [1,2,4,8],
 
     # Some kernels only work for certain sizes, see ProblemProperties in TensileTypes for exact defs
-    "AssertMinApproxSize" : [0,1,2],
+    "AssertMinApproxSize" : [0,1,2,3],
 
 
     # Assertions/Predicates that require stride to be specified value.
@@ -936,7 +940,7 @@ validParameters = {
     "GroupLoadStore":             [False, True],
     #
     # Do storeC (output of GEMM) in unroll Loop; When PK enabled, storeC Code section can be
-    # moved into unroll Loop code section for tiles[0..N-2], storeC scheduled in PK[1..N-1] 
+    # moved into unroll Loop code section for tiles[0..N-2], storeC scheduled in PK[1..N-1]
     # Enable this feature when PK is enabled
     # Enable this feature when you have 2 or More Tiles/CU
     # disable StoreSyncOpt, StorePriorityOpt,GroupLoadStore feature when this feature is enabled
@@ -1246,13 +1250,14 @@ defaultBenchmarkCommonParameters = [
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
     {"VectorStore":               [ -1 ] },
-    {"StoreVectorWidth":         [ -1 ] },
+    {"StoreVectorWidth":          [ -1 ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"LocalReadVectorWidth":      [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
-    {"WaveSeparateGlobalReadA":    [ 0 ] },
-    {"WaveSeparateGlobalReadB":    [ 0 ] },
+    {"WaveSeparateGlobalReadA":   [ 0 ] },
+    {"WaveSeparateGlobalReadB":   [ 0 ] },
+    {"SplitGlobalRead":           [ 1 ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
     {"GlobalReadCoalesceGroupB":  [ True ] },
     {"PrefetchGlobalRead":        [ 1 ] },
@@ -2001,7 +2006,7 @@ def assignGlobalParameters( config ):
 
   if "MergeFiles" in config and "NumMergedFiles" in config:
     if not config["MergeFiles"] and config["NumMergedFiles"] > 1:
-      config["NumMergedFiles"] = 1 
+      config["NumMergedFiles"] = 1
       printWarning("--num-merged-files and --no-merge-files specified, ignoring --num-merged-files")
 
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future

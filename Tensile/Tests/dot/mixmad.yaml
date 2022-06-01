@@ -36,6 +36,7 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: h
+      ComputeDataType: s
       HighPrecisionAccumulate: 1
       TransposeA: True
       TransposeB: False

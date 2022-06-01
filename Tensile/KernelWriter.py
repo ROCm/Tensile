@@ -1188,6 +1188,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if mfmaIndex >= self.lwStartMfmaIndex and mfmaIndex <= max(self.lwEndMfmaIndex,self.barrierMfmaIndex) and \
           localReadItemsThisLoop and localWriteCode.countType(Code.LocalWriteInst) and kernel["1LDSBuffer"]:
           self.overflowedResources = 5
+        # DirectToVgpr case, localReadItemsThisLoop and localWriteCode.countType(Code.LocalWriteInst) do not satisfy at the same time.
+        # However, it is still invaid if localReadItemsThisLoop exists when mfmaIndex > lwStartMfmaIndex
+        elif (kernel["DirectToVgprA"] or kernel["DirectToVgprB"]) and \
+          mfmaIndex > self.lwStartMfmaIndex and mfmaIndex <= max(self.lwEndMfmaIndex,self.barrierMfmaIndex) and \
+          localReadItemsThisLoop and kernel["1LDSBuffer"]:
+          self.overflowedResources = 5
         for j in range(readLeft):
           if localReadItemsThisLoop:
             item = localReadItemsThisLoop.pop(0)
@@ -1421,6 +1427,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
               # adjustment for double
               # in this case, interval must be 1 to avoid overwritting vreg by global read
               interval = 1
+          # DirectToVgprA + TLU=False + VW > 1 case, need to use interval = 1
+          if kernel["DirectToVgprA"] and (not kernel["ProblemType"]["TLUA"]) and kernel["VectorWidth"] > 1:
+            interval = 1
           # if number of mfma after self.grEndMfmaIndex is smaller than numMfmaPerIter, we need to use smaller interval to insert DTV load.
           # this is to ensure DTV load is generated after lwStartMfmaIndex
           intervalAfterGrEnd = kernel["LoopIters"] * numMfmaPerIter - self.lwStartMfmaIndex
@@ -2046,12 +2055,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # flip setId if isDTVodd is True
           if isDTVodd:
              setId = 1 - setId
-          # use second set for DirectToVGPR (Tentative. TODO: need to implement a better logic)
-          vregSetIdxMFMA = setId * kernel["LoopIters"] + uIdx # use first set for NGLL, second set for other cases
+          # use second set for DirectToVGPR
+          vregSetIdxMFMA = setId # use first set for NGLL, second set for other cases
           if ((uIdx+1) == kernel["LoopIters"]*kernel["DepthULdsDivisor"]) and \
               (kernel["StoreCInUnroll"]):
             lastuIdx = (isOptNLL or self.enableSingleNLLOpt) and not isNGLL # do not apply lastuIdx for not isOptNLL case
-          macIterCode.addCode(self.mfmaIter(kernel, luIdx, kernel["InnerUnroll"], vregSetIdxMFMA,lastuIdx))
+          macIterCode.addCode(self.mfmaIter(kernel, u, kernel["InnerUnroll"], vregSetIdxMFMA,lastuIdx))
         else:
           macIterCode.addCode(self.macIter(kernel, luIdx, kernel["InnerUnroll"], True ))
 
@@ -2463,18 +2472,23 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # disable LocalRead if DirectToVgpr is enabled
         doReadA = doReadA and (not kernel["DirectToVgprA"])
         doReadB = doReadB and (not kernel["DirectToVgprB"])
+        # double the number of VgprValu if self.vgprValuDouble is true
+        plrIdxLR = plrIdx
+        if self.vgprValuDouble and (lc & 1) == 0:
+          # use the next buffer set (do not change the index of pack[])
+          plrIdxLR += 1
         for iui in range(0,kernel["InnerUnroll"]):
           doReadA = doReadA and iui*self.numReadsIterCoalescedA < kernel["InnerUnroll"]
           doReadB = doReadB and iui*self.numReadsIterCoalescedB < kernel["InnerUnroll"]
           if doReadA:
             localReads.addText(self.comment("local read a"))
-            localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx*self.numIterPerCoalescedReadA, iui*self.numReadsIterCoalescedA, 0, tensorParametersA)
+            localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdxLR*self.numIterPerCoalescedReadA, iui*self.numReadsIterCoalescedA, 0, tensorParametersA)
             localReads.addCode(localReadCodeA)
             localReadsA.addCode(localReadCodeA)
             pack[plrIdx*self.numIterPerCoalescedReadA].addCode(packCodeA)
           if doReadB:
             localReads.addText(self.comment("local read b"))
-            localReadCodeB, packCodeB = self.localReadDo(kernel, plrIdx*self.numIterPerCoalescedReadB, iui*self.numReadsIterCoalescedB, 0, tensorParametersB)
+            localReadCodeB, packCodeB = self.localReadDo(kernel, plrIdxLR*self.numIterPerCoalescedReadB, iui*self.numReadsIterCoalescedB, 0, tensorParametersB)
             localReads.addCode(localReadCodeB)
             localReadsB.addCode(localReadCodeB)
             pack[plrIdx*self.numIterPerCoalescedReadB].addCode(packCodeB)
@@ -2564,8 +2578,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       luIdx = (u) % (self.numVgprBuffer+1) # local to use for MACs
       if self.enable["MAC"]:
         if kernel["EnableMatrixInstruction"]:
-          vregSetIdxMFMA = lc * kernel["LoopIters"] + uIdx
-          macIterCode.addCode(self.mfmaIter(kernel, luIdx, kernel["InnerUnroll"], vregSetIdxMFMA, firstIter=firstIter and u == 0))
+          vregSetIdxMFMA = lc
+          macIterCode.addCode(self.mfmaIter(kernel, u, kernel["InnerUnroll"], vregSetIdxMFMA, firstIter=firstIter and u == 0))
         else:
           macIterCode.addCode(self.macIter(kernel, luIdx, kernel["InnerUnroll"], True ))
 
@@ -2615,6 +2629,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if not TotalnumLdsFetches > 3:
           subIterCode = self.makeSubIterSchedule(kernel, localReads, \
                        u, pointerLWCode, pointerLRCode, waitCode, macIterCode)
+          kl.append(subIterCode) # add scheduled "other", local reads, local writes
         else:
           if ((kernel["ThreadTile0"] == 6 and kernel["ThreadTile1"] == 4) or
              (kernel["ThreadTile0"] == 4 and kernel["ThreadTile1"] == 6)):
@@ -3219,8 +3234,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
             if self.enable["MAC"]:
               if kernel["EnableMatrixInstruction"]:
-                # specify Vgpr set for DirectToVgpr (Tentative)
-                vregSetIdxMFMA = iui + tailLoopInnerUnroll * mValue
+                # DirectToVgpr is not applicable for tail loop
+                vregSetIdxMFMA = 0
                 kl.append(self.mfmaIter(kernel, 0, tailLoopInnerUnroll, vregSetIdxMFMA, False, True))
               else:
                 kl.append(self.macIter(kernel, 0, tailLoopInnerUnroll, True, True))
@@ -3543,14 +3558,22 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # MergeRead 1: ds_readAx1 ds_readBx1 mfma | ds_readAx1 ds_readAx1 mfma | => ds_readAx2 ds_readBx1 ds_readBx1 mfma | mfma |
     MergeRead = 0
     if not kernel["ProblemType"]["TLUA"] or MergeRead or self.allowLRVWforTLUandMI:
-      self.lrvwA = kernel["LocalReadVectorWidth"]
+      if (not kernel["ProblemType"]["TLUA"]) and kernel["DirectToVgprA"]:
+        # DirectToVgpr + TLU=False case, ignore LocalReadVectorWidth and use GlobalLoadVectorWidth instead.
+        self.lrvwA = vwa
+      else:
+        self.lrvwA = kernel["LocalReadVectorWidth"]
     else:
       if kernel["EnableMatrixInstruction"]:
         self.lrvwA = kernel["MIInputPerThread"]
       else:
         self.lrvwA = 1
     if not kernel["ProblemType"]["TLUB"] or MergeRead or self.allowLRVWforTLUandMI:
-      self.lrvwB = kernel["LocalReadVectorWidth"]
+      if (not kernel["ProblemType"]["TLUB"]) and kernel["DirectToVgprB"]:
+        # DirectToVgpr + TLU=False case, ignore LocalReadVectorWidth and use GlobalLoadVectorWidth instead.
+        self.lrvwB = vwb
+      else:
+        self.lrvwB = kernel["LocalReadVectorWidth"]
     else:
       if kernel["EnableMatrixInstruction"]:
         self.lrvwB = kernel["MIInputPerThread"]
@@ -3562,7 +3585,18 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # If VW=2, it means lrwvB is 2.
     if kernel["DirectToVgprB"] and kernel["VectorWidth"] > 1:
       self.lrvwB = kernel["VectorWidth"]
-
+    # DirectToVgpr + TLU=False case
+    # set lrvw = VW
+    self.vgprValuDouble = False
+    #if kernel["DirectToVgprA"] and kernel["PrefetchLocalRead"] > 1 and (not kernel["ProblemType"]["TLUA"]) and kernel["VectorWidth"] > 1:
+    if kernel["DirectToVgprA"] and (not kernel["ProblemType"]["TLUA"]) and (not kernel["ProblemType"]["TLUB"]) or \
+       kernel["DirectToVgprB"] and (not kernel["ProblemType"]["TLUB"]) and (not kernel["ProblemType"]["TLUA"]):
+      self.lrvwA = max(self.lrvwA, self.lrvwB)
+      self.lrvwB = self.lrvwA
+      if kernel["DepthU"] // kernel["MatrixInstK"] <= 2 and self.lrvwA > 1:
+        # need to double vgprValu to avoid local read overwritting vgprValu registers
+        self.vgprValuDouble = True
+ 
     # Wider LocalRead
     if kernel["EnableMatrixInstruction"]:
       self.numReadsIterCoalescedA = self.lrvwA // kernel["MIInputPerThread"]
@@ -5072,7 +5106,8 @@ for codeObjectFileName in codeObjectFileNames:
   ##############################################################################
   def getWaitcntCodeForDirectToVgpr(self, kernel, localWriteEndIter, u, firstIter, isPap=True, beforeBarrier=False, NLLlast=False, oddLast=False):
     retStr = ""
-    if kernel["DirectToVgprA"] or kernel["DirectToVgprB"]:
+    # generate wait only if BufferLoad is True (this logic does not work with FlatLoad)
+    if (kernel["DirectToVgprA"] or kernel["DirectToVgprB"]) and kernel["BufferLoad"]:
       if self.enable["Wait"]:
         pgr2 = kernel["PrefetchGlobalRead"] == 2
         numGlobalReadA = kernel["NumLoadsPerpendicularA"] * kernel["NumLoadsCoalescedA"] * self.numReadVectorComponentsA
@@ -5080,9 +5115,16 @@ for codeObjectFileName in codeObjectFileNames:
         numGlobalRead = numGlobalReadA if kernel["DirectToVgprA"] else numGlobalReadB
         numGlobalReadAll = numGlobalReadA + numGlobalReadB
         numGlobalStoreC = 0
+        numReadsIterCoalesced = self.numReadsIterCoalescedA if kernel["DirectToVgprA"] else self.numReadsIterCoalescedB
         waitComment = "global read wait for DirectToVgpr"
         # delay DirectToVgpr global read (from previous iteration) which is not referred yet
-        needToWait = numGlobalRead - (u + 1) * (numGlobalRead // kernel["LoopIters"])
+        numRegsIn1set = (numGlobalRead // kernel["LoopIters"]) * numReadsIterCoalesced
+        numSet = (u + numReadsIterCoalesced) // numReadsIterCoalesced
+        numSetMod = (u + numReadsIterCoalesced) % numReadsIterCoalesced
+        if numSetMod > 0:
+          # if mod > 0, wait is already done by mod == 0 case and no need to wait for same set of global read
+          return ""
+        needToWait = numGlobalRead - numSet * numRegsIn1set
         if not isPap:
           # not isPap case, no global load A, B in no load loop. Reset numGlobalReadAll and numGlobalRead
           numGlobalReadAll = 0
@@ -5157,7 +5199,7 @@ for codeObjectFileName in codeObjectFileNames:
           needToWait += numGlobalStoreC
           waitComment = "global read/store wait for DirectToVgpr with StoreCInUnroll (StoreC=%u)"%(numGlobalStoreC)
         retStr = "s_waitcnt vmcnt(%u) // %s\n"%(needToWait, waitComment)
-      return retStr
+    return retStr
 
   ##############################################################################
   # Backup StoreCInUnroll related code

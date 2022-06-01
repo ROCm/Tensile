@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <map>
 #include <memory>
 
@@ -83,6 +84,27 @@ namespace Tensile
                                                              Hardware const&  hardware,
                                                              double*          fitness
                                                              = nullptr) const override
+        {
+            if(Debug::Instance().printSolutionSelectionTime())
+            {
+                auto start  = std::chrono::steady_clock::now();
+                auto result = findBestSolution_runner(problem, hardware, fitness);
+                auto end    = std::chrono::steady_clock::now();
+
+                double time = std::chrono::duration<double, std::micro>(end - start).count();
+                std::cout << "Solution selection time: " << time << " us" << std::endl;
+
+                return result;
+            }
+            else
+            {
+                return findBestSolution_runner(problem, hardware, fitness);
+            }
+        }
+
+        std::shared_ptr<MySolution> findBestSolution_runner(MyProblem const& problem,
+                                                            Hardware const&  hardware,
+                                                            double* fitness = nullptr) const
         {
             const int solution_index = Debug::Instance().getSolutionIndex();
 
