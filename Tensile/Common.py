@@ -1321,7 +1321,7 @@ defaultBenchmarkCommonParameters = [
     {"WorkGroupMappingType":      [ "B" ] },
     {"WorkGroupMapping":          [ 8 ] },
     {"ThreadTile":                [ [4,4] ] },
-    {"MACInstruction":            [ '' ]},
+    {"MACInstruction":            [ "FMA" ]}, # Default to FMA, matches MAC performance and integrates additional flags
     {"WavefrontSize":             [ 64 ]},
     {"MatrixInstruction":         [ [] ] },
     {"DisableVgprOverlapping":    [ False ] },

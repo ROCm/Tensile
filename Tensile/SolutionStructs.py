@@ -2603,13 +2603,7 @@ class Solution(collections.abc.Mapping):
       state["1LDSBuffer"] = 1
       print2("\nSet SIA=2, force PrefetchLocalRead=1, ExpandPointerSwap=1, 1LDSBuffer=1")
 
-    # F32 only for now but we should extend this for other data types as well.
     isa = tuple(state["ISA"])
-    if "MACInstruction" not in state or state["MACInstruction"] not in validParameters["MACInstruction"]:
-      if globalParameters["AsmCaps"][isa]["v_mac_f32"]:
-        state["MACInstruction"] = "MAC"
-      else:
-        state["MACInstruction"] = "FMA"
 
     if state["WavefrontSize"] == 32 and not globalParameters["ArchCaps"][isa]["HasWave32"]:
       reject(state, "WavefrontSize=32 not supported for ISA {}".format(isa))
