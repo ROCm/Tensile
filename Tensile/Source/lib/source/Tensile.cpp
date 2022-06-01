@@ -51,7 +51,7 @@ namespace Tensile
 #ifdef TENSILE_DEFAULT_SERIALIZATION
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-        LoadLibraryFile(std::string const& filename)
+        LoadLibraryFile(std::string const& filename, DataType preload)
     {
         std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> rv;
 
@@ -94,7 +94,7 @@ namespace Tensile
     }
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
-        LoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename);
+        LoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename, DataType preload);
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
         LoadLibraryData<ContractionProblem, ContractionSolution>(std::vector<uint8_t> const& data);

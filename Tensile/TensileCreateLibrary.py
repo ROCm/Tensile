@@ -1174,7 +1174,7 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
         sourceLibFiles += ["Kernels%d.so-000-%s.hsaco" % (kernelIndex, arch) for arch in sourceArchs]
     else:
       raise RuntimeError("Unknown compiler {}".format(cxxCompiler))
-  elif True:
+  elif globalParameters["LazyLibraryLoading"]:
     fallbackLibs = list(set([kernel._state["codeObjectFile"] for kernel in kernels if 'codeObjectFile' in kernel._state and "fallback" in kernel._state["codeObjectFile"]]))
     sourceLibFiles += ["{0}_{1}.hsaco".format(name, arch) for name, arch in itertools.product(fallbackLibs, sourceArchs)]
     if (cxxCompiler == 'hipcc'):
@@ -1506,6 +1506,8 @@ def TensileCreateLibrary():
                           default=1, help="Set printout verbosity level.")
   argParser.add_argument("--separate-architectures", dest="SeparateArchitectures", action="store_true",
                          default=False, help="Separates TensileLibrary file by architecture")
+  argParser.add_argument("--lazy-library-loading", dest="LazyLibraryLoading", action="store_true",
+                         default=False, help="Loads Tensile libraries when needed instead of upfront.")
   argParser.add_argument("--build-client", dest="BuildClient", action="store_true",
                          help="Build Tensile client")
   argParser.add_argument("--client-config", dest="ClientConfig", action="store_true",
@@ -1526,6 +1528,7 @@ def TensileCreateLibrary():
   arguments["CodeObjectVersion"] = args.CodeObjectVersion
   arguments["Architecture"] = args.Architecture
   arguments["SeparateArchitectures"] = args.SeparateArchitectures
+  arguments["LazyLibraryLoading"] = args.LazyLibraryLoading
   arguments["CxxCompiler"] = args.CxxCompiler
   if args.CmakeCxxCompiler:
     os.environ["CMAKE_CXX_COMPILER"] = args.CmakeCxxCompiler
