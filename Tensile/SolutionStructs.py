@@ -2449,12 +2449,10 @@ class Solution(collections.abc.Mapping):
         reject(state, "can't use DirectToLds for not EnableMatrixInstruction and GlobalLoadVectorWidth%c * bpe * WavefrontSize > 256"%tc)
         return False
 
-    # TODO revisit fp32 case for failure
-    #if state["ProblemType"]["TLU%c"%tc] and numBytes < 8 and state["GlobalLoadVectorWidth%c"%tc] * numBytes > 4:
-    if numBytes < 8 and state["GlobalLoadVectorWidth%c"%tc] * numBytes > 4:
-      reject(state, "can't use DirectToLds for TLU%c and bpe < 8 and GlobalLoadVectorWidth%c * bpe > 4"%(tc, tc))
+    # NumLoadsCoalesced > 1 not working for sgemm
+    if numBytes < 8 and state["NumLoadsCoalesced%c"%tc] > 1:
+      reject(state, "Can't use NumLoadsCoalesced > 1 with DirectToLds for this data type")
       return False
-
 
     if state["WaveSeparateGlobalRead%c" % tc]:
       if state["LSC%c"%tc] * state["LSP%c"%tc] * numBytes != state["WavefrontSize"] * state["GlobalLoadVectorWidth%c"%tc] * numBytes:
