@@ -171,12 +171,11 @@ def parseLibraryLogicData(data, srcFile="?"):
     if type(data) is list:
         data = parseLibraryLogicList(data, srcFile)
 
-    if type(data["Architecture"]) is dict:
-        data["ArchitectureName"] = data["Architecture"]["Architecture"]
-        data["CUCount"] = data["Architecture"]["CUCount"]
-    else:
-        data["ArchitectureName"] = data["Architecture"]
+    if "CUCount" not in data:
         data["CUCount"] = None
+
+    if "Fp16AltImpl" not in data:
+        data["Fp16AltImpl"] = False
 
     if not versionIsCompatible(data["MinimumRequiredVersion"]):
         printWarning("Version = {} in library logic file {} does not match Tensile version = {}" \
@@ -216,10 +215,16 @@ def parseLibraryLogicList(data, srcFile="?"):
     rv = {}
     rv["MinimumRequiredVersion"] = data[0]["MinimumRequiredVersion"]
     rv["ScheduleName"] = data[1]
-    rv["Architecture"] = data[2]
     rv["DeviceNames"] = data[3]
     rv["ProblemType"] = data[4]
     rv["Solutions"] = data[5]
+
+    if type(data[2]) is dict:
+        rv["ArchitectureName"] = data[2]["Architecture"]
+        rv["CUCount"] = data[2]["CUCount"]
+    else:
+        rv["ArchitectureName"] = data[2]
+        rv["CUCount"] = None
 
     # TODOBEN: figure out what to do with these...
     rv["ExactLogic"] = data[7]
