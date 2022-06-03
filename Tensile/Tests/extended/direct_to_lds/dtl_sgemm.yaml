@@ -72,7 +72,7 @@ BenchmarkProblems:
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
         - FractionalLoad: [0, 1, 2]
-        - BufferLoad: [True, False]
+        - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [0, 1]
       BenchmarkForkParameters:
       JoinParameters:
@@ -133,7 +133,7 @@ BenchmarkProblems:
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
         - FractionalLoad: [0, 1, 2]
-        - BufferLoad: [True, False]
+        - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [0, 1]
       BenchmarkForkParameters:
       JoinParameters:
@@ -249,7 +249,7 @@ BenchmarkProblems:
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
         - FractionalLoad: [0, 1, 2]
-        - BufferLoad: [True, False]
+        - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [0, 1]
       BenchmarkForkParameters:
       JoinParameters:
@@ -322,7 +322,7 @@ BenchmarkProblems:
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
         - FractionalLoad: [0, 1, 2]
-        - BufferLoad: [True, False]
+        - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [0, 1]
       BenchmarkForkParameters:
       JoinParameters:
@@ -383,7 +383,7 @@ BenchmarkProblems:
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
         - FractionalLoad: [0, 1, 2]
-        - BufferLoad: [True, False]
+        - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [0, 1]
       BenchmarkForkParameters:
       JoinParameters:
@@ -499,7 +499,7 @@ BenchmarkProblems:
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
         - FractionalLoad: [0, 1, 2]
-        - BufferLoad: [True, False]
+        - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [0, 1]
       BenchmarkForkParameters:
       JoinParameters:
@@ -572,7 +572,7 @@ BenchmarkProblems:
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
         - FractionalLoad: [0, 1, 2]
-        - BufferLoad: [True, False]
+        - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [0, 1]
       BenchmarkForkParameters:
       JoinParameters:
@@ -633,7 +633,7 @@ BenchmarkProblems:
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
         - FractionalLoad: [0, 1, 2]
-        - BufferLoad: [True, False]
+        - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [0, 1]
       BenchmarkForkParameters:
       JoinParameters:
@@ -749,7 +749,7 @@ BenchmarkProblems:
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
         - FractionalLoad: [0, 1, 2]
-        - BufferLoad: [True, False]
+        - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [0, 1]
       BenchmarkForkParameters:
       JoinParameters:
@@ -822,7 +822,7 @@ BenchmarkProblems:
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
         - FractionalLoad: [0, 1, 2]
-        - BufferLoad: [True, False]
+        - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [0, 1]
       BenchmarkForkParameters:
       JoinParameters:
@@ -883,7 +883,7 @@ BenchmarkProblems:
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
         - FractionalLoad: [0, 1, 2]
-        - BufferLoad: [True, False]
+        - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [0, 1]
       BenchmarkForkParameters:
       JoinParameters:
@@ -999,7 +999,7 @@ BenchmarkProblems:
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
         - FractionalLoad: [0, 1, 2]
-        - BufferLoad: [True, False]
+        - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [0, 1]
       BenchmarkForkParameters:
       JoinParameters:
