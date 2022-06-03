@@ -75,7 +75,7 @@ namespace Tensile{
                 {    
                     std::string arch = hardware.archName();
                     
-                    if (   arch.find("gfx906") != std::string::npos
+                    /*if (   arch.find("gfx906") != std::string::npos
                         || arch.find("gfx908") != std::string::npos
                         || arch.find("gfx90a") != std::string::npos)
                     {
@@ -90,7 +90,7 @@ namespace Tensile{
                         {
                             arch.resize(loc);
                         }
-                    }
+                    }*/
                      
                     if (coFileDependency.find("fallback") != std::string::npos)
                         coFileDependency += std::string("_")+arch+std::string(".hsaco");
