@@ -41,7 +41,10 @@ namespace Tensile
             HipAMDGPU(hipDeviceProp_t const& prop);
 
             hipDeviceProp_t properties;
+            
+            virtual std::string archName() const override;
         };
+
 
         std::shared_ptr<Hardware> GetCurrentDevice();
         std::shared_ptr<Hardware> GetDevice(int deviceId);

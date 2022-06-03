@@ -265,7 +265,23 @@ namespace Tensile
                 if(!loaded)
                 {
                     std::cout << "launchKernel::loadCodeObjectFile " << m_codeObjectDirectory+kernel.codeObjectFile << std::endl;
-                    loadCodeObjectFile(m_codeObjectDirectory+kernel.codeObjectFile);
+                    hipError_t err = loadCodeObjectFile(m_codeObjectDirectory+kernel.codeObjectFile);
+                    //Try other xnack versions
+                    if(err)
+                    {
+                        size_t loc = kernel.codeObjectFile.rfind('.');
+                        for( auto ver : {"-xnack-", "-xnack+"} )
+                        {
+                            std::string modifiedCOName = kernel.codeObjectFile;
+                            modifiedCOName.insert(loc, ver);
+                            err = loadCodeObjectFile(m_codeObjectDirectory+modifiedCOName);
+                            
+                            if(err == hipSuccess) break;
+                        }
+
+                        if(err)
+                            return err;
+                    }
                 }
             }
 

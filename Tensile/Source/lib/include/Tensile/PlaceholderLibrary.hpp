@@ -29,6 +29,8 @@
 #include <Tensile/SolutionLibrary.hpp>
 #include <Tensile/MasterSolutionLibrary.hpp>
 #include <Tensile/Tensile.hpp>
+
+#include <algorithm>
  
 namespace Tensile{
 
@@ -68,9 +70,30 @@ namespace Tensile{
             std::string coFileDependency = filePrefix;
             
             if(solution){
-                if(solution->isSourceKernel()){
-                    if (coFileDependency.find(hardware.archName()) == std::string::npos)
-                        coFileDependency += std::string("_") + hardware.archName()+std::string(".hsaco");
+                //Get xnack version of source kernel
+                if(solution->isSourceKernel())
+                {    
+                    std::string arch = hardware.archName();
+                    
+                    if (   arch.find("gfx906") != std::string::npos
+                        || arch.find("gfx908") != std::string::npos
+                        || arch.find("gfx90a") != std::string::npos)
+                    {
+                        std::replace(arch.begin(), arch.end(), ':', '-');
+                    }
+                    //Remove xnack for architectures where it isn't included
+                    //@TODO potentially change to include it on all architecture code object files
+                    else
+                    {
+                        size_t loc = arch.find(":xnack");
+                        if (loc != std::string::npos)
+                        {
+                            arch.resize(loc);
+                        }
+                    }
+                     
+                    if (coFileDependency.find("fallback") != std::string::npos)
+                        coFileDependency += std::string("_")+arch+std::string(".hsaco");
                     else
                         coFileDependency += std::string(".hsaco");
                 }

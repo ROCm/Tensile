@@ -40,12 +40,18 @@ namespace Tensile
         {
         }
 
+        std::string HipAMDGPU::archName() const
+        {
+            return properties.gcnArchName;
+        }
+
         std::shared_ptr<Hardware> GetCurrentDevice()
         {
             int deviceId = 0;
             HIP_CHECK_EXC(hipGetDevice(&deviceId));
             return GetDevice(deviceId);
         }
+
 
         std::shared_ptr<Hardware> GetDevice(int deviceId)
         {
@@ -69,5 +75,6 @@ namespace Tensile
         {
             return std::make_shared<HipAMDGPU>(prop);
         }
+
     } // namespace hip
 } // namespace Tensile
