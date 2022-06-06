@@ -59,7 +59,7 @@ namespace Tensile
         rv = MessagePackLoadLibraryFile<MyProblem, MySolution>(filename, preloadedTypes);
         if(rv)
             return rv;
-#elif defined TENSILE_YAML
+#elif defined(TENSILE_YAML)
         rv = LLVMLoadLibraryFile<MyProblem, MySolution>(filename, preloadedTypes);
         if(rv)
             return rv;

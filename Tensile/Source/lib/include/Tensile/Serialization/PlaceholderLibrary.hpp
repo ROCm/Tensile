@@ -31,6 +31,7 @@
 
 #include <Tensile/PlaceholderLibrary.hpp>
 #include <Tensile/MasterSolutionLibrary.hpp>
+#include <regex>
 
 namespace Tensile
 {
