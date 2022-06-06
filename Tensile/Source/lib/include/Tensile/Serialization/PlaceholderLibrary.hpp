@@ -57,6 +57,16 @@ namespace Tensile
                         lib.libraryDirectory.resize(directoryPos+1);
                     else
                         lib.libraryDirectory = '.';
+
+                    for(auto type : ctx->preloadedTypes)
+                    {
+                        std::string pattern = RegexPattern(type);
+                        if(std::regex_search(lib.filePrefix, std::regex(pattern)))
+                        {
+                            std::cout << "Preloading " << lib.filePrefix << std::endl;
+                            lib.loadPlaceholderLibrary();
+                        }
+                    }
                 }
             }
 

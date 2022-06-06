@@ -45,6 +45,7 @@ namespace Tensile
     template <typename MySolution>
     struct LibraryIOContext{
         std::string              filename;
+        std::vector<DataType>    preloadedTypes;
         SolutionMap<MySolution>* solutions;
     };
 

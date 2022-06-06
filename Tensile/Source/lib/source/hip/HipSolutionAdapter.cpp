@@ -205,12 +205,7 @@ namespace Tensile
         {
             std::string arch = hardware.archName();
 
-            std::string typeChar = Tensile::TypeAbbrev(dataType);
-
-            if(typeChar == "Invalid")
-                typeChar = ".*";
-
-            std::string pattern = "TensileLibrary_C[a-z]+_A[a-z]+_B[a-z]+_"+typeChar+".*"+arch+".*(\\.co|\\.hsaco)";
+            std::string pattern = RegexPattern(dataType)+arch+".*(\\.co|\\.hsaco)";
 
             glob_t result;
             result.gl_pathc = 0;
@@ -269,7 +264,7 @@ namespace Tensile
                     //Try other xnack versions
                     size_t loc = kernel.codeObjectFile.rfind('.');
                     hipError_t err;
-                    
+
                     for( auto ver : {"", "-xnack-", "-xnack+"} )
                     {
                         std::string modifiedCOName = kernel.codeObjectFile;

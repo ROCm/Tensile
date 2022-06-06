@@ -51,18 +51,16 @@ namespace Tensile
 #ifdef TENSILE_DEFAULT_SERIALIZATION
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-        LoadLibraryFile(std::string const& filename, DataType preload)
+        LoadLibraryFile(std::string const& filename, const std::vector<DataType>& preloadedTypes)
     {
         std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> rv;
 
 #ifdef TENSILE_MSGPACK
-        rv = MessagePackLoadLibraryFile<MyProblem, MySolution>(filename);
+        rv = MessagePackLoadLibraryFile<MyProblem, MySolution>(filename, preloadedTypes);
         if(rv)
             return rv;
-#endif
-
-#ifdef TENSILE_YAML
-        rv = LLVMLoadLibraryFile<MyProblem, MySolution>(filename);
+#elif defined TENSILE_YAML
+        rv = LLVMLoadLibraryFile<MyProblem, MySolution>(filename, preloadedTypes);
         if(rv)
             return rv;
 #endif
@@ -94,7 +92,7 @@ namespace Tensile
     }
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
-        LoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename, DataType preload);
+        LoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename, const std::vector<DataType>& preload);
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
         LoadLibraryData<ContractionProblem, ContractionSolution>(std::vector<uint8_t> const& data);
