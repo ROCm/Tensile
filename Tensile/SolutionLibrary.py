@@ -237,7 +237,10 @@ class MasterSolutionLibrary:
                 solutionsSoFar.add(solution.index)
 
     @classmethod
-    def FromOriginalState(cls, d, origSolutions, solutionClass=Contractions.Solution, libraryOrder = None):
+    def FromOriginalState(cls, d, origSolutions, solutionClass=Contractions.Solution, libraryOrderArg = None):
+
+        libraryOrder = deepcopy(libraryOrderArg)
+
         if libraryOrder is None:
             libraryOrder = ['Hardware', 'OperationIdentifier', 'PerformanceMetric', 'Fp16AltImpl', 'Predicates', 'Placeholder', 'Matching']
 
@@ -249,7 +252,6 @@ class MasterSolutionLibrary:
             libraryOrder = libraryOrder[0:placeholderIndex]
             origSolutions = []
 
-        print(placeholderLibrary)
        
         deviceSection = d[1:4]
         origProblemType = d[4]

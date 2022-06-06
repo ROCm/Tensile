@@ -88,25 +88,28 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
     for arch, archKernels in archs.items():
       archName = gfxName(arch)
       objectFiles = list([kernelWriterAssembly.getKernelFileBase(k) + '.o' \
-                          for k in archKernels \
-                          if k['KernelLanguage'] == 'Assembly' \
-                          and 'codeObjectFile' not in k])
+                          for k in archKernels if 'codeObjectFile' not in k])
+
 
       numObjectFiles = len([1 for k in archKernels if k['KernelLanguage'] == 'Assembly'])
       
       if numObjectFiles == 0:
         continue
-      if globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
+      if globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1 or globalParameters["LazyLibraryLoading"]:
         #coFile = os.path.join(destDir, 'TensileLibrary_{}.co'.format(archName))
 
         #Group kernels from placeholder libraries
         coFileMap = collections.defaultdict(list)
         #coFileMap[coFile] = objectFiles
+        #@TODO JEREMY Clean up the organization for this a little
+        if len(objectFiles):
+          coFileMap[os.path.join(destDir, "TensileLibrary_"+archName+".co")] = objectFiles 
 
         for kernel in archKernels:
           coName = kernel.get("codeObjectFile", None)
           if coName:
             coFileMap[os.path.join(destDir, coName+".co")] += [kernelWriterAssembly.getKernelFileBase(kernel) + '.o']
+          
           
         print("================\n|| Link code object args\n===============")
         for coFile, objectFiles in coFileMap.items():
@@ -377,17 +380,18 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
       continue
 
     kernelsToWrite.append((err, src, header, kernelName))
-    if globalParameters["MergeFiles"]:
-      if filename:
-        #print("fileToWrite {} -> {}".format(kernelName, filename))
-        filesToWrite[os.path.join(os.path.normcase(outputPath),filename)].append((err, src, header, kernelName))
-      else:
-        kernelSuffix = ""
-        if globalParameters["NumMergedFiles"] > 1:
-          kernelSuffix = validKernelCount % globalParameters["NumMergedFiles"]
-          
-        filesToWrite[os.path.join(os.path.normcase(outputPath), "Kernels"+kernelSuffix)]\
-          .append((err, src, header, kernelName))
+    if filename:
+      #print("fileToWrite {} -> {}".format(kernelName, filename))
+      filesToWrite[os.path.join(os.path.normcase(outputPath),filename)].append((err, src, header, kernelName))
+    elif globalParameters["MergeFiles"]:
+      kernelSuffix = ""
+      if globalParameters["NumMergedFiles"] > 1:
+        kernelSuffix = validKernelCount % globalParameters["NumMergedFiles"]
+        
+      filesToWrite[os.path.join(os.path.normcase(outputPath), "Kernels"+kernelSuffix)]\
+        .append((err, src, header, kernelName))
+    else:
+      filesToWrite[os.path.join(os.path.normcase(outputPath),kernelName)].append((err, src, header, kernelName))
 
     validKernelCount += 1
 
@@ -398,7 +402,7 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
       print("\t", kernelName)
 
   # Write kernel data to files
-  if globalParameters["MergeFiles"]:
+  if globalParameters["MergeFiles"] or globalParameters["LazyLibraryLoading"]:
 
     #Parse list of files and write kernels
     for filename, kernelList in filesToWrite.items():
@@ -533,13 +537,13 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   kernelSourceFile = None
   kernelHeaderFile = None
 
-  if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1 or True:
+  if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1 or globalParameters["LazyLibraryLoading"]:
     ensurePath(os.path.join(outputPath, "Kernels"))
 
   ##############################################################################
   # Write Kernels
   ##############################################################################
-  if globalParameters["MergeFiles"] and globalParameters["NumMergedFiles"] == 1:
+  if globalParameters["LazyLibraryLoading"]: #globalParameters["MergeFiles"] and globalParameters["NumMergedFiles"] == 1:
     kernelSourceFilename = os.path.join(os.path.normcase(outputPath), "Kernels.cpp")
     kernelHeaderFilename = os.path.join(os.path.normcase(outputPath), "Kernels.h")
 
@@ -596,6 +600,11 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
     kernelFilename = kernelFiles[0].replace(".cpp", "")
     kernelSourceFile = open(kernelFilename + ".cpp", 'a', encoding="utf-8")
     kernelHeaderFile = open(kernelFilename + ".h", 'a', encoding="utf-8")
+  elif globalParameters["MergeFiles"] or globalParameters["LazyLibraryLoading"]:
+    kernelSourceFilename = os.path.join(os.path.normcase(outputPath), "Kernels.cpp")
+    kernelHeaderFilename = os.path.join(os.path.normcase(outputPath), "Kernels.h")
+    kernelSourceFile = open(kernelSourceFilename, "a", encoding="utf-8")
+    kernelHeaderFile = open(kernelHeaderFilename, "a", encoding="utf-8")
 
   # handle helper kernel function
   print("HELPER KERNELS------------------\n")
@@ -1111,12 +1120,16 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
   sourceKernels = list([k for k in kernels if k['KernelLanguage'] == 'Source'])
   asmKernels = list([k for k in kernels if k['KernelLanguage'] == 'Assembly'])
 
+  #print("asmKernels ", asmKernels)
+
   # Build a list of kernel object names.
   for kernel in sourceKernels:
     sourceKernelNames += [kernelWriterSource.getKernelFileBase(kernel)]
 
   for kernel in asmKernels:
     asmKernelNames += [kernelWriterAssembly.getKernelFileBase(kernel)]
+    
+  #print("asmKernelNames ", asmKernelNames)
 
   kernelHelperObjNames = [ko.getKernelName() for ko in kernelHelperObjs]
 
@@ -1193,9 +1206,7 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
       return [name+xnack[len(arch):]+ext for xnack in sourceArchs if arch in xnack]
       
   # Build a list of asm lib names
-  if globalParameters["MergeFiles"]:
-    # Find all unique arch values for current asm kernels
-    uniqueArchs = set(itertools.chain(*asmArchs.values()))
+  if globalParameters["LazyLibraryLoading"]:
     asmLibFiles += list(set([kernel._state["codeObjectFile"]+".co" for kernel in kernels 
                                                                    if 'codeObjectFile' in kernel._state 
                                                                    and "fallback" not in kernel._state["codeObjectFile"]
@@ -1208,8 +1219,13 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
                             if "codeObjectFile" in kernel._state 
                               and "fallback" not in kernel._state["codeObjectFile"] 
                               and kernel._state['KernelLanguage'] == 'Source'])))
+  elif globalParameters["MergeFiles"]:
+    # Find all unique arch values for current asm kernels
+    uniqueArchs = set(itertools.chain(*asmArchs.values()))
+    asmLibFiles += ["TensileLibrary_%s.co" % (arch) for arch in uniqueArchs]
+    #print("asmLibFiles = ",asmLibFiles)
+    #print("asmArchs = ", asmArchs)
 
-  
   else:
     for asmKernelName, archs in asmArchs.items():
       asmLibFiles += ["%s_%s.co" % (asmKernelName, str(arch)) for arch in archs]
@@ -1336,6 +1352,7 @@ def generateKernelObjectsFromSolutions(solutions):
 # Generate Logic Data and Solutions
 ################################################################################
 def generateLogicDataAndSolutions(logicFiles, args):
+
   libraries = Common.ParallelMap(LibraryIO.parseLibraryLogicFile, logicFiles, "Reading logic files")
 
   solutions = []
@@ -1375,7 +1392,7 @@ def generateLogicDataAndSolutions(logicFiles, args):
         solutionsForSchedule, indexOrder, exactLogic, rangeLogic ))
 
     #for solution in solutionsForSchedule:
-      #solutions.append(solution)
+    #  solutions.append(solution)
 
   if globalParameters["SeparateArchitectures"] and "fallback" in masterLibraries.keys():
     for key, value in masterLibraries.items():
@@ -1384,6 +1401,8 @@ def generateLogicDataAndSolutions(logicFiles, args):
 
     masterLibraries.pop("fallback")
     for _, masterLibrary in masterLibraries.items():
+      for _, sol in masterLibrary.solutions.items():
+        solutions.append(sol.originalSolution)
       for name, lib in masterLibrary.placeholderLibraries.items():
         #JEREMY - sol is SolutionStructs.Solution
         for _, sol in lib.solutions.items():

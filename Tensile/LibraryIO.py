@@ -19,7 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from .Common import printExit, printWarning, versionIsCompatible
+from .Common import printExit, printWarning, versionIsCompatible, globalParameters
 from .SolutionStructs import Solution, ProblemSizes, ProblemType
 from . import __version__
 from . import Common
@@ -181,7 +181,12 @@ def parseLibraryLogicData(data, srcFile="?"):
                     .format(srcFile, problemType, solutionObject["ProblemType"]))
         solutions.append(solutionObject)
 
-    newLibrary = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data, solutions)
+    if globalParameters["LazyLibraryLoading"]:
+        libraryOrder = ['Hardware', 'OperationIdentifier', 'PerformanceMetric', 'Fp16AltImpl', 'Predicates', 'Placeholder', 'Matching']
+    else:
+        libraryOrder = ['Hardware', 'OperationIdentifier', 'PerformanceMetric', 'Fp16AltImpl', 'Predicates', 'Matching']
+
+    newLibrary = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data, solutions, libraryOrderArg=libraryOrder)
 
     return (scheduleName, deviceNames, problemType, solutions, indexOrder, \
             exactLogic, rangeLogic, newLibrary, architectureName)
