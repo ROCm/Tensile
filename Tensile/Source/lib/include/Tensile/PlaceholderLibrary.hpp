@@ -53,11 +53,13 @@ namespace Tensile{
                                                              double* fitness = nullptr) override
         {
             if (!library){
-                #ifdef TENSILE_YAML
-                    std::string suffix = ".yaml";
-                #else
+                #ifdef TENSILE_MSGPACK
                     std::string suffix = ".dat";
+                #else
+                    std::string suffix = ".yaml";
                 #endif
+
+                std::cout << "Suffix = " << suffix << std::endl;
 
                 auto newLibrary = LoadLibraryFile<MyProblem, MySolution>((libraryDirectory+"/"+filePrefix+suffix).c_str());
                 auto mLibrary   = static_cast<MasterSolutionLibrary<MyProblem, MySolution>*>(newLibrary.get());

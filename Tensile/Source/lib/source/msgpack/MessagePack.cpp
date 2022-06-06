@@ -126,7 +126,10 @@ namespace Tensile
         {
             std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
-            Serialization::MessagePackInput min(result.get());
+            std::printf("Context %s\n", filename.c_str());
+
+            LibraryIOContext<MySolution>  context{filename, nullptr};
+            Serialization::MessagePackInput min(result.get(), &context);
 
             Serialization::PointerMappingTraits<Tensile::MasterContractionLibrary,
                                                 Serialization::MessagePackInput>::mapping(min, rv);
