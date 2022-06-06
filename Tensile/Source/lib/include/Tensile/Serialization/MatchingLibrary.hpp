@@ -164,6 +164,11 @@ namespace Tensile
                     success
                         = mappingDistance<Key, Matching::RandomDistance<Key>>(io, lib, properties);
                 }
+                else if(distanceType == "GridBased")
+                {
+                    success
+                        = mappingDistance<Key, Matching::GridBasedDistance<Key>>(io, lib, properties);
+                }
                 else
                 {
                     iot::setError(io, concatenate("Unknown distance function", distanceType));
@@ -247,7 +252,8 @@ namespace Tensile
                 return SubclassMap({Base::template Pair<Matching::RatioDistance<Key>>(),
                                     Base::template Pair<Matching::ManhattanDistance<Key>>(),
                                     Base::template Pair<Matching::EuclideanDistance<Key>>(),
-                                    Base::template Pair<Matching::RandomDistance<Key>>()});
+                                    Base::template Pair<Matching::RandomDistance<Key>>(),
+                                    Base::template Pair<Matching::GridBasedDistance<Key>>()});
             }
         };
 
@@ -277,6 +283,12 @@ namespace Tensile
         template <typename Key, typename IO>
         struct MappingTraits<Matching::RandomDistance<Key>, IO>
             : public AutoMappingTraits<Matching::RandomDistance<Key>, IO>
+        {
+        };
+
+        template <typename Key, typename IO>
+        struct MappingTraits<Matching::GridBasedDistance<Key>, IO>
+            : public AutoMappingTraits<Matching::GridBasedDistance<Key>, IO>
         {
         };
     } // namespace Serialization
