@@ -22,7 +22,8 @@
 cmake_minimum_required(VERSION 3.13)
 
 # Override all paths arguments as they do not work properly
-list(APPEND CMAKE_PREFIX_PATH $ENV{ROCM_PATH} /opt/rocm)
+file(TO_CMAKE_PATH "$ENV{ROCM_PATH}" ROCM_PATH_ENV_VALUE)
+list(APPEND CMAKE_PREFIX_PATH ${ROCM_PATH_ENV_VALUE} /opt/rocm)
 
 project(Tensile)
 
@@ -57,7 +58,7 @@ CMAKE_DEPENDENT_OPTION(TENSILE_BUILD_CLIENT "Build the benchmarking client" ON
                         "TENSILE_USE_HIP" OFF)
 
 if(TENSILE_USE_HIP)
-    find_package(HIP REQUIRED CONFIG PATHS $ENV{ROCM_PATH} /opt/rocm)
+    find_package(HIP REQUIRED CONFIG PATHS ${ROCM_PATH_ENV_VALUE} /opt/rocm)
 endif()
 
 if(TENSILE_USE_OPENMP)
