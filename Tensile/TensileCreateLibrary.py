@@ -350,7 +350,6 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
   Returns:
     sourceFilenames:      Array containing source kernel filenames
   """
-  sourceFilenames = []
 
   # Find kernels to write
   kernelsToWrite = []
@@ -384,8 +383,6 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
     validKernelCount += 1
 
   # Write kernel data to files
-  #if globalParameters["MergeFiles"] or globalParameters["LazyLibraryLoading"]:
-
   #Parse list of files and write kernels
   for filename, kernelList in filesToWrite.items():
     with open(filename+".h", "w", encoding="utf-8") as kernelHeaderFile, \
@@ -404,11 +401,11 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
         kernelSourceFile.write(src)
         kernelHeaderFile.write(header)
 
-  sourceFiles = [filePrefix+".cpp" for filePrefix in filesToWrite]
+  sourceFilenames = [filePrefix+".cpp" for filePrefix in filesToWrite]
   if globalParameters["LazyLibraryLoading"]:
-    sourceFiles += [os.path.join(os.path.normcase(outputPath), "Kernels.cpp")]
+    sourceFilenames += [os.path.join(os.path.normcase(outputPath), "Kernels.cpp")]
 
-  return sourceFiles
+  return sourceFilenames
 
 ################################################################################
 # Write Solutions and Kernels for BenchmarkClient or LibraryClient
