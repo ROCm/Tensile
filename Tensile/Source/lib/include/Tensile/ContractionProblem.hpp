@@ -591,7 +591,10 @@ namespace Tensile
 
         SolutionSelectionMethod solutionSelectionMethod() const
         {
-            return m_solutionSelectionMethod;
+            const bool experimental = Debug::Instance().useExperimentalSelection();
+            return experimental ?
+                        SolutionSelectionMethod::Experimental : 
+                        m_solutionSelectionMethod;
         }
 
         void setDeterministicMode(bool value)
