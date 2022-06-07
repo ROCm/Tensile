@@ -2539,12 +2539,13 @@ class Solution(collections.abc.Mapping):
 
     if state["ThreadSeparateGlobalRead%s"%tc] and state["NumLoadsCoalesced%s"%tc] > 1:
       reject(state, "ThreadSeparateGlobalRead%c does not work with NumLoadsCoalesced > 1."%(tc))
-    # DirectToLds does not work with TLU=False and bpe > bpr and DepthU//NumLoadsCoalesced < 8
+    # DirectToLds does not work with TLU=False and bpe > bpr and DepthU//NumLoadsCoalesced <= 8
+    # DIrectToLds does not work with TLU=False and NumLoadsCoalesced >1 yet.
     # bpe > bpr case, Lower and upper 4 bytes elements are stored separately.
     # if TLU=False and DepthU//NumLoadsCoalesced is smaller than lower block size (8 elements),
     # current offset swap logic does not work
     if (not state["ProblemType"]["TLU%c"%tc]) and state["ProblemType"]["DataType"].numRegisters() > 1 and \
-       state["DepthU"] // state["NumLoadsCoalesced%c"%tc] < 8:
+        state["DepthU"] // state["NumLoadsCoalesced%c"%tc] <= 8:
       reject(state, "DirectToLds%c does not work with TLU=False and bpe > bpr and DepthU//NumLoadsCoalesced%c < 8"%(tc, tc))
       return False
 
