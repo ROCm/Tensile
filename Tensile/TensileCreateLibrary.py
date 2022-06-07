@@ -384,25 +384,25 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
     validKernelCount += 1
 
   # Write kernel data to files
-  if globalParameters["MergeFiles"] or globalParameters["LazyLibraryLoading"]:
+  #if globalParameters["MergeFiles"] or globalParameters["LazyLibraryLoading"]:
 
-    #Parse list of files and write kernels
-    for filename, kernelList in filesToWrite.items():
-      with open(filename+".h", "w", encoding="utf-8") as kernelHeaderFile, \
-           open(filename+".cpp", "w", encoding="utf-8") as kernelSourceFile:
+  #Parse list of files and write kernels
+  for filename, kernelList in filesToWrite.items():
+    with open(filename+".h", "w", encoding="utf-8") as kernelHeaderFile, \
+          open(filename+".cpp", "w", encoding="utf-8") as kernelSourceFile:
 
-        kernelSourceFile.write(CHeader)
-        kernelHeaderFile.write(CHeader)
-        kernelSourceFile.write("#include \"Kernels.h\"\n")
-        kernelHeaderFile.write("#pragma once\n")
-        if globalParameters["RuntimeLanguage"] == "HIP":
-          kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
-          kernelHeaderFile.write("#include <hip/hip_ext.h>\n\n")
-        kernelHeaderFile.write("#include \"KernelHeader.h\"\n\n")
+      kernelSourceFile.write(CHeader)
+      kernelHeaderFile.write(CHeader)
+      kernelSourceFile.write("#include \"{}.h\"\n".format(filename))
+      kernelHeaderFile.write("#pragma once\n")
+      if globalParameters["RuntimeLanguage"] == "HIP":
+        kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
+        kernelHeaderFile.write("#include <hip/hip_ext.h>\n\n")
+      kernelHeaderFile.write("#include \"KernelHeader.h\"\n\n")
 
-        for err,src,header,kernelName in kernelList:
-          kernelSourceFile.write(src)
-          kernelHeaderFile.write(header)
+      for err,src,header,kernelName in kernelList:
+        kernelSourceFile.write(src)
+        kernelHeaderFile.write(header)
 
   sourceFiles = [filePrefix+".cpp" for filePrefix in filesToWrite]
   if globalParameters["LazyLibraryLoading"]:
@@ -438,7 +438,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   ##############################################################################
   # Write Kernels
   ##############################################################################
-  if globalParameters["LazyLibraryLoading"]: #globalParameters["MergeFiles"] and globalParameters["NumMergedFiles"] == 1:
+  if globalParameters["LazyLibraryLoading"] or not globalParameters["MergeFiles"]: #globalParameters["MergeFiles"] and globalParameters["NumMergedFiles"] == 1:
     kernelSourceFilename = os.path.join(os.path.normcase(outputPath), "Kernels.cpp")
     kernelHeaderFilename = os.path.join(os.path.normcase(outputPath), "Kernels.h")
 
@@ -1579,7 +1579,7 @@ def TensileCreateLibrary():
         masterFile = os.path.join(archPath, "TensileLibrary")
         newMasterLibrary.applyNaming(kernelMinNaming)
         LibraryIO.write(masterFile, Utils.state(newMasterLibrary), args.LibraryFormat)
-  elif globalParameters["SeparateArchitectures"]:
+  elif globalParameters["SeparateArchitectures"] or globalParameters["LazyLibraryLoading"]:
     for archName, newMasterLibrary in masterLibraries.items():
       if archName in archs:
         masterFile = os.path.join(newLibraryDir, "TensileLibrary_"+archName)

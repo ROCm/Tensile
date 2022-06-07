@@ -38,7 +38,8 @@ TEST(KernelLanguagePredicateTest, Any)
                         "value: [{type: TruePred}, \n"
                         "        {type: KernelLanguageCompatible, value: Any}]";
 
-    llvm::yaml::Input yin(mydoc);
+    LibraryIOContext<ContractionSolution>  context{std::string(""), {}, nullptr};
+    llvm::yaml::Input yin(mydoc, &context);
 
     std::shared_ptr<Predicates::Predicate<ContractionProblem>> p;
 
@@ -64,7 +65,8 @@ TEST(KernelLanguagePredicateTest, Asm)
                         "value: [{type: TruePred}, \n"
                         "        {type: KernelLanguageCompatible, value: Assembly}]";
 
-    llvm::yaml::Input yin(mydoc);
+    LibraryIOContext<ContractionSolution>  context{std::string(""), {}, nullptr};
+    llvm::yaml::Input yin(mydoc, &context);
 
     std::shared_ptr<Predicates::Predicate<ContractionProblem>> p;
 
@@ -90,7 +92,8 @@ TEST(KernelLanguagePredicateTest, Source)
                         "value: [{type: TruePred}, \n"
                         "        {type: KernelLanguageCompatible, value: Source}]";
 
-    llvm::yaml::Input yin(mydoc);
+    LibraryIOContext<ContractionSolution>  context{std::string(""), {}, nullptr};
+    llvm::yaml::Input yin(mydoc, &context);
 
     std::shared_ptr<Predicates::Predicate<ContractionProblem>> p;
 

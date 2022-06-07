@@ -365,8 +365,6 @@ class MasterSolutionLibrary:
         if placeholderLibrary:
             rv.placeholderLibraries[placeholderName] = placeholderLibrary
 
-        print(rv.placeholderLibraries)
-
         return rv
 
     @classmethod

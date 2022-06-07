@@ -156,10 +156,10 @@ namespace Tensile
                 {
                     for(auto const& s : solutions)
                         lib.solutions[s->index] = s;
-                }
 
-                auto ctx       = static_cast<LibraryIOContext<MySolution>*>(iot::getContext(io));
-                ctx->solutions = &lib.solutions;
+                    auto ctx       = static_cast<LibraryIOContext<MySolution>*>(iot::getContext(io));
+                    ctx->solutions = &lib.solutions;
+                }
 
                 std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> innerLibrary;
 

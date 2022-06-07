@@ -71,6 +71,7 @@ namespace Tensile
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
         MessagePackLoadLibraryFile(std::string const& filename, const std::vector<DataType>& preloadedTypes)
     {
+        std::cout << "MessagePackLoadLibraryFile " << filename << std::endl;
         // parse file into a msgpack::object_handle
         msgpack::object_handle result;
         try
@@ -158,7 +159,8 @@ namespace Tensile
             std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
             auto result = msgpack::unpack((const char*)data.data(), data.size());
-            Serialization::MessagePackInput min(result.get());
+            LibraryIOContext<MySolution>  context{std::string(""), {}, nullptr};
+            Serialization::MessagePackInput min(result.get(), &context);
 
             Serialization::PointerMappingTraits<Tensile::MasterContractionLibrary,
                                                 Serialization::MessagePackInput>::mapping(min, rv);
