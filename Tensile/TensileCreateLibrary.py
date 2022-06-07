@@ -207,7 +207,8 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       # for hipclang 5.2 and above, clang offload bundler changes the way input/output files are specified
       inflag = "-inputs"
       outflag = "-outputs"
-      if (hipccMaj == 5 and hipccMin >= 2) or hipccMaj >= 6:
+      # clang 15.0.0 still wants inputs on windows so the hipcc version condition doesn't work
+      if os.name != "nt" and ((hipccMaj == 5 and hipccMin >= 2) or hipccMaj >= 6):
         inflag = "-input"
         outflag = "-output"
 
