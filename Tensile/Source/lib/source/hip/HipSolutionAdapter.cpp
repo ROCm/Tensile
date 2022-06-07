@@ -35,7 +35,9 @@
 #include <Tensile/hip/HipUtils.hpp>
 
 //@TODO add alternative for windows
-#include <glob.h>
+#ifndef WIN32
+    #include <glob.h>
+#endif
 #include <regex>
 
 namespace Tensile
@@ -80,7 +82,7 @@ namespace Tensile
                 std::lock_guard<std::mutex> guard(m_access);
                 m_modules.push_back(module);
                 m_loadedModuleNames.push_back(concatenate("File ", path));
-                
+
                 //Isolate filename
                 size_t start = path.rfind('/');
                 start        = (start == std::string::npos) ? 0 : start+1;
@@ -207,33 +209,36 @@ namespace Tensile
 
             std::string pattern = RegexPattern(dataType)+arch+".*(\\.co|\\.hsaco)";
 
-            glob_t result;
-            result.gl_pathc = 0;
-            result.gl_pathv = nullptr;
-            result.gl_offs  = 0;
+            #ifndef WIN32
+                glob_t result;
+                result.gl_pathc = 0;
+                result.gl_pathv = nullptr;
+                result.gl_offs  = 0;
 
-            // This way globfree will be called regardless of if an exception is thrown.
-            std::shared_ptr<glob_t> guard(&result, globfree);
+                // This way globfree will be called regardless of if an exception is thrown.
+                std::shared_ptr<glob_t> guard(&result, globfree);
 
-            int err = ::glob((m_codeObjectDirectory+"*co").c_str(), 0, nullptr, &result);
+                int err = ::glob((m_codeObjectDirectory+"*co").c_str(), 0, nullptr, &result);
 
-            auto lastHipError = hipSuccess;
+                auto lastHipError = hipSuccess;
 
-            for(size_t i = 0; i < result.gl_pathc; i++){
-                if (std::regex_search(result.gl_pathv[i], std::regex(pattern)))
-                {
-                    auto status = loadCodeObjectFile(result.gl_pathv[i]);
-                    if (status != hipSuccess)
-                        lastHipError = status;
+                for(size_t i = 0; i < result.gl_pathc; i++){
+                    if (std::regex_search(result.gl_pathv[i], std::regex(pattern)))
+                    {
+                        auto status = loadCodeObjectFile(result.gl_pathv[i]);
+                        if (status != hipSuccess)
+                            lastHipError = status;
+                    }
                 }
-            }
-
+            #else
+                std::throw_runtime_error("Error::SolutionAdapter::loadCodeObjectFIlesWithDataType not yet implemented on Windows");
+            #endif
             return lastHipError;
         }
 
         void SolutionAdapter::setCodeObjectDirectory(std::string const& path)
         {
-            m_codeObjectDirectory = path;     
+            m_codeObjectDirectory = path;
             //Ensure there's a slash at the end of the path
             if (m_codeObjectDirectory.back() != '/') m_codeObjectDirectory += '/';
         }
@@ -250,8 +255,6 @@ namespace Tensile
         {
             if(!kernel.codeObjectFile.empty())
             {
-                std::cout << "launchKernel::Loading code object files" << std::endl;
-
                 //If required code object file hasn't yet been loaded, load it now
                 m_access.lock();
                 bool loaded = m_loadedCOFiles.find(kernel.codeObjectFile) != m_loadedCOFiles.end();
@@ -259,8 +262,6 @@ namespace Tensile
 
                 if(!loaded)
                 {
-                    std::cout << "launchKernel::loadCodeObjectFile " << m_codeObjectDirectory+kernel.codeObjectFile << std::endl;
-                    //hipError_t err = loadCodeObjectFile(m_codeObjectDirectory+kernel.codeObjectFile);
                     //Try other xnack versions
                     size_t loc = kernel.codeObjectFile.rfind('.');
                     hipError_t err;
@@ -270,7 +271,7 @@ namespace Tensile
                         std::string modifiedCOName = kernel.codeObjectFile;
                         modifiedCOName.insert(loc, ver);
                         err = loadCodeObjectFile(m_codeObjectDirectory+modifiedCOName);
-                        
+
                         if(err == hipSuccess) break;
                     }
                 }

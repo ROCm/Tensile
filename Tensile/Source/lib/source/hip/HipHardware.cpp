@@ -52,7 +52,6 @@ namespace Tensile
             return GetDevice(deviceId);
         }
 
-
         std::shared_ptr<Hardware> GetDevice(int deviceId)
         {
             hipDeviceProp_t prop;
@@ -75,6 +74,5 @@ namespace Tensile
         {
             return std::make_shared<HipAMDGPU>(prop);
         }
-
     } // namespace hip
 } // namespace Tensile

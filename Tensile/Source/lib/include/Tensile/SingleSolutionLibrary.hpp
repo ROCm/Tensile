@@ -40,7 +40,6 @@ namespace Tensile
     template <typename MyProblem, typename MySolution>
     struct SingleSolutionLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
-
         static std::string Type()
         {
             return "Single";

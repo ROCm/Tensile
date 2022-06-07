@@ -102,7 +102,7 @@ class PlaceholderLibrary:
 
     def remapSolutionIndices(self,indexMap):
         pass
-    
+
     def merge(self, other):
         pass
 
@@ -242,7 +242,7 @@ class MasterSolutionLibrary:
         libraryOrder = deepcopy(libraryOrderArg)
 
         if libraryOrder is None:
-            libraryOrder = ['Hardware', 'OperationIdentifier', 'PerformanceMetric', 'Fp16AltImpl', 'Predicates', 'Placeholder', 'Matching']
+            libraryOrder = ['Hardware', 'OperationIdentifier', 'PerformanceMetric', 'Fp16AltImpl', 'Predicates', 'Matching']
 
         placeholderLibrary = None
 
@@ -252,7 +252,7 @@ class MasterSolutionLibrary:
             libraryOrder = libraryOrder[0:placeholderIndex]
             origSolutions = []
 
-       
+
         deviceSection = d[1:4]
         origProblemType = d[4]
         #origSolutions = d[5]
@@ -313,17 +313,6 @@ class MasterSolutionLibrary:
                 library = GranularitySelectionLibrary.FromOriginalState(origLibrary, selectionIndices)
 
             elif libName == 'Hardware':
-                """
-                if isinstance(deviceSection[1], dict):
-                    architectureProps = deviceSection[1]
-                    assert 'Architecture' in architectureProps, 'Invalid device section [1]'
-                    assert 'CUCount' in architectureProps, 'Invalid device section [1]'
-                    devicePart = architectureProps['Architecture']
-                    cuCount = architectureProps['CUCount']
-                else:
-                    devicePart = deviceSection[1]
-                    cuCount = None
-                """
                 newLib = PredicateLibrary(tag='Hardware')
                 if devicePart == 'fallback':
                     pred = Hardware.HardwarePredicate('TruePred')
@@ -332,7 +321,6 @@ class MasterSolutionLibrary:
 
                 newLib.rows.append({'predicate': pred, 'library': library})
                 library = newLib
-                
 
             elif libName == 'Predicates':
                 predicates = problemType.predicates(includeBatch=True, includeType=True)
@@ -375,7 +363,7 @@ class MasterSolutionLibrary:
 
         rv = cls(solutions, library)
         if placeholderLibrary:
-            rv.placeholderLibraries[placeholderName] = deepcopy(placeholderLibrary)
+            rv.placeholderLibraries[placeholderName] = placeholderLibrary
 
         print(rv.placeholderLibraries)
 

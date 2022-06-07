@@ -46,7 +46,6 @@ namespace Tensile
         }
         virtual std::string type() const;
 
-
         enum class Processor : int
         {
             // matching enum used in hipGcnArch
@@ -107,7 +106,7 @@ namespace Tensile
         {
             return (size_t)processor;
         }
-        
+
         virtual std::string archName() const
         {
             return toString(processor);
@@ -120,8 +119,6 @@ namespace Tensile
             return processor == rhs.processor && computeUnitCount == rhs.computeUnitCount;
         }
     };
-
-    
 
     inline bool operator<(AMDGPU::Processor l, AMDGPU::Processor r)
     {

@@ -792,7 +792,7 @@ namespace Tensile
         else
             rv.args.append<uint32_t>("gsu", sizeMapping.globalSplitU);
 
-        //Is likely to not be the correct file, but may possibly be required
+        //@TODO determine if this is needed, may not end up in the same code object file
         rv.codeObjectFile = codeObjectFilename;
 
         return rv;

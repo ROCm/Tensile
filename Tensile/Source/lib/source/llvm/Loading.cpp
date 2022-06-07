@@ -32,8 +32,6 @@
 #include <Tensile/Tensile.hpp>
 #include <Tensile/llvm/YAML.hpp>
 
-#include <cstdio>
-
 namespace Tensile
 {
 
@@ -41,14 +39,13 @@ namespace Tensile
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
         LLVMLoadLibraryFile(std::string const& filename, const std::vector<DataType>& preloadedTypes)
     {
-        std::printf("Using llvm load %s\n", filename.c_str());
         std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
         try
         {
             auto inputFile = llvm::MemoryBuffer::getFile(filename);
-            
-            LibraryIOContext<MySolution>  context{filename, preloadedTypes, nullptr}; 
+
+            LibraryIOContext<MySolution>  context{filename, preloadedTypes, nullptr};
             llvm::yaml::Input yin((*inputFile)->getMemBufferRef(), &context);
 
             yin >> rv;

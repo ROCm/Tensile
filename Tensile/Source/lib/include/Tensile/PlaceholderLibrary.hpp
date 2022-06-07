@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,7 @@
 #include <Tensile/Tensile.hpp>
 
 #include <algorithm>
- 
+
 namespace Tensile{
 
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
@@ -52,8 +52,6 @@ namespace Tensile{
                 std::string suffix = ".yaml";
             #endif
 
-            std::cout << "Suffix = " << suffix << std::endl;
-
             auto newLibrary = LoadLibraryFile<MyProblem, MySolution>((libraryDirectory+"/"+filePrefix+suffix).c_str());
             auto mLibrary   = static_cast<MasterSolutionLibrary<MyProblem, MySolution>*>(newLibrary.get());
             library = mLibrary->library;
@@ -62,10 +60,6 @@ namespace Tensile{
             return mLibrary;
         }
 
-        //Needs to:
-        // load metadata *DONE
-        // send new solutions back to MasterSolutionLibrary *DONE
-        // tell adapter which code object files are needed
         virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
                                                              Hardware const&  hardware,
                                                              double* fitness = nullptr) override
@@ -73,34 +67,17 @@ namespace Tensile{
             if (!library){
                 loadPlaceholderLibrary();
             }
-            
+
             auto solution = library->findBestSolution(problem, hardware, fitness);
 
             std::string coFileDependency = filePrefix;
-            
+
             if(solution){
                 //Get xnack version of source kernel
                 if(solution->isSourceKernel())
-                {    
+                {
                     std::string arch = hardware.archName();
-                    
-                    /*if (   arch.find("gfx906") != std::string::npos
-                        || arch.find("gfx908") != std::string::npos
-                        || arch.find("gfx90a") != std::string::npos)
-                    {
-                        std::replace(arch.begin(), arch.end(), ':', '-');
-                    }
-                    //Remove xnack for architectures where it isn't included
-                    //@TODO potentially change to include it on all architecture code object files
-                    else
-                    {
-                        size_t loc = arch.find(":xnack");
-                        if (loc != std::string::npos)
-                        {
-                            arch.resize(loc);
-                        }
-                    }*/
-                     
+
                     if (coFileDependency.find("fallback") != std::string::npos)
                         coFileDependency += std::string("_")+arch+std::string(".hsaco");
                     else
@@ -109,8 +86,6 @@ namespace Tensile{
                 else
                     coFileDependency += std::string(".co");
                 solution->codeObjectFilename = coFileDependency;
-
-                std:: cout << coFileDependency << std::endl;
             }
 
             return solution;
@@ -131,7 +106,7 @@ namespace Tensile{
         static std::string Type()
         {
             return "Placeholder";
-        } 
+        }
 
         virtual std::string type() const override
         {

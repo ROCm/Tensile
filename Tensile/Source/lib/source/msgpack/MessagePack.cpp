@@ -30,8 +30,6 @@
 
 #include <fstream>
 
-#include <cstdio>
-
 namespace Tensile
 {
     namespace Serialization
@@ -73,8 +71,6 @@ namespace Tensile
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
         MessagePackLoadLibraryFile(std::string const& filename, const std::vector<DataType>& preloadedTypes)
     {
-        std::printf("Msgpack load library file %s\n", filename.c_str());
-
         // parse file into a msgpack::object_handle
         msgpack::object_handle result;
         try
@@ -125,8 +121,6 @@ namespace Tensile
         try
         {
             std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
-
-            std::printf("Context %s\n", filename.c_str());
 
             LibraryIOContext<MySolution>  context{filename, preloadedTypes, nullptr};
             Serialization::MessagePackInput min(result.get(), &context);

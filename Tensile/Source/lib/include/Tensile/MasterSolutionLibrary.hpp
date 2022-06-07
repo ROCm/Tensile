@@ -63,7 +63,7 @@ namespace Tensile
             return "Master";
         }
         std::string type() const override
-        { 
+        {
             return Type();
         }
         std::string description() const override
