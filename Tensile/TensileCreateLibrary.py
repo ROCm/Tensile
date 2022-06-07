@@ -1097,7 +1097,7 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
 
   # Build a list of asm lib names
   if globalParameters["LazyLibraryLoading"]:
-                                
+
     # If assembly kernel with codeObjectFile specified
     cond = lambda k : "codeObjectFile" in k._state                      \
                        and "fallback" not in k._state["codeObjectFile"] \
@@ -1283,7 +1283,7 @@ def generateLogicDataAndSolutions(logicFiles, args):
     logicData[problemType].append((scheduleName, deviceNames, \
         solutionsForSchedule, indexOrder, exactLogic, rangeLogic ))
 
-  if globalParameters["SeparateArchitectures"] or globalParameters["LazyLibraryLoading"] and "fallback" in masterLibraries.keys():
+  if (globalParameters["SeparateArchitectures"] or globalParameters["LazyLibraryLoading"]) and "fallback" in masterLibraries.keys():
     for key, value in masterLibraries.items():
       if key != "fallback":
         value.merge(deepcopy(masterLibraries["fallback"]))
@@ -1296,6 +1296,9 @@ def generateLogicDataAndSolutions(logicFiles, args):
         for _, sol in lib.solutions.items():
           sol.originalSolution._state["codeObjectFile"] = name
           solutions.append(sol.originalSolution)
+  else:
+    for _, sol in fullMasterLibrary.solutions.items():
+      solutions.append(sol.originalSolution)
 
   # remove duplicates while preserving order
   solutions = list(dict.fromkeys(solutions))
