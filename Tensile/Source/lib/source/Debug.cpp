@@ -1,5 +1,5 @@
 /**
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -102,6 +102,11 @@ namespace Tensile
     bool Debug::printWinningKernelName() const
     {
         return m_value & 0x8000;
+    }
+
+    bool Debug::printSolutionSelectionTime() const
+    {
+        return m_value & 0x10000;
     }
 
     bool Debug::naivePropertySearch() const
