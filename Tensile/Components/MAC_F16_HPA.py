@@ -220,7 +220,7 @@ class FMA_F16_DOT2(MAC):
         vars = {}
 
         if accumulate:
-            vars["instruction"] = "v_dot2c_f32_f16"
+            vars["instruction"] = "_v_dot2acc_f32_f16"
         else:
             vars["instruction"] = "v_dot2_f32_f16"
 
