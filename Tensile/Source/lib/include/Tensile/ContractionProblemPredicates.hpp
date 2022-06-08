@@ -1331,11 +1331,11 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    if(problem.solutionSelectionMethod() == SolutionSelectionMethod::CUEfficiency)
+                    if(problem.performanceMetric() == PerformanceMetric::CUEfficiency)
                     {
                         return true;
                     }
-                    else if(problem.solutionSelectionMethod() == SolutionSelectionMethod::Auto)
+                    else if(problem.performanceMetric() == PerformanceMetric::Auto)
                     {
                         // True if total flops below a constant threshold
                         // Current threshold chosen naively as the flops for a
@@ -1366,7 +1366,7 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return (problem.solutionSelectionMethod() == SolutionSelectionMethod::Experimental);
+                    return (problem.performanceMetric() == PerformanceMetric::Experimental);
                 }
             };
 

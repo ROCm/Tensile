@@ -39,19 +39,19 @@ namespace Tensile
                 args["results-file"].as<std::string>(),
                 args["csv-export-extra-cols"].as<bool>(),
                 args["csv-merge-same-problems"].as<bool>(),
-                args["performance-metric"].as<SolutionSelectionMethod>());
+                args["performance-metric"].as<PerformanceMetric>());
         }
 
         ResultFileReporter::ResultFileReporter(std::string const& filename,
                                                bool               exportExtraCols,
                                                bool               mergeSameProblems,
-                                               SolutionSelectionMethod  solutionSelectionMethod)
+                                               PerformanceMetric  performanceMetric)
             : m_output(filename)
             , m_extraCol(exportExtraCols)
             , m_mergeSameProblems(mergeSameProblems)
-            , m_solutionSelectionMethod(solutionSelectionMethod)
+            , m_performanceMetric(performanceMetric)
         {
-            if(m_solutionSelectionMethod == SolutionSelectionMethod::CUEfficiency)
+            if(m_performanceMetric == PerformanceMetric::CUEfficiency)
                 m_output.setHeaderForKey(ResultKey::ProblemIndex, "GFlopsPerCU");
             else // Default to 'DeviceEfficiency' benchmarking if CUEfficiency not specified
                 m_output.setHeaderForKey(ResultKey::ProblemIndex, "GFlops");
@@ -89,9 +89,9 @@ namespace Tensile
                 }
             }
             else if((key == ResultKey::SpeedGFlops
-                     && m_solutionSelectionMethod == SolutionSelectionMethod::DeviceEfficiency)
+                     && m_performanceMetric == PerformanceMetric::DeviceEfficiency)
                     || (key == ResultKey::SpeedGFlopsPerCu
-                        && m_solutionSelectionMethod == SolutionSelectionMethod::CUEfficiency))
+                        && m_performanceMetric == PerformanceMetric::CUEfficiency))
             {
                 // cascade from BenchmarkTimer, SpeedGFlops or SpeedGFlopsPerCU second
                 if(!m_invalidSolution)

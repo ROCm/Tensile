@@ -44,9 +44,9 @@ def parseCurrentLibrary(libPath, skipRK, sizePath):
     fields = LibraryIO.parseLibraryLogicData(copy.deepcopy(libYaml), libPath)
     (_, _, problemType, solutions, _, exactLogic, _, _, _) = fields
 
-    # get solution selection method
+    # get performance metric
     if len(libYaml) > 10:
-        Common.globalParameters["SolutionSelectionMethod"] = libYaml[10]
+        Common.globalParameters["PerformanceMetric"] = libYaml[10]
 
     # process exactLogic into ProblemSizes
     sizes = []

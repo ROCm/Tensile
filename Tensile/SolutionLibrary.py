@@ -216,7 +216,7 @@ class MasterSolutionLibrary:
     @classmethod
     def FromOriginalState(cls, d, origSolutions, solutionClass=Contractions.Solution, libraryOrder = None):
         if libraryOrder is None:
-            libraryOrder = ['Hardware', 'OperationIdentifier', 'SolutionSelectionMethod', 'Fp16AltImpl', 'Predicates', 'Matching']
+            libraryOrder = ['Hardware', 'OperationIdentifier', 'PerformanceMetric', 'Fp16AltImpl', 'Predicates', 'Matching']
 
         deviceSection = d[1:4]
         origProblemType = d[4]
@@ -228,9 +228,9 @@ class MasterSolutionLibrary:
             assert libraryOrder[-1] == 'Matching'
             libraryOrder[-1] = 'Granularity'
 
-        selectMethod = 'DeviceEfficiency'
+        perfMetric = 'DeviceEfficiency'
         if len(d) > 10 and d[10]:
-            selectMethod = d[10]
+            perfMetric = d[10]
 
         fp16AltImpl = False
         if len(d) > 11 and d[11]:
@@ -300,9 +300,9 @@ class MasterSolutionLibrary:
                 newLib = ProblemMapLibrary(prop, mapping)
                 library = newLib
 
-            elif libName == 'SolutionSelectionMethod':
-                if selectMethod != 'DeviceEfficiency':
-                    predicate = Properties.Predicate(tag=selectMethod)
+            elif libName == 'PerformanceMetric':
+                if perfMetric != 'DeviceEfficiency':
+                    predicate = Properties.Predicate(tag=perfMetric)
                 else:
                     predicate = Properties.Predicate(tag='TruePred')
                 newLib = PredicateLibrary(tag='Problem')

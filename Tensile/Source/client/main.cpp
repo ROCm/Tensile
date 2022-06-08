@@ -97,7 +97,7 @@ namespace Tensile
                                                                                   "specified, we will use the embedded code "
                                                                                   "object(s) if available.")
 
-                ("solution-selection-method", po::value<SolutionSelectionMethod>()->default_value(SolutionSelectionMethod::DeviceEfficiency), "Method for solution selection")
+                ("performance-metric",       po::value<PerformanceMetric>()->default_value(PerformanceMetric::DeviceEfficiency), "Metric for benchmarking results")
 
                 ("problem-identifier",       po::value<std::string>(), "Problem identifer (Einstein notation). Either "
                                                                        "this or free/batch/bound must be specified.")

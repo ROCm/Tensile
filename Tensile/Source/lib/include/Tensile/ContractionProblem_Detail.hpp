@@ -110,8 +110,8 @@ namespace Tensile
                                         rhs.workspaceSize(),
                                         lhs.stridedBatched(),
                                         rhs.stridedBatched(),
-                                        lhs.solutionSelectionMethod(),
-                                        rhs.solutionSelectionMethod(),
+                                        lhs.performanceMetric(),
+                                        rhs.performanceMetric(),
                                         lhs.fp16AltImpl(),
                                         rhs.fp16AltImpl());
         }
@@ -136,7 +136,7 @@ namespace std
                                          problem.arithmeticUnit(),
                                          problem.workspaceSize(),
                                          problem.stridedBatched(),
-                                         problem.solutionSelectionMethod(),
+                                         problem.performanceMetric(),
                                          problem.fp16AltImpl());
         }
     };
