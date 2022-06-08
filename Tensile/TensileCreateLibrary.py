@@ -215,9 +215,20 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         print('hipcc:', ' '.join(compileArgs))
       subprocess.check_call(compileArgs)
 
+      # get hipcc version due to compatiblity reasons
+      hipccver = globalParameters['HipClangVersion'].split(".")
+      hipccMaj = int(hipccver[0])
+      hipccMin = int(hipccver[1])
+      # for hipclang 5.2 and above, clang offload bundler changes the way input/output files are specified
+      inflag = "-inputs"
+      outflag = "-outputs"
+      if (hipccMaj == 5 and hipccMin >= 2) or hipccMaj >= 6:
+        inflag = "-input"
+        outflag = "-output"
+
       infile = os.path.join(buildPath, objectFilename)
       try:
-        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-inputs=%s" % infile, "-list"]
+        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "%s=%s" % (inflag, infile), "-list"]
         listing = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT).decode().split("\n")
         for target in listing:
           matched = re.search("gfx.*$", target)
@@ -238,7 +249,9 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
             #Compilation
             if outfile:
               coFilenames.append(os.path.split(outfile)[1])
-              bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=%s" % target, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+              #bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=%s" % target, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+              bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=%s" % target,
+                           "%s=%s" % (inflag, infile), "%s=%s" % (outflag, outfile), "-unbundle"]
               if globalParameters["PrintCodeCommands"]:
                 print(' '.join(bundlerArgs))
               subprocess.check_call(bundlerArgs)
@@ -247,7 +260,9 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         for i in range(len(archs)):
           outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
           coFilenames.append(os.path.split(outfile)[1])
-          bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+          #bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+          bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i],
+                         "%s=%s" % (inflag, infile), "%s=%s" % (outflag, outfile), "-unbundle"]
           if globalParameters["PrintCodeCommands"]:
             print(' '.join(bundlerArgs))
           subprocess.check_call(bundlerArgs)

@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -66,21 +66,26 @@ def writeMsgPack(filename, data):
     with open(filename, "wb") as f:
         msgpack.pack(data, f)
 
-def writeSolutions(filename, problemSizes, solutions):
+def writeSolutions(filename, problemSizes, solutions, cache=False):
     """Writes solution YAML file."""
 
     # convert objects to nested dictionaries
     solutionStates = []
-    for solution in solutions:
-        solutionState = solution.getAttributes()
-        solutionState["ProblemType"] = solutionState["ProblemType"].state
-        solutionState["ProblemType"]["DataType"] = \
-                solutionState["ProblemType"]["DataType"].value
-        solutionState["ProblemType"]["DestDataType"] = \
-                solutionState["ProblemType"]["DestDataType"].value
-        solutionState["ProblemType"]["ComputeDataType"] = \
-                solutionState["ProblemType"]["ComputeDataType"].value
-        solutionStates.append(solutionState)
+
+    if cache:
+        solYaml = readYAML(filename)
+        solutionStates = solYaml[2:]
+    else:
+        for solution in solutions:
+            solutionState = solution.getAttributes()
+            solutionState["ProblemType"] = solutionState["ProblemType"].state
+            solutionState["ProblemType"]["DataType"] = \
+                    solutionState["ProblemType"]["DataType"].value
+            solutionState["ProblemType"]["DestDataType"] = \
+                    solutionState["ProblemType"]["DestDataType"].value
+            solutionState["ProblemType"]["ComputeDataType"] = \
+                    solutionState["ProblemType"]["ComputeDataType"].value
+            solutionStates.append(solutionState)
     # write dictionaries
     with open(filename, "w") as f:
         f.write("- MinimumRequiredVersion: %s\n" % __version__ )

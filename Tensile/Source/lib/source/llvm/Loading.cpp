@@ -39,7 +39,6 @@ namespace Tensile
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
         LLVMLoadLibraryFile(std::string const& filename, const std::vector<DataType>& preloadedTypes)
     {
-        std::cout << "LLVMLoadLibraryFile " << filename << std::endl;
         std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
         try

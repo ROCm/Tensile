@@ -198,7 +198,7 @@ globalParameters["MergeFiles"] = True             # F=store every solution and k
 globalParameters["NumMergedFiles"] = 1            # The number of files that kernels should be split between when merging
 
 globalParameters["MaxFileName"] = 64              # If a file name would be longer than this, shorten it with a hash.
-globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (9,0,10), (10,1,0), (10,1,1), (10,1,2), (10,3,0)] # assembly kernels writer supports these architectures
+globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (9,0,10), (10,1,0), (10,1,1), (10,1,2), (10,3,0), (11,0,0), (11,0,1), (11,0,2)] # assembly kernels writer supports these architectures
 
 globalParameters["GenerateManifestAndExit"] = False               # Output manifest file with list of expected library objects and exit
 globalParameters["NewClient"] = 2                                 # Old client deprecated: NewClient must be set to 2.
@@ -220,7 +220,7 @@ globalParameters["WorkingPath"] = os.getcwd()           # path where tensile cal
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source") # path to Tensile/Source/
-globalParameters["HipClangVersion"] = "0,0,0"
+globalParameters["HipClangVersion"] = "0.0.0"
 
 # default runtime is selected based on operating system, user can override
 if os.name == "nt":
@@ -268,7 +268,8 @@ architectureMap = {
   'gfx906':'vega20', 'gfx906:xnack+':'vega20', 'gfx906:xnack-':'vega20',
   'gfx908':'arcturus','gfx908:xnack+':'arcturus', 'gfx908:xnack-':'arcturus',
   'gfx90a':'aldebaran', 'gfx90a:xnack+':'aldebaran', 'gfx90a:xnack-':'aldebaran',
-  'gfx1010':'navi10', 'gfx1011':'navi12', 'gfx1012':'navi14', 'gfx1030':'navi21'
+  'gfx1010':'navi10', 'gfx1011':'navi12', 'gfx1012':'navi14', 'gfx1030':'navi21',
+  'gfx1100':'navi31', 'gfx1101':'navi32', 'gfx1102':'navi33'
 }
 
 def getArchitectureName(gfxName):
@@ -397,6 +398,11 @@ validParameters = {
     # -1 is selected by logic, 0 disable, 1 enable.
     "WaveSeparateGlobalReadA":    [ 0, 1 ],
     "WaveSeparateGlobalReadB":    [ 0, 1 ],
+
+    # Splits global read addresses within a wave into a number of smaller groups
+    # The default value of 1 reads the most contiguous elements across lanes,
+    # but higher values may help avoid bank conflicts
+    "SplitGlobalRead":            [1, 2, 4, 8],
 
     # PrefetchGlobalRead = 1:
     # Requires 2X LDS space, and VGPRs for buffering data on way into LDS
@@ -703,7 +709,7 @@ validParameters = {
     "AssertFree1ElementMultiple" : [1,2,4,8],
 
     # Some kernels only work for certain sizes, see ProblemProperties in TensileTypes for exact defs
-    "AssertMinApproxSize" : [0,1,2],
+    "AssertMinApproxSize" : [0,1,2,3],
 
 
     # Assertions/Predicates that require stride to be specified value.
@@ -920,7 +926,7 @@ validParameters = {
     "GroupLoadStore":             [False, True],
     #
     # Do storeC (output of GEMM) in unroll Loop; When PK enabled, storeC Code section can be
-    # moved into unroll Loop code section for tiles[0..N-2], storeC scheduled in PK[1..N-1] 
+    # moved into unroll Loop code section for tiles[0..N-2], storeC scheduled in PK[1..N-1]
     # Enable this feature when PK is enabled
     # Enable this feature when you have 2 or More Tiles/CU
     # disable StoreSyncOpt, StorePriorityOpt,GroupLoadStore feature when this feature is enabled
@@ -1230,13 +1236,14 @@ defaultBenchmarkCommonParameters = [
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
     {"VectorStore":               [ -1 ] },
-    {"StoreVectorWidth":         [ -1 ] },
+    {"StoreVectorWidth":          [ -1 ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"LocalReadVectorWidth":      [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
-    {"WaveSeparateGlobalReadA":    [ 0 ] },
-    {"WaveSeparateGlobalReadB":    [ 0 ] },
+    {"WaveSeparateGlobalReadA":   [ 0 ] },
+    {"WaveSeparateGlobalReadB":   [ 0 ] },
+    {"SplitGlobalRead":           [ 1 ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
     {"GlobalReadCoalesceGroupB":  [ True ] },
     {"PrefetchGlobalRead":        [ 1 ] },
@@ -1317,7 +1324,7 @@ defaultBenchmarkCommonParameters = [
     {"WorkGroupMappingType":      [ "B" ] },
     {"WorkGroupMapping":          [ 8 ] },
     {"ThreadTile":                [ [4,4] ] },
-    {"MACInstruction":            [ '' ]},
+    {"MACInstruction":            [ "FMA" ]}, # Default to FMA, matches MAC performance and integrates additional flags
     {"WavefrontSize":             [ 64 ]},
     {"MatrixInstruction":         [ [] ] },
     {"DisableVgprOverlapping":    [ False ] },
@@ -1669,45 +1676,47 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
 def GetAsmCaps(isaVersion):
   """ Determine assembler capabilities by testing short instructions sequences """
   rv = {}
-  rv["SupportedISA"]    = tryAssembler(isaVersion, "")
-  rv["HasExplicitCO"]   = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,1")
-  rv["HasExplicitNC"]   = tryAssembler(isaVersion, "v_add_nc_u32 v0,v0,1")
+  rv["SupportedISA"]      = tryAssembler(isaVersion, "")
+  rv["HasExplicitCO"]     = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,1")
+  rv["HasExplicitNC"]     = tryAssembler(isaVersion, "v_add_nc_u32 v0,v0,1")
 
-  rv["HasDirectToLds"]  = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
-  rv["HasAddLshl"]      = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
-  rv["HasLshlOr"]       = tryAssembler(isaVersion, "v_lshl_or_b32 v47, v36, 0x2, v34")
-  rv["HasSMulHi"]       = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
-  rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "", False, "-mcode-object-version=2")
+  rv["HasDirectToLds"]    = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds") \
+                            or tryAssembler(isaVersion, "buffer_load_b32 v40, v36, s[24:27], s28 offen offset:0 lds")
+  rv["HasAddLshl"]        = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
+  rv["HasLshlOr"]         = tryAssembler(isaVersion, "v_lshl_or_b32 v47, v36, 0x2, v34")
+  rv["HasSMulHi"]         = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
+  rv["HasCodeObjectV3"]   = tryAssembler(isaVersion, "", False, "-mcode-object-version=2")
 
-  rv["HasMFMA"]         = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
-  rv["HasMFMA_f64"]     = tryAssembler(isaVersion, "v_mfma_f64_16x16x4f64 v[0:7], v[32:33], v[36:37], v[0:7]")
-  rv["HasMFMA_bf16_1k"] = tryAssembler(isaVersion, "v_mfma_f32_32x32x4bf16_1k a[0:31], v[32:33], v[36:37], a[0:31]")
+  rv["HasMFMA"]           = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
+  rv["HasMFMA_f64"]       = tryAssembler(isaVersion, "v_mfma_f64_16x16x4f64 v[0:7], v[32:33], v[36:37], v[0:7]")
+  rv["HasMFMA_bf16_1k"]   = tryAssembler(isaVersion, "v_mfma_f32_32x32x4bf16_1k a[0:31], v[32:33], v[36:37], a[0:31]")
 
-  rv["v_mac_f16"]       = tryAssembler(isaVersion, "v_mac_f16 v47, v36, v34")
+  rv["v_mac_f16"]         = tryAssembler(isaVersion, "v_mac_f16 v47, v36, v34")
 
-  rv["v_fma_f16"]       = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
-  rv["v_fmac_f16"]      = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34")
+  rv["v_fma_f16"]         = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
+  rv["v_fmac_f16"]        = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34")
 
-  rv["v_pk_fma_f16"]    = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0]")
-  rv["v_pk_fmac_f16"]   = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34")
+  rv["v_pk_fma_f16"]      = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0]")
+  rv["v_pk_fmac_f16"]     = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34")
 
-  rv["v_mad_mix_f32"]   = tryAssembler(isaVersion, "v_mad_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
-  rv["v_fma_mix_f32"]   = tryAssembler(isaVersion, "v_fma_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
+  rv["v_mad_mix_f32"]     = tryAssembler(isaVersion, "v_mad_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
+  rv["v_fma_mix_f32"]     = tryAssembler(isaVersion, "v_fma_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
 
-  rv["v_dot2_f32_f16"]  = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
-  rv["v_dot2c_f32_f16"] = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34")
+  rv["v_dot2_f32_f16"]    = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
+  rv["v_dot2c_f32_f16"]   = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34") \
+                            or tryAssembler(isaVersion, "v_dot2acc_f32_f16 v47, v36, v34")
 
-  rv["v_dot4c_i32_i8"]  = tryAssembler(isaVersion, "v_dot4c_i32_i8 v47, v36, v34")
-  rv["v_dot4_i32_i8"]   = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34")
-  rv["VOP3v_dot4_i32_i8"]   = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34, v47")
+  rv["v_dot4_i32_i8"]     = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34")
+  rv["v_dot4c_i32_i8"]    = tryAssembler(isaVersion, "v_dot4c_i32_i8 v47, v36, v34")
+  rv["VOP3v_dot4_i32_i8"] = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34, v47")
 
-  rv["v_mac_f32"]       = tryAssembler(isaVersion, "v_mac_f32 v20, v21, v22")
-  rv["v_fma_f32"]       = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")
-  rv["v_fmac_f32"]      = tryAssembler(isaVersion, "v_fmac_f32 v20, v21, v22")
+  rv["v_mac_f32"]         = tryAssembler(isaVersion, "v_mac_f32 v20, v21, v22")
+  rv["v_fma_f32"]         = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")
+  rv["v_fmac_f32"]        = tryAssembler(isaVersion, "v_fmac_f32 v20, v21, v22")
 
-  rv["v_fma_f64"]       = tryAssembler(isaVersion, "v_fma_f64 v[20:21], v[22:23], v[24:25], v[20:21]")
+  rv["v_fma_f64"]         = tryAssembler(isaVersion, "v_fma_f64 v[20:21], v[22:23], v[24:25], v[20:21]")
 
-  rv["HasAtomicAdd"]    = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
+  rv["HasAtomicAdd"]      = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
 
 
   if tryAssembler(isaVersion, "s_waitcnt vmcnt(63)"):
@@ -1728,9 +1737,9 @@ def GetArchCaps(isaVersion):
   rv = {}
   rv["HasEccHalf"]         = (isaVersion==(9,0,6) or isaVersion==(9,0,8) or isaVersion==(9,0,10))
   rv["Waitcnt0Disabled"]   = (isaVersion == (9,0,8) or isaVersion==(9,0,10))
-  rv["SeparateVscnt"]      = isaVersion[0] == 10
-  rv["CMPXWritesSGPR"]     = isaVersion[0] != 10
-  rv["HasWave32"]          = isaVersion[0] == 10
+  rv["SeparateVscnt"]      = isaVersion[0] in (10, 11)
+  rv["CMPXWritesSGPR"]     = isaVersion[0] not in (10, 11)
+  rv["HasWave32"]          = isaVersion[0] in (10, 11)
   rv["HasAccCD"]           = (isaVersion==(9,0,10))
   rv["ArchAccUnifiedRegs"] = (isaVersion==(9,0,10))
 
@@ -1745,7 +1754,7 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
   if globalParameters["PrintLevel"] >= 2:
     debug = True
 
-  if isaVersion[0] == 10:
+  if isaVersion[0] >= 10:
     options += ['-mwavefrontsize64']
 
   args = [globalParameters["AssemblerPath"], '-x', 'assembler',
@@ -1983,7 +1992,7 @@ def assignGlobalParameters( config ):
 
   if "MergeFiles" in config and "NumMergedFiles" in config:
     if not config["MergeFiles"] and config["NumMergedFiles"] > 1:
-      config["NumMergedFiles"] = 1 
+      config["NumMergedFiles"] = 1
       printWarning("--num-merged-files and --no-merge-files specified, ignoring --num-merged-files")
 
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future

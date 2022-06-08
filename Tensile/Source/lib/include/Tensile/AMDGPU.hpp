@@ -62,7 +62,10 @@ namespace Tensile
             gfx1010 = 1010,
             gfx1011 = 1011,
             gfx1012 = 1012,
-            gfx1030 = 1030
+            gfx1030 = 1030,
+            gfx1100 = 1100,
+            gfx1101 = 1101,
+            gfx1102 = 1102
         };
 
         static std::string toString(Processor p){
@@ -86,8 +89,13 @@ namespace Tensile
                 return "gfx1012";
             case AMDGPU::Processor::gfx1030:
                 return "gfx1030";
+            case AMDGPU::Processor::gfx1100:
+                return "gfx1100";
+            case AMDGPU::Processor::gfx1101:
+                return "gfx1101";
+            case AMDGPU::Processor::gfx1102:
+                return "gfx1102";
             }
-
             return "";
         }
 

@@ -63,7 +63,6 @@ namespace Tensile
     std::ostream& operator<<(std::ostream& stream, AMDGPU::Processor p)
     {
         stream << AMDGPU::toString(p);
-
         return stream;
     }
 

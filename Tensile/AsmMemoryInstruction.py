@@ -34,19 +34,19 @@ class MemoryInstruction:
     self.numBlocks = 2 if self.numAddresses > 1 or self.numOffsets > 1 else 1
     self.totalWidth = self.blockWidth * self.numBlocks
     #in Quad-Cycle
-    if (name == "ds_read_b128"):
+    if (name == "_ds_load_b128"):
       self.IssueLatency = 2
-    elif (name == "ds_write_b128"):
+    elif (name == "_ds_store_b128"):
       self.IssueLatency = 5
-    elif (name == "ds_write2_b64"):
+    elif (name == "_ds_store2_b64"):
       self.IssueLatency = 3
-    elif (name == "ds_write_b64"):
+    elif (name == "_ds_store_b64"):
       self.IssueLatency = 3
-    elif (name == "ds_write2_b32"):
+    elif (name == "_ds_store2_b32"):
       self.IssueLatency = 3
-    elif (name == "ds_write_b32"):
+    elif (name == "_ds_store_b32"):
       self.IssueLatency = 2
-    elif (name == "ds_write_u16") :
+    elif (name == "_ds_store_u16") :
       self.IssueLatency = 2
     else:
       self.IssueLatency = 1

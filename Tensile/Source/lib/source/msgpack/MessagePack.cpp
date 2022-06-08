@@ -71,7 +71,6 @@ namespace Tensile
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
         MessagePackLoadLibraryFile(std::string const& filename, const std::vector<DataType>& preloadedTypes)
     {
-        std::cout << "MessagePackLoadLibraryFile " << filename << std::endl;
         // parse file into a msgpack::object_handle
         msgpack::object_handle result;
         try

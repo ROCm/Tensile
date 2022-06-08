@@ -80,10 +80,16 @@ function(TensileCreateCopyTarget
     add_custom_target(
         ${Target_NAME} ALL
         COMMENT "${Target_NAME}: Copying tensile objects to ${Dest_PATH}"
-        COMMAND_EXPAND_LISTS
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${Tensile_OBJECTS_TO_COPY} ${Dest_PATH}
         DEPENDS ${Tensile_OBJECTS_TO_COPY}
     )
+    foreach(OBJECT_TO_COPY ${Tensile_OBJECTS_TO_COPY})
+        add_custom_command(
+            TARGET ${Target_NAME} PRE_BUILD
+            COMMAND_EXPAND_LISTS
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OBJECT_TO_COPY} ${Dest_PATH}
+            DEPENDS ${OBJECT_TO_COPY}
+        )
+    endforeach()
 endfunction()
 
 # Output target: ${Tensile_VAR_PREFIX}_LIBRARY_TARGET. Ensures that the libs get built in Tensile_OUTPUT_PATH/library.

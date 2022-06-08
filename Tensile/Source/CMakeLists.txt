@@ -22,7 +22,8 @@
 cmake_minimum_required(VERSION 3.13)
 
 # Override all paths arguments as they do not work properly
-list(APPEND CMAKE_PREFIX_PATH $ENV{ROCM_PATH} /opt/rocm)
+file(TO_CMAKE_PATH "$ENV{ROCM_PATH}" ROCM_PATH_ENV_VALUE)
+list(APPEND CMAKE_PREFIX_PATH ${ROCM_PATH_ENV_VALUE} /opt/rocm)
 
 project(Tensile)
 
@@ -47,9 +48,9 @@ if(NOT DEFINED CXX_VERSION_STRING)
 endif()
 
 if(CMAKE_CXX_COMPILER STREQUAL "hipcc")
-  set(TENSILE_GPU_ARCHS gfx803 gfx900 gfx906:xnack- gfx908:xnack- gfx90a:xnack- gfx1010 gfx1011 gfx1012 gfx1030 CACHE STRING "GPU architectures")
+  set(TENSILE_GPU_ARCHS gfx803 gfx900 gfx906:xnack- gfx908:xnack- gfx90a:xnack- gfx1010 gfx1011 gfx1012 gfx1030 gfx1100 gfx1101 gfx1102 CACHE STRING "GPU architectures")
 else()
-  set(TENSILE_GPU_ARCHS gfx803 gfx900 gfx906 gfx908 gfx90a CACHE STRING "GPU architectures")
+  set(TENSILE_GPU_ARCHS gfx803 gfx900 gfx906 gfx908 gfx90a gfx1010 gfx1011 gfx1012 gfx1030 gfx1100 gfx1101 gfx1102 CACHE STRING "GPU architectures")
 endif()
 
 include(CMakeDependentOption)
@@ -57,7 +58,7 @@ CMAKE_DEPENDENT_OPTION(TENSILE_BUILD_CLIENT "Build the benchmarking client" ON
                         "TENSILE_USE_HIP" OFF)
 
 if(TENSILE_USE_HIP)
-    find_package(HIP REQUIRED CONFIG PATHS $ENV{ROCM_PATH} /opt/rocm)
+    find_package(HIP REQUIRED CONFIG PATHS ${ROCM_PATH_ENV_VALUE} /opt/rocm)
 endif()
 
 if(TENSILE_USE_OPENMP)

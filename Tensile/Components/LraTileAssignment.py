@@ -104,7 +104,10 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         tile01           = tP["tile01Idx"]
         waveWidth        = writer.kernel["WavefrontSize"]
         inputPerThread   = max(writer.lrvwA,writer.lrvwB)
-        if kernel["DirectToVgprB"]:
+        if kernel["DirectToVgprA"]:
+          # DirectToVgprA case, ignore lrvwA
+          inputPerThread = writer.lrvwB
+        elif kernel["DirectToVgprB"]:
           # DirectToVgprB case, ignore lrvwB
           inputPerThread = writer.lrvwA
         LdsPad           = kernel["LdsPad%s" % tc] if kernel["LdsBlockSizePerPad%s" % tc] == 0 else 0
