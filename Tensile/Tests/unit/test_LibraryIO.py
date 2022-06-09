@@ -133,6 +133,7 @@ Library:
   - {type: SizeInRange, index: 3, value: {min: 1}}
 """
 
+
 def createLibraryLogicList(arch_str, suffix_str, fp16AltImpl):
     # paths to test data
     scriptDir = os.path.dirname(os.path.realpath(__file__))
@@ -163,11 +164,12 @@ def createLibraryLogicList(arch_str, suffix_str, fp16AltImpl):
     suffixData = yaml.load(suffix_str, yaml.SafeLoader)
 
     # handle fp16AltImpl and combine
+    rv = prefixData + [problemType] + [[sol0, sol1]] + sizeData + suffixData
     if fp16AltImpl:
         fp16AltData = yaml.load(fp16AltImpl_l, yaml.SafeLoader)
-        return prefixData + [problemType] + [[sol0, sol1]] + sizeData + suffixData + fp16AltData
-    else:
-        return prefixData + [problemType] + [[sol0, sol1]] + sizeData + suffixData
+        rv += fp16AltData
+
+    return rv
 
 
 def createLibraryLogicDict(arch_str, suffix_str, lib_str, fp16AltImpl_str):
@@ -226,51 +228,47 @@ def test_parseSolutionsData(useGlobalParameters):
 
 def test_parseLibraryLogicList(useGlobalParameters):
     with useGlobalParameters():
-        LibraryIO.parseLibraryLogicData(
-                createLibraryLogicList(vega20_l, dvEff_l, False),
-                "test_parseLibraryLogicList")
+        LibraryIO.parseLibraryLogicData(createLibraryLogicList(vega20_l, dvEff_l, False),
+                                        "test_parseLibraryLogicList")
 
-        LibraryIO.parseLibraryLogicData(
-                createLibraryLogicList(aldebaran_l, cuEff_l, False),
-                "test_parseLibraryLogicList")
+        LibraryIO.parseLibraryLogicData(createLibraryLogicList(aldebaran_l, cuEff_l, False),
+                                        "test_parseLibraryLogicList")
 
-        LibraryIO.parseLibraryLogicData(
-                createLibraryLogicList(vega20_l, legacySuffix_l, False),
-                "test_parseLibraryLogicList")
+        LibraryIO.parseLibraryLogicData(createLibraryLogicList(vega20_l, legacySuffix_l, False),
+                                        "test_parseLibraryLogicList")
 
-        LibraryIO.parseLibraryLogicData(
-                createLibraryLogicList(aldebaran_l, dvEff_l, True),
-                "test_parseLibraryLogicList")
+        LibraryIO.parseLibraryLogicData(createLibraryLogicList(aldebaran_l, dvEff_l, True),
+                                        "test_parseLibraryLogicList")
         assert True
 
 
 def test_parseLibraryLogicMatching(useGlobalParameters):
     with useGlobalParameters():
         LibraryIO.parseLibraryLogicData(
-                createLibraryLogicDict(vega20_d, matchingLibrary, dvEff_d, fp16AltImplFalse_d),
-                "test_parseLibraryLogicMatching")
+            createLibraryLogicDict(vega20_d, matchingLibrary, dvEff_d, fp16AltImplFalse_d),
+            "test_parseLibraryLogicMatching")
 
         LibraryIO.parseLibraryLogicData(
-                createLibraryLogicDict(aldebaran_d, matchingLibrary, cuEff_d, None),
-                "test_parseLibraryLogicMatching")
+            createLibraryLogicDict(aldebaran_d, matchingLibrary, cuEff_d, None),
+            "test_parseLibraryLogicMatching")
 
         LibraryIO.parseLibraryLogicData(
-                createLibraryLogicDict(aldebaran_d, matchingLibrary, dvEff_d, fp16AltImpl_d),
-                "test_parseLibraryLogicMatching")
+            createLibraryLogicDict(aldebaran_d, matchingLibrary, dvEff_d, fp16AltImpl_d),
+            "test_parseLibraryLogicMatching")
         assert True
 
 
 def test_parseLibraryLogicDecisionTree(useGlobalParameters):
     with useGlobalParameters():
         LibraryIO.parseLibraryLogicData(
-                createLibraryLogicDict(vega20_d, treeLibrary, dvEff_d, fp16AltImplFalse_d),
-                "test_parseLibraryLogicDecisionTree")
+            createLibraryLogicDict(vega20_d, treeLibrary, dvEff_d, fp16AltImplFalse_d),
+            "test_parseLibraryLogicDecisionTree")
 
         LibraryIO.parseLibraryLogicData(
-                createLibraryLogicDict(aldebaran_d, treeLibrary, cuEff_d, None),
-                "test_parseLibraryLogicDecisionTree")
+            createLibraryLogicDict(aldebaran_d, treeLibrary, cuEff_d, None),
+            "test_parseLibraryLogicDecisionTree")
 
         LibraryIO.parseLibraryLogicData(
-                createLibraryLogicDict(aldebaran_d, treeLibrary, dvEff_d, fp16AltImpl_d),
-                "test_parseLibraryLogicDecisionTree")
+            createLibraryLogicDict(aldebaran_d, treeLibrary, dvEff_d, fp16AltImpl_d),
+            "test_parseLibraryLogicDecisionTree")
         assert True

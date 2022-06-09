@@ -518,75 +518,18 @@ namespace Tensile
                 }
             };
 
-            struct SizeInRegion : public Predicate_CRTP<SizeInRegion, ContractionProblem>
-            {
-                enum
-                {
-                    HasIndex = false,
-                    HasValue = true
-                };
-                ContractionSolution::ProblemRegion value;
-
-                SizeInRegion() = default;
-                SizeInRegion(ContractionSolution::ProblemRegion value)
-                    : value(value)
-                {
-                }
-
-                static std::string Type()
-                {
-                    return "SizeInRegion";
-                }
-
-                virtual bool operator()(ContractionProblem const& problem) const override
-                {
-                    size_t M = problem.freeSizeA(0);
-                    size_t N = problem.freeSizeB(0);
-                    size_t K = problem.boundSize(0);
-                    return (((value.M.min <= M) && (M < value.M.max))
-                            && ((value.N.min <= N) && (N < value.N.max))
-                            && ((value.K.min <= K) && (K < value.K.max)));
-                }
-
-                virtual std::string toString() const override
-                {
-                    return concatenate(this->type(),
-                                       "(M:",
-                                       value.M.min,
-                                       "<->",
-                                       value.M.max,
-                                       ", N:",
-                                       value.N.min,
-                                       "<->",
-                                       value.N.max,
-                                       ", K:",
-                                       value.K.min,
-                                       "<->",
-                                       value.K.max,
-                                       ")");
-                }
-
-                virtual bool debugEval(ContractionProblem const& problem,
-                                       std::ostream&             stream) const override
-                {
-                    bool rv = (*this)(problem);
-
-                    stream << *this << ": ("
-                           << " " << value.M.min << "<=M<" << value.M.max << " " << value.N.min
-                           << "<=N<" << value.N.max << " " << value.K.min << "<=K<" << value.K.max
-                           << ") == " << rv;
-
-                    return rv;
-                }
-            };
-
             struct Range
             {
                 size_t min = 0;
                 size_t max = std::numeric_limits<size_t>::max();
             };
 
-            struct SizeInRange : public Predicate_CRTP<SizeInRegion, ContractionProblem>
+            inline std::ostream& operator<<(std::ostream& stream, Range const& range)
+            {
+                return stream << "min: " << range.min << ", max: " << range.max;
+            }
+
+            struct SizeInRange : public Predicate_CRTP<SizeInRange, ContractionProblem>
             {
                 enum
                 {

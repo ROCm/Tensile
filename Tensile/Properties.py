@@ -94,10 +94,13 @@ class Predicate(Property):
         selfValue = self.value
         otherValue = other.value
 
-        if other.tag == 'SizeInRange':
-            otherValue = {other.value.get("min", 0), other.value.get("max", -1)}
-        if self.tag == 'SizeInRange':
-            selfValue = {self.value.get("min", 0), self.value.get("max", -1)}
+        if type(selfValue) is dict:
+            selfTup = {v for _, v in selfValue.items()}
+            selfValue = selfTup
+
+        if type(otherValue) is dict:
+            otherTup = {v for _, v in otherValue.items()}
+            otherValue = otherTup
 
         # If neither is a TruePred then just use the default comparison.
         return (self.tag, self.index, selfValue) < (other.tag, other.index, otherValue)

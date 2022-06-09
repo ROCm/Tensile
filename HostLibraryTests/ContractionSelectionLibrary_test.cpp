@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -121,12 +121,20 @@ TEST(ContractionSelectionLibraryTest, RegionSelection)
     auto genericLib = std::make_shared<SingleContractionLibrary>(genericSolution);
 
     // Create region predicate for (6000 <= M < 8000), (0 <= N < 7000)
-    using SizeInRegion = Predicates::Contraction::SizeInRegion;
-    size_t max_size = -1;
-    auto isRegion1 = std::make_shared<SizeInRegion>(ContractionSolution::ProblemRegion{{6000, 8000}, {0, 7000}, {0, max_size}});
+    using SizeInRange = Predicates::Contraction::SizeInRange;
+    using Range       = Predicates::Contraction::Range;
+    using And         = Predicates::And<ContractionProblem>;
+    size_t max_size   = std::numeric_limits<size_t>::max();
+
+    auto regionM  = std::make_shared<SizeInRange>(0, Range{6000, 8000});
+    auto regionN1 = std::make_shared<SizeInRange>(1, Range{0, 7000});
+    auto regionN2 = std::make_shared<SizeInRange>(1, Range{7000, max_size});
+
+    // Create region predicate for (6000 <= M < 8000), (0 <= N < 7000)
+    auto isRegion1 = std::make_shared<And>(regionM, regionN1);
 
     // Create region predicate for (6000 <= M < 8000), (7000 <= N < max)
-    auto isRegion2 = std::make_shared<SizeInRegion>(ContractionSolution::ProblemRegion{{6000, 8000}, {7000, max_size}, {0, max_size}});
+    auto isRegion2 = std::make_shared<And>(regionM, regionN2);
 
     // Create fallthrough predicate (i.e. default)
     ContractionProblemPredicate allProbs(std::make_shared<Predicates::True<ContractionProblem>>());
@@ -135,16 +143,18 @@ TEST(ContractionSelectionLibraryTest, RegionSelection)
     ContractionProblemSelectionLibrary::Row Region1Row(isRegion1, region1Lib);
     ContractionProblemSelectionLibrary::Row Region2Row(isRegion2, region2Lib);
     ContractionProblemSelectionLibrary::Row GenericRow(allProbs, genericLib);
-    ContractionProblemSelectionLibrary lib({Region1Row, Region2Row, GenericRow});
+    ContractionProblemSelectionLibrary      lib({Region1Row, Region2Row, GenericRow});
 
-
-    auto Region1Problem   = ContractionProblem::GEMM(false, false,  7000, 6500, 1000,  7000, 1000, 7000,  1.0, false, 1);
-    auto Region2Problem   = ContractionProblem::GEMM(false, false,  7000, 7500, 1000,  7000, 1000, 7000,  1.0, false, 1);
-    auto OutRegionProblem = ContractionProblem::GEMM(false, false,  5000, 2000, 1000,  5000, 1000, 5000,  1.0, false, 1);
+    auto Region1Problem
+        = ContractionProblem::GEMM(false, false, 7000, 6500, 1000, 7000, 1000, 7000, 1.0, false, 1);
+    auto Region2Problem
+        = ContractionProblem::GEMM(false, false, 7000, 7500, 1000, 7000, 1000, 7000, 1.0, false, 1);
+    auto OutRegionProblem
+        = ContractionProblem::GEMM(false, false, 5000, 2000, 1000, 5000, 1000, 5000, 1.0, false, 1);
 
     AMDGPU gpu;
-    EXPECT_EQ(lib.findBestSolution(Region1Problem, gpu),   region1Solution);
-    EXPECT_EQ(lib.findBestSolution(Region2Problem, gpu),   region2Solution);
+    EXPECT_EQ(lib.findBestSolution(Region1Problem, gpu), region1Solution);
+    EXPECT_EQ(lib.findBestSolution(Region2Problem, gpu), region2Solution);
     EXPECT_EQ(lib.findBestSolution(OutRegionProblem, gpu), genericSolution);
 }
 

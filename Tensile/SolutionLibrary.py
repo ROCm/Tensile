@@ -57,13 +57,13 @@ class MatchingLibrary:
         origTable = d["table"]
 
         propertyKeys = {
-            2: lambda: Properties.Property('FreeSizeA', index=0),
-            3: lambda: Properties.Property('FreeSizeB', index=0),
-            #0:lambda: Properties.Property('BatchSize', index=0),
-            1: lambda: Properties.Property('BoundSize', index=0)
+            2: Properties.Property('FreeSizeA', index=0),
+            3: Properties.Property('FreeSizeB', index=0),
+            #0: Properties.Property('BatchSize', index=0),
+            1: Properties.Property('BoundSize', index=0)
         }
 
-        properties = list([propertyKeys[i]() for i in indices if i in propertyKeys])
+        properties = list([propertyKeys[i] for i in indices if i in propertyKeys])
         keyOrder = [i for i, j in enumerate(indices) if j in propertyKeys]
 
         table = []

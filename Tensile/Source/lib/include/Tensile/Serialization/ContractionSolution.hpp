@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -118,23 +118,6 @@ namespace Tensile
                 iot::mapOptional(io, "useInitialStridesCD", s.useInitialStridesCD);
                 iot::mapOptional(io, "stridedBatched", s.stridedBatched);
                 iot::mapOptional(io, "fp16AltImpl", s.fp16AltImpl);
-            }
-
-            const static bool flow = false;
-        };
-
-        template <typename IO>
-        struct MappingTraits<ContractionSolution::ProblemRegion, IO>
-        {
-            using iot = IOTraits<IO>;
-            static void mapping(IO& io, ContractionSolution::ProblemRegion& pr)
-            {
-                iot::mapOptional(io, "MinM", pr.M.min);
-                iot::mapOptional(io, "MaxM", pr.M.max);
-                iot::mapOptional(io, "MinN", pr.N.min);
-                iot::mapOptional(io, "MaxN", pr.N.max);
-                iot::mapOptional(io, "MinK", pr.K.min);
-                iot::mapOptional(io, "MaxK", pr.K.max);
             }
 
             const static bool flow = false;

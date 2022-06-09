@@ -1,5 +1,5 @@
 /**
- * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -275,17 +275,6 @@ namespace Tensile
             bool        fp16AltImpl             = false;
         };
 
-        struct paramBounds {
-            size_t max = -1;
-            size_t min = 0;
-        };
-
-        struct ProblemRegion {
-            paramBounds M;
-            paramBounds N;
-            paramBounds K;
-        };
-
         struct LinearModel
         {
             double slope     = 1.0;
@@ -327,7 +316,5 @@ namespace Tensile
                              ContractionSolution::StaticPerformanceModel const& spm);
     std::ostream& operator<<(std::ostream&                                    stream,
                              ContractionSolution::ProjectedPerformance const& pp);
-    std::ostream& operator<<(std::ostream&                             stream,
-                             ContractionSolution::ProblemRegion const& pr);
     std::ostream& operator<<(std::ostream& stream, BufferLoadCheckPacket const& st);
 } // namespace Tensile
