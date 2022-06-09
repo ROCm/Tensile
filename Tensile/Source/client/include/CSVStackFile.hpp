@@ -31,7 +31,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include <boost/lexical_cast.hpp>
+#include "program_options.hpp"
 
 namespace Tensile
 {
@@ -55,7 +55,7 @@ namespace Tensile
             typename std::enable_if<!std::is_same<T, std::string>::value, void>::type
                 setValueForKey(std::string const& key, T const& value)
             {
-                setValueForKey(key, boost::lexical_cast<std::string>(value));
+                setValueForKey(key, roc::lexical_cast_to_string(value));
             }
 
             void push();

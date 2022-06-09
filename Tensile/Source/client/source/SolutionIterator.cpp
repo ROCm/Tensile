@@ -37,7 +37,7 @@ namespace Tensile
             std::shared_ptr<Hardware>                                  hardware,
             po::variables_map const&                                   args)
         {
-            bool bestSolution = args["best-solution"].as<bool>();
+            bool bestSolution = args.at("best-solution").as<bool>();
 
             if(bestSolution)
             {
@@ -45,8 +45,8 @@ namespace Tensile
             }
             else
             {
-                int firstSolutionIdx = args["solution-start-idx"].as<int>();
-                int numSolutions     = args["num-solutions"].as<int>();
+                int firstSolutionIdx = args.at("solution-start-idx").as<int>();
+                int numSolutions     = args.at("num-solutions").as<int>();
 
                 return std::make_shared<AllSolutionsIterator>(
                     library,
@@ -118,7 +118,7 @@ namespace Tensile
         {
             RunCriteria criteria;
 
-            double granThresh = args["granularity-threshold"].as<double>();
+            double granThresh = args.at("granularity-threshold").as<double>();
             if(granThresh > 0.0)
             {
                 criteria.push_back([granThresh](ContractionProblem const&  problem,

@@ -213,7 +213,7 @@ namespace Tensile
             return stream;
         }
 
-        double DataInitialization::GetRepresentativeBetaValue(po::variables_map const& args)
+        double DataInitialization::GetRepresentativeBetaValue(po::variables_map& args)
         {
             auto argValue = args["init-beta"].as<int>();
 
@@ -228,7 +228,7 @@ namespace Tensile
 
         template <typename TypedInputs>
         std::shared_ptr<TypedDataInitialization<TypedInputs>>
-            DataInitialization::GetTyped(po::variables_map const&    args,
+            DataInitialization::GetTyped(po::variables_map&          args,
                                          ClientProblemFactory const& problemFactory,
                                          size_t                      maxWorkspaceSize)
         {
@@ -239,7 +239,7 @@ namespace Tensile
         }
 
         std::shared_ptr<DataInitialization>
-            DataInitialization::Get(po::variables_map const&    args,
+            DataInitialization::Get(po::variables_map&          args,
                                     ClientProblemFactory const& problemFactory,
                                     size_t                      maxWorkspaceSize)
         {
@@ -328,7 +328,7 @@ namespace Tensile
                                                  betaType));
         }
 
-        DataInitialization::DataInitialization(po::variables_map const&    args,
+        DataInitialization::DataInitialization(po::variables_map&          args,
                                                ClientProblemFactory const& problemFactory,
                                                size_t                      maxWorkspaceSize)
             : m_aInit(args["init-a"].as<InitMode>())

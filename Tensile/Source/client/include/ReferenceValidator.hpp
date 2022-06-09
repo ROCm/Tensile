@@ -28,7 +28,7 @@
 
 #include "RunListener.hpp"
 
-#include <boost/program_options.hpp>
+#include "program_options.hpp"
 
 #include <ConvolutionProblem.hpp>
 #include <Tensile/ContractionProblem.hpp>
@@ -42,12 +42,12 @@ namespace Tensile
 {
     namespace Client
     {
-        namespace po = boost::program_options;
+        namespace po = roc;
 
         class ReferenceValidator : public RunListener
         {
         public:
-            ReferenceValidator(po::variables_map const&            args,
+            ReferenceValidator(po::variables_map&                  args,
                                std::shared_ptr<DataInitialization> dataInit);
 
             virtual bool needMoreBenchmarkRuns() const override;

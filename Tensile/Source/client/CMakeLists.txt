@@ -18,7 +18,6 @@ set(client_sources
     source/TimingEvents.cpp
     )
 
-find_package(Boost  COMPONENTS program_options filesystem REQUIRED)
 
 add_library(TensileClient STATIC ${client_sources})
 
@@ -36,7 +35,7 @@ endif()
 
 target_include_directories(TensileClient PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")# "${rocm_smi_root}/include")
 
-target_link_libraries(TensileClient PRIVATE TensileHost ${Boost_LIBRARIES} rocm_smi)
+target_link_libraries(TensileClient PRIVATE TensileHost rocm_smi)
 if(TENSILE_USE_OPENMP)
     target_link_libraries(TensileClient PRIVATE custom_openmp_cxx)
 endif()
@@ -48,7 +47,7 @@ set_target_properties(tensile_client
                       CXX_STANDARD_REQUIRED ON
                       CXX_EXTENSIONS OFF)
 
-target_link_libraries(tensile_client PRIVATE TensileHost TensileClient ${Boost_LIBRARIES})
+target_link_libraries(tensile_client PRIVATE TensileHost TensileClient)
 if(TENSILE_USE_OPENMP)
     target_link_libraries(tensile_client PRIVATE custom_openmp_cxx)
 endif()
