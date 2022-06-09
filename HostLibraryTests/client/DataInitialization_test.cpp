@@ -33,7 +33,7 @@
 using namespace Tensile;
 using namespace Tensile::Client;
 
-namespace po = boost::program_options;
+namespace po = roc;
 
 template <typename TypedInputs>
 class DataInitializationTest : public ::testing::Test
