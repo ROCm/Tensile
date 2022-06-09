@@ -220,7 +220,7 @@ globalParameters["WorkingPath"] = os.getcwd()           # path where tensile cal
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source") # path to Tensile/Source/
-globalParameters["HipClangVersion"] = "0,0,0"
+globalParameters["HipClangVersion"] = "0.0.0"
 
 # default runtime is selected based on operating system, user can override
 if os.name == "nt":
@@ -395,6 +395,11 @@ validParameters = {
     # -1 is selected by logic, 0 disable, 1 enable.
     "WaveSeparateGlobalReadA":    [ 0, 1 ],
     "WaveSeparateGlobalReadB":    [ 0, 1 ],
+
+    # Splits global read addresses within a wave into a number of smaller groups
+    # The default value of 1 reads the most contiguous elements across lanes,
+    # but higher values may help avoid bank conflicts
+    "SplitGlobalRead":            [1, 2, 4, 8],
 
     # PrefetchGlobalRead = 1:
     # Requires 2X LDS space, and VGPRs for buffering data on way into LDS
@@ -1228,13 +1233,14 @@ defaultBenchmarkCommonParameters = [
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
     {"VectorStore":               [ -1 ] },
-    {"StoreVectorWidth":         [ -1 ] },
+    {"StoreVectorWidth":          [ -1 ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"LocalReadVectorWidth":      [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
-    {"WaveSeparateGlobalReadA":    [ 0 ] },
-    {"WaveSeparateGlobalReadB":    [ 0 ] },
+    {"WaveSeparateGlobalReadA":   [ 0 ] },
+    {"WaveSeparateGlobalReadB":   [ 0 ] },
+    {"SplitGlobalRead":           [ 1 ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
     {"GlobalReadCoalesceGroupB":  [ True ] },
     {"PrefetchGlobalRead":        [ 1 ] },
