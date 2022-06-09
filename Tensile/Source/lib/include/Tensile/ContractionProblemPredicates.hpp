@@ -553,7 +553,7 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return (problem.size(index) >= value.min) && (problem.size(index) <= value.max);
+                    return (problem.size(index) >= value.min) && (problem.size(index) < value.max);
                 }
 
                 virtual bool debugEval(ContractionProblem const& problem,

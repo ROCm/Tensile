@@ -30,8 +30,7 @@ from . import EmbeddedData
 from . import LibraryIO
 from . import Utils
 from .Common import globalParameters, HR, print1, print2, printExit, ensurePath, \
-                    CHeader, CMakeHeader, assignGlobalParameters, \
-                    listToInitializer, gfxName, architectureMap
+                    CHeader, CMakeHeader, assignGlobalParameters, gfxName, architectureMap
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
