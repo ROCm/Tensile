@@ -2303,6 +2303,13 @@ class Solution(collections.abc.Mapping):
 
 
   ########################################
+  # determine if current datatype can support DirectToVgpr
+  @staticmethod
+  def isDirectToVgprSupportDataType(state):
+    # Single/Double/DoubleComplex only (tentative)
+    return (state["ProblemType"]["DataType"].isSingle() or state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex())
+
+  ########################################
   # determine can we use DirectToVgpr
   @staticmethod
   def isDirectToVgprDoable(state, tc):
@@ -2313,14 +2320,19 @@ class Solution(collections.abc.Mapping):
       reject(state, "DirectToVgpr is for MatrixInstruction only")
       return False
 
-    # Double/DoubleComplex only (tentative)
-    if not (state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex()):
-      reject(state, "so far, DirectToVgpr is for double or double complex only")
+    # check if the DataType can support DirectToVgpr
+    if not Solution.isDirectToVgprSupportDataType(state):
+      reject(state, "so far, DirectToVgpr is for single, double or double complex only")
       return False
 
     # Does not work with TLU = False and PrefetchLocalRead = 0
     if (not state["ProblemType"]["TLU%c"%tc]) and state["PrefetchLocalRead"] == 0:
       reject(state, "DirectToVgpr%c does not supports TLU%c = False and PrefetchLocalRead = 0"%(tc, tc))
+      return False
+
+    # Does not work with TLU = False and SGEMM
+    if (not state["ProblemType"]["TLU%c"%tc]) and state["ProblemType"]["DataType"].isSingle():
+      reject(state, "DirectToVgpr%c does not supports TLU%c = False + SGEMM"%(tc, tc))
       return False
 
     # MIWaveGroup check
@@ -2795,8 +2807,7 @@ class Solution(collections.abc.Mapping):
       # DirectToVgpr case, bufferLoad=False can work with ExpandPointerSwap=1
       #if not (bufferLoad and state["PrefetchGlobalRead"] == 1):
       if not ((bufferLoad or state["DirectToVgprA"] or state["DirectToVgprB"]) and ( state["PrefetchGlobalRead"] == 1 \
-              or (state["PrefetchGlobalRead"] > 1 and \
-                  (state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex())))):
+              or (state["PrefetchGlobalRead"] > 1 and Solution.isDirectToVgprSupportDataType(state)))):
         state["ExpandPointerSwap"] = 0
       # EPS not supported with SplitLDS yet
       if state["DepthULdsDivisor"] > 1:
@@ -3229,17 +3240,24 @@ class Solution(collections.abc.Mapping):
         return
 
     # allow LocalReadVectorWidth for TLU + MatrixInstruction
-    # so far, limited to double + (DTVB or (DTVA + no DTL)) only
+    # so far, limited to single/double + (DTVB or (DTVA + no DTL)) only
     # some more limitations necessary to make this logic work
     # - SourceSwap
     # - VectorWidth >= LocalReadVectorWidth
+    # - VectorWidthB > 1
     # - AssertFree1ElementMultiple % VectorWidth == 0 (no shift edge for B)
     # - the other side of MIWaveTile must be multiple of VectorWidth
-    state["allowLRVWforTLUandMI"] = state["ProblemType"]["DataType"].isDouble() and \
+    VectorWidthB = 1
+    if state["DirectToVgprB"]:
+      VectorWidthB = state["VectorWidth"]
+    elif state["DirectToVgprA"]:
+      VectorWidthB = state["LocalReadVectorWidth"]
+    state["allowLRVWforTLUandMI"] = (state["ProblemType"]["DataType"].isSingle() or state["ProblemType"]["DataType"].isDouble()) and \
                                 (state["DirectToVgprB"] or state["DirectToVgprA"] and not state["DirectToLds"]) and \
                                 state["EnableMatrixInstruction"] and state["ProblemType"]["TLUA"] and state["ProblemType"]["TLUB"] and \
                                 state["VectorWidth"] >= state["LocalReadVectorWidth"] and \
                                 state["AssertFree1ElementMultiple"] % state["VectorWidth"] == 0 and \
+                                VectorWidthB > 1 and \
                                 ((state["DirectToVgprA"] and (state["MIWaveTile"][1] % state["VectorWidth"] == 0)) or \
                                  (state["DirectToVgprB"] and (state["MIWaveTile"][0] % state["VectorWidth"] == 0)))
 
