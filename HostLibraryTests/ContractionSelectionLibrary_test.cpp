@@ -121,20 +121,23 @@ TEST(ContractionSelectionLibraryTest, RegionSelection)
     auto genericLib = std::make_shared<SingleContractionLibrary>(genericSolution);
 
     // Create region predicate for (6000 <= M < 8000), (0 <= N < 7000)
+    using Predicate   = Predicates::Predicate<ContractionProblem>;
     using SizeInRange = Predicates::Contraction::SizeInRange;
     using Range       = Predicates::Contraction::Range;
     using And         = Predicates::And<ContractionProblem>;
     size_t max_size   = std::numeric_limits<size_t>::max();
 
-    auto regionM  = std::make_shared<SizeInRange>(0, Range{6000, 8000});
-    auto regionN1 = std::make_shared<SizeInRange>(1, Range{0, 7000});
-    auto regionN2 = std::make_shared<SizeInRange>(1, Range{7000, max_size});
+    std::shared_ptr<Predicate> regionM  = std::make_shared<SizeInRange>(0, Range{6000, 8000});
+    std::shared_ptr<Predicate> regionN1 = std::make_shared<SizeInRange>(1, Range{0, 7000});
+    std::shared_ptr<Predicate> regionN2 = std::make_shared<SizeInRange>(1, Range{7000, max_size});
 
     // Create region predicate for (6000 <= M < 8000), (0 <= N < 7000)
-    auto isRegion1 = std::make_shared<And>(regionM, regionN1);
+    auto preds1    = {regionM, regionN1};
+    auto isRegion1 = std::make_shared<And>(preds1);
 
     // Create region predicate for (6000 <= M < 8000), (7000 <= N < max)
-    auto isRegion2 = std::make_shared<And>(regionM, regionN2);
+    auto preds2    = {regionM, regionN2};
+    auto isRegion2 = std::make_shared<And>(preds2);
 
     // Create fallthrough predicate (i.e. default)
     ContractionProblemPredicate allProbs(std::make_shared<Predicates::True<ContractionProblem>>());
