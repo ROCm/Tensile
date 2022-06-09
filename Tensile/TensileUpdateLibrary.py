@@ -69,7 +69,7 @@ def TensileUpdateLibrary(userArgs):
     libYaml = LibraryIO.readYAML(libPath)
     # parseLibraryLogicData mutates the original data, so make a copy
     fields = LibraryIO.parseLibraryLogicData(copy.deepcopy(libYaml), libPath)
-    (_, _, problemType, solutions, _, _, _, _, _) = fields
+    (_, _, problemType, solutions, _, _) = fields
 
     # problem type object to state
     problemTypeState = problemType.state
