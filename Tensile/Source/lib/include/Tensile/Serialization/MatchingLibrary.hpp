@@ -166,8 +166,8 @@ namespace Tensile
                 }
                 else if(distanceType == "GridBased")
                 {
-                    success
-                        = mappingDistance<Key, Matching::GridBasedDistance<Key>>(io, lib, properties);
+                    success = mappingDistance<Key, Matching::GridBasedDistance<Key>>(
+                        io, lib, properties);
                 }
                 else
                 {
