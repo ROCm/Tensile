@@ -381,7 +381,6 @@ class MasterSolutionLibrary:
         if lazyLibrary and placeholderLibrary:
             rv.lazyLibraries[placeholderName] = lazyLibrary
             placeholderLibrary.filenamePrefix = placeholderName
-            print("PlaceholderName: {}".format(placeholderName))
 
         return rv
 
