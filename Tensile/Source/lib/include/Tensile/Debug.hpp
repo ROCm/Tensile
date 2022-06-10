@@ -69,6 +69,8 @@ namespace Tensile
 
         bool enableDebugSelection() const;
 
+        bool useExperimentalSelection() const;
+
         std::string getMetric() const;
 
         int getSolutionIndex() const;
@@ -80,6 +82,7 @@ namespace Tensile
         int         m_value2;
         bool        m_naivePropertySearch = false;
         bool        m_debugSelection      = false;
+        bool        m_experimentSelection = false;
         int         m_solution_index      = -1;
         std::string m_metric              = "";
 

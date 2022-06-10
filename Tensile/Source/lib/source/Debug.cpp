@@ -124,6 +124,11 @@ namespace Tensile
         return m_debugSelection;
     }
 
+    bool Debug::useExperimentalSelection() const
+    {
+        return m_experimentSelection;
+    }
+
     std::string Debug::getMetric() const
     {
         return m_metric;
@@ -153,6 +158,10 @@ namespace Tensile
         const char* db_select = std::getenv("TENSILE_TAM_SELECTION_ENABLE");
         if(db_select)
             m_debugSelection = strtol(db_select, nullptr, 0) != 0;
+
+        const char* exp_select = std::getenv("TENSILE_EXPERIMENTAL_SELECTION");
+        if(exp_select)
+            m_experimentSelection = strtol(exp_select, nullptr, 0) != 0;
 
         const char* solution_index = std::getenv("TENSILE_SOLUTION_INDEX");
         if(solution_index)

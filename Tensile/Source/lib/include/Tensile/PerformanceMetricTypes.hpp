@@ -54,6 +54,7 @@ namespace Tensile
         Auto,
         CUEfficiency,
         DeviceEfficiency,
+        Experimental,
         Count
     };
 
@@ -127,6 +128,11 @@ namespace Tensile
     template <>
     struct PerformanceMetricInfo<PerformanceMetric::DeviceEfficiency>
         : public BasePerformanceMetricInfo<PerformanceMetric::DeviceEfficiency>
+    {
+    };
+    template <>
+    struct PerformanceMetricInfo<PerformanceMetric::Experimental>
+        : public BasePerformanceMetricInfo<PerformanceMetric::Experimental>
     {
     };
 
