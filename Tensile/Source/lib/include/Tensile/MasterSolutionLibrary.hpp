@@ -44,9 +44,10 @@ namespace Tensile
     using SolutionMap = std::map<int, std::shared_ptr<MySolution>>;
 
     template <typename MySolution>
-    struct LibraryIOContext{
-        std::string              filename;
-        std::vector<DataType>    preloadedTypes;
+    struct LibraryIOContext
+    {
+        std::string           filename;
+        std::vector<DataType> preloadedTypes;
         // If lazy loading is used, this may be updated in const functions
         SolutionMap<MySolution>* solutions;
     };

@@ -38,8 +38,8 @@ TEST(ArithmeticUnitPredicateTest, Any)
                         "value: [{type: TruePred}, \n"
                         "        {type: ArithmeticUnitCompatible, value: Any}]";
 
-    LibraryIOContext<ContractionSolution>  context{std::string(""), {}, nullptr};
-    llvm::yaml::Input yin(mydoc, &context);
+    LibraryIOContext<ContractionSolution> context{std::string(""), {}, nullptr};
+    llvm::yaml::Input                     yin(mydoc, &context);
 
     std::shared_ptr<Predicates::Predicate<ContractionProblem>> p;
 
@@ -65,8 +65,8 @@ TEST(ArithmeticUnitPredicateTest, Mfma)
                         "value: [{type: TruePred}, \n"
                         "        {type: ArithmeticUnitCompatible, value: MFMA}]";
 
-    LibraryIOContext<ContractionSolution>  context{std::string(""), {}, nullptr};
-    llvm::yaml::Input yin(mydoc, &context);
+    LibraryIOContext<ContractionSolution> context{std::string(""), {}, nullptr};
+    llvm::yaml::Input                     yin(mydoc, &context);
 
     std::shared_ptr<Predicates::Predicate<ContractionProblem>> p;
 

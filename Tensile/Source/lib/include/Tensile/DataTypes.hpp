@@ -70,7 +70,7 @@ namespace Tensile
         Int8,
         Count,
         None = Count,
-        Any = Count+1
+        Any  = Count + 1
     };
 
     std::string   ToString(DataType d);

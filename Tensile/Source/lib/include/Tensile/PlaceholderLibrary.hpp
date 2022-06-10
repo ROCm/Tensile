@@ -26,13 +26,14 @@
 
 #pragma once
 
-#include <Tensile/SolutionLibrary.hpp>
 #include <Tensile/MasterSolutionLibrary.hpp>
+#include <Tensile/SolutionLibrary.hpp>
 #include <Tensile/Tensile.hpp>
 
 #include <algorithm>
 
-namespace Tensile{
+namespace Tensile
+{
 
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct PlaceholderLibrary : public SolutionLibrary<MyProblem, MySolution>
@@ -46,44 +47,48 @@ namespace Tensile{
 
         bool loadPlaceholderLibrary() const
         {
-            #ifdef TENSILE_MSGPACK
-                std::string suffix = ".dat";
-            #else
-                std::string suffix = ".yaml";
-            #endif
+#ifdef TENSILE_MSGPACK
+            std::string suffix = ".dat";
+#else
+            std::string suffix = ".yaml";
+#endif
 
-            auto newLibrary = LoadLibraryFile<MyProblem, MySolution>((libraryDirectory+"/"+filePrefix+suffix).c_str());
-            auto mLibrary   = static_cast<MasterSolutionLibrary<MyProblem, MySolution>*>(newLibrary.get());
+            auto newLibrary = LoadLibraryFile<MyProblem, MySolution>(
+                (libraryDirectory + "/" + filePrefix + suffix).c_str());
+            auto mLibrary
+                = static_cast<MasterSolutionLibrary<MyProblem, MySolution>*>(newLibrary.get());
             library = mLibrary->library;
             solutions->insert(mLibrary->solutions.begin(), mLibrary->solutions.end());
 
             return mLibrary;
         }
 
-        std::string getCodeObjectFileName(Hardware const& hardware, MySolution const& solution) const
+        std::string getCodeObjectFileName(Hardware const&   hardware,
+                                          MySolution const& solution) const
         {
             std::string coFileDependency = filePrefix;
 
             if(solution.isSourceKernel())
-                {
-                    std::string arch = hardware.archName();
+            {
+                std::string arch = hardware.archName();
 
-                    if (coFileDependency.find("fallback") != std::string::npos)
-                        coFileDependency += std::string("_")+arch+std::string(".hsaco");
-                    else
-                        coFileDependency += std::string(".hsaco");
-                }
+                if(coFileDependency.find("fallback") != std::string::npos)
+                    coFileDependency += std::string("_") + arch + std::string(".hsaco");
                 else
-                    coFileDependency += std::string(".co");
+                    coFileDependency += std::string(".hsaco");
+            }
+            else
+                coFileDependency += std::string(".co");
 
             return coFileDependency;
         }
 
         virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
                                                              Hardware const&  hardware,
-                                                             double* fitness = nullptr) const override
+                                                             double*          fitness
+                                                             = nullptr) const override
         {
-            if (!library)
+            if(!library)
                 loadPlaceholderLibrary();
 
             auto solution = library->findBestSolution(problem, hardware, fitness);
@@ -103,18 +108,19 @@ namespace Tensile{
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
                                                          Hardware const&  hardware) const override
         {
-            if (!library){
+            if(!library)
+            {
                 loadPlaceholderLibrary();
             }
 
-             auto solutions = library->findAllSolutions(problem, hardware);
+            auto solutions = library->findAllSolutions(problem, hardware);
 
-             for(auto& solution : solutions)
-             {
-                 solution->codeObjectFilename = getCodeObjectFileName(hardware, *solution);
-             }
+            for(auto& solution : solutions)
+            {
+                solution->codeObjectFilename = getCodeObjectFileName(hardware, *solution);
+            }
 
-             return solutions;
+            return solutions;
         }
 
         static std::string Type()

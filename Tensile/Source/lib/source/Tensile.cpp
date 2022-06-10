@@ -94,7 +94,8 @@ namespace Tensile
     }
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
-        LoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename, const std::vector<DataType>& preload);
+        LoadLibraryFile<ContractionProblem, ContractionSolution>(
+            std::string const& filename, const std::vector<DataType>& preload);
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
         LoadLibraryData<ContractionProblem, ContractionSolution>(std::vector<uint8_t> const& data);

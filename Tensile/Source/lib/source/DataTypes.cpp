@@ -90,10 +90,11 @@ namespace Tensile
         return "Invalid";
     }
 
-    std::string RegexPattern(DataType d){
+    std::string RegexPattern(DataType d)
+    {
         std::string typeAbbrev = (d == DataType::Any) ? ".*" : TypeAbbrev(d);
 
-        return "TensileLibrary.*_Type_"+typeAbbrev+".*";
+        return "TensileLibrary.*_Type_" + typeAbbrev + ".*";
     }
 
     template <typename T>

@@ -33,8 +33,8 @@
 #include <Tensile/ExactLogicLibrary.hpp>
 #include <Tensile/MapLibrary.hpp>
 #include <Tensile/MasterSolutionLibrary.hpp>
-#include <Tensile/SingleSolutionLibrary.hpp>
 #include <Tensile/PlaceholderLibrary.hpp>
+#include <Tensile/SingleSolutionLibrary.hpp>
 
 #include <Tensile/Serialization/Base.hpp>
 #include <Tensile/Serialization/Predicates.hpp>
@@ -157,7 +157,7 @@ namespace Tensile
                     for(auto const& s : solutions)
                         lib.solutions[s->index] = s;
 
-                    auto ctx       = static_cast<LibraryIOContext<MySolution>*>(iot::getContext(io));
+                    auto ctx = static_cast<LibraryIOContext<MySolution>*>(iot::getContext(io));
                     ctx->solutions = &lib.solutions;
                 }
 

@@ -29,8 +29,8 @@
 #include <Tensile/Serialization/Base.hpp>
 #include <Tensile/Serialization/Predicates.hpp>
 
-#include <Tensile/PlaceholderLibrary.hpp>
 #include <Tensile/MasterSolutionLibrary.hpp>
+#include <Tensile/PlaceholderLibrary.hpp>
 #include <regex>
 
 namespace Tensile
@@ -47,15 +47,16 @@ namespace Tensile
             {
                 iot::mapRequired(io, "value", lib.filePrefix);
 
-                if(!iot::outputting(io)){
+                if(!iot::outputting(io))
+                {
                     auto ctx      = static_cast<LibraryIOContext<MySolution>*>(iot::getContext(io));
                     lib.solutions = ctx->solutions;
 
                     //Extract directory where TensileLibrary.dat/yaml file is located
                     lib.libraryDirectory = ctx->filename;
-                    size_t directoryPos = ctx->filename.rfind('/');
+                    size_t directoryPos  = ctx->filename.rfind('/');
                     if(directoryPos != std::string::npos)
-                        lib.libraryDirectory.resize(directoryPos+1);
+                        lib.libraryDirectory.resize(directoryPos + 1);
                     else
                         lib.libraryDirectory = '.';
 

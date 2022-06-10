@@ -26,8 +26,8 @@
 
 #pragma once
 
-#include <Tensile/Tensile.hpp>
 #include <Tensile/AMDGPU.hpp>
+#include <Tensile/Tensile.hpp>
 #include <hip/hip_runtime.h>
 #include <unordered_set>
 
@@ -52,11 +52,12 @@ namespace Tensile
 
             hipError_t loadCodeObjectFile(std::string const& path);
 
-            hipError_t loadCodeObjectFilesWithDataType(std::string architecture, Tensile::DataType dataType);
+            hipError_t loadCodeObjectFilesWithDataType(std::string       architecture,
+                                                       Tensile::DataType dataType);
 
             hipError_t loadCodeObjectFilePattern(std::string pattern);
 
-            void       setCodeObjectDirectory(std::string const& path);
+            void setCodeObjectDirectory(std::string const& path);
 
             hipError_t loadCodeObject(const void* image);
 
@@ -92,9 +93,9 @@ namespace Tensile
 
             std::vector<hipModule_t>                       m_modules;
             std::unordered_map<std::string, hipFunction_t> m_kernels;
-            bool                                           m_debug               = false;
-            bool                                           m_debugSkipLaunch     = false;
-            std::string                                    m_name                = "HipSolutionAdapter";
+            bool                                           m_debug           = false;
+            bool                                           m_debugSkipLaunch = false;
+            std::string                                    m_name            = "HipSolutionAdapter";
             std::string                                    m_codeObjectDirectory;
 
             std::vector<std::string>        m_loadedModuleNames;

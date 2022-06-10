@@ -36,7 +36,7 @@
 
 //@TODO add alternative for windows
 #ifndef WIN32
-    #include <glob.h>
+#include <glob.h>
 #endif
 #include <regex>
 
@@ -85,8 +85,8 @@ namespace Tensile
 
                 //Isolate filename
                 size_t start = path.rfind('/');
-                start        = (start == std::string::npos) ? 0 : start+1;
-                m_loadedCOFiles.insert(std::string(path.begin()+start, path.end()));
+                start        = (start == std::string::npos) ? 0 : start + 1;
+                m_loadedCOFiles.insert(std::string(path.begin() + start, path.end()));
             }
             return hipSuccess;
         }
@@ -203,34 +203,37 @@ namespace Tensile
             return err;
         }
 
-        hipError_t SolutionAdapter::loadCodeObjectFilesWithDataType(std::string arch, Tensile::DataType dataType)
+        hipError_t SolutionAdapter::loadCodeObjectFilesWithDataType(std::string       arch,
+                                                                    Tensile::DataType dataType)
         {
-            std::string pattern = RegexPattern(dataType)+arch+".*(\\.co|\\.hsaco)";
+            std::string pattern = RegexPattern(dataType) + arch + ".*(\\.co|\\.hsaco)";
 
-            #ifndef WIN32
-                glob_t result;
-                result.gl_pathc = 0;
-                result.gl_pathv = nullptr;
-                result.gl_offs  = 0;
+#ifndef WIN32
+            glob_t result;
+            result.gl_pathc = 0;
+            result.gl_pathv = nullptr;
+            result.gl_offs  = 0;
 
-                // This way globfree will be called regardless of if an exception is thrown.
-                std::shared_ptr<glob_t> guard(&result, globfree);
+            // This way globfree will be called regardless of if an exception is thrown.
+            std::shared_ptr<glob_t> guard(&result, globfree);
 
-                int err = ::glob((m_codeObjectDirectory+"*co").c_str(), 0, nullptr, &result);
+            int err = ::glob((m_codeObjectDirectory + "*co").c_str(), 0, nullptr, &result);
 
-                auto lastHipError = hipSuccess;
+            auto lastHipError = hipSuccess;
 
-                for(size_t i = 0; i < result.gl_pathc; i++){
-                    if (std::regex_search(result.gl_pathv[i], std::regex(pattern)))
-                    {
-                        auto status = loadCodeObjectFile(result.gl_pathv[i]);
-                        if (status != hipSuccess)
-                            lastHipError = status;
-                    }
+            for(size_t i = 0; i < result.gl_pathc; i++)
+            {
+                if(std::regex_search(result.gl_pathv[i], std::regex(pattern)))
+                {
+                    auto status = loadCodeObjectFile(result.gl_pathv[i]);
+                    if(status != hipSuccess)
+                        lastHipError = status;
                 }
-            #else
-                std::throw_runtime_error("Error::SolutionAdapter::loadCodeObjectFIlesWithDataType not yet implemented on Windows");
-            #endif
+            }
+#else
+            std::throw_runtime_error("Error::SolutionAdapter::loadCodeObjectFIlesWithDataType not "
+                                     "yet implemented on Windows");
+#endif
             return lastHipError;
         }
 
@@ -238,7 +241,8 @@ namespace Tensile
         {
             m_codeObjectDirectory = path;
             //Ensure there's a slash at the end of the path
-            if (m_codeObjectDirectory.back() != '/') m_codeObjectDirectory += '/';
+            if(m_codeObjectDirectory.back() != '/')
+                m_codeObjectDirectory += '/';
         }
 
         hipError_t SolutionAdapter::launchKernel(KernelInvocation const& kernel)
@@ -261,16 +265,17 @@ namespace Tensile
                 if(!loaded)
                 {
                     //Try other xnack versions
-                    size_t loc = kernel.codeObjectFile.rfind('.');
+                    size_t     loc = kernel.codeObjectFile.rfind('.');
                     hipError_t err;
 
-                    for( auto ver : {"", "-xnack-", "-xnack+"} )
+                    for(auto ver : {"", "-xnack-", "-xnack+"})
                     {
                         std::string modifiedCOName = kernel.codeObjectFile;
                         modifiedCOName.insert(loc, ver);
-                        err = loadCodeObjectFile(m_codeObjectDirectory+modifiedCOName);
+                        err = loadCodeObjectFile(m_codeObjectDirectory + modifiedCOName);
 
-                        if(err == hipSuccess) break;
+                        if(err == hipSuccess)
+                            break;
                     }
                 }
             }

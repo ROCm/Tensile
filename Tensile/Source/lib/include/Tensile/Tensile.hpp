@@ -119,7 +119,7 @@ namespace Tensile
     {
     public:
         std::string kernelName;
-        std::string codeObjectFile;    //Code object file kernel is located in
+        std::string codeObjectFile; //Code object file kernel is located in
 
         dim3   workGroupSize;
         dim3   numWorkGroups;
@@ -182,7 +182,8 @@ namespace Tensile
  */
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     TENSILE_API std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-                LoadLibraryFile(std::string const& filename, const std::vector<DataType>& preloadedTypes={});
+                LoadLibraryFile(std::string const&           filename,
+                                const std::vector<DataType>& preloadedTypes = {});
 
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>

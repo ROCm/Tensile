@@ -68,7 +68,8 @@ namespace Tensile
             gfx1102 = 1102
         };
 
-        static std::string toString(Processor p){
+        static std::string toString(Processor p)
+        {
             switch(p)
             {
             case AMDGPU::Processor::gfx803:

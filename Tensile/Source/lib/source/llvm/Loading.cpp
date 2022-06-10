@@ -37,7 +37,8 @@ namespace Tensile
 
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-        LLVMLoadLibraryFile(std::string const& filename, const std::vector<DataType>& preloadedTypes)
+        LLVMLoadLibraryFile(std::string const&           filename,
+                            const std::vector<DataType>& preloadedTypes)
     {
         std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
@@ -45,8 +46,8 @@ namespace Tensile
         {
             auto inputFile = llvm::MemoryBuffer::getFile(filename);
 
-            LibraryIOContext<MySolution>  context{filename, preloadedTypes, nullptr};
-            llvm::yaml::Input yin((*inputFile)->getMemBufferRef(), &context);
+            LibraryIOContext<MySolution> context{filename, preloadedTypes, nullptr};
+            llvm::yaml::Input            yin((*inputFile)->getMemBufferRef(), &context);
 
             yin >> rv;
 
@@ -75,9 +76,9 @@ namespace Tensile
 
         try
         {
-            LibraryIOContext<MySolution>  context{filename, {}, nullptr};
-            llvm::StringRef               dataRef((const char*)data.data(), data.size());
-            llvm::yaml::Input             yin(dataRef, &context);
+            LibraryIOContext<MySolution> context{filename, {}, nullptr};
+            llvm::StringRef              dataRef((const char*)data.data(), data.size());
+            llvm::yaml::Input            yin(dataRef, &context);
 
             yin >> rv;
 
@@ -98,9 +99,10 @@ namespace Tensile
     }
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
-        LLVMLoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename, const std::vector<DataType>& preloadedTypes);
+        LLVMLoadLibraryFile<ContractionProblem, ContractionSolution>(
+            std::string const& filename, const std::vector<DataType>& preloadedTypes);
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
         LLVMLoadLibraryData<ContractionProblem, ContractionSolution>(
-            std::vector<uint8_t> const& data, std::string filename="");
+            std::vector<uint8_t> const& data, std::string filename = "");
 } // namespace Tensile

@@ -34,36 +34,36 @@ using namespace Tensile;
 
 TEST(LLVMYAMLContractionTest, Simple)
 {
-    std::string mydoc = "name: foo\n"
-                        "sizeMapping:\n"
-                        "  globalAccumulation: 0\n"
-                        "  workspaceSizePerElemC: 0\n"
-                        "  workGroup: [1,2,3]\n"
-                        "  macroTile: [2,4,6]\n"
-                        "  threadTile: [2,2,2]\n"
-                        "  depthU: 8\n"
-                        "  globalSplitU: 1\n"
-                        "  staggerStrideShift: 3\n"
-                        "  staggerU: 32\n"
-                        "  workGroupMapping: 8\n"
-                        "  sourceKernel: false\n"
-                        "  persistentKernel: 0\n"
-                        "  persistentKernelAlongBatch: false\n"
-                        "index: 0\n"
-                        "hardwarePredicate: { type: TruePred }\n"
-                        "problemPredicate:  { type: TruePred }\n"
-                        "info: {}\n"
-                        "debugKernel: false\n"
-                        "problemType:\n"
-                        "  operationIdentifier: foo\n"
-                        "  highPrecisionAccumulate: false\n"
-                        "  useBeta: true\n"
-                        "  aType: Float\n"
-                        "  bType: Float\n"
-                        "  cType: Float\n"
-                        "  dType: Float\n";
-    LibraryIOContext<ContractionSolution>  context{std::string(""), {}, nullptr};
-    llvm::yaml::Input yin(mydoc, &context);
+    std::string                           mydoc = "name: foo\n"
+                                                  "sizeMapping:\n"
+                                                  "  globalAccumulation: 0\n"
+                                                  "  workspaceSizePerElemC: 0\n"
+                                                  "  workGroup: [1,2,3]\n"
+                                                  "  macroTile: [2,4,6]\n"
+                                                  "  threadTile: [2,2,2]\n"
+                                                  "  depthU: 8\n"
+                                                  "  globalSplitU: 1\n"
+                                                  "  staggerStrideShift: 3\n"
+                                                  "  staggerU: 32\n"
+                                                  "  workGroupMapping: 8\n"
+                                                  "  sourceKernel: false\n"
+                                                  "  persistentKernel: 0\n"
+                                                  "  persistentKernelAlongBatch: false\n"
+                                                  "index: 0\n"
+                                                  "hardwarePredicate: { type: TruePred }\n"
+                                                  "problemPredicate:  { type: TruePred }\n"
+                                                  "info: {}\n"
+                                                  "debugKernel: false\n"
+                                                  "problemType:\n"
+                                                  "  operationIdentifier: foo\n"
+                                                  "  highPrecisionAccumulate: false\n"
+                                                  "  useBeta: true\n"
+                                                  "  aType: Float\n"
+                                                  "  bType: Float\n"
+                                                  "  cType: Float\n"
+                                                  "  dType: Float\n";
+    LibraryIOContext<ContractionSolution> context{std::string(""), {}, nullptr};
+    llvm::yaml::Input                     yin(mydoc, &context);
 
     ContractionSolution s;
 
@@ -77,12 +77,12 @@ TEST(LLVMYAMLContractionTest, Simple)
 
 TEST(LLVMYAMLContractionTest, Predicate)
 {
-    std::string mydoc = "type: And\n"
-                        "value: [{type: TruePred}, \n"
-                        "        {type: Not, value: {type: FalsePred}},\n"
-                        "        {type: Free0SizeMultiple, index: 0, value: 2}]";
-    LibraryIOContext<ContractionSolution>  context{std::string(""), {}, nullptr};
-    llvm::yaml::Input yin(mydoc, &context);
+    std::string                           mydoc = "type: And\n"
+                                                  "value: [{type: TruePred}, \n"
+                                                  "        {type: Not, value: {type: FalsePred}},\n"
+                                                  "        {type: Free0SizeMultiple, index: 0, value: 2}]";
+    LibraryIOContext<ContractionSolution> context{std::string(""), {}, nullptr};
+    llvm::yaml::Input                     yin(mydoc, &context);
 
     std::shared_ptr<Predicates::Predicate<ContractionProblem>> p;
 
@@ -143,8 +143,8 @@ TEST(LLVMYAMLContractionTest, ContractionLibrary)
                         "                library: { type: Single, index: 0 }\n"
                         "";
 
-    LibraryIOContext<ContractionSolution>  context{std::string(""), {}, nullptr};
-    llvm::yaml::Input yin(mydoc, &context);
+    LibraryIOContext<ContractionSolution> context{std::string(""), {}, nullptr};
+    llvm::yaml::Input                     yin(mydoc, &context);
 
     MasterContractionLibrary l;
 
