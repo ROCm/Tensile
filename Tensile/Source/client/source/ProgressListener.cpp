@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,15 +27,16 @@
 #include <ProgressListener.hpp>
 
 #include <cstddef>
+#include <ctime>
 #include <iomanip>
-
-#include <sys/time.h>
+#include <iostream>
+#include <sstream>
 
 namespace Tensile
 {
     namespace Client
     {
-        ProgressListener::ProgressListener(po::variables_map const& args)
+        ProgressListener::ProgressListener(po::variables_map& args)
             : m_runOnce(args["selection-only"].as<bool>())
         {
         }
@@ -142,18 +143,15 @@ namespace Tensile
                                                 TimingEvents const&                startEvents,
                                                 TimingEvents const&                stopEvents)
         {
-            struct timeval tmnow;
-            struct tm*     tm;
-            gettimeofday(&tmnow, NULL); // microsecond resolution
-            tm = localtime(&tmnow.tv_sec);
-            std::cout.fill('0');
+            std::time_t result = std::time(nullptr);
+            std::tm*    tm     = std::localtime(&result);
 
             std::ostringstream msg;
             msg.fill('0');
             msg << (tm->tm_year + 1900) << "-" << std::setw(2) << (tm->tm_mon + 1) << "-"
                 << std::setw(2) << tm->tm_mday << " " << std::setw(2) << tm->tm_hour << ":"
                 << std::setw(2) << tm->tm_min << ":" << std::setw(2) << tm->tm_sec << "."
-                << std::setw(6) << static_cast<int>(tmnow.tv_usec);
+                << std::setw(6);
 
             m_reporter->report(ResultKey::EnqueueTime, msg.str());
         }

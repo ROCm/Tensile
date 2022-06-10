@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,7 @@
 #include <Tensile/KernelLanguageTypes.hpp>
 #include <Tensile/Tensile.hpp>
 
-#include <boost/program_options.hpp>
+#include "program_options.hpp"
 
 #include <cstddef>
 
@@ -40,12 +40,12 @@ namespace Tensile
     namespace Client
     {
 
-        namespace po = boost::program_options;
+        namespace po = roc;
 
         class ClientProblemFactory
         {
         public:
-            ClientProblemFactory(po::variables_map const& args);
+            ClientProblemFactory(po::variables_map& args);
             ~ClientProblemFactory();
 
             ClientProblemFactory(ContractionProblem const& problem)

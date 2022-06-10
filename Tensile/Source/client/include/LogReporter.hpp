@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,10 +33,9 @@
 #include <string>
 #include <unordered_set>
 
-#include <boost/lexical_cast.hpp>
-#include <boost/program_options.hpp>
+#include "program_options.hpp"
 
-namespace po = boost::program_options;
+namespace po = roc;
 
 namespace Tensile
 {
@@ -86,9 +85,8 @@ namespace Tensile
             }
 
             template <typename Stream>
-            static std::shared_ptr<LogReporter> Default(po::variables_map const& args,
-                                                        Stream&                  stream,
-                                                        LogLevel level = LogLevel::Count)
+            static std::shared_ptr<LogReporter>
+                Default(po::variables_map& args, Stream& stream, LogLevel level = LogLevel::Count)
             {
                 bool dumpTensors = args["dump-tensors"].as<bool>();
                 using namespace ResultKey;
@@ -132,7 +130,7 @@ namespace Tensile
                                                                     dumpTensors));
             }
 
-            static std::shared_ptr<LogReporter> Default(po::variables_map const& args)
+            static std::shared_ptr<LogReporter> Default(po::variables_map& args)
             {
                 return Default(args, std::cout);
             }

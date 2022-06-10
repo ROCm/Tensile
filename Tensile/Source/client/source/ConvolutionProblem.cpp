@@ -1,7 +1,8 @@
-/**
+/*******************************************************************************
+ *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -18,15 +19,14 @@
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ *******************************************************************************/
 
+#include "program_options.hpp"
 #include <ConvolutionProblem.hpp>
 #include <Tensile/ContractionProblem.hpp>
-#include <boost/algorithm/string/classification.hpp>
-#include <boost/algorithm/string/split.hpp>
-#include <boost/lexical_cast.hpp>
 #include <vector>
 
 namespace Tensile
@@ -304,7 +304,7 @@ namespace Tensile
         // example identifier:
         // ConvolutionForward_NCHW_KCHW_NCHW_filter:3x3x1_stride:1x1x1_dilation:1x1x1_groups:1
         std::vector<std::string> parts;
-        boost::split(parts, identifier, boost::algorithm::is_any_of("_"));
+        roc::split(parts, identifier, roc::algorithm::is_any_of("_"));
 
         if(parts.size() < 4)
             // id, formatA, formatB, outputTensor
@@ -322,17 +322,17 @@ namespace Tensile
         for(auto part = parts.begin() + 4; part != parts.end(); part++)
         {
             std::vector<std::string> flags;
-            boost::split(flags, *part, boost::algorithm::is_any_of(":"));
+            roc::split(flags, *part, roc::algorithm::is_any_of(":"));
             assert(flags.size() == 2); // must be key:value pair
 
             if(flags[0] == "spatialDims")
-                m_numSpatialDims = boost::lexical_cast<size_t>(flags[1]);
+                m_numSpatialDims = roc::lexical_cast<size_t>(flags[1]);
             else if(flags[0] == "indices")
             {
             }
             else if(flags[0] == "groups")
             {
-                m_groups = boost::lexical_cast<int>(flags[1]);
+                m_groups = roc::lexical_cast<int>(flags[1]);
                 assert(m_groups == 1); // not supported yet
             }
             else
