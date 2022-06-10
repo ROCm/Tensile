@@ -2442,13 +2442,6 @@ class Solution(collections.abc.Mapping):
       reject(state, "can't use DirectToLds for NumThreads % WavefrontSize != 0")
       return False
 
-    # GLVW*BPe only for precision(s) < 4 (bpe)
-    #if (state["ProblemType"]["TLU%c"%tc] == True and numBytes < 4): 
-    # if (numBytes < 4): 
-    #   if state["GlobalLoadVectorWidth%c"%tc] * numBytes != 4:
-    #     reject(state, "can't use DirectToLds for bpe < 4 and GlobalLoadVectorWidth * numBytes != 4")
-    #     return False
-
     if state["ProblemType"]["TLU%c"%tc] == state["UnrollMajorLDS%c" % tc]:
       reject(state, "can't use DirectToLds for TLU%c == UnrollMajorLDS%c"%(tc, tc))
       return False
