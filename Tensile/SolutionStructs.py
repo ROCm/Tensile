@@ -2420,9 +2420,13 @@ class Solution(collections.abc.Mapping):
     #TN
     # use for all precisions with TransposeLDS=1
 
-    if state["ProblemType"]["DataType"].isHalf() and state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc])  != 0:
-      reject(state, "can't use DirectToLds for FP16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
-      return False
+    if state["ProblemType"]["DataType"].isHalf():
+      if state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc])  != 0:
+        reject(state, "can't use DirectToLds for FP16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
+        return False
+      if state["ProblemType"]["TransposeA"] != True or state["ProblemType"]["TransposeB"] != False:
+        reject(state, "DirectToLds for FP16 currently only working for TN")
+        return False
 
     if state["ProblemType"]["DataType"].isBFloat16() and state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc]) != 0:
       reject(state, "can't use DirectToLds for BF16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
@@ -2434,10 +2438,10 @@ class Solution(collections.abc.Mapping):
 
     # GLVW*BPe only for precision(s) < 4 (bpe)
     #if (state["ProblemType"]["TLU%c"%tc] == True and numBytes < 4): 
-    if (numBytes < 4): 
-      if state["GlobalLoadVectorWidth%c"%tc] * numBytes != 4:
-        reject(state, "can't use DirectToLds for bpe < 4 and GlobalLoadVectorWidth * numBytes != 4"%tc)
-        return False
+    # if (numBytes < 4): 
+    #   if state["GlobalLoadVectorWidth%c"%tc] * numBytes != 4:
+    #     reject(state, "can't use DirectToLds for bpe < 4 and GlobalLoadVectorWidth * numBytes != 4")
+    #     return False
 
     if state["ProblemType"]["TLU%c"%tc] == state["UnrollMajorLDS%c" % tc]:
       reject(state, "can't use DirectToLds for TLU%c == UnrollMajorLDS%c"%(tc, tc))
@@ -2451,9 +2455,9 @@ class Solution(collections.abc.Mapping):
 
     # TODO revisit fp32 case for failure
     #if state["ProblemType"]["TLU%c"%tc] and numBytes < 8 and state["GlobalLoadVectorWidth%c"%tc] * numBytes > 4:
-    if numBytes < 8 and state["GlobalLoadVectorWidth%c"%tc] * numBytes > 4:
-      reject(state, "can't use DirectToLds for TLU%c and bpe < 8 and GlobalLoadVectorWidth%c * bpe > 4"%(tc, tc))
-      return False
+    # if numBytes < 8 and state["GlobalLoadVectorWidth%c"%tc] * numBytes > 4:
+    #   reject(state, "can't use DirectToLds for TLU%c and bpe < 8 and GlobalLoadVectorWidth%c * bpe > 4"%(tc, tc))
+    #   return False
 
 
     if state["WaveSeparateGlobalRead%c" % tc]:
