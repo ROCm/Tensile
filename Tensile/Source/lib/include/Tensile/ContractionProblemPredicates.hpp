@@ -1349,6 +1349,27 @@ namespace Tensile
                 }
             };
 
+            struct Experimental : public Predicate_CRTP<Experimental, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+
+                Experimental() = default;
+
+                static std::string Type()
+                {
+                    return "Experimental";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return (problem.performanceMetric() == PerformanceMetric::Experimental);
+                }
+            };
+
             struct Fp16AltImpl : public Predicate_CRTP<Fp16AltImpl, ContractionProblem>
             {
                 enum
