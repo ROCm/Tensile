@@ -2427,6 +2427,9 @@ class Solution(collections.abc.Mapping):
       if state["ProblemType"]["TransposeA"] != True or state["ProblemType"]["TransposeB"] != False:
         reject(state, "DirectToLds for FP16 currently only working for TN")
         return False
+      if state["GlobalReadVectorWidth"] < 4:
+        reject(state, "GlobalReadVectorWidth must be 4 for DirectToLds HGEMM")
+        return False
 
     if state["ProblemType"]["DataType"].isBFloat16() and state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc]) != 0:
       reject(state, "can't use DirectToLds for BF16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
