@@ -398,7 +398,7 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
     validKernelCount += 1
 
   #Ensure there's at least one kernel file for helper kernels
-  if globalParameters["LazyLibraryLoading"] or not kernelsToWrite:
+  if globalParameters["LazyLibraryLoading"] or (globalParameters["MergeFiles"] and not kernelsToWrite):
     kernelSuffix = ""
     if globalParameters["NumMergedFiles"] > 1:
       kernelSuffix = "0"
