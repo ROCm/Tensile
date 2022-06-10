@@ -47,6 +47,7 @@ namespace Tensile
     struct LibraryIOContext{
         std::string              filename;
         std::vector<DataType>    preloadedTypes;
+        // If lazy loading is used, this may be updated in const functions
         SolutionMap<MySolution>* solutions;
     };
 
@@ -90,7 +91,7 @@ namespace Tensile
         virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
                                                              Hardware const&  hardware,
                                                              double*          fitness
-                                                             = nullptr) override
+                                                             = nullptr) const override
         {
             if(Debug::Instance().printSolutionSelectionTime())
             {
@@ -138,7 +139,7 @@ namespace Tensile
         }
 
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
-                                                         Hardware const&  hardware) override
+                                                         Hardware const&  hardware) const override
         {
             return library->findAllSolutions(problem, hardware);
         }

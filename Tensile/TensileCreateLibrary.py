@@ -397,6 +397,15 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
 
     validKernelCount += 1
 
+  #Ensure there's at least one kernel file for helper kernels
+  if globalParameters["LazyLibraryLoading"] or not kernelsToWrite:
+    kernelSuffix = ""
+    if globalParameters["NumMergedFiles"] > 1:
+      kernelSuffix = "0"
+
+    filesToWrite[os.path.join(os.path.normcase(outputPath), "Kernels"+kernelSuffix)] = []
+
+
   # Write kernel data to files
   #Parse list of files and write kernels
   for filename, kernelList in filesToWrite.items():
@@ -417,8 +426,6 @@ def buildKernelSourceAndHeaderFiles(results, outputPath, kernelsWithBuildErrs):
         kernelHeaderFile.write(header)
 
   sourceFilenames = [filePrefix+".cpp" for filePrefix in filesToWrite]
-  if globalParameters["LazyLibraryLoading"]:
-    sourceFilenames += [os.path.join(os.path.normcase(outputPath), "Kernels.cpp")]
 
   return sourceFilenames
 
@@ -450,21 +457,6 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   ##############################################################################
   # Write Kernels
   ##############################################################################
-  if globalParameters["LazyLibraryLoading"] or not globalParameters["MergeFiles"]: #globalParameters["MergeFiles"] and globalParameters["NumMergedFiles"] == 1:
-    kernelSourceFilename = os.path.join(os.path.normcase(outputPath), "Kernels.cpp")
-    kernelHeaderFilename = os.path.join(os.path.normcase(outputPath), "Kernels.h")
-
-    kernelSourceFile = open(kernelSourceFilename, "w")
-    kernelHeaderFile = open(kernelHeaderFilename, "w")
-    kernelSourceFile.write(CHeader)
-    kernelHeaderFile.write(CHeader)
-    kernelSourceFile.write("#include \"Kernels.h\"\n")
-    kernelHeaderFile.write("#pragma once\n")
-    if globalParameters["RuntimeLanguage"] == "HIP":
-      kernelHeaderFile.write("#include <hip/hip_runtime.h>\n")
-      kernelHeaderFile.write("#include <hip/hip_ext.h>\n\n")
-    kernelHeaderFile.write("#include \"KernelHeader.h\"\n\n")
-
   kernelsWithBuildErrs = {}
 
   prepAsm(kernelWriterAssembly)
@@ -1176,7 +1168,7 @@ def buildObjectFilePaths(prefixDir, solutionFiles, sourceKernelFiles, asmKernelF
   newMetadataPaths = set()
   for arch, lib in masterLibraries.items():
     newMetadataPaths.add(os.path.join(libDir, "TensileLibrary_"+arch+libraryExt))
-    for name, placeholder in lib.placeholderLibraries.items():
+    for name, placeholder in lib.lazyLibraries.items():
       newMetadataPaths.add(os.path.join(libDir, name+libraryExt))
 
   libMetadataPaths += list(newMetadataPaths)
@@ -1295,16 +1287,18 @@ def generateLogicDataAndSolutions(logicFiles, args):
     logicData[problemType].append((scheduleName, deviceNames, \
         solutionsForSchedule, indexOrder, exactLogic, rangeLogic ))
 
-  if (globalParameters["SeparateArchitectures"] or globalParameters["LazyLibraryLoading"]) and "fallback" in masterLibraries.keys():
-    for key, value in masterLibraries.items():
-      if key != "fallback":
-        value.merge(deepcopy(masterLibraries["fallback"]))
+  if globalParameters["SeparateArchitectures"] or globalParameters["LazyLibraryLoading"]:
+    if "fallback" in masterLibraries.keys():
+      for key, value in masterLibraries.items():
+        if key != "fallback":
+          value.merge(deepcopy(masterLibraries["fallback"]))
 
-    masterLibraries.pop("fallback")
+      masterLibraries.pop("fallback")
+
     for _, masterLibrary in masterLibraries.items():
       for _, sol in masterLibrary.solutions.items():
         solutions.append(sol.originalSolution)
-      for name, lib in masterLibrary.placeholderLibraries.items():
+      for name, lib in masterLibrary.lazyLibraries.items():
         for _, sol in lib.solutions.items():
           sol.originalSolution._state["codeObjectFile"] = name
           solutions.append(sol.originalSolution)
@@ -1599,7 +1593,7 @@ def TensileCreateLibrary():
         LibraryIO.write(masterFile, Utils.state(newMasterLibrary), args.LibraryFormat)
 
         #Write placeholder libraries
-        for name, lib in newMasterLibrary.placeholderLibraries.items():
+        for name, lib in newMasterLibrary.lazyLibraries.items():
           filename = os.path.join(newLibraryDir, name)
           lib.applyNaming(kernelMinNaming) #@TODO Check to see if kernelMinNaming is correct
           LibraryIO.write(filename, Utils.state(lib), args.LibraryFormat)

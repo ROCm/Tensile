@@ -52,7 +52,7 @@ namespace Tensile
 
             hipError_t loadCodeObjectFile(std::string const& path);
 
-            hipError_t loadCodeObjectFilesWithDataType(Tensile::AMDGPU hardware, Tensile::DataType dataType);
+            hipError_t loadCodeObjectFilesWithDataType(std::string architecture, Tensile::DataType dataType);
 
             hipError_t loadCodeObjectFilePattern(std::string pattern);
 

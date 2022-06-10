@@ -244,11 +244,11 @@ class MasterSolutionLibrary:
         if libraryOrder is None:
             libraryOrder = ['Hardware', 'OperationIdentifier', 'PerformanceMetric', 'Fp16AltImpl', 'Predicates', 'Matching']
 
-        placeholderLibrary = None
+        lazyLibrary = None
 
         if 'Placeholder' in libraryOrder:
             placeholderIndex = libraryOrder.index('Placeholder')+1
-            placeholderLibrary = MasterSolutionLibrary.FromOriginalState(d, origSolutions, solutionClass, libraryOrder[placeholderIndex:])
+            lazyLibrary = MasterSolutionLibrary.FromOriginalState(d, origSolutions, solutionClass, libraryOrder[placeholderIndex:])
             libraryOrder = libraryOrder[0:placeholderIndex]
             origSolutions = []
 
@@ -282,19 +282,7 @@ class MasterSolutionLibrary:
 
         solutions = {s.index: s for s in allSolutions}
 
-        #@Get device information
-        if isinstance(deviceSection[1], dict):
-            architectureProps = deviceSection[1]
-            assert 'Architecture' in architectureProps, 'Invalid device section [1]'
-            assert 'CUCount' in architectureProps, 'Invalid device section [1]'
-            devicePart = architectureProps['Architecture']
-            cuCount = architectureProps['CUCount']
-        else:
-            devicePart = deviceSection[1]
-            cuCount = None
-
-        placeholderName = "TensileLibrary_"+str(StructProblemType(origProblemType))+"_"+str(devicePart)
-        if cuCount: placeholderName += "_CU"+str(cuCount)
+        placeholderName = "TensileLibrary"
 
         for libName in reversed(libraryOrder):
             if libName == 'Matching':
@@ -307,12 +295,24 @@ class MasterSolutionLibrary:
                         origLibrary, allSolutions, matching)
                 library = PredicateLibrary(tag='Problem')
                 library.rows.append({'predicate': predicate, 'library': matchingLib})
+                assert lazyLibrary == None, "MatchingLibrary cannot be before PlaceholderLibrary"
 
             elif libName == 'Granularity':
                 selectionIndices = d[9]['TileSelectionIndices']
                 library = GranularitySelectionLibrary.FromOriginalState(origLibrary, selectionIndices)
+                assert lazyLibrary == None, "GranularityLibrary cannot be before PlaceholderLibrary"
 
             elif libName == 'Hardware':
+                #@Get device information
+                if isinstance(deviceSection[1], dict):
+                    architectureProps = deviceSection[1]
+                    assert 'Architecture' in architectureProps, 'Invalid device section [1]'
+                    assert 'CUCount' in architectureProps, 'Invalid device section [1]'
+                    devicePart = architectureProps['Architecture']
+                    cuCount = architectureProps['CUCount']
+                else:
+                    devicePart = deviceSection[1]
+                    cuCount = None
                 newLib = PredicateLibrary(tag='Hardware')
                 if devicePart == 'fallback':
                     pred = Hardware.HardwarePredicate('TruePred')
@@ -322,6 +322,12 @@ class MasterSolutionLibrary:
                 newLib.rows.append({'predicate': pred, 'library': library})
                 library = newLib
 
+                # Add placeholder library identifier
+                if lazyLibrary:
+                    placeholderName += "_"+str(devicePart)
+                    if cuCount: placeholderName += "_CU"+str(cuCount)
+
+
             elif libName == 'Predicates':
                 predicates = problemType.predicates(includeBatch=True, includeType=True)
                 predicate = Contractions.ProblemPredicate.And(predicates)
@@ -329,6 +335,9 @@ class MasterSolutionLibrary:
                 newLib = PredicateLibrary(tag='Problem')
                 newLib.rows.append({'predicate': predicate, 'library': library})
                 library = newLib
+
+                if lazyLibrary:
+                    placeholderName += problemType.placeholderStr(includeBatch=True, includeType=True)
 
             elif libName == 'OperationIdentifier':
                 operationID = problemType.operationIdentifier
@@ -338,9 +347,14 @@ class MasterSolutionLibrary:
                 newLib = ProblemMapLibrary(prop, mapping)
                 library = newLib
 
+                if lazyLibrary:
+                    placeholderName += "_"+operationID
+
             elif libName == 'PerformanceMetric':
                 if perfMetric != 'DeviceEfficiency':
                     predicate = Properties.Predicate(tag=perfMetric)
+                    if lazyLibrary:
+                        placeholderName += "_"+perfMetric
                 else:
                     predicate = Properties.Predicate(tag='TruePred')
                 newLib = PredicateLibrary(tag='Problem')
@@ -350,6 +364,8 @@ class MasterSolutionLibrary:
             elif libName == 'Fp16AltImpl':
                 if fp16AltImpl:
                     predicate = Properties.Predicate(tag='Fp16AltImpl')
+                    if lazyLibrary:
+                        placeholderName += "_Fp16Alt"
                 else:
                     predicate = Properties.Predicate(tag='TruePred')
                 newLib = PredicateLibrary(tag='Problem')
@@ -357,13 +373,15 @@ class MasterSolutionLibrary:
                 library = newLib
             elif libName == 'Placeholder':
                 library = PlaceholderLibrary(placeholderName)
-
+                placeholderLibrary = library
             else:
                 raise ValueError('Unknown value ' + libName)
 
         rv = cls(solutions, library)
-        if placeholderLibrary:
-            rv.placeholderLibraries[placeholderName] = placeholderLibrary
+        if lazyLibrary and placeholderLibrary:
+            rv.lazyLibraries[placeholderName] = lazyLibrary
+            placeholderLibrary.filenamePrefix = placeholderName
+            print("PlaceholderName: {}".format(placeholderName))
 
         return rv
 
@@ -380,7 +398,7 @@ class MasterSolutionLibrary:
         return cls(solutionMap, library)
 
     def __init__(self, solutions, library, version=None):
-        self.placeholderLibraries = {}
+        self.lazyLibraries = {}
         self.solutions = solutions
         self.library = library
         self.version = version
@@ -420,11 +438,11 @@ class MasterSolutionLibrary:
         curIndex = max(startIndex, max(self.solutions.keys()) + 1) if self.solutions else 0
 
         #Merge separate library files
-        for name, lib in other.placeholderLibraries.items():
-            if name in self.placeholderLibraries.keys():
-                self.placeholderLibraries[name].merge(lib)
+        for name, lib in other.lazyLibraries.items():
+            if name in self.lazyLibraries.keys():
+                self.lazyLibraries[name].merge(lib)
             else:
-                self.placeholderLibraries[name] = lib
+                self.lazyLibraries[name] = lib
 
         reIndexMap = {}
         for k,s in other.solutions.items():

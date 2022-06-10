@@ -203,10 +203,8 @@ namespace Tensile
             return err;
         }
 
-        hipError_t SolutionAdapter::loadCodeObjectFilesWithDataType(Tensile::AMDGPU hardware, Tensile::DataType dataType)
+        hipError_t SolutionAdapter::loadCodeObjectFilesWithDataType(std::string arch, Tensile::DataType dataType)
         {
-            std::string arch = hardware.archName();
-
             std::string pattern = RegexPattern(dataType)+arch+".*(\\.co|\\.hsaco)";
 
             #ifndef WIN32

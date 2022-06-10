@@ -37,14 +37,14 @@ namespace Tensile{
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct PlaceholderLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
-        std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>       library;
-        SolutionMap<MySolution>*                                      solutions;
-        std::string                                                   filePrefix;
-        std::string                                                   libraryDirectory;
+        mutable std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> library;
+        mutable SolutionMap<MySolution>*                                solutions;
+        std::string                                                     filePrefix;
+        std::string                                                     libraryDirectory;
 
         PlaceholderLibrary() = default;
 
-        bool loadPlaceholderLibrary()
+        bool loadPlaceholderLibrary() const
         {
             #ifdef TENSILE_MSGPACK
                 std::string suffix = ".dat";
@@ -60,21 +60,11 @@ namespace Tensile{
             return mLibrary;
         }
 
-        virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
-                                                             Hardware const&  hardware,
-                                                             double* fitness = nullptr) override
+        std::string getCodeObjectFileName(Hardware const& hardware, MySolution const& solution) const
         {
-            if (!library){
-                loadPlaceholderLibrary();
-            }
-
-            auto solution = library->findBestSolution(problem, hardware, fitness);
-
             std::string coFileDependency = filePrefix;
 
-            if(solution){
-                //Get xnack version of source kernel
-                if(solution->isSourceKernel())
+            if(solution.isSourceKernel())
                 {
                     std::string arch = hardware.archName();
 
@@ -85,8 +75,21 @@ namespace Tensile{
                 }
                 else
                     coFileDependency += std::string(".co");
-                solution->codeObjectFilename = coFileDependency;
-            }
+
+            return coFileDependency;
+        }
+
+        virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
+                                                             Hardware const&  hardware,
+                                                             double* fitness = nullptr) const override
+        {
+            if (!library)
+                loadPlaceholderLibrary();
+
+            auto solution = library->findBestSolution(problem, hardware, fitness);
+
+            if(solution)
+                solution->codeObjectFilename = getCodeObjectFileName(hardware, *solution);
 
             return solution;
         }
@@ -98,9 +101,20 @@ namespace Tensile{
          * May return an empty set if no such object exists.
          */
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
-                                                         Hardware const&  hardware) override
+                                                         Hardware const&  hardware) const override
         {
-             return library->findAllSolutions(problem, hardware);
+            if (!library){
+                loadPlaceholderLibrary();
+            }
+
+             auto solutions = library->findAllSolutions(problem, hardware);
+
+             for(auto& solution : solutions)
+             {
+                 solution->codeObjectFilename = getCodeObjectFileName(hardware, *solution);
+             }
+
+             return solutions;
         }
 
         static std::string Type()

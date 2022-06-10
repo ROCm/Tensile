@@ -229,6 +229,20 @@ class ProblemType:
                          'C' + cNames,
                          'D' + dNames])
 
+    def placeholderStr(self, includeBatch=False, includeOperation=False, includeType=False):
+        ret = ""
+        if includeOperation:
+            ret = self.operationIdentifier
+            if not self.useBeta:
+                ret += "_Beta0"
+            ret += "_StridedBatched{}".format(int(self.stridedBatched))
+        if includeType:
+            ret += "_Type_{}{}".format(DataType(self.aType).toChar(), DataType(self.cType).toChar())
+            if self.highPrecisionAccumulate:
+                ret += "_HPA"
+
+        return ret
+
     def predicates(self, includeBatch=False, includeOperation=False, includeType=False):
         predicates = []
 
