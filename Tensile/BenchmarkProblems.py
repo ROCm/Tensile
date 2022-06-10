@@ -42,7 +42,6 @@ from .SolutionWriter import SolutionWriter
 from .TensileCreateLibrary import copyStaticFiles, writeSolutionsAndKernels
 from .CustomKernels import getCustomKernelConfig
 
-
 def generateForkedSolutions(problemType, constantParams, forkPermutations):
     """Creates a list with a Solution object for each parameter combination in forkPermutations"""
     print1("# Enumerating Solutions")
@@ -238,7 +237,7 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
         print1("# Benchmark Step: {} - {} {:.3f}s".format(groupName, stepName, elapsedTime))
         print1("# Num Sizes: {}".format(benchmarkStep.problemSizes.totalProblemSizes))
         print1("# Fork Parameters:")
-        for k, v in benchmarkStep.forkParams.items():
+        for k, v in sorted(benchmarkStep.forkParams.items()):
             print1("#     {}: {}".format(k, v))
 
         pushWorkingPath(shortName)
