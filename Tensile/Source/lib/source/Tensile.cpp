@@ -58,7 +58,7 @@ namespace Tensile
 
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-        LoadLibraryFile(std::string const& filename, const std::vector<DataType>& preloadedTypes)
+        LoadLibraryFilePreloadDatatypes(std::string const& filename, const std::vector<DataType>& preloadedTypes)
     {
         std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> rv;
 
