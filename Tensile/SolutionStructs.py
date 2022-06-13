@@ -2435,9 +2435,16 @@ class Solution(collections.abc.Mapping):
     #TN
     # use for all precisions with TransposeLDS=1
 
-    if state["ProblemType"]["DataType"].isHalf() and state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc])  != 0:
-      reject(state, "can't use DirectToLds for FP16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
-      return False
+    if state["ProblemType"]["DataType"].isHalf():
+      if state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc])  != 0:
+        reject(state, "can't use DirectToLds for FP16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
+        return False
+      if state["ProblemType"]["TransposeA"] != True or state["ProblemType"]["TransposeB"] != False:
+        reject(state, "DirectToLds for FP16 currently only working for TN")
+        return False
+      if state["GlobalReadVectorWidth"] < 4:
+        reject(state, "GlobalReadVectorWidth must be 4 for DirectToLds HGEMM")
+        return False
 
     if state["ProblemType"]["DataType"].isBFloat16() and state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc]) != 0:
       reject(state, "can't use DirectToLds for BF16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
@@ -2446,13 +2453,6 @@ class Solution(collections.abc.Mapping):
     if state["NumThreads"] % state["WavefrontSize"] != 0:
       reject(state, "can't use DirectToLds for NumThreads % WavefrontSize != 0")
       return False
-
-    # GLVW*BPe only for precision(s) < 4 (bpe)
-    #if (state["ProblemType"]["TLU%c"%tc] == True and numBytes < 4): 
-    if (numBytes < 4): 
-      if state["GlobalLoadVectorWidth%c"%tc] * numBytes != 4:
-        reject(state, "can't use DirectToLds for bpe < 4 and GlobalLoadVectorWidth * numBytes != 4"%tc)
-        return False
 
     if state["ProblemType"]["TLU%c"%tc] == state["UnrollMajorLDS%c" % tc]:
       reject(state, "can't use DirectToLds for TLU%c == UnrollMajorLDS%c"%(tc, tc))
