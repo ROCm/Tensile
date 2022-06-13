@@ -51,6 +51,13 @@ namespace Tensile
 #ifdef TENSILE_DEFAULT_SERIALIZATION
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
+        LoadLibraryFile(std::string const& filename)
+    {
+        return LoadLibraryFile<MyProblem, MySolution>(filename, {});
+    }
+
+    template <typename MyProblem, typename MySolution>
+    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
         LoadLibraryFile(std::string const& filename, const std::vector<DataType>& preloadedTypes)
     {
         std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> rv;
@@ -92,6 +99,9 @@ namespace Tensile
         // Failed to load library, return nullptr.
         return nullptr;
     }
+
+    template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
+        LoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename);
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
         LoadLibraryFile<ContractionProblem, ContractionSolution>(
