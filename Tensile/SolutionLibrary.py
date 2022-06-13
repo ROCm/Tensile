@@ -435,13 +435,28 @@ class MasterSolutionLibrary:
         assert self.__class__ == other.__class__
 
         curIndex = max(startIndex, max(self.solutions.keys()) + 1) if self.solutions else 0
+        if self.lazyLibraries:
+            curIndex = max(  curIndex, max(max(lib.solutions.keys()) for _, lib in self.lazyLibraries.items()) + 1)
 
         #Merge separate library files
         for name, lib in other.lazyLibraries.items():
             if name in self.lazyLibraries.keys():
-                self.lazyLibraries[name].merge(lib)
+                curIndex = self.lazyLibraries[name].merge(lib, curIndex)
             else:
+                reIndexMap = {}
+                newSolutions = {}
+
+                for k,s in lib.solutions.items():
+                    reIndexMap[s.index] = curIndex
+                    s.index = curIndex
+                    newSolutions[curIndex] = s
+                    curIndex += 1
+
+                lib.solutions = newSolutions
+                lib.library.remapSolutionIndices(reIndexMap)
+
                 self.lazyLibraries[name] = lib
+
 
         reIndexMap = {}
         for k,s in other.solutions.items():

@@ -1488,6 +1488,9 @@ def TensileCreateLibrary():
     else:
       printExit("Architecture %s not supported" % arch)
 
+  if globalParameters["LazyLibraryLoading"] and not (globalParameters["MergeFiles"] and globalParameters["SeparateArchitectures"]):
+    printExit("--lazy-library-loading requires --merge-files and --separate-architectures enabled")
+
   # Recursive directory search
   logicFiles = []
   for root, dirs, files in os.walk(logicPath):
