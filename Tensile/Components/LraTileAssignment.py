@@ -23,7 +23,7 @@
 ################################################################################
 
 from ..Component import LraTileAssignment
-from ..AsmUtils import inst, vgpr, sgpr, vectorStaticDivideAndRemainder, vectorStaticDivide, staticMultiply, vectorStaticRemainder
+from ..AsmUtils import inst, vgpr, sgpr, vectorStaticDivideAndRemainder, vectorStaticDivide, staticMultiply, vectorStaticRemainder, instCommentOnly
 
 class LraTileAssignmentVALU(LraTileAssignment):
     kernel = {"EnableMatrixInstruction": False}
@@ -127,7 +127,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         vectorWidth      = kernel["VectorWidth"] if ((tile01 == 0) and kernel["SourceSwap"]) else 1 # TODO: nonSwap VectorWidth
         if writer.allowLRVWforTLUandMI:
           lrvw = writer.lrvwA if tP["isA"] else writer.lrvwB
-          if lrvw > 1:
+          if lrvw > vectorWidth:
             vectorWidth = lrvw
           inputPerThread = 1
 
@@ -147,14 +147,20 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         kStr += staticMultiply(vgpr(tReg), vgpr(tReg), strideTile, sgpr(tmpSgpr), \
             "1. N offset: nOffset = nIdx * nStride(%u)" % strideTile)
         # block offset
-        kStr += vectorStaticDivide(wReg, kReg, dividedForBlkId, tmpVgpr, tmpSgpr, \
-            "2. block offset: bnIdx = wtid / dividedForBlkId(%u)" % dividedForBlkId)
-        kStr += vectorStaticRemainder(dummy, wReg, wReg, num1DBlocks, tmpVgpr, tmpSgpr, \
-            "2. block offset: bnIdx = bnIdx %% num1DBlocks(%u)" % num1DBlocks)
-        kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideBlock, sgpr(tmpSgpr), \
-            "2. block offset: bnOffset = bnIdx * strideBlock(%u)" % strideBlock)
-        kStr += inst("_v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
-            "3. add N and block offset: bnOffset = block and N offset")
+        if num1DBlocks > 1:
+            # generate the code only when num1DBlocks > 1.
+            # if num1DBlocks is 1, % num1DBlocks is always 0 and no difference in tReg value
+            kStr += vectorStaticDivide(wReg, kReg, dividedForBlkId, tmpVgpr, tmpSgpr, \
+                "2. block offset: bnIdx = wtid / dividedForBlkId(%u)" % dividedForBlkId)
+            kStr += vectorStaticRemainder(dummy, wReg, wReg, num1DBlocks, tmpVgpr, tmpSgpr, \
+                "2. block offset: bnIdx = bnIdx %% num1DBlocks(%u)" % num1DBlocks)
+            kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideBlock, sgpr(tmpSgpr), \
+                "2. block offset: bnOffset = bnIdx * strideBlock(%u)" % strideBlock)
+            kStr += inst("_v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
+                "3. add N and block offset: bnOffset = block and N offset")
+        else:
+            # comment only because bnIdx = bnIdx % num1DBlocks(1) = 0
+            kStr += instCommentOnly("2. block offset: bnIdx = bnIdx %% num1DBlocks(%u) is 0. do nothing" % num1DBlocks)
         kStr += staticMultiply(vgpr(tReg), vgpr(tReg), vectorWidth, sgpr(tmpSgpr), \
             "3. apply VectorWidth: bnOffset = bnOffset * vw(%u)" % vectorWidth)
 

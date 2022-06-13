@@ -144,8 +144,9 @@ class LocalReadMFMA(LocalRead):
         numOffsets       = instruction.numOffsets
         blockWidth       = instruction.blockWidth
         vectorWidth      = kernel["VectorWidth"] if kernel["SourceSwap"] else 1 # TODO: nonSwap VectorWidth
+        vwA              = writer.lrvwA if writer.allowLRVWforTLUandMI else 1
         vwB              = writer.lrvwB if writer.allowLRVWforTLUandMI else 1
-        MIWaveGroupShape = [ kernel["MatrixInstM"] * kernel["MatrixInstBM"] * kernel["MIWaveGroup"][0] * vectorWidth, \
+        MIWaveGroupShape = [ kernel["MatrixInstM"] * kernel["MatrixInstBM"] * kernel["MIWaveGroup"][0] * vectorWidth // vwA, \
                              kernel["MatrixInstN"] * kernel["MatrixInstBN"] * kernel["MIWaveGroup"][1] * vwB]
 
         LdsPad           = kernel["LdsPad%s"%tc] if kernel["LdsBlockSizePerPad%s"%tc] == 0 else 0
@@ -158,6 +159,8 @@ class LocalReadMFMA(LocalRead):
         numReadPerTileVector = vectorWidth if (tile01 == 0) else 1
         if (tile01 == 0) and writer.allowLRVWforTLUandMI and numReadPerTileVector >= lrvw:
           numReadPerTileVector //= lrvw
+          if tileStride==1:
+            tileStride = lrvw
         numVectorsPerTile    = kernel["MIWaveTile"][tile01] // numReadPerTileVector
         if writer.allowLRVWforTLUandMI and numVectorsPerTile >= lrvw:
           numVectorsPerTile //= lrvw

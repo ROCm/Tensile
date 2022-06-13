@@ -1422,11 +1422,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
           interval = roundUp(numMfmaPerIter / origLenGlobalReadCodeDTV)
           tileIndex = 0 if kernel["DirectToVgprA"] else 1
           if (kernel["MIWaveTile"][tileIndex] // kernel["VectorWidth"]) > 1:
-            if kernel["ProblemType"]["DataType"].isDoubleComplex():
+            if kernel["ProblemType"]["DataType"].isComplex():
               # adjustment for double complex
               # limit the max of interval up to 4 if (kernel["MIWaveTile"][0] // kernel["VectorWidth"]) > 1
               interval = min(4, interval)
-            elif kernel["ProblemType"]["DataType"].isDouble():
+            else: #if kernel["ProblemType"]["DataType"].isDouble() or isSingle():
               # adjustment for double
               # in this case, interval must be 1 to avoid overwritting vreg by global read
               interval = 1
@@ -5194,6 +5194,11 @@ for codeObjectFileName in codeObjectFileNames:
           # add numGlobalStoreC to needToWait
           needToWait += numGlobalStoreC
           waitComment = "global read/store wait for DirectToVgpr with StoreCInUnroll (StoreC=%u)"%(numGlobalStoreC)
+
+        # vmcnt should not go over MaxVmcnt
+        maxVmcnt = globalParameters["AsmCaps"][self.version]["MaxVmcnt"]
+        needToWait = min(needToWait, maxVmcnt)
+
         retStr = "s_waitcnt vmcnt(%u) // %s\n"%(needToWait, waitComment)
     return retStr
 
