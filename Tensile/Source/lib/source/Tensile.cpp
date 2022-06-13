@@ -53,7 +53,7 @@ namespace Tensile
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
         LoadLibraryFile(std::string const& filename)
     {
-        return LoadLibraryFile<MyProblem, MySolution>(filename, {});
+        return LoadLibraryFilePreloadDatatypes<MyProblem, MySolution>(filename, {});
     }
 
     template <typename MyProblem, typename MySolution>
@@ -104,7 +104,7 @@ namespace Tensile
         LoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename);
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
-        LoadLibraryFile<ContractionProblem, ContractionSolution>(
+        LoadLibraryFilePreloadDatatypes<ContractionProblem, ContractionSolution>(
             std::string const& filename, const std::vector<DataType>& preload);
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
