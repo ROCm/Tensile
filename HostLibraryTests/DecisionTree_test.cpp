@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2020-2022 Advanced Micro Devices, Inc.
+ * Copyright (C) 2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,20 +27,16 @@
 #include <gtest/gtest.h>
 
 #include <Tensile/AMDGPU.hpp>
-#include <Tensile/DecisionTree.hpp>
-#include <Tensile/DecisionTreeLibrary.hpp>
 #include <Tensile/ContractionLibrary.hpp>
 #include <Tensile/ContractionProblemProperties.hpp>
-
+#include <Tensile/DecisionTree.hpp>
+#include <Tensile/DecisionTreeLibrary.hpp>
 
 using namespace Tensile;
 using namespace DecisionTree;
 
-using Key = std::array<int64_t, 3>;
-using DTree = Tree<Key,
-                   std::shared_ptr<ContractionLibrary>,
-                   std::shared_ptr<ContractionSolution>>;
-
+using Key   = std::array<int64_t, 3>;
+using DTree = Tree<Key, std::shared_ptr<ContractionLibrary>, std::shared_ptr<ContractionSolution>>;
 
 /*
  * Tests for invalid tree structures
@@ -172,35 +168,35 @@ TEST(DecisionTree, MultiStepPrediction)
  * Tests for libraries.
  */
 TEST(DecisionTree, DecisionTreeLibrary)
-{    
+{
     // Solutions
-    auto Solution0 = std::make_shared<ContractionSolution>();
-    auto Solution1 = std::make_shared<ContractionSolution>();
-    auto Solution2 = std::make_shared<ContractionSolution>();
-    auto Solution3 = std::make_shared<ContractionSolution>();
+    auto Solution0   = std::make_shared<ContractionSolution>();
+    auto Solution1   = std::make_shared<ContractionSolution>();
+    auto Solution2   = std::make_shared<ContractionSolution>();
+    auto Solution3   = std::make_shared<ContractionSolution>();
     Solution0->index = 0;
     Solution1->index = 1;
     Solution2->index = 2;
     Solution3->index = 3;
-    auto Library0 = std::make_shared<SingleContractionLibrary>(Solution0);
-    auto Library1 = std::make_shared<SingleContractionLibrary>(Solution1);
-    auto Library2 = std::make_shared<SingleContractionLibrary>(Solution2);
+    auto Library0    = std::make_shared<SingleContractionLibrary>(Solution0);
+    auto Library1    = std::make_shared<SingleContractionLibrary>(Solution1);
+    auto Library2    = std::make_shared<SingleContractionLibrary>(Solution2);
 
     // Properties
     std::vector<std::shared_ptr<Property<ContractionProblem>>> properties;
-    auto freeSizeA = std::make_shared<Contraction::FreeSizeA>();
+    auto freeSizeA   = std::make_shared<Contraction::FreeSizeA>();
     freeSizeA->index = 0;
     properties.push_back(freeSizeA);
-    auto freeSizeB = std::make_shared<Contraction::FreeSizeB>();
+    auto freeSizeB   = std::make_shared<Contraction::FreeSizeB>();
     freeSizeB->index = 0;
     properties.push_back(freeSizeB);
-    auto boundSize = std::make_shared<Contraction::BoundSize>();
+    auto boundSize   = std::make_shared<Contraction::BoundSize>();
     boundSize->index = 0;
     properties.push_back(boundSize);
 
     // Make trees library
     std::vector<DTree> trees;
-    DTree tree0{{
+    DTree              tree0{{
         /* start */ {0, 7000, 1, 2},
         /* - 1 - */ {-1, 0.0, 0, 0}, // NO otherwise
         /* - 2 - */ {-1, 1.0, 0, 0}, // YES for freeSizeA>7000
@@ -229,16 +225,19 @@ TEST(DecisionTree, DecisionTreeLibrary)
                                 ContractionProblem,
                                 std::shared_ptr<ContractionLibrary>,
                                 std::shared_ptr<ContractionSolution>>;
-    auto forest = std::make_shared<BForest>(properties, Solution3);
+    auto forest   = std::make_shared<BForest>(properties, Solution3);
     forest->trees = trees;
 
-    auto dtreelib = std::make_shared<DecisionTreeLibrary<ContractionProblem>>();
+    auto dtreelib    = std::make_shared<DecisionTreeLibrary<ContractionProblem>>();
     dtreelib->forest = forest;
 
     // Problems
-    auto Problem0 = ContractionProblem::GEMM(false, false, 8000, 8000, 8000, 8000, 8000, 8000, 1, false, 1);
-    auto Problem1 = ContractionProblem::GEMM(false, false, 5000, 8000, 8000, 5000, 8000, 5000, 1, false, 1);
-    auto Problem2 = ContractionProblem::GEMM(false, false, 5000, 5000, 5000, 5000, 5000, 5000, 1, false, 1);
+    auto Problem0
+        = ContractionProblem::GEMM(false, false, 8000, 8000, 8000, 8000, 8000, 8000, 1, false, 1);
+    auto Problem1
+        = ContractionProblem::GEMM(false, false, 5000, 8000, 8000, 5000, 8000, 5000, 1, false, 1);
+    auto Problem2
+        = ContractionProblem::GEMM(false, false, 5000, 5000, 5000, 5000, 5000, 5000, 1, false, 1);
 
     // Tests
     AMDGPU gpu;
