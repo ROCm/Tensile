@@ -2822,6 +2822,10 @@ class Solution(collections.abc.Mapping):
     #print("PackedC0IdxChars", state["PackedC0IdxChars"])
     #print("PackedC1IdxChars", state["PackedC1IdxChars"])
 
+    if state["StaggerUStride"] == 0 and state["StaggerU"] != 0:
+      reject(state, "StaggerUStride={} is only valid if StaggerU is 0 (StaggerU={})".format(state["StaggerUStride"], state["StaggerU"]))
+      return
+
     # Set up stagger shift:
     bpeAB = int(4*state["ProblemType"]["DataType"].numRegisters())
     # (1<<staggerStrideShift) is number of loop iterations to traverse the stride
