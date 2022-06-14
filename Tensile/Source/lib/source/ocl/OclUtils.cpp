@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -163,6 +163,18 @@ namespace Tensile
             else if(deviceString.find("gfx1030") != std::string::npos)
             {
                 return AMDGPU::Processor::gfx1030;
+            }
+            else if(deviceString.find("gfx1100") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx1100;
+            }
+            else if(deviceString.find("gfx1101") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx1101;
+            }
+            else if(deviceString.find("gfx1102") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx1102;
             }
             else
             {

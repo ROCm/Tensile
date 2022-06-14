@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -62,7 +62,10 @@ namespace Tensile
             gfx1010 = 1010,
             gfx1011 = 1011,
             gfx1012 = 1012,
-            gfx1030 = 1030
+            gfx1030 = 1030,
+            gfx1100 = 1100,
+            gfx1101 = 1101,
+            gfx1102 = 1102
         };
 
         AMDGPU();

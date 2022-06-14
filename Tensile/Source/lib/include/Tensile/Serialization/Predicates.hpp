@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -215,6 +215,9 @@ namespace Tensile
                 iot::enumCase(io, value, "gfx1011", AMDGPU::Processor::gfx1011);
                 iot::enumCase(io, value, "gfx1012", AMDGPU::Processor::gfx1012);
                 iot::enumCase(io, value, "gfx1030", AMDGPU::Processor::gfx1030);
+                iot::enumCase(io, value, "gfx1100", AMDGPU::Processor::gfx1100);
+                iot::enumCase(io, value, "gfx1101", AMDGPU::Processor::gfx1101);
+                iot::enumCase(io, value, "gfx1102", AMDGPU::Processor::gfx1102);
             }
         };
     } // namespace Serialization
