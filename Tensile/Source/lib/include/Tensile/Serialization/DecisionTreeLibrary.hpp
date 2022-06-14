@@ -150,10 +150,10 @@ namespace Tensile
 
             static void mapping(IO& io, Node& node)
             {
-                iot::mapRequired(io, "type", node.type);
-                iot::mapRequired(io, "value", node.value);
-                iot::mapRequired(io, "nextIdxLeft", node.nextIdxLeft);
-                iot::mapRequired(io, "nextIdxRight", node.nextIdxRight);
+                iot::mapRequired(io, "featureIdx", node.featureIdx);
+                iot::mapRequired(io, "threshold", node.threshold);
+                iot::mapRequired(io, "nextIdxLTE", node.nextIdxLTE);
+                iot::mapRequired(io, "nextIdxGT", node.nextIdxGT);
             }
 
             const static bool flow = true;

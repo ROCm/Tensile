@@ -52,10 +52,16 @@ namespace Tensile
     {
         struct Node
         {
-            int   type;
-            float value;
-            int   nextIdxLeft;
-            int   nextIdxRight;
+            int   featureIdx; // Index into feature array
+            float threshold; // Decision threshold value
+            int   nextIdxLTE; // Next node index if val <= threshold
+            int   nextIdxGT; // Next node index if val > threshold
+        };
+
+        enum ReservedIdxs : int
+        {
+            IDX_RETURN_FALSE = -1,
+            IDX_RETURN_TRUE  = -2,
         };
 
         /**
@@ -76,7 +82,7 @@ namespace Tensile
             {
             }
 
-            float predict(Key const& key) const
+            bool predict(Key const& key) const
             {
                 int  nodeIdx  = 0;
                 int  treeSize = tree.size();
@@ -84,25 +90,18 @@ namespace Tensile
 
                 while(nodeIdx < treeSize)
                 {
-                    currentNode = tree[nodeIdx];
-                    if(currentNode.type == -1)
-                    { /* End node */
-                        return currentNode.value;
-                    }
+                    currentNode    = tree[nodeIdx];
+                    bool branchLTE = key[currentNode.featureIdx] <= currentNode.threshold;
+                    nodeIdx        = branchLTE ? currentNode.nextIdxLTE : currentNode.nextIdxGT;
 
-                    // Note convention: branch left for less than, else right
-                    if(key[currentNode.type] <= currentNode.value)
-                    {
-                        nodeIdx = currentNode.nextIdxLeft;
-                    }
-                    else
-                    {
-                        nodeIdx = currentNode.nextIdxRight;
-                    }
+                    if(nodeIdx == IDX_RETURN_FALSE)
+                        return false;
+                    if(nodeIdx == IDX_RETURN_TRUE)
+                        return true;
                 }
 
                 throw std::runtime_error("Decision Tree out of bounds error.");
-                return -1;
+                return false;
             }
 
             virtual ReturnValue getSolution(Transform transform) const
@@ -112,15 +111,26 @@ namespace Tensile
 
             bool valid(bool verbose = false) const
             {
-                int  treeSize = tree.size();
+                size_t treeSize = tree.size();
                 Node currentNode;
-                bool valid = true;
+                bool has_true = false;
+                bool valid    = true;
 
                 if(treeSize == 0)
                 {
                     if(verbose)
                     {
-                        std::cout << "Tree invalid: no nodes " << std::endl;
+                        std::cout << "Tree invalid: no nodes." << std::endl;
+                    }
+                    return false;
+                }
+
+                if(treeSize > (std::numeric_limits<signed int>::max() + 1))
+                {
+                    /* Restrict size to +ve int range, -ve idxs for reserved values */
+                    if(verbose)
+                    {
+                        std::cout << "Tree invalid: too many nodes." << std::endl;
                     }
                     return false;
                 }
@@ -129,43 +139,65 @@ namespace Tensile
                 for(int nodeIdx = 0; nodeIdx < treeSize; nodeIdx++)
                 {
                     currentNode = tree[nodeIdx];
-                    if(currentNode.type != -1)
+
+                    // Avoid OOB on feature array
+                    if((currentNode.featureIdx < 0)
+                       || (currentNode.featureIdx >= std::tuple_size<Key>::value))
                     {
-                        // Avoid OOB on feature array
-                        if(currentNode.type >= std::tuple_size<Key>::value)
+                        if(verbose)
                         {
-                            if(verbose)
-                            {
-                                std::cout << "Node " << std::to_string(nodeIdx)
-                                          << " invalid: Unrecognised type '"
-                                          << std::to_string(currentNode.type) << "'" << std::endl;
-                            }
-                            valid = false;
+                            std::cout << "Node " << std::to_string(nodeIdx)
+                                      << " invalid: Unrecognised type '"
+                                      << std::to_string(currentNode.featureIdx) << "'" << std::endl;
                         }
-                        // Avoid OOB on tree
-                        if((currentNode.nextIdxLeft < 0) || (currentNode.nextIdxRight < 0)
-                           || (treeSize <= currentNode.nextIdxLeft)
-                           || (treeSize <= currentNode.nextIdxRight))
+                        valid = false;
+                    }
+
+                    // Check next indices
+                    std::array<int, 2> nextIdxs = {currentNode.nextIdxLTE, currentNode.nextIdxGT};
+                    for(auto nextIdx : nextIdxs)
+                    {
+                        if(nextIdx == IDX_RETURN_TRUE)
                         {
-                            if(verbose)
-                            {
-                                std::cout << "Node " << std::to_string(nodeIdx)
-                                          << " invalid: child index OOB" << std::endl;
-                            }
-                            valid = false;
+                            has_true = true;
                         }
-                        // Avoid circular trees
-                        if((currentNode.nextIdxLeft <= nodeIdx)
-                           || (currentNode.nextIdxRight <= nodeIdx))
+                        else
                         {
-                            if(verbose)
+                            if(nextIdx != IDX_RETURN_FALSE)
                             {
-                                std::cout << "Node " << std::to_string(nodeIdx)
-                                          << " invalid: potentially circular tree" << std::endl;
+                                // Avoid OOB on tree
+                                if((nextIdx < 0) || (nextIdx >= treeSize))
+                                {
+                                    if(verbose)
+                                    {
+                                        std::cout << "Node " << std::to_string(nodeIdx)
+                                                  << " invalid: child index OOB" << std::endl;
+                                    }
+                                    valid = false;
+                                }
+                                // Avoid circular trees
+                                if(nextIdx <= nodeIdx)
+                                {
+                                    if(verbose)
+                                    {
+                                        std::cout << "Node " << std::to_string(nodeIdx)
+                                                  << " invalid: potentially circular tree"
+                                                  << std::endl;
+                                    }
+                                    valid = false;
+                                }
                             }
-                            valid = false;
                         }
                     }
+                }
+
+                if(!has_true)
+                {
+                    if(verbose)
+                    {
+                        std::cout << "Tree invalid: no 'true' nodes." << std::endl;
+                    }
+                    valid = false;
                 }
 
                 return valid;
@@ -239,8 +271,8 @@ namespace Tensile
                 Key key = ProblemKey::keyForProblem<Key, Object>(problem, this->properties);
                 for(Tree const& tree : trees)
                 {
-                    float result = tree.predict(key);
-                    if(result > 0)
+                    bool result = tree.predict(key);
+                    if(result)
                         return tree.getSolution(transform);
                 }
                 return nullValue;
