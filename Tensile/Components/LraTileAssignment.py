@@ -153,7 +153,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
           #Nidx offset calculation
           # each load fetches tuple<K1,Nidx,K0> mapped to wavefront load tuple<TSGR<<1,wavefront/depthU/TSGR<<1, depth//TSGR<<1) 
           kStr += vectorStaticDivide(mReg, tReg, NblockSizePerLoad, tmpVgpr, tmpSgpr, \
-              "1. N offset: nIdx_upper = nIdx >> NblockSizePerLoad(%u)" % NblockSizePerLoad)
+              "1. N offset: nIdx_upper = nIdx / NblockSizePerLoad(%u)" % NblockSizePerLoad)
           kStr += staticMultiply(vgpr(mReg), vgpr(mReg), NblockSizePerLoad*kernel["_DepthULds"], sgpr(tmpSgpr), \
               "1. N offset: nIdx_upper_offset = nIdx_upper * nStride(%u)" % (NblockSizePerLoad*kernel["_DepthULds"]))
           KelementsPerMFrag = kernel["_DepthULds"]//(kernel["ThreadSeparateGlobalRead%c"%tc]*2)
@@ -165,7 +165,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             kStr += inst("v_and_b32",vgpr(mReg1),(MidxRemainder-1),vgpr(tReg), \
               "1. N offset: nIdx_load = nIdx %% NblockSizePerLoad(%u)" % NblockSizePerLoad)
             kStr += staticMultiply(vgpr(mReg1), vgpr(mReg1), (kernel["GlobalLoadVectorWidth%c"%tc]*KlanesPerMFrag), sgpr(tmpSgpr), \
-              "1. N offset: nIdx_load = nIdx_load * nStride(%u)" % strideTile)
+              "1. N offset: nIdx_load = nIdx_load * nStride(%u)" % KlanesPerMFrag)
           elif ((KlanesPerMFrag == 4 and (kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"]) == 8) or
                 (KlanesPerMFrag == 2 and (kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"]) == 8)):
             numMidxPer8Ldslanes =  8 // KlanesPerMFrag

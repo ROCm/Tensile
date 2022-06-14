@@ -400,7 +400,7 @@ validParameters = {
     #This feature enumerates elements in summation Index dimension into different thread lanes during global fetch while
     #keeping memory fetch efficiency same as non directToLds and avoids bank conflicts when data moved from LDS->VGPR.
     #fragmenting threads required to fetch #elements in coalescing dimension. rather than using contiguous depthu/GLVW into fragments occupying upper and lower 32 threads or fragment into 4x16 threads.
-    #for higher precision like f64, The feature should also help to avoid LDS bank convlicts for Transpose data layout case
+    #for higher precision like f64, The feature should also help to avoid LDS bank conflicts for Transpose data layout case
     #use primarily for direct to LDS feature with transpose data layout
     #for example A matrices = Transpose layout
     #ThreadSeparateGlobalReadA = 0   DepthU=64 GVLW=8 T0,T1,T2,T3,T4,T5,T6,T7  fetching  64 elements

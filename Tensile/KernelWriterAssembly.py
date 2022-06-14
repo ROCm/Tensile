@@ -13843,7 +13843,7 @@ class KernelWriterAssembly(KernelWriter):
     self.vgprPool.checkIn(cmpVgpr)
     return kStr
 
-  ######################3###################################################
+  ##########################################################################
   # Generate Local Read offset for directToLds
   # argument
   #  - kernel state pointer
@@ -13867,7 +13867,8 @@ class KernelWriterAssembly(KernelWriter):
     #  use direcToLds for best VW and GRVW case; other cases requires bit more lane manipulation.
     #  offset calculation  for B might benefit from some optimization.
     #  offset calculation for x2/x4  is basically manipulation lane offset based on layout
-
+    #  Current implementation use different Lane Swizzling logic for TLU=1 and TLU=0
+    #  future optimization should generalize TLU=0 and TLU=1 cases for all lower precisions
     #Non-Transpose case (support only DGEMM case)
     if kernel["ProblemType"]["TLU%c"%tc]:
       if (kernel["GlobalLoadVectorWidth%s"%tc] * tP["bpe"] == 8):
