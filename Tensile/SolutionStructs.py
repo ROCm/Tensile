@@ -2546,7 +2546,7 @@ class Solution(collections.abc.Mapping):
     # current offset swap logic does not work
     if (not state["ProblemType"]["TLU%c"%tc]) and state["ProblemType"]["DataType"].numRegisters() > 1 and \
        state["DepthU"] // state["NumLoadsCoalesced%c"%tc] <= 8:
-      reject(state, "DirectToLds%c does not work with TLU=False and bpe > bpr and DepthU//NumLoadsCoalesced%c < 8"%(tc, tc))
+      reject(state, "DirectToLds%c does not work with TLU=False and bpe > bpr and DepthU//NumLoadsCoalesced%c < 16"%(tc, tc))
       return False
 
     return True
