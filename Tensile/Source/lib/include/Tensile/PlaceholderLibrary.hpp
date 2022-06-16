@@ -71,6 +71,10 @@ namespace Tensile
             if(solution.isSourceKernel())
             {
                 std::string arch = hardware.archName();
+                //Remove xnack information if present
+                auto pos = arch.find(":");
+                if(pos != std::string::npos)
+                    arch.resize(pos);
 
                 if(coFileDependency.find("fallback") != std::string::npos)
                     coFileDependency += std::string("_") + arch + std::string(".hsaco");
