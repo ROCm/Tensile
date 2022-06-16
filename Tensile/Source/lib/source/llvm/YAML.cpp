@@ -23,7 +23,7 @@
  * SOFTWARE.
  *
  *******************************************************************************/
- 
+
 #include <Tensile/llvm/YAML.hpp>
 
 namespace Tensile
