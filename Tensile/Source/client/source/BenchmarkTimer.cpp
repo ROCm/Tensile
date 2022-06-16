@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -41,7 +41,7 @@ namespace Tensile
     {
         static_assert(BenchmarkTimer::clock::is_steady, "Clock must be steady.");
 
-        BenchmarkTimer::BenchmarkTimer(po::variables_map const& args, Hardware const& hardware)
+        BenchmarkTimer::BenchmarkTimer(po::variables_map& args, Hardware const& hardware)
             : m_numWarmups(args["num-warmups"].as<int>())
             , m_syncAfterWarmups(args["sync-after-warmups"].as<bool>())
             , m_numBenchmarks(args["num-benchmarks"].as<int>())

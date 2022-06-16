@@ -1,26 +1,29 @@
 ################################################################################
-# Copyright 2021-2022 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2021-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 from ..Component import LraTileAssignment
-from ..AsmUtils import inst, vgpr, sgpr, vectorStaticDivideAndRemainder, vectorStaticDivide, staticMultiply, vectorStaticRemainder
+from ..AsmUtils import inst, vgpr, sgpr, vectorStaticDivideAndRemainder, vectorStaticDivide, staticMultiply, vectorStaticRemainder, instCommentOnly
 
 class LraTileAssignmentVALU(LraTileAssignment):
     kernel = {"EnableMatrixInstruction": False}
@@ -94,9 +97,9 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         tReg    = writer.vgprPool.checkOut(1,"tReg") # remainder
         kReg    = writer.vgprPool.checkOut(1,"kReg") # remainder
         if kernel["ThreadSeparateGlobalRead%c"%tc]:
-          mReg    = writer.vgprPool.checkOut(1,"mReg") # remainder
-          mReg1    = writer.vgprPool.checkOut(1,"mReg") # remainder
-          mReg2    = writer.vgprPool.checkOut(1,"mReg") # remainder
+          mReg    = writer.vgprPool.checkOut(1,"mReg")
+          mReg1    = writer.vgprPool.checkOut(1,"mReg1") 
+          mReg2    = writer.vgprPool.checkOut(1,"mReg2")
         tmpVgpr = writer.vgprPool.checkOutAligned(2,2,"tmpVgpr")
         dummy   = writer.vgprPool.checkOut(1,"dummy")
 
@@ -127,7 +130,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         vectorWidth      = kernel["VectorWidth"] if ((tile01 == 0) and kernel["SourceSwap"]) else 1 # TODO: nonSwap VectorWidth
         if writer.allowLRVWforTLUandMI:
           lrvw = writer.lrvwA if tP["isA"] else writer.lrvwB
-          if lrvw > 1:
+          if lrvw > vectorWidth:
             vectorWidth = lrvw
           inputPerThread = 1
 
@@ -204,26 +207,30 @@ class LraTileAssignmentMFMA(LraTileAssignment):
           kStr += staticMultiply(vgpr(tReg), vgpr(tReg), strideTile, sgpr(tmpSgpr), \
             "1. N offset: nOffset = nIdx * nStride(%u)" % strideTile)
         # block offset
-        kStr += vectorStaticDivide(wReg, kReg, dividedForBlkId, tmpVgpr, tmpSgpr, \
-            "2. block offset: bnIdx = wtid / dividedForBlkId(%u)" % dividedForBlkId)
-        kStr += vectorStaticRemainder(dummy, wReg, wReg, num1DBlocks, tmpVgpr, tmpSgpr, \
-            "2. block offset: bnIdx = bnIdx %% num1DBlocks(%u)" % num1DBlocks)
-        kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideBlock, sgpr(tmpSgpr), \
-            "2. block offset: bnOffset = bnIdx * strideBlock(%u)" % strideBlock)
-        kStr += inst("_v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
-            "3. add N and block offset: bnOffset = block and N offset")
+        if num1DBlocks > 1:
+            # generate the code only when num1DBlocks > 1.
+            # if num1DBlocks is 1, % num1DBlocks is always 0 and no difference in tReg value
+            kStr += vectorStaticDivide(wReg, kReg, dividedForBlkId, tmpVgpr, tmpSgpr, \
+                "2. block offset: bnIdx = wtid / dividedForBlkId(%u)" % dividedForBlkId)
+            kStr += vectorStaticRemainder(dummy, wReg, wReg, num1DBlocks, tmpVgpr, tmpSgpr, \
+                "2. block offset: bnIdx = bnIdx %% num1DBlocks(%u)" % num1DBlocks)
+            kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideBlock, sgpr(tmpSgpr), \
+                "2. block offset: bnOffset = bnIdx * strideBlock(%u)" % strideBlock)
+            kStr += inst("_v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
+                "3. add N and block offset: bnOffset = block and N offset")
+        else:
+            # comment only because bnIdx = bnIdx % num1DBlocks(1) = 0
+            kStr += instCommentOnly("2. block offset: bnIdx = bnIdx %% num1DBlocks(%u) is 0. do nothing" % num1DBlocks)
         kStr += staticMultiply(vgpr(tReg), vgpr(tReg), vectorWidth, sgpr(tmpSgpr), \
             "3. apply VectorWidth: bnOffset = bnOffset * vw(%u)" % vectorWidth)
 
         #check DirectToLds TLU=0 ?? skip Koffset  fix TLU=1 case later
-
         if not (kernel["DirectToLds%s" % tc] and not kernel["ProblemType"]["TLU%c"%tc]):
           # unroll offset
           kStr += vectorStaticDivide(kReg, kReg, dividendForKId, tmpVgpr, tmpSgpr, \
               "4. K offset: kIdx = wtid / (MIN(%u) * MIBB(%u))" % (kernel["MatrixInstN"], kernel["MatrixInstB"]))
           kStr += staticMultiply(vgpr(kReg), vgpr(kReg), strideK, sgpr(tmpSgpr), \
               "4. K offset: lrKOffset = kIdx * mStride(%u)" % strideK)
-
           kStr += inst("_v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
               "5. offset in wave: lrOffset = bnOffset + lrKOffset")
 
