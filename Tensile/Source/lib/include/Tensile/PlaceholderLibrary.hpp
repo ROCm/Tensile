@@ -41,7 +41,7 @@ namespace Tensile
     };
 
     //Regex patterns for initializing libraries on startup
-    std::string RegexPattern(LazyLoadingInit condition)
+    inline std::string RegexPattern(LazyLoadingInit condition)
     {
         switch(condition){
         case LazyLoadingInit::All:

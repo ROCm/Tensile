@@ -220,7 +220,12 @@ namespace Tensile
             if(m_codeObjectDirectory.back() != '/')
                 m_codeObjectDirectory += '/';
 
-            std::string helperKernelName = std::string("Kernels.so-000-")+removeXnack(arch);
+            //Remove xnack and sramecc qualifiers
+            size_t loc = arch.find(":");
+            if (loc != std::string::npos)
+                arch.resize(loc);
+
+            std::string helperKernelName = std::string("Kernels.so-000-")+arch;
 
             //If required code object file hasn't yet been loaded, load it now
             m_access.lock();

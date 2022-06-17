@@ -491,7 +491,7 @@ int main(int argc, const char* argv[])
     else
         libraryDirectory = '.';
 
-    adapter.initializeLazyLoadingLibrary(hardware->archName(), libraryDirectory);
+    adapter.initializeLazyLoading(hardware->archName(), libraryDirectory);
 
     auto problems        = problemFactory.problems();
     int  firstProblemIdx = args["problem-start-idx"].as<int>();
