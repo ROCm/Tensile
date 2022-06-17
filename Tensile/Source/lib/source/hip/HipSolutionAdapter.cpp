@@ -216,6 +216,10 @@ namespace Tensile
         hipError_t SolutionAdapter::initializeLazyLoading(std::string arch, std::string codeObjectDir)
         {
             m_codeObjectDirectory = codeObjectDir;
+            //Ensure there's a slash at the end of the path
+            if(m_codeObjectDirectory.back() != '/')
+                m_codeObjectDirectory += '/';
+
             std::string helperKernelName = std::string("Kernels.so-000-")+removeXnack(arch);
 
             //If required code object file hasn't yet been loaded, load it now
