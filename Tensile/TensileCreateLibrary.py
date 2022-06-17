@@ -997,7 +997,7 @@ def generateLogicDataAndSolutions(logicFiles, args):
 
   # remove duplicates while preserving order
   solutions = list(dict.fromkeys(solutions))
-  return None, solutions, masterLibraries, fullMasterLibrary
+  return solutions, masterLibraries, fullMasterLibrary
 
 ################################################################################
 # Write Benchmark Client Files
@@ -1191,7 +1191,7 @@ def TensileCreateLibrary():
   ##############################################################################
 
   # Parse logicData, solutions, and masterLibraries from logic files
-  logicData, solutions, masterLibraries, fullMasterLibrary = generateLogicDataAndSolutions(logicFiles, args)
+  solutions, masterLibraries, fullMasterLibrary = generateLogicDataAndSolutions(logicFiles, args)
 
   kernels, kernelHelperObjs, _ = generateKernelObjectsFromSolutions(solutions)
 

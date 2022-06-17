@@ -33,7 +33,7 @@ from .Utils import state
 
 
 class SingleSolutionLibrary:
-    Tag = 'Single'
+    Tag = "Single"
 
     def __init__(self, solution):
         self.solution = solution
@@ -43,15 +43,15 @@ class SingleSolutionLibrary:
         return self.__class__.Tag
 
     def state(self):
-        return {'type': self.tag, 'index': self.solution.index}
+        return {"type": self.tag, "index": self.solution.index}
 
     def remapSolutionIndices(self, indexMap):
         pass
 
 
 class MatchingLibrary:
-    Tag = 'Matching'
-    StateKeys = [('type', 'tag'), 'properties', 'table', 'distance']
+    Tag = "Matching"
+    StateKeys = [("type", "tag"), "properties", "table", "distance"]
 
     @classmethod
     def FromOriginalState(cls, d, solutions):
@@ -60,10 +60,10 @@ class MatchingLibrary:
         origTable = d["table"]
 
         propertyKeys = {
-            2: Properties.Property('FreeSizeA', index=0),
-            3: Properties.Property('FreeSizeB', index=0),
-            #0: Properties.Property('BatchSize', index=0),
-            1: Properties.Property('BoundSize', index=0)
+            2: Properties.Property("FreeSizeA", index=0),
+            3: Properties.Property("FreeSizeB", index=0),
+            #0: Properties.Property("BatchSize", index=0),
+            1: Properties.Property("BoundSize", index=0)
         }
 
         properties = list([propertyKeys[i] for i in indices if i in propertyKeys])
@@ -77,12 +77,12 @@ class MatchingLibrary:
                 value = SingleSolutionLibrary(solutions[index])
                 key = list([row[0][i] for i in keyOrder])
                 #key = list(row[0][0:len(properties)])
-                entry = {'key': key, 'value': value, 'speed': row[1][1]}
+                entry = {"key": key, "value": value, "speed": row[1][1]}
                 table.append(entry)
             except KeyError:
                 pass
 
-        table.sort(key=lambda r: r['key'])
+        table.sort(key=lambda r: r["key"])
 
         return cls(properties, table, distance)
 
@@ -97,7 +97,7 @@ class MatchingLibrary:
 
         self.table += other.table
 
-        self.table.sort(key=lambda r: r['key'])
+        self.table.sort(key=lambda r: r["key"])
 
     def remapSolutionIndices(self, indexMap):
         pass
@@ -109,8 +109,8 @@ class MatchingLibrary:
 
 
 class DecisionTreeLibrary:
-    Tag = 'DecisionTree'
-    StateKeys = [('type', 'tag'), 'properties', 'trees']
+    Tag = "DecisionTree"
+    StateKeys = [("type", "tag"), "properties", "trees"]
 
     @classmethod
     def FromOriginalState(cls, d, solutions):
@@ -123,7 +123,7 @@ class DecisionTreeLibrary:
             index = tree["solution"]
             value = SingleSolutionLibrary(solutions[index])
 
-            entry = {'tree': tree["tree"], 'value': value}
+            entry = {"tree": tree["tree"], "value": value}
             trees.append(entry)
 
         return cls(properties, trees)
@@ -146,8 +146,8 @@ class DecisionTreeLibrary:
 
 
 class ProblemMapLibrary:
-    Tag = 'ProblemMap'
-    StateKeys = [('type', 'tag'), ('property', 'mappingProperty'), ('map', 'mapping')]
+    Tag = "ProblemMap"
+    StateKeys = [("type", "tag"), ("property", "mappingProperty"), ("map", "mapping")]
 
     def __init__(self, mappingProperty=None, mapping=None):
         self.mappingProperty = mappingProperty
@@ -172,7 +172,7 @@ class ProblemMapLibrary:
 
 
 class PredicateLibrary:
-    StateKeys = [('type', 'tag'), 'rows']
+    StateKeys = [("type", "tag"), "rows"]
 
     def __init__(self, tag=None, rows=None):
         self.tag = tag
@@ -182,25 +182,25 @@ class PredicateLibrary:
     def merge(self, other):
         assert self.__class__ == other.__class__ and self.tag == other.tag
 
-        rowPreds = [r['predicate'] for r in self.rows]
+        rowPreds = [r["predicate"] for r in self.rows]
 
         for row in other.rows:
-            if row['predicate'] in rowPreds:
-                myRownum = rowPreds.index(row['predicate'])
-                self.rows[myRownum]['library'].merge(row['library'])
+            if row["predicate"] in rowPreds:
+                myRownum = rowPreds.index(row["predicate"])
+                self.rows[myRownum]["library"].merge(row["library"])
             else:
                 self.rows.append(row)
 
         # Sort to ensure consistent fallback logic.
-        self.rows.sort(key=lambda x: x['predicate'])
+        self.rows.sort(key=lambda x: x["predicate"])
 
     def remapSolutionIndices(self, indexMap):
         for row in self.rows:
-            row['library'].remapSolutionIndices(indexMap)
+            row["library"].remapSolutionIndices(indexMap)
 
 
 class MasterSolutionLibrary:
-    StateKeys = ['solutions', 'library']
+    StateKeys = ["solutions", "library"]
 
     @classmethod
     def FixSolutionIndices(cls, solutions):
@@ -230,62 +230,62 @@ class MasterSolutionLibrary:
             devicePart = d["ArchitectureName"]
             cuCount = d["CUCount"]
 
-            newLib = PredicateLibrary(tag='Hardware')
-            if devicePart == 'fallback':
-                pred = Hardware.HardwarePredicate('TruePred')
+            newLib = PredicateLibrary(tag="Hardware")
+            if devicePart == "fallback":
+                pred = Hardware.HardwarePredicate("TruePred")
             else:
                 pred = Hardware.HardwarePredicate.FromHardware(Common.gfxArch(devicePart), cuCount)
 
-            newLib.rows.append({'predicate': pred, 'library': library})
+            newLib.rows.append({"predicate": pred, "library": library})
             return newLib
 
         def operationIdentifier(d, problemType, solutions, library):
             operationID = problemType.operationIdentifier
-            prop = Properties.Property('OperationIdentifier')
+            prop = Properties.Property("OperationIdentifier")
             mapping = {operationID: library}
 
             newLib = ProblemMapLibrary(prop, mapping)
             return newLib
 
         def performanceMetric(d, problemType, solutions, library):
-            if d.get("PerfMetric", "DeviceEfficiency") != 'DeviceEfficiency':
+            if d.get("PerfMetric", "DeviceEfficiency") != "DeviceEfficiency":
                 predicate = Properties.Predicate(tag=d["PerfMetric"])
             else:
-                predicate = Properties.Predicate(tag='TruePred')
-            newLib = PredicateLibrary(tag='Problem')
-            newLib.rows.append({'predicate': predicate, 'library': library})
+                predicate = Properties.Predicate(tag="TruePred")
+            newLib = PredicateLibrary(tag="Problem")
+            newLib.rows.append({"predicate": predicate, "library": library})
             return newLib
 
         def fp16AltImpl(d, problemType, solutions, library):
             if d.get("Fp16AltImpl"):
-                predicate = Properties.Predicate(tag='Fp16AltImpl')
+                predicate = Properties.Predicate(tag="Fp16AltImpl")
             else:
-                predicate = Properties.Predicate(tag='TruePred')
-            newLib = PredicateLibrary(tag='Problem')
-            newLib.rows.append({'predicate': predicate, 'library': library})
+                predicate = Properties.Predicate(tag="TruePred")
+            newLib = PredicateLibrary(tag="Problem")
+            newLib.rows.append({"predicate": predicate, "library": library})
             return newLib
 
         def predicates(d, problemType, solutions, library):
             predicates = problemType.predicates(includeBatch=True, includeType=True)
             predicate = Contractions.ProblemPredicate.And(predicates)
 
-            newLib = PredicateLibrary(tag='Problem')
-            newLib.rows.append({'predicate': predicate, 'library': library})
+            newLib = PredicateLibrary(tag="Problem")
+            newLib.rows.append({"predicate": predicate, "library": library})
             return newLib
 
         def selection(d, problemType, solutions, library):
             if d["LibraryType"] == "Matching":
-                if d["Library"]["distance"] == 'Equality':
-                    predicate = Properties.Predicate(tag='EqualityMatching')
+                if d["Library"]["distance"] == "Equality":
+                    predicate = Properties.Predicate(tag="EqualityMatching")
                 else:
-                    predicate = Properties.Predicate(tag='TruePred')
+                    predicate = Properties.Predicate(tag="TruePred")
 
                 matchingLib = MatchingLibrary.FromOriginalState(d["Library"], solutions)
-                library = PredicateLibrary(tag='Problem')
-                library.rows.append({'predicate': predicate, 'library': matchingLib})
+                library = PredicateLibrary(tag="Problem")
+                library.rows.append({"predicate": predicate, "library": matchingLib})
 
             elif d["LibraryType"] == "DecisionTree":
-                library = PredicateLibrary(tag='Problem')
+                library = PredicateLibrary(tag="Problem")
                 for lib in d["Library"]:
                     preds = lib["region"]
                     predObjs = [Properties.Predicate.FromOriginalState(p) for p in preds]
@@ -296,7 +296,7 @@ class MasterSolutionLibrary:
                         predicate = Properties.Predicate.And(predObjs)
 
                     treeLib = DecisionTreeLibrary.FromOriginalState(lib, solutions)
-                    library.rows.append({'predicate': predicate, 'library': treeLib})
+                    library.rows.append({"predicate": predicate, "library": treeLib})
 
             return library
 
@@ -327,10 +327,10 @@ class MasterSolutionLibrary:
         cls.FixSolutionIndices(solutionObjs)
 
         predRows = list([{
-            'predicate': s.problemPredicate,
-            'library': SingleSolutionLibrary(s)
+            "predicate": s.problemPredicate,
+            "library": SingleSolutionLibrary(s)
         } for s in solutionObjs])
-        library = PredicateLibrary(tag='Problem', rows=predRows)
+        library = PredicateLibrary(tag="Problem", rows=predRows)
 
         solutionMap = {s.index: s for s in solutionObjs}
 
@@ -343,12 +343,12 @@ class MasterSolutionLibrary:
 
     def state(self):
         rv = {
-            'solutions': state(iter(list(self.solutions.values()))),
-            'library': state(self.library)
+            "solutions": state(iter(list(self.solutions.values()))),
+            "library": state(self.library)
         }
 
         if self.version is not None:
-            rv['version'] = self.version
+            rv["version"] = self.version
         return rv
 
     def applyNaming(self, naming=None):
@@ -394,8 +394,8 @@ class MasterSolutionLibrary:
 
     @property
     def cpp_base_class(self):
-        return 'SolutionLibrary<ContractionProblem, ContractionSolution>'
+        return "SolutionLibrary<ContractionProblem, ContractionSolution>"
 
     @property
     def cpp_class(self):
-        return 'MasterSolutionLibrary<ContractionProblem, ContractionSolution>'
+        return "MasterSolutionLibrary<ContractionProblem, ContractionSolution>"

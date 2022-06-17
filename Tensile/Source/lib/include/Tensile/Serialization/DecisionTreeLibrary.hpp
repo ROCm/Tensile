@@ -81,7 +81,6 @@ namespace Tensile
                     properties = lib.forest->properties;
                 }
                 iot::mapRequired(io, "properties", properties);
-                // iot::mapRequired(io, "trees", lib.trees);
 
                 bool success = false;
                 if(properties.size() == 0)
