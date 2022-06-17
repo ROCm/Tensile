@@ -36,14 +36,16 @@ namespace Tensile
 {
     // Which placeholder libraries should be initialized at start
     // To be extended in the future
-    enum class LazyLoadingInit{
+    enum class LazyLoadingInit
+    {
         All
     };
 
     //Regex patterns for initializing libraries on startup
     inline std::string RegexPattern(LazyLoadingInit condition)
     {
-        switch(condition){
+        switch(condition)
+        {
         case LazyLoadingInit::All:
             return "TensileLibrary_.*";
         }

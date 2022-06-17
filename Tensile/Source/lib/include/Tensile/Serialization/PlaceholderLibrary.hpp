@@ -62,7 +62,7 @@ namespace Tensile
 
                     //Extract file extension
                     size_t periodPos = ctx->filename.rfind('.');
-                    lib.suffix = ctx->filename.substr(periodPos);
+                    lib.suffix       = ctx->filename.substr(periodPos);
 
                     for(auto condition : ctx->preloaded)
                     {

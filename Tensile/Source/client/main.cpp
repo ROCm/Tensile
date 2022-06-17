@@ -482,9 +482,9 @@ int main(int argc, const char* argv[])
     Tensile::hip::SolutionAdapter adapter;
     LoadCodeObjects(args, adapter);
 
-    auto filename  = args["library-file"].as<std::string>();
+    auto filename = args["library-file"].as<std::string>();
 
-    size_t directoryPos = filename.rfind('/');
+    size_t      directoryPos     = filename.rfind('/');
     std::string libraryDirectory = filename;
     if(directoryPos != std::string::npos)
         libraryDirectory.resize(directoryPos + 1);

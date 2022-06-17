@@ -49,7 +49,7 @@ namespace Tensile
         std::string                  filename;
         std::vector<LazyLoadingInit> preloaded;
         // If lazy loading is used, this may be updated in const functions
-        SolutionMap<MySolution>*     solutions;
+        SolutionMap<MySolution>* solutions;
     };
 
     /**

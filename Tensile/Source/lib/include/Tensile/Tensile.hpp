@@ -180,7 +180,7 @@ namespace Tensile
     /**
  * Interface for deserializing a library file.
  */
-   enum class LazyLoadingInit;
+    enum class LazyLoadingInit;
 
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     TENSILE_API std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>

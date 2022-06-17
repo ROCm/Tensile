@@ -569,7 +569,7 @@ namespace Tensile
 
                                 auto bIndex = weightTensor.index(bCoord);
                                 auto bVal   = Transform<typename Inputs::BType>::Input(
-                                    inputs.b[bIndex], false);
+                                      inputs.b[bIndex], false);
 
                                 if(db2)
                                 {
