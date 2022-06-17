@@ -32,8 +32,8 @@ namespace Tensile
 {
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-        LLVMLoadLibraryFile(std::string const&           filename,
-                            const std::vector<DataType>& preloadedTypes = {});
+        LLVMLoadLibraryFile(std::string const&                  filename,
+                            const std::vector<LazyLoadingInit>& preloaded = {});
 
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>

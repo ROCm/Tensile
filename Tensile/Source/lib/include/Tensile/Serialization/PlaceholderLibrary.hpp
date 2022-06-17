@@ -60,12 +60,17 @@ namespace Tensile
                     else
                         lib.libraryDirectory = '.';
 
-                    for(auto type : ctx->preloadedTypes)
+                    //Extract file extension
+                    size_t periodPos = ctx->filename.rfind('.');
+                    lib.suffix = ctx->filename.substr(periodPos);
+
+                    for(auto condition : ctx->preloaded)
                     {
-                        std::string pattern = RegexPattern(type);
+                        std::string pattern = RegexPattern(condition);
                         if(std::regex_search(lib.filePrefix, std::regex(pattern)))
                         {
                             lib.loadPlaceholderLibrary();
+                            break;
                         }
                     }
                 }

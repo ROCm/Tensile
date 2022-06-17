@@ -34,6 +34,22 @@
 
 namespace Tensile
 {
+    // Which placeholder libraries should be initialized at start
+    // To be extended in the future
+    enum class LazyLoadingInit{
+        All
+    };
+
+    //Regex patterns for initializing libraries on startup
+    std::string RegexPattern(LazyLoadingInit condition)
+    {
+        switch(condition){
+        case LazyLoadingInit::All:
+            return "TensileLibrary_.*";
+        }
+
+        return "";
+    }
 
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct PlaceholderLibrary : public SolutionLibrary<MyProblem, MySolution>
@@ -41,18 +57,13 @@ namespace Tensile
         mutable std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> library;
         mutable SolutionMap<MySolution>*                                solutions;
         std::string                                                     filePrefix;
+        std::string                                                     suffix;
         std::string                                                     libraryDirectory;
 
         PlaceholderLibrary() = default;
 
         bool loadPlaceholderLibrary() const
         {
-#ifdef TENSILE_MSGPACK
-            std::string suffix = ".dat";
-#else
-            std::string suffix = ".yaml";
-#endif
-
             auto newLibrary = LoadLibraryFile<MyProblem, MySolution>(
                 (libraryDirectory + "/" + filePrefix + suffix).c_str());
             auto mLibrary

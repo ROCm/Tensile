@@ -52,12 +52,7 @@ namespace Tensile
 
             hipError_t loadCodeObjectFile(std::string const& path);
 
-            hipError_t loadCodeObjectFilesWithDataType(std::string       architecture,
-                                                       Tensile::DataType dataType);
-
-            hipError_t loadCodeObjectFilePattern(std::string pattern);
-
-            void setCodeObjectDirectory(std::string const& path);
+            hipError_t initializeLazyLoading(std::string architecture, std::string codeObjectDir);
 
             hipError_t loadCodeObject(const void* image);
 

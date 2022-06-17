@@ -69,13 +69,11 @@ namespace Tensile
         BFloat16,
         Int8,
         Count,
-        None = Count,
-        Any  = Count + 1
+        None = Count
     };
 
     std::string   ToString(DataType d);
     std::string   TypeAbbrev(DataType d);
-    std::string   RegexPattern(DataType d);
     std::ostream& operator<<(std::ostream& stream, DataType const& t);
     std::istream& operator>>(std::istream& stream, DataType& t);
 

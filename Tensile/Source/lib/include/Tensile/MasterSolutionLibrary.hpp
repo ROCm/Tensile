@@ -46,10 +46,10 @@ namespace Tensile
     template <typename MySolution>
     struct LibraryIOContext
     {
-        std::string           filename;
-        std::vector<DataType> preloadedTypes;
+        std::string                  filename;
+        std::vector<LazyLoadingInit> preloaded;
         // If lazy loading is used, this may be updated in const functions
-        SolutionMap<MySolution>* solutions;
+        SolutionMap<MySolution>*     solutions;
     };
 
     /**

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright 2019-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -481,6 +481,17 @@ int main(int argc, const char* argv[])
     auto                          library = LoadSolutionLibrary(args);
     Tensile::hip::SolutionAdapter adapter;
     LoadCodeObjects(args, adapter);
+
+    auto filename  = args["library-file"].as<std::string>();
+
+    size_t directoryPos = filename.rfind('/');
+    std::string libraryDirectory = filename;
+    if(directoryPos != std::string::npos)
+        libraryDirectory.resize(directoryPos + 1);
+    else
+        libraryDirectory = '.';
+
+    adapter.initializeLazyLoadingLibrary(hardware->archName(), libraryDirectory);
 
     auto problems        = problemFactory.problems();
     int  firstProblemIdx = args["problem-start-idx"].as<int>();

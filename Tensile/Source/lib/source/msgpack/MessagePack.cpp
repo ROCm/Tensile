@@ -69,8 +69,8 @@ namespace Tensile
 
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-        MessagePackLoadLibraryFile(std::string const&           filename,
-                                   const std::vector<DataType>& preloadedTypes)
+        MessagePackLoadLibraryFile(std::string const&                  filename,
+                                   const std::vector<LazyLoadingInit>& preloaded)
     {
         // parse file into a msgpack::object_handle
         msgpack::object_handle result;
@@ -123,7 +123,7 @@ namespace Tensile
         {
             std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
-            LibraryIOContext<MySolution>    context{filename, preloadedTypes, nullptr};
+            LibraryIOContext<MySolution>    context{filename, preloaded, nullptr};
             Serialization::MessagePackInput min(result.get(), &context);
 
             Serialization::PointerMappingTraits<Tensile::MasterContractionLibrary,
@@ -188,7 +188,7 @@ namespace Tensile
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
         MessagePackLoadLibraryFile<ContractionProblem, ContractionSolution>(
-            std::string const& filename, const std::vector<DataType>& preloadedTypes);
+            std::string const& filename, const std::vector<LazyLoadingInit>& preloaded);
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
         MessagePackLoadLibraryData<ContractionProblem, ContractionSolution>(

@@ -37,8 +37,8 @@ namespace Tensile
 
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-        LLVMLoadLibraryFile(std::string const&           filename,
-                            const std::vector<DataType>& preloadedTypes)
+        LLVMLoadLibraryFile(std::string const&                  filename,
+                            const std::vector<LazyLoadingInit>& preloaded)
     {
         std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
@@ -46,7 +46,7 @@ namespace Tensile
         {
             auto inputFile = llvm::MemoryBuffer::getFile(filename);
 
-            LibraryIOContext<MySolution> context{filename, preloadedTypes, nullptr};
+            LibraryIOContext<MySolution> context{filename, preloaded, nullptr};
             llvm::yaml::Input            yin((*inputFile)->getMemBufferRef(), &context);
 
             yin >> rv;
@@ -100,7 +100,7 @@ namespace Tensile
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
         LLVMLoadLibraryFile<ContractionProblem, ContractionSolution>(
-            std::string const& filename, const std::vector<DataType>& preloadedTypes);
+            std::string const& filename, const std::vector<LazyLoadingInit>& preloaded);
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
         LLVMLoadLibraryData<ContractionProblem, ContractionSolution>(

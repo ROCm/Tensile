@@ -53,23 +53,23 @@ namespace Tensile
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
         LoadLibraryFile(std::string const& filename)
     {
-        return LoadLibraryFilePreloadDatatypes<MyProblem, MySolution>(filename, {});
+        return LoadLibraryFilePreload<MyProblem, MySolution>(filename, {});
     }
 
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-        LoadLibraryFilePreloadDatatypes(std::string const& filename, const std::vector<DataType>& preloadedTypes)
+        LoadLibraryFilePreload(std::string const& filename, const std::vector<LazyLoadingInit>& preloaded)
     {
         std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> rv;
 
 #ifdef TENSILE_MSGPACK
-        rv = MessagePackLoadLibraryFile<MyProblem, MySolution>(filename, preloadedTypes);
+        rv = MessagePackLoadLibraryFile<MyProblem, MySolution>(filename, preloaded);
         if(rv)
             return rv;
 #endif
 
 #ifdef TENSILE_YAML
-        rv = LLVMLoadLibraryFile<MyProblem, MySolution>(filename, preloadedTypes);
+        rv = LLVMLoadLibraryFile<MyProblem, MySolution>(filename, preloaded);
         if(rv)
             return rv;
 #endif
@@ -104,8 +104,8 @@ namespace Tensile
         LoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename);
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
-        LoadLibraryFilePreloadDatatypes<ContractionProblem, ContractionSolution>(
-            std::string const& filename, const std::vector<DataType>& preload);
+        LoadLibraryFilePreload<ContractionProblem, ContractionSolution>(
+            std::string const& filename, const std::vector<LazyLoadingInit>& preloaded);
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
         LoadLibraryData<ContractionProblem, ContractionSolution>(std::vector<uint8_t> const& data);

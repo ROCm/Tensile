@@ -69,6 +69,16 @@ namespace Tensile
                 hipModuleUnload(module);
         }
 
+        std::string removeXnack(std::string coFilename)
+        {
+            std::string xnackVersion = "xnack";     //Extra character before and after xnack
+            size_t loc = coFilename.find(xnackVersion);
+            if(loc != std::string::npos)
+                coFilename.replace(loc-1, xnackVersion.length()+1, "");
+
+            return coFilename;
+        }
+
         hipError_t SolutionAdapter::loadCodeObjectFile(std::string const& path)
         {
             hipModule_t module;
@@ -86,7 +96,7 @@ namespace Tensile
                 //Isolate filename
                 size_t start = path.rfind('/');
                 start        = (start == std::string::npos) ? 0 : start + 1;
-                m_loadedCOFiles.insert(std::string(path.begin() + start, path.end()));
+                m_loadedCOFiles.insert(removeXnack(std::string(path.begin() + start, path.end())));
             }
             return hipSuccess;
         }
@@ -203,46 +213,32 @@ namespace Tensile
             return err;
         }
 
-        hipError_t SolutionAdapter::loadCodeObjectFilesWithDataType(std::string       arch,
-                                                                    Tensile::DataType dataType)
+        hipError_t SolutionAdapter::initializeLazyLoading(std::string arch, std::string codeObjectDir)
         {
-            std::string pattern = RegexPattern(dataType) + arch + ".*(\\.co|\\.hsaco)";
+            m_codeObjectDirectory = codeObjectDir;
+            std::string helperKernelName = std::string("Kernels.so-000-")+removeXnack(arch);
 
-#ifndef WIN32
-            glob_t result;
-            result.gl_pathc = 0;
-            result.gl_pathv = nullptr;
-            result.gl_offs  = 0;
+            //If required code object file hasn't yet been loaded, load it now
+            m_access.lock();
+            bool loaded = m_loadedCOFiles.find(removeXnack(helperKernelName)+".hsaco") != m_loadedCOFiles.end();
+            m_access.unlock();
 
-            // This way globfree will be called regardless of if an exception is thrown.
-            std::shared_ptr<glob_t> guard(&result, globfree);
-
-            int err = ::glob((m_codeObjectDirectory + "*co").c_str(), 0, nullptr, &result);
-
-            auto lastHipError = hipSuccess;
-
-            for(size_t i = 0; i < result.gl_pathc; i++)
-            {
-                if(std::regex_search(result.gl_pathv[i], std::regex(pattern)))
+            if(!loaded){
+                hipError_t err;
+                //Try xnack variations
+                for(auto ver : {"", "-xnack-", "-xnack+"})
                 {
-                    auto status = loadCodeObjectFile(result.gl_pathv[i]);
-                    if(status != hipSuccess)
-                        lastHipError = status;
-                }
-            }
-#else
-            std::throw_runtime_error("Error::SolutionAdapter::loadCodeObjectFIlesWithDataType not "
-                                     "yet implemented on Windows");
-#endif
-            return lastHipError;
-        }
+                    std::string modifiedCOName = helperKernelName+ver+".hsaco";
+                    err = loadCodeObjectFile(m_codeObjectDirectory + modifiedCOName);
 
-        void SolutionAdapter::setCodeObjectDirectory(std::string const& path)
-        {
-            m_codeObjectDirectory = path;
-            //Ensure there's a slash at the end of the path
-            if(m_codeObjectDirectory.back() != '/')
-                m_codeObjectDirectory += '/';
+                    if(err == hipSuccess)
+                        return err;
+                }
+
+                return err;
+            }
+
+            return hipSuccess;
         }
 
         hipError_t SolutionAdapter::launchKernel(KernelInvocation const& kernel)
@@ -259,7 +255,7 @@ namespace Tensile
             {
                 //If required code object file hasn't yet been loaded, load it now
                 m_access.lock();
-                bool loaded = m_loadedCOFiles.find(kernel.codeObjectFile) != m_loadedCOFiles.end();
+                bool loaded = m_loadedCOFiles.find(removeXnack(kernel.codeObjectFile)) != m_loadedCOFiles.end();
                 m_access.unlock();
 
                 if(!loaded)
