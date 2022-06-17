@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,8 +32,7 @@ namespace Tensile
 {
     namespace Client
     {
-        std::shared_ptr<ResultFileReporter>
-            ResultFileReporter::Default(po::variables_map const& args)
+        std::shared_ptr<ResultFileReporter> ResultFileReporter::Default(po::variables_map& args)
         {
             return std::make_shared<ResultFileReporter>(
                 args["results-file"].as<std::string>(),
@@ -60,7 +59,7 @@ namespace Tensile
         template <typename T>
         void ResultFileReporter::reportValue(std::string const& key, T const& value)
         {
-            std::string valueStr = boost::lexical_cast<std::string>(value);
+            std::string valueStr = roc::lexical_cast_to_string(value);
 
             if(key == ResultKey::Validation)
             {

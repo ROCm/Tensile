@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,7 @@
 #include "CSVStackFile.hpp"
 #include "ResultReporter.hpp"
 
-#include <boost/program_options.hpp>
+#include "program_options.hpp"
 
 #include <cstddef>
 
@@ -37,12 +37,12 @@ namespace Tensile
 {
     namespace Client
     {
-        namespace po = boost::program_options;
+        namespace po = roc;
 
         class LibraryUpdateReporter : public ResultReporter
         {
         public:
-            static std::shared_ptr<LibraryUpdateReporter> Default(po::variables_map const& args);
+            static std::shared_ptr<LibraryUpdateReporter> Default(po::variables_map& args);
 
             static std::shared_ptr<LibraryUpdateReporter> FromFilename(std::string const& filename,
                                                                        bool addComment);
