@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2022 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -135,7 +135,7 @@ namespace Tensile
             using ManagedInputs
                 = ManagedContractionInputs<AType, BType, CType, DType, AlphaType, BetaType>;
 
-            TypedDataInitialization(po::variables_map const&    args,
+            TypedDataInitialization(po::variables_map&          args,
                                     ClientProblemFactory const& problemFactory,
                                     size_t                      maxWorkspaceSize = 0)
                 : DataInitialization(args, problemFactory, maxWorkspaceSize)

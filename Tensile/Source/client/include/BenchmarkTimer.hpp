@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -31,7 +31,7 @@
 #include <chrono>
 #include <cstddef>
 
-#include <boost/program_options.hpp>
+#include "program_options.hpp"
 
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/ContractionSolution.hpp>
@@ -40,14 +40,14 @@ namespace Tensile
 {
     namespace Client
     {
-        namespace po = boost::program_options;
+        namespace po = roc;
 
         class BenchmarkTimer : public RunListener
         {
         public:
             using clock = std::chrono::steady_clock;
 
-            BenchmarkTimer(po::variables_map const& args, Hardware const& hardware);
+            BenchmarkTimer(po::variables_map& args, Hardware const& hardware);
 
             virtual bool needMoreBenchmarkRuns() const override;
             virtual void preBenchmarkRun() override;
