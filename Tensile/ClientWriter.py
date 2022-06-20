@@ -102,8 +102,7 @@ def main( config ):
 
   clientParametersPaths = []
   for logicFileName in logicFiles:
-    (scheduleName, deviceNames, problemType, solutionsForType, \
-        indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) \
+    (scheduleName, _, problemType, _, exactLogic, newLibrary) \
         = LibraryIO.parseLibraryLogicFile(logicFileName)
     if problemType["DataType"].isHalf():
         enableHalf = True

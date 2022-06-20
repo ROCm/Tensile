@@ -24,18 +24,29 @@
 
 from .Utils import hash_objs, state
 
+
 class Property:
+
+    @classmethod
+    def FromOriginalState(cls, d):
+        return cls(d.get('type'), d.get('index'), d.get('value'))
+
     def __init__(self, tag=None, index=None, value=None):
         self._tag = tag
         self._index = index
         self._value = value
 
     @property
-    def tag(self):   return self._tag
+    def tag(self):
+        return self._tag
+
     @property
-    def index(self): return self._index
+    def index(self):
+        return self._index
+
     @property
-    def value(self): return self._value
+    def value(self):
+        return self._value
 
     def state(self):
         rv = {'type': self.tag}
@@ -55,11 +66,6 @@ class Property:
 
 
 class Predicate(Property):
-    @classmethod
-    def FromOriginalState(cls, d, morePreds=None):
-        if morePreds is None: morePreds = []
-        predicates = [p for p in map(cls.FromOriginalKeyPair, d.items()) if p is not None] + morePreds
-        return cls.And(predicates)
 
     @classmethod
     def And(cls, predicates):
@@ -88,5 +94,16 @@ class Predicate(Property):
         if self.tag == 'TruePred':
             return False
 
+        selfValue = self.value
+        otherValue = other.value
+
+        if type(selfValue) is dict:
+            selfTup = {v for _, v in selfValue.items()}
+            selfValue = selfTup
+
+        if type(otherValue) is dict:
+            otherTup = {v for _, v in otherValue.items()}
+            otherValue = otherTup
+
         # If neither is a TruePred then just use the default comparison.
-        return (self.tag, self.index, self.value) < (other.tag, other.index, other.value)
+        return (self.tag, self.index, selfValue) < (other.tag, other.index, otherValue)
