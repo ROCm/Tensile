@@ -1167,7 +1167,10 @@ def buildObjectFilePaths(prefixDir, solutionFiles, sourceKernelFiles, asmKernelF
   #Use set because of duplicate fallback libraries
   newMetadataPaths = set()
   for arch, lib in masterLibraries.items():
-    newMetadataPaths.add(os.path.join(libDir, "TensileLibrary_"+arch+libraryExt))
+    if globalParameters["LazyLibraryLoading"]:
+      newMetadataPaths.add(os.path.join(libDir, "TensileLibrary_lazy_"+arch+libraryExt))
+    else:
+      newMetadataPaths.add(os.path.join(libDir, "TensileLibrary_"+arch+libraryExt))
     for name, placeholder in lib.lazyLibraries.items():
       newMetadataPaths.add(os.path.join(libDir, name+libraryExt))
 
@@ -1591,7 +1594,10 @@ def TensileCreateLibrary():
   elif globalParameters["SeparateArchitectures"] or globalParameters["LazyLibraryLoading"]:
     for archName, newMasterLibrary in masterLibraries.items():
       if archName in archs:
-        masterFile = os.path.join(newLibraryDir, "TensileLibrary_"+archName)
+        if globalParameters["LazyLibraryLoading"]:
+          masterFile = os.path.join(newLibraryDir, "TensileLibrary_lazy_"+archName)
+        else:
+          masterFile = os.path.join(newLibraryDir, "TensileLibrary_"+archName)
         newMasterLibrary.applyNaming(kernelMinNaming)
         LibraryIO.write(masterFile, Utils.state(newMasterLibrary), args.LibraryFormat)
 
