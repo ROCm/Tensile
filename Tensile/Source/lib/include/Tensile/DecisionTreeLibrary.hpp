@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,28 +29,33 @@
 #include <set>
 #include <vector>
 
-#include <Tensile/PropertyMatching.hpp>
+#include <Tensile/Debug.hpp>
+#include <Tensile/DecisionTree.hpp>
+#include <Tensile/ProblemKey.hpp>
+#include <Tensile/Properties.hpp>
+#include <Tensile/SolutionLibrary.hpp>
+#include <Tensile/Utils.hpp>
 
 namespace Tensile
 {
     /**
      * \ingroup SolutionLibrary
      *
-     * Uses a distance function to select solutions based on benchmarks.
-     * Benchmarks are performed to determine the optimal solution at a number of
-     * specific sizes. At runtime, we find the benchmarked size that is closest
-     * to the size asked for.
+     * Uses a set of decision trees to select a solution. Each decision tree manages
+     * a single solution and decides if said solution will perform well for the size
+     * asked for.
      */
+
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
-    struct ProblemMatchingLibrary : public SolutionLibrary<MyProblem, MySolution>
+    struct DecisionTreeLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
         using Element = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
-        using Table   = Matching::MatchingTable<MyProblem, Element, std::shared_ptr<MySolution>>;
-        std::shared_ptr<Table> table;
+        using Forest  = DecisionTree::Forest<MyProblem, Element, std::shared_ptr<MySolution>>;
+        std::shared_ptr<Forest> forest;
 
         static std::string Type()
         {
-            return "Matching";
+            return "DecisionTree";
         }
         virtual std::string type() const override
         {
@@ -58,10 +63,10 @@ namespace Tensile
         }
         virtual std::string description() const override
         {
-            if(table == nullptr)
-                return concatenate(type(), ", table: nullptr");
+            if(forest == nullptr)
+                return concatenate(type(), ", forest: nullptr");
             else
-                return concatenate(type(), ": ", table->description());
+                return concatenate(type(), ": ", forest->description());
         }
 
         virtual std::shared_ptr<MySolution> findBestSolution(MyProblem const& problem,
@@ -69,51 +74,22 @@ namespace Tensile
                                                              double*          fitness
                                                              = nullptr) const override
         {
-            bool useDebugSelection = Debug::Instance().enableDebugSelection();
-
-            typename Table::Transform transform
+            typename Forest::Transform transform
                 = [&](Element library) -> std::shared_ptr<MySolution> {
                 return library->findBestSolution(problem, hardware);
             };
-
-            if(useDebugSelection)
-            {
-                std::shared_ptr<MySolution> evaluationSolution
-                    = table->findBestEvaluationSolution(problem, hardware, transform);
-                return evaluationSolution;
-            }
-            else
-            {
-                double localFitness = std::numeric_limits<double>::max();
-                fitness             = (fitness) ? fitness : &localFitness;
-                std::shared_ptr<MySolution> solution;
-                std::tie(solution, *fitness) = table->findBestMatch(problem, transform);
-                return solution;
-            }
+            return forest->findBestMatch(problem, transform);
         }
 
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
                                                          Hardware const&  hardware) const override
         {
-            bool debug = Debug::Instance().printPropertyEvaluation();
-
-            SolutionSet<MySolution> rv;
-
-            auto matches = table->matchesInOrder(problem);
-
-            for(auto const& row : matches)
-            {
-                if(debug)
-                    std::cout << row->description() << std::endl;
-
-                auto rowSolutions = row->findAllSolutions(problem, hardware);
-                rv.insert(rowSolutions.begin(), rowSolutions.end());
-
-                if(debug)
-                    std::cout << std::endl;
-            }
-
-            return rv;
+            typename Forest::Transform transform
+                = [&](Element library) -> std::shared_ptr<MySolution> {
+                return library->findBestSolution(problem, hardware);
+            };
+            return forest->matchesInOrder(problem, transform);
         }
     };
+
 } // namespace Tensile

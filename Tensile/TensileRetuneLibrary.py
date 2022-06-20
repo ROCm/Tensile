@@ -45,7 +45,7 @@ def parseCurrentLibrary(libPath, skipRK, sizePath):
     libYaml = LibraryIO.readYAML(libPath)
     # parseLibraryLogicData mutates the original data, so make a copy
     fields = LibraryIO.parseLibraryLogicData(copy.deepcopy(libYaml), libPath)
-    (_, _, problemType, solutions, _, exactLogic, _, _, _) = fields
+    (_, _, problemType, solutions, exactLogic, _) = fields
 
     # get performance metric
     if len(libYaml) > 10:

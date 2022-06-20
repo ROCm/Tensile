@@ -34,8 +34,7 @@ from . import EmbeddedData
 from . import LibraryIO
 from . import Utils
 from .Common import globalParameters, HR, print1, print2, printExit, ensurePath, \
-                    CHeader, CMakeHeader, assignGlobalParameters, \
-                    listToInitializer, gfxName, architectureMap
+                    CHeader, CMakeHeader, assignGlobalParameters, gfxName, architectureMap
 from .KernelWriterAssembly import KernelWriterAssembly
 from .KernelWriterSource import KernelWriterSource
 from .SolutionLibrary import MasterSolutionLibrary
@@ -571,281 +570,6 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
   return codeObjectFiles
 
-################################################################################
-# Write Logic
-################################################################################
-def writeLogic(outputPath, logicData, solutionWriter ):
-  print1("# Writing Library Logic")
-
-  if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
-    ensurePath(os.path.join(outputPath, "Logic"))
-
-  # Tensile.h
-  h = ""
-  h += "#pragma once\n"
-  h += "#include \"TensileTypes.h\"\n"
-  h += "#include \"SolutionHelper.h\"\n"
-  h += "#include \"SolutionMapper.h\"\n"
-
-  # TensileInternal.h
-  ih = ""
-  ih += "#include \"Tensile.h\"\n"
-
-  # Tensile.cpp
-  sourceIncludes = ""
-  sourceIncludes += "#include \"Solutions.h\"\n"
-  sourceIncludes += "#include \"Tensile.h\"\n"
-  sourceIncludes += "#include \"TensileInternal.h\"\n"
-  sourceIncludes += "#include \"SolutionMapper.h\"\n"
-
-  s = sourceIncludes
-
-  ########################################
-  # problemType
-  for problemType in Utils.tqdm(logicData):
-
-    # function argument list
-    argListSizes = solutionWriter.getArgList(problemType, False, False, False, False, True)
-    argListData  = solutionWriter.getArgList(problemType, False,  True,  True,  True, True)
-    argListAll   = solutionWriter.getArgList(problemType,  True,  True,  True,  True, True)
-
-    # tensile initializer
-    h += "\nvoid tensileInitialize();\n\n"
-
-    # declare tensile_ProblemType
-    h += "\n// enqueue solution\n"
-    h += "TensileStatus tensile_%s(\n" % problemType
-    for i in range(0, len(argListData)):
-      h += "    %s %s = %s%s" \
-          % (argListData[i][0], argListData[i][1], argListData[i][2], \
-          ",\n" if i < len(argListData)-1 else ");\n\n")
-
-
-    numSizes = problemType["TotalIndices"]
-    assert(not problemType["UseInitialStridesCD"])
-    firstStride = 0 if problemType["UseInitialStridesAB"] else 1
-    lastStrideA = len(problemType["IndexAssignmentsA"])
-    lastStrideB = len(problemType["IndexAssignmentsB"])
-    lastStrideC = problemType["NumIndicesC"]
-    lastStrideD = problemType["NumIndicesC"]
-    h += "typedef ProblemKey<%u> ProblemKey_%s;\n" % (numSizes,problemType)
-    h += "typedef ProblemDims<%u,%u,%u,%u,%u,%u> ProblemDims_%s;\n" \
-        % (firstStride, lastStrideD, lastStrideC, lastStrideA, lastStrideB, numSizes, problemType)
-    h += "typedef SolutionMapper<ProblemDims_%s, ProblemKey_%s> SolutionMapper_%s;\n" \
-            % (problemType, problemType, problemType)
-
-    # declare tensileGetSolutionPointer_ProblemType
-    h += "\n// get solution pointer\n"
-    h += "SolutionMapper_%s::SolutionRuntime *\n" % (problemType)
-    h += "tensileGetSolutionPointer_%s(\n" % (problemType)
-    for i in range(0, len(argListSizes)):
-      h += "    %s %s%s" \
-          % (argListSizes[i][0], argListSizes[i][1], \
-          ",\n" if i < len(argListSizes)-1 else ");\n\n")
-
-    # declare tensileName_
-    h += "// get solution name\n"
-    h += "const char * tensileGetSolutionName_%s(\n" \
-        % (problemType)
-    for i in range(0, len(argListSizes)):
-      h += "    %s %s%s" \
-          % (argListSizes[i][0], argListSizes[i][1], \
-          ",\n" if i < len(argListSizes)-1 else ");\n\n")
-
-
-    # get solution naming for problem type
-    solutionsForProblemType = []
-    for scheduleTuple in logicData[problemType]:
-      solutionsForSchedule = scheduleTuple[2]
-      for solution in solutionsForSchedule:
-        if solution not in solutionsForProblemType:
-          solutionsForProblemType.append(solution)
-
-    # solution names for problem type
-    solutionNamesForProblemType = []
-    for solution in solutionsForProblemType:
-      solutionName = solutionWriter.getSolutionName(solution)
-      solutionNamesForProblemType.append(solutionName)
-
-    # reset problemType source
-    if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
-      filePrefix = "Tensile_%s" % (problemType)
-      s = sourceIncludes
-
-      for solutionName in solutionNamesForProblemType:
-        s += "#include \"%s.h\"\n" % solutionName
-
-    ########################################
-    # Per-problem constants here:
-    # These are common for all schedules and thus do not include schedule name (vega,hip,etc)
-    s += "\n"
-    s += "/*******************************************************************************\n"
-    s += "* Per-Problem Functions for %s\n" % problemType
-    s += "*******************************************************************************/\n"
-
-    s += "// Problem type include the index assignments for free, summation, batch:\n"
-    s += "static const ProblemType problemType_%s( " % problemType
-    s += listToInitializer(problemType["IndicesFree"]) + ", "
-    s += listToInitializer(problemType["IndicesSummation"]) + ", "
-    s += listToInitializer(problemType["IndicesBatch"]) + ", "
-    s += listToInitializer(problemType["IndexAssignmentsA"]) + ", "
-    s += listToInitializer(problemType["IndexAssignmentsB"])
-    s += ");\n"
-
-    s += "\n"
-    s += "// Master solution mapper is the entry point for problem->solution mapping\n"
-    s += "// There is one master solution mapper per problem type\n"
-    s += "// The master solution mapper contains pointers to the solution mappers for each device\n"
-    s += "static MasterSolutionMapper<ProblemDims_%s> masterSolutionMapper_%s;\n " % (problemType,problemType)
-
-
-    ########################################
-    # implement per-Schedule functions in source
-    s += "\n"
-    s += "/*******************************************************************************\n * Per-Schedule Functions\n *******************************************************************************/"
-    for scheduleTuple in logicData[problemType]:
-
-      # get logic parameters for problem type
-      scheduleName  = scheduleTuple[0]
-      deviceNames   = scheduleTuple[1]
-      solutionsForSchedule = scheduleTuple[2]
-      indexOrder    = scheduleTuple[3]
-      exactLogic    = scheduleTuple[4]
-      rangeLogic    = scheduleTuple[5]
-
-      # solution names for schedule
-      solutionNamesForSchedule = []
-      for solution in solutionsForSchedule:
-        solutionName = solutionWriter.getSolutionName(solution)
-        solutionNamesForSchedule.append(solutionName)
-
-      s += "\n\n"
-      schedProbName = "%s_%s" % (scheduleName, problemType)
-      s += writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problemType, \
-              solutionsForSchedule, solutionNamesForSchedule, exactLogic)
-
-
-    # Per-problem function here:
-    # function tensileGetSolutionPointer_ProblemType
-    del schedProbName
-    del scheduleName
-    s += "\n// problem dims -> solution logic\n"
-    s += "SolutionMapper_%s::SolutionRuntime *\n" % (problemType)
-    s += "tensileGetSolutionPointer_%s(\n" % (problemType)
-    for i in range(0, len(argListSizes)):
-      s += "    %s %s%s" \
-          % (argListSizes[i][0], argListSizes[i][1], \
-          ",\n" if i < len(argListSizes)-1 else ") {\n\n")
-
-    exactLogicStr = writeExactLogic(problemType, indexOrder, \
-                                    solutionsForSchedule, exactLogic, \
-                                    solutionNamesForSchedule, True)
-    if rangeLogic != None:
-      print("** warning: ignored ranges in logic file, these should have been expanded with ExpandRanges=1 during Tensile phase 3")
-    s += "  /* exact mappings */\n"
-    s += exactLogicStr
-    s += "\n  return nullptr;\n"
-    s += "\n}\n"
-
-    # function tensileGetSolutionName_Schedule_ProblemType
-    s += "\n// get solution name for problem dims\n"
-    s += "const char * tensileGetSolutionName_%s(\n" \
-        % (problemType)
-    for i in range(0, len(argListSizes)):
-      s += "    %s %s%s" \
-          % (argListSizes[i][0], argListSizes[i][1], \
-          ",\n" if i < len(argListSizes)-1 else ") {\n\n")
-
-    exactLogicStr = writeExactLogic(problemType, indexOrder, \
-                                    solutionsForSchedule, exactLogic, \
-                                    solutionNamesForSchedule, False)
-    s += "  /* exact mappings */\n"
-    s += exactLogicStr
-    s += "\n}\n"
-
-    ########################################
-    # implement problem-type functions in source
-    s += "/*******************************************************************************\n * Per-ProblemType Functions\n *******************************************************************************/"
-
-
-    # declare tensile_ProblemType
-    s += "\n// main call to solution; enqueues a kernel\n"
-    s += "TensileStatus tensile_%s(\n" % problemType
-    for i in range(0, len(argListData)):
-      s += "    %s %s%s" \
-          % (argListData[i][0], argListData[i][1], \
-          ",\n" if i < len(argListData)-1 else ") {\n")
-    s += "    auto solution = tensileGetSolutionPointer_%s(\n" % (problemType)
-    for i in range(0, len(argListSizes)):
-      s += "        %s%s" \
-          % (argListSizes[i][1], ", " if i < len(argListSizes)-1 else ");")
-      s += "\n"
-    s += "    if (solution) {\n"
-    s += "      TensileSolutionPointer_%s f = reinterpret_cast<TensileSolutionPointer_%s> (solution->_info->_functionPtr);\n" \
-      % (problemType, problemType)
-    s += "      auto solutionLock = &solution->_lock;\n"
-    s += "      return f("
-    for i in range(0, len(argListAll)):
-      s += "%s%s" \
-          % (argListAll[i][1], ", " if i < len(argListAll)-1 else ");\n")
-    s += "    } else {\n"
-    #s += "      printf(\"solution not valid, returning fail\\n\");"
-    s += "      return tensileStatusFailure; // no solution found\n"
-    s += "    }\n"
-    s += "}\n"
-
-    # open and close problemType files
-    if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
-      logicSourceFile = open(os.path.join(os.path.normcase(outputPath), "Logic", \
-          "%s.cpp" % filePrefix), "w")
-      logicSourceFile.write(s)
-      logicSourceFile.close()
-
-  s += "\n"
-  s += writeTensileInitialize(logicData)
-
-  # close merged files
-  if globalParameters["MergeFiles"] and globalParameters["NumMergedFiles"] == 1:
-    logicSourceFile = open(os.path.join(os.path.normcase(outputPath), \
-        "Tensile.cpp"), "w")
-    logicSourceFile.write(s)
-    logicSourceFile.close()
-
-  logicHeaderFile = open(os.path.join(os.path.normcase(outputPath), \
-      "Tensile.h"), "w")
-  logicHeaderFile.write(h)
-  logicHeaderFile.close()
-
-  internalHeaderFile = open(os.path.join(os.path.normcase(outputPath), \
-      "TensileInternal.h"), "w")
-  internalHeaderFile.write(ih)
-  internalHeaderFile.close()
-
-
-def writeTensileInitialize(logicData):
-
-  s = "/*******************************************************************************\n"
-  s += "* Tensilze initializer\n"
-  s += "*******************************************************************************/\n"
-  s += "void tensileInitialize() {\n"
-
-  for problemType in logicData:
-    s += "  masterSolutionMapper_%s.initialize();\n" % problemType
-
-    for scheduleTuple in logicData[problemType]:
-      scheduleName  = scheduleTuple[0]
-      deviceNames   = scheduleTuple[1]
-
-
-      schedProbName = "%s_%s" % (scheduleName, problemType)
-      s += "  solutionMapper_%s.initializeMappers(" % (schedProbName)
-      s += "{%s}," % (', '.join('"{0}"'.format(w) for w in deviceNames))
-      s += "&masterSolutionMapper_%s);\n" % (problemType)
-
-  s += "}"
-
-  return s
-
 def writeSolutionAndExactTable(scheduleName, deviceNames, schedProbName, problemType, \
                                solutionsForSchedule, solutionNames, exactLogic):
   s = ""
@@ -1136,7 +860,7 @@ def buildObjectFileNames(solutionWriter, kernelWriterSource, kernelWriterAssembl
     sourceLibFiles += list(set(itertools.chain.from_iterable(
                           [addxnack(kernel._state["codeObjectFile"], ".hsaco") for kernel in kernels if cond(kernel)]
                       )))
-    
+
   elif globalParameters["MergeFiles"]:
     # Find all unique arch values for current asm kernels
     uniqueArchs = set(itertools.chain(*asmArchs.values()))
@@ -1273,7 +997,6 @@ def generateLogicDataAndSolutions(logicFiles, args):
   libraries = Common.ParallelMap(LibraryIO.parseLibraryLogicFile, logicFiles, "Reading logic files")
 
   solutions = []
-  logicData = {} # keys are problemTypes, values are schedules
 
   masterLibraries = {}
   fullMasterLibrary = None
@@ -1281,8 +1004,7 @@ def generateLogicDataAndSolutions(logicFiles, args):
   nextSolIndex = 0
 
   for logic in Utils.tqdm(libraries, "Processing logic data"):
-    (scheduleName, deviceNames, problemType, solutionsForSchedule, \
-       indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) = logic
+    (_, architectureName, _, solutionsForSchedule, _, newLibrary) = logic
 
     if globalParameters["PackageLibrary"]:
       if architectureName in masterLibraries:
@@ -1303,10 +1025,10 @@ def generateLogicDataAndSolutions(logicFiles, args):
       else:
         fullMasterLibrary.merge(deepcopy(newLibrary))
 
-    if problemType not in logicData:
-      logicData[problemType] = []
-    logicData[problemType].append((scheduleName, deviceNames, \
-        solutionsForSchedule, indexOrder, exactLogic, rangeLogic ))
+    # if problemType not in logicData:
+    #   logicData[problemType] = []
+    # logicData[problemType].append((scheduleName, deviceNames, \
+    #     solutionsForSchedule, indexOrder, exactLogic, rangeLogic ))
 
   if globalParameters["SeparateArchitectures"] or globalParameters["LazyLibraryLoading"]:
     if "fallback" in masterLibraries.keys():
@@ -1329,7 +1051,7 @@ def generateLogicDataAndSolutions(logicFiles, args):
 
   # remove duplicates while preserving order
   solutions = list(dict.fromkeys(solutions))
-  return logicData, solutions, masterLibraries, fullMasterLibrary
+  return solutions, masterLibraries, fullMasterLibrary
 
 ################################################################################
 # Write Benchmark Client Files
@@ -1529,7 +1251,7 @@ def TensileCreateLibrary():
   ##############################################################################
 
   # Parse logicData, solutions, and masterLibraries from logic files
-  logicData, solutions, masterLibraries, fullMasterLibrary = generateLogicDataAndSolutions(logicFiles, args)
+  solutions, masterLibraries, fullMasterLibrary = generateLogicDataAndSolutions(logicFiles, args)
 
   kernels, kernelHelperObjs, _ = generateKernelObjectsFromSolutions(solutions)
 
@@ -1578,9 +1300,7 @@ def TensileCreateLibrary():
       outputPath )
 
   # write solutions and kernels
-  problemTypes = list(logicData.keys())
-
-  codeObjectFiles = writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions,
+  codeObjectFiles = writeSolutionsAndKernels(outputPath, CxxCompiler, None, solutions,
                                              kernels, kernelHelperObjs, solutionWriter, kernelWriterSource, kernelWriterAssembly)
 
   bothLibSet = set(sourceLibPaths + asmLibPaths)
