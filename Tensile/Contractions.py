@@ -322,7 +322,7 @@ class ProblemPredicate(Properties.Predicate):
 
         if key.startswith('Assert'):
             raise RuntimeError("Unknown assertion key: {}".format(key))
-        
+
         if key == "Fp16AltImpl":
             return cls("Fp16AltImpl") if value != False else None
 
@@ -399,7 +399,8 @@ class ProblemPredicate(Properties.Predicate):
         compoundPreds = cls.CompoundPredicates(d, problemType)
         extraPreds = problemTypePreds + compoundPreds + morePreds
 
-        return super().FromOriginalState(d, extraPreds)
+        predicates = [p for p in map(cls.FromOriginalKeyPair, d.items()) if p is not None] + extraPreds
+        return cls.And(predicates)
 
 class SizeMapping:
     StateKeys = ['workGroup',
@@ -470,7 +471,7 @@ class Solution:
     HiddenKeys = ['originalSolution']
 
     @classmethod
-    def FromSolutionStruct(cls, solution, deviceInfo=None):
+    def FromSolutionStruct(cls, solution):
         return cls.FromOriginalState(solution._state)
 
     @classmethod

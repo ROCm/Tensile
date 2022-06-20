@@ -132,6 +132,7 @@ set(test_sources ${test_sources}
     EmbeddedData_test.cpp
     KernelArguments_test.cpp
     ProjectedPerformance_test.cpp
+    DecisionTree_test.cpp
     TensorDescriptor_test.cpp
     TestData_test.cpp
     Utils_test.cpp
