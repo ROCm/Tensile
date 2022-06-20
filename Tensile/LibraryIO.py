@@ -22,7 +22,7 @@
 #
 ################################################################################
 
-from .Common import printExit, printWarning, versionIsCompatible, globalParameters
+from .Common import printExit, printWarning, versionIsCompatible
 from .SolutionStructs import Solution, ProblemSizes, ProblemType
 from . import __version__
 from . import Common

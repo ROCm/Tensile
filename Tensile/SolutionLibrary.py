@@ -29,9 +29,7 @@ from . import Hardware
 from . import Common
 from . import Contractions
 from .SolutionStructs import Solution as OriginalSolution
-from .SolutionStructs import ProblemType as StructProblemType
 from .Utils import state
-from copy import deepcopy
 
 
 class SingleSolutionLibrary:
