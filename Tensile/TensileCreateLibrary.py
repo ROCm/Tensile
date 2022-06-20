@@ -461,6 +461,19 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
 
   prepAsm(kernelWriterAssembly)
 
+  # Kernels may be intended for different co files, but generate the same .o file
+  # Mark duplicate kernels to avoid race condition
+  # @TODO improve organization so this problem doesn't appear
+  objFilenames = set()
+  for kernel in kernels:
+    if kernel["KernelLanguage"] == "Assembly":
+      base = kernelWriterAssembly.getKernelFileBase(kernel)
+      if base in objFilenames:
+        kernel.duplicate = True
+      else:
+        objFilenames.add(base)
+        kernel.duplicate = False
+
   kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
   results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap, maxTasksPerChild=1)
 
