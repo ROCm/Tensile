@@ -7394,6 +7394,8 @@ class KernelWriterAssembly(KernelWriter):
 
               offset = 0
 
+              hi8 = 0
+              hi16 = 0
               if kernel["BufferLoad"]:
                 # Use buffer limit to stay in-bounds - the limit was set to edge when SRD initialized
                 # and each increment of SRD base in the unroll loop does a corresponding decrement
@@ -7484,8 +7486,6 @@ class KernelWriterAssembly(KernelWriter):
                   destVgpr="G2L%s+%u+%u"%(tc, g2lIdx, regIdx)
 
                 offset = r * tP["bpe"] + instOffset
-                hi8 = 0
-                hi16 = 0
                 comment = "load one buffer value"
                 if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
                   if numElementsPerLoad==2:
@@ -7534,15 +7534,40 @@ class KernelWriterAssembly(KernelWriter):
 
               else: # Not buffer load, ie 'flat' load
                 # mask if current address if in bounds
+                if kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16():
+                  if numElementsPerLoad==2:
+                    # Pack two FP16 values into a single load dword x2
+                    r += 1 # skip next element since we loaded 2X here
+                    comment = "load packed 2X half buffer value"
+                  elif not kernel["DirectToLds%s"%tc]:
+                    hi16=loopCnt%2 if tP["glvw"]==1 else r%2
+                    comment="load one buffer value"
+
+                if kernel["ProblemType"]["DataType"].isInt8():
+                  # TODO-Int8, Check this:
+                  # if numElementsPerLoad==2:
+                  #   # Pack two FP16 values into a single load dword x2
+                  #   r += 1 # skip next element since we loaded 2X here
+                  #   comment = "load packed 2X half buffer value"
+                  if not kernel["DirectToLds%s"%tc]:
+                    hi8  = (loopCnt%4) %2 if tP["glvw"]==1 else (r%4) %2
+                    hi16 = (loopCnt%4)//2 if tP["glvw"]==1 else (r%4)//2
+                    comment="load one buffer value"
+
+                destVgpr="G2L%s+%u+%u"%(tc, g2lIdx, regIdx)
+                loadVgpr = destVgprHi if ((hi16 or hi8) and destVgprHi != None) else destVgpr
+                if kernel["ProblemType"]["DataType"].isInt8() and (not self.archCaps["HasEccHalf"]):
+                  kStr += inst("v_mov_b32", vgpr(loadVgpr), 0, "set to zero to avoid unexpected value")
+
                 kStr += inst("_v_cmpx_lt_u64", self.vcc, \
                     vgpr("GlobalReadAddr%s+%u"%(tc, graIdx),2), \
                     vgpr(maxAddrVgpr,2), \
                     "addr < maxAddr")
-                hi16=(kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and r%2==1
-                destVgpr="G2L%s+%u+%u"%(tc, g2lIdx, regIdx)
+
+
                 # load one element from address
                 kStr += self.chooseGlobalRead(False, \
-                          self.bpeAB, destVgpr=destVgprHi if (hi16 and destVgprHi != None) else destVgpr, \
+                          self.bpeAB, destVgpr=loadVgpr, \
                           addr0=vgpr("GlobalReadAddr%s+%u"%(tc,graIdx),2), addr1="", \
                           soffset=0, offset=0, \
                           extraFields=extraFields, \
@@ -11087,7 +11112,11 @@ class KernelWriterAssembly(KernelWriter):
       return rv
 
     else:
-      if bpl==2 and hi16:
+      if bpl==1 and hi16:
+        return Code.GlobalReadInst("_flat_load_d16_hi_u8", vgpr(destVgpr, rpv*4), addr0, extraFields, comment )
+      elif bpl==1 and not hi16:
+        return Code.GlobalReadInst("_flat_load_d16_u8", vgpr(destVgpr, rpv*4), addr0, extraFields, comment )
+      elif bpl==2 and hi16:
         return Code.GlobalReadInst("_flat_load_d16_hi_b16", vgpr(destVgpr, rpv*2), addr0, extraFields, comment )
       elif bpl==2 and not hi16:
         return Code.GlobalReadInst("_flat_load_d16_b16", vgpr(destVgpr, rpv*2), addr0, extraFields, comment )
