@@ -1033,8 +1033,6 @@ def generateLogicDataAndSolutions(logicFiles, args):
     for _, sol in fullMasterLibrary.solutions.items():
       solutions.append(sol.originalSolution)
 
-    masterLibraries.pop("fallback")
-
   # remove duplicates while preserving order
   solutions = list(dict.fromkeys(solutions))
   return solutions, masterLibraries, fullMasterLibrary
