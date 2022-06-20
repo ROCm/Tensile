@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2022 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -1346,6 +1346,27 @@ namespace Tensile
                     {
                         return false;
                     }
+                }
+            };
+
+            struct Experimental : public Predicate_CRTP<Experimental, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+
+                Experimental() = default;
+
+                static std::string Type()
+                {
+                    return "Experimental";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return (problem.performanceMetric() == PerformanceMetric::Experimental);
                 }
             };
 

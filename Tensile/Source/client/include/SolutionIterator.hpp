@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2020-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +28,7 @@
 
 #include <Tensile/MasterSolutionLibrary.hpp>
 
-#include <boost/program_options.hpp>
+#include "program_options.hpp"
 
 #include <functional>
 #include <vector>
@@ -39,7 +39,7 @@ namespace Tensile
 {
     namespace Client
     {
-        namespace po = boost::program_options;
+        namespace po = roc;
 
         /**
  * Not an iterator by the traditional definition but I can't think of a better

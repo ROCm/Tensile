@@ -1,22 +1,25 @@
 ################################################################################
-# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 from . import Code
@@ -1419,11 +1422,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
           interval = roundUp(numMfmaPerIter / origLenGlobalReadCodeDTV)
           tileIndex = 0 if kernel["DirectToVgprA"] else 1
           if (kernel["MIWaveTile"][tileIndex] // kernel["VectorWidth"]) > 1:
-            if kernel["ProblemType"]["DataType"].isDoubleComplex():
+            if kernel["ProblemType"]["DataType"].isComplex():
               # adjustment for double complex
               # limit the max of interval up to 4 if (kernel["MIWaveTile"][0] // kernel["VectorWidth"]) > 1
               interval = min(4, interval)
-            elif kernel["ProblemType"]["DataType"].isDouble():
+            else: #if kernel["ProblemType"]["DataType"].isDouble() or isSingle():
               # adjustment for double
               # in this case, interval must be 1 to avoid overwritting vreg by global read
               interval = 1
@@ -5196,6 +5199,11 @@ for codeObjectFileName in codeObjectFileNames:
           # add numGlobalStoreC to needToWait
           needToWait += numGlobalStoreC
           waitComment = "global read/store wait for DirectToVgpr with StoreCInUnroll (StoreC=%u)"%(numGlobalStoreC)
+
+        # vmcnt should not go over MaxVmcnt
+        maxVmcnt = globalParameters["AsmCaps"][self.version]["MaxVmcnt"]
+        needToWait = min(needToWait, maxVmcnt)
+
         retStr = "s_waitcnt vmcnt(%u) // %s\n"%(needToWait, waitComment)
     return retStr
 

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2020-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -37,7 +37,7 @@ namespace Tensile
             std::shared_ptr<Hardware>                                  hardware,
             po::variables_map const&                                   args)
         {
-            bool bestSolution = args["best-solution"].as<bool>();
+            bool bestSolution = args.at("best-solution").as<bool>();
 
             if(bestSolution)
             {
@@ -45,8 +45,8 @@ namespace Tensile
             }
             else
             {
-                int firstSolutionIdx = args["solution-start-idx"].as<int>();
-                int numSolutions     = args["num-solutions"].as<int>();
+                int firstSolutionIdx = args.at("solution-start-idx").as<int>();
+                int numSolutions     = args.at("num-solutions").as<int>();
 
                 return std::make_shared<AllSolutionsIterator>(
                     library,
@@ -118,7 +118,7 @@ namespace Tensile
         {
             RunCriteria criteria;
 
-            double granThresh = args["granularity-threshold"].as<double>();
+            double granThresh = args.at("granularity-threshold").as<double>();
             if(granThresh > 0.0)
             {
                 criteria.push_back([granThresh](ContractionProblem const&  problem,
