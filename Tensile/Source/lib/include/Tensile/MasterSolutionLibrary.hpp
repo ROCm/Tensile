@@ -128,10 +128,10 @@ namespace Tensile
                 std::cout << "Set TENSILE_SOLUTION_INDEX to a negative number to restore the "
                              "default behavior."
                           << std::endl;
-
-                solutionsGuard.lock();
-                auto selected_solution = solutions.at(solution_index);
-                solutionsGuard.unlock();
+                {
+                    std::lock_guard<std::mutex>(solutionsGuard);
+                    auto selected_solution = solutions.at(solution_index);
+                }
 
                 if((*selected_solution->problemPredicate)(problem)
                    && (*selected_solution->hardwarePredicate)(hardware))
