@@ -129,15 +129,15 @@ namespace Tensile
                              "default behavior."
                           << std::endl;
                 {
-                    std::lock_guard<std::mutex>(solutionsGuard);
-                    auto selected_solution = solutions.at(solution_index);
-                }
+                    std::lock_guard<std::mutex> guard(solutionsGuard);
+                    auto                        selected_solution = solutions.at(solution_index);
 
-                if((*selected_solution->problemPredicate)(problem)
-                   && (*selected_solution->hardwarePredicate)(hardware))
-                    return selected_solution;
-                else
-                    return nullptr;
+                    if((*selected_solution->problemPredicate)(problem)
+                       && (*selected_solution->hardwarePredicate)(hardware))
+                        return selected_solution;
+                    else
+                        return nullptr;
+                }
             }
             else
                 return library->findBestSolution(problem, hardware, fitness);
