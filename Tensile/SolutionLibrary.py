@@ -259,8 +259,8 @@ class MasterSolutionLibrary:
             newLib.rows.append({"predicate": pred, "library": library})
 
             if lazyLibrary:
-                placeholderName += "_" + str(devicePart)
                 if cuCount: placeholderName += "_CU" + str(cuCount)
+                placeholderName += "_" + str(devicePart)
 
             return newLib, placeholderName
 
@@ -284,7 +284,7 @@ class MasterSolutionLibrary:
             newLib = PredicateLibrary(tag="Problem")
             newLib.rows.append({"predicate": predicate, "library": library})
 
-            if lazyLibrary:
+            if lazyLibrary and predicate.tag != "TruePred":
                 placeholderName += "_" + predicate.tag
 
             return newLib, placeholderName
@@ -297,7 +297,7 @@ class MasterSolutionLibrary:
             newLib = PredicateLibrary(tag="Problem")
             newLib.rows.append({"predicate": predicate, "library": library})
 
-            if lazyLibrary:
+            if lazyLibrary and predicate.tag != "TruePred":
                 placeholderName += "_Fp16Alt"
 
             return newLib, placeholderName
