@@ -68,9 +68,10 @@ namespace Tensile
 
         bool loadPlaceholderLibrary() const
         {
-            std::lock_guard<std::mutex> lock (lazyLoadingGuard);
+            std::lock_guard<std::mutex> lock(lazyLoadingGuard);
             // If condition in case two threads got into this function
-            if(!library){
+            if(!library)
+            {
                 auto newLibrary = LoadLibraryFile<MyProblem, MySolution>(
                     (libraryDirectory + "/" + filePrefix + suffix).c_str());
                 auto mLibrary
@@ -83,7 +84,6 @@ namespace Tensile
             }
 
             return false;
-
         }
 
         std::string getCodeObjectFileName(Hardware const&   hardware,

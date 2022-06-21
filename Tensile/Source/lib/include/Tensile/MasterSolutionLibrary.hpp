@@ -51,7 +51,6 @@ namespace Tensile
         // If lazy loading is used, this may be updated in const functions
         SolutionMap<MySolution>* solutions;
         std::mutex*              solutionsGuard;
-
     };
 
     /**
