@@ -29,7 +29,7 @@
 #include "CSVStackFile.hpp"
 #include "ResultReporter.hpp"
 
-#include "program_options.hpp"
+#include <boost/program_options.hpp>
 
 #include <cstddef>
 
@@ -37,12 +37,12 @@ namespace Tensile
 {
     namespace Client
     {
-        namespace po = roc;
+        namespace po = boost::program_options;
 
         class LibraryUpdateReporter : public ResultReporter
         {
         public:
-            static std::shared_ptr<LibraryUpdateReporter> Default(po::variables_map& args);
+            static std::shared_ptr<LibraryUpdateReporter> Default(po::variables_map const& args);
 
             static std::shared_ptr<LibraryUpdateReporter> FromFilename(std::string const& filename,
                                                                        bool addComment);

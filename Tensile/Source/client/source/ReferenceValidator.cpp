@@ -40,7 +40,7 @@ namespace Tensile
 {
     namespace Client
     {
-        ReferenceValidator::ReferenceValidator(po::variables_map&                  args,
+        ReferenceValidator::ReferenceValidator(po::variables_map const&            args,
                                                std::shared_ptr<DataInitialization> dataInit)
             : m_dataInit(dataInit)
         {

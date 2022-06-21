@@ -32,7 +32,7 @@
 #include <cstddef>
 #include <future>
 
-#include "program_options.hpp"
+#include <boost/program_options.hpp>
 
 #include "HardwareMonitor_fwd.hpp"
 
@@ -40,12 +40,12 @@ namespace Tensile
 {
     namespace Client
     {
-        namespace po = roc;
+        namespace po = boost::program_options;
 
         class HardwareMonitorListener : public RunListener
         {
         public:
-            HardwareMonitorListener(po::variables_map& args);
+            HardwareMonitorListener(po::variables_map const& args);
 
             virtual bool needMoreBenchmarkRuns() const override
             {
