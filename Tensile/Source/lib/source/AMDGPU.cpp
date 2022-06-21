@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -82,6 +82,12 @@ namespace Tensile
             return stream << "gfx1012";
         case AMDGPU::Processor::gfx1030:
             return stream << "gfx1030";
+        case AMDGPU::Processor::gfx1100:
+            return stream << "gfx1100";
+        case AMDGPU::Processor::gfx1101:
+            return stream << "gfx1101";
+        case AMDGPU::Processor::gfx1102:
+            return stream << "gfx1102";
         }
         return stream;
     }

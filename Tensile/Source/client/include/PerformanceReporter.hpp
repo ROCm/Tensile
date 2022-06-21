@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2020-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -35,19 +35,19 @@
 #include <limits>
 #include <string>
 
-#include <boost/program_options.hpp>
+#include "program_options.hpp"
 #include <hip/hip_runtime.h>
 
 namespace Tensile
 {
     namespace Client
     {
-        namespace po = boost::program_options;
+        namespace po = roc;
 
         class PerformanceReporter : public ResultReporter
         {
         public:
-            static std::shared_ptr<PerformanceReporter> Default(po::variables_map const& args);
+            static std::shared_ptr<PerformanceReporter> Default(po::variables_map& args);
 
             PerformanceReporter(int    deviceIndex,
                                 double l2ReadHits,
