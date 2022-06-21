@@ -50,6 +50,8 @@ namespace Tensile
         std::vector<LazyLoadingInit> preloaded;
         // If lazy loading is used, this may be updated in const functions
         SolutionMap<MySolution>* solutions;
+        std::mutex*              solutionsGuard;
+
     };
 
     /**
@@ -86,6 +88,7 @@ namespace Tensile
         std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> library;
         SolutionMap<MySolution>                                 solutions;
         std::string                                             version;
+        mutable std::mutex                                      solutionsGuard;
 
         MasterSolutionLibrary() = default;
 
@@ -127,7 +130,9 @@ namespace Tensile
                              "default behavior."
                           << std::endl;
 
+                solutionsGuard.lock();
                 auto selected_solution = solutions.at(solution_index);
+                solutionsGuard.unlock();
 
                 if((*selected_solution->problemPredicate)(problem)
                    && (*selected_solution->hardwarePredicate)(hardware))

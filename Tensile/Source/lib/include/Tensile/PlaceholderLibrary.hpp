@@ -58,6 +58,8 @@ namespace Tensile
     {
         mutable std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> library;
         mutable SolutionMap<MySolution>*                                solutions;
+        mutable std::mutex*                                             solutionsGuard;
+        mutable std::mutex                                              lazyLoadingGuard;
         std::string                                                     filePrefix;
         std::string                                                     suffix;
         std::string                                                     libraryDirectory;
@@ -66,14 +68,22 @@ namespace Tensile
 
         bool loadPlaceholderLibrary() const
         {
-            auto newLibrary = LoadLibraryFile<MyProblem, MySolution>(
-                (libraryDirectory + "/" + filePrefix + suffix).c_str());
-            auto mLibrary
-                = static_cast<MasterSolutionLibrary<MyProblem, MySolution>*>(newLibrary.get());
-            library = mLibrary->library;
-            solutions->insert(mLibrary->solutions.begin(), mLibrary->solutions.end());
+            std::lock_guard<std::mutex> lock (lazyLoadingGuard);
+            // If condition in case two threads got into this function
+            if(!library){
+                auto newLibrary = LoadLibraryFile<MyProblem, MySolution>(
+                    (libraryDirectory + "/" + filePrefix + suffix).c_str());
+                auto mLibrary
+                    = static_cast<MasterSolutionLibrary<MyProblem, MySolution>*>(newLibrary.get());
+                library = mLibrary->library;
+                std::lock_guard<std::mutex> lock(*solutionsGuard);
+                solutions->insert(mLibrary->solutions.begin(), mLibrary->solutions.end());
 
-            return mLibrary;
+                return mLibrary;
+            }
+
+            return false;
+
         }
 
         std::string getCodeObjectFileName(Hardware const&   hardware,
