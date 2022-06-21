@@ -27,6 +27,7 @@
 #pragma once
 
 #include <Tensile/ContractionProblem.hpp>
+#include <Tensile/ContractionSolution.hpp>
 #include <Tensile/PropertyMatching.hpp>
 
 #include <cstddef>
@@ -216,6 +217,129 @@ namespace Tensile
             virtual std::string operator()(ContractionProblem const& problem) const
             {
                 return problem.operationIdentifier();
+            }
+        };
+
+        // Helper functions TODO: Consolidate with ContractionSolution::computeGranularities
+        float numTiles0(ContractionProblem const& problem, float macro_tile_0_inv)
+        {
+            // Get problem size (M)
+            float M = problem.freeSizeA(0);
+            if(problem.freeIndicesA().size() > 1)
+                assert(false); //TODO: Handle this case
+
+            return M * macro_tile_0_inv;
+        }
+
+        float numTiles1(ContractionProblem const& problem, float macro_tile_1_inv)
+        {
+            // Get problem size (N)
+            float N = problem.freeSizeB(0);
+            if(problem.freeIndicesB().size() > 1)
+                assert(false); //TODO: Handle this case
+
+            // Calculate granularity
+            return N * macro_tile_1_inv;
+        }
+
+        float tileGranularity(float numTiles)
+        {
+            return numTiles / ceil(numTiles);
+        }
+
+        struct Tile0Granularity : public Property_CRTP<Tile0Granularity, ContractionProblem, float>
+        {
+            enum
+            {
+                HasIndex = false,
+                HasValue = true
+            };
+            float value;  // 1/mt0
+
+            static std::string Type()
+            {
+                return "Tile0Granularity";
+            }
+
+            virtual float operator()(ContractionProblem const& problem) const
+            {
+                return tileGranularity(numTiles0(problem, value));
+            }
+        };
+
+        struct Tile1Granularity : public Property_CRTP<Tile1Granularity, ContractionProblem, float>
+        {
+            enum
+            {
+                HasIndex = false,
+                HasValue = true
+            };
+            float value;    // 1/mt1
+
+            static std::string Type()
+            {
+                return "Tile1Granularity";
+            }
+
+            virtual float operator()(ContractionProblem const& problem) const
+            {
+                return tileGranularity(numTiles1(problem, value));
+            }
+        };
+
+        struct CUGranularity : public Property_CRTP<CUGranularity, ContractionProblem, float>
+        {
+            enum
+            {
+                HasIndex = false,
+                HasValue = true,
+
+            };
+            ContractionSolution::GranularityScaleFactors value;
+            /* General scaling = (1 / (numCUs / globalSplitU / localSplitU))
+             * See: `ContractionSolution::computeGranularities`
+             */
+
+            static std::string Type()
+            {
+                return "CUGranularity";
+            }
+
+            virtual float operator()(ContractionProblem const& problem) const
+            {
+                float NumBatches = 1; // TODO: Higher batch sizes
+                float tilesPerCu = NumBatches
+                                        * ceil(numTiles0(problem, value.mt0_scale)) 
+                                        * ceil(numTiles1(problem, value.mt1_scale))
+                                        * value.devSolScale;  
+                return tileGranularity(tilesPerCu);
+            }
+        };
+
+        struct WavesPerSIMD : public Property_CRTP<WavesPerSIMD, ContractionProblem, float>
+        {
+            enum
+            {
+                HasIndex = false,
+                HasValue = true,
+
+            };
+            ContractionSolution::GranularityScaleFactors value;  
+            /* General scaling = ((globalSplitU / numCUs)
+             *                     * ceil((workGroupX * workGroupY) / wavefrontSize)
+             *                     / (2 * simdPerCU))
+             * See: `ContractionSolution::computeGranularities`
+             */
+
+            static std::string Type()
+            {
+                return "WavesPerSIMD";
+            }
+
+            virtual float operator()(ContractionProblem const& problem) const
+            {
+                float totalTiles = ceil(numTiles0(problem, value.mt0_scale)) * ceil(numTiles1(problem, value.mt1_scale));
+                return totalTiles * value.devSolScale;
             }
         };
     } // namespace Contraction

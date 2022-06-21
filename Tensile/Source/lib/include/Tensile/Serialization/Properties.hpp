@@ -94,6 +94,30 @@ namespace Tensile
         };
 
         template <typename IO>
+        struct SubclassMappingTraits<Property<ContractionProblem, float>, IO>
+            : public DefaultSubclassMappingTraits<
+                  SubclassMappingTraits<Property<ContractionProblem, float>, IO>,
+                  Property<ContractionProblem, float>,
+                  IO>
+        {
+            using Self = SubclassMappingTraits<Property<ContractionProblem, float>, IO>;
+            using Base = DefaultSubclassMappingTraits<
+                SubclassMappingTraits<Property<ContractionProblem, float>, IO>,
+                Property<ContractionProblem, float>,
+                IO>;
+            using SubclassMap = typename Base::SubclassMap;
+            const static SubclassMap subclasses;
+
+            static SubclassMap GetSubclasses()
+            {
+                return SubclassMap({Base::template Pair<Contraction::Tile0Granularity>(),
+                                    Base::template Pair<Contraction::Tile1Granularity>(),
+                                    Base::template Pair<Contraction::CUGranularity>(),
+                                    Base::template Pair<Contraction::WavesPerSIMD>()});
+            }
+        };
+
+        template <typename IO>
         const typename SubclassMappingTraits<Property<ContractionProblem, size_t>, IO>::SubclassMap
             SubclassMappingTraits<Property<ContractionProblem, size_t>, IO>::subclasses
             = SubclassMappingTraits<Property<ContractionProblem, size_t>, IO>::GetSubclasses();
@@ -103,6 +127,12 @@ namespace Tensile
                                              IO>::SubclassMap
             SubclassMappingTraits<Property<ContractionProblem, std::string>, IO>::subclasses
             = SubclassMappingTraits<Property<ContractionProblem, std::string>, IO>::GetSubclasses();
+
+        template <typename IO>
+        const typename SubclassMappingTraits<Property<ContractionProblem, float>,
+                                             IO>::SubclassMap
+            SubclassMappingTraits<Property<ContractionProblem, float>, IO>::subclasses
+            = SubclassMappingTraits<Property<ContractionProblem, float>, IO>::GetSubclasses();
 
         template <typename IO>
         struct MappingTraits<Contraction::FreeSizeA, IO>
@@ -155,6 +185,30 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Contraction::OperationIdentifier, IO>
             : public AutoMappingTraits<Contraction::OperationIdentifier, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Contraction::Tile0Granularity, IO>
+            : public AutoMappingTraits<Contraction::Tile0Granularity, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Contraction::Tile1Granularity, IO>
+            : public AutoMappingTraits<Contraction::Tile1Granularity, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Contraction::CUGranularity, IO>
+            : public AutoMappingTraits<Contraction::CUGranularity, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Contraction::WavesPerSIMD, IO>
+            : public AutoMappingTraits<Contraction::WavesPerSIMD, IO>
         {
         };
 
