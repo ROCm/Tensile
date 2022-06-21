@@ -35,19 +35,19 @@
 #include <limits>
 #include <string>
 
-#include "program_options.hpp"
+#include <boost/program_options.hpp>
 #include <hip/hip_runtime.h>
 
 namespace Tensile
 {
     namespace Client
     {
-        namespace po = roc;
+        namespace po = boost::program_options;
 
         class PerformanceReporter : public ResultReporter
         {
         public:
-            static std::shared_ptr<PerformanceReporter> Default(po::variables_map& args);
+            static std::shared_ptr<PerformanceReporter> Default(po::variables_map const& args);
 
             PerformanceReporter(int    deviceIndex,
                                 double l2ReadHits,

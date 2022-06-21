@@ -36,7 +36,8 @@ namespace Tensile
 {
     namespace Client
     {
-        std::shared_ptr<PerformanceReporter> PerformanceReporter::Default(po::variables_map& args)
+        std::shared_ptr<PerformanceReporter>
+            PerformanceReporter::Default(po::variables_map const& args)
         {
             int    deviceIndex        = args["device-idx"].as<int>();
             double l2ReadHits         = args["perf-l2-read-hits"].as<double>();
