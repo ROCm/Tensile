@@ -2,6 +2,7 @@
 
 ## (Unreleased) Tensile 4.34.0
 ### Added
+- Lazy loading of solution libraries and code object files
 - Support for dictionary style logic files
 - Support for decision tree based logic files using dictionary format
 - DecisionTreeLibrary for solution selection
