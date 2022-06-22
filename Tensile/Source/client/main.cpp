@@ -482,6 +482,17 @@ int main(int argc, const char* argv[])
     Tensile::hip::SolutionAdapter adapter;
     LoadCodeObjects(args, adapter);
 
+    auto filename = args["library-file"].as<std::string>();
+
+    size_t      directoryPos     = filename.rfind('/');
+    std::string libraryDirectory = filename;
+    if(directoryPos != std::string::npos)
+        libraryDirectory.resize(directoryPos + 1);
+    else
+        libraryDirectory = '.';
+
+    adapter.initializeLazyLoading(hardware->archName(), libraryDirectory);
+
     auto problems        = problemFactory.problems();
     int  firstProblemIdx = args["problem-start-idx"].as<int>();
     int  numProblems     = args["num-problems"].as<int>();

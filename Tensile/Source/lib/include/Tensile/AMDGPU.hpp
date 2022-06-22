@@ -68,6 +68,38 @@ namespace Tensile
             gfx1102 = 1102
         };
 
+        static std::string toString(Processor p)
+        {
+            switch(p)
+            {
+            case AMDGPU::Processor::gfx803:
+                return "gfx803";
+            case AMDGPU::Processor::gfx900:
+                return "gfx900";
+            case AMDGPU::Processor::gfx906:
+                return "gfx906";
+            case AMDGPU::Processor::gfx908:
+                return "gfx908";
+            case AMDGPU::Processor::gfx90a:
+                return "gfx90a";
+            case AMDGPU::Processor::gfx1010:
+                return "gfx1010";
+            case AMDGPU::Processor::gfx1011:
+                return "gfx1011";
+            case AMDGPU::Processor::gfx1012:
+                return "gfx1012";
+            case AMDGPU::Processor::gfx1030:
+                return "gfx1030";
+            case AMDGPU::Processor::gfx1100:
+                return "gfx1100";
+            case AMDGPU::Processor::gfx1101:
+                return "gfx1101";
+            case AMDGPU::Processor::gfx1102:
+                return "gfx1102";
+            }
+            return "";
+        }
+
         AMDGPU();
         AMDGPU(Processor p, int computeUnitCount, std::string const& deviceName);
         ~AMDGPU();
@@ -83,6 +115,12 @@ namespace Tensile
         {
             return (size_t)processor;
         }
+
+        virtual std::string archName() const
+        {
+            return toString(processor);
+        }
+
         virtual std::string description() const;
 
         bool operator==(AMDGPU const& rhs) const
