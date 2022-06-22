@@ -74,7 +74,7 @@ namespace Tensile
             std::string xnackVersion = "xnack"; //Extra character before and after xnack
             size_t      loc          = coFilename.find(xnackVersion);
             if(loc != std::string::npos)
-                coFilename.replace(loc - 1, xnackVersion.length() + 1, "");
+                coFilename.replace(loc - 1, xnackVersion.length() + 2, "");
 
             return coFilename;
         }
