@@ -62,33 +62,7 @@ namespace Tensile
 
     std::ostream& operator<<(std::ostream& stream, AMDGPU::Processor p)
     {
-        switch(p)
-        {
-        case AMDGPU::Processor::gfx803:
-            return stream << "gfx803";
-        case AMDGPU::Processor::gfx900:
-            return stream << "gfx900";
-        case AMDGPU::Processor::gfx906:
-            return stream << "gfx906";
-        case AMDGPU::Processor::gfx908:
-            return stream << "gfx908";
-        case AMDGPU::Processor::gfx90a:
-            return stream << "gfx90a";
-        case AMDGPU::Processor::gfx1010:
-            return stream << "gfx1010";
-        case AMDGPU::Processor::gfx1011:
-            return stream << "gfx1011";
-        case AMDGPU::Processor::gfx1012:
-            return stream << "gfx1012";
-        case AMDGPU::Processor::gfx1030:
-            return stream << "gfx1030";
-        case AMDGPU::Processor::gfx1100:
-            return stream << "gfx1100";
-        case AMDGPU::Processor::gfx1101:
-            return stream << "gfx1101";
-        case AMDGPU::Processor::gfx1102:
-            return stream << "gfx1102";
-        }
+        stream << AMDGPU::toString(p);
         return stream;
     }
 

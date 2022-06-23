@@ -56,7 +56,6 @@ namespace Tensile
             return "BFloat16";
         case DataType::Int8:
             return "Int8";
-
         case DataType::Count:;
         }
         return "Invalid";
@@ -84,7 +83,6 @@ namespace Tensile
             return "B";
         case DataType::Int8:
             return "I8";
-
         case DataType::Count:;
         }
         return "Invalid";

@@ -5025,6 +5025,11 @@ for codeObjectFileName in codeObjectFileNames:
         # asmPath = self.getAssemblyDirectory()
         # kernelName = self.getKernelName(kernel)
 
+        # Skip if .o files will have already been built for this file
+        # @TODO remove need for this with better code organization
+        if kernel.duplicate:
+          self.language = "ASM"
+          return (0, "")
         if globalParameters["GenerateSourcesAndExit"]:
           # only create the assembly file.
           self.getKernelObjectAssemblyFile(kernel)

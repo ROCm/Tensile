@@ -31,7 +31,7 @@
 #include <chrono>
 #include <cstddef>
 
-#include "program_options.hpp"
+#include <boost/program_options.hpp>
 
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/ContractionSolution.hpp>
@@ -40,14 +40,14 @@ namespace Tensile
 {
     namespace Client
     {
-        namespace po = roc;
+        namespace po = boost::program_options;
 
         class BenchmarkTimer : public RunListener
         {
         public:
             using clock = std::chrono::steady_clock;
 
-            BenchmarkTimer(po::variables_map& args, Hardware const& hardware);
+            BenchmarkTimer(po::variables_map const& args, Hardware const& hardware);
 
             virtual bool needMoreBenchmarkRuns() const override;
             virtual void preBenchmarkRun() override;

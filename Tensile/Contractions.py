@@ -232,6 +232,20 @@ class ProblemType:
                          'C' + cNames,
                          'D' + dNames])
 
+    def placeholderStr(self, includeBatch=False, includeOperation=False, includeType=False):
+        ret = ""
+        if includeOperation:
+            ret = self.operationIdentifier
+            if not self.useBeta:
+                ret += "_Beta0"
+            ret += "_StridedBatched{}".format(int(self.stridedBatched))
+        if includeType:
+            ret += "_Type_{}{}".format(DataType(self.aType).toChar(), DataType(self.cType).toChar())
+            if self.highPrecisionAccumulate:
+                ret += "_HPA"
+
+        return ret
+
     def predicates(self, includeBatch=False, includeOperation=False, includeType=False):
         predicates = []
 
@@ -322,7 +336,7 @@ class ProblemPredicate(Properties.Predicate):
 
         if key.startswith('Assert'):
             raise RuntimeError("Unknown assertion key: {}".format(key))
-        
+
         if key == "Fp16AltImpl":
             return cls("Fp16AltImpl") if value != False else None
 
@@ -399,7 +413,8 @@ class ProblemPredicate(Properties.Predicate):
         compoundPreds = cls.CompoundPredicates(d, problemType)
         extraPreds = problemTypePreds + compoundPreds + morePreds
 
-        return super().FromOriginalState(d, extraPreds)
+        predicates = [p for p in map(cls.FromOriginalKeyPair, d.items()) if p is not None] + extraPreds
+        return cls.And(predicates)
 
 class SizeMapping:
     StateKeys = ['workGroup',
@@ -470,7 +485,7 @@ class Solution:
     HiddenKeys = ['originalSolution']
 
     @classmethod
-    def FromSolutionStruct(cls, solution, deviceInfo=None):
+    def FromSolutionStruct(cls, solution):
         return cls.FromOriginalState(solution._state)
 
     @classmethod

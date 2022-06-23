@@ -30,6 +30,7 @@
 
 #include <Tensile/AMDGPUPredicates.hpp>
 #include <Tensile/ContractionProblemPredicates.hpp>
+#include <Tensile/DecisionTreeLibrary.hpp>
 #include <Tensile/ExactLogicLibrary.hpp>
 #include <Tensile/GranularitySelectionLibrary.hpp>
 #include <Tensile/PropertyMatching.hpp>
@@ -191,6 +192,20 @@ namespace Tensile
         struct SequenceTraits<std::vector<Tensile::Matching::MatchingTableEntry<Key, Value>>, IO>
             : public DefaultSequenceTraits<
                   std::vector<Tensile::Matching::MatchingTableEntry<Key, Value>>,
+                  IO,
+                  false>
+        {
+        };
+
+        TENSILE_SERIALIZE_VECTOR(true, Tensile::DecisionTree::Node);
+        // TENSILE_SERIALIZE_VECTOR(true,
+        //                          Tensile::DecisionTreeLibrary<Tensile::ContractionProblem,
+        //                                                       Tensile::ContractionSolution>::Tree);
+
+        template <typename Key, typename Value, typename ReturnValue, typename IO>
+        struct SequenceTraits<std::vector<Tensile::DecisionTree::Tree<Key, Value, ReturnValue>>, IO>
+            : public DefaultSequenceTraits<
+                  std::vector<Tensile::DecisionTree::Tree<Key, Value, ReturnValue>>,
                   IO,
                   false>
         {

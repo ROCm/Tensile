@@ -121,6 +121,7 @@ namespace Tensile
     {
     public:
         std::string kernelName;
+        std::string codeObjectFile; //Code object file kernel is located in
 
         dim3   workGroupSize;
         dim3   numWorkGroups;
@@ -147,6 +148,7 @@ namespace Tensile
 
         virtual size_t      id() const          = 0;
         virtual std::string description() const = 0;
+        virtual std::string archName() const    = 0;
     };
 
     /**
@@ -180,9 +182,16 @@ namespace Tensile
     /**
  * Interface for deserializing a library file.
  */
+    enum class LazyLoadingInit;
+
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     TENSILE_API std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
                 LoadLibraryFile(std::string const& filename);
+
+    template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
+    TENSILE_API std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
+                LoadLibraryFilePreload(std::string const&                  filename,
+                                       const std::vector<LazyLoadingInit>& preload);
 
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>

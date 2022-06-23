@@ -50,11 +50,13 @@
 #include "ResultFileReporter.hpp"
 #include "ResultReporter.hpp"
 
-#include "program_options.hpp"
+#include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/split.hpp>
+#include <boost/program_options.hpp>
 
 #include <cstddef>
 
-namespace pomain = roc;
+namespace po = boost::program_options;
 
 namespace Tensile
 {
@@ -62,186 +64,186 @@ namespace Tensile
     {
 
         template <typename T>
-        pomain::value<T>* value_default(std::string const& desc)
+        po::typed_value<T>* value_default(std::string const& desc)
         {
-            return pomain::value<T>()->default_value(T());
+            return po::value<T>()->default_value(T(), desc);
         }
 
         template <typename T>
-        pomain::value<T>* value_default()
+        po::typed_value<T>* value_default()
         {
-            return pomain::value<T>()->default_value(T());
+            return po::value<T>()->default_value(T());
         }
 
         template <typename T>
-        pomain::value<std::vector<T>>* vector_default_empty()
+        po::typed_value<std::vector<T>>* vector_default_empty()
         {
             return value_default<std::vector<T>>("[]");
         }
 
-        pomain::options_description all_options()
+        po::options_description all_options()
         {
-            pomain::options_description options("Tensile client options");
+            po::options_description options("Tensile client options");
 
             // clang-format off
             options.add_options()
                 ("help,h", "Show help message.")
 
-                ("config-file",              pomain::value<std::vector<std::string>>(), "INI config file(s) to read.")
+                ("config-file",              vector_default_empty<std::string>(), "INI config file(s) to read.")
 
-                ("library-file,l",           pomain::value<std::string>(), "Load a (YAML) solution library.  If not specified, we will use "
+                ("library-file,l",           po::value<std::string>(), "Load a (YAML) solution library.  If not specified, we will use "
                                                                        "the embedded library, if available.")
-                ("code-object,c",            pomain::value<std::vector<std::string>>(), "Code object file with kernel(s).  If none are "
+                ("code-object,c",            vector_default_empty<std::string>(), "Code object file with kernel(s).  If none are "
                                                                                   "specified, we will use the embedded code "
                                                                                   "object(s) if available.")
 
-                ("performance-metric",       pomain::value<PerformanceMetric>()->default_value(PerformanceMetric::DeviceEfficiency), "Metric for benchmarking results")
+                ("performance-metric",       po::value<PerformanceMetric>()->default_value(PerformanceMetric::DeviceEfficiency), "Metric for benchmarking results")
 
-                ("problem-identifier",       pomain::value<std::string>(), "Problem identifer (Einstein notation). Either "
+                ("problem-identifier",       po::value<std::string>(), "Problem identifer (Einstein notation). Either "
                                                                        "this or free/batch/bound must be specified.")
-                ("free",                     pomain::value<ContractionProblem::FreeIndices>()->default_value(ContractionProblem::FreeIndices(0)),  "Free index. Order: a,b,ca,cb,da,db")
-                ("batch",                    pomain::value<ContractionProblem::BatchIndices>()->default_value(ContractionProblem::BatchIndices(0)), "Batch index. Order: a,b,c,d")
-                ("bound",                    pomain::value<ContractionProblem::BoundIndices>()->default_value(ContractionProblem::BoundIndices(0)), "Bound/summation index. Order: a,b")
-                
-                ("type",                     pomain::value<DataType>()->default_value(DataType::None), "Data type")
-                ("a-type",                   pomain::value<DataType>()->default_value(DataType::None), "A data type")
-                ("b-type",                   pomain::value<DataType>()->default_value(DataType::None), "B data type")
-                ("c-type",                   pomain::value<DataType>()->default_value(DataType::None), "C data type")
-                ("d-type",                   pomain::value<DataType>()->default_value(DataType::None), "D data type")
-                ("alpha-type",               pomain::value<DataType>()->default_value(DataType::None), "alpha data type")
-                ("beta-type",                pomain::value<DataType>()->default_value(DataType::None), "beta data type")
-                ("high-precision-accumulate", pomain::value<bool>()->default_value(false), "Use high-precision accumulate.")
-                ("strided-batched",          pomain::value<bool>()->default_value(true), "Use strided-batched or general batched")
-                ("kernel-language",          pomain::value<KernelLanguage>()->default_value(KernelLanguage::Any), "Select kernel language.")
-                ("deterministic-mode",       pomain::value<bool>()->default_value(false), "Enforce deterministic summation patterns"
-                                                                                      "by not splitting U among workgroups")
-                ("arithmetic-unit",          pomain::value<ArithmeticUnit>()->default_value(ArithmeticUnit::Any), "Select arithmetic unit.")
+                ("free",                     value_default<ContractionProblem::FreeIndices>("[]"),  "Free index. Order: a,b,ca,cb,da,db")
+                ("batch",                    value_default<ContractionProblem::BatchIndices>("[]"), "Batch index. Order: a,b,c,d")
+                ("bound",                    value_default<ContractionProblem::BoundIndices>("[]"), "Bound/summation index. Order: a,b")
 
-                ("init-a",                   pomain::value<InitMode>()->default_value(InitMode::Random), "Initialization for A")
-                ("init-b",                   pomain::value<InitMode>()->default_value(InitMode::Random), "Initialization for B")
-                ("init-c",                   pomain::value<InitMode>()->default_value(InitMode::Random), "Initialization for C")
-                ("init-d",                   pomain::value<InitMode>()->default_value(InitMode::Zero), "Initialization for D")
-                ("init-alpha",               pomain::value<InitMode>()->default_value(InitMode::Two), "Initialization for alpha")
-                ("init-beta",                pomain::value<InitMode>()->default_value(InitMode::Two), "Initialization for beta")
-                ("pristine-on-gpu",          pomain::value<bool>()->default_value(true), "Keep a pristine copy of inputs on GPU for performance")
-                ("c-equal-d",                pomain::value<bool>()->default_value(false), "C equals D")
-                ("offset-a",                 pomain::value<size_t>()->default_value(0), "buffer a start offset")
-                ("offset-b",                 pomain::value<size_t>()->default_value(0), "buffer b start offset")
-                ("offset-c",                 pomain::value<size_t>()->default_value(0), "buffer c start offset")
-                ("offset-d",                 pomain::value<size_t>()->default_value(0), "buffer d start offset")
-                ("print-valids",             pomain::value<bool>()->default_value(false), "Print values that pass validation")
-                ("print-max",                pomain::value<int>()->default_value(-1), "Max number of values to print")
-                ("num-elements-to-validate", pomain::value<int>()->default_value(0), "Number of elements to validate")
-                ("bounds-check",             pomain::value<BoundsCheckMode>()->default_value(BoundsCheckMode::Disable),
+                ("type",                     po::value<DataType>()->default_value(DataType::None), "Data type")
+                ("a-type",                   po::value<DataType>()->default_value(DataType::None), "A data type")
+                ("b-type",                   po::value<DataType>()->default_value(DataType::None), "B data type")
+                ("c-type",                   po::value<DataType>()->default_value(DataType::None), "C data type")
+                ("d-type",                   po::value<DataType>()->default_value(DataType::None), "D data type")
+                ("alpha-type",               po::value<DataType>()->default_value(DataType::None), "alpha data type")
+                ("beta-type",                po::value<DataType>()->default_value(DataType::None), "beta data type")
+                ("high-precision-accumulate", po::value<bool>()->default_value(false), "Use high-precision accumulate.")
+                ("strided-batched",          po::value<bool>()->default_value(true), "Use strided-batched or general batched")
+                ("kernel-language",          po::value<KernelLanguage>()->default_value(KernelLanguage::Any), "Select kernel language.")
+                ("deterministic-mode",       po::value<bool>()->default_value(false), "Enforce deterministic summation patterns"
+                                                                                      "by not splitting U among workgroups")
+                ("arithmetic-unit",          po::value<ArithmeticUnit>()->default_value(ArithmeticUnit::Any), "Select arithmetic unit.")
+
+                ("init-a",                   po::value<InitMode>()->default_value(InitMode::Random), "Initialization for A")
+                ("init-b",                   po::value<InitMode>()->default_value(InitMode::Random), "Initialization for B")
+                ("init-c",                   po::value<InitMode>()->default_value(InitMode::Random), "Initialization for C")
+                ("init-d",                   po::value<InitMode>()->default_value(InitMode::Zero), "Initialization for D")
+                ("init-alpha",               po::value<InitMode>()->default_value(InitMode::Two), "Initialization for alpha")
+                ("init-beta",                po::value<InitMode>()->default_value(InitMode::Two), "Initialization for beta")
+                ("pristine-on-gpu",          po::value<bool>()->default_value(true), "Keep a pristine copy of inputs on GPU for performance")
+                ("c-equal-d",                po::value<bool>()->default_value(false), "C equals D")
+                ("offset-a",                 po::value<size_t>()->default_value(0), "buffer a start offset")
+                ("offset-b",                 po::value<size_t>()->default_value(0), "buffer b start offset")
+                ("offset-c",                 po::value<size_t>()->default_value(0), "buffer c start offset")
+                ("offset-d",                 po::value<size_t>()->default_value(0), "buffer d start offset")
+                ("print-valids",             po::value<bool>()->default_value(false), "Print values that pass validation")
+                ("print-max",                po::value<int>()->default_value(-1), "Max number of values to print")
+                ("num-elements-to-validate", po::value<int>()->default_value(0), "Number of elements to validate")
+                ("bounds-check",             po::value<BoundsCheckMode>()->default_value(BoundsCheckMode::Disable),
                 "1:Use sentinel values to check memory boundaries."
                 "2:Memory bound check by front guard page"
                 "3:Memory bound check by back guard page"
                 "4:Memory bound check by both side guard page")
 
-                ("print-tensor-a",           pomain::value<bool>()->default_value(false), "Print tensor A.")
-                ("print-tensor-b",           pomain::value<bool>()->default_value(false), "Print tensor B.")
-                ("print-tensor-c",           pomain::value<bool>()->default_value(false), "Print tensor C.")
-                ("print-tensor-d",           pomain::value<bool>()->default_value(false), "Print tensor D.")
-                ("print-tensor-ref",         pomain::value<bool>()->default_value(false), "Print reference tensor D.")
+                ("print-tensor-a",           po::value<bool>()->default_value(false), "Print tensor A.")
+                ("print-tensor-b",           po::value<bool>()->default_value(false), "Print tensor B.")
+                ("print-tensor-c",           po::value<bool>()->default_value(false), "Print tensor C.")
+                ("print-tensor-d",           po::value<bool>()->default_value(false), "Print tensor D.")
+                ("print-tensor-ref",         po::value<bool>()->default_value(false), "Print reference tensor D.")
 
-                ("dump-tensors",             pomain::value<bool>()->default_value(false), "Binary dump tensors instead of printing.")
+                ("dump-tensors",             po::value<bool>()->default_value(false), "Binary dump tensors instead of printing.")
 
-                ("convolution-identifier",   pomain::value<std::string>(), "Convolution problem identifer:  ConvolutionType_ActFormat_FilterFormat_Filter_Stride_Dilation_Groups.  Example: ConvolutionBackwardWeights_NCHW_filter:3x3_stride:1x1_dilation:1x1_groups:1.  Batch count, spacial dimensions (H,W,D), Cin and Cout filters are determined by the problem dimensions.")
-                ("convolution-vs-contraction",  pomain::value<bool>()->default_value(false), "Compare reference convolution against contraction.")
+                ("convolution-identifier",   po::value<std::string>(), "Convolution problem identifer:  ConvolutionType_ActFormat_FilterFormat_Filter_Stride_Dilation_Groups.  Example: ConvolutionBackwardWeights_NCHW_filter:3x3_stride:1x1_dilation:1x1_groups:1.  Batch count, spacial dimensions (H,W,D), Cin and Cout filters are determined by the problem dimensions.")
+                ("convolution-vs-contraction",  po::value<bool>()->default_value(false), "Compare reference convolution against contraction.")
 
-                ("device-idx",               pomain::value<int>()->default_value(0), "Device index")
-                ("use-default-stream",       pomain::value<bool>()->default_value(false), "Use default Hip stream to run kernels.")
-                ("platform-idx",             pomain::value<int>()->default_value(0), "OpenCL Platform Index")
+                ("device-idx",               po::value<int>()->default_value(0), "Device index")
+                ("use-default-stream",       po::value<bool>()->default_value(false), "Use default Hip stream to run kernels.")
+                ("platform-idx",             po::value<int>()->default_value(0), "OpenCL Platform Index")
 
-                ("num-warmups",              pomain::value<int>()->default_value(0), "Number of warmups to run")
-                ("sync-after-warmups",       pomain::value<bool>()->default_value(true), "Synchronize GPU after warmup kernel runs")
-                ("num-benchmarks",           pomain::value<int>()->default_value(1), "Number of benchmarks to run")
-                ("num-enqueues-per-sync",    pomain::value<int>()->default_value(1), "Enqueues per sync, will affect by min-flops-per-sync")
-                ("num-syncs-per-benchmark",  pomain::value<int>()->default_value(1), "Syncs per benchmark")
-                ("min-flops-per-sync",       pomain::value<size_t>()->default_value(0), "Minimum number of flops per sync to increase stability for small problems.")
-                ("use-gpu-timer",            pomain::value<bool>()->default_value(true), "Use GPU timer")
-                ("sleep-percent",            pomain::value<int>()->default_value(0), "Sleep percentage")
-                ("hardware-monitor",         pomain::value<bool>()->default_value(true), "Use hardware monitor.")
+                ("num-warmups",              po::value<int>()->default_value(0), "Number of warmups to run")
+                ("sync-after-warmups",       po::value<bool>()->default_value(true), "Synchronize GPU after warmup kernel runs")
+                ("num-benchmarks",           po::value<int>()->default_value(1), "Number of benchmarks to run")
+                ("num-enqueues-per-sync",    po::value<int>()->default_value(1), "Enqueues per sync, will affect by min-flops-per-sync")
+                ("num-syncs-per-benchmark",  po::value<int>()->default_value(1), "Syncs per benchmark")
+                ("min-flops-per-sync",       po::value<size_t>()->default_value(0), "Minimum number of flops per sync to increase stability for small problems.")
+                ("use-gpu-timer",            po::value<bool>()->default_value(true), "Use GPU timer")
+                ("sleep-percent",            po::value<int>()->default_value(0), "Sleep percentage")
+                ("hardware-monitor",         po::value<bool>()->default_value(true), "Use hardware monitor.")
 
-                ("perf-l2-read-hits",        pomain::value<double>()->default_value(0.0), "L2 read hits")
-                ("perf-l2-write-hits",       pomain::value<double>()->default_value(0.5), "L2 write hits")
-                ("perf-l2-read-bw-mul",      pomain::value<double>()->default_value(2.0), "L2 read bandwidth multiplier")
-                ("perf-read-efficiency",     pomain::value<double>()->default_value(0.85), "Read efficiency")
-                ("perf-ops-per-cycle",       pomain::value<int>()->default_value(64), "Ops per cycle")
-                ("csv-export-extra-cols",    pomain::value<bool>()->default_value(false), "CSV exports winner information")
-                ("csv-merge-same-problems",  pomain::value<bool>()->default_value(false), "CSV merge rows of same problem id")
+                ("perf-l2-read-hits",        po::value<double>()->default_value(0.0), "L2 read hits")
+                ("perf-l2-write-hits",       po::value<double>()->default_value(0.5), "L2 write hits")
+                ("perf-l2-read-bw-mul",      po::value<double>()->default_value(2.0), "L2 read bandwidth multiplier")
+                ("perf-read-efficiency",     po::value<double>()->default_value(0.85), "Read efficiency")
+                ("perf-ops-per-cycle",       po::value<int>()->default_value(64), "Ops per cycle")
+                ("csv-export-extra-cols",    po::value<bool>()->default_value(false), "CSV exports winner information")
+                ("csv-merge-same-problems",  po::value<bool>()->default_value(false), "CSV merge rows of same problem id")
 
-                ("problem-size,p",           pomain::value<std::vector<std::vector<size_t>>>()->default_value(std::vector<std::vector<size_t>>(0)), "Specify a problem size.  Comma-separated list of "
+                ("problem-size,p",           vector_default_empty<std::string>(), "Specify a problem size.  Comma-separated list of "
                                                                                   "sizes, in the order of the Einstein notation.")
 
-                ("a-strides",                pomain::value<std::vector<std::vector<size_t>>>()->default_value(std::vector<std::vector<size_t>>(0)), "Unspecified means default stride "
+                ("a-strides",                vector_default_empty<std::string>(), "Unspecified means default stride "
                                                                                   "(prev_dim_stride*prev_dim_size)"
                                                                                   "specifying once applies to all problem sizes, "
                                                                                   "otherwise specify once per problem size.")
 
-                ("b-strides",                pomain::value<std::vector<std::vector<size_t>>>()->default_value(std::vector<std::vector<size_t>>(0)), "Unspecified means default stride "
+                ("b-strides",                vector_default_empty<std::string>(), "Unspecified means default stride "
                                                                                   "(prev_dim_stride*prev_dim_size)"
                                                                                   "specifying once applies to all problem sizes, "
                                                                                   "otherwise specify once per problem size.")
 
-                ("c-strides",                pomain::value<std::vector<std::vector<size_t>>>()->default_value(std::vector<std::vector<size_t>>(0)), "Unspecified means default stride "
+                ("c-strides",                vector_default_empty<std::string>(), "Unspecified means default stride "
                                                                                   "(prev_dim_stride*prev_dim_size)"
                                                                                   "specifying once applies to all problem sizes, "
                                                                                   "otherwise specify once per problem size.")
 
-                ("d-strides",                pomain::value<std::vector<std::vector<size_t>>>()->default_value(std::vector<std::vector<size_t>>(0)), "Unspecified means default stride "
+                ("d-strides",                vector_default_empty<std::string>(), "Unspecified means default stride "
                                                                                   "(prev_dim_stride*prev_dim_size)"
                                                                                   "specifying once applies to all problem sizes, "
                                                                                   "otherwise specify once per problem size.")
 
-                ("convolution-problem",      pomain::value<std::vector<std::vector<size_t>>>()->default_value(std::vector<std::vector<size_t>>(0)), "Specify a Convolution problem size. Comma-separated list of sizes:"
+                ("convolution-problem",      vector_default_empty<std::string>(), "Specify a Convolution problem size. Comma-separated list of sizes:"
                                                                                   "Spatial(w,h,d),Filter(x,y,z),Stride(v,u,#),"
                                                                                   "Dilation(j,l,^),Pad start(q,p,$),Pad end(q_,p_,$_)")
 
-                ("a-zero-pads",                pomain::value<std::vector<std::vector<size_t>>>()->default_value(std::vector<std::vector<size_t>>(0)), "Comma-separated tuple(s) of anchor dim,"
+                ("a-zero-pads",                vector_default_empty<std::string>(), "Comma-separated tuple(s) of anchor dim,"
                                                                                   "summation dim, leading pad, trailing pad."
                                                                                   "Each tuple must be separated with a semi-colon.")
 
-                ("b-zero-pads",                pomain::value<std::vector<std::vector<size_t>>>()->default_value(std::vector<std::vector<size_t>>(0)), "Comma-separated tuple(s) of anchor dim,"
+                ("b-zero-pads",                vector_default_empty<std::string>(), "Comma-separated tuple(s) of anchor dim,"
                                                                                   "summation dim, leading pad, trailing pad."
                                                                                   "Each tuple must be separated with a semi-colon.")
 
-                ("a-ops",                    pomain::value<std::vector<TensorOp>>()->default_value(std::vector<TensorOp>(0)), "Operations applied to A.")
-                ("b-ops",                    pomain::value<std::vector<TensorOp>>()->default_value(std::vector<TensorOp>(0)), "Operations applied to B.")
-                ("c-ops",                    pomain::value<std::vector<TensorOp>>()->default_value(std::vector<TensorOp>(0)), "Operations applied to C.")
-                ("d-ops",                    pomain::value<std::vector<TensorOp>>()->default_value(std::vector<TensorOp>(0)), "Operations applied to D.")
+                ("a-ops",                    vector_default_empty<TensorOp>(), "Operations applied to A.")
+                ("b-ops",                    vector_default_empty<TensorOp>(), "Operations applied to B.")
+                ("c-ops",                    vector_default_empty<TensorOp>(), "Operations applied to C.")
+                ("d-ops",                    vector_default_empty<TensorOp>(), "Operations applied to D.")
 
-                ("problem-start-idx",        pomain::value<int>()->default_value(0),  "First problem to run")
-                ("num-problems",             pomain::value<int>()->default_value(-1), "Number of problems to run")
+                ("problem-start-idx",        po::value<int>()->default_value(0),  "First problem to run")
+                ("num-problems",             po::value<int>()->default_value(-1), "Number of problems to run")
 
-                ("solution-start-idx",       pomain::value<int>()->default_value(-1), "First solution to run")
-                ("num-solutions",            pomain::value<int>()->default_value(-1), "Number of solutions to run")
-                ("best-solution",            pomain::value<bool>()->default_value(false), "Best solution benchmark mode")
+                ("solution-start-idx",       po::value<int>()->default_value(-1), "First solution to run")
+                ("num-solutions",            po::value<int>()->default_value(-1), "Number of solutions to run")
+                ("best-solution",            po::value<bool>()->default_value(false), "Best solution benchmark mode")
 
-                ("results-file",             pomain::value<std::string>()->default_value("results.csv"), "File name to write results.")
-                ("log-file",                 pomain::value<std::string>(),                               "File name for output log.")
-                ("log-file-append",          pomain::value<bool>()->default_value(false),                "Append to log file.")
-                ("log-level",                pomain::value<LogLevel>()->default_value(LogLevel::Debug),  "Log level")
+                ("results-file",             po::value<std::string>()->default_value("results.csv"), "File name to write results.")
+                ("log-file",                 po::value<std::string>(),                               "File name for output log.")
+                ("log-file-append",          po::value<bool>()->default_value(false),                "Append to log file.")
+                ("log-level",                po::value<LogLevel>()->default_value(LogLevel::Debug),  "Log level")
 
-                ("library-update-file",      pomain::value<std::string>()->default_value(""), "File name for writing indices "
+                ("library-update-file",      po::value<std::string>()->default_value(""), "File name for writing indices "
                                                                                           "and speeds suitable for updating "
                                                                                           "an existing library logic file.")
-                ("library-update-comment",   pomain::value<bool>()->default_value(false), "Include solution name as a "
+                ("library-update-comment",   po::value<bool>()->default_value(false), "Include solution name as a "
                                                                                       "comment in library update "
                                                                                       "file.")
 
 
-                ("exit-on-error",            pomain::value<bool>()->default_value(false), "Exit run early on failed kernels or other errors.")
-                ("selection-only",           pomain::value<bool>()->default_value(false), "Don't run any solutions, only print kernel selections.")
-                ("max-workspace-size",       pomain::value<size_t>()->default_value(32*1024*1024), "Max workspace for training")
-                ("granularity-threshold",    pomain::value<double>()->default_value(0.0), "Don't run a solution if total granularity is below")
+                ("exit-on-error",            po::value<bool>()->default_value(false), "Exit run early on failed kernels or other errors.")
+                ("selection-only",           po::value<bool>()->default_value(false), "Don't run any solutions, only print kernel selections.")
+                ("max-workspace-size",       po::value<size_t>()->default_value(32*1024*1024), "Max workspace for training")
+                ("granularity-threshold",    po::value<double>()->default_value(0.0), "Don't run a solution if total granularity is below")
                 ;
             // clang-format on
 
             return options;
         }
 
-        std::shared_ptr<Hardware> GetHardware(pomain::variables_map& args)
+        std::shared_ptr<Hardware> GetHardware(po::variables_map const& args)
         {
             int deviceCount = 0;
             HIP_CHECK_EXC(hipGetDeviceCount(&deviceCount));
@@ -257,7 +259,7 @@ namespace Tensile
             return hip::GetCurrentDevice();
         }
 
-        hipStream_t GetStream(pomain::variables_map& args)
+        hipStream_t GetStream(po::variables_map const& args)
         {
             if(args["use-default-stream"].as<bool>())
                 return 0;
@@ -268,7 +270,7 @@ namespace Tensile
         }
 
         std::shared_ptr<MasterSolutionLibrary<ContractionProblem>>
-            LoadSolutionLibrary(pomain::variables_map& args)
+            LoadSolutionLibrary(po::variables_map const& args)
         {
             auto filename = args["library-file"];
             if(!filename.empty())
@@ -288,7 +290,7 @@ namespace Tensile
                                      "a library must be specified at runtime.");
         }
 
-        void LoadCodeObjects(pomain::variables_map& args, hip::SolutionAdapter& adapter)
+        void LoadCodeObjects(po::variables_map const& args, hip::SolutionAdapter& adapter)
         {
             auto const& filenames = args["code-object"].as<std::vector<std::string>>();
             auto        logLevel  = args["log-level"].as<LogLevel>();
@@ -325,104 +327,33 @@ namespace Tensile
         std::vector<size_t> split_ints(std::string const& value)
         {
             std::vector<std::string> parts;
-            pomain::split(parts, value, pomain::algorithm::is_any_of(",;"));
+            boost::split(parts, value, boost::algorithm::is_any_of(",;"));
 
             std::vector<size_t> rv;
             rv.reserve(parts.size());
 
             for(auto const& part : parts)
                 if(part != "")
-                    rv.push_back(pomain::lexical_cast<size_t>(part));
+                    rv.push_back(boost::lexical_cast<size_t>(part));
 
             return rv;
         }
 
-        void parse_unconfig_arg(pomain::variables_map& args, std::string opt, std::string strValue)
+        void parse_arg_ints(po::variables_map& args, std::string const& name)
         {
-            if(opt.compare(0, 5, "init-") == 0)
-            {
-                InitMode mode;
-                if(strValue == ToString(InitMode::Zero))
-                    mode = InitMode::Zero;
-                else if(strValue == ToString(InitMode::One))
-                    mode = InitMode::One;
-                else if(strValue == ToString(InitMode::Two))
-                    mode = InitMode::Two;
-                else if(strValue == ToString(InitMode::Random))
-                    mode = InitMode::Random;
-                else if(strValue == ToString(InitMode::NaN))
-                    mode = InitMode::NaN;
-                else if(strValue == ToString(InitMode::Inf))
-                    mode = InitMode::Inf;
-                else if(strValue == ToString(InitMode::BadInput))
-                    mode = InitMode::BadInput;
-                else if(strValue == ToString(InitMode::BadOutput))
-                    mode = InitMode::BadOutput;
-                else if(strValue == ToString(InitMode::SerialIdx))
-                    mode = InitMode::SerialIdx;
-                else if(strValue == ToString(InitMode::SerialDim0))
-                    mode = InitMode::SerialDim0;
-                else if(strValue == ToString(InitMode::SerialDim1))
-                    mode = InitMode::SerialDim1;
-                else if(strValue == ToString(InitMode::Identity))
-                    mode = InitMode::Identity;
-                else if(strValue == ToString(InitMode::TrigSin))
-                    mode = InitMode::TrigSin;
-                else if(strValue == ToString(InitMode::TrigCos))
-                    mode = InitMode::TrigCos;
-                else if(strValue == ToString(InitMode::TrigAbsSin))
-                    mode = InitMode::TrigAbsSin;
-                else if(strValue == ToString(InitMode::TrigAbsCos))
-                    mode = InitMode::TrigAbsCos;
-                else if(strValue == ToString(InitMode::RandomNarrow))
-                    mode = InitMode::RandomNarrow;
-                else if(strValue == ToString(InitMode::NegOne))
-                    mode = InitMode::NegOne;
-                else if(strValue == ToString(InitMode::Max))
-                    mode = InitMode::Max;
-                else if(strValue == ToString(InitMode::DenormMin))
-                    mode = InitMode::DenormMin;
-                else if(strValue == ToString(InitMode::DenormMax))
-                    mode = InitMode::DenormMax;
-                auto type = args[opt].as<InitMode>();
-                args.at(opt).set(mode);
-            }
-            else if(opt.compare(0, 12, "bounds-check") == 0)
-            {
-                BoundsCheckMode mode;
-                if(strValue == "Disable")
-                    mode = BoundsCheckMode::Disable;
-                else if(strValue == "NaN")
-                    mode = BoundsCheckMode::NaN;
-                else if(strValue == "GuardPageFront")
-                    mode = BoundsCheckMode::GuardPageFront;
-                else if(strValue == "GuardPageBack")
-                    mode = BoundsCheckMode::GuardPageBack;
-                else if(strValue == "GuardPageAll")
-                    mode = BoundsCheckMode::GuardPageAll;
-                else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
-                {
-                    int value = atoi(strValue.c_str());
-                    if(value >= 0 && value < static_cast<int>(BoundsCheckMode::MaxMode))
-                        mode = static_cast<BoundsCheckMode>(value);
-                    else
-                        throw std::runtime_error(
-                            concatenate("Can't convert ", strValue, " to BoundsCheckMode."));
-                }
-                else
-                {
-                    throw std::runtime_error(
-                        concatenate("Can't convert ", opt, " to BoundsCheckMode."));
-                }
-                args.at(opt).set(mode);
-            }
-            else
-            {
-                throw std::runtime_error(concatenate("Can't config ", strValue, " option."));
-            }
+            auto inValue = args[name].as<std::vector<std::string>>();
+
+            std::vector<std::vector<size_t>> outValue;
+            outValue.reserve(inValue.size());
+            for(auto const& str : inValue)
+                outValue.push_back(split_ints(str));
+
+            boost::any v(outValue);
+
+            args.at(name).value() = v;
         }
 
-        void fix_data_types(pomain::variables_map& args)
+        void fix_data_types(po::variables_map& args)
         {
             auto type = args["type"].as<DataType>();
 
@@ -431,28 +362,29 @@ namespace Tensile
             if(type == DataType::Float || type == DataType::Double || type == DataType::ComplexFloat
                || type == DataType::ComplexDouble || type == DataType::Int32)
             {
-                args.at("a-type").set(type);
-                args.at("b-type").set(type);
-                args.at("c-type").set(type);
-                args.at("d-type").set(type);
-                args.at("alpha-type").set(type);
-                args.at("beta-type").set(type);
+                args.at("a-type").value()     = boost::any(type);
+                args.at("b-type").value()     = boost::any(type);
+                args.at("c-type").value()     = boost::any(type);
+                args.at("d-type").value()     = boost::any(type);
+                args.at("alpha-type").value() = boost::any(type);
+                args.at("beta-type").value()  = boost::any(type);
             }
         }
 
-        pomain::variables_map parse_args(int argc, const char* argv[])
+        po::variables_map parse_args(int argc, const char* argv[])
         {
-            auto                  options = all_options();
-            pomain::variables_map args;
-            pomain::store(pomain::parse_command_line(argc, argv, options), args);
-            pomain::notify(args);
+            auto options = all_options();
+
+            po::variables_map args;
+            po::store(po::parse_command_line(argc, argv, options), args);
+            po::notify(args);
+
             if(args.count("help"))
             {
                 std::cout << options << std::endl;
                 exit(1);
             }
 
-            std::unordered_map<std::string, std::string> unconfig;
             if(args.count("config-file"))
             {
                 auto configFiles = args["config-file"].as<std::vector<std::string>>();
@@ -462,28 +394,28 @@ namespace Tensile
                     std::ifstream file(filename.c_str());
                     if(file.bad())
                         throw std::runtime_error(concatenate("Could not open ", filename));
-                    pomain::store(pomain::parse_config_file(file, options), args, &unconfig);
-                }
-            }
-
-            if(!unconfig.empty())
-            {
-                for(auto iter = unconfig.begin(); iter != unconfig.end(); iter++)
-                {
-                    std::string opt = iter->first;
-                    std::string val = iter->second;
-                    parse_unconfig_arg(args, opt, val);
+                    po::store(po::parse_config_file(file, options), args);
                 }
             }
 
             fix_data_types(args);
 
+            parse_arg_ints(args, "problem-size");
+            parse_arg_ints(args, "a-strides");
+            parse_arg_ints(args, "b-strides");
+            parse_arg_ints(args, "c-strides");
+            parse_arg_ints(args, "d-strides");
+            parse_arg_ints(args, "a-zero-pads");
+            parse_arg_ints(args, "b-zero-pads");
+
+            if(args["convolution-vs-contraction"].as<bool>())
+                parse_arg_ints(args, "convolution-problem");
             return args;
         }
 
         size_t getMaxWorkspace(std::shared_ptr<MasterSolutionLibrary<ContractionProblem>>& library,
                                std::shared_ptr<Hardware>&                                  hardware,
-                               pomain::variables_map const&                                args,
+                               po::variables_map&                                          args,
                                std::vector<ContractionProblem>&                            problems,
                                int firstProblemIdx,
                                int lastProblemIdx)
@@ -549,6 +481,17 @@ int main(int argc, const char* argv[])
     auto                          library = LoadSolutionLibrary(args);
     Tensile::hip::SolutionAdapter adapter;
     LoadCodeObjects(args, adapter);
+
+    auto filename = args["library-file"].as<std::string>();
+
+    size_t      directoryPos     = filename.rfind('/');
+    std::string libraryDirectory = filename;
+    if(directoryPos != std::string::npos)
+        libraryDirectory.resize(directoryPos + 1);
+    else
+        libraryDirectory = '.';
+
+    adapter.initializeLazyLoading(hardware->archName(), libraryDirectory);
 
     auto problems        = problemFactory.problems();
     int  firstProblemIdx = args["problem-start-idx"].as<int>();

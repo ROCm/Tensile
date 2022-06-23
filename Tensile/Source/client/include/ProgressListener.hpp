@@ -32,18 +32,18 @@
 
 #include <cstddef>
 
-#include "program_options.hpp"
+#include <boost/program_options.hpp>
 
 namespace Tensile
 {
     namespace Client
     {
-        namespace po = roc;
+        namespace po = boost::program_options;
 
         class ProgressListener : public RunListener
         {
         public:
-            ProgressListener(po::variables_map& args);
+            ProgressListener(po::variables_map const& args);
 
             virtual bool needMoreBenchmarkRuns() const override;
 

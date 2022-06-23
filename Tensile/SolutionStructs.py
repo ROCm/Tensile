@@ -4327,7 +4327,7 @@ class Solution(collections.abc.Mapping):
     return deepcopy(self._state)
 
   def __hash__(self):
-    return hash(str(self))
+    return hash(str(self) + self._state.get("codeObjectFile", ""))
     #return hash(self.getAttributes())
 
   def __eq__(self, other):
