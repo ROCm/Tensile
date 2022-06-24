@@ -7323,12 +7323,13 @@ class KernelWriterAssembly(KernelWriter):
 
             r = 0
             numLoadVectorComp = loadWidth*self.bpr//tP["bpe"]
-            if kernel["ProblemType"]["DataType"].isDouble() and kernel["BufferLoad"]:
-              # adjustment for dgemm + BufferLoad
+            isNumLoadVectorCompAdjusted = False
+            if kernel["BufferLoad"] and (kernel["DirectToLds"] or kernel["ProblemType"]["DataType"].isDouble()):
+              # adjustment for BufferLoad + (DirectToLds or dgemm)
               # use same buffer_load instruction for tail loop as out of tail loop
               # this is mandatory for DirectToLds case. Also, it improves tail loop performance.
-              # so far, limit to double only
               numLoadVectorComp = numLoadVectorComp // kernel["GlobalLoadVectorWidth%c"%tc]
+              isNumLoadVectorCompAdjusted = True
 
             int8TempVgpr = numLoadVectorComp - 1
             # for each component in vector
@@ -7363,7 +7364,6 @@ class KernelWriterAssembly(KernelWriter):
                    kernel["ProblemType"]["DataType"].isSingle():
                 regIdx = r
               elif kernel["ProblemType"]["DataType"].isDouble():
-                numElementsPerLoad = kernel["GlobalLoadVectorWidth%c"%tc] # adjust numElementsPerLoad for DGEMM
                 regIdx = r*2
               elif kernel["ProblemType"]["DataType"].isSingleComplex():
                 regIdx = r*2
@@ -7372,6 +7372,9 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 printWarning("DataType unsupported")
               kStr += self.comment1("g2l=%u, load component %u"%(g2lIdx, r))
+
+              if isNumLoadVectorCompAdjusted:
+                numElementsPerLoad = kernel["GlobalLoadVectorWidth%c"%tc] # adjust numElementsPerLoad
 
               offset = 0
 
