@@ -11600,13 +11600,6 @@ class KernelWriterAssembly(KernelWriter):
            #TODO need fix for other precisions
 
       if not kernel["BufferStore"]:
-        offsetSrc = (tmpVgpr+2) if beta else addrDVgpr
-
-        kStr += inst("_v_add_co_u32",  vgpr(addrDVgpr+0), self.vcc, vgpr(addrD+0), \
-            vgpr(offsetSrc+0), "addrDVgpr = D + index*bytes (lo)" )
-        kStr += inst("_v_addc_co_u32", vgpr(addrDVgpr+1), self.vcc, vgpr(addrD+1), \
-            vgpr(offsetSrc+1), self.vcc, "addrDVgpr = D + index*bytes (hi)")
-
         # restore full exec mask for calculating addr of next element
         if edge and (beta or atomic):
           kStr += inst("s_mov_b{}".format(kernel["WavefrontSize"]), self.exec, -1, "full mask -1 -> exec" )
