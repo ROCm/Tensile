@@ -40,6 +40,11 @@ namespace Tensile
         {
         }
 
+        std::string HipAMDGPU::archName() const
+        {
+            return properties.gcnArchName;
+        }
+
         std::shared_ptr<Hardware> GetCurrentDevice()
         {
             int deviceId = 0;

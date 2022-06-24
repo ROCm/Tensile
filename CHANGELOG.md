@@ -1,6 +1,33 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.33.0
+## (Unreleased) Tensile 4.34.0
+### Added
+- Lazy loading of solution libraries and code object files
+- Support for dictionary style logic files
+- Support for decision tree based logic files using dictionary format
+- DecisionTreeLibrary for solution selection
+- DirectToLDS support for HGEMM
+- DirectToVgpr support for SGEMM
+- Grid based distance metric for solution selection
+- Support for gfx11xx
+- Support for DirectToVgprA/B + TLU=False
+- ForkParameters Groups as a way of specifying solution parameters
+- Support for a new Tensile yaml config format
+- TensileClientConfig for generating Tensile client config files
+- Options for TensileCreateLibrary to build client and create client config file
+### Optimizations
+- Solution generation is now cached and is not repeated if solution parameters are unchanged
+### Changed
+- Default MACInstruction to FMA
+### Fixed
+- Accept StaggerUStride=0 as valid
+- Reject invalid data types for UnrollLoopEfficiencyEnable
+- Fix invalid code generation issues related to DirectToVgpr
+- Return hipErrorNotFound if no modules are loaded
+- Fix performance drop for NN ZGEMM with 96x64 macro tile
+- Fix memory violation for general batched kernels when alpha/beta/K = 0
+
+## Tensile 4.33.0 for ROCm 5.2.0
 ### Added
 - TensileUpdateLibrary for updating old library logic files
 - Support for TensileRetuneLibrary to use sizes from separate file

@@ -1534,7 +1534,7 @@ class KernelWriterAssembly(KernelWriter):
 
     self.totalVgprs = max(vgprIdx, self.numVgprValuC)
     if self.totalVgprs < kernel["MinVgprNumber"] or self.totalVgprs > kernel["MaxVgprNumber"]:
-      raise RuntimeError("Generating asm kernel error: total vgpr: %u not in [%u, %u].\n" % (self.totalVgprs, kernel["MinVgprNumber"], kernel["MaxVgprNumber"]))
+      raise RuntimeError("Generating asm kernel error: total vgpr: %u not in [%u, %u]. kernel=%s\n" % (self.totalVgprs, kernel["MinVgprNumber"], kernel["MaxVgprNumber"], self.kernelName))
 
     ########################################
     # SGPR Allocation
@@ -3615,8 +3615,8 @@ class KernelWriterAssembly(KernelWriter):
           # need division for qReg
           kStr += vectorStaticDivide(qReg, qReg, kernel["MatrixInstN"], tmpVgpr, tmpSgpr)
           lrvwOther = self.lrvwB if tP["isA"] else self.lrvwA # The other side of lrvw
-          if lrvwOther == 2 and not self.allowLRVWforTLUandMI and tP["tlu"]:
-            # DirectToVgpr + LocalReadVectorWidth=2 case, multiply qReg by 2
+          if lrvwOther >= 2 and not self.allowLRVWforTLUandMI and tP["tlu"]:
+            # DirectToVgpr + LocalReadVectorWidth>=2 case, multiply qReg by lrvwOther
             kStr += staticMultiply(vgpr(qReg), vgpr(qReg), lrvwOther, sgpr(tmpSgpr))
       # release register
       self.vgprPool.checkIn(wReg)
@@ -3880,9 +3880,10 @@ class KernelWriterAssembly(KernelWriter):
         for l in range(1, tP["nru"]):
           # l>0, s=0
           totalStride += stride
-          if  tP["tlu"] and kernel["DirectToVgpr%s"%tc] and lrvwOther == 2 and not tluOther:
-            # DirectToVgpr + LocalReadVectorWidth=2 + other side of TLU is false case, stride * 2 is added every 2. Add 1 in odd l case
-            totalStride = stride * (l - (l % 2)) + (l % 2)
+          if  tP["tlu"] and kernel["DirectToVgpr%s"%tc] and lrvwOther >= 2 and not tluOther:
+            # DirectToVgpr + LocalReadVectorWidth>=2 + other side of TLU is false case, stride * lrvwOther is added every lrvwOther. 
+            # Add mod in mod != 0 case
+            totalStride = stride * (l - (l % lrvwOther)) + (l % lrvwOther)
           currStride = totalStride - prevStride
           prevStride = totalStride
           kStr += inst("_v_add_co_u32", vgpr(v+l*tP["glvw"]), self.vcc, currStride, \
@@ -3898,9 +3899,10 @@ class KernelWriterAssembly(KernelWriter):
             vgpr(tP["gpr"]["uReg"]), "gro%s%s_%u"%(tP["tensorChar"], self.unrollChar, 0) )
         for l in range(1, tP["nru"]):
           totalStride += stride
-          if tP["tlu"] and kernel["DirectToVgpr%s"%tc] and lrvwOther == 2 and not tluOther:
-            # DirectToVgpr + LocalReadVectorWidth=2 case, stride * 2 is added every 2. Add 1 in odd l case
-            totalStride = stride * (l - (l % 2)) + (l % 2)
+          if tP["tlu"] and kernel["DirectToVgpr%s"%tc] and lrvwOther >= 2 and not tluOther:
+            # DirectToVgpr + LocalReadVectorWidth>=2 case, stride * lrvwOther is added every lrvwOther.
+            # Add mod in mod != 0 case
+            totalStride = stride * (l - (l % lrvwOther)) + (l % lrvwOther)
           currStride = totalStride - prevStride
           prevStride = totalStride
           kStr += inst("_v_add_co_u32", vgpr(v+l), self.vcc, currStride, \
@@ -7321,12 +7323,13 @@ class KernelWriterAssembly(KernelWriter):
 
             r = 0
             numLoadVectorComp = loadWidth*self.bpr//tP["bpe"]
-            if kernel["ProblemType"]["DataType"].isDouble() and kernel["BufferLoad"]:
-              # adjustment for dgemm + BufferLoad
+            isNumLoadVectorCompAdjusted = False
+            if kernel["BufferLoad"] and (kernel["DirectToLds"] or kernel["ProblemType"]["DataType"].isDouble()):
+              # adjustment for BufferLoad + (DirectToLds or dgemm)
               # use same buffer_load instruction for tail loop as out of tail loop
               # this is mandatory for DirectToLds case. Also, it improves tail loop performance.
-              # so far, limit to double only
               numLoadVectorComp = numLoadVectorComp // kernel["GlobalLoadVectorWidth%c"%tc]
+              isNumLoadVectorCompAdjusted = True
 
             int8TempVgpr = numLoadVectorComp - 1
             # for each component in vector
@@ -7361,7 +7364,6 @@ class KernelWriterAssembly(KernelWriter):
                    kernel["ProblemType"]["DataType"].isSingle():
                 regIdx = r
               elif kernel["ProblemType"]["DataType"].isDouble():
-                numElementsPerLoad = kernel["GlobalLoadVectorWidth%c"%tc] # adjust numElementsPerLoad for DGEMM
                 regIdx = r*2
               elif kernel["ProblemType"]["DataType"].isSingleComplex():
                 regIdx = r*2
@@ -7370,6 +7372,9 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 printWarning("DataType unsupported")
               kStr += self.comment1("g2l=%u, load component %u"%(g2lIdx, r))
+
+              if isNumLoadVectorCompAdjusted:
+                numElementsPerLoad = kernel["GlobalLoadVectorWidth%c"%tc] # adjust numElementsPerLoad
 
               offset = 0
 
@@ -10926,7 +10931,7 @@ class KernelWriterAssembly(KernelWriter):
         codeMulAlpha    = deepcopy(self.codeMulAlpha) if self.serializedStore else None
 
         self.alphaBeforeLoadC = False
-        if kernel["MIArchVgpr"] and applyAlpha:
+        if kernel["MIArchVgpr"] and applyAlpha and not (kernel["GlobalSplitU"] > 1): # do not set codeAccVgprRead=None if GSU>1
           codeAccVgprRead = None
 
           #Only apply when 2 wave optimization features are enabled
@@ -12601,7 +12606,7 @@ class KernelWriterAssembly(KernelWriter):
     totalTT0     = totalTT0                      if kernel["SourceSwap"] else (totalTT0 * outputsPerThread)
     totalTT1     = (totalTT1 * outputsPerThread) if kernel["SourceSwap"] else totalTT1
     vectorWidth0 = kernel["VectorWidth"]         if kernel["SourceSwap"] else kernel["MIOutputVectorWidth"]
-    MIOutputVectorWidthAdj = self.lrvwB if self.allowLRVWforTLUandMI else kernel["MIOutputVectorWidth"]
+    MIOutputVectorWidthAdj = (self.lrvwB if self.allowLRVWforTLUandMI else 1) * kernel["MIOutputVectorWidth"]
     vectorWidth1 = MIOutputVectorWidthAdj if kernel["SourceSwap"] else 1
     # To here
 

@@ -260,6 +260,8 @@ globalParameters["PristineOnGPU"] = True # use Pristine memory on Tensile trainn
 
 globalParameters["SeparateArchitectures"] = False # write Tensile library metadata to separate files for each architecture
 
+globalParameters["LazyLibraryLoading"] = False # Load library and code object files when needed instead of at startup
+
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 
@@ -786,7 +788,8 @@ validParameters = {
     # StaggerUStride will be internally increased so it is an integer multiple of DepthU*BpeAB.
     # (the implementation requires this - the unroll iteration accesses data in steps of
     # DepthU*BPE
-    "StaggerUStride":               [16,32,64,128,256,512,1024],
+    # SUS=0 is only valid if SU=0
+    "StaggerUStride":        [0,16,32,64,128,256,512,1024],
 
     # How the tile assignment (wg0, wg1, wg2) controls the initial StaggerU offset:
     # 0: Use wg0

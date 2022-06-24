@@ -26,6 +26,8 @@
 
 #include "HardwareMonitor.hpp"
 
+#include <unistd.h>
+
 #include <hip/hip_runtime.h>
 
 #include <Tensile/hip/HipUtils.hpp>
@@ -37,7 +39,7 @@ namespace Tensile
 {
     namespace Client
     {
-        HardwareMonitorListener::HardwareMonitorListener(po::variables_map& args)
+        HardwareMonitorListener::HardwareMonitorListener(po::variables_map const& args)
             : m_useGPUTimer(args["use-gpu-timer"].as<bool>())
             , m_active(args["hardware-monitor"].as<bool>())
         {

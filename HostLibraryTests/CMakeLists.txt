@@ -59,7 +59,7 @@ if(TENSILE_STATIC_ONLY)
 endif()
 
 if(NOT Tensile_FOUND)
-    find_package(Tensile 4.33.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
+    find_package(Tensile 4.34.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
 endif()
 
 if(NOT TENSILE_DISABLE_CTEST)
@@ -132,6 +132,7 @@ set(test_sources ${test_sources}
     EmbeddedData_test.cpp
     KernelArguments_test.cpp
     ProjectedPerformance_test.cpp
+    DecisionTree_test.cpp
     TensorDescriptor_test.cpp
     TestData_test.cpp
     Utils_test.cpp

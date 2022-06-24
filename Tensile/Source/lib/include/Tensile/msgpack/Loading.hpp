@@ -36,7 +36,8 @@ namespace Tensile
 {
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-        MessagePackLoadLibraryFile(std::string const& filename);
+        MessagePackLoadLibraryFile(std::string const&                  filename,
+                                   const std::vector<LazyLoadingInit>& preloaded);
 
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>

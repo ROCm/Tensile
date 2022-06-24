@@ -33,7 +33,7 @@ namespace Tensile
 {
     namespace Client
     {
-        ClientProblemFactory::ClientProblemFactory(po::variables_map& args)
+        ClientProblemFactory::ClientProblemFactory(po::variables_map const& args)
             : m_freeIndices(args["free"].as<ContractionProblem::FreeIndices>())
             , m_batchIndices(args["batch"].as<ContractionProblem::BatchIndices>())
             , m_boundIndices(args["bound"].as<ContractionProblem::BoundIndices>())
