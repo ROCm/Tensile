@@ -1,22 +1,25 @@
 ################################################################################
-# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 from . import __version__
@@ -198,7 +201,7 @@ globalParameters["MergeFiles"] = True             # F=store every solution and k
 globalParameters["NumMergedFiles"] = 1            # The number of files that kernels should be split between when merging
 
 globalParameters["MaxFileName"] = 64              # If a file name would be longer than this, shorten it with a hash.
-globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (9,0,10), (10,1,0), (10,1,1), (10,1,2), (10,3,0)] # assembly kernels writer supports these architectures
+globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (9,0,10), (10,1,0), (10,1,1), (10,1,2), (10,3,0), (11,0,0), (11,0,1), (11,0,2)] # assembly kernels writer supports these architectures
 
 globalParameters["GenerateManifestAndExit"] = False               # Output manifest file with list of expected library objects and exit
 globalParameters["NewClient"] = 2                                 # Old client deprecated: NewClient must be set to 2.
@@ -220,7 +223,7 @@ globalParameters["WorkingPath"] = os.getcwd()           # path where tensile cal
 globalParameters["IndexChars"] =  "IJKLMNOPQRSTUVWXYZ"  # which characters to use for C[ij]=Sum[k] A[ik]*B[jk]
 globalParameters["ScriptPath"] = os.path.dirname(os.path.realpath(__file__))            # path to Tensile/Tensile.py
 globalParameters["SourcePath"] = os.path.join(globalParameters["ScriptPath"], "Source") # path to Tensile/Source/
-globalParameters["HipClangVersion"] = "0,0,0"
+globalParameters["HipClangVersion"] = "0.0.0"
 
 # default runtime is selected based on operating system, user can override
 if os.name == "nt":
@@ -257,6 +260,8 @@ globalParameters["PristineOnGPU"] = True # use Pristine memory on Tensile trainn
 
 globalParameters["SeparateArchitectures"] = False # write Tensile library metadata to separate files for each architecture
 
+globalParameters["LazyLibraryLoading"] = False # Load library and code object files when needed instead of at startup
+
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 
@@ -266,7 +271,8 @@ architectureMap = {
   'gfx906':'vega20', 'gfx906:xnack+':'vega20', 'gfx906:xnack-':'vega20',
   'gfx908':'arcturus','gfx908:xnack+':'arcturus', 'gfx908:xnack-':'arcturus',
   'gfx90a':'aldebaran', 'gfx90a:xnack+':'aldebaran', 'gfx90a:xnack-':'aldebaran',
-  'gfx1010':'navi10', 'gfx1011':'navi12', 'gfx1012':'navi14', 'gfx1030':'navi21'
+  'gfx1010':'navi10', 'gfx1011':'navi12', 'gfx1012':'navi14', 'gfx1030':'navi21',
+  'gfx1100':'navi31', 'gfx1101':'navi32', 'gfx1102':'navi33'
 }
 
 def getArchitectureName(gfxName):
@@ -312,15 +318,15 @@ validMFMA = {}
 validMFMA["H"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
 validMFMA["S"] = [[32,32,1,2], [32,32,2,1], [16,16,1,4], [16,16,4,1], [4,4,1,16]]
 validMFMA["B"] = [[32,32,2,2], [32,32,4,1], [16,16,2,4], [16,16,8,1], [4,4,2,16]]
-validMFMA["4xi8"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
 validMFMA["D"] = [[16,16,4,1], [4,4,4,4]]
 validMFMA["B1k"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
 validMFMA["C"] = validMFMA["S"]
 validMFMA["Z"] = validMFMA["D"]
-validMFMA["I8"] = validMFMA["4xi8"]
+validMFMA["I8"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4,4,16]]
 validTT = 16
 validMFMA["_format9"] = []
-for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["4xi8"], validMFMA["D"]]:
+
+for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["D"]]:
   for MI in MFMA:
     for bm in range(int(math.log(MI[3],2))+1):
       for tt0 in range(1,validTT+1):
@@ -328,20 +334,40 @@ for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["4xi8"], 
           for wave_m in range (3):
             for wave_n in range(3):
               validMFMA["_format9"].append([MI[0],MI[1],MI[2],MI[3],2**bm,tt0,tt1,2**wave_m, 2**wave_n])
-validMatrixInstructions = [[], [-1]] + validMFMA["H"] + validMFMA["S"] + validMFMA["B"] + validMFMA["4xi8"] + validMFMA["D"] + validMFMA["B1k"]
+validMatrixInstructions = [[], [-1]] + validMFMA["H"] + validMFMA["S"] + validMFMA["B"] + validMFMA["D"] + validMFMA["B1k"]
 validMatrixInstructions = validMatrixInstructions + validMFMA["_format9"]
 
 # The supported typed GEMM, each entry is (Ti, To, Tc).
-# This is used in SolutionStruct.py::checkIfSupportedGEMMType()
-validGEMMTypes = [ ('D','D','D'), ('S','S','S'), ('Z','Z','Z'), ('C','C','C'), \
-                  ('H','H','H'), ('H','H','S'), ('H','S','S'), \
-                  ('B','B','S'), ('B','S','S'), \
-                  ('4xi8','I','I'), \
-                  ('I8','I','I')]
+# DataType (Ti)        = The data-type of the input matrices: A/B
+# DestDataType (To)    = The data-type of the output matrices: C/D
+# ComputeDataType (Tc) = The data-type of computaiton: alpha/beta:
+# Cinternal: basically should == ComputeDataType
 
-# These type are newly supported and we would like to use a better file naming for them: _TiToTc_
-# For the rest of the typed, we keep them with old existing naming.
-typesUsingNewNaming = [ ('H','S','S'), ('B','S','S'),('I8','I','I')]   # ('H','H','S') is removed bcs we are merging this case in HBH
+# Align the supported GEMM type with rocBLAS: [A/B/ C/D/ alpha/beta]
+#   (rocblas/library/include/internal/rocblas_functions.h)
+# GEMM (HPA=F, the data type of input, output, and computation are all the same.)
+#   - HGEMM: [H/H/ H/H/ H/H]
+#   - SGEMM: [S/S/ S/S/ S/S]
+#   - DGEMM: [D/D/ D/D/ D/D]
+#   - CGEMM: [C/C/ C/C/ C/C]
+#   - ZGEMM: [Z/Z/ Z/Z/ Z/Z]
+# GEMM_Ex: (HPA=T, Computation is in a higher precision data-type)
+#   - GEMM_EX (HHS): [H/H/ H/H/ S/S]
+#   - GEMM_EX (HSS): [H/H/ S/S/ S/S]
+#   - GEMM_EX (BBS): [B/B/ B/B/ S/S]
+#   - GEMM_EX (BSS): [B/B/ S/S/ S/S]
+#   - GEMM_EX (I8II): [I8/I8/ I/I/ I/I]
+#   - GEMM_EX (4xi8II): [4xi8/4xi8/ I/I/ I/I], tensile packs 4 i8 to 4xi8 with some restrictions
+# This is used in SolutionStruct.py::checkIfSupportedGEMMType()
+validGEMMTypes = [ ('H','H','H'), ('S','S','S'), ('D','D','D'), ('C','C','C'), ('Z','Z','Z'), \
+                   ('H','H','S'), ('H','S','S'), \
+                   ('B','B','S'), ('B','S','S'), \
+                   ('I8','I','I'), ('4xi8','I','I')]
+
+# All HPA types are listed here (HPA=T). The name of the library logic files for these types is:
+# *_TiToTc_BH*.yaml where Ti, Tc, and To are the data types of A/B, C/D, and computation, respectively.
+# The name of the library logic files for non-HPA (HPA=F) types is: *_TiB*.yaml.
+HPATypes = [ ('H','S','S'), ('H','H','S'), ('B','B','S'), ('B','S','S'), ('I8','I','I'), ('4xi8','I','I')]
 
 validParameters = {
     "LoopDoWhile":                [ False, True ], # Source. True=DoWhile, False=For loop
@@ -376,6 +402,11 @@ validParameters = {
     "WaveSeparateGlobalReadA":    [ 0, 1 ],
     "WaveSeparateGlobalReadB":    [ 0, 1 ],
 
+    # Splits global read addresses within a wave into a number of smaller groups
+    # The default value of 1 reads the most contiguous elements across lanes,
+    # but higher values may help avoid bank conflicts
+    "SplitGlobalRead":            [1, 2, 4, 8],
+
     # PrefetchGlobalRead = 1:
     # Requires 2X LDS space, and VGPRs for buffering data on way into LDS
     #   prefetch / double-buffer reads from global memory -> vgprs -> lds.
@@ -391,27 +422,27 @@ validParameters = {
     # LoopIters = DepthU / LocalSplitU
     # (LoopIters /= MatrixInstruction_K)
     # ex. MT64x128x16_MI32x32x4x2_PLR1, we'll have 4 LoopIters, prefetch read 1 iteration, with 2 VGPRs buffer (2=min(1+1,4))
-    #     befor loop:       plr[0]
+    #     before loop:       plr[0]
     #           loop: iter0:plr[1] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[0], iter3:plr[0] MAC_r[1]
     #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[0], iter3:       MAC_r[1]
     #
     # ex. MT64x128x16_MI32x32x4x2_PLR3, we'll have 4 LoopIters, prefetch read 3 iteration, with 4 VGPRs buffer (4=min(3+1,4))
-    #     befor loop:       plr[0] plr[1] plr[2]
+    #     before loop:       plr[0] plr[1] plr[2]
     #           loop: iter0:plr[3] MAC_r[0], iter1:plr[0] MAC_r[1], iter2:plr[1] MAC_r[2], iter3:plr[2] MAC_r[3]
     #   no load loop: iter0:plr[3] MAC_r[0], iter1:       MAC_r[1], iter2:       MAC_r[2], iter3:       MAC_r[3]
     #
     # ex. MT64x128x16_MI32x32x4x2_PLR5, we'll have 4 LoopIters, prefetch read 5%4=1 iteration, with 4 VGPRs buffer (4=min(5+1,4))
-    #     befor loop:       plr[0]
+    #     before loop:       plr[0]
     #           loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:plr[0] MAC_r[3]
     #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:       MAC_r[3]
     #
     # ex. MT64x128x16_MI32x32x4x2_PLR5_LRVW8, we'll have 4 LoopIters, prefetch read 5%4=1 iteration, with 4 VGPRs buffer (4=min(5+1,4)) , each read read 2 iterations
-    #     befor loop:       plr[0:1]
+    #     before loop:       plr[0:1]
     #           loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:plr[0:1] MAC_r[3]
     #   no load loop: iter0:plr[2:3] MAC_r[0], iter1: MAC_r[1], iter2: MAC_r[2], iter3:         MAC_r[3]
     #
     # ex. MT64x128x16_MI32x32x4x2_PLR7, we'll have 4 LoopIters, prefetch read 7%4=3 iteration, with 4 VGPRs buffer (=min(7+1,4)) --> Exactly the same as PLR3
-    #     befor loop:       plr[0]
+    #     before loop:       plr[0]
     #           loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:plr[0] MAC_r[3]
     #   no load loop: iter0:plr[1] MAC_r[0], iter1:plr[2] MAC_r[1], iter2:plr[3] MAC_r[2], iter3:       MAC_r[3]
     "PrefetchLocalRead":          list(range(128+1)),
@@ -634,7 +665,7 @@ validParameters = {
     # If modifying or adding Assertions also change ProblemProperties class in TensileTypes.h
 
     # Kernel generator will assume that the summation size is some multiple of the element size
-    # and use this to optimize the kernel.
+    # and uses this to optimize the kernel.
     # This can result in more efficient kernels, but requires runtime checking to ensure the specified
     # summation value meets the requirements.
     # (Recommended AF1EM value is 8 for half, 4 for single, 2 for double)
@@ -650,7 +681,7 @@ validParameters = {
     "AssertSummationElementMultiple": [1,2,4,8,16,32,64],
 
     # Kernel generator will assume that the FreeIndex[0] size is some multiple of the element size
-    # and use this to optimize the kernel.
+    # and uses this to optimize the kernel.
     # FreeIndex[0] is usually letter "I"
     # (Recommended AF0EM value is 8 for half, 4 for single, 2 for double)
     #
@@ -664,13 +695,13 @@ validParameters = {
     #
     # Store Optimizations:
     #  - Can vectorize stores in edge tiles.  Vector width can be up to AF0EM.
-    #   (since C matrix is always coalesced in Free0 index diretion and this assertion guarantees the index element multiple)
+    #   (since C matrix is always coalesced in Free0 index direction and this assertion guarantees the index element multiple)
     #
     # 1 indicates no assertion (since all sizes are multiples of 1)
     "AssertFree0ElementMultiple" : [1,2,4,8],
 
     # Kernel generator will assume that the FreeIndex[1] size is some multiple of the element size
-    # and use this to optimize the kernel.
+    # and uses this to optimize the kernel.
     # FreeIndex[1] is usually letter "J"
     # (Recommended AF1EM value is 8 for half, 4 for single, 2 for double)
 
@@ -681,7 +712,7 @@ validParameters = {
     "AssertFree1ElementMultiple" : [1,2,4,8],
 
     # Some kernels only work for certain sizes, see ProblemProperties in TensileTypes for exact defs
-    "AssertMinApproxSize" : [0,1,2],
+    "AssertMinApproxSize" : [0,1,2,3],
 
 
     # Assertions/Predicates that require stride to be specified value.
@@ -732,7 +763,7 @@ validParameters = {
     #
     # The tile assignment C are same as with StaggerOffset=0 ; the difference is the
     # order that the summation elements are added.
-    # GRO will wrap back to the row start start when the edge is reached.
+    # GRO will wrap back to the row start when the edge is reached.
     #
     # This can be effective for TLU=0 style matrices where the K dimension is a large power-of-2.
     # In this case the start of each row of the tile is separated by an exact power-of-2
@@ -757,7 +788,8 @@ validParameters = {
     # StaggerUStride will be internally increased so it is an integer multiple of DepthU*BpeAB.
     # (the implementation requires this - the unroll iteration accesses data in steps of
     # DepthU*BPE
-    "StaggerUStride":               [16,32,64,128,256,512,1024],
+    # SUS=0 is only valid if SU=0
+    "StaggerUStride":        [0,16,32,64,128,256,512,1024],
 
     # How the tile assignment (wg0, wg1, wg2) controls the initial StaggerU offset:
     # 0: Use wg0
@@ -898,7 +930,7 @@ validParameters = {
     "GroupLoadStore":             [False, True],
     #
     # Do storeC (output of GEMM) in unroll Loop; When PK enabled, storeC Code section can be
-    # moved into unroll Loop code section for tiles[0..N-2], storeC scheduled in PK[1..N-1] 
+    # moved into unroll Loop code section for tiles[0..N-2], storeC scheduled in PK[1..N-1]
     # Enable this feature when PK is enabled
     # Enable this feature when you have 2 or More Tiles/CU
     # disable StoreSyncOpt, StorePriorityOpt,GroupLoadStore feature when this feature is enabled
@@ -1208,13 +1240,14 @@ defaultBenchmarkCommonParameters = [
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
     {"VectorStore":               [ -1 ] },
-    {"StoreVectorWidth":         [ -1 ] },
+    {"StoreVectorWidth":          [ -1 ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"LocalReadVectorWidth":      [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
     {"GlobalReadCoalesceVectorB": [ True ] },
-    {"WaveSeparateGlobalReadA":    [ 0 ] },
-    {"WaveSeparateGlobalReadB":    [ 0 ] },
+    {"WaveSeparateGlobalReadA":   [ 0 ] },
+    {"WaveSeparateGlobalReadB":   [ 0 ] },
+    {"SplitGlobalRead":           [ 1 ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
     {"GlobalReadCoalesceGroupB":  [ True ] },
     {"PrefetchGlobalRead":        [ 1 ] },
@@ -1295,7 +1328,7 @@ defaultBenchmarkCommonParameters = [
     {"WorkGroupMappingType":      [ "B" ] },
     {"WorkGroupMapping":          [ 8 ] },
     {"ThreadTile":                [ [4,4] ] },
-    {"MACInstruction":            [ '' ]},
+    {"MACInstruction":            [ "FMA" ]}, # Default to FMA, matches MAC performance and integrates additional flags
     {"WavefrontSize":             [ 64 ]},
     {"MatrixInstruction":         [ [] ] },
     {"DisableVgprOverlapping":    [ False ] },
@@ -1647,42 +1680,47 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
 def GetAsmCaps(isaVersion):
   """ Determine assembler capabilities by testing short instructions sequences """
   rv = {}
-  rv["SupportedISA"]    = tryAssembler(isaVersion, "")
-  rv["HasExplicitCO"]   = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,1")
-  rv["HasExplicitNC"]   = tryAssembler(isaVersion, "v_add_nc_u32 v0,v0,1")
+  rv["SupportedISA"]      = tryAssembler(isaVersion, "")
+  rv["HasExplicitCO"]     = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,1")
+  rv["HasExplicitNC"]     = tryAssembler(isaVersion, "v_add_nc_u32 v0,v0,1")
 
-  rv["HasDirectToLds"]  = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds")
-  rv["HasAddLshl"]      = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
-  rv["HasLshlOr"]       = tryAssembler(isaVersion, "v_lshl_or_b32 v47, v36, 0x2, v34")
-  rv["HasSMulHi"]       = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
-  rv["HasCodeObjectV3"] = tryAssembler(isaVersion, "", False, "-mcode-object-version=2")
+  rv["HasDirectToLds"]    = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds") \
+                            or tryAssembler(isaVersion, "buffer_load_b32 v40, v36, s[24:27], s28 offen offset:0 lds")
+  rv["HasAddLshl"]        = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
+  rv["HasLshlOr"]         = tryAssembler(isaVersion, "v_lshl_or_b32 v47, v36, 0x2, v34")
+  rv["HasSMulHi"]         = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
+  rv["HasCodeObjectV3"]   = tryAssembler(isaVersion, "", False, "-mcode-object-version=2")
 
-  rv["HasMFMA"]         = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
-  rv["HasMFMA_f64"]     = tryAssembler(isaVersion, "v_mfma_f64_16x16x4f64 v[0:7], v[32:33], v[36:37], v[0:7]")
-  rv["HasMFMA_bf16_1k"] = tryAssembler(isaVersion, "v_mfma_f32_32x32x4bf16_1k a[0:31], v[32:33], v[36:37], a[0:31]")
+  rv["HasMFMA"]           = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
+  rv["HasMFMA_f64"]       = tryAssembler(isaVersion, "v_mfma_f64_16x16x4f64 v[0:7], v[32:33], v[36:37], v[0:7]")
+  rv["HasMFMA_bf16_1k"]   = tryAssembler(isaVersion, "v_mfma_f32_32x32x4bf16_1k a[0:31], v[32:33], v[36:37], a[0:31]")
 
-  rv["v_mac_f16"]       = tryAssembler(isaVersion, "v_mac_f16 v47, v36, v34")
+  rv["v_mac_f16"]         = tryAssembler(isaVersion, "v_mac_f16 v47, v36, v34")
 
-  rv["v_fma_f16"]       = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
-  rv["v_fmac_f16"]      = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34")
+  rv["v_fma_f16"]         = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
+  rv["v_fmac_f16"]        = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34")
 
-  rv["v_pk_fma_f16"]    = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0]")
-  rv["v_pk_fmac_f16"]   = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34")
+  rv["v_pk_fma_f16"]      = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0]")
+  rv["v_pk_fmac_f16"]     = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34")
 
-  rv["v_mad_mix_f32"]   = tryAssembler(isaVersion, "v_mad_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
-  rv["v_fma_mix_f32"]   = tryAssembler(isaVersion, "v_fma_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
+  rv["v_mad_mix_f32"]     = tryAssembler(isaVersion, "v_mad_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
+  rv["v_fma_mix_f32"]     = tryAssembler(isaVersion, "v_fma_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
 
-  rv["v_dot2_f32_f16"]  = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
-  rv["v_dot2c_f32_f16"] = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34")
+  rv["v_dot2_f32_f16"]    = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
+  rv["v_dot2c_f32_f16"]   = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34") \
+                            or tryAssembler(isaVersion, "v_dot2acc_f32_f16 v47, v36, v34")
 
-  rv["v_dot4c_i32_i8"]  = tryAssembler(isaVersion, "v_dot4c_i32_i8 v47, v36, v34")
-  rv["v_dot4_i32_i8"]   = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34")
+  rv["v_dot4_i32_i8"]     = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34")
+  rv["v_dot4c_i32_i8"]    = tryAssembler(isaVersion, "v_dot4c_i32_i8 v47, v36, v34")
+  rv["VOP3v_dot4_i32_i8"] = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34, v47")
 
-  rv["v_mac_f32"]       = tryAssembler(isaVersion, "v_mac_f32 v20, v21, v22")
-  rv["v_fma_f32"]       = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")
-  rv["v_fmac_f32"]      = tryAssembler(isaVersion, "v_fmac_f32 v20, v21, v22")
+  rv["v_mac_f32"]         = tryAssembler(isaVersion, "v_mac_f32 v20, v21, v22")
+  rv["v_fma_f32"]         = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")
+  rv["v_fmac_f32"]        = tryAssembler(isaVersion, "v_fmac_f32 v20, v21, v22")
 
-  rv["HasAtomicAdd"]    = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
+  rv["v_fma_f64"]         = tryAssembler(isaVersion, "v_fma_f64 v[20:21], v[22:23], v[24:25], v[20:21]")
+
+  rv["HasAtomicAdd"]      = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
 
 
   if tryAssembler(isaVersion, "s_waitcnt vmcnt(63)"):
@@ -1703,9 +1741,9 @@ def GetArchCaps(isaVersion):
   rv = {}
   rv["HasEccHalf"]         = (isaVersion==(9,0,6) or isaVersion==(9,0,8) or isaVersion==(9,0,10))
   rv["Waitcnt0Disabled"]   = (isaVersion == (9,0,8) or isaVersion==(9,0,10))
-  rv["SeparateVscnt"]      = isaVersion[0] == 10
-  rv["CMPXWritesSGPR"]     = isaVersion[0] != 10
-  rv["HasWave32"]          = isaVersion[0] == 10
+  rv["SeparateVscnt"]      = isaVersion[0] in (10, 11)
+  rv["CMPXWritesSGPR"]     = isaVersion[0] not in (10, 11)
+  rv["HasWave32"]          = isaVersion[0] in (10, 11)
   rv["HasAccCD"]           = (isaVersion==(9,0,10))
   rv["ArchAccUnifiedRegs"] = (isaVersion==(9,0,10))
 
@@ -1720,7 +1758,7 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
   if globalParameters["PrintLevel"] >= 2:
     debug = True
 
-  if isaVersion[0] == 10:
+  if isaVersion[0] >= 10:
     options += ['-mwavefrontsize64']
 
   args = [globalParameters["AssemblerPath"], '-x', 'assembler',
@@ -1958,7 +1996,7 @@ def assignGlobalParameters( config ):
 
   if "MergeFiles" in config and "NumMergedFiles" in config:
     if not config["MergeFiles"] and config["NumMergedFiles"] > 1:
-      config["NumMergedFiles"] = 1 
+      config["NumMergedFiles"] = 1
       printWarning("--num-merged-files and --no-merge-files specified, ignoring --num-merged-files")
 
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future

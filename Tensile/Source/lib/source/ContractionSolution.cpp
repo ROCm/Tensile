@@ -1,5 +1,8 @@
-/**
- * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
+/*******************************************************************************
+ *
+ * MIT License
+ *
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -16,9 +19,10 @@
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ *******************************************************************************/
 
 #include <Tensile/ContractionSolution.hpp>
 
@@ -585,6 +589,8 @@ namespace Tensile
             rv.args.append<uint32_t>("pad", 0);
         }
 
+        rv.codeObjectFile = codeObjectFilename;
+
         return rv;
     }
 
@@ -675,6 +681,9 @@ namespace Tensile
         rv.args.append<uint32_t>("offsetC", c.offset());
 
         rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
+
+        //Pass along code object dependency
+        rv.codeObjectFile = codeObjectFilename;
 
         return rv;
     }
@@ -787,6 +796,9 @@ namespace Tensile
         else
             rv.args.append<uint32_t>("gsu", sizeMapping.globalSplitU);
 
+        //@TODO determine if this is needed, may not end up in the same code object file
+        rv.codeObjectFile = codeObjectFilename;
+
         return rv;
     }
 
@@ -814,15 +826,20 @@ namespace Tensile
                                                                   Hardware const&    hardware) const
     {
         bool debug = Debug::Instance().printKernelArguments() || this->kernelArgsLog;
+
+        int boundSize = 1;
+        for(size_t i = 0; i < problem.boundIndices().size(); i++)
+            boundSize *= problem.boundSize(i);
+
         // Check for nullptrs if alpha is non-zero.
-        if((inputs.alpha != static_cast<typename TypedInputs::AlphaType>(0) /*&& k!=0*/)
+        if(((inputs.alpha != static_cast<typename TypedInputs::AlphaType>(0)) && (boundSize != 0))
            && ((problem.stridedBatched() && (inputs.a == nullptr || inputs.b == nullptr))
                || (!problem.stridedBatched()
                    && (inputs.batchA == nullptr || inputs.batchB == nullptr))))
         {
             std::string matrixID = inputs.a == nullptr ? "A" : "B";
             std::string msg      = std::string("Unsupported nullptr for ") + matrixID
-                              + std::string(" when Alpha !=0\n");
+                              + std::string(" when (Alpha !=0) && (K != 0)\n");
             throw std::runtime_error(msg.c_str());
         }
 
@@ -894,8 +911,10 @@ namespace Tensile
         auto alphaType = problem.alphaType();
         auto betaType  = problem.betaType();
 
-        // Backward-compatible: when setAlpha/BetaType() wasn't called, use the old way
-        // Could remove after rocBLAS is updated
+        // TODO: Some gtests are passing the "problem" without actually defining the
+        // alpha/beta type (alphaType and betaType remain None).
+        // Until we fix those gtests, we need to keep this condition to adjust the missing
+        // alpha/beta data types.
         if(alphaType == DataType::None)
         {
             alphaType

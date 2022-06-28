@@ -1,100 +1,31 @@
 ################################################################################
-# Copyright 2020 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2020-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 from ..Component import Signature
 from ..Common import globalParameters, gfxName
 
 from math import ceil
-
-srcValueTypeDict = {
-    "f16":  "Struct",
-    "i8":   "I8",
-    "f32":  "F32",
-    "f64":  "F64",
-    "f32c": "F64",
-    "f64c": "F64",
-    "bf16": "Struct"
-}
-
-dstValueTypeDict = {
-    "f16":  "Struct",
-    "i8":   "I32",
-    "f32":  "F32",
-    "f64":  "F64",
-    "f32c": "F64",
-    "f64c": "F64",
-    "bf16": "Struct"
-}
-
-cptValueTypeDict = {
-    "f16":  "F16",
-    "i8":   "I32",
-    "f32":  "F32",
-    "f64":  "F64",
-    "f32c": "F64",
-    "f64c": "Struct",
-    "bf16": "F32"
-}
-
-def getSrcValueType(kernel, cov):
-    srcValueType = srcValueTypeDict[kernel["ProblemType"]["DataType"].toNameAbbrev()]
-    if kernel["ProblemType"]["DataType"].isHalf() and not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-        srcValueType = "F16"
-    if cov == "V3":
-        srcValueType = srcValueType.lower()
-    return srcValueType
-
-def getDstValueType(kernel, cov):
-    dstValueType = dstValueTypeDict[kernel["ProblemType"]["DataType"].toNameAbbrev()]
-    if kernel["ProblemType"]["DataType"].isHalf() and not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-        dstValueType = "F16"
-    if cov == "V3":
-        dstValueType = dstValueType.lower()
-    return dstValueType
-
-def getCptValueType(kernel, cov):
-    if kernel["ProblemType"]["DataType"].isHalf() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-        cptValueType = "F32"
-    else:
-        cptValueType = cptValueTypeDict[kernel["ProblemType"]["DataType"].toNameAbbrev()]
-
-    if cov == "V3":
-        cptValueType = cptValueType.lower()
-    return cptValueType
-
-def getCptByte(kernel):
-    cptByte = 4
-    if kernel["ProblemType"]["DataType"].isHalf() and not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-        cptByte = 2
-    elif kernel["ProblemType"]["DataType"].isDouble() or kernel["ProblemType"]["DataType"].isSingleComplex():
-        cptByte = 8
-    elif kernel["ProblemType"]["DataType"].isDoubleComplex():
-        cptByte = 16
-    return cptByte
-
-def getCptSize(kernel):
-    return str(getCptByte(kernel))
-
-def getCptAlign(kernel):
-    return str(getCptByte(kernel))
 
 class SignatureCOV2(Signature):
     kernel = {"CodeObjectVersion": "V2"}
@@ -218,12 +149,10 @@ class SignatureCOV2(Signature):
         kStr += writer.comment1("DirectToLdsB=%s" % kernel["DirectToLdsB"])
         kStr += writer.comment1("UseSgprForGRO=%s" % kernel["_UseSgprForGRO"])
 
-        srcValueType = getSrcValueType(kernel, "V2")
-        dstValueType = getDstValueType(kernel, "V2")
-        cptValueType = getCptValueType(kernel, "V2")
-        cptByte = getCptByte(kernel)
-        # cptSize = getCptSize(kernel)
-        # cptAlign = getCptAlign(kernel)
+        srcValueType = kernel["ProblemType"]["DataType"].toNameAbbrev().upper()
+        dstValueType = kernel["ProblemType"]["DestDataType"].toNameAbbrev().upper()
+        cptValueType = kernel["ProblemType"]["ComputeDataType"].toNameAbbrev().upper()
+        cptByte = kernel["ProblemType"]["ComputeDataType"].numBytes()
 
         # Codeobject V2 metadata
         kStr += ".amd_amdgpu_hsa_metadata\n"
@@ -441,12 +370,10 @@ class SignatureCOV3(Signature):
         kStr += writer.comment1("DirectToLdsB=%s" % kernel["DirectToLdsB"])
         kStr += writer.comment1("UseSgprForGRO=%s" % kernel["_UseSgprForGRO"])
 
-        srcValueType = getSrcValueType(kernel, "V3")
-        dstValueType = getDstValueType(kernel, "V3")
-        cptValueType = getCptValueType(kernel, "V3")
-        cptByte = getCptByte(kernel)
-        # cptSize = getCptSize(kernel)
-        # cptAlign = getCptAlign(kernel)
+        srcValueType = kernel["ProblemType"]["DataType"].toNameAbbrev()
+        dstValueType = kernel["ProblemType"]["DestDataType"].toNameAbbrev()
+        cptValueType = kernel["ProblemType"]["ComputeDataType"].toNameAbbrev()
+        cptByte = kernel["ProblemType"]["ComputeDataType"].numBytes()
 
         # Codeobject V3 metadata
         kStr += ".amdgpu_metadata\n"

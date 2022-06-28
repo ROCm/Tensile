@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -37,14 +37,17 @@ namespace Tensile
 
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-        LLVMLoadLibraryFile(std::string const& filename)
+        LLVMLoadLibraryFile(std::string const&                  filename,
+                            const std::vector<LazyLoadingInit>& preloaded)
     {
         std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
         try
         {
-            auto              inputFile = llvm::MemoryBuffer::getFile(filename);
-            llvm::yaml::Input yin((*inputFile)->getMemBufferRef());
+            auto inputFile = llvm::MemoryBuffer::getFile(filename);
+
+            LibraryIOContext<MySolution> context{filename, preloaded, nullptr};
+            llvm::yaml::Input            yin((*inputFile)->getMemBufferRef(), &context);
 
             yin >> rv;
 
@@ -67,14 +70,15 @@ namespace Tensile
 
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-        LLVMLoadLibraryData(std::vector<uint8_t> const& data)
+        LLVMLoadLibraryData(std::vector<uint8_t> const& data, std::string filename)
     {
         std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
         try
         {
-            llvm::StringRef   dataRef((const char*)data.data(), data.size());
-            llvm::yaml::Input yin(dataRef);
+            LibraryIOContext<MySolution> context{filename, {}, nullptr};
+            llvm::StringRef              dataRef((const char*)data.data(), data.size());
+            llvm::yaml::Input            yin(dataRef, &context);
 
             yin >> rv;
 
@@ -95,9 +99,10 @@ namespace Tensile
     }
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
-        LLVMLoadLibraryFile<ContractionProblem, ContractionSolution>(std::string const& filename);
+        LLVMLoadLibraryFile<ContractionProblem, ContractionSolution>(
+            std::string const& filename, const std::vector<LazyLoadingInit>& preloaded);
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
         LLVMLoadLibraryData<ContractionProblem, ContractionSolution>(
-            std::vector<uint8_t> const& data);
+            std::vector<uint8_t> const& data, std::string filename = "");
 } // namespace Tensile

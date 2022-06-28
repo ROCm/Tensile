@@ -1,27 +1,30 @@
 ################################################################################
-# Copyright 2021-2022 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2021-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 from ..Component import LocalRead
 from .. import Code
-from ..AsmUtils import vgpr, sgpr, log2
+from ..AsmUtils import vgpr, sgpr
 from math import ceil
 
 class LocalReadVALU(LocalRead):
@@ -130,8 +133,10 @@ class LocalReadMFMA(LocalRead):
 
         tc               = tP["tensorChar"]
         if tc == "A":
+            lrvw = writer.lrvwA
             writer.localReadDoCntA += 1
         else:
+            lrvw = writer.lrvwB
             writer.localReadDoCntB += 1
         tile01           = tP["tile01Idx"]
         instruction      = tP["localReadInstruction"]
@@ -139,8 +144,10 @@ class LocalReadMFMA(LocalRead):
         numOffsets       = instruction.numOffsets
         blockWidth       = instruction.blockWidth
         vectorWidth      = kernel["VectorWidth"] if kernel["SourceSwap"] else 1 # TODO: nonSwap VectorWidth
-        MIWaveGroupShape = [ kernel["MatrixInstM"] * kernel["MatrixInstBM"] * kernel["MIWaveGroup"][0] * vectorWidth, \
-                             kernel["MatrixInstN"] * kernel["MatrixInstBN"] * kernel["MIWaveGroup"][1] ]
+        vwA              = writer.lrvwA if writer.allowLRVWforTLUandMI else 1
+        vwB              = writer.lrvwB if writer.allowLRVWforTLUandMI else 1
+        MIWaveGroupShape = [ kernel["MatrixInstM"] * kernel["MatrixInstBM"] * kernel["MIWaveGroup"][0] * vectorWidth // vwA, \
+                             kernel["MatrixInstN"] * kernel["MatrixInstBN"] * kernel["MIWaveGroup"][1] * vwB]
 
         LdsPad           = kernel["LdsPad%s"%tc] if kernel["LdsBlockSizePerPad%s"%tc] == 0 else 0
         tileStride       = 1
@@ -150,7 +157,13 @@ class LocalReadMFMA(LocalRead):
             UnrollStride = 1
 
         numReadPerTileVector = vectorWidth if (tile01 == 0) else 1
+        if (tile01 == 0) and writer.allowLRVWforTLUandMI and numReadPerTileVector >= lrvw:
+          numReadPerTileVector //= lrvw
+          if tileStride==1:
+            tileStride = lrvw
         numVectorsPerTile    = kernel["MIWaveTile"][tile01] // numReadPerTileVector
+        if writer.allowLRVWforTLUandMI and numVectorsPerTile >= lrvw:
+          numVectorsPerTile //= lrvw
         # overloading numReadsPerUnroll for DirectToLds x2/x4 case when blockWidth of instruction < LocalReadVectorWidth
         # fp64 TLU=1 reading 0.5element/lane/read..
         # for TLU=0 case, blockWidth and LRVW should match
@@ -231,39 +244,7 @@ class LocalReadMFMA(LocalRead):
                             kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"] > 4):
 
                           # another address conversion for DirectToLds + NumLoadsCoalesced > 1
-                          if tP["grcg"]:
-                            if tP["grcv"]:
-                              divisorName = tP["lvc"]
-                            else:
-                              # Fractional load use the more accurate lsc, multiply by VW later
-                              divisorName = tP["lsc"]
-                          else:
-                            if tP["grcv"]:
-                              divisorName = tP["lsp"]
-                            else:
-                              divisorName = tP["lvp"]
-                          divisor = kernel[divisorName]
-                          if divisor < writer.kernel["WavefrontSize"]:
-                            # DirectToLds + above conditions, swap offset_val bits to adjust LDS offset
-                            # need to swap col and row index
-                            #waveDiff = 1 if kernel["WaveSeparateGlobalRead%c"%tc] else kernel["NumThreads"]//kernel["WavefrontSize"]
-                            waveDiff = 1
-                            if (not kernel["WaveSeparateGlobalRead%c"%tc]) and tP["glvw"] == 1:
-                              waveDiff = kernel["NumThreads"]//kernel["WavefrontSize"]
-                            scale = tP["nrc"]
-                            scaleShift = int(log2(scale)) # assuming scale is power of 2
-                            scaleShift += int(log2(waveDiff))
-                            ldsLineSize = kernel["WavefrontSize"] * kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"]
-                            ldsLineSize //= scale
-                            maskBitsLow = (scale - 1) * ldsLineSize
-                            maskBitsHigh = maskBitsLow * scale * waveDiff
-                            maskBitsAll = (maskBitsLow | maskBitsHigh)
-                            tmp1 = offset_val & maskBitsLow
-                            tmp2 = offset_val & maskBitsHigh
-                            tmp1 <<= scaleShift
-                            tmp2 >>= scaleShift
-                            tmp1 = tmp1 | tmp2
-                            offset_val = (offset_val & (~maskBitsAll)) | tmp1
+                          dummy, offset_val = writer.lraOffsetConversionForDTLandNLC(kernel, tP, offset_val)
 
                           # offset conversion for DirectToLds
                           # TLU=0 case, modify bit3-6 of offset_val as follows

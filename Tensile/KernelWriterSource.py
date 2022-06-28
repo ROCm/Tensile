@@ -1,22 +1,25 @@
 ################################################################################
-# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 from . import Code
@@ -842,8 +845,6 @@ class KernelWriterSource(KernelWriter):
     ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
     if kernel["_GlobalAccumulation"]:
       ptrStr = kernel["ProblemType"]["ComputeDataType"].toDevice(self.language)
-      if kernel["ProblemType"]["DataType"].isHalf() and kernel["ProblemType"]["HighPrecisionAccumulate"]:
-        ptrStr = DataType('single').toDevice(self.language)
 
     isStridedBuffer = kernel["ProblemType"]["StridedBatched"] or kernel["_GlobalAccumulation"]
     ptrStr  += ("" if isStridedBuffer else "*")
@@ -1052,13 +1053,22 @@ class KernelWriterSource(KernelWriter):
     ####################################
     # apply general batch
     if not kernel["ProblemType"]["StridedBatched"]:
+      zeroStr = kernel["ProblemType"]["ComputeDataType"].zeroString(self.language, 1)
+
       kStr += self.endLine
+      kStr += "  unsigned int sizeUnroll = 1"
+      for i in range(kernel["ProblemType"]["NumIndicesSummation"]):
+        loopDim  = kernel["ProblemType"]["IndicesSummation"][i]
+        loopChar = self.indexChars[loopDim]
+        kStr += f" * size{loopChar}"
+      kStr += ";" + self.endLine
+
       kStr += "  unsigned int wg = " + self.getGroupIdStr + "(2);" + self.endLine
       if not kernel["_GlobalAccumulation"]:
-        kStr += "  DEST_DATA_TYPE      * D = BatchD[wg];" + self.endLine
-        kStr += "  DEST_DATA_TYPE const* C = BatchC[wg];" + self.endLine
-      kStr += "  DATA_TYPE      const* A = BatchA[wg];" + self.endLine
-      kStr += "  DATA_TYPE      const* B = BatchB[wg];" + self.endLine
+        kStr +=  "  DEST_DATA_TYPE      * D = BatchD[wg];" + self.endLine
+        kStr += f"  DEST_DATA_TYPE const* C = (beta == {zeroStr}) ? nullptr : BatchC[wg];" + self.endLine
+      kStr += f"  DATA_TYPE      const* A = ((alpha == {zeroStr}) || (sizeUnroll == 0)) ? nullptr : BatchA[wg];" + self.endLine
+      kStr += f"  DATA_TYPE      const* B = ((alpha == {zeroStr}) || (sizeUnroll == 0)) ? nullptr : BatchB[wg];" + self.endLine
 
     ####################################
     # apply offset
@@ -1160,11 +1170,12 @@ class KernelWriterSource(KernelWriter):
         kStr += "  %s  = %s %% problemNumGroupTiles0;%s" % ( wg0, wgIJSerial, self.endLine)
         kStr += "  %s  = %s / problemNumGroupTiles0;%s" % ( wg1, wgIJSerial, self.endLine)
         if not kernel["ProblemType"]["StridedBatched"]:
+          zeroStr = kernel["ProblemType"]["ComputeDataType"].zeroString(self.language, 1)
           if not kernel["_GlobalAccumulation"]:
-            kStr += "  D = BatchD[wgKSerial] + offsetD;%s" % self.endLine
-            kStr += "  C = BatchC[wgKSerial] + offsetC;%s" % self.endLine
-          kStr += "  A = BatchA[wgKSerial] + offsetA;%s" % self.endLine
-          kStr += "  B = BatchB[wgKSerial] + offsetB;%s" % self.endLine
+            kStr +=  "  D = BatchD[wgKSerial] + offsetD;%s" % self.endLine
+            kStr += f"  C = ((beta == {zeroStr}) ? nullptr : BatchC[wgKSerial]) + offsetC;%s" % self.endLine
+          kStr += f"  A = (((alpha == {zeroStr}) || (sizeUnroll == 0)) ? nullptr : BatchA[wgKSerial]) + offsetA;" + self.endLine
+          kStr += f"  B = (((alpha == {zeroStr}) || (sizeUnroll == 0)) ? nullptr : BatchB[wgKSerial]) + offsetB;" + self.endLine
       else:
         # compare serialWgIter against problem groups
         if kernel["GlobalSplitU"] > 1:
@@ -1750,6 +1761,13 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
+  # Local Read Addresses offset conversion for DTL + NLC > 1
+  ##############################################################################
+  def lraOffsetConversionForDTLandNLC(self, kernel, tP, offset_val, generateAsm=False, \
+                                      finalVgpr=None, tmp1=None, tmp2=None):
+    return ""
+
+  ##############################################################################
   # Local Read Addresses: Declare Addresses A/B
   ##############################################################################
   def lraDeclareAddresses(self, kernel, tP):
@@ -2003,21 +2021,8 @@ class KernelWriterSource(KernelWriter):
       kStr += self.endLine + "  /* Compute summation loop num iter */" + self.endLine
 
       # Check alpha == 0
-      if kernel["ProblemType"]["ComputeDataType"].isDoubleComplex():
-        alphaZeroStr = "tensile_complex<double>(0.0)"
-      elif kernel["ProblemType"]["ComputeDataType"].isDouble() or \
-            kernel["ProblemType"]["ComputeDataType"].isReal():
-        alphaZeroStr = "0.0"
-      elif kernel["ProblemType"]["ComputeDataType"].isSingleComplex():
-        alphaZeroStr = "tensile_complex<float>(0.0f)"
-      elif kernel["ProblemType"]["ComputeDataType"].isSingle() or \
-            kernel["ProblemType"]["ComputeDataType"].isHalf() or \
-            kernel["ProblemType"]["ComputeDataType"].isBFloat16():
-        alphaZeroStr = "0.0f"
-      else:
-        alphaZeroStr = "0"
-
-      kStr += self.indent + "if(alpha == %s) size%s = 0;"%(alphaZeroStr, loopChar) + "  // Short circuit check alpha=0, skip A*B " + self.endLine
+      zeroStr = kernel["ProblemType"]["ComputeDataType"].zeroString(self.language, 1)
+      kStr += self.indent + "if(alpha == %s) size%s = 0;"%(zeroStr, loopChar) + "  // Short circuit check alpha=0, skip A*B " + self.endLine
 
       if loopIdx == self.unrollIdx and kernel["GlobalSplitU"] > 1:
         kStr += self.calculateLoopNumIterGsu(kernel, "(size%s / LOCAL_DEPTHU)"%loopChar, \

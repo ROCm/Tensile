@@ -1,22 +1,25 @@
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 import os
@@ -31,7 +34,8 @@ from . import SolutionLibrary
 from . import LibraryIO
 from . import Utils
 from .BenchmarkStructs import BenchmarkProcess, checkParametersAreValid, constructForkPermutations
-from .ClientWriter import runClient, writeClientConfig
+from .Contractions import ProblemType as ContractionsProblemType
+from .ClientWriter import runClient, writeClientConfig, writeClientConfigIni
 from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, print2, \
         printExit, printWarning, ensurePath, startTime, validParameters
 from .KernelWriterAssembly import KernelWriterAssembly
@@ -40,7 +44,6 @@ from .SolutionStructs import Solution, ProblemType, ProblemSizes
 from .SolutionWriter import SolutionWriter
 from .TensileCreateLibrary import copyStaticFiles, writeSolutionsAndKernels
 from .CustomKernels import getCustomKernelConfig
-
 
 def generateForkedSolutions(problemType, constantParams, forkPermutations):
     """Creates a list with a Solution object for each parameter combination in forkPermutations"""
@@ -64,15 +67,18 @@ def generateForkedSolutions(problemType, constantParams, forkPermutations):
 
     return solutions
 
+
 def getCustomKernelSolutionObj(kernelName, directory=globalParameters["CustomKernelDirectory"]):
     """Creates the Solution object for a custom kernel"""
     kernelConfig = getCustomKernelConfig(kernelName, directory)
-    checkParametersAreValid({p: [kernelConfig[p]] for p in kernelConfig \
-            if p != "ProblemType"}, validParameters)
+    for k, v in kernelConfig.items():
+        if k != "ProblemType":
+            checkParametersAreValid((k, [v]), validParameters)
     kernelConfig["KernelLanguage"] = "Assembly"
     kernelConfig["CustomKernelName"] = kernelName
 
     return Solution(kernelConfig)
+
 
 def generateCustomKernelSolutions(problemType, customKernels, failOnMismatch):
     """Creates a list with a Solution object for each name in customKernel"""
@@ -116,9 +122,9 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
 
     copyStaticFiles()
 
-    kernels           = []
-    kernelHelperOjbs  = []
-    kernelNames       = set()
+    kernels = []
+    kernelHelperOjbs = []
+    kernelNames = set()
     kernelHelperNames = set()
 
     # get unique kernels and kernel helpers
@@ -138,12 +144,12 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
                 kernelHelperNames.add(kname)
 
     solutionSerialNaming = Solution.getSerialNaming(solutions)
-    kernelSerialNaming   = Solution.getSerialNaming(kernels)
-    solutionMinNaming    = Solution.getMinNaming(solutions)
-    kernelMinNaming      = Solution.getMinNaming(kernels)
-    solutionWriter       = SolutionWriter(solutionMinNaming, \
+    kernelSerialNaming = Solution.getSerialNaming(kernels)
+    solutionMinNaming = Solution.getMinNaming(solutions)
+    kernelMinNaming = Solution.getMinNaming(kernels)
+    solutionWriter = SolutionWriter(solutionMinNaming, \
             solutionSerialNaming, kernelMinNaming, kernelSerialNaming)
-    kernelWriterSource   = KernelWriterSource(kernelMinNaming, kernelSerialNaming)
+    kernelWriterSource = KernelWriterSource(kernelMinNaming, kernelSerialNaming)
     kernelWriterAssembly = KernelWriterAssembly(kernelMinNaming, kernelSerialNaming)
 
     # write solution, kernels and CMake
@@ -177,13 +183,13 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
         idealN = 36 * maxMacroTile1
         idealSizes = []
         if problemType["Batched"]:
-                for idealK in solutionSummationSizes:
-                    idealSize = {"Exact": [idealM, idealN, 1, idealK]}
-                    idealSizes.append(idealSize)
+            for idealK in solutionSummationSizes:
+                idealSize = {"Exact": [idealM, idealN, 1, idealK]}
+                idealSizes.append(idealSize)
         else:
-                for idealK in solutionSummationSizes:
-                    idealSize = {"Exact": [idealM, idealN, idealK]}
-                    idealSizes.append(idealSize)
+            for idealK in solutionSummationSizes:
+                idealSize = {"Exact": [idealM, idealN, idealK]}
+                idealSizes.append(idealSize)
         idealProblemSizes = ProblemSizes(problemType, idealSizes)
         writeClientConfig(True, solutions, idealProblemSizes, stepName, stepBaseDir, \
             newLibrary, codeObjectFiles, True)
@@ -194,7 +200,10 @@ def writeBenchmarkFiles(stepBaseDir, solutions, problemSizes, \
     if len(solutions) == 0:
         printExit("write solutions and kernels results 0 valid soultion.")
 
-def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeGroupIdx):
+    return codeObjectFiles
+
+
+def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeGroupIdx, useCache):
     """Run the benchmarking for a single entry in the BenchmarkProblems of a Tensile config"""
     benchmarkTestFails = 0
 
@@ -231,56 +240,13 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
         print1("# Benchmark Step: {} - {} {:.3f}s".format(groupName, stepName, elapsedTime))
         print1("# Num Sizes: {}".format(benchmarkStep.problemSizes.totalProblemSizes))
         print1("# Fork Parameters:")
-        for k, v in benchmarkStep.forkParams.items():
+        for k, v in sorted(benchmarkStep.forkParams.items()):
             print1("#     {}: {}".format(k, v))
 
         pushWorkingPath(shortName)
         stepBaseDir = globalParameters["WorkingPath"]
-        pushWorkingPath("source")
 
-        # enumerate benchmark permutations and create resulting solution objects
-        forkPermutations = constructForkPermutations(benchmarkStep.forkParams)
-        maxPossibleSolutions = len(forkPermutations)
-
-        regSolutions = generateForkedSolutions(benchmarkProcess.problemType, \
-                benchmarkStep.constantParams, forkPermutations)
-        kcSolutions = generateCustomKernelSolutions(benchmarkProcess.problemType, \
-                benchmarkStep.customKernels, not benchmarkStep.customKernelWildcard)
-
-        maxPossibleSolutions += len(kcSolutions)
-        solutions = regSolutions + kcSolutions
-
-        print1("# Actual Solutions: {} / {} after SolutionStructs\n" \
-            .format(len(solutions), maxPossibleSolutions))
-
-        # handle no valid solutions
-        if len(solutions) == 0:
-            msg = "Your parameters resulted in 0 valid solutions."
-            if globalParameters["PrintSolutionRejectionReason"]:
-                msg += "\nExamine reject and backtrace messages above to see why" \
-                        "and where solutions were rejected."
-            else:
-                msg += "\nYou should re-run with \"PrintSolutionRejectionReason: True\"" \
-                        "to see why each parameter combination was rejected."
-            printExit(msg)
-
-        if globalParameters["PrintLevel"] >= 1:
-            for solution in solutions:
-                print2("#    ({}:{}) {}".format(0, 0, Solution.getNameFull(solution)) )
-            print2(HR)
-
-        # write benchmarkFiles
-        prevCount = len(solutions)
-        writeBenchmarkFiles(stepBaseDir, solutions, benchmarkStep.problemSizes, \
-                shortName, [])
-        # ^ this mutates solutions
-
-        print1("# Actual Solutions: {} / {} after KernelWriter\n" \
-                .format(len(solutions), prevCount ))
-
-        popWorkingPath() # source
-
-        # run benchmarking client
+        # file paths
         resultsFileBase = os.path.normpath(os.path.join( \
                 globalParameters["WorkingPath"], "../Data", shortName))
         if benchmarkStep.isFinal():
@@ -288,6 +254,94 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
         resultsFileName = resultsFileBase + ".csv"
         solutionsFileName = resultsFileBase + ".yaml"
 
+        # check if a solution cache exists and if it matches our solution parameters
+        cachePath = os.path.join(stepBaseDir, "cache.yaml")
+        pushWorkingPath("source")
+
+        cacheValid = False
+        if useCache and os.path.isfile(cachePath):
+            c = LibraryIO.readYAML(cachePath)
+            if c["ConstantParams"] == benchmarkStep.constantParams and \
+                    c["ForkParams"] == benchmarkStep.forkParams and \
+                    c["ParamGroups"] == benchmarkStep.paramGroups and \
+                    c["CustomKernels"] == benchmarkStep.customKernels and \
+                    c["CustomKernelWildcard"] == benchmarkStep.customKernelWildcard:
+                cacheValid = True
+                codeObjectFiles = c["CodeObjectFiles"]
+            else:
+                printWarning("Cache data does not match config: redoing solution generation")
+
+        if not cacheValid:
+            # enumerate benchmark permutations and create resulting solution objects
+            forkPermutations = constructForkPermutations(benchmarkStep.forkParams, \
+                    benchmarkStep.paramGroups)
+            maxPossibleSolutions = len(forkPermutations)
+
+            regSolutions = generateForkedSolutions(benchmarkProcess.problemType, \
+                    benchmarkStep.constantParams, forkPermutations)
+            kcSolutions = generateCustomKernelSolutions(benchmarkProcess.problemType, \
+                    benchmarkStep.customKernels, not benchmarkStep.customKernelWildcard)
+
+            maxPossibleSolutions += len(kcSolutions)
+            solutions = regSolutions + kcSolutions
+
+            print1("# Actual Solutions: {} / {} after SolutionStructs\n" \
+                .format(len(solutions), maxPossibleSolutions))
+
+            # handle no valid solutions
+            if len(solutions) == 0:
+                msg = "Your parameters resulted in 0 valid solutions."
+                if globalParameters["PrintSolutionRejectionReason"]:
+                    msg += "\nExamine reject and backtrace messages above to see why" \
+                            "and where solutions were rejected."
+                else:
+                    msg += "\nYou should re-run with \"PrintSolutionRejectionReason: True\"" \
+                            "to see why each parameter combination was rejected."
+                printExit(msg)
+
+            if globalParameters["PrintLevel"] >= 1:
+                for solution in solutions:
+                    print2("#    ({}:{}) {}".format(0, 0, Solution.getNameFull(solution)))
+                print2(HR)
+
+            # write benchmarkFiles
+            prevCount = len(solutions)
+            codeObjectFiles = writeBenchmarkFiles(stepBaseDir, solutions, \
+                    benchmarkStep.problemSizes, shortName, [])
+            # ^ this mutates solutions
+
+            # write cache data
+            cacheData = {
+                "CodeObjectFiles": codeObjectFiles,
+                "ConstantParams": benchmarkStep.constantParams,
+                "ForkParams": benchmarkStep.forkParams,
+                "ParamGroups": benchmarkStep.paramGroups,
+                "CustomKernels": benchmarkStep.customKernels,
+                "CustomKernelWildcard": benchmarkStep.customKernelWildcard
+            }
+            LibraryIO.writeYAML(cachePath, cacheData)
+
+            print1("# Actual Solutions: {} / {} after KernelWriter\n" \
+                    .format(len(solutions), prevCount ))
+        else:
+            solutions = None
+            print1("# Using cached solution data")
+
+            ssProblemType = ProblemType(problemTypeConfig)
+            conProblemType = ContractionsProblemType.FromOriginalState(ssProblemType)
+            outFile = os.path.join(globalParameters["WorkingPath"], "ClientParameters.ini")
+
+            writeClientConfigIni(benchmarkStep.problemSizes, conProblemType,
+                                 globalParameters["WorkingPath"], codeObjectFiles, resultsFileName,
+                                 outFile)
+
+        # I think the size portion of this yaml could be removed,
+        # but for now it's needed, so we update it even in the cache case
+        LibraryIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, solutions, cacheValid)
+
+        popWorkingPath()  # source
+
+        # run benchmarking client
         if not os.path.exists(resultsFileName) or globalParameters["ForceRedoBenchmarkProblems"]:
             libraryLogicPath = None
             forBenchmark = True
@@ -300,21 +354,18 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
         else:
             print1("# Already benchmarked; skipping.")
 
-        # write solutions YAML
-        LibraryIO.writeSolutions(solutionsFileName, benchmarkStep.problemSizes, solutions)
-
         # End Iteration
-        popWorkingPath() # stepName
+        popWorkingPath()  # stepName
         currentTime = time.time()
         elapsedTime = currentTime - startTime
         print1("{}\n# {}\n# {}: End - {:.3f}s\n{}\n" \
                 .format(HR, groupName, shortName, elapsedTime, HR))
 
-    popWorkingPath() # ProblemType
+    popWorkingPath()  # ProblemType
     return (resultsFileBaseFinal, benchmarkTestFails)
 
 
-def main(config):
+def main(config, useCache):
     """Entry point for the "BenchmarkProblems" section of a Tensile config yaml"""
     ClientExecutable.getClientExecutable()
 
@@ -330,7 +381,7 @@ def main(config):
         else:
             problemSizeGroupConfigs = benchmarkProblemTypeConfig[1:]
 
-        for idx, problemSizeGroupConfig in enumerate(problemSizeGroupConfigs):
+        for idx, sizeGroupConfig in enumerate(problemSizeGroupConfigs):
             print2("ProblemTypeConfig: {}".format(problemTypeConfig))
             problemTypeObj = ProblemType(problemTypeConfig)
             globalParameters["EnableHalf"] = problemTypeObj["DataType"].isHalf()
@@ -351,7 +402,7 @@ def main(config):
 
                 # benchmark problem size group
                 (resultsFileBaseFinal, benchmarkErrors) = \
-                        benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, idx)
+                        benchmarkProblemType(problemTypeConfig, sizeGroupConfig, idx, useCache)
                 totalTestFails += benchmarkErrors
 
                 print("clientExit={} {} for {}" \
@@ -359,14 +410,14 @@ def main(config):
                         globalParameters["ConfigPath"]) )
 
                 # copy data
-                resultsFileBase     = resultsFileBaseFinal
-                resultsFileName     = resultsFileBase + ".csv"
-                solutionsFileName   = resultsFileBase + ".yaml"
+                resultsFileBase = resultsFileBaseFinal
+                resultsFileName = resultsFileBase + ".csv"
+                solutionsFileName = resultsFileBase + ".yaml"
                 granularityFileName = resultsFileBase + "_Granularity.csv"
-                shutil.copy( resultsFileName, newResultsFileName )
-                shutil.copy( solutionsFileName, newSolutionsFileName )
+                shutil.copy(resultsFileName, newResultsFileName)
+                shutil.copy(solutionsFileName, newSolutionsFileName)
                 if os.path.isfile(granularityFileName):
-                    shutil.copy( granularityFileName, newGranularityFileName )
+                    shutil.copy(granularityFileName, newGranularityFileName)
             else:
                 print1("# {}_{:02d} already benchmarked; skipping." \
                         .format(str(problemTypeObj), idx) )

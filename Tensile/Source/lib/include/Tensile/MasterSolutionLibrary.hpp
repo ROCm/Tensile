@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <map>
 #include <memory>
 
@@ -41,6 +42,16 @@ namespace Tensile
  */
     template <typename MySolution>
     using SolutionMap = std::map<int, std::shared_ptr<MySolution>>;
+
+    template <typename MySolution>
+    struct LibraryIOContext
+    {
+        std::string                  filename;
+        std::vector<LazyLoadingInit> preloaded;
+        // If lazy loading is used, this may be updated in const functions
+        SolutionMap<MySolution>* solutions;
+        std::mutex*              solutionsGuard;
+    };
 
     /**
  * \ingroup SolutionLibrary
@@ -76,6 +87,7 @@ namespace Tensile
         std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> library;
         SolutionMap<MySolution>                                 solutions;
         std::string                                             version;
+        mutable std::mutex                                      solutionsGuard;
 
         MasterSolutionLibrary() = default;
 
@@ -83,6 +95,27 @@ namespace Tensile
                                                              Hardware const&  hardware,
                                                              double*          fitness
                                                              = nullptr) const override
+        {
+            if(Debug::Instance().printSolutionSelectionTime())
+            {
+                auto start  = std::chrono::steady_clock::now();
+                auto result = findBestSolution_runner(problem, hardware, fitness);
+                auto end    = std::chrono::steady_clock::now();
+
+                double time = std::chrono::duration<double, std::micro>(end - start).count();
+                std::cout << "Solution selection time: " << time << " us" << std::endl;
+
+                return result;
+            }
+            else
+            {
+                return findBestSolution_runner(problem, hardware, fitness);
+            }
+        }
+
+        std::shared_ptr<MySolution> findBestSolution_runner(MyProblem const& problem,
+                                                            Hardware const&  hardware,
+                                                            double* fitness = nullptr) const
         {
             const int solution_index = Debug::Instance().getSolutionIndex();
 
@@ -95,14 +128,16 @@ namespace Tensile
                 std::cout << "Set TENSILE_SOLUTION_INDEX to a negative number to restore the "
                              "default behavior."
                           << std::endl;
+                {
+                    std::lock_guard<std::mutex> guard(solutionsGuard);
+                    auto                        selected_solution = solutions.at(solution_index);
 
-                auto selected_solution = solutions.at(solution_index);
-
-                if((*selected_solution->problemPredicate)(problem)
-                   && (*selected_solution->hardwarePredicate)(hardware))
-                    return selected_solution;
-                else
-                    return nullptr;
+                    if((*selected_solution->problemPredicate)(problem)
+                       && (*selected_solution->hardwarePredicate)(hardware))
+                        return selected_solution;
+                    else
+                        return nullptr;
+                }
             }
             else
                 return library->findBestSolution(problem, hardware, fitness);

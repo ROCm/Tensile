@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -41,6 +41,8 @@ namespace Tensile
             HipAMDGPU(hipDeviceProp_t const& prop);
 
             hipDeviceProp_t properties;
+
+            virtual std::string archName() const override;
         };
 
         std::shared_ptr<Hardware> GetCurrentDevice();

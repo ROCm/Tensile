@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -62,7 +62,8 @@ TEST(LLVMYAMLContractionTest, Simple)
                         "  bType: Float\n"
                         "  cType: Float\n"
                         "  dType: Float\n";
-    llvm::yaml::Input yin(mydoc);
+    LibraryIOContext<ContractionSolution> context{std::string(""), {}, nullptr};
+    llvm::yaml::Input                     yin(mydoc, &context);
 
     ContractionSolution s;
 
@@ -80,7 +81,8 @@ TEST(LLVMYAMLContractionTest, Predicate)
                         "value: [{type: TruePred}, \n"
                         "        {type: Not, value: {type: FalsePred}},\n"
                         "        {type: Free0SizeMultiple, index: 0, value: 2}]";
-    llvm::yaml::Input yin(mydoc);
+    LibraryIOContext<ContractionSolution> context{std::string(""), {}, nullptr};
+    llvm::yaml::Input                     yin(mydoc, &context);
 
     std::shared_ptr<Predicates::Predicate<ContractionProblem>> p;
 
@@ -141,7 +143,8 @@ TEST(LLVMYAMLContractionTest, ContractionLibrary)
                         "                library: { type: Single, index: 0 }\n"
                         "";
 
-    llvm::yaml::Input yin(mydoc);
+    LibraryIOContext<ContractionSolution> context{std::string(""), {}, nullptr};
+    llvm::yaml::Input                     yin(mydoc, &context);
 
     MasterContractionLibrary l;
 

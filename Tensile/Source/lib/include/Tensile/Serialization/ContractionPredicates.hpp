@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2022 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -93,8 +93,10 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::CDStridesEqual>(),
                     Base::template Pair<Predicates::Contraction::StridedBatchedEqual>(),
                     Base::template Pair<Predicates::Contraction::CUEfficiency>(),
+                    Base::template Pair<Predicates::Contraction::Experimental>(),
                     Base::template Pair<Predicates::Contraction::Fp16AltImpl>(),
                     Base::template Pair<Predicates::Contraction::EqualityMatching>(),
+                    Base::template Pair<Predicates::Contraction::SizeInRange>(),
                 });
 
                 auto gmap = Generic::GetSubclasses();
@@ -336,6 +338,12 @@ namespace Tensile
         };
 
         template <typename IO>
+        struct MappingTraits<Predicates::Contraction::Experimental, IO>
+            : public AutoMappingTraits<Predicates::Contraction::Experimental, IO>
+        {
+        };
+
+        template <typename IO>
         struct MappingTraits<Predicates::Contraction::Fp16AltImpl, IO>
             : public AutoMappingTraits<Predicates::Contraction::Fp16AltImpl, IO>
         {
@@ -344,6 +352,25 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::EqualityMatching, IO>
             : public AutoMappingTraits<Predicates::Contraction::EqualityMatching, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::Range, IO>
+        {
+            using iot = IOTraits<IO>;
+            static void mapping(IO& io, Predicates::Contraction::Range& range)
+            {
+                iot::mapOptional(io, "min", range.min);
+                iot::mapOptional(io, "max", range.max);
+            }
+
+            const static bool flow = false;
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::SizeInRange, IO>
+            : public AutoMappingTraits<Predicates::Contraction::SizeInRange, IO>
         {
         };
     } // namespace Serialization
