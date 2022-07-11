@@ -1,22 +1,25 @@
 ################################################################################
-# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 from .Common import assignParameterRequired, assignParameterWithDefault, \
@@ -2303,24 +2306,36 @@ class Solution(collections.abc.Mapping):
 
 
   ########################################
+  # determine if current datatype can support DirectToVgpr
+  @staticmethod
+  def isDirectToVgprSupportDataType(state):
+    # Single/Double/Complex only (tentative)
+    return (state["ProblemType"]["DataType"].isSingle() or state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isComplex())
+
+  ########################################
   # determine can we use DirectToVgpr
   @staticmethod
   def isDirectToVgprDoable(state, tc):
-    tcOther = 'B' if tc == 'A' else 'B'
+    tcOther = 'B' if tc == 'A' else 'A'
     MIindex = 0 if tc == 'A' else 1
     # With MatrixInstruction only (tentative)
     if not state["EnableMatrixInstruction"] :
       reject(state, "DirectToVgpr is for MatrixInstruction only")
       return False
 
-    # Double/DoubleComplex only (tentative)
-    if not (state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex()):
-      reject(state, "so far, DirectToVgpr is for double or double complex only")
+    # check if the DataType can support DirectToVgpr
+    if not Solution.isDirectToVgprSupportDataType(state):
+      reject(state, "so far, DirectToVgpr is for single, double or double complex only")
       return False
 
     # Does not work with TLU = False and PrefetchLocalRead = 0
     if (not state["ProblemType"]["TLU%c"%tc]) and state["PrefetchLocalRead"] == 0:
       reject(state, "DirectToVgpr%c does not supports TLU%c = False and PrefetchLocalRead = 0"%(tc, tc))
+      return False
+
+    # Does not work with TLU = False and SGEMM/CGEMM (not supported)
+    if (not state["ProblemType"]["TLU%c"%tc]) and (state["ProblemType"]["DataType"].isSingle() or state["ProblemType"]["DataType"].isSingleComplex()):
+      reject(state, "DirectToVgpr%c does not supports TLU%c = False + SGEMM/CGEMM"%(tc, tc))
       return False
 
     # MIWaveGroup check
@@ -2346,10 +2361,10 @@ class Solution(collections.abc.Mapping):
         reject(state, "DirectToVgpr%c does not supports NumLoadsCoalesced%c(=%u) != MIWaveTile[%u](=%u) / GlobalLoadVectorWidth%c(=%u)"\
                        %(tc, tc, state["NumLoadsCoalesced%c"%tc], MIindex, state['MIWaveTile'][MIindex], tc, state["GlobalLoadVectorWidth%c"%tc]))
         return False
-    # Does not work with TLU and MIWaveTile < GlobalLoadVectorWidth
-    if state["ProblemType"]["TLU%s"%tc] and state['MIWaveTile'][MIindex] < state["GlobalLoadVectorWidth%c"%tc]:
-      reject(state, "DirectToVgpr%c does not supports MIWaveTile[%u](=%u) < GlobalLoadVectorWidth%c(=%u)"\
-                     %(tc, MIindex, state['MIWaveTile'][MIindex], tc, state["GlobalLoadVectorWidth%c"%tc]))
+    # Does not work with MIWaveTile < VectorWidth
+    if state['MIWaveTile'][MIindex] < state["VectorWidth"]:
+      reject(state, "DirectToVgpr%c does not supports MIWaveTile[%u](=%u) < VectorWidth(=%u)"\
+                     %(tc, MIindex, state['MIWaveTile'][MIindex], state["VectorWidth"]))
       return False
 
     # Does not work with ExpandPointerSwap = False
@@ -2420,9 +2435,16 @@ class Solution(collections.abc.Mapping):
     #TN
     # use for all precisions with TransposeLDS=1
 
-    if state["ProblemType"]["DataType"].isHalf() and state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc])  != 0:
-      reject(state, "can't use DirectToLds for FP16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
-      return False
+    if state["ProblemType"]["DataType"].isHalf():
+      if state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc])  != 0:
+        reject(state, "can't use DirectToLds for FP16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
+        return False
+      if state["ProblemType"]["TransposeA"] != True or state["ProblemType"]["TransposeB"] != False:
+        reject(state, "DirectToLds for FP16 currently only working for TN")
+        return False
+      if state["GlobalReadVectorWidth"] < 4:
+        reject(state, "GlobalReadVectorWidth must be 4 for DirectToLds HGEMM")
+        return False
 
     if state["ProblemType"]["DataType"].isBFloat16() and state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc]) != 0:
       reject(state, "can't use DirectToLds for BF16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
@@ -2431,13 +2453,6 @@ class Solution(collections.abc.Mapping):
     if state["NumThreads"] % state["WavefrontSize"] != 0:
       reject(state, "can't use DirectToLds for NumThreads % WavefrontSize != 0")
       return False
-
-    # GLVW*BPe only for precision(s) < 4 (bpe)
-    #if (state["ProblemType"]["TLU%c"%tc] == True and numBytes < 4): 
-    if (numBytes < 4): 
-      if state["GlobalLoadVectorWidth%c"%tc] * numBytes != 4:
-        reject(state, "can't use DirectToLds for bpe < 4 and GlobalLoadVectorWidth * numBytes != 4"%tc)
-        return False
 
     if state["ProblemType"]["TLU%c"%tc] == state["UnrollMajorLDS%c" % tc]:
       reject(state, "can't use DirectToLds for TLU%c == UnrollMajorLDS%c"%(tc, tc))
@@ -2448,13 +2463,6 @@ class Solution(collections.abc.Mapping):
       if state["GlobalLoadVectorWidth%c"%tc] * numBytes * state["WavefrontSize"] > 256:
         reject(state, "can't use DirectToLds for not EnableMatrixInstruction and GlobalLoadVectorWidth%c * bpe * WavefrontSize > 256"%tc)
         return False
-
-    # TODO revisit fp32 case for failure
-    #if state["ProblemType"]["TLU%c"%tc] and numBytes < 8 and state["GlobalLoadVectorWidth%c"%tc] * numBytes > 4:
-    if numBytes < 8 and state["GlobalLoadVectorWidth%c"%tc] * numBytes > 4:
-      reject(state, "can't use DirectToLds for TLU%c and bpe < 8 and GlobalLoadVectorWidth%c * bpe > 4"%(tc, tc))
-      return False
-
 
     if state["WaveSeparateGlobalRead%c" % tc]:
       if state["LSC%c"%tc] * state["LSP%c"%tc] * numBytes != state["WavefrontSize"] * state["GlobalLoadVectorWidth%c"%tc] * numBytes:
@@ -2491,11 +2499,15 @@ class Solution(collections.abc.Mapping):
       reject(state, "can't use DirectToLds for LocalReadVectorWidth == 2")
       return False
 
-    # Does not work with (NumLoadsCoalesced>1 and UseInstOffsetForGRO) + DGEMM
-    if state["ProblemType"]["DataType"].isDouble() and \
-      (state["NumLoadsCoalesced%c"%tc] > 1 and state["UseInstOffsetForGRO"]):
-      reject(state, "DirectToLds%c does not supports NumLoadsCoalesced%c > 1 and UseInstOffsetForGRO for dgemm"%(tc, tc))
-      return False
+    if state["NumLoadsCoalesced%c"%tc] > 1:
+      # NumLoadsCoalesced > 1 not working for sgemm
+      if numBytes < 8:
+        reject(state, "Can't use NumLoadsCoalesced > 1 with DirectToLds for this data type")
+        return False
+      # Does not work with (NumLoadsCoalesced>1 and UseInstOffsetForGRO) + DGEMM
+      if state["ProblemType"]["DataType"].isDouble() and state["UseInstOffsetForGRO"]:
+        reject(state, "DirectToLds%c does not supports NumLoadsCoalesced%c > 1 and UseInstOffsetForGRO for dgemm"%(tc, tc))
+        return False
 
     # Does not work with NumLoadsCoalesced>1 + ZGEMM
     if state["ProblemType"]["DataType"].isDoubleComplex() and state["NumLoadsCoalesced%c"%tc] > 1:
@@ -2531,6 +2543,20 @@ class Solution(collections.abc.Mapping):
 
     return True
 
+  @staticmethod
+  def getDivisorName(state, tC):
+    if state["GlobalReadCoalesceGroup{}".format(tC)]:
+      if state["GlobalReadCoalesceVector{}".format(tC)]:
+        divisorName = "LVC{}".format(tC)
+      else:
+        # Fractional load use the more accurate lsc, multiply by VW later
+        divisorName = "LSC{}".format(tC)
+    else:
+      if state["GlobalReadCoalesceVector{}".format(tC)]:
+        divisorName = "LSP{}".format(tC)
+      else:
+        divisorName = "LVP{}".format(tC)
+    return divisorName
 
   ########################################
   # assign all derived parameters
@@ -2589,13 +2615,7 @@ class Solution(collections.abc.Mapping):
       state["1LDSBuffer"] = 1
       print2("\nSet SIA=2, force PrefetchLocalRead=1, ExpandPointerSwap=1, 1LDSBuffer=1")
 
-    # F32 only for now but we should extend this for other data types as well.
     isa = tuple(state["ISA"])
-    if "MACInstruction" not in state or state["MACInstruction"] not in validParameters["MACInstruction"]:
-      if globalParameters["AsmCaps"][isa]["v_mac_f32"]:
-        state["MACInstruction"] = "MAC"
-      else:
-        state["MACInstruction"] = "FMA"
 
     if state["WavefrontSize"] == 32 and not globalParameters["ArchCaps"][isa]["HasWave32"]:
       reject(state, "WavefrontSize=32 not supported for ISA {}".format(isa))
@@ -2787,8 +2807,7 @@ class Solution(collections.abc.Mapping):
       # DirectToVgpr case, bufferLoad=False can work with ExpandPointerSwap=1
       #if not (bufferLoad and state["PrefetchGlobalRead"] == 1):
       if not ((bufferLoad or state["DirectToVgprA"] or state["DirectToVgprB"]) and ( state["PrefetchGlobalRead"] == 1 \
-              or (state["PrefetchGlobalRead"] > 1 and \
-                  (state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex())))):
+              or (state["PrefetchGlobalRead"] > 1 and Solution.isDirectToVgprSupportDataType(state)))):
         state["ExpandPointerSwap"] = 0
       # EPS not supported with SplitLDS yet
       if state["DepthULdsDivisor"] > 1:
@@ -2802,6 +2821,10 @@ class Solution(collections.abc.Mapping):
 
     #print("PackedC0IdxChars", state["PackedC0IdxChars"])
     #print("PackedC1IdxChars", state["PackedC1IdxChars"])
+
+    if state["StaggerUStride"] == 0 and state["StaggerU"] != 0:
+      reject(state, "StaggerUStride={} is only valid if StaggerU is 0 (StaggerU={})".format(state["StaggerUStride"], state["StaggerU"]))
+      return
 
     # Set up stagger shift:
     bpeAB = int(4*state["ProblemType"]["DataType"].numRegisters())
@@ -3220,18 +3243,23 @@ class Solution(collections.abc.Mapping):
           totalVectorsCoalescedB, totalElementsPerpB):
         return
 
-    # allow LocalReadVectorWidth for TLU + MatrixInstruction
-    # so far, limited to double + (DTVB or (DTVA + no DTL)) only
+    # allow LocalReadVectorWidthB > 1 for TLUB + MatrixInstruction (this is applicable for B only)
     # some more limitations necessary to make this logic work
     # - SourceSwap
     # - VectorWidth >= LocalReadVectorWidth
+    # - VectorWidthB > 1
     # - AssertFree1ElementMultiple % VectorWidth == 0 (no shift edge for B)
     # - the other side of MIWaveTile must be multiple of VectorWidth
-    state["allowLRVWforTLUandMI"] = state["ProblemType"]["DataType"].isDouble() and \
-                                (state["DirectToVgprB"] or state["DirectToVgprA"] and not state["DirectToLds"]) and \
-                                state["EnableMatrixInstruction"] and state["ProblemType"]["TLUA"] and state["ProblemType"]["TLUB"] and \
+    VectorWidthB = 1
+    if state["DirectToVgprB"]:
+      VectorWidthB = state["VectorWidth"]
+    elif state["DirectToVgprA"]:
+      VectorWidthB = state["LocalReadVectorWidth"]
+    state["allowLRVWBforTLUandMI"] = (state["DirectToVgprB"] or state["DirectToVgprA"] and not state["DirectToLds"]) and \
+                                state["EnableMatrixInstruction"] and state["ProblemType"]["TLUB"] and \
                                 state["VectorWidth"] >= state["LocalReadVectorWidth"] and \
                                 state["AssertFree1ElementMultiple"] % state["VectorWidth"] == 0 and \
+                                VectorWidthB > 1 and \
                                 ((state["DirectToVgprA"] and (state["MIWaveTile"][1] % state["VectorWidth"] == 0)) or \
                                  (state["DirectToVgprB"] and (state["MIWaveTile"][0] % state["VectorWidth"] == 0)))
 
@@ -3261,6 +3289,18 @@ class Solution(collections.abc.Mapping):
     state["LVPA"] = roundupRatio(state["LSPA"] , state["GlobalLoadVectorWidthA"])
     state["LVCB"] = roundupRatio(state["LSCB"] , state["GlobalLoadVectorWidthB"])
     state["LVPB"] = roundupRatio(state["LSPB"] , state["GlobalLoadVectorWidthB"])
+
+    if state["SplitGlobalRead"] > 1:
+      if state["DirectToLds"]:
+        reject(state, "SplitGlobalRead not yet supported with DirectToLds")
+      if state["DirectToVgprA"] or state["DirectToVgprB"]:
+        reject(state, "SplitGlobalRead does not work with DirectToVgpr")
+      divisorNameA = Solution.getDivisorName(state, "A")
+      divisorNameB = Solution.getDivisorName(state, "B")
+      divisorA = state[divisorNameA]
+      divisorB = state[divisorNameB]
+      if state["SplitGlobalRead"] >= divisorA and state["SplitGlobalRead"] >= divisorB:
+        reject(state, "SplitGlobalRead must be less than lvc/lsc/lvp/lsp")
 
     for tc in ('A','B'):
       if problemType["TLU%s"%tc]:
@@ -3410,7 +3450,7 @@ class Solution(collections.abc.Mapping):
 
     # Default LocalReadVectorWidth
     if state["LocalReadVectorWidth"] == -1:
-      if state["EnableMatrixInstruction"] and not state["allowLRVWforTLUandMI"]:
+      if state["EnableMatrixInstruction"] and not state["allowLRVWBforTLUandMI"]:
         state["LocalReadVectorWidth"] = state["MIInputPerThread"]
         # enable less than state["MIInputPerThread"] 
         # for fp64 this means ds_read_b32 
@@ -3425,7 +3465,7 @@ class Solution(collections.abc.Mapping):
         if state["LocalReadVectorWidth"] < state["MIInputPerThread"] and not (state["DirectToLdsA"] or state["DirectToLdsB"]):
           reject(state, "LocalReadVectorWidth < %u" %(state["MIInputPerThread"]))
         if state["LocalReadVectorWidth"] > state["MIInputPerThread"] and not state["TransposeLDS"] \
-           and not state["allowLRVWforTLUandMI"]:
+           and not state["allowLRVWBforTLUandMI"]:
           reject(state, "LocalReadVectorWidth require Transpose LDS")
       else:
         if state["LocalReadVectorWidth"] != state["VectorWidth"]:
@@ -4285,7 +4325,7 @@ class Solution(collections.abc.Mapping):
     return deepcopy(self._state)
 
   def __hash__(self):
-    return hash(str(self))
+    return hash(str(self) + self._state.get("codeObjectFile", ""))
     #return hash(self.getAttributes())
 
   def __eq__(self, other):

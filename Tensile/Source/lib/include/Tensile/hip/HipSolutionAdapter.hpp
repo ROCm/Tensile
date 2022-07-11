@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,8 +26,10 @@
 
 #pragma once
 
+#include <Tensile/AMDGPU.hpp>
 #include <Tensile/Tensile.hpp>
 #include <hip/hip_runtime.h>
+#include <unordered_set>
 
 #include <mutex>
 
@@ -49,6 +51,8 @@ namespace Tensile
             }
 
             hipError_t loadCodeObjectFile(std::string const& path);
+
+            hipError_t initializeLazyLoading(std::string architecture, std::string codeObjectDir);
 
             hipError_t loadCodeObject(const void* image);
 
@@ -87,8 +91,10 @@ namespace Tensile
             bool                                           m_debug           = false;
             bool                                           m_debugSkipLaunch = false;
             std::string                                    m_name            = "HipSolutionAdapter";
+            std::string                                    m_codeObjectDirectory;
 
-            std::vector<std::string> m_loadedModuleNames;
+            std::vector<std::string>        m_loadedModuleNames;
+            std::unordered_set<std::string> m_loadedCOFiles;
 
             friend std::ostream& operator<<(std::ostream& stream, SolutionAdapter const& adapter);
         };

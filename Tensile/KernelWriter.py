@@ -1,22 +1,25 @@
 ################################################################################
-# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 from . import Code
@@ -394,8 +397,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
         return max(0, _numMfmaBetweenLastLWandBarrier(spacing))
 
       numMfmaBetweenLWandBarrier = assignParamSplitLds(numMfmaBetweenLWandBarrier)
-      # In StoreCInUnroll case, reduce numMfmaBetweenLWandBarrier to 1 because interval between local write and read is already added by StoreCInUnroll code
-      if kernel["StoreCInUnroll"]:
+      # In StoreCInUnroll + num of store > 1 case, reduce numMfmaBetweenLWandBarrier to 1
+      # because interval between local write and read is already added by StoreCInUnroll code
+      if kernel["StoreCInUnroll"] and self.getNumberOfStoreCInTemplate(kernel) > 1:
         numMfmaBetweenLWandBarrier = min(numMfmaBetweenLWandBarrier, 1)
       self.lwEndMfmaIndex = max(self.barrierMfmaIndex - numMfmaBetweenLWandBarrier,0) if self.numItersPLR else numMfmaPerIter*kernel["LoopIters"] - 1
       # adjust lwEndMfmaIndex for the following cases 
@@ -797,7 +801,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
               if kernel["StoreCInUnroll"] and readsInc == 0:
                 # adjustment for StoreCInUnroll
                 # count buffer_load if it exist but not counted
-                readsInc += str(itemGR).count("buffer_load_dword")
+                readsInc += str(itemGR).count("_buffer_load")
               reads = reads + readsInc
               if reads > 1:
                 break
@@ -1419,11 +1423,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
           interval = roundUp(numMfmaPerIter / origLenGlobalReadCodeDTV)
           tileIndex = 0 if kernel["DirectToVgprA"] else 1
           if (kernel["MIWaveTile"][tileIndex] // kernel["VectorWidth"]) > 1:
-            if kernel["ProblemType"]["DataType"].isDoubleComplex():
+            if kernel["ProblemType"]["DataType"].isComplex():
               # adjustment for double complex
               # limit the max of interval up to 4 if (kernel["MIWaveTile"][0] // kernel["VectorWidth"]) > 1
               interval = min(4, interval)
-            elif kernel["ProblemType"]["DataType"].isDouble():
+            else: #if kernel["ProblemType"]["DataType"].isDouble() or isSingle():
               # adjustment for double
               # in this case, interval must be 1 to avoid overwritting vreg by global read
               interval = 1
@@ -3547,8 +3551,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
     vwa = kernel["GlobalLoadVectorWidthA"]
     vwb = kernel["GlobalLoadVectorWidthB"]
 
-    # allow LocalReadVectorWidth for TLU + MatrixInstruction
-    self.allowLRVWforTLUandMI = kernel["allowLRVWforTLUandMI"]
+    # allow LocalReadVectorWidthB for TLUB + MatrixInstruction
+    self.allowLRVWBforTLUandMI = kernel["allowLRVWBforTLUandMI"]
 
     self.numItersPLR = kernel["PrefetchLocalRead"]%kernel["LoopIters"]
     self.numVgprBuffer = kernel["LoopIters"] if kernel["PrefetchLocalRead"] > kernel["LoopIters"] else kernel["PrefetchLocalRead"]
@@ -3557,9 +3561,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # MergeRead 0: ds_readAx1 ds_readBx1 mfma | ds_readAx1 ds_readBx1 mfma | => ds_readAx2 ds_readBx1 mfma | ds_readBx1 mfma |
     # MergeRead 1: ds_readAx1 ds_readBx1 mfma | ds_readAx1 ds_readAx1 mfma | => ds_readAx2 ds_readBx1 ds_readBx1 mfma | mfma |
     MergeRead = 0
-    if not kernel["ProblemType"]["TLUA"] or MergeRead or self.allowLRVWforTLUandMI:
-      if (not kernel["ProblemType"]["TLUA"]) and kernel["DirectToVgprA"]:
-        # DirectToVgpr + TLU=False case, ignore LocalReadVectorWidth and use GlobalLoadVectorWidth instead.
+    if not kernel["ProblemType"]["TLUA"] or MergeRead or self.allowLRVWBforTLUandMI:
+      if kernel["DirectToVgprA"]:
+        # DirectToVgprA case, ignore LocalReadVectorWidth and use GlobalLoadVectorWidth instead.
         self.lrvwA = vwa
       else:
         self.lrvwA = kernel["LocalReadVectorWidth"]
@@ -3568,9 +3572,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.lrvwA = kernel["MIInputPerThread"]
       else:
         self.lrvwA = 1
-    if not kernel["ProblemType"]["TLUB"] or MergeRead or self.allowLRVWforTLUandMI:
-      if (not kernel["ProblemType"]["TLUB"]) and kernel["DirectToVgprB"]:
-        # DirectToVgpr + TLU=False case, ignore LocalReadVectorWidth and use GlobalLoadVectorWidth instead.
+    if not kernel["ProblemType"]["TLUB"] or MergeRead or self.allowLRVWBforTLUandMI:
+      if kernel["DirectToVgprB"]:
+        # DirectToVgprB case, ignore LocalReadVectorWidth and use GlobalLoadVectorWidth instead.
         self.lrvwB = vwb
       else:
         self.lrvwB = kernel["LocalReadVectorWidth"]
@@ -3601,8 +3605,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if kernel["EnableMatrixInstruction"]:
       self.numReadsIterCoalescedA = self.lrvwA // kernel["MIInputPerThread"]
       self.numReadsIterCoalescedB = self.lrvwB // kernel["MIInputPerThread"]
-      if self.allowLRVWforTLUandMI:
-        self.numReadsIterCoalescedA = 1
+      if self.allowLRVWBforTLUandMI:
+        if kernel["ProblemType"]["TLUA"]:
+          self.numReadsIterCoalescedA = 1
         self.numReadsIterCoalescedB = 1
     else:
       self.numReadsIterCoalescedA  = 1
@@ -5022,6 +5027,11 @@ for codeObjectFileName in codeObjectFileNames:
         # asmPath = self.getAssemblyDirectory()
         # kernelName = self.getKernelName(kernel)
 
+        # Skip if .o files will have already been built for this file
+        # @TODO remove need for this with better code organization
+        if kernel.duplicate:
+          self.language = "ASM"
+          return (0, "")
         if globalParameters["GenerateSourcesAndExit"]:
           # only create the assembly file.
           self.getKernelObjectAssemblyFile(kernel)
@@ -5130,10 +5140,10 @@ for codeObjectFileName in codeObjectFileNames:
           count = 0
           for i in range(u):
             globalReadStr = ' '.join([str(x) for x in self.perIterGlobalReadCode[i].flatitems()])
-            count += globalReadStr.count("buffer_load_dword")
+            count += globalReadStr.count("_buffer_load")
             # PGR=2 case, global read is in LocalWriteCode
             localWriteStr = ' '.join([str(x) for x in self.perIterLocalWriteCode[i].flatitems()])
-            count += localWriteStr.count("buffer_load_dword")
+            count += localWriteStr.count("_buffer_load")
           needToWait += count
           if u == localWriteEndIter + 1 and beforeBarrier:
             # beforeBarrier case, reduce the amount of non-Vgpr global read
@@ -5151,7 +5161,7 @@ for codeObjectFileName in codeObjectFileNames:
 
           # count number of StoreC in template
           tmpStr = ' '.join([str(x) for x in self.StoreCUnrollCode.flatitems()])
-          numGlobalStoreCinTemplate  = tmpStr.count("buffer_store_dword")  # count buffer_store_dword
+          numGlobalStoreCinTemplate  = tmpStr.count("_buffer_store")  # count _buffer_store
           numGlobalStoreCinTemplate += tmpStr.count("buffer_atomic_add")   # count buffer_atomic_add
           numGlobalStoreC = 0
 
@@ -5163,14 +5173,14 @@ for codeObjectFileName in codeObjectFileNames:
               # It means LoadC wait is already done. Deduct the number of load C in template
               # count number of Load in template
               tmpStr = ' '.join([str(x) for x in self.LoadCUnrollCode.flatitems()])
-              numGlobalLoadCinTemplate  = tmpStr.count("buffer_load_dword")  # count buffer_load_dword
+              numGlobalLoadCinTemplate  = tmpStr.count("_buffer_load")  # count _buffer_load
               needToWait -= numGlobalLoadCinTemplate
             else:
               # check if store C is already in perIterLocalWriteCode
               for i in range(u):
                 # scheduled storeC in unroll is in LocalWriteCode
                 localWriteStr = ' '.join([str(x) for x in self.perIterLocalWriteCode[i].flatitems()])
-                numGlobalStoreC += localWriteStr.count("buffer_store_dword")
+                numGlobalStoreC += localWriteStr.count("_buffer_store")
                 numGlobalStoreC += localWriteStr.count("buffer_atomic_add")
               # no LDS write (DirectToLds+DirectToVgpr) and not beforeBarrier and not firstIter case, 
               # no need to wait for StoreC in previous iteration
@@ -5191,6 +5201,11 @@ for codeObjectFileName in codeObjectFileNames:
           # add numGlobalStoreC to needToWait
           needToWait += numGlobalStoreC
           waitComment = "global read/store wait for DirectToVgpr with StoreCInUnroll (StoreC=%u)"%(numGlobalStoreC)
+
+        # vmcnt should not go over MaxVmcnt
+        maxVmcnt = globalParameters["AsmCaps"][self.version]["MaxVmcnt"]
+        needToWait = min(needToWait, maxVmcnt)
+
         retStr = "s_waitcnt vmcnt(%u) // %s\n"%(needToWait, waitComment)
     return retStr
 

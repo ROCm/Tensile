@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2022 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,7 @@
 
 #include <array>
 #include <cstddef>
+#include <limits>
 #include <vector>
 
 namespace Tensile
@@ -512,6 +513,55 @@ namespace Tensile
 
                     stream << *this << ": (" << problem.size(index) << " % " << value
                            << " == 0) == " << rv;
+
+                    return rv;
+                }
+            };
+
+            struct Range
+            {
+                size_t min = 0;
+                size_t max = std::numeric_limits<size_t>::max();
+            };
+
+            inline std::ostream& operator<<(std::ostream& stream, Range const& range)
+            {
+                return stream << "min: " << range.min << ", max: " << range.max;
+            }
+
+            struct SizeInRange : public Predicate_CRTP<SizeInRange, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = true,
+                    HasValue = true
+                };
+                size_t index;
+                Range  value;
+
+                SizeInRange() = default;
+                SizeInRange(size_t index, Range value)
+                    : index(index)
+                    , value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "SizeInRange";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return (problem.size(index) >= value.min) && (problem.size(index) < value.max);
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+                    stream << *this << ": (" << value.min << " <= " << problem.size(index)
+                           << " <= " << value.max << ") == " << rv;
 
                     return rv;
                 }
@@ -1346,6 +1396,27 @@ namespace Tensile
                     {
                         return false;
                     }
+                }
+            };
+
+            struct Experimental : public Predicate_CRTP<Experimental, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+
+                Experimental() = default;
+
+                static std::string Type()
+                {
+                    return "Experimental";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return (problem.performanceMetric() == PerformanceMetric::Experimental);
                 }
             };
 

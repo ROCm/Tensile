@@ -1,22 +1,25 @@
 ################################################################################
-# Copyright 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 from .Common import printExit, printWarning, versionIsCompatible
@@ -25,10 +28,14 @@ from . import __version__
 from . import Common
 from . import SolutionLibrary
 
+from typing import NamedTuple
+
 try:
     import yaml
 except ImportError:
-    printExit("You must install PyYAML to use Tensile (to parse config files). See http://pyyaml.org/wiki/PyYAML for installation instructions.")
+    printExit(
+        "You must install PyYAML to use Tensile (to parse config files). See http://pyyaml.org/wiki/PyYAML for installation instructions."
+    )
 
 try:
     import msgpack
@@ -48,6 +55,7 @@ def write(filename_noExt, data, format="yaml"):
     else:
         printExit("Unrecognized format {}".format(format))
 
+
 def writeYAML(filename, data, **kwargs):
     """Writes data to file in YAML format."""
     # set default kwags for yaml dump
@@ -61,10 +69,12 @@ def writeYAML(filename, data, **kwargs):
     with open(filename, "w") as f:
         yaml.dump(data, f, **kwargs)
 
+
 def writeMsgPack(filename, data):
     """Writes data to file in Message Pack format."""
     with open(filename, "wb") as f:
         msgpack.pack(data, f)
+
 
 def writeSolutions(filename, problemSizes, solutions, cache=False):
     """Writes solution YAML file."""
@@ -88,14 +98,14 @@ def writeSolutions(filename, problemSizes, solutions, cache=False):
             solutionStates.append(solutionState)
     # write dictionaries
     with open(filename, "w") as f:
-        f.write("- MinimumRequiredVersion: %s\n" % __version__ )
+        f.write("- MinimumRequiredVersion: {}\n".format(__version__))
         f.write("- ProblemSizes:\n")
         if problemSizes:
             for sizeRange in problemSizes.ranges:
-                f.write("  - Range: %s\n" % sizeRange)
+                f.write("  - Range: {}\n".format(sizeRange))
             for problemExact in problemSizes.exacts:
                 #FIXME-problem, this ignores strides:
-                f.write("  - Exact: %s\n" % str(problemExact))
+                f.write("  - Exact: {}\n".format(problemExact))
 
         yaml.dump(solutionStates, f, default_flow_style=None)
 
@@ -109,9 +119,11 @@ def readYAML(filename):
         data = yaml.load(f, yaml.SafeLoader)
     return data
 
+
 def parseSolutionsFile(filename):
     """Wrapper function to read and parse a solutions file."""
     return parseSolutionsData(readYAML(filename), filename)
+
 
 def parseSolutionsData(data, srcFile="?"):
     """Parses problem sizes and solutions from the data of a solutions file."""
@@ -141,38 +153,44 @@ def parseSolutionsData(data, srcFile="?"):
     problemSizes = ProblemSizes(problemType, problemSizesConfig)
     return (problemSizes, solutions)
 
+
+class LibraryLogic(NamedTuple):
+    """Return tuple for parseLibraryLogicData()"""
+    schedule: str
+    architecture: str
+    problemType: ProblemType
+    solutions: list
+    exactLogic: list
+    library: SolutionLibrary.MasterSolutionLibrary
+
+
 def parseLibraryLogicFile(filename):
     """Wrapper function to read and parse a library logic file."""
     return parseLibraryLogicData(readYAML(filename), filename)
 
+
 def parseLibraryLogicData(data, srcFile="?"):
     """Parses the data of a library logic file."""
-    if len(data) < 9:
-        printExit("Library logic file {} is missing required fields (len = {} < 9)" \
-                .format(srcFile, len(data)))
+    if type(data) is list:
+        data = parseLibraryLogicList(data, srcFile)
 
-    versionString     = data[0]["MinimumRequiredVersion"]
-    scheduleName      = data[1]
-    architectureName  = data[2] if isinstance(data[2], str) else data[2]["Architecture"]
-    deviceNames       = data[3]
-    problemTypeState  = data[4]
-    solutionStates    = data[5]
-    indexOrder        = data[6]
-    exactLogic        = data[7]
-    rangeLogic        = data[8]
+    if "CUCount" not in data:
+        data["CUCount"] = None
 
-    if not versionIsCompatible(versionString):
+    if "Fp16AltImpl" not in data:
+        data["Fp16AltImpl"] = False
+
+    if not versionIsCompatible(data["MinimumRequiredVersion"]):
         printWarning("Version = {} in library logic file {} does not match Tensile version = {}" \
-                .format(srcFile, versionString, __version__) )
+                .format(srcFile, data["MinimumRequiredVersion"], __version__) )
 
     # unpack problemType
-    problemType = ProblemType(problemTypeState)
+    problemType = ProblemType(data["ProblemType"])
     # unpack solutions
     solutions = []
-    for i in range(0, len(solutionStates)):
-        solutionState = solutionStates[i]
+    for solutionState in data["Solutions"]:
         if solutionState["KernelLanguage"] == "Assembly":
-            solutionState["ISA"] = Common.gfxArch(architectureName)
+            solutionState["ISA"] = Common.gfxArch(data["ArchitectureName"])
         else:
             solutionState["ISA"] = (0, 0, 0)
         # force redo the deriving of parameters, make sure old version logic yamls can be validated
@@ -187,21 +205,65 @@ def parseLibraryLogicData(data, srcFile="?"):
 
     newLibrary = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data, solutions)
 
-    return (scheduleName, deviceNames, problemType, solutions, indexOrder, \
-            exactLogic, rangeLogic, newLibrary, architectureName)
+    return LibraryLogic(data["ScheduleName"], data["ArchitectureName"], problemType, solutions, \
+            data.get("ExactLogic"), newLibrary)
+
+
+def parseLibraryLogicList(data, srcFile="?"):
+    """Parses the data of a matching table style library logic file."""
+    if len(data) < 9:
+        printExit("Library logic file {} is missing required fields (len = {} < 9)" \
+                .format(srcFile, len(data)))
+
+    rv = {}
+    rv["MinimumRequiredVersion"] = data[0]["MinimumRequiredVersion"]
+    rv["ScheduleName"] = data[1]
+    rv["DeviceNames"] = data[3]
+    rv["ProblemType"] = data[4]
+    rv["Solutions"] = data[5]
+
+    if type(data[2]) is dict:
+        rv["ArchitectureName"] = data[2]["Architecture"]
+        rv["CUCount"] = data[2]["CUCount"]
+    else:
+        rv["ArchitectureName"] = data[2]
+        rv["CUCount"] = None
+
+    # TODOBEN: figure out what to do with these...
+    rv["ExactLogic"] = data[7]
+    rv["RangeLogic"] = data[8]
+
+    # optional fields
+    if len(data) > 10 and data[10]:
+        rv["PerfMetric"] = data[10]
+
+    if len(data) > 11 and data[11]:
+        rv["Fp16AltImpl"] = True
+
+    # library logic fields
+    rv["LibraryType"] = "Matching"
+    rv["Library"] = {}
+    rv["Library"]["indexOrder"] = data[6]
+    rv["Library"]["table"] = data[7]
+    rv["Library"]["distance"] = "Euclidean"
+    if len(data) > 12 and data[12]:
+        rv["Library"]["distance"] = data[12]
+
+    return rv
+
 
 def rawLibraryLogic(data):
     """Returns a tuple of the data in a library logic file."""
-    versionString     = data[0]
-    scheduleName      = data[1]
-    architectureName  = data[2]
-    deviceNames       = data[3]
-    problemTypeState  = data[4]
-    solutionStates    = data[5]
-    indexOrder        = data[6]
-    exactLogic        = data[7]
-    rangeLogic        = data[8]
-    otherFields       = []
+    versionString = data[0]
+    scheduleName = data[1]
+    architectureName = data[2]
+    deviceNames = data[3]
+    problemTypeState = data[4]
+    solutionStates = data[5]
+    indexOrder = data[6]
+    exactLogic = data[7]
+    rangeLogic = data[8]
+    otherFields = []
 
     dataLength = len(data)
     if dataLength > 9:
@@ -217,11 +279,11 @@ def rawLibraryLogic(data):
 #################
 def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple):
     """Creates the data for a library logic file suitable for writing to YAML."""
-    problemType   = logicTuple[0]
-    solutions     = logicTuple[1]
-    indexOrder    = logicTuple[2]
-    exactLogic    = logicTuple[3]
-    rangeLogic    = logicTuple[4]
+    problemType = logicTuple[0]
+    solutions = logicTuple[1]
+    indexOrder = logicTuple[2]
+    exactLogic = logicTuple[3]
+    rangeLogic = logicTuple[4]
 
     tileSelection = False
     if len(logicTuple) > 5 and logicTuple[5]:
@@ -229,9 +291,9 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple
 
     data = []
     # Tensile version
-    data.append({"MinimumRequiredVersion":__version__})
+    data.append({"MinimumRequiredVersion": __version__})
     # schedule name
-    data.append(schedulePrefix)     # change from Tensile to vega10
+    data.append(schedulePrefix)  # change from Tensile to vega10
     data.append(architectureName)
     # schedule device names
     data.append(deviceNames)
