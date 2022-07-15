@@ -222,13 +222,17 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       hipccver = globalParameters['HipClangVersion'].split(".")
       hipccMaj = int(hipccver[0])
       hipccMin = int(hipccver[1])
-      # for hipclang 5.2 and above, clang offload bundler changes the way input/output files are specified
+
       inflag = "-inputs"
       outflag = "-outputs"
-      # clang 15.0.0 still wants inputs on windows so the hipcc version condition doesn't work
-      if os.name != "nt" and ((hipccMaj == 5 and hipccMin >= 2) or hipccMaj >= 6):
-        inflag = "-input"
-        outflag = "-output"
+      try:
+        lines = subprocess.check_output([globalParameters["ClangOffloadBundlerPath"], "-help"], stderr=subprocess.STDOUT).decode().split("\n")
+        for line in lines:
+          if (line.find("--input=")) != -1:
+            inflag = "-input"
+            outflag = "-output"
+      except subprocess.CalledProcessError as e:
+        print("error when ClangOffloadBundlerPath --help")
 
       infile = os.path.join(buildPath, objectFilename)
       try:
