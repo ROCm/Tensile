@@ -26,16 +26,20 @@
 
 #pragma once
 
-#include <Tensile/Tensile.hpp>
-
 namespace Tensile
 {
-    template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-        LLVMLoadLibraryFile(std::string const&                  filename,
-                            const std::vector<LazyLoadingInit>& preloaded = {});
-
-    template <typename MyProblem, typename MySolution>
-    std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-        LLVMLoadLibraryData(std::vector<uint8_t> const& data, std::string filename = "");
-} // namespace Tensile
+    namespace Client
+    {
+        typedef enum
+        {
+            CLK_TYPE_SYS   = 0x0,
+            CLK_TYPE_FIRST = CLK_TYPE_SYS,
+            CLK_TYPE_DF,
+            CLK_TYPE_DCEF,
+            CLK_TYPE_SOC,
+            CLK_TYPE_MEM,
+            CLK_TYPE_LAST = CLK_TYPE_MEM,
+            CLK_INVALID   = 0xFFFFFFFF
+        } ClockType;
+    }
+}

@@ -296,6 +296,7 @@ namespace Tensile
 
         int         index = 0;
         std::string kernelName;
+        std::string codeObjectFilename;
         bool        debugKernel   = false;
         bool        kernelArgsLog = false;
 

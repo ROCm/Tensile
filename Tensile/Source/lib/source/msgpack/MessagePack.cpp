@@ -69,7 +69,8 @@ namespace Tensile
 
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-        MessagePackLoadLibraryFile(std::string const& filename)
+        MessagePackLoadLibraryFile(std::string const&                  filename,
+                                   const std::vector<LazyLoadingInit>& preloaded)
     {
         // parse file into a msgpack::object_handle
         msgpack::object_handle result;
@@ -122,7 +123,8 @@ namespace Tensile
         {
             std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
-            Serialization::MessagePackInput min(result.get());
+            LibraryIOContext<MySolution>    context{filename, preloaded, nullptr};
+            Serialization::MessagePackInput min(result.get(), &context);
 
             Serialization::PointerMappingTraits<Tensile::MasterContractionLibrary,
                                                 Serialization::MessagePackInput>::mapping(min, rv);
@@ -157,7 +159,8 @@ namespace Tensile
             std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
             auto result = msgpack::unpack((const char*)data.data(), data.size());
-            Serialization::MessagePackInput min(result.get());
+            LibraryIOContext<MySolution>    context{std::string(""), {}, nullptr};
+            Serialization::MessagePackInput min(result.get(), &context);
 
             Serialization::PointerMappingTraits<Tensile::MasterContractionLibrary,
                                                 Serialization::MessagePackInput>::mapping(min, rv);
@@ -185,7 +188,7 @@ namespace Tensile
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
         MessagePackLoadLibraryFile<ContractionProblem, ContractionSolution>(
-            std::string const& filename);
+            std::string const& filename, const std::vector<LazyLoadingInit>& preloaded);
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
         MessagePackLoadLibraryData<ContractionProblem, ContractionSolution>(

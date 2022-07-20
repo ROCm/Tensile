@@ -58,8 +58,7 @@ namespace Tensile
 
             static void mapping(IO& io, Library& lib)
             {
-                SolutionMap<MySolution>* ctx
-                    = static_cast<SolutionMap<MySolution>*>(iot::getContext(io));
+                auto ctx = static_cast<LibraryIOContext<MySolution>*>(iot::getContext(io));
                 if(ctx == nullptr)
                 {
                     iot::setError(io,
@@ -97,8 +96,8 @@ namespace Tensile
 
                     for(int index : mappingIndices)
                     {
-                        auto slnIter = ctx->find(index);
-                        if(slnIter == ctx->end())
+                        auto slnIter = ctx->solutions->find(index);
+                        if(slnIter == ctx->solutions->end())
                         {
                             iot::setError(io, concatenate("Invalid solution index: ", index));
                         }

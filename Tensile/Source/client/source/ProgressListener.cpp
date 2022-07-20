@@ -36,7 +36,7 @@ namespace Tensile
 {
     namespace Client
     {
-        ProgressListener::ProgressListener(po::variables_map& args)
+        ProgressListener::ProgressListener(po::variables_map const& args)
             : m_runOnce(args["selection-only"].as<bool>())
         {
         }

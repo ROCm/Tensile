@@ -34,6 +34,12 @@
 #include <Tensile/hip/HipSolutionAdapter.hpp>
 #include <Tensile/hip/HipUtils.hpp>
 
+//@TODO add alternative for windows
+#ifndef _WIN32
+#include <glob.h>
+#endif
+#include <regex>
+
 namespace Tensile
 {
     namespace hip
@@ -63,6 +69,16 @@ namespace Tensile
                 hipModuleUnload(module);
         }
 
+        std::string removeXnack(std::string coFilename)
+        {
+            std::string xnackVersion = "xnack"; //Extra character before and after xnack
+            size_t      loc          = coFilename.find(xnackVersion);
+            if(loc != std::string::npos)
+                coFilename.replace(loc - 1, xnackVersion.length() + 2, "");
+
+            return coFilename;
+        }
+
         hipError_t SolutionAdapter::loadCodeObjectFile(std::string const& path)
         {
             hipModule_t module;
@@ -70,12 +86,17 @@ namespace Tensile
             HIP_CHECK_RETURN(hipModuleLoad(&module, path.c_str()));
 
             if(m_debug)
-                std::cout << "loaded code object" << path << std::endl;
+                std::cout << "loaded code object " << path << std::endl;
 
             {
                 std::lock_guard<std::mutex> guard(m_access);
                 m_modules.push_back(module);
                 m_loadedModuleNames.push_back(concatenate("File ", path));
+
+                //Isolate filename
+                size_t start = path.rfind('/');
+                start        = (start == std::string::npos) ? 0 : start + 1;
+                m_loadedCOFiles.insert(removeXnack(std::string(path.begin() + start, path.end())));
             }
             return hipSuccess;
         }
@@ -192,6 +213,46 @@ namespace Tensile
             return err;
         }
 
+        hipError_t SolutionAdapter::initializeLazyLoading(std::string arch,
+                                                          std::string codeObjectDir)
+        {
+            m_codeObjectDirectory = codeObjectDir;
+            //Ensure there's a slash at the end of the path
+            if(m_codeObjectDirectory.back() != '/')
+                m_codeObjectDirectory += '/';
+
+            //Remove xnack and sramecc qualifiers
+            size_t loc = arch.find(":");
+            if(loc != std::string::npos)
+                arch.resize(loc);
+
+            std::string helperKernelName = std::string("Kernels.so-000-") + arch;
+
+            //If required code object file hasn't yet been loaded, load it now
+            m_access.lock();
+            bool loaded = m_loadedCOFiles.find(removeXnack(helperKernelName) + ".hsaco")
+                          != m_loadedCOFiles.end();
+            m_access.unlock();
+
+            if(!loaded)
+            {
+                hipError_t err;
+                //Try xnack variations
+                for(auto ver : {"", "-xnack-", "-xnack+"})
+                {
+                    std::string modifiedCOName = helperKernelName + ver + ".hsaco";
+                    err = loadCodeObjectFile(m_codeObjectDirectory + modifiedCOName);
+
+                    if(err == hipSuccess)
+                        return err;
+                }
+
+                return err;
+            }
+
+            return hipSuccess;
+        }
+
         hipError_t SolutionAdapter::launchKernel(KernelInvocation const& kernel)
         {
             return launchKernel(kernel, nullptr, nullptr, nullptr);
@@ -202,6 +263,32 @@ namespace Tensile
                                                  hipEvent_t              startEvent,
                                                  hipEvent_t              stopEvent)
         {
+            if(!kernel.codeObjectFile.empty())
+            {
+                //If required code object file hasn't yet been loaded, load it now
+                m_access.lock();
+                bool loaded = m_loadedCOFiles.find(removeXnack(kernel.codeObjectFile))
+                              != m_loadedCOFiles.end();
+                m_access.unlock();
+
+                if(!loaded)
+                {
+                    //Try other xnack versions
+                    size_t     loc = kernel.codeObjectFile.rfind('.');
+                    hipError_t err;
+
+                    for(auto ver : {"", "-xnack-", "-xnack+"})
+                    {
+                        std::string modifiedCOName = kernel.codeObjectFile;
+                        modifiedCOName.insert(loc, ver);
+                        err = loadCodeObjectFile(m_codeObjectDirectory + modifiedCOName);
+
+                        if(err == hipSuccess)
+                            break;
+                    }
+                }
+            }
+
             if(m_debug)
             {
                 std::cout << "Kernel " << kernel.kernelName << std::endl;

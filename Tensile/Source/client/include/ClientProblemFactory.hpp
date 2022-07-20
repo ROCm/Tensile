@@ -31,7 +31,7 @@
 #include <Tensile/KernelLanguageTypes.hpp>
 #include <Tensile/Tensile.hpp>
 
-#include "program_options.hpp"
+#include <boost/program_options.hpp>
 
 #include <cstddef>
 
@@ -40,12 +40,12 @@ namespace Tensile
     namespace Client
     {
 
-        namespace po = roc;
+        namespace po = boost::program_options;
 
         class ClientProblemFactory
         {
         public:
-            ClientProblemFactory(po::variables_map& args);
+            ClientProblemFactory(po::variables_map const& args);
             ~ClientProblemFactory();
 
             ClientProblemFactory(ContractionProblem const& problem)

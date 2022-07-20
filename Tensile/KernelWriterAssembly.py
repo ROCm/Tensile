@@ -1096,7 +1096,7 @@ class KernelWriterAssembly(KernelWriter):
     # localRead A
     localReadWidth = (kernel["VectorWidth"] * tPA["bpe"]) // self.bpr
     if kernel["EnableMatrixInstruction"]:
-      if tPA["tlu"] and self.allowLRVWforTLUandMI:
+      if tPA["tlu"] and self.allowLRVWBforTLUandMI:
         localReadWidth = (self.lrvwA * tPA["bpe"]) // self.bpr
       else:
         localReadWidth = tPA["bpe"] / self.bpr
@@ -1125,7 +1125,7 @@ class KernelWriterAssembly(KernelWriter):
     # localRead B
     localReadWidth = (kernel["VectorWidth"] * tPB["bpe"]) // self.bpr
     if kernel["EnableMatrixInstruction"]:
-      if tPB["tlu"] and self.allowLRVWforTLUandMI:
+      if tPB["tlu"] and self.allowLRVWBforTLUandMI:
         localReadWidth = (self.lrvwB * tPB["bpe"]) // self.bpr
       else:
         localReadWidth = tPB["bpe"] / self.bpr
@@ -1865,11 +1865,11 @@ class KernelWriterAssembly(KernelWriter):
       # 2. using larger PLR to read more iterations, same number local reads in 1 iteration
       if kernel["InnerUnroll"] >= self.numReadsIterCoalescedA:
         numA //= self.numReadsIterCoalescedA
-        if self.allowLRVWforTLUandMI:
+        if tPA["tlu"] and self.allowLRVWBforTLUandMI:
           numA //= self.lrvwA
       if kernel["InnerUnroll"] >= self.numReadsIterCoalescedB:
         numB //= self.numReadsIterCoalescedB
-        if self.allowLRVWforTLUandMI:
+        if self.allowLRVWBforTLUandMI:
           numB //= self.lrvwB
     else:
       numB = kernel["InnerUnroll"]*(kernel["ThreadTile1"] // kernel["VectorWidth"]) // tPB["localReadInstruction"].numOffsets
@@ -3615,7 +3615,8 @@ class KernelWriterAssembly(KernelWriter):
           # need division for qReg
           kStr += vectorStaticDivide(qReg, qReg, kernel["MatrixInstN"], tmpVgpr, tmpSgpr)
           lrvwOther = self.lrvwB if tP["isA"] else self.lrvwA # The other side of lrvw
-          if lrvwOther >= 2 and not self.allowLRVWforTLUandMI and tP["tlu"]:
+          tluOther = kernel["ProblemType"]["TLUB"] if tP["isA"] else kernel["ProblemType"]["TLUA"] # The other side of tlu
+          if lrvwOther >= 2 and (not tluOther) and tP["tlu"]:
             # DirectToVgpr + LocalReadVectorWidth>=2 case, multiply qReg by lrvwOther
             kStr += staticMultiply(vgpr(qReg), vgpr(qReg), lrvwOther, sgpr(tmpSgpr))
       # release register
@@ -7323,12 +7324,13 @@ class KernelWriterAssembly(KernelWriter):
 
             r = 0
             numLoadVectorComp = loadWidth*self.bpr//tP["bpe"]
-            if kernel["ProblemType"]["DataType"].isDouble() and kernel["BufferLoad"]:
-              # adjustment for dgemm + BufferLoad
+            isNumLoadVectorCompAdjusted = False
+            if kernel["BufferLoad"] and (kernel["DirectToLds"] or kernel["ProblemType"]["DataType"].isDouble()):
+              # adjustment for BufferLoad + (DirectToLds or dgemm)
               # use same buffer_load instruction for tail loop as out of tail loop
               # this is mandatory for DirectToLds case. Also, it improves tail loop performance.
-              # so far, limit to double only
               numLoadVectorComp = numLoadVectorComp // kernel["GlobalLoadVectorWidth%c"%tc]
+              isNumLoadVectorCompAdjusted = True
 
             int8TempVgpr = numLoadVectorComp - 1
             # for each component in vector
@@ -7363,7 +7365,6 @@ class KernelWriterAssembly(KernelWriter):
                    kernel["ProblemType"]["DataType"].isSingle():
                 regIdx = r
               elif kernel["ProblemType"]["DataType"].isDouble():
-                numElementsPerLoad = kernel["GlobalLoadVectorWidth%c"%tc] # adjust numElementsPerLoad for DGEMM
                 regIdx = r*2
               elif kernel["ProblemType"]["DataType"].isSingleComplex():
                 regIdx = r*2
@@ -7372,6 +7373,9 @@ class KernelWriterAssembly(KernelWriter):
               else:
                 printWarning("DataType unsupported")
               kStr += self.comment1("g2l=%u, load component %u"%(g2lIdx, r))
+
+              if isNumLoadVectorCompAdjusted:
+                numElementsPerLoad = kernel["GlobalLoadVectorWidth%c"%tc] # adjust numElementsPerLoad
 
               offset = 0
 
@@ -8707,6 +8711,10 @@ class KernelWriterAssembly(KernelWriter):
       newVal = (bit2<<3) | (bit3 <<1) | (bit4>>2) | (bit5>>2)
     offset_val = offset_val & (~0x3c)
     offset_val = offset_val | newVal
+
+    # another address conversion for DirectToLds + NumLoadsCoalesced > 1
+    dummy, offset_val = self.lraOffsetConversionForDTLandNLC(kernel, tP, offset_val)
+
     return offset_val
 
   ##############################################################################
@@ -9907,7 +9915,7 @@ class KernelWriterAssembly(KernelWriter):
     #
     # Also create an AddrCalc for each memory operation.
     ##############################################################################
-    def setupStoreElementsForBatch(self, kernel, gwvw, batchElements, batchElementSgprs, isOptNLL, allowLRVWforTLUandMI, lrvwB):
+    def setupStoreElementsForBatch(self, kernel, gwvw, batchElements, batchElementSgprs, isOptNLL, allowLRVWBforTLUandMI, lrvwB):
 
       self.elementAddr = []
       self.elementData = []  # VGPR to use for element data, needed for atomic or beta
@@ -9941,7 +9949,7 @@ class KernelWriterAssembly(KernelWriter):
 
         coordOffset1 = 0
         if kernel["EnableMatrixInstruction"]:
-          vc1Scale = lrvwB if allowLRVWforTLUandMI else 1
+          vc1Scale = lrvwB if (allowLRVWBforTLUandMI or kernel["DirectToVgprB"]) else 1
           MIOutputVectorWidth = kernel["MIOutputVectorWidth"]
           MFMAContinuousOutputs = MIOutputVectorWidth if kernel["SourceSwap"] else 1
           OutputsPerMIMN        = (matrixInstM * matrixInstN // self.kernel["WavefrontSize"]) if kernel["SourceSwap"] else 1
@@ -11360,7 +11368,7 @@ class KernelWriterAssembly(KernelWriter):
     # print(commentStr)
 
     ss.setupStoreElementsForBatch(kernel, gwvw, batchElements, batchElementSgprs, isOptNLL=False, \
-                                  allowLRVWforTLUandMI=self.allowLRVWforTLUandMI, lrvwB=self.lrvwB)
+                                  allowLRVWBforTLUandMI=self.allowLRVWBforTLUandMI, lrvwB=self.lrvwB)
 
     loadsIssued = 0
     storesIssued = 0
@@ -12125,10 +12133,10 @@ class KernelWriterAssembly(KernelWriter):
             else:
               StoreComment = "store D"
               if kernel["StoreVectorWidth"] == 1 and not kernel["ProblemType"]["DestDataType"].isDoubleComplex():
-                StoreInst = "_buffer_store_dwordx2"
+                StoreInst = "_buffer_store_b64"
                 numDstReg = 2
               else : # kernel["StoreVectorWidth"] == 2 or DoubleComplex
-                StoreInst = "_buffer_store_dwordx4"
+                StoreInst = "_buffer_store_b128"
                 numDstReg = 4
 
             if ss.optSrdIncForRow and addrCalc.rowInc:
@@ -12603,7 +12611,7 @@ class KernelWriterAssembly(KernelWriter):
     totalTT0     = totalTT0                      if kernel["SourceSwap"] else (totalTT0 * outputsPerThread)
     totalTT1     = (totalTT1 * outputsPerThread) if kernel["SourceSwap"] else totalTT1
     vectorWidth0 = kernel["VectorWidth"]         if kernel["SourceSwap"] else kernel["MIOutputVectorWidth"]
-    MIOutputVectorWidthAdj = (self.lrvwB if self.allowLRVWforTLUandMI else 1) * kernel["MIOutputVectorWidth"]
+    MIOutputVectorWidthAdj = (self.lrvwB if self.allowLRVWBforTLUandMI or kernel["DirectToVgprB"] else 1) * kernel["MIOutputVectorWidth"]
     vectorWidth1 = MIOutputVectorWidthAdj if kernel["SourceSwap"] else 1
     # To here
 
@@ -13515,7 +13523,7 @@ class KernelWriterAssembly(KernelWriter):
     OutputsPerMFMA1B = matrixInstM * matrixInstN // self.kernel["WavefrontSize"]
     VectorWidth0     = kernel["VectorWidth"] if kernel["SourceSwap"] else 1
     outerTT0         = kernel["MIWaveTile"][0] // VectorWidth0
-    lrvwB            = self.lrvwB if self.allowLRVWforTLUandMI else 1
+    lrvwB            = self.lrvwB if (self.allowLRVWBforTLUandMI or kernel["DirectToVgprB"]) else 1
     VectorWidth1     = lrvwB
     outerTT1         = kernel["MIWaveTile"][1] // VectorWidth1
 

@@ -31,12 +31,12 @@ from .TensileCreateLibrary import copyStaticFiles
 
 import os
 import subprocess
-import shlex
 import shutil
 from enum import Enum
 
 from .Contractions import FreeIndex
 from .Contractions import ProblemType as ContractionsProblemType
+
 
 class DataInitName(Enum):
   Zero = 0
@@ -72,8 +72,7 @@ class ClientLogLevel(Enum):
 # Main
 ################################################################################
 def main( config ):
-  libraryLogicPath = os.path.join(globalParameters["WorkingPath"], \
-      globalParameters["LibraryLogicPath"])
+  libraryLogicPath = os.path.join(globalParameters["WorkingPath"], globalParameters["LibraryLogicPath"])
   stepBaseDir = pushWorkingPath(globalParameters["LibraryClientPath"])
 
   pushWorkingPath("source")
@@ -92,13 +91,14 @@ def main( config ):
   enableHalf = False
 
   createLibraryScript = getBuildClientLibraryScript(stepBaseDir, libraryLogicPath)
-  subprocess.run(shlex.split(createLibraryScript), cwd=stepBaseDir)
+  subprocess.run(createLibraryScript, cwd=stepBaseDir)
   coList = []
   yamlList = []
+
   with open(os.path.join(stepBaseDir,"library","TensileManifest.txt"), "r") as f:
     lines = f.read().split("\n")
     coList = [line for line in lines if "co" in line]
-    yamlList = [line for line in lines if "yaml" in line]
+    yamlList = [line for line in lines if (("yaml" in line) or ("dat" in line))]
 
   clientParametersPaths = []
   for logicFileName in logicFiles:
@@ -176,55 +176,55 @@ def runClient(libraryLogicPath, forBenchmark, enableTileSelection, configPaths=N
 
   return process.returncode
 
+
 def getBuildClientLibraryScript(buildPath, libraryLogicPath):
-  import io
-  runScriptFile = io.StringIO()
+  callCreateLibraryCmd = ["python"] if os.name == "nt" else []
 
-  callCreateLibraryCmd = globalParameters["ScriptPath"] + "/bin/TensileCreateLibrary"
-
+  callCreateLibraryCmd += [os.path.join(globalParameters["ScriptPath"] , "bin", "TensileCreateLibrary")]
 
   if globalParameters["MergeFiles"]:
-    callCreateLibraryCmd += " --merge-files"
+    callCreateLibraryCmd += ["--merge-files"]
   else:
-    callCreateLibraryCmd += " --no-merge-files"
+    callCreateLibraryCmd += ["--no-merge-files"]
 
   if globalParameters["ShortNames"]:
-    callCreateLibraryCmd += " --short-file-names"
+    callCreateLibraryCmd += ["--short-file-names"]
   else:
-    callCreateLibraryCmd += " --no-short-file-names"
+    callCreateLibraryCmd += ["--no-short-file-names"]
 
   if globalParameters["LibraryPrintDebug"]:
-    callCreateLibraryCmd += " --library-print-debug"
+    callCreateLibraryCmd += ["--library-print-debug"]
   else:
-    callCreateLibraryCmd += " --no-library-print-debug"
+    callCreateLibraryCmd += ["--no-library-print-debug"]
 
   if globalParameters["GenerateManifestAndExit"]:
-    callCreateLibraryCmd += " --generate-manifest-and-exit"
+    callCreateLibraryCmd += ["--generate-manifest-and-exit"]
 
-  callCreateLibraryCmd += " --architecture=" + globalParameters["Architecture"]
-  callCreateLibraryCmd += " --code-object-version=" + globalParameters["CodeObjectVersion"]
-  callCreateLibraryCmd += " --cxx-compiler=" + globalParameters["CxxCompiler"]
-  callCreateLibraryCmd += " --library-format=" + globalParameters["LibraryFormat"]
+  callCreateLibraryCmd += ["--architecture=" + globalParameters["Architecture"]]
+  callCreateLibraryCmd += ["--code-object-version=" + globalParameters["CodeObjectVersion"]]
+  callCreateLibraryCmd += ["--cxx-compiler=" + globalParameters["CxxCompiler"]]
+  callCreateLibraryCmd += ["--library-format=" + globalParameters["LibraryFormat"]]
 
-  callCreateLibraryCmd += " %s" % libraryLogicPath
-  callCreateLibraryCmd += " %s" % buildPath #" ../source"
-  callCreateLibraryCmd += " %s\n" % globalParameters["RuntimeLanguage"]
+  callCreateLibraryCmd += ["%s" % libraryLogicPath]
+  callCreateLibraryCmd += ["%s" % buildPath] #" ../source"
+  callCreateLibraryCmd += ["%s" % globalParameters["RuntimeLanguage"]]
 
-  runScriptFile.write(callCreateLibraryCmd)
+  return callCreateLibraryCmd
 
-  return runScriptFile.getvalue()
 
 def writeBuildClientLibraryScript(path, libraryLogicPath):
-  filename = os.path.join(path, \
-    "build.%s" % ("bat" if os.name == "nt" else "sh") )
+  filename = os.path.join(path, "build.%s" % ("bat" if os.name == "nt" else "sh") )
   with open(filename, "w") as file:
     file.write("#!/bin/bash\n\n")
     file.write("set -ex\n")
-    file.write(getBuildClientLibraryScript(path, libraryLogicPath))
+    for item in getBuildClientLibraryScript(path, libraryLogicPath):
+      file.write(f"{item} ")
 
   if os.name != "nt":
     os.chmod(filename, 0o777)
+
   return filename
+
 
 def writeRunScript(path, forBenchmark, enableTileSelection, configPaths=None):
   if configPaths is None:
@@ -234,66 +234,47 @@ def writeRunScript(path, forBenchmark, enableTileSelection, configPaths=None):
       configPaths.append(os.path.join(globalParameters["WorkingPath"], "../source/ClientParameters_Granularity.ini"))
 
   # create run.bat or run.sh which builds and runs
-  runScriptName = os.path.join(path, \
-    "run.%s" % ("bat" if os.name == "nt" else "sh") )
+  clientExe = ClientExecutable.getClientExecutable()
+  runScriptName = os.path.join(path, "run.%s" % ("bat" if os.name == "nt" else "sh") )
   runScriptFile = open(runScriptName, "w")
   if os.name != "nt":
     runScriptFile.write("#!/bin/bash\n\n")
 
-  runScriptFile.write("set -ex\n")
-
-
-  if forBenchmark:
-    if os.name == "nt":
-      runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"], \
-          "client.exe") )
-    else:
-      if globalParameters["PinClocks"] and globalParameters["ROCmSMIPath"]:
-        runScriptFile.write("%s -d 0 --setfan 255 --setsclk 7\n" % globalParameters["ROCmSMIPath"])
-        runScriptFile.write("sleep 1\n")
-        runScriptFile.write("%s -d 0 -a\n" % globalParameters["ROCmSMIPath"])
-
-      runScriptFile.write("set +e\n")
-
-
-    if globalParameters["DataInitTypeA"] == -1 :
-        globalParameters["DataInitTypeA"] = globalParameters["DataInitTypeAB"]
-    if globalParameters["DataInitTypeB"] == -1 :
-        globalParameters["DataInitTypeB"] = globalParameters["DataInitTypeAB"]
-
-    runScriptFile.write("ERR1=0\n")
-
-    clientExe = ClientExecutable.getClientExecutable()
+  option = "" if forBenchmark else "--best-solution 1"
+  if (os.name == "nt"):
+    runScriptFile.write("@echo off\n")
+    runScriptFile.write("set err=0\n")
     for configFile in configPaths:
-      runScriptFile.write("{} --config-file {} {}\n".format(clientExe, configFile, globalParameters["ClientArgs"]))
-    runScriptFile.write("ERR2=$?\n\n")
-
-    runScriptFile.write("""
-ERR=0
-if [[ $ERR1 -ne 0 ]]
-then
-    echo one
-    ERR=$ERR1
-fi
-if [[ $ERR2 -ne 0 ]]
-then
-    echo two
-    ERR=$ERR2
-fi
-""")
-
-    if os.name != "nt":
-      if globalParameters["PinClocks"] and globalParameters["ROCmSMIPath"]:
-        runScriptFile.write("%s -d 0 --resetclocks\n" % globalParameters["ROCmSMIPath"])
-        runScriptFile.write("%s -d 0 --setfan 50\n" % globalParameters["ROCmSMIPath"])
+      runScriptFile.write("{} --config-file {} {} {}\n".format(clientExe, configFile, globalParameters["ClientArgs"], option))
+      runScriptFile.write("IF %errorlevel% NEQ 0 set err=%errorlevel%\n")
+    runScriptFile.write("exit %err%\n")
   else:
+    runScriptFile.write("set -ex\n")
+    if globalParameters["PinClocks"] and globalParameters["ROCmSMIPath"]:
+      runScriptFile.write("%s -d 0 --setfan 255 --setsclk 7\n" % globalParameters["ROCmSMIPath"])
+      runScriptFile.write("sleep 1\n")
+      runScriptFile.write("%s -d 0 -a\n" % globalParameters["ROCmSMIPath"])
+
+    runScriptFile.write("ERR=0\n")
     for configFile in configPaths:
-      runScriptFile.write("{} --config-file {} {} --best-solution 1\n".format(ClientExecutable.getClientExecutable(), configFile, globalParameters["ClientArgs"]))
-  if os.name != "nt":
+      runScriptFile.write("{} --config-file {} {} {}\n".format(clientExe, configFile, globalParameters["ClientArgs"], option))
+      runScriptFile.write( "if [[ $? -ne 0 ]]\n")
+      runScriptFile.write( "then\n")
+      runScriptFile.write(f"    echo error in {configFile}\n")
+      runScriptFile.write( "    ERR=$?\n")
+      runScriptFile.write( "fi\n")
+
+    if globalParameters["PinClocks"] and globalParameters["ROCmSMIPath"]:
+      runScriptFile.write("%s -d 0 --resetclocks\n" % globalParameters["ROCmSMIPath"])
+      runScriptFile.write("%s -d 0 --setfan 50\n" % globalParameters["ROCmSMIPath"])
+
     runScriptFile.write("exit $ERR\n")
+
   runScriptFile.close()
+
   if os.name != "nt":
     os.chmod(runScriptName, 0o777)
+
   return runScriptName
 
 

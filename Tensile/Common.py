@@ -119,7 +119,7 @@ globalParameters["UnrollLoopEfficiencyEnable"] = False   # if True split(S) MAC&
 ########################################
 globalParameters["CMakeBuildType"] = "Release"            # whether benchmark clients and library client should be release or debug
 globalParameters["PrintSolutionRejectionReason"] = False  # when a solution is marked as invalid, print why
-globalParameters["LibraryFormat"] = "yaml"                # set library backend (either yaml or msgpack)
+globalParameters["LibraryFormat"] = "msgpack"             # set library backend (either yaml or msgpack)
 globalParameters["EmbedLibrary"] = None                   # whether library should be embedded or not
 
 # True/False: CSV will/won't export WinnerGFlops, WinnerTimeUS, WinnerIdx, WinnerName.
@@ -259,6 +259,8 @@ globalParameters["CustomKernelDirectory"] = os.path.join(os.path.dirname(os.path
 globalParameters["PristineOnGPU"] = True # use Pristine memory on Tensile trainning verification or not
 
 globalParameters["SeparateArchitectures"] = False # write Tensile library metadata to separate files for each architecture
+
+globalParameters["LazyLibraryLoading"] = False # Load library and code object files when needed instead of at startup
 
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
