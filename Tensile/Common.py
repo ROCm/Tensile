@@ -119,7 +119,7 @@ globalParameters["UnrollLoopEfficiencyEnable"] = False   # if True split(S) MAC&
 ########################################
 globalParameters["CMakeBuildType"] = "Release"            # whether benchmark clients and library client should be release or debug
 globalParameters["PrintSolutionRejectionReason"] = False  # when a solution is marked as invalid, print why
-globalParameters["LibraryFormat"] = "yaml"                # set library backend (either yaml or msgpack)
+globalParameters["LibraryFormat"] = "msgpack"             # set library backend (either yaml or msgpack)
 globalParameters["EmbedLibrary"] = None                   # whether library should be embedded or not
 
 # True/False: CSV will/won't export WinnerGFlops, WinnerTimeUS, WinnerIdx, WinnerName.
