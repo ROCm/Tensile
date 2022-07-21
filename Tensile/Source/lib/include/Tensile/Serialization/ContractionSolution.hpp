@@ -134,7 +134,7 @@ namespace Tensile
                 iot::mapRequired(io, "gsc", gsf.devSolScale);
             }
 
-            const static bool flow = false;
+            const static bool flow = true;
         };
 
         template <typename IO>

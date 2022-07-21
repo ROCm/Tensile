@@ -31,7 +31,7 @@
 #include <vector>
 
 #include <Tensile/ProblemKey.hpp>
-#include <Tensile/Properties.hpp>
+#include <Tensile/MLFeatures.hpp>
 
 namespace Tensile
 {
@@ -39,9 +39,9 @@ namespace Tensile
      * \ingroup Tensile
      * \defgroup DecisionTree Decision Tree
      *
-     * @brief Tree based decisions on a list of Property values
+     * @brief Tree based decisions on a list of Feature values
      *
-     * Generic decision tress for deciding on an object based on a list of Properties
+     * Generic decision tress for deciding on an object based on a list of Features
      * derived from the object. Used for DecisionTreeLibrary.
      */
 
@@ -125,7 +125,7 @@ namespace Tensile
                     return false;
                 }
 
-                if(treeSize > (std::numeric_limits<signed int>::max() + 1))
+                if(treeSize > ((size_t)std::numeric_limits<signed int>::max() + 1))
                 {
                     /* Restrict size to +ve int range, -ve idxs for reserved values */
                     if(verbose)
@@ -217,12 +217,12 @@ namespace Tensile
         template <typename Object, typename Value, typename ReturnValue>
         struct Forest
         {
-            using Properties = std::vector<std::shared_ptr<Property<Object>>>;
-            using Transform  = std::function<ReturnValue(Value)>;
+            using Features  = std::vector<std::shared_ptr<MLFeatures::MLFeature<Object>>>;
+            using Transform = std::function<ReturnValue(Value)>;
 
             Forest() = default;
-            Forest(Properties const& properties)
-                : properties(properties)
+            Forest(Features const& features)
+                : features(features)
             {
             }
 
@@ -235,7 +235,7 @@ namespace Tensile
 
             virtual std::string description() const = 0;
 
-            Properties properties;
+            Features features;
         };
 
         /**
@@ -249,18 +249,18 @@ namespace Tensile
         template <typename Key, typename Object, typename Value, typename ReturnValue>
         struct BasicForest : public Forest<Object, Value, ReturnValue>
         {
-            using Base       = Forest<Object, Value, ReturnValue>;
-            using Tree       = Tree<Key, Value, ReturnValue>;
-            using Transform  = typename Base::Transform;
-            using Properties = typename Base::Properties;
+            using Base      = Forest<Object, Value, ReturnValue>;
+            using Tree      = Tree<Key, Value, ReturnValue>;
+            using Transform = typename Base::Transform;
+            using Features  = typename Base::Features;
 
             BasicForest(ReturnValue nullValue = ReturnValue())
                 : nullValue(nullValue)
             {
             }
 
-            BasicForest(Properties const& properties, ReturnValue nullValue = ReturnValue())
-                : Base(properties)
+            BasicForest(Features const& features, ReturnValue nullValue = ReturnValue())
+                : Base(features)
                 , nullValue(nullValue)
             {
             }
@@ -268,7 +268,7 @@ namespace Tensile
             virtual ReturnValue findBestMatch(Object const& problem,
                                               Transform     transform) const override
             {
-                Key key = ProblemKey::keyForProblem<Key, Object>(problem, this->properties);
+                Key key = ProblemKey::keyForProblem<Key, Object, float>(problem, this->features);
                 for(Tree const& tree : trees)
                 {
                     bool result = tree.predict(key);
@@ -281,8 +281,6 @@ namespace Tensile
             virtual std::set<ReturnValue> matchesInOrder(Object const& problem,
                                                          Transform     transform) const override
             {
-                bool debug = Debug::Instance().printPropertyEvaluation();
-
                 std::set<ReturnValue> rv;
                 for(Tree const& tree : trees)
                 {
@@ -295,7 +293,7 @@ namespace Tensile
             virtual std::string description() const override
             {
                 return concatenate(
-                    "Forest: Properties: ", this->properties, ", ", trees.size(), " tree(s)");
+                    "Forest: Features: ", this->features, ", ", trees.size(), " tree(s)");
             }
 
             std::vector<Tree> trees;

@@ -1074,6 +1074,32 @@ namespace Tensile
         return size;
     }
 
+    float ContractionSolution::numTiles0(ContractionProblem const& problem, float macro_tile_0_inv)
+    {
+        // Get problem size (M)
+        float M = problem.freeSizeA(0);
+        if(problem.freeIndicesA().size() > 1)
+            assert(false); //TODO: Handle this case
+
+        return M * macro_tile_0_inv;
+    }
+
+    float ContractionSolution::numTiles1(ContractionProblem const& problem, float macro_tile_1_inv)
+    {
+        // Get problem size (N)
+        float N = problem.freeSizeB(0);
+        if(problem.freeIndicesB().size() > 1)
+            assert(false); //TODO: Handle this case
+
+        // Calculate granularity
+        return N * macro_tile_1_inv;
+    }
+
+    float ContractionSolution::tileGranularity(float numTiles)
+    {
+        return numTiles / ceil(numTiles);
+    }
+
     ContractionSolution::Granularities ContractionSolution::computeGranularities(
         Hardware const& hardware, double M, double N, double K, double NumBatches) const
     {

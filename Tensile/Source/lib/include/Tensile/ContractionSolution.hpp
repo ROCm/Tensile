@@ -172,6 +172,10 @@ namespace Tensile
    */
         size_t requiredWorkspaceSize(Problem const& problem) const;
 
+        static float numTiles0(ContractionProblem const& problem, float macro_tile_0_inv);
+        static float numTiles1(ContractionProblem const& problem, float macro_tile_1_inv);
+        static float tileGranularity(float numTiles);
+
         Granularities computeGranularities(
             Hardware const& hardware, double M, double N, double K, double NumBatches) const;
 
