@@ -65,6 +65,7 @@ globalParameters["SortProblems"] = False          # sort problems by size; else 
 globalParameters["PinClocks"] = False             # T=pin gpu clocks and fan, F=don't
 globalParameters["HardwareMonitor"] = True        # False: disable benchmarking client monitoring clocks using rocm-smi.
 globalParameters["NumBenchmarks"] = 1             # how many benchmark data points to collect per problem/solution
+globalParameters["NumWarmups"] = 0                # how many warmup runs to perform before benchmark
 globalParameters["SyncsPerBenchmark"] = 1         # how iterations of the stream synchronization for-loop to do per benchmark data point
 globalParameters["EnqueuesPerSync"] = 1           # how many solution enqueues to perform per synchronization
 globalParameters["SleepPercent"] = 300            # how long to sleep after every data point: 25 means 25% of solution time. Sleeping lets gpu cool down more.

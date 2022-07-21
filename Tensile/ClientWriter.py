@@ -491,16 +491,15 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param("bounds-check",             boundsCheckName(int(globalParameters["BoundsCheck"])))
         param("print-valids",             globalParameters["ValidationPrintValids"])
         param("print-max",                globalParameters["ValidationMaxToPrint"])
-        param("num-benchmarks",           globalParameters["NumBenchmarks"])
         param("num-elements-to-validate", globalParameters["NumElementsToValidate"])
+        param("num-benchmarks",           globalParameters["NumBenchmarks"])
+        param("num-warmups",              globalParameters["NumWarmups"])
         param("num-enqueues-per-sync",    globalParameters["EnqueuesPerSync"])
         param("num-syncs-per-benchmark",  globalParameters["SyncsPerBenchmark"])
         param("use-gpu-timer",            globalParameters["KernelTime"])
         param("hardware-monitor",         globalParameters["HardwareMonitor"])
         if convValidation:
             param("convolution-vs-contraction", globalParameters["ConvolutionVsContraction"])
-        if not globalParameters["KernelTime"]:
-            param("num-warmups", 1)
         param("sleep-percent",            globalParameters["SleepPercent"])
         param("perf-l2-read-hits",        globalParameters["PerfModelL2ReadHits"])
         param("perf-l2-write-hits",       globalParameters["PerfModelL2WriteHits"])
