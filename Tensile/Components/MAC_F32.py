@@ -24,6 +24,7 @@
 
 from ..Component import Component, MAC
 from ..DataType import DataType
+import queue
 
 class MAC_F32_Plain(MAC):
     """
@@ -50,6 +51,10 @@ class MAC_F32_Plain(MAC):
         if not writer.asmCaps[instruction]:
             raise RuntimeError("{} instruction specified but not supported on {}".format(instruction, kernel["ISA"]))
 
+        dualMacEnable = 0
+        if writer.asmCaps["v_dual_fmac_f32"] and kernel["WavefrontSize"] == 32:
+            dualMacEnable = 1
+
         kStr = self.commentHeader()
 
         vars = {}
@@ -66,32 +71,86 @@ class MAC_F32_Plain(MAC):
 
         priority = Component.Priority.find(writer)
         macIdx = 0
+        if dualMacEnable == 1:
+            instQ = queue.Queue();
+            for idx1 in range(0, kernel["ThreadTile1"]):
+                for idx0 in range(0, kernel["ThreadTile0"]):
+                    for iui in range(0, innerUnroll):
+                        vars["idx0"] = idx0
+                        vars["idx1"] = idx1
+                        vars["a"] = idx0 if writer.tPB["tile01Idx"] else idx1
+                        vars["b"] = idx1 if writer.tPB["tile01Idx"] else idx0
+                        vars["iui"] = iui
 
-        for idx1 in range(0, kernel["ThreadTile1"]):
-            for idx0 in range(0, kernel["ThreadTile0"]):
-                for iui in range(0, innerUnroll):
-                    vars["idx0"] = idx0
-                    vars["idx1"] = idx1
-                    vars["a"] = idx0 if writer.tPB["tile01Idx"] else idx1
-                    vars["b"] = idx1 if writer.tPB["tile01Idx"] else idx0
-                    vars["iui"] = iui
+                        vars["cStr"] = "v[vgprValuC + {idx0} + {idx1}*{ThreadTile0}]".format_map(vars)
+                        vars["aStr"] = "v[vgprValuA_X{m}_I{iui} + {a}]".format_map(vars)
+                        vars["bStr"] = "v[vgprValuB_X{m}_I{iui} + {b}]".format_map(vars)
 
-                    vars["cStr"] = "v[vgprValuC + {idx0} + {idx1}*{ThreadTile0}]".format_map(vars)
-                    vars["aStr"] = "v[vgprValuA_X{m}_I{iui} + {a}]".format_map(vars)
-                    vars["bStr"] = "v[vgprValuB_X{m}_I{iui} + {b}]".format_map(vars)
+                        instVars = {}
+                        instVars["endLine"] = writer.endLine
+                        instVars["cStr"] = vars["cStr"]
+                        instVars["aStr"] = vars["aStr"]
+                        instVars["bStr"] = vars["bStr"]
+                        if instQ.empty():
+                            instQ.put(instVars)
+                        else:
+                            # pop instruction
+                            prevVars = instQ.queue[0]
+                            if instVars["cStr"] != prevVars["cStr"]:
+                                # make dual fmac
+                                kStr += "v_dual_fmac_f32 {cStr}, {aStr}, {bStr}".format_map(prevVars) + " :: v_dual_fmac_f32 {cStr}, {aStr}, {bStr}{endLine}".format_map(vars)
+                                kStr += priority(writer, 1, "Raise priority while processing macs")
+                                instQ.get()
+                            else:
+                                # push instruction
+                                instQ.put(instVars)
 
-                    if instruction == "v_fma_f32":
-                        kStr += "v_fma_f32 {cStr}, {aStr}, {bStr}, {cStr}{endLine}".format_map(vars)
-                    else:
-                        kStr += "{instruction} {cStr}, {aStr}, {bStr}{endLine}".format_map(vars)
+                        if macIdx == kernel["PerformanceWaitLocation"]:
+                            # pop all instructions
+                            while instQ.qsize() > 0:
+                                prevVars = instQ.get()
+                                kStr += "{instruction} {cStr}, {aStr}, {bStr}{endLine}".format_map(prevVars)
+                                kStr += priority(writer, 1, "Raise priority while processing macs")
+                            kStr += "s_waitcnt lgkmcnt({PerformanceWaitCount}) // extra wait for performance{endLine}".format_map(vars)
+                        if macIdx == kernel["PerformanceSyncLocation"]:
+                            # pop all instructions
+                            while instQ.qsize() > 0:
+                                prevVars = instQ.get()
+                                kStr += "v_fmac_f32 {cStr}, {aStr}, {bStr}{endLine}".format_map(prevVars)
+                                kStr += priority(writer, 1, "Raise priority while processing macs")
+                            kStr += "s_barrier // extra barrier for performance{endLine}".format_map(vars)
+                        macIdx += 1
+            # pop all instructions
+            while instQ.qsize() > 0:
+                prevVars = instQ.get()
+                kStr += "v_fmac_f32 {cStr}, {aStr}, {bStr}{endLine}".format_map(prevVars)
+                kStr += priority(writer, 1, "Raise priority while processing macs")
+        else:
+            for idx1 in range(0, kernel["ThreadTile1"]):
+                for idx0 in range(0, kernel["ThreadTile0"]):
+                    for iui in range(0, innerUnroll):
+                        vars["idx0"] = idx0
+                        vars["idx1"] = idx1
+                        vars["a"] = idx0 if writer.tPB["tile01Idx"] else idx1
+                        vars["b"] = idx1 if writer.tPB["tile01Idx"] else idx0
+                        vars["iui"] = iui
 
-                    kStr += priority(writer, 1, "Raise priority while processing macs")
+                        vars["cStr"] = "v[vgprValuC + {idx0} + {idx1}*{ThreadTile0}]".format_map(vars)
+                        vars["aStr"] = "v[vgprValuA_X{m}_I{iui} + {a}]".format_map(vars)
+                        vars["bStr"] = "v[vgprValuB_X{m}_I{iui} + {b}]".format_map(vars)
+    
+                        if instruction == "v_fma_f32":
+                            kStr += "v_fma_f32 {cStr}, {aStr}, {bStr}, {cStr}{endLine}".format_map(vars)
+                        else:
+                            kStr += "{instruction} {cStr}, {aStr}, {bStr}{endLine}".format_map(vars)
 
-                    if macIdx == kernel["PerformanceWaitLocation"]:
-                        kStr += "s_waitcnt lgkmcnt({PerformanceWaitCount}) // extra wait for performance{endLine}".format_map(vars)
-                    if macIdx == kernel["PerformanceSyncLocation"]:
-                        kStr += "s_barrier // extra barrier for performance{endLine}".format_map(vars)
-                    macIdx += 1
+                        kStr += priority(writer, 1, "Raise priority while processing macs")
+
+                        if macIdx == kernel["PerformanceWaitLocation"]:
+                            kStr += "s_waitcnt lgkmcnt({PerformanceWaitCount}) // extra wait for performance{endLine}".format_map(vars)
+                        if macIdx == kernel["PerformanceSyncLocation"]:
+                            kStr += "s_barrier // extra barrier for performance{endLine}".format_map(vars)
+                        macIdx += 1
 
         kStr += priority(writer, 0, "Reset priority after macs")
 
