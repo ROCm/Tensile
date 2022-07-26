@@ -30,6 +30,8 @@
 
 #include <cstddef>
 
+#include <omp.h>
+
 namespace Tensile
 {
     namespace Client
@@ -173,6 +175,8 @@ namespace Tensile
                 }
             }
 
+            omp_set_dynamic(1);
+            omp_set_num_threads(64);
 #pragma omp parallel for
             for(size_t dNum = 0; dNum < d.totalLogicalElements(); dNum += validationStride)
             {

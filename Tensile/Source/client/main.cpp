@@ -602,21 +602,36 @@ int main(int argc, const char* argv[])
                             TimingEvents warmupStartEvents(warmupInvocations, eventCount);
                             TimingEvents warmupStopEvents(warmupInvocations, eventCount);
 
-                            for(int i = 0; i < warmupInvocations; i++)
+                            if (warmupInvocations > 0)
                             {
+                                // Do validation after first warmup
                                 listeners.preWarmup();
                                 if(gpuTimer)
                                     HIP_CHECK_EXC(adapter.launchKernels(kernels,
                                                                         stream,
-                                                                        warmupStartEvents[i],
-                                                                        warmupStopEvents[i]));
+                                                                        warmupStartEvents[0],
+                                                                        warmupStopEvents[0]));
                                 else
                                     HIP_CHECK_EXC(
                                         adapter.launchKernels(kernels, stream, nullptr, nullptr));
                                 listeners.postWarmup();
-                            }
+                                listeners.validateWarmups(inputs, warmupStartEvents, warmupStopEvents);
 
-                            listeners.validateWarmups(inputs, warmupStartEvents, warmupStopEvents);
+                                // Remainder of warmups
+                                for(int i = 1; i < warmupInvocations; i++)
+                                {
+                                    listeners.preWarmup();
+                                    if(gpuTimer)
+                                        HIP_CHECK_EXC(adapter.launchKernels(kernels,
+                                                                            stream,
+                                                                            warmupStartEvents[i],
+                                                                            warmupStopEvents[i]));
+                                    else
+                                        HIP_CHECK_EXC(
+                                            adapter.launchKernels(kernels, stream, nullptr, nullptr));
+                                    listeners.postWarmup();
+                                }
+                            }
 
                             size_t syncs = listeners.numSyncs();
                             size_t enq   = listeners.numEnqueuesPerSync();
