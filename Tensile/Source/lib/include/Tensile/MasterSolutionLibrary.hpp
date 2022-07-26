@@ -117,7 +117,8 @@ namespace Tensile
                                                             Hardware const&  hardware,
                                                             double* fitness = nullptr) const
         {
-            const int solution_index = Debug::Instance().getSolutionIndex();
+            const int                   solution_index = Debug::Instance().getSolutionIndex();
+            std::shared_ptr<MySolution> rv;
 
             if(solution_index >= 0)
             {
@@ -134,15 +135,21 @@ namespace Tensile
 
                     if((*selected_solution->problemPredicate)(problem)
                        && (*selected_solution->hardwarePredicate)(hardware))
-                        return selected_solution;
+                        rv = selected_solution;
                     else
                         return nullptr;
                 }
             }
             else
-                return library->findBestSolution(problem, hardware, fitness);
-        }
+                rv = library->findBestSolution(problem, hardware, fitness);
 
+            if(Debug::Instance().printLibraryLogicIndex() && rv)
+            {
+                std::cout << "Library logic solution index of winning solution: "
+                          << rv->info["SolutionIndex"] << std::endl;
+            }
+            return rv;
+        }
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
                                                          Hardware const&  hardware) const override
         {
