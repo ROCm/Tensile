@@ -602,7 +602,7 @@ int main(int argc, const char* argv[])
                             TimingEvents warmupStartEvents(warmupInvocations, eventCount);
                             TimingEvents warmupStopEvents(warmupInvocations, eventCount);
 
-                            if (warmupInvocations > 0)
+                            if(warmupInvocations > 0)
                             {
                                 // Do validation after first warmup
                                 listeners.preWarmup();
@@ -615,7 +615,8 @@ int main(int argc, const char* argv[])
                                     HIP_CHECK_EXC(
                                         adapter.launchKernels(kernels, stream, nullptr, nullptr));
                                 listeners.postWarmup();
-                                listeners.validateWarmups(inputs, warmupStartEvents, warmupStopEvents);
+                                listeners.validateWarmups(
+                                    inputs, warmupStartEvents, warmupStopEvents);
 
                                 // Remainder of warmups
                                 for(int i = 1; i < warmupInvocations; i++)
@@ -627,8 +628,8 @@ int main(int argc, const char* argv[])
                                                                             warmupStartEvents[i],
                                                                             warmupStopEvents[i]));
                                     else
-                                        HIP_CHECK_EXC(
-                                            adapter.launchKernels(kernels, stream, nullptr, nullptr));
+                                        HIP_CHECK_EXC(adapter.launchKernels(
+                                            kernels, stream, nullptr, nullptr));
                                     listeners.postWarmup();
                                 }
                             }
