@@ -175,6 +175,8 @@ namespace Tensile
                 }
             }
 
+            // Enable dynamic thread adjustment and set num threads to avoid defaulting to 1
+            // Defaults cause validation to affect benchmark timing
             omp_set_dynamic(1);
             omp_set_num_threads(64);
 #pragma omp parallel for
