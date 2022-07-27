@@ -143,10 +143,13 @@ namespace Tensile
             else
                 rv = library->findBestSolution(problem, hardware, fitness);
 
-            if(Debug::Instance().printLibraryLogicIndex() && rv)
+            if(Debug::Instance().printLibraryLogicIndex())
             {
-                std::cout << "Library logic solution index of winning solution: "
-                          << rv->info["SolutionIndex"] << std::endl;
+                if(rv)
+                    std::cout << "Library logic solution index of winning solution: "
+                              << rv->info["SolutionIndex"] << std::endl;
+                else
+                    std::cout << "No solution found" << std::endl;
             }
             return rv;
         }
