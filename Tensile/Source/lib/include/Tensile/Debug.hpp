@@ -67,6 +67,8 @@ namespace Tensile
 
         bool printSolutionSelectionTime() const;
 
+        bool printLibraryLogicIndex() const;
+
         bool naivePropertySearch() const;
 
         bool skipKernelLaunch() const;
