@@ -216,6 +216,7 @@ def Tensile(userArgs):
     configPaths = args.config_file
     altFormat = args.AlternateFormat
     useCache = not args.NoCache
+    clientPath = args.ClientPath
 
     if altFormat and len(configPaths) > 2:
         printExit("Only 1 or 2 config_files are accepted for the alternate config format: "
@@ -288,7 +289,8 @@ def Tensile(userArgs):
         globalParameters[key] = value
 
     # Execute Steps in the config script
-    clientPath = os.path.abspath(args.ClientPath)
+    if clientPath is not None:
+        clientPath = os.path.abspath(clientPath)
     ClientExecutable.getClientExecutable(clientPath)
     executeStepsInConfig(config)
 
