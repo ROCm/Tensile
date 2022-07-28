@@ -29,7 +29,6 @@ import time
 
 from copy import deepcopy
 
-from . import ClientExecutable
 from . import SolutionLibrary
 from . import LibraryIO
 from . import Utils
