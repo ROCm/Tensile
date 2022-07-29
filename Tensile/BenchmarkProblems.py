@@ -29,7 +29,6 @@ import time
 
 from copy import deepcopy
 
-from . import ClientExecutable
 from . import SolutionLibrary
 from . import LibraryIO
 from . import Utils
@@ -367,8 +366,6 @@ def benchmarkProblemType(problemTypeConfig, problemSizeGroupConfig, problemSizeG
 
 def main(config, useCache):
     """Entry point for the "BenchmarkProblems" section of a Tensile config yaml"""
-    ClientExecutable.getClientExecutable()
-
     dataPath = os.path.join(globalParameters["WorkingPath"], globalParameters["BenchmarkDataPath"])
     pushWorkingPath(globalParameters["BenchmarkProblemsPath"])
     ensurePath(dataPath)
