@@ -2757,7 +2757,7 @@ class KernelWriterSource(KernelWriter):
                 self.tileChar0, self.tileChar1, \
                 s, self.tileChar1, j, self.tileChar0, self.tileChar1, vc, i, s, \
                 self.tileChar0, j, self.tileChar0, self.endLine)
-    kStr += self.indent + self.syncStr + self.endLine
+    kStr += self.syncThreads(kernel);
     """
 
     kStr += "    /* print Local state */" + self.endLine
@@ -3311,7 +3311,13 @@ class KernelWriterSource(KernelWriter):
   # SyncThreads
   ##############################################################################
   def syncThreads(self, kernel, comment=""):
-    return self.indent + self.syncStr + " //" + comment + self.endLine
+    if globalParameters["CurrentISA"] == (9,0,8):
+      return self.indent + self.syncStr + " //" + comment + self.endLine
+    else:
+      if kernel["SubGroup0"]*kernel["SubGroup1"]*kernel["LocalSplitU"] != kernel["WavefrontSize"]:
+        return self.indent + self.syncStr + " //" + comment + self.endLine
+      else:
+        return self.indent + self.endLine
 
   ##############################################################################
   # MapAcctoArch
