@@ -32,6 +32,7 @@ import argparse
 from .Common import globalParameters, print1, printExit, ensurePath, \
     assignGlobalParameters, restoreDefaultGlobalParameters, HR
 from . import BenchmarkProblems
+from . import ClientExecutable
 from . import ClientWriter
 from . import LibraryIO
 from . import LibraryLogic
@@ -205,6 +206,8 @@ def Tensile(userArgs):
             "and optional second file is size list")
     argParser.add_argument("--no-cache", dest="NoCache", action="store_true",
             help="Ignore cache; redo parameter forking and solution generation")
+    argParser.add_argument("--client-path", dest="ClientPath", default=None,
+            help="Path to directory to build benchmarking client")
     # yapf: enable
 
     addCommonArguments(argParser)
@@ -213,6 +216,7 @@ def Tensile(userArgs):
     configPaths = args.config_file
     altFormat = args.AlternateFormat
     useCache = not args.NoCache
+    clientPath = args.ClientPath
 
     if altFormat and len(configPaths) > 2:
         printExit("Only 1 or 2 config_files are accepted for the alternate config format: "
@@ -285,6 +289,9 @@ def Tensile(userArgs):
         globalParameters[key] = value
 
     # Execute Steps in the config script
+    if clientPath is not None:
+        clientPath = os.path.abspath(clientPath)
+    ClientExecutable.getClientExecutable(clientPath)
     executeStepsInConfig(config)
 
 

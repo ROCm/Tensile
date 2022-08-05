@@ -582,8 +582,12 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   stop = time.time()
   print("# Kernel Building elapsed time = %.1f secs" % (stop-start))
 
+  Common.popWorkingPath() # outputPath.upper()
+
+  if globalParameters["CleanupBuildFiles"]:
+    shutil.rmtree(globalParameters["WorkingPath"])
+
   Common.popWorkingPath() # build_tmp
-  Common.popWorkingPath() # workingDir
 
   return codeObjectFiles
 

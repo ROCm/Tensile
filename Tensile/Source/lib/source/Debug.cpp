@@ -113,6 +113,11 @@ namespace Tensile
         return m_value & 0x10000;
     }
 
+    bool Debug::printLibraryLogicIndex() const
+    {
+        return m_value & 0x20000;
+    }
+
     bool Debug::naivePropertySearch() const
     {
         return m_naivePropertySearch;
