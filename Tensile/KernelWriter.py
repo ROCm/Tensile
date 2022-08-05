@@ -547,18 +547,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # since LocalWrite/GlobalRead pair depends on GlobalReadInc, we count in only GlobalReadInc
         if kernel["PrefetchGlobalRead"] == 2:
           loadsToSched = len(itemsGRIncToSched)
-          dec = 1
         else:
           loadsToSched = len(itemsGRToSched)
-          # subtract the portion of empty modules added after the last load
-          endLastEmpty = loadsToSched/self.numGlobalReadInsPerMfma
-          endLastLoad = loadsToSched - (PRECISION - 1)
-          dec = max(1, roundUp((endLastEmpty - endLastLoad)/self.numGlobalReadInsPerMfma))
 
         # Here is to adjust scheduling silently in order to have validation pass.
         # Better way is to use larger globalReadPerMfma.
         ## schedule more instructions at first iteration if no enough mfma to schedule globalRead
-        self.grEndMfmaIndex = max(0, roundUp(loadsToSched/self.numGlobalReadInsPerMfma) - dec)
+        self.grEndMfmaIndex = max(0, roundUp(loadsToSched/self.numGlobalReadInsPerMfma) - 1)
         if self.grEndMfmaIndex > self.lwEndMfmaIndex:
           schedNumForIter0 = numGlobalReadInsPerIter + (self.grEndMfmaIndex - self.lwEndMfmaIndex) * self.numGlobalReadInsPerMfma
           self.grEndMfmaIndex = self.lwEndMfmaIndex
