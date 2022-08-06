@@ -62,7 +62,7 @@ namespace Tensile
         };
 
         template <typename Key, typename Problem, typename Value = size_t>
-        Key keyForProblem(Problem const&                                         problem,
+        Key keyForProblem(Problem const&                                                problem,
                           std::vector<std::shared_ptr<Property<Problem, Value>>> const& properties)
         {
             bool debug = Debug::Instance().printPropertyEvaluation();

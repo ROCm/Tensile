@@ -30,8 +30,8 @@
 #include <functional>
 #include <vector>
 
-#include <Tensile/ProblemKey.hpp>
 #include <Tensile/MLFeatures.hpp>
+#include <Tensile/ProblemKey.hpp>
 
 namespace Tensile
 {
@@ -112,9 +112,9 @@ namespace Tensile
             bool valid(bool verbose = false) const
             {
                 size_t treeSize = tree.size();
-                Node currentNode;
-                bool has_true = false;
-                bool valid    = true;
+                Node   currentNode;
+                bool   has_true = false;
+                bool   valid    = true;
 
                 if(treeSize == 0)
                 {

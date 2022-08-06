@@ -138,7 +138,7 @@ namespace Tensile
                 HasIndex = false,
                 HasValue = true
             };
-            float value;  // 1/mt0
+            float value; // 1/mt0
 
             static std::string Type()
             {
@@ -159,7 +159,7 @@ namespace Tensile
                 HasIndex = false,
                 HasValue = true
             };
-            float value;    // 1/mt1
+            float value; // 1/mt1
 
             static std::string Type()
             {
@@ -195,9 +195,9 @@ namespace Tensile
             {
                 float NumBatches = 1; // TODO: Higher batch sizes
                 float tilesPerCu = NumBatches
-                                        * ceil(ContractionSolution::numTiles0(problem, value.mt0_scale)) 
-                                        * ceil(ContractionSolution::numTiles1(problem, value.mt1_scale))
-                                        * value.devSolScale;  
+                                   * ceil(ContractionSolution::numTiles0(problem, value.mt0_scale))
+                                   * ceil(ContractionSolution::numTiles1(problem, value.mt1_scale))
+                                   * value.devSolScale;
                 return ContractionSolution::tileGranularity(tilesPerCu);
             }
         };
@@ -210,7 +210,7 @@ namespace Tensile
                 HasValue = true,
 
             };
-            ContractionSolution::GranularityScaleFactors value;  
+            ContractionSolution::GranularityScaleFactors value;
             /* General scaling = ((globalSplitU / numCUs)
              *                     * ceil((workGroupX * workGroupY) / wavefrontSize)
              *                     / (2 * simdPerCU))
@@ -225,7 +225,7 @@ namespace Tensile
             virtual float operator()(ContractionProblem const& problem) const
             {
                 float totalTiles = ceil(ContractionSolution::numTiles0(problem, value.mt0_scale))
-                                    * ceil(ContractionSolution::numTiles1(problem, value.mt1_scale));
+                                   * ceil(ContractionSolution::numTiles1(problem, value.mt1_scale));
                 return totalTiles * value.devSolScale;
             }
         };

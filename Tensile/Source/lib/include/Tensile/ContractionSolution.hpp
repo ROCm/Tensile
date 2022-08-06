@@ -286,9 +286,9 @@ namespace Tensile
         /* Scale factors used for partially calculating granularities */
         struct GranularityScaleFactors
         {
-            float mt0_scale;       // 1/mt0
-            float mt1_scale;       // 1/mt1
-            float devSolScale;     // General (non-problem related) scaling
+            float mt0_scale; // 1/mt0
+            float mt1_scale; // 1/mt1
+            float devSolScale; // General (non-problem related) scaling
         };
 
         struct LinearModel
