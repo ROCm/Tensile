@@ -68,7 +68,6 @@ namespace Tensile
                                     Base::template Pair<MLFeatures::Tile1Granularity>(),
                                     Base::template Pair<MLFeatures::CUGranularity>(),
                                     Base::template Pair<MLFeatures::WavesPerSIMD>()});
-
             }
         };
 
@@ -80,7 +79,6 @@ namespace Tensile
         const typename ContractionProblemFeatureSMT<IO>::SubclassMap
             ContractionProblemFeatureSMT<IO>::subclasses
             = ContractionProblemFeatureSMT<IO>::GetSubclasses();
-
 
         template <typename IO>
         struct MappingTraits<MLFeatures::FreeSizeA, IO>

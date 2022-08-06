@@ -1385,8 +1385,7 @@ namespace Tensile
     std::ostream& operator<<(std::ostream&                                       stream,
                              ContractionSolution::GranularityScaleFactors const& gsf)
     {
-        return stream << " mt0=" << gsf.mt0_scale
-                      << " mt1=" << gsf.mt1_scale
+        return stream << " mt0=" << gsf.mt0_scale << " mt1=" << gsf.mt1_scale
                       << " gsc=" << gsf.devSolScale;
     }
 } // namespace Tensile
