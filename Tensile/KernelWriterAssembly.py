@@ -1344,7 +1344,7 @@ class KernelWriterAssembly(KernelWriter):
     # TODO: alignment hack, figure out a better solution
     vgprIdx = ((vgprIdx+1)//2)*2
     # Avoid bank conflict between VgprA and VgprC
-    if (self.version[0] == 10) and ((vgprIdx % 4) == (self.startVgprValuC % 4)):
+    if (self.version[0] in [10,11]) and ((vgprIdx % 4) == (self.startVgprValuC % 4)):
       vgprIdx += 1
     self.startVgprValuA = vgprIdx; vgprIdx += self.numVgprValuA
     self.startVgprG2LA = None
@@ -12311,7 +12311,7 @@ class KernelWriterAssembly(KernelWriter):
     # Update the store cnt to preLoopVmcntDict for Case2/3
     # (No need to update for Case0:'Undefined' or Case4:'OrdNLL_B1_Store')
     if self.currPreLoopVmcntCase in self.preLoopVmcntDict:
-      if (self.version[0] != 10):
+      if not self.archCaps["SeparateVscnt"]:
         self.preLoopVmcntDict[self.currPreLoopVmcntCase] += storesIssued
 
     ##update main Code sections
