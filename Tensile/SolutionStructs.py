@@ -3646,8 +3646,8 @@ class Solution(collections.abc.Mapping):
               state["ProblemType"]["ComputeDataType"].isSingle() or \
               (state["ProblemType"]["ComputeDataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]) or \
               state["ProblemType"]["ComputeDataType"].isInt32() or \
-              state["ProblemType"]["ComputeDataType"].isDoubleComplex()):
-        reject(state, "MIArchVgpr now only support fp64, fp32, fp16, int8 MatrixInstruction.")
+              state["ProblemType"]["ComputeDataType"].isComplex()):
+        reject(state, "MIArchVgpr now only support fp64, fp64c, fp32, fp32c, fp16, int8 MatrixInstruction.")
         return
 
     if state["AtomicAddC"]:
@@ -3809,6 +3809,15 @@ class Solution(collections.abc.Mapping):
         minDUnum = 2
         if not (3 in state["AssertSizeGreaterThan"].keys() and state["AssertSizeGreaterThan"][3] >= state["DepthU"] * minDUnum):
           reject(state, "StoreCInUnroll does not work if AssertSizeGreaterThan for K is not greater than DepthU * %u"%minDUnum)
+          return
+
+      # exact K check
+      # StoreCInUnrollExact requires exact K
+      if state["StoreCInUnrollExact"]:
+        # K == DepthU * ThreadTile0 * ThreadTile1 // VectorWidth is necessary
+        exactK = state["DepthU"] * state["ThreadTile0"] * state["ThreadTile1"] // state["VectorWidth"]
+        if not (3 in state["AssertSizeEqual"].keys() and state["AssertSizeEqual"][3] == exactK):
+          reject(state, "StoreCInUnrollExact does not work if AssertSizeEqual for K is not DepthU * ThreadTile0 * ThreadTile1 / VectorWidth")
           return
 
     else:

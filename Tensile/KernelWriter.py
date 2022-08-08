@@ -5317,8 +5317,8 @@ for codeObjectFileName in codeObjectFileNames:
       kStrBeta = ""
       for x in self.BetaOpTemplate.items():
         kStrBeta += str(x)
-      # double complex case, put beta instruction separately
-      if kStrBeta != "" and kernel["ProblemType"]["DestDataType"].isDoubleComplex():
+      # double complex case or num of store == 1 case, put beta instruction separately
+      if kStrBeta != "" and (kernel["ProblemType"]["DestDataType"].isDoubleComplex() or self.getNumberOfStoreCInTemplate(kernel) == 1):
         # combine beta code with first StoreC comment to avoid generating beta before alpha
         self.StoreCUnrollCode.addText(kStrBeta + StartComment)
         kStrBeta = ""

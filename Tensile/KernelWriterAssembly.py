@@ -1512,12 +1512,12 @@ class KernelWriterAssembly(KernelWriter):
         vgprIdx +=1
       self.GlobalBufferOOB = vgprIdx
       vgprIdx +=1
-    # for zgemm + (SCIU or MIAV) case, allocate 4 vgpr for alpha calculation (cannot use tmp vgpr in unroll loop or write batch)
-    if kernel["ProblemType"]["DataType"].isDoubleComplex() and (kernel["StoreCInUnroll"] or kernel["MIArchVgpr"]):
+    # for cgemm/zgemm + (SCIU or MIAV) case, allocate 4 vgpr for alpha calculation (cannot use tmp vgpr in unroll loop or write batch)
+    if kernel["ProblemType"]["DataType"].isComplex() and (kernel["StoreCInUnroll"] or kernel["MIArchVgpr"]):
       # need proper alignment
       vgprIdx = ((vgprIdx+2 - 1)//2)*2
       self.startVgprAlphaTmp = vgprIdx
-      vgprIdx += 4
+      vgprIdx += kernel["ProblemType"]["DataType"].numRegisters();
 
     self.startVgprSerial = vgprIdx
     vgprIdx += 1 # for vgpr serial id
@@ -13730,6 +13730,21 @@ class KernelWriterAssembly(KernelWriter):
         self.codeMulAlpha.itemList[destIdx] = Code.Inst("v_mul_lo_u32", vgpr("ValuC+__placeholder__"),
                                                        sgpr("Alpha"),
                                                        vgpr("ValuC+%u"%srcIdx), "Multiply MI out reg with alpha")
+      elif kernel["ProblemType"]["ComputeDataType"].isSingleComplex():
+        accImOffset = self.AccVgprImagNumOffset(kernel)
+        imod = Code.Module()
+        # cannot use tmp vgpr for write batch, use allocated vgpr instead
+        vtmp1 = self.startVgprAlphaTmp
+        vtmp2 = vtmp1 + 1
+        # tmp1 = a.real * b.real
+        imod.addInst("v_mul_f32", vgpr(vtmp1), sgpr("Alpha+0"), vgpr("ValuC+%u"%srcIdx), "")
+        # tmp2 = a.imag * b.real
+        imod.addInst("v_mul_f32", vgpr(vtmp2), sgpr("Alpha+1"), vgpr("ValuC+%u"%srcIdx), "")
+        # c.real = a.real * b.real - a.imag * b.imag = tmp1 - a.imag * b.imag
+        imod.addText("_v_mac_f32 %s, %s, -%s, %s%s" % (vgpr("ValuC+__placeholder__"), sgpr("Alpha+1"), vgpr("ValuC+%u"%(srcIdx+accImOffset)), vgpr(vtmp1), self.endLine))
+        # c.imag = a.real * b.imag + a.imag * b.real = a.real * b.imag + tmp2
+        imod.addText("_v_mac_f32 %s, %s, %s, %s%s" % (vgpr("ValuC+__placeholder__ +1"), sgpr("Alpha+0"), vgpr("ValuC+%u"%(srcIdx+accImOffset)), vgpr(vtmp2), self.endLine))
+        self.codeMulAlpha.itemList[destIdx] = imod
       elif kernel["ProblemType"]["ComputeDataType"].isDoubleComplex():
         accImOffset = self.AccVgprImagNumOffset(kernel)
         imod = Code.Module()
