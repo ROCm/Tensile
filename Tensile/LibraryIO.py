@@ -67,7 +67,7 @@ def writeYAML(filename, data, **kwargs):
         kwargs["default_flow_style"] = None
 
     with open(filename, "w") as f:
-        yaml.dump(data, f, **kwargs)
+        yaml.dump(data, f, sort_keys=False, **kwargs)
 
 
 def writeMsgPack(filename, data):
@@ -278,6 +278,66 @@ def rawLibraryLogic(data):
 # Other functions
 #################
 def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple):
+    rv = {}
+    rv["MinimumRequiredVersion"] = __version__
+    rv["ScheduleName"] = schedulePrefix
+    rv["DeviceNames"] = deviceNames
+    rawProblemType = logicTuple[0]
+    rawSolutions = logicTuple[1]
+
+    # architecture
+    if type(architectureName) is dict:
+        rv["ArchitectureName"] = architectureName["Architecture"]
+        rv["CUCount"] = architectureName["CUCount"]
+    else:
+        rv["ArchitectureName"] = architectureName
+
+    # problem type
+    problemTypeState = rawProblemType.state
+    problemTypeState["DataType"] = \
+            problemTypeState["DataType"].value
+    problemTypeState["DestDataType"] = \
+            problemTypeState["DestDataType"].value
+    problemTypeState["ComputeDataType"] = \
+            problemTypeState["ComputeDataType"].value
+
+    rv["ProblemType"] = problemTypeState
+
+    # solutions
+    solutionList = []
+    for solution in rawSolutions:
+        solutionState = solution.getAttributes()
+        solutionState["ProblemType"] = solutionState["ProblemType"].state
+        solutionState["ProblemType"]["DataType"] = \
+                solutionState["ProblemType"]["DataType"].value
+        solutionState["ProblemType"]["DestDataType"] = \
+                solutionState["ProblemType"]["DestDataType"].value
+        solutionState["ProblemType"]["ComputeDataType"] = \
+                solutionState["ProblemType"]["ComputeDataType"].value
+        solutionList.append(solutionState)
+
+    rv["Solutions"] = solutionList
+
+    # library logic
+    exactLogic = logicTuple[3]
+    exactLogicList = []
+    for key in exactLogic:
+        exactLogicList.append([list(key), exactLogic[key]])
+
+    rv["LibraryType"] = "Matching"
+    rv["Library"] = {}
+    rv["Library"]["indexOrder"] = logicTuple[2]
+    rv["Library"]["table"] = exactLogicList
+    rv["Library"]["distance"] = "Euclidean"
+    rv["PerfMetric"] = logicTuple[7]
+
+    # if listFormat:
+    #     return libraryLogicToList(rv)
+
+    return rv
+
+
+def createLibraryLogicList(schedulePrefix, architectureName, deviceNames, logicTuple):
     """Creates the data for a library logic file suitable for writing to YAML."""
     problemType = logicTuple[0]
     solutions = logicTuple[1]
