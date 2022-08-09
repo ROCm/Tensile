@@ -3650,7 +3650,7 @@ class Solution(collections.abc.Mapping):
         reject(state, "MIArchVgpr now only support fp64, fp64c, fp32, fp32c, fp16, int8 MatrixInstruction.")
         return
 
-      if state["ProblemType"]["ComputeDataType"].isComplex() and (not globalParameters["AsmCaps"][isa]["v_fma_f32"]):
+      if state["ProblemType"]["ComputeDataType"].isSingleComplex() and (not globalParameters["AsmCaps"][isa]["v_fma_f32"]):
         reject(state, "MIArchVgpr + fp32c requires v_fma_f32.")
         return
 
