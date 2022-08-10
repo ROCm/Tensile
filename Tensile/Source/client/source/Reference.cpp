@@ -181,7 +181,7 @@ namespace Tensile
             // Defaults cause validation to affect benchmark timing
             // Dynamic thread mode causes HostLibraryTests to fail
             const char* env_bind = std::getenv("OMP_PROC_BIND");
-            if (env_bind == nullptr)
+            if(env_bind == nullptr)
                 setenv("OMP_PROC_BIND", "true", 1);
             omp_set_num_threads(64);
 #pragma omp parallel for
@@ -328,7 +328,7 @@ namespace Tensile
                     + ((beta == zero) ? static_cast<Accumulator>(zero)
                                       : multiply<Accumulator>(beta, inputs.c[cIndex])));
             }
-            if (env_bind == nullptr)
+            if(env_bind == nullptr)
                 unsetenv("OMP_PROC_BIND");
         }
 
