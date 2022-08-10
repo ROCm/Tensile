@@ -189,6 +189,8 @@ def parseLibraryLogicData(data, srcFile="?"):
     # unpack solutions
     solutions = []
     for solutionState in data["Solutions"]:
+        if solutionState["ProblemType"] == "derive":
+            solutionState["ProblemType"] = problemType
         if solutionState["KernelLanguage"] == "Assembly":
             solutionState["ISA"] = Common.gfxArch(data["ArchitectureName"])
         else:
@@ -310,13 +312,7 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple
     solutionList = []
     for solution in rawSolutions:
         solutionState = solution.getAttributes()
-        solutionState["ProblemType"] = solutionState["ProblemType"].state
-        solutionState["ProblemType"]["DataType"] = \
-                solutionState["ProblemType"]["DataType"].value
-        solutionState["ProblemType"]["DestDataType"] = \
-                solutionState["ProblemType"]["DestDataType"].value
-        solutionState["ProblemType"]["ComputeDataType"] = \
-                solutionState["ProblemType"]["ComputeDataType"].value
+        solutionState["ProblemType"] = "derive"
         solutionList.append(solutionState)
 
     rv["Solutions"] = solutionList
