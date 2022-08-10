@@ -215,7 +215,7 @@ globalParameters["LibraryClientPath"] = "4_LibraryClient"         # subdirectory
 globalParameters["ClientExecutionLockPath"] = None                # Path for a file lock to ensure only one client is executed at once.  filelock module is required if this is enabled.
 globalParameters["LibraryUpdateFile"] = ""                        # File name for writing indices and speeds suitable for updating an existing library logic file
 globalParameters["LibraryUpdateComment"] = False                  # Include solution name as a comment in the library update file
-globalParameters["LibraryLogicFormat"] = "dict"
+globalParameters["DictLibraryLogic"] = True
 
 # internal, i.e., gets set during startup
 globalParameters["CurrentISA"] = (0,0,0)

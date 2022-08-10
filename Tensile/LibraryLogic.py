@@ -1456,8 +1456,9 @@ def generateLogic(config, benchmarkDataPath, libraryLogicPath):
         "{}_{}".format(analysisParameters["ScheduleName"], str(problemType) + ".yaml"))
 
     print2("# writing library logic YAML {}".format(filename))
+    dictFormat = globalParameters["DictLibraryLogic"]
     data = LibraryIO.createLibraryLogic(analysisParameters["ScheduleName"], \
-        analysisParameters["ArchitectureName"], analysisParameters["DeviceNames"], logicTuple)
+        analysisParameters["ArchitectureName"], analysisParameters["DeviceNames"], logicTuple, dictFormat)
 
     LibraryIO.writeYAML(filename, data, explicit_start=False, explicit_end=False)
 

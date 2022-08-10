@@ -67,7 +67,7 @@ def writeYAML(filename, data, **kwargs):
         kwargs["default_flow_style"] = None
 
     with open(filename, "w") as f:
-        yaml.dump(data, f, sort_keys=False, **kwargs)
+        yaml.dump(data, f, **kwargs)
 
 
 def writeMsgPack(filename, data):
@@ -277,7 +277,10 @@ def rawLibraryLogic(data):
 #################
 # Other functions
 #################
-def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple):
+def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple, dictFormat):
+    if not dictFormat:
+        return createLibraryLogicList(schedulePrefix, architectureName, deviceNames, logicTuple)
+
     rv = {}
     rv["MinimumRequiredVersion"] = __version__
     rv["ScheduleName"] = schedulePrefix
@@ -330,9 +333,6 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple
     rv["Library"]["table"] = exactLogicList
     rv["Library"]["distance"] = "Euclidean"
     rv["PerfMetric"] = logicTuple[7]
-
-    # if listFormat:
-    #     return libraryLogicToList(rv)
 
     return rv
 
