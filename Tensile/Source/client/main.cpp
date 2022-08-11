@@ -614,9 +614,11 @@ int main(int argc, const char* argv[])
                                     HIP_CHECK_EXC(
                                         adapter.launchKernels(kernels, stream, nullptr, nullptr));
                                 listeners.postWarmup();
+                                // Do validation after first warmup
+                                if(i == 0)
+                                    listeners.validateWarmups(
+                                        inputs, warmupStartEvents, warmupStopEvents);
                             }
-
-                            listeners.validateWarmups(inputs, warmupStartEvents, warmupStopEvents);
 
                             size_t syncs = listeners.numSyncs();
                             size_t enq   = listeners.numEnqueuesPerSync();
