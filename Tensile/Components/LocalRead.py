@@ -233,7 +233,19 @@ class LocalReadMFMA(LocalRead):
                           rIdxMod = rIdx % divVal
                           rIdxDiv = rIdx // divVal
                           offset_val = (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride
-                          offset_val = (rIdxDiv * UnrollStride + offset_val + tP["localReadOffset"]) * tP["bpe"]  + rIdxMod * writer.bpr
+                          if not kernel["UnrollMajorLDS%s" % tP["tensorChar"]]:
+                            offset_val = (rIdxDiv * UnrollStride + offset_val + tP["localReadOffset"]) * tP["bpe"]  + rIdxMod * writer.bpr
+                            #print("Debug: vIdx:%u eIdx:%u lrdoffset:%u oIdx:%u ustride:%u wgsize:%u,divVal:%u rIdx:%u"%(vIdx,eIdx,tP["localReadOffset"],oIdx,UnrollStride,MIWaveGroupShape[tile01],divVal,rIdx))
+                          else:
+                            lrdOffsetMod = kernel["_DepthULds"] if not kernel["ThreadSeparateGlobalRead%c"%tc] else (kernel["_DepthULds"]//(kernel["ThreadSeparateGlobalRead%c"%tc]*2))
+                            offset_val = (rIdxDiv * UnrollStride + offset_val + (tP["localReadOffset"] % lrdOffsetMod)) * tP["bpe"]  + rIdxMod * writer.bpr
+                            #print("Debug: offset_val:%u rIDxDiv:%u vIdx:%u eIdx:%u lrdoffset:%u oIdx:%u ustride:%u wgsize:%u,divVal:%u rIdx:%u"%(offset_val,rIdxDiv,vIdx,eIdx,tP["localReadOffset"],oIdx,UnrollStride,MIWaveGroupShape[tile01],divVal,rIdx))
+                            if kernel["ThreadSeparateGlobalRead%c"%tc]:
+                              if (tP["localReadOffset"] >= lrdOffsetMod):
+                                MblockSizePerLoad = (kernel["WavefrontSize"] * kernel["GlobalLoadVectorWidth%c"%tc]) // kernel["_DepthULds"]
+                                #unrollKtile = (kernel["_DepthULds"] // (kernel["ThreadSeparateGlobalRead%c"%tc]*2))
+                                offset_val = offset_val + ((MblockSizePerLoad * lrdOffsetMod * tP["bpe"]) * (tP["localReadOffset"] // lrdOffsetMod))
+                                #print("Debug: LroOffset:%u MblockSizePerLoad:%u unrollKtile:%u offset_val:%u "%(tP["localReadOffset"],MblockSizePerLoad,unrollKtile,offset_val))
                         else:
                           # normal case
                           offset_val = (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride

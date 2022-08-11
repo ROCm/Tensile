@@ -2382,6 +2382,10 @@ class Solution(collections.abc.Mapping):
       reject(state, "DirectToVgpr%c does not supports AssertFree1ElementMultiple %% VectorWidth != 0"%(tc))
       return False
 
+    if state["ThreadSeparateGlobalRead%s"%tc]:
+      reject(state, "DirectToVgpr%c does not work with ThreadSeparateGlobalRead%c"%(tc,tc))
+      return False
+
     # Does not work with FractionalLoad and (not TLU)
     if state["FractionalLoad"] and (not state["ProblemType"]["TLU%c"%tc]):
       reject(state, "DirectToVgpr%c does not supports FractionalLoad + TLU=False"%(tc))
@@ -2532,13 +2536,28 @@ class Solution(collections.abc.Mapping):
       reject(state, "can't use DirectToLds if MacroTile%s is not power of 2"%tc)
       return False
 
-    # DirectToLds does not work with TLU=False and bpe > bpr and DepthU//NumLoadsCoalesced < 8
+    if state["ThreadSeparateGlobalRead%s"%tc] and (numBytes*state["GlobalLoadVectorWidth%c"%tc] > 8):
+      reject(state, "ThreadSeparateGlobalRead%c with GlobalLoadVectorWidth=2 not supported yet."%(tc))
+      return False
+
+    if state["ThreadSeparateGlobalRead%s"%tc] and (numBytes*state["StoreVectorWidth"] > 8):
+      reject(state, "ThreadSeparateGlobalRead%c with StoreVectorWidth=%s not supported yet."%(tc,state["StoreVectorWidth"]))
+      return False
+
+    if state["ThreadSeparateGlobalRead%s"%tc] and (numBytes*state["VectorWidth"] > 8):
+      reject(state, "ThreadSeparateGlobalRead%c with VectorWidth=%s not supported yet."%(tc,state["VectorWidth"]))
+      return False
+
+    if state["ThreadSeparateGlobalRead%s"%tc] and state["NumLoadsCoalesced%s"%tc] > 1:
+      reject(state, "ThreadSeparateGlobalRead%c does not work with NumLoadsCoalesced > 1."%(tc))
+    # DirectToLds does not work with TLU=False and bpe > bpr and DepthU//NumLoadsCoalesced <= 8
+    # DIrectToLds does not work with TLU=False and NumLoadsCoalesced >1 yet.
     # bpe > bpr case, Lower and upper 4 bytes elements are stored separately.
-    # if TLU=False and DepthU//NumLoadsCoalesced is smaller than lower block size (8 elements),
+    # if TLU=False and DepthU//NumLoadsCoalesced is smaller than lower block size (16 elements),
     # current offset swap logic does not work
     if (not state["ProblemType"]["TLU%c"%tc]) and state["ProblemType"]["DataType"].numRegisters() > 1 and \
-       state["DepthU"] // state["NumLoadsCoalesced%c"%tc] < 8:
-      reject(state, "DirectToLds%c does not work with TLU=False and bpe > bpr and DepthU//NumLoadsCoalesced%c < 8"%(tc, tc))
+       state["DepthU"] // state["NumLoadsCoalesced%c"%tc] <= 8:
+      reject(state, "DirectToLds%c does not work with TLU=False and bpe > bpr and DepthU//NumLoadsCoalesced%c < 16"%(tc, tc))
       return False
 
     return True
@@ -3001,6 +3020,12 @@ class Solution(collections.abc.Mapping):
         if state["AssertFree0ElementMultiple"] < 2:
           reject(state, "Assembly GSU half requires AF0EM>=2 (for atomics on edge tiles)")
 
+    if state["KernelLanguage"] == "Assembly":
+      if state["ProblemType"]["TLUA"] and state["ThreadSeparateGlobalReadA"]:
+        reject(state, "Assembly ThreadSeparateGlobalReadA requires TLUA=0 ")
+      if state["ProblemType"]["TLUB"] and state["ThreadSeparateGlobalReadB"]:
+        reject(state, "Assembly ThreadSeparateGlobalReadB requires TLUB=0 ")
+
     ########################################
     # Initial DepthU
     ########################################
@@ -3194,6 +3219,17 @@ class Solution(collections.abc.Mapping):
         if not state["ProblemType"]["TLUB"]:
           if depthU < state["GlobalLoadVectorWidthB"]:
             validDepthU = False
+
+      if validDepthU:
+      # check depthU and ThreadSeparateGlobalReadA==1 depthU*bpe <= 64 bytes reject ThreadSeparateGlobalRead =1
+      # only Enable TLU=1 case
+      # reject depthU for cases requiring < 2 lanes per fragment. depthU * bpe  must be multiple of cache-line sizes(l2)
+        if not state["ProblemType"]["TLUA"]:
+          if state["ThreadSeparateGlobalReadA"] and (((depthU//state["GlobalLoadVectorWidthA"])// (2 * state["ThreadSeparateGlobalReadA"])) < 2):
+            validDepthU= False
+        if not state["ProblemType"]["TLUB"]:
+          if state["ThreadSeparateGlobalReadB"] and (((depthU//state["GlobalLoadVectorWidthB"])// (2 * state["ThreadSeparateGlobalReadB"])) < 2):
+            validDepthU= False
 
       # this depthU is valid, done unless user wants to double (for TN)
       if validDepthU:
@@ -3571,6 +3607,12 @@ class Solution(collections.abc.Mapping):
     if state["EnableMatrixInstruction"]:
       if state["DirectToLds"] and state["1LDSBuffer"]:
         reject(state, "1LDSBuffer must be 0 for directToLds") 
+
+    if state["EnableMatrixInstruction"]:
+       if state["ThreadSeparateGlobalReadA"] and not state["DirectToLdsA"]:
+         reject(state, "ThreadSeparateGlobalReadA require DirectToLdsA")
+       if state["ThreadSeparateGlobalReadB"] and not state["DirectToLdsB"]:
+         reject(state, "ThreadSeparateGlobalReadB require DirectToLdsB")
 
     if state["1LDSBuffer"] == -1:
       if ldsNumElementsAB * state["ProblemType"]["DataType"].numBytes() > globalParameters["MaxLDS"]:
