@@ -442,6 +442,8 @@ namespace Tensile
                 while(solutionIterator->moreSolutionsInProblem())
                 {
                     auto solution = solutionIterator->getSolution();
+                    if (solution == nullptr)
+                        throw std::runtime_error("Could not find a solution");
 
                     listeners.preSolution(*solution);
 
@@ -584,6 +586,8 @@ int main(int argc, const char* argv[])
             while(solutionIterator->moreSolutionsInProblem())
             {
                 auto solution = solutionIterator->getSolution();
+                if (solution == nullptr)
+                    throw std::runtime_error("Could not find a solution");
 
                 listeners.preSolution(*solution);
 

@@ -69,4 +69,3 @@ BenchmarkProblems:
 LibraryLogic:
   ScheduleName: "navi21"
   ArchitectureName: "gfx1030"
-LibraryClient:
