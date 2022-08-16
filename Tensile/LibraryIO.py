@@ -43,6 +43,12 @@ except ImportError:
     print("Message pack python library not detected. Must use YAML backend instead.")
 
 
+def updateProblemDatatypes(problemType):
+    problemType["DataType"] = problemType["DataType"].value
+    problemType["DestDataType"] = problemType["DestDataType"].value
+    problemType["ComputeDataType"] = problemType["ComputeDataType"].value
+
+
 ###################
 # Writing functions
 ###################
@@ -89,12 +95,7 @@ def writeSolutions(filename, problemSizes, solutions, cache=False):
         for solution in solutions:
             solutionState = solution.getAttributes()
             solutionState["ProblemType"] = solutionState["ProblemType"].state
-            solutionState["ProblemType"]["DataType"] = \
-                    solutionState["ProblemType"]["DataType"].value
-            solutionState["ProblemType"]["DestDataType"] = \
-                    solutionState["ProblemType"]["DestDataType"].value
-            solutionState["ProblemType"]["ComputeDataType"] = \
-                    solutionState["ProblemType"]["ComputeDataType"].value
+            updateProblemDatatypes(solutionState["ProblemType"])
             solutionStates.append(solutionState)
     # write dictionaries
     with open(filename, "w") as f:
@@ -231,9 +232,8 @@ def parseLibraryLogicList(data, srcFile="?"):
         rv["ArchitectureName"] = data[2]
         rv["CUCount"] = None
 
-    # TODOBEN: figure out what to do with these...
     rv["ExactLogic"] = data[7]
-    rv["RangeLogic"] = data[8]
+    # data[8] previously contained range logic, which has been retired
 
     # optional fields
     if len(data) > 10 and data[10]:
@@ -276,9 +276,9 @@ def rawLibraryLogic(data):
             problemTypeState, solutionStates, indexOrder, exactLogic, rangeLogic, otherFields)
 
 
-#################
-# Other functions
-#################
+########################
+# Library logic creation
+########################
 def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple, dictFormat):
     if not dictFormat:
         return createLibraryLogicList(schedulePrefix, architectureName, deviceNames, logicTuple)
@@ -299,13 +299,7 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple
 
     # problem type
     problemTypeState = rawProblemType.state
-    problemTypeState["DataType"] = \
-            problemTypeState["DataType"].value
-    problemTypeState["DestDataType"] = \
-            problemTypeState["DestDataType"].value
-    problemTypeState["ComputeDataType"] = \
-            problemTypeState["ComputeDataType"].value
-
+    updateProblemDatatypes(problemTypeState)
     rv["ProblemType"] = problemTypeState
 
     # solutions
@@ -353,26 +347,18 @@ def createLibraryLogicList(schedulePrefix, architectureName, deviceNames, logicT
     data.append(architectureName)
     # schedule device names
     data.append(deviceNames)
+
     # problem type
     problemTypeState = problemType.state
-    problemTypeState["DataType"] = \
-            problemTypeState["DataType"].value
-    problemTypeState["DestDataType"] = \
-            problemTypeState["DestDataType"].value
-    problemTypeState["ComputeDataType"] = \
-            problemTypeState["ComputeDataType"].value
+    updateProblemDatatypes(problemTypeState)
     data.append(problemTypeState)
+
     # solutions
     solutionList = []
     for solution in solutions:
         solutionState = solution.getAttributes()
         solutionState["ProblemType"] = solutionState["ProblemType"].state
-        solutionState["ProblemType"]["DataType"] = \
-                solutionState["ProblemType"]["DataType"].value
-        solutionState["ProblemType"]["DestDataType"] = \
-                solutionState["ProblemType"]["DestDataType"].value
-        solutionState["ProblemType"]["ComputeDataType"] = \
-                solutionState["ProblemType"]["ComputeDataType"].value
+        updateProblemDatatypes(solutionState["ProblemType"])
         solutionList.append(solutionState)
 
     if tileSelection:
@@ -380,12 +366,7 @@ def createLibraryLogicList(schedulePrefix, architectureName, deviceNames, logicT
         for solution in tileSolutions:
             solutionState = solution.getAttributes()
             solutionState["ProblemType"] = solutionState["ProblemType"].state
-            solutionState["ProblemType"]["DataType"] = \
-                    solutionState["ProblemType"]["DataType"].value
-            solutionState["ProblemType"]["DestDataType"] = \
-                    solutionState["ProblemType"]["DestDataType"].value
-            solutionState["ProblemType"]["ComputeDataType"] = \
-                    solutionState["ProblemType"]["ComputeDataType"].value
+            updateProblemDatatypes(solutionState["ProblemType"])
             solutionList.append(solutionState)
 
     data.append(solutionList)
