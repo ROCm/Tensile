@@ -1074,7 +1074,6 @@ namespace Tensile
         return size;
     }
 
-
     float ContractionSolution::computeGranularity(float x)
     {
         return x / ceil(x);
