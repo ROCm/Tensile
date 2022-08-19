@@ -37,6 +37,59 @@
 namespace Tensile
 {
 
+    // Type wrapper that can be copied or assigned to in a threadsafe manner. Value cannot be modified
+    template<typename T>
+    struct ThreadSafeValue
+    {
+    private:
+        mutable std::mutex access;
+        T                  value;
+    public:
+        ThreadSafeValue()
+        {
+
+        }
+
+        ThreadSafeValue(const ThreadSafeValue<T>& other)
+        {
+            std::lock_guard<std::mutex> lock (other.access);
+            value = other.value;
+        }
+
+        ThreadSafeValue(const T& other): value(other)
+        {
+
+        }
+
+        ThreadSafeValue<T>& operator=(const ThreadSafeValue<T>& other)
+        {
+            std::lock_guard<std::mutex> otherLock (other.access);
+            std::lock_guard<std::mutex> selfLock (access);
+            value = other.value;
+
+            return *this;
+        }
+
+        ThreadSafeValue<T>& operator=(const T& other)
+        {
+            std::lock_guard<std::mutex> lock (access);
+            value = other;
+
+            return *this;
+        }
+
+        T copy() const
+        {
+            std::lock_guard<std::mutex> lock(access);
+            return value;
+        }
+
+        T operator*() const
+        {
+            return copy();
+        }
+    };
+
     /**
  * \ingroup Tensile
  * \addtogroup Utilities

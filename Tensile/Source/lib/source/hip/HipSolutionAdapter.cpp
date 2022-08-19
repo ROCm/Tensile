@@ -34,6 +34,9 @@
 #include <Tensile/hip/HipSolutionAdapter.hpp>
 #include <Tensile/hip/HipUtils.hpp>
 
+#include <Tensile/Utils.hpp>
+#include <thread>
+
 //@TODO add alternative for windows
 #ifndef WIN32
 #include <glob.h>
@@ -71,6 +74,8 @@ namespace Tensile
 
         std::string removeXnack(std::string coFilename)
         {
+            //Tensile::DeferLogger::addLog("TLLL: remove xnack " + coFilename);
+
             std::string xnackVersion = "xnack"; //Extra character before and after xnack
             size_t      loc          = coFilename.find(xnackVersion);
             if(loc != std::string::npos)
@@ -81,6 +86,8 @@ namespace Tensile
 
         hipError_t SolutionAdapter::loadCodeObjectFile(std::string const& path)
         {
+            //Tensile::DeferLogger::addLog("TLLL: loading code object (enter) " + path);
+
             hipModule_t module;
 
             HIP_CHECK_RETURN(hipModuleLoad(&module, path.c_str()));
@@ -90,6 +97,9 @@ namespace Tensile
 
             {
                 std::lock_guard<std::mutex> guard(m_access);
+
+                //Tensile::DeferLogger::addLog("TLLL: loading code object (load) " + path);
+
                 m_modules.push_back(module);
                 m_loadedModuleNames.push_back(concatenate("File ", path));
 
@@ -216,10 +226,9 @@ namespace Tensile
         hipError_t SolutionAdapter::initializeLazyLoading(std::string arch,
                                                           std::string codeObjectDir)
         {
-            m_codeObjectDirectory = codeObjectDir;
             //Ensure there's a slash at the end of the path
-            if(m_codeObjectDirectory.back() != '/')
-                m_codeObjectDirectory += '/';
+            if(codeObjectDir.back() != '/')
+                codeObjectDir += '/';
 
             //Remove xnack and sramecc qualifiers
             size_t loc = arch.find(":");
@@ -228,8 +237,10 @@ namespace Tensile
 
             std::string helperKernelName = std::string("Kernels.so-000-") + arch;
 
-            //If required code object file hasn't yet been loaded, load it now
             m_access.lock();
+            m_codeObjectDirectory = codeObjectDir;
+
+            //If required code object file hasn't yet been loaded, load it now
             bool loaded = m_loadedCOFiles.find(removeXnack(helperKernelName) + ".hsaco")
                           != m_loadedCOFiles.end();
             m_access.unlock();
@@ -241,7 +252,7 @@ namespace Tensile
                 for(auto ver : {"", "-xnack-", "-xnack+"})
                 {
                     std::string modifiedCOName = helperKernelName + ver + ".hsaco";
-                    err = loadCodeObjectFile(m_codeObjectDirectory + modifiedCOName);
+                    err = loadCodeObjectFile(codeObjectDir + modifiedCOName);
 
                     if(err == hipSuccess)
                         return err;
