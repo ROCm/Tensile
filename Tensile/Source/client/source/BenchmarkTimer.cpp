@@ -182,6 +182,8 @@ namespace Tensile
         {
             if(!m_useGPUTimer)
             {
+                // Synchronize before timer so warmup runs are not included in benchmark time
+                HIP_CHECK_EXC(hipDeviceSynchronize());
                 m_startTime = clock::now();
             }
         }
