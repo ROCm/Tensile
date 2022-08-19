@@ -27,7 +27,6 @@
 #pragma once
 
 #include <Tensile/ContractionProblem.hpp>
-#include <Tensile/ContractionSolution.hpp>
 #include <Tensile/PropertyMatching.hpp>
 
 #include <cstddef>

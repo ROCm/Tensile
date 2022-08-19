@@ -1074,30 +1074,10 @@ namespace Tensile
         return size;
     }
 
-    float ContractionSolution::numTiles0(ContractionProblem const& problem, float macro_tile_0_inv)
+
+    float ContractionSolution::computeGranularity(float x)
     {
-        // Get problem size (M)
-        float M = problem.freeSizeA(0);
-        if(problem.freeIndicesA().size() > 1)
-            assert(false); //TODO: Handle this case
-
-        return M * macro_tile_0_inv;
-    }
-
-    float ContractionSolution::numTiles1(ContractionProblem const& problem, float macro_tile_1_inv)
-    {
-        // Get problem size (N)
-        float N = problem.freeSizeB(0);
-        if(problem.freeIndicesB().size() > 1)
-            assert(false); //TODO: Handle this case
-
-        // Calculate granularity
-        return N * macro_tile_1_inv;
-    }
-
-    float ContractionSolution::tileGranularity(float numTiles)
-    {
-        return numTiles / ceil(numTiles);
+        return x / ceil(x);
     }
 
     ContractionSolution::Granularities ContractionSolution::computeGranularities(
@@ -1127,8 +1107,8 @@ namespace Tensile
         granularities.numTiles0 = M / MT0;
         granularities.numTiles1 = N / MT1;
 
-        granularities.tile0Granularity = granularities.numTiles0 / ceil(granularities.numTiles0);
-        granularities.tile1Granularity = granularities.numTiles1 / ceil(granularities.numTiles1);
+        granularities.tile0Granularity = computeGranularity(granularities.numTiles0);
+        granularities.tile1Granularity = computeGranularity(granularities.numTiles1);
 
         granularities.tilesPerCu
             = (NumBatches * ceil(granularities.numTiles0) * ceil(granularities.numTiles1))
@@ -1137,8 +1117,7 @@ namespace Tensile
         granularities.totalTiles    = ceil(granularities.numTiles0) * ceil(granularities.numTiles1);
         granularities.natTilesPerCu = NumBatches * granularities.totalTiles / NumCUs;
         granularities.suTilesPerCu  = (granularities.totalTiles * GlobalSplitU) / NumCUs;
-        granularities.suCuGranularity
-            = granularities.suTilesPerCu / ceil(granularities.suTilesPerCu);
+        granularities.suCuGranularity = computeGranularity(granularities.suTilesPerCu);
 
         granularities.waveGranularity = std::min(
             1.00,
@@ -1158,7 +1137,7 @@ namespace Tensile
             = NumBatches * ceil(granularities.numTiles0) * ceil(granularities.numTiles1) / NumCUs;
         granularities.natCuGranularity = ceil(nat_tiles_per_cu) * ceil(nat_tiles_per_cu) / NumCUs;
 
-        granularities.cuGranularity = granularities.tilesPerCu / ceil(granularities.tilesPerCu);
+        granularities.cuGranularity = computeGranularity(granularities.tilesPerCu);
 
         granularities.totalGranularity
             = granularities.tile0Granularity * granularities.tile1Granularity

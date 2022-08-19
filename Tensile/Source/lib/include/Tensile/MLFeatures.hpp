@@ -147,8 +147,8 @@ namespace Tensile
 
             virtual float operator()(ContractionProblem const& problem) const
             {
-                float numTiles = ContractionSolution::numTiles0(problem, value);
-                return ContractionSolution::tileGranularity(numTiles);
+                float numTiles = problem.freeSizeA(0) * value;
+                return ContractionSolution::computeGranularity(numTiles);
             }
         };
 
@@ -168,8 +168,8 @@ namespace Tensile
 
             virtual float operator()(ContractionProblem const& problem) const
             {
-                float numTiles = ContractionSolution::numTiles1(problem, value);
-                return ContractionSolution::tileGranularity(numTiles);
+                float numTiles = problem.freeSizeB(0) * value;
+                return ContractionSolution::computeGranularity(numTiles);
             }
         };
 
@@ -194,11 +194,11 @@ namespace Tensile
             virtual float operator()(ContractionProblem const& problem) const
             {
                 float NumBatches = 1; // TODO: Higher batch sizes
-                float tilesPerCu = NumBatches
-                                   * ceil(ContractionSolution::numTiles0(problem, value.mt0_scale))
-                                   * ceil(ContractionSolution::numTiles1(problem, value.mt1_scale))
-                                   * value.devSolScale;
-                return ContractionSolution::tileGranularity(tilesPerCu);
+                float numTilesM  = problem.freeSizeA(0) * value.mt0_scale;  // M / MT0
+                float numTilesN  = problem.freeSizeB(0) * value.mt1_scale;  // N / MT1
+                float tilesPerCu = NumBatches * numTilesM * numTilesN * value.devSolScale;
+
+                return ContractionSolution::computeGranularity(tilesPerCu);
             }
         };
 
@@ -224,8 +224,9 @@ namespace Tensile
 
             virtual float operator()(ContractionProblem const& problem) const
             {
-                float totalTiles = ceil(ContractionSolution::numTiles0(problem, value.mt0_scale))
-                                   * ceil(ContractionSolution::numTiles1(problem, value.mt1_scale));
+                float numTilesM  = problem.freeSizeA(0) * value.mt0_scale;  // M / MT0
+                float numTilesN  = problem.freeSizeB(0) * value.mt1_scale;  // N / MT1
+                float totalTiles = ceil(numTilesM) * ceil(numTilesN);
                 return totalTiles * value.devSolScale;
             }
         };
