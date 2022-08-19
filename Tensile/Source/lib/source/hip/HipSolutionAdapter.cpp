@@ -35,7 +35,6 @@
 #include <Tensile/hip/HipUtils.hpp>
 
 #include <Tensile/Utils.hpp>
-#include <thread>
 
 //@TODO add alternative for windows
 #ifndef WIN32
@@ -74,8 +73,6 @@ namespace Tensile
 
         std::string removeXnack(std::string coFilename)
         {
-            //Tensile::DeferLogger::addLog("TLLL: remove xnack " + coFilename);
-
             std::string xnackVersion = "xnack"; //Extra character before and after xnack
             size_t      loc          = coFilename.find(xnackVersion);
             if(loc != std::string::npos)
@@ -86,8 +83,6 @@ namespace Tensile
 
         hipError_t SolutionAdapter::loadCodeObjectFile(std::string const& path)
         {
-            //Tensile::DeferLogger::addLog("TLLL: loading code object (enter) " + path);
-
             hipModule_t module;
 
             HIP_CHECK_RETURN(hipModuleLoad(&module, path.c_str()));
@@ -97,8 +92,6 @@ namespace Tensile
 
             {
                 std::lock_guard<std::mutex> guard(m_access);
-
-                //Tensile::DeferLogger::addLog("TLLL: loading code object (load) " + path);
 
                 m_modules.push_back(module);
                 m_loadedModuleNames.push_back(concatenate("File ", path));
