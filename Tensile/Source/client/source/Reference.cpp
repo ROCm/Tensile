@@ -29,6 +29,10 @@
 #include "Tensile/Utils.hpp"
 
 #include <cstddef>
+#include <cstdlib>
+#include <stdlib.h>
+
+#include <omp.h>
 
 namespace Tensile
 {
@@ -173,6 +177,13 @@ namespace Tensile
                 }
             }
 
+            // Set num threads and enable proc_bind to prevent main thread from migrating
+            // Defaults cause validation to affect benchmark timing
+            // Dynamic thread mode causes HostLibraryTests to fail
+            const char* env_bind = std::getenv("OMP_PROC_BIND");
+            if(env_bind == nullptr)
+                setenv("OMP_PROC_BIND", "true", 1);
+            omp_set_num_threads(64);
 #pragma omp parallel for
             for(size_t dNum = 0; dNum < d.totalLogicalElements(); dNum += validationStride)
             {
@@ -317,6 +328,8 @@ namespace Tensile
                     + ((beta == zero) ? static_cast<Accumulator>(zero)
                                       : multiply<Accumulator>(beta, inputs.c[cIndex])));
             }
+            if(env_bind == nullptr)
+                unsetenv("OMP_PROC_BIND");
         }
 
         void SolveCPU(ContractionProblem const& problem,
