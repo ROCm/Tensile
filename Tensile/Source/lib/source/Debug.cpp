@@ -148,6 +148,26 @@ namespace Tensile
         return m_solution_index;
     }
 
+    double Debug::getMultiplierM() const
+    {
+        return m_multiplier_m;
+    }
+
+    double Debug::getMultiplierN() const
+    {
+        return m_multiplier_n;
+    }
+
+    double Debug::getMNThreshold() const
+    {
+        return m_mnThreshold;
+    }
+
+    std::string Debug::getParameter() const
+    {
+        return m_parameter;
+    }
+
     Debug::Debug()
         : m_value(DEBUG_SM)
         , m_value2(DEBUG_SM2)
@@ -179,6 +199,23 @@ namespace Tensile
         const char* tensile_metric = std::getenv("TENSILE_METRIC");
         if(tensile_metric)
             m_metric = tensile_metric;
+
+        const char* gridbased_multiplier_m = std::getenv("GRIDBASED_MULTIPLIER_M");
+        if(gridbased_multiplier_m)
+            m_multiplier_m = strtod(gridbased_multiplier_m, nullptr);
+
+        const char* gridbased_multiplier_n = std::getenv("GRIDBASED_MULTIPLIER_N");
+        if(gridbased_multiplier_n)
+            m_multiplier_n = strtod(gridbased_multiplier_n, nullptr);
+
+        const char* gridbased_mnThreshold = std::getenv("GRIDBASED_MNTHRESHOLD");
+        if(gridbased_mnThreshold)
+            m_mnThreshold = strtod(gridbased_mnThreshold, nullptr);
+
+        const char* gridbased_parameter = std::getenv("GRIDBASED_PARAMETER");
+        if(gridbased_parameter)
+            m_parameter = gridbased_parameter;
+
     }
 
 } // namespace Tensile

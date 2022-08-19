@@ -357,9 +357,13 @@ namespace Tensile
             {
                 double distance = 0.0;
 
-                double M = p2[0];
-                double N = p2[1];
-                double K = p2[2];
+                double grid_M = p2[0];
+                double grid_N = p2[1];
+                double grid_K = p2[2];
+
+                double M = p1[0];
+                double N = p1[1];
+                double K = p1[2];
 
                 // This is hard coding workaround solution //
                 // If incoming_size falls inside grid boundary (32768 in this case), searching toward larger M,N.
@@ -379,7 +383,7 @@ namespace Tensile
                         * std::pow(std::pow(p1[0] - p2[0], 2) + std::pow(p1[1] - p2[1], 2), 0.5));
                 }
                 // and nearest K
-                distance += (std::abs(K - p1[2]) / (K + p1[2] * 8));
+                distance += (std::abs(grid_K - K) / (grid_K + K * 8));
 
                 return distance;
             }

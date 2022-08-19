@@ -132,13 +132,17 @@ namespace Tensile
             }
 
             virtual std::tuple<ReturnValue, double> findBestKeyMatch(Key const& key,
-                                                                     Transform transform) const = 0;
+                                                                     Transform transform,
+                                                                     bool       transA=0,
+                                                                     bool       transB=0) const = 0;
 
             virtual std::tuple<ReturnValue, double>
                 findBestMatch(Object const& object, Transform transform) const override
             {
+                bool transA = object.transA();
+                bool transB = object.transB();
                 return findBestKeyMatch(
-                    ProblemKey::keyForProblem<Key, Object>(object, this->properties), transform);
+                    ProblemKey::keyForProblem<Key, Object>(object, this->properties), transform, transA, transB);
             }
 
             virtual ReturnValue findBestEvaluationSolution(Object const&   object,
@@ -304,7 +308,9 @@ namespace Tensile
             }
 
             std::tuple<ReturnValue, double> findBestKeyMatch(Key const& key,
-                                                             Transform  transform) const
+                                                             Transform  transform,
+                                                             bool       transA=0,
+                                                             bool       transB=0) const
             {
                 const bool debug = Debug::Instance().printPropertyEvaluation();
                 const bool naive = Debug::Instance().naivePropertySearch();
@@ -321,9 +327,9 @@ namespace Tensile
                 {
                     if(gridbased){
                         if(debug)
-                            return findBestKeyMatch_GridBased<true>(key, transform);
+                            return findBestKeyMatch_GridBased<true>(key, transform, transA, transB);
                         else
-                            return findBestKeyMatch_GridBased<false>(key, transform);
+                            return findBestKeyMatch_GridBased<false>(key, transform, transA, transB);
                     } else {
                         if(debug)
                             return findBestKeyMatch_BinSearch<true>(key, transform);
@@ -334,11 +340,62 @@ namespace Tensile
             }
 
             template <bool T_Debug>
-            std::tuple<ReturnValue, double> findBestKeyMatch_GridBased(Key const& key,
-                                                                       Transform  transform) const
+            std::tuple<ReturnValue, double> findBestKeyMatch_GridBased(Key const& orig_key,
+                                                                       Transform  transform,
+                                                                       bool       transA,
+                                                                       bool       transB) const
             {
                 if(this->table.empty())
                     return std::make_tuple(this->nullValue, std::numeric_limits<double>::max());
+
+                double gridbased_multiplier_m = Debug::Instance().getMultiplierM();
+                double gridbased_multiplier_n = Debug::Instance().getMultiplierN();
+                double gridbased_mnThreshold = Debug::Instance().getMNThreshold();
+                std::stringstream text_stream(Debug::Instance().getParameter());
+                Key key = orig_key;
+
+                key[0] = orig_key[0] * gridbased_multiplier_m;
+                key[1] = orig_key[1] * gridbased_multiplier_n;
+
+                std::vector<double> number;
+                std::string item;
+                while (std::getline(text_stream, item, ',')) {
+                    number.push_back(stod(item));
+                }
+                std::vector<std::vector<double>> trans;
+                std::vector<std::vector<double>> sizes;
+                std::vector<std::vector<double>> multiplier;
+                for (int i=0; i<number.size(); i+=7) {
+                    std::vector<double> item0;
+                    trans.push_back(item0);
+                    trans[i/7].push_back(number[i+0]);
+                    trans[i/7].push_back(number[i+1]);
+                    std::vector<double> item1;
+                    sizes.push_back(item1);
+                    sizes[i/7].push_back(number[i+2]);
+                    sizes[i/7].push_back(number[i+3]);
+                    sizes[i/7].push_back(number[i+4]);
+                    std::vector<double> item2;
+                    multiplier.push_back(item2);
+                    multiplier[i/7].push_back(number[i+5]);
+                    multiplier[i/7].push_back(number[i+6]);
+                }
+                std::vector<double> problem;
+                problem.push_back(orig_key[0]);
+                problem.push_back(orig_key[1]);
+                problem.push_back(orig_key[2]);
+                for (int i=0; i < sizes.size(); i++){
+                    if (problem == sizes[i] && trans[i][0] == transA && trans[i][1] == transB){
+                        key[0] = orig_key[0] * multiplier[i][0];
+                        key[1] = orig_key[1] * multiplier[i][1];
+                        if(T_Debug)
+                            printf("new key transA:%d transB:%d [%ld, %ld, %ld] = [%ld, %ld, %ld] x [%.2f, %.2f, 1]\n",\
+                                transA, transB, \
+                                key[0], key[1], key[2],\
+                                orig_key[0], orig_key[1], orig_key[2],\
+                                multiplier[i][0], multiplier[i][1]);
+                    }
+                }
 
                 ptrdiff_t count = 0;
                 bool Debug = T_Debug;
@@ -420,6 +477,9 @@ namespace Tensile
                         streamJoin(std::cout, (origIter_N_upper-1)->key, ", ");
                         std::cout << std::endl;
                     }
+
+                    if(gridbased_mnThreshold > (origIter_N_lower->key[0]*origIter_N_lower->key[1]))
+                        continue;
 
                     for(auto iter = origIter_N_lower; iter != origIter_N_upper; iter++)
                     {
@@ -819,7 +879,9 @@ namespace Tensile
             }
 
             std::tuple<ReturnValue, double> findBestKeyMatch(Key const& key,
-                                                             Transform  transform) const
+                                                             Transform  transform,
+                                                             bool       transA=0,
+                                                             bool       transB=0) const
             {
                 auto comp = [](Entry const& e, Key const& key) { return e.key < key; };
                 auto iter = std::lower_bound(table.begin(), table.end(), key, comp);
