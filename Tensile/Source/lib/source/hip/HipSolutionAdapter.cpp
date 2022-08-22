@@ -34,8 +34,6 @@
 #include <Tensile/hip/HipSolutionAdapter.hpp>
 #include <Tensile/hip/HipUtils.hpp>
 
-#include <Tensile/Utils.hpp>
-
 //@TODO add alternative for windows
 #ifndef WIN32
 #include <glob.h>
@@ -92,7 +90,6 @@ namespace Tensile
 
             {
                 std::lock_guard<std::mutex> guard(m_access);
-
                 m_modules.push_back(module);
                 m_loadedModuleNames.push_back(concatenate("File ", path));
 
