@@ -273,6 +273,7 @@ namespace Tensile
                 m_access.lock();
                 bool loaded = m_loadedCOFiles.find(removeXnack(kernel.codeObjectFile))
                               != m_loadedCOFiles.end();
+                std::string codeObjectDir = m_codeObjectDirectory;
                 m_access.unlock();
 
                 if(!loaded)
@@ -285,7 +286,7 @@ namespace Tensile
                     {
                         std::string modifiedCOName = kernel.codeObjectFile;
                         modifiedCOName.insert(loc, ver);
-                        err = loadCodeObjectFile(m_codeObjectDirectory + modifiedCOName);
+                        err = loadCodeObjectFile(codeObjectDir + modifiedCOName);
 
                         if(err == hipSuccess)
                             break;
