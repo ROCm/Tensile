@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -456,17 +456,7 @@ namespace Tensile
             Type const* resultData      = resultBuffer + elementsBeforeData;
             Type const* resultAfterData = resultData + tensor.totalAllocatedElements();
 
-            int printed = 0;
-
-            bool doPrint = m_printMax < 0 || printed < m_printMax;
-
-            size_t errors = 0;
-
             size_t boundsCheckElements = 0;
-
-            bool printedPreBuffer    = false;
-            bool printedInsideBuffer = false;
-            bool printedPostBuffer   = false;
 
             for(ptrdiff_t i = 0; i < elementsBeforeData; i++)
             {

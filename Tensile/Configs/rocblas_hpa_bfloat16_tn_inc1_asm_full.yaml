@@ -30,7 +30,6 @@ GlobalParameters:
   PrintTensorC: 0
   PrintTensorD: 0
   CEqualD: True
-  NewClient: 0
 
 BenchmarkProblems:
   ########################################

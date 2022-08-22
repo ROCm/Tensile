@@ -1,5 +1,8 @@
-/**
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+/*******************************************************************************
+ *
+ * MIT License
+ *
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -16,9 +19,10 @@
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ *******************************************************************************/
 
 #include <Tensile/KernelArguments.hpp>
 
@@ -120,4 +124,129 @@ namespace Tensile
     {
         return m_data.size();
     }
+
+    KernelArguments::const_iterator::const_iterator(KernelArguments const& args)
+        : m_args(args)
+        , m_currentArg(args.m_names.begin())
+    {
+        if(!args.m_log)
+        {
+            throw std::runtime_error("KernelArguments::const_iterator requires m_log=true");
+        }
+        assignCurrentArg();
+    }
+
+    KernelArguments::const_iterator::const_iterator(KernelArguments const& args,
+                                                    std::string const&     name)
+        : m_args(args)
+        , m_currentArg(args.m_names.begin())
+    {
+        if(!args.m_log)
+        {
+            throw std::runtime_error("KernelArguments::const_iterator requires m_log=true");
+        }
+
+        if(name.empty())
+        {
+            m_currentArg = m_args.m_names.end();
+        }
+        else
+        {
+            while(m_currentArg != args.m_names.end() && *m_currentArg != name)
+            {
+                m_currentArg++;
+            }
+        }
+        assignCurrentArg();
+    }
+
+    auto KernelArguments::const_iterator::operator++() -> const_iterator&
+    {
+        if(m_currentArg != m_args.m_names.end())
+        {
+            ++m_currentArg;
+            assignCurrentArg();
+        }
+        return *this;
+    }
+
+    auto KernelArguments::const_iterator::operator++(int) -> const_iterator
+    {
+        if(m_currentArg != m_args.m_names.end())
+        {
+            auto ret = *this;
+            ++m_currentArg;
+            assignCurrentArg();
+            return ret;
+        }
+        return *this;
+    }
+
+    bool KernelArguments::const_iterator::operator==(const const_iterator& rhs) const
+    {
+        return m_value == rhs.m_value;
+    }
+
+    bool KernelArguments::const_iterator::operator!=(const const_iterator& rhs) const
+    {
+        return m_value != rhs.m_value;
+    }
+
+    auto KernelArguments::const_iterator::operator*() const
+        -> decltype(const_iterator::m_value) const&
+    {
+        return m_value;
+    }
+
+    auto KernelArguments::const_iterator::operator->() const
+        -> decltype(const_iterator::m_value) const*
+    {
+        return &m_value;
+    }
+
+    void KernelArguments::const_iterator::reset()
+    {
+        m_currentArg = m_args.m_names.begin();
+        assignCurrentArg();
+    }
+
+    void KernelArguments::const_iterator::assignCurrentArg()
+    {
+        if(m_currentArg != m_args.m_names.end())
+        {
+            auto const& iter = m_args.m_argRecords.find(*m_currentArg);
+
+            if(iter == m_args.m_argRecords.end())
+            {
+                throw std::runtime_error("Argument " + *m_currentArg + " not found in record.");
+            }
+
+            auto const& record = iter->second;
+
+            if(!m_args.isFullyBound())
+            {
+                throw std::runtime_error("Arguments not fully bound.");
+            }
+
+            m_value = std::make_pair(
+                static_cast<void const*>(m_args.m_data.data()
+                                         + std::get<KernelArguments::ArgOffset>(record)),
+                (size_t)std::get<KernelArguments::ArgSize>(record));
+        }
+        else
+        {
+            m_value = std::make_pair((void const*)nullptr, (size_t)0);
+        }
+    }
+
+    auto KernelArguments::begin() const -> const_iterator
+    {
+        return const_iterator(*this);
+    }
+
+    auto KernelArguments::end() const -> const_iterator
+    {
+        return const_iterator(*this, "");
+    }
+
 } // namespace Tensile

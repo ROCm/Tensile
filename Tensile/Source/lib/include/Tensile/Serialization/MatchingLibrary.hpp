@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <Tensile/Debug.hpp>
 #include <Tensile/Distance.hpp>
 #include <Tensile/MatchingLibrary.hpp>
 
@@ -129,10 +130,24 @@ namespace Tensile
 
                 bool success = false;
 
+                std::string tensile_metric = Debug::Instance().getMetric();
+
+                if(!tensile_metric.empty())
+                    distanceType = tensile_metric;
+
                 if(distanceType == "Euclidean")
                 {
                     success = mappingDistance<Key, Matching::EuclideanDistance<Key>>(
                         io, lib, properties);
+                }
+                else if(distanceType == "Equality")
+                {
+                    success = mappingDistance<Key, Matching::Equality<Key>>(io, lib, properties);
+                }
+                else if(distanceType == "JSD")
+                {
+                    success
+                        = mappingDistance<Key, Matching::JSDivergence<Key>>(io, lib, properties);
                 }
                 else if(distanceType == "Manhattan")
                 {
@@ -148,6 +163,11 @@ namespace Tensile
                 {
                     success
                         = mappingDistance<Key, Matching::RandomDistance<Key>>(io, lib, properties);
+                }
+                else if(distanceType == "GridBased")
+                {
+                    success = mappingDistance<Key, Matching::GridBasedDistance<Key>>(
+                        io, lib, properties);
                 }
                 else
                 {
@@ -232,7 +252,8 @@ namespace Tensile
                 return SubclassMap({Base::template Pair<Matching::RatioDistance<Key>>(),
                                     Base::template Pair<Matching::ManhattanDistance<Key>>(),
                                     Base::template Pair<Matching::EuclideanDistance<Key>>(),
-                                    Base::template Pair<Matching::RandomDistance<Key>>()});
+                                    Base::template Pair<Matching::RandomDistance<Key>>(),
+                                    Base::template Pair<Matching::GridBasedDistance<Key>>()});
             }
         };
 
@@ -262,6 +283,12 @@ namespace Tensile
         template <typename Key, typename IO>
         struct MappingTraits<Matching::RandomDistance<Key>, IO>
             : public AutoMappingTraits<Matching::RandomDistance<Key>, IO>
+        {
+        };
+
+        template <typename Key, typename IO>
+        struct MappingTraits<Matching::GridBasedDistance<Key>, IO>
+            : public AutoMappingTraits<Matching::GridBasedDistance<Key>, IO>
         {
         };
     } // namespace Serialization

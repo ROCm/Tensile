@@ -1,7 +1,8 @@
-/**
+/*******************************************************************************
+ *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -18,15 +19,20 @@
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ *******************************************************************************/
 
 #include "Reference.hpp"
 #include "Tensile/Debug.hpp"
 #include "Tensile/Utils.hpp"
 
 #include <cstddef>
+#include <cstdlib>
+#include <stdlib.h>
+
+#include <omp.h>
 
 namespace Tensile
 {
@@ -67,7 +73,6 @@ namespace Tensile
                 // Check to see if the element coordinate is below or above the zero-pad
                 // range The comparison is done in the element domain.
                 assert(zp.anchorPos != -1); // ensure initialized.
-                const auto sumPos      = problem.toBoundsPos(zp.boundIndex);
                 int64_t anchorRelCoord = anchorCoord[zp.anchorPos] * tensor.strides()[zp.anchorPos]
                                          + sumCoord * tensor.strides()[zp.boundPos];
                 // elementEdge calculation:
@@ -81,30 +86,6 @@ namespace Tensile
                       - zp.padEnd;
 
                 bool rv = anchorRelCoord < zp.padStart || anchorRelCoord >= elementEdge;
-
-                bool checkUnsignedRangeOpt = false;
-                if(checkUnsignedRangeOpt)
-                {
-                    unsigned anchorRelCoord2
-                        = anchorCoord[zp.anchorPos] * tensor.strides()[zp.anchorPos]
-                          + sumCoord * tensor.strides()[zp.boundPos] - zp.padStart;
-
-                    unsigned elementEdge2
-                        = tensor.sizes().at(zp.anchorPos) * tensor.strides()[zp.anchorPos]
-                          + (tensor.sizes().at(zp.boundPos) - 1) * tensor.strides()[zp.boundPos]
-                          - zp.padEnd - zp.padStart;
-                    bool rv2 = anchorRelCoord >= elementEdge2;
-                    assert(rv == rv2);
-                }
-
-                if(0)
-                {
-                    std::cout << "  rv=" << rv << " anchorCoord=" << anchorCoord[zp.anchorPos]
-                              << " boundIndex=" << zp.boundIndex << " sumCoord=" << sumCoord
-                              << " anchorRelCoord=" << anchorRelCoord << " padStart=" << zp.padStart
-                              << " stride=" << tensor.strides()[zp.anchorPos]
-                              << " edge=" << elementEdge << " padEnd=" << zp.padEnd << "\n";
-                }
                 return rv;
             }
             else
@@ -116,6 +97,26 @@ namespace Tensile
         void throwException(const std::string& msg)
         {
             throw std::runtime_error(msg.c_str());
+        }
+
+        template <typename Accumulator, typename TypeL, typename TypeR>
+        inline Accumulator multiply(TypeL l, TypeR r)
+        {
+            /* Transform the data type from TypeL/TypeR to Accumulator if TypeL!=ACC or TypeR!=ACC, but filter out cases, I8/I32/I32 and I8x4/I32/I32
+             *
+             * There are three cases of doing multiplication and their conditions to do transform or not are as below.
+             * 1. AxB : (A!=ACC or B!=ACC) and A!=I8 and A!=I8x4
+             * 2. Alpha x rC :  (Alpha!=ACC or rC!=ACC)
+             * 3. Beta x C : (Beta!=ACC or C!=ACC)
+            */
+            constexpr bool needAccumCast
+                = !(std::is_same<TypeL, Accumulator>() && std::is_same<TypeR, Accumulator>())
+                  && !std::is_same<TypeL, Int8>() //case I8/I32/I32, I8 be implicitly cast to int.
+                  && !std::is_same<TypeL, Int8x4>(); //case I8x4/I32/I32, I8x4 overloading the op*.
+
+            using LMultT = std::conditional_t<needAccumCast, Accumulator, TypeL>;
+            using RMultT = std::conditional_t<needAccumCast, Accumulator, TypeR>;
+            return static_cast<Accumulator>(static_cast<LMultT>(l) * static_cast<RMultT>(r));
         }
 
         template <typename Inputs, typename Accumulator>
@@ -144,10 +145,10 @@ namespace Tensile
                 if(op.type == TensorOp::Type::ComplexConjugate)
                     bConjugate = true;
 
-            std::vector<size_t> freeASize(problem.freeIndicesA().size());
-            std::vector<size_t> freeBSize(problem.freeIndicesB().size());
-            std::vector<size_t> batchSize(problem.batchIndices().size());
-            std::vector<size_t> boundSize(problem.boundIndices().size());
+            std::vector<size_t> freeASize(freeIndicesA.size());
+            std::vector<size_t> freeBSize(freeIndicesB.size());
+            std::vector<size_t> batchSize(batchIndices.size());
+            std::vector<size_t> boundSize(boundIndices.size());
 
             for(int i = 0; i < freeASize.size(); i++)
                 freeASize[i] = problem.freeSizeA(i);
@@ -176,6 +177,13 @@ namespace Tensile
                 }
             }
 
+            // Set num threads and enable proc_bind to prevent main thread from migrating
+            // Defaults cause validation to affect benchmark timing
+            // Dynamic thread mode causes HostLibraryTests to fail
+            const char* env_bind = std::getenv("OMP_PROC_BIND");
+            if(env_bind == nullptr)
+                setenv("OMP_PROC_BIND", "true", 1);
+            omp_set_num_threads(64);
 #pragma omp parallel for
             for(size_t dNum = 0; dNum < d.totalLogicalElements(); dNum += validationStride)
             {
@@ -292,7 +300,7 @@ namespace Tensile
                                 bVal = Transform<typename Inputs::BType>::Input(
                                     inputs.b[bIndex + (bI * bStride) - zpB.padStart], bConjugate);
 
-                            value += static_cast<Accumulator>(aVal * bVal);
+                            value += multiply<Accumulator>(aVal, bVal);
 
                             if(0)
                             {
@@ -312,13 +320,16 @@ namespace Tensile
                 auto dIndex = d.index(dCoord);
 
                 // Ensure zero*nan returns zero
-                auto beta = static_cast<typename Inputs::DType>(inputs.beta);
-                auto zero = static_cast<typename Inputs::DType>(0);
+                auto beta = inputs.beta;
+                auto zero = static_cast<typename Inputs::BetaType>(0);
 
-                inputs.d[dIndex] = static_cast<typename Inputs::DType>(inputs.alpha)
-                                       * static_cast<typename Inputs::DType>(value)
-                                   + ((beta == zero) ? zero : beta * inputs.c[cIndex]);
+                inputs.d[dIndex] = static_cast<typename Inputs::DType>(
+                    multiply<Accumulator>(inputs.alpha, value)
+                    + ((beta == zero) ? static_cast<Accumulator>(zero)
+                                      : multiply<Accumulator>(beta, inputs.c[cIndex])));
             }
+            if(env_bind == nullptr)
+                unsetenv("OMP_PROC_BIND");
         }
 
         void SolveCPU(ContractionProblem const& problem,
@@ -587,8 +598,7 @@ namespace Tensile
                                               << " aIndex=" << aIndex << " bIndex=" << bIndex
                                               << " aVal=" << aVal << " bVal=" << bVal << "\n";
                                 }
-
-                                value += static_cast<Accumulator>(aVal * bVal);
+                                value += multiply<Accumulator>(aVal, bVal);
                             }
                         std::vector<size_t> dCoord(outputTensor.dimensions(), 0);
                         dCoord[formatD.activation().batchPosition()]   = n;
@@ -605,8 +615,8 @@ namespace Tensile
                                       << spatialCoord[1] << "," << spatialCoord[0]
                                       << " dIndex=" << dIndex << " value=" << value << "\n";
                         }
-                        inputs.d[dIndex] = static_cast<typename Inputs::DType>(inputs.alpha)
-                                           * static_cast<typename Inputs::DType>(value);
+                        inputs.d[dIndex] = static_cast<typename Inputs::DType>(
+                            multiply<Accumulator>(inputs.alpha, value));
                     }
         }
 

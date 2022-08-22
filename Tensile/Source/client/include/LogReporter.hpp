@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -269,6 +269,12 @@ namespace Tensile
                                        reinterpret_cast<Int8 const*>(data),
                                        tensor,
                                        reinterpret_cast<Int8 const*>(ptrVal));
+                    else if(tensor.dataType() == DataType::BFloat16)
+                        logTensorTyped(level,
+                                       name,
+                                       reinterpret_cast<BFloat16 const*>(data),
+                                       tensor,
+                                       reinterpret_cast<BFloat16 const*>(ptrVal));
                     else
                         throw std::runtime_error(
                             concatenate("Can't log tensor of type ", tensor.dataType()));

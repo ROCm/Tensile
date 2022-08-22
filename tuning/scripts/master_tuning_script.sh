@@ -1,24 +1,27 @@
 #!/usr/bin/env bash
 
 ################################################################################
-# Copyright 2020-2021 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2020-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 HELP=false
@@ -37,7 +40,7 @@ REDO=false
 
 HELP_STR="
 Pre-Requisites:
-  >=Anaconda 3.6 (or install python3.6 or higher, python3-pip/pip3, python3-yaml, python3-setuptools, python3-distutils,
+  >=python3.6 or higher, python3-pip/pip3, python3-yaml, python3-setuptools, python3-distutils,
       python3-venv, wheel, setuptools, pyyaml, msgpack, matplotlib, pandas, and numpy)
   >=llvm-6.0-dev, >=cmake3.5, zlib1g-dev
   >=rocm3.3 stack for hip-clang
@@ -142,18 +145,12 @@ if ${DEPENDENCIES}; then
   # add required python dependencies
   pip3 install setuptools --upgrade && pip3 install wheel && pip3 install pyyaml msgpack
 
-  # download and install Anaconda to ensure the spreadsheet can be generated
-  if [ -z "$(ls -A ~/anaconda)" ]; then
-    wget https://repo.anaconda.com/archive/Anaconda3-2020.02-Linux-x86_64.sh -O ~/anaconda3.7.sh && \
-    bash ~/anaconda3.7.sh -b -p ~/anaconda && eval "$(~/anaconda/bin/conda shell.bash hook)"
-  fi
-
   # Install Gtest
-  if [ -z "$(ls -A /usr/src/gtest/googletest-release-1.10.0)" ]; then
+  if [ -z "$(ls -A /usr/src/gtest/googletest-release-1.11.0)" ]; then
     sudo mkdir -p /usr/src/gtest && pushd /usr/src/gtest && \
-    sudo wget https://github.com/google/googletest/archive/release-1.10.0.tar.gz  && \
-    sudo tar -xvf release-1.10.0.tar.gz  && \
-    pushd googletest-release-1.10.0 && \
+    sudo wget https://github.com/google/googletest/archive/release-1.11.0.tar.gz  && \
+    sudo tar -xvf release-1.11.0.tar.gz  && \
+    pushd googletest-release-1.11.0 && \
     sudo mkdir build && pushd build || exit && sudo cmake .. && sudo make && sudo make install \
       && popd || exit && popd || exit && popd || exit
   fi

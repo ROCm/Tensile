@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -78,12 +78,12 @@ namespace Tensile
 
             int64_t     m_curSolutionIdx = -1;
             std::string m_curSolutionName;
-            int64_t     m_curSolutionSpeed  = -1;
+            double      m_curSolutionSpeed  = -1.0;
             bool        m_curSolutionPassed = false;
 
             int64_t     m_fastestSolutionIdx = -1;
             std::string m_fastestSolutionName;
-            int64_t     m_fastestSolutionSpeed = -1;
+            double      m_fastestSolutionSpeed = -1.0;
         };
     } // namespace Client
 } // namespace Tensile

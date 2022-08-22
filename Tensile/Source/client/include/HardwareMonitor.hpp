@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,6 +36,8 @@
 #include <hip/hip_runtime.h>
 #include <rocm_smi/rocm_smi.h>
 
+#include "HardwareMonitorType.hpp"
+
 namespace Tensile
 {
     namespace Client
@@ -53,10 +55,8 @@ namespace Tensile
         public:
             /** Translates the Hip device index into the corresponding device index for
    * ROCm-SMI. */
-            static uint32_t GetROCmSMIIndex(int hipDeviceIndex);
 
-            using rsmi_temperature_type_t = int;
-            using clock                   = std::chrono::steady_clock;
+            using clock = std::chrono::steady_clock;
 
             // Monitor at the maximum possible rate.
             HardwareMonitor(int hipDeviceIndex);
@@ -65,14 +65,12 @@ namespace Tensile
 
             ~HardwareMonitor();
 
-            void addTempMonitor(rsmi_temperature_type_t   sensorType = 0,
-                                rsmi_temperature_metric_t metric     = RSMI_TEMP_CURRENT);
-            void addClockMonitor(rsmi_clk_type_t clockType);
+            void addTempMonitor();
+            void addClockMonitor(ClockType clockType);
             void addFanSpeedMonitor(uint32_t sensorIndex = 0);
 
-            double getAverageTemp(rsmi_temperature_type_t   sensorIndex = 0,
-                                  rsmi_temperature_metric_t metric      = RSMI_TEMP_CURRENT);
-            double getAverageClock(rsmi_clk_type_t clockType);
+            double getAverageTemp();
+            double getAverageClock(ClockType clockType);
             double getAverageFanSpeed(uint32_t sensorIndex = 0);
             int    getDeviceIndex()
             {
@@ -101,7 +99,8 @@ namespace Tensile
             void wait();
 
         private:
-            static void InitROCmSMI();
+            static uint32_t GetROCmSMIIndex(int hipDeviceIndex);
+            static void     InitROCmSMI();
 
             void assertActive();
             void assertNotActive();

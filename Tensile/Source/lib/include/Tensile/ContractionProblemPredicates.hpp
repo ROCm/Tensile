@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,7 @@
 
 #include <array>
 #include <cstddef>
+#include <limits>
 #include <vector>
 
 namespace Tensile
@@ -49,7 +50,7 @@ namespace Tensile
  */
         namespace Contraction
         {
-            struct FreeSizeAMultiple : public Predicate_CRTP<FreeSizeAMultiple, ContractionProblem>
+            struct Free0SizeMultiple : public Predicate_CRTP<Free0SizeMultiple, ContractionProblem>
             {
                 enum
                 {
@@ -59,8 +60,8 @@ namespace Tensile
                 size_t index;
                 size_t value;
 
-                FreeSizeAMultiple() = default;
-                FreeSizeAMultiple(size_t index, size_t value)
+                Free0SizeMultiple() = default;
+                Free0SizeMultiple(size_t index, size_t value)
                     : index(index)
                     , value(value)
                 {
@@ -68,16 +69,19 @@ namespace Tensile
 
                 static std::string Type()
                 {
-                    return "FreeSizeAMultiple";
+                    return "Free0SizeMultiple";
                 }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.freeSizeA(index) % value == 0;
+                    return (!problem.transposeC01() ? problem.freeSizeA(index)
+                                                    : problem.freeSizeB(index))
+                               % value
+                           == 0;
                 }
             };
 
-            struct FreeSizeBMultiple : public Predicate_CRTP<FreeSizeBMultiple, ContractionProblem>
+            struct Free1SizeMultiple : public Predicate_CRTP<Free1SizeMultiple, ContractionProblem>
             {
                 enum
                 {
@@ -87,8 +91,8 @@ namespace Tensile
                 size_t index;
                 size_t value;
 
-                FreeSizeBMultiple() = default;
-                FreeSizeBMultiple(size_t index, size_t value)
+                Free1SizeMultiple() = default;
+                Free1SizeMultiple(size_t index, size_t value)
                     : index(index)
                     , value(value)
                 {
@@ -96,12 +100,15 @@ namespace Tensile
 
                 static std::string Type()
                 {
-                    return "FreeSizeBMultiple";
+                    return "Free1SizeMultiple";
                 }
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.freeSizeB(index) % value == 0;
+                    return (!problem.transposeC01() ? problem.freeSizeB(index)
+                                                    : problem.freeSizeA(index))
+                               % value
+                           == 0;
                 }
             };
 
@@ -394,6 +401,172 @@ namespace Tensile
                 }
             };
 
+            struct SizeGreaterThan : public Predicate_CRTP<SizeGreaterThan, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = true,
+                    HasValue = true
+                };
+                size_t index;
+                size_t value;
+
+                SizeGreaterThan() = default;
+                SizeGreaterThan(size_t index, size_t value)
+                    : index(index)
+                    , value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "SizeGreaterThan";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return (problem.size(index) > value);
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.size(index) << " > " << value
+                           << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
+            struct SizeLessThan : public Predicate_CRTP<SizeLessThan, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = true,
+                    HasValue = true
+                };
+                size_t index;
+                size_t value;
+
+                SizeLessThan() = default;
+                SizeLessThan(size_t index, size_t value)
+                    : index(index)
+                    , value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "SizeLessThan";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return (problem.size(index) < value);
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.size(index) << " < " << value
+                           << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
+            struct SizeMultiple : public Predicate_CRTP<SizeMultiple, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = true,
+                    HasValue = true
+                };
+                size_t index;
+                size_t value;
+
+                SizeMultiple() = default;
+                SizeMultiple(size_t index, size_t value)
+                    : index(index)
+                    , value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "SizeMultiple";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return ((problem.size(index) % value) == 0);
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.size(index) << " % " << value
+                           << " == 0) == " << rv;
+
+                    return rv;
+                }
+            };
+
+            struct Range
+            {
+                size_t min = 0;
+                size_t max = std::numeric_limits<size_t>::max();
+            };
+
+            inline std::ostream& operator<<(std::ostream& stream, Range const& range)
+            {
+                return stream << "min: " << range.min << ", max: " << range.max;
+            }
+
+            struct SizeInRange : public Predicate_CRTP<SizeInRange, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = true,
+                    HasValue = true
+                };
+                size_t index;
+                Range  value;
+
+                SizeInRange() = default;
+                SizeInRange(size_t index, Range value)
+                    : index(index)
+                    , value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "SizeInRange";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return (problem.size(index) >= value.min) && (problem.size(index) < value.max);
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+                    stream << *this << ": (" << value.min << " <= " << problem.size(index)
+                           << " <= " << value.max << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
             struct StrideAEqual : public Predicate_CRTP<StrideAEqual, ContractionProblem>
             {
                 enum
@@ -568,6 +741,34 @@ namespace Tensile
                 }
             };
 
+            struct CEqualsD : public Predicate_CRTP<CEqualsD, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+                static std::string Type()
+                {
+                    return "CEqualsD";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.cEqualsD();
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << this->type() << "(problem.cEqualsD() == True) == " << rv;
+
+                    return rv;
+                }
+            };
+
             struct BetaZero : public Predicate_CRTP<BetaZero, ContractionProblem>
             {
                 enum
@@ -719,6 +920,60 @@ namespace Tensile
                 }
             };
 
+            struct AlphaValue : public Predicate_CRTP<AlphaValue, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+
+                ScalarValue value;
+
+                AlphaValue() = default;
+                AlphaValue(ScalarValue value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "AlphaValue";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.alphaRestriction() == value || value == ScalarValue::Any;
+                }
+            };
+
+            struct BetaValue : public Predicate_CRTP<BetaValue, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+
+                ScalarValue value;
+
+                BetaValue() = default;
+                BetaValue(ScalarValue value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "BetaValue";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.betaRestriction() == value || value == ScalarValue::Any;
+                }
+            };
+
             struct TypesEqual : public Predicate_CRTP<TypesEqual, ContractionProblem>
             {
                 enum
@@ -858,6 +1113,59 @@ namespace Tensile
                 }
             };
 
+            struct BufferLoadOffsetLimitCheck_Beta
+                : public Predicate_CRTP<BufferLoadOffsetLimitCheck_Beta, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                size_t value;
+
+                BufferLoadOffsetLimitCheck_Beta() = default;
+                BufferLoadOffsetLimitCheck_Beta(size_t value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "BufferLoadOffsetLimitCheck_Beta";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    if(problem.c().empty() || problem.beta() == 0)
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        const uint64_t TWO_POW_32 = 4294967296;
+                        return problem.c().strides()[1] * problem.c().elementBytes() * value
+                               < TWO_POW_32;
+                    }
+                }
+
+                virtual std::string toString() const override
+                {
+                    return concatenate(this->type(), "(MT1:", value, ")");
+                }
+
+                virtual bool debugEval(ContractionProblem const& problem,
+                                       std::ostream&             stream) const override
+                {
+                    bool rv = (*this)(problem);
+
+                    stream << *this << ": (" << problem.c().strides()[1] << " * "
+                           << problem.c().elementBytes() << " * " << value << " < 4294967296"
+                           << ") == " << rv;
+
+                    return rv;
+                }
+            };
+
             struct BufferStoreOffsetLimitCheck
                 : public Predicate_CRTP<BufferStoreOffsetLimitCheck, ContractionProblem>
             {
@@ -882,7 +1190,7 @@ namespace Tensile
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
                     const uint64_t TWO_POW_32 = 4294967296;
-                    return problem.a().strides()[1] * problem.a().elementBytes() * value
+                    return problem.d().strides()[1] * problem.d().elementBytes() * value
                            < TWO_POW_32;
                 }
 
@@ -896,8 +1204,8 @@ namespace Tensile
                 {
                     bool rv = (*this)(problem);
 
-                    stream << *this << ": (" << problem.a().strides()[1] << " * "
-                           << problem.a().elementBytes() << " * " << value << " < 4294967296"
+                    stream << *this << ": (" << problem.d().strides()[1] << " * "
+                           << problem.d().elementBytes() << " * " << value << " < 4294967296"
                            << ") == " << rv;
 
                     return rv;
@@ -1088,6 +1396,69 @@ namespace Tensile
                     {
                         return false;
                     }
+                }
+            };
+
+            struct Experimental : public Predicate_CRTP<Experimental, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+
+                Experimental() = default;
+
+                static std::string Type()
+                {
+                    return "Experimental";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return (problem.performanceMetric() == PerformanceMetric::Experimental);
+                }
+            };
+
+            struct Fp16AltImpl : public Predicate_CRTP<Fp16AltImpl, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+
+                Fp16AltImpl() = default;
+
+                static std::string Type()
+                {
+                    return "Fp16AltImpl";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.fp16AltImpl();
+                }
+            };
+
+            struct EqualityMatching : public Predicate_CRTP<EqualityMatching, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+
+                EqualityMatching() = default;
+
+                static std::string Type()
+                {
+                    return "EqualityMatching";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return true;
                 }
             };
         } // namespace Contraction

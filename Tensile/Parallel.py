@@ -1,22 +1,25 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 import os
@@ -29,7 +32,10 @@ def CPUThreadCount(enable=True):
   if not enable or globalParameters["CpuThreads"] == 0:
     return 0
   else:
-    cpu_count = len(os.sched_getaffinity(0))
+    if os.name == "nt":
+      cpu_count = os.cpu_count()
+    else:
+      cpu_count = len(os.sched_getaffinity(0))
     cpuThreads = globalParameters["CpuThreads"]
     if cpuThreads < 0:
         return cpu_count*abs(cpuThreads)
@@ -57,7 +63,12 @@ def apply_print_exception(item, *args):
     sys.stdout.flush()
     sys.stderr.flush()
 
-def ProcessingPool(enable=True):
+def OverwriteGlobalParameters(newGlobalParameters):
+  from . import Common
+  Common.globalParameters.clear()
+  Common.globalParameters.update(newGlobalParameters)
+
+def ProcessingPool(enable=True, maxTasksPerChild=None):
   import multiprocessing
   import multiprocessing.dummy
 
@@ -66,9 +77,13 @@ def ProcessingPool(enable=True):
   if (not enable) or threadCount <= 1:
     return multiprocessing.dummy.Pool(1)
 
-  return multiprocessing.Pool(threadCount)
+  if multiprocessing.get_start_method() == "spawn":
+    from . import Common
+    return multiprocessing.Pool(threadCount, initializer=OverwriteGlobalParameters, maxtasksperchild=maxTasksPerChild, initargs=(Common.globalParameters,))
+  else:
+    return multiprocessing.Pool(threadCount, maxtasksperchild=maxTasksPerChild)
 
-def ParallelMap(function, objects, message="", enable=True, method=None):
+def ParallelMap(function, objects, message="", enable=True, method=None, maxTasksPerChild=None):
   """
   Generally equivalent to list(map(function, objects)), possibly executing in parallel.
 
@@ -82,7 +97,7 @@ def ParallelMap(function, objects, message="", enable=True, method=None):
   """
   from .Common import globalParameters
   threadCount = CPUThreadCount(enable)
-  pool = ProcessingPool(enable)
+  pool = ProcessingPool(enable, maxTasksPerChild)
 
   if threadCount <= 1 and globalParameters["ShowProgressBar"]:
     # Provide a progress bar for single-threaded operation.

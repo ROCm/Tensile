@@ -1,22 +1,25 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 from .SolutionStructs import Solution, isPackedIndex
@@ -298,6 +301,16 @@ class SolutionWriter:
       s += "%shipDeviceProp_t deviceProperties;\n" % (t)
       # TODO - should cache the device properties - expensive to call on each iteration here:
       s += "%shipGetDeviceProperties( &deviceProperties, deviceId );\n" % (t)
+      s += "#if HIP_VERSION >= 50220730\n"
+      s += "%sint hip_version;\n" % (t)
+      s += "%shipRuntimeGetVersion(&hip_version);\n" % (t)
+      s += "%sif(hip_version >= 50220730)\n" (t)
+      s += "%s{\n" (t)
+      s += "%s    hipDeviceGetAttribute(&deviceProperties.multiProcessorCount,\n" (t)
+      s += "%s                          hipDeviceAttributePhysicalMultiProcessorCount,\n" (t)
+      s += "%s                          deviceId);\n" (t)
+      s += "%s}\n" (t)
+      s += "#endif\n"
       s += "%sunsigned int numGroups = totalWorkGroups0 * totalWorkGroups1;\n" % (t)
       s += "%sglobalWorkSize[0][0] = (deviceProperties.multiProcessorCount * %u < numGroups) ? (deviceProperties.multiProcessorCount * %u) : numGroups;\n" \
               % (t, persistent, persistent)
@@ -931,7 +944,7 @@ class SolutionWriter:
   ##############################################################################
   def getHeaderString(self, solution):
     s = ""
-    if not globalParameters["MergeFiles"]:
+    if not globalParameters["MergeFiles"] or globalParameters["NumMergedFiles"] > 1:
       s += "#pragma once\n\n"
       s += "#include \"TensileTypes.h\"\n"
       s += "#include \"SolutionHelper.h\"\n"

@@ -1,7 +1,8 @@
-/**
+/*******************************************************************************
+ *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -18,9 +19,10 @@
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ *******************************************************************************/
 
 #include <ConvolutionProblem.hpp>
 #include <Tensile/ContractionProblem.hpp>
@@ -155,7 +157,7 @@ namespace Tensile
                                      + identifier);
 
         m_filterPositions.clear();
-        if((identifier == "KCYX" and !transposeCK) || (identifier == "CKYX" and transposeCK))
+        if((identifier == "KCYX" && !transposeCK) || (identifier == "CKYX" && transposeCK))
         {
 
             assert(formatNumSpatialDims == 2);
@@ -174,7 +176,7 @@ namespace Tensile
             m_cinPosition  = position++;
             m_coutPosition = position;
         }
-        else if((identifier == "CKYX" and !transposeCK) || (identifier == "KCYX" and transposeCK))
+        else if((identifier == "CKYX" && !transposeCK) || (identifier == "KCYX" && transposeCK))
         {
             assert(formatNumSpatialDims == 2);
             size_t position = 0;
@@ -322,7 +324,6 @@ namespace Tensile
         for(auto part = parts.begin() + 4; part != parts.end(); part++)
         {
             std::vector<std::string> flags;
-            std::vector<std::string> xvals;
             boost::split(flags, *part, boost::algorithm::is_any_of(":"));
             assert(flags.size() == 2); // must be key:value pair
 
@@ -568,7 +569,7 @@ namespace Tensile
     }
 
     template <typename T>
-    static std::string delimitedVector(const std::vector<T>& v, std::string delimiter)
+    static std::string delimitedVector(const std::vector<T>& v, const std::string& delimiter)
     {
         std::ostringstream rv;
 

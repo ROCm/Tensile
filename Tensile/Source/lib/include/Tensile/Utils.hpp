@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -94,41 +94,41 @@ namespace Tensile
         }
     }
 
-    template <typename T>
-    inline std::ostream& stream_write(std::ostream& stream, T const& val)
-    {
-        return stream << val;
-    }
-
-    template <typename T, typename... Ts>
-    inline std::ostream& stream_write(std::ostream& stream, T const& val, Ts const&... vals)
-    {
-        return stream_write(stream << val, vals...);
-    }
-
-    template <typename... Ts>
-    inline std::string concatenate(Ts const&... vals)
-    {
-        std::ostringstream msg;
-        stream_write(msg, vals...);
-
-        return msg.str();
-    }
-
-    template <bool T_Enable, typename... Ts>
-    inline std::string concatenate_if(Ts const&... vals)
-    {
-        if(!T_Enable)
-            return "";
-
-        return concatenate(vals...);
-    }
-
     template <typename T, size_t N>
     inline std::ostream& operator<<(std::ostream& stream, std::array<T, N> const& array)
     {
         streamJoin(stream, array, ", ");
         return stream;
+    }
+
+    template <typename T>
+    inline std::ostream& stream_write(std::ostream& stream, T&& val)
+    {
+        return stream << std::forward<T>(val);
+    }
+
+    template <typename T, typename... Ts>
+    inline std::ostream& stream_write(std::ostream& stream, T&& val, Ts&&... vals)
+    {
+        return stream_write(stream << std::forward<T>(val), std::forward<Ts>(vals)...);
+    }
+
+    template <typename... Ts>
+    inline std::string concatenate(Ts&&... vals)
+    {
+        std::ostringstream msg;
+        stream_write(msg, std::forward<Ts>(vals)...);
+
+        return msg.str();
+    }
+
+    template <bool T_Enable, typename... Ts>
+    inline std::string concatenate_if(Ts&&... vals)
+    {
+        if(!T_Enable)
+            return "";
+
+        return concatenate(std::forward<Ts>(vals)...);
     }
 
     class StreamRead

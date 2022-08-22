@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -89,7 +89,7 @@ namespace Tensile
             {
                 try
                 {
-                    int64_t speed      = std::stoll(valueStr);
+                    double speed       = std::stod(valueStr);
                     m_curSolutionSpeed = speed;
                     //m_stream << "Fastest: " << m_fastestSolutionSpeed << std::endl;
                 }
@@ -154,7 +154,7 @@ namespace Tensile
             // reset
             m_fastestSolutionIdx   = -1;
             m_fastestSolutionName  = "";
-            m_fastestSolutionSpeed = -1;
+            m_fastestSolutionSpeed = -1.0;
         }
 
         void LibraryUpdateReporter::postSolution()
@@ -169,7 +169,7 @@ namespace Tensile
 
             m_curSolutionName   = "";
             m_curSolutionIdx    = -1;
-            m_curSolutionSpeed  = -1;
+            m_curSolutionSpeed  = -1.0;
             m_curSolutionPassed = false;
         }
 

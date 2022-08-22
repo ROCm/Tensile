@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -51,6 +51,7 @@ namespace Tensile
             , m_kernelLanguage(args["kernel-language"].as<KernelLanguage>())
             , m_performanceMetric(args["performance-metric"].as<PerformanceMetric>())
             , m_deterministicMode(args["deterministic-mode"].as<bool>())
+            , m_cEqualsD(args["c-equal-d"].as<bool>())
             , m_arithmeticUnit(args["arithmetic-unit"].as<ArithmeticUnit>())
             , m_aStrides(args["a-strides"].as<std::vector<std::vector<size_t>>>())
             , m_bStrides(args["b-strides"].as<std::vector<std::vector<size_t>>>())
@@ -96,7 +97,8 @@ namespace Tensile
             if(args.count("beta-type"))
                 m_betaType = args["beta-type"].as<DataType>();
 
-            m_beta = DataInitialization::getValue<double>(args["init-beta"].as<InitMode>());
+            m_beta  = DataInitialization::getValue<double>(args["init-beta"].as<InitMode>());
+            m_alpha = DataInitialization::getValue<double>(args["init-alpha"].as<InitMode>());
 
             if(args["convolution-vs-contraction"].as<bool>())
                 m_convProblemSizes
@@ -161,6 +163,9 @@ namespace Tensile
                                                                 m_dOffset,
                                                                 m_beta));
 
+                rv.back().setAlphaRestriction(toScalarValueEnum(m_alpha));
+                rv.back().setCEqualsD(m_cEqualsD);
+
                 if(i < m_aZeroPads.size())
                 {
                     const auto& zp = m_aZeroPads[i];
@@ -197,6 +202,7 @@ namespace Tensile
                 rv.back().setPerformanceMetric(m_performanceMetric);
                 rv.back().setDeterministicMode(m_deterministicMode);
                 rv.back().setArithmeticUnit(m_arithmeticUnit);
+                rv.back().setFp16AltImpl(m_fp16AltImpl);
 
                 if(m_convProblemSizes.size())
                     rv.back().setConvProblemSizes(m_convProblemSizes[i]);

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -44,6 +44,8 @@ namespace Tensile
             return "CUEfficiency";
         case PerformanceMetric::DeviceEfficiency:
             return "DeviceEfficiency";
+        case PerformanceMetric::Experimental:
+            return "Experimental";
 
         case PerformanceMetric::Count:
         default:;
@@ -61,6 +63,8 @@ namespace Tensile
             return "CUEff";
         case PerformanceMetric::DeviceEfficiency:
             return "DvEff";
+        case PerformanceMetric::Experimental:
+            return "Test";
 
         case PerformanceMetric::Count:
         default:;
@@ -87,11 +91,16 @@ namespace Tensile
         registerTypeInfo<PerformanceMetric::Auto>();
         registerTypeInfo<PerformanceMetric::CUEfficiency>();
         registerTypeInfo<PerformanceMetric::DeviceEfficiency>();
+        registerTypeInfo<PerformanceMetric::Experimental>();
     }
 
     void PerformanceMetricTypeInfo::registerAllTypeInfoOnce()
     {
         static int call_once = (registerAllTypeInfo(), 0);
+
+        // Use the variable to quiet the compiler.
+        if(call_once)
+            return;
     }
 
     void PerformanceMetricTypeInfo::addInfoObject(PerformanceMetricTypeInfo const& info)

@@ -21,7 +21,6 @@ GlobalParameters:
   LibraryPrintDebug: 0
   CpuThreads: 0
   PrintSolutionRejectionReason: 1
-  NewClient: 2
   PrintTensorA: 1
   PrintTensorD: 2
 

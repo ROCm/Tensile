@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -73,6 +73,14 @@ namespace Tensile
                 return "TrigAbsCos";
             case InitMode::RandomNarrow:
                 return "RandomNarrow";
+            case InitMode::NegOne:
+                return "NegOne";
+            case InitMode::Max:
+                return "Max";
+            case InitMode::DenormMin:
+                return "DenormMin";
+            case InitMode::DenormMax:
+                return "DenormMax";
 
             case InitMode::Count:
                 break;
@@ -126,6 +134,14 @@ namespace Tensile
                 mode = InitMode::TrigAbsCos;
             else if(strValue == ToString(InitMode::RandomNarrow))
                 mode = InitMode::RandomNarrow;
+            else if(strValue == ToString(InitMode::NegOne))
+                mode = InitMode::NegOne;
+            else if(strValue == ToString(InitMode::Max))
+                mode = InitMode::Max;
+            else if(strValue == ToString(InitMode::DenormMin))
+                mode = InitMode::DenormMin;
+            else if(strValue == ToString(InitMode::DenormMax))
+                mode = InitMode::DenormMax;
             else if(std::all_of(strValue.begin(), strValue.end(), isdigit))
             {
                 int value = atoi(strValue.c_str());

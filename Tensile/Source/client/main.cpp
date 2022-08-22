@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -225,9 +225,9 @@ namespace Tensile
                 ("log-file-append",          po::value<bool>()->default_value(false),                "Append to log file.")
                 ("log-level",                po::value<LogLevel>()->default_value(LogLevel::Debug),  "Log level")
 
-                ("library-update-file",      po::value<std::string>()->default_value(""), "File name which will have indices "
-                                                                       "and speeds suitable for updating "
-                                                                       "an existing library logic file.")
+                ("library-update-file",      po::value<std::string>()->default_value(""), "File name for writing indices "
+                                                                                          "and speeds suitable for updating "
+                                                                                          "an existing library logic file.")
                 ("library-update-comment",   po::value<bool>()->default_value(false), "Include solution name as a "
                                                                                       "comment in library update "
                                                                                       "file.")
@@ -301,12 +301,26 @@ namespace Tensile
             }
             else
             {
+                //only trigger exception when failed to load all code objects.
+                bool       loaded   = false;
+                hipError_t retError = hipSuccess;
+
                 for(auto const& filename : filenames)
                 {
+                    hipError_t ret;
+
                     if(logLevel >= LogLevel::Verbose)
                         std::cout << "Loading " << filename << std::endl;
-                    adapter.loadCodeObjectFile(filename);
+                    ret = adapter.loadCodeObjectFile(filename);
+
+                    if(ret == hipSuccess)
+                        loaded = true;
+                    else
+                        retError = ret;
                 }
+
+                if(!loaded)
+                    HIP_CHECK_EXC(retError);
             }
         }
 
@@ -428,6 +442,8 @@ namespace Tensile
                 while(solutionIterator->moreSolutionsInProblem())
                 {
                     auto solution = solutionIterator->getSolution();
+                    if(solution == nullptr)
+                        throw std::runtime_error("Could not find a solution");
 
                     listeners.preSolution(*solution);
 
@@ -468,6 +484,17 @@ int main(int argc, const char* argv[])
     Tensile::hip::SolutionAdapter adapter;
     LoadCodeObjects(args, adapter);
 
+    auto filename = args["library-file"].as<std::string>();
+
+    size_t      directoryPos     = filename.rfind('/');
+    std::string libraryDirectory = filename;
+    if(directoryPos != std::string::npos)
+        libraryDirectory.resize(directoryPos + 1);
+    else
+        libraryDirectory = '.';
+
+    adapter.initializeLazyLoading(hardware->archName(), libraryDirectory);
+
     auto problems        = problemFactory.problems();
     int  firstProblemIdx = args["problem-start-idx"].as<int>();
     int  numProblems     = args["num-problems"].as<int>();
@@ -484,16 +511,10 @@ int main(int argc, const char* argv[])
     if(firstSolutionIdx < 0)
         firstSolutionIdx = library->solutions.begin()->first;
 
-    int lastSolutionIdx;
     if(numSolutions < 0)
     {
         auto iter = library->solutions.end();
         iter--;
-        lastSolutionIdx = iter->first;
-    }
-    else
-    {
-        lastSolutionIdx = firstSolutionIdx + numSolutions - 1;
     }
 
     size_t maxWorkspaceSizeLimit = args["max-workspace-size"].as<size_t>();
@@ -565,6 +586,8 @@ int main(int argc, const char* argv[])
             while(solutionIterator->moreSolutionsInProblem())
             {
                 auto solution = solutionIterator->getSolution();
+                if(solution == nullptr)
+                    throw std::runtime_error("Could not find a solution");
 
                 listeners.preSolution(*solution);
 
@@ -587,14 +610,19 @@ int main(int argc, const char* argv[])
                             {
                                 listeners.preWarmup();
                                 if(gpuTimer)
-                                    adapter.launchKernels(
-                                        kernels, stream, warmupStartEvents[i], warmupStopEvents[i]);
+                                    HIP_CHECK_EXC(adapter.launchKernels(kernels,
+                                                                        stream,
+                                                                        warmupStartEvents[i],
+                                                                        warmupStopEvents[i]));
                                 else
-                                    adapter.launchKernels(kernels, stream, nullptr, nullptr);
+                                    HIP_CHECK_EXC(
+                                        adapter.launchKernels(kernels, stream, nullptr, nullptr));
                                 listeners.postWarmup();
+                                // Do validation after first warmup
+                                if(i == 0)
+                                    listeners.validateWarmups(
+                                        inputs, warmupStartEvents, warmupStopEvents);
                             }
-
-                            listeners.validateWarmups(inputs, warmupStartEvents, warmupStopEvents);
 
                             size_t syncs = listeners.numSyncs();
                             size_t enq   = listeners.numEnqueuesPerSync();
@@ -611,10 +639,11 @@ int main(int argc, const char* argv[])
                                 for(int j = 0; j < enq; j++)
                                 {
                                     if(gpuTimer)
-                                        adapter.launchKernels(
-                                            kernels, stream, startEvents[j], stopEvents[j]);
+                                        HIP_CHECK_EXC(adapter.launchKernels(
+                                            kernels, stream, startEvents[j], stopEvents[j]));
                                     else
-                                        adapter.launchKernels(kernels, stream, nullptr, nullptr);
+                                        HIP_CHECK_EXC(adapter.launchKernels(
+                                            kernels, stream, nullptr, nullptr));
                                 }
 
                                 listeners.postEnqueues(startEvents, stopEvents);
@@ -635,7 +664,10 @@ int main(int argc, const char* argv[])
                 listeners.postSolution();
 
                 if(exitOnError && listeners.error() > 0)
-                    return listeners.error();
+                {
+                    // error range in shell is [0-255]
+                    return std::min(listeners.error(), 255);
+                }
             }
 
             listeners.postProblem();
@@ -646,5 +678,6 @@ int main(int argc, const char* argv[])
 
     listeners.finalizeReport();
 
-    return listeners.error();
+    // error range in shell is [0-255]
+    return std::min(listeners.error(), 255);
 }

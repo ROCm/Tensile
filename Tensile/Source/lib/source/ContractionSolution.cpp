@@ -1,5 +1,8 @@
-/**
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+/*******************************************************************************
+ *
+ * MIT License
+ *
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -16,9 +19,10 @@
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ *******************************************************************************/
 
 #include <Tensile/ContractionSolution.hpp>
 
@@ -293,11 +297,11 @@ namespace Tensile
                 rv.numWorkGroups.z *= problem.batchSize(i);
         }
 
-        rv.numWorkGroups.x = CeilDivide(rv.numWorkGroups.x, sizeMapping.macroTile.x);
-        rv.numWorkGroups.y = CeilDivide(rv.numWorkGroups.y, sizeMapping.macroTile.y);
-
         if(problem.transposeC01())
             std::swap(rv.numWorkGroups.x, rv.numWorkGroups.y);
+
+        rv.numWorkGroups.x = CeilDivide(rv.numWorkGroups.x, sizeMapping.macroTile.x);
+        rv.numWorkGroups.y = CeilDivide(rv.numWorkGroups.y, sizeMapping.macroTile.y);
 
         uint32_t problemNumGroupTiles0 = rv.numWorkGroups.x;
         uint32_t problemNumGroupTiles1 = rv.numWorkGroups.y;
@@ -363,8 +367,8 @@ namespace Tensile
 
         if(sizeMapping.globalAccumulation)
         {
-            rv.args.append<void const*>("ws", inputs.ws);
-            rv.args.append<void const*>("ws", inputs.ws);
+            rv.args.append<void const*>("ws_d", inputs.ws);
+            rv.args.append<void const*>("ws_c", inputs.ws);
         }
         else if(problemType.stridedBatched)
         {
@@ -407,14 +411,14 @@ namespace Tensile
             size_t wsStride = startStrideCD ? d.sizes()[0] : 1;
             for(size_t i = startStrideCD; i < d.dimensions(); i++)
             {
-                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW", i), wsStride);
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW_D", i), wsStride);
                 wsStride *= d.sizes()[i];
             }
 
             wsStride = startStrideCD ? d.sizes()[0] : 1;
             for(size_t i = startStrideCD; i < c.dimensions(); i++)
             {
-                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW", i), wsStride);
+                rv.args.append<uint32_t>(concatenate_if<T_Debug>("strideW_C", i), wsStride);
                 wsStride *= d.sizes()[i];
             }
         }
@@ -585,6 +589,8 @@ namespace Tensile
             rv.args.append<uint32_t>("pad", 0);
         }
 
+        rv.codeObjectFile = codeObjectFilename;
+
         return rv;
     }
 
@@ -675,6 +681,9 @@ namespace Tensile
         rv.args.append<uint32_t>("offsetC", c.offset());
 
         rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
+
+        //Pass along code object dependency
+        rv.codeObjectFile = codeObjectFilename;
 
         return rv;
     }
@@ -787,6 +796,9 @@ namespace Tensile
         else
             rv.args.append<uint32_t>("gsu", sizeMapping.globalSplitU);
 
+        //@TODO determine if this is needed, may not end up in the same code object file
+        rv.codeObjectFile = codeObjectFilename;
+
         return rv;
     }
 
@@ -813,19 +825,51 @@ namespace Tensile
                                                                   TypedInputs const& inputs,
                                                                   Hardware const&    hardware) const
     {
-        bool debug = Debug::Instance().printKernelArguments();
+        bool debug = Debug::Instance().printKernelArguments() || this->kernelArgsLog;
+
+        int boundSize = 1;
+        for(size_t i = 0; i < problem.boundIndices().size(); i++)
+            boundSize *= problem.boundSize(i);
 
         // Check for nullptrs if alpha is non-zero.
-        if((inputs.alpha != static_cast<typename TypedInputs::AlphaType>(0) /*&& k!=0*/)
+        if(((inputs.alpha != static_cast<typename TypedInputs::AlphaType>(0)) && (boundSize != 0))
            && ((problem.stridedBatched() && (inputs.a == nullptr || inputs.b == nullptr))
                || (!problem.stridedBatched()
                    && (inputs.batchA == nullptr || inputs.batchB == nullptr))))
         {
             std::string matrixID = inputs.a == nullptr ? "A" : "B";
             std::string msg      = std::string("Unsupported nullptr for ") + matrixID
-                              + std::string(" when Alpha !=0\n");
+                              + std::string(" when (Alpha !=0) && (K != 0)\n");
             throw std::runtime_error(msg.c_str());
         }
+
+        // Check if alpha matches problem definition
+        if(problem.alphaRestriction() != ScalarValue::Any
+           && problem.alphaRestriction() != toScalarValueEnum(inputs.alpha))
+        {
+            std::stringstream inputValue;
+            inputValue << inputs.alpha;
+            std::string msg = std::string("Alpha value ") + inputValue.str()
+                              + std::string(" doesn't match that set in problem: ")
+                              + ToString(problem.alphaRestriction());
+            throw std::runtime_error(msg.c_str());
+        }
+
+        // Check if beta matches problem definition
+        if(problem.betaRestriction() != ScalarValue::Any
+           && problem.betaRestriction() != toScalarValueEnum(inputs.beta))
+        {
+            std::stringstream inputValue;
+            inputValue << inputs.beta;
+            std::string msg = std::string("Beta value ") + inputValue.str()
+                              + std::string(" doesn't match that set in problem: ")
+                              + ToString(problem.betaRestriction());
+            throw std::runtime_error(msg.c_str());
+        }
+
+        if(problem.cEqualsD() && inputs.c != inputs.d)
+            throw std::runtime_error(
+                "ContractionProblem has cEqualsD set, but pointers for c and d are not equal");
 
         std::vector<KernelInvocation> rv;
 
@@ -867,8 +911,10 @@ namespace Tensile
         auto alphaType = problem.alphaType();
         auto betaType  = problem.betaType();
 
-        // Backward-compatible: when setAlpha/BetaType() wasn't called, use the old way
-        // Could remove after rocBLAS is updated
+        // TODO: Some gtests are passing the "problem" without actually defining the
+        // alpha/beta type (alphaType and betaType remain None).
+        // Until we fix those gtests, we need to keep this condition to adjust the missing
+        // alpha/beta data types.
         if(alphaType == DataType::None)
         {
             alphaType
@@ -1033,19 +1079,15 @@ namespace Tensile
     {
         ContractionSolution::Granularities granularities;
 
-        double MT0           = sizeMapping.macroTile.x;
-        double MT1           = sizeMapping.macroTile.y;
-        double NumCUs        = perf.CUs;
-        double wavefrontSize = 64; //defaults to 64
-        double simdPerCu     = 4;
+        double MT0 = sizeMapping.macroTile.x;
+        double MT1 = sizeMapping.macroTile.y;
 
         AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
-        if(pAMDGPU != nullptr)
-        {
-            NumCUs        = pAMDGPU->computeUnitCount;
-            wavefrontSize = pAMDGPU->wavefrontSize;
-            simdPerCu     = pAMDGPU->simdPerCu;
-        }
+        assert(pAMDGPU);
+
+        double NumCUs        = pAMDGPU->computeUnitCount;
+        double wavefrontSize = pAMDGPU->wavefrontSize;
+        double simdPerCu     = pAMDGPU->simdPerCu;
 
         double GlobalSplitU = sizeMapping.globalSplitU;
         double LocalSplitU  = sizeMapping.workGroupSize.z;
@@ -1142,7 +1184,6 @@ namespace Tensile
 
         auto it = ideals.begin();
 
-        int    closestK            = -1;
         int    closestKMeasure     = std::numeric_limits<int>::max();
         double closestKPerformance = 0.0;
 
@@ -1153,7 +1194,6 @@ namespace Tensile
             if(myMeasure < closestKMeasure)
             {
                 closestKMeasure     = myMeasure;
-                closestK            = myK;
                 closestKPerformance = it->second;
             }
             it++;
@@ -1164,7 +1204,6 @@ namespace Tensile
         double NumCUs = pp.granularities.CUs;
 
         double GlobalSplitU         = pp.granularities.GSU;
-        double LocalSplitU          = pp.granularities.LSU;
         double IdealGranularityPerf = closestKPerformance;
 
         pp.staticModel = staticPerformanceModel(
@@ -1201,11 +1240,9 @@ namespace Tensile
         ContractionSolution::TAMetricProblemScore pp,
         ContractionSolution::TAMetricProblemScore ppReference) const
     {
-        double metric = 0.0;
-
         double tile0GranularityDim = abs(log(ppReference.granularites.tile0Granularity)
                                          - log(pp.granularites.tile0Granularity));
-        metric                     = tile0GranularityDim;
+        double metric              = tile0GranularityDim;
 
         double tile1GranularityDim = abs(log(ppReference.granularites.tile1Granularity)
                                          - log(pp.granularites.tile1Granularity));

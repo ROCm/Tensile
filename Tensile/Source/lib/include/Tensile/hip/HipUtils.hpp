@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -67,6 +67,14 @@
                 << (message) << std::endl;                                                        \
             throw std::runtime_error(msg.str());                                                  \
         }                                                                                         \
+    } while(0)
+
+#define HIP_CHECK_RETURN(expr) \
+    do                         \
+    {                          \
+        hipError_t e = (expr); \
+        if(e)                  \
+            return e;          \
     } while(0)
 
 namespace Tensile

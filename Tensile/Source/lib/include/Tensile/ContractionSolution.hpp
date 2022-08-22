@@ -1,5 +1,8 @@
-/**
- * Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+/*******************************************************************************
+ *
+ * MIT License
+ *
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -16,9 +19,10 @@
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ *******************************************************************************/
 
 #pragma once
 
@@ -272,6 +276,7 @@ namespace Tensile
             bool        useInitialStridesAB     = false;
             bool        useInitialStridesCD     = false;
             bool        stridedBatched          = true;
+            bool        fp16AltImpl             = false;
         };
 
         struct LinearModel
@@ -283,7 +288,9 @@ namespace Tensile
 
         int         index = 0;
         std::string kernelName;
-        bool        debugKernel = false;
+        std::string codeObjectFilename;
+        bool        debugKernel   = false;
+        bool        kernelArgsLog = false;
 
         std::shared_ptr<Predicates::Predicate<Problem>> problemPredicate
             = std::make_shared<Predicates::True<Problem>>();

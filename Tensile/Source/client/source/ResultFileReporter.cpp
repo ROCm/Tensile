@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -79,9 +79,9 @@ namespace Tensile
             {
                 // cascade from BenchmarkTimer, Time-US first
                 ++m_currSolutionIdx;
-                double timeUS = std::stod(valueStr);
                 if(!m_invalidSolution)
                 {
+                    double timeUS = std::stod(valueStr);
                     if(m_fasterTimeUS < 0 || m_fasterTimeUS > timeUS)
                     {
                         m_fasterTimeUS = timeUS;
@@ -98,7 +98,7 @@ namespace Tensile
                 {
                     m_output.setValueForKey(m_solutionName, value);
 
-                    int64_t gflops = std::stoull(valueStr);
+                    double gflops = std::stod(valueStr);
                     if(m_fastestGflops < gflops)
                     {
                         m_winnerSolution    = m_solutionName;
@@ -233,8 +233,8 @@ namespace Tensile
             m_winnerSolution    = "";
             m_currSolutionIdx   = -1;
             m_winnerSolutionIdx = -1;
-            m_fastestGflops     = -1;
-            m_fasterTimeUS      = -1;
+            m_fastestGflops     = -1.0;
+            m_fasterTimeUS      = -1.0;
 
             if(!m_mergeSameProblems)
             {
