@@ -64,7 +64,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
 
             export PATH=/opt/rocm/bin:$PATH
             cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DCODE_OBJECT_VERSION=${cov} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
-            make -j\$(nproc)
+            make VERBOSE=1 -j\$(nproc)
 
             popd
             """
