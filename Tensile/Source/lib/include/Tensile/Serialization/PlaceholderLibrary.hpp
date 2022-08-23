@@ -50,7 +50,7 @@ namespace Tensile
                 if(!iot::outputting(io))
                 {
                     auto ctx      = static_cast<LibraryIOContext<MySolution>*>(iot::getContext(io));
-                    lib.solutions = ctx->solutions;
+                    lib.masterSolutions = ctx->solutions;
                     lib.solutionsGuard = ctx->solutionsGuard;
 
                     //Extract directory where TensileLibrary.dat/yaml file is located

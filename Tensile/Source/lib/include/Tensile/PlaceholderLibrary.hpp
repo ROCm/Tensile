@@ -57,7 +57,7 @@ namespace Tensile
     struct PlaceholderLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
         mutable std::shared_ptr<SolutionLibrary<MyProblem, MySolution>> library;
-        mutable SolutionMap<MySolution>*                                solutions;
+        mutable SolutionMap<MySolution>*                                masterSolutions;
         mutable std::mutex*                                             solutionsGuard;
         mutable std::mutex                                              lazyLoadingGuard;
         std::string                                                     filePrefix;
@@ -78,7 +78,7 @@ namespace Tensile
                     = static_cast<MasterSolutionLibrary<MyProblem, MySolution>*>(newLibrary.get());
                 library = mLibrary->library;
                 std::lock_guard<std::mutex> lock(*solutionsGuard);
-                solutions->insert(mLibrary->solutions.begin(), mLibrary->solutions.end());
+                masterSolutions->insert(mLibrary->solutions.begin(), mLibrary->solutions.end());
 
                 return mLibrary;
             }
