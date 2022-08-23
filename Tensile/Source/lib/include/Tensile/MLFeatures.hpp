@@ -191,7 +191,8 @@ namespace Tensile
                 float NumBatches = 1; // TODO: Higher batch sizes
                 float numTilesM  = problem.freeSizeA(0) * value.mt0_scale; // M / MT0
                 float numTilesN  = problem.freeSizeB(0) * value.mt1_scale; // N / MT1
-                float tilesPerCu = NumBatches * numTilesM * numTilesN * value.devSolScale;
+                float tilesPerCu
+                    = NumBatches * ceil(numTilesM) * ceil(numTilesN) * value.devSolScale;
 
                 return ContractionSolution::computeGranularity(tilesPerCu);
             }
