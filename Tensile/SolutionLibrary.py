@@ -82,9 +82,10 @@ class MatchingLibrary:
         propertyKeys = {
             2: Properties.Property("FreeSizeA", index=0),
             3: Properties.Property("FreeSizeB", index=0),
-            #0: Properties.Property("BatchSize", index=0),
             1: Properties.Property("BoundSize", index=0)
         }
+        if distance == "Equality":
+            propertyKeys[0] = Properties.Property("BatchSize", index=0)
 
         properties = list([propertyKeys[i] for i in indices if i in propertyKeys])
         keyOrder = [i for i, j in enumerate(indices) if j in propertyKeys]
@@ -96,7 +97,6 @@ class MatchingLibrary:
                 index = row[1][0]
                 value = SingleSolutionLibrary(solutions[index])
                 key = list([row[0][i] for i in keyOrder])
-                #key = list(row[0][0:len(properties)])
                 entry = {"key": key, "value": value, "speed": row[1][1]}
                 table.append(entry)
             except KeyError:
