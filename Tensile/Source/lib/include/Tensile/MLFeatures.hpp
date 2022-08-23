@@ -35,23 +35,22 @@
 namespace Tensile
 {
     /**
- * \addtogroup Properties
- *
- * @brief An MLFeature is a Property whose value is of type `float`.
- *
- * This allows it to be used as an input to ML models.
- */
-
+     * \addtogroup Properties
+     *
+     * @brief An MLFeature is a Property whose value is of type `float`.
+     *
+     * This allows it to be used as an input to ML models.
+     */
     namespace MLFeatures
     {
-        /*
-        * @brief A Property whose value is of type `float`.
-        */
+        /**
+         * @brief A Property whose value is of type `float`.
+         */
         template <typename Object>
         using MLFeature = Property<Object, float>;
 
         /**
-         * \copydoc Tensile::MLFeature_CRTP
+         * \copydoc Tensile::Property_CRTP
          */
         template <typename Class, typename Object>
         using MLFeature_CRTP = Property_CRTP<Class, Object, float>;
@@ -66,10 +65,6 @@ namespace Tensile
         /**
          * \addtogroup MLFeatures
          * @{
-         */
-
-        /* 
-         * Features
          */
         struct FreeSizeA : public MLFeature_CRTP<FreeSizeA, ContractionProblem>
         {
@@ -230,9 +225,9 @@ namespace Tensile
                 return totalTiles * value.devSolScale;
             }
         };
-    } // namespace Contraction
 
-    /**
- * @}
- */
+        /**
+         * @}
+         */
+    } // namespace MLFeatures
 } // namespace Tensile
