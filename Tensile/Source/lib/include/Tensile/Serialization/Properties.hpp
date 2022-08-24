@@ -157,6 +157,5 @@ namespace Tensile
             : public AutoMappingTraits<Contraction::OperationIdentifier, IO>
         {
         };
-
     } // namespace Serialization
 } // namespace Tensile

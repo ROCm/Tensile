@@ -1074,6 +1074,11 @@ namespace Tensile
         return size;
     }
 
+    float ContractionSolution::computeGranularity(float x)
+    {
+        return x / ceil(x);
+    }
+
     ContractionSolution::Granularities ContractionSolution::computeGranularities(
         Hardware const& hardware, double M, double N, double K, double NumBatches) const
     {
@@ -1101,8 +1106,8 @@ namespace Tensile
         granularities.numTiles0 = M / MT0;
         granularities.numTiles1 = N / MT1;
 
-        granularities.tile0Granularity = granularities.numTiles0 / ceil(granularities.numTiles0);
-        granularities.tile1Granularity = granularities.numTiles1 / ceil(granularities.numTiles1);
+        granularities.tile0Granularity = computeGranularity(granularities.numTiles0);
+        granularities.tile1Granularity = computeGranularity(granularities.numTiles1);
 
         granularities.tilesPerCu
             = (NumBatches * ceil(granularities.numTiles0) * ceil(granularities.numTiles1))
@@ -1111,8 +1116,7 @@ namespace Tensile
         granularities.totalTiles    = ceil(granularities.numTiles0) * ceil(granularities.numTiles1);
         granularities.natTilesPerCu = NumBatches * granularities.totalTiles / NumCUs;
         granularities.suTilesPerCu  = (granularities.totalTiles * GlobalSplitU) / NumCUs;
-        granularities.suCuGranularity
-            = granularities.suTilesPerCu / ceil(granularities.suTilesPerCu);
+        granularities.suCuGranularity = computeGranularity(granularities.suTilesPerCu);
 
         granularities.waveGranularity = std::min(
             1.00,
@@ -1132,7 +1136,7 @@ namespace Tensile
             = NumBatches * ceil(granularities.numTiles0) * ceil(granularities.numTiles1) / NumCUs;
         granularities.natCuGranularity = ceil(nat_tiles_per_cu) * ceil(nat_tiles_per_cu) / NumCUs;
 
-        granularities.cuGranularity = granularities.tilesPerCu / ceil(granularities.tilesPerCu);
+        granularities.cuGranularity = computeGranularity(granularities.tilesPerCu);
 
         granularities.totalGranularity
             = granularities.tile0Granularity * granularities.tile1Granularity
@@ -1356,4 +1360,10 @@ namespace Tensile
                       << " depthUorMT1=" << st.depthUorMT1;
     }
 
+    std::ostream& operator<<(std::ostream&                                       stream,
+                             ContractionSolution::GranularityScaleFactors const& gsf)
+    {
+        return stream << " mt0=" << gsf.mt0_scale << " mt1=" << gsf.mt1_scale
+                      << " gsc=" << gsf.devSolScale;
+    }
 } // namespace Tensile
