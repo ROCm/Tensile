@@ -170,7 +170,8 @@ namespace Tensile
         /**
    * Calculate required workspace size.
    */
-        size_t requiredWorkspaceSize(Problem const& problem) const;
+        size_t       requiredWorkspaceSize(Problem const& problem) const;
+        static float computeGranularity(float x);
 
         Granularities computeGranularities(
             Hardware const& hardware, double M, double N, double K, double NumBatches) const;
@@ -279,6 +280,14 @@ namespace Tensile
             bool        fp16AltImpl             = false;
         };
 
+        /* Scale factors used for partially calculating granularities */
+        struct GranularityScaleFactors
+        {
+            float mt0_scale; // 1/mt0
+            float mt1_scale; // 1/mt1
+            float devSolScale; // General (non-problem related) scaling
+        };
+
         struct LinearModel
         {
             double slope     = 1.0;
@@ -322,4 +331,6 @@ namespace Tensile
     std::ostream& operator<<(std::ostream&                                    stream,
                              ContractionSolution::ProjectedPerformance const& spm);
     std::ostream& operator<<(std::ostream& stream, BufferLoadCheckPacket const& st);
+    std::ostream& operator<<(std::ostream&                                       stream,
+                             ContractionSolution::GranularityScaleFactors const& gsf);
 } // namespace Tensile

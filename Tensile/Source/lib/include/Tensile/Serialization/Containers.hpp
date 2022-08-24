@@ -185,6 +185,8 @@ namespace Tensile
                                  std::shared_ptr<Tensile::Predicates::Predicate<Tensile::AMDGPU>>);
         TENSILE_SERIALIZE_VECTOR(true,
                                  std::shared_ptr<Tensile::Property<Tensile::ContractionProblem>>);
+        TENSILE_SERIALIZE_VECTOR(
+            true, std::shared_ptr<Tensile::MLFeatures::MLFeature<Tensile::ContractionProblem>>);
 
         TENSILE_SERIALIZE_VECTOR(false, std::shared_ptr<Tensile::ContractionSolution>);
 

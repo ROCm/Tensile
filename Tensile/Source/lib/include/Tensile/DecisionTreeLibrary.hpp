@@ -32,7 +32,6 @@
 #include <Tensile/Debug.hpp>
 #include <Tensile/DecisionTree.hpp>
 #include <Tensile/ProblemKey.hpp>
-#include <Tensile/Properties.hpp>
 #include <Tensile/SolutionLibrary.hpp>
 #include <Tensile/Utils.hpp>
 
