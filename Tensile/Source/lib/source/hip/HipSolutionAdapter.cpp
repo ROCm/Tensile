@@ -28,6 +28,7 @@
 #include <hip/hip_runtime.h>
 
 #include <cstddef>
+#include <fstream>
 
 #include <Tensile/Debug.hpp>
 #include <Tensile/EmbeddedData.hpp>
@@ -83,7 +84,20 @@ namespace Tensile
         {
             hipModule_t module;
 
-            HIP_CHECK_RETURN(hipModuleLoad(&module, path.c_str()));
+            // load file into buffer
+            std::ifstream coFile(path, std::ifstream::binary);
+            coFile.seekg(0, coFile.end);
+            auto length = coFile.tellg();
+            coFile.seekg(0, coFile.beg);
+
+            auto buff = std::make_unique<char[]>(length);
+            coFile.read(buff.get(), length);
+
+            // use moduleLoadData
+            HIP_CHECK_RETURN(hipModuleLoadData(&module, (void*)buff.get()));
+
+            // keep buffer around
+            m_moduleBuffers.push_back(std::move(buff));
 
             if(m_debug)
                 std::cout << "loaded code object " << path << std::endl;

@@ -87,6 +87,7 @@ namespace Tensile
             std::mutex m_access;
 
             std::vector<hipModule_t>                       m_modules;
+            std::vector<std::unique_ptr<char[]>>           m_moduleBuffers;
             std::unordered_map<std::string, hipFunction_t> m_kernels;
             bool                                           m_debug           = false;
             bool                                           m_debugSkipLaunch = false;
