@@ -6,7 +6,6 @@ GlobalParameters:
   BoundsCheck: True
   KernelTime: True
   # PrintSolutionRejectionReason: True
-  NumWarmups: 2
 
 BenchmarkProblems:
   ########################################
