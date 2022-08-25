@@ -2349,6 +2349,14 @@ class Solution(collections.abc.Mapping):
       reject(state, "MIWaveGroup should be [1, 4] for DirectToVgprB. Current value is [%s]"%state['MIWaveGroup'])
       return False
 
+    # Does not support MatrixInstBM, MatrixInstBN > 1
+    if state['MatrixInstBM'] > 1:
+      reject(state, "MatrixInstBM should be 1 for DirectToVgpr. Current value is %s"%state['MatrixInstBM'])
+      return False
+    if state['MatrixInstBN'] > 1:
+      reject(state, "MatrixInstBN should be 1 for DirectToVgpr. Current value is %s"%state['MatrixInstBN'])
+      return False
+
     # Does not work with WaveSeparateGlobalRead
     if state["WaveSeparateGlobalRead%c"%tc]:
       reject(state, "DirectToVgpr%c does not supports WaveSeparateGlobalRead%c"%(tc, tc))
@@ -3221,14 +3229,21 @@ class Solution(collections.abc.Mapping):
             validDepthU = False
 
       if validDepthU:
-      # check depthU and ThreadSeparateGlobalReadA==1 depthU*bpe <= 64 bytes reject ThreadSeparateGlobalRead =1
-      # only Enable TLU=1 case
-      # reject depthU for cases requiring < 2 lanes per fragment. depthU * bpe  must be multiple of cache-line sizes(l2)
-        if not state["ProblemType"]["TLUA"]:
-          if state["ThreadSeparateGlobalReadA"] and (((depthU//state["GlobalLoadVectorWidthA"])// (2 * state["ThreadSeparateGlobalReadA"])) < 2):
+        # check depthU and ThreadSeparateGlobalReadA==1 depthU*bpe <= 64 bytes reject ThreadSeparateGlobalRead =1
+        # only Enable TLU=0 case
+        # reject depthU for cases requiring < 2 lanes per fragment. depthU * bpe  must be multiple of cache-line sizes(l2)
+        bpr = 4 # all registers are 32bit
+        depthULds = depthU // state["DepthULdsDivisor"]
+        if state["ThreadSeparateGlobalReadA"]:
+          #if state["ThreadSeparateGlobalReadA"] and (((depthU//state["GlobalLoadVectorWidthA"])// (2 * state["ThreadSeparateGlobalReadA"])) < 2):
+          if (depthU * state["ProblemType"]["DataType"].numBytes() < 2 * state["GlobalLoadVectorWidthA"] * (2 * state["ThreadSeparateGlobalReadA"]) * bpr):
             validDepthU= False
-        if not state["ProblemType"]["TLUB"]:
-          if state["ThreadSeparateGlobalReadB"] and (((depthU//state["GlobalLoadVectorWidthB"])// (2 * state["ThreadSeparateGlobalReadB"])) < 2):
+        if state["ThreadSeparateGlobalReadB"]:
+          #if state["ThreadSeparateGlobalReadB"] and (((depthU//state["GlobalLoadVectorWidthB"])// (2 * state["ThreadSeparateGlobalReadB"])) < 2):
+          if (depthU * state["ProblemType"]["DataType"].numBytes() < 2 * state["GlobalLoadVectorWidthB"] * (2 * state["ThreadSeparateGlobalReadB"]) * bpr):
+            validDepthU= False
+          # reject if NblockSizePerLoad (= (waveWidth * GlobalLoadVectorWidthB // depthULds)) > MatrixInstN
+          if (state["WavefrontSize"] * state["GlobalLoadVectorWidthB"] // depthULds  > state["MatrixInstN"]):
             validDepthU= False
 
       # this depthU is valid, done unless user wants to double (for TN)
@@ -3384,6 +3399,7 @@ class Solution(collections.abc.Mapping):
     if not bufferLoad:
       validNoTailLoop = False
       invalidComment = "does not support BufferLoad=0"
+    # at least one of A,B should be TLU=true to make out of K input as out of range memory access (load value 0)
     if not (state["ProblemType"]["TLUA"] or state["ProblemType"]["TLUB"]):
       validNoTailLoop = False
       invalidComment = "does not support TLUA=False and TLUB=False"
