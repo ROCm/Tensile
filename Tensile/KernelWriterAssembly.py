@@ -2101,7 +2101,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += ".endm" + self.endLine
 
     # v_dot2acc & v_dot4_acc
-    inst = 'v_dot2c_f32_f16' if (self.version[0] < 11) else 'v_dot2acc_f32_f16'
+    inst = 'v_dot2acc_f32_f16' if self.archCaps["InstRename"] else 'v_dot2c_f32_f16'
     kStr += self.endLine
     kStr += ".macro _v_dot2acc_f32_f16 dst, src0, src1"  + self.endLine
     kStr += f'{inst} \\dst, \\src0, \\src1' + self.endLine
@@ -2181,7 +2181,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = self.comment('scale global load macros')
     for key in macro_list:
         origin = key
-        replace = macro_list[key] if (self.version[0] < 11) else key
+        replace = key if self.archCaps["InstRename"] else macro_list[key]
         kStr += self.generalMacro("s_load_", origin, replace, 'dst', 'base', 'offset') + self.endLine
     return kStr
 
@@ -2193,13 +2193,13 @@ class KernelWriterAssembly(KernelWriter):
     width = ('u8', 'u8_d16_hi', 'u16', 'u16_d16_hi', 'b32', 'b64', 'b128')
     for w in width:
       origin = f'load_{w}'
-      replace = f'read_{w}' if (self.version[0] < 11) else f'load_{w}'
+      replace = f'load_{w}' if self.archCaps["InstRename"] else f'read_{w}'
       kStr += self.generalMacro('ds_', origin, replace, 'dst', 'src', 'offset') + self.endLine
 
     width = ('b8', 'b8_d16_hi', 'b16', 'b16_d16_hi', 'b32', 'b64', 'b128')
     for w in width:
       origin = f'store_{w}'
-      replace = f'write_{w}' if (self.version[0] < 11) else f'store_{w}'
+      replace = f'store_{w}' if self.archCaps["InstRename"] else f'write_{w}'
       kStr += self.generalMacro('ds_', origin, replace, 'dst', 'src', 'offset') + self.endLine
 
     width = ('b32', 'b64')
@@ -2208,7 +2208,7 @@ class KernelWriterAssembly(KernelWriter):
     for key in op:
       for w in width:
         origin = f'{key}_{w}'
-        replace = f'{op[key]}_{w}' if (self.version[0] < 11) else f'{key}_{w}'
+        replace = f'{key}_{w}' if self.archCaps["InstRename"] else f'{op[key]}_{w}'
         kStr += self.generalMacro('ds_', origin, replace, 'dst', 'src', 'offset1', 'offset2') + self.endLine
 
     return kStr
@@ -2230,7 +2230,7 @@ class KernelWriterAssembly(KernelWriter):
     }
     for t in type_list:
       origin  = f'{t}'
-      replace = f'{type_list[t]}' if (self.version[0] < 11) else f'{t}'
+      replace = f'{t}' if self.archCaps["InstRename"] else f'{type_list[t]}'
       kStr += self.generalMacro('buffer_load_', origin, replace, 'dst', 'voffset', 'base', 'soffset', 'offen', 'ioffset', 'md0', 'md1', 'md2') + self.endLine
 
     # Extra macro for DirectToLds loads with no destination register
@@ -2255,14 +2255,14 @@ class KernelWriterAssembly(KernelWriter):
     }
     for t in type_list:
       origin  = f'{t}'
-      replace = f'{type_list[t]}' if (self.version[0] < 11) else f'{t}'
+      replace = f'{t}' if self.archCaps["InstRename"] else f'{type_list[t]}'
       kStr += self.generalMacro('buffer_store_', origin, replace, 'src', 'voffset', 'base', 'soffset', 'offen', 'ioffset', 'md0', 'md1', 'md2') + self.endLine
 
     type_list = {'_b32': '',
                  '_b64': '_x2'}
     for t in type_list:
         origin  = f'{t}'
-        replace = f'{type_list[t]}' if (self.version[0] < 11) else f'{t}'
+        replace = f'{t}' if self.archCaps["InstRename"] else f'{type_list[t]}'
         kStr += self.generalMacro('buffer_atomic_cmpswap', origin, replace, 'dst', 'voffset', 'base', 'soffset', 'offen', 'ioffset', 'md0', 'md1', 'md2') + self.endLine
 
     return kStr
@@ -2284,14 +2284,14 @@ class KernelWriterAssembly(KernelWriter):
     }
     for t in type_list:
       origin  = f'{t}'
-      replace = f'{type_list[t]}' if (self.version[0] < 11) else f'{t}'
+      replace = f'{t}' if self.archCaps["InstRename"] else f'{type_list[t]}'
       kStr += self.generalMacro('flat_load_', origin, replace, 'dst', 'base', 'md0', 'md1', 'md2') + self.endLine
       kStr += self.generalMacro('flat_store_', origin, replace, 'base', 'src', 'md0', 'md1', 'md2') + self.endLine
 
     type_list = {'_b32': ''}
     for t in type_list:
         origin  = f'{t}'
-        replace = f'{type_list[t]}' if (self.version[0] < 11) else f'{t}'
+        replace = f'{t}' if self.archCaps["InstRename"] else f'{type_list[t]}'
         kStr += self.generalMacro('flat_atomic_cmpswap', origin, replace, 'tmp', 'base', 'data', 'md') + self.endLine
 
     return kStr

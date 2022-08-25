@@ -1818,6 +1818,7 @@ def GetArchCaps(isaVersion):
   rv["HasAccCD"]           = (isaVersion==(9,0,10))
   rv["ArchAccUnifiedRegs"] = (isaVersion==(9,0,10))
   rv["VgprBank"]           = isaVersion[0] in (10, 11)
+  rv["InstRename"]         = isaVersion[0]==11
 
   return rv
 
