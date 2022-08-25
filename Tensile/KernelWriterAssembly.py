@@ -1344,8 +1344,8 @@ class KernelWriterAssembly(KernelWriter):
     # TODO: alignment hack, figure out a better solution
     vgprIdx = ((vgprIdx+1)//2)*2
     # Avoid bank conflict between VgprA and VgprC
-    if (self.version[0] in [10,11]) and ((vgprIdx % 4) == (self.startVgprValuC % 4)):
-      vgprIdx += 1
+    if self.archCaps["VgprBank"]:
+      vgprIdx += 2
     self.startVgprValuA = vgprIdx; vgprIdx += self.numVgprValuA
     self.startVgprG2LA = None
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
@@ -1358,6 +1358,8 @@ class KernelWriterAssembly(KernelWriter):
 
     # TODO: alignment hack, figure out a better solution
     vgprIdx = ((vgprIdx+1)//2)*2
+    if self.archCaps["VgprBank"]:
+        vgprIdx += 1
     self.startVgprValuB = vgprIdx; vgprIdx += self.numVgprValuB
     self.startVgprG2LB = None
     if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
