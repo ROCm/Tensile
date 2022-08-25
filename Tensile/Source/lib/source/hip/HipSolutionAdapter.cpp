@@ -242,7 +242,7 @@ namespace Tensile
                 for(auto ver : {"", "-xnack-", "-xnack+"})
                 {
                     std::string modifiedCOName = helperKernelName + ver + ".hsaco";
-                    err = loadCodeObjectFile(codeObjectDir + modifiedCOName);
+                    err                        = loadCodeObjectFile(codeObjectDir + modifiedCOName);
 
                     if(err == hipSuccess)
                         return err;
