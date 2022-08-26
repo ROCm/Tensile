@@ -1096,7 +1096,7 @@ class KernelWriterAssembly(KernelWriter):
     # localRead A
     localReadWidth = (kernel["VectorWidth"] * tPA["bpe"]) // self.bpr
     if kernel["EnableMatrixInstruction"]:
-      if tPA["tlu"] and self.allowLRVWforTLUandMI:
+      if tPA["tlu"] and self.allowLRVWBforTLUandMI:
         localReadWidth = (self.lrvwA * tPA["bpe"]) // self.bpr
       else:
         localReadWidth = tPA["bpe"] / self.bpr
@@ -1125,7 +1125,7 @@ class KernelWriterAssembly(KernelWriter):
     # localRead B
     localReadWidth = (kernel["VectorWidth"] * tPB["bpe"]) // self.bpr
     if kernel["EnableMatrixInstruction"]:
-      if tPB["tlu"] and self.allowLRVWforTLUandMI:
+      if tPB["tlu"] and self.allowLRVWBforTLUandMI:
         localReadWidth = (self.lrvwB * tPB["bpe"]) // self.bpr
       else:
         localReadWidth = tPB["bpe"] / self.bpr
@@ -1512,12 +1512,12 @@ class KernelWriterAssembly(KernelWriter):
         vgprIdx +=1
       self.GlobalBufferOOB = vgprIdx
       vgprIdx +=1
-    # for zgemm + (SCIU or MIAV) case, allocate 4 vgpr for alpha calculation (cannot use tmp vgpr in unroll loop or write batch)
-    if kernel["ProblemType"]["DataType"].isDoubleComplex() and (kernel["StoreCInUnroll"] or kernel["MIArchVgpr"]):
+    # for cgemm/zgemm + (SCIU or MIAV) case, allocate 4 vgpr for alpha calculation (cannot use tmp vgpr in unroll loop or write batch)
+    if kernel["ProblemType"]["DataType"].isComplex() and (kernel["StoreCInUnroll"] or kernel["MIArchVgpr"]):
       # need proper alignment
       vgprIdx = ((vgprIdx+2 - 1)//2)*2
       self.startVgprAlphaTmp = vgprIdx
-      vgprIdx += 4
+      vgprIdx += kernel["ProblemType"]["DataType"].numRegisters();
 
     self.startVgprSerial = vgprIdx
     vgprIdx += 1 # for vgpr serial id
@@ -1865,11 +1865,11 @@ class KernelWriterAssembly(KernelWriter):
       # 2. using larger PLR to read more iterations, same number local reads in 1 iteration
       if kernel["InnerUnroll"] >= self.numReadsIterCoalescedA:
         numA //= self.numReadsIterCoalescedA
-        if self.allowLRVWforTLUandMI:
+        if tPA["tlu"] and self.allowLRVWBforTLUandMI:
           numA //= self.lrvwA
       if kernel["InnerUnroll"] >= self.numReadsIterCoalescedB:
         numB //= self.numReadsIterCoalescedB
-        if self.allowLRVWforTLUandMI:
+        if self.allowLRVWBforTLUandMI:
           numB //= self.lrvwB
     else:
       numB = kernel["InnerUnroll"]*(kernel["ThreadTile1"] // kernel["VectorWidth"]) // tPB["localReadInstruction"].numOffsets
@@ -3615,7 +3615,8 @@ class KernelWriterAssembly(KernelWriter):
           # need division for qReg
           kStr += vectorStaticDivide(qReg, qReg, kernel["MatrixInstN"], tmpVgpr, tmpSgpr)
           lrvwOther = self.lrvwB if tP["isA"] else self.lrvwA # The other side of lrvw
-          if lrvwOther >= 2 and not self.allowLRVWforTLUandMI and tP["tlu"]:
+          tluOther = kernel["ProblemType"]["TLUB"] if tP["isA"] else kernel["ProblemType"]["TLUA"] # The other side of tlu
+          if lrvwOther >= 2 and (not tluOther) and tP["tlu"]:
             # DirectToVgpr + LocalReadVectorWidth>=2 case, multiply qReg by lrvwOther
             kStr += staticMultiply(vgpr(qReg), vgpr(qReg), lrvwOther, sgpr(tmpSgpr))
       # release register
@@ -8710,6 +8711,10 @@ class KernelWriterAssembly(KernelWriter):
       newVal = (bit2<<3) | (bit3 <<1) | (bit4>>2) | (bit5>>2)
     offset_val = offset_val & (~0x3c)
     offset_val = offset_val | newVal
+
+    # another address conversion for DirectToLds + NumLoadsCoalesced > 1
+    dummy, offset_val = self.lraOffsetConversionForDTLandNLC(kernel, tP, offset_val)
+
     return offset_val
 
   ##############################################################################
@@ -9910,7 +9915,7 @@ class KernelWriterAssembly(KernelWriter):
     #
     # Also create an AddrCalc for each memory operation.
     ##############################################################################
-    def setupStoreElementsForBatch(self, kernel, gwvw, batchElements, batchElementSgprs, isOptNLL, allowLRVWforTLUandMI, lrvwB):
+    def setupStoreElementsForBatch(self, kernel, gwvw, batchElements, batchElementSgprs, isOptNLL, allowLRVWBforTLUandMI, lrvwB):
 
       self.elementAddr = []
       self.elementData = []  # VGPR to use for element data, needed for atomic or beta
@@ -9944,7 +9949,7 @@ class KernelWriterAssembly(KernelWriter):
 
         coordOffset1 = 0
         if kernel["EnableMatrixInstruction"]:
-          vc1Scale = lrvwB if allowLRVWforTLUandMI else 1
+          vc1Scale = lrvwB if (allowLRVWBforTLUandMI or kernel["DirectToVgprB"]) else 1
           MIOutputVectorWidth = kernel["MIOutputVectorWidth"]
           MFMAContinuousOutputs = MIOutputVectorWidth if kernel["SourceSwap"] else 1
           OutputsPerMIMN        = (matrixInstM * matrixInstN // self.kernel["WavefrontSize"]) if kernel["SourceSwap"] else 1
@@ -11363,7 +11368,7 @@ class KernelWriterAssembly(KernelWriter):
     # print(commentStr)
 
     ss.setupStoreElementsForBatch(kernel, gwvw, batchElements, batchElementSgprs, isOptNLL=False, \
-                                  allowLRVWforTLUandMI=self.allowLRVWforTLUandMI, lrvwB=self.lrvwB)
+                                  allowLRVWBforTLUandMI=self.allowLRVWBforTLUandMI, lrvwB=self.lrvwB)
 
     loadsIssued = 0
     storesIssued = 0
@@ -12128,10 +12133,10 @@ class KernelWriterAssembly(KernelWriter):
             else:
               StoreComment = "store D"
               if kernel["StoreVectorWidth"] == 1 and not kernel["ProblemType"]["DestDataType"].isDoubleComplex():
-                StoreInst = "_buffer_store_dwordx2"
+                StoreInst = "_buffer_store_b64"
                 numDstReg = 2
               else : # kernel["StoreVectorWidth"] == 2 or DoubleComplex
-                StoreInst = "_buffer_store_dwordx4"
+                StoreInst = "_buffer_store_b128"
                 numDstReg = 4
 
             if ss.optSrdIncForRow and addrCalc.rowInc:
@@ -12606,7 +12611,7 @@ class KernelWriterAssembly(KernelWriter):
     totalTT0     = totalTT0                      if kernel["SourceSwap"] else (totalTT0 * outputsPerThread)
     totalTT1     = (totalTT1 * outputsPerThread) if kernel["SourceSwap"] else totalTT1
     vectorWidth0 = kernel["VectorWidth"]         if kernel["SourceSwap"] else kernel["MIOutputVectorWidth"]
-    MIOutputVectorWidthAdj = (self.lrvwB if self.allowLRVWforTLUandMI else 1) * kernel["MIOutputVectorWidth"]
+    MIOutputVectorWidthAdj = (self.lrvwB if self.allowLRVWBforTLUandMI or kernel["DirectToVgprB"] else 1) * kernel["MIOutputVectorWidth"]
     vectorWidth1 = MIOutputVectorWidthAdj if kernel["SourceSwap"] else 1
     # To here
 
@@ -13518,7 +13523,7 @@ class KernelWriterAssembly(KernelWriter):
     OutputsPerMFMA1B = matrixInstM * matrixInstN // self.kernel["WavefrontSize"]
     VectorWidth0     = kernel["VectorWidth"] if kernel["SourceSwap"] else 1
     outerTT0         = kernel["MIWaveTile"][0] // VectorWidth0
-    lrvwB            = self.lrvwB if self.allowLRVWforTLUandMI else 1
+    lrvwB            = self.lrvwB if (self.allowLRVWBforTLUandMI or kernel["DirectToVgprB"]) else 1
     VectorWidth1     = lrvwB
     outerTT1         = kernel["MIWaveTile"][1] // VectorWidth1
 
@@ -13725,6 +13730,21 @@ class KernelWriterAssembly(KernelWriter):
         self.codeMulAlpha.itemList[destIdx] = Code.Inst("v_mul_lo_u32", vgpr("ValuC+__placeholder__"),
                                                        sgpr("Alpha"),
                                                        vgpr("ValuC+%u"%srcIdx), "Multiply MI out reg with alpha")
+      elif kernel["ProblemType"]["ComputeDataType"].isSingleComplex():
+        accImOffset = self.AccVgprImagNumOffset(kernel)
+        imod = Code.Module()
+        # cannot use tmp vgpr for write batch, use allocated vgpr instead
+        vtmp1 = self.startVgprAlphaTmp
+        vtmp2 = vtmp1 + 1
+        # tmp1 = a.real * b.real
+        imod.addInst("v_mul_f32", vgpr(vtmp1), sgpr("Alpha+0"), vgpr("ValuC+%u"%srcIdx), "")
+        # tmp2 = a.imag * b.real
+        imod.addInst("v_mul_f32", vgpr(vtmp2), sgpr("Alpha+1"), vgpr("ValuC+%u"%srcIdx), "")
+        # c.real = a.real * b.real - a.imag * b.imag = tmp1 - a.imag * b.imag
+        imod.addText("_v_mac_f32 %s, %s, -%s, %s%s" % (vgpr("ValuC+__placeholder__"), sgpr("Alpha+1"), vgpr("ValuC+%u"%(srcIdx+accImOffset)), vgpr(vtmp1), self.endLine))
+        # c.imag = a.real * b.imag + a.imag * b.real = a.real * b.imag + tmp2
+        imod.addText("_v_mac_f32 %s, %s, %s, %s%s" % (vgpr("ValuC+__placeholder__ +1"), sgpr("Alpha+0"), vgpr("ValuC+%u"%(srcIdx+accImOffset)), vgpr(vtmp2), self.endLine))
+        self.codeMulAlpha.itemList[destIdx] = imod
       elif kernel["ProblemType"]["ComputeDataType"].isDoubleComplex():
         accImOffset = self.AccVgprImagNumOffset(kernel)
         imod = Code.Module()

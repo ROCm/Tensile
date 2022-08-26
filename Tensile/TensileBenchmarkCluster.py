@@ -73,7 +73,8 @@ class BenchmarkImplSLURM(object):
             # Build container and save output streams
             print("Building docker image: {0} ...".format(tag))
             print(buildCmd)
-            subprocess.check_call(shlex.split(buildCmd), stdout=logFile, stderr=logFile)
+            # change to use  check_output to force windows cmd block util command finish
+            subprocess.check_output(shlex.split(buildCmd), stdout=logFile, stderr=logFile)
             print("Done building docker image!")
 
             # Docker save command
@@ -219,7 +220,8 @@ class BenchmarkImplSLURM(object):
                 -t {5}").format(runScriptPath, imageDir, logsDir, resultsDir, enqueueScriptPath, tasksDir)
 
         with open(logFilePath, "wt") as logFile:
-            subprocess.check_call(shlex.split(invokeCmd), stdout=logFile, stderr=logFile)
+            # change to use  check_output to force windows cmd block util command finish
+            subprocess.check_output(shlex.split(invokeCmd), stdout=logFile, stderr=logFile)
 
     @classmethod
     def postInvokeBenchmark(cls, benchmarkObj):
