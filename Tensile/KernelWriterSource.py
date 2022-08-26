@@ -3311,12 +3311,9 @@ class KernelWriterSource(KernelWriter):
   # SyncThreads
   ##############################################################################
   def syncThreads(self, kernel, comment=""):
-    if globalParameters["CurrentISA"] == (9,0,8):
-      return self.indent + self.syncStr + " //" + comment + self.endLine
-    else:
-      if kernel["SubGroup0"]*kernel["SubGroup1"]*kernel["LocalSplitU"] != kernel["WavefrontSize"]:
+    if kernel["SubGroup0"]*kernel["SubGroup1"]*kernel["LocalSplitU"] != kernel["WavefrontSize"]:
         return self.indent + self.syncStr + " //" + comment + self.endLine
-      else:
+    else:
         return self.indent + self.endLine
 
   ##############################################################################
