@@ -35,7 +35,7 @@
 using namespace Tensile;
 using namespace DecisionTree;
 
-using Key   = std::array<int64_t, 3>;
+using Key   = std::array<float, 3>;
 using DTree = Tree<Key, std::shared_ptr<ContractionLibrary>, std::shared_ptr<ContractionSolution>>;
 
 /*
@@ -45,16 +45,13 @@ using DTree = Tree<Key, std::shared_ptr<ContractionLibrary>, std::shared_ptr<Con
 TEST(DecisionTree, ValidTree)
 {
     DTree test_tree{{
-        /* start */ {0, 7000, 1, 2},
-        /* - 1 - */ {1, 3000, 3, 4},
-        /* - 2 - */ {-1, 0.0, 0, 0},
-        /* - 3 - */ {-1, 0.0, 0, 0},
-        /* - 4 - */ {-1, 1.0, 0, 0},
+        /* start */ {0, 700.f, 1, IDX_RETURN_FALSE},
+        /* - 1 - */ {1, 300.f, IDX_RETURN_FALSE, IDX_RETURN_TRUE},
     }};
 
     /*
     Makes the following tree:
-        start:(Key[0] <= 7000?)
+        start:(Key[0] <= 700?)
             |
             |
             |------------------------
@@ -62,7 +59,7 @@ TEST(DecisionTree, ValidTree)
            YES                      NO
             |                       |
             |                       |
-        1:(Key[1] <= 3000?)      2:(RETURN 0.0)
+        1:(Key[1] <= 300?)     2:(RETURN false)
             |
             |
             |------------------------
@@ -70,7 +67,7 @@ TEST(DecisionTree, ValidTree)
            YES                      NO
             |                       |
             |                       |
-        3:(RETURN 0.0)          4:(RETURN 1.0)
+        3:(RETURN false)        4:(RETURN true)
     */
 
     EXPECT_TRUE(test_tree.valid());
@@ -86,9 +83,7 @@ TEST(DecisionTree, InvalidTreeEmpty)
 TEST(DecisionTree, InvalidTreeIdxOOB)
 {
     DTree test_tree{{
-        /* start */ {0, 7000, 1, 7}, // right idx OOB
-        /* - 1 - */ {-1, 0.0, 0, 0},
-        /* - 2 - */ {-1, 0.0, 0, 0},
+        /* start */ {0, 700.f, IDX_RETURN_TRUE, 7}, // right idx OOB
     }};
 
     EXPECT_FALSE(test_tree.valid());
@@ -97,9 +92,7 @@ TEST(DecisionTree, InvalidTreeIdxOOB)
 TEST(DecisionTree, InvalidTreeIdxOOBNeg)
 {
     DTree test_tree{{
-        /* start */ {0, 7000, 1, -3}, // right idx OOB
-        /* - 1 - */ {-1, 0.0, 0, 0},
-        /* - 2 - */ {-1, 0.0, 0, 0},
+        /* start */ {0, 700.f, -3, IDX_RETURN_TRUE}, // left idx OOB
     }};
 
     EXPECT_FALSE(test_tree.valid());
@@ -108,9 +101,7 @@ TEST(DecisionTree, InvalidTreeIdxOOBNeg)
 TEST(DecisionTree, InvalidTreeCircularShort)
 {
     DTree test_tree{{
-        /* start */ {0, 7000, 1, 0}, // right idx circular
-        /* - 1 - */ {-1, 0.0, 0, 0},
-        /* - 2 - */ {-1, 0.0, 0, 0},
+        /* start */ {0, 700.f, IDX_RETURN_TRUE, 0}, // right idx circular
     }};
 
     EXPECT_FALSE(test_tree.valid());
@@ -119,9 +110,18 @@ TEST(DecisionTree, InvalidTreeCircularShort)
 TEST(DecisionTree, InvalidTreeCircularLong)
 {
     DTree test_tree{{
-        /* start */ {0, 7000, 1, 2},
-        /* - 1 - */ {0, 7000, 0, 2}, // left idx circular
-        /* - 2 - */ {-1, 0.0, 0, 0},
+        /* start */ {0, 700.f, 1, IDX_RETURN_TRUE},
+        /* - 1 - */ {0, 700.f, 0, IDX_RETURN_TRUE}, // left idx circular
+    }};
+
+    EXPECT_FALSE(test_tree.valid());
+}
+
+TEST(DecisionTree, InvalidNoTrueNodes)
+{
+    DTree test_tree{{
+        /* start */ {0, 700.f, 1, IDX_RETURN_FALSE},
+        /* - 1 - */ {0, 700.f, IDX_RETURN_FALSE, IDX_RETURN_FALSE},
     }};
 
     EXPECT_FALSE(test_tree.valid());
@@ -132,36 +132,31 @@ TEST(DecisionTree, InvalidTreeCircularLong)
  */
 TEST(DecisionTree, SimplePrediction)
 {
-    float EXPECTED_RETURN = 1.0;
-
     DTree test_tree{{
-        /* start */ {0, 7000, 1, 2},
-        /* - 1 - */ {-1, 0.0, 0, 0},
-        /* - 2 - */ {-1, EXPECTED_RETURN, 0, 0},
+        /* start */ {0, 700.f, IDX_RETURN_FALSE, IDX_RETURN_TRUE},
     }};
 
-    Key test_input{{8000, 2000, 2000}};
+    Key test_input0{{800.f, 200.f, 200.f}};
+    Key test_input1{{600.f, 200.f, 200.f}};
 
-    // Expected: start->2
-    EXPECT_EQ(test_tree.predict(test_input), EXPECTED_RETURN);
+    EXPECT_EQ(test_tree.predict(test_input0), true); // Expected: start->true
+    EXPECT_EQ(test_tree.predict(test_input1), false); // Expected: start->false
 }
 
 TEST(DecisionTree, MultiStepPrediction)
 {
-    float EXPECTED_RETURN = 1.0;
-
     DTree test_tree{{
-        /* start */ {0, 7000, 1, 2},
-        /* - 1 - */ {1, 3000, 3, 4},
-        /* - 2 - */ {-1, 0.0, 0, 0},
-        /* - 3 - */ {-1, 0.0, 0, 0},
-        /* - 4 - */ {-1, EXPECTED_RETURN, 0, 0},
+        /* start */ {0, 700.f, 1, IDX_RETURN_FALSE},
+        /* - 1 - */ {1, 300.f, IDX_RETURN_FALSE, IDX_RETURN_TRUE},
     }};
 
-    Key test_input{{6000, 4000, 2000}};
+    Key test_input0{{800.f, 400.f, 200.f}};
+    Key test_input1{{600.f, 400.f, 200.f}};
+    Key test_input2{{600.f, 200.f, 200.f}};
 
-    // Expected: start->1->4
-    EXPECT_EQ(test_tree.predict(test_input), EXPECTED_RETURN);
+    EXPECT_EQ(test_tree.predict(test_input0), false); // Expected: start->false
+    EXPECT_EQ(test_tree.predict(test_input1), true); // Expected: start->1->true
+    EXPECT_EQ(test_tree.predict(test_input2), false); // Expected: start->1->false
 }
 
 /*
@@ -170,52 +165,49 @@ TEST(DecisionTree, MultiStepPrediction)
 TEST(DecisionTree, DecisionTreeLibrary)
 {
     // Solutions
-    auto Solution0   = std::make_shared<ContractionSolution>();
-    auto Solution1   = std::make_shared<ContractionSolution>();
-    auto Solution2   = std::make_shared<ContractionSolution>();
-    auto Solution3   = std::make_shared<ContractionSolution>();
+    auto Solution0 = std::make_shared<ContractionSolution>();
+    auto Solution1 = std::make_shared<ContractionSolution>();
+    auto Solution2 = std::make_shared<ContractionSolution>();
+    auto Solution3 = std::make_shared<ContractionSolution>();
+
     Solution0->index = 0;
     Solution1->index = 1;
     Solution2->index = 2;
     Solution3->index = 3;
-    auto Library0    = std::make_shared<SingleContractionLibrary>(Solution0);
-    auto Library1    = std::make_shared<SingleContractionLibrary>(Solution1);
-    auto Library2    = std::make_shared<SingleContractionLibrary>(Solution2);
 
-    // Properties
-    std::vector<std::shared_ptr<Property<ContractionProblem>>> properties;
-    auto freeSizeA   = std::make_shared<Contraction::FreeSizeA>();
+    auto Library0 = std::make_shared<SingleContractionLibrary>(Solution0);
+    auto Library1 = std::make_shared<SingleContractionLibrary>(Solution1);
+    auto Library2 = std::make_shared<SingleContractionLibrary>(Solution2);
+
+    // Features
+    std::vector<std::shared_ptr<MLFeatures::MLFeature<ContractionProblem>>> features;
+    auto freeSizeA   = std::make_shared<MLFeatures::FreeSizeA>();
     freeSizeA->index = 0;
-    properties.push_back(freeSizeA);
-    auto freeSizeB   = std::make_shared<Contraction::FreeSizeB>();
+    features.push_back(freeSizeA);
+    auto freeSizeB   = std::make_shared<MLFeatures::FreeSizeB>();
     freeSizeB->index = 0;
-    properties.push_back(freeSizeB);
-    auto boundSize   = std::make_shared<Contraction::BoundSize>();
+    features.push_back(freeSizeB);
+    auto boundSize   = std::make_shared<MLFeatures::BoundSize>();
     boundSize->index = 0;
-    properties.push_back(boundSize);
+    features.push_back(boundSize);
 
     // Make trees library
     std::vector<DTree> trees;
-    DTree              tree0{{
-        /* start */ {0, 7000, 1, 2},
-        /* - 1 - */ {-1, 0.0, 0, 0}, // NO otherwise
-        /* - 2 - */ {-1, 1.0, 0, 0}, // YES for freeSizeA>7000
+
+    DTree tree0{{
+        {0, 700.f, IDX_RETURN_FALSE, IDX_RETURN_TRUE}, // YES for freeSizeA>7000
     }};
     tree0.value = Library0;
     trees.push_back(tree0);
 
     DTree tree1{{
-        /* start */ {1, 7000, 1, 2},
-        /* - 1 - */ {-1, 0.0, 0, 0}, // NO otherwise
-        /* - 2 - */ {-1, 1.0, 0, 0}, // YES for freeSizeB>7000
+        {1, 700.f, IDX_RETURN_FALSE, IDX_RETURN_TRUE}, // YES for freeSizeB>700
     }};
     tree1.value = Library1;
     trees.push_back(tree1);
 
     DTree tree2{{
-        /* start */ {1, 7000, 1, 2},
-        /* - 1 - */ {-1, 0.0, 0, 0}, // NO either way
-        /* - 2 - */ {-1, 0.0, 0, 0},
+        {0, 300.f, IDX_RETURN_TRUE, IDX_RETURN_FALSE}, // YES for freeSizeA<300
     }};
     tree2.value = Library2;
     trees.push_back(tree2);
@@ -225,7 +217,7 @@ TEST(DecisionTree, DecisionTreeLibrary)
                                 ContractionProblem,
                                 std::shared_ptr<ContractionLibrary>,
                                 std::shared_ptr<ContractionSolution>>;
-    auto forest   = std::make_shared<BForest>(properties, Solution3);
+    auto forest   = std::make_shared<BForest>(features, Solution3);
     forest->trees = trees;
 
     auto dtreelib    = std::make_shared<DecisionTreeLibrary<ContractionProblem>>();
@@ -233,11 +225,11 @@ TEST(DecisionTree, DecisionTreeLibrary)
 
     // Problems
     auto Problem0
-        = ContractionProblem::GEMM(false, false, 8000, 8000, 8000, 8000, 8000, 8000, 1, false, 1);
+        = ContractionProblem::GEMM(false, false, 800, 800, 800, 800, 800, 800, 1.0, false, 1);
     auto Problem1
-        = ContractionProblem::GEMM(false, false, 5000, 8000, 8000, 5000, 8000, 5000, 1, false, 1);
+        = ContractionProblem::GEMM(false, false, 500, 800, 800, 500, 800, 500, 1.0, false, 1);
     auto Problem2
-        = ContractionProblem::GEMM(false, false, 5000, 5000, 5000, 5000, 5000, 5000, 1, false, 1);
+        = ContractionProblem::GEMM(false, false, 500, 500, 500, 500, 500, 500, 1.0, false, 1);
 
     // Tests
     AMDGPU gpu;

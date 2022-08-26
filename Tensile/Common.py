@@ -215,6 +215,7 @@ globalParameters["LibraryClientPath"] = "4_LibraryClient"         # subdirectory
 globalParameters["ClientExecutionLockPath"] = None                # Path for a file lock to ensure only one client is executed at once.  filelock module is required if this is enabled.
 globalParameters["LibraryUpdateFile"] = ""                        # File name for writing indices and speeds suitable for updating an existing library logic file
 globalParameters["LibraryUpdateComment"] = False                  # Include solution name as a comment in the library update file
+globalParameters["DictLibraryLogic"] = False
 
 # internal, i.e., gets set during startup
 globalParameters["CurrentISA"] = (0,0,0)
@@ -1976,11 +1977,6 @@ def assignGlobalParameters( config ):
     if os.name == "nt":
       globalParameters["CurrentISA"] = (9,0,6)
       printWarning("Failed to detect ISA so forcing (gfx906) on windows")
-
-  # TODO Remove this when rocm-smi supports gfx90a
-  if globalParameters["CurrentISA"] == (9,0,10):
-    printWarning("HardwareMonitor currently disabled for gfx90a")
-    globalParameters["HardwareMonitor"] = False
 
   globalParameters["AsmCaps"] = {}
   globalParameters["ArchCaps"] = {}

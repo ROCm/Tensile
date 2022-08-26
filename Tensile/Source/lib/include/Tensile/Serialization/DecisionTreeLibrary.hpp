@@ -67,54 +67,54 @@ namespace Tensile
         template <typename MyProblem, typename MySolution, typename IO>
         struct MappingTraits<DecisionTreeLibrary<MyProblem, MySolution>, IO>
         {
-            using Library    = DecisionTreeLibrary<MyProblem, MySolution>;
-            using Properties = typename Library::Forest::Properties;
-            using Element    = typename Library::Element;
+            using Library  = DecisionTreeLibrary<MyProblem, MySolution>;
+            using Features = typename Library::Forest::Features;
+            using Element  = typename Library::Element;
 
             using iot = IOTraits<IO>;
 
             static void mapping(IO& io, Library& lib)
             {
-                Properties properties;
+                Features features;
                 if(iot::outputting(io))
                 {
-                    properties = lib.forest->properties;
+                    features = lib.forest->features;
                 }
-                iot::mapRequired(io, "properties", properties);
+                iot::mapRequired(io, "features", features);
 
                 bool success = false;
-                if(properties.size() == 0)
-                    iot::setError(io, "Matching table must have at least one property.");
-                else if(properties.size() == 1)
-                    success = mappingKey<std::array<int64_t, 1>>(io, lib, properties);
-                else if(properties.size() == 2)
-                    success = mappingKey<std::array<int64_t, 2>>(io, lib, properties);
-                else if(properties.size() == 3)
-                    success = mappingKey<std::array<int64_t, 3>>(io, lib, properties);
-                else if(properties.size() == 4)
-                    success = mappingKey<std::array<int64_t, 4>>(io, lib, properties);
-                else if(properties.size() == 5)
-                    success = mappingKey<std::array<int64_t, 5>>(io, lib, properties);
-                else if(properties.size() == 6)
-                    success = mappingKey<std::array<int64_t, 6>>(io, lib, properties);
-                else if(properties.size() == 7)
-                    success = mappingKey<std::array<int64_t, 7>>(io, lib, properties);
-                else if(properties.size() == 8)
-                    success = mappingKey<std::array<int64_t, 8>>(io, lib, properties);
-                else if(properties.size() == 9)
-                    success = mappingKey<std::array<int64_t, 9>>(io, lib, properties);
-                else if(properties.size() == 10)
-                    success = mappingKey<std::array<int64_t, 10>>(io, lib, properties);
+                if(features.size() == 0)
+                    iot::setError(io, "Tree(s) must have at least one feature.");
+                else if(features.size() == 1)
+                    success = mappingKey<std::array<float, 1>>(io, lib, features);
+                else if(features.size() == 2)
+                    success = mappingKey<std::array<float, 2>>(io, lib, features);
+                else if(features.size() == 3)
+                    success = mappingKey<std::array<float, 3>>(io, lib, features);
+                else if(features.size() == 4)
+                    success = mappingKey<std::array<float, 4>>(io, lib, features);
+                else if(features.size() == 5)
+                    success = mappingKey<std::array<float, 5>>(io, lib, features);
+                else if(features.size() == 6)
+                    success = mappingKey<std::array<float, 6>>(io, lib, features);
+                else if(features.size() == 7)
+                    success = mappingKey<std::array<float, 7>>(io, lib, features);
+                else if(features.size() == 8)
+                    success = mappingKey<std::array<float, 8>>(io, lib, features);
+                else if(features.size() == 9)
+                    success = mappingKey<std::array<float, 9>>(io, lib, features);
+                else if(features.size() == 10)
+                    success = mappingKey<std::array<float, 10>>(io, lib, features);
 
                 if(!success)
-                    success = mappingKey<std::vector<int64_t>>(io, lib, properties);
+                    success = mappingKey<std::vector<float>>(io, lib, features);
 
                 if(!success)
                     iot::setError(io, "Can't write out key: wrong type.");
             }
 
             template <typename Key>
-            static bool mappingKey(IO& io, Library& lib, Properties const& properties)
+            static bool mappingKey(IO& io, Library& lib, Features const& features)
             {
                 using Forest = DecisionTree::
                     BasicForest<Key, MyProblem, Element, std::shared_ptr<MySolution>>;
@@ -129,9 +129,9 @@ namespace Tensile
                 }
                 else
                 {
-                    forest             = std::make_shared<Forest>();
-                    forest->properties = properties;
-                    lib.forest         = forest;
+                    forest           = std::make_shared<Forest>();
+                    forest->features = features;
+                    lib.forest       = forest;
                 }
 
                 MappingTraits<Forest, IO>::mapping(io, *forest);
@@ -150,10 +150,10 @@ namespace Tensile
 
             static void mapping(IO& io, Node& node)
             {
-                iot::mapRequired(io, "type", node.type);
-                iot::mapRequired(io, "value", node.value);
-                iot::mapRequired(io, "nextIdxLeft", node.nextIdxLeft);
-                iot::mapRequired(io, "nextIdxRight", node.nextIdxRight);
+                iot::mapRequired(io, "featureIdx", node.featureIdx);
+                iot::mapRequired(io, "threshold", node.threshold);
+                iot::mapRequired(io, "nextIdxLTE", node.nextIdxLTE);
+                iot::mapRequired(io, "nextIdxGT", node.nextIdxGT);
             }
 
             const static bool flow = true;

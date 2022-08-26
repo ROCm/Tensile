@@ -100,6 +100,7 @@ def runCI =
     boolean staticAnalysis = true
 
     prj.timeout.test = 30
+    prj.defaults.ccache = false
 
     def commonGroovy
 

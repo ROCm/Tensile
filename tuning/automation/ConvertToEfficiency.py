@@ -25,8 +25,9 @@
 import argparse
 import os
 import yaml
-
-typeIndexToName = {0: "S", 1: "D", 4: "H", 7: "B"}
+import sys
+sys.path.append(os.path.join(os.path.dirname(sys.path[0]),'..','Tensile'))
+from DataType import DataType
 
 def parseArgs():
     argParser = argparse.ArgumentParser()
@@ -89,8 +90,13 @@ def main():
                 data = yaml.safe_load(y)
 
                 sched = data[1]
-                type = typeIndexToName[data[4]["DataType"]]
-                alu = specs[sched][mfmaKey][type]
+                type = DataType(data[4]["DataType"]).toChar()
+
+                if type in specs[sched][mfmaKey]:
+                  alu = specs[sched][mfmaKey][type]
+                else:
+                  print("error: {} data type does not exist in the spec file. Modify the spec file.".format(type))
+                  return
 
                 # get CU count
                 if args.per_cu:

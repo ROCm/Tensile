@@ -124,6 +124,20 @@ namespace Tensile
         };
 
         template <typename IO>
+        struct MappingTraits<ContractionSolution::GranularityScaleFactors, IO>
+        {
+            using iot = IOTraits<IO>;
+            static void mapping(IO& io, ContractionSolution::GranularityScaleFactors& gsf)
+            {
+                iot::mapRequired(io, "mt0", gsf.mt0_scale);
+                iot::mapRequired(io, "mt1", gsf.mt1_scale);
+                iot::mapRequired(io, "gsc", gsf.devSolScale);
+            }
+
+            const static bool flow = true;
+        };
+
+        template <typename IO>
         struct MappingTraits<ContractionSolution::LinearModel, IO>
         {
             using iot = IOTraits<IO>;
