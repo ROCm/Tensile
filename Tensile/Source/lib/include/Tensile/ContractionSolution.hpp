@@ -37,6 +37,7 @@
 #include <Tensile/ContractionProblem_fwd.hpp>
 #include <Tensile/DataTypes.hpp>
 #include <Tensile/Predicates.hpp>
+#include <Tensile/Utils.hpp>
 
 namespace Tensile
 {
@@ -295,11 +296,11 @@ namespace Tensile
             double max       = 1000.0;
         };
 
-        int         index = 0;
-        std::string kernelName;
-        std::string codeObjectFilename;
-        bool        debugKernel   = false;
-        bool        kernelArgsLog = false;
+        int                          index = 0;
+        std::string                  kernelName;
+        ThreadSafeValue<std::string> codeObjectFilename;
+        bool                         debugKernel   = false;
+        bool                         kernelArgsLog = false;
 
         std::shared_ptr<Predicates::Predicate<Problem>> problemPredicate
             = std::make_shared<Predicates::True<Problem>>();
