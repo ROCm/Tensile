@@ -3314,7 +3314,8 @@ class KernelWriterSource(KernelWriter):
     if kernel["NumThreads"] > kernel["WavefrontSize"]:
         return self.indent + self.syncStr + " //" + comment + self.endLine
     else:
-        return self.indent + self.endLine
+        return self.indent + "// Skip barrier: NumThreads=%s"%(kernel["NumThreads"]) + \
+              self.indent + self.endLine
 
   ##############################################################################
   # MapAcctoArch
