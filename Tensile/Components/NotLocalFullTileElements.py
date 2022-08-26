@@ -89,7 +89,10 @@ class NotLocalFullTileElementsMFMA(NotLocalFullTileElements):
         totalTT0     = totalTT0                      if kernel["SourceSwap"] else (totalTT0 * outputsPerThread)
         totalTT1     = (totalTT1 * outputsPerThread) if kernel["SourceSwap"] else totalTT1
         vectorWidth0 = kernel["VectorWidth"]         if kernel["SourceSwap"] else kernel["MIOutputVectorWidth"]
-        MIOutputVectorWidthAdj = (writer.lrvwB if writer.allowLRVWforTLUandMI else 1) * kernel["MIOutputVectorWidth"]
+        vwB          = 1
+        if (writer.allowLRVWBforTLUandMI or kernel["DirectToVgprB"]):
+            vwB      = writer.lrvwB
+        MIOutputVectorWidthAdj = vwB * kernel["MIOutputVectorWidth"]
         vectorWidth1 = MIOutputVectorWidthAdj if kernel["SourceSwap"] else 1
 
         for tt1 in range(0, totalTT1//vectorWidth1):

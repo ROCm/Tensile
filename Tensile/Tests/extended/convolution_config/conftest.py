@@ -69,7 +69,8 @@ def run_contraction(tensile_args, tmp_path, run_generate_yaml, request, tensile_
     def run(conv, problemType, solution, problemFunc=None, problemLevel=-1, dataType='s'):
         configFile = run_generate_yaml(conv, problemType, solution, problemFunc, problemLevel, dataType)
         args = [str(configFile), str(tmp_path), *tensile_args]
-        subprocess.check_call([tensile_script_path] + args)
+        # change to use  check_output to force windows cmd block util command finish
+        subprocess.check_output([tensile_script_path] + args, stderr=subprocess.STDOUT)
     return run
 
 @pytest.fixture
@@ -80,8 +81,8 @@ def run_convolution_vs_contraction(tensile_args, tmp_path, file_with_test_name, 
         config.write(configFile)
 
         args = [str(configFile), str(tmp_path), *tensile_args]
-
-        subprocess.check_call([tensile_script_path] + args)
+        # change to use  check_output to force windows cmd block util command finish
+        subprocess.check_output([tensile_script_path] + args, stderr=subprocess.STDOUT)
     return run
 
 level_params = [pytest.param((0, Solutions.src1), id="Convolution_Class"),

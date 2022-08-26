@@ -2309,14 +2309,14 @@ class Solution(collections.abc.Mapping):
   # determine if current datatype can support DirectToVgpr
   @staticmethod
   def isDirectToVgprSupportDataType(state):
-    # Single/Double/DoubleComplex only (tentative)
-    return (state["ProblemType"]["DataType"].isSingle() or state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex())
+    # Single/Double/Complex only (tentative)
+    return (state["ProblemType"]["DataType"].isSingle() or state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isComplex())
 
   ########################################
   # determine can we use DirectToVgpr
   @staticmethod
   def isDirectToVgprDoable(state, tc):
-    tcOther = 'B' if tc == 'A' else 'B'
+    tcOther = 'B' if tc == 'A' else 'A'
     MIindex = 0 if tc == 'A' else 1
     # With MatrixInstruction only (tentative)
     if not state["EnableMatrixInstruction"] :
@@ -2333,9 +2333,9 @@ class Solution(collections.abc.Mapping):
       reject(state, "DirectToVgpr%c does not supports TLU%c = False and PrefetchLocalRead = 0"%(tc, tc))
       return False
 
-    # Does not work with TLU = False and SGEMM
-    if (not state["ProblemType"]["TLU%c"%tc]) and state["ProblemType"]["DataType"].isSingle():
-      reject(state, "DirectToVgpr%c does not supports TLU%c = False + SGEMM"%(tc, tc))
+    # Does not work with TLU = False and SGEMM/CGEMM (not supported)
+    if (not state["ProblemType"]["TLU%c"%tc]) and (state["ProblemType"]["DataType"].isSingle() or state["ProblemType"]["DataType"].isSingleComplex()):
+      reject(state, "DirectToVgpr%c does not supports TLU%c = False + SGEMM/CGEMM"%(tc, tc))
       return False
 
     # MIWaveGroup check
@@ -2361,10 +2361,10 @@ class Solution(collections.abc.Mapping):
         reject(state, "DirectToVgpr%c does not supports NumLoadsCoalesced%c(=%u) != MIWaveTile[%u](=%u) / GlobalLoadVectorWidth%c(=%u)"\
                        %(tc, tc, state["NumLoadsCoalesced%c"%tc], MIindex, state['MIWaveTile'][MIindex], tc, state["GlobalLoadVectorWidth%c"%tc]))
         return False
-    # Does not work with TLU and MIWaveTile < GlobalLoadVectorWidth
-    if state["ProblemType"]["TLU%s"%tc] and state['MIWaveTile'][MIindex] < state["GlobalLoadVectorWidth%c"%tc]:
-      reject(state, "DirectToVgpr%c does not supports MIWaveTile[%u](=%u) < GlobalLoadVectorWidth%c(=%u)"\
-                     %(tc, MIindex, state['MIWaveTile'][MIindex], tc, state["GlobalLoadVectorWidth%c"%tc]))
+    # Does not work with MIWaveTile < VectorWidth
+    if state['MIWaveTile'][MIindex] < state["VectorWidth"]:
+      reject(state, "DirectToVgpr%c does not supports MIWaveTile[%u](=%u) < VectorWidth(=%u)"\
+                     %(tc, MIindex, state['MIWaveTile'][MIindex], state["VectorWidth"]))
       return False
 
     # Does not work with ExpandPointerSwap = False
@@ -3243,8 +3243,7 @@ class Solution(collections.abc.Mapping):
           totalVectorsCoalescedB, totalElementsPerpB):
         return
 
-    # allow LocalReadVectorWidth for TLU + MatrixInstruction
-    # so far, limited to single/double + (DTVB or (DTVA + no DTL)) only
+    # allow LocalReadVectorWidthB > 1 for TLUB + MatrixInstruction (this is applicable for B only)
     # some more limitations necessary to make this logic work
     # - SourceSwap
     # - VectorWidth >= LocalReadVectorWidth
@@ -3256,9 +3255,8 @@ class Solution(collections.abc.Mapping):
       VectorWidthB = state["VectorWidth"]
     elif state["DirectToVgprA"]:
       VectorWidthB = state["LocalReadVectorWidth"]
-    state["allowLRVWforTLUandMI"] = (state["ProblemType"]["DataType"].isSingle() or state["ProblemType"]["DataType"].isDouble()) and \
-                                (state["DirectToVgprB"] or state["DirectToVgprA"] and not state["DirectToLds"]) and \
-                                state["EnableMatrixInstruction"] and state["ProblemType"]["TLUA"] and state["ProblemType"]["TLUB"] and \
+    state["allowLRVWBforTLUandMI"] = (state["DirectToVgprB"] or state["DirectToVgprA"] and not state["DirectToLds"]) and \
+                                state["EnableMatrixInstruction"] and state["ProblemType"]["TLUB"] and \
                                 state["VectorWidth"] >= state["LocalReadVectorWidth"] and \
                                 state["AssertFree1ElementMultiple"] % state["VectorWidth"] == 0 and \
                                 VectorWidthB > 1 and \
@@ -3452,7 +3450,7 @@ class Solution(collections.abc.Mapping):
 
     # Default LocalReadVectorWidth
     if state["LocalReadVectorWidth"] == -1:
-      if state["EnableMatrixInstruction"] and not state["allowLRVWforTLUandMI"]:
+      if state["EnableMatrixInstruction"] and not state["allowLRVWBforTLUandMI"]:
         state["LocalReadVectorWidth"] = state["MIInputPerThread"]
         # enable less than state["MIInputPerThread"] 
         # for fp64 this means ds_read_b32 
@@ -3467,7 +3465,7 @@ class Solution(collections.abc.Mapping):
         if state["LocalReadVectorWidth"] < state["MIInputPerThread"] and not (state["DirectToLdsA"] or state["DirectToLdsB"]):
           reject(state, "LocalReadVectorWidth < %u" %(state["MIInputPerThread"]))
         if state["LocalReadVectorWidth"] > state["MIInputPerThread"] and not state["TransposeLDS"] \
-           and not state["allowLRVWforTLUandMI"]:
+           and not state["allowLRVWBforTLUandMI"]:
           reject(state, "LocalReadVectorWidth require Transpose LDS")
       else:
         if state["LocalReadVectorWidth"] != state["VectorWidth"]:
@@ -3648,8 +3646,8 @@ class Solution(collections.abc.Mapping):
               state["ProblemType"]["ComputeDataType"].isSingle() or \
               (state["ProblemType"]["ComputeDataType"].isHalf() and state["ProblemType"]["HighPrecisionAccumulate"]) or \
               state["ProblemType"]["ComputeDataType"].isInt32() or \
-              state["ProblemType"]["ComputeDataType"].isDoubleComplex()):
-        reject(state, "MIArchVgpr now only support fp64, fp32, fp16, int8 MatrixInstruction.")
+              state["ProblemType"]["ComputeDataType"].isComplex()):
+        reject(state, "MIArchVgpr now only support fp64, fp64c, fp32, fp32c, fp16, int8 MatrixInstruction.")
         return
 
     if state["AtomicAddC"]:
@@ -3811,6 +3809,15 @@ class Solution(collections.abc.Mapping):
         minDUnum = 2
         if not (3 in state["AssertSizeGreaterThan"].keys() and state["AssertSizeGreaterThan"][3] >= state["DepthU"] * minDUnum):
           reject(state, "StoreCInUnroll does not work if AssertSizeGreaterThan for K is not greater than DepthU * %u"%minDUnum)
+          return
+
+      # exact K check
+      # StoreCInUnrollExact requires exact K
+      if state["StoreCInUnrollExact"]:
+        # K == DepthU * ThreadTile0 * ThreadTile1 // VectorWidth is necessary
+        exactK = state["DepthU"] * state["ThreadTile0"] * state["ThreadTile1"] // state["VectorWidth"]
+        if not (3 in state["AssertSizeEqual"].keys() and state["AssertSizeEqual"][3] == exactK):
+          reject(state, "StoreCInUnrollExact does not work if AssertSizeEqual for K is not DepthU * ThreadTile0 * ThreadTile1 / VectorWidth")
           return
 
     else:

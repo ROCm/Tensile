@@ -32,7 +32,9 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     String compiler = 'hipcc'
     String pythonVersion = 'py36'
     String cov = "V3"
-    String buildType = debug ? 'Debug' : 'RelWithDebInfo'
+    // Do release build of HostLibraryTests on CI until it is upgraded to rocm 5.3 to
+    // avoid bug causing long build times of certain files.
+    String buildType = 'Release' // debug ? 'Debug' : 'RelWithDebInfo'
     String parallelJobs = "export HIPCC_COMPILE_FLAGS_APPEND=-parallel-jobs=2"
 
     // comment

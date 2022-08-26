@@ -144,8 +144,9 @@ class LocalReadMFMA(LocalRead):
         numOffsets       = instruction.numOffsets
         blockWidth       = instruction.blockWidth
         vectorWidth      = kernel["VectorWidth"] if kernel["SourceSwap"] else 1 # TODO: nonSwap VectorWidth
-        vwA              = writer.lrvwA if writer.allowLRVWforTLUandMI else 1
-        vwB              = writer.lrvwB if writer.allowLRVWforTLUandMI else 1
+        allowLRVWBforTLUandMI = writer.allowLRVWBforTLUandMI and tP["tlu"]
+        vwA              = writer.lrvwA if allowLRVWBforTLUandMI else 1
+        vwB              = writer.lrvwB if allowLRVWBforTLUandMI else 1
         MIWaveGroupShape = [ kernel["MatrixInstM"] * kernel["MatrixInstBM"] * kernel["MIWaveGroup"][0] * vectorWidth // vwA, \
                              kernel["MatrixInstN"] * kernel["MatrixInstBN"] * kernel["MIWaveGroup"][1] * vwB]
 
@@ -157,12 +158,12 @@ class LocalReadMFMA(LocalRead):
             UnrollStride = 1
 
         numReadPerTileVector = vectorWidth if (tile01 == 0) else 1
-        if (tile01 == 0) and writer.allowLRVWforTLUandMI and numReadPerTileVector >= lrvw:
+        if (tile01 == 0) and allowLRVWBforTLUandMI and numReadPerTileVector >= lrvw:
           numReadPerTileVector //= lrvw
           if tileStride==1:
             tileStride = lrvw
         numVectorsPerTile    = kernel["MIWaveTile"][tile01] // numReadPerTileVector
-        if writer.allowLRVWforTLUandMI and numVectorsPerTile >= lrvw:
+        if allowLRVWBforTLUandMI and numVectorsPerTile >= lrvw:
           numVectorsPerTile //= lrvw
         # overloading numReadsPerUnroll for DirectToLds x2/x4 case when blockWidth of instruction < LocalReadVectorWidth
         # fp64 TLU=1 reading 0.5element/lane/read..
@@ -228,7 +229,7 @@ class LocalReadMFMA(LocalRead):
                         if (kernel["DirectToLds%s" % tP["tensorChar"]] and  \
                             kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"] > 4):
                           # directToLds special case
-                          divVal = 4 if kernel["ProblemType"]["DataType"].isDoubleComplex() else 2
+                          divVal = 4 if (kernel["ProblemType"]["DataType"].isDoubleComplex() or  kernel["GlobalLoadVectorWidth%c"%tc] == 4) else 2
                           rIdxMod = rIdx % divVal
                           rIdxDiv = rIdx // divVal
                           offset_val = (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride
