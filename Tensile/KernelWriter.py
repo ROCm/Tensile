@@ -3189,8 +3189,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
           mEnd = 1
           if kernel["DirectToVgprA"] or kernel["DirectToVgprB"]:
             mEnd = kernel["DepthU"]//KinInnerUnroll
+          # need to cover different local read inc values for the following DirectToLds case
           elif kernel["DirectToLds"] and kernel["EnableMatrixInstruction"] and kernel["InnerUnroll"] == 1 and\
-               (kernel["GlobalLoadVectorWidthA"] * self.bpeAB > 4 or kernel["GlobalLoadVectorWidthB"] * self.bpeAB > 4) and \
+               (kernel["GlobalLoadVectorWidthA"] * self.bpeAB > 4 or kernel["GlobalLoadVectorWidthB"] * self.bpeAB > 4
+                or kernel["ThreadSeparateGlobalReadA"] or kernel["ThreadSeparateGlobalReadB"]) and \
                kernel["DepthU"] // kernel["MatrixInstK"] > 2:
             mEnd = kernel["DepthU"] // (kernel["MatrixInstK"] * 2)
 
@@ -4221,6 +4223,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   @abc.abstractmethod
   def lraFinalOffset(self, kernel, tP):
+    return ""
+
+  ##############################################################################
+  # Local Read Addresses for direct LDS : Final Offset A/B
+  ##############################################################################
+  @abc.abstractmethod
+  def directToLdsLraOffset(self, kernel, finalVgpr, tmp1, tmp2, tP):
     return ""
 
   ##############################################################################

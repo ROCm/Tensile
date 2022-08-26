@@ -226,18 +226,30 @@ class LocalReadMFMA(LocalRead):
                     paramList.append(vgpr("LocalReadAddr%s"%tc))
 
                     for oIdx in range(0, numOffsets):
+                        localReadOffset = tP["localReadOffset"]
+                        lrdOffsetMod = kernel["_DepthULds"]
+                        tileStride2 = tileStride
+                        if kernel["ThreadSeparateGlobalRead%c"%tc]:
+                          lrdOffsetMod //= (kernel["ThreadSeparateGlobalRead%c"%tc]*2)
+                          tileStride2 //= (kernel["ThreadSeparateGlobalRead%c"%tc]*2) # change tileStride only for eIdx
+                          localReadOffsetDiv = localReadOffset // lrdOffsetMod
+                          localReadOffset = localReadOffset % lrdOffsetMod # keep only mod of lrdOffsetMod
+                        offset_val = eIdx * tileStride2 + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01] * tileStride
                         if (kernel["DirectToLds%s" % tP["tensorChar"]] and  \
                             kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"] > 4):
                           # directToLds special case
                           divVal = 4 if (kernel["ProblemType"]["DataType"].isDoubleComplex() or  kernel["GlobalLoadVectorWidth%c"%tc] == 4) else 2
                           rIdxMod = rIdx % divVal
                           rIdxDiv = rIdx // divVal
-                          offset_val = (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride
-                          offset_val = (rIdxDiv * UnrollStride + offset_val + tP["localReadOffset"]) * tP["bpe"]  + rIdxMod * writer.bpr
+                          offset_val = (rIdxDiv * UnrollStride + offset_val + localReadOffset) * tP["bpe"]  + rIdxMod * writer.bpr
                         else:
                           # normal case
-                          offset_val = (eIdx + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01]) * tileStride
-                          offset_val = (rIdx * UnrollStride + offset_val + tP["localReadOffset"]) * tP["bpe"]
+                          offset_val = (rIdx * UnrollStride + offset_val + localReadOffset) * tP["bpe"]
+                        if kernel["ThreadSeparateGlobalRead%c"%tc] and localReadOffsetDiv > 0:
+                          # TSGR special conversion
+                          # Multiply BlockSize for each lrdOffsetMod
+                          MblockSizePerLoad = (kernel["WavefrontSize"] * kernel["GlobalLoadVectorWidth%c"%tc]) // kernel["_DepthULds"]
+                          offset_val += ((MblockSizePerLoad * lrdOffsetMod * tP["bpe"]) * localReadOffsetDiv)
                         if (kernel["LdsBlockSizePerPad%s"%tc] != 0) and (kernel["LdsPad%s"%tc] != 0):
                             offset_val = offset_val + (offset_val // kernel["LdsBlockSizePerPad%s"%tc]) * kernel["LdsPad%s"%tc] * tP["bpe"]
                         offset_val = offset_val + tP["localReadSwapByteOffset"]
