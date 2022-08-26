@@ -82,22 +82,27 @@ namespace Tensile
 
         hipError_t SolutionAdapter::loadCodeObjectFile(std::string const& path)
         {
-            hipModule_t module;
+            hipModule_t             module;
+            std::unique_ptr<char[]> buffer;
+            std::ifstream           coFile(path, std::ifstream::binary);
 
-            // load file into buffer
-            std::ifstream coFile(path, std::ifstream::binary);
-            coFile.seekg(0, coFile.end);
-            auto length = coFile.tellg();
-            coFile.seekg(0, coFile.beg);
+            // hipModuleLoad holds the file descriptor/handle which can result in a process
+            // running out of descriptors/handles. Use hipModuleLoadData as a workaround
+            if(coFile)
+            {
+                coFile.seekg(0, coFile.end);
+                auto length = coFile.tellg();
+                coFile.seekg(0, coFile.beg);
 
-            auto buff = std::make_unique<char[]>(length);
-            coFile.read(buff.get(), length);
+                buffer = std::make_unique<char[]>(length);
+                coFile.read(buffer.get(), length);
 
-            // use moduleLoadData
-            HIP_CHECK_RETURN(hipModuleLoadData(&module, (void*)buff.get()));
-
-            // keep buffer around
-            m_moduleBuffers.push_back(std::move(buff));
+                HIP_CHECK_RETURN(hipModuleLoadData(&module, (void*)buffer.get()));
+            }
+            else
+            {
+                return hipErrorFileNotFound;
+            }
 
             if(m_debug)
                 std::cout << "loaded code object " << path << std::endl;
@@ -106,6 +111,9 @@ namespace Tensile
                 std::lock_guard<std::mutex> guard(m_access);
                 m_modules.push_back(module);
                 m_loadedModuleNames.push_back(concatenate("File ", path));
+
+                // hipModuleLoadData requires the buffer to outlive the module, so cache the buffer
+                m_moduleBuffers.push_back(std::move(buffer));
 
                 //Isolate filename
                 size_t start = path.rfind('/');
@@ -256,7 +264,7 @@ namespace Tensile
                 for(auto ver : {"", "-xnack-", "-xnack+"})
                 {
                     std::string modifiedCOName = helperKernelName + ver + ".hsaco";
-                    err = loadCodeObjectFile(codeObjectDir + modifiedCOName);
+                    err                        = loadCodeObjectFile(codeObjectDir + modifiedCOName);
 
                     if(err == hipSuccess)
                         return err;
