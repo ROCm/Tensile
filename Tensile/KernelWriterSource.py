@@ -3311,7 +3311,7 @@ class KernelWriterSource(KernelWriter):
   # SyncThreads
   ##############################################################################
   def syncThreads(self, kernel, comment=""):
-    if kernel["SubGroup0"]*kernel["SubGroup1"]*kernel["LocalSplitU"] != kernel["WavefrontSize"]:
+    if kernel["NumThreads"] > kernel["WavefrontSize"]:
         return self.indent + self.syncStr + " //" + comment + self.endLine
     else:
         return self.indent + self.endLine
