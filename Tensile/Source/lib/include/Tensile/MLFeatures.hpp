@@ -43,6 +43,26 @@ namespace Tensile
      */
     namespace MLFeatures
     {
+        /* Scale factors used for partially calculating granularities */
+        struct CUGranularityScaleFactors
+        {
+            float mt0_scale; // 1/mt0
+            float mt1_scale; // 1/mt1
+            float cu_scale;
+        };
+
+        struct WaveGranularityScaleFactors
+        {
+            CUGranularityScaleFactors cu_factors;
+            float wave_scale;
+        };
+        
+        float tilesPerCU(ContractionProblem const& problem, CUGranularityScaleFactors const& cu_factors);
+        std::ostream& operator<<(std::ostream&                    stream,
+                                 CUGranularityScaleFactors const& cugsf);
+        std::ostream& operator<<(std::ostream&                      stream,
+                                 WaveGranularityScaleFactors const& wgsf);
+        
         /**
          * @brief A Property whose value is of type `float`.
          */
@@ -176,10 +196,7 @@ namespace Tensile
                 HasValue = true,
 
             };
-            ContractionSolution::GranularityScaleFactors value;
-            /* General scaling = (1 / (numCUs / globalSplitU / localSplitU))
-             * See: `ContractionSolution::computeGranularities`
-             */
+            CUGranularityScaleFactors value;
 
             static std::string Type()
             {
@@ -188,13 +205,7 @@ namespace Tensile
 
             virtual float operator()(ContractionProblem const& problem) const
             {
-                float NumBatches = 1; // TODO: Higher batch sizes
-                float numTilesM  = problem.freeSizeA(0) * value.mt0_scale; // M / MT0
-                float numTilesN  = problem.freeSizeB(0) * value.mt1_scale; // N / MT1
-                float tilesPerCu
-                    = NumBatches * ceil(numTilesM) * ceil(numTilesN) * value.devSolScale;
-
-                return ContractionSolution::computeGranularity(tilesPerCu);
+                return ContractionSolution::computeGranularity(tilesPerCU(problem, value));
             }
         };
 
@@ -206,12 +217,7 @@ namespace Tensile
                 HasValue = true,
 
             };
-            ContractionSolution::GranularityScaleFactors value;
-            /* General scaling = ((globalSplitU / numCUs)
-             *                     * ceil((workGroupX * workGroupY) / wavefrontSize)
-             *                     / (2 * simdPerCU))
-             * See: `ContractionSolution::computeGranularities`
-             */
+            WaveGranularityScaleFactors value;
 
             static std::string Type()
             {
@@ -220,13 +226,10 @@ namespace Tensile
 
             virtual float operator()(ContractionProblem const& problem) const
             {
-                float numTilesM  = problem.freeSizeA(0) * value.mt0_scale; // M / MT0
-                float numTilesN  = problem.freeSizeB(0) * value.mt1_scale; // N / MT1
-                float totalTiles = ceil(numTilesM) * ceil(numTilesN);
-                return totalTiles * value.devSolScale;
+                return ceil(tilesPerCU(problem, value.cu_factors)) * value.wave_scale;
             }
         };
-
+        
         /**
          * @}
          */

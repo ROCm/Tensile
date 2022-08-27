@@ -37,6 +37,35 @@ namespace Tensile
 {
     namespace Serialization
     {
+        template <typename IO>
+        struct MappingTraits<MLFeatures::CUGranularityScaleFactors, IO>
+        {
+            using iot = IOTraits<IO>;
+            static void mapping(IO& io, MLFeatures::CUGranularityScaleFactors& cugsf)
+            {
+                iot::mapRequired(io, "mt0", cugsf.mt0_scale);
+                iot::mapRequired(io, "mt1", cugsf.mt1_scale);
+                iot::mapRequired(io, "cus", cugsf.cu_scale);
+            }
+
+            const static bool flow = true;
+        };
+
+        template <typename IO>
+        struct MappingTraits<MLFeatures::WaveGranularityScaleFactors, IO>
+        {
+            using iot = IOTraits<IO>;
+            static void mapping(IO& io, MLFeatures::WaveGranularityScaleFactors& wgsf)
+            {
+                iot::mapRequired(io, "mt0", wgsf.cu_factors.mt0_scale);
+                iot::mapRequired(io, "mt1", wgsf.cu_factors.mt1_scale);
+                iot::mapRequired(io, "cus", wgsf.cu_factors.cu_scale);
+                iot::mapRequired(io, "ws",  wgsf.wave_scale);
+            }
+
+            const static bool flow = true;
+        };
+        
         // Set Flow
         template <typename IO>
         struct MappingTraits<std::shared_ptr<MLFeatures::MLFeature<ContractionProblem>>, IO>
