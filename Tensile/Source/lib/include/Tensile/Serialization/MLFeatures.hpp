@@ -57,9 +57,9 @@ namespace Tensile
             using iot = IOTraits<IO>;
             static void mapping(IO& io, MLFeatures::WaveGranularityScaleFactors& wgsf)
             {
-                iot::mapRequired(io, "mt0", wgsf.cu_factors.mt0Scale);
-                iot::mapRequired(io, "mt1", wgsf.cu_factors.mt1Scale);
-                iot::mapRequired(io, "cus", wgsf.cu_factors.cuScale);
+                iot::mapRequired(io, "mt0", wgsf.cuFactors.mt0Scale);
+                iot::mapRequired(io, "mt1", wgsf.cuFactors.mt1Scale);
+                iot::mapRequired(io, "cus", wgsf.cuFactors.cuScale);
                 iot::mapRequired(io, "ws", wgsf.waveScale);
             }
 

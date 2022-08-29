@@ -130,11 +130,11 @@ class MatchingLibrary:
 
 class DecisionTreeLibrary:
     Tag = "DecisionTree"
-    StateKeys = [("type", "tag"), "properties", "trees"]
+    StateKeys = [("type", "tag"), "features", "trees"]
 
     @classmethod
     def FromOriginalState(cls, d, solutions):
-        properties = d["properties"]
+        features = d["features"]
         origTrees = d["trees"]
 
         trees = []
@@ -146,7 +146,7 @@ class DecisionTreeLibrary:
             entry = {"tree": tree["tree"], "value": value}
             trees.append(entry)
 
-        return cls(properties, trees)
+        return cls(features, trees)
 
     @property
     def tag(self):
@@ -160,8 +160,8 @@ class DecisionTreeLibrary:
     def remapSolutionIndices(self, indexMap):
         pass
 
-    def __init__(self, properties, trees):
-        self.properties = properties
+    def __init__(self, features, trees):
+        self.features = features
         self.trees = trees
 
 
