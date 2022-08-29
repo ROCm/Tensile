@@ -3315,7 +3315,7 @@ class KernelWriterSource(KernelWriter):
         return self.indent + self.syncStr + " //" + comment + self.endLine
     else:
         return self.indent + "// Skip barrier: NumThreads=%s"%(kernel["NumThreads"]) + \
-              self.indent + self.endLine
+               self.endLine
 
   ##############################################################################
   # MapAcctoArch
