@@ -30,26 +30,25 @@ namespace Tensile
 {
     namespace MLFeatures
     {
-        float tilesPerCU(ContractionProblem const& problem, CUGranularityScaleFactors const& cu_factors)
+        float tilesPerCU(ContractionProblem const&        problem,
+                         CUGranularityScaleFactors const& cuFactors)
         {
-            float NumBatches = 1; // TODO: Higher batch sizes
-            float numTilesM  = problem.freeSizeA(0) * cu_factors.mt0_scale; // M / MT0
-            float numTilesN  = problem.freeSizeB(0) * cu_factors.mt1_scale; // N / MT1
-            float totalTiles = NumBatches * ceil(numTilesM) * ceil(numTilesN);
-            return totalTiles * cu_factors.cu_scale;
-        };
-        
-        std::ostream& operator<<(std::ostream&                  stream,
-                                 CUGranularityScaleFactors const& cugsf)
-        {
-            return stream << " mt0=" << cugsf.mt0_scale << " mt1=" << cugsf.mt1_scale
-                        << " cus=" << cugsf.cu_scale;
+            float numBatches = 1; // TODO: Higher batch sizes
+            float numTilesM  = problem.freeSizeA(0) * cuFactors.mt0Scale; // M / MT0
+            float numTilesN  = problem.freeSizeB(0) * cuFactors.mt1Scale; // N / MT1
+            float totalTiles = numBatches * ceil(numTilesM) * ceil(numTilesN);
+            return totalTiles * cuFactors.cuScale;
         };
 
-        std::ostream& operator<<(std::ostream&                      stream,
-                                 WaveGranularityScaleFactors const& wgsf)
+        std::ostream& operator<<(std::ostream& stream, CUGranularityScaleFactors const& cugsf)
         {
-            return stream << wgsf.cu_factors << " ws=" << wgsf.wave_scale;
+            return stream << " mt0=" << cugsf.mt0Scale << " mt1=" << cugsf.mt1Scale
+                          << " cus=" << cugsf.cuScale;
+        };
+
+        std::ostream& operator<<(std::ostream& stream, WaveGranularityScaleFactors const& wgsf)
+        {
+            return stream << wgsf.cuFactors << " ws=" << wgsf.waveScale;
         };
     } // namespace Tensile
 }

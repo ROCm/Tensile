@@ -46,23 +46,23 @@ namespace Tensile
         /* Scale factors used for partially calculating granularities */
         struct CUGranularityScaleFactors
         {
-            float mt0_scale; // 1/mt0
-            float mt1_scale; // 1/mt1
-            float cu_scale;
+            float mt0Scale; // 1/mt0
+            float mt1Scale; // 1/mt1
+            float cuScale;
         };
 
         struct WaveGranularityScaleFactors
         {
-            CUGranularityScaleFactors cu_factors;
-            float wave_scale;
+            CUGranularityScaleFactors cuFactors;
+            float                     waveScale;
         };
-        
-        float tilesPerCU(ContractionProblem const& problem, CUGranularityScaleFactors const& cu_factors);
-        std::ostream& operator<<(std::ostream&                    stream,
-                                 CUGranularityScaleFactors const& cugsf);
-        std::ostream& operator<<(std::ostream&                      stream,
-                                 WaveGranularityScaleFactors const& wgsf);
-        
+
+        float tilesPerCU(ContractionProblem const&        problem,
+                         CUGranularityScaleFactors const& cuFactors);
+
+        std::ostream& operator<<(std::ostream& stream, CUGranularityScaleFactors const& cugsf);
+        std::ostream& operator<<(std::ostream& stream, WaveGranularityScaleFactors const& wgsf);
+
         /**
          * @brief A Property whose value is of type `float`.
          */
@@ -226,10 +226,10 @@ namespace Tensile
 
             virtual float operator()(ContractionProblem const& problem) const
             {
-                return ceil(tilesPerCU(problem, value.cu_factors)) * value.wave_scale;
+                return ceil(tilesPerCU(problem, value.cuFactors)) * value.waveScale;
             }
         };
-        
+
         /**
          * @}
          */

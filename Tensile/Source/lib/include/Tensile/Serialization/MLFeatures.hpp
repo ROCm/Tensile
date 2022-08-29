@@ -43,9 +43,9 @@ namespace Tensile
             using iot = IOTraits<IO>;
             static void mapping(IO& io, MLFeatures::CUGranularityScaleFactors& cugsf)
             {
-                iot::mapRequired(io, "mt0", cugsf.mt0_scale);
-                iot::mapRequired(io, "mt1", cugsf.mt1_scale);
-                iot::mapRequired(io, "cus", cugsf.cu_scale);
+                iot::mapRequired(io, "mt0", cugsf.mt0Scale);
+                iot::mapRequired(io, "mt1", cugsf.mt1Scale);
+                iot::mapRequired(io, "cus", cugsf.cuScale);
             }
 
             const static bool flow = true;
@@ -57,15 +57,15 @@ namespace Tensile
             using iot = IOTraits<IO>;
             static void mapping(IO& io, MLFeatures::WaveGranularityScaleFactors& wgsf)
             {
-                iot::mapRequired(io, "mt0", wgsf.cu_factors.mt0_scale);
-                iot::mapRequired(io, "mt1", wgsf.cu_factors.mt1_scale);
-                iot::mapRequired(io, "cus", wgsf.cu_factors.cu_scale);
-                iot::mapRequired(io, "ws",  wgsf.wave_scale);
+                iot::mapRequired(io, "mt0", wgsf.cu_factors.mt0Scale);
+                iot::mapRequired(io, "mt1", wgsf.cu_factors.mt1Scale);
+                iot::mapRequired(io, "cus", wgsf.cu_factors.cuScale);
+                iot::mapRequired(io, "ws", wgsf.waveScale);
             }
 
             const static bool flow = true;
         };
-        
+
         // Set Flow
         template <typename IO>
         struct MappingTraits<std::shared_ptr<MLFeatures::MLFeature<ContractionProblem>>, IO>
