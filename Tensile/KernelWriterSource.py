@@ -3317,11 +3317,13 @@ class KernelWriterSource(KernelWriter):
   # SyncThreads
   ##############################################################################
   def syncThreads(self, kernel, comment=""):
-    if kernel["NumThreads"] > kernel["WavefrontSize"]:
-        return self.indent + self.syncStr + " //" + comment + self.endLine
-    else:
-        return self.indent + "// Skip barrier: NumThreads=%s"%(kernel["NumThreads"]) + \
-               self.endLine
+    return self.indent + self.syncStr + " //" + comment + self.endLine
+# TODO: can be uncommented once source kernels support WavefrontSize=32
+#    if kernel["NumThreads"] > kernel["WavefrontSize"]:
+#        return self.indent + self.syncStr + " //" + comment + self.endLine
+#    else:
+#        return self.indent + "// Skip barrier: NumThreads=%s"%(kernel["NumThreads"]) + \
+#               self.endLine
 
   ##############################################################################
   # MapAcctoArch
