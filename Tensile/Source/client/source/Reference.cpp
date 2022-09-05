@@ -182,7 +182,11 @@ namespace Tensile
             // Dynamic thread mode causes HostLibraryTests to fail
             const char* env_bind = std::getenv("OMP_PROC_BIND");
             if(env_bind == nullptr)
+#ifdef _WIN32
+                _putenv_s("OMP_PROC_BIND", "true");
+#else
                 setenv("OMP_PROC_BIND", "true", 1);
+#endif
             omp_set_num_threads(64);
 #pragma omp parallel for
             for(size_t dNum = 0; dNum < d.totalLogicalElements(); dNum += validationStride)
@@ -329,7 +333,11 @@ namespace Tensile
                                       : multiply<Accumulator>(beta, inputs.c[cIndex])));
             }
             if(env_bind == nullptr)
+#ifdef _WIN32
+                _putenv("OMP_PROC_BIND=");
+#else
                 unsetenv("OMP_PROC_BIND");
+#endif
         }
 
         void SolveCPU(ContractionProblem const& problem,
