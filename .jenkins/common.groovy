@@ -30,7 +30,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     project.paths.construct_build_prefix()
 
     String compiler = 'hipcc'
-    String pythonVersion = 'py36'
+    String pythonVersion = 'py3'
     String cov = "V3"
     String buildType = debug ? 'Debug' : 'RelWithDebInfo'
     String parallelJobs = "export HIPCC_COMPILE_FLAGS_APPEND=-parallel-jobs=2"
@@ -110,7 +110,7 @@ def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest
     def test_dir =  "Tensile/Tests"
 
     String compiler = 'hipcc'
-    String pythonVersion = 'py36'
+    String pythonVersion = 'py3'
     String markSkipHostTest = skipHostTest ? "#" : ""
     String markSkipExtendedTest = !test_marks.contains("extended") ? "--gtest_filter=-\"*Extended*\"" : ""
 
