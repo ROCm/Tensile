@@ -1359,11 +1359,4 @@ namespace Tensile
                       << " shiftPtrElemB=" << st.shiftPtrElemB << " depthUorMT0=" << st.depthUorMT0
                       << " depthUorMT1=" << st.depthUorMT1;
     }
-
-    std::ostream& operator<<(std::ostream&                                       stream,
-                             ContractionSolution::GranularityScaleFactors const& gsf)
-    {
-        return stream << " mt0=" << gsf.mt0_scale << " mt1=" << gsf.mt1_scale
-                      << " gsc=" << gsf.devSolScale;
-    }
 } // namespace Tensile

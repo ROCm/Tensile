@@ -106,7 +106,7 @@ Library:
 treeLibrary = r"""
 LibraryType: DecisionTree
 Library:
-- properties:
+- features:
   - {index: 0, type: FreeSizeA}
   - {index: 0, type: BoundSize}
   trees:
@@ -120,7 +120,7 @@ Library:
   - {type: SizeInRange, index: 0, value: {min: 6000, max: 8000}}
   - {type: SizeInRange, index: 1, value: {min: 6000, max: 7000}}
 
-- properties:
+- features:
   - {index: 0, type: FreeSizeB}
   trees:
   - tree:
