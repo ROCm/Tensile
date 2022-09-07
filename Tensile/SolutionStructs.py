@@ -2971,24 +2971,22 @@ class Solution(collections.abc.Mapping):
         reject(state, "int8 doesn't support LocalSplitU")
         return
 
-    # bbk: This section is moved from top  ===============================================
     if ("_GlobalAccumulation" not in state) or ("_WorkspaceSizePerElemC" not in state):
       state["_GlobalAccumulation"] = None
       state["_WorkspaceSizePerElemC"] = 0
 
       if state["GlobalSplitU"] > 1:
-        computeName  = state["ProblemType"]["ComputeDataType"].toName()  # bbk remove
+        computeName  = state["ProblemType"]["ComputeDataType"].toName()
         computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
 
         if state["GlobalSplitUAlgorithm"] == 'SingleBuffer':
           # For SingleBuffer algorithm, _GA and _WorkspaceSizePerElemC is updated only if the gemm function is HPA. The worskspace is
           # used to convert the final output from ComputeDataType to DestDataType. For non-HPA gemm functions the _GA and _Workspace
           # remain unchanged.
-          if computeName != state["ProblemType"]["DataType"].toName(): # to include all non-HPA bbk-keep after testing the performnace of HSS/BSS
-          #if computeName != state["ProblemType"]["DestDataType"].toName(): # origial, only includes HHS/BBS, bbk remove
+          if computeName != state["ProblemType"]["DataType"].toName(): # for HPA cases
             state["_GlobalAccumulation"] = 'SingleBuffer'
             state["_WorkspaceSizePerElemC"] = computeBytes
-        elif state["GlobalSplitUAlgorithm"] == 'MultipleBuffer': # workspace is needed for all gemm funcs when alo is MB.
+        elif state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':
           state["_GlobalAccumulation"] = 'MultipleBuffer'
           state["_WorkspaceSizePerElemC"] = computeBytes * state["GlobalSplitU"]
 
@@ -3002,12 +3000,10 @@ class Solution(collections.abc.Mapping):
           reject(state, "GlobalSplitU is not for I8 or 4xi8 data type.")
           return
 
-    # to eliminate identical kernels when GSU=1 but GlobalSplitUAlgorithm is defined as SingleBuffer and MultipleBuffer # bbk
-    if state["GlobalSplitU"] == 1 and state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':  # bbk  merge this condition with supported condition
+    # to eliminate identical/duplicate kernels when GSU=1 but GlobalSplitUAlgorithm is MultipleBuffer
+    if state["GlobalSplitU"] == 1 and state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':
       print2(" GlobalSplitU=1 and GlobalSplitUAlgorithm='MultipleBuffer'. Setting GlobalSplitUAlgorithm='SingleBuffer' to avoid duplicate kernels.")
-      state["GlobalSplitUAlgorithm"] = 'SingleBuffer' # bbk uncomment
-
-    # bbk  ===============================================
+      state["GlobalSplitUAlgorithm"] = 'SingleBuffer'
 
     if state["VectorAtomicWidth"] == -1:
       state["VectorAtomicWidth"] = 1 # TODO - remove this and next line when VAW works for other types

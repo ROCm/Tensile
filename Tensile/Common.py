@@ -488,13 +488,14 @@ validParameters = {
 
     # Chooses how to do GlobalSplitU:
     # - SingleBuffer: uses atomic operation to accumulate on one buffer
-    # - MultipleBuffer: each GSU group write to each own buffer and accumulate by another kernel
-    # if GlobalSplitU=1, this parameter will be ignored (and set to SingleBuffer for consistency in lib logics).
+    # - MultipleBuffer: each GSU group writes to its own buffer and the postGSU accumulates the buffer
+    # if GlobalSplitU=1, this parameter will be ignored (and will be set to SingleBuffer if it is 
+    # MultipleBuffer for consistency in lib logics).
     # GSU/GSUAlo can be used with all gemm types, except for I8II.
     # When GSU>1, we need extra kernels (other than the main assembly kernel) to do the computations. The language of these
-    # kernels are HIP source and will be dropped in 1_BenchmarkProblems/Cijk_*/*_Final/source/Kernels.?pp
-    #   - pre-kernel: Global Accumulation.
-    #   - postGSU: accumulates AxB and alpha*AxB+beta*C.
+    # kernels are HIP source and will be dropped in 1_BenchmarkProblems/Cijk_*/*_Final/source/Kernels.?pp:
+    #   - pre-kernel: for Global Accumulation.
+    #   - postGSU: for accumulating AxB and alpha*AxB+beta*C from the buffer.
     #
     # Table below shows the required kernels and workspace for each gemm function.
     # ------------------------------------------------------------------------------------------
