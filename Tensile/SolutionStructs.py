@@ -2603,24 +2603,6 @@ class Solution(collections.abc.Mapping):
         state['_'+s] = state[s]
         #del state[s]
 
-    if ("_GlobalAccumulation" not in state) or ("_WorkspaceSizePerElemC" not in state):
-      state["_GlobalAccumulation"] = None
-      state["_WorkspaceSizePerElemC"] = 0
-      if state["GlobalSplitU"] > 1:
-        computeName  = state["ProblemType"]["ComputeDataType"].toName()
-        computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
-
-        if state["GlobalSplitUAlgorithm"] == 'SingleBuffer':
-          if computeName != state["ProblemType"]["DestDataType"].toName():
-            state["_GlobalAccumulation"] = 'SingleBuffer'
-        elif state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':
-          state["_GlobalAccumulation"] = 'MultipleBuffer'
-
-        if state["_GlobalAccumulation"] == 'SingleBuffer':
-          state["_WorkspaceSizePerElemC"] = computeBytes
-        elif state["_GlobalAccumulation"] == 'MultipleBuffer':
-          state["_WorkspaceSizePerElemC"] = computeBytes * state["GlobalSplitU"]
-
     if state["VectorStore"] == -1:
         state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel
 
@@ -2989,23 +2971,43 @@ class Solution(collections.abc.Mapping):
         reject(state, "int8 doesn't support LocalSplitU")
         return
 
-    # GlobalSplitU doesn't work with some other things:
-    if state["GlobalSplitU"] > 1:
-      if not state["GlobalSplitUSummationAssignmentRoundRobin"] and state["LoopTail"]:
-        reject(state, "GlobalSplitU and LoopTail require SummationAssignmentRoundRobin=True since strongly breaks Tensile kernel architecture")
-        return
-      # added GSU support for DGEMM
-      supported = \
-        (state["ProblemType"]["DataType"].isSingle()) or \
-        (state["ProblemType"]["DataType"].isDouble() and state["BufferStore"]) or \
-        (state["ProblemType"]["DestDataType"].isInt32()) or \
-        (state["KernelLanguage"] == "Assembly" and
-            (state["ProblemType"]["DataType"].isHalf() and not state["ProblemType"]["HighPrecisionAccumulate"]) or
-            (state["_GlobalAccumulation"])
-        )
-      if not supported:
-        reject(state, "GlobalSplitU only compatible with single or asm and (half or mixed) precision")
-        return
+    # bbk: This section is moved from top  ===============================================
+    if ("_GlobalAccumulation" not in state) or ("_WorkspaceSizePerElemC" not in state):
+      state["_GlobalAccumulation"] = None
+      state["_WorkspaceSizePerElemC"] = 0
+
+      if state["GlobalSplitU"] > 1:
+        computeName  = state["ProblemType"]["ComputeDataType"].toName()  # bbk remove
+        computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
+
+        if state["GlobalSplitUAlgorithm"] == 'SingleBuffer':
+          # For SingleBuffer algorithm, _GA and _WorkspaceSizePerElemC is updated only if the gemm function is HPA. The worskspace is
+          # used to convert the final output from ComputeDataType to DestDataType. For non-HPA gemm functions the _GA and _Workspace
+          # remain unchanged.
+          if computeName != state["ProblemType"]["DataType"].toName(): # to include all non-HPA bbk-keep after testing the performnace of HSS/BSS
+          #if computeName != state["ProblemType"]["DestDataType"].toName(): # origial, only includes HHS/BBS, bbk remove
+            state["_GlobalAccumulation"] = 'SingleBuffer'
+            state["_WorkspaceSizePerElemC"] = computeBytes
+        elif state["GlobalSplitUAlgorithm"] == 'MultipleBuffer': # workspace is needed for all gemm funcs when alo is MB.
+          state["_GlobalAccumulation"] = 'MultipleBuffer'
+          state["_WorkspaceSizePerElemC"] = computeBytes * state["GlobalSplitU"]
+
+        # GlobalSplitU doesn't work with some other things:
+        if not state["GlobalSplitUSummationAssignmentRoundRobin"] and state["LoopTail"]:
+          reject(state, "GlobalSplitU and LoopTail require SummationAssignmentRoundRobin=True since strongly breaks Tensile kernel architecture")
+          return
+
+        # GSU is working for all gemm functions, except for I8II.
+        if (state["ProblemType"]["DataType"].isInt8() or state["ProblemType"]["DataType"].isInt8x4()):  
+          reject(state, "GlobalSplitU is not for I8 or 4xi8 data type.")
+          return
+
+    # to eliminate identical kernels when GSU=1 but GlobalSplitUAlgorithm is defined as SingleBuffer and MultipleBuffer # bbk
+    if state["GlobalSplitU"] == 1 and state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':  # bbk  merge this condition with supported condition
+      print2(" GlobalSplitU=1 and GlobalSplitUAlgorithm='MultipleBuffer'. Setting GlobalSplitUAlgorithm='SingleBuffer' to avoid duplicate kernels.")
+      state["GlobalSplitUAlgorithm"] = 'SingleBuffer' # bbk uncomment
+
+    # bbk  ===============================================
 
     if state["VectorAtomicWidth"] == -1:
       state["VectorAtomicWidth"] = 1 # TODO - remove this and next line when VAW works for other types
