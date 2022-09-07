@@ -1,6 +1,6 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.34.0
+## Tensile 4.34.0 for ROCm 5.3.0
 ### Added
 - Lazy loading of solution libraries and code object files
 - Support for dictionary style logic files
