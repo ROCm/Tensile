@@ -1,5 +1,35 @@
 # Change Log for Tensile
 
+## (Unreleased) Tensile 4.35.0
+### Added
+- Async DMA support for Transpose Data Layout (ThreadSeparateGlobalReadA/B)
+- Option to output library logic in dictionary format
+- No solution found error message for benchmarking client
+- Exact K check for StoreCInUnrollExact
+- Support for CGEMM + MIArchVgpr
+- client-path parameter for using prebuilt client
+- CleanUpBuildFiles global parameter
+- Debug flag for printing library logic index of winning solution
+- NumWarmups global parameter for benchmarking
+- Windows support for benchmarking client
+- DirectToVgpr support for CGEMM
+- TensileLibLogicToYaml for creating tuning configs from library logic solutions
+### Optimizations
+- Improved performance for StoreCInUnroll + b128 store
+### Changed
+- No syncThreads if number of threads in block equal to wavefront size
+- Re-enable HardwareMonitor for gfx90a
+- Decision trees use MLFeatures instead of Properties
+- Put beta code and store separately if StoreCInUnroll = x4 store
+### Fixed
+- Reject DirectToVgpr + MatrixInstBM/BN > 1
+- Fix benchmark timings when using warmups and/or validation
+- Fix mismatch issue with DirectToVgprB + VectorWidth > 1
+- Fix mismatch issue with DirectToLds + NumLoadsCoalesced > 1 + TailLoop
+- Fix incorrect reject condition for DirectToVgpr
+- Fix reject condition for DirectToVgpr + MIWaveTile < VectorWidth
+- Fix incorrect instruction generation with StoreCInUnroll
+
 ## Tensile 4.34.0 for ROCm 5.3.0
 ### Added
 - Lazy loading of solution libraries and code object files
