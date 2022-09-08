@@ -15,7 +15,6 @@
 - DirectToVgpr support for CGEMM
 - TensileLibLogicToYaml for creating tuning configs from library logic solutions
 ### Optimizations
-- No syncThreads if number of threads in block equal to wavefront size
 - Put beta code and store separately if StoreCInUnroll = x4 store
 - Improved performance for StoreCInUnroll + b128 store
 ### Changed
