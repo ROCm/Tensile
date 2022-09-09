@@ -130,11 +130,9 @@ namespace Tensile
                              "default behavior."
                           << std::endl;
                 {
-                    std::lock_guard<std::mutex> guard(solutionsGuard);
-                    auto                        selected_solution = solutions.at(solution_index);
+                    auto selected_solution = getSolutionByIndex(solution_index);
 
-                    if((*selected_solution->problemPredicate)(problem)
-                       && (*selected_solution->hardwarePredicate)(hardware))
+                    if(selected_solution->canSolve(problem, hardware))
                         rv = selected_solution;
                     else
                         return nullptr;
@@ -153,6 +151,14 @@ namespace Tensile
             }
             return rv;
         }
+
+        std::shared_ptr<MySolution> getSolutionByIndex(int index) const
+        {
+            // TODO add safegaurds related to lazy loading and other checks on the index
+            std::lock_guard<std::mutex> guard(solutionsGuard);
+            return solutions.at(index);
+        }
+
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
                                                          Hardware const&  hardware) const override
         {
