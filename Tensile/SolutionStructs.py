@@ -2603,6 +2603,25 @@ class Solution(collections.abc.Mapping):
         state['_'+s] = state[s]
         #del state[s]
 
+    if ("_GlobalAccumulation" not in state) or ("_WorkspaceSizePerElemC" not in state):
+      state["_GlobalAccumulation"] = None
+      state["_WorkspaceSizePerElemC"] = 0
+
+      if state["GlobalSplitU"] > 1:
+        computeName  = state["ProblemType"]["ComputeDataType"].toName()
+        computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
+
+        if state["GlobalSplitUAlgorithm"] == 'SingleBuffer':
+          # For SingleBuffer algorithm, _GA and _WorkspaceSizePerElemC is updated only if the gemm function is HPA. The worskspace is
+          # used to convert the final output from ComputeDataType to DestDataType. For non-HPA gemm functions the _GA and _Workspace
+          # remain unchanged.
+          if computeName != state["ProblemType"]["DataType"].toName(): # for HPA cases
+            state["_GlobalAccumulation"] = 'SingleBuffer'
+            state["_WorkspaceSizePerElemC"] = computeBytes
+        elif state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':
+          state["_GlobalAccumulation"] = 'MultipleBuffer'
+          state["_WorkspaceSizePerElemC"] = computeBytes * state["GlobalSplitU"]
+
     if state["VectorStore"] == -1:
         state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel
 
@@ -2971,25 +2990,7 @@ class Solution(collections.abc.Mapping):
         reject(state, "int8 doesn't support LocalSplitU")
         return
 
-    if ("_GlobalAccumulation" not in state) or ("_WorkspaceSizePerElemC" not in state):
-      state["_GlobalAccumulation"] = None
-      state["_WorkspaceSizePerElemC"] = 0
-
-      if state["GlobalSplitU"] > 1:
-        computeName  = state["ProblemType"]["ComputeDataType"].toName()
-        computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
-
-        if state["GlobalSplitUAlgorithm"] == 'SingleBuffer':
-          # For SingleBuffer algorithm, _GA and _WorkspaceSizePerElemC is updated only if the gemm function is HPA. The worskspace is
-          # used to convert the final output from ComputeDataType to DestDataType. For non-HPA gemm functions the _GA and _Workspace
-          # remain unchanged.
-          if computeName != state["ProblemType"]["DataType"].toName(): # for HPA cases
-            state["_GlobalAccumulation"] = 'SingleBuffer'
-            state["_WorkspaceSizePerElemC"] = computeBytes
-        elif state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':
-          state["_GlobalAccumulation"] = 'MultipleBuffer'
-          state["_WorkspaceSizePerElemC"] = computeBytes * state["GlobalSplitU"]
-
+    if state["GlobalSplitU"] > 1:
         # GlobalSplitU doesn't work with some other things:
         if not state["GlobalSplitUSummationAssignmentRoundRobin"] and state["LoopTail"]:
           reject(state, "GlobalSplitU and LoopTail require SummationAssignmentRoundRobin=True since strongly breaks Tensile kernel architecture")

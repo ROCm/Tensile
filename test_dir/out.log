@@ -1,0 +1,389 @@
+GLOB sdist-make: /home/WORKSPACE/bpoursar/Tensile/setup.py
+py38 inst-nodeps: /home/WORKSPACE/bpoursar/Tensile/test_dir/dist/Tensile-4.34.0.zip
+py38 installed: attrs==22.1.0,execnet==1.9.0,filelock==3.4.1,importlib-metadata==4.8.3,iniconfig==1.1.1,msgpack==1.0.4,packaging==21.3,pkg_resources==0.0.0,pluggy==1.0.0,py==1.11.0,pyparsing==3.0.9,pytest==7.0.1,pytest-forked==1.4.0,pytest-xdist==2.5.0,PyYAML==6.0,Tensile @ file:///home/WORKSPACE/bpoursar/Tensile/test_dir/dist/Tensile-4.34.0.zip,tomli==1.2.3,typing_extensions==4.1.1,zipp==3.6.0
+py38 runtests: PYTHONHASHSEED='1667919558'
+py38 runtests: commands[0] | python3 ./Tensile/bin/Tensile Tensile/Configs/build_client.yaml /home/WORKSPACE/bpoursar/Tensile/test_dir/py38/client
+
+################################################################################
+#
+#  Tensile v4.34.0
+#  Config: /home/WORKSPACE/bpoursar/Tensile/Tensile/Configs/build_client.yaml
+#  Date & Time: 09/09/2022 16:38:47
+#
+################################################################################
+
+# Restoring default globalParameters
+# Detected local GPU with ISA: gfx908
+               cap gfx000 gfx803 gfx900 gfx906 gfx908 gfx90a gfx1010 gfx1011 gfx1012 gfx1030 gfx1100 gfx1101 gfx1102 
+   HasMFMA_bf16_1k      0      0      0      0      0      1       0       0       0       0       0       0       0 
+        HasAddLshl      0      0      1      1      1      1       1       1       1       1       0       0       0 
+      HasAtomicAdd      0      0      0      0      1      1       0       0       0       0       0       0       0 
+   HasCodeObjectV3      0      1      1      1      1      1       1       1       1       1       0       0       0 
+    HasDirectToLds      0      1      1      1      1      1       1       1       1       1       0       0       0 
+     HasExplicitCO      0      0      1      1      1      1       1       1       1       1       0       0       0 
+     HasExplicitNC      0      0      0      0      0      0       1       1       1       1       0       0       0 
+         HasLshlOr      0      0      1      1      1      1       1       1       1       1       0       0       0 
+           HasMFMA      0      0      0      0      1      1       0       0       0       0       0       0       0 
+         HasSMulHi      0      0      1      1      1      1       1       1       1       1       0       0       0 
+        MaxLgkmcnt      1      1      1      1      1      1       1       1       1       1       1       1       1 
+          MaxVmcnt      0      1      1      1      1      1       1       1       1       1       0       0       0 
+      SupportedISA      0      1      1      1      1      1       1       1       1       1       0       0       0 
+   SupportedSource      1      1      1      1      1      1       1       1       1       1       1       1       1 
+    v_dot2_f32_f16      0      0      0      1      1      1       0       1       1       1       0       0       0 
+   v_dot2c_f32_f16      0      0      0      0      1      1       0       1       1       1       0       0       0 
+         v_fma_f16      0      0      1      1      1      1       1       1       1       1       0       0       0 
+        v_fmac_f16      0      0      0      0      0      0       0       0       0       0       0       0       0 
+         v_mac_f16      0      1      1      1      1      1       0       0       0       0       0       0       0 
+      v_pk_fma_f16      0      0      1      1      1      1       1       1       1       1       0       0       0 
+     v_pk_fmac_f16      0      0      0      0      0      0       0       0       0       0       0       0       0 
+         v_fma_f32      0      1      1      1      1      1       1       1       1       1       0       0       0 
+     v_fma_mix_f32      0      0      0      1      1      1       1       1       1       1       0       0       0 
+        v_fmac_f32      0      0      0      1      1      1       1       1       1       1       0       0       0 
+         v_mac_f32      0      1      1      1      1      1       1       1       1       0       0       0       0 
+     v_mad_mix_f32      0      0      1      0      0      0       0       0       0       0       0       0       0 
+       HasMFMA_f64      0      0      0      0      0      1       0       0       0       0       0       0       0 
+         v_fma_f64      0      1      1      1      1      1       1       1       1       1       0       0       0 
+ VOP3v_dot4_i32_i8      0      0      0      1      1      1       0       1       1       1       0       0       0 
+     v_dot4_i32_i8      0      0      0      0      0      0       0       0       0       0       0       0       0 
+    v_dot4c_i32_i8      0      0      0      0      1      1       0       1       1       1       0       0       0 
+ArchAccUnifiedRegs      0      0      0      0      0      1       0       0       0       0       0       0       0 
+    CMPXWritesSGPR      1      1      1      1      1      1       0       0       0       0       0       0       0 
+          HasAccCD      0      0      0      0      0      1       0       0       0       0       0       0       0 
+        HasEccHalf      0      0      0      1      1      1       0       0       0       0       0       0       0 
+         HasWave32      0      0      0      0      0      0       1       1       1       1       1       1       1 
+     SeparateVscnt      0      0      0      0      0      0       1       1       1       1       1       1       1 
+  Waitcnt0Disabled      0      0      0      0      1      1       0       0       0       0       0       0       0 
+# Found  hipcc version 4.4.21395-7185b11d
+# Command-line override: CodeObjectVersion
+
+Overriding CodeObjectVersion=V3
+Overriding CxxCompiler=hipcc
+
+################################################################################
+# Converting Config to BenchmarkProcess Object
+################################################################################
+
+# Filling in Parameters With Defaults
+# Convert Parameters to Benchmark Step(s)
+# Benchmark Final
+# NumBenchmarkSteps: 1
+
+################################################################################
+# Done Creating BenchmarkProcess Object
+################################################################################
+
+
+################################################################################
+# Benchmark Step: Cij_Aik_Bjk_SB_00 - 00_Final 196.245s
+# Num Sizes: 4
+# Fork Parameters:
+# Using cached solution data
++ ERR=0
++ /home/WORKSPACE/bpoursar/Tensile/test_dir/py38/client/0_Build/client/tensile_client --config-file /home/WORKSPACE/bpoursar/Tensile/test_dir/py38/client/1_BenchmarkProblems/Cij_Aik_Bjk_SB_00/00_Final/build/../source/ClientParameters.ini
+loading config file /home/WORKSPACE/bpoursar/Tensile/test_dir/py38/client/1_BenchmarkProblems/Cij_Aik_Bjk_SB_00/00_Final/build/../source/ClientParameters.ini
+Loading /home/WORKSPACE/bpoursar/Tensile/test_dir/py38/client/1_BenchmarkProblems/Cij_Aik_Bjk_SB_00/00_Final/source/library/Kernels.so-000-gfx908-xnack-.hsaco
+Log level: Debug
+run,problem-progress,solution-progress,operation,problem-sizes,solution,validation,time-us,gflops,empty,total-gran,tiles-per-cu,num-cus,tile0-gran,tile1-gran,cu-gran,wave-gran,mem-read-bytes,mem-write-bytes,temp-edge,clock-sys,clock-soc,clock-mem,fan-rpm,hardware-samples,enqueue-time
+0,0/3,0/0,Contraction_k_Aik_Bjk_Cij_Dij,"(64,64,64)",Cij_Aik_Bjk_SB_MT64x64x4_SN_K1,NO_CHECK,54.08,9.69467,,0.00833333,0.00833333,120,1,1,0.00833333,1,49152,16384,49,1087,1000,1200,nan,1,2022-09-09 16:42:03.
+0,1/3,0/0,Contraction_k_Aik_Bjk_Cij_Dij,"(128,128,128)",Cij_Aik_Bjk_SB_MT64x64x4_SN_K1,NO_CHECK,55.84,75.1129,,0.0333333,0.0333333,120,1,1,0.0333333,1,327680,65536,49,1087,1000,1200,nan,1,2022-09-09 16:42:03.
+0,2/3,0/0,Contraction_k_Aik_Bjk_Cij_Dij,"(256,256,256)",Cij_Aik_Bjk_SB_MT64x64x4_SN_K1,NO_CHECK,81.6,411.206,,0.133333,0.133333,120,1,1,0.133333,1,2359296,262144,49,1087,1000,1200,nan,1,2022-09-09 16:42:03.
+0,3/3,0/0,Contraction_k_Aik_Bjk_Cij_Dij,"(448,448,448)",Cij_Aik_Bjk_SB_MT64x64x4_SN_K1,NO_CHECK,124.96,1439.11,,0.408333,0.408333,120,1,1,0.408333,1,12042240,802816,49,1087,1000,1200,nan,1,2022-09-09 16:42:03.
++ [[ 0 -ne 0 ]]
++ exit 0
+################################################################################
+# Cij_Aik_Bjk_SB_00
+# 00_Final: End - 197.046s
+################################################################################
+
+clientExit=0 (PASS) for ['/home/WORKSPACE/bpoursar/Tensile/Tensile/Configs/build_client.yaml']
+
+py38 runtests: commands[1] | py.test -v --basetemp=/home/WORKSPACE/bpoursar/Tensile/test_dir/py38/tmp --junit-xml=/home/WORKSPACE/bpoursar/Tensile/python_tests.xml --junit-prefix=py38 --color=yes -n 4 --prebuilt-client=/home/WORKSPACE/bpoursar/Tensile/test_dir/py38/client/0_Build/client/tensile_client Tensile/Tests -m pre_checkin
+[1m============================= test session starts ==============================[0m
+platform linux -- Python 3.6.9, pytest-7.0.1, pluggy-1.0.0 -- /home/WORKSPACE/bpoursar/Tensile/test_dir/py38/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/WORKSPACE/bpoursar/Tensile, configfile: pytest.ini
+plugins: xdist-2.5.0, forked-1.4.0
+gw0 I / gw1 I / gw2 I / gw3 I
+[1m[gw0] linux Python 3.6.9 cwd: /home/WORKSPACE/bpoursar/Tensile
+[0m[1m[gw1] linux Python 3.6.9 cwd: /home/WORKSPACE/bpoursar/Tensile
+[0m[1m[gw2] linux Python 3.6.9 cwd: /home/WORKSPACE/bpoursar/Tensile
+[0m[1m[gw3] linux Python 3.6.9 cwd: /home/WORKSPACE/bpoursar/Tensile
+[0m[1m[gw0] Python 3.6.9 (default, Dec  8 2021, 21:08:43)  -- [GCC 8.4.0]
+[0m[1m[gw1] Python 3.6.9 (default, Dec  8 2021, 21:08:43)  -- [GCC 8.4.0]
+[0m[1m[gw2] Python 3.6.9 (default, Dec  8 2021, 21:08:43)  -- [GCC 8.4.0]
+[0m[1m[gw3] Python 3.6.9 (default, Dec  8 2021, 21:08:43)  -- [GCC 8.4.0]
+[0mgw0 [128] / gw1 [128] / gw2 [128] / gw3 [128]
+
+scheduling tests via LoadScheduling
+
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_asm_tt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_asm_f32_alphabeta_tt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/sgemm_asm_nt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hsgemm_hpa_iu2_asm_tn.yaml] 
+[gw1][36m [  0%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/sgemm_asm_nt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/dgemm_asm.yaml] 
+[gw2][36m [  1%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_asm_tt.yaml] 
+[gw3][36m [  2%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_asm_f32_alphabeta_tt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_asm_tt.yaml] 
+[gw0][36m [  3%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hsgemm_hpa_iu2_asm_tn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_general_batch_hpa_asm_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/dgemm_general_batch_asm.yaml] 
+[gw3][36m [  3%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_asm_tt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/sgemm_asm_tn.yaml] 
+[gw0][36m [  4%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_general_batch_hpa_asm_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_asm_tn.yaml] 
+[gw3][36m [  5%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/sgemm_asm_tn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/4xi8gemm_hpa_hip_nn.yaml] 
+[gw0][36m [  6%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_asm_tn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_asm_tn.yaml] 
+[gw1][36m [  7%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/dgemm_asm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/sgemm_asm_tt.yaml] 
+[gw2][36m [  7%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/dgemm_general_batch_asm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_asm_nn.yaml] 
+[gw0][36m [  8%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_asm_tn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_iu2_asm_tn.yaml] 
+[gw1][36m [  9%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/sgemm_asm_tt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_asm_f32_alphabeta_nn.yaml] 
+[gw2][36m [ 10%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_asm_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/sgemm_asm_tn_bigk.yaml] 
+[gw0][36m [ 10%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_iu2_asm_tn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_asm_nn.yaml] 
+[gw1][36m [ 11%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_asm_f32_alphabeta_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/sgemm_general_batch_asm_nn.yaml] 
+[gw2][36m [ 12%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/sgemm_asm_tn_bigk.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hsgemm_hpa_asm_nt.yaml] 
+[gw3][36m [ 13%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/4xi8gemm_hpa_hip_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hsgemm_hpa_asm_tt.yaml] 
+[gw0][36m [ 14%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_asm_nn.yaml] 
+[gw1][36m [ 14%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/sgemm_general_batch_asm_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_iu2_asm_tt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_iu2_asm_nt.yaml] 
+[gw2][36m [ 15%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hsgemm_hpa_asm_nt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/igemm_hpa_asm_nn.yaml] 
+[gw2][36m [ 16%] [0m[33mSKIPPED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/igemm_hpa_asm_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/igemm_hpa_hip_nn.yaml] 
+[gw3][36m [ 17%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hsgemm_hpa_asm_tt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_iu2_asm_nn.yaml] 
+[gw0][36m [ 17%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_iu2_asm_nt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/4xi8gemm_hpa_hip_nt.yaml] 
+[gw1][36m [ 18%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_iu2_asm_tt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/sgemm_exact_dict.yaml] 
+[gw3][36m [ 19%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_iu2_asm_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hsgemm_hpa_asm_tn.yaml] 
+[gw1][36m [ 20%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/sgemm_exact_dict.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_asm_f32_alphabeta_tn.yaml] 
+[gw3][36m [ 21%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hsgemm_hpa_asm_tn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hsgemm_hpa_iu2_asm_tt.yaml] 
+[gw1][36m [ 21%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_asm_f32_alphabeta_tn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_igemm_i8_split_lds.yaml] 
+[gw0][36m [ 22%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/4xi8gemm_hpa_hip_nt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_bfloat16_general_batch_gemm_asm.yaml] 
+[gw3][36m [ 23%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hsgemm_hpa_iu2_asm_tt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/wider_local_read.yaml] 
+[gw1][36m [ 24%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_igemm_i8_split_lds.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/cgemm_asm.yaml] 
+[gw0][36m [ 25%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_bfloat16_general_batch_gemm_asm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_hgemm_asm.yaml] 
+[gw2][36m [ 25%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/igemm_hpa_hip_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_asm_f32_alphabeta_nt.yaml] 
+[gw2][36m [ 26%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_asm_f32_alphabeta_nt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/sgemm_asm_nn.yaml] 
+[gw3][36m [ 27%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/wider_local_read.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/sgemm_asm.yaml] 
+[gw1][36m [ 28%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/cgemm_asm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/1LDSB.yaml] 
+[gw2][36m [ 28%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/sgemm_asm_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hsgemm_hpa_iu2_asm_nn.yaml] 
+[gw2][36m [ 29%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hsgemm_hpa_iu2_asm_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_general_batch_asm_nn.yaml] 
+[gw2][36m [ 30%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_general_batch_asm_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/4xi8gemm_hpa_hip_tn.yaml] 
+[gw1][36m [ 31%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/1LDSB.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_igemm_i8_asm.yaml] 
+[gw2][36m [ 32%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/4xi8gemm_hpa_hip_tn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hsgemm_hpa_asm_nn.yaml] 
+[gw2][36m [ 32%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hsgemm_hpa_asm_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/4xi8gemm_hpa_hip_tt.yaml] 
+[gw1][36m [ 33%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_igemm_i8_asm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_bfloat16_gemm_asm.yaml] 
+[gw0][36m [ 34%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_hgemm_asm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/dgemm_asm.yaml] 
+[gw0][36m [ 35%] [0m[33mSKIPPED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/dgemm_asm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/zgemm_asm_conjugate.yaml] 
+[gw0][36m [ 35%] [0m[33mSKIPPED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/zgemm_asm_conjugate.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_hgemm_general_batch_asm.yaml] 
+[gw2][36m [ 36%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/4xi8gemm_hpa_hip_tt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_asm_nt.yaml] 
+[gw2][36m [ 37%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_asm_nt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_asm_nt.yaml] 
+[gw3][36m [ 38%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/sgemm_asm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/cgemm_asm_conjugate.yaml] 
+[gw2][36m [ 39%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hgemm_hpa_asm_nt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hsgemm_hpa_iu2_asm_nt.yaml] 
+[gw2][36m [ 39%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/hsgemm_hpa_iu2_asm_nt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_hsgemm_asm.yaml] 
+[gw1][36m [ 40%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_bfloat16_gemm_asm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/zgemm_asm.yaml] 
+[gw1][36m [ 41%] [0m[33mSKIPPED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/zgemm_asm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_bfloat16s_gemm_asm.yaml] 
+[gw0][36m [ 42%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_hgemm_general_batch_asm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_hgemm_f32_alphabeta_asm.yaml] 
+[gw3][36m [ 42%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/cgemm_asm_conjugate.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/no_load_loop/sgemm_nll_asm_tn.yaml] 
+[gw3][36m [ 43%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/no_load_loop/sgemm_nll_asm_tn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/no_load_loop/nll_reproduce_bug.yaml] 
+[gw3][36m [ 44%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/no_load_loop/nll_reproduce_bug.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/no_load_loop/sgemm_nll_asm_nn.yaml] 
+[gw3][36m [ 45%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/no_load_loop/sgemm_nll_asm_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/no_load_loop/sgemm_nll_asm_nt.yaml] 
+[gw1][36m [ 46%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_bfloat16s_gemm_asm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_hgemm_split_lds.yaml] 
+[gw3][36m [ 46%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/no_load_loop/sgemm_nll_asm_nt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_hip_tn.yaml] 
+[gw3][36m [ 47%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_hip_tn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_asm_cn.yaml] 
+[gw2][36m [ 48%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_hsgemm_asm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/no_load_loop/sgemm_nll_asm_tt.yaml] 
+[gw3][36m [ 49%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_asm_cn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_hip_tt.yaml] 
+[gw3][36m [ 50%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_hip_tt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_hip_ct.yaml] 
+[gw2][36m [ 50%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/no_load_loop/sgemm_nll_asm_tt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/direct_to_lds/dtl_tsgr_dgemm.yaml] 
+[gw2][36m [ 51%] [0m[33mSKIPPED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/direct_to_lds/dtl_tsgr_dgemm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/direct_to_lds/dtl_dgemm_lite.yaml] 
+[gw2][36m [ 52%] [0m[33mSKIPPED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/direct_to_lds/dtl_dgemm_lite.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_hip_nn.yaml] 
+[gw1][36m [ 53%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_hgemm_split_lds.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_hip_tc.yaml] 
+[gw3][36m [ 53%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_hip_ct.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_asm_tt.yaml] 
+[gw0][36m [ 54%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/hpa_hgemm_f32_alphabeta_asm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/sgemm_split_lds.yaml] 
+[gw2][36m [ 55%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_hip_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_asm_cc.yaml] 
+[gw3][36m [ 56%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_asm_tt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_hip_nc.yaml] 
+[gw1][36m [ 57%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_hip_tc.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_hip_nt.yaml] 
+[gw2][36m [ 57%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_asm_cc.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_asm_tn.yaml] 
+[gw3][36m [ 58%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_hip_nc.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_hip_cn.yaml] 
+[gw1][36m [ 59%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_hip_nt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_asm_tc.yaml] 
+[gw2][36m [ 60%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_asm_tn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_asm_nc.yaml] 
+[gw0][36m [ 60%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/sgemm_split_lds.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/c-tile-reuse-no-nll.yaml] 
+[gw1][36m [ 61%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_asm_tc.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_asm_ct.yaml] 
+[gw2][36m [ 62%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_asm_nc.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/source/test_hgemm_defaults.yaml] 
+[gw3][36m [ 63%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_hip_cn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_hip_cc.yaml] 
+[gw0][36m [ 64%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/c-tile-reuse-no-nll.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/sgemm_general_batch_asm.yaml] 
+[gw1][36m [ 64%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_asm_ct.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_asm_nt.yaml] 
+[gw3][36m [ 65%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_hip_cc.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_asm_nn.yaml] 
+[gw1][36m [ 66%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_asm_nt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/bfloat16/bfloat16_hpa_source_tn.yaml] 
+[gw2][36m [ 67%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/source/test_hgemm_defaults.yaml] 
+[gw3][36m [ 67%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/double_complex/double_complex_asm_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/bfloat16/bfloat16s_hpa_source_tn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/source/test_hgemm_hpa.yaml] 
+[gw0][36m [ 68%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/mfma/sgemm_general_batch_asm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/source/test_dgemm_defaults.yaml] 
+[gw2][36m [ 69%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/source/test_hgemm_hpa.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/source/test_sgemm_defaults.yaml] 
+[gw0][36m [ 70%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/source/test_dgemm_defaults.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/direct_to_vgpr/dtv_sgemm_lite.yaml] 
+[gw0][36m [ 71%] [0m[33mSKIPPED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/direct_to_vgpr/dtv_sgemm_lite.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/bfloat16/bfloat16s_hpa_source_tt.yaml] 
+[gw2][36m [ 71%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/source/test_sgemm_defaults.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/bfloat16/bfloat16_hpa_source_tt.yaml] 
+[gw1][36m [ 72%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/bfloat16/bfloat16_hpa_source_tn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/bfloat16/bfloat16s_hpa_source_nn.yaml] 
+[gw3][36m [ 73%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/bfloat16/bfloat16s_hpa_source_tn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/bfloat16/bfloat16_hpa_source_nn.yaml] 
+[gw0][36m [ 74%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/bfloat16/bfloat16s_hpa_source_tt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/denorm/hgemm_hpa_asm_nn.yaml] 
+[gw0][36m [ 75%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/denorm/hgemm_hpa_asm_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/denorm/bfloat16_hpa_source_nn.yaml] 
+[gw3][36m [ 75%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/bfloat16/bfloat16_hpa_source_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/bfloat16/bfloat16_hpa_source_nt.yaml] 
+[gw0][36m [ 76%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/denorm/bfloat16_hpa_source_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/denorm/sgemm_asm_nn.yaml] 
+[gw0][36m [ 77%] [0m[33mSKIPPED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/denorm/sgemm_asm_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/denorm/mfma/sgemm_denorm.yaml] 
+[gw2][36m [ 78%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/bfloat16/bfloat16_hpa_source_tt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/denorm/dgemm_asm.yaml] 
+[gw1][36m [ 78%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/bfloat16/bfloat16s_hpa_source_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/bfloat16/bfloat16s_hpa_source_nt.yaml] 
+[gw0][36m [ 79%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/denorm/mfma/sgemm_denorm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/denorm/mfma/bfloat16_1k_denorm.yaml] 
+[gw0][36m [ 80%] [0m[33mSKIPPED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/denorm/mfma/bfloat16_1k_denorm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_hip_nc.yaml] 
+[gw2][36m [ 81%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/denorm/dgemm_asm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/denorm/mfma/dgemm_denorm.yaml] 
+[gw2][36m [ 82%] [0m[33mSKIPPED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/denorm/mfma/dgemm_denorm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_hip_nt.yaml] 
+[gw0][36m [ 82%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_hip_nc.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_asm_tt.yaml] 
+[gw2][36m [ 83%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_hip_nt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_hip_tn.yaml] 
+[gw0][36m [ 84%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_asm_tt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_hip_nn.yaml] 
+[gw2][36m [ 85%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_hip_tn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_asm_ct.yaml] 
+[gw0][36m [ 85%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_hip_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_asm_cn.yaml] 
+[gw2][36m [ 86%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_asm_ct.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_hip_tt.yaml] 
+[gw0][36m [ 87%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_asm_cn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_hip_cn.yaml] 
+[gw2][36m [ 88%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_hip_tt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_hip_tc.yaml] 
+[gw0][36m [ 89%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_hip_cn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_asm_cc.yaml] 
+[gw2][36m [ 89%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_hip_tc.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_hip_cc.yaml] 
+[gw0][36m [ 90%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_asm_cc.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_asm_nc.yaml] 
+[gw3][36m [ 91%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/bfloat16/bfloat16_hpa_source_nt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/denorm/mfma/bfloat16_denorm.yaml] 
+[gw0][36m [ 92%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_asm_nc.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_hip_ct.yaml] 
+[gw2][36m [ 92%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_hip_cc.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_asm_nt.yaml] 
+[gw3][36m [ 93%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/denorm/mfma/bfloat16_denorm.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_asm_nn.yaml] 
+[gw1][36m [ 94%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/bfloat16/bfloat16s_hpa_source_nt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/denorm/mfma/hgemm_denorm.yaml] 
+[gw2][36m [ 95%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_asm_nt.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_asm_tn.yaml] 
+[gw3][36m [ 96%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_asm_nn.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/regression/persistent_kernel.yaml] 
+[gw0][36m [ 96%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_hip_ct.yaml] 
+Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_asm_tc.yaml] 
+[gw1][36m [ 97%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/denorm/mfma/hgemm_denorm.yaml] 
+[gw2][36m [ 98%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_asm_tn.yaml] 
+[gw3][36m [ 99%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/regression/persistent_kernel.yaml] 
+[gw0][36m [100%] [0m[32mPASSED[0m Tensile/Tests/yaml_only/test_config.py::test_config[Tensile/Tests/pre_checkin/float_complex/float_complex_asm_tc.yaml] 
+
+[33m=============================== warnings summary ===============================[0m
+Tensile/Tests/yaml_only/test_config.py:76
+Tensile/Tests/yaml_only/test_config.py:76
+Tensile/Tests/yaml_only/test_config.py:76
+Tensile/Tests/yaml_only/test_config.py:76
+  /home/WORKSPACE/bpoursar/Tensile/Tensile/Tests/yaml_only/test_config.py:76: PytestUnknownMarkWarning: Unknown pytest.mark.direct_to_vgpr - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    return getattr(pytest.mark, name)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---- generated xml file: /home/WORKSPACE/bpoursar/Tensile/python_tests.xml -----
+[33m=========== [32m118 passed[0m, [33m[1m10 skipped[0m, [33m[1m4 warnings[0m[33m in 3055.84s (0:50:55)[0m[33m ===========[0m
+___________________________________ summary ____________________________________
+  py38: commands succeeded
+  congratulations :)
