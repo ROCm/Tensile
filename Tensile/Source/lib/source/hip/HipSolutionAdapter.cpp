@@ -28,6 +28,7 @@
 #include <hip/hip_runtime.h>
 
 #include <cstddef>
+#include <fstream>
 
 #include <Tensile/Debug.hpp>
 #include <Tensile/EmbeddedData.hpp>
@@ -81,9 +82,27 @@ namespace Tensile
 
         hipError_t SolutionAdapter::loadCodeObjectFile(std::string const& path)
         {
-            hipModule_t module;
+            hipModule_t             module;
+            std::unique_ptr<char[]> buffer;
+            std::ifstream           coFile(path, std::ifstream::binary);
 
-            HIP_CHECK_RETURN(hipModuleLoad(&module, path.c_str()));
+            // hipModuleLoad holds the file descriptor/handle which can result in a process
+            // running out of descriptors/handles. Use hipModuleLoadData as a workaround
+            if(coFile)
+            {
+                coFile.seekg(0, coFile.end);
+                auto length = coFile.tellg();
+                coFile.seekg(0, coFile.beg);
+
+                buffer = std::make_unique<char[]>(length);
+                coFile.read(buffer.get(), length);
+
+                HIP_CHECK_RETURN(hipModuleLoadData(&module, (void*)buffer.get()));
+            }
+            else
+            {
+                return hipErrorFileNotFound;
+            }
 
             if(m_debug)
                 std::cout << "loaded code object " << path << std::endl;
@@ -92,6 +111,9 @@ namespace Tensile
                 std::lock_guard<std::mutex> guard(m_access);
                 m_modules.push_back(module);
                 m_loadedModuleNames.push_back(concatenate("File ", path));
+
+                // hipModuleLoadData requires the buffer to outlive the module, so cache the buffer
+                m_moduleBuffers.push_back(std::move(buffer));
 
                 //Isolate filename
                 size_t start = path.rfind('/');
@@ -216,10 +238,9 @@ namespace Tensile
         hipError_t SolutionAdapter::initializeLazyLoading(std::string arch,
                                                           std::string codeObjectDir)
         {
-            m_codeObjectDirectory = codeObjectDir;
             //Ensure there's a slash at the end of the path
-            if(m_codeObjectDirectory.back() != '/')
-                m_codeObjectDirectory += '/';
+            if(codeObjectDir.back() != '/')
+                codeObjectDir += '/';
 
             //Remove xnack and sramecc qualifiers
             size_t loc = arch.find(":");
@@ -228,8 +249,10 @@ namespace Tensile
 
             std::string helperKernelName = std::string("Kernels.so-000-") + arch;
 
-            //If required code object file hasn't yet been loaded, load it now
             m_access.lock();
+            m_codeObjectDirectory = codeObjectDir;
+
+            //If required code object file hasn't yet been loaded, load it now
             bool loaded = m_loadedCOFiles.find(removeXnack(helperKernelName) + ".hsaco")
                           != m_loadedCOFiles.end();
             m_access.unlock();
@@ -241,7 +264,7 @@ namespace Tensile
                 for(auto ver : {"", "-xnack-", "-xnack+"})
                 {
                     std::string modifiedCOName = helperKernelName + ver + ".hsaco";
-                    err = loadCodeObjectFile(m_codeObjectDirectory + modifiedCOName);
+                    err                        = loadCodeObjectFile(codeObjectDir + modifiedCOName);
 
                     if(err == hipSuccess)
                         return err;
@@ -269,6 +292,7 @@ namespace Tensile
                 m_access.lock();
                 bool loaded = m_loadedCOFiles.find(removeXnack(kernel.codeObjectFile))
                               != m_loadedCOFiles.end();
+                std::string codeObjectDir = m_codeObjectDirectory;
                 m_access.unlock();
 
                 if(!loaded)
@@ -281,7 +305,7 @@ namespace Tensile
                     {
                         std::string modifiedCOName = kernel.codeObjectFile;
                         modifiedCOName.insert(loc, ver);
-                        err = loadCodeObjectFile(m_codeObjectDirectory + modifiedCOName);
+                        err = loadCodeObjectFile(codeObjectDir + modifiedCOName);
 
                         if(err == hipSuccess)
                             break;

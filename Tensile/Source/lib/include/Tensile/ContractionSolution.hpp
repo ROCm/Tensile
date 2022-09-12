@@ -37,6 +37,7 @@
 #include <Tensile/ContractionProblem_fwd.hpp>
 #include <Tensile/DataTypes.hpp>
 #include <Tensile/Predicates.hpp>
+#include <Tensile/Utils.hpp>
 
 namespace Tensile
 {
@@ -170,7 +171,8 @@ namespace Tensile
         /**
    * Calculate required workspace size.
    */
-        size_t requiredWorkspaceSize(Problem const& problem) const;
+        size_t       requiredWorkspaceSize(Problem const& problem) const;
+        static float computeGranularity(float x);
 
         Granularities computeGranularities(
             Hardware const& hardware, double M, double N, double K, double NumBatches) const;
@@ -286,11 +288,11 @@ namespace Tensile
             double max       = 1000.0;
         };
 
-        int         index = 0;
-        std::string kernelName;
-        std::string codeObjectFilename;
-        bool        debugKernel   = false;
-        bool        kernelArgsLog = false;
+        int                          index = 0;
+        std::string                  kernelName;
+        ThreadSafeValue<std::string> codeObjectFilename;
+        bool                         debugKernel   = false;
+        bool                         kernelArgsLog = false;
 
         std::shared_ptr<Predicates::Predicate<Problem>> problemPredicate
             = std::make_shared<Predicates::True<Problem>>();

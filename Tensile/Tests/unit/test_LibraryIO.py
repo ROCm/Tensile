@@ -106,29 +106,25 @@ Library:
 treeLibrary = r"""
 LibraryType: DecisionTree
 Library:
-- properties:
+- features:
   - {index: 0, type: FreeSizeA}
   - {index: 0, type: BoundSize}
   trees:
   - tree:
-    - {type: 0, value: 7000, nextIdxLeft: 1, nextIdxRight: 2}
-    - {type: -1, value: 1, nextIdxLeft: 0, nextIdxRight: 0}
-    - {type: -1, value: 0, nextIdxLeft: 0, nextIdxRight: 0}
+    - {featureIdx: 0, threshold: 7000, nextIdxLTE: -2, nextIdxGT: -1}
     solution: 0
   - tree:
-    - {type: 1, value: 7000, nextIdxLeft: 1, nextIdxRight: 2}
-    - {type: -1, value: 0, nextIdxLeft: 0, nextIdxRight: 0}
-    - {type: -1, value: 1, nextIdxLeft: 0, nextIdxRight: 0}
+    - {featureIdx: 1, threshold: 7000, nextIdxLTE: -1, nextIdxGT: -2}
     solution: 1
   region:
   - {type: SizeInRange, index: 0, value: {min: 6000, max: 8000}}
   - {type: SizeInRange, index: 1, value: {min: 6000, max: 7000}}
 
-- properties:
+- features:
   - {index: 0, type: FreeSizeB}
   trees:
   - tree:
-    - {type: -1, value: 1, nextIdxLeft: 0, nextIdxRight: 0}
+    - {featureIdx: -1, threshold: 1, nextIdxLTE: 0, nextIdxGT: 0}
     solution: 0
   region:
   - {type: SizeInRange, index: 0, value: {max: 128}}

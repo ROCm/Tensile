@@ -589,7 +589,7 @@ namespace Tensile
             rv.args.append<uint32_t>("pad", 0);
         }
 
-        rv.codeObjectFile = codeObjectFilename;
+        rv.codeObjectFile = codeObjectFilename.load();
 
         return rv;
     }
@@ -683,7 +683,7 @@ namespace Tensile
         rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
 
         //Pass along code object dependency
-        rv.codeObjectFile = codeObjectFilename;
+        rv.codeObjectFile = codeObjectFilename.load();
 
         return rv;
     }
@@ -797,7 +797,7 @@ namespace Tensile
             rv.args.append<uint32_t>("gsu", sizeMapping.globalSplitU);
 
         //@TODO determine if this is needed, may not end up in the same code object file
-        rv.codeObjectFile = codeObjectFilename;
+        rv.codeObjectFile = codeObjectFilename.load();
 
         return rv;
     }
@@ -1074,6 +1074,11 @@ namespace Tensile
         return size;
     }
 
+    float ContractionSolution::computeGranularity(float x)
+    {
+        return x / ceil(x);
+    }
+
     ContractionSolution::Granularities ContractionSolution::computeGranularities(
         Hardware const& hardware, double M, double N, double K, double NumBatches) const
     {
@@ -1101,8 +1106,8 @@ namespace Tensile
         granularities.numTiles0 = M / MT0;
         granularities.numTiles1 = N / MT1;
 
-        granularities.tile0Granularity = granularities.numTiles0 / ceil(granularities.numTiles0);
-        granularities.tile1Granularity = granularities.numTiles1 / ceil(granularities.numTiles1);
+        granularities.tile0Granularity = computeGranularity(granularities.numTiles0);
+        granularities.tile1Granularity = computeGranularity(granularities.numTiles1);
 
         granularities.tilesPerCu
             = (NumBatches * ceil(granularities.numTiles0) * ceil(granularities.numTiles1))
@@ -1111,8 +1116,7 @@ namespace Tensile
         granularities.totalTiles    = ceil(granularities.numTiles0) * ceil(granularities.numTiles1);
         granularities.natTilesPerCu = NumBatches * granularities.totalTiles / NumCUs;
         granularities.suTilesPerCu  = (granularities.totalTiles * GlobalSplitU) / NumCUs;
-        granularities.suCuGranularity
-            = granularities.suTilesPerCu / ceil(granularities.suTilesPerCu);
+        granularities.suCuGranularity = computeGranularity(granularities.suTilesPerCu);
 
         granularities.waveGranularity = std::min(
             1.00,
@@ -1132,7 +1136,7 @@ namespace Tensile
             = NumBatches * ceil(granularities.numTiles0) * ceil(granularities.numTiles1) / NumCUs;
         granularities.natCuGranularity = ceil(nat_tiles_per_cu) * ceil(nat_tiles_per_cu) / NumCUs;
 
-        granularities.cuGranularity = granularities.tilesPerCu / ceil(granularities.tilesPerCu);
+        granularities.cuGranularity = computeGranularity(granularities.tilesPerCu);
 
         granularities.totalGranularity
             = granularities.tile0Granularity * granularities.tile1Granularity
@@ -1355,5 +1359,4 @@ namespace Tensile
                       << " shiftPtrElemB=" << st.shiftPtrElemB << " depthUorMT0=" << st.depthUorMT0
                       << " depthUorMT1=" << st.depthUorMT1;
     }
-
 } // namespace Tensile

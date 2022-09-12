@@ -24,20 +24,31 @@
  *
  *******************************************************************************/
 
-#pragma once
+#include <Tensile/MLFeatures.hpp>
 
-#include <functional>
+namespace Tensile
+{
+    namespace MLFeatures
+    {
+        float tilesPerCU(ContractionProblem const&        problem,
+                         CUGranularityScaleFactors const& cuFactors)
+        {
+            float numBatches = 1; // TODO: Higher batch sizes
+            float numTilesM  = problem.freeSizeA(0) * cuFactors.mt0Scale; // M / MT0
+            float numTilesN  = problem.freeSizeB(0) * cuFactors.mt1Scale; // N / MT1
+            float totalTiles = numBatches * ceil(numTilesM) * ceil(numTilesN);
+            return totalTiles * cuFactors.cuScale;
+        };
 
-#include <Tensile/Serialization/Base.hpp>
+        std::ostream& operator<<(std::ostream& stream, CUGranularityScaleFactors const& cugsf)
+        {
+            return stream << " mt0=" << cugsf.mt0Scale << " mt1=" << cugsf.mt1Scale
+                          << " cus=" << cugsf.cuScale;
+        };
 
-#include <Tensile/Serialization/Containers.hpp>
-#include <Tensile/Serialization/ContractionPredicates.hpp>
-#include <Tensile/Serialization/ContractionSolution.hpp>
-#include <Tensile/Serialization/ExactLogicLibrary.hpp>
-#include <Tensile/Serialization/GranularitySelectionLibrary.hpp>
-#include <Tensile/Serialization/HasTraits.hpp>
-#include <Tensile/Serialization/MLFeatures.hpp>
-#include <Tensile/Serialization/MapLibrary.hpp>
-#include <Tensile/Serialization/Predicates.hpp>
-#include <Tensile/Serialization/Properties.hpp>
-#include <Tensile/Serialization/SolutionLibrary.hpp>
+        std::ostream& operator<<(std::ostream& stream, WaveGranularityScaleFactors const& wgsf)
+        {
+            return stream << wgsf.cuFactors << " ws=" << wgsf.waveScale;
+        };
+    } // namespace Tensile
+}

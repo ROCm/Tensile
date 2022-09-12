@@ -30,8 +30,8 @@
 #include <functional>
 #include <vector>
 
+#include <Tensile/MLFeatures.hpp>
 #include <Tensile/ProblemKey.hpp>
-#include <Tensile/Properties.hpp>
 
 namespace Tensile
 {
@@ -39,9 +39,9 @@ namespace Tensile
      * \ingroup Tensile
      * \defgroup DecisionTree Decision Tree
      *
-     * @brief Tree based decisions on a list of Property values
+     * @brief Tree based decisions on a list of Feature values
      *
-     * Generic decision tress for deciding on an object based on a list of Properties
+     * Generic decision tress for deciding on an object based on a list of Features
      * derived from the object. Used for DecisionTreeLibrary.
      */
 
@@ -52,10 +52,16 @@ namespace Tensile
     {
         struct Node
         {
-            int   type;
-            float value;
-            int   nextIdxLeft;
-            int   nextIdxRight;
+            int   featureIdx; // Index into feature array
+            float threshold; // Decision threshold value
+            int   nextIdxLTE; // Next node index if val <= threshold
+            int   nextIdxGT; // Next node index if val > threshold
+        };
+
+        enum ReservedIdxs : int
+        {
+            IDX_RETURN_FALSE = -1,
+            IDX_RETURN_TRUE  = -2,
         };
 
         /**
@@ -76,7 +82,7 @@ namespace Tensile
             {
             }
 
-            float predict(Key const& key) const
+            bool predict(Key const& key) const
             {
                 int  nodeIdx  = 0;
                 int  treeSize = tree.size();
@@ -84,25 +90,18 @@ namespace Tensile
 
                 while(nodeIdx < treeSize)
                 {
-                    currentNode = tree[nodeIdx];
-                    if(currentNode.type == -1)
-                    { /* End node */
-                        return currentNode.value;
-                    }
+                    currentNode    = tree[nodeIdx];
+                    bool branchLTE = key[currentNode.featureIdx] <= currentNode.threshold;
+                    nodeIdx        = branchLTE ? currentNode.nextIdxLTE : currentNode.nextIdxGT;
 
-                    // Note convention: branch left for less than, else right
-                    if(key[currentNode.type] <= currentNode.value)
-                    {
-                        nodeIdx = currentNode.nextIdxLeft;
-                    }
-                    else
-                    {
-                        nodeIdx = currentNode.nextIdxRight;
-                    }
+                    if(nodeIdx == IDX_RETURN_FALSE)
+                        return false;
+                    if(nodeIdx == IDX_RETURN_TRUE)
+                        return true;
                 }
 
                 throw std::runtime_error("Decision Tree out of bounds error.");
-                return -1;
+                return false;
             }
 
             virtual ReturnValue getSolution(Transform transform) const
@@ -112,15 +111,26 @@ namespace Tensile
 
             bool valid(bool verbose = false) const
             {
-                int  treeSize = tree.size();
-                Node currentNode;
-                bool valid = true;
+                size_t treeSize = tree.size();
+                Node   currentNode;
+                bool   has_true = false;
+                bool   valid    = true;
 
                 if(treeSize == 0)
                 {
                     if(verbose)
                     {
-                        std::cout << "Tree invalid: no nodes " << std::endl;
+                        std::cout << "Tree invalid: no nodes." << std::endl;
+                    }
+                    return false;
+                }
+
+                if(treeSize > ((size_t)std::numeric_limits<signed int>::max() + 1))
+                {
+                    /* Restrict size to +ve int range, -ve idxs for reserved values */
+                    if(verbose)
+                    {
+                        std::cout << "Tree invalid: too many nodes." << std::endl;
                     }
                     return false;
                 }
@@ -129,43 +139,65 @@ namespace Tensile
                 for(int nodeIdx = 0; nodeIdx < treeSize; nodeIdx++)
                 {
                     currentNode = tree[nodeIdx];
-                    if(currentNode.type != -1)
+
+                    // Avoid OOB on feature array
+                    if((currentNode.featureIdx < 0)
+                       || (currentNode.featureIdx >= std::tuple_size<Key>::value))
                     {
-                        // Avoid OOB on feature array
-                        if(currentNode.type >= std::tuple_size<Key>::value)
+                        if(verbose)
                         {
-                            if(verbose)
-                            {
-                                std::cout << "Node " << std::to_string(nodeIdx)
-                                          << " invalid: Unrecognised type '"
-                                          << std::to_string(currentNode.type) << "'" << std::endl;
-                            }
-                            valid = false;
+                            std::cout << "Node " << std::to_string(nodeIdx)
+                                      << " invalid: Unrecognised type '"
+                                      << std::to_string(currentNode.featureIdx) << "'" << std::endl;
                         }
-                        // Avoid OOB on tree
-                        if((currentNode.nextIdxLeft < 0) || (currentNode.nextIdxRight < 0)
-                           || (treeSize <= currentNode.nextIdxLeft)
-                           || (treeSize <= currentNode.nextIdxRight))
+                        valid = false;
+                    }
+
+                    // Check next indices
+                    std::array<int, 2> nextIdxs = {currentNode.nextIdxLTE, currentNode.nextIdxGT};
+                    for(auto nextIdx : nextIdxs)
+                    {
+                        if(nextIdx == IDX_RETURN_TRUE)
                         {
-                            if(verbose)
-                            {
-                                std::cout << "Node " << std::to_string(nodeIdx)
-                                          << " invalid: child index OOB" << std::endl;
-                            }
-                            valid = false;
+                            has_true = true;
                         }
-                        // Avoid circular trees
-                        if((currentNode.nextIdxLeft <= nodeIdx)
-                           || (currentNode.nextIdxRight <= nodeIdx))
+                        else
                         {
-                            if(verbose)
+                            if(nextIdx != IDX_RETURN_FALSE)
                             {
-                                std::cout << "Node " << std::to_string(nodeIdx)
-                                          << " invalid: potentially circular tree" << std::endl;
+                                // Avoid OOB on tree
+                                if((nextIdx < 0) || (nextIdx >= treeSize))
+                                {
+                                    if(verbose)
+                                    {
+                                        std::cout << "Node " << std::to_string(nodeIdx)
+                                                  << " invalid: child index OOB" << std::endl;
+                                    }
+                                    valid = false;
+                                }
+                                // Avoid circular trees
+                                if(nextIdx <= nodeIdx)
+                                {
+                                    if(verbose)
+                                    {
+                                        std::cout << "Node " << std::to_string(nodeIdx)
+                                                  << " invalid: potentially circular tree"
+                                                  << std::endl;
+                                    }
+                                    valid = false;
+                                }
                             }
-                            valid = false;
                         }
                     }
+                }
+
+                if(!has_true)
+                {
+                    if(verbose)
+                    {
+                        std::cout << "Tree invalid: no 'true' nodes." << std::endl;
+                    }
+                    valid = false;
                 }
 
                 return valid;
@@ -185,12 +217,12 @@ namespace Tensile
         template <typename Object, typename Value, typename ReturnValue>
         struct Forest
         {
-            using Properties = std::vector<std::shared_ptr<Property<Object>>>;
-            using Transform  = std::function<ReturnValue(Value)>;
+            using Features  = std::vector<std::shared_ptr<MLFeatures::MLFeature<Object>>>;
+            using Transform = std::function<ReturnValue(Value)>;
 
             Forest() = default;
-            Forest(Properties const& properties)
-                : properties(properties)
+            Forest(Features const& features)
+                : features(features)
             {
             }
 
@@ -203,7 +235,7 @@ namespace Tensile
 
             virtual std::string description() const = 0;
 
-            Properties properties;
+            Features features;
         };
 
         /**
@@ -217,18 +249,18 @@ namespace Tensile
         template <typename Key, typename Object, typename Value, typename ReturnValue>
         struct BasicForest : public Forest<Object, Value, ReturnValue>
         {
-            using Base       = Forest<Object, Value, ReturnValue>;
-            using Tree       = Tree<Key, Value, ReturnValue>;
-            using Transform  = typename Base::Transform;
-            using Properties = typename Base::Properties;
+            using Base      = Forest<Object, Value, ReturnValue>;
+            using Tree      = Tree<Key, Value, ReturnValue>;
+            using Transform = typename Base::Transform;
+            using Features  = typename Base::Features;
 
             BasicForest(ReturnValue nullValue = ReturnValue())
                 : nullValue(nullValue)
             {
             }
 
-            BasicForest(Properties const& properties, ReturnValue nullValue = ReturnValue())
-                : Base(properties)
+            BasicForest(Features const& features, ReturnValue nullValue = ReturnValue())
+                : Base(features)
                 , nullValue(nullValue)
             {
             }
@@ -236,11 +268,11 @@ namespace Tensile
             virtual ReturnValue findBestMatch(Object const& problem,
                                               Transform     transform) const override
             {
-                Key key = ProblemKey::keyForProblem<Key, Object>(problem, this->properties);
+                Key key = ProblemKey::keyForProblem<Key, Object, float>(problem, this->features);
                 for(Tree const& tree : trees)
                 {
-                    float result = tree.predict(key);
-                    if(result > 0)
+                    bool result = tree.predict(key);
+                    if(result)
                         return tree.getSolution(transform);
                 }
                 return nullValue;
@@ -249,8 +281,6 @@ namespace Tensile
             virtual std::set<ReturnValue> matchesInOrder(Object const& problem,
                                                          Transform     transform) const override
             {
-                bool debug = Debug::Instance().printPropertyEvaluation();
-
                 std::set<ReturnValue> rv;
                 for(Tree const& tree : trees)
                 {
@@ -263,7 +293,7 @@ namespace Tensile
             virtual std::string description() const override
             {
                 return concatenate(
-                    "Forest: Properties: ", this->properties, ", ", trees.size(), " tree(s)");
+                    "Forest: Features: ", this->features, ", ", trees.size(), " tree(s)");
             }
 
             std::vector<Tree> trees;

@@ -90,20 +90,21 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         kStr += "%slr%s%s%s" \
                 % (writer.commentPrefix, tP["tileChar"], writer.commentSuffix, writer.endLine)
 
+        # get constant parameter
+        tc               = tP["tensorChar"]
         # alloc vgpr
         wReg    = writer.vgprPool.checkOut(1,"wReg") # quotient
         tReg    = writer.vgprPool.checkOut(1,"tReg") # remainder
         kReg    = writer.vgprPool.checkOut(1,"kReg") # remainder
+        if kernel["ThreadSeparateGlobalRead%c"%tc]:
+          mReg    = writer.vgprPool.checkOut(1,"mReg")
         tmpVgpr = writer.vgprPool.checkOutAligned(2,2,"tmpVgpr")
-        ldsVgpr = writer.vgprPool.checkOut(1,"ldsVgpr")
-        ldsVgpr1 = writer.vgprPool.checkOut(1,"ldsVgpr1")
         dummy   = writer.vgprPool.checkOut(1,"dummy")
 
          # alloc sgpr
         tmpSgpr = writer.getTmpSgpr(1).idx()
 
         # get constant parameter
-        tc               = tP["tensorChar"]
         tile01           = tP["tile01Idx"]
         waveWidth        = writer.kernel["WavefrontSize"]
         inputPerThread   = max(writer.lrvwA,writer.lrvwB)
@@ -145,7 +146,27 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             "0. thread id in wave: wtid = tid %% wavelength(%u)" % waveWidth)
         kStr += vectorStaticRemainder(dummy, tReg, kReg, kernel["MatrixInstN"], tmpVgpr, tmpSgpr, \
             "1. N offset: nIdx = wtid %% MI_N(%u)" % kernel["MatrixInstN"])
-        kStr += staticMultiply(vgpr(tReg), vgpr(tReg), strideTile, sgpr(tmpSgpr), \
+        if kernel["ThreadSeparateGlobalRead%c"%tc]:
+          # WSGR splits global fetch 2D tile MblockxdepthU into (WSPR *2)xMblockxdepthU/(WSPR*2)  (Mblock = waveWidth * glvw  / depthU)
+          # LDS layout stored as 3D tile K1xMblockxK0
+          # Padding is not allowed in directToLds
+          NblockSizePerLoad = (waveWidth * kernel["GlobalLoadVectorWidth%c"%tc]) // kernel["_DepthULds"] // vectorWidth
+          # Nidx offset calculation
+          # each load fetches tuple<K1,Nidx,K0> mapped to wavefront load tuple<TSGR<<1,wavefront/depthU/TSGR<<1, depth//TSGR<<1)
+          kStr += vectorStaticDivide(mReg, tReg, NblockSizePerLoad, tmpVgpr, tmpSgpr, \
+              "1. N offset: nIdx_upper = nIdx / NblockSizePerLoad(%u)" % NblockSizePerLoad)
+          kStr += staticMultiply(vgpr(mReg), vgpr(mReg), NblockSizePerLoad*kernel["_DepthULds"], sgpr(tmpSgpr), \
+              "1. N offset: nIdx_upper_offset = nIdx_upper * nStride(%u)" % (waveWidth * kernel["GlobalLoadVectorWidth%c"%tc]))
+          KelementsPerMFrag = kernel["_DepthULds"]//(kernel["ThreadSeparateGlobalRead%c"%tc]*2)
+          kStr += vectorStaticRemainder(dummy, tReg, tReg, NblockSizePerLoad, tmpVgpr, tmpSgpr, \
+              "1. N offset: nIdx_lower = nIdx %% NblockSizePerLoad(%u)" % NblockSizePerLoad)
+          kStr += staticMultiply(vgpr(tReg), vgpr(tReg), KelementsPerMFrag, sgpr(tmpSgpr), \
+              "1. N offset: nIdx_lower = nIdx_load * nStride(%u)" % KelementsPerMFrag)
+
+          kStr += inst("_v_add_u32", vgpr(tReg), vgpr(mReg), vgpr(tReg), \
+              "1. N offset: nOffset =  nIdx_lower + nIdx_upper")
+        else:
+          kStr += staticMultiply(vgpr(tReg), vgpr(tReg), strideTile, sgpr(tmpSgpr), \
             "1. N offset: nOffset = nIdx * nStride(%u)" % strideTile)
         # block offset
         if num1DBlocks > 1:
@@ -168,6 +189,17 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         # unroll offset
         kStr += vectorStaticDivide(kReg, kReg, dividendForKId, tmpVgpr, tmpSgpr, \
             "4. K offset: kIdx = wtid / (MIN(%u) * MIBB(%u))" % (kernel["MatrixInstN"], kernel["MatrixInstB"]))
+        if kernel["ThreadSeparateGlobalRead%s"%tc]:
+          # ThreadSeparateGlobalRead case
+          # kIdx_lower = (kIdx % KelementsPerMFrag) + (kIdx // KelementsPerMFrag) * (KelementsPerMFrag * NblockSizePerLoad)
+          kStr += vectorStaticRemainder(dummy, mReg, kReg, KelementsPerMFrag, tmpVgpr, tmpSgpr, \
+              "4. K offset: kIdx_lower = kIdx %% KelementsPerMFrag(%u)" % (KelementsPerMFrag))
+          kStr += vectorStaticDivide(kReg, kReg, KelementsPerMFrag, tmpVgpr, tmpSgpr, \
+              "4. K offset: kIdx_higher = kIdx / KelementsPerMFrag(%u)" % (KelementsPerMFrag))
+          kStr += staticMultiply(vgpr(kReg), vgpr(kReg), (KelementsPerMFrag * NblockSizePerLoad * vectorWidth), sgpr(tmpSgpr), \
+              "4. K offset: kIdx_higher = kIdx_higher * mStride(%u)" % (KelementsPerMFrag * NblockSizePerLoad * vectorWidth))
+          kStr += inst("_v_add_u32", vgpr(kReg), vgpr(kReg), vgpr(mReg), \
+              "4. K offset: kIdx = kIdx_lower + kIdx_higher")
         kStr += staticMultiply(vgpr(kReg), vgpr(kReg), strideK, sgpr(tmpSgpr), \
             "4. K offset: lrKOffset = kIdx * mStride(%u)" % strideK)
 
@@ -189,9 +221,9 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         tP["gpr"]["lro"] = tReg
         writer.vgprPool.checkIn(wReg)
         writer.vgprPool.checkIn(kReg)
+        if kernel["ThreadSeparateGlobalRead%c"%tc]:
+          writer.vgprPool.checkIn(mReg)
         writer.vgprPool.checkIn(tmpVgpr)
-        writer.vgprPool.checkIn(ldsVgpr)
-        writer.vgprPool.checkIn(ldsVgpr1)
         writer.vgprPool.checkIn(dummy)
 
         return kStr

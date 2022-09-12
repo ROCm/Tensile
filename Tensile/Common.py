@@ -215,6 +215,7 @@ globalParameters["LibraryClientPath"] = "4_LibraryClient"         # subdirectory
 globalParameters["ClientExecutionLockPath"] = None                # Path for a file lock to ensure only one client is executed at once.  filelock module is required if this is enabled.
 globalParameters["LibraryUpdateFile"] = ""                        # File name for writing indices and speeds suitable for updating an existing library logic file
 globalParameters["LibraryUpdateComment"] = False                  # Include solution name as a comment in the library update file
+globalParameters["DictLibraryLogic"] = False
 
 # internal, i.e., gets set during startup
 globalParameters["CurrentISA"] = (0,0,0)
@@ -403,6 +404,25 @@ validParameters = {
     # -1 is selected by logic, 0 disable, 1 enable.
     "WaveSeparateGlobalReadA":    [ 0, 1 ],
     "WaveSeparateGlobalReadB":    [ 0, 1 ],
+
+    # directToLds (asyncDMA) feature do not work very efficiently for lower precisions fp16/bf16/i8. directToLds feature does not
+    # support destination offset in LDS , no padding support to avoid LDS bank conflicts during data movement LDS->VGPR
+    # This feature enumerates elements in summation Index dimension into different thread lanes during global fetch while
+    # keeping memory fetch efficiency same as non directToLds and avoids bank conflicts when data moved from LDS->VGPR.
+    # fragmenting threads required to fetch #elements in coalescing dimension. rather than using contiguous depthu/GLVW into
+    # fragments occupying upper and lower 32 threads or fragment into 4x16 threads.
+    # for higher precision like f64, The feature should also help to avoid LDS bank conflicts for Transpose data layout case
+    # use primarily for direct to LDS feature with transpose data layout
+    # for example A matrices = Transpose layout
+    # ThreadSeparateGlobalReadA = 0   DepthU=64 GVLW=8 T0,T1,T2,T3,T4,T5,T6,T7  fetching  64 elements
+    # ThreadSeparateGlobalReadA = 1   DepthU=64 GLVW=8 T0,T1,T2,T3, T32,T33,T34,T35
+    # ThreadSeparateGlobalReadA = 2   DepthU=64 GVLW=8 T0,T1,T16,T17,T32,T33,T48,T49  fetching  64 elements
+    # use =2 for 16x16x4xfp16 instructions
+    # should work with WaveSeparateGlobalRead
+    # Feature should help depthU*bpe requiring more than 4 threads.
+
+    "ThreadSeparateGlobalReadA":    [ 0, 1, 2 ],
+    "ThreadSeparateGlobalReadB":    [ 0, 1, 2 ],
 
     # Splits global read addresses within a wave into a number of smaller groups
     # The default value of 1 reads the most contiguous elements across lanes,
@@ -1363,7 +1383,9 @@ defaultBenchmarkCommonParameters = [
     {"StoreCInUnrollInterval":    [ 1 ] },
     {"StoreCInUnrollExact":       [ False ] },
     {"StoreCInUnrollPostLoop":    [ False ] },
-    {"Fp16AltImpl":               [ False ] }
+    {"Fp16AltImpl":               [ False ] },
+    {"ThreadSeparateGlobalReadA": [ 0 ] },
+    {"ThreadSeparateGlobalReadB": [ 0 ] }
     ]
 
 # dictionary of defaults comprised of default option for each parameter
@@ -1976,11 +1998,6 @@ def assignGlobalParameters( config ):
     if os.name == "nt":
       globalParameters["CurrentISA"] = (9,0,6)
       printWarning("Failed to detect ISA so forcing (gfx906) on windows")
-
-  # TODO Remove this when rocm-smi supports gfx90a
-  if globalParameters["CurrentISA"] == (9,0,10):
-    printWarning("HardwareMonitor currently disabled for gfx90a")
-    globalParameters["HardwareMonitor"] = False
 
   globalParameters["AsmCaps"] = {}
   globalParameters["ArchCaps"] = {}

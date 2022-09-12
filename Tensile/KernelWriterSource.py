@@ -1761,6 +1761,12 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
+  # Local Read Addresses for direct LDS : Final Offset A/B
+  ##############################################################################
+  def directToLdsLraOffset(self, kernel, finalVgpr, tmp1, tmp2, tP):
+    return ""
+
+  ##############################################################################
   # Local Read Addresses offset conversion for DTL + NLC > 1
   ##############################################################################
   def lraOffsetConversionForDTLandNLC(self, kernel, tP, offset_val, generateAsm=False, \
@@ -2757,7 +2763,7 @@ class KernelWriterSource(KernelWriter):
                 self.tileChar0, self.tileChar1, \
                 s, self.tileChar1, j, self.tileChar0, self.tileChar1, vc, i, s, \
                 self.tileChar0, j, self.tileChar0, self.endLine)
-    kStr += self.indent + self.syncStr + self.endLine
+    kStr += self.syncThreads(kernel);
     """
 
     kStr += "    /* print Local state */" + self.endLine
@@ -3312,6 +3318,12 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def syncThreads(self, kernel, comment=""):
     return self.indent + self.syncStr + " //" + comment + self.endLine
+# TODO: can be uncommented once source kernels support WavefrontSize=32
+#    if kernel["NumThreads"] > kernel["WavefrontSize"]:
+#        return self.indent + self.syncStr + " //" + comment + self.endLine
+#    else:
+#        return self.indent + "// Skip barrier: NumThreads=%s"%(kernel["NumThreads"]) + \
+#               self.endLine
 
   ##############################################################################
   # MapAcctoArch
