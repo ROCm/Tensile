@@ -1,6 +1,6 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.35.0
+## Tensile 4.35.0 for ROCm 5.4.0
 ### Added
 - Async DMA support for Transpose Data Layout (ThreadSeparateGlobalReadA/B)
 - Option to output library logic in dictionary format
