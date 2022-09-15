@@ -276,14 +276,11 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
               if globalParameters["PrintCodeCommands"]:
                 print(' '.join(bundlerArgs))
               # change to use  check_output to force windows cmd block util command finish
-              try:
-                out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
-                print2(out)
-              except subprocess.CalledProcessError as err:
-                print(err.output)
-                raise
+              out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
+              print2(out)
 
-      except subprocess.CalledProcessError:
+      except subprocess.CalledProcessError as err:
+        print(err.output)
         for i in range(len(archs)):
           outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
           coFilenames.append(os.path.split(outfile)[1])
