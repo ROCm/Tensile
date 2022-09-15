@@ -119,11 +119,21 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
 
             args = [globalParameters['AssemblerPath'], '-target', 'amdgcn-amd-amdhsa', '-o', coFile, '@clangArgs.txt']
             # change to use  check_output to force windows cmd block util command finish
-            subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)
+            try:
+              out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)
+              print2(out)
+            except subprocess.CalledProcessError as err:
+              print(err.output)
+              raise
           else:
             args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
             # change to use  check_output to force windows cmd block util command finish
-            subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)
+            try:
+              out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)
+              print2(out)
+            except subprocess.CalledProcessError as err:
+              print(err.output)
+              raise
 
           coFiles.append(coFile)
       else:
@@ -219,7 +229,12 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       if globalParameters["PrintCodeCommands"]:
         print('hipcc:', ' '.join(compileArgs))
       # change to use  check_output to force windows cmd block util command finish
-      subprocess.check_output(compileArgs, stderr=subprocess.STDOUT)
+      try:
+        out = subprocess.check_output(compileArgs, stderr=subprocess.STDOUT)
+        print2(out)
+      except subprocess.CalledProcessError as err:
+        print(err.output)
+        raise
 
       # get hipcc version due to compatiblity reasons
       hipccver = globalParameters['HipClangVersion'].split(".")
@@ -261,7 +276,12 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
               if globalParameters["PrintCodeCommands"]:
                 print(' '.join(bundlerArgs))
               # change to use  check_output to force windows cmd block util command finish
-              subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
+              try:
+                out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
+                print2(out)
+              except subprocess.CalledProcessError as err:
+                print(err.output)
+                raise
 
       except subprocess.CalledProcessError:
         for i in range(len(archs)):
@@ -273,7 +293,12 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
           if globalParameters["PrintCodeCommands"]:
             print(' '.join(bundlerArgs))
           # change to use  check_output to force windows cmd block util command finish
-          subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
+          try:
+            out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
+            print2(out)
+          except subprocess.CalledProcessError as err:
+            print(err.output)
+            raise
     else:
       raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
 

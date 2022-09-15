@@ -4975,7 +4975,12 @@ for codeObjectFileName in codeObjectFileNames:
       print (' '.join(args), " && ")
 
     # change to use  check_output to force windows cmd block util command finish
-    subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=self.getAssemblyDirectory())
+    try:
+      out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=self.getAssemblyDirectory())
+      print2(out)
+    except subprocess.CalledProcessError as err:
+      print(err.output)
+      raise
 
     return objectFileName
 
@@ -4990,7 +4995,12 @@ for codeObjectFileName in codeObjectFileNames:
       print (' '.join(args))
 
     # change to use  check_output to force windows cmd block util command finish
-    subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=self.getAssemblyDirectory())
+    try:
+      out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=self.getAssemblyDirectory())
+      print2(out)
+    except subprocess.CalledProcessError as err:
+      print(err.output)
+      raise
 
     return coFileName
 

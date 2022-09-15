@@ -27,7 +27,7 @@ import os
 import subprocess
 
 from . import Common
-from .Common import globalParameters
+from .Common import globalParameters, print2
 from .Parallel import CPUThreadCount
 
 def cmake_path(os_path):
@@ -50,14 +50,25 @@ class CMakeEnvironment:
         Common.print2(' '.join(args))
         with Common.ClientExecutionLock():
             # change to use  check_output to force windows cmd block util command finish
-            subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=Common.ensurePath(self.buildDir))
+            try:
+                out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=Common.ensurePath(self.buildDir))
+                print2(out)
+            except subprocess.CalledProcessError as err:
+                print(err.output)
+                raise
+            
 
     def build(self):
         args = [('ninja' if (os.name == "nt") else 'make'), f'-j{CPUThreadCount()}']
         Common.print2(' '.join(args))
         with Common.ClientExecutionLock():
             # change to use  check_output to force windows cmd block util command finish
-            subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=self.buildDir)
+            try:
+                out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=self.buildDir)
+                print2(out)
+            except subprocess.CalledProcessError as err:
+                print(err.output)
+                raise
 
     def builtPath(self, path, *paths):
         return os.path.join(self.buildDir, path, *paths)
