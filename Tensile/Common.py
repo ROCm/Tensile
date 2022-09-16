@@ -271,7 +271,7 @@ defaultGlobalParameters = deepcopy(globalParameters)
 
 # Translate GPU targets to filter filenames in Tensile_LOGIC directory
 architectureMap = {
-  'all':'_','gfx000':'none', 'gfx803':'r9nano', 'gfx900':'vega10',
+  'all':'_','gfx000':'none', 'gfx803':'r9nano', 'gfx900':'vega10', 'gfx900:xnack-':'vega10',
   'gfx906':'vega20', 'gfx906:xnack+':'vega20', 'gfx906:xnack-':'vega20',
   'gfx908':'arcturus','gfx908:xnack+':'arcturus', 'gfx908:xnack-':'arcturus',
   'gfx90a':'aldebaran', 'gfx90a:xnack+':'aldebaran', 'gfx90a:xnack-':'aldebaran',
