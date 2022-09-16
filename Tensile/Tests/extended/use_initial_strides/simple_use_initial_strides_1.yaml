@@ -19,7 +19,6 @@ GlobalParameters:
   DataInitTypeAlpha: 2
   KernelTime: True
   LibraryPrintDebug: 0
-  CpuThreads: 0
   PrintSolutionRejectionReason: 1
   PrintTensorA: 1
   PrintTensorD: 2

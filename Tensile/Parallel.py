@@ -29,15 +29,15 @@ import sys
 
 def CPUThreadCount(enable=True):
   from .Common import globalParameters
-  if not enable or globalParameters["CpuThreads"] == 0:
-    return 0
+  if not enable:
+    return 1
   else:
     if os.name == "nt":
       cpu_count = os.cpu_count()
     else:
       cpu_count = len(os.sched_getaffinity(0))
     cpuThreads = globalParameters["CpuThreads"]
-    if cpuThreads < 0:
+    if cpuThreads < 1:
         return cpu_count*abs(cpuThreads)
     return min(cpu_count, cpuThreads)
 
