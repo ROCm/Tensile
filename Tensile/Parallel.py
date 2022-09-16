@@ -38,7 +38,7 @@ def CPUThreadCount(enable=True):
       cpu_count = len(os.sched_getaffinity(0))
     cpuThreads = globalParameters["CpuThreads"]
     if cpuThreads < 1:
-        return cpu_count*abs(cpuThreads)
+        return cpu_count
     return min(cpu_count, cpuThreads)
 
 def starmap_apply(item):
