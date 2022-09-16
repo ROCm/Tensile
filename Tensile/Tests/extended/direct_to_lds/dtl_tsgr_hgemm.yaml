@@ -46,7 +46,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
-        - PrefetchGlobalRead: [1]
+        - PrefetchGlobalRead: [1, 2]
         #- AssertFree0ElementMultiple: [2]
         # - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
@@ -98,7 +98,7 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
-        - PrefetchGlobalRead: [1]
+        - PrefetchGlobalRead: [1, 2]
         #- AssertFree0ElementMultiple: [2]
         # - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]

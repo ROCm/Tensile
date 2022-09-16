@@ -7693,11 +7693,14 @@ class KernelWriterAssembly(KernelWriter):
         DtldsModule.addInst("s_mov_b32", "m0", sgpr("LocalWriteAddr%s"%tc), "m0 <- LDS write address")
 
       # PrefetchGlobalRead=2 case, generate local read wait for DirectToLds
-      if kernel["PrefetchGlobalRead"]==2:
+      # skip wait and barrier for B if both A and B use DirectToLds
+      skipWait = kernel["DirectToLdsA"] and kernel["DirectToLdsB"] and tc == "B"
+      if kernel["PrefetchGlobalRead"]==2 and not skipWait:
         # do not generate local read wait for PGR=2
         DtldsModule.addText(self.comment1("before DirectToLds load, ensure prior ds_reads have finished"))
         DtldsModule.addText("s_waitcnt lgkmcnt(0)" + self.endLine)
-        if not kernel["NoLdsWriteCode"]:
+        # vmcnt is needed for DirectToLdsA + DirectToLdsB
+        if (not kernel["NoLdsWriteCode"]) or (kernel["DirectToLdsA"] and kernel["DirectToLdsB"]):
           if usePlaceHolder:
             waitStr = "__placeholder__"
           else:
