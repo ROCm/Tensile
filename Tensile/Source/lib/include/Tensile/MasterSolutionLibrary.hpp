@@ -156,7 +156,14 @@ namespace Tensile
         {
             // TODO add safegaurds related to lazy loading and other checks on the index
             std::lock_guard<std::mutex> guard(solutionsGuard);
-            return solutions.at(index);
+            if(solutions.find(index) != solutions.end())
+            {
+                return solutions.at(index);
+            }
+            else
+            {
+                return nullptr;
+            }
         }
 
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
