@@ -139,13 +139,7 @@ set(test_sources ${test_sources}
 )
 
 if(TENSILE_USE_LLVM)
-    find_package(LLVM 13.0 QUIET CONFIG)
-    if(NOT LLVM_FOUND)
-        find_package(LLVM 12.0 QUIET CONFIG)
-        if(NOT LLVM_FOUND)
-            find_package(LLVM REQUIRED CONFIG)
-        endif()
-    endif()
+    find_package(LLVM REQUIRED CONFIG)
 
     set(test_sources ${test_sources}
         ContractionLibraryLoading_test.cpp
