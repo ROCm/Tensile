@@ -38,8 +38,8 @@ namespace Tensile
 {
 
     /**
- * \ingroup SolutionLibrary
- */
+     * \ingroup SolutionLibrary
+     */
     template <typename MySolution>
     using SolutionMap = std::map<int, std::shared_ptr<MySolution>>;
 
@@ -54,11 +54,11 @@ namespace Tensile
     };
 
     /**
- * \ingroup SolutionLibrary
- *
- * Root level library object. Contains all individual solutions in a map
- * for serialization purposes.
- */
+     * \ingroup SolutionLibrary
+     *
+     * Root level library object. Contains all individual solutions in a map
+     * for serialization purposes.
+     */
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct MasterSolutionLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
@@ -154,7 +154,7 @@ namespace Tensile
 
         std::shared_ptr<MySolution> getSolutionByIndex(int index) const
         {
-            // TODO add safegaurds related to lazy loading and other checks on the index
+            // will only return solution if already loaded; does not load solutions
             std::lock_guard<std::mutex> guard(solutionsGuard);
             if(solutions.find(index) != solutions.end())
             {
