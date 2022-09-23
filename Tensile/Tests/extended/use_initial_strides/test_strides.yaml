@@ -14,7 +14,6 @@ GlobalParameters:
   MergeFiles: False
   KernelTime: True
   LibraryPrintDebug: 0
-  CpuThreads: 0
   PrintSolutionRejectionReason: 1
   PrintConvolutionUsage: 0
 

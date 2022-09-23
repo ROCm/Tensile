@@ -22,7 +22,6 @@ GlobalParameters:
   DataInitTypeBeta: 0
   KernelTime: True
   LibraryPrintDebug: 0
-  CpuThreads: 0
   PrintSolutionRejectionReason: 1
 
 BenchmarkProblems:
