@@ -99,6 +99,11 @@ namespace Tensile
 
             m_reporter->report(ResultKey::FanSpeedRPMs, m_monitor->getAverageFanSpeed());
             m_reporter->report(ResultKey::HardwareSampleCount, m_monitor->getSamples());
+            
+            // Report avg frequency,power,temperature during kernel execution.
+            m_reporter->report(ResultKey::GfxFrequency,m_monitor->getMedianGfxFrequency());
+            m_reporter->report(ResultKey::Power, m_monitor->getMedianPower());
+            m_reporter->report(ResultKey::TemperatureHot,m_monitor->getMedianHotSpotTemperature());
         }
     } // namespace Client
 } // namespace Tensile

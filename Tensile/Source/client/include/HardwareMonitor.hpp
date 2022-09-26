@@ -32,6 +32,8 @@
 #include <thread>
 #include <tuple>
 #include <vector>
+#include <numeric>
+#include <algorithm>
 
 #include <hip/hip_runtime.h>
 #include <rocm_smi/rocm_smi.h>
@@ -72,6 +74,13 @@ namespace Tensile
             double getAverageTemp();
             double getAverageClock(ClockType clockType);
             double getAverageFanSpeed(uint32_t sensorIndex = 0);
+            double getAverageGfxFrequency();
+            double getMedianGfxFrequency();
+            double getAveragePower();
+            double getMedianPower();
+            double getAverageHotSpotTemperature();
+            double getMedianHotSpotTemperature();
+            void   logMinMaxMedianAverage();            
             int    getDeviceIndex()
             {
                 return m_hipDeviceIndex;
@@ -143,6 +152,9 @@ namespace Tensile
 
             std::vector<uint32_t> m_fanMetrics;
             std::vector<int64_t>  m_fanValues;
+            std::vector<uint16_t> m_freqValues;
+            std::vector<uint16_t> m_powerValues;
+            std::vector<uint16_t> m_temperatureValues;            
         };
     } // namespace Client
 } // namespace Tensile
