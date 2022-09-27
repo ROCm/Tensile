@@ -22,6 +22,19 @@
 #
 ################################################################################
 
+################################################################################
+# Sample cmake usage:
+#     set(Tensile_LIBRARY_FORMAT <"msgpack"/"yaml">)
+#     set(Tensile_ROOT <path to Tensile folder>)
+#     find_package(Tensile <version> EXACT REQUIRED [HIP] PATHS ${Tensile_ROOT})
+#
+#     get_target_property(TensileHost_INCLUDES TensileHost INCLUDE_DIRECTORIES)
+#     include_directories(${TensileHost_INCLUDES})
+#     target_link_libraries(<project name> TensileHost)
+#
+#     TensileCreateLibraryFiles(<args...>)
+#
+
 include(CMakeParseArguments)
 
 if(NOT DEFINED Tensile_ROOT)
@@ -70,7 +83,6 @@ else()
 endif()
 
 add_subdirectory("${Tensile_ROOT}/Source" "Tensile")
-#include("${Tensile_ROOT}/Source/TensileCreateLibrary.cmake")
 
 # Target is created for copying dependencies
 function(TensileCreateCopyTarget
