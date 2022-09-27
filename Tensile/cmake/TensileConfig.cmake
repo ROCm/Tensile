@@ -70,7 +70,7 @@ else()
 endif()
 
 add_subdirectory("${Tensile_ROOT}/Source" "Tensile")
-include("${Tensile_ROOT}/Source/TensileCreateLibrary.cmake")
+#include("${Tensile_ROOT}/Source/TensileCreateLibrary.cmake")
 
 # Target is created for copying dependencies
 function(TensileCreateCopyTarget
