@@ -749,7 +749,7 @@ class KernelWriterAssembly(KernelWriter):
       kernel["DirectToLdsB"] = False
       kernel["LocalWriteUseSgprA"] = False # Requires DirectToLdsA
       kernel["LocalWriteUseSgprB"] = False # Requires DirectToLdsB
-      printExit("DirectToLds requested, but not available on this architecture")
+      printExit("DirectToLds requested, but not available on this architecture ( {} )".format(self.version))
 
     self.useAtomicAdd = self.asmCaps["HasAtomicAdd"] and (kernel["_GlobalAccumulation"] == 'SingleBuffer')
 

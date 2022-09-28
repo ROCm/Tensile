@@ -2444,7 +2444,7 @@ class Solution(collections.abc.Mapping):
     # use for all precisions with TransposeLDS=1
 
     numRegisters = state["ProblemType"]["DataType"].numRegisters()
-    if numRegisters > 1 or numRegisters * state["GlobalReadVectorWidth"] != 1:
+    if numRegisters * state["GlobalReadVectorWidth"] != 1:
       reject(state, "DirectToLds can only be used with buffer loads requiring 1 register")
       return False
 
