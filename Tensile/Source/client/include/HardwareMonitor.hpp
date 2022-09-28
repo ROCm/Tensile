@@ -154,7 +154,7 @@ namespace Tensile
             std::vector<int64_t>  m_fanValues;
             std::vector<uint16_t> m_freqValues;
             std::vector<uint16_t> m_powerValues;
-            std::vector<uint16_t> m_temperatureValues;            
+            std::vector<uint16_t> m_tempHotspotValues;
         };
     } // namespace Client
 } // namespace Tensile

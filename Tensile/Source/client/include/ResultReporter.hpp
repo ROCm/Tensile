@@ -124,9 +124,9 @@ namespace Tensile
             const std::string DeviceIndex         = "device-idx";
             const std::string FanSpeedRPMs        = "fan-rpm";
             const std::string HardwareSampleCount = "hardware-samples";
-            const std::string GfxFrequency = "gfx-frequency(median)"; // GPU clock in Mhz 
-            const std::string Power =  "power(median)"; // power consumption by the GPU
-            const std::string TemperatureHot = "hotspot-temperature(median)"; // GPU temperature             
+            const std::string GfxFrequency        = "gfx-frequency(median)"; // GPU clock in Mhz 
+            const std::string Power               = "power(median)"; // power consumption by the GPU
+            const std::string TemperatureHot      = "hotspot-temperature(median)"; // GPU temperature             
         }; // namespace ResultKey
 
         class ResultReporter : public RunListener

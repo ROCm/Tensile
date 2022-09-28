@@ -326,11 +326,15 @@ namespace Tensile
                 v = 0;
             for(auto& v : m_fanValues)
                 v = 0;
-                
+            
+            m_freqValues.resize(1);
+            m_powerValues.resize(1);
+            m_tempHotspotValues.resize(1);
+            
             m_freqValues.clear();
             m_powerValues.clear();
-            m_temperatureValues.clear();
-                
+            m_tempHotspotValues.clear();
+            
             m_lastCollection = clock::time_point();
             m_nextCollection = clock::time_point();
         }
@@ -395,15 +399,19 @@ namespace Tensile
             auto status = rsmi_dev_gpu_metrics_info_get(m_smiDeviceIndex, &gpuMetrics);
             if(status != RSMI_STATUS_SUCCESS)
             {
-                m_freqValues[0]        = std::numeric_limits<uint16_t>::max();
-                m_powerValues[0]       = std::numeric_limits<uint16_t>::max();
-                m_temperatureValues[0] = std::numeric_limits<uint16_t>::max();
+                m_freqValues.at(0)        = std::numeric_limits<uint16_t>::max();
+                m_powerValues.at(0)       = std::numeric_limits<uint16_t>::max();
+                m_tempHotspotValues.at(0) = std::numeric_limits<uint16_t>::max();
             }
             else
             {
-                m_freqValues.push_back(gpuMetrics.average_gfxclk_frequency);
-                m_powerValues.push_back(gpuMetrics.average_socket_power);
-                m_temperatureValues.push_back(gpuMetrics.temperature_hotspot);
+                // size of m_freqValues,m_powerValues,m_tempHotspotValues is same.   
+                if(m_freqValues[0] != std::numeric_limits<uint16_t>::max())  
+                {    
+                    m_freqValues.push_back(gpuMetrics.average_gfxclk_frequency);
+                    m_powerValues.push_back(gpuMetrics.average_socket_power);
+                    m_tempHotspotValues.push_back(gpuMetrics.temperature_hotspot);
+                }
             }
 
             m_dataPoints++;
@@ -415,14 +423,14 @@ namespace Tensile
             if(m_dataPoints == 0)
                 throw std::runtime_error("No data points collected!");
                 
-            if (m_freqValues.size() != 0)
+            if(m_freqValues.size() != 0)
             {
                 if(m_freqValues[0] == std::numeric_limits<uint16_t>::max())
                     return std::numeric_limits<double>::quiet_NaN();
 
-                 size_t FrequencyMidValueIndex = m_freqValues.size() / 2;
-                 std::nth_element(m_freqValues.begin(), m_freqValues.begin()+FrequencyMidValueIndex, m_freqValues.end());
-                 return static_cast<double> (m_freqValues[FrequencyMidValueIndex]);
+                 size_t frequencyMidValueIndex = m_freqValues.size() / 2;
+                 std::nth_element(m_freqValues.begin(), m_freqValues.begin()+frequencyMidValueIndex, m_freqValues.end());
+                 return static_cast<double> (m_freqValues[frequencyMidValueIndex]);
             }
             
             throw std::runtime_error("Can't read Gfx value that wasn't requested: ");
@@ -435,12 +443,12 @@ namespace Tensile
             if(m_dataPoints == 0)
                 throw std::runtime_error("No data points collected!");
 
-            if (m_freqValues.size() != 0)
+            if(m_freqValues.size() != 0)
             {
                 if(m_freqValues[0] == std::numeric_limits<uint16_t>::max())
                     return std::numeric_limits<double>::quiet_NaN();
                     
-                return static_cast<double> (std::accumulate(m_freqValues.begin(), m_freqValues.end(), 0.0) / m_freqValues.size()) ;
+                return (std::accumulate(m_freqValues.begin(), m_freqValues.end(), double(0))) / m_freqValues.size() ;
             }
 
             throw std::runtime_error("Can't read Gfx value that wasn't requested: ");
@@ -453,14 +461,14 @@ namespace Tensile
             if(m_dataPoints == 0)
                 throw std::runtime_error("No data points collected!");
                 
-            if (m_powerValues.size() != 0)
+            if(m_powerValues.size() != 0)
             {
                 if(m_powerValues[0] == std::numeric_limits<uint16_t>::max())
                     return std::numeric_limits<double>::quiet_NaN();
 
-                size_t PowerMidValueIndex = m_powerValues.size() / 2;
-                std::nth_element(m_powerValues.begin(), m_powerValues.begin()+PowerMidValueIndex, m_powerValues.end());
-                return static_cast<double> (m_powerValues[PowerMidValueIndex]);
+                size_t powerMidValueIndex = m_powerValues.size() / 2;
+                std::nth_element(m_powerValues.begin(), m_powerValues.begin()+powerMidValueIndex, m_powerValues.end());
+                return static_cast<double> (m_powerValues[powerMidValueIndex]);
             }
            
             throw std::runtime_error("Can't read Gfx value that wasn't requested: ");
@@ -473,12 +481,13 @@ namespace Tensile
             if(m_dataPoints == 0)
                 throw std::runtime_error("No data points collected!");
 
-            if (m_powerValues.size() != 0)
+            if(m_powerValues.size() != 0)
             {
                 if(m_powerValues[0] == std::numeric_limits<uint16_t>::max())
                     return std::numeric_limits<double>::quiet_NaN();
                     
-                return static_cast<double> (std::accumulate(m_powerValues.begin(), m_powerValues.end(), 0.0) / m_powerValues.size()) ;
+                return (std::accumulate(m_powerValues.begin(), m_powerValues.end(), double(0))) 
+                                                             / m_powerValues.size() ;
             }
             
             throw std::runtime_error("Can't read Power value that wasn't requested: ");
@@ -491,14 +500,14 @@ namespace Tensile
             if(m_dataPoints == 0)
                 throw std::runtime_error("No data points collected!");
 
-            if (m_temperatureValues.size() != 0)
+            if(m_tempHotspotValues.size() != 0)
             {
-                if(m_temperatureValues[0] == std::numeric_limits<uint16_t>::max())
+                if(m_tempHotspotValues[0] == std::numeric_limits<uint16_t>::max())
                     return std::numeric_limits<double>::quiet_NaN();
                     
-                size_t TemperatureMidValueIndex = m_temperatureValues.size() / 2;
-                std::nth_element(m_temperatureValues.begin(), m_temperatureValues.begin()+TemperatureMidValueIndex, m_temperatureValues.end());
-                return static_cast<double> (m_temperatureValues[TemperatureMidValueIndex]);
+                size_t temperatureMidValueIndex = m_tempHotspotValues.size() / 2;
+                std::nth_element(m_tempHotspotValues.begin(), m_tempHotspotValues.begin()+temperatureMidValueIndex, m_tempHotspotValues.end());
+                return static_cast<double> (m_tempHotspotValues[temperatureMidValueIndex]);
             }
             
             throw std::runtime_error("Can't read temperature value that wasn't requested: ");
@@ -511,12 +520,13 @@ namespace Tensile
             if(m_dataPoints == 0)
                 throw std::runtime_error("No data points collected!");
 
-            if (m_temperatureValues.size() != 0)
+            if(m_tempHotspotValues.size() != 0)
             {
-                if(m_temperatureValues[0] == std::numeric_limits<uint16_t>::max())
+                if(m_tempHotspotValues[0] == std::numeric_limits<uint16_t>::max())
                     return std::numeric_limits<double>::quiet_NaN();
                     
-                return static_cast<double> (std::accumulate(m_temperatureValues.begin(), m_temperatureValues.end(), 0.0) / m_temperatureValues.size()) ;
+                return (std::accumulate(m_tempHotspotValues.begin(), m_tempHotspotValues.end(),
+                                                              double(0))) / m_tempHotspotValues.size();
             }
             
             throw std::runtime_error("Can't read temperature value that wasn't requested: ");
@@ -528,7 +538,7 @@ namespace Tensile
             if(m_dataPoints == 0)
                 throw std::runtime_error("No data points collected!");
            
-            if (m_freqValues.size() == 0 || m_powerValues.size() == 0 || m_temperatureValues.size() == 0)
+            if(m_freqValues.size() == 0 || m_powerValues.size() == 0 || m_tempHotspotValues.size() == 0)
             {
                 throw std::runtime_error("Frequency, Power, Temperature array is empty.\n"); 
             }
@@ -538,7 +548,7 @@ namespace Tensile
             // Log individual data  
             for (int i = 0; i < m_freqValues.size(); i++) 
             {
-                std::cout<<std::left<<std::setw(13) << m_freqValues[i] << "\t\t\t\t" << m_powerValues[i] << "\t\t\t\t\t" << m_temperatureValues[i]<<"\n";
+                std::cout<<std::left<<std::setw(13) << m_freqValues[i] << "\t\t\t\t" << m_powerValues[i] << "\t\t\t\t\t" << m_tempHotspotValues[i]<<"\n";
             }
             
             std::cout <<"\n";
@@ -546,21 +556,21 @@ namespace Tensile
            // min, max,avg, median frequency
             std::cout <<std::left << std::setw(12) << "GFX Frequency\t\t"<<std::setw(8)<< *std::min_element(m_freqValues.begin(), m_freqValues.end());
             std::cout <<std::setw(8)<< *std::max_element(m_freqValues.begin(), m_freqValues.end());
-            std::cout <<std::setw(10)<< std::accumulate(m_freqValues.begin(), m_freqValues.end(), 0.0) / m_freqValues.size();
+            std::cout <<std::setw(10)<< std::accumulate(m_freqValues.begin(), m_freqValues.end(), double(0)) / m_freqValues.size();
             std::cout << std::setw(8)<< getMedianGfxFrequency() <<"\n";
 
            //  min, max, avg, median Power
             std::cout <<std::left<< std::setw(15)<< "Power Value\t\t"<< std::setw(8) << *std::min_element(m_powerValues.begin(), m_powerValues.end());
             std::cout << std::setw(8)<< *std::max_element(m_powerValues.begin(), m_powerValues.end());
-            std::cout <<std::setw(10)<< std::accumulate(m_powerValues.begin(), m_powerValues.end(), 0.0) / m_powerValues.size();
+            std::cout <<std::setw(10)<< std::accumulate(m_powerValues.begin(), m_powerValues.end(), double(0)) / m_powerValues.size();
             std::cout << std::setw(8)<< getMedianPower()<<"\n";
             
            // min, max, avg, median Temperature 
             std::cout <<std::left<<std::setw(15)<<"Temperature\t\t"<< std::setw(8);
-            std::cout << *std::min_element(m_temperatureValues.begin(), m_temperatureValues.end());
-            std::cout << std::setw(8)<< *std::max_element(m_temperatureValues.begin(), m_temperatureValues.end());
-            std::cout << std::setw(10)<< std::accumulate(m_temperatureValues.begin(), m_temperatureValues.end(), 0.0) / m_temperatureValues.size();
-            std::cout << std::setw(10) << getMedianHotSpotTemperature()<<"\n\n";
+            std::cout << *std::min_element(m_tempHotspotValues.begin(), m_tempHotspotValues.end());
+            std::cout << std::setw(8)<< *std::max_element(m_tempHotspotValues.begin(), m_tempHotspotValues.end());
+            std::cout << std::setw(10)<< std::accumulate(m_tempHotspotValues.begin(), m_tempHotspotValues.end(), double(0)) / m_tempHotspotValues.size();
+            std::cout << std::setw(10)<< getMedianHotSpotTemperature()<<"\n\n";
         }
 
         void HardwareMonitor::sleepIfNecessary()
