@@ -745,11 +745,12 @@ class KernelWriterAssembly(KernelWriter):
 
     hasDtl = globalParameters["AsmCaps"][self.version]["HasDirectToLdsDest"] or globalParameters["AsmCaps"][self.version]["HasDirectToLdsNoDest"]
     if not hasDtl:
+      if kernel["DirectToLds"]:
+        printExit("DirectToLds requested, but not available on this architecture ( {} )".format(self.version))
       kernel["DirectToLdsA"] = False
       kernel["DirectToLdsB"] = False
       kernel["LocalWriteUseSgprA"] = False # Requires DirectToLdsA
       kernel["LocalWriteUseSgprB"] = False # Requires DirectToLdsB
-      printExit("DirectToLds requested, but not available on this architecture ( {} )".format(self.version))
 
     self.useAtomicAdd = self.asmCaps["HasAtomicAdd"] and (kernel["_GlobalAccumulation"] == 'SingleBuffer')
 
@@ -7302,11 +7303,10 @@ class KernelWriterAssembly(KernelWriter):
       extraFields += " glc"
     if tP["NonTemporal"]//2==1:
       extraFields += " slc"
-    directToLds = kernel["DirectToLds%s"%tc]
-    dtlUseDestVgpr = True
-    if directToLds:
+    dtlNoDestVgpr = False
+    if kernel["DirectToLds%s"%tc]:
       extraFields += " lds"
-      dtlUseDestVgpr = not globalParameters["AsmCaps"][self.version]["HasDirectToLdsNoDest"]
+      dtlNoDestVgpr = globalParameters["AsmCaps"][self.version]["HasDirectToLdsNoDest"]
     
 
     directToLdsLoads = 0
@@ -7515,8 +7515,7 @@ class KernelWriterAssembly(KernelWriter):
                           addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
                           soffset=soffset, offset=offset, \
                           extraFields=extraFields, \
-                          directToLds=directToLds, \
-                          dtlUseDestVgpr=dtlUseDestVgpr, \
+                          dtlNoDestVgpr=dtlNoDestVgpr, \
                           hi16=hi16, \
                           comment=comment).toStr()
 
@@ -7543,8 +7542,7 @@ class KernelWriterAssembly(KernelWriter):
                           addr0=vgpr("GlobalReadAddr%s+%u"%(tc,graIdx),2), addr1="", \
                           soffset=0, offset=0, \
                           extraFields=extraFields, \
-                          directToLds=directToLds, \
-                          dtlUseDestVgpr=dtlUseDestVgpr, \
+                          dtlNoDestVgpr=dtlNoDestVgpr, \
                           hi16=hi16, \
                           comment="load one flat value").toStr()
 
@@ -7812,11 +7810,10 @@ class KernelWriterAssembly(KernelWriter):
       extraFields += " glc"
     if tP["NonTemporal"]//2==1:
       extraFields += " slc"
-    directToLds = kernel["DirectToLds%s"%tc]
-    dtlUseDestVgpr = True
-    if directToLds:
+    dtlNoDestVgpr = False
+    if kernel["DirectToLds%s"%tc]:
       extraFields += " lds"
-      dtlUseDestVgpr = not globalParameters["AsmCaps"][self.version]["HasDirectToLdsNoDest"]
+      dtlNoDestVgpr = globalParameters["AsmCaps"][self.version]["HasDirectToLdsNoDest"]
 
     directToLdsLoads = 0
     instOffset       = 0
@@ -7922,8 +7919,7 @@ class KernelWriterAssembly(KernelWriter):
                         addr0=vgpr(offsetVgpr), addr1=sgpr("Srd%s"%tc, 4), \
                         soffset=soffset, offset=instOffset, \
                         extraFields=extraFields, \
-                        directToLds=directToLds, \
-                        dtlUseDestVgpr=dtlUseDestVgpr, \
+                        dtlNoDestVgpr=dtlNoDestVgpr, \
                         hi16=(kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and loopCnt%2==1, \
                         comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp)))
 
@@ -7949,8 +7945,7 @@ class KernelWriterAssembly(KernelWriter):
                         addr0=vgpr("GlobalReadAddr%s+%u"%(tc,graIdx),2), addr1="", \
                         soffset=0, offset=0, \
                         extraFields=extraFields, \
-                        directToLds=directToLds, \
-                        dtlUseDestVgpr=dtlUseDestVgpr, \
+                        dtlNoDestVgpr=dtlNoDestVgpr, \
                         hi16=(kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16()) and loopCnt%2==1, \
                         comment="G -> Reg %u_%u_%u_%u"%(para, sPara, perp, sPerp )))
 
@@ -11025,7 +11020,7 @@ class KernelWriterAssembly(KernelWriter):
   # bpl = bytes per load op
   ##############################################################################
   def chooseGlobalRead(self, useBuffer, bpl, destVgpr, \
-                       addr0, addr1, soffset, offset, extraFields, directToLds, dtlUseDestVgpr, hi16=0, comment="load C"):
+                       addr0, addr1, soffset, offset, extraFields, dtlNoDestVgpr, hi16=0, comment="load C"):
   # rpv = regs per vector
     rpv = bpl/4.0
 
@@ -11077,10 +11072,10 @@ class KernelWriterAssembly(KernelWriter):
       else:
         assert 0, "chooseGlobalRead: bad bpl"
 
-      if directToLds and not dtlUseDestVgpr:
+      if dtlNoDestVgpr:
         globalReadInst += "_dtl"
       args = [globalReadInst]
-      if dtlUseDestVgpr or not directToLds:
+      if not dtlNoDestVgpr:
         args.append(vgpr(destVgpr, rpv))
       args.extend([addr0, addr1, soffset, tailFields, comment])
       rv.addCode(Code.GlobalReadInst(*args))
@@ -11352,7 +11347,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["ProblemType"]["DestDataType"].isHalf():
       kStr += self.chooseGlobalRead(useBuffer, bps, data, \
                 addr0, addr1, soffset=0, offset=addrCalc.globalOffset, \
-                extraFields=extraStr, directToLds=False, dtlUseDestVgpr=True, hi16=vc0 % 2,
+                extraFields=extraStr, dtlNoDestVgpr=False, hi16=vc0 % 2,
                 comment="load C for beta calc").toStr()
     elif kernel["ProblemType"]["DestDataType"].isBFloat16() or \
          kernel["ProblemType"]["DestDataType"].isInt32() or \
@@ -11363,7 +11358,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += self.chooseGlobalRead(useBuffer, bps, data, \
                 addr0, addr1, soffset=0, offset=addrCalc.globalOffset, \
                 extraFields=extraStr, \
-                directToLds=False, dtlUseDestVgpr=True, \
+                dtlNoDestVgpr=False, \
                 comment="load C for beta calc").toStr()
 
     return kStr
@@ -11544,7 +11539,7 @@ class KernelWriterAssembly(KernelWriter):
           vgprIdx = 1*(bpm//4)
           kStr += self.chooseGlobalRead(useBuffer, bpm, dataV+vgprIdx, \
                     addr0, addr1, soffset=0, offset=addrCalc.globalOffset, extraFields="",
-                    directToLds=False, dtlUseDestVgpr=True, \
+                    dtlNoDestVgpr=False, \
                     comment="load D (atomic) bpm=%u vaw=%u"%(bpm,atomicW)).toStr()
 
       if kernel["InterleaveAlpha"] and applyAlpha:
@@ -12216,19 +12211,19 @@ class KernelWriterAssembly(KernelWriter):
           if kernel["ProblemType"]["DestDataType"].isHalf() or kernel["ProblemType"]["DestDataType"].isBFloat16():
             if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
               kStr += self.chooseGlobalRead(useBuffer, bps, sumIdx//2, \
-                        addr0, addr1, soffset=0, offset=0, extraFields="", directToLds=False, dtlUseDestVgpr=True, hi16=sumIdx%2).toStr()
+                        addr0, addr1, soffset=0, offset=0, extraFields="", dtlNoDestVgpr=False, hi16=sumIdx%2).toStr()
             else:
               kStr += self.chooseGlobalRead(useBuffer, bps, sumIdx, \
-                        addr0, addr1, soffset=0, offset=0, extraFields="", directToLds=False, dtlUseDestVgpr=True, hi16=0).toStr()
+                        addr0, addr1, soffset=0, offset=0, extraFields="", dtlNoDestVgpr=False, hi16=0).toStr()
           elif kernel["ProblemType"]["DestDataType"].isInt32() or kernel["ProblemType"]["DestDataType"].isSingle():
             kStr += self.chooseGlobalRead(useBuffer, bps, sumIdx, \
-                      addr0, addr1, soffset=0, offset=0, extraFields="", directToLds=False, dtlUseDestVgpr=True).toStr()
+                      addr0, addr1, soffset=0, offset=0, extraFields="", dtlNoDestVgpr=False).toStr()
           elif kernel["ProblemType"]["DestDataType"].isDouble() or kernel["ProblemType"]["DestDataType"].isSingleComplex() :
             kStr += self.chooseGlobalRead(useBuffer, bps, sumIdx*2, \
-                      addr0, addr1, soffset=0, offset=0, extraFields="", directToLds=False, dtlUseDestVgpr=True).toStr()
+                      addr0, addr1, soffset=0, offset=0, extraFields="", dtlNoDestVgpr=False).toStr()
           elif kernel["ProblemType"]["DestDataType"].isDoubleComplex():
             kStr += self.chooseGlobalRead(useBuffer, bps, sumIdx*4, \
-                      addr0, addr1, soffset=0, offset=0, extraFields="", directToLds=False, dtlUseDestVgpr=True).toStr()
+                      addr0, addr1, soffset=0, offset=0, extraFields="", dtlNoDestVgpr=False).toStr()
         kStr += inst("s_waitcnt", "vmcnt(0)", "CheckStoreC, wait for stores to complete" )
         if self.archCaps["SeparateVscnt"]:
           kStr += inst("s_waitcnt_vscnt", "null", "0", "writes")
