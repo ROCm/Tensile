@@ -2443,6 +2443,11 @@ class Solution(collections.abc.Mapping):
     #TN
     # use for all precisions with TransposeLDS=1
 
+    numRegisters = state["ProblemType"]["DataType"].numRegisters()
+    if numRegisters * state["GlobalLoadVectorWidth%c"%tc] != 1:
+      reject(state, "DirectToLds can only be used with buffer loads requiring 1 register")
+      return False
+
     if state["ProblemType"]["DataType"].isHalf():
       if state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc])  != 0:
         reject(state, "can't use DirectToLds for FP16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
@@ -3474,6 +3479,9 @@ class Solution(collections.abc.Mapping):
         state["DirectToLdsB"] = True
         state["LocalWriteUseSgprB"] = True
         #print("DirectToLdsB", state["DirectToLdsB"])
+      
+      if state["Valid"] and state["DirectToLds"] and not (state["DirectToLdsA"] or state["DirectToLdsB"]):
+        printWarning("DirectToLds requested, but not enabled for A or B, check kernel configuration!")
 
       # Update parent variable so kernel display is accurate
       state["DirectToLds"] = state["DirectToLdsA"] or state["DirectToLdsB"]
