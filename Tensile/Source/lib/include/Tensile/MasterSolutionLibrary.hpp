@@ -147,7 +147,7 @@ namespace Tensile
             {
                 if(rv)
                     std::cout << "Library logic solution index of winning solution: "
-                              << rv->info["SolutionIndex"] << std::endl;
+                              << rv->libraryLogicIndex << std::endl;
                 else
                     std::cout << "No solution found" << std::endl;
             }
