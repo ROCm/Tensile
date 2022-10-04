@@ -326,15 +326,14 @@ namespace Tensile
                 v = 0;
             for(auto& v : m_fanValues)
                 v = 0;
-            
+
+            m_hasInvalidGpuMetricStatus = false;
             m_freqValues.resize(1);
             m_powerValues.resize(1);
             m_tempHotspotValues.resize(1);
-            
             m_freqValues.clear();
             m_powerValues.clear();
             m_tempHotspotValues.clear();
-            
             m_lastCollection = clock::time_point();
             m_nextCollection = clock::time_point();
         }
@@ -394,183 +393,157 @@ namespace Tensile
                 else
                     m_fanValues[i] += newValue;
             }
-            
+
             rsmi_gpu_metrics_t gpuMetrics;
             auto status = rsmi_dev_gpu_metrics_info_get(m_smiDeviceIndex, &gpuMetrics);
             if(status != RSMI_STATUS_SUCCESS)
             {
-                m_freqValues.at(0)        = std::numeric_limits<uint16_t>::max();
-                m_powerValues.at(0)       = std::numeric_limits<uint16_t>::max();
-                m_tempHotspotValues.at(0) = std::numeric_limits<uint16_t>::max();
+                m_hasInvalidGpuMetricStatus = true;
             }
             else
             {
-                // size of m_freqValues,m_powerValues,m_tempHotspotValues is same.   
-                if(m_freqValues[0] != std::numeric_limits<uint16_t>::max())  
-                {    
+                if(!m_hasInvalidGpuMetricStatus)
+                {
                     m_freqValues.push_back(gpuMetrics.average_gfxclk_frequency);
                     m_powerValues.push_back(gpuMetrics.average_socket_power);
                     m_tempHotspotValues.push_back(gpuMetrics.temperature_hotspot);
                 }
             }
-
             m_dataPoints++;
         }
-        
-        double HardwareMonitor::getMedianGfxFrequency()
-        {
-            assertNotActive();
-            if(m_dataPoints == 0)
-                throw std::runtime_error("No data points collected!");
-                
-            if(m_freqValues.size() != 0)
-            {
-                if(m_freqValues[0] == std::numeric_limits<uint16_t>::max())
-                    return std::numeric_limits<double>::quiet_NaN();
 
-                 size_t frequencyMidValueIndex = m_freqValues.size() / 2;
-                 std::nth_element(m_freqValues.begin(), m_freqValues.begin()+frequencyMidValueIndex, m_freqValues.end());
-                 return static_cast<double> (m_freqValues[frequencyMidValueIndex]);
-            }
-            
-            throw std::runtime_error("Can't read Gfx value that wasn't requested: ");
-        }
-        
-        double HardwareMonitor::getAverageGfxFrequency()
+        double HardwareMonitor::getAverageMedianGfxFreqPowerTemperature(int freqPowerTempIndex)
         {
             assertNotActive();
 
             if(m_dataPoints == 0)
                 throw std::runtime_error("No data points collected!");
+            if(m_hasInvalidGpuMetricStatus)
+                return std::numeric_limits<double>::quiet_NaN();
 
-            if(m_freqValues.size() != 0)
+            switch(freqPowerTempIndex)
             {
-                if(m_freqValues[0] == std::numeric_limits<uint16_t>::max())
-                    return std::numeric_limits<double>::quiet_NaN();
-                    
-                return (std::accumulate(m_freqValues.begin(), m_freqValues.end(), double(0))) / m_freqValues.size() ;
+            case GPU_FREQUENCY_AVG:
+                if(m_freqValues.size() != 0)
+                {
+                    return (std::accumulate(m_freqValues.begin(), m_freqValues.end(), double(0)))
+                           / m_freqValues.size();
+                }
+            case GPU_FREQUENCY_MEDIAN:
+                if(m_freqValues.size() != 0)
+                {
+                    size_t midValueIndex = m_freqValues.size() / 2;
+                    std::nth_element(m_freqValues.begin(),
+                                     m_freqValues.begin() + midValueIndex,
+                                     m_freqValues.end());
+                    return static_cast<double>(m_freqValues[midValueIndex]);
+                }
+                break;
+            case GPU_POWER_AVG:
+                if(m_powerValues.size() != 0)
+                {
+                    return (std::accumulate(m_powerValues.begin(), m_powerValues.end(), double(0)))
+                           / m_powerValues.size();
+                }
+                break;
+            case GPU_POWER_MEDIAN:
+                if(m_powerValues.size() != 0)
+                {
+                    size_t midValueIndex = m_powerValues.size() / 2;
+                    std::nth_element(m_powerValues.begin(),
+                                     m_powerValues.begin() + midValueIndex,
+                                     m_powerValues.end());
+                    return static_cast<double>(m_powerValues[midValueIndex]);
+                }
+                break;
+            case GPU_TEMPERATURE_AVG:
+                if(m_tempHotspotValues.size() != 0)
+                {
+                    return (std::accumulate(
+                               m_tempHotspotValues.begin(), m_tempHotspotValues.end(), double(0)))
+                           / m_tempHotspotValues.size();
+                }
+                break;
+            case GPU_TEMPERATURE_MEDIAN:
+                if(m_tempHotspotValues.size() != 0)
+                {
+                    size_t midValueIndex = m_tempHotspotValues.size() / 2;
+                    std::nth_element(m_tempHotspotValues.begin(),
+                                     m_tempHotspotValues.begin() + midValueIndex,
+                                     m_tempHotspotValues.end());
+                    return static_cast<double>(m_tempHotspotValues[midValueIndex]);
+                }
+                break;
+            default:
+                throw std::runtime_error("Invalid statistical type index");
+                return std::numeric_limits<double>::quiet_NaN();
             }
-
-            throw std::runtime_error("Can't read Gfx value that wasn't requested: ");
+            throw std::runtime_error(concatenate("Can\'t read  ",
+                                                 m_freqPowerTempErrorsStrings[freqPowerTempIndex],
+                                                 " value, empty or value wasn't requested: "));
         }
-        
-        double HardwareMonitor::getMedianPower()
-        {
-            assertNotActive();
-          
-            if(m_dataPoints == 0)
-                throw std::runtime_error("No data points collected!");
-                
-            if(m_powerValues.size() != 0)
-            {
-                if(m_powerValues[0] == std::numeric_limits<uint16_t>::max())
-                    return std::numeric_limits<double>::quiet_NaN();
 
-                size_t powerMidValueIndex = m_powerValues.size() / 2;
-                std::nth_element(m_powerValues.begin(), m_powerValues.begin()+powerMidValueIndex, m_powerValues.end());
-                return static_cast<double> (m_powerValues[powerMidValueIndex]);
-            }
-           
-            throw std::runtime_error("Can't read Gfx value that wasn't requested: ");
-        }
-        
-        double HardwareMonitor::getAveragePower()
-        {
-            assertNotActive();
-
-            if(m_dataPoints == 0)
-                throw std::runtime_error("No data points collected!");
-
-            if(m_powerValues.size() != 0)
-            {
-                if(m_powerValues[0] == std::numeric_limits<uint16_t>::max())
-                    return std::numeric_limits<double>::quiet_NaN();
-                    
-                return (std::accumulate(m_powerValues.begin(), m_powerValues.end(), double(0))) 
-                                                             / m_powerValues.size() ;
-            }
-            
-            throw std::runtime_error("Can't read Power value that wasn't requested: ");
-        }
-        
-        double HardwareMonitor::getMedianHotSpotTemperature()
-        {
-            assertNotActive();
-            
-            if(m_dataPoints == 0)
-                throw std::runtime_error("No data points collected!");
-
-            if(m_tempHotspotValues.size() != 0)
-            {
-                if(m_tempHotspotValues[0] == std::numeric_limits<uint16_t>::max())
-                    return std::numeric_limits<double>::quiet_NaN();
-                    
-                size_t temperatureMidValueIndex = m_tempHotspotValues.size() / 2;
-                std::nth_element(m_tempHotspotValues.begin(), m_tempHotspotValues.begin()+temperatureMidValueIndex, m_tempHotspotValues.end());
-                return static_cast<double> (m_tempHotspotValues[temperatureMidValueIndex]);
-            }
-            
-            throw std::runtime_error("Can't read temperature value that wasn't requested: ");
-        }
-        
-        double HardwareMonitor::getAverageHotSpotTemperature()
-        {
-            assertNotActive();
-            
-            if(m_dataPoints == 0)
-                throw std::runtime_error("No data points collected!");
-
-            if(m_tempHotspotValues.size() != 0)
-            {
-                if(m_tempHotspotValues[0] == std::numeric_limits<uint16_t>::max())
-                    return std::numeric_limits<double>::quiet_NaN();
-                    
-                return (std::accumulate(m_tempHotspotValues.begin(), m_tempHotspotValues.end(),
-                                                              double(0))) / m_tempHotspotValues.size();
-            }
-            
-            throw std::runtime_error("Can't read temperature value that wasn't requested: ");
-        }
-        
         void HardwareMonitor::logMinMaxMedianAverage()
         {
             assertNotActive();
+            if(m_hasInvalidGpuMetricStatus)
+                throw std::runtime_error("Invalid GPU metric data!");
             if(m_dataPoints == 0)
                 throw std::runtime_error("No data points collected!");
-           
-            if(m_freqValues.size() == 0 || m_powerValues.size() == 0 || m_tempHotspotValues.size() == 0)
-            {
-                throw std::runtime_error("Frequency, Power, Temperature array is empty.\n"); 
-            }
-            
-            std::cout <<"\nROCm SMI API consolidated frequency,power,temperature data" << "\n" ;   
-            std::cout << "GFX Value\t\t\t\t"<< "PPT0_value\t" << "Temperature\n";
-            // Log individual data  
-            for (int i = 0; i < m_freqValues.size(); i++) 
-            {
-                std::cout<<std::left<<std::setw(13) << m_freqValues[i] << "\t\t\t\t" << m_powerValues[i] << "\t\t\t\t\t" << m_tempHotspotValues[i]<<"\n";
-            }
-            
-            std::cout <<"\n";
-            std::cout <<"\t\t\t\t\t\t\t\tMin\t\t\t"<<"Max\t\t\t"<<"Average\t\t"<<"Median\n";
-           // min, max,avg, median frequency
-            std::cout <<std::left << std::setw(12) << "GFX Frequency\t\t"<<std::setw(8)<< *std::min_element(m_freqValues.begin(), m_freqValues.end());
-            std::cout <<std::setw(8)<< *std::max_element(m_freqValues.begin(), m_freqValues.end());
-            std::cout <<std::setw(10)<< std::accumulate(m_freqValues.begin(), m_freqValues.end(), double(0)) / m_freqValues.size();
-            std::cout << std::setw(8)<< getMedianGfxFrequency() <<"\n";
 
-           //  min, max, avg, median Power
-            std::cout <<std::left<< std::setw(15)<< "Power Value\t\t"<< std::setw(8) << *std::min_element(m_powerValues.begin(), m_powerValues.end());
-            std::cout << std::setw(8)<< *std::max_element(m_powerValues.begin(), m_powerValues.end());
-            std::cout <<std::setw(10)<< std::accumulate(m_powerValues.begin(), m_powerValues.end(), double(0)) / m_powerValues.size();
-            std::cout << std::setw(8)<< getMedianPower()<<"\n";
-            
-           // min, max, avg, median Temperature 
-            std::cout <<std::left<<std::setw(15)<<"Temperature\t\t"<< std::setw(8);
-            std::cout << *std::min_element(m_tempHotspotValues.begin(), m_tempHotspotValues.end());
-            std::cout << std::setw(8)<< *std::max_element(m_tempHotspotValues.begin(), m_tempHotspotValues.end());
-            std::cout << std::setw(10)<< std::accumulate(m_tempHotspotValues.begin(), m_tempHotspotValues.end(), double(0)) / m_tempHotspotValues.size();
-            std::cout << std::setw(10)<< getMedianHotSpotTemperature()<<"\n\n";
+            if(m_freqValues.size() == 0 || m_powerValues.size() == 0
+               || m_tempHotspotValues.size() == 0)
+            {
+                throw std::runtime_error("Frequency, Power, Temperature array is empty.\n");
+            }
+
+            std::cout << "\nROCm SMI API consolidated frequency,power,temperature data"
+                      << "\n";
+            std::cout << "GFX Value\t\t\t\t"
+                      << "PPT0_value\t\t\t"
+                      << "Temperature\n";
+            // Log individual data
+            for(int i = 0; i < m_freqValues.size(); i++)
+            {
+                std::cout << std::left << std::setw(13) << m_freqValues[i] << "\t\t\t\t"
+                          << m_powerValues[i] << "\t\t\t\t\t" << m_tempHotspotValues[i] << "\n";
+            }
+
+            std::cout << "\n";
+            std::cout << "\t\t\t\t\tMin\t\t"
+                      << "Max\t\t"
+                      << "Average\t\t"
+                      << "Median\n";
+
+            // min, max,avg, median frequency
+            std::cout << std::left << std::setw(20) << "GFX Frequency" << std::setw(8)
+                      << *std::min_element(m_freqValues.begin(), m_freqValues.end());
+            std::cout << std::setw(8)
+                      << *std::max_element(m_freqValues.begin(), m_freqValues.end());
+            std::cout << std::setw(10) << std::fixed << std::setprecision(2)
+                      << getAverageMedianGfxFreqPowerTemperature(GPU_FREQUENCY_AVG);
+            std::cout << std::setw(8)
+                      << getAverageMedianGfxFreqPowerTemperature(GPU_FREQUENCY_MEDIAN) << "\n";
+
+            //  min, max, avg, median Power
+            std::cout << std::left << std::setw(20) << "Power Value" << std::setw(8)
+                      << *std::min_element(m_powerValues.begin(), m_powerValues.end());
+            std::cout << std::setw(8)
+                      << *std::max_element(m_powerValues.begin(), m_powerValues.end());
+            std::cout << std::setw(10) << std::fixed << std::setprecision(2)
+                      << getAverageMedianGfxFreqPowerTemperature(GPU_POWER_AVG);
+            std::cout << std::setw(8) << getAverageMedianGfxFreqPowerTemperature(GPU_POWER_MEDIAN)
+                      << "\n";
+
+            //min, max, avg, median Temperature
+            std::cout << std::left << std::setw(20) << "Temperature" << std::setw(8)
+                      << *std::min_element(m_tempHotspotValues.begin(), m_tempHotspotValues.end());
+            std::cout << std::setw(8)
+                      << *std::max_element(m_tempHotspotValues.begin(), m_tempHotspotValues.end());
+            std::cout << std::setw(10) << std::fixed << std::setprecision(2)
+                      << getAverageMedianGfxFreqPowerTemperature(GPU_TEMPERATURE_AVG);
+            std::cout << std::setw(8)
+                      << getAverageMedianGfxFreqPowerTemperature(GPU_TEMPERATURE_MEDIAN) << "\n\n";
         }
 
         void HardwareMonitor::sleepIfNecessary()

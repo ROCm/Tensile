@@ -32,8 +32,6 @@
 #include <thread>
 #include <tuple>
 #include <vector>
-#include <numeric>
-#include <algorithm>
 
 #include <hip/hip_runtime.h>
 #include <rocm_smi/rocm_smi.h>
@@ -74,14 +72,10 @@ namespace Tensile
             double getAverageTemp();
             double getAverageClock(ClockType clockType);
             double getAverageFanSpeed(uint32_t sensorIndex = 0);
-            double getAverageGfxFrequency();
-            double getMedianGfxFrequency();
-            double getAveragePower();
-            double getMedianPower();
-            double getAverageHotSpotTemperature();
-            double getMedianHotSpotTemperature();
-            void   logMinMaxMedianAverage();            
-            int    getDeviceIndex()
+            double getAverageMedianGfxFreqPowerTemperature(int freqPowerTempIndex);
+            void   logMinMaxMedianAverage();
+
+            int getDeviceIndex()
             {
                 return m_hipDeviceIndex;
             }
@@ -152,9 +146,14 @@ namespace Tensile
 
             std::vector<uint32_t> m_fanMetrics;
             std::vector<int64_t>  m_fanValues;
+            // Below 3 vectors stores the individual values of GFx frequency, GPU power, GPU temperature during GEMM kernel execution.
+            // These vectors are implemented slightly different from previous clock/fan metric type implementation which uses add**Monitor functions to              // monitor and store multiple HW types information in the vectors for the same device. (ie)Existing metric implementation represent different            // HW type and uses ROCm API to get multiple HW type(like different sensor, different clock). Hence it uses add**Monitor functions to store              // in multiple vectors. each new HW type requires an invocation of ROCm API.
+            // but below vectors uses ROCm API (rsmi_dev_gpu_metrics_info_get) through single invocation gets all the HW type details hence it dont need
+            // exisitng type of implementation. if we need to store different HW type in the future, new additonal vector type or vector<vector>>would be            // appropriate.
             std::vector<uint16_t> m_freqValues;
             std::vector<uint16_t> m_powerValues;
             std::vector<uint16_t> m_tempHotspotValues;
+            bool                  m_hasInvalidGpuMetricStatus = false;
         };
     } // namespace Client
 } // namespace Tensile
