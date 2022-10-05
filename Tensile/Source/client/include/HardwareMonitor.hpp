@@ -159,7 +159,7 @@ namespace Tensile
             // (ie)Existing metric implementation represent different HW type and uses ROCm API to get multiple
             // HW type(like different sensor, different clock). Hence it uses add**Monitor functions to store in multiple vectors.
             // each new HW type requires an invocation of ROCm API. but below vectors uses ROCm API (rsmi_dev_gpu_metrics_info_get)
-            // through single invocation gets all the HW type details, hence it do not need existing type of implementation.
+            // through single invocation gets all the HW type details, hence it does not need existing type of implementation.
             // if we need to store different HW type in the future, new additional vector type or vector<vector>> would be appropriate.
             std::vector<uint16_t> m_freqValues;
             std::vector<uint16_t> m_powerValues;
