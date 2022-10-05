@@ -15,7 +15,6 @@ GlobalParameters:
   PrintTensorA: 0
   PrintTensorB: 0
   PrintTensorD: 0
-  CpuThreads: 0
 
 BenchmarkProblems:
   -

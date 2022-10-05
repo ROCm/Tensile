@@ -2390,10 +2390,6 @@ class Solution(collections.abc.Mapping):
       reject(state, "DirectToVgpr%c does not supports AssertFree1ElementMultiple %% VectorWidth != 0"%(tc))
       return False
 
-    if state["ThreadSeparateGlobalRead%s"%tc]:
-      reject(state, "DirectToVgpr%c does not work with ThreadSeparateGlobalRead%c"%(tc,tc))
-      return False
-
     # Does not work with FractionalLoad and (not TLU)
     if state["FractionalLoad"] and (not state["ProblemType"]["TLU%c"%tc]):
       reject(state, "DirectToVgpr%c does not supports FractionalLoad + TLU=False"%(tc))
@@ -2446,6 +2442,11 @@ class Solution(collections.abc.Mapping):
     # use only for f32 & DGEMM and TLU = 1
     #TN
     # use for all precisions with TransposeLDS=1
+
+    numRegisters = state["ProblemType"]["DataType"].numRegisters()
+    if numRegisters * state["GlobalLoadVectorWidth%c"%tc] != 1:
+      reject(state, "DirectToLds can only be used with buffer loads requiring 1 register")
+      return False
 
     if state["ProblemType"]["DataType"].isHalf():
       if state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc])  != 0:
@@ -2502,7 +2503,8 @@ class Solution(collections.abc.Mapping):
 
     # so far, DirectToLds does not work well with PGR=2
     # performance is not good and a lot of ds_read for DTL can cause scheduling issue(need fix)
-    if state["PrefetchGlobalRead"] == 2 and not (state["DirectToVgprA"] or state["DirectToVgprB"]):
+    # limit this reject condition for numBytes >= 8
+    if numBytes >= 8 and state["PrefetchGlobalRead"] == 2 and not (state["DirectToVgprA"] or state["DirectToVgprB"]):
       reject(state, "can't use DirectToLds for PrefetchGlobalRead == 2 without DirectToVgpr")
       return False
 
@@ -2542,18 +2544,6 @@ class Solution(collections.abc.Mapping):
     mt = state["MacroTile%c"%tc]
     if mt & (mt - 1) != 0:
       reject(state, "can't use DirectToLds if MacroTile%s is not power of 2"%tc)
-      return False
-
-    if state["ThreadSeparateGlobalRead%s"%tc] and (numBytes*state["GlobalLoadVectorWidth%c"%tc] > 8):
-      reject(state, "ThreadSeparateGlobalRead%c with GlobalLoadVectorWidth=2 not supported yet."%(tc))
-      return False
-
-    if state["ThreadSeparateGlobalRead%s"%tc] and (numBytes*state["StoreVectorWidth"] > 8):
-      reject(state, "ThreadSeparateGlobalRead%c with StoreVectorWidth=%s not supported yet."%(tc,state["StoreVectorWidth"]))
-      return False
-
-    if state["ThreadSeparateGlobalRead%s"%tc] and (numBytes*state["VectorWidth"] > 8):
-      reject(state, "ThreadSeparateGlobalRead%c with VectorWidth=%s not supported yet."%(tc,state["VectorWidth"]))
       return False
 
     if state["ThreadSeparateGlobalRead%s"%tc] and state["NumLoadsCoalesced%s"%tc] > 1:
@@ -3230,16 +3220,18 @@ class Solution(collections.abc.Mapping):
       if validDepthU:
         # check depthU and ThreadSeparateGlobalReadA==1 depthU*bpe <= 64 bytes reject ThreadSeparateGlobalRead =1
         # only Enable TLU=0 case
-        # reject depthU for cases requiring < 2 lanes per fragment. depthU * bpe  must be multiple of cache-line sizes(l2)
+        # reject depthU for cases requiring < minimum lanes per fragment. depthU * bpe  must be multiple of cache-line sizes(l2)
+        # minimum lane is 2 for bpe < 4, 1 for bpe >= 4
+        minLanes = 2 if state["ProblemType"]["DataType"].numBytes() < 4 else 1
         bpr = 4 # all registers are 32bit
         depthULds = depthU // state["DepthULdsDivisor"]
         if state["ThreadSeparateGlobalReadA"]:
           #if state["ThreadSeparateGlobalReadA"] and (((depthU//state["GlobalLoadVectorWidthA"])// (2 * state["ThreadSeparateGlobalReadA"])) < 2):
-          if (depthU * state["ProblemType"]["DataType"].numBytes() < 2 * state["GlobalLoadVectorWidthA"] * (2 * state["ThreadSeparateGlobalReadA"]) * bpr):
+          if (depthU * state["ProblemType"]["DataType"].numBytes() < minLanes * state["GlobalLoadVectorWidthA"] * (2 * state["ThreadSeparateGlobalReadA"]) * bpr):
             validDepthU= False
         if state["ThreadSeparateGlobalReadB"]:
           #if state["ThreadSeparateGlobalReadB"] and (((depthU//state["GlobalLoadVectorWidthB"])// (2 * state["ThreadSeparateGlobalReadB"])) < 2):
-          if (depthU * state["ProblemType"]["DataType"].numBytes() < 2 * state["GlobalLoadVectorWidthB"] * (2 * state["ThreadSeparateGlobalReadB"]) * bpr):
+          if (depthU * state["ProblemType"]["DataType"].numBytes() < minLanes * state["GlobalLoadVectorWidthB"] * (2 * state["ThreadSeparateGlobalReadB"]) * bpr):
             validDepthU= False
           # reject if NblockSizePerLoad (= (waveWidth * GlobalLoadVectorWidthB // depthULds)) > MatrixInstN
           if (state["WavefrontSize"] * state["GlobalLoadVectorWidthB"] // depthULds  > state["MatrixInstN"]):
@@ -3486,6 +3478,9 @@ class Solution(collections.abc.Mapping):
         state["DirectToLdsB"] = True
         state["LocalWriteUseSgprB"] = True
         #print("DirectToLdsB", state["DirectToLdsB"])
+      
+      if state["Valid"] and state["DirectToLds"] and not (state["DirectToLdsA"] or state["DirectToLdsB"]):
+        printWarning("DirectToLds requested, but not enabled for A or B, check kernel configuration!")
 
       # Update parent variable so kernel display is accurate
       state["DirectToLds"] = state["DirectToLdsA"] or state["DirectToLdsB"]

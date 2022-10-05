@@ -1993,6 +1993,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
                   retStr = self.getWaitcntCodeForDirectToVgpr(kernel, localWriteEndIter, u, firstIter=False, beforeBarrier=True)
                   waitLWCode.addCode(retStr)
             if self.enable["Sync"]:
+              if kernel["PrefetchGlobalRead"]==2 and (kernel["DirectToLdsA"] and kernel["DirectToLdsB"]):
+                # PGR=2 and DTLA+B case, wait for global read needs to be added (wait is not generated with local write)
+                syncCode.addCode(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "wait for global read with lds"))
               syncCode.addCode(self.syncThreads(kernel))
 
           if isSwapAndResetLwoIter: # ResetLroIter
@@ -2520,8 +2523,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if u == localWriteEndIter+1 or (u == (localWriteEndIter+1)%kernel["LoopIters"] and kernel["ScheduleIterAlg"] == 2):
           if self.enable["Wait"]:
             if kernel["DirectToLdsA"] or kernel["DirectToLdsB"]:
-              # skip generating wait for global read again here in DirectToVgpr case
-              if not(kernel["DirectToVgprA"] or kernel["DirectToVgprB"]):
+              # skip generating wait for global read again here in DirectToVgpr case or no DirectToVgpr + PGR=2
+              # no DTV and PGR=2 case, wait is generated at sync (barrier), which is before next local read
+              if not(kernel["DirectToVgprA"] or kernel["DirectToVgprB"]) and not kernel["PrefetchGlobalRead"]==2:
                 kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "12wait for global read"))
               else:
                 # DirectToVgpr + DirectToLds case, add waitcnt vmcnt before s_barrier
@@ -4975,7 +4979,12 @@ for codeObjectFileName in codeObjectFileNames:
       print (' '.join(args), " && ")
 
     # change to use  check_output to force windows cmd block util command finish
-    subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=self.getAssemblyDirectory())
+    try:
+      out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=self.getAssemblyDirectory())
+      print2(out)
+    except subprocess.CalledProcessError as err:
+      print(err.output)
+      raise
 
     return objectFileName
 
@@ -4990,7 +4999,12 @@ for codeObjectFileName in codeObjectFileNames:
       print (' '.join(args))
 
     # change to use  check_output to force windows cmd block util command finish
-    subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=self.getAssemblyDirectory())
+    try:
+      out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=self.getAssemblyDirectory())
+      print2(out)
+    except subprocess.CalledProcessError as err:
+      print(err.output)
+      raise
 
     return coFileName
 

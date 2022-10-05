@@ -59,7 +59,7 @@ if(TENSILE_STATIC_ONLY)
 endif()
 
 if(NOT Tensile_FOUND)
-    find_package(Tensile 4.34.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
+    find_package(Tensile 4.35.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
 endif()
 
 if(NOT TENSILE_DISABLE_CTEST)
@@ -139,13 +139,7 @@ set(test_sources ${test_sources}
 )
 
 if(TENSILE_USE_LLVM)
-    find_package(LLVM 13.0 QUIET CONFIG)
-    if(NOT LLVM_FOUND)
-        find_package(LLVM 12.0 QUIET CONFIG)
-        if(NOT LLVM_FOUND)
-            find_package(LLVM REQUIRED CONFIG)
-        endif()
-    endif()
+    find_package(LLVM REQUIRED CONFIG)
 
     set(test_sources ${test_sources}
         ContractionLibraryLoading_test.cpp

@@ -120,6 +120,6 @@ ci: {
 
     properties(auxiliary.addCommonProperties([pipelineTriggers([cron('0 6 * * 6')])]))
     stage(urlJobName) {
-        runCI([ubuntu18:['any']], urlJobName)
+        runCI([ubuntu20:['any']], urlJobName)
     }
 }

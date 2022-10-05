@@ -1,3 +1,6 @@
+TestParameters:
+  marks: [skip] # Intermitently failing on latest ROCm build, re-enable when passing
+
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
   NumElementsToValidate: -1
