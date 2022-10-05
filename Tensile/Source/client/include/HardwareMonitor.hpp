@@ -75,7 +75,7 @@ namespace Tensile
             double getAverageGfxFreqPowerTemperature(std::vector<uint16_t>& dataValues);
             double getMedianGfxFreqPowerTemperature(std::vector<uint16_t>& dataValues);
             void   logMinMaxMedianAverage();
-            
+
             int getDeviceIndex()
             {
                 return m_hipDeviceIndex;
@@ -84,22 +84,22 @@ namespace Tensile
             {
                 return m_dataPoints;
             }
-            
-            std::vector<uint16_t>& getAllGfxFreqValues() 
+
+            std::vector<uint16_t>& getAllGfxFreqValues()
             {
-              return m_freqValues;
+                return m_freqValues;
             }
-            
+
             std::vector<uint16_t>& getAllPowerValues()
             {
-              return m_powerValues;
+                return m_powerValues;
             }
-            
-            std::vector<uint16_t>& getAllTemperatureValues() 
+
+            std::vector<uint16_t>& getAllTemperatureValues()
             {
-              return m_tempHotspotValues; 
+                return m_tempHotspotValues;
             }
-            
+
             /// Begins monitoring until stop() is called.
             void start();
 
@@ -116,7 +116,7 @@ namespace Tensile
             /// Throws an exception if monitoring was started without a stop event
             /// and stop() has not been called.
             void wait();
-            
+
         private:
             static uint32_t GetROCmSMIIndex(int hipDeviceIndex);
             static void     InitROCmSMI();
@@ -128,12 +128,12 @@ namespace Tensile
             void collectOnce();
             void sleepIfNecessary();
 
-            void   initThread();
-            void   runLoop();
-            void   collect(hipEvent_t startEvent, hipEvent_t stopEvent);
-            void   printMinMaxAverageMedian(const std::string& str, 
-                                            std::vector<uint16_t>& dataValues);
-            
+            void initThread();
+            void runLoop();
+            void collect(hipEvent_t startEvent, hipEvent_t stopEvent);
+            void printMinMaxAverageMedian(const std::string&     str,
+                                          std::vector<uint16_t>& dataValues);
+
             clock::time_point m_lastCollection;
             clock::time_point m_nextCollection;
             clock::duration   m_minPeriod;
