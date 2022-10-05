@@ -221,15 +221,13 @@ namespace Tensile
             {
                 int32_t index = -1;
                 iot::mapRequired(io, "key", entry.key);
-                iot::mapRequired(io, "speed", entry.speed);
-
+                iot::mapOptional(io, "speed", entry.speed);
                 iot::mapOptional(io, "index", index);
 
                 if(index != -1)
                 {
                     using SSLibrary
                         = SingleSolutionLibrary<ContractionProblem, ContractionSolution>;
-                    std::cout << "here" << std::endl;
 
                     auto ctx
                         = static_cast<LibraryIOContext<ContractionSolution>*>(iot::getContext(io));
