@@ -72,9 +72,10 @@ namespace Tensile
             double getAverageTemp();
             double getAverageClock(ClockType clockType);
             double getAverageFanSpeed(uint32_t sensorIndex = 0);
-            double getAverageMedianGfxFreqPowerTemperature(int freqPowerTempIndex);
+            double getAverageGfxFreqPowerTemperature(std::vector<uint16_t>& dataValues);
+            double getMedianGfxFreqPowerTemperature(std::vector<uint16_t>& dataValues);
             void   logMinMaxMedianAverage();
-
+            
             int getDeviceIndex()
             {
                 return m_hipDeviceIndex;
@@ -83,7 +84,22 @@ namespace Tensile
             {
                 return m_dataPoints;
             }
-
+            
+            std::vector<uint16_t>& getAllGfxFreqValues() 
+            {
+              return m_freqValues;
+            }
+            
+            std::vector<uint16_t>& getAllPowerValues()
+            {
+              return m_powerValues;
+            }
+            
+            std::vector<uint16_t>& getAllTemperatureValues() 
+            {
+              return m_tempHotspotValues; 
+            }
+            
             /// Begins monitoring until stop() is called.
             void start();
 
@@ -100,7 +116,7 @@ namespace Tensile
             /// Throws an exception if monitoring was started without a stop event
             /// and stop() has not been called.
             void wait();
-
+            
         private:
             static uint32_t GetROCmSMIIndex(int hipDeviceIndex);
             static void     InitROCmSMI();
@@ -115,13 +131,9 @@ namespace Tensile
             void   initThread();
             void   runLoop();
             void   collect(hipEvent_t startEvent, hipEvent_t stopEvent);
-            double getAverageOrMedianValue(bool                   isAvg,
-                                           std::vector<uint16_t>& avgOrMedianDataValues);
-            void   printMinMaxAverageMedian(const std::string&                str,
-                                            std::vector<uint16_t>&            dataValues,
-                                            FreqPowerTemperatureStatisticType avgType,
-                                            FreqPowerTemperatureStatisticType medianType);
-
+            void   printMinMaxAverageMedian(const std::string& str, 
+                                            std::vector<uint16_t>& dataValues);
+            
             clock::time_point m_lastCollection;
             clock::time_point m_nextCollection;
             clock::duration   m_minPeriod;
@@ -157,7 +169,7 @@ namespace Tensile
             // These vectors are implemented slightly different from previous clock/fan metric type implementation which uses
             // add**Monitor functions to monitor and store multiple HW types information in the vectors for the same device.
             // (ie)Existing metric implementation represent different HW type and uses ROCm API to get multiple
-            // HW type(like different sensor, different clock). Hence it uses add**Monitor functions to store in multiple vectors.
+            // HW type(like different sensor, different clock). Hence it uses add**Monitor functions to store in to multiple vectors.
             // each new HW type requires an invocation of ROCm API. but below vectors uses ROCm API (rsmi_dev_gpu_metrics_info_get)
             // through single invocation gets all the HW type details, hence it does not need existing type of implementation.
             // if we need to store different HW type in the future, new additional vector type or vector<vector>> would be appropriate.

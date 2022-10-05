@@ -100,20 +100,21 @@ namespace Tensile
             m_reporter->report(ResultKey::FanSpeedRPMs, m_monitor->getAverageFanSpeed());
             m_reporter->report(ResultKey::HardwareSampleCount, m_monitor->getSamples());
 
-            // Report avg frequency,power,temperature during kernel execution.
+            // Report the median frequency,power,temperature during kernel execution.
             m_reporter->report(
                 ResultKey::GfxFrequency,
-                m_monitor->getAverageMedianGfxFreqPowerTemperature(GPU_FREQUENCY_MEDIAN));
+                m_monitor->getMedianGfxFreqPowerTemperature(m_monitor->getAllGfxFreqValues()));
             m_reporter->report(
                 ResultKey::Power,
-                m_monitor->getAverageMedianGfxFreqPowerTemperature(GPU_POWER_MEDIAN));
+                m_monitor->getMedianGfxFreqPowerTemperature(m_monitor->getAllPowerValues()));
             m_reporter->report(
                 ResultKey::TemperatureHot,
-                m_monitor->getAverageMedianGfxFreqPowerTemperature(GPU_TEMPERATURE_MEDIAN));
+                m_monitor->getMedianGfxFreqPowerTemperature(m_monitor->getAllTemperatureValues()));
 
             // To log the detailed report of indvidual frequency, power, temperature data values and
             // min, max,average,median report for each GEMM kernel run.
-            // m_monitor->logMinMaxMedianAverage();
+            if(m_reporter->logAtLevel(LogLevel::Debug))
+                m_monitor->logMinMaxMedianAverage();
         }
     } // namespace Client
 } // namespace Tensile

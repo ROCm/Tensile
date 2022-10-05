@@ -409,7 +409,8 @@ namespace Tensile
             m_dataPoints++;
         }
 
-        double HardwareMonitor::getAverageMedianGfxFreqPowerTemperature(int freqPowerTempIndex)
+        double HardwareMonitor::getAverageGfxFreqPowerTemperature(
+            std::vector<uint16_t>& inputDataValues)
         {
             assertNotActive();
 
@@ -418,47 +419,25 @@ namespace Tensile
             if(m_hasInvalidGpuMetricStatus)
                 return std::numeric_limits<double>::quiet_NaN();
 
-            switch(freqPowerTempIndex)
-            {
-            case GPU_FREQUENCY_AVG:
-                return getAverageOrMedianValue(1, m_freqValues); // 1-> Average
-            case GPU_FREQUENCY_MEDIAN:
-                return getAverageOrMedianValue(0, m_freqValues); // 0-> Median
-            case GPU_POWER_AVG:
-                return getAverageOrMedianValue(1, m_powerValues);
-            case GPU_POWER_MEDIAN:
-                return getAverageOrMedianValue(0, m_powerValues);
-            case GPU_TEMPERATURE_AVG:
-                return getAverageOrMedianValue(1, m_tempHotspotValues);
-            case GPU_TEMPERATURE_MEDIAN:
-                return getAverageOrMedianValue(0, m_tempHotspotValues);
-            default:
-                std::cerr << "Invalid statistical type index.\n";
-                return std::numeric_limits<double>::quiet_NaN();
-            }
+            return (std::accumulate(inputDataValues.begin(), inputDataValues.end(), double(0)))
+                   / inputDataValues.size();
         }
 
-        double
-            HardwareMonitor::getAverageOrMedianValue(bool                   isAvg,
-                                                     std::vector<uint16_t>& avgOrMedianDataValues)
+        double HardwareMonitor::getMedianGfxFreqPowerTemperature(
+            std::vector<uint16_t>& inputDataValues)
         {
-            if(avgOrMedianDataValues.size() == 0)
+            assertNotActive();
+
+            if(m_dataPoints == 0)
+                throw std::runtime_error("No data points collected!");
+            if(m_hasInvalidGpuMetricStatus)
                 return std::numeric_limits<double>::quiet_NaN();
 
-            if(isAvg)
-            {
-                return (std::accumulate(
-                           avgOrMedianDataValues.begin(), avgOrMedianDataValues.end(), double(0)))
-                       / avgOrMedianDataValues.size();
-            }
-            else // it is median
-            {
-                size_t midValueIndex = avgOrMedianDataValues.size() / 2;
-                std::nth_element(avgOrMedianDataValues.begin(),
-                                 avgOrMedianDataValues.begin() + midValueIndex,
-                                 avgOrMedianDataValues.end());
-                return static_cast<double>(avgOrMedianDataValues[midValueIndex]);
-            }
+            size_t midValueIndex = inputDataValues.size() / 2;
+            std::nth_element(inputDataValues.begin(),
+                             inputDataValues.begin() + midValueIndex,
+                             inputDataValues.end());
+            return static_cast<double>(inputDataValues[midValueIndex]);
         }
 
         void HardwareMonitor::logMinMaxMedianAverage()
@@ -468,12 +447,6 @@ namespace Tensile
                 throw std::runtime_error("Invalid GPU metric data!");
             if(m_dataPoints == 0)
                 throw std::runtime_error("No data points collected!");
-
-            if(m_freqValues.size() == 0 || m_powerValues.size() == 0
-               || m_tempHotspotValues.size() == 0)
-            {
-                throw std::runtime_error("Frequency, Power, Temperature array is empty.\n");
-            }
 
             std::cout << "\nROCm SMI API consolidated frequency,power,temperature data"
                       << "\n";
@@ -490,28 +463,23 @@ namespace Tensile
             std::cout << "\n";
             std::cout << "\t\t\t\t\tMin\t\t"
                       << "Max\t\t"
-                      << "Average\t\t"
+                      << "Average\t  "
                       << "Median\n";
             // min, max,avg, median frequency
-            printMinMaxAverageMedian(
-                "GFX Frequency", m_freqValues, GPU_FREQUENCY_AVG, GPU_FREQUENCY_MEDIAN);
-            printMinMaxAverageMedian("Power Value", m_powerValues, GPU_POWER_AVG, GPU_POWER_MEDIAN);
-            printMinMaxAverageMedian(
-                "Temperature", m_tempHotspotValues, GPU_TEMPERATURE_AVG, GPU_TEMPERATURE_MEDIAN);
+            printMinMaxAverageMedian("GFX Frequency", m_freqValues);
+            printMinMaxAverageMedian("Power Value", m_powerValues);
+            printMinMaxAverageMedian("Temperature", m_tempHotspotValues);
         }
 
-        void HardwareMonitor::printMinMaxAverageMedian(const std::string&                str,
-                                                       std::vector<uint16_t>&            dataValues,
-                                                       FreqPowerTemperatureStatisticType avgType,
-                                                       FreqPowerTemperatureStatisticType medianType)
+        void HardwareMonitor::printMinMaxAverageMedian(const std::string&     str,
+                                                       std::vector<uint16_t>& dataValues)
         {
             std::cout << std::left << std::setw(20) << str << std::setw(8)
                       << *std::min_element(dataValues.begin(), dataValues.end());
             std::cout << std::setw(8) << *std::max_element(dataValues.begin(), dataValues.end());
             std::cout << std::setw(10) << std::fixed << std::setprecision(2)
-                      << getAverageMedianGfxFreqPowerTemperature(avgType);
-            std::cout << std::setw(8) << getAverageMedianGfxFreqPowerTemperature(medianType)
-                      << "\n";
+                      << getAverageGfxFreqPowerTemperature(dataValues);
+            std::cout << std::setw(8) << getMedianGfxFreqPowerTemperature(dataValues) << "\n";
         }
 
         void HardwareMonitor::sleepIfNecessary()

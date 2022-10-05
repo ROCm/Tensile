@@ -41,15 +41,5 @@ namespace Tensile
             CLK_TYPE_LAST = CLK_TYPE_MEM,
             CLK_INVALID   = 0xFFFFFFFF
         } ClockType;
-
-        typedef enum
-        {
-            GPU_FREQUENCY_AVG = 0x0,
-            GPU_FREQUENCY_MEDIAN,
-            GPU_POWER_AVG,
-            GPU_POWER_MEDIAN,
-            GPU_TEMPERATURE_AVG,
-            GPU_TEMPERATURE_MEDIAN
-        } FreqPowerTemperatureStatisticType;
     }
 }
