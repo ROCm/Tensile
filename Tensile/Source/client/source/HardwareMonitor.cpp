@@ -328,9 +328,6 @@ namespace Tensile
                 v = 0;
 
             m_hasInvalidGpuMetricStatus = false;
-            m_freqValues.resize(1);
-            m_powerValues.resize(1);
-            m_tempHotspotValues.resize(1);
             m_freqValues.clear();
             m_powerValues.clear();
             m_tempHotspotValues.clear();
@@ -424,63 +421,44 @@ namespace Tensile
             switch(freqPowerTempIndex)
             {
             case GPU_FREQUENCY_AVG:
-                if(m_freqValues.size() != 0)
-                {
-                    return (std::accumulate(m_freqValues.begin(), m_freqValues.end(), double(0)))
-                           / m_freqValues.size();
-                }
+                return getAverageOrMedianValue(1, m_freqValues); // 1-> Average
             case GPU_FREQUENCY_MEDIAN:
-                if(m_freqValues.size() != 0)
-                {
-                    size_t midValueIndex = m_freqValues.size() / 2;
-                    std::nth_element(m_freqValues.begin(),
-                                     m_freqValues.begin() + midValueIndex,
-                                     m_freqValues.end());
-                    return static_cast<double>(m_freqValues[midValueIndex]);
-                }
-                break;
+                return getAverageOrMedianValue(0, m_freqValues); // 0-> Median
             case GPU_POWER_AVG:
-                if(m_powerValues.size() != 0)
-                {
-                    return (std::accumulate(m_powerValues.begin(), m_powerValues.end(), double(0)))
-                           / m_powerValues.size();
-                }
-                break;
+                return getAverageOrMedianValue(1, m_powerValues);
             case GPU_POWER_MEDIAN:
-                if(m_powerValues.size() != 0)
-                {
-                    size_t midValueIndex = m_powerValues.size() / 2;
-                    std::nth_element(m_powerValues.begin(),
-                                     m_powerValues.begin() + midValueIndex,
-                                     m_powerValues.end());
-                    return static_cast<double>(m_powerValues[midValueIndex]);
-                }
-                break;
+                return getAverageOrMedianValue(0, m_powerValues);
             case GPU_TEMPERATURE_AVG:
-                if(m_tempHotspotValues.size() != 0)
-                {
-                    return (std::accumulate(
-                               m_tempHotspotValues.begin(), m_tempHotspotValues.end(), double(0)))
-                           / m_tempHotspotValues.size();
-                }
-                break;
+                return getAverageOrMedianValue(1, m_tempHotspotValues);
             case GPU_TEMPERATURE_MEDIAN:
-                if(m_tempHotspotValues.size() != 0)
-                {
-                    size_t midValueIndex = m_tempHotspotValues.size() / 2;
-                    std::nth_element(m_tempHotspotValues.begin(),
-                                     m_tempHotspotValues.begin() + midValueIndex,
-                                     m_tempHotspotValues.end());
-                    return static_cast<double>(m_tempHotspotValues[midValueIndex]);
-                }
-                break;
+                return getAverageOrMedianValue(0, m_tempHotspotValues);
             default:
-                throw std::runtime_error("Invalid statistical type index");
+                std::cerr << "Invalid statistical type index.\n";
                 return std::numeric_limits<double>::quiet_NaN();
             }
-            throw std::runtime_error(concatenate("Can\'t read  ",
-                                                 m_freqPowerTempErrorsStrings[freqPowerTempIndex],
-                                                 " value, empty or value wasn't requested: "));
+        }
+
+        double
+            HardwareMonitor::getAverageOrMedianValue(bool                   isAvg,
+                                                     std::vector<uint16_t>& avgOrMedianDataValues)
+        {
+            if(avgOrMedianDataValues.size() == 0)
+                return std::numeric_limits<double>::quiet_NaN();
+
+            if(isAvg)
+            {
+                return (std::accumulate(
+                           avgOrMedianDataValues.begin(), avgOrMedianDataValues.end(), double(0)))
+                       / avgOrMedianDataValues.size();
+            }
+            else // it is median
+            {
+                size_t midValueIndex = avgOrMedianDataValues.size() / 2;
+                std::nth_element(avgOrMedianDataValues.begin(),
+                                 avgOrMedianDataValues.begin() + midValueIndex,
+                                 avgOrMedianDataValues.end());
+                return static_cast<double>(avgOrMedianDataValues[midValueIndex]);
+            }
         }
 
         void HardwareMonitor::logMinMaxMedianAverage()
@@ -514,36 +492,26 @@ namespace Tensile
                       << "Max\t\t"
                       << "Average\t\t"
                       << "Median\n";
-
             // min, max,avg, median frequency
-            std::cout << std::left << std::setw(20) << "GFX Frequency" << std::setw(8)
-                      << *std::min_element(m_freqValues.begin(), m_freqValues.end());
-            std::cout << std::setw(8)
-                      << *std::max_element(m_freqValues.begin(), m_freqValues.end());
-            std::cout << std::setw(10) << std::fixed << std::setprecision(2)
-                      << getAverageMedianGfxFreqPowerTemperature(GPU_FREQUENCY_AVG);
-            std::cout << std::setw(8)
-                      << getAverageMedianGfxFreqPowerTemperature(GPU_FREQUENCY_MEDIAN) << "\n";
+            printMinMaxAverageMedian(
+                "GFX Frequency", m_freqValues, GPU_FREQUENCY_AVG, GPU_FREQUENCY_MEDIAN);
+            printMinMaxAverageMedian("Power Value", m_powerValues, GPU_POWER_AVG, GPU_POWER_MEDIAN);
+            printMinMaxAverageMedian(
+                "Temperature", m_tempHotspotValues, GPU_TEMPERATURE_AVG, GPU_TEMPERATURE_MEDIAN);
+        }
 
-            //  min, max, avg, median Power
-            std::cout << std::left << std::setw(20) << "Power Value" << std::setw(8)
-                      << *std::min_element(m_powerValues.begin(), m_powerValues.end());
-            std::cout << std::setw(8)
-                      << *std::max_element(m_powerValues.begin(), m_powerValues.end());
+        void HardwareMonitor::printMinMaxAverageMedian(const std::string&                str,
+                                                       std::vector<uint16_t>&            dataValues,
+                                                       FreqPowerTemperatureStatisticType avgType,
+                                                       FreqPowerTemperatureStatisticType medianType)
+        {
+            std::cout << std::left << std::setw(20) << str << std::setw(8)
+                      << *std::min_element(dataValues.begin(), dataValues.end());
+            std::cout << std::setw(8) << *std::max_element(dataValues.begin(), dataValues.end());
             std::cout << std::setw(10) << std::fixed << std::setprecision(2)
-                      << getAverageMedianGfxFreqPowerTemperature(GPU_POWER_AVG);
-            std::cout << std::setw(8) << getAverageMedianGfxFreqPowerTemperature(GPU_POWER_MEDIAN)
+                      << getAverageMedianGfxFreqPowerTemperature(avgType);
+            std::cout << std::setw(8) << getAverageMedianGfxFreqPowerTemperature(medianType)
                       << "\n";
-
-            //min, max, avg, median Temperature
-            std::cout << std::left << std::setw(20) << "Temperature" << std::setw(8)
-                      << *std::min_element(m_tempHotspotValues.begin(), m_tempHotspotValues.end());
-            std::cout << std::setw(8)
-                      << *std::max_element(m_tempHotspotValues.begin(), m_tempHotspotValues.end());
-            std::cout << std::setw(10) << std::fixed << std::setprecision(2)
-                      << getAverageMedianGfxFreqPowerTemperature(GPU_TEMPERATURE_AVG);
-            std::cout << std::setw(8)
-                      << getAverageMedianGfxFreqPowerTemperature(GPU_TEMPERATURE_MEDIAN) << "\n\n";
         }
 
         void HardwareMonitor::sleepIfNecessary()

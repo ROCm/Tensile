@@ -51,12 +51,5 @@ namespace Tensile
             GPU_TEMPERATURE_AVG,
             GPU_TEMPERATURE_MEDIAN
         } FreqPowerTemperatureStatisticType;
-
-        static const char* m_freqPowerTempErrorsStrings[] = {"frequency avg",
-                                                             "frequency median",
-                                                             "power avg",
-                                                             "power median",
-                                                             "temperature avg",
-                                                             "temperature median"};
     }
 }

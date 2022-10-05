@@ -112,9 +112,15 @@ namespace Tensile
             void collectOnce();
             void sleepIfNecessary();
 
-            void initThread();
-            void runLoop();
-            void collect(hipEvent_t startEvent, hipEvent_t stopEvent);
+            void   initThread();
+            void   runLoop();
+            void   collect(hipEvent_t startEvent, hipEvent_t stopEvent);
+            double getAverageOrMedianValue(bool                   isAvg,
+                                           std::vector<uint16_t>& avgOrMedianDataValues);
+            void   printMinMaxAverageMedian(const std::string&                str,
+                                            std::vector<uint16_t>&            dataValues,
+                                            FreqPowerTemperatureStatisticType avgType,
+                                            FreqPowerTemperatureStatisticType medianType);
 
             clock::time_point m_lastCollection;
             clock::time_point m_nextCollection;
@@ -146,10 +152,15 @@ namespace Tensile
 
             std::vector<uint32_t> m_fanMetrics;
             std::vector<int64_t>  m_fanValues;
+
             // Below 3 vectors stores the individual values of GFx frequency, GPU power, GPU temperature during GEMM kernel execution.
-            // These vectors are implemented slightly different from previous clock/fan metric type implementation which uses add**Monitor functions to              // monitor and store multiple HW types information in the vectors for the same device. (ie)Existing metric implementation represent different            // HW type and uses ROCm API to get multiple HW type(like different sensor, different clock). Hence it uses add**Monitor functions to store              // in multiple vectors. each new HW type requires an invocation of ROCm API.
-            // but below vectors uses ROCm API (rsmi_dev_gpu_metrics_info_get) through single invocation gets all the HW type details hence it dont need
-            // exisitng type of implementation. if we need to store different HW type in the future, new additonal vector type or vector<vector>>would be            // appropriate.
+            // These vectors are implemented slightly different from previous clock/fan metric type implementation which uses
+            // add**Monitor functions to monitor and store multiple HW types information in the vectors for the same device.
+            // (ie)Existing metric implementation represent different HW type and uses ROCm API to get multiple
+            // HW type(like different sensor, different clock). Hence it uses add**Monitor functions to store in multiple vectors.
+            // each new HW type requires an invocation of ROCm API. but below vectors uses ROCm API (rsmi_dev_gpu_metrics_info_get)
+            // through single invocation gets all the HW type details, hence it do not need existing type of implementation.
+            // if we need to store different HW type in the future, new additional vector type or vector<vector>> would be appropriate.
             std::vector<uint16_t> m_freqValues;
             std::vector<uint16_t> m_powerValues;
             std::vector<uint16_t> m_tempHotspotValues;
