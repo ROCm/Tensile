@@ -79,11 +79,13 @@ namespace Tensile
             virtual ~MatchingTable() = default;
 
             virtual std::tuple<ReturnValue, double> findBestMatch(Object const& object,
-                                                                  Transform transform) const = 0;
+                                                                  Transform     transform) const
+                = 0;
 
             virtual ReturnValue findBestEvaluationSolution(Object const&   object,
                                                            Hardware const& hardware,
-                                                           Transform       transform) const = 0;
+                                                           Transform       transform) const
+                = 0;
 
             virtual std::vector<Value> matchesInOrder(Object const& object) const = 0;
 
@@ -132,7 +134,8 @@ namespace Tensile
             }
 
             virtual std::tuple<ReturnValue, double> findBestKeyMatch(Key const& key,
-                                                                     Transform transform) const = 0;
+                                                                     Transform  transform) const
+                = 0;
 
             virtual std::tuple<ReturnValue, double>
                 findBestMatch(Object const& object, Transform transform) const override
@@ -308,7 +311,6 @@ namespace Tensile
             {
                 const bool debug = Debug::Instance().printPropertyEvaluation();
                 const bool naive = Debug::Instance().naivePropertySearch();
-                const bool gridbased = Debug::Instance().getMetric() == "GridBased";
 
                 if(naive)
                 {
@@ -319,215 +321,12 @@ namespace Tensile
                 }
                 else
                 {
-                    if(gridbased){
-                        if(debug)
-                            return findBestKeyMatch_GridBased<true>(key, transform);
-                        else
-                            return findBestKeyMatch_GridBased<false>(key, transform);
-                    } else {
-                        if(debug)
-                            return findBestKeyMatch_BinSearch<true>(key, transform);
-                        else
-                            return findBestKeyMatch_BinSearch<false>(key, transform);
-                    }
+
+                    if(debug)
+                        return findBestKeyMatch_BinSearch<true>(key, transform);
+                    else
+                        return findBestKeyMatch_BinSearch<false>(key, transform);
                 }
-            }
-
-            template <bool T_Debug>
-            std::tuple<ReturnValue, double> findBestKeyMatch_GridBased(Key const& key,
-                                                                       Transform  transform) const
-            {
-                if(this->table.empty())
-                    return std::make_tuple(this->nullValue, std::numeric_limits<double>::max());
-
-                ptrdiff_t count = 0;
-                bool Debug = T_Debug;
-                std::cout << std::setprecision(2) << std::fixed;
-
-
-                auto compM = [&count,Debug](Entry const& e, long const M)
-                {
-                    if(Debug)
-                        printf("[%ld,%ld,%ld]\n",e.key[0],e.key[1],e.key[2]);
-                    count++;
-                    return e.key[0] < M;
-                };
-
-                auto compN = [&count,Debug](Entry const& e, long const N)
-                {
-                    if(Debug)
-                        printf("[%ld,%ld,%ld]\n",e.key[0],e.key[1],e.key[2]);
-                    count++;
-                    return e.key[1] < N;
-                };
-
-                auto origIter_M_lower = table.begin();
-                auto origIter_M_upper = table.begin();
-                auto origIter_N_lower = table.begin();
-                auto origIter_N_upper = table.begin();
-
-                double bestDistance = std::numeric_limits<double>::max();
-                auto   bestMatch    = this->nullValue;
-                bool   thisMatch    = false;
-
-                while(origIter_N_upper != table.end() and !thisMatch)
-                {
-                    if(T_Debug)
-                    {
-                        std::cout << "Searching next MN... ";
-                        std::cout << std::endl << std::endl;
-                    }
-
-                    origIter_M_lower = std::lower_bound(origIter_N_upper, table.end(), std::min(key[0], (table.end()-1)->key[0]), compM);
-
-                    if(T_Debug)
-                    {
-                        std::cout << "M lower: ";
-                        streamJoin(std::cout, origIter_M_lower->key, ", ");
-                        std::cout << std::endl << std::endl;
-                    }
-
-                    origIter_M_upper = std::lower_bound(origIter_M_lower, table.end(), std::min(origIter_M_lower->key[0]+1, (table.end()-1)->key[0]+1), compM);
-
-                    if(T_Debug)
-                    {
-                        std::cout << "M upper: ";
-                        streamJoin(std::cout, (origIter_M_upper-1)->key, ", ");
-                        std::cout << std::endl << std::endl;
-                    }
-
-                    origIter_N_lower = std::lower_bound(origIter_M_lower, origIter_M_upper, std::min(key[1], (origIter_M_upper-1)->key[1]), compN);
-
-                    if(T_Debug)
-                    {
-                        std::cout << "N lower: ";
-                        streamJoin(std::cout, origIter_N_lower->key, ", ");
-                        std::cout << std::endl << std::endl;
-                    }
-
-                    origIter_N_upper = std::lower_bound(origIter_N_lower, origIter_M_upper, std::min(origIter_N_lower->key[1]+1, (origIter_M_upper-1)->key[1]+1), compN);
-
-                    if(T_Debug)
-                    {
-                        std::cout << "N upper: ";
-                        streamJoin(std::cout, (origIter_N_upper-1)->key, ", ");
-                        std::cout << std::endl << std::endl;
-
-                        std::cout << "K start point: ";
-                        streamJoin(std::cout, origIter_N_lower->key, ", ");
-                        std::cout << std::endl;
-                        std::cout << "K End point  : ";
-                        streamJoin(std::cout, (origIter_N_upper-1)->key, ", ");
-                        std::cout << std::endl;
-                    }
-
-                    for(auto iter = origIter_N_lower; iter != origIter_N_upper; iter++)
-                    {
-                        if(bestMatch && !distance.improvementPossible(key, iter->key, 0, bestDistance))
-                        {
-                            if(T_Debug)
-                            {
-                                streamJoin(std::cout, iter->key, ", ");
-                                std::cout << ": Stopping search early." << std::endl;
-                            }
-
-                            break;
-                        }
-
-                        count++;
-
-                        auto myDistance = distance(key, iter->key);
-
-                        if(myDistance < bestDistance)
-                        {
-                            auto myMatch = transform(iter->value);
-
-                            if(myMatch)
-                            {
-                                bestDistance = myDistance;
-                                bestMatch    = myMatch;
-                                thisMatch    = true;
-                            }
-                        }
-
-                        if(T_Debug)
-                        {
-                            if(myDistance <= bestDistance)
-                                std::cout << std::endl;
-
-                            streamJoin(std::cout, iter->key, ", ");
-                            std::cout << ": " << myDistance;
-
-                            if(myDistance < bestDistance)
-                                std::cout << " < ";
-                            else if(myDistance > bestDistance)
-                                std::cout << " > ";
-                            else
-                                std::cout << " == ";
-
-                            std::cout << bestDistance;
-
-                            if(myDistance < bestDistance)
-                            {
-                                if(thisMatch)
-                                    std::cout << " <-- Best so far";
-                                else
-                                    std::cout << " <-- Best distance, but no matching solution";
-                            }
-
-                            std::cout << std::endl;
-                        }
-                    }
-                }
-
-                if(!thisMatch)
-                {
-                    if(T_Debug)
-                    {
-                        std::cout << std::endl << "Foward Search end but solution not found" << std::endl;
-                        std::cout << "Start to backward search..." << std::endl;
-                    }
-
-                    for(auto iter = std::make_reverse_iterator(origIter_N_lower); iter != table.rend(); iter++)
-                    {
-                        auto myDistance = distance(key, iter->key);
-                        auto myMatch = transform(iter->value);
-
-                        if(myMatch)
-                        {
-                            bestDistance = myDistance;
-                            bestMatch    = myMatch;
-                            thisMatch    = true;
-                        }
-
-                        if(T_Debug)
-                        {
-                            streamJoin(std::cout, iter->key, ", ");
-                            std::cout << ": " << myDistance;
-                            if(thisMatch)
-                                std::cout << " (has a matching solution)";
-                            else
-                                std::cout << " (no match)";
-                            std::cout << std::endl;
-                        }
-
-                        if(thisMatch)
-                            break;
-                    }
-                }
-
-                if((T_Debug || Debug::Instance().printLookupEfficiency()) && table.size() > 0)
-                {
-                    double considered = count;
-                    considered /= table.size();
-                    considered *= 100;
-                    std::cout << "Considered " << considered << "% of entries." << std::endl;
-                }
-
-                if(T_Debug && bestMatch)
-                    std::cout << "Solution index selected: " << bestMatch->index << std::endl;
-
-                return std::make_tuple(bestMatch, bestDistance);
             }
 
             template <bool T_Debug>
@@ -827,6 +626,277 @@ namespace Tensile
                 return (iter->key == key)
                            ? std::make_tuple(transform(iter->value), 0.0)
                            : std::make_tuple(this->nullValue, std::numeric_limits<double>::max());
+            }
+        };
+
+        /**
+         * Specialization of DistanceMatchingTable for GridBased Distance. This special case will
+         * use a more efficient search algorithm that depends on the grid structure
+         */
+        template <typename Key, typename Object, typename Value, typename ReturnValue>
+        struct DistanceMatchingTable<Key,
+                                     Object,
+                                     Value,
+                                     ReturnValue,
+                                     Matching::GridBasedDistance<Key>>
+            : public DistanceMatchingCommon<Key,
+                                            Object,
+                                            Value,
+                                            ReturnValue,
+                                            Matching::GridBasedDistance<Key>>
+        {
+            using Base              = MatchingTable<Object, Value, ReturnValue>;
+            using Entry             = MatchingTableEntry<Key, Value>;
+            using Transform         = typename Base::Transform;
+            using Properties        = typename Base::Properties;
+            using GridBasedDistance = Matching::GridBasedDistance<Key>;
+            using Common            = DistanceMatchingCommon<Key,
+                                                  Object,
+                                                  Value,
+                                                  ReturnValue,
+                                                  Matching::GridBasedDistance<Key>>;
+            using Common::distance;
+            using Common::nullValue;
+            using Common::table;
+
+            DistanceMatchingTable(ReturnValue nullValue = ReturnValue())
+                : Common(nullValue)
+            {
+            }
+
+            DistanceMatchingTable(Properties const& properties,
+                                  ReturnValue       nullValue = ReturnValue())
+                : Common(properties, nullValue)
+            {
+            }
+
+            DistanceMatchingTable(GridBasedDistance const& distance,
+                                  Properties const&        properties,
+                                  ReturnValue              nullValue = ReturnValue())
+                : Common(distance, properties, nullValue)
+            {
+            }
+
+            std::tuple<ReturnValue, double> findBestKeyMatch(Key const& key,
+                                                             Transform  transform) const
+            {
+                if(Debug::Instance().printPropertyEvaluation())
+                    return findBestKeyMatch_GridBased<true>(key, transform);
+                else
+                    return findBestKeyMatch_GridBased<false>(key, transform);
+            }
+
+            template <bool T_Debug>
+            std::tuple<ReturnValue, double> findBestKeyMatch_GridBased(Key const& key,
+                                                                       Transform  transform) const
+            {
+                if(this->table.empty())
+                    return std::make_tuple(this->nullValue, std::numeric_limits<double>::max());
+
+                ptrdiff_t count = 0;
+                bool      Debug = T_Debug;
+                std::cout << std::setprecision(2) << std::fixed;
+
+                auto compM = [&count, Debug](Entry const& e, long const M) {
+                    if(Debug)
+                        printf("[%ld,%ld,%ld]\n", e.key[0], e.key[1], e.key[2]);
+                    count++;
+                    return e.key[0] < M;
+                };
+
+                auto compN = [&count, Debug](Entry const& e, long const N) {
+                    if(Debug)
+                        printf("[%ld,%ld,%ld]\n", e.key[0], e.key[1], e.key[2]);
+                    count++;
+                    return e.key[1] < N;
+                };
+
+                auto origIter_M_lower = table.begin();
+                auto origIter_M_upper = table.begin();
+                auto origIter_N_lower = table.begin();
+                auto origIter_N_upper = table.begin();
+
+                double bestDistance = std::numeric_limits<double>::max();
+                auto   bestMatch    = this->nullValue;
+                bool   thisMatch    = false;
+
+                while(origIter_N_upper != table.end() and !thisMatch)
+                {
+                    if(T_Debug)
+                    {
+                        std::cout << "Searching next MN... ";
+                        std::cout << std::endl << std::endl;
+                    }
+
+                    origIter_M_lower = std::lower_bound(origIter_N_upper,
+                                                        table.end(),
+                                                        std::min(key[0], (table.end() - 1)->key[0]),
+                                                        compM);
+
+                    if(T_Debug)
+                    {
+                        std::cout << "M lower: ";
+                        streamJoin(std::cout, origIter_M_lower->key, ", ");
+                        std::cout << std::endl << std::endl;
+                    }
+
+                    origIter_M_upper = std::lower_bound(
+                        origIter_M_lower,
+                        table.end(),
+                        std::min(origIter_M_lower->key[0] + 1, (table.end() - 1)->key[0] + 1),
+                        compM);
+
+                    if(T_Debug)
+                    {
+                        std::cout << "M upper: ";
+                        streamJoin(std::cout, (origIter_M_upper - 1)->key, ", ");
+                        std::cout << std::endl << std::endl;
+                    }
+
+                    origIter_N_lower
+                        = std::lower_bound(origIter_M_lower,
+                                           origIter_M_upper,
+                                           std::min(key[1], (origIter_M_upper - 1)->key[1]),
+                                           compN);
+
+                    if(T_Debug)
+                    {
+                        std::cout << "N lower: ";
+                        streamJoin(std::cout, origIter_N_lower->key, ", ");
+                        std::cout << std::endl << std::endl;
+                    }
+
+                    origIter_N_upper = std::lower_bound(
+                        origIter_N_lower,
+                        origIter_M_upper,
+                        std::min(origIter_N_lower->key[1] + 1, (origIter_M_upper - 1)->key[1] + 1),
+                        compN);
+
+                    if(T_Debug)
+                    {
+                        std::cout << "N upper: ";
+                        streamJoin(std::cout, (origIter_N_upper - 1)->key, ", ");
+                        std::cout << std::endl << std::endl;
+
+                        std::cout << "K start point: ";
+                        streamJoin(std::cout, origIter_N_lower->key, ", ");
+                        std::cout << std::endl;
+                        std::cout << "K End point  : ";
+                        streamJoin(std::cout, (origIter_N_upper - 1)->key, ", ");
+                        std::cout << std::endl;
+                    }
+
+                    for(auto iter = origIter_N_lower; iter != origIter_N_upper; iter++)
+                    {
+                        if(bestMatch
+                           && !distance.improvementPossible(key, iter->key, 0, bestDistance))
+                        {
+                            if(T_Debug)
+                            {
+                                streamJoin(std::cout, iter->key, ", ");
+                                std::cout << ": Stopping search early." << std::endl;
+                            }
+
+                            break;
+                        }
+
+                        count++;
+
+                        auto myDistance = distance(key, iter->key);
+
+                        if(myDistance < bestDistance)
+                        {
+                            auto myMatch = transform(iter->value);
+
+                            if(myMatch)
+                            {
+                                bestDistance = myDistance;
+                                bestMatch    = myMatch;
+                                thisMatch    = true;
+                            }
+                        }
+
+                        if(T_Debug)
+                        {
+                            if(myDistance <= bestDistance)
+                                std::cout << std::endl;
+
+                            streamJoin(std::cout, iter->key, ", ");
+                            std::cout << ": " << myDistance;
+
+                            if(myDistance < bestDistance)
+                                std::cout << " < ";
+                            else if(myDistance > bestDistance)
+                                std::cout << " > ";
+                            else
+                                std::cout << " == ";
+
+                            std::cout << bestDistance;
+
+                            if(myDistance < bestDistance)
+                            {
+                                if(thisMatch)
+                                    std::cout << " <-- Best so far";
+                                else
+                                    std::cout << " <-- Best distance, but no matching solution";
+                            }
+
+                            std::cout << std::endl;
+                        }
+                    }
+                }
+
+                if(!thisMatch)
+                {
+                    if(T_Debug)
+                    {
+                        std::cout << std::endl
+                                  << "Foward Search end but solution not found" << std::endl;
+                        std::cout << "Start to backward search..." << std::endl;
+                    }
+
+                    for(auto iter = std::make_reverse_iterator(origIter_N_lower);
+                        iter != table.rend();
+                        iter++)
+                    {
+                        auto myDistance = distance(key, iter->key);
+                        auto myMatch    = transform(iter->value);
+
+                        if(myMatch)
+                        {
+                            bestDistance = myDistance;
+                            bestMatch    = myMatch;
+                            thisMatch    = true;
+                        }
+
+                        if(T_Debug)
+                        {
+                            streamJoin(std::cout, iter->key, ", ");
+                            std::cout << ": " << myDistance;
+                            if(thisMatch)
+                                std::cout << " (has a matching solution)";
+                            else
+                                std::cout << " (no match)";
+                            std::cout << std::endl;
+                        }
+
+                        if(thisMatch)
+                            break;
+                    }
+                }
+
+                if((T_Debug || Debug::Instance().printLookupEfficiency()) && table.size() > 0)
+                {
+                    double considered = count;
+                    considered /= table.size();
+                    considered *= 100;
+                    std::cout << "Considered " << considered << "% of entries." << std::endl;
+                }
+
+                if(T_Debug && bestMatch)
+                    std::cout << "Solution index selected: " << bestMatch->index << std::endl;
+
+                return std::make_tuple(bestMatch, bestDistance);
             }
         };
     } // namespace Matching
