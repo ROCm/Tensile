@@ -420,14 +420,10 @@ validParameters = {
     # use =2 for 16x16x4xfp16 instructions
     # should work with WaveSeparateGlobalRead
     # Feature should help depthU*bpe requiring more than 4 threads.
+    # SplitGlobalRead is integrated into ThreadSeparateGlobalRead
 
-    "ThreadSeparateGlobalReadA":    [ 0, 1, 2 ],
-    "ThreadSeparateGlobalReadB":    [ 0, 1, 2 ],
-
-    # Splits global read addresses within a wave into a number of smaller groups
-    # The default value of 1 reads the most contiguous elements across lanes,
-    # but higher values may help avoid bank conflicts
-    "SplitGlobalRead":            [1, 2, 4, 8],
+    "ThreadSeparateGlobalReadA":    [ 0, 1, 2, 4 ],
+    "ThreadSeparateGlobalReadB":    [ 0, 1, 2, 4 ],
 
     # PrefetchGlobalRead = 1:
     # Requires 2X LDS space, and VGPRs for buffering data on way into LDS
@@ -1269,7 +1265,6 @@ defaultBenchmarkCommonParameters = [
     {"GlobalReadCoalesceVectorB": [ True ] },
     {"WaveSeparateGlobalReadA":   [ 0 ] },
     {"WaveSeparateGlobalReadB":   [ 0 ] },
-    {"SplitGlobalRead":           [ 1 ] },
     {"GlobalReadCoalesceGroupA":  [ True ] },
     {"GlobalReadCoalesceGroupB":  [ True ] },
     {"PrefetchGlobalRead":        [ 1 ] },

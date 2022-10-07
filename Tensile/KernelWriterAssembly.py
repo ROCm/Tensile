@@ -1106,8 +1106,8 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["UnrollMajorLDSA"]:
       localReadWidth = (self.lrvwA * tPA["bpe"]) // self.bpr
     # for directToLds x2/x4 support
-    if kernel["DirectToLdsA"]:
-      localReadWidth  = 1    # for fp64 its f32
+    if kernel["DirectToLdsA"] and kernel["GlobalLoadVectorWidthA"] * tPA["bpe"] > 4:
+      localReadWidth  = min(localReadWidth, 1)    # for fp64 its f32
 
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
@@ -1135,8 +1135,8 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["UnrollMajorLDSB"]:
       localReadWidth = (self.lrvwB * tPB["bpe"]) // self.bpr
     # for directToLds x2/x4 support
-    if kernel["DirectToLdsB"]:
-      localReadWidth  = 1    # for fp64 its f32
+    if kernel["DirectToLdsB"] and kernel["GlobalLoadVectorWidthB"] * tPB["bpe"] > 4:
+      localReadWidth  = min(localReadWidth, 1)    # for fp64 its f32
 
     #localReadStridePerpendicular = 0
     localRead2Perpendicular = False
@@ -3598,12 +3598,6 @@ class KernelWriterAssembly(KernelWriter):
       dummy       = self.vgprPool.checkOut(1, "dummy", self.preventVgprOverflowDuringNewTile)
       kStr += vectorStaticRemainder(dummy, dividendReg, "Serial", divisorVal, tmpVgpr, tmpSgpr)
 
-    splitRead = kernel["SplitGlobalRead"]
-    # Split global read reorders reading rows within lanes of a wavefront
-    # If the wavefront is reading all from a single row, then disable split global read for this tensor
-    if divisor > kernel["WavefrontSize"]:
-      splitRead = 1
-
     if kernel["DirectToVgpr%s"%tc]:
       # offset calculation for DirectToVgpr
       # ported code from local read for DirectToVgpr
@@ -3637,29 +3631,6 @@ class KernelWriterAssembly(KernelWriter):
             kStr += staticMultiply(vgpr(qReg), vgpr(qReg), lrvwOther, sgpr(tmpSgpr))
       # release register
       self.vgprPool.checkIn(wReg)
-    elif splitRead > 1:
-      splitGroup = self.vgprPool.checkOut(1, "splitGroup", self.preventVgprOverflowDuringNewTile)
-      splitIndex = self.vgprPool.checkOut(1, "splitIndex", self.preventVgprOverflowDuringNewTile)
-      waveSize = kernel["WavefrontSize"]
-      groupDivisor = waveSize // splitRead
-      groupOffset = waveSize // divisor
-      newDivisor = divisor // splitRead
-
-      kStr += vectorStaticRemainder(tmpVgpr, splitIndex, dividendReg, groupDivisor, tmpVgpr, tmpSgpr, "Split index")
-      kStr += vectorStaticDivideAndRemainder(qReg, rReg, splitIndex, newDivisor, tmpVgpr, tmpSgpr)
-
-      kStr += vectorStaticDivideAndRemainder(splitGroup, splitIndex, dividendReg, waveSize, tmpVgpr, tmpSgpr)
-
-      if groupOffset > 1:
-        kStr += inst("v_mul_u32_u24", vgpr(splitGroup), groupOffset, vgpr(splitGroup), "Calculate wave group offset")
-      kStr += inst("_v_add_u32", vgpr(qReg), vgpr(splitGroup), vgpr(qReg), "Add wave group")
-
-      kStr += vectorStaticDivide(splitIndex, splitIndex, groupDivisor, tmpVgpr, tmpSgpr, "Calculate index offset")
-      kStr += inst("v_mul_u32_u24", vgpr(splitIndex), newDivisor, vgpr(splitIndex), "Calculate index offset")
-      kStr += inst("_v_add_u32", vgpr(rReg), vgpr(splitIndex), vgpr(rReg), "Add index offset")
-
-      self.vgprPool.checkIn(splitIndex)
-      self.vgprPool.checkIn(splitGroup)
     else:
       divisor2 = divisor
       if kernel["ThreadSeparateGlobalRead%s"%tc]:
@@ -5057,31 +5028,45 @@ class KernelWriterAssembly(KernelWriter):
 
     # final offset
     finalVgpr = vgpr("LocalReadAddr%s"%tc)
-    if (kernel["DirectToLds%s" % tc] and \
-        kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"] > 4):
+
+    if kernel["DirectToLds%s" % tc]:
+      tmp1 = None
+      tmp2 = None
+
+      if kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"] > 4:
       # DirectToLds + DGEMM case
       # use bpr for LSU offset instead of bpe (DirectToLds needs _ds_load_b32)
-      kStr += inst("v_lshlrev_b32", vgpr(sgid), hex(log2(self.bpr)), vgpr(sgid),  \
-              "LSU offset: lsuoffset = lsuoffset * bpr");
-      kStr += inst("v_lshlrev_b32", vgpr(tP["gpr"]["lro"]), hex(log2(tP["bpe"])), vgpr(tP["gpr"]["lro"]),  \
-              "Final Offset: offset = (lro%s*VW)*bpe+lsuoffset*bpr" % tile01);
-      kStr += inst("_v_add_u32", finalVgpr, vgpr(sgid), vgpr(tP["gpr"]["lro"]), "")
+        kStr += inst("v_lshlrev_b32", vgpr(sgid), hex(log2(self.bpr)), vgpr(sgid),  \
+                "LSU offset: lsuoffset = lsuoffset * bpr");
+        kStr += inst("v_lshlrev_b32", vgpr(tP["gpr"]["lro"]), hex(log2(tP["bpe"])), vgpr(tP["gpr"]["lro"]),  \
+                "Final Offset: offset = (lro%s*VW)*bpe+lsuoffset*bpr" % tile01);
+        kStr += inst("_v_add_u32", finalVgpr, vgpr(sgid), vgpr(tP["gpr"]["lro"]), "")
 
-      tmp1    = self.vgprPool.checkOut(1,"tmp1")
-      tmp2    = self.vgprPool.checkOut(1,"tmp2")
+        if tmp1 == None:
+          tmp1 = self.vgprPool.checkOut(1,"tmp1")
+          tmp2 = self.vgprPool.checkOut(1,"tmp2")
 
-      # magic offset calculation code
-      kStr += self.directToLdsLraOffset(kernel,finalVgpr,tmp1,tmp2,tP)
+        # magic offset calculation code
+        kStr += self.directToLdsLraOffset(kernel,finalVgpr,tmp1,tmp2,tP)
+
+      else:
+        kStr += inst("_v_add_lshl_u32", finalVgpr, vgpr(sgid), vgpr(tP["gpr"]["lro"]), hex(log2(tP["bpe"])), \
+          "Final Offset: offset = (lro%s*VW+lsuoffset)*bpe" % tile01 )
 
 
       if not kernel["ThreadSeparateGlobalRead%s"%tc]:
+        if tmp1 == None:
+          tmp1 = self.vgprPool.checkOut(1,"tmp1")
+          tmp2 = self.vgprPool.checkOut(1,"tmp2")
+
         # another address conversion for DirectToLds + NumLoadsCoalesced > 1
         newStr, dummy = self.lraOffsetConversionForDTLandNLC(kernel, tP, offset_val=0, generateAsm=True, \
                                                              finalVgpr=finalVgpr, tmp1=tmp1, tmp2=tmp2)
         kStr += newStr
 
-      self.vgprPool.checkIn(tmp1)
-      self.vgprPool.checkIn(tmp2)
+      if tmp1 != None:
+        self.vgprPool.checkIn(tmp1)
+        self.vgprPool.checkIn(tmp2)
     else:
       kStr += inst("_v_add_lshl_u32", finalVgpr, vgpr(sgid), vgpr(tP["gpr"]["lro"]), hex(log2(tP["bpe"])), \
         "Final Offset: offset = (lro%s*VW+lsuoffset)*bpe" % tile01 )
@@ -6002,8 +5987,9 @@ class KernelWriterAssembly(KernelWriter):
           #  In endCounter % 2 == 0 case, exit at lc % 2 == 1 (= not oddLabel). It means no exit if oddLabel
           # No exit case, no code is necessary except for final Loop
 
-          # decrement by 2 if PGR=2 and StaggerU is 0, else 1
-          decValue = 2 if kernel["PrefetchGlobalRead"]==2 and kernel["StaggerU"] == 0 else 1
+          # decrement by 2 if PGR=2 and StaggerU == 0 and not one loop case, else 1
+          oneLoop = loopIdx==0 and finalLoop
+          decValue = 2 if kernel["PrefetchGlobalRead"]==2 and kernel["StaggerU"] == 0 and not oneLoop else 1
           decCode = inst("s_sub_u32", \
               loopCounter, loopCounter, \
               decValue, \
@@ -6015,12 +6001,14 @@ class KernelWriterAssembly(KernelWriter):
 
           noExit = False
 
-          if endCounter%2 != 0:
-            if not oddLabel:
-              noExit = True
-          else:
-            if oddLabel:
-              noExit = True
+          # noExit can be used only for multiple unroll loops case
+          if not oneLoop:
+            if endCounter%2 != 0:
+              if not oddLabel:
+                noExit = True
+            else:
+              if oddLabel:
+                noExit = True
 
           if noExit:
             # No exit. No dec code if decValue is 2
@@ -8746,8 +8734,8 @@ class KernelWriterAssembly(KernelWriter):
       offset_val = offset_val & (~0x3c)
       offset_val = offset_val | newVal
 
-      # another address conversion for DirectToLds + NumLoadsCoalesced > 1
-      dummy, offset_val = self.lraOffsetConversionForDTLandNLC(kernel, tP, offset_val)
+    # another address conversion for DirectToLds + NumLoadsCoalesced > 1
+    dummy, offset_val = self.lraOffsetConversionForDTLandNLC(kernel, tP, offset_val)
 
     return offset_val
 
@@ -8769,7 +8757,7 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["EnableMatrixInstruction"]:
         matrixInstK = kernel["MatrixInstK"]
         if kernel["UnrollMajorLDS%s" % tc]:
-          if kernel["DirectToLds%s" % tc] and kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"] > 4 or kernel["ThreadSeparateGlobalRead%c"%tc]:
+          if kernel["DirectToLds%s" % tc]:
             # DirectToLds special case. Need special address conversion
             localReadOffset = kernel["LocalSplitU"] * kernel["MatrixInstK"] * max(self.numReadsIterCoalescedA,self.numReadsIterCoalescedB)
             prev_offset_val = localReadOffset * iui

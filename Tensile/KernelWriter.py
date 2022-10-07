@@ -1141,6 +1141,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       for i in range(numMfmaPerIter):
         mfmaIndex = iteration * numMfmaPerIter + i
+        lastMfmaIndex = kernel["LoopIters"] * numMfmaPerIter - 1
         iterCode.addComment0(" mfmaIndex:%u " %(mfmaIndex))
 
         ####
@@ -1438,6 +1439,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
           insertMfmaIndex = kernel["LoopIters"] * numMfmaPerIter - 1 - interval * (remainingTimesToInsert - 1)
           # avoid insertMfmaIndex getting smaller than (kernel["LoopIters"] - 1) * numMfmaPerIter
           insertMfmaIndex = max(insertMfmaIndex, (kernel["LoopIters"] - 1) * numMfmaPerIter)
+          # avoid insertMfmaIndex getting smaller than lwEndMfmaIndex (DTV loads must be generated after non DTV loads)
+          insertMfmaIndex = max(insertMfmaIndex, self.lwEndMfmaIndex)
+          # if mfmaIndex is the last index, insert all DTV loads
+          if mfmaIndex == lastMfmaIndex:
+            insertMfmaIndex = mfmaIndex
+            numInstToInsert = numLoadVgpr
           if mfmaIndex == insertMfmaIndex:
             for i in range(min(numLoadVgpr, numInstToInsert)):
               loadDTVText = str(globalReadCodeDTV.items().pop(0))
@@ -1850,11 +1857,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   # get conditions to skip local write wait
   ##############################################################################
-  def getConditionToSkipLocalWriteWait( self, kernel , isPap, u):
-    # not generate wait code here if u == 0 and DirectToVgpr + DirectToLds is enabled
+  def getConditionToSkipLocalWriteWait( self, kernel , isPap, u, lastU):
+    # not generate wait code here if u == 0 u != lastU and DirectToVgpr + DirectToLds is enabled
     # (to remove redundant wait. isPap case only)
     # exception is PGR=2. wait is necessary for u = 0 in PGR=2 case
-    cond1 = not (isPap and u == 0 and kernel["PrefetchLocalRead"] != 0 and \
+    cond1 = not (isPap and u == 0 and u != lastU and kernel["PrefetchLocalRead"] != 0 and \
        (kernel["DirectToVgprA"] and kernel["DirectToLdsB"] or kernel["DirectToVgprB"] and kernel["DirectToLdsA"])) \
       or kernel["PrefetchGlobalRead"]==2
     # no need local read wait if LocalReadVectorWidth==2 and u is odd.
@@ -2027,7 +2034,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       # we initiate lgkmcnt to 0, then assigning it correct value in makeSubIterSchedule()
       if self.enable["Wait"]:
-        if self.getConditionToSkipLocalWriteWait(kernel, isPap, u):
+        if self.getConditionToSkipLocalWriteWait(kernel, isPap, u, kernel["LoopIters"] - 1):
           waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, \
               -1, 0, 0, \
               "wait for prior local read local write")
@@ -2573,7 +2580,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       # we initiate lgkmcnt to 0, then assigning it correct value in makeSubIterSchedule()
       if self.enable["Wait"]:
-        if self.getConditionToSkipLocalWriteWait(kernel, True, u):
+        if self.getConditionToSkipLocalWriteWait(kernel, True, u, kernel["LoopIters"] - 1):
           waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, \
               -1, 0, 0, \
               "wait for prior local read local write")
