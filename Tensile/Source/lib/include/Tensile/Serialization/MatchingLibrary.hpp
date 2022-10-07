@@ -224,6 +224,7 @@ namespace Tensile
                 iot::mapOptional(io, "speed", entry.speed);
                 iot::mapOptional(io, "index", index);
 
+                // TODO there is probably a way to make this properly general
                 if(index != -1)
                 {
                     using SSLibrary
@@ -238,20 +239,17 @@ namespace Tensile
                                       "a SolutionMap.");
                     }
 
-                    if(!iot::outputting(io))
+                    auto iter = ctx->solutions->find(index);
+                    if(iter == ctx->solutions->end())
                     {
-                        auto iter = ctx->solutions->find(index);
-                        if(iter == ctx->solutions->end())
-                        {
-                            std::ostringstream msg;
-                            msg << "Invalid solution index: " << index;
-                            iot::setError(io, msg.str());
-                        }
-                        else
-                        {
-                            std::shared_ptr<ContractionSolution> solution = iter->second;
-                            entry.value = std::make_shared<SSLibrary>(solution);
-                        }
+                        std::ostringstream msg;
+                        msg << "Invalid solution index: " << index;
+                        iot::setError(io, msg.str());
+                    }
+                    else
+                    {
+                        std::shared_ptr<ContractionSolution> solution = iter->second;
+                        entry.value = std::make_shared<SSLibrary>(solution);
                     }
                 }
                 else
