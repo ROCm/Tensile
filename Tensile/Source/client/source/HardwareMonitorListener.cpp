@@ -100,7 +100,10 @@ namespace Tensile
             m_reporter->report(ResultKey::FanSpeedRPMs, m_monitor->getAverageFanSpeed());
             m_reporter->report(ResultKey::HardwareSampleCount, m_monitor->getSamples());
 
-            // Report the median frequency,power,temperature during kernel execution.
+            // Report the median frequency, power, temperature during kernel execution.
+            // 20+ GEMM kernel problem runs (DGEMM, HPA-HGEMM) and frequency data points reveals to consider
+            // the median frequency for efficiency calculation over average,especially for auto clock runs.
+            // if we need to consider the average frequency then need to erase first few data points.
             m_reporter->report(
                 ResultKey::GfxFrequency,
                 m_monitor->getMedianGfxFreqPowerTemperature(m_monitor->getAllGfxFreqValues()));
@@ -112,7 +115,7 @@ namespace Tensile
                 m_monitor->getMedianGfxFreqPowerTemperature(m_monitor->getAllTemperatureValues()));
 
             // To log the detailed report of indvidual frequency, power, temperature data values and
-            // min, max,average,median report for each GEMM kernel run.
+            // min, max, average, median report for each GEMM kernel run.
             if(m_reporter->logAtLevel(LogLevel::Debug))
                 m_monitor->logMinMaxMedianAverage();
         }
