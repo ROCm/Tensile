@@ -2596,19 +2596,20 @@ class Solution(collections.abc.Mapping):
     if ("_GlobalAccumulation" not in state) or ("_WorkspaceSizePerElemC" not in state):
       state["_GlobalAccumulation"] = None
       state["_WorkspaceSizePerElemC"] = 0
+
       if state["GlobalSplitU"] > 1:
         computeName  = state["ProblemType"]["ComputeDataType"].toName()
         computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
 
         if state["GlobalSplitUAlgorithm"] == 'SingleBuffer':
-          if computeName != state["ProblemType"]["DestDataType"].toName():
+          # For SingleBuffer algorithm, _GA and _WorkspaceSizePerElemC is updated only if the gemm function is HPA. The worskspace is
+          # used to convert the final output from ComputeDataType to DestDataType. For non-HPA gemm functions the _GA and _Workspace
+          # remain unchanged.
+          if (not state["ProblemType"]["DataType"].isInt8() and computeName != state["ProblemType"]["DataType"].toName()): # for HPA cases
             state["_GlobalAccumulation"] = 'SingleBuffer'
+            state["_WorkspaceSizePerElemC"] = computeBytes
         elif state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':
           state["_GlobalAccumulation"] = 'MultipleBuffer'
-
-        if state["_GlobalAccumulation"] == 'SingleBuffer':
-          state["_WorkspaceSizePerElemC"] = computeBytes
-        elif state["_GlobalAccumulation"] == 'MultipleBuffer':
           state["_WorkspaceSizePerElemC"] = computeBytes * state["GlobalSplitU"]
 
     if state["VectorStore"] == -1:
@@ -2984,7 +2985,7 @@ class Solution(collections.abc.Mapping):
       if not state["GlobalSplitUSummationAssignmentRoundRobin"] and state["LoopTail"]:
         reject(state, "GlobalSplitU and LoopTail require SummationAssignmentRoundRobin=True since strongly breaks Tensile kernel architecture")
         return
-      # added GSU support for DGEMM
+
       supported = \
         (state["ProblemType"]["DataType"].isSingle()) or \
         (state["ProblemType"]["DataType"].isDouble() and state["BufferStore"]) or \
@@ -2996,6 +2997,10 @@ class Solution(collections.abc.Mapping):
       if not supported:
         reject(state, "GlobalSplitU only compatible with single or asm and (half or mixed) precision")
         return
+
+    # to eliminate identical/duplicate kernels when GSU=1 but GlobalSplitUAlgorithm is MultipleBuffer
+    if state["GlobalSplitU"] == 1 and state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':
+      reject(state, " GlobalSplitU=1 and GlobalSplitUAlgorithm='MultipleBuffer'. Rejecting GlobalSplitUAlgorithm='SingleBuffer' to avoid duplicate kernels.")
 
     if state["VectorAtomicWidth"] == -1:
       state["VectorAtomicWidth"] = 1 # TODO - remove this and next line when VAW works for other types

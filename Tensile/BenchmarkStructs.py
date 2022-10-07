@@ -174,11 +174,11 @@ class BenchmarkProcess:
 
         # print summary of parameter values
         print2("Single Value Parameters:")
-        for k, v in self.singleValueParams.items():
+        for k, v in sorted(self.singleValueParams.items()):
             print2("    {}: {}".format(k, v))
 
         print2("Multi-Value Parameters:")
-        for k, v in self.multiValueParams.items():
+        for k, v in sorted(self.multiValueParams.items()):
             print2("    {}: {}".format(k, v))
 
         if len(self.paramGroups) > 0:
