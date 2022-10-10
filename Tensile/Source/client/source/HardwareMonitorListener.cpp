@@ -102,7 +102,7 @@ namespace Tensile
 
             // Report the median frequency, power, temperature during kernel execution.
             // 20+ GEMM kernel problem runs (DGEMM, HPA-HGEMM) and frequency data points reveals to consider
-            // the median frequency for efficiency calculation over average,especially for auto clock runs.
+            // the median frequency for efficiency calculation over average, especially for auto clock runs.
             // if we need to consider the average frequency then need to erase first few data points.
             m_reporter->report(
                 ResultKey::GfxFrequency,
