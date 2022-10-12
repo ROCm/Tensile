@@ -92,11 +92,13 @@ class LraTileAssignmentMFMA(LraTileAssignment):
 
         # get constant parameter
         tc               = tP["tensorChar"]
+        umlds            = kernel["UnrollMajorLDS%s" % tc]
         # alloc vgpr
         wReg    = writer.vgprPool.checkOut(1,"wReg") # quotient
         tReg    = writer.vgprPool.checkOut(1,"tReg") # remainder
         kReg    = writer.vgprPool.checkOut(1,"kReg") # remainder
-        if kernel["ThreadSeparateGlobalRead%c"%tc]:
+        dtlTsgr = kernel["DirectToLds"] and kernel["ThreadSeparateGlobalRead%c"%tc] and umlds
+        if dtlTsgr:
           mReg    = writer.vgprPool.checkOut(1,"mReg")
         tmpVgpr = writer.vgprPool.checkOutAligned(2,2,"tmpVgpr")
         dummy   = writer.vgprPool.checkOut(1,"dummy")
@@ -134,7 +136,6 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             inputPerThread = 1
 
         # strider for each type of index
-        umlds            = kernel["UnrollMajorLDS%s" % tc]
         mt               = kernel["MacroTile%u" % tile01]
         strideTile       = kernel["_DepthULds"] + LdsPad if umlds else 1
         strideK          = inputPerThread if umlds else (mt + LdsPad) * inputPerThread
@@ -146,7 +147,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             "0. thread id in wave: wtid = tid %% wavelength(%u)" % waveWidth)
         kStr += vectorStaticRemainder(dummy, tReg, kReg, kernel["MatrixInstN"], tmpVgpr, tmpSgpr, \
             "1. N offset: nIdx = wtid %% MI_N(%u)" % kernel["MatrixInstN"])
-        if kernel["ThreadSeparateGlobalRead%c"%tc]:
+        if dtlTsgr:
           # WSGR splits global fetch 2D tile MblockxdepthU into (WSPR *2)xMblockxdepthU/(WSPR*2)  (Mblock = waveWidth * glvw  / depthU)
           # LDS layout stored as 3D tile K1xMblockxK0
           # Padding is not allowed in directToLds
@@ -156,7 +157,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
           kStr += vectorStaticDivide(mReg, tReg, NblockSizePerLoad, tmpVgpr, tmpSgpr, \
               "1. N offset: nIdx_upper = nIdx / NblockSizePerLoad(%u)" % NblockSizePerLoad)
           kStr += staticMultiply(vgpr(mReg), vgpr(mReg), NblockSizePerLoad*kernel["_DepthULds"], sgpr(tmpSgpr), \
-              "1. N offset: nIdx_upper_offset = nIdx_upper * nStride(%u)" % (waveWidth * kernel["GlobalLoadVectorWidth%c"%tc]))
+              "1. N offset: nIdx_upper_offset = nIdx_upper * nStride(%u)" % (NblockSizePerLoad*kernel["_DepthULds"]))
           KelementsPerMFrag = kernel["_DepthULds"]//(kernel["ThreadSeparateGlobalRead%c"%tc]*2)
           kStr += vectorStaticRemainder(dummy, tReg, tReg, NblockSizePerLoad, tmpVgpr, tmpSgpr, \
               "1. N offset: nIdx_lower = nIdx %% NblockSizePerLoad(%u)" % NblockSizePerLoad)
@@ -189,9 +190,12 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         # unroll offset
         kStr += vectorStaticDivide(kReg, kReg, dividendForKId, tmpVgpr, tmpSgpr, \
             "4. K offset: kIdx = wtid / (MIN(%u) * MIBB(%u))" % (kernel["MatrixInstN"], kernel["MatrixInstB"]))
-        if kernel["ThreadSeparateGlobalRead%s"%tc]:
-          # ThreadSeparateGlobalRead case
+        if dtlTsgr:
+          # ThreadSeparateGlobalRead + DirectToLds case
           # kIdx_lower = (kIdx % KelementsPerMFrag) + (kIdx // KelementsPerMFrag) * (KelementsPerMFrag * NblockSizePerLoad)
+          # Here, KelementsPerMFrag needs to be divided by inputPerThread.
+          # inputPerThread will be multiplied later
+          KelementsPerMFrag //= inputPerThread
           kStr += vectorStaticRemainder(dummy, mReg, kReg, KelementsPerMFrag, tmpVgpr, tmpSgpr, \
               "4. K offset: kIdx_lower = kIdx %% KelementsPerMFrag(%u)" % (KelementsPerMFrag))
           kStr += vectorStaticDivide(kReg, kReg, KelementsPerMFrag, tmpVgpr, tmpSgpr, \
@@ -221,7 +225,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         tP["gpr"]["lro"] = tReg
         writer.vgprPool.checkIn(wReg)
         writer.vgprPool.checkIn(kReg)
-        if kernel["ThreadSeparateGlobalRead%c"%tc]:
+        if dtlTsgr:
           writer.vgprPool.checkIn(mReg)
         writer.vgprPool.checkIn(tmpVgpr)
         writer.vgprPool.checkIn(dummy)

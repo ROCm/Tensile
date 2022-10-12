@@ -2432,16 +2432,16 @@ class Solution(collections.abc.Mapping):
   def isDirectToLdsDoable(state, tc):
     numBytes = state["ProblemType"]["DataType"].numBytes()
 
-    # x2/x4 support for directToLds
-     
+    # x2/x4 support for directToLds (no longer supported)
+
     # numelements_perlane = 4/numBytes
-    # TN with transposeLDS feature should work as long as state["AssertSummationElementMultiple"] % (numelements_perlane*2) = 0 
+    # TN with transposeLDS feature should work as long as state["AssertSummationElementMultiple"] % (numelements_perlane*2) = 0
     #                                                     state["AssertSummationElementMultiple"] % (numelements_perlane*4) = 0
 
-    #NT 
-    # use only for f32 & DGEMM and TLU = 1
+    #NT
+    # use only for all precisions (except for bpe > 4)
     #TN
-    # use for all precisions with TransposeLDS=1
+    # use for all precisions (except for bpe > 4) with TransposeLDS=1
 
     numRegisters = state["ProblemType"]["DataType"].numRegisters()
     if numRegisters * state["GlobalLoadVectorWidth%c"%tc] != 1:
@@ -2451,12 +2451,6 @@ class Solution(collections.abc.Mapping):
     if state["ProblemType"]["DataType"].isHalf():
       if state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc])  != 0:
         reject(state, "can't use DirectToLds for FP16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
-        return False
-      if state["ProblemType"]["TransposeA"] != True or state["ProblemType"]["TransposeB"] != False:
-        reject(state, "DirectToLds for FP16 currently only working for TN")
-        return False
-      if state["GlobalReadVectorWidth"] < 4:
-        reject(state, "GlobalReadVectorWidth must be 4 for DirectToLds HGEMM")
         return False
 
     if state["ProblemType"]["DataType"].isBFloat16() and state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc]) != 0:
@@ -2508,25 +2502,15 @@ class Solution(collections.abc.Mapping):
       reject(state, "can't use DirectToLds for PrefetchGlobalRead == 2 without DirectToVgpr")
       return False
 
-    # so far, DirectToLds does not work with LRVW=2
-    if state["LocalReadVectorWidth"] == 2:
-      reject(state, "can't use DirectToLds for LocalReadVectorWidth == 2")
-      return False
-
     if state["NumLoadsCoalesced%c"%tc] > 1:
-      # NumLoadsCoalesced > 1 not working for sgemm
-      if numBytes < 8:
-        reject(state, "Can't use NumLoadsCoalesced > 1 with DirectToLds for this data type")
+      # NumLoadsCoalesced > 1 not working for hgemm + TLU=False
+      if numBytes < 4 and (not state["ProblemType"]["TLU%c"%tc]):
+        reject(state, "Can't use NumLoadsCoalesced > 1 with DirectToLds + TLU=False for this data type")
         return False
       # Does not work with (NumLoadsCoalesced>1 and UseInstOffsetForGRO) + DGEMM
       if state["ProblemType"]["DataType"].isDouble() and state["UseInstOffsetForGRO"]:
         reject(state, "DirectToLds%c does not supports NumLoadsCoalesced%c > 1 and UseInstOffsetForGRO for dgemm"%(tc, tc))
         return False
-
-    # Does not work with NumLoadsCoalesced>1 + ZGEMM
-    if state["ProblemType"]["DataType"].isDoubleComplex() and state["NumLoadsCoalesced%c"%tc] > 1:
-      reject(state, "DirectToLds%c does not supports NumLoadsCoalesced%c > 1 for zgemm"%(tc, tc))
-      return False
 
     # Does not work with PAPMode 1 and AssertSummationElementMultiple % (DepthU * 2) != 0
     # This is because DirectToLds use second LDS buffer after Odd exit. It does not match local read at the beginning of PK loop.
@@ -2546,16 +2530,29 @@ class Solution(collections.abc.Mapping):
       reject(state, "can't use DirectToLds if MacroTile%s is not power of 2"%tc)
       return False
 
-    if state["ThreadSeparateGlobalRead%s"%tc] and state["NumLoadsCoalesced%s"%tc] > 1:
-      reject(state, "ThreadSeparateGlobalRead%c does not work with NumLoadsCoalesced > 1."%(tc))
-    # DirectToLds does not work with TLU=False and bpe > bpr and DepthU//NumLoadsCoalesced <= 8
-    # DIrectToLds does not work with TLU=False and NumLoadsCoalesced >1 yet.
+    # check for DirectToLds + ThreadSeparateGlobalRead
+    if state["ThreadSeparateGlobalRead%c"%tc]:
+      tsgrNum = state["ThreadSeparateGlobalRead%c"%tc] * 2
+      if state["ProblemType"]["TLU%c"%tc]:
+        reject(state, "ThreadSeparateGlobalRead%c does not work with TLU%c"%(tc, tc))
+      if state["NumLoadsCoalesced%c"%tc] > 1:
+        reject(state, "ThreadSeparateGlobalRead%c does not work with DirectToLds + NumLoadsCoalesced > 1."%(tc))
+      if numBytes * state["GlobalLoadVectorWidth%c"%tc] > 4 and (mt // state["GlobalLoadVectorWidth%c"%tc] // tsgrNum < 8):
+        reject(state, "ThreadSeparateGlobalRead%c + DTL does not work if numBytes(%d) * GLVW(%d) > 4 and MT(%d) // GLVW // (TSGR * 2) < 8."\
+          %(tc, numBytes, state["GlobalLoadVectorWidth%c"%tc], mt))
+      if (state["WavefrontSize"] * state["GlobalLoadVectorWidth%c"%tc]) < state["_DepthULds"] * state["VectorWidth"]:
+        reject(state, "ThreadSeparateGlobalRead%c does not work with WavefrontSize * GlobalLoadVectorWidth%c < _DepthULds * VectorWidth."%(tc, tc))
+
+    # DirectToLds does not work with TLU=False and bpe * GLVW > bpr and DepthU//NumLoadsCoalesced <= 8
     # bpe > bpr case, Lower and upper 4 bytes elements are stored separately.
     # if TLU=False and DepthU//NumLoadsCoalesced is smaller than lower block size (16 elements),
     # current offset swap logic does not work
-    if (not state["ProblemType"]["TLU%c"%tc]) and state["ProblemType"]["DataType"].numRegisters() > 1 and \
-       state["DepthU"] // state["NumLoadsCoalesced%c"%tc] <= 8:
-      reject(state, "DirectToLds%c does not work with TLU=False and bpe > bpr and DepthU//NumLoadsCoalesced%c < 16"%(tc, tc))
+    bpr = 4
+    numElementPerReg = max(1, bpr // numBytes)
+    if (not state["ProblemType"]["TLU%c"%tc]) and \
+       numBytes * state["GlobalLoadVectorWidth%c"%tc] > bpr and \
+       state["DepthU"] // state["NumLoadsCoalesced%c"%tc] <= 8 * numElementPerReg:
+      reject(state, "DirectToLds%c does not work with TLU=False and bpe * GLVW > bpr and DepthU//NumLoadsCoalesced%c <= 8 * numElementPerReg(%u)"%(tc, tc, numElementPerReg))
       return False
 
     return True
@@ -2727,6 +2724,7 @@ class Solution(collections.abc.Mapping):
          state["SuppressNoLoadLoop"]:
         print2("PAP requires Assembly, PK!=0, PGR!=0, SuppressNoLoadLoop=True, forcing PAP=False")
         state["PrefetchAcrossPersistent"] = False
+        state["PrefetchAcrossPersistentMode"] = False # PAPM should be 0 here to avoid getting rejected later with a logic file
       if state["PrefetchAcrossPersistentMode"] == 0 and state["PrefetchGlobalRead"] == 2:
         reject(state, "PAPMode 0 does not support PGR=2")
         return
@@ -3023,12 +3021,6 @@ class Solution(collections.abc.Mapping):
         if state["AssertFree0ElementMultiple"] < 2:
           reject(state, "Assembly GSU half requires AF0EM>=2 (for atomics on edge tiles)")
 
-    if state["KernelLanguage"] == "Assembly":
-      if state["ProblemType"]["TLUA"] and state["ThreadSeparateGlobalReadA"]:
-        reject(state, "Assembly ThreadSeparateGlobalReadA requires TLUA=0 ")
-      if state["ProblemType"]["TLUB"] and state["ThreadSeparateGlobalReadB"]:
-        reject(state, "Assembly ThreadSeparateGlobalReadB requires TLUB=0 ")
-
     ########################################
     # Initial DepthU
     ########################################
@@ -3224,18 +3216,17 @@ class Solution(collections.abc.Mapping):
             validDepthU = False
 
       if validDepthU:
-        # check depthU and ThreadSeparateGlobalReadA==1 depthU*bpe <= 64 bytes reject ThreadSeparateGlobalRead =1
-        # only Enable TLU=0 case
+        # check depthU and ThreadSeparateGlobalReadA==1 depthU*bpe <= 64 bytes reject ThreadSeparateGlobalRead =1 (TLU=0 only)
         # reject depthU for cases requiring < minimum lanes per fragment. depthU * bpe  must be multiple of cache-line sizes(l2)
         # minimum lane is 2 for bpe < 4, 1 for bpe >= 4
         minLanes = 2 if state["ProblemType"]["DataType"].numBytes() < 4 else 1
         bpr = 4 # all registers are 32bit
         depthULds = depthU // state["DepthULdsDivisor"]
-        if state["ThreadSeparateGlobalReadA"]:
+        if state["ThreadSeparateGlobalReadA"] and (not state["ProblemType"]["TLUA"]):
           #if state["ThreadSeparateGlobalReadA"] and (((depthU//state["GlobalLoadVectorWidthA"])// (2 * state["ThreadSeparateGlobalReadA"])) < 2):
           if (depthU * state["ProblemType"]["DataType"].numBytes() < minLanes * state["GlobalLoadVectorWidthA"] * (2 * state["ThreadSeparateGlobalReadA"]) * bpr):
             validDepthU= False
-        if state["ThreadSeparateGlobalReadB"]:
+        if state["ThreadSeparateGlobalReadB"] and (not state["ProblemType"]["TLUB"]):
           #if state["ThreadSeparateGlobalReadB"] and (((depthU//state["GlobalLoadVectorWidthB"])// (2 * state["ThreadSeparateGlobalReadB"])) < 2):
           if (depthU * state["ProblemType"]["DataType"].numBytes() < minLanes * state["GlobalLoadVectorWidthB"] * (2 * state["ThreadSeparateGlobalReadB"]) * bpr):
             validDepthU= False
@@ -3303,7 +3294,8 @@ class Solution(collections.abc.Mapping):
       VectorWidthB = state["VectorWidth"]
     elif state["DirectToVgprA"]:
       VectorWidthB = state["LocalReadVectorWidth"]
-    state["allowLRVWBforTLUandMI"] = (state["DirectToVgprB"] or state["DirectToVgprA"] and not state["DirectToLds"]) and \
+    state["allowLRVWBforTLUandMI"] = (state["DirectToVgprB"] and state["LocalReadVectorWidth"] == 1 or \
+                                      state["DirectToVgprA"] and not state["DirectToLds"]) and \
                                 state["EnableMatrixInstruction"] and state["ProblemType"]["TLUB"] and \
                                 state["VectorWidth"] >= state["LocalReadVectorWidth"] and \
                                 state["AssertFree1ElementMultiple"] % state["VectorWidth"] == 0 and \
@@ -3337,18 +3329,6 @@ class Solution(collections.abc.Mapping):
     state["LVPA"] = roundupRatio(state["LSPA"] , state["GlobalLoadVectorWidthA"])
     state["LVCB"] = roundupRatio(state["LSCB"] , state["GlobalLoadVectorWidthB"])
     state["LVPB"] = roundupRatio(state["LSPB"] , state["GlobalLoadVectorWidthB"])
-
-    if state["SplitGlobalRead"] > 1:
-      if state["DirectToLds"]:
-        reject(state, "SplitGlobalRead not yet supported with DirectToLds")
-      if state["DirectToVgprA"] or state["DirectToVgprB"]:
-        reject(state, "SplitGlobalRead does not work with DirectToVgpr")
-      divisorNameA = Solution.getDivisorName(state, "A")
-      divisorNameB = Solution.getDivisorName(state, "B")
-      divisorA = state[divisorNameA]
-      divisorB = state[divisorNameB]
-      if state["SplitGlobalRead"] >= divisorA and state["SplitGlobalRead"] >= divisorB:
-        reject(state, "SplitGlobalRead must be less than lvc/lsc/lvp/lsp")
 
     for tc in ('A','B'):
       if problemType["TLU%s"%tc]:
@@ -3405,6 +3385,8 @@ class Solution(collections.abc.Mapping):
     #  2. PrefetchAcrossPersistent and PrefetchAcrossPersistentMode
     #    PrefetchAcrossPersistentMode does not support TailLoop (TLU is necessary for NoTailLoop)
     #  3. DirectToVgpr is enabled
+    #  4. DirectToLds + TLU + NumLoadsCoalesced > 1 (special local read offset conversion is not implemented in tail loop code)
+    #  5. DirectToLds + LRVW > 1
     # Except for case 1, validNoTailLoop should be True to enable NoTailLoop.
     # Otherwise, it will be rejected.
     state["NoTailLoop"] = False
@@ -3422,6 +3404,20 @@ class Solution(collections.abc.Mapping):
         return
       else:
         state["NoTailLoop"] = True
+    elif state["DirectToLds"]:
+      for tc in ('A','B'):
+        if state["ProblemType"]["TLU%c"%tc] and state["NumLoadsCoalesced%c"%tc] > 1:
+          if not validNoTailLoop:
+            reject(state, "DirectToLds + TLU + NumLoadsCoalesced>1 + AssertSummationElementMultiple%%DepthU!=0 %s to enable NoTailLoop"%invalidComment)
+            return
+          else:
+            state["NoTailLoop"] = True
+        elif state["LocalReadVectorWidth"] > 1:
+          if not validNoTailLoop:
+            reject(state, "DirectToLds + LocalReadVectorWidth>1 + AssertSummationElementMultiple%%DepthU!=0 %s to enable NoTailLoop"%invalidComment)
+            return
+          else:
+            state["NoTailLoop"] = True
 
     ########################################
     # LDS
@@ -3461,30 +3457,24 @@ class Solution(collections.abc.Mapping):
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
     # LDS loads always write 4 bytes apart so can use only 4-byte operations
-    #   TODO - for doubles we need to add something special here?
     # The matrix must not require transposing since that is done by reading to VGPR and writing in different order
     # The LSC (load size coalesced) must load some multiple of 256 bytes since that is what each DirectToLds load provides
     # Note for these matrices LSC is same as MacroTile dim
     # MatrixInstruction rules:
     # DirectToLDS is supported for TLU=0  (make sure transposeLDS=1)
     # LDS (load size coalesced) * LSPA must load some multiple of 256 bytes.
-    # added support for loadX2/loadx4 .
-    # x2/x4 (use x4 for better load efficiency)
-    # x2/x4 support for NT layout for f64/f32   TN layout (f16/bf16/f32/f64) with transposeLDS=1
-    # ignore x2/x4 precision < 4 bytes in NT layout
+    # No longer support loadX2/loadx4 .
     if state["DirectToLds"]:
-      # DirectToLdsA + DirectToVgprA does not work. Not enable DirectToLdsA if DirectToVgprA is true
-      if (not state["DirectToVgprA"]) and Solution.isDirectToLdsDoable(state, 'A'):
-        state["DirectToLdsA"] = True
-        state["LocalWriteUseSgprA"] = True
-        #print("DirectToLdsA", state["DirectToLdsA"])
+      for tc in ('A','B'):
+        # DirectToLdsA/B + DirectToVgprA/B does not work. Not enable DirectToLdsA/B if DirectToVgprA/B is true
+        if (not state["DirectToVgpr%s"%tc]) and Solution.isDirectToLdsDoable(state, tc):
+          state["DirectToLds%s"%tc] = True
+          state["LocalWriteUseSgpr%s"%tc] = True
+          #print("DirectToLds%s"%tc, state["DirectToLds%s"%tc])
+        else:
+          # disable ThreadSeparateGlobalRead for DirectToVgpr
+          state["ThreadSeparateGlobalRead%s"%tc] = 0
 
-      # DirectToLdsB + DirectToVgprB does not work. Not enable DirectToLdsB if DirectToVgprB is true
-      if (not state["DirectToVgprB"]) and Solution.isDirectToLdsDoable(state, 'B'):
-        state["DirectToLdsB"] = True
-        state["LocalWriteUseSgprB"] = True
-        #print("DirectToLdsB", state["DirectToLdsB"])
-      
       if state["Valid"] and state["DirectToLds"] and not (state["DirectToLdsA"] or state["DirectToLdsB"]):
         printWarning("DirectToLds requested, but not enabled for A or B, check kernel configuration!")
 
@@ -3624,11 +3614,20 @@ class Solution(collections.abc.Mapping):
       if state["DirectToLds"] and state["1LDSBuffer"]:
         reject(state, "1LDSBuffer must be 0 for directToLds") 
 
-    if state["EnableMatrixInstruction"]:
-       if state["ThreadSeparateGlobalReadA"] and not state["DirectToLdsA"]:
-         reject(state, "ThreadSeparateGlobalReadA require DirectToLdsA")
-       if state["ThreadSeparateGlobalReadB"] and not state["DirectToLdsB"]:
-         reject(state, "ThreadSeparateGlobalReadB require DirectToLdsB")
+    # ThreadSeparateGlobalRead + no DirectToLds case (equivalent to previous SplitGlobalRead)
+    # No local read offset conversion in this case. A and B must have equivalent ThreadSeparateGlobalRead setting
+    for tc in ('A','B'):
+     if (not (state["DirectToLds%s"%tc] and state["ProblemType"]["TLU%s"%tc] == False)) and state["ThreadSeparateGlobalRead%s"%tc]:
+       divisorName = Solution.getDivisorName(state, tc)
+       divisor = state[divisorName]
+       tsgrNum = state["ThreadSeparateGlobalRead%s"%tc] * 2
+       if tsgrNum >= divisor:
+         reject(state, "ThreadSeparateGlobalRead * 2 (=%d) must be less than lvc/lsc/lvp/lsp"%(tsgrNum))
+       if divisor > state["WavefrontSize"]:
+         reject(state, "WavefrontSize >= divisor(lvc/lsc/lvp/lsp) is required for ThreadSeparateGlobalRead")
+       if state["DirectToVgpr%s"%tc]:
+         # set TSGR = 0 if DirectToVgpr is enabled
+         state["ThreadSeparateGlobalRead%s"%tc] = 0
 
     if state["1LDSBuffer"] == -1:
       if ldsNumElementsAB * state["ProblemType"]["DataType"].numBytes() > globalParameters["MaxLDS"]:
