@@ -2602,7 +2602,7 @@ class Solution(collections.abc.Mapping):
           # For SingleBuffer algorithm, _GA and _WorkspaceSizePerElemC is updated only if the gemm function is HPA. The worskspace is
           # used to convert the final output from ComputeDataType to DestDataType. For non-HPA gemm functions the _GA and _Workspace
           # remain unchanged.
-          if (not state["ProblemType"]["DataType"].isInt8() and computeName != state["ProblemType"]["DataType"].toName()): # for HPA cases
+          if (not state["ProblemType"]["DestDataType"].isInt32() and computeName != state["ProblemType"]["DataType"].toName()): # for HPA cases
             state["_GlobalAccumulation"] = 'SingleBuffer'
             state["_WorkspaceSizePerElemC"] = computeBytes
         elif state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':
