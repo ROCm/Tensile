@@ -2599,10 +2599,11 @@ class Solution(collections.abc.Mapping):
         computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
 
         if state["GlobalSplitUAlgorithm"] == 'SingleBuffer':
-          # For SingleBuffer algorithm, _GA and _WorkspaceSizePerElemC is updated only if the gemm function is HPA. The worskspace is
-          # used to convert the final output from ComputeDataType to DestDataType. For non-HPA gemm functions the _GA and _Workspace
-          # remain unchanged.
-          if (not state["ProblemType"]["DestDataType"].isInt32() and computeName != state["ProblemType"]["DataType"].toName()): # for HPA cases
+          # For SingleBuffer algorithm, _GA and _WorkspaceSizePerElemC is updated only if the gemm function is HPA (excludig int8). 
+          # The worskspace is used to convert the final output from ComputeDataType to DestDataType. For non-HPA gemm functions 
+          # the _GA and _Workspace remain unchanged.
+          # for HPA cases (excluding 4xi8/I8II): HHS/BBS/BSS/HSS (_GA should be singlebuffer for these types)
+          if (not state["ProblemType"]["DestDataType"].isInt32() and computeName != state["ProblemType"]["DataType"].toName()):
             state["_GlobalAccumulation"] = 'SingleBuffer'
             state["_WorkspaceSizePerElemC"] = computeBytes
         elif state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':

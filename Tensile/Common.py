@@ -495,7 +495,7 @@ validParameters = {
     #
     # Table below shows the required kernels and workspace for each gemm function.
     # ------------------------------------------------------------------------------------------
-    # | gemm function          | non-HPA gemm                  | HPA gemm                      |
+    # | gemm function          | non-HPA gemm                  | HPA gemm (excluding int8)     |
     # | GSU Algorithm          | SingleBuffer | MultipleBuffer | SingleBuffer | MultipleBuffer |
     # | pre-kernel             | yes          | no             | yes          | no             |
     # | main kernel            | yes          | yes            | yes          | yes            |
