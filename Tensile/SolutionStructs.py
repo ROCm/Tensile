@@ -2421,6 +2421,11 @@ class Solution(collections.abc.Mapping):
       reject(state, "DirectToVgpr%c does not supports TLU%c=False VectorWidth>1 and TLU%c=True"%(tc, tc, tcOther))
       return False
 
+    # Does not work with SIA<3 and PGR=2
+    if state["ScheduleIterAlg"] < 3 and state["PrefetchGlobalRead"] == 2:
+      reject(state, "DirectToVgpr%c does not supports ScheduleIterAlg < 3 and PrefetchGlobalRead==2"%(tc))
+      return False
+
     # Does not work with DirectToLDS
     # -> this will be checked after DirectToLDS doable check is done
 
@@ -2534,7 +2539,7 @@ class Solution(collections.abc.Mapping):
     if state["ThreadSeparateGlobalRead%c"%tc]:
       tsgrNum = state["ThreadSeparateGlobalRead%c"%tc] * 2
       if state["ProblemType"]["TLU%c"%tc]:
-        reject(state, "ThreadSeparateGlobalRead%c does not work with TLU%c"%(tc, tc))
+        reject(state, "ThreadSeparateGlobalRead%c does not work with DTL%c + TLU%c"%(tc, tc, tc))
       if state["NumLoadsCoalesced%c"%tc] > 1:
         reject(state, "ThreadSeparateGlobalRead%c does not work with DirectToLds + NumLoadsCoalesced > 1."%(tc))
       if numBytes * state["GlobalLoadVectorWidth%c"%tc] > 4 and (mt // state["GlobalLoadVectorWidth%c"%tc] // tsgrNum < 8):
@@ -3864,6 +3869,10 @@ class Solution(collections.abc.Mapping):
       if state["ProblemType"]["DataType"].isDouble() and state["NumElementsPerBatchStore"] == 1:
         reject(state, "StoreCInUnroll does not work with NumElementsPerBatchStore = 1 for dgemm")
         return
+      if not state["BufferStore"]:
+        reject(state, "StoreCInUnroll requires BufferStore feature")
+        return
+
       # minimum K check
       # PGR=2 requires minimum K
       if state["PrefetchGlobalRead"] == 2:

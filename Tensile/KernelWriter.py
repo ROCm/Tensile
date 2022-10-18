@@ -451,7 +451,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
                          list(self.globalReadBCode.middle.items())
         itemsGRToSchedLaterDTV = []
         # PGR2 and DirectToVgpr case, schedule global read for DirectToVgpr separately after registers are used for mfma
-        if kernel["EnableMatrixInstruction"] and kernel["ScheduleIterAlg"] == 3:
+        if kernel["EnableMatrixInstruction"]:
           if kernel["DirectToVgprA"] or kernel["DirectToVgprB"]:
             itemsGRToSchedLater = list(self.globalReadACode.middle.items())      # not DirectToVgpr (A has non-DirectToVgpr load)
             itemsGRToSchedLaterDTV = list(self.globalReadBCode.middle.items()) # DirectToVgpr (B has DirectToVgpr load)
@@ -866,6 +866,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if self.scheduleIterAlg==0:
       # simple schedule, just add the modules in-order
       iterCode.addCode(globalReadCode)
+      iterCode.addCode(globalReadCodeDTV)
+      # pop out all items
+      while len(list(globalReadCodeDTV.items())):
+        globalReadCodeDTV.items().pop(0)
       iterCode.addCode(waitLWCode)
       iterCode.addCode(syncCode)
       iterCode.addCode(localReadCode)
@@ -896,6 +900,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
             break
 
       iterCode.addCode(globalReadCode)
+      iterCode.addCode(globalReadCodeDTV)
+      # pop out all items
+      while len(list(globalReadCodeDTV.items())):
+        globalReadCodeDTV.items().pop(0)
 
       # add rest of the reads here
       for item in readItems:
@@ -914,6 +922,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # 2 workgroup interleave, while WG0/WG1 doing compute, WG1/WG0 doing fetch
     # EPS need to be 1, or valu instruction will break interleave
       iterCode.addCode(globalReadCode)
+      iterCode.addCode(globalReadCodeDTV)
+      # pop out all items
+      while len(list(globalReadCodeDTV.items())):
+        globalReadCodeDTV.items().pop(0)
       iterCode.addCode(waitLWCode)
       iterCode.addCode(syncCode)
       iterCode.addCode(localReadCode)
@@ -1531,7 +1543,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
         iterCode.addComment0("dataAtIterA=%u numReadsIterA=%u skipReadsIterA=%u readsPerIterA=%u" % (dataAtIterA, numReadsIterA, skipReadsIterA, self.numReadsPerIterA))
         iterCode.addComment0("dataAtIterB=%u numReadsIterB=%u skipReadsIterB=%u readsPerIterB=%u" % (dataAtIterB, numReadsIterB, skipReadsIterB, self.numReadsPerIterB))
         if kernel["ScheduleIterAlg"] == 0 or kernel["ScheduleIterAlg"] == 1:
-          for i in range (max(dataAtIterA,dataAtIterB),iteration+1):
+          # adjust the initial value of loop counter for DirectToVgpr
+          adj = 1 if (kernel["DirectToVpgrA"] or kernel["DirectToVpgrB"]) else 0
+          for i in range (max(dataAtIterA,dataAtIterB)+adj,iteration+1):
             localWrites += self.perIterLocalWriteCode[i].countType(Code.LocalWriteInst)
         # ScheduleIterAlg=2, localwrite is after waitCnt, no need to count it's current iteration.
         if kernel["ScheduleIterAlg"] == 3:
@@ -2519,7 +2533,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             #  2) local write code in previous u (u-1) has waitcnt vmcnt
             prevVmcnt = False
             prevLocalWrite = ""
-            if (u > 0):
+            if (u > 0 and kernel["ScheduleIterAlg"] == 3):
               for up in range(u):
                 prevLocalWrite += ' '.join([str(x) for x in self.perIterLocalWriteCode[up].flatitems()])
               prevVmcnt = "vmcnt" in prevLocalWrite
@@ -5176,8 +5190,8 @@ for codeObjectFileName in codeObjectFileNames:
             # beforeBarrier case, reduce the amount of non-Vgpr global read
             needToWait -= (numGlobalReadAll - numGlobalRead)
         # adjustment for oddLast
-        # oddLast case, ignore all of above and set 0
-        if oddLast:
+        # oddLast case or ScheduleIterAlg < 3 case, ignore all of above and set 0
+        if oddLast or kernel["ScheduleIterAlg"] < 3:
           needToWait = 0
         if kernel["StoreCInUnroll"]:
           # In StoreCInUnroll case,

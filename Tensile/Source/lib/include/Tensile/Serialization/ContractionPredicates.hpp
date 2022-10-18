@@ -85,7 +85,6 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::TypesEqual>(),
                     Base::template Pair<Predicates::Contraction::OperationIdentifierEqual>(),
                     Base::template Pair<Predicates::Contraction::BufferLoadOffsetLimitCheck>(),
-                    Base::template Pair<Predicates::Contraction::BufferLoadOffsetLimitCheck_Beta>(),
                     Base::template Pair<Predicates::Contraction::BufferStoreOffsetLimitCheck>(),
                     Base::template Pair<Predicates::Contraction::WorkspaceCheck>(),
                     Base::template Pair<Predicates::Contraction::PersistentKernelCheck>(),
@@ -286,12 +285,6 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::BufferLoadOffsetLimitCheck, IO>
             : public AutoMappingTraits<Predicates::Contraction::BufferLoadOffsetLimitCheck, IO>
-        {
-        };
-
-        template <typename IO>
-        struct MappingTraits<Predicates::Contraction::BufferLoadOffsetLimitCheck_Beta, IO>
-            : public AutoMappingTraits<Predicates::Contraction::BufferLoadOffsetLimitCheck_Beta, IO>
         {
         };
 
