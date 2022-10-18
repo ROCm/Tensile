@@ -1544,7 +1544,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         iterCode.addComment0("dataAtIterB=%u numReadsIterB=%u skipReadsIterB=%u readsPerIterB=%u" % (dataAtIterB, numReadsIterB, skipReadsIterB, self.numReadsPerIterB))
         if kernel["ScheduleIterAlg"] == 0 or kernel["ScheduleIterAlg"] == 1:
           # adjust the initial value of loop counter for DirectToVgpr
-          adj = 1 if (kernel["DirectToVpgrA"] or kernel["DirectToVpgrB"]) else 0
+          adj = 1 if (kernel["DirectToVgprA"] or kernel["DirectToVgprB"]) else 0
           for i in range (max(dataAtIterA,dataAtIterB)+adj,iteration+1):
             localWrites += self.perIterLocalWriteCode[i].countType(Code.LocalWriteInst)
         # ScheduleIterAlg=2, localwrite is after waitCnt, no need to count it's current iteration.
