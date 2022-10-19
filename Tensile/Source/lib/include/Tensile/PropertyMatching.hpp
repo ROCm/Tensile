@@ -321,7 +321,6 @@ namespace Tensile
                 }
                 else
                 {
-
                     if(debug)
                         return findBestKeyMatch_BinSearch<true>(key, transform);
                     else
