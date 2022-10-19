@@ -43,7 +43,7 @@ class SingleSolutionLibrary:
         return self.__class__.Tag
 
     def state(self):
-        return {"type": self.tag, "index": self.solution.index}
+        return self.solution.index
 
     def remapSolutionIndices(self, indexMap):
         pass
@@ -94,12 +94,13 @@ class MatchingLibrary:
 
         for row in origTable:
             try:
-                index = row[1][0]
-                #value = SingleSolutionLibrary(solutions[index])
+                index = int(row[1][0])
+                print(type(index))
+                value = SingleSolutionLibrary(solutions[index])
 
                 key = list([row[0][i] for i in keyOrder])
-                #entry = {"key": key, "value": value, "speed": row[1][1]}
-                entry = {"key": key, "index": index}
+                entry = {"key": key, "index": value}
+                #entry = {"key": key, "index": value.solution.index}
                 table.append(entry)
             except KeyError:
                 pass

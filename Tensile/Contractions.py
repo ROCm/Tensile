@@ -507,7 +507,7 @@ class Solution:
             rv.index = d['SolutionIndex']
 
         info = cls.ReadOriginalInfo(d)
-        rv.libraryLogicIndex = int(info["SolutionIndex"])
+        rv.libraryLogicIndex = int(info.get("SolutionIndex", -1))
 
         rv.sizeMapping = SizeMapping.FromOriginalState(d)
         if 'Ideals' in d:
