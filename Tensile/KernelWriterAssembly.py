@@ -7250,9 +7250,28 @@ class KernelWriterAssembly(KernelWriter):
       maxAddrSgpr = tmpSgpr
 
       kStr += self.comment1("flat addressing - max read address = Tensor2dSize%s"%tc)
+      dim = len(tP["ia"])-1 # dim
+      sizeIdx = tP["ia"][dim]
+      sizeIdxIsSum = sizeIdx in kernel["ProblemType"]["IndicesSummation"]
+      if sizeIdxIsSum:
+        sizeIdx -= kernel["ProblemType"]["NumIndicesC"]
+      kStr += self.s_mul_u64_u32(sgpr(maxAddrSgpr+0), sgpr(maxAddrSgpr+1),  \
+                  sgpr("WorkGroup%u"%(sizeIdx)),  \
+                  sgpr("Stride%s%s"%(tc, self.indexChars[tP['ia'][-1]])), \
+                  "64b tensor%s size in elements"%tc)
+      kStr += inst("s_add_u32", \
+          sgpr(maxAddrSgpr+0), \
+          sgpr("Tensor2dSize%c"%tc), \
+          sgpr(maxAddrSgpr+0), \
+          "add Tensor2dSize%c"%tc)
+      kStr += inst("s_addc_u32", \
+          sgpr(maxAddrSgpr+1), \
+          sgpr("Tensor2dSize%c+1"%tc), \
+          sgpr(maxAddrSgpr+1), \
+          "add Tensor2dSize%c"%tc)
       kStr += inst("s_lshl_b64", \
         sgpr(maxAddrSgpr,2), \
-        sgpr("Tensor2dSize%s"%tc,2), \
+        sgpr(maxAddrSgpr,2), \
         hex(log2(tP["bpe"])), "<- tensor%s size in bytes"%tc)
 
       kStr += inst("s_add_u32", \
