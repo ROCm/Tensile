@@ -32,7 +32,6 @@
 #include <Tensile/SingleSolutionLibrary.hpp>
 
 #include <cstddef>
-#include <type_traits>
 #include <unordered_set>
 
 namespace Tensile

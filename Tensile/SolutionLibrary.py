@@ -94,13 +94,14 @@ class MatchingLibrary:
 
         for row in origTable:
             try:
-                index = int(row[1][0])
-                print(type(index))
+                index = row[1][0]
                 value = SingleSolutionLibrary(solutions[index])
-
                 key = list([row[0][i] for i in keyOrder])
-                entry = {"key": key, "index": value}
-                #entry = {"key": key, "index": value.solution.index}
+                if distance == "GridBased":
+                    entry = {"key": key, "index": value}
+                else:
+                    entry = {"key": key, "index": value, "speed": row[1][1]}
+
                 table.append(entry)
             except KeyError:
                 pass
