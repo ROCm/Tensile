@@ -43,10 +43,16 @@ class SingleSolutionLibrary:
         return self.__class__.Tag
 
     def state(self):
-        return self.solution.index
+        return {"type": self.tag, "index": self.solution.index}
 
     def remapSolutionIndices(self, indexMap):
         pass
+
+class IndexSolutionLibrary(SingleSolutionLibrary):
+    Tag = "Index"
+
+    def state(self):
+        return self.solution.index
 
 
 class PlaceholderLibrary:
@@ -95,7 +101,7 @@ class MatchingLibrary:
         for row in origTable:
             try:
                 index = row[1][0]
-                value = SingleSolutionLibrary(solutions[index])
+                value = IndexSolutionLibrary(solutions[index])
                 key = list([row[0][i] for i in keyOrder])
                 if distance == "GridBased":
                     entry = {"key": key, "index": value}
