@@ -3300,7 +3300,9 @@ class Solution(collections.abc.Mapping):
       VectorWidthB = state["VectorWidth"]
     elif state["DirectToVgprA"]:
       VectorWidthB = state["LocalReadVectorWidth"]
-    state["allowLRVWBforTLUandMI"] = (state["DirectToVgprB"] and state["LocalReadVectorWidth"] == 1 or \
+    state["allowLRVWBforTLUandMI"] = (state["DirectToVgprB"] and \
+                                       (state["ProblemType"]["TLUA"] and state["LocalReadVectorWidth"] == 1 or \
+                                        not state["ProblemType"]["TLUA"]) or \
                                       state["DirectToVgprA"] and not state["DirectToLds"]) and \
                                 state["EnableMatrixInstruction"] and state["ProblemType"]["TLUB"] and \
                                 state["VectorWidth"] >= state["LocalReadVectorWidth"] and \

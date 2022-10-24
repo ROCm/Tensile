@@ -5889,7 +5889,7 @@ class KernelWriterAssembly(KernelWriter):
   # uDu: 'None' means not generating branching label which decides which part of G2L
   #      buffer to write to LDS
   ##############################################################################
-  def closeLoop(self, kernel, loopIdx, finalLoop, uDu=None, emitEndLabelOnly=False, oddLabel=False):
+  def closeLoop(self, kernel, loopIdx, finalLoop, loopCopies, uDu=None, emitEndLabelOnly=False, oddLabel=False):
     kStr = ""
     if emitEndLabelOnly:
       loopIdx = self.unrollIdx
@@ -5994,9 +5994,9 @@ class KernelWriterAssembly(KernelWriter):
           #  In endCounter % 2 == 0 case, exit at lc % 2 == 1 (= not oddLabel). It means no exit if oddLabel
           # No exit case, no code is necessary except for final Loop
 
-          # decrement by 2 if PGR=2 and StaggerU == 0 and not one loop case, else 1
+          # decrement by loopCopies if PGR=2 and StaggerU == 0, else 1
           oneLoop = loopIdx==0 and finalLoop
-          decValue = 2 if kernel["PrefetchGlobalRead"]==2 and kernel["StaggerU"] == 0 and not oneLoop else 1
+          decValue = loopCopies if kernel["PrefetchGlobalRead"]==2 and kernel["StaggerU"] == 0 else 1
           decCode = inst("s_sub_u32", \
               loopCounter, loopCounter, \
               decValue, \

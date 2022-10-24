@@ -2788,7 +2788,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.comment3("Unrolled Loop - End"))
 
     oddLabel = lc == 0
-    kl.append(self.closeLoop(kernel, self.unrollIdx, finalLoop, oddLabel=oddLabel))
+    kl.append(self.closeLoop(kernel, self.unrollIdx, finalLoop, loopCopies, oddLabel=oddLabel))
 
   ##############################################################################
   # Kernel Body
@@ -3267,9 +3267,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 kl.append(self.macIter(kernel, 0, tailLoopInnerUnroll, True, True))
 
             finalLoop = mValue == mEnd - 1
-            kl.append(self.closeLoop(kernel, -1, finalLoop, uDu if kernel.enabledSplitLDS else None))
+            kl.append(self.closeLoop(kernel, -1, finalLoop, loopCopies, uDu if kernel.enabledSplitLDS else None))
       # always emit the skip-tail-loop label
-      kl.append(self.closeLoop(kernel, -1, None, emitEndLabelOnly=True))
+      kl.append(self.closeLoop(kernel, -1, None, loopCopies, emitEndLabelOnly=True))
       # tail: close
       self.inTailLoop = False
 
@@ -3277,7 +3277,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     for i in reversed(range(self.otherSummationLoops)):
       kl.append(self.comment("global read inc AB"))
       kl.append(self.globalReadIncrementAB(kernel, i, 0))
-      kl.append(self.closeLoop(kernel, i, True))
+      kl.append(self.closeLoop(kernel, i, True, loopCopies))
 
     if self.prefetchAcrossPersistent and kernel["PrefetchAcrossPersistentMode"] != 1:
       kl.append(str(self.openPrefetchAcrossPersistent(kernel, isOptNLL=False)))
@@ -4358,7 +4358,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # Close Loop
   ##############################################################################
   @abc.abstractmethod
-  def closeLoop(self, kernel, loopIdx, finalLoop, uDu, emitEndLabelOnly, oddLabel=False):
+  def closeLoop(self, kernel, loopIdx, finalLoop, loopCopies, uDu, emitEndLabelOnly, oddLabel=False):
     return ""
 
   ##############################################################################
