@@ -2644,7 +2644,7 @@ class Solution(collections.abc.Mapping):
     if state["KernelLanguage"] == "Source" \
         and state["ProblemType"]["DataType"].isHalf() \
         and state["LoopDoWhile"] \
-        and not state["AssertSizeEqual"]:
+        and (0 not in state["AssertSizeEqual"].keys() or state["AssertSizeEqual"][0] != 1):
       reject(state, "hgemm source kernel with do-while loop requires an assert on size and validation")
 
     if state["EnableMatrixInstruction"]:
