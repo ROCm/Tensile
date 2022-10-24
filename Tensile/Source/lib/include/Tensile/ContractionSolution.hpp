@@ -305,7 +305,7 @@ namespace Tensile
 
         /// Debugging purposes.  Shouldn't contain any vital information that isn't
         /// somewhere else.
-        int32_t               libraryLogicIndex;
+        int32_t               libraryLogicIndex = -1;
         std::map<int, double> ideals;
         LinearModel           linearModel;
 
