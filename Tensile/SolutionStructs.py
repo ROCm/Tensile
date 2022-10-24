@@ -2639,6 +2639,12 @@ class Solution(collections.abc.Mapping):
     if state["WavefrontSize"] == 32 and state["KernelLanguage"] == "Source":
       reject(state, "WavefrontSize=32 not yet supported for source kernels.")
 
+    if state["KernelLanguage"] == "Source" \
+        and state["ProblemType"]["DataType"].isHalf() \
+        and state["LoopDoWhile"] \
+        and not state["AssertSizeEqual"]:
+      reject(state, "hgemm source kernel with do-while loop requires an assert on size and validation")
+
     if state["EnableMatrixInstruction"]:
       if not (state["ProblemType"]["DataType"].isSingle() \
               or state["ProblemType"]["DataType"].isDouble() \
