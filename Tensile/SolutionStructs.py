@@ -2639,6 +2639,8 @@ class Solution(collections.abc.Mapping):
     if state["WavefrontSize"] == 32 and state["KernelLanguage"] == "Source":
       reject(state, "WavefrontSize=32 not yet supported for source kernels.")
 
+    # HGEMM source kernel using LoopDoWhile currently limited to problem sizes where M=1
+    # LoopDoWhile kernels should be validated and include Asserts for accurate kernel selection
     if state["KernelLanguage"] == "Source" \
         and state["ProblemType"]["DataType"].isHalf() \
         and state["LoopDoWhile"] \
