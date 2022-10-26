@@ -79,13 +79,11 @@ namespace Tensile
             virtual ~MatchingTable() = default;
 
             virtual std::tuple<ReturnValue, double> findBestMatch(Object const& object,
-                                                                  Transform     transform) const
-                = 0;
+                                                                  Transform transform) const = 0;
 
             virtual ReturnValue findBestEvaluationSolution(Object const&   object,
                                                            Hardware const& hardware,
-                                                           Transform       transform) const
-                = 0;
+                                                           Transform       transform) const = 0;
 
             virtual std::vector<Value> matchesInOrder(Object const& object) const = 0;
 
@@ -134,8 +132,7 @@ namespace Tensile
             }
 
             virtual std::tuple<ReturnValue, double> findBestKeyMatch(Key const& key,
-                                                                     Transform  transform) const
-                = 0;
+                                                                     Transform transform) const = 0;
 
             virtual std::tuple<ReturnValue, double>
                 findBestMatch(Object const& object, Transform transform) const override
