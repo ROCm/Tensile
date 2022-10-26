@@ -225,16 +225,18 @@ class KernelWriterAssembly(KernelWriter):
     if wavefrontSize is None:
       wavefrontSize = self.kernel["WavefrontSize"]
 
-    archHasV3 = globalParameters["AsmCaps"][isa]["HasCodeObjectV3"]
-
     launcher = shlex.split(os.environ.get('Tensile_ASM_COMPILER_LAUNCHER', ''))
 
     rv = launcher + [globalParameters['AssemblerPath'],
           '-x', 'assembler',
           '-target', 'amdgcn-amd-amdhsa']
 
-    if archHasV3:
-      rv += ['-mcode-object-version=2' if globalParameters["CodeObjectVersion"] == "V2" else '-mcode-object-version=4']
+    if globalParameters["CodeObjectVersion"] == "V3":
+      rv += ['-mcode-object-version=3']
+    elif globalParameters["CodeObjectVersion"] == "V4":
+      rv += ['-mcode-object-version=4']
+    elif globalParameters["CodeObjectVersion"] == "V5":
+      rv += ['-mcode-object-version=5']
 
     rv += ['-mcpu=' + gfxName(isa)]
 

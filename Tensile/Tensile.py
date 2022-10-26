@@ -112,7 +112,7 @@ def addCommonArguments(argParser):
     argParser.add_argument("--runtime-language", dest="RuntimeLanguage", \
         choices=["HIP", "OCL"], help="override which runtime language to use")
     argParser.add_argument("--code-object-version", dest="CodeObjectVersion", \
-        choices=["V2", "V3"], default="V3", help="HSA code-object version")
+        choices=["V3", "V4", "V5"], default="V4", help="HSA code-object version")
     argParser.add_argument("-v", "--verbose", action="store_true", \
         help="set PrintLevel=2")
     argParser.add_argument("--debug", dest="debug", action="store_true", \
@@ -163,8 +163,6 @@ def argUpdatedGlobalParameters(args):
         rv["MergeFiles"] = False
     if args.CxxCompiler:
         rv['CxxCompiler'] = args.CxxCompiler
-        if rv['CxxCompiler'] == "hipcc" and not args.CodeObjectVersion:
-            rv["CodeObjectVersion"] = "V3"
     print1("")
     if args.client_build_path:
         rv["ClientBuildPath"] = args.client_build_path

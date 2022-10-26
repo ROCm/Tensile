@@ -233,7 +233,7 @@ if os.name == "nt":
 else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
-globalParameters["CodeObjectVersion"] = "V3"
+globalParameters["CodeObjectVersion"] = "V4"
 globalParameters["CxxCompiler"] = "hipcc"
 globalParameters["Architecture"] = "all"
 
@@ -1735,7 +1735,6 @@ def GetAsmCaps(isaVersion):
   rv["HasAddLshl"]            = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
   rv["HasLshlOr"]             = tryAssembler(isaVersion, "v_lshl_or_b32 v47, v36, 0x2, v34")
   rv["HasSMulHi"]             = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
-  rv["HasCodeObjectV3"]       = tryAssembler(isaVersion, "", False, "-mcode-object-version=2")
 
   rv["HasMFMA"]               = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
   rv["HasMFMA_f64"]           = tryAssembler(isaVersion, "v_mfma_f64_16x16x4f64 v[0:7], v[32:33], v[36:37], v[0:7]")
@@ -1810,7 +1809,6 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
   args = [globalParameters["AssemblerPath"], '-x', 'assembler',
           '-target', 'amdgcn-amdhsa',
           '-mcpu='+gfxName(isaVersion),
-          '-mcode-object-version=3',
           *options,
           '-']
 
