@@ -478,7 +478,7 @@ class Solution:
                 'problemPredicate',
                 'sizeMapping',
                 'debugKernel',
-                'info',
+                'libraryLogicIndex',
                 'index',
                 'ideals',
                 'linearModel']
@@ -506,7 +506,8 @@ class Solution:
         if 'SolutionIndex' in d:
             rv.index = d['SolutionIndex']
 
-        rv.info = cls.ReadOriginalInfo(d)
+        info = cls.ReadOriginalInfo(d)
+        rv.libraryLogicIndex = int(info.get("SolutionIndex", -1))
 
         rv.sizeMapping = SizeMapping.FromOriginalState(d)
         if 'Ideals' in d:
@@ -542,7 +543,7 @@ class Solution:
         self.problemPredicate = ProblemPredicate('TruePred')
         self.sizeMapping = None
         self.debugKernel = False
-        self.info = {}
+        self.libraryLogicIndex = {}
         self.index = None
         self.ideals = {}
 
