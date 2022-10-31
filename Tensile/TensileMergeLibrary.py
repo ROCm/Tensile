@@ -1,10 +1,33 @@
+################################################################################
+#
+# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+################################################################################
+
 from .SolutionStructs import Solution
 from .Common import printExit, restoreDefaultGlobalParameters, assignGlobalParameters, ensurePath
 from . import LibraryIO
 
 from copy import deepcopy
 from enum import IntEnum
-from typing import NamedTuple
 import yaml
 import os
 import sys
@@ -51,7 +74,6 @@ def fixSizeInconsistencies(sizes, fileType):
     return sizes_, len(sizes_)
 
 def solsEq(s1o, s2o):
-
     s1 = deepcopy(s1o)
     s2 = deepcopy(s2o)
 
@@ -70,7 +92,6 @@ def addKernel(solutionPool, solution):
             debug("...Reuse previously existed kernel", end="")
             break
     else:
-        print(solution)
         index = len(solutionPool)
         _solution = deepcopy(solution) # if we don't we will see some subtle errors
         _solution["SolutionIndex"] = index
@@ -243,7 +264,6 @@ def findFastestCompatibleSolution(origDict, sizeMapping):
 
     return maxEfficiency
 
-
 # returns merged logic data as list
 def mergeLogic(origLogic, incLogic, forceMerge, trimSize=True, addSolutionTags=False):
     origNumSizes = len(origLogic.sizes)
@@ -274,8 +294,6 @@ def mergeLogic(origLogic, incLogic, forceMerge, trimSize=True, addSolutionTags=F
         if len(incSet) != len(incTaggedSet):
             verbose("Warning:", len(incTaggedSet) - len(incSet), "duplicate sizes are present in incremental logic",
                     "that may not be handled correctly unless --add_solution_tags is used")
-
-
 
     if trimSize:
         # trim 8-tuple gemm size format to 4-tuple [m, n, b, k]
@@ -321,9 +339,6 @@ def mergeLogic(origLogic, incLogic, forceMerge, trimSize=True, addSolutionTags=F
     if addSolutionTags:
         solutionMap = removeSolutionTagFromKeys(solutionMap)
 
-    # mergedData = deepcopy(origData)
-    # mergedData[5] = solutionPool
-    # mergedData[7] = solutionMap
     mergedLogic = Logic(solutionPool, solutionMap)
     numReplaced = removeUnusedKernels(mergedLogic, "Merged data: ")
 
@@ -337,7 +352,9 @@ def getSizesAndSols(data):
     if type(data) is list:
         return Logic(data[5], data[7])
     elif type(data) is dict:
-        printExit("TODO implement dict")
+        sols = data["Solutions"]
+        sizes = data["Library"]["table"]
+        return Logic(sols, sizes)
     else:
         printExit("Bad data")
 
@@ -346,7 +363,8 @@ def updateSizesAndSols(data, logic):
         data[5] = logic.sols
         data[7] = logic.sizes
     elif type(data) is dict:
-        printExit("TODO implement dict")
+        data["Solutions"] = logic.sols
+        data["Library"]["table"] = logic.sizes
     else:
         printExit("Bad data")
 
