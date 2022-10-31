@@ -1527,7 +1527,9 @@ class KernelWriterAssembly(KernelWriter):
       self.GlobalBufferOOB = vgprIdx
       vgprIdx +=1
     # for cgemm/zgemm + (SCIU or MIAV) case, allocate 4 vgpr for alpha calculation (cannot use tmp vgpr in unroll loop or write batch)
-    if kernel["ProblemType"]["DataType"].isComplex() and (kernel["StoreCInUnroll"] or kernel["MIArchVgpr"]):
+    if kernel["ProblemType"]["DataType"].isComplex() \
+        and (kernel["StoreCInUnroll"] or kernel["MIArchVgpr"]) \
+        and (kernel["_GlobalAccumulation"] != 'MultipleBuffer'):
       # need proper alignment
       vgprIdx = ((vgprIdx+2 - 1)//2)*2
       self.startVgprAlphaTmp = vgprIdx
@@ -13917,7 +13919,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def MoveMIoutToArch(self, kernel):
     kStr = ""
-    kStr += self.comment("Multiply MI out register with Alpha -> C Vgpr register")
+    kStr += self.comment("Rearrange MI out register -> C Vgpr register")
 
     acc2arch, _ = self.AccToArchMapper(kernel)
 
@@ -13929,24 +13931,28 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["ProblemType"]["ComputeDataType"].isDouble():
         self.codeMulAlpha.itemList[destIdx] = Code.Inst("v_lshlrev_b64", vgpr("ValuC+__placeholder__",2),
                                                        0,
-                                                       vgpr("ValuC+%u"%srcIdx,2), "Multiply MI out reg with alpha")
+                                                       vgpr("ValuC+%u"%srcIdx,2), "Rearrange MI out reg")
       elif kernel["ProblemType"]["ComputeDataType"].isSingle() or \
           (kernel["ProblemType"]["ComputeDataType"].isHalf() and kernel["ProblemType"]["HighPrecisionAccumulate"]):
         self.codeMulAlpha.itemList[destIdx] = Code.Inst("v_mov_b32", vgpr("ValuC+__placeholder__"),
-                                                       vgpr("ValuC+%u"%srcIdx), "Multiply MI out reg with alpha")
+                                                       vgpr("ValuC+%u"%srcIdx), "Rearrange MI out reg")
       elif (kernel["ProblemType"]["ComputeDataType"].isHalf() and not kernel["ProblemType"]["HighPrecisionAccumulate"]):
         self.codeMulAlpha.itemList[destIdx] = Code.Inst("v_mov_b32", vgpr("ValuC+__placeholder__"),
-                                                       vgpr("ValuC+%u"%srcIdx), "Multiply MI out reg with alpha")
+                                                       vgpr("ValuC+%u"%srcIdx), "Rearrange MI out reg")
       elif kernel["ProblemType"]["ComputeDataType"].isInt32():
         self.codeMulAlpha.itemList[destIdx] = Code.Inst("v_mov_b32", vgpr("ValuC+__placeholder__"),
-                                                       vgpr("ValuC+%u"%srcIdx), "Multiply MI out reg with alpha")
+                                                       vgpr("ValuC+%u"%srcIdx), "Rearrange MI out reg")
+      elif kernel["ProblemType"]["ComputeDataType"].isSingleComplex():
+        accImOffset = self.AccVgprImagNumOffset(kernel)
+        imod = Code.Module()
+        imod.addInst("v_mov_b32", vgpr("ValuC+__placeholder__"), vgpr("ValuC+%u"%srcIdx), "Rearrange MI out reg")
+        imod.addInst("v_mov_b32", vgpr("ValuC+__placeholder__ +1"), vgpr("ValuC+%u"%(srcIdx+accImOffset)), "Rearrange MI out reg")
+        self.codeMulAlpha.itemList[destIdx] = imod
       elif kernel["ProblemType"]["ComputeDataType"].isDoubleComplex():
         accImOffset = self.AccVgprImagNumOffset(kernel)
         imod = Code.Module()
-        # tmp1 = a.real * b.real
-        imod.addInst("v_lshlrev_b64", vgpr("ValuC+__placeholder__",2), 0, vgpr("ValuC+%u"%srcIdx,2), "")
-        # tmp2 = a.imag * b.real
-        imod.addInst("v_lshlrev_b64", vgpr("ValuC+__placeholder__ +2",2), 0, vgpr("ValuC+%u"%(srcIdx+accImOffset),2), "")
+        imod.addInst("v_lshlrev_b64", vgpr("ValuC+__placeholder__",2), 0, vgpr("ValuC+%u"%srcIdx,2), "Rearrange MI out reg")
+        imod.addInst("v_lshlrev_b64", vgpr("ValuC+__placeholder__ +2",2), 0, vgpr("ValuC+%u"%(srcIdx+accImOffset),2), "Rearrange MI out reg")
         self.codeMulAlpha.itemList[destIdx] = imod
 
     return kStr
