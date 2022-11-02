@@ -31,7 +31,6 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
 
     String compiler = 'hipcc'
     String pythonVersion = 'py3'
-    String cov = "V3"
     // Do release build of HostLibraryTests on CI until it is upgraded to rocm 5.3 to
     // avoid bug causing long build times of certain files.
     String buildType = 'Release' // debug ? 'Debug' : 'RelWithDebInfo'
@@ -63,7 +62,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             pushd build
 
             export PATH=/opt/rocm/bin:$PATH
-            cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DCODE_OBJECT_VERSION=${cov} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
+            cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
             make -j\$(nproc)
 
             popd

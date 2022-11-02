@@ -233,7 +233,7 @@ if os.name == "nt":
 else:
   globalParameters["RuntimeLanguage"] = "HIP"
 
-globalParameters["CodeObjectVersion"] = "V4"
+globalParameters["CodeObjectVersion"] = "default"
 globalParameters["CxxCompiler"] = "hipcc"
 globalParameters["Architecture"] = "all"
 
@@ -2149,6 +2149,13 @@ def versionIsCompatible(queryVersionString):
     if int(qStep) > int(tStep):
       return False
   return True
+
+def getCOVFromParam(versionString):
+  if versionString == "default" or versionString == "V4":
+    return 4
+  elif versionString == "V5":
+    return 5
+  printExit("Unknown CodeObjectVersion %s" % (versionString))
 
 def ClientExecutionLock():
   if not globalParameters["ClientExecutionLockPath"]:

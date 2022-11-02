@@ -23,7 +23,7 @@
 ################################################################################
 
 from ..Component import Signature
-from ..Common import globalParameters, gfxName
+from ..Common import globalParameters, getCOVFromParam, gfxName
 
 from math import ceil
 
@@ -146,15 +146,13 @@ class SignatureDefault(Signature):
         kStr += "---\n"
         kStr += "amdhsa.version:\n"
         kStr += "  - 1\n"
-        if kernel["CodeObjectVersion"] == "V3":
-            kStr += "  - 0\n"
-        else:
-            if kernel["CodeObjectVersion"] == "V4":
-                kStr += "  - 1\n"
-            elif kernel["CodeObjectVersion"] == "V5":
-                kStr += "  - 2\n"
-            kStr += "amdhsa.target: amdgcn-amd-amdhsa--%s%s" \
-                % (gfxName(writer.version), writer.endLine)
+        cov = getCOVFromParam(kernel["CodeObjectVersion"])
+        if cov == 4:
+            kStr += "  - 1\n"
+        elif cov == 5:
+            kStr += "  - 2\n"
+        kStr += "amdhsa.target: amdgcn-amd-amdhsa--%s%s" \
+            % (gfxName(writer.version), writer.endLine)
         kStr += "amdhsa.kernels:\n"
         kStr += "  - .name: %s%s" % (writer.kernelName, writer.endLine)
         kStr += "    .symbol: '%s.kd'%s" % (writer.kernelName, writer.endLine)

@@ -80,7 +80,7 @@ def test_loadSolutions(caplog, useGlobalParameters):
 @pytest.mark.skip(reason="System issue with find assempler called when assigning defaults")
 def test_WriteClientLibraryFromSolutions(tmpdir):
     Common.globalParameters["MergeFiles"] = True
-    Common.globalParameters["CodeObjectVersion"] = "V4"
+    Common.globalParameters["CodeObjectVersion"] = "default"
     Common.globalParameters["YAML"] = True
     Common.globalParameters["CxxCompiler"] = "hipcc"
     Common.assignGlobalParameters({})

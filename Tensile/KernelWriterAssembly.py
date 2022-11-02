@@ -23,7 +23,7 @@
 ################################################################################
 
 from . import Code
-from .Common import gfxName, globalParameters, print2, printExit, printWarning, roundUp
+from .Common import gfxName, globalParameters, getCOVFromParam, print2, printExit, printWarning, roundUp
 from .Component import Component
 from .KernelWriter import KernelWriter
 from .SolutionStructs import isPackedIndex
@@ -231,12 +231,8 @@ class KernelWriterAssembly(KernelWriter):
           '-x', 'assembler',
           '-target', 'amdgcn-amd-amdhsa']
 
-    if globalParameters["CodeObjectVersion"] == "V3":
-      rv += ['-mcode-object-version=3']
-    elif globalParameters["CodeObjectVersion"] == "V4":
-      rv += ['-mcode-object-version=4']
-    elif globalParameters["CodeObjectVersion"] == "V5":
-      rv += ['-mcode-object-version=5']
+    cov = getCOVFromParam(globalParameters["CodeObjectVersion"])
+    rv += ['-mcode-object-version=%s' % (cov)]
 
     rv += ['-mcpu=' + gfxName(isa)]
 
