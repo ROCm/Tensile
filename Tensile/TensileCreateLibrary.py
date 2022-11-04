@@ -1210,7 +1210,7 @@ def TensileCreateLibrary():
   argParser.add_argument("--client-config", dest="ClientConfig", action="store_true",
                          help="Create client config for setting the library and code object files")
   argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
-  argParser.add_argument("--no-asm-cap-cache", dest="NoAsmCapCache", action="store_true", default=False,
+  argParser.add_argument("--ignore-asm-cap-cache", dest="IgnoreAsmCapCache", action="store_true", default=False,
                          help="Ignore asm cap cache and derive the asm caps at runtime")
   args = argParser.parse_args()
 
@@ -1250,7 +1250,7 @@ def TensileCreateLibrary():
 
   arguments["CpuThreads"] = args.CpuThreads
   arguments["PrintLevel"] = args.PrintLevel
-  arguments["IgnoreAsmCapCache"] = args.NoAsmCapCache
+  arguments["IgnoreAsmCapCache"] = args.IgnoreAsmCapCache
   
   for key, value in args.global_parameters:
     arguments[key] = value
