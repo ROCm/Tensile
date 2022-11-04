@@ -3606,7 +3606,11 @@ class Solution(collections.abc.Mapping):
       ldsNumElementsAB = ldsNumElementsAlignedA + ldsNumElementsB
 
     # lds buffer size for reduction
-    ldsNumElementsReduction = state["LocalSplitU"]*state["MacroTile0"]*state["MacroTile1"] if state["LocalSplitU"] > 1 else 0
+    bytesPerComElem = state["ProblemType"]["ComputeDataType"].numBytes()
+    bytesPerLoadElem = state["ProblemType"]["DataType"].numBytes()
+    ratio = bytesPerComElem / bytesPerLoadElem
+
+    ldsNumElementsReduction = ratio*state["LocalSplitU"]*state["MacroTile0"]*state["MacroTile1"] if state["LocalSplitU"] > 1 else 0
 
     # lds max occupancy
     ldsSizeOccupancy = globalParameters["DeviceLDS"] // state["MaxOccupancy"]

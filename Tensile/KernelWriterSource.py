@@ -1046,11 +1046,7 @@ class KernelWriterSource(KernelWriter):
     # allocate local memory
     kStr += self.endLine
     kStr += "  /* allocate local memory */" + self.endLine
-    if kernel["LocalSplitU"] > 1:
-        kStr += "  %sCOMPUTE_DATA_TYPE localMemory[LDS_NUM_ELEMENTS];%s" \
-        % (self.sharedDeclStr, self.endLine )
-    elif kernel["LocalSplitU"] == 1:
-        kStr += "  %sDATA_TYPE localMemory[LDS_NUM_ELEMENTS];%s" \
+    kStr += "  %sDATA_TYPE localMemory[LDS_NUM_ELEMENTS];%s" \
         % (self.sharedDeclStr, self.endLine )
 
 
