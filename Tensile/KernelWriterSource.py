@@ -1046,7 +1046,7 @@ class KernelWriterSource(KernelWriter):
     # allocate local memory
     kStr += self.endLine
     kStr += "  /* allocate local memory */" + self.endLine
-    kStr += "  %sDATA_TYPE localMemory[LDS_NUM_ELEMENTS];%s" \
+    kStr += "  %sCOMPUTE_DATA_TYPE localMemory[LDS_NUM_ELEMENTS];%s" \
         % (self.sharedDeclStr, self.endLine )
 
 
@@ -2525,7 +2525,7 @@ class KernelWriterSource(KernelWriter):
       for sPerp in range(0, tP["nwpv"]):
         for para in range(0, tP["nrc"]):
           for sPara in range(0, 1): # tP["nwcv"]):
-            kStr += "%slocalWrite%s_%u_%u_%u_%u = (%sDATA_TYPE *)(localMemory + localWriteOffset%s_%u_%u_%u_%u);%s"\
+            kStr += "%slocalWrite%s_%u_%u_%u_%u = (%sDATA_TYPE *)localMemory + localWriteOffset%s_%u_%u_%u_%u;%s"\
                 % (self.indent, tP["tensorChar"], \
                 para, sPara, perp, sPerp, self.sharedPtrStr, tP["tensorChar"], \
                 para, sPara, perp, sPerp, self.endLine)
@@ -2604,7 +2604,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localReadInitPointers(self, kernel, tP):
     kStr = ""
-    kStr += "%slocalRead%s = (%sDATA_TYPE *)(localMemory + localReadOffset%s);%s" \
+    kStr += "%slocalRead%s = (%sDATA_TYPE *)localMemory + localReadOffset%s;%s" \
         % (self.indent, tP["tensorChar"], self.sharedPtrStr, \
         tP["tensorChar"], self.endLine)
     return kStr
@@ -2755,7 +2755,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localSplitULocalWrite(self, kernel):
     kStr = ""
-    kStr += "  %sDATA_TYPE *localLocalSplitU = (%sDATA_TYPE *)(localMemory);%s" \
+    kStr += "  %sCOMPUTE_DATA_TYPE *localLocalSplitU = (%sCOMPUTE_DATA_TYPE *)(localMemory);%s" \
       % (self.sharedPtrStr, self.sharedPtrStr, self.endLine)
     for j in range(0, kernel["ThreadTile1"] // kernel["VectorWidth"]):
       for i in range(0, kernel["ThreadTile0"] // kernel["VectorWidth"]):
