@@ -1737,7 +1737,7 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
 
 def GetAsmCaps(isaVersion):
   """ Determine assembler capabilities by testing short instructions sequences """
-  if globalParameters["AssemblerPath"] != None:
+  if globalParameters["AssemblerPath"] is not None:
 
     derivedAsmCaps = {}
     derivedAsmCaps["SupportedISA"]          = tryAssembler(isaVersion, "")
