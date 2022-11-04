@@ -264,6 +264,8 @@ globalParameters["SeparateArchitectures"] = False # write Tensile library metada
 
 globalParameters["LazyLibraryLoading"] = False # Load library and code object files when needed instead of at startup
 
+globalParameters["IgnoreAsmCapCache"] = False # Ignore checking for discrepancies between derived and cached asm caps
+
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 
@@ -1800,13 +1802,12 @@ def GetAsmCaps(isaVersion):
 
     derivedAsmCaps["SupportedSource"] = True
 
-    if derivedAsmCaps != CACHED_ASM_CAPS[isaVersion]:
+    if not globalParameters["IgnoreAsmCapCache"] and derivedAsmCaps != CACHED_ASM_CAPS[isaVersion]:
       printExit("Cached asm caps differ from derived asm caps")      
-
+    return derivedAsmCaps
   else:
     printWarning("Assembler not present, asm caps loaded from cache are unverified")
-
-  return CACHED_ASM_CAPS[isaVersion]
+    return CACHED_ASM_CAPS[isaVersion]
 
 def GetArchCaps(isaVersion):
   rv = {}
@@ -2046,6 +2047,7 @@ def assignGlobalParameters( config ):
       globalParameters["CurrentISA"] = (9,0,6)
       printWarning("Failed to detect ISA so forcing (gfx906) on windows")
 
+  globalParameters["IgnoreAsmCapCache"] = config["IgnoreAsmCapCache"]
   globalParameters["AsmCaps"] = {}
   globalParameters["ArchCaps"] = {}
 
