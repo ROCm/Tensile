@@ -3610,7 +3610,7 @@ class Solution(collections.abc.Mapping):
     bytesPerLoadElem = state["ProblemType"]["DataType"].numBytes()
     ratio = bytesPerComElem / bytesPerLoadElem
 
-    ldsNumElementsReduction = ratio*state["LocalSplitU"]*state["MacroTile0"]*state["MacroTile1"] if state["LocalSplitU"] > 1 else 0
+    ldsNumElementsReduction = (int)ratio*state["LocalSplitU"]*state["MacroTile0"]*state["MacroTile1"] if state["LocalSplitU"] > 1 else 0
 
     # lds max occupancy
     ldsSizeOccupancy = globalParameters["DeviceLDS"] // state["MaxOccupancy"]
