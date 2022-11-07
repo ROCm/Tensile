@@ -2047,7 +2047,9 @@ def assignGlobalParameters( config ):
       globalParameters["CurrentISA"] = (9,0,6)
       printWarning("Failed to detect ISA so forcing (gfx906) on windows")
 
-  globalParameters["IgnoreAsmCapCache"] = config["IgnoreAsmCapCache"]
+  if "IgnoreAsmCapCache" in config:
+    globalParameters["IgnoreAsmCapCache"] = config["IgnoreAsmCapCache"]
+    
   globalParameters["AsmCaps"] = {}
   globalParameters["ArchCaps"] = {}
 
