@@ -3608,9 +3608,9 @@ class Solution(collections.abc.Mapping):
     # lds buffer size for reduction
     bytesPerComElem = state["ProblemType"]["ComputeDataType"].numBytes()
     bytesPerLoadElem = state["ProblemType"]["DataType"].numBytes()
-    ratio = bytesPerComElem // bytesPerLoadElem
+    multiplier = bytesPerComElem // bytesPerLoadElem
 
-    ldsNumElementsReduction = ratio*state["LocalSplitU"]*state["MacroTile0"]*state["MacroTile1"] if state["LocalSplitU"] > 1 else 0
+    ldsNumElementsReduction = multiplier*state["LocalSplitU"]*state["MacroTile0"]*state["MacroTile1"] if state["LocalSplitU"] > 1 else 0
 
     # lds max occupancy
     ldsSizeOccupancy = globalParameters["DeviceLDS"] // state["MaxOccupancy"]
