@@ -305,9 +305,9 @@ namespace Tensile
 
         /// Debugging purposes.  Shouldn't contain any vital information that isn't
         /// somewhere else.
-        std::map<std::string, std::string> info;
-        std::map<int, double>              ideals;
-        LinearModel                        linearModel;
+        int32_t               libraryLogicIndex = -1;
+        std::map<int, double> ideals;
+        LinearModel           linearModel;
 
         int32_t staggerUIter(Problem const&  problem,
                              Inputs const&   inputs,

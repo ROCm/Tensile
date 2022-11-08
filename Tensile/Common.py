@@ -278,6 +278,23 @@ architectureMap = {
   'gfx1100':'navi31', 'gfx1101':'navi32', 'gfx1102':'navi33'
 }
 
+CACHED_ASM_CAPS = {
+  (8, 0, 3): {'SupportedISA': True, 'HasExplicitCO': False, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': False, 'HasLshlOr': False, 'HasSMulHi': False, 'HasCodeObjectV3': True, 'HasMFMA': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_1k': False, 'v_mac_f16': True, 'v_fma_f16': False, 'v_fmac_f16': False, 'v_pk_fma_f16': False, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': False, 'v_dot2_f32_f16': False, 'v_dot2c_f32_f16': False, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': False, 'v_fma_f64': True, 'HasAtomicAdd': False, 'MaxVmcnt': 15, 'MaxLgkmcnt': 15, 'SupportedSource': True},
+  (9, 0, 0): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasCodeObjectV3': True, 'HasMFMA': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_1k': False, 'v_mac_f16': True, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': True, 'v_fma_mix_f32': False, 'v_dot2_f32_f16': False, 'v_dot2c_f32_f16': False, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': False, 'v_fma_f64': True, 'HasAtomicAdd': False, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
+  (9, 0, 6): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasCodeObjectV3': True, 'HasMFMA': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_1k': False, 'v_mac_f16': True, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': False, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': False, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
+  (9, 0, 8): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasCodeObjectV3': True, 'HasMFMA': True, 'HasMFMA_f64': False, 'HasMFMA_bf16_1k': False, 'v_mac_f16': True, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
+  (9, 0, 10): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasCodeObjectV3': True, 'HasMFMA': True, 'HasMFMA_f64': True, 'HasMFMA_bf16_1k': True, 'v_mac_f16': True, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
+  (10, 1, 0): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasCodeObjectV3': True, 'HasMFMA': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_1k': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': False, 'v_dot2c_f32_f16': False, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': False, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
+  (10, 1, 1): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasCodeObjectV3': True, 'HasMFMA': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_1k': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': False, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
+  (10, 1, 2): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasCodeObjectV3': True, 'HasMFMA': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_1k': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': True, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': False, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
+  (10, 3, 0): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasCodeObjectV3': True, 'HasMFMA': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_1k': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': False, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
+  (10, 3, 1): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': True, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasCodeObjectV3': True, 'HasMFMA': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_1k': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': True, 'VOP3v_dot4_i32_i8': True, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': False, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
+  (11, 0, 0): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': False, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasCodeObjectV3': True, 'HasMFMA': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_1k': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
+  (11, 0, 1): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': False, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasCodeObjectV3': True, 'HasMFMA': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_1k': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
+  (11, 0, 2): {'SupportedISA': True, 'HasExplicitCO': True, 'HasExplicitNC': True, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': False, 'HasAddLshl': True, 'HasLshlOr': True, 'HasSMulHi': True, 'HasCodeObjectV3': True, 'HasMFMA': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_1k': False, 'v_mac_f16': False, 'v_fma_f16': True, 'v_fmac_f16': False, 'v_pk_fma_f16': True, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': True, 'v_dot2_f32_f16': True, 'v_dot2c_f32_f16': True, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': False, 'v_fma_f32': True, 'v_fmac_f32': True, 'v_fma_f64': True, 'HasAtomicAdd': True, 'MaxVmcnt': 63, 'MaxLgkmcnt': 15, 'SupportedSource': True},
+  (0, 0, 0): {'SupportedISA': False, 'HasExplicitCO': False, 'HasExplicitNC': False, 'HasDirectToLdsDest': False, 'HasDirectToLdsNoDest': False, 'HasAddLshl': False, 'HasLshlOr': False, 'HasSMulHi': False, 'HasCodeObjectV3': False, 'HasMFMA': False, 'HasMFMA_f64': False, 'HasMFMA_bf16_1k': False, 'v_mac_f16': False, 'v_fma_f16': False, 'v_fmac_f16': False, 'v_pk_fma_f16': False, 'v_pk_fmac_f16': False, 'v_mad_mix_f32': False, 'v_fma_mix_f32': False, 'v_dot2_f32_f16': False, 'v_dot2c_f32_f16': False, 'v_dot4_i32_i8': False, 'v_dot4c_i32_i8': False, 'VOP3v_dot4_i32_i8': False, 'v_mac_f32': False, 'v_fma_f32': False, 'v_fmac_f32': False, 'v_fma_f64': False, 'HasAtomicAdd': False, 'MaxVmcnt': 0, 'MaxLgkmcnt': 15, 'SupportedSource': True},
+}
+
 def getArchitectureName(gfxName):
   if gfxName in architectureMap:
     return architectureMap[gfxName]
@@ -1720,67 +1737,76 @@ def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
 
 def GetAsmCaps(isaVersion):
   """ Determine assembler capabilities by testing short instructions sequences """
-  rv = {}
-  rv["SupportedISA"]          = tryAssembler(isaVersion, "")
-  rv["HasExplicitCO"]         = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,1")
-  rv["HasExplicitNC"]         = tryAssembler(isaVersion, "v_add_nc_u32 v0,v0,1")
+  if globalParameters["AssemblerPath"] is not None:
 
-  # Syntax of DirectToLds loads has changed: destination vgpr should be omitted
-  # Old syntax should be removed in a future update as it is no longer supported
-  rv["HasDirectToLdsDest"]    = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds") \
-                                or tryAssembler(isaVersion, "buffer_load_b32 v40, v36, s[24:27], s28 offen offset:0 lds")
-  rv["HasDirectToLdsNoDest"]  = tryAssembler(isaVersion, "buffer_load_dword v36, s[24:27], s28 offen offset:0 lds") \
-                                or tryAssembler(isaVersion, "buffer_load_b32 v36, s[24:27], s28 offen offset:0 lds")
+    derivedAsmCaps = {}
+    derivedAsmCaps["SupportedISA"]          = tryAssembler(isaVersion, "")
+    derivedAsmCaps["HasExplicitCO"]         = tryAssembler(isaVersion, "v_add_co_u32 v0,vcc,v0,1")
+    derivedAsmCaps["HasExplicitNC"]         = tryAssembler(isaVersion, "v_add_nc_u32 v0,v0,1")
 
-  rv["HasAddLshl"]            = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
-  rv["HasLshlOr"]             = tryAssembler(isaVersion, "v_lshl_or_b32 v47, v36, 0x2, v34")
-  rv["HasSMulHi"]             = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
+    # Syntax of DirectToLds loads has changed: destination vgpr should be omitted
+    # Old syntax should be removed in a future update as it is no longer supported
+    derivedAsmCaps["HasDirectToLdsDest"]    = tryAssembler(isaVersion, "buffer_load_dword v40, v36, s[24:27], s28 offen offset:0 lds") \
+                                  or tryAssembler(isaVersion, "buffer_load_b32 v40, v36, s[24:27], s28 offen offset:0 lds")
+    derivedAsmCaps["HasDirectToLdsNoDest"]  = tryAssembler(isaVersion, "buffer_load_dword v36, s[24:27], s28 offen offset:0 lds") \
+                                  or tryAssembler(isaVersion, "buffer_load_b32 v36, s[24:27], s28 offen offset:0 lds")
 
-  rv["HasMFMA"]               = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
-  rv["HasMFMA_f64"]           = tryAssembler(isaVersion, "v_mfma_f64_16x16x4f64 v[0:7], v[32:33], v[36:37], v[0:7]")
-  rv["HasMFMA_bf16_1k"]       = tryAssembler(isaVersion, "v_mfma_f32_32x32x4bf16_1k a[0:31], v[32:33], v[36:37], a[0:31]")
+    derivedAsmCaps["HasAddLshl"]            = tryAssembler(isaVersion, "v_add_lshl_u32 v47, v36, v34, 0x2")
+    derivedAsmCaps["HasLshlOr"]             = tryAssembler(isaVersion, "v_lshl_or_b32 v47, v36, 0x2, v34")
+    derivedAsmCaps["HasSMulHi"]             = tryAssembler(isaVersion, "s_mul_hi_u32 s47, s36, s34")
+    derivedAsmCaps["HasCodeObjectV3"]       = tryAssembler(isaVersion, "", False, "-mcode-object-version=2")
 
-  rv["v_mac_f16"]             = tryAssembler(isaVersion, "v_mac_f16 v47, v36, v34")
+    derivedAsmCaps["HasMFMA"]               = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
+    derivedAsmCaps["HasMFMA_f64"]           = tryAssembler(isaVersion, "v_mfma_f64_16x16x4f64 v[0:7], v[32:33], v[36:37], v[0:7]")
+    derivedAsmCaps["HasMFMA_bf16_1k"]       = tryAssembler(isaVersion, "v_mfma_f32_32x32x4bf16_1k a[0:31], v[32:33], v[36:37], a[0:31]")
 
-  rv["v_fma_f16"]             = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
-  rv["v_fmac_f16"]            = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34")
+    derivedAsmCaps["v_mac_f16"]             = tryAssembler(isaVersion, "v_mac_f16 v47, v36, v34")
 
-  rv["v_pk_fma_f16"]          = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0]")
-  rv["v_pk_fmac_f16"]         = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34")
+    derivedAsmCaps["v_fma_f16"]             = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0,0]")
+    derivedAsmCaps["v_fmac_f16"]            = tryAssembler(isaVersion, "v_fma_f16 v47, v36, v34")
 
-  rv["v_mad_mix_f32"]         = tryAssembler(isaVersion, "v_mad_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
-  rv["v_fma_mix_f32"]         = tryAssembler(isaVersion, "v_fma_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
+    derivedAsmCaps["v_pk_fma_f16"]          = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34, v47, op_sel:[0,0,0]")
+    derivedAsmCaps["v_pk_fmac_f16"]         = tryAssembler(isaVersion, "v_pk_fma_f16 v47, v36, v34")
 
-  rv["v_dot2_f32_f16"]        = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
-  rv["v_dot2c_f32_f16"]       = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34") \
-                                or tryAssembler(isaVersion, "v_dot2acc_f32_f16 v47, v36, v34")
+    derivedAsmCaps["v_mad_mix_f32"]         = tryAssembler(isaVersion, "v_mad_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
+    derivedAsmCaps["v_fma_mix_f32"]         = tryAssembler(isaVersion, "v_fma_mix_f32 v47, v36, v34, v47, op_sel:[0,0,0] op_sel_hi:[1,1,0]")
 
-  rv["v_dot4_i32_i8"]         = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34")
-  rv["v_dot4c_i32_i8"]        = tryAssembler(isaVersion, "v_dot4c_i32_i8 v47, v36, v34")
-  rv["VOP3v_dot4_i32_i8"]     = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34, v47")
+    derivedAsmCaps["v_dot2_f32_f16"]        = tryAssembler(isaVersion, "v_dot2_f32_f16 v20, v36, v34, v20")
+    derivedAsmCaps["v_dot2c_f32_f16"]       = tryAssembler(isaVersion, "v_dot2c_f32_f16 v47, v36, v34") \
+                                  or tryAssembler(isaVersion, "v_dot2acc_f32_f16 v47, v36, v34")
 
-  rv["v_mac_f32"]             = tryAssembler(isaVersion, "v_mac_f32 v20, v21, v22")
-  rv["v_fma_f32"]             = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")
-  rv["v_fmac_f32"]            = tryAssembler(isaVersion, "v_fmac_f32 v20, v21, v22")
+    derivedAsmCaps["v_dot4_i32_i8"]         = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34")
+    derivedAsmCaps["v_dot4c_i32_i8"]        = tryAssembler(isaVersion, "v_dot4c_i32_i8 v47, v36, v34")
+    derivedAsmCaps["VOP3v_dot4_i32_i8"]     = tryAssembler(isaVersion, "v_dot4_i32_i8 v47, v36, v34, v47")
 
-  rv["v_fma_f64"]             = tryAssembler(isaVersion, "v_fma_f64 v[20:21], v[22:23], v[24:25], v[20:21]")
+    derivedAsmCaps["v_mac_f32"]             = tryAssembler(isaVersion, "v_mac_f32 v20, v21, v22")
+    derivedAsmCaps["v_fma_f32"]             = tryAssembler(isaVersion, "v_fma_f32 v20, v21, v22, v23")
+    derivedAsmCaps["v_fmac_f32"]            = tryAssembler(isaVersion, "v_fmac_f32 v20, v21, v22")
 
-  rv["HasAtomicAdd"]          = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
+    derivedAsmCaps["v_fma_f64"]             = tryAssembler(isaVersion, "v_fma_f64 v[20:21], v[22:23], v[24:25], v[20:21]")
+
+    derivedAsmCaps["HasAtomicAdd"]          = tryAssembler(isaVersion, "buffer_atomic_add_f32 v0, v1, s[0:3], 0 offen offset:0")
 
 
-  if tryAssembler(isaVersion, "s_waitcnt vmcnt(63)"):
-    rv["MaxVmcnt"] = 63
-  elif tryAssembler(isaVersion, "s_waitcnt vmcnt(15)"):
-    rv["MaxVmcnt"] = 15
+    if tryAssembler(isaVersion, "s_waitcnt vmcnt(63)"):
+      derivedAsmCaps["MaxVmcnt"] = 63
+    elif tryAssembler(isaVersion, "s_waitcnt vmcnt(15)"):
+      derivedAsmCaps["MaxVmcnt"] = 15
+    else:
+      derivedAsmCaps["MaxVmcnt"] = 0
+
+    # TODO- Need to query the max cap, just like vmcnt as well?
+    derivedAsmCaps["MaxLgkmcnt"] = 15
+
+    derivedAsmCaps["SupportedSource"] = True
+
+    if derivedAsmCaps != CACHED_ASM_CAPS[isaVersion]:
+      printExit("Cached asm caps differ from derived asm caps")      
+
   else:
-    rv["MaxVmcnt"] = 0
+    printWarning("Assembler not present, asm caps loaded from cache are unverified")
 
-  # TODO- Need to query the max cap, just like vmcnt as well?
-  rv["MaxLgkmcnt"] = 15
-
-  rv["SupportedSource"] = True
-
-  return rv
+  return CACHED_ASM_CAPS[isaVersion]
 
 def GetArchCaps(isaVersion):
   rv = {}

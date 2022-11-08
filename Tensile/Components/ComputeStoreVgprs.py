@@ -144,8 +144,8 @@ class ComputeStoreVgprsMFMA(ComputeStoreVgprs):
 
         # writer.coord0
         # writer.coord1
-        # writer.cinRowPtr  : C buffer coulmn offset
-        # writer.coutRowPtr : D buffer coulmn offset
+        # writer.cinRowPtr  : C buffer column offset
+        # writer.coutRowPtr : D buffer column offset
 
         # alloc resources
         tid0 = writer.vgprPool.checkOut(1)
@@ -179,12 +179,13 @@ class ComputeStoreVgprsMFMA(ComputeStoreVgprs):
         kStr += vectorStaticRemainder(dummy, tmpVgpr0, "Serial", matrixInstN, tmpVgpr1, tmpSgpr)
         kStr += inst("_v_add_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), "coordination 1 = wave_id1 + tid1")
 
-        # coord 1 : offset part
-        packedC1 = kernel["PackedC1IndicesX"]
-        strideC1 = "StrideC%s" % (writer.indexChars[packedC1[0]])
-        strideD1 = "StrideD%s" % (writer.indexChars[packedC1[0]])
-        kStr += inst("v_mul_lo_u32", vgpr(writer.cinRowPtr), vgpr(tid1), sgpr(strideC1), " offset 1")
-        kStr += inst("v_mul_lo_u32", vgpr(writer.coutRowPtr), vgpr(tid1), sgpr(strideD1), " offset 1")
+        if kernel["BufferStore"]:
+          # coord 1 : offset part
+          packedC1 = kernel["PackedC1IndicesX"]
+          strideC1 = "StrideC%s" % (writer.indexChars[packedC1[0]])
+          strideD1 = "StrideD%s" % (writer.indexChars[packedC1[0]])
+          kStr += inst("v_mul_lo_u32", vgpr(writer.cinRowPtr), vgpr(tid1), sgpr(strideC1), " offset 1")
+          kStr += inst("v_mul_lo_u32", vgpr(writer.coutRowPtr), vgpr(tid1), sgpr(strideD1), " offset 1")
 
         # coord 0 : wave part
         kStr += vectorStaticRemainder(dummy, tmpVgpr0, wave_id, kernel["MIWaveGroup"][0], tmpVgpr1, tmpSgpr)
@@ -248,8 +249,8 @@ class ComputeStoreVgprsMFMASwap(ComputeStoreVgprs):
 
         # writer.coord0
         # writer.coord1
-        # writer.cinRowPtr  : C buffer coulmn offset
-        # writer.coutRowPtr : D buffer coulmn offset
+        # writer.cinRowPtr  : C buffer column offset
+        # writer.coutRowPtr : D buffer column offset
 
         # alloc resources
         tid0 = writer.vgprPool.checkOut(1)
@@ -288,12 +289,13 @@ class ComputeStoreVgprsMFMASwap(ComputeStoreVgprs):
         if (writer.allowLRVWBforTLUandMI or kernel["DirectToVgprB"]) and writer.lrvwB > 1:
           kStr += staticMultiply(vgpr(tid1), vgpr(tid1), writer.lrvwB, sgpr(tmpSgpr), "coordination 1 *= lrvwB")
 
-        # coord 1 : offset part
-        packedC1 = kernel["PackedC1IndicesX"]
-        strideC1 = "StrideC%s" % (writer.indexChars[packedC1[0]])
-        strideD1 = "StrideD%s" % (writer.indexChars[packedC1[0]])
-        kStr += inst("v_mul_lo_u32", vgpr(writer.cinRowPtr), vgpr(tid1), sgpr(strideC1), " offset 1")
-        kStr += inst("v_mul_lo_u32", vgpr(writer.coutRowPtr), vgpr(tid1), sgpr(strideD1), " offset 1")
+        if kernel["BufferStore"]:
+          # coord 1 : offset part
+          packedC1 = kernel["PackedC1IndicesX"]
+          strideC1 = "StrideC%s" % (writer.indexChars[packedC1[0]])
+          strideD1 = "StrideD%s" % (writer.indexChars[packedC1[0]])
+          kStr += inst("v_mul_lo_u32", vgpr(writer.cinRowPtr), vgpr(tid1), sgpr(strideC1), " offset 1")
+          kStr += inst("v_mul_lo_u32", vgpr(writer.coutRowPtr), vgpr(tid1), sgpr(strideD1), " offset 1")
 
         # coord 0 : wave part
         kStr += vectorStaticRemainder(dummy, tid0, wave_id, kernel["MIWaveGroup"][0], tmpVgpr1, tmpSgpr)

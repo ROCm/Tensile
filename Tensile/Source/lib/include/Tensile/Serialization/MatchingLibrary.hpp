@@ -29,6 +29,7 @@
 #include <Tensile/Debug.hpp>
 #include <Tensile/Distance.hpp>
 #include <Tensile/MatchingLibrary.hpp>
+#include <Tensile/SingleSolutionLibrary.hpp>
 
 #include <cstddef>
 #include <unordered_set>
@@ -217,9 +218,43 @@ namespace Tensile
 
             static void mapping(IO& io, Entry& entry)
             {
+                int32_t index = -1;
                 iot::mapRequired(io, "key", entry.key);
-                iot::mapRequired(io, "value", entry.value);
-                iot::mapRequired(io, "speed", entry.speed);
+                iot::mapOptional(io, "speed", entry.speed);
+                iot::mapOptional(io, "index", index);
+
+                // TODO there is probably a way to make this properly general
+                if(index != -1)
+                {
+                    using SSLibrary
+                        = SingleSolutionLibrary<ContractionProblem, ContractionSolution>;
+
+                    auto ctx
+                        = static_cast<LibraryIOContext<ContractionSolution>*>(iot::getContext(io));
+                    if(ctx == nullptr || ctx->solutions == nullptr)
+                    {
+                        iot::setError(io,
+                                      "SingleSolutionLibrary requires that context be set to "
+                                      "a SolutionMap.");
+                    }
+
+                    auto iter = ctx->solutions->find(index);
+                    if(iter == ctx->solutions->end())
+                    {
+                        std::ostringstream msg;
+                        msg << "Invalid solution index: " << index;
+                        iot::setError(io, msg.str());
+                    }
+                    else
+                    {
+                        std::shared_ptr<ContractionSolution> solution = iter->second;
+                        entry.value = std::make_shared<SSLibrary>(solution);
+                    }
+                }
+                else
+                {
+                    iot::mapRequired(io, "value", entry.value);
+                }
             }
 
             const static bool flow = true;
