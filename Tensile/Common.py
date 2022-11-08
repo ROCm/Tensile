@@ -264,6 +264,8 @@ globalParameters["SeparateArchitectures"] = False # write Tensile library metada
 
 globalParameters["LazyLibraryLoading"] = False # Load library and code object files when needed instead of at startup
 
+globalParameters["IgnoreAsmCapCache"] = False # Ignore checking for discrepancies between derived and cached asm caps
+
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 
@@ -1800,13 +1802,23 @@ def GetAsmCaps(isaVersion):
 
     derivedAsmCaps["SupportedSource"] = True
 
-    if derivedAsmCaps != CACHED_ASM_CAPS[isaVersion]:
-      printExit("Cached asm caps differ from derived asm caps")      
+    ignoreCacheCheck = globalParameters["IgnoreAsmCapCache"]
 
+    # disable cache checking for < rocm 5.3
+    compilerVer = globalParameters['HipClangVersion'].split(".")[:2]
+    compilerVer = [int(c) for c in compilerVer]
+    if len(compilerVer) >= 2:
+      ignoreCacheCheck = ignoreCacheCheck or \
+                         compilerVer[0] < 5 or \
+                         (compilerVer[0] == 5 and compilerVer[1] <= 2) 
+
+    # check if derived caps matches asm cap cache
+    if not ignoreCacheCheck and derivedAsmCaps != CACHED_ASM_CAPS[isaVersion]:
+      printExit("Cached asm caps differ from derived asm caps")      
+    return derivedAsmCaps
   else:
     printWarning("Assembler not present, asm caps loaded from cache are unverified")
-
-  return CACHED_ASM_CAPS[isaVersion]
+    return CACHED_ASM_CAPS[isaVersion]
 
 def GetArchCaps(isaVersion):
   rv = {}
@@ -2045,25 +2057,6 @@ def assignGlobalParameters( config ):
       globalParameters["CurrentISA"] = (9,0,6)
       printWarning("Failed to detect ISA so forcing (gfx906) on windows")
 
-  globalParameters["AsmCaps"] = {}
-  globalParameters["ArchCaps"] = {}
-
-  for v in globalParameters["SupportedISA"] + [(0,0,0)]:
-    globalParameters["AsmCaps"][v] = GetAsmCaps(v)
-    globalParameters["ArchCaps"][v] = GetArchCaps(v)
-
-  if globalParameters["PrintLevel"] >= 1:
-    printCapTable(globalParameters)
-
-  globalParameters["SupportedISA"] = list([i for i in globalParameters["SupportedISA"] if globalParameters["AsmCaps"][i]["SupportedISA"]])
-
-  validParameters["ISA"] = [(0,0,0), *globalParameters["SupportedISA"]]
-
-  if "MergeFiles" in config and "NumMergedFiles" in config:
-    if not config["MergeFiles"] and config["NumMergedFiles"] > 1:
-      config["NumMergedFiles"] = 1
-      printWarning("--num-merged-files and --no-merge-files specified, ignoring --num-merged-files")
-
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
   # '0.0.0' will persist
@@ -2086,6 +2079,28 @@ def assignGlobalParameters( config ):
 
   except (subprocess.CalledProcessError, OSError) as e:
       printWarning("Error: {} running {} {} ".format('hipcc', '--version',  e))
+
+  if "IgnoreAsmCapCache" in config:
+    globalParameters["IgnoreAsmCapCache"] = config["IgnoreAsmCapCache"]
+    
+  globalParameters["AsmCaps"] = {}
+  globalParameters["ArchCaps"] = {}
+
+  for v in globalParameters["SupportedISA"] + [(0,0,0)]:
+    globalParameters["AsmCaps"][v] = GetAsmCaps(v)
+    globalParameters["ArchCaps"][v] = GetArchCaps(v)
+
+  if globalParameters["PrintLevel"] >= 1:
+    printCapTable(globalParameters)
+
+  globalParameters["SupportedISA"] = list([i for i in globalParameters["SupportedISA"] if globalParameters["AsmCaps"][i]["SupportedISA"]])
+
+  validParameters["ISA"] = [(0,0,0), *globalParameters["SupportedISA"]]
+
+  if "MergeFiles" in config and "NumMergedFiles" in config:
+    if not config["MergeFiles"] and config["NumMergedFiles"] > 1:
+      config["NumMergedFiles"] = 1
+      printWarning("--num-merged-files and --no-merge-files specified, ignoring --num-merged-files")
 
   for key in config:
     value = config[key]
