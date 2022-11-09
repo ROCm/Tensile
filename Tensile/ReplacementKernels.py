@@ -34,7 +34,7 @@ class ReplacementKernels:
 
     @property
     def marker(self):
-        return '.amdgpu_hsa_kernel'
+        return '.amdhsa_kernel'
 
     def getKernelName(self, filename):
         marker = self.marker
@@ -80,7 +80,7 @@ class ReplacementKernels:
     @classmethod
     def Directory(cls):
         scriptDir = os.path.dirname(os.path.realpath(__file__))
-        dirName = 'ReplacementKernels'
+        dirName = 'ReplacementKernels-cov3'
 
         return os.path.join(scriptDir, dirName)
 
