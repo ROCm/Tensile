@@ -5995,7 +5995,7 @@ class KernelWriterAssembly(KernelWriter):
           # No exit case, no code is necessary except for final Loop
 
           # decrement by loopCopies if PGR=2 and StaggerU == 0, else 1
-          oneLoop = loopIdx==0 and finalLoop
+          oneLoop = loopIdx==0 and finalLoop and (not kernel["ExpandPointerSwap"])
           decValue = loopCopies if kernel["PrefetchGlobalRead"]==2 and kernel["StaggerU"] == 0 else 1
           decCode = inst("s_sub_u32", \
               loopCounter, loopCounter, \
