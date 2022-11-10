@@ -90,11 +90,13 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         kStr += "%slr%s%s%s" \
                 % (writer.commentPrefix, tP["tileChar"], writer.commentSuffix, writer.endLine)
 
+        isMfma = writer.asmCaps["HasMFMA"]
+
         # get constant parameter
         tc               = tP["tensorChar"]
         umlds            = kernel["UnrollMajorLDS%s" % tc]
+
         # alloc vgpr
-        wReg    = writer.vgprPool.checkOut(1,"wReg") # quotient
         tReg    = writer.vgprPool.checkOut(1,"tReg") # remainder
         kReg    = writer.vgprPool.checkOut(1,"kReg") # remainder
         dtlTsgr = kernel["DirectToLds"] and kernel["ThreadSeparateGlobalRead%c"%tc] and umlds
@@ -173,57 +175,59 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         if num1DBlocks > 1:
             # generate the code only when num1DBlocks > 1.
             # if num1DBlocks is 1, % num1DBlocks is always 0 and no difference in tReg value
-            kStr += vectorStaticDivide(wReg, kReg, dividedForBlkId, tmpVgpr, tmpSgpr, \
+            kStr += vectorStaticDivide(kReg, kReg, dividedForBlkId, tmpVgpr, tmpSgpr, \
                 "2. block offset: bnIdx = wtid / dividedForBlkId(%u)" % dividedForBlkId)
-            kStr += vectorStaticRemainder(dummy, wReg, wReg, num1DBlocks, tmpVgpr, tmpSgpr, \
+            kStr += vectorStaticRemainder(dummy, kReg, kReg, num1DBlocks, tmpVgpr, tmpSgpr, \
                 "2. block offset: bnIdx = bnIdx %% num1DBlocks(%u)" % num1DBlocks)
-            kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideBlock, sgpr(tmpSgpr), \
+            kStr += staticMultiply(vgpr(kReg), vgpr(kReg), strideBlock, sgpr(tmpSgpr), \
                 "2. block offset: bnOffset = bnIdx * strideBlock(%u)" % strideBlock)
-            kStr += inst("_v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
+            kStr += inst("_v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
                 "3. add N and block offset: bnOffset = block and N offset")
         else:
             # comment only because bnIdx = bnIdx % num1DBlocks(1) = 0
             kStr += instCommentOnly("2. block offset: bnIdx = bnIdx %% num1DBlocks(%u) is 0. do nothing" % num1DBlocks)
         kStr += staticMultiply(vgpr(tReg), vgpr(tReg), vectorWidth, sgpr(tmpSgpr), \
-            "3. apply VectorWidth: bnOffset = bnOffset * vw(%u)" % vectorWidth)
+            "4. apply VectorWidth: bnOffset = bnOffset * vw(%u)" % vectorWidth)
 
         # unroll offset
-        kStr += vectorStaticDivide(kReg, kReg, dividendForKId, tmpVgpr, tmpSgpr, \
-            "4. K offset: kIdx = wtid / (MIN(%u) * MIBB(%u))" % (kernel["MatrixInstN"], kernel["MatrixInstB"]))
-        if dtlTsgr:
-          # ThreadSeparateGlobalRead + DirectToLds case
-          # kIdx_lower = (kIdx % KelementsPerMFrag) + (kIdx // KelementsPerMFrag) * (KelementsPerMFrag * NblockSizePerLoad)
-          # Here, KelementsPerMFrag needs to be divided by inputPerThread.
-          # inputPerThread will be multiplied later
-          KelementsPerMFrag //= inputPerThread
-          kStr += vectorStaticRemainder(dummy, mReg, kReg, KelementsPerMFrag, tmpVgpr, tmpSgpr, \
-              "4. K offset: kIdx_lower = kIdx %% KelementsPerMFrag(%u)" % (KelementsPerMFrag))
-          kStr += vectorStaticDivide(kReg, kReg, KelementsPerMFrag, tmpVgpr, tmpSgpr, \
-              "4. K offset: kIdx_higher = kIdx / KelementsPerMFrag(%u)" % (KelementsPerMFrag))
-          kStr += staticMultiply(vgpr(kReg), vgpr(kReg), (KelementsPerMFrag * NblockSizePerLoad * vectorWidth), sgpr(tmpSgpr), \
-              "4. K offset: kIdx_higher = kIdx_higher * mStride(%u)" % (KelementsPerMFrag * NblockSizePerLoad * vectorWidth))
-          kStr += inst("_v_add_u32", vgpr(kReg), vgpr(kReg), vgpr(mReg), \
-              "4. K offset: kIdx = kIdx_lower + kIdx_higher")
-        kStr += staticMultiply(vgpr(kReg), vgpr(kReg), strideK, sgpr(tmpSgpr), \
-            "4. K offset: lrKOffset = kIdx * mStride(%u)" % strideK)
+        if isMfma and (dividendForKId != waveWidth):
+            kStr += vectorStaticRemainder(dummy, kReg, "Serial", waveWidth, tmpVgpr, tmpSgpr, \
+                "5. thread id in wave: wtid = tid %% wavelength(%u)" % waveWidth)
+            kStr += vectorStaticDivide(kReg, kReg, dividendForKId, tmpVgpr, tmpSgpr, \
+                "5. K offset: kIdx = wtid / (MIN(%u) * MIBB(%u))" % (kernel["MatrixInstN"], kernel["MatrixInstB"]))
+            if dtlTsgr:
+              # ThreadSeparateGlobalRead + DirectToLds case
+              # kIdx_lower = (kIdx % KelementsPerMFrag) + (kIdx // KelementsPerMFrag) * (KelementsPerMFrag * NblockSizePerLoad)
+              # Here, KelementsPerMFrag needs to be divided by inputPerThread.
+              # inputPerThread will be multiplied later
+              KelementsPerMFrag //= inputPerThread
+              kStr += vectorStaticRemainder(dummy, mReg, kReg, KelementsPerMFrag, tmpVgpr, tmpSgpr, \
+                  "5. K offset: kIdx_lower = kIdx %% KelementsPerMFrag(%u)" % (KelementsPerMFrag))
+              kStr += vectorStaticDivide(kReg, kReg, KelementsPerMFrag, tmpVgpr, tmpSgpr, \
+                  "5. K offset: kIdx_higher = kIdx / KelementsPerMFrag(%u)" % (KelementsPerMFrag))
+              kStr += staticMultiply(vgpr(kReg), vgpr(kReg), (KelementsPerMFrag * NblockSizePerLoad * vectorWidth), sgpr(tmpSgpr), \
+                  "5. K offset: kIdx_higher = kIdx_higher * mStride(%u)" % (KelementsPerMFrag * NblockSizePerLoad * vectorWidth))
+              kStr += inst("_v_add_u32", vgpr(kReg), vgpr(kReg), vgpr(mReg), \
+                  "5. K offset: kIdx = kIdx_lower + kIdx_higher")
+            kStr += staticMultiply(vgpr(kReg), vgpr(kReg), strideK, sgpr(tmpSgpr), \
+                "5. K offset: lrKOffset = kIdx * mStride(%u)" % strideK)
 
-        kStr += inst("_v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
-            "5. offset in wave: lrOffset = bnOffset + lrKOffset")
+            kStr += inst("_v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
+                "6. offset in wave: lrOffset = bnOffset + lrKOffset")
 
         # wave offset
         if num1DWaves > 1:
-            kStr += vectorStaticDivide(wReg, "Serial", dividedForWaveId, tmpVgpr, tmpSgpr, \
-                "6. wave offset in N dimen: wtid = tid / dividedForWaveId(%u)" % dividedForWaveId)
-            kStr += vectorStaticRemainder(dummy, wReg, wReg, num1DWaves, tmpVgpr, tmpSgpr, \
-                "6. wave offset in M dimen: wtid0 = wtid / num1DWaves(%u)" % num1DWaves)
-            kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideWave, sgpr(tmpSgpr), \
-                "6. wave offset in M dimen: wOffset = wtid0 * W0Stride(%u)" % strideWave)
-            kStr += inst("_v_add_u32", vgpr(tReg), vgpr(wReg), vgpr(tReg), \
-                "7. final local read offset: flrOffset = lrOffset + WOffset")
+            kStr += vectorStaticDivide(kReg, "Serial", dividedForWaveId, tmpVgpr, tmpSgpr, \
+                "7. wave offset in N dimen: wtid = tid / dividedForWaveId(%u)" % dividedForWaveId)
+            kStr += vectorStaticRemainder(dummy, kReg, kReg, num1DWaves, tmpVgpr, tmpSgpr, \
+                "7. wave offset in M dimen: wtid0 = wtid / num1DWaves(%u)" % num1DWaves)
+            kStr += staticMultiply(vgpr(kReg), vgpr(kReg), strideWave, sgpr(tmpSgpr), \
+                "7. wave offset in M dimen: wOffset = wtid0 * W0Stride(%u)" % strideWave)
+            kStr += inst("_v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
+                "8. final local read offset: flrOffset = lrOffset + WOffset")
 
         # release register
         tP["gpr"]["lro"] = tReg
-        writer.vgprPool.checkIn(wReg)
         writer.vgprPool.checkIn(kReg)
         if dtlTsgr:
           writer.vgprPool.checkIn(mReg)

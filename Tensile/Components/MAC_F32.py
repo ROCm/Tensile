@@ -67,9 +67,9 @@ class MAC_F32_Plain(MAC):
         priority = Component.Priority.find(writer)
         macIdx = 0
 
-        for idx1 in range(0, kernel["ThreadTile1"]):
-            for idx0 in range(0, kernel["ThreadTile0"]):
-                for iui in range(0, innerUnroll):
+        for iui in range(0, innerUnroll):
+            for idx1 in range(0, kernel["ThreadTile1"]):
+                for idx0 in range(0, kernel["ThreadTile0"]):
                     vars["idx0"] = idx0
                     vars["idx1"] = idx1
                     vars["a"] = idx0 if writer.tPB["tile01Idx"] else idx1

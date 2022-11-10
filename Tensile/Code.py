@@ -323,17 +323,18 @@ class WaitCnt (Module):
     main_args = []
     wait_store = False
     if self.lgkmcnt != -1:
-      currentIsa = globalParameters["CurrentISA"]
-      maxLgkmcnt = globalParameters["AsmCaps"][currentIsa]["MaxLgkmcnt"]
+      currentIsa    = globalParameters["CurrentISA"]
+      maxLgkmcnt    = globalParameters["AsmCaps"][currentIsa]["MaxLgkmcnt"]
+      seperateVscnt = globalParameters["ArchCaps"][currentIsa]["SeparateVscnt"]
+      wait_store    = True
       main_args += ["lgkmcnt(%u)" % (min(self.lgkmcnt,maxLgkmcnt))]
-      wait_store = True
 
     if self.vmcnt != -1:
       main_args += ["vmcnt(%u)" % self.vmcnt]
 
     if len(main_args) > 0:
       rv.addInst("s_waitcnt", *main_args, self.comment)
-      if wait_store and self.version[0] == 10 and self.vmcnt != -1:
+      if wait_store and seperateVscnt and self.vmcnt != -1:
         rv.addInst("s_waitcnt_vscnt", "null", self.vmcnt, "writes")
     else:
       rv.addComment0(self.comment)
