@@ -2755,7 +2755,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localSplitULocalWrite(self, kernel):
     kStr = ""
-    kStr += "  %sDATA_TYPE *localLocalSplitU = (%sDATA_TYPE *)(localMemory);%s" \
+    kStr += "  %sCOMPUTE_DATA_TYPE *localLocalSplitU = (%sCOMPUTE_DATA_TYPE *)(localMemory);%s" \
       % (self.sharedPtrStr, self.sharedPtrStr, self.endLine)
     for j in range(0, kernel["ThreadTile1"] // kernel["VectorWidth"]):
       for i in range(0, kernel["ThreadTile0"] // kernel["VectorWidth"]):

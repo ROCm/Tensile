@@ -934,7 +934,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # interleave pack code
       # BF16 or FP16: each packCode is for one 32-bit reg,  1 packing inst: half-to-single x1
       # INT8        : each packCode is for one 32-bit regs, 3 packing inst: byte-to-half x2 + half-to-single x1
-      instPerRegPack = 1 / kernel["ProblemType"]["DataType"].numRegisters() - 1
+      if self.archCaps["HasEccHalf"]:
+          instPerRegPack = 1 / kernel["ProblemType"]["DataType"].numRegisters() - 1
+      else:
+          instPerRegPack = 1 if (kernel["ProblemType"]["DataType"].numRegisters() == 0.25) else 0
       instPerPack    = int(kernel["MIInputPerThread"] * kernel["ProblemType"]["DataType"].numRegisters() * instPerRegPack)
       packItems = []
       for iui in range(kernel["InnerUnroll"]):
@@ -1085,7 +1088,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # BF16 or FP16: each packCode is for one 32-bit reg,  1 packing inst: half-to-single x1
       # INT8        : each packCode is for one 32-bit regs, 3 packing inst: byte-to-half x2 + half-to-single x1
       ####
-      instPerRegPack = 1 / kernel["ProblemType"]["DataType"].numRegisters() - 1
+      if self.archCaps["HasEccHalf"]:
+          instPerRegPack = 1 / kernel["ProblemType"]["DataType"].numRegisters() - 1
+      else:
+          instPerRegPack = 1 if (kernel["ProblemType"]["DataType"].numRegisters() == 0.25) else 0
       instPerPack    = int(kernel["MIInputPerThread"] * kernel["ProblemType"]["DataType"].numRegisters() * instPerRegPack)
       packItems = []
       for iui in range(kernel["InnerUnroll"]):

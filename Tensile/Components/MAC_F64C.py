@@ -39,17 +39,25 @@ class FMA_F64C_Plain(MAC):
         vars["m"] = m
         vars["ThreadTile0"] = kernel["ThreadTile0"]
 
-        for b in range(0, kernel["ThreadTile1"]):
-            vars["b"] = b
-            for a in range(0, kernel["ThreadTile0"]):
-                vars["a"] = a
-                for iui in range(0, innerUnroll):
+        for iui in range(0, innerUnroll):
+            for b in range(0, kernel["ThreadTile1"]):
+                for a in range(0, kernel["ThreadTile0"]):
+                    vars["b"] = b
+                    vars["a"] = a
                     vars["iui"] = iui
                     # c.real += a.real * b.real
                     vars["cStr"] = "v[vgprValuC+({a}+{b}*{ThreadTile0})*4+0:(vgprValuC+{a}+{b}*{ThreadTile0})*4+1]".format_map(vars)
                     vars["aStr"] = "v[vgprValuA_X{m}_I{iui}+{a}*4+0:vgprValuA_X{m}_I{iui}+{a}*4+1]".format_map(vars)
                     vars["bStr"] = "v[vgprValuB_X{m}_I{iui}+{b}*4+0:vgprValuB_X{m}_I{iui}+{b}*4+1]".format_map(vars)
                     kStr += "v_fma_f64 {cStr}, {aStr}, {bStr}, {cStr}{endLine}".format_map(vars)
+                    kStr += priority(writer, 1, "Raise priority while processing macs")
+
+        for iui in range(0, innerUnroll):
+            for b in range(0, kernel["ThreadTile1"]):
+                for a in range(0, kernel["ThreadTile0"]):
+                    vars["b"] = b
+                    vars["a"] = a
+                    vars["iui"] = iui
                     # c.real -= a.imag * b.imag
                     vars["cStr"] = "v[vgprValuC+({a}+{b}*{ThreadTile0})*4+0:(vgprValuC+{a}+{b}*{ThreadTile0})*4+1]".format_map(vars)
                     vars["aStr"] = "v[vgprValuA_X{m}_I{iui}+{a}*4+2:vgprValuA_X{m}_I{iui}+{a}*4+3]".format_map(vars)
@@ -57,20 +65,36 @@ class FMA_F64C_Plain(MAC):
                     vars["sign"] = "-" if (not kernel["ProblemType"]["ComplexConjugateA"] and not kernel["ProblemType"]["ComplexConjugateB"]) or \
                             (kernel["ProblemType"]["ComplexConjugateA"] and kernel["ProblemType"]["ComplexConjugateB"]) else ""
                     kStr += "v_fma_f64 {cStr}, {aStr}, {sign}{bStr}, {cStr}{endLine}".format_map(vars)
+                    kStr += priority(writer, 1, "Raise priority while processing macs")
+
+        for iui in range(0, innerUnroll):
+            for b in range(0, kernel["ThreadTile1"]):
+                for a in range(0, kernel["ThreadTile0"]):
+                    vars["b"] = b
+                    vars["a"] = a
+                    vars["iui"] = iui
                     # c.imag += a.real * b.imag
                     vars["cStr"] = "v[vgprValuC+({a}+{b}*{ThreadTile0})*4+2:(vgprValuC+{a}+{b}*{ThreadTile0})*4+3]".format_map(vars)
                     vars["aStr"] = "v[vgprValuA_X{m}_I{iui}+{a}*4+0:vgprValuA_X{m}_I{iui}+{a}*4+1]".format_map(vars)
                     vars["bStr"] = "v[vgprValuB_X{m}_I{iui}+{b}*4+2:vgprValuB_X{m}_I{iui}+{b}*4+3]".format_map(vars)
                     vars["sign"] = "-" if kernel["ProblemType"]["ComplexConjugateB"] else ""
                     kStr += "v_fma_f64 {cStr}, {aStr}, {sign}{bStr}, {cStr}{endLine}".format_map(vars)
+                    kStr += priority(writer, 1, "Raise priority while processing macs")
+
+        for iui in range(0, innerUnroll):
+            for b in range(0, kernel["ThreadTile1"]):
+                for a in range(0, kernel["ThreadTile0"]):
+                    vars["b"] = b
+                    vars["a"] = a
+                    vars["iui"] = iui
                     # c.imag += a.imag * b.real
                     vars["cStr"] = "v[vgprValuC+({a}+{b}*{ThreadTile0})*4+2:(vgprValuC+{a}+{b}*{ThreadTile0})*4+3]".format_map(vars)
                     vars["aStr"] = "v[vgprValuA_X{m}_I{iui}+{a}*4+2:vgprValuA_X{m}_I{iui}+{a}*4+3]".format_map(vars)
                     vars["bStr"] = "v[vgprValuB_X{m}_I{iui}+{b}*4+0:vgprValuB_X{m}_I{iui}+{b}*4+1]".format_map(vars)
                     vars["sign"] = "-" if kernel["ProblemType"]["ComplexConjugateA"] else ""
                     kStr += "v_fma_f64 {cStr}, {sign}{aStr}, {bStr}, {cStr}{endLine}".format_map(vars)
-
                     kStr += priority(writer, 1, "Raise priority while processing macs")
 
         kStr += priority(writer, 0, "Reset priority after macs")
+
         return kStr
