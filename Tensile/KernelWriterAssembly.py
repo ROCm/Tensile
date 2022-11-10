@@ -9030,7 +9030,7 @@ class KernelWriterAssembly(KernelWriter):
 
     # generate source
     kStr = ""
-    kStr += staticMultiply(vgpr(baseAddr), vgpr("Serial"), kernel["GlobalWriteVectorWidth"]*self.bpeAB, sgpr(tmpSgpr))
+    kStr += staticMultiply(vgpr(baseAddr), vgpr("Serial"), bytesPerVector, sgpr(tmpSgpr))
     # Load values for each subgroup
     for r in range(0, kernel["LocalSplitU"]):
       for i in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
@@ -9055,9 +9055,9 @@ class KernelWriterAssembly(KernelWriter):
   def localSplitUReduction(self, kernel):
     kStr = ""
 
-    is_non_hpa_fp16 = kernel["ProblemType"]["DataType"].isHalf() and (not kernel["ProblemType"]["HighPrecisionAccumulate"])
-    elementStep = 2 if is_non_hpa_fp16 else 1
-    regsPerElem = kernel["ProblemType"]["DataType"].numRegisters()
+    is_fp16 = kernel["ProblemType"]["ComputeDataType"].isHalf()
+    elementStep = 2 if is_fp16 else 1
+    regsPerElem = kernel["ProblemType"]["ComputeDataType"].numRegisters()
 
     for r in range(1, kernel["LocalSplitU"]):
       for i in range(0, kernel["NumGlobalWriteVectorsPerThread"]):
@@ -9065,31 +9065,30 @@ class KernelWriterAssembly(KernelWriter):
           cIdx = int((s + i * kernel["GlobalWriteVectorWidth"]) * regsPerElem)
           regIdx = int((s + i * kernel["GlobalWriteVectorWidth"] + r * kernel["GlobalWriteVectorWidth"] * kernel["NumGlobalWriteVectorsPerThread"]) * regsPerElem)
 
-          if is_non_hpa_fp16:
+          if is_fp16:
             kStr += inst("v_pk_add_f16", vgpr("ValuC+%u"%cIdx), vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), \
                          "c[%u] += c[%u]"%(cIdx, regIdx) )
-          elif kernel["ProblemType"]["DataType"].isInt8x4():
+          elif kernel["ProblemType"]["ComputeDataType"].isInt32():
             kStr += inst("_v_add_i32", vgpr("ValuC+%u"%cIdx), vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), \
                          "c[%u] += c[%u]"%(cIdx, regIdx))
-
-          elif kernel["ProblemType"]["DataType"].isSingle():
+          elif kernel["ProblemType"]["ComputeDataType"].isSingle():
             kStr += inst("v_add_f32", vgpr("ValuC+%u"%cIdx), vgpr("ValuC+%u" % regIdx), vgpr("ValuC+%u"%cIdx), \
                          "c[%u] += c[%u]"%(cIdx, regIdx))
-          elif kernel["ProblemType"]["DataType"].isDouble():
+          elif kernel["ProblemType"]["ComputeDataType"].isDouble():
             kStr += inst("v_add_f64", vgpr("ValuC+%u"%cIdx,2), vgpr("ValuC+%u" % regIdx,2), vgpr("ValuC+%u"%cIdx,2), \
                          "c[%u] += c[%u]"%(cIdx, regIdx))
-          elif kernel["ProblemType"]["DataType"].isSingleComplex():
+          elif kernel["ProblemType"]["ComputeDataType"].isSingleComplex():
             kStr += inst("v_add_f32", vgpr("ValuC+%u"%(cIdx+0)), vgpr("ValuC+%u" % (regIdx+0)), vgpr("ValuC+%u"%(cIdx+0)), \
                          "c[%u] += c[%u], real part"%(cIdx, regIdx) )
             kStr += inst("v_add_f32", vgpr("ValuC+%u"%(cIdx+1)), vgpr("ValuC+%u" % (regIdx+1)), vgpr("ValuC+%u"%(cIdx+1)), \
                          "c[%u] += c[%u], imaginary part"%(cIdx+1, regIdx+1) )
-          elif kernel["ProblemType"]["DataType"].isDoubleComplex():
+          elif kernel["ProblemType"]["ComputeDataType"].isDoubleComplex():
             kStr += inst("v_add_f64", vgpr("ValuC+%u"%(cIdx+0),2), vgpr("ValuC+%u" % (regIdx+0),2), vgpr("ValuC+%u"%(cIdx+0),2), \
                          "c[%u] += c[%u], real part"%(cIdx, regIdx) )
             kStr += inst("v_add_f64", vgpr("ValuC+%u"%(cIdx+2),2), vgpr("ValuC+%u" % (regIdx+2),2), vgpr("ValuC+%u"%(cIdx+2),2), \
                          "c[%u] += c[%u], imaginary part"%(cIdx+2, regIdx+2) )
           else:
-            # TODO: hpa_half, int8
+            # TODO: int8
             assert(0) # unsupported data type, need to modify here and LSU write/read code
     return kStr
 
