@@ -23,7 +23,7 @@
 ################################################################################
 
 from . import Code
-from .Common import gfxName, globalParameters, print2, printExit, printWarning, roundUp
+from .Common import gfxName, globalParameters, getCOVFromParam, print2, printExit, printWarning, roundUp
 from .Component import Component
 from .KernelWriter import KernelWriter
 from .SolutionStructs import isPackedIndex
@@ -225,16 +225,14 @@ class KernelWriterAssembly(KernelWriter):
     if wavefrontSize is None:
       wavefrontSize = self.kernel["WavefrontSize"]
 
-    archHasV3 = globalParameters["AsmCaps"][isa]["HasCodeObjectV3"]
-
     launcher = shlex.split(os.environ.get('Tensile_ASM_COMPILER_LAUNCHER', ''))
 
     rv = launcher + [globalParameters['AssemblerPath'],
           '-x', 'assembler',
           '-target', 'amdgcn-amd-amdhsa']
 
-    if archHasV3:
-      rv += ['-mcode-object-version=2' if globalParameters["CodeObjectVersion"] == "V2" else '-mcode-object-version=4']
+    cov = getCOVFromParam(globalParameters["CodeObjectVersion"])
+    rv += ['-mcode-object-version=%s' % (cov)]
 
     rv += ['-mcpu=' + gfxName(isa)]
 

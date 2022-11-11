@@ -34,9 +34,7 @@ class ReplacementKernels:
 
     @property
     def marker(self):
-        if self.codeObjectVersion == 'V3':
-            return '.amdhsa_kernel'
-        return '.amdgpu_hsa_kernel'
+        return '.amdhsa_kernel'
 
     def getKernelName(self, filename):
         marker = self.marker
@@ -82,9 +80,7 @@ class ReplacementKernels:
     @classmethod
     def Directory(cls):
         scriptDir = os.path.dirname(os.path.realpath(__file__))
-        dirName = 'ReplacementKernels'
-        if globalParameters['CodeObjectVersion'] == 'V3':
-            dirName += '-cov3'
+        dirName = 'ReplacementKernels-cov3'
 
         return os.path.join(scriptDir, dirName)
 
