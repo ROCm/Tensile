@@ -242,19 +242,13 @@ def checkMacroTileThreadTileWorkGroupMatches(currentSolution):
    
     if WG1 !=  int(currentSolution["WorkGroup"][1]):
       raise RuntimeError("WorkGroup1 {0} does not match LibLogic value {1}".format(WG1, currentSolution["WorkGroup"][1]))
-
-    if matrixM !=  int(currentSolution["MatrixInstM"]):
-      raise RuntimeError("MatrixInstM {0} does not match LibLogic value {1}".format(matrixM, currentSolution["MatrixInstM"]))
-  
-    if matrixN !=  int(currentSolution["MatrixInstN"]):
-     raise RuntimeError("MatrixInstN {0} does not match LibLogic value {1}".format(matrixN, currentSolution["MatrixInstN"]))
      
 def calculateMatrixMNThreadTileMacroTileWorkGroupParameters(MIBlock,MIWaveTile,MIWaveGroup,waveFrontSize):
-    matrixM = int(MIBlock[0]) *int(MIBlock[4])
+    matrixM = int(MIBlock[0])
     matrixN = int(MIBlock[1])
     TT0 = int(MIWaveTile[0])
     TT1 = int(MIWaveTile[1])*int(MIBlock[1])
-    MT0 =  matrixM*int(MIWaveTile[0])*int(MIWaveGroup[0])
+    MT0 =  matrixM*int(MIBlock[4])*int(MIWaveTile[0])*int(MIWaveGroup[0])
     MT1 =  matrixN*int(MIWaveTile[1])*int(MIWaveGroup[1])
     WG0 =  int(MIBlock[0]) * int(MIBlock[4])*int(MIWaveGroup[0])
     WG1 = int(MIWaveGroup[0]) * int(MIWaveGroup[1])*waveFrontSize // int(WG0)
