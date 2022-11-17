@@ -695,14 +695,14 @@ namespace Tensile
 
                 auto compM = [&count, Debug](Entry const& e, long const M) {
                     if(Debug)
-                        printf("[%lld,%lld,%lld]\n", e.key[0], e.key[1], e.key[2]);
+                        std::cout<<"["<<e.key[0]<<","<<e.key[1]<<","<<e.key[2]<<"]"<<std::endl;
                     count++;
                     return e.key[0] < M;
                 };
 
                 auto compN = [&count, Debug](Entry const& e, long const N) {
                     if(Debug)
-                        printf("[%lld,%lld,%lld]\n", e.key[0], e.key[1], e.key[2]);
+                        std::cout<<"["<<e.key[0]<<","<<e.key[1]<<","<<e.key[2]<<"]"<<std::endl;
                     count++;
                     return e.key[1] < N;
                 };
