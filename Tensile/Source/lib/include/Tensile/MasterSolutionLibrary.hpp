@@ -132,7 +132,7 @@ namespace Tensile
                 {
                     auto selected_solution = getSolutionByIndex(solution_index);
 
-                    if(selected_solution->canSolve(problem, hardware))
+                    if(selected_solution && selected_solution->canSolve(problem, hardware))
                         rv = selected_solution;
                     else
                         return nullptr;
