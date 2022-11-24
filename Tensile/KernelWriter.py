@@ -30,6 +30,7 @@ from .CustomKernels import isCustomKernelConfig
 from .SolutionStructs import Solution
 
 import abc
+import collections
 import os
 import shutil
 import subprocess
@@ -5098,7 +5099,12 @@ for codeObjectFileName in codeObjectFileNames:
         return (0, self.getKernelSource(kernel))
 
     except subprocess.CalledProcessError as exc:
-      print(exc)
+      if isinstance(exc.cmd, collections.Sequence):
+        print("Command: ")
+        print(' '.join(exc.cmd))
+        print("returned non-zero exit status ", exc.returncode)
+      else:
+        print(exc)
       return (-1, "")
     except RuntimeError as exc:
       if globalParameters["PrintSolutionRejectionReason"]:
