@@ -3451,15 +3451,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     if self.canSchedule:
       self.scheduleGlobalRead = kernel["ScheduleGlobalRead"] \
-          and kernel["PrefetchGlobalRead"] \
-          and kernel["BufferLoad"] # flat updates lgkmcnt counts = hard to schedule flat loads
+          and kernel["PrefetchGlobalRead"]
     else:
       self.scheduleGlobalRead = 0
 
     if self.canSchedule:
       self.scheduleLocalWrite = kernel["ScheduleLocalWrite"] \
-          and kernel["PrefetchGlobalRead"] \
-          and kernel["BufferLoad"]  # flat updates lgkmcnt counts = hard to schedule writes and loads?
+          and kernel["PrefetchGlobalRead"]
     else:
       self.scheduleLocalWrite = 0
 
@@ -5152,12 +5150,32 @@ for codeObjectFileName in codeObjectFileNames:
     return itemStr
 
   ##############################################################################
+  # return number of store instructions
+  ##############################################################################
+  def getNumStoreInst(self, str):
+    ret = 0
+    ret += str.count("_buffer_store")  # count _buffer_store
+    ret += str.count("_global_store")  # count _global_store
+    ret += str.count("buffer_atomic_add")   # count buffer_atomic_add
+    ret += str.count("global_atomic_add")   # count global_atomic_add
+    return ret
+
+  ##############################################################################
+  # return number of load instructions
+  ##############################################################################
+  def getNumLoadInst(self, str):
+    ret = 0
+    ret += str.count("_buffer_load")  # count _buffer_load
+    ret += str.count("_global_load")  # count _global_load
+    return ret
+
+  ##############################################################################
   # waitcnt code for DirectToVgpr
   ##############################################################################
   def getWaitcntCodeForDirectToVgpr(self, kernel, localWriteEndIter, u, firstIter, isPap=True, beforeBarrier=False, NLLlast=False, oddLast=False):
     retStr = ""
-    # generate wait only if BufferLoad is True (this logic does not work with FlatLoad)
-    if (kernel["DirectToVgprA"] or kernel["DirectToVgprB"]) and kernel["BufferLoad"]:
+    # generate wait
+    if (kernel["DirectToVgprA"] or kernel["DirectToVgprB"]):
       if self.enable["Wait"]:
         pgr2 = kernel["PrefetchGlobalRead"] == 2
         numGlobalReadA = kernel["NumLoadsPerpendicularA"] * kernel["NumLoadsCoalescedA"] * self.numReadVectorComponentsA
@@ -5187,10 +5205,10 @@ for codeObjectFileName in codeObjectFileNames:
           count = 0
           for i in range(u):
             globalReadStr = ' '.join([str(x) for x in self.perIterGlobalReadCode[i].flatitems()])
-            count += globalReadStr.count("_buffer_load")
+            count += self.getNumLoadInst(globalReadStr)
             # PGR=2 case, global read is in LocalWriteCode
             localWriteStr = ' '.join([str(x) for x in self.perIterLocalWriteCode[i].flatitems()])
-            count += localWriteStr.count("_buffer_load")
+            count += self.getNumLoadInst(localWriteStr)
           needToWait += count
           if u == localWriteEndIter + 1 and beforeBarrier:
             # beforeBarrier case, reduce the amount of non-Vgpr global read
@@ -5208,8 +5226,7 @@ for codeObjectFileName in codeObjectFileNames:
 
           # count number of StoreC in template
           tmpStr = ' '.join([str(x) for x in self.StoreCUnrollCode.flatitems()])
-          numGlobalStoreCinTemplate  = tmpStr.count("_buffer_store")  # count _buffer_store
-          numGlobalStoreCinTemplate += tmpStr.count("buffer_atomic_add")   # count buffer_atomic_add
+          numGlobalStoreCinTemplate  = self.getNumStoreInst(tmpStr) # count store instructions
           numGlobalStoreC = 0
 
           if u == localWriteEndIter + 1:
@@ -5220,15 +5237,14 @@ for codeObjectFileName in codeObjectFileNames:
               # It means LoadC wait is already done. Deduct the number of load C in template
               # count number of Load in template
               tmpStr = ' '.join([str(x) for x in self.LoadCUnrollCode.flatitems()])
-              numGlobalLoadCinTemplate  = tmpStr.count("_buffer_load")  # count _buffer_load
+              numGlobalLoadCinTemplate  = self.getNumLoadInst(tmpStr)  # count load instructions
               needToWait -= numGlobalLoadCinTemplate
             else:
               # check if store C is already in perIterLocalWriteCode
               for i in range(u):
                 # scheduled storeC in unroll is in LocalWriteCode
                 localWriteStr = ' '.join([str(x) for x in self.perIterLocalWriteCode[i].flatitems()])
-                numGlobalStoreC += localWriteStr.count("_buffer_store")
-                numGlobalStoreC += localWriteStr.count("buffer_atomic_add")
+                numGlobalStoreC += self.getNumStoreInst(localWriteStr)
               # no LDS write (DirectToLds+DirectToVgpr) and not beforeBarrier and not firstIter case, 
               # no need to wait for StoreC in previous iteration
               # Then, add the number of storeC in template
