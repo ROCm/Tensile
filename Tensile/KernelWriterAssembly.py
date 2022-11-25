@@ -1413,7 +1413,7 @@ class KernelWriterAssembly(KernelWriter):
     # Each work-item also uses  a unique 32-bit offset into vgprGlobalReadOffset.  These offsets are set when
     # the tile is initialized and stay constant through the execution of the kernel.
     # The base address in the SRD is updated when the algorithm moves to a new tile
-    # BufferLoad disables the gptGlobalReadAddr used in flat addressing.
+    # BufferLoad disables the gptGlobalReadAddr used in global addressing.
     if kernel["BufferLoad"]:
       self.startVgprGlobalReadOffsetA = vgprIdx
       vgprIdx += 1 if kernel["_UseSgprForGRO"] else self.numGlobalReadOffsetsA
@@ -2296,14 +2296,14 @@ class KernelWriterAssembly(KernelWriter):
       origin  = f'{t}'
       replace = f'{t}' if self.archCaps["InstRename"] else f'{type_list[t]}'
       # use global_load/store instead of flat instructions
-      kStr += self.generalMacro('global_load_', origin, replace, 'dst', 'base', 'md0', 'md1', 'md2') + self.endLine
-      kStr += self.generalMacro('global_store_', origin, replace, 'base', 'src', 'md0', 'md1', 'md2') + self.endLine
+      kStr += self.generalMacro('global_load_', origin, replace, 'dst', 'base', 'src', 'md0', 'md1', 'md2') + self.endLine
+      kStr += self.generalMacro('global_store_', origin, replace, 'base', 'src', 'src2', 'md0', 'md1', 'md2') + self.endLine
 
     type_list = {'_b32': ''}
     for t in type_list:
         origin  = f'{t}'
         replace = f'{t}' if self.archCaps["InstRename"] else f'{type_list[t]}'
-        kStr += self.generalMacro('flat_atomic_cmpswap', origin, replace, 'tmp', 'base', 'data', 'md') + self.endLine
+        kStr += self.generalMacro('global_atomic_cmpswap', origin, replace, 'tmp', 'base', 'data', 'src', 'md') + self.endLine
 
     return kStr
 
@@ -2573,7 +2573,7 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # justOffset32 means we should only write the 32-bit offset
     # This is used in Buffer addressing modes.
-    # Flat addressing modes expect the GLOBAL_OFFSET to initialize a full 64-bit address
+    # Global addressing modes expect the GLOBAL_OFFSET to initialize a full 64-bit address
     for (tc, indices, justOffset32, tP) in [ \
         ("C", list(range(0, kernel["ProblemType"]["NumIndicesC"])), kernel["BufferStore"], None), \
         ("A", kernel["ProblemType"]["IndexAssignmentsA"], kernel["BufferLoad"], self.tPA), \
@@ -4314,7 +4314,7 @@ class KernelWriterAssembly(KernelWriter):
     # BufferLoad flavor:
     #if tP["isA"]:
     #  kStr += self.dump(vgpr("GlobalReadOffset%s+%u+0"%(tP["tensorChar"], graIdx)))
-    # Flat load flavor:
+    # Global load flavor:
     #kStr += dump(vgpr("GlobalReadAddr%s+%u+0"%(tP["tensorChar"], graIdx)))
     #kStr += dump(vgpr("GlobalReadAddr%s+%u+1"%(tP["tensorChar"], graIdx)))
     graIdx += self.rpgo if kernel["BufferLoad"] else self.rpga
@@ -11724,7 +11724,7 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # Atomic
     ########################################
-    # flat_atomic_cmpswap tmp addr data:
+    # global_atomic_cmpswap tmp addr data:
     #   tmp = mem[addr]
     #   src = data[vi*numVgprsPerDataPerVI][0] new C
     #   cmp = data[vi*numVgprsPerDataPerVI][1] original C
@@ -11856,9 +11856,9 @@ class KernelWriterAssembly(KernelWriter):
                       "0 offen offset:%u glc" % addrCalc.globalOffset, \
                       "attempt write avi=%u"%(avi), self.endLine )
               else:
-                kStr += "_flat_atomic_cmpswap_b32 %s, %s, %s %s    // %s%s" % \
+                kStr += "_global_atomic_cmpswap_b32 %s, %s, %s, %s %s    // %s%s" % \
                     (vgpr(atomicDestVgpr), vgpr(addrCalc.addrDVgpr,2), \
-                    vgpr(dataV,2), "glc", "attempt write", self.endLine )
+                    vgpr(dataV,2), "off", "glc", "attempt write", self.endLine )
             else:
                kStr += inst("v_mov_b32", vgpr(atomicDestVgpr), vgpr(dataV+1), "Fake successful CAS" )
                # Fake successful CAS swap:
@@ -11986,8 +11986,8 @@ class KernelWriterAssembly(KernelWriter):
                        "0 offen offset:%u glc" % (addrCalc.globalOffset), \
                        "try again", self.endLine )
               else:
-                kStr += "_flat_atomic_cmpswap_b32 %s, %s, %s %s    // %s%s" % ( vgpr(atomicDestVgpr), \
-                    vgpr(addr,2), vgpr(dataV,2), "glc", "try again", self.endLine)
+                kStr += "_global_atomic_cmpswap_b32 %s, %s, %s, %s %s    // %s%s" % ( vgpr(atomicDestVgpr), \
+                    vgpr(addr,2), vgpr(dataV,2), "off", "glc", "try again", self.endLine)
 
         # wait for batched write
         kStr += inst("s_waitcnt vmcnt(0)", "wait for atomic writes" )
@@ -13536,11 +13536,6 @@ class KernelWriterAssembly(KernelWriter):
           * self.numReadVectorComponentsB
       vmcnt += skipGlobalRead * (numA + numB)
 
-      # Unlike flat loads, BufferLoad do not increment the outstanding
-      # lgkmcnt
-      if lgkmcnt > -1 and not kernel["BufferLoad"]:
-        lgkmcnt += skipGlobalRead * (numA + numB)
-
     if (self.db["ConservativeWaitCnt"] & 0x2) and skipGlobalRead != -1 or \
        (self.db["ConservativeWaitCnt"] & 0x4) and skipLocalWrite != -1 or \
        (self.db["ConservativeWaitCnt"] & 0x8) and skipLocalRead  != -1:
@@ -14037,7 +14032,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("v_mov_b32", vgpr(vgprAddr+0), 0, "")
       kStr += inst("v_mov_b32", vgpr(vgprAddr+1), 0, "")
       #kStr += inst("s_trap",1,  "")
-      kStr += inst("_flat_load_b32", vgpr(vgprAddr), vgpr(vgprAddr,2), "bomb - force fault" )
+      kStr += inst("_global_load_b32", vgpr(vgprAddr), vgpr(vgprAddr,2), "off", "bomb - force fault" )
 
       # This move does not execute but appears in the instruction stream immediately following
       # the faulting load:
@@ -14289,8 +14284,8 @@ class KernelWriterAssembly(KernelWriter):
                      sgpr("DebugKernelItems"), \
                      hex(1), "inc items written" )
 
-      kStr += inst("_flat_store_b32", vgpr("AddressDbg", 2), \
-          vgprStore, "debug dump store" )
+      kStr += inst("_global_store_b32", vgpr("AddressDbg", 2), \
+          vgprStore, "off", "debug dump store" )
       kStr += inst("_v_add_co_u32", vgpr("AddressDbg"), self.vcc, vgpr("AddressDbg"), \
           hex(4), "debug dump inc" )
 
