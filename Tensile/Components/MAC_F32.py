@@ -72,26 +72,29 @@ class MAC_F32_Plain(MAC):
         priority = Component.Priority.find(writer)
         macIdx = 0
 
-        if dualMacEnable == 1:
-            instQ = queue.Queue();
-            for iui in range(0, innerUnroll):
-               for idx1 in range(0, kernel["ThreadTile1"]):
-                   for idx0 in range(0, kernel["ThreadTile0"]):
-                        vars["idx0"] = idx0
-                        vars["idx1"] = idx1
-                        vars["a"] = idx0 if writer.tPB["tile01Idx"] else idx1
-                        vars["b"] = idx1 if writer.tPB["tile01Idx"] else idx0
-                        vars["iui"] = iui
+        instQ = queue.Queue()
 
-                        vars["cStr"] = "v[vgprValuC + {idx0} + {idx1}*{ThreadTile0}]".format_map(vars)
-                        vars["aStr"] = "v[vgprValuA_X{m}_I{iui} + {a}]".format_map(vars)
-                        vars["bStr"] = "v[vgprValuB_X{m}_I{iui} + {b}]".format_map(vars)
+        for iui in range(0, innerUnroll):
+            for idx1 in range(0, kernel["ThreadTile1"]):
+                for idx0 in range(0, kernel["ThreadTile0"]):
+                    vars["idx0"] = idx0
+                    vars["idx1"] = idx1
+                    vars["a"] = idx0 if writer.tPB["tile01Idx"] else idx1
+                    vars["b"] = idx1 if writer.tPB["tile01Idx"] else idx0
+                    vars["iui"] = iui
 
+                    vars["cStr"] = "v[vgprValuC + {idx0} + {idx1}*{ThreadTile0}]".format_map(vars)
+                    vars["aStr"] = "v[vgprValuA_X{m}_I{iui} + {a}]".format_map(vars)
+                    vars["bStr"] = "v[vgprValuB_X{m}_I{iui} + {b}]".format_map(vars)
+
+                    if dualMacEnable == 1:
                         instVars = {}
                         instVars["endLine"] = writer.endLine
                         instVars["cStr"] = vars["cStr"]
                         instVars["aStr"] = vars["aStr"]
                         instVars["bStr"] = vars["bStr"]
+                        instVars["instruction"] = instruction
+
                         if instQ.empty():
                             instQ.put(instVars)
                         else:
@@ -105,54 +108,33 @@ class MAC_F32_Plain(MAC):
                             else:
                                 # push instruction
                                 instQ.put(instVars)
+                    else:
+                        if instruction == "v_fma_f32":
+                            kStr += "v_fma_f32 {cStr}, {aStr}, {bStr}, {cStr}{endLine}".format_map(vars)
+                        else:
+                            kStr += "{instruction} {cStr}, {aStr}, {bStr}{endLine}".format_map(vars)
 
-                        if macIdx == kernel["PerformanceWaitLocation"]:
-                            # pop all instructions
-                            while instQ.qsize() > 0:
-                                prevVars = instQ.get()
-                                kStr += "{instruction} {cStr}, {aStr}, {bStr}{endLine}".format_map(prevVars)
-                                kStr += priority(writer, 1, "Raise priority while processing macs")
-                            kStr += "s_waitcnt lgkmcnt({PerformanceWaitCount}) // extra wait for performance{endLine}".format_map(vars)
-                        if macIdx == kernel["PerformanceSyncLocation"]:
-                            # pop all instructions
-                            while instQ.qsize() > 0:
-                                prevVars = instQ.get()
-                                kStr += "v_fmac_f32 {cStr}, {aStr}, {bStr}{endLine}".format_map(prevVars)
-                                kStr += priority(writer, 1, "Raise priority while processing macs")
-                            kStr += "s_barrier // extra barrier for performance{endLine}".format_map(vars)
-                        macIdx += 1
-            # pop all instructions
-            while instQ.qsize() > 0:
-                prevVars = instQ.get()
-                kStr += "v_fmac_f32 {cStr}, {aStr}, {bStr}{endLine}".format_map(prevVars)
-                kStr += priority(writer, 1, "Raise priority while processing macs")
-        else:
-            for iui in range(0, innerUnroll):
-               for idx1 in range(0, kernel["ThreadTile1"]):
-                   for idx0 in range(0, kernel["ThreadTile0"]):
-                       vars["idx0"] = idx0
-                       vars["idx1"] = idx1
-                       vars["a"] = idx0 if writer.tPB["tile01Idx"] else idx1
-                       vars["b"] = idx1 if writer.tPB["tile01Idx"] else idx0
-                       vars["iui"] = iui
+                    if macIdx == kernel["PerformanceWaitLocation"]:
+                        kStr += self.popAllInstructions(instruction, instQ, priority, writer)
+                        kStr += "s_waitcnt lgkmcnt({PerformanceWaitCount}) // extra wait for performance{endLine}".format_map(vars)
+                    if macIdx == kernel["PerformanceSyncLocation"]:
+                        kStr += self.popAllInstructions(instruction, instQ, priority, writer)
+                        kStr += "s_barrier // extra barrier for performance{endLine}".format_map(vars)
+                    macIdx += 1
 
-                       vars["cStr"] = "v[vgprValuC + {idx0} + {idx1}*{ThreadTile0}]".format_map(vars)
-                       vars["aStr"] = "v[vgprValuA_X{m}_I{iui} + {a}]".format_map(vars)
-                       vars["bStr"] = "v[vgprValuB_X{m}_I{iui} + {b}]".format_map(vars)
-
-                       if instruction == "v_fma_f32":
-                           kStr += "v_fma_f32 {cStr}, {aStr}, {bStr}, {cStr}{endLine}".format_map(vars)
-                       else:
-                           kStr += "{instruction} {cStr}, {aStr}, {bStr}{endLine}".format_map(vars)
-
-                       kStr += priority(writer, 1, "Raise priority while processing macs")
-
-                       if macIdx == kernel["PerformanceWaitLocation"]:
-                           kStr += "s_waitcnt lgkmcnt({PerformanceWaitCount}) // extra wait for performance{endLine}".format_map(vars)
-                       if macIdx == kernel["PerformanceSyncLocation"]:
-                           kStr += "s_barrier // extra barrier for performance{endLine}".format_map(vars)
-                       macIdx += 1
-
+        kStr += self.popAllInstructions(instruction, instQ, priority, writer)
         kStr += priority(writer, 0, "Reset priority after macs")
 
+        return kStr
+
+    def popAllInstructions(self, inst, instructionQueue, priority, writer):
+        # pop all instructions
+        kStr = ""
+        while instructionQueue.qsize() > 0:
+            prevVars = instructionQueue.get()
+            if inst == "v_fma_f32":
+                kStr += "v_fma_f32 {cStr}, {aStr}, {bStr}, {cStr}{endLine}".format_map(prevVars)
+            else:
+                kStr += "{instruction} {cStr}, {aStr}, {bStr}{endLine}".format_map(prevVars)
+            kStr += priority(writer, 1, "Raise priority while processing macs")
         return kStr
