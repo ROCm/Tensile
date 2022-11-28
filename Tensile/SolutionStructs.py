@@ -2857,11 +2857,16 @@ class Solution(collections.abc.Mapping):
 
     bufferLoad = state["BufferLoad"] and state["KernelLanguage"] == "Assembly"
     if not bufferLoad:
+      if state["KernelLanguage"] == "Assembly" and state["ProblemType"]["DataType"].numBytes() < 4:
+        reject(state, "BufferLoad=0 does not support DataType.numBytes < 4")
+        return
       state["DirectToLds"] = False
       state["_UseSgprForGRO"] = False
       state["FractionalLoad"] = False
-      if state["PrefetchGlobalRead"] == 2:
-        reject(state, "BufferLoad=0 does not support PrefetchGlobalRead=2")
+
+    if not state["BufferStore"]:
+      if state["KernelLanguage"] == "Assembly" and state["ProblemType"]["DestDataType"].numBytes() < 4:
+        reject(state, "BufferStore=0 does not support DestDataType.numBytes < 4")
         return
 
     #These modes only work under certain conditions, apply them here:
@@ -2883,11 +2888,10 @@ class Solution(collections.abc.Mapping):
       if state["DepthULdsDivisor"] > 1:
         state["ExpandPointerSwap"] = 0
 
-    # Can optimize preLoop LW Vmcnt only when PAP, BufferLoad
+    # Can optimize preLoop LW Vmcnt only when PAP
     # TODO- less restriction? Haven't tested for not BufferLoad
     state["OptPreLoopVmcnt"] = state["OptPreLoopVmcnt"] and \
-                               state["PrefetchAcrossPersistent"] and \
-                               bufferLoad
+                               state["PrefetchAcrossPersistent"]
 
     #print("PackedC0IdxChars", state["PackedC0IdxChars"])
     #print("PackedC1IdxChars", state["PackedC1IdxChars"])
@@ -3764,6 +3768,9 @@ class Solution(collections.abc.Mapping):
 
     #check not support cases and calculate lds resources
     if state["StoreRemapVectorWidth"]:
+      if not state["BufferStore"]:
+        reject(state, "storeRemap only support BufferStore")
+        return
       if not state["EnableMatrixInstruction"]:
         reject(state, "storeRemap only support MatrixInstruction kernel")
         return
