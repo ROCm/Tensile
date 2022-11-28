@@ -93,6 +93,8 @@ class MAC_F32_Plain(MAC):
                         instVars["cStr"] = vars["cStr"]
                         instVars["aStr"] = vars["aStr"]
                         instVars["bStr"] = vars["bStr"]
+                        instVars["a"] = vars["a"]
+                        instVars["b"] = vars["b"]
                         instVars["instruction"] = instruction
 
                         if instQ.empty():
@@ -100,7 +102,8 @@ class MAC_F32_Plain(MAC):
                         else:
                             # pop instruction
                             prevVars = instQ.queue[0]
-                            if instVars["cStr"] != prevVars["cStr"]:
+
+                            if self.isLegal(instVars, prevVars):
                                 # make dual fmac
                                 kStr += "v_dual_fmac_f32 {cStr}, {aStr}, {bStr}".format_map(prevVars) + " :: v_dual_fmac_f32 {cStr}, {aStr}, {bStr}{endLine}".format_map(vars)
                                 kStr += priority(writer, 1, "Raise priority while processing macs")
@@ -108,6 +111,7 @@ class MAC_F32_Plain(MAC):
                             else:
                                 # push instruction
                                 instQ.put(instVars)
+
                     else:
                         if instruction == "v_fma_f32":
                             kStr += "v_fma_f32 {cStr}, {aStr}, {bStr}, {cStr}{endLine}".format_map(vars)
@@ -138,3 +142,12 @@ class MAC_F32_Plain(MAC):
                 kStr += "{instruction} {cStr}, {aStr}, {bStr}{endLine}".format_map(prevVars)
             kStr += priority(writer, 1, "Raise priority while processing macs")
         return kStr
+
+    def isLegal(self, instVars0, instVars1):
+        # VPOD has some restructions.
+        # For avoiding VGPR source-cache port limits, guarantee at least 1 duplicated SRC.
+        if instVars0["cStr"] == instVars1["cStr"]:
+            return False
+        if instVars0["a"] == instVars1["a"] or instVars0["b"] == instVars1["b"]:
+            return True
+        return False
