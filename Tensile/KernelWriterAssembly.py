@@ -12133,7 +12133,7 @@ class KernelWriterAssembly(KernelWriter):
             if kernel["ProblemType"]["DestDataType"].isHalf():
               if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
                 if self.asmCaps["HasWMMA"] and kernel["EnableMatrixInstruction"]:
-                  dataV = ss.elementData[elementIdx] + int(vi / gwvw * ss.cfg.numVgprsPerDataPerVI)
+                  dataV = ss.elementData[elementIdx] + int(vi / 2 * ss.cfg.numVgprsPerDataPerVI)
                   if (vi % 2) == 0:
                       kStr += inst("v_pk_mul_f16", vgpr(dataV), sgpr("Beta"), vgpr(dataV+0), \
                           "%s = C*beta ei=%u vi=%u"%(vgpr(dataV),elementIdx, vi))
