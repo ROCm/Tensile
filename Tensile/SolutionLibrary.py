@@ -458,7 +458,7 @@ class MasterSolutionLibrary:
     def merge(self, other, startIndex=0):
         assert self.__class__ == other.__class__
 
-        curIndex = max(startIndex, max(self.solutions.keys()) + 1) if self.solutions else 0
+        curIndex = max(startIndex, max(self.solutions.keys()) + 1 if self.solutions else 0)
         if self.lazyLibraries:
             curIndex = max(
                 curIndex,
