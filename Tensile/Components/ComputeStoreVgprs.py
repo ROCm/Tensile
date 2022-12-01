@@ -213,7 +213,7 @@ class ComputeStoreVgprsMFMA(ComputeStoreVgprs):
         kStr += inst("_v_add_u32", vgpr(tid1), sgpr(tmpSgpr), vgpr(tid1), "coord 1 = (tid0%MI_m) + waveG1*MIB_n + MT1*SG1")
 
         # extract packed rowStart vgpr
-        if len(packedC1) > 1:
+        if kernel["BufferStore"] and len(packedC1) > 1:
           kStr += writer.extractPackedCoord1ToRowStart(kernel, packedC1, tid1, 'D')
 
         # release resource

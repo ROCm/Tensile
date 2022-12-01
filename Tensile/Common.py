@@ -659,11 +659,10 @@ validParameters = {
     # Load options:
     # (GRO = Global Read Offset)
     # BufferLoad=0:
-    #  = Use flat instructions with 64 bit GRO for each load
+    #  = Use global_load instructions with 64 bit GRO for each load
     #    + supports sizes up to 2^64
     #    - uses many VGPR for addressing
     #    - uses execmask+compares for edge detection
-    #    - generates extra LDS traffic (could convert flat->global load)
     # BufferLoad=1:
     #  = Use buffer load instructions with 32-bit offset
     #    + Less VGPRS (32b offset vs 64-bit) needed for addressing
