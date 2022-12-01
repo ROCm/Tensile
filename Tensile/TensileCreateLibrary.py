@@ -549,8 +549,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
           kernelName = writer.getKernelName(kernel)
           return kernelName not in kernelsWithBuildErrs
       kernelsToBuild = list(filter(success, kernelsToBuild))
-
-  if len(kernelsWithBuildErrs) > 0 and not errorTolerant:
+  elif len(kernelsWithBuildErrs) > 0:
     print("\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier")
     printExit("** kernel compilation failure **")
 
@@ -1317,7 +1316,7 @@ def TensileCreateLibrary():
    sourceLibFiles,
    asmLibFiles) = buildObjectFileNames(solutionWriter, kernelWriterSource, \
     kernelWriterAssembly, solutions, kernels, kernelHelperObjs)
-  
+
   (_,
    _,
    _,
