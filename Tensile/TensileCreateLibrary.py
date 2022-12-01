@@ -526,9 +526,13 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   for kernIdx, res in Utils.tqdm(enumerate(results)):
     (err,src,header,kernelName, filename) = res
     if(err == -2):
+      print("\nKernel generation failed for kernel: {}".format(kernels[kernIdx]["SolutionIndex"]))
+      print(kernels[kernIdx]["SolutionNameMin"])
       removeKernels.append(kernels[kernIdx])
       removeSolutions.append(solutions[kernIdx])
       removeResults.append(results[kernIdx])
+  if len(removeKernels) > 0 and not errorTolerant:
+    printExit("** kernel generation failure **")
   for kern in removeKernels:
       kernels.remove(kern)
   for solut in removeSolutions:
@@ -546,7 +550,7 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
           return kernelName not in kernelsWithBuildErrs
       kernelsToBuild = list(filter(success, kernelsToBuild))
 
-  if False:#len(kernelsWithBuildErrs) > 0:
+  if len(kernelsWithBuildErrs) > 0 and not errorTolerant:
     print("\nKernel compilation failed in one or more subprocesses. May want to set CpuThreads=0 and re-run to make debug easier")
     printExit("** kernel compilation failure **")
 
@@ -1313,7 +1317,7 @@ def TensileCreateLibrary():
    sourceLibFiles,
    asmLibFiles) = buildObjectFileNames(solutionWriter, kernelWriterSource, \
     kernelWriterAssembly, solutions, kernels, kernelHelperObjs)
-
+  
   (_,
    _,
    _,
