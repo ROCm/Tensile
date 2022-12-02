@@ -3064,7 +3064,7 @@ class Solution(collections.abc.Mapping):
         state["VectorAtomicWidth"] = 2
 
     if state["VectorAtomicWidth"] >= 2 \
-       and not state["ProblemType"]["DataType"].isHalf():
+       and not (state["ProblemType"]["DataType"].isHalf() or state["ProblemType"]["DataType"].isBFloat16()):
          reject (state, "VectorAtomicWidth>=2 only supported for half")
 
     if state["ProblemType"]["DataType"].isHalf() and state["KernelLanguage"] == "Assembly":
