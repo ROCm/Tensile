@@ -41,19 +41,19 @@ def downloadLogicFiles(logicDir):
   prefix = "library/src/blas3/Tensile/Logic/asm_full"
   testData = {
     "pre_checkin" : [
-      "arcturus_Cijk_Ailk_Bjlk_SB.yaml",
-      "vega20_Cijk_Ailk_Bjlk_SB.yaml",
-      "vega10_Cijk_Ailk_Bjlk_SB.yaml",
-      "arcturus_Cijk_Ailk_Bjlk_BBH.yaml",
-      "arcturus_Cijk_Ailk_Bjlk_HBH.yaml",
-      "vega20_Cijk_Ailk_Bjlk_HBH.yaml",
-      "vega10_Cijk_Ailk_Bjlk_HBH.yaml",
-      "hip_Cijk_Ailk_Bjlk_CB.yaml"
+      "arcturus/arcturus_Cijk_Ailk_Bjlk_SB.yaml",
+      "vega20/vega20_Cijk_Ailk_Bjlk_SB.yaml",
+      "vega10/vega10_Cijk_Ailk_Bjlk_SB.yaml",
+      "arcturus/arcturus_Cijk_Ailk_Bjlk_BBH.yaml",
+      "arcturus/arcturus_Cijk_Ailk_Bjlk_HBH.yaml",
+      "vega20/vega20_Cijk_Ailk_Bjlk_HBH.yaml",
+      "vega10/vega10_Cijk_Ailk_Bjlk_HBH.yaml",
+      "hip/hip_Cijk_Ailk_Bjlk_CB.yaml"
     ],
     "quick" : [
-      "arcturus_Cijk_Ailk_Bjlk_SB.yaml",
-      "vega20_Cijk_Ailk_Bjlk_SB.yaml",
-      "vega10_Cijk_Ailk_Bjlk_SB.yaml"
+      "arcturus/arcturus_Cijk_Ailk_Bjlk_SB.yaml",
+      "vega20/vega20_Cijk_Ailk_Bjlk_SB.yaml",
+      "vega10/vega10_Cijk_Ailk_Bjlk_SB.yaml"
     ]
   }
 
