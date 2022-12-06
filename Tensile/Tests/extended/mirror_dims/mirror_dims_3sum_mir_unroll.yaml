@@ -1,5 +1,5 @@
 TestParameters:
-  marks: [xfail] # Failing on latest ROCm build, re-enable when passing
+  marks: [skip] # Failing on latest ROCm build, re-enable when passing
 
 GlobalParameters:
   EnqueuesPerSync: 1
