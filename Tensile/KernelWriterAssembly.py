@@ -5338,11 +5338,8 @@ class KernelWriterAssembly(KernelWriter):
 
     startNumCVgpr = 0
     if self.useInitAccVgprOpt:
-      # init accvgpr opt. initialize only the last set of accvgpr instead of whole accvgpr
-      numRegistersOut  = kernel["MIRegPerOut"]
-      accs_per_wave    = kernel["MatrixInstM"] * kernel["MatrixInstN"] * kernel["MatrixInstB"] \
-                         // self.kernel["WavefrontSize"] * numRegistersOut
-      startNumCVgpr = numCVgpr - accs_per_wave
+      # init accvgpr opt. use src2=0. No need to initialize accVgpr
+      return kStr
 
     if kernel["LdsInitCVgprs"]:
       tmpAddr = self.vgprPool.checkOut(1,"tmp vgpr for lds init C registers")
@@ -6453,17 +6450,6 @@ class KernelWriterAssembly(KernelWriter):
           accIdx   = idx1 * kernel["MIWaveTile"][0] + idx0
           accStart = accIdx * accs_per_wave
           accEnd   = accStart + accs_per_wave - 1
-          accStartSrc1 = accStart
-          accEndSrc1   = accEnd
-          accStartSrc2 = accStart
-          accEndSrc2   = accEnd
-          if firstIter:
-            # use the last accs_per_wave as src (assuming only these are initialized to 0)
-            numAccvgprs = self.numVgprValuC if kernel["MIArchVgpr"] else self.totalAgprs
-            if kernel["StoreCInUnroll"]:
-              numAccvgprs -= self.startaccValuC1
-            accStartSrc1 = numAccvgprs - accs_per_wave
-            accEndSrc1   = accStartSrc1 + accs_per_wave - 1
           idxA     = idx0 if self.tPB["tile01Idx"] else idx1
           idxB     = idx1 if self.tPB["tile01Idx"] else idx0
           a_new    = idxA*vgprPerInput*self.numReadsIterCoalescedA
@@ -6508,11 +6494,8 @@ class KernelWriterAssembly(KernelWriter):
             ccVgprs = [None]*3 # three terms that can be negated: [real1, imag0, imag1]
             ccInsts = [None]*3
             accImOffset = self.AccVgprImagNumOffset(kernel)
-            # for firstIter, need to use accStartSrc for img instead of adding accImOffset
-            accStartSrcImg1 = accStartSrc1 if firstIter else accStartSrc1+accImOffset
-            accEndSrcImg1 = accStartSrcImg1 + accs_per_wave - 1
-            accStartSrcImg2 = accStartSrc2+accImOffset
-            accEndSrcImg2 = accStartSrcImg2 + accs_per_wave - 1
+            accStartSrcImg = accStart+accImOffset
+            accEndSrcImg = accStartSrcImg + accs_per_wave - 1
 
             # vgpr A,B setting. In complex case, numRegistersIn does not match. Use numRegistersOut instead
             ar = vgpr("ValuA_X%u_I%u+%u+%u+%u"   % (vgprBufferA_new, iuiA_new, a_new, vgprBufferA_new_offset, iuiA_new_offset), numRegistersOut)
@@ -6552,27 +6535,33 @@ class KernelWriterAssembly(KernelWriter):
               if forceGenerate or (ar not in zgemmVaddSrcCheck[arrayIndex]):
                 ccInsts[arrayIndex] = inst(v_add, vgpr(ccVgprs[arrayIndex] + offsetVgpr[arrayIndex], numRegistersOut), "-"+ar, "0", "Ar=-Ar")
                 zgemmVaddSrcCheck[arrayIndex].append(ar)
+            src2         = "%s[%u:%u]"%(accumRegType, accStart   , accEnd)
+            src2Img      = "%s[%u:%u]"%(accumRegType, accStartSrcImg, accEndSrcImg)
+            # use const 0 for src2 in firstIter case
+            src2First    = "0" if firstIter else src2
+            src2ImgFirst = "0" if firstIter else src2Img
             (src0, src1) = (br, ar) if kernel["SourceSwap"] else (ar, br)
             imod.addInst("".join([inst for inst in ccInsts if inst is not None]) + \
-                         v_mfma + "%s[%u:%u], %s, %s, %s[%u:%u]"%(accumRegType, accStart            , accEnd            , src0, src1, accumRegType, accStartSrc1   , accEndSrc1   ), "Cr += Ar*Br")
+                         v_mfma + "%s[%u:%u], %s, %s, %s"%(accumRegType, accStart            , accEnd            , src0, src1, src2First   ), "Cr += Ar*Br")
             (src0, src1) = (bi, (vgpr(ccVgprs[0] + offsetVgpr[0], numRegistersOut) if ccVgprs[0] else ai)) if kernel["SourceSwap"] else ((vgpr(ccVgprs[0] + offsetVgpr[0], numRegistersOut) if ccVgprs[0] else ai), bi)
-            imod.addInst(v_mfma + "%s[%u+%u:%u+%u], %s, %s, %s[%u:%u]"%(accumRegType, accStart            , accStoreCIdx, accEnd            , accStoreCIdx, src0, src1, accumRegType, accStartSrc2   , accEndSrc2   ), "Cr += %sAi*Bi"%("-" if ccVgprs[0] else ""))
+            imod.addInst(v_mfma + "%s[%u+%u:%u+%u], %s, %s, %s"%(accumRegType, accStart            , accStoreCIdx, accEnd            , accStoreCIdx, src0, src1, src2   ), "Cr += %sAi*Bi"%("-" if ccVgprs[0] else ""))
             (src0, src1) = (br, (vgpr(ccVgprs[1] + offsetVgpr[1], numRegistersOut) if ccVgprs[1] else ai)) if kernel["SourceSwap"] else ((vgpr(ccVgprs[1] + offsetVgpr[1], numRegistersOut) if ccVgprs[1] else ai), br)
-            imod.addInst(v_mfma + "%s[%u:%u], %s, %s, %s[%u:%u]"%(accumRegType, accStart+accImOffset, accEnd+accImOffset, src0, src1, accumRegType, accStartSrcImg1, accEndSrcImg1), "Ci += %sAi*Br"%("-" if ccVgprs[1] else ""))
+            imod.addInst(v_mfma + "%s[%u:%u], %s, %s, %s"%(accumRegType, accStart+accImOffset, accEnd+accImOffset, src0, src1, src2ImgFirst), "Ci += %sAi*Br"%("-" if ccVgprs[1] else ""))
             (src0, src1) = (bi, (vgpr(ccVgprs[2] + offsetVgpr[2], numRegistersOut) if ccVgprs[2] else ar)) if kernel["SourceSwap"] else ((vgpr(ccVgprs[2] + offsetVgpr[2], numRegistersOut) if ccVgprs[2] else ar), bi)
-            imod.addInst(v_mfma + "%s[%u+%u:%u+%u], %s, %s, %s[%u:%u]"%(accumRegType, accStart+accImOffset, accStoreCIdx, accEnd+accImOffset, accStoreCIdx, src0, src1, accumRegType, accStartSrcImg2, accEndSrcImg2), "Ci += %sAr*Bi"%("-" if ccVgprs[2] else ""))
+            imod.addInst(v_mfma + "%s[%u+%u:%u+%u], %s, %s, %s"%(accumRegType, accStart+accImOffset, accStoreCIdx, accEnd+accImOffset, accStoreCIdx, src0, src1, src2Img), "Ci += %sAr*Bi"%("-" if ccVgprs[2] else ""))
 
             for v in ccVgprs:
               if v is not None: self.vgprPool.checkIn(v)
           else:
+            # use const 0 for src2 in firstIter case
+            src2 = "0" if firstIter else "%s[%u:%u]"%(accumRegType, accStart, accEnd)
+            # swap Src0 and Src1 in SourceSwap case
             if kernel["SourceSwap"]:
-              imod.addCode("v_%s_%s_%ux%ux%u%s%s%s %s[%u+%u:%u+%u], %s, %s, %s[%u:%u]%s%s" \
-                          % (instructionName, miOutTypeName, kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], instructionStep, miInTypeName,
-                              mfma_1k, accumRegType, accStart, accStoreCIdx, accEnd, accStoreCIdx, Str1, Str0, accumRegType, accStartSrc1, accEndSrc1, neg, self.endLine))
-            else:
-              imod.addCode("v_%s_%s_%ux%ux%u%s%s%s %s[%u+%u:%u+%u], %s, %s, %s[%u:%u]%s%s" \
-                          % (instructionName, miOutTypeName, kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], instructionStep, miInTypeName,
-                              mfma_1k, accumRegType, accStart, accStoreCIdx, accEnd, accStoreCIdx, Str0, Str1, accumRegType, accStartSrc1, accEndSrc1, neg, self.endLine))
+              (Str0, Str1) = (Str1, Str0)
+
+            imod.addCode("v_%s_%s_%ux%ux%u%s%s%s %s[%u+%u:%u+%u], %s, %s, %s%s%s" \
+                        % (instructionName, miOutTypeName, kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], instructionStep, miInTypeName,
+                            mfma_1k, accumRegType, accStart, accStoreCIdx, accEnd, accStoreCIdx, Str0, Str1, src2, neg, self.endLine))
 
     # release register
     if kReg is not None: self.vgprPool.checkIn(kReg)
@@ -12133,7 +12122,7 @@ class KernelWriterAssembly(KernelWriter):
             if kernel["ProblemType"]["DestDataType"].isHalf():
               if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
                 if self.asmCaps["HasWMMA"] and kernel["EnableMatrixInstruction"]:
-                  dataV = ss.elementData[elementIdx] + int(vi / gwvw * ss.cfg.numVgprsPerDataPerVI)
+                  dataV = ss.elementData[elementIdx] + int(vi / 2 * ss.cfg.numVgprsPerDataPerVI)
                   if (vi % 2) == 0:
                       kStr += inst("v_pk_mul_f16", vgpr(dataV), sgpr("Beta"), vgpr(dataV+0), \
                           "%s = C*beta ei=%u vi=%u"%(vgpr(dataV),elementIdx, vi))

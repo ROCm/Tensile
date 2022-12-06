@@ -1,39 +1,60 @@
+TestParameters:
+  marks: [skip-gfx900, skip-gfx906, skip-gfx908, skip-gfx90a, skip-gfx1010, skip-gfx1011, skip-gfx1012, skip-gfx1030] # not supported by arch
+
+# benchmark assembly and source kernels
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
+  CMakeBuildType: Release
+  PrintLevel: 1
+  ForceRedoBenchmarkProblems: True
+  ForceRedoLibraryLogic: True
+  ForceRedoLibraryClient: True
+  EnqueuesPerSync: 1
+  SyncsPerBenchmark: 1
   NumElementsToValidate: -1
+  BoundsCheck: True
+  ValidationMaxToPrint: 4
+  ValidationPrintValids: False
+  ShortNames: False
+  MergeFiles: True
+  DataInitTypeAB: 3
+  DataInitTypeC: 3
   KernelTime: True
 
 BenchmarkProblems:
-  - # hgemm TT
+
+  - # sgemm TT
     - # ProblemType
       OperationType: GEMM
-      DataType: h
-      DestDataType: h
-      ComputeDataType: s
-      HighPrecisionAccumulate: True
+      DataType: s
+      DestDataType: s
       TransposeA: True
       TransposeB: True
       UseBeta: True
       Batched: True
 
-    - # BenchmarkProblemSizeGroup - Source
+    - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - LoopTail: [True]
         - EdgeType: ["ShiftPtr"]
-        - KernelLanguage: ["Source"]
+        - KernelLanguage: ["Assembly"]
       ForkParameters:
+        - WavefrontSize: [32]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 16, 4 ]
-          - [ 16, 8 ]
+          - [ 1, 11 ]
+          - [ 3, 5 ]
+          - [ 4, 8 ]
           - [ 8, 8 ]
+          - [ 13, 3 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [  8,  8,  1 ]
-        - DepthU: [32]
+        - DepthU: [-3]
         - VectorWidth: [-1]
+        - WorkGroupMapping: [8,4]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -41,24 +62,25 @@ BenchmarkProblems:
         - ProblemSizes:
           - Range: [ [127,1,129], 0, [2], [63,1,65] ]
 
-    - # BenchmarkProblemSizeGroup - Source
+    - # BenchmarkProblemSizeGroup - Assembly
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - LoopTail: [True]
         - EdgeType: ["ShiftPtr"]
       ForkParameters:
-        - KernelLanguage: ["Source"]
+        - WavefrontSize: [32, 64]
+        - KernelLanguage: ["Assembly"]
         - PrefetchLocalRead: [False]
         - PrefetchGlobalRead: [False]
         - ThreadTile:
-          - [ 8, 2 ]
-          - [ 2, 2 ]
-          - [ 4, 2 ]
-          - [ 8, 4 ]
+          - [ 3, 3 ]
+          - [ 4, 4 ]
+          - [ 5, 5 ]
+          - [ 8, 8 ]
         - WorkGroup:
           - [ 16, 16,  1 ]
           - [  8,  8,  1 ]
-        - DepthU: [16]
+        - DepthU: [-1]
         - VectorWidth: [-1]
       BenchmarkForkParameters:
       JoinParameters:
