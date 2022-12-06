@@ -1,22 +1,25 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 from . import Code
@@ -531,7 +534,6 @@ class KernelWriterSource(KernelWriter):
 
     if kernel["ProblemType"]["DataType"].isReal():
       # real data
-
       if ((kernel["ThreadTileA"] % 2 == 0) and (kernel["ProblemType"]["DataType"].isHalf())):
         if kernel["ProblemType"]["HighPrecisionAccumulate"]:
           kStr += "#define TYPE_MAC(MULA0,MULB0,DST0,MULA1,MULB1,DST1) " + self.endLinePP
@@ -620,10 +622,17 @@ class KernelWriterSource(KernelWriter):
           "  DST.s1 = MAC( -MULA.s1,  MULB.s0, DST.s1 );" + self.endLine )
 
       if kernel["GlobalSplitU"] > 1: # 1st kernel will have taken care of B
-        if kernel["ProblemType"]["UseBeta"]:
-          kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) atomicAddType(&(DST), (ALPHA)*(REG));"
-        else:
-          kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG) atomicAddType(&(DST), (ALPHA)*(REG));"
+        if kernel["_GlobalAccumulation"] != 'MultipleBuffer': # 1st kernel would take care of Beta
+          if kernel["ProblemType"]["UseBeta"]:
+            kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) atomicAddType(&(DST), (ALPHA)*(REG));" + self.endLine
+          else:
+            kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG) atomicAddType(&(DST), (ALPHA)*(REG));" + self.endLine
+        elif kernel["_GlobalAccumulation"] == 'MultipleBuffer': # 2nd kernel would take care of Alpha and Beta
+          if kernel["ProblemType"]["UseBeta"]:
+            kStr += "#define TYPE_MAC_WRITE(DST,SRC,ALPHA,REG,BETA) DST = (REG);" + self.endLine
+          else:
+            kStr += "#define TYPE_MAC_WRITE(DST,ALPHA,REG) DST = (REG);" + self.endLine
+
       else:
         if kernel["ProblemType"]["UseBeta"]:
           # dst = alpha*reg + beta*dst
@@ -701,13 +710,13 @@ class KernelWriterSource(KernelWriter):
             self.endLinePP)
       """
 
-      for b in range(0, kernel["ThreadTileB"]):
-        for a in range(0, kernel["ThreadTileA"]):
-          strC = "rC[%d+%d*TT%s]" % (a, b, self.tileChar0 )
-          strA = "rA[%d%s]" % (a, ("+TT%s"%self.tileCharA) if m>0 else "")
-          strB = "rB[%d%s]" % (b, ("+TT%s"%self.tileCharB) if m>0 else "")
-          if ((kernel["ThreadTileA"] % 2 == 0) and (kernel["ProblemType"]["DataType"].isHalf())):
-            if a % 2 == 0:
+      for idx1 in range(0, kernel["ThreadTile1"]):
+        for idx0 in range(0, kernel["ThreadTile0"]):
+          strC = "rC[%d+%d*TT%s]" % (idx0, idx1, self.tileChar0 )
+          strA = "rA[%d%s]" % (idx0 if self.tPB["tile01Idx"] else idx1, ("+TT%s"%self.tileCharA) if m>0 else "")
+          strB = "rB[%d%s]" % (idx1 if self.tPB["tile01Idx"] else idx0, ("+TT%s"%self.tileCharB) if m>0 else "")
+          if ((kernel["ThreadTile0"] % 2 == 0) and (kernel["ProblemType"]["DataType"].isHalf())):
+            if idx0 % 2 == 0:
               kStr += "  TYPE_MAC(%s,%s,%s , " % (strA, strB, strC)
             else:
               kStr += "%s,%s,%s); %s" % (strA, strB, strC, self.endLinePP)
@@ -825,15 +834,18 @@ class KernelWriterSource(KernelWriter):
     else:
       s += "extern \"C\"\n"
       s += "__global__ "
-    s += "void %s" % ( kernelName )
+    # the new default of 1024 degrades HGEMM performance too much
+    s += "void\n__launch_bounds__(256)\n%s" % ( kernelName )
     s += "(" + self.endLine
     # pointers
     globalStr = "__global "
     if self.language == "HIP":
       #s += "  hipLaunchParm lp," + self.endLine
       globalStr = ""
-    ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language) \
-        if not kernel["_GlobalAccumulation"] else "float"
+    ptrStr = kernel["ProblemType"]["DestDataType"].toDevice(self.language)
+    if kernel["_GlobalAccumulation"]:
+      ptrStr = kernel["ProblemType"]["ComputeDataType"].toDevice(self.language)
+
     isStridedBuffer = kernel["ProblemType"]["StridedBatched"] or kernel["_GlobalAccumulation"]
     ptrStr  += ("" if isStridedBuffer else "*")
     batchStr = ("" if isStridedBuffer else "Batch")
@@ -979,10 +991,10 @@ class KernelWriterSource(KernelWriter):
 
     # registers for valuAB
     kStr += "  DATA_TYPE rA[TT%s%s];%s" \
-        % (self.tileChar0, ("*2" if kernel["PrefetchLocalRead"] else ""), \
+        % (self.tPA["tileChar"], ("*2" if kernel["PrefetchLocalRead"] else ""), \
         self.endLine)
     kStr += "  DATA_TYPE rB[TT%s%s];%s" \
-        % (self.tileChar1, ("*2" if kernel["PrefetchLocalRead"] else ""), \
+        % (self.tPB["tileChar"], ("*2" if kernel["PrefetchLocalRead"] else ""), \
         self.endLine)
 
     ####################################
@@ -1041,13 +1053,22 @@ class KernelWriterSource(KernelWriter):
     ####################################
     # apply general batch
     if not kernel["ProblemType"]["StridedBatched"]:
+      zeroStr = kernel["ProblemType"]["ComputeDataType"].zeroString(self.language, 1)
+
       kStr += self.endLine
+      kStr += "  unsigned int sizeUnroll = 1"
+      for i in range(kernel["ProblemType"]["NumIndicesSummation"]):
+        loopDim  = kernel["ProblemType"]["IndicesSummation"][i]
+        loopChar = self.indexChars[loopDim]
+        kStr += f" * size{loopChar}"
+      kStr += ";" + self.endLine
+
       kStr += "  unsigned int wg = " + self.getGroupIdStr + "(2);" + self.endLine
       if not kernel["_GlobalAccumulation"]:
-        kStr += "  DEST_DATA_TYPE      * D = BatchD[wg];" + self.endLine
-        kStr += "  DEST_DATA_TYPE const* C = BatchC[wg];" + self.endLine
-      kStr += "  DATA_TYPE      const* A = BatchA[wg];" + self.endLine
-      kStr += "  DATA_TYPE      const* B = BatchB[wg];" + self.endLine
+        kStr +=  "  DEST_DATA_TYPE      * D = BatchD[wg];" + self.endLine
+        kStr += f"  DEST_DATA_TYPE const* C = (beta == {zeroStr}) ? nullptr : BatchC[wg];" + self.endLine
+      kStr += f"  DATA_TYPE      const* A = ((alpha == {zeroStr}) || (sizeUnroll == 0)) ? nullptr : BatchA[wg];" + self.endLine
+      kStr += f"  DATA_TYPE      const* B = ((alpha == {zeroStr}) || (sizeUnroll == 0)) ? nullptr : BatchB[wg];" + self.endLine
 
     ####################################
     # apply offset
@@ -1149,11 +1170,12 @@ class KernelWriterSource(KernelWriter):
         kStr += "  %s  = %s %% problemNumGroupTiles0;%s" % ( wg0, wgIJSerial, self.endLine)
         kStr += "  %s  = %s / problemNumGroupTiles0;%s" % ( wg1, wgIJSerial, self.endLine)
         if not kernel["ProblemType"]["StridedBatched"]:
+          zeroStr = kernel["ProblemType"]["ComputeDataType"].zeroString(self.language, 1)
           if not kernel["_GlobalAccumulation"]:
-            kStr += "  D = BatchD[wgKSerial] + offsetD;%s" % self.endLine
-            kStr += "  C = BatchC[wgKSerial] + offsetC;%s" % self.endLine
-          kStr += "  A = BatchA[wgKSerial] + offsetA;%s" % self.endLine
-          kStr += "  B = BatchB[wgKSerial] + offsetB;%s" % self.endLine
+            kStr +=  "  D = BatchD[wgKSerial] + offsetD;%s" % self.endLine
+            kStr += f"  C = ((beta == {zeroStr}) ? nullptr : BatchC[wgKSerial]) + offsetC;%s" % self.endLine
+          kStr += f"  A = (((alpha == {zeroStr}) || (sizeUnroll == 0)) ? nullptr : BatchA[wgKSerial]) + offsetA;" + self.endLine
+          kStr += f"  B = (((alpha == {zeroStr}) || (sizeUnroll == 0)) ? nullptr : BatchB[wgKSerial]) + offsetB;" + self.endLine
       else:
         # compare serialWgIter against problem groups
         if kernel["GlobalSplitU"] > 1:
@@ -1348,7 +1370,7 @@ class KernelWriterSource(KernelWriter):
             self.endLine)
 
         # clip to edge if the flattened offset is OOB:
-        tP["packedSizeList"] = ["size%s"%self.indexChars[idx] for idx in kernel["PackedC%dIndicesX"%tP["tensorIdx"]]]
+        tP["packedSizeList"] = ["size%s"%self.indexChars[idx] for idx in kernel["PackedC%dIndicesX"%(tP["tile01Idx"])]]
         sizeStr = " * ".join(tP["packedSizeList"])
 
         kStr += "  %s = (%s > (%s-1)) ? (%s-1):%s;%s" \
@@ -1558,7 +1580,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read Addresses: Addresses A/B
   ##############################################################################
-  def graAddresses(self, kernel, tP):
+  def graAddresses(self, kernel, tP, isPap=False):
     kStr = ""
 
     for perp in range(0, tP["nrp"]):
@@ -1713,16 +1735,18 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read Addresses: Tile Assignment
+  # Local Read Addresses: Tile Assignment A/B
   ##############################################################################
-  def lraTileAssignment(self, kernel, tP):
+  def lraTileAssignment(self, kernel, tPA, tPB):
     kStr = ""
-    if tP["tensorChar"] == 'A':
-      kStr += "  unsigned int lr%s = (serial %% SG%s);%s" \
-          % (tP["tileChar"], self.tileChar0, self.endLine)
-    elif tP["tensorChar"] == 'B':
-      kStr += "  unsigned int lr%s = (serial / SG%s) %% SG%s;%s" \
-        % (tP["tileChar"], self.tileChar0, self.tileChar1, self.endLine)
+
+    tP0 = tPA if tPB["tile01Idx"] else tPB
+    tP1 = tPB if tPB["tile01Idx"] else tPA
+
+    kStr += "  unsigned int lr%s = (serial %% SG%s);%s" \
+        % (tP0["tileChar"], self.tileChar0, self.endLine)
+    kStr += "  unsigned int lr%s = (serial / SG%s) %% SG%s;%s" \
+        % (tP1["tileChar"], self.tileChar0, self.tileChar1, self.endLine)
 
     return kStr
 
@@ -1735,6 +1759,19 @@ class KernelWriterSource(KernelWriter):
         % ( tP["tensorChar"], tP["tileChar"], tP["tileChar"], \
         " + LDS_OFFSET_B" if tP["isB"] else "", self.endLine)
     return kStr
+
+  ##############################################################################
+  # Local Read Addresses for direct LDS : Final Offset A/B
+  ##############################################################################
+  def directToLdsLraOffset(self, kernel, finalVgpr, tmp1, tmp2, tP):
+    return ""
+
+  ##############################################################################
+  # Local Read Addresses offset conversion for DTL + NLC > 1
+  ##############################################################################
+  def lraOffsetConversionForDTLandNLC(self, kernel, tP, offset_val, generateAsm=False, \
+                                      finalVgpr=None, tmp1=None, tmp2=None):
+    return ""
 
   ##############################################################################
   # Local Read Addresses: Declare Addresses A/B
@@ -1990,21 +2027,8 @@ class KernelWriterSource(KernelWriter):
       kStr += self.endLine + "  /* Compute summation loop num iter */" + self.endLine
 
       # Check alpha == 0
-      if kernel["ProblemType"]["ComputeDataType"].isDoubleComplex():
-        alphaZeroStr = "tensile_complex<double>(0.0)"
-      elif kernel["ProblemType"]["ComputeDataType"].isDouble() or \
-            kernel["ProblemType"]["ComputeDataType"].isReal():
-        alphaZeroStr = "0.0"
-      elif kernel["ProblemType"]["ComputeDataType"].isSingleComplex():
-        alphaZeroStr = "tensile_complex<float>(0.0f)"
-      elif kernel["ProblemType"]["ComputeDataType"].isSingle() or \
-            kernel["ProblemType"]["ComputeDataType"].isHalf() or \
-            kernel["ProblemType"]["ComputeDataType"].isBFloat16():
-        alphaZeroStr = "0.0f"
-      else:
-        alphaZeroStr = "0"
-
-      kStr += self.indent + "if(alpha == %s) size%s = 0;"%(alphaZeroStr, loopChar) + "  // Short circuit check alpha=0, skip A*B " + self.endLine
+      zeroStr = kernel["ProblemType"]["ComputeDataType"].zeroString(self.language, 1)
+      kStr += self.indent + "if(alpha == %s) size%s = 0;"%(zeroStr, loopChar) + "  // Short circuit check alpha=0, skip A*B " + self.endLine
 
       if loopIdx == self.unrollIdx and kernel["GlobalSplitU"] > 1:
         kStr += self.calculateLoopNumIterGsu(kernel, "(size%s / LOCAL_DEPTHU)"%loopChar, \
@@ -2046,7 +2070,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Open Loop
   ##############################################################################
-  def openLoop(self, kernel, loopIdx, uDu=0):
+  def openLoop(self, kernel, loopIdx, uDu=0, noLabelGen=False, beginLabelOnly=False):
     problemType = kernel["ProblemType"]
     tailLoop = loopIdx < 0
     if tailLoop:
@@ -2055,8 +2079,10 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    if kernel["LoopDoWhile"]:
+    if kernel["LoopDoWhile"] and not tailLoop:
       kStr += "%sdo {%s" % (self.indent, self.endLine)
+      self.indent += "  "
+      kStr += "%snumIter%s--;%s" % (self.indent, loopChar, self.endLine)
       assert(not self.unrollIncIsDepthU)
     else:
       if self.unrollIncIsDepthU and loopIdx==self.unrollIdx and not tailLoop:
@@ -2074,7 +2100,7 @@ class KernelWriterSource(KernelWriter):
             % (self.indent, loopChar, \
             (1 if (kernel["PrefetchGlobalRead"] and loopIdx == self.unrollIdx \
             and not tailLoop) else 0), self.endLine)
-    self.indent += "  "
+      self.indent += "  "
     #if tailLoop:
     #  kStr += "if (serial==0) printf(\\\"WG%u_%u: ti=%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
     #else:
@@ -2084,7 +2110,8 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Close Loop
   ##############################################################################
-  def closeLoop(self, kernel, loopIdx, finalLoop, uDu=0, emitEndLabelOnly=False):
+  def closeLoop(self, kernel, loopIdx, finalLoop, loopCopies, uDu=0, emitEndLabelOnly=False, oddLabel=False):
+    tailLoop = loopIdx < 0
     kStr = ""
     if emitEndLabelOnly:
       return kStr
@@ -2105,8 +2132,8 @@ class KernelWriterSource(KernelWriter):
           incAmount = "1"
 
     self.indent = self.indent[2:]
-    if kernel["LoopDoWhile"]:
-      kStr += "%s} while (--numIter%s > %u);%s" \
+    if kernel["LoopDoWhile"] and not tailLoop:
+      kStr += "%s} while (numIter%s > %u);%s" \
           % (self.indent, loopChar, \
           (1 if kernel["PrefetchGlobalRead"] else 0), self.endLine )
     else:
@@ -2123,19 +2150,13 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # End Summation
   ##############################################################################
-  def endSummation(self,kernel):
-    return ""
-
-  ##############################################################################
-  # Convert Alpha, Beta from F16 to F32 for HPA
-  ##############################################################################
-  def checkAlphaBetaForHPA(self,kernel):
+  def endSummation(self,kernel, label = None, isOptNLL = False):
     return ""
 
   ##############################################################################
   # MAC Iteration
   ##############################################################################
-  def macIter(self, kernel, black, iuiCount, useMacro):
+  def macIter(self, kernel, black, iuiCount, useMacro, isTail=False):
     kStr = ""
     for iui in range(0,iuiCount):
         kStr += "%sMAC_%ux%u" % (self.indent, \
@@ -2148,7 +2169,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # At Least 1 Unroll
   ##############################################################################
-  def openSumAtLeastUnroll(self, kernel, prefetch, isPap, isOptNLL):
+  def openSumAtLeastUnroll(self, kernel, prefetch, isOptNLL, isPap):
     kStr = ""
     if kernel["GlobalSplitU"] > 1:
       kStr += "%sif (numIterMyWg >= 1) {%s" \
@@ -2159,7 +2180,7 @@ class KernelWriterSource(KernelWriter):
     self.indent += "  "
     return kStr
 
-  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL, isNGLL):
+  def closeSumAtLeastUnroll(self, kernel, prefetch, isOptNLL, isPap, isNGLL):
     kStr = ""
     self.indent = self.indent[2:]
     kStr += "%s} // end %s%s" % \
@@ -2371,7 +2392,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # DirectToLds M0 update: Do It A/B
   ##############################################################################
-  def directToLdsM0Update(self, kernel, mode, tP):
+  def directToLdsM0Update(self, kernel, mode, tP, usePlaceHolder=False):
     tc = tP["tensorChar"]
     imod = Code.Module("directToLdsM0Update%s_%u"%(tc,mode))
     return imod
@@ -2380,7 +2401,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Global Read: Do It A/B
   ##############################################################################
-  def globalReadDo(self, kernel, mode, tP):
+  def globalReadDo(self, kernel, mode, tP, vregSetIdx=0):
     kStr = ""
     tc = tP["tensorChar"]
 
@@ -2469,7 +2490,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write: Swap Offsets A/B
   ##############################################################################
-  def localWriteSwapOffsets(self, kernel, tP):
+  def localWriteSwapOffsets(self, kernel, internalPointerSwap, tP):
     kStr = ""
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
@@ -2484,7 +2505,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Local Write: Reset Offsets A/B
   ##############################################################################
-  def localWriteResetOffsets(self, kernel, tP):
+  def localWriteResetOffsets(self, kernel, internalPointerSwap, tP):
     kStr = ""
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
@@ -2515,13 +2536,13 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def preLoopLocalWriteDo(self, kernel, tPA, tPB):
     kStr = ""
-    LWCodeA, dummy = self.localWriteDo(kernel, tPA)
-    LWCodeB, dummy = self.localWriteDo(kernel, tPB)
+    LWCodeA = self.localWriteDo(kernel, tPA)
+    LWCodeB = self.localWriteDo(kernel, tPB)
     kStr += self.comment("local write a")
     kStr += LWCodeA
     kStr += self.comment("local write b")
     kStr += LWCodeB
-    return kStr, dummy, dummy
+    return kStr
 
   ##############################################################################
   # Replace the determined vmcnt in PreLoop LocalWrite
@@ -2534,7 +2555,6 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localWriteDo(self, kernel, tP, uDu=0):
     kStr = ""
-    tmpVgprStartIdxForLSHR = -1 # not used in source, just align the return with assembly
     if self.language == "HIP":
       kStr += "#pragma clang diagnostic push" + self.endLine
       kStr += "#pragma clang diagnostic ignored \"-Wconditional-uninitialized\"" + self.endLine
@@ -2559,7 +2579,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "    for (unsigned int i = serial; i < LDS_NUM_ELEMENTS; i+=NUM_THREADS) {%s" % self.endLine
       kStr += "      printf(\\\"lds[%%06u] = %%.0f\\\\n\\\", i, localMemory[i]);%s" % self.endLine
       kStr += "    }" + self.endLine
-    return kStr, tmpVgprStartIdxForLSHR
+    return kStr
 
   ##############################################################################
   # Local Read: Swap Offsets A/B
@@ -2643,7 +2663,7 @@ class KernelWriterSource(KernelWriter):
 
     for r in range(1, tP["glvw"]):
       kStr += "    if (r%s == %u) {%s" % (tP["tileChar"], r, self.endLine)
-      numVectors = kernel["ThreadTile%s"%tP["tileIdx"]]//tP["glvw"]
+      numVectors = kernel["ThreadTile%s"%(tP["tile01Idx"])]//tP["glvw"]
       for vIdx in range(0, numVectors):
         if vIdx == 0:
           kStr += "      "
@@ -2652,7 +2672,7 @@ class KernelWriterSource(KernelWriter):
         if vIdx < numVectors-1:
           kStr += "if (s%s == %u) " % (tP["tileChar"], vIdx)
         kStr += "{%s" % self.endLine
-        for tt in range(0, kernel["ThreadTile%u"%((tP["tileIdx"]+1)%2)]):
+        for tt in range(0, kernel["ThreadTile%u"%(((tP["tile01Idx"])+1)%2)]):
           for s in range(0, r):
             if tP["isA"]:
               kStr += "        rC[%u + %u*GLOBAL_LOAD_VECTOR_WIDTH_A + %u*TT%s] = rC[%u + %u*GLOBAL_LOAD_VECTOR_WIDTH_A + %u*TT%s];%s" \
@@ -2735,7 +2755,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localSplitULocalWrite(self, kernel):
     kStr = ""
-    kStr += "  %sDATA_TYPE *localLocalSplitU = (%sDATA_TYPE *)(localMemory);%s" \
+    kStr += "  %sCOMPUTE_DATA_TYPE *localLocalSplitU = (%sCOMPUTE_DATA_TYPE *)(localMemory);%s" \
       % (self.sharedPtrStr, self.sharedPtrStr, self.endLine)
     for j in range(0, kernel["ThreadTile1"] // kernel["VectorWidth"]):
       for i in range(0, kernel["ThreadTile0"] // kernel["VectorWidth"]):
@@ -2746,7 +2766,7 @@ class KernelWriterSource(KernelWriter):
                 self.tileChar0, self.tileChar1, \
                 s, self.tileChar1, j, self.tileChar0, self.tileChar1, vc, i, s, \
                 self.tileChar0, j, self.tileChar0, self.endLine)
-    kStr += self.indent + self.syncStr + self.endLine
+    kStr += self.syncThreads(kernel);
     """
 
     kStr += "    /* print Local state */" + self.endLine
@@ -2833,6 +2853,12 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
+  # globalWriteWorkGroupInitBeforePersistentLoop:
+  ##############################################################################
+  def globalWriteWorkGroupInitBeforePersistentLoop(self, kernel):
+    return ""
+
+  ##############################################################################
   # globalWriteWorkGroupInit:
   ##############################################################################
   def globalWriteWorkGroupInit(self, kernel):
@@ -2869,8 +2895,22 @@ class KernelWriterSource(KernelWriter):
             % (self.indexChars[i])
         if isPackedIndex(kernel,i):
           kStr += "0; // define, will be set below%s" % (self.endLine)
-        else:
+        elif kernel["ProblemType"]["StridedBatched"] or kernel["_GlobalAccumulation"]:
           kStr += "(wg%s);%s" % (self.indexChars[i], self.endLine)
+        else:
+          kStr += "0;%s" % (self.endLine)
+
+    if kernel["_GlobalAccumulation"] == 'MultipleBuffer':
+      indexChar = self.indexChars[0]
+      kStr += "  %s strideW = 1 + (size%s - 1) " % (self.uint64Str, indexChar)
+      for i in range(1, kernel["ProblemType"]["NumIndicesC"]):
+        strideStr = "1"
+        for j in range(0, i):
+          strideStr += " * size%s" % (self.indexChars[j])
+        indexChar = self.indexChars[i]
+        kStr += " + (size%s - 1) * %s" % (indexChar, strideStr)
+      kStr += ";" + self.endLine
+
     return kStr
 
   ##############################################################################
@@ -3045,6 +3085,9 @@ class KernelWriterSource(KernelWriter):
                 kStr += self.extractGlobalCDims(kernel, base1, 1)
                 addTensorDimCheck1 = 0
 
+              tP0 = self.tPA if self.tPB["tile01Idx"] else self.tPB
+              tP1 = self.tPB if self.tPB["tile01Idx"] else self.tPA
+
               ### Bounds checks:
               # if packed, check flattened against product of all packed sizes
               # The flattened base never changes so add all address offsets before comparison
@@ -3052,7 +3095,7 @@ class KernelWriterSource(KernelWriter):
                 # base contains some addressing components, so just offset here:
                 offset0 = offsetS0
               globalC0ForCheck = "flattenedGlobalC0"
-              size0ForCheck = " * ".join(self.tPA["packedSizeList"])
+              size0ForCheck = " * ".join(tP0["packedSizeList"])
 
               # Check 0 dimension against appropriate size limit
               kStr += "  if (%s%s + %u*SG%s*VECTOR_WIDTH < %s) {" \
@@ -3063,7 +3106,7 @@ class KernelWriterSource(KernelWriter):
               if packGranularity == 2:
                 offset1 = offsetS1
               globalC1ForCheck = "flattenedGlobalC1"
-              size1ForCheck = " * ".join(self.tPB["packedSizeList"])
+              size1ForCheck = " * ".join(tP1["packedSizeList"])
 
               kStr += "  if (%s%s + %u*SG%s*VECTOR_WIDTH < %s) {" \
                   % (globalC1ForCheck,
@@ -3110,10 +3153,10 @@ class KernelWriterSource(KernelWriter):
             kStr += self.endLine
     return kStr
 
-  def openPrefetchAcrossPersistent(self, kernel, isOptNLL):
+  def openPrefetchAcrossPersistent(self, kernel, isOptNLL, useBufferOOB=False):
     return ""
 
-  def closePrefetchAcrossPersistent(self, kernel, isOptNLL):
+  def closePrefetchAcrossPersistent(self, kernel, isOptNLL, useBufferOOB=False):
     return ""
 
   ##############################################################################
@@ -3178,6 +3221,7 @@ class KernelWriterSource(KernelWriter):
       kStr += "#undef LDS_OFFSET_BLK%s" % (self.endLine)
       kStr += "#undef LDS_NUM_ELEMENTS%s" % (self.endLine)
       kStr += "#undef NUM_THREADS%s" % (self.endLine)
+      kStr += "#undef PAD%s" % (self.endLine)
       kStr += "#undef WORK_GROUP_MAPPING%s" % (self.endLine)
       kStr += "#undef VECTOR_WIDTH%s" % (self.endLine)
       kStr += "#undef GLOBAL_LOAD_VECTOR_WIDTH_A%s" % (self.endLine)
@@ -3277,9 +3321,151 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def syncThreads(self, kernel, comment=""):
     return self.indent + self.syncStr + " //" + comment + self.endLine
+# TODO: can be uncommented once source kernels support WavefrontSize=32
+#    if kernel["NumThreads"] > kernel["WavefrontSize"]:
+#        return self.indent + self.syncStr + " //" + comment + self.endLine
+#    else:
+#        return self.indent + "// Skip barrier: NumThreads=%s"%(kernel["NumThreads"]) + \
+#               self.endLine
 
   ##############################################################################
   # MapAcctoArch
   ##############################################################################
   def MapAcctoArchRegs(self, kernel, option):
+    return ""
+
+  ##############################################################################
+  # openmovaccVgpr
+  ##############################################################################
+  def openmovaccVgpr(self, kernel, backupSgpr):
+    return ""
+
+  ##############################################################################
+  # getAccVgprCode
+  ##############################################################################
+  def getAccVgprCode(self,kernel,odd):
+    return ""
+
+  ##############################################################################
+  # closemovaccVgpr
+  ##############################################################################
+  def closemovaccVgpr(self, kernel, backupSgpr):
+    return ""
+
+  ##############################################################################
+  # init for StoreCInUnroll
+  ##############################################################################
+  def initStoreCInUnroll(self, kernel):
+    return ""
+
+  ##############################################################################
+  # init for StoreCInUnroll per Persistent Loop
+  ##############################################################################
+  def initStoreCInUnrollPerPersistentLoop(self, kernel):
+    return ""
+
+  ##############################################################################
+  # init for StoreCInUnroll per Unroll Loop
+  ##############################################################################
+  def initStoreCInUnrollPerUnrollLoop(self, kernel, needInit):
+    return ""
+
+  ##############################################################################
+  # swap SrdC and SrdCbackup, SrdD and SrdDbackup
+  ##############################################################################
+  def swapSrdCDandBackup(self, kernel):
+    return ""
+
+  ##############################################################################
+  # C/D address increment value for StoreCInUnroll
+  ##############################################################################
+  def generateCorDaddrIncrementForStoreCInUnroll(self, kernel, CorD, odd, tmpSgprWork):
+    return ""
+
+  ##############################################################################
+  # get address/gpr index increment frequency for StoreCInUnroll
+  ##############################################################################
+  def getAddrGprIdxIncrementFrequencyForStoreCInUnroll(self, kernel):
+    return ""
+
+  ##############################################################################
+  # generate post process for StoreCInUnroll loop
+  ##############################################################################
+  def generatePostProcessForStoreCInUnrollLoop(self, kernel, needPost):
+    return ""
+
+  ##############################################################################
+  # restore SrdCbackup and SrdDbackup
+  ##############################################################################
+  def restoreSrdCandDBackup(self, kernel):
+    return ""
+
+  ##############################################################################
+  # set storeC sync objects
+  ##############################################################################
+  def setStoreCsyncObject(self, kernel):
+    return ""
+
+  ##############################################################################
+  # reset storeC sync objects
+  ##############################################################################
+  def resetStoreCsyncObject(self, kernel):
+    return ""
+
+  ##############################################################################
+  # end process for StoreCInUnroll per PersistentLoop (OptNLL)
+  ##############################################################################
+  def endProcessPersistentLoopforStoreCInUnrollOptNLL(self, kernel):
+    return ""
+
+  ##############################################################################
+  # end process for StoreCInUnroll per PersistentLoop (NoOptNLL)
+  ##############################################################################
+  def endProcessPersistentLoopforStoreCInUnrollNoOptNLL(self, kernel):
+    return ""
+
+  ##############################################################################
+  # number of storeC code in template for StoreCInUnroll
+  ##############################################################################
+  def getNumberOfStoreCInTemplate(self, kernel):
+    return ""
+
+  ##############################################################################
+  # number of LoadC code in template for StoreCInUnroll
+  ##############################################################################
+  def getNumberOfLoadCInForLoadC(self, kernel):
+    return ""
+
+  ##############################################################################
+  # generate storeCInUnroll post loop code
+  ##############################################################################
+  def generateStoreInUnrollPostLoop(self, kernel, isOptNLL, isDTVodd):
+    return ""
+
+  ##############################################################################
+  # openOddNoLoadLoopForDTV
+  # generate open code for DirectToVgpr + odd exit case in noLoadLoop code
+  ##############################################################################
+  def openOddNoLoadLoopForDTV(self, kernel, isNGLL, name):
+    return ""
+
+  ##############################################################################
+  # closeOddNoLoadLoopForDTV
+  # generate close code for DirectToVgpr + odd exit case in noLoadLoop code
+  ##############################################################################
+  def closeOddNoLoadLoopForDTV(self, kernel, isNGLL, name):
+    return ""
+
+  ##############################################################################
+  # generateEvenEndLabeNoLoadLoopForDTV
+  # generate even end label for DirectToVgpr
+  ##############################################################################
+  def generateEvenEndLabeNoLoadLoopForDTV(self, kernel, isNGLL, name):
+    return ""
+
+  ##############################################################################
+  # generateOddEndVgprCopyForDTV
+  # generate odd end vgpr copy for DirectToVgpr
+  ##############################################################################
+  def generateOddEndVgprCopyForDTV(self, kernel):
     return ""

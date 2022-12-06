@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,7 @@ TEST(TestData, Simple)
 
     EXPECT_TRUE(static_cast<bool>(data));
 
+#if defined(TENSILE_MSGPACK) || defined(TENSILE_LLVM)
     auto is_regular_file
         = static_cast<bool (*)(boost::filesystem::path const&)>(boost::filesystem::is_regular_file);
 
@@ -55,6 +56,7 @@ TEST(TestData, Simple)
         std::cout << file << std::endl;
         EXPECT_PRED1(is_regular_file, file);
     }
+#endif
 
     if(TestData::Env("TENSILE_NEVER_SET_THIS_AKDJFLKDSJ"))
         FAIL() << "TestData object constructed with unset environment variable "

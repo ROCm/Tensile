@@ -1,22 +1,25 @@
 ################################################################################
-# Copyright 2020-2021 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2020-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 from copy import deepcopy
@@ -35,6 +38,7 @@ class KernelWriterConversion(KernelWriterBase):
     # derive parameter
     self.language = "HIP"
     self.kernelName = self.getKernelName()
+    self.datatype = self.state["ProblemType"]["ComputeDataType"].toDevice(self.language)
 
     # determine chars for fast access
     self.indexChars = []
@@ -62,7 +66,7 @@ class KernelWriterConversion(KernelWriterBase):
     bStr = '' if self.state["ProblemType"]["StridedBatched"] else 'Batch'
 
     kStr += "  " + ptrStr + " * " + bStr + "D," + self.endLine
-    kStr += "  " + "float * W," + self.endLine
+    kStr += "  " + self.datatype + " * W," + self.endLine
     kStr += "  " + ptrStr + " const * " + bStr + "C," + self.endLine
 
     # alpha & beta
@@ -192,7 +196,8 @@ class KernelWriterConversion(KernelWriterBase):
       ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
       kStr += "  " + ptrStr + " * D = BatchD[wg];" + self.endLine
       ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-      kStr += "  " + ptrStr + " const* C = BatchC[wg];" + self.endLine
+      zeroStr = self.state["ProblemType"]["ComputeDataType"].zeroString(self.language, 1)
+      kStr += "  " + ptrStr + f" const* C = (beta == {zeroStr}) ? nullptr : BatchC[wg];" + self.endLine
 
     ########################################
     # apply offset
@@ -232,16 +237,16 @@ class KernelWriterConversion(KernelWriterBase):
       kStr += " + (size%s - 1) * strideW%s" % (indexChar, indexChar)
     kStr += ";" + self.endLine
 
-    kStr += "  float accum = 0.0f;%s" % self.endLine
+    kStr += "  " + self.datatype + " accum = 0;%s" % self.endLine
     kStr += "  for (int i=0; i<gsu; i++) {%s" % self.endLine
     kStr += "    accum += W[idxW];%s" % self.endLine
     kStr += "    idxW  += strideW;%s" % self.endLine
     kStr += "  }%s" % self.endLine
 
     kStr += "  if( beta == (%s)0)%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine)
-    kStr += "    accum = ((float)alpha) * accum;%s" % (self.endLine)
+    kStr += "    accum = ((" + self.datatype + ")alpha) * accum;%s" % (self.endLine)
     kStr += "  else%s" % self.endLine
-    kStr += "    accum = (((float)alpha) * accum + ((float)beta) * ((float)C[idxC]));%s" % (self.endLine)
+    kStr += "    accum = (((" + self.datatype + ")alpha) * accum + ((" + self.datatype + ")beta) * ((" + self.datatype + ")C[idxC]));" + self.endLine
 
     typeStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
     kStr += "  D[idxD] = (%s)accum;%s" % (typeStr, self.endLine)

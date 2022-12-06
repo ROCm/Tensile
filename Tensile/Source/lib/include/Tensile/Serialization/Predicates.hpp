@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -210,7 +210,18 @@ namespace Tensile
                 iot::enumCase(io, value, "gfx900", AMDGPU::Processor::gfx900);
                 iot::enumCase(io, value, "gfx906", AMDGPU::Processor::gfx906);
                 iot::enumCase(io, value, "gfx908", AMDGPU::Processor::gfx908);
+                iot::enumCase(io, value, "gfx90a", AMDGPU::Processor::gfx90a);
                 iot::enumCase(io, value, "gfx1010", AMDGPU::Processor::gfx1010);
+                iot::enumCase(io, value, "gfx1011", AMDGPU::Processor::gfx1011);
+                iot::enumCase(io, value, "gfx1012", AMDGPU::Processor::gfx1012);
+                iot::enumCase(io, value, "gfx1030", AMDGPU::Processor::gfx1030);
+                iot::enumCase(io, value, "gfx1031", AMDGPU::Processor::gfx1031);
+                iot::enumCase(io, value, "gfx1032", AMDGPU::Processor::gfx1032);
+                iot::enumCase(io, value, "gfx1034", AMDGPU::Processor::gfx1034);
+                iot::enumCase(io, value, "gfx1035", AMDGPU::Processor::gfx1035);
+                iot::enumCase(io, value, "gfx1100", AMDGPU::Processor::gfx1100);
+                iot::enumCase(io, value, "gfx1101", AMDGPU::Processor::gfx1101);
+                iot::enumCase(io, value, "gfx1102", AMDGPU::Processor::gfx1102);
             }
         };
     } // namespace Serialization

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -52,7 +52,6 @@ TEST(LLVMYAMLContractionTest, Simple)
                         "index: 0\n"
                         "hardwarePredicate: { type: TruePred }\n"
                         "problemPredicate:  { type: TruePred }\n"
-                        "info: {}\n"
                         "debugKernel: false\n"
                         "problemType:\n"
                         "  operationIdentifier: foo\n"
@@ -62,7 +61,8 @@ TEST(LLVMYAMLContractionTest, Simple)
                         "  bType: Float\n"
                         "  cType: Float\n"
                         "  dType: Float\n";
-    llvm::yaml::Input yin(mydoc);
+    LibraryIOContext<ContractionSolution> context{std::string(""), {}, nullptr};
+    llvm::yaml::Input                     yin(mydoc, &context);
 
     ContractionSolution s;
 
@@ -79,8 +79,9 @@ TEST(LLVMYAMLContractionTest, Predicate)
     std::string mydoc = "type: And\n"
                         "value: [{type: TruePred}, \n"
                         "        {type: Not, value: {type: FalsePred}},\n"
-                        "        {type: FreeSizeAMultiple, index: 0, value: 2}]";
-    llvm::yaml::Input yin(mydoc);
+                        "        {type: Free0SizeMultiple, index: 0, value: 2}]";
+    LibraryIOContext<ContractionSolution> context{std::string(""), {}, nullptr};
+    llvm::yaml::Input                     yin(mydoc, &context);
 
     std::shared_ptr<Predicates::Predicate<ContractionProblem>> p;
 
@@ -118,7 +119,6 @@ TEST(LLVMYAMLContractionTest, ContractionLibrary)
                         "    index: 0\n"
                         "    hardwarePredicate: { type: TruePred }\n"
                         "    problemPredicate:  { type: TruePred }\n"
-                        "    info: {}\n"
                         "    debugKernel: false\n"
                         "    problemType:\n"
                         "      operationIdentifier: foo\n"
@@ -136,12 +136,13 @@ TEST(LLVMYAMLContractionTest, ContractionLibrary)
                         "        library:\n"
                         "          type: Problem\n"
                         "          rows:\n"
-                        "              - predicate: { type: FreeSizeAMultiple, "
+                        "              - predicate: { type: Free0SizeMultiple, "
                         "index: 0, value: 2 }\n"
                         "                library: { type: Single, index: 0 }\n"
                         "";
 
-    llvm::yaml::Input yin(mydoc);
+    LibraryIOContext<ContractionSolution> context{std::string(""), {}, nullptr};
+    llvm::yaml::Input                     yin(mydoc, &context);
 
     MasterContractionLibrary l;
 

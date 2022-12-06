@@ -1,250 +1,373 @@
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
-from .Common import print2, printExit, printWarning, versionIsCompatible
+from .Common import printExit, printWarning, versionIsCompatible
 from .SolutionStructs import Solution, ProblemSizes, ProblemType
 from . import __version__
 from . import Common
 from . import SolutionLibrary
-import os
+
+from typing import NamedTuple
 
 try:
-  import yaml
+    import yaml
 except ImportError:
-  printExit("You must install PyYAML to use Tensile (to parse config files). See http://pyyaml.org/wiki/PyYAML for installation instructions.")
+    printExit(
+        "You must install PyYAML to use Tensile (to parse config files). See http://pyyaml.org/wiki/PyYAML for installation instructions."
+    )
 
 try:
-  import msgpack
+    import msgpack
 except ImportError:
-  print("Message pack python library not detected. Must use YAML backend instead.")
-
-################################################################################
-# Read Benchmark Config from YAML Files
-################################################################################
-def readConfig( filename ):
-  try:
-    stream = open(filename, "r")
-  except IOError:
-    printExit("Cannot open file: %s" % filename )
-  config = yaml.load(stream, yaml.SafeLoader)
-  stream.close()
-  return config
-
-################################################################################
-# Write List of Solutions to YAML File
-################################################################################
-def writeSolutions( filename, problemSizes, solutions ):
-  # convert objects to nested dictionaries
-  solutionStates = []
-  for hardcoded in solutions:
-    for solution in hardcoded:
-      solutionState = solution.getAttributes()
-      solutionState["ProblemType"] = solutionState["ProblemType"].state
-      solutionState["ProblemType"]["DataType"] = \
-          solutionState["ProblemType"]["DataType"].value
-      solutionState["ProblemType"]["DestDataType"] = \
-          solutionState["ProblemType"]["DestDataType"].value
-      solutionState["ProblemType"]["ComputeDataType"] = \
-          solutionState["ProblemType"]["ComputeDataType"].value
-      solutionStates.append(solutionState)
-  # write dictionaries
-  try:
-    stream = open(filename, "w")
-  except IOError:
-    printExit("Cannot open file: %s" % filename)
-  stream.write("- MinimumRequiredVersion: %s\n" % __version__ )
-  stream.write("- ProblemSizes:\n")
-  if problemSizes:
-    for sizeRange in problemSizes.ranges:
-      stream.write("  - Range: %s\n" % sizeRange)
-    for problemExact in problemSizes.exacts:
-      #FIXME-problem, this ignores strides:
-      stream.write("  - Exact: %s\n" % str(problemExact))
-  yaml.dump(solutionStates, stream, default_flow_style=None)
-  stream.close()
+    print("Message pack python library not detected. Must use YAML backend instead.")
 
 
-################################################################################
-# Read List of Solutions from YAML File
-################################################################################
-def readSolutions( filename ):
-  try:
-    stream = open(filename, "r")
-  except IOError:
-    printExit("Cannot open file: %s" % filename )
-  solutionStates = yaml.load(stream, yaml.SafeLoader)
-  stream.close()
+def updateProblemDatatypes(problemType):
+    problemType["DataType"] = problemType["DataType"].value
+    problemType["DestDataType"] = problemType["DestDataType"].value
+    problemType["ComputeDataType"] = problemType["ComputeDataType"].value
 
-  # verify
-  if len(solutionStates) < 2:
-    printExit("len(%s) %u < 2" % (filename, len(solutionStates)))
-  versionString = solutionStates[0]["MinimumRequiredVersion"]
-  if not versionIsCompatible(versionString):
-    printWarning("File \"%s\" version=%s does not match current Tensile version=%s" \
-        % (filename, versionString, __version__) )
 
-  if "ProblemSizes" not in solutionStates[1]:
-    printExit("%s doesn't begin with ProblemSizes" % filename)
-  else:
-    problemSizesConfig = solutionStates[1]["ProblemSizes"]
-
-  solutions = []
-  for i in range(2, len(solutionStates)):
-    solutionState = solutionStates[i]
-    # force redo the deriving of parameters, make sure old version logic yamls can be validated
-    solutionState["AssignedProblemIndependentDerivedParameters"] = False
-    solutionState["AssignedDerivedParameters"] = False
-    solutionObject = Solution(solutionState)
-    solutions.append(solutionObject)
-  problemType = solutions[0]["ProblemType"]
-  problemSizes = ProblemSizes(problemType, problemSizesConfig)
-  return (problemSizes, solutions)
-
-################################################################################
-# Read Library Logic from YAML
-################################################################################
-def readLibraryLogicForSchedule( filename ):
-  #print1("# Reading Library Logic: %s" % ( filename ))
-  try:
-    stream = open(filename, "r")
-  except IOError:
-    printExit("Cannot open file: %s" % filename )
-  data = yaml.load(stream, yaml.SafeLoader)
-  stream.close()
-
-  # verify data has all the fields we need
-  if len(data) < 9:
-    printExit("Library logic file %s is missing required fields (len = %u < 9)" % (filename, len(data)))
-
-  # parse out objects
-  versionString     = data[0]["MinimumRequiredVersion"]
-  scheduleName      = data[1]
-  architectureName  = data[2] if isinstance(data[2], str) else data[2]["Architecture"]
-  deviceNames       = data[3]
-  problemTypeState  = data[4]
-  solutionStates    = data[5]
-  indexOrder        = data[6]
-  exactLogic        = data[7]
-  rangeLogic        = data[8]
-
-  # does version match
-  if not versionIsCompatible(versionString):
-    printWarning("File \"%s\" version=%s does not match Tensile version=%s" \
-        % (filename, versionString, __version__) )
-
-  # unpack problemType
-  problemType = ProblemType(problemTypeState)
-  # unpack solutions
-  solutions = []
-  for i in range(0, len(solutionStates)):
-    solutionState = solutionStates[i]
-    if solutionState["KernelLanguage"] == "Assembly":
-      solutionState["ISA"] = Common.gfxArch(architectureName)
+###################
+# Writing functions
+###################
+def write(filename_noExt, data, format="yaml"):
+    """Writes data to file with specified format; extension is appended based on format."""
+    if format == "yaml":
+        writeYAML(filename_noExt + ".yaml", data)
+    elif format == "msgpack":
+        writeMsgPack(filename_noExt + ".dat", data)
     else:
-      solutionState["ISA"] = (0, 0, 0)
-    # force redo the deriving of parameters, make sure old version logic yamls can be validated
-    solutionState["AssignedProblemIndependentDerivedParameters"] = False
-    solutionState["AssignedDerivedParameters"] = False
-    solutionObject = Solution(solutionState)
-    if solutionObject["ProblemType"] != problemType:
-      printExit("ProblemType of file doesn't match solution: %s != %s" \
-          % (problemType, solutionObject["ProblemType"]))
-    solutions.append(solutionObject)
+        printExit("Unrecognized format {}".format(format))
 
-  newLibrary = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data, solutions)
 
-  return (scheduleName, deviceNames, problemType, solutions, indexOrder, \
-      exactLogic, rangeLogic, newLibrary, architectureName)
+def writeYAML(filename, data, **kwargs):
+    """Writes data to file in YAML format."""
+    # set default kwags for yaml dump
+    if "explicit_start" not in kwargs:
+        kwargs["explicit_start"] = True
+    if "explicit_end" not in kwargs:
+        kwargs["explicit_end"] = True
+    if "default_flow_style" not in kwargs:
+        kwargs["default_flow_style"] = None
 
-################################################################################
-# Data-specific writers
-################################################################################
+    with open(filename, "w") as f:
+        yaml.dump(data, f, **kwargs)
 
-def configWriter(libraryFormat = "yaml"):
-  return YAMLWriter() if libraryFormat == "yaml" else MessagePackWriter()
 
-class Writer:
-  def write(self, filename, data):
-    """ Write data to a given file. """
-    pass
+def writeMsgPack(filename, data):
+    """Writes data to file in Message Pack format."""
+    with open(filename, "wb") as f:
+        msgpack.pack(data, f)
 
-  def writeLibraryLogicForSchedule(self, filePath, schedulePrefix, architectureName, \
-      deviceNames, logicTuple):
-    """ Encode library logic """
-    pass
 
-  def _getLibraryLogicForSchedule(self, schedulePrefix, architectureName, deviceNames, \
-      logicTuple):
-    problemType   = logicTuple[0]
-    solutions     = logicTuple[1]
-    indexOrder    = logicTuple[2]
-    exactLogic    = logicTuple[3]
-    rangeLogic    = logicTuple[4]
+def writeSolutions(filename, problemSizes, solutions, cache=False):
+    """Writes solution YAML file."""
+
+    # convert objects to nested dictionaries
+    solutionStates = []
+
+    if cache:
+        solYaml = readYAML(filename)
+        solutionStates = solYaml[2:]
+    else:
+        for solution in solutions:
+            solutionState = solution.getAttributes()
+            solutionState["ProblemType"] = solutionState["ProblemType"].state
+            updateProblemDatatypes(solutionState["ProblemType"])
+            solutionStates.append(solutionState)
+    # write dictionaries
+    with open(filename, "w") as f:
+        f.write("- MinimumRequiredVersion: {}\n".format(__version__))
+        f.write("- ProblemSizes:\n")
+        if problemSizes:
+            for sizeRange in problemSizes.ranges:
+                f.write("  - Range: {}\n".format(sizeRange))
+            for problemExact in problemSizes.exacts:
+                #FIXME-problem, this ignores strides:
+                f.write("  - Exact: {}\n".format(problemExact))
+
+        yaml.dump(solutionStates, f, default_flow_style=None)
+
+
+###############################
+# Reading and parsing functions
+###############################
+def readYAML(filename):
+    """Reads and returns YAML data from file."""
+    with open(filename, "r") as f:
+        data = yaml.load(f, yaml.SafeLoader)
+    return data
+
+
+def parseSolutionsFile(filename):
+    """Wrapper function to read and parse a solutions file."""
+    return parseSolutionsData(readYAML(filename), filename)
+
+
+def parseSolutionsData(data, srcFile="?"):
+    """Parses problem sizes and solutions from the data of a solutions file."""
+    if len(data) < 3:
+        printExit("Solution file {} is missing required fields (len = {} < 3" \
+                .format(srcFile, len(data)))
+
+    versionString = data[0]["MinimumRequiredVersion"]
+    if not versionIsCompatible(versionString):
+        printWarning("Version = {} in solution file {} does not match Tensile version = {}" \
+                .format(srcFile, versionString, __version__) )
+
+    if "ProblemSizes" not in data[1]:
+        printExit("Solution file {} doesn't begin with ProblemSizes".format(srcFile))
+
+    problemSizesConfig = data[1]["ProblemSizes"]
+
+    solutions = []
+    for i in range(2, len(data)):
+        solutionState = data[i]
+        # force redo the deriving of parameters, make sure old version logic yamls can be validated
+        solutionState["AssignedProblemIndependentDerivedParameters"] = False
+        solutionState["AssignedDerivedParameters"] = False
+        solutionObject = Solution(solutionState)
+        solutions.append(solutionObject)
+    problemType = solutions[0]["ProblemType"]
+    problemSizes = ProblemSizes(problemType, problemSizesConfig)
+    return (problemSizes, solutions)
+
+
+class LibraryLogic(NamedTuple):
+    """Return tuple for parseLibraryLogicData()"""
+    schedule: str
+    architecture: str
+    problemType: ProblemType
+    solutions: list
+    exactLogic: list
+    library: SolutionLibrary.MasterSolutionLibrary
+
+
+def parseLibraryLogicFile(filename):
+    """Wrapper function to read and parse a library logic file."""
+    return parseLibraryLogicData(readYAML(filename), filename)
+
+
+def parseLibraryLogicData(data, srcFile="?"):
+    """Parses the data of a library logic file."""
+    if type(data) is list:
+        data = parseLibraryLogicList(data, srcFile)
+
+    if "CUCount" not in data:
+        data["CUCount"] = None
+
+    if "Fp16AltImpl" not in data:
+        data["Fp16AltImpl"] = False
+
+    if not versionIsCompatible(data["MinimumRequiredVersion"]):
+        printWarning("Version = {} in library logic file {} does not match Tensile version = {}" \
+                .format(srcFile, data["MinimumRequiredVersion"], __version__) )
+
+    # unpack problemType
+    problemType = ProblemType(data["ProblemType"])
+    # unpack solutions
+    solutions = []
+    for solutionState in data["Solutions"]:
+        if solutionState["ProblemType"] == "derive":
+            solutionState["ProblemType"] = problemType
+        if solutionState["KernelLanguage"] == "Assembly":
+            solutionState["ISA"] = Common.gfxArch(data["ArchitectureName"])
+        else:
+            solutionState["ISA"] = (0, 0, 0)
+        # force redo the deriving of parameters, make sure old version logic yamls can be validated
+        solutionState["AssignedProblemIndependentDerivedParameters"] = False
+        solutionState["AssignedDerivedParameters"] = False
+        solutionObject = Solution(solutionState)
+
+        if solutionObject["ProblemType"] != problemType:
+            printExit("ProblemType in library logic file {} doesn't match solution: {} != {}" \
+                    .format(srcFile, problemType, solutionObject["ProblemType"]))
+        solutions.append(solutionObject)
+
+    newLibrary = SolutionLibrary.MasterSolutionLibrary.FromOriginalState(data, solutions)
+
+    return LibraryLogic(data["ScheduleName"], data["ArchitectureName"], problemType, solutions, \
+            data.get("ExactLogic"), newLibrary)
+
+
+def parseLibraryLogicList(data, srcFile="?"):
+    """Parses the data of a matching table style library logic file."""
+    if len(data) < 9:
+        printExit("Library logic file {} is missing required fields (len = {} < 9)" \
+                .format(srcFile, len(data)))
+
+    rv = {}
+    rv["MinimumRequiredVersion"] = data[0]["MinimumRequiredVersion"]
+    rv["ScheduleName"] = data[1]
+    rv["DeviceNames"] = data[3]
+    rv["ProblemType"] = data[4]
+    rv["Solutions"] = data[5]
+
+    if type(data[2]) is dict:
+        rv["ArchitectureName"] = data[2]["Architecture"]
+        rv["CUCount"] = data[2]["CUCount"]
+    else:
+        rv["ArchitectureName"] = data[2]
+        rv["CUCount"] = None
+
+    rv["ExactLogic"] = data[7]
+    # data[8] previously contained range logic, which has been retired
+
+    # optional fields
+    if len(data) > 10 and data[10]:
+        rv["PerfMetric"] = data[10]
+
+    if len(data) > 11 and data[11]:
+        rv["Fp16AltImpl"] = True
+
+    # library logic fields
+    rv["LibraryType"] = "Matching"
+    rv["Library"] = {}
+    rv["Library"]["indexOrder"] = data[6]
+    rv["Library"]["table"] = data[7]
+    rv["Library"]["distance"] = "Euclidean"
+    if len(data) > 12 and data[12]:
+        rv["Library"]["distance"] = data[12]
+
+    return rv
+
+
+def rawLibraryLogic(data):
+    """Returns a tuple of the data in a library logic file."""
+    versionString = data[0]
+    scheduleName = data[1]
+    architectureName = data[2]
+    deviceNames = data[3]
+    problemTypeState = data[4]
+    solutionStates = data[5]
+    indexOrder = data[6]
+    exactLogic = data[7]
+    rangeLogic = data[8]
+    otherFields = []
+
+    dataLength = len(data)
+    if dataLength > 9:
+        for idx in range(9, dataLength):
+            otherFields.append(data[idx])
+
+    return (versionString, scheduleName, architectureName, deviceNames,\
+            problemTypeState, solutionStates, indexOrder, exactLogic, rangeLogic, otherFields)
+
+
+########################
+# Library logic creation
+########################
+def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple, dictFormat):
+    if not dictFormat:
+        return createLibraryLogicList(schedulePrefix, architectureName, deviceNames, logicTuple)
+
+    rv = {}
+    rv["MinimumRequiredVersion"] = __version__
+    rv["ScheduleName"] = schedulePrefix
+    rv["DeviceNames"] = deviceNames
+    rawProblemType = logicTuple[0]
+    rawSolutions = logicTuple[1]
+
+    # architecture
+    if type(architectureName) is dict:
+        rv["ArchitectureName"] = architectureName["Architecture"]
+        rv["CUCount"] = architectureName["CUCount"]
+    else:
+        rv["ArchitectureName"] = architectureName
+
+    # problem type
+    problemTypeState = rawProblemType.state
+    updateProblemDatatypes(problemTypeState)
+    rv["ProblemType"] = problemTypeState
+
+    # solutions
+    solutionList = []
+    for solution in rawSolutions:
+        solutionState = solution.getAttributes()
+        solutionState["ProblemType"] = "derive"
+        solutionList.append(solutionState)
+
+    rv["Solutions"] = solutionList
+
+    # library logic
+    exactLogic = logicTuple[3]
+    exactLogicList = []
+    for key in exactLogic:
+        exactLogicList.append([list(key), exactLogic[key]])
+
+    rv["LibraryType"] = "Matching"
+    rv["Library"] = {}
+    rv["Library"]["indexOrder"] = logicTuple[2]
+    rv["Library"]["table"] = exactLogicList
+    rv["Library"]["distance"] = "Euclidean"
+    rv["PerfMetric"] = logicTuple[7]
+
+    return rv
+
+
+def createLibraryLogicList(schedulePrefix, architectureName, deviceNames, logicTuple):
+    """Creates the data for a library logic file suitable for writing to YAML."""
+    problemType = logicTuple[0]
+    solutions = logicTuple[1]
+    indexOrder = logicTuple[2]
+    exactLogic = logicTuple[3]
+    rangeLogic = logicTuple[4]
 
     tileSelection = False
     if len(logicTuple) > 5 and logicTuple[5]:
-      tileSelection = True
+        tileSelection = True
 
     data = []
     # Tensile version
-    data.append({"MinimumRequiredVersion":__version__})
+    data.append({"MinimumRequiredVersion": __version__})
     # schedule name
-    data.append(schedulePrefix)     # change from Tensile to vega10
+    data.append(schedulePrefix)  # change from Tensile to vega10
     data.append(architectureName)
     # schedule device names
     data.append(deviceNames)
+
     # problem type
     problemTypeState = problemType.state
-    problemTypeState["DataType"] = \
-        problemTypeState["DataType"].value
-    problemTypeState["DestDataType"] = \
-        problemTypeState["DestDataType"].value
-    problemTypeState["ComputeDataType"] = \
-        problemTypeState["ComputeDataType"].value
+    updateProblemDatatypes(problemTypeState)
     data.append(problemTypeState)
+
     # solutions
     solutionList = []
     for solution in solutions:
-      solutionState = solution.getAttributes()
-      solutionState["ProblemType"] = solutionState["ProblemType"].state
-      solutionState["ProblemType"]["DataType"] = \
-          solutionState["ProblemType"]["DataType"].value
-      solutionState["ProblemType"]["DestDataType"] = \
-          solutionState["ProblemType"]["DestDataType"].value
-      solutionState["ProblemType"]["ComputeDataType"] = \
-          solutionState["ProblemType"]["ComputeDataType"].value
-      solutionList.append(solutionState)
-
-    if tileSelection:
-      tileSolutions = logicTuple[5]
-      for solution in tileSolutions:
         solutionState = solution.getAttributes()
         solutionState["ProblemType"] = solutionState["ProblemType"].state
-        solutionState["ProblemType"]["DataType"] = \
-            solutionState["ProblemType"]["DataType"].value
-        solutionState["ProblemType"]["DestDataType"] = \
-            solutionState["ProblemType"]["DestDataType"].value
-        solutionState["ProblemType"]["ComputeDataType"] = \
-            solutionState["ProblemType"]["ComputeDataType"].value
+        updateProblemDatatypes(solutionState["ProblemType"])
         solutionList.append(solutionState)
+
+    if tileSelection:
+        tileSolutions = logicTuple[5]
+        for solution in tileSolutions:
+            solutionState = solution.getAttributes()
+            solutionState["ProblemType"] = solutionState["ProblemType"].state
+            updateProblemDatatypes(solutionState["ProblemType"])
+            solutionList.append(solutionState)
 
     data.append(solutionList)
     # index order
@@ -253,69 +376,19 @@ class Writer:
     # exactLogic
     exactLogicList = []
     for key in exactLogic:
-      exactLogicList.append([list(key), exactLogic[key]])
+        exactLogicList.append([list(key), exactLogic[key]])
     data.append(exactLogicList)
 
     # rangeLogic
     data.append(rangeLogic)
 
     if tileSelection:
-      tileSelectionLogic = {}
-      tileSelectionIndices = logicTuple[6]
-      tileSelectionLogic["TileSelectionIndices"] = tileSelectionIndices
-      data.append(tileSelectionLogic)
+        tileSelectionLogic = {}
+        tileSelectionIndices = logicTuple[6]
+        tileSelectionLogic["TileSelectionIndices"] = tileSelectionIndices
+        data.append(tileSelectionLogic)
     else:
-      data.append(None)
+        data.append(None)
 
     data.append(logicTuple[7])
     return data
-
-class YAMLWriter(Writer):
-  def write(self, filename, data):
-    with open(filename, 'w') as f:
-        yaml.dump(data, f, explicit_start=True, explicit_end=True, default_flow_style=None)
-
-  def writeLibraryLogicForSchedule(self, filePath, schedulePrefix, architectureName, \
-      deviceNames, logicTuple):
-    problemType = logicTuple[0]
-    filename = os.path.join(filePath, "%s_%s.yaml" \
-        % (schedulePrefix, str(problemType)))
-    print2("# writeLogic( %s )" % ( filename ))
-
-    data = self._getLibraryLogicForSchedule(schedulePrefix, architectureName, \
-      deviceNames, logicTuple)
-
-    try:
-      stream = open(filename, "w")
-      yaml.dump(data, stream, default_flow_style=None)
-      stream.close()
-    except IOError:
-      printExit("Cannot open file: %s" % filename)
-
-class MessagePackWriter(Writer):
-  def write(self, filename, data):
-    with open(filename, 'wb') as f:
-      try:
-        msgpack.pack(data, f)
-      except NameError:
-        printExit("You must install MessagePack for Python to use Tensile (to parse config files). See https://github.com/msgpack/msgpack-python for installation instructions.")
-
-
-  def writeLibraryLogicForSchedule(self, filePath, schedulePrefix, architectureName, \
-      deviceNames, logicTuple):
-    problemType = logicTuple[0]
-    filename = os.path.join(filePath, "%s_%s.dat" \
-        % (schedulePrefix, str(problemType)))
-    print2("# writeLogic( %s )" % ( filename ))
-
-    data = self._getLibraryLogicForSchedule(schedulePrefix, architectureName, \
-      deviceNames, logicTuple)
-
-    try:
-      stream = open(filename, "wb")
-      msgpack.pack(data, stream)
-      stream.close()
-    except IOError:
-      printExit("Cannot open file: %s" % filename)
-    except NameError:
-      printExit("You must install MessagePack for Python to use Tensile (to parse config files). See https://github.com/msgpack/msgpack-python for installation instructions.")

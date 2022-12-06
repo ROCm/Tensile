@@ -61,3 +61,6 @@ tags
 # tox virtual environments
 .tox
 
+# Uncompressed HostLibraryTest libraries
+HostLibraryTests/configs/SolutionLibraries/*.dat
+HostLibraryTests/configs/SolutionLibraries/*.yaml

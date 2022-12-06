@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,20 +33,24 @@ namespace Tensile
 {
     namespace Client
     {
-        CSVStackFile::CSVStackFile(std::string const& filename)
+        CSVStackFile::CSVStackFile(std::string const& filename, std::string const& separator)
             : m_stream(new std::ofstream(filename.c_str()))
+            , m_separator(separator)
         {
         }
 
         void null_deleter(void* ptr) {}
 
-        CSVStackFile::CSVStackFile(std::ostream& stream)
+        CSVStackFile::CSVStackFile(std::ostream& stream, std::string const& separator)
             : m_stream(&stream, null_deleter)
+            , m_separator(separator)
         {
         }
 
-        CSVStackFile::CSVStackFile(std::shared_ptr<std::ostream> stream)
+        CSVStackFile::CSVStackFile(std::shared_ptr<std::ostream> stream,
+                                   std::string const&            separator)
             : m_stream(stream)
+            , m_separator(separator)
         {
         }
 
@@ -117,7 +121,7 @@ namespace Tensile
             for(auto const& key : m_keyOrder)
             {
                 if(!firstCol)
-                    (*m_stream) << ", ";
+                    (*m_stream) << m_separator;
 
                 std::string value = "";
 
@@ -182,14 +186,10 @@ namespace Tensile
 
         void CSVStackFile::setValueForKey(std::string const& key, double const& value)
         {
-            if(value > 0.01)
-            {
-                std::ostringstream ss;
-                ss << std::fixed << std::setprecision(2) << value;
-                setValueForKey(key, ss.str());
-            }
-            else
-                setValueForKey(key, boost::lexical_cast<std::string>(value));
+
+            std::ostringstream ss;
+            ss << std::setprecision(6) << value;
+            setValueForKey(key, ss.str());
         }
     } // namespace Client
 } // namespace Tensile

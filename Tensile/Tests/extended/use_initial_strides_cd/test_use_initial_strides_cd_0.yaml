@@ -10,8 +10,6 @@ GlobalParameters:
   PrintTensorC: 0
   PrintTensorD: 0
   PrintTensorRef: 0
-  CpuThreads: 0
-  NewClient: 2
   CEqualD: 0
 
 BenchmarkProblems:

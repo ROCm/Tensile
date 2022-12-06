@@ -1,3 +1,27 @@
+################################################################################
+#
+# Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+################################################################################
+
 import os
 import pytest
 import subprocess
@@ -12,6 +36,7 @@ from Tensile import DataType
 ################################################################################
 def isExe( filePath ):
   return os.path.isfile(filePath) and os.access(filePath, os.X_OK)
+
 def locateExe( defaultPath, exeName ): # /opt/rocm/bin, hip-clang
   # look in path first
   for path in os.environ["PATH"].split(os.pathsep):
@@ -103,14 +128,6 @@ def configMarks(filepath, rootDir, availableArchs):
     except KeyError:
         pass
 
-    try:
-        if doc["GlobalParameters"]["NewClient"] == 2:
-            marks.append(markNamed("NewClientOnly"))
-        if doc["GlobalParameters"]["NewClient"] == 0:
-            marks.append(markNamed("OldClientOnly"))
-    except KeyError:
-        pass
-
     if validate:
         marks.append(pytest.mark.validate)
     if validateAll:
@@ -145,13 +162,29 @@ def findAvailableArchs():
         rocmpath = os.environ.get("ROCM_PATH")
     if "TENSILE_ROCM_PATH" in os.environ:
         rocmpath = os.environ.get("TENSILE_ROCM_PATH")
-    rocmAgentEnum = os.path.join(rocmpath, "bin/rocm_agent_enumerator")
-    output = subprocess.check_output([rocmAgentEnum, "-t", "GPU"])
-    lines = output.decode().splitlines()
-    for line in lines:
-        line = line.strip()
-        if not line in availableArchs:
-            availableArchs.append(line)
+    if os.name == "nt":
+      rocmAgentEnum = os.path.join(rocmpath, "bin", "hipinfo.exe")
+      # change to use  check_output to force windows cmd block util command finish
+      output = subprocess.check_output([rocmAgentEnum])
+
+      line = ""
+      for line_in in output.decode().splitlines():
+        if 'gcnArchName' in line_in:
+          line += line_in.split()[1]
+          break # detemine if hipinfo will support multiple arch
+      arch = line.strip()
+      availableArchs.append("gfx000")
+      availableArchs.append(arch)
+    else:
+      rocmAgentEnum = os.path.join(rocmpath, "bin", "rocm_agent_enumerator")
+      # change to use  check_output to force windows cmd block util command finish
+      output = subprocess.check_output([rocmAgentEnum, "-t", "GPU"])
+      lines = output.decode().splitlines()
+      for line in lines:
+          line = line.strip()
+          if not line in availableArchs:
+              availableArchs.append(line)
+
     return availableArchs
 
 def findConfigs(rootDir=None):

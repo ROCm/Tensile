@@ -1,32 +1,52 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
+
+################################################################################
+# Sample cmake usage:
+#     set(Tensile_LIBRARY_FORMAT <"msgpack"/"yaml">)
+#     set(Tensile_ROOT <path to Tensile folder>)
+#     find_package(Tensile <version> EXACT REQUIRED [HIP] PATHS ${Tensile_ROOT})
+#
+#     get_target_property(TensileHost_INCLUDES TensileHost INCLUDE_DIRECTORIES)
+#     include_directories(${TensileHost_INCLUDES})
+#     target_link_libraries(<project name> TensileHost)
+#
+#     TensileCreateLibraryFiles(<args...>)
+#
 
 include(CMakeParseArguments)
 
 if(NOT DEFINED Tensile_ROOT)
-# Compute the installation prefix relative to this file.
-get_filename_component(Tensile_PREFIX "${CMAKE_CURRENT_LIST_FILE}" PATH)
-get_filename_component(Tensile_PREFIX "${Tensile_PREFIX}" PATH)
+    # Compute the installation prefix relative to this file.
+    get_filename_component(Tensile_PREFIX "${CMAKE_CURRENT_LIST_FILE}" PATH)
+    get_filename_component(Tensile_PREFIX "${Tensile_PREFIX}" PATH)
 
-execute_process(COMMAND "${Tensile_PREFIX}/bin/TensileGetPath" OUTPUT_VARIABLE Tensile_ROOT)
+    if (WIN32)
+        execute_process(COMMAND "${Tensile_PREFIX}/bin/TensileGetPath.exe" OUTPUT_VARIABLE Tensile_ROOT)
+    else()
+        execute_process(COMMAND "${Tensile_PREFIX}/bin/TensileGetPath" OUTPUT_VARIABLE Tensile_ROOT)
+    endif()
 endif()
 list(APPEND CMAKE_MODULE_PATH "${Tensile_ROOT}/Source/cmake/")
 list(APPEND CMAKE_MODULE_PATH "${Tensile_ROOT}/Source/")
@@ -63,7 +83,6 @@ else()
 endif()
 
 add_subdirectory("${Tensile_ROOT}/Source" "Tensile")
-include("${Tensile_ROOT}/Source/TensileCreateLibrary.cmake")
 
 # Target is created for copying dependencies
 function(TensileCreateCopyTarget
@@ -76,10 +95,16 @@ function(TensileCreateCopyTarget
     add_custom_target(
         ${Target_NAME} ALL
         COMMENT "${Target_NAME}: Copying tensile objects to ${Dest_PATH}"
-        COMMAND_EXPAND_LISTS
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${Tensile_OBJECTS_TO_COPY} ${Dest_PATH}
         DEPENDS ${Tensile_OBJECTS_TO_COPY}
     )
+    foreach(OBJECT_TO_COPY ${Tensile_OBJECTS_TO_COPY})
+        add_custom_command(
+            TARGET ${Target_NAME} PRE_BUILD
+            COMMAND_EXPAND_LISTS
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${OBJECT_TO_COPY} ${Dest_PATH}
+            DEPENDS ${OBJECT_TO_COPY}
+        )
+    endforeach()
 endfunction()
 
 # Output target: ${Tensile_VAR_PREFIX}_LIBRARY_TARGET. Ensures that the libs get built in Tensile_OUTPUT_PATH/library.
@@ -89,10 +114,6 @@ function(TensileCreateLibraryFiles
          Tensile_OUTPUT_PATH
          )
 
-  if(NOT TENSILE_NEW_CLIENT)
-    message(FATAL_ERROR "TensileCreateLibraryFiles function should only be called for new client.")
-  endif()
-
   # Boolean options
   set(options
        MERGE_FILES
@@ -100,11 +121,12 @@ function(TensileCreateLibraryFiles
        SHORT_FILE_NAMES
        PRINT_DEBUG
        GENERATE_PACKAGE
+       SEPARATE_ARCHITECTURES
+       LAZY_LIBRARY_LOADING
        )
 
   # Single value settings
   set(oneValueArgs
-       ARCHITECTURE
        CODE_OBJECT_VERSION
        COMPILER
        COMPILER_PATH
@@ -113,9 +135,14 @@ function(TensileCreateLibraryFiles
        LIBRARY_FORMAT
        TENSILE_ROOT
        VAR_PREFIX
+       CPU_THREADS
        )
 
-  set(multiValueArgs "")
+  # Multi value settings
+  set(multiValueArgs
+       ARCHITECTURE
+       )
+
   cmake_parse_arguments(Tensile "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
   if(Tensile_UNPARSED_ARGUMENTS)
@@ -134,8 +161,6 @@ function(TensileCreateLibraryFiles
 
   message(STATUS "Tensile script: ${Script}")
 
-  set(Options "--new-client-only" "--no-legacy-components")
-
   # Older NO_MERGE_FILES flag overrides MERGE_FILES option.
   if(Tensile_NO_MERGE_FILES)
     set(Tensile_MERGE_FILES FALSE)
@@ -145,6 +170,14 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--merge-files")
   else()
     set(Options ${Options} "--no-merge-files")
+  endif()
+
+  if(Tensile_SEPARATE_ARCHITECTURES)
+    set(Options ${Options} "--separate-architectures")
+  endif()
+
+  if(Tensile_LAZY_LIBRARY_LOADING)
+    set(Options ${Options} "--lazy-library-loading")
   endif()
 
   if(Tensile_GENERATE_PACKAGE)
@@ -183,8 +216,8 @@ function(TensileCreateLibraryFiles
     set(Options ${Options} "--cmake-cxx-compiler=${Tensile_COMPILER_PATH}")
   endif()
 
-  if(Tensile_ARCHITECTURE)
-    set(Options ${Options} "--architecture=${Tensile_ARCHITECTURE}")
+  if(Tensile_CPU_THREADS)
+    set(Options ${Options} "--jobs=${Tensile_CPU_THREADS}")
   endif()
 
   if(Tensile_LIBRARY_FORMAT)
@@ -194,7 +227,17 @@ function(TensileCreateLibraryFiles
     endif()
   endif()
 
-  set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
+  if(Tensile_ARCHITECTURE)
+    string (REPLACE ";" "_" archString "${Tensile_ARCHITECTURE}")
+    # uses _ separator to avoid cmake ; list interpretation, either ; or _ decoded in TensileCreateLibrary
+    set(Options ${Options} "--architecture=${archString}")
+  endif()
+
+  if (WIN32)
+    set(CommandLine ${VIRTUALENV_BIN_DIR}/${VIRTUALENV_PYTHON_EXENAME} ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
+  else()
+    set(CommandLine ${Script} ${Options} ${Tensile_LOGIC_PATH} ${Tensile_OUTPUT_PATH} HIP)
+  endif()
   message(STATUS "Tensile_CREATE_COMMAND: ${CommandLine}")
 
   if(Tensile_EMBED_LIBRARY)
@@ -209,13 +252,26 @@ function(TensileCreateLibraryFiles
           set(Tensile_VAR_PREFIX TENSILE)
       endif()
 
+      set(Tensile_MANIFEST_FILE_PATH "${Tensile_OUTPUT_PATH}/library/TensileManifest.txt")
+      message(STATUS "Tensile_MANIFEST_FILE_PATH: ${Tensile_MANIFEST_FILE_PATH}")
+
+      if($ENV{ENABLE_ADDRESS_SANITIZER})
+        # Must populate LD_PRELOAD with ASAN runtime if ASAN is being used.
+        # Find the ASAN RT with compiler and update env for Tensile call.
+        execute_process(
+          COMMAND ${CMAKE_CXX_COMPILER} --print-file-name=libclang_rt.asan-x86_64.so
+          OUTPUT_VARIABLE ASAN_LIB_PATH
+          COMMAND_ECHO STDOUT)
+        string(STRIP ${ASAN_LIB_PATH} ASAN_LIB_PATH)
+        set(CommandLine env LD_PRELOAD=${ASAN_LIB_PATH} ${CommandLine})
+      endif()
+
       # Create the manifest file of the output libraries.
       set(Tensile_CREATE_MANIFEST_COMMAND ${CommandLine} "--generate-manifest-and-exit")
-      set(Tensile_MANIFEST_FILE_PATH "${Tensile_OUTPUT_PATH}/library/TensileManifest.txt")
-
       execute_process(
         COMMAND ${Tensile_CREATE_MANIFEST_COMMAND}
-        RESULT_VARIABLE Tensile_CREATE_MANIFEST_RESULT)
+        RESULT_VARIABLE Tensile_CREATE_MANIFEST_RESULT
+        COMMAND_ECHO STDOUT)
 
       if(Tensile_CREATE_MANIFEST_RESULT OR (NOT EXISTS ${Tensile_MANIFEST_FILE_PATH}))
         message(FATAL_ERROR "Error creating Tensile library: ${Tensile_CREATE_MANIFEST_RESULT}")

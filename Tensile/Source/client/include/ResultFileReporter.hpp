@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -77,8 +77,8 @@ namespace Tensile
             std::string m_winnerSolution;
             int64_t     m_currSolutionIdx   = -1;
             int64_t     m_winnerSolutionIdx = -1;
-            int64_t     m_fastestGflops     = -1;
-            double      m_fasterTimeUS      = -1;
+            double      m_fastestGflops     = -1.0;
+            double      m_fasterTimeUS      = -1.0;
             // for merge rows
             int64_t                                                         m_currProbID = -1;
             std::map<int64_t, std::unordered_map<std::string, std::string>> m_probMap;

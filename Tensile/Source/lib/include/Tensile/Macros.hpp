@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,5 +33,9 @@
  * Marks a symbol as being visible from outside of a shared library which
  * Tensile is a part of.
  */
+#ifdef _WIN32
+#define TENSILE_API __declspec(dllexport)
+#else
 #define TENSILE_API __attribute__((visibility("default")))
+#endif
 #endif

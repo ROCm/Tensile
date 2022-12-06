@@ -1,28 +1,32 @@
 ################################################################################
-# Copyright 2020 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2020-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 from ..Component import Component, MAC
 from ..DataType import DataType
 
-class FMA_HPA_MAD_MIX_LDL(MAC):
+class FMA_F16_HPA_MAD_MIX_LDL(MAC):
+    @staticmethod
     def asmCaps(caps):
         return (caps['v_mad_mix_f32'] or caps['v_fma_mix_f32']) \
             and not caps["v_dot2c_f32_f16"] \
@@ -122,7 +126,7 @@ class FMA_HPA_MAD_MIX_LDL(MAC):
         return kStr
 
 
-class FMA_HPA_MAD_MIX(MAC):
+class FMA_F16_HPA_MAD_MIX(MAC):
     asmCaps = lambda caps: caps['v_mad_mix_f32'] or caps['v_fma_mix_f32']
     #archCaps = {}
     kernel = {"ProblemType": {"DataType": DataType(DataType.half),
@@ -153,17 +157,19 @@ class FMA_HPA_MAD_MIX(MAC):
         vars["Half_ThreadTile0"] = kernel["ThreadTile0"] // 2
         vars["Half_ThreadTile1"] = kernel["ThreadTile1"] // 2
 
-        for blockB in range(0, kernel["ThreadTile1"]//2):
-            for blockA in range(0, kernel["ThreadTile0"]//2):
+        for block1 in range(0, kernel["ThreadTile1"]//2):
+            for block0 in range(0, kernel["ThreadTile0"]//2):
                 for iui in range(0, innerUnroll):
-                    vars["blockA"] = blockA
-                    vars["blockB"] = blockB
+                    vars["block0"] = block0
+                    vars["block1"] = block1
+                    vars["blockA"] = block0 if writer.tPA["tileIdx"] == 0 else block1
+                    vars["blockB"] = block1 if writer.tPB["tileIdx"] != 0 else block0
                     vars["iui"] = iui
 
                     vars["aBase"] = "vgprValuA_X{m}_I{iui}".format_map(vars)
                     vars["bBase"] = "vgprValuB_X{m}_I{iui}".format_map(vars)
 
-                    vars["cIdxExpr"] = "{blockA}*2 + {blockB}*{ThreadTile0}*2 + 0*2 + 0".format_map(vars)
+                    vars["cIdxExpr"] = "{block0}*2 + {block1}*{ThreadTile0}*2 + 0*2 + 0".format_map(vars)
                     vars["cidx"] = eval(vars["cIdxExpr"])
 
                     vars["cStr"] = "v[vgprValuC + {cIdxExpr}]".format_map(vars) # *2 b/c of fp32
@@ -173,19 +179,21 @@ class FMA_HPA_MAD_MIX(MAC):
 
                     kStr += priority(writer, 1, "Raise priority while processing macs")
 
-                    vars["cIdxExpr"] = "{blockA}*2 + {blockB}*{ThreadTile0}*2 + 0*2 + 1".format_map(vars)
+                    vars["cIdxExpr"] = "{block0}*2 + {block1}*{ThreadTile0}*2 + 0*2 + 1".format_map(vars)
                     vars["cidx"] = eval(vars["cIdxExpr"])
 
                     vars["cStr"] = "v[vgprValuC + {cIdxExpr}]".format_map(vars) # *2 b/c of fp32
-                    kStr += "{instruction} {cStr}, {aStr}, {bStr}, {cStr} op_sel:[1,0,0] op_sel_hi:[1,1,0] //ValuC[{cidx}]{endLine}".format_map(vars)
+                    vars["opSel"] = "op_sel:[1,0,0]" if writer.tPA["tileIdx"] == 0 else "op_sel:[0,1,0]"
+                    kStr += "{instruction} {cStr}, {aStr}, {bStr}, {cStr} {opSel} op_sel_hi:[1,1,0] //ValuC[{cidx}]{endLine}".format_map(vars)
 
-                    vars["cIdxExpr"] = "{blockA}*2 + {blockB}*{ThreadTile0}*2 + {Half_ThreadTile0}*2 + 0".format_map(vars)
+                    vars["cIdxExpr"] = "{block0}*2 + {block1}*{ThreadTile0}*2 + {Half_ThreadTile0}*2 + 0".format_map(vars)
                     vars["cidx"] = eval(vars["cIdxExpr"])
 
                     vars["cStr"] = "v[vgprValuC+{cIdxExpr}]".format_map(vars)
-                    kStr += "{instruction} {cStr}, {aStr}, {bStr}, {cStr} op_sel:[0,1,0] op_sel_hi:[1,1,0] //ValuC[{cidx}]{endLine}".format_map(vars)
+                    vars["opSel"] = "op_sel:[0,1,0]" if writer.tPA["tileIdx"] == 0 else "op_sel:[1,0,0]"
+                    kStr += "{instruction} {cStr}, {aStr}, {bStr}, {cStr} {opSel} op_sel_hi:[1,1,0] //ValuC[{cidx}]{endLine}".format_map(vars)
 
-                    vars["cIdxExpr"] = "{blockA}*2+{blockB}*{ThreadTile0}*2+{Half_ThreadTile0}*2+1".format_map(vars)
+                    vars["cIdxExpr"] = "{block0}*2+{block1}*{ThreadTile0}*2+{Half_ThreadTile0}*2+1".format_map(vars)
                     vars["cidx"] = eval(vars["cIdxExpr"])
 
                     vars["cStr"] = "v[vgprValuC+{cIdxExpr}]".format_map(vars)
@@ -195,7 +203,7 @@ class FMA_HPA_MAD_MIX(MAC):
 
         return kStr
 
-class FMA_DOT2(MAC):
+class FMA_F16_DOT2(MAC):
     asmCaps = lambda caps: caps["v_dot2c_f32_f16"] or caps["v_dot2_f32_f16"]
     #archCaps = {}
     kernel = {"ProblemType": {"DataType": DataType(DataType.half),
@@ -215,7 +223,7 @@ class FMA_DOT2(MAC):
         vars = {}
 
         if accumulate:
-            vars["instruction"] = "v_dot2c_f32_f16"
+            vars["instruction"] = "_v_dot2acc_f32_f16"
         else:
             vars["instruction"] = "v_dot2_f32_f16"
 

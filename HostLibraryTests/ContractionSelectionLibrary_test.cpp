@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -106,6 +106,59 @@ TEST(ContractionSelectionLibraryTest, GPUSelection)
     EXPECT_EQ(lib.findBestSolution(*problem, *v20), v20Solution);
     EXPECT_EQ(lib.findBestSolution(*problem, *v20_64CU), v20Solution_64CU);
     EXPECT_EQ(lib.findBestSolution(*problem, *v10), genericSolution);
+}
+
+TEST(ContractionSelectionLibraryTest, RegionSelection)
+{
+    // Create solutions
+    auto region1Solution = std::make_shared<ContractionSolution>();
+    auto region2Solution = std::make_shared<ContractionSolution>();
+    auto genericSolution = std::make_shared<ContractionSolution>();
+
+    // Create libraries
+    auto region1Lib = std::make_shared<SingleContractionLibrary>(region1Solution);
+    auto region2Lib = std::make_shared<SingleContractionLibrary>(region2Solution);
+    auto genericLib = std::make_shared<SingleContractionLibrary>(genericSolution);
+
+    // Create region predicate for (6000 <= M < 8000), (0 <= N < 7000)
+    using Predicate   = Predicates::Predicate<ContractionProblem>;
+    using SizeInRange = Predicates::Contraction::SizeInRange;
+    using Range       = Predicates::Contraction::Range;
+    using And         = Predicates::And<ContractionProblem>;
+    size_t max_size   = std::numeric_limits<size_t>::max();
+
+    std::shared_ptr<Predicate> regionM  = std::make_shared<SizeInRange>(0, Range{6000, 8000});
+    std::shared_ptr<Predicate> regionN1 = std::make_shared<SizeInRange>(1, Range{0, 7000});
+    std::shared_ptr<Predicate> regionN2 = std::make_shared<SizeInRange>(1, Range{7000, max_size});
+
+    // Create region predicate for (6000 <= M < 8000), (0 <= N < 7000)
+    auto preds1    = {regionM, regionN1};
+    auto isRegion1 = std::make_shared<And>(preds1);
+
+    // Create region predicate for (6000 <= M < 8000), (7000 <= N < max)
+    auto preds2    = {regionM, regionN2};
+    auto isRegion2 = std::make_shared<And>(preds2);
+
+    // Create fallthrough predicate (i.e. default)
+    ContractionProblemPredicate allProbs(std::make_shared<Predicates::True<ContractionProblem>>());
+
+    // Create hierarchy for region selection
+    ContractionProblemSelectionLibrary::Row Region1Row(isRegion1, region1Lib);
+    ContractionProblemSelectionLibrary::Row Region2Row(isRegion2, region2Lib);
+    ContractionProblemSelectionLibrary::Row GenericRow(allProbs, genericLib);
+    ContractionProblemSelectionLibrary      lib({Region1Row, Region2Row, GenericRow});
+
+    auto Region1Problem
+        = ContractionProblem::GEMM(false, false, 7000, 6500, 1000, 7000, 1000, 7000, 1.0, false, 1);
+    auto Region2Problem
+        = ContractionProblem::GEMM(false, false, 7000, 7500, 1000, 7000, 1000, 7000, 1.0, false, 1);
+    auto OutRegionProblem
+        = ContractionProblem::GEMM(false, false, 5000, 2000, 1000, 5000, 1000, 5000, 1.0, false, 1);
+
+    AMDGPU gpu;
+    EXPECT_EQ(lib.findBestSolution(Region1Problem, gpu), region1Solution);
+    EXPECT_EQ(lib.findBestSolution(Region2Problem, gpu), region2Solution);
+    EXPECT_EQ(lib.findBestSolution(OutRegionProblem, gpu), genericSolution);
 }
 
 TEST(ContractionSelectionLibraryTest, TransposeSelection)

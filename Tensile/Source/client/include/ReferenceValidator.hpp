@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -118,12 +118,15 @@ namespace Tensile
             virtual int error() const override;
 
         private:
+            void allocateResultBuffer(size_t bytes);
+
             std::shared_ptr<DataInitialization> m_dataInit;
             std::shared_ptr<ContractionInputs>  m_referenceInputs;
 
             ConvolutionProblem m_convolutionProblem;
 
-            std::vector<uint8_t> m_cpuResultBuffer;
+            size_t                   m_cpuResultBufferSize = 0;
+            std::shared_ptr<uint8_t> m_cpuResultBuffer;
 
             ContractionProblem m_problem;
 

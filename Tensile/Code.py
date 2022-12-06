@@ -1,22 +1,25 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 from __future__ import print_function
@@ -310,7 +313,7 @@ class WaitCnt (Module):
     self.version = version
     self.lgkmcnt = lgkmcnt
     self.vmcnt   = vmcnt
-    self.comment = comment
+    self.comment = "lgkmcnt={} vmcnt={}".format(lgkmcnt, vmcnt) + comment
 
     # let this derived class play nicely with Module.prettyPrint()
     self.__dict__.update(self.instructions().__dict__)
@@ -320,15 +323,18 @@ class WaitCnt (Module):
     main_args = []
     wait_store = False
     if self.lgkmcnt != -1:
-      main_args += ["lgkmcnt(%u)" % self.lgkmcnt]
-      wait_store = True
+      currentIsa    = globalParameters["CurrentISA"]
+      maxLgkmcnt    = globalParameters["AsmCaps"][currentIsa]["MaxLgkmcnt"]
+      seperateVscnt = globalParameters["ArchCaps"][currentIsa]["SeparateVscnt"]
+      wait_store    = True
+      main_args += ["lgkmcnt(%u)" % (min(self.lgkmcnt,maxLgkmcnt))]
 
     if self.vmcnt != -1:
       main_args += ["vmcnt(%u)" % self.vmcnt]
 
     if len(main_args) > 0:
       rv.addInst("s_waitcnt", *main_args, self.comment)
-      if wait_store and self.version[0] == 10 and self.vmcnt != -1:
+      if wait_store and seperateVscnt and self.vmcnt != -1:
         rv.addInst("s_waitcnt_vscnt", "null", self.vmcnt, "writes")
     else:
       rv.addComment0(self.comment)
@@ -351,8 +357,9 @@ class LocalWriteInst (Inst):
 
 # uniq type that can be used in Module.countType
 class LocalReadInst (Inst):
-  def __init__(self,issuelatency,*args):
+  def __init__(self,issuelatency,readToTempVgpr,*args):
     self.IssueLatency = issuelatency
+    self.readToTempVgpr = readToTempVgpr
     Inst.__init__(self,*args)
 
 ################################################################################
@@ -387,7 +394,7 @@ class  MFMAInst (Inst):
       numOfRowsperMfma = 1
       numOfRowInsts = self.kernel["ThreadTile0"]/numOfRowsperMfma
       #numOfColInsts = kernel["ThreadTile1"]/kernel["MatrixInstN"]
-      numOfDstRgs = (self.kernel["MatrixInstN"] * self.kernel["MatrixInstM"] * self.kernel["MatrixInstB"] // globalParameters["WavefrontWidth"])
+      numOfDstRgs = (self.kernel["MatrixInstN"] * self.kernel["MatrixInstM"] * self.kernel["MatrixInstB"] // self.kernel["WavefrontSize"])
       if self.kernel["ProblemType"]["DataType"].isSingle():
         for iui in range(0, self.innerUnroll):
            cStr = "a[(%u+%u*%u)*%u):((((%u+%u*%u)*%u)+%u)-1)]" % (self.aIdx,self.bIdx,numOfRowInsts,numOfDstRgs,self.aIdx,numOfDstRgs,self.bIdx,numOfRowInsts,numOfDstRgs)
@@ -658,7 +665,7 @@ class  MacInst (Inst):
               % ("vgprValuB_X%u_I%u"%(self.PLR,iui), self.bIdx)
           #if a==0 and b==0:
           #  kStr += dump(aStr)
-          kStr += "v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
+          kStr += "_v_mac_f32 %s, %s, %s%s" % (cStr, aStr, bStr, self.endLine)
           ##if macIdx == self.kernel["PerformanceWaitLocation"]:
           ##    kStr += "s_waitcnt lgkmcnt(%u) // extra wait for performance%s" \
           ##        % (self.kernel["PerformanceWaitCount"], self.endLine)
@@ -737,7 +744,8 @@ class SrdUpperFields10XX(BitfieldStructure):
               ("index_stride",   ctypes.c_uint, 2),
               ("add_tid_enable", ctypes.c_uint, 1),
               ("resource_level", ctypes.c_uint, 1),
-              ("_unusedB",       ctypes.c_uint, 3),
+              ("_unusedB",       ctypes.c_uint, 1),
+              ("LLC_noalloc",    ctypes.c_uint, 2),
               ("oob_select",     ctypes.c_uint, 2),
               ("type",           ctypes.c_uint, 2)]
 
@@ -748,6 +756,7 @@ class SrdUpperFields10XX(BitfieldStructure):
                resource_level = 1,
                oob_select     = 3)
 
+
 class SrdUpperValue10XX(BitfieldUnion):
   _fields_ = [("fields", SrdUpperFields10XX), ("value", ctypes.c_uint32)]
 
@@ -756,10 +765,122 @@ class SrdUpperValue10XX(BitfieldUnion):
     return cls(fields=SrdUpperFields10XX.default())
 
 
+class SrdUpperFields11XX(BitfieldStructure):
+  _fields_ = [("dst_sel_x",      ctypes.c_uint, 3),
+              ("dst_sel_y",      ctypes.c_uint, 3),
+              ("dst_sel_z",      ctypes.c_uint, 3),
+              ("dst_sel_w",      ctypes.c_uint, 3),
+              ("format",         ctypes.c_uint, 7),
+              ("_unusedA",       ctypes.c_uint, 2),
+              ("index_stride",   ctypes.c_uint, 2),
+              ("add_tid_enable", ctypes.c_uint, 1),
+              ("resource_level", ctypes.c_uint, 1),
+              ("_unusedB",       ctypes.c_uint, 1),
+              ("LLC_noalloc",    ctypes.c_uint, 2),
+              ("oob_select",     ctypes.c_uint, 2),
+              ("type",           ctypes.c_uint, 2)]
+
+
+  @classmethod
+  def default(cls):
+    return cls(format         = 4,
+               resource_level = 1,
+               oob_select     = 3)
+
+
+class SrdUpperValue11XX(BitfieldUnion):
+  _fields_ = [("fields", SrdUpperFields11XX), ("value", ctypes.c_uint32)]
+
+  @classmethod
+  def default(cls):
+    return cls(fields=SrdUpperFields11XX.default())
+
+
 def SrdUpperValue(isa):
-  if isa[0] == 10:
+  if isa[0] == 11:
+    return SrdUpperValue11XX.default()
+  elif isa[0] == 10:
     return SrdUpperValue10XX.default()
   else:
     return SrdUpperValue9XX.default()
 
+
+
+class OpTemplate(Module):
+    """
+    Base template for high level operator (mem/alu), template contain data and code
+    section for implementing high level operator;
+    resources required for high level operator are already accounted in main parts
+    kernel section
+
+    Usage: high level operator like unary,binary operators opearting on tensor dimension or
+           memory operator that stores/loads tensor from near/far memory
+
+    Initially monolithic code segments doing high level operator  vpgr/sgpr (temp ones ) are placeholders
+    must be replaced when its actually placed in main kernel
+
+
+    """
+
+    ## constructor
+    def __init__(self, name=""):
+      self.name     = name
+      ## list order of operations
+      ## Module key "LaddrCalcA", "lrda", "lwra", "StoreC", "loadC",
+      ## order of code is important
+      self.itemList = []   ## list of Code Modules
+      self.tmpSgpr  = None
+      self.tmpVgpr  = None
+
+    def __str__(self):
+      s = ""
+      if printModuleNames:
+        s += "// %s { \n" % self.name
+      s += "".join([str(x) for x in self.itemList])
+      if printModuleNames:
+        s += "// } %s\n" % self.name
+      return s
+
+    def findNamedCode(self, targetName):
+      return next((Moditem for Moditem in self.itemList if Moditem.name==targetName), None)
+
+    def addModule(self, ModItem):
+      """
+      Add specified Code modules to the list of Modules in the opTemplate
+      ModItem MUST be a Module, list of instructions not string
+      returns Module to facilitate one-line create/add patterns
+      """
+      if isinstance(ModItem,Module):
+        #self.itemList.append(ModItem)
+        self.itemList.extend(ModItem.itemList)
+      else:
+        assert 0, "unknown ModItem type (%s) for OpTemplate.addCode. Moditem=%s"%(type(ModItem), ModItem)
+      return ModItem
+
+      def addTempSgpr(self, sgpr):
+        self.tmpSgpr = sgpr
+
+      def addTempVgpr(self, vgpr):
+        self.tmpVgpr = vgpr
+
+class MemOpTemplate(OpTemplate):
+    """
+    template for local/global data movement code sections
+    list should have sequence of code modules supporting data movement,
+    including offset calculation , offset increment, load/store
+
+    current code sections are expected to follow program consistency (no out of order in scheduling them)
+
+    This needs further refinement- handling temp registers in code
+    temporary register(s) used at the time of code generation(S) need to be replaced when its called
+    temp register in instruction should use _sgpr%len_  or _vgpr%len_  len determines number of temp register
+
+    before using code , allocate number of registers required for code
+
+    """
+    def __init__(self, name=""):
+      self.name = name
+      self.itemList = []   ## list of  COde Modules
+      self.tmpSgpr  = None
+      self.tmpVgpr  = None
 

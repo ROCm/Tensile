@@ -1,22 +1,25 @@
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 from .Common import print1, print2, HR, printExit, defaultAnalysisParameters, globalParameters, \
@@ -122,11 +125,8 @@ def analyzeProblemType( problemType, problemSizeGroups, inputParameters ):
     print1("(%2u) %s : %s" % (i, Solution.getNameMin(s, solutionMinNaming), Solution.getNameFull(s)))
 
   if enableTileSelection:
-    if globalParameters["NewClient"] == 2:
-      validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelection(problemType, selectionFileNameList, \
-          logicAnalyzer.numSolutionsPerGroup,  logicAnalyzer.solutionGroupMap, solutionsList)
-    else:
-      validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelectionOldClient(problemType, problemSizeGroups)
+    validSelectionSolutions = SolutionSelectionLibrary.analyzeSolutionSelection(problemType, selectionFileNameList, \
+        logicAnalyzer.numSolutionsPerGroup,  logicAnalyzer.solutionGroupMap, solutionsList)
 
     validSelectionSolutionsIncluded = []
     validSelectionSolutionsRemainder = []
@@ -430,7 +430,7 @@ class LogicAnalyzer:
     csvHasWinner = "_CSVWinner" in dataFileName
     if csvHasWinner:
       # the column of the two are fixed (GFlops, SizeI/J/K/L, LDD/C/A/B, TotalFlops, WinnerGFlops, WinnerTimeUs, WinnerIdx, WinnerName)
-      # the order are implemented in ResultFileReporter.cpp (NewClient) and Client.h (OldClient)
+      # the order are implemented in ResultFileReporter.cpp
       columnOfWinnerGFlops = 10
       columnOfWinnerIdx = 12
 
@@ -442,12 +442,12 @@ class LogicAnalyzer:
         # get unit (gflops or gflops/cu) of benchmark data
         perfUnit = row[0]
         if perfUnit == "GFlops":
-          self.perfMetric = "Overall"
+          self.perfMetric = "DeviceEfficiency"
         elif perfUnit == "GFlopsPerCU":
           self.perfMetric = "CUEfficiency"
         else:
-          printWarning("Performance unit %s in %s is unrecognized: assuming GFlops (overall)" % (perfUnit, dataFileName))
-          self.perfMetric = "Overall"
+          printWarning("Performance unit %s in %s is unrecognized: assuming GFlops (device efficiency)" % (perfUnit, dataFileName))
+          self.perfMetric = "DeviceEfficiency"
 
         # get the length of each row, and derive the first column of the solution instead of using wrong "solutionStartIdx = totalSizeIdx + 1"
         rowLength = len(row)
@@ -1440,7 +1440,7 @@ def generateLogic(config, benchmarkDataPath, libraryLogicPath):
         printExit("%s doesn't exist for %s" % (dataFileName, fileBase) )
       if not os.path.exists(solutionsFileName):
         printExit("%s doesn't exist for %s" % (solutionsFileName, fileBase) )
-      (problemSizes, solutions) = LibraryIO.readSolutions(solutionsFileName)
+      (problemSizes, solutions) = LibraryIO.parseSolutionsFile(solutionsFileName)
       if len(solutions) == 0:
         printExit("%s doesn't contains any solutions." % (solutionsFileName) )
       problemType = solutions[0]["ProblemType"]
@@ -1450,16 +1450,21 @@ def generateLogic(config, benchmarkDataPath, libraryLogicPath):
           dataFileName, solutionsFileName, selectionFileName, solutions) )
 
   for problemType in problemTypes:
-    logicTuple = analyzeProblemType( problemType, problemTypes[problemType], \
-        analysisParameters)
+    logicTuple = analyzeProblemType(problemType, problemTypes[problemType], analysisParameters)
 
-    LibraryIO.configWriter("yaml").writeLibraryLogicForSchedule(globalParameters["WorkingPath"], \
-        analysisParameters["ScheduleName"], analysisParameters["ArchitectureName"], \
-        analysisParameters["DeviceNames"], logicTuple)
+    filename = os.path.join(globalParameters["WorkingPath"], \
+        "{}_{}".format(analysisParameters["ScheduleName"], str(problemType) + ".yaml"))
+
+    print2("# writing library logic YAML {}".format(filename))
+    dictFormat = globalParameters["DictLibraryLogic"]
+    data = LibraryIO.createLibraryLogic(analysisParameters["ScheduleName"], \
+        analysisParameters["ArchitectureName"], analysisParameters["DeviceNames"], logicTuple, dictFormat)
+
+    LibraryIO.writeYAML(filename, data, explicit_start=False, explicit_end=False)
 
   currentTime = time.time()
   elapsedTime = currentTime - startTime
-  print1("%s\n# Finish Analysing data to in %s - %.3fs\n%s" % (HR, os.path.split(libraryLogicPath)[0], elapsedTime, HR) )
+  print1("%s\n# Finish Analysing data to %s in %.3fs\n%s" % (HR, os.path.split(libraryLogicPath)[0], elapsedTime, HR) )
   popWorkingPath()
 
 

@@ -1,41 +1,43 @@
 ################################################################################
-# Copyright 2016-2021 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
-from .Common import globalParameters, HR, pushWorkingPath, popWorkingPath, print1, printExit, CHeader, printWarning, listToInitializer, ClientExecutionLock
 from . import ClientExecutable
 from . import Common
 from . import LibraryIO
+from .Common import globalParameters, pushWorkingPath, popWorkingPath, print1, printExit, CHeader, printWarning, listToInitializer, ClientExecutionLock
 from .SolutionStructs import ProblemType, ProblemSizesMock
+from .TensileCreateLibrary import copyStaticFiles
 
 import os
 import subprocess
-import shlex
-from shutil import copy as shutil_copy
-from shutil import rmtree
+import shutil
 from enum import Enum
 
 from .Contractions import FreeIndex
 from .Contractions import ProblemType as ContractionsProblemType
 
-# NOTE- For NewClient only
+
 class DataInitName(Enum):
   Zero = 0
   One = 1
@@ -54,6 +56,10 @@ class DataInitName(Enum):
   TrigAbsSin = 14
   TrigAbsCos = 15
   RandomNarrow = 16
+  NegOne = 17
+  Max = 18
+  DenormMin = 19
+  DenormMax = 20
 
 class ClientLogLevel(Enum):
   Error = 0
@@ -61,49 +67,16 @@ class ClientLogLevel(Enum):
   Verbose = 2
   Debug = 3
 
+
 ################################################################################
 # Main
 ################################################################################
 def main( config ):
-  libraryLogicPath = os.path.join(globalParameters["WorkingPath"], \
-      globalParameters["LibraryLogicPath"])
+  libraryLogicPath = os.path.join(globalParameters["WorkingPath"], globalParameters["LibraryLogicPath"])
   stepBaseDir = pushWorkingPath(globalParameters["LibraryClientPath"])
 
-
-  ##############################################################################
-  # Copy Source Files
-  ##############################################################################
   pushWorkingPath("source")
-  filesToCopy = [
-      "SolutionMapper.h",
-      "Client.cpp",
-      "Client.h",
-      "DeviceStats.h",
-      "ReferenceCPU.h",
-      "TensorUtils.h",
-      "MathTemplates.cpp",
-      "MathTemplates.h",
-      "KernelHeader.h",
-      "Tools.h",
-      "TensileCreateLibrary.cmake",
-      ]
-
-  for f in filesToCopy:
-    shutil_copy(
-        os.path.join(globalParameters["SourcePath"], f),
-        globalParameters["WorkingPath"] )
-  if globalParameters["NewClient"] < 2:
-    shutil_copy(
-        os.path.join(globalParameters["SourcePath"], "CMakeLists.txt"),
-        globalParameters["WorkingPath"] )
-  if globalParameters["RuntimeLanguage"] == "OCL":
-    shutil_copy(
-        os.path.join(globalParameters["SourcePath"], "FindOpenCL.cmake"),
-        globalParameters["WorkingPath"] )
-  else:
-    shutil_copy(
-        os.path.join(globalParameters["SourcePath"], "FindHIP.cmake"),
-        globalParameters["WorkingPath"] )
+  copyStaticFiles()
 
   ##############################################################################
   # Read Logic Files
@@ -117,20 +90,20 @@ def main( config ):
   functionNames = []
   enableHalf = False
 
-  createLibraryScript = getBuildNewClientLibraryScript(stepBaseDir, libraryLogicPath)
-  subprocess.run(shlex.split(createLibraryScript), cwd=stepBaseDir)
+  createLibraryScript = getBuildClientLibraryScript(stepBaseDir, libraryLogicPath)
+  subprocess.run(createLibraryScript, cwd=stepBaseDir)
   coList = []
   yamlList = []
+
   with open(os.path.join(stepBaseDir,"library","TensileManifest.txt"), "r") as f:
     lines = f.read().split("\n")
     coList = [line for line in lines if "co" in line]
-    yamlList = [line for line in lines if "yaml" in line]
+    yamlList = [line for line in lines if (("yaml" in line) or ("dat" in line))]
 
   clientParametersPaths = []
   for logicFileName in logicFiles:
-    (scheduleName, deviceNames, problemType, solutionsForType, \
-        indexOrder, exactLogic, rangeLogic, newLibrary, architectureName) \
-        = LibraryIO.readLibraryLogicForSchedule(logicFileName)
+    (scheduleName, _, problemType, _, exactLogic, newLibrary) \
+        = LibraryIO.parseLibraryLogicFile(logicFileName)
     if problemType["DataType"].isHalf():
         enableHalf = True
     functions.append((scheduleName, problemType))
@@ -153,14 +126,7 @@ def main( config ):
   # Write Generated Header
   ##############################################################################
   forBenchmark = False
-  solutions = None
   problemSizes = None
-  stepName = None
-  solutionSummationSizes = None
-  if globalParameters["NewClient"] != 2:
-    if logicFiles:
-      writeClientParameters(forBenchmark, solutions, problemSizes, stepName, \
-          functions, solutionSummationSizes, stepBaseDir)
   popWorkingPath() # source
 
   ##############################################################################
@@ -168,7 +134,7 @@ def main( config ):
   ##############################################################################
   # if redo=true, clobber the build directory
   if globalParameters["ForceRedoLibraryClient"]:
-    rmtree(os.path.join(globalParameters["WorkingPath"], "build"), \
+    shutil.rmtree(os.path.join(globalParameters["WorkingPath"], "build"), \
         ignore_errors=True)
 
   forBenchmark = False
@@ -184,9 +150,9 @@ def main( config ):
 ################################################################################
 def runNewClient(scriptPath, clientParametersPath, clientBuildDir=None):
 
-  newClientExe = ClientExecutable.getClientExecutable(clientBuildDir)
+  clientExe = ClientExecutable.getClientExecutable(clientBuildDir)
   iniFile = "--config-file={}".format(clientParametersPath)
-  args = [newClientExe, iniFile]
+  args = [clientExe, iniFile]
 
   try:
     subprocess.run(args, check=True)
@@ -198,154 +164,65 @@ def runClient(libraryLogicPath, forBenchmark, enableTileSelection, configPaths=N
   # write runScript
   pushWorkingPath("build")
   path = globalParameters["WorkingPath"]
-  if globalParameters["NewClient"] < 2:
-    buildScriptName = writeBuildOldClientScript(path, libraryLogicPath, forBenchmark)
-    runScriptName = writeRunScript(path,  forBenchmark, enableTileSelection, configPaths)
 
-    subprocess.check_call(buildScriptName, cwd=path)
+  runScriptName = writeRunScript(path, forBenchmark, enableTileSelection, configPaths)
+  with ClientExecutionLock():
+    process = subprocess.Popen(runScriptName, cwd=path)
+    process.communicate()
 
-    # run runScript
-    with ClientExecutionLock():
-      process = subprocess.Popen(runScriptName, cwd=path)
-      process.communicate()
+  if process.returncode:
+    printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
+  popWorkingPath() # build
 
-    if process.returncode:
-      printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
-    popWorkingPath() # build
-    return process.returncode
-  else:
+  return process.returncode
 
-    runScriptName = writeRunScript(path, forBenchmark, enableTileSelection, configPaths)
-    with ClientExecutionLock():
-      process = subprocess.Popen(runScriptName, cwd=path)
-      process.communicate()
 
-    if process.returncode:
-      printWarning("ClientWriter Benchmark Process exited with code %u" % process.returncode)
-    popWorkingPath() # build
-    return process.returncode
+def getBuildClientLibraryScript(buildPath, libraryLogicPath):
+  callCreateLibraryCmd = ["python"] if os.name == "nt" else []
 
-def getBuildOldClientScript(libraryLogicPath, forBenchmark):
-  import io
-  runScriptFile = io.StringIO()
-  q = "" if os.name == "nt" else "\""
-  echoLine = "@echo." if os.name == "nt" else "echo"
-  runScriptFile.write("%s && echo %s%s%s && echo %s# Configuring CMake for Client%s && echo %s%s%s\n" \
-      % (echoLine, q, HR, q, q, q, q, HR, q))
-  runScriptFile.write("cmake")
-  # runtime and kernel language
-  runScriptFile.write(" -DTensile_RUNTIME_LANGUAGE=%s" % globalParameters["RuntimeLanguage"])
-  runScriptFile.write(" -DTensile_CODE_OBJECT_VERSION=%s" % globalParameters["CodeObjectVersion"])
-  runScriptFile.write(" -DTensile_COMPILER=%s" % globalParameters["CxxCompiler"])
-  runScriptFile.write(" -DTensile_ARCHITECTURE=%s" % globalParameters["Architecture"])
-  runScriptFile.write(" -DTensile_LIBRARY_FORMAT=%s" % globalParameters["LibraryFormat"])
-  if globalParameters["EnableHalf"]:
-    runScriptFile.write(" -DTensile_ENABLE_HALF=ON")
-  if "ResumeBenchmarkProblem" in globalParameters and globalParameters["ResumeBenchmarkProblem"]:
-    runScriptFile.write(" -DTensile_RESUME_BENCHMARK=ON")
-  else:
-    runScriptFile.write(" -DTensile_RESUME_BENCHMARK=OFF")
-  if forBenchmark:
-    # for benchmark client
-    runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=ON")
-  else:
-    # for library client
-    runScriptFile.write(" -DTensile_ROOT=%s" % globalParameters["ScriptPath"] )
-    runScriptFile.write(" -DTensile_CLIENT_BENCHMARK=OFF")
-    runScriptFile.write(" -DTensile_LOGIC_PATH=%s" % libraryLogicPath)
-    runScriptFile.write(" -DTensile_LIBRARY_PRINT_DEBUG=%s" \
-        % ("ON" if globalParameters["LibraryPrintDebug"] else "OFF"))
-    runScriptFile.write(" -DTensile_SHORT_FILE_NAMES=%s" \
-        % ("ON" if globalParameters["ShortNames"] else "OFF"))
-  if globalParameters["CMakeCXXFlags"]:
-    runScriptFile.write("  -DCMAKE_CXX_FLAGS=%s" % globalParameters["CMakeCXXFlags"] )
-  if globalParameters["CMakeCFlags"]:
-    runScriptFile.write("  -DCMAKE_C_FLAGS=%s" % globalParameters["CMakeCFlags"] )
-  if globalParameters["NewClient"] == 2:
-    runScriptFile.write(" -DTENSILE_NEW_CLIENT=ON")
-  else:
-    runScriptFile.write(" -DTENSILE_NEW_CLIENT=OFF")
-  runScriptFile.write("  -DCMAKE_BUILD_TYPE=%s" % (globalParameters["CMakeBuildType"]))
-  # for both
-  if os.name == "nt":
-    runScriptFile.write(" -DCMAKE_GENERATOR_PLATFORM=x64")
-  runScriptFile.write(" -DTensile_MERGE_FILES=%s" \
-      % ("ON" if globalParameters["MergeFiles"] else "OFF"))
-  runScriptFile.write(" ../source\n")
-  runScriptFile.write("%s && echo %s%s%s && echo %s# Building Client%s && echo %s%s%s\n" \
-      % (echoLine, q, HR, q, q, q, q, HR, q))
-  runScriptFile.write("cmake --build . --config %s%s\n" \
-      % (globalParameters["CMakeBuildType"], " -- -j 8" \
-      if os.name != "nt" else "") )
-
-  return runScriptFile.getvalue()
-
-def getBuildNewClientLibraryScript(buildPath, libraryLogicPath):
-  import io
-  runScriptFile = io.StringIO()
-
-  callCreateLibraryCmd = globalParameters["ScriptPath"] + "/bin/TensileCreateLibrary"
-
+  callCreateLibraryCmd += [os.path.join(globalParameters["ScriptPath"] , "bin", "TensileCreateLibrary")]
 
   if globalParameters["MergeFiles"]:
-    callCreateLibraryCmd += " --merge-files"
+    callCreateLibraryCmd += ["--merge-files"]
   else:
-    callCreateLibraryCmd += " --no-merge-files"
-
-  callCreateLibraryCmd += " --no-legacy-components"
+    callCreateLibraryCmd += ["--no-merge-files"]
 
   if globalParameters["ShortNames"]:
-    callCreateLibraryCmd += " --short-file-names"
+    callCreateLibraryCmd += ["--short-file-names"]
   else:
-    callCreateLibraryCmd += " --no-short-file-names"
+    callCreateLibraryCmd += ["--no-short-file-names"]
 
   if globalParameters["LibraryPrintDebug"]:
-    callCreateLibraryCmd += " --library-print-debug"
+    callCreateLibraryCmd += ["--library-print-debug"]
   else:
-    callCreateLibraryCmd += " --no-library-print-debug"
+    callCreateLibraryCmd += ["--no-library-print-debug"]
 
   if globalParameters["GenerateManifestAndExit"]:
-    callCreateLibraryCmd += " --generate-manifest-and-exit"
+    callCreateLibraryCmd += ["--generate-manifest-and-exit"]
 
-  # Function won't get called if NewClient !=2, but don't want to make assumption
-  if "NewClient" in globalParameters and globalParameters["NewClient"] == 2:
-      callCreateLibraryCmd += " --new-client-only"
+  callCreateLibraryCmd += ["--architecture=" + globalParameters["Architecture"]]
+  callCreateLibraryCmd += ["--code-object-version=" + globalParameters["CodeObjectVersion"]]
+  callCreateLibraryCmd += ["--cxx-compiler=" + globalParameters["CxxCompiler"]]
+  callCreateLibraryCmd += ["--library-format=" + globalParameters["LibraryFormat"]]
 
-  callCreateLibraryCmd += " --architecture=" + globalParameters["Architecture"]
-  callCreateLibraryCmd += " --code-object-version=" + globalParameters["CodeObjectVersion"]
-  callCreateLibraryCmd += " --cxx-compiler=" + globalParameters["CxxCompiler"]
-  callCreateLibraryCmd += " --library-format=" + globalParameters["LibraryFormat"]
+  callCreateLibraryCmd += ["%s" % libraryLogicPath]
+  callCreateLibraryCmd += ["%s" % buildPath] #" ../source"
+  callCreateLibraryCmd += ["%s" % globalParameters["RuntimeLanguage"]]
 
-  callCreateLibraryCmd += " %s" % libraryLogicPath
-  callCreateLibraryCmd += " %s" % buildPath #" ../source"
-  callCreateLibraryCmd += " %s\n" % globalParameters["RuntimeLanguage"]
+  return callCreateLibraryCmd
 
-  runScriptFile.write(callCreateLibraryCmd)
 
-  return runScriptFile.getvalue()
-
-def writeBuildNewClientLibraryScript(path, libraryLogicPath):
-  filename = os.path.join(path, \
-    "build.%s" % ("bat" if os.name == "nt" else "sh") )
+def writeBuildClientLibraryScript(path, libraryLogicPath):
+  filename = os.path.join(path, "build.%s" % ("bat" if os.name == "nt" else "sh") )
   with open(filename, "w") as file:
     file.write("#!/bin/bash\n\n")
     file.write("set -ex\n")
-    file.write(getBuildNewClientLibraryScript(path, libraryLogicPath))
+    for item in getBuildClientLibraryScript(path, libraryLogicPath):
+      file.write(f"{item} ")
 
   if os.name != "nt":
     os.chmod(filename, 0o777)
-  return filename
 
-def writeBuildOldClientScript(path, libraryLogicPath, forBenchmark):
-  filename = os.path.join(path, \
-    "build.%s" % ("bat" if os.name == "nt" else "sh") )
-  with open(filename, "w") as file:
-    file.write("#!/bin/bash\n\n")
-    file.write("set -ex\n")
-    file.write(getBuildOldClientScript(libraryLogicPath, forBenchmark))
-
-  if os.name != "nt":
-    os.chmod(filename, 0o777)
   return filename
 
 
@@ -353,116 +230,51 @@ def writeRunScript(path, forBenchmark, enableTileSelection, configPaths=None):
   if configPaths is None:
     configPaths = []
     configPaths.append(os.path.join(globalParameters["WorkingPath"], "../source/ClientParameters.ini"))
-    if enableTileSelection is True and globalParameters["NewClient"] == 2:
+    if enableTileSelection is True:
       configPaths.append(os.path.join(globalParameters["WorkingPath"], "../source/ClientParameters_Granularity.ini"))
 
   # create run.bat or run.sh which builds and runs
-  runScriptName = os.path.join(path, \
-    "run.%s" % ("bat" if os.name == "nt" else "sh") )
+  clientExe = ClientExecutable.getClientExecutable()
+  runScriptName = os.path.join(path, "run.%s" % ("bat" if os.name == "nt" else "sh") )
   runScriptFile = open(runScriptName, "w")
-  echoLine = "@echo." if os.name == "nt" else "echo"
   if os.name != "nt":
     runScriptFile.write("#!/bin/bash\n\n")
-  q = "" if os.name == "nt" else "\""
 
-  runScriptFile.write("set -ex\n")
-
-
-  if forBenchmark:
-    if os.name == "nt":
-      runScriptFile.write(os.path.join(globalParameters["CMakeBuildType"], \
-          "client.exe") )
-    else:
-      if globalParameters["PinClocks"] and globalParameters["ROCmSMIPath"]:
-        runScriptFile.write("%s -d 0 --setfan 255 --setsclk 7\n" % globalParameters["ROCmSMIPath"])
-        runScriptFile.write("sleep 1\n")
-        runScriptFile.write("%s -d 0 -a\n" % globalParameters["ROCmSMIPath"])
-
-      runScriptFile.write("set +e\n")
-
-
-    if globalParameters["DataInitTypeA"] == -1 :
-        globalParameters["DataInitTypeA"] = globalParameters["DataInitTypeAB"]
-    if globalParameters["DataInitTypeB"] == -1 :
-        globalParameters["DataInitTypeB"] = globalParameters["DataInitTypeAB"]
-
-    if globalParameters["NewClient"] < 2:
-      runScriptFile.write("./client")
-      clp = ""
-      clp += " --platform-idx %u" % globalParameters["Platform"]
-      clp += " --device-idx %u" % globalParameters["Device"]
-      clp += " --init-alpha %u" % globalParameters["DataInitTypeAlpha"]
-      clp += " --init-beta %u" % globalParameters["DataInitTypeBeta"]
-      clp += " --init-d %u" % globalParameters["DataInitTypeD"]
-      clp += " --init-c %u" % globalParameters["DataInitTypeC"]
-      clp += " --init-a %u" % globalParameters["DataInitTypeA"]
-      clp += " --init-b %u" % globalParameters["DataInitTypeB"]
-      clp += " --c-equal-d %u" % globalParameters["CEqualD"]
-      clp += " --print-valids %u" % globalParameters["ValidationPrintValids"]
-      clp += " --print-max %u" % globalParameters["ValidationMaxToPrint"]
-      clp += " --num-benchmarks %u" % globalParameters["NumBenchmarks"]
-      clp += " --num-elements-to-validate %u" % globalParameters["NumElementsToValidate"]
-      clp += " --num-enqueues-per-sync %u" % globalParameters["EnqueuesPerSync"]
-      clp += " --num-syncs-per-benchmark %u" % globalParameters["SyncsPerBenchmark"]
-      clp += " --use-gpu-timer %u" % globalParameters["KernelTime"]
-      clp += " --sleep-percent %u" % globalParameters["SleepPercent"]
-      clp += " --benchmark-solutions %u" % enableTileSelection
-      clp += " --csv-export-extra-cols %u" % globalParameters["CSVExportWinner"]
-      if "ClientArgs" in globalParameters:
-        clientParams = globalParameters["ClientArgs"]
-        if clientParams:
-          clp += " " + globalParameters["ClientArgs"]
-      runScriptFile.write(clp)
-      runScriptFile.write("\n")
-      runScriptFile.write("ERR1=$?\n")
-    else:
-      runScriptFile.write("ERR1=0\n")
-
-    if globalParameters["NewClient"]:
-      newClientExe = ClientExecutable.getClientExecutable()
-      for configFile in configPaths:
-        runScriptFile.write("{} --config-file {} {}\n".format(newClientExe, configFile, globalParameters["NewClientArgs"]))
-      runScriptFile.write("ERR2=$?\n\n")
-    else:
-      runScriptFile.write("ERR2=0\n")
-
-    runScriptFile.write("""
-ERR=0
-if [[ $ERR1 -ne 0 ]]
-then
-    echo one
-    ERR=$ERR1
-fi
-if [[ $ERR2 -ne 0 ]]
-then
-    echo two
-    ERR=$ERR2
-fi
-""")
-
-    if os.name != "nt":
-      if globalParameters["PinClocks"] and globalParameters["ROCmSMIPath"]:
-        runScriptFile.write("%s -d 0 --resetclocks\n" % globalParameters["ROCmSMIPath"])
-        runScriptFile.write("%s -d 0 --setfan 50\n" % globalParameters["ROCmSMIPath"])
+  option = "" if forBenchmark else "--best-solution 1"
+  if (os.name == "nt"):
+    runScriptFile.write("@echo off\n")
+    runScriptFile.write("set err=0\n")
+    for configFile in configPaths:
+      runScriptFile.write("{} --config-file {} {} {}\n".format(clientExe, configFile, globalParameters["ClientArgs"], option))
+      runScriptFile.write("IF %errorlevel% NEQ 0 set err=%errorlevel%\n")
+    runScriptFile.write("exit %err%\n")
   else:
-    executablePath = os.path.join(globalParameters["WorkingPath"])
-    if globalParameters["NewClient"] < 2:
-      if os.name == "nt":
-        executablePath = os.path.join(executablePath, \
-            globalParameters["CMakeBuildType"], \
-            "client.exe")
-      else:
-        executablePath = os.path.join(executablePath, "client")
-      runScriptFile.write("%s && echo %s%s%s && echo %s# Library Client:%s && echo %s# %s%s && %s\n" \
-        % (echoLine, q, HR, q, q, q, q, executablePath, q, executablePath) )
-    if globalParameters["NewClient"]:
-      for configFile in configPaths:
-        runScriptFile.write("{} --config-file {} {} --best-solution 1\n".format(ClientExecutable.getClientExecutable(), configFile, globalParameters["NewClientArgs"]))
-  if os.name != "nt":
+    runScriptFile.write("set -ex\n")
+    if globalParameters["PinClocks"] and globalParameters["ROCmSMIPath"]:
+      runScriptFile.write("%s -d 0 --setfan 255 --setsclk 7\n" % globalParameters["ROCmSMIPath"])
+      runScriptFile.write("sleep 1\n")
+      runScriptFile.write("%s -d 0 -a\n" % globalParameters["ROCmSMIPath"])
+
+    runScriptFile.write("ERR=0\n")
+    for configFile in configPaths:
+      runScriptFile.write("{} --config-file {} {} {}\n".format(clientExe, configFile, globalParameters["ClientArgs"], option))
+      runScriptFile.write( "if [[ $? -ne 0 ]]\n")
+      runScriptFile.write( "then\n")
+      runScriptFile.write(f"    echo error in {configFile}\n")
+      runScriptFile.write( "    ERR=$?\n")
+      runScriptFile.write( "fi\n")
+
+    if globalParameters["PinClocks"] and globalParameters["ROCmSMIPath"]:
+      runScriptFile.write("%s -d 0 --resetclocks\n" % globalParameters["ROCmSMIPath"])
+      runScriptFile.write("%s -d 0 --setfan 50\n" % globalParameters["ROCmSMIPath"])
+
     runScriptFile.write("exit $ERR\n")
+
   runScriptFile.close()
+
   if os.name != "nt":
     os.chmod(runScriptName, 0o777)
+
   return runScriptName
 
 
@@ -673,20 +485,23 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
           param("print-tensor-ref",       1)
         if globalParameters["PrintTensorHex"]:
           param("print-tensor-hex",       1)
+        if globalParameters["DumpTensors"]:
+          param("dump-tensors",           1)
+        if globalParameters["ExitOnFails"] > 1:
+          param("exit-on-error", 1)
 
         param("bounds-check",             boundsCheckName(int(globalParameters["BoundsCheck"])))
         param("print-valids",             globalParameters["ValidationPrintValids"])
         param("print-max",                globalParameters["ValidationMaxToPrint"])
-        param("num-benchmarks",           globalParameters["NumBenchmarks"])
         param("num-elements-to-validate", globalParameters["NumElementsToValidate"])
+        param("num-benchmarks",           globalParameters["NumBenchmarks"])
+        param("num-warmups",              globalParameters["NumWarmups"])
         param("num-enqueues-per-sync",    globalParameters["EnqueuesPerSync"])
         param("num-syncs-per-benchmark",  globalParameters["SyncsPerBenchmark"])
         param("use-gpu-timer",            globalParameters["KernelTime"])
         param("hardware-monitor",         globalParameters["HardwareMonitor"])
         if convValidation:
             param("convolution-vs-contraction", globalParameters["ConvolutionVsContraction"])
-        if not globalParameters["KernelTime"]:
-            param("num-warmups", 1)
         param("sleep-percent",            globalParameters["SleepPercent"])
         param("perf-l2-read-hits",        globalParameters["PerfModelL2ReadHits"])
         param("perf-l2-write-hits",       globalParameters["PerfModelL2WriteHits"])
@@ -697,6 +512,11 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param("log-level",                ClientLogLevel(globalParameters["ClientLogLevel"]).name)
         param("max-workspace-size",       globalParameters["MaxWorkspaceSize"])
         param("granularity-threshold",    globalParameters["GranularityThreshold"])
+        param("pristine-on-gpu",          globalParameters["PristineOnGPU"])
+
+        param("library-update-file",      globalParameters["LibraryUpdateFile"])
+        param("library-update-comment",   globalParameters["LibraryUpdateComment"])
+
 
 def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseDir, newLibrary, codeObjectFiles, tileAwareSelection, configBase = "ClientParameters", libraryFile = None):
 
@@ -712,10 +532,7 @@ def writeClientConfig(forBenchmark, solutions, problemSizes, stepName, stepBaseD
     if tileAwareSelection:
       resultsFileName = os.path.join(stepBaseDir, "../Data", stepName+"_Granularity.csv")
     else:
-      if globalParameters["NewClient"] == 1:
-          resultsFileName = os.path.join(stepBaseDir, "../Data", stepName+"-new.csv")
-      else:
-          resultsFileName = os.path.join(stepBaseDir, "../Data", stepName+".csv")
+      resultsFileName = os.path.join(stepBaseDir, "../Data", stepName+".csv")
 
     newSolution = next(iter(newLibrary.solutions.values()))
     sourceDir = os.path.join(stepBaseDir, "source")
@@ -736,7 +553,7 @@ def CreateBenchmarkClientParametersForSizes(libraryRootPath, problemSizes, dataF
       metaDataFilePath = os.path.join(libraryPath, "metadata.yaml")
       if not os.path.exists(metaDataFilePath):
         printExit ("meta data file %s does not exist" % metaDataFilePath)
-      metaData = LibraryIO.readConfig(metaDataFilePath)
+      metaData = LibraryIO.readYAML(metaDataFilePath)
       problemTypeDict = metaData["ProblemType"]
       problemType = ContractionsProblemType.FromOriginalState(problemTypeDict)
 

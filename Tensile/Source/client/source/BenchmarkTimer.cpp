@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -43,8 +43,10 @@ namespace Tensile
 
         BenchmarkTimer::BenchmarkTimer(po::variables_map const& args, Hardware const& hardware)
             : m_numWarmups(args["num-warmups"].as<int>())
+            , m_syncAfterWarmups(args["sync-after-warmups"].as<bool>())
             , m_numBenchmarks(args["num-benchmarks"].as<int>())
             , m_numEnqueuesPerSync(args["num-enqueues-per-sync"].as<int>())
+            , m_minFlopsPerSync(args["min-flops-per-sync"].as<size_t>())
             , m_numSyncsPerBenchmark(args["num-syncs-per-benchmark"].as<int>())
             , m_hardware(hardware)
             , m_numEnqueuesPerSolution(m_numEnqueuesPerSync * m_numSyncsPerBenchmark)
@@ -108,15 +110,9 @@ namespace Tensile
             int    usedCus     = std::min(tiles, perf.CUs);
             double gflopsPerCu = gflops / usedCus;
 
-            uint64_t gflopsUint = static_cast<uint64_t>(round(gflops));
-
             m_reporter->report(ResultKey::TimeUS, timePerEnqueue_us);
             m_reporter->report(ResultKey::SpeedGFlopsPerCu, gflopsPerCu);
-
-            if(gflopsUint)
-                m_reporter->report(ResultKey::SpeedGFlops, gflopsUint);
-            else
-                m_reporter->report(ResultKey::SpeedGFlops, gflops);
+            m_reporter->report(ResultKey::SpeedGFlops, gflops);
 
             m_timeInSolution        = double_millis::zero();
             m_numEnqueuesInSolution = 0;
@@ -147,7 +143,7 @@ namespace Tensile
                                              TimingEvents const&                startEvents,
                                              TimingEvents const&                stopEvents)
         {
-            if((stopEvents->size() > 0) && (stopEvents->back().size() > 0))
+            if(m_syncAfterWarmups && (stopEvents->size() > 0) && (stopEvents->back().size() > 0))
                 HIP_CHECK_EXC(hipEventSynchronize(stopEvents->back().back()));
         }
 
@@ -167,7 +163,14 @@ namespace Tensile
 
         size_t BenchmarkTimer::numEnqueuesPerSync()
         {
-            return m_numEnqueuesPerSync;
+            size_t enqueuesByFlops = 0;
+            if(m_minFlopsPerSync > 0)
+            {
+                size_t flopsInProblem = m_problem.flopCount();
+                enqueuesByFlops       = CeilDivide(m_minFlopsPerSync, flopsInProblem);
+            }
+
+            return std::max<size_t>(m_numEnqueuesPerSync, enqueuesByFlops);
         }
 
         void BenchmarkTimer::setNumEnqueuesPerSync(size_t count)
@@ -179,6 +182,8 @@ namespace Tensile
         {
             if(!m_useGPUTimer)
             {
+                // Synchronize before timer so warmup runs are not included in benchmark time
+                HIP_CHECK_EXC(hipDeviceSynchronize());
                 m_startTime = clock::now();
             }
         }

@@ -8,8 +8,6 @@ GlobalParameters:
   DataInitTypeB: 0
   EnqueuesPerSync: 10
   KernelTime: True
-  NewClient: 2
-  LegacyComponents: False
   PrintConvolutionUsage: 0
   PrintSolutionRejectionReason: 0
 

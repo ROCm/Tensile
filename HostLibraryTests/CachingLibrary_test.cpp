@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -203,6 +203,34 @@ TEST(Hashing, ContractionProblem)
     k.setArithmeticUnit(ArithmeticUnit::MFMA);
     l.setArithmeticUnit(ArithmeticUnit::MFMA);
     EXPECT_EQ(std::hash<ContractionProblem>()(k), std::hash<ContractionProblem>()(l));
+
+    // Test performance metric flag
+    ContractionProblem m = ContractionProblem::GEMM(false, true, 5, 7, 9, 5, 5, 5, 3.0, false, 5);
+    ContractionProblem n = m;
+
+    m.setPerformanceMetric(PerformanceMetric::DeviceEfficiency);
+    n.setPerformanceMetric(PerformanceMetric::CUEfficiency);
+    EXPECT_NE(std::hash<ContractionProblem>()(m), std::hash<ContractionProblem>()(n));
+
+    m.setPerformanceMetric(PerformanceMetric::Auto);
+    n.setPerformanceMetric(PerformanceMetric::CUEfficiency);
+    EXPECT_NE(std::hash<ContractionProblem>()(m), std::hash<ContractionProblem>()(n));
+
+    m.setPerformanceMetric(PerformanceMetric::Auto);
+    n.setPerformanceMetric(PerformanceMetric::DeviceEfficiency);
+    EXPECT_NE(std::hash<ContractionProblem>()(m), std::hash<ContractionProblem>()(n));
+
+    m.setPerformanceMetric(PerformanceMetric::Auto);
+    n.setPerformanceMetric(PerformanceMetric::Auto);
+    EXPECT_EQ(std::hash<ContractionProblem>()(m), std::hash<ContractionProblem>()(n));
+
+    m.setPerformanceMetric(PerformanceMetric::DeviceEfficiency);
+    n.setPerformanceMetric(PerformanceMetric::DeviceEfficiency);
+    EXPECT_EQ(std::hash<ContractionProblem>()(m), std::hash<ContractionProblem>()(n));
+
+    m.setPerformanceMetric(PerformanceMetric::CUEfficiency);
+    n.setPerformanceMetric(PerformanceMetric::CUEfficiency);
+    EXPECT_EQ(std::hash<ContractionProblem>()(m), std::hash<ContractionProblem>()(n));
 }
 
 TEST(Hashing, AMDGPU)
@@ -212,7 +240,8 @@ TEST(Hashing, AMDGPU)
     std::vector<AMDGPU::Processor> processors{AMDGPU::Processor::gfx803,
                                               AMDGPU::Processor::gfx900,
                                               AMDGPU::Processor::gfx906,
-                                              AMDGPU::Processor::gfx908};
+                                              AMDGPU::Processor::gfx908,
+                                              AMDGPU::Processor::gfx90a};
 
     std::vector<int> counts{16, 20, 40, 56, 60, 64};
 
@@ -259,6 +288,8 @@ TEST(Hashing, Tuple2)
     TwoInts tup;
 
     size_t h = std::hash<TwoInts>()(tup);
+    if(h) // Use the code to quiet the compiler.
+        return;
 }
 
 TEST(CachingLibrary, Simple)

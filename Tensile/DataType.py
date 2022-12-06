@@ -1,22 +1,25 @@
 ################################################################################
-# Copyright 2019-2020 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 import functools
@@ -45,14 +48,13 @@ class DataType:
             'libEnum': 'tensileDataTypeFloat',
             'isIntegral': False,
             'isComplex': False,
-            'packing': 1,
-            'miInput' : 1,
+            'packing': 1
         },
         {
             'char': 'D',
             'name': 'double',
             'nameAbbrev': 'f64',
-            'miOutTypeNameAbbrev': 'NONE', # not supported for MI
+            'miOutTypeNameAbbrev': 'f64',
             'enum': 'Double',
             'reg': 2,
             'ocl': 'double',
@@ -61,8 +63,7 @@ class DataType:
             'libEnum': 'tensileDataTypeDouble',
             'isIntegral': False,
             'isComplex': False,
-            'packing': 1,
-            'miInput' : 1,
+            'packing': 1
         },
         {
             'char': 'C',
@@ -77,14 +78,13 @@ class DataType:
             'libEnum': 'tensileDataTypeComplexFloat',
             'isIntegral': False,
             'isComplex': True,
-            'packing': 1,
-            'miInput' : 1,
+            'packing': 1
         },
         {
             'char': 'Z',
             'name': 'complexDouble',
             'nameAbbrev': 'f64c',
-            'miOutTypeNameAbbrev': 'NONE', # not supported for MI
+            'miOutTypeNameAbbrev': 'f64',
             'enum': 'ComplexDouble',
             'reg': 4,
             'ocl': 'double2',
@@ -93,8 +93,7 @@ class DataType:
             'libEnum': 'tensileDataTypeComplexDouble',
             'isIntegral': False,
             'isComplex': True,
-            'packing': 1,
-            'miInput' : 1,
+            'packing': 1
         },
         {
             'char': 'H',
@@ -109,8 +108,7 @@ class DataType:
             'libEnum': 'tensileDataTypeHalf',
             'isIntegral': False,
             'isComplex': False,
-            'packing': 1,
-            'miInput' : 4,
+            'packing': 1
         },
         {
             'char': '4xi8',
@@ -125,8 +123,7 @@ class DataType:
             'libEnum': 'tensileDataTypeInt8x4',
             'isIntegral': True,
             'isComplex': False,
-            'packing': 4,
-            'miInput' : 4,
+            'packing': 4
         },
         {
             'char': 'I',
@@ -141,8 +138,7 @@ class DataType:
             'libEnum': 'tensileDataTypeInt32',
             'isIntegral': True,
             'isComplex': False,
-            'packing': 1,
-            'miInput' : 1,
+            'packing': 1
         },
         {
             'char': 'B',
@@ -157,8 +153,7 @@ class DataType:
             'libEnum': 'tensileDataTypeBFloat16',
             'isIntegral': False,
             'isComplex': False,
-            'packing': 1,
-            'miInput' : 2,
+            'packing': 1
         },
         {
             'char': 'I8',
@@ -173,8 +168,7 @@ class DataType:
             'libEnum': 'tensileDataTypeInt8',   # old client
             'isIntegral': True,
             'isComplex': False,
-            'packing': 1,
-            'miInput' : 4,
+            'packing': 1
         },
     ]
     lookup = {}
@@ -271,8 +265,6 @@ class DataType:
         return self.properties['reg']
     def numBytes(self):
         return int(self.numRegisters() * 4)
-    def numMIInput(self):
-        return self.properties['miInput']
     def MIOutputTypeNameAbbrev(self):
         return self.properties['miOutTypeNameAbbrev']
     def flopsPerMac(self):

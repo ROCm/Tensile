@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -52,7 +52,7 @@ namespace Tensile
                         bool                               printHex = false)
                 : m_level(level)
                 , m_stream(stream)
-                , m_csvOutput(stream)
+                , m_csvOutput(stream, ",")
                 , m_dumpTensors(dumpTensors)
                 , m_printHex(printHex)
             {
@@ -67,7 +67,7 @@ namespace Tensile
                         bool                               printHex = false)
                 : m_level(level)
                 , m_stream(stream)
-                , m_csvOutput(stream)
+                , m_csvOutput(stream, ",")
                 , m_dumpTensors(dumpTensors)
                 , m_printHex(printHex)
             {
@@ -83,7 +83,7 @@ namespace Tensile
                 : m_level(level)
                 , m_stream(*stream)
                 , m_ownedStream(stream)
-                , m_csvOutput(stream)
+                , m_csvOutput(stream, ",")
                 , m_dumpTensors(dumpTensors)
                 , m_printHex(printHex)
             {
@@ -93,20 +93,22 @@ namespace Tensile
 
             template <typename Stream>
             static std::shared_ptr<LogReporter> Default(po::variables_map const& args,
-                                                        Stream&                  stream)
+                                                        Stream&                  stream,
+                                                        LogLevel level = LogLevel::Count)
             {
                 bool dumpTensors = args["dump-tensors"].as<bool>();
                 bool printHex    = args["print-tensor-hex"].as<bool>();
                 using namespace ResultKey;
-                auto logLevel = args["log-level"].as<LogLevel>();
-                std::cout << "Log level: " << logLevel << std::endl;
+                if(level == LogLevel::Count)
+                    level = args["log-level"].as<LogLevel>();
+                std::cout << "Log level: " << level << std::endl;
 
                 PerformanceMetric metric = args["performance-metric"].as<PerformanceMetric>();
-                // Default to 'Overall' benchmarking if CUEfficiency not specified
+                // Default to 'DeviceEfficiency' benchmarking if CUEfficiency not specified
                 const std::string perfUnit
                     = (metric == PerformanceMetric::CUEfficiency ? SpeedGFlopsPerCu : SpeedGFlops);
 
-                return std::shared_ptr<LogReporter>(new LogReporter(logLevel,
+                return std::shared_ptr<LogReporter>(new LogReporter(level,
                                                                     {BenchmarkRunNumber,
                                                                      ProblemProgress,
                                                                      SolutionProgress,
@@ -180,7 +182,7 @@ namespace Tensile
             void acceptValidation(std::string const& value)
             {
                 if(value == "PASSED" || value == "NO_CHECK")
-                    m_rowLevel = LogLevel::Verbose;
+                    m_rowLevel = LogLevel::Normal;
                 else if(value == "FAILED" || value == "FAILED_CONV")
                     m_rowLevel = LogLevel::Error;
                 else if(value == "WRONG_HARDWARE")
@@ -257,6 +259,12 @@ namespace Tensile
                                        reinterpret_cast<std::complex<float> const*>(data),
                                        tensor,
                                        reinterpret_cast<std::complex<float> const*>(ptrVal));
+                    else if(tensor.dataType() == DataType::Double)
+                        logTensorTyped(level,
+                                       name,
+                                       reinterpret_cast<double const*>(data),
+                                       tensor,
+                                       reinterpret_cast<double const*>(ptrVal));
                     else if(tensor.dataType() == DataType::Int32)
                         logTensorTyped(level,
                                        name,
@@ -269,6 +277,12 @@ namespace Tensile
                                        reinterpret_cast<Int8 const*>(data),
                                        tensor,
                                        reinterpret_cast<Int8 const*>(ptrVal));
+                    else if(tensor.dataType() == DataType::BFloat16)
+                        logTensorTyped(level,
+                                       name,
+                                       reinterpret_cast<BFloat16 const*>(data),
+                                       tensor,
+                                       reinterpret_cast<BFloat16 const*>(ptrVal));
                     else
                         throw std::runtime_error(
                             concatenate("Can't log tensor of type ", tensor.dataType()));
@@ -287,7 +301,7 @@ namespace Tensile
             virtual void preSolution(ContractionSolution const& solution) override
             {
                 m_csvOutput.push();
-                m_rowLevel = LogLevel::Verbose;
+                m_rowLevel = LogLevel::Normal;
             }
 
             virtual void postSolution() override

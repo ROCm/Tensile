@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -39,7 +39,8 @@ namespace Tensile
         public:
             virtual void addReporter(std::shared_ptr<ResultReporter> reporter)
             {
-                m_reporters.push_back(reporter);
+                if(reporter != nullptr)
+                    m_reporters.push_back(reporter);
             }
 
             virtual void reportValue_string(std::string const& key,

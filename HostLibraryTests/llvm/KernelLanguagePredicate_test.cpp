@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -38,7 +38,8 @@ TEST(KernelLanguagePredicateTest, Any)
                         "value: [{type: TruePred}, \n"
                         "        {type: KernelLanguageCompatible, value: Any}]";
 
-    llvm::yaml::Input yin(mydoc);
+    LibraryIOContext<ContractionSolution> context{std::string(""), {}, nullptr};
+    llvm::yaml::Input                     yin(mydoc, &context);
 
     std::shared_ptr<Predicates::Predicate<ContractionProblem>> p;
 
@@ -64,7 +65,8 @@ TEST(KernelLanguagePredicateTest, Asm)
                         "value: [{type: TruePred}, \n"
                         "        {type: KernelLanguageCompatible, value: Assembly}]";
 
-    llvm::yaml::Input yin(mydoc);
+    LibraryIOContext<ContractionSolution> context{std::string(""), {}, nullptr};
+    llvm::yaml::Input                     yin(mydoc, &context);
 
     std::shared_ptr<Predicates::Predicate<ContractionProblem>> p;
 
@@ -90,7 +92,8 @@ TEST(KernelLanguagePredicateTest, Source)
                         "value: [{type: TruePred}, \n"
                         "        {type: KernelLanguageCompatible, value: Source}]";
 
-    llvm::yaml::Input yin(mydoc);
+    LibraryIOContext<ContractionSolution> context{std::string(""), {}, nullptr};
+    llvm::yaml::Input                     yin(mydoc, &context);
 
     std::shared_ptr<Predicates::Predicate<ContractionProblem>> p;
 

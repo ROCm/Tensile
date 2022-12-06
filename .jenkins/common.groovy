@@ -1,3 +1,27 @@
+/*******************************************************************************
+ *
+ * Copyright (C) 2020-2022 Advanced Micro Devices, Inc. All rights reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ *******************************************************************************/
+
 // This file is for internal AMD use.
 // If you are interested in running your own Jenkins, please raise a github issue for assistance.
 
@@ -6,9 +30,10 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     project.paths.construct_build_prefix()
 
     String compiler = 'hipcc'
-    String pythonVersion = 'py36'
-    String cov = "V3"
-    String buildType = debug ? 'Debug' : 'RelWithDebInfo'
+    String pythonVersion = 'py3'
+    // Do release build of HostLibraryTests on CI until it is upgraded to rocm 5.3 to
+    // avoid bug causing long build times of certain files.
+    String buildType = 'Release' // debug ? 'Debug' : 'RelWithDebInfo'
     String parallelJobs = "export HIPCC_COMPILE_FLAGS_APPEND=-parallel-jobs=2"
 
     // comment
@@ -37,7 +62,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             pushd build
 
             export PATH=/opt/rocm/bin:$PATH
-            cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DCODE_OBJECT_VERSION=${cov} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
+            cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
             make -j\$(nproc)
 
             popd
@@ -86,8 +111,9 @@ def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest
     def test_dir =  "Tensile/Tests"
 
     String compiler = 'hipcc'
-    String pythonVersion = 'py36'
+    String pythonVersion = 'py3'
     String markSkipHostTest = skipHostTest ? "#" : ""
+    String markSkipExtendedTest = !test_marks.contains("extended") ? "--gtest_filter=-\"*Extended*\"" : ""
 
     def command = """#!/usr/bin/env bash
             set -x
@@ -100,7 +126,7 @@ def runTestCommand (platform, project, jobName, test_marks, boolean skipHostTest
             gpuArch=`/opt/rocm/bin/rocm_agent_enumerator  | tail -n 1`
 
             ${markSkipHostTest}pushd build
-            ${markSkipHostTest}./TensileTests --gtest_output=xml:host_test_output.xml --gtest_color=yes
+            ${markSkipHostTest}./TensileTests ${markSkipExtendedTest} --gtest_output=xml:host_test_output.xml --gtest_color=yes
             ${markSkipHostTest}HOST_ERR=\$?
             ${markSkipHostTest}popd
 

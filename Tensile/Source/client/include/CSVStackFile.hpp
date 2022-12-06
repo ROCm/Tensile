@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -40,9 +40,9 @@ namespace Tensile
         class CSVStackFile
         {
         public:
-            CSVStackFile(std::string const& filename);
-            CSVStackFile(std::ostream& stream);
-            CSVStackFile(std::shared_ptr<std::ostream> stream);
+            CSVStackFile(std::string const& filename, std::string const& separator = ", ");
+            CSVStackFile(std::ostream& stream, std::string const& separator = ", ");
+            CSVStackFile(std::shared_ptr<std::ostream> stream, std::string const& separator = ", ");
 
             ~CSVStackFile();
 
@@ -72,6 +72,8 @@ namespace Tensile
             void writeRow(std::unordered_map<std::string, std::string> const& row);
 
             std::shared_ptr<std::ostream> m_stream;
+
+            std::string m_separator;
 
             bool                                         m_firstRow = true;
             std::vector<std::string>                     m_keyOrder;

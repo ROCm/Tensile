@@ -1,27 +1,31 @@
 ################################################################################
-# Copyright 2020-2021 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2020-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 from copy import deepcopy
 
 from .Common import globalParameters, CHeader
+from .DataType import DataType
 from .KernelWriterBase import KernelWriterBase
 
 class KernelWriterBetaOnly(KernelWriterBase):
@@ -58,7 +62,9 @@ class KernelWriterBetaOnly(KernelWriterBase):
 
     # pointers
     ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-    ptrStr = "float" if self.state["_GlobalAccumulation"] else ptrStr
+    if self.state["_GlobalAccumulation"]:
+      ptrStr = self.state["ProblemType"]["ComputeDataType"].toDevice(self.language)
+
     isStridedBuffer = self.state["ProblemType"]["StridedBatched"] or self.state["_GlobalAccumulation"]
     ptrStr += "" if isStridedBuffer else "*"
     batch   = "" if isStridedBuffer else "Batch"
@@ -182,8 +188,9 @@ class KernelWriterBetaOnly(KernelWriterBase):
       if not self.state["_GlobalAccumulation"]:
         ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
         kStr += "  " + ptrStr + " * D = BatchD[wg];" + self.endLine
-      ptrStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-      kStr += "  " + ptrStr + " const* C = BatchC[wg];" + self.endLine
+      ptrStr  = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
+      zeroStr = self.state["ProblemType"]["ComputeDataType"].zeroString(self.language, 1)
+      kStr += "  " + ptrStr + f" const* C = (beta == {zeroStr}) ? nullptr : BatchC[wg];" + self.endLine
 
     # apply offset
     kStr += self.endLine
@@ -218,7 +225,9 @@ class KernelWriterBetaOnly(KernelWriterBase):
     ########################################
     # zero
     if globalAccum:
-      ptrStr = "float"
+      ptrStr = problemType["ComputeDataType"].toDevice(self.language)
+      if problemType["DataType"].isHalf() and problemType["HighPrecisionAccumulate"]:
+        ptrStr = DataType('single').toDevice(self.language)
     else:
       ptrStr = problemType["DataType"].toDevice(self.language)
     kStr += "#define SCALAR_ZERO ((%s)(0))%s" % (ptrStr, self.endLine )
@@ -226,10 +235,7 @@ class KernelWriterBetaOnly(KernelWriterBase):
     ########################################
     # zero
     computeType = problemType["ComputeDataType"].toDevice(self.language)
-    if problemType["DataType"].isComplex():
-      kStr += "  if((beta.s0 == 0) && (beta.s1 == 0)) {%s" % self.endLine
-    else:
-      kStr += "  if(beta == SCALAR_ZERO) {%s" % self.endLine
+    kStr += "  if( beta == (%s)0) {%s" % (computeType, self.endLine)
     kStr += "    D[idxD] = SCALAR_ZERO;%s" % self.endLine
     kStr += "  } else {%s" % self.endLine
     kStr += "    D[idxD] = ((%s)(C[idxC])) * beta;%s" % (computeType, self.endLine)

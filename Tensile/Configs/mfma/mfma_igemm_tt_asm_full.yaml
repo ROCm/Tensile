@@ -33,11 +33,9 @@ GlobalParameters:
   # PrintTensorB: 1
   # PrintTensorC: 2
   # PrintTensorRef: 2
-  NewClient: 2
   CSVExportWinner: True
   CSVMergeSameProblemID: True
   HardwareMonitor: False
-  LegacyComponents: 0
 
 BenchmarkProblems:
   ########################################

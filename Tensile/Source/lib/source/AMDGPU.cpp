@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -62,19 +62,7 @@ namespace Tensile
 
     std::ostream& operator<<(std::ostream& stream, AMDGPU::Processor p)
     {
-        switch(p)
-        {
-        case AMDGPU::Processor::gfx803:
-            return stream << "gfx803";
-        case AMDGPU::Processor::gfx900:
-            return stream << "gfx900";
-        case AMDGPU::Processor::gfx906:
-            return stream << "gfx906";
-        case AMDGPU::Processor::gfx908:
-            return stream << "gfx908";
-        case AMDGPU::Processor::gfx1010:
-            return stream << "gfx1010";
-        }
+        stream << AMDGPU::toString(p);
         return stream;
     }
 

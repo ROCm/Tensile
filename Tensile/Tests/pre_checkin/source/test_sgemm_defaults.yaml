@@ -1,3 +1,6 @@
+TestParameters:
+  marks: [emulation, emulation4]
+
 BenchmarkProblems:
   - # sgemm NT
     - # ProblemType

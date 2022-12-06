@@ -1,22 +1,25 @@
 ################################################################################
-# Copyright 2020-2021 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2020-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 import yaml
@@ -24,6 +27,7 @@ import os
 import sys
 import argparse
 from copy import deepcopy
+from enum import IntEnum
 
 verbosity = 1
 
@@ -52,7 +56,8 @@ def fixSizeInconsistencies(sizes, fileType):
     duplicates = list()
     for i in range(0,len(sizes)):
         currSize = sizes[i][0]
-        if len(currSize) == 8:
+        # >= so size will be trimmed when a SolutionTag is included
+        if len(currSize) >= 8:
             currSize = currSize[:-4]
             if currSize in (item for index in sizes for item in index):
                 duplicates.append(i-len(duplicates))
@@ -65,9 +70,9 @@ def fixSizeInconsistencies(sizes, fileType):
         verbose(len(duplicates), "duplicate size(s) removed from", fileType, "logic file")
     return sizes_, len(sizes_)
 
-# remove dict key "SolutionIndex" from dict
+# remove dict keys "SolutionIndex" and "SolutionNameMin" from dict
 def cmpHelper(sol):
-    return {k:v for k, v in sol.items() if k!="SolutionIndex"}
+    return {k:v for k, v in sol.items() if k!="SolutionIndex" and k!="SolutionNameMin"}
 
 def addKernel(solutionPool, solution):
     for item in solutionPool:
@@ -83,6 +88,14 @@ def addKernel(solutionPool, solution):
         debug("...A new kernel has been added", end="")
     debug("({}) {}".format(index, solutionPool[index]["SolutionNameMin"] if "SolutionNameMin" in solutionPool[index] else "(SolutionName N/A)"))
     return solutionPool, index
+
+# update dependant parameters if StaggerU == 0
+def sanitizeSolutions(solList):
+    for sol in solList:
+        if sol.get("StaggerU") == 0:
+            sol["StaggerUMapping"] = 0
+            sol["StaggerUStride"] = 0
+            sol["_staggerStrideShift"] = 0
 
 def removeUnusedKernels(origData, prefix=""):
     origNumSolutions = len(origData[5])
@@ -147,8 +160,120 @@ def debug(*args, **kwargs):
     if verbosity < 2: return
     msg(*args, **kwargs)
 
+# Tags distinguishing solution types
+# Can be added to size key to allow solutions of each type to be present
+# in logic file for a given size
+class MfmaTag(IntEnum):
+    VALU = 0
+    MFMA = 1
+
+    def __str__(self):
+        return ["VALU", "MFMA"][self]
+    def __repr__(self):
+        return str(self)
+
+class AlphaValueTag(IntEnum):
+    ANY    = 0
+    ONE    = 1
+    NEG_ONE = 2
+    ZERO   = 3
+
+    def __str__(self):
+        return "Alpha="+["Any", "1", "-1", "0"][self]
+    def __repr__(self):
+        return str(self)
+
+class BetaValueTag(IntEnum):
+    ANY    = 0
+    ONE    = 1
+    NEG_ONE = 2
+    ZERO   = 3
+
+    def __str__(self):
+        return "Beta="+["Any", "1", "-1", "0"][self]
+    def __repr__(self):
+        return str(self)
+
+def strToScalarValueTag(Class, value):
+    if value == "Any":
+        return Class.ANY
+    if value == 1:
+        return Class.ONE
+    if value == -1:
+        return Class.NEG_ONE
+    if value == 0:
+        return Class.ZERO
+    else:
+        raise RuntimeError("Unsupported value for Alpha/Beta scalar value")
+
+class CEqualsDTag(IntEnum):
+    C_EQ_D  = 0
+    C_NEQ_D = 1
+
+    def __str__(self):
+        return ["C=D", "C!=D"][self]
+    def __repr__(self):
+        return str(self)
+
+# Tag of form (MFMATag, AlphaValueTag, BetaValueTag, CEqualsDTag)
+def getSolutionTag(solution):
+    tagTuple = ()
+    if solution.get("EnableMatrixInstruction", False) or solution.get("MatrixInstruction", False):
+        tagTuple = tagTuple + (MfmaTag.MFMA,)
+    else:
+        tagTuple = tagTuple + (MfmaTag.VALU,)
+
+    tagTuple = tagTuple + (strToScalarValueTag(AlphaValueTag, solution.get("AssertAlphaValue", "Any")),)
+    tagTuple = tagTuple + (strToScalarValueTag(BetaValueTag, solution.get("AssertBetaValue",  "Any")),)
+
+    tagTuple = tagTuple + (CEqualsDTag.C_EQ_D if solution.get("AssertCEqualsD", False) else CEqualsDTag.C_NEQ_D ,)
+
+    return tagTuple
+
+def findSolutionWithIndex(solutionData, solIndex):
+    # Check solution at the index corresponding to solIndex first
+    if solIndex < len(solutionData) and solutionData[solIndex]["SolutionIndex"] == solIndex:
+        return solutionData[solIndex]
+    else:
+        debug("Searching for index...")
+        solution = [s for s in solutionData if s["SolutionIndex"]==solIndex]
+        assert(len(solution) == 1)
+        return solution[0]
+
+def addSolutionTagToKeys(solutionMap, solutionPool):
+    return [[[getSolutionTag(findSolutionWithIndex(solutionPool, idx))] + keys, [idx, eff]]
+            for [keys, [idx, eff]] in solutionMap]
+
+def removeSolutionTagFromKeys(solutionMap):
+    return [[keys[1:], [idx, incEff]] for keys, [idx, incEff] in solutionMap]
+
+# To be used with add_solution_tags to allow faster general solutions to supercede slower specific ones
+def findFastestCompatibleSolution(origDict, sizeMapping):
+    tags = sizeMapping[0]
+    # Tag of form (MFMATag, AlphaValueTag, BetaValueTag, CEqualsDTag)
+    compatibleTagList = [tags]
+
+    # Add all compatible tags to the list
+    if tags[1] != AlphaValueTag.ANY:
+        compatibleTagList = compatibleTagList + [(t[0], AlphaValueTag.ANY) + t[2:] for t in compatibleTagList]
+    if tags[2] != BetaValueTag.ANY:
+        compatibleTagList = compatibleTagList + [t[:2] + (BetaValueTag.ANY,) + t[3:] for t in compatibleTagList]
+    if tags[3] != CEqualsDTag.C_NEQ_D:
+        compatibleTagList = compatibleTagList + [t[:3] + (CEqualsDTag.C_NEQ_D,) + t[4:] for t in compatibleTagList]
+
+    #Find the fastest efficiency of all compatible tags
+    maxEfficiency = 0
+    for tag in compatibleTagList:
+        result = origDict.get((tag,) + sizeMapping[1:], None)
+        if result:
+            _, eff = origDict[(tag,) + sizeMapping[1:]]
+            maxEfficiency = max(maxEfficiency, eff)
+
+    return maxEfficiency
+
+
 # returns merged logic data as list
-def mergeLogic(origData, incData, forceMerge, trimSize=True):
+def mergeLogic(origData, incData, forceMerge, trimSize=True, addSolutionTags=False):
     origNumSizes = len(origData[7])
     origNumSolutions = len(origData[5])
 
@@ -158,12 +283,36 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True):
     verbose(origNumSizes, "sizes and", origNumSolutions, "kernels in base logic file")
     verbose(incNumSizes, "sizes and", incNumSolutions, "kernels in incremental logic file")
 
+    # Add SolutionTag to distinguish solutions with different requirements
+    origTaggedSizes = addSolutionTagToKeys(origData[7], origData[5])
+    incTaggedSizes  = addSolutionTagToKeys(incData[7],  incData[5])
+    if addSolutionTags:
+        origData[7] = origTaggedSizes
+        incData[7]  = incTaggedSizes
+    # Print warning if addSolutionTags=False results in removed sizes
+    else:
+        origSet       = {tuple(size) for size, [_, _] in origData[7]}
+        origTaggedSet = {tuple(size) for size, [_, _] in origTaggedSizes}
+        incSet        = {tuple(size) for size, [_, _] in incData[7]}
+        incTaggedSet  = {tuple(size) for size, [_, _] in incTaggedSizes}
+
+        if len(origSet) != len(origTaggedSet):
+            verbose("Warning:", len(origTaggedSet) - len(origSet), "duplicate sizes are present in base logic",
+                    "that may not be handled correctly unless --add_solution_tags is used")
+        if len(incSet) != len(incTaggedSet):
+            verbose("Warning:", len(incTaggedSet) - len(incSet), "duplicate sizes are present in incremental logic",
+                    "that may not be handled correctly unless --add_solution_tags is used")
+
+
+
     if trimSize:
         # trim 8-tuple gemm size format to 4-tuple [m, n, b, k]
         # TODO future gemm size could include dictionary format so need robust preprocessing
         [origData[7], origNumSizes] = fixSizeInconsistencies(origData[7], "base")
         [incData[7], incNumSizes] = fixSizeInconsistencies(incData[7], "incremental")
 
+    sanitizeSolutions(origData[5])
+    sanitizeSolutions(incData[5])
     origData, numOrigRemoved = removeUnusedKernels(origData, "Base logic file: ")
     incData, numIncRemoved = removeUnusedKernels(incData, "Inc logic file: ")
 
@@ -172,9 +321,7 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True):
 
     origDict = {tuple(origSize): [i, origEff] for i, [origSize, [origIndex, origEff]] in enumerate(origData[7])}
     for incSize, [incIndex, incEff] in incData[7]:
-        incSolution = [s for s in incData[5] if s["SolutionIndex"]==incIndex] # TODO this is slow
-        assert len(incSolution)==1
-        incSolution = incSolution[0]
+        incSolution = findSolutionWithIndex(incData[5], incIndex)
 
         try:
             j, origEff = origDict[tuple(incSize)]
@@ -187,15 +334,22 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True):
                 solutionPool, index = addKernel(solutionPool, incSolution)
                 solutionMap[j][1] = [index, incEff]
             else:
-                verbose("[X]", incSize, " already exists but does not improve in performance.", end="")
+                verbose("[X]", incSize, "already exists but does not improve in performance.", end="")
                 verbose("Efficiency:", origEff, "->", incEff)
         except KeyError:
-            verbose("[-]", incSize, "has been added to solution table, Efficiency: N/A ->", incEff)
-            solutionPool, index = addKernel(solutionPool, incSolution)
-            solutionMap.append([incSize,[index, incEff]])
+            if addSolutionTags and findFastestCompatibleSolution(origDict, tuple(incSize)) > incEff:
+                verbose("[X]", incSize, "has been rejected because a compatible solution already exists with higher performance")
+            else:
+                verbose("[-]", incSize, "has been added to solution table, Efficiency: N/A ->", incEff)
+                solutionPool, index = addKernel(solutionPool, incSolution)
+                solutionMap.append([incSize,[index, incEff]])
 
     verbose(numOrigRemoved, "unused kernels removed from base logic file")
     verbose(numIncRemoved, "unused kernels removed from incremental logic file")
+
+    # Remove SolutionTag for yaml output
+    if addSolutionTags:
+        solutionMap = removeSolutionTagFromKeys(solutionMap)
 
     mergedData = deepcopy(origData)
     mergedData[5] = solutionPool
@@ -208,7 +362,7 @@ def mergeLogic(origData, incData, forceMerge, trimSize=True):
 
     return [mergedData, numSizesAdded, numSolutionsAdded, numSolutionsRemoved]
 
-def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSize=True):
+def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSize=True, addSolutionTags=False):
     originalFiles = allFiles(originalDir)
     incrementalFiles = allFiles(incrementalDir)
     ensurePath(outputPath)
@@ -222,7 +376,8 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSi
         origFile = os.path.join(originalDir, basename)
         forceMerge = defaultForceMergePolicy(incFile) if forceMerge is None else forceMerge
 
-        msg("Base logic file:", origFile, "| Incremental:", incFile, "| Merge policy: %s"%("Forced" if forceMerge else "Winner"), "| Trim size:", trimSize)
+        msg("Base logic file:", origFile, "| Incremental:", incFile, "| Merge policy: %s"%("Forced" if forceMerge else "Winner"), "| Trim size:", trimSize,
+        "| Add solution tags:", addSolutionTags)
         origData = loadData(origFile)
         incData = loadData(incFile)
 
@@ -231,7 +386,7 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSi
         origData = reindexSolutions(origData)
         incData = reindexSolutions(incData)
 
-        mergedData, *stats = mergeLogic(origData, incData, forceMerge, trimSize)
+        mergedData, *stats = mergeLogic(origData, incData, forceMerge, trimSize, addSolutionTags)
         msg(stats[0], "size(s) and", stats[1], "kernel(s) added,", stats[2], "kernel(s) removed")
 
         with open(os.path.join(outputPath, basename), "w") as outFile:
@@ -251,7 +406,7 @@ def avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSi
 # This is useful for when a tuning task is
 # shared between multiple machines who each
 # will provide a partial result.
-def mergePartialLogics(partialLogicFilePaths, outputDir, forceMerge, trimSize=True):
+def mergePartialLogics(partialLogicFilePaths, outputDir, forceMerge, trimSize=True, addSolutionTags=False):
     logicFiles = deepcopy(partialLogicFilePaths)
     ensurePath(outputDir)
 
@@ -269,7 +424,7 @@ def mergePartialLogics(partialLogicFilePaths, outputDir, forceMerge, trimSize=Tr
         baseLogicData = reindexSolutions(baseLogicData)
         incLogicData = reindexSolutions(incLogicData)
 
-        mergedData, *stats = mergeLogic(baseLogicData, incLogicData, forceMerge, trimSize)
+        mergedData, *stats = mergeLogic(baseLogicData, incLogicData, forceMerge, trimSize, addSolutionTags)
         msg(stats[0], "size(s) and", stats[1], "kernel(s) added,", stats[2], "kernel(s) removed")
 
         # Use the merged data as the base data for the next partial logic file
@@ -291,6 +446,8 @@ if __name__ == "__main__":
     argParser.add_argument("-v", "--verbosity", help="0: summary, 1: verbose, 2: debug", default=1, type=int)
     argParser.add_argument("--force_merge", help="Merge previously known sizes unconditionally. Default behavior if not arcturus", default="none")
     argParser.add_argument("--notrim", help="Do not trim long size format down to short format (m,n,b,k). Default is --trim", action="store_false")
+    argParser.add_argument("--add_solution_tags", help="Add tags to the size key for solution properies, allowing for solutions with different requirements "
+                           "to exist for the same size. Default doesn't add this tag.", action="store_true")
 
     args = argParser.parse_args(sys.argv[1:])
     originalDir = args.original_dir
@@ -299,9 +456,10 @@ if __name__ == "__main__":
     verbosity = args.verbosity
     forceMerge = args.force_merge.lower()
     trimSize = args.notrim
+    add_solution_tags = args.add_solution_tags
 
     if forceMerge in ["none"]: forceMerge=None
     elif forceMerge in ["true", "1"]: forceMerge=True
     elif forceMerge in ["false", "0"]: forceMerge=False
 
-    avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSize)
+    avoidRegressions(originalDir, incrementalDir, outputPath, forceMerge, trimSize, add_solution_tags)

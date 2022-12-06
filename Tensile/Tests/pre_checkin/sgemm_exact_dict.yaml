@@ -1,7 +1,9 @@
+TestParameters:
+  marks: [emulation, emulation5]
+
 GlobalParameters:
   NumElementsToValidate: 16384
   KernelTime: True
-  NewClient: 2
   BoundsCheck: True
 
 BenchmarkProblems:

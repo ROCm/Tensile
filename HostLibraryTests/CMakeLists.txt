@@ -1,25 +1,28 @@
 ################################################################################
-# Copyright 2019-2021 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.13)
 
 project(TensileHostLibraryTest)
 
@@ -29,6 +32,7 @@ set( CMAKE_CXX_EXTENSIONS OFF )
 list(APPEND CMAKE_PREFIX_PATH $ENV{ROCM_PATH} /opt/rocm)
 
 option(TENSILE_USE_HIP       "Use the Hip runtime." ON)
+option(TENSILE_USE_OPENCL    "Use the OpenCL runtime." ON)
 option(TENSILE_USE_LLVM      "Use LLVM for parsing config files." ON)
 option(TENSILE_USE_MSGPACK   "Use msgpack for parsing config files." ON)
 option(TENSILE_USE_OPENMP    "Enable OpenMP multithreading." ON)
@@ -41,6 +45,9 @@ if(TENSILE_USE_HIP)
         set(TENSILE_COMPONENTS ${TENSILE_COMPONENTS} Client)
     endif()
 endif()
+if(TENSILE_USE_OPENCL)
+    set(TENSILE_COMPONENTS ${TENSILE_COMPONENTS} OpenCL)
+endif()
 if(TENSILE_USE_LLVM)
     set(TENSILE_COMPONENTS ${TENSILE_COMPONENTS} LLVM)
 endif()
@@ -52,7 +59,7 @@ if(TENSILE_STATIC_ONLY)
 endif()
 
 if(NOT Tensile_FOUND)
-    find_package(Tensile 4.27.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
+    find_package(Tensile 4.35.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
 endif()
 
 if(NOT TENSILE_DISABLE_CTEST)
@@ -79,22 +86,23 @@ if(TENSILE_USE_HIP)
     find_package(HIP REQUIRED CONFIG PATHS $ENV{ROCM_PATH} /opt/rocm)
 endif()
 
-if(TENSILE_USE_OPENMP)
-    #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_OPENMP")
-    find_package(OpenMP QUIET)
-    if (OPENMP_FOUND)
-        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-        set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-    else()
-        if(EXISTS /etc/redhat-release)
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp=libgomp")
-        else()
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
-            set(OPENMP_LIBRARY /usr/lib/x86_64-linux-gnu/libomp.so)
-            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OPENMP_LIBRARY}")
-        endif()
-    endif()
+if(TENSILE_USE_OPENMP AND NOT TARGET custom_openmp_cxx)
+
+    # Workaround for https://gitlab.kitware.com/cmake/cmake/-/issues/21787
+    # ensures we link to HIP's libomp and get an rpath to it.
+    add_library(custom_openmp_cxx INTERFACE)
+
+    if(TENSILE_USE_HIP)
+        target_compile_options(custom_openmp_cxx INTERFACE "-fopenmp")
+        target_link_options(custom_openmp_cxx INTERFACE "-fopenmp")
+    else ()
+        find_package(OpenMP REQUIRED)
+        target_link_libraries(custom_openmp_cxx INTERFACE OpenMP::OpenMP_CXX)
+    endif ()
+endif()
+
+if(TENSILE_USE_OPENCL)
+    find_package(OpenCL REQUIRED)
 endif()
 
 add_subdirectory(configs)
@@ -119,27 +127,24 @@ set(test_sources ${test_sources}
     ContractionProblem_test.cpp
     ContractionSelectionLibrary_test.cpp
     ContractionFitness_test.cpp
+    MultipleSolutionsPerSize_test.cpp
     DataTypes_test.cpp
     EmbeddedData_test.cpp
     KernelArguments_test.cpp
     ProjectedPerformance_test.cpp
+    DecisionTree_test.cpp
     TensorDescriptor_test.cpp
     TestData_test.cpp
     Utils_test.cpp
 )
 
 if(TENSILE_USE_LLVM)
-    find_package(LLVM 13.0 QUIET CONFIG)
-    if(NOT LLVM_FOUND)
-        find_package(LLVM 12.0 QUIET CONFIG)
-        if(NOT LLVM_FOUND)
-            find_package(LLVM REQUIRED CONFIG)
-        endif()
-    endif()
+    find_package(LLVM REQUIRED CONFIG)
 
     set(test_sources ${test_sources}
         ContractionLibraryLoading_test.cpp
         ContractionFitness_test.cpp
+        MultipleSolutionsPerSize_test.cpp
         llvm/ArithmeticUnitPredicate_test.cpp
         llvm/CUEfficiencyPredicate_test.cpp
         llvm/DeterministicModePredicate_test.cpp
@@ -156,6 +161,10 @@ endif()
 
 if(TENSILE_USE_HIP)
     add_subdirectory(hip)
+endif()
+
+if(TENSILE_USE_OPENCL)
+    add_subdirectory(ocl)
 endif()
 
 add_executable(TensileTests ${test_sources})
@@ -198,6 +207,22 @@ if(TENSILE_USE_HIP)
     endforeach(arch)
 endif()
 
+if(TENSILE_USE_OPENCL)
+
+    add_dependencies(TensileTests ${OCL_TEST_COPY_TARGET_DEPS})
+
+    # Make sure the embedded libraries are not stripped
+    target_link_libraries(TensileTests PRIVATE "-Xlinker --whole-archive")
+    target_link_libraries(TensileTests PUBLIC ${OCL_TEST_LIBRARIES})
+    target_link_libraries(TensileTests PRIVATE "-Xlinker --no-whole-archive")
+
+    target_compile_definitions(TensileTests PUBLIC CL_TARGET_OPENCL_VERSION=200)
+    target_compile_definitions(TensileTests PUBLIC CL_HPP_TARGET_OPENCL_VERSION=200)
+    target_compile_definitions(TensileTests PUBLIC CL_HPP_ENABLE_EXCEPTIONS)
+    target_link_libraries(TensileTests PRIVATE ${OPENCL_LIBRARIES})
+    target_include_directories(TensileTests PUBLIC ${OPENCL_INCLUDE_DIRS})
+endif()
+
 if(TENSILE_USE_OPENMP)
-    target_link_libraries(TensileTests PRIVATE "${OpenMP_EXE_LINKER_FLAGS}")
+    target_link_libraries(TensileTests PRIVATE custom_openmp_cxx)
 endif()

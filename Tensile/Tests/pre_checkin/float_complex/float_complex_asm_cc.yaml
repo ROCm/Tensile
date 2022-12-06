@@ -1,3 +1,6 @@
+TestParameters:
+  marks: [emulation, emulation4]
+
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
   NumElementsToValidate: 128

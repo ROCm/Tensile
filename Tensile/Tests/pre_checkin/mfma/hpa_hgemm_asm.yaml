@@ -1,11 +1,10 @@
 TestParameters:
-  marks: [skip-gfx900, skip-gfx906, skip-gfx1010, skip-gfx1011] # not supported by arch
+  marks: [skip-gfx900, skip-gfx906, skip-gfx1010, skip-gfx1011, skip-gfx1012, skip-gfx1030, skip-gfx1100, skip-gfx1101, skip-gfx1102] # not supported by arch
 
 GlobalParameters:
   NumElementsToValidate: 65536
   BoundsCheck: True
   KernelTime: True
-  NewClient: 2
 
 BenchmarkProblems:
   ########################################
@@ -15,6 +14,7 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: h
+      ComputeDataType: s
       HighPrecisionAccumulate: True
       TransposeA: False
       TransposeB: True
@@ -148,6 +148,7 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: h
+      ComputeDataType: s
       HighPrecisionAccumulate: True
       TransposeA: True
       TransposeB: False
@@ -281,6 +282,7 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: h
+      ComputeDataType: s
       HighPrecisionAccumulate: True
       TransposeA: False
       TransposeB: False
@@ -414,6 +416,7 @@ BenchmarkProblems:
     - # ProblemType
       OperationType: GEMM
       DataType: h
+      ComputeDataType: s
       HighPrecisionAccumulate: True
       TransposeA: True
       TransposeB: True

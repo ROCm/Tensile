@@ -1,22 +1,25 @@
 ################################################################################
-# Copyright 2020 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2020-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 import pytest
@@ -70,8 +73,14 @@ def vega10():
                    'v_pk_fma_f16': True,
                    'v_dot2c_f32_f16': False,
                    'v_dot2_f32_f16': False,
+                   'v_dot4c_i32_i8': False,
+                   'v_dot4_i32_i8': False,
                    "v_mad_mix_f32": True,
-                   "v_fma_mix_f32": False}
+                   "v_fma_mix_f32": False,
+                   "v_mac_f32": True,
+                   "v_fma_f32": True,
+                   "v_fmac_f32": False,
+                   }
     }
 
 @pytest.fixture
@@ -81,8 +90,13 @@ def navi10():
                    'v_pk_fma_f16': False,
                    'v_dot2c_f32_f16': False,
                    'v_dot2_f32_f16': False,
+                   'v_dot4c_i32_i8': False,
+                   'v_dot4_i32_i8': False,
                    "v_mad_mix_f32": False,
-                   "v_fma_mix_f32": True}
+                   "v_fma_mix_f32": True,
+                   "v_mac_f32": True,
+                   "v_fma_f32": True,
+                   "v_fmac_f32": True}
     }
 
 @pytest.fixture
@@ -92,8 +106,13 @@ def navi12():
                    'v_pk_fma_f16': False,
                    'v_dot2c_f32_f16': True,
                    'v_dot2_f32_f16': True,
+                   'v_dot4c_i32_i8': True,
+                   'v_dot4_i32_i8': True,
                    "v_mad_mix_f32": False,
-                   "v_fma_mix_f32": True}
+                   "v_fma_mix_f32": True,
+                   "v_mac_f32": True,
+                   "v_fma_f32": True,
+                   "v_fmac_f32": True}
     }
 
 @pytest.fixture
@@ -145,13 +164,13 @@ def test_find(navi10, f16):
     writer = MockWriter(**navi10, **f16)
 
     found = Component.MAC.find(writer)
-    assert isinstance(found, Components.MAC_F16.FMA_NonPacked)
+    assert isinstance(found, Components.MAC_F16.FMA_F16_NonPacked)
 
 def test_find2(vega10, f16_hpa):
     writer = MockWriter(**vega10, **f16_hpa)
 
     found = Component.MAC.find(writer)
-    assert isinstance(found, Components.MAC_F16_HPA.FMA_HPA_MAD_MIX)
+    assert isinstance(found, Components.MAC_F16_HPA.FMA_F16_HPA_MAD_MIX)
 
 def test_MAC_F16_FMA_NonPacked(navi10, f16):
     writer = MockWriter(**navi10, **f16)
@@ -161,7 +180,7 @@ def test_MAC_F16_FMA_NonPacked(navi10, f16):
     print(kernelText)
 
 def test_componentPath():
-    assert Components.MAC_F16.FMA_NonPacked.componentPath() == ["Component", "MAC", "FMA_NonPacked"]
+    assert Components.MAC_F16.FMA_F16_NonPacked.componentPath() == ["Component", "MAC", "FMA_F16_NonPacked"]
 
 def test_find_macs(useGlobalParameters, f16, f16_hpa, f16_hpa_ldl):
     with useGlobalParameters() as globals:

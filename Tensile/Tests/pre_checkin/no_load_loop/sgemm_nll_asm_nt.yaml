@@ -1,3 +1,6 @@
+TestParameters:
+  marks: [emulation, emulation3]
+
 # benchmark assembly and source kernels
 GlobalParameters:
   MinimumRequiredVersion: 4.2.0
@@ -19,7 +22,6 @@ GlobalParameters:
   DataTypeInitAlpha: 1
   DataTypeInitBeta: 0
   KernelTime: True
-  NewClient: 2
 
 BenchmarkProblems:
 

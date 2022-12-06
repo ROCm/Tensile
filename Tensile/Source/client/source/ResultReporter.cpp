@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2020-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -38,6 +38,8 @@ namespace Tensile
                 return "Error";
             case LogLevel::Terse:
                 return "Terse";
+            case LogLevel::Normal:
+                return "Normal";
             case LogLevel::Verbose:
                 return "Verbose";
             case LogLevel::Debug:

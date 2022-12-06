@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -43,6 +43,7 @@
 #include "SolutionIterator.hpp"
 #include "TimingEvents.hpp"
 
+#include "LibraryUpdateReporter.hpp"
 #include "LogReporter.hpp"
 #include "MetaResultReporter.hpp"
 #include "PerformanceReporter.hpp"
@@ -96,7 +97,7 @@ namespace Tensile
                                                                                   "specified, we will use the embedded code "
                                                                                   "object(s) if available.")
 
-                ("performance-metric",       po::value<PerformanceMetric>()->default_value(PerformanceMetric::Overall), "Metric for benchmarking results")
+                ("performance-metric",       po::value<PerformanceMetric>()->default_value(PerformanceMetric::DeviceEfficiency), "Metric for benchmarking results")
 
                 ("problem-identifier",       po::value<std::string>(), "Problem identifer (Einstein notation). Either "
                                                                        "this or free/batch/bound must be specified.")
@@ -124,7 +125,7 @@ namespace Tensile
                 ("init-d",                   po::value<InitMode>()->default_value(InitMode::Zero), "Initialization for D")
                 ("init-alpha",               po::value<InitMode>()->default_value(InitMode::Two), "Initialization for alpha")
                 ("init-beta",                po::value<InitMode>()->default_value(InitMode::Two), "Initialization for beta")
-                ("pristine-on-gpu",          po::value<bool>()->default_value(false), "Keep a pristine copy of inputs on GPU for performance")
+                ("pristine-on-gpu",          po::value<bool>()->default_value(true), "Keep a pristine copy of inputs on GPU for performance")
                 ("c-equal-d",                po::value<bool>()->default_value(false), "C equals D")
                 ("offset-a",                 po::value<size_t>()->default_value(0), "buffer a start offset")
                 ("offset-b",                 po::value<size_t>()->default_value(0), "buffer b start offset")
@@ -156,9 +157,11 @@ namespace Tensile
                 ("platform-idx",             po::value<int>()->default_value(0), "OpenCL Platform Index")
 
                 ("num-warmups",              po::value<int>()->default_value(0), "Number of warmups to run")
+                ("sync-after-warmups",       po::value<bool>()->default_value(true), "Synchronize GPU after warmup kernel runs")
                 ("num-benchmarks",           po::value<int>()->default_value(1), "Number of benchmarks to run")
-                ("num-enqueues-per-sync",    po::value<int>()->default_value(1), "Enqueues per sync")
+                ("num-enqueues-per-sync",    po::value<int>()->default_value(1), "Enqueues per sync, will affect by min-flops-per-sync")
                 ("num-syncs-per-benchmark",  po::value<int>()->default_value(1), "Syncs per benchmark")
+                ("min-flops-per-sync",       po::value<size_t>()->default_value(0), "Minimum number of flops per sync to increase stability for small problems.")
                 ("use-gpu-timer",            po::value<bool>()->default_value(true), "Use GPU timer")
                 ("sleep-percent",            po::value<int>()->default_value(0), "Sleep percentage")
                 ("hardware-monitor",         po::value<bool>()->default_value(true), "Use hardware monitor.")
@@ -222,7 +225,16 @@ namespace Tensile
                 ("log-file",                 po::value<std::string>(),                               "File name for output log.")
                 ("log-file-append",          po::value<bool>()->default_value(false),                "Append to log file.")
                 ("log-level",                po::value<LogLevel>()->default_value(LogLevel::Debug),  "Log level")
-                ("exit-on-failure",          po::value<bool>()->default_value(false), "Exit run early on failed kernels.")
+
+                ("library-update-file",      po::value<std::string>()->default_value(""), "File name for writing indices "
+                                                                                          "and speeds suitable for updating "
+                                                                                          "an existing library logic file.")
+                ("library-update-comment",   po::value<bool>()->default_value(false), "Include solution name as a "
+                                                                                      "comment in library update "
+                                                                                      "file.")
+
+
+                ("exit-on-error",            po::value<bool>()->default_value(false), "Exit run early on failed kernels or other errors.")
                 ("selection-only",           po::value<bool>()->default_value(false), "Don't run any solutions, only print kernel selections.")
                 ("max-workspace-size",       po::value<size_t>()->default_value(32*1024*1024), "Max workspace for training")
                 ("granularity-threshold",    po::value<double>()->default_value(0.0), "Don't run a solution if total granularity is below")
@@ -234,7 +246,16 @@ namespace Tensile
 
         std::shared_ptr<Hardware> GetHardware(po::variables_map const& args)
         {
-            HIP_CHECK_EXC(hipSetDevice(args["device-idx"].as<int>()));
+            int deviceCount = 0;
+            HIP_CHECK_EXC(hipGetDeviceCount(&deviceCount));
+
+            int deviceIdx = args["device-idx"].as<int>();
+
+            if(deviceIdx >= deviceCount)
+                throw std::runtime_error(concatenate(
+                    "Invalid device index ", deviceIdx, " (", deviceCount, " total found.)"));
+
+            HIP_CHECK_EXC(hipSetDevice(deviceIdx));
 
             return hip::GetCurrentDevice();
         }
@@ -281,12 +302,26 @@ namespace Tensile
             }
             else
             {
+                //only trigger exception when failed to load all code objects.
+                bool       loaded   = false;
+                hipError_t retError = hipSuccess;
+
                 for(auto const& filename : filenames)
                 {
+                    hipError_t ret;
+
                     if(logLevel >= LogLevel::Verbose)
                         std::cout << "Loading " << filename << std::endl;
-                    adapter.loadCodeObjectFile(filename);
+                    ret = adapter.loadCodeObjectFile(filename);
+
+                    if(ret == hipSuccess)
+                        loaded = true;
+                    else
+                        retError = ret;
                 }
+
+                if(!loaded)
+                    HIP_CHECK_EXC(retError);
             }
         }
 
@@ -356,7 +391,10 @@ namespace Tensile
                 auto configFiles = args["config-file"].as<std::vector<std::string>>();
                 for(auto filename : configFiles)
                 {
+                    std::cout << "loading config file " << filename << std::endl;
                     std::ifstream file(filename.c_str());
+                    if(file.bad())
+                        throw std::runtime_error(concatenate("Could not open ", filename));
                     po::store(po::parse_config_file(file, options), args);
                 }
             }
@@ -405,6 +443,8 @@ namespace Tensile
                 while(solutionIterator->moreSolutionsInProblem())
                 {
                     auto solution = solutionIterator->getSolution();
+                    if(solution == nullptr)
+                        throw std::runtime_error("Could not find a solution");
 
                     listeners.preSolution(*solution);
 
@@ -445,6 +485,17 @@ int main(int argc, const char* argv[])
     Tensile::hip::SolutionAdapter adapter;
     LoadCodeObjects(args, adapter);
 
+    auto filename = args["library-file"].as<std::string>();
+
+    size_t      directoryPos     = filename.rfind('/');
+    std::string libraryDirectory = filename;
+    if(directoryPos != std::string::npos)
+        libraryDirectory.resize(directoryPos + 1);
+    else
+        libraryDirectory = '.';
+
+    adapter.initializeLazyLoading(hardware->archName(), libraryDirectory);
+
     auto problems        = problemFactory.problems();
     int  firstProblemIdx = args["problem-start-idx"].as<int>();
     int  numProblems     = args["num-problems"].as<int>();
@@ -452,26 +503,19 @@ int main(int argc, const char* argv[])
         numProblems = problems.size();
     int lastProblemIdx = firstProblemIdx + numProblems - 1;
 
-    int firstSolutionIdx = args["solution-start-idx"].as<int>();
-    int numSolutions     = args["num-solutions"].as<int>();
-
-    bool gpuTimer = args["use-gpu-timer"].as<bool>();
-
-    bool runKernels = !args["selection-only"].as<bool>();
+    int  firstSolutionIdx = args["solution-start-idx"].as<int>();
+    int  numSolutions     = args["num-solutions"].as<int>();
+    bool gpuTimer         = args["use-gpu-timer"].as<bool>();
+    bool runKernels       = !args["selection-only"].as<bool>();
+    bool exitOnError      = args["exit-on-error"].as<bool>();
 
     if(firstSolutionIdx < 0)
         firstSolutionIdx = library->solutions.begin()->first;
 
-    int lastSolutionIdx;
     if(numSolutions < 0)
     {
         auto iter = library->solutions.end();
         iter--;
-        lastSolutionIdx = iter->first;
-    }
-    else
-    {
-        lastSolutionIdx = firstSolutionIdx + numSolutions - 1;
     }
 
     size_t maxWorkspaceSizeLimit = args["max-workspace-size"].as<size_t>();
@@ -502,6 +546,7 @@ int main(int argc, const char* argv[])
     // will be missing
     reporters->addReporter(LogReporter::Default(args));
     reporters->addReporter(ResultFileReporter::Default(args));
+    reporters->addReporter(LibraryUpdateReporter::Default(args));
 
     if(args.count("log-file"))
     {
@@ -509,7 +554,7 @@ int main(int argc, const char* argv[])
         auto        logFile  = std::make_shared<std::ofstream>(
             filename.c_str(), args["log-file-append"].as<bool>() ? std::ios::app : std::ios::out);
 
-        reporters->addReporter(LogReporter::Default(args, logFile));
+        reporters->addReporter(LogReporter::Default(args, logFile, LogLevel::Normal));
     }
 
     listeners.setReporter(reporters);
@@ -542,6 +587,8 @@ int main(int argc, const char* argv[])
             while(solutionIterator->moreSolutionsInProblem())
             {
                 auto solution = solutionIterator->getSolution();
+                if(solution == nullptr)
+                    throw std::runtime_error("Could not find a solution");
 
                 listeners.preSolution(*solution);
 
@@ -556,27 +603,35 @@ int main(int argc, const char* argv[])
                             auto kernels = solution->solve(problem, *inputs, *hardware);
 
                             size_t       warmupInvocations = listeners.numWarmupRuns();
-                            size_t       eventCount        = kernels.size();
+                            size_t       eventCount        = gpuTimer ? kernels.size() : 0;
                             TimingEvents warmupStartEvents(warmupInvocations, eventCount);
                             TimingEvents warmupStopEvents(warmupInvocations, eventCount);
 
                             for(int i = 0; i < warmupInvocations; i++)
                             {
                                 listeners.preWarmup();
-                                adapter.launchKernels(
-                                    kernels, stream, warmupStartEvents[i], warmupStopEvents[i]);
+                                if(gpuTimer)
+                                    HIP_CHECK_EXC(adapter.launchKernels(kernels,
+                                                                        stream,
+                                                                        warmupStartEvents[i],
+                                                                        warmupStopEvents[i]));
+                                else
+                                    HIP_CHECK_EXC(
+                                        adapter.launchKernels(kernels, stream, nullptr, nullptr));
                                 listeners.postWarmup();
+                                // Do validation after first warmup
+                                if(i == 0)
+                                    listeners.validateWarmups(
+                                        inputs, warmupStartEvents, warmupStopEvents);
                             }
-
-                            listeners.validateWarmups(inputs, warmupStartEvents, warmupStopEvents);
 
                             size_t syncs = listeners.numSyncs();
                             size_t enq   = listeners.numEnqueuesPerSync();
 
+                            listeners.preSyncs();
+
                             for(int i = 0; i < syncs; i++)
                             {
-                                listeners.preSyncs();
-
                                 TimingEvents startEvents(enq, eventCount);
                                 TimingEvents stopEvents(enq, eventCount);
 
@@ -585,17 +640,18 @@ int main(int argc, const char* argv[])
                                 for(int j = 0; j < enq; j++)
                                 {
                                     if(gpuTimer)
-                                        adapter.launchKernels(
-                                            kernels, stream, startEvents[j], stopEvents[j]);
+                                        HIP_CHECK_EXC(adapter.launchKernels(
+                                            kernels, stream, startEvents[j], stopEvents[j]));
                                     else
-                                        adapter.launchKernels(kernels, stream, nullptr, nullptr);
+                                        HIP_CHECK_EXC(adapter.launchKernels(
+                                            kernels, stream, nullptr, nullptr));
                                 }
 
                                 listeners.postEnqueues(startEvents, stopEvents);
                                 listeners.validateEnqueues(inputs, startEvents, stopEvents);
-
-                                listeners.postSyncs();
                             }
+
+                            listeners.postSyncs();
                         }
                     }
                     catch(std::runtime_error const& err)
@@ -607,6 +663,12 @@ int main(int argc, const char* argv[])
                 }
 
                 listeners.postSolution();
+
+                if(exitOnError && listeners.error() > 0)
+                {
+                    // error range in shell is [0-255]
+                    return std::min(listeners.error(), 255);
+                }
             }
 
             listeners.postProblem();
@@ -617,5 +679,6 @@ int main(int argc, const char* argv[])
 
     listeners.finalizeReport();
 
-    return listeners.error();
+    // error range in shell is [0-255]
+    return std::min(listeners.error(), 255);
 }

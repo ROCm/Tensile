@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2021 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -79,9 +79,11 @@ namespace Tensile
             bool              m_stridedBatched;
             bool              m_highPrecisionAccumulate;
             bool              m_deterministicMode;
+            bool              m_cEqualsD;
             ArithmeticUnit    m_arithmeticUnit;
             KernelLanguage    m_kernelLanguage;
             PerformanceMetric m_performanceMetric;
+            bool              m_fp16AltImpl;
 
             std::vector<std::vector<size_t>> m_problemSizes;
             std::vector<std::vector<size_t>> m_aStrides;
@@ -103,6 +105,7 @@ namespace Tensile
             size_t m_dOffset;
 
             double m_beta;
+            double m_alpha;
         };
 
     } // namespace Client

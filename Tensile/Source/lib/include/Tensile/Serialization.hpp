@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,6 +36,7 @@
 #include <Tensile/Serialization/ExactLogicLibrary.hpp>
 #include <Tensile/Serialization/GranularitySelectionLibrary.hpp>
 #include <Tensile/Serialization/HasTraits.hpp>
+#include <Tensile/Serialization/MLFeatures.hpp>
 #include <Tensile/Serialization/MapLibrary.hpp>
 #include <Tensile/Serialization/Predicates.hpp>
 #include <Tensile/Serialization/Properties.hpp>

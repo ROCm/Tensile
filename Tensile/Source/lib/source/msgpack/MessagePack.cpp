@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2020-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -69,21 +69,82 @@ namespace Tensile
 
     template <typename MyProblem, typename MySolution>
     std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>
-        MessagePackLoadLibraryFile(std::string const& filename)
+        MessagePackLoadLibraryFile(std::string const&                  filename,
+                                   const std::vector<LazyLoadingInit>& preloaded)
     {
+        // parse file into a msgpack::object_handle
+        msgpack::object_handle result;
         try
         {
-            std::ifstream        in(filename, std::ios::in | std::ios::binary);
-            std::vector<uint8_t> data((std::istreambuf_iterator<char>(in)),
-                                      std::istreambuf_iterator<char>());
+            std::ifstream in(filename, std::ios::in | std::ios::binary);
+            if(!in.is_open())
+            {
+                if(Debug::Instance().printDataInit())
+                    std::cout << "Error loading " << filename << " (msgpack):\nFailed to open file"
+                              << std::endl;
 
-            return MessagePackLoadLibraryData<MyProblem, MySolution>(data);
+                return nullptr;
+            }
+
+            msgpack::unpacker unp;
+            bool              finished_parsing;
+            constexpr size_t  buffer_size = 1 << 19;
+            do
+            {
+                unp.reserve_buffer(buffer_size);
+                in.read(unp.buffer(), buffer_size);
+                unp.buffer_consumed(in.gcount());
+                finished_parsing = unp.next(result); // may throw msgpack::parse_error
+            } while(!finished_parsing && !in.fail());
+
+            if(!finished_parsing)
+            {
+                if(Debug::Instance().printDataInit())
+                {
+                    const char* const error_str
+                        = in.eof() ? "Unexpected end of file" : "Read failure";
+                    std::cout << "Error loading " << filename << " (msgpack):\n"
+                              << error_str << std::endl;
+                }
+
+                return nullptr;
+            }
         }
         catch(std::runtime_error const& exc)
         {
             if(Debug::Instance().printDataInit())
-                std::cout << "Error loading " << filename << "(msgpack):" << std::endl
-                          << exc.what() << std::endl;
+                std::cout << "Error loading msgpack data:\n" << exc.what() << std::endl;
+
+            return nullptr;
+        }
+
+        // copy data from msgpack::object_handle into MasterSolutionLibrary
+        try
+        {
+            std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
+
+            LibraryIOContext<MySolution>    context{filename, preloaded, nullptr};
+            Serialization::MessagePackInput min(result.get(), &context);
+
+            Serialization::PointerMappingTraits<Tensile::MasterContractionLibrary,
+                                                Serialization::MessagePackInput>::mapping(min, rv);
+
+            if(!min.error.empty())
+            {
+                std::ostringstream msg;
+                msg << "Error loading msgpack data:\n";
+                for(auto const& err : min.error)
+                    msg << err << std::endl;
+
+                throw std::runtime_error(msg.str());
+            }
+
+            return rv;
+        }
+        catch(std::runtime_error const& exc)
+        {
+            if(Debug::Instance().printDataInit())
+                std::cout << "Error loading msgpack data:\n" << exc.what() << std::endl;
 
             return nullptr;
         }
@@ -98,7 +159,8 @@ namespace Tensile
             std::shared_ptr<MasterSolutionLibrary<MyProblem, MySolution>> rv;
 
             auto result = msgpack::unpack((const char*)data.data(), data.size());
-            Serialization::MessagePackInput min(result.get());
+            LibraryIOContext<MySolution>    context{std::string(""), {}, nullptr};
+            Serialization::MessagePackInput min(result.get(), &context);
 
             Serialization::PointerMappingTraits<Tensile::MasterContractionLibrary,
                                                 Serialization::MessagePackInput>::mapping(min, rv);
@@ -126,7 +188,7 @@ namespace Tensile
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
         MessagePackLoadLibraryFile<ContractionProblem, ContractionSolution>(
-            std::string const& filename);
+            std::string const& filename, const std::vector<LazyLoadingInit>& preloaded);
 
     template std::shared_ptr<SolutionLibrary<ContractionProblem, ContractionSolution>>
         MessagePackLoadLibraryData<ContractionProblem, ContractionSolution>(

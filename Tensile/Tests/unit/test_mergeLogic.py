@@ -1,26 +1,32 @@
 ################################################################################
-# Copyright 2020-2021 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2020-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 from Tensile.Utilities.merge import cmpHelper, fixSizeInconsistencies, removeUnusedKernels, mergeLogic
 import yaml, pytest
+
+# the merge scripts does not differentiate solutions based on index or name
+# so "DummyParam" is used to mark if solutions should be equal or not
 
 logicPrefix = r"""
 - DummyVersionRequirement
@@ -34,10 +40,13 @@ baseLogic=logicPrefix + r"""
 -
   - SolutionIndex: 2
     SolutionNameMin: InUseForSize256
+    DummyParam: InUseForSize256
   - SolutionIndex: 1
     SolutionNameMin: UnusedSolution
+    DummyParam: UnusedSolution
   - SolutionIndex: 0
     SolutionNameMin: InUseForSize128or64
+    DummyParam: InUseForSize128or64
 - DummyIndexAssignment
 -
   - - [256, 256, 1, 256]
@@ -52,8 +61,10 @@ incLogic=logicPrefix + r"""
 -
   - SolutionIndex: 39
     SolutionNameMin: InUseForSize256or1024xxx
+    DummyParam: InUseForSize256or1024xxx
   - SolutionIndex: 1
     SolutionNameMin: InUseForSize128xxx
+    DummyParam: InUseForSize128xxx
 - DummyIndexAssignment
 -
   - - [128, 128, 1, 128]
@@ -68,16 +79,20 @@ notUniqueSolution=logicPrefix+r"""
 -
   - SolutionIndex: 0
     SolutionNameMin: Kernel0
+    DummyParam: Kernel0
   - SolutionIndex: 1
     SolutionNameMin: Kernel0
+    DummyParam: Kernel0
 """
 
 uniqueSolution=logicPrefix+r"""
 -
   - SolutionIndex: 0
     SolutionNameMin: Kernel0
+    DummyParam: Kernel0
   - SolutionIndex: 1
     SolutionNameMin: Kernel1
+    DummyParam: Kernel1
 """
 
 notTrimmedSize=r"""
@@ -102,6 +117,96 @@ trimmedSize=r"""
     - [39, 999.9]
   - - [1024, 1024, 1, 1024]
     - [42, 999.9]
+"""
+
+mfmaMergeBaseLogic=logicPrefix+r"""
+-
+  - SolutionIndex: 0
+    SolutionNameMin: MFMA_base
+    DummyParam: MFMA_base
+    EnableMatrixInstruction: True
+    MatrixInstruction: [16, 16, 4, 1]
+  - SolutionIndex: 1
+    SolutionNameMin: VALU_base
+    DummyParam: VALU_base
+    EnableMatrixInstruction: False
+    MatrixInstruction: []
+- DummyIndexAssignment
+"""
+
+mfmaMergeIncLogic=logicPrefix+r"""
+-
+  - SolutionIndex: 0
+    SolutionNameMin: MFMA_inc
+    DummyParam: MFMA_inc
+    EnableMatrixInstruction: True
+    MatrixInstruction: [16, 16, 4, 1]
+  - SolutionIndex: 1
+    SolutionNameMin: VALU_inc
+    DummyParam: VALU_inc
+    EnableMatrixInstruction: False
+    MatrixInstruction: []
+- DummyIndexAssignment
+"""
+
+mfmaMergeBaseSizes=r"""
+-
+  - - [128, 128, 1, 128]
+    - [0, 3.0]
+  - - [128, 128, 1, 128]
+    - [1, 6.0]
+  - - [130, 128, 1, 128]
+    - [1, 9.0]
+  - - [131, 128, 1, 128]
+    - [0, 12.0]
+"""
+
+mfmaMergeIncFasterSizes=r"""
+-
+  - - [128, 128, 1, 128]
+    - [0, 4.0]
+  - - [128, 128, 1, 128]
+    - [1, 7.0]
+  - - [131, 128, 1, 128]
+    - [0, 13.0]
+  - - [130, 128, 1, 128]
+    - [1, 10.0]
+"""
+
+mfmaMergeIncSlowerSizes=r"""
+-
+  - - [128, 128, 1, 128]
+    - [0, 2.0]
+  - - [128, 128, 1, 128]
+    - [1, 5.0]
+  - - [131, 128, 1, 128]
+    - [0, 11.0]
+  - - [130, 128, 1, 128]
+    - [1, 8.0]
+"""
+
+mfmaMergeIncNotMatchingMFMA=r"""
+-
+  - - [130, 128, 1, 128]
+    - [0, 7.0]
+  - - [131, 128, 1, 128]
+    - [1, 12.0]
+"""
+
+mfmaMergeResNotMatchingMFMA=r"""
+-
+  - - [128, 128, 1, 128]
+    - [0, 3.0]
+  - - [128, 128, 1, 128]
+    - [1, 6.0]
+  - - [130, 128, 1, 128]
+    - [1, 9.0]
+  - - [131, 128, 1, 128]
+    - [0, 12.0]
+  - - [130, 128, 1, 128]
+    - [2, 7.0]
+  - - [131, 128, 1, 128]
+    - [3, 12.0]
 """
 
 def checkUniqueSolution(solutionPool):
@@ -193,6 +298,41 @@ def test_mergeLogic(baseLogic, incLogic, expectedStats, expectedSizes, expectedS
 def test_checkUniqueSolution(input, expected):
   data = yaml.load(input, yaml.SafeLoader)
   assert checkUniqueSolution(data[5]) == expected
+
+@pytest.mark.parametrize("baseLogic, incLogic, expectedSizesYaml, expectedSolutions", [
+# test case #1: Slower sizes in incremental logic file
+  (mfmaMergeBaseLogic+mfmaMergeBaseSizes, mfmaMergeIncLogic+mfmaMergeIncSlowerSizes,
+   mfmaMergeBaseSizes, ["MFMA_base", "VALU_base"]),
+# test case #2: Faster sizes in incremental logic file
+  (mfmaMergeBaseLogic+mfmaMergeBaseSizes, mfmaMergeIncLogic+mfmaMergeIncFasterSizes,
+   mfmaMergeIncFasterSizes, ["MFMA_inc", "VALU_inc"]),
+# test case #3: Test that VALU size is included alongside MFMA size, and vice versa (regardless of efficiency)
+  (mfmaMergeBaseLogic+mfmaMergeBaseSizes, mfmaMergeIncLogic+mfmaMergeIncNotMatchingMFMA,
+   mfmaMergeResNotMatchingMFMA, ["MFMA_base", "VALU_base", "MFMA_inc", "VALU_inc"])
+])
+def test_mfmaMergeLogic(baseLogic, incLogic, expectedSizesYaml, expectedSolutions):
+  baseData      = yaml.load(baseLogic, yaml.SafeLoader)
+  incData       = yaml.load(incLogic,  yaml.SafeLoader)
+  expectedSizes = yaml.load(expectedSizesYaml, yaml.SafeLoader)[0]
+
+  mergedData, _, _, _ = mergeLogic(baseData, incData, False, True, True)
+
+  solutionIndices = {s['SolutionNameMin']: s['SolutionIndex'] for s in mergedData[5]} # size -> solutionName
+
+  #Ensure all correct solutions are present in merged data
+  for solution in expectedSolutions:
+    assert solution in solutionIndices.keys()
+
+  assert len(expectedSolutions) == len(mergedData[5])
+
+  #Convert expected sizes to use mergedData's solution indices
+  expectedSizes = [ [size, [solutionIndices[expectedSolutions[solIndex]], eff]] for size, [solIndex, eff] in expectedSizes ]
+
+  #Ensure all expected sizes are present in merged data
+  for item in expectedSizes:
+    assert item in mergedData[7]
+
+  assert len(expectedSizes) == len(mergedData[7])
 
 if __name__ == "__main__":
     # test_mergeLogic(baseLogic, incLogic, [1,2,2], [(1024, 1024, 1, 1024), (256, 256, 1, 256), (128, 128, 1, 128), (64, 64, 1, 64)], [ "InUseForSize256or1024xxx", "InUseForSize256or1024xxx", "InUseForSize128xxx", "InUseForSize128or64"])

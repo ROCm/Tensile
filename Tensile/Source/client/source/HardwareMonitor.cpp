@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -57,6 +57,28 @@ namespace Tensile
 {
     namespace Client
     {
+        rsmi_clk_type_t toSMIClockType(ClockType type)
+        {
+            switch(type)
+            {
+            case CLK_TYPE_SYS:
+                return RSMI_CLK_TYPE_SYS;
+            case CLK_TYPE_DF:
+                return RSMI_CLK_TYPE_DF;
+            case CLK_TYPE_DCEF:
+                return RSMI_CLK_TYPE_DCEF;
+            case CLK_TYPE_SOC:
+                return RSMI_CLK_TYPE_SOC;
+            case CLK_TYPE_MEM:
+                return RSMI_CLK_TYPE_MEM;
+            case CLK_INVALID:
+                return RSMI_CLK_INVALID;
+            default:
+                return RSMI_CLK_TYPE_SYS;
+            }
+            return RSMI_CLK_TYPE_SYS;
+        }
+
         uint32_t HardwareMonitor::GetROCmSMIIndex(int hipDeviceIndex)
         {
             InitROCmSMI();
@@ -64,6 +86,16 @@ namespace Tensile
             hipDeviceProp_t props;
 
             HIP_CHECK_EXC(hipGetDeviceProperties(&props, hipDeviceIndex));
+#if HIP_VERSION >= 50220730
+            int hip_version;
+            HIP_CHECK_EXC(hipRuntimeGetVersion(&hip_version));
+            if(hip_version >= 50220730)
+            {
+                HIP_CHECK_EXC(hipDeviceGetAttribute(&props.multiProcessorCount,
+                                                    hipDeviceAttributePhysicalMultiProcessorCount,
+                                                    hipDeviceIndex));
+            }
+#endif
 
             uint64_t hipPCIID = 0;
             hipPCIID |= props.pciDeviceID & 0xFF;
@@ -150,20 +182,22 @@ namespace Tensile
             m_thread = std::thread([=]() { this->runLoop(); });
         }
 
-        void HardwareMonitor::addTempMonitor(rsmi_temperature_type_t   sensorType,
-                                             rsmi_temperature_metric_t metric)
+        void HardwareMonitor::addTempMonitor()
         {
+            rsmi_temperature_type_t   sensorType = RSMI_TEMP_TYPE_EDGE;
+            rsmi_temperature_metric_t metric     = RSMI_TEMP_CURRENT;
+
             assertNotActive();
 
             m_tempMetrics.emplace_back(sensorType, metric);
             m_tempValues.resize(m_tempMetrics.size());
         }
 
-        void HardwareMonitor::addClockMonitor(rsmi_clk_type_t clockType)
+        void HardwareMonitor::addClockMonitor(ClockType clockType)
         {
             assertNotActive();
 
-            m_clockMetrics.push_back(clockType);
+            m_clockMetrics.push_back(toSMIClockType(clockType));
             m_clockValues.resize(m_clockMetrics.size());
         }
 
@@ -175,9 +209,11 @@ namespace Tensile
             m_fanValues.resize(m_fanMetrics.size());
         }
 
-        double HardwareMonitor::getAverageTemp(rsmi_temperature_type_t   sensorType,
-                                               rsmi_temperature_metric_t metric)
+        double HardwareMonitor::getAverageTemp()
         {
+            rsmi_temperature_type_t   sensorType = RSMI_TEMP_TYPE_EDGE;
+            rsmi_temperature_metric_t metric     = RSMI_TEMP_CURRENT;
+
             assertNotActive();
 
             if(m_dataPoints == 0)
@@ -199,7 +235,7 @@ namespace Tensile
                 "Can't read temp value that wasn't requested: ", sensorType, " - ", metric));
         }
 
-        double HardwareMonitor::getAverageClock(rsmi_clk_type_t clockType)
+        double HardwareMonitor::getAverageClock(ClockType clockType)
         {
             assertNotActive();
 
@@ -208,7 +244,7 @@ namespace Tensile
 
             for(size_t i = 0; i < m_clockMetrics.size(); i++)
             {
-                if(m_clockMetrics[i] == clockType)
+                if(m_clockMetrics[i] == toSMIClockType(clockType))
                 {
                     uint64_t rawValue = m_clockValues[i];
                     if(rawValue == std::numeric_limits<uint64_t>::max())
@@ -324,7 +360,6 @@ namespace Tensile
 
                 rsmi_frequencies_t freq;
 
-                uint64_t newValue = 0;
                 auto status = rsmi_dev_gpu_clk_freq_get(m_smiDeviceIndex, m_clockMetrics[i], &freq);
                 if(status != RSMI_STATUS_SUCCESS)
                 {

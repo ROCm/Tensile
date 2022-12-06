@@ -1,26 +1,28 @@
 ################################################################################
-# Copyright 2021 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2021-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
 from ..Component import NotLocalFullTileElements
-from ..Common import globalParameters
 
 class NotLocalFullTileElementsVALU(NotLocalFullTileElements):
     kernel = {"EnableMatrixInstruction": False}
@@ -52,6 +54,7 @@ class NotLocalFullTileElementsVALU(NotLocalFullTileElements):
 
         return (vectorwidth, elements)
 
+
 class NotLocalFullTileElementsMFMA(NotLocalFullTileElements):
     kernel = {"EnableMatrixInstruction": True}
 
@@ -62,30 +65,41 @@ class NotLocalFullTileElementsMFMA(NotLocalFullTileElements):
     """
     def __call__(self, writer, kernel, edge):
         elements        = []
-        vectorwidth = 0
+        storeVectorWidth = 0
 
         if edge:
-            vectorwidth = kernel["StoreVectorWidth"] if kernel["_VectorStore"] else 1
-            vectorwidth = min(vectorwidth, writer.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
+            storeVectorWidth = kernel["StoreVectorWidth"] if kernel["_VectorStore"] else 1
+            storeVectorWidth = min(storeVectorWidth, writer.maxGwvw(kernel), kernel["AssertFree0ElementMultiple"])
         else:
-            vectorwidth = kernel["StoreVectorWidth"] if kernel["_VectorStore"] else 1
-            vectorwidth = min(vectorwidth, writer.maxGwvw(kernel))
+            storeVectorWidth = kernel["StoreVectorWidth"] if kernel["_VectorStore"] else 1
+            storeVectorWidth = min(storeVectorWidth, writer.maxGwvw(kernel))
 
-        MFMAcontinoutsOuptut = kernel["MIOutputVectorWidth"]
+        # handle mfma 4x4 instruction
+        matrixInstM  = kernel["MatrixInstM"] * kernel["MatrixInstBM"] if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstM"]
+        matrixInstN  = kernel["MatrixInstN"] * kernel["MatrixInstBN"] if (kernel["MatrixInstN"] == 4) else kernel["MatrixInstN"]
+        matrixInstBM = 1                                              if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstBM"]
+        matrixInstBN = 1                                              if (kernel["MatrixInstN"] == 4) else kernel["MatrixInstBN"]
 
-        if kernel["MatrixInstM"] == 4:
-            totalTT0                         = kernel["MIWaveTile"][0] * MFMAcontinoutsOuptut
-            totalTT1                         = kernel["MIWaveTile"][1]
-        else:
-            outputsPerThread         = kernel["MatrixInstM"] * kernel["MatrixInstN"] // globalParameters["WavefrontWidth"]
-            totalTT0                         = kernel["MatrixInstBM"] * kernel["MIWaveTile"][0] * outputsPerThread
-            totalTT1                         = kernel["MatrixInstBN"] * kernel["MIWaveTile"][1]
+        outputsPerThread = matrixInstM * matrixInstN // kernel["WavefrontSize"]
 
-        for tt1 in range(0, totalTT1):
-            for vc1 in range(0, 1):
-                for tt0 in range(0, totalTT0 // MFMAcontinoutsOuptut):
-                    for vc0 in range(0, MFMAcontinoutsOuptut, vectorwidth): # note step by vectorwidth
+        # handle SourceSwap
+        totalTT0     = matrixInstBM * kernel["MIWaveTile"][0]
+        totalTT1     = matrixInstBN * kernel["MIWaveTile"][1]
+
+        totalTT0     = totalTT0                      if kernel["SourceSwap"] else (totalTT0 * outputsPerThread)
+        totalTT1     = (totalTT1 * outputsPerThread) if kernel["SourceSwap"] else totalTT1
+        vectorWidth0 = kernel["VectorWidth"]         if kernel["SourceSwap"] else kernel["MIOutputVectorWidth"]
+        vwB          = 1
+        if (writer.allowLRVWBforTLUandMI or kernel["DirectToVgprB"]):
+            vwB      = writer.lrvwB
+        MIOutputVectorWidthAdj = vwB * kernel["MIOutputVectorWidth"]
+        vectorWidth1 = MIOutputVectorWidthAdj if kernel["SourceSwap"] else 1
+
+        for tt1 in range(0, totalTT1//vectorWidth1):
+            for vc1 in range(0, vectorWidth1):
+                for tt0 in range(0, totalTT0//vectorWidth0):
+                    for vc0 in range(0, vectorWidth0, storeVectorWidth): # note step by storeVectorWidth
                         element = (tt1, tt0, vc1, vc0)
                         elements.append(element)
 
-        return (vectorwidth, elements)
+        return (storeVectorWidth, elements)

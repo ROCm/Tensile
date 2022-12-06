@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -176,20 +176,17 @@ struct RunGEMMKernelSolutionSelectionTest : public ::testing::TestWithParam<Cont
 #endif
     }
 
-}
+    void TearDown() override
+    {
+        hipFree(a_d);
+        hipFree(b_d);
+        hipFree(c_d);
+        hipFree(d_d);
+        hipFree(d_ref_d);
 
-void TearDown() override
-{
-    hipFree(a_d);
-    hipFree(b_d);
-    hipFree(c_d);
-    hipFree(d_d);
-    hipFree(d_ref_d);
-
-    hipDeviceReset();
-}
-}
-;
+        hipDeviceReset();
+    }
+};
 
 TEST_P(RunGEMMKernelSolutionSelectionTest, KernelsTileSelection)
 {

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2020-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -79,6 +79,7 @@ namespace Tensile
                 {
                     std::ostringstream msg;
                     solution.hardwarePredicate->debugEval(*m_hardware, msg);
+                    msg << std::endl;
                     m_reporter->log(LogLevel::Verbose, msg.str());
                 }
 
@@ -94,6 +95,7 @@ namespace Tensile
                 {
                     std::ostringstream msg;
                     solution.problemPredicate->debugEval(m_problem, msg);
+                    msg << std::endl;
                     m_reporter->log(LogLevel::Verbose, msg.str());
                 }
 
@@ -167,6 +169,7 @@ namespace Tensile
 
         void AllSolutionsIterator::preSolution(ContractionSolution const& solution)
         {
+            m_reporter->report(ResultKey::SolutionLibraryIndex, solution.libraryLogicIndex);
             m_reporter->report(ResultKey::SolutionIndex, m_currentSolutionIdx);
             m_reporter->report(ResultKey::SolutionProgress,
                                concatenate(m_currentSolutionIdx, "/", m_lastSolutionIdx));
@@ -225,6 +228,7 @@ namespace Tensile
 
         void BestSolutionIterator::preSolution(ContractionSolution const& solution)
         {
+            m_reporter->report(ResultKey::SolutionLibraryIndex, solution.libraryLogicIndex);
             m_reporter->report(ResultKey::SolutionIndex, 0);
             m_reporter->report(ResultKey::SolutionProgress, "1/1");
         }

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,8 +26,10 @@
 
 #pragma once
 
+#include <Tensile/Debug.hpp>
 #include <Tensile/Distance.hpp>
 #include <Tensile/MatchingLibrary.hpp>
+#include <Tensile/SingleSolutionLibrary.hpp>
 
 #include <cstddef>
 #include <unordered_set>
@@ -129,10 +131,24 @@ namespace Tensile
 
                 bool success = false;
 
+                std::string tensile_metric = Debug::Instance().getMetric();
+
+                if(!tensile_metric.empty())
+                    distanceType = tensile_metric;
+
                 if(distanceType == "Euclidean")
                 {
                     success = mappingDistance<Key, Matching::EuclideanDistance<Key>>(
                         io, lib, properties);
+                }
+                else if(distanceType == "Equality")
+                {
+                    success = mappingDistance<Key, Matching::Equality<Key>>(io, lib, properties);
+                }
+                else if(distanceType == "JSD")
+                {
+                    success
+                        = mappingDistance<Key, Matching::JSDivergence<Key>>(io, lib, properties);
                 }
                 else if(distanceType == "Manhattan")
                 {
@@ -148,6 +164,11 @@ namespace Tensile
                 {
                     success
                         = mappingDistance<Key, Matching::RandomDistance<Key>>(io, lib, properties);
+                }
+                else if(distanceType == "GridBased")
+                {
+                    success = mappingDistance<Key, Matching::GridBasedDistance<Key>>(
+                        io, lib, properties);
                 }
                 else
                 {
@@ -197,9 +218,43 @@ namespace Tensile
 
             static void mapping(IO& io, Entry& entry)
             {
+                int32_t index = -1;
                 iot::mapRequired(io, "key", entry.key);
-                iot::mapRequired(io, "value", entry.value);
-                iot::mapRequired(io, "speed", entry.speed);
+                iot::mapOptional(io, "speed", entry.speed);
+                iot::mapOptional(io, "index", index);
+
+                // TODO there is probably a way to make this properly general
+                if(index != -1)
+                {
+                    using SSLibrary
+                        = SingleSolutionLibrary<ContractionProblem, ContractionSolution>;
+
+                    auto ctx
+                        = static_cast<LibraryIOContext<ContractionSolution>*>(iot::getContext(io));
+                    if(ctx == nullptr || ctx->solutions == nullptr)
+                    {
+                        iot::setError(io,
+                                      "SingleSolutionLibrary requires that context be set to "
+                                      "a SolutionMap.");
+                    }
+
+                    auto iter = ctx->solutions->find(index);
+                    if(iter == ctx->solutions->end())
+                    {
+                        std::ostringstream msg;
+                        msg << "Invalid solution index: " << index;
+                        iot::setError(io, msg.str());
+                    }
+                    else
+                    {
+                        std::shared_ptr<ContractionSolution> solution = iter->second;
+                        entry.value = std::make_shared<SSLibrary>(solution);
+                    }
+                }
+                else
+                {
+                    iot::mapRequired(io, "value", entry.value);
+                }
             }
 
             const static bool flow = true;
@@ -232,7 +287,8 @@ namespace Tensile
                 return SubclassMap({Base::template Pair<Matching::RatioDistance<Key>>(),
                                     Base::template Pair<Matching::ManhattanDistance<Key>>(),
                                     Base::template Pair<Matching::EuclideanDistance<Key>>(),
-                                    Base::template Pair<Matching::RandomDistance<Key>>()});
+                                    Base::template Pair<Matching::RandomDistance<Key>>(),
+                                    Base::template Pair<Matching::GridBasedDistance<Key>>()});
             }
         };
 
@@ -262,6 +318,12 @@ namespace Tensile
         template <typename Key, typename IO>
         struct MappingTraits<Matching::RandomDistance<Key>, IO>
             : public AutoMappingTraits<Matching::RandomDistance<Key>, IO>
+        {
+        };
+
+        template <typename Key, typename IO>
+        struct MappingTraits<Matching::GridBasedDistance<Key>, IO>
+            : public AutoMappingTraits<Matching::GridBasedDistance<Key>, IO>
         {
         };
     } // namespace Serialization

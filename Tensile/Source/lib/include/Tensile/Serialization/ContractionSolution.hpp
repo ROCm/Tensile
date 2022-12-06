@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -59,7 +59,7 @@ namespace Tensile
                 iot::mapRequired(io, "problemPredicate", s.problemPredicate);
 
                 iot::mapRequired(io, "debugKernel", s.debugKernel);
-                iot::mapRequired(io, "info", s.info);
+                iot::mapOptional(io, "libraryLogicIndex", s.libraryLogicIndex);
                 iot::mapOptional(io, "ideals", s.ideals);
                 iot::mapOptional(io, "linearModel", s.linearModel);
 
@@ -117,6 +117,7 @@ namespace Tensile
                 iot::mapOptional(io, "useInitialStridesAB", s.useInitialStridesAB);
                 iot::mapOptional(io, "useInitialStridesCD", s.useInitialStridesCD);
                 iot::mapOptional(io, "stridedBatched", s.stridedBatched);
+                iot::mapOptional(io, "fp16AltImpl", s.fp16AltImpl);
             }
 
             const static bool flow = false;

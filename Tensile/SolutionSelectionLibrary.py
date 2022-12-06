@@ -1,26 +1,27 @@
 ################################################################################
-# Copyright 2016-2020 Advanced Micro Devices, Inc. All rights reserved.
+#
+# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell cop-
-# ies of the Software, and to permit persons to whom the Software is furnished
-# to do so, subject to the following conditions:
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IM-
-# PLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNE-
-# CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 ################################################################################
 
-from .Common import printExit
-from .CSVReader import readCSV
 from .SolutionStructs import Solution
 
 import csv
@@ -96,69 +97,6 @@ def updateValidSolutions(validSolutions, analyzerSolutions, solutionMinNaming):
 
   return selectionSolutionsIdsList
 
-
-def analyzeSolutionSelectionOldClient( problemType, problemSizeGroups):
-
-  dataFileNameList = []
-  performanceMap = {}
-  solutionsHash = {}
-
-  for problemSizeGroup in problemSizeGroups:
-    dataFileName = problemSizeGroup[3]
-    dataFileNameList.append(dataFileName)
-    solutionsFileName = problemSizeGroup[2]
-
-    # solutions are already read and kept in problemSizeGroups, no need to call LibraryIO.readSolutions(solutionsFileName) again
-    solutions = problemSizeGroup[4]
-    if len(solutions) == 0:
-      printExit("%s doesn't contains any solutions." % (solutionsFileName) )
-
-    csvData = readCSV(dataFileName)
-
-    rowIdx = 0
-    summationKeys = None
-
-    for row in csvData:
-      if rowIdx == 0:
-        print(rowIdx)
-        summationKeys = getSummationKeys(row)
-      else:
-        if len(row) > 1:
-          solution = solutions[rowIdx - 1]
-          keyBase = makeKey(row)
-          idx=7
-          perfData = {}
-          for summationKey in summationKeys:
-            key = "%s_%s" % (keyBase,summationKey)
-            value = float(row[idx])
-            perfData[summationKey] = value
-            idx+=1
-
-            if not solution in solutionsHash:
-              dataMap = {}
-              solutionsHash[solution] = dataMap
-
-            updateIfGT(solutionsHash[solution], summationKey, value)
-
-            if not key in performanceMap:
-              performanceMap[key] = (solution, value)
-            else:
-              _,valueOld = performanceMap[key]
-              if value > valueOld:
-                performanceMap[key] = (solution, value)
-      rowIdx+=1
-
-  validSolutions = []
-  validSolutionSet = set([])
-
-  for key in performanceMap:
-    solution, _ = performanceMap[key]
-    validSolutionSet.add(solution)
-
-  for validSolution in validSolutionSet:
-    dataMap = solutionsHash[validSolution]
-    validSolutions.append((validSolution,dataMap))
-  return validSolutions
 
 def analyzeSolutionSelection(problemType, selectionFileNameList, numSolutionsPerGroup, solutionGroupMap, solutionsList):
 

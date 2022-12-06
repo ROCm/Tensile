@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -124,6 +124,12 @@ boost::filesystem::path TestData::ProgramLocation()
 TestData::TestData()
     : m_dataDir(ProgramLocation().parent_path() / "data")
 {
+    if(!boost::filesystem::is_directory(m_dataDir))
+    {
+        auto newValue = ProgramLocation().parent_path().parent_path() / "data";
+        if(boost::filesystem::is_directory(newValue))
+            m_dataDir = newValue;
+    }
 }
 
 TestData::TestData(std::string const& dataDir)

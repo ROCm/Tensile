@@ -1,10 +1,12 @@
+TestParameters:
+  marks: [emulation, emulation4]
+
 GlobalParameters:
   NumElementsToValidate: 16384
   DataInitTypeBeta: 2 # the bug is in the non-OptNLL code path of persitent kernel
 # disable BoundsCheck for now to avoid crash
   BoundsCheck: False
   KernelTime: True
-  NewClient: 2
 
 BenchmarkProblems:
   - # sgemm NN
@@ -30,6 +32,7 @@ BenchmarkProblems:
           - [ 8, 8, 1 ]
           - [ 32, 32, 1 ]
         - DepthU: [8]
+        - StaggerU: [0,32]
         - PersistentKernel: [1,2]
         - PersistentKernelAlongBatch: [False,True]
         - PrefetchAcrossPersistent: [False,True]

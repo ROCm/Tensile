@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -48,12 +48,69 @@ namespace Tensile
 
         enum class Processor : int
         {
+            // matching enum used in hipGcnArch
+            // only including supported types
+            //gfx000  =  0,
+            //gfx701  =  1,
+            //gfx801  =  2,
+            //gfx802  =  3,
             gfx803  = 803,
             gfx900  = 900,
             gfx906  = 906,
             gfx908  = 908,
-            gfx1010 = 1010
+            gfx90a  = 910,
+            gfx1010 = 1010,
+            gfx1011 = 1011,
+            gfx1012 = 1012,
+            gfx1030 = 1030,
+            gfx1031 = 1031,
+            gfx1032 = 1032,
+            gfx1034 = 1034,
+            gfx1035 = 1035,
+            gfx1100 = 1100,
+            gfx1101 = 1101,
+            gfx1102 = 1102
         };
+
+        static std::string toString(Processor p)
+        {
+            switch(p)
+            {
+            case AMDGPU::Processor::gfx803:
+                return "gfx803";
+            case AMDGPU::Processor::gfx900:
+                return "gfx900";
+            case AMDGPU::Processor::gfx906:
+                return "gfx906";
+            case AMDGPU::Processor::gfx908:
+                return "gfx908";
+            case AMDGPU::Processor::gfx90a:
+                return "gfx90a";
+            case AMDGPU::Processor::gfx1010:
+                return "gfx1010";
+            case AMDGPU::Processor::gfx1011:
+                return "gfx1011";
+            case AMDGPU::Processor::gfx1012:
+                return "gfx1012";
+            case AMDGPU::Processor::gfx1030:
+                return "gfx1030";
+            case AMDGPU::Processor::gfx1031:
+                return "gfx1031";
+            case AMDGPU::Processor::gfx1032:
+                return "gfx1032";
+            case AMDGPU::Processor::gfx1034:
+                return "gfx1034";
+            case AMDGPU::Processor::gfx1035:
+                return "gfx1035";
+            case AMDGPU::Processor::gfx1100:
+                return "gfx1100";
+            case AMDGPU::Processor::gfx1101:
+                return "gfx1101";
+            case AMDGPU::Processor::gfx1102:
+                return "gfx1102";
+            }
+            return "";
+        }
 
         AMDGPU();
         AMDGPU(Processor p, int computeUnitCount, std::string const& deviceName);
@@ -70,6 +127,12 @@ namespace Tensile
         {
             return (size_t)processor;
         }
+
+        virtual std::string archName() const
+        {
+            return toString(processor);
+        }
+
         virtual std::string description() const;
 
         bool operator==(AMDGPU const& rhs) const

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright 2019-2020 Advanced Micro Devices, Inc.
+ * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -109,7 +109,11 @@ namespace Tensile
                                         lhs.workspaceSize(),
                                         rhs.workspaceSize(),
                                         lhs.stridedBatched(),
-                                        rhs.stridedBatched());
+                                        rhs.stridedBatched(),
+                                        lhs.performanceMetric(),
+                                        rhs.performanceMetric(),
+                                        lhs.fp16AltImpl(),
+                                        rhs.fp16AltImpl());
         }
     };
 } // namespace Tensile
@@ -131,7 +135,9 @@ namespace std
                                          problem.deterministicMode(),
                                          problem.arithmeticUnit(),
                                          problem.workspaceSize(),
-                                         problem.stridedBatched());
+                                         problem.stridedBatched(),
+                                         problem.performanceMetric(),
+                                         problem.fp16AltImpl());
         }
     };
 
