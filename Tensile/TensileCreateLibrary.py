@@ -526,8 +526,9 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
   for kernIdx, res in Utils.tqdm(enumerate(results)):
     (err,src,header,kernelName, filename) = res
     if(err == -2):
-      print("\nKernel generation failed for kernel: {}".format(kernels[kernIdx]["SolutionIndex"]))
-      print(kernels[kernIdx]["SolutionNameMin"])
+      if not errorTolerant:
+        print("\nKernel generation failed for kernel: {}".format(kernels[kernIdx]["SolutionIndex"]))
+        print(kernels[kernIdx]["SolutionNameMin"])
       removeKernels.append(kernels[kernIdx])
       removeSolutions.append(solutions[kernIdx])
       removeResults.append(results[kernIdx])
