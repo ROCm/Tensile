@@ -308,7 +308,8 @@ namespace Tensile
         // used only when persistent kernel along batch
         uint32_t problemNumGroupTiles2 = rv.numWorkGroups.z;
 
-        rv.numWorkGroups.y *= sizeMapping.globalSplitU;
+        rv.numWorkGroups.x *= sizeMapping.globalSplitU;
+        // rv.numWorkGroups.y *= sizeMapping.globalSplitU;
 
         if(sizeMapping.persistentKernel != 0)
         {

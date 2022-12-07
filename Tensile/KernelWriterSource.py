@@ -1195,21 +1195,21 @@ class KernelWriterSource(KernelWriter):
       kStr += "  unsigned int n%s = %s(%u);%s" \
           % ( wg1, self.getNumGroupsStr, n1, self.endLine)
       if kernel["GlobalSplitU"] > 1:
-        kStr += "  n%s /= GLOBAL_SPLITU;%s" % (wg1, self.endLine)
+        kStr += "  n%s /= GLOBAL_SPLITU;%s" % (wg0, self.endLine)
 
     # split up work-group grid
     if kernel["GlobalSplitU"] > 1:
       kStr += "  unsigned int gsuSumIdx;%s" % self.endLine
       if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
         kStr += "  gsuSumIdx = %s / n%s;%s" \
-            % (wg1, wg1, self.endLine)
+            % (wg0, wg0, self.endLine)
         kStr += "  %s = %s %% n%s;%s" \
-            % (wg1, wg1, wg1, self.endLine)
+            % (wg0, wg0, wg0, self.endLine)
       else:
         kStr += "  gsuSumIdx = %s %% GLOBAL_SPLITU;%s" \
-            % (wg1, self.endLine)
+            % (wg0, self.endLine)
         kStr += "  %s = %s / GLOBAL_SPLITU;%s" \
-            % (wg1, wg1, self.endLine)
+            % (wg0, wg0, self.endLine)
 
       ########################################
       # Blocked rows or columns
