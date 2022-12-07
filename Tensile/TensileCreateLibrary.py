@@ -218,6 +218,8 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
       hipFlags += ['-I', outputPath]
 
+      hipFlags += ["-Xoffload-linker", "--build-id"]
+
       launcher = shlex.split(os.environ.get('Tensile_CXX_COMPILER_LAUNCHER', ''))
 
       if os.name == "nt":
