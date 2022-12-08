@@ -7,7 +7,7 @@
 - Add binary search for Grid-Based algorithm
 - Add reject condition for (StoreCInUnroll + BufferStore=0) and (DirectToVgpr + ScheduleIterAlg<3 + PrefetchGlobalRead==2)
 - Add support for (DirectToLds + hgemm + NN/NT/TT) and (DirectToLds + hgemm + GlobalLoadVectorWidth < 4)
-- Add support for (DirectToLds + zgemm + NumLoadsCoalesced > 1) and (DirectToLds + hgemm(TLU=True only) or sgemm + NumLoadsCoalesced > 1)
+- Add support for (DirectToLds + hgemm(TLU=True only) or sgemm + NumLoadsCoalesced > 1)
 - Add GSU SingleBuffer algorithm for HSS/BSS
 - Add gfx900:xnack-, gfx1032, gfx1034, gfx1035
 - Enable gfx1031 support
