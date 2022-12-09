@@ -12,7 +12,6 @@ GlobalParameters:
   PrintTensorA: 0
   PrintTensorD: 0
   PrintTensorRef: 0
-  CpuThreads: 0
 
 # single zero-pad, with padding on the unroll dimension
 BenchmarkProblems:

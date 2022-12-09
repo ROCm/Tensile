@@ -23,7 +23,7 @@
 ################################################################################
 
 set(COMPILER "hipcc")
-set(CODE_OBJECT_VERSION "V3")
+set(CODE_OBJECT_VERSION "default")
 
 TensileCreateLibraryFiles(
     "${CMAKE_CURRENT_SOURCE_DIR}/../configs/lite_configs"

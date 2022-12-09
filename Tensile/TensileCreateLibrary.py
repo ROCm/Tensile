@@ -119,11 +119,21 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
 
             args = [globalParameters['AssemblerPath'], '-target', 'amdgcn-amd-amdhsa', '-o', coFile, '@clangArgs.txt']
             # change to use  check_output to force windows cmd block util command finish
-            subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)
+            try:
+              out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)
+              print2(out)
+            except subprocess.CalledProcessError as err:
+              print(err.output)
+              raise
           else:
             args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
             # change to use  check_output to force windows cmd block util command finish
-            subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)
+            try:
+              out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)
+              print2(out)
+            except subprocess.CalledProcessError as err:
+              print(err.output)
+              raise
 
           coFiles.append(coFile)
       else:
@@ -208,6 +218,12 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
 
       hipFlags += ['-I', outputPath]
 
+      # Add build-id for builds with rocm 5.3+
+      compilerVer = globalParameters['HipClangVersion'].split(".")[:2]
+      compilerVer = [int(c) for c in compilerVer]
+      if len(compilerVer) >= 2 and (compilerVer[0] > 5 or (compilerVer[0] == 5 and compilerVer[1] > 2)):
+        hipFlags += ["-Xoffload-linker", "--build-id"]
+
       launcher = shlex.split(os.environ.get('Tensile_CXX_COMPILER_LAUNCHER', ''))
 
       if os.name == "nt":
@@ -219,7 +235,12 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
       if globalParameters["PrintCodeCommands"]:
         print('hipcc:', ' '.join(compileArgs))
       # change to use  check_output to force windows cmd block util command finish
-      subprocess.check_output(compileArgs, stderr=subprocess.STDOUT)
+      try:
+        out = subprocess.check_output(compileArgs, stderr=subprocess.STDOUT)
+        print2(out)
+      except subprocess.CalledProcessError as err:
+        print(err.output)
+        raise
 
       # get hipcc version due to compatiblity reasons
       hipccver = globalParameters['HipClangVersion'].split(".")
@@ -261,9 +282,11 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
               if globalParameters["PrintCodeCommands"]:
                 print(' '.join(bundlerArgs))
               # change to use  check_output to force windows cmd block util command finish
-              subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
+              out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
+              print2(out)
 
-      except subprocess.CalledProcessError:
+      except subprocess.CalledProcessError as err:
+        print(err.output)
         for i in range(len(archs)):
           outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
           coFilenames.append(os.path.split(outfile)[1])
@@ -273,7 +296,12 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
           if globalParameters["PrintCodeCommands"]:
             print(' '.join(bundlerArgs))
           # change to use  check_output to force windows cmd block util command finish
-          subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
+          try:
+            out = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT)
+            print2(out)
+          except subprocess.CalledProcessError as err:
+            print(err.output)
+            raise
     else:
       raise RuntimeError("Unknown compiler {}".format(CxxCompiler))
 
@@ -1152,7 +1180,7 @@ def TensileCreateLibrary():
   argParser.add_argument("RuntimeLanguage", help="Which runtime language?", choices=["OCL", "HIP", "HSA"])
   argParser.add_argument("--cxx-compiler",           dest="CxxCompiler",       choices=["hipcc"],       action="store", default="hipcc")
   argParser.add_argument("--cmake-cxx-compiler",     dest="CmakeCxxCompiler",  action="store")
-  argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["V2", "V3"], action="store", default="V3")
+  argParser.add_argument("--code-object-version",    dest="CodeObjectVersion", choices=["default", "V4", "V5"], action="store")
   argParser.add_argument("--architecture",           dest="Architecture",      type=str, action="store", default="all", help="Supported archs: " + " ".join(architectureMap.keys()))
   argParser.add_argument("--merge-files",            dest="MergeFiles",        action="store_true")
   argParser.add_argument("--no-merge-files",         dest="MergeFiles",        action="store_false")
@@ -1188,7 +1216,8 @@ def TensileCreateLibrary():
   argParser.add_argument("--client-config", dest="ClientConfig", action="store_true",
                          help="Create client config for setting the library and code object files")
   argParser.add_argument("--global-parameters", nargs="+", type=splitExtraParameters, default=[])
-
+  argParser.add_argument("--ignore-asm-cap-cache", dest="IgnoreAsmCapCache", action="store_true", default=False,
+                         help="Ignore asm cap cache and derive the asm caps at runtime")
   args = argParser.parse_args()
 
   logicPath = args.LogicPath
@@ -1227,7 +1256,8 @@ def TensileCreateLibrary():
 
   arguments["CpuThreads"] = args.CpuThreads
   arguments["PrintLevel"] = args.PrintLevel
-
+  arguments["IgnoreAsmCapCache"] = args.IgnoreAsmCapCache
+  
   for key, value in args.global_parameters:
     arguments[key] = value
 
