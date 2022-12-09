@@ -1,6 +1,6 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.36.0
+## Tensile 4.36.0 for ROCm 5.5.0
 ### Added
 - Add functions for user-driven tuning
 - Add GFX11 support: HostLibraryTests yamls, rearragne FP32(C)/FP64(C) instruction order, archCaps for instruction renaming condition, adjust vgpr bank for A/B/C for optimize, separate vscnt and vmcnt, dual mac
