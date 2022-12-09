@@ -6,7 +6,6 @@ Tensile.egg-info
 build*
 dist
 .cache
-/*.yaml
 /*.txt
 /*log*
 
