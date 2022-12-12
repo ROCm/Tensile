@@ -3905,7 +3905,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     tensorParametersA["PackedIndices"] = kernel["PackedC%uIndicesX"%self.tPA["tile01Idx"]]
     tensorParametersB["PackedIndices"] = kernel["PackedC%uIndicesX"%self.tPB["tile01Idx"]]
 
-    # condition(s) to enable init accvgpr opt (initialize only the last set of accvgpr instead of whole accvgpr)
+    # condition(s) to enable init accvgpr opt (use const "0" as an operand instead of initializing whole accvgpr)
     self.useInitAccVgprOpt = False
     # enable for the following conditions
     if kernel["StoreCInUnroll"]:
