@@ -250,6 +250,11 @@ class KernelWriterAssembly(KernelWriter):
   def getLinkCodeObjectArgs(self, objectFileNames, coFileName, *moreArgs):
     rv = [globalParameters['AssemblerPath'],
           '-target', 'amdgcn-amd-amdhsa']
+    # Add build-id for builds with rocm 5.3+
+    compilerVer = globalParameters['HipClangVersion'].split(".")[:2]
+    compilerVer = [int(c) for c in compilerVer]
+    if len(compilerVer) >= 2 and (compilerVer[0] > 5 or (compilerVer[0] == 5 and compilerVer[1] > 2)):
+      rv += ["-Xlinker", "--build-id"]
     rv += moreArgs
     rv += ['-o', coFileName] + objectFileNames
     return rv
