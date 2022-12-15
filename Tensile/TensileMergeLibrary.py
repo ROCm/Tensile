@@ -424,6 +424,7 @@ def main():
     originalDir = args.original_dir
     incrementalDir = args.incremental_dir
     outputPath = args.output_dir
+    global verbosity
     verbosity = args.verbosity
     forceMerge = args.force_merge.lower()
     trimSize = args.notrim
