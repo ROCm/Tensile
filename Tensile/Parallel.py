@@ -26,6 +26,9 @@ import os
 import itertools
 import sys
 
+import multiprocessing
+from joblib import Parallel, delayed
+
 
 def CPUThreadCount(enable=True):
   from .Common import globalParameters
@@ -136,3 +139,26 @@ def ParallelMap(function, objects, message="", enable=True, method=None, maxTask
   sys.stdout.flush()
   pool.close()
   return rv
+
+
+def pcallWithGlobalParamsMultiArg(f, args, newGlobalParameters):
+  OverwriteGlobalParameters(newGlobalParameters)
+  return f(*args)
+
+
+def pcallWithGlobalParamsSingleArg(f, arg, newGlobalParameters):
+  OverwriteGlobalParameters(newGlobalParameters)
+  return f(arg)
+
+
+def pcallJoblib(f, args, numJobs=None, multiArg=True):
+  from . import Common
+  
+  if numJobs is None:
+    numJobs = multiprocessing.cpu_count()
+    
+  pcall = pcallWithGlobalParamsMultiArg if multiArg else pcallWithGlobalParamsSingleArg
+  pargs = zip(args, itertools.repeat(Common.globalParameters))
+  
+  return Parallel(n_jobs=numJobs)(delayed(pcall)(f, a, params)
+                                    for a, params in pargs)

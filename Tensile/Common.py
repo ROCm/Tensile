@@ -37,6 +37,7 @@ import time
 startTime = time.time()
 
 ParallelMap = Parallel.ParallelMap
+ParallelMapJL = Parallel.pcallJoblib
 
 # print level
 # 0 - user wants no printing

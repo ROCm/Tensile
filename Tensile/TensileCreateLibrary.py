@@ -327,12 +327,14 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         shutil.copyfile(src, dst)
 
     return destCosList
-
+  
 def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath):
-    args = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), kernelFiles)
-
-    coFiles = Common.ParallelMap(buildSourceCodeObjectFile, args, "Compiling source kernels",
-                                 method=lambda x: x.starmap)
+    args    = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), kernelFiles)
+    coFiles = Common.ParallelMapJL(buildSourceCodeObjectFile, args)
+    
+    # args    = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), kernelFiles)
+    # coFiles = Common.ParallelMap(buildSourceCodeObjectFile, args, "Compiling source kernels",
+    #                              method=lambda x: x.starmap, maxTasksPerChild=1)
 
     return itertools.chain.from_iterable(coFiles)
 
@@ -523,8 +525,10 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
         objFilenames.add(base)
         kernel.duplicate = False
 
-  kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
-  results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap, maxTasksPerChild=1)
+  kIter   = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
+  results = Common.ParallelMapJL(processKernelSource, kIter)
+  # kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
+  # results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap, maxTasksPerChild=1)
 
   removeKernels = []
   removeSolutions = []
@@ -1042,11 +1046,9 @@ def generateKernelObjectsFromSolutions(solutions):
 # Generate Logic Data and Solutions
 ################################################################################
 def generateLogicDataAndSolutions(logicFiles, args):
-
-  libraries = Common.ParallelMap(LibraryIO.parseLibraryLogicFile, logicFiles, "Reading logic files")
-
+  libraries = Common.ParallelMapJL(LibraryIO.parseLibraryLogicFile, logicFiles, multiArg=False)
+  # libraries = Common.ParallelMap(LibraryIO.parseLibraryLogicFile, logicFiles, "Reading logic files", maxTasksPerChild=1)
   solutions = []
-
   masterLibraries = {}
   fullMasterLibrary = None
 
