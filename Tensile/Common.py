@@ -735,6 +735,12 @@ validParameters = {
     #     - Enables asm kernels on V20
     #     - Can use DirectToLds for both unroll and tail loops
     #  - Tail loop can be unrolled up to InnerUnroll amount if AssertSummationElementMultiple%InnerUnroll==0
+    #  - GlobalSplitU>1 case:
+    #   - Optimizations enabled by AssertSummationElementMultiple>1 will be adjusted as follows.
+    #     ASEM%GSU == 0 and ASEM//GSU will be used for optimizations instead of ASEM
+    #     For example, if ASEM is 8 and GSU is 2, K is multiple of 8 but K is divided by GSU.
+    #     In that case, we can still guarantee K/GSU is multiple of 4 (= ASEM/GSU) and 
+    #     we can use ASEM//GSU=4 for optimizations
     #
     # 1 indicates no assertion (since all sizes are multiples of 1)
     "AssertSummationElementMultiple": [1,2,4,8,16,32,64,128,256],
