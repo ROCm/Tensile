@@ -96,10 +96,10 @@ def log2(x):
 
 ########################################
 # Divide & Remainder
-# quotient register, remainder register, dividend register, divisor, tmpVgprx2, tmpSgpr
+# quotient register, remainder register, dividend register, divisor, tmpSgpr
 ########################################
 
-def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, doRemainder=True, comment=""):
+def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, doRemainder=True, comment=""):
 
     dComment = "%s = %s / %s"    % (vgpr(qReg), vgpr(dReg), divisor) if (comment=="") else comment
     rComment = "%s = %s %% %s" % (vgpr(rReg), vgpr(dReg), divisor) if (comment=="") else comment
@@ -126,24 +126,23 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, 
             shift = 32+1
         """
         shift = 32+1
+        shiftMinus32 = shift - 32
         magic = ((2**shift) // divisor) + 1
         kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(magic), dComment)
-        kStr += inst("v_mul_hi_u32", vgpr(tmpVgpr+1), vgpr(dReg), sgpr(tmpSgpr), dComment)
-        kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+0), vgpr(dReg), sgpr(tmpSgpr), dComment)
-        kStr += inst("v_lshrrev_b64", vgpr(tmpVgpr,2), hex(shift), vgpr(tmpVgpr,2), dComment)
-        kStr += inst("v_mov_b32", vgpr(qReg), vgpr(tmpVgpr), dComment)
+        kStr += inst("v_mul_hi_u32", vgpr(qReg), vgpr(dReg), sgpr(tmpSgpr), dComment)
+        kStr += inst("v_lshrrev_b32", vgpr(qReg), hex(shiftMinus32), vgpr(qReg), dComment)
         if doRemainder:
             kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), rComment)
-            kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(qReg), sgpr(tmpSgpr), rComment)
-            kStr += inst("_v_sub_u32", vgpr(rReg), vgpr(dReg), vgpr(tmpVgpr), rComment)
+            kStr += inst("v_mul_lo_u32", vgpr(rReg), vgpr(qReg), sgpr(tmpSgpr), rComment)
+            kStr += inst("_v_sub_u32", vgpr(rReg), vgpr(dReg), vgpr(rReg), rComment)
     return kStr
 
-def vectorStaticDivide(qReg, dReg, divisor, tmpVgpr, tmpSgpr, comment=""):
+def vectorStaticDivide(qReg, dReg, divisor, tmpSgpr, comment=""):
     rReg = -1 # unused
-    kStr = vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, False, comment)
+    kStr = vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, False, comment)
     return kStr
 
-def vectorStaticRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, comment=""):
+def vectorStaticRemainder(rReg, dReg, divisor, tmpSgpr, comment=""):
     if comment == "":
         comment = "%s = %s %% %s" % (vgpr(rReg), vgpr(dReg), divisor)
 
@@ -166,16 +165,14 @@ def vectorStaticRemainder(qReg, rReg, dReg, divisor, tmpVgpr, tmpSgpr, comment="
             shift = 32+1
         """
         shift = 32+1
+        shiftMinus32 = shift - 32
         magic = ((2**shift) // divisor) + 1
         kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(magic), comment)
-        kStr += inst("v_mul_hi_u32", vgpr(tmpVgpr+1), vgpr(dReg), sgpr(tmpSgpr), comment)
-        kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr+0), vgpr(dReg), sgpr(tmpSgpr), comment)
-        kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(shift), comment)
-        kStr += inst("v_lshrrev_b64", vgpr(tmpVgpr,2), sgpr(tmpSgpr), vgpr(tmpVgpr,2), comment)
-        kStr += inst("v_mov_b32", vgpr(qReg), vgpr(tmpVgpr), comment)
+        kStr += inst("v_mul_hi_u32", vgpr(rReg), vgpr(dReg), sgpr(tmpSgpr), comment)
+        kStr += inst("v_lshrrev_b32", vgpr(rReg), hex(shiftMinus32), vgpr(rReg), comment)
         kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(divisor), comment)
-        kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr), vgpr(qReg), sgpr(tmpSgpr), comment)
-        kStr += inst("_v_sub_u32", vgpr(rReg), vgpr(dReg), vgpr(tmpVgpr), comment)
+        kStr += inst("v_mul_lo_u32", vgpr(rReg), vgpr(rReg), sgpr(tmpSgpr), comment)
+        kStr += inst("_v_sub_u32", vgpr(rReg), vgpr(dReg), vgpr(rReg), comment)
     return kStr
 
 # only used for loop unroll and GlobalSplitU

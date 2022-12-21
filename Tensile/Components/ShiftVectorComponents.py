@@ -23,7 +23,7 @@
 ################################################################################
 
 from ..Component import ShiftVectorComponents
-from ..AsmUtils import inst, vgpr, sgpr, accvgpr, staticMultiply, vectorStaticDivide, vectorStaticRemainder, vectorStaticDivideAndRemainder, log2
+from ..AsmUtils import inst, vgpr, sgpr, accvgpr, staticMultiply, vectorStaticDivide, vectorStaticRemainder, log2
 
 class ShiftVectorComponentsVALU(ShiftVectorComponents):
     kernel = {"EnableMatrixInstruction": False}
@@ -53,7 +53,7 @@ class ShiftVectorComponentsVALU(ShiftVectorComponents):
         wg = tP["prevWg"] if writer.prefetchAcrossPersistent else tP["wg"]
         # wgMT value
         tmpSgpr = writer.getTmpSgpr(writer.laneSGPRCount).idx()
-        tmpVgpr = writer.vgprPool.checkOutAligned(2,2,"tmpVgpr")
+        tmpVgpr = writer.vgprPool.checkOut(1,"tmpVgpr")
         wgMT = writer.vgprPool.checkOut(1,"wgMT")
         kStr += inst("v_mov_b32", vgpr(wgMT), sgpr(wg), "")
         kStr += inst("v_mul_i32_i24", vgpr(wgMT), hex(-kernel[tP["mt"]]), vgpr(wgMT), \
@@ -65,45 +65,38 @@ class ShiftVectorComponentsVALU(ShiftVectorComponents):
                 vgpr(tmpVgpr), "wgMT < MT" )
         kStr += inst("v_cndmask_b32", vgpr(wgMT), vgpr(tmpVgpr), \
                 vgpr(wgMT), sgpr(tmpSgpr,writer.laneSGPRCount), "wgMT = (wgMT < MT) ? wgMT : MT" )
-        dummy = writer.vgprPool.checkOut(1,"dummy")
+        writer.vgprPool.checkIn(tmpVgpr)
 
         # qReg
         qReg = writer.vgprPool.checkOut(1,"qReg")
         divisor = kernel["VectorWidth"] # vw
-        kStr += vectorStaticDivide(qReg, wgMT, divisor, \
-                tmpVgpr, tmpSgpr)
+        kStr += vectorStaticDivide(qReg, wgMT, divisor, tmpSgpr)
 
         # rReg
         rReg = writer.vgprPool.checkOut(1,"rReg")
         divisor = vw
-        kStr += vectorStaticRemainder(dummy, rReg, wgMT, divisor, \
-                tmpVgpr, tmpSgpr)
+        kStr += vectorStaticRemainder(rReg, wgMT, divisor, tmpSgpr)
 
         # qReg %/ SG
-        sReg = writer.vgprPool.checkOut(1,"sReg")
         eReg = writer.vgprPool.checkOut(1,"eReg")
         divisor = kernel[tP["sg"]]
-        kStr += vectorStaticDivideAndRemainder(sReg, eReg, qReg, divisor, \
-                tmpVgpr, tmpSgpr)
+        kStr += vectorStaticRemainder(eReg, qReg, divisor, tmpSgpr)
 
         if tP["isA"]:
             # thread = serial % SG0
             thread = writer.vgprPool.checkOut(1,"thread")
             divisor = kernel["SubGroup0"]
-            kStr += vectorStaticRemainder(dummy, thread, "Serial", divisor, \
-                    tmpVgpr, tmpSgpr)
+            kStr += vectorStaticRemainder(thread, "Serial", divisor, tmpSgpr)
             #kStr += dump(vgpr(thread))
             #kStr += dump(vgpr(thread))
         else:
             # thread = (serial / SG0) % SG1
             sd0 = writer.vgprPool.checkOut(1,"sd0")
             divisor = kernel["SubGroup0"]
-            kStr += vectorStaticDivide(sd0, "Serial", divisor, \
-                    tmpVgpr, tmpSgpr) # thread = serial / SG0
+            kStr += vectorStaticDivide(sd0, "Serial", divisor, tmpSgpr) # thread = serial / SG0
             divisor = kernel["SubGroup1"]
             thread = writer.vgprPool.checkOut(1,"thread")
-            kStr += vectorStaticRemainder(dummy, thread, sd0, divisor, \
-                    tmpVgpr, tmpSgpr) # thread = (serial / SG0) % SG1
+            kStr += vectorStaticRemainder(thread, sd0, divisor, tmpSgpr) # thread = (serial / SG0) % SG1
             writer.vgprPool.checkIn(sd0)
 
         # which glvw vector of thread to shift? wgMT / (SG0*VW) -> (wgMT%VW) / glvw
@@ -111,21 +104,18 @@ class ShiftVectorComponentsVALU(ShiftVectorComponents):
         if True:#tP["tensorIdx"] > kernel["VectorWidth"]:
             mvReg = writer.vgprPool.checkOut(1,"mvReg")
             divisor = kernel[tP["sg"]]*kernel["VectorWidth"]
-            kStr += vectorStaticDivide(mvReg, wgMT, divisor, \
-                    tmpVgpr, tmpSgpr)
+            kStr += vectorStaticDivide(mvReg, wgMT, divisor, tmpSgpr)
             if vw < kernel["VectorWidth"]:
                 kStr += inst("v_lshlrev_b32", vgpr(mvReg), hex(log2(kernel["VectorWidth"]//vw)), vgpr(mvReg), "vId *= VW/glvw")
         #kStr += dump(vgpr(mvReg))
 
         vReg = writer.vgprPool.checkOut(1,"vReg")
         divisor = kernel["VectorWidth"]
-        kStr += vectorStaticRemainder(dummy, vReg, wgMT, divisor, \
-                tmpVgpr, tmpSgpr)
+        kStr += vectorStaticRemainder(vReg, wgMT, divisor, tmpSgpr)
         vRegD = writer.vgprPool.checkOut(1,"vRegD")
         kStr += inst("v_mov_b32", vgpr(vRegD), vgpr(vReg), "duplicate")
         divisor = vw
-        kStr += vectorStaticDivide(vReg, vRegD, divisor, \
-                tmpVgpr, tmpSgpr)
+        kStr += vectorStaticDivide(vReg, vRegD, divisor, tmpSgpr)
         #kStr += dump(vgpr(vReg))
 
         if True:#tP["tensorIdx"] > kernel["VectorWidth"]:
@@ -255,13 +245,10 @@ class ShiftVectorComponentsVALU(ShiftVectorComponents):
 
         # checkin scratch vgprs
         writer.vgprPool.checkIn(wgMT)
-        writer.vgprPool.checkIn(tmpVgpr)
         writer.vgprPool.checkIn(qReg)
         writer.vgprPool.checkIn(rReg)
-        writer.vgprPool.checkIn(sReg)
         writer.vgprPool.checkIn(eReg)
         writer.vgprPool.checkIn(thread)
-        writer.vgprPool.checkIn(dummy)
         writer.vgprPool.checkIn(vReg)
         return kStr
 
@@ -407,8 +394,7 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
 
         # wgMT value
         tmpSgpr = writer.getTmpSgpr(writer.laneSGPRCount).idx()
-        tmpVgpr = writer.vgprPool.checkOutAligned(2,2)
-        dummy   = writer.vgprPool.checkOut(1)
+        tmpVgpr = writer.vgprPool.checkOut(1)
         wgMT    = writer.vgprPool.checkOut(1)
         wg      = tP["prevWg"] if writer.prefetchAcrossPersistent else tP["wg"]
 
@@ -424,10 +410,10 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         # identify which wave have to process
         wReg = writer.vgprPool.checkOut(1)
         sReg = writer.vgprPool.checkOut(1)
-        kStr += vectorStaticDivide(wReg, "Serial", miWGIdStride, tmpVgpr, tmpSgpr)
-        kStr += vectorStaticRemainder(dummy, wReg, wReg, miWaveGroupCoal, tmpVgpr, tmpSgpr)
-        kStr += vectorStaticDivide(sReg, wgMT, MIBShapeCoal, tmpVgpr, tmpSgpr)
-        kStr += vectorStaticRemainder(dummy, sReg, sReg, miWaveGroupCoal, tmpVgpr, tmpSgpr)
+        kStr += vectorStaticDivide(wReg, "Serial", miWGIdStride, tmpSgpr)
+        kStr += vectorStaticRemainder(wReg, wReg, miWaveGroupCoal, tmpSgpr)
+        kStr += vectorStaticDivide(sReg, wgMT, MIBShapeCoal, tmpSgpr)
+        kStr += vectorStaticRemainder(sReg, sReg, miWaveGroupCoal, tmpSgpr)
         kStr += inst("v_cmp_eq_u32" , sgpr(tmpSgpr,writer.laneSGPRCount), vgpr(sReg), vgpr(wReg), "wave_id == block_belong_to_wave?" )
         kStr += inst("v_cndmask_b32", vgpr(wgMT), vgpr(mtReg), vgpr(wgMT), sgpr(tmpSgpr,writer.laneSGPRCount), "wgMT = (wgMT < MT) ? wgMT : MT" )
         writer.vgprPool.checkIn(mtReg)
@@ -437,7 +423,7 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         kStr += writer.comment("mbReg: which mb block need to shift, mb(matrixInstCoal(%u) * VectorWidth(%u))" % (matrixInstCoal, vectorWidth))
         mbReg = writer.vgprPool.checkOut(1)
         tReg  = writer.vgprPool.checkOut(1)
-        kStr += vectorStaticDivide(mbReg, wgMT, subMBShapeCoal, tmpVgpr, tmpSgpr)
+        kStr += vectorStaticDivide(mbReg, wgMT, subMBShapeCoal, tmpSgpr)
         kStr += staticMultiply(vgpr(tReg), vgpr(wReg), (matrixInstBCoal * OutBlocksInMI), sgpr(tmpSgpr))
         kStr += inst("_v_sub_u32", vgpr(mbReg), vgpr(mbReg), vgpr(tReg), "")
         writer.vgprPool.checkIn(tReg)
@@ -445,15 +431,15 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         # gbReg: glvw block id
         kStr += writer.comment("gbReg: glvw block id")
         gbReg = writer.vgprPool.checkOut(1)
-        kStr += vectorStaticDivide(gbReg, wgMT, glvw, tmpVgpr, tmpSgpr)
+        kStr += vectorStaticDivide(gbReg, wgMT, glvw, tmpSgpr)
 
         # tgbReg: thread in glvw block
         kStr += writer.comment("tgbReg: glvw block id")
         tgbReg = writer.vgprPool.checkOut(1)
-        kStr += vectorStaticDivide(tgbReg, "Serial", threadInterval, tmpVgpr, tmpSgpr)
-        kStr += vectorStaticRemainder(dummy, tgbReg, tgbReg, numThreadInCoal, tmpVgpr, tmpSgpr)
+        kStr += vectorStaticDivide(tgbReg, "Serial", threadInterval, tmpSgpr)
+        kStr += vectorStaticRemainder(tgbReg, tgbReg, numThreadInCoal, tmpSgpr)
         kStr += staticMultiply(vgpr(tgbReg), vgpr(tgbReg), allContOutCoal, sgpr(tmpSgpr))
-        kStr += vectorStaticDivide(tgbReg, tgbReg, glvw, tmpVgpr, tmpSgpr)
+        kStr += vectorStaticDivide(tgbReg, tgbReg, glvw, tmpSgpr)
         kStr += staticMultiply(vgpr(wReg), vgpr(wReg), MIBShapeCoal//glvw, sgpr(tmpSgpr))
         kStr += inst("_v_add_co_u32", vgpr(tgbReg), writer.vcc, vgpr(wReg), vgpr(tgbReg), "tgbReg = (tid_coal * continOut) / GLVW")
         kStr += inst("_v_sub_u32", vgpr(gbReg), vgpr(gbReg), vgpr(tgbReg), "")
@@ -470,7 +456,7 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         # decide to jump to block which handle this case, M_size % vector width
         kStr += writer.comment("rReg : reminder of M_size % GlobalLoadVectorWidth")
         rReg = writer.vgprPool.checkOut(1)
-        kStr += vectorStaticRemainder(dummy, rReg, wgMT, glvw, tmpVgpr, tmpSgpr)
+        kStr += vectorStaticRemainder(rReg, wgMT, glvw, tmpSgpr)
         for r in range(1, glvw):
             kStr += inst("v_cmp_eq_u32", writer.vcc, vgpr(rReg), hex(r), "wgMT%%VW == %u"%r )
             kStr += inst("s_cbranch_vccnz label_%04u" % glvwLabels[(r-1)], "branch to shift d%u r=%u"%(tP["idx"], r))
@@ -564,7 +550,6 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         # checkin scratch vgprs
         writer.vgprPool.checkIn(tmpVgpr)
         writer.vgprPool.checkIn(wgMT)
-        writer.vgprPool.checkIn(dummy)
         writer.vgprPool.checkIn(gbReg)
         writer.vgprPool.checkIn(vwReg)
         writer.vgprPool.checkIn(mbReg)
@@ -640,14 +625,12 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         wg      = tP["prevWg"] if writer.prefetchAcrossPersistent else tP["wg"]
         tmpSgpr = writer.getTmpSgpr(writer.laneSGPRCount).idx()
 
-        tmpVgpr = writer.vgprPool.checkOutAligned(2,2)
-        dummy   = writer.vgprPool.checkOut(1)
         wgMT    = writer.vgprPool.checkOut(1)
+        mtReg = writer.vgprPool.checkOut(1)
 
 
         # get M size of edge block
         kStr += writer.comment1("check which macro tile need to shift")
-        mtReg = writer.vgprPool.checkOut(1)
         kStr += inst("v_mov_b32"    , vgpr(wgMT), sgpr(wg), "")
         kStr += inst("v_mul_i32_i24", vgpr(wgMT), hex(-kernel[tP["mt"]]), vgpr(wgMT), "wg*MT")
         kStr += inst("_v_add_co_u32", vgpr(wgMT), writer.vcc, sgpr("SizesFree+%u"%tP["idx"]), vgpr(wgMT), "wgMT = Size - wg*MT")
@@ -660,10 +643,10 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         kStr += writer.comment1("check which wave need to shift")
         wReg = writer.vgprPool.checkOut(1)
         sReg = writer.vgprPool.checkOut(1)
-        kStr += vectorStaticDivide(wReg, "Serial", miWGIdStride, tmpVgpr, tmpSgpr)
-        kStr += vectorStaticRemainder(dummy, wReg, wReg, miWaveGroupCoal, tmpVgpr, tmpSgpr)
-        kStr += vectorStaticDivide(sReg, wgMT, MIBShapeCoal, tmpVgpr, tmpSgpr)
-        kStr += vectorStaticRemainder(dummy, sReg, sReg, miWaveGroupCoal, tmpVgpr, tmpSgpr)
+        kStr += vectorStaticDivide(wReg, "Serial", miWGIdStride, tmpSgpr)
+        kStr += vectorStaticRemainder(wReg, wReg, miWaveGroupCoal, tmpSgpr)
+        kStr += vectorStaticDivide(sReg, wgMT, MIBShapeCoal, tmpSgpr)
+        kStr += vectorStaticRemainder(sReg, sReg, miWaveGroupCoal, tmpSgpr)
         kStr += inst("v_cmp_eq_u32" , sgpr(tmpSgpr,writer.laneSGPRCount), vgpr(sReg), vgpr(wReg), "wave_id == block_belong_to_wave?" )
         kStr += inst("v_cndmask_b32", vgpr(wgMT), vgpr(mtReg), vgpr(wgMT), sgpr(tmpSgpr,writer.laneSGPRCount), "wgMT = (wgMT < MT) ? wgMT : MT" )
         kStr += writer.endLine
@@ -673,14 +656,14 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         glvwblkidReg = writer.vgprPool.checkOut(1)
         kStr += inst("v_mul_i32_i24", vgpr(glvwblkidReg), hex(-MIBShapeCoal), vgpr(wReg), "wg * MIB")
         kStr += inst("_v_add_co_u32", vgpr(glvwblkidReg), writer.vcc, vgpr(glvwblkidReg), vgpr(wgMT), "wgMT = Size - wg*MIB")
-        kStr += vectorStaticDivide(glvwblkidReg, glvwblkidReg, glvw, tmpVgpr, tmpSgpr, "glvw block id")
+        kStr += vectorStaticDivide(glvwblkidReg, glvwblkidReg, glvw, tmpSgpr, "glvw block id")
         kStr += writer.endLine
 
         # rReg : reminder of M_size % vectorwidth
         # decide to jump to block which handle this case, M_size % vector width
         kStr += writer.comment1("dispatch to differet shift block for shift")
         rReg = writer.vgprPool.checkOut(1)
-        kStr += vectorStaticRemainder(dummy, rReg, wgMT, glvw, tmpVgpr, tmpSgpr)
+        kStr += vectorStaticRemainder(rReg, wgMT, glvw, tmpSgpr)
         for r in range(1, glvw):
             kStr += inst("v_cmp_eq_u32", writer.vcc, vgpr(rReg), hex(r), "wgMT%%GLVW == %u"%r )
             kStr += inst("s_cbranch_vccnz label_%04u" % shiftLabels[(r-1)], "branch to shift d%u r=%u"%(tP["idx"], r))
@@ -716,8 +699,8 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
                     kStr += inst("v_and_b32", vgpr(permuteIndexReg), kernel["WavefrontSize"]-1, vgpr("Serial"), "permute register between threads")
                     kStr += staticMultiply(vgpr(permuteIndexReg), vgpr(permuteIndexReg), writer.bpr, sgpr(tmpSgpr), "permute register between threads")
 
-                    kStr += vectorStaticDivide(threadIdInCoalReg, "Serial", threadInterval, tmpVgpr, tmpSgpr)
-                    kStr += vectorStaticRemainder(dummy, threadIdInCoalReg, threadIdInCoalReg, numThreadInCoal, tmpVgpr, tmpSgpr)
+                    kStr += vectorStaticDivide(threadIdInCoalReg, "Serial", threadInterval, tmpSgpr)
+                    kStr += vectorStaticRemainder(threadIdInCoalReg, threadIdInCoalReg, numThreadInCoal, tmpSgpr)
 
                     for dstMbblkId in range(glvw//(numContOutCoal*numThreadInCoal)):
                         for dstThreadId in range(numThreadInCoal):
@@ -799,8 +782,6 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         writer.vgprPool.checkIn(mtReg)
 
         # checkin scratch vgprs
-        writer.vgprPool.checkIn(tmpVgpr)
-        writer.vgprPool.checkIn(dummy)
         writer.vgprPool.checkIn(wgMT)
 
         return kStr
