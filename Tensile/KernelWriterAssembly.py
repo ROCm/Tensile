@@ -4678,7 +4678,9 @@ class KernelWriterAssembly(KernelWriter):
               quotient = loopCounterName
               dividend = "SizesSum+%u"%self.unrollIdx
               divisor = kernel["DepthU"]
-              if self.noTailLoop and kernel["AssertSummationElementMultiple"] % kernel["DepthU"] != 0:
+              asem = kernel["AssertSummationElementMultiple"]
+              gsu = kernel["GlobalSplitU"]
+              if self.noTailLoop and ((asem % gsu != 0) or ((asem//gsu) % kernel["DepthU"] != 0)):
                 # round up SizesSum/DepthU for noTailLoop case
                 kStr += inst("s_add_i32", sgpr(quotient), (divisor - 1), sgpr(dividend), \
                     "round up SizeSum / DepthU" )
@@ -5644,7 +5646,9 @@ class KernelWriterAssembly(KernelWriter):
         quotient = loopCounterName
         dividend = sumSize
         divisor = kernel["DepthU"]
-        if self.noTailLoop and kernel["AssertSummationElementMultiple"] % kernel["DepthU"] != 0:
+        asem = kernel["AssertSummationElementMultiple"]
+        gsu = kernel["GlobalSplitU"]
+        if self.noTailLoop and ((asem % gsu != 0) or ((asem//gsu) % kernel["DepthU"] != 0)):
           # round up SizesSum/DepthU for noTailLoop case
           kStr += inst("s_add_i32", sgpr(quotient), (divisor - 1), sgpr(dividend), \
               "round up SizeSum / DepthU" )
@@ -5823,8 +5827,10 @@ class KernelWriterAssembly(KernelWriter):
     else: # not tailloop:
 
       if loopIdx == self.unrollIdx:
-        # 1 loop check is necessary only when AssertSummationElementMultiple % (DepthU * 2) != 0
-        if kernel["PrefetchGlobalRead"] == 2 and kernel["AssertSummationElementMultiple"] % (kernel["DepthU"] * 2) != 0:
+        # 1 loop check is necessary only when (AssertSummationElementMultiple/GlobalSplitU) % (DepthU * 2) != 0
+        asem = kernel["AssertSummationElementMultiple"]
+        gsu = kernel["GlobalSplitU"]
+        if kernel["PrefetchGlobalRead"] == 2 and ((asem % gsu != 0) or ((asem//gsu) % (kernel["DepthU"] * 2) != 0)):
           if not self.unrollIncIsDepthU:
             kStr += inst("s_cmp_eq_u32", \
                 loopCounter, \
@@ -5915,7 +5921,9 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["EnableMatrixInstruction"]:
         unrollInc      *= kernel["MatrixInstK"]
         KinInnerUnroll *= kernel["MatrixInstK"]
-      if kernel["AssertSummationElementMultiple"] % KinInnerUnroll == 0:
+      asem = kernel["AssertSummationElementMultiple"]
+      gsu = kernel["GlobalSplitU"]
+      if ((asem%gsu == 0) and (asem//gsu) % KinInnerUnroll == 0):
         unrollInc *= kernel["InnerUnroll"]
       elif (kernel["LocalDotLayout"] > 1) and (kernel["InnerUnroll"] == kernel["LocalDotLayout"]):
         unrollInc *= kernel["InnerUnroll"]
@@ -5983,8 +5991,10 @@ class KernelWriterAssembly(KernelWriter):
         else:
           endCounter = 0
 
-        if kernel["AssertSummationElementMultiple"] % (kernel["DepthU"] * 2) == 0 and endCounter > 0:
-          # if AssertSummationElementMultiple is multiple of DepthU*2, loop exit is necessary only once in 2 Loop iterations
+        asem = kernel["AssertSummationElementMultiple"]
+        gsu = kernel["GlobalSplitU"]
+        if (asem % gsu == 0) and (asem//gsu) % (kernel["DepthU"] * 2) == 0 and endCounter > 0:
+          # if AssertSummationElementMultiple/GlobalSplitU is multiple of DepthU*2, loop exit is necessary only once in 2 Loop iterations
           #  In endCounter % 2 == 1 case, exit at lc % 2 == 0 (= oddLabel). It means no exit if not oddLabel
           #  In endCounter % 2 == 0 case, exit at lc % 2 == 1 (= not oddLabel). It means no exit if oddLabel
           # No exit case, no code is necessary except for final Loop
@@ -6856,9 +6866,11 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def getLocalReadSwapOffset(self, kernel, labelIndex):
     kStr = ""
-    # if AssertSummationElementMultiple is multiple of DepthU * 2, LoopCounter will not be Odd
+    # if AssertSummationElementMultiple/GlobalSplitU is multiple of DepthU * 2, LoopCounter will not be Odd
     # then, we do not need odd check and only need code for even case
-    noOddFlag = kernel["AssertSummationElementMultiple"] % (kernel["DepthU"] * 2) == 0
+    asem = kernel["AssertSummationElementMultiple"]
+    gsu = kernel["GlobalSplitU"]
+    noOddFlag = (asem % gsu == 0) and ((asem//gsu) % (kernel["DepthU"] * 2) == 0)
     label = "SkipLroSwap%s"%str(labelIndex)
     if self.prefetchAcrossPersistent0 and kernel["ExpandPointerSwap"] and not noOddFlag:
       # We can use OrigLoopCounter & 1 instead of using BreakAtEvenIter==1
@@ -13073,9 +13085,11 @@ class KernelWriterAssembly(KernelWriter):
     frequency = 2
     # use 1 if one of the following cases is True
     #  ExpandPointerSwap is False
-    #  ASEM%(DepthU*2) != 0 (odd exit case)
+    #  (ASEM/GSU)%(DepthU*2) != 0 (odd exit case)
+    asem = kernel["AssertSummationElementMultiple"]
+    gsu = kernel["GlobalSplitU"]
     if kernel["ExpandPointerSwap"] == False or \
-       (kernel["AssertSummationElementMultiple"] % (kernel["DepthU"] * 2) != 0):
+       ((asem % gsu != 0) or ((asem//gsu) % (kernel["DepthU"] * 2) != 0)):
       frequency = 1
     return frequency
 
@@ -13230,7 +13244,9 @@ class KernelWriterAssembly(KernelWriter):
     minK = minK//kernel["DepthU"] # divided by DepthU to use OrigLoopCounter (= K / DepthU)
     # skip multiple of DepthU * frequency check if AssertSummationElementMultiple is multiple of DepthU * frequency
     frequency = self.getAddrGprIdxIncrementFrequencyForStoreCInUnroll(kernel)
-    if kernel["AssertSummationElementMultiple"] % (kernel["DepthU"] * frequency) != 0:
+    asem = kernel["AssertSummationElementMultiple"]
+    gsu = kernel["GlobalSplitU"]
+    if (asem % gsu != 0) or ((asem//gsu) % (kernel["DepthU"] * frequency) != 0):
       kStr += inst("s_and_b32", sgpr(tmpSgpr), sgpr("SizesSum"), hex(supportMinKmask), "if K is not multiple of DepthU * %u (%u)"%(frequency, supportedK) )
       kStr += inst("s_cbranch_scc1", "label_%s"%endLabel, "Skip long jump to the top of persistent loop if K is not multiple of %u"%(supportedK) )
     # if PostLoop is enabled, minK check is unnecessary.

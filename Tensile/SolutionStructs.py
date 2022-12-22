@@ -2465,6 +2465,8 @@ class Solution(collections.abc.Mapping):
   @staticmethod
   def isDirectToLdsDoable(state, tc):
     numBytes = state["ProblemType"]["DataType"].numBytes()
+    asem = state["AssertSummationElementMultiple"]
+    gsu = state["GlobalSplitU"]
 
     # x2/x4 support for directToLds (no longer supported)
 
@@ -2482,14 +2484,10 @@ class Solution(collections.abc.Mapping):
       reject(state, "DirectToLds can only be used with buffer loads requiring 1 register")
       return False
 
-    if state["ProblemType"]["DataType"].isHalf():
-      if state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc])  != 0:
-        reject(state, "can't use DirectToLds for FP16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
+    if (state["ProblemType"]["DataType"].isHalf() or state["ProblemType"]["DataType"].isBFloat16()) and state["ProblemType"]["TLU%c"%tc] == False:
+      if (asem % gsu != 0) or ((asem//gsu) % (state["GlobalLoadVectorWidth%c"%tc])  != 0):
+        reject(state, "can't use DirectToLds for FP16/BF16 with TLU%c=False and AssertSummationElementMultiple=%u and GlobalSplitU=%u" % (tc, asem, gsu))
         return False
-
-    if state["ProblemType"]["DataType"].isBFloat16() and state["AssertSummationElementMultiple"] % (2 * state["GlobalLoadVectorWidth%c"%tc]) != 0:
-      reject(state, "can't use DirectToLds for BF16 with AssertSummationElementMultiple %u" % state["AssertSummationElementMultiple"])
-      return False
 
     if state["NumThreads"] % state["WavefrontSize"] != 0:
       reject(state, "can't use DirectToLds for NumThreads % WavefrontSize != 0")
@@ -2546,10 +2544,10 @@ class Solution(collections.abc.Mapping):
         reject(state, "DirectToLds%c does not supports NumLoadsCoalesced%c > 1 and UseInstOffsetForGRO for dgemm"%(tc, tc))
         return False
 
-    # Does not work with PAPMode 1 and AssertSummationElementMultiple % (DepthU * 2) != 0
+    # Does not work with PAPMode 1 and (AssertSummationElementMultiple/GlobalSplitU) % (DepthU * 2) != 0
     # This is because DirectToLds use second LDS buffer after Odd exit. It does not match local read at the beginning of PK loop.
-    if state["PrefetchAcrossPersistentMode"] == 1 and state["AssertSummationElementMultiple"] % (state["DepthU"] * 2) != 0:
-      reject(state, "DirectToLds%c does not work with PAPMode 1 and AssertSummationElementMultiple is not multiple of (DepthU * 2)"%(tc))
+    if state["PrefetchAcrossPersistentMode"] == 1 and ((asem%gsu != 0) or ((asem//gsu) % (state["DepthU"] * 2) != 0)):
+      reject(state, "DirectToLds%c does not work with PAPMode 1 and (AssertSummationElementMultiple//GlobalSplitU) is not multiple of (DepthU * 2)"%(tc))
       return False
 
     # Does not work with PrefetchGlobalRead=2 and PrefetchLocalRead=1 (cannot schedule DTL global read after local read)
@@ -3411,7 +3409,7 @@ class Solution(collections.abc.Mapping):
       validNoTailLoop = False
       invalidComment = "does not support TLUA=False and TLUB=False"
     # NoTailLoop parameter initialization. Set True for the following cases
-    #  1. ASEM is multiple of DepthU. TailLoop code will not be used in this case.
+    #  1. ASEM%GSU=0 and ASEM/GSU is multiple of DepthU. TailLoop code will not be used in this case.
     #  2. PrefetchAcrossPersistent and PrefetchAcrossPersistentMode
     #    PrefetchAcrossPersistentMode does not support TailLoop (TLU is necessary for NoTailLoop)
     #  3. DirectToVgpr is enabled
@@ -3420,17 +3418,19 @@ class Solution(collections.abc.Mapping):
     # Except for case 1, validNoTailLoop should be True to enable NoTailLoop.
     # Otherwise, it will be rejected.
     state["NoTailLoop"] = False
-    if state["AssertSummationElementMultiple"] % state["DepthU"] == 0:
+    asem = state["AssertSummationElementMultiple"]
+    gsu = state["GlobalSplitU"]
+    if (asem % gsu == 0) and ((asem//gsu) % state["DepthU"] == 0):
       state["NoTailLoop"] = True
     elif state["PersistentKernel"] and state["PrefetchAcrossPersistent"] and state["PrefetchAcrossPersistentMode"] == 1:
       if not validNoTailLoop:
-        reject(state, "PAP + PAPMode + AssertSummationElementMultiple%%DepthU!=0 %s to enable NoTailLoop"%invalidComment)
+        reject(state, "PAP + PAPMode + (AssertSummationElementMultiple/GlobalSplitU)%%DepthU!=0 %s to enable NoTailLoop"%invalidComment)
         return
       else:
         state["NoTailLoop"] = True
     elif state["DirectToVgprA"] or state["DirectToVgprB"]:
       if not validNoTailLoop:
-        reject(state, "DirectToVgpr + AssertSummationElementMultiple%%DepthU!=0 %s to enable NoTailLoop"%invalidComment)
+        reject(state, "DirectToVgpr + (AssertSummationElementMultiple/GlobalSplitU)%%DepthU!=0 %s to enable NoTailLoop"%invalidComment)
         return
       else:
         state["NoTailLoop"] = True
@@ -3438,13 +3438,13 @@ class Solution(collections.abc.Mapping):
       for tc in ('A','B'):
         if state["ProblemType"]["TLU%c"%tc] and state["NumLoadsCoalesced%c"%tc] > 1:
           if not validNoTailLoop:
-            reject(state, "DirectToLds + TLU + NumLoadsCoalesced>1 + AssertSummationElementMultiple%%DepthU!=0 %s to enable NoTailLoop"%invalidComment)
+            reject(state, "DirectToLds + TLU + NumLoadsCoalesced>1 + (AssertSummationElementMultiple/GlobalSplitU)%%DepthU!=0 %s to enable NoTailLoop"%invalidComment)
             return
           else:
             state["NoTailLoop"] = True
-        elif state["LocalReadVectorWidth"] > 1:
+        elif state["EnableMatrixInstruction"] and state["LocalReadVectorWidth"] > state["MIInputPerThread"]:
           if not validNoTailLoop:
-            reject(state, "DirectToLds + LocalReadVectorWidth>1 + AssertSummationElementMultiple%%DepthU!=0 %s to enable NoTailLoop"%invalidComment)
+            reject(state, "DirectToLds + LocalReadVectorWidth>MIInputPerThread + (AssertSummationElementMultiple/GlobalSplitU)%%DepthU!=0 %s to enable NoTailLoop"%invalidComment)
             return
           else:
             state["NoTailLoop"] = True
