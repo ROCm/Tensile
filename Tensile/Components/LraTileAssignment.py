@@ -145,6 +145,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         kStr += vectorStaticRemainder(tReg, kReg, kernel["MatrixInstN"], tmpSgpr, \
             "1. N offset: nIdx = wtid %% MI_N(%u)" % kernel["MatrixInstN"])
         if dtlTsgr:
+          tmpVgpr = writer.vgprPool.checkOut(1,"tmpVgpr")
           # WSGR splits global fetch 2D tile MblockxdepthU into (WSPR *2)xMblockxdepthU/(WSPR*2)  (Mblock = waveWidth * glvw  / depthU)
           # LDS layout stored as 3D tile K1xMblockxK0
           # Padding is not allowed in directToLds
@@ -156,28 +157,31 @@ class LraTileAssignmentMFMA(LraTileAssignment):
           kStr += staticMultiply(vgpr(mReg), vgpr(mReg), NblockSizePerLoad*kernel["_DepthULds"], sgpr(tmpSgpr), \
               "1. N offset: nIdx_upper_offset = nIdx_upper * nStride(%u)" % (NblockSizePerLoad*kernel["_DepthULds"]))
           KelementsPerMFrag = kernel["_DepthULds"]//(kernel["ThreadSeparateGlobalRead%c"%tc]*2)
-          kStr += vectorStaticRemainder(tReg, tReg, NblockSizePerLoad, tmpSgpr, \
+          kStr += vectorStaticRemainder(tmpVgpr, tReg, NblockSizePerLoad, tmpSgpr, \
               "1. N offset: nIdx_lower = nIdx %% NblockSizePerLoad(%u)" % NblockSizePerLoad)
-          kStr += staticMultiply(vgpr(tReg), vgpr(tReg), KelementsPerMFrag, sgpr(tmpSgpr), \
+          kStr += staticMultiply(vgpr(tReg), vgpr(tmpVgpr), KelementsPerMFrag, sgpr(tmpSgpr), \
               "1. N offset: nIdx_lower = nIdx_load * nStride(%u)" % KelementsPerMFrag)
 
           kStr += inst("_v_add_u32", vgpr(tReg), vgpr(mReg), vgpr(tReg), \
               "1. N offset: nOffset =  nIdx_lower + nIdx_upper")
+          writer.vgprPool.checkIn(tmpVgpr)
         else:
           kStr += staticMultiply(vgpr(tReg), vgpr(tReg), strideTile, sgpr(tmpSgpr), \
             "1. N offset: nOffset = nIdx * nStride(%u)" % strideTile)
         # block offset
         if num1DBlocks > 1:
+            tmpVgpr = writer.vgprPool.checkOut(1,"tmpVgpr")
             # generate the code only when num1DBlocks > 1.
             # if num1DBlocks is 1, % num1DBlocks is always 0 and no difference in tReg value
-            kStr += vectorStaticDivide(kReg, kReg, dividedForBlkId, tmpSgpr, \
+            kStr += vectorStaticDivide(tmpVgpr, kReg, dividedForBlkId, tmpSgpr, \
                 "2. block offset: bnIdx = wtid / dividedForBlkId(%u)" % dividedForBlkId)
-            kStr += vectorStaticRemainder(kReg, kReg, num1DBlocks, tmpSgpr, \
+            kStr += vectorStaticRemainder(kReg, tmpVgpr, num1DBlocks, tmpSgpr, \
                 "2. block offset: bnIdx = bnIdx %% num1DBlocks(%u)" % num1DBlocks)
             kStr += staticMultiply(vgpr(kReg), vgpr(kReg), strideBlock, sgpr(tmpSgpr), \
                 "2. block offset: bnOffset = bnIdx * strideBlock(%u)" % strideBlock)
             kStr += inst("_v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
                 "3. add N and block offset: bnOffset = block and N offset")
+            writer.vgprPool.checkIn(tmpVgpr)
         else:
             # comment only because bnIdx = bnIdx % num1DBlocks(1) = 0
             kStr += instCommentOnly("2. block offset: bnIdx = bnIdx %% num1DBlocks(%u) is 0. do nothing" % num1DBlocks)
@@ -212,14 +216,16 @@ class LraTileAssignmentMFMA(LraTileAssignment):
 
         # wave offset
         if num1DWaves > 1:
-            kStr += vectorStaticDivide(kReg, "Serial", dividedForWaveId, tmpSgpr, \
+            tmpVgpr = writer.vgprPool.checkOut(1,"tmpVgpr")
+            kStr += vectorStaticDivide(tmpVgpr, "Serial", dividedForWaveId, tmpSgpr, \
                 "7. wave offset in N dimen: wtid = tid / dividedForWaveId(%u)" % dividedForWaveId)
-            kStr += vectorStaticRemainder(kReg, kReg, num1DWaves, tmpSgpr, \
+            kStr += vectorStaticRemainder(kReg, tmpVgpr, num1DWaves, tmpSgpr, \
                 "7. wave offset in M dimen: wtid0 = wtid / num1DWaves(%u)" % num1DWaves)
             kStr += staticMultiply(vgpr(kReg), vgpr(kReg), strideWave, sgpr(tmpSgpr), \
                 "7. wave offset in M dimen: wOffset = wtid0 * W0Stride(%u)" % strideWave)
             kStr += inst("_v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
                 "8. final local read offset: flrOffset = lrOffset + WOffset")
+            writer.vgprPool.checkIn(tmpVgpr)
 
         # release register
         tP["gpr"]["lro"] = tReg

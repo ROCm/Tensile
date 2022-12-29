@@ -125,6 +125,8 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, doRemaind
         elif divisor >= 3:
             shift = 32+1
         """
+        # does not work with doRemainder and (qReg==dReg or rReg==dReg or qReg==rReg)
+        assert (not (doRemainder and (qReg == dReg or rReg == dReg or qReg==rReg)))
         shift = 32+1
         shiftMinus32 = shift - 32
         magic = ((2**shift) // divisor) + 1
@@ -164,6 +166,8 @@ def vectorStaticRemainder(rReg, dReg, divisor, tmpSgpr, comment=""):
         elif divisor >= 3:
             shift = 32+1
         """
+        # does not work with qReg==rReg
+        assert (rReg != dReg)
         shift = 32+1
         shiftMinus32 = shift - 32
         magic = ((2**shift) // divisor) + 1
