@@ -51,7 +51,7 @@ add_library(TensileClient STATIC ${client_sources})
 
 set_target_properties(TensileClient
                       PROPERTIES
-                      CXX_STANDARD 14
+                      CXX_STANDARD 17
                       CXX_STANDARD_REQUIRED ON
                       CXX_EXTENSIONS OFF)
 
@@ -83,7 +83,7 @@ endif()
 add_executable(tensile_client main.cpp)
 set_target_properties(tensile_client
                       PROPERTIES
-                      CXX_STANDARD 14
+                      CXX_STANDARD 17
                       CXX_STANDARD_REQUIRED ON
                       CXX_EXTENSIONS OFF)
 
