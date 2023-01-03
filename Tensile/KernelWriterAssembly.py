@@ -3605,7 +3605,6 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment1("%s = gro%s-unroll = serial%s%s" \
         % (vgpr(uReg), tc, uOpStr, divisorName) )
 
-    tmpVgpr = None
     tmpSgpr = self.getTmpSgpr(1).idx()
 
     dividendReg = "Serial" # local serial
@@ -3637,8 +3636,9 @@ class KernelWriterAssembly(KernelWriter):
       if num1DWaves > 1:
           # alloc vgpr
           wReg  = self.vgprPool.checkOut(1,"wReg") # quotient
-          kStr += vectorStaticDivide(wReg, dividendReg, waveWidth, tmpSgpr)
-          kStr += vectorStaticRemainder(wReg, wReg, num1DWaves, tmpSgpr)
+          tmpVgpr = self.vgprPool.checkOut(1, 'graTA vgpr', self.preventVgprOverflowDuringNewTile)
+          kStr += vectorStaticDivide(tmpVgpr, dividendReg, waveWidth, tmpSgpr)
+          kStr += vectorStaticRemainder(wReg, tmpVgpr, num1DWaves, tmpSgpr)
           kStr += staticMultiply(vgpr(wReg), vgpr(wReg), strideWave, sgpr(tmpSgpr))
           kStr += inst("_v_add_u32", vgpr(rReg), vgpr(wReg), vgpr(rReg),"")
           # need division for qReg
@@ -3650,6 +3650,7 @@ class KernelWriterAssembly(KernelWriter):
             kStr += staticMultiply(vgpr(qReg), vgpr(qReg), lrvwOther, sgpr(tmpSgpr))
           # release register
           self.vgprPool.checkIn(wReg)
+          self.vgprPool.checkIn(tmpVgpr)
     else:
       divisor2 = divisor
       if kernel["ThreadSeparateGlobalRead%s"%tc]:
@@ -3659,12 +3660,12 @@ class KernelWriterAssembly(KernelWriter):
 
       #split Wavefront threads into groups (ThreadSeparateGlobalRead<<1) fetching depthU/ThreadSeparateGlobalRead<<1 elements per group
       if kernel["ThreadSeparateGlobalRead%s"%tc]:
+        tmpVgpr = self.vgprPool.checkOut(1, 'graTA vgpr', self.preventVgprOverflowDuringNewTile)
         kStr += vectorStaticRemainder(dividendReg, "Serial",self.kernel["WavefrontSize"], tmpSgpr)
-        if tmpVgpr == None:
-          tmpVgpr = self.vgprPool.checkOut(1, 'graTA vgpr', self.preventVgprOverflowDuringNewTile)
         kStr += inst("v_lshrrev_b32", vgpr(tmpVgpr), hex(log2(self.kernel["WavefrontSize"]//(kernel["ThreadSeparateGlobalRead%s"%tc]*2))), vgpr(dividendReg), "ThreadFragmentsize -- groups ( each group with #threads) required for depthU elements")
         kStr += inst("v_lshlrev_b32", vgpr(tmpVgpr), hex(log2(divisor2)),vgpr(tmpVgpr), "ElementIdx")
         kStr += inst("_v_add_u32", vgpr(rReg), vgpr(tmpVgpr), vgpr(rReg), "update gro-Unroll")
+        self.vgprPool.checkIn(tmpVgpr)
 
     if not kernel["WaveSeparateGlobalRead%s"%tc] and kernel["ThreadSeparateGlobalRead%s"%tc]:
       kStr += inst("v_readfirstlane_b32", sgpr(tmpSgpr), vgpr("Serial"), "WaveIdxWavefrontWidth")
@@ -3699,12 +3700,12 @@ class KernelWriterAssembly(KernelWriter):
     if not self.groOffsetInMacroTile:
       # Buffer Load will set the SRD to start of the MacroTile
       # So don't add the static wg-related component here - save for later.
-      if tmpVgpr == None:
-        tmpVgpr = self.vgprPool.checkOut(1, 'graTA vgpr', self.preventVgprOverflowDuringNewTile)
+      tmpVgpr = self.vgprPool.checkOut(1, 'graTA vgpr', self.preventVgprOverflowDuringNewTile)
       kStr += staticMultiply(vgpr(tmpVgpr), sgpr(tP["wg"]), kernel[tP["mt"]])  # workgroup
       kStr += inst("_v_add_co_u32", vgpr(tReg2), self.vcc, vgpr(tmpVgpr), \
           vgpr(tReg), "gro%s-tile = serial%s%s*VW + (wg%s*MT%s)" \
           % (tc, tOpStr, divisorName, tc, tc) )
+      self.vgprPool.checkIn(tmpVgpr)
 
     if kernel["GlobalSplitU"] > 1:
       uReg2 = self.vgprPool.checkOut(1, "uReg2", self.preventVgprOverflowDuringNewTile)
@@ -3713,8 +3714,6 @@ class KernelWriterAssembly(KernelWriter):
     tP["gpr"]["lwoT"] = tReg
     tP["gpr"]["tReg"] = tReg2
     tP["gpr"]["uReg"] = uReg
-    if tmpVgpr != None:
-      self.vgprPool.checkIn(tmpVgpr)
 
     return "" if self.dontAppendCode else kStr
 
@@ -5795,17 +5794,19 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["LocalSplitU"] > 1:
         tmpSgpr = self.getTmpSgpr(1).idx()
         kStr += self.comment("apply exec mask for LSU")
+        tmpVgpr = self.vgprPool.checkOut(1,"tmpVgpr")
         sgId = self.vgprPool.checkOut(1,"sgId")
         numIter = self.vgprPool.checkOut(1,"numIter")
         divisor = kernel["SubGroup0"]*kernel["SubGroup1"]
         kStr += vectorStaticDivide(sgId, "Serial", divisor, tmpSgpr)
-        kStr += inst("v_mov_b32", vgpr(numIter), sgpr("SizesSum+0"), "sizeU to vgpr")
+        kStr += inst("v_mov_b32", vgpr(tmpVgpr), sgpr("SizesSum+0"), "sizeU to vgpr")
         divisor = kernel["DepthU"]
-        kStr += vectorStaticRemainder(numIter, numIter, divisor, tmpSgpr)
+        kStr += vectorStaticRemainder(numIter, tmpVgpr, divisor, tmpSgpr)
         #kStr += dump(vgpr(sgId))
         #kStr += dump(vgpr(numIter))
         kStr += inst("_v_cmpx_lt_u32", self.vcc, \
             vgpr(sgId), vgpr(numIter), "sgId < numIter")
+        self.vgprPool.checkIn(tmpVgpr)
         #self.tailNumIter = numIter
         #self.vgprPool.checkIn(numIter)
         # thread is active is sgId < numIter % LocalSplitU
