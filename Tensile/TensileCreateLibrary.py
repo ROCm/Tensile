@@ -107,6 +107,7 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
             coFileMap[os.path.join(destDir, coName+".co")] += [kernelWriterAssembly.getKernelFileBase(kernel) + '.o']
 
         for coFile, objectFiles in coFileMap.items():
+          args = []
           if os.name == "nt":
             # On Windows, the objectFiles list command line (including spaces)
             # exceeds the limit of 8191 characters, so using response file
@@ -117,23 +118,17 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
               file.write( " ".join(responseArgs) )
               file.flush()
 
-            args = [globalParameters['AssemblerPath'], '-target', 'amdgcn-amd-amdhsa', '-o', coFile, '@clangArgs.txt']
-            # change to use  check_output to force windows cmd block util command finish
-            try:
-              out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)
-              print2(out)
-            except subprocess.CalledProcessError as err:
-              print(err.output)
-              raise
+            args = kernelWriterAssembly.getLinkCodeObjectArgs(['@clangArgs.txt'], coFile)
           else:
             args = kernelWriterAssembly.getLinkCodeObjectArgs(objectFiles, coFile)
-            # change to use  check_output to force windows cmd block util command finish
-            try:
-              out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)
-              print2(out)
-            except subprocess.CalledProcessError as err:
-              print(err.output)
-              raise
+
+          # change to use  check_output to force windows cmd block util command finish
+          try:
+            out = subprocess.check_output(args, stderr=subprocess.STDOUT, cwd=asmDir)
+            print2(out)
+          except subprocess.CalledProcessError as err:
+            print(err.output)
+            raise
 
           coFiles.append(coFile)
       else:
