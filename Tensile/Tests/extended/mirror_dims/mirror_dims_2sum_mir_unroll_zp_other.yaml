@@ -1,3 +1,6 @@
+TestParameters:
+  marks: [skip] # Failing on latest ROCm build, re-enable when passing
+
 GlobalParameters:
   EnqueuesPerSync: 1
   NumElementsToValidate: -1

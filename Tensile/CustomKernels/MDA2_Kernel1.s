@@ -129,7 +129,7 @@ custom.config:
 
 amdhsa.version:
   - 1
-  - 0
+  - 1
 amdhsa.kernels:
   - .name: Translated1
     .symbol: 'Translated1.kd'

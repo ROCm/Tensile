@@ -38,8 +38,8 @@ namespace Tensile
 {
 
     /**
- * \ingroup SolutionLibrary
- */
+     * \ingroup SolutionLibrary
+     */
     template <typename MySolution>
     using SolutionMap = std::map<int, std::shared_ptr<MySolution>>;
 
@@ -54,11 +54,11 @@ namespace Tensile
     };
 
     /**
- * \ingroup SolutionLibrary
- *
- * Root level library object. Contains all individual solutions in a map
- * for serialization purposes.
- */
+     * \ingroup SolutionLibrary
+     *
+     * Root level library object. Contains all individual solutions in a map
+     * for serialization purposes.
+     */
     template <typename MyProblem, typename MySolution = typename MyProblem::Solution>
     struct MasterSolutionLibrary : public SolutionLibrary<MyProblem, MySolution>
     {
@@ -130,11 +130,9 @@ namespace Tensile
                              "default behavior."
                           << std::endl;
                 {
-                    std::lock_guard<std::mutex> guard(solutionsGuard);
-                    auto                        selected_solution = solutions.at(solution_index);
+                    auto selected_solution = getSolutionByIndex(solution_index);
 
-                    if((*selected_solution->problemPredicate)(problem)
-                       && (*selected_solution->hardwarePredicate)(hardware))
+                    if(selected_solution && selected_solution->canSolve(problem, hardware))
                         rv = selected_solution;
                     else
                         return nullptr;
@@ -147,12 +145,27 @@ namespace Tensile
             {
                 if(rv)
                     std::cout << "Library logic solution index of winning solution: "
-                              << rv->info["SolutionIndex"] << std::endl;
+                              << rv->libraryLogicIndex << std::endl;
                 else
                     std::cout << "No solution found" << std::endl;
             }
             return rv;
         }
+
+        std::shared_ptr<MySolution> getSolutionByIndex(int index) const
+        {
+            // will only return solution if already loaded; does not load solutions
+            std::lock_guard<std::mutex> guard(solutionsGuard);
+            if(solutions.find(index) != solutions.end())
+            {
+                return solutions.at(index);
+            }
+            else
+            {
+                return nullptr;
+            }
+        }
+
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
                                                          Hardware const&  hardware) const override
         {

@@ -41,16 +41,15 @@ def replacementDir(dirname):
 
 def test_BadFile():
     with pytest.raises(RuntimeError):
-        obj = ReplacementKernels(replacementDir('bad_file'), 'V3')
+        obj = ReplacementKernels(replacementDir('bad_file'), 'default')
         obj.get("asdf")
 
 def test_DuplicateKernel():
     with pytest.raises(RuntimeError):
-        obj = ReplacementKernels(replacementDir('duplicate_kernel'), 'V3')
+        obj = ReplacementKernels(replacementDir('duplicate_kernel'), 'default')
         obj.get("asdf")
 
-goodObjs = [ReplacementKernels(replacementDir('known_kernels_v2'), "V2"),
-            ReplacementKernels(replacementDir('known_kernels_v3'), "V3")]
+goodObjs = [ReplacementKernels(replacementDir('known_kernels_v3'), "default")]
 
 @pytest.mark.parametrize("obj", goodObjs)
 def test_foo(obj):

@@ -252,7 +252,7 @@ fi
 # TODO: get correct Python version
 CREATE_LIBRARY_EXE=${ROCBLAS_PATH}/build/release/virtualenv/lib/python3.6/site-packages/Tensile/bin/TensileCreateLibrary
 CREATE_LIBRARY_ARGS=(--merge-files --no-short-file-names \
-  --no-library-print-debug --code-object-version=V3 --cxx-compiler=hipcc \
+  --no-library-print-debug --cxx-compiler=hipcc \
   --library-format=msgpack "${MERGE_PATH}" "${TENSILE_LIBRARY_PATH}" HIP)
 
 # create new (tuned) Tensile library

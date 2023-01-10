@@ -89,7 +89,7 @@ custom.config:
    AssertSizeMultiple: {3: 32}
 amdhsa.version:
   - 1
-  - 0
+  - 1
 amdhsa.kernels:
   - .name: DGEMM_Aldebaran_NN_MT128x128x16_MI16x16x4x1_GRVW2_SU4_SUS128_WGM4
     .symbol: 'DGEMM_Aldebaran_NN_MT128x128x16_MI16x16x4x1_GRVW2_SU4_SUS128_WGM4.kd'

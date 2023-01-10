@@ -1,6 +1,56 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.35.0
+## (Unreleased) Tensile 4.36.0
+### Added
+- Add functions for user-driven tuning
+- Add GFX11 support: HostLibraryTests yamls, rearragne FP32(C)/FP64(C) instruction order, archCaps for instruction renaming condition, adjust vgpr bank for A/B/C for optimize, separate vscnt and vmcnt, dual mac
+- Add binary search for Grid-Based algorithm
+- Add reject condition for (StoreCInUnroll + BufferStore=0) and (DirectToVgpr + ScheduleIterAlg<3 + PrefetchGlobalRead==2)
+- Add support for (DirectToLds + hgemm + NN/NT/TT) and (DirectToLds + hgemm + GlobalLoadVectorWidth < 4)
+- Add support for (DirectToLds + hgemm(TLU=True only) or sgemm + NumLoadsCoalesced > 1)
+- Add GSU SingleBuffer algorithm for HSS/BSS
+- Add gfx900:xnack-, gfx1032, gfx1034, gfx1035
+- Enable gfx1031 support
+### Optimizations
+- Use AssertSizeLessThan for BufferStoreOffsetLimitCheck if it is smaller than MT1
+- Improve InitAccVgprOpt
+### Changed
+- Use global_atomic for GSU instead of flat and global_store for debug code
+- Replace flat_load/store with global_load/store
+- Use global_load/store for BufferLoad/Store=0 and enable scheduling
+- LocalSplitU support for HGEMM+HPA when MFMA disabled
+- Update Code Object Version
+- Type cast local memory to COMPUTE_DATA_TYPE in LDS to avoid precision loss
+- Update asm cap cache arguments
+- Unify SplitGlobalRead into ThreadSeparateGlobalRead and remove SplitGlobalRead
+- Change checks, error messages, assembly syntax, and coverage for DirectToLds
+- Remove unused cmake file
+- Clean up the LLVM dependency code
+- Update ThreadSeparateGlobalRead test cases for PrefetchGlobalRead=2
+- Update sgemm/hgemm test cases for DirectToLds and ThreadSepareteGlobalRead
+### Fixed
+- Add build-id to header of compiled source kernels
+- Fix solution index collisions
+- Fix h beta vectorwidth4 correctness issue for WMMA
+- Fix an error with BufferStore=0
+- Fix mismatch issue with (StoreCInUnroll + PrefetchGlobalRead=2)
+- Fix MoveMIoutToArch bug
+- Fix flat load correctness issue on I8 and flat store correctness issue
+- Fix mismatch issue with BufferLoad=0 + TailLoop for large array sizes
+- Fix code generation error with BufferStore=0 and StoreCInUnrollPostLoop
+- Fix issues with DirectToVgpr + ScheduleIterAlg<3
+- Fix mismatch issue with DGEMM TT + LocalReadVectorWidth=2
+- Fix mismatch issue with PrefetchGlobalRead=2
+- Fix mismatch issue with DirectToVgpr + PrefetchGlobalRead=2 + small tile size
+- Fix an error with PersistentKernel=0 + PrefetchAcrossPersistent=1 + PrefetchAcrossPersistentMode=1
+- Fix mismatch issue with DirectToVgpr + DirectToLds + only 1 iteration in unroll loop case
+- Remove duplicate GSU kernels: for GSU = 1, GSUAlgorithm SingleBuffer and MultipleBuffer kernels are identical
+- Fix for failing CI tests due to CpuThreads=0
+- Fix mismatch issue with DirectToLds + PrefetchGlobalRead=2
+- Remove the reject condition for ThreadSeparateGlobalRead and DirectToLds (HGEMM, SGEMM only)
+- Modify reject condition for minimum lanes of ThreadSeparateGlobalRead (SGEMM or larger data type only)
+
+## Tensile 4.35.0 for ROCm 5.4.0
 ### Added
 - Async DMA support for Transpose Data Layout (ThreadSeparateGlobalReadA/B)
 - Option to output library logic in dictionary format

@@ -220,7 +220,7 @@ def checkMacroTileThreadTileWorkGroupMatches(currentSolution):
     else:
       waveFrontSize =   int(currentSolution["WavefrontSize"])
     
-    matrixM,matrixN,TT0,TT1,MT0,MT1,WG0,WG1,waves = calculateMatrixMNThreadTileMacroTileWorkGroupParameters(MIBlock,MIWaveTile,MIWaveGroup,waveFrontSize)
+    TT0,TT1,MT0,MT1,WG0,WG1 = calculateThreadTileMacroTileWorkGroupParameters(MIBlock,MIWaveTile,MIWaveGroup,waveFrontSize)
  
     if not currentSolution.keys() & {'MacroTile0','MacroTile1','ThreadTile','WorkGroup','MatrixInstM','MatrixInstN'}:
       raise RuntimeError("one or more of these fields MacroTile0,MacroTile1,ThreadTile, WorkGroup,MatrixInstM,MatrixInstN is missing in the library logic file!! ..\n")
@@ -242,25 +242,18 @@ def checkMacroTileThreadTileWorkGroupMatches(currentSolution):
    
     if WG1 !=  int(currentSolution["WorkGroup"][1]):
       raise RuntimeError("WorkGroup1 {0} does not match LibLogic value {1}".format(WG1, currentSolution["WorkGroup"][1]))
-
-    if matrixM !=  int(currentSolution["MatrixInstM"]):
-      raise RuntimeError("MatrixInstM {0} does not match LibLogic value {1}".format(matrixM, currentSolution["MatrixInstM"]))
-  
-    if matrixN !=  int(currentSolution["MatrixInstN"]):
-     raise RuntimeError("MatrixInstN {0} does not match LibLogic value {1}".format(matrixN, currentSolution["MatrixInstN"]))
      
-def calculateMatrixMNThreadTileMacroTileWorkGroupParameters(MIBlock,MIWaveTile,MIWaveGroup,waveFrontSize):
-    matrixM = int(MIBlock[0]) *int(MIBlock[4])
-    matrixN = int(MIBlock[1])
+def calculateThreadTileMacroTileWorkGroupParameters(MIBlock,MIWaveTile,MIWaveGroup,waveFrontSize):
+    #Matrix M -->MIBlock[0]
+    #Matrix N -->MIBlock[1]
     TT0 = int(MIWaveTile[0])
     TT1 = int(MIWaveTile[1])*int(MIBlock[1])
-    MT0 =  matrixM*int(MIWaveTile[0])*int(MIWaveGroup[0])
-    MT1 =  matrixN*int(MIWaveTile[1])*int(MIWaveGroup[1])
+    MT0 =  int(MIBlock[0])*int(MIBlock[4])*int(MIWaveTile[0])*int(MIWaveGroup[0])
+    MT1 =  int(MIBlock[1])*int(MIWaveTile[1])*int(MIWaveGroup[1])
     WG0 =  int(MIBlock[0]) * int(MIBlock[4])*int(MIWaveGroup[0])
     WG1 = int(MIWaveGroup[0]) * int(MIWaveGroup[1])*waveFrontSize // int(WG0)
-    waves = int(MIWaveGroup[0])*int(MIWaveGroup[1])
     
-    return matrixM,matrixN,TT0,TT1,MT0,MT1,WG0,WG1,waves
+    return TT0,TT1,MT0,MT1,WG0,WG1
 
 def writeToTensileYamlFile(tensileYamlFile, tensileYamlData):
     try:

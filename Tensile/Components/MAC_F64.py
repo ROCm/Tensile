@@ -39,11 +39,11 @@ class FMA_F64_Plain(MAC):
         vars["m"] = m
         vars["ThreadTile0"] = kernel["ThreadTile0"]
 
-        for b in range(0, kernel["ThreadTile1"]):
-            vars["b"] = b
-            for a in range(0, kernel["ThreadTile0"]):
-                vars["a"] = a
-                for iui in range(0, innerUnroll):
+        for iui in range(0, innerUnroll):
+            for b in range(0, kernel["ThreadTile1"]):
+                for a in range(0, kernel["ThreadTile0"]):
+                    vars["b"] = b
+                    vars["a"] = a
                     vars["iui"] = iui
                     vars["cStr"] = "v[vgprValuC+({a}+{b}*{ThreadTile0})*2:(vgprValuC+{a}+{b}*{ThreadTile0})*2+1]".format_map(vars)
                     vars["aStr"] = "v[vgprValuA_X{m}_I{iui}+{a}*2:vgprValuA_X{m}_I{iui}+{a}*2+1]".format_map(vars)
