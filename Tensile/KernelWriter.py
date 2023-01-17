@@ -3127,6 +3127,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if self.enable["GlobalRead"]:
           # tail: global read
           kl.append(self.calculateLoopNumIter(kernel, -1, False))
+          kl.append(self.openPreTailLoop(kernel))
           if self.staggerU and self.actualSummationLoops==1:
             kl.append(self.comment("remove stagger offsets for tail loop"))
             kl.append(self.removeStagger(kernel, tensorParametersA))
@@ -3154,6 +3155,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kl.append(self.comment("global read %s"%tc2))
           vregSetIdx = 0
           kl.append(str(self.globalReadDo(kernel, 2, tensorParameters2nd, vregSetIdx)))
+          kl.append(self.closePreTailLoop(kernel))
         if self.enable["Wait"]:
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "2wait for global read"))
         if self.enable["Sync"]:
@@ -4016,6 +4018,18 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   @abc.abstractmethod
   def graWorkGroup(self, kernel, isPap):
+    return ""
+
+  ##############################################################################
+  #  
+  ##############################################################################
+  def openPreTailLoop(self, kernel):
+    return ""
+
+  ##############################################################################
+  # 
+  ##############################################################################
+  def closePreTailLoop(self, kernel):
     return ""
 
   ##############################################################################

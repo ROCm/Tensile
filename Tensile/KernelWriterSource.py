@@ -1263,6 +1263,28 @@ class KernelWriterSource(KernelWriter):
     #      % (wg0, wg1)+ self.endLine
     return kStr
 
+  ##############################################################################
+  # openPreTailLoop
+  ##############################################################################
+  def openPreTailLoop(self, kernel):
+    kStr = ""
+    loopIdx = self.unrollIdx
+    loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][loopIdx]]
+    kStr += "%sif (numIter%s)%s" %(self.indent,loopChar,self.endLine)
+    kStr += "%s{%s" %(self.indent,self.endLine)
+    self.indent += "  "
+    return kStr
+
+
+  ##############################################################################
+  # closePreTailLoop
+  ##############################################################################
+  def closePreTailLoop(self, kernel):
+    kStr = ""
+    self.indent = self.indent[2:]
+    kStr += "%s}%s" %(self.indent,self.endLine)
+    return kStr
+    
 
   ##############################################################################
   # Global Read Addresses: Tile Assignment A/B
@@ -1943,8 +1965,8 @@ class KernelWriterSource(KernelWriter):
                   % (tP["tensorChar"], para, sPara, perp, sPerp)
 
             if self.staggerU:
-              kStr += "  %s += ((origNumIter - (staggerUIter - %u)) * globalReadInc%s%s); // remove stagger offset%s" \
-                      % (gr, kernel["PrefetchGlobalRead"], tc, loopChar, self.endLine)
+              kStr += "%s%s += ((origNumIter - (staggerUIter - %u)) * globalReadInc%s%s); // remove stagger offset%s" \
+                      % (self.indent,gr, kernel["PrefetchGlobalRead"], tc, loopChar, self.endLine)
 
               if self.db["PrintStagger"]:
                 kStr += "if (%s(2)==0 && %s(1)==0 && %s(0) <= 8)%s" % \
