@@ -327,6 +327,10 @@ namespace Tensile
             for(auto& v : m_fanValues)
                 v = 0;
 
+            m_hasInvalidGpuMetricStatus = false;
+            m_freqValues.clear();
+            m_powerValues.clear();
+            m_tempHotspotValues.clear();
             m_lastCollection = clock::time_point();
             m_nextCollection = clock::time_point();
         }
@@ -387,7 +391,95 @@ namespace Tensile
                     m_fanValues[i] += newValue;
             }
 
+            rsmi_gpu_metrics_t gpuMetrics;
+            auto status = rsmi_dev_gpu_metrics_info_get(m_smiDeviceIndex, &gpuMetrics);
+            if(status != RSMI_STATUS_SUCCESS)
+            {
+                m_hasInvalidGpuMetricStatus = true;
+            }
+            else
+            {
+                if(!m_hasInvalidGpuMetricStatus)
+                {
+                    m_freqValues.push_back(gpuMetrics.average_gfxclk_frequency);
+                    m_powerValues.push_back(gpuMetrics.average_socket_power);
+                    m_tempHotspotValues.push_back(gpuMetrics.temperature_hotspot);
+                }
+            }
             m_dataPoints++;
+        }
+
+        double HardwareMonitor::getAverageGfxFreqPowerTemperature(
+            std::vector<uint16_t>& inputDataValues)
+        {
+            assertNotActive();
+
+            if(m_dataPoints == 0)
+                throw std::runtime_error("No data points collected!");
+            if(m_hasInvalidGpuMetricStatus)
+                return std::numeric_limits<double>::quiet_NaN();
+
+            return (std::accumulate(inputDataValues.begin(), inputDataValues.end(), double(0)))
+                   / inputDataValues.size();
+        }
+
+        double HardwareMonitor::getMedianGfxFreqPowerTemperature(
+            std::vector<uint16_t>& inputDataValues)
+        {
+            assertNotActive();
+
+            if(m_dataPoints == 0)
+                throw std::runtime_error("No data points collected!");
+            if(m_hasInvalidGpuMetricStatus)
+                return std::numeric_limits<double>::quiet_NaN();
+
+            size_t midValueIndex = inputDataValues.size() / 2;
+            std::nth_element(inputDataValues.begin(),
+                             inputDataValues.begin() + midValueIndex,
+                             inputDataValues.end());
+            return static_cast<double>(inputDataValues[midValueIndex]);
+        }
+
+        void HardwareMonitor::logMinMaxMedianAverage()
+        {
+            assertNotActive();
+            if(m_hasInvalidGpuMetricStatus)
+                throw std::runtime_error("Invalid GPU metric data!");
+            if(m_dataPoints == 0)
+                throw std::runtime_error("No data points collected!");
+
+            std::cout << "\nROCm SMI API consolidated frequency,power,temperature data"
+                      << "\n";
+            std::cout << "GFX Value\t\t\t\t"
+                      << "PPT0_value\t\t\t"
+                      << "Temperature\n";
+            // Log individual data
+            for(int i = 0; i < m_freqValues.size(); i++)
+            {
+                std::cout << std::left << std::setw(13) << m_freqValues[i] << "\t\t\t\t"
+                          << m_powerValues[i] << "\t\t\t\t\t" << m_tempHotspotValues[i] << "\n";
+            }
+
+            std::cout << "\n";
+            std::cout << "\t\t\t\t\tMin\t\t"
+                      << "Max\t\t"
+                      << "Average\t  "
+                      << "Median\n";
+            // min, max,avg, median frequency
+            printMinMaxAverageMedian("GFX Frequency", m_freqValues);
+            printMinMaxAverageMedian("Power Value", m_powerValues);
+            printMinMaxAverageMedian("Temperature", m_tempHotspotValues);
+        }
+
+        void HardwareMonitor::printMinMaxAverageMedian(const std::string&     str,
+                                                       std::vector<uint16_t>& dataValues)
+        {
+            std::cout << std::left << std::setw(20) << str << std::setw(8)
+                      << *std::min_element(dataValues.begin(), dataValues.end());
+            std::cout << std::setw(8) << *std::max_element(dataValues.begin(), dataValues.end());
+            std::cout << std::setw(10) << std::fixed << std::setprecision(2)
+                      << getAverageGfxFreqPowerTemperature(dataValues);
+            std::cout << std::setw(8) << getMedianGfxFreqPowerTemperature(dataValues) << "\n";
         }
 
         void HardwareMonitor::sleepIfNecessary()
