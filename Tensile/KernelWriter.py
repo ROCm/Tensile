@@ -3333,6 +3333,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.comment("LocalSplitU: local write"))
         kl.append(self.localSplitULocalWrite(kernel))
 
+        # Use non-MI pass for MI + LSU>1
+        backup = kernel["EnableMatrixInstruction"]
+        if backup:
+          serializedStoreBackup = self.serializedStore
+          kernel["EnableMatrixInstruction"] = False
+          self.serializedStore = False
+
         # LocalSplitU: local read
         kl.append(self.comment("LocalSplitU: local read"))
         kl.append(self.localSplitULocalRead(kernel))
@@ -3349,6 +3356,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.comment("LocalSplitU: global write"))
         kl.append(self.localSplitUGlobalWrite(kernel))
 
+        # restore backup for MI + LSU>1
+        if backup:
+          kernel["EnableMatrixInstruction"] = True
+          self.serializedStore = serializedStoreBackup
 
       else:
         ####################################
@@ -3618,7 +3629,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # DirectToVgprB + VW > 1 case, set lrvwB = VW
     # DirectToVgprB case, global load data directly goes to Vgpr.
     # If VW=2, it means lrwvB is 2.
-    if kernel["DirectToVgprB"] and kernel["VectorWidth"] > 1:
+    #if kernel["DirectToVgprB"] and kernel["VectorWidth"] > 1:
+    if kernel["DirectToVgprB"]:
       self.lrvwB = kernel["VectorWidth"]
     # DirectToVgpr + TLU=False case
     # set lrvw = VW

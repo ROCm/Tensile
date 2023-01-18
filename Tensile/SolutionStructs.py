@@ -1873,7 +1873,6 @@ class Solution(collections.abc.Mapping):
       state["MatrixInstBM"]        = state["MIBlock"][4]
       state["MatrixInstBN"]        = state["MIBlock"][5]
 
-      state["LocalSplitU"]         = 1
       state["MIOutputVectorWidth"], state["MIRegPerOut"] = Solution.getMIOutputInfo(state)
 
       if state["MatrixInstM"] == 4:
@@ -1893,12 +1892,18 @@ class Solution(collections.abc.Mapping):
 
       state["SubGroup0"]   = state["WorkGroup"][0]
       state["SubGroup1"]   = state["WorkGroup"][1]
-      state["LocalSplitU"] = state["WorkGroup"][2]
+
+    state["LocalSplitU"] = state["WorkGroup"][2]
 
     if "SubGroup0" in state and "SubGroup1" in state and "LocalSplitU" in state:
       state["NumThreads"]  = state["SubGroup0"] * state["SubGroup1"] * state["LocalSplitU"]
       if (state["NumThreads"] % state['WavefrontSize']) != 0:
         reject(state, f"size of WorkGroup {state['NumThreads']} should be multiple of WavefrontSize {state['WavefrontSize']}")
+      if EnableMatrixInstruction == True:
+        if ((state["SubGroup0"] * state["SubGroup1"]) % state['WavefrontSize']) != 0:
+          reject(state, f"SubGroup0 {state['SubGroup0']} * SubGroup1 {state['SubGroup1']}should be multiple of WavefrontSize {state['WavefrontSize']}")
+        if (state["LocalSplitU"] > 4):
+          reject(state, f"LocalSplitU {state['LocalSplitU']} should not be larger than 4 with MatrixInstruction")
 
     # macro tile sizes
     if "SubGroup0" in state and "ThreadTile0" in state:
@@ -1996,7 +2001,7 @@ class Solution(collections.abc.Mapping):
         if state["ProblemType"]["TLU%s"%tc]:
           nlcStart = roundupRatio(state["MIWaveTile%s"%tc], state["GlobalLoadVectorWidth%s"%tc])
         else:
-          nlcStart = roundupRatio(state["DepthU"], state["MatrixInstK"] * state["GlobalLoadVectorWidth%s"%tc])
+          nlcStart = roundupRatio(state["DepthU"], state["MatrixInstK"] * state["GlobalLoadVectorWidth%s"%tc] * state["LocalSplitU"])
       for nlc in range(nlcStart, int(state["NumLoads%s"%tc]+1)):
         nlp = state["NumLoads%s"%tc] // nlc
         if state["NumLoads%s"%tc] % nlc == 0 \
@@ -2297,7 +2302,7 @@ class Solution(collections.abc.Mapping):
       state["MIBlock"][5] = MIBlock_BN
 
       # set MIWaveGroup
-      numOfWave                = (state["WorkGroup"][0] * state["WorkGroup"][1]) // state["WavefrontSize"]
+      numOfWave                = max((state["WorkGroup"][0] * state["WorkGroup"][1]) // state["WavefrontSize"], 1) # should be >0
       state['MIWaveGroup']     = [1, 1]
       state['MIWaveGroup'][0]  = min((miwg0 // state["MatrixInstruction"][0]) // MIBlock_BM, numOfWave)
       state['MIWaveGroup'][1]  = numOfWave // state['MIWaveGroup'][0]
@@ -2347,6 +2352,11 @@ class Solution(collections.abc.Mapping):
   def isDirectToVgprDoable(state, tc):
     tcOther = 'B' if tc == 'A' else 'A'
     MIindex = 0 if tc == 'A' else 1
+    # Does not support DirectToVgprA+DirectToVgprB (TODO)
+    if state["DirectToVgprA"] and state["DirectToVgprB"] :
+      reject(state, "DirectToVgprA + DirectToVgprB is not supported yet")
+      return False
+
     # With MatrixInstruction only (tentative)
     if not state["EnableMatrixInstruction"] :
       reject(state, "DirectToVgpr is for MatrixInstruction only")
@@ -2371,11 +2381,11 @@ class Solution(collections.abc.Mapping):
     #  for A, MIWaveGroup should be [4, 1]
     #  for B, MIWaveGroup should be [1, 4]
     # This is to limit the number of Vgpr
-    if tc == 'A' and not (state['MIWaveGroup'][0] == 4 and state['MIWaveGroup'][1] == 1):
-      reject(state, "MIWaveGroup should be [4, 1] for DirectToVgprA. Current value is [%s]"%state['MIWaveGroup'])
+    if tc == 'A' and not (state['MIWaveGroup'][1] == 1):
+      reject(state, "MIWaveGroup[1] should be 1 for DirectToVgprA. Current value is [%s]"%state['MIWaveGroup'][1])
       return False
-    if tc == 'B' and not (state['MIWaveGroup'][0] == 1 and state['MIWaveGroup'][1] == 4):
-      reject(state, "MIWaveGroup should be [1, 4] for DirectToVgprB. Current value is [%s]"%state['MIWaveGroup'])
+    if tc == 'B' and not (state['MIWaveGroup'][0] == 1):
+      reject(state, "MIWaveGroup[0] should be 1 for DirectToVgprB. Current value is [%s]"%state['MIWaveGroup'][0])
       return False
 
     # Does not support MatrixInstBM, MatrixInstBN > 1
@@ -2424,14 +2434,14 @@ class Solution(collections.abc.Mapping):
       reject(state, "DirectToVgpr%c does not supports FractionalLoad + TLU=False"%(tc))
       return False
 
-    # Does not work with TLU=False and PGR=2 and DepthU<=MatrixInstK*VW
-    if (not state["ProblemType"]["TLU%c"%tc]) and state["PrefetchGlobalRead"] == 2 and state["DepthU"] <= state["MatrixInstK"] * state["VectorWidth"]:
-      reject(state, "DirectToVgpr%c does not supports TLU=False and PrefetchGlobalRead==2 and DepthU<=MatrixInstK*VectorWidth"%(tc))
+    # Does not work with TLU=False and PGR=2 and DepthU<=MatrixInstK*VW*LSU
+    if (not state["ProblemType"]["TLU%c"%tc]) and state["PrefetchGlobalRead"] == 2 and state["DepthU"] <= state["MatrixInstK"] * state["VectorWidth"] * state["LocalSplitU"]:
+      reject(state, "DirectToVgpr%c does not supports TLU=False and PrefetchGlobalRead==2 and DepthU<=MatrixInstK*VectorWidth*LocalSplitU"%(tc))
       return False
 
-    # Does not work with TLU=False and NumLoadsCoalesced != DepthU//(MatrixInstK*VW)
-    if (not state["ProblemType"]["TLU%c"%tc]) and state["NumLoadsCoalesced%c"%tc] != state["DepthU"] // (state["MatrixInstK"] * state["VectorWidth"]):
-      reject(state, "DirectToVgpr%c does not supports TLU=False and NumLoadsCoalesced%c != DepthU//(MatrixInstK*VectorWidth)"%(tc, tc))
+    # Does not work with TLU=False and NumLoadsCoalesced != DepthU//(MatrixInstK*VW*LSU)
+    if (not state["ProblemType"]["TLU%c"%tc]) and state["NumLoadsCoalesced%c"%tc] != state["DepthU"] // (state["MatrixInstK"] * state["VectorWidth"] * state["LocalSplitU"]):
+      reject(state, "DirectToVgpr%c does not supports TLU=False and NumLoadsCoalesced%c != DepthU//(MatrixInstK*VectorWidth*LocalSplitU)"%(tc, tc))
       return False
 
     # Both TLU=False + TransposeLDS case, need GlobalLoadVectorWidth == LocalReadVectorWidth
@@ -2453,6 +2463,11 @@ class Solution(collections.abc.Mapping):
     # Does not work with SIA<3 and PGR=2
     if state["ScheduleIterAlg"] < 3 and state["PrefetchGlobalRead"] == 2:
       reject(state, "DirectToVgpr%c does not supports ScheduleIterAlg < 3 and PrefetchGlobalRead==2"%(tc))
+      return False
+
+    # Does not work with DirectToVgprB + SourceSwap=False + VectorWidth>1
+    if tc == 'B' and (not state["SourceSwap"]) and state["VectorWidth"]>1:
+      reject(state, "DirectToVgpr%c does not supports SourceSwap=False and VectorWidth>1"%(tc))
       return False
 
     # Does not work with DirectToLDS
@@ -2585,6 +2600,11 @@ class Solution(collections.abc.Mapping):
        numBytes * state["GlobalLoadVectorWidth%c"%tc] > bpr and \
        state["DepthU"] // state["NumLoadsCoalesced%c"%tc] <= 8 * numElementPerReg:
       reject(state, "DirectToLds%c does not work with TLU=False and bpe * GLVW > bpr and DepthU//NumLoadsCoalesced%c <= 8 * numElementPerReg(%u)"%(tc, tc, numElementPerReg))
+      return False
+
+    # Does not work with LocalSplitU
+    if state["LocalSplitU"] > 1:
+      reject(state, "DirectToLds%c does not work with LocalSplitU>1"%(tc))
       return False
 
     return True
@@ -3514,10 +3534,9 @@ class Solution(collections.abc.Mapping):
         #1LDS buffer must be 0 for DirectToLdsA
         state["1LDSBuffer"] = 0
 
-    # set NoLdsWriteCode if DirectToLds + DirectToVgpr or DirectToLdsA+B is enabled
+    # set NoLdsWriteCode if both A and B use DirectToLds or DirectToVgpr
     state["NoLdsWriteCode"] = False
-    if (state["DirectToVgprA"] and state["DirectToLdsB"]) or (state["DirectToVgprB"] and state["DirectToLdsA"]) or \
-        (state["DirectToLdsA"] and state["DirectToLdsB"]):
+    if (state["DirectToVgprA"] or state["DirectToLdsA"]) and (state["DirectToVgprB"] or state["DirectToLdsB"]):
       state["NoLdsWriteCode"] = True
 
     # Default LocalReadVectorWidth
@@ -3619,7 +3638,8 @@ class Solution(collections.abc.Mapping):
       state["LdsOffsetB"] = state["LdsOffsetA"] + state["LdsNumElementsAlignedA"]
 
       offsetBlk = state["LdsOffsetB"] + ldsNumElementsAlignedB
-      offsetBlk = int(2**(math.ceil(math.log(offsetBlk, 2))))
+      if offsetBlk>0: # need 0 check to avoid an error
+        offsetBlk = int(2**(math.ceil(math.log(offsetBlk, 2))))
 
       state["LdsOffsetA_Blk"] = offsetBlk
       state["LdsOffsetB_Blk"] = state["LdsOffsetA_Blk"] + state["LdsNumElementsAlignedA"]
@@ -3860,6 +3880,9 @@ class Solution(collections.abc.Mapping):
     if state["StoreCInUnroll"]:
       if not (state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isDoubleComplex()):
         reject(state, "StoreCInUnroll currently only available for dgemm/zgemm")
+        return
+      if state["LocalSplitU"]>1:
+        reject(state, "LocalSplitU is not supported for StoreCinUnroll")
         return
       if state["MIArchVgpr"]:
         reject(state, "MIArchVgpr is not supported for StoreCinUnroll")
