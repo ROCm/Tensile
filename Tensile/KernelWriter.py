@@ -3333,13 +3333,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.comment("LocalSplitU: local write"))
         kl.append(self.localSplitULocalWrite(kernel))
 
-        # Use non-MI pass for MI + LSU>1
-        backup = kernel["EnableMatrixInstruction"]
-        if backup:
-          serializedStoreBackup = self.serializedStore
-          kernel["EnableMatrixInstruction"] = False
-          self.serializedStore = False
-
         # LocalSplitU: local read
         kl.append(self.comment("LocalSplitU: local read"))
         kl.append(self.localSplitULocalRead(kernel))
@@ -3355,11 +3348,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # LocalSplitU: global write
         kl.append(self.comment("LocalSplitU: global write"))
         kl.append(self.localSplitUGlobalWrite(kernel))
-
-        # restore backup for MI + LSU>1
-        if backup:
-          kernel["EnableMatrixInstruction"] = True
-          self.serializedStore = serializedStoreBackup
 
       else:
         ####################################

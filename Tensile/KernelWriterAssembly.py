@@ -1335,7 +1335,9 @@ class KernelWriterAssembly(KernelWriter):
       #              startVgprReuse ^         ^
       #                             lastValuC ^
       # TODO a bit tricky. Better to manage all GPRs solely through RegisterPool
-      self.serializedStore = True
+      # enable serializedStore only for EnableMatrixInstruction enabled case
+      if kernel["EnableMatrixInstructionStore"]:
+        self.serializedStore = True
 
       ########################################
       # AGPR Allocation
@@ -6546,10 +6548,16 @@ class KernelWriterAssembly(KernelWriter):
               bi  = vgpr("G2LB+%u+%u+%u+%u" % (b_new, vgprBufferB_new_offset, iuiB_new_offset, numRegistersOut), numRegistersOut)
             v_mfma = "v_%s_%s_%ux%ux%u%s%s "%(instructionName, miOutTypeName, kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], instructionStep, miInTypeName)
             v_add = "v_add_" + miOutTypeName
+            # negate code for Ai
+            # necessary when ccA == ccB or ccA
+            # the location to add negation is different between ccA == ccB and ccA
+            #   index = 0 for ccA == ccB
+            #   index = 1 for ccA
+            # if ccA == ccB and ccA, we need negation twice for index 0 and 1 (but we need to calculate -Ai only once)
             if ccA == ccB:
               arrayIndex = 0
               ccVgprs[arrayIndex] = self.vgprPool.checkOutAligned(numRegistersOut, numRegistersOut, "negate r1")
-              # generate negate code only when same code is not generated (avoid generating same (redundant) code again
+              # generate negate code only when same code is not generated (avoid generating same (redundant) code again)
               if (ai not in zgemmVaddSrcCheck[arrayIndex]):
                 ccInsts[arrayIndex] = inst(v_add, vgpr(ccVgprs[arrayIndex], numRegistersOut), "-"+ai, "0", "Ai=-Ai")
                 zgemmVaddSrcCheck[arrayIndex].append(ai)
@@ -6559,14 +6567,15 @@ class KernelWriterAssembly(KernelWriter):
             elif ccA:
               arrayIndex = 1
               ccVgprs[arrayIndex] = self.vgprPool.checkOutAligned(numRegistersOut, numRegistersOut, "negate i0")
-              # generate negate code only when same code is not generated (avoid generating same (redundant) code again
+              # generate negate code only when same code is not generated (avoid generating same (redundant) code again)
               if (ai not in zgemmVaddSrcCheck[arrayIndex]):
                 ccInsts[arrayIndex] = inst(v_add, vgpr(ccVgprs[arrayIndex], numRegistersOut), "-"+ai, "0", "Ai=-Ai")
                 zgemmVaddSrcCheck[arrayIndex].append(ai)
+            # negate code for Ar
             if ccB:
               arrayIndex = 2
               ccVgprs[arrayIndex] = self.vgprPool.checkOutAligned(numRegistersOut, numRegistersOut, "negate i1")
-              # generate negate code only when same code is not generated (avoid generating same (redundant) code again
+              # generate negate code only when same code is not generated (avoid generating same (redundant) code again)
               if (ar not in zgemmVaddSrcCheck[arrayIndex]):
                 ccInsts[arrayIndex] = inst(v_add, vgpr(ccVgprs[arrayIndex], numRegistersOut), "-"+ar, "0", "Ar=-Ar")
                 zgemmVaddSrcCheck[arrayIndex].append(ar)
@@ -10160,7 +10169,7 @@ class KernelWriterAssembly(KernelWriter):
           self.numElementsPerBatchLimitedBySgprs = 1 # dummy value
             #assert self.numElementsPerBatchLimitedBySgprs > 0, "numElementsPerBatchLimitedBySgprs=0 for %s"%self.kernelName
 
-        kernelWriter.HHH_WMMA = kernel["EnableMatrixInstruction"] \
+        kernelWriter.HHH_WMMA = kernel["EnableMatrixInstructionStore"] \
                                 and kernelWriter.asmCaps["HasWMMA"] \
                                 and kernel["ProblemType"]["DestDataType"].isHalf() \
                                 and (not kernel["ProblemType"]["HighPrecisionAccumulate"])
@@ -10315,7 +10324,7 @@ class KernelWriterAssembly(KernelWriter):
 
       kw = self.kernelWriter
 
-      if kernel["EnableMatrixInstruction"]:
+      if kernel["EnableMatrixInstructionStore"]:
         matrixInstM  = (kernel["MatrixInstM"] * kernel["MatrixInstBM"]) if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstM"]
         matrixInstN  = (kernel["MatrixInstN"] * kernel["MatrixInstBN"]) if (kernel["MatrixInstN"] == 4) else kernel["MatrixInstN"]
         matrixInstBM = 1                                                if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstBM"]
@@ -10339,7 +10348,7 @@ class KernelWriterAssembly(KernelWriter):
         (d1,d0,vc1,vc0) = element
 
         coordOffset1 = 0
-        if kernel["EnableMatrixInstruction"]:
+        if kernel["EnableMatrixInstructionStore"]:
           vc1Scale = lrvwB if (allowLRVWBforTLUandMI or kernel["DirectToVgprB"]) else 1
           MIOutputVectorWidth = kernel["MIOutputVectorWidth"]
           MFMAContinuousOutputs = MIOutputVectorWidth if kernel["SourceSwap"] else 1
@@ -10367,7 +10376,7 @@ class KernelWriterAssembly(KernelWriter):
 
         # gpr and offset assignments for element
         coordOffset0 = 0
-        if kernel["EnableMatrixInstruction"]:
+        if kernel["EnableMatrixInstructionStore"]:
           vectorWidth = kernel["VectorWidth"] if kernel["SourceSwap"] else 1 # TODO: nonSwap VectorWidth
           MFMAContinuousOutputs = 1 if kernel["SourceSwap"] else kernel["MIOutputVectorWidth"]
           OutputsPerMIMN        = 1 if kernel["SourceSwap"] else matrixInstM * matrixInstN // self.kernel["WavefrontSize"]
@@ -10391,7 +10400,7 @@ class KernelWriterAssembly(KernelWriter):
           addrDVgpr = self.sharedColDVgprs
           addrCVgpr = self.sharedColCVgprs
         elif self.optSharedColVgpr:
-          if kernel["EnableMatrixInstruction"]:
+          if kernel["EnableMatrixInstructionStore"]:
             elementCol = (d0 * kernel["MIOutputVectorWidth"] + vc0) / gwvw
           else:
             elementCol = (d0 * kernel["VectorWidth"] + vc0) / gwvw
@@ -10463,7 +10472,7 @@ class KernelWriterAssembly(KernelWriter):
           if elementsLoadedPerVw < elementsLoadedPerbestVw:
             bestVw = kernel["StoreVectorWidth"]
 
-          if kernel["EnableMatrixInstruction"]:
+          if kernel["EnableMatrixInstructionStore"]:
             alignment = self.cfg.numVgprPerValuC * self.cfg.gwvw
             sumIdx    = kw.vgprPool.checkOutAligned(self.cfg.numVgprPerValuC*self.cfg.gwvw, alignment, "vgprValuC") // self.cfg.numVgprPerValuC
           else:
@@ -10832,7 +10841,7 @@ class KernelWriterAssembly(KernelWriter):
       #   For MFMA shift pointer, correct data is stored in another thread.
       #   Therefore, MFMA cannot use v_mov to amend store data
       #   It needs to modify the coord1 of thread directly.
-      if (not kernel["SourceSwap"]) and (not kernel["GuaranteeNoPartialB"]) and kw.readTileDimVectorB and kernel["EnableMatrixInstruction"] and edge:
+      if (not kernel["SourceSwap"]) and (not kernel["GuaranteeNoPartialB"]) and kw.readTileDimVectorB and kernel["EnableMatrixInstructionStore"] and edge:
         (d1,d0,vc1,vc0) = self.element
         if (d1 == vc1 == d0 == vc0 == 0) or self.newCoord1:
           sgprCnt = self.kernelWriter.laneSGPRCount
@@ -11270,7 +11279,7 @@ class KernelWriterAssembly(KernelWriter):
           # only do an even number of halves - since these share hi/lo pieces of some registers?
           if numElementsPerBatch > 1:
             numElementsPerBatch = int(numElementsPerBatch/2)*2
-          elif not kernel["EnableMatrixInstruction"]:
+          elif not kernel["EnableMatrixInstructionStore"]:
             # The globalWriteBatch routine below can't handle odd elements per batch
             # and 0 elements per batch is illegal.
             # so if we don't have *GPR resources to handle a larger batch then need
@@ -11559,7 +11568,7 @@ class KernelWriterAssembly(KernelWriter):
 
         if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
           # (H,H,H,H,H,H), internal H
-          if globalParameters["AsmCaps"][self.version]["HasWMMA"] and kernel["EnableMatrixInstruction"]:
+          if globalParameters["AsmCaps"][self.version]["HasWMMA"] and kernel["EnableMatrixInstructionStore"]:
             kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx, rpv, addr0, addr1, addrCalc.globalOffset, ntStr, hi16=0)
           else:
             kStr += self.chooseGlobalWrite(useBuffer, bps, sumIdx//2, rpv, addr0, addr1, addrCalc.globalOffset, ntStr, hi16=sumIdx%2)
@@ -12379,7 +12388,7 @@ class KernelWriterAssembly(KernelWriter):
             sumIdxV = ss.elementSumIdx[elementIdx] + vi
             if kernel["ProblemType"]["DestDataType"].isHalf():
               if not kernel["ProblemType"]["HighPrecisionAccumulate"]:
-                if self.asmCaps["HasWMMA"] and kernel["EnableMatrixInstruction"]:
+                if self.asmCaps["HasWMMA"] and kernel["EnableMatrixInstructionStore"]:
                   dataV = ss.elementData[elementIdx] + int(vi / 2 * ss.cfg.numVgprsPerDataPerVI)
                   if (vi % 2) == 0:
                       kStr += inst("v_pk_mul_f16", vgpr(dataV), sgpr("Beta"), vgpr(dataV+0), \
@@ -12515,7 +12524,7 @@ class KernelWriterAssembly(KernelWriter):
                 d = ss.elementSumIdx[elementIdx] + vi//2
                 kStr += inst("v_and_or_b32", vgpr(d), vgpr("ValuC+%u"%sumIdxV), vgpr(vgprBf16Mask), vgpr("ValuC+%u"%(sumIdxV-1)), "pack two bf16 to dword")
 
-        if self.asmCaps["HasWMMA"] and kernel["EnableMatrixInstruction"] and kernel["ProblemType"]["DestDataType"].isHalf() and (not kernel["ProblemType"]["HighPrecisionAccumulate"]):
+        if self.asmCaps["HasWMMA"] and kernel["EnableMatrixInstructionStore"] and kernel["ProblemType"]["DestDataType"].isHalf() and (not kernel["ProblemType"]["HighPrecisionAccumulate"]):
           for vi in range(0, gwvw):
             sumIdxV = ss.elementSumIdx[elementIdx] + vi
             if vi%2 == 1:

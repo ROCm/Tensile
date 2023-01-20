@@ -26,7 +26,7 @@ from ..Component import ComputeStoreVgprs
 from ..AsmUtils import log2, vectorStaticDivideAndRemainder, staticMultiply, vgpr, sgpr, inst, vectorStaticDivide, vectorStaticRemainder
 
 class ComputeStoreVgprsVALU(ComputeStoreVgprs):
-    kernel = {"EnableMatrixInstruction": False}
+    kernel = {"EnableMatrixInstructionStore": False}
 
     """
     computeStoreVgprs
@@ -128,7 +128,7 @@ class ComputeStoreVgprsVALU(ComputeStoreVgprs):
         return kStr
 
 class ComputeStoreVgprsMFMA(ComputeStoreVgprs):
-    kernel = {"EnableMatrixInstruction": True,
+    kernel = {"EnableMatrixInstructionStore": True,
               "SourceSwap": False}
 
     """
@@ -229,7 +229,7 @@ class ComputeStoreVgprsMFMA(ComputeStoreVgprs):
         return kStr
 
 class ComputeStoreVgprsMFMASwap(ComputeStoreVgprs):
-    kernel = {"EnableMatrixInstruction": True,
+    kernel = {"EnableMatrixInstructionStore": True,
               "SourceSwap": True}
 
     """

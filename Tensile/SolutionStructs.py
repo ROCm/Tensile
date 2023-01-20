@@ -1894,6 +1894,9 @@ class Solution(collections.abc.Mapping):
       state["SubGroup1"]   = state["WorkGroup"][1]
 
     state["LocalSplitU"] = state["WorkGroup"][2]
+    # enable MatrixInstruction store only for LSU=1
+    # LSU>1 case, use non-MI store instead
+    state["EnableMatrixInstructionStore"] = EnableMatrixInstruction and state["LocalSplitU"]==1
 
     if "SubGroup0" in state and "SubGroup1" in state and "LocalSplitU" in state:
       state["NumThreads"]  = state["SubGroup0"] * state["SubGroup1"] * state["LocalSplitU"]
