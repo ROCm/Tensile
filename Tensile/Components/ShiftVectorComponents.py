@@ -61,7 +61,10 @@ class ShiftVectorComponentsVALU(ShiftVectorComponents):
         kStr += inst("_v_add_co_u32", vgpr(wgMT), writer.vcc, sgpr("SizesFree+%u"%tP["idx"]), \
                 vgpr(wgMT), "wgMT = Size - wg*MT")
         kStr += inst("v_mov_b32", vgpr(tmpVgpr), hex(kernel[tP["mt"]]), "MT")
-        kStr += inst("v_min_u32"    , vgpr(wgMT), vgpr(tmpVgpr), vgpr(wgMT), "wgMT = (wgMT < MT) ? wgMT : MT" )
+        kStr += inst("v_cmp_lt_u32", sgpr(tmpSgpr,writer.laneSGPRCount), vgpr(wgMT), \
+                vgpr(tmpVgpr), "wgMT < MT" )
+        kStr += inst("v_cndmask_b32", vgpr(wgMT), vgpr(tmpVgpr), \
+                vgpr(wgMT), sgpr(tmpSgpr,writer.laneSGPRCount), "wgMT = (wgMT < MT) ? wgMT : MT" )
         writer.vgprPool.checkIn(tmpVgpr)
 
         # qReg
@@ -402,7 +405,8 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         kStr += inst("v_mul_i32_i24", vgpr(wgMT), hex(-kernel[tP["mt"]]), vgpr(wgMT), "wg*MT")
         kStr += inst("_v_add_co_u32", vgpr(wgMT), writer.vcc, sgpr("SizesFree+%u"%tP["idx"]), vgpr(wgMT), "wgMT = Size - wg*MT")
         kStr += inst("v_mov_b32"    , vgpr(mtReg), hex(kernel[tP["mt"]]), "MT")
-        kStr += inst("v_min_u32"    , vgpr(wgMT), vgpr(mtReg), vgpr(wgMT), "wgMT = (wgMT < MT) ? wgMT : MT" )
+        kStr += inst("v_cmp_lt_u32" , sgpr(tmpSgpr,writer.laneSGPRCount), vgpr(wgMT), vgpr(mtReg), "wgMT < MT" )
+        kStr += inst("v_cndmask_b32", vgpr(wgMT), vgpr(mtReg), vgpr(wgMT), sgpr(tmpSgpr,writer.laneSGPRCount), "wgMT = (wgMT < MT) ? wgMT : MT" )
 
         # identify which wave have to process
         wReg = writer.vgprPool.checkOut(1)
@@ -504,47 +508,35 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
                                         if kernel["StoreCInUnroll"] and writer.enableSingleNLLOpt:
                                           # single NLL opt case, use second acc register set
                                           vgprOffsetForSCIU += writer.startaccValuC1
-                                        if allContOutCoal==1 and kernel["MIArchVgpr"]:
-                                          # if allContOutCoal==1, src and dest are always same
-                                          # MIArchVgpr case, move is unnecessary and we can directly update srcVgpr with ds_bpermute_b32
-                                          srcVgpr = ((vw * glvw) + allContOutCoal * mb) * regStrideCoal
-                                          srcVgpr = srcVgpr + ot * regStridePrep
-                                          srcVgpr = arch2acc[srcVgpr] * regPerElem + nr + c * accImOffset + vgprOffsetForSCIU
-                                          # allContOutCoal==1 case, crossThread is always non 0 (= glvw-r)
-                                          # ds_bpermute_b32 is always necessary
-                                          crossThread = (glvw-r) // allContOutCoal
-                                          kStr += inst("ds_bpermute_b32", vgpr(srcVgpr), vgpr(tmpVgpr), vgpr(srcVgpr), "offset:{}".format(crossThread*threadInterval*4), "permute edge values")
-                                          kStr += inst("s_waitcnt", "0", "wait for swizzle operation")
-                                        else:
-                                          copyInstStr = "v_accvgpr_read_b32" if not kernel["MIArchVgpr"] else "v_mov_b32"
-                                          for e in range(min(r, allContOutCoal)):
-                                              src = (e+(glvw-r)) % allContOutCoal
-                                              srcVgpr = (src + (vw * glvw) + allContOutCoal * mb) * regStrideCoal
-                                              srcVgpr = srcVgpr + ot * regStridePrep
-                                              srcVgpr = arch2acc[srcVgpr] * regPerElem + nr + c * accImOffset + vgprOffsetForSCIU
-                                              srcStr = accvgpr(srcVgpr) if not kernel["MIArchVgpr"] else vgpr(srcVgpr)
-                                              kStr += inst(copyInstStr, vgpr(tReg+e), srcStr, "glvw %u mb %u tt1 %u r %u" % (r, mb, ot, nr))
+                                        copyInstStr = "v_accvgpr_read_b32" if not kernel["MIArchVgpr"] else "v_mov_b32"
+                                        for e in range(min(r, allContOutCoal)):
+                                            src = (e+(glvw-r)) % allContOutCoal
+                                            srcVgpr = (src + (vw * glvw) + allContOutCoal * mb) * regStrideCoal
+                                            srcVgpr = srcVgpr + ot * regStridePrep
+                                            srcVgpr = arch2acc[srcVgpr] * regPerElem + nr + c * accImOffset + vgprOffsetForSCIU
+                                            srcStr = accvgpr(srcVgpr) if not kernel["MIArchVgpr"] else vgpr(srcVgpr)
+                                            kStr += inst(copyInstStr, vgpr(tReg+e), srcStr, "glvw %u mb %u tt1 %u r %u" % (r, mb, ot, nr))
 
-                                          if not kernel["MIArchVgpr"]:
-                                              kStr += inst("s_nop", "1", "v_accvgpr read vgpr after write vgpr: 2 wait states")
+                                        if not kernel["MIArchVgpr"]:
+                                            kStr += inst("s_nop", "1", "v_accvgpr read vgpr after write vgpr: 2 wait states")
 
-                                          needWait = False
-                                          for e in range(min(r, allContOutCoal)):
-                                              crossThread = (e+(glvw-r)) // allContOutCoal
-                                              if crossThread != 0:
-                                                  kStr += inst("ds_bpermute_b32", vgpr(tReg+e), vgpr(tmpVgpr), vgpr(tReg+e), "offset:{}".format(crossThread*threadInterval*4), "permute edge values")
-                                                  needWait = True
+                                        needWait = False
+                                        for e in range(min(r, allContOutCoal)):
+                                            crossThread = (e+(glvw-r)) // allContOutCoal
+                                            if crossThread != 0:
+                                                kStr += inst("ds_bpermute_b32", vgpr(tReg+e), vgpr(tmpVgpr), vgpr(tReg+e), "offset:{}".format(crossThread*threadInterval*4), "permute edge values")
+                                                needWait = True
 
-                                          if needWait:
-                                              kStr += inst("s_waitcnt", "0", "wait for swizzle operation")
+                                        if needWait:
+                                            kStr += inst("s_waitcnt", "0", "wait for swizzle operation")
 
-                                          copyInstStr = "v_accvgpr_write_b32" if not kernel["MIArchVgpr"] else "v_mov_b32"
-                                          for e in range(min(r, allContOutCoal)):
-                                              dstVgpr = (e + (vw * glvw) + allContOutCoal * mb) * regStrideCoal
-                                              dstVgpr = dstVgpr + ot * regStridePrep
-                                              dstVgpr = arch2acc[dstVgpr] * regPerElem + nr + c * accImOffset + vgprOffsetForSCIU
-                                              dstStr = accvgpr(dstVgpr) if not kernel["MIArchVgpr"] else vgpr(dstVgpr)
-                                              kStr += inst(copyInstStr, dstStr, vgpr(tReg+e), "")
+                                        copyInstStr = "v_accvgpr_write_b32" if not kernel["MIArchVgpr"] else "v_mov_b32"
+                                        for e in range(min(r, allContOutCoal)):
+                                            dstVgpr = (e + (vw * glvw) + allContOutCoal * mb) * regStrideCoal
+                                            dstVgpr = dstVgpr + ot * regStridePrep
+                                            dstVgpr = arch2acc[dstVgpr] * regPerElem + nr + c * accImOffset + vgprOffsetForSCIU
+                                            dstStr = accvgpr(dstVgpr) if not kernel["MIArchVgpr"] else vgpr(dstVgpr)
+                                            kStr += inst(copyInstStr, dstStr, vgpr(tReg+e), "")
 
                             # end shift reset mask and jump out
                             all1mask = "0xFFFFFFFF" if (kernel["WavefrontSize"] == 32) else "0xFFFFFFFFFFFFFFFF"
@@ -644,7 +636,8 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         kStr += inst("v_mul_i32_i24", vgpr(wgMT), hex(-kernel[tP["mt"]]), vgpr(wgMT), "wg*MT")
         kStr += inst("_v_add_co_u32", vgpr(wgMT), writer.vcc, sgpr("SizesFree+%u"%tP["idx"]), vgpr(wgMT), "wgMT = Size - wg*MT")
         kStr += inst("v_mov_b32"    , vgpr(mtReg), hex(kernel[tP["mt"]]), "MT")
-        kStr += inst("v_min_u32"    , vgpr(wgMT), vgpr(mtReg), vgpr(wgMT), "wgMT = (wgMT < MT) ? wgMT : MT" )
+        kStr += inst("v_cmp_lt_u32" , sgpr(tmpSgpr,writer.laneSGPRCount), vgpr(wgMT), vgpr(mtReg), "wgMT < MT" )
+        kStr += inst("v_cndmask_b32", vgpr(wgMT), vgpr(mtReg), vgpr(wgMT), sgpr(tmpSgpr,writer.laneSGPRCount), "wgMT = (wgMT < MT) ? wgMT : MT" )
         kStr += writer.endLine
 
         # identify which wave have to process
@@ -656,7 +649,7 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         kStr += vectorStaticDivide(tmpVgpr, wgMT, MIBShapeCoal, tmpSgpr)
         kStr += vectorStaticRemainder(sReg, tmpVgpr, miWaveGroupCoal, tmpSgpr)
         kStr += inst("v_cmp_eq_u32" , sgpr(tmpSgpr,writer.laneSGPRCount), vgpr(sReg), vgpr(wReg), "wave_id == block_belong_to_wave?" )
-        kStr += inst("v_cndmask_b32", vgpr(wgMT), vgpr(mtReg), vgpr(wgMT), sgpr(tmpSgpr,writer.laneSGPRCount), "wgMT = (wave_id == block_belong_to_wave) ? wgMT : MT" )
+        kStr += inst("v_cndmask_b32", vgpr(wgMT), vgpr(mtReg), vgpr(wgMT), sgpr(tmpSgpr,writer.laneSGPRCount), "wgMT = (wgMT < MT) ? wgMT : MT" )
         kStr += writer.endLine
 
         # glveblkid
@@ -669,7 +662,7 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
 
         # rReg : reminder of M_size % vectorwidth
         # decide to jump to block which handle this case, M_size % vector width
-        kStr += writer.comment1("dispatch to different shift block for shift")
+        kStr += writer.comment1("dispatch to differet shift block for shift")
         rReg = writer.vgprPool.checkOut(1)
         kStr += vectorStaticRemainder(rReg, wgMT, glvw, tmpSgpr)
         for r in range(1, glvw):

@@ -3349,6 +3349,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         kl.append(self.comment("LocalSplitU: global write"))
         kl.append(self.localSplitUGlobalWrite(kernel))
 
+
       else:
         ####################################
         # NOT LocalSplitU
@@ -3617,8 +3618,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # DirectToVgprB + VW > 1 case, set lrvwB = VW
     # DirectToVgprB case, global load data directly goes to Vgpr.
     # If VW=2, it means lrwvB is 2.
-    #if kernel["DirectToVgprB"] and kernel["VectorWidth"] > 1:
-    if kernel["DirectToVgprB"]:
+    if kernel["DirectToVgprB"] and kernel["VectorWidth"] > 1:
       self.lrvwB = kernel["VectorWidth"]
     # DirectToVgpr + TLU=False case
     # set lrvw = VW
