@@ -45,7 +45,7 @@ def runCI =
 
     boolean formatCheck = false
 
-    prj.timeout.test = 720
+    prj.timeout.test = 480
     prj.defaults.ccache = false
 
     def commonGroovy
@@ -62,7 +62,7 @@ def runCI =
     {
         platform, project->
 
-        def test_marks = "pre_checkin or extended"
+        def test_marks = "extended"
         commonGroovy.runTestCommand(platform, project, jobName, test_marks)
     }
 
