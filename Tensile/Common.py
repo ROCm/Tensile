@@ -743,7 +743,7 @@ validParameters = {
     #     we can use ASEM//GSU=4 for optimizations
     #
     # 1 indicates no assertion (since all sizes are multiples of 1)
-    "AssertSummationElementMultiple": [1,2,4,8,16,32,64,128,256],
+    "AssertSummationElementMultiple": [1,2,4,8,16,32,64,128,256,512,1024],
 
     # Kernel generator will assume that the FreeIndex[0] size is some multiple of the element size
     # and uses this to optimize the kernel.
