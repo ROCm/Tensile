@@ -175,11 +175,11 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             # if num1DBlocks is 1, % num1DBlocks is always 0 and no difference in tReg value
             kStr += vectorStaticDivide(tmpVgpr, kReg, dividedForBlkId, tmpSgpr, \
                 "2. block offset: bnIdx = wtid / dividedForBlkId(%u)" % dividedForBlkId)
-            kStr += vectorStaticRemainder(kReg, tmpVgpr, num1DBlocks, tmpSgpr, \
-                "2. block offset: bnIdx = bnIdx %% num1DBlocks(%u)" % num1DBlocks)
-            kStr += staticMultiply(vgpr(kReg), vgpr(kReg), strideBlock, sgpr(tmpSgpr), \
+            kStr += vectorStaticRemainder(tmpVgpr, tmpVgpr, num1DBlocks, tmpSgpr, \
+                "2. block offset: bnIdx = bnIdx %% num1DBlocks(%u)" % num1DBlocks)  # assuming num1DBlocks is power of 2 to use same vreg for src and dst
+            kStr += staticMultiply(vgpr(tmpVgpr), vgpr(tmpVgpr), strideBlock, sgpr(tmpSgpr), \
                 "2. block offset: bnOffset = bnIdx * strideBlock(%u)" % strideBlock)
-            kStr += inst("_v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
+            kStr += inst("_v_add_u32", vgpr(tReg), vgpr(tmpVgpr), vgpr(tReg), \
                 "3. add N and block offset: bnOffset = block and N offset")
             writer.vgprPool.checkIn(tmpVgpr)
         else:
@@ -190,8 +190,6 @@ class LraTileAssignmentMFMA(LraTileAssignment):
 
         # unroll offset
         if isMfma and (dividendForKId != waveWidth):
-            kStr += vectorStaticRemainder(kReg, "Serial", waveWidth, tmpSgpr, \
-                "5. thread id in wave: wtid = tid %% wavelength(%u)" % waveWidth)
             kStr += vectorStaticDivide(kReg, kReg, dividendForKId, tmpSgpr, \
                 "5. K offset: kIdx = wtid / (MIN(%u) * MIBB(%u))" % (kernel["MatrixInstN"], kernel["MatrixInstB"]))
             if dtlTsgr:

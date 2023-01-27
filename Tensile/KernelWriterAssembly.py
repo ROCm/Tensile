@@ -1894,11 +1894,12 @@ class KernelWriterAssembly(KernelWriter):
     else:
       numB = kernel["InnerUnroll"]*(kernel["ThreadTile1"] // kernel["VectorWidth"]) // tPB["localReadInstruction"].numOffsets
       numA = kernel["InnerUnroll"]*(kernel["ThreadTile0"] // kernel["VectorWidth"]) // tPA["localReadInstruction"].numOffsets
-    # set numA/B=0 if DirectToVgprA/B is true
-    if kernel["DirectToVgprA"]:
-      numA = 0
-    if kernel["DirectToVgprB"]:
-      numB = 0
+    # Keep numA/B unchanged for DirectToVgprA/B
+    # Setting numA/B=0 affects instruction scheduling and can cause performance drop
+    #if kernel["DirectToVgprA"]:
+    #  numA = 0
+    #if kernel["DirectToVgprB"]:
+    #  numB = 0
     self.numReadsPerIterA = numA
     self.numReadsPerIterB = numB
     self.localReadDoCntA   = 0
