@@ -270,19 +270,13 @@ namespace Tensile
             {
                 Key key = ProblemKey::keyForProblem<Key, Object, float>(problem, this->features);
 
-                std::cout << ">>>>>> find Best Decision tree.";
                 for(Tree const& tree : trees)
                 {
-                    solution = tree.getSolution(transform);
+                    ReturnValue solution = tree.getSolution(transform);
                     if((*solution->problemPredicate)(problem)) {
-                        std::cout << ">>>>>> find Best Decision tree.: match predicate";
-
                         bool result = tree.predict(key);
-                        if(result) {
-                            std::cout << ">>>>>> find Best Decision tree. pridict";
+                        if(result)
                             return solution;
-                        }
-                        //return tree.getSolution(transform);
                     }
                 }
                 return nullValue;
