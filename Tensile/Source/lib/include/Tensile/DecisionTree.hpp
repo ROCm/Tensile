@@ -273,7 +273,7 @@ namespace Tensile
                 for(Tree const& tree : trees)
                 {
                     ReturnValue solution = tree.getSolution(transform);
-                    if((*solution->problemPredicate)(problem)) 
+                    if((*solution->problemPredicate)(problem))
                     {
                         bool result = tree.predict(key);
                         if(result)
