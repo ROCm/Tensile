@@ -105,7 +105,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
 
         # get constant parameter
         tile01           = tP["tile01Idx"]
-        waveWidth        = writer.kernel["WavefrontSize"]
+        waveWidth        = kernel["WavefrontSize"]
         inputPerThread   = max(writer.lrvwA,writer.lrvwB)
         if kernel["DirectToVgprA"]:
           # DirectToVgprA case, ignore lrvwA
@@ -224,6 +224,19 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             kStr += inst("_v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
                 "8. final local read offset: flrOffset = lrOffset + WOffset")
             writer.vgprPool.checkIn(tmpVgpr)
+
+        # localSplitU case. Calculate LSU offset here
+        if kernel["LocalSplitU"] > 1:
+            subGroup  = kernel["SubGroup0"] * kernel["SubGroup1"]
+            kInterval = waveWidth // dividendForKId
+            # generate instruction
+            # (use kreg to calculate sgid)
+            kStr += vectorStaticDivide(kReg, "Serial", subGroup, tmpSgpr, \
+              "LSU offset: sgid = Serial / subGroup(%u)" % subGroup)
+            kStr += staticMultiply(vgpr(kReg), vgpr(kReg), strideK * kInterval, sgpr(tmpSgpr), \
+              "LSU offset: lsuOffset = sgid * kInterval(%u) *  strideK(%u)" % (kInterval, strideK))
+            kStr += inst("_v_add_u32", vgpr(tReg), vgpr(kReg), vgpr(tReg), \
+              "LSU offset: lrOffset += lsuOffset")
 
         # release register
         tP["gpr"]["lro"] = tReg

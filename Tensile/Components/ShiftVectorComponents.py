@@ -270,7 +270,8 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         # TODO: use this for non SourceSwap for B?
         # this part can  support non SourceSwap for B
         # But let non SourceSwap for B go original shiftptr path
-        if (not kernel["SourceSwap"]) and tP["isB"]:
+        # return here only for LSU=1. LSU>1 case needs the code below
+        if (not kernel["SourceSwap"]) and tP["isB"] and kernel["LocalSplitU"]==1:
             return ""
 
         # common parameter
