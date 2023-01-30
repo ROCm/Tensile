@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -500,7 +500,7 @@ validParameters = {
 
     # Split the unroll summation into multiple sections and combine the sections
     # GSU applies only to the unroll summation dimension
-    "GlobalSplitU":               list(range(1, 1024+1)),
+    "GlobalSplitU":               list(range(1, 4096+1)),
 
     # Chooses how to do GlobalSplitU:
     # - SingleBuffer: uses atomic operation to accumulate on one buffer
@@ -854,7 +854,7 @@ validParameters = {
     # (the implementation requires this - the unroll iteration accesses data in steps of
     # DepthU*BPE
     # SUS=0 is only valid if SU=0
-    "StaggerUStride":        [0,16,32,64,128,256,512,1024],
+    "StaggerUStride":        [0,16,32,64,128,256,512,1024,2048],
 
     # How the tile assignment (wg0, wg1, wg2) controls the initial StaggerU offset:
     # 0: Use wg0

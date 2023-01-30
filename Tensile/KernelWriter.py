@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -3615,10 +3615,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       else:
         self.lrvwB = 1
 
-    # DirectToVgprB + VW > 1 case, set lrvwB = VW
+    # DirectToVgprB case, set lrvwB = VW
     # DirectToVgprB case, global load data directly goes to Vgpr.
     # If VW=2, it means lrwvB is 2.
-    if kernel["DirectToVgprB"] and kernel["VectorWidth"] > 1:
+    if kernel["DirectToVgprB"]:
       self.lrvwB = kernel["VectorWidth"]
     # DirectToVgpr + TLU=False case
     # set lrvw = VW

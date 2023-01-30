@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -1534,9 +1534,9 @@ class KernelWriterAssembly(KernelWriter):
         vgprIdx +=1
       self.GlobalBufferOOB = vgprIdx
       vgprIdx +=1
-    # for cgemm/zgemm + (SCIU or MIAV) case, allocate 4 vgpr for alpha calculation (cannot use tmp vgpr in unroll loop or write batch)
+    # for cgemm/zgemm + SCIU case, allocate 4 vgpr for alpha calculation (cannot use tmp vgpr in unroll loop or write batch)
     if kernel["ProblemType"]["DataType"].isComplex() \
-        and (kernel["StoreCInUnroll"] or kernel["MIArchVgpr"]) \
+        and kernel["StoreCInUnroll"] \
         and (kernel["GlobalSplitU"] == 1 or kernel["_GlobalAccumulation"] != 'MultipleBuffer'):
       # need proper alignment
       vgprIdx = ((vgprIdx+2 - 1)//2)*2
@@ -2475,7 +2475,7 @@ class KernelWriterAssembly(KernelWriter):
             self.GlobalWriteOffsetDBackup)
       kStr += self.macroRegister("vgprGlobalBufferOOB", \
           self.GlobalBufferOOB)
-    if kernel["ProblemType"]["DataType"].isComplex() and (kernel["StoreCInUnroll"] or kernel["MIArchVgpr"]) \
+    if kernel["ProblemType"]["DataType"].isComplex() and kernel["StoreCInUnroll"] \
        and (kernel["GlobalSplitU"] == 1 or kernel["_GlobalAccumulation"] != 'MultipleBuffer'):
       kStr += self.macroRegister("vgprAlphaTmp", \
           self.startVgprAlphaTmp)
@@ -5442,8 +5442,9 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_and_b32", sgpr("StaggerUIter"), sgpr("OrigStaggerUIter"), \
                     staggerInput, \
                     "Compute actual stagger start for this tile")
-      kStr += inst("s_lshl_b32", sgpr("StaggerUIter"), sgpr("StaggerUIter"), \
-                kernel["_staggerStrideShift"], "shift by StaggerUStride")
+      if kernel["_staggerStrideShift"] > 0: # generate code only when it is necessary
+        kStr += inst("s_lshl_b32", sgpr("StaggerUIter"), sgpr("StaggerUIter"), \
+                  kernel["_staggerStrideShift"], "shift by StaggerUStride")
     return kStr
 
   ##############################################################################
@@ -5827,8 +5828,6 @@ class KernelWriterAssembly(KernelWriter):
         kStr += vectorStaticRemainder(numIter, tmpVgpr, divisor, tmpSgpr)
         #kStr += dump(vgpr(sgId))
         #kStr += dump(vgpr(numIter))
-        kStr += inst("_v_cmpx_lt_u32", self.vcc, \
-            vgpr(sgId), vgpr(numIter), "sgId < numIter")
         self.vgprPool.checkIn(tmpVgpr)
         #self.tailNumIter = numIter
         #self.vgprPool.checkIn(numIter)
@@ -6365,14 +6364,20 @@ class KernelWriterAssembly(KernelWriter):
         # replace 0 for differnet thread
         shiftK.addCode(inst("v_cmp_ge_i32", sgpr(tmpSgpr, 2), vgpr(kReg), sgpr(loopCounterName), "check K index >= Size L"))
         for bk in range(0, vgprPerInput):
-          for a in range(0, kernel["MIWaveTileA"]):
-            for iui in range(0, innerUnroll):
-              aStr = vgpr("ValuA_X%u_I%u+%u+%u" % (m, iui, a*vgprPerInput, bk), 1)
-              shiftK.addCode(inst("v_cndmask_b32", aStr, aStr, hex(0), sgpr(tmpSgpr, 2), "set 0 if K_idx >= sizeL"))
-          for b in range(0, kernel["MIWaveTileB"]):
-            for iui in range(0, innerUnroll):
-              bStr = vgpr("ValuB_X%u_I%u+%u+%u" % (m, iui, b*vgprPerInput, bk), 1)
-              shiftK.addCode(inst("v_cndmask_b32", bStr, bStr, hex(0), sgpr(tmpSgpr, 2), "set 0 if K_idx >= sizeL"))
+          # set 0 only one side
+          # set 0 to A if kernel["MIWaveTileA"] <= kernel["MIWaveTileB"]. If not, set 0 to B
+          # This is to minimize the number of v_cndmask_b32
+          setA = kernel["MIWaveTileA"] <= kernel["MIWaveTileB"]
+          if setA:
+            for a in range(0, kernel["MIWaveTileA"]):
+              for iui in range(0, innerUnroll):
+                aStr = vgpr("ValuA_X%u_I%u+%u+%u" % (m, iui, a*vgprPerInput, bk), 1)
+                shiftK.addCode(inst("v_cndmask_b32", aStr, aStr, hex(0), sgpr(tmpSgpr, 2), "set 0 if K_idx >= sizeL"))
+          else:
+            for b in range(0, kernel["MIWaveTileB"]):
+              for iui in range(0, innerUnroll):
+                bStr = vgpr("ValuB_X%u_I%u+%u+%u" % (m, iui, b*vgprPerInput, bk), 1)
+                shiftK.addCode(inst("v_cndmask_b32", bStr, bStr, hex(0), sgpr(tmpSgpr, 2), "set 0 if K_idx >= sizeL"))
 
         # replace 0 for same thread
         if numMIInput > 1:
@@ -6544,28 +6549,36 @@ class KernelWriterAssembly(KernelWriter):
               bi  = vgpr("G2LB+%u+%u+%u+%u" % (b_new, vgprBufferB_new_offset, iuiB_new_offset, numRegistersOut), numRegistersOut)
             v_mfma = "v_%s_%s_%ux%ux%u%s%s "%(instructionName, miOutTypeName, kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], instructionStep, miInTypeName)
             v_add = "v_add_" + miOutTypeName
-            offsetVgpr = [0,0,0]
-            forceGenerate = ccA and ccB # so far, v_add is always necessary for ccA and ccB case
+            # negate code for Ai
+            # necessary when ccA == ccB or ccA
+            # the location to add negation is different between ccA == ccB and ccA
+            #   index = 0 for ccA == ccB
+            #   index = 1 for ccA
+            # if ccA == ccB and ccA, we need negation twice for index 0 and 1 (but we need to calculate -Ai only once)
             if ccA == ccB:
               arrayIndex = 0
               ccVgprs[arrayIndex] = self.vgprPool.checkOutAligned(numRegistersOut, numRegistersOut, "negate r1")
-              # generate negate code only when same code is not generated (avoid generating same (redundant) code again
-              if forceGenerate or (ai not in zgemmVaddSrcCheck[arrayIndex]):
-                ccInsts[arrayIndex] = inst(v_add, vgpr(ccVgprs[arrayIndex] + offsetVgpr[arrayIndex], numRegistersOut), "-"+ai, "0", "Ai=-Ai")
+              # generate negate code only when same code is not generated (avoid generating same (redundant) code again)
+              if (ai not in zgemmVaddSrcCheck[arrayIndex]):
+                ccInsts[arrayIndex] = inst(v_add, vgpr(ccVgprs[arrayIndex], numRegistersOut), "-"+ai, "0", "Ai=-Ai")
                 zgemmVaddSrcCheck[arrayIndex].append(ai)
-            if ccA:
+              # if ccA, copy ccVgprs[0] to ccVgpr[1] to avoid generating same negate value twice
+              if ccA:
+                ccVgprs[1] = ccVgprs[0]
+            elif ccA:
               arrayIndex = 1
               ccVgprs[arrayIndex] = self.vgprPool.checkOutAligned(numRegistersOut, numRegistersOut, "negate i0")
-              # generate negate code only when same code is not generated (avoid generating same (redundant) code again
-              if forceGenerate or (ai not in zgemmVaddSrcCheck[arrayIndex]):
-                ccInsts[arrayIndex] = inst(v_add, vgpr(ccVgprs[arrayIndex] + offsetVgpr[arrayIndex], numRegistersOut), "-"+ai, "0", "Ai=-Ai")
+              # generate negate code only when same code is not generated (avoid generating same (redundant) code again)
+              if (ai not in zgemmVaddSrcCheck[arrayIndex]):
+                ccInsts[arrayIndex] = inst(v_add, vgpr(ccVgprs[arrayIndex], numRegistersOut), "-"+ai, "0", "Ai=-Ai")
                 zgemmVaddSrcCheck[arrayIndex].append(ai)
+            # negate code for Ar
             if ccB:
               arrayIndex = 2
               ccVgprs[arrayIndex] = self.vgprPool.checkOutAligned(numRegistersOut, numRegistersOut, "negate i1")
-              # generate negate code only when same code is not generated (avoid generating same (redundant) code again
-              if forceGenerate or (ar not in zgemmVaddSrcCheck[arrayIndex]):
-                ccInsts[arrayIndex] = inst(v_add, vgpr(ccVgprs[arrayIndex] + offsetVgpr[arrayIndex], numRegistersOut), "-"+ar, "0", "Ar=-Ar")
+              # generate negate code only when same code is not generated (avoid generating same (redundant) code again)
+              if (ar not in zgemmVaddSrcCheck[arrayIndex]):
+                ccInsts[arrayIndex] = inst(v_add, vgpr(ccVgprs[arrayIndex], numRegistersOut), "-"+ar, "0", "Ar=-Ar")
                 zgemmVaddSrcCheck[arrayIndex].append(ar)
             src2         = "%s[%u:%u]"%(accumRegType, accStart   , accEnd)
             src2Img      = "%s[%u:%u]"%(accumRegType, accStartSrcImg, accEndSrcImg)
@@ -6575,15 +6588,21 @@ class KernelWriterAssembly(KernelWriter):
             (src0, src1) = (br, ar) if kernel["SourceSwap"] else (ar, br)
             imod.addInst("".join([inst for inst in ccInsts if inst is not None]) + \
                          v_mfma + "%s[%u:%u], %s, %s, %s"%(accumRegType, accStart            , accEnd            , src0, src1, src2First   ), "Cr += Ar*Br")
-            (src0, src1) = (bi, (vgpr(ccVgprs[0] + offsetVgpr[0], numRegistersOut) if ccVgprs[0] else ai)) if kernel["SourceSwap"] else ((vgpr(ccVgprs[0] + offsetVgpr[0], numRegistersOut) if ccVgprs[0] else ai), bi)
+            ai2 = (vgpr(ccVgprs[0], numRegistersOut) if ccVgprs[0] else ai)
+            (src0, src1) = (bi, ai2) if kernel["SourceSwap"] else (ai2, bi)
             imod.addInst(v_mfma + "%s[%u+%u:%u+%u], %s, %s, %s"%(accumRegType, accStart            , accStoreCIdx, accEnd            , accStoreCIdx, src0, src1, src2   ), "Cr += %sAi*Bi"%("-" if ccVgprs[0] else ""))
-            (src0, src1) = (br, (vgpr(ccVgprs[1] + offsetVgpr[1], numRegistersOut) if ccVgprs[1] else ai)) if kernel["SourceSwap"] else ((vgpr(ccVgprs[1] + offsetVgpr[1], numRegistersOut) if ccVgprs[1] else ai), br)
+            ai2 = (vgpr(ccVgprs[1], numRegistersOut) if ccVgprs[1] else ai)
+            (src0, src1) = (br, ai2) if kernel["SourceSwap"] else (ai2, br)
             imod.addInst(v_mfma + "%s[%u:%u], %s, %s, %s"%(accumRegType, accStart+accImOffset, accEnd+accImOffset, src0, src1, src2ImgFirst), "Ci += %sAi*Br"%("-" if ccVgprs[1] else ""))
-            (src0, src1) = (bi, (vgpr(ccVgprs[2] + offsetVgpr[2], numRegistersOut) if ccVgprs[2] else ar)) if kernel["SourceSwap"] else ((vgpr(ccVgprs[2] + offsetVgpr[2], numRegistersOut) if ccVgprs[2] else ar), bi)
+            ar2 = (vgpr(ccVgprs[2], numRegistersOut) if ccVgprs[2] else ar)
+            (src0, src1) = (bi, ar2) if kernel["SourceSwap"] else (ar2, bi)
             imod.addInst(v_mfma + "%s[%u+%u:%u+%u], %s, %s, %s"%(accumRegType, accStart+accImOffset, accStoreCIdx, accEnd+accImOffset, accStoreCIdx, src0, src1, src2Img), "Ci += %sAr*Bi"%("-" if ccVgprs[2] else ""))
 
+            checked = []
             for v in ccVgprs:
-              if v is not None: self.vgprPool.checkIn(v)
+              if (v is not None) and (v not in checked):
+                self.vgprPool.checkIn(v)
+                checked.append(v)
           else:
             # use const 0 for src2 in firstIter case
             src2 = "0" if firstIter else "%s[%u:%u]"%(accumRegType, accStart, accEnd)
@@ -9035,11 +9054,10 @@ class KernelWriterAssembly(KernelWriter):
     tmpSgpr = self.getTmpSgpr(1).idx()
 
     # lr0 = serial % SG0
-    kStr += vectorStaticDivideAndRemainder(lr1, lr0, "Serial", kernel["SubGroup0"], tmpSgpr)
+    kStr += vectorStaticDivideAndRemainder(copy, lr0, "Serial", kernel["SubGroup0"], tmpSgpr)
 
     # lr1 = (serial / SG0) % SG1
     # sg  = (serial / SG0) / SG1
-    kStr += inst("v_mov_b32", vgpr(copy), vgpr(lr1), "copy for divide")
     kStr += vectorStaticDivideAndRemainder(sg, lr1, copy, kernel["SubGroup1"], tmpSgpr)
 
     # lr0 *= VW
@@ -11035,6 +11053,7 @@ class KernelWriterAssembly(KernelWriter):
       if not self.do["PostLoop"]: return ""
     kStr = ""
     atomic = (kernel["GlobalSplitU"] > 1) and (kernel["_GlobalAccumulation"] != 'MultipleBuffer')
+    useCodeMulAlpha =  kernel["MIArchVgpr"] and applyAlpha and not (kernel["GlobalSplitU"] > 1)
 
     # write possibilities and labels
     # if beta/edge combo not specified fall back to global param definition
@@ -11084,6 +11103,9 @@ class KernelWriterAssembly(KernelWriter):
         numTmpVgpr += 1
     else:
       numTmpVgpr = 2 + 3 # GLOBAL_OFFSET_C needs 3, plus 2 tmps?
+    if useCodeMulAlpha and kernel["ProblemType"]["DataType"].isComplex():
+      # codeMulAlpha and complex caes, use tmpVgpr for alpha calculation
+      numTmpVgpr = max(numTmpVgpr, kernel["ProblemType"]["DataType"].numRegisters())
     tmpVgpr = self.vgprPool.checkOutAligned(numTmpVgpr, 2, "store tmps")
 
     isHpaBF16 = kernel["ProblemType"]["DestDataType"].isBFloat16() and kernel["ProblemType"]["HighPrecisionAccumulate"]
@@ -11320,7 +11342,7 @@ class KernelWriterAssembly(KernelWriter):
         codeMulAlpha    = deepcopy(self.codeMulAlpha) if self.serializedStore else None
 
         self.alphaBeforeLoadC = False
-        if kernel["MIArchVgpr"] and applyAlpha and not (kernel["GlobalSplitU"] > 1): # do not set codeAccVgprRead=None if GSU>1
+        if useCodeMulAlpha: # do not set codeAccVgprRead=None if GSU>1
           codeAccVgprRead = None
 
           #Only apply when 2 wave optimization features are enabled
@@ -14156,35 +14178,24 @@ class KernelWriterAssembly(KernelWriter):
         self.codeMulAlpha.itemList[destIdx] = Code.Inst("v_mul_lo_u32", vgpr("ValuC+__placeholder__"),
                                                        sgpr("Alpha"),
                                                        vgpr("ValuC+%u"%srcIdx), "Multiply MI out reg with alpha")
-      elif kernel["ProblemType"]["ComputeDataType"].isSingleComplex():
+      elif kernel["ProblemType"]["ComputeDataType"].isComplex():
+        numReg = kernel["ProblemType"]["DataType"].numRegisters() // 2 # number of registers for real or img only (numRegisters() includes both)
+        numBits = numReg * 32
         accImOffset = self.AccVgprImagNumOffset(kernel)
         imod = Code.Module()
-        # cannot use tmp vgpr for write batch, use allocated vgpr instead
-        vtmp1 = self.startVgprAlphaTmp
-        vtmp2 = vtmp1 + 1
+        # Allocate vgpr for alpha later (when actually generating the alpha code)
+        vtmp1 = "__placeholdervtmp1__"
+        vtmp2 = "__placeholdervtmp2__"
         # tmp1 = a.real * b.real
-        imod.addInst("v_mul_f32", vgpr(vtmp1), sgpr("Alpha+0"), vgpr("ValuC+%u"%srcIdx), "")
+        imod.addInst("v_mul_f%u"%numBits, vtmp1, sgpr("Alpha+0", numReg), vgpr("ValuC+%u"%srcIdx, numReg), "")
         # tmp2 = a.imag * b.real
-        imod.addInst("v_mul_f32", vgpr(vtmp2), sgpr("Alpha+1"), vgpr("ValuC+%u"%srcIdx), "")
+        imod.addInst("v_mul_f%u"%numBits, vtmp2, sgpr("Alpha+%u"%numReg, numReg), vgpr("ValuC+%u"%srcIdx, numReg), "")
         # c.real = a.real * b.real - a.imag * b.imag = tmp1 - a.imag * b.imag
-        imod.addText("v_fma_f32 %s, %s, -%s, %s%s" % (vgpr("ValuC+__placeholder__"), sgpr("Alpha+1"), vgpr("ValuC+%u"%(srcIdx+accImOffset)), vgpr(vtmp1), self.endLine))
+        imod.addText("v_fma_f%u %s, %s, -%s, %s%s" % (numBits, vgpr("ValuC+__placeholder__", numReg), sgpr("Alpha+%u"%numReg, numReg), \
+                     vgpr("ValuC+%u"%(srcIdx+accImOffset), numReg), vtmp1, self.endLine))
         # c.imag = a.real * b.imag + a.imag * b.real = a.real * b.imag + tmp2
-        imod.addText("v_fma_f32 %s, %s, %s, %s%s" % (vgpr("ValuC+__placeholder__ +1"), sgpr("Alpha+0"), vgpr("ValuC+%u"%(srcIdx+accImOffset)), vgpr(vtmp2), self.endLine))
-        self.codeMulAlpha.itemList[destIdx] = imod
-      elif kernel["ProblemType"]["ComputeDataType"].isDoubleComplex():
-        accImOffset = self.AccVgprImagNumOffset(kernel)
-        imod = Code.Module()
-        # cannot use tmp vgpr for write batch, use allocated vgpr instead
-        vtmp1 = self.startVgprAlphaTmp
-        vtmp2 = vtmp1 + 2
-        # tmp1 = a.real * b.real
-        imod.addInst("v_mul_f64", vgpr(vtmp1,2), sgpr("Alpha+0",2), vgpr("ValuC+%u"%srcIdx,2), "")
-        # tmp2 = a.imag * b.real
-        imod.addInst("v_mul_f64", vgpr(vtmp2,2), sgpr("Alpha+2",2), vgpr("ValuC+%u"%srcIdx,2), "")
-        # c.real = a.real * b.real - a.imag * b.imag = tmp1 - a.imag * b.imag
-        imod.addText("v_fma_f64 %s, %s, -%s, %s%s" % (vgpr("ValuC+__placeholder__",2), sgpr("Alpha+2",2), vgpr("ValuC+%u"%(srcIdx+accImOffset),2), vgpr(vtmp1,2), self.endLine))
-        # c.imag = a.real * b.imag + a.imag * b.real = a.real * b.imag + tmp2
-        imod.addText("v_fma_f64 %s, %s, %s, %s%s" % (vgpr("ValuC+__placeholder__ +2",2), sgpr("Alpha+0",2), vgpr("ValuC+%u"%(srcIdx+accImOffset),2), vgpr(vtmp2,2), self.endLine))
+        imod.addText("v_fma_f%u %s, %s, %s, %s%s" % (numBits, vgpr("ValuC+__placeholder__ +%u"%numReg, numReg), sgpr("Alpha+0", numReg), \
+                     vgpr("ValuC+%u"%(srcIdx+accImOffset), numReg), vtmp2, self.endLine))
         self.codeMulAlpha.itemList[destIdx] = imod
 
     return kStr

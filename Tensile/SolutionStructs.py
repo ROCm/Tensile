@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -3641,7 +3641,8 @@ class Solution(collections.abc.Mapping):
       state["LdsOffsetB"] = state["LdsOffsetA"] + state["LdsNumElementsAlignedA"]
 
       offsetBlk = state["LdsOffsetB"] + ldsNumElementsAlignedB
-      offsetBlk = int(2**(math.ceil(math.log(offsetBlk, 2))))
+      if offsetBlk>0: # need 0 check to avoid an error
+        offsetBlk = int(2**(math.ceil(math.log(offsetBlk, 2))))
 
       state["LdsOffsetA_Blk"] = offsetBlk
       state["LdsOffsetB_Blk"] = state["LdsOffsetA_Blk"] + state["LdsNumElementsAlignedA"]
