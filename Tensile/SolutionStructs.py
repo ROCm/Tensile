@@ -3758,7 +3758,7 @@ class Solution(collections.abc.Mapping):
       if not state["EnableMatrixInstruction"]:
         reject(state, "MIArchVgpr only support for MatrixInstruction")
         return
-      if not globalParameters["AsmCaps"][isa]["HasMFMA_vgpr"]:
+      if not (globalParameters["AsmCaps"][isa]["HasMFMA_vgpr"] or globalParameters["AsmCaps"][isa]["HasWMMA"]):
         reject(state, "MIArchVgpr is not supported by this arch")
         return
       if globalParameters["AsmCaps"][isa]["HasMFMA"]:
