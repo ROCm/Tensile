@@ -1765,6 +1765,7 @@ def GetAsmCaps(isaVersion):
 
     derivedAsmCaps["HasWMMA"]               = tryAssembler(isaVersion, "v_wmma_f32_16x16x16_f16 v[0:7], v[8:15], v[16:23], v[0:7]")
     derivedAsmCaps["HasMFMA"]               = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 a[0:31], v32, v33, a[0:31]")
+    derivedAsmCaps["HasMFMA_vgpr"]          = tryAssembler(isaVersion, "v_mfma_f32_32x32x2bf16 v[0:31], v32, v33, v[0:31]")
     derivedAsmCaps["HasMFMA_f64"]           = tryAssembler(isaVersion, "v_mfma_f64_16x16x4f64 v[0:7], v[32:33], v[36:37], v[0:7]")
     derivedAsmCaps["HasMFMA_bf16_1k"]       = tryAssembler(isaVersion, "v_mfma_f32_32x32x4bf16_1k a[0:31], v[32:33], v[36:37], a[0:31]")
 
