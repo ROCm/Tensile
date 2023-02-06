@@ -65,3 +65,47 @@ BenchmarkProblems:
           #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
           - Exact: [1022, 1022, 1, 2050]
 
+  ########################################
+  # NN - LSU + MI4x4
+  ########################################
+    -
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - KernelLanguage: ["Assembly"]
+      ForkParameters:
+        - MatrixInstruction:
+          - [4, 4, 4, 4, 1, 4,4, 1,1]  # 16x64
+          - [4, 4, 4, 4, 2, 4,4, 1,1]  # 32x32
+          - [4, 4, 4, 4, 4, 4,4, 1,1]  # 64x16
+        - SourceSwap: [True, False]
+        - PrefetchGlobalRead: [2]
+        - ThreadTile:
+          - [  8, 32 ]
+        - WorkGroup:
+          #- [ 64, 1, 1 ] # only WG2 is effective for 9 parameter MI
+          - [ 64, 1, 2 ] # only WG2 is effective for 9 parameter MI
+          - [ 64, 1, 4 ] # only WG2 is effective for 9 parameter MI
+        - AssertFree0ElementMultiple: [1,2]
+        #- AssertFree1ElementMultiple: [1,2]
+        - PrefetchLocalRead: [1]
+        - DepthU:  [16]
+        - StoreVectorWidth: [1,2]
+        - VectorWidth: [1,2]
+        - GlobalReadVectorWidth: [1,2]
+        #- LocalReadVectorWidth: [1,2]
+        #- DirectToVgprA: [False, True] # MI4x4 + DTV not supported yet
+        #- DirectToVgprB: [True, False] # MI4x4 + DTV not supported yet
+        - ScheduleIterAlg: [3]
+        - MIArchVgpr: [True, False]
+        - NumElementsPerBatchStore: [0]
+        #- GlobalSplitU: [1,2]
+        #- GlobalSplitUAlgorithm: ["SingleBuffer","MultipleBuffer"]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
+          - Exact: [1022, 1022, 1, 2050]

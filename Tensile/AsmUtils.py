@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -106,6 +106,8 @@ def vectorStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, doRemaind
 
     kStr = ""
     if ((divisor & (divisor - 1)) == 0): # pow of 2
+        # does not work with doRemainder and (qReg==dReg)
+        assert (not (doRemainder and (qReg == dReg)))
         divisor_log2 = log2(divisor)
         kStr += inst("v_lshrrev_b32", vgpr(qReg), divisor_log2, vgpr(dReg), dComment)
         if doRemainder:

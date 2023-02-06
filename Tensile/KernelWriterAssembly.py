@@ -9203,6 +9203,14 @@ class KernelWriterAssembly(KernelWriter):
       kStr += vectorStaticRemainder(tid1, "Serial", kernel["WavefrontSize"], tmpSgpr)
       kStr += vectorStaticDivide(tid1, tid1, matrixInstMorN, tmpSgpr)
       kStr += staticMultiply(vgpr(tid1), vgpr(tid1), kernel["MIOutputVectorWidth"], sgpr(tmpSgpr), "thread0 * continuous_output")
+      if kernel["MatrixInstBN"] > 1 and kernel["MatrixInstM"] == 4 and (kernel["MatrixInstN"] > kernel["MIOutputVectorWidth"]):
+        # conversion for MI4x4 + MIBN>1
+        # tid1 = (tid1/MIBN) + (tid1%MIBN)*(MIN//MIOVW)
+        if tmpVgpr0==None:
+          tmpVgpr0 = self.vgprPool.checkOut(1,"tmpVgpr0")
+        kStr += vectorStaticDivideAndRemainder(tmpVgpr0, tid1, tid1, kernel["MatrixInstBN"], tmpSgpr) # using rReg=dReg (assuming MIBN is power of 2)
+        kStr += staticMultiply(vgpr(tid1), vgpr(tid1), kernel["MatrixInstN"]//kernel["MIOutputVectorWidth"], sgpr(tmpSgpr), "(tid1%MIBN)*(MIN//MIOVW)")
+        kStr += inst("_v_add_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), "tid1 = (tid1/MIBN) + (tid1%MIBN)*MIN")
     else:
       # non SourceSwap case
       kStr += vectorStaticRemainder(tid1, "Serial", matrixInstMorN, tmpSgpr)
@@ -9233,6 +9241,14 @@ class KernelWriterAssembly(KernelWriter):
       kStr += vectorStaticRemainder(tid0, "Serial", kernel["WavefrontSize"], tmpSgpr)
       kStr += vectorStaticDivide(tid0, tid0, matrixInstMorN, tmpSgpr)
       kStr += staticMultiply(vgpr(tid0), vgpr(tid0), kernel["MIOutputVectorWidth"], sgpr(tmpSgpr), "thread0 * continuous_output")
+      if kernel["MatrixInstBM"] > 1 and kernel["MatrixInstN"] == 4 and (kernel["MatrixInstM"] > kernel["MIOutputVectorWidth"]):
+        # conversion for MI4x4 + MIBM>1
+        # tid0 = (tid0/MIBM) + (tid0%MIBM)*(MIM//MIOVW)
+        if tmpVgpr0==None:
+          tmpVgpr0 = self.vgprPool.checkOut(1,"tmpVgpr0")
+        kStr += vectorStaticDivideAndRemainder(tmpVgpr0, tid0, tid0, kernel["MatrixInstBM"], tmpSgpr) # using rReg=dReg (assuming MIBM is power of 2)
+        kStr += staticMultiply(vgpr(tid0), vgpr(tid0), kernel["MatrixInstM"]//kernel["MIOutputVectorWidth"], sgpr(tmpSgpr), "(tid1%MIBM)*(MIM//MIOVW)")
+        kStr += inst("_v_add_u32", vgpr(tid0), vgpr(tmpVgpr0), vgpr(tid0), "tid0 = (tid0/MIBM) + (tid0%MIBM)*MIM")
 
     # coord 0 : wave part
     if kernel["MIWaveGroup"][0] > 1:
