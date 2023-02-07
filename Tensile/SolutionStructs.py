@@ -3743,6 +3743,13 @@ class Solution(collections.abc.Mapping):
       if state["StoreRemapVectorWidth"]:
         reject(state, "SourceSwap not compatible with StoreRemap")
         return
+    # non-SourceSwap+MFMA 4x4 check
+    if (not state["SourceSwap"]) and state["EnableMatrixInstruction"]:
+      if state["MatrixInstBM"] > 1 and state["MatrixInstN"] == 4 and (state["MatrixInstM"] > state["MIOutputVectorWidth"]) and \
+        state["AssertFree0ElementMultiple"] % state["GlobalLoadVectorWidthA"] != 0:
+        reject(state, "MI4x4 + non-SourceSwap + MatrixInstBM > 1 + MatrixInstN == 4 + MatrixInstM > MIOutputVectorWidth \
+                       AssertFree0ElementMultiple %% bGlobalLoadVectorWidthA != 0 not supported")
+        return
 
     # check if need to use lds init Acc vgprs
     state["LdsInitCVgprs"] = False
@@ -3758,6 +3765,9 @@ class Solution(collections.abc.Mapping):
     if state["MIArchVgpr"]:
       if not state["EnableMatrixInstruction"]:
         reject(state, "MIArchVgpr only support for MatrixInstruction")
+        return
+      if not (globalParameters["AsmCaps"][isa]["HasMFMA_vgpr"] or globalParameters["AsmCaps"][isa]["HasWMMA"]):
+        reject(state, "MIArchVgpr is not supported by this arch")
         return
       if globalParameters["AsmCaps"][isa]["HasMFMA"]:
         if not (state["ProblemType"]["ComputeDataType"].isDouble() or \
@@ -4097,9 +4107,6 @@ class Solution(collections.abc.Mapping):
       if not state["GuaranteeNoPartialA"] or not state["GuaranteeNoPartialB"]:
         state["_UseSgprForGRO"] = False
         #reject(state, "PBC with wide load has insufficient overlap guarantees- try GRVW=1 or adding appropriate Assert*ElementMultiple")
-
-
-           
 
     if state["EnableMatrixInstruction"]:
       cont1 = not state["GuaranteeNoPartialB"]
