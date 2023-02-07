@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2021-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2021-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -90,7 +90,7 @@ class NotLocalFullTileElementsMFMA(NotLocalFullTileElements):
         totalTT1     = (totalTT1 * outputsPerThread) if kernel["SourceSwap"] else totalTT1
         vectorWidth0 = kernel["VectorWidth"]         if kernel["SourceSwap"] else kernel["MIOutputVectorWidth"]
         vwB          = 1
-        if (writer.allowLRVWBforTLUandMI or kernel["DirectToVgprB"]):
+        if writer.allowLRVWBforTLUandMI:
             vwB      = writer.lrvwB
         MIOutputVectorWidthAdj = vwB * kernel["MIOutputVectorWidth"]
         vectorWidth1 = MIOutputVectorWidthAdj if kernel["SourceSwap"] else 1
