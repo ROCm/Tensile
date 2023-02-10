@@ -802,6 +802,11 @@ namespace Tensile
         return rv;
     }
 
+    bool ContractionSolution::canSolve(Problem const& problem, Hardware const& hardware) const
+    {
+        return (*problemPredicate)(problem) && (*hardwarePredicate)(hardware);
+    }
+
     template <typename TypedInputs>
     std::string ContractionSolution::outputConversionKernelName(Problem const&     problem,
                                                                 TypedInputs const& inputs,

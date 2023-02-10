@@ -1,0 +1,72 @@
+TestParameters:
+  marks: [skip-gfx900, skip-gfx906, skip-gfx1010, skip-gfx1011, skip-gfx1012, skip-gfx1030, skip-gfx1100, skip-gfx1101, skip-gfx1102] # not supported by arch
+
+GlobalParameters:
+  NumElementsToValidate: -1
+  BoundsCheck: True
+  KernelTime: True
+  PrintSolutionRejectionReason: True
+
+BenchmarkProblems:
+  ########################################
+  # NN - standard
+  ########################################
+  -
+    - # ProblemType
+      OperationType: GEMM
+      DataType: s
+      DestDataType: s
+      TransposeA: False
+      TransposeB: False
+      UseBeta: True
+      Batched: True
+
+  ########################################
+  # NN - LSU
+  ########################################
+    -
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - KernelLanguage: ["Assembly"]
+      ForkParameters:
+        - MatrixInstruction:
+          - [16, 16, 4, 1, 1, 4,2, 1,1]  # 64x32
+          - [16, 16, 4, 1, 1, 2,2, 2,1]  # 64x32
+          - [16, 16, 4, 1, 1, 2,2, 1,2]  # 32x64
+        #- ThreadTile:
+        #  - [ 2, 2 ]
+        - WorkGroup:
+          #- [ 64, 1, 1 ] # only WG2 is effective for 9 parameter MI
+          - [ 64, 1, 2 ] # only WG2 is effective for 9 parameter MI
+          - [ 64, 1, 4 ] # only WG2 is effective for 9 parameter MI
+        - DepthU: [16]
+        - GlobalSplitU: [1,2]
+        - GlobalSplitUAlgorithm: ["SingleBuffer","MultipleBuffer"]
+        - GlobalSplitUWorkGroupMappingRoundRobin: [False]
+        - GlobalSplitUSummationAssignmentRoundRobin:  [True]
+        - 1LDSBuffer: [0]
+        #- AssertFree0ElementMultiple : [8]
+        - AssertFree1ElementMultiple : [1,4]
+        - ExpandPointerSwap: [1] # 1 for DirectToVgpr
+        - PrefetchGlobalRead: [2]
+        - PrefetchLocalRead: [1]
+        - SuppressNoLoadLoop: [0]
+        - ScheduleLocalWrite: [1]
+        - ScheduleGlobalRead: [1]
+        - ScheduleIterAlg: [3]#[0]
+        - StaggerU: [0]
+        - SourceSwap: [0,1]
+        - TransposeLDS: [1]
+        - GlobalReadVectorWidth: [1,2,4]
+        - VectorWidth: [1,2,4]
+        - LocalReadVectorWidth: [1,2,4]
+        - DirectToVgprA: [True, False]
+        - MIArchVgpr: [False, True]
+        - NumElementsPerBatchStore: [2]
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [1020, 1020, 1, 2052]
+

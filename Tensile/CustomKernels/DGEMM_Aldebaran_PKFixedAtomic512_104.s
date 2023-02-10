@@ -88,7 +88,7 @@ custom.config:
   AssertCEqualsD: True
 amdhsa.version:
   - 1
-  - 0
+  - 1
 amdhsa.kernels:
   - .name: DGEMM_Aldebaran_PKFixedAtomic512_104
     .symbol: 'DGEMM_Aldebaran_PKFixedAtomic512_104.kd'

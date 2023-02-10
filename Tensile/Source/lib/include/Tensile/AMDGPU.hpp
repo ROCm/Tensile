@@ -63,6 +63,10 @@ namespace Tensile
             gfx1011 = 1011,
             gfx1012 = 1012,
             gfx1030 = 1030,
+            gfx1031 = 1031,
+            gfx1032 = 1032,
+            gfx1034 = 1034,
+            gfx1035 = 1035,
             gfx1100 = 1100,
             gfx1101 = 1101,
             gfx1102 = 1102
@@ -90,6 +94,14 @@ namespace Tensile
                 return "gfx1012";
             case AMDGPU::Processor::gfx1030:
                 return "gfx1030";
+            case AMDGPU::Processor::gfx1031:
+                return "gfx1031";
+            case AMDGPU::Processor::gfx1032:
+                return "gfx1032";
+            case AMDGPU::Processor::gfx1034:
+                return "gfx1034";
+            case AMDGPU::Processor::gfx1035:
+                return "gfx1035";
             case AMDGPU::Processor::gfx1100:
                 return "gfx1100";
             case AMDGPU::Processor::gfx1101:

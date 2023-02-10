@@ -28,6 +28,7 @@ import os
 import argparse
 
 from .BenchmarkSplitter import BenchmarkSplitter
+from .Common import print2
 from .Configuration import ProjectConfig
 from .TensileBenchmarkClusterScripts import ScriptWriter
 from Tensile.Utilities.merge import mergePartialLogics
@@ -74,7 +75,12 @@ class BenchmarkImplSLURM(object):
             print("Building docker image: {0} ...".format(tag))
             print(buildCmd)
             # change to use  check_output to force windows cmd block util command finish
-            subprocess.check_output(shlex.split(buildCmd), stdout=logFile, stderr=logFile)
+            try:
+                out = subprocess.check_output(shlex.split(buildCmd), stdout=logFile, stderr=logFile)
+                print2(out)
+            except subprocess.CalledProcessError as err:
+                print(err.output)
+                raise
             print("Done building docker image!")
 
             # Docker save command
@@ -221,7 +227,12 @@ class BenchmarkImplSLURM(object):
 
         with open(logFilePath, "wt") as logFile:
             # change to use  check_output to force windows cmd block util command finish
-            subprocess.check_output(shlex.split(invokeCmd), stdout=logFile, stderr=logFile)
+            try:
+                out = subprocess.check_output(shlex.split(invokeCmd), stdout=logFile, stderr=logFile)
+                print2(out)
+            except subprocess.CalledProcessError as err:
+                print(err.output)
+                raise
 
     @classmethod
     def postInvokeBenchmark(cls, benchmarkObj):

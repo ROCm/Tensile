@@ -12375,7 +12375,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '8', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -12465,7 +12465,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '16', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -12555,7 +12555,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '8', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -12645,7 +12645,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '16', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -12735,7 +12735,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '8', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -12825,7 +12825,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '16', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -12915,7 +12915,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BufferLoad: 'True', BufferStore: 'True',
-    CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '8', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -13004,7 +13004,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '16', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -13094,7 +13094,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '8', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -13184,7 +13184,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '16', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -13274,7 +13274,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '16', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -13364,7 +13364,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '8', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -13454,7 +13454,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BufferLoad: 'True', BufferStore: 'True',
-    CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '8', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -13543,7 +13543,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '8', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'False',
@@ -13631,7 +13631,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '16', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -13721,7 +13721,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '8', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -13811,7 +13811,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '8', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -13901,7 +13901,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '16', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -13991,7 +13991,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '16', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -14081,7 +14081,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '8', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -14171,7 +14171,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BufferLoad: 'True', BufferStore: 'True',
-    CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '8', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -14260,7 +14260,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '16', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -14350,7 +14350,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '32', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'False',
@@ -14439,7 +14439,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '32', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'False',
@@ -14528,7 +14528,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '16', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -14618,7 +14618,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '8', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -14708,7 +14708,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BenchmarkFork: '0', BufferLoad: 'True',
-    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    BufferStore: 'True', CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '8', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',
@@ -14798,7 +14798,7 @@ solutions:
     AssertStrideAEqual: '{0: 1}', AssertStrideBEqual: '{0: 1}', AssertStrideCEqual: '{0:
       1}', AssertStrideDEqual: '{0: 1}', AssertSummationElementMultiple: '1', AssignedDerivedParameters: 'True',
     AssignedProblemIndependentDerivedParameters: 'True', BufferLoad: 'True', BufferStore: 'True',
-    CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: V3,
+    CheckDimOverflow: '0', CheckTensorDimAsserts: 'False', CodeObjectVersion: default,
     DepthU: '8', DirectToLds: 'False', DirectToLdsA: 'False', DirectToLdsB: 'False',
     DisableAtomicFail: '0', DisableKernelPieces: '0', DisableVgprOverlapping: 'False',
     EdgeType: ShiftPtr, EnableMatrixInstruction: 'False', ExpandPointerSwap: 'True',

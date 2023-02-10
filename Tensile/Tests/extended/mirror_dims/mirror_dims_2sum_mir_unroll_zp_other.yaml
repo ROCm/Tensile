@@ -1,3 +1,6 @@
+TestParameters:
+  marks: [skip] # Failing on latest ROCm build, re-enable when passing
+
 GlobalParameters:
   EnqueuesPerSync: 1
   NumElementsToValidate: -1
@@ -12,7 +15,6 @@ GlobalParameters:
   PrintTensorA: 0
   PrintTensorD: 0
   PrintTensorRef: 0
-  CpuThreads: 0
 
 # 2sums, single zero-pad, with padding on the 'other' (non-unroll) summation dim
 BenchmarkProblems:

@@ -2079,8 +2079,10 @@ class KernelWriterSource(KernelWriter):
     kStr = ""
     loopChar = self.indexChars[ \
         kernel["ProblemType"]["IndicesSummation"][loopIdx]]
-    if kernel["LoopDoWhile"]:
+    if kernel["LoopDoWhile"] and not tailLoop:
       kStr += "%sdo {%s" % (self.indent, self.endLine)
+      self.indent += "  "
+      kStr += "%snumIter%s--;%s" % (self.indent, loopChar, self.endLine)
       assert(not self.unrollIncIsDepthU)
     else:
       if self.unrollIncIsDepthU and loopIdx==self.unrollIdx and not tailLoop:
@@ -2098,7 +2100,7 @@ class KernelWriterSource(KernelWriter):
             % (self.indent, loopChar, \
             (1 if (kernel["PrefetchGlobalRead"] and loopIdx == self.unrollIdx \
             and not tailLoop) else 0), self.endLine)
-    self.indent += "  "
+      self.indent += "  "
     #if tailLoop:
     #  kStr += "if (serial==0) printf(\\\"WG%u_%u: ti=%u\\\\n\\\", get_group_id(0), get_group_id(1), numIterK);" + self.endLine
     #else:
@@ -2108,7 +2110,8 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Close Loop
   ##############################################################################
-  def closeLoop(self, kernel, loopIdx, finalLoop, uDu=0, emitEndLabelOnly=False, oddLabel=False):
+  def closeLoop(self, kernel, loopIdx, finalLoop, loopCopies, uDu=0, emitEndLabelOnly=False, oddLabel=False):
+    tailLoop = loopIdx < 0
     kStr = ""
     if emitEndLabelOnly:
       return kStr
@@ -2129,8 +2132,8 @@ class KernelWriterSource(KernelWriter):
           incAmount = "1"
 
     self.indent = self.indent[2:]
-    if kernel["LoopDoWhile"]:
-      kStr += "%s} while (--numIter%s > %u);%s" \
+    if kernel["LoopDoWhile"] and not tailLoop:
+      kStr += "%s} while (numIter%s > %u);%s" \
           % (self.indent, loopChar, \
           (1 if kernel["PrefetchGlobalRead"] else 0), self.endLine )
     else:
@@ -2752,7 +2755,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   def localSplitULocalWrite(self, kernel):
     kStr = ""
-    kStr += "  %sDATA_TYPE *localLocalSplitU = (%sDATA_TYPE *)(localMemory);%s" \
+    kStr += "  %sCOMPUTE_DATA_TYPE *localLocalSplitU = (%sCOMPUTE_DATA_TYPE *)(localMemory);%s" \
       % (self.sharedPtrStr, self.sharedPtrStr, self.endLine)
     for j in range(0, kernel["ThreadTile1"] // kernel["VectorWidth"]):
       for i in range(0, kernel["ThreadTile0"] // kernel["VectorWidth"]):
