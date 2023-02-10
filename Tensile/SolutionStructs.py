@@ -2183,7 +2183,7 @@ class Solution(collections.abc.Mapping):
         while grvw >= minGrvw:
           elementsLoadedPerInst = state["NumThreads"]*grvw
           if state["DirectToVgpr%s"%tc] and state["ProblemType"]["TLU%s"%tc]:
-            elementsLoadedPerInst //= state["MatrixInstK"]
+            elementsLoadedPerInst //= state["MatrixInstK"] * state["LocalSplitU"]
           if elementsLoadedPerInst < validElementsLoadedPerInst:
             break # Went too far, not enough load elements at this VW
           if state["LSC%s"%tc] % grvw == 0:
