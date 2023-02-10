@@ -57,6 +57,7 @@ BenchmarkProblems:
         - NumElementsPerBatchStore: [0]
         - GlobalSplitU: [1,2]
         - GlobalSplitUAlgorithm: ["SingleBuffer","MultipleBuffer"]
+        - FractionalLoad: [0,1,2]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:

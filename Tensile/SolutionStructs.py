@@ -2154,13 +2154,13 @@ class Solution(collections.abc.Mapping):
       # Per instruction across the entire group:
       elementsLoadedPerInst = state["NumThreads"]*grvw
       if (state["DirectToVgpr%s"%tc] and state["ProblemType"]["TLU%s"%tc]):
-        elementsLoadedPerInst //= state["MatrixInstK"]
+        elementsLoadedPerInst //= state["MatrixInstK"] * state["LocalSplitU"]
       # LSC, LSP - #elements loaded along specified dim with each load
       if parDim >= elementsLoadedPerInst:
         # entire work-group can work on (part) of the same row
-        # DirectToVgpr case, LSC is limited to elementsLoadedPerInst // state["MatrixInstK"]
+        # DirectToVgpr case, LSC is limited to elementsLoadedPerInst // (state["MatrixInstK"] * state["LocalSplitU"])
         state["LSC%s"%tc] = elementsLoadedPerInst
-        state["LSP%s"%tc] = 1 if not (state["DirectToVgpr%s"%tc] and state["ProblemType"]["TLU%s"%tc]) else state["MatrixInstK"]
+        state["LSP%s"%tc] = 1 if not (state["DirectToVgpr%s"%tc] and state["ProblemType"]["TLU%s"%tc]) else state["MatrixInstK"] * state["LocalSplitU"]
         state["NumLoadsCoalesced%s"%tc] = roundupRatio(parDim , state["LSC%s"%tc])
         state["NumLoadsPerpendicular%s"%tc] = 1
       else:
