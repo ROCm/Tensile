@@ -61,7 +61,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
             mkdir build
             pushd build
 
-            export PATH=/opt/rocm/bin:$PATH
+            export PATH=/opt/rocm/bin:\$PATH
             cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
             make -j\$(nproc)
 
