@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -5462,14 +5462,14 @@ class KernelWriterAssembly(KernelWriter):
       imod.addComment1("SRDs += (StaggerUIter) * GlobalReadIncs%s+%u"% (tc, self.unrollIdx))
 
       # Calculate the stagger byte offset
-      imod.addCode(self.s_mul_i64_i32(
+      imod.addCode(self.s_mul_u64_u32(
                 sgpr(staggerTmp), sgpr(staggerTmp+1), \
                 sgpr("StaggerUIter"), sgpr("GlobalReadIncs%s+%u"%(tc, self.unrollIdx)), \
                 " stagger byte offset"))
 
       # Amount of bytes to add to get back to start.
       # on the llop iteration which matches StaggerUIter, this offset added instead of GlobalReadInc
-      imod.addCode(self.s_mul_i64_i32(sgpr("WrapU%s+0"%tc), sgpr("WrapU%s+1"%tc), \
+      imod.addCode(self.s_mul_u64_u32(sgpr("WrapU%s+0"%tc), sgpr("WrapU%s+1"%tc), \
                 self.loopCounter(kernel, self.unrollIdx), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
                 "Number of bytes accessed by the unroll loop"))
 
@@ -5521,17 +5521,30 @@ class KernelWriterAssembly(KernelWriter):
     imod = Code.Module("removeStagger")
     if self.staggerU:
       tc = tP["tensorChar"]
-      tmp = self.getTmpSgpr(2).idx()
-      # might be able to refactor this to eliminate signed math
-      imod.addInst("s_sub_i32", sgpr(tmp), 3 if kernel["PrefetchGlobalRead"] else 2, \
-                  sgpr("StaggerUIter"), "")
-      imod.addCode(self.s_mul_i64_i32(sgpr(tmp), sgpr(tmp+1), \
-                  sgpr(tmp), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
-                  "start offset S in bytes"))
-      imod.addInst("s_sub_u32", sgpr(tmp), sgpr(tmp), sgpr("WrapU%s"%tc), "S - WrapU")
-      imod.addInst("s_subb_u32", sgpr(tmp+1), sgpr(tmp+1), sgpr("WrapU%s+1"%(tc)), "S - WrapU")
+      tmp = self.getTmpSgpr(4).idx()
+      tmpForInc = tmp
+      tmpForExtra = tmp + 2
+      # need to use extra 64bit mul to avoid negative value by subtraction
+      #  ((3 or 2) - StaggerUIter) * GlobalReadIncs
+      #   -> (3 or 2) * GlobalReadIncs - StaggerUIter * GlobalReadIncs
+      extra = 3 if kernel["PrefetchGlobalRead"] else 2
+      # tmpForInc = extra * GlobalReadIncs
+      imod.addInst("s_mov_b32", sgpr(tmpForExtra), extra, "")
+      imod.addCode(self.s_mul_u64_u32(sgpr(tmpForInc), sgpr(tmpForInc+1), \
+                  sgpr(tmpForExtra), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
+                  "%u * GlobalReadIncs"%extra))
+      # tmpForExtra = StaggerUIter * GlobalReadIncs
+      imod.addCode(self.s_mul_u64_u32(sgpr(tmpForExtra), sgpr(tmpForExtra+1), \
+                  sgpr("StaggerUIter"), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
+                  "StaggerUIter * GlobalReadIncs"))
+      # tmpForInc = tmpForInc - tmpForExtra = (extra - StaggerUIter) * GlobalReadIncs
+      imod.addInst("s_sub_u32", sgpr(tmpForInc), sgpr(tmpForInc), sgpr(tmpForExtra), "start offset S in bytes")
+      imod.addInst("s_subb_u32", sgpr(tmpForInc+1), sgpr(tmpForInc+1), sgpr(tmpForExtra+1), "start offset S in bytes")
+      # -= WrapU
+      imod.addInst("s_sub_u32", sgpr(tmpForInc), sgpr(tmpForInc), sgpr("WrapU%s"%tc), "S - WrapU")
+      imod.addInst("s_subb_u32", sgpr(tmpForInc+1), sgpr(tmpForInc+1), sgpr("WrapU%s+1"%(tc)), "S - WrapU")
 
-      imod.addCode(self.incrementSrd(kernel, tP, sgpr(tmp), sgpr(tmp+1)))
+      imod.addCode(self.incrementSrd(kernel, tP, sgpr(tmpForInc), sgpr(tmpForInc+1)))
 
     return imod
 
