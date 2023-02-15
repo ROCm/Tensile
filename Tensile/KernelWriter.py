@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -312,6 +312,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           loop += 1
           oldValue = newValue
           newValue = roundUp((writesToSched+1 + (oldValue - (writesToSched+1) % oldValue) + oldValue%PRECISION) / numMfmaCanSched)
+          newValue = max(1, newValue) # minimum 1 to avoid 0 division
         numLocalWriteModPerMfma = newValue
 
       #####
