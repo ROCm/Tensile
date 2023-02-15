@@ -433,3 +433,71 @@ BenchmarkProblems:
           #- Exact: [1024, 1024, 1, 512]
           - Exact: [1022, 1022, 1, 511]
 
+  ########################################
+  # NT - MI4x4
+  ########################################
+  - # dgemm NT
+    - # ProblemType
+      OperationType: GEMM
+      DataType: D
+      TransposeA: False
+      TransposeB: True
+      UseBeta: True
+      Batched: True
+
+    - # BenchmarkProblemSizeGroup - Standard
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - KernelLanguage: ["Assembly"]
+        - EdgeType: ["ShiftPtr"]
+      ForkParameters:
+        - MatrixInstruction:
+          # - [16, 16, 4, 1]
+          - [4, 4, 4, 4, 1, 2,2, 2,2] # 16x64
+          - [4, 4, 4, 4, 2, 2,2, 2,2] # 32x32
+          - [4, 4, 4, 4, 4, 2,2, 2,2] # 64x16
+          - [4, 4, 4, 4, 1, 4,2, 1,4] # 16x128
+          - [4, 4, 4, 4, 2, 4,2, 1,4] # 32x64
+          - [4, 4, 4, 4, 4, 4,2, 1,4] # 64x32
+          - [4, 4, 4, 4, 1, 2,4, 4,1] # 32x16
+          - [4, 4, 4, 4, 2, 2,4, 4,1] # 64x32
+          - [4, 4, 4, 4, 4, 2,4, 4,1] # 128x16
+          - [4, 4, 4, 4, 1, 4,4, 2,2] # 32x128
+          - [4, 4, 4, 4, 2, 4,4, 2,2] # 64x64
+          - [4, 4, 4, 4, 4, 4,4, 2,2] # 128x32
+        - SourceSwap: [0,1]
+        - PrefetchGlobalRead: [0,1,2]
+        - ThreadTile:
+          - [  8, 32 ]
+        - WorkGroup:
+          - [ 16, 16, 1 ]
+        - AssertFree0ElementMultiple: [1,2]
+        #- AssertFree1ElementMultiple: [1,2]
+        - AssertSummationElementMultiple: [1]
+        - PrefetchLocalRead: [1]
+        - GlobalSplitU: [1]
+        - DepthU:  [16]
+        - GlobalReadVectorWidth: [1,2]
+        - VectorWidth: [1,2]
+        - StoreVectorWidth: [1,2]
+        #- LocalReadVectorWidth: [1,2]
+        #- DirectToLds: [False, True]
+        #- DirectToVgprA: [False, True] # MI4x4 + DTV not supported yet
+        #- DirectToVgprB: [True, False] # MI4x4 + DTV not supported yet
+        #- WaveSeparateGlobalReadA: [0,1]
+        #- WaveSeparateGlobalReadB: [0,1]
+        #- NumLoadsCoalescedA: [1,2]
+        #- NumLoadsCoalescedB: [1,2]
+        - ScheduleIterAlg: [0,2,3]
+        - NumElementsPerBatchStore: [0] # not 1 for SCIU
+        #- FractionalLoad: [0,1,2]
+        #- BufferLoad: [True, False]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
+          #- Exact: [1024, 1024, 1, 512]
+          - Exact: [1022, 1022, 1, 511]
+
