@@ -7919,9 +7919,9 @@ class KernelWriterAssembly(KernelWriter):
     #  imod.header.addInst("s_lshl_b32", sgpr(zpTmp), sgpr(zpTmp), log2(self.bpeAB), "scale by bpe")
 
     # set the first tc for below wait code for DirectToLds
-    # if DirectToVgprA is enabled, change the first to B
+    # if DirectToVgpr is enabled and swapGlobalRead is true, change the first to B
     tc1st = 'A'
-    if kernel["DirectToVgprA"]:
+    if self.isSwapGlobalReadOrderForDirectToVgpr(kernel):
       tc1st = 'B'
 
     if tc == tc1st and (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]) and not kernel["PrefetchGlobalRead"]==2:
@@ -9026,7 +9026,8 @@ class KernelWriterAssembly(KernelWriter):
   def localSplitULocalWrite(self, kernel):
     kStr = ""
     # wait for summation to be done with lds before writing reduction values
-    kStr += self.syncThreads(kernel, "pre-lsu local write")
+    # sync is already done before calling this function
+    # kStr += self.syncThreads(kernel, "pre-lsu local write")
 
     if kernel["EnableMatrixInstruction"]:
       kStr += self.localSplitULocalWriteMFMA(kernel)
@@ -9240,7 +9241,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("_v_add_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), "coordination 1 = wave_id1 + tid1")
 
     # adjustment for B vector
-    if (self.allowLRVWBforTLUandMI or kernel["DirectToVgprB"]) and self.lrvwB > 1:
+    if self.allowLRVWBforTLUandMI and self.lrvwB > 1:
       kStr += staticMultiply(vgpr(tid1), vgpr(tid1), self.lrvwB, sgpr(tmpSgpr), "coordination 1 *= lrvwB")
     # tid1 *= MT0*bpe
     kStr += staticMultiply(vgpr(tid1), vgpr(tid1), kernel["MacroTile0"]*self.bpeCinternal, sgpr(tmpSgpr), "coordination 1 *= (MT0*bpe)")
@@ -9315,7 +9316,7 @@ class KernelWriterAssembly(KernelWriter):
 
       coordOffset1 = 0
 
-      vc1Scale = self.lrvwB if (self.allowLRVWBforTLUandMI or kernel["DirectToVgprB"]) else 1
+      vc1Scale = self.lrvwB if self.allowLRVWBforTLUandMI else 1
       MIOutputVectorWidth = kernel["MIOutputVectorWidth"]
       MFMAContinuousOutputs = MIOutputVectorWidth if kernel["SourceSwap"] else 1
       OutputsPerMIMN        = (matrixInstM * matrixInstN // kernel["WavefrontSize"]) if kernel["SourceSwap"] else 1
@@ -10366,7 +10367,7 @@ class KernelWriterAssembly(KernelWriter):
 
         coordOffset1 = 0
         if kernel["EnableMatrixInstructionStore"]:
-          vc1Scale = lrvwB if (allowLRVWBforTLUandMI or kernel["DirectToVgprB"]) else 1
+          vc1Scale = lrvwB if allowLRVWBforTLUandMI else 1
           MIOutputVectorWidth = kernel["MIOutputVectorWidth"]
           MFMAContinuousOutputs = MIOutputVectorWidth if kernel["SourceSwap"] else 1
           OutputsPerMIMN        = (matrixInstM * matrixInstN // self.kernel["WavefrontSize"]) if kernel["SourceSwap"] else 1
@@ -13068,7 +13069,7 @@ class KernelWriterAssembly(KernelWriter):
     totalTT0     = totalTT0                      if kernel["SourceSwap"] else (totalTT0 * outputsPerThread)
     totalTT1     = (totalTT1 * outputsPerThread) if kernel["SourceSwap"] else totalTT1
     vectorWidth0 = kernel["VectorWidth"]         if kernel["SourceSwap"] else kernel["MIOutputVectorWidth"]
-    MIOutputVectorWidthAdj = (self.lrvwB if self.allowLRVWBforTLUandMI or kernel["DirectToVgprB"] else 1) * kernel["MIOutputVectorWidth"]
+    MIOutputVectorWidthAdj = (self.lrvwB if self.allowLRVWBforTLUandMI else 1) * kernel["MIOutputVectorWidth"]
     vectorWidth1 = MIOutputVectorWidthAdj if kernel["SourceSwap"] else 1
     # To here
 
@@ -13794,6 +13795,20 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
+  # isSwapGlobalReadOrderForDirectToVgpr
+  ##############################################################################
+  def isSwapGlobalReadOrderForDirectToVgpr(self, kernel):
+    # swap global read order (from A, B to B, A) if the following condition is true
+    #  - DirectToVgprA and B are true and number of global read B >= number of global read A
+    #  - if DirectToVgprA is true and DirectToVgprB is false
+    if kernel["DirectToVgprA"] and kernel["DirectToVgprB"]:
+      if kernel["NumLoadsB"] >= kernel["NumLoadsA"]:
+        return True
+    elif kernel["DirectToVgprA"]:
+      return True
+    return False
+
+  ##############################################################################
   # Open String
   ##############################################################################
   def openString(self, kernel):
@@ -13972,7 +13987,7 @@ class KernelWriterAssembly(KernelWriter):
     OutputsPerMFMA1B = matrixInstM * matrixInstN // self.kernel["WavefrontSize"]
     VectorWidth0     = kernel["VectorWidth"] if kernel["SourceSwap"] else 1
     outerTT0         = kernel["MIWaveTile"][0] // VectorWidth0
-    lrvwB            = self.lrvwB if (self.allowLRVWBforTLUandMI or kernel["DirectToVgprB"]) else 1
+    lrvwB            = self.lrvwB if self.allowLRVWBforTLUandMI else 1
     VectorWidth1     = lrvwB
     outerTT1         = kernel["MIWaveTile"][1] // VectorWidth1
 

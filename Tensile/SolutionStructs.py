@@ -2355,9 +2355,10 @@ class Solution(collections.abc.Mapping):
   def isDirectToVgprDoable(state, tc):
     tcOther = 'B' if tc == 'A' else 'A'
     MIindex = 0 if tc == 'A' else 1
-    # Does not support DirectToVgprA+DirectToVgprB (TODO)
-    if state["DirectToVgprA"] and state["DirectToVgprB"] :
-      reject(state, "DirectToVgprA + DirectToVgprB is not supported yet")
+    # Does not support DirectToVgprA+DirectToVgprB+PrefetchGlobalRead=2
+    # Need more than double-vgpr buffers to avoid overwritting loaded data on vgpr
+    if state["DirectToVgprA"] and state["DirectToVgprB"] and state["PrefetchGlobalRead"]==2:
+      reject(state, "DirectToVgprA + DirectToVgprB + PrefetchGlobalRead=2 is not supported")
       return False
 
     # With MatrixInstruction only (tentative)
@@ -3343,7 +3344,7 @@ class Solution(collections.abc.Mapping):
       VectorWidthB = state["VectorWidth"]
     elif state["DirectToVgprA"]:
       VectorWidthB = state["LocalReadVectorWidth"]
-    state["allowLRVWBforTLUandMI"] = (state["DirectToVgprB"] and \
+    state["allowLRVWBforTLUandMI"] = (state["DirectToVgprB"] or \
                                        (state["ProblemType"]["TLUA"] and state["LocalReadVectorWidth"] == 1 or \
                                         not state["ProblemType"]["TLUA"]) or \
                                       state["DirectToVgprA"] and not state["DirectToLds"]) and \
