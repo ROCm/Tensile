@@ -3616,10 +3616,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       else:
         self.lrvwB = 1
 
-    # DirectToVgprB + VW > 1 case, set lrvwB = VW
+    # DirectToVgprB case, set lrvwB = VW
     # DirectToVgprB case, global load data directly goes to Vgpr.
     # If VW=2, it means lrwvB is 2.
-    if kernel["DirectToVgprB"] and kernel["VectorWidth"] > 1:
+    if kernel["DirectToVgprB"]:
       self.lrvwB = kernel["VectorWidth"]
     # DirectToVgpr + TLU=False case
     # set lrvw = VW

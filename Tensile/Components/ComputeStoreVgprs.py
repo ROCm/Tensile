@@ -302,11 +302,12 @@ class ComputeStoreVgprsMFMASwap(ComputeStoreVgprs):
           kStr += inst("v_mul_lo_u32", vgpr(writer.coutRowPtr), vgpr(tid1), sgpr(strideD1), " offset 1")
 
         # coord 0 : wave part
-        kStr += vectorStaticRemainder(tid0, wave_id, kernel["MIWaveGroup"][0], tmpSgpr)
-        kStr += inst("v_mul_lo_u32", vgpr(tid0), hex(MIBShape0), vgpr(tid0), "wave coordination offset 0")
+        kStr += vectorStaticRemainder(tmpVgpr0, wave_id, kernel["MIWaveGroup"][0], tmpSgpr)
+        if kernel["MIWaveGroup"][0] > 1:
+          kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr0), hex(MIBShape0), vgpr(tmpVgpr0), "wave coordination offset 0")
 
         # coord 0 : thread part
-        kStr += vectorStaticRemainder(tmpVgpr0, "Serial", matrixInstM, tmpSgpr)
+        kStr += vectorStaticRemainder(tid0, "Serial", matrixInstM, tmpSgpr)
         kStr += inst("_v_add_lshl_u32", vgpr(tid0), vgpr(tmpVgpr0), vgpr(tid0), log2(kernel["VectorWidth"]), "coordination 0 = wave_id0 + tid0")
 
         if writer.prefetchAcrossPersistent:
