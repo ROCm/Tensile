@@ -312,6 +312,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           loop += 1
           oldValue = newValue
           newValue = roundUp((writesToSched+1 + (oldValue - (writesToSched+1) % oldValue) + oldValue%PRECISION) / numMfmaCanSched)
+          newValue = max(1, newValue) # minimum 1 to avoid 0 division
         numLocalWriteModPerMfma = newValue
 
       #####
