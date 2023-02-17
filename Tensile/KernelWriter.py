@@ -503,8 +503,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
         globalReadInc1 = globalReadIncACode.flatitems()
         globalReadInc2 = globalReadIncBCode.flatitems()
-        if kernel["DirectToVgprA"]:
-          # swap the order of readInc for DTVA
+        if self.isSwapGlobalReadOrderForDirectToVgpr(kernel):
+          # swap the order of readInc for DTV
           globalReadInc1, globalReadInc2 = globalReadInc2, globalReadInc1
         globalReadIncItems = globalReadInc1 + globalReadInc2
         if kernel["StoreCInUnroll"] and  kernel["PrefetchGlobalRead"] == 2:
@@ -667,12 +667,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
         tmpList = []
         numItemsBeforeStoreC = 0 #if not kernel["StoreCInUnroll"] else self.numItemsBeforeStoreC
         numDummy = 0
-        if kernel["DirectToLdsA"]:
-          numDummy += max(len(list(self.globalReadACode.middle.items())) - numItemsBeforeStoreC, 0)
-        if kernel["DirectToLdsB"]:
-          # DirectToVgprA case, LDS load is actually in B. Need to get correct length
-          numReadB = len(list(self.globalReadACode.middle.items())) if kernel["DirectToVgprA"] else len(list(self.globalReadBCode.middle.items()))
-          numDummy += max(numReadB - numItemsBeforeStoreC, 0)
+        # PGR2 + NoLdsWriteCode case, need to add dummy local write to schedule global read
+        numRead = len(list(self.globalReadACode.middle.items()))
+        if kernel["NoLdsWriteCode"]:
+          numDummy += max(numRead - numItemsBeforeStoreC, 0)
+          if kernel["DirectToLdsA"] and kernel["DirectToLdsB"]:
+            # both DirectToLds case, add the length of globalReadB
+            numDummy += len(list(self.globalReadBCode.middle.items()))
         for i in range(numDummy):
           tmpList.append(Code.Module())
         # add dummy at the top of the list
@@ -721,7 +722,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       readsToWaitDTV = 0
       # add waitcnt for DirectToVgpr. Delaying wait for DirectToVgpr global read
       if kernel["DirectToVgprA"] or kernel["DirectToVgprB"]:
-        # DirectToVgprA case, actual A load is in self.globalReadBCode (due to swap).
+        # DirectToVgpr + swapGlobalRead case, actual DTV load is in self.globalReadBCode (due to swap).
         # Need to check self.globalReadBCode
         readsToWaitDTV += len(list(self.globalReadBCode.middle.items()))
       # add waitcnt for StoreCInUnroll. Delaying wait for Load C
@@ -1437,7 +1438,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         numLoadVgpr = len(list(globalReadCodeDTV.items()))
         if numLoadVgpr > 0:
           interval = roundUp(numMfmaPerIter / origLenGlobalReadCodeDTV)
-          tileIndex = 0 if kernel["DirectToVgprA"] else 1
+          tileIndex = 0 if self.isSwapGlobalReadOrderForDirectToVgpr(kernel) else 1
           if (kernel["MIWaveTile"][tileIndex] // kernel["VectorWidth"]) > 1:
             if kernel["ProblemType"]["DataType"].isComplex():
               # adjustment for double complex
@@ -1831,10 +1832,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if isPap and isOptNLL:
         # forceNoGRCode case, reset and not generate global read A/B code
         if self.enable["GlobalRead"]  and (not forceNoGRCode):
-          # if DirectToVgprA is enabled, swap the order of global read (B->A)
+          # if DirectToVgpr is enabled and swapGlobalRead is true, swap the order of global read (B->A)
           tensorParameters1st = tensorParametersA
           tensorParameters2nd = tensorParametersB
-          if kernel["DirectToVgprA"]:
+          if self.isSwapGlobalReadOrderForDirectToVgpr(kernel):
             tensorParameters1st, tensorParameters2nd = tensorParameters2nd, tensorParameters1st
           self.dtlsM0UpdateACode = self.directToLdsM0Update(kernel, 0, tensorParameters1st, usePlaceHolder=isPap)
           self.globalReadACode = self.globalReadDo(kernel, 0, tensorParameters1st, 0)
@@ -1855,10 +1856,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       else:
         if self.enable["GlobalRead"]:
-          # if DirectToVgprA is enabled, swap the order of global read (B->A)
+          # if DirectToVgpr is enabled and swapGlobalRead is true, swap the order of global read (B->A)
           tensorParameters1st = tensorParametersA
           tensorParameters2nd = tensorParametersB
-          if kernel["DirectToVgprA"]:
+          if self.isSwapGlobalReadOrderForDirectToVgpr(kernel):
             tensorParameters1st, tensorParameters2nd = tensorParameters2nd, tensorParameters1st
           tmpStr = str(self.directToLdsM0Update(kernel, 0, tensorParameters1st, usePlaceHolder=isPap))
           tmpStr = tmpStr.replace("__placeholder__", str(0))
@@ -1893,7 +1894,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
                kernel["ProblemType"]["DataType"].isDouble() and \
               (kernel["DirectToVgprA"] and self.numReadsIterCoalescedB % 2 == 0 or \
                kernel["DirectToVgprB"] and self.numReadsIterCoalescedA % 2 == 0)
-    return cond1 and (not condSkip)
+    # no local write wait is necessary in DirectToVgprA + DirectToVgprB case
+    cond2 = not (kernel["DirectToVgprA"] and kernel["DirectToVgprB"])
+    return cond1 and (not condSkip) and cond2
 
   ##############################################################################
   # No Load Loop Body
@@ -2299,12 +2302,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
     kl.append(self.comment("Begin Each Unroll: Check VGPR.checkin for INT8 LW"))
 
     if self.enable["GlobalRead"]:
-      # if DirectToVgprA is enabled, swap the order of global read (B->A)
+      # if DirectToVgpr is enabled and swapGlobalRead is true, swap the order of global read (B->A)
       tensorParameters1st = tensorParametersA
       tensorParameters2nd = tensorParametersB
       tc1 = 'A'
       tc2 = 'B'
-      if kernel["DirectToVgprA"]:
+      if self.isSwapGlobalReadOrderForDirectToVgpr(kernel):
         tensorParameters1st, tensorParameters2nd = tensorParameters2nd, tensorParameters1st
         tc1, tc2 = tc2, tc1
       # unrolled loop: global read A, B
@@ -2572,8 +2575,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
               waitLWCode.addCode(self.wait(kernel, tensorParametersA, tensorParametersB, -1, 0, -1, "3wait for local write"))
           if self.enable["Sync"]:
             if kernel["DirectToVgprA"] or kernel["DirectToVgprB"]:
-              # put only barrier for DirectToVgpr (to avoid generating waitcnt for global read)
-              syncCode.addCode("s_barrier" + self.endLine)
+              if not (kernel["DirectToVgprA"] and kernel["DirectToVgprB"]):
+                # put only barrier for DirectToVgpr (to avoid generating waitcnt for global read)
+                # barrier is not necessary if both DirectToVgprA and B are enabled
+                syncCode.addCode("s_barrier" + self.endLine)
             else:
               syncCode.addCode(self.syncThreads(kernel))
 
@@ -2922,10 +2927,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if kernel["PrefetchGlobalRead"] == 2:
         kl.append(self.openPrefetchGlobalRead2(kernel))
         if self.enable["GlobalRead"]:
-          # if DirectToVgprA is enabled, swap the order of global read (B->A)
+          # if DirectToVgpr is enabled and swapGlobalRoad is true, swap the order of global read (B->A)
           tensorParameters1st = tensorParametersA
           tensorParameters2nd = tensorParametersB
-          if kernel["DirectToVgprA"]:
+          if self.isSwapGlobalReadOrderForDirectToVgpr(kernel):
             tensorParameters1st, tensorParameters2nd = tensorParameters2nd, tensorParameters1st
           kl.append(str(self.directToLdsM0Update(kernel, 1, tensorParameters1st)))
           kl.append(str(self.globalReadDo(kernel, 0, tensorParameters1st, 1)))
@@ -3133,12 +3138,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
             kl.append(self.removeStagger(kernel, tensorParametersA))
             kl.append(self.removeStagger(kernel, tensorParametersB))
 
-          # if DirectToVgprA is enabled, swap the order of global read (B->A)
+          # if DirectToVgpr is enabled and swapGlobalRoad is true, swap the order of global read (B->A)
           tensorParameters1st = tensorParametersA
           tensorParameters2nd = tensorParametersB
           tc1 = 'a'
           tc2 = 'b'
-          if kernel["DirectToVgprA"]:
+          if self.isSwapGlobalReadOrderForDirectToVgpr(kernel):
             tensorParameters1st, tensorParameters2nd = tensorParameters2nd, tensorParameters1st
             tc1, tc2 = tc2, tc1
           kl.append(self.comment("Update M0 for DTLDS"))
@@ -3328,7 +3333,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if kernel["LocalSplitU"] > 1:
         kl.append(self.comment3("LocalSplitU Reduction"))
         if self.enable["Sync"]:
-          kl.append(self.syncThreads(kernel))
+          # not generate sync code when both DirectToVgprA and B are enabled
+          # in this case, LDS is not used and no need to sync to use LDS for LocalSplitU
+          if not (kernel["DirectToVgprA"] and kernel["DirectToVgprB"]):
+            kl.append(self.syncThreads(kernel))
 
         # LocalSplitU: local write
         kl.append(self.comment("LocalSplitU: local write"))
@@ -3349,7 +3357,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # LocalSplitU: global write
         kl.append(self.comment("LocalSplitU: global write"))
         kl.append(self.localSplitUGlobalWrite(kernel))
-
 
       else:
         ####################################
@@ -3616,10 +3623,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       else:
         self.lrvwB = 1
 
-    # DirectToVgprB + VW > 1 case, set lrvwB = VW
+    # DirectToVgprB case, set lrvwB = VW
     # DirectToVgprB case, global load data directly goes to Vgpr.
     # If VW=2, it means lrwvB is 2.
-    if kernel["DirectToVgprB"] and kernel["VectorWidth"] > 1:
+    if kernel["DirectToVgprB"]:
       self.lrvwB = kernel["VectorWidth"]
     # DirectToVgpr + TLU=False case
     # set lrvw = VW
@@ -4728,6 +4735,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
     return ""
 
   ##############################################################################
+  # isSwapGlobalReadOrderForDirectToVgpr
+  ##############################################################################
+  @abc.abstractmethod
+  def isSwapGlobalReadOrderForDirectToVgpr(self, kernel):
+    return ""
+
+  ##############################################################################
   # PrefetchGlobalRead2
   ##############################################################################
   @abc.abstractmethod
@@ -5191,10 +5205,10 @@ for codeObjectFileName in codeObjectFileNames:
         pgr2 = kernel["PrefetchGlobalRead"] == 2
         numGlobalReadA = kernel["NumLoadsPerpendicularA"] * kernel["NumLoadsCoalescedA"] * self.numReadVectorComponentsA
         numGlobalReadB = kernel["NumLoadsPerpendicularB"] * kernel["NumLoadsCoalescedB"] * self.numReadVectorComponentsB
-        numGlobalRead = numGlobalReadA if kernel["DirectToVgprA"] else numGlobalReadB
+        numGlobalRead = numGlobalReadA if self.isSwapGlobalReadOrderForDirectToVgpr(kernel) else numGlobalReadB
         numGlobalReadAll = numGlobalReadA + numGlobalReadB
         numGlobalStoreC = 0
-        numReadsIterCoalesced = self.numReadsIterCoalescedA if kernel["DirectToVgprA"] else self.numReadsIterCoalescedB
+        numReadsIterCoalesced = self.numReadsIterCoalescedA if self.isSwapGlobalReadOrderForDirectToVgpr(kernel) else self.numReadsIterCoalescedB
         waitComment = "global read wait for DirectToVgpr"
         # delay DirectToVgpr global read (from previous iteration) which is not referred yet
         numRegsIn1set = (numGlobalRead // kernel["LoopIters"]) * numReadsIterCoalesced
