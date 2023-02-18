@@ -59,6 +59,7 @@ namespace Tensile
             static void mapping(IO& io, Forest& lib)
             {
                 iot::mapRequired(io, "trees", lib.trees);
+                iot::mapRequired(io, "nullValue", lib.nullValue);
             }
 
             const static bool flow = false;
@@ -120,6 +121,7 @@ namespace Tensile
                     BasicForest<Key, MyProblem, Element, std::shared_ptr<MySolution>>;
 
                 std::shared_ptr<Forest> forest;
+                //std::shared_ptr<MySolution> nullValue;
 
                 if(iot::outputting(io))
                 {

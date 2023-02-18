@@ -254,16 +254,25 @@ namespace Tensile
             using Transform = typename Base::Transform;
             using Features  = typename Base::Features;
 
-            BasicForest(ReturnValue nullValue = ReturnValue())
-                : nullValue(nullValue)
+            // BasicForest(ReturnValue nullValue = ReturnValue())
+            //     : nullValue(nullValue)
+            // {
+            // }
+
+            // BasicForest(Features const& features, ReturnValue nullValue = ReturnValue())
+            //     : Base(features)
+            //     , nullValue(nullValue)
+            // {
+            // }
+            BasicForest()
             {
             }
 
-            BasicForest(Features const& features, ReturnValue nullValue = ReturnValue())
+            BasicForest(Features const& features)
                 : Base(features)
-                , nullValue(nullValue)
             {
             }
+
 
             virtual ReturnValue findBestMatch(Object const& problem,
                                               Transform     transform) const override
@@ -271,11 +280,15 @@ namespace Tensile
                 Key key = ProblemKey::keyForProblem<Key, Object, float>(problem, this->features);
                 for(Tree const& tree : trees)
                 {
-                    bool result = tree.predict(key);
-                    if(result)
-                        return tree.getSolution(transform);
+                    ReturnValue rv = tree.getSolution(transform);
+                    if (rv != nullptr)
+                    {
+                        bool result = tree.predict(key);
+                        if(result)
+                            return rv;
+                    }
                 }
-                return nullValue;
+                return transform(nullValue);
             }
 
             virtual std::set<ReturnValue> matchesInOrder(Object const& problem,
@@ -297,7 +310,8 @@ namespace Tensile
             }
 
             std::vector<Tree> trees;
-            ReturnValue       nullValue;
+            Value       nullValue;
+            //Value fallback;
         };
     } // namespace DecisionTree
 } // namespace Tensile
