@@ -28,9 +28,11 @@
 
 #include <Tensile/AMDGPU.hpp>
 #include <Tensile/ContractionLibrary.hpp>
+#include <Tensile/ContractionProblemPredicates.hpp>
 #include <Tensile/ContractionProblemProperties.hpp>
 #include <Tensile/DecisionTree.hpp>
 #include <Tensile/DecisionTreeLibrary.hpp>
+#include <Tensile/ExactLogicLibrary.hpp>
 
 using namespace Tensile;
 using namespace DecisionTree;
@@ -178,6 +180,7 @@ TEST(DecisionTree, DecisionTreeLibrary)
     auto Library0 = std::make_shared<SingleContractionLibrary>(Solution0);
     auto Library1 = std::make_shared<SingleContractionLibrary>(Solution1);
     auto Library2 = std::make_shared<SingleContractionLibrary>(Solution2);
+    auto LibraryFallback = std::make_shared<SingleContractionLibrary>(Solution3);
 
     auto sslib = std::shared_ptr<SingleContractionLibrary>();
 
@@ -224,6 +227,7 @@ TEST(DecisionTree, DecisionTreeLibrary)
                                 std::shared_ptr<ContractionSolution>>;
     //auto forest   = std::make_shared<BForest>(features, Solution3);
     auto forest   = std::make_shared<BForest>(features);
+    forest->nullValue = LibraryFallback;
     forest->trees = trees;
 
     auto dtreelib    = std::make_shared<DecisionTreeLibrary<ContractionProblem>>();
@@ -241,5 +245,156 @@ TEST(DecisionTree, DecisionTreeLibrary)
     AMDGPU gpu;
     EXPECT_EQ(dtreelib->findBestSolution(Problem0, gpu), Solution0);
     EXPECT_EQ(dtreelib->findBestSolution(Problem1, gpu), Solution1);
-    //EXPECT_EQ(dtreelib->findBestSolution(Problem2, gpu), Solution3); // No match, goes to fallback
+    EXPECT_EQ(dtreelib->findBestSolution(Problem2, gpu), Solution3); // No match, goes to fallback
+}
+
+TEST(DecisionTree, DecisionTreeMultiLibrary)
+{
+    auto Solution0 = std::make_shared<ContractionSolution>();
+    auto Solution1 = std::make_shared<ContractionSolution>();
+    auto Solution2 = std::make_shared<ContractionSolution>();
+    auto Solution3 = std::make_shared<ContractionSolution>();
+
+    Solution0->index = 0;
+    Solution1->index = 1;
+    Solution2->index = 2;
+    Solution3->index = 3;
+
+    auto Library0 = std::make_shared<SingleContractionLibrary>(Solution0);
+    auto Library1 = std::make_shared<SingleContractionLibrary>(Solution1);
+    auto Library2 = std::make_shared<SingleContractionLibrary>(Solution2);
+    auto LibraryFallback = std::make_shared<SingleContractionLibrary>(Solution3);
+
+    //auto sslib = std::shared_ptr<SingleContractionLibrary>();
+    //std::cout << "this is sslib" << sslib << std::endl;
+    //std::cout << "this is sslib" << (sslib == nullptr) << std::endl;
+    //std::cout << "this is sslib" << (sslib == std::shared_ptr<SingleContractionLibrary>()) << std::endl;
+    // Features
+    std::vector<std::shared_ptr<MLFeatures::MLFeature<ContractionProblem>>> features;
+    auto freeSizeA   = std::make_shared<MLFeatures::FreeSizeA>();
+    freeSizeA->index = 0;
+    features.push_back(freeSizeA);
+    auto freeSizeB   = std::make_shared<MLFeatures::FreeSizeB>();
+    freeSizeB->index = 0;
+    features.push_back(freeSizeB);
+    auto boundSize   = std::make_shared<MLFeatures::BoundSize>();
+    boundSize->index = 0;
+    features.push_back(boundSize); 
+
+    // PredicateLibrary
+    // using Row = LibraryRow<MyProblem, MySolution, MyPredicate>;
+    // std::vector<Row> rows;
+
+    // ExactLogicLibrary() = default;
+    // ExactLogicLibrary(std::initializer_list<Row> init)
+    //     : rows(init)
+    // {
+    // }
+
+    // ExactLogicLibrary(std::vector<Row> const& init)
+    //     : rows(init)
+    // {
+
+    // Make trees library
+    std::vector<DTree> trees;
+
+    DTree tree0{{
+        {0, 700.f, IDX_RETURN_FALSE, IDX_RETURN_TRUE}, // YES for freeSizeA>7000
+    }};
+    tree0.value = Library0;
+    trees.push_back(tree0);
+
+    DTree tree1{{
+        {1, 700.f, IDX_RETURN_FALSE, IDX_RETURN_TRUE}, // YES for freeSizeB>700
+    }};
+    tree1.value = Library1;
+    trees.push_back(tree1);
+
+    DTree tree2{{
+        {0, 300.f, IDX_RETURN_TRUE, IDX_RETURN_FALSE}, // YES for freeSizeA<300
+    }};
+    tree2.value = Library2;
+    trees.push_back(tree2);
+
+     // Forest and full library - Note: Solution 3 as fallback
+    using BForest = BasicForest<Key,
+                                ContractionProblem,
+                                std::shared_ptr<ContractionLibrary>,
+                                std::shared_ptr<ContractionSolution>>;
+    //auto forest   = std::make_shared<BForest>(features, Solution3);
+    auto forest   = std::make_shared<BForest>(features);
+    forest->nullValue = LibraryFallback;
+    forest->trees = trees;
+
+    auto dtreelib    = std::make_shared<DecisionTreeLibrary<ContractionProblem>>();
+    dtreelib->forest = forest;
+
+    // Problems
+    auto Problem0
+        = ContractionProblem::GEMM(false, false, 800, 800, 800, 800, 800, 800, 1.0, false, 1);
+    auto Problem1
+        = ContractionProblem::GEMM(false, false, 500, 800, 800, 500, 800, 500, 1.0, false, 1);
+    auto Problem2
+        = ContractionProblem::GEMM(false, false, 500, 500, 500, 500, 500, 500, 1.0, false, 1);
+
+    /// region library
+
+    auto region1Solution = std::make_shared<ContractionSolution>();
+    auto region2Solution = std::make_shared<ContractionSolution>();
+    auto genericSolution = std::make_shared<ContractionSolution>();
+
+    // Create libraries
+    auto region1Lib = std::make_shared<SingleContractionLibrary>(region1Solution);
+    auto region2Lib = std::make_shared<SingleContractionLibrary>(region2Solution);
+    auto genericLib = std::make_shared<SingleContractionLibrary>(genericSolution);
+
+    using Predicate   = Predicates::Predicate<ContractionProblem>;
+    using SizeInRange = Predicates::Contraction::SizeInRange;
+    using Range       = Predicates::Contraction::Range;
+    using And         = Predicates::And<ContractionProblem>;    using Predicate   = Predicates::Predicate<ContractionProblem>;
+    using SizeInRange = Predicates::Contraction::SizeInRange;
+    using Range       = Predicates::Contraction::Range;
+    using And         = Predicates::And<ContractionProblem>;
+
+    size_t max_size   = std::numeric_limits<size_t>::max();
+
+    std::shared_ptr<Predicate> regionM  = std::make_shared<SizeInRange>(0, Range{6000, 8000});
+    std::shared_ptr<Predicate> regionN1 = std::make_shared<SizeInRange>(1, Range{0, 7000});
+    std::shared_ptr<Predicate> regionN2 = std::make_shared<SizeInRange>(1, Range{7000, max_size});
+
+    // Create region predicate for (6000 <= M < 8000), (0 <= N < 7000)
+    auto preds1    = {regionM, regionN1};
+    auto isRegion1 = std::make_shared<And>(preds1);
+
+    ContractionProblemSelectionLibrary::Row Region1Row_dtreelib(isRegion1, dtreelib);
+
+    // Create region predicate for (6000 <= M < 8000), (7000 <= N < max)
+    auto preds2    = {regionM, regionN2};
+    auto isRegion2 = std::make_shared<And>(preds2);
+
+    // Create fallthrough predicate (i.e. default)
+    ContractionProblemPredicate allProbs(std::make_shared<Predicates::True<ContractionProblem>>());
+
+    // Create hierarchy for region selection
+    ContractionProblemSelectionLibrary::Row Region1Row(isRegion1, region1Lib);
+    ContractionProblemSelectionLibrary::Row Region2Row(isRegion2, region2Lib);
+    ContractionProblemSelectionLibrary::Row GenericRow(allProbs, genericLib);
+    ContractionProblemSelectionLibrary      lib({Region1Row, Region2Row, GenericRow});
+
+    auto Region1Problem
+        = ContractionProblem::GEMM(false, false, 7000, 6500, 1000, 7000, 1000, 7000, 1.0, false, 1);
+    auto Region2Problem
+        = ContractionProblem::GEMM(false, false, 7000, 7500, 1000, 7000, 1000, 7000, 1.0, false, 1);
+    auto OutRegionProblem
+        = ContractionProblem::GEMM(false, false, 5000, 2000, 1000, 5000, 1000, 5000, 1.0, false, 1);
+
+    AMDGPU gpu;
+    EXPECT_EQ(lib.findBestSolution(Region1Problem, gpu), region1Solution);
+    EXPECT_EQ(lib.findBestSolution(Region2Problem, gpu), region2Solution);
+    EXPECT_EQ(lib.findBestSolution(OutRegionProblem, gpu), genericSolution);
+
+    //AMDGPU gpu;
+
+    //EXPECT_EQ(dtreelib->findBestSolution(Problem0, gpu), Solution0);
+    //EXPECT_EQ(dtreelib->findBestSolution(Problem1, gpu), Solution1);
 }
