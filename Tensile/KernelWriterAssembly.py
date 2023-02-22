@@ -6377,20 +6377,14 @@ class KernelWriterAssembly(KernelWriter):
         # replace 0 for differnet thread
         shiftK.addCode(inst("v_cmp_ge_i32", sgpr(tmpSgpr, 2), vgpr(kReg), sgpr(loopCounterName), "check K index >= Size L"))
         for bk in range(0, vgprPerInput):
-          # set 0 only one side
-          # set 0 to A if kernel["MIWaveTileA"] <= kernel["MIWaveTileB"]. If not, set 0 to B
-          # This is to minimize the number of v_cndmask_b32
-          setA = kernel["MIWaveTileA"] <= kernel["MIWaveTileB"]
-          if setA:
-            for a in range(0, kernel["MIWaveTileA"]):
-              for iui in range(0, innerUnroll):
-                aStr = vgpr("ValuA_X%u_I%u+%u+%u" % (m, iui, a*vgprPerInput, bk), 1)
-                shiftK.addCode(inst("v_cndmask_b32", aStr, aStr, hex(0), sgpr(tmpSgpr, 2), "set 0 if K_idx >= sizeL"))
-          else:
-            for b in range(0, kernel["MIWaveTileB"]):
-              for iui in range(0, innerUnroll):
-                bStr = vgpr("ValuB_X%u_I%u+%u+%u" % (m, iui, b*vgprPerInput, bk), 1)
-                shiftK.addCode(inst("v_cndmask_b32", bStr, bStr, hex(0), sgpr(tmpSgpr, 2), "set 0 if K_idx >= sizeL"))
+          for a in range(0, kernel["MIWaveTileA"]):
+            for iui in range(0, innerUnroll):
+              aStr = vgpr("ValuA_X%u_I%u+%u+%u" % (m, iui, a*vgprPerInput, bk), 1)
+              shiftK.addCode(inst("v_cndmask_b32", aStr, aStr, hex(0), sgpr(tmpSgpr, 2), "set 0 if K_idx >= sizeL"))
+          for b in range(0, kernel["MIWaveTileB"]):
+            for iui in range(0, innerUnroll):
+              bStr = vgpr("ValuB_X%u_I%u+%u+%u" % (m, iui, b*vgprPerInput, bk), 1)
+              shiftK.addCode(inst("v_cndmask_b32", bStr, bStr, hex(0), sgpr(tmpSgpr, 2), "set 0 if K_idx >= sizeL"))
 
         # replace 0 for same thread
         if numMIInput > 1:
