@@ -250,26 +250,48 @@ TEST(DecisionTree, DecisionTreeLibrary)
 
 TEST(DecisionTree, DecisionTreeMultiLibrary)
 {
-    auto Solution0 = std::make_shared<ContractionSolution>();
-    auto Solution1 = std::make_shared<ContractionSolution>();
-    auto Solution2 = std::make_shared<ContractionSolution>();
-    auto Solution3 = std::make_shared<ContractionSolution>();
 
-    Solution0->index = 0;
-    Solution1->index = 1;
-    Solution2->index = 2;
-    Solution3->index = 3;
+    using Predicate   = Predicates::Predicate<ContractionProblem>;
+    using SizeInRange = Predicates::Contraction::SizeInRange;
+    using Range       = Predicates::Contraction::Range;
+    using And         = Predicates::And<ContractionProblem>; 
+    using BForest = BasicForest<Key,
+                                ContractionProblem,
+                                std::shared_ptr<ContractionLibrary>,
+                                std::shared_ptr<ContractionSolution>>;
 
-    auto Library0 = std::make_shared<SingleContractionLibrary>(Solution0);
-    auto Library1 = std::make_shared<SingleContractionLibrary>(Solution1);
-    auto Library2 = std::make_shared<SingleContractionLibrary>(Solution2);
-    auto LibraryFallback = std::make_shared<SingleContractionLibrary>(Solution3);
+    auto region1Solution0 = std::make_shared<ContractionSolution>();
+    //auto region1Solution1 = std::make_shared<ContractionSolution>();
+    //auto region1Solution2 = std::make_shared<ContractionSolution>();
+    auto region1Solution3 = std::make_shared<ContractionSolution>();
 
-    //auto sslib = std::shared_ptr<SingleContractionLibrary>();
-    //std::cout << "this is sslib" << sslib << std::endl;
-    //std::cout << "this is sslib" << (sslib == nullptr) << std::endl;
-    //std::cout << "this is sslib" << (sslib == std::shared_ptr<SingleContractionLibrary>()) << std::endl;
-    // Features
+    region1Solution0->index = 0;
+    //region1Solution1->index = 1;
+    //region1Solution2->index = 2;
+    region1Solution3->index = 3;
+
+    auto region1Library0 = std::make_shared<SingleContractionLibrary>(region1Solution0);
+    //auto region1Library1 = std::make_shared<SingleContractionLibrary>(region1Solution1);
+    //auto region1Library2 = std::make_shared<SingleContractionLibrary>(region1Solution2);
+    auto region1LibraryFallback = std::make_shared<SingleContractionLibrary>(region1Solution3);
+
+    auto region2Solution0 = std::make_shared<ContractionSolution>();
+    //auto region2Solution1 = std::make_shared<ContractionSolution>();
+    //auto region2Solution2 = std::make_shared<ContractionSolution>();
+    auto region2Solution3 = std::make_shared<ContractionSolution>();
+
+    region2Solution0->index = 0;
+    //region2Solution1->index = 1;
+    //region2Solution2->index = 2;
+    region2Solution3->index = 3;
+
+    auto region2Library0 = std::make_shared<SingleContractionLibrary>(region2Solution0);
+    //auto region2Library1 = std::make_shared<SingleContractionLibrary>(region2Solution1);
+    //auto region2Library2 = std::make_shared<SingleContractionLibrary>(region2Solution2);
+    auto region2LibraryFallback = std::make_shared<SingleContractionLibrary>(region2Solution3);
+
+
+    // Features (generic)
     std::vector<std::shared_ptr<MLFeatures::MLFeature<ContractionProblem>>> features;
     auto freeSizeA   = std::make_shared<MLFeatures::FreeSizeA>();
     freeSizeA->index = 0;
@@ -296,102 +318,129 @@ TEST(DecisionTree, DecisionTreeMultiLibrary)
     // {
 
     // Make trees library
-    std::vector<DTree> trees;
+    std::vector<DTree> region1trees;
 
-    DTree tree0{{
-        {0, 700.f, IDX_RETURN_FALSE, IDX_RETURN_TRUE}, // YES for freeSizeA>7000
+    DTree region1tree0{{
+        {0, 5000.f, IDX_RETURN_FALSE, IDX_RETURN_TRUE}, // YES for freeSizeA > 5000
     }};
-    tree0.value = Library0;
-    trees.push_back(tree0);
+    region1tree0.value = region1Library0;
+    region1trees.push_back(region1tree0);
 
-    DTree tree1{{
-        {1, 700.f, IDX_RETURN_FALSE, IDX_RETURN_TRUE}, // YES for freeSizeB>700
-    }};
-    tree1.value = Library1;
-    trees.push_back(tree1);
+    // DTree region1tree1{{
+    //     {1, 700.f, IDX_RETURN_FALSE, IDX_RETURN_TRUE}, // YES for freeSizeB>700
+    // }};
+    // region1tree1.value = region1Library1;
+    // region1trees.push_back(region1tree1);
 
-    DTree tree2{{
-        {0, 300.f, IDX_RETURN_TRUE, IDX_RETURN_FALSE}, // YES for freeSizeA<300
-    }};
-    tree2.value = Library2;
-    trees.push_back(tree2);
+    // DTree region1tree2{{
+    //     {0, 300.f, IDX_RETURN_TRUE, IDX_RETURN_FALSE}, // YES for freeSizeA<300
+    // }};
+    // region1tree2.value = region1Library2;
+    // region1trees.push_back(region1tree2);
 
      // Forest and full library - Note: Solution 3 as fallback
-    using BForest = BasicForest<Key,
-                                ContractionProblem,
-                                std::shared_ptr<ContractionLibrary>,
-                                std::shared_ptr<ContractionSolution>>;
-    //auto forest   = std::make_shared<BForest>(features, Solution3);
-    auto forest   = std::make_shared<BForest>(features);
-    forest->nullValue = LibraryFallback;
-    forest->trees = trees;
 
-    auto dtreelib    = std::make_shared<DecisionTreeLibrary<ContractionProblem>>();
-    dtreelib->forest = forest;
+    auto region1forest   = std::make_shared<BForest>(features);
+    region1forest->nullValue = region1LibraryFallback;
+    region1forest->trees = region1trees;
 
-    // Problems
-    auto Problem0
-        = ContractionProblem::GEMM(false, false, 800, 800, 800, 800, 800, 800, 1.0, false, 1);
-    auto Problem1
-        = ContractionProblem::GEMM(false, false, 500, 800, 800, 500, 800, 500, 1.0, false, 1);
-    auto Problem2
-        = ContractionProblem::GEMM(false, false, 500, 500, 500, 500, 500, 500, 1.0, false, 1);
+    auto region1dtreelib    = std::make_shared<DecisionTreeLibrary<ContractionProblem>>();
+    region1dtreelib->forest = region1forest;
+
+    // Make trees library
+    std::vector<DTree> region2trees;
+
+    DTree region2tree0{{
+        {0, 5000.f, IDX_RETURN_TRUE, IDX_RETURN_FALSE}, // YES for freeSizeA < 5000
+    }};
+    region2tree0.value = region2Library0;
+    region2trees.push_back(region2tree0);
+
+    // DTree region2tree1{{
+    //     {1, 700.f, IDX_RETURN_FALSE, IDX_RETURN_TRUE}, // YES for freeSizeB>700
+    // }};
+    // region2tree1.value = region2Library1;
+    // region2trees.push_back(region2tree1);
+
+    // DTree region2tree2{{
+    //     {0, 300.f, IDX_RETURN_TRUE, IDX_RETURN_FALSE}, // YES for freeSizeA<300
+    // }};
+    // region2tree2.value = region2Library2;
+    // region2trees.push_back(region2tree2);
+
+     // Forest and full library - Note: Solution 3 as fallback
+
+    auto region2forest   = std::make_shared<BForest>(features);
+    region2forest->nullValue = region2LibraryFallback;
+    region2forest->trees = region2trees;
+
+    auto region2dtreelib    = std::make_shared<DecisionTreeLibrary<ContractionProblem>>();
+    region2dtreelib->forest = region2forest;
+
 
     /// region library
 
-    auto region1Solution = std::make_shared<ContractionSolution>();
-    auto region2Solution = std::make_shared<ContractionSolution>();
-    auto genericSolution = std::make_shared<ContractionSolution>();
+    // auto region1Solution = std::make_shared<ContractionSolution>();
+    // auto region2Solution = std::make_shared<ContractionSolution>();
+    // auto genericSolution = std::make_shared<ContractionSolution>();
 
-    // Create libraries
-    auto region1Lib = std::make_shared<SingleContractionLibrary>(region1Solution);
-    auto region2Lib = std::make_shared<SingleContractionLibrary>(region2Solution);
-    auto genericLib = std::make_shared<SingleContractionLibrary>(genericSolution);
-
-    using Predicate   = Predicates::Predicate<ContractionProblem>;
-    using SizeInRange = Predicates::Contraction::SizeInRange;
-    using Range       = Predicates::Contraction::Range;
-    using And         = Predicates::And<ContractionProblem>;    using Predicate   = Predicates::Predicate<ContractionProblem>;
-    using SizeInRange = Predicates::Contraction::SizeInRange;
-    using Range       = Predicates::Contraction::Range;
-    using And         = Predicates::And<ContractionProblem>;
+    // // Create libraries
+    // auto region1Lib = std::make_shared<SingleContractionLibrary>(region1Solution);
+    // auto region2Lib = std::make_shared<SingleContractionLibrary>(region2Solution);
+    // auto genericLib = std::make_shared<SingleContractionLibrary>(genericSolution);
 
     size_t max_size   = std::numeric_limits<size_t>::max();
 
-    std::shared_ptr<Predicate> regionM  = std::make_shared<SizeInRange>(0, Range{6000, 8000});
-    std::shared_ptr<Predicate> regionN1 = std::make_shared<SizeInRange>(1, Range{0, 7000});
-    std::shared_ptr<Predicate> regionN2 = std::make_shared<SizeInRange>(1, Range{7000, max_size});
+    std::shared_ptr<Predicate> regionM  = std::make_shared<SizeInRange>(0, Range{0, 40000});
+    std::shared_ptr<Predicate> regionN1 = std::make_shared<SizeInRange>(1, Range{0, 8000});
+    std::shared_ptr<Predicate> regionN2 = std::make_shared<SizeInRange>(1, Range{8000, max_size});
 
-    // Create region predicate for (6000 <= M < 8000), (0 <= N < 7000)
+    // Create region predicate for (0 <= M < 40000), (0 <= N < 8000)
     auto preds1    = {regionM, regionN1};
     auto isRegion1 = std::make_shared<And>(preds1);
 
-    ContractionProblemSelectionLibrary::Row Region1Row_dtreelib(isRegion1, dtreelib);
+    ContractionProblemSelectionLibrary::Row Region1Row_dtreelib(isRegion1, region1dtreelib);
 
-    // Create region predicate for (6000 <= M < 8000), (7000 <= N < max)
+    // Create region predicate for (0 <= M < 40000), (8000 <= N < max)
     auto preds2    = {regionM, regionN2};
     auto isRegion2 = std::make_shared<And>(preds2);
 
+    ContractionProblemSelectionLibrary::Row Region2Row_dtreelib(isRegion2, region2dtreelib);
+
+    ContractionProblemSelectionLibrary      lib({Region1Row_dtreelib, Region2Row_dtreelib});
     // Create fallthrough predicate (i.e. default)
-    ContractionProblemPredicate allProbs(std::make_shared<Predicates::True<ContractionProblem>>());
+    //ContractionProblemPredicate allProbs(std::make_shared<Predicates::True<ContractionProblem>>());
 
     // Create hierarchy for region selection
-    ContractionProblemSelectionLibrary::Row Region1Row(isRegion1, region1Lib);
-    ContractionProblemSelectionLibrary::Row Region2Row(isRegion2, region2Lib);
-    ContractionProblemSelectionLibrary::Row GenericRow(allProbs, genericLib);
-    ContractionProblemSelectionLibrary      lib({Region1Row, Region2Row, GenericRow});
+    //ContractionProblemSelectionLibrary::Row Region1Row(isRegion1, Region1Row_dtreelib);
+    //ContractionProblemSelectionLibrary::Row Region2Row(isRegion2, Region2Row_dtreelib);
+    //ContractionProblemSelectionLibrary::Row GenericRow(allProbs, genericLib);
+    //ContractionProblemSelectionLibrary      lib({Region1Row, Region2Row, GenericRow});
 
-    auto Region1Problem
+    // auto Region1Problem
+    //     = ContractionProblem::GEMM(false, false, 7000, 6500, 1000, 7000, 1000, 7000, 1.0, false, 1);
+    // auto Region2Problem
+    //     = ContractionProblem::GEMM(false, false, 7000, 7500, 1000, 7000, 1000, 7000, 1.0, false, 1);
+    // auto OutRegionProblem
+    //     = ContractionProblem::GEMM(false, false, 5000, 2000, 1000, 5000, 1000, 5000, 1.0, false, 1);
+
+
+    // Problems
+    auto Region1Problem1
         = ContractionProblem::GEMM(false, false, 7000, 6500, 1000, 7000, 1000, 7000, 1.0, false, 1);
-    auto Region2Problem
-        = ContractionProblem::GEMM(false, false, 7000, 7500, 1000, 7000, 1000, 7000, 1.0, false, 1);
-    auto OutRegionProblem
-        = ContractionProblem::GEMM(false, false, 5000, 2000, 1000, 5000, 1000, 5000, 1.0, false, 1);
+    auto Region1Problem2
+        = ContractionProblem::GEMM(false, false, 4000, 6500, 1000, 4000, 1000, 4000, 1.0, false, 1);
+    auto Region2Problem1
+        = ContractionProblem::GEMM(false, false, 7000, 16500, 1000, 7000, 1000, 7000, 1.0, false, 1);
+    auto Region2Problem2
+        = ContractionProblem::GEMM(false, false, 4000, 16500, 1000, 4000, 1000, 4000, 1.0, false, 1);
 
     AMDGPU gpu;
-    EXPECT_EQ(lib.findBestSolution(Region1Problem, gpu), region1Solution);
-    EXPECT_EQ(lib.findBestSolution(Region2Problem, gpu), region2Solution);
-    EXPECT_EQ(lib.findBestSolution(OutRegionProblem, gpu), genericSolution);
+    EXPECT_EQ(lib.findBestSolution(Region1Problem1, gpu), region1Solution0);
+    EXPECT_EQ(lib.findBestSolution(Region1Problem2, gpu), region1Solution3);
+    EXPECT_EQ(lib.findBestSolution(Region2Problem1, gpu), region2Solution3);
+    EXPECT_EQ(lib.findBestSolution(Region2Problem2, gpu), region2Solution0);
+    //EXPECT_EQ(lib.findBestSolution(OutRegionProblem, gpu), genericSolution);
 
     //AMDGPU gpu;
 
