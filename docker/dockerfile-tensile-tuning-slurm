@@ -66,7 +66,7 @@ RUN dpkg -i libmsgpack-dev_3.0.1-3_amd64.deb libmsgpackc2_3.0.1-3_amd64.deb
 
 RUN pip3 install setuptools --upgrade && \
     pip3 install wheel && \
-    pip3 install tox pyyaml msgpack
+    pip3 install tox pyyaml msgpack joblib
 
 # Parameters related to building Tensile
 ARG tensile_fork=ROCmSoftwarePlatform

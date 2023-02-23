@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -2154,13 +2154,13 @@ class Solution(collections.abc.Mapping):
       # Per instruction across the entire group:
       elementsLoadedPerInst = state["NumThreads"]*grvw
       if (state["DirectToVgpr%s"%tc] and state["ProblemType"]["TLU%s"%tc]):
-        elementsLoadedPerInst //= state["MatrixInstK"]
+        elementsLoadedPerInst //= state["MatrixInstK"] * state["LocalSplitU"]
       # LSC, LSP - #elements loaded along specified dim with each load
       if parDim >= elementsLoadedPerInst:
         # entire work-group can work on (part) of the same row
-        # DirectToVgpr case, LSC is limited to elementsLoadedPerInst // state["MatrixInstK"]
+        # DirectToVgpr case, LSC is limited to elementsLoadedPerInst // (state["MatrixInstK"] * state["LocalSplitU"])
         state["LSC%s"%tc] = elementsLoadedPerInst
-        state["LSP%s"%tc] = 1 if not (state["DirectToVgpr%s"%tc] and state["ProblemType"]["TLU%s"%tc]) else state["MatrixInstK"]
+        state["LSP%s"%tc] = 1 if not (state["DirectToVgpr%s"%tc] and state["ProblemType"]["TLU%s"%tc]) else state["MatrixInstK"] * state["LocalSplitU"]
         state["NumLoadsCoalesced%s"%tc] = roundupRatio(parDim , state["LSC%s"%tc])
         state["NumLoadsPerpendicular%s"%tc] = 1
       else:
@@ -2183,7 +2183,7 @@ class Solution(collections.abc.Mapping):
         while grvw >= minGrvw:
           elementsLoadedPerInst = state["NumThreads"]*grvw
           if state["DirectToVgpr%s"%tc] and state["ProblemType"]["TLU%s"%tc]:
-            elementsLoadedPerInst //= state["MatrixInstK"]
+            elementsLoadedPerInst //= state["MatrixInstK"] * state["LocalSplitU"]
           if elementsLoadedPerInst < validElementsLoadedPerInst:
             break # Went too far, not enough load elements at this VW
           if state["LSC%s"%tc] % grvw == 0:
@@ -2355,9 +2355,10 @@ class Solution(collections.abc.Mapping):
   def isDirectToVgprDoable(state, tc):
     tcOther = 'B' if tc == 'A' else 'A'
     MIindex = 0 if tc == 'A' else 1
-    # Does not support DirectToVgprA+DirectToVgprB (TODO)
-    if state["DirectToVgprA"] and state["DirectToVgprB"] :
-      reject(state, "DirectToVgprA + DirectToVgprB is not supported yet")
+    # Does not support DirectToVgprA+DirectToVgprB+PrefetchGlobalRead=2
+    # Need more than double-vgpr buffers to avoid overwritting loaded data on vgpr
+    if state["DirectToVgprA"] and state["DirectToVgprB"] and state["PrefetchGlobalRead"]==2:
+      reject(state, "DirectToVgprA + DirectToVgprB + PrefetchGlobalRead=2 is not supported")
       return False
 
     # With MatrixInstruction only (tentative)
@@ -3343,7 +3344,7 @@ class Solution(collections.abc.Mapping):
       VectorWidthB = state["VectorWidth"]
     elif state["DirectToVgprA"]:
       VectorWidthB = state["LocalReadVectorWidth"]
-    state["allowLRVWBforTLUandMI"] = (state["DirectToVgprB"] and \
+    state["allowLRVWBforTLUandMI"] = (state["DirectToVgprB"] or \
                                        (state["ProblemType"]["TLUA"] and state["LocalReadVectorWidth"] == 1 or \
                                         not state["ProblemType"]["TLUA"]) or \
                                       state["DirectToVgprA"] and not state["DirectToLds"]) and \
@@ -3641,7 +3642,8 @@ class Solution(collections.abc.Mapping):
       state["LdsOffsetB"] = state["LdsOffsetA"] + state["LdsNumElementsAlignedA"]
 
       offsetBlk = state["LdsOffsetB"] + ldsNumElementsAlignedB
-      offsetBlk = int(2**(math.ceil(math.log(offsetBlk, 2))))
+      if offsetBlk>0: # need 0 check to avoid an error
+        offsetBlk = int(2**(math.ceil(math.log(offsetBlk, 2))))
 
       state["LdsOffsetA_Blk"] = offsetBlk
       state["LdsOffsetB_Blk"] = state["LdsOffsetA_Blk"] + state["LdsNumElementsAlignedA"]
@@ -3742,6 +3744,13 @@ class Solution(collections.abc.Mapping):
       if state["StoreRemapVectorWidth"]:
         reject(state, "SourceSwap not compatible with StoreRemap")
         return
+    # non-SourceSwap+MFMA 4x4 check
+    if (not state["SourceSwap"]) and state["EnableMatrixInstruction"]:
+      if state["MatrixInstBM"] > 1 and state["MatrixInstN"] == 4 and (state["MatrixInstM"] > state["MIOutputVectorWidth"]) and \
+        state["AssertFree0ElementMultiple"] % state["GlobalLoadVectorWidthA"] != 0:
+        reject(state, "MI4x4 + non-SourceSwap + MatrixInstBM > 1 + MatrixInstN == 4 + MatrixInstM > MIOutputVectorWidth \
+                       AssertFree0ElementMultiple %% bGlobalLoadVectorWidthA != 0 not supported")
+        return
 
     # check if need to use lds init Acc vgprs
     state["LdsInitCVgprs"] = False
@@ -3757,6 +3766,9 @@ class Solution(collections.abc.Mapping):
     if state["MIArchVgpr"]:
       if not state["EnableMatrixInstruction"]:
         reject(state, "MIArchVgpr only support for MatrixInstruction")
+        return
+      if not (globalParameters["AsmCaps"][isa]["HasMFMA_vgpr"] or globalParameters["AsmCaps"][isa]["HasWMMA"]):
+        reject(state, "MIArchVgpr is not supported by this arch")
         return
       if globalParameters["AsmCaps"][isa]["HasMFMA"]:
         if not (state["ProblemType"]["ComputeDataType"].isDouble() or \
@@ -4096,9 +4108,6 @@ class Solution(collections.abc.Mapping):
       if not state["GuaranteeNoPartialA"] or not state["GuaranteeNoPartialB"]:
         state["_UseSgprForGRO"] = False
         #reject(state, "PBC with wide load has insufficient overlap guarantees- try GRVW=1 or adding appropriate Assert*ElementMultiple")
-
-
-           
 
     if state["EnableMatrixInstruction"]:
       cont1 = not state["GuaranteeNoPartialB"]

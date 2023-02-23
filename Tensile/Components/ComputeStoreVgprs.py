@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2021-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2021-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -183,14 +183,20 @@ class ComputeStoreVgprsMFMA(ComputeStoreVgprs):
           kStr += inst("v_mul_lo_u32", vgpr(writer.cinRowPtr), vgpr(tid1), sgpr(strideC1), " offset 1")
           kStr += inst("v_mul_lo_u32", vgpr(writer.coutRowPtr), vgpr(tid1), sgpr(strideD1), " offset 1")
 
-        # coord 0 : wave part
-        kStr += vectorStaticRemainder(tmpVgpr0, wave_id, kernel["MIWaveGroup"][0], tmpSgpr)
-        kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr0), hex(MIBShape0), vgpr(tmpVgpr0), "wave coordination offset 0")
-
         # coord 0 : thread part
         kStr += vectorStaticRemainder(tid0, "Serial", writer.kernel["WavefrontSize"], tmpSgpr)
         kStr += vectorStaticDivide(tid0, tid0, matrixInstN, tmpSgpr)
         kStr += staticMultiply(vgpr(tid0), vgpr(tid0), kernel["MIOutputVectorWidth"], sgpr(tmpSgpr), "thread0 * continuous_output")
+        if kernel["MatrixInstBM"] > 1 and kernel["MatrixInstN"] == 4 and (kernel["MatrixInstM"] > kernel["MIOutputVectorWidth"]):
+          # conversion for MI4x4 + MIBM>1
+          # tid0 = (tid0/MIBM) + (tid0%MIBM)*(MIM//MIOVW)
+          kStr += vectorStaticDivideAndRemainder(tmpVgpr0, tid0, tid0, kernel["MatrixInstBM"], tmpSgpr) # using rReg=dReg (assuming MIBM is power of 2)
+          kStr += staticMultiply(vgpr(tid0), vgpr(tid0), kernel["MatrixInstM"]//kernel["MIOutputVectorWidth"], sgpr(tmpSgpr), "(tid1%MIBM)*(MIM//MIOVW)")
+          kStr += inst("_v_add_u32", vgpr(tid0), vgpr(tmpVgpr0), vgpr(tid0), "tid0 = (tid0/MIBM) + (tid0%MIBM)*MIM")
+        # coord 0 : wave part
+        kStr += vectorStaticRemainder(tmpVgpr0, wave_id, kernel["MIWaveGroup"][0], tmpSgpr)
+        kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr0), hex(MIBShape0), vgpr(tmpVgpr0), "wave coordination offset 0")
+
         kStr += inst("_v_add_u32", vgpr(tid0), vgpr(tmpVgpr0), vgpr(tid0), "coordination 0 = wave_id0 + tid0")
 
         if writer.prefetchAcrossPersistent:
@@ -269,16 +275,22 @@ class ComputeStoreVgprsMFMASwap(ComputeStoreVgprs):
 
         kStr += vectorStaticDivide(wave_id, "Serial", writer.kernel["WavefrontSize"], tmpSgpr)
 
-        # coord 1 : wave part
-        kStr += vectorStaticDivide(tmpVgpr0, wave_id, kernel["MIWaveGroup"][0], tmpSgpr)
-        kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr0), hex(MIBShape1), vgpr(tmpVgpr0), "wave coordination offset 1")
 
         # coord 1 : thread part
         kStr += vectorStaticRemainder(tid1, "Serial", writer.kernel["WavefrontSize"], tmpSgpr)
         kStr += vectorStaticDivide(tid1, tid1, matrixInstM, tmpSgpr)
         kStr += staticMultiply(vgpr(tid1), vgpr(tid1), kernel["MIOutputVectorWidth"], sgpr(tmpSgpr), "thread0 * continuous_output")
+        if kernel["MatrixInstBN"] > 1 and kernel["MatrixInstM"] == 4 and (kernel["MatrixInstN"] > kernel["MIOutputVectorWidth"]):
+          # conversion for MI4x4 + MIBN>1
+          # tid1 = (tid1/MIBN) + (tid1%MIBN)*(MIN//MIOVW)
+          kStr += vectorStaticDivideAndRemainder(tmpVgpr0, tid1, tid1, kernel["MatrixInstBN"], tmpSgpr) # using rReg=dReg (assuming MIBN is power of 2)
+          kStr += staticMultiply(vgpr(tid1), vgpr(tid1), kernel["MatrixInstN"]//kernel["MIOutputVectorWidth"], sgpr(tmpSgpr), "(tid1%MIBN)*(MIN//MIOVW)")
+          kStr += inst("_v_add_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), "tid1 = (tid1/MIBN) + (tid1%MIBN)*MIN")
+        # coord 1 : wave part
+        kStr += vectorStaticDivide(tmpVgpr0, wave_id, kernel["MIWaveGroup"][0], tmpSgpr)
+        kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr0), hex(MIBShape1), vgpr(tmpVgpr0), "wave coordination offset 1")
         kStr += inst("_v_add_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), "coordination 1 = wave_id1 + tid1")
-        if (writer.allowLRVWBforTLUandMI or kernel["DirectToVgprB"]) and writer.lrvwB > 1:
+        if writer.allowLRVWBforTLUandMI and writer.lrvwB > 1:
           kStr += staticMultiply(vgpr(tid1), vgpr(tid1), writer.lrvwB, sgpr(tmpSgpr), "coordination 1 *= lrvwB")
 
         if kernel["BufferStore"]:
@@ -290,11 +302,12 @@ class ComputeStoreVgprsMFMASwap(ComputeStoreVgprs):
           kStr += inst("v_mul_lo_u32", vgpr(writer.coutRowPtr), vgpr(tid1), sgpr(strideD1), " offset 1")
 
         # coord 0 : wave part
-        kStr += vectorStaticRemainder(tid0, wave_id, kernel["MIWaveGroup"][0], tmpSgpr)
-        kStr += inst("v_mul_lo_u32", vgpr(tid0), hex(MIBShape0), vgpr(tid0), "wave coordination offset 0")
+        kStr += vectorStaticRemainder(tmpVgpr0, wave_id, kernel["MIWaveGroup"][0], tmpSgpr)
+        if kernel["MIWaveGroup"][0] > 1:
+          kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr0), hex(MIBShape0), vgpr(tmpVgpr0), "wave coordination offset 0")
 
         # coord 0 : thread part
-        kStr += vectorStaticRemainder(tmpVgpr0, "Serial", matrixInstM, tmpSgpr)
+        kStr += vectorStaticRemainder(tid0, "Serial", matrixInstM, tmpSgpr)
         kStr += inst("_v_add_lshl_u32", vgpr(tid0), vgpr(tmpVgpr0), vgpr(tid0), log2(kernel["VectorWidth"]), "coordination 0 = wave_id0 + tid0")
 
         if writer.prefetchAcrossPersistent:
