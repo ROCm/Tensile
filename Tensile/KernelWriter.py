@@ -2203,8 +2203,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if self.enable["Sync"]:
         kl.append(self.syncThreads(kernel))
 
-    # if DirectToVgpr and  ASEM is not multiple of DepthU*2, generate noLoadLoopBody twice for odd and even exit separately
-    if ( kernel["DirectToVgprA"] or  kernel["DirectToVgprB"]) and (kernel["AssertSummationElementMultiple"] % (kernel["DepthU"] * 2) != 0):
+    # if DirectToVgpr and  ASEM/GSU is not multiple of DepthU*2, generate noLoadLoopBody twice for odd and even exit separately
+    asem = kernel["AssertSummationElementMultiple"]
+    gsu = kernel["GlobalSplitU"]
+    if ( kernel["DirectToVgprA"] or  kernel["DirectToVgprB"]) and ((asem%gsu != 0) or (asem//gsu) % (kernel["DepthU"] * 2) != 0):
       # generate additional No Load Loop Body code for odd case (to use the other Vreg set for DirectToVgpr)
       # 1. generate odd check
       name = ""
@@ -3213,7 +3215,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
             KinInnerUnroll *= kernel["MatrixInstK"]
 
           tailLoopInnerUnroll = 1
-          if (kernel["AssertSummationElementMultiple"] % KinInnerUnroll == 0):
+          asem = kernel["AssertSummationElementMultiple"]
+          gsu = kernel["GlobalSplitU"]
+          if ((asem%gsu == 0) and (asem//gsu) % KinInnerUnroll == 0):
             tailLoopInnerUnroll = kernel["InnerUnroll"]
           elif (kernel["LocalDotLayout"] > 1) and (kernel["InnerUnroll"] == kernel["LocalDotLayout"]):
             tailLoopInnerUnroll = kernel["InnerUnroll"]
@@ -3901,7 +3905,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     tensorParametersA["PackedIndices"] = kernel["PackedC%uIndicesX"%self.tPA["tile01Idx"]]
     tensorParametersB["PackedIndices"] = kernel["PackedC%uIndicesX"%self.tPB["tile01Idx"]]
 
-    # condition(s) to enable init accvgpr opt (initialize only the last set of accvgpr instead of whole accvgpr)
+    # condition(s) to enable init accvgpr opt (use const "0" as an operand instead of initializing whole accvgpr)
     self.useInitAccVgprOpt = False
     # enable for the following conditions
     if kernel["StoreCInUnroll"]:
