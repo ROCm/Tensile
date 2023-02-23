@@ -127,6 +127,9 @@ namespace Tensile
                                                                      ClockRateMem,
                                                                      FanSpeedRPMs,
                                                                      HardwareSampleCount,
+                                                                     GfxFrequency,
+                                                                     Power,
+                                                                     TemperatureHot,
                                                                      EnqueueTime},
                                                                     stream,
                                                                     dumpTensors));
