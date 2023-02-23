@@ -45,22 +45,7 @@ namespace Tensile
                 auto& element = object.via.map.ptr[i];
 
                 std::string key;
-                switch(element.key.type)
-                {
-                case msgpack::type::object_type::STR:
-                {
-                    element.key.convert(key);
-                    break;
-                }
-                case msgpack::type::object_type::POSITIVE_INTEGER:
-                {
-                    auto iKey = element.key.as<uint32_t>();
-                    key       = std::to_string(iKey);
-                    break;
-                }
-                default:
-                    throw std::runtime_error("Unexpected map key type");
-                }
+                element.key >> key;
 
                 result[key] = std::move(element.val);
             }

@@ -223,6 +223,26 @@ namespace Tensile
                 iot::enumCase(io, value, "gfx1101", AMDGPU::Processor::gfx1101);
                 iot::enumCase(io, value, "gfx1102", AMDGPU::Processor::gfx1102);
             }
+
+            static inline std::unordered_map<std::string, AMDGPU::Processor> lookup = 
+            {
+                {"gfx803", AMDGPU::Processor::gfx803},
+                {"gfx900", AMDGPU::Processor::gfx900},
+                {"gfx906", AMDGPU::Processor::gfx906},
+                {"gfx908", AMDGPU::Processor::gfx908},
+                {"gfx90a", AMDGPU::Processor::gfx90a},
+                {"gfx1010", AMDGPU::Processor::gfx1010},
+                {"gfx1011", AMDGPU::Processor::gfx1011},
+                {"gfx1012", AMDGPU::Processor::gfx1012},
+                {"gfx1030", AMDGPU::Processor::gfx1030},
+                {"gfx1031", AMDGPU::Processor::gfx1031},
+                {"gfx1032", AMDGPU::Processor::gfx1032},
+                {"gfx1034", AMDGPU::Processor::gfx1034},
+                {"gfx1035", AMDGPU::Processor::gfx1035},
+                {"gfx1100", AMDGPU::Processor::gfx1100},
+                {"gfx1101", AMDGPU::Processor::gfx1101},
+                {"gfx1102", AMDGPU::Processor::gfx1102}
+            };
         };
     } // namespace Serialization
 } // namespace Tensile

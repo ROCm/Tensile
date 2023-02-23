@@ -225,10 +225,12 @@ namespace Tensile
             typename std::enable_if<has_EnumTraits<T, MessagePackInput>::value, void>::type
                 input(T& obj, Context& ctx)
             {
-                enumFound = 0;
-                EnumTraits<T, MessagePackInput>::enumeration(*this, obj);
-
-                if(enumFound != 1)
+                std::string result;
+                object.convert(result);
+                auto it = EnumTraits<T, MessagePackInput>::lookup.find(result);
+                if (it != EnumTraits<T, MessagePackInput>::lookup.end())
+                    obj = it->second;
+                else
                     addError(concatenate("Enum not found!", obj));
             }
 
@@ -237,11 +239,9 @@ namespace Tensile
                 input(T& obj, Context& ctx)
             {
                 assert(object.type == msgpack::type::object_type::ARRAY);
-                auto result = object.as<std::vector<msgpack::object>>();
-
-                for(size_t i = 0; i < result.size(); i++)
+                for (uint32_t i = 0; i < object.via.array.size; ++i)
                 {
-                    MessagePackInput subRef = createSubRef(result[i]);
+                    MessagePackInput subRef = createSubRef(object.via.array.ptr[i]);
                     auto& value = SequenceTraits<T, MessagePackInput>::element(*this, obj, i);
                     subRef.input(value);
 
@@ -257,7 +257,8 @@ namespace Tensile
             typename std::enable_if<has_CustomMappingTraits<T, MessagePackInput>::value, void>::type
                 input(T& obj, Context& ctx)
             {
-                objectToMap(object, objectMap);
+                if(objectMap.empty())
+                    objectToMap(object, objectMap);
 
                 for(auto& element : objectMap)
                 {
