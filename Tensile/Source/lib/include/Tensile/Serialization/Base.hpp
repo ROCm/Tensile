@@ -365,18 +365,16 @@ namespace Tensile
                 }
             }
 
-            static inline std::unordered_map<std::string, DataType> lookup = 
-            {
-                {"Float", DataType::Float},
-                {"Double", DataType::Double},
-                {"ComplexFloat", DataType::ComplexFloat},
-                {"ComplexDouble", DataType::ComplexDouble},
-                {"Half", DataType::Half},
-                {"Int8x4", DataType::Int8x4},
-                {"Int32", DataType::Int32},
-                {"BFloat16", DataType::BFloat16},
-                {"Int8", DataType::Int8}
-            };
+            static inline std::unordered_map<std::string, DataType> lookup
+                = {{"Float", DataType::Float},
+                   {"Double", DataType::Double},
+                   {"ComplexFloat", DataType::ComplexFloat},
+                   {"ComplexDouble", DataType::ComplexDouble},
+                   {"Half", DataType::Half},
+                   {"Int8x4", DataType::Int8x4},
+                   {"Int32", DataType::Int32},
+                   {"BFloat16", DataType::BFloat16},
+                   {"Int8", DataType::Int8}};
         };
 
         template <typename IO>
@@ -393,12 +391,10 @@ namespace Tensile
                 }
             }
 
-            static inline std::unordered_map<std::string, KernelLanguage> lookup = 
-            {
-                {"Any", KernelLanguage::Any},
-                {"Assembly", KernelLanguage::Assembly},
-                {"Source", KernelLanguage::Source}
-            };
+            static inline std::unordered_map<std::string, KernelLanguage> lookup
+                = {{"Any", KernelLanguage::Any},
+                   {"Assembly", KernelLanguage::Assembly},
+                   {"Source", KernelLanguage::Source}};
         };
 
         template <typename IO>
@@ -415,12 +411,10 @@ namespace Tensile
                 }
             }
 
-            static inline std::unordered_map<std::string, ArithmeticUnit> lookup = 
-            {
-                {"Any", ArithmeticUnit::Any},
-                {"MFMA", ArithmeticUnit::MFMA},
-                {"VALU", ArithmeticUnit::VALU}
-            };
+            static inline std::unordered_map<std::string, ArithmeticUnit> lookup
+                = {{"Any", ArithmeticUnit::Any},
+                   {"MFMA", ArithmeticUnit::MFMA},
+                   {"VALU", ArithmeticUnit::VALU}};
         };
 
         template <typename IO>
@@ -437,12 +431,10 @@ namespace Tensile
                 }
             }
 
-            static inline std::unordered_map<std::string, ScalarValue> lookup = 
-            {
-                {"Any", ScalarValue::Any},
-                {"1", ScalarValue::One},
-                {"-1", ScalarValue::NegativeOne}
-            };
+            static inline std::unordered_map<std::string, ScalarValue> lookup
+                = {{"Any", ScalarValue::Any},
+                   {"1", ScalarValue::One},
+                   {"-1", ScalarValue::NegativeOne}};
         };
     } // namespace Serialization
 } // namespace Tensile

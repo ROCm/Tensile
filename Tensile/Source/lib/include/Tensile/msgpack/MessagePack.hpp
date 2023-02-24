@@ -228,7 +228,7 @@ namespace Tensile
                 std::string result;
                 object.convert(result);
                 auto it = EnumTraits<T, MessagePackInput>::lookup.find(result);
-                if (it != EnumTraits<T, MessagePackInput>::lookup.end())
+                if(it != EnumTraits<T, MessagePackInput>::lookup.end())
                     obj = it->second;
                 else
                     addError(concatenate("Enum not found!", obj));
@@ -239,7 +239,7 @@ namespace Tensile
                 input(T& obj, Context& ctx)
             {
                 assert(object.type == msgpack::type::object_type::ARRAY);
-                for (uint32_t i = 0; i < object.via.array.size; ++i)
+                for(uint32_t i = 0; i < object.via.array.size; ++i)
                 {
                     MessagePackInput subRef = createSubRef(object.via.array.ptr[i]);
                     auto& value = SequenceTraits<T, MessagePackInput>::element(*this, obj, i);
