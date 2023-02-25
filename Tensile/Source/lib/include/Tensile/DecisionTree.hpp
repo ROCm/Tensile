@@ -312,6 +312,7 @@ namespace Tensile
             std::vector<Tree> trees;
             Value       nullValue;
             //Value fallback;
+            //ReturnValue nullValue;
         };
     } // namespace DecisionTree
 } // namespace Tensile

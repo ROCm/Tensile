@@ -35,7 +35,7 @@ from .Utils import state
 class SingleSolutionLibrary:
     Tag = "Single"
 
-    def __init__(self, solution):
+    def __init__(self, solution = None):
         self.solution = solution
 
     @property
@@ -140,14 +140,20 @@ class MatchingLibrary:
 
 class DecisionTreeLibrary:
     Tag = "DecisionTree"
-    StateKeys = [("type", "tag"), "features", "trees", "nullValue"]
+    StateKeys = [("type", "tag"), "features", "trees", "fallback"]
 
     @classmethod
     def FromOriginalState(cls, d, solutions):
         features = d["features"]
         origTrees = d["trees"]
-        fallbackIndex = d["fallback"]
-        fallback = SingleSolutionLibrary(solutions[fallbackIndex])
+        #fallback = None
+        
+        if "fallback" in d:
+            #fallbackIndex = d["fallback"]
+            #fallback = fallbackIndex #SingleSolutionLibrary(solutions[fallbackIndex])
+            fallback = d["fallback"]
+        else:
+            fallback = -1 #SingleSolutionLibrary()
 
         trees = []
 
@@ -175,7 +181,7 @@ class DecisionTreeLibrary:
     def __init__(self, features, trees, fallback):
         self.features = features
         self.trees = trees
-        self.nullValue = fallback
+        self.fallback = fallback
 
 
 class ProblemMapLibrary:

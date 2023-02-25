@@ -58,8 +58,50 @@ namespace Tensile
 
             static void mapping(IO& io, Forest& lib)
             {
+                int32_t index = -1;
                 iot::mapRequired(io, "trees", lib.trees);
-                iot::mapRequired(io, "nullValue", lib.nullValue);
+                iot::mapOptional(io, "fallback", index);
+                //iot::mapRequired(io, "nullValue", lib.nullValue);
+
+                if(index != -1)
+                {
+                    using SSLibrary
+                        = SingleSolutionLibrary<ContractionProblem, ContractionSolution>;
+
+                    auto ctx
+                        = static_cast<LibraryIOContext<ContractionSolution>*>(iot::getContext(io));
+                    //auto ctx
+                    //    = static_cast<LibraryIOContext<ReturnValue>*>(iot::getContext(io));
+                    if(ctx == nullptr || ctx->solutions == nullptr)
+                    {
+                        iot::setError(io,
+                                      "SingleSolutionLibrary requires that context be set to "
+                                      "a SolutionMap.");
+                    }
+
+                    auto iter = ctx->solutions->find(index);
+                    if(iter == ctx->solutions->end())
+                    {
+                        std::ostringstream msg;
+                        msg << "Invalid solution index: " << index;
+                        iot::setError(io, msg.str());
+                    }
+                    else
+                    {
+                        std::shared_ptr<ContractionSolution> solution = iter->second;
+                        //ReturnValue solution = iter->second;
+                        lib.nullValue = std::make_shared<SSLibrary>(solution);
+                        //lib.nullValue = ReturnValue(solution);
+                        //lib.nullValue = nullptr;
+                    }
+                }
+                else
+                {
+                    //iot::mapRequired(io, "value", entry.value);
+                    lib.nullValue = nullptr;
+                }
+
+
             }
 
             const static bool flow = false;
