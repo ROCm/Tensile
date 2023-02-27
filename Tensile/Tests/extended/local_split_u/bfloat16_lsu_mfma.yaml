@@ -10,13 +10,13 @@ GlobalParameters:
 
 BenchmarkProblems:
   ########################################
-  # HHS NT - standard
+  # BBS NT - standard
   ########################################
   -
     - # ProblemType
       OperationType: GEMM
-      DataType: H
-      DestDataType: H
+      DataType: B
+      DestDataType: B
       ComputeDataType: S
       HighPrecisionAccumulate: True
       TransposeA: False
@@ -25,56 +25,7 @@ BenchmarkProblems:
       Batched: True
 
   ########################################
-  # HHS NT - LSU
-  ########################################
-    -
-      InitialSolutionParameters:
-      BenchmarkCommonParameters:
-        - EdgeType: ["ShiftPtr"]
-        - LoopTail: [True]
-        - KernelLanguage: ["Assembly"]
-      ForkParameters:
-        - MatrixInstruction:
-            - [16, 16, 16, 1, 1, 2, 2, 1,1]  # 32x32
-            - [16, 16, 16, 1, 1, 2, 1, 1,2]  # 32x32
-            - [16, 16, 16, 1, 1, 2, 2, 1,2]  # 32x64
-            - [16, 16, 16, 1, 1, 2, 2, 2,1]  # 64x32
-            - [32, 32, 8, 1, 1, 2, 1, 1,1]  # 64x32
-            - [32, 32, 8, 1, 1, 2, 2, 1,1]  # 64x64
-            - [32, 32, 8, 1, 1, 2, 1, 1,2]  # 64x64
-            - [32, 32, 8, 1, 1, 2, 2, 1,2]  # 64x128
-        #- ThreadTile:
-        #  - [ 2, 2 ]
-        - WorkGroup:
-          - [ 64, 1, 1 ] # only WG2 is effective for 9 parameter MI
-          - [ 64, 1, 2 ] # only WG2 is effective for 9 parameter MI
-          - [ 64, 1, 4 ] # only WG2 is effective for 9 parameter MI
-        - AssertFree0ElementMultiple : [2]
-        - AssertFree1ElementMultiple : [2]
-        - AssertSummationElementMultiple: [1,2]
-        - DepthU: [32,64]#[8,16,32]
-        - 1LDSBuffer: [0,1]
-        - LoopTail: [True]
-        - OptNoLoadLoop: [1]
-        - PrefetchGlobalRead: [2]
-        - PrefetchLocalRead: [1]
-        - ScheduleIterAlg: [3]
-        - StaggerU: [0]
-        - SourceSwap: [0,1]
-        - TransposeLDS: [0,1]
-        - GlobalReadVectorWidth: [4]
-        - VectorWidth: [1,2,4]
-        - WaveSeparateGlobalReadB: [1]
-        - MIArchVgpr: [True, False]
-        - NumElementsPerBatchStore: [4]
-        - UseSgprForGRO: [0]
-      BenchmarkJoinParameters:
-      BenchmarkFinalParameters:
-        - ProblemSizes:
-          - Exact: [ 254, 254, 1, 2050]
-
-  ########################################
-  # HHS NT - LSU + GSU + VAW + BS[0,1]
+  # BBS NT - LSU + GSU + VAW + BS[0,1]
   ########################################
     -
       InitialSolutionParameters:
@@ -118,7 +69,6 @@ BenchmarkProblems:
         #- MIArchVgpr: [True, False]
         - NumElementsPerBatchStore: [4]
         - UseSgprForGRO: [0]
-        - BufferLoad: [0,1]
         - BufferStore: [0,1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
@@ -126,12 +76,12 @@ BenchmarkProblems:
           - Exact: [ 254, 254, 1, 2050]
 
   ########################################
-  # HSS NT - standard
+  # BSS NT - standard
   ########################################
   -
     - # ProblemType
       OperationType: GEMM
-      DataType: H
+      DataType: B
       DestDataType: S
       ComputeDataType: S
       HighPrecisionAccumulate: True
@@ -141,7 +91,7 @@ BenchmarkProblems:
       Batched: True
 
   ########################################
-  # HSS NT - LSU + GSU + VAW + BS[0,1]
+  # BSS NT - LSU + GSU + VAW + BS[0,1]
   ########################################
     -
       InitialSolutionParameters:
@@ -185,7 +135,6 @@ BenchmarkProblems:
         #- MIArchVgpr: [True, False]
         - NumElementsPerBatchStore: [4]
         - UseSgprForGRO: [0]
-        - BufferLoad: [0,1]
         - BufferStore: [0,1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
