@@ -38,16 +38,14 @@ BenchmarkProblems:
             - [16, 16, 16, 1, 1, 2, 2, 1,2]  # 32x64
             - [16, 16, 16, 1, 1, 2, 2, 2,1]  # 64x32
             - [16, 16, 16, 1, 1, 2, 2, 4,1]  # 128x32
-            - [32, 32, 8, 1, 1, 2, 2, 1,1]  # 64x64
-            - [32, 32, 8, 1, 1, 2, 1, 1,2]  # 64x64
-            - [32, 32, 8, 1, 1, 2, 1, 1,4]  # 64x128
+            - [16, 16, 16, 1, 1, 4, 2, 2,2]  # 128x64
         #- ThreadTile:
         #  - [ 2, 2 ]
         - WorkGroup:
           - [ 64, 1, 1 ] # only WG2 is effective for 9 parameter MI
           - [ 64, 1, 2 ] # only WG2 is effective for 9 parameter MI
           - [ 64, 1, 4 ] # only WG2 is effective for 9 parameter MI
-        - AssertFree0ElementMultiple : [2]
+        - AssertFree0ElementMultiple : [2,4]
         - AssertFree1ElementMultiple : [2]
         - AssertSummationElementMultiple: [2]
         - DepthU: [32]#[8,16,32]
@@ -61,19 +59,20 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - StaggerU: [0]
         - SourceSwap: [0,1]
-        - TransposeLDS: [0,1]
+        #- TransposeLDS: [0,1]
         - GlobalReadVectorWidth: [4]
         - VectorWidth: [2,4]
-        - VectorAtomicWidth: [-1,1,2]#[-1,1,2,4]
+        - VectorAtomicWidth: [-1,1,2,4]
         #- WaveSeparateGlobalReadB: [1]
         #- MIArchVgpr: [True, False]
         - NumElementsPerBatchStore: [4]
         - UseSgprForGRO: [0]
+        - BufferLoad: [0,1]
         - BufferStore: [0,1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 254, 254, 1, 2050]
+          - Exact: [ 252, 254, 1, 2050]
 
   ########################################
   # BSS NT - standard
@@ -104,16 +103,14 @@ BenchmarkProblems:
             - [16, 16, 16, 1, 1, 2, 2, 1,2]  # 32x64
             - [16, 16, 16, 1, 1, 2, 2, 2,1]  # 64x32
             - [16, 16, 16, 1, 1, 2, 2, 4,1]  # 128x32
-            - [32, 32, 8, 1, 1, 2, 2, 1,1]  # 64x64
-            - [32, 32, 8, 1, 1, 2, 1, 1,2]  # 64x64
-            - [32, 32, 8, 1, 1, 2, 1, 1,4]  # 64x128
+            - [16, 16, 16, 1, 1, 4, 2, 2,2]  # 128x64
         #- ThreadTile:
         #  - [ 2, 2 ]
         - WorkGroup:
           - [ 64, 1, 1 ] # only WG2 is effective for 9 parameter MI
           - [ 64, 1, 2 ] # only WG2 is effective for 9 parameter MI
           - [ 64, 1, 4 ] # only WG2 is effective for 9 parameter MI
-        - AssertFree0ElementMultiple : [2]
+        - AssertFree0ElementMultiple : [2,4]
         - AssertFree1ElementMultiple : [2]
         - AssertSummationElementMultiple: [2]
         - DepthU: [32]#[8,16,32]
@@ -127,18 +124,19 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - StaggerU: [0]
         - SourceSwap: [0,1]
-        - TransposeLDS: [0,1]
+        #- TransposeLDS: [0,1]
         - GlobalReadVectorWidth: [4]
         - VectorWidth: [2,4]
-        - VectorAtomicWidth: [-1,1,2]#[-1,1,2,4]
+        - VectorAtomicWidth: [-1,1,2,4]
         #- WaveSeparateGlobalReadB: [1]
         #- MIArchVgpr: [True, False]
-        - NumElementsPerBatchStore: [4]
+        - NumElementsPerBatchStore: [0]
         - UseSgprForGRO: [0]
+        - BufferLoad: [0,1]
         - BufferStore: [0,1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [ 254, 254, 1, 2050]
+          - Exact: [ 252, 254, 1, 2050]
 
 

@@ -3075,11 +3075,7 @@ class Solution(collections.abc.Mapping):
     # set minimum and maximum of VectorAtomicWidth
     minVectorAtomicWidth = 2 if (state["ProblemType"]["ComputeDataType"].numBytes() == 2) else 1
     #  TODO: enable wider VectorAtomicWidth
-    # maxVectorAtomicWidth = max(state["GlobalWriteVectorWidth"], minVectorAtomicWidth)
-    maxVectorAtomicWidth = minVectorAtomicWidth
-    if (state["ProblemType"]["ComputeDataType"].numBytes() == 8):
-      # numBytes=8 only (DGEMM, CGEMM), we can use VectorAtomicWidth to use b128 load
-      maxVectorAtomicWidth = 2
+    maxVectorAtomicWidth = max(state["GlobalWriteVectorWidth"], minVectorAtomicWidth)
     useAtomic = state["GlobalSplitU"] > 1 and state["GlobalSplitUAlgorithm"] == 'SingleBuffer'
     if state["VectorAtomicWidth"] == -1:
       if useAtomic:

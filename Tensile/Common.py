@@ -711,10 +711,11 @@ validParameters = {
     "Use64bShadowLimit":   [ True, False],
 
     # Attempt to vectorize atomics
-    # 1,2,4,8 : Number of elements to vectorize
-    # -1 : Maximum supported value.  Half=2, Single=1, Double=2, singleComplex=2, doubleComplex=1
-    # TODO: support larger width
-    "VectorAtomicWidth":          [ -1, 1, 2] ,
+    # 1,2,4 : Number of elements to vectorize
+    # -1 : Maximum supported value
+    # Wider VAW is effective only for C load of "load + atomic_cmpswap" case. Atomic operation itself is not vectorized
+    # TODO: support larger width for atomic_cmpswap
+    "VectorAtomicWidth":          [ -1, 1, 2, 4] ,
 
     # Assertion properties
     # These provide information or assertions that the problem size meets certain requirements

@@ -85,8 +85,7 @@ BenchmarkProblems:
           - [16, 16, 4, 1, 1, 4,2, 1,1]  # 64x32
           - [16, 16, 4, 1, 1, 2,2, 2,1]  # 64x32
           - [16, 16, 4, 1, 1, 2,2, 1,2]  # 32x64
-          - [16, 16, 4, 1, 1, 2,2, 2,2]  # 64x64
-        #- ThreadTile:
+          - [16, 16, 4, 1, 1, 4,2, 2,2]  # 128x64
         #  - [ 2, 2 ]
         - WorkGroup:
           - [ 64, 1, 1 ] # only WG2 is effective for 9 parameter MI
@@ -112,11 +111,12 @@ BenchmarkProblems:
         - TransposeLDS: [1]
         #- GlobalReadVectorWidth: [1,2,4]
         - VectorWidth: [1,2,4]
-        - VectorAtomicWidth: [-1,1,2]#[-1,1,2,4]
+        - VectorAtomicWidth: [-1,1,2,4]
         #- LocalReadVectorWidth: [1,2,4]
         #- DirectToVgprA: [True, False]
         #- MIArchVgpr: [False, True]
-        - NumElementsPerBatchStore: [2]
+        - NumElementsPerBatchStore: [0]
+        - BufferLoad: [0,1]
         - BufferStore: [0,1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:

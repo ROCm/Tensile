@@ -9769,18 +9769,19 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Return max global write vector width, in elements
   def maxGwvw(self, kernel):
-    atomic = (kernel["GlobalSplitU"] > 1) and (kernel["_GlobalAccumulation"] != 'MultipleBuffer')
-
-    if kernel["BufferStore"]:
-      if atomic:
-        return kernel["VectorAtomicWidth"]
-      else:
-        return 1000  # no limit
-    else:
-      if atomic:
-        return 1  # flat vector atomic is not tested
-      else:
-        return 1000  # no limit
+    #atomic = (kernel["GlobalSplitU"] > 1) and (kernel["_GlobalAccumulation"] != 'MultipleBuffer')
+    #
+    #if kernel["BufferStore"]:
+    #  if atomic:
+    #    return kernel["VectorAtomicWidth"]
+    #  else:
+    #    return 1000  # no limit
+    #else:
+    #  if atomic:
+    #    return 1  # flat vector atomic is not tested
+    #  else:
+    #    return 1000  # no limit
+    return 1000  # no limit
 
   ##############################################################################
   # Partition thread-tile into writeElements for store code
@@ -11999,6 +12000,7 @@ class KernelWriterAssembly(KernelWriter):
         # gwvw is the number of elements in the batch
         # iterate over number of atomic operations to perform, each of width atomicW
         for avi in range(0, gwvw//atomicW):
+          addrOffset = avi * atomicW * self.bpr
           dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
           useBuffer = kernel["BufferStore"]
           if kernel["BufferStore"]: # yes, BufferStore here - use same addressing regs for this load
@@ -12010,7 +12012,7 @@ class KernelWriterAssembly(KernelWriter):
           # Calculate vgpr Index for 32-bit/64-bit instruction
           # DGEMM use SRCS[2] register
           kStr += self.chooseGlobalRead(useBuffer, bpm, dataV+vgprLoadDW, \
-                    addr0, addr1, soffset=0, offset=addrCalc.globalOffset, extraFields="",
+                    addr0, addr1, soffset=0, offset=addrCalc.globalOffset + addrOffset, extraFields="",
                     dtlNoDestVgpr=False, \
                     comment="load D (atomic) bpm=%u vaw=%u"%(bpm,atomicW)).toStr()
 
@@ -12122,19 +12124,19 @@ class KernelWriterAssembly(KernelWriter):
           addrCalc = ss.elementAddr[elementIdx]
           mask     = ss.elementMask[elementIdx]
 
+          # apply in-bounds exec mask
+          if edge:
+            kStr += inst("s_mov_b{}".format(wavelen), self.exec, sgpr(mask,laneSGPRC), "sgprs -> exec (before atomic)" )
+
           loopCount = 0
           for avi in range(0, gwvw, atomicW):
             for compIdx in range(vgprLoadDW // atomicOpW):
-              maskIdx = mask + loopCount * laneSGPRC
+              addrOffset = loopCount * atomicOpW * self.bpr
               compOffset = compIdx * atomicOpW
-              compDstRegOffset = compOffset * 2
+              compDstRegOffset = compOffset * 2 # 2 sets (before and after atomic op) per atomic operation
               sumIdxV = ss.elementSumIdx[elementIdx] + avi
               sumIdxV = int(sumIdxV * kernel["ProblemType"]["ComputeDataType"].numRegisters())
               sumIdxV += compOffset
-
-              # apply in-bounds exec mask
-              if edge:
-                kStr += inst("s_mov_b{}".format(wavelen), self.exec, sgpr(maskIdx,laneSGPRC), "sgprs -> exec (before atomic)" )
 
               if self.do["GlobalWrite"]:
                 if kernel["BufferStore"]:
@@ -12143,10 +12145,12 @@ class KernelWriterAssembly(KernelWriter):
                        vgpr("ValuC+%u"%sumIdxV,atomicOpW), \
                        vgpr(addrCalc.addrDVgpr,1), \
                        sgpr("SrdD", 4), \
-                       "0 offen offset:%u" % (addrCalc.globalOffset + compOffset), \
+                       "0 offen offset:%u" % (addrCalc.globalOffset + addrOffset), \
                        "attempt write avi=%u" % (avi), self.endLine )
                 else:
                   pass # TODO:
+              #increment loopCount
+              loopCount += 1
 
         if edge:
           kStr += inst("s_mov_b{}".format(wavelen), self.exec, -1, "full mask -> exec" )
@@ -12169,6 +12173,7 @@ class KernelWriterAssembly(KernelWriter):
           if edge:
             kStr += inst("s_mov_b{}".format(wavelen), self.exec, sgpr(mask,laneSGPRC), "sgprs -> exec (before atomic)" )
 
+          loopCount = 0
           for avi in range(0, gwvw, atomicW):
             dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
             # vgprLoadDW > atomicOpW case, we use wider load
@@ -12191,8 +12196,9 @@ class KernelWriterAssembly(KernelWriter):
                   kStr += inst("v_mov_b32", vgpr(dst), vgpr(src), "v_mov for reordering loaded data" )
 
             for compIdx in range(vgprLoadDW // atomicOpW):
+              addrOffset = loopCount * atomicOpW * self.bpr
               compOffset = compIdx * atomicOpW
-              compDstRegOffset = compOffset * 2
+              compDstRegOffset = compOffset * 2 # 2 sets (before and after atomic op) per atomic operation
               sumIdxV = ss.elementSumIdx[elementIdx] + avi
               ## number of src[s]/dst[s] register for DGEMM / SGEMM HGEMM
               sumIdxV = int(sumIdxV * kernel["ProblemType"]["ComputeDataType"].numRegisters())
@@ -12205,7 +12211,9 @@ class KernelWriterAssembly(KernelWriter):
               # for atomic, data[1] = original c, data[0] = new c
               kStr += self.chooseAddForAtomic(kernel, addDst, addSrc0, sumIdxV, comment, atomicOpW)
               # attempt write
-              kStr += self.chooseAtomicCmpswap(kernel, addrCalc, addDst, compOffset * self.bpr, atomicOpW)
+              kStr += self.chooseAtomicCmpswap(kernel, addrCalc, addDst, addrOffset, atomicOpW)
+              #increment loopCount
+              loopCount += 1
 
         ########################################
         # edge case only, copy out of range mask to all masks for each atomic instruction
@@ -12239,7 +12247,7 @@ class KernelWriterAssembly(KernelWriter):
             for compIdx in range(vgprLoadDW // atomicOpW):
               maskIdx = mask + loopCount * laneSGPRC
               compOffset = compIdx * atomicOpW
-              compDstRegOffset = compOffset * 2
+              compDstRegOffset = compOffset * 2 # 2 sets (before and after atomic op) per atomic operation
               dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
               atomicDestVgpr = dataV + compDstRegOffset
               dstSgpr = tmpS01 if edge else maskIdx
@@ -12286,8 +12294,9 @@ class KernelWriterAssembly(KernelWriter):
           for avi in range(0, gwvw, atomicW):
             for compIdx in range(vgprLoadDW // atomicOpW):
               maskIdx = mask + loopCount * laneSGPRC
+              addrOffset = loopCount * atomicOpW * self.bpr
               compOffset = compIdx * atomicOpW
-              compDstRegOffset = compOffset * 2
+              compDstRegOffset = compOffset * 2 # 2 sets (before and after atomic op) per atomic operation
               dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
               sumIdxV = ss.elementSumIdx[elementIdx] + avi
               sumIdxV = int(sumIdxV * kernel["ProblemType"]["ComputeDataType"].numRegisters())
@@ -12304,7 +12313,7 @@ class KernelWriterAssembly(KernelWriter):
                 kStr += inst("v_mov_b32", vgpr(movDst+idx), vgpr(addDst+idx), "dataV+%u = tmp (new original C)"%(atomicOpW+idx) )
               kStr += self.chooseAddForAtomic(kernel, addDst, addSrc0, sumIdxV, comment, atomicOpW)
               # attempt write
-              kStr += self.chooseAtomicCmpswap(kernel, addrCalc, addDst, compOffset * self.bpr, atomicOpW)
+              kStr += self.chooseAtomicCmpswap(kernel, addrCalc, addDst, addrOffset, atomicOpW)
               #increment loopCount
               loopCount += 1
 
@@ -12322,9 +12331,10 @@ class KernelWriterAssembly(KernelWriter):
           for avi in range(0, gwvw, atomicW):
             for compIdx in range(vgprLoadDW // atomicOpW):
               maskIdx = mask + loopCount * laneSGPRC
-              compOffset = compIdx * vgprLoadDW
+              compOffset = compIdx * atomicOpW
+              compDstRegOffset = compOffset * 2 # 2 sets (before and after atomic op) per atomic operation
               dataV = ss.elementData[elementIdx] + int(avi*ss.cfg.numVgprsPerDataPerVI)
-              atomicDestVgpr = dataV + compOffset
+              atomicDestVgpr = dataV + compDstRegOffset
               comment = "c read during atomic != c read during prior load (avi=%u)"%avi
               # apply mask for element
               kStr += inst("s_mov_b{}".format(wavelen), self.exec, sgpr(maskIdx,laneSGPRC), "must try again" )
