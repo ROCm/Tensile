@@ -289,6 +289,7 @@ namespace Tensile
                     }
                 }
                 return transform(nullValue);
+                //return nullValue;
             }
 
             virtual std::set<ReturnValue> matchesInOrder(Object const& problem,

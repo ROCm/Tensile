@@ -110,9 +110,25 @@ namespace Tensile
                 int index;
 
                 if(iot::outputting(io))
-                    index = lib.solution->index;
+                {
+                    if(lib.solution == nullptr)
+                    {
+                        index = -1;
+                    }
+                    else
+                    {
+                        index = lib.solution->index;
+                    }
+                }
 
                 iot::mapRequired(io, "index", index);
+
+                if(index == -1)
+                {
+                    //return nullptr;
+                    lib.solution = nullptr;
+                    return;
+                }
 
                 if(!iot::outputting(io))
                 {
