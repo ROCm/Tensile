@@ -211,10 +211,6 @@ BenchmarkProblems:
         - AtomicAddC: [False] 
       ForkParameters:
         - MatrixInstruction:
-          - [16, 16, 1, 4, 1, 2,2, 2,2] # 64x256
-          - [16, 16, 1, 4, 2, 2,2, 2,2] # 128x128
-          - [16, 16, 1, 4, 4, 2,2, 2,2] # 256x64
-
           - [32, 32, 2, 1, 1, 2,2, 2,2] # 128x128
           - [32, 32, 2, 1, 1, 2,2, 1,4] # 64x256
           - [32, 32, 2, 1, 1, 2,2, 4,1] # 256x64
@@ -230,20 +226,20 @@ BenchmarkProblems:
         - AssertFree0ElementMultiple: [2]
         # - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
-        - PrefetchLocalRead: [3, 5]
+        # - PrefetchLocalRead: [4]
         - GlobalSplitU: [1]
-        - DepthU:  [4,8,16,32]
+        - DepthU:  [4]
         - StoreVectorWidth: [2]
         - VectorWidth: [2]
-        - GlobalReadVectorWidth: [1, 2]
+        - GlobalReadVectorWidth: [1]
         - LocalReadVectorWidth: [1] # [1, 2]
         - DirectToLds: [True]
         - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
         - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
         - WaveSeparateGlobalReadA: [0]
         - WaveSeparateGlobalReadB: [0]
-        - NumLoadsCoalescedA: [1,2]
-        - NumLoadsCoalescedB: [1,2]
+        - NumLoadsCoalescedA: [1]
+        - NumLoadsCoalescedB: [1]
         - ScheduleIterAlg: [3]
         - AssertSummationElementMultiple: [32]
         - StaggerU: [0]
@@ -461,10 +457,6 @@ BenchmarkProblems:
         - AtomicAddC: [False] 
       ForkParameters:
         - MatrixInstruction:
-          - [16, 16, 1, 4, 1, 2,2, 2,2] # 64x256
-          - [16, 16, 1, 4, 2, 2,2, 2,2] # 128x128
-          - [16, 16, 1, 4, 4, 2,2, 2,2] # 256x64
-
           - [32, 32, 2, 1, 1, 2,2, 2,2] # 128x128
           - [32, 32, 2, 1, 1, 2,2, 1,4] # 64x256
           - [32, 32, 2, 1, 1, 2,2, 4,1] # 256x64
@@ -480,20 +472,20 @@ BenchmarkProblems:
         - AssertFree0ElementMultiple: [2]
         # - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
-        - PrefetchLocalRead: [3, 5]
+        # - PrefetchLocalRead: [4]
         - GlobalSplitU: [1]
-        - DepthU:  [4,8,16,32]
+        - DepthU:  [4]
         - StoreVectorWidth: [2]
         - VectorWidth: [2]
-        - GlobalReadVectorWidth: [1, 2]
+        - GlobalReadVectorWidth: [1]
         - LocalReadVectorWidth: [1] # [1, 2]
         - DirectToLds: [True]
         - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
         - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
         - WaveSeparateGlobalReadA: [0]
         - WaveSeparateGlobalReadB: [0]
-        - NumLoadsCoalescedA: [1,2]
-        - NumLoadsCoalescedB: [1,2]
+        - NumLoadsCoalescedA: [1]
+        - NumLoadsCoalescedB: [1]
         - ScheduleIterAlg: [3]
         - AssertSummationElementMultiple: [32]
         - StaggerU: [0]
@@ -711,10 +703,6 @@ BenchmarkProblems:
         - AtomicAddC: [False] 
       ForkParameters:
         - MatrixInstruction:
-          - [16, 16, 1, 4, 1, 2,2, 2,2] # 64x256
-          - [16, 16, 1, 4, 2, 2,2, 2,2] # 128x128
-          - [16, 16, 1, 4, 4, 2,2, 2,2] # 256x64
-
           - [32, 32, 2, 1, 1, 2,2, 2,2] # 128x128
           - [32, 32, 2, 1, 1, 2,2, 1,4] # 64x256
           - [32, 32, 2, 1, 1, 2,2, 4,1] # 256x64
@@ -730,26 +718,26 @@ BenchmarkProblems:
         - AssertFree0ElementMultiple: [2]
         # - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
-        - PrefetchLocalRead: [3, 5]
+        # - PrefetchLocalRead: [4]
         - GlobalSplitU: [1]
-        - DepthU:  [4,8,16,32]
+        - DepthU:  [4]
         - StoreVectorWidth: [2]
         - VectorWidth: [2]
-        - GlobalReadVectorWidth: [1, 2]
+        - GlobalReadVectorWidth: [1]
         - LocalReadVectorWidth: [1] # [1, 2]
         - DirectToLds: [True]
         - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
         - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
         - WaveSeparateGlobalReadA: [0]
         - WaveSeparateGlobalReadB: [0]
-        - NumLoadsCoalescedA: [1,2]
-        - NumLoadsCoalescedB: [1,2]
+        - NumLoadsCoalescedA: [1]
+        - NumLoadsCoalescedB: [1]
         - ScheduleIterAlg: [3]
         - AssertSummationElementMultiple: [32]
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
-        - FractionalLoad: [0, 1, 2]
-        #- BufferLoad: [True] # DirectToLds requires BufferLoad
+        #- FractionalLoad: [0, 1, 2]
+        - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [1]
       BenchmarkForkParameters:
       JoinParameters:
@@ -961,10 +949,6 @@ BenchmarkProblems:
         - AtomicAddC: [False] 
       ForkParameters:
         - MatrixInstruction:
-          - [16, 16, 1, 4, 1, 2,2, 2,2] # 64x256
-          - [16, 16, 1, 4, 2, 2,2, 2,2] # 128x128
-          - [16, 16, 1, 4, 4, 2,2, 2,2] # 256x64
-
           - [32, 32, 2, 1, 1, 2,2, 2,2] # 128x128
           - [32, 32, 2, 1, 1, 2,2, 1,4] # 64x256
           - [32, 32, 2, 1, 1, 2,2, 4,1] # 256x64
@@ -980,20 +964,20 @@ BenchmarkProblems:
         - AssertFree0ElementMultiple: [2]
         # - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
-        - PrefetchLocalRead: [3, 5]
+        # - PrefetchLocalRead: [4]
         - GlobalSplitU: [1]
-        - DepthU:  [4,8,16,32]
+        - DepthU:  [4]
         - StoreVectorWidth: [2]
         - VectorWidth: [2]
-        - GlobalReadVectorWidth: [1, 2]
+        - GlobalReadVectorWidth: [1]
         - LocalReadVectorWidth: [1] # [1, 2]
         - DirectToLds: [True]
         - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
         - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
         - WaveSeparateGlobalReadA: [0]
         - WaveSeparateGlobalReadB: [0]
-        - NumLoadsCoalescedA: [1,2]
-        - NumLoadsCoalescedB: [1,2]
+        - NumLoadsCoalescedA: [1]
+        - NumLoadsCoalescedB: [1]
         - ScheduleIterAlg: [3]
         - AssertSummationElementMultiple: [32]
         - StaggerU: [0]
