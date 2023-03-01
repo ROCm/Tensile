@@ -2283,6 +2283,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   def loopBody( self, kernel, tensorParametersA, tensorParametersB, kl, pack, lc, loopCopies, finalLoop, firstIter=False ):
     expand = kernel["ExpandPointerSwap"]
+    # firstIter flag for waitcnt
+    # if useInitAccVgprOpt is not used, waitcnt of the first iteration should be same as firstIter
+    # (does not include storeC from the previous PK loop)
+    firstIterForWait = firstIter or ((not self.useInitAccVgprOpt) and lc == 0)
 
     # generate storeC code for StoreCInUnroll (need to call for not StoreCInUnroll case as well)
     self.generateStoreCCodeInUnrollLoop(kernel, lc & 1)
@@ -2551,7 +2555,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 prevLocalWrite += ' '.join([str(x) for x in self.perIterLocalWriteCode[up].flatitems()])
               prevVmcnt = "vmcnt" in prevLocalWrite
             if not (firstIter and u == 0 and self.canOptimizePreLoopLWVmcnt) and not prevVmcnt:
-              retStr = self.getWaitcntCodeForDirectToVgpr(kernel, localWriteEndIter, u, firstIter)
+              retStr = self.getWaitcntCodeForDirectToVgpr(kernel, localWriteEndIter, u, firstIterForWait)
               kl.append(retStr)
         # put barrier at localWriteEndIter+1
         if u == localWriteEndIter+1 or (u == (localWriteEndIter+1)%kernel["LoopIters"] and kernel["ScheduleIterAlg"] == 2):
@@ -2567,7 +2571,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 # Wait for Load C is already done here in PGR=2 case.
                 needLoadC = kernel["StoreCInUnroll"] and (not kernel["AtomicAddC"]) and kernel["ProblemType"]["UseBeta"]
                 if not (kernel["PrefetchGlobalRead"]==2 and needLoadC):
-                  retStr = self.getWaitcntCodeForDirectToVgpr(kernel, localWriteEndIter, u, firstIter, beforeBarrier=True)
+                  retStr = self.getWaitcntCodeForDirectToVgpr(kernel, localWriteEndIter, u, firstIterForWait, beforeBarrier=True)
                   waitLWCode.addCode(retStr)
             # skip local write wait if DirectToVgpr + DirectToLds is enabled
             # (no local write code. Global read wait for DirectToLds is already done)
