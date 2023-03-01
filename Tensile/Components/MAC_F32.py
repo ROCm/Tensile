@@ -24,7 +24,6 @@
 
 from ..Component import Component, MAC
 from ..DataType import DataType
-import queue
 
 class MAC_F32_Plain(MAC):
     """
@@ -48,10 +47,6 @@ class MAC_F32_Plain(MAC):
             else:
                 raise RuntimeError("FMA instruction specified but not supported on {}".format(kernel["ISA"]))
 
-        dualMacEnable = 0
-        if writer.asmCaps["v_dual_fmac_f32"] and kernel["WavefrontSize"] == 32:
-            dualMacEnable = 1
-
         if not writer.asmCaps[instruction]:
             raise RuntimeError("{} instruction specified but not supported on {}".format(instruction, kernel["ISA"]))
 
@@ -72,8 +67,6 @@ class MAC_F32_Plain(MAC):
         priority = Component.Priority.find(writer)
         macIdx = 0
 
-        instQ = queue.Queue()
-
         for iui in range(0, innerUnroll):
             for idx1 in range(0, kernel["ThreadTile1"]):
                 for idx0 in range(0, kernel["ThreadTile0"]):
@@ -87,67 +80,19 @@ class MAC_F32_Plain(MAC):
                     vars["aStr"] = "v[vgprValuA_X{m}_I{iui} + {a}]".format_map(vars)
                     vars["bStr"] = "v[vgprValuB_X{m}_I{iui} + {b}]".format_map(vars)
 
-                    if dualMacEnable == 1:
-                        instVars = {}
-                        instVars["endLine"] = writer.endLine
-                        instVars["cStr"] = vars["cStr"]
-                        instVars["aStr"] = vars["aStr"]
-                        instVars["bStr"] = vars["bStr"]
-                        instVars["a"] = vars["a"]
-                        instVars["b"] = vars["b"]
-                        instVars["instruction"] = instruction
-
-                        if instQ.empty():
-                            instQ.put(instVars)
-                        else:
-                            # pop instruction
-                            prevVars = instQ.queue[0]
-
-                            if self.isLegal(instVars, prevVars):
-                                # make dual fmac
-                                kStr += "v_dual_fmac_f32 {cStr}, {aStr}, {bStr}".format_map(prevVars) + " :: v_dual_fmac_f32 {cStr}, {aStr}, {bStr}{endLine}".format_map(vars)
-                                kStr += priority(writer, 1, "Raise priority while processing macs")
-                                instQ.get()
-                            else:
-                                # push instruction
-                                instQ.put(instVars)
-
+                    if instruction == "v_fma_f32":
+                        kStr += "v_fma_f32 {cStr}, {aStr}, {bStr}, {cStr}{endLine}".format_map(vars)
                     else:
-                        if instruction == "v_fma_f32":
-                            kStr += "v_fma_f32 {cStr}, {aStr}, {bStr}, {cStr}{endLine}".format_map(vars)
-                        else:
-                            kStr += "{instruction} {cStr}, {aStr}, {bStr}{endLine}".format_map(vars)
+                        kStr += "{instruction} {cStr}, {aStr}, {bStr}{endLine}".format_map(vars)
+
+                    kStr += priority(writer, 1, "Raise priority while processing macs")
 
                     if macIdx == kernel["PerformanceWaitLocation"]:
-                        kStr += self.popAllInstructions(instruction, instQ, priority, writer)
                         kStr += "s_waitcnt lgkmcnt({PerformanceWaitCount}) // extra wait for performance{endLine}".format_map(vars)
                     if macIdx == kernel["PerformanceSyncLocation"]:
-                        kStr += self.popAllInstructions(instruction, instQ, priority, writer)
                         kStr += "s_barrier // extra barrier for performance{endLine}".format_map(vars)
                     macIdx += 1
 
-        kStr += self.popAllInstructions(instruction, instQ, priority, writer)
         kStr += priority(writer, 0, "Reset priority after macs")
 
         return kStr
-
-    def popAllInstructions(self, inst, instructionQueue, priority, writer):
-        # pop all instructions
-        kStr = ""
-        while instructionQueue.qsize() > 0:
-            prevVars = instructionQueue.get()
-            if inst == "v_fma_f32":
-                kStr += "v_fma_f32 {cStr}, {aStr}, {bStr}, {cStr}{endLine}".format_map(prevVars)
-            else:
-                kStr += "{instruction} {cStr}, {aStr}, {bStr}{endLine}".format_map(prevVars)
-            kStr += priority(writer, 1, "Raise priority while processing macs")
-        return kStr
-
-    def isLegal(self, instVars0, instVars1):
-        # VPOD has some restructions.
-        # For avoiding VGPR source-cache port limits, guarantee at least 1 duplicated SRC.
-        if instVars0["cStr"] == instVars1["cStr"]:
-            return False
-        if instVars0["a"] == instVars1["a"] or instVars0["b"] == instVars1["b"]:
-            return True
-        return False
