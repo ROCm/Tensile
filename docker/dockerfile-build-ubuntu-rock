@@ -46,6 +46,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-ins
     python3-pip \
     python3-pytest \
     python3-setuptools \
+    python3-joblib \
     python3-yaml \
     libnuma1 \
     libboost-all-dev \
@@ -63,7 +64,7 @@ RUN dpkg -i libmsgpack-dev_3.0.1-3_amd64.deb libmsgpackc2_3.0.1-3_amd64.deb
 
 RUN pip3 install setuptools --upgrade && \
     pip3 install wheel && \
-    pip3 install tox pyyaml msgpack joblib
+    pip3 install tox pyyaml msgpack
 
 # docker pipeline runs containers with particular uid
 # create a jenkins user with this specific uid so it can use sudo privileges
