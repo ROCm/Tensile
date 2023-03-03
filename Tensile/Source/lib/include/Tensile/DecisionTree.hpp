@@ -324,9 +324,10 @@ namespace Tensile
                 {
                     std::cout << "Failed to find a valid kernel after searching the full ensamble. will return the fallback kernel." << std::endl;
 
-                    if(nullValue == nullptr)
+                    if(transform(nullValue) == nullptr)
                     {
                         std::cout << "No fallback kerenel is defined. Will return a null pointer";
+                        std::cout << std::endl;
                     }
                     else
                     {
