@@ -3379,7 +3379,8 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     if kernel["PersistentKernel"]:
-      stmp = self.getTmpSgpr(4, 4).idx()
+      stmpRef = self.getTmpSgpr(4, 4)
+      stmp = stmpRef.idx()
       # Always reset pointers to handle odd-exit case which moves LRO to the upper bank
       if not self.prefetchAcrossPersistent and kernel["PrefetchGlobalRead"]:
         kStr += self.localReadResetOffsets(kernel, self.tPA)
