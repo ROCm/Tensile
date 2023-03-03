@@ -3101,15 +3101,14 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for %u bytes of kern args" % self.kernArgOffset )
 
       if not kernel["ProblemType"]["StridedBatched"]:
-        tmpSgpr = self.getTmpSgpr(self.laneSGPRCount)
-        kStr += self.loadBatchedAddress(kernel, "WorkGroup2", tmpSgpr.idx())
+        tmpSgpr = self.getTmpSgpr(self.laneSGPRCount).idx()
+        kStr += self.loadBatchedAddress(kernel, "WorkGroup2", tmpSgpr)
         kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait global buffer address ready")
     else:
       kStr += ".if 0\n"
 
     # add offset to buffer
-    tmpOffsetRef = self.getTmpSgpr(2, 2)
-    tmpOffset = tmpOffsetRef.idx()
+    tmpOffset = self.sgprPool.checkOutAligned(2, 2, preventOverflow=0)
 
     if not kernel["_GlobalAccumulation"]:
       kStr += inst("s_mov_b32", sgpr(tmpOffset), sgpr("OffsetD"), "copy to temp b64 to prevent overflow with large offset")
@@ -3135,6 +3134,8 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_lshl_b64", sgpr(tmpOffset, 2), sgpr(tmpOffset, 2), hex(log2(self.bpeAB)), "elements offset to bytes offset")
     kStr += inst("s_add_u32",  sgpr("AddressB+0"), sgpr("AddressB+0"), sgpr(tmpOffset), "add offset to buffer address")
     kStr += inst("s_addc_u32", sgpr("AddressB+1"), sgpr("AddressB+1"), sgpr(tmpOffset + 1), "add offset to buffer address")
+
+    self.sgprPool.checkIn(tmpOffset)
 
     # self.groOffsetInMacroTile == 1 case, subtract pre-pad here
     if self.groOffsetInMacroTile:
@@ -3235,8 +3236,7 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += self.assert_eq(vgpr(nwg0), sgpr("NumWorkGroups0")) # "bozo, remove me")
       nwg0 = self.vgprPool.checkOut(1)
       tmpVgpr = self.vgprPool.checkOut(1)
-      tmpSgprRef = self.getTmpSgpr(1)
-      tmpSgpr = tmpSgprRef.idx()
+      tmpSgpr = self.getTmpSgpr(1).idx()
       kStr += "// nwg0 = (size%s + MT%s - 1) / MT%s;%s" \
           % (self.tileChar0, self.tileChar0, self.tileChar0, self.endLine)
       kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(kernel["MacroTile0"]-1), "MT0-1")
@@ -3379,8 +3379,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     if kernel["PersistentKernel"]:
-      stmpRef = self.getTmpSgpr(4, 4)
-      stmp = stmpRef.idx()
+      stmp = self.getTmpSgpr(4, 4).idx()
       # Always reset pointers to handle odd-exit case which moves LRO to the upper bank
       if not self.prefetchAcrossPersistent and kernel["PrefetchGlobalRead"]:
         kStr += self.localReadResetOffsets(kernel, self.tPA)
@@ -3412,8 +3411,7 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("_s_load_b128", sgpr(stmp, 4), sgpr("KernArgAddress",2), hex(self.argOffsetOffset),  "reload DCAB Offset")
             kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait global buffer adress ready")
 
-            tmpOffsetRef = self.getTmpSgpr(2, 2)
-            tmpOffset = tmpOffsetRef.idx()
+            tmpOffset = self.sgprPool.checkOutAligned(2, 2, preventOverflow=0)
 
             if not kernel["_GlobalAccumulation"]:
               kStr += inst("s_mov_b32", sgpr(tmpOffset), sgpr(stmp+0), "copy to temp b64 to prevent overflow with large offset")
@@ -3439,6 +3437,8 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("s_lshl_b64", sgpr(tmpOffset, 2), sgpr(tmpOffset, 2), hex(log2(self.bpeAB)), "elements offset to bytes offset")
             kStr += inst("s_add_u32",  sgpr("AddressB+0"), sgpr("AddressB+0"), sgpr(tmpOffset), "add offset to buffer address")
             kStr += inst("s_addc_u32", sgpr("AddressB+1"), sgpr("AddressB+1"), sgpr(tmpOffset + 1), "add offset to buffer address")
+
+            self.sgprPool.checkIn(tmpOffset)
 
             if self.groOffsetInMacroTile:
               prePad = self.srdShiftLeft["A"] * self.tPA["bpe"] # leave room in case we have to pointer shift
@@ -3469,8 +3469,7 @@ class KernelWriterAssembly(KernelWriter):
         nwg1 = self.vgprPool.checkOut(1, "nwg1", self.preventVgprOverflowDuringNewTile)
         quotient = self.vgprPool.checkOut(1, "quotient", self.preventVgprOverflowDuringNewTile)
         tmpVgpr = self.vgprPool.checkOut(1, "tmpVgpr", self.preventVgprOverflowDuringNewTile)
-        tmpSgprRef = self.getTmpSgpr(1)
-        tmpSgpr = tmpSgprRef.idx()
+        tmpSgpr = self.getTmpSgpr(1).idx()
         kStr += "// GSU-WGMapRR :nwg1 = (size%s + MT%s - 1) / MT%s;%s" \
             % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
         kStr += inst("v_mov_b32", vgpr(nwg1), sgpr("SizesFree+1"), "")
@@ -3513,8 +3512,7 @@ class KernelWriterAssembly(KernelWriter):
 
         # gsuSumIdx = wg1 % GSU
         # wg1       = wg1 / GSU
-        tmpSgprRef = self.getTmpSgpr(3) # needs 3
-        tmpSgpr = tmpSgprRef.idx()
+        tmpSgpr = self.getTmpSgpr(3).idx() # needs 3
         divisor = tmpSgpr+2
         kStr += inst("s_mov_b32", sgpr(divisor), sgpr("WorkGroup1"), \
             "copying for divisor")
@@ -3541,8 +3539,7 @@ class KernelWriterAssembly(KernelWriter):
       smallNumMagicShift = 31
       magicNumberWgm = ((1<<smallNumMagicShift) // absWgm + 1)
 
-      tmpSgprRef = self.getTmpSgpr(4)
-      tmpSgpr = tmpSgprRef.idx()
+      tmpSgpr = self.getTmpSgpr(4).idx()
       blockId2  = tmpSgpr+0
       wgSerial2 = tmpSgpr+1
       wgmDivisor = tmpSgpr+2
