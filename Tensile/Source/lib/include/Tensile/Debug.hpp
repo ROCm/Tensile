@@ -76,6 +76,7 @@ namespace Tensile
         bool enableDebugSelection() const;
 
         bool useExperimentalSelection() const;
+        bool getSolutionSelectionTrace() const;
 
         std::string getMetric() const;
 
@@ -90,6 +91,7 @@ namespace Tensile
         bool        m_debugSelection      = false;
         bool        m_experimentSelection = false;
         int         m_solution_index      = -1;
+        bool        m_solselTrace         = false;
         std::string m_metric              = "";
 
         Debug();

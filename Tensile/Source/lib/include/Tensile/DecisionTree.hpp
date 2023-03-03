@@ -277,17 +277,65 @@ namespace Tensile
             virtual ReturnValue findBestMatch(Object const& problem,
                                               Transform     transform) const override
             {
+                bool debug = Debug::Instance().getSolutionSelectionTrace();
+
                 Key key = ProblemKey::keyForProblem<Key, Object, float>(problem, this->features);
+                
+                if(debug)
+                {
+                    std::cout << "Forest " << this->description() << std::endl;
+                    std::cout << "Entering solution selection evaluation loop. Searcing forest." << std::endl;
+                }
+                
                 for(Tree const& tree : trees)
                 {
                     ReturnValue rv = tree.getSolution(transform);
+
+                    //std::cout << "Running kernel: " << rv->KernelName() << std::endl;
                     if (rv != nullptr)
                     {
+                        if(debug)
+                        {
+                            std::cout << "Running predict for kernel: ";
+                            std::cout << rv->KernelName();
+                            std::cout << " (Library Index: " << rv->libraryLogicIndex;
+                            std::cout << ")" << std::endl;
+                                
+                        }
+
                         bool result = tree.predict(key);
+
+                        if(debug)
+                        {
+                            std::cout << "Prediction envaluation result is: ";
+                            std::cout << result << std::endl;
+                        }
+
                         if(result)
+                        {
+                            if(debug)
+                                std::cout << "found valid kernel exiting forest evaluation loop" << std::endl;
                             return rv;
+                        }
                     }
                 }
+
+                if(debug)
+                {
+                    std::cout << "Failed to find a valid kernel after searching the full ensamble. will return the fallback kernel." << std::endl;
+
+                    if(nullValue == nullptr)
+                    {
+                        std::cout << "No fallback kerenel is defined. Will return a null pointer";
+                    }
+                    else
+                    {
+                        std::cout << "Returning the fallback kernel: " << transform(nullValue)->KernelName();
+                        std::cout << " (Library Index: " << transform(nullValue)->libraryLogicIndex;
+                        std::cout << ")" << std::endl;
+                    }
+                }
+
                 return transform(nullValue);
                 //return nullValue;
             }
