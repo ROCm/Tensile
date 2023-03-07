@@ -116,7 +116,7 @@ BenchmarkProblems:
         - DepthU:  [16]#[16,32]#[ 8, 16 ]
         #- StoreVectorWidth: [1,2]
         - VectorWidth: [1,2]
-        - VectorAtomicWidth: [-1,1,2]
+        - VectorAtomicWidth: [-1,1]
         #- LocalReadVectorWidth: [1,2]
         #- DirectToVgprB: [False, True]
         - ScheduleIterAlg: [3]

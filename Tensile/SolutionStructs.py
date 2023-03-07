@@ -3050,6 +3050,15 @@ class Solution(collections.abc.Mapping):
         reject(state, "int8 doesn't support LocalSplitU")
         return
 
+    # to eliminate identical/duplicate kernels when GSU=1
+    if state["GlobalSplitU"] == 1:
+      # GlobalSplitUAlgorithm is MultipleBuffer
+      if state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':
+        reject(state, " GlobalSplitU=1 and GlobalSplitUAlgorithm='MultipleBuffer'. Rejecting GlobalSplitUAlgorithm='SingleBuffer' to avoid duplicate kernels.")
+      # GlobalSplitUAtomicAdd is True
+      if state["GlobalSplitUAtomicAdd"]:
+        reject(state, " GlobalSplitU=1 and GlobalSplitUAtomicAdd=True. Rejecting to avoid duplicate kernels.")
+
     # GlobalSplitU doesn't work with some other things:
     if state["GlobalSplitU"] > 1:
       if not state["GlobalSplitUSummationAssignmentRoundRobin"] and state["LoopTail"]:
@@ -3068,14 +3077,37 @@ class Solution(collections.abc.Mapping):
         reject(state, "GlobalSplitU only compatible with single, or asm and (half or mixed) precision, or EnableMatrixInstruction")
         return
 
-    # to eliminate identical/duplicate kernels when GSU=1 but GlobalSplitUAlgorithm is MultipleBuffer
-    if state["GlobalSplitU"] == 1 and state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':
-      reject(state, " GlobalSplitU=1 and GlobalSplitUAlgorithm='MultipleBuffer'. Rejecting GlobalSplitUAlgorithm='SingleBuffer' to avoid duplicate kernels.")
+      if state["GlobalSplitUAtomicAdd"]:
+        # use atomic_add for SingleBuffer algorithm
+        # limit to f32 + BufferStore + VAW=1 only
+        if not globalParameters["AsmCaps"][isa]["HasAtomicAdd"]:
+          reject(state, "GlobalSplitUAtomicAdd is not supported by this arch")
+        if state["GlobalSplitUAlgorithm"] != 'SingleBuffer':
+          reject(state, "GlobalSplitUAtomicAdd only compatible with SingleBuffer aloghrithm")
+        if not state["ProblemType"]["ComputeDataType"].isSingle():
+          reject(state, "GlobalSplitUAtomicAdd only compatible with single precision ComputeDataType")
+        if not state["BufferStore"]:
+          reject(state, "GlobalSplitUAtomicAdd only compatible with BufferStore")
+        if state["VectorAtomicWidth"] != 1:
+          reject(state, "GlobalSplitUAtomicAdd only compatible with VectorAtomicWidth=1")
+
+        # print warning message if GlobalSplitUAtomicAdd is enabled
+        printWarning("Using GlobalSplitUAtomicAdd is not recommended")
 
     # set minimum and maximum of VectorAtomicWidth
     minVectorAtomicWidth = 2 if (state["ProblemType"]["ComputeDataType"].numBytes() == 2) else 1
-    #  TODO: enable wider VectorAtomicWidth
-    maxVectorAtomicWidth = max(state["GlobalWriteVectorWidth"], minVectorAtomicWidth)
+    if state["GlobalSplitUAtomicAdd"]:
+      maxVectorAtomicWidth = minVectorAtomicWidth
+    else:
+      # cmpswap_b64 is applicable only for bpe>4 data types due to alignment restriction
+      # atomicAdd case, Wdth=1 only.
+      # TODO: add VectorAtomicWidth=2 support for smaller data types by introducing alignment assertion
+
+      # maximum is b64 (8 byte)
+      #computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
+      #maxVectorAtomicWidth = (8 // computeBytes) if computeBytes <= 8 else 1
+      maxVectorAtomicWidth = minVectorAtomicWidth
+
     useAtomic = state["GlobalSplitU"] > 1 and state["GlobalSplitUAlgorithm"] == 'SingleBuffer'
     if state["VectorAtomicWidth"] == -1:
       if useAtomic:

@@ -198,7 +198,7 @@ BenchmarkProblems:
         - DepthU:  [16]
         #- StoreVectorWidth: [1,2]#[2]
         - VectorWidth: [1,2] #[1,2]
-        - VectorAtomicWidth: [-1,1,2]
+        - VectorAtomicWidth: [-1,1]
         #- GlobalReadVectorWidth: [1,2]
         #- LocalReadVectorWidth: [1,2]
         #- DirectToVgprA: [False, True]
