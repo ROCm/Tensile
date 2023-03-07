@@ -2386,7 +2386,7 @@ class Solution(collections.abc.Mapping):
 
     # numBytes < 4 case
     if numBytes < 4:
-      # Does not work with TLU = True and numBytes < 4 SGEMM/CGEMM (not supported)
+      # Does not work with TLU = True and numBytes < 4 (not supported)
       if state["ProblemType"]["TLU%c"%tc]:
         reject(state, "DirectToVgpr%c does not supports TLU%c = True + numByte < 4"%(tc, tc))
         return False
