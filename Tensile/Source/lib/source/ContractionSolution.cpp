@@ -392,10 +392,10 @@ namespace Tensile
             rv.args.append<typename TypedInputs::BType const* const*>("batchB", inputs.batchB);
         }
 
-        rv.args.append<uint64_t>("offsetD", d.offset());
-        rv.args.append<uint64_t>("offsetC", c.offset());
-        rv.args.append<uint64_t>("offsetA", a.offset());
-        rv.args.append<uint64_t>("offsetB", b.offset());
+        rv.args.append<int64_t>("offsetD", d.offset());
+        rv.args.append<int64_t>("offsetC", c.offset());
+        rv.args.append<int64_t>("offsetA", a.offset());
+        rv.args.append<int64_t>("offsetB", b.offset());
 
         rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
         if(std::is_same<typename TypedInputs::AlphaType, Half>::value && !isSourceKernel())
