@@ -35,6 +35,9 @@ from .Utils import state
 class SingleSolutionLibrary:
     Tag = "Single"
 
+    # allow null solution. This enables the solution library to have
+    # an effective default value when the related field in the logic
+    # file is optional.
     def __init__(self, solution = None):
         self.solution = solution
 
@@ -43,8 +46,8 @@ class SingleSolutionLibrary:
         return self.__class__.Tag
 
     def state(self):
-        
-        #return {"type": self.tag, "index": self.solution.index}
+        # handles the case when the solution is null.
+        # -1 index represents null solution.
         if self.solution:
            return {"type": self.tag, "index": self.solution.index}
         else:
@@ -145,24 +148,21 @@ class MatchingLibrary:
 
 class DecisionTreeLibrary:
     Tag = "DecisionTree"
-    #StateKeys = [("type", "tag"), "features", "trees", "fallback"]
     StateKeys = [("type", "tag"), "features", "trees", "nullValue"]
 
     @classmethod
     def FromOriginalState(cls, d, solutions):
         features = d["features"]
         origTrees = d["trees"]
-        #fallback = None
         
+        # Support for legacy implementation of the dtree which has no fallback.
         if "fallback" in d:
             fallbackIndex = d["fallback"]
-            fallback = fallbackIndex #SingleSolutionLibrary(solutions[fallbackIndex])
-            #fallback = d["fallback"]
+            fallback = fallbackIndex
             nullValue = SingleSolutionLibrary(solutions[fallbackIndex])
         else:
-            #nullValue = None #  SingleSolutionLibrary(solutions[0])
+            # The default solution is null
             nullValue = SingleSolutionLibrary()
-            #fallback = -1
 
         trees = []
 
@@ -188,12 +188,8 @@ class DecisionTreeLibrary:
         pass
 
     def __init__(self, features, trees, nullValue):
-    #def __init__(self, features, trees, fallback):
         self.features = features
         self.trees = trees
-        #self.fallback = fallback
-        #if nullValue:
-        #    self.nullValue = nullValue   
         self.nullValue = nullValue
 
 

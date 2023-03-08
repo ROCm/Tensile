@@ -254,16 +254,6 @@ namespace Tensile
             using Transform = typename Base::Transform;
             using Features  = typename Base::Features;
 
-            // BasicForest(ReturnValue nullValue = ReturnValue())
-            //     : nullValue(nullValue)
-            // {
-            // }
-
-            // BasicForest(Features const& features, ReturnValue nullValue = ReturnValue())
-            //     : Base(features)
-            //     , nullValue(nullValue)
-            // {
-            // }
             BasicForest()
             {
             }
@@ -272,7 +262,6 @@ namespace Tensile
                 : Base(features)
             {
             }
-
 
             virtual ReturnValue findBestMatch(Object const& problem,
                                               Transform     transform) const override
@@ -290,8 +279,6 @@ namespace Tensile
                 for(Tree const& tree : trees)
                 {
                     ReturnValue rv = tree.getSolution(transform);
-
-                    //std::cout << "Running kernel: " << rv->KernelName() << std::endl;
                     if (rv != nullptr)
                     {
                         if(debug)
@@ -337,8 +324,9 @@ namespace Tensile
                     }
                 }
 
+                // The nullVallue (fallback) is now a soltuion library that can containe a nullporter
+                // as a solution (indecating that no fallback solution is defined in the logic).
                 return transform(nullValue);
-                //return nullValue;
             }
 
             virtual std::set<ReturnValue> matchesInOrder(Object const& problem,
@@ -361,8 +349,6 @@ namespace Tensile
 
             std::vector<Tree> trees;
             Value       nullValue;
-            //Value fallback;
-            //ReturnValue nullValue;
         };
     } // namespace DecisionTree
 } // namespace Tensile

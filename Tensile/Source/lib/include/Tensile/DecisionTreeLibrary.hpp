@@ -51,7 +51,6 @@ namespace Tensile
         using Element = std::shared_ptr<SolutionLibrary<MyProblem, MySolution>>;
         using Forest  = DecisionTree::Forest<MyProblem, Element, std::shared_ptr<MySolution>>;
         std::shared_ptr<Forest> forest;
-        //std::shared_ptr<MySolution> fallback;
 
         static std::string Type()
         {
@@ -78,10 +77,6 @@ namespace Tensile
                 = [&](Element library) -> std::shared_ptr<MySolution> {
                 return library->findBestSolution(problem, hardware);
             };
-            //std::shared_ptr<MySolution> rv = forest->findBestMatch(problem, transform);
-            //if(rv == nullptr)
-            //    return fallback;
-            //return rv;
             return forest->findBestMatch(problem, transform);
         }
 
