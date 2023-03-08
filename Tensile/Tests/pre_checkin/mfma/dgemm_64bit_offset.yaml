@@ -11,9 +11,9 @@ GlobalParameters:
 
 BenchmarkProblems:
   ########################################
-  # NT - standard
+  # NN - standard
   ########################################
-  - # sgemm TN
+  - # dgemm NN
     - # ProblemType
       OperationType: GEMM
       DataType: d
