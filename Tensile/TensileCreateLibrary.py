@@ -322,13 +322,11 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         shutil.copyfile(src, dst)
 
     return destCosList
-
-def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath):
-    args = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), kernelFiles)
-
-    coFiles = Common.ParallelMap(buildSourceCodeObjectFile, args, "Compiling source kernels",
-                                 method=lambda x: x.starmap)
-
+  
+def buildSourceCodeObjectFiles(CxxCompiler, kernelFiles, outputPath):  
+    args    = zip(itertools.repeat(CxxCompiler), itertools.repeat(outputPath), kernelFiles)
+    coFiles = Common.ParallelMap(buildSourceCodeObjectFile, args, "Compiling source kernels")
+    
     return itertools.chain.from_iterable(coFiles)
 
 ################################################################################
@@ -518,8 +516,8 @@ def writeSolutionsAndKernels(outputPath, CxxCompiler, problemTypes, solutions, k
         objFilenames.add(base)
         kernel.duplicate = False
 
-  kIter = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
-  results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels", method=lambda x: x.starmap, maxTasksPerChild=1)
+  kIter   = zip(kernels, itertools.repeat(kernelWriterSource), itertools.repeat(kernelWriterAssembly))
+  results = Common.ParallelMap(processKernelSource, kIter, "Generating kernels")
 
   removeKernels = []
   removeSolutions = []
@@ -1041,11 +1039,8 @@ def generateKernelObjectsFromSolutions(solutions):
 # Generate Logic Data and Solutions
 ################################################################################
 def generateLogicDataAndSolutions(logicFiles, args):
-
-  libraries = Common.ParallelMap(LibraryIO.parseLibraryLogicFile, logicFiles, "Reading logic files")
-
+  libraries = Common.ParallelMap(LibraryIO.parseLibraryLogicFile, logicFiles, "Reading logic files", multiArg=False)
   solutions = []
-
   masterLibraries = {}
   fullMasterLibrary = None
 

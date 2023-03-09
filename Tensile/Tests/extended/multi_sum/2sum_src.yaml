@@ -15,6 +15,7 @@ GlobalParameters:
   PrintTensorA: 0
   PrintTensorB: 0
   PrintTensorD: 0
+  MergeFiles: False
 
 BenchmarkProblems:
   ########################################

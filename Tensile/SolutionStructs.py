@@ -2154,13 +2154,13 @@ class Solution(collections.abc.Mapping):
       # Per instruction across the entire group:
       elementsLoadedPerInst = state["NumThreads"]*grvw
       if (state["DirectToVgpr%s"%tc] and state["ProblemType"]["TLU%s"%tc]):
-        elementsLoadedPerInst //= state["MatrixInstK"]
+        elementsLoadedPerInst //= state["MatrixInstK"] * state["LocalSplitU"]
       # LSC, LSP - #elements loaded along specified dim with each load
       if parDim >= elementsLoadedPerInst:
         # entire work-group can work on (part) of the same row
-        # DirectToVgpr case, LSC is limited to elementsLoadedPerInst // state["MatrixInstK"]
+        # DirectToVgpr case, LSC is limited to elementsLoadedPerInst // (state["MatrixInstK"] * state["LocalSplitU"])
         state["LSC%s"%tc] = elementsLoadedPerInst
-        state["LSP%s"%tc] = 1 if not (state["DirectToVgpr%s"%tc] and state["ProblemType"]["TLU%s"%tc]) else state["MatrixInstK"]
+        state["LSP%s"%tc] = 1 if not (state["DirectToVgpr%s"%tc] and state["ProblemType"]["TLU%s"%tc]) else state["MatrixInstK"] * state["LocalSplitU"]
         state["NumLoadsCoalesced%s"%tc] = roundupRatio(parDim , state["LSC%s"%tc])
         state["NumLoadsPerpendicular%s"%tc] = 1
       else:
@@ -2183,7 +2183,7 @@ class Solution(collections.abc.Mapping):
         while grvw >= minGrvw:
           elementsLoadedPerInst = state["NumThreads"]*grvw
           if state["DirectToVgpr%s"%tc] and state["ProblemType"]["TLU%s"%tc]:
-            elementsLoadedPerInst //= state["MatrixInstK"]
+            elementsLoadedPerInst //= state["MatrixInstK"] * state["LocalSplitU"]
           if elementsLoadedPerInst < validElementsLoadedPerInst:
             break # Went too far, not enough load elements at this VW
           if state["LSC%s"%tc] % grvw == 0:
@@ -2355,9 +2355,10 @@ class Solution(collections.abc.Mapping):
   def isDirectToVgprDoable(state, tc):
     tcOther = 'B' if tc == 'A' else 'A'
     MIindex = 0 if tc == 'A' else 1
-    # Does not support DirectToVgprA+DirectToVgprB (TODO)
-    if state["DirectToVgprA"] and state["DirectToVgprB"] :
-      reject(state, "DirectToVgprA + DirectToVgprB is not supported yet")
+    # Does not support DirectToVgprA+DirectToVgprB+PrefetchGlobalRead=2
+    # Need more than double-vgpr buffers to avoid overwritting loaded data on vgpr
+    if state["DirectToVgprA"] and state["DirectToVgprB"] and state["PrefetchGlobalRead"]==2:
+      reject(state, "DirectToVgprA + DirectToVgprB + PrefetchGlobalRead=2 is not supported")
       return False
 
     # With MatrixInstruction only (tentative)
@@ -2654,11 +2655,11 @@ class Solution(collections.abc.Mapping):
         computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
 
         if state["GlobalSplitUAlgorithm"] == 'SingleBuffer':
-          # For SingleBuffer algorithm, _GA and _WorkspaceSizePerElemC is updated only if the gemm function is HPA (excludig int8). 
-          # The worskspace is used to convert the final output from ComputeDataType to DestDataType. For non-HPA gemm functions 
-          # the _GA and _Workspace remain unchanged.
-          # for HPA cases (excluding 4xi8/I8II): HHS/BBS/BSS/HSS (_GA should be singlebuffer for these types)
-          if (not state["ProblemType"]["DestDataType"].isInt32() and computeName != state["ProblemType"]["DataType"].toName()):
+          # For SingleBuffer algorithm, _GA and _WorkspaceSizePerElemC is updated only if the gemm function is HPA (excluding int8). 
+          # The workspace is used to convert the final output from ComputeDataType to DestDataType.
+          # If ComputeDataType and DestDataType are the same ,the _GA and _Workspace remain unchanged.
+          # for HPA cases with ComputeDataType!=DestDataType : HHS/BBS (_GA should be singlebuffer for these types)
+          if (computeName != state["ProblemType"]["DestDataType"].toName()):
             state["_GlobalAccumulation"] = 'SingleBuffer'
             state["_WorkspaceSizePerElemC"] = computeBytes
         elif state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':
@@ -2878,17 +2879,9 @@ class Solution(collections.abc.Mapping):
 
     bufferLoad = state["BufferLoad"] and state["KernelLanguage"] == "Assembly"
     if not bufferLoad:
-      if state["KernelLanguage"] == "Assembly" and state["ProblemType"]["DataType"].numBytes() < 4:
-        reject(state, "BufferLoad=0 does not support DataType.numBytes < 4")
-        return
       state["DirectToLds"] = False
       state["_UseSgprForGRO"] = False
       state["FractionalLoad"] = False
-
-    if not state["BufferStore"]:
-      if state["KernelLanguage"] == "Assembly" and state["ProblemType"]["DestDataType"].numBytes() < 4:
-        reject(state, "BufferStore=0 does not support DestDataType.numBytes < 4")
-        return
 
     #These modes only work under certain conditions, apply them here:
     #  - The "NoLoad" loop is only generated if PrefetchGlobalRead>0
@@ -3067,26 +3060,40 @@ class Solution(collections.abc.Mapping):
         (state["ProblemType"]["DataType"].isSingle()) or \
         (state["ProblemType"]["DataType"].isDouble() and state["BufferStore"]) or \
         (state["ProblemType"]["DestDataType"].isInt32()) or \
-        (state["KernelLanguage"] == "Assembly" and
-            (state["ProblemType"]["DataType"].isHalf() and not state["ProblemType"]["HighPrecisionAccumulate"]) or
-            (state["_GlobalAccumulation"])
-        )
+        (state["KernelLanguage"] == "Assembly" and state["ProblemType"]["ComputeDataType"].isHalf()) or \
+        (state["_GlobalAccumulation"]) or \
+        (state["EnableMatrixInstruction"]) # MFMA case, support all data types with BufferStore=0 or 1
+
       if not supported:
-        reject(state, "GlobalSplitU only compatible with single or asm and (half or mixed) precision")
+        reject(state, "GlobalSplitU only compatible with single, or asm and (half or mixed) precision, or EnableMatrixInstruction")
         return
 
     # to eliminate identical/duplicate kernels when GSU=1 but GlobalSplitUAlgorithm is MultipleBuffer
     if state["GlobalSplitU"] == 1 and state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':
       reject(state, " GlobalSplitU=1 and GlobalSplitUAlgorithm='MultipleBuffer'. Rejecting GlobalSplitUAlgorithm='SingleBuffer' to avoid duplicate kernels.")
 
+    # set minimum and maximum of VectorAtomicWidth
+    minVectorAtomicWidth = 2 if (state["ProblemType"]["ComputeDataType"].numBytes() == 2) else 1
+    #  TODO: enable wider VectorAtomicWidth
+    maxVectorAtomicWidth = max(state["GlobalWriteVectorWidth"], minVectorAtomicWidth)
+    useAtomic = state["GlobalSplitU"] > 1 and state["GlobalSplitUAlgorithm"] == 'SingleBuffer'
     if state["VectorAtomicWidth"] == -1:
-      state["VectorAtomicWidth"] = 1 # TODO - remove this and next line when VAW works for other types
-      if state["ProblemType"]["DataType"].isHalf() and (not state["_GlobalAccumulation"]):
-        state["VectorAtomicWidth"] = 2
+      if useAtomic:
+        # atomic case, use max
+        state["VectorAtomicWidth"] = maxVectorAtomicWidth
+      else:
+        # not atomic case, this is not used. Set min
+        state["VectorAtomicWidth"] = minVectorAtomicWidth
 
-    if state["VectorAtomicWidth"] >= 2 \
-       and not (state["ProblemType"]["DataType"].isHalf() or state["ProblemType"]["DataType"].isBFloat16()):
-         reject (state, "VectorAtomicWidth>=2 only supported for half")
+    if state["VectorAtomicWidth"] < minVectorAtomicWidth:
+      reject(state, "VectorAtomicWidth should not be smaller than min(=%u)"%minVectorAtomicWidth)
+    if state["VectorAtomicWidth"] > maxVectorAtomicWidth:
+      reject(state, "VectorAtomicWidth should not be larger than max(=%u)"%maxVectorAtomicWidth)
+    if (not useAtomic) and state["VectorAtomicWidth"] > minVectorAtomicWidth:
+      reject(state, "Rejecting (GlobalSplitU=1 or MultipleBuffer) and VectorAtomicWidth>min(=%u) to avoid duplicate kernels."%minVectorAtomicWidth)
+
+    if useAtomic and state["VectorAtomicWidth"] > state["GlobalWriteVectorWidth"]:
+      reject (state, "GSU + SingleBuffer + VectorAtomicWidth(%u) > GlobalWriteVectorWidth(%u) not supported"%(state["VectorAtomicWidth"], state["GlobalWriteVectorWidth"]))
 
     if state["ProblemType"]["DataType"].isHalf() and state["KernelLanguage"] == "Assembly":
 
@@ -3343,7 +3350,7 @@ class Solution(collections.abc.Mapping):
       VectorWidthB = state["VectorWidth"]
     elif state["DirectToVgprA"]:
       VectorWidthB = state["LocalReadVectorWidth"]
-    state["allowLRVWBforTLUandMI"] = (state["DirectToVgprB"] and \
+    state["allowLRVWBforTLUandMI"] = (state["DirectToVgprB"] or \
                                        (state["ProblemType"]["TLUA"] and state["LocalReadVectorWidth"] == 1 or \
                                         not state["ProblemType"]["TLUA"]) or \
                                       state["DirectToVgprA"] and not state["DirectToLds"]) and \
@@ -3641,7 +3648,8 @@ class Solution(collections.abc.Mapping):
       state["LdsOffsetB"] = state["LdsOffsetA"] + state["LdsNumElementsAlignedA"]
 
       offsetBlk = state["LdsOffsetB"] + ldsNumElementsAlignedB
-      offsetBlk = int(2**(math.ceil(math.log(offsetBlk, 2))))
+      if offsetBlk>0: # need 0 check to avoid an error
+        offsetBlk = int(2**(math.ceil(math.log(offsetBlk, 2))))
 
       state["LdsOffsetA_Blk"] = offsetBlk
       state["LdsOffsetB_Blk"] = state["LdsOffsetA_Blk"] + state["LdsNumElementsAlignedA"]

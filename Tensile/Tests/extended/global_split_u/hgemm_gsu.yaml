@@ -82,3 +82,39 @@ BenchmarkProblems:
           ##- Range: [[56,8,72], [56,8,72], [1,1,2], [66, 64, 34, 1024]]
           - Range: [[56,8,72], 0, [1,1,2], [64, 64, 34, 1024]]
           - Range: [[56,8,72], 0, [1,1,2], [66, 64, 34, 1024]]
+
+  ########################################
+  # NN - MI workloads (DeepBench, ResNet, etc)
+  ########################################
+    -
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - KernelLanguage: ["Assembly"]
+      ForkParameters:
+        - PrefetchGlobalRead: [ False]
+        - PrefetchLocalRead: [ False]
+        - ThreadTile:
+          #- [ 4, 8 ]
+          - [ 8, 8 ]
+        - WorkGroup:
+          #- [ 8, 16, 1 ] # control
+          - [ 8, 4, 2 ] # LSU case
+          - [ 8, 8, 1 ]
+          - [ 8, 16, 1 ]
+        - GlobalSplitU: [16,32]
+        - WorkGroupMapping: [64]
+        - DepthU: [ 16 ]
+        - VectorWidth: [2,4,8]
+        - VectorAtomicWidth: [-1,2]#[-1,2,4,8]
+        - AssertFree0ElementMultiple: [8]  # so we can test GRVW sweep
+        - AssertSummationElementMultiple: [1,2]  # so we can test GRVW sweep
+        - BufferLoad: [0,1]
+      BenchmarkForkParameters:
+      JoinParameters:
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          # Note for K>1024 the operation order change with LSU doesn't consistently match CPU
+          - Range: [[56,8,72], 0, [1,2], [4097]]
