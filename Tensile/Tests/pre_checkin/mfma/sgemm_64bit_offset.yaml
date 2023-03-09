@@ -16,7 +16,7 @@ BenchmarkProblems:
   - # dgemm NN
     - # ProblemType
       OperationType: GEMM
-      DataType: d
+      DataType: s
       TransposeA: False
       TransposeB: False
       UseBeta: True
@@ -34,7 +34,7 @@ BenchmarkProblems:
         - ExpandPointerSwap: [0]
         - GroupLoadStore: [1]
         - LocalReadVectorWidth: [1]
-        - MACInstruction: ["MAD"]
+        # - MACInstruction: ["MAD"]
         - NumElementsPerBatchStore: [4]
         - PrefetchGlobalRead: [2]
         - PrefetchLocalRead: [3]
