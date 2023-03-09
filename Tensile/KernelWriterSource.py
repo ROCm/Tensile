@@ -861,6 +861,12 @@ class KernelWriterSource(KernelWriter):
     s += self.endLine
     s += "  " + globalStr + ptrStr + " const * " + batchStr + "B"
 
+    # offset
+    s += "," + self.endLine + "  uint64_t offsetD"
+    s += "," + self.endLine + "  uint64_t offsetC"
+    s += "," + self.endLine + "  uint64_t offsetA"
+    s += "," + self.endLine + "  uint64_t offsetB"
+
     # alpha & beta
     s += "," + self.endLine + "  " \
         + kernel["ProblemType"]["ComputeDataType"].toDevice(self.language) + " const alpha"
@@ -919,12 +925,6 @@ class KernelWriterSource(KernelWriter):
     # kernel["PersistentKernel"]:
     s += "," + self.endLine + "  unsigned int problemNumGroupTiles0"
     s += "," + self.endLine + "  unsigned int problemNumGroupTiles1"
-
-    # offset
-    s += "," + self.endLine + "  unsigned int offsetD"
-    s += "," + self.endLine + "  unsigned int offsetC"
-    s += "," + self.endLine + "  unsigned int offsetA"
-    s += "," + self.endLine + "  unsigned int offsetB"
 
     s += " )"
     return s

@@ -379,11 +379,6 @@ namespace Tensile
                 m_maxBatch = std::max(m_maxBatch, numOfBatch);
             }
 
-            m_aMaxElements += m_aBufferOffset;
-            m_bMaxElements += m_bBufferOffset;
-            m_cMaxElements += m_cBufferOffset;
-            m_dMaxElements += m_dBufferOffset;
-
             if(m_curBoundsCheck == BoundsCheckMode::NaN)
             {
                 m_aMaxElements += 1024;
