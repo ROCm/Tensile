@@ -13,7 +13,7 @@ BenchmarkProblems:
   ########################################
   # NN - standard
   ########################################
-  - # dgemm NN
+  - # sgemm NN
     - # ProblemType
       OperationType: GEMM
       DataType: s
