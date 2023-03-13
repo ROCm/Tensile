@@ -103,6 +103,23 @@ namespace Tensile
             return rv;
         }
 
+        virtual SolutionSet<MySolution> findAllSolutionsMatchingType(MyProblem const& problem,
+                                                                     Hardware const&  hardware) const override
+        {
+            SolutionSet<MySolution> rv;
+
+            for(auto const& row : rows)
+            {
+                if(row.first(problem, hardware))
+                {
+                    auto rowSolutions = row.second->findAllSolutionsMatchingType(problem, hardware);
+                    rv.insert(rowSolutions.begin(), rowSolutions.end());
+                }
+            }
+
+            return rv;
+        }
+
         virtual std::string description() const override
         {
             return concatenate(this->type(), " library (", rows.size(), " rows)");

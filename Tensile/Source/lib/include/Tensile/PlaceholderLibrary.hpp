@@ -150,6 +150,24 @@ namespace Tensile
             return solutions;
         }
 
+        virtual SolutionSet<MySolution> findAllSolutionsMatchingType(MyProblem const& problem,
+                                                                     Hardware const&  hardware) const override
+        {
+            if(!library)
+            {
+                loadPlaceholderLibrary();
+            }
+
+            auto solutions = library->findAllSolutionsMatchingType(problem, hardware);
+
+            for(auto& solution : solutions)
+            {
+                solution->codeObjectFilename = getCodeObjectFileName(hardware, *solution);
+            }
+
+            return solutions;
+        }
+
         static std::string Type()
         {
             return "Placeholder";

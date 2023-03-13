@@ -40,6 +40,7 @@ namespace Tensile
     {
     public:
         bool printPropertyEvaluation() const;
+        bool printSelectedKernelName() const;
         bool printPredicateEvaluation() const;
         bool printDeviceSelection() const;
         bool printCodeObjectInfo() const;

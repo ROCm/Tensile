@@ -807,6 +807,19 @@ namespace Tensile
         return (*problemPredicate)(problem) && (*hardwarePredicate)(hardware);
     }
 
+    bool ContractionSolution::matchesProblemType(Problem const& problem, Hardware const& hardware) const
+    {
+        bool matchesHardware = (*hardwarePredicate)(hardware);
+        bool matchesType = (problemType.aType == problem.a().dataType()) &&
+                           (problemType.bType == problem.b().dataType()) &&
+                           (problemType.cType == problem.c().dataType()) &&
+                           (problemType.dType == problem.d().dataType()) &&
+                           (problemType.highPrecisionAccumulate == problem.highPrecisionAccumulate()) &&
+                           (problemType.stridedBatched == problem.stridedBatched()) &&
+                           (problemType.fp16AltImpl == problem.fp16AltImpl());
+        return matchesHardware && matchesType;
+    }
+
     template <typename TypedInputs>
     std::string ContractionSolution::outputConversionKernelName(Problem const&     problem,
                                                                 TypedInputs const& inputs,

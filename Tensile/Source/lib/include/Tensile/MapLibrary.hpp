@@ -128,6 +128,21 @@ namespace Tensile
             return library->findAllSolutions(problem, hardware);
         }
 
+        virtual SolutionSet<MySolution> findAllSolutionsMatchingType(MyProblem const& problem,
+                                                                     Hardware const&  hardware) const override
+        {
+            // Grab all solutions, matching happens at single solution lib level
+            SolutionSet<MySolution> rv{};
+
+            for (const auto& pair : map)
+            {
+                SolutionSet<MySolution> solutions{pair.second->findAllSolutionsMatchingType(problem, hardware)};
+                rv.insert(solutions.begin(), solution.end());
+            }
+
+            return rv;
+        }
+
         std::shared_ptr<Property<MyProblem, Key>> property;
         LibraryMap<MyProblem, MySolution, Key>    map;
     };

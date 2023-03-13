@@ -154,14 +154,33 @@ namespace Tensile
 
         std::shared_ptr<MySolution> getSolutionByIndex(int index) const
         {
+            bool debug = Debug::Instance().printSelectedKernelName();
+            
             // will only return solution if already loaded; does not load solutions
             std::lock_guard<std::mutex> guard(solutionsGuard);
             if(solutions.find(index) != solutions.end())
             {
-                return solutions.at(index);
+                std::shared_ptr<MySolution> solution = solutions.at(index);
+                if(debug)
+                {
+                    std::cout << "Selection solution with index: "
+                              << index
+                              << " and name: '"
+                              << solution->name()
+                              << "'"
+                              << std::endl;
+                }
+                return solution;
             }
             else
             {
+                if(debug)
+                {
+                    std::cout << "Tried selecting solution with index: "
+                              << index
+                              << ". Not solution found."
+                              << std::endl;
+                }
                 return nullptr;
             }
         }
@@ -170,6 +189,12 @@ namespace Tensile
                                                          Hardware const&  hardware) const override
         {
             return library->findAllSolutions(problem, hardware);
+        }
+
+        virtual SolutionSet<MySolution> findAllSolutionsMatching Type(MyProblem const& problem,
+                                                                      Hardware const&  hardware) const override
+        {
+            return library->findAllSolutionsMatching(problem, hardware);
         }
     };
 

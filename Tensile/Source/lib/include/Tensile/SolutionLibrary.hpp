@@ -93,6 +93,15 @@ namespace Tensile
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
                                                          Hardware const&  hardware) const = 0;
 
+        /**
+   * Returns all `Solution` objects that are matched to the 'problem''s type
+   * on this `hardware`.
+   *
+   * May return an empty set if no such object exists.
+   */
+        virtual SolutionSet<MySolution> findAllSolutionsMatchingType(MyProblem const& problem,
+                                                                     Hardware const&  hardware) const = 0;
+
         virtual std::string type() const        = 0;
         virtual std::string description() const = 0;
     };

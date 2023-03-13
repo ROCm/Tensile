@@ -42,7 +42,12 @@ namespace Tensile
 
     bool Debug::printPropertyEvaluation() const
     {
-        return m_value & (0x2 | 0x4);
+        return m_value & 0x2;
+    }
+
+    bool Debug::printSelectedKernelName() const
+    {
+        return m_value & 0x4;
     }
 
     bool Debug::printDeviceSelection() const

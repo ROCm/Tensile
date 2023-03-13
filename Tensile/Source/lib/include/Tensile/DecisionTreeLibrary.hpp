@@ -89,6 +89,16 @@ namespace Tensile
             };
             return forest->matchesInOrder(problem, transform);
         }
+
+        virtual SolutionSet<MySolution> findAllSolutionsMatchingType(MyProblem const& problem,
+                                                                     Hardware const&  hardware) const override
+        {
+            typename Forest::Transform transform
+                = [&](Element library) -> std::shared_ptr<MySolution> {
+                return *(library->findAllSolutionsMatchingType(problem, hardware)).begin();
+            };
+            return forest->matchesInOrder(problem, transform);
+        }
     };
 
 } // namespace Tensile
