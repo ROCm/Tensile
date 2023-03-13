@@ -128,15 +128,17 @@ namespace Tensile
             return library->findAllSolutions(problem, hardware);
         }
 
-        virtual SolutionSet<MySolution> findAllSolutionsMatchingType(MyProblem const& problem,
-                                                                     Hardware const&  hardware) const override
+        virtual SolutionSet<MySolution>
+            findAllSolutionsMatchingType(MyProblem const& problem,
+                                         Hardware const&  hardware) const override
         {
             // Grab all solutions, matching happens at single solution lib level
             SolutionSet<MySolution> rv{};
 
-            for (const auto& pair : map)
+            for(const auto& pair : map)
             {
-                SolutionSet<MySolution> solutions{pair.second->findAllSolutionsMatchingType(problem, hardware)};
+                SolutionSet<MySolution> solutions{
+                    pair.second->findAllSolutionsMatchingType(problem, hardware)};
                 rv.insert(solutions.begin(), solutions.end());
             }
 

@@ -116,8 +116,9 @@ namespace Tensile
             return rv;
         }
 
-        virtual SolutionSet<MySolution> findAllSolutionsMatchingType(MyProblem const& problem,
-                                                                     Hardware const&  hardware) const override
+        virtual SolutionSet<MySolution>
+            findAllSolutionsMatchingType(MyProblem const& problem,
+                                         Hardware const&  hardware) const override
         {
             SolutionSet<MySolution> rv;
 

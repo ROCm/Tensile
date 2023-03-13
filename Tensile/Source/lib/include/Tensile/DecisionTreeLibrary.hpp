@@ -90,8 +90,9 @@ namespace Tensile
             return forest->matchesInOrder(problem, transform);
         }
 
-        virtual SolutionSet<MySolution> findAllSolutionsMatchingType(MyProblem const& problem,
-                                                                     Hardware const&  hardware) const override
+        virtual SolutionSet<MySolution>
+            findAllSolutionsMatchingType(MyProblem const& problem,
+                                         Hardware const&  hardware) const override
         {
             typename Forest::Transform transform
                 = [&](Element library) -> std::shared_ptr<MySolution> {

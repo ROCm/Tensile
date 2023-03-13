@@ -201,8 +201,9 @@ namespace Tensile
             return m_subLibrary->findAllSolutions(problem, hardware);
         }
 
-        virtual SolutionSet<MySolution> findAllSolutionsMatchingType(MyProblem const& problem,
-                                                                     Hardware const&  hardware) const override
+        virtual SolutionSet<MySolution>
+            findAllSolutionsMatchingType(MyProblem const& problem,
+                                         Hardware const&  hardware) const override
         {
             return m_subLibrary->findAllSolutionsMatchingType(problem, hardware);
         }
