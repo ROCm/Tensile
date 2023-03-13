@@ -137,7 +137,7 @@ namespace Tensile
             for (const auto& pair : map)
             {
                 SolutionSet<MySolution> solutions{pair.second->findAllSolutionsMatchingType(problem, hardware)};
-                rv.insert(solutions.begin(), solution.end());
+                rv.insert(solutions.begin(), solutions.end());
             }
 
             return rv;
