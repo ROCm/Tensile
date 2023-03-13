@@ -65,7 +65,7 @@ BenchmarkProblems:
         #- TransposeLDS: [0,1]
         - GlobalReadVectorWidth: [4,8]
         - VectorWidth: [2,4]
-        - VectorAtomicWidth: [-1,1,2,4]
+        - VectorAtomicWidth: [-1,1,2]
         #- WaveSeparateGlobalReadB: [1]
         #- MIArchVgpr: [True, False]
         - NumElementsPerBatchStore: [4]

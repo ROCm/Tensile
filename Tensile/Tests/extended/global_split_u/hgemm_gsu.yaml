@@ -107,7 +107,7 @@ BenchmarkProblems:
         - WorkGroupMapping: [64]
         - DepthU: [ 16 ]
         - VectorWidth: [2,4,8]
-        - VectorAtomicWidth: [-1,2]#[-1,2,4,8]
+        - VectorAtomicWidth: [-1,2]#[-1,2,4]
         - AssertFree0ElementMultiple: [8]  # so we can test GRVW sweep
         - AssertSummationElementMultiple: [1,2]  # so we can test GRVW sweep
         - BufferLoad: [0,1]
