@@ -111,7 +111,7 @@ BenchmarkProblems:
         - TransposeLDS: [1]
         #- GlobalReadVectorWidth: [1,2,4]
         - VectorWidth: [1,2,4]
-        - VectorAtomicWidth: [-1,1,2,4]
+        - VectorAtomicWidth: [-1,1,2]
         #- LocalReadVectorWidth: [1,2,4]
         #- DirectToVgprA: [True, False]
         #- MIArchVgpr: [False, True]

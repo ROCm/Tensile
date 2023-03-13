@@ -62,13 +62,14 @@ BenchmarkProblems:
         #- TransposeLDS: [0,1]
         - GlobalReadVectorWidth: [4]
         - VectorWidth: [2,4]
-        - VectorAtomicWidth: [-1,1,2,4]
+        - VectorAtomicWidth: [-1,1,2]
         #- WaveSeparateGlobalReadB: [1]
         #- MIArchVgpr: [True, False]
         - NumElementsPerBatchStore: [4]
         - UseSgprForGRO: [0]
         - BufferLoad: [0,1]
         - BufferStore: [0,1]
+        - GlobalSplitUAtomicAdd: [0,1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
@@ -127,13 +128,14 @@ BenchmarkProblems:
         #- TransposeLDS: [0,1]
         - GlobalReadVectorWidth: [4]
         - VectorWidth: [2,4]
-        - VectorAtomicWidth: [-1,1,2,4]
+        - VectorAtomicWidth: [-1,1,2]
         #- WaveSeparateGlobalReadB: [1]
         #- MIArchVgpr: [True, False]
         - NumElementsPerBatchStore: [0]
         - UseSgprForGRO: [0]
         - BufferLoad: [0,1]
         - BufferStore: [0,1]
+        - GlobalSplitUAtomicAdd: [0,1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:

@@ -537,6 +537,11 @@ validParameters = {
     # GSUSARR=True means the 4 workgroups round robin split up the chunks of the summation: k=0 -> DU-1, 4DU -> 5DU-1, ...; k=1DU -> 2DU-1, 5DU -> 6DU-1...; ...
     "GlobalSplitUSummationAssignmentRoundRobin":  [ False, True ],
 
+    # Enable atomic_add instruction for GlobalSplitU with SingleBuffer
+    # So far, f32 only.
+    # NOTE: This is not recommended
+    "GlobalSplitUAtomicAdd":      [ False, True ],
+
     # in opencl for some compilers, performance improved by putting a memfence after each sub-iteration; it prevented the loads of one sub-iteration from being moved
     # into a prior iteration, which would help latency but it consumed more vgprs which was a net loss
     "UnrollMemFence":             [ False, True ],
@@ -711,11 +716,11 @@ validParameters = {
     "Use64bShadowLimit":   [ True, False],
 
     # Attempt to vectorize atomics
-    # 1,2,4 : Number of elements to vectorize
+    # 1,2 : Number of elements to vectorize
     # -1 : Maximum supported value
-    # Wider VAW is effective only for C load of "load + atomic_cmpswap" case. Atomic operation itself is not vectorized
-    # TODO: support larger width for atomic_cmpswap
-    "VectorAtomicWidth":          [ -1, 1, 2, 4] ,
+    # This defines width of atomic_cmpswap (bpe(external) * VAW * 32bit = width of atomic_cmpswap (b32 or b64))
+    # AtomicAdd case, only 1 supported
+    "VectorAtomicWidth":          [ -1, 1, 2] ,
 
     # Assertion properties
     # These provide information or assertions that the problem size meets certain requirements
@@ -1375,6 +1380,7 @@ defaultBenchmarkCommonParameters = [
     {"GlobalSplitUAlgorithm":     [ "SingleBuffer" ] },
     {"GlobalSplitUSummationAssignmentRoundRobin": [ True ] },
     {"GlobalSplitUWorkGroupMappingRoundRobin":    [ False ] },
+    {"GlobalSplitUAtomicAdd":     [ False ] },
     {"MacroTileShapeMin":         [ 1 ] },
     {"MacroTileShapeMax":         [ 64 ] },
     {"PersistentKernel":          [ 0 ] },
