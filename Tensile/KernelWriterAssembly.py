@@ -3641,16 +3641,25 @@ class KernelWriterAssembly(KernelWriter):
       # parameters
       tile01      = tP["tile01Idx"]
       waveWidth   = kernel["WavefrontSize"]
+      dividendForKId   = kernel["MatrixInstM"] * kernel["MatrixInstB"]
       num1DBlocks = kernel["MatrixInstBM"] if (tile01 == 0) else kernel["MatrixInstBN"]
       num1DWaves  = kernel["MIWaveGroup"][0] if (tile01 == 0) else kernel["MIWaveGroup"][1]
       vectorWidth = 1 # kernel["VectorWidth"] if ((tile01 == 0) and kernel["SourceSwap"]) else 1 # TODO: nonSwap VectorWidth
       strideTile  = 1 # tentative
       strideWave  = kernel["MatrixInstM"] * num1DBlocks * strideTile * vectorWidth
       # tile offset
-      kStr += vectorStaticRemainder(qReg, dividendReg, waveWidth, tmpSgpr)
-      kStr += vectorStaticRemainder(rReg, qReg, kernel["MatrixInstN"], tmpSgpr)
+      kStr += vectorStaticRemainder(qReg, dividendReg, waveWidth, tmpSgpr, \
+        "0. thread id in wave: wtid = tid %% wavelength(%u)" % waveWidth)
+      kStr += vectorStaticRemainder(rReg, qReg, kernel["MatrixInstN"], tmpSgpr, \
+        "1. N offset: nIdx = wtid %% MI_N(%u)" % kernel["MatrixInstN"])
+      kStr += staticMultiply(vgpr(rReg), vgpr(rReg), strideTile, sgpr(tmpSgpr), \
+        "1. N offset: nOffset = nIdx * nStride(%u)" % strideTile)
       # block offset (no code. assuming num1DBlocks == 1)
-      # unroll offset (no code here. This will be handled in GlobalOffset)
+      # unroll offset
+      # need division for qReg
+      kStr += vectorStaticDivide(qReg, qReg, dividendForKId, tmpSgpr, \
+          "5. K offset: kIdx = wtid / (MIN(%u) * MIBB(%u))" % (kernel["MatrixInstN"], kernel["MatrixInstB"]))
+
       # wave offset
       if num1DWaves > 1:
           # alloc vgpr
@@ -3663,9 +3672,6 @@ class KernelWriterAssembly(KernelWriter):
           # release register
           self.vgprPool.checkIn(wReg)
           self.vgprPool.checkIn(tmpVgpr)
-
-      # need division for qReg
-      kStr += vectorStaticDivide(qReg, qReg, kernel["MatrixInstN"], tmpSgpr)
 
       # localSplitU case. Calculate LSU offset here
       if kernel["LocalSplitU"] > 1:
@@ -3731,7 +3737,7 @@ class KernelWriterAssembly(KernelWriter):
       else:
         kStr += self.comment1("gro-unroll *= glvw")
         kStr += staticMultiply(vgpr(uReg), vgpr(uReg), tP["glvw"], sgpr(tmpSgpr))
-    if forceSwap:
+    if forceSwap and  tc == "A":
       # in this case, need to multiply vw to gro-tile
       kStr += self.comment1("gro-tile *= vw")
       kStr += staticMultiply(vgpr(tReg), vgpr(tReg), kernel["VectorWidth"], sgpr(tmpSgpr))
@@ -3843,11 +3849,12 @@ class KernelWriterAssembly(KernelWriter):
         tP["vgprPackedOffsets"] = self.vgprPool.checkOut(numExtraPackedOffsetsPerTile * numTileOffsets, "vgprPackedOffsets", self.preventVgprOverflowDuringNewTile)
       strideIdx = tP["lsc"] if tP["tlu"] else tP["lsp"]
       stride = kernel[strideIdx]
-      # adjustment for DirectToVgpr + tlu=False + VW > 1 case
+      # adjustment for DirectToVgpr + tlu=False + VW > 1 case (A only)
       strideInterleave = False
-      if kernel["DirectToVgpr%c"%tc] and (not tP["tlu"]) and kernel["VectorWidth"] > 1:
+      if kernel["DirectToVgpr%c"%tc] and (not tP["tlu"]) and kernel["VectorWidth"] > 1 and tc == "A":
         strideInterleave = True
         stride = stride * kernel["VectorWidth"] - (kernel["VectorWidth"] - 1)
+        strideMask = (kernel["VectorWidth"] - 1)
 
       if tP["rtc"]:
         assert(numExtraPackedOffsetsPerTile == 0) # not supported here
@@ -3861,7 +3868,7 @@ class KernelWriterAssembly(KernelWriter):
         for l in range(1, tP["nrt"]):
           # l>0, s=0
           strideValue = stride
-          if strideInterleave and (l & 1) != 0:
+          if strideInterleave and (l & strideMask) != 0:
             strideValue = 1
           kStr += inst("_v_add_co_u32", vgpr(v+l*tP["glvw"]), self.vcc, strideValue, \
               vgpr(v+(l-1)*tP["glvw"]), \
@@ -3877,7 +3884,7 @@ class KernelWriterAssembly(KernelWriter):
             vgpr(tP["gpr"]["tReg"]), "gro%s%s_%u"%(tP["tensorChar"], tP["tileChar"], 0) )
         for l in range(1, tP["nrt"]):
           strideValue = stride
-          if strideInterleave and (l & 1) != 0:
+          if strideInterleave and (l & strideMask) != 0:
             strideValue = 1
           kStr += inst("_v_add_co_u32", vgpr(v+l), self.vcc, strideValue, \
               vgpr(v+l-1), "gro%s%s_%u += %s"%(tP["tensorChar"], tP["tileChar"], l, strideIdx) )
@@ -13902,13 +13909,15 @@ class KernelWriterAssembly(KernelWriter):
 
     if skipLocalWrite > -1 or skipLocalRead > -1:
       if skipLocalWrite > -1:
-        numA = 0 if kernel["DirectToLdsA"] \
+        numA = 0 if (kernel["DirectToLdsA"] or  kernel["DirectToVgprA"])\
                else tPA["nrp"]*tPA["nrc"]*max(tPA["nwcv"],tPA["nwpv"])//tPA["nwcvpi"]
-        numB = 0 if kernel["DirectToLdsB"] \
+        numB = 0 if (kernel["DirectToLdsB"] or  kernel["DirectToVgprB"])\
                else tPB["nrp"]*tPB["nrc"]*max(tPB["nwcv"],tPB["nwpv"])//tPB["nwcvpi"]
         lgkmcnt += skipLocalWrite * (numA + numB)
       if skipLocalRead > -1:
-        readsPerIter = self.numReadsPerIterA + self.numReadsPerIterB
+        numReadsPerIterA = 0 if kernel["DirectToVgprA"] else self.numReadsPerIterA
+        numReadsPerIterB = 0 if kernel["DirectToVgprB"] else self.numReadsPerIterB
+        readsPerIter = numReadsPerIterA + numReadsPerIterB
         lgkmcnt += skipLocalRead * readsPerIter
 
     vmcnt = 0 if skipGlobalRead > -1 else -1

@@ -1537,14 +1537,16 @@ class KernelWriter(metaclass=abc.ABCMeta):
         skipReadsIterB += numPrefetchIter
         # here the reads are prefetches so can skip them in the waitcnt
         # how many localreads can skip is based on how many iterations we prefetch.
-        localReads += self.numReadsPerIterA * skipReadsIterA + localReads + self.numReadsPerIterB * skipReadsIterB
+        localReadsA = 0 if kernel["DirectToVgprA"] else self.numReadsPerIterA * skipReadsIterA
+        localReadsB = 0 if kernel["DirectToVgprB"] else self.numReadsPerIterB * skipReadsIterB
+        localReads += localReadsA + localReadsB
         # some of localReads is interleaved after waitcnt in SIA3
         if kernel["ScheduleIterAlg"] == 3 and self.numItersPLR and\
           (iteration < numReadsIterA or iteration < numReadsIterB or numPrefetchIter) and \
           self.enable["LocalRead"]:
-          if (iteration < numReadsIterA and not dataAtIterA < max(dataAtIterA,dataAtIterB)) or numPrefetchIter:
+          if ((iteration < numReadsIterA and not dataAtIterA < max(dataAtIterA,dataAtIterB)) or numPrefetchIter) and (not kernel["DirectToVgprA"]):
             localReads -= self.numReadsPerIterA
-          if (iteration < numReadsIterB and not dataAtIterB < max(dataAtIterA,dataAtIterB)) or numPrefetchIter:
+          if ((iteration < numReadsIterB and not dataAtIterB < max(dataAtIterA,dataAtIterB)) or numPrefetchIter) and (not kernel["DirectToVgprB"]):
             localReads -= self.numReadsPerIterB
           localReads += localReadsWaitcnt
         lgkmcnt += localReads
@@ -1890,10 +1892,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # no need local read wait if LocalReadVectorWidth==2 and u is odd.
     # In that case, Prefetch local read covers both u = 0 and 1 (limit to MFMA+double+DirectToVgpr only)
     # (The other side of numReadsIterCoalesced must be 0 to skip local read wait)
-    condSkip = kernel["LocalReadVectorWidth"]==2 and (u%2 != 0) and kernel["EnableMatrixInstruction"] and \
-               kernel["ProblemType"]["DataType"].isDouble() and \
-              (kernel["DirectToVgprA"] and self.numReadsIterCoalescedB % 2 == 0 or \
-               kernel["DirectToVgprB"] and self.numReadsIterCoalescedA % 2 == 0)
+    condSkip = (u%self.numReadsIterCoalescedB != 0) and kernel["EnableMatrixInstruction"] and \
+              (kernel["DirectToVgprA"] or kernel["DirectToVgprB"])
     # no local write wait is necessary in DirectToVgprA + DirectToVgprB case
     cond2 = not (kernel["DirectToVgprA"] and kernel["DirectToVgprB"])
     return cond1 and (not condSkip) and cond2
@@ -3627,10 +3627,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       else:
         self.lrvwB = 1
 
-    # DirectToVgprB case, set lrvwB = VW
+    # DirectToVgprB + TLU case, set lrvwB = VW
     # DirectToVgprB case, global load data directly goes to Vgpr.
     # If VW=2, it means lrwvB is 2.
-    if kernel["DirectToVgprB"]:
+    if kernel["DirectToVgprB"] and kernel["ProblemType"]["TLUB"]:
       self.lrvwB = kernel["VectorWidth"]
     # DirectToVgpr + TLU=False case
     # set lrvw = VW
@@ -3640,7 +3640,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
        kernel["DirectToVgprB"] and (not kernel["ProblemType"]["TLUB"]) and (not kernel["ProblemType"]["TLUA"]):
       self.lrvwA = max(self.lrvwA, self.lrvwB)
       self.lrvwB = self.lrvwA
-      if kernel["DepthU"] // kernel["MatrixInstK"] <= 2 and self.lrvwA > 1:
+      if kernel["DepthU"] // kernel["MatrixInstK"] <= 2 and self.lrvwA > kernel["MIInputPerThread"]:
         # need to double vgprValu to avoid local read overwritting vgprValu registers
         self.vgprValuDouble = True
  
@@ -5215,7 +5215,7 @@ for codeObjectFileName in codeObjectFileNames:
         numReadsIterCoalesced = self.numReadsIterCoalescedA if self.isSwapGlobalReadOrderForDirectToVgpr(kernel) else self.numReadsIterCoalescedB
         waitComment = "global read wait for DirectToVgpr"
         # delay DirectToVgpr global read (from previous iteration) which is not referred yet
-        numRegsIn1set = (numGlobalRead // kernel["LoopIters"]) * numReadsIterCoalesced
+        numRegsIn1set = (numGlobalRead * numReadsIterCoalesced) // kernel["LoopIters"]
         numSet = (u + numReadsIterCoalesced) // numReadsIterCoalesced
         numSetMod = (u + numReadsIterCoalesced) % numReadsIterCoalesced
         if numSetMod > 0:

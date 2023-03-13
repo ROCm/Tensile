@@ -2346,8 +2346,8 @@ class Solution(collections.abc.Mapping):
   # determine if current datatype can support DirectToVgpr
   @staticmethod
   def isDirectToVgprSupportDataType(state):
-    # Single/Double/Complex only (tentative)
-    return (state["ProblemType"]["DataType"].isSingle() or state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isComplex())
+    return (state["ProblemType"]["DataType"].isSingle() or state["ProblemType"]["DataType"].isDouble() or state["ProblemType"]["DataType"].isComplex() or \
+            state["ProblemType"]["DataType"].isHalf() or state["ProblemType"]["DataType"].isBFloat16() or state["ProblemType"]["DataType"].isInt8())
 
   ########################################
   # determine can we use DirectToVgpr
@@ -2355,6 +2355,9 @@ class Solution(collections.abc.Mapping):
   def isDirectToVgprDoable(state, tc):
     tcOther = 'B' if tc == 'A' else 'A'
     MIindex = 0 if tc == 'A' else 1
+    numBytes = state["ProblemType"]["DataType"].numBytes()
+    asem = state["AssertSummationElementMultiple"]
+    gsu = state["GlobalSplitU"]
     # Does not support DirectToVgprA+DirectToVgprB+PrefetchGlobalRead=2
     # Need more than double-vgpr buffers to avoid overwritting loaded data on vgpr
     if state["DirectToVgprA"] and state["DirectToVgprB"] and state["PrefetchGlobalRead"]==2:
@@ -2380,6 +2383,17 @@ class Solution(collections.abc.Mapping):
     if (not state["ProblemType"]["TLU%c"%tc]) and (state["ProblemType"]["DataType"].isSingle() or state["ProblemType"]["DataType"].isSingleComplex()):
       reject(state, "DirectToVgpr%c does not supports TLU%c = False + SGEMM/CGEMM"%(tc, tc))
       return False
+
+    # numBytes < 4 case
+    if numBytes < 4:
+      # Does not work with TLU = True and numBytes < 4 (not supported)
+      if state["ProblemType"]["TLU%c"%tc]:
+        reject(state, "DirectToVgpr%c does not supports TLU%c = True + numByte < 4"%(tc, tc))
+        return False
+      # Does not work with ASEM//GSU % DepthU != 0
+      if (asem % gsu != 0) or (asem//gsu) % state["DepthU"] != 0:
+        reject(state, "DirectToVgpr%c does not supports AssertSummationElementMultiple / GlobalSplitU is not multiple of DepthU"%(tc))
+        return False
 
     # MIWaveGroup check
     #  for A, MIWaveGroup should be [4, 1]
@@ -2423,9 +2437,9 @@ class Solution(collections.abc.Mapping):
       reject(state, "DirectToVgpr%c does not supports ExpandPointerSwap = False"%(tc))
       return False
 
-    # Does not work with VectorWidth != GlobalReadVectorWidth (VW = 2 + GRVW = 1 or VW = 1 + GRVW = 2 does not work)
-    if state["VectorWidth"] != state["GlobalLoadVectorWidth%c"%tc]:
-      reject(state, "DirectToVgpr%c does not supports VectorWidth(=%u) != GlobalReadVectorWidth%c(%u)"%(tc, state["VectorWidth"], tc, state["GlobalLoadVectorWidth%c"%tc]))
+    # Does not work with TLU + VectorWidth != GlobalReadVectorWidth (VW = 2 + GRVW = 1 or VW = 1 + GRVW = 2 does not work)
+    if state["ProblemType"]["TLU%c"%tc] and state["VectorWidth"] != state["GlobalLoadVectorWidth%c"%tc]:
+      reject(state, "DirectToVgpr%c does not supports TLU + VectorWidth(=%u) != GlobalReadVectorWidth%c(%u)"%(tc, state["VectorWidth"], tc, state["GlobalLoadVectorWidth%c"%tc]))
       return False
 
     # Does not work with AssertFree1ElementMultiple % VectorWidth != 0 (edge shift case) for B
@@ -2438,20 +2452,16 @@ class Solution(collections.abc.Mapping):
       reject(state, "DirectToVgpr%c does not supports FractionalLoad + TLU=False"%(tc))
       return False
 
-    # Does not work with TLU=False and PGR=2 and DepthU<=MatrixInstK*VW*LSU
-    if (not state["ProblemType"]["TLU%c"%tc]) and state["PrefetchGlobalRead"] == 2 and state["DepthU"] <= state["MatrixInstK"] * state["VectorWidth"] * state["LocalSplitU"]:
-      reject(state, "DirectToVgpr%c does not supports TLU=False and PrefetchGlobalRead==2 and DepthU<=MatrixInstK*VectorWidth*LocalSplitU"%(tc))
+    # Does not work with TLU=False and NumLoadsCoalesced != DepthU//(MatrixInstK*GRVW*LSU//MIInputPerThread)
+    if (not state["ProblemType"]["TLU%c"%tc]) and \
+        state["NumLoadsCoalesced%c"%tc] != state["DepthU"] // (state["MatrixInstK"] * state["GlobalLoadVectorWidth%c"%tc] * state["LocalSplitU"] // state["MIInputPerThread"]):
+      reject(state, "DirectToVgpr%c does not supports TLU=False and NumLoadsCoalesced%c != DepthU//(MatrixInstK*GlobalReadVectorWidth*LocalSplitU//MIInputPerThread(=%u))"%(tc, tc, state["MIInputPerThread"]))
       return False
 
-    # Does not work with TLU=False and NumLoadsCoalesced != DepthU//(MatrixInstK*VW*LSU)
-    if (not state["ProblemType"]["TLU%c"%tc]) and state["NumLoadsCoalesced%c"%tc] != state["DepthU"] // (state["MatrixInstK"] * state["VectorWidth"] * state["LocalSplitU"]):
-      reject(state, "DirectToVgpr%c does not supports TLU=False and NumLoadsCoalesced%c != DepthU//(MatrixInstK*VectorWidth*LocalSplitU)"%(tc, tc))
-      return False
-
-    # Both TLU=False + TransposeLDS case, need GlobalLoadVectorWidth == LocalReadVectorWidth
-    if (not state["ProblemType"]["TLU%c"%tc]) and (not state["ProblemType"]["TLU%c"%tcOther]) and state["TransposeLDS"] and \
+    # TLU=False case, need GlobalLoadVectorWidth == LocalReadVectorWidth
+    if (not state["ProblemType"]["TLU%c"%tc]) and \
        state["GlobalLoadVectorWidth%c"%tc] != state["LocalReadVectorWidth"]:
-      reject(state, "DirectToVgpr%c does not supports TLUA=False and TLUB=False and GlobalLoadVectorWidth%c != LocalReadVectorWidth"%(tc, tc))
+      reject(state, "DirectToVgpr%c does not supports TLU=False GlobalLoadVectorWidth%c != LocalReadVectorWidth"%(tc, tc))
       return False
 
     # Does not work with TLU=False and PrefetchLocalRead=1 and VectorWidth>1
@@ -4052,6 +4062,9 @@ class Solution(collections.abc.Mapping):
       if PLR != 0 and state["LoopIters"] - (PLR * wlrMultiple) <= 0 :
         reject(state, "with PrefetchLocalRead %u LoopIters %u LocalReadVectorWidth %u, not enough LoopIters to prefetch %ux%u iterations, " \
           % (state["PrefetchLocalRead"],state["LoopIters"],state["LocalReadVectorWidth"], PLR , wlrMultiple) )
+      if state["PrefetchLocalRead"] > 1 and PLR == 0:
+        reject(state, "not good performance with PrefetchLocalRead %u LoopIters %u" \
+          % (state["PrefetchLocalRead"],state["LoopIters"]) )
 
     # # reject conditions with lower performance
     # if state["ScheduleIterAlg"] == 2 and \
@@ -4078,7 +4091,7 @@ class Solution(collections.abc.Mapping):
       if state["PrefetchGlobalRead"] == 2:
         reject(state, "DepthULdsDivisor > 1 does not support PrefetchGlobalRead=2")
       if state["ScheduleIterAlg"] != 3:
-        reject(state, "DepthULdsDivisor > 1 does not support SchedulIterAlg other than 3")
+        reject(state, "DepthULdsDivisor > 1 does not support ScheduleIterAlg other than 3")
       if state["DirectToLds"] == True:
         reject(state, "DepthULdsDivisor > 1 does not support DirectToLds")
       if state["ProblemType"]["TLUA"] or state["ProblemType"]["TLUA"] or not state["TransposeLDS"]:

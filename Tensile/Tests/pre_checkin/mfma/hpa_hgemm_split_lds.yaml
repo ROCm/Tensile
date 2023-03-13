@@ -78,7 +78,7 @@ BenchmarkProblems:
         - DepthULdsDivisor: [2]
         - ScheduleIterAlg: [3]
         - GlobalReadVectorWidth: [4]
-        - LocalReadVectorWidth: [8]
+        - LocalReadVectorWidth: [4]
         - 1LDSBuffer: [0,1]
       JoinParameters:
       BenchmarkJoinParameters:
