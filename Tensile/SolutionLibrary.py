@@ -35,7 +35,10 @@ from .Utils import state
 class SingleSolutionLibrary:
     Tag = "Single"
 
-    def __init__(self, solution):
+    # allow null solution. This enables the solution library to have
+    # an effective default value when the related field in the logic
+    # file is optional.
+    def __init__(self, solution = None):
         self.solution = solution
 
     @property
@@ -43,7 +46,12 @@ class SingleSolutionLibrary:
         return self.__class__.Tag
 
     def state(self):
-        return {"type": self.tag, "index": self.solution.index}
+        # handles the case when the solution is null.
+        # -1 index represents null solution.
+        if self.solution:
+           return {"type": self.tag, "index": self.solution.index}
+        else:
+           return {"type": self.tag, "index": -1}
 
     def remapSolutionIndices(self, indexMap):
         pass
@@ -140,12 +148,20 @@ class MatchingLibrary:
 
 class DecisionTreeLibrary:
     Tag = "DecisionTree"
-    StateKeys = [("type", "tag"), "features", "trees"]
+    StateKeys = [("type", "tag"), "features", "trees", "nullValue"]
 
     @classmethod
     def FromOriginalState(cls, d, solutions):
         features = d["features"]
         origTrees = d["trees"]
+        
+        # Support for legacy implementation of the dtree which has no fallback.
+        if "fallback" in d:
+            fallbackIndex = d["fallback"]
+            nullValue = SingleSolutionLibrary(solutions[fallbackIndex])
+        else:
+            # The default solution is null
+            nullValue = SingleSolutionLibrary()
 
         trees = []
 
@@ -156,7 +172,7 @@ class DecisionTreeLibrary:
             entry = {"tree": tree["tree"], "value": value}
             trees.append(entry)
 
-        return cls(features, trees)
+        return cls(features, trees, nullValue)
 
     @property
     def tag(self):
@@ -170,9 +186,10 @@ class DecisionTreeLibrary:
     def remapSolutionIndices(self, indexMap):
         pass
 
-    def __init__(self, features, trees):
+    def __init__(self, features, trees, nullValue):
         self.features = features
         self.trees = trees
+        self.nullValue = nullValue
 
 
 class ProblemMapLibrary:
