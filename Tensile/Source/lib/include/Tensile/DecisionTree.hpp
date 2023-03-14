@@ -254,9 +254,7 @@ namespace Tensile
             using Transform = typename Base::Transform;
             using Features  = typename Base::Features;
 
-            BasicForest()
-            {
-            }
+            BasicForest() {}
 
             BasicForest(Features const& features)
                 : Base(features)
@@ -269,17 +267,18 @@ namespace Tensile
                 bool debug = Debug::Instance().getSolutionSelectionTrace();
 
                 Key key = ProblemKey::keyForProblem<Key, Object, float>(problem, this->features);
-                
+
                 if(debug)
                 {
                     std::cout << "Forest " << this->description() << std::endl;
-                    std::cout << "Entering solution selection evaluation loop. Searcing forest." << std::endl;
+                    std::cout << "Entering solution selection evaluation loop. Searching forest."
+                              << std::endl;
                 }
-                
+
                 for(Tree const& tree : trees)
                 {
                     ReturnValue rv = tree.getSolution(transform);
-                    if (rv != nullptr)
+                    if(rv != nullptr)
                     {
                         if(debug)
                         {
@@ -287,7 +286,6 @@ namespace Tensile
                             std::cout << rv->KernelName();
                             std::cout << " (Library Index: " << rv->libraryLogicIndex;
                             std::cout << ")" << std::endl;
-                                
                         }
 
                         bool result = tree.predict(key);
@@ -301,7 +299,8 @@ namespace Tensile
                         if(result)
                         {
                             if(debug)
-                                std::cout << "found valid kernel exiting forest evaluation loop" << std::endl;
+                                std::cout << "found valid kernel exiting forest evaluation loop"
+                                          << std::endl;
                             return rv;
                         }
                     }
@@ -309,7 +308,9 @@ namespace Tensile
 
                 if(debug)
                 {
-                    std::cout << "Failed to find a valid kernel after searching the full ensamble. will return the fallback kernel." << std::endl;
+                    std::cout << "Failed to find a valid kernel after searching the full ensamble. "
+                                 "will return the fallback kernel."
+                              << std::endl;
 
                     if(transform(nullValue) == nullptr)
                     {
@@ -318,7 +319,8 @@ namespace Tensile
                     }
                     else
                     {
-                        std::cout << "Returning the fallback kernel: " << transform(nullValue)->KernelName();
+                        std::cout << "Returning the fallback kernel: "
+                                  << transform(nullValue)->KernelName();
                         std::cout << " (Library Index: " << transform(nullValue)->libraryLogicIndex;
                         std::cout << ")" << std::endl;
                     }
@@ -348,7 +350,7 @@ namespace Tensile
             }
 
             std::vector<Tree> trees;
-            Value       nullValue;
+            Value             nullValue;
         };
     } // namespace DecisionTree
 } // namespace Tensile

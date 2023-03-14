@@ -178,7 +178,7 @@ namespace Tensile
             m_experimentSelection = strtol(exp_select, nullptr, 0) != 0;
 
         const char* solsel_trace = std::getenv("TENSILE_SOLUTION_SELECTION_TRACE");
-        if (solsel_trace)
+        if(solsel_trace)
             m_solselTrace = strtol(solsel_trace, nullptr, 0) != 0;
 
         const char* solution_index = std::getenv("TENSILE_SOLUTION_INDEX");
