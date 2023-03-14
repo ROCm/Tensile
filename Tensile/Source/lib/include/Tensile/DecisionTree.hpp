@@ -294,7 +294,7 @@ namespace Tensile
 
                         if(debug)
                         {
-                            std::cout << "Prediction envaluation result is: ";
+                            std::cout << "Prediction evaluation result is: ";
                             std::cout << result << std::endl;
                         }
 

@@ -158,7 +158,6 @@ class DecisionTreeLibrary:
         # Support for legacy implementation of the dtree which has no fallback.
         if "fallback" in d:
             fallbackIndex = d["fallback"]
-            fallback = fallbackIndex
             nullValue = SingleSolutionLibrary(solutions[fallbackIndex])
         else:
             # The default solution is null
