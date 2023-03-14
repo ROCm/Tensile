@@ -4333,9 +4333,12 @@ class KernelWriterAssembly(KernelWriter):
   def computeLoadSrd(self, kernel, tP, tc, indices, bpe, isPap):
     kStr = ""
 
-    stmp = self.getTmpSgpr(2+2+1).idx()
-    tileStart = stmp+2
-    prePadSgpr = stmp+4
+    stmpRef = self.getTmpSgpr(2)
+    stmp = stmpRef.idx()
+    tileStartRef = self.getTmpSgpr(2)
+    tileStart = tileStartRef.idx()
+    prePadSgprRef = self.getTmpSgpr(1)
+    prePadSgpr = prePadSgprRef.idx()
     wroteTileStart = False
     #---
     # Compute tileStart #elements from the 2D array start
@@ -9253,18 +9256,23 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["_GlobalAccumulation"] == 'MultipleBuffer':
       # GSU algorithm 2: adjust output buffer address to per GSU buffer
-      tmpSgpr = self.getTmpSgpr(5).idx()
+      tmpFree0Ref = self.getTmpSgpr(2)
+      tmpFree0 = tmpFree0Ref.idx()
+      tmpFreeNRef = self.getTmpSgpr(2)
+      tmpFreeN = tmpFreeNRef.idx()
+      tmpSgprRef = self.getTmpSgpr(1)
+      tmpSgpr = tmpSgprRef.idx()
       kStr += "// GSU Output Buffer offset: Free0 + (Free1-1)*StrideC1J + (Free2-1)*StrideCK * GSUIdx * bpe%s" % self.endLine
-      kStr += self.s_mul_u64_u32(sgpr(tmpSgpr+0), sgpr(tmpSgpr+1), sgpr("SizesFree+0"), sgpr("GSUSumIdx"), "Free0")
+      kStr += self.s_mul_u64_u32(sgpr(tmpFree0+0), sgpr(tmpFree0+1), sgpr("SizesFree+0"), sgpr("GSUSumIdx"), "Free0")
       for i in range(1, numDim):
-        kStr += inst("s_sub_u32",  sgpr(tmpSgpr+4), sgpr("SizesFree+%u"%i), 1, "Free%u" % i)
-        kStr += inst("s_mul_i32",  sgpr(tmpSgpr+4), sgpr(tmpSgpr+4), sgpr("GSUSumIdx"), "Free%u" % i)
-        kStr += self.s_mul_u64_u32(sgpr(tmpSgpr+2), sgpr(tmpSgpr+3), sgpr(tmpSgpr+4), sgpr("StrideC%s"%self.indexChars[i]), "Free%u" % i)
-        kStr += inst("s_add_u32",  sgpr(tmpSgpr+0), sgpr(tmpSgpr+0), sgpr(tmpSgpr+2), "Free%u" % i)
-        kStr += inst("s_addc_u32", sgpr(tmpSgpr+1), sgpr(tmpSgpr+1), sgpr(tmpSgpr+3), "Free%u" % i)
-      kStr += inst("s_lshl_b64", sgpr(tmpSgpr+0,2), sgpr(tmpSgpr+0,2), log2(self.bpeCexternal), "scale by bpe")
-      kStr += inst("s_add_u32",  sgpr("SrdD+0"), sgpr("SrdD+0"), sgpr(tmpSgpr+0), "add lo GSU offset to SRD")
-      kStr += inst("s_addc_u32", sgpr("SrdD+1"), sgpr("SrdD+1"), sgpr(tmpSgpr+1), "add hi GSU offset to SRD")
+        kStr += inst("s_sub_u32",  sgpr(tmpSgpr), sgpr("SizesFree+%u"%i), 1, "Free%u" % i)
+        kStr += inst("s_mul_i32",  sgpr(tmpSgpr), sgpr(tmpSgpr), sgpr("GSUSumIdx"), "Free%u" % i)
+        kStr += self.s_mul_u64_u32(sgpr(tmpFreeN+0), sgpr(tmpFreeN+1), sgpr(tmpSgpr), sgpr("StrideC%s"%self.indexChars[i]), "Free%u" % i)
+        kStr += inst("s_add_u32",  sgpr(tmpFree0+0), sgpr(tmpFree0+0), sgpr(tmpFreeN+0), "Free%u" % i)
+        kStr += inst("s_addc_u32", sgpr(tmpFree0+1), sgpr(tmpFree0+1), sgpr(tmpFreeN+1), "Free%u" % i)
+      kStr += inst("s_lshl_b64", sgpr(tmpFree0+0,2), sgpr(tmpFree0+0,2), log2(self.bpeCexternal), "scale by bpe")
+      kStr += inst("s_add_u32",  sgpr("SrdD+0"), sgpr("SrdD+0"), sgpr(tmpFree0+0), "add lo GSU offset to SRD")
+      kStr += inst("s_addc_u32", sgpr("SrdD+1"), sgpr("SrdD+1"), sgpr(tmpFree0+1), "add hi GSU offset to SRD")
 
     for cdir in (0,1):
       indices = kernel["PackedC%uIndicesX"%cdir]
