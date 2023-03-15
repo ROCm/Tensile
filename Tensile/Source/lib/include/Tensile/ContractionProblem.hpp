@@ -593,8 +593,24 @@ namespace Tensile
 
         PerformanceMetric performanceMetric() const
         {
-            const bool experimental = Debug::Instance().useExperimentalSelection();
-            return experimental ? PerformanceMetric::Experimental : m_performanceMetric;
+            int experimental = Debug::Instance().useExperimentalSelection();
+            auto option = static_cast<ExperimentalOption>(experimental);
+            
+            switch(option)
+            {
+                case ExperimentalOption::None:
+                    return m_performanceMetric;
+
+                case ExperimentalOption::Grid:
+                    return PerformanceMetric::ExperimentalGrid;
+
+                case ExperimentalOption::DTree:
+                    return PerformanceMetric::ExperimentalDTree;
+
+                default:
+                  // warning?
+                  return m_performanceMetric;
+            }
         }
 
         void setDeterministicMode(bool value)

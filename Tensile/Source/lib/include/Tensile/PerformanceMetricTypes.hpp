@@ -46,6 +46,17 @@ namespace Tensile
  * @{
  */
 
+        /**
+ * Experimental options
+ */
+    enum class ExperimentalOption : int
+    {
+        None  = 0,
+        Grid  = 1,
+        DTree = 2,
+        Count
+    };
+
     /**
  * Performance Metric
  */
@@ -54,7 +65,8 @@ namespace Tensile
         Auto,
         CUEfficiency,
         DeviceEfficiency,
-        Experimental,
+        ExperimentalGrid,
+        ExperimentalDTree,
         Count
     };
 
@@ -131,8 +143,13 @@ namespace Tensile
     {
     };
     template <>
-    struct PerformanceMetricInfo<PerformanceMetric::Experimental>
-        : public BasePerformanceMetricInfo<PerformanceMetric::Experimental>
+    struct PerformanceMetricInfo<PerformanceMetric::ExperimentalGrid>
+        : public BasePerformanceMetricInfo<PerformanceMetric::ExperimentalGrid>
+    {
+    };
+    template <>
+    struct PerformanceMetricInfo<PerformanceMetric::ExperimentalDTree>
+        : public BasePerformanceMetricInfo<PerformanceMetric::ExperimentalDTree>
     {
     };
 
