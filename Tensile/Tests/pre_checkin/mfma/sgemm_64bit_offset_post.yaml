@@ -34,6 +34,7 @@ BenchmarkProblems:
         - ExpandPointerSwap: [0]
         - GroupLoadStore: [1]
         - GlobalSplitU: [8]
+        - GlobalSplitUAlgorithm: ["MultipleBuffer"]
         - LocalReadVectorWidth: [1]
         # - MACInstruction: ["MAD"]
         - NumElementsPerBatchStore: [4]
@@ -61,4 +62,4 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           # - Exact: [1024, 1024, 1, 1024, 1048576, 524288, 524288, 524288]
-          - Exact: [1024, 1024, 1, 1024]
+          - Exact: [512, 512, 1, 2048]
