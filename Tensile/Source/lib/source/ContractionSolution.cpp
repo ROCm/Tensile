@@ -651,7 +651,7 @@ namespace Tensile
 
         rv.args.append<uint64_t>("offsetD", d.offset());
         rv.args.append<uint64_t>("offsetC", c.offset());
-        
+
         if(sizeMapping.globalAccumulation)
         {
             size_t stride = d.sizes()[0];
