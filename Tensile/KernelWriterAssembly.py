@@ -227,7 +227,10 @@ class KernelWriterAssembly(KernelWriter):
 
     launcher = shlex.split(os.environ.get('Tensile_ASM_COMPILER_LAUNCHER', ''))
 
-    rv = launcher + [globalParameters['AssemblerPath'],
+    assembler = globalParameters['AssemblerPath']
+    if assembler is None:
+      raise ValueError('No assembler available; set TENSILE_ROCM_ASSEMBLER_PATH to point to ROCm Clang.')
+    rv = launcher + [assembler,
           '-x', 'assembler',
           '-target', 'amdgcn-amd-amdhsa']
 
@@ -248,7 +251,10 @@ class KernelWriterAssembly(KernelWriter):
     return rv
 
   def getLinkCodeObjectArgs(self, objectFileNames, coFileName, *moreArgs):
-    rv = [globalParameters['AssemblerPath'],
+    assembler = globalParameters['AssemblerPath']
+    if assembler is None:
+      raise ValueError('No assembler available; set TENSILE_ROCM_ASSEMBLER_PATH to point to ROCm Clang.')
+    rv = [assembler,
           '-target', 'amdgcn-amd-amdhsa']
     # Add build-id for builds with rocm 5.3+
     compilerVer = globalParameters['HipClangVersion'].split(".")[:2]

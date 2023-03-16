@@ -1860,7 +1860,10 @@ def tryAssembler(isaVersion, asmString, debug=False, *options):
   if isaVersion[0] >= 10:
     options += ['-mwavefrontsize64']
 
-  args = [globalParameters["AssemblerPath"], '-x', 'assembler',
+  assembler = globalParameters['AssemblerPath']
+  if assembler is None:
+    raise ValueError('No assembler available; set TENSILE_ROCM_ASSEMBLER_PATH to point to ROCm Clang.')
+  args = [assembler, '-x', 'assembler',
           '-target', 'amdgcn-amdhsa',
           '-mcpu='+gfxName(isaVersion),
           *options,
