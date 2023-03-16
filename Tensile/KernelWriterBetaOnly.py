@@ -76,6 +76,10 @@ class KernelWriterBetaOnly(KernelWriterBase):
     batch   = "" if isStridedBuffer else "Batch"
     kStr += "  " + ptrStr + " const * " + batch + "C," + self.endLine
 
+    # offset
+    kStr += "  uint64_t offsetD,%s" % self.endLine
+    kStr += "  uint64_t offsetC,%s" % self.endLine
+
     # strides
     firstStrideCD = 1
     if self.state["ProblemType"]["UseInitialStridesCD"]:
@@ -89,10 +93,6 @@ class KernelWriterBetaOnly(KernelWriterBase):
     # sizes
     for i in range(0, self.state["ProblemType"]["NumIndicesC"]):
       kStr += "  unsigned int const size%s,%s" % (self.indexChars[i], self.endLine)
-
-    # offset
-    kStr += "  unsigned int offsetD,%s" % self.endLine
-    kStr += "  unsigned int offsetC,%s" % self.endLine
 
     # beta
     kStr += "  %s const beta)%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine )

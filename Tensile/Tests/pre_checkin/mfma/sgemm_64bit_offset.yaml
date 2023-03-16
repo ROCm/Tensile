@@ -61,4 +61,3 @@ BenchmarkProblems:
         - ProblemSizes:
           # - Exact: [1024, 1024, 1, 1024, 1048576, 524288, 524288, 524288]
           - Exact: [1024, 1024, 1, 1024]
-
