@@ -82,6 +82,8 @@ KernelInvocation initKernelParams(Tensile::TensorDescriptor const& desc,
     // k.args.append<cl::Buffer>("C", buffer_C);
     k.args.append<float*>("D", device_d);
     k.args.append<float const*>("C", device_c);
+    k.args.append<uint64_t>("offsetD", desc.offset());
+    k.args.append<uint64_t>("offsetC", desc.offset());
     k.args.append<unsigned int>("strideD1", desc.strides()[1]);
     k.args.append<unsigned int>("strideD2", desc.strides()[2]);
     k.args.append<unsigned int>("strideC1", desc.strides()[1]);
@@ -89,8 +91,6 @@ KernelInvocation initKernelParams(Tensile::TensorDescriptor const& desc,
     k.args.append<unsigned int>("size0", desc.sizes()[0]);
     k.args.append<unsigned int>("size1", desc.sizes()[1]);
     k.args.append<unsigned int>("size2", desc.sizes()[2]);
-    k.args.append<unsigned int>("offsetD", desc.offset());
-    k.args.append<unsigned int>("offsetC", desc.offset());
     k.args.append<float>("beta", beta);
 
     return k;

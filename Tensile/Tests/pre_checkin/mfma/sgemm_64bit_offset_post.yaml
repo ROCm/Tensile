@@ -6,22 +6,23 @@ GlobalParameters:
   BoundsCheck: True
   KernelTime: True
   # PrintSolutionRejectionReason: True
-  BufferOffsetB: 536877696
+  BufferOffsetC: 4294967296
+  PristineOnGPU: False
 
 BenchmarkProblems:
   ########################################
   # NN - standard
   ########################################
-  - # dgemm NN
+  - # sgemm NN
     - # ProblemType
       OperationType: GEMM
-      DataType: d
+      DataType: s
       TransposeA: False
       TransposeB: False
       UseBeta: True
       Batched: True
 
-    - # BenchmarkProblemSizeGroup - Standard
+    - # GSU post kernel test case
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
@@ -32,8 +33,10 @@ BenchmarkProblems:
         - DepthU: [8]
         - ExpandPointerSwap: [0]
         - GroupLoadStore: [1]
+        - GlobalSplitU: [8]
+        - GlobalSplitUAlgorithm: ["MultipleBuffer"]
         - LocalReadVectorWidth: [1]
-        - MACInstruction: ["MAD"]
+        # - MACInstruction: ["MAD"]
         - NumElementsPerBatchStore: [4]
         - PrefetchGlobalRead: [2]
         - PrefetchLocalRead: [3]
@@ -59,4 +62,4 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           # - Exact: [1024, 1024, 1, 1024, 1048576, 524288, 524288, 524288]
-          - Exact: [1024, 1024, 1, 1024]
+          - Exact: [512, 512, 1, 2048]
