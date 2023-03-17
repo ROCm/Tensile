@@ -199,5 +199,22 @@ namespace Tensile
 
             return rv;
         }
+
+        virtual SolutionSet<MySolution>
+            findAllSolutionsMatchingType(MyProblem const& problem,
+                                         Hardware const&  hardware) const override
+        {
+            SolutionSet<MySolution> rv;
+
+            for(auto const& row : solutions)
+            {
+                if(row.second->matchesProblemType(problem, hardware))
+                {
+                    rv.insert(row.second);
+                }
+            }
+
+            return rv;
+        }
     };
 } // namespace Tensile

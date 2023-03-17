@@ -201,6 +201,13 @@ namespace Tensile
             return m_subLibrary->findAllSolutions(problem, hardware);
         }
 
+        virtual SolutionSet<MySolution>
+            findAllSolutionsMatchingType(MyProblem const& problem,
+                                         Hardware const&  hardware) const override
+        {
+            return m_subLibrary->findAllSolutionsMatchingType(problem, hardware);
+        }
+
         std::shared_ptr<MySolution> findSolutionInCache(MyProblem const& problem,
                                                         Hardware const&  hardware) const
         {

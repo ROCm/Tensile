@@ -244,6 +244,8 @@ namespace Tensile
 
         bool canSolve(Problem const& problem, Hardware const& hardware) const;
 
+        bool matchesProblemType(Problem const& problem, Hardware const& hardware) const;
+
         struct SizeMapping
         {
             dim3 workGroupSize;
