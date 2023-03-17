@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2021-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2021-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -180,7 +180,7 @@ class LocalReadMFMA(LocalRead):
             # No ECC 0.25: pack one time 0x00ff00ff | (0x00ff00ff << 8)
             packTimesPerVgpr = (int(1/blockWidth) - 1) if writer.archCaps["HasEccHalf"] else 1
             tmpVgprIdx = writer.vgprPool.checkOut(writer.numVgprValuAPerBlock*writer.numReadsIterCoalescedA*packTimesPerVgpr if tc == 'A' \
-                else writer.numVgprValuBPerBlock*writer.numReadsIterCoalescedB*packTimesPerVgpr)
+                else writer.numVgprValuBPerBlock*writer.numReadsIterCoalescedB*packTimesPerVgpr, "local read pack")
             pack.addTempVgpr(tmpVgprIdx) # important, add to pack Module for later CheckIn
 
         valufIdx = 0
