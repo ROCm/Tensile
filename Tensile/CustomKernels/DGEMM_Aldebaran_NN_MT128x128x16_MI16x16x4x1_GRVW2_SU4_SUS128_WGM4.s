@@ -744,18 +744,18 @@ s_load_dwordx16 s[40:55], s[sgprKernArgAddress:sgprKernArgAddress+1], 0x48 //
 s_load_dwordx8 s[56:63], s[sgprKernArgAddress:sgprKernArgAddress+1], 0x88 // 
 s_load_dwordx2 s[64:65], s[sgprKernArgAddress:sgprKernArgAddress+1], 0xA8 // 
 s_waitcnt lgkmcnt(0)                               // wait for 160 bytes of kern args
-s_lshl_b32 s[sgprOffsetD], s[sgprOffsetD], 0x3     // elements offset to bytes offset
+s_lshl_b64 s[sgprOffsetD:sgprOffsetD+1], s[sgprOffsetD:sgprOffsetD+1], 0x3 // elements offset to bytes offset
 s_add_u32 s[sgprAddressD+0], s[sgprAddressD+0], s[sgprOffsetD] // add offset to buffer address
-s_addc_u32 s[sgprAddressD+1], s[sgprAddressD+1], 0 // add offset to buffer address
-s_lshl_b32 s[sgprOffsetC], s[sgprOffsetC], 0x3     // elements offset to bytes offset
+s_addc_u32 s[sgprAddressD+1], s[sgprAddressD+1], s[sgprOffsetD+1] // add offset to buffer address
+s_lshl_b64 s[sgprOffsetC:sgprOffsetC+1], s[sgprOffsetC:sgprOffsetC+1], 0x3 // elements offset to bytes offset
 s_add_u32 s[sgprAddressC+0], s[sgprAddressC+0], s[sgprOffsetC] // add offset to buffer address
-s_addc_u32 s[sgprAddressC+1], s[sgprAddressC+1], 0 // add offset to buffer address
-s_lshl_b32 s[sgprOffsetA], s[sgprOffsetA], 0x3     // elements offset to bytes offset
+s_addc_u32 s[sgprAddressC+1], s[sgprAddressC+1], s[sgprOffsetC+1] // add offset to buffer address
+s_lshl_b64 s[sgprOffsetA:sgprOffsetA+1], s[sgprOffsetA:sgprOffsetA+1], 0x3 // elements offset to bytes offset
 s_add_u32 s[sgprAddressA+0], s[sgprAddressA+0], s[sgprOffsetA] // add offset to buffer address
-s_addc_u32 s[sgprAddressA+1], s[sgprAddressA+1], 0 // add offset to buffer address
-s_lshl_b32 s[sgprOffsetB], s[sgprOffsetB], 0x3     // elements offset to bytes offset
+s_addc_u32 s[sgprAddressA+1], s[sgprAddressA+1], s[sgprOffsetA+1] // add offset to buffer address
+s_lshl_b64 s[sgprOffsetB:sgprOffsetB+1], s[sgprOffsetB:sgprOffsetB+1], 0x3 // elements offset to bytes offset
 s_add_u32 s[sgprAddressB+0], s[sgprAddressB+0], s[sgprOffsetB] // add offset to buffer address
-s_addc_u32 s[sgprAddressB+1], s[sgprAddressB+1], 0 // add offset to buffer address
+s_addc_u32 s[sgprAddressB+1], s[sgprAddressB+1], s[sgprOffsetB+1] // add offset to buffer address
 
 .set OffsetD, UNDEF
 .set OffsetC, UNDEF
@@ -4717,10 +4717,10 @@ s_barrier
 /* calc coords, apply mask, and issue loads (if necessary) */
 /* (d1,vc1,d0,vc0)=(0,0,0,0) */
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(0, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+0:vgprValuC+0+1] // Multiply MI out reg with alpha
@@ -4741,10 +4741,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(0,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(0, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+8:vgprValuC+8+1] // Multiply MI out reg with alpha
@@ -4771,10 +4771,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(1, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+2:vgprValuC+2+1] // Multiply MI out reg with alpha
@@ -4795,10 +4795,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(1,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(1, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+10:vgprValuC+10+1] // Multiply MI out reg with alpha
@@ -4825,10 +4825,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(2, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+4:vgprValuC+4+1] // Multiply MI out reg with alpha
@@ -4849,10 +4849,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(2,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(2, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+12:vgprValuC+12+1] // Multiply MI out reg with alpha
@@ -4879,10 +4879,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(3, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+6:vgprValuC+6+1] // Multiply MI out reg with alpha
@@ -4903,10 +4903,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(3,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(3, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+14:vgprValuC+14+1] // Multiply MI out reg with alpha
@@ -4933,10 +4933,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(4, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+16:vgprValuC+16+1] // Multiply MI out reg with alpha
@@ -4957,10 +4957,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(4,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(4, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+24:vgprValuC+24+1] // Multiply MI out reg with alpha
@@ -4987,10 +4987,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(5, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+18:vgprValuC+18+1] // Multiply MI out reg with alpha
@@ -5011,10 +5011,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(5,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(5, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+26:vgprValuC+26+1] // Multiply MI out reg with alpha
@@ -5041,10 +5041,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(6, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+20:vgprValuC+20+1] // Multiply MI out reg with alpha
@@ -5065,10 +5065,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(6,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(6, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+28:vgprValuC+28+1] // Multiply MI out reg with alpha
@@ -5095,10 +5095,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(7, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+22:vgprValuC+22+1] // Multiply MI out reg with alpha
@@ -5119,10 +5119,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(7,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(7, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+30:vgprValuC+30+1] // Multiply MI out reg with alpha
@@ -5149,10 +5149,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(8, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+32:vgprValuC+32+1] // Multiply MI out reg with alpha
@@ -5173,10 +5173,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(8,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(8, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+40:vgprValuC+40+1] // Multiply MI out reg with alpha
@@ -5203,10 +5203,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(9, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+34:vgprValuC+34+1] // Multiply MI out reg with alpha
@@ -5227,10 +5227,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(9,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(9, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+42:vgprValuC+42+1] // Multiply MI out reg with alpha
@@ -5257,10 +5257,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(10, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+36:vgprValuC+36+1] // Multiply MI out reg with alpha
@@ -5281,10 +5281,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(10,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(10, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+44:vgprValuC+44+1] // Multiply MI out reg with alpha
@@ -5311,10 +5311,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(11, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+38:vgprValuC+38+1] // Multiply MI out reg with alpha
@@ -5335,10 +5335,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(11,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(11, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+46:vgprValuC+46+1] // Multiply MI out reg with alpha
@@ -5365,10 +5365,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(12, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+48:vgprValuC+48+1] // Multiply MI out reg with alpha
@@ -5389,10 +5389,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(12,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(12, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+56:vgprValuC+56+1] // Multiply MI out reg with alpha
@@ -5419,10 +5419,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(13, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+50:vgprValuC+50+1] // Multiply MI out reg with alpha
@@ -5443,10 +5443,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(13,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(13, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+58:vgprValuC+58+1] // Multiply MI out reg with alpha
@@ -5473,10 +5473,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(14, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+52:vgprValuC+52+1] // Multiply MI out reg with alpha
@@ -5497,10 +5497,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(14,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(14, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+60:vgprValuC+60+1] // Multiply MI out reg with alpha
@@ -5527,10 +5527,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(15, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+54:vgprValuC+54+1] // Multiply MI out reg with alpha
@@ -5551,10 +5551,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(15,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(15, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+62:vgprValuC+62+1] // Multiply MI out reg with alpha
@@ -5581,10 +5581,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(16, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+64:vgprValuC+64+1] // Multiply MI out reg with alpha
@@ -5605,10 +5605,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(16,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(16, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+72:vgprValuC+72+1] // Multiply MI out reg with alpha
@@ -5635,10 +5635,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(17, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+66:vgprValuC+66+1] // Multiply MI out reg with alpha
@@ -5659,10 +5659,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(17,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(17, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+74:vgprValuC+74+1] // Multiply MI out reg with alpha
@@ -5689,10 +5689,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(18, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+68:vgprValuC+68+1] // Multiply MI out reg with alpha
@@ -5713,10 +5713,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(18,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(18, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+76:vgprValuC+76+1] // Multiply MI out reg with alpha
@@ -5743,10 +5743,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(19, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+70:vgprValuC+70+1] // Multiply MI out reg with alpha
@@ -5767,10 +5767,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(19,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(19, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+78:vgprValuC+78+1] // Multiply MI out reg with alpha
@@ -5797,10 +5797,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(20, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+80:vgprValuC+80+1] // Multiply MI out reg with alpha
@@ -5821,10 +5821,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(20,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(20, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+88:vgprValuC+88+1] // Multiply MI out reg with alpha
@@ -5851,10 +5851,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(21, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+82:vgprValuC+82+1] // Multiply MI out reg with alpha
@@ -5875,10 +5875,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(21,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(21, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+90:vgprValuC+90+1] // Multiply MI out reg with alpha
@@ -5905,10 +5905,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(22, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+84:vgprValuC+84+1] // Multiply MI out reg with alpha
@@ -5929,10 +5929,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(22,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(22, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+92:vgprValuC+92+1] // Multiply MI out reg with alpha
@@ -5959,10 +5959,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(23, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+86:vgprValuC+86+1] // Multiply MI out reg with alpha
@@ -5983,10 +5983,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(23,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(23, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+94:vgprValuC+94+1] // Multiply MI out reg with alpha
@@ -6013,10 +6013,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(24, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+96:vgprValuC+96+1] // Multiply MI out reg with alpha
@@ -6037,10 +6037,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(24,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(24, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+104:vgprValuC+104+1] // Multiply MI out reg with alpha
@@ -6067,10 +6067,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(25, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+98:vgprValuC+98+1] // Multiply MI out reg with alpha
@@ -6091,10 +6091,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(25,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(25, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+106:vgprValuC+106+1] // Multiply MI out reg with alpha
@@ -6121,10 +6121,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(26, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+100:vgprValuC+100+1] // Multiply MI out reg with alpha
@@ -6145,10 +6145,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(26,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(26, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+108:vgprValuC+108+1] // Multiply MI out reg with alpha
@@ -6175,10 +6175,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(27, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+102:vgprValuC+102+1] // Multiply MI out reg with alpha
@@ -6199,10 +6199,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(27,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(27, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+110:vgprValuC+110+1] // Multiply MI out reg with alpha
@@ -6229,10 +6229,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(28, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+112:vgprValuC+112+1] // Multiply MI out reg with alpha
@@ -6253,10 +6253,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(28,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(28, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+120:vgprValuC+120+1] // Multiply MI out reg with alpha
@@ -6283,10 +6283,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(29, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+114:vgprValuC+114+1] // Multiply MI out reg with alpha
@@ -6307,10 +6307,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(29,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(29, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+122:vgprValuC+122+1] // Multiply MI out reg with alpha
@@ -6337,10 +6337,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(30, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+116:vgprValuC+116+1] // Multiply MI out reg with alpha
@@ -6361,10 +6361,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(30,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(30, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+124:vgprValuC+124+1] // Multiply MI out reg with alpha
@@ -6391,10 +6391,10 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(31, 0, 0, 0)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+118:vgprValuC+118+1] // Multiply MI out reg with alpha
@@ -6415,10 +6415,10 @@ s_barrier
 /* (d1,vc1,d0,vc0)=(31,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 
 /* rC *= alpha batchEements=[(31, 0, 0, 1)] */
 v_mul_f64 v[vgprValuC+136:vgprValuC+136+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+126:vgprValuC+126+1] // Multiply MI out reg with alpha
@@ -7455,12 +7455,12 @@ s_barrier
 v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+0:vgprValuC+0+1] // Multiply MI out reg with alpha
 /* (d1,vc1,d0,vc0)=(0,0,0,0) */
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -7486,12 +7486,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(0,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -7523,12 +7523,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -7554,12 +7554,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(1,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -7591,12 +7591,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -7622,12 +7622,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(2,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -7659,12 +7659,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -7690,12 +7690,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(3,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -7727,12 +7727,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -7758,12 +7758,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(4,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -7795,12 +7795,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -7826,12 +7826,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(5,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -7863,12 +7863,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -7894,12 +7894,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(6,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -7931,12 +7931,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -7962,12 +7962,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(7,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -7999,12 +7999,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8030,12 +8030,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(8,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8067,12 +8067,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8098,12 +8098,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(9,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8135,12 +8135,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8166,12 +8166,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(10,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8203,12 +8203,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8234,12 +8234,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(11,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8271,12 +8271,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8302,12 +8302,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(12,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8339,12 +8339,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8370,12 +8370,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(13,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8407,12 +8407,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8438,12 +8438,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(14,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8475,12 +8475,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8506,12 +8506,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(15,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8543,12 +8543,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8574,12 +8574,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(16,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8611,12 +8611,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8642,12 +8642,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(17,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8679,12 +8679,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8710,12 +8710,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(18,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8747,12 +8747,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8778,12 +8778,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(19,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8815,12 +8815,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8846,12 +8846,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(20,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8883,12 +8883,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8914,12 +8914,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(21,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8951,12 +8951,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -8982,12 +8982,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(22,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9019,12 +9019,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9050,12 +9050,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(23,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9087,12 +9087,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9118,12 +9118,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(24,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9155,12 +9155,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9186,12 +9186,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(25,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9223,12 +9223,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9254,12 +9254,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(26,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9291,12 +9291,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9322,12 +9322,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(27,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9359,12 +9359,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9390,12 +9390,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(28,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9427,12 +9427,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9458,12 +9458,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(29,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9495,12 +9495,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9526,12 +9526,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(30,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9563,12 +9563,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9594,12 +9594,12 @@ v_mul_f64 v[vgprValuC+138:vgprValuC+138+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 /* (d1,vc1,d0,vc0)=(31,0,0,1) */
 _v_add_co_u32 v132, vcc, v128, 1                   // coord0.1: coord0 += d0*sg0*VW + vc0
 v_cmp_lt_u32 s[64:65], v132, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v132, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx2 v[136:137], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9630,12 +9630,12 @@ v_mul_f64 v[vgprValuC+140:vgprValuC+140+1], s[sgprAlpha:sgprAlpha+1], v[vgprValu
 v_mul_f64 v[vgprValuC+142:vgprValuC+142+1], s[sgprAlpha:sgprAlpha+1], v[vgprValuC+8:vgprValuC+8+1] // Multiply MI out reg with alpha
 /* (d1,vc1,d0,vc0)=(0,0,0,0) */
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9669,12 +9669,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9708,12 +9708,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9747,12 +9747,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9786,12 +9786,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9825,12 +9825,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9864,12 +9864,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9903,12 +9903,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9942,12 +9942,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -9981,12 +9981,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10020,12 +10020,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10059,12 +10059,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10098,12 +10098,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10137,12 +10137,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10176,12 +10176,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10215,12 +10215,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10254,12 +10254,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10293,12 +10293,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10332,12 +10332,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10371,12 +10371,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10410,12 +10410,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10449,12 +10449,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10488,12 +10488,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10527,12 +10527,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10566,12 +10566,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10605,12 +10605,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10644,12 +10644,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10683,12 +10683,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10722,12 +10722,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10761,12 +10761,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10800,12 +10800,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
@@ -10839,12 +10839,12 @@ _v_add_u32 v130, v130, s64                         // ROWINC- Move cinRowPtr to 
 s_mul_i32 s64, s[sgprStrideD1J], 4                 // scale stride
 _v_add_u32 v131, v131, s64                         // Move coutRowPtr to next row
 v_cmp_lt_u32 s[64:65], v128, s[sgprSizeI]          // coord0 < size0
-v_cmp_lt_u32 s[40:41], v129, s[sgprSizeJ]          // coord1 < size1
-s_and_b64 s[40:41], s[64:65], s[40:41]             // in0 && in1
+v_cmp_lt_u32 s[38:39], v129, s[sgprSizeJ]          // coord1 < size1
+s_and_b64 s[38:39], s[64:65], s[38:39]             // in0 && in1
 _v_add_lshl_u32 v135, v130, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v135, -1, v135, s[40:41]             // LDC clip if OOB. offset
+v_cndmask_b32 v135, -1, v135, s[38:39]             // LDC clip if OOB. offset
 _v_add_lshl_u32 v134, v131, v128, 0x3              // scaleToBpe: accumulate d0 lower and *= bpe into Cin addr
-v_cndmask_b32 v134, -1, v134, s[40:41]             // LDD clip if OOB. offset
+v_cndmask_b32 v134, -1, v134, s[38:39]             // LDD clip if OOB. offset
 buffer_load_dwordx4 v[136:139], v135, s[sgprSrdC:sgprSrdC+3], 0, offen offset:0,  glc slc // load C for beta calc
 s_sleep 5 // optimization: sync and wait
 s_barrier
