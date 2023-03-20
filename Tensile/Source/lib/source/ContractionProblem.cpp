@@ -1256,7 +1256,8 @@ namespace Tensile
                                                                             D* const*       _batchD,
                                                                             Alpha           _alpha,
                                                                             Beta            _beta,
-                                                                            void*           _ws)
+                                                                            void*           _ws,
+                                                                            int32_t         _fp16AltImplMode)
         : a(_a)
         , b(_b)
         , c(_c)
@@ -1268,6 +1269,7 @@ namespace Tensile
         , ws(_ws)
         , alpha(_alpha)
         , beta(_beta)
+        , fp16AltImplMode(_fp16AltImplMode)
     {
     }
 

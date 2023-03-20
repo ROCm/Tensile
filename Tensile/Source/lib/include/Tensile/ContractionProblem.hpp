@@ -913,7 +913,8 @@ namespace Tensile
                                D*       _d,
                                Alpha    _alpha,
                                Beta     _beta,
-                               void*    _ws = nullptr)
+                               void*    _ws = nullptr,
+                               int32_t  _fp16AltImplMode = 0)
             : TypedContractionInputs(
                 _a, _b, _c, _d, nullptr, nullptr, nullptr, nullptr, _alpha, _beta){};
 
@@ -927,7 +928,8 @@ namespace Tensile
                                D* const*       _batchD,
                                Alpha           _alpha,
                                Beta            _beta,
-                               void*           _ws = nullptr);
+                               void*           _ws = nullptr,
+                               int32_t         _fp16AltImplMode = 0);
 
         ~TypedContractionInputs();
 
@@ -945,6 +947,8 @@ namespace Tensile
 
         Alpha alpha = static_cast<Alpha>(0);
         Beta  beta  = static_cast<Beta>(0);
+
+        int32_t fp16AltImplMode = 0;
 
         constexpr static uint32_t TypeId()
         {

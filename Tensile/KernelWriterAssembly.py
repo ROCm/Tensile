@@ -1791,6 +1791,12 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("WgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
     self.defineSgpr("MagicNumberWgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
 
+    # Dual use register for loading Fp16AltImpl rounding type and offset value
+    fp16AltArgsToLoad = 0
+    if kernel["ProblemType"]["Fp16AltImpl"]:
+      self.defineSgpr("Fp16AltRound", 1)
+      fp16AltArgsToLoad = 1
+
     # dedicated sgpr(S) for storeC VGPR indexing
     # sgpr semaphore for message synchronization between different part of code section
     if kernel["StoreCInUnroll"]:
@@ -1830,7 +1836,8 @@ class KernelWriterAssembly(KernelWriter):
       2 + \
       pkArgumentToLoad + \
       3 + \
-      self.numSgprOffsetD + self.numSgprOffsetC + self.numSgprOffsetA + self.numSgprOffsetB
+      self.numSgprOffsetD + self.numSgprOffsetC + self.numSgprOffsetA + self.numSgprOffsetB + \
+      fp16AltArgsToLoad
 
     # Get kernel argument end here
     ###################################
@@ -3224,6 +3231,11 @@ class KernelWriterAssembly(KernelWriter):
       for idxChar in sorted(set(kernel["PackedC0IdxChars"][:-1] + kernel["PackedC1IdxChars"][:-1])):
           kStr += inst("s_lshr_b32", sgpr("MagicAbitSize%s"%idxChar), sgpr("MagicShiftSize%s"%idxChar), 31,"extract abit")
           kStr += inst("s_and_b32",  sgpr("MagicShiftSize%s"%idxChar), sgpr("MagicShiftSize%s"%idxChar), hex(0x7fffffff), "remove abit")
+
+    # setup rounding term if Fp16AltImpl is enabled, reusing sgpr to hold rounding term
+    if kernel["ProblemType"]["Fp16AltImpl"]:
+      kStr += inst("s_cmp_eq_u32", sgpr("Fp16AltRound"), 0, "Fp16AltRound == 0?")
+      kStr += inst("s_cselect_b32", sgpr("Fp16AltRound"), 0, "0x7FFF", "Set rounding coeff if Fp16AltImpl enabled")
 
     ########################################
     # Debug Buffer
@@ -8790,13 +8802,16 @@ class KernelWriterAssembly(KernelWriter):
               if self.db["ForceInputValue%s"%tc]:
                 localWriteCode.addInst("v_mov_b32", vgpr("G2L%s+%u"%(tc, g2lIdx)), self.db["ForceValue%s"%tc], "ForceInputValue")
               if kernel["ProblemType"]["Fp16AltImpl"]:
-                numIters = 1 if blockWidth <= 1 else blockWidth 
+                numIters = 1 if blockWidth <= 1 else blockWidth
                 for iter in range(0, numIters):
-                   vgprsrc = vgpr("G2L%s+%u"%(tc, g2lIdx+iter))
-                   vgprsrc += " src0_sel:WORD_1"
-                   localWriteCode.addInst("v_cvt_f32_f16", vgpr("G2Lpipe0"), vgpr("G2L%s+%u"%(tc, g2lIdx+iter)),"")
-                   localWriteCode.addInst("v_cvt_f32_f16", vgpr("G2Lpipe1"), vgprsrc,"")
-                   localWriteCode.addInst("v_pack_b32_f16", vgpr("G2L%s+%u"%(tc, g2lIdx+iter)), vgpr("G2Lpipe0"),vgpr("G2Lpipe1"), "op_sel:[1,1,0]","")
+                  vgprsrc = vgpr("G2L%s+%u"%(tc, g2lIdx+iter))
+                  localWriteCode.addInst("v_cvt_f32_f16", vgpr("G2Lpipe0"), vgprsrc,"")
+                  localWriteCode.addInst("v_cvt_f32_f16", vgpr("G2Lpipe1"), vgprsrc, "src0_sel:WORD_1", "")
+
+                  localWriteCode.addInst("v_add_f32", vgpr("G2Lpipe0"), sgpr("Fp16AltRound"), vgpr("G2Lpipe0"), "")
+                  localWriteCode.addInst("v_add_f32", vgpr("G2Lpipe1"), sgpr("Fp16AltRound"), vgpr("G2Lpipe1"), "")
+
+                  localWriteCode.addInst("v_pack_b32_f16", vgprsrc, vgpr("G2Lpipe0"),vgpr("G2Lpipe1"), "op_sel:[1,1,0]","")
 
 
             for oIdx in range(0, numOffsets):
