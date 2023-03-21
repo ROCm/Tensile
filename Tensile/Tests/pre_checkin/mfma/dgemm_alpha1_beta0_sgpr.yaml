@@ -12,9 +12,9 @@ GlobalParameters:
 
 BenchmarkProblems:
   ########################################
-  # NT - standard
+  # NN - standard
   ########################################
-  - # sgemm TN
+  - # dgemm NN
     - # ProblemType
       OperationType: GEMM
       DataType: d
@@ -38,7 +38,7 @@ BenchmarkProblems:
         - GroupLoadStore: [1]
         - InnerUnroll: [2]
         - LocalReadVectorWidth: [1]
-        - MACInstruction: ["MAD"]
+        # - MACInstruction: ["MAD"]
         - NumElementsPerBatchStore: [4]
         - OptPreLoopVmcnt: [False]
         - PrefetchGlobalRead: [2]
