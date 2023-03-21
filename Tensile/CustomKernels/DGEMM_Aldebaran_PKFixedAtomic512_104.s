@@ -136,149 +136,149 @@ amdhsa.kernels:
         .value_kind:      global_buffer
         .value_type:      f64
         .address_space:   generic
-      - .name:            alpha
+      - .name:            OffsetD
         .size:            8
         .offset:          56
+        .value_kind:      by_value
+        .value_type:      u64
+      - .name:            OffsetC
+        .size:            8
+        .offset:          64
+        .value_kind:      by_value
+        .value_type:      u64
+      - .name:            OffsetA
+        .size:            8
+        .offset:          72
+        .value_kind:      by_value
+        .value_type:      u64
+      - .name:            OffsetB
+        .size:            8
+        .offset:          80
+        .value_kind:      by_value
+        .value_type:      u64
+      - .name:            alpha
+        .size:            8
+        .offset:          88
         .value_kind:      by_value
         .value_type:      f64
       - .name:            beta
         .size:            8
-        .offset:          64
+        .offset:          96
         .value_kind:      by_value
         .value_type:      f64
       - .name:            strideD0
         .size:            4
-        .offset:          72
+        .offset:          104
         .value_kind:      by_value
         .value_type:      u32
       - .name:            strideD1
         .size:            4
-        .offset:          76
+        .offset:          108
         .value_kind:      by_value
         .value_type:      u32
       - .name:            strideC0
         .size:            4
-        .offset:          80
+        .offset:          112
         .value_kind:      by_value
         .value_type:      u32
       - .name:            strideC1
         .size:            4
-        .offset:          84
+        .offset:          116
         .value_kind:      by_value
         .value_type:      u32
       - .name:            strideA0
         .size:            4
-        .offset:          88
+        .offset:          120
         .value_kind:      by_value
         .value_type:      u32
       - .name:            strideA1
         .size:            4
-        .offset:          92
+        .offset:          124
         .value_kind:      by_value
         .value_type:      u32
       - .name:            strideB0
         .size:            4
-        .offset:          96
+        .offset:          128
         .value_kind:      by_value
         .value_type:      u32
       - .name:            strideB1
         .size:            4
-        .offset:          100
+        .offset:          132
         .value_kind:      by_value
         .value_type:      u32
       - .name:            SizesFree0
         .size:            4
-        .offset:          104
+        .offset:          136
         .value_kind:      by_value
         .value_type:      u32
       - .name:            SizesFree1
         .size:            4
-        .offset:          108
+        .offset:          140
         .value_kind:      by_value
         .value_type:      u32
       - .name:            SizesFree2
         .size:            4
-        .offset:          112
+        .offset:          144
         .value_kind:      by_value
         .value_type:      u32
       - .name:            SizesSum0
         .size:            4
-        .offset:          116
+        .offset:          148
         .value_kind:      by_value
         .value_type:      u32
       - .name:            OrigStaggerUIter
         .size:            4
-        .offset:          120
+        .offset:          152
         .value_kind:      by_value
         .value_type:      i32
       - .name:            NumWorkGroups0
         .size:            4
-        .offset:          124
+        .offset:          156
         .value_kind:      by_value
         .value_type:      u32
       - .name:            NumWorkGroups1
         .size:            4
-        .offset:          128
+        .offset:          160
         .value_kind:      by_value
         .value_type:      u32
       - .name:            MagicNumberProblemNumGroupTiles0
         .size:            4
-        .offset:          132
+        .offset:          164
         .value_kind:      by_value
         .value_type:      u32
       - .name:            MagicShiftProblemNumGroupTiles0
         .size:            4
-        .offset:          136
+        .offset:          168
         .value_kind:      by_value
         .value_type:      u32
       - .name:            GridNumWorkGroups0
         .size:            4
-        .offset:          140
+        .offset:          172
         .value_kind:      by_value
         .value_type:      u32
       - .name:            NumFullBlocks
         .size:            4
-        .offset:          144
+        .offset:          176
         .value_kind:      by_value
         .value_type:      u32
       - .name:            WgmRemainder1
         .size:            4
-        .offset:          148
+        .offset:          180
         .value_kind:      by_value
         .value_type:      u32
       - .name:            MagicNumberWgmRemainder1
         .size:            4
-        .offset:          152
-        .value_kind:      by_value
-        .value_type:      u32
-      - .name:            OffsetD
-        .size:            4
-        .offset:          156
-        .value_kind:      by_value
-        .value_type:      u32
-      - .name:            OffsetC
-        .size:            4
-        .offset:          160
-        .value_kind:      by_value
-        .value_type:      u32
-      - .name:            OffsetA
-        .size:            4
-        .offset:          164
-        .value_kind:      by_value
-        .value_type:      u32
-      - .name:            OffsetB
-        .size:            4
-        .offset:          168
+        .offset:          184
         .value_kind:      by_value
         .value_type:      u32
       - .name:            padding
         .size:            4
-        .offset:          172
+        .offset:          188
         .value_kind:      by_value
         .value_type:      u32
     .group_segment_fixed_size:   60000
     .kernarg_segment_align:      8
-    .kernarg_segment_size:       160
+    .kernarg_segment_size:       192
     .max_flat_workgroup_size:    256
     .private_segment_fixed_size: 0
     .sgpr_count:                 68
@@ -292,27 +292,39 @@ amdhsa.kernels:
 DGEMM_Aldebaran_PKFixedAtomic512_104:
 
 .long 0x8601FF01, 0x0000FFFF
-.long 0xC0020980, 0x00000068
-.long 0xC00209C0, 0x0000006C
-.long 0xC0020A00, 0x00000074
-.long 0xC0020A40, 0x00000058
-.long 0xC0020A80, 0x00000060
-.long 0xC0020AC0, 0x00000050
-.long 0xC0060B00, 0x00000038
-.long 0xC0060B80, 0x00000040
+.long 0xC0020980, 0x00000088
+.long 0xC00209C0, 0x0000008C
+.long 0xC0020A00, 0x00000094
+.long 0xC0020A40, 0x00000078
+.long 0xC0020A80, 0x00000080
+.long 0xC0020AC0, 0x00000070
+.long 0xC0060B00, 0x00000058
+.long 0xC0060B80, 0x00000060
 .long 0xC0060100, 0x00000028
 .long 0xC0060200, 0x00000030
 .long 0xC0060400, 0x00000020
-.long 0xC0020D00, 0x0000007C
-.long 0xC0020D40, 0x00000080
-.long 0xC0020D80, 0x00000084
-.long 0xC0020DC0, 0x00000088
-.long 0xC0020E00, 0x0000008C
+.long 0xC0061200, 0x00000048
+.long 0xC0061280, 0x00000050
+.long 0xC0061300, 0x00000040
+.long 0xC0020D00, 0x0000009C
+.long 0xC0020D40, 0x000000A0
+.long 0xC0020D80, 0x000000A4
+.long 0xC0020DC0, 0x000000A8
+.long 0xC0020E00, 0x000000AC
 .long 0x20040086
 .long 0x260000BF
 .long 0x7E600502
 .long 0xBEB10002
 .long 0xBF8CC07F
+.long 0x8EC88348
+.long 0x80044804
+.long 0x82054905
+.long 0x8ECA834A
+.long 0x80084A08
+.long 0x82094B09
+.long 0x8ECC834C
+.long 0x80104C10
+.long 0x82114D11
 .long 0xBEB800FF, 0x00000068
 .long 0xBF033831
 .long 0xBF851ADA
