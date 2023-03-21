@@ -92,7 +92,8 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::CDStridesEqual>(),
                     Base::template Pair<Predicates::Contraction::StridedBatchedEqual>(),
                     Base::template Pair<Predicates::Contraction::CUEfficiency>(),
-                    Base::template Pair<Predicates::Contraction::Experimental>(),
+                    Base::template Pair<Predicates::Contraction::ExperimentalGrid>(),
+                    Base::template Pair<Predicates::Contraction::ExperimentalDTree>(),
                     Base::template Pair<Predicates::Contraction::Fp16AltImpl>(),
                     Base::template Pair<Predicates::Contraction::EqualityMatching>(),
                     Base::template Pair<Predicates::Contraction::SizeInRange>(),
@@ -331,8 +332,14 @@ namespace Tensile
         };
 
         template <typename IO>
-        struct MappingTraits<Predicates::Contraction::Experimental, IO>
-            : public AutoMappingTraits<Predicates::Contraction::Experimental, IO>
+        struct MappingTraits<Predicates::Contraction::ExperimentalGrid, IO>
+            : public AutoMappingTraits<Predicates::Contraction::ExperimentalGrid, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::ExperimentalDTree, IO>
+            : public AutoMappingTraits<Predicates::Contraction::ExperimentalDTree, IO>
         {
         };
 
