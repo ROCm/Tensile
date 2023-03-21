@@ -6772,7 +6772,7 @@ class KernelWriterAssembly(KernelWriter):
         return ""
 
       skipOptNLL = self.getNamedLabel("OptNLL_End")
-      tmpSgpr = self.getTmpSgpr(2).idx()
+      tmpSgpr = self.getTmpSgpr(4).idx()
 
       # skip beta check for StoreCInUnroll in OptNLL case
       if not kernel["StoreCInUnroll"]:
