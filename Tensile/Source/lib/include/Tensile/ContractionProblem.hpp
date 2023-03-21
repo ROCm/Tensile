@@ -593,23 +593,23 @@ namespace Tensile
 
         PerformanceMetric performanceMetric() const
         {
-            int experimental = Debug::Instance().useExperimentalSelection();
-            auto option = static_cast<ExperimentalOption>(experimental);
-            
+            int  experimental = Debug::Instance().useExperimentalSelection();
+            auto option       = static_cast<ExperimentalOption>(experimental);
+
             switch(option)
             {
-                case ExperimentalOption::None:
-                    return m_performanceMetric;
+            case ExperimentalOption::None:
+                return m_performanceMetric;
 
-                case ExperimentalOption::Grid:
-                    return PerformanceMetric::ExperimentalGrid;
+            case ExperimentalOption::Grid:
+                return PerformanceMetric::ExperimentalGrid;
 
-                case ExperimentalOption::DTree:
-                    return PerformanceMetric::ExperimentalDTree;
+            case ExperimentalOption::DTree:
+                return PerformanceMetric::ExperimentalDTree;
 
-                default:
-                  // warning?
-                  return m_performanceMetric;
+            default:
+                // warning?
+                return m_performanceMetric;
             }
         }
 

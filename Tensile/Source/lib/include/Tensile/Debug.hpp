@@ -76,7 +76,7 @@ namespace Tensile
 
         bool enableDebugSelection() const;
 
-        int useExperimentalSelection() const;
+        int  useExperimentalSelection() const;
         bool getSolutionSelectionTrace() const;
 
         std::string getMetric() const;

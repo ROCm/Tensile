@@ -46,7 +46,7 @@ namespace Tensile
  * @{
  */
 
-        /**
+    /**
  * Experimental options
  */
     enum class ExperimentalOption : int
