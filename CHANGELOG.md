@@ -1,6 +1,6 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.37.0
+## Tensile 4.37.0 for ROCm 5.6.0
 ### Added
 - Added user driven tuning API
 - Added decision tree fallback feature
