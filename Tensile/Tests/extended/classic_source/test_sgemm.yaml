@@ -7,6 +7,7 @@ GlobalParameters:
   ValidationMaxToPrint: 4
   DataInitTypeAB: 1
   DataInitTypeC: 1
+  MergeFiles: False
 
 BenchmarkProblems:
 

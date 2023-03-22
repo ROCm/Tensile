@@ -1,6 +1,52 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.36.0
+## (Unreleased) Tensile 4.37.0
+### Added
+- Added user driven tuning API
+- Added decision tree fallback feature
+- Added SingleBuffer + AtomicAdd option for GlobalSplitU
+- DirectToVgpr support for fp16 and Int8 with TN orientation
+- Added new test cases for various functions
+- Added SingleBuffer algorithm for ZGEMM/CGEMM
+- Added joblib for parallel map calls
+- Added support for MFMA + LocalSplitU + DirectToVgprA+B
+- Added asmcap check for MIArchVgpr
+- Added support for MFMA + LocalSplitU
+- Added frequency, power, and temperature data to the output
+### Optimizations
+- Improved the performance of GlobalSplitU with SingleBuffer algorithm
+- Reduced the running time of the extended and pre_checkin tests
+- Optimized the Tailloop section of the assembly kernel
+- Optimized complex GEMM (fixed vgpr allocation, unified CGEMM and ZGEMM code in MulMIoutAlphaToArch)
+- Improved the performance of the second kernel of MultipleBuffer algorithm
+### Changed
+- Updated custom kernels with 64-bit offsets
+- Adapted 64-bit offset arguments for assembly kernels
+- Improved temporary register re-use to reduce max sgpr usage
+- Removed some restrictions on VectorWidth and DirectToVgpr
+- Updated the dependency requirements for Tensile
+- Changed the range of AssertSummationElementMultiple
+- Modified the error messages for more clarity
+- Changed DivideAndReminder to vectorStaticRemainder in case quotient is not used
+- Removed dummy vgpr for vectorStaticRemainder
+- Removed tmpVgpr parameter from vectorStaticRemainder/Divide/DivideAndReminder
+- Removed qReg parameter from vectorStaticRemainder
+### Fixed
+- Fixed tmp sgpr allocation to avoid over-writing values (alpha)
+- 64-bit offset parameters for post kernels
+- Fixed gfx908 CI test failures
+- Fixed offset calculation to prevent overflow for large offsets
+- Fixed issues when BufferLoad and BufferStore are equal to zero
+- Fixed StoreCInUnroll + DirectToVgpr + no useInitAccVgprOpt mismatch
+- Fixed DirectToVgpr + LocalSplitU + FractionalLoad mismatch
+- Fixed the memory access error related to StaggerU + large stride
+- Fixed ZGEMM 4x4 MatrixInst mismatch
+- Fixed DGEMM 4x4 MatrixInst mismatch
+- Fixed ASEM + GSU + NoTailLoop opt mismatch
+- Fixed AssertSummationElementMultiple + GlobalSplitU issues
+- Fixed ASEM + GSU + TailLoop inner unroll
+
+## Tensile 4.36.0 for ROCm 5.5.0
 ### Added
 - Add functions for user-driven tuning
 - Add GFX11 support: HostLibraryTests yamls, rearragne FP32(C)/FP64(C) instruction order, archCaps for instruction renaming condition, adjust vgpr bank for A/B/C for optimize, separate vscnt and vmcnt, dual mac

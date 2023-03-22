@@ -42,7 +42,12 @@ namespace Tensile
 
     bool Debug::printPropertyEvaluation() const
     {
-        return m_value & (0x2 | 0x4);
+        return m_value & 0x2;
+    }
+
+    bool Debug::printSelectedKernelName() const
+    {
+        return m_value & 0x4;
     }
 
     bool Debug::printDeviceSelection() const
@@ -133,7 +138,7 @@ namespace Tensile
         return m_debugSelection;
     }
 
-    bool Debug::useExperimentalSelection() const
+    int Debug::useExperimentalSelection() const
     {
         return m_experimentSelection;
     }
@@ -146,6 +151,11 @@ namespace Tensile
     int Debug::getSolutionIndex() const
     {
         return m_solution_index;
+    }
+
+    bool Debug::getSolutionSelectionTrace() const
+    {
+        return m_solselTrace;
     }
 
     Debug::Debug()
@@ -170,7 +180,11 @@ namespace Tensile
 
         const char* exp_select = std::getenv("TENSILE_EXPERIMENTAL_SELECTION");
         if(exp_select)
-            m_experimentSelection = strtol(exp_select, nullptr, 0) != 0;
+            m_experimentSelection = strtol(exp_select, nullptr, 0);
+
+        const char* solsel_trace = std::getenv("TENSILE_SOLUTION_SELECTION_TRACE");
+        if(solsel_trace)
+            m_solselTrace = strtol(solsel_trace, nullptr, 0) != 0;
 
         const char* solution_index = std::getenv("TENSILE_SOLUTION_INDEX");
         if(solution_index)

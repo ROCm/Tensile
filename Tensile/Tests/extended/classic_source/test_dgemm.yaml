@@ -12,7 +12,7 @@ GlobalParameters:
   ValidationMaxToPrint: 4
   ValidationPrintValids: False
   ShortNames: False
-  MergeFiles: True
+  MergeFiles: False
   DataInitTypeAB: 3
   DataInitTypeC: 3
   KernelTime: True

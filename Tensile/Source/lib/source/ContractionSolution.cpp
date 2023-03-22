@@ -392,6 +392,11 @@ namespace Tensile
             rv.args.append<typename TypedInputs::BType const* const*>("batchB", inputs.batchB);
         }
 
+        rv.args.append<uint64_t>("offsetD", d.offset());
+        rv.args.append<uint64_t>("offsetC", c.offset());
+        rv.args.append<uint64_t>("offsetA", a.offset());
+        rv.args.append<uint64_t>("offsetB", b.offset());
+
         rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
         if(std::is_same<typename TypedInputs::AlphaType, Half>::value && !isSourceKernel())
             rv.args.append<typename TypedInputs::AlphaType>("alpha_2", inputs.alpha);
@@ -579,11 +584,6 @@ namespace Tensile
             rv.args.append<uint32_t>("magicNumberWgmRemainder1", magicNumberWgmRemainder1);
         }
 
-        rv.args.append<uint32_t>("offsetD", d.offset());
-        rv.args.append<uint32_t>("offsetC", c.offset());
-        rv.args.append<uint32_t>("offsetA", a.offset());
-        rv.args.append<uint32_t>("offsetB", b.offset());
-
         if(!isSourceKernel())
         {
             rv.args.append<uint32_t>("pad", 0);
@@ -649,6 +649,9 @@ namespace Tensile
         else
             rv.args.append<typename TypedInputs::CType const* const*>("batchC", inputs.batchC);
 
+        rv.args.append<uint64_t>("offsetD", d.offset());
+        rv.args.append<uint64_t>("offsetC", c.offset());
+
         if(sizeMapping.globalAccumulation)
         {
             size_t stride = d.sizes()[0];
@@ -676,9 +679,6 @@ namespace Tensile
             rv.args.append<uint32_t>(concatenate_if<T_Debug>("size_", idx), size);
             idx++;
         }
-
-        rv.args.append<uint32_t>("offsetD", d.offset());
-        rv.args.append<uint32_t>("offsetC", c.offset());
 
         rv.args.append<typename TypedInputs::BetaType>("beta", inputs.beta);
 
@@ -758,6 +758,9 @@ namespace Tensile
         else
             rv.args.append<typename TypedInputs::CType const* const*>("batchC", inputs.batchC);
 
+        rv.args.append<uint64_t>("offsetD", d.offset());
+        rv.args.append<uint64_t>("offsetC", c.offset());
+
         if(sizeMapping.globalAccumulation == 2)
             rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
         else
@@ -788,9 +791,6 @@ namespace Tensile
             idx++;
         }
 
-        rv.args.append<uint32_t>("offsetD", d.offset());
-        rv.args.append<uint32_t>("offsetC", c.offset());
-
         if(sizeMapping.globalAccumulation == 1)
             rv.args.append<uint32_t>("gsu", 1);
         else
@@ -805,6 +805,21 @@ namespace Tensile
     bool ContractionSolution::canSolve(Problem const& problem, Hardware const& hardware) const
     {
         return (*problemPredicate)(problem) && (*hardwarePredicate)(hardware);
+    }
+
+    bool ContractionSolution::matchesProblemType(Problem const&  problem,
+                                                 Hardware const& hardware) const
+    {
+        bool matchesHardware = (*hardwarePredicate)(hardware);
+        bool matchesType
+            = (problemType.aType == problem.a().dataType())
+              && (problemType.bType == problem.b().dataType())
+              && (problemType.cType == problem.c().dataType())
+              && (problemType.dType == problem.d().dataType())
+              && (problemType.highPrecisionAccumulate == problem.highPrecisionAccumulate())
+              && (problemType.stridedBatched == problem.stridedBatched())
+              && (problemType.fp16AltImpl == problem.fp16AltImpl());
+        return matchesHardware && matchesType;
     }
 
     template <typename TypedInputs>

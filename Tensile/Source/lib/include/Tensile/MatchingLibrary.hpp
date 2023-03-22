@@ -115,5 +115,22 @@ namespace Tensile
 
             return rv;
         }
+
+        virtual SolutionSet<MySolution>
+            findAllSolutionsMatchingType(MyProblem const& problem,
+                                         Hardware const&  hardware) const override
+        {
+            SolutionSet<MySolution> rv;
+
+            auto matches = table->matchesInOrder(problem);
+
+            for(auto const& row : matches)
+            {
+                auto rowSolutions = row->findAllSolutionsMatchingType(problem, hardware);
+                rv.insert(rowSolutions.begin(), rowSolutions.end());
+            }
+
+            return rv;
+        }
     };
 } // namespace Tensile

@@ -69,6 +69,10 @@ class KernelWriterConversion(KernelWriterBase):
     kStr += "  " + self.datatype + " * W," + self.endLine
     kStr += "  " + ptrStr + " const * " + bStr + "C," + self.endLine
 
+    # offset
+    kStr += "  uint64_t offsetD,%s" % self.endLine
+    kStr += "  uint64_t offsetC,%s" % self.endLine
+    
     # alpha & beta
     kStr += "  %s const alpha,%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine)
     kStr += "  %s const beta,%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine)
@@ -88,10 +92,6 @@ class KernelWriterConversion(KernelWriterBase):
     # sizes
     for i in range(0, self.state["ProblemType"]["NumIndicesC"]):
       kStr += "  unsigned int const size%s,%s" % (self.indexChars[i], self.endLine)
-
-    # offset
-    kStr += "  unsigned int offsetD,%s" % self.endLine
-    kStr += "  unsigned int offsetC,%s" % self.endLine
 
     # gsu
     kStr += "  unsigned int const gsu)%s" % self.endLine

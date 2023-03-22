@@ -110,9 +110,32 @@ namespace Tensile
                 int index;
 
                 if(iot::outputting(io))
-                    index = lib.solution->index;
+                {
+                    // Provides a mean of representing the single solution library
+                    // within the logic file in a way that the serialization works by
+                    // providing a default case -1 index represents a null pointer solution.
+                    // This is used to make the variable optional which requires in code a
+                    // default case. The alternative is to represent it as an integer in
+                    // the logic and implement the effective transformation in code which side
+                    // steps the serialization mechanizm and adds more complexity.
+                    if(lib.solution == nullptr)
+                    {
+                        index = -1;
+                    }
+                    else
+                    {
+                        index = lib.solution->index;
+                    }
+                }
 
                 iot::mapRequired(io, "index", index);
+
+                if(index == -1)
+                {
+                    // -1 indicates that the field is missing
+                    lib.solution = nullptr;
+                    return;
+                }
 
                 if(!iot::outputting(io))
                 {
