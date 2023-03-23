@@ -119,5 +119,15 @@ namespace Tensile
 
             return SolutionSet<MySolution>();
         }
+
+        virtual SolutionSet<MySolution>
+            findAllSolutionsMatchingType(MyProblem const& problem,
+                                         Hardware const&  hardware) const override
+        {
+            if(solution->matchesProblemType(problem, hardware))
+                return SolutionSet<MySolution>({solution});
+
+            return SolutionSet<MySolution>();
+        }
     };
 } // namespace Tensile

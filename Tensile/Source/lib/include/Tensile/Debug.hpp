@@ -40,6 +40,7 @@ namespace Tensile
     {
     public:
         bool printPropertyEvaluation() const;
+        bool printSelectedKernelName() const;
         bool printPredicateEvaluation() const;
         bool printDeviceSelection() const;
         bool printCodeObjectInfo() const;
@@ -75,7 +76,7 @@ namespace Tensile
 
         bool enableDebugSelection() const;
 
-        bool useExperimentalSelection() const;
+        int  useExperimentalSelection() const;
         bool getSolutionSelectionTrace() const;
 
         std::string getMetric() const;
@@ -89,7 +90,7 @@ namespace Tensile
         int         m_value2;
         bool        m_naivePropertySearch = false;
         bool        m_debugSelection      = false;
-        bool        m_experimentSelection = false;
+        int         m_experimentSelection = 0;
         int         m_solution_index      = -1;
         bool        m_solselTrace         = false;
         std::string m_metric              = "";
