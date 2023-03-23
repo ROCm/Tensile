@@ -2353,11 +2353,8 @@ class Solution(collections.abc.Mapping):
   # determine can we use DirectToVgpr
   @staticmethod
   def isDirectToVgprDoable(state, tc):
-    tcOther = 'B' if tc == 'A' else 'A'
     MIindex = 0 if tc == 'A' else 1
     numBytes = state["ProblemType"]["DataType"].numBytes()
-    asem = state["AssertSummationElementMultiple"]
-    gsu = state["GlobalSplitU"]
     # Does not support DirectToVgprA+DirectToVgprB+PrefetchGlobalRead=2
     # Need more than double-vgpr buffers to avoid overwritting loaded data on vgpr
     if state["DirectToVgprA"] and state["DirectToVgprB"] and state["PrefetchGlobalRead"]==2:

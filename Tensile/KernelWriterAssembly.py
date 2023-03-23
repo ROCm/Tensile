@@ -6324,6 +6324,44 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
+  # src A,B str for MFMA
+  ##############################################################################
+  def generateSrcStrForMFMA(self, kernel, tP, innerUnroll, vregSetIdx, vgprPerInput, u, iui, idxAB, bk=None):
+    tc = tP["tensorChar"]
+    m = (u) % (self.numVgprBuffer+1) # local to use for MACs
+
+    numVgprValuPerBlock = kernel["MIWaveTile%c"%tc] * kernel["MIInputPerThread"] * tP["bpe"] // self.bpr
+    numIterPerCoalescedRead = self.numIterPerCoalescedReadA if tP["isA"] else self.numIterPerCoalescedReadB
+    numReadsIterCoalesced   = self.numReadsIterCoalescedA   if tP["isA"] else self.numReadsIterCoalescedB
+    numVgprPerBlock         = self.numVgprG2LA              if tP["isA"] else self.numVgprG2LB
+    numVgprPerBlock //= 2
+
+    # calculate vgprBufferA_new ( or B) and offset for DirectToVgpr. Use u instead of m (number of local prefetch buffer does not matter)
+    m_or_u = u if kernel["DirectToVgpr%c"%tc] else m
+    vgprBuffer_new = (m_or_u//numIterPerCoalescedRead)*numIterPerCoalescedRead
+    vgprBuffer_new_offset = m_or_u%numIterPerCoalescedRead*innerUnroll*vgprPerInput
+
+    iui_new = (iui//numReadsIterCoalesced)*numReadsIterCoalesced
+    iui_new_offset = iui%numReadsIterCoalesced*vgprPerInput
+    ab_new = idxAB*vgprPerInput*numReadsIterCoalesced
+    abStr = "Valu%c_X%u_I%u+%u+%u+%u" % (tc, vgprBuffer_new, iui_new, ab_new, vgprBuffer_new_offset, iui_new_offset)
+    if kernel["DirectToVgpr%c"%tc]:
+      # overwrite aStr/bStr for DirectToVgpr
+      ab_new += vregSetIdx * numVgprPerBlock + ( vgprBuffer_new * innerUnroll) * numVgprValuPerBlock
+      abStr  = "G2L%c+%u+%u" % (tc, ab_new, vgprBuffer_new_offset)
+    elif self.vgprValuDouble and vregSetIdx > 0:
+      # self.vgprValuDouble case, need to toggle double buffer if DirectToVgpr for the other side is enabled
+      tcOther = "B" if tP["isA"] else "A"
+      if kernel["DirectToVgpr%c"%tcOther]:
+        numVgprPerBlockOther = self.numVgprG2LB if tP["isA"] else self.numVgprG2LA # pick the other side
+        numVgprPerBlockOther //= 2
+        abStr += "+%u"%(vregSetIdx * numVgprPerBlockOther)
+
+    if bk != None:
+      abStr += "+%u"%(bk)
+    return abStr
+
+  ##############################################################################
   # MFMA Iteration
   ##############################################################################
   def mfmaIter(self, kernel, u, innerUnroll, vregSetIdx, lastKinloop=False, tail=False, firstIter=False):
@@ -6356,8 +6394,6 @@ class KernelWriterAssembly(KernelWriter):
     s_nop            = 0
     accStoreCIdx     = self.startaccValuC1 if kernel["StoreCInUnroll"] and lastKinloop else 0
 
-    numVgprValuAPerBlock = kernel["MIWaveTileA"] * kernel["MIInputPerThread"] * self.tPA["bpe"] // self.bpr
-    numVgprValuBPerBlock = kernel["MIWaveTileB"] * kernel["MIInputPerThread"] * self.tPB["bpe"] // self.bpr
 
     if tail and self.prefetchAcrossPersistent0:
       loopCounterName = "TailLoopCounter"
@@ -6375,18 +6411,6 @@ class KernelWriterAssembly(KernelWriter):
     #   read 2 iter: _ds_load_b128 valuA_X0_I0 (we read valuA_X0_I0 and valuA_X1_I0)
     # instead of using valuA_X1_I0, we use valuA_X0_I0+2 as mfma input
 
-    # calculate vgprBufferA_new ( and B) and offset for DirectToVgpr. Use u instead of m (number of local prefetch buffer does not matter)
-    numIterPerCoalescedReadA = self.numIterPerCoalescedReadA
-    numIterPerCoalescedReadB = self.numIterPerCoalescedReadB
-    m_or_u = u if kernel["DirectToVgprA"] else m
-    vgprBufferA_new = (m_or_u//numIterPerCoalescedReadA)*numIterPerCoalescedReadA
-    vgprBufferA_new_offset = m_or_u%numIterPerCoalescedReadA*innerUnroll*vgprPerInput
-    m_or_u = u if kernel["DirectToVgprB"] else m
-    vgprBufferB_new = (m_or_u//numIterPerCoalescedReadB)*numIterPerCoalescedReadB
-    vgprBufferB_new_offset = m_or_u%numIterPerCoalescedReadB*innerUnroll*vgprPerInput
-
-    numVgprPerBlockA = self.numVgprG2LA // 2
-    numVgprPerBlockB = self.numVgprG2LB // 2
     numReadsIterCoalescedA = self.numReadsIterCoalescedA
     numReadsIterCoalescedB = self.numReadsIterCoalescedB
 
@@ -6421,25 +6445,13 @@ class KernelWriterAssembly(KernelWriter):
         for bk in range(0, vgprPerInput):
           for a in range(0, kernel["MIWaveTileA"]):
             for iui in range(0, innerUnroll):
-              iuiA_new = (iui//numReadsIterCoalescedA)*numReadsIterCoalescedA
-              iuiA_new_offset = iui%numReadsIterCoalescedA*vgprPerInput
-              a_new = a*vgprPerInput*numReadsIterCoalescedA
-              aStr = vgpr("ValuA_X%u_I%u+%u+%u+%u+%u" % (vgprBufferA_new, iuiA_new, a_new, vgprBufferA_new_offset, iuiA_new_offset, bk), 1)
-              if kernel["DirectToVgprA"]:
-                # overwrite aStr for DirectToVgprA
-                a_new += vregSetIdx * numVgprPerBlockA + ( vgprBufferA_new * innerUnroll) * numVgprValuAPerBlock
-                aStr  = vgpr("G2LA+%u+%u+%u" % (a_new, vgprBufferA_new_offset, bk), 1)
+              aStr_base = self.generateSrcStrForMFMA(kernel, self.tPA, innerUnroll, vregSetIdx, vgprPerInput, u, iui, a, bk)
+              aStr = vgpr(aStr_base, 1)
               shiftK.addCode(inst("v_cndmask_b32", aStr, aStr, hex(0), sgpr(tmpSgpr, 2), "set 0 if K_idx >= sizeL"))
           for b in range(0, kernel["MIWaveTileB"]):
             for iui in range(0, innerUnroll):
-              iuiB_new = (iui//numReadsIterCoalescedB)*numReadsIterCoalescedB
-              iuiB_new_offset = iui%numReadsIterCoalescedB*vgprPerInput
-              b_new = b*vgprPerInput*numReadsIterCoalescedB
-              bStr = vgpr("ValuB_X%u_I%u+%u+%u+%u+%u" % (vgprBufferB_new, iuiB_new, b_new, vgprBufferB_new_offset, iuiB_new_offset, bk), 1)
-              if kernel["DirectToVgprB"]:
-                # overwrite bStr for DirectToVgprB
-                b_new += vregSetIdx * numVgprPerBlockB + (vgprBufferB_new * innerUnroll) * numVgprValuBPerBlock
-                bStr  = vgpr("G2LB+%u+%u+%u" % (b_new, vgprBufferB_new_offset, bk), 1)
+              bStr_base = self.generateSrcStrForMFMA(kernel, self.tPB, innerUnroll, vregSetIdx, vgprPerInput, u, iui, b, bk)
+              bStr = vgpr(bStr_base, 1)
               shiftK.addCode(inst("v_cndmask_b32", bStr, bStr, hex(0), sgpr(tmpSgpr, 2), "set 0 if K_idx >= sizeL"))
 
         # replace 0 for same thread
@@ -6452,14 +6464,7 @@ class KernelWriterAssembly(KernelWriter):
           shiftK.addCode(inst("s_lshl_b32",   sgpr(tmpSgpr+2), sgpr(tmpSgpr+2), log2(shiftPerElement), "use shift to fill 0 for outside element"))
           for a in range(0, kernel["MIWaveTileA"]):
             for iui in range(0, innerUnroll):
-              iuiA_new = (iui//numReadsIterCoalescedA)*numReadsIterCoalescedA
-              iuiA_new_offset = iui%numReadsIterCoalescedA*vgprPerInput
-              a_new = a*vgprPerInput*numReadsIterCoalescedA
-              aStr_base = "ValuA_X%u_I%u+%u+%u+%u" % (vgprBufferA_new, iuiA_new, a_new, vgprBufferA_new_offset, iuiA_new_offset)
-              if kernel["DirectToVgprA"]:
-                # overwrite aStr for DirectToVgprA
-                a_new += vregSetIdx * numVgprPerBlockA + (iuiA_new + vgprBufferA_new * innerUnroll) * numVgprValuAPerBlock
-                aStr_base  = "G2LA+%u+%u+%u" % (a_new, vgprBufferA_new_offset, iuiA_new_offset)
+              aStr_base = self.generateSrcStrForMFMA(kernel, self.tPA, innerUnroll, vregSetIdx, vgprPerInput, u, iui, a)
               aStr = vgpr(aStr_base, vgprPerInput)
               shiftK.addCode(inst("v_lshlrev_b%u" % (vgprPerInput*32), vgpr(abReg, vgprPerInput), sgpr(tmpSgpr+2), aStr, ""))
               for bk in range(0, vgprPerInput):
@@ -6468,14 +6473,7 @@ class KernelWriterAssembly(KernelWriter):
                 shiftK.addCode(inst("v_cndmask_b32", aStr, aStr, vgpr(abReg+bk), sgpr(tmpSgpr, 2), ""))
           for b in range(0, kernel["MIWaveTileB"]):
             for iui in range(0, innerUnroll):
-              iuiB_new = (iui//numReadsIterCoalescedB)*numReadsIterCoalescedB
-              iuiB_new_offset = iui%numReadsIterCoalescedB*vgprPerInput
-              b_new = b*vgprPerInput*numReadsIterCoalescedB
-              bStr_base = "ValuB_X%u_I%u+%u+%u+%u" % (vgprBufferB_new, iuiB_new, b_new, vgprBufferB_new_offset, iuiB_new_offset)
-              if kernel["DirectToVgprB"]:
-                # overwrite bStr for DirectToVgprB
-                b_new += vregSetIdx * numVgprPerBlockB + (iuiB_new + vgprBufferB_new * innerUnroll) * numVgprValuBPerBlock
-                bStr_base  = "G2LB+%u+%u+%u" % (b_new, vgprBufferB_new_offset, iuiB_new_offset)
+              bStr_base = self.generateSrcStrForMFMA(kernel, self.tPB, innerUnroll, vregSetIdx, vgprPerInput, u, iui, b)
               bStr = vgpr(bStr_base, vgprPerInput)
               shiftK.addCode(inst("v_lshlrev_b%u" % (vgprPerInput*32), vgpr(abReg, vgprPerInput), sgpr(tmpSgpr+2), bStr, ""))
               for bk in range(0, vgprPerInput):
@@ -6521,7 +6519,6 @@ class KernelWriterAssembly(KernelWriter):
                 bStr = vgpr("ValuB_X%u_I%u+%u+%u+%u" % (m, iui, b*vgprPerInput, it*2, bk))
                 shiftK.addCode(inst("v_cndmask_b32", bStr, bStr, 0, sgpr(sgprMask), "shift if in this 64b group"))
 
-
       s_nop = 2
 
     if s_nop != 0:
@@ -6530,10 +6527,6 @@ class KernelWriterAssembly(KernelWriter):
       imod.addCode("")
 
     for iui in range(0, innerUnroll):
-      iuiA_new = (iui//self.numReadsIterCoalescedA)*self.numReadsIterCoalescedA
-      iuiA_new_offset = iui%self.numReadsIterCoalescedA*vgprPerInput
-      iuiB_new = (iui//self.numReadsIterCoalescedB)*self.numReadsIterCoalescedB
-      iuiB_new_offset = iui%self.numReadsIterCoalescedB*vgprPerInput
       zgemmVaddSrcCheck = [[], [], []] # to avoid generating redundant v_add
       outer = 1
       loopSwap = False
@@ -6554,28 +6547,10 @@ class KernelWriterAssembly(KernelWriter):
           accEnd   = accStart + accs_per_wave - 1
           idxA     = idx0 if self.tPB["tile01Idx"] else idx1
           idxB     = idx1 if self.tPB["tile01Idx"] else idx0
-          a_new    = idxA*vgprPerInput*self.numReadsIterCoalescedA
-          b_new    = idxB*vgprPerInput*self.numReadsIterCoalescedB
-          aStr     = "ValuA_X%u_I%u+%u+%u+%u" % (vgprBufferA_new, iuiA_new, a_new, vgprBufferA_new_offset, iuiA_new_offset)
-          bStr     = "ValuB_X%u_I%u+%u+%u+%u" % (vgprBufferB_new, iuiB_new, b_new, vgprBufferB_new_offset, iuiB_new_offset)
-          if kernel["DirectToVgprA"]:
-              # overwrite aStr for DirectToVgprA
-              a_new += vregSetIdx * numVgprPerBlockA + (iuiA_new + vgprBufferA_new * innerUnroll) * numVgprValuAPerBlock
-              aStr  = "G2LA+%u+%u+%u" % (a_new, vgprBufferA_new_offset, iuiA_new_offset)
-              # self.vgprValuDouble case, need to change valuB to toggle double buffer
-              if self.vgprValuDouble and vregSetIdx > 0:
-                numOneSet = self.numVgprValuB//2
-                bStr += "+%u"%(vregSetIdx * numOneSet)
-          if kernel["DirectToVgprB"]:
-              # overwrite bStr for DirectToVgprB
-              b_new += vregSetIdx * numVgprPerBlockB + (iuiB_new + vgprBufferB_new * innerUnroll) * numVgprValuBPerBlock
-              bStr  = "G2LB+%u+%u+%u" % (b_new, vgprBufferB_new_offset, iuiB_new_offset)
-              # self.vgprValuDouble case, need to change valuA to toggle double buffer
-              if self.vgprValuDouble and vregSetIdx > 0:
-                numOneSet = self.numVgprValuA//2
-                aStr += "+%u"%(vregSetIdx * numOneSet)
-          aStr     = vgpr(aStr, vgprPerInput)
-          bStr     = vgpr(bStr, vgprPerInput)
+          aStr_base = self.generateSrcStrForMFMA(kernel, self.tPA, innerUnroll, vregSetIdx, vgprPerInput, u, iui, idxA)
+          bStr_base = self.generateSrcStrForMFMA(kernel, self.tPB, innerUnroll, vregSetIdx, vgprPerInput, u, iui, idxB)
+          aStr     = vgpr(aStr_base, vgprPerInput)
+          bStr     = vgpr(bStr_base, vgprPerInput)
           Str0     = aStr if self.tPB["tile01Idx"] else bStr
           Str1     = bStr if self.tPB["tile01Idx"] else aStr
 
@@ -6592,18 +6567,14 @@ class KernelWriterAssembly(KernelWriter):
             accEndSrcImg = accStartSrcImg + accs_per_wave - 1
 
             # vgpr A,B setting. In complex case, numRegistersIn does not match. Use numRegistersOut instead
-            ar = vgpr("ValuA_X%u_I%u+%u+%u+%u"   % (vgprBufferA_new, iuiA_new, a_new, vgprBufferA_new_offset, iuiA_new_offset), numRegistersOut)
-            ai = vgpr("ValuA_X%u_I%u+%u+%u+%u+%u" % (vgprBufferA_new, iuiA_new, a_new, vgprBufferA_new_offset, iuiA_new_offset, numRegistersOut), numRegistersOut)
-            br = vgpr("ValuB_X%u_I%u+%u+%u+%u"   % (vgprBufferB_new, iuiB_new, b_new, vgprBufferB_new_offset, iuiB_new_offset), numRegistersOut)
-            bi = vgpr("ValuB_X%u_I%u+%u+%u+%u+%u" % (vgprBufferB_new, iuiB_new, b_new, vgprBufferB_new_offset, iuiB_new_offset, numRegistersOut), numRegistersOut)
-            if kernel["DirectToVgprA"]:
-              ## overwrite aStr for DirectToVgprA
-              ar  = vgpr("G2LA+%u+%u+%u" % (a_new, vgprBufferA_new_offset, iuiA_new_offset), numRegistersOut)
-              ai  = vgpr("G2LA+%u+%u+%u+%u" % (a_new, vgprBufferA_new_offset, iuiA_new_offset, numRegistersOut), numRegistersOut)
-            if kernel["DirectToVgprB"]:
-              # overwrite bStr for DirectToVgprB
-              br  = vgpr("G2LB+%u+%u+%u" % (b_new, vgprBufferB_new_offset, iuiB_new_offset), numRegistersOut)
-              bi  = vgpr("G2LB+%u+%u+%u+%u" % (b_new, vgprBufferB_new_offset, iuiB_new_offset, numRegistersOut), numRegistersOut)
+            ar_base = aStr_base
+            ai_base = ar_base + "+%u"%numRegistersOut
+            ar = vgpr(ar_base, numRegistersOut)
+            ai = vgpr(ai_base, numRegistersOut)
+            br_base = bStr_base
+            bi_base = br_base + "+%u"%numRegistersOut
+            br = vgpr(br_base, numRegistersOut)
+            bi = vgpr(bi_base, numRegistersOut)
             v_mfma = "v_%s_%s_%ux%ux%u%s%s "%(instructionName, miOutTypeName, kernel["MatrixInstM"], kernel["MatrixInstN"], kernel["MatrixInstK"], instructionStep, miInTypeName)
             v_add = "v_add_" + miOutTypeName
             # negate code for Ai
