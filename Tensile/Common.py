@@ -250,7 +250,6 @@ globalParameters["PerfModelReadEfficiency"] = 0.85
 
 # limitation for training
 globalParameters["MaxWorkspaceSize"] = 32 * 1024 * 1024 # max workspace for training (32M)
-globalParameters["MinKForGSU"] = 256 # min K size to use GlobalSplitU algorithm (only for HPA now)
 
 # control if a solution is run for a given problem
 globalParameters["GranularityThreshold"] = 0.0
@@ -1292,6 +1291,8 @@ validParameters = {
     "MinVgprNumber":                list(range(0,256)),
 
     "MaxVgprNumber":                list(range(0,257)),
+    # min K size to use GlobalSplitU algorithm 
+    "MinKForGSU":                   [16,32,64,128,256]
     }
 
 
@@ -1434,7 +1435,8 @@ defaultBenchmarkCommonParameters = [
     {"StoreCInUnrollPostLoop":    [ False ] },
     {"Fp16AltImpl":               [ False ] },
     {"ThreadSeparateGlobalReadA": [ 0 ] },
-    {"ThreadSeparateGlobalReadB": [ 0 ] }
+    {"ThreadSeparateGlobalReadB": [ 0 ] },
+    {"MinKForGSU":                [256]}
     ]
 
 # dictionary of defaults comprised of default option for each parameter
