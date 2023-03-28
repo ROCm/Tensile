@@ -1578,10 +1578,10 @@ class KernelWriterAssembly(KernelWriter):
       self.numSgprStridesB -= 1
     self.numSgprSizesSum = kernel["ProblemType"]["NumIndicesSummation"]
     self.numSgprSizesFree = kernel["ProblemType"]["NumIndicesC"]
-    self.numSgprOffsetD = 1
-    self.numSgprOffsetC = 1
-    self.numSgprOffsetA = 1
-    self.numSgprOffsetB = 1
+    self.numSgprOffsetD = 2
+    self.numSgprOffsetC = 2
+    self.numSgprOffsetA = 2
+    self.numSgprOffsetB = 2
     self.numSgprAddressDbg = self.rpga if globalParameters["DebugKernel"] else 0
 
     ####################################
@@ -1703,6 +1703,14 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("AddressC", numSgprAddressC)
     self.defineSgpr("AddressA", numSgprAddressA)
     self.defineSgpr("AddressB", numSgprAddressB)
+
+    self.argOffsetOffset = self.argAddressOffset + (numSgprAddressD + numSgprAddressC + numSgprAddressA + numSgprAddressB) * 4
+
+    self.defineSgpr("OffsetD", self.numSgprOffsetD)
+    self.defineSgpr("OffsetC", self.numSgprOffsetC)
+    self.defineSgpr("OffsetA", self.numSgprOffsetA)
+    self.defineSgpr("OffsetB", self.numSgprOffsetB)
+
     self.defineSgpr("Alpha", numSgprAlpha, numSgprAlpha)
     if kernel["ProblemType"]["UseBeta"]:
       self.defineSgpr("Beta", numSgprBeta, numSgprBeta)
@@ -1767,11 +1775,6 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("WgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
     self.defineSgpr("MagicNumberWgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
 
-    self.defineSgpr("OffsetD", self.numSgprOffsetD)
-    self.defineSgpr("OffsetC", self.numSgprOffsetC)
-    self.defineSgpr("OffsetA", self.numSgprOffsetA)
-    self.defineSgpr("OffsetB", self.numSgprOffsetB)
-
     # dedicated sgpr(S) for storeC VGPR indexing
     # sgpr semaphore for message synchronization between different part of code section
     if kernel["StoreCInUnroll"]:
@@ -1812,8 +1815,6 @@ class KernelWriterAssembly(KernelWriter):
       pkArgumentToLoad + \
       3 + \
       self.numSgprOffsetD + self.numSgprOffsetC + self.numSgprOffsetA + self.numSgprOffsetB
-
-    self.argOffsetOffset = (self.numSgprToLoad + 2 - (self.numSgprOffsetD + self.numSgprOffsetC + self.numSgprOffsetA + self.numSgprOffsetB)) * 4
 
     # Get kernel argument end here
     ###################################
@@ -3098,21 +3099,21 @@ class KernelWriterAssembly(KernelWriter):
 
     # add offset to buffer
     if not kernel["_GlobalAccumulation"]:
-      kStr += inst("s_lshl_b32", sgpr("OffsetD"), sgpr("OffsetD"), hex(log2(self.bpeCexternal)), "elements offset to bytes offset")
+      kStr += inst("s_lshl_b64", sgpr("OffsetD", 2), sgpr("OffsetD", 2), hex(log2(self.bpeCexternal)), "elements offset to bytes offset")
       kStr += inst("s_add_u32",  sgpr("AddressD+0"), sgpr("AddressD+0"), sgpr("OffsetD"), "add offset to buffer address")
-      kStr += inst("s_addc_u32", sgpr("AddressD+1"), sgpr("AddressD+1"), 0, "add offset to buffer address")
+      kStr += inst("s_addc_u32", sgpr("AddressD+1"), sgpr("AddressD+1"), sgpr("OffsetD+1"), "add offset to buffer address")
 
-      kStr += inst("s_lshl_b32", sgpr("OffsetC"), sgpr("OffsetC"), hex(log2(self.bpeCexternal)), "elements offset to bytes offset")
+      kStr += inst("s_lshl_b64", sgpr("OffsetC", 2), sgpr("OffsetC", 2), hex(log2(self.bpeCexternal)), "elements offset to bytes offset")
       kStr += inst("s_add_u32",  sgpr("AddressC+0"), sgpr("AddressC+0"), sgpr("OffsetC"), "add offset to buffer address")
-      kStr += inst("s_addc_u32", sgpr("AddressC+1"), sgpr("AddressC+1"), 0, "add offset to buffer address")
+      kStr += inst("s_addc_u32", sgpr("AddressC+1"), sgpr("AddressC+1"), sgpr("OffsetC+1"), "add offset to buffer address")
 
-    kStr += inst("s_lshl_b32", sgpr("OffsetA"), sgpr("OffsetA"), hex(log2(self.bpeAB)), "elements offset to bytes offset")
+    kStr += inst("s_lshl_b64", sgpr("OffsetA", 2), sgpr("OffsetA", 2), hex(log2(self.bpeAB)), "elements offset to bytes offset")
     kStr += inst("s_add_u32",  sgpr("AddressA+0"), sgpr("AddressA+0"), sgpr("OffsetA"), "add offset to buffer address")
-    kStr += inst("s_addc_u32", sgpr("AddressA+1"), sgpr("AddressA+1"), 0, "add offset to buffer address")
+    kStr += inst("s_addc_u32", sgpr("AddressA+1"), sgpr("AddressA+1"), sgpr("OffsetA+1"), "add offset to buffer address")
 
-    kStr += inst("s_lshl_b32", sgpr("OffsetB"), sgpr("OffsetB"), hex(log2(self.bpeAB)), "elements offset to bytes offset")
+    kStr += inst("s_lshl_b64", sgpr("OffsetB", 2), sgpr("OffsetB", 2), hex(log2(self.bpeAB)), "elements offset to bytes offset")
     kStr += inst("s_add_u32",  sgpr("AddressB+0"), sgpr("AddressB+0"), sgpr("OffsetB"), "add offset to buffer address")
-    kStr += inst("s_addc_u32", sgpr("AddressB+1"), sgpr("AddressB+1"), 0, "add offset to buffer address")
+    kStr += inst("s_addc_u32", sgpr("AddressB+1"), sgpr("AddressB+1"), sgpr("OffsetB+1"), "add offset to buffer address")
 
     # self.groOffsetInMacroTile == 1 case, subtract pre-pad here
     if self.groOffsetInMacroTile:
@@ -3356,7 +3357,8 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     if kernel["PersistentKernel"]:
-      stmp = self.getTmpSgpr(4, 4).idx()
+      stmpRef = self.getTmpSgpr(8, 4)
+      stmp = stmpRef.idx()
       # Always reset pointers to handle odd-exit case which moves LRO to the upper bank
       if not self.prefetchAcrossPersistent and kernel["PrefetchGlobalRead"]:
         kStr += self.localReadResetOffsets(kernel, self.tPA)
@@ -3385,25 +3387,25 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("_s_load_b256", sgpr("AddressD", 8), sgpr("KernArgAddress",2), hex(self.argAddressOffset), "reload DCAB address")
             kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for reload DCAB address")
             kStr += self.loadBatchedAddress(kernel, "WGKSerial", stmp)
-            kStr += inst("_s_load_b128", sgpr(stmp, 4), sgpr("KernArgAddress",2), hex(self.argOffsetOffset),  "reload DCAB Offset")
+            kStr += inst("_s_load_b256", sgpr(stmp, 8), sgpr("KernArgAddress",2), hex(self.argOffsetOffset),  "reload DCAB Offset")
             kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait global buffer adress ready")
 
             if not kernel["_GlobalAccumulation"]:
-              kStr += inst("s_lshl_b32", sgpr(stmp+0), sgpr(stmp+0), hex(log2(self.bpeCexternal)), "elements offset to bytes offset")
-              kStr += inst("s_add_u32",  sgpr("AddressD+0"), sgpr("AddressD+0"), sgpr(stmp+0), "add offset to buffer address")
-              kStr += inst("s_addc_u32", sgpr("AddressD+1"), sgpr("AddressD+1"), 0, "add offset to buffer address")
+              kStr += inst("s_lshl_b64", sgpr(stmp+0, 2), sgpr(stmp+0, 2), hex(log2(self.bpeCexternal)), "elements offset to bytes offset")
+              kStr += inst("s_add_u32",  sgpr("AddressD+0"), sgpr("AddressD+0"), sgpr(stmp + 0), "add offset to buffer address")
+              kStr += inst("s_addc_u32", sgpr("AddressD+1"), sgpr("AddressD+1"), sgpr(stmp + 1), "add offset to buffer address")
 
-              kStr += inst("s_lshl_b32", sgpr(stmp+1), sgpr(stmp+1), hex(log2(self.bpeCexternal)), "elements offset to bytes offset")
-              kStr += inst("s_add_u32",  sgpr("AddressC+0"), sgpr("AddressC+0"), sgpr(stmp+1), "add offset to buffer address")
-              kStr += inst("s_addc_u32", sgpr("AddressC+1"), sgpr("AddressC+1"), 0, "add offset to buffer address")
+              kStr += inst("s_lshl_b64", sgpr(stmp+2, 2), sgpr(stmp+2, 2), hex(log2(self.bpeCexternal)), "elements offset to bytes offset")
+              kStr += inst("s_add_u32",  sgpr("AddressC+0"), sgpr("AddressC+0"), sgpr(stmp + 2), "add offset to buffer address")
+              kStr += inst("s_addc_u32", sgpr("AddressC+1"), sgpr("AddressC+1"), sgpr(stmp + 3), "add offset to buffer address")
 
-            kStr += inst("s_lshl_b32", sgpr(stmp+2), sgpr(stmp+2), hex(log2(self.bpeAB)), "elements offset to bytes offset")
-            kStr += inst("s_add_u32",  sgpr("AddressA+0"), sgpr("AddressA+0"), sgpr(stmp+2), "add offset to buffer address")
-            kStr += inst("s_addc_u32", sgpr("AddressA+1"), sgpr("AddressA+1"), 0, "add offset to buffer address")
+            kStr += inst("s_lshl_b64", sgpr(stmp+4, 2), sgpr(stmp+4, 2), hex(log2(self.bpeAB)), "elements offset to bytes offset")
+            kStr += inst("s_add_u32",  sgpr("AddressA+0"), sgpr("AddressA+0"), sgpr(stmp + 4), "add offset to buffer address")
+            kStr += inst("s_addc_u32", sgpr("AddressA+1"), sgpr("AddressA+1"), sgpr(stmp + 5), "add offset to buffer address")
 
-            kStr += inst("s_lshl_b32", sgpr(stmp+3), sgpr(stmp+3), hex(log2(self.bpeAB)), "elements offset to bytes offset")
-            kStr += inst("s_add_u32",  sgpr("AddressB+0"), sgpr("AddressB+0"), sgpr(stmp+3), "add offset to buffer address")
-            kStr += inst("s_addc_u32", sgpr("AddressB+1"), sgpr("AddressB+1"), 0, "add offset to buffer address")
+            kStr += inst("s_lshl_b64", sgpr(stmp+6, 2), sgpr(stmp+6, 2), hex(log2(self.bpeAB)), "elements offset to bytes offset")
+            kStr += inst("s_add_u32",  sgpr("AddressB+0"), sgpr("AddressB+0"), sgpr(stmp + 6), "add offset to buffer address")
+            kStr += inst("s_addc_u32", sgpr("AddressB+1"), sgpr("AddressB+1"), sgpr(stmp + 7), "add offset to buffer address")
 
             if self.groOffsetInMacroTile:
               prePad = self.srdShiftLeft["A"] * self.tPA["bpe"] # leave room in case we have to pointer shift
@@ -4331,9 +4333,12 @@ class KernelWriterAssembly(KernelWriter):
   def computeLoadSrd(self, kernel, tP, tc, indices, bpe, isPap):
     kStr = ""
 
-    stmp = self.getTmpSgpr(2+2+1).idx()
-    tileStart = stmp+2
-    prePadSgpr = stmp+4
+    stmpRef = self.getTmpSgpr(2)
+    stmp = stmpRef.idx()
+    tileStartRef = self.getTmpSgpr(2)
+    tileStart = tileStartRef.idx()
+    prePadSgprRef = self.getTmpSgpr(1)
+    prePadSgpr = prePadSgprRef.idx()
     wroteTileStart = False
     #---
     # Compute tileStart #elements from the 2D array start
@@ -5449,14 +5454,14 @@ class KernelWriterAssembly(KernelWriter):
       imod.addComment1("SRDs += (StaggerUIter) * GlobalReadIncs%s+%u"% (tc, self.unrollIdx))
 
       # Calculate the stagger byte offset
-      imod.addCode(self.s_mul_i64_i32(
+      imod.addCode(self.s_mul_u64_u32(
                 sgpr(staggerTmp), sgpr(staggerTmp+1), \
                 sgpr("StaggerUIter"), sgpr("GlobalReadIncs%s+%u"%(tc, self.unrollIdx)), \
                 " stagger byte offset"))
 
       # Amount of bytes to add to get back to start.
       # on the llop iteration which matches StaggerUIter, this offset added instead of GlobalReadInc
-      imod.addCode(self.s_mul_i64_i32(sgpr("WrapU%s+0"%tc), sgpr("WrapU%s+1"%tc), \
+      imod.addCode(self.s_mul_u64_u32(sgpr("WrapU%s+0"%tc), sgpr("WrapU%s+1"%tc), \
                 self.loopCounter(kernel, self.unrollIdx), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
                 "Number of bytes accessed by the unroll loop"))
 
@@ -5508,17 +5513,30 @@ class KernelWriterAssembly(KernelWriter):
     imod = Code.Module("removeStagger")
     if self.staggerU:
       tc = tP["tensorChar"]
-      tmp = self.getTmpSgpr(2).idx()
-      # might be able to refactor this to eliminate signed math
-      imod.addInst("s_sub_i32", sgpr(tmp), 3 if kernel["PrefetchGlobalRead"] else 2, \
-                  sgpr("StaggerUIter"), "")
-      imod.addCode(self.s_mul_i64_i32(sgpr(tmp), sgpr(tmp+1), \
-                  sgpr(tmp), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
-                  "start offset S in bytes"))
-      imod.addInst("s_sub_u32", sgpr(tmp), sgpr(tmp), sgpr("WrapU%s"%tc), "S - WrapU")
-      imod.addInst("s_subb_u32", sgpr(tmp+1), sgpr(tmp+1), sgpr("WrapU%s+1"%(tc)), "S - WrapU")
+      tmp = self.getTmpSgpr(4).idx()
+      tmpForInc = tmp
+      tmpForExtra = tmp + 2
+      # need to use extra 64bit mul to avoid negative value by subtraction
+      #  ((3 or 2) - StaggerUIter) * GlobalReadIncs
+      #   -> (3 or 2) * GlobalReadIncs - StaggerUIter * GlobalReadIncs
+      extra = 3 if kernel["PrefetchGlobalRead"] else 2
+      # tmpForInc = extra * GlobalReadIncs
+      imod.addInst("s_mov_b32", sgpr(tmpForExtra), extra, "")
+      imod.addCode(self.s_mul_u64_u32(sgpr(tmpForInc), sgpr(tmpForInc+1), \
+                  sgpr(tmpForExtra), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
+                  "%u * GlobalReadIncs"%extra))
+      # tmpForExtra = StaggerUIter * GlobalReadIncs
+      imod.addCode(self.s_mul_u64_u32(sgpr(tmpForExtra), sgpr(tmpForExtra+1), \
+                  sgpr("StaggerUIter"), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
+                  "StaggerUIter * GlobalReadIncs"))
+      # tmpForInc = tmpForInc - tmpForExtra = (extra - StaggerUIter) * GlobalReadIncs
+      imod.addInst("s_sub_u32", sgpr(tmpForInc), sgpr(tmpForInc), sgpr(tmpForExtra), "start offset S in bytes")
+      imod.addInst("s_subb_u32", sgpr(tmpForInc+1), sgpr(tmpForInc+1), sgpr(tmpForExtra+1), "start offset S in bytes")
+      # -= WrapU
+      imod.addInst("s_sub_u32", sgpr(tmpForInc), sgpr(tmpForInc), sgpr("WrapU%s"%tc), "S - WrapU")
+      imod.addInst("s_subb_u32", sgpr(tmpForInc+1), sgpr(tmpForInc+1), sgpr("WrapU%s+1"%(tc)), "S - WrapU")
 
-      imod.addCode(self.incrementSrd(kernel, tP, sgpr(tmp), sgpr(tmp+1)))
+      imod.addCode(self.incrementSrd(kernel, tP, sgpr(tmpForInc), sgpr(tmpForInc+1)))
 
     return imod
 
@@ -6767,7 +6785,7 @@ class KernelWriterAssembly(KernelWriter):
         return ""
 
       skipOptNLL = self.getNamedLabel("OptNLL_End")
-      tmpSgpr = self.getTmpSgpr(2).idx()
+      tmpSgpr = self.getTmpSgpr(4).idx()
 
       # skip beta check for StoreCInUnroll in OptNLL case
       if not kernel["StoreCInUnroll"]:
@@ -9251,18 +9269,23 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["_GlobalAccumulation"] == 'MultipleBuffer':
       # GSU algorithm 2: adjust output buffer address to per GSU buffer
-      tmpSgpr = self.getTmpSgpr(5).idx()
+      tmpFree0Ref = self.getTmpSgpr(2)
+      tmpFree0 = tmpFree0Ref.idx()
+      tmpFreeNRef = self.getTmpSgpr(2)
+      tmpFreeN = tmpFreeNRef.idx()
+      tmpSgprRef = self.getTmpSgpr(1)
+      tmpSgpr = tmpSgprRef.idx()
       kStr += "// GSU Output Buffer offset: Free0 + (Free1-1)*StrideC1J + (Free2-1)*StrideCK * GSUIdx * bpe%s" % self.endLine
-      kStr += self.s_mul_u64_u32(sgpr(tmpSgpr+0), sgpr(tmpSgpr+1), sgpr("SizesFree+0"), sgpr("GSUSumIdx"), "Free0")
+      kStr += self.s_mul_u64_u32(sgpr(tmpFree0+0), sgpr(tmpFree0+1), sgpr("SizesFree+0"), sgpr("GSUSumIdx"), "Free0")
       for i in range(1, numDim):
-        kStr += inst("s_sub_u32",  sgpr(tmpSgpr+4), sgpr("SizesFree+%u"%i), 1, "Free%u" % i)
-        kStr += inst("s_mul_i32",  sgpr(tmpSgpr+4), sgpr(tmpSgpr+4), sgpr("GSUSumIdx"), "Free%u" % i)
-        kStr += self.s_mul_u64_u32(sgpr(tmpSgpr+2), sgpr(tmpSgpr+3), sgpr(tmpSgpr+4), sgpr("StrideC%s"%self.indexChars[i]), "Free%u" % i)
-        kStr += inst("s_add_u32",  sgpr(tmpSgpr+0), sgpr(tmpSgpr+0), sgpr(tmpSgpr+2), "Free%u" % i)
-        kStr += inst("s_addc_u32", sgpr(tmpSgpr+1), sgpr(tmpSgpr+1), sgpr(tmpSgpr+3), "Free%u" % i)
-      kStr += inst("s_lshl_b64", sgpr(tmpSgpr+0,2), sgpr(tmpSgpr+0,2), log2(self.bpeCexternal), "scale by bpe")
-      kStr += inst("s_add_u32",  sgpr("SrdD+0"), sgpr("SrdD+0"), sgpr(tmpSgpr+0), "add lo GSU offset to SRD")
-      kStr += inst("s_addc_u32", sgpr("SrdD+1"), sgpr("SrdD+1"), sgpr(tmpSgpr+1), "add hi GSU offset to SRD")
+        kStr += inst("s_sub_u32",  sgpr(tmpSgpr), sgpr("SizesFree+%u"%i), 1, "Free%u" % i)
+        kStr += inst("s_mul_i32",  sgpr(tmpSgpr), sgpr(tmpSgpr), sgpr("GSUSumIdx"), "Free%u" % i)
+        kStr += self.s_mul_u64_u32(sgpr(tmpFreeN+0), sgpr(tmpFreeN+1), sgpr(tmpSgpr), sgpr("StrideC%s"%self.indexChars[i]), "Free%u" % i)
+        kStr += inst("s_add_u32",  sgpr(tmpFree0+0), sgpr(tmpFree0+0), sgpr(tmpFreeN+0), "Free%u" % i)
+        kStr += inst("s_addc_u32", sgpr(tmpFree0+1), sgpr(tmpFree0+1), sgpr(tmpFreeN+1), "Free%u" % i)
+      kStr += inst("s_lshl_b64", sgpr(tmpFree0+0,2), sgpr(tmpFree0+0,2), log2(self.bpeCexternal), "scale by bpe")
+      kStr += inst("s_add_u32",  sgpr("SrdD+0"), sgpr("SrdD+0"), sgpr(tmpFree0+0), "add lo GSU offset to SRD")
+      kStr += inst("s_addc_u32", sgpr("SrdD+1"), sgpr("SrdD+1"), sgpr(tmpFree0+1), "add hi GSU offset to SRD")
 
     for cdir in (0,1):
       indices = kernel["PackedC%uIndicesX"%cdir]

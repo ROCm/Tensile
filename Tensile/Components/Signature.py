@@ -174,6 +174,11 @@ class SignatureDefault(Signature):
         kStr += self.addArgument(                               'A',     '8', offset, "global_buffer", srcValueType, "generic"); offset += 8
         kStr += self.addArgument(                               'B',     '8', offset, "global_buffer", srcValueType, "generic"); offset += 8
 
+        kStr += self.addArgument("OffsetD", '8', offset, "by_value", "u64"); offset += 8
+        kStr += self.addArgument("OffsetC", '8', offset, "by_value", "u64"); offset += 8
+        kStr += self.addArgument("OffsetA", '8', offset, "by_value", "u64"); offset += 8
+        kStr += self.addArgument("OffsetB", '8', offset, "by_value", "u64"); offset += 8
+
         useSize = max(4, cptByte)
         kStr += self.addArgument(                             "alpha", useSize, offset,      "by_value", cptValueType); offset += useSize
         if kernel["ProblemType"]["UseBeta"]:
@@ -237,11 +242,6 @@ class SignatureDefault(Signature):
         kStr += self.addArgument(                   "NumFullBlocks",     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += self.addArgument(                   "WgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += self.addArgument(        "MagicNumberWgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
-
-        kStr += self.addArgument("OffsetD", '4', offset, "by_value", "u32"); offset += 4
-        kStr += self.addArgument("OffsetC", '4', offset, "by_value", "u32"); offset += 4
-        kStr += self.addArgument("OffsetA", '4', offset, "by_value", "u32"); offset += 4
-        kStr += self.addArgument("OffsetB", '4', offset, "by_value", "u32"); offset += 4
 
         kStr += self.addArgument(                         "padding",     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += "    .group_segment_fixed_size:   %u%s" % ( group_segment_size, writer.endLine ) #XXXXXX
