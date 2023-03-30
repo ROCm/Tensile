@@ -67,7 +67,7 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [512, 512, 1, 512]
-          - Exact: [511, 511, 1, 511]
+          - Exact: [511, 511, 1, 505]
 
   ########################################
   # NT - standard

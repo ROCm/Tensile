@@ -27,7 +27,6 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
-        - AtomicAddC: [False] 
       ForkParameters:
         - MatrixInstruction:
           - [16, 16, 16, 1, 1, 4,4, 2,2]
@@ -36,11 +35,11 @@ BenchmarkProblems:
           - [16, 16, 4, 4, 1, 4,4, 2,2]
           - [16, 16, 4, 4, 2, 4,4, 2,2]
           - [16, 16, 4, 4, 4, 4,4, 2,2]
-          # - [4, 4, 4, 16, 1, 4,4, 2,2] # Error
+          - [4, 4, 4, 16, 1, 4,4, 2,2]
           - [4, 4, 4, 16, 2, 4,4, 2,2]
           - [4, 4, 4, 16, 4, 4,4, 2,2]
           - [4, 4, 4, 16, 8, 4,4, 2,2]
-          # - [4, 4, 4, 16, 16, 4,4, 2,2] # Error
+          - [4, 4, 4, 16, 16, 4,4, 2,2]
         - ThreadTile:
           - [  8, 32 ]
         - WorkGroup:
@@ -58,8 +57,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [2,4]
         #- LocalReadVectorWidth: [4]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
         - WaveSeparateGlobalReadA: [0, 1]
         - WaveSeparateGlobalReadB: [0, 1]
         - NumLoadsCoalescedA: [1,2]
@@ -67,8 +66,8 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - AssertSummationElementMultiple: [8]
         - StaggerU: [0]
-        - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
-        - FractionalLoad: [0, 1, 2]
+        - NumElementsPerBatchStore: [0]
+        #- FractionalLoad: [0, 1, 2]
         - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [1]
       BenchmarkForkParameters:
@@ -76,14 +75,13 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1024, 1024, 1, 1016]
+          - Exact: [512, 512, 1, 1016]
 
     - # MFMA 32x32, VW = 2
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
-        - AtomicAddC: [False] 
       ForkParameters:
         - MatrixInstruction:
           - [32, 32, 4, 2, 1, 2,2, 2,2]
@@ -108,16 +106,16 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [2,4]
         #- LocalReadVectorWidth: [4]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
-        - WaveSeparateGlobalReadA: [0, 1]
-        - WaveSeparateGlobalReadB: [0, 1]
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
+        #- WaveSeparateGlobalReadA: [0, 1]
+        #- WaveSeparateGlobalReadB: [0, 1]
         - NumLoadsCoalescedA: [1,2]
         - NumLoadsCoalescedB: [1,2]
         - ScheduleIterAlg: [3]
         - AssertSummationElementMultiple: [8]
         - StaggerU: [0]
-        - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
+        - NumElementsPerBatchStore: [0]
         - FractionalLoad: [0, 1, 2]
         - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [1]
@@ -126,7 +124,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1024, 1024, 1, 1016]
+          - Exact: [512, 512, 1, 1016]
 
   ########################################
   # TT
@@ -147,7 +145,6 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
-        - AtomicAddC: [False] 
       ForkParameters:
         - MatrixInstruction:
           - [16, 16, 16, 1, 1, 4,4, 2,2]
@@ -156,19 +153,19 @@ BenchmarkProblems:
           - [16, 16, 4, 4, 1, 4,4, 2,2]
           - [16, 16, 4, 4, 2, 4,4, 2,2]
           - [16, 16, 4, 4, 4, 4,4, 2,2]
-          # - [4, 4, 4, 16, 1, 4,4, 2,2] # Error
+          - [4, 4, 4, 16, 1, 4,4, 2,2]
           - [4, 4, 4, 16, 2, 4,4, 2,2]
           - [4, 4, 4, 16, 4, 4,4, 2,2]
           - [4, 4, 4, 16, 8, 4,4, 2,2]
-          # - [4, 4, 4, 16, 16, 4,4, 2,2] # Error
+          - [4, 4, 4, 16, 16, 4,4, 2,2]
         - ThreadTile:
           - [  8, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
         - PrefetchGlobalRead: [1]
-        - AssertFree0ElementMultiple: [2]
-        # - AssertFree1ElementMultiple: [2]
+        # - AssertFree0ElementMultiple: [2]
+        - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [1, 2, 3]
         - GlobalSplitU: [1]
@@ -178,8 +175,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [2,4]
         #- LocalReadVectorWidth: [4]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
         - WaveSeparateGlobalReadA: [0, 1]
         - WaveSeparateGlobalReadB: [0, 1]
         - NumLoadsCoalescedA: [1,2]
@@ -187,8 +184,8 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - AssertSummationElementMultiple: [8]
         - StaggerU: [0]
-        - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
-        - FractionalLoad: [0, 1, 2]
+        - NumElementsPerBatchStore: [0]
+        #- FractionalLoad: [0, 1, 2]
         - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [1]
       BenchmarkForkParameters:
@@ -196,14 +193,13 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1024, 1024, 1, 1016]
+          - Exact: [512, 512, 1, 1016]
 
     - # MFMA 32x32, VW = 2
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
-        - AtomicAddC: [False] 
       ForkParameters:
         - MatrixInstruction:
           - [32, 32, 4, 2, 1, 2,2, 2,2]
@@ -217,8 +213,8 @@ BenchmarkProblems:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
         - PrefetchGlobalRead: [1]
-        - AssertFree0ElementMultiple: [2]
-        # - AssertFree1ElementMultiple: [2]
+        # - AssertFree0ElementMultiple: [2]
+        - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [1, 2, 3]
         - GlobalSplitU: [1]
@@ -228,16 +224,16 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [2,4]
         #- LocalReadVectorWidth: [4]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
-        - WaveSeparateGlobalReadA: [0, 1]
-        - WaveSeparateGlobalReadB: [0, 1]
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
+        #- WaveSeparateGlobalReadA: [0, 1]
+        #- WaveSeparateGlobalReadB: [0, 1]
         - NumLoadsCoalescedA: [1,2]
         - NumLoadsCoalescedB: [1,2]
         - ScheduleIterAlg: [3]
         - AssertSummationElementMultiple: [8]
         - StaggerU: [0]
-        - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
+        - NumElementsPerBatchStore: [0]
         - FractionalLoad: [0, 1, 2]
         - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [1]
@@ -246,7 +242,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1024, 1024, 1, 1016]
+          - Exact: [512, 512, 1, 1016]
 
   ########################################
   # NN
@@ -267,7 +263,6 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
-        - AtomicAddC: [False] 
       ForkParameters:
         - MatrixInstruction:
           - [16, 16, 16, 1, 1, 4,4, 2,2]
@@ -276,11 +271,11 @@ BenchmarkProblems:
           - [16, 16, 4, 4, 1, 4,4, 2,2]
           - [16, 16, 4, 4, 2, 4,4, 2,2]
           - [16, 16, 4, 4, 4, 4,4, 2,2]
-          # - [4, 4, 4, 16, 1, 4,4, 2,2] # Error
+          - [4, 4, 4, 16, 1, 4,4, 2,2]
           - [4, 4, 4, 16, 2, 4,4, 2,2]
           - [4, 4, 4, 16, 4, 4,4, 2,2]
           - [4, 4, 4, 16, 8, 4,4, 2,2]
-          # - [4, 4, 4, 16, 16, 4,4, 2,2] # Error
+          - [4, 4, 4, 16, 16, 4,4, 2,2]
         - ThreadTile:
           - [  8, 32 ]
         - WorkGroup:
@@ -298,8 +293,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [2,4]
         #- LocalReadVectorWidth: [4]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
         - WaveSeparateGlobalReadA: [0, 1]
         - WaveSeparateGlobalReadB: [0, 1]
         - NumLoadsCoalescedA: [1,2]
@@ -307,8 +302,8 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - AssertSummationElementMultiple: [8]
         - StaggerU: [0]
-        - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
-        - FractionalLoad: [0, 1, 2]
+        - NumElementsPerBatchStore: [0]
+        #- FractionalLoad: [0, 1, 2]
         - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [1]
       BenchmarkForkParameters:
@@ -316,14 +311,13 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1024, 1024, 1, 1016]
+          - Exact: [512, 512, 1, 1016]
 
     - # MFMA 32x32, VW = 2
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
-        - AtomicAddC: [False] 
       ForkParameters:
         - MatrixInstruction:
           - [32, 32, 4, 2, 1, 2,2, 2,2]
@@ -348,16 +342,16 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [2,4]
         #- LocalReadVectorWidth: [4]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
-        - WaveSeparateGlobalReadA: [0, 1]
-        - WaveSeparateGlobalReadB: [0, 1]
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
+        #- WaveSeparateGlobalReadA: [0, 1]
+        #- WaveSeparateGlobalReadB: [0, 1]
         - NumLoadsCoalescedA: [1,2]
         - NumLoadsCoalescedB: [1,2]
         - ScheduleIterAlg: [3]
         - AssertSummationElementMultiple: [8]
         - StaggerU: [0]
-        - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
+        - NumElementsPerBatchStore: [0]
         - FractionalLoad: [0, 1, 2]
         - BufferLoad: [True] # DirectToLds requires BufferLoad
         - TransposeLDS: [1]
@@ -366,7 +360,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1024, 1024, 1, 1016]
+          - Exact: [512, 512, 1, 1016]
 
   ########################################
   # NT
@@ -387,7 +381,6 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
-        - AtomicAddC: [False] 
       ForkParameters:
         - MatrixInstruction:
           - [16, 16, 16, 1, 1, 4,4, 2,2]
@@ -396,11 +389,11 @@ BenchmarkProblems:
           - [16, 16, 4, 4, 1, 4,4, 2,2]
           - [16, 16, 4, 4, 2, 4,4, 2,2]
           - [16, 16, 4, 4, 4, 4,4, 2,2]
-          # - [4, 4, 4, 16, 1, 4,4, 2,2] # Error
+          - [4, 4, 4, 16, 1, 4,4, 2,2]
           - [4, 4, 4, 16, 2, 4,4, 2,2]
           - [4, 4, 4, 16, 4, 4,4, 2,2]
           - [4, 4, 4, 16, 8, 4,4, 2,2]
-          # - [4, 4, 4, 16, 16, 4,4, 2,2] # Error
+          - [4, 4, 4, 16, 16, 4,4, 2,2]
         - ThreadTile:
           - [  8, 32 ]
         - WorkGroup:
@@ -408,7 +401,7 @@ BenchmarkProblems:
         - SourceSwap: [True]
         - PrefetchGlobalRead: [1]
         - AssertFree0ElementMultiple: [2]
-        # - AssertFree1ElementMultiple: [2]
+        - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [1, 2, 3]
         - GlobalSplitU: [1]
@@ -418,17 +411,17 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [2,4]
         #- LocalReadVectorWidth: [4]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
-        - WaveSeparateGlobalReadA: [0, 1]
-        - WaveSeparateGlobalReadB: [0, 1]
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
+        #- WaveSeparateGlobalReadA: [0, 1]
+        #- WaveSeparateGlobalReadB: [0, 1]
         - NumLoadsCoalescedA: [1,2]
         - NumLoadsCoalescedB: [1,2]
         - ScheduleIterAlg: [3]
         - AssertSummationElementMultiple: [8]
         - StaggerU: [0]
-        - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
-        - FractionalLoad: [0, 1, 2]
+        - NumElementsPerBatchStore: [0]
+        #- FractionalLoad: [0, 1, 2]
         - BufferLoad: [True] # DirectToLds requires BufferLoad
         #- TransposeLDS: [1]
       BenchmarkForkParameters:
@@ -436,14 +429,13 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1024, 1024, 1, 1016]
+          - Exact: [512, 512, 1, 1016]
 
     - # MFMA 32x32, VW = 2
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
-        - AtomicAddC: [False] 
       ForkParameters:
         - MatrixInstruction:
           - [32, 32, 4, 2, 1, 2,2, 2,2]
@@ -458,7 +450,7 @@ BenchmarkProblems:
         - SourceSwap: [True]
         - PrefetchGlobalRead: [1]
         - AssertFree0ElementMultiple: [2]
-        # - AssertFree1ElementMultiple: [2]
+        - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [1, 2, 3]
         - GlobalSplitU: [1]
@@ -468,8 +460,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [2,4]
         #- LocalReadVectorWidth: [4]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
         - WaveSeparateGlobalReadA: [0, 1]
         - WaveSeparateGlobalReadB: [0, 1]
         - NumLoadsCoalescedA: [1,2]
@@ -477,7 +469,7 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - AssertSummationElementMultiple: [8]
         - StaggerU: [0]
-        - NumElementsPerBatchStore: [0] # minimum 2 for SCIU
+        - NumElementsPerBatchStore: [0]
         - FractionalLoad: [0, 1, 2]
         - BufferLoad: [True] # DirectToLds requires BufferLoad
         #- TransposeLDS: [1]
@@ -486,4 +478,4 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1024, 1024, 1, 1016]
+          - Exact: [512, 512, 1, 1016]
