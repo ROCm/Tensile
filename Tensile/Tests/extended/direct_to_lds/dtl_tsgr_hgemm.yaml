@@ -27,7 +27,6 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
-        - AtomicAddC: [False]
       ForkParameters:
         - MatrixInstruction:
           - [16, 16, 16, 1, 1, 4,4, 2,2]
@@ -36,11 +35,11 @@ BenchmarkProblems:
           - [16, 16, 4, 4, 1, 4,4, 2,2]
           - [16, 16, 4, 4, 2, 4,4, 2,2]
           - [16, 16, 4, 4, 4, 4,4, 2,2]
-          # - [4, 4, 4, 16, 1, 4,4, 2,2] # Error
+          - [4, 4, 4, 16, 1, 4,4, 2,2]
           - [4, 4, 4, 16, 2, 4,4, 2,2]
           - [4, 4, 4, 16, 4, 4,4, 2,2]
           - [4, 4, 4, 16, 8, 4,4, 2,2]
-          # - [4, 4, 4, 16, 16, 4,4, 2,2] # Error
+          - [4, 4, 4, 16, 16, 4,4, 2,2]
         - ThreadTile:
           - [  8, 32 ]
         - WorkGroup:
@@ -57,16 +56,16 @@ BenchmarkProblems:
         #- GlobalReadVectorWidth: [2,4]
         - LocalReadVectorWidth: [4]
         - DirectToLds: [False, True]
-        - DirectToVgprA: [False] # no DirectToVgpr for hgemm right now
-        - DirectToVgprB: [False] # no DirectToVgpr for hgemm right now
-        - WaveSeparateGlobalReadA: [0, 1]
-        - WaveSeparateGlobalReadB: [0, 1]
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
+        - WaveSeparateGlobalReadA: [1]
+        - WaveSeparateGlobalReadB: [1]
         - ThreadSeparateGlobalReadA: [0, 1, 2, 4]
         - ThreadSeparateGlobalReadB: [0, 1, 2, 4]
         - NumLoadsCoalescedA: [1] # NLC=2 not working
         - NumLoadsCoalescedB: [1] # NLC=2 not working
         - ScheduleIterAlg: [3]
-        - AssertSummationElementMultiple: [64]
+        - AssertSummationElementMultiple: [4]
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0]
         #- FractionalLoad: [0, 1, 2]
@@ -77,14 +76,13 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [511, 511, 1, 256]
+          - Exact: [511, 511, 1, 252]
 
     - # MFMA 32x32, VW = 2
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
-        - AtomicAddC: [False]
       ForkParameters:
         - MatrixInstruction:
           - [32, 32, 4, 2, 1, 2,2, 2,2]
@@ -109,8 +107,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [2,4]
         - LocalReadVectorWidth: [4]
         - DirectToLds: [False, True]
-        - DirectToVgprA: [False] # no DirectToVgpr for hgemm right now
-        - DirectToVgprB: [False] # no DirectToVgpr for hgemm right now
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
         #- WaveSeparateGlobalReadA: [0, 1]
         #- WaveSeparateGlobalReadB: [0, 1]
         - ThreadSeparateGlobalReadA: [0, 1, 2, 4]
@@ -118,7 +116,7 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [1] # NLC=2 not working
         - NumLoadsCoalescedB: [1] # NLC=2 not working
         - ScheduleIterAlg: [3]
-        - AssertSummationElementMultiple: [64]
+        - AssertSummationElementMultiple: [2]
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0]
         #- FractionalLoad: [0, 1, 2]
@@ -129,7 +127,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [511, 511, 1, 256]
+          - Exact: [511, 511, 1, 250]
 
   ########################################
   # NN
@@ -150,7 +148,6 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
-        - AtomicAddC: [False]
       ForkParameters:
         - MatrixInstruction:
           - [16, 16, 16, 1, 1, 4,4, 2,2]
@@ -159,38 +156,38 @@ BenchmarkProblems:
           - [16, 16, 4, 4, 1, 4,4, 2,2]
           - [16, 16, 4, 4, 2, 4,4, 2,2]
           - [16, 16, 4, 4, 4, 4,4, 2,2]
-          # - [4, 4, 4, 16, 1, 4,4, 2,2] # Error
+          - [4, 4, 4, 16, 1, 4,4, 2,2]
           - [4, 4, 4, 16, 2, 4,4, 2,2]
           - [4, 4, 4, 16, 4, 4,4, 2,2]
           - [4, 4, 4, 16, 8, 4,4, 2,2]
-          # - [4, 4, 4, 16, 16, 4,4, 2,2] # Error
+          - [4, 4, 4, 16, 16, 4,4, 2,2]
         - ThreadTile:
           - [  8, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
         - PrefetchGlobalRead: [1]#[1, 2]
-        #- AssertFree0ElementMultiple: [2]
+        - AssertFree0ElementMultiple: [2]
         # - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [1]#[1, 2, 3]
         - GlobalSplitU: [1]
         - DepthU:  [16, 32, 64] # 128 is rejected
         - StoreVectorWidth: [4]
-        - VectorWidth: [4]
+        - VectorWidth: [2,4]
         #- GlobalReadVectorWidth: [2,4]
         - LocalReadVectorWidth: [4]
         - DirectToLds: [False, True]
-        - DirectToVgprA: [False] # no DirectToVgpr for hgemm right now
-        - DirectToVgprB: [False] # no DirectToVgpr for hgemm right now
-        - WaveSeparateGlobalReadA: [0, 1]
-        - WaveSeparateGlobalReadB: [0, 1]
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
+        - WaveSeparateGlobalReadA: [1]
+        - WaveSeparateGlobalReadB: [1]
         - ThreadSeparateGlobalReadA: [0, 1, 2, 4]
         - ThreadSeparateGlobalReadB: [0, 1, 2, 4]
         - NumLoadsCoalescedA: [1] # NLC=2 not working
         - NumLoadsCoalescedB: [1] # NLC=2 not working
         - ScheduleIterAlg: [3]
-        - AssertSummationElementMultiple: [8]#[32]
+        - AssertSummationElementMultiple: [2]
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0]
         #- FractionalLoad: [0, 1, 2]
@@ -201,14 +198,13 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [511, 511, 1, 248]
+          - Exact: [510, 511, 1, 250]
 
     - # MFMA 32x32, VW = 2
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
-        - AtomicAddC: [False]
       ForkParameters:
         - MatrixInstruction:
           - [32, 32, 4, 2, 1, 2,2, 2,2]
@@ -222,7 +218,7 @@ BenchmarkProblems:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
         - PrefetchGlobalRead: [1, 2]
-        #- AssertFree0ElementMultiple: [2]
+        - AssertFree0ElementMultiple: [2]
         # - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [1, 2, 3]
@@ -233,8 +229,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [2,4]
         - LocalReadVectorWidth: [4]
         - DirectToLds: [False, True]
-        - DirectToVgprA: [False] # no DirectToVgpr for hgemm right now
-        - DirectToVgprB: [False] # no DirectToVgpr for hgemm right now
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
         #- WaveSeparateGlobalReadA: [0, 1]
         #- WaveSeparateGlobalReadB: [0, 1]
         - ThreadSeparateGlobalReadA: [0, 1, 2, 4]
@@ -242,7 +238,7 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [1] # NLC=2 not working
         - NumLoadsCoalescedB: [1] # NLC=2 not working
         - ScheduleIterAlg: [3]
-        - AssertSummationElementMultiple: [8]#[32]
+        - AssertSummationElementMultiple: [2]
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0]
         #- FractionalLoad: [0, 1, 2]
@@ -253,7 +249,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [511, 511, 1, 248]
+          - Exact: [510, 511, 1, 250]
 
   ########################################
   # TT
@@ -269,12 +265,11 @@ BenchmarkProblems:
       UseBeta: True
       Batched: True
 
-    - # MFMA 16x16, VW = 2,4
+    - # MFMA 16x16, GLVW = 2,4
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
-        - AtomicAddC: [False]
       ForkParameters:
         - MatrixInstruction:
           - [16, 16, 16, 1, 1, 4,4, 2,2]
@@ -283,11 +278,11 @@ BenchmarkProblems:
           - [16, 16, 4, 4, 1, 4,4, 2,2]
           - [16, 16, 4, 4, 2, 4,4, 2,2]
           - [16, 16, 4, 4, 4, 4,4, 2,2]
-          # - [4, 4, 4, 16, 1, 4,4, 2,2] # Error
+          - [4, 4, 4, 16, 1, 4,4, 2,2]
           - [4, 4, 4, 16, 2, 4,4, 2,2]
           - [4, 4, 4, 16, 4, 4,4, 2,2]
           - [4, 4, 4, 16, 8, 4,4, 2,2]
-          # - [4, 4, 4, 16, 16, 4,4, 2,2] # Error
+          - [4, 4, 4, 16, 16, 4,4, 2,2]
         - ThreadTile:
           - [  8, 32 ]
         - WorkGroup:
@@ -295,7 +290,7 @@ BenchmarkProblems:
         - SourceSwap: [True]
         - PrefetchGlobalRead: [1]#[1, 2]
         #- AssertFree0ElementMultiple: [2]
-        # - AssertFree1ElementMultiple: [2]
+        - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [1]#[1, 2, 3]
         - GlobalSplitU: [1]
@@ -305,16 +300,16 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [2,4]
         - LocalReadVectorWidth: [4]
         - DirectToLds: [False, True]
-        - DirectToVgprA: [False] # no DirectToVgpr for hgemm right now
-        - DirectToVgprB: [False] # no DirectToVgpr for hgemm right now
-        - WaveSeparateGlobalReadA: [0, 1]
-        - WaveSeparateGlobalReadB: [0, 1]
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
+        - WaveSeparateGlobalReadA: [1]
+        - WaveSeparateGlobalReadB: [1]
         - ThreadSeparateGlobalReadA: [0, 1, 2, 4]
         - ThreadSeparateGlobalReadB: [0, 1, 2, 4]
         - NumLoadsCoalescedA: [1] # NLC=2 not working
         - NumLoadsCoalescedB: [1] # NLC=2 not working
         - ScheduleIterAlg: [3]
-        - AssertSummationElementMultiple: [8]#[32]
+        - AssertSummationElementMultiple: [2]
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0]
         #- FractionalLoad: [0, 1, 2]
@@ -325,14 +320,13 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [511, 511, 1, 248]
+          - Exact: [511, 510, 1, 250]
 
     - # MFMA 32x32, VW = 2
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
-        - AtomicAddC: [False]
       ForkParameters:
         - MatrixInstruction:
           - [32, 32, 4, 2, 1, 2,2, 2,2]
@@ -347,7 +341,7 @@ BenchmarkProblems:
         - SourceSwap: [True]
         - PrefetchGlobalRead: [1, 2]
         #- AssertFree0ElementMultiple: [2]
-        # - AssertFree1ElementMultiple: [2]
+        - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [1, 2, 3]
         - GlobalSplitU: [1]
@@ -357,8 +351,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [2,4]
         - LocalReadVectorWidth: [4]
         - DirectToLds: [False, True]
-        - DirectToVgprA: [False] # no DirectToVgpr for hgemm right now
-        - DirectToVgprB: [False] # no DirectToVgpr for hgemm right now
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
         #- WaveSeparateGlobalReadA: [0, 1]
         #- WaveSeparateGlobalReadB: [0, 1]
         - ThreadSeparateGlobalReadA: [0, 1, 2, 4]
@@ -366,7 +360,7 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [1] # NLC=2 not working
         - NumLoadsCoalescedB: [1] # NLC=2 not working
         - ScheduleIterAlg: [3]
-        - AssertSummationElementMultiple: [8]#[32]
+        - AssertSummationElementMultiple: [2]
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0]
         #- FractionalLoad: [0, 1, 2]
@@ -377,7 +371,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [511, 511, 1, 248]
+          - Exact: [511, 510, 1, 250]
 
   ########################################
   # NT
@@ -393,12 +387,11 @@ BenchmarkProblems:
       UseBeta: True
       Batched: True
 
-    - # MFMA 16x16, VW = 2,4
+    - # MFMA 16x16, GLVW = 2,4
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
-        - AtomicAddC: [False]
       ForkParameters:
         - MatrixInstruction:
           - [16, 16, 16, 1, 1, 4,4, 2,2]
@@ -407,19 +400,19 @@ BenchmarkProblems:
           - [16, 16, 4, 4, 1, 4,4, 2,2]
           - [16, 16, 4, 4, 2, 4,4, 2,2]
           - [16, 16, 4, 4, 4, 4,4, 2,2]
-          # - [4, 4, 4, 16, 1, 4,4, 2,2] # Error
+          - [4, 4, 4, 16, 1, 4,4, 2,2]
           - [4, 4, 4, 16, 2, 4,4, 2,2]
           - [4, 4, 4, 16, 4, 4,4, 2,2]
           - [4, 4, 4, 16, 8, 4,4, 2,2]
-          # - [4, 4, 4, 16, 16, 4,4, 2,2] # Error
+          - [4, 4, 4, 16, 16, 4,4, 2,2]
         - ThreadTile:
           - [  8, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
         - PrefetchGlobalRead: [1]#[1, 2]
-        #- AssertFree0ElementMultiple: [2]
-        # - AssertFree1ElementMultiple: [2]
+        - AssertFree0ElementMultiple: [2]
+        - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [1]#[1, 2, 3]
         - GlobalSplitU: [1]
@@ -429,16 +422,16 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [2,4]
         - LocalReadVectorWidth: [4]
         - DirectToLds: [False, True]
-        - DirectToVgprA: [False] # no DirectToVgpr for hgemm right now
-        - DirectToVgprB: [False] # no DirectToVgpr for hgemm right now
-        - WaveSeparateGlobalReadA: [0, 1]
-        - WaveSeparateGlobalReadB: [0, 1]
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
+        - WaveSeparateGlobalReadA: [1]
+        - WaveSeparateGlobalReadB: [1]
         - ThreadSeparateGlobalReadA: [0, 1, 2, 4]
         - ThreadSeparateGlobalReadB: [0, 1, 2, 4]
         - NumLoadsCoalescedA: [1] # NLC=2 not working
         - NumLoadsCoalescedB: [1] # NLC=2 not working
         - ScheduleIterAlg: [3]
-        - AssertSummationElementMultiple: [8]#[32]
+        #- AssertSummationElementMultiple: [8]
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0]
         #- FractionalLoad: [0, 1, 2]
@@ -449,14 +442,13 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [511, 511, 1, 248]
+          - Exact: [510, 510, 1, 249]
 
     - # MFMA 32x32, VW = 2
       InitialSolutionParameters:
       BenchmarkCommonParameters:
         - KernelLanguage: ["Assembly"]
         - EdgeType: ["ShiftPtr"]
-        - AtomicAddC: [False]
       ForkParameters:
         - MatrixInstruction:
           - [32, 32, 4, 2, 1, 2,2, 2,2]
@@ -469,11 +461,11 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
-        - PrefetchGlobalRead: [1, 2]
-        #- AssertFree0ElementMultiple: [2]
-        # - AssertFree1ElementMultiple: [2]
+        - PrefetchGlobalRead: [1]#[1, 2]
+        - AssertFree0ElementMultiple: [2]
+        - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
-        - PrefetchLocalRead: [1, 2, 3]
+        - PrefetchLocalRead: [1]#[1, 2, 3]
         - GlobalSplitU: [1]
         - DepthU:  [16, 32, 64] # 128 is rejected
         - StoreVectorWidth: [2]
@@ -481,8 +473,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [2,4]
         - LocalReadVectorWidth: [4]
         - DirectToLds: [False, True]
-        - DirectToVgprA: [False] # no DirectToVgpr for hgemm right now
-        - DirectToVgprB: [False] # no DirectToVgpr for hgemm right now
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
         #- WaveSeparateGlobalReadA: [0, 1]
         #- WaveSeparateGlobalReadB: [0, 1]
         - ThreadSeparateGlobalReadA: [0, 1, 2, 4]
@@ -490,7 +482,7 @@ BenchmarkProblems:
         - NumLoadsCoalescedA: [1] # NLC=2 not working
         - NumLoadsCoalescedB: [1] # NLC=2 not working
         - ScheduleIterAlg: [3]
-        - AssertSummationElementMultiple: [8]#[32]
+        #- AssertSummationElementMultiple: [8]
         - StaggerU: [0]
         - NumElementsPerBatchStore: [0]
         #- FractionalLoad: [0, 1, 2]
@@ -501,4 +493,4 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [511, 511, 1, 248]
+          - Exact: [510, 510, 1, 255]

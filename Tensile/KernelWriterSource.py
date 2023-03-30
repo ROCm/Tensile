@@ -2110,7 +2110,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Close Loop
   ##############################################################################
-  def closeLoop(self, kernel, loopIdx, finalLoop, loopCopies, uDu=0, emitEndLabelOnly=False, oddLabel=False):
+  def closeLoop(self, kernel, loopIdx, finalLoop, loopCopies, uDu=0, emitEndLabelOnly=False, oddLabel=False, skipCondJump=False):
     tailLoop = loopIdx < 0
     kStr = ""
     if emitEndLabelOnly:

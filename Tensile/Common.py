@@ -753,7 +753,7 @@ validParameters = {
     # Kernel generator will assume that the FreeIndex[0] size is some multiple of the element size
     # and uses this to optimize the kernel.
     # FreeIndex[0] is usually letter "I"
-    # (Recommended AF0EM value is 8 for half, 4 for single, 2 for double)
+    # (Recommended AF0EM value for the best performance is 16 for I8, 8 for half, 4 for single, 2 for double)
     #
     # Optimizations enabled by AssertFree0ElementMultiple>1:
     # Load optimizations:
@@ -768,7 +768,7 @@ validParameters = {
     #   (since C matrix is always coalesced in Free0 index direction and this assertion guarantees the index element multiple)
     #
     # 1 indicates no assertion (since all sizes are multiples of 1)
-    "AssertFree0ElementMultiple" : [1,2,4,8],
+    "AssertFree0ElementMultiple" : [1,2,4,8,16],
 
     # Kernel generator will assume that the FreeIndex[1] size is some multiple of the element size
     # and uses this to optimize the kernel.
@@ -779,7 +779,7 @@ validParameters = {
     #  - See above AssertFree0ElementMultiple "Load optimizations"
 
     # 1 indicates no assertion (since all sizes are multiples of 1)
-    "AssertFree1ElementMultiple" : [1,2,4,8],
+    "AssertFree1ElementMultiple" : [1,2,4,8,16],
 
     # Some kernels only work for certain sizes, see ProblemProperties in TensileTypes for exact defs
     "AssertMinApproxSize" : [0,1,2,3],

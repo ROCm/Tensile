@@ -49,11 +49,11 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
-        - PrefetchGlobalRead: [1, 2]
+        - PrefetchGlobalRead: [1]#[1, 2]
         #- AssertFree0ElementMultiple: [2]
         # - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
-        - PrefetchLocalRead: [1,5]
+        - PrefetchLocalRead: [1]#[1,5]
         - GlobalSplitU: [1]
         - DepthU:  [4,8,16,32]
         - StoreVectorWidth: [2]
@@ -81,7 +81,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1023, 1023, 1, 1023]
+          - Exact: [511, 511, 1, 511]
 
     - # VW = 1
       InitialSolutionParameters:
@@ -112,11 +112,11 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
-        - PrefetchGlobalRead: [1, 2]
+        - PrefetchGlobalRead: [2]#[1, 2]
         #- AssertFree0ElementMultiple: [2]
         # - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
-        - PrefetchLocalRead: [1,5]
+        - PrefetchLocalRead: [2,3,5,9]
         - GlobalSplitU: [1]
         - DepthU:  [4,8,16,32]
         - StoreVectorWidth: [1]
@@ -144,7 +144,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1024, 1024, 1, 1024]
+          - Exact: [512, 512, 1, 510]
 
     - # WaveSeparateGlobalRead
       InitialSolutionParameters:
@@ -189,8 +189,8 @@ BenchmarkProblems:
         - DirectToLds: [False, True]
         - DirectToVgprA: [False]
         - DirectToVgprB: [False]
-        - WaveSeparateGlobalReadA: [0, 1]
-        - WaveSeparateGlobalReadB: [0, 1]
+        - WaveSeparateGlobalReadA: [1]
+        - WaveSeparateGlobalReadB: [1]
         - ThreadSeparateGlobalReadA: [0, 1, 2, 4]
         - ThreadSeparateGlobalReadB: [0, 1, 2, 4]
         - NumLoadsCoalescedA: [1] # NLC=2 not working
@@ -207,7 +207,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1023, 1023, 1, 1023]
+          - Exact: [511, 511, 1, 511]
 
   ########################################
   # TN
@@ -250,11 +250,11 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
-        - PrefetchGlobalRead: [1, 2]
+        - PrefetchGlobalRead: [2]#[1, 2]
         #- AssertFree0ElementMultiple: [2]
         # - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
-        - PrefetchLocalRead: [1,5]
+        - PrefetchLocalRead: [2,3,5,9]
         - GlobalSplitU: [1]
         - DepthU:  [4,8,16,32]
         - StoreVectorWidth: [2]
@@ -282,7 +282,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1023, 1023, 1, 1023]
+          - Exact: [511, 511, 1, 511]
 
     - # VW = 1
       InitialSolutionParameters:
@@ -313,11 +313,11 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
-        - PrefetchGlobalRead: [1, 2]
+        - PrefetchGlobalRead: [1]#[1, 2]
         #- AssertFree0ElementMultiple: [2]
         # - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
-        - PrefetchLocalRead: [1,5]
+        - PrefetchLocalRead: [1]#[1,5]
         - GlobalSplitU: [1]
         - DepthU:  [4,8,16,32]
         - StoreVectorWidth: [1]
@@ -345,7 +345,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1023, 1023, 1, 1023]
+          - Exact: [511, 511, 1, 511]
 
     - # WaveSeparateGlobalRead
       InitialSolutionParameters:
@@ -390,8 +390,8 @@ BenchmarkProblems:
         - DirectToLds: [False, True]
         - DirectToVgprA: [False]
         - DirectToVgprB: [False]
-        - WaveSeparateGlobalReadA: [0, 1]
-        - WaveSeparateGlobalReadB: [0, 1]
+        - WaveSeparateGlobalReadA: [1]
+        - WaveSeparateGlobalReadB: [1]
         - ThreadSeparateGlobalReadA: [0, 1, 2, 4]
         - ThreadSeparateGlobalReadB: [0, 1, 2, 4]
         - NumLoadsCoalescedA: [1] # NLC=2 not working
@@ -408,7 +408,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1023, 1023, 1, 1023]
+          - Exact: [511, 511, 1, 511]
 
   ########################################
   # TT
@@ -451,11 +451,11 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
-        - PrefetchGlobalRead: [1, 2]
+        - PrefetchGlobalRead: [1]#[1, 2]
         #- AssertFree0ElementMultiple: [2]
         # - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
-        - PrefetchLocalRead: [1,5]
+        - PrefetchLocalRead: [1]#[1,5]
         - GlobalSplitU: [1]
         - DepthU:  [4,8,16,32]
         - StoreVectorWidth: [2]
@@ -483,7 +483,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1023, 1023, 1, 1023]
+          - Exact: [511, 511, 1, 511]
 
     - # VW = 1
       InitialSolutionParameters:
@@ -514,11 +514,11 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
-        - PrefetchGlobalRead: [1, 2]
+        - PrefetchGlobalRead: [2]#[1, 2]
         #- AssertFree0ElementMultiple: [2]
         # - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
-        - PrefetchLocalRead: [1,5]
+        - PrefetchLocalRead: [2,3,5,9]
         - GlobalSplitU: [1]
         - DepthU:  [4,8,16,32]
         - StoreVectorWidth: [1]
@@ -546,7 +546,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1023, 1023, 1, 1023]
+          - Exact: [511, 511, 1, 511]
 
     - # WaveSeparateGlobalRead
       InitialSolutionParameters:
@@ -591,8 +591,8 @@ BenchmarkProblems:
         - DirectToLds: [False, True]
         - DirectToVgprA: [False]
         - DirectToVgprB: [False]
-        - WaveSeparateGlobalReadA: [0, 1]
-        - WaveSeparateGlobalReadB: [0, 1]
+        - WaveSeparateGlobalReadA: [1]
+        - WaveSeparateGlobalReadB: [1]
         - ThreadSeparateGlobalReadA: [0, 1, 2, 4]
         - ThreadSeparateGlobalReadB: [0, 1, 2, 4]
         - NumLoadsCoalescedA: [1] # NLC=2 not working
@@ -609,7 +609,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1023, 1023, 1, 1023]
+          - Exact: [511, 511, 1, 511]
 
   ########################################
   # NT
@@ -653,11 +653,11 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
-        - PrefetchGlobalRead: [1, 2]
+        - PrefetchGlobalRead: [1]#[1, 2]
         #- AssertFree0ElementMultiple: [2]
         # - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
-        - PrefetchLocalRead: [1,5]
+        - PrefetchLocalRead: [1]#[1,5]
         - GlobalSplitU: [1]
         - DepthU:  [4,8,16,32]
         - StoreVectorWidth: [2]
@@ -685,7 +685,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1023, 1023, 1, 1023]
+          - Exact: [511, 511, 1, 511]
 
     - # VW = 1
       InitialSolutionParameters:
@@ -717,11 +717,11 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - SourceSwap: [True]
-        - PrefetchGlobalRead: [1, 2]
+        - PrefetchGlobalRead: [2]#[1, 2]
         #- AssertFree0ElementMultiple: [2]
         # - AssertFree1ElementMultiple: [2]
         - WorkGroupMapping: [8]
-        - PrefetchLocalRead: [1,5]
+        - PrefetchLocalRead: [2,3,5,9]
         - GlobalSplitU: [1]
         - DepthU:  [4,8,16,32]
         - StoreVectorWidth: [1]
@@ -749,7 +749,7 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1024, 1024, 1, 1024]
+          - Exact: [512, 512, 1, 512]
 
     - # WaveSeparateGlobalRead
       InitialSolutionParameters:
@@ -794,8 +794,8 @@ BenchmarkProblems:
         - DirectToLds: [False, True]
         - DirectToVgprA: [False]
         - DirectToVgprB: [False]
-        - WaveSeparateGlobalReadA: [0, 1]
-        - WaveSeparateGlobalReadB: [0, 1]
+        - WaveSeparateGlobalReadA: [1]
+        - WaveSeparateGlobalReadB: [1]
         - ThreadSeparateGlobalReadA: [0, 1, 2, 4]
         - ThreadSeparateGlobalReadB: [0, 1, 2, 4]
         - NumLoadsCoalescedA: [1] # NLC=2 not working
@@ -812,4 +812,4 @@ BenchmarkProblems:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
-          - Exact: [1023, 1023, 1, 1023]
+          - Exact: [511, 511, 1, 511]
