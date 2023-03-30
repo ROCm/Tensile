@@ -2595,12 +2595,13 @@ class KernelWriterAssembly(KernelWriter):
     # This is used in Buffer addressing modes.
     # Global addressing modes expect the GLOBAL_OFFSET to initialize a full 64-bit address
     for (tc, indices, justOffset32, tP) in [ \
+        ("D", list(range(0, kernel["ProblemType"]["NumIndicesC"])), kernel["BufferStore"], None), \
         ("C", list(range(0, kernel["ProblemType"]["NumIndicesC"])), kernel["BufferStore"], None), \
         ("A", kernel["ProblemType"]["IndexAssignmentsA"], kernel["BufferLoad"], self.tPA), \
         ("B", kernel["ProblemType"]["IndexAssignmentsB"], kernel["BufferLoad"], self.tPB) ]:
 
       # BufferStore does not use this macro so don't generate it:
-      if tc == "C" and kernel["BufferStore"]:
+      if kernel["BufferStore"] and (tc == "C" or tc == "D"):
         continue
 
       kStr += self.comment("Global Offset %s"%tc)
@@ -2616,7 +2617,7 @@ class KernelWriterAssembly(KernelWriter):
       calcDims = [] # dimensions which are participating in the address calc (ignores other summation)
       mirrorSumDims = []
       for i in range(0, numDim):
-        if tc == 'C':
+        if tc == 'C' or tc == 'D':
           useInitialStrides = kernel["ProblemType"]["UseInitialStridesCD"]
           idxChar = self.indexChars[i]
         else:
@@ -2625,8 +2626,8 @@ class KernelWriterAssembly(KernelWriter):
 
         # tile index or unroll vgpr or summation
         # other summation (other than unroll) are included in the GLOBAL_OFFSET macro but not used in address calc
-        if     tc in ('A','C') and indices[i] == kernel["ProblemType"]["Index0"] \
-            or tc in ('B','C') and indices[i] == kernel["ProblemType"]["Index1"] \
+        if     tc in ('A','C','D') and indices[i] == kernel["ProblemType"]["Index0"] \
+            or tc in ('B','C','D') and indices[i] == kernel["ProblemType"]["Index1"] \
             or indices[i] == kernel["ProblemType"]["IndexUnroll"]:
           kStr += " vgprOffset%s:req" % idxChars[i]
           calcDims.append(i)
@@ -10873,7 +10874,7 @@ class KernelWriterAssembly(KernelWriter):
       return kStr
 
     # TODO - mask should be part of AddrCalc state not passed as parm
-    def emitAddressSetupCode(self, kernel, ss, tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addrVgpr):
+    def emitAddressSetupCode(self, kernel, ss, tc, tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addrVgpr):
       """
       Generate code to set up the address vgpr
       Input:
@@ -10888,7 +10889,8 @@ class KernelWriterAssembly(KernelWriter):
       kw = self.kernelWriter
 
       updateCoord1 = (edge or len(kernel["PackedC1IndicesX"]) > 1)
-      kStr += self.emitAddressCoordIncrement(kernel, ss, tmpVgpr, tmpS01, updateCoord1)
+      if tc == 'C':
+        kStr += self.emitAddressCoordIncrement(kernel, ss, tmpVgpr, tmpS01, updateCoord1)
 
       # Move the row ptr VGPR
       # optSrdIncForRow moves the SRD so don't move here
@@ -10963,11 +10965,11 @@ class KernelWriterAssembly(KernelWriter):
 
       # calculate global load offset
       # this has to be done after calculating new coord1
-      if not kernel["BufferStore"]:
+      if not kernel["BufferStore"] and (tc == 'D' or (tc == 'C' and beta)):
         # global: in-bounds exec mask
         # global offset macro (requires 3 tmpVgpr)
         # final address = C + index*bytes
-        kStr += "GLOBAL_OFFSET_C %u" % addrVgpr
+        kStr += "GLOBAL_OFFSET_%s %u" % (tc, addrVgpr)
         for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
           if i == kernel["ProblemType"]["Index0"]:
             kStr += ", %s" % (self.coord0Vgpr)
@@ -10997,9 +10999,9 @@ class KernelWriterAssembly(KernelWriter):
       else:
         # store a copy of the offset in 2 of the tmpVgpr for D
         kStr += inst("_v_add_co_u32",  vgpr(addrVgpr+0), self.kernelWriter.vcc, vgpr(BufAddr+0), vgpr(tmpVgpr+2), \
-                     "addrVgpr = C(D) + index*bytes (lo)" )
+                     "addrVgpr = %s + index*bytes (lo)" % tc)
         kStr += inst("_v_addc_co_u32", vgpr(addrVgpr+1), self.kernelWriter.vcc, vgpr(BufAddr+1), vgpr(tmpVgpr+3), \
-                     self.kernelWriter.vcc, "addrVgpr = C(D) + index*bytes (hi)")
+                     self.kernelWriter.vcc, "addrVgpr = %s + index*bytes (hi)" % tc)
       return kStr
 
     def incrementToNextRow(self, kernel, tc, ss, stmp):
@@ -11968,11 +11970,11 @@ class KernelWriterAssembly(KernelWriter):
         mask = ss.elementMask[elementIdx]
 
         if elementIdx == 0 and beta and not atomicAddC:
-          kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addrDVgpr)
+          kStr += addrCalc.emitAddressSetupCode(kernel, ss, 'C', tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addrDVgpr)
           kStr += addrCalc.emitLdChange(kernel, ss, 'C', edge, beta, mask, (elementIdx == 0), tmpVgpr, addrCVgpr, addrC)
 
         if elementIdx == len(batchElements)-1:
-          kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addrDVgpr)
+          kStr += addrCalc.emitAddressSetupCode(kernel, ss, 'C', tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addrDVgpr)
           kStr += addrCalc.emitLdChange(kernel, ss, 'D', edge, beta, mask, (elementIdx == len(batchElements)-1), tmpVgpr, addrDVgpr, addrD)
 
       kStr += self.endProcessPersistentLoopforStoreCInUnrollOptNLL(kernel)
@@ -11990,7 +11992,7 @@ class KernelWriterAssembly(KernelWriter):
       vc1 = element[2]
       vc0 = element[3]
 
-      kStr += addrCalc.emitAddressSetupCode(kernel, ss, tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addrDVgpr)
+      kStr += addrCalc.emitAddressSetupCode(kernel, ss, 'C', tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addrDVgpr)
 
       if edge:
         kStr += addrCalc.edgeProtectCode(kernel, edge, beta, atomic, mask, tmpSgpr)
@@ -12013,7 +12015,9 @@ class KernelWriterAssembly(KernelWriter):
             # CEqualsD case, use SrdD instead of SrdC
             LoadCCodeStr = LoadCCodeStr.replace('SrdC', 'SrdD')
           LoadCCodeMod.addCode(LoadCCodeStr)
-
+          
+      if not kernel["BufferStore"] and not kernel["LdcEqualsLdd"]:
+        kStr += addrCalc.emitAddressSetupCode(kernel, ss, 'D', tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addrDVgpr)
       kStr += addrCalc.emitLdChange(kernel, ss, 'D', edge, beta, mask, (elementIdx == len(batchElements)-1), tmpVgpr, addrDVgpr, addrD)
 
       if atomic and (not self.useAtomicAdd):
