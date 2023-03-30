@@ -3585,54 +3585,110 @@ class Solution(collections.abc.Mapping):
     # NoTailLoop condition check
     # So far, NoTailLoop option is not exposed.
     # need to check after DirectToVgpr and DirectToLds check
-    validNoTailLoop = True
-    invalidComment = ""
-    if not bufferLoad:
-      validNoTailLoop = False
-      invalidComment = "does not support BufferLoad=0"
-    # both of A,B should be TLU=true to make out of K input as out of range memory access (load value 0)
-    if not (state["ProblemType"]["TLUA"] and state["ProblemType"]["TLUB"]):
-      validNoTailLoop = False
-      invalidComment = "does not support TLUA=False or TLUB=False"
-    # NoTailLoop parameter initialization. Set True for the following cases
-    #  1. ASEM%GSU=0 and ASEM/GSU is multiple of DepthU. TailLoop code will not be used in this case.
-    #  2. PrefetchAcrossPersistent and PrefetchAcrossPersistentMode
+
+    # NoTailLoop optimization
+    # Case 1 (NoTailLoop = 1): just remove TailLoop
+    #   -  ASEM%GSU=0 and ASEM/GSU is multiple of DepthU. TailLoop code will not be used in this case.
+    # Case 2(NoTailLoop = 2): generate TailLoop code in NoLoadLoop (last loop code) and remove TailLoop
+    #      all of the following conditions should be true
+    #   - BufferLoad = True
+    #   - SuppressNoLoadLoop = False
+    #   - MatrixInstruction + MatrixInstK > 1
+    #   - global read width for TailLoop decided by assert is multiple of GlobalReadVectorWidth
+    #     (this is necessary to use prefetch global read fot tail loop without out of range access at the edge)
+    #   - GlobalSplitU = 1
+    #     GSU>1 case, remaining K is distributed unevenly and does not work with tailLoop in noLoadLoop
+    #   - PersistentKernel = 0
+    #   - DepthULdsDivisor = 1
+    #   - StaggerU = 0
+    #     StaggerU=0 case, we can exit NoLoadLoop earlier when whole K range is processed
+    # Case 3 (NoTailLoop = 3): Case 2 + StaggerU != 0 + (NT + BufferLoad)
+    #   - StaggerU>0 and NT(+BufferLoad)
+    #     if StaggerU>0, the partial K part can be in unroll and K mask cannot be handled in NoLoadLoop
+    #     If NT and BufferLoad, global load for out of range K is always 0 because out of range K address
+    #     is always out of array load (means load 0)
+    #     If StaggerU is enabled, cannot exit unless whole code in NoLoadLoop is done
+    #
+    # Reject the following cases if noTailLoop is not enabled
+    #  - PrefetchAcrossPersistent and PrefetchAcrossPersistentMode
     #    PrefetchAcrossPersistentMode does not support TailLoop (TLU is necessary for NoTailLoop)
-    #  3. DirectToVgpr is enabled and noTailLoop is valid (NT only)
-    #  4. DirectToLds + TLU + NumLoadsCoalesced > 1 (special local read offset conversion is not implemented in tail loop code)
-    #  5. DirectToLds + LRVW > 1
-    # Except for case 1, validNoTailLoop should be True to enable NoTailLoop.
-    # Otherwise, it will be rejected.
-    state["NoTailLoop"] = False
+    #  - DirectToLds + TLU + NumLoadsCoalesced > 1 (special local read offset conversion is not implemented in tail loop code)
+    #  - DirectToLds + LRVW > 1
+
+    # global load width for tail loop (based on AssertFree0, 1 or AssertSummationElementMultiple)
     asem = state["AssertSummationElementMultiple"]
+    # need to adjust asem for GSU
     gsu = state["GlobalSplitU"]
-    if (asem % gsu == 0) and ((asem//gsu) % state["DepthU"] == 0):
-      state["NoTailLoop"] = True
-    elif state["PersistentKernel"] and state["PrefetchAcrossPersistent"] and state["PrefetchAcrossPersistentMode"] == 1:
-      if not validNoTailLoop:
-        reject(state, "PAP + PAPMode + (AssertSummationElementMultiple/GlobalSplitU)%%DepthU!=0 %s to enable NoTailLoop"%invalidComment)
-        return
-      else:
-        state["NoTailLoop"] = True
-    elif state["DirectToVgprA"] or state["DirectToVgprB"]:
-      # use noTailLoop only when it is valid (NT only)
-      # otherwise, use tail loop (no reject)
-      if validNoTailLoop:
-        state["NoTailLoop"] = True
+    asemDivGSU = 1 if asem%gsu !=0 else asem//gsu
+    # A
+    tluA = state["ProblemType"]["TLUA"]
+    glvwA = state["GlobalLoadVectorWidthA"]
+    afem = state["AssertFree0ElementMultiple"]
+    tailLoopLoadWidthA = afem if tluA else asem
+    # B
+    tluB = state["ProblemType"]["TLUB"]
+    glvwB = state["GlobalLoadVectorWidthB"]
+    afem = state["AssertFree1ElementMultiple"]
+    tailLoopLoadWidthB = afem if tluB else asem
+    # if glvw is not power of 2, use 1
+    if (glvwA & (glvwA - 1)):
+      tailLoopLoadWidthA = 1
+    if (glvwB & (glvwB - 1)):
+      tailLoopLoadWidthB = 1
+
+    state["NoTailLoop"] = 0
+    if (asemDivGSU % state["DepthU"] == 0):
+      state["NoTailLoop"] = 1
+    elif bufferLoad and (not state["SuppressNoLoadLoop"]) and \
+         state["EnableMatrixInstruction"] and state["MatrixInstK"] > 1 and \
+         (tailLoopLoadWidthA % glvwA == 0) and (tailLoopLoadWidthB % glvwB == 0) and \
+         gsu == 1 and state["PersistentKernel"] == 0 and state["DepthULdsDivisor"] == 1:
+      if state["StaggerU"] == 0:
+        state["NoTailLoop"] = 2
+      elif (tluA and tluB):
+        state["NoTailLoop"] = 3
+
+    # reject conditions for NoTailLoop==0
+    rejected = False
+    rejectMessage = ""
+    if state["PersistentKernel"] and state["PrefetchAcrossPersistent"] and state["PrefetchAcrossPersistentMode"] == 1:
+      rejectMessage = "PK + PAP + PAPMode"
+      rejected = True
     elif state["DirectToLds"]:
+      if (not rejected) and state["EnableMatrixInstruction"] and state["LocalReadVectorWidth"] > state["MIInputPerThread"]:
+        rejectMessage = "DirectToLds + LocalReadVectorWidth>MIInputPerThread"
+        rejected = True
       for tc in ('A','B'):
-        if state["ProblemType"]["TLU%c"%tc] and state["NumLoadsCoalesced%c"%tc] > 1:
-          if not validNoTailLoop:
-            reject(state, "DirectToLds + TLU + NumLoadsCoalesced>1 + (AssertSummationElementMultiple/GlobalSplitU)%%DepthU!=0 %s to enable NoTailLoop"%invalidComment)
-            return
-          else:
-            state["NoTailLoop"] = True
-        elif state["EnableMatrixInstruction"] and state["LocalReadVectorWidth"] > state["MIInputPerThread"]:
-          if not validNoTailLoop:
-            reject(state, "DirectToLds + LocalReadVectorWidth>MIInputPerThread + (AssertSummationElementMultiple/GlobalSplitU)%%DepthU!=0 %s to enable NoTailLoop"%invalidComment)
-            return
-          else:
-            state["NoTailLoop"] = True
+        if (not rejected) and state["ProblemType"]["TLU%c"%tc] and state["NumLoadsCoalesced%c"%tc] > 1:
+          rejectMessage = "DirectToLds + TLU%c + NumLoadsCoalesced%c>1"%(tc, tc)
+          rejected = True
+
+    if rejected:
+      if state["NoTailLoop"] == 0:
+        # if reject condition for NoTailLoop is true and NoTailLoop is not enabled, reject this kernel
+        rejectMessage += " requires NoTailLoop."
+        rejectMessage += "\n" + "To enable NoTailLoop, "
+        rejectMessage += "\n" + " - AssertSummationElementMultiple/GlobalSplitU) is multiple of DepthU or"
+        rejectMessage += "\n" + " - BufferLoad and MatrixInstruction + MatrixInstK > 1 and"
+        rejectMessage += "\n" + "   (global read width for TailLoop decided by assert is multiple of GlobalReadVectorWidth) and"
+        rejectMessage += "\n" + "   (StaggerU = 0 or NT(+BufferLoad))"
+        reject(state, rejectMessage)
+        return
+    else:
+      if state["NoTailLoop"] == 3:
+        # disable NoTailLoop=3 if tail loop is available
+        # NoTailLoop=3 does not have early exit and the performance might be worse than tail loop if remaining K for tail loop is small
+        state["NoTailLoop"] = 0
+
+    # reject condition for PAPM + PGR=2
+    # (need to check after DepthU calculation (for negative value) is done)
+    if state["PersistentKernel"] and state["PrefetchAcrossPersistent"] and state["PrefetchAcrossPersistentMode"] == 1 and \
+      state["PrefetchGlobalRead"] == 2:
+      # PAPM + PGR=2 requires at least 2 loop iterations to execute global read address calculation in NGLL
+      # it means K should be >= DepthU * 2 (means larger than DepthU * 2 - 1)
+      if not (3 in state["AssertSizeGreaterThan"].keys() and state["AssertSizeGreaterThan"][3] >= state["DepthU"] * 2 - 1):
+        reject(state, "PAPM + PGR=2 does not work if AssertSizeGreaterThan for K is not greater than DepthU * 2 - 1")
+        return
 
     # set pad as readRegs to avoid unaligned read
     optPad = state["LocalReadVectorWidth"]

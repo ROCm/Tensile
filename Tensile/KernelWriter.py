@@ -1907,6 +1907,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
     lastuIdx = False
     pflr     = self.numItersPLR
     localWriteEndIter = kernel["LoopIters"] - self.numItersPLR - 1
+    # noTailLoop optimization
+    # if this is the last NoLoadLoop(NLLlast) and self.tailLoopInNLL case, set tail=True for mfmaIter
+    needTailCode = NLLlast and self.tailLoopInNLL
 
     for uIdx in range(0, kernel["LoopIters"]*kernel["DepthULdsDivisor"]):
       u = uIdx % kernel["LoopIters"]    #   u: index in compute loop (in contrast to the notion of global read loop)
@@ -2107,7 +2110,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           if ((uIdx+1) == kernel["LoopIters"]*kernel["DepthULdsDivisor"]) and \
               (kernel["StoreCInUnroll"]):
             lastuIdx = (isOptNLL or self.enableSingleNLLOpt) and not isNGLL # do not apply lastuIdx for not isOptNLL case
-          macIterCode.addCode(self.mfmaIter(kernel, u, kernel["InnerUnroll"], vregSetIdxMFMA,lastuIdx))
+          macIterCode.addCode(self.mfmaIter(kernel, u, kernel["InnerUnroll"], vregSetIdxMFMA,lastuIdx,tail=needTailCode))
         else:
           macIterCode.addCode(self.macIter(kernel, luIdx, kernel["InnerUnroll"], True ))
 
@@ -2120,6 +2123,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
           self.vgprPool.checkIn(item.tempVgpr)
           item.tempVgpr = None
       pack[luIdx] = Code.Module()
+
+      # tail loop in NoLoadLoop case, generate close loop code for TailLoop here (except for last loop iteration)
+      if needTailCode:
+        finalLoop = (u == kernel["LoopIters"] - 1)
+        skipJump = finalLoop or self.noEarlyExitForTailLoopInNLL
+        kl.append(self.closeLoop(kernel, -1, finalLoop, 1, oddLabel=isDTVodd, skipCondJumpCounter=u, isOptNLL=isOptNLL, skipJump=skipJump))
 
   ##############################################################################
   # noLoadLoop
@@ -2210,6 +2219,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if not (isOptNLL and self.enableSingleNLLOpt):
       kl.append(kStrOpenSum)
       kStrOpenSum = "" # empty OpenSum str to avoid inserting it again
+
+    # re-calculate loop counter for tailLoopInNLL (without noEarlyExitForTailLoopInNLL)
+    if NLLlast and self.tailLoopInNLL and not self.noEarlyExitForTailLoopInNLL:
+      kl.append(self.calculateLoopNumIter(kernel, -1, False))
 
     if not self.numItersPLR:
       if self.enable["Wait"]:
@@ -3129,6 +3142,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.removeStagger(kernel, tensorParametersA))
       kl.append(self.removeStagger(kernel, tensorParametersB))
 
+    # tail loop in NLL and early exit case, need to wait for all prefetch local read (and global read for DirectToVgpr)
+    if self.tailLoopInNLL and (not self.noEarlyExitForTailLoopInNLL):
+      if self.enable["Wait"]:
+        kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "13wait for remaining local read for tail loop in NLL"))
+        if kernel["DirectToVgprA"] or kernel["DirectToVgprB"]:
+          kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "14wait for remaining DirectToVgpr global read for tail loop in NLL"))
+
     if not self.noTailLoop:
       ########################################
       # Tail Loop
@@ -3317,18 +3337,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 kl.append(self.macIter(kernel, mValue, tailLoopInnerUnroll, True, True))
 
             finalLoop = mValue == mEnd - 1
-            skipCondJump = False
-            numReadsIterCoalesced = max(self.numReadsIterCoalescedA, self.numReadsIterCoalescedB)
-            if (kernel["DirectToVgprA"] or kernel["DirectToVgprB"]) and \
-                (mValue%numReadsIterCoalesced < numReadsIterCoalesced - 1):
-              # skip conditional jump when numReadsIterCoalesced > 1 and mValue is not the last in numReadsIterCoalesced
-              # to support numReadsIterCoalesced > 1, MatrixInstK * numReadsIterCoalesced needs to be executed
-              # e.g.) MatrixInstK=4, numReadsIterCoalesced=2
-              #    mValue==0 case: execute K=0,2,4,6  (here, no exit(means skip cond jump) to execute odd K(1,3,5,7))
-              #    mValue==1 case: execute K=1,3,5,7  (here, all K=0-7 are done. check condition and jump if tail loop is done)
-              # skipCondJump=True is not to exit after mValue==0.
-              skipCondJump = True
-            kl.append(self.closeLoop(kernel, -1, finalLoop, loopCopies, uDu if kernel.enabledSplitLDS else None, skipCondJump=skipCondJump))
+            kl.append(self.closeLoop(kernel, -1, finalLoop, loopCopies, uDu if kernel.enabledSplitLDS else None, skipCondJumpCounter=mValue))
       # always emit the skip-tail-loop label
       kl.append(self.closeLoop(kernel, -1, None, loopCopies, emitEndLabelOnly=True))
       # tail: close
@@ -3527,7 +3536,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     self.storeCInUnroll = kernel["StoreCInUnroll"]
 
-    self.noTailLoop = kernel["NoTailLoop"]
+    # no tail loop optimization setting
+    # kernel["NoTailLoop"]=1: remove TailLoop
+    # kernel["NoTailLoop"]=2: remove TailLoop and generate TailLoop in NoLoadLoop with early exit
+    # kernel["NoTailLoop"]=3: remove TailLoop and generate TailLoop in NoLoadLoop without early exit
+    self.noTailLoop = kernel["NoTailLoop"] > 0
+    self.tailLoopInNLL = kernel["NoTailLoop"] >= 2
+    self.noEarlyExitForTailLoopInNLL = kernel["NoTailLoop"] == 3
 
     self.actualSummationLoops = 1 if kernel["PackSummationDims"] else kernel["ProblemType"]["NumIndicesSummation"]
     self.otherSummationLoops  = self.actualSummationLoops-1
@@ -4419,7 +4434,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # Close Loop
   ##############################################################################
   @abc.abstractmethod
-  def closeLoop(self, kernel, loopIdx, finalLoop, loopCopies, uDu, emitEndLabelOnly, oddLabel=False, skipCondJump=False):
+  def closeLoop(self, kernel, loopIdx, finalLoop, loopCopies, uDu=None, emitEndLabelOnly=False, oddLabel=False, \
+                skipCondJumpCounter=-1, isOptNLL=False, skipJump=False):
     return ""
 
   ##############################################################################
