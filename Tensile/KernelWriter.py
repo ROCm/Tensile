@@ -3536,13 +3536,78 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     self.storeCInUnroll = kernel["StoreCInUnroll"]
 
+    # NoTailLoop optimization
+    # Case 1 (NoTailLoop = 1): just remove TailLoop
+    #   -  ASEM%GSU=0 and ASEM/GSU is multiple of DepthU. TailLoop code will not be used in this case.
+    # Case 2(NoTailLoop = 2): generate TailLoop code in NoLoadLoop (last loop code) and remove TailLoop
+    #      all of the following conditions should be true
+    #   - BufferLoad = True
+    #   - SuppressNoLoadLoop = False
+    #   - MatrixInstruction + MatrixInstK > 1
+    #   - global read width for TailLoop decided by assert is multiple of GlobalReadVectorWidth
+    #     (this is necessary to use prefetch global read fot tail loop without out of range access at the edge)
+    #   - GlobalSplitU = 1
+    #     GSU>1 case, remaining K is distributed unevenly and does not work with tailLoop in noLoadLoop
+    #   - PersistentKernel = 0
+    #   - DepthULdsDivisor = 1
+    #   - StaggerU = 0
+    #     StaggerU=0 case, we can exit NoLoadLoop earlier when whole K range is processed
+    #   - InnerUnroll = 1
+    #     K mask part does not work properly with InnerUnroll>1
+    # Case 3 (NoTailLoop = 3): Case 2 + StaggerU != 0 + (NT + BufferLoad)
+    #   - StaggerU>0 and NT(+BufferLoad)
+    #     if StaggerU>0, the partial K part can be in unroll and K mask cannot be handled in NoLoadLoop
+    #     If NT and BufferLoad, global load for out of range K is always 0 because out of range K address
+    #     is always out of array load (means load 0)
+    #     If StaggerU is enabled, cannot exit unless whole code in NoLoadLoop is done
+    #
+    # Reject the following cases if noTailLoop is not enabled
+    #  - PrefetchAcrossPersistent and PrefetchAcrossPersistentMode
+    #    PrefetchAcrossPersistentMode does not support TailLoop (TLU is necessary for NoTailLoop)
+    #  - DirectToLds + TLU + NumLoadsCoalesced > 1 (special local read offset conversion is not implemented in tail loop code)
+    #  - DirectToLds + LRVW > 1
+
+    # global load width for tail loop (based on AssertFree0, 1 or AssertSummationElementMultiple)
+    asem = kernel["AssertSummationElementMultiple"]
+    # need to adjust asem for GSU
+    gsu = kernel["GlobalSplitU"]
+    asemDivGSU = 1 if asem%gsu !=0 else asem//gsu
+    # A
+    tluA = kernel["ProblemType"]["TLUA"]
+    glvwA = kernel["GlobalLoadVectorWidthA"]
+    afem = kernel["AssertFree0ElementMultiple"]
+    tailLoopLoadWidthA = afem if tluA else asem
+    # B
+    tluB = kernel["ProblemType"]["TLUB"]
+    glvwB = kernel["GlobalLoadVectorWidthB"]
+    afem = kernel["AssertFree1ElementMultiple"]
+    tailLoopLoadWidthB = afem if tluB else asem
+    # if glvw is not power of 2, use 1
+    if (glvwA & (glvwA - 1)):
+      tailLoopLoadWidthA = 1
+    if (glvwB & (glvwB - 1)):
+      tailLoopLoadWidthB = 1
+
+    noTailLoop = 0
+    if (asemDivGSU % kernel["DepthU"] == 0):
+      noTailLoop = 1
+    elif kernel["BufferLoad"] and (not kernel["SuppressNoLoadLoop"]) and \
+         kernel["EnableMatrixInstruction"] and kernel["MatrixInstK"] > 1 and \
+         (tailLoopLoadWidthA % glvwA == 0) and (tailLoopLoadWidthB % glvwB == 0) and \
+         gsu == 1 and kernel["PersistentKernel"] == 0 and kernel["DepthULdsDivisor"] == 1 and \
+         kernel["InnerUnroll"] == 1:
+      if kernel["StaggerU"] == 0:
+        noTailLoop = 2
+      elif (tluA and tluB):
+        noTailLoop = 3
+
     # no tail loop optimization setting
-    # kernel["NoTailLoop"]=1: remove TailLoop
-    # kernel["NoTailLoop"]=2: remove TailLoop and generate TailLoop in NoLoadLoop with early exit
-    # kernel["NoTailLoop"]=3: remove TailLoop and generate TailLoop in NoLoadLoop without early exit
-    self.noTailLoop = kernel["NoTailLoop"] > 0
-    self.tailLoopInNLL = kernel["NoTailLoop"] >= 2
-    self.noEarlyExitForTailLoopInNLL = kernel["NoTailLoop"] == 3
+    # noTailLoop=1: remove TailLoop
+    # noTailLoop=2: remove TailLoop and generate TailLoop in NoLoadLoop with early exit
+    # noTailLoop=3: remove TailLoop and generate TailLoop in NoLoadLoop without early exit
+    self.noTailLoop = noTailLoop > 0
+    self.tailLoopInNLL = noTailLoop >= 2
+    self.noEarlyExitForTailLoopInNLL = noTailLoop == 3
 
     self.actualSummationLoops = 1 if kernel["PackSummationDims"] else kernel["ProblemType"]["NumIndicesSummation"]
     self.otherSummationLoops  = self.actualSummationLoops-1

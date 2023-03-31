@@ -865,19 +865,20 @@ BenchmarkProblems:
         - VectorWidth: [1,2]
         - GlobalReadVectorWidth: [1,2]
         - LocalReadVectorWidth: [1,2]
-        - DirectToVgprB: [True]
+        - DirectToVgprB: [False, True]
         - ScheduleIterAlg: [0,2,3]
         #- FractionalLoad: [0,2]
         #- BufferLoad: [True, False]
         - TransposeLDS: [1]
         - StaggerU: [0,32]
+        - InnerUnroll: [1,2]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
           #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
-          - Range: [ [511], [511], [1], [2039, 8, 2047] ]
+          - Range: [ [511], [511], [1], [2033, 1, 2047] ]
 
   ########################################
   # NT - MI4x4
