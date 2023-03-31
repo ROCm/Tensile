@@ -12016,7 +12016,7 @@ class KernelWriterAssembly(KernelWriter):
             LoadCCodeStr = LoadCCodeStr.replace('SrdC', 'SrdD')
           LoadCCodeMod.addCode(LoadCCodeStr)
           
-      if not kernel["BufferStore"] and not kernel["LdcEqualsLdd"]:
+      if not kernel["BufferStore"]:
         kStr += addrCalc.emitAddressSetupCode(kernel, ss, 'D', tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addrDVgpr)
       kStr += addrCalc.emitLdChange(kernel, ss, 'D', edge, beta, mask, (elementIdx == len(batchElements)-1), tmpVgpr, addrDVgpr, addrD)
 
