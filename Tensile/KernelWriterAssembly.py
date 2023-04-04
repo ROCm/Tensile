@@ -2841,7 +2841,7 @@ class KernelWriterAssembly(KernelWriter):
             "add prepad for pointer shift")
 
       # addr *= bytes/element
-      bpe = self.bpeCexternal if tc == "C" else self.bpeAB
+      bpe = self.bpeCexternal if (tc == "C" or tc == "D") else self.bpeAB
       if justOffset32:
         kStr += staticMultiply("v[\\vgprAddr+0]", "v[\\vgprAddr+0]", bpe, None, "offset *= bytes/element")
       else:
@@ -10895,6 +10895,8 @@ class KernelWriterAssembly(KernelWriter):
       updateCoord1 = (edge or len(kernel["PackedC1IndicesX"]) > 1)
       if tc == 'C':
         kStr += self.emitAddressCoordIncrement(kernel, ss, tmpVgpr, tmpS01, updateCoord1)
+        if not kernel["BufferStore"] and not beta: # Skip extra code for C if no beta
+          return kStr
 
       # Move the row ptr VGPR
       # optSrdIncForRow moves the SRD so don't move here
@@ -10917,7 +10919,7 @@ class KernelWriterAssembly(KernelWriter):
       #   For MFMA shift pointer, correct data is stored in another thread.
       #   Therefore, MFMA cannot use v_mov to amend store data
       #   It needs to modify the coord1 of thread directly.
-      if (not kernel["SourceSwap"]) and (not kernel["GuaranteeNoPartialB"]) and kw.readTileDimVectorB and kernel["EnableMatrixInstructionStore"] and edge:
+      if (not kernel["SourceSwap"]) and (not kernel["GuaranteeNoPartialB"]) and kw.readTileDimVectorB and kernel["EnableMatrixInstructionStore"] and edge and (tc =='C' or not beta):
         (d1,d0,vc1,vc0) = self.element
         if (d1 == vc1 == d0 == vc0 == 0) or self.newCoord1:
           sgprCnt = self.kernelWriter.laneSGPRCount
@@ -11997,8 +11999,7 @@ class KernelWriterAssembly(KernelWriter):
       vc0 = element[3]
 
       kStr += addrCalc.emitAddressSetupCode(kernel, ss, 'C', tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addrDVgpr)
-
-      if edge:
+      if edge and (kernel["BufferStore"] or beta):
         kStr += addrCalc.edgeProtectCode(kernel, edge, beta, atomic, mask, tmpSgpr)
 
       # create code Module to push mov vgpr,acc instructions
@@ -12022,6 +12023,9 @@ class KernelWriterAssembly(KernelWriter):
           
       if not kernel["BufferStore"]:
         kStr += addrCalc.emitAddressSetupCode(kernel, ss, 'D', tmpVgpr, tmpS01, edge, beta, atomic, elementIdx, addrDVgpr)
+        if edge:
+          kStr += addrCalc.edgeProtectCode(kernel, edge, beta, atomic, mask, tmpSgpr)
+
       kStr += addrCalc.emitLdChange(kernel, ss, 'D', edge, beta, mask, (elementIdx == len(batchElements)-1), tmpVgpr, addrDVgpr, addrD)
 
       if atomic and (not self.useAtomicAdd):
