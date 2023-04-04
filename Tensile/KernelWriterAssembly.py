@@ -8808,8 +8808,8 @@ class KernelWriterAssembly(KernelWriter):
                   localWriteCode.addInst("v_cvt_f32_f16", vgpr("G2Lpipe0"), vgprsrc,"")
                   localWriteCode.addInst("v_cvt_f32_f16", vgpr("G2Lpipe1"), vgprsrc, "src0_sel:WORD_1", "")
 
-                  localWriteCode.addInst("v_add_f32", vgpr("G2Lpipe0"), sgpr("Fp16AltRound"), vgpr("G2Lpipe0"), "")
-                  localWriteCode.addInst("v_add_f32", vgpr("G2Lpipe1"), sgpr("Fp16AltRound"), vgpr("G2Lpipe1"), "")
+                  localWriteCode.addInst("v_add_u32", vgpr("G2Lpipe0"), sgpr("Fp16AltRound"), vgpr("G2Lpipe0"), "")
+                  localWriteCode.addInst("v_add_u32", vgpr("G2Lpipe1"), sgpr("Fp16AltRound"), vgpr("G2Lpipe1"), "")
 
                   localWriteCode.addInst("v_pack_b32_f16", vgprsrc, vgpr("G2Lpipe0"),vgpr("G2Lpipe1"), "op_sel:[1,1,0]","")
 
