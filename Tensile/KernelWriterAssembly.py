@@ -2641,7 +2641,9 @@ class KernelWriterAssembly(KernelWriter):
           if isPackedIndex(kernel, indices[i], packBatchDims):
             calcDims.append(i)
             kStr += " vgprOffset%s:req" % idxChars[i]
-          elif not justOffset32: # buffer/justOffset32 scalars are included in SRD not the offset, so skip here
+          elif not justOffset32 and kernel["ProblemType"]["StridedBatched"]:
+            # buffer/justOffset32 scalars are included in SRD not the offset, so skip here
+            # also skip case for general batch, unique pointers are loaded by workgroup
             calcDims.append(i)
             kStr += " sgprOffset%s:req" % idxChars[i]
       kStr += " vgprTmp:req" + self.endLine
@@ -4181,7 +4183,9 @@ class KernelWriterAssembly(KernelWriter):
               packedIter += 1
             else:
               # just a group index
-              if not kernel["BufferLoad"]:  # buffer load adds these to SRD not the GLOBAL_OFFSET here
+              if not kernel["BufferLoad"] and kernel["ProblemType"]["StridedBatched"]: 
+                # buffer load adds these to SRD not the GLOBAL_OFFSET here
+                # general_batch case loads batch pointer, don't calculate based on workgroup/stride
                 kStr += ", sgprWorkGroup%u"%i
         else: # summation index
           if i == problemType["IndexUnroll"]:
@@ -10975,7 +10979,7 @@ class KernelWriterAssembly(KernelWriter):
             kStr += ", %s" % (self.coord0Vgpr)
           elif i == kernel["ProblemType"]["Index1"]:
             kStr += ", %s" % (self.coord1Vgpr)
-          else: # just a group index
+          elif kernel["ProblemType"]["StridedBatched"]: # just a group index
             kStr += ", sgprWorkGroup%u"%i
         kStr += ", %s%s" % ((tmpVgpr+2), kw.endLine)
         kStr += inst("v_mov_b32", vgpr(tmpVgpr+2), vgpr(addrVgpr+0), "temp store offset 0")

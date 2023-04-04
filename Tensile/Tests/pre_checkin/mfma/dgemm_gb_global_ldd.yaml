@@ -48,8 +48,8 @@ BenchmarkProblems:
           # - [16, 16, 4, 1, 1, 2,8, 4,1] # 128x128
         #- AggressivePerfMode: [0,1]
         - 1LDSBuffer: [1]
-        - BufferStore: [0]
-        - BufferLoad: [0]
+        - BufferStore: [0, 1]
+        - BufferLoad: [0, 1]
         - DepthU: [16]
         # - EdgeType: ["ShiftPtr"]
         #- GlobalReadVectorWidth: [1] # 2 has error?
@@ -81,4 +81,6 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [128, 1024, 1, 896, 128, 1024, 1024, 1024]
-          # - Exact: [128, 1024, 1, 896, 1024, 1024, 1024, 1024]
+          - Exact: [128, 1024, 2, 896, 128, 1024, 1024, 1024]
+          - Exact: [128, 1024, 1, 896, 1024, 1024, 1024, 1024]
+          - Exact: [128, 1024, 2, 896, 1024, 1024, 1024, 1024]
