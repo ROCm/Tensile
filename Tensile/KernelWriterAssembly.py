@@ -2315,6 +2315,22 @@ class KernelWriterAssembly(KernelWriter):
       replace = f'{t}' if self.archCaps["InstRename"] else f'{type_list[t]}'
       # use global_load/store instead of flat instructions
       kStr += self.generalMacro('global_load_', origin, replace, 'dst', 'base', 'src', 'ioffset', 'md0', 'md1', 'md2') + self.endLine
+
+    type_list = {
+      'b32'       : 'dword',
+      'b64'       : 'dwordx2',
+      'b96'       : 'dwordx3',
+      'b128'      : 'dwordx4',
+      'd16_b16'   : 'short',        # global_store name different from global_load for short on gfx9/10
+      'd16_hi_b16': 'short_d16_hi',
+      'd16_u8'    : 'ubyte_d16',
+      'd16_hi_u8' : 'ubyte_d16_hi',
+      'u16'       : 'ushort'
+    }
+    for t in type_list:
+      origin  = f'{t}'
+      replace = f'{t}' if self.archCaps["InstRename"] else f'{type_list[t]}'
+      # use global_load/store instead of flat instructions
       kStr += self.generalMacro('global_store_', origin, replace, 'base', 'src', 'src2', 'md0', 'md1', 'md2') + self.endLine
 
     type_list = {'_b32': '',
@@ -2638,7 +2654,7 @@ class KernelWriterAssembly(KernelWriter):
           continue
         else:
           # other batch or free index
-          isStridedBuffer = kernel["ProblemType"]["StridedBatched"] or (tc in ('C','D') and kernel["GlobalSplitU"] > 1 and kernel["_GlobalAccumulation"] == 'MultipleBuffer')
+          isStridedBuffer = kernel["ProblemType"]["StridedBatched"] or (tc in ('C','D') and kernel["GlobalSplitU"] > 1 and kernel["_GlobalAccumulation"])
           if isPackedIndex(kernel, indices[i], packBatchDims):
             calcDims.append(i)
             kStr += " vgprOffset%s:req" % idxChars[i]
@@ -10976,7 +10992,7 @@ class KernelWriterAssembly(KernelWriter):
         # global: in-bounds exec mask
         # global offset macro (requires 3 tmpVgpr)
         # final address = C + index*bytes
-        isStridedBuffer = kernel["ProblemType"]["StridedBatched"] or (kernel["GlobalSplitU"] > 1 and kernel["_GlobalAccumulation"] == 'MultipleBuffer')
+        isStridedBuffer = kernel["ProblemType"]["StridedBatched"] or (kernel["GlobalSplitU"] > 1 and kernel["_GlobalAccumulation"])
         kStr += "GLOBAL_OFFSET_%s %u" % (tc, addrVgpr)
         for i in range(0, kernel["ProblemType"]["NumIndicesC"]):
           if i == kernel["ProblemType"]["Index0"]:
