@@ -584,7 +584,7 @@ namespace Tensile
             rv.args.append<uint32_t>("magicNumberWgmRemainder1", magicNumberWgmRemainder1);
         }
 
-        if(problemType.fp16AltImpl)
+        if(problem.fp16AltImpl())
         {
             rv.args.append<uint32_t>("fp16AltImplMode", inputs.fp16AltImplMode);
         }
