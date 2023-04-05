@@ -774,7 +774,7 @@ validParameters = {
     # Kernel generator will assume that the FreeIndex[1] size is some multiple of the element size
     # and uses this to optimize the kernel.
     # FreeIndex[1] is usually letter "J"
-    # (Recommended AF1EM value is 8 for half, 4 for single, 2 for double)
+    # (Recommended AF1EM value for the best performance is 16 for I8, 8 for half, 4 for single, 2 for double)
 
     # Optimizations enabled by AssertFree1ElementMultiple>1:
     #  - See above AssertFree0ElementMultiple "Load optimizations"
