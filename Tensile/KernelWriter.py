@@ -1907,6 +1907,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
     lastuIdx = False
     pflr     = self.numItersPLR
     localWriteEndIter = kernel["LoopIters"] - self.numItersPLR - 1
+    # noTailLoop optimization
+    # if this is the last NoLoadLoop(NLLlast) and self.tailLoopInNLL case, set tail=True for mfmaIter
+    needTailCode = NLLlast and self.tailLoopInNLL
 
     for uIdx in range(0, kernel["LoopIters"]*kernel["DepthULdsDivisor"]):
       u = uIdx % kernel["LoopIters"]    #   u: index in compute loop (in contrast to the notion of global read loop)
@@ -2107,7 +2110,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           if ((uIdx+1) == kernel["LoopIters"]*kernel["DepthULdsDivisor"]) and \
               (kernel["StoreCInUnroll"]):
             lastuIdx = (isOptNLL or self.enableSingleNLLOpt) and not isNGLL # do not apply lastuIdx for not isOptNLL case
-          macIterCode.addCode(self.mfmaIter(kernel, u, kernel["InnerUnroll"], vregSetIdxMFMA,lastuIdx))
+          macIterCode.addCode(self.mfmaIter(kernel, u, kernel["InnerUnroll"], vregSetIdxMFMA,lastuIdx,tail=needTailCode))
         else:
           macIterCode.addCode(self.macIter(kernel, luIdx, kernel["InnerUnroll"], True ))
 
@@ -2120,6 +2123,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
           self.vgprPool.checkIn(item.tempVgpr)
           item.tempVgpr = None
       pack[luIdx] = Code.Module()
+
+      # tail loop in NoLoadLoop case, generate close loop code for TailLoop here (except for last loop iteration)
+      if needTailCode:
+        finalLoop = (u == kernel["LoopIters"] - 1)
+        skipJump = finalLoop or self.noEarlyExitForTailLoopInNLL
+        kl.append(self.closeLoop(kernel, -1, finalLoop, 1, oddLabel=isDTVodd, skipCondJumpCounter=u, isOptNLL=isOptNLL, skipJump=skipJump))
 
   ##############################################################################
   # noLoadLoop
@@ -2210,6 +2219,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if not (isOptNLL and self.enableSingleNLLOpt):
       kl.append(kStrOpenSum)
       kStrOpenSum = "" # empty OpenSum str to avoid inserting it again
+
+    # re-calculate loop counter for tailLoopInNLL (without noEarlyExitForTailLoopInNLL)
+    if NLLlast and self.tailLoopInNLL and not self.noEarlyExitForTailLoopInNLL:
+      kl.append(self.calculateLoopNumIter(kernel, -1, False))
 
     if not self.numItersPLR:
       if self.enable["Wait"]:
@@ -3129,6 +3142,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.removeStagger(kernel, tensorParametersA))
       kl.append(self.removeStagger(kernel, tensorParametersB))
 
+    # tail loop in NLL and early exit case, need to wait for all prefetch local read (and global read for DirectToVgpr)
+    if self.tailLoopInNLL and (not self.noEarlyExitForTailLoopInNLL):
+      if self.enable["Wait"]:
+        kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "13wait for remaining local read for tail loop in NLL"))
+        if kernel["DirectToVgprA"] or kernel["DirectToVgprB"]:
+          kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "14wait for remaining DirectToVgpr global read for tail loop in NLL"))
+
     if not self.noTailLoop:
       ########################################
       # Tail Loop
@@ -3317,18 +3337,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
                 kl.append(self.macIter(kernel, mValue, tailLoopInnerUnroll, True, True))
 
             finalLoop = mValue == mEnd - 1
-            skipCondJump = False
-            numReadsIterCoalesced = max(self.numReadsIterCoalescedA, self.numReadsIterCoalescedB)
-            if (kernel["DirectToVgprA"] or kernel["DirectToVgprB"]) and \
-                (mValue%numReadsIterCoalesced < numReadsIterCoalesced - 1):
-              # skip conditional jump when numReadsIterCoalesced > 1 and mValue is not the last in numReadsIterCoalesced
-              # to support numReadsIterCoalesced > 1, MatrixInstK * numReadsIterCoalesced needs to be executed
-              # e.g.) MatrixInstK=4, numReadsIterCoalesced=2
-              #    mValue==0 case: execute K=0,2,4,6  (here, no exit(means skip cond jump) to execute odd K(1,3,5,7))
-              #    mValue==1 case: execute K=1,3,5,7  (here, all K=0-7 are done. check condition and jump if tail loop is done)
-              # skipCondJump=True is not to exit after mValue==0.
-              skipCondJump = True
-            kl.append(self.closeLoop(kernel, -1, finalLoop, loopCopies, uDu if kernel.enabledSplitLDS else None, skipCondJump=skipCondJump))
+            kl.append(self.closeLoop(kernel, -1, finalLoop, loopCopies, uDu if kernel.enabledSplitLDS else None, skipCondJumpCounter=mValue))
       # always emit the skip-tail-loop label
       kl.append(self.closeLoop(kernel, -1, None, loopCopies, emitEndLabelOnly=True))
       # tail: close
@@ -3527,7 +3536,78 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     self.storeCInUnroll = kernel["StoreCInUnroll"]
 
-    self.noTailLoop = kernel["NoTailLoop"]
+    # NoTailLoop optimization
+    # Case 1 (NoTailLoop = 1): just remove TailLoop
+    #   -  ASEM%GSU=0 and ASEM/GSU is multiple of DepthU. TailLoop code will not be used in this case.
+    # Case 2(NoTailLoop = 2): generate TailLoop code in NoLoadLoop (last loop code) and remove TailLoop
+    #      all of the following conditions should be true
+    #   - BufferLoad = True
+    #   - SuppressNoLoadLoop = False
+    #   - MatrixInstruction + MatrixInstK > 1
+    #   - global read width for TailLoop decided by assert is multiple of GlobalReadVectorWidth
+    #     (this is necessary to use prefetch global read fot tail loop without out of range access at the edge)
+    #   - GlobalSplitU = 1
+    #     GSU>1 case, remaining K is distributed unevenly and does not work with tailLoop in noLoadLoop
+    #   - PersistentKernel = 0
+    #   - DepthULdsDivisor = 1
+    #   - StaggerU = 0
+    #     StaggerU=0 case, we can exit NoLoadLoop earlier when whole K range is processed
+    #   - InnerUnroll = 1
+    #     K mask part does not work properly with InnerUnroll>1
+    # Case 3 (NoTailLoop = 3): Case 2 + StaggerU != 0 + (NT + BufferLoad)
+    #   - StaggerU>0 and NT(+BufferLoad)
+    #     if StaggerU>0, the partial K part can be in unroll and K mask cannot be handled in NoLoadLoop
+    #     If NT and BufferLoad, global load for out of range K is always 0 because out of range K address
+    #     is always out of array load (means load 0)
+    #     If StaggerU is enabled, cannot exit unless whole code in NoLoadLoop is done
+    #
+    # Reject the following cases if noTailLoop is not enabled
+    #  - PrefetchAcrossPersistent and PrefetchAcrossPersistentMode
+    #    PrefetchAcrossPersistentMode does not support TailLoop (TLU is necessary for NoTailLoop)
+    #  - DirectToLds + TLU + NumLoadsCoalesced > 1 (special local read offset conversion is not implemented in tail loop code)
+    #  - DirectToLds + LRVW > 1
+
+    # global load width for tail loop (based on AssertFree0, 1 or AssertSummationElementMultiple)
+    asem = kernel["AssertSummationElementMultiple"]
+    # need to adjust asem for GSU
+    gsu = kernel["GlobalSplitU"]
+    asemDivGSU = 1 if asem%gsu !=0 else asem//gsu
+    # A
+    tluA = kernel["ProblemType"]["TLUA"]
+    glvwA = kernel["GlobalLoadVectorWidthA"]
+    afem = kernel["AssertFree0ElementMultiple"]
+    tailLoopLoadWidthA = afem if tluA else asem
+    # B
+    tluB = kernel["ProblemType"]["TLUB"]
+    glvwB = kernel["GlobalLoadVectorWidthB"]
+    afem = kernel["AssertFree1ElementMultiple"]
+    tailLoopLoadWidthB = afem if tluB else asem
+    # if glvw is not power of 2, use 1
+    if (glvwA & (glvwA - 1)):
+      tailLoopLoadWidthA = 1
+    if (glvwB & (glvwB - 1)):
+      tailLoopLoadWidthB = 1
+
+    noTailLoop = 0
+    if (asemDivGSU % kernel["DepthU"] == 0):
+      noTailLoop = 1
+    elif kernel["BufferLoad"] and (not kernel["SuppressNoLoadLoop"]) and \
+         kernel["EnableMatrixInstruction"] and kernel["MatrixInstK"] > 1 and \
+         (tailLoopLoadWidthA % glvwA == 0) and (tailLoopLoadWidthB % glvwB == 0) and \
+         gsu == 1 and kernel["PersistentKernel"] == 0 and kernel["DepthULdsDivisor"] == 1 and \
+         kernel["InnerUnroll"] == 1:
+      if kernel["StaggerU"] == 0:
+        noTailLoop = 2
+      elif (tluA and tluB):
+        noTailLoop = 3
+
+    # no tail loop optimization setting
+    # noTailLoop=1: remove TailLoop
+    # noTailLoop=2: remove TailLoop and generate TailLoop in NoLoadLoop with early exit
+    # noTailLoop=3: remove TailLoop and generate TailLoop in NoLoadLoop without early exit
+    self.noTailLoop = noTailLoop > 0
+    self.tailLoopInNLL = noTailLoop >= 2
+    self.noEarlyExitForTailLoopInNLL = noTailLoop == 3
 
     self.actualSummationLoops = 1 if kernel["PackSummationDims"] else kernel["ProblemType"]["NumIndicesSummation"]
     self.otherSummationLoops  = self.actualSummationLoops-1
@@ -4419,7 +4499,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
   # Close Loop
   ##############################################################################
   @abc.abstractmethod
-  def closeLoop(self, kernel, loopIdx, finalLoop, loopCopies, uDu, emitEndLabelOnly, oddLabel=False, skipCondJump=False):
+  def closeLoop(self, kernel, loopIdx, finalLoop, loopCopies, uDu=None, emitEndLabelOnly=False, oddLabel=False, \
+                skipCondJumpCounter=-1, isOptNLL=False, skipJump=False):
     return ""
 
   ##############################################################################

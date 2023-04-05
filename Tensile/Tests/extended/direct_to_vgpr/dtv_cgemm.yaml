@@ -50,7 +50,7 @@ BenchmarkProblems:
           - [  8, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        # - AssertFree0ElementMultiple: [2]
+        - AssertFree0ElementMultiple: [2]
         - AssertFree1ElementMultiple: [1,2]
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [3,5]
@@ -65,14 +65,14 @@ BenchmarkProblems:
         - DirectToVgprB: [False, True]
         #- WaveSeparateGlobalReadA: [0,1]
         #- WaveSeparateGlobalReadB: [0,1]
-        - NumLoadsCoalescedA: [1,2]
-        - NumLoadsCoalescedB: [1,2]
+        #- NumLoadsCoalescedA: [1,2]
+        #- NumLoadsCoalescedB: [1,2]
         - ScheduleIterAlg: [3]
         - PersistentKernel: [0]
         #- 1LDSBuffer: [1]
-        #- AssertSummationElementMultiple: [32]
+        - AssertSummationElementMultiple: [2]
         #- StaggerUStride: [256]
-        - StaggerU: [0]#[0,32]
+        - StaggerU: [0,32]
         - StoreSyncOpt: [4]
         - StorePriorityOpt: [True]
         #- MIArchVgpr: [True]#[True, False]
@@ -87,7 +87,7 @@ BenchmarkProblems:
         - ProblemSizes:
           #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
           - Exact: [1024, 1024, 1, 512]
-          - Exact: [1023, 1022, 1, 511]
+          - Exact: [1022, 1022, 1, 502]
 
   ########################################
   # NT - standard
@@ -146,16 +146,16 @@ BenchmarkProblems:
         - DirectToLds: [False, True]
         - DirectToVgprA: [False, True]
         - DirectToVgprB: [False, True]
-        - WaveSeparateGlobalReadA: [0,1]
-        - WaveSeparateGlobalReadB: [0,1]
+        #- WaveSeparateGlobalReadA: [0,1]
+        #- WaveSeparateGlobalReadB: [0,1]
         #- NumLoadsCoalescedA: [1,2]
         #- NumLoadsCoalescedB: [1,2]
         - ScheduleIterAlg: [3]
         - PersistentKernel: [0]
         #- 1LDSBuffer: [1]
-        #- AssertSummationElementMultiple: [32]#[8]
+        - AssertSummationElementMultiple: [2]
         #- StaggerUStride: [256]#[128,256]
-        - StaggerU: [0]#[0,32]
+        - StaggerU: [0,32]
         - StoreSyncOpt: [4]
         - StorePriorityOpt: [True]
         #- MIArchVgpr: [True]#[True, False]
@@ -170,7 +170,7 @@ BenchmarkProblems:
         - ProblemSizes:
           #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
           - Exact: [1024, 1024, 1, 512]
-          - Exact: [1022, 1022, 1, 511]
+          - Exact: [1022, 1022, 1, 502]
 
   ########################################
   # NC - standard
@@ -216,7 +216,7 @@ BenchmarkProblems:
           - [  8, 32 ]
         - WorkGroup:
           - [ 16, 16, 1 ]
-        # - AssertFree0ElementMultiple: [2]
+        - AssertFree0ElementMultiple: [2]
         - AssertFree1ElementMultiple: [1, 2]
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [3,5]
@@ -231,12 +231,12 @@ BenchmarkProblems:
         - DirectToVgprB: [False, True]
         #- WaveSeparateGlobalReadA: [0,1]
         #- WaveSeparateGlobalReadB: [0,1]
-        - NumLoadsCoalescedA: [1,2]
-        - NumLoadsCoalescedB: [1,2]
+        #- NumLoadsCoalescedA: [1,2]
+        #- NumLoadsCoalescedB: [1,2]
         - ScheduleIterAlg: [3]
         - PersistentKernel: [0]
         #- 1LDSBuffer: [1]
-        #- AssertSummationElementMultiple: [32]#[8]
+        - AssertSummationElementMultiple: [2]
         #- StaggerUStride: [256]#[128,256]
         - StaggerU: [0]#[0,32]
         - StoreSyncOpt: [4]
@@ -253,7 +253,7 @@ BenchmarkProblems:
         - ProblemSizes:
           #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
           - Exact: [1024, 1024, 1, 512]
-          - Exact: [1023, 1022, 1, 511]
+          - Exact: [1022, 1022, 1, 502]
 
   ########################################
   # CC - standard
@@ -295,7 +295,7 @@ BenchmarkProblems:
           - [ 16, 16, 1 ]
           #- [  8, 32, 1 ]
           #- [ 32,  8, 1 ]
-        # - AssertFree0ElementMultiple: [2]
+        - AssertFree0ElementMultiple: [2]
         - AssertFree1ElementMultiple: [1, 2]
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [3,5]
@@ -316,9 +316,9 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - PersistentKernel: [0]
         #- 1LDSBuffer: [1]
-        #- AssertSummationElementMultiple: [32]#[8]
+        - AssertSummationElementMultiple: [2]
         #- StaggerUStride: [256]#[128,256]
-        - StaggerU: [0]#[0,32]
+        - StaggerU: [0,32]
         - StoreSyncOpt: [4]
         - StorePriorityOpt: [True]
         #- MIArchVgpr: [True]#[True, False]
@@ -333,5 +333,5 @@ BenchmarkProblems:
         - ProblemSizes:
           #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
           - Exact: [1024, 1024, 1, 512]
-          - Exact: [1023, 1022, 1, 511]
+          - Exact: [1022, 1022, 1, 502]
 

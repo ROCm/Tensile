@@ -58,7 +58,7 @@ BenchmarkProblems:
         - LocalReadVectorWidth: [1,2,4]
         - WorkGroupMapping: [8]
         - WaveSeparateGlobalReadB: [1]
-        - DirectToVgprA: [True]
+        - DirectToVgprA: [True, False]
         - NonTemporalC: [3]
         - NonTemporalD: [3]
         - StoreSyncOpt: [4]

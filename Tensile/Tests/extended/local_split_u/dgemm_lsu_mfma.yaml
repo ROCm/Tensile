@@ -59,6 +59,7 @@ BenchmarkProblems:
         - GlobalSplitU: [1,2]
         - GlobalSplitUAlgorithm: ["SingleBuffer","MultipleBuffer"]
         - FractionalLoad: [0,1,2]
+        - StaggerU: [0,32]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -209,6 +210,7 @@ BenchmarkProblems:
         - GlobalSplitU: [1,4]
         - GlobalSplitUAlgorithm: ["SingleBuffer","MultipleBuffer"]
         - BufferStore: [0,1]
+        - StaggerU: [0,32]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
