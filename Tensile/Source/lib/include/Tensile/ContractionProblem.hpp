@@ -913,7 +913,7 @@ namespace Tensile
                                D*       _d,
                                Alpha    _alpha,
                                Beta     _beta,
-                               void*    _ws = nullptr,
+                               void*    _ws              = nullptr,
                                int32_t  _fp16AltImplMode = 0)
             : TypedContractionInputs(
                 _a, _b, _c, _d, nullptr, nullptr, nullptr, nullptr, _alpha, _beta){};
@@ -928,7 +928,7 @@ namespace Tensile
                                D* const*       _batchD,
                                Alpha           _alpha,
                                Beta            _beta,
-                               void*           _ws = nullptr,
+                               void*           _ws              = nullptr,
                                int32_t         _fp16AltImplMode = 0);
 
         ~TypedContractionInputs();

@@ -1507,7 +1507,8 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["ProblemType"]["Fp16AltImpl"]:
       self.G2Lpipe0 = vgprIdx
       self.G2Lpipe1 = self.G2Lpipe0 + 1
-      vgprIdx += 2
+      self.fp16AltTmp = self.G2Lpipe1 + 1
+      vgprIdx += 3
 
     self.startVgprAddressDbg = vgprIdx
     vgprIdx += numVgprAddressDbg
@@ -2499,6 +2500,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["ProblemType"]["Fp16AltImpl"]:
       kStr += self.macroRegister("vgprG2Lpipe0", self.G2Lpipe0)
       kStr += self.macroRegister("vgprG2Lpipe1", self.G2Lpipe1)
+      kStr += self.macroRegister("vgprFp16AltTmp", self.Fp16AltTmp)
 
     # Serial is always the last register in the pool so the store
     # code doesn't have to deal with fragmentation
@@ -8714,6 +8716,9 @@ class KernelWriterAssembly(KernelWriter):
 
       tmpLocalWriteAddr = -1
 
+      if kernel["ProblemType"]["Fp16AltImpl"]:
+        tmpSgpr = self.getTmpSgpr(self.laneSGPRCount).idx()
+
       # using _ds_store_b8: need one more vgpr space to do lshr
       tmpVgprOffset = ((self.numVgprG2LA if (tP['tensorChar'] == 'A') else self.numVgprG2LB) / 2) if (blockWidth == 0.25) else 0
 
@@ -8805,14 +8810,18 @@ class KernelWriterAssembly(KernelWriter):
                 numIters = 1 if blockWidth <= 1 else blockWidth
                 for iter in range(0, numIters):
                   vgprsrc = vgpr("G2L%s+%u"%(tc, g2lIdx+iter))
-                  localWriteCode.addInst("v_cvt_f32_f16", vgpr("G2Lpipe0"), vgprsrc,"")
-                  localWriteCode.addInst("v_cvt_f32_f16", vgpr("G2Lpipe1"), vgprsrc, "src0_sel:WORD_1", "")
 
-                  localWriteCode.addInst("v_add_u32", vgpr("G2Lpipe0"), sgpr("Fp16AltRound"), vgpr("G2Lpipe0"), "")
-                  localWriteCode.addInst("v_add_u32", vgpr("G2Lpipe1"), sgpr("Fp16AltRound"), vgpr("G2Lpipe1"), "")
+                  localWriteCode.addInst("v_cvt_f32_f16", vgpr("G2Lpipe0"), vgprsrc,"")
+                  localWriteCode.addInst("v_cmp_u_f32", sgpr(tmpSgpr,self.laneSGPRCount), vgpr("G2Lpipe0"), vgpr("G2Lpipe0"), "check Nan" )
+                  localWriteCode.addInst("v_add_u32", vgpr("Fp16AltTmp"), sgpr("Fp16AltRound"), vgpr("G2Lpipe0"), "")
+                  localWriteCode.addInst("v_cndmask_b32", vgpr("G2Lpipe0"), vgpr("Fp16AltTmp"), vgpr("G2Lpipe0"), sgpr(tmpSgpr,self.laneSGPRCount), "" )
+
+                  localWriteCode.addInst("v_cvt_f32_f16", vgpr("G2Lpipe1"), vgprsrc, "src0_sel:WORD_1", "")
+                  localWriteCode.addInst("v_cmp_u_f32", sgpr(tmpSgpr,self.laneSGPRCount), vgpr("G2Lpipe1"), vgpr("G2Lpipe1"), "check Nan" )
+                  localWriteCode.addInst("v_add_u32", vgpr("Fp16AltTmp"), sgpr("Fp16AltRound"), vgpr("G2Lpipe1"), "")
+                  localWriteCode.addInst("v_cndmask_b32", vgpr("G2Lpipe1"), vgpr("Fp16AltTmp"), vgpr("G2Lpipe1"), sgpr(tmpSgpr,self.laneSGPRCount), "" )
 
                   localWriteCode.addInst("v_pack_b32_f16", vgprsrc, vgpr("G2Lpipe0"),vgpr("G2Lpipe1"), "op_sel:[1,1,0]","")
-
 
             for oIdx in range(0, numOffsets):
               paramList.append(offset)

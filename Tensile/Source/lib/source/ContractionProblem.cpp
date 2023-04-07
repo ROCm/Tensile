@@ -1246,18 +1246,19 @@ namespace Tensile
     TypedContractionInputs<A, B, C, D, Alpha, Beta>::~TypedContractionInputs() = default;
 
     template <typename A, typename B, typename C, typename D, typename Alpha, typename Beta>
-    TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs(A const*        _a,
-                                                                            B const*        _b,
-                                                                            C const*        _c,
-                                                                            D*              _d,
-                                                                            A const* const* _batchA,
-                                                                            B const* const* _batchB,
-                                                                            C const* const* _batchC,
-                                                                            D* const*       _batchD,
-                                                                            Alpha           _alpha,
-                                                                            Beta            _beta,
-                                                                            void*           _ws,
-                                                                            int32_t         _fp16AltImplMode)
+    TypedContractionInputs<A, B, C, D, Alpha, Beta>::TypedContractionInputs(
+        A const*        _a,
+        B const*        _b,
+        C const*        _c,
+        D*              _d,
+        A const* const* _batchA,
+        B const* const* _batchB,
+        C const* const* _batchC,
+        D* const*       _batchD,
+        Alpha           _alpha,
+        Beta            _beta,
+        void*           _ws,
+        int32_t         _fp16AltImplMode)
         : a(_a)
         , b(_b)
         , c(_c)

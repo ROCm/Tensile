@@ -264,8 +264,7 @@ namespace Tensile
             int    persistentKernel           = 0;
             bool   persistentKernelAlongBatch = false;
 
-            bool   sourceKernel = false;
-
+            bool   sourceKernel          = false;
             int    globalAccumulation    = 0;
             size_t workspaceSizePerElemC = 0;
         };
