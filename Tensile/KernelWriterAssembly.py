@@ -1507,7 +1507,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["ProblemType"]["Fp16AltImpl"]:
       self.G2Lpipe0 = vgprIdx
       self.G2Lpipe1 = self.G2Lpipe0 + 1
-      self.fp16AltTmp = self.G2Lpipe1 + 1
+      self.Fp16AltTmp = self.G2Lpipe1 + 1
       vgprIdx += 3
 
     self.startVgprAddressDbg = vgprIdx
