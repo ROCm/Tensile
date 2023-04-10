@@ -2286,6 +2286,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # generate no Load Loop Body code
       self.noLoadLoopBody(kernel, tensorParametersA, tensorParametersB, kl, pack, isOptNLL, isPap, isNGLL, NLLfirst, NLLlast)
 
+    # tail loop in NLL and early exit case, need to wait for all prefetch local read (and global read for DirectToVgpr)
+    if NLLlast and self.tailLoopInNLL and (not self.noEarlyExitForTailLoopInNLL):
+      if self.enable["Wait"]:
+        kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "13wait for remaining local read for tail loop in NLL"))
+        if kernel["DirectToVgprA"] or kernel["DirectToVgprB"]:
+          kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "14wait for remaining DirectToVgpr global read for tail loop in NLL"))
+
     if NLLlast and isPap:
       # reset or swap local write offset
       # If DirectToLds is True, first LDS buffer is already used by lds global read and offset already points first one
@@ -3120,6 +3127,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if not (self.enableSingleNLLOpt and firstNLLgenerated):
           papMode = self.prefetchAcrossPersistent and kernel["PrefetchAcrossPersistentMode"] == 1
           kl += self.noLoadLoop(kernel, tensorParametersA, tensorParametersB, isOptNLL=False, isPap=papMode, isNGLL=False, pack=pack)
+
         else:
           # generate PrefetchGlobalLastIterEnd label
           kl.append(self.closeSumAtLeastUnroll(kernel, prefetch=False, isOptNLL=False, isPap=False, isNGLL=False))
@@ -3141,13 +3149,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
       kl.append(self.comment("remove stagger offsets"))
       kl.append(self.removeStagger(kernel, tensorParametersA))
       kl.append(self.removeStagger(kernel, tensorParametersB))
-
-    # tail loop in NLL and early exit case, need to wait for all prefetch local read (and global read for DirectToVgpr)
-    if self.tailLoopInNLL and (not self.noEarlyExitForTailLoopInNLL):
-      if self.enable["Wait"]:
-        kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, -1, -1, 0, "13wait for remaining local read for tail loop in NLL"))
-        if kernel["DirectToVgprA"] or kernel["DirectToVgprB"]:
-          kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "14wait for remaining DirectToVgpr global read for tail loop in NLL"))
 
     if not self.noTailLoop:
       ########################################

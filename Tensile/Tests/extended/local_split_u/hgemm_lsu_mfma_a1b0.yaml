@@ -3,10 +3,12 @@ TestParameters:
 
 GlobalParameters:
   NumElementsToValidate: -1
-  BoundsCheck: True
+  #BoundsCheck: True
   KernelTime: True
   #PrintSolutionRejectionReason: True
   #MaxFileName: 256
+  DataInitTypeAlpha: 1
+  DataInitTypeBeta : 0
 
 BenchmarkProblems:
   ########################################
@@ -72,6 +74,7 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [ 254, 254, 1, 2050]
+          - Range: [ [510], [510], [1], [2, 8, 66] ]
 
   ########################################
   # HHS NT - LSU + GSU + VAW + BS[0,1]
@@ -123,6 +126,7 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Exact: [ 252, 254, 1, 2050]
+          - Range: [ [510], [510], [1], [2, 8, 66] ]
 
   ########################################
   # HSS NT - standard
