@@ -8984,7 +8984,8 @@ class KernelWriterAssembly(KernelWriter):
     LdsPad = kernel["LdsPad%s"%tc] if kernel["LdsBlockSizePerPad%s"%tc] == 0 else 0
 
     # offset increment calculation for both tail loop and not tail loop cases
-    inc_base = kernel["LocalSplitU"] * (kernel["MacroTile%s" % tP["tensorChar"]] + LdsPad)
+    inc_base = (kernel["MacroTile%s" % tP["tensorChar"]] + LdsPad)
+    inc_base_lsu = kernel["LocalSplitU"] * inc_base
     numReadsIterCoalescedA = self.numReadsIterCoalescedA
     numReadsIterCoalescedB = self.numReadsIterCoalescedB
     if kernel["EnableMatrixInstruction"]:
@@ -8994,23 +8995,23 @@ class KernelWriterAssembly(KernelWriter):
         if tc == "A":
           count = iui if self.inTailLoop else self.localReadDoCntA
           if kernel["MatrixInstB"] != 1 or self.lrvwA == self.lrvwB:
-            inc = inc_base * kernel["MatrixInstK"] * numReadsIterCoalescedA
+            inc = inc_base_lsu * kernel["MatrixInstK"] * numReadsIterCoalescedA
           else:
             if (count)%(kernel["LocalReadVectorWidth"]//self.lrvwA):
               inc = inc_base * self.lrvwA
             else:
-              inc = inc_base * (kernel["MatrixInstK"]*kernel["LocalReadVectorWidth"]//self.lrvwA-self.lrvwA*(kernel["LocalReadVectorWidth"]//self.lrvwA-1))
+              inc = inc_base * (kernel["LocalSplitU"] * kernel["MatrixInstK"]*kernel["LocalReadVectorWidth"]//self.lrvwA-self.lrvwA*(kernel["LocalReadVectorWidth"]//self.lrvwA-1))
         else:
           count = iui if self.inTailLoop else self.localReadDoCntB
           if kernel["MatrixInstB"] != 1 or self.lrvwA == self.lrvwB:
-            inc = inc_base * kernel["MatrixInstK"] * numReadsIterCoalescedB
+            inc = inc_base_lsu * kernel["MatrixInstK"] * numReadsIterCoalescedB
           else:
             if (count)%(kernel["LocalReadVectorWidth"]//self.lrvwB):
-              inc = (kernel["MacroTile%s"%tP["tensorChar"]] + LdsPad) * self.lrvwB
+              inc = inc_base * self.lrvwB
             else:
-              inc = (kernel["MacroTile%s"%tP["tensorChar"]] + LdsPad) * (kernel["LocalSplitU"] * kernel["MatrixInstK"]*kernel["LocalReadVectorWidth"]//self.lrvwB-self.lrvwB*(kernel["LocalReadVectorWidth"]//self.lrvwB-1))
+              inc = inc_base * (kernel["LocalSplitU"] * kernel["MatrixInstK"]*kernel["LocalReadVectorWidth"]//self.lrvwB-self.lrvwB*(kernel["LocalReadVectorWidth"]//self.lrvwB-1))
     else:
-      inc = inc_base
+      inc = inc_base_lsu
 
     if self.inTailLoop:
       comment = " (LSU*(MT+PAD)*bpe)"
