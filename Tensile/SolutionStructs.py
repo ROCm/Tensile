@@ -3065,9 +3065,6 @@ class Solution(collections.abc.Mapping):
         reject(state, "LocalSplitU but MT0*MT1=%u elements doesn't divide into NumThreads=%u" \
             % (state["MacroTile0"]*state["MacroTile1"], state["NumThreads"]))
         return
-      if state["ProblemType"]["DataType"].isInt8():
-        reject(state, "int8 doesn't support LocalSplitU")
-        return
 
     # to eliminate identical/duplicate kernels when GSU=1
     if state["GlobalSplitU"] == 1:
