@@ -7633,12 +7633,14 @@ class KernelWriterAssembly(KernelWriter):
               # but only when hi16=1 we use the _d16_hi version instruction, see the below visualized int8 comment
               loadVgpr = destVgprHi if ((hi16 or hi8) and destVgprHi != None) else destVgpr
 
-              # Not HasEccHalf or not bufferLoad case, need to initialize dest vgpr for global load if bpl < 4
+              # (Int8(bpl=1) + Not HasEccHalf) or (bpl < 4 + HasEccHalf + not bufferLoad case), need to initialize dest vgpr for global load
               # bpl < 4 case, we need to use multiple loads + or operation(s)
               # In that case, we need to ensure that register value of out of range is 0
+              # (except for the case we use same destination for multiple loads (Not HasEccHalf)
               # Not buffer load case, we use exec flag and register value is unchanged if exec flag is 0.
               # If we do not initialize dest register here, some uninitialized value can be used for or operation
-              if bpl < 4 and (not self.archCaps["HasEccHalf"] or not kernel["BufferLoad"]):
+              if (bpl == 1 and (not self.archCaps["HasEccHalf"])) or \
+                 (bpl < 4 and self.archCaps["HasEccHalf"] and not kernel["BufferLoad"]):
                 kStr += inst("v_mov_b32", vgpr(loadVgpr), 0, "set to zero to avoid unexpected value for byte per load < 4")
 
               if kernel["BufferLoad"]:
