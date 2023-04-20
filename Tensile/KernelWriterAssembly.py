@@ -1320,6 +1320,8 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["ProblemType"]["Fp16AltImpl"]:
       self.numG2LpipeRegisters = 2
+      if kernel["ProblemType"]["Fp16AltImplRound"]:
+        self.numG2LpipeRegisters += 1
 
     ####################################
     # num vgprs: c write address
@@ -1507,8 +1509,10 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["ProblemType"]["Fp16AltImpl"]:
       self.G2Lpipe0 = vgprIdx
       self.G2Lpipe1 = self.G2Lpipe0 + 1
-      self.Fp16AltTmp = self.G2Lpipe1 + 1
-      vgprIdx += 3
+      vgprIdx += 2
+      if kernel["ProblemType"]["Fp16AltImplRound"]:
+        self.Fp16AltTmp = self.G2Lpipe1 + 1
+        vgprIdx += 1
 
     self.startVgprAddressDbg = vgprIdx
     vgprIdx += numVgprAddressDbg
@@ -1700,6 +1704,10 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("SrdD", 4, 4)
       self.defineSgpr("SrdC", 4, 4)
 
+    # Register to store rounding term if fp16 alt rnz
+    if kernel["ProblemType"]["Fp16AltImpl"] and kernel["ProblemType"]["Fp16AltImplRound"]:
+      self.defineSgpr("Fp16AltOffset", 1)
+
     ###################################
     # Get kernel argument start here
     self.defineSgpr("Tensor2dSizeA", 2,4)
@@ -1792,12 +1800,6 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("WgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
     self.defineSgpr("MagicNumberWgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
 
-    # Dual use register for loading Fp16AltImpl rounding type and offset value
-    fp16AltArgsToLoad = 0
-    if kernel["ProblemType"]["Fp16AltImpl"]:
-      self.defineSgpr("Fp16AltRound", 1)
-      fp16AltArgsToLoad = 1
-
     # dedicated sgpr(S) for storeC VGPR indexing
     # sgpr semaphore for message synchronization between different part of code section
     if kernel["StoreCInUnroll"]:
@@ -1837,8 +1839,7 @@ class KernelWriterAssembly(KernelWriter):
       2 + \
       pkArgumentToLoad + \
       3 + \
-      self.numSgprOffsetD + self.numSgprOffsetC + self.numSgprOffsetA + self.numSgprOffsetB + \
-      fp16AltArgsToLoad
+      self.numSgprOffsetD + self.numSgprOffsetC + self.numSgprOffsetA + self.numSgprOffsetB
 
     # Get kernel argument end here
     ###################################
@@ -2500,7 +2501,8 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["ProblemType"]["Fp16AltImpl"]:
       kStr += self.macroRegister("vgprG2Lpipe0", self.G2Lpipe0)
       kStr += self.macroRegister("vgprG2Lpipe1", self.G2Lpipe1)
-      kStr += self.macroRegister("vgprFp16AltTmp", self.Fp16AltTmp)
+      if kernel["ProblemType"]["Fp16AltImplRound"]:
+        kStr += self.macroRegister("vgprFp16AltTmp", self.Fp16AltTmp)
 
     # Serial is always the last register in the pool so the store
     # code doesn't have to deal with fragmentation
@@ -3235,9 +3237,8 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("s_and_b32",  sgpr("MagicShiftSize%s"%idxChar), sgpr("MagicShiftSize%s"%idxChar), hex(0x7fffffff), "remove abit")
 
     # setup rounding term if Fp16AltImpl is enabled, reusing sgpr to hold rounding term
-    if kernel["ProblemType"]["Fp16AltImpl"]:
-      kStr += inst("s_cmp_eq_u32", sgpr("Fp16AltRound"), 0, "Fp16AltRound == 0?")
-      kStr += inst("s_cselect_b32", sgpr("Fp16AltRound"), 0, "0x7FFF", "Set rounding coeff if Fp16AltImpl enabled")
+    if kernel["ProblemType"]["Fp16AltImpl"] and kernel["ProblemType"]["Fp16AltImplRound"]:
+      kStr += inst("s_mov_b32", sgpr("Fp16AltOffset"), "0x7FFF", "Set rounding coeff if Fp16AltImplNtz enabled")
 
     ########################################
     # Debug Buffer
@@ -8716,7 +8717,7 @@ class KernelWriterAssembly(KernelWriter):
 
       tmpLocalWriteAddr = -1
 
-      if kernel["ProblemType"]["Fp16AltImpl"]:
+      if kernel["ProblemType"]["Fp16AltImpl"] and kernel["ProblemType"]["Fp16AltImplRound"]:
         tmpSgpr = self.getTmpSgpr(self.laneSGPRCount).idx()
 
       # using _ds_store_b8: need one more vgpr space to do lshr
@@ -8812,14 +8813,16 @@ class KernelWriterAssembly(KernelWriter):
                   vgprsrc = vgpr("G2L%s+%u"%(tc, g2lIdx+iter))
 
                   localWriteCode.addInst("v_cvt_f32_f16", vgpr("G2Lpipe0"), vgprsrc,"")
-                  localWriteCode.addInst("v_cmp_u_f32", sgpr(tmpSgpr,self.laneSGPRCount), vgpr("G2Lpipe0"), vgpr("G2Lpipe0"), "check Nan" )
-                  localWriteCode.addInst("v_add_u32", vgpr("Fp16AltTmp"), sgpr("Fp16AltRound"), vgpr("G2Lpipe0"), "")
-                  localWriteCode.addInst("v_cndmask_b32", vgpr("G2Lpipe0"), vgpr("Fp16AltTmp"), vgpr("G2Lpipe0"), sgpr(tmpSgpr,self.laneSGPRCount), "" )
+                  if kernel["ProblemType"]["Fp16AltImplRound"]:
+                    localWriteCode.addInst("v_cmp_u_f32", sgpr(tmpSgpr,self.laneSGPRCount), vgpr("G2Lpipe0"), vgpr("G2Lpipe0"), "check NaN" )
+                    localWriteCode.addInst("v_add_u32", vgpr("Fp16AltTmp"), sgpr("Fp16AltOffset"), vgpr("G2Lpipe0"), "")
+                    localWriteCode.addInst("v_cndmask_b32", vgpr("G2Lpipe0"), vgpr("Fp16AltTmp"), vgpr("G2Lpipe0"), sgpr(tmpSgpr,self.laneSGPRCount), "" )
 
                   localWriteCode.addInst("v_cvt_f32_f16", vgpr("G2Lpipe1"), vgprsrc, "src0_sel:WORD_1", "")
-                  localWriteCode.addInst("v_cmp_u_f32", sgpr(tmpSgpr,self.laneSGPRCount), vgpr("G2Lpipe1"), vgpr("G2Lpipe1"), "check Nan" )
-                  localWriteCode.addInst("v_add_u32", vgpr("Fp16AltTmp"), sgpr("Fp16AltRound"), vgpr("G2Lpipe1"), "")
-                  localWriteCode.addInst("v_cndmask_b32", vgpr("G2Lpipe1"), vgpr("Fp16AltTmp"), vgpr("G2Lpipe1"), sgpr(tmpSgpr,self.laneSGPRCount), "" )
+                  if kernel["ProblemType"]["Fp16AltImplRound"]:
+                    localWriteCode.addInst("v_cmp_u_f32", sgpr(tmpSgpr,self.laneSGPRCount), vgpr("G2Lpipe1"), vgpr("G2Lpipe1"), "check NaN" )
+                    localWriteCode.addInst("v_add_u32", vgpr("Fp16AltTmp"), sgpr("Fp16AltOffset"), vgpr("G2Lpipe1"), "")
+                    localWriteCode.addInst("v_cndmask_b32", vgpr("G2Lpipe1"), vgpr("Fp16AltTmp"), vgpr("G2Lpipe1"), sgpr(tmpSgpr,self.laneSGPRCount), "" )
 
                   localWriteCode.addInst("v_pack_b32_f16", vgprsrc, vgpr("G2Lpipe0"),vgpr("G2Lpipe1"), "op_sel:[1,1,0]","")
 

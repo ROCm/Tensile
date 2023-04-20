@@ -243,9 +243,6 @@ class SignatureDefault(Signature):
         kStr += self.addArgument(                   "WgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += self.addArgument(        "MagicNumberWgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
 
-        if kernel["Fp16AltImpl"]:
-            kStr += self.addArgument(             "Fp16AltImplMode",     '4', offset,      "by_value",        "u32"); offset += 4
-
         kStr += self.addArgument(                         "padding",     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += "    .group_segment_fixed_size:   %u%s" % ( group_segment_size, writer.endLine ) #XXXXXX
         kStr += "    .kernarg_segment_align:      %u%s" % ( 8, writer.endLine )

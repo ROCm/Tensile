@@ -282,6 +282,7 @@ namespace Tensile
             bool        useInitialStridesCD     = false;
             bool        stridedBatched          = true;
             bool        fp16AltImpl             = false;
+            bool        fp16AltImplRound        = false;
         };
 
         struct LinearModel

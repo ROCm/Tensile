@@ -632,6 +632,16 @@ namespace Tensile
             return m_fp16AltImpl;
         }
 
+        void setFp16AltImplRound(bool value)
+        {
+            m_fp16AltImplRound = value;
+        }
+
+        bool fp16AltImplRound() const
+        {
+            return m_fp16AltImplRound;
+        }
+
         /// Largest of the free and bound indices.  Does not include batch size.
         size_t maxProblemSize() const
         {
@@ -813,6 +823,7 @@ namespace Tensile
         bool              m_deterministicMode       = false;
         bool              m_eligibleForPK           = true;
         bool              m_fp16AltImpl             = false;
+        bool              m_fp16AltImplRound        = false;
         ArithmeticUnit    m_arithmeticUnit          = ArithmeticUnit::Any;
         KernelLanguage    m_kernelLanguage          = KernelLanguage::Any;
         PerformanceMetric m_performanceMetric       = PerformanceMetric::DeviceEfficiency;
@@ -913,8 +924,7 @@ namespace Tensile
                                D*       _d,
                                Alpha    _alpha,
                                Beta     _beta,
-                               void*    _ws              = nullptr,
-                               int32_t  _fp16AltImplMode = 0)
+                               void*    _ws = nullptr)
             : TypedContractionInputs(
                 _a, _b, _c, _d, nullptr, nullptr, nullptr, nullptr, _alpha, _beta){};
 
@@ -928,8 +938,7 @@ namespace Tensile
                                D* const*       _batchD,
                                Alpha           _alpha,
                                Beta            _beta,
-                               void*           _ws              = nullptr,
-                               int32_t         _fp16AltImplMode = 0);
+                               void*           _ws = nullptr);
 
         ~TypedContractionInputs();
 
@@ -947,8 +956,6 @@ namespace Tensile
 
         Alpha alpha = static_cast<Alpha>(0);
         Beta  beta  = static_cast<Beta>(0);
-
-        int32_t fp16AltImplMode = 0;
 
         constexpr static uint32_t TypeId()
         {
