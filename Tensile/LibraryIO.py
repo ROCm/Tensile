@@ -242,10 +242,10 @@ def parseLibraryLogicList(data, srcFile="?"):
     if len(data) > 10 and data[10]:
         rv["PerfMetric"] = data[10]
 
-    if len(data) > 11 and data[11]:
+    if len(data) > 11 and data[11] == "Fp16AltImpl":
         rv["Fp16AltImpl"] = True
 
-    if len(data) > 12 and data[12]:
+    if len(data) > 12 and data[12] == "Fp16AltImplRound":
         rv["Fp16AltImplRound"] = True
 
     # library logic fields

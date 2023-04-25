@@ -324,7 +324,7 @@ class MasterSolutionLibrary:
             newLib = PredicateLibrary(tag="Problem")
             newLib.rows.append({"predicate": predicate, "library": library})
 
-            if lazyLibrary and predicate.tag == "Fp16AltImpl":
+            if lazyLibrary and predicate.tag == "Fp16AltImpl" and not d.get("Fp16AltImplRnz"):
                 placeholderName += "_Fp16Alt"
 
             return newLib, placeholderName
@@ -390,12 +390,12 @@ class MasterSolutionLibrary:
         if libraryOrder is None:
             if Common.globalParameters["LazyLibraryLoading"]:
                 libraryOrder = [
-                    hardware, operationIdentifier, performanceMetric, fp16AltImplRound, fp16AltImpl, predicates,
+                    hardware, operationIdentifier, performanceMetric, fp16AltImpl, fp16AltImplRound, predicates,
                     placeholder, selection
                 ]
             else:
                 libraryOrder = [
-                    hardware, operationIdentifier, performanceMetric, fp16AltImplRound, fp16AltImpl, predicates,
+                    hardware, operationIdentifier, performanceMetric, fp16AltImpl, fp16AltImplRound, predicates,
                     selection
                 ]
         #assert libraryOrder[-1] == selection
