@@ -1836,10 +1836,6 @@ class Solution(collections.abc.Mapping):
   @staticmethod
   def assignProblemIndependentDerivedParameters(state):
 
-    if globalParameters["NewClient"] != 2:
-      print("WARNING: Old client deprecated, NewClient parameter being set to 2.")
-      globalParameters["NewClient"] = 2
-
     if "AssignedProblemIndependentDerivedParameters" in state:
       if state["AssignedProblemIndependentDerivedParameters"]:
         return
