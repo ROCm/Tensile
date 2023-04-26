@@ -5,7 +5,6 @@ GlobalParameters:
   NumElementsToValidate: -1
   BoundsCheck: True
   KernelTime: True
-  NewClient: 2
   DataInitTypeA: 18
   DataInitTypeB: 19
   DataInitTypeC: 0
