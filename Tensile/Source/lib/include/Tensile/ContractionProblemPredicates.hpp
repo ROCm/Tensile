@@ -1409,6 +1409,27 @@ namespace Tensile
                 }
             };
 
+            struct Fp16AltImplRound : public Predicate_CRTP<Fp16AltImplRound, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = false
+                };
+
+                Fp16AltImplRound() = default;
+
+                static std::string Type()
+                {
+                    return "Fp16AltImplRound";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.fp16AltImplRound();
+                }
+            };
+
             struct EqualityMatching : public Predicate_CRTP<EqualityMatching, ContractionProblem>
             {
                 enum

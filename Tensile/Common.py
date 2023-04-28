@@ -1054,6 +1054,8 @@ validParameters = {
 
     # alternate implementation for fp16 HPA MFMA
     "Fp16AltImpl": [False, True],
+    # fp16 alternate implementation round mode: false for truncate, true for round near zero
+    "Fp16AltImplRound": [False, True],
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
@@ -1429,6 +1431,7 @@ defaultBenchmarkCommonParameters = [
     {"StoreCInUnrollExact":       [ False ] },
     {"StoreCInUnrollPostLoop":    [ False ] },
     {"Fp16AltImpl":               [ False ] },
+    {"Fp16AltImplRound":          [ False ] },
     {"ThreadSeparateGlobalReadA": [ 0 ] },
     {"ThreadSeparateGlobalReadB": [ 0 ] }
     ]
@@ -1634,7 +1637,8 @@ defaultProblemType = {
     "TileAwareSelection":       False,
 
     # FP16 Alternate Implementation
-    "Fp16AltImpl":              False
+    "Fp16AltImpl":              False,
+    "Fp16AltImplRound":         False
     }
 
 defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]

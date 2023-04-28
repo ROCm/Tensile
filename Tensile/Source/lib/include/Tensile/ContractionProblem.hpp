@@ -632,6 +632,16 @@ namespace Tensile
             return m_fp16AltImpl;
         }
 
+        void setFp16AltImplRound(bool value)
+        {
+            m_fp16AltImplRound = value;
+        }
+
+        bool fp16AltImplRound() const
+        {
+            return m_fp16AltImplRound;
+        }
+
         /// Largest of the free and bound indices.  Does not include batch size.
         size_t maxProblemSize() const
         {
@@ -813,6 +823,7 @@ namespace Tensile
         bool              m_deterministicMode       = false;
         bool              m_eligibleForPK           = true;
         bool              m_fp16AltImpl             = false;
+        bool              m_fp16AltImplRound        = false;
         ArithmeticUnit    m_arithmeticUnit          = ArithmeticUnit::Any;
         KernelLanguage    m_kernelLanguage          = KernelLanguage::Any;
         PerformanceMetric m_performanceMetric       = PerformanceMetric::DeviceEfficiency;
