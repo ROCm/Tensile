@@ -5671,8 +5671,7 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # Tail Loop
     if tailLoop:
-      tmpRef = self.getTmpSgpr(3)
-      tmpSgpr = tmpRef.idx()
+      tmpSgpr = self.getTmpSgpr(3).idx()
       if self.prefetchAcrossPersistent0:
         loopCounterName = "TailLoopCounter"
       else:
@@ -7273,10 +7272,9 @@ class KernelWriterAssembly(KernelWriter):
       #  kStr += inst("s_mov_b32", sgpr("OffsetB"), sgpr("SrdB+0"), "hack to save")
       if self.staggerU and loopIdx == self.unrollIdx:
         # add a wrap increment, if needed:
-        incRef   = self.getTmpSgpr(2, 2)
-        incLower = incRef.idx()
+        incLower = self.getTmpSgpr(3).idx()
         incUpper = incLower + 1
-        tmpS     = incLower
+        tmpS     = incLower + 2
         if prefetchIndex:
           imod.addInst("s_add_u32", sgpr(tmpS), self.loopCounter(kernel, self.unrollIdx), prefetchIndex, "remove pf(%u)"%prefetchIndex)
           imod.addInst("s_cmp_eq_u32",  sgpr("StaggerUIter"), sgpr(tmpS), "Is this wrapIter? (pf)")
@@ -7291,10 +7289,9 @@ class KernelWriterAssembly(KernelWriter):
         imod.addCode(self.incrementSrd(kernel, tP, sgpr(incLower), sgpr(incUpper), checkShadowLimitCopy=True))
       else:
         if loopIdx != self.unrollIdx or (tc in ('A', 'B') and kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s"%tc]):
-          incRef = self.getTmpSgpr(1)
-          incUpper = incRef.idx()
+          incUpper = sgpr(self.getTmpSgpr(1).idx())
           # GRO may be negative for other summation if stride-other < stride-unroll or if mirror dim.
-          imod.addInst("s_ashr_i32", sgpr(incUpper), sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), 31, "sign-extend")
+          imod.addInst("s_ashr_i32", incUpper, sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), 31, "sign-extend")
         else:
           incUpper = 0 # GRO is positive for loop unroll
         imod.addCode( self.incrementSrd(kernel, tP, sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), incUpper))
@@ -7458,8 +7455,7 @@ class KernelWriterAssembly(KernelWriter):
         incCodeA.addText("\n")
         incUpperA = sgpr(inc[tc]+1) if self.use64bPackSumOffset else 0
         if bool(set(kernel["ProblemType"]["IndicesSummation"]).intersection(set(kernel["ProblemType"]["MirrorDims%s"%tc]))) and not self.use64bPackSumOffset:
-          incRef = self.getTmpSgpr(1)
-          incUpperA = sgpr(incRef.idx())
+          incUpperA = sgpr(self.getTmpSgpr(1).idx())
           incCodeA.addInst("s_ashr_i32", incUpperA, sgpr(inc[tc]), 31, "sign-extend")
         incCodeA.addCode(self.incrementSrd(kernel, tp, sgpr(inc[tc]), incUpperA))
 
