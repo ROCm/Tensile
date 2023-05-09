@@ -625,6 +625,11 @@ class KernelWriterAssembly(KernelWriter):
       numberOfSgpr = self.numGlobalReadOffsetsB if needFirstSgprOffset else (self.numGlobalReadOffsetsB-1)
       self.defineSgpr("ScalarGlobalReadOffsetB", numberOfSgpr)
 
+    # Register to store rounding term if fp16 alt rnz
+    if kernel["ProblemType"]["Fp16AltImpl"] and kernel["ProblemType"]["Fp16AltImplRound"]:
+      self.defineSgpr("Fp16AltOffset", 1)
+      self.defineSgpr("Fp16AltNanCheck", 2, 2)
+
     # debug flag to allocate dummy / unused sgpr
     # useful when comparing code that adds new kernel arguments to see what
     # was actually changed
@@ -1703,10 +1708,6 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["BufferStore"]:
       self.defineSgpr("SrdD", 4, 4)
       self.defineSgpr("SrdC", 4, 4)
-
-    # Register to store rounding term if fp16 alt rnz
-    if kernel["ProblemType"]["Fp16AltImpl"] and kernel["ProblemType"]["Fp16AltImplRound"]:
-      self.defineSgpr("Fp16AltOffset", 1)
 
     ###################################
     # Get kernel argument start here
@@ -7273,7 +7274,7 @@ class KernelWriterAssembly(KernelWriter):
         # add a wrap increment, if needed:
         incLower = self.getTmpSgpr(3).idx()
         incUpper = incLower + 1
-        tmpS =    incLower + 2
+        tmpS     = incLower + 2
         if prefetchIndex:
           imod.addInst("s_add_u32", sgpr(tmpS), self.loopCounter(kernel, self.unrollIdx), prefetchIndex, "remove pf(%u)"%prefetchIndex)
           imod.addInst("s_cmp_eq_u32",  sgpr("StaggerUIter"), sgpr(tmpS), "Is this wrapIter? (pf)")
@@ -8741,8 +8742,10 @@ class KernelWriterAssembly(KernelWriter):
 
       tmpLocalWriteAddr = -1
 
-      if kernel["ProblemType"]["Fp16AltImpl"] and kernel["ProblemType"]["Fp16AltImplRound"]:
-        tmpSgpr = self.getTmpSgpr(self.laneSGPRCount).idx()
+      # due to bug in scheduler, cannot use temp sgpr for now
+      #tempFp16Sgpr = -1
+      #if kernel["ProblemType"]["Fp16AltImpl"] and kernel["ProblemType"]["Fp16AltImplRound"]:
+      #  tempFp16Sgpr = self.sgprPool.checkOutAligned(self.laneSGPRCount, 2, "FP16 Alt Round Temp SGPRs")
 
       # using _ds_store_b8: need one more vgpr space to do lshr
       tmpVgprOffset = ((self.numVgprG2LA if (tP['tensorChar'] == 'A') else self.numVgprG2LB) / 2) if (blockWidth == 0.25) else 0
@@ -8838,15 +8841,15 @@ class KernelWriterAssembly(KernelWriter):
 
                   localWriteCode.addInst("v_cvt_f32_f16", vgpr("G2Lpipe0"), vgprsrc,"")
                   if kernel["ProblemType"]["Fp16AltImplRound"]:
-                    localWriteCode.addInst("v_cmp_u_f32", sgpr(tmpSgpr,self.laneSGPRCount), vgpr("G2Lpipe0"), vgpr("G2Lpipe0"), "check NaN" )
+                    localWriteCode.addInst("v_cmp_u_f32", sgpr("Fp16AltNanCheck", self.laneSGPRCount), vgpr("G2Lpipe0"), vgpr("G2Lpipe0"), "check NaN" )
                     localWriteCode.addInst("v_add_u32", vgpr("Fp16AltTmp"), sgpr("Fp16AltOffset"), vgpr("G2Lpipe0"), "")
-                    localWriteCode.addInst("v_cndmask_b32", vgpr("G2Lpipe0"), vgpr("Fp16AltTmp"), vgpr("G2Lpipe0"), sgpr(tmpSgpr,self.laneSGPRCount), "" )
+                    localWriteCode.addInst("v_cndmask_b32", vgpr("G2Lpipe0"), vgpr("Fp16AltTmp"), vgpr("G2Lpipe0"), sgpr("Fp16AltNanCheck",self.laneSGPRCount), "" )
 
                   localWriteCode.addInst("v_cvt_f32_f16", vgpr("G2Lpipe1"), vgprsrc, "src0_sel:WORD_1", "")
                   if kernel["ProblemType"]["Fp16AltImplRound"]:
-                    localWriteCode.addInst("v_cmp_u_f32", sgpr(tmpSgpr,self.laneSGPRCount), vgpr("G2Lpipe1"), vgpr("G2Lpipe1"), "check NaN" )
+                    localWriteCode.addInst("v_cmp_u_f32", sgpr("Fp16AltNanCheck",self.laneSGPRCount), vgpr("G2Lpipe1"), vgpr("G2Lpipe1"), "check NaN" )
                     localWriteCode.addInst("v_add_u32", vgpr("Fp16AltTmp"), sgpr("Fp16AltOffset"), vgpr("G2Lpipe1"), "")
-                    localWriteCode.addInst("v_cndmask_b32", vgpr("G2Lpipe1"), vgpr("Fp16AltTmp"), vgpr("G2Lpipe1"), sgpr(tmpSgpr,self.laneSGPRCount), "" )
+                    localWriteCode.addInst("v_cndmask_b32", vgpr("G2Lpipe1"), vgpr("Fp16AltTmp"), vgpr("G2Lpipe1"), sgpr("Fp16AltNanCheck",self.laneSGPRCount), "" )
 
                   localWriteCode.addInst("v_pack_b32_f16", vgprsrc, vgpr("G2Lpipe0"),vgpr("G2Lpipe1"), "op_sel:[1,1,0]","")
 
@@ -8884,6 +8887,10 @@ class KernelWriterAssembly(KernelWriter):
             loopCnt+=1
       if tmpLocalWriteAddr != -1:
         self.vgprPool.checkIn(tmpLocalWriteAddr)
+
+      # due to bug in scheduler, cannot use temp sgpr for now
+      #if tempFp16Sgpr != -1:
+      #  self.sgprPool.checkIn(tempFp16Sgpr)
 
     # localWriteDoCnt<=2 is prefetch if PrefetchGlobalRead:
     if 0 and tP["isB"]: # post-lds-write
