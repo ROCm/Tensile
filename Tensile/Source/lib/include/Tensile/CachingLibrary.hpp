@@ -121,14 +121,14 @@ namespace Tensile
         template <typename SubMap, typename K>
         Value find_impl(SubMap& map, K const& key)
         {
-            Value *val = find_impl_ptr(map, key);
-            return val ? *val : m_nullValue; 
+            Value* val = find_impl_ptr(map, key);
+            return val ? *val : m_nullValue;
         }
 
         template <typename SubMap, typename K, typename... Ks>
         Value find_impl(SubMap& map, K const& key, Ks const&... ks)
         {
-            Value *val = find_impl_ptr(map, key, ks...);
+            Value* val = find_impl_ptr(map, key, ks...);
             return val ? *val : m_nullValue;
         }
 
@@ -169,8 +169,8 @@ namespace Tensile
         template <typename SubMap, typename K>
         void add_or_replace_impl(SubMap& map, Value const& value, K const& key)
         {
-            Value *current_value = find_impl_ptr(map, key);
-            if (current_value)
+            Value* current_value = find_impl_ptr(map, key);
+            if(current_value)
             {
                 *current_value = value;
             }
@@ -183,8 +183,8 @@ namespace Tensile
         template <typename SubMap, typename K, typename... Ks>
         void add_or_replace_impl(SubMap& map, Value const& value, K const& key, Ks const&... ks)
         {
-            Value *current_value = find_impl_ptr(map, key, ks...);
-            if (current_value)
+            Value* current_value = find_impl_ptr(map, key, ks...);
+            if(current_value)
             {
                 *current_value = value;
             }
@@ -192,7 +192,6 @@ namespace Tensile
             {
                 add_impl(map, value, key, ks...);
             }
-
         }
 
         Map                     m_map;
@@ -274,13 +273,14 @@ namespace Tensile
         {
             try
             {
-                auto const& amdgpu   = dynamic_cast<AMDGPU const&>(hardware);
-                double cachedFitness = std::numeric_limits<double>::max();
-                fitness              = (fitness) ? fitness : &cachedFitness;
+                auto const& amdgpu        = dynamic_cast<AMDGPU const&>(hardware);
+                double      cachedFitness = std::numeric_limits<double>::max();
+                fitness                   = (fitness) ? fitness : &cachedFitness;
 
                 if(solution)
                 {
-                    m_cache.add_or_replace(std::make_tuple(solution, cachedFitness), problem, amdgpu);
+                    m_cache.add_or_replace(
+                        std::make_tuple(solution, cachedFitness), problem, amdgpu);
                     return true;
                 }
                 else
