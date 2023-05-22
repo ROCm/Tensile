@@ -35,9 +35,12 @@
 #include <Tensile/Distance.hpp>
 #include <Tensile/ExactLogicLibrary.hpp>
 #include <Tensile/MasterSolutionLibrary.hpp>
+#include <Tensile/UserDrivenTuningParser.hpp>
 
 #include <memory>
 #include <random>
+#include <string>
+#include <vector>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -985,4 +988,62 @@ TEST(CachingLibrary, Insert)
     EXPECT_EQ(lib.findBestSolution(Problem1, gpu), SolutionOverride);
     EXPECT_EQ(lib.findBestSolution(Problem2, gpu), SolutionDefault);
     EXPECT_EQ(lib.findBestSolution(Problem3, gpu), SolutionOverride);
+}
+
+TEST(CachingLibrary, Parsing)
+{
+    using namespace Tensile;
+    
+    // Non-strided
+    std::vector<std::string> entries0{"T","N","2304","256","1","1729","1","1","1729","1729","2304","f16_r","f16_r","f32_r","752"};
+
+    auto probSol = problemFromEntries(entries0);
+    EXPECT_EQ(probSol.first.transA(), true);
+    EXPECT_EQ(probSol.first.transB(), false);
+
+    EXPECT_EQ(probSol.first.freeSizeA(0), 2304);
+    EXPECT_EQ(probSol.first.freeSizeB(0), 256);
+    EXPECT_EQ(probSol.first.batchSize(0), 1);
+    EXPECT_EQ(probSol.first.boundSize(0), 1729);
+
+    EXPECT_EQ(probSol.first.beta(), 1.0);
+
+    EXPECT_EQ(probSol.first.a().dataType(), DataType::Half);
+    EXPECT_EQ(probSol.first.b().dataType(), DataType::Half);
+    EXPECT_EQ(probSol.first.c().dataType(), DataType::Half);
+
+    EXPECT_EQ(probSol.second, 752);
+
+    // Strided
+    std::vector<std::string> entries1{"N","T","104","104","1024","64","1","0","104","64","104","6656","6656","10816","f32_r","f32_r","f32_r","3976"};
+
+    probSol = problemFromEntries(entries1);
+    EXPECT_EQ(probSol.first.transA(), false);
+    EXPECT_EQ(probSol.first.transB(), true);
+
+    EXPECT_EQ(probSol.first.freeSizeA(0), 104);
+    EXPECT_EQ(probSol.first.freeSizeB(0), 104);
+    EXPECT_EQ(probSol.first.batchSize(0), 1024);
+    EXPECT_EQ(probSol.first.boundSize(0), 64);
+
+    EXPECT_EQ(probSol.first.beta(), 0.0);
+
+    EXPECT_EQ(probSol.first.a().dataType(), DataType::Float);
+    EXPECT_EQ(probSol.first.b().dataType(), DataType::Float);
+    EXPECT_EQ(probSol.first.c().dataType(), DataType::Float);
+
+    EXPECT_EQ(probSol.second, 3976);
+
+    // Bad args
+    std::vector<std::string> entries2{"N","T","104"};
+    probSol = problemFromEntries(entries2);
+    EXPECT_EQ(probSol.second, -1);
+
+    std::vector<std::string> entries3{"T","N","2304","256","1","1729","1","1","1729","1729","2304","f1_r","f16_r","f32_r","752"};
+    probSol = problemFromEntries(entries3);
+    EXPECT_EQ(probSol.second, -1);
+
+    std::vector<std::string> entries4{"T","N","b","256","1","1729","1","1","1729","1729","2304","f16_r","f16_r","f32_r","752"};
+    probSol = problemFromEntries(entries4);
+    EXPECT_EQ(probSol.second, -1);
 }
