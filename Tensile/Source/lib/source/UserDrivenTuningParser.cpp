@@ -2,57 +2,50 @@
 
 #include <Tensile/DataTypes.hpp>
 
-#include <iostream>
-#include <functional>
 #include <fstream>
-#include <optional>
 #include <sstream>
 #include <utility>
-
 
 namespace Tensile
 {
     inline DataType convertToDataType(const std::string& DataTypeStr)
     {
-        return
-            DataTypeStr == "f16_r" || DataTypeStr == "h" ? DataType::Half          :
-            DataTypeStr == "f32_r" || DataTypeStr == "s" ? DataType::Float         :
-            DataTypeStr == "f64_r" || DataTypeStr == "d" ? DataType::Double        :
-            DataTypeStr == "bf16_r"                      ? DataType::BFloat16      :
-            DataTypeStr == "f16_c"                       ? DataType::None          :
-            DataTypeStr == "f32_c" || DataTypeStr == "c" ? DataType::ComplexFloat  :
-            DataTypeStr == "f64_c" || DataTypeStr == "z" ? DataType::ComplexDouble :
-            DataTypeStr == "bf16_c"                      ? DataType::None          :
-            DataTypeStr == "i8_r"                        ? DataType::Int8          :
-            DataTypeStr == "i32_r"                       ? DataType::Int32         :
-            DataTypeStr == "i8_c"                        ? DataType::None          :
-            DataTypeStr == "i32_c"                       ? DataType::None          :
-            DataTypeStr == "u8_r"                        ? DataType::None          :
-            DataTypeStr == "u32_r"                       ? DataType::None          :
-            DataTypeStr == "u8_c"                        ? DataType::None          :
-            DataTypeStr == "u32_c"                       ? DataType::None          :
-            DataType::None;
+        return DataTypeStr == "f16_r" || DataTypeStr == "h"   ? DataType::Half
+               : DataTypeStr == "f32_r" || DataTypeStr == "s" ? DataType::Float
+               : DataTypeStr == "f64_r" || DataTypeStr == "d" ? DataType::Double
+               : DataTypeStr == "bf16_r"                      ? DataType::BFloat16
+               : DataTypeStr == "f16_c"                       ? DataType::None
+               : DataTypeStr == "f32_c" || DataTypeStr == "c" ? DataType::ComplexFloat
+               : DataTypeStr == "f64_c" || DataTypeStr == "z" ? DataType::ComplexDouble
+               : DataTypeStr == "bf16_c"                      ? DataType::None
+               : DataTypeStr == "i8_r"                        ? DataType::Int8
+               : DataTypeStr == "i32_r"                       ? DataType::Int32
+               : DataTypeStr == "i8_c"                        ? DataType::None
+               : DataTypeStr == "i32_c"                       ? DataType::None
+               : DataTypeStr == "u8_r"                        ? DataType::None
+               : DataTypeStr == "u32_r"                       ? DataType::None
+               : DataTypeStr == "u8_c"                        ? DataType::None
+               : DataTypeStr == "u32_c"                       ? DataType::None
+                                                              : DataType::None;
     }
 
-
-
-    ContractionProblem ConstructTensileProblem( bool     transA,
-                                                bool     transB,
-                                                DataType inputType,
-                                                DataType outputType,
-                                                DataType computeType,
-                                                size_t   m,
-                                                size_t   n,
-                                                size_t   k,
-                                                size_t   b,
-                                                size_t   ldA,
-                                                size_t   strideA,
-                                                size_t   ldB,
-                                                size_t   strideB,
-                                                size_t   ldC,
-                                                size_t   strideC,
-                                                double   alpha,
-                                                double   beta)
+    ContractionProblem ConstructTensileProblem(bool     transA,
+                                               bool     transB,
+                                               DataType inputType,
+                                               DataType outputType,
+                                               DataType computeType,
+                                               size_t   m,
+                                               size_t   n,
+                                               size_t   k,
+                                               size_t   b,
+                                               size_t   ldA,
+                                               size_t   strideA,
+                                               size_t   ldB,
+                                               size_t   strideB,
+                                               size_t   ldC,
+                                               size_t   strideC,
+                                               double   alpha,
+                                               double   beta)
     {
         // Tensor descriptors for a, b
         TensorDescriptor tdA;
@@ -130,41 +123,27 @@ namespace Tensile
         // clang-format on
 
         // Descriptor for input matrix C
-        TensorDescriptor tdC{outputType,
-                            {m, n, b},
-                            {strideC, strideC, strideC},
-                            0};
+        TensorDescriptor tdC{outputType, {m, n, b}, {strideC, strideC, strideC}, 0};
 
         // Descriptor for output matrix D
-        TensorDescriptor tdD{outputType,
-                            {m, n, b},
-                            {strideC, strideC, strideC},
-                            0};
+        TensorDescriptor tdD{outputType, {m, n, b}, {strideC, strideC, strideC}, 0};
 
         // The ContractionProblem
-        ContractionProblem tensileProblem{tdA,
-                                            aops,
-                                            tdB,
-                                            bops,
-                                            tdC,
-                                            cops,
-                                            tdD,
-                                            dops,
-                                            freeIndex,
-                                            batchIndex,
-                                            boundIndex,
-                                            beta};
+        ContractionProblem tensileProblem{
+            tdA, aops, tdB, bops, tdC, cops, tdD, dops, freeIndex, batchIndex, boundIndex, beta};
 
         tensileProblem.setAlphaType(computeType);
         tensileProblem.setBetaType(computeType);
 
         // HPA is active iff sizeof(compute type) > sizeof(input type)
-        tensileProblem.setHighPrecisionAccumulate(((inputType == DataType::Half) || (inputType == DataType::BFloat16))
-                                                    && (computeType == DataType::Float));
+        tensileProblem.setHighPrecisionAccumulate(
+            ((inputType == DataType::Half) || (inputType == DataType::BFloat16))
+            && (computeType == DataType::Float));
 
         // Environment variable to force use of VALU for double precision gemm
         static bool force_valu_for_dgemm = std::getenv("ROCBLAS_INTERNAL_FORCE_VALU_FOR_DGEMM");
-        if((inputType == DataType::Double) && (outputType == DataType::Double) && (computeType == DataType::Double) && force_valu_for_dgemm)
+        if((inputType == DataType::Double) && (outputType == DataType::Double)
+           && (computeType == DataType::Double) && force_valu_for_dgemm)
         {
             tensileProblem.setArithmeticUnit(Tensile::ArithmeticUnit::VALU);
         }
@@ -177,7 +156,8 @@ namespace Tensile
         // If k==0, we do not need to dereference prob.alpha and can set tensileAlpha=0
         // Not positive if this is necessary here as well
         // typename AlphaBeta<Ti, To, Tc>::tensile_type tensileAlpha;
-        if(!k) alpha = 0.0;
+        if(!k)
+            alpha = 0.0;
         tensileProblem.setAlphaRestriction(Tensile::toScalarValueEnum(alpha));
 
         // Add problem predicates for CEqualsD
@@ -199,8 +179,6 @@ namespace Tensile
 
         return tensileProblem;
     }
-
-
 
     std::pair<ContractionProblem, int> problemFromEntries(std::vector<std::string> entries)
     {
@@ -275,30 +253,29 @@ namespace Tensile
             std::make_pair(ContractionProblem{}, -1);
         }
 
-        if(inputType == DataType::None ||
-           outputType == DataType::None ||
-           computeType == DataType::None)
+        if(inputType == DataType::None || outputType == DataType::None
+           || computeType == DataType::None)
         {
             return std::make_pair(ContractionProblem{}, -1);
         }
 
         ContractionProblem problem = ConstructTensileProblem(transA,
-                                                            transB,
-                                                            inputType,
-                                                            outputType,
-                                                            computeType,
-                                                            m,
-                                                            n,
-                                                            k,
-                                                            b,
-                                                            ldA,
-                                                            strideA,
-                                                            ldB,
-                                                            strideB,
-                                                            ldC,
-                                                            strideC,
-                                                            alpha,
-                                                            beta);
+                                                             transB,
+                                                             inputType,
+                                                             outputType,
+                                                             computeType,
+                                                             m,
+                                                             n,
+                                                             k,
+                                                             b,
+                                                             ldA,
+                                                             strideA,
+                                                             ldB,
+                                                             strideB,
+                                                             ldC,
+                                                             strideC,
+                                                             alpha,
+                                                             beta);
 
         return std::make_pair(problem, solution_idx);
     }
@@ -306,39 +283,42 @@ namespace Tensile
     std::vector<std::pair<ContractionProblem, int>> getContractionProblemsFromFile(std::string path)
     {
         std::vector<std::pair<ContractionProblem, int>> out;
-        
-        std::ifstream file(path);
-        std::string line, entry;
 
-        const auto delim = ',';
+        std::ifstream file(path);
+        std::string   line, entry;
+
+        const auto delim         = ',';
         const auto first_heading = "transA";
 
         int current_section = -1;
-        
-        while (std::getline(file, line))
+
+        while(std::getline(file, line))
         {
             // Ignore lines without delimiter
-            if (line.find(delim) == std::string::npos) {
+            if(line.find(delim) == std::string::npos)
+            {
                 continue;
             }
 
             // Check for section start
-            if (line.find(first_heading) != std::string::npos) {
+            if(line.find(first_heading) != std::string::npos)
+            {
                 // TODO: Get param index from headings?
                 current_section++;
                 continue;
             }
-            
+
             std::vector<std::string> entries{};
             entries.reserve((current_section == 0) ? 15 : 18);
 
             std::stringstream line_ss(line);
-            while(getline(line_ss, entry, delim)) {
+            while(getline(line_ss, entry, delim))
+            {
                 entries.push_back(entry);
             }
 
             auto problemSolution = problemFromEntries(entries);
-            if (problemSolution.second > 0)
+            if(problemSolution.second > 0)
             {
                 out.push_back(problemSolution);
             }

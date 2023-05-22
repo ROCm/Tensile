@@ -911,8 +911,7 @@ TEST(CachingLibrary, Insert)
     SolutionDefault->index  = 0;
     SolutionOverride->index = 1;
 
-    SolutionMap<ContractionSolution> map(
-        {{0, SolutionDefault}, {1, SolutionOverride}});
+    SolutionMap<ContractionSolution> map({{0, SolutionDefault}, {1, SolutionOverride}});
 
     auto LibraryDefault  = std::make_shared<SingleContractionLibrary>(SolutionDefault);
     auto LibraryOverride = std::make_shared<SingleContractionLibrary>(SolutionOverride);
@@ -993,9 +992,23 @@ TEST(CachingLibrary, Insert)
 TEST(CachingLibrary, Parsing)
 {
     using namespace Tensile;
-    
+
     // Non-strided
-    std::vector<std::string> entries0{"T","N","2304","256","1","1729","1","1","1729","1729","2304","f16_r","f16_r","f32_r","752"};
+    std::vector<std::string> entries0{"T",
+                                      "N",
+                                      "2304",
+                                      "256",
+                                      "1",
+                                      "1729",
+                                      "1",
+                                      "1",
+                                      "1729",
+                                      "1729",
+                                      "2304",
+                                      "f16_r",
+                                      "f16_r",
+                                      "f32_r",
+                                      "752"};
 
     auto probSol = problemFromEntries(entries0);
     EXPECT_EQ(probSol.first.transA(), true);
@@ -1015,7 +1028,24 @@ TEST(CachingLibrary, Parsing)
     EXPECT_EQ(probSol.second, 752);
 
     // Strided
-    std::vector<std::string> entries1{"N","T","104","104","1024","64","1","0","104","64","104","6656","6656","10816","f32_r","f32_r","f32_r","3976"};
+    std::vector<std::string> entries1{"N",
+                                      "T",
+                                      "104",
+                                      "104",
+                                      "1024",
+                                      "64",
+                                      "1",
+                                      "0",
+                                      "104",
+                                      "64",
+                                      "104",
+                                      "6656",
+                                      "6656",
+                                      "10816",
+                                      "f32_r",
+                                      "f32_r",
+                                      "f32_r",
+                                      "3976"};
 
     probSol = problemFromEntries(entries1);
     EXPECT_EQ(probSol.first.transA(), false);
@@ -1035,15 +1065,43 @@ TEST(CachingLibrary, Parsing)
     EXPECT_EQ(probSol.second, 3976);
 
     // Bad args
-    std::vector<std::string> entries2{"N","T","104"};
+    std::vector<std::string> entries2{"N", "T", "104"};
     probSol = problemFromEntries(entries2);
     EXPECT_EQ(probSol.second, -1);
 
-    std::vector<std::string> entries3{"T","N","2304","256","1","1729","1","1","1729","1729","2304","f1_r","f16_r","f32_r","752"};
+    std::vector<std::string> entries3{"T",
+                                      "N",
+                                      "2304",
+                                      "256",
+                                      "1",
+                                      "1729",
+                                      "1",
+                                      "1",
+                                      "1729",
+                                      "1729",
+                                      "2304",
+                                      "f1_r",
+                                      "f16_r",
+                                      "f32_r",
+                                      "752"};
     probSol = problemFromEntries(entries3);
     EXPECT_EQ(probSol.second, -1);
 
-    std::vector<std::string> entries4{"T","N","b","256","1","1729","1","1","1729","1729","2304","f16_r","f16_r","f32_r","752"};
+    std::vector<std::string> entries4{"T",
+                                      "N",
+                                      "b",
+                                      "256",
+                                      "1",
+                                      "1729",
+                                      "1",
+                                      "1",
+                                      "1729",
+                                      "1729",
+                                      "2304",
+                                      "f16_r",
+                                      "f16_r",
+                                      "f32_r",
+                                      "752"};
     probSol = problemFromEntries(entries4);
     EXPECT_EQ(probSol.second, -1);
 }
