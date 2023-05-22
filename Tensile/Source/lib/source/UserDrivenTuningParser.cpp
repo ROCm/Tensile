@@ -48,8 +48,7 @@ namespace Tensile
                                                double   beta)
     {
         // Tensor descriptors for a, b
-        TensorDescriptor tdA;
-        TensorDescriptor tdB;
+        TensorDescriptor tdA, tdB;
 
         // Tensor ops for matrices, like complex conjugate
         TensorOps aops, bops, cops, dops;
@@ -78,7 +77,7 @@ namespace Tensile
             tdA = {
                     inputType,
                     {k, m, b},
-                    {strideA, strideA, strideA},
+                    {1, ldA, strideA},
                     0
                 };
             freeIndex[0].i  = 1;
@@ -89,7 +88,7 @@ namespace Tensile
             tdA = {
                     inputType,
                     {m, k, b},
-                    {strideA, strideA, strideA},
+                    {1, ldA, strideA},
                     0
                 };
             freeIndex[0].i  = 0;
@@ -102,7 +101,7 @@ namespace Tensile
             tdB = {
                     inputType,
                     {n, k, b},
-                    {strideB, strideB, strideB},
+                    {1, ldB, strideB},
                     0
                 };
             freeIndex[1].i  = 0;
@@ -113,7 +112,7 @@ namespace Tensile
             tdB = {
                     inputType,
                     {k, n, b},
-                    {strideB, strideB, strideB},
+                    {1, ldB, strideB},
                     0
                 };
             freeIndex[1].i  = 1;
@@ -123,10 +122,10 @@ namespace Tensile
         // clang-format on
 
         // Descriptor for input matrix C
-        TensorDescriptor tdC{outputType, {m, n, b}, {strideC, strideC, strideC}, 0};
+        TensorDescriptor tdC{outputType, {m, n, b}, {1, ldC, strideC}, 0};
 
         // Descriptor for output matrix D
-        TensorDescriptor tdD{outputType, {m, n, b}, {strideC, strideC, strideC}, 0};
+        TensorDescriptor tdD{outputType, {m, n, b}, {1, ldC, strideC}, 0};
 
         // The ContractionProblem
         ContractionProblem tensileProblem{
@@ -180,7 +179,7 @@ namespace Tensile
         return tensileProblem;
     }
 
-    std::pair<ContractionProblem, int> problemFromEntries(std::vector<std::string> entries)
+    std::pair<ContractionProblem, int> problemFromEntries(const std::vector<std::string>& entries)
     {
         const size_t entries_n = entries.size();
         if((entries_n != 15) && (entries_n != 18))
@@ -280,7 +279,8 @@ namespace Tensile
         return std::make_pair(problem, solution_idx);
     }
 
-    std::vector<std::pair<ContractionProblem, int>> getContractionProblemsFromFile(std::string path)
+    std::vector<std::pair<ContractionProblem, int>>
+        getContractionProblemsFromFile(const std::string& path)
     {
         std::vector<std::pair<ContractionProblem, int>> out;
 

@@ -27,12 +27,16 @@
 #pragma once
 
 #include <chrono>
+#include <string>
 #include <map>
 #include <memory>
+#include <vector>
 
+#include <Tensile/CachingLibrary.hpp>
 #include <Tensile/Debug.hpp>
 #include <Tensile/SolutionLibrary.hpp>
 #include <Tensile/Tensile.hpp>
+#include <Tensile/UserDrivenTuningParser.hpp>
 
 namespace Tensile
 {
@@ -176,6 +180,36 @@ namespace Tensile
                               << ". Not solution found." << std::endl;
                 }
                 return nullptr;
+            }
+        }
+
+        bool getSolutionMapsFromFile(Hardware const& hardware,
+                                     const std::string& file_path)
+        {
+            try
+            {
+                // Early exit if no caching library
+                auto& lib = dynamic_cast<CachingLibrary<MyProblem, MySolution>&>(*library);
+
+                auto probSols = getContractionProblemsFromFile(file_path);
+                if(probSols.size() == 0) return false;
+
+                bool success = true;
+
+                for(const auto& ps : probSols)
+                {
+                    // Get solution via index
+                    std::shared_ptr<MySolution> solution = getSolutionByIndex(ps.second);
+
+                    // Update cache
+                    success &= lib.add(ps.first, hardware, solution);
+                }
+
+                return success;
+            }
+            catch(std::bad_cast const& exc)
+            {
+                return false;
             }
         }
 

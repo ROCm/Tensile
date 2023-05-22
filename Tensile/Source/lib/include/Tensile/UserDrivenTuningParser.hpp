@@ -7,7 +7,7 @@
 
 namespace Tensile
 {
-    std::pair<ContractionProblem, int> problemFromEntries(std::vector<std::string> entries);
+    std::pair<ContractionProblem, int> problemFromEntries(const std::vector<std::string>& entries);
     std::vector<std::pair<ContractionProblem, int>>
-        getContractionProblemsFromFile(std::string path);
+        getContractionProblemsFromFile(const std::string& path);
 };
