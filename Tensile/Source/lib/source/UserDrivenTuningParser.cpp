@@ -34,6 +34,174 @@ namespace Tensile
             DataType::None;
     }
 
+
+
+    ContractionProblem ConstructTensileProblem( bool     transA,
+                                                bool     transB,
+                                                DataType inputType,
+                                                DataType outputType,
+                                                DataType computeType,
+                                                size_t   m,
+                                                size_t   n,
+                                                size_t   k,
+                                                size_t   b,
+                                                size_t   ldA,
+                                                size_t   strideA,
+                                                size_t   ldB,
+                                                size_t   strideB,
+                                                size_t   ldC,
+                                                size_t   strideC,
+                                                double   alpha,
+                                                double   beta)
+    {
+        // Tensor descriptors for a, b
+        TensorDescriptor tdA;
+        TensorDescriptor tdB;
+
+        // Tensor ops for matrices, like complex conjugate
+        TensorOps aops, bops, cops, dops;
+
+        // Tensile Indices for contraction problem
+        ContractionProblem::FreeIndices  freeIndex(2);
+        ContractionProblem::BoundIndices boundIndex(1);
+        ContractionProblem::BatchIndices batchIndex{{2, 2, 2, 2}};
+
+        // Set up GEMM indices
+        freeIndex[0].isA = true;
+        freeIndex[1].isA = false;
+        freeIndex[0].c = freeIndex[0].d = 0;
+        freeIndex[1].c = freeIndex[1].d = 1;
+
+        // We set K=0 when alpha==0.
+        // This makes alpha==0 a change in the problem, and not just a change in the inputs.
+        // It optimizes all problems with alpha==0 into K=0 and alpha=(don't care)
+        k = (k && alpha) ? k : 0;
+
+        // clang-format off
+
+        // If A is transposed, swap the free and bound dimensions and their ranks
+        if(transA)
+        {
+            tdA = {
+                    inputType,
+                    {k, m, b},
+                    {strideA, strideA, strideA},
+                    0
+                };
+            freeIndex[0].i  = 1;
+            boundIndex[0].a = 0;
+        }
+        else
+        {
+            tdA = {
+                    inputType,
+                    {m, k, b},
+                    {strideA, strideA, strideA},
+                    0
+                };
+            freeIndex[0].i  = 0;
+            boundIndex[0].a = 1;
+        }
+
+        // If B is transposed, swap the free and bound dimensions and their ranks
+        if(transB)
+        {
+            tdB = {
+                    inputType,
+                    {n, k, b},
+                    {strideB, strideB, strideB},
+                    0
+                };
+            freeIndex[1].i  = 0;
+            boundIndex[0].b = 1;
+        }
+        else
+        {
+            tdB = {
+                    inputType,
+                    {k, n, b},
+                    {strideB, strideB, strideB},
+                    0
+                };
+            freeIndex[1].i  = 1;
+            boundIndex[0].b = 0;
+        }
+
+        // clang-format on
+
+        // Descriptor for input matrix C
+        TensorDescriptor tdC{outputType,
+                            {m, n, b},
+                            {strideC, strideC, strideC},
+                            0};
+
+        // Descriptor for output matrix D
+        TensorDescriptor tdD{outputType,
+                            {m, n, b},
+                            {strideC, strideC, strideC},
+                            0};
+
+        // The ContractionProblem
+        ContractionProblem tensileProblem{tdA,
+                                            aops,
+                                            tdB,
+                                            bops,
+                                            tdC,
+                                            cops,
+                                            tdD,
+                                            dops,
+                                            freeIndex,
+                                            batchIndex,
+                                            boundIndex,
+                                            beta};
+
+        tensileProblem.setAlphaType(computeType);
+        tensileProblem.setBetaType(computeType);
+
+        // HPA is active iff sizeof(compute type) > sizeof(input type)
+        tensileProblem.setHighPrecisionAccumulate(((inputType == DataType::Half) || (inputType == DataType::BFloat16))
+                                                    && (computeType == DataType::Float));
+
+        // Environment variable to force use of VALU for double precision gemm
+        static bool force_valu_for_dgemm = std::getenv("ROCBLAS_INTERNAL_FORCE_VALU_FOR_DGEMM");
+        if((inputType == DataType::Double) && (outputType == DataType::Double) && (computeType == DataType::Double) && force_valu_for_dgemm)
+        {
+            tensileProblem.setArithmeticUnit(Tensile::ArithmeticUnit::VALU);
+        }
+
+        // set batch mode
+        tensileProblem.setStridedBatched((strideA > 1) || (strideB > 1) || (strideC > 1));
+
+        // alpha and beta are stored by value in Tensile::TypedContractionInputs
+        // alpha and beta are copied from host to Tensile::TypedContractionInputs
+        // If k==0, we do not need to dereference prob.alpha and can set tensileAlpha=0
+        // Not positive if this is necessary here as well
+        // typename AlphaBeta<Ti, To, Tc>::tensile_type tensileAlpha;
+        if(!k) alpha = 0.0;
+        tensileProblem.setAlphaRestriction(Tensile::toScalarValueEnum(alpha));
+
+        // Add problem predicates for CEqualsD
+        tensileProblem.setCEqualsD(true);
+
+        static const char* fp16AltImplEnvStr = std::getenv("ROCBLAS_INTERNAL_FP16_ALT_IMPL");
+        static const int   fp16AltImplEnv
+            = (fp16AltImplEnvStr == NULL ? -1 : (std::atoi(fp16AltImplEnvStr) == 0 ? 0 : 1));
+        if(fp16AltImplEnv != -1)
+            tensileProblem.setFp16AltImpl(fp16AltImplEnv);
+
+        static const char* fp16AltImplRoundEnvStr
+            = std::getenv("ROCBLAS_INTERNAL_FP16_ALT_IMPL_RNZ");
+        static const int fp16AltImplRoundEnv
+            = (fp16AltImplRoundEnvStr == NULL ? -1
+                                              : (std::atoi(fp16AltImplRoundEnvStr) == 0 ? 0 : 1));
+        if(fp16AltImplRoundEnv != -1)
+            tensileProblem.setFp16AltImplRound(fp16AltImplRoundEnv);
+
+        return tensileProblem;
+    }
+
+
+
     std::pair<ContractionProblem, int> problemFromEntries(std::vector<std::string> entries)
     {
         const size_t entries_n = entries.size();
@@ -41,7 +209,7 @@ namespace Tensile
         {
             return std::make_pair(ContractionProblem{}, -1);
         }
-        
+
         // Common
         bool transA = (entries[0] != "N");
         bool transB = (entries[1] != "N");
@@ -49,7 +217,7 @@ namespace Tensile
         size_t m, n, b, k;
         size_t ldA, ldB, ldC;
         size_t strideA, strideB, strideC;
-        double beta;
+        double alpha, beta;
 
         DataType inputType   = DataType::None;
         DataType outputType  = DataType::None;
@@ -64,7 +232,8 @@ namespace Tensile
             b = std::stol(entries[4]);
             k = std::stol(entries[5]);
 
-            beta = std::stod(entries[7]);
+            alpha = std::stod(entries[8]);
+            beta  = std::stod(entries[7]);
 
             ldA = std::stol(entries[8]);
             ldB = std::stol(entries[9]);
@@ -113,26 +282,24 @@ namespace Tensile
             return std::make_pair(ContractionProblem{}, -1);
         }
 
-        ContractionProblem problem = ContractionProblem::GEMM_Strides(transA,
-                                                                        transB,
-                                                                        inputType,
-                                                                        inputType,
-                                                                        outputType,
-                                                                        outputType,
-                                                                        m,
-                                                                        n,
-                                                                        k,
-                                                                        b,
-                                                                        ldA,
-                                                                        strideA,
-                                                                        ldB,
-                                                                        strideB,
-                                                                        ldC,
-                                                                        strideC,
-                                                                        ldC,
-                                                                        strideC,
-                                                                        beta);
-        
+        ContractionProblem problem = ConstructTensileProblem(transA,
+                                                            transB,
+                                                            inputType,
+                                                            outputType,
+                                                            computeType,
+                                                            m,
+                                                            n,
+                                                            k,
+                                                            b,
+                                                            ldA,
+                                                            strideA,
+                                                            ldB,
+                                                            strideB,
+                                                            ldC,
+                                                            strideC,
+                                                            alpha,
+                                                            beta);
+
         return std::make_pair(problem, solution_idx);
     }
 
