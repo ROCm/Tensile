@@ -210,7 +210,9 @@ namespace Tensile
     public:
         using Library = SolutionLibrary<MyProblem, MySolution>;
         using Cache = CacheMap<std::tuple<std::shared_ptr<MySolution>, double>, AMDGPU, MyProblem>;
-        using Override = CacheMap<std::tuple<std::shared_ptr<MySolution>, double>, AMDGPU, ProblemOverride<ContractionProblem>>;
+        using Override = CacheMap<std::tuple<std::shared_ptr<MySolution>, double>,
+                                  AMDGPU,
+                                  ProblemOverride<ContractionProblem>>;
 
         CachingLibrary(std::shared_ptr<Library> subLibrary)
             : m_subLibrary(subLibrary)
@@ -277,10 +279,10 @@ namespace Tensile
             return std::get<std::shared_ptr<MySolution>>(m_cache.find(problem, amdgpu));
         }
 
-        bool addToOverride(ProblemOverride<MyProblem> const&  po,
-                           Hardware const&                    hardware,
-                           std::shared_ptr<MySolution>        solution,
-                           double*                            fitness = nullptr)
+        bool addToOverride(ProblemOverride<MyProblem> const& po,
+                           Hardware const&                   hardware,
+                           std::shared_ptr<MySolution>       solution,
+                           double*                           fitness = nullptr)
         {
             try
             {
@@ -289,9 +291,8 @@ namespace Tensile
                 fitness                   = (fitness) ? fitness : &cachedFitness;
 
                 if(solution)
-                {   
-                    m_override.add_or_replace(
-                        std::make_tuple(solution, *fitness), po, amdgpu);
+                {
+                    m_override.add_or_replace(std::make_tuple(solution, *fitness), po, amdgpu);
                     return true;
                 }
                 else

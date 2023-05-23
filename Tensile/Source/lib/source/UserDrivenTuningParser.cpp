@@ -8,32 +8,32 @@ namespace Tensile
 {
     int dataTypeSize(DataType dt)
     {
-        switch (dt)
+        switch(dt)
         {
-            case DataType::Int8:
-                return 1;
+        case DataType::Int8:
+            return 1;
 
-            case DataType::Half:
-            case DataType::BFloat16:
-                return 2;
+        case DataType::Half:
+        case DataType::BFloat16:
+            return 2;
 
-            case DataType::Float:
-            case DataType::Int32:
-                return 4;
+        case DataType::Float:
+        case DataType::Int32:
+            return 4;
 
-            case DataType::Double:
-            case DataType::ComplexFloat:
-                return 8;
+        case DataType::Double:
+        case DataType::ComplexFloat:
+            return 8;
 
-            case DataType::ComplexDouble:
-                return 18;
+        case DataType::ComplexDouble:
+            return 18;
 
-            default:
-            case DataType::None:
-                return 0;
+        default:
+        case DataType::None:
+            return 0;
         };
     }
-    
+
     DataType convertToDataType(const std::string& DataTypeStr)
     {
         return DataTypeStr == "f16_r" || DataTypeStr == "h"   ? DataType::Half
@@ -56,7 +56,8 @@ namespace Tensile
     }
 
     template <>
-    std::pair<ProblemOverride<ContractionProblem>, int> problemFromEntries(const std::vector<std::string>& entries)
+    std::pair<ProblemOverride<ContractionProblem>, int>
+        problemFromEntries(const std::vector<std::string>& entries)
     {
         const size_t entries_n = entries.size();
         if((entries_n != 15) && (entries_n != 18))
@@ -86,7 +87,7 @@ namespace Tensile
             b = std::stol(entries[4]);
             k = std::stol(entries[5]);
 
-            beta  = std::stod(entries[7]);
+            beta = std::stod(entries[7]);
 
             ldA = std::stol(entries[8]);
             ldB = std::stol(entries[9]);
@@ -137,44 +138,45 @@ namespace Tensile
         bool HPA = (dataTypeSize(computeType) > dataTypeSize(inputType));
 
         ProblemOverride<ContractionProblem> po(transA,
-                                                transB,
-                                                inputType,
-                                                outputType,
-                                                HPA,
-                                                m,
-                                                n,
-                                                k,
-                                                b,
-                                                beta,
-                                                ldA,
-                                                strideA,
-                                                ldB,
-                                                strideB,
-                                                ldC,
-                                                strideC
-                                                );
+                                               transB,
+                                               inputType,
+                                               outputType,
+                                               HPA,
+                                               m,
+                                               n,
+                                               k,
+                                               b,
+                                               beta,
+                                               ldA,
+                                               strideA,
+                                               ldB,
+                                               strideB,
+                                               ldC,
+                                               strideC);
 
         return std::make_pair(po, solution_idx);
     }
 
     template <typename MyProblem>
     ProblemOverride<MyProblem>::ProblemOverride()
-                            : m_transA(false) 
-                            , m_transB(false)
-                            , m_inputType(DataType::None)
-                            , m_outputType(DataType::None)
-                            , m_HPA(false)
-                            , m_m(0)
-                            , m_n(0)
-                            , m_k(0)
-                            , m_batchSize(0)
-                            , m_beta(0)
-                            , m_ldA(0)
-                            , m_strideA(0)
-                            , m_ldB(0)
-                            , m_strideB(0)
-                            , m_ldC(0)
-                            , m_strideC(0) {}
+        : m_transA(false)
+        , m_transB(false)
+        , m_inputType(DataType::None)
+        , m_outputType(DataType::None)
+        , m_HPA(false)
+        , m_m(0)
+        , m_n(0)
+        , m_k(0)
+        , m_batchSize(0)
+        , m_beta(0)
+        , m_ldA(0)
+        , m_strideA(0)
+        , m_ldB(0)
+        , m_strideB(0)
+        , m_ldC(0)
+        , m_strideC(0)
+    {
+    }
 
     template <typename MyProblem>
     ProblemOverride<MyProblem>::ProblemOverride(bool     transA,
@@ -193,42 +195,44 @@ namespace Tensile
                                                 size_t   strideB,
                                                 size_t   ldC,
                                                 size_t   strideC)
-                            : m_transA(transA) 
-                            , m_transB(transB)
-                            , m_inputType(inputType)
-                            , m_outputType(outputType)
-                            , m_HPA(HPA)
-                            , m_m(m)
-                            , m_n(n)
-                            , m_k(k)
-                            , m_batchSize(batchSize)
-                            , m_beta(beta)
-                            , m_ldA(ldA)
-                            , m_strideA(strideA)
-                            , m_ldB(ldB)
-                            , m_strideB(strideB)
-                            , m_ldC(ldC)
-                            , m_strideC(strideC) {}
+        : m_transA(transA)
+        , m_transB(transB)
+        , m_inputType(inputType)
+        , m_outputType(outputType)
+        , m_HPA(HPA)
+        , m_m(m)
+        , m_n(n)
+        , m_k(k)
+        , m_batchSize(batchSize)
+        , m_beta(beta)
+        , m_ldA(ldA)
+        , m_strideA(strideA)
+        , m_ldB(ldB)
+        , m_strideB(strideB)
+        , m_ldC(ldC)
+        , m_strideC(strideC)
+    {
+    }
 
     template <>
     ProblemOverride<ContractionProblem>::ProblemOverride(const ContractionProblem& problem)
     {
-        m_transA = problem.transA();
-        m_transB = problem.transB();
-        m_inputType = problem.a().dataType();
+        m_transA     = problem.transA();
+        m_transB     = problem.transB();
+        m_inputType  = problem.a().dataType();
         m_outputType = problem.c().dataType();
-        m_HPA = problem.highPrecisionAccumulate();
-        m_m = problem.freeSizeA(0);
-        m_n = problem.freeSizeB(0);
-        m_k = problem.boundSize(0);
-        m_batchSize = problem.batchSize(0);
-        m_beta = problem.beta();
-        m_ldA = problem.a().strides()[1];
-        m_strideA = problem.a().strides()[2];
-        m_ldB = problem.b().strides()[1];
-        m_strideB = problem.b().strides()[2];
-        m_ldC = problem.c().strides()[1];
-        m_strideC = problem.c().strides()[2];
+        m_HPA        = problem.highPrecisionAccumulate();
+        m_m          = problem.freeSizeA(0);
+        m_n          = problem.freeSizeB(0);
+        m_k          = problem.boundSize(0);
+        m_batchSize  = problem.batchSize(0);
+        m_beta       = problem.beta();
+        m_ldA        = problem.a().strides()[1];
+        m_strideA    = problem.a().strides()[2];
+        m_ldB        = problem.b().strides()[1];
+        m_strideB    = problem.b().strides()[2];
+        m_ldC        = problem.c().strides()[1];
+        m_strideC    = problem.c().strides()[2];
     }
 
     template <>
@@ -242,7 +246,7 @@ namespace Tensile
 
         const auto delim         = ',';
         const auto first_heading = "transA";
-        const int max_entries    = 18;
+        const int  max_entries   = 18;
 
         while(std::getline(file, line))
         {
