@@ -46,6 +46,8 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
 
             hostname
 
+            sudo rm -rf /opt/rocm/bin/hipcc.bat
+
             cd ${project.paths.project_build_prefix}
             ${parallelJobs}
 
