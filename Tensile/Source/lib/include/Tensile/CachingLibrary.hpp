@@ -32,6 +32,7 @@
 
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/SolutionLibrary.hpp>
+#include <Tensile/UserDrivenTuningParser.hpp>
 
 #include <Tensile/AMDGPU_Detail.hpp>
 #include <Tensile/ContractionProblem_Detail.hpp>
@@ -209,10 +210,12 @@ namespace Tensile
     public:
         using Library = SolutionLibrary<MyProblem, MySolution>;
         using Cache = CacheMap<std::tuple<std::shared_ptr<MySolution>, double>, AMDGPU, MyProblem>;
+        using Override = CacheMap<std::tuple<std::shared_ptr<MySolution>, double>, AMDGPU, ProblemOverride<ContractionProblem>>;
 
         CachingLibrary(std::shared_ptr<Library> subLibrary)
             : m_subLibrary(subLibrary)
             , m_cache(std::make_tuple(nullptr, std::numeric_limits<double>::max()))
+            , m_override(std::make_tuple(nullptr, std::numeric_limits<double>::max()))
         {
         }
 
@@ -228,8 +231,16 @@ namespace Tensile
 
                 auto const&                 amdgpu = dynamic_cast<AMDGPU const&>(hardware);
                 std::shared_ptr<MySolution> solution;
-                std::tie(solution, *fitness) = m_cache.find(problem, amdgpu);
 
+                // Check override
+                ProblemOverride<MyProblem> po(problem);
+                std::tie(solution, *fitness) = m_override.find(po, amdgpu);
+
+                if(solution && solution->canSolve(problem, hardware))
+                    return solution;
+
+                // Check cache
+                std::tie(solution, *fitness) = m_cache.find(problem, amdgpu);
                 if(solution)
                     return solution;
 
@@ -266,10 +277,10 @@ namespace Tensile
             return std::get<std::shared_ptr<MySolution>>(m_cache.find(problem, amdgpu));
         }
 
-        bool add(MyProblem const&            problem,
-                 Hardware const&             hardware,
-                 std::shared_ptr<MySolution> solution,
-                 double*                     fitness = nullptr)
+        bool addToOverride(ProblemOverride<MyProblem> const&  po,
+                           Hardware const&                    hardware,
+                           std::shared_ptr<MySolution>        solution,
+                           double*                            fitness = nullptr)
         {
             try
             {
@@ -278,9 +289,9 @@ namespace Tensile
                 fitness                   = (fitness) ? fitness : &cachedFitness;
 
                 if(solution)
-                {
-                    m_cache.add_or_replace(
-                        std::make_tuple(solution, cachedFitness), problem, amdgpu);
+                {   
+                    m_override.add_or_replace(
+                        std::make_tuple(solution, *fitness), po, amdgpu);
                     return true;
                 }
                 else
@@ -311,6 +322,7 @@ namespace Tensile
     private:
         std::shared_ptr<Library> m_subLibrary;
         mutable Cache            m_cache;
+        mutable Override         m_override;
     };
 
 #if 0

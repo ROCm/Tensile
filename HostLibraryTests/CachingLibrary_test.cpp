@@ -972,7 +972,7 @@ TEST(CachingLibrary, Insert)
     CachingLibrary<ContractionProblem> lib(subLib);
 
     // Add before solution cached
-    EXPECT_TRUE(lib.add(Problem1, gpu, SolutionOverride));
+    EXPECT_TRUE(lib.addToOverride(Problem1, gpu, SolutionOverride));
 
     EXPECT_EQ(lib.findBestSolution(Problem0, gpu), SolutionDefault);
     EXPECT_EQ(lib.findBestSolution(Problem1, gpu), SolutionOverride);
@@ -980,8 +980,8 @@ TEST(CachingLibrary, Insert)
     EXPECT_EQ(lib.findBestSolution(Problem3, gpu), SolutionDefault);
 
     // Add after solution cached
-    EXPECT_TRUE(lib.add(Problem3, gpu, SolutionOverride));
-    EXPECT_FALSE(lib.add(Problem3, gpu, nullptr));
+    EXPECT_TRUE(lib.addToOverride(Problem3, gpu, SolutionOverride));
+    EXPECT_FALSE(lib.addToOverride(Problem3, gpu, nullptr));
 
     EXPECT_EQ(lib.findBestSolution(Problem0, gpu), SolutionDefault);
     EXPECT_EQ(lib.findBestSolution(Problem1, gpu), SolutionOverride);
@@ -1010,20 +1010,20 @@ TEST(CachingLibrary, Parsing)
                                       "f32_r",
                                       "752"};
 
-    auto probSol = problemFromEntries(entries0);
-    EXPECT_EQ(probSol.first.transA(), true);
-    EXPECT_EQ(probSol.first.transB(), false);
+    auto probSol = problemFromEntries<ContractionProblem>(entries0);
+    EXPECT_TRUE(probSol.first.transA());
+    EXPECT_FALSE(probSol.first.transB());
 
-    EXPECT_EQ(probSol.first.freeSizeA(0), 2304);
-    EXPECT_EQ(probSol.first.freeSizeB(0), 256);
-    EXPECT_EQ(probSol.first.batchSize(0), 1);
-    EXPECT_EQ(probSol.first.boundSize(0), 1729);
+    EXPECT_EQ(probSol.first.m(), 2304);
+    EXPECT_EQ(probSol.first.n(), 256);
+    EXPECT_EQ(probSol.first.batchSize(), 1);
+    EXPECT_EQ(probSol.first.k(), 1729);
 
     EXPECT_EQ(probSol.first.beta(), 1.0);
 
-    EXPECT_EQ(probSol.first.a().dataType(), DataType::Half);
-    EXPECT_EQ(probSol.first.b().dataType(), DataType::Half);
-    EXPECT_EQ(probSol.first.c().dataType(), DataType::Half);
+    EXPECT_EQ(probSol.first.inputType(), DataType::Half);
+    EXPECT_EQ(probSol.first.outputType(), DataType::Half);
+    EXPECT_TRUE(probSol.first.HPA());
 
     EXPECT_EQ(probSol.second, 752);
 
@@ -1047,26 +1047,26 @@ TEST(CachingLibrary, Parsing)
                                       "f32_r",
                                       "3976"};
 
-    probSol = problemFromEntries(entries1);
-    EXPECT_EQ(probSol.first.transA(), false);
-    EXPECT_EQ(probSol.first.transB(), true);
+    probSol = problemFromEntries<ContractionProblem>(entries1);
+    EXPECT_FALSE(probSol.first.transA());
+    EXPECT_TRUE(probSol.first.transB());
 
-    EXPECT_EQ(probSol.first.freeSizeA(0), 104);
-    EXPECT_EQ(probSol.first.freeSizeB(0), 104);
-    EXPECT_EQ(probSol.first.batchSize(0), 1024);
-    EXPECT_EQ(probSol.first.boundSize(0), 64);
+    EXPECT_EQ(probSol.first.m(), 104);
+    EXPECT_EQ(probSol.first.n(), 104);
+    EXPECT_EQ(probSol.first.batchSize(), 1024);
+    EXPECT_EQ(probSol.first.k(), 64);
 
     EXPECT_EQ(probSol.first.beta(), 0.0);
 
-    EXPECT_EQ(probSol.first.a().dataType(), DataType::Float);
-    EXPECT_EQ(probSol.first.b().dataType(), DataType::Float);
-    EXPECT_EQ(probSol.first.c().dataType(), DataType::Float);
+    EXPECT_EQ(probSol.first.inputType(), DataType::Float);
+    EXPECT_EQ(probSol.first.outputType(), DataType::Float);
+    EXPECT_FALSE(probSol.first.HPA());
 
     EXPECT_EQ(probSol.second, 3976);
 
     // Bad args
-    std::vector<std::string> entries2{"N", "T", "104"};
-    probSol = problemFromEntries(entries2);
+    std::vector<std::string> entries2{"N", "T", "104"}; // Too short
+    probSol = problemFromEntries<ContractionProblem>(entries2);
     EXPECT_EQ(probSol.second, -1);
 
     std::vector<std::string> entries3{"T",
@@ -1080,16 +1080,16 @@ TEST(CachingLibrary, Parsing)
                                       "1729",
                                       "1729",
                                       "2304",
-                                      "f1_r",
+                                      "f1_r", // bad datatype
                                       "f16_r",
                                       "f32_r",
                                       "752"};
-    probSol = problemFromEntries(entries3);
+    probSol = problemFromEntries<ContractionProblem>(entries3);
     EXPECT_EQ(probSol.second, -1);
 
     std::vector<std::string> entries4{"T",
                                       "N",
-                                      "b",
+                                      "b", // bad size
                                       "256",
                                       "1",
                                       "1729",
@@ -1102,6 +1102,6 @@ TEST(CachingLibrary, Parsing)
                                       "f16_r",
                                       "f32_r",
                                       "752"};
-    probSol = problemFromEntries(entries4);
+    probSol = problemFromEntries<ContractionProblem>(entries4);
     EXPECT_EQ(probSol.second, -1);
 }

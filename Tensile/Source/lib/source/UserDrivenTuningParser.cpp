@@ -1,14 +1,40 @@
 #include <Tensile/UserDrivenTuningParser.hpp>
 
-#include <Tensile/DataTypes.hpp>
-
 #include <fstream>
 #include <sstream>
 #include <utility>
 
 namespace Tensile
 {
-    inline DataType convertToDataType(const std::string& DataTypeStr)
+    int dataTypeSize(DataType dt)
+    {
+        switch (dt)
+        {
+            case DataType::Int8:
+                return 1;
+
+            case DataType::Half:
+            case DataType::BFloat16:
+                return 2;
+
+            case DataType::Float:
+            case DataType::Int32:
+                return 4;
+
+            case DataType::Double:
+            case DataType::ComplexFloat:
+                return 8;
+
+            case DataType::ComplexDouble:
+                return 18;
+
+            default:
+            case DataType::None:
+                return 0;
+        };
+    }
+    
+    DataType convertToDataType(const std::string& DataTypeStr)
     {
         return DataTypeStr == "f16_r" || DataTypeStr == "h"   ? DataType::Half
                : DataTypeStr == "f32_r" || DataTypeStr == "s" ? DataType::Float
@@ -29,162 +55,13 @@ namespace Tensile
                                                               : DataType::None;
     }
 
-    ContractionProblem ConstructTensileProblem(bool     transA,
-                                               bool     transB,
-                                               DataType inputType,
-                                               DataType outputType,
-                                               DataType computeType,
-                                               size_t   m,
-                                               size_t   n,
-                                               size_t   k,
-                                               size_t   b,
-                                               size_t   ldA,
-                                               size_t   strideA,
-                                               size_t   ldB,
-                                               size_t   strideB,
-                                               size_t   ldC,
-                                               size_t   strideC,
-                                               double   alpha,
-                                               double   beta)
-    {
-        // Tensor descriptors for a, b
-        TensorDescriptor tdA, tdB;
-
-        // Tensor ops for matrices, like complex conjugate
-        TensorOps aops, bops, cops, dops;
-
-        // Tensile Indices for contraction problem
-        ContractionProblem::FreeIndices  freeIndex(2);
-        ContractionProblem::BoundIndices boundIndex(1);
-        ContractionProblem::BatchIndices batchIndex{{2, 2, 2, 2}};
-
-        // Set up GEMM indices
-        freeIndex[0].isA = true;
-        freeIndex[1].isA = false;
-        freeIndex[0].c = freeIndex[0].d = 0;
-        freeIndex[1].c = freeIndex[1].d = 1;
-
-        // We set K=0 when alpha==0.
-        // This makes alpha==0 a change in the problem, and not just a change in the inputs.
-        // It optimizes all problems with alpha==0 into K=0 and alpha=(don't care)
-        k = (k && alpha) ? k : 0;
-
-        // clang-format off
-
-        // If A is transposed, swap the free and bound dimensions and their ranks
-        if(transA)
-        {
-            tdA = {
-                    inputType,
-                    {k, m, b},
-                    {1, ldA, strideA},
-                    0
-                };
-            freeIndex[0].i  = 1;
-            boundIndex[0].a = 0;
-        }
-        else
-        {
-            tdA = {
-                    inputType,
-                    {m, k, b},
-                    {1, ldA, strideA},
-                    0
-                };
-            freeIndex[0].i  = 0;
-            boundIndex[0].a = 1;
-        }
-
-        // If B is transposed, swap the free and bound dimensions and their ranks
-        if(transB)
-        {
-            tdB = {
-                    inputType,
-                    {n, k, b},
-                    {1, ldB, strideB},
-                    0
-                };
-            freeIndex[1].i  = 0;
-            boundIndex[0].b = 1;
-        }
-        else
-        {
-            tdB = {
-                    inputType,
-                    {k, n, b},
-                    {1, ldB, strideB},
-                    0
-                };
-            freeIndex[1].i  = 1;
-            boundIndex[0].b = 0;
-        }
-
-        // clang-format on
-
-        // Descriptor for input matrix C
-        TensorDescriptor tdC{outputType, {m, n, b}, {1, ldC, strideC}, 0};
-
-        // Descriptor for output matrix D
-        TensorDescriptor tdD{outputType, {m, n, b}, {1, ldC, strideC}, 0};
-
-        // The ContractionProblem
-        ContractionProblem tensileProblem{
-            tdA, aops, tdB, bops, tdC, cops, tdD, dops, freeIndex, batchIndex, boundIndex, beta};
-
-        tensileProblem.setAlphaType(computeType);
-        tensileProblem.setBetaType(computeType);
-
-        // HPA is active iff sizeof(compute type) > sizeof(input type)
-        tensileProblem.setHighPrecisionAccumulate(
-            ((inputType == DataType::Half) || (inputType == DataType::BFloat16))
-            && (computeType == DataType::Float));
-
-        // Environment variable to force use of VALU for double precision gemm
-        static bool force_valu_for_dgemm = std::getenv("ROCBLAS_INTERNAL_FORCE_VALU_FOR_DGEMM");
-        if((inputType == DataType::Double) && (outputType == DataType::Double)
-           && (computeType == DataType::Double) && force_valu_for_dgemm)
-        {
-            tensileProblem.setArithmeticUnit(Tensile::ArithmeticUnit::VALU);
-        }
-
-        // set batch mode
-        tensileProblem.setStridedBatched((strideA > 1) || (strideB > 1) || (strideC > 1));
-
-        // alpha and beta are stored by value in Tensile::TypedContractionInputs
-        // alpha and beta are copied from host to Tensile::TypedContractionInputs
-        // If k==0, we do not need to dereference prob.alpha and can set tensileAlpha=0
-        // Not positive if this is necessary here as well
-        // typename AlphaBeta<Ti, To, Tc>::tensile_type tensileAlpha;
-        if(!k)
-            alpha = 0.0;
-        tensileProblem.setAlphaRestriction(Tensile::toScalarValueEnum(alpha));
-
-        // Add problem predicates for CEqualsD
-        tensileProblem.setCEqualsD(true);
-
-        static const char* fp16AltImplEnvStr = std::getenv("ROCBLAS_INTERNAL_FP16_ALT_IMPL");
-        static const int   fp16AltImplEnv
-            = (fp16AltImplEnvStr == NULL ? -1 : (std::atoi(fp16AltImplEnvStr) == 0 ? 0 : 1));
-        if(fp16AltImplEnv != -1)
-            tensileProblem.setFp16AltImpl(fp16AltImplEnv);
-
-        static const char* fp16AltImplRoundEnvStr
-            = std::getenv("ROCBLAS_INTERNAL_FP16_ALT_IMPL_RNZ");
-        static const int fp16AltImplRoundEnv
-            = (fp16AltImplRoundEnvStr == NULL ? -1
-                                              : (std::atoi(fp16AltImplRoundEnvStr) == 0 ? 0 : 1));
-        if(fp16AltImplRoundEnv != -1)
-            tensileProblem.setFp16AltImplRound(fp16AltImplRoundEnv);
-
-        return tensileProblem;
-    }
-
-    std::pair<ContractionProblem, int> problemFromEntries(const std::vector<std::string>& entries)
+    template <>
+    std::pair<ProblemOverride<ContractionProblem>, int> problemFromEntries(const std::vector<std::string>& entries)
     {
         const size_t entries_n = entries.size();
         if((entries_n != 15) && (entries_n != 18))
         {
-            return std::make_pair(ContractionProblem{}, -1);
+            return std::make_pair(ProblemOverride<ContractionProblem>{}, -1);
         }
 
         // Common
@@ -209,7 +86,6 @@ namespace Tensile
             b = std::stol(entries[4]);
             k = std::stol(entries[5]);
 
-            alpha = std::stod(entries[8]);
             beta  = std::stod(entries[7]);
 
             ldA = std::stol(entries[8]);
@@ -245,52 +121,128 @@ namespace Tensile
         }
         catch(std::invalid_argument const& ex)
         {
-            std::make_pair(ContractionProblem{}, -1);
+            return std::make_pair(ProblemOverride<ContractionProblem>{}, -1);
         }
         catch(std::out_of_range const& ex)
         {
-            std::make_pair(ContractionProblem{}, -1);
+            return std::make_pair(ProblemOverride<ContractionProblem>{}, -1);
         }
 
         if(inputType == DataType::None || outputType == DataType::None
            || computeType == DataType::None)
         {
-            return std::make_pair(ContractionProblem{}, -1);
+            return std::make_pair(ProblemOverride<ContractionProblem>{}, -1);
         }
 
-        ContractionProblem problem = ConstructTensileProblem(transA,
-                                                             transB,
-                                                             inputType,
-                                                             outputType,
-                                                             computeType,
-                                                             m,
-                                                             n,
-                                                             k,
-                                                             b,
-                                                             ldA,
-                                                             strideA,
-                                                             ldB,
-                                                             strideB,
-                                                             ldC,
-                                                             strideC,
-                                                             alpha,
-                                                             beta);
+        bool HPA = (dataTypeSize(computeType) > dataTypeSize(inputType));
 
-        return std::make_pair(problem, solution_idx);
+        ProblemOverride<ContractionProblem> po(transA,
+                                                transB,
+                                                inputType,
+                                                outputType,
+                                                HPA,
+                                                m,
+                                                n,
+                                                k,
+                                                b,
+                                                beta,
+                                                ldA,
+                                                strideA,
+                                                ldB,
+                                                strideB,
+                                                ldC,
+                                                strideC
+                                                );
+
+        return std::make_pair(po, solution_idx);
     }
 
-    std::vector<std::pair<ContractionProblem, int>>
+    template <typename MyProblem>
+    ProblemOverride<MyProblem>::ProblemOverride()
+                            : m_transA(false) 
+                            , m_transB(false)
+                            , m_inputType(DataType::None)
+                            , m_outputType(DataType::None)
+                            , m_HPA(false)
+                            , m_m(0)
+                            , m_n(0)
+                            , m_k(0)
+                            , m_batchSize(0)
+                            , m_beta(0)
+                            , m_ldA(0)
+                            , m_strideA(0)
+                            , m_ldB(0)
+                            , m_strideB(0)
+                            , m_ldC(0)
+                            , m_strideC(0) {}
+
+    template <typename MyProblem>
+    ProblemOverride<MyProblem>::ProblemOverride(bool     transA,
+                                                bool     transB,
+                                                DataType inputType,
+                                                DataType outputType,
+                                                bool     HPA,
+                                                size_t   m,
+                                                size_t   n,
+                                                size_t   k,
+                                                size_t   batchSize,
+                                                double   beta,
+                                                size_t   ldA,
+                                                size_t   strideA,
+                                                size_t   ldB,
+                                                size_t   strideB,
+                                                size_t   ldC,
+                                                size_t   strideC)
+                            : m_transA(transA) 
+                            , m_transB(transB)
+                            , m_inputType(inputType)
+                            , m_outputType(outputType)
+                            , m_HPA(HPA)
+                            , m_m(m)
+                            , m_n(n)
+                            , m_k(k)
+                            , m_batchSize(batchSize)
+                            , m_beta(beta)
+                            , m_ldA(ldA)
+                            , m_strideA(strideA)
+                            , m_ldB(ldB)
+                            , m_strideB(strideB)
+                            , m_ldC(ldC)
+                            , m_strideC(strideC) {}
+
+    template <>
+    ProblemOverride<ContractionProblem>::ProblemOverride(const ContractionProblem& problem)
+    {
+        m_transA = problem.transA();
+        m_transB = problem.transB();
+        m_inputType = problem.a().dataType();
+        m_outputType = problem.c().dataType();
+        m_HPA = problem.highPrecisionAccumulate();
+        m_m = problem.freeSizeA(0);
+        m_n = problem.freeSizeB(0);
+        m_k = problem.boundSize(0);
+        m_batchSize = problem.batchSize(0);
+        m_beta = problem.beta();
+        m_ldA = problem.a().strides()[1];
+        m_strideA = problem.a().strides()[2];
+        m_ldB = problem.b().strides()[1];
+        m_strideB = problem.b().strides()[2];
+        m_ldC = problem.c().strides()[1];
+        m_strideC = problem.c().strides()[2];
+    }
+
+    template <>
+    std::vector<std::pair<ProblemOverride<ContractionProblem>, int>>
         getContractionProblemsFromFile(const std::string& path)
     {
-        std::vector<std::pair<ContractionProblem, int>> out;
+        std::vector<std::pair<ProblemOverride<ContractionProblem>, int>> out;
 
         std::ifstream file(path);
         std::string   line, entry;
 
         const auto delim         = ',';
         const auto first_heading = "transA";
-
-        int current_section = -1;
+        const int max_entries    = 18;
 
         while(std::getline(file, line))
         {
@@ -304,12 +256,11 @@ namespace Tensile
             if(line.find(first_heading) != std::string::npos)
             {
                 // TODO: Get param index from headings?
-                current_section++;
                 continue;
             }
 
             std::vector<std::string> entries{};
-            entries.reserve((current_section == 0) ? 15 : 18);
+            entries.reserve(max_entries);
 
             std::stringstream line_ss(line);
             while(getline(line_ss, entry, delim))
@@ -317,7 +268,7 @@ namespace Tensile
                 entries.push_back(entry);
             }
 
-            auto problemSolution = problemFromEntries(entries);
+            auto problemSolution = problemFromEntries<ContractionProblem>(entries);
             if(problemSolution.second > 0)
             {
                 out.push_back(problemSolution);

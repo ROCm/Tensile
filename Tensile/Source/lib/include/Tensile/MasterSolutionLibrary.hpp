@@ -27,9 +27,9 @@
 #pragma once
 
 #include <chrono>
-#include <string>
 #include <map>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include <Tensile/CachingLibrary.hpp>
@@ -183,16 +183,16 @@ namespace Tensile
             }
         }
 
-        bool getSolutionMapsFromFile(Hardware const& hardware,
-                                     const std::string& file_path)
+        bool setOverridesFromFile(Hardware const& hardware, const std::string& file_path)
         {
             try
             {
                 // Early exit if no caching library
                 auto& lib = dynamic_cast<CachingLibrary<MyProblem, MySolution>&>(*library);
 
-                auto probSols = getContractionProblemsFromFile(file_path);
-                if(probSols.size() == 0) return false;
+                auto probSols = getContractionProblemsFromFile<MyProblem>(file_path);
+                if(probSols.size() == 0)
+                    return false;
 
                 bool success = true;
 
@@ -202,7 +202,7 @@ namespace Tensile
                     std::shared_ptr<MySolution> solution = getSolutionByIndex(ps.second);
 
                     // Update cache
-                    success &= lib.add(ps.first, hardware, solution);
+                    success &= lib.addToOverride(ps.first, hardware, solution);
                 }
 
                 return success;
@@ -226,5 +226,4 @@ namespace Tensile
             return library->findAllSolutionsMatchingType(problem, hardware);
         }
     };
-
 } // namespace Tensile
