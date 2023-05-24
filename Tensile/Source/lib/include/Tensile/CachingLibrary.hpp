@@ -32,6 +32,7 @@
 
 #include <Tensile/ContractionProblem.hpp>
 #include <Tensile/SolutionLibrary.hpp>
+#include <Tensile/UserDrivenTuningParser.hpp>
 
 #include <Tensile/AMDGPU_Detail.hpp>
 #include <Tensile/ContractionProblem_Detail.hpp>
@@ -109,27 +110,49 @@ namespace Tensile
             add_impl(m_map, value, ks...);
         }
 
+        template <typename... Ks>
+        void add_or_replace(Value const& value, Ks const&... ks)
+        {
+            std::lock_guard<std::shared_timed_mutex> lock(m_mutex);
+
+            add_or_replace_impl(m_map, value, ks...);
+        }
+
     private:
         template <typename SubMap, typename K>
-        Value find_impl(SubMap const& map, K const& key)
+        Value find_impl(SubMap& map, K const& key)
         {
-            auto iter = map.find(key);
-
-            if(iter == map.end())
-                return m_nullValue;
-
-            return iter->second;
+            Value* val = find_impl_ptr(map, key);
+            return val ? *val : m_nullValue;
         }
 
         template <typename SubMap, typename K, typename... Ks>
-        Value find_impl(SubMap const& map, K const& key, Ks const&... ks)
+        Value find_impl(SubMap& map, K const& key, Ks const&... ks)
+        {
+            Value* val = find_impl_ptr(map, key, ks...);
+            return val ? *val : m_nullValue;
+        }
+
+        template <typename SubMap, typename K>
+        Value* find_impl_ptr(SubMap& map, K const& key)
         {
             auto iter = map.find(key);
 
             if(iter == map.end())
-                return m_nullValue;
+                return nullptr;
 
-            return find_impl(iter->second, ks...);
+            return &(iter->second);
+        }
+
+        template <typename SubMap, typename K, typename... Ks>
+        Value* find_impl_ptr(SubMap& map, K const& key, Ks const&... ks)
+        {
+            auto iter = map.find(key);
+
+            if(iter == map.end())
+                return nullptr;
+
+            return find_impl_ptr(iter->second, ks...);
         }
 
         template <typename SubMap, typename K>
@@ -142,6 +165,34 @@ namespace Tensile
         void add_impl(SubMap& map, Value const& value, K const& key, Ks const&... ks)
         {
             add_impl(map[key], value, ks...);
+        }
+
+        template <typename SubMap, typename K>
+        void add_or_replace_impl(SubMap& map, Value const& value, K const& key)
+        {
+            Value* current_value = find_impl_ptr(map, key);
+            if(current_value)
+            {
+                *current_value = value;
+            }
+            else
+            {
+                add_impl(map, value, key);
+            }
+        }
+
+        template <typename SubMap, typename K, typename... Ks>
+        void add_or_replace_impl(SubMap& map, Value const& value, K const& key, Ks const&... ks)
+        {
+            Value* current_value = find_impl_ptr(map, key, ks...);
+            if(current_value)
+            {
+                *current_value = value;
+            }
+            else
+            {
+                add_impl(map, value, key, ks...);
+            }
         }
 
         Map                     m_map;
@@ -159,10 +210,14 @@ namespace Tensile
     public:
         using Library = SolutionLibrary<MyProblem, MySolution>;
         using Cache = CacheMap<std::tuple<std::shared_ptr<MySolution>, double>, AMDGPU, MyProblem>;
+        using Override = CacheMap<std::tuple<std::shared_ptr<MySolution>, double>,
+                                  AMDGPU,
+                                  ProblemOverride<ContractionProblem>>;
 
         CachingLibrary(std::shared_ptr<Library> subLibrary)
             : m_subLibrary(subLibrary)
             , m_cache(std::make_tuple(nullptr, std::numeric_limits<double>::max()))
+            , m_override(std::make_tuple(nullptr, std::numeric_limits<double>::max()))
         {
         }
 
@@ -178,8 +233,16 @@ namespace Tensile
 
                 auto const&                 amdgpu = dynamic_cast<AMDGPU const&>(hardware);
                 std::shared_ptr<MySolution> solution;
-                std::tie(solution, *fitness) = m_cache.find(problem, amdgpu);
 
+                // Check override
+                ProblemOverride<MyProblem> po(problem);
+                std::tie(solution, *fitness) = m_override.find(po, amdgpu);
+
+                if(solution && solution->canSolve(problem, hardware))
+                    return solution;
+
+                // Check cache
+                std::tie(solution, *fitness) = m_cache.find(problem, amdgpu);
                 if(solution)
                     return solution;
 
@@ -216,6 +279,33 @@ namespace Tensile
             return std::get<std::shared_ptr<MySolution>>(m_cache.find(problem, amdgpu));
         }
 
+        bool addToOverride(ProblemOverride<MyProblem> const& po,
+                           Hardware const&                   hardware,
+                           std::shared_ptr<MySolution>       solution,
+                           double*                           fitness = nullptr)
+        {
+            try
+            {
+                auto const& amdgpu        = dynamic_cast<AMDGPU const&>(hardware);
+                double      cachedFitness = std::numeric_limits<double>::max();
+                fitness                   = (fitness) ? fitness : &cachedFitness;
+
+                if(solution)
+                {
+                    m_override.add_or_replace(std::make_tuple(solution, *fitness), po, amdgpu);
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            catch(std::bad_cast const& exc)
+            {
+                return false;
+            }
+        }
+
         virtual std::string type() const override
         {
             return "Caching Library";
@@ -233,6 +323,7 @@ namespace Tensile
     private:
         std::shared_ptr<Library> m_subLibrary;
         mutable Cache            m_cache;
+        mutable Override         m_override;
     };
 
 #if 0
