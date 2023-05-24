@@ -1,6 +1,26 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.37.0
+## (Unreleased) Tensile 4.38.0
+### Added
+- Added support for FP16 Alt Round Near Zero Mode (this feature allows the generation of alternate kernels with intermediate rounding instead of truncation)
+- Added user-driven solution selection feature
+### Optimizations
+- Enabled LocalSplitU with MFMA for I8 data type
+- Optimized K mask code in mfmaIter
+- Enabled TailLoop code in NoLoadLoop to prefetch global/local read
+- Enabled DirectToVgpr in TailLoop for NN, TN, and TT matrix orientations
+- Optimized DirectToLds test cases to reduce the test duration
+### Changed
+- Removed DGEMM NT custom kernels and related test cases
+- Changed noTailLoop logic to apply noTailLoop only for NT
+- Changed the range of AssertFree0ElementMultiple and Free1
+- Unified aStr, bStr generation code in mfmaIter
+### Fixed
+- Fixed LocalSplitU mismatch issue for SGEMM
+- Fixed BufferStore=0 and Ldc != Ldd case
+- Fixed mismatch issue with TailLoop + MatrixInstB > 1
+
+## Tensile 4.37.0 for ROCm 5.6
 ### Added
 - Added user driven tuning API
 - Added decision tree fallback feature
