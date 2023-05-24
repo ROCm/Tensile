@@ -17,8 +17,6 @@
 - Unified aStr, bStr generation code in mfmaIter
 ### Fixed
 - Fixed LocalSplitU mismatch issue for SGEMM
-- Fixed GSU MultiBuffer cases
-- Fixed global load with general batch when batch count > 1
 - Fixed BufferStore=0 and Ldc != Ldd case
 - Fixed mismatch issue with TailLoop + MatrixInstB > 1
 
