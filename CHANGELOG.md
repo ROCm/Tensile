@@ -1,6 +1,6 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.38.0
+## Tensile 4.38.0 for ROCm 5.7
 ### Added
 - Added support for FP16 Alt Round Near Zero Mode (this feature allows the generation of alternate kernels with intermediate rounding instead of truncation)
 - Added user-driven solution selection feature
