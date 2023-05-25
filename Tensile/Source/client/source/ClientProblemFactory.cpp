@@ -203,6 +203,7 @@ namespace Tensile
                 rv.back().setDeterministicMode(m_deterministicMode);
                 rv.back().setArithmeticUnit(m_arithmeticUnit);
                 rv.back().setFp16AltImpl(m_fp16AltImpl);
+                rv.back().setFp16AltImplRound(m_fp16AltImplRound);
 
                 if(m_convProblemSizes.size())
                     rv.back().setConvProblemSizes(m_convProblemSizes[i]);

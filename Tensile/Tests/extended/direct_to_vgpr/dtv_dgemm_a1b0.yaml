@@ -8,6 +8,8 @@ GlobalParameters:
   KernelTime: True
   #PrintSolutionRejectionReason: True
   #MaxFileName: 256
+  DataInitTypeAlpha: 1
+  DataInitTypeBeta : 0
 
 BenchmarkProblems:
   ########################################
@@ -116,6 +118,7 @@ BenchmarkProblems:
         - ProblemSizes:
           #- Exact: [ M, N, B, K, ldc, ldc, lda, ldb ]
           - Range: [ [511], [511], [1], [2039, 8, 2047] ]
+          - Range: [ [511], [511], [1], [1, 2, 33] ]
 
   ########################################
   # NT - DTVB + max load width for TailLoop

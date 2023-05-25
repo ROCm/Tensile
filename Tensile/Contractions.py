@@ -340,6 +340,9 @@ class ProblemPredicate(Properties.Predicate):
         if key == "Fp16AltImpl":
             return cls("Fp16AltImpl") if value != False else None
 
+        if key == "Fp16AltImplRound":
+            return cls("Fp16AltImplRound") if value != False else None
+
     @classmethod
     def CompoundPredicates(cls, state, problemType):
         rv = []
