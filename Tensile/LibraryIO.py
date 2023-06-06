@@ -245,7 +245,7 @@ def parseLibraryLogicList(data, srcFile="?"):
     if len(data) > 11 and data[11] == "Fp16AltImpl":
         rv["Fp16AltImpl"] = True
 
-    if len(data) > 12 and data[12] == "Fp16AltImplRound":
+    if len(data) > 13 and data[13] == "Fp16AltImplRound":
         rv["Fp16AltImplRound"] = True
 
     # library logic fields
@@ -254,8 +254,8 @@ def parseLibraryLogicList(data, srcFile="?"):
     rv["Library"]["indexOrder"] = data[6]
     rv["Library"]["table"] = data[7]
     rv["Library"]["distance"] = "Euclidean"
-    if len(data) > 13 and data[13]:
-        rv["Library"]["distance"] = data[13]
+    if len(data) > 12 and data[12]:
+        rv["Library"]["distance"] = data[12]
 
     return rv
 
