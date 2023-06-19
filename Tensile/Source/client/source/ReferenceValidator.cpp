@@ -257,6 +257,59 @@ namespace Tensile
                 return validateSolutionCast<ManagedContractionInputs_B_S_S>(inputs);
             }
 #endif // TENSILE_USE_BF16
+#ifdef TENSILE_USE_FP8_BF8
+            case ManagedContractionInputs_F8_F8_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_F8_F8_S>(inputs);
+            }
+            case ManagedContractionInputs_F8_S_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_F8_S_S>(inputs);
+            }
+            case ManagedContractionInputs_B8_B8_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_B8_B8_S>(inputs);
+            }
+            case ManagedContractionInputs_B8_S_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_B8_S_S>(inputs);
+            }
+            // hybrid cases: F8B8SS, B8F8SS 
+            case ManagedContractionInputs_F8B8_S_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_F8B8_S_S>(inputs);
+            }
+            case ManagedContractionInputs_B8F8_S_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_B8F8_S_S>(inputs);
+            }
+            // hybrid cases with To = BF8 
+            case ManagedContractionInputs_F8B8_B8_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_F8B8_B8_S>(inputs);
+            }
+            case ManagedContractionInputs_B8F8_B8_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_B8F8_B8_S>(inputs);
+            }
+            // cases with To = F16 
+            case ManagedContractionInputs_F8_H_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_F8_H_S>(inputs);
+            }
+            case ManagedContractionInputs_B8_H_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_B8_H_S>(inputs);
+            }
+            case ManagedContractionInputs_F8B8_H_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_F8B8_H_S>(inputs);
+            }
+            case ManagedContractionInputs_B8F8_H_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_B8F8_H_S>(inputs);
+            }
+#endif // TENSILE_USE_FP8_BF8
             default:;
             }
 

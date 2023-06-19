@@ -631,6 +631,26 @@ namespace Tensile
         {
             return m_fp16AltImpl;
         }
+        
+        void setStochasticRounding(bool value)
+        {
+            m_stochasticRounding = value;
+        }
+
+        bool stochasticRounding() const
+        {
+            return m_stochasticRounding;
+        }
+
+        void setF32XdlMathOp(DataType value)
+        {
+            m_f32XdlMathOp = value;
+        }
+
+        DataType f32XdlMathOp() const
+        {
+            return m_f32XdlMathOp;
+        }
 
         void setFp16AltImplRound(bool value)
         {
@@ -824,6 +844,8 @@ namespace Tensile
         bool              m_eligibleForPK           = true;
         bool              m_fp16AltImpl             = false;
         bool              m_fp16AltImplRound        = false;
+        bool              m_stochasticRounding      = false;
+        DataType          m_f32XdlMathOp            = DataType::Float;
         ArithmeticUnit    m_arithmeticUnit          = ArithmeticUnit::Any;
         KernelLanguage    m_kernelLanguage          = KernelLanguage::Any;
         PerformanceMetric m_performanceMetric       = PerformanceMetric::DeviceEfficiency;
@@ -989,6 +1011,23 @@ namespace Tensile
         = TypedContractionInputs<BFloat16, BFloat16, BFloat16, BFloat16, float, float>;
     using ContractionInputs_B_S_S = TypedContractionInputs<BFloat16, BFloat16, float, float>;
 #endif // TENSILE_USE_BF16
+#ifdef TENSILE_USE_FP8_BF8
+    using ContractionInputs_F8_F8_S   = TypedContractionInputs<Float8, Float8, Float8, Float8, float, float>;
+    using ContractionInputs_F8_S_S   = TypedContractionInputs<Float8, Float8, float, float>;
+    using ContractionInputs_B8_B8_S   = TypedContractionInputs<BFloat8, BFloat8, BFloat8, BFloat8, float, float>;
+    using ContractionInputs_B8_S_S   = TypedContractionInputs<BFloat8, BFloat8, float, float>;
+    // hybrid cases: F8B8SS, B8F8SS 
+    using ContractionInputs_F8B8_S_S   = TypedContractionInputs<Float8, BFloat8, float, float>;
+    using ContractionInputs_B8F8_S_S   = TypedContractionInputs<BFloat8, Float8, float, float>;
+    // hybrid cases with To = B8 
+    using ContractionInputs_F8B8_B8_S   = TypedContractionInputs<Float8, BFloat8, BFloat8, BFloat8, float, float>;
+    using ContractionInputs_B8F8_B8_S   = TypedContractionInputs<BFloat8, Float8, BFloat8, BFloat8, float, float>;
+    // cases with To = f16 
+    using ContractionInputs_F8_H_S   = TypedContractionInputs<Float8, Float8, Half, Half, float, float>;
+    using ContractionInputs_B8_H_S   = TypedContractionInputs<BFloat8, BFloat8, Half, Half, float, float>;
+    using ContractionInputs_F8B8_H_S   = TypedContractionInputs<Float8, BFloat8, Half, Half, float, float>;
+    using ContractionInputs_B8F8_H_S   = TypedContractionInputs<BFloat8, Float8, Half, Half, float, float>;
+#endif // TENSILE_USE_FP8_BF8
 
     TENSILE_API std::ostream& operator<<(std::ostream&             stream,
                                          ContractionProblem const& contraction);

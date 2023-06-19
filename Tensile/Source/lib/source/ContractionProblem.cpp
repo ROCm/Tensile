@@ -700,6 +700,7 @@ namespace Tensile
         , m_boundIndices(boundIndices)
         , m_beta(beta)
         , m_workspaceSize(workspaceSize)
+        , m_f32XdlMathOp(DataType::Float)
     {
         m_betaRestriction = toScalarValueEnum(
             m_beta); // Set enum using beta to potentially allow for faster solutions
@@ -1287,5 +1288,22 @@ namespace Tensile
 #ifdef TENSILE_USE_BF16
     template struct TypedContractionInputs<BFloat16, BFloat16, BFloat16, BFloat16, float, float>;
     template struct TypedContractionInputs<BFloat16, BFloat16, float, float>;
+#endif
+#ifdef TENSILE_USE_FP8_BF8
+    template struct TypedContractionInputs<Float8, Float8, Float8, Float8, float, float>;
+    template struct TypedContractionInputs<Float8, Float8, float, float>;
+    template struct TypedContractionInputs<BFloat8, BFloat8, BFloat8, BFloat8, float, float>;
+    template struct TypedContractionInputs<BFloat8, BFloat8, float, float>;
+    // hybrid cases: a-type_b-type_To_Tc 
+    template struct TypedContractionInputs<Float8, BFloat8, float, float>;
+    template struct TypedContractionInputs<BFloat8, Float8, float, float>;
+    // hybrid cases with To as BF8 
+    template struct TypedContractionInputs<Float8, BFloat8, BFloat8, BFloat8, float, float>;
+    template struct TypedContractionInputs<BFloat8, Float8, BFloat8, BFloat8, float, float>;
+    // hybrid cases: Ti=F8, To=f16, Tc=f32 
+    template struct TypedContractionInputs<Float8, Float8, Half, Half, float, float>;
+    template struct TypedContractionInputs<BFloat8, BFloat8, Half, Half, float, float>;
+    template struct TypedContractionInputs<Float8, BFloat8, Half, Half, float, float>;
+    template struct TypedContractionInputs<BFloat8, Float8, Half, Half, float, float>;
 #endif
 } // namespace Tensile

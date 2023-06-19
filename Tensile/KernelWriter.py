@@ -31,6 +31,7 @@ from .SolutionStructs import Solution
 
 import abc
 import collections
+from collections.abc import Sequence
 import os
 import shutil
 import subprocess
@@ -3725,7 +3726,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # MergeRead 0: ds_readAx1 ds_readBx1 mfma | ds_readAx1 ds_readBx1 mfma | => ds_readAx2 ds_readBx1 mfma | ds_readBx1 mfma |
     # MergeRead 1: ds_readAx1 ds_readBx1 mfma | ds_readAx1 ds_readAx1 mfma | => ds_readAx2 ds_readBx1 ds_readBx1 mfma | mfma |
     MergeRead = 0
-    if not kernel["ProblemType"]["TLUA"] or MergeRead or self.allowLRVWBforTLUandMI:
+    if kernel["UnrollMajorLDSA"] or MergeRead or self.allowLRVWBforTLUandMI:
       if kernel["DirectToVgprA"]:
         # DirectToVgprA case, ignore LocalReadVectorWidth and use GlobalLoadVectorWidth instead.
         self.lrvwA = vwa
@@ -3736,7 +3737,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.lrvwA = kernel["MIInputPerThread"]
       else:
         self.lrvwA = 1
-    if not kernel["ProblemType"]["TLUB"] or MergeRead or self.allowLRVWBforTLUandMI:
+    if kernel["UnrollMajorLDSB"] or MergeRead or self.allowLRVWBforTLUandMI:
       if kernel["DirectToVgprB"]:
         # DirectToVgprB case, ignore LocalReadVectorWidth and use GlobalLoadVectorWidth instead.
         self.lrvwB = vwb
@@ -5242,7 +5243,7 @@ for codeObjectFileName in codeObjectFileNames:
         return (0, self.getKernelSource(kernel))
 
     except subprocess.CalledProcessError as exc:
-      if isinstance(exc.cmd, collections.Sequence):
+      if isinstance(exc.cmd, Sequence):
         print("Command: ")
         print(' '.join(exc.cmd))
         print("returned non-zero exit status ", exc.returncode)

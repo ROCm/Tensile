@@ -70,6 +70,26 @@ namespace Tensile
         }
 
         template <>
+        inline bool AlmostEqual(Float8 a, Float8 b)
+        {
+            Float8 absA = (a > static_cast<Float8>(0.0f)) ? a : static_cast<Float8>(0.0f) - a;
+            Float8 absB = (b > static_cast<Float8>(0.0f)) ? b : static_cast<Float8>(0.0f) - b;
+            Float8 absDiff = (a - b > static_cast<Float8>(0.0f)) ? a - b : b - a;
+            return absDiff / (absA + absB + static_cast<Float8>(1.0f))
+                   < static_cast<Float8>(0.125f);  // tolerance * eps = 2 * 0.0625; 2*eps needed for SR
+        }
+        
+        template <>
+        inline bool AlmostEqual(BFloat8 a, BFloat8 b)
+        {
+            BFloat8 absA = (a > static_cast<BFloat8>(0.0f)) ? a : static_cast<BFloat8>(0.0f) - a;
+            BFloat8 absB = (b > static_cast<BFloat8>(0.0f)) ? b : static_cast<BFloat8>(0.0f) - b;
+            BFloat8 absDiff = (a - b > static_cast<BFloat8>(0.0f)) ? a - b : b - a;
+            return absDiff / (absA + absB + static_cast<BFloat8>(1.0f))
+                   < static_cast<BFloat8>(0.25f);  // tolerance * epsilon = 2 * 0.125; 2*eps needed for SR
+        }
+
+        template <>
         inline bool AlmostEqual(float a, float b)
         {
             return std::fabs(a - b) / (std::fabs(a) + std::fabs(b) + 1)
@@ -104,7 +124,10 @@ namespace Tensile
             return AlmostEqual(a.real(), b.real()) && AlmostEqual(a.imag(), b.imag());
         }
 
-        template <typename Inputs, typename Accumulator = typename Inputs::DType>
+        template <typename Inputs,
+                  typename Accumulator     = typename Inputs::DType,
+                  bool StochasticRounding  = false,
+                  typename MathOpAccum     = Accumulator>
         struct ReferenceSolution
         {
             static void SolveCPU(ContractionProblem const& contraction,

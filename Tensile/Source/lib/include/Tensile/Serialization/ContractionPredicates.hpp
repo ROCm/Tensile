@@ -96,7 +96,9 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::ExperimentalDTree>(),
                     Base::template Pair<Predicates::Contraction::Fp16AltImpl>(),
                     Base::template Pair<Predicates::Contraction::Fp16AltImplRound>(),
+                    Base::template Pair<Predicates::Contraction::F32XdlMathOpEqual>(),
                     Base::template Pair<Predicates::Contraction::EqualityMatching>(),
+                    Base::template Pair<Predicates::Contraction::StochasticRoundingEqual>(),
                     Base::template Pair<Predicates::Contraction::SizeInRange>(),
                 });
 
@@ -357,8 +359,20 @@ namespace Tensile
         };
 
         template <typename IO>
+        struct MappingTraits<Predicates::Contraction::F32XdlMathOpEqual, IO>
+            : public AutoMappingTraits<Predicates::Contraction::F32XdlMathOpEqual, IO>
+        {
+        };
+
+        template <typename IO>
         struct MappingTraits<Predicates::Contraction::EqualityMatching, IO>
             : public AutoMappingTraits<Predicates::Contraction::EqualityMatching, IO>
+        {
+        };
+        
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::StochasticRoundingEqual, IO>
+            : public AutoMappingTraits<Predicates::Contraction::StochasticRoundingEqual, IO>
         {
         };
 

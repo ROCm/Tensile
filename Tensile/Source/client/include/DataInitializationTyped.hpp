@@ -889,6 +889,35 @@ namespace Tensile
         using ManagedContractionInputs_B_S_S
             = ManagedContractionInputs<BFloat16, BFloat16, float, float>;
 #endif // TENSILE_USE_BF16
+#ifdef TENSILE_USE_FP8_BF8
+        using ManagedContractionInputs_F8_F8_S
+            = ManagedContractionInputs<Float8, Float8, Float8, Float8, float, float>;
+        using ManagedContractionInputs_F8_S_S
+            = ManagedContractionInputs<Float8, Float8, float, float>;
+        using ManagedContractionInputs_B8_B8_S
+            = ManagedContractionInputs<BFloat8, BFloat8, BFloat8, BFloat8, float, float>;
+        using ManagedContractionInputs_B8_S_S
+            = ManagedContractionInputs<BFloat8, BFloat8, float, float>;
+        // hybrid cases: F8B8SS, B8F8SS 
+        using ManagedContractionInputs_F8B8_S_S
+            = ManagedContractionInputs<Float8, BFloat8, float, float>;
+        using ManagedContractionInputs_B8F8_S_S
+            = ManagedContractionInputs<BFloat8, Float8, float, float>;
+        // hybrid cases with To = B8
+        using ManagedContractionInputs_F8B8_B8_S
+            = ManagedContractionInputs<Float8, BFloat8, BFloat8, BFloat8, float, float>;
+        using ManagedContractionInputs_B8F8_B8_S
+            = ManagedContractionInputs<BFloat8, Float8, BFloat8, BFloat8, float, float>;
+        // cases with To = f16
+        using ManagedContractionInputs_F8_H_S
+            = ManagedContractionInputs<Float8, Float8, Half, Half, float, float>;
+        using ManagedContractionInputs_B8_H_S
+            = ManagedContractionInputs<BFloat8, BFloat8, Half, Half, float, float>;
+        using ManagedContractionInputs_F8B8_H_S
+            = ManagedContractionInputs<Float8, BFloat8, Half, Half, float, float>;
+        using ManagedContractionInputs_B8F8_H_S
+            = ManagedContractionInputs<BFloat8, Float8, Half, Half, float, float>;
+#endif // TENSILE_USE_FP8_BF8
 
     } // namespace Client
 } // namespace Tensile
