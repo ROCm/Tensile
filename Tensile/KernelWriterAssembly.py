@@ -7288,13 +7288,20 @@ class KernelWriterAssembly(KernelWriter):
                     "incUpper <- ?")
         imod.addCode(self.incrementSrd(kernel, tP, sgpr(incLower), sgpr(incUpper), checkShadowLimitCopy=True))
       else:
-        if loopIdx != self.unrollIdx or (tc in ('A', 'B') and kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s"%tc]):
-          incUpper = sgpr(self.getTmpSgpr(1).idx())
-          # GRO may be negative for other summation if stride-other < stride-unroll or if mirror dim.
-          imod.addInst("s_ashr_i32", incUpper, sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), 31, "sign-extend")
+        if (tc in ('A', 'B') and kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s"%tc]):
+          if kernel["_UseSgprForGRO"]:
+            offsetVgpr = "GlobalReadOffset%s+0"%(tc)
+          else:
+            offsetVgpr = "GlobalReadOffset%s+%u"%(tc, graIdx)
+          imod.addInst("_v_add_i32", vgpr(offsetVgpr), vgpr(offsetVgpr), sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), "update offset for mirror dims")
         else:
-          incUpper = 0 # GRO is positive for loop unroll
-        imod.addCode( self.incrementSrd(kernel, tP, sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), incUpper))
+          if loopIdx != self.unrollIdx:
+            incUpper = sgpr(self.getTmpSgpr(1).idx())
+            # GRO may be negative for other summation if stride-other < stride-unroll or if mirror dim.
+            imod.addInst("s_ashr_i32", incUpper, sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), 31, "sign-extend")
+          else:
+            incUpper = 0 # GRO is positive for loop unroll
+          imod.addCode( self.incrementSrd(kernel, tP, sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), incUpper))
     else:
       graIdx = 0
       #for perp in range(0, tP["nrp"]):
@@ -7580,6 +7587,11 @@ class KernelWriterAssembly(KernelWriter):
     instOffset = 0
     loopCnt = -1
 
+    mirrorDim = kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in problemType["MirrorDims%s"%tc]
+    mirrorOffsetTemp = None
+    if mirrorDim:
+      mirrorOffsetTemp = self.vgprPool.checkOut(1, "mirrorOffset")
+
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nrpv"]):
         for para in range(0, tP["nrc"]):
@@ -7684,15 +7696,29 @@ class KernelWriterAssembly(KernelWriter):
                   offsetVgpr = self.guardZeroPad(kernel, tP, codeMod, offsetVgpr, soffset, addrV, perp, sPerp, para, sPara)
                   kStr += str(codeMod)
 
-                unrollMirrorWithSoffset = kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in problemType["MirrorDims%s"%tc] and soffset != "0"
-                # ScalarGlobalReadOffset should be negative value with unroll mirroring.
-                # However, buffer_load uses soffset as uint value, so GRO - SGRO, SGRO = 0
-                if unrollMirrorWithSoffset:
+                if mirrorDim:
                   codeMod = Code.Module("mirrorIdx%u"%loopCnt)
-                  codeMod.addInst("_v_sub_u32", vgpr(offsetVgpr), vgpr(offsetVgpr), soffset, "mirror unroll: GRO=GRO-SGRO, soffset=0")
+                  codeMod.addInst("v_mov_b32", vgpr(mirrorOffsetTemp), vgpr(offsetVgpr), "copy offset to clamp mirror dim")
+                  offsetVgpr = mirrorOffsetTemp
+
+                  # ScalarGlobalReadOffset should be negative value with unroll mirroring.
+                  # However, buffer_load uses soffset as uint value, so GRO - SGRO, SGRO = 0
+                  if soffset != "0":
+                    codeMod.addInst("_v_sub_u32", vgpr(offsetVgpr), vgpr(offsetVgpr), soffset, "mirror unroll: GRO=GRO-SGRO, soffset=0")
+                    # soffset_prev = soffset
+                    soffset = "0"
+
+                  # check for pre-padding
+                  prePad = 0
+                  if self.groOffsetInMacroTile:
+                    prePad = self.srdShiftLeft[tc]
+                    if tc == "A":
+                      prePad *= self.tPA["bpe"]
+                    elif tc == "B":
+                      prePad *= self.tPB["bpe"]
+
+                  codeMod.addInst("v_max_i32", vgpr(offsetVgpr), prePad, vgpr(offsetVgpr), "clamp to beginning of buffer")
                   kStr += str(codeMod)
-                  soffset_prev = soffset
-                  soffset = "0"
 
                 if kernel["DirectToLds%s"%tc]:
                   # need to increment ldsInc only once per each loopCnt
@@ -7749,11 +7775,6 @@ class KernelWriterAssembly(KernelWriter):
                           dtlNoDestVgpr=dtlNoDestVgpr, \
                           hi16=hi16, \
                           comment=comment).toStr()
-
-                if unrollMirrorWithSoffset:
-                  codeMod = Code.Module("mirrorIdx%u"%loopCnt)
-                  codeMod.addInst("_v_add_u32", vgpr(offsetVgpr), vgpr(offsetVgpr), soffset_prev, "mirror unroll: restore GRO=GRO+SGRO")
-                  kStr += str(codeMod)
 
                 if kernel["DirectToLds%s"%tc] and kernel["UseInstOffsetForGRO"]:
                   instOffsetInc += ldsInc
@@ -7842,6 +7863,9 @@ class KernelWriterAssembly(KernelWriter):
               kStr += str(packInt8Code)
               self.vgprPool.checkIn(destVgprHi - int8TempVgpr)
               destVgprHi = None
+
+    if mirrorDim:
+      self.vgprPool.checkIn(mirrorOffsetTemp)
 
     if self.db["ConservativeWaitCnt"] & 0x1:
         kStr += "s_barrier // debug\n"
