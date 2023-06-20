@@ -7718,11 +7718,7 @@ class KernelWriterAssembly(KernelWriter):
                   # check for pre-padding
                   prePad = 0
                   if self.groOffsetInMacroTile:
-                    prePad = self.srdShiftLeft[tc]
-                    if tc == "A":
-                      prePad *= self.tPA["bpe"]
-                    elif tc == "B":
-                      prePad *= self.tPB["bpe"]
+                    prePad = self.srdShiftLeft[tc] * self.bpeAB
 
                   codeMod.addInst("v_max_i32", vgpr(offsetVgpr), prePad, vgpr(offsetVgpr), "clamp to beginning of buffer")
                   kStr += str(codeMod)
