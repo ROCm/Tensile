@@ -7291,9 +7291,16 @@ class KernelWriterAssembly(KernelWriter):
         if (tc in ('A', 'B') and kernel["ProblemType"]["IndicesSummation"][self.unrollIdx] in kernel["ProblemType"]["MirrorDims%s"%tc]):
           if kernel["_UseSgprForGRO"]:
             offsetVgpr = "GlobalReadOffset%s+0"%(tc)
+            imod.addInst("_v_add_i32", vgpr(offsetVgpr), vgpr(offsetVgpr), sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), "update offset for mirror dims")
           else:
-            offsetVgpr = "GlobalReadOffset%s+%u"%(tc, graIdx)
-          imod.addInst("_v_add_i32", vgpr(offsetVgpr), vgpr(offsetVgpr), sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), "update offset for mirror dims")
+            for perp in range(0, tP["nrp"]):
+              for sPerp in range(0, tP["nrpv"]):
+                for para in range(0, tP["nrc"]):
+                  for sPara in range(0, tP["nrcv"]//tP["nrcvpi"]):
+                    i = sPara + (tP["nrcv"] // tP["nrcvpi"]) * (para + tP["nrc"] * (sPerp + tP["nrpv"] * perp))
+                    graIdx = i * self.rpgo if kernel["BufferLoad"] else i * self.rpga
+                    offsetVgpr = "GlobalReadOffset%s+%u"%(tc, graIdx)
+                    imod.addInst("_v_add_i32", vgpr(offsetVgpr), vgpr(offsetVgpr), sgpr("GlobalReadIncs%s+%u"%(tc,loopIdx)), "update offset for mirror dims")
         else:
           if loopIdx != self.unrollIdx:
             incUpper = sgpr(self.getTmpSgpr(1).idx())
