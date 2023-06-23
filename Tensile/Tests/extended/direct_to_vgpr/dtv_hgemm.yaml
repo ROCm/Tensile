@@ -7,7 +7,6 @@ GlobalParameters:
   KernelTime: True
   #PrintSolutionRejectionReason: True
   #MaxFileName: 256
-  MinKForGSU: 64
 
 BenchmarkProblems:
   ########################################
@@ -29,6 +28,7 @@ BenchmarkProblems:
       BenchmarkCommonParameters:
         - EdgeType: ["ShiftPtr"]
         - KernelLanguage: ["Assembly"]
+        - MinKForGSU: [64]
       ForkParameters:
         - MatrixInstruction:
             - [16, 16, 16, 1, 1, 4, 2, 4,1]  # 256x32
