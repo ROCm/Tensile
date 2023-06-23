@@ -29,7 +29,6 @@ from .SolutionStructs import Solution as OriginalSolution
 from .Utils import state, state_key_ordering
 
 from . import Common
-from . Common import globalParameters
 
 @state_key_ordering
 class FreeIndex:
@@ -405,7 +404,7 @@ class ProblemPredicate(Properties.Predicate):
             rv += [cls('BufferStoreOffsetLimitCheck', value=val)]
 
         if '_GlobalAccumulation' in state and state['_GlobalAccumulation'] != None:
-            value = globalParameters['MinKForGSU'] * state['GlobalSplitU']
+            value = state['MinKForGSU'] * state['GlobalSplitU']
             rv += [cls('GlobalSplitUCheckMinK', value=value)]
 
         return rv
