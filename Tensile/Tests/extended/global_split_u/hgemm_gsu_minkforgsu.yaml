@@ -48,9 +48,9 @@ BenchmarkProblems:
         - StaggerU: [0]
         - StaggerUStride: [0]
         - StaggerUMapping: [0]
-        - MinKForGSU: [32]
+        - MinKForGSU: [16]
       ForkParameters:
-        - GlobalSplitU: [8,16,20]
+        - GlobalSplitU: [8,16,20,64]
         - DepthU: [ 32 ]
         - LdsPadA: [2]
         - LdsPadB: [2]
