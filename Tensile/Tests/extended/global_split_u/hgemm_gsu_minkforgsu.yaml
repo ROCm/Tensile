@@ -12,8 +12,6 @@ GlobalParameters:
   ValidationPrintValids: False
   ShortNames: False
   MergeFiles: True
-  PlatformIdx: 0
-  DeviceIdx: 0
   #  DataInitTypeAB: 0
   PrintSolutionRejectionReason: True
 
