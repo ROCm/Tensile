@@ -262,6 +262,8 @@ globalParameters["LazyLibraryLoading"] = False # Load library and code object fi
 
 globalParameters["IgnoreAsmCapCache"] = False # Ignore checking for discrepancies between derived and cached asm caps
 
+globalParameters["ExperimentalLogicDir"] = "/experimental/"
+
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 
