@@ -1436,7 +1436,7 @@ namespace Tensile
                 enum
                 {
                     HasIndex = false,
-                    HasValue = true   // false? 
+                    HasValue = true // false?
                 };
                 bool value;
 
@@ -1456,7 +1456,7 @@ namespace Tensile
                     return problem.stochasticRounding() == value;
                 }
             };
-            
+
             struct F32XdlMathOpEqual : public Predicate_CRTP<F32XdlMathOpEqual, ContractionProblem>
             {
                 enum

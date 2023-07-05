@@ -588,12 +588,12 @@ namespace Tensile
         if(problemType.stochasticRounding)
         {
             // generate seed from random generator
-            std::random_device  rd;
-            std::mt19937    gen(rd());
+            std::random_device                      rd;
+            std::mt19937                            gen(rd());
             std::uniform_int_distribution<uint32_t> distribution(0, 0xFFFFFFFF);
-            uint32_t seed = distribution(gen);
-            //rv.args.append<uint32_t>("RNDSeed", 0x0);   
-            rv.args.append<uint32_t>("RNDSeed", seed);   
+            uint32_t                                seed = distribution(gen);
+            //rv.args.append<uint32_t>("RNDSeed", 0x0);
+            rv.args.append<uint32_t>("RNDSeed", seed);
         }
 
         if(!isSourceKernel())
@@ -811,12 +811,12 @@ namespace Tensile
         if(problemType.stochasticRounding)
         {
             // generate seed from random generator
-            std::random_device  rd;
-            std::mt19937    gen(rd());
+            std::random_device                      rd;
+            std::mt19937                            gen(rd());
             std::uniform_int_distribution<uint32_t> distribution(0, 0xFFFFFFFF);
-            uint32_t seed = distribution(gen);
-            //rv.args.append<uint32_t>("RNDSeed", 0x0);   
-            rv.args.append<uint32_t>("RNDSeed", seed);   
+            uint32_t                                seed = distribution(gen);
+            //rv.args.append<uint32_t>("RNDSeed", 0x0);
+            rv.args.append<uint32_t>("RNDSeed", seed);
         }
 
         //@TODO determine if this is needed, may not end up in the same code object file
@@ -1063,7 +1063,7 @@ namespace Tensile
             auto const& typedInputs = dynamic_cast<ContractionInputs_B8_S_S const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
-        // hybrid cases: F8B8SS, B8F8SS 
+        // hybrid cases: F8B8SS, B8F8SS
         case ContractionInputs_F8B8_S_S::TypeId():
         {
             auto const& typedInputs = dynamic_cast<ContractionInputs_F8B8_S_S const&>(inputs);
@@ -1074,7 +1074,7 @@ namespace Tensile
             auto const& typedInputs = dynamic_cast<ContractionInputs_B8F8_S_S const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
-        // hybrid cases with To = B8 
+        // hybrid cases with To = B8
         case ContractionInputs_F8B8_B8_S::TypeId():
         {
             auto const& typedInputs = dynamic_cast<ContractionInputs_F8B8_B8_S const&>(inputs);
@@ -1085,7 +1085,7 @@ namespace Tensile
             auto const& typedInputs = dynamic_cast<ContractionInputs_B8F8_B8_S const&>(inputs);
             return solveTyped(problem, typedInputs, hardware);
         }
-	// hybrid with F16 output 
+            // hybrid with F16 output
         case ContractionInputs_F8_H_S::TypeId():
         {
             auto const& typedInputs = dynamic_cast<ContractionInputs_F8_H_S const&>(inputs);

@@ -128,7 +128,10 @@ namespace Tensile
                                             * static_cast<RMultT>(static_cast<RMathOpMultT>(r)));
         }
 
-        template <typename Inputs, typename Accumulator, bool StochasticRounding, typename MathOpAccum>
+        template <typename Inputs,
+                  typename Accumulator,
+                  bool StochasticRounding,
+                  typename MathOpAccum>
         void ReferenceSolution<Inputs, Accumulator, StochasticRounding, MathOpAccum>::SolveCPU(
             ContractionProblem const& problem, Inputs const& inputs, size_t validationStride)
         {
@@ -381,8 +384,8 @@ namespace Tensile
             {
                 auto const& typedInputs = dynamic_cast<ContractionInputs_S_S_S const&>(inputs);
                 if(problem.f32XdlMathOp() == DataType::XFloat32)
-                    return ReferenceSolution<ContractionInputs_S_S_S, float, false, XFloat32>::SolveCPU(
-                        problem, typedInputs, validationStride);
+                    return ReferenceSolution<ContractionInputs_S_S_S, float, false, XFloat32>::
+                        SolveCPU(problem, typedInputs, validationStride);
                 else
                     return ReferenceSolution<ContractionInputs_S_S_S>::SolveCPU(
                         problem, typedInputs, validationStride);
@@ -481,15 +484,15 @@ namespace Tensile
             case ContractionInputs_F8_F8_S::TypeId():
             {
                 auto const& typedInputs = dynamic_cast<ContractionInputs_F8_F8_S const&>(inputs);
-                
+
                 // F8 only supports HPA
                 // request for StochasticRounding
-                if (problem.stochasticRounding())
+                if(problem.stochasticRounding())
                 {
                     return ReferenceSolution<ContractionInputs_F8_F8_S, float, true>::SolveCPU(
                         problem, typedInputs, validationStride);
                 }
-                else // Non-SR 
+                else // Non-SR
                 {
                     return ReferenceSolution<ContractionInputs_F8_F8_S, float, false>::SolveCPU(
                         problem, typedInputs, validationStride);
@@ -505,14 +508,14 @@ namespace Tensile
             {
                 auto const& typedInputs = dynamic_cast<ContractionInputs_B8_B8_S const&>(inputs);
 
-                // B8 only supports HPA 
+                // B8 only supports HPA
                 // request for StochasticRounding
-                if (problem.stochasticRounding())
+                if(problem.stochasticRounding())
                 {
                     return ReferenceSolution<ContractionInputs_B8_B8_S, float, true>::SolveCPU(
                         problem, typedInputs, validationStride);
                 }
-                else // Non-SR 
+                else // Non-SR
                 {
                     return ReferenceSolution<ContractionInputs_B8_B8_S, float, false>::SolveCPU(
                         problem, typedInputs, validationStride);
@@ -524,7 +527,7 @@ namespace Tensile
                 return ReferenceSolution<ContractionInputs_B8_S_S>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
-            // hybrid cases: F8B8SS, B8F8SS 
+            // hybrid cases: F8B8SS, B8F8SS
             case ContractionInputs_F8B8_S_S::TypeId():
             {
                 auto const& typedInputs = dynamic_cast<ContractionInputs_F8B8_S_S const&>(inputs);
@@ -537,17 +540,17 @@ namespace Tensile
                 return ReferenceSolution<ContractionInputs_B8F8_S_S>::SolveCPU(
                     problem, typedInputs, validationStride);
             }
-            // hybrid cases with To = B8 
+            // hybrid cases with To = B8
             case ContractionInputs_F8B8_B8_S::TypeId():
             {
                 auto const& typedInputs = dynamic_cast<ContractionInputs_F8B8_B8_S const&>(inputs);
                 // request for StochasticRounding
-                if (problem.stochasticRounding())
+                if(problem.stochasticRounding())
                 {
                     return ReferenceSolution<ContractionInputs_F8B8_B8_S, float, true>::SolveCPU(
                         problem, typedInputs, validationStride);
                 }
-                else // Non-SR 
+                else // Non-SR
                 {
                     return ReferenceSolution<ContractionInputs_F8B8_B8_S, float, false>::SolveCPU(
                         problem, typedInputs, validationStride);
@@ -557,42 +560,42 @@ namespace Tensile
             {
                 auto const& typedInputs = dynamic_cast<ContractionInputs_B8F8_B8_S const&>(inputs);
                 // request for StochasticRounding
-                if (problem.stochasticRounding())
+                if(problem.stochasticRounding())
                 {
                     return ReferenceSolution<ContractionInputs_B8F8_B8_S, float, true>::SolveCPU(
                         problem, typedInputs, validationStride);
                 }
-                else // Non-SR 
+                else // Non-SR
                 {
                     return ReferenceSolution<ContractionInputs_B8F8_B8_S, float, false>::SolveCPU(
                         problem, typedInputs, validationStride);
                 }
             }
-            // cases with To = f16 
+            // cases with To = f16
             case ContractionInputs_F8_H_S::TypeId():
             {
                 auto const& typedInputs = dynamic_cast<ContractionInputs_F8_H_S const&>(inputs);
-                    return ReferenceSolution<ContractionInputs_F8_H_S, float, false>::SolveCPU(
-                        problem, typedInputs, validationStride);
+                return ReferenceSolution<ContractionInputs_F8_H_S, float, false>::SolveCPU(
+                    problem, typedInputs, validationStride);
             }
             case ContractionInputs_B8_H_S::TypeId():
             {
                 auto const& typedInputs = dynamic_cast<ContractionInputs_B8_H_S const&>(inputs);
-                    return ReferenceSolution<ContractionInputs_B8_H_S, float, false>::SolveCPU(
-                        problem, typedInputs, validationStride);
-	    }
+                return ReferenceSolution<ContractionInputs_B8_H_S, float, false>::SolveCPU(
+                    problem, typedInputs, validationStride);
+            }
             case ContractionInputs_F8B8_H_S::TypeId():
             {
                 auto const& typedInputs = dynamic_cast<ContractionInputs_F8B8_H_S const&>(inputs);
-                    return ReferenceSolution<ContractionInputs_F8B8_H_S, float, false>::SolveCPU(
-                        problem, typedInputs, validationStride);
-	    }
+                return ReferenceSolution<ContractionInputs_F8B8_H_S, float, false>::SolveCPU(
+                    problem, typedInputs, validationStride);
+            }
             case ContractionInputs_B8F8_H_S::TypeId():
             {
                 auto const& typedInputs = dynamic_cast<ContractionInputs_B8F8_H_S const&>(inputs);
-                    return ReferenceSolution<ContractionInputs_B8F8_H_S, float, false>::SolveCPU(
-                        problem, typedInputs, validationStride);
-	    }
+                return ReferenceSolution<ContractionInputs_B8F8_H_S, float, false>::SolveCPU(
+                    problem, typedInputs, validationStride);
+            }
 #endif // TENSILE_USE_FP8_BF8
 
             default:;
@@ -603,11 +606,14 @@ namespace Tensile
 
         // A is activation, B is weights
         // Assume packed.
-        template <typename Inputs, typename Accumulator, bool StochasticRounding, typename MathOpAccum>
-        void ReferenceSolution<Inputs, Accumulator, StochasticRounding, MathOpAccum>::SolveCPUConvolution(
-            ConvolutionProblem const& convProblem,
-            ContractionProblem const& problem,
-            Inputs const&             inputs)
+        template <typename Inputs,
+                  typename Accumulator,
+                  bool StochasticRounding,
+                  typename MathOpAccum>
+        void ReferenceSolution<Inputs, Accumulator, StochasticRounding, MathOpAccum>::
+            SolveCPUConvolution(ConvolutionProblem const& convProblem,
+                                ContractionProblem const& problem,
+                                Inputs const&             inputs)
         {
             const bool db1 = Debug::Instance().printConvolutionReference1();
             const bool db2 = Debug::Instance().printConvolutionReference2();
@@ -752,14 +758,16 @@ namespace Tensile
                                       << spatialCoord[1] << "," << spatialCoord[0]
                                       << " dIndex=" << dIndex << " value=" << value << "\n";
                         }
-                        //TODO: for SR in F8/B8, we need to call Explicit_downcast<>() with SR flag and RND 
-                        if (StochasticRounding)
+                        //TODO: for SR in F8/B8, we need to call Explicit_downcast<>() with SR flag and RND
+                        if(StochasticRounding)
                         {
-                            uint32_t rng = 0x0;  // TODO: need to generate from PRNG
+                            uint32_t rng     = 0x0; // TODO: need to generate from PRNG
                             inputs.d[dIndex] = explicit_downcast<typename Inputs::DType>(
-                                multiply<Accumulator>(inputs.alpha, value), hip_f8_rounding_mode::stochastic, rng);
+                                multiply<Accumulator>(inputs.alpha, value),
+                                hip_f8_rounding_mode::stochastic,
+                                rng);
                         }
-                        else 
+                        else
                             inputs.d[dIndex] = static_cast<typename Inputs::DType>(
                                 multiply<Accumulator>(inputs.alpha, value));
                     }

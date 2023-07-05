@@ -898,7 +898,7 @@ namespace Tensile
             = ManagedContractionInputs<BFloat8, BFloat8, BFloat8, BFloat8, float, float>;
         using ManagedContractionInputs_B8_S_S
             = ManagedContractionInputs<BFloat8, BFloat8, float, float>;
-        // hybrid cases: F8B8SS, B8F8SS 
+        // hybrid cases: F8B8SS, B8F8SS
         using ManagedContractionInputs_F8B8_S_S
             = ManagedContractionInputs<Float8, BFloat8, float, float>;
         using ManagedContractionInputs_B8F8_S_S

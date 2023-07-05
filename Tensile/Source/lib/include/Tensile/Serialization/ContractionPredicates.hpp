@@ -369,7 +369,7 @@ namespace Tensile
             : public AutoMappingTraits<Predicates::Contraction::EqualityMatching, IO>
         {
         };
-        
+
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::StochasticRoundingEqual, IO>
             : public AutoMappingTraits<Predicates::Contraction::StochasticRoundingEqual, IO>

@@ -1122,9 +1122,9 @@ namespace Tensile
         {
             return getValue<BFloat16, InitMode::Inf>();
         }
-        
-        // Float8 
-        // NOTE: f8/bf8 has special overloading with unit8_t, so using float val and downcast it to f8/bf8 here 
+
+        // Float8
+        // NOTE: f8/bf8 has special overloading with unit8_t, so using float val and downcast it to f8/bf8 here
         template <>
         inline Float8 DataInitialization::getValue<Float8, InitMode::Zero>()
         {
@@ -1189,7 +1189,7 @@ namespace Tensile
         template <>
         inline Float8 DataInitialization::getValue<Float8, InitMode::NaN>()
         {
-            if (!get_hip_f8_bias_mode())
+            if(!get_hip_f8_bias_mode())
                 return static_cast<Float8>(std::numeric_limits<float>::quiet_NaN());
             else // optimal mode is unlike IEEE, nan and inf is 0x80 (-0)
             {
@@ -1206,7 +1206,7 @@ namespace Tensile
         template <>
         inline Float8 DataInitialization::getValue<Float8, InitMode::Inf>()
         {
-            if (!get_hip_f8_bias_mode())
+            if(!get_hip_f8_bias_mode())
                 return static_cast<Float8>(std::numeric_limits<float>::infinity());
             else // optimal mode is unlike IEEE, nan and inf is 0x80 (-0)
             {
@@ -1238,7 +1238,7 @@ namespace Tensile
             return getValue<Float8, InitMode::Inf>();
         }
 
-        // BFloat8 
+        // BFloat8
         template <>
         inline BFloat8 DataInitialization::getValue<BFloat8, InitMode::Zero>()
         {
@@ -1262,7 +1262,7 @@ namespace Tensile
         template <>
         inline BFloat8 DataInitialization::getValue<BFloat8, InitMode::NaN>()
         {
-            if (!get_hip_f8_bias_mode())
+            if(!get_hip_f8_bias_mode())
                 return static_cast<BFloat8>(std::numeric_limits<float>::quiet_NaN());
             else // optimal mode is unlike IEEE, nan and inf is 0x80 (-0)
             {
@@ -1279,7 +1279,7 @@ namespace Tensile
         template <>
         inline BFloat8 DataInitialization::getValue<BFloat8, InitMode::Inf>()
         {
-            if (!get_hip_f8_bias_mode())
+            if(!get_hip_f8_bias_mode())
                 return static_cast<BFloat8>(std::numeric_limits<float>::infinity());
             else // optimal mode is unlike IEEE, nan and inf is 0x80 (-0)
             {
@@ -1581,15 +1581,13 @@ namespace Tensile
         }
 
         template <>
-        inline Float8
-            DataInitialization::getTrigValue<Float8>(int idx, bool useCos, bool useAbs)
+        inline Float8 DataInitialization::getTrigValue<Float8>(int idx, bool useCos, bool useAbs)
         {
             return static_cast<Float8>(getTrigValue<float>(idx, useCos, useAbs));
         }
 
         template <>
-        inline BFloat8
-            DataInitialization::getTrigValue<BFloat8>(int idx, bool useCos, bool useAbs)
+        inline BFloat8 DataInitialization::getTrigValue<BFloat8>(int idx, bool useCos, bool useAbs)
         {
             return static_cast<BFloat8>(getTrigValue<float>(idx, useCos, useAbs));
         }
@@ -1788,7 +1786,7 @@ namespace Tensile
         {
             return rocm_random_narrow_range<Float8>{}();
         }
-        
+
         template <>
         inline BFloat8 DataInitialization::getValue<BFloat8, InitMode::RandomNarrow>()
         {

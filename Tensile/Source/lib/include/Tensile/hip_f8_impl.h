@@ -209,7 +209,7 @@ uint8_t cast_to_f8_no_range_reduce(T _x, bool stoch = false, uint32_t rng = 0) {
             { //both fp32/fp16 and f8 are in normal range
                 exponent_diff
                     = 0; // exponent_diff=0 does not mean there is no difference for this case,
-                    //act_exponent could be larger. Just that it does not need shift mantissa
+                //act_exponent could be larger. Just that it does not need shift mantissa
             }
             mantissa += (1 << mfmt); //Add the implicit 1 into mantissa
         }

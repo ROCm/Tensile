@@ -274,7 +274,7 @@ namespace Tensile
             {
                 return validateSolutionCast<ManagedContractionInputs_B8_S_S>(inputs);
             }
-            // hybrid cases: F8B8SS, B8F8SS 
+            // hybrid cases: F8B8SS, B8F8SS
             case ManagedContractionInputs_F8B8_S_S::TypeId():
             {
                 return validateSolutionCast<ManagedContractionInputs_F8B8_S_S>(inputs);
@@ -283,7 +283,7 @@ namespace Tensile
             {
                 return validateSolutionCast<ManagedContractionInputs_B8F8_S_S>(inputs);
             }
-            // hybrid cases with To = BF8 
+            // hybrid cases with To = BF8
             case ManagedContractionInputs_F8B8_B8_S::TypeId():
             {
                 return validateSolutionCast<ManagedContractionInputs_F8B8_B8_S>(inputs);
@@ -292,7 +292,7 @@ namespace Tensile
             {
                 return validateSolutionCast<ManagedContractionInputs_B8F8_B8_S>(inputs);
             }
-            // cases with To = F16 
+            // cases with To = F16
             case ManagedContractionInputs_F8_H_S::TypeId():
             {
                 return validateSolutionCast<ManagedContractionInputs_F8_H_S>(inputs);

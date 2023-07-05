@@ -36,11 +36,11 @@
 #include <Tensile/Comparison.hpp>
 
 #include <Tensile/DataTypes_BFloat16.hpp>
+#include <Tensile/DataTypes_Float8_BFloat8.hpp>
 #include <Tensile/DataTypes_Half.hpp>
 #include <Tensile/DataTypes_Int8.hpp>
 #include <Tensile/DataTypes_Int8x4.hpp>
 #include <Tensile/DataTypes_XFloat32.hpp>
-#include <Tensile/DataTypes_Float8_BFloat8.hpp>
 
 namespace Tensile
 {
@@ -212,12 +212,12 @@ namespace Tensile
     struct TypeInfo<XFloat32> : public BaseTypeInfo<XFloat32, DataType::XFloat32, 1, false, false>
     {
     };
-    
+
     template <>
     struct TypeInfo<Float8> : public BaseTypeInfo<Float8, DataType::Float8, 1, false, false>
     {
     };
-    
+
     template <>
     struct TypeInfo<BFloat8> : public BaseTypeInfo<BFloat8, DataType::BFloat8, 1, false, false>
     {
