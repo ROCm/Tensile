@@ -30,7 +30,6 @@ from .CustomKernels import isCustomKernelConfig
 from .SolutionStructs import Solution
 
 import abc
-import collections
 from collections.abc import Sequence
 import os
 import shutil

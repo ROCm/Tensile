@@ -19,8 +19,7 @@
 # CTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-from ..Component import Component, MFMA
-from ..Common import globalParameters, gfxName
+from ..Component import MFMA
 from ..DataType import DataType
 
 class WMMASelection(MFMA):
@@ -36,7 +35,7 @@ class WMMASelection(MFMA):
         miM = kernel["MatrixInstM"]
         miN = kernel["MatrixInstN"]
         miK = kernel["MatrixInstK"]
-        miB = kernel["MatrixInstB"]
+        # miB = kernel["MatrixInstB"]
         str0 = in1 if kernel["SourceSwap"] else in0
         str1 = in0 if kernel["SourceSwap"] else in1
 
