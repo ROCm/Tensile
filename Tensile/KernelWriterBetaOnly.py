@@ -25,7 +25,6 @@
 from copy import deepcopy
 
 from .Common import globalParameters, CHeader
-from .DataType import DataType
 from .KernelWriterBase import KernelWriterBase
 
 class KernelWriterBetaOnly(KernelWriterBase):
@@ -226,10 +225,8 @@ class KernelWriterBetaOnly(KernelWriterBase):
     # zero
     if globalAccum:
       ptrStr = problemType["ComputeDataType"].toDevice(self.language)
-      if problemType["DataType"].isHalf() and problemType["HighPrecisionAccumulate"]:
-        ptrStr = DataType('single').toDevice(self.language)
     else:
-      ptrStr = problemType["DataType"].toDevice(self.language)
+      ptrStr = problemType["DestDataType"].toDevice(self.language)
     kStr += "#define SCALAR_ZERO ((%s)(0))%s" % (ptrStr, self.endLine )
 
     ########################################

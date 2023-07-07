@@ -115,7 +115,11 @@ namespace Tensile
                                         lhs.fp16AltImpl(),
                                         rhs.fp16AltImpl(),
                                         lhs.fp16AltImplRound(),
-                                        rhs.fp16AltImplRound());
+                                        rhs.fp16AltImplRound(),
+                                        lhs.stochasticRounding(),
+                                        rhs.stochasticRounding(),
+                                        lhs.f32XdlMathOp(),
+                                        rhs.f32XdlMathOp());
         }
     };
 } // namespace Tensile
@@ -140,7 +144,9 @@ namespace std
                                          problem.stridedBatched(),
                                          problem.performanceMetric(),
                                          problem.fp16AltImpl(),
-                                         problem.fp16AltImplRound());
+                                         problem.fp16AltImplRound(),
+                                         problem.stochasticRounding(),
+                                         problem.f32XdlMathOp());
         }
     };
 

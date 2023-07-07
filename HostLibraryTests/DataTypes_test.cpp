@@ -43,6 +43,8 @@ using InputTypes = ::testing::Types<std::tuple<float>,
                                     std::tuple<double>,
                                     std::tuple<Tensile::Half>,
                                     std::tuple<Tensile::BFloat16>,
+                                    std::tuple<Tensile::Float8>,
+                                    std::tuple<Tensile::BFloat8>,
                                     std::tuple<std::complex<float>>,
                                     std::tuple<std::complex<double>>,
                                     std::tuple<int8_t>,
@@ -90,6 +92,8 @@ static_assert(Tensile::TypeInfo<Tensile::Int8x4>::Enum == Tensile::DataType::Int
 static_assert(Tensile::TypeInfo<int32_t>::Enum == Tensile::DataType::Int32, "Int32");
 static_assert(Tensile::TypeInfo<Tensile::BFloat16>::Enum == Tensile::DataType::BFloat16,
               "BFloat16");
+static_assert(Tensile::TypeInfo<Tensile::Float8>::Enum == Tensile::DataType::Float8, "Float8");
+static_assert(Tensile::TypeInfo<Tensile::BFloat8>::Enum == Tensile::DataType::BFloat8, "BFloat8");
 
 static_assert(Tensile::TypeInfo<float>::Packing == 1, "Float");
 static_assert(Tensile::TypeInfo<double>::Packing == 1, "Double");
@@ -100,6 +104,8 @@ static_assert(Tensile::TypeInfo<int8_t>::Packing == 1, "Int8");
 static_assert(Tensile::TypeInfo<Tensile::Int8x4>::Packing == 4, "Int8x4");
 static_assert(Tensile::TypeInfo<int32_t>::Packing == 1, "Int32");
 static_assert(Tensile::TypeInfo<Tensile::BFloat16>::Packing == 1, "BFloat16");
+static_assert(Tensile::TypeInfo<Tensile::Float8>::Packing == 1, "Float8");
+static_assert(Tensile::TypeInfo<Tensile::BFloat8>::Packing == 1, "BFloat8");
 
 struct Enumerations : public ::testing::TestWithParam<Tensile::DataType>
 {
@@ -136,7 +142,9 @@ INSTANTIATE_TEST_SUITE_P(DataTypesTest,
                                            Tensile::DataType::ComplexFloat,
                                            Tensile::DataType::ComplexDouble,
                                            Tensile::DataType::Half,
+                                           Tensile::DataType::BFloat16,
+                                           Tensile::DataType::Float8,
+                                           Tensile::DataType::BFloat8,
                                            Tensile::DataType::Int8,
                                            Tensile::DataType::Int8x4,
-                                           Tensile::DataType::Int32,
-                                           Tensile::DataType::BFloat16));
+                                           Tensile::DataType::Int32));

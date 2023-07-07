@@ -93,8 +93,13 @@ class KernelWriterConversion(KernelWriterBase):
     for i in range(0, self.state["ProblemType"]["NumIndicesC"]):
       kStr += "  unsigned int const size%s,%s" % (self.indexChars[i], self.endLine)
 
-    # gsu
-    kStr += "  unsigned int const gsu)%s" % self.endLine
+    # gsu & SR 
+    if self.state["ProblemType"]["DestDataType"].is8bitFloat() \
+            and self.state["ProblemType"]["StochasticRounding"]:
+      kStr += "  unsigned int const gsu,%s" % self.endLine
+      kStr += "  const uint32_t RNDSeed)%s" % self.endLine
+    else:
+      kStr += "  unsigned int const gsu)%s" % self.endLine
 
     return kStr
 
@@ -249,7 +254,22 @@ class KernelWriterConversion(KernelWriterBase):
     kStr += "    accum = (((" + self.datatype + ")alpha) * accum + ((" + self.datatype + ")beta) * ((" + self.datatype + ")C[idxC]));" + self.endLine
 
     typeStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
-    kStr += "  D[idxD] = (%s)accum;%s" % (typeStr, self.endLine)
+    # Stochastic Rounding? need to use explicit_downcast 
+    if self.state["ProblemType"]["DestDataType"].is8bitFloat() \
+            and self.state["ProblemType"]["StochasticRounding"]:
+      # generate RND... For F8, computeDataType is always f32   
+      kStr += "  uint32_t x = reinterpret_cast<uint32_t &>(accum);%s" % (self.endLine)
+      kStr += "  uint32_t drop_bits = x & 0xFFFFu;%s" % (self.endLine)
+      kStr += "  drop_bits ^= x >> 16;%s" % (self.endLine)
+      kStr += "  drop_bits = ((drop_bits & 31) << 11) | (drop_bits >> 5);%s" % (self.endLine)
+      kStr += "  drop_bits *= 0x7000149;%s" % (self.endLine)
+      kStr += "  uint32_t rng = (drop_bits ^ 0x13371337 ^ (idxD * 229791) ^ RNDSeed);%s" % (self.endLine)
+      
+      # call explicit_downcast  
+      cmpTypeStr =  self.state["ProblemType"]["ComputeDataType"].toDevice(self.language)
+      kStr += "  D[idxD] = explicit_downcast<%s, %s, true>(accum, rng);%s" % (typeStr, cmpTypeStr, self.endLine)
+    else:
+      kStr += "  D[idxD] = (%s)accum;%s" % (typeStr, self.endLine)
 
     ########################################
     # end

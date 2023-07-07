@@ -47,6 +47,7 @@ def updateProblemDatatypes(problemType):
     problemType["DataType"] = problemType["DataType"].value
     problemType["DestDataType"] = problemType["DestDataType"].value
     problemType["ComputeDataType"] = problemType["ComputeDataType"].value
+    problemType["F32XdlMathOp"] = problemType["F32XdlMathOp"].value
 
 
 ###################
