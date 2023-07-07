@@ -612,9 +612,10 @@ TEST(OclSolutionAdapterTest, HardwareTest)
     ASSERT_EQ(oclProps.maxThreadsDim[0], hipProps.maxThreadsDim[0]);
     ASSERT_EQ(oclProps.maxThreadsDim[1], hipProps.maxThreadsDim[1]);
     ASSERT_EQ(oclProps.maxThreadsDim[2], hipProps.maxThreadsDim[2]);
-    ASSERT_EQ(oclProps.maxGridSize[0], hipProps.maxGridSize[0]);
-    ASSERT_EQ(oclProps.maxGridSize[1], hipProps.maxGridSize[1]);
-    ASSERT_EQ(oclProps.maxGridSize[2], hipProps.maxGridSize[2]);
+    // maxGridSize not guaranteed equal
+    // ASSERT_EQ(oclProps.maxGridSize[0], hipProps.maxGridSize[0]);
+    // ASSERT_EQ(oclProps.maxGridSize[1], hipProps.maxGridSize[1]);
+    // ASSERT_EQ(oclProps.maxGridSize[2], hipProps.maxGridSize[2]);
     ASSERT_EQ(oclProps.clockRate, hipProps.clockRate);
     // ASSERT_EQ(oclProps.multiProcessorCount, hipProps.multiProcessorCount);
     ASSERT_EQ(oclProps.pciBusID, hipProps.pciBusID);
