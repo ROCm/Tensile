@@ -80,11 +80,13 @@ namespace Tensile
             bool              m_highPrecisionAccumulate;
             bool              m_deterministicMode;
             bool              m_cEqualsD;
+            DataType          m_f32XdlMathOp;
             ArithmeticUnit    m_arithmeticUnit;
             KernelLanguage    m_kernelLanguage;
             PerformanceMetric m_performanceMetric;
             bool              m_fp16AltImpl;
             bool              m_fp16AltImplRound;
+            bool              m_stochasticRounding;
 
             std::vector<std::vector<size_t>> m_problemSizes;
             std::vector<std::vector<size_t>> m_aStrides;

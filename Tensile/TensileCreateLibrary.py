@@ -780,6 +780,8 @@ def copyStaticFiles(outputPath=None):
   libraryStaticFiles = [
     "TensileTypes.h",
     "tensile_bfloat16.h",
+    "tensile_float8_bfloat8.h",
+    "hip_f8_impl.h",
     "KernelHeader.h" ]
 
   for fileName in libraryStaticFiles:
@@ -1130,8 +1132,13 @@ def WriteClientLibraryFromSolutions(solutionList, libraryWorkingPath, tensileSou
   firstSolution = deepcopy(solutionList[0])
   problemType = firstSolution["ProblemType"].state
   problemType["DataType"] = problemType["DataType"].value
+  problemType["DataTypeA"] = problemType["DataTypeA"].value
+  problemType["DataTypeB"] = problemType["DataTypeB"].value
   problemType["DestDataType"] = problemType["DestDataType"].value
   problemType["ComputeDataType"] = problemType["ComputeDataType"].value
+  problemType["MathDataTypeA"] = problemType["MathDataTypeA"].value
+  problemType["MathDataTypeB"] = problemType["MathDataTypeB"].value
+  problemType["F32XdlMathOp"] = problemType["F32XdlMathOp"].value
   cxxCompiler = globalParameters["CxxCompiler"]
 
   effectiveWorkingPath = os.path.join(libraryWorkingPath, "library")

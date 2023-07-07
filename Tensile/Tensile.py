@@ -30,7 +30,7 @@ import os
 import sys
 import argparse
 from .Common import globalParameters, print1, printExit, ensurePath, \
-    assignGlobalParameters, restoreDefaultGlobalParameters, HR
+    assignGlobalParameters, restoreDefaultGlobalParameters, HR, gfxArch
 from . import BenchmarkProblems
 from . import ClientExecutable
 from . import ClientWriter
@@ -113,6 +113,7 @@ def addCommonArguments(argParser):
         choices=["HIP", "OCL"], help="override which runtime language to use")
     argParser.add_argument("--code-object-version", dest="CodeObjectVersion", \
         choices=["default", "V4", "V5"], help="HSA code-object version")
+    argParser.add_argument("--arch", dest="arch", help="override gfx arch version")
     argParser.add_argument("-v", "--verbose", action="store_true", \
         help="set PrintLevel=2")
     argParser.add_argument("--debug", dest="debug", action="store_true", \
@@ -150,6 +151,9 @@ def argUpdatedGlobalParameters(args):
     if args.CodeObjectVersion:
         print1("# Command-line override: CodeObjectVersion")
         rv["CodeObjectVersion"] = args.CodeObjectVersion
+    if args.arch:
+        print1("# Command-line override: CurrentISA")
+        rv["CurrentISA"] = gfxArch(args.arch)
     if args.verbose:
         print1("# Command-line override: PrintLevel")
         rv["PrintLevel"] = 2

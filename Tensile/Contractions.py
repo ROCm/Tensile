@@ -62,7 +62,7 @@ class BoundIndex:
 
 class ProblemType:
     StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType',
-                 'useBeta', 'highPrecisionAccumulate', 'useInitialStridesAB', 'useInitialStridesCD', 'stridedBatched']
+                 'useBeta', 'highPrecisionAccumulate', 'useInitialStridesAB', 'useInitialStridesCD', 'stridedBatched', 'f32XdlMathOp', 'stochasticRounding']
     @classmethod
     def FromOriginalState(cls, d):
         indices = [None]*d['TotalIndices']
@@ -123,6 +123,15 @@ class ProblemType:
 
         rv.aType = srcType
         rv.bType = srcType
+        # for hybrid 8bit float types, we need to split the type into a_type and b_type
+        if srcType.isFloat8BFloat8(): 
+            rv.aType = DataType("F8")
+            rv.bType = DataType("B8")
+        elif srcType.isBFloat8Float8(): 
+            rv.aType = DataType("B8")
+            rv.bType = DataType("F8")
+
+        # We don't expect dstType and computeType to be hybrid types for now
         rv.cType = dstType
         rv.dType = dstType
         # we already checked the src/dst/compute types are supported and well-assigned in SolutionStruct
@@ -166,6 +175,12 @@ class ProblemType:
 
         rv.batched = d['Batched']
 
+        rv.f32XdlMathOp = DataType(d['F32XdlMathOp']) if 'F32XdlMathOp' in d else DataType(0)
+
+        rv.stochasticRounding = False
+        if 'StochasticRounding' in d:
+            rv.stochasticRounding = d['StochasticRounding']
+        
         return rv
 
     def __init__(self, freeIndices=None, batchIndices=None, boundIndices=None, aDims=None, bDims=None, cDims=None, dDims=None):
@@ -261,6 +276,9 @@ class ProblemType:
         if includeType:
             predicates.append(ProblemPredicate("TypesEqual", value=(self.aType, self.bType, self.cType, self.dType)))
             predicates.append(ProblemPredicate("HighPrecisionAccumulate", value=self.highPrecisionAccumulate))
+            predicates.append(ProblemPredicate("F32XdlMathOp", value=self.f32XdlMathOp))
+            predicates.append(ProblemPredicate("StochasticRounding", value=self.stochasticRounding))
+
 
         return predicates
 

@@ -283,6 +283,8 @@ namespace Tensile
             bool        stridedBatched          = true;
             bool        fp16AltImpl             = false;
             bool        fp16AltImplRound        = false;
+            bool        stochasticRounding      = false;
+            DataType    f32XdlMathOp            = DataType::Float;
         };
 
         struct LinearModel
