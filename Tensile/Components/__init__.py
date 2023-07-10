@@ -35,6 +35,7 @@ __all__ = [
     "MAC_F64C",
     "MAC_I8_HPA",
     "MAC_I8X4",
+    "MFMA",
     "Priority",
     "Signature",
     "LocalRead",
@@ -42,4 +43,5 @@ __all__ = [
     "ComputeStoreVgprs",
     "NotLocalFullTileElements",
     "LraTileAssignment",
+    "PseudoRandomGenerator"
     ]

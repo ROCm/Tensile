@@ -1123,6 +1123,236 @@ namespace Tensile
             return getValue<BFloat16, InitMode::Inf>();
         }
 
+        // Float8
+        // NOTE: f8/bf8 has special overloading with unit8_t, so using float val and downcast it to f8/bf8 here
+        template <>
+        inline Float8 DataInitialization::getValue<Float8, InitMode::Zero>()
+        {
+            return static_cast<Float8>(0.0f);
+        }
+        template <>
+        inline Float8 DataInitialization::getValue<Float8, InitMode::One>()
+        {
+            return static_cast<Float8>(1.0f);
+        }
+        template <>
+        inline Float8 DataInitialization::getValue<Float8, InitMode::Two>()
+        {
+            return static_cast<Float8>(2.0f);
+        }
+        template <>
+        inline Float8 DataInitialization::getValue<Float8, InitMode::NegOne>()
+        {
+            return static_cast<Float8>(-1.0f);
+        }
+        template <>
+        inline Float8 DataInitialization::getValue<Float8, InitMode::Max>()
+        {
+            // NOTE: sign=0 exp=1111, mantissa=111.. bit pattern : 0x7F
+            //return static_cast<Float8>(240.0f);
+            union
+            {
+                uint8_t bits;
+                Float8  value;
+            } x;
+
+            x.bits = 0x7F;
+            return x.value;
+        }
+        template <>
+        inline Float8 DataInitialization::getValue<Float8, InitMode::DenormMin>()
+        {
+            // NOTE: sign=0 exp=0000, mantissa=001.. bit pattern : 0x01
+            //return static_cast<Float8>(0.0009765625f);
+            union
+            {
+                uint8_t bits;
+                Float8  value;
+            } x;
+
+            x.bits = 0x01;
+            return x.value;
+        }
+        template <>
+        inline Float8 DataInitialization::getValue<Float8, InitMode::DenormMax>()
+        {
+            // NOTE: sign=0 exp=0000, mantissa=111.. bit pattern : 0x07
+            union
+            {
+                uint8_t bits;
+                Float8  value;
+            } x;
+
+            x.bits = 0x07;
+            return x.value;
+        }
+        template <>
+        inline Float8 DataInitialization::getValue<Float8, InitMode::NaN>()
+        {
+            if(!get_hip_f8_bias_mode())
+                return static_cast<Float8>(std::numeric_limits<float>::quiet_NaN());
+            else // optimal mode is unlike IEEE, nan and inf is 0x80 (-0)
+            {
+                union
+                {
+                    uint8_t bits;
+                    Float8  value;
+                } x;
+
+                x.bits = 0x80;
+                return x.value;
+            }
+        }
+        template <>
+        inline Float8 DataInitialization::getValue<Float8, InitMode::Inf>()
+        {
+            if(!get_hip_f8_bias_mode())
+                return static_cast<Float8>(std::numeric_limits<float>::infinity());
+            else // optimal mode is unlike IEEE, nan and inf is 0x80 (-0)
+            {
+                union
+                {
+                    uint8_t bits;
+                    Float8  value;
+                } x;
+
+                x.bits = 0x80;
+                return x.value;
+            }
+        }
+
+        template <>
+        inline Float8 DataInitialization::getValue<Float8, InitMode::Random>()
+        {
+            return static_cast<Float8>((float)((rand() % 7) - 3));
+        }
+
+        template <>
+        inline Float8 DataInitialization::getValue<Float8, InitMode::BadInput>()
+        {
+            return getValue<Float8, InitMode::NaN>();
+        }
+        template <>
+        inline Float8 DataInitialization::getValue<Float8, InitMode::BadOutput>()
+        {
+            return getValue<Float8, InitMode::Inf>();
+        }
+
+        // BFloat8
+        template <>
+        inline BFloat8 DataInitialization::getValue<BFloat8, InitMode::Zero>()
+        {
+            return static_cast<BFloat8>(0.0f);
+        }
+        template <>
+        inline BFloat8 DataInitialization::getValue<BFloat8, InitMode::One>()
+        {
+            return static_cast<BFloat8>(1.0f);
+        }
+        template <>
+        inline BFloat8 DataInitialization::getValue<BFloat8, InitMode::Two>()
+        {
+            return static_cast<BFloat8>(2.0f);
+        }
+        template <>
+        inline BFloat8 DataInitialization::getValue<BFloat8, InitMode::NegOne>()
+        {
+            return static_cast<BFloat8>(-1.0f);
+        }
+        template <>
+        inline BFloat8 DataInitialization::getValue<BFloat8, InitMode::NaN>()
+        {
+            if(!get_hip_f8_bias_mode())
+                return static_cast<BFloat8>(std::numeric_limits<float>::quiet_NaN());
+            else // optimal mode is unlike IEEE, nan and inf is 0x80 (-0)
+            {
+                union
+                {
+                    uint8_t bits;
+                    BFloat8 value;
+                } x;
+
+                x.bits = 0x80;
+                return x.value;
+            }
+        }
+        template <>
+        inline BFloat8 DataInitialization::getValue<BFloat8, InitMode::Inf>()
+        {
+            if(!get_hip_f8_bias_mode())
+                return static_cast<BFloat8>(std::numeric_limits<float>::infinity());
+            else // optimal mode is unlike IEEE, nan and inf is 0x80 (-0)
+            {
+                union
+                {
+                    uint8_t bits;
+                    BFloat8 value;
+                } x;
+
+                x.bits = 0x80;
+                return x.value;
+            }
+        }
+
+        template <>
+        inline BFloat8 DataInitialization::getValue<BFloat8, InitMode::Random>()
+        {
+            return static_cast<BFloat8>((float)((rand() % 7) - 3));
+        }
+
+        template <>
+        inline BFloat8 DataInitialization::getValue<BFloat8, InitMode::BadInput>()
+        {
+            return getValue<BFloat8, InitMode::NaN>();
+        }
+        template <>
+        inline BFloat8 DataInitialization::getValue<BFloat8, InitMode::BadOutput>()
+        {
+            return getValue<BFloat8, InitMode::Inf>();
+        }
+        template <>
+        inline BFloat8 DataInitialization::getValue<BFloat8, InitMode::Max>()
+        {
+            // NOTE: sign=0 exp=11111, mantissa=11.. bit pattern : 0x7F
+            //return static_cast<BFloat8>(57344.0f);
+            //return static_cast<BFloat8>((uint8_t)0x7F);
+            union
+            {
+                uint8_t bits;
+                BFloat8 value;
+            } x;
+
+            x.bits = 0x7F;
+            return x.value;
+        }
+        template <>
+        inline BFloat8 DataInitialization::getValue<BFloat8, InitMode::DenormMin>()
+        {
+            // NOTE: sign=0 exp=00000, mantissa=01.. bit pattern : 0x01
+            //return static_cast<BFloat8>(0.0000076294f);
+            union
+            {
+                uint8_t bits;
+                BFloat8 value;
+            } x;
+
+            x.bits = 0x01;
+            return x.value;
+        }
+        template <>
+        inline BFloat8 DataInitialization::getValue<BFloat8, InitMode::DenormMax>()
+        {
+            // NOTE: sign=0 exp=00000, mantissa=11.. bit pattern : 0x03
+            union
+            {
+                uint8_t bits;
+                BFloat8 value;
+            } x;
+
+            x.bits = 0x03;
+            return x.value;
+        }
+
         template <>
         inline int8_t DataInitialization::getValue<int8_t, InitMode::Zero>()
         {
@@ -1235,6 +1465,18 @@ namespace Tensile
         }
 
         template <>
+        inline bool DataInitialization::isBadInput<Float8>(Float8 value)
+        {
+            return std::isnan(value);
+        }
+
+        template <>
+        inline bool DataInitialization::isBadInput<BFloat8>(BFloat8 value)
+        {
+            return std::isnan(value);
+        }
+
+        template <>
         inline bool DataInitialization::isBadInput<int8_t>(int8_t value)
         {
             return value == DataInitialization::getValue<int8_t, InitMode::BadInput>();
@@ -1290,6 +1532,18 @@ namespace Tensile
         }
 
         template <>
+        inline bool DataInitialization::isBadOutput<Float8>(Float8 value)
+        {
+            return std::isinf(value);
+        }
+
+        template <>
+        inline bool DataInitialization::isBadOutput<BFloat8>(BFloat8 value)
+        {
+            return std::isinf(value);
+        }
+
+        template <>
         inline bool DataInitialization::isBadOutput<int8_t>(int8_t value)
         {
             return value == DataInitialization::getValue<int8_t, InitMode::BadOutput>();
@@ -1324,6 +1578,18 @@ namespace Tensile
             DataInitialization::getTrigValue<BFloat16>(int idx, bool useCos, bool useAbs)
         {
             return static_cast<BFloat16>(getTrigValue<float>(idx, useCos, useAbs));
+        }
+
+        template <>
+        inline Float8 DataInitialization::getTrigValue<Float8>(int idx, bool useCos, bool useAbs)
+        {
+            return static_cast<Float8>(getTrigValue<float>(idx, useCos, useAbs));
+        }
+
+        template <>
+        inline BFloat8 DataInitialization::getTrigValue<BFloat8>(int idx, bool useCos, bool useAbs)
+        {
+            return static_cast<BFloat8>(getTrigValue<float>(idx, useCos, useAbs));
         }
 
         template <>
@@ -1392,6 +1658,22 @@ namespace Tensile
         {
             using UINT_T                = uint16_t;
             static constexpr int NUMSIG = 10;
+            static constexpr int NUMEXP = 5;
+        };
+
+        template <>
+        struct FP_PARAM<Float8>
+        {
+            using UINT_T                = uint8_t;
+            static constexpr int NUMSIG = 3;
+            static constexpr int NUMEXP = 4;
+        };
+
+        template <>
+        struct FP_PARAM<BFloat8>
+        {
+            using UINT_T                = uint8_t;
+            static constexpr int NUMSIG = 2;
             static constexpr int NUMEXP = 5;
         };
 
@@ -1464,6 +1746,17 @@ namespace Tensile
         {
         };
 
+        // TODO: need to check for fp8 and bf8
+        template <>
+        struct rocm_random_narrow_range<Float8> : rocm_random<Float8, -100, 0>
+        {
+        };
+
+        template <>
+        struct rocm_random_narrow_range<BFloat8> : rocm_random<BFloat8, -100, 0>
+        {
+        };
+
         template <>
         inline float DataInitialization::getValue<float, InitMode::RandomNarrow>()
         {
@@ -1486,6 +1779,18 @@ namespace Tensile
         inline Half DataInitialization::getValue<Half, InitMode::RandomNarrow>()
         {
             return rocm_random_narrow_range<Half>{}();
+        }
+
+        template <>
+        inline Float8 DataInitialization::getValue<Float8, InitMode::RandomNarrow>()
+        {
+            return rocm_random_narrow_range<Float8>{}();
+        }
+
+        template <>
+        inline BFloat8 DataInitialization::getValue<BFloat8, InitMode::RandomNarrow>()
+        {
+            return rocm_random_narrow_range<BFloat8>{}();
         }
 
         template <>

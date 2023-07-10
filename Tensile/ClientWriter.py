@@ -448,6 +448,9 @@ def writeClientConfigIni(problemSizes, problemType, sourceDir, codeObjectFiles, 
         param('alpha-type', problemType.alphaType.toEnum())
         param('beta-type',  problemType.betaType.toEnum())
 
+        param('f32-xdl-math-op', problemType.f32XdlMathOp.toEnum())
+        param('stochastic-rounding', problemType.stochasticRounding)
+
         param('high-precision-accumulate', problemType.highPrecisionAccumulate)
         param('strided-batched', problemType.stridedBatched)
 

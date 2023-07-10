@@ -33,6 +33,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdlib>
+#include <random>
 
 namespace Tensile
 {
@@ -584,6 +585,17 @@ namespace Tensile
             rv.args.append<uint32_t>("magicNumberWgmRemainder1", magicNumberWgmRemainder1);
         }
 
+        if(problemType.stochasticRounding)
+        {
+            // generate seed from random generator
+            std::random_device                      rd;
+            std::mt19937                            gen(rd());
+            std::uniform_int_distribution<uint32_t> distribution(0, 0xFFFFFFFF);
+            uint32_t                                seed = distribution(gen);
+            //rv.args.append<uint32_t>("RNDSeed", 0x0);
+            rv.args.append<uint32_t>("RNDSeed", seed);
+        }
+
         if(!isSourceKernel())
         {
             rv.args.append<uint32_t>("pad", 0);
@@ -795,6 +807,17 @@ namespace Tensile
             rv.args.append<uint32_t>("gsu", 1);
         else
             rv.args.append<uint32_t>("gsu", sizeMapping.globalSplitU);
+
+        if(problemType.stochasticRounding)
+        {
+            // generate seed from random generator
+            std::random_device                      rd;
+            std::mt19937                            gen(rd());
+            std::uniform_int_distribution<uint32_t> distribution(0, 0xFFFFFFFF);
+            uint32_t                                seed = distribution(gen);
+            //rv.args.append<uint32_t>("RNDSeed", 0x0);
+            rv.args.append<uint32_t>("RNDSeed", seed);
+        }
 
         //@TODO determine if this is needed, may not end up in the same code object file
         rv.codeObjectFile = codeObjectFilename.load();
@@ -1019,6 +1042,71 @@ namespace Tensile
             return solveTyped(problem, typedInputs, hardware);
         }
 #endif // TENSILE_USE_BF16
+#ifdef TENSILE_USE_FP8_BF8
+        case ContractionInputs_F8_F8_S::TypeId():
+        {
+            auto const& typedInputs = dynamic_cast<ContractionInputs_F8_F8_S const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        case ContractionInputs_F8_S_S::TypeId():
+        {
+            auto const& typedInputs = dynamic_cast<ContractionInputs_F8_S_S const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        case ContractionInputs_B8_B8_S::TypeId():
+        {
+            auto const& typedInputs = dynamic_cast<ContractionInputs_B8_B8_S const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        case ContractionInputs_B8_S_S::TypeId():
+        {
+            auto const& typedInputs = dynamic_cast<ContractionInputs_B8_S_S const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        // hybrid cases: F8B8SS, B8F8SS
+        case ContractionInputs_F8B8_S_S::TypeId():
+        {
+            auto const& typedInputs = dynamic_cast<ContractionInputs_F8B8_S_S const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        case ContractionInputs_B8F8_S_S::TypeId():
+        {
+            auto const& typedInputs = dynamic_cast<ContractionInputs_B8F8_S_S const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        // hybrid cases with To = B8
+        case ContractionInputs_F8B8_B8_S::TypeId():
+        {
+            auto const& typedInputs = dynamic_cast<ContractionInputs_F8B8_B8_S const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        case ContractionInputs_B8F8_B8_S::TypeId():
+        {
+            auto const& typedInputs = dynamic_cast<ContractionInputs_B8F8_B8_S const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+            // hybrid with F16 output
+        case ContractionInputs_F8_H_S::TypeId():
+        {
+            auto const& typedInputs = dynamic_cast<ContractionInputs_F8_H_S const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        case ContractionInputs_B8_H_S::TypeId():
+        {
+            auto const& typedInputs = dynamic_cast<ContractionInputs_B8_H_S const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        case ContractionInputs_F8B8_H_S::TypeId():
+        {
+            auto const& typedInputs = dynamic_cast<ContractionInputs_F8B8_H_S const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+        case ContractionInputs_B8F8_H_S::TypeId():
+        {
+            auto const& typedInputs = dynamic_cast<ContractionInputs_B8F8_H_S const&>(inputs);
+            return solveTyped(problem, typedInputs, hardware);
+        }
+#endif // TENSILE_USE_FP8_BF8
 
         default:;
         }

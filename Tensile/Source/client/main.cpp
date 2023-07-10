@@ -113,6 +113,8 @@ namespace Tensile
                 ("alpha-type",               po::value<DataType>()->default_value(DataType::None), "alpha data type")
                 ("beta-type",                po::value<DataType>()->default_value(DataType::None), "beta data type")
                 ("high-precision-accumulate", po::value<bool>()->default_value(false), "Use high-precision accumulate.")
+                ("stochastic-rounding",      po::value<bool>()->default_value(false), "Use stochastic rounding.")
+                ("f32-xdl-math-op",          po::value<DataType>()->default_value(DataType::None), "Use xf32 compute for float input and output matrices.")
                 ("strided-batched",          po::value<bool>()->default_value(true), "Use strided-batched or general batched")
                 ("kernel-language",          po::value<KernelLanguage>()->default_value(KernelLanguage::Any), "Select kernel language.")
                 ("deterministic-mode",       po::value<bool>()->default_value(false), "Enforce deterministic summation patterns"
