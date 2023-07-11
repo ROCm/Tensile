@@ -25,7 +25,7 @@
 
 # Generates rocblas-bench input files from the library logic files.
 # sample command:
-# $ python3 LibraryLogicToBench.py ../libLogics/aldebaran_Cijk_Ailk_Bjlk_BBS_BH.yaml ./ BSS_NT
+# $ python3 rocblas-benchInputCreator.py ../libLogics/aldebaran_Cijk_Ailk_Bjlk_BBS_BH.yaml ./ BSS_NT
 
 import argparse
 import os
