@@ -104,8 +104,13 @@ namespace Tensile
                         m_winnerSolution    = m_solutionName;
                         m_winnerSolutionIdx = m_currSolutionIdx;
                         m_fastestGflops     = gflops;
+                        m_winnerGfxClock    = m_currGfxClock;
                     }
                 }
+            }
+            else if (key == ResultKey::GfxFrequency)
+            {
+                m_currGfxClock = static_cast<uint16_t>(std::stoi(valueStr));
             }
             else
             {
@@ -147,11 +152,11 @@ namespace Tensile
                 }
 
                 // Values for these come separately.
-                m_output.setHeaderForKey(ResultKey::LDD, "LDD");
-                m_output.setHeaderForKey(ResultKey::LDC, "LDC");
                 m_output.setHeaderForKey(ResultKey::LDA, "LDA");
                 m_output.setHeaderForKey(ResultKey::LDB, "LDB");
-                m_output.setHeaderForKey(ResultKey::TotalFlops, "TotalFlops");
+                m_output.setHeaderForKey(ResultKey::LDC, "LDC");				
+                m_output.setHeaderForKey(ResultKey::LDD, "LDD");				
+                m_output.setHeaderForKey(ResultKey::GfxFrequency, "WinnerFreq");
                 if(m_extraCol)
                 {
                     m_output.setHeaderForKey(ResultKey::FastestGFlops, "WinnerGFlops");
@@ -159,6 +164,7 @@ namespace Tensile
                     m_output.setHeaderForKey(ResultKey::SolutionWinnerIdx, "WinnerIdx");
                     m_output.setHeaderForKey(ResultKey::SolutionWinner, "WinnerName");
                 }
+                m_output.setHeaderForKey(ResultKey::TotalFlops, "TotalFlops");
             }
         }
 
@@ -195,11 +201,13 @@ namespace Tensile
                         oldRow[ResultKey::TimeUS]            = newRow[ResultKey::TimeUS];
                         oldRow[ResultKey::SolutionWinnerIdx] = newRow[ResultKey::SolutionWinnerIdx];
                         oldRow[ResultKey::SolutionWinner]    = newRow[ResultKey::SolutionWinner];
+                        oldRow[ResultKey::GfxFrequency]      = newRow[ResultKey::GfxFrequency];
                     }
                 }
                 else if(key.compare(ResultKey::TimeUS) == 0
                         || key.compare(ResultKey::SolutionWinnerIdx) == 0
-                        || key.compare(ResultKey::SolutionWinner) == 0)
+                        || key.compare(ResultKey::SolutionWinner) == 0 
+                        || key.compare(ResultKey::GfxFrequency) == 0)
                 {
                     // skip, we update these together with FastestGFlops
                     continue;
@@ -229,13 +237,15 @@ namespace Tensile
                 m_output.setValueForKey(ResultKey::SolutionWinnerIdx, m_winnerSolutionIdx);
                 m_output.setValueForKey(ResultKey::SolutionWinner, m_winnerSolution);
             }
+            m_output.setValueForKey(ResultKey::GfxFrequency, m_winnerGfxClock);
             // reset
             m_winnerSolution    = "";
             m_currSolutionIdx   = -1;
             m_winnerSolutionIdx = -1;
             m_fastestGflops     = -1.0;
             m_fasterTimeUS      = -1.0;
-
+            m_currGfxClock      = 0;
+            m_winnerGfxClock    = 0;
             if(!m_mergeSameProblems)
             {
                 m_output.writeCurrentRow();
