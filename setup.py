@@ -48,7 +48,7 @@ setup(
   name="Tensile",
   version=readVersionFromInit(),
   description="An auto-tuning tool for GEMMs and higher-dimensional tensor contractions on GPUs.",
-  url="https://github.com/RadeonOpenCompute/Tensile",
+  url="https://github.com/ROCmSoftwarePlatform/Tensile",
   author="Advanced Micro Devices",
   license="MIT",
   install_requires=readRequirementsFromTxt(),
