@@ -6474,8 +6474,6 @@ class KernelWriterAssembly(KernelWriter):
 
     # calculate constant
     is_mfma          = globalParameters["AsmCaps"][self.version]["HasMFMA"]
-    # mfma_1k          = "_1k" if (kernel["MFMA_BF16_1K"] or kernel["ProblemType"]["Fp16AltImpl"]) else ""
-    # accumRegType     = "a" if not kernel["MIArchVgpr"] else "v"
 
     numRegistersIn   = miInputType.numRegisters()
     numRegistersOut  = kernel["MIRegPerOut"]
@@ -6485,7 +6483,6 @@ class KernelWriterAssembly(KernelWriter):
     dividerFortidInK = kernel["MatrixInstN"] * kernel["MatrixInstB"]
     numMIInput       = kernel["MIInputPerThread"]
     miInTypeName     = "bf16" if kernel["ProblemType"]["Fp16AltImpl"] else miInputType.toNameAbbrev() # v_mfma_[...xK]<InType>
-    # neg              = " neg_lo:[1,1,1]" if ((not is_mfma) and (miInTypeName == "i8")) else ""
     miInTypeName     = "iu8" if ((not is_mfma) and miInTypeName == "i8") else miInTypeName
     miOutTypeName    = miInputType.MIOutputTypeNameAbbrev() # v_mfma_<OutType>..
     miOutTypeName    = miOutTypeName if is_mfma else kernel["ProblemType"]["ComputeDataType"].toNameAbbrev()
