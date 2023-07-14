@@ -108,7 +108,7 @@ namespace Tensile
                     }
                 }
             }
-            else if (key == ResultKey::GfxFrequency)
+            else if(key == ResultKey::GfxFrequency)
             {
                 m_currGfxClock = static_cast<uint16_t>(std::stoi(valueStr));
             }
@@ -154,8 +154,8 @@ namespace Tensile
                 // Values for these come separately.
                 m_output.setHeaderForKey(ResultKey::LDA, "LDA");
                 m_output.setHeaderForKey(ResultKey::LDB, "LDB");
-                m_output.setHeaderForKey(ResultKey::LDC, "LDC");				
-                m_output.setHeaderForKey(ResultKey::LDD, "LDD");				
+                m_output.setHeaderForKey(ResultKey::LDC, "LDC");
+                m_output.setHeaderForKey(ResultKey::LDD, "LDD");
                 m_output.setHeaderForKey(ResultKey::GfxFrequency, "WinnerFreq");
                 if(m_extraCol)
                 {
@@ -206,7 +206,7 @@ namespace Tensile
                 }
                 else if(key.compare(ResultKey::TimeUS) == 0
                         || key.compare(ResultKey::SolutionWinnerIdx) == 0
-                        || key.compare(ResultKey::SolutionWinner) == 0 
+                        || key.compare(ResultKey::SolutionWinner) == 0
                         || key.compare(ResultKey::GfxFrequency) == 0)
                 {
                     // skip, we update these together with FastestGFlops
