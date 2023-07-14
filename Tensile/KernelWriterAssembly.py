@@ -1950,6 +1950,12 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["EnableMatrixInstruction"]:
       self.miLatency = kernel["MatrixInstM"] // 2
+      if (self.version == (9,4,0) or self.version == (9,4,1) or self.version == (9,4,2)) and kernel["MatrixInstB"] == 1 and \
+         (kernel["EnableF32XdlMathOp"] or \
+          kernel["ProblemType"]["DataType"].is8bitFloat() or \
+          kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16() or \
+          kernel["ProblemType"]["DataType"].isInt8()):
+        self.miLatency //= 2
       miIssueLatency = 2
       # give 1 quad-cycle buffer to prevend bubble from sync
       miLatencyBuffer = 1
@@ -6468,8 +6474,6 @@ class KernelWriterAssembly(KernelWriter):
 
     # calculate constant
     is_mfma          = globalParameters["AsmCaps"][self.version]["HasMFMA"]
-    # mfma_1k          = "_1k" if (kernel["MFMA_BF16_1K"] or kernel["ProblemType"]["Fp16AltImpl"]) else ""
-    # accumRegType     = "a" if not kernel["MIArchVgpr"] else "v"
 
     numRegistersIn   = miInputType.numRegisters()
     numRegistersOut  = kernel["MIRegPerOut"]
@@ -6479,7 +6483,6 @@ class KernelWriterAssembly(KernelWriter):
     dividerFortidInK = kernel["MatrixInstN"] * kernel["MatrixInstB"]
     numMIInput       = kernel["MIInputPerThread"]
     miInTypeName     = "bf16" if kernel["ProblemType"]["Fp16AltImpl"] else miInputType.toNameAbbrev() # v_mfma_[...xK]<InType>
-    # neg              = " neg_lo:[1,1,1]" if ((not is_mfma) and (miInTypeName == "i8")) else ""
     miInTypeName     = "iu8" if ((not is_mfma) and miInTypeName == "i8") else miInTypeName
     miOutTypeName    = miInputType.MIOutputTypeNameAbbrev() # v_mfma_<OutType>..
     miOutTypeName    = miOutTypeName if is_mfma else kernel["ProblemType"]["ComputeDataType"].toNameAbbrev()
