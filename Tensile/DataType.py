@@ -129,7 +129,7 @@ class DataType:
             'char': 'I',
             'name': 'int32',
             'nameAbbrev': 'i32',
-            'miOutTypeNameAbbrev': 'NONE', # not supported for MI
+            'miOutTypeNameAbbrev': 'NONE',         # not supported for MI
             'enum': 'Int32',
             'reg': 1,
             'ocl': 'ERROR',
@@ -160,15 +160,94 @@ class DataType:
             'name': 'int8',
             'nameAbbrev': 'i8',
             'miOutTypeNameAbbrev': 'i32',
-            'enum': 'Int8',                     # mapping to new client c++ enum
+            'enum': 'Int8',                        # mapping to new client c++ enum
             'reg': 0.25,
             'ocl': 'ERROR',
             'hip': 'int8_t',
-            'libType': 'TensileInt8',           # old client
-            'libEnum': 'tensileDataTypeInt8',   # old client
+            'libType': 'TensileInt8',              # old client
+            'libEnum': 'tensileDataTypeInt8',      # old client
             'isIntegral': True,
             'isComplex': False,
             'packing': 1
+        },
+        {
+            'char': 'X',
+            'name': 'xfloat32',
+            'nameAbbrev': 'xf32',
+            'miOutTypeNameAbbrev': 'f32',
+            'enum': 'XFloat32',
+            'reg': 1,
+            'ocl': 'ERROR',
+            'hip': 'ERROR',
+            'libType': 'ERROR',
+            'libEnum': 'tensileDataTypeXFloat32',
+            'isIntegral': False,
+            'isComplex': False,
+            'packing': 1
+        },
+        {
+            'char': 'F8',
+            'name': 'float8',
+            'nameAbbrev': 'fp8_fp8',               # to match v_mfma inst 
+            'miOutTypeNameAbbrev': 'f32',
+            'enum': 'Float8',                      # mapping to new client c++ enum
+            'reg': 0.25,
+            'ocl': 'ERROR',
+            'hip': 'tensile_float8',
+            'libType': 'TensileFloat8',            # old client
+            'libEnum': 'tensileDataTypeF8',        # old client
+            'isIntegral': False,
+            'isComplex': False,
+            'packing': 1,
+            'miInput' : 4
+        },
+        {
+            'char': 'B8',
+            'name': 'bfloat8',
+            'nameAbbrev': 'bf8_bf8',               # to match v_mfma inst  
+            'miOutTypeNameAbbrev': 'f32',
+            'enum': 'BFloat8',                     # mapping to new client c++ enum
+            'reg': 0.25,
+            'ocl': 'ERROR',
+            'hip': 'tensile_bfloat8',
+            'libType': 'TensileBFloat8',           # old client
+            'libEnum': 'tensileDataTypeB8',        # old client
+            'isIntegral': False,
+            'isComplex': False,
+            'packing': 1,
+            'miInput' : 4
+        },
+        {
+            'char': 'F8B8',
+            'name': 'float8Bfloat8',
+            'nameAbbrev': 'fp8_bf8',               # to match v_mfma 
+            'miOutTypeNameAbbrev': 'f32',
+            'enum': 'Float8BFloat8',               # mapping to new client c++ enum
+            'reg': 0.25,
+            'ocl': 'ERROR',
+            'hip': 'ERROR',
+            'libType': 'ERROR',                    # old client
+            'libEnum': 'tensileDataTypeF8B8',      # old client
+            'isIntegral': False,
+            'isComplex': False,
+            'packing': 1,
+            'miInput' : 4
+        },
+        {
+            'char': 'B8F8',
+            'name': 'bfloat8Float8',
+            'nameAbbrev': 'bf8_fp8',               # to match v_mfma 
+            'miOutTypeNameAbbrev': 'f32',
+            'enum': 'BFloat8Float8',               # mapping to new client c++ enum
+            'reg': 0.25,
+            'ocl': 'ERROR',
+            'hip': 'ERROR',
+            'libType': 'ERROR',                    # old client
+            'libEnum': 'tensileDataTypeB8F8',      # old client
+            'isIntegral': False,
+            'isComplex': False,
+            'packing': 1,
+            'miInput' : 4
         },
     ]
     lookup = {}
@@ -258,6 +337,21 @@ class DataType:
         return self.value == DataType.int8
     def isBFloat16(self):
         return self.value == DataType.bfloat16
+    def isXFloat32(self):
+        return self.value == DataType.xfloat32
+    def isFloat8(self):
+        return self.value == DataType.float8
+    def isBFloat8(self):
+        return self.value == DataType.bfloat8
+    def isFloat8BFloat8(self):
+        return self.value == DataType.float8Bfloat8
+    def isBFloat8Float8(self):
+        return self.value == DataType.bfloat8Float8
+    def is8bitFloat(self): 
+        return (self.value == DataType.float8 \
+                or self.value == DataType.bfloat8 \
+                or self.value == DataType.float8Bfloat8 \
+                or self.value == DataType.bfloat8Float8)
     def isNone(self):
         return self.value == None
 

@@ -1,1 +1,1 @@
-Read [contributing guidelines](https://github.com/RadeonOpenCompute/Tensile/wiki/Contributing) before trying to contribute code.
+Read [contributing guidelines](https://github.com/ROCmSoftwarePlatform/Tensile/wiki/Contributing) before trying to contribute code.

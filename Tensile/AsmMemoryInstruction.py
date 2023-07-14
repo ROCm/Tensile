@@ -22,20 +22,32 @@
 #
 ################################################################################
 
+def getGlcBitName(memoryModifierFormat):
+  if memoryModifierFormat == "GLC":
+    return "glc"
+  return "sc0"
+
+def getSlcBitName(memoryModifierFormat):
+  if memoryModifierFormat == "GLC":
+    return "slc"
+  return "sc1"
+
 ################################################################################
 # Memory Instruction
 ################################################################################
 class MemoryInstruction:
   def __init__(self, name, numAddresses, numOffsets, \
-      offsetMultiplier, blockWidth, formatting):
+      offsetMultiplier, blockWidth, formatting, memoryModifierFormat, forceSC1=False):
     self.name = name
     self.formatting = formatting
     self.numAddresses = numAddresses
     self.numOffsets = numOffsets
     self.offsetMultiplier = offsetMultiplier
     self.blockWidth = blockWidth
+    self.memoryModifierFormat = memoryModifierFormat
     self.numBlocks = 2 if self.numAddresses > 1 or self.numOffsets > 1 else 1
     self.totalWidth = self.blockWidth * self.numBlocks
+    self.forceSC1 = forceSC1
     #in Quad-Cycle
     if (name == "_ds_load_b128"):
       self.IssueLatency = 2
@@ -54,17 +66,19 @@ class MemoryInstruction:
     else:
       self.IssueLatency = 1
     self.endLine = "\n"
+
   ########################################
+
   # write in assembly format
   def toString(self, params, comment, nonTemporal=0, highBits=0):
     name = self.name
     if highBits:
       name += "_d16_hi"
     instStr = "%s %s" % (name, (self.formatting % params) )
-    if nonTemporal%2==1:
-      instStr += " glc"
-    if nonTemporal//2==1:
-      instStr += " slc"
+    if nonTemporal%2==1 or self.forceSC1:
+      instStr += " " + getGlcBitName(self.memoryModifierFormat)
+    if nonTemporal//2==1 or self.forceSC1:
+      instStr += " " + getSlcBitName(self.memoryModifierFormat)
     line = "%-50s // %s%s" % (instStr, comment, self.endLine)
     return line
 
@@ -75,10 +89,10 @@ class MemoryInstruction:
     if highBits:
       name += "_d16_hi"
     instStr = "%s %s" % (name, (self.formatting % params) )
-    if nonTemporal%2==1:
-      instStr += " glc"
-    if nonTemporal//2==1:
-      instStr += " slc"
+    if nonTemporal%2==1 or self.forceSC1:
+      instStr += " " + getGlcBitName(self.memoryModifierFormat)
+    if nonTemporal//2==1 or self.forceSC1:
+      instStr += " " + getSlcBitName(self.memoryModifierFormat)
     line = "%-50s" % (instStr)
     return line
 
