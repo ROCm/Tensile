@@ -160,7 +160,11 @@ class SignatureDefault(Signature):
         kStr += writer.comment1("ThreadTile= %u x %u" % (kernel["ThreadTile0"], kernel["ThreadTile1"]))
         kStr += writer.comment1("SubGroup= %u x %u" % (kernel["SubGroup0"], kernel["SubGroup1"]))
         kStr += writer.comment1("VectorWidth=%u" % (kernel["VectorWidth"]))
-        kStr += writer.comment1("GlobalLoadVectorWidthA=%u, GlobalLoadVectorWidthB=%u" % (kernel["GlobalLoadVectorWidthA"], kernel["GlobalLoadVectorWidthB"]))
+        glvw = kernel["GlobalLoadVectorWidthA"]
+        glvwAStr = "GlobalLoadVectorWidthA=%f"%glvw if glvw < 1 else "GlobalLoadVectorWidthA=%u"%glvw
+        glvw = kernel["GlobalLoadVectorWidthB"]
+        glvwBStr = "GlobalLoadVectorWidthB=%f"%glvw if glvw < 1 else "GlobalLoadVectorWidthB=%u"%glvw
+        kStr += writer.comment1("%s, %s" % (glvwAStr, glvwBStr))
         kStr += writer.comment1("DirectToLdsA=%s" % kernel["DirectToLdsA"])
         kStr += writer.comment1("DirectToLdsB=%s" % kernel["DirectToLdsB"])
         kStr += writer.comment1("UseSgprForGRO=%s" % kernel["_UseSgprForGRO"])

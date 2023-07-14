@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -369,8 +369,8 @@ class ProblemPredicate(Properties.Predicate):
             # calculate the minimum supported free dimension size
             TLUA = state['ProblemType']['TLUA']
             TLUB = state['ProblemType']['TLUB']
-            minFree0 = state['GlobalLoadVectorWidthA'] if TLUA else 1
-            minFree1 = state['GlobalLoadVectorWidthB'] if TLUB else 1
+            minFree0 = max(state['GlobalLoadVectorWidthA'], 1) if TLUA else 1
+            minFree1 = max(state['GlobalLoadVectorWidthB'], 1) if TLUB else 1
             rv += [cls('LeadingFree0SizesGreaterOrEqual', value=minFree0)]
             rv += [cls('LeadingFree1SizesGreaterOrEqual', value=minFree1)]
 

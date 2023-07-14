@@ -684,7 +684,11 @@ validParameters = {
     #      GlobalLoadVectorWidth = 1/2/4
     #      TransposeLDS = 1 for TLU=0 case
     # DirectToLds support for x2/x4 (1st part of async_copy() support)
+    # DirectToLds = True is equivalent to DirectToLdsA = True and DirectToLdsB = True (DirectToLdsA,B will be ignored)
+    # if DirectToLds is False, DirectToLdsA, B will be used
     "DirectToLds":                [ False, True ],
+    "DirectToLdsA":                [ False, True ],
+    "DirectToLdsB":                [ False, True ],
 
     # Load options:
     # (GRO = Global Read Offset)
@@ -1395,6 +1399,8 @@ defaultBenchmarkCommonParameters = [
     {"DirectToVgprA":             [ False ] },
     {"DirectToVgprB":             [ False ] },
     {"DirectToLds":               [ False ] },
+    {"DirectToLdsA":              [ False ] },
+    {"DirectToLdsB":              [ False ] },
     {"UseSgprForGRO":             [ -1 ] },
     {"UseInstOffsetForGRO":       [ 0 ] },
     {"AssertSummationElementMultiple": [ 1 ] },

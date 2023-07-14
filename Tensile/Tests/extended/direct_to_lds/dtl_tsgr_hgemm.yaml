@@ -56,13 +56,13 @@ BenchmarkProblems:
         #- GlobalReadVectorWidth: [2,4]
         - LocalReadVectorWidth: [4]
         - DirectToLds: [False, True]
-        - DirectToVgprA: [False]
+        - DirectToVgprA: [False, True]
         - DirectToVgprB: [False]
         - WaveSeparateGlobalReadA: [1]
         - WaveSeparateGlobalReadB: [1]
         - ThreadSeparateGlobalReadA: [0, 1, 2, 4]
         - ThreadSeparateGlobalReadB: [0, 1, 2, 4]
-        - NumLoadsCoalescedA: [1] # NLC=2 not working
+        - NumLoadsCoalescedA: [1,2] # NLC=2 not working
         - NumLoadsCoalescedB: [1] # NLC=2 not working
         - ScheduleIterAlg: [3]
         - AssertSummationElementMultiple: [4]
@@ -107,13 +107,13 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [2,4]
         - LocalReadVectorWidth: [4]
         - DirectToLds: [False, True]
-        - DirectToVgprA: [False]
+        - DirectToVgprA: [False, True]
         - DirectToVgprB: [False]
         #- WaveSeparateGlobalReadA: [0, 1]
         #- WaveSeparateGlobalReadB: [0, 1]
         - ThreadSeparateGlobalReadA: [0, 1, 2, 4]
         - ThreadSeparateGlobalReadB: [0, 1, 2, 4]
-        - NumLoadsCoalescedA: [1] # NLC=2 not working
+        - NumLoadsCoalescedA: [1,2] # NLC=2 not working
         - NumLoadsCoalescedB: [1] # NLC=2 not working
         - ScheduleIterAlg: [3]
         - AssertSummationElementMultiple: [2]
