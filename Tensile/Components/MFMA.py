@@ -28,6 +28,7 @@ class WMMASelection(MFMA):
     def __call__(self, writer, accOutStart, accOutEnd, in0, in1, accInStart, accInEnd, accStoreCIdx, firstIter):
         kernel = writer.kernel
         inType = kernel["ProblemType"]["DataType"].toNameAbbrev()
+        neg = " neg_lo:[1,1,1]" if (inType == "i8") else ""
         inType = "iu8" if inType == "i8" else inType
         outType = kernel["ProblemType"]["ComputeDataType"].toNameAbbrev()
         if kernel["ProblemType"]["DataType"].isComplex():
@@ -38,12 +39,11 @@ class WMMASelection(MFMA):
         # miB = kernel["MatrixInstB"]
         str0 = in1 if kernel["SourceSwap"] else in0
         str1 = in0 if kernel["SourceSwap"] else in1
-
         # use const 0 for src2 in firstIter case
         src2 = "0" if firstIter else "v[%u:%u]"%(accOutStart, accOutEnd)
 
-        kStr = "v_wmma_%s_%ux%ux%u_%s v[%u+%u:%u+%u], %s, %s, %s%s" \
-            % (outType, miM, miN, miK, inType, accInStart, accStoreCIdx, accInEnd, accStoreCIdx, str0, str1, src2, writer.endLine)
+        kStr = "v_wmma_%s_%ux%ux%u_%s v[%u+%u:%u+%u], %s, %s, %s%s%s" \
+            % (outType, miM, miN, miK, inType, accInStart, accStoreCIdx, accInEnd, accStoreCIdx, str0, str1, src2, neg, writer.endLine)
 
         return kStr
 
