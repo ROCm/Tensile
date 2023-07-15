@@ -461,8 +461,6 @@ class LogicAnalyzer:
 
         # get problem size
         problemSize = []
-        print1("# Feroz exactProblemSizes: %s" % (self.exactProblemSizes))
-        print("Total size index : ", totalSizeIdx)
         for i in range(problemSizeStartIdx, totalSizeIdx):
           problemSize.append(int(row[i]))
         #CSV file format of the problem size changed to [M,N,Batchcount,K,lddA,lddB,lddC,lddD]
