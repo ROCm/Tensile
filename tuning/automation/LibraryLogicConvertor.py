@@ -22,6 +22,7 @@
 #
 ################################################################################
 
+# This script converts the reference library logic to all other similar/family library logics.
 # python3 path-to-Tensile-repo/Tensile/tuning/automation/LibraryLogicConvertor.py <path-to-lib-logics> <output-dir>
 
 import os
