@@ -249,8 +249,11 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         outflag = "-output"
 
       infile = os.path.join(buildPath, objectFilename)
+      bundler = globalParameters["ClangOffloadBundlerPath"]
+      if bundler is None:
+        raise ValueError('No bundler available; set TENSILE_ROCM_OFFLOAD_BUNDLER_PATH to point to clang-offload-bundler.')
       try:
-        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "%s=%s" % (inflag, infile), "-list"]
+        bundlerArgs = [bundler, "-type=o", "%s=%s" % (inflag, infile), "-list"]
         listing = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT).decode().split("\n")
         for target in listing:
           matched = re.search("gfx.*$", target)
@@ -271,8 +274,8 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
             #Compilation
             if outfile:
               coFilenames.append(os.path.split(outfile)[1])
-              #bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=%s" % target, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
-              bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=%s" % target,
+              #bundlerArgs = [bundler, "-type=o", "-targets=%s" % target, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+              bundlerArgs = [bundler, "-type=o", "-targets=%s" % target,
                            "%s=%s" % (inflag, infile), "%s=%s" % (outflag, outfile), "-unbundle"]
               if globalParameters["PrintCodeCommands"]:
                 print(' '.join(bundlerArgs))
@@ -285,8 +288,8 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         for i in range(len(archs)):
           outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
           coFilenames.append(os.path.split(outfile)[1])
-          #bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
-          bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i],
+          #bundlerArgs = [bundler, "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+          bundlerArgs = [bundler, "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i],
                          "%s=%s" % (inflag, infile), "%s=%s" % (outflag, outfile), "-unbundle"]
           if globalParameters["PrintCodeCommands"]:
             print(' '.join(bundlerArgs))
