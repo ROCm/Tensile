@@ -463,17 +463,8 @@ class LogicAnalyzer:
         problemSize = []
         for i in range(problemSizeStartIdx, totalSizeIdx):
           problemSize.append(int(row[i]))
-        #CSV file format of the problem size changed to [M,N,Batchcount,K,lddA,lddB,lddC,lddD]
-        #but Tensile problem size format size is [M,N,Batchcount,K,lddC,lddD,lddA,lddB]
-        #so we are swapping the ldc,ldd position similar to tensile format
-        
-        #take backup of lda,ldb position.
-        ldaldbBackup = problemSize[4], problemSize[5]
-        #Move the ldc,ldd postion to 4th and 5th position
-        problemSize[4], problemSize[5] = problemSize[6], problemSize[7]
-        #Move the lda,ldb postion to the end (ie 6th and 7th position)
-        problemSize[6], problemSize[7] = ldaldbBackup
         problemSize = tuple(problemSize)
+
         # Exact Problem Size
         if problemSize in self.exactProblemSizes:
 
