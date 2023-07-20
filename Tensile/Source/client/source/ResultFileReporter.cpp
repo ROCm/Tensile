@@ -152,10 +152,10 @@ namespace Tensile
                 }
 
                 // Values for these come separately.
-                m_output.setHeaderForKey(ResultKey::LDD, "LDD");				
+                m_output.setHeaderForKey(ResultKey::LDD, "LDD");
                 m_output.setHeaderForKey(ResultKey::LDC, "LDC");
                 m_output.setHeaderForKey(ResultKey::LDA, "LDA");
-                m_output.setHeaderForKey(ResultKey::LDB, "LDB");				
+                m_output.setHeaderForKey(ResultKey::LDB, "LDB");
                 m_output.setHeaderForKey(ResultKey::GfxFrequency, "WinnerFreq");
                 if(m_extraCol)
                 {
