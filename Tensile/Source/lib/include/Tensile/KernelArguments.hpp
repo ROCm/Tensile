@@ -64,9 +64,15 @@ namespace Tensile
         friend class const_iterator;
 
         using ArgPair = std::pair<void const*, size_t>;
-        class const_iterator : public std::iterator<std::input_iterator_tag, ArgPair>
+        class const_iterator
         {
         public:
+            using iterator_category = std::input_iterator_tag;
+            using value_type        = ArgPair;
+            using difference_type   = std::ptrdiff_t;
+            using pointer           = ArgPair*;
+            using reference         = ArgPair&;
+
             const_iterator(KernelArguments const& args);
             const_iterator(KernelArguments const& args, std::string const& name);
             const_iterator(const const_iterator& other) = default;
