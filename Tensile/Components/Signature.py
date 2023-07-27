@@ -260,7 +260,7 @@ class SignatureDefault(Signature):
         kStr += self.addArgument(                  "NumWorkGroups0",     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += self.addArgument(                  "NumWorkGroups1",     '4', offset,      "by_value",        "u32"); offset += 4
 
-        if kernel["PersistentKernel"]:
+        if kernel["PersistentKernel"] or kernel["StreamK"]:
             kStr += self.addArgument("MagicNumberProblemNumGroupTiles0",   '4', offset,    "by_value",        "u32"); offset += 4
             kStr += self.addArgument("MagicShiftProblemNumGroupTiles0",    '4', offset,    "by_value",        "u32"); offset += 4
             kStr += self.addArgument(              "GridNumWorkGroups0",   '4', offset,    "by_value",        "u32"); offset += 4
@@ -268,6 +268,13 @@ class SignatureDefault(Signature):
                 kStr += self.addArgument(                "NumWorkGroups2",   '4', offset,  "by_value",        "u32"); offset += 4
                 kStr += self.addArgument("MagicNumProblemNumGroupTiles0By1", '4', offset,  "by_value",        "u32"); offset += 4
                 kStr += self.addArgument("MagicShiftProblemNumGroupTiles0By1", '4', offset,"by_value",        "u32"); offset += 4
+
+        if kernel["StreamK"]:
+            kStr += self.addArgument("ItersPerTile",            '4', offset,"by_value", "u32"); offset += 4
+            kStr += self.addArgument("TotalIters",              '4', offset,"by_value", "u32"); offset += 4
+            kStr += self.addArgument("ItersPerWG",              '4', offset,"by_value", "u32"); offset += 4
+            kStr += self.addArgument("MagicNumberItersPerTile", '4', offset,"by_value", "u32"); offset += 4
+            kStr += self.addArgument("MagicShiftItersPerTile",  '4', offset,"by_value", "u32"); offset += 4
 
         kStr += self.addArgument(                   "NumFullBlocks",     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += self.addArgument(                   "WgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4

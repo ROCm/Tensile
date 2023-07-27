@@ -562,6 +562,11 @@ class KernelWriterAssembly(KernelWriter):
       # product of all summation dimensions, this also will be divided if GSU is enabled
       self.defineSgpr("UnrollLoopLastIter", 1)
 
+    if kernel["StreamK"]:
+      print("SKVars")
+      self.defineSgpr("StreamKIter", 1)
+      self.defineSgpr("StreamKIterEnd", 1)
+
     if kernel["PackSummationDims"] and kernel["GlobalSplitU"]>1:
       self.defineSgpr("GsuNumIter%s"%self.loopChar(kernel,self.unrollIdx), 1)
 
@@ -594,7 +599,7 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("WrapUA", 2)  # Bytes to add to SrdA to reset address from N-1 iter to AddressA
       self.defineSgpr("WrapUB", 2)  # Bytes to add to SrdB to reset address from N-1 iter to AddressB
 
-    if kernel["PersistentKernel"]:
+    if kernel["PersistentKernel"]: # or kernel["StreamK"]:
       self.defineSgpr("SerialWorkGroupIter", 1) # Track sequential persistent wg
       # self.defineSgpr("PersistentLoopIter", 1) # Back-up: The count of current persistent loop, not needed now
       if kernel["PersistentKernelAlongBatch"]:
@@ -642,7 +647,7 @@ class KernelWriterAssembly(KernelWriter):
                % (self.sgprPool.size(), self.maxSgprs))
 
     # TODO-persistent - likely recompute some of the registers above.
-    if kernel["PersistentKernel"]:
+    if kernel["PersistentKernel"] or kernel["StreamK"]:
       self.lastPostLoopSgpr = self.sgprPool.size()
 
   ##############################################################################
@@ -1789,7 +1794,7 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("NumWorkGroups1", 1)
 
     pkArgumentToLoad = 0
-    if kernel["PersistentKernel"]:
+    if kernel["PersistentKernel"] or kernel["StreamK"]:
       self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1) # Magic number to use for division
       self.defineSgpr("MagicShiftProblemNumGroupTiles0", 1) # Magic shift/abit to use for division alg 2
       self.defineSgpr("GridNumWorkGroups0", 1) # Magic number to use for division, persistent kernel - flattened wg0 (=all WGs)
@@ -1799,6 +1804,16 @@ class KernelWriterAssembly(KernelWriter):
         self.defineSgpr("MagicNumProblemNumGroupTiles0By1", 1)  # for PKAB, use for Magic Div Alg 2 by (nwg0*nwg1)
         self.defineSgpr("MagicShiftProblemNumGroupTiles0By1", 1)  # for PKAB, use for Magic Div Alg 2 by (nwg0*nwg1)
         pkArgumentToLoad += 3
+    skArgumentToLoad = 0
+    if kernel["StreamK"]:
+      print("SKArgs")
+      self.defineSgpr("ItersPerTile", 1)
+      self.defineSgpr("TotalIters", 1)
+      self.defineSgpr("ItersPerWG", 1)
+      self.defineSgpr("MagicNumberItersPerTile", 1)
+      self.defineSgpr("MagicShiftItersPerTile", 1)
+      skArgumentToLoad += 5
+
     #------------------------
     # Registers defined below this point are not available in the post-loop
     # Post-loop is after tail loop exits, ie the store code.
@@ -1853,6 +1868,7 @@ class KernelWriterAssembly(KernelWriter):
       1 + \
       2 + \
       pkArgumentToLoad + \
+      skArgumentToLoad + \
       3 + \
       self.numSgprOffsetD + self.numSgprOffsetC + self.numSgprOffsetA + self.numSgprOffsetB
 
@@ -3276,7 +3292,7 @@ class KernelWriterAssembly(KernelWriter):
                      sgpr("PadEnd%s%s%s"%(tc, freeDimChar, sumDimChar)), \
                      "Bpe%sLog2"%tc, "")
 
-    if kernel["PersistentKernel"]:
+    if kernel["PersistentKernel"]: # or kernel["StreamK"]:
       kStr += inst("s_mov_b32", sgpr("SerialWorkGroupIter"), sgpr("WorkGroup0"), "init SerialWorkGroupIter")
       # kStr += inst("s_mov_b32", sgpr("PersistentLoopIter"), 0, "init PersistentKernelLoop Iter")  # Back-up: not needed now
 
@@ -3433,7 +3449,14 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def openPersistentLoop(self, kernel):
     kStr = ""
-    if kernel["PersistentKernel"]:
+    if kernel["PersistentKernel"] or kernel["StreamK"]:
+      if kernel["StreamK"]:
+        # Workload calculations
+        print("SK1")
+        kStr += inst("s_mul_i32", sgpr("StreamKIter"), sgpr("WorkGroup0"), sgpr("ItersPerWG"), "StreaK starting iteration")
+        kStr += inst("s_add_u32", sgpr("StreamKIterEnd"), sgpr("StreamKIter"), sgpr("ItersPerWG"), "StreamK ending iteration")
+        kStr += inst("s_min_u32", sgpr("StreamKIterEnd"), sgpr("StreamKIterEnd"), sgpr("TotalIters"), "Cap ending iter at total iters")
+        
       kStr += self.comment3("Persistent Loop Start")
       kStr += self.getLabelDef("PersistentLoopStart")
       # kStr += inst("s_add_u32", sgpr("PersistentLoopIter"), sgpr("PersistentLoopIter"), hex(1), "Inc PersistentLoop Iter")   # Back-up: not needed now
@@ -3446,6 +3469,40 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def graWorkGroup(self, kernel, isPap):
     kStr = ""
+
+    if kernel["StreamK"]:
+      print("SK2")
+      stmpRef = self.getTmpSgpr(8, 4)
+      stmp = stmpRef.idx()
+      # Always reset pointers to handle odd-exit case which moves LRO to the upper bank
+      if not self.prefetchAcrossPersistent and kernel["PrefetchGlobalRead"]:
+        kStr += self.localReadResetOffsets(kernel, self.tPA)
+        kStr += self.localReadResetOffsets(kernel, self.tPB)
+
+      kStr += self.comment1("StreamK calculate tile idx and map to WG")
+      # stmp = tile index
+      kStr += self.sMagicDivAlg2(kernel, stmp, sgpr("StreamKIter"), sgpr("MagicNumberItersPerTile"), sgpr("MagicShiftItersPerTile"))
+      # stmp+1 = tile start
+      kStr += inst("s_mul_i32", sgpr(stmp+1), sgpr(stmp), sgpr("ItersPerTile"), "Tile start iteration")
+      # stmp+2 = tile end
+      kStr += inst("s_add_u32", sgpr(stmp+2), sgpr(stmp+1), sgpr("ItersPerTile"), "Tile end iteration")
+      # stmp+3 = local start
+      kStr += inst("s_sub_u32", sgpr(stmp+3), sgpr("StreamKIter"), sgpr(stmp+1), "Local iteration start")
+      # stmp+4 = local end
+      kStr += inst("s_min_u32", sgpr(stmp+4), sgpr("StreamKIterEnd"), sgpr(stmp+2), "1. (Local) iteration end")
+      kStr += inst("s_sub_u32", sgpr(stmp+4), sgpr(stmp+4), sgpr(stmp+1), "2. Local iteration end")
+
+      # Map StreamK tile index to wg0/1
+      kStr += self.comment1("Map StreamK tile index to wg0/1")
+      kStr += self.sMagicDivAlg2(kernel, stmp+5, sgpr(stmp), sgpr("MagicNumberProblemNumGroupTiles0"), sgpr("MagicShiftProblemNumGroupTiles0"))
+      kStr += inst("s_mov_b32", sgpr("WorkGroup1"), sgpr(stmp+5), "wg1 = Tile Idx / problemNumGroupTiles0")
+      kStr += inst("s_mul_i32", sgpr("WorkGroup0"), sgpr(stmp+5), sgpr("NumWorkGroups0"), "remainder part 1 : quotient * divisor")
+      kStr += inst("s_sub_u32", sgpr("WorkGroup0"), sgpr(stmp), sgpr("WorkGroup0"), "wg0 = Tile Idx % problemNumGroupTiles0")
+
+      # Increment StreamK iteration
+      kStr += inst("s_mov_b32", sgpr("StreamKIter"), sgpr(stmp+2), "Increment StreamK Iteration")
+
+      kStr += "\n"
 
     if kernel["PersistentKernel"]:
       stmpRef = self.getTmpSgpr(8, 4)
@@ -5465,7 +5522,7 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["LdsInitCVgprs"]:
         self.vgprPool.checkIn(tmpAddr)
 
-    if kernel["PersistentKernel"]:
+    if kernel["PersistentKernel"]: # or kernel["StreamK"]:
       # Move to next serial wg early since SerialWorkGroupIter is checked in several places below including tail loop which has multiple entry points
       # As a result be aware for much of the loop SerialWorkGroupIter points to the next tile not the current one
       kStr += self.comment1("move to next serial WG")
@@ -6299,7 +6356,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += "%s:%s" % (loopLabelEnd, self.endLine)
 
       if tailLoop and not self.tailLoopInNLL:
-        if kernel["PersistentKernel"] or len(kernel["ProblemType"]["IndicesSummation"]) > 1:
+        if kernel["PersistentKernel"] or kernel["StreamK"] or len(kernel["ProblemType"]["IndicesSummation"]) > 1:
           # recover the 'damage' done to LRO:
           stmp = self.getTmpSgpr(1).idx()
 
@@ -6990,7 +7047,7 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["ProblemType"]["ComputeDataType"].isHalf():
 
           if kernel["ProblemType"]["HighPrecisionAccumulate"] and \
-             kernel["PersistentKernel"]:
+             (kernel["PersistentKernel"] or kernel["StreamK"]):
             kStr += inst("s_cmp_eq_u32", sgpr("Alpha"), "1.0", "Alpha == 1.0 ?")
           # Otherwise, Alpha is a packed F16 so far (if Non-PK, the cvt is done later in GW)
           else:
@@ -8459,7 +8516,7 @@ class KernelWriterAssembly(KernelWriter):
         [self.localWriteStrideTileA, self.localWriteStrideUnrollA] )
     tP["localWriteInstruction"] = self.memoryInstructions["LocalWrite"][newInstIdx]
 
-    if kernel["PersistentKernel"]:
+    if kernel["PersistentKernel"] or kernel["StreamK"]:
       if getattr(self, "oriLwa%s"%tc) is None:
         setattr(self, "oriLwa%s"%tc, self.vgprPool.checkOut(1, "OriLocalWriteddr%s"%tc) )
         kStr += inst("v_mov_b32", vgpr(getattr(self, "oriLwa%s"%tc)), vgpr("LocalWriteAddr%s"%tc), "back up LWA for persistent kernel + wider local read")
@@ -8510,7 +8567,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr = ""
 
         # need to back-up the LRA before reCalculation for wider local read (when no wlr, no need to do this)
-        if kernel["PersistentKernel"]:
+        if kernel["PersistentKernel"] or kernel["StreamK"]:
           if self.oriLraA is None and not kernel["DirectToVgprA"]: # no local read code if DirectToVgpr is enabled
             self.oriLraA = self.vgprPool.checkOut(1, "OriLocalReadAddrA")
             kStr += inst("v_mov_b32", vgpr(self.oriLraA), vgpr("LocalReadAddrA"), "back up LRA for persistent kernel + wider local read")
@@ -13251,7 +13308,12 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def persistentLoopendLongjump(self, kernel):
     kStr = ""
-    if kernel["PersistentKernel"]:
+    if kernel["StreamK"]:
+      stmp = self.getTmpSgpr(1).idx()
+      kStr += inst("s_cmp_ge_u32", sgpr("StreamKIter"), sgpr("StreamKIterEnd"), "Check if done all StreamK iterations")
+      kStr += self.longBranchScc0(self.getLabelTarget("PersistentLoopStart"), negativeOnly=True)
+
+    if kernel["PersistentKernel"]: # or kernel["StreamK"]:
       # Persistent may generate a SerialWorkGroupIter which is OOB, only loop back if we are in a valid WG:
       stmp = self.getTmpSgpr(1).idx()
       kStr += inst("s_mul_i32", sgpr(stmp), sgpr("NumWorkGroups0"), sgpr("NumWorkGroups1"), "Total WG-0x1")
@@ -13267,7 +13329,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def functionEnd(self, kernel, addLabel=True):
     imod = Code.Module()
-    if kernel["PersistentKernel"]:
+    if kernel["PersistentKernel"] or kernel["StreamK"]:
       if kernel["StoreCInUnroll"]:
         # StoreCInUnroll case, reset StoreCAvail here for the next persistent loop (StoreCInUnroll disabled)
         imod.addCode(self.resetStoreCsyncObject(kernel))

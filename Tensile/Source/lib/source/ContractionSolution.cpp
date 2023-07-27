@@ -311,6 +311,17 @@ namespace Tensile
 
         rv.numWorkGroups.y *= sizeMapping.globalSplitU;
 
+        if(sizeMapping.streamK != 0)
+        {
+            AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
+            assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
+
+            size_t cuCount = pAMDGPU->computeUnitCount;
+            rv.numWorkGroups.x = cuCount;
+            rv.numWorkGroups.y = 1;
+            rv.numWorkGroups.z = 1;
+        }
+
         if(sizeMapping.persistentKernel != 0)
         {
             AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
@@ -551,7 +562,7 @@ namespace Tensile
             uint32_t magicNumberWgmRemainder1 = 0;
 
             // conditional args, aligned with KernelWriterAssembly.py
-            if(sizeMapping.persistentKernel != 0)
+            if(sizeMapping.persistentKernel != 0 || sizeMapping.streamK != 0)
             {
                 uint32_t magicShift;
                 rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0",
@@ -569,6 +580,30 @@ namespace Tensile
                 rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0By1",
                                          magicNumber(2, numGroupTiles0x1, &magicShift));
                 rv.args.append<uint32_t>("magicShiftProblemNumGroupTiles0By1", magicShift);
+            }
+
+            if(sizeMapping.streamK != 0)
+            {
+                auto itersPerTile = problem.getItersPerTile(sizeMapping);
+                auto tiles = problem.getNumTiles(sizeMapping);
+                auto totalIters = tiles * itersPerTile;
+                uint32_t itersPerWave = CeilDivide(totalIters, rv.numWorkGroups.x);
+                uint32_t magicNumberItersPerTile;
+                uint32_t magicShiftItersPerTile;
+                magicNumberItersPerTile = magicNumber(2, itersPerTile, &magicShiftItersPerTile);
+                std::cout << "WAAAAAAAAAAAAAAAAAAAAAA" << std::endl;
+                std::cout << "itersPerTile = " << itersPerTile << std::endl;
+                std::cout << "tiles = " << tiles << std::endl;
+                std::cout << "totalIters = " << totalIters << std::endl;
+                std::cout << "itersPerWave = " << itersPerWave << std::endl;
+                std::cout << "magicNumberITersPerTile = " << magicNumberItersPerTile << std::endl;
+                std::cout << "magicShiftItersPerTile = " << magicShiftItersPerTile << std::endl;
+                
+                rv.args.append<uint32_t>("itersPerTile", itersPerTile);
+                rv.args.append<uint32_t>("totalIters", totalIters);
+                rv.args.append<uint32_t>("itersPerWave", itersPerWave);
+                rv.args.append<uint32_t>("magicNumberItersPerTile", magicNumberItersPerTile);
+                rv.args.append<uint32_t>("magicShiftItersPerTile", magicShiftItersPerTile);
             }
 
             if(sizeMapping.workGroupMapping != 0)

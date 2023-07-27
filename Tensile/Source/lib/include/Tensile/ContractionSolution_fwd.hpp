@@ -29,4 +29,5 @@
 namespace Tensile
 {
     class ContractionSolution;
+    struct SizeMapping;
 }

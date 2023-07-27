@@ -1089,6 +1089,10 @@ validParameters = {
     # fp16 alternate implementation round mode: false for truncate, true for round near zero
     "Fp16AltImplRound": [False, True],
 
+    # 0: Data parallel
+    # 1: Basic StreamK
+    "StreamK": [0, 1],
+
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
     #       - Recommended min is enough WG to use all resources on the CU
@@ -1426,6 +1430,7 @@ defaultBenchmarkCommonParameters = [
     {"GlobalSplitUAtomicAdd":     [ False ] },
     {"MacroTileShapeMin":         [ 1 ] },
     {"MacroTileShapeMax":         [ 64 ] },
+    {"StreamK":                   [ 0 ] },
     {"PersistentKernel":          [ 0 ] },
     {"PersistentKernelAlongBatch":[ False ] },    # May be default True is better ?
     {"PackBatchDims":             [ 0 ] },

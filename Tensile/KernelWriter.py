@@ -2952,8 +2952,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # These cases loop back and run the prefetch loop again
         # we need an extra barrier to ensure that the ds_reads (either for SR or MFMA) from previous iteration
         # have finished before we generate the prefetch for the next summation index.
-        if kernel["PersistentKernel"] or self.actualSummationLoops>1:
-          kl.append( self.indent + self.syncStr + "// for PersistentKernel " + self.endLine )
+        if kernel["PersistentKernel"] or kernel["StreamK"] > 0 or self.actualSummationLoops>1:
+          kl.append( self.indent + self.syncStr + "// for PersistentKernel / StreamK " + self.endLine )
 
       if self.enable["LocalWrite"]:
         # local write
@@ -3550,6 +3550,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     #   - GlobalSplitU = 1
     #     GSU>1 case, remaining K is distributed unevenly and does not work with tailLoop in noLoadLoop
     #   - PersistentKernel = 0
+    #   - StreamK = 0
     #   - DepthULdsDivisor = 1
     #   - StaggerU = 0
     #     StaggerU=0 case, we can exit NoLoadLoop earlier when whole K range is processed
@@ -3595,7 +3596,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     elif kernel["BufferLoad"] and (not kernel["SuppressNoLoadLoop"]) and \
          kernel["EnableMatrixInstruction"] and kernel["MatrixInstK"] > 1 and \
          (tailLoopLoadWidthA % glvwA == 0) and (tailLoopLoadWidthB % glvwB == 0) and \
-         gsu == 1 and kernel["PersistentKernel"] == 0 and kernel["DepthULdsDivisor"] == 1 and \
+         gsu == 1 and kernel["PersistentKernel"] == 0 and kernel["StreamK"] == 0 and kernel["DepthULdsDivisor"] == 1 and \
          kernel["InnerUnroll"] == 1:
       if kernel["StaggerU"] == 0:
         noTailLoop = 2
