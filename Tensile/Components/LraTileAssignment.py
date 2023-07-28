@@ -96,7 +96,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
         # alloc vgpr
         tReg    = writer.vgprPool.checkOut(1,"tReg") # remainder
         kReg    = writer.vgprPool.checkOut(1,"kReg") # remainder
-        dtlTsgr = kernel["DirectToLds"] and kernel["ThreadSeparateGlobalRead%c"%tc] and umlds
+        dtlTsgr = kernel["DirectToLds%s" % tc] and kernel["ThreadSeparateGlobalRead%c"%tc] and umlds
         if dtlTsgr:
           mReg    = writer.vgprPool.checkOut(1,"mReg")
 
@@ -149,7 +149,7 @@ class LraTileAssignmentMFMA(LraTileAssignment):
           # WSGR splits global fetch 2D tile MblockxdepthU into (WSPR *2)xMblockxdepthU/(WSPR*2)  (Mblock = waveWidth * glvw  / depthU)
           # LDS layout stored as 3D tile K1xMblockxK0
           # Padding is not allowed in directToLds
-          NblockSizePerLoad = (waveWidth * kernel["GlobalLoadVectorWidth%c"%tc]) // kernel["_DepthULds"] // vectorWidth
+          NblockSizePerLoad = int(waveWidth * kernel["GlobalLoadVectorWidth%c"%tc]) // kernel["_DepthULds"] // vectorWidth
           # Nidx offset calculation
           # each load fetches tuple<K1,Nidx,K0> mapped to wavefront load tuple<TSGR<<1,wavefront/depthU/TSGR<<1, depth//TSGR<<1)
           kStr += vectorStaticDivide(mReg, tReg, NblockSizePerLoad, tmpSgpr, \

@@ -61,8 +61,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [1, 2]
         - LocalReadVectorWidth: [1] # [1, 2]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
+        - DirectToVgprA: [False, True]
+        #- DirectToVgprB: [False, True]
         - WaveSeparateGlobalReadA: [0]
         - WaveSeparateGlobalReadB: [0]
         - NumLoadsCoalescedA: [1,2]
@@ -122,8 +122,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [1, 2]
         - LocalReadVectorWidth: [1] # [1, 2]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
+        - DirectToVgprA: [False, True]
+        #- DirectToVgprB: [False, True]
         - WaveSeparateGlobalReadA: [0]
         - WaveSeparateGlobalReadB: [0]
         - NumLoadsCoalescedA: [1,2]
@@ -234,8 +234,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [1]
         - LocalReadVectorWidth: [1] # [1, 2]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
         - WaveSeparateGlobalReadA: [0]
         - WaveSeparateGlobalReadB: [0]
         - NumLoadsCoalescedA: [1]
@@ -307,8 +307,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [1, 2]
         - LocalReadVectorWidth: [1] # [1, 2]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
         - WaveSeparateGlobalReadA: [0]
         - WaveSeparateGlobalReadB: [0]
         - NumLoadsCoalescedA: [1,2]
@@ -368,8 +368,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [1, 2]
         - LocalReadVectorWidth: [1] # [1, 2]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
         - WaveSeparateGlobalReadA: [0]
         - WaveSeparateGlobalReadB: [0]
         - NumLoadsCoalescedA: [1,2]
@@ -480,8 +480,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [1]
         - LocalReadVectorWidth: [1] # [1, 2]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
         - WaveSeparateGlobalReadA: [0]
         - WaveSeparateGlobalReadB: [0]
         - NumLoadsCoalescedA: [1]
@@ -553,8 +553,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [1, 2]
         - LocalReadVectorWidth: [1] # [1, 2]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
         - WaveSeparateGlobalReadA: [0]
         - WaveSeparateGlobalReadB: [0]
         - NumLoadsCoalescedA: [1,2]
@@ -614,8 +614,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [1, 2]
         - LocalReadVectorWidth: [1] # [1, 2]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
         - WaveSeparateGlobalReadA: [0]
         - WaveSeparateGlobalReadB: [0]
         - NumLoadsCoalescedA: [1,2]
@@ -726,8 +726,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [1]
         - LocalReadVectorWidth: [1] # [1, 2]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
         - WaveSeparateGlobalReadA: [0]
         - WaveSeparateGlobalReadB: [0]
         - NumLoadsCoalescedA: [1]
@@ -799,8 +799,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [1, 2]
         - LocalReadVectorWidth: [1] # [1, 2]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
+        - DirectToVgprA: [False, True]
+        - DirectToVgprB: [False, True]
         - WaveSeparateGlobalReadA: [0]
         - WaveSeparateGlobalReadB: [0]
         - NumLoadsCoalescedA: [1,2]
@@ -860,8 +860,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [1, 2]
         - LocalReadVectorWidth: [1] # [1, 2]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
+        - DirectToVgprA: [False, True]
+        - DirectToVgprB: [False, True]
         - WaveSeparateGlobalReadA: [0]
         - WaveSeparateGlobalReadB: [0]
         - NumLoadsCoalescedA: [1,2]
@@ -911,7 +911,7 @@ BenchmarkProblems:
         - SourceSwap: [True]
         - PrefetchGlobalRead: [1] #[1,2]
         - AssertFree0ElementMultiple: [2]
-        # - AssertFree1ElementMultiple: [2]
+        - AssertFree1ElementMultiple: [2] # 2 for DTVB
         - WorkGroupMapping: [8]
         - PrefetchLocalRead: [5]
         - GlobalSplitU: [1]
@@ -972,8 +972,8 @@ BenchmarkProblems:
         - GlobalReadVectorWidth: [1]
         - LocalReadVectorWidth: [1] # [1, 2]
         - DirectToLds: [True]
-        - DirectToVgprA: [False] # DirectToVgpr only for dgemm right now
-        - DirectToVgprB: [False] # DirectToVgpr only for dgemm right now
+        - DirectToVgprA: [False]
+        - DirectToVgprB: [False]
         - WaveSeparateGlobalReadA: [0]
         - WaveSeparateGlobalReadB: [0]
         - NumLoadsCoalescedA: [1]

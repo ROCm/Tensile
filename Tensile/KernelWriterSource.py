@@ -25,7 +25,7 @@
 from . import Code
 from .DataType import DataType
 from .SolutionStructs import isPackedIndex
-from .Common import globalParameters, printExit
+from .Common import globalParameters, printExit, roundUp
 from .KernelWriter import KernelWriter
 
 ################################################################################
@@ -1761,12 +1761,6 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
-  # Local Read Addresses for direct LDS : Final Offset A/B
-  ##############################################################################
-  def directToLdsLraOffset(self, kernel, finalVgpr, tmp1, tmp2, tP):
-    return ""
-
-  ##############################################################################
   # Local Read Addresses offset conversion for DTL + NLC > 1
   ##############################################################################
   def lraOffsetConversionForDTLandNLC(self, kernel, tP, offset_val, generateAsm=False, \
@@ -2562,7 +2556,7 @@ class KernelWriterSource(KernelWriter):
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
         for para in range(0, tP["nrc"]):
-          for sPara in range(0, tP["nwcv"]):
+          for sPara in range(0, roundUp(tP["nwcv"])):
             kStr += "%s*(localWrite%s_%u_%u_%u_%u + %u) = %s_%u_%u_%u_%u;%s" \
                 % (self.indent, tP["tensorChar"], \
                 para, 0, perp, sPerp, sPara, \
