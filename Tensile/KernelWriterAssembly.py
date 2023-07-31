@@ -3576,11 +3576,6 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += self.assert_ne(sgpr("SerialWorkGroupIter"), 2)
       kStr += "\n"
 
-    if kernel["StreamK"] == 1:
-      print("SKTemp")
-      # Temporarily disable WG mapping for debugging
-      return kStr
-    
     kStr += self.comment1("graWorkGroup mapping")
     if kernel["GlobalSplitU"] > 1:
       if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
