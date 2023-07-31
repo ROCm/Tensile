@@ -384,6 +384,10 @@ class ProblemPredicate(Properties.Predicate):
             if ('_GlobalAccumulation' not in state) or (state['_GlobalAccumulation'] != 'MultipleBuffer'):
                 rv += [cls("DeterministicMode", value = False)]
 
+        if ('StreamK' in state) and (state['StreamK'] == 1):
+            # StreamK = 1 uses atomic for partial tiles
+            rv += [cls("DeterministicMode", value = False)]
+
         # debugging: mark this set to allow the problem always runnable with PK
         if 'PersistentKernel' in state and state['PersistentKernel']:
             rv += [cls("PersistentKernelCheck")]

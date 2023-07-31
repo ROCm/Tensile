@@ -1786,10 +1786,10 @@ class Solution(collections.abc.Mapping):
 
 
   ########################################
-  # create BetaONly Kernels
+  # create BetaOnly Kernels
   def initBetaOnlyKernelObjects(self):
     self.betaOnlyKernelObjects = []
-    if self["GlobalSplitU"] > 1:
+    if self["GlobalSplitU"] > 1 or self["StreamK"] == 1:
       state = {}
       state["ProblemType"] = deepcopy(self["ProblemType"])
       state["KernelLanguage"] = "Source"

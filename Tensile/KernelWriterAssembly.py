@@ -566,6 +566,8 @@ class KernelWriterAssembly(KernelWriter):
       print("SKVars")
       self.defineSgpr("StreamKIter", 1)
       self.defineSgpr("StreamKIterEnd", 1)
+      self.defineSgpr("StreamKLocalStart", 1)
+      self.defineSgpr("StreamKLocalEnd", 1)
 
     if kernel["PackSummationDims"] and kernel["GlobalSplitU"]>1:
       self.defineSgpr("GsuNumIter%s"%self.loopChar(kernel,self.unrollIdx), 1)
@@ -3486,17 +3488,17 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mul_i32", sgpr(stmp+1), sgpr(stmp), sgpr("ItersPerTile"), "Tile start iteration")
       # stmp+2 = tile end
       kStr += inst("s_add_u32", sgpr(stmp+2), sgpr(stmp+1), sgpr("ItersPerTile"), "Tile end iteration")
-      # stmp+3 = local start
-      kStr += inst("s_sub_u32", sgpr(stmp+3), sgpr("StreamKIter"), sgpr(stmp+1), "Local iteration start")
-      # stmp+4 = local end
-      kStr += inst("s_min_u32", sgpr(stmp+4), sgpr("StreamKIterEnd"), sgpr(stmp+2), "1. (Local) iteration end")
-      kStr += inst("s_sub_u32", sgpr(stmp+4), sgpr(stmp+4), sgpr(stmp+1), "2. Local iteration end")
+      # local start
+      kStr += inst("s_sub_u32", sgpr("StreamKLocalStart"), sgpr("StreamKIter"), sgpr(stmp+1), "Local iteration start")
+      # local end
+      kStr += inst("s_min_u32", sgpr("StreamKLocalEnd"), sgpr("StreamKIterEnd"), sgpr(stmp+2), "1. (Local) iteration end")
+      kStr += inst("s_sub_u32", sgpr("StreamKLocalEnd"), sgpr("StreamKLocalEnd"), sgpr(stmp+1), "2. Local iteration end")
 
       # Map StreamK tile index to wg0/1
       kStr += self.comment1("Map StreamK tile index to wg0/1")
-      kStr += self.sMagicDivAlg2(kernel, stmp+5, sgpr(stmp), sgpr("MagicNumberProblemNumGroupTiles0"), sgpr("MagicShiftProblemNumGroupTiles0"))
-      kStr += inst("s_mov_b32", sgpr("WorkGroup1"), sgpr(stmp+5), "wg1 = Tile Idx / problemNumGroupTiles0")
-      kStr += inst("s_mul_i32", sgpr("WorkGroup0"), sgpr(stmp+5), sgpr("NumWorkGroups0"), "remainder part 1 : quotient * divisor")
+      kStr += self.sMagicDivAlg2(kernel, stmp+3, sgpr(stmp), sgpr("MagicNumberProblemNumGroupTiles0"), sgpr("MagicShiftProblemNumGroupTiles0"))
+      kStr += inst("s_mov_b32", sgpr("WorkGroup1"), sgpr(stmp+3), "wg1 = Tile Idx / problemNumGroupTiles0")
+      kStr += inst("s_mul_i32", sgpr("WorkGroup0"), sgpr(stmp+3), sgpr("NumWorkGroups0"), "remainder part 1 : quotient * divisor")
       kStr += inst("s_sub_u32", sgpr("WorkGroup0"), sgpr(stmp), sgpr("WorkGroup0"), "wg0 = Tile Idx % problemNumGroupTiles0")
 
       # Increment StreamK iteration
@@ -3574,6 +3576,11 @@ class KernelWriterAssembly(KernelWriter):
       #kStr += self.assert_ne(sgpr("SerialWorkGroupIter"), 2)
       kStr += "\n"
 
+    if kernel["StreamK"] == 1:
+      print("SKTemp")
+      # Temporarily disable WG mapping for debugging
+      return kStr
+    
     kStr += self.comment1("graWorkGroup mapping")
     if kernel["GlobalSplitU"] > 1:
       if kernel["GlobalSplitUWorkGroupMappingRoundRobin"]:
@@ -4532,6 +4539,18 @@ class KernelWriterAssembly(KernelWriter):
       if not self.isConstUnitStride(strideF):
         kStr += self.s_mul_u64_u32(sgpr(tileStart), sgpr(tileStart+1), sgpr(tileStart+0), \
                    strideF, "tlu=0, scaled tile-offset by stride")
+
+      if kernel["StreamK"] > 0:
+        # StreamK partial tile - offset to tile start index
+        print("SK3")
+        # kStr += self.s_mul_u64_u32(sgpr(stmp), sgpr(stmp+1), kernel["DepthU"], sgpr("StreamKLocalStart"), "StreamK tile start offset")
+        # kStr += inst("s_mul_i32", sgpr(stmp), sgpr("StreamKLocalStart"), "DepthU*Bpe%s"%(tc), "WAAA")
+        kStr += inst("s_mul_i32", sgpr(stmp), sgpr("StreamKLocalStart"), "DepthU", "WAAA")
+        kStr += self.s_mul_u64_u32(sgpr(stmp), sgpr(stmp+1), sgpr(stmp), sgpr("Stride%sL" %(tc)), "StreamK tile start offset")
+        if kernel["CheckDimOverflow"] >=2:
+          kStr += self.assert_eq(sgpr(stmp+1),0)
+        kStr += inst("s_add_u32",  sgpr(tileStart+0), sgpr(tileStart+0), sgpr(stmp+0), "accum GsuOffset term to tilestart")
+        kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum GsuOffset term to tilestart")
 
       if kernel["GlobalSplitU"] > 1:
         # Only GlobalSplitUSummationAssignmentRoundRobin supported for groOffsetInMacroTile - would need different math here for start:
@@ -5623,6 +5642,15 @@ class KernelWriterAssembly(KernelWriter):
 
       # Amount of bytes to add to get back to start.
       # on the llop iteration which matches StaggerUIter, this offset added instead of GlobalReadInc
+      # if kernel["StreamK"] > 0:
+      #   print("SK5")
+      #   imod.addCode(self.s_mul_u64_u32(sgpr("WrapU%s+0"%tc), sgpr("WrapU%s+1"%tc), \
+      #             sgpr("ItersPerTile"), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
+      #             "Number of bytes accessed by the unroll loop"))
+      # else:
+      #   imod.addCode(self.s_mul_u64_u32(sgpr("WrapU%s+0"%tc), sgpr("WrapU%s+1"%tc), \
+      #           self.loopCounter(kernel, self.unrollIdx), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
+      #           "Number of bytes accessed by the unroll loop"))
       imod.addCode(self.s_mul_u64_u32(sgpr("WrapU%s+0"%tc), sgpr("WrapU%s+1"%tc), \
                 self.loopCounter(kernel, self.unrollIdx), sgpr("GlobalReadIncs%s+%u"%(tc,self.unrollIdx)), \
                 "Number of bytes accessed by the unroll loop"))
@@ -5846,7 +5874,10 @@ class KernelWriterAssembly(KernelWriter):
         divisor = kernel["DepthU"]
         asem = kernel["AssertSummationElementMultiple"]
         gsu = kernel["GlobalSplitU"]
-        if self.noTailLoop and ((asem % gsu != 0) or ((asem//gsu) % kernel["DepthU"] != 0)):
+        if kernel["StreamK"] > 0:
+          print("SK4")
+          kStr += inst("s_sub_u32", sgpr(loopCounterName), sgpr("StreamKLocalEnd"), sgpr("StreamKLocalStart"), "StreamK loop counter = localEnd - localStart")
+        elif self.noTailLoop and ((asem % gsu != 0) or ((asem//gsu) % kernel["DepthU"] != 0)):
           # round up SizesSum/DepthU for noTailLoop case
           kStr += inst("s_add_i32", sgpr(quotient), (divisor - 1), sgpr(dividend), \
               "round up SizeSum / DepthU" )
@@ -11366,6 +11397,7 @@ class KernelWriterAssembly(KernelWriter):
       if not self.do["PostLoop"]: return ""
     kStr = ""
     atomic = (kernel["GlobalSplitU"] > 1) and (kernel["_GlobalAccumulation"] != 'MultipleBuffer')
+    atomic = atomic or kernel["StreamK"] == 1
     useCodeMulAlpha =  kernel["MIArchVgpr"] and applyAlpha and not (kernel["GlobalSplitU"] > 1)
 
     # write possibilities and labels
@@ -12440,9 +12472,10 @@ class KernelWriterAssembly(KernelWriter):
       d0 = element[1]
       vc1 = element[2]
       vc0 = element[3]
-      labelString = "Global_Write%s%s_vc=%u,%u_d=%u,%u" \
-        % (" Beta" if beta else "", " Edge" if edge else "", vc0, vc1, d0, d1 )
+      labelString = "Global_Write%s%s%s_vc=%u,%u_d=%u,%u" \
+        % (" Beta" if beta else "", " Edge" if edge else "", " Opt" if isOptNLL else "", vc0, vc1, d0, d1 )
       label = self.getLabelNum(labelString)
+      # print("  WEEEE %s" % (label))
       labelString += "EarlyExit"
       labelAfterAtomicLoop = self.getLabelNum(labelString)
       memoryBit = getGlcBitName(kernel["MemoryModifierFormat"])

@@ -952,7 +952,7 @@ namespace Tensile
 
         std::vector<KernelInvocation> rv;
 
-        if(sizeMapping.globalSplitU > 1 && sizeMapping.globalAccumulation != 2)
+        if(sizeMapping.streamK == 1 || (sizeMapping.globalSplitU > 1 && sizeMapping.globalAccumulation != 2))
         {
             if(debug)
                 rv.push_back(generateBetaOnlyCall<TypedInputs, true>(problem, inputs, hardware));
