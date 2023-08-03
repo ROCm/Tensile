@@ -101,16 +101,26 @@ namespace Tensile
                     double gflops = std::stod(valueStr);
                     if(m_fastestGflops < gflops)
                     {
-                        m_winnerSolution    = m_solutionName;
-                        m_winnerSolutionIdx = m_currSolutionIdx;
-                        m_fastestGflops     = gflops;
-                        m_winnerGfxClock    = m_currGfxClock;
+                        m_winnerSolution       = m_solutionName;
+                        m_winnerSolutionIdx    = m_currSolutionIdx;
+                        m_fastestGflops        = gflops;
+                        m_winnerGfxClock       = m_currGfxClock;
+                        m_winnerPower          = m_currPower;
+                        m_winnerTemperatureHot = m_currTemperatureHot;
                     }
                 }
             }
             else if(key == ResultKey::GfxFrequency)
             {
                 m_currGfxClock = static_cast<uint16_t>(std::stoi(valueStr));
+            }
+            else if(key == ResultKey::Power)
+            {
+                m_currPower = static_cast<uint16_t>(std::stoi(valueStr));
+            }
+            else if(key == ResultKey::TemperatureHot)
+            {
+                m_currTemperatureHot = static_cast<uint16_t>(std::stoi(valueStr));
             }
             else
             {
@@ -165,6 +175,8 @@ namespace Tensile
                     m_output.setHeaderForKey(ResultKey::SolutionWinner, "WinnerName");
                 }
                 m_output.setHeaderForKey(ResultKey::TotalFlops, "TotalFlops");
+                m_output.setHeaderForKey(ResultKey::Power, "WinnerPower");
+                m_output.setHeaderForKey(ResultKey::TemperatureHot, "WinnerTemperature");
             }
         }
 
@@ -202,12 +214,16 @@ namespace Tensile
                         oldRow[ResultKey::SolutionWinnerIdx] = newRow[ResultKey::SolutionWinnerIdx];
                         oldRow[ResultKey::SolutionWinner]    = newRow[ResultKey::SolutionWinner];
                         oldRow[ResultKey::GfxFrequency]      = newRow[ResultKey::GfxFrequency];
+                        oldRow[ResultKey::Power]             = newRow[ResultKey::Power];
+                        oldRow[ResultKey::TemperatureHot]    = newRow[ResultKey::TemperatureHot];
                     }
                 }
                 else if(key.compare(ResultKey::TimeUS) == 0
                         || key.compare(ResultKey::SolutionWinnerIdx) == 0
                         || key.compare(ResultKey::SolutionWinner) == 0
-                        || key.compare(ResultKey::GfxFrequency) == 0)
+                        || key.compare(ResultKey::GfxFrequency) == 0
+                        || key.compare(ResultKey::Power) == 0
+                        || key.compare(ResultKey::TemperatureHot) == 0)
                 {
                     // skip, we update these together with FastestGFlops
                     continue;
@@ -238,14 +254,24 @@ namespace Tensile
                 m_output.setValueForKey(ResultKey::SolutionWinner, m_winnerSolution);
             }
             m_output.setValueForKey(ResultKey::GfxFrequency, m_winnerGfxClock);
+            m_output.setValueForKey(ResultKey::Power, m_winnerPower);
+            m_output.setValueForKey(ResultKey::TemperatureHot, m_winnerTemperatureHot);
+
             // reset
-            m_winnerSolution    = "";
-            m_currSolutionIdx   = -1;
-            m_winnerSolutionIdx = -1;
-            m_fastestGflops     = -1.0;
-            m_fasterTimeUS      = -1.0;
-            m_currGfxClock      = 0;
-            m_winnerGfxClock    = 0;
+            m_winnerSolution       = "";
+            m_currSolutionIdx      = -1;
+            m_winnerSolutionIdx    = -1;
+            m_fastestGflops        = -1.0;
+            m_fasterTimeUS         = -1.0;
+            m_currGfxClock         = 0;
+            m_winnerGfxClock       = 0;
+            m_currGfxClock         = 0;
+            m_winnerGfxClock       = 0;
+            m_currPower            = 0;
+            m_winnerPower          = 0;
+            m_currTemperatureHot   = 0;
+            m_winnerTemperatureHot = 0;
+
             if(!m_mergeSameProblems)
             {
                 m_output.writeCurrentRow();

@@ -80,8 +80,13 @@ namespace Tensile
             double      m_fastestGflops     = -1.0;
             double      m_fasterTimeUS      = -1.0;
             // for logging winner GFx clock in CSV file
-            uint16_t m_currGfxClock   = 0;
-            uint16_t m_winnerGfxClock = 0;
+            uint16_t m_currGfxClock         = 0;
+            uint16_t m_winnerGfxClock       = 0;
+            uint16_t m_currPower            = 0;
+            uint16_t m_winnerPower          = 0;
+            uint16_t m_currTemperatureHot   = 0;
+            uint16_t m_winnerTemperatureHot = 0;
+
             // for merge rows
             int64_t                                                         m_currProbID = -1;
             std::map<int64_t, std::unordered_map<std::string, std::string>> m_probMap;
