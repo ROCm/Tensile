@@ -319,7 +319,8 @@ namespace Tensile
             size_t cuCount = pAMDGPU->computeUnitCount;
             rv.numWorkGroups.x = cuCount;
             rv.numWorkGroups.y = 1;
-            rv.numWorkGroups.z = 1;
+            if(sizeMapping.persistentKernelAlongBatch)
+                rv.numWorkGroups.z = 1;
         }
 
         if(sizeMapping.persistentKernel != 0)
@@ -571,6 +572,7 @@ namespace Tensile
                 rv.args.append<uint32_t>("gridNumWorkGroups0", rv.numWorkGroups.x);
             }
 
+            // if(sizeMapping.persistentKernelAlongBatch || sizeMapping.streamK != 0)
             if(sizeMapping.persistentKernelAlongBatch)
             {
                 uint32_t numGroupTiles0x1 = problemNumGroupTiles0 * problemNumGroupTiles1;

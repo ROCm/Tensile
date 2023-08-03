@@ -781,6 +781,7 @@ namespace Tensile
         numWG.y *= sizeMapping.globalSplitU;
 
         size_t problemTiles = numWG.x * numWG.y;
+        // if(sizeMapping.persistentKernelAlongBatch || sizeMapping.streamK != 0)
         if(sizeMapping.persistentKernelAlongBatch)
             problemTiles *= numWG.z;
         

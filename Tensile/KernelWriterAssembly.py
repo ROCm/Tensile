@@ -5615,6 +5615,7 @@ class KernelWriterAssembly(KernelWriter):
 
       if kernel["StreamK"] > 0:
         print("SK7")
+        # Set stagger=0 for partial tiles to avoid using stagger larger than workload
         kStr += inst("s_cmp_gt_u32", sgpr("StreamKLocalStart"), 0, "does wg start tile?")
         kStr += inst("s_cmov_b32", sgpr("StaggerUIter"), 0, "set stagger=0 for partial tiles")
         kStr += inst("s_cmp_lt_u32", sgpr("StreamKLocalEnd"), sgpr("ItersPerTile"), "does wg finish tile?")
