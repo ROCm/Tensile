@@ -5830,11 +5830,17 @@ class KernelWriterAssembly(KernelWriter):
         dividend = loopCounter
         kStr += scalarStaticDivideAndRemainder( loopCounterName, None, dividend, kernel["LocalSplitU"], tmpSgpr, 0)
 
+      # skip tail loop if StreamK WG not processing final iteration
+      if kernel["StreamK"] > 0:
+        print("SK6")
+        kStr += inst("s_cmp_lt_u32", sgpr("StreamKLocalEnd"), sgpr("ItersPerTile"), "Check if WG processes final iteration of tile")
+        kStr += inst("s_cmov_b32", loopCounter, hex(0), "This WG not completing tile")
+
       # if GSU numIter=0 if gsuSumIdx != remainder
       if kernel["GlobalSplitU"] > 1:
         kStr += inst("s_cmp_lg_u32", sgpr("GSUSumIdx"), sgpr("GSUSumIdx+1"), \
             "gsuSumIdx == numIterPerWgRemainder" )
-        kStr += inst("s_cmov_b32", loopCounter, hex(0), "numIter=0 if gsuSimIdx!=remainder")
+        kStr += inst("s_cmov_b32", loopCounter, hex(0), "numIter=0 if gsuSumIdx!=remainder")
 
       # do not use early exit here in tailLoop in NLL case
       if not self.tailLoopInNLL:
@@ -5872,6 +5878,15 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["StreamK"] > 0:
           print("SK4")
           kStr += inst("s_sub_u32", sgpr(loopCounterName), sgpr("StreamKLocalEnd"), sgpr("StreamKLocalStart"), "StreamK loop counter = localEnd - localStart")
+          # Adjust loop count for tail loop
+          if not self.noTailLoop:
+            loopChar = self.indexChars[kernel["ProblemType"]["IndicesSummation"][self.unrollIdx]]
+            kStr += scalarStaticDivideAndRemainder(tmpSgpr, tmpSgpr+1, "SizesSum+%u"%self.unrollIdx, kernel["DepthU"], tmpSgpr+2, 2)
+            kStr += inst("s_cmp_eq_u32", sgpr(tmpSgpr+1), hex(0), "numIter%s == 0"%loopChar )
+            kStr += inst("s_cselect_b32", sgpr(tmpSgpr), 0, 1, "check if size uses tail loop")
+            kStr += inst("s_cmp_eq_u32", sgpr("StreamKLocalEnd"), sgpr("ItersPerTile"), "Check if WG processes final iteration of tile")
+            kStr += inst("s_cselect_b32", sgpr(tmpSgpr), sgpr(tmpSgpr), 0, "this WG runs tail loop")
+            kStr += inst("s_sub_u32", sgpr(loopCounterName), sgpr(loopCounterName), sgpr(tmpSgpr), "Adjust loop counter for tail loop")
         elif self.noTailLoop and ((asem % gsu != 0) or ((asem//gsu) % kernel["DepthU"] != 0)):
           # round up SizesSum/DepthU for noTailLoop case
           kStr += inst("s_add_i32", sgpr(quotient), (divisor - 1), sgpr(dividend), \
