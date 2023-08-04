@@ -1,4 +1,3 @@
-
 ################################################################################
 #
 # Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
@@ -24,7 +23,9 @@
 ################################################################################
 
 # Generates rocblas-bench input files from the library logic files.
-# sample command:
+# creates the benchmark and verification files:
+# $ python3 rocblas-benchInputCreator.py -v ../libLogics/aldebaran_Cijk_Ailk_Bjlk_BBS_BH.yaml ./ BSS_NT
+# creates the benchmark file:
 # $ python3 rocblas-benchInputCreator.py ../libLogics/aldebaran_Cijk_Ailk_Bjlk_BBS_BH.yaml ./ BSS_NT
 
 import argparse
@@ -54,14 +55,25 @@ def parseArgs():
 def getProblemType(problem):
     # transA/B, a/b/c/d/compute_type
     problemDict = {}
-    problemDict["transA"] = "T" if problem["TransposeA"] else "N"
-    problemDict["transB"] = "T" if problem["TransposeB"] else "N"
+
+    if problem["ComplexConjugateA"]:
+        problemDict["transA"] = "C"
+    elif problem["TransposeA"]:
+        problemDict["transA"] = "T"
+    else:
+        problemDict["transA"] = "N"
+
+    if problem["ComplexConjugateB"]:
+        problemDict["transB"] = "C"
+    elif problem["TransposeB"]:
+        problemDict["transB"] = "T"
+    else:
+        problemDict["transB"] = "N"
 
     problemDict["a_type"] = typeIndexToName[problem["DataType"]]
     problemDict["b_type"] = typeIndexToName[problem["DataType"]]
     problemDict["c_type"] = typeIndexToName[problem["DestDataType"]]
     problemDict["d_type"] = typeIndexToName[problem["DestDataType"]]
-
 
     f8gemm = True if (problem["DataType"]>=10) else False # is it f8
 
@@ -71,29 +83,37 @@ def getProblemType(problem):
           if (typeIndexToName[problem["DataType"]] =="f8b8" and typeIndexToName[problem["DestDataType"]]=="f16_r"): # for F8B8HS
             problemDict["a_type"] = "f16_r"
             problemDict["b_type"] = "f16_r"
-            problemDict["new_compute_type"] = "f8_bf8_f32"
+            problemDict["composite_compute_type"] = "f8_bf8_f32"
           elif (typeIndexToName[problem["DataType"]] =="b8f8" and typeIndexToName[problem["DestDataType"]]=="f16_r"): # for B8F8HS
             problemDict["a_type"] = "f16_r"
             problemDict["b_type"] = "f16_r"
-            problemDict["new_compute_type"] = "bf8_f8_f32"
+            problemDict["composite_compute_type"] = "bf8_f8_f32"
           elif (typeIndexToName[problem["DataType"]] =="f8_r" and typeIndexToName[problem["DestDataType"]]=="f16_r"): # for F8HS
             problemDict["a_type"] = "f16_r"
             problemDict["b_type"] = "f16_r"
-            problemDict["new_compute_type"] = "f8_f8_f32"
+            problemDict["composite_compute_type"] = "f8_f8_f32"
           elif (typeIndexToName[problem["DataType"]] =="bf8_r" and typeIndexToName[problem["DestDataType"]]=="f16_r"): # for B8HS
             problemDict["a_type"] = "f16_r"
             problemDict["b_type"] = "f16_r"
-            problemDict["new_compute_type"] = "bf8_bf8_f32"  
-          elif (typeIndexToName[problem["DataType"]] =="f8b8" and typeIndexToName[problem["DestDataType"]]=="f32_r"): # for B8HS
+            problemDict["composite_compute_type"] = "bf8_bf8_f32"
+          elif (typeIndexToName[problem["DataType"]] =="f8b8" and typeIndexToName[problem["DestDataType"]]=="f32_r"): # for B8SS
             problemDict["a_type"] = "f8_r"
             problemDict["b_type"] = "bf8_r"
-            problemDict["new_compute_type"] = "f32"  
-          elif (typeIndexToName[problem["DataType"]] =="b8f8" and typeIndexToName[problem["DestDataType"]]=="f32_r"): # for B8HS
+            problemDict["composite_compute_type"] = "f32"
+          elif (typeIndexToName[problem["DataType"]] =="b8f8" and typeIndexToName[problem["DestDataType"]]=="f32_r"): # for B8SS
             problemDict["a_type"] = "bf8_r"
             problemDict["b_type"] = "f8_r"
-            problemDict["new_compute_type"] = "f32"  
+            problemDict["composite_compute_type"] = "f32"
+          elif (typeIndexToName[problem["DataType"]] =="b8f8" and typeIndexToName[problem["DestDataType"]]=="bf8_r"): # for B8F8B8S
+            problemDict["a_type"] = "bf8_r"
+            problemDict["b_type"] = "f8_r"
+            problemDict["composite_compute_type"] = "f32"
+          elif (typeIndexToName[problem["DataType"]] =="f8b8" and typeIndexToName[problem["DestDataType"]]=="bf8_r"): # for F8B8B8S
+            problemDict["a_type"] = "f8_r"
+            problemDict["b_type"] = "bf8_r"
+            problemDict["composite_compute_type"] = "f32"
           else:
-            problemDict["new_compute_type"] = "f32"
+            problemDict["composite_compute_type"] = "f32"
         else:
           problemDict["compute_type"] = compType
     else:
@@ -117,26 +137,26 @@ def getSizeParams(size, transA, transB):
         sizeDict["batch_count"] = size[2]
         # rocBLAS-bench will handle setting default strides
 
-    if not transA and not transB: # NN
-        sizeDict["lda"] = size[0]
-        sizeDict["ldb"] = size[3]
+    if len(size)==8: # ld defined in the library logic
+        sizeDict["ldc"] = size[4]
+        sizeDict["ldd"] = size[5]
+        sizeDict["lda"] = size[6]
+        sizeDict["ldb"] = size[7]
+    else: # no ld defined in the library logic
         sizeDict["ldc"] = size[0]
         sizeDict["ldd"] = size[0]
-    elif transA and not transB:   # TN
-        sizeDict["lda"] = size[3]
-        sizeDict["ldb"] = size[3]
-        sizeDict["ldc"] = size[0]
-        sizeDict["ldd"] = size[0]
-    elif not transA and transB:   # NT
-        sizeDict["lda"] = size[0]
-        sizeDict["ldb"] = size[1]
-        sizeDict["ldc"] = size[0]
-        sizeDict["ldd"] = size[0]
-    else:                         # TT
-        sizeDict["lda"] = size[3]
-        sizeDict["ldb"] = size[1]
-        sizeDict["ldc"] = size[0]
-        sizeDict["ldd"] = size[0]
+        if not transA and not transB: # NN
+            sizeDict["lda"] = size[0]
+            sizeDict["ldb"] = size[3]
+        elif transA and not transB:   # TN
+            sizeDict["lda"] = size[3]
+            sizeDict["ldb"] = size[3]
+        elif not transA and transB:   # NT
+            sizeDict["lda"] = size[0]
+            sizeDict["ldb"] = size[1]
+        else:                         # TT
+            sizeDict["lda"] = size[3]
+            sizeDict["ldb"] = size[1]
 
     return sizeDict
 
@@ -158,12 +178,12 @@ def createYaml(args, problem, sizeMappings, verify):
         otherParams = {"alpha": 1, "beta": 1, "iters": 10, "cold_iters": 2}
 
     # create rocBLAS-bench call for each size in logic file
-    for (size, _) in sizeMappings: # size[0] = M, size[1] = N, size[2] = batch_count, size[3] = K
+    for (size, _) in sizeMappings: # size[0] = M, size[1] = N, size[2] = batch_count, size[3] = K, size[4] = ldc, size[5] = ldd, size[6] = lda, size[7] = ldb
         params = {}
  
-        if (size[2] == 1 and not f8gemm):  # non-f8, non-batched gemm (severes both HPA and non-HPA)
+        if (size[2] == 1 and not f8gemm):  # non-f8, non-batched gemm (serves both HPA and non-HPA)
             params["rocblas_function"] = "rocblas_gemm_ex"
-        elif (size[2] != 1 and not f8gemm): # non-f8, strided_batched gemm (severes both HPA and non-HPA)
+        elif (size[2] != 1 and not f8gemm): # non-f8, strided_batched gemm (serves both HPA and non-HPA)
             params["rocblas_function"] = "rocblas_gemm_strided_batched_ex"
         else: # f8
             params["rocblas_function"] = "rocblas_gemm_ex3"
@@ -203,7 +223,7 @@ def main():
     try:
         os.makedirs(args.outDir)
     except OSError:
-        raise 
+        pass 
 
     problem = logicData[4]
     sizeMappings = logicData[7]
@@ -214,3 +234,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
