@@ -4036,25 +4036,22 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # condition(s) to enable init accvgpr opt (use const "0" as an operand instead of initializing whole accvgpr)
     self.useInitAccVgprOpt = False
     # enable for the following conditions
-    if kernel["StoreCInUnroll"]:
-      self.useInitAccVgprOpt = True
-    if (kernel["DirectToVgprA"] or kernel["DirectToVgprB"]):
+    if kernel["EnableMatrixInstruction"]:
       self.useInitAccVgprOpt = True
     # force to disable for the following conditions
     if self.useInitAccVgprOpt:
-      if kernel["PrefetchGlobalRead"] == 2:
-        # PGR=2 case, K > DepthU * 2 is necessary ( if not noTailLoop, need > DepthU * 3)
-        # (kernel["AssertSizeGreaterThan"][3] > DepthU * 2 (or 3)
-        minDUnum = 2 if self.noTailLoop else 3
-        if not (3 in kernel["AssertSizeGreaterThan"].keys() and kernel["AssertSizeGreaterThan"][3] >= kernel["DepthU"] * minDUnum):
-          print2("InitAccVgprOpt is disabled because AssertSizeGreaterThan for K is not greater than DepthU * %u"%minDUnum)
-          self.useInitAccVgprOpt = False
-      if kernel["PrefetchGlobalRead"] == 1:
+      asgt3 = 0 if not (3 in kernel["AssertSizeGreaterThan"].keys()) else kernel["AssertSizeGreaterThan"][3]
+      gsu = kernel["GlobalSplitU"]
+      if kernel["PrefetchGlobalRead"] == 1 or kernel["PrefetchGlobalRead"] == 2:
         # PGR=1 case, K > DepthU * 1 is necessary ( if not noTailLoop, need > DepthU * 2)
-        # (kernel["AssertSizeGreaterThan"][3] > DepthU * 2 (or 3)
-        minDUnum = 1 if self.noTailLoop else 2
-        if not (3 in kernel["AssertSizeGreaterThan"].keys() and kernel["AssertSizeGreaterThan"][3] >= kernel["DepthU"] * minDUnum):
-          print2("InitAccVgprOpt is disabled because AssertSizeGreaterThan for K is not greater than DepthU * %u"%minDUnum)
+        # (kernel["AssertSizeGreaterThan"][3] > DepthU * GSU * 2 (or 3)
+        # PGR=2 case, K > DepthU * 2 is necessary ( if not noTailLoop, need > DepthU * 3)
+        # (kernel["AssertSizeGreaterThan"][3] > DepthU * GSU * 2 (or 3)
+        minDUnum = kernel["PrefetchGlobalRead"]
+        if not self.noTailLoop:
+          minDUnum += 1
+        if not (asgt3 >= kernel["DepthU"] * gsu * minDUnum):
+          print2("InitAccVgprOpt is disabled because AssertSizeGreaterThan for K is not greater than DepthU * GSU * %u"%minDUnum)
           self.useInitAccVgprOpt = False
 
     # condition(s) to enable singleNLL opt

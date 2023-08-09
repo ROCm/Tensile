@@ -7,6 +7,7 @@ GlobalParameters:
   KernelTime: True
   #PrintSolutionRejectionReason: True
   #MaxFileName: 256
+  MinKForGSU: 64
 
 BenchmarkProblems:
   ########################################
@@ -39,7 +40,8 @@ BenchmarkProblems:
           - [ 64, 1, 1 ] # only WG2 is effective for 9 parameter MI
         - AssertFree0ElementMultiple : [8]
         - AssertFree1ElementMultiple : [8]
-        - AssertSummationElementMultiple: [8]
+        - AssertSizeGreaterThan: [{}, {3: 128}, {3: 192}]
+        - AssertSummationElementMultiple: [8, 64]
         - DepthU: [32,64]#[16,32,64]
         - 1LDSBuffer: [0]
         - PrefetchGlobalRead: [1,2]
@@ -61,6 +63,8 @@ BenchmarkProblems:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [504], [504], [1], [2024, 16, 2040] ]
+          - Range: [ [504], [504], [1], [200] ]
+          - Range: [ [504], [504], [1], [192] ]
   
   ########################################
   # HHS TN - DTVA + DTL + min load width for TailLoop
@@ -369,7 +373,8 @@ BenchmarkProblems:
           #- [ 64, 1, 4 ] # only WG2 is effective for 9 parameter MI
         - AssertFree0ElementMultiple : [8]
         - AssertFree1ElementMultiple : [8]
-        - AssertSummationElementMultiple: [8]
+        - AssertSizeGreaterThan: [{}, {3: 128}, {3: 192}]
+        - AssertSummationElementMultiple: [8, 64]
         - DepthU: [16,32,64]
         - 1LDSBuffer: [0]
         - PrefetchGlobalRead: [1,2]
@@ -385,11 +390,15 @@ BenchmarkProblems:
         - DirectToVgprB: [0,1]
         #- DirectToLds: [0,1]
         - NumLoadsCoalescedB: [1]
-        - BufferLoad: [0,1]
+        #- BufferLoad: [0,1]
+        - GlobalSplitU: [1,2]
+        - GlobalSplitUAlgorithm: ["SingleBuffer"]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
           - Range: [ [504], [504], [1], [2024, 8, 2040] ]
+          - Range: [ [504], [504], [1], [200] ]
+          - Range: [ [504], [504], [1], [192] ]
 
   ########################################
   # HHS NN - DTVB (+ DTL) + min load width for TailLoop
