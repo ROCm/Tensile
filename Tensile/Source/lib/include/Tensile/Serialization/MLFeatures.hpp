@@ -92,6 +92,7 @@ namespace Tensile
             {
                 return SubclassMap({Base::template Pair<MLFeatures::FreeSizeA>(),
                                     Base::template Pair<MLFeatures::FreeSizeB>(),
+                                    Base::template Pair<MLFeatures::BatchSize>(),
                                     Base::template Pair<MLFeatures::BoundSize>(),
                                     Base::template Pair<MLFeatures::Tile0Granularity>(),
                                     Base::template Pair<MLFeatures::Tile1Granularity>(),
@@ -118,6 +119,12 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<MLFeatures::FreeSizeB, IO>
             : public AutoMappingTraits<MLFeatures::FreeSizeB, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<MLFeatures::BatchSize, IO>
+            : public AutoMappingTraits<MLFeatures::BatchSize, IO>
         {
         };
 

@@ -126,6 +126,26 @@ namespace Tensile
             }
         };
 
+        struct BatchSize : public MLFeature_CRTP<BatchSize, ContractionProblem>
+        {
+            enum
+            {
+                HasIndex = true,
+                HasValue = false
+            };
+            size_t index;
+
+            static std::string Type()
+            {
+                return "BatchSize";
+            }
+
+            virtual float operator()(ContractionProblem const& problem) const
+            {
+                return (float)problem.batchSize(index);
+            }
+        };
+
         struct BoundSize : public MLFeature_CRTP<BoundSize, ContractionProblem>
         {
             enum
