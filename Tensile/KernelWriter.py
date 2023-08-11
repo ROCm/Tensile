@@ -3278,7 +3278,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             tailLoopInnerUnroll = kernel["InnerUnroll"]
           # need to unroll tail loop for the following cases
           mEnd = 1
-          if kernel["DirectToVgprA"] or kernel["DirectToVgprB"]:
+          if kernel["DirectToVgprA"] or kernel["DirectToVgprB"] or kernel["DirectToLdsA"] or kernel["DirectToLdsB"]:
             mEnd = kernel["DepthU"]//(kernel["MatrixInstK"]*kernel["LocalSplitU"])
 
           for mValue in range(mEnd):
