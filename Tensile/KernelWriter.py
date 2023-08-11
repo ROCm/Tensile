@@ -4036,7 +4036,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # condition(s) to enable init accvgpr opt (use const "0" as an operand instead of initializing whole accvgpr)
     self.useInitAccVgprOpt = False
     # enable for the following conditions
-    if kernel["EnableMatrixInstruction"] and (kernel["PrefetchGlobalRead"] == 1 or kernel["PrefetchGlobalRead"] == 2):
+    if kernel["EnableMatrixInstruction"] and (kernel["PrefetchGlobalRead"] == 1 or kernel["PrefetchGlobalRead"] == 2) \
+       and globalParameters["AsmCaps"][globalParameters["CurrentISA"]]["HasMFMA_constSrc"]:
       self.useInitAccVgprOpt = True
     # force to disable for the following conditions
     if self.useInitAccVgprOpt:
