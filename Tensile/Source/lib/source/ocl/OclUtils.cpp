@@ -201,6 +201,7 @@ namespace Tensile
             auto            maxWorkGroupSize = device.getInfo<CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS>();
             oclDeviceProp_t result           = {
                 device.getInfo<CL_DEVICE_BOARD_NAME_AMD>(), //std::string name;
+                device.getInfo<CL_DEVICE_NAME>(), // std::string gcnArchName;
                 device.getInfo<CL_DEVICE_GLOBAL_MEM_SIZE>(), // size_t totalGlobalMem;
                 device.getInfo<
                     CL_DEVICE_LOCAL_MEM_SIZE>(), // size_t sharedMemPerBlock; CL_DEVICE_LOCAL_MEM_SIZE
