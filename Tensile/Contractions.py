@@ -381,7 +381,7 @@ class ProblemPredicate(Properties.Predicate):
             rv += [cls("KernelLanguageCompatible", value=state["KernelLanguage"])]
 
         if ('GlobalSplitU' in state) and (state['GlobalSplitU'] > 1):
-            if ('_GlobalAccumulation' not in state) or (state['_GlobalAccumulation'] != 'MultipleBuffer'):
+            if ('_GlobalAccumulation' not in state) or (state['_GlobalAccumulation'] == 'SingleBuffer'):
                 rv += [cls("DeterministicMode", value = False)]
 
         if ('StreamK' in state) and (state['StreamK'] == 1):
@@ -426,7 +426,7 @@ class ProblemPredicate(Properties.Predicate):
                 val = min(val, state["AssertSizeLessThan"][1] - 1)
             rv += [cls('BufferStoreOffsetLimitCheck', value=val)]
 
-        if '_GlobalAccumulation' in state and state['_GlobalAccumulation'] != None:
+        if '_GlobalAccumulation' in state and state['_GlobalAccumulation'] != None and not state["StreamK"]:
             value = globalParameters['MinKForGSU'] * state['GlobalSplitU']
             rv += [cls('GlobalSplitUCheckMinK', value=value)]
 
@@ -468,6 +468,8 @@ class SizeMapping:
             globalAccum = 1
         if d['_GlobalAccumulation'] == 'MultipleBuffer':
             globalAccum = 2
+        if d['_GlobalAccumulation'] == 'PartialsBuffer':
+            globalAccum = 3
         return cls(workGroup             = d['WorkGroup'],
                    macroTile             = cls.ReadOriginalMacroTile(d),
                    threadTile            = d['ThreadTile'],

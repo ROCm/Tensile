@@ -453,7 +453,7 @@ namespace Tensile
                     {
                         maxWorkspaceSize
                             = std::max(maxWorkspaceSize,
-                                       solution->requiredWorkspaceSize(problems[problemIdx]));
+                                       solution->requiredWorkspaceSize(problems[problemIdx], *hardware));
                     }
 
                     listeners.postSolution();

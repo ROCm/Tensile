@@ -378,7 +378,7 @@ namespace Tensile
             rv.args.append<uint64_t>("tensor2dSizeB", tensor2dSizeB);
         }
 
-        if(sizeMapping.globalAccumulation)
+        if(sizeMapping.globalAccumulation && sizeMapping.streamK != 2)
         {
             rv.args.append<void const*>("ws_d", inputs.ws);
             rv.args.append<void const*>("ws_c", inputs.ws);
@@ -405,6 +405,12 @@ namespace Tensile
             rv.args.append<typename TypedInputs::BType const* const*>("batchB", inputs.batchB);
         }
 
+        if(sizeMapping.streamK == 2)
+        {
+            // StreamK workspace + flags
+            rv.args.append<void const*>("ws", inputs.ws);
+        }
+
         rv.args.append<uint64_t>("offsetD", d.offset());
         rv.args.append<uint64_t>("offsetC", c.offset());
         rv.args.append<uint64_t>("offsetA", a.offset());
@@ -424,7 +430,7 @@ namespace Tensile
         size_t startStrideCD = problemType.useInitialStridesCD ? 0 : 1;
         size_t startStrideAB = problemType.useInitialStridesAB ? 0 : 1;
 
-        if(sizeMapping.globalAccumulation)
+        if(sizeMapping.globalAccumulation && sizeMapping.streamK != 2)
         {
             size_t wsStride = startStrideCD ? d.sizes()[0] : 1;
             for(size_t i = startStrideCD; i < d.dimensions(); i++)
@@ -967,8 +973,9 @@ namespace Tensile
         else
             rv.push_back(generateSingleCall<TypedInputs, false>(problem, inputs, hardware));
 
-        if(sizeMapping.globalAccumulation)
+        if(sizeMapping.globalAccumulation && !sizeMapping.streamK)
         {
+            // TODO Streamk May need conversion call for HPA??
             if(debug)
                 rv.push_back(
                     generateOutputConversionCall<TypedInputs, true>(problem, inputs, hardware));
@@ -1211,11 +1218,19 @@ namespace Tensile
         return spm;
     }
 
-    size_t ContractionSolution::requiredWorkspaceSize(Problem const& problem) const
+    size_t ContractionSolution::requiredWorkspaceSize(Problem const& problem, Hardware const& hardware) const
     {
         size_t size = 0;
 
         size += problem.d().totalLogicalElements() * sizeMapping.workspaceSizePerElemC;
+        if(sizeMapping.streamK == 2)
+        {
+            // Add space for flags
+            AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
+            assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
+            size_t cuCount = pAMDGPU->computeUnitCount;
+            size += cuCount; // TODO flag per batch
+        }
 
         return size;
     }

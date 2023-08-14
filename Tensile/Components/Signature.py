@@ -203,6 +203,8 @@ class SignatureDefault(Signature):
         kStr += self.addArgument(                               'C',     '8', offset, "global_buffer", dstValueType, "generic"); offset += 8
         kStr += self.addArgument(                               'A',     '8', offset, "global_buffer", srcValueTypeA, "generic"); offset += 8
         kStr += self.addArgument(                               'B',     '8', offset, "global_buffer", srcValueTypeB, "generic"); offset += 8
+        if kernel["StreamK"] == 2:
+            kStr += self.addArgument(                          'WS',     '8', offset, "global_buffer", dstValueType, "generic"); offset += 8
 
         kStr += self.addArgument("OffsetD", '8', offset, "by_value", "u64"); offset += 8
         kStr += self.addArgument("OffsetC", '8', offset, "by_value", "u64"); offset += 8

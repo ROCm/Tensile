@@ -2704,6 +2704,12 @@ class Solution(collections.abc.Mapping):
       state["_GlobalAccumulation"] = None
       state["_WorkspaceSizePerElemC"] = 0
 
+      if state["StreamK"] == 2:
+        print("SK8 - Workspace size")
+        computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
+        state["_GlobalAccumulation"] = 'PartialsBuffer'
+        state["_WorkspaceSizePerElemC"] = computeBytes
+        
       if state["GlobalSplitU"] > 1:
         computeName  = state["ProblemType"]["ComputeDataType"].toName()
         computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
@@ -2728,7 +2734,7 @@ class Solution(collections.abc.Mapping):
       print2("in assignDerivedParameters, state['Valid'] = False")
       return
 
-    atomic = ((state["GlobalSplitU"] > 1) and (state["_GlobalAccumulation"] != 'MultipleBuffer')) or state["AtomicAddC"]
+    atomic = ((state["GlobalSplitU"] > 1) and (state["_GlobalAccumulation"] != 'MultipleBuffer')) or state["AtomicAddC"] or state["StreamK"] == 1
     if atomic and globalParameters["DebugSkipAtomic"]:
       reject(state, "DEBUG: DebugSkipAtomic enabled, rejecting atomic kernel")
     if not atomic and globalParameters["DebugSkipNonAtomic"]:

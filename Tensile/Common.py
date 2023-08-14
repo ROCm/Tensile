@@ -1090,8 +1090,9 @@ validParameters = {
     "Fp16AltImplRound": [False, True],
 
     # 0: Data parallel
-    # 1: Basic StreamK
-    "StreamK": [0, 1],
+    # 1: Basic StreamK atomic
+    # 2: Basic StreamK non-atomic
+    "StreamK": [0, 1, 2],
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
