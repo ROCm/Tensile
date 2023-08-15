@@ -37,7 +37,8 @@ BenchmarkProblems:
         - PrefetchGlobalRead: [1]
         - PrefetchLocalRead: [0]
         - KernelLanguage: ["Assembly"]
-        - DirectToLds: [1]
+        - DirectToLdsA: [False, True]
+        - DirectToLdsB: [False, True]
         - ThreadTile:
           - [ 8, 8 ]
         - WorkGroup:
