@@ -117,7 +117,8 @@ BenchmarkProblems:
         - StoreVectorWidth: [1,2,4]
         - LocalReadVectorWidth: [1,2,4]
         - WorkGroupMapping: [8]
-        - DirectToLds: [True, False]
+        - DirectToLdsA: [False, True]
+        - DirectToLdsB: [False, True]
         - DirectToVgprB: [True, False]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:

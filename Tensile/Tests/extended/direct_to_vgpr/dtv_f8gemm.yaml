@@ -64,7 +64,8 @@ BenchmarkProblems:
         - NumElementsPerBatchStore: [4]
         - UseSgprForGRO: [0]
         - DirectToVgprA: [1]
-        - DirectToLds: [0,1]
+        #- DirectToLdsA: [False, True]
+        - DirectToLdsB: [False, True]
         - NumLoadsCoalescedA: [1,2,4]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
@@ -112,7 +113,8 @@ BenchmarkProblems:
         - NumElementsPerBatchStore: [4]
         - UseSgprForGRO: [0]
         - DirectToVgprB: [1]
-        - DirectToLds: [0,1]
+        - DirectToLdsA: [False, True]
+        #- DirectToLdsB: [False, True]
         - NumLoadsCoalescedB: [1,2,4]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:

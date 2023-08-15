@@ -2525,6 +2525,7 @@ class Solution(collections.abc.Mapping):
     numBytes = state["ProblemType"]["DataType"].numBytes()
     asem = state["AssertSummationElementMultiple"]
     gsu = state["GlobalSplitU"]
+    tcOther = "B" if tc == "A" else "A"
 
     # x2/x4 support for directToLds (no longer supported)
 
@@ -2633,6 +2634,11 @@ class Solution(collections.abc.Mapping):
     # Does not work with PrefetchGlobalRead=2 and MatrixInstB > 1
     if state["PrefetchGlobalRead"] == 2 and state["MatrixInstB"] > 1:
       reject(state, "DirectToLds%c does not work with PrefetchGlobalRead=2 and MatrixInstB > 1"%(tc))
+      return False
+
+    # Does not work with PrefetchGlobalRead=2 and the other side of DirectToLds and DirectToVgpr are false
+    if state["PrefetchGlobalRead"] == 2 and state["DirectToLds%c"%tcOther] == False and state["DirectToVgpr%c"%tcOther] == False:
+      reject(state, "DirectToLds%c does not work with PrefetchGlobalRead=2 and DirectToLds%c and DirectToVgpr%c "%(tc, tcOther, tcOther))
       return False
 
     # DirectToLds does not work if MacroTile is not power of 2
@@ -2842,10 +2848,6 @@ class Solution(collections.abc.Mapping):
     Solution.checkAndAssignWaveSeparateGlobalRead(state, 'B')
 
     # Init vars early since there are early-exit return statements below
-    if state["DirectToLds"]:
-      # DirectToLds is equivalent to DirectToLdsA and DirectToLdsB
-      state["DirectToLdsA"] = True
-      state["DirectToLdsB"] = True
     state["LocalWriteUseSgprA"] = False
     state["LocalWriteUseSgprB"] = False
 
@@ -2952,7 +2954,6 @@ class Solution(collections.abc.Mapping):
 
     bufferLoad = state["BufferLoad"] and state["KernelLanguage"] == "Assembly"
     if not bufferLoad:
-      state["DirectToLds"] = False
       state["DirectToLdsA"] = False
       state["DirectToLdsB"] = False
       state["_UseSgprForGRO"] = False
@@ -3813,7 +3814,7 @@ class Solution(collections.abc.Mapping):
     #print("ldsNumElementsAB", ldsNumElementsAB)
 
     if state["EnableMatrixInstruction"]:
-      if state["DirectToLds"] and state["1LDSBuffer"]:
+      if (state["DirectToLdsA"] or state["DirectToLdsB"]) and state["1LDSBuffer"]:
         reject(state, "1LDSBuffer must be 0 for directToLds")
 
     # ThreadSeparateGlobalRead + no DirectToLds case (equivalent to previous SplitGlobalRead)

@@ -681,12 +681,10 @@ validParameters = {
     # local write offset with an SGPR.
     # For an 8x8 TT with PrefetchGlobalRead=1 this can save 33 VGPRs.
     #    - Requirements for DirectToLds=1:
-    #      GlobalLoadVectorWidth = 1/2/4
+    #      GlobalLoadVectorWidth * bpe should be 4
     #      TransposeLDS = 1 for TLU=0 case
-    # DirectToLds support for x2/x4 (1st part of async_copy() support)
-    # DirectToLds = True is equivalent to DirectToLdsA = True and DirectToLdsB = True (DirectToLdsA,B will be ignored)
-    # if DirectToLds is False, DirectToLdsA, B will be used
-    "DirectToLds":                [ False, True ],
+    # old DirectToLds parameter is replaced with DirectToLdsA, B
+    #"DirectToLds":                [ False, True ],
     "DirectToLdsA":                [ False, True ],
     "DirectToLdsB":                [ False, True ],
 
@@ -1398,7 +1396,6 @@ defaultBenchmarkCommonParameters = [
     {"BufferStore":               [ True ] },
     {"DirectToVgprA":             [ False ] },
     {"DirectToVgprB":             [ False ] },
-    {"DirectToLds":               [ False ] },
     {"DirectToLdsA":              [ False ] },
     {"DirectToLdsB":              [ False ] },
     {"UseSgprForGRO":             [ -1 ] },
