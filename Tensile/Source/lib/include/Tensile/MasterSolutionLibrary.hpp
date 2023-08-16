@@ -200,6 +200,13 @@ namespace Tensile
                 {
                     // Get solution via index
                     std::shared_ptr<MySolution> solution = getSolutionByIndex(ps.second);
+                    if(!solution)
+                    {
+                        // Load library
+                        auto problem = ps.first.problem();
+                        library->findAllSolutions(problem, hardware);
+                        solution = getSolutionByIndex(ps.second);
+                    }
 
                     // Update cache
                     success &= lib.addToOverride(ps.first, hardware, solution);
