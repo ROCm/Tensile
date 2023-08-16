@@ -199,13 +199,15 @@ namespace Tensile
                 for(const auto& ps : probSols)
                 {
                     // Get solution via index
-                    std::shared_ptr<MySolution> solution = getSolutionByIndex(ps.second);
+                    int sol_idx = ps.second - 1;
+
+                    std::shared_ptr<MySolution> solution = getSolutionByIndex(sol_idx);
                     if(!solution)
                     {
                         // Load library
                         auto problem = ps.first.problem();
                         library->findAllSolutions(problem, hardware);
-                        solution = getSolutionByIndex(ps.second);
+                        solution = getSolutionByIndex(sol_idx);
                     }
 
                     // Update cache
