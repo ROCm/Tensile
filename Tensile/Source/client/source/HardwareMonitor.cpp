@@ -374,7 +374,7 @@ namespace Tensile
                     if(freq.current < RSMI_MAX_NUM_FREQUENCIES)
                     {
                         m_clockValues[i] += freq.frequency[freq.current];
-					}
+                    }
                 }
             }
 
