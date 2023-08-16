@@ -2167,11 +2167,6 @@ def assignGlobalParameters( config ):
       globalParameters["CurrentISA"] = (9,0,6)
       printWarning("Failed to detect ISA so forcing (gfx906) on windows")
 
-  # TODO Remove this when rocm-smi supports gfx940
-  if globalParameters["CurrentISA"] == (9,4,0) or globalParameters["CurrentISA"] == (9,4,1) or globalParameters["CurrentISA"] == (9,4,2):
-    printWarning("HardwareMonitor currently disabled for gfx940/941/942")
-    globalParameters["HardwareMonitor"] = False
-
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
   # '0.0.0' will persist
