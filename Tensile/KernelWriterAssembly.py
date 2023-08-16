@@ -12345,8 +12345,6 @@ class KernelWriterAssembly(KernelWriter):
       else:
         edgeI = edge
       #edgeI = True  # set to True to disable vector stores
-      stream = getattr(sys, "stdout")
-      stream.flush()
       gwvw = vectorWidths[edgeI]
 
       ########################################
@@ -12556,8 +12554,6 @@ class KernelWriterAssembly(KernelWriter):
       for batchIdx in range(0, numBatches):
         elementStartIdx = batchIdx * numElementsPerBatch
         elementStopIdx = min( elementStartIdx + numElementsPerBatch, len(elements[edgeI]) )
-        stream = getattr(sys, "stdout")
-        stream.flush()
         elementsThisBatch = elements[edgeI][elementStartIdx:elementStopIdx]
         #print("BATCH[%u/%u]: elements[edgeI][%u:%u] VGPRs=%u" % (batchIdx, numBatches, elementStartIdx, elementStopIdx,numVgprsPerElement ))
         # elementVgprs can be large and should be perfectly tuned to the number of available
@@ -12946,7 +12942,8 @@ class KernelWriterAssembly(KernelWriter):
     # Sgprs
 
     # allocate tmps for the store header (before the batch implementations)
-    tmpSgpr = self.getTmpSgpr(4).idx()
+    tmpSgprRef = self.getTmpSgpr(4)
+    tmpSgpr = tmpSgprRef.idx()
 
     # branch B1 or B0
     betaLabel = self.getNamedLabelUnique("GW_Beta")
