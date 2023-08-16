@@ -94,11 +94,6 @@ namespace Tensile
             }
         }
 
-        void throwException(const std::string& msg)
-        {
-            throw std::runtime_error(msg.c_str());
-        }
-
         template <typename Accumulator, typename TypeL, typename TypeR>
         inline Accumulator multiply(TypeL l, TypeR r)
         {

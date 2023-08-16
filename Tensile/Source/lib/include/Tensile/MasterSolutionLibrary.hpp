@@ -29,10 +29,14 @@
 #include <chrono>
 #include <map>
 #include <memory>
+#include <string>
+#include <vector>
 
+#include <Tensile/CachingLibrary.hpp>
 #include <Tensile/Debug.hpp>
 #include <Tensile/SolutionLibrary.hpp>
 #include <Tensile/Tensile.hpp>
+#include <Tensile/UserDrivenTuningParser.hpp>
 
 namespace Tensile
 {
@@ -179,6 +183,36 @@ namespace Tensile
             }
         }
 
+        bool setOverridesFromFile(Hardware const& hardware, const std::string& file_path)
+        {
+            try
+            {
+                // Early exit if no caching library
+                auto& lib = dynamic_cast<CachingLibrary<MyProblem, MySolution>&>(*library);
+
+                auto probSols = getContractionProblemsFromFile<MyProblem>(file_path);
+                if(probSols.size() == 0)
+                    return false;
+
+                bool success = true;
+
+                for(const auto& ps : probSols)
+                {
+                    // Get solution via index
+                    std::shared_ptr<MySolution> solution = getSolutionByIndex(ps.second);
+
+                    // Update cache
+                    success &= lib.addToOverride(ps.first, hardware, solution);
+                }
+
+                return success;
+            }
+            catch(std::bad_cast const& exc)
+            {
+                return false;
+            }
+        }
+
         virtual SolutionSet<MySolution> findAllSolutions(MyProblem const& problem,
                                                          Hardware const&  hardware) const override
         {
@@ -192,5 +226,4 @@ namespace Tensile
             return library->findAllSolutionsMatchingType(problem, hardware);
         }
     };
-
 } // namespace Tensile

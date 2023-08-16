@@ -12,13 +12,11 @@ GlobalParameters:
   ValidationPrintValids: False
   ShortNames: False
   MergeFiles: True
-  PlatformIdx: 0
-  DeviceIdx: 0
   #  DataInitTypeAB: 0
   PrintSolutionRejectionReason: True
 
 BenchmarkProblems:
-  - # sgemm NN
+  - # hgemm NN
     - # ProblemType
       OperationType: GEMM
       DataType: H
@@ -48,16 +46,14 @@ BenchmarkProblems:
         - StaggerU: [0]
         - StaggerUStride: [0]
         - StaggerUMapping: [0]
-        - MinKForGSU: [32,64,128,256]
-      ForkParameters:
-        - GlobalSplitU: [8]
+        - GlobalSplitU: [8,16,20,64]
         - DepthU: [ 32 ]
         - LdsPadA: [2]
         - LdsPadB: [2]
         - ThreadTile:
-          - [ 4, 4 ]
+          - [ 2, 8 ]
         - WorkGroup:
-          - [  1, 8, 16]
+          - [  1, 4, 16]
       #BenchmarkForkParameters: # obsolete
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:

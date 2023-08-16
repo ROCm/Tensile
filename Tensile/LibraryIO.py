@@ -181,6 +181,9 @@ def parseLibraryLogicData(data, srcFile="?"):
     if "Fp16AltImpl" not in data:
         data["Fp16AltImpl"] = False
 
+    if "Fp16AltImplRound" not in data:
+        data["Fp16AltImplRound"] = False
+
     if not versionIsCompatible(data["MinimumRequiredVersion"]):
         printWarning("Version = {} in library logic file {} does not match Tensile version = {}" \
                 .format(srcFile, data["MinimumRequiredVersion"], __version__) )
@@ -239,8 +242,11 @@ def parseLibraryLogicList(data, srcFile="?"):
     if len(data) > 10 and data[10]:
         rv["PerfMetric"] = data[10]
 
-    if len(data) > 11 and data[11]:
+    if len(data) > 11 and data[11] == "Fp16AltImpl":
         rv["Fp16AltImpl"] = True
+
+    if len(data) > 13 and data[13] == "Fp16AltImplRound":
+        rv["Fp16AltImplRound"] = True
 
     # library logic fields
     rv["LibraryType"] = "Matching"

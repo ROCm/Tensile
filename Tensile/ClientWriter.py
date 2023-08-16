@@ -88,7 +88,6 @@ def main( config ):
   print1("LogicFiles: %s" % logicFiles)
   functions = []
   functionNames = []
-  enableHalf = False
 
   createLibraryScript = getBuildClientLibraryScript(stepBaseDir, libraryLogicPath)
   subprocess.run(createLibraryScript, cwd=stepBaseDir)
@@ -104,8 +103,6 @@ def main( config ):
   for logicFileName in logicFiles:
     (scheduleName, _, problemType, _, exactLogic, newLibrary) \
         = LibraryIO.parseLibraryLogicFile(logicFileName)
-    if problemType["DataType"].isHalf():
-        enableHalf = True
     functions.append((scheduleName, problemType))
     functionNames.append("tensile_%s" % (problemType))
     problemSizes = ProblemSizesMock(exactLogic)
@@ -120,7 +117,6 @@ def main( config ):
                                   codeObjectFiles=coList,
                                   tileAwareSelection=False,
                                   libraryFile=yamlList[0]))
-  globalParameters["EnableHalf"] = enableHalf
 
   ##############################################################################
   # Write Generated Header

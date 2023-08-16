@@ -95,9 +95,7 @@ globalParameters["ConvolutionVsContraction"] = False
 globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["SolutionSelectionAlg"] = 1          # algorithm to determine which solutions to keep. 0=removeLeastImportantSolutions, 1=keepWinnerSolutions (faster)
 globalParameters["ExpandRanges"] = True          # expand ranges into exact configs before writing logic file.  False ignores ranges.
-globalParameters["ExitAfterKernelGen"] = False     # Exit after generating kernels
 globalParameters["GenerateSourcesAndExit"] = False # Exit after kernel source generation.
-globalParameters["ShowProgressBar"] = True     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["WavefrontWidth"] = 64     # if False and library client already built, then building library client will be skipped when tensile is re-run
 globalParameters["ExitOnFails"] = 1     # 1: Exit after benchmark run if failures detected.  2: Exit during benchmark run.
 globalParameters["CpuThreads"] = -1  # How many CPU threads to use for kernel generation. N=min(nproc,N). Setting CpuThreads < 1 (ie: 0 or -1) will use max threads (nproc)
@@ -205,7 +203,6 @@ globalParameters["SupportedISA"] = [(8,0,3), (9,0,0), (9,0,6), (9,0,8), (9,0,10)
 
 globalParameters["CleanupBuildFiles"] = False                     # cleanup build files (e.g. kernel assembly) once no longer needed
 globalParameters["GenerateManifestAndExit"] = False               # Output manifest file with list of expected library objects and exit
-globalParameters["NewClient"] = 2                                 # Old client deprecated: NewClient must be set to 2.
 globalParameters["ClientBuildPath"] = "0_Build"                   # subdirectory for host code build directory
 globalParameters["BenchmarkProblemsPath"] = "1_BenchmarkProblems" # subdirectory for benchmarking phases
 globalParameters["BenchmarkDataPath"] = "2_BenchmarkData"         # subdirectory for storing final benchmarking data
@@ -238,7 +235,6 @@ globalParameters["CxxCompiler"] = "hipcc"
 globalParameters["Architecture"] = "all"
 
 # might be deprecated
-globalParameters["EnableHalf"] = False
 globalParameters["ClientArgs"] = ""
 globalParameters["PackageLibrary"] = False
 
@@ -1057,6 +1053,8 @@ validParameters = {
 
     # alternate implementation for fp16 HPA MFMA
     "Fp16AltImpl": [False, True],
+    # fp16 alternate implementation round mode: false for truncate, true for round near zero
+    "Fp16AltImplRound": [False, True],
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
@@ -1434,6 +1432,7 @@ defaultBenchmarkCommonParameters = [
     {"StoreCInUnrollExact":       [ False ] },
     {"StoreCInUnrollPostLoop":    [ False ] },
     {"Fp16AltImpl":               [ False ] },
+    {"Fp16AltImplRound":          [ False ] },
     {"ThreadSeparateGlobalReadA": [ 0 ] },
     {"ThreadSeparateGlobalReadB": [ 0 ] },
     {"MinKForGSU":                [256]}
@@ -1640,7 +1639,8 @@ defaultProblemType = {
     "TileAwareSelection":       False,
 
     # FP16 Alternate Implementation
-    "Fp16AltImpl":              False
+    "Fp16AltImpl":              False,
+    "Fp16AltImplRound":         False
     }
 
 defaultProblemSizes = [{"Range": [ [2880], 0, 0 ]}]

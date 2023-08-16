@@ -818,7 +818,8 @@ namespace Tensile
               && (problemType.dType == problem.d().dataType())
               && (problemType.highPrecisionAccumulate == problem.highPrecisionAccumulate())
               && (problemType.stridedBatched == problem.stridedBatched())
-              && (problemType.fp16AltImpl == problem.fp16AltImpl());
+              && (problemType.fp16AltImpl == problem.fp16AltImpl())
+              && (problemType.fp16AltImplRound == problem.fp16AltImplRound());
         return matchesHardware && matchesType;
     }
 

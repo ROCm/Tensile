@@ -95,6 +95,7 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::ExperimentalGrid>(),
                     Base::template Pair<Predicates::Contraction::ExperimentalDTree>(),
                     Base::template Pair<Predicates::Contraction::Fp16AltImpl>(),
+                    Base::template Pair<Predicates::Contraction::Fp16AltImplRound>(),
                     Base::template Pair<Predicates::Contraction::EqualityMatching>(),
                     Base::template Pair<Predicates::Contraction::SizeInRange>(),
                 });
@@ -346,6 +347,12 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Predicates::Contraction::Fp16AltImpl, IO>
             : public AutoMappingTraits<Predicates::Contraction::Fp16AltImpl, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::Contraction::Fp16AltImplRound, IO>
+            : public AutoMappingTraits<Predicates::Contraction::Fp16AltImplRound, IO>
         {
         };
 

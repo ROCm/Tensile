@@ -35,9 +35,12 @@
 #include <Tensile/Distance.hpp>
 #include <Tensile/ExactLogicLibrary.hpp>
 #include <Tensile/MasterSolutionLibrary.hpp>
+#include <Tensile/UserDrivenTuningParser.hpp>
 
 #include <memory>
 #include <random>
+#include <string>
+#include <vector>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -896,4 +899,209 @@ TEST(CachingLibrary, FlagsDiff)
         auto theSolution7_cached = lib.findSolutionInCache(Problem7, gpu);
         EXPECT_EQ(theSolution7, theSolution7_cached);
     }
+}
+
+TEST(CachingLibrary, Insert)
+{
+    using namespace Tensile;
+
+    auto SolutionDefault  = std::make_shared<ContractionSolution>();
+    auto SolutionOverride = std::make_shared<ContractionSolution>();
+
+    SolutionDefault->index  = 0;
+    SolutionOverride->index = 1;
+
+    SolutionMap<ContractionSolution> map({{0, SolutionDefault}, {1, SolutionOverride}});
+
+    auto LibraryDefault  = std::make_shared<SingleContractionLibrary>(SolutionDefault);
+    auto LibraryOverride = std::make_shared<SingleContractionLibrary>(SolutionOverride);
+
+    AMDGPU gpu;
+
+    auto Problem0 = ContractionProblem::GEMM(false, false, 4, 4, 4, 4, 4, 4, 1.2, false, 1);
+    auto Problem1 = ContractionProblem::GEMM(false, false, 5, 5, 5, 5, 5, 5, 1.2, false, 1);
+    auto Problem2 = ContractionProblem::GEMM(true, false, 6, 6, 6, 6, 6, 6, 1.2, false, 1);
+    auto Problem3 = ContractionProblem::GEMM(true, true, 7, 7, 7, 7, 7, 7, 1.2, false, 1);
+
+    using Key = std::array<int64_t, 4>;
+    using Table
+        = Matching::DistanceMatchingTable<Key,
+                                          ContractionProblem,
+                                          std::shared_ptr<SolutionLibrary<ContractionProblem>>,
+                                          std::shared_ptr<ContractionSolution>,
+                                          Matching::EuclideanDistance<Key>>;
+    using Properties = std::vector<std::shared_ptr<Property<ContractionProblem>>>;
+
+    Properties properties;
+
+    {
+        auto freeSizeA   = std::make_shared<Contraction::FreeSizeA>();
+        freeSizeA->index = 0;
+        properties.push_back(freeSizeA);
+        auto freeSizeB   = std::make_shared<Contraction::FreeSizeB>();
+        freeSizeB->index = 0;
+        properties.push_back(freeSizeB);
+        auto batchSize   = std::make_shared<Contraction::BatchSize>();
+        batchSize->index = 0;
+        properties.push_back(batchSize);
+        auto boundSize   = std::make_shared<Contraction::BoundSize>();
+        boundSize->index = 0;
+        properties.push_back(boundSize);
+    }
+
+    std::shared_ptr<Table> matchingTable = std::make_shared<Table>(properties);
+
+    using Entry
+        = Matching::MatchingTableEntry<Key, std::shared_ptr<SolutionLibrary<ContractionProblem>>>;
+
+    std::vector<Entry> table;
+
+    {
+        Entry map0{{4, 4, 1, 4}, LibraryDefault, 1.0};
+        table.push_back(map0);
+        Entry map1{{1000, 1000, 1, 1000}, LibraryOverride, 1.0};
+        table.push_back(map1);
+    }
+
+    matchingTable->table = table;
+
+    auto subLib = std::make_shared<ProblemMatchingLibrary<ContractionProblem>>();
+
+    subLib->table = matchingTable;
+
+    CachingLibrary<ContractionProblem> lib(subLib);
+
+    // Add before solution cached
+    EXPECT_TRUE(lib.addToOverride(Problem1, gpu, SolutionOverride));
+
+    EXPECT_EQ(lib.findBestSolution(Problem0, gpu), SolutionDefault);
+    EXPECT_EQ(lib.findBestSolution(Problem1, gpu), SolutionOverride);
+    EXPECT_EQ(lib.findBestSolution(Problem2, gpu), SolutionDefault);
+    EXPECT_EQ(lib.findBestSolution(Problem3, gpu), SolutionDefault);
+
+    // Add after solution cached
+    EXPECT_TRUE(lib.addToOverride(Problem3, gpu, SolutionOverride));
+    EXPECT_FALSE(lib.addToOverride(Problem3, gpu, nullptr));
+
+    EXPECT_EQ(lib.findBestSolution(Problem0, gpu), SolutionDefault);
+    EXPECT_EQ(lib.findBestSolution(Problem1, gpu), SolutionOverride);
+    EXPECT_EQ(lib.findBestSolution(Problem2, gpu), SolutionDefault);
+    EXPECT_EQ(lib.findBestSolution(Problem3, gpu), SolutionOverride);
+}
+
+TEST(CachingLibrary, Parsing)
+{
+    using namespace Tensile;
+
+    // Non-strided
+    std::vector<std::string> entries0{"T",
+                                      "N",
+                                      "2304",
+                                      "256",
+                                      "1",
+                                      "1729",
+                                      "1",
+                                      "1",
+                                      "1729",
+                                      "1729",
+                                      "2304",
+                                      "f16_r",
+                                      "f16_r",
+                                      "f32_r",
+                                      "752"};
+
+    auto probSol = problemFromEntries<ContractionProblem>(entries0);
+    EXPECT_TRUE(probSol.first.transA());
+    EXPECT_FALSE(probSol.first.transB());
+
+    EXPECT_EQ(probSol.first.m(), 2304);
+    EXPECT_EQ(probSol.first.n(), 256);
+    EXPECT_EQ(probSol.first.batchSize(), 1);
+    EXPECT_EQ(probSol.first.k(), 1729);
+
+    EXPECT_EQ(probSol.first.beta(), 1.0);
+
+    EXPECT_EQ(probSol.first.inputType(), DataType::Half);
+    EXPECT_EQ(probSol.first.outputType(), DataType::Half);
+    EXPECT_TRUE(probSol.first.HPA());
+
+    EXPECT_EQ(probSol.second, 752);
+
+    // Strided
+    std::vector<std::string> entries1{"N",
+                                      "T",
+                                      "104",
+                                      "104",
+                                      "1024",
+                                      "64",
+                                      "1",
+                                      "0",
+                                      "104",
+                                      "64",
+                                      "104",
+                                      "6656",
+                                      "6656",
+                                      "10816",
+                                      "f32_r",
+                                      "f32_r",
+                                      "f32_r",
+                                      "3976"};
+
+    probSol = problemFromEntries<ContractionProblem>(entries1);
+    EXPECT_FALSE(probSol.first.transA());
+    EXPECT_TRUE(probSol.first.transB());
+
+    EXPECT_EQ(probSol.first.m(), 104);
+    EXPECT_EQ(probSol.first.n(), 104);
+    EXPECT_EQ(probSol.first.batchSize(), 1024);
+    EXPECT_EQ(probSol.first.k(), 64);
+
+    EXPECT_EQ(probSol.first.beta(), 0.0);
+
+    EXPECT_EQ(probSol.first.inputType(), DataType::Float);
+    EXPECT_EQ(probSol.first.outputType(), DataType::Float);
+    EXPECT_FALSE(probSol.first.HPA());
+
+    EXPECT_EQ(probSol.second, 3976);
+
+    // Bad args
+    std::vector<std::string> entries2{"N", "T", "104"}; // Too short
+    probSol = problemFromEntries<ContractionProblem>(entries2);
+    EXPECT_EQ(probSol.second, -1);
+
+    std::vector<std::string> entries3{"T",
+                                      "N",
+                                      "2304",
+                                      "256",
+                                      "1",
+                                      "1729",
+                                      "1",
+                                      "1",
+                                      "1729",
+                                      "1729",
+                                      "2304",
+                                      "f1_r", // bad datatype
+                                      "f16_r",
+                                      "f32_r",
+                                      "752"};
+    probSol = problemFromEntries<ContractionProblem>(entries3);
+    EXPECT_EQ(probSol.second, -1);
+
+    std::vector<std::string> entries4{"T",
+                                      "N",
+                                      "b", // bad size
+                                      "256",
+                                      "1",
+                                      "1729",
+                                      "1",
+                                      "1",
+                                      "1729",
+                                      "1729",
+                                      "2304",
+                                      "f16_r",
+                                      "f16_r",
+                                      "f32_r",
+                                      "752"};
+    probSol = problemFromEntries<ContractionProblem>(entries4);
+    EXPECT_EQ(probSol.second, -1);
 }

@@ -1141,7 +1141,9 @@ class ProblemType(Mapping):
     # Other
     if self["UseBeta"]: name += "B"
     if self["HighPrecisionAccumulate"] and not self["SilentHighPrecisionAccumulate"]: name += "H"
-    if self["Fp16AltImpl"]: name += "R"
+    if self["Fp16AltImpl"]:
+      if self["Fp16AltImplRound"]: name += "RZ"
+      else: name += "R"
     if self["UseInitialStridesAB"]: name += "I"
     if self["UseInitialStridesCD"]: name += "Ic"
 
@@ -1835,10 +1837,6 @@ class Solution(collections.abc.Mapping):
   # assign tile sizes
   @staticmethod
   def assignProblemIndependentDerivedParameters(state):
-
-    if globalParameters["NewClient"] != 2:
-      print("WARNING: Old client deprecated, NewClient parameter being set to 2.")
-      globalParameters["NewClient"] = 2
 
     if "AssignedProblemIndependentDerivedParameters" in state:
       if state["AssignedProblemIndependentDerivedParameters"]:
@@ -3071,6 +3069,7 @@ class Solution(collections.abc.Mapping):
 
     # to eliminate identical/duplicate kernels when GSU=1
     if state["GlobalSplitU"] == 1:
+      state["MinKForGSU"] = 256
       # GlobalSplitUAlgorithm is MultipleBuffer
       if state["GlobalSplitUAlgorithm"] == 'MultipleBuffer':
         reject(state, " GlobalSplitU=1 and GlobalSplitUAlgorithm='MultipleBuffer'. Rejecting GlobalSplitUAlgorithm='SingleBuffer' to avoid duplicate kernels.")
@@ -4361,6 +4360,7 @@ class Solution(collections.abc.Mapping):
     requiredParameters["MatrixInstBN"]      = False # always prepended
     requiredParameters["CustomKernelName"]  = False # Will not affect naming
     requiredParameters["Fp16AltImpl"]       = False # Will show up as a different type
+    requiredParameters["Fp16AltImplRound"]  = False # Will show up as a different type
 
     requiredParameters["Kernel"]            = True  # distinguish kernels from solutions
                                                     # for single-source compilation
