@@ -185,6 +185,8 @@ namespace Tensile
 
         bool setOverridesFromFile(Hardware const& hardware, const std::string& file_path)
         {
+            bool debug = Debug::Instance().printOverrideLogs();
+
             try
             {
                 // Early exit if no caching library
@@ -192,7 +194,14 @@ namespace Tensile
 
                 auto probSols = getContractionProblemsFromFile<MyProblem>(file_path);
                 if(probSols.size() == 0)
+                {
+                    if (debug)
+                        std::cout << "WARNING: no valid entries found in override file: '"
+                                  << file_path
+                                  << "'.\n";
+
                     return false;
+                }
 
                 bool success = true;
 
@@ -210,6 +219,11 @@ namespace Tensile
                         solution = getSolutionByIndex(sol_idx);
                     }
 
+                    if (debug && !solution)
+                        std::cout << "WARNING: failed to find solution with index: "
+                                  << sol_idx << ".\n"
+                                  << "Possible library mismatch.\n";
+
                     // Update cache
                     success &= lib.addToOverride(ps.first, hardware, solution);
                 }
@@ -218,6 +232,9 @@ namespace Tensile
             }
             catch(std::bad_cast const& exc)
             {
+                if (debug)
+                    std::cout << "WARNING: Caching library required for override.\n";
+
                 return false;
             }
         }
