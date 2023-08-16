@@ -242,18 +242,14 @@ namespace Tensile
 
                 if(override_debug && solution)
                 {
-                    std::cout << "Override found for problem:\n"
-                              << problem
-                              << "\n";
+                    std::cout << "Override found for problem:\n" << problem << "\n";
 
                     if(solution->canSolve(problem, hardware))
-                        std::cout << "Using solution:\n"
-                                  << solution->name()
-                                  << "\n";
+                        std::cout << "Using solution:\n" << solution->name() << "\n";
                     else
-                        std::cout << "WARNING: solution: "
-                                  << solution->name()
-                                  << "\nis not valid for this problem. Possible library mismatch.\n";
+                        std::cout
+                            << "WARNING: solution: " << solution->name()
+                            << "\nis not valid for this problem. Possible library mismatch.\n";
                 }
 
                 if(solution && solution->canSolve(problem, hardware))
