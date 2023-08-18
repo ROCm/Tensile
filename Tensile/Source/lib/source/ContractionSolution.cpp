@@ -655,6 +655,65 @@ namespace Tensile
     }
 
     template <typename TypedInputs, bool T_Debug>
+    KernelInvocation ContractionSolution::generateStreamKInitCall(Problem const&     problem,
+                                                                  TypedInputs const& inputs,
+                                                                  Hardware const&    hardware) const
+    {
+        TensorDescriptor const& c = problem.c();
+        TensorDescriptor const& d = problem.d();
+
+        KernelInvocation rv;
+
+        rv.args = KernelArguments(T_Debug);
+
+        rv.args.reserve(512, 64);
+
+        rv.kernelName = streamKInitKernelName(problem, inputs, hardware);
+
+        rv.workGroupSize.x = 256;
+        rv.workGroupSize.y = 1;
+        rv.workGroupSize.z = 1;
+
+        AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
+        assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
+        size_t cuCount = pAMDGPU->computeUnitCount;
+        size_t wiZ = 1;
+        for(size_t i = 0; i < problem.batchIndices().size(); i++)
+            wiZ *= problem.batchSize(i);
+        size_t flagCount = cuCount * wiZ;
+
+        rv.numWorkGroups.x = CeilDivide(flagCount, rv.workGroupSize.x);
+        rv.numWorkGroups.y = 1;
+        rv.numWorkGroups.z = 1;
+
+        rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
+        rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
+        rv.numWorkItems.z = rv.workGroupSize.z * rv.numWorkGroups.z;
+
+        void* ws = inputs.ws;
+        size_t flagsOffset = partialTileSize(cuCount);
+        void* flags = (void*)(static_cast<char*>(ws) + flagsOffset);
+        rv.args.append<void*>("Flags", flags);
+
+        rv.args.append<uint32_t>("flagCount", flagCount);
+
+        //Pass along code object dependency
+        // TODO check this
+        rv.codeObjectFile = codeObjectFilename.load();
+
+        return rv;
+    }
+
+    template <typename TypedInputs>
+    std::string ContractionSolution::streamKInitKernelName(Problem const&     problem,
+                                                           TypedInputs const& inputs,
+                                                           Hardware const&    hardware) const
+    {
+        std::string name = "WSFlags";
+        return name;
+    }
+
+    template <typename TypedInputs, bool T_Debug>
     KernelInvocation ContractionSolution::generateBetaOnlyCall(Problem const&     problem,
                                                                TypedInputs const& inputs,
                                                                Hardware const&    hardware) const
@@ -1222,15 +1281,31 @@ namespace Tensile
     {
         size_t size = 0;
 
-        size += problem.d().totalLogicalElements() * sizeMapping.workspaceSizePerElemC;
         if(sizeMapping.streamK == 2)
         {
-            // Add space for flags
             AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
             assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
             size_t cuCount = pAMDGPU->computeUnitCount;
-            size += cuCount; // TODO flag per batch
+            // Get space required for partial tiles
+            size += partialTileSize(cuCount);
+            // Add space for flags
+            size += cuCount * 4; // Flags for partial tiles - dword per flag for fast addressing and comparisons
+            // size *= batches; // TODO need tile and flag per batch
         }
+        else
+            size += problem.d().totalLogicalElements() * sizeMapping.workspaceSizePerElemC;
+
+        return size;
+    }
+
+    size_t ContractionSolution::partialTileSize(size_t cuCount) const
+    {
+        size_t size = 0;
+
+        size_t tileSize = sizeMapping.macroTile.x * sizeMapping.macroTile.y * sizeMapping.workspaceSizePerElemC;
+        size += tileSize * cuCount; // Partials tile per WG
+        // TODO batches
+        // TODO round up for alignment?
 
         return size;
     }

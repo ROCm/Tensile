@@ -193,9 +193,10 @@ namespace Tensile
         };
 
         /**
-   * Calculate required workspace size.
-   */
+        * Calculate required workspace size.
+        */
         size_t       requiredWorkspaceSize(Problem const& problem, Hardware const& hardware) const;
+        size_t       partialTileSize(size_t cuCount) const;
         static float computeGranularity(float x);
 
         Granularities computeGranularities(
@@ -247,6 +248,16 @@ namespace Tensile
                                             Hardware const&    hardware) const;
 
         template <typename TypedInputs, bool T_Debug>
+        KernelInvocation generateStreamKInitCall(Problem const&     problem,
+                                              TypedInputs const& inputs,
+                                              Hardware const&    hardware) const;
+
+        template <typename TypedInputs>
+        std::string streamKInitKernelName(Problem const&     problem,
+                                       TypedInputs const& inputs,
+                                       Hardware const&    hardware) const;
+
+        template <typename TypedInputs, bool T_Debug>
         KernelInvocation generateBetaOnlyCall(Problem const&     problem,
                                               TypedInputs const& inputs,
                                               Hardware const&    hardware) const;
@@ -255,7 +266,7 @@ namespace Tensile
         std::string betaOnlyKernelName(Problem const&     problem,
                                        TypedInputs const& inputs,
                                        Hardware const&    hardware) const;
-
+        
         template <typename TypedInputs, bool T_Debug>
         KernelInvocation generateOutputConversionCall(Problem const&     problem,
                                                       TypedInputs const& inputs,

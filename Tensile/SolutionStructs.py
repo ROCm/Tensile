@@ -32,6 +32,7 @@ from .Common import assignParameterRequired, assignParameterWithDefault, \
 from .DataType import DataType
 from .Utils import roundUpToNearestMultiple
 
+from .KernelWriterStreamKInit import KernelWriterStreamKInit
 from .KernelWriterBetaOnly import KernelWriterBetaOnly
 from .KernelWriterConversion import KernelWriterConversion
 
@@ -1781,8 +1782,21 @@ class Solution(collections.abc.Mapping):
   ########################################
   # create Helper Kernels
   def initHelperKernelObjects(self):
+    self.initStreamKInitKernelObjects()
     self.initBetaOnlyKernelObjects()
     self.initConversionKernelObjects()
+
+
+  ########################################
+  # create StreamKInit Kernels
+  def initStreamKInitKernelObjects(self):
+    self.streamKInitKernelObjects = []
+    if self["StreamK"] == 2:
+      state = {}
+      state["ProblemType"] = deepcopy(self["ProblemType"])
+      state["KernelLanguage"] = "Source"
+      state["_GlobalAccumulation"] = self["_GlobalAccumulation"]
+      self.streamKInitKernelObjects.append(KernelWriterStreamKInit(state))
 
 
   ########################################
@@ -1812,12 +1826,18 @@ class Solution(collections.abc.Mapping):
   ########################################
   # get Helper Kernels
   def getHelperKernelObjects(self):
-    return self.betaOnlyKernelObjects + self.conversionKernelObjects
+    return self.streamKInitKernelObjects + self.betaOnlyKernelObjects + self.conversionKernelObjects
 
 
   ########################################
   # get Helper Kernels
-  def getKernelBetaOlnyObjects(self):
+  def getKernelStreamKInitObjects(self):
+    return self.streamKInitKernelObjects
+
+
+  ########################################
+  # get Helper Kernels
+  def getKernelBetaOnlyObjects(self):
     return self.betaOnlyKernelObjects
 
 
