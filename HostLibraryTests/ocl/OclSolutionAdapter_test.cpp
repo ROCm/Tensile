@@ -605,6 +605,7 @@ TEST(OclSolutionAdapterTest, HardwareTest)
 
     // Match the hip properties interface as much as possible
     ASSERT_EQ(oclProps.name, hipProps.name);
+    ASSERT_EQ(oclProps.gcnArchName, hipProps.gcnArchName);
     ASSERT_EQ(oclProps.totalGlobalMem, hipProps.totalGlobalMem);
     ASSERT_EQ(oclProps.sharedMemPerBlock, hipProps.sharedMemPerBlock);
     ASSERT_EQ(oclProps.warpSize, hipProps.warpSize);
@@ -621,7 +622,7 @@ TEST(OclSolutionAdapterTest, HardwareTest)
     ASSERT_EQ(oclProps.pciBusID, hipProps.pciBusID);
     ASSERT_EQ(oclProps.pciDeviceID, hipProps.pciDeviceID);
     ASSERT_EQ(oclProps.maxSharedMemoryPerMultiProcessor, hipProps.maxSharedMemoryPerMultiProcessor);
-    ASSERT_EQ(oclProps.gcnArch, hipProps.gcnArch);
+    //ASSERT_EQ(oclProps.gcnArch, hipProps.gcnArch); //gcnArch is deprecated from hipDeviceProp_t
 
     // Check that AMDGPU objects match
     auto oclGPU = std::dynamic_pointer_cast<AMDGPU>(ocl::GetDevice(oclProps));

@@ -42,6 +42,13 @@ namespace Tensile
     {
     }
 
+    TENSILE_API AMDGPU::AMDGPU(std::string const& archName, int cus, std::string const& name)
+        : processor(toProcessorId(archName))
+        , computeUnitCount(cus)
+        , deviceName(name)
+    {
+    }
+
     TENSILE_API AMDGPU::~AMDGPU() = default;
 
     TENSILE_API bool AMDGPU::runsKernelTargeting(AMDGPU::Processor other) const
