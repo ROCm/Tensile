@@ -27,6 +27,35 @@ from ..Common import globalParameters, getCOVFromParam, gfxName
 
 from math import ceil
 
+def getSrcValueType(kernel, isTypeA):
+    # special cases for F8 datatypes
+    if kernel["ProblemType"]["DataType"].isFloat8():
+        srcValueType = "FP8"
+    elif kernel["ProblemType"]["DataType"].isBFloat8():
+        srcValueType = "BF8"
+    elif kernel["ProblemType"]["DataType"].isFloat8BFloat8():
+        srcValueType = "FP8" if isTypeA else "BF8"
+    elif kernel["ProblemType"]["DataType"].isBFloat8Float8():
+        srcValueType = "BF8" if isTypeA else "FP8"
+    else:
+        srcValueType = kernel["ProblemType"]["DataType"].toNameAbbrev().upper()
+
+    srcValueType = srcValueType.lower()
+    return srcValueType
+
+def getDstValueType(kernel):
+    # special cases for F8 datatypes
+    if kernel["ProblemType"]["DataType"].isFloat8():
+        dstValueType = "FP8"
+    elif kernel["ProblemType"]["DataType"].isBFloat8():
+        dstValueType = "BF8"
+    else:
+        dstValueType = kernel["ProblemType"]["DataType"].toNameAbbrev().upper()
+    
+    dstValueType = dstValueType.lower()
+    return dstValueType
+
+
 # Creates kernel header, compatible with code object version 4 and up. V2 and V3 no longer supported.
 class SignatureDefault(Signature):
 
@@ -131,15 +160,20 @@ class SignatureDefault(Signature):
         kStr += writer.comment1("ThreadTile= %u x %u" % (kernel["ThreadTile0"], kernel["ThreadTile1"]))
         kStr += writer.comment1("SubGroup= %u x %u" % (kernel["SubGroup0"], kernel["SubGroup1"]))
         kStr += writer.comment1("VectorWidth=%u" % (kernel["VectorWidth"]))
-        kStr += writer.comment1("GlobalLoadVectorWidthA=%u, GlobalLoadVectorWidthB=%u" % (kernel["GlobalLoadVectorWidthA"], kernel["GlobalLoadVectorWidthB"]))
+        glvw = kernel["GlobalLoadVectorWidthA"]
+        glvwAStr = "GlobalLoadVectorWidthA=%f"%glvw if glvw < 1 else "GlobalLoadVectorWidthA=%u"%glvw
+        glvw = kernel["GlobalLoadVectorWidthB"]
+        glvwBStr = "GlobalLoadVectorWidthB=%f"%glvw if glvw < 1 else "GlobalLoadVectorWidthB=%u"%glvw
+        kStr += writer.comment1("%s, %s" % (glvwAStr, glvwBStr))
         kStr += writer.comment1("DirectToLdsA=%s" % kernel["DirectToLdsA"])
         kStr += writer.comment1("DirectToLdsB=%s" % kernel["DirectToLdsB"])
         kStr += writer.comment1("UseSgprForGRO=%s" % kernel["_UseSgprForGRO"])
 
-        srcValueType = kernel["ProblemType"]["DataType"].toNameAbbrev()
-        dstValueType = kernel["ProblemType"]["DestDataType"].toNameAbbrev()
-        cptValueType = kernel["ProblemType"]["ComputeDataType"].toNameAbbrev()
-        cptByte = kernel["ProblemType"]["ComputeDataType"].numBytes()
+        srcValueTypeA = getSrcValueType(kernel, True)
+        srcValueTypeB = getSrcValueType(kernel, False)
+        dstValueType  = getDstValueType(kernel)
+        cptValueType  = kernel["ProblemType"]["ComputeDataType"].toNameAbbrev()
+        cptByte       = kernel["ProblemType"]["ComputeDataType"].numBytes()
 
         kStr += ".amdgpu_metadata\n"
         kStr += "---\n"
@@ -171,8 +205,8 @@ class SignatureDefault(Signature):
 
         kStr += self.addArgument(                               'D',     '8', offset, "global_buffer", dstValueType, "generic"); offset += 8
         kStr += self.addArgument(                               'C',     '8', offset, "global_buffer", dstValueType, "generic"); offset += 8
-        kStr += self.addArgument(                               'A',     '8', offset, "global_buffer", srcValueType, "generic"); offset += 8
-        kStr += self.addArgument(                               'B',     '8', offset, "global_buffer", srcValueType, "generic"); offset += 8
+        kStr += self.addArgument(                               'A',     '8', offset, "global_buffer", srcValueTypeA, "generic"); offset += 8
+        kStr += self.addArgument(                               'B',     '8', offset, "global_buffer", srcValueTypeB, "generic"); offset += 8
 
         kStr += self.addArgument("OffsetD", '8', offset, "by_value", "u64"); offset += 8
         kStr += self.addArgument("OffsetC", '8', offset, "by_value", "u64"); offset += 8
@@ -203,8 +237,8 @@ class SignatureDefault(Signature):
             kStr += self.addArgument(                  "SizesSum%u"%i,     '4', offset,      "by_value",        "u32"); offset += 4
 
         for magicName in writer.sumMagicParms:
-            kStr += self.addArgument(     "MagicNumberSize%s"%magicName,     '4', offset,      "by_value",        "u32"); offset += 4
-            kStr += self.addArgument(      "MagicShiftSize%s"%magicName,     '4', offset,      "by_value",        "u32"); offset += 4
+            kStr += self.addArgument(   "MagicNumberSize%s"%magicName,     '4', offset,      "by_value",        "u32"); offset += 4
+            kStr += self.addArgument(    "MagicShiftSize%s"%magicName,     '4', offset,      "by_value",        "u32"); offset += 4
 
         for idxChar in kernel["PackedC0IdxChars"][:-1]:
             kStr += self.addArgument(     "MagicNumberSize%s"%idxChar,     '4', offset,      "by_value",        "u32"); offset += 4
@@ -243,7 +277,13 @@ class SignatureDefault(Signature):
         kStr += self.addArgument(                   "WgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += self.addArgument(        "MagicNumberWgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4
 
+        # for in-device stochastic rounding, iwe need to pass Seed 
+        # TODO: if kernel["ProblemType"]["StochasticRounding"] == 1:    # in-device 
+        if kernel["ProblemType"]["StochasticRounding"]:    # in-device 
+            kStr += self.addArgument("RNDSeed", '4', offset,    "by_value",        "u32"); offset += 4
+
         kStr += self.addArgument(                         "padding",     '4', offset,      "by_value",        "u32"); offset += 4
+
         kStr += "    .group_segment_fixed_size:   %u%s" % ( group_segment_size, writer.endLine ) #XXXXXX
         kStr += "    .kernarg_segment_align:      %u%s" % ( 8, writer.endLine )
         kStr += "    .kernarg_segment_size:       %u%s" % (((offset+7)//8)*8, writer.endLine) # round up to .kernarg_segment_align

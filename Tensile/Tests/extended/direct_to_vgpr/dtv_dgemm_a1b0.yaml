@@ -931,7 +931,8 @@ BenchmarkProblems:
         - VectorWidth: [1,2]
         - StoreVectorWidth: [1,2]
         #- LocalReadVectorWidth: [1,2]
-        #- DirectToLds: [False, True]
+        #- DirectToLdsA: [False, True]
+        #- DirectToLdsB: [False, True]
         #- DirectToVgprA: [False, True] # MI4x4 + DTV not supported yet
         #- DirectToVgprB: [True, False] # MI4x4 + DTV not supported yet
         #- WaveSeparateGlobalReadA: [0,1]

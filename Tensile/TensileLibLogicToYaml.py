@@ -75,12 +75,14 @@ def TensileLibLogicToYaml(userArgs):
       raise RuntimeError("Could not find the matching data for the solution index:{} from the library logic file, Try different solution index".format(solutionIndex))
     
     #Skip the MI calculation if 9 bit MI is not needed or MatrixInstruction field is disabled 
-    isMatrixInsEnabled = currentIndexSolution["EnableMatrixInstruction"]
+    isMatrixInsEnabled = False
+    if "EnableMatrixInstruction" in currentIndexSolution:
+      isMatrixInsEnabled = currentIndexSolution["EnableMatrixInstruction"]
     
-    if currentIndexSolution["EnableMatrixInstruction"] and currentIndexSolution["MatrixInstruction"]:
-      isMatrixInsEnabled = True
-    else:
-      print1("Matrix instruction is disabled skipping the matrix instruction parameter ..")
+      if currentIndexSolution["EnableMatrixInstruction"] and currentIndexSolution["MatrixInstruction"]:
+        isMatrixInsEnabled = True
+      else:
+        print1("Matrix instruction is disabled skipping the matrix instruction parameter ..")
     
     tensileYamlFileData = []   
     if args.skipMI != True and isMatrixInsEnabled:

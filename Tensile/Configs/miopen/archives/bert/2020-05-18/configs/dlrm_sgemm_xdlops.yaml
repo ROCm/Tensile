@@ -72,7 +72,8 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 64, 4, 1 ]
         - WorkGroupMapping: [8]
-        - DirectToLds: [0,1]
+        - DirectToLdsA: [0,1]
+        - DirectToLdsB: [0,1]
         - DepthU: [ 16 ]
         - VectorWidth: [1]
         - GlobalReadVectorWidth: [4]
@@ -123,7 +124,8 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - WorkGroupMapping: [8]
-        - DirectToLds: [0,1]
+        - DirectToLdsA: [0,1]
+        - DirectToLdsB: [0,1]
         - GlobalSplitU: [1]
         - DepthU: [ 16 ]
         - VectorWidth: [1]
@@ -177,7 +179,8 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 64, 4, 1 ]
         - WorkGroupMapping: [8]
-        - DirectToLds: [0,1]
+        - DirectToLdsA: [0,1]
+        - DirectToLdsB: [0,1]
         - GlobalSplitU: [1]
         - DepthU: [ 8,16 ]
         - VectorWidth: [1]
@@ -225,7 +228,8 @@ BenchmarkProblems:
         - WorkGroup:
           - [ 16, 16, 1 ]
         - WorkGroupMapping: [8]
-        - DirectToLds: [0,1]
+        - DirectToLdsA: [0,1]
+        - DirectToLdsB: [0,1]
         - GlobalSplitU: [1]
         - DepthU: [ 16 ]
         - VectorWidth: [1]
