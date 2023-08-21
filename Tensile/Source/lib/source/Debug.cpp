@@ -123,6 +123,11 @@ namespace Tensile
         return m_value & 0x20000;
     }
 
+    bool Debug::printOverrideLogs() const
+    {
+        return m_value & 0x40000;
+    }
+
     bool Debug::naivePropertySearch() const
     {
         return m_naivePropertySearch;
