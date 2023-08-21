@@ -240,7 +240,7 @@ namespace Tensile
         }
 
         explicit HIP_HOST
-#else  // gfx940/gfx941/gfx942
+#else // gfx940/gfx941/gfx942
         explicit HIP_HOST_DEVICE
 #endif // gfx940/gfx941/gfx942
             Float8_BFloat8(_Float16             v,
