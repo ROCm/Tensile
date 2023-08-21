@@ -56,6 +56,8 @@ namespace Tensile
                         size_t   strideC);
         ProblemOverride(const MyProblem& problem);
 
+        MyProblem problem() const;
+
         inline bool transA() const
         {
             return m_transA;
