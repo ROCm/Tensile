@@ -1,6 +1,31 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.38.0
+## (Unreleased) Tensile 4.39.0
+### Added
+- Added aquavanjaram support: gfx940/gfx941/gfx942, fp8/bf8 datatype, xf32 datatype, and stochastic rounding for various datatypes
+- Added/updated tuning scripts
+- Added DirectToLds support for larger data types with 32bit global load, and the corresponding test cases
+- Added new reject condition for DTL (only A or B) + PGR=2
+- Added the average of frequency, power consumption, and temperature information for the winner kernels to the CSV file
+- Added asmcap check for MFMA + const src
+
+### Optimizations
+- Adjusted miLatency for (gfx940 + MFMA) for specific data types (only for MI32x32)
+- Enabled InitAccVgprOpt for MatrixInstruction cases
+
+### Changed
+- Removed old code for DTL + (bpe * GlobalReadVectorWidth > 4)
+- Changed/updated failed CI tests for gfx11xx, InitAccVgprOpt, and DTLds
+
+### Fixed
+- Fixed predicate ordering for fp16alt impl round near zero mode to unbreak distance modes
+- Fixed boundary check for mirror dims and re-enable disabled mirror dims test cases
+- Fixed merge error affecting i8 with wmma
+- Fixed mismatch issue with DTLds + TSGR + TailLoop
+- Fixed a bug with InitAccVgprOpt + GSU>1 and a mismatch issue with PGR=0
+- Fixed override for unloaded solutions when lazy loading
+
+## Tensile 4.38.0 for ROCm 5.7
 ### Added
 - Added support for FP16 Alt Round Near Zero Mode (this feature allows the generation of alternate kernels with intermediate rounding instead of truncation)
 - Added user-driven solution selection feature
