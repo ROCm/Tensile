@@ -311,12 +311,16 @@ namespace Tensile
 
         rv.numWorkGroups.y *= sizeMapping.globalSplitU;
 
-        if(sizeMapping.streamK != 0)
+        size_t cuCount = 0;
+        if (sizeMapping.streamK != 0 || sizeMapping.persistentKernel != 0)
         {
             AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
             assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
+            cuCount = pAMDGPU->computeUnitCount;
+        }
 
-            size_t cuCount = pAMDGPU->computeUnitCount;
+        if(sizeMapping.streamK != 0)
+        {
             rv.numWorkGroups.x = cuCount;
             rv.numWorkGroups.y = 1;
             if(sizeMapping.persistentKernelAlongBatch)
@@ -325,10 +329,6 @@ namespace Tensile
 
         if(sizeMapping.persistentKernel != 0)
         {
-            AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
-            assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
-
-            size_t cuCount       = pAMDGPU->computeUnitCount;
             size_t finalPKValue  = sizeMapping.persistentKernel;
             size_t problemGroups = rv.numWorkGroups.x * rv.numWorkGroups.y;
             if(sizeMapping.persistentKernelAlongBatch)
@@ -409,6 +409,10 @@ namespace Tensile
         {
             // StreamK workspace + flags
             rv.args.append<void const*>("ws", inputs.ws);
+            void* ws = inputs.ws;
+            size_t flagsOffset = partialTileSize(cuCount);
+            void* flags = (void*)(static_cast<char*>(ws) + flagsOffset);
+            rv.args.append<void*>("Flags", flags);
         }
 
         rv.args.append<uint64_t>("offsetD", d.offset());
@@ -1018,6 +1022,14 @@ namespace Tensile
                 "ContractionProblem has cEqualsD set, but pointers for c and d are not equal");
 
         std::vector<KernelInvocation> rv;
+
+        if(sizeMapping.streamK == 2)
+        {
+            if(debug)
+                rv.push_back(generateStreamKInitCall<TypedInputs, true>(problem, inputs, hardware));
+            else
+                rv.push_back(generateStreamKInitCall<TypedInputs, false>(problem, inputs, hardware));
+        }
 
         if(sizeMapping.streamK == 1 || (sizeMapping.globalSplitU > 1 && sizeMapping.globalAccumulation != 2))
         {

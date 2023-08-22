@@ -1608,6 +1608,7 @@ class KernelWriterAssembly(KernelWriter):
     numSgprAddressA = self.rpga # til read offsets
     numSgprAddressB = self.rpga # til read offsets
     numSgprAddressWS = self.rpga
+    numSgprAddressFlags = self.rpga
     # would not less than 1 reg,
     # since even if ComputeType = H, we still pass the arg as a 32-bit (concate two 16-bit)
     numSgprAlpha = max(1,int(self.bpeCinternal/4))
@@ -1752,7 +1753,8 @@ class KernelWriterAssembly(KernelWriter):
     self.argOffsetOffset = self.argAddressOffset + (numSgprAddressD + numSgprAddressC + numSgprAddressA + numSgprAddressB) * 4
     if kernel["StreamK"] == 2:
       self.defineSgpr("AddressWS", numSgprAddressWS)
-      self.argOffsetOffset += numSgprAddressWS * 4
+      self.defineSgpr("AddressFlags", numSgprAddressFlags)
+      self.argOffsetOffset += (numSgprAddressWS + numSgprAddressFlags) * 4
 
     self.defineSgpr("OffsetD", self.numSgprOffsetD)
     self.defineSgpr("OffsetC", self.numSgprOffsetC)
@@ -1869,7 +1871,7 @@ class KernelWriterAssembly(KernelWriter):
           self.defineSgpr("DAddrIncV3",1)
 
     self.numSgprToLoad = 2 + 2 + numSgprAddressD + numSgprAddressC + numSgprAddressA + numSgprAddressB + \
-      (numSgprAddressWS if kernel["StreamK"] == 2 else 0) + \
+      ((numSgprAddressWS + numSgprAddressFlags) if kernel["StreamK"] == 2 else 0) + \
       numSgprAlpha + \
       (numSgprBeta if kernel["ProblemType"]["UseBeta"] else 0) + self.numSgprStridesD + self.numSgprStridesC + self.numSgprStridesA + \
       self.numSgprStridesB + self.numSgprSizesFree + self.numSgprSizesSum + \
@@ -12255,7 +12257,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Workspace SRD for FixupStep
   ##############################################################################
-  def computeWorkspaceSrd(self, kernel, sTileIdx):
+  def computeWorkspaceSrd(self, kernel, sCtaIdx):
     kStr = ""
 
     # Base Address
@@ -12270,7 +12272,7 @@ class KernelWriterAssembly(KernelWriter):
 
     assert kernel["BufferStore"]
     kStr += "\n"
-    kStr += inst("s_mul_i32", sgpr(tmpS0), hex(kernel["MacroTile0"]*kernel["MacroTile1"]*self.bpeCinternal), sTileIdx, "Offset to correct partials tile")
+    kStr += inst("s_mul_i32", sgpr(tmpS0), hex(kernel["MacroTile0"]*kernel["MacroTile1"]*self.bpeCinternal), sCtaIdx, "Offset to correct partials tile")
     kStr += inst("s_add_u32",  sgpr("SrdWS+0"), sgpr("SrdWS+0"), sgpr(tmpS0), "add lo to SRD")
     kStr += inst("s_addc_u32", sgpr("SrdWS+1"), sgpr("SrdWS+1"), 0, "add hi to SRD")
 
@@ -12578,11 +12580,8 @@ class KernelWriterAssembly(KernelWriter):
       # else:
       #   codeMulAlpha = None
 
-      sTileIdx = self.defineSgpr("TileIdx", 1)
-      kStr += inst("s_add_u32", sgpr(sTileIdx), sgpr("StreamKIdx"), 1, "input partial tile index")
-
       wsSrd = self.defineSgpr("SrdWS", 4, 4)
-      kStr += self.computeWorkspaceSrd(kernel, sgpr(sTileIdx))
+      kStr += self.computeWorkspaceSrd(kernel, sgpr("CtaIdx"))
 
       for batchIdx in range(0, numBatches):
         elementStartIdx = batchIdx * numElementsPerBatch
@@ -12613,7 +12612,6 @@ class KernelWriterAssembly(KernelWriter):
       #   kStr += inst("s_branch", "label_%s"%endLabel, "jump to end")
 
       self.undefineSgpr("SrdWS")
-      self.undefineSgpr("TileIdx")
       del self.ss
 
       # Finish one write path, reset currPreLoopVmcntCase to Undefined
@@ -12894,6 +12892,14 @@ class KernelWriterAssembly(KernelWriter):
     if self.canOptimizePreLoopLWVmcnt:
       kStr += PreLoopVmcntCaseStr
 
+    # Set flag
+    kStr += inst("s_lshl_b32", sgpr(tmpSgpr), sgpr("StreamKIdx"), log2(4), "flag offset based on CTA index")
+    # kStr += inst("s_add_u32", sgpr(tmpSgpr+0), sgpr("AddressFlags"), sgpr(tmpSgpr+0), "add offset to flag pointer")
+    # kStr += inst("s_addc_u32", sgpr(tmpSgpr+1), sgpr("AddressFlags+1"), sgpr(tmpSgpr+1), "add offset to flag pointer")
+    kStr += inst("s_mov_b32", sgpr(tmpSgpr+2), 1, "flag data")
+    kStr += inst("s_store_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), 0, "glc", "set flag")
+    kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load") # TODO just for testing
+    
     # TODO - if this is the last tile, don't need to jump to next instruction
     # NOTE: in SR kernel, we need long branch since PRNG explodes the line of codes 
     if kernel["ProblemType"]["StochasticRounding"]:  # in-device RND
@@ -14335,12 +14341,42 @@ class KernelWriterAssembly(KernelWriter):
       # branch to regular store code, skip fixup step
       kStr += inst("s_cmp_eq_u32", sgpr("StreamKLocalEnd"), sgpr("ItersPerTile"), "does wg finish tile?")
       kStr += inst("s_cbranch_scc1 %s" % skStoreLabel, "Branch if started and finished tile, go to regular store code")
+      
       # if we started the tile but did not finish it, fix up step
       # run fixup code before regular store code
+      sCtaIdx = self.defineSgpr("CtaIdx", 1)
+      kStr += inst("s_add_u32", sgpr(sCtaIdx), sgpr("StreamKIdx"), 1, "input partial tile index")
+
+      sCtaEnd = self.defineSgpr("CtaEnd", 1)
+      kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr("CtaIdx"), sgpr("ItersPerWG"), "iter of current CTA")
+      kStr += self.sMagicDivAlg2(kernel, tmpSgpr+1, sgpr(tmpSgpr), sgpr("MagicNumberItersPerTile"), sgpr("MagicShiftItersPerTile"))
+      kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr+1), sgpr("ItersPerTile"), "tile start iteration")
+      kStr += inst("s_add_u32", sgpr(tmpSgpr), sgpr(tmpSgpr), sgpr("ItersPerTile"), "tile end iteration")
+      kStr += self.sMagicDivAlg2(kernel, tmpSgpr+1, sgpr(tmpSgpr), sgpr("MagicNumberItersPerTile"), sgpr("MagicShiftItersPerTile"))
+      kStr += inst("s_mov_b32", sgpr(sCtaEnd), sgpr(tmpSgpr+1), "store end index")
+      
       kStr += "%s:\n" % (skFixupLabel)
+
+      # Check flag
+      kStr += inst("s_lshl_b32", sgpr(tmpSgpr), sgpr("CtaIdx"), log2(4), "flag offset based on CTA index")
+      # kStr += inst("s_add_u32", sgpr(tmpSgpr+0), sgpr("AddressFlags"), sgpr(tmpSgpr+0), "add offset to flag pointer")
+      # kStr += inst("s_addc_u32", sgpr(tmpSgpr+1), sgpr("AddressFlags+1"), sgpr(tmpSgpr+1), "add offset to flag pointer")
+      # kStr += inst("s_mov_b_32", sgpr(tmpSgpr+2), 1, "flag data")
+      kStr += inst("s_load_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), 0, "glc", "get flag")
+      kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load")
+      kStr += inst("s_cmp_eq_u32", sgpr(tmpSgpr+2), 1, "check if ready")
+      # kStr += inst("s_cbranch_scc0 %s" % skFixupLabel, "if flag not set, wait and check again")
+
       fixupEdge = [False] # Temporary hack to test no edge variant
       kStr += self.fixupStep(kernel, vectorWidths, elements, fixupEdge, tmpSgpr, tmpVgpr, tmpCVTVgpr, skStoreLabel)
+      
+      kStr += inst("s_add_u32", sgpr(sCtaIdx), sgpr(sCtaIdx), 1, "next partial tile")
+      kStr += inst("s_cmp_lt_u32", sgpr(sCtaIdx), sgpr(sCtaEnd), "done loading partial tiles?")
+      kStr += inst("s_cbranch_scc0 %s" % skFixupLabel, "Branch to continue fixup loop")
       kStr += "%s:\n" % (skStoreLabel)
+      
+      self.undefineSgpr("CtaEnd")
+      self.undefineSgpr("CtaIdx")
 
     if False in betas and True in betas:
       kStr += self.checkIsBetaZero(kernel, tmpSgpr, betaLabel)
