@@ -1807,7 +1807,6 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["PersistentKernel"] or kernel["StreamK"]:
       self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1) # Magic number to use for division
       self.defineSgpr("MagicShiftProblemNumGroupTiles0", 1) # Magic shift/abit to use for division alg 2
-      self.defineSgpr("GridNumWorkGroups0", 1) # Magic number to use for division, persistent kernel - flattened wg0 (=all WGs)
       pkArgumentToLoad += 3
       if kernel["PersistentKernelAlongBatch"]:
         self.defineSgpr("NumWorkGroups2", 1)  # for persistent kernel along batch
@@ -12580,7 +12579,7 @@ class KernelWriterAssembly(KernelWriter):
       # else:
       #   codeMulAlpha = None
 
-      wsSrd = self.defineSgpr("SrdWS", 4, 4)
+      # wsSrd = self.defineSgpr("SrdWS", 4, 4)
       kStr += self.computeWorkspaceSrd(kernel, sgpr("CtaIdx"))
 
       for batchIdx in range(0, numBatches):
@@ -12611,7 +12610,7 @@ class KernelWriterAssembly(KernelWriter):
       # else:
       #   kStr += inst("s_branch", "label_%s"%endLabel, "jump to end")
 
-      self.undefineSgpr("SrdWS")
+      # self.undefineSgpr("SrdWS")
       del self.ss
 
       # Finish one write path, reset currPreLoopVmcntCase to Undefined
@@ -14342,10 +14341,12 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cmp_eq_u32", sgpr("StreamKLocalEnd"), sgpr("ItersPerTile"), "does wg finish tile?")
       kStr += inst("s_cbranch_scc1 %s" % skStoreLabel, "Branch if started and finished tile, go to regular store code")
       
+      # Define SrdWS here to avoid sgpr clash
+      wsSrd = self.defineSgpr("SrdWS", 4, 4)
       # if we started the tile but did not finish it, fix up step
       # run fixup code before regular store code
       sCtaIdx = self.defineSgpr("CtaIdx", 1)
-      kStr += inst("s_add_u32", sgpr(sCtaIdx), sgpr("StreamKIdx"), 1, "input partial tile index")
+      kStr += inst("s_add_u32", sgpr("CtaIdx"), sgpr("StreamKIdx"), 1, "input partial tile index")
 
       sCtaEnd = self.defineSgpr("CtaEnd", 1)
       kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr("CtaIdx"), sgpr("ItersPerWG"), "iter of current CTA")
@@ -14353,7 +14354,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr+1), sgpr("ItersPerTile"), "tile start iteration")
       kStr += inst("s_add_u32", sgpr(tmpSgpr), sgpr(tmpSgpr), sgpr("ItersPerTile"), "tile end iteration")
       kStr += self.sMagicDivAlg2(kernel, tmpSgpr+1, sgpr(tmpSgpr), sgpr("MagicNumberItersPerTile"), sgpr("MagicShiftItersPerTile"))
-      kStr += inst("s_mov_b32", sgpr(sCtaEnd), sgpr(tmpSgpr+1), "store end index")
+      kStr += inst("s_mov_b32", sgpr("CtaEnd"), sgpr(tmpSgpr+1), "store end index")
       
       kStr += "%s:\n" % (skFixupLabel)
 
@@ -14365,18 +14366,19 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_load_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), 0, "glc", "get flag")
       kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load")
       kStr += inst("s_cmp_eq_u32", sgpr(tmpSgpr+2), 1, "check if ready")
-      # kStr += inst("s_cbranch_scc0 %s" % skFixupLabel, "if flag not set, wait and check again")
+      kStr += inst("s_cbranch_scc0 %s" % skFixupLabel, "if flag not set, wait and check again")
 
       fixupEdge = [False] # Temporary hack to test no edge variant
       kStr += self.fixupStep(kernel, vectorWidths, elements, fixupEdge, tmpSgpr, tmpVgpr, tmpCVTVgpr, skStoreLabel)
       
-      kStr += inst("s_add_u32", sgpr(sCtaIdx), sgpr(sCtaIdx), 1, "next partial tile")
-      kStr += inst("s_cmp_lt_u32", sgpr(sCtaIdx), sgpr(sCtaEnd), "done loading partial tiles?")
+      kStr += inst("s_add_u32", sgpr("CtaIdx"), sgpr("CtaIdx"), 1, "next partial tile")
+      kStr += inst("s_cmp_lt_u32", sgpr("CtaIdx"), sgpr("CtaEnd"), "done loading partial tiles?")
       kStr += inst("s_cbranch_scc0 %s" % skFixupLabel, "Branch to continue fixup loop")
       kStr += "%s:\n" % (skStoreLabel)
       
       self.undefineSgpr("CtaEnd")
       self.undefineSgpr("CtaIdx")
+      self.undefineSgpr("SrdWS")
 
     if False in betas and True in betas:
       kStr += self.checkIsBetaZero(kernel, tmpSgpr, betaLabel)

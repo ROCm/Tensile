@@ -579,6 +579,10 @@ namespace Tensile
                 rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0",
                                          magicNumber(2, problemNumGroupTiles0, &magicShift));
                 rv.args.append<uint32_t>("magicShiftProblemNumGroupTiles0", magicShift);
+            }
+
+            if(sizeMapping.persistentKernel != 0)
+            {
                 rv.args.append<uint32_t>("gridNumWorkGroups0", rv.numWorkGroups.x);
             }
 

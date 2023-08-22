@@ -262,7 +262,11 @@ class SignatureDefault(Signature):
         kStr += self.addArgument(                  "NumWorkGroups0",     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += self.addArgument(                  "NumWorkGroups1",     '4', offset,      "by_value",        "u32"); offset += 4
 
-        if kernel["PersistentKernel"] or kernel["StreamK"]:
+        if kernel["StreamK"]:
+            kStr += self.addArgument("MagicNumberProblemNumGroupTiles0",   '4', offset,    "by_value",        "u32"); offset += 4
+            kStr += self.addArgument("MagicShiftProblemNumGroupTiles0",    '4', offset,    "by_value",        "u32"); offset += 4
+
+        if kernel["PersistentKernel"]:
             kStr += self.addArgument("MagicNumberProblemNumGroupTiles0",   '4', offset,    "by_value",        "u32"); offset += 4
             kStr += self.addArgument("MagicShiftProblemNumGroupTiles0",    '4', offset,    "by_value",        "u32"); offset += 4
             kStr += self.addArgument(              "GridNumWorkGroups0",   '4', offset,    "by_value",        "u32"); offset += 4
