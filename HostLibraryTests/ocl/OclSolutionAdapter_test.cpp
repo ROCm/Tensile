@@ -605,6 +605,7 @@ TEST(OclSolutionAdapterTest, HardwareTest)
 
     // Match the hip properties interface as much as possible
     ASSERT_EQ(oclProps.name, hipProps.name);
+    ASSERT_EQ(oclProps.gcnArchName, hipProps.gcnArchName);
     ASSERT_EQ(oclProps.totalGlobalMem, hipProps.totalGlobalMem);
     ASSERT_EQ(oclProps.sharedMemPerBlock, hipProps.sharedMemPerBlock);
     ASSERT_EQ(oclProps.warpSize, hipProps.warpSize);
@@ -612,15 +613,16 @@ TEST(OclSolutionAdapterTest, HardwareTest)
     ASSERT_EQ(oclProps.maxThreadsDim[0], hipProps.maxThreadsDim[0]);
     ASSERT_EQ(oclProps.maxThreadsDim[1], hipProps.maxThreadsDim[1]);
     ASSERT_EQ(oclProps.maxThreadsDim[2], hipProps.maxThreadsDim[2]);
-    ASSERT_EQ(oclProps.maxGridSize[0], hipProps.maxGridSize[0]);
-    ASSERT_EQ(oclProps.maxGridSize[1], hipProps.maxGridSize[1]);
-    ASSERT_EQ(oclProps.maxGridSize[2], hipProps.maxGridSize[2]);
+    // maxGridSize not guaranteed equal
+    // ASSERT_EQ(oclProps.maxGridSize[0], hipProps.maxGridSize[0]);
+    // ASSERT_EQ(oclProps.maxGridSize[1], hipProps.maxGridSize[1]);
+    // ASSERT_EQ(oclProps.maxGridSize[2], hipProps.maxGridSize[2]);
     ASSERT_EQ(oclProps.clockRate, hipProps.clockRate);
     // ASSERT_EQ(oclProps.multiProcessorCount, hipProps.multiProcessorCount);
     ASSERT_EQ(oclProps.pciBusID, hipProps.pciBusID);
     ASSERT_EQ(oclProps.pciDeviceID, hipProps.pciDeviceID);
     ASSERT_EQ(oclProps.maxSharedMemoryPerMultiProcessor, hipProps.maxSharedMemoryPerMultiProcessor);
-    ASSERT_EQ(oclProps.gcnArch, hipProps.gcnArch);
+    //ASSERT_EQ(oclProps.gcnArch, hipProps.gcnArch); //gcnArch is deprecated from hipDeviceProp_t
 
     // Check that AMDGPU objects match
     auto oclGPU = std::dynamic_pointer_cast<AMDGPU>(ocl::GetDevice(oclProps));

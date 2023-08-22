@@ -261,6 +261,33 @@ namespace Tensile
     }
 
     template <>
+    ContractionProblem ProblemOverride<ContractionProblem>::problem() const
+    {
+        auto problem = ContractionProblem::GEMM_Strides(m_transA,
+                                                        m_transB,
+                                                        m_inputType,
+                                                        m_inputType,
+                                                        m_outputType,
+                                                        m_outputType,
+                                                        m_m,
+                                                        m_n,
+                                                        m_k,
+                                                        m_batchSize,
+                                                        m_ldA,
+                                                        m_strideA,
+                                                        m_ldB,
+                                                        m_strideB,
+                                                        m_ldC,
+                                                        m_strideC,
+                                                        m_ldC,
+                                                        m_strideC,
+                                                        m_beta);
+        problem.setHighPrecisionAccumulate(m_HPA);
+
+        return problem;
+    }
+
+    template <>
     std::vector<std::pair<ProblemOverride<ContractionProblem>, int>>
         getContractionProblemsFromFile(const std::string& path)
     {

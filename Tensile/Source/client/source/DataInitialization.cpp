@@ -310,6 +310,61 @@ namespace Tensile
                 return GetTyped<ContractionInputs_B_S_S>(args, problemFactory, maxWorkspaceSize);
             }
 #endif // TENSILE_USE_BF16
+#ifdef TENSILE_USE_FP8_BF8
+            case ContractionInputs_F8_F8_S::TypeId():
+            {
+                return GetTyped<ContractionInputs_F8_F8_S>(args, problemFactory, maxWorkspaceSize);
+            }
+            case ContractionInputs_F8_S_S::TypeId():
+            {
+                return GetTyped<ContractionInputs_F8_S_S>(args, problemFactory, maxWorkspaceSize);
+            }
+            case ContractionInputs_B8_B8_S::TypeId():
+            {
+                return GetTyped<ContractionInputs_B8_B8_S>(args, problemFactory, maxWorkspaceSize);
+            }
+            case ContractionInputs_B8_S_S::TypeId():
+            {
+                return GetTyped<ContractionInputs_B8_S_S>(args, problemFactory, maxWorkspaceSize);
+            }
+            // Hybrid cases: F8B8SS, B8SS
+            case ContractionInputs_F8B8_S_S::TypeId():
+            {
+                return GetTyped<ContractionInputs_F8B8_S_S>(args, problemFactory, maxWorkspaceSize);
+            }
+            case ContractionInputs_B8F8_S_S::TypeId():
+            {
+                return GetTyped<ContractionInputs_B8F8_S_S>(args, problemFactory, maxWorkspaceSize);
+            }
+            // Hybrid cases with To = B8
+            case ContractionInputs_F8B8_B8_S::TypeId():
+            {
+                return GetTyped<ContractionInputs_F8B8_B8_S>(
+                    args, problemFactory, maxWorkspaceSize);
+            }
+            case ContractionInputs_B8F8_B8_S::TypeId():
+            {
+                return GetTyped<ContractionInputs_B8F8_B8_S>(
+                    args, problemFactory, maxWorkspaceSize);
+            }
+            // cases with To = half
+            case ContractionInputs_F8_H_S::TypeId():
+            {
+                return GetTyped<ContractionInputs_F8_H_S>(args, problemFactory, maxWorkspaceSize);
+            }
+            case ContractionInputs_B8_H_S::TypeId():
+            {
+                return GetTyped<ContractionInputs_B8_H_S>(args, problemFactory, maxWorkspaceSize);
+            }
+            case ContractionInputs_F8B8_H_S::TypeId():
+            {
+                return GetTyped<ContractionInputs_F8B8_H_S>(args, problemFactory, maxWorkspaceSize);
+            }
+            case ContractionInputs_B8F8_H_S::TypeId():
+            {
+                return GetTyped<ContractionInputs_B8F8_H_S>(args, problemFactory, maxWorkspaceSize);
+            }
+#endif // TENSILE_USE_FP8_BF8
             default:;
             }
 

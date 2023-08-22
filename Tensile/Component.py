@@ -203,6 +203,16 @@ class MAC(Component):
     """
     pass
 
+class MFMA(Component):
+    """
+    MFMA instruction selection.
+    """
+
+    def WaitCount(self, writer):
+        return 0
+
+    pass
+
 class Signature(Component):
     """
     Function signature block.
@@ -236,6 +246,12 @@ class NotLocalFullTileElements(Component):
 class LraTileAssignment(Component):
     """
     Lra tile assignment block.
+    """
+    pass
+
+class PseudoRandomGenerator(Component):
+    """
+    Pseudo random generator block.
     """
     pass
 

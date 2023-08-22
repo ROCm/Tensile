@@ -70,6 +70,8 @@ namespace Tensile
 
         bool printLibraryLogicIndex() const;
 
+        bool printOverrideLogs() const;
+
         bool naivePropertySearch() const;
 
         bool skipKernelLaunch() const;

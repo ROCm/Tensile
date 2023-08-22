@@ -65,6 +65,8 @@ namespace Tensile
             , m_bOffset(args["offset-b"].as<size_t>())
             , m_cOffset(args["offset-c"].as<size_t>())
             , m_dOffset(args["offset-d"].as<size_t>())
+            , m_f32XdlMathOp(DataType::Float)
+            , m_stochasticRounding(args["stochastic-rounding"].as<bool>())
 
         {
             if(args.count("problem-identifier"))
@@ -96,6 +98,8 @@ namespace Tensile
                 m_alphaType = args["alpha-type"].as<DataType>();
             if(args.count("beta-type"))
                 m_betaType = args["beta-type"].as<DataType>();
+            if(args.count("f32-xdl-math-op"))
+                m_f32XdlMathOp = args["f32-xdl-math-op"].as<DataType>();
 
             m_beta  = DataInitialization::getValue<double>(args["init-beta"].as<InitMode>());
             m_alpha = DataInitialization::getValue<double>(args["init-alpha"].as<InitMode>());
@@ -204,6 +208,8 @@ namespace Tensile
                 rv.back().setArithmeticUnit(m_arithmeticUnit);
                 rv.back().setFp16AltImpl(m_fp16AltImpl);
                 rv.back().setFp16AltImplRound(m_fp16AltImplRound);
+                rv.back().setStochasticRounding(m_stochasticRounding);
+                rv.back().setF32XdlMathOp(m_f32XdlMathOp);
 
                 if(m_convProblemSizes.size())
                     rv.back().setConvProblemSizes(m_convProblemSizes[i]);

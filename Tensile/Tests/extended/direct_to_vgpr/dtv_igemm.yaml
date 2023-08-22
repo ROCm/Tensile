@@ -1,5 +1,5 @@
 TestParameters:
-  marks: [skip-gfx900, skip-gfx906, skip-gfx1010, skip-gfx1011, skip-gfx1012, skip-gfx1030, skip-gfx1100, skip-gfx1101, skip-gfx1102] # not supported by arch
+  marks: [skip-gfx900, skip-gfx906, skip-gfx940, skip-gfx941, skip-gfx942, skip-gfx1010, skip-gfx1011, skip-gfx1012, skip-gfx1030, skip-gfx1100, skip-gfx1101, skip-gfx1102] # not supported by arch
 
 GlobalParameters:
   NumElementsToValidate: -1
@@ -53,7 +53,8 @@ BenchmarkProblems:
         - VectorWidth: [2,4]
         - UseSgprForGRO: [0]
         - DirectToVgprA: [0,1]
-        #- DirectToLds: [0,1]
+        #- DirectToLdsA: [False, True]
+        #- DirectToLdsB: [False, True]
         - NumLoadsCoalescedA: [1]
         - GlobalSplitU: [1,3]
         - GlobalSplitUAlgorithm: ["SingleBuffer"]
@@ -110,7 +111,8 @@ BenchmarkProblems:
         - VectorWidth: [1,2]
         - UseSgprForGRO: [0]
         - DirectToVgprA: [0,1]
-        - DirectToLds: [0,1]
+        - DirectToLdsA: [False, True]
+        - DirectToLdsB: [False, True]
         - NumLoadsCoalescedA: [1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
@@ -165,7 +167,8 @@ BenchmarkProblems:
         - VectorWidth: [1,2]
         - UseSgprForGRO: [0]
         - DirectToVgprA: [0,1]
-        - DirectToLds: [0,1]
+        - DirectToLdsA: [False, True]
+        - DirectToLdsB: [False, True]
         - NumLoadsCoalescedA: [1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
@@ -218,7 +221,8 @@ BenchmarkProblems:
         - VectorWidth: [2,4]
         - UseSgprForGRO: [0]
         - DirectToVgprA: [0,1]
-        #- DirectToLds: [0,1]
+        #- DirectToLdsA: [False, True]
+        #- DirectToLdsB: [False, True]
         - NumLoadsCoalescedA: [1]
         - BufferLoad: [0,1]
       BenchmarkJoinParameters:
@@ -274,7 +278,8 @@ BenchmarkProblems:
         - NumElementsPerBatchStore: [4]
         - UseSgprForGRO: [0]
         - DirectToVgprA: [0,1]
-        - DirectToLds: [0,1]
+        - DirectToLdsA: [False, True]
+        - DirectToLdsB: [False, True]
         - NumLoadsCoalescedA: [1]
         - BufferLoad: [0,1]
         #- GlobalSplitU: [1,2]
@@ -332,7 +337,8 @@ BenchmarkProblems:
         - NumElementsPerBatchStore: [4]
         - UseSgprForGRO: [0]
         - DirectToVgprA: [0,1]
-        - DirectToLds: [0,1]
+        - DirectToLdsA: [False, True]
+        - DirectToLdsB: [False, True]
         - NumLoadsCoalescedA: [1]
         - BufferLoad: [0,1]
         - GlobalSplitU: [1,2]
@@ -387,7 +393,7 @@ BenchmarkProblems:
         - VectorWidth: [2,4]
         - UseSgprForGRO: [0]
         - DirectToVgprB: [0,1]
-        - DirectToLds: [0]#[0,1] # no valid scenario with DTL=1
+        #- DirectToLds: [0]#[0,1] # no valid scenario with DTL=1
         - NumLoadsCoalescedB: [1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
@@ -441,7 +447,7 @@ BenchmarkProblems:
         - VectorWidth: [1,2]
         - UseSgprForGRO: [0]
         - DirectToVgprB: [0,1]
-        - DirectToLds: [0]#[0,1] # no valid scenario with DTL=1
+        #- DirectToLds: [0]#[0,1] # no valid scenario with DTL=1
         - NumLoadsCoalescedB: [1]
         #- GlobalSplitU: [1,3]
         #- GlobalSplitUAlgorithm: ["SingleBuffer"]
@@ -497,7 +503,7 @@ BenchmarkProblems:
         - VectorWidth: [1,2]
         - UseSgprForGRO: [0]
         - DirectToVgprB: [0,1]
-        - DirectToLds: [0]#[0,1] # no valid scenario with DTL=1
+        #- DirectToLds: [0]#[0,1] # no valid scenario with DTL=1
         - NumLoadsCoalescedB: [1]
         - GlobalSplitU: [1,3]
         - GlobalSplitUAlgorithm: ["SingleBuffer"]
@@ -552,7 +558,8 @@ BenchmarkProblems:
         - VectorWidth: [2,4]
         - UseSgprForGRO: [0]
         - DirectToVgprB: [0,1]
-        #- DirectToLds: [0,1]
+        #- DirectToLdsA: [False, True]
+        #- DirectToLdsB: [False, True]
         - NumLoadsCoalescedB: [1]
         - BufferLoad: [0,1]
       BenchmarkJoinParameters:
@@ -607,7 +614,8 @@ BenchmarkProblems:
         - VectorWidth: [1,2]
         - UseSgprForGRO: [0]
         - DirectToVgprB: [1]
-        - DirectToLds: [0,1]
+        - DirectToLdsA: [False, True]
+        #- DirectToLdsB: [False, True]
         - NumLoadsCoalescedB: [1]
         #- BufferLoad: [0,1]
         #- GlobalSplitU: [1,2]
@@ -664,7 +672,8 @@ BenchmarkProblems:
         - VectorWidth: [1,2]
         - UseSgprForGRO: [0]
         - DirectToVgprB: [1]
-        - DirectToLds: [0,1]
+        - DirectToLdsA: [False, True]
+        #- DirectToLdsB: [False, True]
         - NumLoadsCoalescedB: [1]
         #- BufferLoad: [0,1]
         - GlobalSplitU: [1,2]

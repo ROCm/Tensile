@@ -30,7 +30,7 @@ from .CustomKernels import isCustomKernelConfig
 from .SolutionStructs import Solution
 
 import abc
-import collections
+from collections.abc import Sequence
 import os
 import shutil
 import subprocess
@@ -192,7 +192,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.barrierMfmaIndex = numMfmaPerIter*(kernel["LoopIters"]-self.numItersPLR+1) - self.numMfmaForNextLoopLR - 1 if self.numItersPLR else 0
       numMfmaBetweenLWandBarrier = 2 if kernel["MatrixInstM"] == 32 else 3
       self.lwEndMfmaIndex = max(self.barrierMfmaIndex - numMfmaBetweenLWandBarrier,0) if self.numItersPLR else numMfmaPerIter*kernel["LoopIters"] - 1
-      if kernel["DirectToLds"] and kernel["PrefetchGlobalRead"] == 2:
+      if (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]) and kernel["PrefetchGlobalRead"] == 2:
         # DirectToLds + PGR=2 case, lwEndMfmaIndex must be after the end of local read (excluding local reads for next iter)
         lrEnd = min(self.barrierMfmaIndex - 1, self.numMfmaForLR * (kernel["LoopIters"] - self.numItersPLR))
         if self.lwEndMfmaIndex < lrEnd:
@@ -283,8 +283,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if lwStartMfmaIndex > self.lwEndMfmaIndex:
           lwStartMfmaIndex = self.lwEndMfmaIndex
         numMfmaCanSched = self.lwEndMfmaIndex - lwStartMfmaIndex + 1
-        numLoadsA = kernel["DepthU"]*kernel["MacroTileA"]//kernel["GlobalLoadVectorWidthA"]//kernel["NumThreads"]
-        numLoadsB = kernel["DepthU"]*kernel["MacroTileB"]//kernel["GlobalLoadVectorWidthB"]//kernel["NumThreads"]
+        numLoadsA = kernel["DepthU"]*kernel["MacroTileA"]//int(kernel["GlobalLoadVectorWidthA"]*kernel["NumThreads"])
+        numLoadsB = kernel["DepthU"]*kernel["MacroTileB"]//int(kernel["GlobalLoadVectorWidthB"]*kernel["NumThreads"])
         writesToSched = (numLoadsA + numLoadsB - 1) * PRECISION
         # In StoreCInUnroll case, add StoreC code related code to writesToSched
         if kernel["StoreCInUnroll"]:
@@ -414,7 +414,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
          ((kernel["PrefetchGlobalRead"] == 2 and (kernel["DirectToVgprA"] or kernel["DirectToVgprB"])) or \
           (lastLoop and kernel["StoreCInUnrollPostLoop"])):
         self.lwEndMfmaIndex = min(self.lwEndMfmaIndex, numMfmaPerIter * (kernel["LoopIters"] - 1) - 1)
-      if kernel["DirectToLds"] and kernel["PrefetchGlobalRead"] == 2:
+      if (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]) and kernel["PrefetchGlobalRead"] == 2:
         # DirectToLds + PGR=2 case, lwEndMfmaIndex must be after the end of local read (excluding local reads for next iter)
         lrEnd = min(self.barrierMfmaIndex - 1, self.numMfmaForLR * (kernel["LoopIters"] - self.numItersPLR))
         if self.lwEndMfmaIndex < lrEnd:
@@ -705,7 +705,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if self.lwStartMfmaIndex < self.grEndMfmaIndex:
           self.lwStartMfmaIndex = self.grEndMfmaIndex
         # DirectToLds + PGR=2 case, lwStart must be after all local reads are done
-        if kernel["DirectToLds"] and kernel["PrefetchGlobalRead"] == 2:
+        if (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]) and kernel["PrefetchGlobalRead"] == 2:
           lrEnd = min(self.lwEndMfmaIndex, self.numMfmaForLR * (kernel["LoopIters"] - self.numItersPLR))
           if self.lwStartMfmaIndex < lrEnd:
             self.lwStartMfmaIndex = lrEnd
@@ -1275,7 +1275,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           flagInsert = False
           if kernel["PrefetchGlobalRead"] == 2:
             lwStartOffset = 0
-            if kernel["DirectToLds"]:
+            if (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]):
               lwStartOffset = 2
             #  if (mfmaIndex == self.lwStartMfmaIndex or mfmaIndex == self.barrierMfmaIndex+2):
             if (mfmaIndex == self.lwStartMfmaIndex + lwStartOffset or mfmaIndex == self.barrierMfmaIndex+1) :
@@ -1284,7 +1284,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
             # this setting is good for fixed clock, but not good for auto clock
             #if (mfmaIndex == self.grEndMfmaIndex or mfmaIndex == self.barrierMfmaIndex+1) :
             withGL = ((not NLLlast) or (self.prefetchAcrossPersistent and kernel["PrefetchAcrossPersistentMode"] == 1))
-            withDTLload = kernel["DirectToLds"] and withGL
+            withDTLload = (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]) and withGL
             startIndex = 0 if withDTLload else 1
             if (mfmaIndex == startIndex or withGL and mfmaIndex == self.barrierMfmaIndex+1):
               flagInsert = True
@@ -1448,8 +1448,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
               # adjustment for double
               # in this case, interval must be 1 to avoid overwritting vreg by global read
               interval = 1
-          # DirectToVgprA + TLU=False + VW > 1 case, need to use interval = 1
-          if kernel["DirectToVgprA"] and (not kernel["ProblemType"]["TLUA"]) and kernel["VectorWidth"] > 1:
+          # DirectToVgprA + TLU=False + VW > kernel["MIInputPerThread"] case, need to use interval = 1
+          if kernel["DirectToVgprA"] and (not kernel["ProblemType"]["TLUA"]) and kernel["VectorWidth"] > kernel["MIInputPerThread"]:
             interval = 1
           # if number of mfma after self.grEndMfmaIndex is smaller than numMfmaPerIter, we need to use smaller interval to insert DTV load.
           # this is to ensure DTV load is generated after lwStartMfmaIndex
@@ -3278,14 +3278,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
             tailLoopInnerUnroll = kernel["InnerUnroll"]
           # need to unroll tail loop for the following cases
           mEnd = 1
-          if kernel["DirectToVgprA"] or kernel["DirectToVgprB"]:
+          if (kernel["DirectToVgprA"] or kernel["DirectToVgprB"] or kernel["DirectToLdsA"] or kernel["DirectToLdsB"]) \
+             and kernel["EnableMatrixInstruction"]:
             mEnd = kernel["DepthU"]//(kernel["MatrixInstK"]*kernel["LocalSplitU"])
-          # need to cover different local read inc values for the following DirectToLds case
-          elif kernel["DirectToLds"] and kernel["EnableMatrixInstruction"] and kernel["InnerUnroll"] == 1 and\
-               (kernel["GlobalLoadVectorWidthA"] * self.bpeAB > 4 or kernel["GlobalLoadVectorWidthB"] * self.bpeAB > 4
-                or kernel["ThreadSeparateGlobalReadA"] or kernel["ThreadSeparateGlobalReadB"]) and \
-               kernel["DepthU"] // kernel["MatrixInstK"] > 2:
-            mEnd = kernel["DepthU"] // (kernel["MatrixInstK"] * 2)
 
           for mValue in range(mEnd):
             if mEnd > 1:
@@ -3555,10 +3550,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
     #     StaggerU=0 case, we can exit NoLoadLoop earlier when whole K range is processed
     #   - InnerUnroll = 1
     #     K mask part does not work properly with InnerUnroll>1
-    # Case 3 (NoTailLoop = 3): Case 2 + StaggerU != 0 + (NT + BufferLoad)
+    # Case 3 (NoTailLoop = 3): Case 2 + StaggerU != 0 + (NT + BufferLoad (except for DirectToLds)
     #   - StaggerU>0 and NT(+BufferLoad)
     #     if StaggerU>0, the partial K part can be in unroll and K mask cannot be handled in NoLoadLoop
     #     If NT and BufferLoad, global load for out of range K is always 0 because out of range K address
+    #     (This is not true in DirectToLds case)
     #     is always out of array load (means load 0)
     #     If StaggerU is enabled, cannot exit unless whole code in NoLoadLoop is done
     #
@@ -3584,9 +3580,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
     afem = kernel["AssertFree1ElementMultiple"]
     tailLoopLoadWidthB = afem if tluB else asem
     # if glvw is not power of 2, use 1
-    if (glvwA & (glvwA - 1)):
+    if glvwA <= 1 or (glvwA & (glvwA - 1)):
       tailLoopLoadWidthA = 1
-    if (glvwB & (glvwB - 1)):
+    if glvwB <= 1 or (glvwB & (glvwB - 1)):
       tailLoopLoadWidthB = 1
 
     noTailLoop = 0
@@ -3594,12 +3590,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
       noTailLoop = 1
     elif kernel["BufferLoad"] and (not kernel["SuppressNoLoadLoop"]) and \
          kernel["EnableMatrixInstruction"] and kernel["MatrixInstK"] > 1 and \
-         (tailLoopLoadWidthA % glvwA == 0) and (tailLoopLoadWidthB % glvwB == 0) and \
+         (glvwA <= 1 or (tailLoopLoadWidthA % glvwA == 0)) and (glvwB <= 1 or (tailLoopLoadWidthB % glvwB == 0)) and \
          gsu == 1 and kernel["PersistentKernel"] == 0 and kernel["DepthULdsDivisor"] == 1 and \
          kernel["InnerUnroll"] == 1:
       if kernel["StaggerU"] == 0:
         noTailLoop = 2
-      elif (tluA and tluB):
+      elif (tluA and (not kernel["DirectToLdsA"]) and tluB and (not kernel["DirectToLdsB"])):
         noTailLoop = 3
 
     # no tail loop optimization setting
@@ -3725,7 +3721,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # MergeRead 0: ds_readAx1 ds_readBx1 mfma | ds_readAx1 ds_readBx1 mfma | => ds_readAx2 ds_readBx1 mfma | ds_readBx1 mfma |
     # MergeRead 1: ds_readAx1 ds_readBx1 mfma | ds_readAx1 ds_readAx1 mfma | => ds_readAx2 ds_readBx1 ds_readBx1 mfma | mfma |
     MergeRead = 0
-    if not kernel["ProblemType"]["TLUA"] or MergeRead or self.allowLRVWBforTLUandMI:
+    if kernel["UnrollMajorLDSA"] or MergeRead or self.allowLRVWBforTLUandMI:
       if kernel["DirectToVgprA"]:
         # DirectToVgprA case, ignore LocalReadVectorWidth and use GlobalLoadVectorWidth instead.
         self.lrvwA = vwa
@@ -3736,7 +3732,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.lrvwA = kernel["MIInputPerThread"]
       else:
         self.lrvwA = 1
-    if not kernel["ProblemType"]["TLUB"] or MergeRead or self.allowLRVWBforTLUandMI:
+    if kernel["UnrollMajorLDSB"] or MergeRead or self.allowLRVWBforTLUandMI:
       if kernel["DirectToVgprB"]:
         # DirectToVgprB case, ignore LocalReadVectorWidth and use GlobalLoadVectorWidth instead.
         self.lrvwB = vwb
@@ -3858,7 +3854,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # writeCoal indicates writes should be done in the coal dim
     # else in perp
     if writeCoal:
-      self.numWritesCoalVecCompA = vwa // kernel["DepthULdsDivisor"]
+      self.numWritesCoalVecCompA = vwa / kernel["DepthULdsDivisor"] if vwa < 1 else vwa // kernel["DepthULdsDivisor"]
       self.numWritesPerpVecCompA = 1
     else:
       self.numWritesCoalVecCompA = 1
@@ -3971,7 +3967,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # writeCoal indicates writes should be done in the coal dim
     # else in perp
     if writeCoal:
-      self.numWritesCoalVecCompB = vwb // kernel["DepthULdsDivisor"]
+      self.numWritesCoalVecCompB = vwb / kernel["DepthULdsDivisor"] if vwb < 1 else vwb // kernel["DepthULdsDivisor"]
       self.numWritesPerpVecCompB = 1
     else:
       self.numWritesCoalVecCompB = 1
@@ -4041,26 +4037,23 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # condition(s) to enable init accvgpr opt (use const "0" as an operand instead of initializing whole accvgpr)
     self.useInitAccVgprOpt = False
     # enable for the following conditions
-    if kernel["StoreCInUnroll"]:
-      self.useInitAccVgprOpt = True
-    if (kernel["DirectToVgprA"] or kernel["DirectToVgprB"]):
+    if kernel["EnableMatrixInstruction"] and (kernel["PrefetchGlobalRead"] == 1 or kernel["PrefetchGlobalRead"] == 2) \
+       and globalParameters["AsmCaps"][globalParameters["CurrentISA"]]["HasMFMA_constSrc"]:
       self.useInitAccVgprOpt = True
     # force to disable for the following conditions
     if self.useInitAccVgprOpt:
-      if kernel["PrefetchGlobalRead"] == 2:
-        # PGR=2 case, K > DepthU * 2 is necessary ( if not noTailLoop, need > DepthU * 3)
-        # (kernel["AssertSizeGreaterThan"][3] > DepthU * 2 (or 3)
-        minDUnum = 2 if self.noTailLoop else 3
-        if not (3 in kernel["AssertSizeGreaterThan"].keys() and kernel["AssertSizeGreaterThan"][3] >= kernel["DepthU"] * minDUnum):
-          print2("InitAccVgprOpt is disabled because AssertSizeGreaterThan for K is not greater than DepthU * %u"%minDUnum)
-          self.useInitAccVgprOpt = False
-      if kernel["PrefetchGlobalRead"] == 1:
-        # PGR=1 case, K > DepthU * 1 is necessary ( if not noTailLoop, need > DepthU * 2)
-        # (kernel["AssertSizeGreaterThan"][3] > DepthU * 2 (or 3)
-        minDUnum = 1 if self.noTailLoop else 2
-        if not (3 in kernel["AssertSizeGreaterThan"].keys() and kernel["AssertSizeGreaterThan"][3] >= kernel["DepthU"] * minDUnum):
-          print2("InitAccVgprOpt is disabled because AssertSizeGreaterThan for K is not greater than DepthU * %u"%minDUnum)
-          self.useInitAccVgprOpt = False
+      asgt3 = 0 if not (3 in kernel["AssertSizeGreaterThan"].keys()) else kernel["AssertSizeGreaterThan"][3]
+      gsu = kernel["GlobalSplitU"]
+      # PGR=1 case, K > DepthU * 1 is necessary ( if not noTailLoop, need > DepthU * 2)
+      # (kernel["AssertSizeGreaterThan"][3] > DepthU * GSU * 1 (or 2)
+      # PGR=2 case, K > DepthU * 2 is necessary ( if not noTailLoop, need > DepthU * 3)
+      # (kernel["AssertSizeGreaterThan"][3] > DepthU * GSU * 2 (or 3)
+      minDUnum = kernel["PrefetchGlobalRead"]
+      if not self.noTailLoop:
+        minDUnum += 1
+      if not (asgt3 >= kernel["DepthU"] * gsu * minDUnum):
+        print2("InitAccVgprOpt is disabled because AssertSizeGreaterThan for K is not greater than DepthU * GSU * %u"%minDUnum)
+        self.useInitAccVgprOpt = False
 
     # condition(s) to enable singleNLL opt
     self.enableSingleNLLOpt = False
@@ -4390,13 +4383,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   @abc.abstractmethod
   def lraFinalOffset(self, kernel, tP):
-    return ""
-
-  ##############################################################################
-  # Local Read Addresses for direct LDS : Final Offset A/B
-  ##############################################################################
-  @abc.abstractmethod
-  def directToLdsLraOffset(self, kernel, finalVgpr, tmp1, tmp2, tP):
     return ""
 
   ##############################################################################
@@ -5242,7 +5228,7 @@ for codeObjectFileName in codeObjectFileNames:
         return (0, self.getKernelSource(kernel))
 
     except subprocess.CalledProcessError as exc:
-      if isinstance(exc.cmd, collections.Sequence):
+      if isinstance(exc.cmd, Sequence):
         print("Command: ")
         print(' '.join(exc.cmd))
         print("returned non-zero exit status ", exc.returncode)
@@ -5336,11 +5322,11 @@ for codeObjectFileName in codeObjectFileNames:
         numGlobalStoreC = 0
         numReadsIterCoalesced = self.numReadsIterCoalescedA if self.isSwapGlobalReadOrderForDirectToVgpr(kernel) else self.numReadsIterCoalescedB
         waitComment = "global read wait for DirectToVgpr"
-        # delay DirectToVgpr global read (from previous iteration) which is not referred yet
+        # delay DirectToVgpr global read (from previous iteration) which is not referred yet (do not delay in beforeBarrier case)
         numRegsIn1set = (numGlobalRead * numReadsIterCoalesced) // kernel["LoopIters"]
         numSet = (u + numReadsIterCoalesced) // numReadsIterCoalesced
         numSetMod = (u + numReadsIterCoalesced) % numReadsIterCoalesced
-        if numSetMod > 0:
+        if (not beforeBarrier) and numSetMod > 0:
           # if mod > 0, wait is already done by mod == 0 case and no need to wait for same set of global read
           return ""
         needToWait = numGlobalRead - numSet * numRegsIn1set

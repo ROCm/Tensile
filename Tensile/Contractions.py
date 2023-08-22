@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -62,7 +62,7 @@ class BoundIndex:
 
 class ProblemType:
     StateKeys = ['operationIdentifier', 'aType', 'bType', 'cType', 'dType',
-                 'useBeta', 'highPrecisionAccumulate', 'useInitialStridesAB', 'useInitialStridesCD', 'stridedBatched']
+                 'useBeta', 'highPrecisionAccumulate', 'useInitialStridesAB', 'useInitialStridesCD', 'stridedBatched', 'f32XdlMathOp', 'stochasticRounding']
     @classmethod
     def FromOriginalState(cls, d):
         indices = [None]*d['TotalIndices']
@@ -123,6 +123,15 @@ class ProblemType:
 
         rv.aType = srcType
         rv.bType = srcType
+        # for hybrid 8bit float types, we need to split the type into a_type and b_type
+        if srcType.isFloat8BFloat8(): 
+            rv.aType = DataType("F8")
+            rv.bType = DataType("B8")
+        elif srcType.isBFloat8Float8(): 
+            rv.aType = DataType("B8")
+            rv.bType = DataType("F8")
+
+        # We don't expect dstType and computeType to be hybrid types for now
         rv.cType = dstType
         rv.dType = dstType
         # we already checked the src/dst/compute types are supported and well-assigned in SolutionStruct
@@ -166,6 +175,12 @@ class ProblemType:
 
         rv.batched = d['Batched']
 
+        rv.f32XdlMathOp = DataType(d['F32XdlMathOp']) if 'F32XdlMathOp' in d else DataType(0)
+
+        rv.stochasticRounding = False
+        if 'StochasticRounding' in d:
+            rv.stochasticRounding = d['StochasticRounding']
+        
         return rv
 
     def __init__(self, freeIndices=None, batchIndices=None, boundIndices=None, aDims=None, bDims=None, cDims=None, dDims=None):
@@ -261,6 +276,9 @@ class ProblemType:
         if includeType:
             predicates.append(ProblemPredicate("TypesEqual", value=(self.aType, self.bType, self.cType, self.dType)))
             predicates.append(ProblemPredicate("HighPrecisionAccumulate", value=self.highPrecisionAccumulate))
+            predicates.append(ProblemPredicate("F32XdlMathOp", value=self.f32XdlMathOp))
+            predicates.append(ProblemPredicate("StochasticRounding", value=self.stochasticRounding))
+
 
         return predicates
 
@@ -351,8 +369,8 @@ class ProblemPredicate(Properties.Predicate):
             # calculate the minimum supported free dimension size
             TLUA = state['ProblemType']['TLUA']
             TLUB = state['ProblemType']['TLUB']
-            minFree0 = state['GlobalLoadVectorWidthA'] if TLUA else 1
-            minFree1 = state['GlobalLoadVectorWidthB'] if TLUB else 1
+            minFree0 = max(state['GlobalLoadVectorWidthA'], 1) if TLUA else 1
+            minFree1 = max(state['GlobalLoadVectorWidthB'], 1) if TLUB else 1
             rv += [cls('LeadingFree0SizesGreaterOrEqual', value=minFree0)]
             rv += [cls('LeadingFree1SizesGreaterOrEqual', value=minFree1)]
 

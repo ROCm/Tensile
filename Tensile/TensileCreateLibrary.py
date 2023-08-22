@@ -249,8 +249,11 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         outflag = "-output"
 
       infile = os.path.join(buildPath, objectFilename)
+      bundler = globalParameters["ClangOffloadBundlerPath"]
+      if bundler is None:
+        raise ValueError('No bundler available; set TENSILE_ROCM_OFFLOAD_BUNDLER_PATH to point to clang-offload-bundler.')
       try:
-        bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "%s=%s" % (inflag, infile), "-list"]
+        bundlerArgs = [bundler, "-type=o", "%s=%s" % (inflag, infile), "-list"]
         listing = subprocess.check_output(bundlerArgs, stderr=subprocess.STDOUT).decode().split("\n")
         for target in listing:
           matched = re.search("gfx.*$", target)
@@ -271,8 +274,8 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
             #Compilation
             if outfile:
               coFilenames.append(os.path.split(outfile)[1])
-              #bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=%s" % target, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
-              bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=%s" % target,
+              #bundlerArgs = [bundler, "-type=o", "-targets=%s" % target, "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+              bundlerArgs = [bundler, "-type=o", "-targets=%s" % target,
                            "%s=%s" % (inflag, infile), "%s=%s" % (outflag, outfile), "-unbundle"]
               if globalParameters["PrintCodeCommands"]:
                 print(' '.join(bundlerArgs))
@@ -285,8 +288,8 @@ def buildSourceCodeObjectFile(CxxCompiler, outputPath, kernelFile):
         for i in range(len(archs)):
           outfile = os.path.join(buildPath, "{0}-000-{1}.hsaco".format(soFilename, archs[i]))
           coFilenames.append(os.path.split(outfile)[1])
-          #bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
-          bundlerArgs = [globalParameters["ClangOffloadBundlerPath"], "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i],
+          #bundlerArgs = [bundler, "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i], "-inputs=%s" % infile, "-outputs=%s" % outfile, "-unbundle"]
+          bundlerArgs = [bundler, "-type=o", "-targets=hip-amdgcn-amd-amdhsa--%s" % cmdlineArchs[i],
                          "%s=%s" % (inflag, infile), "%s=%s" % (outflag, outfile), "-unbundle"]
           if globalParameters["PrintCodeCommands"]:
             print(' '.join(bundlerArgs))
@@ -780,6 +783,8 @@ def copyStaticFiles(outputPath=None):
   libraryStaticFiles = [
     "TensileTypes.h",
     "tensile_bfloat16.h",
+    "tensile_float8_bfloat8.h",
+    "hip_f8_impl.h",
     "KernelHeader.h" ]
 
   for fileName in libraryStaticFiles:
@@ -1130,8 +1135,13 @@ def WriteClientLibraryFromSolutions(solutionList, libraryWorkingPath, tensileSou
   firstSolution = deepcopy(solutionList[0])
   problemType = firstSolution["ProblemType"].state
   problemType["DataType"] = problemType["DataType"].value
+  problemType["DataTypeA"] = problemType["DataTypeA"].value
+  problemType["DataTypeB"] = problemType["DataTypeB"].value
   problemType["DestDataType"] = problemType["DestDataType"].value
   problemType["ComputeDataType"] = problemType["ComputeDataType"].value
+  problemType["MathDataTypeA"] = problemType["MathDataTypeA"].value
+  problemType["MathDataTypeB"] = problemType["MathDataTypeB"].value
+  problemType["F32XdlMathOp"] = problemType["F32XdlMathOp"].value
   cxxCompiler = globalParameters["CxxCompiler"]
 
   effectiveWorkingPath = os.path.join(libraryWorkingPath, "library")

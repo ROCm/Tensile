@@ -278,6 +278,18 @@ namespace Tensile
                                        reinterpret_cast<BFloat16 const*>(data),
                                        tensor,
                                        reinterpret_cast<BFloat16 const*>(ptrVal));
+                    else if(tensor.dataType() == DataType::Float8)
+                        logTensorTyped(level,
+                                       name,
+                                       reinterpret_cast<Float8 const*>(data),
+                                       tensor,
+                                       reinterpret_cast<Float8 const*>(ptrVal));
+                    else if(tensor.dataType() == DataType::BFloat8)
+                        logTensorTyped(level,
+                                       name,
+                                       reinterpret_cast<BFloat8 const*>(data),
+                                       tensor,
+                                       reinterpret_cast<BFloat8 const*>(ptrVal));
                     else
                         throw std::runtime_error(
                             concatenate("Can't log tensor of type ", tensor.dataType()));

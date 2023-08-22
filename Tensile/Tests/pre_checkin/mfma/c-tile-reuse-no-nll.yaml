@@ -36,6 +36,7 @@ BenchmarkProblems:
         - AssertFree0ElementMultiple: [2]
         - MatrixInstruction:
           - [32, 32, 2, 2]
+          - [32, 32, 4, 2]
         - ThreadTile:
           - [ 1, 32 ]
         - WorkGroup:
