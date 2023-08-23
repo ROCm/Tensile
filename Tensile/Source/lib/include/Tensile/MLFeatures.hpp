@@ -250,6 +250,26 @@ namespace Tensile
             }
         };
 
+        struct ProblemScaleMeasure : public MLFeature_CRTP<ProblemScaleMeasure, ContractionProblem>
+        {
+            enum
+            {
+                HasIndex = false,
+                HasValue = false
+            };
+
+            static std::string Type()
+            {
+                return "ProblemScaleMeasure";
+            }
+
+            virtual float operator()(ContractionProblem const& problem) const
+            {
+                float measure = problem.freeSizeB(0) * problem.freeSizeB(0) * problem.batchSize(0);
+                return measure;
+            }
+        };
+
         /**
          * @}
          */
