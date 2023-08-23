@@ -4,8 +4,7 @@
 ### Added
 - Added aquavanjaram support: gfx940/gfx941/gfx942, fp8/bf8 datatype, xf32 datatype, and stochastic rounding for various datatypes
 - Added/updated tuning scripts
-- Added DirectToLds support for larger data types with 32bit global load, and the corresponding test cases
-- Added new reject condition for DTL (only A or B) + PGR=2
+- Added DirectToLds support for larger data types with 32bit global load (old parameter DirectToLds is replaced with DirectToLdsA and DirectToLdsB), and the corresponding test cases
 - Added the average of frequency, power consumption, and temperature information for the winner kernels to the CSV file
 - Added asmcap check for MFMA + const src
 
@@ -24,6 +23,7 @@
 - Fixed mismatch issue with DTLds + TSGR + TailLoop
 - Fixed a bug with InitAccVgprOpt + GSU>1 and a mismatch issue with PGR=0
 - Fixed override for unloaded solutions when lazy loading
+- Fixed build some errors (adding missing headers)
 
 ## Tensile 4.38.0 for ROCm 5.7
 ### Added
