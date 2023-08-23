@@ -1804,9 +1804,10 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("NumWorkGroups1", 1)
 
     pkArgumentToLoad = 0
-    if kernel["PersistentKernel"] or kernel["StreamK"]:
+    if kernel["PersistentKernel"]:
       self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1) # Magic number to use for division
       self.defineSgpr("MagicShiftProblemNumGroupTiles0", 1) # Magic shift/abit to use for division alg 2
+      self.defineSgpr("GridNumWorkGroups0", 1) # Magic number to use for division, persistent kernel - flattened wg0 (=all WGs)
       pkArgumentToLoad += 3
       if kernel["PersistentKernelAlongBatch"]:
         self.defineSgpr("NumWorkGroups2", 1)  # for persistent kernel along batch
@@ -1816,12 +1817,14 @@ class KernelWriterAssembly(KernelWriter):
     skArgumentToLoad = 0
     if kernel["StreamK"]:
       print("SKArgs")
+      self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1) # Magic number to use for division
+      self.defineSgpr("MagicShiftProblemNumGroupTiles0", 1) # Magic shift/abit to use for division alg 2
       self.defineSgpr("ItersPerTile", 1)
       self.defineSgpr("TotalIters", 1)
       self.defineSgpr("ItersPerWG", 1)
       self.defineSgpr("MagicNumberItersPerTile", 1)
       self.defineSgpr("MagicShiftItersPerTile", 1)
-      skArgumentToLoad += 5
+      skArgumentToLoad += 7
 
     #------------------------
     # Registers defined below this point are not available in the post-loop
