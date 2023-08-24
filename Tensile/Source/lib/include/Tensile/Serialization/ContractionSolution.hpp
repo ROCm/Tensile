@@ -119,6 +119,8 @@ namespace Tensile
                 iot::mapOptional(io, "stridedBatched", s.stridedBatched);
                 iot::mapOptional(io, "fp16AltImpl", s.fp16AltImpl);
                 iot::mapOptional(io, "fp16AltImplRound", s.fp16AltImplRound);
+                iot::mapOptional(io, "stochasticRounding", s.stochasticRounding);
+                iot::mapOptional(io, "f32XdlMathOp", s.f32XdlMathOp);
             }
 
             const static bool flow = false;

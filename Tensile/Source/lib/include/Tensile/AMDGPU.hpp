@@ -59,6 +59,9 @@ namespace Tensile
             gfx906  = 906,
             gfx908  = 908,
             gfx90a  = 910,
+            gfx940  = 940,
+            gfx941  = 941,
+            gfx942  = 942,
             gfx1010 = 1010,
             gfx1011 = 1011,
             gfx1012 = 1012,
@@ -86,6 +89,12 @@ namespace Tensile
                 return "gfx908";
             case AMDGPU::Processor::gfx90a:
                 return "gfx90a";
+            case AMDGPU::Processor::gfx940:
+                return "gfx940";
+            case AMDGPU::Processor::gfx941:
+                return "gfx941";
+            case AMDGPU::Processor::gfx942:
+                return "gfx942";
             case AMDGPU::Processor::gfx1010:
                 return "gfx1010";
             case AMDGPU::Processor::gfx1011:
@@ -112,8 +121,78 @@ namespace Tensile
             return "";
         }
 
+        AMDGPU::Processor toProcessorId(std::string const& deviceString)
+        {
+            if(deviceString.find("gfx803") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx803;
+            }
+            else if(deviceString.find("gfx900") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx900;
+            }
+            else if(deviceString.find("gfx906") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx906;
+            }
+            else if(deviceString.find("gfx908") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx908;
+            }
+            else if(deviceString.find("gfx90a") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx90a;
+            }
+            else if(deviceString.find("gfx940") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx940;
+            }
+            else if(deviceString.find("gfx941") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx941;
+            }
+            else if(deviceString.find("gfx942") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx942;
+            }
+            else if(deviceString.find("gfx1010") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx1010;
+            }
+            else if(deviceString.find("gfx1011") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx1011;
+            }
+            else if(deviceString.find("gfx1012") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx1012;
+            }
+            else if(deviceString.find("gfx1030") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx1030;
+            }
+            else if(deviceString.find("gfx1100") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx1100;
+            }
+            else if(deviceString.find("gfx1101") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx1101;
+            }
+            else if(deviceString.find("gfx1102") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx1102;
+            }
+            else
+            {
+                return static_cast<AMDGPU::Processor>(0);
+            }
+        }
+
         AMDGPU();
         AMDGPU(Processor p, int computeUnitCount, std::string const& deviceName);
+        AMDGPU(std::string const& archName, int computeUnitCount, std::string const& deviceName);
+
         ~AMDGPU();
 
         Processor   processor        = Processor::gfx900;

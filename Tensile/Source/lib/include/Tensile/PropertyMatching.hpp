@@ -28,6 +28,8 @@
 
 #include <cstddef>
 #include <functional>
+#include <iomanip>
+#include <iostream>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -849,7 +851,7 @@ namespace Tensile
                     if(T_Debug)
                     {
                         std::cout << std::endl
-                                  << "Foward Search end but solution not found" << std::endl;
+                                  << "Forward Search end but solution not found" << std::endl;
                         std::cout << "Start to backward search..." << std::endl;
                     }
 

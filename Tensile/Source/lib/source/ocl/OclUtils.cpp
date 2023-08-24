@@ -148,6 +148,18 @@ namespace Tensile
             {
                 return AMDGPU::Processor::gfx90a;
             }
+            else if(deviceString.find("gfx940") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx940;
+            }
+            else if(deviceString.find("gfx941") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx941;
+            }
+            else if(deviceString.find("gfx942") != std::string::npos)
+            {
+                return AMDGPU::Processor::gfx942;
+            }
             else if(deviceString.find("gfx1010") != std::string::npos)
             {
                 return AMDGPU::Processor::gfx1010;
@@ -189,6 +201,7 @@ namespace Tensile
             auto            maxWorkGroupSize = device.getInfo<CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS>();
             oclDeviceProp_t result           = {
                 device.getInfo<CL_DEVICE_BOARD_NAME_AMD>(), //std::string name;
+                device.getInfo<CL_DEVICE_NAME>(), // std::string gcnArchName;
                 device.getInfo<CL_DEVICE_GLOBAL_MEM_SIZE>(), // size_t totalGlobalMem;
                 device.getInfo<
                     CL_DEVICE_LOCAL_MEM_SIZE>(), // size_t sharedMemPerBlock; CL_DEVICE_LOCAL_MEM_SIZE

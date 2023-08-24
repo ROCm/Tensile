@@ -185,6 +185,8 @@ namespace Tensile
 
         bool setOverridesFromFile(Hardware const& hardware, const std::string& file_path)
         {
+            bool debug = Debug::Instance().printOverrideLogs();
+
             try
             {
                 // Early exit if no caching library
@@ -192,14 +194,34 @@ namespace Tensile
 
                 auto probSols = getContractionProblemsFromFile<MyProblem>(file_path);
                 if(probSols.size() == 0)
+                {
+                    if(debug)
+                        std::cout << "WARNING: no valid entries found in override file: '"
+                                  << file_path << "'.\n";
+
                     return false;
+                }
 
                 bool success = true;
 
                 for(const auto& ps : probSols)
                 {
                     // Get solution via index
-                    std::shared_ptr<MySolution> solution = getSolutionByIndex(ps.second);
+                    int sol_idx = ps.second - 1;
+
+                    std::shared_ptr<MySolution> solution = getSolutionByIndex(sol_idx);
+                    if(!solution)
+                    {
+                        // Load library
+                        auto problem = ps.first.problem();
+                        library->findAllSolutions(problem, hardware);
+                        solution = getSolutionByIndex(sol_idx);
+                    }
+
+                    if(debug && !solution)
+                        std::cout << "WARNING: failed to find solution with index: " << sol_idx
+                                  << ".\n"
+                                  << "Possible library mismatch.\n";
 
                     // Update cache
                     success &= lib.addToOverride(ps.first, hardware, solution);
@@ -209,6 +231,9 @@ namespace Tensile
             }
             catch(std::bad_cast const& exc)
             {
+                if(debug)
+                    std::cout << "WARNING: Caching library required for override.\n";
+
                 return false;
             }
         }

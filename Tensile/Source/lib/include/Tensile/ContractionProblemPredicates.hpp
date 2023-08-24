@@ -1430,6 +1430,59 @@ namespace Tensile
                 }
             };
 
+            struct StochasticRoundingEqual
+                : public Predicate_CRTP<StochasticRoundingEqual, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true // false?
+                };
+                bool value;
+
+                StochasticRoundingEqual() = default;
+                StochasticRoundingEqual(bool value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "StochasticRounding";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.stochasticRounding() == value;
+                }
+            };
+
+            struct F32XdlMathOpEqual : public Predicate_CRTP<F32XdlMathOpEqual, ContractionProblem>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                DataType value;
+
+                F32XdlMathOpEqual() = default;
+                F32XdlMathOpEqual(DataType value)
+                    : value(value)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "F32XdlMathOp";
+                }
+
+                virtual bool operator()(ContractionProblem const& problem) const override
+                {
+                    return problem.f32XdlMathOp() == value;
+                }
+            };
+
             struct EqualityMatching : public Predicate_CRTP<EqualityMatching, ContractionProblem>
             {
                 enum
