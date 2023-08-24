@@ -565,7 +565,7 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("UnrollLoopLastIter", 1)
 
     if kernel["StreamK"]:
-      print("SKVars")
+      # print("SKVars")
       self.defineSgpr("StreamKIdx", 1)
       self.defineSgpr("StreamKIter", 1)
       self.defineSgpr("StreamKIterEnd", 1)
@@ -1816,7 +1816,7 @@ class KernelWriterAssembly(KernelWriter):
         pkArgumentToLoad += 3
     skArgumentToLoad = 0
     if kernel["StreamK"]:
-      print("SKArgs")
+      # print("SKArgs")
       self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1) # Magic number to use for division
       self.defineSgpr("MagicShiftProblemNumGroupTiles0", 1) # Magic shift/abit to use for division alg 2
       self.defineSgpr("ItersPerTile", 1)
@@ -3466,7 +3466,7 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["PersistentKernel"] or kernel["StreamK"]:
       if kernel["StreamK"]:
         # Workload calculations
-        print("SK1")
+        # print("SK1")
         kStr += inst("s_mov_b32", sgpr("StreamKIdx"), sgpr("WorkGroup0"), "Save original StreamK index")
         kStr += inst("s_mul_i32", sgpr("StreamKIter"), sgpr("WorkGroup0"), sgpr("ItersPerWG"), "StreaK starting iteration")
         kStr += inst("s_add_u32", sgpr("StreamKIterEnd"), sgpr("StreamKIter"), sgpr("ItersPerWG"), "StreamK ending iteration")
@@ -3486,7 +3486,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr = ""
 
     if kernel["StreamK"]:
-      print("SK2")
+      # print("SK2")
       stmpRef = self.getTmpSgpr(8, 4)
       stmp = stmpRef.idx()
       # Always reset pointers to handle odd-exit case which moves LRO to the upper bank
@@ -4550,7 +4550,7 @@ class KernelWriterAssembly(KernelWriter):
 
       if kernel["StreamK"]:
         # StreamK partial tile - offset to tile start index
-        print("SK3")
+        # print("SK3")
         # kStr += self.s_mul_u64_u32(sgpr(stmp), sgpr(stmp+1), kernel["DepthU"], sgpr("StreamKLocalStart"), "StreamK tile start offset")
         # kStr += inst("s_mul_i32", sgpr(stmp), sgpr("StreamKLocalStart"), "DepthU*Bpe%s"%(tc), "WAAA")
         kStr += inst("s_mul_i32", sgpr(stmp), sgpr("StreamKLocalStart"), "DepthU", "WAAA")
@@ -5641,7 +5641,7 @@ class KernelWriterAssembly(KernelWriter):
                   kernel["_staggerStrideShift"], "shift by StaggerUStride")
 
       if kernel["StreamK"]:
-        print("SK7")
+        # print("SK7")
         # Set stagger=0 for partial tiles to avoid using stagger larger than workload
         kStr += inst("s_cmp_gt_u32", sgpr("StreamKLocalStart"), 0, "does wg start tile?")
         kStr += inst("s_cmov_b32", sgpr("StaggerUIter"), 0, "set stagger=0 for partial tiles")
@@ -5868,7 +5868,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # skip tail loop if StreamK WG not processing final iteration
       if kernel["StreamK"]:
-        print("SK6")
+        # print("SK6")
         kStr += inst("s_cmp_lt_u32", sgpr("StreamKLocalEnd"), sgpr("ItersPerTile"), "Check if WG processes final iteration of tile")
         kStr += inst("s_cmov_b32", loopCounter, hex(0), "This WG not completing tile")
 
@@ -5912,7 +5912,7 @@ class KernelWriterAssembly(KernelWriter):
         asem = kernel["AssertSummationElementMultiple"]
         gsu = kernel["GlobalSplitU"]
         if kernel["StreamK"]:
-          print("SK4")
+          # print("SK4")
           kStr += inst("s_sub_u32", sgpr(loopCounterName), sgpr("StreamKLocalEnd"), sgpr("StreamKLocalStart"), "StreamK loop counter = localEnd - localStart")
           # Adjust loop count for tail loop
           if not self.noTailLoop:
@@ -11583,11 +11583,12 @@ class KernelWriterAssembly(KernelWriter):
 
 
       if batchIdx == 0 and elementIdx == 0:
-        kStr += staticMultiply(vgpr(addrCVgpr), vgpr("Serial"), kernel["MIOutputVectorWidth"] * self.bpeCinternal, sgpr(tmpS01))
+        storeWidth = kernel["StoreVectorWidth"]
+        kStr += staticMultiply(vgpr(addrCVgpr), vgpr("Serial"), storeWidth * self.bpeCinternal, sgpr(tmpS01))
         # kStr += inst("v_mul_lo_u32", , "Partials buffer address")
         kStr += inst("s_mov_b32", sgpr(tmpS01), 0, "Init sgpr offset")
       else:
-        increment = (kernel["WavefrontSize"] * 4) * kernel["MIOutputVectorWidth"] * self.bpeCinternal
+        increment = (kernel["WavefrontSize"] * 4) * kernel["StoreVectorWidth"] * self.bpeCinternal
         kStr += inst("s_add_u32", sgpr(tmpS01), sgpr(tmpS01), increment, "Inc sgpr offset")
 
       kStr += self.readCInput(kernel, ss, addrCalc, vc0, data, gwvw, addrCVgpr, sgpr(tmpS01), 'WS')
@@ -12671,8 +12672,8 @@ class KernelWriterAssembly(KernelWriter):
     else:
       edgeI = edge
     #edgeI = True  # set to True to disable vector stores
-    print(edgeI)
-    print(vectorWidths)
+    # print(edgeI)
+    # print(vectorWidths)
     gwvw = vectorWidths[edgeI]
     #print "globalWriteElements: edge=", edge, "beta=", beta, "atomic=", atomic
 
@@ -12864,7 +12865,7 @@ class KernelWriterAssembly(KernelWriter):
     codeMulAlpha    = deepcopy(self.codeMulAlpha) if self.serializedStore else None
 
     self.alphaBeforeLoadC = False
-    useCodeMulAlpha =  kernel["MIArchVgpr"] and applyAlpha and not (kernel["GlobalSplitU"] > 1)
+    useCodeMulAlpha =  kernel["MIArchVgpr"] and alpha and not (kernel["GlobalSplitU"] > 1)
     if useCodeMulAlpha: # do not set codeAccVgprRead=None if GSU>1
       codeAccVgprRead = None
 
@@ -13507,11 +13508,12 @@ class KernelWriterAssembly(KernelWriter):
       sumIdx = ss.elementSumIdx[elementIdx]
 
       if batchIdx == 0 and elementIdx == 0:
-        kStr += staticMultiply(vgpr(addr), vgpr("Serial"), kernel["MIOutputVectorWidth"] * self.bpeCinternal, sgpr(tmpS01))
+        storeWidth = kernel["StoreVectorWidth"]
+        kStr += staticMultiply(vgpr(addr), vgpr("Serial"), storeWidth * self.bpeCinternal, sgpr(tmpS01))
         # kStr += inst("v_mul_lo_u32", , "Partials buffer address")
         kStr += inst("s_mov_b32", sgpr(tmpS01), 0, "Init sgpr offset")
       else:
-        increment = (kernel["WavefrontSize"] * 4) * kernel["MIOutputVectorWidth"] * self.bpeCinternal
+        increment = (kernel["WavefrontSize"] * 4) * kernel["StoreVectorWidth"] * self.bpeCinternal
         kStr += inst("s_add_u32", sgpr(tmpS01), sgpr(tmpS01), increment, "Inc sgpr offset")
       
 
@@ -13998,8 +14000,8 @@ class KernelWriterAssembly(KernelWriter):
     else:
       edgeI = edge
     #edgeI = True  # set to True to disable vector stores
-    print(edgeI)
-    print(vectorWidths)
+    # print(edgeI)
+    # print(vectorWidths)
     gwvw = vectorWidths[edgeI]
     #print "globalWriteElements: edge=", edge, "beta=", beta, "atomic=", atomic
 
@@ -14191,7 +14193,7 @@ class KernelWriterAssembly(KernelWriter):
     codeMulAlpha    = deepcopy(self.codeMulAlpha) if self.serializedStore else None
 
     self.alphaBeforeLoadC = False
-    useCodeMulAlpha =  kernel["MIArchVgpr"] and applyAlpha and not (kernel["GlobalSplitU"] > 1)
+    useCodeMulAlpha =  kernel["MIArchVgpr"] and alpha and not (kernel["GlobalSplitU"] > 1)
     if useCodeMulAlpha: # do not set codeAccVgprRead=None if GSU>1
       codeAccVgprRead = None
 
@@ -14334,7 +14336,7 @@ class KernelWriterAssembly(KernelWriter):
     skStoreLabel = self.getNamedLabelUnique("SK_Store")
 
     if kernel["StreamK"] == 2:
-      print("SK11 - store branches")
+      # print("SK11 - store branches")
       # if we did not start the tile, store partials
       # branch to beta == 0 store path
       kStr += inst("s_cmp_eq_u32", sgpr("StreamKLocalStart"), 0, "does wg start tile?")
