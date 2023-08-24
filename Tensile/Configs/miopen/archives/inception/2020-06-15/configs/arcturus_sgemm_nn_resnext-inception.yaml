@@ -14,7 +14,7 @@ BenchmarkProblems:
     - StoreVectorWidth: [-1]
     - TransposeLDS: [0,1]
     - StoreRemapVectorWidth: [4]
-    - DirectToLds: [0]
+    #- DirectToLds: [0]
     BenchmarkFinalParameters:
     - ProblemSizes:
       - Exact: &id001 [64, 192, 64, 1280, 64, 64, 64, 192]
@@ -111,7 +111,7 @@ BenchmarkProblems:
     - StoreVectorWidth: [-1]
     - TransposeLDS: [1]
     - StoreRemapVectorWidth: [4]
-    - DirectToLds: [0]
+    #- DirectToLds: [0]
     BenchmarkFinalParameters:
     - ProblemSizes:
       - Exact: *id001
@@ -212,7 +212,7 @@ BenchmarkProblems:
     - StoreVectorWidth: [-1]
     - TransposeLDS: [1]
     - StoreRemapVectorWidth: [4]
-    - DirectToLds: [0]
+    #- DirectToLds: [0]
     BenchmarkFinalParameters:
     - ProblemSizes:
       - Exact: *id001
@@ -313,7 +313,7 @@ BenchmarkProblems:
     - StoreVectorWidth: [-1]
     - TransposeLDS: [1]
     - StoreRemapVectorWidth: [4]
-    - DirectToLds: [0]
+    #- DirectToLds: [0]
     BenchmarkFinalParameters:
     - ProblemSizes:
       - Exact: *id001

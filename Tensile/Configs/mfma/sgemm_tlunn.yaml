@@ -65,7 +65,7 @@ BenchmarkProblems:
         - InnerUnroll: [1, 2]
         - LdsBlockSizePerPad: [128]
         - TransposeLDS: [1]
-        - DirectToLds: [0]
+        #- DirectToLds: [0]
         - LdsPadA: [0, 2, 4]
         - LdsPadB: [0, 2, 4]
         - SuppressNoLoadLoop: [False, True]

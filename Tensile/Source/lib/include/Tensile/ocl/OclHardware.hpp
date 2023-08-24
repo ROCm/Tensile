@@ -37,6 +37,7 @@ namespace Tensile
         struct oclDeviceProp_t
         {
             std::string name;
+            std::string gcnArchName;
             size_t      totalGlobalMem;
             size_t      sharedMemPerBlock;
             int         warpSize;
