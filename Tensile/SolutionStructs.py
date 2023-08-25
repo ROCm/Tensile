@@ -4326,7 +4326,8 @@ class Solution(collections.abc.Mapping):
       numLoadsA = state["NumLoadsCoalescedA"]*state["NumLoadsPerpendicularA"]
       numLoadsB = state["NumLoadsCoalescedB"]*state["NumLoadsPerpendicularB"]
       # _UseSgprForGRO disabled for StreamK since additional sgprs needed for StreamK calculations
-      if numLoadsA + numLoadsB > 35 or state["DirectToVgprA"] or state["DirectToVgprB"] or state["StreamK"]: # force _UseSgprForGRO = 0 if DirectToVgpr is enabled
+      # if numLoadsA + numLoadsB > 35 or state["DirectToVgprA"] or state["DirectToVgprB"] or state["StreamK"]: # force _UseSgprForGRO = 0 if DirectToVgpr is enabled
+      if numLoadsA + numLoadsB > 35 or state["DirectToVgprA"] or state["DirectToVgprB"]: # force _UseSgprForGRO = 0 if DirectToVgpr is enabled
         #print "info: Disabling UseSgprForGRO since predicting too many SGPR will be used"
         state["_UseSgprForGRO"] = 0
       else:
