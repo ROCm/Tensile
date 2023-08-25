@@ -549,6 +549,7 @@ class KernelWriterAssembly(KernelWriter):
     # later references will result in compile-time error (with odd 'error: expected relocatable expression')
     # and 'Kernel ... not found in any loaded module'
     # TODO: temporarily disable undef as it seems to have issues
+    # return ".set sgpr%s, UNDEF\n" % name
     return ".set %s, UNDEF\n" % name
 
   def defineVariableSgprs(self, kernel):
@@ -3471,6 +3472,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mul_i32", sgpr("StreamKIter"), sgpr("WorkGroup0"), sgpr("ItersPerWG"), "StreaK starting iteration")
         kStr += inst("s_add_u32", sgpr("StreamKIterEnd"), sgpr("StreamKIter"), sgpr("ItersPerWG"), "StreamK ending iteration")
         kStr += inst("s_min_u32", sgpr("StreamKIterEnd"), sgpr("StreamKIterEnd"), sgpr("TotalIters"), "Cap ending iter at total iters")
+        kStr += self.undefineSgpr("TotalIters")
         
       kStr += self.comment3("Persistent Loop Start")
       kStr += self.getLabelDef("PersistentLoopStart")
@@ -3487,8 +3489,9 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["StreamK"]:
       # print("SK2")
-      stmpRef = self.getTmpSgpr(8, 4)
-      stmp = stmpRef.idx()
+      stmp = self.sgprPool.checkOutAligned(8, 4, "SKMappingTemp", preventOverflow=0)
+      # stmpRef = self.getTmpSgpr(8, 4)
+      # stmp = stmpRef.idx()
       # Always reset pointers to handle odd-exit case which moves LRO to the upper bank
       if not self.prefetchAcrossPersistent and kernel["PrefetchGlobalRead"]:
         kStr += self.localReadResetOffsets(kernel, self.tPA)
@@ -3519,9 +3522,13 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr += "\n"
 
+      self.sgprPool.checkIn(stmp)
+      # del stmpRef
+
     if kernel["PersistentKernel"]:
-      stmpRef = self.getTmpSgpr(8, 4)
-      stmp = stmpRef.idx()
+      # stmpRef = self.getTmpSgpr(8, 4)
+      # stmp = stmpRef.idx()
+      stmp = self.sgprPool.checkOutAligned(8, 4, "PKMappingTemp", preventOverflow=0)
       # Always reset pointers to handle odd-exit case which moves LRO to the upper bank
       if not self.prefetchAcrossPersistent and kernel["PrefetchGlobalRead"]:
         kStr += self.localReadResetOffsets(kernel, self.tPA)
@@ -3588,6 +3595,7 @@ class KernelWriterAssembly(KernelWriter):
 
       #kStr += self.assert_ne(sgpr("SerialWorkGroupIter"), 2)
       kStr += "\n"
+      self.sgprPool.checkIn(stmp)
 
     kStr += self.comment1("graWorkGroup mapping")
     if kernel["GlobalSplitU"] > 1:
@@ -3599,7 +3607,8 @@ class KernelWriterAssembly(KernelWriter):
         nwg1 = self.vgprPool.checkOut(1, "nwg1", self.preventVgprOverflowDuringNewTile)
         quotient = self.vgprPool.checkOut(1, "quotient", self.preventVgprOverflowDuringNewTile)
         tmpVgpr = self.vgprPool.checkOut(1, "tmpVgpr", self.preventVgprOverflowDuringNewTile)
-        tmpSgpr = self.getTmpSgpr(1).idx()
+        # tmpSgpr = self.getTmpSgpr(1).idx()
+        tmpSgpr = self.sgprPool.checkOut(1, "GSUMappingTemp", preventOverflow=0)
         kStr += "// GSU-WGMapRR :nwg1 = (size%s + MT%s - 1) / MT%s;%s" \
             % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
         kStr += inst("v_mov_b32", vgpr(nwg1), sgpr("SizesFree+1"), "")
@@ -3636,13 +3645,15 @@ class KernelWriterAssembly(KernelWriter):
         self.vgprPool.checkIn(wg1)
         self.vgprPool.checkIn(quotient)
         self.vgprPool.checkIn(remainder)
+        self.sgprPool.checkIn(tmpSgpr)
       else:
         kStr += "// GSU-not-WGMapRR :nwg1 = (size%s + MT%s - 1) / MT%s;%s" \
             % (self.tileChar1, self.tileChar1, self.tileChar1, self.endLine)
 
         # gsuSumIdx = wg1 % GSU
         # wg1       = wg1 / GSU
-        tmpSgpr = self.getTmpSgpr(3).idx() # needs 3
+        # tmpSgpr = self.getTmpSgpr(3).idx() # needs 3
+        tmpSgpr = self.sgprPool.checkOut(3, "GSUMappingTemp", preventOverflow=0)
         divisor = tmpSgpr+2
         kStr += inst("s_mov_b32", sgpr(divisor), sgpr("WorkGroup1"), \
             "copying for divisor")
@@ -3661,6 +3672,7 @@ class KernelWriterAssembly(KernelWriter):
         #kStr += dump(vgpr(tmp)) # remainder
         #self.vgprPool.checkIn(tmp)
         #kStr += "s_endpgm\n"
+        self.sgprPool.checkIn(tmpSgpr)
 
     ########################################
     # Blocked rows or columns
@@ -3669,7 +3681,8 @@ class KernelWriterAssembly(KernelWriter):
       smallNumMagicShift = 31
       magicNumberWgm = ((1<<smallNumMagicShift) // absWgm + 1)
 
-      tmpSgpr = self.getTmpSgpr(4).idx()
+      # tmpSgpr = self.getTmpSgpr(4).idx()
+      tmpSgpr = self.sgprPool.checkOut(4, "WGMappingTemp", preventOverflow=0)
       blockId2  = tmpSgpr+0
       wgSerial2 = tmpSgpr+1
       wgmDivisor = tmpSgpr+2
@@ -3713,6 +3726,8 @@ class KernelWriterAssembly(KernelWriter):
 
       kStr += inst("s_add_u32", sgpr(secondWg), sgpr(secondWg), \
           sgpr(blockId2), "wg1 += blockId * WGM")
+      
+      self.sgprPool.checkIn(tmpSgpr)
 
     return kStr
 
@@ -7115,7 +7130,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # skip beta check for StoreCInUnroll in OptNLL case
       if not kernel["StoreCInUnroll"]:
-        kStr += self.checkIsBetaZero(kernel, tmpSgpr, skipOptNLL)
+        kStr += self.checkIsBetaZero(kernel, skipOptNLL, tmpSgpr)
 
       # check alpha
       # skip alpha check for StoreCInUnroll in OptNLL case
@@ -7168,7 +7183,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_cbranch_scc0 %s"%skipOptNLL, "branch if alpha != 1")
         kStr += "\n"
 
-      kStr += self.checkIsEdge(kernel, tmpSgpr, skipOptNLL)
+      kStr += self.checkIsEdge(kernel, skipOptNLL, tmpSgpr)
       kStr += "\n"
 
       # Check tail loop required:
@@ -8394,6 +8409,19 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(addrV)
 
     return imod
+
+
+  ##############################################################################
+  # Global Read A/B completed
+  ##############################################################################
+  def doneGlobalABReads(self, kernel):
+    kStr = ""
+    kStr += self.undefineSgpr("SrdA")
+    kStr += self.undefineSgpr("SrdB")
+    if kernel["StreamK"] == 2:
+      self.defineSgpr("SrdWS", 4, 4)
+    return kStr
+
 
   ##############################################################################
   # Local Write: Swap Offsets A/B
@@ -11385,8 +11413,12 @@ class KernelWriterAssembly(KernelWriter):
   # tmpSgpr is one temp sgpr
   # betaLabel is label to branch to if beta != 0
   ##############################################################################
-  def checkIsBetaZero(self, kernel, tmpSgpr, betaLabel):
+  def checkIsBetaZero(self, kernel, betaLabel, tmpSgpr=None):
     kStr = ""
+    tmpSgprRef = None
+    if tmpSgpr == None:
+      tmpSgprRef = self.getTmpSgpr(1)
+      tmpSgpr = tmpSgprRef.idx()
     if kernel["ProblemType"]["UseBeta"]:
       if self.bpeCinternal <= self.bpr: # 1 register to check for Beta==0
         kStr += inst("s_cmpk_eq_u32", sgpr("Beta"), hex(0), "Beta == 0")
@@ -11405,8 +11437,12 @@ class KernelWriterAssembly(KernelWriter):
   # tmpSgpr must have at least 6 free SGPR
   # isEdgeTarget is the branch target if edges are required
   ##############################################################################
-  def checkIsEdge(self, kernel, tmpSgpr, isEdgeTarget):
+  def checkIsEdge(self, kernel, isEdgeTarget, tmpSgpr=None):
     kStr = ""
+    tmpSgprRef = None
+    if tmpSgpr == None:
+      tmpSgprRef = self.getTmpSgpr(3)
+      tmpSgpr = tmpSgprRef.idx()
     tmpS0  = tmpSgpr
     tmpS1  = tmpS0 + 1
     tmpS23 = tmpS1 + 1
@@ -12260,7 +12296,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Workspace SRD for FixupStep
   ##############################################################################
-  def computeWorkspaceSrd(self, kernel, sCtaIdx):
+  def computeWorkspaceSrd(self, kernel, sCtaIdx, tmpSgpr = None):
     kStr = ""
 
     # Base Address
@@ -12269,8 +12305,13 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_mov_b32", sgpr("SrdWS+2"), "BufferOOB", "")
     kStr += inst("s_mov_b32", sgpr("SrdWS+3"), "Srd127_96", "Set bits 127_96 in post-loop SRD")
 
-    tmpSgprRef = self.getTmpSgpr(2)
-    tmpS0 = tmpSgprRef.idx()
+    # tmpSgprRef = self.getTmpSgpr(2)
+    # tmpS0 = tmpSgprRef.idx()
+    tmpSgprRef = None
+    if tmpSgpr == None:
+      tmpSgprRef = self.getTmpSgpr(2)
+      tmpSgpr = tmpSgprRef.idx()
+    tmpS0 = tmpSgpr
     tmpS1 = tmpS0 + 1
 
     assert kernel["BufferStore"]
@@ -12343,7 +12384,7 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # Fixup Step
   ##############################################################################
-  def fixupStep(self, kernel, vectorWidths, elements, edges, tmpSgpr, tmpVgpr, tmpCVTVgpr, skStoreLabel):
+  def fixupStep(self, kernel, vectorWidths, elements, edges, tmpVgpr, tmpCVTVgpr, sCtaIdx, skStoreLabel):
     kStr = ""
 
     edgeLabels = {}
@@ -12351,7 +12392,7 @@ class KernelWriterAssembly(KernelWriter):
       edgeLabels[edge] = self.getNamedLabelUnique("Fixup_E%u" % (1 if edge else 0))
     # branch if Edge0 or Edge1
     if False in edges and True in edges:
-      kStr += self.checkIsEdge(kernel, tmpSgpr, "%s" % edgeLabels[True])
+      kStr += self.checkIsEdge(kernel, "%s" % edgeLabels[True])
 
     # by now we either jumped to E1 or stayed at E0
     for edge in edges:
@@ -12564,8 +12605,8 @@ class KernelWriterAssembly(KernelWriter):
       # so if we don't have *GPR resources to handle a larger batch then need
       # to mark overflowedResources rather than generate a kernel that won't work.
 
-      # tmpSgprRef = self.getTmpSgpr(numSgprs, 2)
-      # tmpSgpr = tmpSgprRef.idx()
+      tmpSgprRef = self.getTmpSgpr(numSgprs, 2)
+      tmpSgpr = tmpSgprRef.idx()
 
       elementSgprs = tmpSgpr + self.ss.cfg.numTempSgprPerBatch
 
@@ -12584,7 +12625,7 @@ class KernelWriterAssembly(KernelWriter):
       #   codeMulAlpha = None
 
       # wsSrd = self.defineSgpr("SrdWS", 4, 4)
-      kStr += self.computeWorkspaceSrd(kernel, sgpr("CtaIdx"))
+      kStr += self.computeWorkspaceSrd(kernel, sgpr(sCtaIdx), tmpSgpr)
 
       for batchIdx in range(0, numBatches):
         elementStartIdx = batchIdx * numElementsPerBatch
@@ -12614,7 +12655,7 @@ class KernelWriterAssembly(KernelWriter):
       # else:
       #   kStr += inst("s_branch", "label_%s"%endLabel, "jump to end")
 
-      # self.undefineSgpr("SrdWS")
+      # kStr += self.undefineSgpr("SrdWS")
       del self.ss
 
       # Finish one write path, reset currPreLoopVmcntCase to Undefined
@@ -12624,7 +12665,7 @@ class KernelWriterAssembly(KernelWriter):
 
     return kStr
 
-  def writePartials(self, kernel, vectorWidths, elements, edges, atomic, tmpSgpr, tmpVgpr, tmpCVTVgpr, isOptNLL, endLabel):
+  def writePartials(self, kernel, vectorWidths, elements, edges, atomic, tmpVgpr, tmpCVTVgpr, isOptNLL, endLabel):
     kStr = ""
 
     partialsLabels = {}
@@ -12632,14 +12673,14 @@ class KernelWriterAssembly(KernelWriter):
       partialsLabels[edge] = self.getNamedLabelUnique("GW_Partials_E%u" % ( 1 if edge else 0) )
 
     if False in edges and True in edges:
-      kStr += self.checkIsEdge(kernel, tmpSgpr, "%s" % partialsLabels[True])
+      kStr += self.checkIsEdge(kernel, "%s" % partialsLabels[True])
 
     for edge in edges:
       kStr += "%s:%s"%(partialsLabels[edge], self.endLine)
-      wsSrd = self.defineSgpr("SrdWS", 4, 4)
+      # wsSrd = self.defineSgpr("SrdWS", 4, 4)
       kStr += self.computeWorkspaceSrd(kernel, sgpr("StreamKIdx"))
       kStr += self.partialsWriteProcedure(kernel, vectorWidths, elements, False, False, edge, atomic, tmpVgpr, tmpCVTVgpr, isOptNLL, endLabel)
-      self.undefineSgpr("SrdWS")
+      # kStr += self.undefineSgpr("SrdWS")
     
     return kStr
 
@@ -14326,8 +14367,8 @@ class KernelWriterAssembly(KernelWriter):
     # Sgprs
 
     # allocate tmps for the store header (before the batch implementations)
-    tmpSgprRef = self.getTmpSgpr(4)
-    tmpSgpr = tmpSgprRef.idx()
+    # tmpSgprRef = self.getTmpSgpr(4)
+    # tmpSgpr = tmpSgprRef.idx()
 
     # branch B1 or B0
     betaLabel = self.getNamedLabelUnique("GW_Beta")
@@ -14337,6 +14378,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["StreamK"] == 2:
       # print("SK11 - store branches")
+      tmpSgpr = self.sgprPool.checkOut(4, "globalWriteElements", preventOverflow=0)
       # if we did not start the tile, store partials
       # branch to beta == 0 store path
       kStr += inst("s_cmp_eq_u32", sgpr("StreamKLocalStart"), 0, "does wg start tile?")
@@ -14347,24 +14389,26 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cbranch_scc1 %s" % skStoreLabel, "Branch if started and finished tile, go to regular store code")
       
       # Define SrdWS here to avoid sgpr clash
-      wsSrd = self.defineSgpr("SrdWS", 4, 4)
+      # wsSrd = self.defineSgpr("SrdWS", 4, 4)
+      # moved to globalABDone
+
       # if we started the tile but did not finish it, fix up step
       # run fixup code before regular store code
-      sCtaIdx = self.defineSgpr("CtaIdx", 1)
-      kStr += inst("s_add_u32", sgpr("CtaIdx"), sgpr("StreamKIdx"), 1, "input partial tile index")
+      sCtaIdx = self.sgprPool.checkOut(1, "CtaIdx", preventOverflow=0) # self.defineSgpr("CtaIdx", 1)
+      kStr += inst("s_add_u32", sgpr(sCtaIdx), sgpr("StreamKIdx"), 1, "input partial tile index")
 
-      sCtaEnd = self.defineSgpr("CtaEnd", 1)
-      kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr("CtaIdx"), sgpr("ItersPerWG"), "iter of current CTA")
+      sCtaEnd = self.sgprPool.checkOut(1, "CtaEnd", preventOverflow=0) # self.defineSgpr("CtaEnd", 1)
+      kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(sCtaIdx), sgpr("ItersPerWG"), "iter of current CTA")
       kStr += self.sMagicDivAlg2(kernel, tmpSgpr+1, sgpr(tmpSgpr), sgpr("MagicNumberItersPerTile"), sgpr("MagicShiftItersPerTile"))
       kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr+1), sgpr("ItersPerTile"), "tile start iteration")
       kStr += inst("s_add_u32", sgpr(tmpSgpr), sgpr(tmpSgpr), sgpr("ItersPerTile"), "tile end iteration")
       kStr += self.sMagicDivAlg2(kernel, tmpSgpr+1, sgpr(tmpSgpr), sgpr("MagicNumberItersPerTile"), sgpr("MagicShiftItersPerTile"))
-      kStr += inst("s_mov_b32", sgpr("CtaEnd"), sgpr(tmpSgpr+1), "store end index")
+      kStr += inst("s_mov_b32", sgpr(sCtaEnd), sgpr(tmpSgpr+1), "store end index")
       
       kStr += "%s:\n" % (skFixupLabel)
 
       # Check flag
-      kStr += inst("s_lshl_b32", sgpr(tmpSgpr), sgpr("CtaIdx"), log2(4), "flag offset based on CTA index")
+      kStr += inst("s_lshl_b32", sgpr(tmpSgpr), sgpr(sCtaIdx), log2(4), "flag offset based on CTA index")
       # kStr += inst("s_add_u32", sgpr(tmpSgpr+0), sgpr("AddressFlags"), sgpr(tmpSgpr+0), "add offset to flag pointer")
       # kStr += inst("s_addc_u32", sgpr(tmpSgpr+1), sgpr("AddressFlags+1"), sgpr(tmpSgpr+1), "add offset to flag pointer")
       # kStr += inst("s_mov_b_32", sgpr(tmpSgpr+2), 1, "flag data")
@@ -14373,20 +14417,24 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_cmp_eq_u32", sgpr(tmpSgpr+2), 1, "check if ready")
       kStr += inst("s_cbranch_scc0 %s" % skFixupLabel, "if flag not set, wait and check again")
 
+      self.sgprPool.checkIn(tmpSgpr)
+
       fixupEdge = [False] # Temporary hack to test no edge variant
-      kStr += self.fixupStep(kernel, vectorWidths, elements, fixupEdge, tmpSgpr, tmpVgpr, tmpCVTVgpr, skStoreLabel)
+      kStr += self.fixupStep(kernel, vectorWidths, elements, fixupEdge, tmpVgpr, tmpCVTVgpr, sCtaIdx, skStoreLabel)
       
-      kStr += inst("s_add_u32", sgpr("CtaIdx"), sgpr("CtaIdx"), 1, "next partial tile")
-      kStr += inst("s_cmp_lt_u32", sgpr("CtaIdx"), sgpr("CtaEnd"), "done loading partial tiles?")
+      kStr += inst("s_add_u32", sgpr(sCtaIdx), sgpr(sCtaIdx), 1, "next partial tile")
+      kStr += inst("s_cmp_lt_u32", sgpr(sCtaIdx), sgpr(sCtaEnd), "done loading partial tiles?")
       kStr += inst("s_cbranch_scc0 %s" % skFixupLabel, "Branch to continue fixup loop")
       kStr += "%s:\n" % (skStoreLabel)
       
-      self.undefineSgpr("CtaEnd")
-      self.undefineSgpr("CtaIdx")
-      self.undefineSgpr("SrdWS")
+      self.sgprPool.checkIn(sCtaEnd)
+      self.sgprPool.checkIn(sCtaIdx)
+      # kStr += self.undefineSgpr("CtaEnd")
+      # kStr += self.undefineSgpr("CtaIdx")
+      # kStr += self.undefineSgpr("SrdWS")
 
     if False in betas and True in betas:
-      kStr += self.checkIsBetaZero(kernel, tmpSgpr, betaLabel)
+      kStr += self.checkIsBetaZero(kernel, betaLabel)
 
     for beta in betas:
       # start B1
@@ -14396,20 +14444,19 @@ class KernelWriterAssembly(KernelWriter):
       ########################################
       # branch if Edge0 or Edge1
       if False in edges and True in edges:
-        kStr += self.checkIsEdge(kernel, tmpSgpr, "%s" % writeLabels[beta][True])
+        kStr += self.checkIsEdge(kernel, "%s" % writeLabels[beta][True])
 
       # by now we either jumped to E1 or stayed at E0
       for edge in edges:
         # write label for batch case
         kStr += "%s:%s"%(writeLabels[beta][edge], self.endLine)
-
         kStr += self.globalWriteProcedure(kernel, vectorWidths, elements, applyAlpha, beta, edge, atomic, tmpVgpr, tmpCVTVgpr, isOptNLL, endLabel)
 
     if kernel["StreamK"] == 2:
       kStr += "%s:\n" % (skPartialsLabel)
 
       fixupEdge = [False] # Temporary hack to test no edge variant
-      kStr += self.writePartials(kernel, vectorWidths, elements, fixupEdge, atomic, tmpSgpr, tmpVgpr, tmpCVTVgpr, isOptNLL, endLabel)
+      kStr += self.writePartials(kernel, vectorWidths, elements, fixupEdge, atomic, tmpVgpr, tmpCVTVgpr, isOptNLL, endLabel)
       
     # End label
     kStr += "label_%s:%s"%(endLabel, self.endLine)

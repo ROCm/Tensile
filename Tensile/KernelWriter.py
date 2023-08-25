@@ -3209,6 +3209,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel))
 
+        kl.append(self.doneGlobalABReads(kernel))
+
         # the following read/write addresses could be modified in recalcLocal(Read|Write)Addresses due to policy change
         self.oriLraA = None # back up original local read address vgpr
         self.oriLraB = None
@@ -4551,6 +4553,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   @abc.abstractmethod
   def globalReadDo(self, kernel, mode, tP, vregSetIdx=0):
+    return ""
+  
+  ##############################################################################
+  # Global Read A/B completed
+  ##############################################################################
+  @abc.abstractmethod
+  def doneGlobalABReads(self, kernel):
     return ""
 
   ##############################################################################

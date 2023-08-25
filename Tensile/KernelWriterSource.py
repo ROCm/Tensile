@@ -2489,6 +2489,12 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
+  # Global Read A/B completed
+  ##############################################################################
+  def doneGlobalABReads(self, kernel):
+    return ""
+  
+  ##############################################################################
   # Local Write: Swap Offsets A/B
   ##############################################################################
   def localWriteSwapOffsets(self, kernel, internalPointerSwap, tP):
