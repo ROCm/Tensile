@@ -3472,6 +3472,9 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mul_i32", sgpr("StreamKIter"), sgpr("WorkGroup0"), sgpr("ItersPerWG"), "StreaK starting iteration")
         kStr += inst("s_add_u32", sgpr("StreamKIterEnd"), sgpr("StreamKIter"), sgpr("ItersPerWG"), "StreamK ending iteration")
         kStr += inst("s_min_u32", sgpr("StreamKIterEnd"), sgpr("StreamKIterEnd"), sgpr("TotalIters"), "Cap ending iter at total iters")
+        kStr += inst("s_cmp_lt_u32", sgpr("StreamKIter"), sgpr("StreamKIterEnd"), "Make sure there's work to do")
+        # kStr += self.longBranchScc0("label_%04u" % (self.getLabelNum("KernelEnd")), positiveOnly=True)
+        kStr += inst("s_cbranch_scc0", "label_%04u" % (self.getLabelNum("KernelEnd")), "edge case that work doesn't divide well")        
         kStr += self.undefineSgpr("TotalIters")
         
       kStr += self.comment3("Persistent Loop Start")
@@ -12661,7 +12664,7 @@ class KernelWriterAssembly(KernelWriter):
       # Finish one write path, reset currPreLoopVmcntCase to Undefined
       self.currPreLoopVmcntCase = PreLoopVmcntCase.Undefined
 
-      kStr += inst("s_branch", skStoreLabel, "jump to store")
+      # kStr += inst("s_branch", skStoreLabel, "jump to store")
 
     return kStr
 
@@ -14397,13 +14400,19 @@ class KernelWriterAssembly(KernelWriter):
       sCtaIdx = self.sgprPool.checkOut(1, "CtaIdx", preventOverflow=0) # self.defineSgpr("CtaIdx", 1)
       kStr += inst("s_add_u32", sgpr(sCtaIdx), sgpr("StreamKIdx"), 1, "input partial tile index")
 
-      sCtaEnd = self.sgprPool.checkOut(1, "CtaEnd", preventOverflow=0) # self.defineSgpr("CtaEnd", 1)
-      kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(sCtaIdx), sgpr("ItersPerWG"), "iter of current CTA")
-      kStr += self.sMagicDivAlg2(kernel, tmpSgpr+1, sgpr(tmpSgpr), sgpr("MagicNumberItersPerTile"), sgpr("MagicShiftItersPerTile"))
-      kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr+1), sgpr("ItersPerTile"), "tile start iteration")
-      kStr += inst("s_add_u32", sgpr(tmpSgpr), sgpr(tmpSgpr), sgpr("ItersPerTile"), "tile end iteration")
-      kStr += self.sMagicDivAlg2(kernel, tmpSgpr+1, sgpr(tmpSgpr), sgpr("MagicNumberItersPerTile"), sgpr("MagicShiftItersPerTile"))
-      kStr += inst("s_mov_b32", sgpr(sCtaEnd), sgpr(tmpSgpr+1), "store end index")
+      sFixupEnd = self.sgprPool.checkOut(1, "FixupEnd", preventOverflow=0) # self.defineSgpr("CtaEnd", 1)
+      kStr += self.sMagicDivAlg2(kernel, tmpSgpr, sgpr("StreamKIterEnd"), sgpr("MagicNumberItersPerTile"), sgpr("MagicShiftItersPerTile"))
+      kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr), sgpr("ItersPerTile"), "start iteration of partial tile")
+      kStr += inst("s_sub_u32", sgpr(sFixupEnd), sgpr("StreamKIterEnd"), sgpr(tmpSgpr), "calc iterations completed by this WG")
+
+      # kStr += inst("s_mov_b32", sgpr(sFixupEnd), sgpr("iterations done by this wg"), "calc iters done by partial tile")
+
+      # kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(sCtaIdx), sgpr("ItersPerWG"), "iter of current CTA")
+      # kStr += self.sMagicDivAlg2(kernel, tmpSgpr+1, sgpr(tmpSgpr), sgpr("MagicNumberItersPerTile"), sgpr("MagicShiftItersPerTile"))
+      # kStr += inst("s_mul_i32", sgpr(tmpSgpr), sgpr(tmpSgpr+1), sgpr("ItersPerTile"), "tile start iteration")
+      # kStr += inst("s_add_u32", sgpr(tmpSgpr), sgpr(tmpSgpr), sgpr("ItersPerTile"), "tile end iteration")
+      # kStr += self.sMagicDivAlg2(kernel, tmpSgpr+1, sgpr(tmpSgpr), sgpr("MagicNumberItersPerTile"), sgpr("MagicShiftItersPerTile"))
+      # kStr += inst("s_mov_b32", sgpr(sCtaEnd), sgpr(tmpSgpr+1), "store end index")
       
       kStr += "%s:\n" % (skFixupLabel)
 
@@ -14422,12 +14431,13 @@ class KernelWriterAssembly(KernelWriter):
       fixupEdge = [False] # Temporary hack to test no edge variant
       kStr += self.fixupStep(kernel, vectorWidths, elements, fixupEdge, tmpVgpr, tmpCVTVgpr, sCtaIdx, skStoreLabel)
       
-      kStr += inst("s_add_u32", sgpr(sCtaIdx), sgpr(sCtaIdx), 1, "next partial tile")
-      kStr += inst("s_cmp_lt_u32", sgpr(sCtaIdx), sgpr(sCtaEnd), "done loading partial tiles?")
-      kStr += inst("s_cbranch_scc0 %s" % skFixupLabel, "Branch to continue fixup loop")
+      kStr += inst("s_add_u32", sgpr(sCtaIdx), sgpr(sCtaIdx), 1, "next partial tile index")
+      kStr += inst("s_add_u32", sgpr(sFixupEnd), sgpr(sFixupEnd), sgpr("ItersPerWG"), "next partial tile iteration")
+      kStr += inst("s_cmp_lt_u32", sgpr(sFixupEnd), sgpr("ItersPerTile"), "done loading partial tiles?")
+      kStr += inst("s_cbranch_scc1 %s" % skFixupLabel, "Branch to continue fixup loop")
       kStr += "%s:\n" % (skStoreLabel)
       
-      self.sgprPool.checkIn(sCtaEnd)
+      self.sgprPool.checkIn(sFixupEnd)
       self.sgprPool.checkIn(sCtaIdx)
       # kStr += self.undefineSgpr("CtaEnd")
       # kStr += self.undefineSgpr("CtaIdx")
