@@ -250,7 +250,7 @@ TEST(DecisionTree, DecisionTreeMultiLibrary)
 
     using Predicate   = Predicates::Predicate<ContractionProblem>;
     using SizeInRange = Predicates::Contraction::SizeInRange;
-    using SizeEqual = Predicates::Contraction::SizeEqual;
+    using SizeEqual   = Predicates::Contraction::SizeEqual;
     using Range       = Predicates::Contraction::Range;
     using And         = Predicates::And<ContractionProblem>;
     using BForest     = BasicForest<Key,
@@ -327,7 +327,7 @@ TEST(DecisionTree, DecisionTreeMultiLibrary)
     size_t max_size = std::numeric_limits<size_t>::max();
 
     std::shared_ptr<Predicate> regionM  = std::make_shared<SizeInRange>(0, Range{0, 40000});
-    std::shared_ptr<Predicate> regionB = std::make_shared<SizeEqual>(2, 1);
+    std::shared_ptr<Predicate> regionB  = std::make_shared<SizeEqual>(2, 1);
     std::shared_ptr<Predicate> regionN1 = std::make_shared<SizeInRange>(1, Range{0, 8000});
     std::shared_ptr<Predicate> regionN2 = std::make_shared<SizeInRange>(1, Range{8000, max_size});
 
@@ -346,10 +346,10 @@ TEST(DecisionTree, DecisionTreeMultiLibrary)
     ContractionProblemSelectionLibrary lib({Region1Row_dtreelib, Region2Row_dtreelib});
 
     // Problems
-    auto Region1Problem1 = ContractionProblem::GEMM(
-        false, false, 7000, 6500, 1000, 7000, 1000, 7000, 1.0, false, 1);
-    auto Region1Problem2 = ContractionProblem::GEMM(
-        false, false, 4000, 6500, 1000, 4000, 1000, 4000, 1.0, false, 1);
+    auto Region1Problem1
+        = ContractionProblem::GEMM(false, false, 7000, 6500, 1000, 7000, 1000, 7000, 1.0, false, 1);
+    auto Region1Problem2
+        = ContractionProblem::GEMM(false, false, 4000, 6500, 1000, 4000, 1000, 4000, 1.0, false, 1);
     auto Region2Problem1 = ContractionProblem::GEMM(
         false, false, 7000, 16500, 1000, 7000, 1000, 7000, 1.0, false, 1);
     auto Region2Problem2 = ContractionProblem::GEMM(
@@ -440,7 +440,7 @@ TEST(DecisionTree, DecisionTreeBatch)
 
     auto region2dtreelib    = std::make_shared<DecisionTreeLibrary<ContractionProblem>>();
     region2dtreelib->forest = region2forest;
-    
+
     /// region library
     size_t max_size = std::numeric_limits<size_t>::max();
 
@@ -448,22 +448,21 @@ TEST(DecisionTree, DecisionTreeBatch)
     std::shared_ptr<Predicate> regionN = std::make_shared<SizeInRange>(1, Range{0, max_size});
     std::shared_ptr<Predicate> regionK = std::make_shared<SizeInRange>(3, Range{0, max_size});
 
-
     std::shared_ptr<Predicate> regionBa = std::make_shared<SizeInRange>(2, Range{0, 64});
     std::shared_ptr<Predicate> regionBb = std::make_shared<SizeInRange>(2, Range{64, max_size});
-    
+
     // Create region predicate for (0 <= M,N,K < in_max), (0 <= B < 64)
     auto preds1    = {regionM, regionN, regionBa, regionK};
     auto isRegion1 = std::make_shared<And>(preds1);
 
     ContractionProblemSelectionLibrary::Row Region1Row_dtreelib(isRegion1, region1dtreelib);
 
-    // Create region predicate for (0 <= M,N,K < intmax), (64 <= B < intmax) 
+    // Create region predicate for (0 <= M,N,K < intmax), (64 <= B < intmax)
     auto preds2    = {regionM, regionN, regionBb, regionK};
     auto isRegion2 = std::make_shared<And>(preds2);
 
     ContractionProblemSelectionLibrary::Row Region2Row_dtreelib(isRegion2, region2dtreelib);
-    ContractionProblemSelectionLibrary lib({Region1Row_dtreelib, Region2Row_dtreelib});
+    ContractionProblemSelectionLibrary      lib({Region1Row_dtreelib, Region2Row_dtreelib});
 
     // Problems
     auto Region1Problem1 = ContractionProblem::GEMM(
@@ -481,4 +480,3 @@ TEST(DecisionTree, DecisionTreeBatch)
     EXPECT_EQ(lib.findBestSolution(Region2Problem1, gpu), region2Solution1);
     EXPECT_EQ(lib.findBestSolution(Region2Problem2, gpu), region2Solution0);
 }
-
