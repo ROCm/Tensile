@@ -607,13 +607,13 @@ namespace Tensile
                 uint32_t magicNumberItersPerTile;
                 uint32_t magicShiftItersPerTile;
                 magicNumberItersPerTile = magicNumber(2, itersPerTile, &magicShiftItersPerTile);
-                std::cout << "WAAAAAAAAAAAAAAAAAAAAAA" << std::endl;
-                std::cout << "itersPerTile = " << itersPerTile << std::endl;
-                std::cout << "tiles = " << tiles << std::endl;
-                std::cout << "totalIters = " << totalIters << std::endl;
-                std::cout << "itersPerWave = " << itersPerWave << std::endl;
-                std::cout << "magicNumberITersPerTile = " << magicNumberItersPerTile << std::endl;
-                std::cout << "magicShiftItersPerTile = " << magicShiftItersPerTile << std::endl;
+                // std::cout << "WAAAAAAAAAAAAAAAAAAAAAA" << std::endl;
+                // std::cout << "itersPerTile = " << itersPerTile << std::endl;
+                // std::cout << "tiles = " << tiles << std::endl;
+                // std::cout << "totalIters = " << totalIters << std::endl;
+                // std::cout << "itersPerWave = " << itersPerWave << std::endl;
+                // std::cout << "magicNumberITersPerTile = " << magicNumberItersPerTile << std::endl;
+                // std::cout << "magicShiftItersPerTile = " << magicShiftItersPerTile << std::endl;
                 
                 rv.args.append<uint32_t>("itersPerTile", itersPerTile);
                 rv.args.append<uint32_t>("totalIters", totalIters);

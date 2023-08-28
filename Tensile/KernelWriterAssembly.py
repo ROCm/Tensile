@@ -3682,7 +3682,7 @@ class KernelWriterAssembly(KernelWriter):
       magicNumberWgm = ((1<<smallNumMagicShift) // absWgm + 1)
 
       # tmpSgpr = self.getTmpSgpr(4).idx()
-      tmpSgpr = self.sgprPool.checkOut(4, "WGMappingTemp", preventOverflow=0)
+      tmpSgpr = self.sgprPool.checkOutAligned(4, 2, "WGMappingTemp", preventOverflow=0)
       blockId2  = tmpSgpr+0
       wgSerial2 = tmpSgpr+1
       wgmDivisor = tmpSgpr+2
