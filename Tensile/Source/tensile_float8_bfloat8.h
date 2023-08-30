@@ -551,7 +551,7 @@ inline bool operator>=(tensile_bfloat8 a, tensile_bfloat8 b)
         return a;
     }
 
-    // Use h/w intrinsic and optimized version when __gfx940__
+    // Use h/w intrinsic and optimized version when __gfx940__/__gfx941__/__gfx942__
     template <typename T,
               typename Ta,
               bool stochastic_rounding,
@@ -591,7 +591,7 @@ template <>
 inline __host__ __device__ tensile_float8
     explicit_downcast<tensile_float8, float, true>(float a, uint32_t rng)
 {
-    // Use h/w intrinsic and optimized version when __gfx940__
+    // Use h/w intrinsic and optimized version when __gfx940__/__gfx941__/__gfx942__
 #if defined(__gfx940__) || defined(__gfx941__) || defined(__gfx942__)
     tensile_float8 val;
     val.data = tensile_gfx940_f8_impl::cast_to_f8_from_f32<false, true>(a, rng);
