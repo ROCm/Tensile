@@ -2525,7 +2525,6 @@ class Solution(collections.abc.Mapping):
     numBytes = state["ProblemType"]["DataType"].numBytes()
     asem = state["AssertSummationElementMultiple"]
     gsu = state["GlobalSplitU"]
-    tcOther = "B" if tc == "A" else "A"
 
     # x2/x4 support for directToLds (no longer supported)
 

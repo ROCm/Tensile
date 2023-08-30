@@ -258,7 +258,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # final index definition
       self.numMfmaForNextLoopLR = min(self.numMfmaForNextLoopLR,numMfmaPerIter-1)
       self.barrierMfmaIndex = numMfmaPerIter*(kernel["LoopIters"]-self.numItersPLR+1) - self.numMfmaForNextLoopLR - 1 if self.numItersPLR else 0
-      LoopIters=kernel["LoopIters"]
       numMfmaBetweenLWandBarrier = 2 if kernel["MatrixInstM"] == 32 else 3
       # set and adjust lwEndMfmaIndex
       self.setAndAdjustLwEndMfmaIndex(kernel, tensorParametersA, tensorParametersB, numMfmaBetweenLWandBarrier, lastLoop)
@@ -1258,8 +1257,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # apply same logic to DirectToLds (need to schedule local read as 1LDS buffer)
         # TODO: force to schedule all remaining localreads before start to schedule localwrite.
         oneBufferScheduling = kernel["1LDSBuffer"] or kernel["DirectToLdsA"] or kernel["DirectToLdsB"]
-        if localReadItemsThisLoop and oneBufferScheduling:
-          count = localWriteCode.countType(Code.LocalWriteInst)
         if mfmaIndex >= self.lwStartMfmaIndex and mfmaIndex <= max(self.lwEndMfmaIndex,self.barrierMfmaIndex) and \
           localReadItemsThisLoop and localWriteCode.countType(Code.LocalWriteInst) and oneBufferScheduling:
           self.overflowedResources = 5
