@@ -3203,6 +3203,10 @@ class KernelWriterAssembly(KernelWriter):
       # however, in order to match sgpr to kernel argument memory, some unnecessarily sgpr will also be defined, and caused wasting of sgpr.
       # TODO: more efficient way is to organize both sgpr and kernel argument memory in API
 
+      # KernArgAddress needed for general batch after loading arguments
+      if kernel["ProblemType"]["StridedBatched"] or not kernel["ProblemType"]["Batched"]:
+        self.undefineSgpr("KernArgAddress")
+
       if kernel.enabledSetPrioSplitLDS:
         kStr += inst("s_setprio", "1", "prioritize init code so as to issue load sooner")
       kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for %u bytes of kern args" % self.kernArgOffset )
@@ -3492,7 +3496,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["StreamK"]:
       # print("SK2")
-      stmp = self.sgprPool.checkOutAligned(8, 4, "SKMappingTemp", preventOverflow=0)
+      stmp = self.sgprPool.checkOutAligned(4, 4, "SKMappingTemp", preventOverflow=0)
       # stmpRef = self.getTmpSgpr(8, 4)
       # stmp = stmpRef.idx()
       # Always reset pointers to handle odd-exit case which moves LRO to the upper bank
@@ -3513,15 +3517,15 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_min_u32", sgpr("StreamKLocalEnd"), sgpr("StreamKIterEnd"), sgpr(stmp+2), "1. (Local) iteration end")
       kStr += inst("s_sub_u32", sgpr("StreamKLocalEnd"), sgpr("StreamKLocalEnd"), sgpr(stmp+1), "2. Local iteration end")
 
-      # Map StreamK tile index to wg0/1
-      kStr += self.comment1("Map StreamK tile index to wg0/1")
-      kStr += self.sMagicDivAlg2(kernel, stmp+3, sgpr(stmp), sgpr("MagicNumberProblemNumGroupTiles0"), sgpr("MagicShiftProblemNumGroupTiles0"))
-      kStr += inst("s_mov_b32", sgpr("WorkGroup1"), sgpr(stmp+3), "wg1 = Tile Idx / problemNumGroupTiles0")
-      kStr += inst("s_mul_i32", sgpr("WorkGroup0"), sgpr(stmp+3), sgpr("NumWorkGroups0"), "remainder part 1 : quotient * divisor")
-      kStr += inst("s_sub_u32", sgpr("WorkGroup0"), sgpr(stmp), sgpr("WorkGroup0"), "wg0 = Tile Idx % problemNumGroupTiles0")
-
       # Increment StreamK iteration
       kStr += inst("s_mov_b32", sgpr("StreamKIter"), sgpr(stmp+2), "Increment StreamK Iteration")
+
+      # Map StreamK tile index to wg0/1
+      kStr += self.comment1("Map StreamK tile index to wg0/1")
+      kStr += self.sMagicDivAlg2(kernel, stmp+1, sgpr(stmp), sgpr("MagicNumberProblemNumGroupTiles0"), sgpr("MagicShiftProblemNumGroupTiles0"))
+      kStr += inst("s_mov_b32", sgpr("WorkGroup1"), sgpr(stmp+1), "wg1 = Tile Idx / problemNumGroupTiles0")
+      kStr += inst("s_mul_i32", sgpr("WorkGroup0"), sgpr(stmp+1), sgpr("NumWorkGroups0"), "remainder part 1 : quotient * divisor")
+      kStr += inst("s_sub_u32", sgpr("WorkGroup0"), sgpr(stmp), sgpr("WorkGroup0"), "wg0 = Tile Idx % problemNumGroupTiles0")
 
       kStr += "\n"
 
