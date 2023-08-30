@@ -1297,6 +1297,10 @@ def TensileCreateLibrary():
                        and (any(logicArch in os.path.splitext(f)[0] for logicArch in logicArchs) \
                        or "hip" in os.path.splitext(f)[0]) ]
 
+  # Skip experimental libraries (if exists) when building without lazy loading
+  if not globalParameters["LazyLibraryLoading"]:
+    logicFiles = [f for f in logicFiles if not globalParameters["ExperimentalLogicDir"] in f]
+  
   print1("# LibraryLogicFiles:" % logicFiles)
   for logicFile in logicFiles:
     print1("#   %s" % logicFile)
