@@ -2636,11 +2636,6 @@ class Solution(collections.abc.Mapping):
       reject(state, "DirectToLds%c does not work with PrefetchGlobalRead=2 and MatrixInstB > 1"%(tc))
       return False
 
-    # Does not work with PrefetchGlobalRead=2 and the other side of DirectToLds and DirectToVgpr are false
-    if state["PrefetchGlobalRead"] == 2 and state["DirectToLds%c"%tcOther] == False and state["DirectToVgpr%c"%tcOther] == False:
-      reject(state, "DirectToLds%c does not work with PrefetchGlobalRead=2 and DirectToLds%c and DirectToVgpr%c "%(tc, tcOther, tcOther))
-      return False
-
     # DirectToLds does not work if MacroTile is not power of 2
     # LDS offset swap/rotate logic works only when MacroTile is power of 2
     mt = state["MacroTile%c"%tc]
@@ -3250,6 +3245,18 @@ class Solution(collections.abc.Mapping):
 
     state["_DepthULds"] = state["DepthU"]//state["DepthULdsDivisor"] # internal
 
+    # Default LocalReadVectorWidth
+    if state["LocalReadVectorWidth"] == -1:
+      if state["EnableMatrixInstruction"]:
+        state["LocalReadVectorWidth"] = state["MIInputPerThread"]
+        # enable less than state["MIInputPerThread"] 
+        # for fp64 this means ds_read_b32 
+        if ((state["DirectToLdsA"] and state["ProblemType"]["TLUA"]) or \
+            (state["DirectToLdsB"] and state["ProblemType"]["TLUB"])): 
+             state["LocalReadVectorWidth"] = 1 if (state["ProblemType"]["DataType"].numBytes() >= 4) else state["LocalReadVectorWidth"]
+      else:
+        state["LocalReadVectorWidth"] = state["VectorWidth"]
+
     ########################################
     # Search DepthU
     # Inputs:
@@ -3398,20 +3405,25 @@ class Solution(collections.abc.Mapping):
       if validDepthU:
         # check depthU and ThreadSeparateGlobalReadA==1 depthU*bpe <= 64 bytes reject ThreadSeparateGlobalRead =1 (TLU=0 only)
         # reject depthU for cases requiring < minimum lanes per fragment. depthU * bpe  must be multiple of cache-line sizes(l2)
-        # minimum lane is 2 for bpe < 4, 1 for bpe >= 4
-        minLanes = 2 if state["ProblemType"]["DataType"].numBytes() < 4 else 1
-        bpr = 4 # all registers are 32bit
+        # minimum lane is 4//bpe for bpe < 4, 1 for bpe >= 4
+        minLanes = max( 4 // state["ProblemType"]["DataType"].numBytes(), 1)
         depthULds = depthU // state["DepthULdsDivisor"]
         if state["ThreadSeparateGlobalReadA"] and (not state["ProblemType"]["TLUA"]):
           #if state["ThreadSeparateGlobalReadA"] and (((depthU//state["GlobalLoadVectorWidthA"])// (2 * state["ThreadSeparateGlobalReadA"])) < 2):
-          if (depthU * state["ProblemType"]["DataType"].numBytes() < minLanes * state["GlobalLoadVectorWidthA"] * (2 * state["ThreadSeparateGlobalReadA"]) * bpr):
+          if (depthU < minLanes * state["GlobalLoadVectorWidthA"] * (2 * state["ThreadSeparateGlobalReadA"])):
+            validDepthU= False
+          # reject if KelementsPerMFrag (= (_DepthULds  // (ThreadSeparateGlobalRead * 2))) < inputPerThread = max(lrvwA,lrvwB)
+          if (depthULds  // (2 * state["ThreadSeparateGlobalReadA"])) < state["LocalReadVectorWidth"]:
             validDepthU= False
         if state["ThreadSeparateGlobalReadB"] and (not state["ProblemType"]["TLUB"]):
           #if state["ThreadSeparateGlobalReadB"] and (((depthU//state["GlobalLoadVectorWidthB"])// (2 * state["ThreadSeparateGlobalReadB"])) < 2):
-          if (depthU * state["ProblemType"]["DataType"].numBytes() < minLanes * state["GlobalLoadVectorWidthB"] * (2 * state["ThreadSeparateGlobalReadB"]) * bpr):
+          if (depthU < minLanes * state["GlobalLoadVectorWidthB"] * (2 * state["ThreadSeparateGlobalReadB"])):
             validDepthU= False
           # reject if NblockSizePerLoad (= (waveWidth * GlobalLoadVectorWidthB // depthULds)) > MatrixInstN
           if (state["WavefrontSize"] * state["GlobalLoadVectorWidthB"] // depthULds  > state["MatrixInstN"]):
+            validDepthU= False
+          # reject if KelementsPerMFrag (= (_DepthULds  // (ThreadSeparateGlobalRead * 2))) < inputPerThread = max(lrvwA,lrvwB)
+          if (depthULds  // (2 * state["ThreadSeparateGlobalReadB"])) < state["LocalReadVectorWidth"]:
             validDepthU= False
 
       # this depthU is valid, done unless user wants to double (for TN)
@@ -3555,18 +3567,6 @@ class Solution(collections.abc.Mapping):
         reject(state, "didn't support UnrollMajorLDS in VALU mode yet")
       if state["LdsBlockSizePerPadA"] != 0 or state["LdsBlockSizePerPadB"] != 0:
         reject(state, "didn't support LdsBlockSizePerPad in VALU mode yet")
-
-    # Default LocalReadVectorWidth
-    if state["LocalReadVectorWidth"] == -1:
-      if state["EnableMatrixInstruction"]:
-        state["LocalReadVectorWidth"] = state["MIInputPerThread"]
-        # enable less than state["MIInputPerThread"] 
-        # for fp64 this means ds_read_b32 
-        if ((state["DirectToLdsA"] and state["ProblemType"]["TLUA"]) or \
-            (state["DirectToLdsB"] and state["ProblemType"]["TLUB"])): 
-             state["LocalReadVectorWidth"] = 1 if (state["ProblemType"]["DataType"].numBytes() >= 4) else state["LocalReadVectorWidth"]
-      else:
-        state["LocalReadVectorWidth"] = state["VectorWidth"]
 
     # allow LocalReadVectorWidthB > 1 for TLUB + MatrixInstruction (this is applicable for B only)
     # some more limitations necessary to make this logic work

@@ -73,6 +73,102 @@ class KernelWriter(metaclass=abc.ABCMeta):
     return globalParameters
 
   ##############################################################################
+  # returns number of Local Read included in current loop iteration
+  ##############################################################################
+  def countNumMfmaForCurrentOrNextLoopLR(self, kernel, tensorParametersA, tensorParametersB, curr=True):
+    numMfmaForLRA = 0
+    numMfmaForLRB = 0
+    latencyLeft = self.miLatencyLeft
+    issueLatencyA = min(self.miLatencyLeft, tensorParametersA["localReadInstruction"].IssueLatency*2)
+    issueLatencyB = min(self.miLatencyLeft, tensorParametersB["localReadInstruction"].IssueLatency*2)
+    # loop iteration:
+    #   current loop: kernel["LoopIters"] - self.numItersPLR
+    #   next loop   : 1 (prefetch for the next loop iter
+    loopIter = kernel["LoopIters"] - self.numItersPLR if curr else 1
+    for u in range(loopIter):
+      doReadA = (not curr) or (u < kernel["LoopIters"] // self.numIterPerCoalescedReadA - self.numItersPLR)
+      doReadB = (not curr) or (u < kernel["LoopIters"] // self.numIterPerCoalescedReadB - self.numItersPLR)
+      # count the number of LocalRead even for DirectToVgpr
+      # (performance is better with this)
+      # ds_read[A][0]
+      for i in range(self.numReadPerVectorA * doReadA):
+        latencyLeft -= issueLatencyA
+        if latencyLeft < 0:
+          numMfmaForLRA += 1
+          latencyLeft = self.miLatencyLeft - issueLatencyA
+      # ds_read[B][0]
+      for i in range(self.numReadPerVectorB * doReadB):
+        latencyLeft -= issueLatencyB
+        if latencyLeft < 0:
+          numMfmaForLRB += 1
+          latencyLeft = self.miLatencyLeft - issueLatencyB
+      # ds_read[A][1:]
+      for i in range((self.numReadsPerIterA - self.numReadPerVectorA) * doReadA):
+        latencyLeft -= issueLatencyA
+        if latencyLeft < 0:
+          numMfmaForLRA += 1
+          latencyLeft = self.miLatencyLeft - issueLatencyA
+      # ds_read[B][1:]
+      for i in range((self.numReadsPerIterB - self.numReadPerVectorB) * doReadB):
+        latencyLeft -= issueLatencyB
+        if latencyLeft < 0:
+          numMfmaForLRB += 1
+          latencyLeft = self.miLatencyLeft - issueLatencyB
+
+    # initial value(1) + A + B
+    numMfmaForLR = 1 + numMfmaForLRA + numMfmaForLRB
+
+    latencyForLRCount = 0
+    # no need to count if DTVA and DTVB are both true (no local read code)
+    if not (kernel["DirectToVgprA"] and kernel["DirectToVgprB"]):
+      # to calculate number of mfma we need to wait before data arrive from lds to vgpr.
+      # latency: 40 quad-cycle for 4 word, 20 quad-cycle for 2 word, 10 quad-cycle for 1 word / half word
+      latencyForLRA = roundUp(tensorParametersA["localReadInstruction"].blockWidth) * 10
+      latencyForLRB = roundUp(tensorParametersB["localReadInstruction"].blockWidth) * 10
+
+      if kernel["DirectToVgprA"]:
+        # DTVA case, use B
+        latencyForLRA = latencyForLRB
+      elif kernel["DirectToVgprB"]:
+        # DTVB case, use A
+        latencyForLRB = latencyForLRA
+      latencyForLR = max(latencyForLRA, latencyForLRB)
+
+      latencyForLR -= max(latencyLeft,0) # remaining latency in mfma
+      if not curr:
+        latencyForLR -= self.miLatency # last LR will have 1 mfma latency
+      while latencyForLR > 0:
+        latencyForLR -= self.miLatency
+        latencyForLRCount += 1
+
+    return numMfmaForLR, latencyForLRCount, latencyLeft
+
+  ##############################################################################
+  # set and adjust lwEndMfmaIndex
+  ##############################################################################
+  def setAndAdjustLwEndMfmaIndex(self, kernel, tensorParametersA, tensorParametersB, numMfmaBetweenLWandBarrier, lastLoop):
+    numMfmaPerIter = self.numMfmaPerIter
+    self.lwEndMfmaIndex = max(self.barrierMfmaIndex - numMfmaBetweenLWandBarrier,0) if self.numItersPLR else numMfmaPerIter*kernel["LoopIters"] - 1
+    # adjust lwEndMfmaIndex for the following cases
+    #  1) PGR=2 + DirectToVgpr(DTV)
+    #  2) last loop and StoreCInUnrollPostLoop enabled case
+    # In these cases, lwEndMfmaIndex needs to be < numMfmaPerIter * (kernel["LoopIters"] - 1)
+    # to schedule global read for DTV after lwEndMfmaIndex or execute PostLoop after StoreC in NoLoadLoop
+    # kernel["LoopIters"]  has to be > 1 to make this logic work.
+    if kernel["LoopIters"] > 1 and \
+       ((kernel["PrefetchGlobalRead"] == 2 and (kernel["DirectToVgprA"] or kernel["DirectToVgprB"])) or \
+        (lastLoop and kernel["StoreCInUnrollPostLoop"])):
+      self.lwEndMfmaIndex = min(self.lwEndMfmaIndex, numMfmaPerIter * (kernel["LoopIters"] - 1) - 1)
+    # another adjustment
+    if (kernel["1LDSBuffer"] or kernel["DirectToLdsA"] or kernel["DirectToLdsB"]) and kernel["PrefetchGlobalRead"] == 2:
+      # (1LDSBuffer of DirectToLds) + PGR=2 case, lwEndMfmaIndex must be after the end of local read (excluding local reads for next iter)
+      numMfmaForCurrentLoopLR, latencyForLRCount, _ = self.countNumMfmaForCurrentOrNextLoopLR(kernel, tensorParametersA, tensorParametersB)
+      numMfmaForCurrentLoopLR += latencyForLRCount
+      lrEnd = min(self.barrierMfmaIndex - 1, numMfmaForCurrentLoopLR)
+      if self.lwEndMfmaIndex < lrEnd:
+        self.lwEndMfmaIndex = lrEnd
+
+  ##############################################################################
   # makeSchedule:  Schedule work into interations.
 
   # Tensile uses a two-level scheduler.  This the first-level, which
@@ -137,7 +233,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
     numGlobalReadC = self.getNumberOfLoadCInForLoadC(kernel)
 
     lastLoadIter = 0
-    PRECISION = 100
+    # PRECISION for scheduling
+    # use 2 times value to make the calculation more accurate
+    # using larger PRECISION makes scheduling more accurate but it increses Tensile execution time
+    #PRECISION = 100
+    PRECISION = 100 * 2
+    self.PRECISION = PRECISION
     if kernel["EnableMatrixInstruction"] and kernel["ScheduleIterAlg"] == 3:
       numMfmaPerIter = self.numMfmaPerIter
       #########
@@ -151,72 +252,40 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # ds_read[A][0], ds_read[B][0], ds_read[A][1:], ds_read[B][1:]
       # NOTE: we need this sequence for new feature "breaking waitcnt"
       # TODO: breaking waitcnt
-      self.numMfmaForLR = 1
-      latencyLeft = self.miLatencyLeft
-      miLatencyLeft = self.miLatencyLeft
-      # ds_read[A][0]
-      for i in range(self.numReadPerVectorA):
-        latencyLeft -= tensorParametersA["localReadInstruction"].IssueLatency*2
-        if latencyLeft < 0:
-          self.numMfmaForLR += 1
-          latencyLeft = max(miLatencyLeft - tensorParametersA["localReadInstruction"].IssueLatency*2,0)
-      # ds_read[B][0]
-      for i in range(self.numReadPerVectorB):
-        latencyLeft -= tensorParametersB["localReadInstruction"].IssueLatency*2
-        if latencyLeft < 0:
-          self.numMfmaForLR += 1
-          latencyLeft = max(miLatencyLeft - tensorParametersB["localReadInstruction"].IssueLatency*2,0)
-      # ds_read[A][1:]
-      for i in range(self.numReadsPerIterA-self.numReadPerVectorA):
-        latencyLeft -= tensorParametersA["localReadInstruction"].IssueLatency*2
-        if latencyLeft < 0:
-          self.numMfmaForLR += 1
-          latencyLeft = max(miLatencyLeft - tensorParametersA["localReadInstruction"].IssueLatency*2,0)
-      # ds_read[B][1:]
-      for i in range(self.numReadsPerIterB-self.numReadPerVectorB):
-        latencyLeft -= tensorParametersB["localReadInstruction"].IssueLatency*2
-        if latencyLeft < 0:
-          self.numMfmaForLR += 1
-          latencyLeft = max(miLatencyLeft - tensorParametersB["localReadInstruction"].IssueLatency*2,0)
-      # to calculate number of mfma we need to wait before data arrive from lds to vgpr.
-      # latency: 40 quad-cycle for 4 word, 20 quad-cycle for 2 word, 10 quad-cycle for 1 word / half word
-      self.numMfmaForNextLoopLR = self.numMfmaForLR
-      latencyForLR = roundUp(tensorParametersB["localReadInstruction"].blockWidth)*10
-      latencyForLR -= max(latencyLeft,0) # remaining latency in mfma
-      latencyForLR -= self.miLatency # last LR will have 1 mfma latency
-      while latencyForLR > 0:
-        latencyForLR -= self.miLatency
-        self.numMfmaForNextLoopLR += 1
+      # number of local read for the next loop iteration
+      self.numMfmaForLR, latencyForLRCount, latencyLeft = self.countNumMfmaForCurrentOrNextLoopLR(kernel, tensorParametersA, tensorParametersB, curr=False)
+      self.numMfmaForNextLoopLR = self.numMfmaForLR + latencyForLRCount
       # final index definition
       self.numMfmaForNextLoopLR = min(self.numMfmaForNextLoopLR,numMfmaPerIter-1)
       self.barrierMfmaIndex = numMfmaPerIter*(kernel["LoopIters"]-self.numItersPLR+1) - self.numMfmaForNextLoopLR - 1 if self.numItersPLR else 0
+      LoopIters=kernel["LoopIters"]
       numMfmaBetweenLWandBarrier = 2 if kernel["MatrixInstM"] == 32 else 3
-      self.lwEndMfmaIndex = max(self.barrierMfmaIndex - numMfmaBetweenLWandBarrier,0) if self.numItersPLR else numMfmaPerIter*kernel["LoopIters"] - 1
-      if (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]) and kernel["PrefetchGlobalRead"] == 2:
-        # DirectToLds + PGR=2 case, lwEndMfmaIndex must be after the end of local read (excluding local reads for next iter)
-        lrEnd = min(self.barrierMfmaIndex - 1, self.numMfmaForLR * (kernel["LoopIters"] - self.numItersPLR))
-        if self.lwEndMfmaIndex < lrEnd:
-          self.lwEndMfmaIndex = lrEnd
+      # set and adjust lwEndMfmaIndex
+      self.setAndAdjustLwEndMfmaIndex(kernel, tensorParametersA, tensorParametersB, numMfmaBetweenLWandBarrier, lastLoop)
 
       #########
       # Internally assign an optimized LWPM value for PGR2
       #########
       # strategy is to distribute LW/GR as wide as possible to avoid hitting vmem FIFO
       # LWPM = (LW_End - LW_Start) / numLW
-      if kernel["LocalWritePerMfma"] == -1:
+      # calculate numLocalWriteModPerMfma for all LocalWritePerMfma cases (use this for parameter check in LocalWritePerMfma!=1 case)
+      #if kernel["LocalWritePerMfma"] == -1:
+      if True:
         #########
         # Get localWriteStart
         #########
-        if not kernel["1LDSBuffer"]:
+        if not (kernel["1LDSBuffer"] or (kernel["DirectToLdsA"] or kernel["DirectToLdsB"])):
           # TODO: replace here for real number of globalReadIncInst
           numGRIncInst = 12 if not kernel["StaggerU"] else 18
           numInstPerMfma = max(roundUp(self.miLatencyLeft/2),1)
           numMfmaToSched = roundUp(numGRIncInst/numInstPerMfma)
           lwStartMfmaIndex = 1 + numMfmaToSched
+          latencyForLRCount = 0
         else:
-          # for 1LDSB, we have to issue localwrites after localreads
+          # for 1LDSB or DTL, we have to issue localwrites after localreads
+          numMfmaForLRCurr, latencyForLRCount, latencyLeft = self.countNumMfmaForCurrentOrNextLoopLR(kernel, tensorParametersA, tensorParametersB)
           if self.numVgprBuffer == kernel["LoopIters"]:
-            if self.numReadPerVectorA != 1 or self.numReadPerVectorB !=1:
+            if (not kernel["DirectToVgprA"]) and self.numReadPerVectorA > 1 or (not kernel["DirectToVgprB"]) and self.numReadPerVectorB > 1:
             # fp16 or bf16, we read 1 element to vgprBuffer the other element to tempVgpr.
             # since each iteration shares same tempVgpr, only read-to-vgprBuffer can
             # be scheduled in the front of loop.
@@ -224,59 +293,20 @@ class KernelWriter(metaclass=abc.ABCMeta):
               numHalfReads = (self.numReadPerVectorA//2)*kernel["InnerUnroll"]*kernel["MIWaveTileA"] + (self.numReadPerVectorB//2)*kernel["InnerUnroll"]*kernel["MIWaveTileB"]
               numMfmaForHalfRead = 1
               latencyLeft = self.miLatencyLeft
+              sub2 = min(2, self.miLatencyLeft) # value for subtraction should not exceed self.miLatencyLeft
               for i in range(numHalfReads):
-                latencyLeft -= 2
+                latencyLeft -= sub2
                 if latencyLeft < 0:
                   numMfmaForHalfRead += 1
-                  latencyLeft = max(self.miLatencyLeft - 2, 0)
+                  latencyLeft = self.miLatencyLeft - sub2
               lwStartMfmaIndex = numMfmaPerIter * (kernel["LoopIters"] - 1 - self.numItersPLR) + numMfmaForHalfRead
             else:
             # we have enough vgprBuffer to schedule localReads in the front of loop
-              numMfmaForCurrentLoopLR = 1
-              latencyLeft = self.miLatencyLeft
-              for u in range(kernel["LoopIters"] - self.numItersPLR):
-                doReadA = (u < kernel["LoopIters"] // self.numIterPerCoalescedReadA - self.numItersPLR)
-                doReadB = (u < kernel["LoopIters"] // self.numIterPerCoalescedReadB - self.numItersPLR)
-                # disable LocalRead if DirectToVgpr is enabled
-                doReadA = doReadA and (not kernel["DirectToVgprA"])
-                doReadB = doReadB and (not kernel["DirectToVgprB"])
-                # ds_read[A][0]
-                for i in range(self.numReadPerVectorA * doReadA):
-                  latencyLeft -= tensorParametersA["localReadInstruction"].IssueLatency*2
-                  if latencyLeft < 0:
-                    numMfmaForCurrentLoopLR += 1
-                    latencyLeft = max(self.miLatencyLeft - tensorParametersA["localReadInstruction"].IssueLatency*2,0)
-                # ds_read[B][0]
-                for i in range(self.numReadPerVectorB * doReadB):
-                  latencyLeft -= tensorParametersB["localReadInstruction"].IssueLatency*2
-                  if latencyLeft < 0:
-                    numMfmaForCurrentLoopLR += 1
-                    latencyLeft = max(self.miLatencyLeft - tensorParametersB["localReadInstruction"].IssueLatency*2,0)
-                # ds_read[A][1:]
-                for i in range((self.numReadsPerIterA - self.numReadPerVectorA) * doReadA):
-                  latencyLeft -= tensorParametersA["localReadInstruction"].IssueLatency*2
-                  if latencyLeft < 0:
-                    numMfmaForCurrentLoopLR += 1
-                    latencyLeft = max(self.miLatencyLeft - tensorParametersA["localReadInstruction"].IssueLatency*2,0)
-                # ds_read[B][1:]
-                for i in range((self.numReadsPerIterB - self.numReadPerVectorB) * doReadB):
-                  latencyLeft -= tensorParametersB["localReadInstruction"].IssueLatency*2
-                  if latencyLeft < 0:
-                    numMfmaForCurrentLoopLR += 1
-                    latencyLeft = max(self.miLatencyLeft - tensorParametersB["localReadInstruction"].IssueLatency*2,0)
-              lwStartMfmaIndex = numMfmaForCurrentLoopLR
+              lwStartMfmaIndex = numMfmaForLRCurr
           else:
             lwStartMfmaIndex = numMfmaPerIter * (kernel["LoopIters"] - 1 - self.numItersPLR) + self.numMfmaForLR
-          # to calculate number of mfma we need to wait before data arrive from lds to vgpr.
-          # latency: 40 quad-cycle for 4 word, 20 quad-cycle for 2 word, 10 quad-cycle for 1 word / half word
-          if self.numIterPerCoalescedReadB > self.numIterPerCoalescedReadA:
-            latencyForLR = roundUp(tensorParametersA["localReadInstruction"].blockWidth) * 10
-          else:
-            latencyForLR = roundUp(tensorParametersB["localReadInstruction"].blockWidth) * 10
-          latencyForLR -= max(latencyLeft,0) # remaining latency in mfma
-          while latencyForLR > 0:
-            latencyForLR -= self.miLatency
-            lwStartMfmaIndex += 1
+          # add latency count for local read (applicable for all one buffer scheduling cases)
+          lwStartMfmaIndex += latencyForLRCount
         #########
         # Get LocalWritePerMfma
         #########
@@ -285,6 +315,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
         numMfmaCanSched = self.lwEndMfmaIndex - lwStartMfmaIndex + 1
         numLoadsA = kernel["DepthU"]*kernel["MacroTileA"]//int(kernel["GlobalLoadVectorWidthA"]*kernel["NumThreads"])
         numLoadsB = kernel["DepthU"]*kernel["MacroTileB"]//int(kernel["GlobalLoadVectorWidthB"]*kernel["NumThreads"])
+        # PGR2 + DirectToVgpr case, no need to schedule local write. Change numLoads to 0
+        if kernel["PrefetchGlobalRead"] == 2:
+          if kernel["DirectToVgprA"]:
+            numLoadsA = 0
+          if kernel["DirectToVgprB"]:
+            numLoadsB = 0
         writesToSched = (numLoadsA + numLoadsB - 1) * PRECISION
         # In StoreCInUnroll case, add StoreC code related code to writesToSched
         if kernel["StoreCInUnroll"]:
@@ -332,20 +368,26 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #   Ex. LWPM = 0.5
       #        LW ---------99--------- LW --------99---------- LW
       #   mfma --49-- mfma --49-- mfma --49-- mfma --49-- mfma --49--
-      if kernel["LocalWritePerMfma"] == -1:
-        if kernel["PrefetchGlobalRead"] == 1:
-          # In PGR1:
-          #   Larger LWPM can provide more latency to hide global read
-          #   However, larger LWPM may cause mfma bubbles
-          #   we set LWPM to 1 unless it requires larger LWPM to enable 1LDSB
-          if kernel["1LDSBuffer"]:
-            self.numLocalWriteModPerMfma = max(numLocalWriteModPerMfma,PRECISION)
-          else:
-            self.numLocalWriteModPerMfma = PRECISION
+      # calculate numLocalWriteModPerMfma for all LocalWritePerMfma cases (use this for parameter check in LocalWritePerMfma!=1 case)
+      if kernel["PrefetchGlobalRead"] == 1:
+        # In PGR1:
+        #   Larger LWPM can provide more latency to hide global read
+        #   However, larger LWPM may cause mfma bubbles
+        #   we set LWPM to 1 unless it requires larger LWPM to enable 1LDSB
+        if kernel["1LDSBuffer"]:
+          self.numLocalWriteModPerMfma = max(numLocalWriteModPerMfma,PRECISION)
         else:
-          self.numLocalWriteModPerMfma = numLocalWriteModPerMfma
+          self.numLocalWriteModPerMfma = PRECISION
       else:
-        self.numLocalWriteModPerMfma = roundUp(kernel["LocalWritePerMfma"]*PRECISION)
+        self.numLocalWriteModPerMfma = numLocalWriteModPerMfma
+      if kernel["EnableMatrixInstruction"] and kernel["ScheduleIterAlg"] == 3 and kernel["PrefetchGlobalRead"] == 2 and kernel["LocalWritePerMfma"] != -1:
+        valueFromParam = roundUp(kernel["LocalWritePerMfma"]*PRECISION)
+        # parameter check (to avoid mismatch due to overwrapping)
+        if (valueFromParam < self.numLocalWriteModPerMfma):
+          print2("LocalWritePerMfma (%f) is too small. Auto-adjusted." % kernel["LocalWritePerMfma"])
+          valueFromParam = self.numLocalWriteModPerMfma
+
+        self.numLocalWriteModPerMfma = valueFromParam
 
       ##################################
       numGlobalReadInsPerIter = numMfmaPerIter * self.numGlobalReadInsPerMfma
@@ -403,22 +445,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
       # because interval between local write and read is already added by StoreCInUnroll code
       if kernel["StoreCInUnroll"] and self.getNumberOfStoreCInTemplate(kernel) > 1:
         numMfmaBetweenLWandBarrier = min(numMfmaBetweenLWandBarrier, 1)
-      self.lwEndMfmaIndex = max(self.barrierMfmaIndex - numMfmaBetweenLWandBarrier,0) if self.numItersPLR else numMfmaPerIter*kernel["LoopIters"] - 1
-      # adjust lwEndMfmaIndex for the following cases 
-      #  1) PGR=2 + DirectToVgpr(DTV)
-      #  2) last loop and StoreCInUnrollPostLoop enabled case
-      # In these cases, lwEndMfmaIndex needs to be < numMfmaPerIter * (kernel["LoopIters"] - 1) 
-      # to schedule global read for DTV after lwEndMfmaIndex or execute PostLoop after StoreC in NoLoadLoop
-      # kernel["LoopIters"]  has to be > 1 to make this logic work.
-      if kernel["LoopIters"] > 1 and \
-         ((kernel["PrefetchGlobalRead"] == 2 and (kernel["DirectToVgprA"] or kernel["DirectToVgprB"])) or \
-          (lastLoop and kernel["StoreCInUnrollPostLoop"])):
-        self.lwEndMfmaIndex = min(self.lwEndMfmaIndex, numMfmaPerIter * (kernel["LoopIters"] - 1) - 1)
-      if (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]) and kernel["PrefetchGlobalRead"] == 2:
-        # DirectToLds + PGR=2 case, lwEndMfmaIndex must be after the end of local read (excluding local reads for next iter)
-        lrEnd = min(self.barrierMfmaIndex - 1, self.numMfmaForLR * (kernel["LoopIters"] - self.numItersPLR))
-        if self.lwEndMfmaIndex < lrEnd:
-          self.lwEndMfmaIndex = lrEnd
+
+      # set and adjust lwEndMfmaIndex
+      self.setAndAdjustLwEndMfmaIndex(kernel, tensorParametersA, tensorParametersB, numMfmaBetweenLWandBarrier, lastLoop)
+
       localWriteEndIter = self.lwEndMfmaIndex//numMfmaPerIter
       localWriteEndIter = min(kernel["LoopIters"] - 1, localWriteEndIter)
       assert localWriteEndIter < kernel["LoopIters"]
@@ -503,7 +533,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
         globalReadInc1 = globalReadIncACode.flatitems()
         globalReadInc2 = globalReadIncBCode.flatitems()
-        if self.isSwapGlobalReadOrderForDirectToVgpr(kernel):
+        if self.isSwapGlobalReadOrderForDtvOrDtl(kernel):
           # swap the order of readInc for DTV
           globalReadInc1, globalReadInc2 = globalReadInc2, globalReadInc1
         globalReadIncItems = globalReadInc1 + globalReadInc2
@@ -665,15 +695,22 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if kernel["PrefetchGlobalRead"] == 2:
         # PrefetchGlobalRead + DirectToLds case, need to add dummy list to insert global read
         tmpList = []
-        numItemsBeforeStoreC = 0 #if not kernel["StoreCInUnroll"] else self.numItemsBeforeStoreC
         numDummy = 0
-        # PGR2 + NoLdsWriteCode case, need to add dummy local write to schedule global read
-        numRead = len(list(self.globalReadACode.middle.items()))
-        if kernel["NoLdsWriteCode"]:
-          numDummy += max(numRead - numItemsBeforeStoreC, 0)
-          if kernel["DirectToLdsA"] and kernel["DirectToLdsB"]:
-            # both DirectToLds case, add the length of globalReadB
-            numDummy += len(list(self.globalReadBCode.middle.items()))
+        lenA = len(list(self.globalReadACode.middle.items()))
+        lenB = len(list(self.globalReadBCode.middle.items()))
+        if self.isSwapGlobalReadOrderForDtvOrDtl(kernel):
+          # swap A and B (SwapGlobalReadOrder case, the actual content is swapped (B is in globalReadACode). Need adjustment)
+          lenA, lenB = lenB, lenA
+        if kernel["DirectToLdsA"]:
+          if not kernel["StoreCInUnroll"]:
+            # PGR2 + DTL (and not SCIU) case, footer code is added in middle. Need to subtract 1 (for footer inst)
+            lenA -= 1
+          numDummy += lenA
+        if kernel["DirectToLdsB"]:
+          if not kernel["StoreCInUnroll"]:
+            # PGR2 + DTL (and not SCIU) case, footer code is added in middle. Need to subtract 1 (for footer inst)
+            lenB -= 1
+          numDummy += lenB
         for i in range(numDummy):
           tmpList.append(Code.Module())
         # add dummy at the top of the list
@@ -704,11 +741,15 @@ class KernelWriter(metaclass=abc.ABCMeta):
         self.lwStartMfmaIndex = self.lwEndMfmaIndex - max(1,roundUp(writesToSched/numLocalWritesPerSched)) + 1
         if self.lwStartMfmaIndex < self.grEndMfmaIndex:
           self.lwStartMfmaIndex = self.grEndMfmaIndex
-        # DirectToLds + PGR=2 case, lwStart must be after all local reads are done
-        if (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]) and kernel["PrefetchGlobalRead"] == 2:
-          lrEnd = min(self.lwEndMfmaIndex, self.numMfmaForLR * (kernel["LoopIters"] - self.numItersPLR))
-          if self.lwStartMfmaIndex < lrEnd:
-            self.lwStartMfmaIndex = lrEnd
+        if kernel["PrefetchGlobalRead"]==2:
+          # adjustment for PGR2
+          # new lwStartMfmaIndex value calculated with numLocalWritesPerSched should not be smaller than pre-calculated lwStartMfmaIndex
+          # (which can cause overwrapping)
+          if self.lwStartMfmaIndex < lwStartMfmaIndex:
+            self.lwStartMfmaIndex = lwStartMfmaIndex
+        # after adjusting lwStartMfmaIndex, lwStartMfmaIndex should not be larger than lwEndMfmaIndex
+        if self.lwStartMfmaIndex > self.lwEndMfmaIndex:
+          self.lwStartMfmaIndex = self.lwEndMfmaIndex
         startIter = self.lwStartMfmaIndex//numMfmaPerIter
         assert startIter < localWriteEndIter+1 # startIter should be at or before the endIter
       else:
@@ -1039,7 +1080,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       pass
     elif self.scheduleIterAlg == 3:
       iterCode.addComment0(" grEndMfmaIndex:%u, lwStartMfmaIndex:%u, lwEndMfmaIndex:%u " %(self.grEndMfmaIndex,self.lwStartMfmaIndex,self.lwEndMfmaIndex))
-      iterCode.addComment0(" numMfmaForLR:%u, barrierMfmaIndex:%u " %(self.numMfmaForNextLoopLR,self.barrierMfmaIndex))
+      printLocalWritePerMfma = kernel["PrefetchGlobalRead"] == 2 and kernel["ScheduleIterAlg"] == 3
+      strForLocalWritePerMfma = ", LocalWritePerMfma:%.3f"%(self.numLocalWriteModPerMfma/self.PRECISION) if printLocalWritePerMfma else ""
+      iterCode.addComment0(" numMfmaForLR:%u, barrierMfmaIndex:%u%s" %(self.numMfmaForNextLoopLR,self.barrierMfmaIndex,strForLocalWritePerMfma))
       #####
       # Prepare and Assign parameter
       ####
@@ -1141,9 +1184,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
         for vacancy in self.localReadsVacancy:
           # {"items","latencyLeft","atIter","atMfmaIndex","noReadsAtThisIter"}
           for localRead in list(localReadItemsThisLoop):
-            if vacancy["latencyLeft"] > localRead.IssueLatency * 2:
+            # issueLatency should not exceed miLatencyLeft
+            issueLatency = min(localRead.IssueLatency * 2, self.miLatencyLeft)
+            if vacancy["latencyLeft"] >= issueLatency:
               if not localRead.readToTempVgpr:
-                vacancy["latencyLeft"] -= localRead.IssueLatency * 2
+                vacancy["latencyLeft"] -= issueLatency
                 vacancy["items"].addCode(localRead)
                 localReadItemsThisLoop.remove(localRead)
                 if vacancy["atMfmaIndex"] > self.lwStartMfmaIndex - 1 and kernel["1LDSBuffer"]:
@@ -1176,10 +1221,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
           if (mfmaIndex >= self.lwStartMfmaIndex) and not globalReadCode.countType(Code.GlobalReadInst):
             for j in range(min(len(writeItems),self.numLocalWriteModPerMfma)):
               if writeItems[j].countType(Code.LocalWriteInst):
-                latencyLeft -= (self.tPA["localWriteInstruction"].IssueLatency*2)
+                # issueLatency should not exceed miLatencyLeft
+                latencyLeft -= min((self.tPA["localWriteInstruction"].IssueLatency*2), self.miLatencyLeft)
           readLeftLROPT = 0
           for j in range(len(localReadItemsThisLoop)):
-            latencyLeft -= localReadItemsThisLoop[j].IssueLatency*2
+            # issueLatency should not exceed miLatencyLeft
+            issueLatency = min(localReadItemsThisLoop[j].IssueLatency*2, self.miLatencyLeft)
+            latencyLeft -= issueLatency
             readLeftLROPT += 1 if latencyLeft >= 0 else 0
           # at least 1 instruction
           readLeftLROPT = max(readLeftLROPT,1)
@@ -1202,18 +1250,24 @@ class KernelWriter(metaclass=abc.ABCMeta):
           readLeft = max(readLeftLREven,readLeftLROPT)
         if not self.numItersPLR and iteration < isBarrier:
           for j in range(len(localReadItemsThisLoop)):
-            latencyLeft -= localReadItemsThisLoop[j].IssueLatency*2
+            # issueLatency should not exceed miLatencyLeft
+            issueLatency = min(localReadItemsThisLoop[j].IssueLatency*2, self.miLatencyLeft)
+            latencyLeft -= issueLatency
         # if start to schedule localwrite, but still have localreads not scheduled yet,
         # reject to use 1LDSB, since it will write and read same lds buffer at same time.
+        # apply same logic to DirectToLds (need to schedule local read as 1LDS buffer)
         # TODO: force to schedule all remaining localreads before start to schedule localwrite.
+        oneBufferScheduling = kernel["1LDSBuffer"] or kernel["DirectToLdsA"] or kernel["DirectToLdsB"]
+        if localReadItemsThisLoop and oneBufferScheduling:
+          count = localWriteCode.countType(Code.LocalWriteInst)
         if mfmaIndex >= self.lwStartMfmaIndex and mfmaIndex <= max(self.lwEndMfmaIndex,self.barrierMfmaIndex) and \
-          localReadItemsThisLoop and localWriteCode.countType(Code.LocalWriteInst) and kernel["1LDSBuffer"]:
+          localReadItemsThisLoop and localWriteCode.countType(Code.LocalWriteInst) and oneBufferScheduling:
           self.overflowedResources = 5
         # DirectToVgpr case, localReadItemsThisLoop and localWriteCode.countType(Code.LocalWriteInst) do not satisfy at the same time.
         # However, it is still invaid if localReadItemsThisLoop exists when mfmaIndex > lwStartMfmaIndex
         elif (kernel["DirectToVgprA"] or kernel["DirectToVgprB"]) and \
           mfmaIndex > self.lwStartMfmaIndex and mfmaIndex <= max(self.lwEndMfmaIndex,self.barrierMfmaIndex) and \
-          localReadItemsThisLoop and kernel["1LDSBuffer"]:
+          localReadItemsThisLoop and oneBufferScheduling:
           self.overflowedResources = 5
         for j in range(readLeft):
           if localReadItemsThisLoop:
@@ -1348,7 +1402,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if self.numItersPLR and iteration >= isBarrier:
           readLeftLROPT = 0
           for j in range(len(localReadItemsNextLoop)):
-            latencyLeft -= localReadItemsNextLoop[j].IssueLatency*2
+            # issueLatency should not exceed miLatencyLeft
+            issueLatency = min(localReadItemsNextLoop[j].IssueLatency*2, self.miLatencyLeft)
+            latencyLeft -= issueLatency
             readLeftLROPT += 1 if latencyLeft >= 0 else 0
           # at least 1 instruction
           readLeftLROPT = max(readLeftLROPT,1)
@@ -1438,19 +1494,16 @@ class KernelWriter(metaclass=abc.ABCMeta):
         numLoadVgpr = len(list(globalReadCodeDTV.items()))
         if numLoadVgpr > 0:
           interval = roundUp(numMfmaPerIter / origLenGlobalReadCodeDTV)
-          tileIndex = 0 if self.isSwapGlobalReadOrderForDirectToVgpr(kernel) else 1
-          if (kernel["MIWaveTile"][tileIndex] // kernel["VectorWidth"]) > 1:
-            if kernel["ProblemType"]["DataType"].isComplex():
-              # adjustment for double complex
-              # limit the max of interval up to 4 if (kernel["MIWaveTile"][0] // kernel["VectorWidth"]) > 1
-              interval = min(4, interval)
-            else: #if kernel["ProblemType"]["DataType"].isDouble() or isSingle():
-              # adjustment for double
-              # in this case, interval must be 1 to avoid overwritting vreg by global read
-              interval = 1
-          # DirectToVgprA + TLU=False + VW > kernel["MIInputPerThread"] case, need to use interval = 1
-          if kernel["DirectToVgprA"] and (not kernel["ProblemType"]["TLUA"]) and kernel["VectorWidth"] > kernel["MIInputPerThread"]:
-            interval = 1
+          if kernel["ProblemType"]["DataType"].isComplex():
+            # adjustment for complex
+            # limit the max of interval up to 4
+            interval = min(4, interval)
+          else:
+            # not complex case
+            # adjust(swap) the inner and outer loop index in mfmaIter to make interval as large as possible (swap for DTVA only)
+            # interval can be maximum of kernel["MIWaveTile"][innerLoopIndex]
+            innerLoopIndex = 1 if self.swapMfmaInnerLoop else 0
+            interval = min(kernel["MIWaveTile"][innerLoopIndex], interval)
           # if number of mfma after self.grEndMfmaIndex is smaller than numMfmaPerIter, we need to use smaller interval to insert DTV load.
           # this is to ensure DTV load is generated after lwStartMfmaIndex
           intervalAfterGrEnd = kernel["LoopIters"] * numMfmaPerIter - self.lwStartMfmaIndex
@@ -1837,7 +1890,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # if DirectToVgpr is enabled and swapGlobalRead is true, swap the order of global read (B->A)
           tensorParameters1st = tensorParametersA
           tensorParameters2nd = tensorParametersB
-          if self.isSwapGlobalReadOrderForDirectToVgpr(kernel):
+          if self.isSwapGlobalReadOrderForDtvOrDtl(kernel):
             tensorParameters1st, tensorParameters2nd = tensorParameters2nd, tensorParameters1st
           self.dtlsM0UpdateACode = self.directToLdsM0Update(kernel, 0, tensorParameters1st, usePlaceHolder=isPap)
           self.globalReadACode = self.globalReadDo(kernel, 0, tensorParameters1st, 0)
@@ -1861,7 +1914,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # if DirectToVgpr is enabled and swapGlobalRead is true, swap the order of global read (B->A)
           tensorParameters1st = tensorParametersA
           tensorParameters2nd = tensorParametersB
-          if self.isSwapGlobalReadOrderForDirectToVgpr(kernel):
+          if self.isSwapGlobalReadOrderForDtvOrDtl(kernel):
             tensorParameters1st, tensorParameters2nd = tensorParameters2nd, tensorParameters1st
           tmpStr = str(self.directToLdsM0Update(kernel, 0, tensorParameters1st, usePlaceHolder=isPap))
           tmpStr = tmpStr.replace("__placeholder__", str(0))
@@ -2350,7 +2403,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       tensorParameters2nd = tensorParametersB
       tc1 = 'A'
       tc2 = 'B'
-      if self.isSwapGlobalReadOrderForDirectToVgpr(kernel):
+      if self.isSwapGlobalReadOrderForDtvOrDtl(kernel):
         tensorParameters1st, tensorParameters2nd = tensorParameters2nd, tensorParameters1st
         tc1, tc2 = tc2, tc1
       # unrolled loop: global read A, B
@@ -2973,7 +3026,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # if DirectToVgpr is enabled and swapGlobalRoad is true, swap the order of global read (B->A)
           tensorParameters1st = tensorParametersA
           tensorParameters2nd = tensorParametersB
-          if self.isSwapGlobalReadOrderForDirectToVgpr(kernel):
+          if self.isSwapGlobalReadOrderForDtvOrDtl(kernel):
             tensorParameters1st, tensorParameters2nd = tensorParameters2nd, tensorParameters1st
           kl.append(str(self.directToLdsM0Update(kernel, 1, tensorParameters1st)))
           kl.append(str(self.globalReadDo(kernel, 0, tensorParameters1st, 1)))
@@ -3187,7 +3240,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
           tensorParameters2nd = tensorParametersB
           tc1 = 'a'
           tc2 = 'b'
-          if self.isSwapGlobalReadOrderForDirectToVgpr(kernel):
+          if self.isSwapGlobalReadOrderForDtvOrDtl(kernel):
             tensorParameters1st, tensorParameters2nd = tensorParameters2nd, tensorParameters1st
             tc1, tc2 = tc2, tc1
           kl.append(self.comment("Update M0 for DTLDS"))
@@ -4065,6 +4118,18 @@ class KernelWriter(metaclass=abc.ABCMeta):
       #if kernel["DirectToVgprA"] or kernel["DirectToVgprB"]:
       #  self.enableSingleNLLOpt = True
 
+    # condition(s) for swapMfmaInnerLoop
+    # swap inner and outer loop for mfmaIter
+    self.swapMfmaInnerLoop = False
+    if kernel["EnableMatrixInstruction"]:
+      if kernel["ProblemType"]["DataType"].isComplex() and tensorParametersB["tile01Idx"]:
+        # complex case, swap inner loop and outer loop so that idxA comes outer
+        # this is to re-use same tmp vgpr to nagate ai or ar
+        self.swapMfmaInnerLoop = True
+      if (not kernel["ProblemType"]["DataType"].isComplex()) and kernel["DirectToVgprA"] and kernel["PrefetchGlobalRead"] == 2:
+        # not Complex and DTVA + PGR2 case, use B for inner loop to schedule more mfma between DTVA global read instructions
+        self.swapMfmaInnerLoop = True
+
   @staticmethod
   def zpForSumIdx(sumIdx, zeroPad):
      """ Returns zero-pad for specified sumIdx if it matches or None if not """
@@ -4847,10 +4912,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
     return ""
 
   ##############################################################################
-  # isSwapGlobalReadOrderForDirectToVgpr
+  # isSwapGlobalReadOrderForDtvOrDtl
   ##############################################################################
   @abc.abstractmethod
-  def isSwapGlobalReadOrderForDirectToVgpr(self, kernel):
+  def isSwapGlobalReadOrderForDtvOrDtl(self, kernel):
     return ""
 
   ##############################################################################
@@ -5317,10 +5382,10 @@ for codeObjectFileName in codeObjectFileNames:
         pgr2 = kernel["PrefetchGlobalRead"] == 2
         numGlobalReadA = kernel["NumLoadsPerpendicularA"] * kernel["NumLoadsCoalescedA"] * self.numReadVectorComponentsA
         numGlobalReadB = kernel["NumLoadsPerpendicularB"] * kernel["NumLoadsCoalescedB"] * self.numReadVectorComponentsB
-        numGlobalRead = numGlobalReadA if self.isSwapGlobalReadOrderForDirectToVgpr(kernel) else numGlobalReadB
+        numGlobalRead = numGlobalReadA if self.isSwapGlobalReadOrderForDtvOrDtl(kernel) else numGlobalReadB
         numGlobalReadAll = numGlobalReadA + numGlobalReadB
         numGlobalStoreC = 0
-        numReadsIterCoalesced = self.numReadsIterCoalescedA if self.isSwapGlobalReadOrderForDirectToVgpr(kernel) else self.numReadsIterCoalescedB
+        numReadsIterCoalesced = self.numReadsIterCoalescedA if self.isSwapGlobalReadOrderForDtvOrDtl(kernel) else self.numReadsIterCoalescedB
         waitComment = "global read wait for DirectToVgpr"
         # delay DirectToVgpr global read (from previous iteration) which is not referred yet (do not delay in beforeBarrier case)
         numRegsIn1set = (numGlobalRead * numReadsIterCoalesced) // kernel["LoopIters"]
