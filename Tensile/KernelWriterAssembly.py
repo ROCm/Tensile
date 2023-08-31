@@ -630,6 +630,36 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("Fp16AltOffset", 1)
       self.defineSgpr("Fp16AltNanCheck", 2, 2)
 
+    # dedicated sgpr(S) for storeC VGPR indexing
+    # sgpr semaphore for message synchronization between different part of code section
+    if kernel["StoreCInUnroll"]:
+      needAddrC = not kernel["AssertCEqualsD"] and kernel["ProblemType"]["UseBeta"]
+      self.defineSgpr("StoreCIndex0",1)
+      self.defineSgpr("StoreCOffsetAddr",1)
+      self.defineSgpr("StoreCEnableCountInit",1)
+      self.defineSgpr("StoreCEnableCount",1)
+      self.defineSgpr("StoreCAvail",2,2)
+      if needAddrC:
+        self.defineSgpr("SrdCBackup",2,2)
+      self.defineSgpr("SrdDBackup",2,2)
+      if needAddrC:
+        self.defineSgpr("CAddrInc",1)
+      self.defineSgpr("DAddrInc",1)
+      # initialization of StoreCInUnroll C/D addr inc
+      self.initializeStoreCInUnrollAddrIncValues(kernel)
+      if self.StoreCInUnrollAddrIncHoffset > 0 or self.StoreCInUnrollNumInterleaveV > 1:
+        if needAddrC:
+          self.defineSgpr("CAddrIncV1",1)
+        self.defineSgpr("DAddrIncV1",1)
+        if self.StoreCInUnrollAddrIncV2Iterations > 0:
+          if needAddrC:
+            self.defineSgpr("CAddrIncV2",1)
+          self.defineSgpr("DAddrIncV2",1)
+        if self.StoreCInUnrollAddrIncV3Iterations > 0:
+          if needAddrC:
+            self.defineSgpr("CAddrIncV3",1)
+          self.defineSgpr("DAddrIncV3",1)
+
     # debug flag to allocate dummy / unused sgpr
     # useful when comparing code that adds new kernel arguments to see what
     # was actually changed
@@ -1698,7 +1728,7 @@ class KernelWriterAssembly(KernelWriter):
 
     self.defineSgpr("OrigLoopCounter", 1)
 
-    if self.prefetchAcrossPersistent0:
+    if self.prefetchAcrossPersistent0 and (not self.noTailLoop):
       #if kernel["ExpandPointerSwap"]:
         # For ExpandPointerSwap + PAP, track which expanded loop iter to start on
         # global prefetches bounce between two LDS buffers, and the bounce state
@@ -1817,36 +1847,6 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["ProblemType"]["DataType"].is8bitFloat():
       if kernel["ProblemType"]["StochasticRounding"]: # in-device, only RNDSeed
         self.defineSgpr("RNDSeed", 1)  # seed for random number generation
-
-    # dedicated sgpr(S) for storeC VGPR indexing
-    # sgpr semaphore for message synchronization between different part of code section
-    if kernel["StoreCInUnroll"]:
-      needAddrC = not kernel["AssertCEqualsD"] and kernel["ProblemType"]["UseBeta"]
-      self.defineSgpr("StoreCIndex0",1)
-      self.defineSgpr("StoreCOffsetAddr",1)
-      self.defineSgpr("StoreCEnableCountInit",1)
-      self.defineSgpr("StoreCEnableCount",1)
-      self.defineSgpr("StoreCAvail",2,2)
-      if needAddrC:
-        self.defineSgpr("SrdCBackup",2,2)
-      self.defineSgpr("SrdDBackup",2,2)
-      if needAddrC:
-        self.defineSgpr("CAddrInc",1)
-      self.defineSgpr("DAddrInc",1)
-      # initialization of StoreCInUnroll C/D addr inc
-      self.initializeStoreCInUnrollAddrIncValues(kernel)
-      if self.StoreCInUnrollAddrIncHoffset > 0 or self.StoreCInUnrollNumInterleaveV > 1:
-        if needAddrC:
-          self.defineSgpr("CAddrIncV1",1)
-        self.defineSgpr("DAddrIncV1",1)
-        if self.StoreCInUnrollAddrIncV2Iterations > 0:
-          if needAddrC:
-            self.defineSgpr("CAddrIncV2",1)
-          self.defineSgpr("DAddrIncV2",1)
-        if self.StoreCInUnrollAddrIncV3Iterations > 0:
-          if needAddrC:
-            self.defineSgpr("CAddrIncV3",1)
-          self.defineSgpr("DAddrIncV3",1)
 
     self.numSgprToLoad = 2 + 2 + numSgprAddressD + numSgprAddressC + numSgprAddressA + numSgprAddressB + numSgprAlpha + \
       (numSgprBeta if kernel["ProblemType"]["UseBeta"] else 0) + self.numSgprStridesD + self.numSgprStridesC + self.numSgprStridesA + \
@@ -3190,34 +3190,68 @@ class KernelWriterAssembly(KernelWriter):
     else:
       kStr += ".if 0\n"
 
+    # sgpr allocation optimization
+    # (after batched address loaded) store addresses in SrdA,B,C,D instead of AddressA,B,C,D
+    # then, release Address A,B,C,D after initial calculation is done
+    # not applicable cases
+    #  - PersistentKernel
+    #  - CheckDimOverflow >= 2
+    #  - convolution (not GEMM) (does not work)
+    #  - not BufferLoad (for A,B)
+    #  - not BufferStore (for C,D)
+    #  - not PrefetchGlobalRead (for C,D)
+    self.releaseSgprAdressAB = False
+    self.sgprAddressStrAB = "Address"
+    self.releaseSgprAdressCD = False
+    self.sgprAddressStrCD = "Address"
+    if (not kernel["PersistentKernel"]) and kernel["CheckDimOverflow"]<2 and kernel["ProblemType"]["OperationType"] == 'GEMM':
+      # A,B check
+      if kernel["BufferLoad"]:
+        self.releaseSgprAdressAB = True
+        self.sgprAddressStrAB = "Srd"
+      # C,D check
+      if kernel["BufferStore"] and kernel["PrefetchGlobalRead"]:
+        self.releaseSgprAdressCD = True
+        self.sgprAddressStrCD = "Srd"
+
     # add offset to buffer
     if not kernel["_GlobalAccumulation"]:
       kStr += inst("s_lshl_b64", sgpr("OffsetD", 2), sgpr("OffsetD", 2), hex(log2(self.bpeCexternal)), "elements offset to bytes offset")
-      kStr += inst("s_add_u32",  sgpr("AddressD+0"), sgpr("AddressD+0"), sgpr("OffsetD"), "add offset to buffer address")
-      kStr += inst("s_addc_u32", sgpr("AddressD+1"), sgpr("AddressD+1"), sgpr("OffsetD+1"), "add offset to buffer address")
+      kStr += inst("s_add_u32",  sgpr("%sD+0"%self.sgprAddressStrCD), sgpr("AddressD+0"), sgpr("OffsetD"), "add offset to buffer address")
+      kStr += inst("s_addc_u32", sgpr("%sD+1"%self.sgprAddressStrCD), sgpr("AddressD+1"), sgpr("OffsetD+1"), "add offset to buffer address")
 
       kStr += inst("s_lshl_b64", sgpr("OffsetC", 2), sgpr("OffsetC", 2), hex(log2(self.bpeCexternal)), "elements offset to bytes offset")
-      kStr += inst("s_add_u32",  sgpr("AddressC+0"), sgpr("AddressC+0"), sgpr("OffsetC"), "add offset to buffer address")
-      kStr += inst("s_addc_u32", sgpr("AddressC+1"), sgpr("AddressC+1"), sgpr("OffsetC+1"), "add offset to buffer address")
+      kStr += inst("s_add_u32",  sgpr("%sC+0"%self.sgprAddressStrCD), sgpr("AddressC+0"), sgpr("OffsetC"), "add offset to buffer address")
+      kStr += inst("s_addc_u32", sgpr("%sC+1"%self.sgprAddressStrCD), sgpr("AddressC+1"), sgpr("OffsetC+1"), "add offset to buffer address")
+    elif self.releaseSgprAdressCD:
+      # copy AddressC,D to srdC,D to undefine AddressC,D
+      kStr += inst("s_mov_b32", sgpr("%sC+0"%self.sgprAddressStrCD), sgpr("AddressC+0"), "copy addressC")
+      kStr += inst("s_mov_b32", sgpr("%sC+1"%self.sgprAddressStrCD), sgpr("AddressC+1"), "copy addressC")
+      kStr += inst("s_mov_b32", sgpr("%sD+0"%self.sgprAddressStrCD), sgpr("AddressD+0"), "copy addressD")
+      kStr += inst("s_mov_b32", sgpr("%sD+1"%self.sgprAddressStrCD), sgpr("AddressD+1"), "copy addressD")
 
+    dstAddressA0Str = sgpr("%sA+0"%self.sgprAddressStrAB)
+    dstAddressA1Str = sgpr("%sA+1"%self.sgprAddressStrAB)
+    dstAddressB0Str = sgpr("%sB+0"%self.sgprAddressStrAB)
+    dstAddressB1Str = sgpr("%sB+1"%self.sgprAddressStrAB)
     kStr += inst("s_lshl_b64", sgpr("OffsetA", 2), sgpr("OffsetA", 2), hex(log2(self.bpeAB)), "elements offset to bytes offset")
-    kStr += inst("s_add_u32",  sgpr("AddressA+0"), sgpr("AddressA+0"), sgpr("OffsetA"), "add offset to buffer address")
-    kStr += inst("s_addc_u32", sgpr("AddressA+1"), sgpr("AddressA+1"), sgpr("OffsetA+1"), "add offset to buffer address")
+    kStr += inst("s_add_u32",  dstAddressA0Str, sgpr("AddressA+0"), sgpr("OffsetA"), "add offset to buffer address")
+    kStr += inst("s_addc_u32", dstAddressA1Str, sgpr("AddressA+1"), sgpr("OffsetA+1"), "add offset to buffer address")
 
     kStr += inst("s_lshl_b64", sgpr("OffsetB", 2), sgpr("OffsetB", 2), hex(log2(self.bpeAB)), "elements offset to bytes offset")
-    kStr += inst("s_add_u32",  sgpr("AddressB+0"), sgpr("AddressB+0"), sgpr("OffsetB"), "add offset to buffer address")
-    kStr += inst("s_addc_u32", sgpr("AddressB+1"), sgpr("AddressB+1"), sgpr("OffsetB+1"), "add offset to buffer address")
+    kStr += inst("s_add_u32",  dstAddressB0Str, sgpr("AddressB+0"), sgpr("OffsetB"), "add offset to buffer address")
+    kStr += inst("s_addc_u32", dstAddressB1Str, sgpr("AddressB+1"), sgpr("OffsetB+1"), "add offset to buffer address")
 
     # self.groOffsetInMacroTile == 1 case, subtract pre-pad here
     if self.groOffsetInMacroTile:
       bpeOffsetA = 1 if self.tPA["glvw"] < 1 else self.tPA["bpe"] # glvw<1 case, no need to multiply bpe here
       prePad = self.srdShiftLeft["A"] * bpeOffsetA# leave room in case we have to pointer shift
-      kStr += inst("s_sub_u32",  sgpr("AddressA+0"), sgpr("AddressA+0"), prePad, "pre-pad to make room for possible pointer shift")
-      kStr += inst("s_subb_u32",  sgpr("AddressA+1"), sgpr("AddressA+1"), 0, "pre-pad to make room for possible pointer shift")
+      kStr += inst("s_sub_u32",  dstAddressA0Str, dstAddressA0Str, prePad, "pre-pad to make room for possible pointer shift")
+      kStr += inst("s_subb_u32",  dstAddressA1Str, dstAddressA1Str, 0, "pre-pad to make room for possible pointer shift")
       bpeOffsetB = 1 if self.tPB["glvw"] < 1 else self.tPB["bpe"] # glvw<1 case, no need to multiply bpe here
       prePad = self.srdShiftLeft["B"] * bpeOffsetB # leave room in case we have to pointer shift
-      kStr += inst("s_sub_u32",  sgpr("AddressB+0"), sgpr("AddressB+0"), prePad, "pre-pad to make room for possible pointer shift")
-      kStr += inst("s_subb_u32",  sgpr("AddressB+1"), sgpr("AddressB+1"), 0, "pre-pad to make room for possible pointer shift")
+      kStr += inst("s_sub_u32",  dstAddressB0Str, dstAddressB0Str, prePad, "pre-pad to make room for possible pointer shift")
+      kStr += inst("s_subb_u32",  dstAddressB1Str, dstAddressB1Str, 0, "pre-pad to make room for possible pointer shift")
 
     # undefine Offset sgpr
     kStr += self.endLine
@@ -3225,6 +3259,13 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.undefineSgpr("OffsetC")
     kStr += self.undefineSgpr("OffsetA")
     kStr += self.undefineSgpr("OffsetB")
+    # undefine Address sgpr
+    if self.releaseSgprAdressCD:
+      kStr += self.undefineSgpr("AddressD")
+      kStr += self.undefineSgpr("AddressC")
+    if self.releaseSgprAdressAB:
+      kStr += self.undefineSgpr("AddressA")
+      kStr += self.undefineSgpr("AddressB")
 
     self.defineVariableSgprs(kernel)
 
@@ -4628,11 +4669,11 @@ class KernelWriterAssembly(KernelWriter):
     # Add the tile start to the SRD
     if wroteTileStart:
       kStr += scalarStaticMultiply(sgpr(tileStart,2), sgpr(tileStart,2), bpe, None, "tileStart *= BPE")
-      kStr += inst("s_add_u32",  sgpr("Srd%s+0"%tc), sgpr("Address%s+0"%tc), sgpr(tileStart+0), "SRD base = Address+ tileStart0")
-      kStr += inst("s_addc_u32", sgpr("Srd%s+1"%tc), sgpr("Address%s+1"%tc), sgpr(tileStart+1), "SRD base = Address+ tileStart1")
+      kStr += inst("s_add_u32",  sgpr("Srd%s+0"%tc), sgpr("%s%s+0"%(self.sgprAddressStrAB,tc)), sgpr(tileStart+0), "SRD base = Address+ tileStart0")
+      kStr += inst("s_addc_u32", sgpr("Srd%s+1"%tc), sgpr("%s%s+1"%(self.sgprAddressStrAB,tc)), sgpr(tileStart+1), "SRD base = Address+ tileStart1")
     else:
-      kStr += inst("s_mov_b32", sgpr("Srd%s+0"%tc), sgpr("Address%s+0"%tc), "init SRD base address (lower )" )
-      kStr += inst("s_mov_b32", sgpr("Srd%s+1"%tc), sgpr("Address%s+1"%tc), "init SRD base address (upper) + other fields" )
+      kStr += inst("s_mov_b32", sgpr("Srd%s+0"%tc), sgpr("%s%s+0"%(self.sgprAddressStrAB,tc)), "init SRD base address (lower )" )
+      kStr += inst("s_mov_b32", sgpr("Srd%s+1"%tc), sgpr("%s%s+1"%(self.sgprAddressStrAB,tc)), "init SRD base address (upper) + other fields" )
 
     # self.groOffsetInMacroTile == 1 case,  pre-pad is already subtracted from AddressA/B
     if prePad and self.groOffsetInMacroTile == 0:
@@ -9730,7 +9771,7 @@ class KernelWriterAssembly(KernelWriter):
     # Packed follows same philosophy but may have more vector components
     indices = list(range(0, kernel["ProblemType"]["NumIndicesC"]))
     numDim = len(indices)
-    addrSrcSgpr = "Address" # use "Address" only for the first iteration
+    addrSrcSgpr = self.sgprAddressStrCD # use "Address" only for the first iteration
     for i in range(1, numDim):
       if i == kernel["ProblemType"]["Index0"]:
         # Used if the output is transposed?
@@ -9918,8 +9959,9 @@ class KernelWriterAssembly(KernelWriter):
   def allocPostLoopSrd(self, kernel, ch):
     kStr = ""
     # Buffer-load uses one base read pointer stored in the SRD - set it here:
-    kStr += inst("s_mov_b32", sgpr("Srd%s+0"%ch), sgpr("Address%s+0"%ch), "init SRD base address (lower)" )
-    kStr += inst("s_mov_b32", sgpr("Srd%s+1"%ch), sgpr("Address%s+1"%ch), "init SRD base address (upper) + other fields" )
+    if not self.releaseSgprAdressCD:
+      kStr += inst("s_mov_b32", sgpr("Srd%s+0"%ch), sgpr("Address%s+0"%ch), "init SRD base address (lower)" )
+      kStr += inst("s_mov_b32", sgpr("Srd%s+1"%ch), sgpr("Address%s+1"%ch), "init SRD base address (upper) + other fields" )
     kStr += inst("s_mov_b32", sgpr("Srd%s+2"%ch), "BufferOOB", "")
     kStr += inst("s_mov_b32", sgpr("Srd%s+3"%ch), "Srd127_96", "Set bits 127_96 in post-loop SRD")
     kStr += "\n"
