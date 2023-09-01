@@ -379,14 +379,21 @@ class KernelWriter(metaclass=abc.ABCMeta):
           self.numLocalWriteModPerMfma = PRECISION
       else:
         self.numLocalWriteModPerMfma = numLocalWriteModPerMfma
-      if kernel["EnableMatrixInstruction"] and kernel["ScheduleIterAlg"] == 3 and kernel["PrefetchGlobalRead"] == 2 and kernel["LocalWritePerMfma"] != -1:
-        valueFromParam = roundUp(kernel["LocalWritePerMfma"]*PRECISION)
-        # parameter check (to avoid mismatch due to overwrapping)
-        if (valueFromParam < self.numLocalWriteModPerMfma):
-          print2("LocalWritePerMfma (%f) is too small. Auto-adjusted." % kernel["LocalWritePerMfma"])
-          valueFromParam = self.numLocalWriteModPerMfma
+      if kernel["EnableMatrixInstruction"] and kernel["ScheduleIterAlg"] == 3 and kernel["PrefetchGlobalRead"] == 2:
+        if kernel["LocalWritePerMfma"] != -1:
+          valueFromParam = roundUp(kernel["LocalWritePerMfma"]*PRECISION)
+          # parameter check (to avoid mismatch due to overwrapping)
+          if (valueFromParam < self.numLocalWriteModPerMfma):
+            print2("LocalWritePerMfma (%f) is too small. Auto-adjusted." % kernel["LocalWritePerMfma"])
+            valueFromParam = self.numLocalWriteModPerMfma
+          self.numLocalWriteModPerMfma = valueFromParam
+        elif (kernel["DirectToVgprA"] or kernel["DirectToVgprB"]):
+          # DTV + PGR2 case, DTV load is not a part of LocalWrite scheduing and NumLocalWritePerMfma can be very small
+          # we set minimum value of NumLocalWritePerMfma for DTV + PGR2
+          # currently, minimum is set as 1/6 (means 1 local write per 6 MFMA)
+          minNumLocalWritePerMfma = int((1/6) * PRECISION)
+          self.numLocalWriteModPerMfma = max(self.numLocalWriteModPerMfma, minNumLocalWritePerMfma)
 
-        self.numLocalWriteModPerMfma = valueFromParam
 
       ##################################
       numGlobalReadInsPerIter = numMfmaPerIter * self.numGlobalReadInsPerMfma
