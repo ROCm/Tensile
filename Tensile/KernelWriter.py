@@ -1211,6 +1211,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
               vacancy["latencyLeft"] = 0
       numReadsInst = len(localReadItemsThisLoop) if iteration < isBarrier else len(localReadItemsNextLoop)
 
+      oneBufferScheduling = kernel["1LDSBuffer"] or kernel["DirectToLdsA"] or kernel["DirectToLdsB"]
+
       for i in range(numMfmaPerIter):
         mfmaIndex = iteration * numMfmaPerIter + i
         lastMfmaIndex = kernel["LoopIters"] * numMfmaPerIter - 1
@@ -1263,7 +1265,6 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # reject to use 1LDSB, since it will write and read same lds buffer at same time.
         # apply same logic to DirectToLds (need to schedule local read as 1LDS buffer)
         # TODO: force to schedule all remaining localreads before start to schedule localwrite.
-        oneBufferScheduling = kernel["1LDSBuffer"] or kernel["DirectToLdsA"] or kernel["DirectToLdsB"]
         if mfmaIndex >= self.lwStartMfmaIndex and mfmaIndex <= max(self.lwEndMfmaIndex,self.barrierMfmaIndex) and \
           localReadItemsThisLoop and localWriteCode.countType(Code.LocalWriteInst) and oneBufferScheduling:
           self.overflowedResources = 5
@@ -1625,9 +1626,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
             # dataAtIter iteration localWrite count
             if self.numItersPLR:
               skipPreIterLW = self.perIterLocalWriteCanSkip[max(dataAtIterA,dataAtIterB)]
-              if kernel["PrefetchGlobalRead"] == 2 and kernel["LocalReadVectorWidth"] == 2 and \
-                 (kernel["DirectToVgprA"] or kernel["DirectToVgprB"]):
-                # PGR==2 and LRVW==2 and DirectToVgpr enabled case, count local write before max(dataAtIterA,dataAtIterB)
+              if kernel["PrefetchGlobalRead"] == 2 and oneBufferScheduling:
+                # PGR==2 and oneBufferScheduling case, count local write before max(dataAtIterA,dataAtIterB)
                 # NOTE: This logic assumes that local write is scheduled after local read.
                 for up in range(max(dataAtIterA,dataAtIterB)):
                   skipPreIterLW += self.perIterLocalWriteCanSkip[up]
