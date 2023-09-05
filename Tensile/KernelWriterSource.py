@@ -3484,8 +3484,8 @@ class KernelWriterSource(KernelWriter):
     return ""
 
   ##############################################################################
-  # isSwapGlobalReadOrderForDirectToVgpr
+  # isSwapGlobalReadOrderForDtvOrDtl
   ##############################################################################
-  def isSwapGlobalReadOrderForDirectToVgpr(self, kernel):
+  def isSwapGlobalReadOrderForDtvOrDtl(self, kernel):
     return False
 

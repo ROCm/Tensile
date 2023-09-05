@@ -1988,7 +1988,6 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["EnableMatrixInstruction"]:
       self.miLatency = kernel["MatrixInstM"] // 2
       if (self.version == (9,4,0) or self.version == (9,4,1) or self.version == (9,4,2)) and kernel["MatrixInstB"] == 1 and \
-         kernel["MatrixInstM"] == 32 and \
          (kernel["EnableF32XdlMathOp"] or \
           kernel["ProblemType"]["DataType"].is8bitFloat() or \
           kernel["ProblemType"]["DataType"].isHalf() or kernel["ProblemType"]["DataType"].isBFloat16() or \
@@ -1997,7 +1996,7 @@ class KernelWriterAssembly(KernelWriter):
       miIssueLatency = 2
       # give 1 quad-cycle buffer to prevend bubble from sync
       miLatencyBuffer = 1
-      self.miLatencyLeft = max(self.miLatency - miLatencyBuffer - miIssueLatency,0)
+      self.miLatencyLeft = max(self.miLatency - miLatencyBuffer - miIssueLatency, 1) # minimum 1 to make scheduling work
 
     # pre-determine labels in order
     unrollChar = self.indexChars[ \
@@ -3006,7 +3005,10 @@ class KernelWriterAssembly(KernelWriter):
       elif self.overflowedResources == 4:
         msg = "Occupancy limit"
       elif self.overflowedResources == 5:
-        msg = "reading and writing LDS at same time require 2 LDS buffer"
+        if kernel["DirectToLdsA"] or kernel["DirectToLdsB"]:
+          msg = "cannot schedule local read with DirectToLds"
+        else:
+          msg = "reading and writing LDS at same time require 2 LDS buffer"
       elif self.overflowedResources == 6:
         msg = "SIA2 better with occupancy 2"
       else:
@@ -6824,18 +6826,15 @@ class KernelWriterAssembly(KernelWriter):
     for iui in range(0, innerUnroll):
       zgemmVaddSrcCheck = [[], [], []] # to avoid generating redundant v_add
       outer = 1
-      loopSwap = False
-      # complex case, swap inner loop and outer loop so that idxA comes outer
-      # this is to re-use same tmp vgpr to nagate ai or ar
-      if kernel["ProblemType"]["DataType"].isComplex() and self.tPB["tile01Idx"]:
+      # swap inner loop and outer loop so that idxA comes outer
+      if self.swapMfmaInnerLoop:
         outer = 0
-        loopSwap = True
       inner = 1 - outer # inner is the opposite of outer
       for idxOuter in range(0, kernel["MIWaveTile"][outer]):
         for idxInner in range(0, kernel["MIWaveTile"][inner]):
           idx0 = idxInner
           idx1 = idxOuter
-          if loopSwap:
+          if self.swapMfmaInnerLoop:
             idx0, idx1 = idx1, idx0
           accIdx   = idx1 * kernel["MIWaveTile"][0] + idx0
           accStart = accIdx * accs_per_wave
@@ -8222,7 +8221,7 @@ class KernelWriterAssembly(KernelWriter):
     # set the first tc for below wait code for DirectToLds
     # if DirectToVgpr is enabled and swapGlobalRead is true, change the first to B
     tc1st = 'A'
-    if self.isSwapGlobalReadOrderForDirectToVgpr(kernel):
+    if self.isSwapGlobalReadOrderForDtvOrDtl(kernel):
       tc1st = 'B'
 
     if tc == tc1st and (kernel["DirectToLdsA"] or kernel["DirectToLdsB"]) and not kernel["PrefetchGlobalRead"]==2:
@@ -14380,16 +14379,19 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  # isSwapGlobalReadOrderForDirectToVgpr
+  # isSwapGlobalReadOrderForDtvOrDtl
   ##############################################################################
-  def isSwapGlobalReadOrderForDirectToVgpr(self, kernel):
+  def isSwapGlobalReadOrderForDtvOrDtl(self, kernel):
     # swap global read order (from A, B to B, A) if the following condition is true
     #  - DirectToVgprA and B are true and number of global read B >= number of global read A
     #  - if DirectToVgprA is true and DirectToVgprB is false
+    #  - if DirectToLdsA=False and DirectToLdsB=True (need to put DTLB first)
     if kernel["DirectToVgprA"] and kernel["DirectToVgprB"]:
       if kernel["NumLoadsB"] >= kernel["NumLoadsA"]:
         return True
     elif kernel["DirectToVgprA"]:
+      return True
+    elif (not kernel["DirectToLdsA"]) and kernel["DirectToLdsB"]:
       return True
     return False
 
