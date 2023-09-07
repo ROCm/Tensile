@@ -125,12 +125,9 @@ class LraTileAssignmentMFMA(LraTileAssignment):
             dividedForBlkId  = (kernel["MatrixInstN"] * kernel["MatrixInstBN"]) if (tile01 == 0) else kernel["MatrixInstN"]
         dividedForWaveId = waveWidth if (tile01 == 0) else (waveWidth * kernel["MIWaveGroup"][0])
         vectorWidth      = kernel["VectorWidth"] if ((tile01 == 0) and kernel["SourceSwap"]) else 1 # TODO: nonSwap VectorWidth
-        if writer.allowLRVWBforTLUandMI:
-          lrvw = writer.lrvwA if tP["isA"] else writer.lrvwB
-          if lrvw > vectorWidth:
-            vectorWidth = lrvw
-          if tP["tlu"]:
-            inputPerThread = 1
+        if writer.VectorWidthB > 1 and tP["isB"] :
+          vectorWidth = writer.VectorWidthB
+          inputPerThread = 1
 
         # strider for each type of index
         mt               = kernel["MacroTile%u" % tile01]

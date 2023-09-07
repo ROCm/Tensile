@@ -143,12 +143,10 @@ class LocalReadMFMA(LocalRead):
 
         numOffsets       = instruction.numOffsets
         blockWidth       = instruction.blockWidth
-        vectorWidth      = kernel["VectorWidth"] if kernel["SourceSwap"] else 1 # TODO: nonSwap VectorWidth
-        allowLRVWBforTLUandMI = writer.allowLRVWBforTLUandMI and tP["tlu"]
-        vwA              = writer.lrvwA if allowLRVWBforTLUandMI else 1
-        vwB              = writer.lrvwB if allowLRVWBforTLUandMI else 1
-        MIWaveGroupShape = [ kernel["MatrixInstM"] * kernel["MatrixInstBM"] * kernel["MIWaveGroup"][0] * vectorWidth // vwA, \
-                             kernel["MatrixInstN"] * kernel["MatrixInstBN"] * kernel["MIWaveGroup"][1] * vwB]
+        vectorWidthA     = kernel["VectorWidth"] if kernel["SourceSwap"] else 1 # TODO: nonSwap VectorWidth
+        vectorWidthB     = writer.VectorWidthB
+        MIWaveGroupShape = [ kernel["MatrixInstM"] * kernel["MatrixInstBM"] * kernel["MIWaveGroup"][0] * vectorWidthA, \
+                             kernel["MatrixInstN"] * kernel["MatrixInstBN"] * kernel["MIWaveGroup"][1] * vectorWidthB]
 
         LdsPad           = kernel["LdsPad%s"%tc] if kernel["LdsBlockSizePerPad%s"%tc] == 0 else 0
         tileStride       = 1
@@ -157,14 +155,10 @@ class LocalReadMFMA(LocalRead):
             tileStride   = kernel["_DepthULds"] + LdsPad
             UnrollStride = 1
 
+        vectorWidth          = vectorWidthA if (tile01 == 0) else vectorWidthB
+        #numReadPerTileVector = (vectorWidth * tP["bpe"]) // int(blockWidth * 4) # bytes/register
         numReadPerTileVector = vectorWidth if (tile01 == 0) else 1
-        if (tile01 == 0) and allowLRVWBforTLUandMI and numReadPerTileVector >= lrvw:
-          numReadPerTileVector //= lrvw
-          if tileStride==1:
-            tileStride = lrvw
-        numVectorsPerTile    = kernel["MIWaveTile"][tile01] // numReadPerTileVector
-        if allowLRVWBforTLUandMI and numVectorsPerTile >= lrvw:
-          numVectorsPerTile //= lrvw
+        numVectorsPerTile    = kernel["MIWaveTile"][tile01] // vectorWidth
         # overloading numReadsPerUnroll for DirectToLds x2/x4 case when blockWidth of instruction < LocalReadVectorWidth
         # fp64 TLU=1 reading 0.5element/lane/read..
         # for TLU=0 case, blockWidth and LRVW should match
