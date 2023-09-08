@@ -1673,7 +1673,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   def setupNewTile(self, kernel, tensorParametersA, tensorParametersB, isPap, isOptNLL=False, forceNoTileCode=False, forceNoGRCode=False):
     kl = []
-    kl_2 = [] # generate tile assignment code + local write code separately for init code optimization
+    kl_LW = [] # generate tile assignment code + local write code separately for init code optimization
 
     if self.enable["PreLoop"]:
       ####################################
@@ -1705,16 +1705,16 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.dontAppendCode = isPap and kernel["PrefetchAcrossPersistentMode"] == 1 and ((not needShift) or self.useGlobalReadTileVgpr)
       self.dontAppendCode = self.dontAppendCode or forceNoTileCode
       # tile assignments
-      kl_2.append(self.comment("global read addresses: tile offset assignment a"))
-      kl_2.append(self.graTileAssignment(kernel, tensorParametersA))
-      kl_2.append(self.comment("global read addresses: tile offset assignment b"))
-      kl_2.append(self.graTileAssignment(kernel, tensorParametersB))
+      kl_LW.append(self.comment("global read addresses: tile offset assignment a"))
+      kl_LW.append(self.graTileAssignment(kernel, tensorParametersA))
+      kl_LW.append(self.comment("global read addresses: tile offset assignment b"))
+      kl_LW.append(self.graTileAssignment(kernel, tensorParametersB))
       # init code optimization
       # not init code opt case, add tile assignments code here
       # init code opt case, not insert tile assignments code here and return tile assignments code separately for replacement
       if not self.isInitCodeOptLW:
-        kl += kl_2
-        kl_2 = []
+        kl += kl_LW
+        kl_LW = []
 
       self.dontAppendCode = isPap and (not needShift)
       self.dontAppendCode = self.dontAppendCode or forceNoTileCode
@@ -1805,39 +1805,39 @@ class KernelWriter(metaclass=abc.ABCMeta):
       ####################################
       # Local Write Addresses
       ####################################
-      kl_2.append(self.comment3("Local Write Addresses"))
+      kl_LW.append(self.comment3("Local Write Addresses"))
 
       # tile assignments
-      kl_2.append(self.lwaTileAssignment(kernel, tensorParametersA))
-      kl_2.append(self.lwaTileAssignment(kernel, tensorParametersB))
+      kl_LW.append(self.lwaTileAssignment(kernel, tensorParametersA))
+      kl_LW.append(self.lwaTileAssignment(kernel, tensorParametersB))
 
       # unroll assignments
-      kl_2.append(self.lwaUnrollAssignment(kernel, tensorParametersA))
-      kl_2.append(self.lwaUnrollAssignment(kernel, tensorParametersB))
+      kl_LW.append(self.lwaUnrollAssignment(kernel, tensorParametersA))
+      kl_LW.append(self.lwaUnrollAssignment(kernel, tensorParametersB))
 
       # if PAP, no need to reset LWA, but if not OptNLL, we still do this (due to TailLoop)
 
       self.dontAppendCode = isPap and kernel["PrefetchAcrossPersistentMode"] == 1
       self.dontAppendCode = self.dontAppendCode or forceNoTileCode
       # first offsets
-      kl_2.append(self.comment("local write addresses: first offset a"))
-      kl_2.append(self.lwaFirstOffset(kernel, tensorParametersA))
-      kl_2.append(self.comment("local write addresses: first offset b"))
-      kl_2.append(self.lwaFirstOffset(kernel, tensorParametersB))
+      kl_LW.append(self.comment("local write addresses: first offset a"))
+      kl_LW.append(self.lwaFirstOffset(kernel, tensorParametersA))
+      kl_LW.append(self.comment("local write addresses: first offset b"))
+      kl_LW.append(self.lwaFirstOffset(kernel, tensorParametersB))
       self.dontAppendCode = False
       self.dontAppendCode = self.dontAppendCode or forceNoTileCode
 
       # final offsets
-      kl_2.append(self.lwaFinalOffsets(kernel, tensorParametersA))
-      kl_2.append(self.lwaFinalOffsets(kernel, tensorParametersB))
+      kl_LW.append(self.lwaFinalOffsets(kernel, tensorParametersA))
+      kl_LW.append(self.lwaFinalOffsets(kernel, tensorParametersB))
 
       # declare addresses
-      kl_2.append(self.lwaDeclareAddresses(kernel, tensorParametersA))
-      kl_2.append(self.lwaDeclareAddresses(kernel, tensorParametersB))
+      kl_LW.append(self.lwaDeclareAddresses(kernel, tensorParametersA))
+      kl_LW.append(self.lwaDeclareAddresses(kernel, tensorParametersB))
 
       # init pointers
-      kl_2.append(self.localWriteInitPointers(kernel, tensorParametersA))
-      kl_2.append(self.localWriteInitPointers(kernel, tensorParametersB))
+      kl_LW.append(self.localWriteInitPointers(kernel, tensorParametersA))
+      kl_LW.append(self.localWriteInitPointers(kernel, tensorParametersB))
 
       # init code optimization
       if self.isInitCodeOptLW:
@@ -1848,8 +1848,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       else:
         # not init code opt case, add local write code here
         # init code opt case, not insert local write code here and return local write code separately for replacement
-        kl += kl_2
-        kl_2 = []
+        kl += kl_LW
+        kl_LW = []
 
     ###########################################################################
     # summations loops: open
@@ -1952,7 +1952,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     kl.append(self.comment3("End setupNewTile, isPap=%s") % isPap)
 
-    return kl, kl_2
+    return kl, kl_LW
 
 
   ##############################################################################
@@ -3025,14 +3025,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       # first prefetch is outside persistent loop, subsequent prefetch will
       # be integrated into no-load-loop
-      kl_1, kl_LW = self.setupNewTile(kernel, tensorParametersA, tensorParametersB, isPap=False, isOptNLL=False)
-      kl += kl_1
+      kl_NT, kl_LW = self.setupNewTile(kernel, tensorParametersA, tensorParametersB, isPap=False, isOptNLL=False)
+      kl += kl_NT
       kl.append(self.openPersistentLoop(kernel))
     else:
       # prefetch is inside persistent loop
       kl.append(self.openPersistentLoop(kernel))
-      kl_1, kl_LW = self.setupNewTile(kernel, tensorParametersA, tensorParametersB, isPap=False, isOptNLL=False)
-      kl += kl_1
+      kl_NT, kl_LW = self.setupNewTile(kernel, tensorParametersA, tensorParametersB, isPap=False, isOptNLL=False)
+      kl += kl_NT
 
     # init code optimization : release resource
     self.lwaInitOptRelease()
@@ -3455,8 +3455,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     if self.prefetchAcrossPersistent and kernel["PrefetchAcrossPersistentMode"] != 1:
       kl.append(str(self.openPrefetchAcrossPersistent(kernel, isOptNLL=False)))
-      kl_1, _ = self.setupNewTile(kernel, self.tPA, self.tPB, isPap=True, isOptNLL=False)
-      kl += kl_1
+      kl_NT, _ = self.setupNewTile(kernel, self.tPA, self.tPB, isPap=True, isOptNLL=False)
+      kl += kl_NT
       kl.append(str(self.closePrefetchAcrossPersistent(kernel, isOptNLL=False)))
 
     kl.append(self.endSummation(kernel))
