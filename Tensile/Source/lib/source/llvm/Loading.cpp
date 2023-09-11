@@ -44,7 +44,9 @@ namespace Tensile
 
         try
         {
-            auto inputFile = llvm::MemoryBuffer::getFile(filename, RequiresNullTerminator=false);
+            // getFile (const Twine &Filename, bool IsText=false, bool RequiresNullTerminator=true, bool IsVolatile=false, std::optional< Align > Alignment=std::nullopt)
+            // set RequiresNullTerminator = false to suppress assertion
+            auto inputFile = llvm::MemoryBuffer::getFile(filename, false, false);
 
             LibraryIOContext<MySolution> context{filename, preloaded, nullptr};
             llvm::yaml::Input            yin((*inputFile)->getMemBufferRef(), &context);
