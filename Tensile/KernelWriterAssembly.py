@@ -3219,7 +3219,7 @@ class KernelWriterAssembly(KernelWriter):
       kStr += ".if 0\n"
 
     # add offset to buffer
-    if not kernel["_GlobalAccumulation"]:
+    if not kernel["_GlobalAccumulation"] or kernel["_GlobalAccumulation"] == 'PartialsBuffer':
       kStr += inst("s_lshl_b64", sgpr("OffsetD", 2), sgpr("OffsetD", 2), hex(log2(self.bpeCexternal)), "elements offset to bytes offset")
       kStr += inst("s_add_u32",  sgpr("AddressD+0"), sgpr("AddressD+0"), sgpr("OffsetD"), "add offset to buffer address")
       kStr += inst("s_addc_u32", sgpr("AddressD+1"), sgpr("AddressD+1"), sgpr("OffsetD+1"), "add offset to buffer address")
