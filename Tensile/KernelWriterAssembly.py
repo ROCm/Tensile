@@ -574,11 +574,13 @@ class KernelWriterAssembly(KernelWriter):
         if kernel["PackSummationDims"]:
           self.defineSgpr("Iter%s"%(sumDimChar),1)
 
-    if kernel["FractionalLoad"] == 2:
-      if kernel["fractionalPerpOverhangA"]:
-        self.defineSgpr("PerpOverhangVccA", 2, 2)
-      if kernel["fractionalPerpOverhangB"]:
-        self.defineSgpr("PerpOverhangVccB", 2, 2)
+    if not self.isInitCodeOptLW:
+      # init code optimization: define PerpOverhangVccA, B just after kernel args (need this before undef OFFSET)
+      if kernel["FractionalLoad"] == 2:
+        if kernel["fractionalPerpOverhangA"]:
+          self.defineSgpr("PerpOverhangVccA", 2, 2)
+        if kernel["fractionalPerpOverhangB"]:
+          self.defineSgpr("PerpOverhangVccB", 2, 2)
     if self.use64bShadowLimit:
       # If need more SGPR could overlap this with the Tensor2dSize regs
       self.defineSgpr("ShadowLimitA", 2, 2)
@@ -611,10 +613,12 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("GlobalReadIncsA", self.numSgprGlobalReadIncsA)
     self.defineSgpr("GlobalReadIncsB", self.numSgprGlobalReadIncsB)
 
-    if kernel["LocalWriteUseSgprA"]:
-        self.defineSgpr("LocalWriteAddrA", 1)
-    if kernel["LocalWriteUseSgprB"]:
-        self.defineSgpr("LocalWriteAddrB", 1)
+    if not self.isInitCodeOptLW:
+      # init code optimization: define LocalWriteUseSgprA, B just after kernel args (need this before undef OFFSET)
+      if kernel["LocalWriteUseSgprA"]:
+          self.defineSgpr("LocalWriteAddrA", 1)
+      if kernel["LocalWriteUseSgprB"]:
+          self.defineSgpr("LocalWriteAddrB", 1)
 
     if kernel["_UseSgprForGRO"]:
       needFirstSgprOffset = kernel["DirectToLdsA"] and kernel["UseInstOffsetForGRO"]
@@ -756,6 +760,23 @@ class KernelWriterAssembly(KernelWriter):
     # checkGRO requires useSgprForGRO=0 so that code allocates and uses
     # the VGPRs that are used for the GRO offset checking
     assert not (kernel["_UseSgprForGRO"] and self.checkGRO)
+
+    # init code optimization setting
+    # generate local read/write address code before wait for kernel arg load
+    # enable only for Asm
+    self.isInitCodeOptLR = True
+    self.isInitCodeOptLW = self.isInitCodeOptLR
+    # disable init code opt for the following conditions
+    # - enabledSplitLDS and UnrollMajorLDSA or B: uReg will be overwritten (cannot move local write code before global read offset code)
+    # - PersistentKernel: need local write and tile code inside PK loop (cannot move to before wait for kernel arg load)
+    # - not BufferLoad: requires WorkGroup0,1 (means need to calculate WGM)
+    #-  groOffsetInMacroTile=0: requires WorkGroup0,1 (means need to calculate WGM)
+    if ((kernel.enabledSplitLDS and (kernel["UnrollMajorLDSA"] or kernel["UnrollMajorLDSB"])) or \
+        kernel["PersistentKernel"] or \
+        (not kernel["BufferLoad"]) or \
+        self.groOffsetInMacroTile == 0):
+      # disable init opt for local write
+      self.isInitCodeOptLW = False
 
     # Debug mode to explore combining VGPRs.
     # Saves VGPRs but doesn't generate correct answer
@@ -1847,6 +1868,19 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["ProblemType"]["DataType"].is8bitFloat():
       if kernel["ProblemType"]["StochasticRounding"]: # in-device, only RNDSeed
         self.defineSgpr("RNDSeed", 1)  # seed for random number generation
+
+    if self.isInitCodeOptLW:
+      # init code optimization: define PerpOverhangVccA, B just after kernel args (need this before undef OFFSET)
+      if kernel["FractionalLoad"] == 2:
+        if kernel["fractionalPerpOverhangA"]:
+          self.defineSgpr("PerpOverhangVccA", 2, 2)
+        if kernel["fractionalPerpOverhangB"]:
+          self.defineSgpr("PerpOverhangVccB", 2, 2)
+      # init code optimization: define LocalWriteUseSgprA, B just after kernel args (need this before undef OFFSET)
+      if kernel["LocalWriteUseSgprA"]:
+          self.defineSgpr("LocalWriteAddrA", 1)
+      if kernel["LocalWriteUseSgprB"]:
+          self.defineSgpr("LocalWriteAddrB", 1)
 
     self.numSgprToLoad = 2 + 2 + numSgprAddressD + numSgprAddressC + numSgprAddressA + numSgprAddressB + numSgprAlpha + \
       (numSgprBeta if kernel["ProblemType"]["UseBeta"] else 0) + self.numSgprStridesD + self.numSgprStridesC + self.numSgprStridesA + \
@@ -3100,7 +3134,7 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
-  def allocateResources(self, kernel):
+  def allocateResources(self, kernel, lraCode=None):
     kStr = ""
 
     if kernel["StorePriorityOpt"]:
@@ -3183,6 +3217,12 @@ class KernelWriterAssembly(KernelWriter):
 
       if kernel.enabledSetPrioSplitLDS:
         kStr += inst("s_setprio", "1", "prioritize init code so as to issue load sooner")
+
+      # init code optimization
+      # add local read/write code (before wait for kernel arg load)
+      if lraCode != None :
+        kStr += lraCode
+
       kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for %u bytes of kern args" % self.kernArgOffset )
 
       if not kernel["ProblemType"]["StridedBatched"]:
@@ -3752,7 +3792,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment1("%s = gro%s-unroll = serial%s%s" \
         % (vgpr(uReg), tc, uOpStr, divisorName) )
 
-    tmpSgpr = self.getTmpSgpr(1).idx()
+    tmpSgpr = self.getTmpSgpr(1).idx() if self.initOptLwaTmpSgpr == None else self.initOptLwaTmpSgpr
 
     dividendReg = "Serial" # local serial
 
@@ -4985,6 +5025,23 @@ class KernelWriterAssembly(KernelWriter):
     return kStr
 
   ##############################################################################
+  # Local Write Addresses: Release tile related vgpr
+  ##############################################################################
+  def lwaReleaseTileVgpr(self, kernel, tP):
+    self.vgprPool.checkIn(tP["gpr"]["lwoT"])
+    tP["gpr"]["lwoT"] = None
+    if kernel["GlobalSplitU"] > 1:
+      self.vgprPool.checkIn(tP["gpr"]["uReg2"])
+      tP["gpr"]["uReg2"] = None
+    self.vgprPool.checkIn(tP["gpr"]["uReg"])
+    tP["gpr"]["uReg"] = None
+    if "subIterReg" in tP["gpr"]:
+      if tP["gpr"]["subIterReg"] is not None:
+        self.vgprPool.checkIn(tP["gpr"]["subIterReg"])
+      tP["gpr"]["subIterReg"] = None
+    return ""
+
+  ##############################################################################
   # Local Write Addresses: First Offset A/B
   # uDu: which part of G2L buffer to write to LDS
   ##############################################################################
@@ -5029,16 +5086,30 @@ class KernelWriterAssembly(KernelWriter):
 
       # LdsBlockSizePerPad: add padding
       if kernel["LdsBlockSizePerPad%s"%tc] != 0 and kernel["LdsPad%s"%tc] != 0:
-        tmpSgpr = self.getTmpSgpr(1).idx()
-        kStr += vectorStaticDivide(uReg, destVgpr, kernel["LdsBlockSizePerPad%s"%tc], tmpSgpr, \
+        tmpSgpr = self.getTmpSgpr(1).idx() if self.initOptLwaTmpSgpr == None else self.initOptLwaTmpSgpr
+        if self.isInitCodeOptLW:
+          # init code opt case, cannot reuse ureg (it will be used later)
+          tmpVgpr = self.vgprPool.checkOut(1, "tmpVgpr", self.preventVgprOverflowDuringNewTile)
+        else:
+          # reuse uReg
+          tmpVgpr = uReg
+        kStr += vectorStaticDivide(tmpVgpr, destVgpr, kernel["LdsBlockSizePerPad%s"%tc], tmpSgpr, \
           "padding %u per block %u" % (kernel["LdsPad%s"%tc], kernel["LdsBlockSizePerPad%s"%tc]))
-        kStr += staticMultiply(vgpr(uReg), vgpr(uReg), kernel["LdsPad%s"%tc] * tP["bpe"], sgpr(tmpSgpr), \
+        kStr += staticMultiply(vgpr(tmpVgpr), vgpr(tmpVgpr), kernel["LdsPad%s"%tc] * tP["bpe"], sgpr(tmpSgpr), \
           "padding %u per block %u" % (kernel["LdsPad%s"%tc], kernel["LdsBlockSizePerPad%s"%tc]))
-        kStr += inst("_v_add_u32", vgpr(destVgpr), vgpr(uReg), vgpr(destVgpr), \
+        kStr += inst("_v_add_u32", vgpr(destVgpr), vgpr(tmpVgpr), vgpr(destVgpr), \
           "add padding %u per block %u" % (kernel["LdsPad%s"%tc], kernel["LdsBlockSizePerPad%s"%tc]))
+        if tmpVgpr != uReg:
+          self.vgprPool.checkIn(tmpVgpr)
     else:
       ldlOffsetVgpr = self.vgprPool.checkOut(1, "ldlOffsetVgpr", self.preventVgprOverflowDuringNewTile)
       uRegScrap = self.vgprPool.checkOut(1, "uRegScrap", self.preventVgprOverflowDuringNewTile)
+      if self.isInitCodeOptLW:
+        # init code opt case, cannot reuse ureg (it will be used later)
+        tmpVgpr = self.vgprPool.checkOut(1, "tmpVgpr", self.preventVgprOverflowDuringNewTile)
+      else:
+        # reuse uReg
+        tmpVgpr = uReg
       # likely broken for dot4, revisit
       # odd tiles will write to MT, even tiles to normal location
       bpeOffsetLDL = tP["bpe"] if useEarlyBpeCalc else 1 # glvw<1 case, need to multiply bpe here
@@ -5056,7 +5127,7 @@ class KernelWriterAssembly(KernelWriter):
           vgpr(uReg), \
           "uReg & (LDL-1)%s)"%bpeComment)
       kStr += inst("v_and_b32", \
-          vgpr(uReg), \
+          vgpr(tmpVgpr), \
           ~(LdlMinus1Bpe), \
           vgpr(uReg), \
           "uReg & (LDL-1)%s)"%bpeComment)
@@ -5066,37 +5137,39 @@ class KernelWriterAssembly(KernelWriter):
           vgpr(tP["gpr"]["lwoT"]), \
           "lwoT & (LDL-1)%s)"%bpeComment)
       kStr += inst("_v_lshl_add_u32", \
-          vgpr(uReg), \
+          vgpr(tmpVgpr), \
           vgpr(ldlOffsetVgpr), \
           #log2(kernel["LocalDotLayout"]), \
           0, \
-          vgpr(uReg), \
+          vgpr(tmpVgpr), \
           "shift scrap by LDL")
       kStr += inst("v_mul_u32_u24", \
-          vgpr(uReg), \
+          vgpr(tmpVgpr), \
           hex(kernel["MacroTile%s"%tP["tensorChar"]] + LdsPad), \
-          vgpr(uReg), \
+          vgpr(tmpVgpr), \
           "lw%s%s**(MT%s + PAD)"%(tP["tensorChar"], self.unrollChar, tP["tensorChar"]))
       kStr += inst("_v_add_co_u32", \
-          vgpr(uReg), \
+          vgpr(tmpVgpr), \
           self.vcc, \
           vgpr(uRegScrap), \
-          vgpr(uReg), \
+          vgpr(tmpVgpr), \
           "add scraps from LDL masking")
       if useEarlyBpeCalc:
         kStr += inst("_v_add_u32", \
             vgpr(destVgpr), \
-            vgpr(uReg), \
+            vgpr(tmpVgpr), \
             vgpr(destVgpr), \
             "")
       else:
         kStr += inst("_v_add_lshl_u32", \
             vgpr(destVgpr), \
-            vgpr(uReg), \
+            vgpr(tmpVgpr), \
             vgpr(destVgpr), \
             hex(log2(tP["bpe"])), \
             " *= bpe")
       self.vgprPool.checkIn(uRegScrap)
+      if tmpVgpr != uReg:
+        self.vgprPool.checkIn(tmpVgpr)
       self.vgprPool.checkIn(ldlOffsetVgpr)
 
     if tP["isB"]:
@@ -5109,11 +5182,13 @@ class KernelWriterAssembly(KernelWriter):
             "lwFOB = lwB%s + lwB%s*MT%s + LDS_OFFSET_B=%u*%u" % (tP["tileChar"], \
             self.unrollChar, tP["tileChar"], kernel["LdsOffsetB"], self.bpeAB) )
 
-    self.vgprPool.checkIn(tP["gpr"]["lwoT"])
-    tP["gpr"]["lwoT"] = None
-    if kernel["GlobalSplitU"] > 1:
-      self.vgprPool.checkIn(tP["gpr"]["uReg2"])
-      tP["gpr"]["uReg2"] = None
+    # skip releasing tile related vreg here in init code opt case
+    if not self.isInitCodeOptLW:
+      self.vgprPool.checkIn(tP["gpr"]["lwoT"])
+      tP["gpr"]["lwoT"] = None
+      if kernel["GlobalSplitU"] > 1:
+        self.vgprPool.checkIn(tP["gpr"]["uReg2"])
+        tP["gpr"]["uReg2"] = None
     #LSC_ * LSP_
     numBytesPerElement = kernel["ProblemType"]["DataType"].numBytes()
     validWIPerLoad     = int(kernel[tP["lsc"]] * kernel[tP["lsp"]]/tP["glvw"])
@@ -5127,7 +5202,7 @@ class KernelWriterAssembly(KernelWriter):
     assert (tP["glvw"] < 1 or kernel[tP["lsc"]] * kernel[tP["lsp"]] % tP["glvw"] == 0)
 
     if validBytesPerLoad != maxBytesPerLoad:
-      tmpSgpr = self.getTmpSgpr(1).idx()
+      tmpSgpr = self.getTmpSgpr(1).idx() if self.initOptLwaTmpSgpr == None else self.initOptLwaTmpSgpr
       kStr += inst("s_mov_b32", sgpr(tmpSgpr), validWIPerLoad, \
           "lsc*lsp=%u*%u"%(kernel[tP["lsc"]],kernel[tP["lsp"]] ))
       kStr += inst("v_cmp_lt_u32", \
@@ -5146,7 +5221,7 @@ class KernelWriterAssembly(KernelWriter):
       self.vgprPool.checkIn(tmpVgpr)
 
     elif self.inTailLoop and kernel.enabledSplitLDS: # where (DepthU for global read) != (DepthU for compute)
-      tmpSgpr = self.getTmpSgpr(1).idx()
+      tmpSgpr = self.getTmpSgpr(1).idx() if self.initOptLwaTmpSgpr == None else self.initOptLwaTmpSgpr
 
       # only for TN tensor + TN lds layout
       assert tP["tlu"] == 0
@@ -5178,7 +5253,7 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["FractionalLoad"] == 2:
         mask = "PerpOverhangVcc%s"%tc
       else:
-        mask = self.getTmpSgpr(2).idx()
+        mask = self.getTmpSgpr(2).idx() if self.initOptLwaTmpSgpr == None else self.initOptLwaTmpSgpr
       kStr += self.comment1("Compute fractional overhang")
       kStr += inst("s_mov_b32", sgpr(mask), validWI, \
           "overhang=%u, validWI=%u" % (overhang, validWI))
@@ -5196,12 +5271,14 @@ class KernelWriterAssembly(KernelWriter):
                     "Mask load so out-of-gr-tile bounds returns 0. Note 1.0f=0x3f80000 which is large non-neg int")
 
 
-    self.vgprPool.checkIn(tP["gpr"]["uReg"])
-    tP["gpr"]["uReg"] = None
-    if "subIterReg" in tP["gpr"]:
-      if tP["gpr"]["subIterReg"] is not None:
-        self.vgprPool.checkIn(tP["gpr"]["subIterReg"])
-      tP["gpr"]["subIterReg"] = None
+    # skip releasing tile related vreg here in init code opt case
+    if not self.isInitCodeOptLW:
+      self.vgprPool.checkIn(tP["gpr"]["uReg"])
+      tP["gpr"]["uReg"] = None
+      if "subIterReg" in tP["gpr"]:
+        if tP["gpr"]["subIterReg"] is not None:
+          self.vgprPool.checkIn(tP["gpr"]["subIterReg"])
+        tP["gpr"]["subIterReg"] = None
     # dump lds write offsets
     #if tP["isA"]:
       #kStr += self.dump(vgpr("LocalWriteAddr%s"%tP["tensorChar"]))
@@ -5220,6 +5297,23 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def lwaDeclareAddresses(self, kernel, tP):
     return ""
+
+  ##############################################################################
+  # Local Write Addresses: Allocate tmpSgpr for initOpt
+  ##############################################################################
+  def lwaInitOptAllocate(self):
+    maxTmpRegNum = 2
+    self.initOptLwaTmpSgpr = None
+    if self.isInitCodeOptLW:
+      self.initOptLwaTmpSgpr = self.sgprPool.checkOutAligned(maxTmpRegNum, 2, preventOverflow=0)
+
+  ##############################################################################
+  # Local Write Addresses: Release tmpSgpr for initOpt
+  ##############################################################################
+  def lwaInitOptRelease(self):
+    if self.initOptLwaTmpSgpr:
+      self.sgprPool.checkIn(self.initOptLwaTmpSgpr)
+      self.initOptLwaTmpSgpr = None
 
   ##############################################################################
   # Local Read Addresses: Tile Assignment
