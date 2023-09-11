@@ -4390,6 +4390,25 @@ class Solution(collections.abc.Mapping):
            (state["ThreadTile0"] == 4 and state["ThreadTile1"] == 8)):
       reject(state, "UnrollLoopEfficiencyEnable does not support ThreadTile0,1 = [%u,%u]"%(state["ThreadTile0"], state["ThreadTile1"]))
 
+    # reject check for VgprForLocalReadPacking
+    if state["VgprForLocalReadPacking"]:
+        # MatrixInstruction only
+        if not state["EnableMatrixInstruction"]:
+          reject(state, "VgprForLocalReadPacking is for MatrixInstruction only")
+          return
+        # only for HasEccHalf
+        if not globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
+          reject(state, "VgprForLocalReadPacking is for EccHalf only")
+          return
+        # only for SIA=3 + PLR>1
+        if not (state["ScheduleIterAlg"] == 3 and state["PrefetchLocalRead"] > 1):
+          reject(state, "VgprForLocalReadPacking is effective only fof SIA=3 and PLR>1")
+          return
+        # only for 1 or 2 byte input (numRegister < 1) + UnrollMajorLDSA or B is False
+        if not (state["ProblemType"]["DataType"].numRegisters() < 1 and (state["UnrollMajorLDSA"] == False or state["UnrollMajorLDSB"] == False)):
+          reject(state, "VgprForLocalReadPacking is effective only fof 1 or 2 byte input + UnrollMajorLDSA or B =false")
+          return
+
   ########################################
   # create a dictionary with booleans on whether to include parameter in name
   @staticmethod

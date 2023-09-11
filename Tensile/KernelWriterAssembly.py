@@ -1295,6 +1295,20 @@ class KernelWriterAssembly(KernelWriter):
     self.numVgprValuB = self.numVgprValuBPerBlock * valuBlocks
 
     ####################################
+    # num vgprs: valuPack
+    self.numVgprValuPackA = 0
+    self.numElemPerBprA = (1 / self.localReadInstructionA.blockWidth)
+    needVgprForPack = self.numElemPerBprA > 1 and kernel["VgprForLocalReadPacking"]
+    if needVgprForPack:
+      self.numVgprValuPackA = self.numVgprValuA * (int(self.numElemPerBprA) - 1)
+
+    self.numVgprValuPackB =0
+    self.numElemPerBprB = int(1 / self.localReadInstructionB.blockWidth)
+    needVgprForPack = self.numElemPerBprB > 1 and kernel["VgprForLocalReadPacking"]
+    if needVgprForPack:
+      self.numVgprValuPackB = self.numVgprValuB * (int(self.numElemPerBprB) - 1)
+
+    ####################################
     # num vgprs: global -> local elements
     self.numVgprG2LA = 0
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
@@ -1441,6 +1455,8 @@ class KernelWriterAssembly(KernelWriter):
     if self.archCaps["VgprBank"]:
       vgprIdx += 2
     self.startVgprValuA = vgprIdx; vgprIdx += self.numVgprValuA
+    self.startVgprValuPackA = vgprIdx
+    vgprIdx += self.numVgprValuPackA
     self.startVgprG2LA = None
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
       # if PGR = True, PAP could be possibly enabled, we move G2LA later to prevent it from being reclaimed
@@ -1448,13 +1464,15 @@ class KernelWriterAssembly(KernelWriter):
       if not kernel["PrefetchGlobalRead"] and not kernel.enabledSplitLDS: # g2l can overlap valu
         self.startVgprG2LA = self.startVgprValuA
         vgprIdx = self.startVgprValuA \
-            + max(self.numVgprValuAPerBlock*valuBlocks, self.numVgprG2LA)
+            + max(self.numVgprValuA + self.numVgprValuPackA, self.numVgprG2LA)
 
     # TODO: alignment hack, figure out a better solution
     vgprIdx = ((vgprIdx+1)//2)*2
     if self.archCaps["VgprBank"]:
         vgprIdx += 1
     self.startVgprValuB = vgprIdx; vgprIdx += self.numVgprValuB
+    self.startVgprValuPackB = vgprIdx
+    vgprIdx += self.numVgprValuPackB
     self.startVgprG2LB = None
     if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
       # if PGR = True, PAP could be possibly enabled, we move G2LB later to prevent it from being reclaimed
@@ -1462,7 +1480,7 @@ class KernelWriterAssembly(KernelWriter):
       if not kernel["PrefetchGlobalRead"] and not kernel.enabledSplitLDS: # g2l can overlap valu
         self.startVgprG2LB = self.startVgprValuB
         vgprIdx = self.startVgprValuB \
-            + max(self.numVgprValuBPerBlock*valuBlocks, self.numVgprG2LB)
+            + max(self.numVgprValuB + self.numVgprValuPackB, self.numVgprG2LB)
 
     # Registers allocated above this point can be used as temps during setup
     # Registers above here are reserved in initC, near the end of the setup
@@ -2490,6 +2508,13 @@ class KernelWriterAssembly(KernelWriter):
         for iui in range(0, kernel["InnerUnroll"]):
           kStr += self.macroRegister("vgprValuA_X%u_I%u"%(bi,iui), self.startVgprValuA+ri)
           ri += self.numVgprValuAPerBlock
+      if self.numVgprValuPackA > 0:
+        ri = 0
+        for data in range(1,int(self.numElemPerBprA)):
+          for bi in range(0,numBi): # buffer indices
+            for iui in range(0, kernel["InnerUnroll"]):
+              kStr += self.macroRegister("vgprValuA_X%u_I%u_D%u"%(bi,iui,data), self.startVgprValuPackA+ri)
+              ri += self.numVgprValuAPerBlock
     if not kernel["DirectToLdsA"] or self.do["KeepDirectToLdsAlloc"]:
         kStr += self.macroRegister("vgprG2LA", self.startVgprG2LA)
         if kernel["DirectToVgprA"]:
@@ -2503,6 +2528,13 @@ class KernelWriterAssembly(KernelWriter):
         for iui in range(0, kernel["InnerUnroll"]):
           kStr += self.macroRegister("vgprValuB_X%u_I%u"%(bi,iui), self.startVgprValuB+ri)
           ri += self.numVgprValuBPerBlock
+      if self.numVgprValuPackB > 0:
+        ri = 0
+        for data in range(1,int(self.numElemPerBprB)):
+          for bi in range(0,numBi): # buffer indices
+            for iui in range(0, kernel["InnerUnroll"]):
+              kStr += self.macroRegister("vgprValuB_X%u_I%u_D%u"%(bi,iui,data), self.startVgprValuPackB+ri)
+              ri += self.numVgprValuBPerBlock
     if not kernel["DirectToLdsB"] or self.do["KeepDirectToLdsAlloc"]:
         kStr += self.macroRegister("vgprG2LB", self.startVgprG2LB)
         if kernel["DirectToVgprB"]:
