@@ -123,6 +123,11 @@ namespace Tensile
         return m_value & 0x20000;
     }
 
+    bool Debug::printOverrideLogs() const
+    {
+        return m_value & 0x40000;
+    }
+
     bool Debug::naivePropertySearch() const
     {
         return m_naivePropertySearch;
@@ -180,7 +185,7 @@ namespace Tensile
 
         const char* exp_select = std::getenv("TENSILE_EXPERIMENTAL_SELECTION");
         if(exp_select)
-            m_experimentSelection = strtol(exp_select, nullptr, 0) != 0;
+            m_experimentSelection = strtol(exp_select, nullptr, 0);
 
         const char* solsel_trace = std::getenv("TENSILE_SOLUTION_SELECTION_TRACE");
         if(solsel_trace)

@@ -951,7 +951,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Allocate Resources
   ##############################################################################
-  def allocateResources(self, kernel):
+  def allocateResources(self, kernel, lraCode=None):
     kStr = ""
 
     kStr += "  unsigned int serial = %s(0);%s" \
@@ -1687,6 +1687,12 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
+  # Local Write Addresses: Release tile related vgpr
+  ##############################################################################
+  def lwaReleaseTileVgpr(self, kernel, tP):
+    return ""
+
+  ##############################################################################
   # Local Write Addresses: First Offset A/B
   ##############################################################################
   def lwaFirstOffset(self, kernel, tP, uDu=0):
@@ -1733,6 +1739,18 @@ class KernelWriterSource(KernelWriter):
                 % (self.sharedPtrStr, tP["tensorChar"], \
                 para, sPara, perp, sPerp, self.endLine )
     return kStr
+
+  ##############################################################################
+  # Local Write Addresses: Allocate tmpSgpr for initOpt
+  ##############################################################################
+  def lwaInitOptAllocate(self):
+    return ""
+
+  ##############################################################################
+  # Local Write Addresses: Release tmpSgpr for initOpt
+  ##############################################################################
+  def lwaInitOptRelease(self):
+    return ""
 
   ##############################################################################
   # Local Read Addresses: Tile Assignment A/B
@@ -3466,8 +3484,8 @@ class KernelWriterSource(KernelWriter):
     return ""
 
   ##############################################################################
-  # isSwapGlobalReadOrderForDirectToVgpr
+  # isSwapGlobalReadOrderForDtvOrDtl
   ##############################################################################
-  def isSwapGlobalReadOrderForDirectToVgpr(self, kernel):
+  def isSwapGlobalReadOrderForDtvOrDtl(self, kernel):
     return False
 

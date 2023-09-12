@@ -266,6 +266,8 @@ globalParameters["LazyLibraryLoading"] = False # Load library and code object fi
 
 globalParameters["IgnoreAsmCapCache"] = False # Ignore checking for discrepancies between derived and cached asm caps
 
+globalParameters["ExperimentalLogicDir"] = "/experimental/"
+
 # Save a copy - since pytest doesn't re-run this initialization code and YAML files can override global settings - odd things can happen
 defaultGlobalParameters = deepcopy(globalParameters)
 
@@ -2168,11 +2170,6 @@ def assignGlobalParameters( config ):
     if os.name == "nt":
       globalParameters["CurrentISA"] = (9,0,6)
       printWarning("Failed to detect ISA so forcing (gfx906) on windows")
-
-  # TODO Remove this when rocm-smi supports gfx940
-  if globalParameters["CurrentISA"] == (9,4,0) or globalParameters["CurrentISA"] == (9,4,1) or globalParameters["CurrentISA"] == (9,4,2):
-    printWarning("HardwareMonitor currently disabled for gfx940/941/942")
-    globalParameters["HardwareMonitor"] = False
 
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of

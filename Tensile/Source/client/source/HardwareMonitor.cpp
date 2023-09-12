@@ -365,7 +365,7 @@ namespace Tensile
                 rsmi_frequencies_t freq;
 
                 auto status = rsmi_dev_gpu_clk_freq_get(m_smiDeviceIndex, m_clockMetrics[i], &freq);
-                if(status != RSMI_STATUS_SUCCESS)
+                if(status != RSMI_STATUS_SUCCESS || freq.current > RSMI_MAX_NUM_FREQUENCIES)
                 {
                     m_clockValues[i] = std::numeric_limits<uint64_t>::max();
                 }

@@ -68,6 +68,7 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::SizeGreaterThan>(),
                     Base::template Pair<Predicates::Contraction::SizeLessThan>(),
                     Base::template Pair<Predicates::Contraction::SizeMultiple>(),
+                    Base::template Pair<Predicates::Contraction::SizeInRange>(),
                     Base::template Pair<Predicates::Contraction::StrideAEqual>(),
                     Base::template Pair<Predicates::Contraction::StrideBEqual>(),
                     Base::template Pair<Predicates::Contraction::StrideCEqual>(),
@@ -99,7 +100,6 @@ namespace Tensile
                     Base::template Pair<Predicates::Contraction::F32XdlMathOpEqual>(),
                     Base::template Pair<Predicates::Contraction::EqualityMatching>(),
                     Base::template Pair<Predicates::Contraction::StochasticRoundingEqual>(),
-                    Base::template Pair<Predicates::Contraction::SizeInRange>(),
                 });
 
                 auto gmap = Generic::GetSubclasses();
