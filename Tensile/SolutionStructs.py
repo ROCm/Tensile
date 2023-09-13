@@ -2466,11 +2466,6 @@ class Solution(collections.abc.Mapping):
       reject(state, "DirectToVgpr%c does not supports TLU + VectorWidth(=%u) != GlobalReadVectorWidth%c(%u)"%(tc, state["VectorWidth"], tc, state["GlobalLoadVectorWidth%c"%tc]))
       return False
 
-    # Does not work with AssertFree1ElementMultiple % VectorWidth != 0 (edge shift case) for B
-    if tc == 'B' and state["AssertFree1ElementMultiple"] % state["VectorWidth"] != 0:
-      reject(state, "DirectToVgpr%c does not supports AssertFree1ElementMultiple %% VectorWidth != 0"%(tc))
-      return False
-
     # Does not work with FractionalLoad and (not TLU)
     if state["FractionalLoad"] and (not state["ProblemType"]["TLU%c"%tc]):
       reject(state, "DirectToVgpr%c does not supports FractionalLoad + TLU=False"%(tc))
@@ -3569,28 +3564,28 @@ class Solution(collections.abc.Mapping):
 
     # allow LocalReadVectorWidthB > 1 for TLUB + MatrixInstruction (this is applicable for B only)
     # some more limitations necessary to make this logic work
-    # - DirectToVgprB or (TLU+DirectToVgprA+(not DirectToLdsB)
-    # - TLUB
-    # - VectorWidth >= LocalReadVectorWidth
-    # - VectorWidthB > 1
-    # - AssertFree1ElementMultiple % VectorWidth == 0 (no shift edge for B)
-    # - the other side of MIWaveTile must be multiple of VectorWidth
+    # - MatrixInstruction
+    # - TLUB and not UnrollMajorLDSB
+    # - MIInputPerThread == 1
+    # - SourceSwap
+    # - DirectToVgprB or DirectToVgprA
+    # - MIWaveTile1 must be multiple of VectorWidthB
     # need to check after state["LocalReadVectorWidth"] = -1 is resolved
     VectorWidthB = 1
-    if state["DirectToVgprB"]:
-      VectorWidthB = state["VectorWidth"]
-    elif state["DirectToVgprA"]:
-      VectorWidthB = state["LocalReadVectorWidth"]
-    state["allowLRVWBforTLUandMI"] = \
-                                (state["DirectToVgprB"] or \
-                                 (state["ProblemType"]["TLUA"] and state["DirectToVgprA"])) and \
-                                state["EnableMatrixInstruction"] and \
-                                state["ProblemType"]["TLUB"] and \
-                                state["VectorWidth"] >= state["LocalReadVectorWidth"] and \
-                                state["AssertFree1ElementMultiple"] % state["VectorWidth"] == 0 and \
-                                VectorWidthB > 1 and \
-                                ((state["DirectToVgprA"] and (state["MIWaveTile"][1] % state["VectorWidth"] == 0)) or \
-                                 (state["DirectToVgprB"] and (state["MIWaveTile"][0] % state["VectorWidth"] == 0)))
+    if state["EnableMatrixInstruction"] and \
+       state["ProblemType"]["TLUB"] and (not state["UnrollMajorLDSB"]) and \
+       state["MIInputPerThread"] == 1 and state["SourceSwap"]:
+      if state["DirectToVgprB"]:
+        VectorWidthB = state["GlobalLoadVectorWidthB"]
+        if state["MIWaveTile"][1] % VectorWidthB != 0:
+          reject(state, "DirectToVgprB does not support MIWaveTile1 is not multiple of GlobalLoadVectorWidthB")
+      elif state["DirectToVgprA"] and state["ProblemType"]["TLUA"]:
+        VectorWidthB = state["LocalReadVectorWidth"]
+        if state["MIWaveTile"][1] % VectorWidthB != 0:
+          # cannot use wider local read
+          reject(state, "DirectToVgprA does not support MIWaveTile1 is not multiple of LocalReadVectorWidth")
+
+    state["VectorWidthB"] = VectorWidthB
 
     # LocalReadVectorWidth check
     if state["EnableMatrixInstruction"]:
@@ -3598,11 +3593,10 @@ class Solution(collections.abc.Mapping):
       if state["LocalReadVectorWidth"] < state["MIInputPerThread"] and not (state["DirectToLdsA"] or state["DirectToLdsB"]):
         reject(state, "LocalReadVectorWidth < %u" %(state["MIInputPerThread"]))
       if state["LocalReadVectorWidth"] > state["MIInputPerThread"] and not (state["UnrollMajorLDSA"] or state["UnrollMajorLDSB"]) \
-         and not state["allowLRVWBforTLUandMI"]:
+         and not (state["DirectToVgprA"] and state["LocalReadVectorWidth"] == VectorWidthB):
         reject(state, "LocalReadVectorWidth require Transpose LDS")
       if state["LocalReadVectorWidth"] > state["MIInputPerThread"] and \
          (state["UnrollMajorLDSA"] and (not state["UnrollMajorLDSB"])) and \
-         (not state["allowLRVWBforTLUandMI"]) and \
          state["DirectToVgprA"]:
         reject(state, "LocalReadVectorWidth + DirectToVgprA + does not work for TT")
     else:
