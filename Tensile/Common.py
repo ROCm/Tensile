@@ -1264,6 +1264,12 @@ validParameters = {
     "UnrollMajorLDSA":             [False, True],
     "UnrollMajorLDSB":             [False, True],
 
+    # Add extra miLatencyLeft to improve local read scheduling
+    # Adding more room for scheduling local read instructions
+    # Increasing this might result in overflowedResources=5 error.
+    # No need to increase miLatencyLeft in that case.
+    "ExtraMiLatencyLeft":         list(range(0,9,2)),
+
     # Allocate dedicated vgpr for local read with packing
     #   False: use tmp vgpr. Less vgpr usage, but not best for local read scheduling
     #   True: use dedicated vgpr for local read with packing. Best for local read scheduling, but need more vgpr
@@ -1363,6 +1369,7 @@ defaultBenchmarkCommonParameters = [
     {"TransposeLDS":              [ 0 ] },
     {"UnrollMajorLDSA":           [ False ] },
     {"UnrollMajorLDSB":           [ False ] },
+    {"ExtraMiLatencyLeft":        [ 0 ] },
     {"VgprForLocalReadPacking":   [ False ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },

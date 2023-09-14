@@ -2010,6 +2010,8 @@ class KernelWriterAssembly(KernelWriter):
       # give 1 quad-cycle buffer to prevend bubble from sync
       miLatencyBuffer = 1
       self.miLatencyLeft = max(self.miLatency - miLatencyBuffer - miIssueLatency, 1) # minimum 1 to make scheduling work
+      # add extra miLatencyLeft from parameter
+      self.miLatencyLeft += kernel["ExtraMiLatencyLeft"]
 
     # pre-determine labels in order
     unrollChar = self.indexChars[ \
