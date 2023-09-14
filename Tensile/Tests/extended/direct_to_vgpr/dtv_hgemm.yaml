@@ -179,7 +179,7 @@ BenchmarkProblems:
           - Range: [ [504], [504], [1], [2024, 16, 2040] ]
   
   ########################################
-  # HHS TT - DTVA + DTL + min load width for TailLoop
+  # HHS TT - DTVA + DTL + min load width for TailLoop + VFLRP
   ########################################
   -
     - # ProblemType
@@ -232,6 +232,7 @@ BenchmarkProblems:
         - BufferLoad: [0,1]
         - GlobalSplitU: [1,2]
         - GlobalSplitUAlgorithm: ["SingleBuffer"]
+        - VgprForLocalReadPacking: [1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
@@ -346,7 +347,7 @@ BenchmarkProblems:
           - Range: [ [511], [511], [1], [2023, 24, 2047] ]
   
   ########################################
-  # HHS NN - DTVB (+ DTL) + max load width for TailLoop
+  # HHS NN - DTVB (+ DTL) + max load width for TailLoopp + VFLRP
   ########################################
   -
     - # ProblemType
@@ -398,6 +399,7 @@ BenchmarkProblems:
         #- BufferLoad: [0,1]
         - GlobalSplitU: [1,2]
         - GlobalSplitUAlgorithm: ["SingleBuffer"]
+        - VgprForLocalReadPacking: [0,1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
