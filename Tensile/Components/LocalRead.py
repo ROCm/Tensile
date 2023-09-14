@@ -168,9 +168,10 @@ class LocalReadMFMA(LocalRead):
 
         # pack register
         pack     = Code.Module("pack%s_I%s"%(tc,iui))
-        needPack = (blockWidth < 1) if writer.archCaps["HasEccHalf"] else (blockWidth == 0.25)
-        if needPack:
-            # ECC 0.5->pack once (16->32) / 0.25->pack three times (8->16, 8->16, 16->32)
+        hasEccHalf = writer.archCaps["HasEccHalf"]
+        needPack = (blockWidth < 1) if hasEccHalf else (blockWidth == 0.25)
+        if needPack and (not kernel["VgprForLocalReadPacking"]):
+            # allcate tmp vgpr only for no VgprForLocalReadPacking case
             # No ECC 0.25: pack one time 0x00ff00ff | (0x00ff00ff << 8)
             packTimesPerVgpr = (int(1/blockWidth) - 1) if writer.archCaps["HasEccHalf"] else 1
             tmpVgprIdx = writer.vgprPool.checkOut(writer.numVgprValuAPerBlock*writer.numReadsIterCoalescedA*packTimesPerVgpr if tc == 'A' \
@@ -193,32 +194,39 @@ class LocalReadMFMA(LocalRead):
                     isHigh8Bits  = (blockWidth == 0.25) and ( ((rIdx % 4) % 2) == 1) # 1,3
                     isHigh16Bits = (blockWidth == 0.25) and ( ((rIdx % 4) //2) == 1) # 2,3
 
-                    if writer.archCaps["HasEccHalf"]: # ECC pack
-                        # pack for ECC blockWidth 0.5 type
-                        if needPack and highBitsForHalf:
-                            # highVgpr = vgpr(tmpVgprIdx + valuiIdx)
-                            highVgpr = vgpr(tmpVgprIdx)
-                            tmpVgprIdx += 1
-                            packCode.addInst("v_or_b32", destVgpr, destVgpr, highVgpr, "pack two half Vgpr to one Vgpr")
-                            destVgpr = highVgpr
+                    if needPack:
+                        if kernel["VgprForLocalReadPacking"]:
+                            # use allocated vgpr
+                            highVgprBase = "Valu%s_X%u_I%u"%(tc, bufferIdx, iui)
+                            highVgprHalf = vgpr(highVgprBase + "_D%u+%u"%(rIdx%2, valuiIdx), numVgpr)
+                            highVgpr8Bits = vgpr(highVgprBase + "_D%u+%u"%(rIdx%4, valuiIdx), numVgpr)
+                            lowVgpr = vgpr(highVgprBase + "_D%u+%u"%((rIdx%4)-1, valuiIdx), numVgpr) if isHigh16Bits else baseLRVgpr
+                        else:
+                            highVgprHalf = vgpr(tmpVgprIdx)
+                            highVgpr8Bits = vgpr(tmpVgprIdx)
+                            lowVgpr = vgpr(tmpVgprIdx-1) if isHigh16Bits else baseLRVgpr
 
-                        # pack for ECC blockwidth 0.25 type
-                        if needPack:
+                        if hasEccHalf: # ECC pack
+                            # pack for ECC blockWidth 0.5 type
+                            if needPack and highBitsForHalf:
+                                highVgpr = highVgprHalf
+                                packCode.addInst("v_or_b32", destVgpr, destVgpr, highVgpr, "pack two half Vgpr to one Vgpr")
+                                destVgpr = highVgpr
+
+                            # pack for ECC blockwidth 0.25 type
                             if isHigh8Bits or isHigh16Bits:
-                                highVgpr = vgpr(tmpVgprIdx)
+                                highVgpr = highVgpr8Bits
                                 destVgpr = highVgpr
                             if isHigh8Bits:
-                                lowVgpr = vgpr(tmpVgprIdx-1) if isHigh16Bits else baseLRVgpr
                                 packCode.addInst("_v_lshl_or_b32", lowVgpr, highVgpr, "0x8", lowVgpr, "pack two int8 Vgpr to one half Vgpr")
                                 if isHigh16Bits:
                                     packCode.addInst("v_or_b32", baseLRVgpr, baseLRVgpr, lowVgpr, "pack two half Vgpr to one Vgpr")
-                            if isHigh8Bits or isHigh16Bits:
+
+                            if (not kernel["VgprForLocalReadPacking"]) and (highBitsForHalf or isHigh8Bits or isHigh16Bits):
                                 tmpVgprIdx += 1
-                    else: # no ECC pack
-                        # pack for No ECC blockwidth 0.25 type
-                        isHigh8Bits  = (blockWidth == 0.25) and ( ((rIdx % 4) % 2) == 1) # 1,3
-                        isHigh16Bits = (blockWidth == 0.25) and ( ((rIdx % 4) //2) == 1) # 2,3
-                        if needPack:
+
+                        else: # no ECC pack
+                            # pack for No ECC blockwidth 0.25 type
                             if isHigh8Bits:
                                 highVgpr = vgpr(tmpVgprIdx)
                                 destVgpr = highVgpr
@@ -299,7 +307,7 @@ class LocalReadMFMA(LocalRead):
                             % (tP["localReadOffset"], tP["localReadSwapByteOffset"], MIWaveGroupShape[tile01], vIdx, rIdx, oIdx, bufferIdx, iui)
 
                     highBits = highBitsForHalf or isHigh16Bits
-                    readToTempVgpr = (highBitsForHalf or isHigh8Bits or isHigh16Bits) if writer.archCaps["HasEccHalf"] else isHigh8Bits
+                    readToTempVgpr = ((highBitsForHalf or isHigh8Bits or isHigh16Bits) if writer.archCaps["HasEccHalf"] else isHigh8Bits) and (not kernel["VgprForLocalReadPacking"])
                     localReadCode.addCode(Code.LocalReadInst(instruction.IssueLatency,readToTempVgpr,instruction.toCodeInst(paramTuple, 0, highBits), comment))
 
                     # TODO - handle vector-load

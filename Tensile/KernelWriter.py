@@ -284,7 +284,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # for 1LDSB or DTL, we have to issue localwrites after localreads
           numMfmaForLRCurr, latencyForLRCount, latencyLeft = self.countNumMfmaForCurrentOrNextLoopLR(kernel, tensorParametersA, tensorParametersB)
           if self.numVgprBuffer == kernel["LoopIters"]:
-            if (not kernel["DirectToVgprA"]) and self.numReadPerVectorA > 1 or (not kernel["DirectToVgprB"]) and self.numReadPerVectorB > 1:
+            if ((not kernel["DirectToVgprA"]) and self.numReadPerVectorA > 1 or (not kernel["DirectToVgprB"]) and self.numReadPerVectorB > 1) and \
+               (not kernel["VgprForLocalReadPacking"]):
+            # no VgprForLocalReadPacking only
             # fp16 or bf16, we read 1 element to vgprBuffer the other element to tempVgpr.
             # since each iteration shares same tempVgpr, only read-to-vgprBuffer can
             # be scheduled in the front of loop.
