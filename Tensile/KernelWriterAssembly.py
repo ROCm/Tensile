@@ -3477,8 +3477,8 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_add_u32", sgpr("StreamKIterEnd"), sgpr("StreamKIter"), sgpr("ItersPerWG"), "StreamK ending iteration")
         kStr += inst("s_min_u32", sgpr("StreamKIterEnd"), sgpr("StreamKIterEnd"), sgpr("TotalIters"), "Cap ending iter at total iters")
         kStr += inst("s_cmp_lt_u32", sgpr("StreamKIter"), sgpr("StreamKIterEnd"), "Make sure there's work to do")
-        # kStr += self.longBranchScc0("label_%04u" % (self.getLabelNum("KernelEnd")), positiveOnly=True)
-        kStr += inst("s_cbranch_scc0", "label_%04u" % (self.getLabelNum("KernelEnd")), "edge case that work doesn't divide well")        
+        kStr += self.longBranchScc0("label_%04u" % (self.getLabelNum("KernelEnd")), positiveOnly=True)
+        # kStr += inst("s_cbranch_scc0", "label_%04u" % (self.getLabelNum("KernelEnd")), "edge case that work doesn't divide well")        
         kStr += self.undefineSgpr("TotalIters")
         
       kStr += self.comment3("Persistent Loop Start")
@@ -10702,7 +10702,7 @@ class KernelWriterAssembly(KernelWriter):
         if not atomic and len(kernel["PackedC1IndicesX"]) == 1:
           self.optSrdIncForRow = 1
 
-      if kernel["StoreRemapVectorWidth"]:
+      if kernel["StoreRemapVectorWidth"] and not isWorkspace:
         self.optSrdIncForRow = 1
 
       if kernel["ProblemType"]["UseInitialStridesCD"]:
@@ -11832,11 +11832,11 @@ class KernelWriterAssembly(KernelWriter):
       # print(str(element)+" rowInc="+str(addrCalc.rowInc))
       # Already write wave column block into LDS
       # Now read lds data back to registers and write to global memroy
-      if ss.optSrdIncForRow and addrCalc.rowInc and kernel["StoreRemapVectorWidth"] > 0:
-        kStr += self.comment("StoreRemap: shift coord1 address")
-        kStr += addrCalc.incrementToNextRow(kernel, "D", ss, tmpS01)
-        kStr += inst("v_mov_b32", vgpr(tmpVgpr), addrCalc.rowInc, "set shift rows")
-        kStr += inst("_v_add_u32", vgpr(self.storeRemapCoord1), vgpr(self.storeRemapCoord1), vgpr(tmpVgpr), "shift storeRemap coord1")
+      # if ss.optSrdIncForRow and addrCalc.rowInc and kernel["StoreRemapVectorWidth"] > 0:
+      #   kStr += self.comment("StoreRemap: shift coord1 address")
+      #   kStr += addrCalc.incrementToNextRow(kernel, "D", ss, tmpS01)
+      #   kStr += inst("v_mov_b32", vgpr(tmpVgpr), addrCalc.rowInc, "set shift rows")
+      #   kStr += inst("_v_add_u32", vgpr(self.storeRemapCoord1), vgpr(self.storeRemapCoord1), vgpr(tmpVgpr), "shift storeRemap coord1")
 
       # apply in-bounds exec mask
       if edge and not kernel["BufferStore"]:
@@ -12288,15 +12288,15 @@ class KernelWriterAssembly(KernelWriter):
 
     self.ss.firstBatch = False
     self.ss.checkInTempVgprC()
-    if kernel["StoreRemapVectorWidth"]:
-      if self.StoreRemapLastBatch == 1:
-        kStr += self.comment("Handle local read and global write")
-        # this seems buggy? it's possible to issue more than one stores for SR
-        # kStr += self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpS01, edge)
-        # storesIssued += 1
-        storeStr, numNewStores = self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpS01, edge)
-        kStr += storeStr
-        storesIssued += numNewStores
+    # if kernel["StoreRemapVectorWidth"]:
+    #   if self.StoreRemapLastBatch == 1:
+    #     kStr += self.comment("Handle local read and global write")
+    #     # this seems buggy? it's possible to issue more than one stores for SR
+    #     # kStr += self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpS01, edge)
+    #     # storesIssued += 1
+    #     storeStr, numNewStores = self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpS01, edge)
+    #     kStr += storeStr
+    #     storesIssued += numNewStores
 
     if self.serializedStore:
       kStr += inst("s_nop 0", "1 wait state required when next inst writes vgprs held by previous dwordx4 store inst")
@@ -12439,10 +12439,11 @@ class KernelWriterAssembly(KernelWriter):
           self.preLoopVmcntDict[self.currPreLoopVmcntCase] = 0
 
       # for storeRemap edge case, non-beta still can enable vector stores
-      if kernel["StoreRemapVectorWidth"]: # and not beta:
-        edgeI = False
-      else:
-        edgeI = edge
+      # if kernel["StoreRemapVectorWidth"]: # and not beta:
+      #   edgeI = False
+      # else:
+      #   edgeI = edge
+      edgeI = edge
       #edgeI = True  # set to True to disable vector stores
       gwvw = vectorWidths[edgeI]
 
@@ -12596,16 +12597,16 @@ class KernelWriterAssembly(KernelWriter):
 
       # check best numElementsPerBatch to handle a column block
       # elements of column block must be multiple size of numElementsPerBatch
-      if kernel["StoreRemapVectorWidth"]:
-        firstRow = [e for e in elements[edgeI] if e[0]==0 and e[2]==0] # format for element = (tt1, tt0, vc1, vc0)
-        # find the largest factor and smaller than numElementPerBatch
-        nBatchesPerRow = 1
-        for d in range(1, len(firstRow)+1):
-          largestFactor = len(firstRow)//d
-          if len(firstRow)%d == 0 and largestFactor <= numElementsPerBatch:
-            numElementsPerBatch = largestFactor
-            nBatchesPerRow = d
-            break
+      # if kernel["StoreRemapVectorWidth"]:
+      #   firstRow = [e for e in elements[edgeI] if e[0]==0 and e[2]==0] # format for element = (tt1, tt0, vc1, vc0)
+      #   # find the largest factor and smaller than numElementPerBatch
+      #   nBatchesPerRow = 1
+      #   for d in range(1, len(firstRow)+1):
+      #     largestFactor = len(firstRow)//d
+      #     if len(firstRow)%d == 0 and largestFactor <= numElementsPerBatch:
+      #       numElementsPerBatch = largestFactor
+      #       nBatchesPerRow = d
+      #       break
 
       # if no atomics and no edge, then write whole vectors
       # ERROR commented out in globalWriteELements, causes numVectorsPerBatch to not be int
@@ -12658,9 +12659,9 @@ class KernelWriterAssembly(KernelWriter):
         # elementVgprs can be large and should be perfectly tuned to the number of available
         # VGPRS.  We do not want to accidentally overflow and grow the pool here:
 
-        if kernel["StoreRemapVectorWidth"]:
-          #Indication if this batch is last batch for this column block shape
-          self.StoreRemapLastBatch = 1 if (batchIdx+1) % nBatchesPerRow == 0 else 0
+        # if kernel["StoreRemapVectorWidth"]:
+        #   #Indication if this batch is last batch for this column block shape
+        #   self.StoreRemapLastBatch = 1 if (batchIdx+1) % nBatchesPerRow == 0 else 0
 
         kStr += self.fixupBatch(kernel, self.ss, batchIdx, edge, gwvw, \
             elementsThisBatch, self.coord0, self.coord1, self.addrD, self.addrC, \
@@ -12731,10 +12732,11 @@ class KernelWriterAssembly(KernelWriter):
         self.preLoopVmcntDict[self.currPreLoopVmcntCase] = 0
 
     # for storeRemap edge case, non-beta still can enable vector stores
-    if kernel["StoreRemapVectorWidth"] and not beta:
-      edgeI = False
-    else:
-      edgeI = edge
+    # if kernel["StoreRemapVectorWidth"] and not beta:
+    #   edgeI = False
+    # else:
+    #   edgeI = edge
+    edgeI = edge
     #edgeI = True  # set to True to disable vector stores
     # print(edgeI)
     # print(vectorWidths)
@@ -12891,16 +12893,16 @@ class KernelWriterAssembly(KernelWriter):
 
     # check best numElementsPerBatch to handle a column block
     # elements of column block must be multiple size of numElementsPerBatch
-    if kernel["StoreRemapVectorWidth"]:
-      firstRow = [e for e in elements[edgeI] if e[0]==0 and e[2]==0] # format for element = (tt1, tt0, vc1, vc0)
-      # find the largest factor and smaller than numElementPerBatch
-      nBatchesPerRow = 1
-      for d in range(1, len(firstRow)+1):
-        largestFactor = len(firstRow)//d
-        if len(firstRow)%d == 0 and largestFactor <= numElementsPerBatch:
-          numElementsPerBatch = largestFactor
-          nBatchesPerRow = d
-          break
+    # if kernel["StoreRemapVectorWidth"]:
+    #   firstRow = [e for e in elements[edgeI] if e[0]==0 and e[2]==0] # format for element = (tt1, tt0, vc1, vc0)
+    #   # find the largest factor and smaller than numElementPerBatch
+    #   nBatchesPerRow = 1
+    #   for d in range(1, len(firstRow)+1):
+    #     largestFactor = len(firstRow)//d
+    #     if len(firstRow)%d == 0 and largestFactor <= numElementsPerBatch:
+    #       numElementsPerBatch = largestFactor
+    #       nBatchesPerRow = d
+    #       break
 
     # if no atomics and no edge, then write whole vectors
     #if not atomic and not edge:
@@ -12947,9 +12949,9 @@ class KernelWriterAssembly(KernelWriter):
       # elementVgprs can be large and should be perfectly tuned to the number of available
       # VGPRS.  We do not want to accidentally overflow and grow the pool here:
 
-      if kernel["StoreRemapVectorWidth"]:
-        #Indication if this batch is last batch for this column block shape
-        self.StoreRemapLastBatch = 1 if (batchIdx+1) % nBatchesPerRow == 0 else 0
+      # if kernel["StoreRemapVectorWidth"]:
+      #   #Indication if this batch is last batch for this column block shape
+      #   self.StoreRemapLastBatch = 1 if (batchIdx+1) % nBatchesPerRow == 0 else 0
 
       kStr += self.partialsWriteBatch(kernel, self.ss, batchIdx, alpha, beta, edge, atomic, gwvw, atomicW, \
           elementsThisBatch, self.coord0, self.coord1, self.addrD, self.addrC, \
@@ -14007,15 +14009,15 @@ class KernelWriterAssembly(KernelWriter):
 
     self.ss.firstBatch = False
     self.ss.checkInTempVgprC()
-    if kernel["StoreRemapVectorWidth"]:
-      if self.StoreRemapLastBatch == 1:
-        kStr += self.comment("Handle local read and global write")
-        # this seems buggy? it's possible to issue more than one stores for SR
-        # kStr += self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpS01, edge)
-        # storesIssued += 1
-        storeStr, numNewStores = self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpS01, edge)
-        kStr += storeStr
-        storesIssued += numNewStores
+    # if kernel["StoreRemapVectorWidth"]:
+    #   if self.StoreRemapLastBatch == 1:
+    #     kStr += self.comment("Handle local read and global write")
+    #     # this seems buggy? it's possible to issue more than one stores for SR
+    #     # kStr += self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpS01, edge)
+    #     # storesIssued += 1
+    #     storeStr, numNewStores = self.storeRemapAddStore(kernel, ss, addrCalc, tmpVgpr, tmpS01, edge)
+    #     kStr += storeStr
+    #     storesIssued += numNewStores
 
     if self.serializedStore:
       kStr += inst("s_nop 0", "1 wait state required when next inst writes vgprs held by previous dwordx4 store inst")
