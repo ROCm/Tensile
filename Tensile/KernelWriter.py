@@ -132,7 +132,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
       elif kernel["DirectToVgprB"]:
         # DTVB case, use A
         latencyForLRB = latencyForLRA
-      latencyForLR = max(latencyForLRA, latencyForLRB)
+      if not curr:
+        latencyForLR = latencyForLRB
+      else:
+        #latencyForLR = max(latencyForLRA, latencyForLRB)
+        latencyForLR = latencyForLRA if self.numIterPerCoalescedReadB > self.numIterPerCoalescedReadA else latencyForLRB
 
       latencyForLR -= max(latencyLeft,0) # remaining latency in mfma
       if not curr:
@@ -140,6 +144,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
       while latencyForLR > 0:
         latencyForLR -= self.miLatency
         latencyForLRCount += 1
+
+      if kernel["1LDSBuffer"] and curr and latencyForLRCount == 0:
+         # 1LDS buffer case, we need at least 1 MFMA between end of local read and start of local write (fur current local read only)
+         # otherwise, it results in overflowedResources = 5 error
+        latencyForLRCount = 1
 
     return numMfmaForLR, latencyForLRCount, latencyLeft
 
