@@ -28,7 +28,10 @@ set(testlib_sources
 add_library(TensileTestLib STATIC ${testlib_sources})
 
 target_include_directories(TensileTestLib PUBLIC include)
-target_link_libraries(TensileTestLib PUBLIC Boost::filesystem TensileHost)
+
+target_compile_definitions(TensileTestLib PRIVATE BOOST_ERROR_CODE_HEADER_ONLY)
+
+target_link_libraries(TensileTestLib PUBLIC TensileHost ${Boost_LIBRARIES})
 if(TENSILE_USE_OPENMP)
     target_link_libraries(TensileTestLib PRIVATE custom_openmp_cxx)
 endif()
