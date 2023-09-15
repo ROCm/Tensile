@@ -185,7 +185,7 @@ namespace Tensile
 
         const char* exp_select = std::getenv("TENSILE_EXPERIMENTAL_SELECTION");
         if(exp_select)
-            m_experimentSelection = strtol(exp_select, nullptr, 0) != 0;
+            m_experimentSelection = strtol(exp_select, nullptr, 0);
 
         const char* solsel_trace = std::getenv("TENSILE_SOLUTION_SELECTION_TRACE");
         if(solsel_trace)
