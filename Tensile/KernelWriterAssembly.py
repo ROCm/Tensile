@@ -1298,8 +1298,8 @@ class KernelWriterAssembly(KernelWriter):
         self.needPackA = tPA["bpe"] < self.bpr and (not kernel["UnrollMajorLDSA"]) and kernel["EnableMatrixInstruction"]
         self.needPackB = tPB["bpe"] < self.bpr and (not kernel["UnrollMajorLDSB"]) and kernel["EnableMatrixInstruction"]
     else:
-        self.needPackA = self.localReadInstructionA .blockWidth == 0.25 and kernel["EnableMatrixInstruction"]
-        self.needPackB = self.localReadInstructionB .blockWidth == 0.25 and kernel["EnableMatrixInstruction"]
+        self.needPackA = self.localReadInstructionA.blockWidth == 0.25 and kernel["EnableMatrixInstruction"]
+        self.needPackB = self.localReadInstructionB.blockWidth == 0.25 and kernel["EnableMatrixInstruction"]
 
     ####################################
     # num vgprs: valuPack
