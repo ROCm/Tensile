@@ -143,6 +143,7 @@ class LocalReadMFMA(LocalRead):
 
         numOffsets       = instruction.numOffsets
         blockWidth       = instruction.blockWidth
+        bpr              = writer.bpr
         vectorWidthA     = kernel["VectorWidth"] if kernel["SourceSwap"] else 1 # TODO: nonSwap VectorWidth
         vectorWidthB     = writer.VectorWidthB
         MIWaveGroupShape = [ kernel["MatrixInstM"] * kernel["MatrixInstBM"] * kernel["MIWaveGroup"][0] * vectorWidthA, \
@@ -155,39 +156,36 @@ class LocalReadMFMA(LocalRead):
             tileStride   = kernel["_DepthULds"] + LdsPad
             UnrollStride = 1
 
-        vectorWidth          = vectorWidthA if (tile01 == 0) else vectorWidthB
-        #numReadPerTileVector = (vectorWidth * tP["bpe"]) // int(blockWidth * 4) # bytes/register
-        numReadPerTileVector = vectorWidth if (tile01 == 0) else 1
-        numVectorsPerTile    = kernel["MIWaveTile"][tile01] // vectorWidth
-        # overloading numReadsPerUnroll for DirectToLds x2/x4 case when blockWidth of instruction < LocalReadVectorWidth
-        # fp64 TLU=1 reading 0.5element/lane/read..
-        # for TLU=0 case, blockWidth and LRVW should match
-        numReadsPerUnroll = tP["bpe"] * lrvw // int(blockWidth * 4) # bytes/register
+        vectorWidth       = vectorWidthA if (tile01 == 0) else vectorWidthB
+        numVectorsPerTile = kernel["MIWaveTile"][tile01] // vectorWidth
+        numReadsPerVector = vectorWidth if kernel["UnrollMajorLDS%s"%tc] else (vectorWidth * tP["bpe"]) // int(blockWidth * 4)
+        numReadsPerUnroll = ceil(tP["bpe"] * lrvw / int(blockWidth * 4)) if kernel["UnrollMajorLDS%s"%tc] else kernel["MIInputPerThread"] # bytes/register
+
         numVgpr  = int(ceil(blockWidth))
-        numElementPerRead = int(blockWidth * 4) // tP['bpe']
 
         # pack register
         pack     = Code.Module("pack%s_I%s"%(tc,iui))
         hasEccHalf = writer.archCaps["HasEccHalf"]
-        needPack = (blockWidth < 1) if hasEccHalf else (blockWidth == 0.25)
+        needPack = writer.needPackA if tc == "A" else writer.needPackB
         if needPack and (not kernel["VgprForLocalReadPacking"]):
             # allcate tmp vgpr only for no VgprForLocalReadPacking case
             # No ECC 0.25: pack one time 0x00ff00ff | (0x00ff00ff << 8)
-            packTimesPerVgpr = (int(1/blockWidth) - 1) if writer.archCaps["HasEccHalf"] else 1
+            packTimesPerVgpr = (int(1/blockWidth) - 1) if hasEccHalf else 1
             tmpVgprIdx = writer.vgprPool.checkOut(writer.numVgprValuAPerBlock*writer.numReadsIterCoalescedA*packTimesPerVgpr if tc == 'A' \
                 else writer.numVgprValuBPerBlock*writer.numReadsIterCoalescedB*packTimesPerVgpr, "local read pack")
             pack.addTempVgpr(tmpVgprIdx) # important, add to pack Module for later CheckIn
 
         valufIdx = 0
         for vIdx in range(0, numVectorsPerTile):
-            for eIdx in range(0, numReadPerTileVector):
+            for eIdx in range(0, numReadsPerVector):
                 valuiIdx = int(valufIdx)
                 localReadCode = imod.addCode (Code.Module("LocalRead%s Valu%u"%(tc,valuiIdx)))
                 if needPack:
                     packCode = pack.addCode (Code.Module("packCode"))
                 for rIdx in range(0, numReadsPerUnroll):
                     valuiIdx = int(valufIdx)
-                    baseLRVgpr = vgpr("Valu%s_X%u_I%u+%u"%(tc, bufferIdx, iui, valuiIdx), numVgpr)
+                    baseVgprStr = "Valu%s_X%u_I%u"%(tc, bufferIdx, iui)
+                    baseLRVgpr = vgpr(baseVgprStr + "+%u"%(valuiIdx), numVgpr)
                     destVgpr = baseLRVgpr
 
                     highBitsForHalf = (blockWidth == 0.5) and ((rIdx % 2) == 1) # rIdx = 1
@@ -195,44 +193,86 @@ class LocalReadMFMA(LocalRead):
                     isHigh16Bits = (blockWidth == 0.25) and ( ((rIdx % 4) //2) == 1) # 2,3
 
                     if needPack:
-                        if kernel["VgprForLocalReadPacking"]:
+                        lrvwTile = writer.lrvwTileA if tc == "A" else writer.lrvwTileB
+                        if lrvwTile > 1:
+                            # wider local read + v_perm
                             # use allocated vgpr
-                            highVgprBase = "Valu%s_X%u_I%u"%(tc, bufferIdx, iui)
-                            highVgprHalf = vgpr(highVgprBase + "_D%u+%u"%(rIdx%2, valuiIdx), numVgpr)
-                            highVgpr8Bits = vgpr(highVgprBase + "_D%u+%u"%(rIdx%4, valuiIdx), numVgpr)
-                            lowVgpr = vgpr(highVgprBase + "_D%u+%u"%((rIdx%4)-1, valuiIdx), numVgpr) if isHigh16Bits else baseLRVgpr
+                            highBitsForHalf = 0
+                            isHigh8Bits = 0
+                            isHigh16Bits = 0
+                            numElemPerReg = bpr//tP["bpe"]
+                            destVgpr = vgpr(baseVgprStr + "_D%u+%u"%(rIdx%(kernel["MIInputPerThread"]), vIdx*numVgpr), numVgpr)
+
+                            # use wider local read + v_perm_b32
+                            if rIdx == numReadsPerUnroll-1:
+                                for i in range(0, numVgpr):
+                                    # convert from [tile][MiInputPerThread][vector] to [tile][vector][MiInputPerThread]
+                                    vgprIdx = (vIdx*numVgpr+i)*tP["bpe"]*kernel["MIInputPerThread"]//bpr*min(bpr//tP["bpe"],vectorWidth)
+                                    vgprOffset = 0
+                                    numElemPerRegIter = 2 if tP["bpe"] == 1 and vectorWidth <= 2 else numElemPerReg
+                                    for vectorIdx in range(0, numElemPerRegIter):
+                                        for elementIdx in range(0, tP["bpe"]*kernel["MIInputPerThread"]//bpr):
+                                            src0BufIdx = elementIdx*numElemPerReg+1
+                                            src1BufIdx = elementIdx*numElemPerReg
+                                            srcVregOffset = i+vIdx*numVgpr
+                                            destPack = vgpr(baseVgprStr + "+%u"%(vgprIdx+vgprOffset))
+                                            src0Pack = vgpr(baseVgprStr + "_D%u+%u"%(src0BufIdx, srcVregOffset))
+                                            src1Pack = vgpr(baseVgprStr + "_D%u+%u"%(src1BufIdx, srcVregOffset))
+                                            src2Sgpr = sgpr("PackKForV%u"%vectorIdx)
+                                            packCode.addInst("v_perm_b32", destPack, src0Pack, src1Pack, src2Sgpr, "select K=%u%u for vector=%u"%(src1BufIdx,  src0BufIdx, vectorIdx))
+                                            if tP["bpe"] == 1:
+                                                # run v_perm_b32 one more time for byte data
+                                                src0BufIdx = elementIdx*numElemPerReg+3
+                                                src1BufIdx = elementIdx*numElemPerReg+2
+                                                destTmpVgpr = vgpr("PackTemp")
+                                                src0Pack = vgpr(baseVgprStr + "_D%u+%u"%(src0BufIdx, srcVregOffset))
+                                                src1Pack = vgpr(baseVgprStr + "_D%u+%u"%(src1BufIdx, srcVregOffset))
+                                                packCode.addInst("v_perm_b32", destTmpVgpr, src0Pack, src1Pack, src2Sgpr, "select K=%u%u for vector=%u"%(src1BufIdx,  src0BufIdx, vectorIdx))
+                                                packCode.addInst("_v_lshl_or_b32", destPack, destTmpVgpr, "0x10", destPack, "pack two half Vgpr to one Vgpr")
+
+                                            vgprOffset += 1
+
                         else:
-                            highVgprHalf = vgpr(tmpVgprIdx)
-                            highVgpr8Bits = vgpr(tmpVgprIdx)
-                            lowVgpr = vgpr(tmpVgprIdx-1) if isHigh16Bits else baseLRVgpr
+                            # bpe local read + or packing
+                            if kernel["VgprForLocalReadPacking"]:
+                                # use allocated vgpr
+                                highVgprBase = baseVgprStr
+                                highVgprHalf = vgpr(highVgprBase + "_D%u+%u"%(rIdx%2, valuiIdx), numVgpr)
+                                highVgpr8Bits = vgpr(highVgprBase + "_D%u+%u"%(rIdx%4, valuiIdx), numVgpr)
+                                lowVgpr = vgpr(highVgprBase + "_D%u+%u"%((rIdx%4)-1, valuiIdx), numVgpr) if isHigh16Bits else baseLRVgpr
+                            else:
+                                # use tmp vgpr
+                                highVgprHalf = vgpr(tmpVgprIdx)
+                                highVgpr8Bits = vgpr(tmpVgprIdx)
+                                lowVgpr = vgpr(tmpVgprIdx-1) if isHigh16Bits else baseLRVgpr
 
-                        if hasEccHalf: # ECC pack
-                            # pack for ECC blockWidth 0.5 type
-                            if needPack and highBitsForHalf:
-                                highVgpr = highVgprHalf
-                                packCode.addInst("v_or_b32", destVgpr, destVgpr, highVgpr, "pack two half Vgpr to one Vgpr")
-                                destVgpr = highVgpr
+                            if hasEccHalf: # ECC pack
+                                # pack for ECC blockWidth 0.5 type
+                                if needPack and highBitsForHalf:
+                                    highVgpr = highVgprHalf
+                                    packCode.addInst("v_or_b32", destVgpr, destVgpr, highVgpr, "pack two half Vgpr to one Vgpr")
+                                    destVgpr = highVgpr
 
-                            # pack for ECC blockwidth 0.25 type
-                            if isHigh8Bits or isHigh16Bits:
-                                highVgpr = highVgpr8Bits
-                                destVgpr = highVgpr
-                            if isHigh8Bits:
-                                packCode.addInst("_v_lshl_or_b32", lowVgpr, highVgpr, "0x8", lowVgpr, "pack two int8 Vgpr to one half Vgpr")
-                                if isHigh16Bits:
-                                    packCode.addInst("v_or_b32", baseLRVgpr, baseLRVgpr, lowVgpr, "pack two half Vgpr to one Vgpr")
+                                # pack for ECC blockwidth 0.25 type
+                                if isHigh8Bits or isHigh16Bits:
+                                    highVgpr = highVgpr8Bits
+                                    destVgpr = highVgpr
+                                if isHigh8Bits:
+                                    packCode.addInst("_v_lshl_or_b32", lowVgpr, highVgpr, "0x8", lowVgpr, "pack two int8 Vgpr to one half Vgpr")
+                                    if isHigh16Bits:
+                                        packCode.addInst("v_or_b32", baseLRVgpr, baseLRVgpr, lowVgpr, "pack two half Vgpr to one Vgpr")
 
-                            if (not kernel["VgprForLocalReadPacking"]) and (highBitsForHalf or isHigh8Bits or isHigh16Bits):
-                                tmpVgprIdx += 1
+                                if (not kernel["VgprForLocalReadPacking"]) and (highBitsForHalf or isHigh8Bits or isHigh16Bits):
+                                    tmpVgprIdx += 1
 
-                        else: # no ECC pack
-                            # pack for No ECC blockwidth 0.25 type
-                            if isHigh8Bits:
-                                highVgpr = vgpr(tmpVgprIdx)
-                                destVgpr = highVgpr
-                            if isHigh8Bits and isHigh16Bits:
-                                packCode.addInst("_v_lshl_or_b32", baseLRVgpr, highVgpr, "0x8", baseLRVgpr, "pack two int8x2 Vgpr to one Vgpr")
-                                tmpVgprIdx += 1
+                            else: # no ECC pack
+                                # pack for No ECC blockwidth 0.25 type
+                                if isHigh8Bits:
+                                    highVgpr = vgpr(tmpVgprIdx)
+                                    destVgpr = highVgpr
+                                if isHigh8Bits and isHigh16Bits:
+                                    packCode.addInst("_v_lshl_or_b32", baseLRVgpr, highVgpr, "0x8", baseLRVgpr, "pack two int8x2 Vgpr to one Vgpr")
+                                    tmpVgprIdx += 1
 
                     valufIdx += blockWidth
 
@@ -253,22 +293,8 @@ class LocalReadMFMA(LocalRead):
                           localReadOffsetDiv = localReadOffset // lrdOffsetMod
                           localReadOffset = localReadOffset % lrdOffsetMod # keep only mod of lrdOffsetMod
                         offset_val = eIdx * tileStride2 + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01] * tileStride
-                        if (kernel["DirectToLds%s" % tc] and  \
-                            kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"] > 4 and \
-                            (tP["bpe"] > 4 or tP["tlu"] == False and tP["bpe"] * lrvw > writer.bpr)):
-                          # directToLds special case (local read before conversion is larger than bpr)
-                          # In this case, we compose the original single local read(b64 or b128) with multiple local reads (b32)
-                          # divVal represents the number of b32 local reads to compose single original b64 or b128 local read
-                          # rIdxMod represents the location of split local read
-                          # A original wide local read loads consecutive 2 (for b64) or 4 (for b128) values from LDS.
-                          # rIdxDiv represents the original rIdx before conversion
-                          divVal = tP["bpe"] * lrvw // writer.bpr
-                          rIdxMod = rIdx % divVal
-                          rIdxDiv = rIdx // divVal
-                          offset_val = (rIdxDiv * UnrollStride + offset_val + localReadOffset) * tP["bpe"] * blockWidth + rIdxMod * writer.bpr
-                        else:
-                          # normal case
-                          offset_val = (rIdx * numElementPerRead * UnrollStride + offset_val + localReadOffset) * tP["bpe"]
+                        # normal case
+                        offset_val = (rIdx  * UnrollStride + offset_val + localReadOffset) * tP["bpe"]
                         if localReadOffsetDiv > 0:
                           # TSGR special conversion
                           # Multiply BlockSize for each lrdOffsetMod
@@ -280,25 +306,6 @@ class LocalReadMFMA(LocalRead):
                         if kernel["DirectToLds%s" % tc]:
                           # another address conversion for DirectToLds + NumLoadsCoalesced > 1
                           dummy, offset_val = writer.lraOffsetConversionForDTLandNLC(kernel, tP, offset_val)
-
-                          if kernel["GlobalLoadVectorWidth%c"%tc] * tP["bpe"] > 4:
-                            # magic offset conversion for DirectToLds
-                            # TLU=0 case, modify bit3-6 of offset_val as follows
-                            # (bit2<<3) | (bit3 <<1) | (bit4>>2) | (bit5>>2)
-                            bit2 = offset_val & 4
-                            bit3 = offset_val & 8
-                            bit4 = offset_val & 16
-                            bit5 = offset_val & 32
-                            if (kernel["GlobalLoadVectorWidth%s"%tc] * tP["bpe"] == 8):
-                              # dword_x2 case
-                              # (bit2<<3) | (bit3 >>1) | (bit4>>1) | (bit5>>1)
-                              newVal = (bit2<<3) | (bit3 >>1) | (bit4>>1) | (bit5>>1)
-                            else:  #if (kernel["GlobalLoadVectorWidth%s"%tc] * tP["bpe"] == 16):  # most preferred case
-                              # dword_x4 case
-                              # (bit2<<3) | (bit3 <<1) | (bit4>>2) | (bit5>>2)
-                              newVal = (bit2<<3) | (bit3 <<1) | (bit4>>2) | (bit5>>2)
-                            offset_val = offset_val & (~0x3c)
-                            offset_val = offset_val | newVal
 
                         paramList.append(int(offset_val))
 
