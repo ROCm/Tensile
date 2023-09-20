@@ -1050,9 +1050,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # if i % kernel["MIWaveTile"][0]==0, mfma will use new B
           packAIdx += instPerPack if i//(kernel["MIWaveTileA"]+kernel["MIWaveTileA"]*kernel["MIWaveTileB"]*(i//(kernel["MIWaveTileA"]*kernel["MIWaveTileB"]))) == 0 else 0
           packBIdx += instPerPack if i % kernel["MIWaveTileA"] == 0 else 0
-          # blockWidth < 1, means 0.5 or 0.25 (BF,H,Int8)
-          packAIdx = packAIdx if self.tPA["localReadInstruction"].blockWidth < 1 else 0
-          packBIdx = packBIdx if self.tPB["localReadInstruction"].blockWidth < 1 else 0
+          packAIdx = packAIdx if self.needPackA else 0
+          packBIdx = packBIdx if self.needPackB else 0
           numPack = (packAIdx + packBIdx)
           iterCode.addComment0("pack scheduling: packAIdx:%u, packBIdx:%u" %(packAIdx,packBIdx))
           # we put 2 pack in each mfma, "2" means A & B
@@ -1464,9 +1463,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           # if i % kernel["MIWaveTile"][0]==0, mfma will use new B
           packAIdx += instPerPack if i//(kernel["MIWaveTileA"]+kernel["MIWaveTileA"]*kernel["MIWaveTileB"]*(i//(kernel["MIWaveTileA"]*kernel["MIWaveTileB"]))) == 0 else 0
           packBIdx += instPerPack if i % kernel["MIWaveTileA"] == 0 else 0
-          # blockWidth < 1, means 0.5 or 0.25 (BF,H,Int8)
-          packAIdx = packAIdx if self.tPA["localReadInstruction"].blockWidth < 1 else 0
-          packBIdx = packBIdx if self.tPB["localReadInstruction"].blockWidth < 1 else 0
+          packAIdx = packAIdx if self.needPackA else 0
+          packBIdx = packBIdx if self.needPackB else 0
           numPack = (packAIdx + packBIdx)
           iterCode.addComment0("pack scheduling: packAIdx:%u, packBIdx:%u" %(packAIdx,packBIdx))
           # we put 2 pack in each mfma
@@ -1613,9 +1611,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
         if kernel["ScheduleIterAlg"] == 3 and self.numItersPLR and\
           (iteration < numReadsIterA or iteration < numReadsIterB or numPrefetchIter) and \
           self.enable["LocalRead"]:
-          if ((iteration < numReadsIterA and not dataAtIterA < max(dataAtIterA,dataAtIterB)) or numPrefetchIter) and (not kernel["DirectToVgprA"]):
+          if ((iteration//self.numIterPerCoalescedReadA < numReadsIterA and not dataAtIterA < max(dataAtIterA,dataAtIterB)) or numPrefetchIter) and (not kernel["DirectToVgprA"]):
             localReads -= self.numReadsPerIterA
-          if ((iteration < numReadsIterB and not dataAtIterB < max(dataAtIterA,dataAtIterB)) or numPrefetchIter) and (not kernel["DirectToVgprB"]):
+          if ((iteration//self.numIterPerCoalescedReadB < numReadsIterB and not dataAtIterB < max(dataAtIterA,dataAtIterB)) or numPrefetchIter) and (not kernel["DirectToVgprB"]):
             localReads -= self.numReadsPerIterB
           localReads += localReadsWaitcnt
         lgkmcnt += localReads
@@ -2639,23 +2637,18 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # disable LocalRead if DirectToVgpr is enabled
         doReadA = doReadA and (not kernel["DirectToVgprA"])
         doReadB = doReadB and (not kernel["DirectToVgprB"])
-        # double the number of VgprValu if self.vgprValuDouble is true
-        plrIdxLR = plrIdx
-        if self.vgprValuDouble and (lc & 1) == 0:
-          # use the next buffer set (do not change the index of pack[])
-          plrIdxLR += 1
         for iui in range(0,kernel["InnerUnroll"]):
           doReadA = doReadA and iui*self.numReadsIterCoalescedA < kernel["InnerUnroll"]
           doReadB = doReadB and iui*self.numReadsIterCoalescedB < kernel["InnerUnroll"]
           if doReadA:
             localReads.addText(self.comment("local read a"))
-            localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdxLR*self.numIterPerCoalescedReadA, iui*self.numReadsIterCoalescedA, 0, tensorParametersA)
+            localReadCodeA, packCodeA = self.localReadDo(kernel, plrIdx*self.numIterPerCoalescedReadA, iui*self.numReadsIterCoalescedA, 0, tensorParametersA)
             localReads.addCode(localReadCodeA)
             localReadsA.addCode(localReadCodeA)
             pack[plrIdx*self.numIterPerCoalescedReadA].addCode(packCodeA)
           if doReadB:
             localReads.addText(self.comment("local read b"))
-            localReadCodeB, packCodeB = self.localReadDo(kernel, plrIdxLR*self.numIterPerCoalescedReadB, iui*self.numReadsIterCoalescedB, 0, tensorParametersB)
+            localReadCodeB, packCodeB = self.localReadDo(kernel, plrIdx*self.numIterPerCoalescedReadB, iui*self.numReadsIterCoalescedB, 0, tensorParametersB)
             localReads.addCode(localReadCodeB)
             localReadsB.addCode(localReadCodeB)
             pack[plrIdx*self.numIterPerCoalescedReadB].addCode(packCodeB)
@@ -3839,57 +3832,72 @@ class KernelWriter(metaclass=abc.ABCMeta):
     # allow LocalReadVectorWidthB for TLUB + MatrixInstruction
     self.VectorWidthB = kernel["VectorWidthB"]
 
+    # lrvwTileA,B
+    # lrvwTileA,B > 1 is to use wider local read + v_perm
+    # MIInputPerThread > 1 case, we need MIInputPerThread continuous K elements
+    # lrvwTileA,B should not exceed MIInputPerThread
+    # = 2 means, load 2 continuous M or N and do swap
+    #     (M,K) = (0,0) (1,0)
+    #             (0,1) (1,1)
+    #      to
+    #     (M,K) = (0,0) (0,1)
+    #             (1,0) (1,1)
+    # = 4 means, load 4 continuous M or N and do swap
+    #     (M,K) = (0,0) (1,0) (2,0) (3,0)
+    #             (0,1) (1,1) (2,1) (3,1)
+    #             (0,2) (1,2) (2,2) (3,2)
+    #             (0,3) (1,3) (2,3) (3,3)
+    #      to
+    #     (M,K) = (0,0) (0,1) (0,2) (0,3)
+    #             (1,0) (1,1) (1,2) (1,3)
+    #             (2,0) (2,1) (2,2) (2,3)
+    #             (3,0) (3,1) (3,2) (3,3)
+    # it requires
+    #   EnableMatrixInstruction + MIInputPerThread > 1
+    #   SourceSwap only (TODO: non SourceSwap)
+    #   VgprForLocalReadPacking  (need dedicated vpgr for packing)
+    #   not UnrollMajorLDS
+    #   VectorWidthA,B > 1
+    self.lrvwTileA = 1
+    self.lrvwTileB = 1
+    if kernel["EnableMatrixInstruction"] and kernel["MIInputPerThread"] > 1 and\
+       kernel["SourceSwap"] and kernel["VgprForLocalReadPacking"]:
+      if (not kernel["UnrollMajorLDSA"]):
+        self.lrvwTileA = min(kernel["MIInputPerThread"], kernel["VectorWidth"]) # should not exceed MIInputPerThread
+      if (not kernel["UnrollMajorLDSB"]):
+        self.lrvwTileB = min(kernel["MIInputPerThread"], self.VectorWidthB) # should not exceed MIInputPerThread
+
     self.numItersPLR = kernel["PrefetchLocalRead"]%kernel["LoopIters"]
     self.numVgprBuffer = kernel["LoopIters"] if kernel["PrefetchLocalRead"] > kernel["LoopIters"] else kernel["PrefetchLocalRead"]
-    # merge N iteration's read into 1 iteration if can't coalesce read
-    # ex, A can coalesce read, B can't
-    # MergeRead 0: ds_readAx1 ds_readBx1 mfma | ds_readAx1 ds_readBx1 mfma | => ds_readAx2 ds_readBx1 mfma | ds_readBx1 mfma |
-    # MergeRead 1: ds_readAx1 ds_readBx1 mfma | ds_readAx1 ds_readAx1 mfma | => ds_readAx2 ds_readBx1 ds_readBx1 mfma | mfma |
-    MergeRead = 0
-    if kernel["UnrollMajorLDSA"] or MergeRead:
+    if kernel["UnrollMajorLDSA"]:
       self.lrvwA = kernel["LocalReadVectorWidth"]
     else:
       if kernel["EnableMatrixInstruction"]:
+        # MI + UMLDS, we need minimum of MIInputPerThread for lrvw
         self.lrvwA = kernel["MIInputPerThread"]
+        if kernel["DirectToVgprA"]:
+          # DirectToVgprA case, ignore LocalReadVectorWidth and use GlobalLoadVectorWidth instead.
+          self.lrvwA = max(kernel["MIInputPerThread"], vwa)
       else:
         self.lrvwA = 1
-    if kernel["DirectToVgprA"]:
-      # DirectToVgprA case, ignore LocalReadVectorWidth and use GlobalLoadVectorWidth instead.
-      self.lrvwA = vwa
-    if kernel["UnrollMajorLDSB"] or MergeRead:
+    if kernel["UnrollMajorLDSB"]:
       self.lrvwB = kernel["LocalReadVectorWidth"]
     else:
       if kernel["EnableMatrixInstruction"]:
-        self.lrvwB = kernel["MIInputPerThread"]
+        if kernel["DirectToVgprB"]:
+          # DirectToVgprB case, ignore LocalReadVectorWidth and use GlobalLoadVectorWidth instead.
+          self.lrvwB = max(kernel["MIInputPerThread"], vwb)
+        else:
+          # MI + UMLDS, we need minimum of MIInputPerThread for lrvw
+          # self.VectorWidthB > MIInputPerThread case, use self.VectorWidthB as lrvwB
+          self.lrvwB = max(kernel["MIInputPerThread"], self.VectorWidthB)
       else:
         self.lrvwB = 1
-    if kernel["DirectToVgprB"]:
-      # DirectToVgprB case, ignore LocalReadVectorWidth and use GlobalLoadVectorWidth instead.
-      self.lrvwB = vwb
-    elif self.VectorWidthB > 1:
-      # self.VectorWidthB > 1 case, use self.VectorWidthB as lrvwB
-      self.lrvwB = self.VectorWidthB
 
-    # DirectToVgpr + TLU=False case
-    # set lrvw = VW
-    self.vgprValuDouble = False
-    #if kernel["DirectToVgprA"] and kernel["PrefetchLocalRead"] > 1 and (not kernel["ProblemType"]["TLUA"]) and kernel["VectorWidth"] > 1:
-    if kernel["DirectToVgprA"] and (not kernel["ProblemType"]["TLUA"]) and (not kernel["ProblemType"]["TLUB"]) or \
-       kernel["DirectToVgprB"] and (not kernel["ProblemType"]["TLUB"]) and (not kernel["DirectToLdsA"]):
-      self.lrvwA = max(self.lrvwA, self.lrvwB)
-      self.lrvwB = self.lrvwA
-      if kernel["DepthU"] // kernel["MatrixInstK"] <= 2 and self.lrvwA > kernel["MIInputPerThread"]:
-        # need to double vgprValu to avoid local read overwritting vgprValu registers
-        self.vgprValuDouble = True
- 
     # Wider LocalRead
     if kernel["EnableMatrixInstruction"]:
-      self.numReadsIterCoalescedA = self.lrvwA // kernel["MIInputPerThread"]
-      self.numReadsIterCoalescedB = self.lrvwB // kernel["MIInputPerThread"]
-      if kernel["DirectToVgprA"] and kernel["ProblemType"]["TLUA"]:
-        self.numReadsIterCoalescedA = 1
-      if self.VectorWidthB > 1:
-        self.numReadsIterCoalescedB = 1
+      self.numReadsIterCoalescedA = ceil(self.lrvwA / kernel["MIInputPerThread"]) if kernel["UnrollMajorLDSA"] else 1
+      self.numReadsIterCoalescedB = ceil(self.lrvwB / kernel["MIInputPerThread"]) if kernel["UnrollMajorLDSB"] else 1
     else:
       self.numReadsIterCoalescedA  = 1
       self.numReadsIterCoalescedB  = 1

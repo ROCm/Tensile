@@ -487,6 +487,7 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - FractionalLoad: [0,2]
         - BufferLoad: [True, False]
+        - TransposeLDS: [1]
         - StaggerU: [0,32]
       BenchmarkForkParameters:
       JoinParameters:
@@ -705,6 +706,7 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - FractionalLoad: [0,2]
         - BufferLoad: [True, False]
+        - TransposeLDS: [1]
         - WaveSeparateGlobalReadB: [0,1]
         - StaggerU: [0,32]
       BenchmarkForkParameters:

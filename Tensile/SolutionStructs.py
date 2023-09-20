@@ -2508,6 +2508,11 @@ class Solution(collections.abc.Mapping):
       reject(state, "DirectToVgpr%c does not supports ThreadSeparateGlobalRead%c"%(tc,tc))
       return False
 
+    # Reject TLU = UnrollMajorLDS (B only)
+    if tc == 'B' and (state["ProblemType"]["TLUA"] == state["UnrollMajorLDSA"] or state["ProblemType"]["TLUB"] == state["UnrollMajorLDSB"]):
+      reject(state, "DirectToVgpr%c does not supports TLU = UnrollMajorLDS"%(tc))
+      return False
+
     # Does not work with DirectToLDS
     # -> this will be checked after DirectToLDS doable check is done
 
@@ -3244,11 +3249,6 @@ class Solution(collections.abc.Mapping):
     if state["LocalReadVectorWidth"] == -1:
       if state["EnableMatrixInstruction"]:
         state["LocalReadVectorWidth"] = state["MIInputPerThread"]
-        # enable less than state["MIInputPerThread"] 
-        # for fp64 this means ds_read_b32 
-        if ((state["DirectToLdsA"] and state["ProblemType"]["TLUA"]) or \
-            (state["DirectToLdsB"] and state["ProblemType"]["TLUB"])): 
-             state["LocalReadVectorWidth"] = 1 if (state["ProblemType"]["DataType"].numBytes() >= 4) else state["LocalReadVectorWidth"]
       else:
         state["LocalReadVectorWidth"] = state["VectorWidth"]
 
@@ -3590,8 +3590,7 @@ class Solution(collections.abc.Mapping):
 
     # LocalReadVectorWidth check
     if state["EnableMatrixInstruction"]:
-      # support LocalReadVectorWidth < miInputPerThread for directToLdsX2/X4
-      if state["LocalReadVectorWidth"] < state["MIInputPerThread"] and not (state["DirectToLdsA"] or state["DirectToLdsB"]):
+      if state["LocalReadVectorWidth"] < state["MIInputPerThread"]:
         reject(state, "LocalReadVectorWidth < %u" %(state["MIInputPerThread"]))
       if state["LocalReadVectorWidth"] > state["MIInputPerThread"] and not (state["UnrollMajorLDSA"] or state["UnrollMajorLDSB"]) \
          and not (state["DirectToVgprA"] and state["LocalReadVectorWidth"] == VectorWidthB):
