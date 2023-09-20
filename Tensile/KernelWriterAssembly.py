@@ -4576,7 +4576,8 @@ class KernelWriterAssembly(KernelWriter):
         # kStr += self.s_mul_u64_u32(sgpr(stmp), sgpr(stmp+1), kernel["DepthU"], sgpr("StreamKLocalStart"), "StreamK tile start offset")
         # kStr += inst("s_mul_i32", sgpr(stmp), sgpr("StreamKLocalStart"), "DepthU*Bpe%s"%(tc), "WAAA")
         kStr += inst("s_mul_i32", sgpr(stmp), sgpr("StreamKLocalStart"), "DepthU", "WAAA")
-        kStr += self.s_mul_u64_u32(sgpr(stmp), sgpr(stmp+1), sgpr(stmp), sgpr("Stride%sL" %(tc)), "StreamK tile start offset")
+        strideL = self.strideRef(tc, kernel["ProblemType"]["IndicesSummation"][0])
+        kStr += self.s_mul_u64_u32(sgpr(stmp), sgpr(stmp+1), sgpr(stmp), strideL, "StreamK tile start offset")
         if kernel["CheckDimOverflow"] >=2:
           kStr += self.assert_eq(sgpr(stmp+1),0)
         kStr += inst("s_add_u32",  sgpr(tileStart+0), sgpr(tileStart+0), sgpr(stmp+0), "accum GsuOffset term to tilestart")
@@ -12967,7 +12968,7 @@ class KernelWriterAssembly(KernelWriter):
     # kStr += inst("s_addc_u32", sgpr(tmpSgpr+1), sgpr("AddressFlags+1"), sgpr(tmpSgpr+1), "add offset to flag pointer")
     kStr += inst("s_mov_b32", sgpr(tmpSgpr+2), 1, "flag data")
     kStr += inst("s_store_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), 0, "glc", "set flag")
-    kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load") # TODO just for testing
+    # kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load") # TODO just for testing
     
     # TODO - if this is the last tile, don't need to jump to next instruction
     # NOTE: in SR kernel, we need long branch since PRNG explodes the line of codes 
