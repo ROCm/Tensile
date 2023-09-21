@@ -501,7 +501,7 @@ namespace Tensile
 
         void HardwareMonitor::runLoop()
         {
-            hipSetDevice(m_hipDeviceIndex);
+            HIP_CHECK_EXC(hipSetDevice(m_hipDeviceIndex));
 
             std::unique_lock<std::mutex> lock(m_mutex);
             while(!m_exit)

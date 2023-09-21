@@ -56,7 +56,7 @@ struct HipBackend
 
     static inline void deviceReset()
     {
-        hipDeviceReset();
+        HIP_CHECK_EXC(hipDeviceReset());
     }
 
     static inline int32_t offsetAlignment()
@@ -74,7 +74,7 @@ struct HipBackend
     template <typename T>
     static inline void free(BufferObj<T>& bufferObj)
     {
-        hipFree(bufferObj);
+        HIP_CHECK_EXC(hipFree(bufferObj));
     }
 
     template <typename T>

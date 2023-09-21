@@ -54,7 +54,7 @@ namespace Tensile
                 {
                     if(event)
                     {
-                        hipEventDestroy(event);
+                        (void)hipEventDestroy(event); // ignore status as destructor, TODO
                         event = nullptr;
                     }
                 }
