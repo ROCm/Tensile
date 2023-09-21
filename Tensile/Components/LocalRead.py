@@ -162,6 +162,8 @@ class LocalReadMFMA(LocalRead):
         numReadsPerUnroll = ceil(tP["bpe"] * lrvw / int(blockWidth * 4)) if kernel["UnrollMajorLDS%s"%tc] else kernel["MIInputPerThread"] # bytes/register
 
         numVgpr  = int(ceil(blockWidth))
+        lrvwTile = writer.lrvwTileA if tc == "A" else writer.lrvwTileB
+        numElementPerRead = int(blockWidth * 4) // tP['bpe'] // lrvwTile
 
         # pack register
         pack     = Code.Module("pack%s_I%s"%(tc,iui))
@@ -193,7 +195,6 @@ class LocalReadMFMA(LocalRead):
                     isHigh16Bits = (blockWidth == 0.25) and ( ((rIdx % 4) //2) == 1) # 2,3
 
                     if needPack:
-                        lrvwTile = writer.lrvwTileA if tc == "A" else writer.lrvwTileB
                         if lrvwTile > 1:
                             # wider local read + v_perm
                             # use allocated vgpr
@@ -294,7 +295,7 @@ class LocalReadMFMA(LocalRead):
                           localReadOffset = localReadOffset % lrdOffsetMod # keep only mod of lrdOffsetMod
                         offset_val = eIdx * tileStride2 + (vIdx * numOffsets+oIdx) * MIWaveGroupShape[tile01] * tileStride
                         # normal case
-                        offset_val = (rIdx  * UnrollStride + offset_val + localReadOffset) * tP["bpe"]
+                        offset_val = (rIdx * numElementPerRead * UnrollStride + offset_val + localReadOffset) * tP["bpe"]
                         if localReadOffsetDiv > 0:
                           # TSGR special conversion
                           # Multiply BlockSize for each lrdOffsetMod
