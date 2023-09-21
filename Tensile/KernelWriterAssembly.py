@@ -12968,7 +12968,7 @@ class KernelWriterAssembly(KernelWriter):
     # kStr += inst("s_addc_u32", sgpr(tmpSgpr+1), sgpr("AddressFlags+1"), sgpr(tmpSgpr+1), "add offset to flag pointer")
     kStr += inst("s_mov_b32", sgpr(tmpSgpr+2), 1, "flag data")
     kStr += inst("s_store_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), 0, "glc", "set flag")
-    # kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load") # TODO just for testing
+    kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load") # TODO just for testing
     
     # TODO - if this is the last tile, don't need to jump to next instruction
     # NOTE: in SR kernel, we need long branch since PRNG explodes the line of codes 
