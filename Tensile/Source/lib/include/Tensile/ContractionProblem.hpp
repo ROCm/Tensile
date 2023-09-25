@@ -999,9 +999,9 @@ namespace Tensile
     using ContractionInputs_C_C_C = TypedContractionInputs<std::complex<float>>;
     using ContractionInputs_Z_Z_Z = TypedContractionInputs<std::complex<double>>;
 #ifdef TENSILE_USE_HALF
-    using ContractionInputs_H_H_H = TypedContractionInputs<Half>;
-    using ContractionInputs_H_H_S = TypedContractionInputs<Half, Half, Half, Half, float, float>;
-    using ContractionInputs_H_S_S = TypedContractionInputs<Half, Half, float, float>;
+    using ContractionInputs_H_H_H  = TypedContractionInputs<Half>;
+    using ContractionInputs_H_H_S  = TypedContractionInputs<Half, Half, Half, Half, float, float>;
+    using ContractionInputs_H_S_S  = TypedContractionInputs<Half, Half, float, float>;
     using ContractionInputs_HS_H_S = TypedContractionInputs<Half, float, Half, Half, float, float>;
     using ContractionInputs_SH_H_S = TypedContractionInputs<float, Half, Half, Half, float, float>;
     using ContractionInputs_HS_S_S = TypedContractionInputs<Half, float, float, float>;
@@ -1025,10 +1025,8 @@ namespace Tensile
     // hybrid cases: F8B8SS, B8F8SS
     using ContractionInputs_F8B8_S_S = TypedContractionInputs<Float8, BFloat8, float, float>;
     using ContractionInputs_B8F8_S_S = TypedContractionInputs<BFloat8, Float8, float, float>;
-    using ContractionInputs_F8H_S_S
-        = TypedContractionInputs<Float8, Half, float, float>;
-    using ContractionInputs_HF8_S_S
-        = TypedContractionInputs<Half, Float8, float, float>;
+    using ContractionInputs_F8H_S_S  = TypedContractionInputs<Float8, Half, float, float>;
+    using ContractionInputs_HF8_S_S  = TypedContractionInputs<Half, Float8, float, float>;
     // hybrid cases with To = B8
     using ContractionInputs_F8B8_B8_S
         = TypedContractionInputs<Float8, BFloat8, BFloat8, BFloat8, float, float>;
