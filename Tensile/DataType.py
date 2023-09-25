@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -337,6 +337,9 @@ class DataType:
         return self.value == DataType.int8
     def isBFloat16(self):
         return self.value == DataType.bfloat16
+    def is16bitFloat(self):
+        return (self.value == DataType.half \
+                or self.value == DataType.bfloat16)
     def isXFloat32(self):
         return self.value == DataType.xfloat32
     def isFloat8(self):

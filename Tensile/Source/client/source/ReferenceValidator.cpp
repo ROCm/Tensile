@@ -234,6 +234,22 @@ namespace Tensile
             {
                 return validateSolutionCast<ManagedContractionInputs_H_S_S>(inputs);
             }
+            case ManagedContractionInputs_HS_H_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_HS_H_S>(inputs);
+            }
+            case ManagedContractionInputs_SH_H_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_SH_H_S>(inputs);
+            }
+            case ManagedContractionInputs_HS_S_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_HS_S_S>(inputs);
+            }
+            case ManagedContractionInputs_SH_S_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_SH_S_S>(inputs);
+            }
 #endif // TENSILE_USE_HALF
             case ManagedContractionInputs_I8x4_I32_I32::TypeId():
             {
@@ -309,6 +325,26 @@ namespace Tensile
             {
                 return validateSolutionCast<ManagedContractionInputs_B8F8_H_S>(inputs);
             }
+            // hybrid cases: HF8SS, F8HSS
+            case ManagedContractionInputs_HF8_S_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_HF8_S_S>(inputs);
+            }
+            case ManagedContractionInputs_F8H_S_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_F8H_S_S>(inputs);
+            }
+            // hybrid cases: HF8HS, F8HHS
+            case ManagedContractionInputs_HF8_H_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_HF8_H_S>(inputs);
+            }
+            case ManagedContractionInputs_F8H_H_S::TypeId():
+            {
+                return validateSolutionCast<ManagedContractionInputs_F8H_H_S>(inputs);
+            }
+#ifdef TENSILE_USE_HALF
+#endif // TENSILE_USE_HALF
 #endif // TENSILE_USE_FP8_BF8
             default:;
             }

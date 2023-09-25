@@ -404,10 +404,13 @@ validGEMMTypes = [ ('D','D','D'), ('S','S','S'), ('Z','Z','Z'), ('C','C','C'), \
                    ('I8','I','I'), ('4xi8','I','I'), \
                    ('F8','S','S'), ('B8','S','S'), \
                    ('F8B8','S','S'), ('B8F8', 'S', 'S'), \
+                   ('F8H','S','S'), ('HF8', 'S', 'S'), \
                    ('F8','F8','S'), ('B8','B8','S'), \
                    ('F8B8','B8','S'), ('B8F8', 'B8', 'S'), \
                    ('F8','H','S'), ('B8','H','S'), \
-                   ('F8B8','H','S'), ('B8F8','H','S') ]
+                   ('F8B8','H','S'), ('B8F8','H','S'), \
+                   ('F8H','H','S'), ('HF8','H','S'), \
+                   ('F8H','H','S'), ('HF8','H','S') ]
 
 # All HPA types are listed here (HPA=T). The name of the library logic files for these types is:
 # *_TiToTc_BH*.yaml where Ti, Tc, and To are the data types of A/B, C/D, and computation, respectively.
@@ -1589,6 +1592,8 @@ defaultProblemType = {
     "ConvolutionConfig":        [],               # See validConvolutionConfig
 
     "DataType":                 0,                # data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
+    "DataTypeA":                0,                # A data types. If this is different from DataType, Conversion from DatatypeA to DataType will be executed (only for supported data types)
+    "DataTypeB":                0,                # B data types. If this is different from DataType, Conversion from DatatypeB to DataType will be executed (only for supported data types)
     "DestDataType":             0,                # destination data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
     "ComputeDataType":          0,                # compute data types can specified by a variety of ways, such as "s", as listed in SolutionStructs.py::DataType
     

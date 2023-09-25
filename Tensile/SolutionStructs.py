@@ -832,9 +832,27 @@ class ProblemType(Mapping):
     # adjusting all data types
     if "DataType" in config:
       self["DataType"] = DataType(config["DataType"])
+      self["DataTypeA"] = self["DataType"]
+      self["DataTypeB"] = self["DataType"]
+      # change DataTypeA,B for F8B8
+      if self["DataType"].isFloat8BFloat8():
+        self["DataTypeA"] = DataType("F8")
+        self["DataTypeB"] = DataType("B8")
+      # change DataTypeA,B for B8F8
+      elif self["DataType"].isBFloat8Float8():
+        self["DataTypeA"] = DataType("B8")
+        self["DataTypeB"] = DataType("F8")
     else:
       printExit("NO data type specified")
       self["DataType"] = DataType(0)
+      self["DataTypeA"] = DataType(0)
+      self["DataTypeB"] = DataType(0)
+
+    if "DataTypeA" in config:
+      self["DataTypeA"] = DataType(config["DataTypeA"])
+
+    if "DataTypeB" in config:
+      self["DataTypeB"] = DataType(config["DataTypeB"])
 
     if "DestDataType" in config:
       self["DestDataType"] = DataType(config["DestDataType"])
@@ -1132,6 +1150,9 @@ class ProblemType(Mapping):
       name += "C"
 
     # DataTypes
+    if self["DataType"] != self["DataTypeA"] or self["DataType"] != self["DataTypeB"]:
+      name += "_"
+      name += self["DataTypeA"].toChar() + self["DataTypeB"].toChar()
     name += "_"
     name += self["DataType"].toChar() # Type of A/B
 
@@ -2158,10 +2179,10 @@ class Solution(collections.abc.Mapping):
     # Each iteration divides GRWV by 2 which provides finer granularity
     # and a possible opportunity to handle the lsc
     grvw = state["GlobalReadVectorWidth"]
-    minGrvw = 2 if state["ProblemType"]["DataType"].isHalf() and \
+    minGrvw = 2 if state["ProblemType"]["DataType%s"%tc].is16bitFloat() and \
                 globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"] else 1
     # TODO- check this for int8 and fractional load
-    # minGrvw = 4 if state["ProblemType"]["DataType"].isInt8() and \
+    # minGrvw = 4 if state["ProblemType"]["DataType%s"%tc].isInt8() and \
     #             globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"] else 1
     bestVw = -1
     while grvw >= minGrvw:
@@ -2385,7 +2406,10 @@ class Solution(collections.abc.Mapping):
   @staticmethod
   def isDirectToVgprDoable(state, tc):
     MIindex = 0 if tc == 'A' else 1
-    numBytes = state["ProblemType"]["DataType"].numBytes()
+    numBytes = state["ProblemType"]["DataType%s"%tc].numBytes()
+    if numBytes != state["ProblemType"]["DataType"].numBytes():
+      reject(state, "DirectToVgpr does not support input type conversion")
+      return False
     # Does not support DirectToVgprA+DirectToVgprB+PrefetchGlobalRead=2
     # Need more than double-vgpr buffers to avoid overwritting loaded data on vgpr
     if state["DirectToVgprA"] and state["DirectToVgprB"] and state["PrefetchGlobalRead"]==2:
@@ -2408,7 +2432,7 @@ class Solution(collections.abc.Mapping):
       return False
 
     # Does not work with TLU = False and SGEMM/CGEMM (not supported)
-    if (not state["ProblemType"]["TLU%c"%tc]) and (state["ProblemType"]["DataType"].isSingle() or state["ProblemType"]["DataType"].isSingleComplex()):
+    if (not state["ProblemType"]["TLU%c"%tc]) and (state["ProblemType"]["DataType%s"%tc].isSingle() or state["ProblemType"]["DataType%s"%tc].isSingleComplex()):
       reject(state, "DirectToVgpr%c does not supports TLU%c = False + SGEMM/CGEMM"%(tc, tc))
       return False
 
@@ -2522,7 +2546,6 @@ class Solution(collections.abc.Mapping):
   # determine can we use DirectToLds
   @staticmethod
   def isDirectToLdsDoable(state, tc):
-    numBytes = state["ProblemType"]["DataType"].numBytes()
     asem = state["AssertSummationElementMultiple"]
     gsu = state["GlobalSplitU"]
 
@@ -2537,10 +2560,14 @@ class Solution(collections.abc.Mapping):
     #TN
     # use for all precisions (except for bpe > 4) with TransposeLDS=1
 
-    numBytes = state["ProblemType"]["DataType"].numBytes()
+    numBytes = state["ProblemType"]["DataType%s"%tc].numBytes()
     numBytesPerLoad = int(state["GlobalLoadVectorWidth%c"%tc] * numBytes)
     if numBytesPerLoad != 4:
       reject(state, "DirectToLds can only be used with buffer loads requiring 1 register")
+      return False
+
+    if numBytes != state["ProblemType"]["DataType"].numBytes():
+      reject(state, "DirectToLds does not support input type conversion")
       return False
 
     if numBytes < 4:
@@ -2609,7 +2636,7 @@ class Solution(collections.abc.Mapping):
         reject(state, "Can't use NumLoadsCoalesced > 1 with DirectToLds + TLU=False")
         return False
       # Does not work with (NumLoadsCoalesced>1 and UseInstOffsetForGRO) + DGEMM
-      if state["ProblemType"]["DataType"].isDouble() and state["UseInstOffsetForGRO"]:
+      if state["ProblemType"]["DataType%s"%tc].isDouble() and state["UseInstOffsetForGRO"]:
         reject(state, "DirectToLds%c does not supports NumLoadsCoalesced%c > 1 and UseInstOffsetForGRO for dgemm"%(tc, tc))
         return False
 
@@ -3089,6 +3116,16 @@ class Solution(collections.abc.Mapping):
       reject(state, "GRVW * DataType.numBytes() > 16")
       return
 
+    # reject - GRVW too big
+    if (state["GlobalReadVectorWidth"] * state["ProblemType"]["DataTypeA"].numBytes()) > 16:
+      reject(state, "GRVW * DataTypeA.numBytes() > 16")
+      return
+
+    # reject - GRVW too big
+    if (state["GlobalReadVectorWidth"] * state["ProblemType"]["DataTypeB"].numBytes()) > 16:
+      reject(state, "GRVW * DataTypeB.numBytes() > 16")
+      return
+
     # LocalSplitU too large?
     numElementsPerWorkGroup = state["MacroTile0"]*state["MacroTile1"]
 
@@ -3327,21 +3364,16 @@ class Solution(collections.abc.Mapping):
         if not Solution.setGlobalLoadVectorWidth(state, "B", totalElementsB, GlobalReadVectorWidth):
           validDepthU = False
 
-      if validDepthU and state["KernelLanguage"] == "Assembly" \
-        and (state["ProblemType"]["DataType"].isHalf() \
-              or state["ProblemType"]["DataType"].isBFloat16()):
-        if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
-          if state["GlobalLoadVectorWidthA"] == 1 or state["GlobalLoadVectorWidthB"] == 1:
-            reject(state, "HalfEcc requires GLVWA > 1")
+      if validDepthU and state["KernelLanguage"] == "Assembly" and globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
+        for tc in ("A","B"):
+          if (state["ProblemType"]["DataType%s"%tc].is16bitFloat() and state["GlobalLoadVectorWidth%s"%tc] == 1):
+            reject(state, "HalfEcc requires GLVW%s > 1"%tc)
 
       # TODO- Need this restrict ?
-      if validDepthU and state["KernelLanguage"] == "Assembly" \
-        and (state["ProblemType"]["DataType"].isInt8() or state["ProblemType"]["DataType"].is8bitFloat()):
-        if state["GlobalLoadVectorWidthA"] < 4:
-          reject(state, "Int8 requires GLVWA >= 4, current is %u"%state["GlobalLoadVectorWidthA"])
-        if state["GlobalLoadVectorWidthB"] < 4:
-          reject(state, "Int8 requires GLVWB >= 4, current is %u"%state["GlobalLoadVectorWidthB"])
-
+      if validDepthU and state["KernelLanguage"] == "Assembly":
+        for tc in ("A","B"):
+          if (state["ProblemType"]["DataType%s"%tc].isInt8() or state["ProblemType"]["DataType%s"%tc].is8bitFloat()) and state["GlobalLoadVectorWidth%s"%tc] < 4:
+            reject(state, "Int8 requires GLVW%s >= 4, current is %u"%(tc, state["GlobalLoadVectorWidth%s"%tc]))
 
       # Now convert elements to vectors based on GlobalReadVectorWidth
       GlobalLoadVectorWidthA = state["GlobalLoadVectorWidthA"]
@@ -3366,11 +3398,6 @@ class Solution(collections.abc.Mapping):
               " totalVectorsCoalescedB=", totalVectorsCoalescedB, " totalVectorsB=", totalVectorsB)
         print("info", pvar(state, "VectorWidth")
                 , pvar(state, "GlobalLoadVectorWidthA"), pvar(state, "GlobalLoadVectorWidthB"))
-
-      #if state["ProblemType"]["DataType"].isHalf() \
-      #    and (state["GlobalLoadVectorWidthA"] == 1 \
-      #    or state["GlobalLoadVectorWidthB"] == 1):
-      #  validDepthU = False
 
       if not state["FractionalLoad"]:
         if userDepthU == -1: # no vectors
@@ -4384,6 +4411,17 @@ class Solution(collections.abc.Mapping):
            (state["ThreadTile0"] == 4 and state["ThreadTile1"] == 8)):
       reject(state, "UnrollLoopEfficiencyEnable does not support ThreadTile0,1 = [%u,%u]"%(state["ThreadTile0"], state["ThreadTile1"]))
 
+    # force VgprForLocalReadPacking = True for the following case
+    # - input data conversion ( ex. f8 to f16 with input packing)
+    #   (this is because tmp vgpr allocation for local read packing and input data conversion packing can conflict each other)
+    if not state["VgprForLocalReadPacking"]:
+      if state["ProblemType"]["DataType"].numRegisters() < 1 and (state["UnrollMajorLDSA"] == False or state["UnrollMajorLDSB"] == False):
+        # need input packing
+        if state["ProblemType"]["DataType"].numBytes() != state["ProblemType"]["DataTypeA"].numBytes() or \
+           state["ProblemType"]["DataType"].numBytes() != state["ProblemType"]["DataTypeB"].numBytes():
+          print2("VgprForLocalReadPacking was forced to set true for input data conversions (ex.f8 to f16) with input packing")
+          state["VgprForLocalReadPacking"] = True
+
     # reject check for VgprForLocalReadPacking
     if state["VgprForLocalReadPacking"]:
         # MatrixInstruction only
@@ -4394,13 +4432,20 @@ class Solution(collections.abc.Mapping):
         if not globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
           reject(state, "VgprForLocalReadPacking is for EccHalf only")
           return
-        # only for SIA=3 + PLR>1
-        if not (state["ScheduleIterAlg"] == 3 and state["PrefetchLocalRead"] > 1):
-          reject(state, "VgprForLocalReadPacking is effective only fof SIA=3 and PLR>1")
+        # only for SIA=3
+        if not (state["ScheduleIterAlg"] == 3):
+          reject(state, "VgprForLocalReadPacking is effective only fof SIA=3")
           return
         # only for 1 or 2 byte input (numRegister < 1) + UnrollMajorLDSA or B is False
         if not (state["ProblemType"]["DataType"].numRegisters() < 1 and (state["UnrollMajorLDSA"] == False or state["UnrollMajorLDSB"] == False)):
           reject(state, "VgprForLocalReadPacking is effective only fof 1 or 2 byte input + UnrollMajorLDSA or B =false")
+          return
+
+    # reject check for input type conversion
+    for tc in ("A","B"):
+      if state["ProblemType"]["DataType%s"%tc].toChar() != state["ProblemType"]["DataType"].toChar():
+        if state["ProblemType"]["DataType%s"%tc].is8bitFloat() and not globalParameters["AsmCaps"][isa]["HasMFMA_f8"]:
+          reject(state, "DataType%s for input conversion is not supported by this arch"%tc)
           return
 
   ########################################

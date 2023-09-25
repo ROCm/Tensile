@@ -1002,6 +1002,10 @@ namespace Tensile
     using ContractionInputs_H_H_H = TypedContractionInputs<Half>;
     using ContractionInputs_H_H_S = TypedContractionInputs<Half, Half, Half, Half, float, float>;
     using ContractionInputs_H_S_S = TypedContractionInputs<Half, Half, float, float>;
+    using ContractionInputs_HS_H_S = TypedContractionInputs<Half, float, Half, Half, float, float>;
+    using ContractionInputs_SH_H_S = TypedContractionInputs<float, Half, Half, Half, float, float>;
+    using ContractionInputs_HS_S_S = TypedContractionInputs<Half, float, float, float>;
+    using ContractionInputs_SH_S_S = TypedContractionInputs<float, Half, float, float>;
 #endif // TENSILE_USE_HALF
     using ContractionInputs_I8x4_I32_I32 = TypedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>;
     using ContractionInputs_I8_I32_I32   = TypedContractionInputs<int8_t, int8_t, int32_t, int32_t>;
@@ -1021,6 +1025,10 @@ namespace Tensile
     // hybrid cases: F8B8SS, B8F8SS
     using ContractionInputs_F8B8_S_S = TypedContractionInputs<Float8, BFloat8, float, float>;
     using ContractionInputs_B8F8_S_S = TypedContractionInputs<BFloat8, Float8, float, float>;
+    using ContractionInputs_F8H_S_S
+        = TypedContractionInputs<Float8, Half, float, float>;
+    using ContractionInputs_HF8_S_S
+        = TypedContractionInputs<Half, Float8, float, float>;
     // hybrid cases with To = B8
     using ContractionInputs_F8B8_B8_S
         = TypedContractionInputs<Float8, BFloat8, BFloat8, BFloat8, float, float>;
@@ -1035,6 +1043,10 @@ namespace Tensile
         = TypedContractionInputs<Float8, BFloat8, Half, Half, float, float>;
     using ContractionInputs_B8F8_H_S
         = TypedContractionInputs<BFloat8, Float8, Half, Half, float, float>;
+    using ContractionInputs_F8H_H_S
+        = TypedContractionInputs<Float8, Half, Half, Half, float, float>;
+    using ContractionInputs_HF8_H_S
+        = TypedContractionInputs<Half, Float8, Half, Half, float, float>;
 #endif // TENSILE_USE_FP8_BF8
 
     TENSILE_API std::ostream& operator<<(std::ostream&             stream,

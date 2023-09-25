@@ -28,30 +28,31 @@ from ..Common import globalParameters, getCOVFromParam, gfxName
 from math import ceil
 
 def getSrcValueType(kernel, isTypeA):
+    tc = "A" if isTypeA else "B"
     # special cases for F8 datatypes
-    if kernel["ProblemType"]["DataType"].isFloat8():
+    if kernel["ProblemType"]["DataType%s"%tc].isFloat8():
         srcValueType = "FP8"
-    elif kernel["ProblemType"]["DataType"].isBFloat8():
+    elif kernel["ProblemType"]["DataType%s"%tc].isBFloat8():
         srcValueType = "BF8"
-    elif kernel["ProblemType"]["DataType"].isFloat8BFloat8():
+    elif kernel["ProblemType"]["DataType%s"%tc].isFloat8BFloat8():
         srcValueType = "FP8" if isTypeA else "BF8"
-    elif kernel["ProblemType"]["DataType"].isBFloat8Float8():
+    elif kernel["ProblemType"]["DataType%s"%tc].isBFloat8Float8():
         srcValueType = "BF8" if isTypeA else "FP8"
     else:
-        srcValueType = kernel["ProblemType"]["DataType"].toNameAbbrev().upper()
+        srcValueType = kernel["ProblemType"]["DataType%s"%tc].toNameAbbrev().upper()
 
     srcValueType = srcValueType.lower()
     return srcValueType
 
 def getDstValueType(kernel):
     # special cases for F8 datatypes
-    if kernel["ProblemType"]["DataType"].isFloat8():
+    if kernel["ProblemType"]["DestDataType"].isFloat8():
         dstValueType = "FP8"
-    elif kernel["ProblemType"]["DataType"].isBFloat8():
+    elif kernel["ProblemType"]["DestDataType"].isBFloat8():
         dstValueType = "BF8"
     else:
-        dstValueType = kernel["ProblemType"]["DataType"].toNameAbbrev().upper()
-    
+        dstValueType = kernel["ProblemType"]["DestDataType"].toNameAbbrev().upper()
+
     dstValueType = dstValueType.lower()
     return dstValueType
 
@@ -96,9 +97,9 @@ class SignatureDefault(Signature):
         # kern arg size
         kernArgReg = 0
         kernArgReg += 3*writer.rpga
-        kernArgReg += max(1,int(writer.bpeAB/4)) # alpha
+        kernArgReg += ceil(kernel["ProblemType"]["ComputeDataType"].numRegisters()) # alpha
         if kernel["ProblemType"]["UseBeta"]:
-            kernArgReg += max(1,int(writer.bpeCexternal/4)) # beta
+            kernArgReg += ceil(kernel["ProblemType"]["ComputeDataType"].numRegisters()) # beta
         kernArgReg += kernel["ProblemType"]["NumIndicesC"] # strides
         kernArgReg += kernel["ProblemType"]["NumIndicesC"] # strides
         kernArgReg += len(kernel["ProblemType"]["IndexAssignmentsA"]) # strides
@@ -136,7 +137,7 @@ class SignatureDefault(Signature):
             kernel["ThreadTile0"] == 4 and kernel["ThreadTile1"] == 4 and kernel["WorkGroup"] == [16,16,1]:
             group_segment_size = 32768 # Pad LDS to ensure we run exactly two waves
         else:
-            group_segment_size = kernel["LdsNumElements"] * writer.bpeAB
+            group_segment_size = kernel["LdsNumElements"] * kernel["ProblemType"]["DataType"].numBytes()
         kStr += "  %s %u // lds bytes%s" % ( tWord, group_segment_size, writer.endLine )
 
         if writer.archCaps["HasWave32"]:

@@ -4299,7 +4299,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
     if tA: # A
       tP["isA"] = True                                      # is this tensor A
       tP["isB"] = False                                     # is this tensor B
-      tP["bpe"] = int(4*kernel["ProblemType"]["DataType"].numRegisters())
+      tP["bpe"] = int(4*kernel["ProblemType"]["DataType"].numRegisters()) # byte per element after input type conversion (for LDS)
+      tP["bpeGR"] = int(4*kernel["ProblemType"]["DataTypeA"].numRegisters()) # byte per element before input type conversion (from global memory)
       tP["tensorChar"] = "A"                                # tensor character A/B
       tP["tensorIdx"] = 0                                   # tensor index A=0, B=1
       tP["tileChar"] = self.tileCharA                       # tile char I0 or J1
@@ -4356,6 +4357,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
       tP["isA"] = False
       tP["isB"] = True
       tP["bpe"] = int(4*kernel["ProblemType"]["DataType"].numRegisters())
+      tP["bpeGR"] = int(4*kernel["ProblemType"]["DataTypeB"].numRegisters())
       tP["tensorChar"] = "B"
       tP["tensorIdx"] = 1
       tP["tileChar"] = self.tileCharB
@@ -4404,6 +4406,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
           in [kernel["ProblemType"]["Index01B"], \
           kernel["ProblemType"]["IndexUnroll"]] # can read coalesced
       tP["NonTemporal"] = kernel["NonTemporalB"]
+    # common
+    tP["shiftGR"] = 0 if (tP["bpeGR"] >= tP["bpe"]) else int(tP["glvw"] // 2 * (tP["bpe"] / 4))  # Shift global read register for cvt spaces
+    tP["bpeRatio"] = tP["bpe"] // tP["bpeGR"] if tP["bpeGR"] < tP["bpe"] else 1                         # g2lIdx multiplier
 
   ##############################################################################
   # Global Read Addresses: Tile Assignment A/B

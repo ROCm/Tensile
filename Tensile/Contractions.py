@@ -129,6 +129,12 @@ class ProblemType:
         elif srcType.isBFloat8Float8(): 
             rv.aType = DataType("B8")
             rv.bType = DataType("F8")
+        # overwrite aType if DataTypeA exists
+        if 'DataTypeA' in d:
+            rv.aType = DataType(d['DataTypeA'])
+        # overwrite bType if DataTypeB exists
+        if 'DataTypeB' in d:
+            rv.bType = DataType(d['DataTypeB'])
 
         # We don't expect dstType and computeType to be hybrid types for now
         rv.cType = dstType

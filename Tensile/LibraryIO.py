@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -45,6 +45,8 @@ except ImportError:
 
 def updateProblemDatatypes(problemType):
     problemType["DataType"] = problemType["DataType"].value
+    problemType["DataTypeA"] = problemType["DataTypeA"].value
+    problemType["DataTypeB"] = problemType["DataTypeB"].value
     problemType["DestDataType"] = problemType["DestDataType"].value
     problemType["ComputeDataType"] = problemType["ComputeDataType"].value
     problemType["F32XdlMathOp"] = problemType["F32XdlMathOp"].value

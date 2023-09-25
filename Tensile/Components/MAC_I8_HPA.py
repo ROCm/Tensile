@@ -84,7 +84,7 @@ class FMA_I8_HPA(MAC):
     def __call__(self, writer, m, innerUnroll):
         kernel      = writer.kernel
         priority    = Component.Priority.find(writer)
-        spacePerReg = writer.bpr // writer.bpeAB
+        spacePerReg = writer.bpr // kernel["ProblemType"]["DataType"].numBytes()
         elemPerReg  = min(kernel['VectorWidth'], spacePerReg)
         endLine     = writer.endLine
 

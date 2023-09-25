@@ -877,6 +877,15 @@ namespace Tensile
         using ManagedContractionInputs_H_H_S
             = ManagedContractionInputs<Half, Half, Half, Half, float, float>;
         using ManagedContractionInputs_H_S_S = ManagedContractionInputs<Half, Half, float, float>;
+        // hybrid
+        using ManagedContractionInputs_HS_H_S
+            = ManagedContractionInputs<Half, float, Half, Half, float, float>;
+        using ManagedContractionInputs_SH_H_S
+            = ManagedContractionInputs<float, Half, Half, Half, float, float>;
+        using ManagedContractionInputs_HS_S_S
+            = ManagedContractionInputs<Half, float, float, float>;
+        using ManagedContractionInputs_SH_S_S
+            = ManagedContractionInputs<float, Half, float, float>;
 #endif // TENSILE_USE_HALF
         using ManagedContractionInputs_I8x4_I32_I32
             = ManagedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>;
@@ -917,6 +926,17 @@ namespace Tensile
             = ManagedContractionInputs<Float8, BFloat8, Half, Half, float, float>;
         using ManagedContractionInputs_B8F8_H_S
             = ManagedContractionInputs<BFloat8, Float8, Half, Half, float, float>;
+#ifdef TENSILE_USE_HALF
+        // hybrid cases: HF8SS, F8HSS, HF8HS, F8HHS
+        using ManagedContractionInputs_HF8_S_S
+            = ManagedContractionInputs<Half, Float8, float, float>;
+        using ManagedContractionInputs_F8H_S_S
+            = ManagedContractionInputs<Float8, Half, float, float>;
+        using ManagedContractionInputs_HF8_H_S
+            = ManagedContractionInputs<Half, Float8, Half, Half, float, float>;
+        using ManagedContractionInputs_F8H_H_S
+            = ManagedContractionInputs<Float8, Half, Half, Half, float, float>;
+#endif // TENSILE_USE_HALF
 #endif // TENSILE_USE_FP8_BF8
 
     } // namespace Client
