@@ -882,10 +882,8 @@ namespace Tensile
             = ManagedContractionInputs<Half, float, Half, Half, float, float>;
         using ManagedContractionInputs_SH_H_S
             = ManagedContractionInputs<float, Half, Half, Half, float, float>;
-        using ManagedContractionInputs_HS_S_S
-            = ManagedContractionInputs<Half, float, float, float>;
-        using ManagedContractionInputs_SH_S_S
-            = ManagedContractionInputs<float, Half, float, float>;
+        using ManagedContractionInputs_HS_S_S = ManagedContractionInputs<Half, float, float, float>;
+        using ManagedContractionInputs_SH_S_S = ManagedContractionInputs<float, Half, float, float>;
 #endif // TENSILE_USE_HALF
         using ManagedContractionInputs_I8x4_I32_I32
             = ManagedContractionInputs<Int8x4, Int8x4, int32_t, int32_t>;
