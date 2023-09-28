@@ -275,6 +275,10 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         glvw            = tP["glvw"]
         numThreadInWave = writer.kernel["WavefrontSize"]
         vectorWidth     = kernel["VectorWidth"] if (kernel["SourceSwap"] and tP["isA"]) else 1
+        # support for VectorWidthB
+        # use lrvwB as vectorWidth in B case
+        if tP["isB"]:
+          vectorWidth = writer.VectorWidthB
 
         # use to handle MatrixInst 4x4
         matrixInstM     = kernel["MatrixInstM"] * kernel["MatrixInstBM"] if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstM"]
@@ -287,16 +291,16 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         # unify process for SourceSwap and non-SourceSwap
         conThInProcDim  = kernel["SourceSwap"] ^ tP["isB"] # continuous threads in processed dimension(Coalesced dimension)
         numThreadInCoal = matrixInstCoal if conThInProcDim else (numThreadInWave // matrixInstPrep)
-        numContOutCoal  = 1 if conThInProcDim else kernel["MIOutputVectorWidth"]
-        allContOutCoal  = numContOutCoal * vectorWidth
+        numContOutCoal  = vectorWidth if conThInProcDim else kernel["MIOutputVectorWidth"] * vectorWidth
+        allContOutCoal  = numContOutCoal
 
         if (glvw > (allContOutCoal * numThreadInCoal)):
-           return self.ShiftVectorComponentsMFMAAllThread(writer, kernel, tP)
+           return self.ShiftVectorComponentsMFMAAllThread(writer, kernel, tP, vectorWidth)
         else:
-           return self.ShiftVectorComponentsMFMAPartialThread (writer, kernel, tP)
+           return self.ShiftVectorComponentsMFMAPartialThread (writer, kernel, tP, vectorWidth)
 
 
-    def ShiftVectorComponentsMFMAPartialThread(self, writer, kernel, tP):
+    def ShiftVectorComponentsMFMAPartialThread(self, writer, kernel, tP, vectorWidth):
         """ when we enable shift ptr with vectorwidth(2), we shift global read on edge block when size % vectorwidth != 0.
             For example if M size == 3 vector width == 2, we want to do global read for [0-1] and [2-3].
             But 3 is not in memory object, so we shift to do global read [0-1] and [1-2].
@@ -324,7 +328,6 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         glvw            = tP["glvw"]
         numThreadInWave = writer.kernel["WavefrontSize"]
         accImOffset     = writer.AccVgprImagNumOffset(kernel)
-        vectorWidth     = kernel["VectorWidth"] if (kernel["SourceSwap"] and tP["isA"]) else 1
 
         # use to handle MatrixInst 4x4
         matrixInstM     = kernel["MatrixInstM"] * kernel["MatrixInstBM"] if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstM"]
@@ -348,10 +351,10 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         threadInterval  = 1 if conThInProcDim else matrixInstPrep
         numThreadInCoal = matrixInstCoal if conThInProcDim else (numThreadInWave // matrixInstPrep)
 
-        numContOutCoal  = 1 if conThInProcDim else kernel["MIOutputVectorWidth"]
-        allContOutCoal  = numContOutCoal * vectorWidth
+        numContOutCoal  = vectorWidth if conThInProcDim else kernel["MIOutputVectorWidth"] * vectorWidth
+        allContOutCoal  = numContOutCoal
 
-        OutBlocksInMI   = (matrixInstCoal * matrixInstPrep) // numThreadInWave // numContOutCoal
+        OutBlocksInMI   = (vectorWidth * matrixInstCoal * matrixInstPrep) // numThreadInWave // numContOutCoal
         OutBlocksInMI   = 1 if conThInProcDim else OutBlocksInMI
 
         subMBShapeCoal  = (matrixInstCoal * vectorWidth) if conThInProcDim else ((numThreadInWave // matrixInstPrep) * numContOutCoal)
@@ -595,7 +598,7 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         return kStr
 
 
-    def ShiftVectorComponentsMFMAAllThread(self, writer, kernel, tP):
+    def ShiftVectorComponentsMFMAAllThread(self, writer, kernel, tP, vectorWidth):
         """
         """
 
@@ -604,7 +607,6 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         # common parameter
         glvw            = tP["glvw"]
         numThreadInWave = writer.kernel["WavefrontSize"]
-        vectorWidth     = kernel["VectorWidth"] if (kernel["SourceSwap"] and tP["isA"]) else 1
 
         # use to handle MatrixInst 4x4
         matrixInstM     = kernel["MatrixInstM"] * kernel["MatrixInstBM"] if (kernel["MatrixInstM"] == 4) else kernel["MatrixInstM"]
@@ -628,10 +630,10 @@ class ShiftVectorComponentsMFMA(ShiftVectorComponents):
         threadInterval  = 1 if conThInProcDim else matrixInstPrep
         numThreadInCoal = matrixInstCoal if conThInProcDim else (numThreadInWave // matrixInstPrep)
 
-        numContOutCoal  = 1 if conThInProcDim else kernel["MIOutputVectorWidth"]
-        allContOutCoal  = numContOutCoal * vectorWidth
+        numContOutCoal  = vectorWidth if conThInProcDim else kernel["MIOutputVectorWidth"] * vectorWidth
+        allContOutCoal  = numContOutCoal
 
-        OutBlocksInMI   = (matrixInstCoal * matrixInstPrep) // numThreadInWave // numContOutCoal
+        OutBlocksInMI   = (vectorWidth * matrixInstCoal * matrixInstPrep) // numThreadInWave // numContOutCoal
         OutBlocksInMI   = 1 if conThInProcDim else OutBlocksInMI
 
         subMBShapeCoal  = (matrixInstCoal * vectorWidth) if conThInProcDim else ((numThreadInWave // matrixInstPrep) * numContOutCoal)

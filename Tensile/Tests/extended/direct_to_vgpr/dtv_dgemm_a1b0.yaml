@@ -491,6 +491,8 @@ BenchmarkProblems:
         - FractionalLoad: [0,2]
         - BufferLoad: [True, False]
         - StaggerU: [0,32]
+        - UnrollMajorLDSA: [1]
+        - UnrollMajorLDSB: [0,1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:
@@ -710,6 +712,8 @@ BenchmarkProblems:
         - BufferLoad: [True, False]
         - WaveSeparateGlobalReadB: [0,1]
         - StaggerU: [0,32]
+        - UnrollMajorLDSA: [1]
+        - UnrollMajorLDSB: [0,1]
       BenchmarkForkParameters:
       JoinParameters:
       BenchmarkJoinParameters:

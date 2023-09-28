@@ -88,14 +88,14 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Zero)
     hip::SolutionAdapter adapter(false);
     adapter.loadEmbeddedCodeObjects("kernels_lite_mixed");
 
-    adapter.launchKernel(k);
+    HIP_CHECK_EXC(adapter.launchKernel(k));
 
     std::vector<float> d_h(desc.totalAllocatedElements());
 
     HIP_CHECK_EXC(hipMemcpy(d_h.data(), d_d, desc.totalAllocatedBytes(), hipMemcpyDeviceToHost));
 
-    hipFree(c_d);
-    hipFree(d_d);
+    HIP_CHECK_EXC(hipFree(c_d));
+    HIP_CHECK_EXC(hipFree(d_d));
 
     std::vector<float> d_ref_h(desc.totalAllocatedElements());
 
@@ -163,7 +163,7 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Nonzero)
     hip::SolutionAdapter adapter(false);
     adapter.loadEmbeddedCodeObjects("kernels_lite_mixed");
 
-    adapter.launchKernel(k);
+    HIP_CHECK_EXC(adapter.launchKernel(k));
 
     std::vector<float> d_h(desc.totalAllocatedElements());
 
