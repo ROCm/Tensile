@@ -833,6 +833,12 @@ namespace Tensile
         m_eligibleForPK = persistentGroups < problemTiles;
     }
 
+    void ContractionProblem::checkRequiredWorkspaceSize(ContractionSolution const& solution,
+                                                       Hardware const&            hardware)
+    {
+        m_requiredWorkspaceSize = solution.requiredWorkspaceSize(*this, hardware);
+    }
+
     void ContractionProblem::normalize()
     {
         m_maxProblemSize = 0;

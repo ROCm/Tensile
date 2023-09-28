@@ -3660,7 +3660,7 @@ class KernelWriterAssembly(KernelWriter):
         # gsuSumIdx = wg1 % GSU
         # wg1       = wg1 / GSU
         # tmpSgpr = self.getTmpSgpr(3).idx() # needs 3
-        tmpSgpr = self.sgprPool.checkOut(3, "GSUMappingTemp", preventOverflow=0)
+        tmpSgpr = self.sgprPool.checkOutAligned(3, 2, "GSUMappingTemp", preventOverflow=0)
         divisor = tmpSgpr+2
         kStr += inst("s_mov_b32", sgpr(divisor), sgpr("WorkGroup1"), \
             "copying for divisor")
@@ -8424,8 +8424,9 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def doneGlobalABReads(self, kernel):
     kStr = ""
-    kStr += self.undefineSgpr("SrdA")
-    kStr += self.undefineSgpr("SrdB")
+    if kernel["BufferLoad"] and not kernel["PrefetchAcrossPersistent"]:
+      kStr += self.undefineSgpr("SrdA")
+      kStr += self.undefineSgpr("SrdB")
     if kernel["StreamK"] == 2:
       self.defineSgpr("SrdWS", 4, 4)
     return kStr
