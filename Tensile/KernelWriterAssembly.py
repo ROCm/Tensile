@@ -8424,9 +8424,11 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def doneGlobalABReads(self, kernel):
     kStr = ""
-    if kernel["BufferLoad"] and not kernel["PrefetchAcrossPersistent"]:
-      kStr += self.undefineSgpr("SrdA")
-      kStr += self.undefineSgpr("SrdB")
+    # TODO Many kernels can undefine this, but condition needs to be updated
+    # Has a problem with tail loop in convolution kernels which have PK elements, but not marked PK
+    # if kernel["BufferLoad"] and not kernel["PrefetchAcrossPersistent"]:
+    #   kStr += self.undefineSgpr("SrdA")
+    #   kStr += self.undefineSgpr("SrdB")
     if kernel["StreamK"] == 2:
       self.defineSgpr("SrdWS", 4, 4)
     return kStr
