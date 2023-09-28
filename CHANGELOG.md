@@ -1,6 +1,6 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.39.0
+## Tensile 4.39.0 for ROCm 6.0
 ### Added
 - Added aquavanjaram support: gfx940/gfx941/gfx942, fp8/bf8 datatype, xf32 datatype, and stochastic rounding for various datatypes
 - Added/updated tuning scripts
