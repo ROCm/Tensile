@@ -453,7 +453,7 @@ TEST(OclSolutionAdapterTest, PlayNiceWithHip)
     hip::SolutionAdapter adapter_hip(false);
     adapter_hip.loadEmbeddedCodeObjects("ocl_kernels_lite_mixed");
 
-    adapter_hip.launchKernel(k_hip);
+    HIP_CHECK_EXC(adapter_hip.launchKernel(k_hip));
 
     // Copy back result
     std::vector<float> d_h(desc.totalAllocatedElements());
@@ -601,7 +601,7 @@ TEST(OclSolutionAdapterTest, HardwareTest)
     auto oclProps = ocl::clGetDevicePropertiesAMD(deviceId);
 
     hipDeviceProp_t hipProps;
-    hipGetDeviceProperties(&hipProps, deviceId);
+    HIP_CHECK_EXC(hipGetDeviceProperties(&hipProps, deviceId));
 
     // Match the hip properties interface as much as possible
     ASSERT_EQ(oclProps.name, hipProps.name);

@@ -67,7 +67,7 @@ namespace Tensile
         SolutionAdapter::~SolutionAdapter()
         {
             for(auto module : m_modules)
-                hipModuleUnload(module);
+                (void)hipModuleUnload(module); // ignoring status as destructor, TODO
         }
 
         std::string removeXnack(std::string coFilename)

@@ -127,7 +127,7 @@ namespace Tensile
         //}
 
         // constructor from float
-#if defined(__gfx940__)
+#if defined(__gfx940__) || defined(__gfx941__) || defined(__gfx942__)
         // constructor from float using s/w simulation
         // Device implementation using intrinsic code
         explicit HIP_DEVICE Float8_BFloat8(float                v,
@@ -189,9 +189,9 @@ namespace Tensile
 
         // only host code is simulated
         explicit HIP_HOST
-#else // gfx940
+#else // gfx940/gfx941/gfx942
         explicit HIP_HOST_DEVICE
-#endif // gfx940
+#endif // gfx940/gfx941/gfx942
             Float8_BFloat8(float                v,
                            hip_f8_rounding_mode rm  = hip_f8_rounding_mode::standard,
                            uint32_t             rng = 0)
@@ -230,7 +230,7 @@ namespace Tensile
         }
 
         // constructor from half
-#if defined(__gfx940__)
+#if defined(__gfx940__) || defined(__gfx941__) || defined(__gfx942__)
         // no h/w inst for cvt from f16, just convert f16 to f32 and call constructor
         explicit HIP_DEVICE Float8_BFloat8(_Float16             v,
                                            hip_f8_rounding_mode rm = hip_f8_rounding_mode::standard,
@@ -240,9 +240,9 @@ namespace Tensile
         }
 
         explicit HIP_HOST
-#else
+#else // gfx940/gfx941/gfx942
         explicit HIP_HOST_DEVICE
-#endif
+#endif // gfx940/gfx941/gfx942
             Float8_BFloat8(_Float16             v,
                            hip_f8_rounding_mode rm  = hip_f8_rounding_mode::standard,
                            uint32_t             rng = 0)
@@ -301,7 +301,7 @@ namespace Tensile
         // explicit HIP_HOST_DEVICE Float8_BFloat8(hip_bfloat16 v, hip_f8_rounding_mode r=hip_f8_rounding_mode::standard, uint32_t rng=0);
 
         // convert to float
-#if defined(__gfx940__)
+#if defined(__gfx940__) || defined(__gfx941__) || defined(__gfx942__)
         // builtin conversion
         explicit inline HIP_DEVICE operator float() const
         {
@@ -319,10 +319,10 @@ namespace Tensile
         }
         explicit inline HIP_HOST operator float() const
 
-#else // non gfx940
+#else // non gfx940/gfx941/gfx942
 
         explicit inline HIP_HOST_DEVICE operator float() const
-#endif
+#endif // gfx940/gfx941/gfx942
         {
             if(T == hip_f8_type::bf8)
             {
@@ -354,16 +354,16 @@ namespace Tensile
 
         // convert to half
         // NOTE: no hardware instruction to convert from and to f8, may want to convert it f32 first
-#if defined(__gfx940__)
+#if defined(__gfx940__) || defined(__gfx941__) || defined(__gfx942__)
         explicit inline HIP_DEVICE operator _Float16() const
         {
             return _Float16(float(*this)); // convert to float, then convert to f16
         }
 
         explicit inline HIP_HOST operator _Float16() const
-#else
+#else // gfx940/gfx941/gfx942
         explicit inline HIP_HOST_DEVICE operator _Float16() const
-#endif
+#endif // gfx940/gfx941/gfx942
         {
             if(T == hip_f8_type::bf8)
             {

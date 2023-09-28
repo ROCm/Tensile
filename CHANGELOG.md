@@ -7,14 +7,35 @@
 - Added DirectToLds support for larger data types with 32bit global load (old parameter DirectToLds is replaced with DirectToLdsA and DirectToLdsB), and the corresponding test cases
 - Added the average of frequency, power consumption, and temperature information for the winner kernels to the CSV file
 - Added asmcap check for MFMA + const src
+- Added support for wider local read + pack with v_perm (with VgprForLocalReadPacking=True)
+- Added a new parameter to increase miLatencyLeft
 
 ### Optimizations
-- Adjusted miLatency for (gfx940 + MFMA) for specific data types (only for MI32x32)
 - Enabled InitAccVgprOpt for MatrixInstruction cases
+- Implemented local read related parameter calculations with DirectToVgpr
+- Adjusted miIssueLatency for gfx940
+- Enabled dedicated vgpr allocation for local read + pack
+- Optimized code initialization
+- Optimized sgpr allocation
+- Supported DGEMM TLUB + RLVW=2 for odd N (edge shift change)
+- Enabled miLatency optimization for (gfx940/gfx941 + MFMA) for specific data types, and fixed instruction scheduling
 
 ### Changed
 - Removed old code for DTL + (bpe * GlobalReadVectorWidth > 4)
 - Changed/updated failed CI tests for gfx11xx, InitAccVgprOpt, and DTLds
+- Removed unused CustomKernels and ReplacementKernels
+- Added a reject condition for DTVB + TransposeLDS=False (not supported so far)
+- Removed unused code for DirectToLds
+- Updated test cases for DTV + TransposeLDS=False
+- Moved parameter MinKForGSU from globalparameter to BenchmarkCommonParameter to support smaller K
+- Changed how to calculate latencyForLR for miLatency
+- Set minimum value of latencyForLRCount for 1LDSBuffer to avoid getting rejected by overflowedResources=5 (related to miLatency)
+- Refactored allowLRVWBforTLUandMI and renamed it as VectorWidthB
+- Supported multi-gpu for different architectures in lazy library loading
+- Enabled dtree library for batch > 1
+- Added problem scale feature for dtree selection
+- Enabled ROCm SMI for gfx940/941.
+- Modified non-lazy load build to skip experimental logic
 
 ### Fixed
 - Fixed predicate ordering for fp16alt impl round near zero mode to unbreak distance modes
@@ -24,6 +45,10 @@
 - Fixed a bug with InitAccVgprOpt + GSU>1 and a mismatch issue with PGR=0
 - Fixed override for unloaded solutions when lazy loading
 - Fixed build some errors (adding missing headers)
+- Fixed boost link for a clean build on ubuntu22
+- Fixed bug in forcestoresc1 arch selection
+- Fixed compiler directive for gfx941 and gfx942
+- Fixed formatting for DecisionTree_test.cpp
 
 ## Tensile 4.38.0 for ROCm 5.7
 ### Added

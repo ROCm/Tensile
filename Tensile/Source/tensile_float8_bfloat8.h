@@ -47,7 +47,7 @@ namespace tensile_hip_f8_impl
 #include "hip_f8_impl.h"
 
 // device specific optimized code
-#if defined(__gfx940__)
+#if defined(__gfx940__) || defined(__gfx941__) || defined(__gfx942__)
 namespace tensile_gfx940_f8_impl
 {
     template <bool isE2M5, bool stochastic_rounding>
@@ -184,7 +184,7 @@ struct Float8_BFloat8
     // default constructor
     HIP_HOST_DEVICE Float8_BFloat8() = default;
 
-#if defined(__gfx940__)
+#if defined(__gfx940__) || defined(__gfx941__) || defined(__gfx942__)
     // NOTE: ON-DEVICE... always optimal bias
     explicit HIP_DEVICE Float8_BFloat8(float                v,
                                        hip_f8_rounding_mode rm  = hip_f8_rounding_mode::standard,
@@ -200,9 +200,9 @@ struct Float8_BFloat8
     }
     // only host code is simulated
     explicit HIP_HOST
-#else // gfx940
+#else // gfx940/gfx941/gfx942
     explicit HIP_HOST_DEVICE
-#endif // gfx940
+#endif // gfx940/gfx941/gfx942
         Float8_BFloat8(float                v,
                        hip_f8_rounding_mode rm  = hip_f8_rounding_mode::standard,
                        uint32_t             rng = 0)
@@ -285,7 +285,7 @@ struct Float8_BFloat8
     // explicit HIP_HOST_DEVICE Float8_BFloat8(hip_bfloat16 v, hip_f8_rounding_mode r=hip_f8_rounding_mode::standard, uint32_t rng=0);
 
     // convert to float
-#if defined(__gfx940__)
+#if defined(__gfx940__) || defined(__gfx941__) || defined(__gfx942__)
     // builtin conversion
     explicit inline HIP_DEVICE operator float() const
     {
@@ -303,10 +303,10 @@ struct Float8_BFloat8
     }
     explicit inline HIP_HOST operator float() const
 
-#else // non gfx940
+#else // non gfx940/gfx941/gfx942
 
     explicit inline HIP_HOST_DEVICE operator float() const
-#endif
+#endif // gfx940/gfx941/gfx942
     {
         if(T == hip_f8_type::bf8)
         {
@@ -551,14 +551,14 @@ inline bool operator>=(tensile_bfloat8 a, tensile_bfloat8 b)
         return a;
     }
 
-    // Use h/w intrinsic and optimized version when __gfx940__
+    // Use h/w intrinsic and optimized version when __gfx940__/__gfx941__/__gfx942__
     template <typename T,
               typename Ta,
               bool stochastic_rounding,
               std::enable_if_t<!(std::is_same<T, Ta>{}), int> = 0>
     inline __host__ __device__ T explicit_downcast(Ta a, uint32_t rng = 0, bool clip = true)
     {
-#ifdef __gfx940__
+#if defined(__gfx940__) || defined(__gfx941__) || defined(__gfx942__)
         T val;
         if(std::is_same<T, rocblas_f8>::value)
             val.data
@@ -567,12 +567,12 @@ inline bool operator>=(tensile_bfloat8 a, tensile_bfloat8 b)
             val.data
                 = tensile_gfx940_f8_impl::cast_to_f8_from_f32<true, stochastic_rounding>(float(a), rng, clip);
         return val;
-#else
+#else //gfx940/gfx941/gfx942
         return T(float(a),
           stochastic_rounding ? hip_f8_rounding_mode::stochastic : hip_f8_rounding_mode::standard,
           rng,
           clip);
-#endif
+#endif //gfx940/gfx941/gfx942
     }
 #else // without enable_if_t, we have to use explicit template specialization
 
@@ -591,8 +591,8 @@ template <>
 inline __host__ __device__ tensile_float8
     explicit_downcast<tensile_float8, float, true>(float a, uint32_t rng)
 {
-    // Use h/w intrinsic and optimized version when __gfx940__
-#ifdef __gfx940__
+    // Use h/w intrinsic and optimized version when __gfx940__/__gfx941__/__gfx942__
+#if defined(__gfx940__) || defined(__gfx941__) || defined(__gfx942__)
     tensile_float8 val;
     val.data = tensile_gfx940_f8_impl::cast_to_f8_from_f32<false, true>(a, rng);
     return val;
@@ -605,7 +605,7 @@ template <>
 inline __host__ __device__ tensile_float8
     explicit_downcast<tensile_float8, float, false>(float a, uint32_t rng)
 {
-#ifdef __gfx940__
+#if defined(__gfx940__) || defined(__gfx941__) || defined(__gfx942__)
     tensile_float8 val;
     val.data = tensile_gfx940_f8_impl::cast_to_f8_from_f32<false, false>(a, rng);
     return val;
@@ -618,7 +618,7 @@ template <>
 inline __host__ __device__ tensile_bfloat8
     explicit_downcast<tensile_bfloat8, float, true>(float a, uint32_t rng)
 {
-#ifdef __gfx940__
+#if defined(__gfx940__) || defined(__gfx941__) || defined(__gfx942__)
     tensile_bfloat8 val;
     val.data = tensile_gfx940_f8_impl::cast_to_f8_from_f32<true, true>(a, rng);
     return val;
@@ -631,7 +631,7 @@ template <>
 inline __host__ __device__ tensile_bfloat8
     explicit_downcast<tensile_bfloat8, float, false>(float a, uint32_t rng)
 {
-#ifdef __gfx940__
+#if defined(__gfx940__) || defined(__gfx941__) || defined(__gfx942__)
     tensile_bfloat8 val;
     val.data = tensile_gfx940_f8_impl::cast_to_f8_from_f32<true, false>(a, rng);
     return val;

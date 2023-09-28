@@ -290,7 +290,7 @@ BenchmarkProblems:
           - Range: [ [510], [510], [1], [1984, 32, 2016] ]
   
   ########################################
-  # I8II TT - DTVA + DTL + min load width for TailLoop
+  # I8II TT - DTVA + DTL + min load width for TailLoop + VFLRP
   ########################################
   -
     - # ProblemType
@@ -343,6 +343,7 @@ BenchmarkProblems:
         - BufferLoad: [0,1]
         - GlobalSplitU: [1,2]
         - GlobalSplitUAlgorithm: ["SingleBuffer"]
+        - VgprForLocalReadPacking: [1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
@@ -626,7 +627,7 @@ BenchmarkProblems:
           - Range: [ [510], [510], [1], [1984, 32, 2016] ]
 
   ########################################
-  # I8II NN - DTVB (+ DTL) + min load width for TailLoop
+  # I8II NN - DTVB (+ DTL) + min load width for TailLoop + VFLRP
   ########################################
   -
     - # ProblemType
@@ -678,6 +679,7 @@ BenchmarkProblems:
         #- BufferLoad: [0,1]
         - GlobalSplitU: [1,2]
         - GlobalSplitUAlgorithm: ["SingleBuffer"]
+        - VgprForLocalReadPacking: [1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
