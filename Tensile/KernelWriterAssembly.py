@@ -572,6 +572,7 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("StreamKIterEnd", 1)
       self.defineSgpr("StreamKLocalStart", 1)
       self.defineSgpr("StreamKLocalEnd", 1)
+      self.defineSgpr("SrdWS", 4, 4)
 
     if kernel["PackSummationDims"] and kernel["GlobalSplitU"]>1:
       self.defineSgpr("GsuNumIter%s"%self.loopChar(kernel,self.unrollIdx), 1)
@@ -5614,7 +5615,8 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def declareStaggerParms(self, kernel):
     kStr=""
-    tmpSgpr = self.getTmpSgpr(2).idx()
+    tmpSgprRef = self.getTmpSgpr(2)
+    tmpSgpr = tmpSgprRef.idx()
     if self.staggerU:
       # this could be dynamic?
       if kernel["StaggerUMapping"] == 0:
@@ -5663,7 +5665,8 @@ class KernelWriterAssembly(KernelWriter):
     if self.staggerU:
       assert (kernel["BufferLoad"])
 
-      staggerTmp = self.getTmpSgpr(2).idx()
+      staggerTmpRef = self.getTmpSgpr(2)
+      staggerTmp = staggerTmpRef.idx()
 
       #---
       imod.addComment1("SRDs += (StaggerUIter) * GlobalReadIncs%s+%u"% (tc, self.unrollIdx))
@@ -5728,7 +5731,8 @@ class KernelWriterAssembly(KernelWriter):
     imod = Code.Module("removeStagger")
     if self.staggerU:
       tc = tP["tensorChar"]
-      tmp = self.getTmpSgpr(4).idx()
+      tmpRef = self.getTmpSgpr(4)
+      tmp = tmpRef.idx()
       tmpForInc = tmp
       tmpForExtra = tmp + 2
       # need to use extra 64bit mul to avoid negative value by subtraction
@@ -6507,6 +6511,7 @@ class KernelWriterAssembly(KernelWriter):
     kStr += self.comment1("endSummation: add vgpr [%u...%u) to pool" % \
             (vbegin, vbegin+vsize))
 
+    # TODO this undef limits ability to define sgprs closer to the time it is used
     lastRegTag=None
     for i in range(self.lastPostLoopSgpr, self.sgprPool.size()):
       regTag = self.sgprPool.pool[i].tag
@@ -8395,13 +8400,15 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def doneGlobalABReads(self, kernel):
     kStr = ""
+    kStr += self.comment("Done global A/B reads")
     # TODO Many kernels can undefine this, but condition needs to be updated
     # Has a problem with tail loop in convolution kernels which have PK elements, but not marked PK
     # if kernel["BufferLoad"] and not kernel["PrefetchAcrossPersistent"]:
     #   kStr += self.undefineSgpr("SrdA")
     #   kStr += self.undefineSgpr("SrdB")
-    if kernel["StreamK"] == 2:
-      self.defineSgpr("SrdWS", 4, 4)
+    # TODO Should be able to define WS here but it gets undef'd by endSummation
+    # if kernel["StreamK"] == 2:
+    #   self.defineSgpr("SrdWS", 4, 4)
     return kStr
 
 
@@ -12158,7 +12165,6 @@ class KernelWriterAssembly(KernelWriter):
       codeAccVgprRead = deepcopy(self.codeAccVgprRead) if self.serializedStore else None
       codeAccVgprWrite = deepcopy(self.codeAccVgprWrite) if self.serializedStore else None
 
-      # wsSrd = self.defineSgpr("SrdWS", 4, 4)
       kStr += self.computeWorkspaceSrd(kernel, sgpr(sCtaIdx), tmpSgpr)
 
       for batchIdx in range(0, numBatches):
@@ -12177,7 +12183,6 @@ class KernelWriterAssembly(KernelWriter):
       if self.canOptimizePreLoopLWVmcnt:
         kStr += PreLoopVmcntCaseStr
 
-      # kStr += self.undefineSgpr("SrdWS")
       del self.ss
 
       # Finish one write path, reset currPreLoopVmcntCase to Undefined
@@ -12199,10 +12204,8 @@ class KernelWriterAssembly(KernelWriter):
 
     for edge in edges:
       kStr += "%s:%s"%(partialsLabels[edge], self.endLine)
-      # wsSrd = self.defineSgpr("SrdWS", 4, 4)
       kStr += self.computeWorkspaceSrd(kernel, sgpr("StreamKIdx"))
       kStr += self.partialsWriteProcedure(kernel, vectorWidths, elements, False, False, edge, atomic, tmpVgpr, tmpCVTVgpr, isOptNLL, endLabel)
-      # kStr += self.undefineSgpr("SrdWS")
     
     return kStr
 
@@ -13049,10 +13052,6 @@ class KernelWriterAssembly(KernelWriter):
       # branch to regular store code, skip fixup step
       kStr += inst("s_cmp_eq_u32", sgpr("StreamKLocalEnd"), sgpr("ItersPerTile"), "does wg finish tile?")
       kStr += inst("s_cbranch_scc1 %s" % skStoreLabel, "Branch if started and finished tile, go to regular store code")
-      
-      # Define SrdWS here to avoid sgpr clash
-      # wsSrd = self.defineSgpr("SrdWS", 4, 4)
-      # moved to globalABDone
 
       # if we started the tile but did not finish it, fix up step
       # run fixup code before regular store code
@@ -13086,9 +13085,6 @@ class KernelWriterAssembly(KernelWriter):
       
       self.sgprPool.checkIn(sFixupEnd)
       self.sgprPool.checkIn(sCtaIdx)
-      # kStr += self.undefineSgpr("CtaEnd")
-      # kStr += self.undefineSgpr("CtaIdx")
-      # kStr += self.undefineSgpr("SrdWS")
 
     if False in betas and True in betas:
       kStr += self.checkIsBetaZero(kernel, betaLabel)
