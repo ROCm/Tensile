@@ -12436,7 +12436,7 @@ class KernelWriterAssembly(KernelWriter):
     # Set flag
     kStr += inst("s_lshl_b32", sgpr(tmpSgpr), sgpr("StreamKIdx"), log2(4), "flag offset based on CTA index")
     kStr += inst("s_mov_b32", sgpr(tmpSgpr+2), 1, "flag data")
-    kStr += inst("s_store_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), 0, "glc", "set flag")
+    kStr += inst("s_store_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), "glc", "set flag")
     kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load") # TODO just for testing
     
     # TODO - if this is the last tile, don't need to jump to next instruction
@@ -13067,7 +13067,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # Check flag
       kStr += inst("s_lshl_b32", sgpr(tmpSgpr), sgpr(sCtaIdx), log2(4), "flag offset based on CTA index")
-      kStr += inst("s_load_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), 0, "glc", "get flag")
+      kStr += inst("s_load_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), "glc", "get flag")
       kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load")
       kStr += inst("s_cmp_eq_u32", sgpr(tmpSgpr+2), 1, "check if ready")
       kStr += inst("s_cbranch_scc0 %s" % skFixupLabel, "if flag not set, wait and check again")
