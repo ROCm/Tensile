@@ -2699,6 +2699,7 @@ class Solution(collections.abc.Mapping):
   # assign all derived parameters
   @staticmethod
   def assignDerivedParameters(state):
+    isa = tuple(state["ISA"])
 
     state["EnableF32XdlMathOp"] = False #ignore the F32 xDL MathOp by default.
     #enable F32 xDL MathOp only when the input type is f32.
@@ -2746,6 +2747,10 @@ class Solution(collections.abc.Mapping):
           state["_GlobalAccumulation"] = 'MultipleBuffer'
           state["_WorkspaceSizePerElemC"] = computeBytes * state["GlobalSplitU"]
 
+    if state["StreamK"] != 0:
+      if state["EnableMatrixInstruction"] and globalParameters["AsmCaps"][isa]["HasWMMA"]:
+        reject(state, "Stream-K untested with WMMA")
+
     if state["VectorStore"] == -1:
         state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel
 
@@ -2772,8 +2777,6 @@ class Solution(collections.abc.Mapping):
       state["ExpandPointerSwap"] = 1
       state["1LDSBuffer"] = 1
       print2("\nSet SIA=2, force PrefetchLocalRead=1, ExpandPointerSwap=1, 1LDSBuffer=1")
-
-    isa = tuple(state["ISA"])
 
     if "MemoryModifierFormat" not in state or state["MemoryModifierFormat"] not in validParameters["MemoryModifierFormat"]:
       if globalParameters["AsmCaps"][isa]["HasGLCModifier"]:
