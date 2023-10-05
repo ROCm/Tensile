@@ -234,9 +234,23 @@ namespace Tensile
                 auto const&                 amdgpu = dynamic_cast<AMDGPU const&>(hardware);
                 std::shared_ptr<MySolution> solution;
 
+                bool override_debug = Debug::Instance().printOverrideLogs();
+
                 // Check override
                 ProblemOverride<MyProblem> po(problem);
                 std::tie(solution, *fitness) = m_override.find(po, amdgpu);
+
+                if(override_debug && solution)
+                {
+                    std::cout << "Override found for problem:\n" << problem << "\n";
+
+                    if(solution->canSolve(problem, hardware))
+                        std::cout << "Using solution:\n" << solution->name() << "\n";
+                    else
+                        std::cout
+                            << "WARNING: solution: " << solution->name()
+                            << "\nis not valid for this problem. Possible library mismatch.\n";
+                }
 
                 if(solution && solution->canSolve(problem, hardware))
                     return solution;

@@ -25,7 +25,7 @@
 from . import Code
 from .DataType import DataType
 from .SolutionStructs import isPackedIndex
-from .Common import globalParameters, printExit
+from .Common import globalParameters, printExit, roundUp
 from .KernelWriter import KernelWriter
 
 ################################################################################
@@ -951,7 +951,7 @@ class KernelWriterSource(KernelWriter):
   ##############################################################################
   # Allocate Resources
   ##############################################################################
-  def allocateResources(self, kernel):
+  def allocateResources(self, kernel, lraCode=None):
     kStr = ""
 
     kStr += "  unsigned int serial = %s(0);%s" \
@@ -1687,6 +1687,12 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
+  # Local Write Addresses: Release tile related vgpr
+  ##############################################################################
+  def lwaReleaseTileVgpr(self, kernel, tP):
+    return ""
+
+  ##############################################################################
   # Local Write Addresses: First Offset A/B
   ##############################################################################
   def lwaFirstOffset(self, kernel, tP, uDu=0):
@@ -1735,6 +1741,18 @@ class KernelWriterSource(KernelWriter):
     return kStr
 
   ##############################################################################
+  # Local Write Addresses: Allocate tmpSgpr for initOpt
+  ##############################################################################
+  def lwaInitOptAllocate(self):
+    return ""
+
+  ##############################################################################
+  # Local Write Addresses: Release tmpSgpr for initOpt
+  ##############################################################################
+  def lwaInitOptRelease(self):
+    return ""
+
+  ##############################################################################
   # Local Read Addresses: Tile Assignment A/B
   ##############################################################################
   def lraTileAssignment(self, kernel, tPA, tPB):
@@ -1759,12 +1777,6 @@ class KernelWriterSource(KernelWriter):
         % ( tP["tensorChar"], tP["tileChar"], tP["tileChar"], \
         " + LDS_OFFSET_B" if tP["isB"] else "", self.endLine)
     return kStr
-
-  ##############################################################################
-  # Local Read Addresses for direct LDS : Final Offset A/B
-  ##############################################################################
-  def directToLdsLraOffset(self, kernel, finalVgpr, tmp1, tmp2, tP):
-    return ""
 
   ##############################################################################
   # Local Read Addresses offset conversion for DTL + NLC > 1
@@ -2568,7 +2580,7 @@ class KernelWriterSource(KernelWriter):
     for perp in range(0, tP["nrp"]):
       for sPerp in range(0, tP["nwpv"]):
         for para in range(0, tP["nrc"]):
-          for sPara in range(0, tP["nwcv"]):
+          for sPara in range(0, roundUp(tP["nwcv"])):
             kStr += "%s*(localWrite%s_%u_%u_%u_%u + %u) = %s_%u_%u_%u_%u;%s" \
                 % (self.indent, tP["tensorChar"], \
                 para, 0, perp, sPerp, sPara, \
@@ -3478,8 +3490,8 @@ class KernelWriterSource(KernelWriter):
     return ""
 
   ##############################################################################
-  # isSwapGlobalReadOrderForDirectToVgpr
+  # isSwapGlobalReadOrderForDtvOrDtl
   ##############################################################################
-  def isSwapGlobalReadOrderForDirectToVgpr(self, kernel):
+  def isSwapGlobalReadOrderForDtvOrDtl(self, kernel):
     return False
 

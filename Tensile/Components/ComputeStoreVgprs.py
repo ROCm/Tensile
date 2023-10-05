@@ -290,7 +290,7 @@ class ComputeStoreVgprsMFMASwap(ComputeStoreVgprs):
         kStr += vectorStaticDivide(tmpVgpr0, wave_id, kernel["MIWaveGroup"][0], tmpSgpr)
         kStr += inst("v_mul_lo_u32", vgpr(tmpVgpr0), hex(MIBShape1), vgpr(tmpVgpr0), "wave coordination offset 1")
         kStr += inst("_v_add_u32", vgpr(tid1), vgpr(tmpVgpr0), vgpr(tid1), "coordination 1 = wave_id1 + tid1")
-        if writer.allowLRVWBforTLUandMI and writer.lrvwB > 1:
+        if writer.VectorWidthB > 1:
           kStr += staticMultiply(vgpr(tid1), vgpr(tid1), writer.lrvwB, sgpr(tmpSgpr), "coordination 1 *= lrvwB")
 
         if kernel["BufferStore"]:

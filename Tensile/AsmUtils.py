@@ -243,6 +243,35 @@ def scalarStaticDivideAndRemainder(qReg, rReg, dReg, divisor, tmpSgpr, \
 # product register, operand register, multiplier
 ########################################
 
+# vgpr operand only version
+# support multiplier < 1
+def vectorStaticMultiply(product, operand, multiplier, tmpSgpr=None, comment=""):
+    if comment == "":
+        comment = "%s = %s * %s" % (vgpr(product), vgpr(operand), multiplier)
+
+    if multiplier == 0:
+            return inst("v_mov_b32", vgpr(product), hex(multiplier), comment)
+    elif multiplier < 1:
+            # use division if multiplier < 1
+            multiplier = int(1/multiplier)
+            return vectorStaticDivide(product, operand, multiplier, tmpSgpr, comment)
+    elif ((multiplier & (multiplier - 1)) == 0): # pow of 2
+        multiplier_log2 = log2(multiplier)
+        if multiplier_log2==0 and product == operand:
+            return instCommentOnly(comment + " (multiplier is 1, do nothing)")
+        else:
+            return inst("v_lshlrev_b32", vgpr(product), hex(multiplier_log2), vgpr(operand), comment)
+    else:
+        kStr = ""
+        if product == operand:
+            kStr += inst("s_mov_b32", tmpSgpr, hex(multiplier), comment)
+            kStr += inst("v_mul_lo_u32", vgpr(product), tmpSgpr, vgpr(operand), comment)
+        else:
+            kStr += inst("v_mov_b32", vgpr(product), hex(multiplier), comment)
+            kStr += inst("v_mul_lo_u32", vgpr(product), vgpr(product), vgpr(operand), comment)
+        return kStr
+
+
 def staticMultiply(product, operand, multiplier, tmpSgpr=None, comment=""):
     if comment == "":
         comment = "%s = %s * %s" % (product, operand, multiplier)

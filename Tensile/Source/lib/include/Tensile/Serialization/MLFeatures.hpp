@@ -92,11 +92,13 @@ namespace Tensile
             {
                 return SubclassMap({Base::template Pair<MLFeatures::FreeSizeA>(),
                                     Base::template Pair<MLFeatures::FreeSizeB>(),
+                                    Base::template Pair<MLFeatures::BatchSize>(),
                                     Base::template Pair<MLFeatures::BoundSize>(),
                                     Base::template Pair<MLFeatures::Tile0Granularity>(),
                                     Base::template Pair<MLFeatures::Tile1Granularity>(),
                                     Base::template Pair<MLFeatures::CUGranularity>(),
-                                    Base::template Pair<MLFeatures::WavesPerSIMD>()});
+                                    Base::template Pair<MLFeatures::WavesPerSIMD>(),
+                                    Base::template Pair<MLFeatures::ProblemScaleMeasure>()});
             }
         };
 
@@ -122,6 +124,12 @@ namespace Tensile
         };
 
         template <typename IO>
+        struct MappingTraits<MLFeatures::BatchSize, IO>
+            : public AutoMappingTraits<MLFeatures::BatchSize, IO>
+        {
+        };
+
+        template <typename IO>
         struct MappingTraits<MLFeatures::BoundSize, IO>
             : public AutoMappingTraits<MLFeatures::BoundSize, IO>
         {
@@ -134,8 +142,8 @@ namespace Tensile
         };
 
         template <typename IO>
-        struct MappingTraits<MLFeatures::Tile1Granularity, IO>
-            : public AutoMappingTraits<MLFeatures::Tile1Granularity, IO>
+        struct MappingTraits<MLFeatures::ProblemScaleMeasure, IO>
+            : public AutoMappingTraits<MLFeatures::ProblemScaleMeasure, IO>
         {
         };
 
@@ -148,6 +156,12 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<MLFeatures::WavesPerSIMD, IO>
             : public AutoMappingTraits<MLFeatures::WavesPerSIMD, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<MLFeatures::Tile1Granularity, IO>
+            : public AutoMappingTraits<MLFeatures::Tile1Granularity, IO>
         {
         };
     } // namespace Serialization

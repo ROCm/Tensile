@@ -368,7 +368,7 @@ BenchmarkProblems:
           - [ 64, 4, 1 ]
           - [ 32, 8, 1 ]
         - WorkGroupMapping: [1]
-        - DirectToLds: [0]
+        #- DirectToLds: [0]
         - GlobalSplitU: [1]
         - DepthU: [ 16 ]
         - VectorWidth: [4]

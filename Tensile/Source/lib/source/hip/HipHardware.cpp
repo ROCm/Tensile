@@ -33,9 +33,8 @@ namespace Tensile
     namespace hip
     {
         HipAMDGPU::HipAMDGPU(hipDeviceProp_t const& prop)
-            : AMDGPU(static_cast<AMDGPU::Processor>(prop.gcnArch),
-                     prop.multiProcessorCount,
-                     std::string(prop.name))
+            : AMDGPU(
+                std::string(prop.gcnArchName), prop.multiProcessorCount, std::string(prop.name))
             , properties(prop)
         {
         }

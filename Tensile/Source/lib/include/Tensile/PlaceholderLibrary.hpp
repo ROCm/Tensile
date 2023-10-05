@@ -38,6 +38,26 @@ namespace Tensile
     // To be extended in the future
     enum class LazyLoadingInit
     {
+        None,
+        gfx803,
+        gfx900,
+        gfx906,
+        gfx908,
+        gfx90a,
+        gfx940,
+        gfx941,
+        gfx942,
+        gfx1010,
+        gfx1011,
+        gfx1012,
+        gfx1030,
+        gfx1031,
+        gfx1032,
+        gfx1034,
+        gfx1035,
+        gfx1100,
+        gfx1101,
+        gfx1102,
         All
     };
 
@@ -48,8 +68,47 @@ namespace Tensile
         {
         case LazyLoadingInit::All:
             return "TensileLibrary_.*";
+        case LazyLoadingInit::gfx803:
+            return "TensileLibrary_*_gfx803.*";
+        case LazyLoadingInit::gfx900:
+            return "TensileLibrary_*_gfx900.*";
+        case LazyLoadingInit::gfx906:
+            return "TensileLibrary_*_gfx906.*";
+        case LazyLoadingInit::gfx908:
+            return "TensileLibrary_*_gfx908.*";
+        case LazyLoadingInit::gfx90a:
+            return "TensileLibrary_*_gfx90a.*";
+        case LazyLoadingInit::gfx940:
+            return "TensileLibrary_*_gfx940.*";
+        case LazyLoadingInit::gfx941:
+            return "TensileLibrary_*_gfx941.*";
+        case LazyLoadingInit::gfx942:
+            return "TensileLibrary_*_gfx942.*";
+        case LazyLoadingInit::gfx1010:
+            return "TensileLibrary_*_gfx1010.*";
+        case LazyLoadingInit::gfx1011:
+            return "TensileLibrary_*_gfx1011.*";
+        case LazyLoadingInit::gfx1012:
+            return "TensileLibrary_*_gfx1012.*";
+        case LazyLoadingInit::gfx1030:
+            return "TensileLibrary_*_gfx1030.*";
+        case LazyLoadingInit::gfx1031:
+            return "TensileLibrary_*_gfx1031.*";
+        case LazyLoadingInit::gfx1032:
+            return "TensileLibrary_*_gfx1032.*";
+        case LazyLoadingInit::gfx1034:
+            return "TensileLibrary_*_gfx1034.*";
+        case LazyLoadingInit::gfx1035:
+            return "TensileLibrary_*_gfx1035.*";
+        case LazyLoadingInit::gfx1100:
+            return "TensileLibrary_*_gfx1100.*";
+        case LazyLoadingInit::gfx1101:
+            return "TensileLibrary_*_gfx1101.*";
+        case LazyLoadingInit::gfx1102:
+            return "TensileLibrary_*_gfx1102.*";
+        case LazyLoadingInit::None:
+            return "";
         }
-
         return "";
     }
 

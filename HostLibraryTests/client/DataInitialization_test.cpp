@@ -141,7 +141,9 @@ public:
 
         std::vector<DType> gpuD(d.totalAllocatedElements());
 
-        hipMemcpy(gpuD.data(), gpuInputs->d, d.totalAllocatedBytes(), hipMemcpyDeviceToHost);
+        auto memcpyStatus
+            = hipMemcpy(gpuD.data(), gpuInputs->d, d.totalAllocatedBytes(), hipMemcpyDeviceToHost);
+        EXPECT_EQ(memcpyStatus, hipSuccess);
 
         for(size_t i = 0; i < d.totalAllocatedElements(); i++)
             EXPECT_EQ(gpuD[i], zero) << i;

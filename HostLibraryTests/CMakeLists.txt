@@ -59,7 +59,7 @@ if(TENSILE_STATIC_ONLY)
 endif()
 
 if(NOT Tensile_FOUND)
-    find_package(Tensile 4.38.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
+    find_package(Tensile 4.39.0 EXACT REQUIRED ${TENSILE_COMPONENTS} PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../Tensile")
 endif()
 
 if(NOT TENSILE_DISABLE_CTEST)
@@ -177,7 +177,7 @@ if(NOT TENSILE_DISABLE_CTEST)
     endif()
 endif()
 
-target_link_libraries(TensileTests PUBLIC gtest TensileHost TensileTestLib Boost::filesystem)
+target_link_libraries(TensileTests PUBLIC gtest TensileHost TensileTestLib ${Boost_LIBRARIES})
 
 if(TENSILE_USE_LLVM)
     find_library(LLVMObjectYAML_LIBRARY
@@ -203,7 +203,7 @@ if(TENSILE_USE_HIP)
     target_link_libraries(TensileTests PUBLIC ${HIP_TEST_LIBRARIES})
     target_link_libraries(TensileTests PRIVATE "-Xlinker --no-whole-archive")
     foreach(arch IN LISTS TENSILE_GPU_ARCHS)
-        target_link_libraries(TensileTests PRIVATE "--amdgpu-target=${arch}")
+        target_link_libraries(TensileTests PRIVATE "--offload-arch=${arch}")
     endforeach(arch)
 endif()
 
