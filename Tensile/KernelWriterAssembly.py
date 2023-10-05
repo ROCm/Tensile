@@ -5866,7 +5866,7 @@ class KernelWriterAssembly(KernelWriter):
 
       # skip tail loop if StreamK WG not processing final iteration
       if kernel["StreamK"]:
-        # print("SK6")
+        # Check if tile finished
         kStr += inst("s_cmp_lt_u32", sgpr("StreamKLocalEnd"), sgpr("ItersPerTile"), "Check if WG processes final iteration of tile")
         kStr += inst("s_cmov_b32", loopCounter, hex(0), "This WG not completing tile")
 
