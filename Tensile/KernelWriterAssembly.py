@@ -30,7 +30,7 @@ from .SolutionStructs import isPackedIndex
 from .Utils import ceil_divide
 from .AsmMemoryInstruction import MemoryInstruction, getGlcBitName, getSlcBitName
 from .AsmRegisterPool import RegisterPool
-from .AsmUtils import inst, vgpr, sgpr, accvgpr, log2, vectorStaticDivideAndRemainder, vectorStaticDivide, vectorStaticRemainder, scalarStaticDivideAndRemainder, vectorStaticMultiply, staticMultiply, scalarStaticMultiply
+from .AsmUtils import inst, vgpr, sgpr, accvgpr, log2, vectorStaticDivideAndRemainder, vectorStaticDivide, vectorStaticRemainder, scalarStaticDivideAndRemainder, vectorStaticMultiply, staticMultiply, scalarStaticMultiply, instCommentOnly
 
 from math import ceil, trunc, modf, log
 from copy import deepcopy
@@ -3893,8 +3893,13 @@ class KernelWriterAssembly(KernelWriter):
       dividendForKId   = kernel["MatrixInstM"] * kernel["MatrixInstB"]
       num1DBlocks = kernel["MatrixInstBM"] if (tile01 == 0) else kernel["MatrixInstBN"]
       num1DWaves  = kernel["MIWaveGroup"][0] if (tile01 == 0) else kernel["MIWaveGroup"][1]
+      if kernel["SourceSwap"]:
+          dividedForBlkId  = kernel["MatrixInstM"] if (tile01 == 0) else (kernel["MatrixInstM"] * kernel["MatrixInstBM"])
+      else:
+          dividedForBlkId  = (kernel["MatrixInstN"] * kernel["MatrixInstBN"]) if (tile01 == 0) else kernel["MatrixInstN"]
       vectorWidth = 1 # kernel["VectorWidth"] if ((tile01 == 0) and kernel["SourceSwap"]) else 1 # TODO: nonSwap VectorWidth
       strideTile  = 1 # tentative
+      strideBlock = kernel["MatrixInstM"] * strideTile
       strideWave  = kernel["MatrixInstM"] * num1DBlocks * strideTile * vectorWidth
       # tile offset
       kStr += vectorStaticRemainder(qReg, dividendReg, waveWidth, tmpSgpr, \
@@ -3904,6 +3909,22 @@ class KernelWriterAssembly(KernelWriter):
       kStr += staticMultiply(vgpr(rReg), vgpr(rReg), strideTile, sgpr(tmpSgpr), \
         "1. N offset: nOffset = nIdx * nStride(%u)" % strideTile)
       # block offset (no code. assuming num1DBlocks == 1)
+      if num1DBlocks > 1:
+          tmpVgpr = self.vgprPool.checkOut(1,"tmpVgpr")
+          # generate the code only when num1DBlocks > 1.
+          # if num1DBlocks is 1, % num1DBlocks is always 0 and no difference in rReg value
+          kStr += vectorStaticDivide(tmpVgpr, qReg, dividedForBlkId, tmpSgpr, \
+              "2. block offset: bnIdx = wtid / dividedForBlkId(%u)" % dividedForBlkId)
+          kStr += vectorStaticRemainder(tmpVgpr, tmpVgpr, num1DBlocks, tmpSgpr, \
+              "2. block offset: bnIdx = bnIdx %% num1DBlocks(%u)" % num1DBlocks)  # assuming num1DBlocks is power of 2 to use same vreg for src and dst
+          kStr += staticMultiply(vgpr(tmpVgpr), vgpr(tmpVgpr), strideBlock, sgpr(tmpSgpr), \
+              "2. block offset: bnOffset = bnIdx * strideBlock(%u)" % strideBlock)
+          kStr += inst("_v_add_u32", vgpr(rReg), vgpr(tmpVgpr), vgpr(rReg), \
+              "3. add N and block offset: bnOffset = block and N offset")
+          self.vgprPool.checkIn(tmpVgpr)
+      else:
+          # comment only because bnIdx = bnIdx % num1DBlocks(1) = 0
+          kStr += instCommentOnly("2. block offset: bnIdx = bnIdx %% num1DBlocks(%u) is 0. do nothing" % num1DBlocks)
       # unroll offset
       # need division for qReg
       kStr += vectorStaticDivide(qReg, qReg, dividendForKId, tmpSgpr, \
