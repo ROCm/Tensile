@@ -3669,7 +3669,7 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["StreamK"]:
       # StreamK workgroup mapping
-      stmp = self.sgprPool.checkOutAligned(4, 4, "SKMappingTemp", preventOverflow=0)
+      stmp = self.sgprPool.checkOut(4, "SKMappingTemp", preventOverflow=0)
       # Always reset pointers to handle odd-exit case which moves LRO to the upper bank
       if not self.prefetchAcrossPersistent and kernel["PrefetchGlobalRead"]:
         kStr += self.localReadResetOffsets(kernel, self.tPA)
