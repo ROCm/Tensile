@@ -426,7 +426,7 @@ class ProblemPredicate(Properties.Predicate):
             rv += [cls('BufferStoreOffsetLimitCheck', value=val)]
 
         if '_GlobalAccumulation' in state and state['_GlobalAccumulation'] != None and not state["StreamK"]:
-            value = state['MinKForGSU'] * state['GlobalSplitU']            
+            value = state['MinKForGSU'] * state['GlobalSplitU']
             rv += [cls('GlobalSplitUCheckMinK', value=value)]
 
         return rv
