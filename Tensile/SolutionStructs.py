@@ -2750,6 +2750,10 @@ class Solution(collections.abc.Mapping):
     if state["StreamK"] != 0:
       if state["EnableMatrixInstruction"] and globalParameters["AsmCaps"][isa]["HasWMMA"]:
         reject(state, "Stream-K untested with WMMA")
+      if state["GlobalSplitU"] > 1:
+        reject(state, "Cannot enable both Stream-K and GSU")
+      if state["PersistentKernel"]:
+        reject(state, "Cannot enable both Stream-K and PersistentKernel")
 
     if state["VectorStore"] == -1:
         state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel
