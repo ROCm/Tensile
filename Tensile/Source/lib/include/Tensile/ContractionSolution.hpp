@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -240,6 +240,10 @@ namespace Tensile
         template <typename TypedInputs>
         std::string outputConversionKernelName(Problem const&     problem,
                                                TypedInputs const& inputs,
+                                               int                gsu,
+                                               int                vw,
+                                               int                reduction,
+                                               int                gsuUnrollUnit,
                                                Hardware const&    hardware) const;
 
         bool canSolve(Problem const& problem, Hardware const& hardware) const;
