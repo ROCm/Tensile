@@ -727,7 +727,7 @@ namespace Tensile
     {
         AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
         assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
-        size_t cuCount       = pAMDGPU->computeUnitCount;
+        size_t cuCount = pAMDGPU->computeUnitCount;
 
         TensorDescriptor const& c = problem.c();
         TensorDescriptor const& d = problem.d();
@@ -754,49 +754,57 @@ namespace Tensile
 
         unsigned int gsu = static_cast<int>(sizeMapping.globalSplitU);
         if(sizeMapping.globalAccumulation == 1)
-           // globalAccumulation = 1 case, ignore globalSplitU and use 1
+            // globalAccumulation = 1 case, ignore globalSplitU and use 1
             gsu = 1;
         // wider global load for postGSU
         // only for compute type = Float
-        bool supportedTypeForVWopt = problem.alphaType() == DataType::Float || problem.alphaType() == DataType::Double;
-        size_t total = wiX * wiY * wiZ;
-        int vw = 1;
+        bool supportedTypeForVWopt
+            = problem.alphaType() == DataType::Float || problem.alphaType() == DataType::Double;
+        size_t total     = wiX * wiY * wiZ;
+        int    vw        = 1;
         size_t threshVW2 = cuCount * 256 * 2; // should be more than number of physical threads * vw
         if(supportedTypeForVWopt && total > threshVW2 && problem.freeSizeA(0) % 2 == 0)
             vw = 2;
 
         // parallel reduction width calculation
         // only for compute type = Float
-        bool supportedTypeForReductionOpt = problem.alphaType() == DataType::Float || problem.alphaType() == DataType::Double;
-        size_t threshReduction = cuCount * 256; // should be less than number of physical threads / reduction
+        bool supportedTypeForReductionOpt
+            = problem.alphaType() == DataType::Float || problem.alphaType() == DataType::Double;
+        size_t threshReduction
+            = cuCount * 256; // should be less than number of physical threads / reduction
         const unsigned int maxReductionConst = 4;
-        const unsigned int minGSUperReduction = 32; // Minimum GSU=128 for Reduction=4, GSU=64 for Reduction2
+        const unsigned int minGSUperReduction
+            = 32; // Minimum GSU=128 for Reduction=4, GSU=64 for Reduction2
         unsigned int maxReduction = std::min(maxReductionConst, gsu / minGSUperReduction);
-        unsigned int reduction = 1;
-        if (supportedTypeForReductionOpt && (gsu & (gsu - 1)) == 0 && maxReduction > 1){
+        unsigned int reduction    = 1;
+        if(supportedTypeForReductionOpt && (gsu & (gsu - 1)) == 0 && maxReduction > 1)
+        {
             // apply reduction only if float compute type and gsu is power of 2 (for small array only)
             reduction = maxReduction;
-            while (reduction > 1){
+            while(reduction > 1)
+            {
                 size_t totalThread = total * reduction / vw;
-                if (gsu % reduction == 0 && totalThread <= threshReduction)
+                if(gsu % reduction == 0 && totalThread <= threshReduction)
                     // found an applicable reduction
                     break;
                 // for next loop
                 reduction /= 2;
             }
-            if (reduction == 2 && problem.alphaType() == DataType::Float)
+            if(reduction == 2 && problem.alphaType() == DataType::Float)
                 // so far, reduction=2 does not perform well
                 reduction = 1;
         }
 
         // GSU loop unroll opt
         // only for compute type = Float, Double
-        bool supportedTypeForUnrollOpt = problem.alphaType() == DataType::Float || problem.alphaType() == DataType::Double;
-        int gsuUnrollUnit = 16 * reduction;  // must match Tensile generator code
-        if (supportedTypeForUnrollOpt == false || sizeMapping.globalAccumulation == 1)
+        bool supportedTypeForUnrollOpt
+            = problem.alphaType() == DataType::Float || problem.alphaType() == DataType::Double;
+        int gsuUnrollUnit = 16 * reduction; // must match Tensile generator code
+        if(supportedTypeForUnrollOpt == false || sizeMapping.globalAccumulation == 1)
             gsuUnrollUnit = 1;
 
-        rv.kernelName = outputConversionKernelName(problem, inputs, gsu, vw, reduction, gsuUnrollUnit, hardware);
+        rv.kernelName = outputConversionKernelName(
+            problem, inputs, gsu, vw, reduction, gsuUnrollUnit, hardware);
 
         rv.numWorkGroups.x = CeilDivide(wiX * wiY * wiZ * reduction, rv.workGroupSize.x * vw);
         rv.numWorkGroups.y = 1;
@@ -913,11 +921,12 @@ namespace Tensile
         // add extra string for gsu
         // This part must match tensile code generation (in KernelWriterConversion.py)
         // add mod related str (only for gsuUnrollUnit > 1)
-        if(gsuUnrollUnit > 1){
+        if(gsuUnrollUnit > 1)
+        {
             size_t gsuMod = gsu % gsuUnrollUnit;
             if(gsuMod == 0)
                 gsuMod = gsuUnrollUnit;
-            std::string modStr= "";
+            std::string modStr = "";
             if(gsu > gsuUnrollUnit)
             {
                 modStr = "_mod" + std::to_string(gsuUnrollUnit);
@@ -925,10 +934,10 @@ namespace Tensile
             name += std::to_string(gsuMod) + modStr;
         }
         if(vw >= 2)
-          name += "_VW" + std::to_string(vw);
+            name += "_VW" + std::to_string(vw);
 
         if(reduction >= 2)
-          name += "_R" + std::to_string(reduction);
+            name += "_R" + std::to_string(reduction);
 
         return name;
     }
