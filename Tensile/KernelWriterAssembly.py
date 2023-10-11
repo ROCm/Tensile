@@ -12361,7 +12361,8 @@ class KernelWriterAssembly(KernelWriter):
         # only do an even number of halves - since these share hi/lo pieces of some registers?
         if numElementsPerBatch > 1:
           numElementsPerBatch = int(numElementsPerBatch/2)*2
-        elif not kernel["EnableMatrixInstructionStore"]:
+        elif not kernel["EnableMatrixInstruction"]:
+          # (excluding MFMA+LSU case. It can work without an issue)
           # The globalWriteBatch routine below can't handle odd elements per batch
           # and 0 elements per batch is illegal.
           # so if we don't have *GPR resources to handle a larger batch then need
@@ -12601,7 +12602,8 @@ class KernelWriterAssembly(KernelWriter):
       # only do an even number of halves - since these share hi/lo pieces of some registers?
       if numElementsPerBatch > 1:
         numElementsPerBatch = int(numElementsPerBatch/2)*2
-      elif not kernel["EnableMatrixInstructionStore"]:
+      elif not kernel["EnableMatrixInstruction"]:
+        # (excluding MFMA+LSU case. It can work without an issue)
         # The globalWriteBatch routine below can't handle odd elements per batch
         # and 0 elements per batch is illegal.
         # so if we don't have *GPR resources to handle a larger batch then need
@@ -13075,7 +13077,8 @@ class KernelWriterAssembly(KernelWriter):
       # only do an even number of halves - since these share hi/lo pieces of some registers?
       if numElementsPerBatch > 1:
         numElementsPerBatch = int(numElementsPerBatch/2)*2
-      elif not kernel["EnableMatrixInstructionStore"]:
+      elif not kernel["EnableMatrixInstruction"]:
+        # (excluding MFMA+LSU case. It can work without an issue)
         # The globalWriteBatch routine below can't handle odd elements per batch
         # and 0 elements per batch is illegal.
         # so if we don't have *GPR resources to handle a larger batch then need
