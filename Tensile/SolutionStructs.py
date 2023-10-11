@@ -1836,7 +1836,8 @@ class Solution(collections.abc.Mapping):
           state["GlobalSplitU"] = self["GlobalSplitU"]
           state["VectorWidth"] = vw
           state["Reduction"] = reduction
-          state["GSUUnrollUnit"] = 16 * state["Reduction"] if self["_GlobalAccumulation"] == "MultipleBuffer" else 1 # number of unroll for large GSU (must match client code)
+          # number of unroll for large GSU (must match client code)
+          state["GSUUnrollUnit"] = 16 * state["Reduction"] if supportedTypeForUnrollOpt and self["_GlobalAccumulation"] == "MultipleBuffer" else 1
           self.conversionKernelObjects.append(KernelWriterConversion(state))
           reduction *= 2
         vw *= 2
