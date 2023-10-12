@@ -2754,6 +2754,13 @@ class Solution(collections.abc.Mapping):
         reject(state, "Cannot enable both Stream-K and GSU")
       if state["PersistentKernel"]:
         reject(state, "Cannot enable both Stream-K and PersistentKernel")
+      if state["StreamK"] == 1:
+        if not state["ProblemType"]["DataType"].isSingle():
+          reject(state, "Atomic Stream-K currently only tested for SGEMM")
+        if not state["BufferStore"]:
+          reject(state, "Atomic Stream-K requires BufferStore")
+        if state["LocalSplitU"] > 1:
+          reject(state, "Atomic Stream-K not working with LocalSplitU")
 
     if state["VectorStore"] == -1:
         state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel
