@@ -73,7 +73,7 @@ BenchmarkProblems:
         - SourceSwap: [False]
         # - ExpandPointerSwap: [False, True]
         # - ExpandPointerSwap: [False]
-        - PrefetchLocalRead: [3]
+        - PrefetchLocalRead: [3, 5]
         # - PrefetchLocalRead: [1, 3, 5, 9, 13, 17]
         # - PrefetchLocalRead: [1, 9, 10, 11, 12, 13, 14, 15, 16, 17]
         # - PrefetchGlobalRead: [1, 2]
