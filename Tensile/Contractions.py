@@ -380,7 +380,7 @@ class ProblemPredicate(Properties.Predicate):
             rv += [cls("KernelLanguageCompatible", value=state["KernelLanguage"])]
 
         if ('GlobalSplitU' in state) and (state['GlobalSplitU'] > 1):
-            if ('_GlobalAccumulation' not in state) or (state['_GlobalAccumulation'] == 'SingleBuffer'):
+            if ('_GlobalAccumulation' not in state) or (state['_GlobalAccumulation'] != 'MultipleBuffer'):
                 rv += [cls("DeterministicMode", value = False)]
 
         if ('StreamK' in state) and (state['StreamK'] == 1):
