@@ -572,6 +572,7 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("StreamKIterEnd", 1)
       self.defineSgpr("StreamKLocalStart", 1)
       self.defineSgpr("StreamKLocalEnd", 1)
+    if kernel["StreamK"] == 2:
       self.defineSgpr("SrdWS", 4, 4)
 
     if kernel["PackSummationDims"] and kernel["GlobalSplitU"]>1:
@@ -7578,7 +7579,8 @@ class KernelWriterAssembly(KernelWriter):
       oldSize = self.savedSgprPool.size()
       newSize = self.sgprPool.size()
       if newSize > self.savedSgprPool.size():
-        for i in range(oldSize-1,newSize):
+        # fixed range to prevent overflowing resources in some cases
+        for i in range(oldSize,newSize):
           self.savedSgprPool.pool.append(self.savedSgprPool.Register(RegisterPool.Status.Available,"restore sgprPool"))
       self.sgprPool = self.savedSgprPool # restore vgprPool before alternate path
       self.savedSgprPool = None
