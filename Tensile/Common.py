@@ -1080,9 +1080,18 @@ validParameters = {
     # 6= +NoMAC
     # 7= +NoPreLoop+ NoGlobalReadInc
     # 9= NullKernel
+    # 10= +invalid LocalReadA (use invalid vgpr offset(LdsOOB)). Negative only.
+    # 11= +invalid LocalReadB (use invalid vgpr offset(LdsOOB)). Negative only.
+    # 12= +invalid LocalReadA+B (use invalid vgpr offset(LdsOOB)). Negative only.
+    # 13= +invalid LocalWriteA (use invalid vgpr offset(LdsOOB)). Negative only.
+    # 14= +invalid LocalWriteB (use invalid vgpr offset(LdsOOB)). Negative only.
+    # 15= +invalid LocalWriteA+B (use invalid vgpr offset(LdsOOB)). Negative only.
+    # 16= +invalid GlobalReadA (use srdA[2]=0, BufferLoad only). Negative only.
+    # 17= +invalid GlobalReadB (use srdB[2]=0, BufferLoad only). Negative only.
+    # 18= +invalid GlobalReadA+B (use srdB[2]=0, BufferLoad only). Negative only.
     # For example set DisableKernelPieces: [0,1,2,3,4,5,6,7,9]
     #   this will create a set of kernels with progressively more pieces of the kernel disabled
-    "DisableKernelPieces":        list(range(-9,10)),         # disable pieces of the kernel, for performance isolation
+    "DisableKernelPieces":        list(range(-18,10)),         # disable pieces of the kernel, for performance isolation
 
     # assume atomics always work correctly.
     "DisableAtomicFail": [False, True],
