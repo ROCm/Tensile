@@ -361,7 +361,7 @@ validMFMA["I8_908"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4
 validMFMA["I8_940"] = [[32,32,4,2], [32,32,16,1], [16,16,4,4], [16,16,32,1], [4,4,4,16]]
 validMFMA["I8"] = validMFMA["H"] + validMFMA["F8"]
 validWMMA = [[16,16,16,1], ]
-validTT = 16
+validTT = 64
 validMFMA["_format9"] = []
 
 for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["D"], validMFMA["X"], validMFMA["F8"], validWMMA]:
@@ -1195,8 +1195,8 @@ validParameters = {
 
     # place upper and lower limits on the skinny-ness of macro tiles; shape=1 means square tile, like 64x64. shape=4 means 4x64 or 64x4 or 128x8...
     # these will just mark some kernels as invalid so that fewer kernels will be checked
-    "MacroTileShapeMin":          list(range(1, 256+1)),
-    "MacroTileShapeMax":          list(range(1, 256+1)),
+    "MacroTileShapeMin":          list(range(1, 512+1)),
+    "MacroTileShapeMax":          list(range(1, 512+1)),
 
     # when loading all the data from global into lds requires multiple load instructions, these parameters govern which
     # loads will pull which rectangle of data from global into lds

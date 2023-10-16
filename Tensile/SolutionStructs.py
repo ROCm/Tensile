@@ -2419,23 +2419,15 @@ class Solution(collections.abc.Mapping):
         reject(state, "DirectToVgpr%c does not supports TLU%c = True + numByte < 4"%(tc, tc))
         return False
 
-    # MIWaveGroup check
-    #  for A, MIWaveGroup[1] should be 1
-    #  for B, MIWaveGroup[0] should be 1
+    # MIWaveGroup, MatrixInstBM,BN check
+    #  for A, MIWaveGroup[1] and MatrixInstBN should be 1
+    #  for B, MIWaveGroup[0] and MatrixInstBM should be 1
     # This is to limit the number of Vgpr
-    if tc == 'A' and not (state['MIWaveGroup'][1] == 1):
-      reject(state, "MIWaveGroup[1] should be 1 for DirectToVgprA. Current value is [%s]"%state['MIWaveGroup'][1])
+    if tc == 'A' and not (state['MIWaveGroup'][1] == 1 and state['MatrixInstBN'] == 1):
+      reject(state, "MIWaveGroup[1] and MatrixInstBN should be 1 for DirectToVgprA. Current value is [%d, %d]"%(state['MIWaveGroup'][1], state['MatrixInstBN']))
       return False
-    if tc == 'B' and not (state['MIWaveGroup'][0] == 1):
-      reject(state, "MIWaveGroup[0] should be 1 for DirectToVgprB. Current value is [%s]"%state['MIWaveGroup'][0])
-      return False
-
-    # Does not support MatrixInstBM, MatrixInstBN > 1
-    if state['MatrixInstBM'] > 1:
-      reject(state, "MatrixInstBM should be 1 for DirectToVgpr. Current value is %s"%state['MatrixInstBM'])
-      return False
-    if state['MatrixInstBN'] > 1:
-      reject(state, "MatrixInstBN should be 1 for DirectToVgpr. Current value is %s"%state['MatrixInstBN'])
+    if tc == 'B' and not (state['MIWaveGroup'][0] == 1 and state['MatrixInstBM'] == 1):
+      reject(state, "MIWaveGroup[0] and MatrixInstBM should be 1 for DirectToVgprB. Current value is [%d, %d]"%(state['MIWaveGroup'][0], state['MatrixInstBM']))
       return False
 
     # Does not work with WaveSeparateGlobalRead
