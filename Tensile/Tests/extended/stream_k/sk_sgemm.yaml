@@ -91,6 +91,7 @@ BenchmarkProblems:
         # - NumElementsPerBatchStore: [0, 2, 4, 8]
         # - NumElementsPerBatchStore: [8]
         # - AssertAlphaValue: [1]
+        - AssertSizeEqual: [{2: 1}]
 
       BenchmarkForkParameters:
       JoinParameters:

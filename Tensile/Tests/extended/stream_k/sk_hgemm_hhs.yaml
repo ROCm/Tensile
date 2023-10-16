@@ -73,6 +73,7 @@ BenchmarkProblems:
         # - NumElementsPerBatchStore: [8]
         - AssertAlphaValue: [1]
         - GlobalReadVectorWidth: [8]
+        - AssertSizeEqual: [{2: 1}]
 
       BenchmarkForkParameters:
       JoinParameters:
