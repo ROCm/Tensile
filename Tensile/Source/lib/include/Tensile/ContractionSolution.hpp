@@ -266,7 +266,7 @@ namespace Tensile
         std::string betaOnlyKernelName(Problem const&     problem,
                                        TypedInputs const& inputs,
                                        Hardware const&    hardware) const;
-        
+
         template <typename TypedInputs, bool T_Debug>
         KernelInvocation generateOutputConversionCall(Problem const&     problem,
                                                       TypedInputs const& inputs,
