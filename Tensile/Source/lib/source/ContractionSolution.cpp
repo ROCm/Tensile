@@ -312,7 +312,7 @@ namespace Tensile
         rv.numWorkGroups.y *= sizeMapping.globalSplitU;
 
         size_t cuCount = 0;
-        if (sizeMapping.streamK != 0 || sizeMapping.persistentKernel != 0)
+        if(sizeMapping.streamK != 0 || sizeMapping.persistentKernel != 0)
         {
             AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
             assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
@@ -409,9 +409,9 @@ namespace Tensile
         {
             // StreamK workspace + flags
             rv.args.append<void const*>("ws", inputs.ws);
-            void* ws = inputs.ws;
+            void*  ws          = inputs.ws;
             size_t flagsOffset = partialTileSize(cuCount);
-            void* flags = (void*)(static_cast<char*>(ws) + flagsOffset);
+            void*  flags       = (void*)(static_cast<char*>(ws) + flagsOffset);
             rv.args.append<void*>("Flags", flags);
         }
 
@@ -600,14 +600,14 @@ namespace Tensile
 
             if(sizeMapping.streamK != 0)
             {
-                auto itersPerTile = problem.getItersPerTile(sizeMapping);
-                auto tiles = problem.getNumTiles(sizeMapping);
-                auto totalIters = tiles * itersPerTile;
+                auto     itersPerTile = problem.getItersPerTile(sizeMapping);
+                auto     tiles        = problem.getNumTiles(sizeMapping);
+                auto     totalIters   = tiles * itersPerTile;
                 uint32_t itersPerWave = CeilDivide(totalIters, rv.numWorkGroups.x);
                 uint32_t magicNumberItersPerTile;
                 uint32_t magicShiftItersPerTile;
                 magicNumberItersPerTile = magicNumber(2, itersPerTile, &magicShiftItersPerTile);
-                
+
                 rv.args.append<uint32_t>("itersPerTile", itersPerTile);
                 rv.args.append<uint32_t>("totalIters", totalIters);
                 rv.args.append<uint32_t>("itersPerWave", itersPerWave);
@@ -678,7 +678,7 @@ namespace Tensile
         AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
         assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
         size_t cuCount = pAMDGPU->computeUnitCount;
-        size_t wiZ = 1;
+        size_t wiZ     = 1;
         for(size_t i = 0; i < problem.batchIndices().size(); i++)
             wiZ *= problem.batchSize(i);
         size_t flagCount = cuCount * wiZ;
@@ -691,9 +691,9 @@ namespace Tensile
         rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
         rv.numWorkItems.z = rv.workGroupSize.z * rv.numWorkGroups.z;
 
-        void* ws = inputs.ws;
+        void*  ws          = inputs.ws;
         size_t flagsOffset = partialTileSize(cuCount);
-        void* flags = (void*)(static_cast<char*>(ws) + flagsOffset);
+        void*  flags       = (void*)(static_cast<char*>(ws) + flagsOffset);
         rv.args.append<void*>("Flags", flags);
 
         rv.args.append<uint32_t>("flagCount", flagCount);
@@ -1025,10 +1025,12 @@ namespace Tensile
             if(debug)
                 rv.push_back(generateStreamKInitCall<TypedInputs, true>(problem, inputs, hardware));
             else
-                rv.push_back(generateStreamKInitCall<TypedInputs, false>(problem, inputs, hardware));
+                rv.push_back(
+                    generateStreamKInitCall<TypedInputs, false>(problem, inputs, hardware));
         }
 
-        if(sizeMapping.streamK == 1 || (sizeMapping.globalSplitU > 1 && sizeMapping.globalAccumulation != 2))
+        if(sizeMapping.streamK == 1
+           || (sizeMapping.globalSplitU > 1 && sizeMapping.globalAccumulation != 2))
         {
             if(debug)
                 rv.push_back(generateBetaOnlyCall<TypedInputs, true>(problem, inputs, hardware));
@@ -1286,7 +1288,8 @@ namespace Tensile
         return spm;
     }
 
-    size_t ContractionSolution::requiredWorkspaceSize(Problem const& problem, Hardware const& hardware) const
+    size_t ContractionSolution::requiredWorkspaceSize(Problem const&  problem,
+                                                      Hardware const& hardware) const
     {
         size_t size = 0;
 
@@ -1298,7 +1301,9 @@ namespace Tensile
             // Get space required for partial tiles
             size += partialTileSize(cuCount);
             // Add space for flags
-            size += cuCount * 4; // Flags for partial tiles - dword per flag for fast addressing and comparisons
+            size
+                += cuCount
+                   * 4; // Flags for partial tiles - dword per flag for fast addressing and comparisons
             // size *= batches; // TODO need tile and flag per batch
         }
         else
@@ -1311,7 +1316,8 @@ namespace Tensile
     {
         size_t size = 0;
 
-        size_t tileSize = sizeMapping.macroTile.x * sizeMapping.macroTile.y * sizeMapping.workspaceSizePerElemC;
+        size_t tileSize
+            = sizeMapping.macroTile.x * sizeMapping.macroTile.y * sizeMapping.workspaceSizePerElemC;
         size += tileSize * cuCount; // Partials tile per WG
         // TODO batches
         // TODO round up for alignment?

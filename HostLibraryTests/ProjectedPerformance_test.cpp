@@ -53,9 +53,9 @@ std::map<int, double> makeIdeals()
 }
 
 SizeMapping makeSizeMapping(Tensile::dim3 workGroupSize,
-                                                 Tensile::dim3 threadTile,
-                                                 Tensile::dim3 macroTile,
-                                                 size_t        globalSplitU)
+                            Tensile::dim3 threadTile,
+                            Tensile::dim3 macroTile,
+                            size_t        globalSplitU)
 {
     SizeMapping sizeMapping;
 
@@ -93,8 +93,7 @@ TEST(ContractionPerformance, Problem1)
     Tensile::dim3 macroTile     = Tensile::dim3(64, 64, 16);
     size_t        globalSplitU  = 1;
 
-    SizeMapping sizeMapping
-        = makeSizeMapping(workgroupSize, threadTile, macroTile, globalSplitU);
+    SizeMapping sizeMapping = makeSizeMapping(workgroupSize, threadTile, macroTile, globalSplitU);
 
     solution->sizeMapping = sizeMapping;
 
@@ -122,8 +121,7 @@ TEST(ContractionPerformance, Problem2)
     Tensile::dim3 macroTile     = Tensile::dim3(64, 64, 16);
     size_t        globalSplitU  = 1;
 
-    SizeMapping sizeMapping
-        = makeSizeMapping(workgroupSize, threadTile, macroTile, globalSplitU);
+    SizeMapping sizeMapping = makeSizeMapping(workgroupSize, threadTile, macroTile, globalSplitU);
 
     solution->sizeMapping = sizeMapping;
 
@@ -151,8 +149,7 @@ TEST(ContractionPerformance, Problem3)
     Tensile::dim3 macroTile     = Tensile::dim3(128, 128, 16);
     size_t        globalSplitU  = 1;
 
-    SizeMapping sizeMapping
-        = makeSizeMapping(workgroupSize, threadTile, macroTile, globalSplitU);
+    SizeMapping sizeMapping = makeSizeMapping(workgroupSize, threadTile, macroTile, globalSplitU);
 
     solution->sizeMapping = sizeMapping;
 
@@ -184,8 +181,7 @@ TEST(ContractionPerformance, Problem4)
     Tensile::dim3 macroTile     = Tensile::dim3(128, 64, 16);
     size_t        globalSplitU  = 4;
 
-    SizeMapping sizeMapping
-        = makeSizeMapping(workgroupSize, threadTile, macroTile, globalSplitU);
+    SizeMapping sizeMapping = makeSizeMapping(workgroupSize, threadTile, macroTile, globalSplitU);
 
     solution->sizeMapping = sizeMapping;
 

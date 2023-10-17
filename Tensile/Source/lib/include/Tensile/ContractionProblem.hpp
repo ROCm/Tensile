@@ -816,7 +816,7 @@ namespace Tensile
         void checkPersistentKernelEligibility(ContractionSolution const& solution,
                                               Hardware const&            hardware);
         void checkRequiredWorkspaceSize(ContractionSolution const& solution,
-                                Hardware const&            hardware);
+                                        Hardware const&            hardware);
 
         bool getPersistentKernelEligibility() const
         {

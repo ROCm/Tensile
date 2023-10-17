@@ -249,13 +249,13 @@ namespace Tensile
 
         template <typename TypedInputs, bool T_Debug>
         KernelInvocation generateStreamKInitCall(Problem const&     problem,
-                                              TypedInputs const& inputs,
-                                              Hardware const&    hardware) const;
+                                                 TypedInputs const& inputs,
+                                                 Hardware const&    hardware) const;
 
         template <typename TypedInputs>
         std::string streamKInitKernelName(Problem const&     problem,
-                                       TypedInputs const& inputs,
-                                       Hardware const&    hardware) const;
+                                          TypedInputs const& inputs,
+                                          Hardware const&    hardware) const;
 
         template <typename TypedInputs, bool T_Debug>
         KernelInvocation generateBetaOnlyCall(Problem const&     problem,

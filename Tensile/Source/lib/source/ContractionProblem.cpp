@@ -784,7 +784,7 @@ namespace Tensile
         // if(sizeMapping.persistentKernelAlongBatch || sizeMapping.streamK != 0)
         if(sizeMapping.persistentKernelAlongBatch)
             problemTiles *= numWG.z;
-        
+
         return problemTiles;
     }
 
@@ -834,7 +834,7 @@ namespace Tensile
     }
 
     void ContractionProblem::checkRequiredWorkspaceSize(ContractionSolution const& solution,
-                                                       Hardware const&            hardware)
+                                                        Hardware const&            hardware)
     {
         m_requiredWorkspaceSize = solution.requiredWorkspaceSize(*this, hardware);
     }
