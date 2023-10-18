@@ -65,6 +65,30 @@ namespace Tensile
         size_t depthUorMT1;
     };
 
+    struct SizeMapping
+    {
+        dim3 workGroupSize;
+        dim3 threadTile;
+        dim3 macroTile;
+
+        size_t staggerU           = 0;
+        size_t depthU             = 0;
+        size_t globalSplitU       = 0;
+        size_t staggerStrideShift = 0;
+        int    workGroupMapping   = 0;
+
+        size_t packBatchDims              = 0;
+        int    packSummationDims          = 0;
+        int    magicDivAlg                = 1;
+        int    streamK                    = 0;
+        int    persistentKernel           = 0;
+        bool   persistentKernelAlongBatch = false;
+
+        bool   sourceKernel          = false;
+        int    globalAccumulation    = 0;
+        size_t workspaceSizePerElemC = 0;
+    };
+
     /**
  * Represents a single kernel or set of kernels that can perform a single
  * tensor contraction.
@@ -169,9 +193,10 @@ namespace Tensile
         };
 
         /**
-   * Calculate required workspace size.
-   */
-        size_t       requiredWorkspaceSize(Problem const& problem) const;
+        * Calculate required workspace size.
+        */
+        size_t       requiredWorkspaceSize(Problem const& problem, Hardware const& hardware) const;
+        size_t       partialTileSize(size_t cuCount) const;
         static float computeGranularity(float x);
 
         Granularities computeGranularities(
@@ -223,6 +248,16 @@ namespace Tensile
                                             Hardware const&    hardware) const;
 
         template <typename TypedInputs, bool T_Debug>
+        KernelInvocation generateStreamKInitCall(Problem const&     problem,
+                                                 TypedInputs const& inputs,
+                                                 Hardware const&    hardware) const;
+
+        template <typename TypedInputs>
+        std::string streamKInitKernelName(Problem const&     problem,
+                                          TypedInputs const& inputs,
+                                          Hardware const&    hardware) const;
+
+        template <typename TypedInputs, bool T_Debug>
         KernelInvocation generateBetaOnlyCall(Problem const&     problem,
                                               TypedInputs const& inputs,
                                               Hardware const&    hardware) const;
@@ -245,29 +280,6 @@ namespace Tensile
         bool canSolve(Problem const& problem, Hardware const& hardware) const;
 
         bool matchesProblemType(Problem const& problem, Hardware const& hardware) const;
-
-        struct SizeMapping
-        {
-            dim3 workGroupSize;
-            dim3 threadTile;
-            dim3 macroTile;
-
-            size_t staggerU           = 0;
-            size_t depthU             = 0;
-            size_t globalSplitU       = 0;
-            size_t staggerStrideShift = 0;
-            int    workGroupMapping   = 0;
-
-            size_t packBatchDims              = 0;
-            int    packSummationDims          = 0;
-            int    magicDivAlg                = 1;
-            int    persistentKernel           = 0;
-            bool   persistentKernelAlongBatch = false;
-
-            bool   sourceKernel          = false;
-            int    globalAccumulation    = 0;
-            size_t workspaceSizePerElemC = 0;
-        };
 
         struct ProblemType
         {

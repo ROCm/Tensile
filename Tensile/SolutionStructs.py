@@ -32,6 +32,7 @@ from .Common import assignParameterRequired, assignParameterWithDefault, \
 from .DataType import DataType
 from .Utils import roundUpToNearestMultiple
 
+from .KernelWriterStreamKInit import KernelWriterStreamKInit
 from .KernelWriterBetaOnly import KernelWriterBetaOnly
 from .KernelWriterConversion import KernelWriterConversion
 
@@ -1781,15 +1782,28 @@ class Solution(collections.abc.Mapping):
   ########################################
   # create Helper Kernels
   def initHelperKernelObjects(self):
+    self.initStreamKInitKernelObjects()
     self.initBetaOnlyKernelObjects()
     self.initConversionKernelObjects()
 
 
   ########################################
-  # create BetaONly Kernels
+  # create StreamKInit Kernels
+  def initStreamKInitKernelObjects(self):
+    self.streamKInitKernelObjects = []
+    if self["StreamK"] == 2:
+      state = {}
+      state["ProblemType"] = deepcopy(self["ProblemType"])
+      state["KernelLanguage"] = "Source"
+      state["_GlobalAccumulation"] = self["_GlobalAccumulation"]
+      self.streamKInitKernelObjects.append(KernelWriterStreamKInit(state))
+
+
+  ########################################
+  # create BetaOnly Kernels
   def initBetaOnlyKernelObjects(self):
     self.betaOnlyKernelObjects = []
-    if self["GlobalSplitU"] > 1:
+    if self["GlobalSplitU"] > 1 or self["StreamK"] == 1:
       state = {}
       state["ProblemType"] = deepcopy(self["ProblemType"])
       state["KernelLanguage"] = "Source"
@@ -1812,12 +1826,18 @@ class Solution(collections.abc.Mapping):
   ########################################
   # get Helper Kernels
   def getHelperKernelObjects(self):
-    return self.betaOnlyKernelObjects + self.conversionKernelObjects
+    return self.streamKInitKernelObjects + self.betaOnlyKernelObjects + self.conversionKernelObjects
 
 
   ########################################
   # get Helper Kernels
-  def getKernelBetaOlnyObjects(self):
+  def getKernelStreamKInitObjects(self):
+    return self.streamKInitKernelObjects
+
+
+  ########################################
+  # get Helper Kernels
+  def getKernelBetaOnlyObjects(self):
     return self.betaOnlyKernelObjects
 
 
@@ -2671,6 +2691,7 @@ class Solution(collections.abc.Mapping):
   # assign all derived parameters
   @staticmethod
   def assignDerivedParameters(state):
+    isa = tuple(state["ISA"])
 
     state["EnableF32XdlMathOp"] = False #ignore the F32 xDL MathOp by default.
     #enable F32 xDL MathOp only when the input type is f32.
@@ -2696,6 +2717,12 @@ class Solution(collections.abc.Mapping):
       state["_GlobalAccumulation"] = None
       state["_WorkspaceSizePerElemC"] = 0
 
+      if state["StreamK"] == 2:
+        # print("SK8 - Workspace size")
+        computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
+        state["_GlobalAccumulation"] = 'PartialsBuffer'
+        state["_WorkspaceSizePerElemC"] = computeBytes
+        
       if state["GlobalSplitU"] > 1:
         computeName  = state["ProblemType"]["ComputeDataType"].toName()
         computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
@@ -2712,6 +2739,23 @@ class Solution(collections.abc.Mapping):
           state["_GlobalAccumulation"] = 'MultipleBuffer'
           state["_WorkspaceSizePerElemC"] = computeBytes * state["GlobalSplitU"]
 
+    if state["StreamK"] != 0:
+      if state["EnableMatrixInstruction"] and globalParameters["AsmCaps"][isa]["HasWMMA"]:
+        reject(state, "Stream-K untested with WMMA")
+      if state["GlobalSplitU"] > 1:
+        reject(state, "Cannot enable both Stream-K and GSU")
+      if state["PersistentKernel"]:
+        reject(state, "Cannot enable both Stream-K and PersistentKernel")
+      if not (2 in state["AssertSizeEqual"].keys() and state["AssertSizeEqual"][2] == 1):
+        reject(state, "Stream-K with batch requires further testing")
+      if state["StreamK"] == 1:
+        if not state["ProblemType"]["DataType"].isSingle():
+          reject(state, "Atomic Stream-K currently only tested for SGEMM")
+        if not state["BufferStore"]:
+          reject(state, "Atomic Stream-K requires BufferStore")
+        if state["LocalSplitU"] > 1:
+          reject(state, "Atomic Stream-K not working with LocalSplitU")
+
     if state["VectorStore"] == -1:
         state["_VectorStore"] = 1 # default, may be changed if needed to generate a valid kernel
 
@@ -2720,7 +2764,7 @@ class Solution(collections.abc.Mapping):
       print2("in assignDerivedParameters, state['Valid'] = False")
       return
 
-    atomic = ((state["GlobalSplitU"] > 1) and (state["_GlobalAccumulation"] != 'MultipleBuffer')) or state["AtomicAddC"]
+    atomic = ((state["GlobalSplitU"] > 1) and (state["_GlobalAccumulation"] != 'MultipleBuffer')) or state["AtomicAddC"] or state["StreamK"] == 1
     if atomic and globalParameters["DebugSkipAtomic"]:
       reject(state, "DEBUG: DebugSkipAtomic enabled, rejecting atomic kernel")
     if not atomic and globalParameters["DebugSkipNonAtomic"]:
@@ -2738,8 +2782,6 @@ class Solution(collections.abc.Mapping):
       state["ExpandPointerSwap"] = 1
       state["1LDSBuffer"] = 1
       print2("\nSet SIA=2, force PrefetchLocalRead=1, ExpandPointerSwap=1, 1LDSBuffer=1")
-
-    isa = tuple(state["ISA"])
 
     if "MemoryModifierFormat" not in state or state["MemoryModifierFormat"] not in validParameters["MemoryModifierFormat"]:
       if globalParameters["AsmCaps"][isa]["HasGLCModifier"]:

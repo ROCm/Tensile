@@ -1101,6 +1101,14 @@ validParameters = {
     # fp16 alternate implementation round mode: false for truncate, true for round near zero
     "Fp16AltImplRound": [False, True],
 
+    # StreamK kernels divide work evenly among CUs by splitting along MT and K dimensions
+    # Total work units are calculated as (#MTs x #LoopIters) and divided among workgroups
+    # In most cases each workgroup will calculate a partial tile that are accumulated in a fixup step in the same kernel
+    # 0: Standard data-parallel kernel
+    # 1: Basic StreamK atomic (uses atomics to accumulate partial tiles)
+    # 2: Basic StreamK non-atomic (uses workspace to store partial tiles, accumulate in deterministic fix-up step)
+    "StreamK": [0, 1, 2],
+
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
     #       - Recommended min is enough WG to use all resources on the CU
@@ -1457,6 +1465,7 @@ defaultBenchmarkCommonParameters = [
     {"GlobalSplitUAtomicAdd":     [ False ] },
     {"MacroTileShapeMin":         [ 1 ] },
     {"MacroTileShapeMax":         [ 64 ] },
+    {"StreamK":                   [ 0 ] },
     {"PersistentKernel":          [ 0 ] },
     {"PersistentKernelAlongBatch":[ False ] },    # May be default True is better ?
     {"PackBatchDims":             [ 0 ] },
