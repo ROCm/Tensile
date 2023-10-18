@@ -149,7 +149,10 @@ def getAssemblyCodeObjectFiles(kernels, kernelWriterAssembly, outputPath):
     return coFiles
 
 def which(p):
-    exes = [p+x for x in ['.bat', '', '.exe']]  # bat may be front end for file with no extension
+    if os.name == "nt":
+        exes = [p+x for x in ['.bat', '', '.exe']]  # bat may be front end for file with no extension
+    else:
+        exes = [p+x for x in ['', '.exe', '.bat']]
     system_path = os.environ['PATH'].split(os.pathsep)
     if p == 'hipcc' and 'CMAKE_CXX_COMPILER' in os.environ and os.path.isfile(os.environ['CMAKE_CXX_COMPILER']):
         return os.environ['CMAKE_CXX_COMPILER']
