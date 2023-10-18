@@ -12759,10 +12759,6 @@ class KernelWriterAssembly(KernelWriter):
     storesIssued = 0
     tmpS01 = tmpSgpr # scratch sgprs
 
-    # always use gwvw for buffer load C for atomic_cmpswap
-    # bpm = self.bpeCexternal * atomicW
-    bpm = self.bpeCexternal * gwvw
-
     ########################################
     # calculate addr and masks
     kStr += self.comment("calc coords, apply mask, and issue loads (if necessary)")
@@ -12850,11 +12846,9 @@ class KernelWriterAssembly(KernelWriter):
         vgprF8Temp0 = vgprF8Max + 1
         vgprF8Min = vgprF8Max + 3
       
-      lastVgprUsed = vgprF8Min
       if kernel["ProblemType"]["Fp32toFp8SWClip"]:
         # set flag of f32 NaN and +/- INF for v_cmp_class
         vgprFp32NanInfFlag = vgprF8Min + 1
-        lastVgprUsed = vgprFp32NanInfFlag
         kStr += inst("v_mov_b32", vgpr(vgprFp32NanInfFlag), "0x207", "flag for Nan and +/- inf" )
         # set max/min values for clipping
         if kernel["ProblemType"]["DestDataType"].isFloat8():
