@@ -773,7 +773,8 @@ namespace Tensile
         bool supportedTypeForReductionOpt
             = problem.alphaType() == DataType::Float || problem.alphaType() == DataType::Double;
         size_t threshReduction
-            = cuCount * numThreadsPerCU; // should be less than number of physical threads / reduction
+            = cuCount
+              * numThreadsPerCU; // should be less than number of physical threads / reduction
         const unsigned int maxReductionConst = 4;
         const unsigned int minGSUperReduction
             = 32; // Minimum GSU=128 for Reduction=4, GSU=64 for Reduction2
