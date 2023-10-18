@@ -3752,6 +3752,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.enable["Sync"]           = True and not (dkp>0 and dkp >= 5) and not dkp == -5
     self.enable["MAC"]            = True and not (dkp>0 and dkp >= 6) and not dkp == -6
     self.enable["PostLoop"]       = True and not (dkp>0 and dkp >= 1) and not dkp == -1
+    self.enable["InvalidLocalReadA"] = dkp == -10 or dkp == -12
+    self.enable["InvalidLocalReadB"] = dkp == -11 or dkp == -12
+    self.enable["InvalidLocalWriteA"] = dkp == -13 or dkp == -15
+    self.enable["InvalidLocalWriteB"] = dkp == -14 or dkp == -15
+    self.enable["InvalidGlobalReadA"] = (dkp == -16 or dkp == -18) and kernel["BufferLoad"]
+    self.enable["InvalidGlobalReadB"] = (dkp == -17 or dkp == -18) and kernel["BufferLoad"]
 
     #if dkp:
     #  print "\nKernelWriter enable:", self.enable

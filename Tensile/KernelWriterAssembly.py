@@ -2737,7 +2737,12 @@ class KernelWriterAssembly(KernelWriter):
 
     if kernel["BufferLoad"] or kernel["BufferStore"]:
       kStr += self.comment1("2GB limit - set offsets to -1 to exceed this and clamp")
-      kStr += self.macroRegister("BufferLimit", "0xffffffff")
+      # for A
+      limitValue = 0 if self.enable["InvalidGlobalReadA"] else 0xffffffff
+      kStr += self.macroRegister("BufferLimitA", hex(limitValue))
+      # for B
+      limitValue = 0 if self.enable["InvalidGlobalReadB"] else 0xffffffff
+      kStr += self.macroRegister("BufferLimitB", hex(limitValue))
       #TODO-64 : This is max 32-bit negative value, the tail loop
       # does incrementally step through the GRO and increment GRO
       # which are initialized with this value
@@ -4781,7 +4786,7 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_addc_u32", sgpr("ShadowLimit%s+1"%tc), sgpr("ShadowLimit%s+1"%tc), 0, "extend limit for directToLDS instruction offset")
 
       kStr += inst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
-      kStr += inst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "BufferLimit", "Move shadow to real if we are within 2^32")
+      kStr += inst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "BufferLimit%s"%tc, "Move shadow to real if we are within 2^32")
     else:
       # put limit directly into SRD:
       kStr += inst("s_lshl_b32", sgpr("Srd%s+2"%tc), sgpr(stmp+0), hex(log2(tP["bpe"])), "Set limit to use bytes")
@@ -4869,6 +4874,11 @@ class KernelWriterAssembly(KernelWriter):
         kStr += inst("s_mov_b32", sgpr("InitialSrd%sLimit+1"%tc), sgpr("ShadowLimit%s+1"%tc), "save shadow limit")
       else:
         kStr += inst("s_mov_b32", sgpr("InitialSrd%sLimit"%tc), sgpr("Srd%s+2"%tc), "save limit")
+
+    # invalid global read for performance evaluation only
+    if self.enable["InvalidGlobalRead%s"%tc]:
+      kStr += inst("s_mov_b32", sgpr("Srd%s+2"%tc), hex(0), "set out-of-bound addr for performance evaluation only")
+      kStr += inst("s_mov_b32", sgpr("ShadowLimit%s+1"%tc), hex(0xffffffff), "set out-of-bound addr for performance evaluation only")
 
     return kStr
 
@@ -5385,6 +5395,11 @@ class KernelWriterAssembly(KernelWriter):
     #if tP["isA"]:
       #kStr += self.dump(vgpr("LocalWriteAddr%s"%tP["tensorChar"]))
       #kStr += self.bomb(-40)
+
+    # invalid local write for performance evaluation only
+    if self.enable["InvalidLocalWrite%s"%tc]:
+      kStr += inst("v_mov_b32", vgpr(destVgpr), self.LdsOOB, "set out-of-bound addr for performance evaluation only")
+
     # do not generate local write address code if DirectToVgpr is enabled
     return "" if self.dontAppendCode or kernel["DirectToVgpr%s"%tc] else kStr
 
@@ -5510,6 +5525,10 @@ class KernelWriterAssembly(KernelWriter):
         "Final Offset: add padding %u per block %u" % (kernel["LdsPad%s"%tc], kernel["LdsBlockSizePerPad%s"%tc]))
       self.vgprPool.checkIn(rReg)
  
+    # invalid local read for performance evaluation only
+    if self.enable["InvalidLocalRead%s"%tc]:
+      kStr += inst("v_mov_b32", finalVgpr, self.LdsOOB, "set out-of-bound addr for performance evaluation only")
+
     return kStr
 
   ##############################################################################
@@ -7506,7 +7525,7 @@ class KernelWriterAssembly(KernelWriter):
         imod.addInst("s_cmp_eq_u32", sgpr("ShadowLimit%s+1"%tc), 0, "are we within 2^32?")
         if self.staggerU:
           # staggerU case, need to restore BufferLimit when ShadowLimit goes to negative value
-          imod.addInst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "BufferLimit", "Move shadow to real if we are within 2^32")
+          imod.addInst("s_cselect_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "BufferLimit%s"%tc, "Move shadow to real if we are within 2^32")
         else:
           imod.addInst("s_cmov_b32", sgpr("Srd%s+2"%tc), sgpr("ShadowLimit%s+0"%tc), "Move shadow to real if we are within 2^32")
     else:
