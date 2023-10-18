@@ -752,6 +752,7 @@ namespace Tensile
         for(size_t i = 0; i < problem.batchIndices().size(); i++)
             wiZ *= problem.batchSize(i);
 
+        const unsigned int numThreadsPerCU = 256;
         unsigned int gsu = static_cast<int>(sizeMapping.globalSplitU);
         if(sizeMapping.globalAccumulation == 1)
             // globalAccumulation = 1 case, ignore globalSplitU and use 1
@@ -762,7 +763,7 @@ namespace Tensile
             = problem.alphaType() == DataType::Float || problem.alphaType() == DataType::Double;
         size_t total     = wiX * wiY * wiZ;
         int    vw        = 1;
-        size_t threshVW2 = cuCount * 256 * 2; // should be more than number of physical threads * vw
+        size_t threshVW2 = cuCount * numThreadsPerCU * 2; // should be more than number of physical threads * vw
         if(supportedTypeForVWopt && total > threshVW2 && problem.freeSizeA(0) % 2 == 0)
             vw = 2;
 
@@ -771,7 +772,7 @@ namespace Tensile
         bool supportedTypeForReductionOpt
             = problem.alphaType() == DataType::Float || problem.alphaType() == DataType::Double;
         size_t threshReduction
-            = cuCount * 256; // should be less than number of physical threads / reduction
+            = cuCount * numThreadsPerCU; // should be less than number of physical threads / reduction
         const unsigned int maxReductionConst = 4;
         const unsigned int minGSUperReduction
             = 32; // Minimum GSU=128 for Reduction=4, GSU=64 for Reduction2
