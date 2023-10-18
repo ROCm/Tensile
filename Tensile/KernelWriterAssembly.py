@@ -4914,8 +4914,6 @@ class KernelWriterAssembly(KernelWriter):
             kStr += inst("s_addc_u32", sgpr(tileStart+1), sgpr(tileStart+1), sgpr(stmp+1), "accum wg term to tilestart")
           wg+=1
 
-    skAddressRef = None
-    skAddress = 0
     sgprAddress0 = sgpr("%s%s+0"%(self.sgprAddressStrAB,tc))
     sgprAddress1 = sgpr("%s%s+1"%(self.sgprAddressStrAB,tc))
 
@@ -10316,8 +10314,6 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   def allocPostLoopSrd(self, kernel, tc):
     kStr = ""
-    skAddressRef = None
-    skAddress = 0
     sgprAddress0 = sgpr("Address%s+0"%tc)
     sgprAddress1 = sgpr("Address%s+1"%tc)
     # Buffer-load uses one base read pointer stored in the SRD - set it here:
@@ -11793,7 +11789,6 @@ class KernelWriterAssembly(KernelWriter):
     loadsIssued = 0
     storesIssued = 0
     tmpS01 = tmpSgpr # scratch sgprs
-    tmpS23 = tmpS01+self.laneSGPRCount
 
     wavelen = self.kernel["WavefrontSize"]
     laneSGPRC = self.laneSGPRCount
@@ -11937,11 +11932,9 @@ class KernelWriterAssembly(KernelWriter):
         vgprF8Temp1 = vgprF8Max + 2
         vgprF8Min = vgprF8Max + 3
       
-      lastVgprUsed = vgprF8Min
       if kernel["ProblemType"]["Fp32toFp8SWClip"]:
         # set flag of f32 NaN and +/- INF for v_cmp_class
         vgprFp32NanInfFlag = vgprF8Min + 1
-        lastVgprUsed = vgprFp32NanInfFlag
         kStr += inst("v_mov_b32", vgpr(vgprFp32NanInfFlag), "0x207", "flag for Nan and +/- inf" )
         # set max/min values for clipping
         if kernel["ProblemType"]["DestDataType"].isFloat8():
@@ -12225,19 +12218,15 @@ class KernelWriterAssembly(KernelWriter):
     kStr += inst("s_mov_b32", sgpr("SrdWS+2"), "BufferOOB", "")
     kStr += inst("s_mov_b32", sgpr("SrdWS+3"), "Srd127_96", "Set bits 127_96 in post-loop SRD")
 
-    # tmpSgprRef = self.getTmpSgpr(2)
-    # tmpS0 = tmpSgprRef.idx()
     tmpSgprRef = None
     if tmpSgpr == None:
-      tmpSgprRef = self.getTmpSgpr(2)
+      tmpSgprRef = self.getTmpSgpr(1)
       tmpSgpr = tmpSgprRef.idx()
-    tmpS0 = tmpSgpr
-    tmpS1 = tmpS0 + 1
 
     assert kernel["BufferStore"]
     kStr += "\n"
-    kStr += inst("s_mul_i32", sgpr(tmpS0), hex(kernel["MacroTile0"]*kernel["MacroTile1"]*self.bpeCinternal), sCtaIdx, "Offset to correct partials tile")
-    kStr += inst("s_add_u32",  sgpr("SrdWS+0"), sgpr("SrdWS+0"), sgpr(tmpS0), "add lo to SRD")
+    kStr += inst("s_mul_i32", sgpr(tmpSgpr), hex(kernel["MacroTile0"]*kernel["MacroTile1"]*self.bpeCinternal), sCtaIdx, "Offset to correct partials tile")
+    kStr += inst("s_add_u32",  sgpr("SrdWS+0"), sgpr("SrdWS+0"), sgpr(tmpSgpr), "add lo to SRD")
     kStr += inst("s_addc_u32", sgpr("SrdWS+1"), sgpr("SrdWS+1"), 0, "add hi to SRD")
 
     return kStr
@@ -12263,9 +12252,7 @@ class KernelWriterAssembly(KernelWriter):
       PreLoopVmcntCaseStr = ""
       # not generate Case 2 if StoreCInUnroll with StoreVectorWidth==1 (Case 2 will be same as Case 3)
       if self.canOptimizePreLoopLWVmcnt:
-        if beta:
-          self.currPreLoopVmcntCase = PreLoopVmcntCase.OrdNLL_B1_Store
-        elif edge or (kernel["StoreCInUnroll"] and kernel["StoreVectorWidth"]==1):
+        if edge or (kernel["StoreCInUnroll"] and kernel["StoreVectorWidth"]==1):
           self.currPreLoopVmcntCase = PreLoopVmcntCase.OrdNLL_E1_Store
         else:
           self.currPreLoopVmcntCase = PreLoopVmcntCase.OptNLL_Store
@@ -12359,8 +12346,8 @@ class KernelWriterAssembly(KernelWriter):
             print("warning: %s growing VGPR for GlobalWrite batching - this may bloat VGPR usage" % \
                   (self.kernelName))
             print("   numVgprAvailable=", numVgprAvailable, \
-                  "numVgprsPerElement=", numVgprsPerElement, "atomic=", atomic, \
-                  "beta=", beta, "gwvw=", gwvw)
+                  "numVgprsPerElement=", numVgprsPerElement, \
+                  "gwvw=", gwvw)
         elif gwvw != gwvwOrig:
           self.ss.gwvw = gwvw # make both representations consistent
           if shrinkDb:
@@ -12378,9 +12365,6 @@ class KernelWriterAssembly(KernelWriter):
             self.vgprPool.checkIn(t)
           numVgprAvailable = self.vgprPool.available()
           print2(self.vgprPool.state())
-
-      # set atomicW after we potentially resize GWVW
-      atomicW = min(gwvw, kernel["VectorAtomicWidth"])
 
       # print("NumVgprAvailable", numVgprAvailable)
       if numVgprsPerElement:
@@ -12772,17 +12756,12 @@ class KernelWriterAssembly(KernelWriter):
     ss.setupStoreElementsForBatch(kernel, gwvw, batchElements, batchElementSgprs, preventOverflow=preventOverflow, \
                                   VectorWidthB=self.VectorWidthB, isWorkspace=True)
 
-    loadsIssued = 0
     storesIssued = 0
     tmpS01 = tmpSgpr # scratch sgprs
-    tmpS23 = tmpS01+self.laneSGPRCount
 
-    wavelen = self.kernel["WavefrontSize"]
-    laneSGPRC = self.laneSGPRCount
     # always use gwvw for buffer load C for atomic_cmpswap
     # bpm = self.bpeCexternal * atomicW
     bpm = self.bpeCexternal * gwvw
-    vgprLoadDW = 1*(bpm//4)
 
     ########################################
     # calculate addr and masks
@@ -12833,7 +12812,6 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # else:
     # edge has v_cndmask so loads or stores may not issue, hard to track vmcnt:
-    interleaveStoreVmcnt = self.interleaveStoreVmcnt and not edge
     for elementIdx in range(0, len(batchElements)):
       for vi in range(0, gwvw):
         sumIdxV = ss.elementSumIdx[elementIdx] + vi
@@ -12865,13 +12843,11 @@ class KernelWriterAssembly(KernelWriter):
       # make vgprF8Temp0 always even to use pk instruction later
       if tmpCVTVgpr % 2 == 0:
         vgprF8Temp0 = tmpCVTVgpr
-        vgprF8Temp1 = vgprF8Temp0 + 1
         vgprF8Max = vgprF8Temp0 + 2
         vgprF8Min = vgprF8Temp0 + 3
       else: 
         vgprF8Max = tmpCVTVgpr
         vgprF8Temp0 = vgprF8Max + 1
-        vgprF8Temp1 = vgprF8Max + 2
         vgprF8Min = vgprF8Max + 3
       
       lastVgprUsed = vgprF8Min
@@ -12888,21 +12864,11 @@ class KernelWriterAssembly(KernelWriter):
           kStr += inst("v_mov_b32", vgpr(vgprF8Max), "0x47600000", "save 57344.0f as max for clipping" )
           kStr += inst("v_mov_b32", vgpr(vgprF8Min), "0xC7600000", "save -57344`.0f as min for clipping" )
 
-      # need extra two temp registers for PRNG func
-      if kernel["ProblemType"]["StochasticRounding"]:  # in-device RND
-        vgprSRTemp0 = lastVgprUsed + 1
-        vgprSRTemp1 = lastVgprUsed + 2
-
     storeCode = ""
     for elementIdx in range(0, len(batchElements)):
       element = batchElements[elementIdx]
       addr = ss.elementAddr[elementIdx].addrDVgpr
-      mask = ss.elementMask[elementIdx]
       addrCalc = ss.elementAddr[elementIdx]
-      d1 = element[0]
-      d0 = element[1]
-      vc1 = element[2]
-      vc0 = element[3]
       sumIdx = ss.elementSumIdx[elementIdx]
 
       storeWidth = kernel["StoreVectorWidth"]
