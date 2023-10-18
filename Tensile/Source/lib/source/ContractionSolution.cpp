@@ -753,7 +753,7 @@ namespace Tensile
             wiZ *= problem.batchSize(i);
 
         const unsigned int numThreadsPerCU = 256;
-        unsigned int gsu = static_cast<int>(sizeMapping.globalSplitU);
+        unsigned int       gsu             = static_cast<int>(sizeMapping.globalSplitU);
         if(sizeMapping.globalAccumulation == 1)
             // globalAccumulation = 1 case, ignore globalSplitU and use 1
             gsu = 1;
@@ -761,9 +761,10 @@ namespace Tensile
         // only for compute type = Float
         bool supportedTypeForVWopt
             = problem.alphaType() == DataType::Float || problem.alphaType() == DataType::Double;
-        size_t total     = wiX * wiY * wiZ;
-        int    vw        = 1;
-        size_t threshVW2 = cuCount * numThreadsPerCU * 2; // should be more than number of physical threads * vw
+        size_t total = wiX * wiY * wiZ;
+        int    vw    = 1;
+        size_t threshVW2
+            = cuCount * numThreadsPerCU * 2; // should be more than number of physical threads * vw
         if(supportedTypeForVWopt && total > threshVW2 && problem.freeSizeA(0) % 2 == 0)
             vw = 2;
 
