@@ -796,6 +796,9 @@ validParameters = {
     #  - Can vectorize stores in edge tiles.  Vector width can be up to AF0EM.
     #   (since C matrix is always coalesced in Free0 index direction and this assertion guarantees the index element multiple)
     #
+    # TailLoop Optimizations:
+    #  - enable wider global load with AF0EM > 1 for A + TLU, AF1EM > 1 for B + TLU
+    #
     # 1 indicates no assertion (since all sizes are multiples of 1)
     "AssertFree0ElementMultiple" : [1,2,4,8,16],
 
@@ -1740,8 +1743,8 @@ defaultProblemType = {
     "Fp32toFp8SWClip" :         True,
 
     # only in-device SR for now
-    "StochasticRounding" :      False  # By default, IEEE RNE rounding    
-    
+    "StochasticRounding" :      False,  # By default, IEEE RNE rounding
+
     # Rounding mode for f32 to f8 down conversion
     # TODO in Future:
     # There are two different rounding modes for f32 to f8 down conversion: [0]: IEEE RNE mode and [1/2]: stochastic mode. 

@@ -1815,12 +1815,46 @@ class Solution(collections.abc.Mapping):
   # create Conversion Kernels
   def initConversionKernelObjects(self):
     self.conversionKernelObjects = []
-    if (self["GlobalSplitU"] > 1) and self["_GlobalAccumulation"]:
-      state = {}
-      state["ProblemType"] = deepcopy(self["ProblemType"])
-      state["KernelLanguage"] = "Source"
-      state["_GlobalAccumulation"] = self["_GlobalAccumulation"]
-      self.conversionKernelObjects.append(KernelWriterConversion(state))
+    gsu = self["GlobalSplitU"]
+    if (gsu > 1) and self["_GlobalAccumulation"]:
+      # wider load for GSU is single compute type only
+      supportedTypeForVWopt = self["ProblemType"]["ComputeDataType"].isSingle() or self["ProblemType"]["ComputeDataType"].isDouble()
+      vwMax = 1
+      if (supportedTypeForVWopt):
+        vwMax = 2
+
+      # reduction for GSU is single compute type + gus = power of 2 only
+      supportedTypeForReductionOpt = self["ProblemType"]["ComputeDataType"].isSingle() or self["ProblemType"]["ComputeDataType"].isDouble()
+      maxReduction = 1
+      maxReductionConst = 4 # this must match the value in client code (ContractionSolution.cpp)
+      minGSUperReduction = 32; # Minimum GSU=128 for Reduction=4, GSU=64 for Reduction2
+      applicableReduction = max(1, gsu // minGSUperReduction)
+      if (supportedTypeForReductionOpt and ((gsu & (gsu - 1)) == 0) and self["_GlobalAccumulation"] == "MultipleBuffer"):
+        maxReduction = min(applicableReduction, maxReductionConst) # not exceeding reductionThreshold
+
+      # loop unroll opt for postGSU
+      supportedTypeForUnrollOpt = self["ProblemType"]["ComputeDataType"].isSingle() or self["ProblemType"]["ComputeDataType"].isDouble()
+
+      vw = 1
+      while vw <= vwMax:
+        reduction = 1
+        while reduction <= maxReduction:
+          # so far, reduction=2 does not perform well. Skip 2
+          if reduction == 2 and self["ProblemType"]["ComputeDataType"].isSingle():
+            reduction *= 2
+            continue
+          state = {}
+          state["ProblemType"] = deepcopy(self["ProblemType"])
+          state["KernelLanguage"] = "Source"
+          state["_GlobalAccumulation"] = self["_GlobalAccumulation"]
+          state["GlobalSplitU"] = self["GlobalSplitU"]
+          state["VectorWidth"] = vw
+          state["Reduction"] = reduction
+          # number of unroll for large GSU (must match client code)
+          state["GSUUnrollUnit"] = 16 * state["Reduction"] if supportedTypeForUnrollOpt and self["_GlobalAccumulation"] == "MultipleBuffer" else 1
+          self.conversionKernelObjects.append(KernelWriterConversion(state))
+          reduction *= 2
+        vw *= 2
 
 
   ########################################
