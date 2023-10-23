@@ -3064,8 +3064,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
         # These cases loop back and run the prefetch loop again
         # we need an extra barrier to ensure that the ds_reads (either for SR or MFMA) from previous iteration
         # have finished before we generate the prefetch for the next summation index.
-        if kernel["PersistentKernel"] or self.actualSummationLoops>1:
-          kl.append( self.indent + self.syncStr + "// for PersistentKernel " + self.endLine )
+        if kernel["PersistentKernel"] or kernel["StreamK"] > 0 or self.actualSummationLoops>1:
+          kl.append( self.indent + self.syncStr + "// for PersistentKernel / StreamK " + self.endLine )
 
       if self.enable["LocalWrite"]:
         # local write
@@ -3320,6 +3320,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
           kl.append(self.wait(kernel, tensorParametersA, tensorParametersB, 0, -1, -1, "2wait for global read"))
         if self.enable["Sync"]:
           kl.append(self.syncThreads(kernel))
+
+        kl.append(self.doneGlobalABReads(kernel))
 
         # the following read/write addresses could be modified in recalcLocal(Read|Write)Addresses due to policy change
         self.oriLraA = None # back up original local read address vgpr
@@ -3663,6 +3665,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     #   - GlobalSplitU = 1
     #     GSU>1 case, remaining K is distributed unevenly and does not work with tailLoop in noLoadLoop
     #   - PersistentKernel = 0
+    #   - StreamK = 0
     #   - DepthULdsDivisor = 1
     #   - StaggerU = 0
     #     StaggerU=0 case, we can exit NoLoadLoop earlier when whole K range is processed
@@ -3709,7 +3712,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     elif kernel["BufferLoad"] and (not kernel["SuppressNoLoadLoop"]) and \
          kernel["EnableMatrixInstruction"] and kernel["MatrixInstK"] > 1 and \
          (glvwA <= 1 or (tailLoopLoadWidthA % glvwA == 0)) and (glvwB <= 1 or (tailLoopLoadWidthB % glvwB == 0)) and \
-         gsu == 1 and kernel["PersistentKernel"] == 0 and kernel["DepthULdsDivisor"] == 1 and \
+         gsu == 1 and kernel["PersistentKernel"] == 0 and kernel["StreamK"] == 0 and kernel["DepthULdsDivisor"] == 1 and \
          kernel["InnerUnroll"] == 1:
       if kernel["StaggerU"] == 0:
         noTailLoop = 2
@@ -3752,6 +3755,12 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.enable["Sync"]           = True and not (dkp>0 and dkp >= 5) and not dkp == -5
     self.enable["MAC"]            = True and not (dkp>0 and dkp >= 6) and not dkp == -6
     self.enable["PostLoop"]       = True and not (dkp>0 and dkp >= 1) and not dkp == -1
+    self.enable["InvalidLocalReadA"] = dkp == -10 or dkp == -12
+    self.enable["InvalidLocalReadB"] = dkp == -11 or dkp == -12
+    self.enable["InvalidLocalWriteA"] = dkp == -13 or dkp == -15
+    self.enable["InvalidLocalWriteB"] = dkp == -14 or dkp == -15
+    self.enable["InvalidGlobalReadA"] = (dkp == -16 or dkp == -18) and kernel["BufferLoad"]
+    self.enable["InvalidGlobalReadB"] = (dkp == -17 or dkp == -18) and kernel["BufferLoad"]
 
     #if dkp:
     #  print "\nKernelWriter enable:", self.enable
@@ -4704,6 +4713,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
   ##############################################################################
   @abc.abstractmethod
   def globalReadDo(self, kernel, mode, tP, vregSetIdx=0):
+    return ""
+  
+  ##############################################################################
+  # Global Read A/B completed
+  ##############################################################################
+  @abc.abstractmethod
+  def doneGlobalABReads(self, kernel):
     return ""
 
   ##############################################################################

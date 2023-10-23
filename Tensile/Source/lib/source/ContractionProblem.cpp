@@ -754,16 +754,8 @@ namespace Tensile
         m_bZeroPads.push_back(m_boundIndices[toBoundsPos(zp.boundIndex)].bZeroPad);
     }
 
-    void ContractionProblem::checkPersistentKernelEligibility(ContractionSolution const& solution,
-                                                              Hardware const&            hardware)
+    size_t ContractionProblem::getNumTiles(SizeMapping const& sizeMapping) const
     {
-        m_eligibleForPK = true;
-
-        // Get the new WorkGroup numbers under the PK and CU value
-        auto sizeMapping = solution.sizeMapping;
-        if(sizeMapping.persistentKernel == 0)
-            return;
-
         // Get the normal WorkGroup numbers by sizeMapping MacroTile
         dim3 numWG(1, 1, 1);
         for(size_t i = 0; i < m_freeIndicesA.size(); i++)
@@ -789,8 +781,37 @@ namespace Tensile
         numWG.y *= sizeMapping.globalSplitU;
 
         size_t problemTiles = numWG.x * numWG.y;
+        // if(sizeMapping.persistentKernelAlongBatch || sizeMapping.streamK != 0)
         if(sizeMapping.persistentKernelAlongBatch)
             problemTiles *= numWG.z;
+
+        return problemTiles;
+    }
+
+    size_t ContractionProblem::getItersPerTile(SizeMapping const& sizeMapping) const
+    {
+        size_t boundSize = 1;
+        for(size_t i = 0; i < m_boundIndices.size(); ++i)
+        {
+            boundSize *= m_boundSizes[i];
+        }
+
+        size_t itersPerTile = CeilDivide(boundSize, sizeMapping.depthU);
+
+        return itersPerTile;
+    }
+
+    void ContractionProblem::checkPersistentKernelEligibility(ContractionSolution const& solution,
+                                                              Hardware const&            hardware)
+    {
+        m_eligibleForPK = true;
+
+        // Get the new WorkGroup numbers under the PK and CU value
+        auto sizeMapping = solution.sizeMapping;
+        if(sizeMapping.persistentKernel == 0)
+            return;
+
+        auto problemTiles = getNumTiles(sizeMapping);
 
         AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
         assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
@@ -810,6 +831,12 @@ namespace Tensile
 
         // If #PKWG (PK*CUs) >= #TotalTiles, the persistent kernel behaves just like non-PK
         m_eligibleForPK = persistentGroups < problemTiles;
+    }
+
+    void ContractionProblem::checkRequiredWorkspaceSize(ContractionSolution const& solution,
+                                                        Hardware const&            hardware)
+    {
+        m_requiredWorkspaceSize = solution.requiredWorkspaceSize(*this, hardware);
     }
 
     void ContractionProblem::normalize()

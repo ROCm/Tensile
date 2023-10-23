@@ -34,6 +34,13 @@ class KernelWriterConversion(KernelWriterBase):
 
     self.state["ProblemType"] = deepcopy(state["ProblemType"])
     self.state["_GlobalAccumulation"] = state["_GlobalAccumulation"]
+    self.state["GlobalSplitU"] = state["GlobalSplitU"] if state["_GlobalAccumulation"] == 'MultipleBuffer' else 1
+    self.state["GSUUnrollUnit"] = state["GSUUnrollUnit"] # number of unroll for large GSU
+    # mod part of GSU unroll. This will be fully unrolled.
+    mod = self.state["GlobalSplitU"] % self.state["GSUUnrollUnit"]
+    self.state["GSUmod"] = self.state["GSUUnrollUnit"] if mod == 0 else mod
+    self.state["VectorWidth"] = state["VectorWidth"]
+    self.state["Reduction"] = state["Reduction"]
 
     # derive parameter
     self.language = "HIP"
@@ -75,7 +82,9 @@ class KernelWriterConversion(KernelWriterBase):
     
     # alpha & beta
     kStr += "  %s const alpha,%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine)
-    kStr += "  %s const beta,%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine)
+    kStr += "  %s const beta" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language))
+
+    midEnd = ",%s"%self.endLine
 
     # strides
     firstStrideCD = 1
@@ -83,23 +92,25 @@ class KernelWriterConversion(KernelWriterBase):
       firstStrideCD = 0
     lastStrideC = self.state["ProblemType"]["NumIndicesC"]
     for i in range(firstStrideCD, lastStrideC):
-      kStr += "  unsigned int const strideD%s,%s" % (self.indexChars[i], self.endLine)
+      kStr += "%s  unsigned int const strideD%s" % (midEnd, self.indexChars[i])
     for i in range(firstStrideCD, lastStrideC):
-      kStr += "  unsigned int const strideW%s,%s" % (self.indexChars[i], self.endLine)
+      kStr += "%s  unsigned int const strideW%s" % (midEnd, self.indexChars[i])
     for i in range(firstStrideCD, lastStrideC):
-      kStr += "  unsigned int const strideC%s,%s" % (self.indexChars[i], self.endLine)
+      kStr += "%s  unsigned int const strideC%s" % (midEnd, self.indexChars[i])
 
     # sizes
     for i in range(0, self.state["ProblemType"]["NumIndicesC"]):
-      kStr += "  unsigned int const size%s,%s" % (self.indexChars[i], self.endLine)
+      kStr += "%s  unsigned int const size%s" % (midEnd, self.indexChars[i])
 
-    # gsu & SR 
+    # gsu
+    kStr += "%s  unsigned int const gsu" % midEnd
+    # SR
     if self.state["ProblemType"]["DestDataType"].is8bitFloat() \
             and self.state["ProblemType"]["StochasticRounding"]:
-      kStr += "  unsigned int const gsu,%s" % self.endLine
-      kStr += "  const uint32_t RNDSeed)%s" % self.endLine
-    else:
-      kStr += "  unsigned int const gsu)%s" % self.endLine
+      kStr += "%s  const uint32_t RNDSeeds" % midEnd
+
+    # put final end
+    kStr += ")%s" % self.endLine
 
     return kStr
 
@@ -161,11 +172,21 @@ class KernelWriterConversion(KernelWriterBase):
       kStr += " + (IDX%s)*strideC%s" % (indexChar, indexChar)
     kStr += " ))" + self.endLine
 
+    # define NUM_ELEMENT_LOAD and NUM_GSU for GlobalSplitUSeparatePost
+    mul_NEL = ""
+    div_NEL = ""
+    kStr += "#define NUM_ELEMENT_LOAD %d%s" % (self.state["VectorWidth"], self.endLine)
+    mul_NEL = "*NUM_ELEMENT_LOAD"
+    div_NEL = "/NUM_ELEMENT_LOAD"
+    # parallel reduction
+    kStr += "#define NUM_REDUCTION %d%s" % (self.state["Reduction"], self.endLine)
+    div_R = "/NUM_REDUCTION"
+
     ########################################
     # multi buffers GSU: Accumulate all GSU buffer
     indexChar = self.indexChars[0]
     kStr += "  uint64_t id = %s(0);%s" % (self.getGlobalIdStr, self.endLine)
-    kStr += "  if (id >= (size%s" % self.indexChars[0]
+    kStr += "  if (id%s >= (size%s" % (mul_NEL+div_R, self.indexChars[0])
     for i in range(1, problemType["NumIndicesC"]):
       kStr += "*size%s" % self.indexChars[i]
     kStr += "))%s" % self.endLine
@@ -177,9 +198,15 @@ class KernelWriterConversion(KernelWriterBase):
       kStr += ", id%d" % i
     kStr += ";%s" % self.endLine
 
+    # parallel reduction
+    if self.state["Reduction"] > 1:
+      kStr += "  int idR = (int)(id %% NUM_REDUCTION);%s" % (self.endLine)
+      kStr += "  id = id / NUM_REDUCTION;%s" % (self.endLine)
     for i in range(0, problemType["NumIndicesC"]):
-      kStr += "  id%d = id %% size%s;%s" % (i, self.indexChars[i], self.endLine)
-      kStr += "  id  = id / size%s;%s" % (self.indexChars[i], self.endLine)
+      kStr += "  id%d = (id %% (size%s%s))%s;%s" % (i, self.indexChars[i], div_NEL, mul_NEL,self.endLine)
+      kStr += "  id  = id / (size%s%s);%s" % (self.indexChars[i], div_NEL, self.endLine)
+      div_NEL = "" # for first iter only
+      mul_NEL = "" # for first iter only
 
     nonTileFreeIndices = []
 
@@ -241,35 +268,97 @@ class KernelWriterConversion(KernelWriterBase):
       indexChar = self.indexChars[i]
       kStr += " + (size%s - 1) * strideW%s" % (indexChar, indexChar)
     kStr += ";" + self.endLine
-    kStr += "  " + self.datatype + " accum = 0;%s" % self.endLine
-    kStr += "#pragma unroll%s" % self.endLine
-    kStr += "  for (int i=0; i<gsu; i++) {%s" % self.endLine
-    kStr += "    accum += W[idxW];%s" % self.endLine
-    kStr += "    idxW  += strideW;%s" % self.endLine
+    destTypeStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
+    if self.state["VectorWidth"] == 1:
+      loadTypeStr = self.datatype
+      storeTypeStr = destTypeStr
+    else:
+      # wider load optimization
+      loadTypeStr = "%s%s" % (self.datatype, self.state["VectorWidth"] )
+      storeByte = self.state["ProblemType"]["DestDataType"].numBytes() * self.state["VectorWidth"]
+      # storeByte should be >=2 (because VectorWidth > 1 here)
+      if (storeByte == 2):
+        storeTypeStr = "tensile_half"
+      else:
+        storeTypeStr = "float%u"% (storeByte // 4)
+
+    # parallel reduction
+    if self.state["Reduction"] > 1:
+      kStr += "  idxW += strideW * idR;%s" % (self.endLine)
+      kStr += "  strideW *= NUM_REDUCTION;%s" % (self.endLine)
+
+    # define accum variable(s)
+    for vi in range(self.state["VectorWidth"]):
+      kStr += "  %s accum%u = 0;%s" % (self.datatype, vi, self.endLine)
+    # define result buffer
+    kStr += "  %s result[NUM_ELEMENT_LOAD];%s"%(destTypeStr, self.endLine)
+
+    idxStr = [""] if self.state["VectorWidth"] == 1 else [".x",".y",".z",".w"] # element access for wider load
+    if self.state["GlobalSplitU"] > self.state["GSUUnrollUnit"]:
+      # generate loop for large GSU
+      iterUnit = self.state["GSUUnrollUnit"] // self.state["Reduction"]
+      minusGSUmod = " - %d"%self.state["GSUmod"] if self.state["GSUmod"] == self.state["GSUUnrollUnit"] else ""
+      kStr += "  uint32_t gsu_div = (gsu%s) / %u;%s" % (minusGSUmod, self.state["GSUUnrollUnit"], self.endLine)
+      kStr += "  for (int i=0; i<gsu_div; i++) {%s" % self.endLine
+      for gsuIdx in range(iterUnit):
+        kStr += "    %s temp%d = *((%s*)(W+idxW));%s" % (loadTypeStr, gsuIdx, loadTypeStr, self.endLine)
+        kStr += "    idxW  += strideW;%s" % self.endLine
+      for gsuIdx in range(iterUnit):
+        for vi in range(self.state["VectorWidth"]):
+          kStr += "    accum%u += temp%u%s;%s" % (vi, gsuIdx, idxStr[vi], self.endLine)
+      kStr += "  }%s" % self.endLine
+    # unroll mod part
+    iterMod = self.state["GSUmod"]//self.state["Reduction"]
+    for gsuIdx in range(iterMod):
+      kStr += "  %s temp%d = *((%s*)(W+idxW));%s" % (loadTypeStr, gsuIdx, loadTypeStr, self.endLine)
+      kStr += "  idxW  += strideW;%s" % self.endLine
+      for vi in range(self.state["VectorWidth"]):
+        kStr += "  accum%u += temp%u%s;%s" % (vi, gsuIdx, idxStr[vi], self.endLine)
+
+    # parallel reduction
+    # do parallel reduction before alpha
+    if self.state["Reduction"] > 1:
+      r = 1
+      while r < self.state["Reduction"]:
+        for vi in range(self.state["VectorWidth"]):
+          kStr += "  accum%d += __shfl_down(accum%d, %d, %d);%s" % (vi, vi, r, self.state["Reduction"], self.endLine)
+        r *= 2
+
+      # do alpha-beta only for idR==0 (representative index)
+      kStr += "  if( idR != 0)%s" % (self.endLine)
+      kStr += "    return;%s" % self.endLine
+
+    #alpha
+    for vi in range(self.state["VectorWidth"]):
+      kStr += "  accum%d *= (%s)alpha;%s" % (vi, self.datatype, self.endLine)
+    #Beta
+    kStr += "  if( beta != (%s)0){%s" % (self.datatype, self.endLine)
+    for vi in range(self.state["VectorWidth"]):
+      # load C here
+      kStr += "    accum%d += beta * (%s)C[idxC+%d];%s" % (vi, self.datatype, vi, self.endLine)
     kStr += "  }%s" % self.endLine
 
-    kStr += "  if( beta == (%s)0)%s" % (self.state["ProblemType"]["ComputeDataType"].toDevice(self.language), self.endLine)
-    kStr += "    accum = ((" + self.datatype + ")alpha) * accum;%s" % (self.endLine)
-    kStr += "  else%s" % self.endLine
-    kStr += "    accum = (((" + self.datatype + ")alpha) * accum + ((" + self.datatype + ")beta) * ((" + self.datatype + ")C[idxC]));" + self.endLine
-
-    typeStr = self.state["ProblemType"]["DestDataType"].toDevice(self.language)
     # Stochastic Rounding? need to use explicit_downcast 
     if self.state["ProblemType"]["DestDataType"].is8bitFloat() \
             and self.state["ProblemType"]["StochasticRounding"]:
-      # generate RND... For F8, computeDataType is always f32   
-      kStr += "  uint32_t x = reinterpret_cast<uint32_t &>(accum);%s" % (self.endLine)
-      kStr += "  uint32_t drop_bits = x & 0xFFFFu;%s" % (self.endLine)
-      kStr += "  drop_bits ^= x >> 16;%s" % (self.endLine)
-      kStr += "  drop_bits = ((drop_bits & 31) << 11) | (drop_bits >> 5);%s" % (self.endLine)
-      kStr += "  drop_bits *= 0x7000149;%s" % (self.endLine)
-      kStr += "  uint32_t rng = (drop_bits ^ 0x13371337 ^ (idxD * 229791) ^ RNDSeed);%s" % (self.endLine)
-      
-      # call explicit_downcast  
-      cmpTypeStr =  self.state["ProblemType"]["ComputeDataType"].toDevice(self.language)
-      kStr += "  D[idxD] = explicit_downcast<%s, %s, true>(accum, rng);%s" % (typeStr, cmpTypeStr, self.endLine)
+      for vi in range(self.state["VectorWidth"]):
+        # generate RND... For F8, computeDataType is always f32
+        kStr += "  uint32_t x = reinterpret_cast<uint32_t &>(accum%d);%s" % (vi, self.endLine)
+        kStr += "  uint32_t drop_bits = x & 0xFFFFu;%s" % (self.endLine)
+        kStr += "  drop_bits ^= x >> 16;%s" % (self.endLine)
+        kStr += "  drop_bits = ((drop_bits & 31) << 11) | (drop_bits >> 5);%s" % (self.endLine)
+        kStr += "  drop_bits *= 0x7000149;%s" % (self.endLine)
+        kStr += "  uint32_t rng = (drop_bits ^ 0x13371337 ^ (idxD * 229791) ^ RNDSeed);%s" % (self.endLine)
+
+        # call explicit_downcast
+        cmpTypeStr =  self.state["ProblemType"]["ComputeDataType"].toDevice(self.language)
+        kStr += "  result[%d] = explicit_downcast<%s, %s, true>(accum%d, rng);%s" % (vi, destTypeStr, cmpTypeStr, vi, self.endLine)
     else:
-      kStr += "  D[idxD] = (%s)accum;%s" % (typeStr, self.endLine)
+      #covert to output
+      for vi in range(self.state["VectorWidth"]):
+        kStr += "  result[%d] = (%s)accum%d;%s" % (vi, destTypeStr, vi, self.endLine)
+
+    kStr += "  *((%s*)(D+idxD)) = *((%s*)(result));%s" % (storeTypeStr, storeTypeStr, self.endLine)
 
     ########################################
     # end
@@ -283,6 +372,9 @@ class KernelWriterConversion(KernelWriterBase):
     kStr += "#undef GLOBAL_D%s" % (self.endLine)
     kStr += "#undef GLOBAL_W%s" % (self.endLine)
     kStr += "#undef GLOBAL_C%s" % (self.endLine)
+    kStr += "#undef NUM_ELEMENT_LOAD%s" % (self.endLine)
+    # parallel reduction
+    kStr += "#undef NUM_REDUCTION%s" % (self.endLine)
 
     return kStr
 
@@ -297,7 +389,18 @@ class KernelWriterConversion(KernelWriterBase):
     name += self.state["ProblemType"]["DestDataType"].toChar()
     name += "" if self.state["ProblemType"]["StridedBatched"] else "_GB"
     name += "_PostGSU"
-
+    # add extra string for gsu (only for GSUUnrollUnit > 1)
+    if self.state["GSUUnrollUnit"] > 1:
+      # This part must match client code (in ContractionSolution.cpp)
+      gsuMod = self.state["GSUmod"]
+      modStr = ""
+      if self.state["GlobalSplitU"] > self.state["GSUUnrollUnit"]:
+        modStr += "_mod%u"%self.state["GSUUnrollUnit"]
+      name += "%u%s"%(gsuMod, modStr)
+    if self.state["VectorWidth"] > 1:
+      name += "_VW" + str(self.state["VectorWidth"])
+    if self.state["Reduction"] > 1:
+      name += "_R" + str(self.state["Reduction"])
     return name
 
 

@@ -796,6 +796,9 @@ validParameters = {
     #  - Can vectorize stores in edge tiles.  Vector width can be up to AF0EM.
     #   (since C matrix is always coalesced in Free0 index direction and this assertion guarantees the index element multiple)
     #
+    # TailLoop Optimizations:
+    #  - enable wider global load with AF0EM > 1 for A + TLU, AF1EM > 1 for B + TLU
+    #
     # 1 indicates no assertion (since all sizes are multiples of 1)
     "AssertFree0ElementMultiple" : [1,2,4,8,16],
 
@@ -1080,9 +1083,18 @@ validParameters = {
     # 6= +NoMAC
     # 7= +NoPreLoop+ NoGlobalReadInc
     # 9= NullKernel
+    # 10= +invalid LocalReadA (use invalid vgpr offset(LdsOOB)). Negative only.
+    # 11= +invalid LocalReadB (use invalid vgpr offset(LdsOOB)). Negative only.
+    # 12= +invalid LocalReadA+B (use invalid vgpr offset(LdsOOB)). Negative only.
+    # 13= +invalid LocalWriteA (use invalid vgpr offset(LdsOOB)). Negative only.
+    # 14= +invalid LocalWriteB (use invalid vgpr offset(LdsOOB)). Negative only.
+    # 15= +invalid LocalWriteA+B (use invalid vgpr offset(LdsOOB)). Negative only.
+    # 16= +invalid GlobalReadA (use srdA[2]=0, BufferLoad only). Negative only.
+    # 17= +invalid GlobalReadB (use srdB[2]=0, BufferLoad only). Negative only.
+    # 18= +invalid GlobalReadA+B (use srdB[2]=0, BufferLoad only). Negative only.
     # For example set DisableKernelPieces: [0,1,2,3,4,5,6,7,9]
     #   this will create a set of kernels with progressively more pieces of the kernel disabled
-    "DisableKernelPieces":        list(range(-9,10)),         # disable pieces of the kernel, for performance isolation
+    "DisableKernelPieces":        list(range(-18,10)),         # disable pieces of the kernel, for performance isolation
 
     # assume atomics always work correctly.
     "DisableAtomicFail": [False, True],
@@ -1091,6 +1103,14 @@ validParameters = {
     "Fp16AltImpl": [False, True],
     # fp16 alternate implementation round mode: false for truncate, true for round near zero
     "Fp16AltImplRound": [False, True],
+
+    # StreamK kernels divide work evenly among CUs by splitting along MT and K dimensions
+    # Total work units are calculated as (#MTs x #LoopIters) and divided among workgroups
+    # In most cases each workgroup will calculate a partial tile that are accumulated in a fixup step in the same kernel
+    # 0: Standard data-parallel kernel
+    # 1: Basic StreamK atomic (uses atomics to accumulate partial tiles)
+    # 2: Basic StreamK non-atomic (uses workspace to store partial tiles, accumulate in deterministic fix-up step)
+    "StreamK": [0, 1, 2],
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
@@ -1448,6 +1468,7 @@ defaultBenchmarkCommonParameters = [
     {"GlobalSplitUAtomicAdd":     [ False ] },
     {"MacroTileShapeMin":         [ 1 ] },
     {"MacroTileShapeMax":         [ 64 ] },
+    {"StreamK":                   [ 0 ] },
     {"PersistentKernel":          [ 0 ] },
     {"PersistentKernelAlongBatch":[ False ] },    # May be default True is better ?
     {"PackBatchDims":             [ 0 ] },
@@ -1722,8 +1743,8 @@ defaultProblemType = {
     "Fp32toFp8SWClip" :         True,
 
     # only in-device SR for now
-    "StochasticRounding" :      False  # By default, IEEE RNE rounding    
-    
+    "StochasticRounding" :      False,  # By default, IEEE RNE rounding
+
     # Rounding mode for f32 to f8 down conversion
     # TODO in Future:
     # There are two different rounding modes for f32 to f8 down conversion: [0]: IEEE RNE mode and [1/2]: stochastic mode. 

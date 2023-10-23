@@ -88,6 +88,7 @@ namespace Tensile
 
             // Test if the persistent kernel is eligible for the current hw and solution
             m_problem.checkPersistentKernelEligibility(solution, *m_hardware);
+            m_problem.checkRequiredWorkspaceSize(solution, *m_hardware);
             if(!(*solution.problemPredicate)(m_problem))
             {
                 m_reporter->report(ResultKey::Validation, "DID_NOT_SATISFY_ASSERTS");
