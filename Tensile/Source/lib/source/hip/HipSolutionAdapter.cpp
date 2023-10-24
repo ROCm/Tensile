@@ -346,6 +346,14 @@ namespace Tensile
                                        &argsSize,
                                        HIP_LAUNCH_PARAM_END};
 
+            if(m_debug)
+            {
+                int numBlocks = 0;
+                int blockSize = kernel.workGroupSize.x * kernel.workGroupSize.y * kernel.workGroupSize.z;
+                HIP_CHECK_RETURN(hipModuleOccupancyMaxActiveBlocksPerMultiprocessor(&numBlocks, function, blockSize, 0));
+                std::cout << "Occupancy = " << numBlocks << std::endl;
+            }
+
             if(startEvent != nullptr)
                 HIP_CHECK_RETURN(hipEventRecord(startEvent, stream));
             HIP_CHECK_RETURN(hipExtModuleLaunchKernel(function,
