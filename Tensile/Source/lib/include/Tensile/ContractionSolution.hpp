@@ -128,6 +128,7 @@ namespace Tensile
         }
 
         bool getMatrixInstructionFromKernelName(vector4<std::uint32_t>& miInst) const;
+        bool getGSUAlgorithmFromKernelName(std::string& gsuAlg) const;
 
         bool isSourceKernel() const;
 
