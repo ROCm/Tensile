@@ -3320,6 +3320,10 @@ class Solution(collections.abc.Mapping):
       else:
         state["LocalReadVectorWidth"] = state["VectorWidth"]
 
+    # reject if FractionalLoad and depthU is not power of 2 (does not work)
+    if state["FractionalLoad"] and (depthU & (depthU - 1)) != 0:
+      reject(state, "FractionalLoad requires DepthU = power of 2")
+
     ########################################
     # Search DepthU
     # Inputs:
