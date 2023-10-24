@@ -35,6 +35,10 @@
 #include <cstdlib>
 #include <random>
 
+#include <regex>
+
+#define KERNEL_NAME_MIINST_REGEX "MI(\\d+)x(\\d+)x(\\d+)x(\\d+)"
+#define KERNEL_NAME_MIINST_REGEX_MATCH_GROUPS 5 //1 (the index 0) for entire match and 4 for the sub-experssion matches
 namespace Tensile
 {
     PerfModel perf;
@@ -1138,6 +1142,34 @@ namespace Tensile
         return rv;
     }
 
+    bool ContractionSolution::getMatrixInstructionFromKernelName(vector4<std::uint32_t>& matrixInst) const
+    {
+            std::string regexp_string(KERNEL_NAME_MIINST_REGEX);
+	        std::regex miRegex(regexp_string);
+	        std::smatch matches;
+
+            std::string kName = this->KernelName();
+
+            if(std::regex_search(kName, matches, miRegex))
+            {
+                if (matches.size()!=KERNEL_NAME_MIINST_REGEX_MATCH_GROUPS)
+                {
+                    return false;
+                }
+                // the first sub_match element (index 0) corresponds to the entire match
+                matrixInst.x = atoi(matches[1].str().c_str());
+                matrixInst.y = atoi(matches[2].str().c_str());
+                matrixInst.z = atoi(matches[3].str().c_str());
+                matrixInst.w = atoi(matches[4].str().c_str());
+            }
+            else
+            {
+                return false;
+            }
+
+            return true;
+    }
+
     std::vector<KernelInvocation>
         ContractionSolution::solve(ContractionSolution::Problem const& problem,
                                    ContractionSolution::Inputs const&  inputs,
@@ -1146,6 +1178,20 @@ namespace Tensile
         if(Debug::Instance().printWinningKernelName())
             std::cout << "Running kernel: " << this->KernelName() << std::endl;
 
+        if(Debug::Instance().printKernelCommonParams())
+        {
+            vector4<std::uint32_t> matrixInst;
+            if (this->getMatrixInstructionFromKernelName(matrixInst))
+            {
+                std::cout << "Kernel (" << this->KernelName() << ") Params:" << std::endl
+                <<  std::right << std::setw(30) << "MatrixInstruction: " << matrixInst << std::endl << this->sizeMapping << std::endl;
+            }
+            else
+            {
+                std::cout << "Kernel (" << this->KernelName() << ") Params:" << std::endl
+                << this->sizeMapping << std::endl;
+            }
+        }
         // retreive alpha/beta type set via setAlpha/BetaType()
         auto alphaType = problem.alphaType();
         auto betaType  = problem.betaType();
