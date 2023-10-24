@@ -46,7 +46,8 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - InnerUnroll: [1,2,4]
         - TransposeLDS: [0,1]
-        - LdsBlockSizePerPad: [128]
+        - LdsBlockSizePerPadA: [128]
+        - LdsBlockSizePerPadB: [128]
         - LdsPadA: [-1]
         - LdsPadB: [-1]
       BenchmarkJoinParameters:
@@ -97,7 +98,8 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - InnerUnroll: [1,2,4]
         - TransposeLDS: [0,1]
-        - LdsBlockSizePerPad: [128]
+        - LdsBlockSizePerPadA: [128]
+        - LdsBlockSizePerPadB: [128]
         - LdsPadA: [-1]
         - LdsPadB: [-1]
       BenchmarkJoinParameters:
@@ -143,7 +145,8 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - InnerUnroll: [1,2]
         - TransposeLDS: [0,1]
-        - LdsBlockSizePerPad: [128]
+        - LdsBlockSizePerPadA: [128]
+        - LdsBlockSizePerPadB: [128]
         - LdsPadA: [-1]
         - LdsPadB: [-1]
       BenchmarkJoinParameters:
@@ -322,7 +325,8 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - InnerUnroll: [1,2]
         - TransposeLDS: [0,1]
-        - LdsBlockSizePerPad: [128]
+        - LdsBlockSizePerPadA: [-1]
+        - LdsBlockSizePerPadB: [128]
         - LdsPadA: [-1]
         - LdsPadB: [-1]
       BenchmarkJoinParameters:
@@ -373,7 +377,8 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - InnerUnroll: [1,2]
         - TransposeLDS: [0,1]
-        - LdsBlockSizePerPad: [128]
+        - LdsBlockSizePerPadA: [-1]
+        - LdsBlockSizePerPadB: [128]
         - LdsPadA: [-1]
         - LdsPadB: [-1]
       BenchmarkJoinParameters:
@@ -419,7 +424,8 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - InnerUnroll: [1,2]
         - TransposeLDS: [0,1]
-        - LdsBlockSizePerPad: [128]
+        - LdsBlockSizePerPadA: [-1]
+        - LdsBlockSizePerPadB: [128]
         - LdsPadA: [-1]
         - LdsPadB: [-1]
       BenchmarkJoinParameters:

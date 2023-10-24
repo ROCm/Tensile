@@ -141,6 +141,8 @@ class KernelWriter(metaclass=abc.ABCMeta):
       latencyForLR -= max(latencyLeft,0) # remaining latency in mfma
       if not curr:
         latencyForLR -= self.miLatency # last LR will have 1 mfma latency
+      # add extra latency
+      latencyForLR += kernel["ExtraLatencyForLR"]
       while latencyForLR > 0:
         latencyForLR -= self.miLatency
         latencyForLRCount += 1
@@ -268,6 +270,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
       self.numMfmaForNextLoopLR = min(self.numMfmaForNextLoopLR,numMfmaPerIter-1)
       self.barrierMfmaIndex = numMfmaPerIter*(kernel["LoopIters"]-self.numItersPLR+1) - self.numMfmaForNextLoopLR - 1 if self.numItersPLR else 0
       numMfmaBetweenLWandBarrier = 2 if kernel["MatrixInstM"] == 32 else 3
+      if self.miLatency <= 4 and kernel["LoopIters"] >= 4:
+        # low latency MFMA and enough number of loop iteration case, we double numMfmaBetweenLWandBarrier
+        numMfmaBetweenLWandBarrier *= 2
       # set and adjust lwEndMfmaIndex
       self.setAndAdjustLwEndMfmaIndex(kernel, tensorParametersA, tensorParametersB, numMfmaBetweenLWandBarrier, lastLoop)
 
@@ -1472,20 +1477,25 @@ class KernelWriter(metaclass=abc.ABCMeta):
             for j in range(instPerPack):
               iterCode.addCode(packItems.pop(0))
               curPackIdx += 1
-          if packItems:
+          # insert second packing code only if miLatencyLeft is large enough
+          if packItems and self.miLatencyLeft > 2:
             for j in range(instPerPack):
               iterCode.addCode(packItems.pop(0))
               curPackIdx += 1
           # since packed register need to wait 2 quad cycle to finish packing
           # we insert pack instruction if we can, or s_nop
+          count = 0 # count number of cycle for nop to insert
           while curPackIdx < numPack+2:
             if packItems:
               for j in range(instPerPack):
                 iterCode.addCode(packItems.pop(0))
                 curPackIdx += 1
             else:
-              iterCode.addInst("s_nop ","0","VALU packing writes to be consumed by matrix instruction")
+              count += 1
               curPackIdx += 1
+          if count:
+            # insert 1 nop instruction
+            iterCode.addInst("s_nop ",str(count - 1),"VALU packing writes to be consumed by matrix instruction")
         if i == numMfmaPerIter - 1:
           while packItems:
             iterCode.addCode(packItems.pop(0))
@@ -3394,7 +3404,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
           mEnd = 1
           if (kernel["DirectToVgprA"] or kernel["DirectToVgprB"] or kernel["DirectToLdsA"] or kernel["DirectToLdsB"]) \
              and kernel["EnableMatrixInstruction"]:
-            mEnd = kernel["DepthU"]//(kernel["MatrixInstK"]*kernel["LocalSplitU"])
+            mEnd = kernel["_DepthULds"]//(kernel["MatrixInstK"]*kernel["LocalSplitU"])
+          elif kernel["EnableMatrixInstruction"] and \
+            ((kernel["LdsPadA"] and kernel["LdsBlockSizePerPadA"]) or (kernel["LdsPadB"] and kernel["LdsBlockSizePerPadB"])):
+            # LdsPad + LBSPP case, address increment is not distributed uniformly. So, we need to unroll tail loop
+            mEnd = kernel["_DepthULds"]//(kernel["MatrixInstK"]*kernel["LocalSplitU"])
 
           for mValue in range(mEnd):
             if mEnd > 1:
@@ -3865,12 +3879,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
     #   EnableMatrixInstruction + MIInputPerThread > 1
     #   SourceSwap only (TODO: non SourceSwap)
     #   VgprForLocalReadPacking  (need dedicated vpgr for packing)
+    #   ClusterLocalRead
     #   not UnrollMajorLDS
     #   VectorWidthA,B > 1
     self.lrvwTileA = 1
     self.lrvwTileB = 1
     if kernel["EnableMatrixInstruction"] and kernel["MIInputPerThread"] > 1 and\
-       kernel["SourceSwap"] and kernel["VgprForLocalReadPacking"]:
+       kernel["SourceSwap"] and kernel["VgprForLocalReadPacking"] and kernel["ClusterLocalRead"]:
       if (not kernel["UnrollMajorLDSA"]):
         self.lrvwTileA = min(kernel["MIInputPerThread"], kernel["VectorWidth"]) # should not exceed MIInputPerThread
       if (not kernel["UnrollMajorLDSB"]):

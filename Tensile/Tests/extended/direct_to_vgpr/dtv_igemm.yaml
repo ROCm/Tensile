@@ -665,7 +665,7 @@ BenchmarkProblems:
         - PrefetchGlobalRead: [1]#[1,2]
         - PrefetchLocalRead: [2,3,5,9]
         - ScheduleIterAlg: [3]
-        - StaggerU: [0,32]
+        #- StaggerU: [0,32]
         - SourceSwap: [1]#[0,1]
         - TransposeLDS: [1]
         - GlobalReadVectorWidth: [4,8,16]
@@ -680,6 +680,7 @@ BenchmarkProblems:
         - GlobalSplitU: [1,2]
         - GlobalSplitUAlgorithm: ["SingleBuffer"]
         - VgprForLocalReadPacking: [1]
+        - ClusterLocalRead: [0,1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:

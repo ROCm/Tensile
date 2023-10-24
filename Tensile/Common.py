@@ -1263,15 +1263,19 @@ validParameters = {
     # performance so this has been deprecated and probably doesn't work
     # -1 means use same padding as the VectorWidth if TLU=0 else 0.  (Padding only helps when transpose is required)
     # With MatrixInstruction: -1 means max(GRVW,MIInput) if TLU=0
-    "LdsPadA":                     [ -1, 0, 1, 2, 3, 4, 8, 16, 32],
-    "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8, 16, 32],
+    # SourceKernel case, convert -1 to 0. Please manually set LdsPad for SourceKernel
+    # SourceKernel requires LdsPadA==LdsPadB
+    "LdsPadA":                     list(range(-1, 128)),
+    "LdsPadB":                     list(range(-1, 128)),
 
     # Padding boundary for LDS. defines block-size for pad insertion. for every 'LdsBlockSizePerPad' bytes, LDS padding (pad value from LdsPad parameter)
     # is added (readOffset aware of the pad and adjusts offset value based on this parameter value).
     # Only support LdsBlockSizePerPad >= unrollDepth * BPE
     # 0 means disable LdsBlockSizePerPad,
     # -1 means round up to nearest power of 2 begin with 128
-    "LdsBlockSizePerPad":          [-1, 0, 64, 128, 256, 512, 1024],
+    # SourceKernel case, convert -1 to 0. Please manually set LdsBlockSizePerPad for SourceKernel
+    "LdsBlockSizePerPadA":          [-1, 0, 64, 128, 256, 512, 1024, 2048, 4096],
+    "LdsBlockSizePerPadB":          [-1, 0, 64, 128, 256, 512, 1024, 2048, 4096],
 
     # Transpose LDS format. Local store in Coalesced dimension , same as optimized global fetch dimension . applicable only in TLU=0 case for miSIMD(s)
     # TODO: No code for -1 ?
@@ -1289,6 +1293,9 @@ validParameters = {
     # No need to increase miLatencyLeft in that case.
     "ExtraMiLatencyLeft":         list(range(0,9,2)),
 
+    # Add extra latency to calculate number of MFMA to insert between local read and wait
+    "ExtraLatencyForLR":          list(range(0,17,2)),
+
     # Allocate dedicated vgpr for local read with packing
     #   False: use tmp vgpr. Less vgpr usage, but not best for local read scheduling
     #   True: use dedicated vgpr for local read with packing. Best for local read scheduling, but need more vgpr
@@ -1296,6 +1303,10 @@ validParameters = {
     # Apply this to HasEccHalf case only.
     # Not effective for PrefetchLocalRead <= 1
     "VgprForLocalReadPacking":     [False, True],
+
+    # ClusterLocalRead enables wider local read and packing with v_perm_b32 for 8bit or 16bit data
+    # Works with VgprForLocalReadPacking=True
+    "ClusterLocalRead":            [False, True],
 
     # tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated
     "PerformanceSyncLocation":    list(range(-1, 16*16+1)),
@@ -1384,14 +1395,17 @@ defaultBenchmarkCommonParameters = [
     {"LocalDotLayout":            [ 1 ] },
     {"AggressivePerfMode":        [ 1 ] },
     {"KernelLanguage":            [ "Source" ] },
-    {"LdsPadA":                   [ 0 ] },
-    {"LdsPadB":                   [ 0 ] },
-    {"LdsBlockSizePerPad":        [ 0 ] },
+    {"LdsPadA":                   [ -1 ] },
+    {"LdsPadB":                   [ -1 ] },
+    {"LdsBlockSizePerPadA":       [ -1 ] },
+    {"LdsBlockSizePerPadB":       [ -1 ] },
     {"TransposeLDS":              [ 0 ] },
     {"UnrollMajorLDSA":           [ False ] },
     {"UnrollMajorLDSB":           [ False ] },
     {"ExtraMiLatencyLeft":        [ 0 ] },
+    {"ExtraLatencyForLR":         [ 0 ] },
     {"VgprForLocalReadPacking":   [ False ] },
+    {"ClusterLocalRead":          [ False ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
     {"VectorStore":               [ -1 ] },

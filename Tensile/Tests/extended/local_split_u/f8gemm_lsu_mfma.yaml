@@ -75,6 +75,7 @@ BenchmarkProblems:
         - BufferLoad: [0,1]
         - BufferStore: [0,1]
         - VgprForLocalReadPacking: [0,1]
+        - ClusterLocalRead: [0,1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
@@ -365,6 +366,7 @@ BenchmarkProblems:
         - TransposeLDS: [1]
         - LocalReadVectorWidth: [-1]
         - VgprForLocalReadPacking: [0,1]
+        - ClusterLocalRead: [0,1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
