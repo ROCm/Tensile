@@ -12719,12 +12719,12 @@ class KernelWriterAssembly(KernelWriter):
       kStr += PreLoopVmcntCaseStr
 
     # Set flag
-    kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for data store")
+    kStr += inst("s_waitcnt", "vmcnt(0)", "wait for data store")
     kStr += inst("s_barrier", "store all data before setting flag")
     kStr += inst("s_lshl_b32", sgpr(tmpSgpr), sgpr("StreamKIdx"), log2(4), "flag offset based on CTA index")
     kStr += inst("s_mov_b32", sgpr(tmpSgpr+2), 1, "flag data")
     kStr += inst("s_store_dword", sgpr(tmpSgpr+2), sgpr("AddressFlags", 2), sgpr(tmpSgpr), "glc", "set flag")
-    kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag load") # TODO just for testing
+    kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for flag") # TODO just for testing
     
     # TODO - if this is the last tile, don't need to jump to next instruction
     # NOTE: in SR kernel, we need long branch since PRNG explodes the line of codes 

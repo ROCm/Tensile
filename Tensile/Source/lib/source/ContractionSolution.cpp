@@ -35,7 +35,7 @@
 #include <cstdlib>
 #include <random>
 
-const int TENSILE_STREAMK_GRID 1
+#define TENSILE_STREAMK_GRID 1
 
 namespace Tensile
 {
