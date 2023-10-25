@@ -2187,6 +2187,12 @@ def assignGlobalParameters( config ):
       globalParameters["CurrentISA"] = (9,0,6)
       printWarning("Failed to detect ISA so forcing (gfx906) on windows")
 
+  if globalParameters["CurrentISA"] == (9,4,2) or globalParameters["CurrentISA"] == (11,0,0) or \
+     globalParameters["CurrentISA"] == (11,0,1) or globalParameters["CurrentISA"] == (11,0,2):
+    printWarning("HardwareMonitor currently disabled for gfx942 or gfx1100/gfx1101/gfx1102")
+    globalParameters["HardwareMonitor"] = False
+
+
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of
   # '0.0.0' will persist
