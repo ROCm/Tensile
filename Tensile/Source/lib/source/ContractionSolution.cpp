@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -324,7 +324,7 @@ namespace Tensile
         size_t skGrid = 0;
         if(sizeMapping.streamK != 0)
         {
-            skGrid = cuCount * TENSILE_STREAMK_GRID;
+            skGrid             = cuCount * TENSILE_STREAMK_GRID;
             rv.numWorkGroups.x = skGrid;
             rv.numWorkGroups.y = 1;
             if(sizeMapping.persistentKernelAlongBatch)
@@ -682,7 +682,7 @@ namespace Tensile
         AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
         assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
         size_t cuCount = pAMDGPU->computeUnitCount;
-        size_t skGrid = cuCount * TENSILE_STREAMK_GRID;
+        size_t skGrid  = cuCount * TENSILE_STREAMK_GRID;
         size_t wiZ     = 1;
         for(size_t i = 0; i < problem.batchIndices().size(); i++)
             wiZ *= problem.batchSize(i);
@@ -1303,7 +1303,7 @@ namespace Tensile
             AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
             assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
             size_t cuCount = pAMDGPU->computeUnitCount;
-            size_t skGrid = cuCount * TENSILE_STREAMK_GRID;
+            size_t skGrid  = cuCount * TENSILE_STREAMK_GRID;
             // Get space required for partial tiles
             size += partialTileSize(skGrid);
             // Add space for flags
