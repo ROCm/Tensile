@@ -1189,7 +1189,7 @@ namespace Tensile
                     return false;
                 }
                 // the first sub_match element (index 0) corresponds to the entire match
-                gsuAlg = (matches[1]=="S") ? "SingleBuffer":"MultipleBuffer";
+                gsuAlg = (matches[1].compare("S") == 0) ? "SingleBuffer":"MultipleBuffer";
             }
             else
             {
