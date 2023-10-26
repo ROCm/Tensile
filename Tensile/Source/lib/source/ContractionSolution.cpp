@@ -38,10 +38,12 @@
 #include <regex>
 
 #define KERNEL_NAME_MIINST_REGEX "_MI(\\d+)x(\\d+)x(\\d+)x(\\d+)_"
-#define KERNEL_NAME_MIINST_REGEX_NUM_MATCHES 5 //1 (index 0) for entire match and 4 for the sub-experssion matches
+#define KERNEL_NAME_MIINST_REGEX_NUM_MATCHES \
+    5 //1 (index 0) for entire match and 4 for the sub-experssion matches
 
 #define KERNEL_NAME_GSUA_REGEX "_GSUA([S|M])B_"
-#define KERNEL_NAME_GSUA_REGEX_NUM_MATCHES 2 //1 (index 0) for entire match and 1 for the sub-experssion matches
+#define KERNEL_NAME_GSUA_REGEX_NUM_MATCHES \
+    2 //1 (index 0) for entire match and 1 for the sub-experssion matches
 
 namespace Tensile
 {
@@ -1146,57 +1148,58 @@ namespace Tensile
         return rv;
     }
 
-    bool ContractionSolution::getMatrixInstructionFromKernelName(vector4<std::uint32_t>& matrixInst) const
+    bool ContractionSolution::getMatrixInstructionFromKernelName(
+        vector4<std::uint32_t>& matrixInst) const
     {
-            std::string regexp_string(KERNEL_NAME_MIINST_REGEX);
-	        std::regex miRegex(regexp_string);
-	        std::smatch matches;
+        std::string regexp_string(KERNEL_NAME_MIINST_REGEX);
+        std::regex  miRegex(regexp_string);
+        std::smatch matches;
 
-            std::string kName = this->KernelName();
+        std::string kName = this->KernelName();
 
-            if(std::regex_search(kName, matches, miRegex))
-            {
-                if (matches.size()!=KERNEL_NAME_MIINST_REGEX_NUM_MATCHES)
-                {
-                    return false;
-                }
-                // the first sub_match element (index 0) corresponds to the entire match
-                matrixInst.x = atoi(matches[1].str().c_str());
-                matrixInst.y = atoi(matches[2].str().c_str());
-                matrixInst.z = atoi(matches[3].str().c_str());
-                matrixInst.w = atoi(matches[4].str().c_str());
-            }
-            else
+        if(std::regex_search(kName, matches, miRegex))
+        {
+            if(matches.size() != KERNEL_NAME_MIINST_REGEX_NUM_MATCHES)
             {
                 return false;
             }
+            // the first sub_match element (index 0) corresponds to the entire match
+            matrixInst.x = atoi(matches[1].str().c_str());
+            matrixInst.y = atoi(matches[2].str().c_str());
+            matrixInst.z = atoi(matches[3].str().c_str());
+            matrixInst.w = atoi(matches[4].str().c_str());
+        }
+        else
+        {
+            return false;
+        }
 
-            return true;
+        return true;
     }
 
     bool ContractionSolution::getGSUAlgorithmFromKernelName(std::string& gsuAlg) const
     {
-            std::string regexp_string(KERNEL_NAME_GSUA_REGEX);
-	        std::regex miRegex(regexp_string);
-	        std::smatch matches;
+        std::string regexp_string(KERNEL_NAME_GSUA_REGEX);
+        std::regex  miRegex(regexp_string);
+        std::smatch matches;
 
-            std::string kName = this->KernelName();
+        std::string kName = this->KernelName();
 
-            if(std::regex_search(kName, matches, miRegex))
-            {
-                if (matches.size()!=KERNEL_NAME_GSUA_REGEX_NUM_MATCHES)
-                {
-                    return false;
-                }
-                // the first sub_match element (index 0) corresponds to the entire match
-                gsuAlg = (matches[1].compare("S") == 0) ? "SingleBuffer":"MultipleBuffer";
-            }
-            else
+        if(std::regex_search(kName, matches, miRegex))
+        {
+            if(matches.size() != KERNEL_NAME_GSUA_REGEX_NUM_MATCHES)
             {
                 return false;
             }
+            // the first sub_match element (index 0) corresponds to the entire match
+            gsuAlg = (matches[1].compare("S") == 0) ? "SingleBuffer" : "MultipleBuffer";
+        }
+        else
+        {
+            return false;
+        }
 
-            return true;
+        return true;
     }
 
     std::vector<KernelInvocation>
@@ -1212,15 +1215,15 @@ namespace Tensile
             std::cout << "Kernel (" << this->KernelName() << ") Params:" << std::endl;
 
             vector4<std::uint32_t> matrixInst;
-            if (this->getMatrixInstructionFromKernelName(matrixInst))
-                std:: cout <<  std::right << std::setw(30) << "MatrixInstruction: " << matrixInst << std::endl;
+            if(this->getMatrixInstructionFromKernelName(matrixInst))
+                std::cout << std::right << std::setw(30) << "MatrixInstruction: " << matrixInst
+                          << std::endl;
 
             std::string GSUAlg;
-            if (this->getGSUAlgorithmFromKernelName(GSUAlg))
-                std:: cout <<  std::right << std::setw(30) << "GSUAlgorithm: " << GSUAlg << std::endl;
+            if(this->getGSUAlgorithmFromKernelName(GSUAlg))
+                std::cout << std::right << std::setw(30) << "GSUAlgorithm: " << GSUAlg << std::endl;
 
             std::cout << this->sizeMapping << std::endl;
-
         }
         // retreive alpha/beta type set via setAlpha/BetaType()
         auto alphaType = problem.alphaType();
