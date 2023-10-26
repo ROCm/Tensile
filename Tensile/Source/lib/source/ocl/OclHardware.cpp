@@ -38,6 +38,7 @@ namespace Tensile
         OclAMDGPU::OclAMDGPU(oclDeviceProp_t const& prop)
             : AMDGPU(static_cast<AMDGPU::Processor>(prop.gcnArch),
                      prop.multiProcessorCount,
+                     0, // hipDeviceAttributeDirectManagedMemAccessFromHost not accessible through OCL interface
                      std::string(prop.name))
             , properties(prop)
         {

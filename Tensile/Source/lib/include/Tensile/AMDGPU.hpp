@@ -190,8 +190,8 @@ namespace Tensile
         }
 
         AMDGPU();
-        AMDGPU(Processor p, int computeUnitCount, std::string const& deviceName);
-        AMDGPU(std::string const& archName, int computeUnitCount, std::string const& deviceName);
+        AMDGPU(Processor p, int computeUnitCount, int dmmAccessFromHost, std::string const& deviceName);
+        AMDGPU(std::string const& archName, int computeUnitCount, int dmmAccessFromHost, std::string const& deviceName);
 
         ~AMDGPU();
 
@@ -199,6 +199,7 @@ namespace Tensile
         int         wavefrontSize    = 64;
         int         simdPerCu        = 4;
         int         computeUnitCount = 0;
+        int         dmmAccessFromHost = 0;
         std::string deviceName;
 
         virtual bool   runsKernelTargeting(Processor p) const;

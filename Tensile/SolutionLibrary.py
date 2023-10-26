@@ -276,17 +276,19 @@ class MasterSolutionLibrary:
         def hardware(d, problemType, solutions, library, placeholderName):
             devicePart = d["ArchitectureName"]
             cuCount = d["CUCount"]
+            dmmAccessFromHost = d["DMMAccessFromHost"]
 
             newLib = PredicateLibrary(tag="Hardware")
             if devicePart == "fallback":
                 pred = Hardware.HardwarePredicate("TruePred")
             else:
-                pred = Hardware.HardwarePredicate.FromHardware(Common.gfxArch(devicePart), cuCount)
+                pred = Hardware.HardwarePredicate.FromHardware(Common.gfxArch(devicePart), cuCount, dmmAccessFromHost)
 
             newLib.rows.append({"predicate": pred, "library": library})
 
             if lazyLibrary:
                 if cuCount: placeholderName += "_CU" + str(cuCount)
+                if dmmAccessFromHost: placeholderName += "_DMM" + str(dmmAccessFromHost)
                 placeholderName += "_" + str(devicePart)
 
             return newLib, placeholderName

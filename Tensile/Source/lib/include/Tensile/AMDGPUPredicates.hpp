@@ -96,6 +96,32 @@ namespace Tensile
                 }
             };
 
+            struct DMMAccessFromHost : public Predicate_CRTP<DMMAccessFromHost, AMDGPU>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                int value;
+
+                DMMAccessFromHost() = default;
+                DMMAccessFromHost(int val)
+                    : value(val)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "DMMAccessFromHost";
+                }
+
+                virtual bool operator()(AMDGPU const& gpu) const
+                {
+                    return gpu.dmmAccessFromHost == value;
+                }
+            };
+
             struct RunsKernelTargeting : public Predicate_CRTP<RunsKernelTargeting, AMDGPU>
             {
                 enum

@@ -179,6 +179,9 @@ def parseLibraryLogicData(data, srcFile="?"):
     if "CUCount" not in data:
         data["CUCount"] = None
 
+    if "DMMAccessFromHost" not in data:
+        data["DMMAccessFromHost"] = None
+
     if "Fp16AltImpl" not in data:
         data["Fp16AltImpl"] = False
 
@@ -231,10 +234,14 @@ def parseLibraryLogicList(data, srcFile="?"):
 
     if type(data[2]) is dict:
         rv["ArchitectureName"] = data[2]["Architecture"]
-        rv["CUCount"] = data[2]["CUCount"]
+        if "CUCount" in data[2]:
+            rv["CUCount"] = data[2]["CUCount"]
+        if "DMMAccessFromHost" in data[2]:
+            rv["DMMAccessFromHost"] = data[2]["DMMAccessFromHost"]
     else:
         rv["ArchitectureName"] = data[2]
         rv["CUCount"] = None
+        rv["DMMAccessFromHost"] = None
 
     rv["ExactLogic"] = data[7]
     # data[8] previously contained range logic, which has been retired
@@ -300,7 +307,10 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple
     # architecture
     if type(architectureName) is dict:
         rv["ArchitectureName"] = architectureName["Architecture"]
-        rv["CUCount"] = architectureName["CUCount"]
+        if "CUCount" in architectureName:
+            rv["CUCount"] = architectureName["CUCount"]
+        if "DMMAccessFromHost" in architectureName:
+            rv["DMMAccessFromHost"] = architectureName["DMMAccessFromHost"]
     else:
         rv["ArchitectureName"] = architectureName
 

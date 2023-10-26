@@ -33,13 +33,20 @@ class HardwarePredicate(Properties.Predicate):
         return cls("AMDGPU", value=cls("Processor", value=gfxArch))
 
     @classmethod
-    def FromHardware(cls, isa, cuCount=None):
+    def FromHardware(cls, isa, cuCount=None, dmmAccessFromHost=None):
         gfxArch = Common.gfxName(isa)
-        if cuCount == None:
+        if cuCount == None and dmmAccessFromHost == None:
             return cls("AMDGPU", value=cls("Processor", value=gfxArch))
-        else:
+        elif cuCount == None:
+            return cls("AMDGPU", value=cls.And([cls("Processor", value=gfxArch),
+                                                cls("DMMAccessFromHost", value=dmmAccessFromHost)]))
+        elif dmmAccessFromHost == None:
             return cls("AMDGPU", value=cls.And([cls("Processor", value=gfxArch),
                                                 cls("CUCount", value=cuCount)]))
+        else:
+            return cls("AMDGPU", value=cls.And([cls("Processor", value=gfxArch),
+                                                cls("CUCount", value=cuCount),
+                                                cls("DMMAccessFromHost", value=dmmAccessFromHost)]))
 
     def __lt__(self, other):
         # Use superclass logic for TruePreds
@@ -53,30 +60,38 @@ class HardwarePredicate(Properties.Predicate):
             myProcPred = next(iter(x for x in myAndPred.value if x.tag == "Processor"), None)
             myCUPred = next(iter(x for x in myAndPred.value if x.tag == "CUCount"), None)
             myCUCount = myCUPred.value if myCUPred != None else 0
+            myDMMPred = next(iter(x for x in myAndPred.value if x.tag == "DMMAccessFromHost"), None)
+            myDMMAccessFromHost = myDMMPred.value if myDMMPred != None else 0
         else:
             myProcPred = self.value
             myCUCount = 0
+            myDMMAccessFromHost = 0
 
         if other.value.tag == 'And':
             otherAndPred = other.value
             otherProcPred = next(iter(x for x in otherAndPred.value if x.tag == "Processor"), None)
             otherCUPred = next(iter(x for x in otherAndPred.value if x.tag == "CUCount"), None)
             otherCUCount = otherCUPred.value if otherCUPred != None else 0
+            otherDMMPred = next(iter(x for x in otherAndPred.value if x.tag == "DMMAccessFromHost"), None)
+            otherDMMAccessFromHost = otherDMMPred.value if otherDMMPred != None else 0
         else:
             otherProcPred = other.value
             otherCUCount = 0
+            otherDMMAccessFromHost = 0
 
-        # If CU properties are empty, then compare processor predicates
-        if myCUCount == otherCUCount == 0:
-            # Make sure that we have valid processor preds
-            assert myProcPred != None and otherProcPred != None, "Missing processor predicate"
-            assert myProcPred.tag == otherProcPred.tag == "Processor", "Invalid processor predicate"
+        if myDMMAccessFromHost == otherDMMAccessFromHost == 0:
+            # If CU properties are empty, then compare processor predicates
+            if myCUCount == otherCUCount == 0:
+                # Make sure that we have valid processor preds
+                assert myProcPred != None and otherProcPred != None, "Missing processor predicate"
+                assert myProcPred.tag == otherProcPred.tag == "Processor", "Invalid processor predicate"
 
-            # Downgrade to base class so that we don't recurse
-            myProcPredCopy = copy.deepcopy(myProcPred)
-            otherProcPredCopy = copy.deepcopy(otherProcPred)
-            myProcPredCopy.__class__ = otherProcPredCopy.__class__ = Properties.Predicate
-            return myProcPredCopy < otherProcPredCopy
+                # Downgrade to base class so that we don't recurse
+                myProcPredCopy = copy.deepcopy(myProcPred)
+                otherProcPredCopy = copy.deepcopy(otherProcPred)
+                myProcPredCopy.__class__ = otherProcPredCopy.__class__ = Properties.Predicate
+                return myProcPredCopy < otherProcPredCopy
 
-        # Higher priority given to higher CU count
-        return myCUCount > otherCUCount
+            # Higher priority given to higher CU count
+            return myCUCount > otherCUCount
+        return myDMMAccessFromHost > otherDMMAccessFromHost

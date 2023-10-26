@@ -35,6 +35,8 @@ def test_hardware_predicate_comparison():
     c = HardwarePredicate("TruePred")
     d = HardwarePredicate.FromHardware((9,0,8), 60)
     e = HardwarePredicate.FromHardware((9,0,8), 64)
+    f = HardwarePredicate.FromHardware((9,4,2), dmmAccessFromHost=0)
+    g = HardwarePredicate.FromHardware((9,4,2), dmmAccessFromHost=1)
 
     assert a < b
     assert a < c
@@ -49,6 +51,8 @@ def test_hardware_predicate_comparison():
     assert e < c
     assert e < d
 
+    assert f < g
+
     assert not b < a
     assert not c < a
     assert not c < b
@@ -56,12 +60,15 @@ def test_hardware_predicate_comparison():
     assert not b < e
     assert not c < e
     assert not d < e
+    assert not g < f
 
     assert not a < a
     assert not b < b
     assert not c < c
     assert not d < d
     assert not e < e
+    assert not f < f
+    assert not g < g
 
 def hardware_library_objects_order():
     objs = [PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,0))}]),
@@ -70,6 +77,8 @@ def hardware_library_objects_order():
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,10))}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,0,8), 60)}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,0,8), 64)}]),
+            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,4,2), dmmAccessFromHost=0)}]),
+            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,4,2), dmmAccessFromHost=1)}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate('TruePred')}])
     ]
 
