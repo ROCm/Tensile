@@ -34,7 +34,7 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
     // Do release build of HostLibraryTests on CI until it is upgraded to rocm 5.3 to
     // avoid bug causing long build times of certain files.
     String buildType = 'Release' // debug ? 'Debug' : 'RelWithDebInfo'
-    String parallelJobs = "export HIPCC_COMPILE_FLAGS_APPEND=-parallel-jobs=2"
+    String parallelJobs = "HIPCC_COMPILE_FLAGS_APPEND=-O3 -Wno-format-nonliteral -parallel-jobs=4"
 
     // comment
 
