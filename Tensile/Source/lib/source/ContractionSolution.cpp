@@ -1219,8 +1219,7 @@ namespace Tensile
             if (this->getGSUAlgorithmFromKernelName(GSUAlg))
                 std:: cout <<  std::right << std::setw(30) << "GSUAlgorithm: " << GSUAlg << std::endl;
 
-            if (this->getMatrixInstructionFromKernelName(matrixInst))
-                std::cout << this->sizeMapping << std::endl;
+            std::cout << this->sizeMapping << std::endl;
 
         }
         // retreive alpha/beta type set via setAlpha/BetaType()

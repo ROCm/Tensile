@@ -33,7 +33,6 @@
 #include <cctype>
 #include <cstddef>
 #include <set>
-
 #include <iomanip>
 
 namespace Tensile
