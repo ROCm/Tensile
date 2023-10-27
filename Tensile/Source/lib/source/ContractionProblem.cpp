@@ -32,54 +32,10 @@
 
 #include <cctype>
 #include <cstddef>
-#include <iomanip>
 #include <set>
 
 namespace Tensile
 {
-
-    std::ostream& operator<<(std::ostream& stream, const SizeMapping& sizeMapping)
-    {
-        return stream << std::right << std::setw(30)
-                      << "workGroupSize: " << sizeMapping.workGroupSize << std::endl
-                      << std::right << std::setw(30) << "threadTile: " << sizeMapping.threadTile
-                      << std::endl
-                      << std::right << std::setw(30) << "macroTile: " << sizeMapping.macroTile
-                      << std::endl
-
-                      << std::right << std::setw(30) << "staggerU: " << sizeMapping.staggerU
-                      << std::endl
-                      << std::right << std::setw(30) << "depthU: " << sizeMapping.depthU
-                      << std::endl
-                      << std::right << std::setw(30) << "globalSplitU: " << sizeMapping.globalSplitU
-                      << std::endl
-                      << std::right << std::setw(30)
-                      << "staggerStrideShift: " << sizeMapping.staggerStrideShift << std::endl
-                      << std::right << std::setw(30)
-                      << "workGroupMapping: " << sizeMapping.workGroupMapping << std::endl
-
-                      << std::right << std::setw(30)
-                      << "packBatchDims: " << sizeMapping.packBatchDims << std::endl
-                      << std::right << std::setw(30)
-                      << "packSummationDims: " << sizeMapping.packSummationDims << std::endl
-                      << std::right << std::setw(30) << "magicDivAlg: " << sizeMapping.magicDivAlg
-                      << std::endl
-                      << std::right << std::setw(30) << "streamK: " << sizeMapping.streamK
-                      << std::endl
-                      << std::right << std::setw(30)
-                      << "persistentKernel: " << sizeMapping.persistentKernel << std::endl
-                      << std::right << std::setw(30)
-                      << "persistentKernelAlongBatch: " << sizeMapping.persistentKernelAlongBatch
-                      << std::endl
-
-                      << std::right << std::setw(30) << "sourceKernel: " << sizeMapping.sourceKernel
-                      << std::endl
-                      << std::right << std::setw(30)
-                      << "globalAccumulation: " << sizeMapping.globalAccumulation << std::endl
-                      << std::right << std::setw(30)
-                      << "workspaceSizePerElemC: " << sizeMapping.workspaceSizePerElemC
-                      << std::endl;
-    }
 
     std::string ContractionProblem::ZeroPad::description() const
     {
