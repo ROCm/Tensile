@@ -1151,7 +1151,10 @@ namespace Tensile
 
         std::string kName = this->KernelName();
 
-        bool matched = std::regex_search(kName, matches, miRegex) && (matches.size() == 5);
+        bool matched
+            = std::regex_search(kName, matches, miRegex)
+              && (matches.size()
+                  == 5 /* 1 (index 0) for entire match and 4 for the sub-experssion matches */);
 
         if(matched)
         {
@@ -1173,7 +1176,10 @@ namespace Tensile
 
         std::string kName = this->KernelName();
 
-        bool matched = std::regex_search(kName, matches, miRegex) && (matches.size() == 2);
+        bool matched
+            = std::regex_search(kName, matches, miRegex)
+              && (matches.size()
+                  == 2 /* 1 (index 0) for entire match and 1 for the sub-experssion matches */);
 
         if(matched)
         {
