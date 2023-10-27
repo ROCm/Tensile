@@ -36,7 +36,6 @@
 
 namespace Tensile
 {
-
     std::string ContractionProblem::ZeroPad::description() const
     {
         std::ostringstream rv;
