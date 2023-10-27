@@ -796,6 +796,9 @@ validParameters = {
     #  - Can vectorize stores in edge tiles.  Vector width can be up to AF0EM.
     #   (since C matrix is always coalesced in Free0 index direction and this assertion guarantees the index element multiple)
     #
+    # TailLoop Optimizations:
+    #  - enable wider global load with AF0EM > 1 for A + TLU, AF1EM > 1 for B + TLU
+    #
     # 1 indicates no assertion (since all sizes are multiples of 1)
     "AssertFree0ElementMultiple" : [1,2,4,8,16],
 
@@ -1740,8 +1743,8 @@ defaultProblemType = {
     "Fp32toFp8SWClip" :         True,
 
     # only in-device SR for now
-    "StochasticRounding" :      False  # By default, IEEE RNE rounding    
-    
+    "StochasticRounding" :      False,  # By default, IEEE RNE rounding
+
     # Rounding mode for f32 to f8 down conversion
     # TODO in Future:
     # There are two different rounding modes for f32 to f8 down conversion: [0]: IEEE RNE mode and [1/2]: stochastic mode. 
@@ -2204,8 +2207,9 @@ def assignGlobalParameters( config ):
     if os.name == "nt":
       globalParameters["CurrentISA"] = (9,0,6)
       printWarning("Failed to detect ISA so forcing (gfx906) on windows")
-  if globalParameters["CurrentISA"] == (9,4,2):
-    printWarning("HardwareMonitor currently disabled for gfx942")
+  if globalParameters["CurrentISA"] == (9,4,2) or globalParameters["CurrentISA"] == (11,0,0) or \
+     globalParameters["CurrentISA"] == (11,0,1) or globalParameters["CurrentISA"] == (11,0,2):
+    printWarning("HardwareMonitor currently disabled for gfx942 or gfx1100/gfx1101/gfx1102")
     globalParameters["HardwareMonitor"] = False
 
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
