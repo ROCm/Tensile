@@ -61,11 +61,11 @@ class HardwarePredicate(Properties.Predicate):
             myCUPred = next(iter(x for x in myAndPred.value if x.tag == "CUCount"), None)
             myCUCount = myCUPred.value if myCUPred != None else 0
             myDMMPred = next(iter(x for x in myAndPred.value if x.tag == "DMMAccessFromHost"), None)
-            myDMMAccessFromHost = myDMMPred.value if myDMMPred != None else 0
+            myDMMAccessFromHost = myDMMPred.value if myDMMPred != None else -1
         else:
             myProcPred = self.value
             myCUCount = 0
-            myDMMAccessFromHost = 0
+            myDMMAccessFromHost = -1
 
         if other.value.tag == 'And':
             otherAndPred = other.value
@@ -73,13 +73,13 @@ class HardwarePredicate(Properties.Predicate):
             otherCUPred = next(iter(x for x in otherAndPred.value if x.tag == "CUCount"), None)
             otherCUCount = otherCUPred.value if otherCUPred != None else 0
             otherDMMPred = next(iter(x for x in otherAndPred.value if x.tag == "DMMAccessFromHost"), None)
-            otherDMMAccessFromHost = otherDMMPred.value if otherDMMPred != None else 0
+            otherDMMAccessFromHost = otherDMMPred.value if otherDMMPred != None else -1
         else:
             otherProcPred = other.value
             otherCUCount = 0
-            otherDMMAccessFromHost = 0
+            otherDMMAccessFromHost = -1
 
-        if myDMMAccessFromHost == otherDMMAccessFromHost == 0:
+        if myDMMAccessFromHost == otherDMMAccessFromHost:
             # If CU properties are empty, then compare processor predicates
             if myCUCount == otherCUCount == 0:
                 # Make sure that we have valid processor preds

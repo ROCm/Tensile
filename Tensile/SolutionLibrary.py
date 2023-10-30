@@ -288,7 +288,7 @@ class MasterSolutionLibrary:
 
             if lazyLibrary:
                 if cuCount: placeholderName += "_CU" + str(cuCount)
-                if dmmAccessFromHost: placeholderName += "_DMM" + str(dmmAccessFromHost)
+                if dmmAccessFromHost is not None: placeholderName += "_DMM" + str(dmmAccessFromHost)
                 placeholderName += "_" + str(devicePart)
 
             return newLib, placeholderName
