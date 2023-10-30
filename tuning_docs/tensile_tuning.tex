@@ -1013,7 +1013,7 @@ Tensile provides a set of automation scripts in Tensile/tuning/automation for si
 	\begin{tikzpicture} [node distance=3cm, auto,>=latex', thick]
 
 	\path[->] node[format,label={[align=center]:rocBLAS\\log}] (tune) {test.log};
-	\path[->] node[format, align=center,right of=tune,label={[align=center]:creaet\\tuning\\artifacts}] (ptune) {tuning\\artifacts}
+	\path[->] node[format, align=center,right of=tune,label={[align=center]:create\\tuning\\artifacts}] (ptune) {tuning\\artifacts}
 	(tune) edge node[align=center] {provision\\tuning} (ptune);
 	\path[->] node[format, right of=ptune, label={[align=center]:tuning\\results}] (tune) {logic.yaml}
 	(ptune) edge node {tune} (tune);
