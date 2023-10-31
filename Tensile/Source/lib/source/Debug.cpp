@@ -113,6 +113,11 @@ namespace Tensile
         return m_value & 0x8000;
     }
 
+    bool Debug::printKernelCommonParams() const
+    {
+        return m_value & 0x80000;
+    }
+
     bool Debug::printSolutionSelectionTime() const
     {
         return m_value & 0x10000;

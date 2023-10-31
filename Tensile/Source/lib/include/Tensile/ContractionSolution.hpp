@@ -89,6 +89,8 @@ namespace Tensile
         size_t workspaceSizePerElemC = 0;
     };
 
+    std::ostream& operator<<(std::ostream& stream, const SizeMapping& sizeMapping);
+
     /**
  * Represents a single kernel or set of kernels that can perform a single
  * tensor contraction.
@@ -115,6 +117,7 @@ namespace Tensile
         {
             return kernelName;
         }
+
         virtual std::string name() const
         {
             return kernelName;
@@ -123,6 +126,9 @@ namespace Tensile
         {
             return kernelName;
         }
+
+        bool getMatrixInstructionFromKernelName(vector4<std::uint32_t>& miInst) const;
+        bool getGSUAlgorithmFromKernelName(std::string& gsuAlg) const;
 
         bool isSourceKernel() const;
 

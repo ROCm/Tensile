@@ -35,6 +35,9 @@
 #include <cstdlib>
 #include <random>
 
+#include <iomanip>
+#include <regex>
+
 #define TENSILE_STREAMK_GRID 1
 
 namespace Tensile
@@ -1143,6 +1146,55 @@ namespace Tensile
         return rv;
     }
 
+    bool ContractionSolution::getMatrixInstructionFromKernelName(
+        vector4<std::uint32_t>& matrixInst) const
+    {
+
+        std::string regexp_string("_MI(\\d+)x(\\d+)x(\\d+)x(\\d+)_");
+        std::regex  miRegex(regexp_string);
+        std::smatch matches;
+
+        std::string kName = this->KernelName();
+
+        bool matched
+            = std::regex_search(kName, matches, miRegex)
+              && (matches.size()
+                  == 5 /* 1 (index 0) for entire match and 4 for the sub-experssion matches */);
+
+        if(matched)
+        {
+            // the first sub_match element (index 0) corresponds to the entire match
+            matrixInst.x = atoi(matches[1].str().c_str());
+            matrixInst.y = atoi(matches[2].str().c_str());
+            matrixInst.z = atoi(matches[3].str().c_str());
+            matrixInst.w = atoi(matches[4].str().c_str());
+        }
+
+        return matched;
+    }
+
+    bool ContractionSolution::getGSUAlgorithmFromKernelName(std::string& gsuAlg) const
+    {
+        std::string regexp_string("_GSUA([S|M])B_");
+        std::regex  miRegex(regexp_string);
+        std::smatch matches;
+
+        std::string kName = this->KernelName();
+
+        bool matched
+            = std::regex_search(kName, matches, miRegex)
+              && (matches.size()
+                  == 2 /* 1 (index 0) for entire match and 1 for the sub-experssion matches */);
+
+        if(matched)
+        {
+            // the first sub_match element (index 0) corresponds to the entire match
+            gsuAlg = (matches[1].compare("S") == 0) ? "SingleBuffer" : "MultipleBuffer";
+        }
+
+        return matched;
+    }
+
     std::vector<KernelInvocation>
         ContractionSolution::solve(ContractionSolution::Problem const& problem,
                                    ContractionSolution::Inputs const&  inputs,
@@ -1151,6 +1203,22 @@ namespace Tensile
         if(Debug::Instance().printWinningKernelName())
             std::cout << "Running kernel: " << this->KernelName() << std::endl;
 
+        if(Debug::Instance().printKernelCommonParams())
+        {
+            std::cout << "Kernel name: " << this->KernelName() << std::endl;
+            std::cout << "Kernel parameters: " << std::endl;
+
+            vector4<std::uint32_t> matrixInst;
+            if(this->getMatrixInstructionFromKernelName(matrixInst))
+                std::cout << std::right << std::setw(30) << "MatrixInstruction: " << matrixInst
+                          << std::endl;
+
+            std::string GSUAlg;
+            if(this->getGSUAlgorithmFromKernelName(GSUAlg))
+                std::cout << std::right << std::setw(30) << "GSUAlgorithm: " << GSUAlg << std::endl;
+
+            std::cout << this->sizeMapping << std::endl;
+        }
         // retreive alpha/beta type set via setAlpha/BetaType()
         auto alphaType = problem.alphaType();
         auto betaType  = problem.betaType();
@@ -1695,5 +1763,42 @@ namespace Tensile
         return stream << " shiftPtrElemA=" << st.shiftPtrElemA
                       << " shiftPtrElemB=" << st.shiftPtrElemB << " depthUorMT0=" << st.depthUorMT0
                       << " depthUorMT1=" << st.depthUorMT1;
+    }
+
+    std::ostream& operator<<(std::ostream& stream, const SizeMapping& sizeMapping)
+    {
+        std::ios_base::fmtflags flags(stream.flags());
+
+        stream << std::right << std::setw(30) << "workGroupSize: " << sizeMapping.workGroupSize
+               << std::endl
+               << std::setw(30) << "threadTile: " << sizeMapping.threadTile << std::endl
+               << std::setw(30) << "macroTile: " << sizeMapping.macroTile << std::endl
+
+               << std::setw(30) << "staggerU: " << sizeMapping.staggerU << std::endl
+               << std::setw(30) << "depthU: " << sizeMapping.depthU << std::endl
+               << std::setw(30) << "globalSplitU: " << sizeMapping.globalSplitU << std::endl
+               << std::setw(30) << "staggerStrideShift: " << sizeMapping.staggerStrideShift
+               << std::endl
+               << std::setw(30) << "workGroupMapping: " << sizeMapping.workGroupMapping << std::endl
+
+               << std::setw(30) << "packBatchDims: " << sizeMapping.packBatchDims << std::endl
+               << std::setw(30) << "packSummationDims: " << sizeMapping.packSummationDims
+               << std::endl
+               << std::setw(30) << "magicDivAlg: " << sizeMapping.magicDivAlg << std::endl
+               << std::setw(30) << "streamK: " << sizeMapping.streamK << std::endl
+               << std::setw(30) << "persistentKernel: " << sizeMapping.persistentKernel << std::endl
+               << std::setw(30)
+               << "persistentKernelAlongBatch: " << sizeMapping.persistentKernelAlongBatch
+               << std::endl
+
+               << std::setw(30) << "sourceKernel: " << sizeMapping.sourceKernel << std::endl
+               << std::setw(30) << "globalAccumulation: " << sizeMapping.globalAccumulation
+               << std::endl
+               << std::setw(30) << "workspaceSizePerElemC: " << sizeMapping.workspaceSizePerElemC
+               << std::endl;
+
+        stream.flags(flags);
+
+        return stream;
     }
 } // namespace Tensile
