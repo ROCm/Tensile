@@ -191,7 +191,10 @@ namespace Tensile
 
         AMDGPU();
         AMDGPU(Processor p, int computeUnitCount, int isAPU, std::string const& deviceName);
-        AMDGPU(std::string const& archName, int computeUnitCount, int isAPU, std::string const& deviceName);
+        AMDGPU(std::string const& archName,
+               int                computeUnitCount,
+               int                isAPU,
+               std::string const& deviceName);
 
         ~AMDGPU();
 
