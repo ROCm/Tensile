@@ -44,7 +44,7 @@ namespace Tensile
     }
 
     TENSILE_API
-        AMDGPU::AMDGPU(std::string const& archName, int cus, int apu, std::string const& name)
+    AMDGPU::AMDGPU(std::string const& archName, int cus, int apu, std::string const& name)
         : processor(toProcessorId(archName))
         , computeUnitCount(cus)
         , isAPU(apu)
