@@ -53,8 +53,8 @@ class HardwarePredicate(Properties.Predicate):
         if other.tag == 'TruePred' or self.tag == 'TruePred':
             return super().__lt__(other)
 
-        # Compute unit counts are embedded as 'And' with
-        # 'Processor' and 'ComputeUnitCount' as children
+        # Compute unit counts or APU/XPU versions are embedded as 'And' with
+        # 'Processor', 'CUCount', and 'IsAPU' as children
         if self.value.tag == 'And':
             myAndPred = self.value
             myProcPred = next(iter(x for x in myAndPred.value if x.tag == "Processor"), None)
@@ -79,6 +79,7 @@ class HardwarePredicate(Properties.Predicate):
             otherCUCount = 0
             otherIsAPU = -1
 
+        # If APU properties are the same, then check CU count or architecture
         if myIsAPU == otherIsAPU:
             # If CU properties are empty, then compare processor predicates
             if myCUCount == otherCUCount == 0:
@@ -94,4 +95,5 @@ class HardwarePredicate(Properties.Predicate):
 
             # Higher priority given to higher CU count
             return myCUCount > otherCUCount
+        # APU sorted before XPU, and XPU sorted before generic
         return myIsAPU > otherIsAPU
