@@ -25,6 +25,8 @@
 # Generates rocblas-bench input files from the library logic files.
 # creates the benchmark and verification files:
 # $ python3 rocblas-benchInputCreator.py -v ../libLogics/aldebaran_Cijk_Ailk_Bjlk_BBS_BH.yaml ./ BSS_NT
+# creates the benchmark and verification files with hpl initialization:
+# $ python3 rocblas-benchInputCreator.py -v -i hpl ../libLogics/aldebaran_Cijk_Ailk_Bjlk_BBS_BH.yaml ./ BSS_NT
 # creates the benchmark file:
 # $ python3 rocblas-benchInputCreator.py ../libLogics/aldebaran_Cijk_Ailk_Bjlk_BBS_BH.yaml ./ BSS_NT
 
@@ -32,9 +34,7 @@ import argparse
 import os
 import yaml
 
-
 typeIndexToName = {0: "f32_r", 1: "f64_r", 2: "f32_c", 3: "f64_c", 4: "f16_r", 5: "i8_r", 6: "i32_r", 7: "bf16_r", 8: "i8_r", 10: "f8_r", 11: "bf8_r", 12: "f8b8", 13: "b8f8"}
-
 
 def parseArgs():
     argParser = argparse.ArgumentParser()
@@ -42,13 +42,15 @@ def parseArgs():
     h = {"libLogic" : "Input library logic file",
          "outDir"   : "Output directory for rocBLAS-bench yaml files",
          "verify"   : "Also output verify version of yaml files",
-         "outfile"  : "the name of output file"
+         "outfile"  : "the name of output file",
+         "initial"  : "Matrix initialization: hpl, trig, int. The default is trig for non Int8 datatype, and int for Int8."
     }
 
     argParser.add_argument("libLogic", metavar="logic-file", type=str, help=h["libLogic"])
     argParser.add_argument("outDir", metavar="output-dir", type=str, help=h["outDir"])
     argParser.add_argument("outfile", metavar="output-file", type=str, help=h["outfile"])
     argParser.add_argument("--verify", "-v", action="store_true", help=h["verify"])
+    argParser.add_argument("--initialization", "-i", action="store", type=str, default = 'trig',  help=h["initial"])
 
     return argParser.parse_args()
 
@@ -177,24 +179,43 @@ def createYaml(args, problem, sizeMappings, verify):
     else:
         otherParams = {"alpha": 1, "beta": 1, "iters": 10, "cold_iters": 2}
 
+    #initialization
+    if (args.initialization=='hpl' and problemParams["a_type"]!="i8_r"):
+        init = {"initialization": "hpl"}
+    elif (args.initialization=='trig' and problemParams["a_type"]!="i8_r"):
+        init = {"initialization": "trig_float"}
+    elif args.initialization== 'int':
+        init = {"initialization": "rand_int"}
+    else:
+      print(f"Initialization {args.initialization} is not allowed for int8 datatype. Initialization changed to rand_int.")
+      init = {"initialization": "rand_int"}
+
+    # check if General Batched from the library name
+    generalBatched = False
+    if "_GB.yaml" in os.path.split(args.libLogic)[-1]:
+        generalBatched = True
+
     # create rocBLAS-bench call for each size in logic file
     for (size, _) in sizeMappings: # size[0] = M, size[1] = N, size[2] = batch_count, size[3] = K, size[4] = ldc, size[5] = ldd, size[6] = lda, size[7] = ldb
         params = {}
  
-        if (size[2] == 1 and not f8gemm):  # non-f8, non-batched gemm (serves both HPA and non-HPA)
+        if (not generalBatched and size[2] == 1 and not f8gemm):  # non-f8, non-batched gemm (serves both HPA and non-HPA)
             params["rocblas_function"] = "rocblas_gemm_ex"
-        elif (size[2] != 1 and not f8gemm): # non-f8, strided_batched gemm (serves both HPA and non-HPA)
+        elif (not generalBatched and size[2] != 1 and not f8gemm): # non-f8, strided_batched gemm (serves both HPA and non-HPA)
             params["rocblas_function"] = "rocblas_gemm_strided_batched_ex"
-        else: # f8
+        elif not generalBatched: # f8
             params["rocblas_function"] = "rocblas_gemm_ex3"
+        elif (generalBatched and not f8gemm):  # non-f8, general batched gemm (serves both HPA and non-HPA) currently there is no f8 general batched
+            params["rocblas_function"] = "rocblas_gemm_batched_ex"
 
         sizeParams = getSizeParams(size, transA, transB)
 
         params.update(problemParams)
         params.update(sizeParams)
         params.update(otherParams)
+        params.update(init)
 
-        if size[2] == 1:
+        if (size[2] == 1 or generalBatched):
             bench.append(params)
         else:
             benchStrided.append(params)
@@ -204,7 +225,7 @@ def createYaml(args, problem, sizeMappings, verify):
     prefix += "_verify" if verify else ""
 
     benchPath = os.path.join(args.outDir, prefix + "_bench.yaml") 
-    benchStridedPath = os.path.join(args.outDir, prefix +"bench-strided.yaml") 
+    benchStridedPath = os.path.join(args.outDir, prefix +"_bench-strided.yaml") 
     
     # write output
     if len(bench) > 0:
@@ -216,6 +237,9 @@ def createYaml(args, problem, sizeMappings, verify):
 
 def main():
     args = parseArgs()
+
+    if not (args.initialization in ['hpl', 'trig', 'int']):
+        raise RuntimeError(f"Initialization {args.initialization} is not allowed. Choose from hpl, trig, or int.")
 
     with open(args.libLogic) as f:
         logicData = yaml.safe_load(f)
