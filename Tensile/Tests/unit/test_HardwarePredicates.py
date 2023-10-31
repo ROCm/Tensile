@@ -91,11 +91,8 @@ def hardware_library_objects_order():
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,6))}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,8))}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,10))}]),
-            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,4,2))}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,0,8), 60)}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,0,8), 64)}]),
-            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,4,2), isAPU=0)}]),
-            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,4,2), isAPU=1)}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate('TruePred')}])
     ]
 
@@ -108,13 +105,31 @@ def test_hardware_library_merge_order(libraries):
         lib.merge(lib2)
 
     assert lib.rows[-1]['predicate'] == HardwarePredicate('TruePred')
-    # assert lib.rows[0]['predicate'] == HardwarePredicate.FromHardware((9,0,8), 64)
-    # assert lib.rows[1]['predicate'] == HardwarePredicate.FromHardware((9,0,8), 60)
+    assert lib.rows[0]['predicate'] == HardwarePredicate.FromHardware((9,0,8), 64)
+    assert lib.rows[1]['predicate'] == HardwarePredicate.FromHardware((9,0,8), 60)
+    for r in lib.rows[:-1]:
+        assert r['predicate'] != HardwarePredicate('TruePred')
+
+def hardware_library_objects_order2():
+    objs = [PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromISA((9,0,6))}]),
+            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,4,2))}]),
+            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,4,2), isAPU=0)}]),
+            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,4,2), isAPU=1)}]),
+            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate('TruePred')}])
+    ]
+
+    return [copy.deepcopy(libs) for libs in itertools.permutations(objs)]
+
+@pytest.mark.parametrize("libraries", hardware_library_objects_order2())
+def test_hardware_library_merge_order2(libraries):
+    lib = libraries[0]
+    for lib2 in libraries[1:]:
+        lib.merge(lib2)
+
+    assert lib.rows[-1]['predicate'] == HardwarePredicate('TruePred')
     assert lib.rows[0]['predicate'] == HardwarePredicate.FromHardware((9,4,2), isAPU=1)
     assert lib.rows[1]['predicate'] == HardwarePredicate.FromHardware((9,4,2), isAPU=0)
-    assert lib.rows[2]['predicate'] == HardwarePredicate.FromHardware((9,0,8), 64)
-    assert lib.rows[3]['predicate'] == HardwarePredicate.FromHardware((9,0,8), 60)
-    assert lib.rows[4]['predicate'] == HardwarePredicate.FromHardware((9,4,2))
+    assert lib.rows[3]['predicate'] == HardwarePredicate.FromHardware((9,4,2))
     for r in lib.rows[:-1]:
         assert r['predicate'] != HardwarePredicate('TruePred')
 
