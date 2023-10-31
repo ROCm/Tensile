@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -96,7 +96,7 @@ namespace Tensile
                 }
             };
 
-            struct DMMAccessFromHost : public Predicate_CRTP<DMMAccessFromHost, AMDGPU>
+            struct IsAPU : public Predicate_CRTP<IsAPU, AMDGPU>
             {
                 enum
                 {
@@ -105,20 +105,20 @@ namespace Tensile
                 };
                 int value;
 
-                DMMAccessFromHost() = default;
-                DMMAccessFromHost(int val)
+                IsAPU() = default;
+                IsAPU(int val)
                     : value(val)
                 {
                 }
 
                 static std::string Type()
                 {
-                    return "DMMAccessFromHost";
+                    return "IsAPU";
                 }
 
                 virtual bool operator()(AMDGPU const& gpu) const
                 {
-                    return gpu.dmmAccessFromHost == value;
+                    return gpu.isAPU == value;
                 }
             };
 

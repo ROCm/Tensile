@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -33,20 +33,20 @@ class HardwarePredicate(Properties.Predicate):
         return cls("AMDGPU", value=cls("Processor", value=gfxArch))
 
     @classmethod
-    def FromHardware(cls, isa, cuCount=None, dmmAccessFromHost=None):
+    def FromHardware(cls, isa, cuCount=None, isAPU=None):
         gfxArch = Common.gfxName(isa)
-        if cuCount == None and dmmAccessFromHost == None:
+        if cuCount == None and isAPU == None:
             return cls("AMDGPU", value=cls("Processor", value=gfxArch))
         elif cuCount == None:
             return cls("AMDGPU", value=cls.And([cls("Processor", value=gfxArch),
-                                                cls("DMMAccessFromHost", value=dmmAccessFromHost)]))
-        elif dmmAccessFromHost == None:
+                                                cls("IsAPU", value=isAPU)]))
+        elif isAPU == None:
             return cls("AMDGPU", value=cls.And([cls("Processor", value=gfxArch),
                                                 cls("CUCount", value=cuCount)]))
         else:
             return cls("AMDGPU", value=cls.And([cls("Processor", value=gfxArch),
                                                 cls("CUCount", value=cuCount),
-                                                cls("DMMAccessFromHost", value=dmmAccessFromHost)]))
+                                                cls("IsAPU", value=isAPU)]))
 
     def __lt__(self, other):
         # Use superclass logic for TruePreds
@@ -60,26 +60,26 @@ class HardwarePredicate(Properties.Predicate):
             myProcPred = next(iter(x for x in myAndPred.value if x.tag == "Processor"), None)
             myCUPred = next(iter(x for x in myAndPred.value if x.tag == "CUCount"), None)
             myCUCount = myCUPred.value if myCUPred != None else 0
-            myDMMPred = next(iter(x for x in myAndPred.value if x.tag == "DMMAccessFromHost"), None)
-            myDMMAccessFromHost = myDMMPred.value if myDMMPred != None else -1
+            myIsAPUPred = next(iter(x for x in myAndPred.value if x.tag == "IsAPU"), None)
+            myIsAPU = myIsAPUPred.value if myIsAPUPred != None else -1
         else:
             myProcPred = self.value
             myCUCount = 0
-            myDMMAccessFromHost = -1
+            myIsAPU = -1
 
         if other.value.tag == 'And':
             otherAndPred = other.value
             otherProcPred = next(iter(x for x in otherAndPred.value if x.tag == "Processor"), None)
             otherCUPred = next(iter(x for x in otherAndPred.value if x.tag == "CUCount"), None)
             otherCUCount = otherCUPred.value if otherCUPred != None else 0
-            otherDMMPred = next(iter(x for x in otherAndPred.value if x.tag == "DMMAccessFromHost"), None)
-            otherDMMAccessFromHost = otherDMMPred.value if otherDMMPred != None else -1
+            otherIsAPUPred = next(iter(x for x in otherAndPred.value if x.tag == "IsAPU"), None)
+            otherIsAPU = otherIsAPUPred.value if otherIsAPUPred != None else -1
         else:
             otherProcPred = other.value
             otherCUCount = 0
-            otherDMMAccessFromHost = -1
+            otherIsAPUAccessFromHost = -1
 
-        if myDMMAccessFromHost == otherDMMAccessFromHost:
+        if myIsAPU == otherIsAPU:
             # If CU properties are empty, then compare processor predicates
             if myCUCount == otherCUCount == 0:
                 # Make sure that we have valid processor preds
@@ -94,4 +94,4 @@ class HardwarePredicate(Properties.Predicate):
 
             # Higher priority given to higher CU count
             return myCUCount > otherCUCount
-        return myDMMAccessFromHost > otherDMMAccessFromHost
+        return myIsAPU > otherIsAPU

@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2020-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2020-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -36,8 +36,8 @@ def test_hardware_predicate_comparison():
     d = HardwarePredicate.FromHardware((9,0,8), 60)
     e = HardwarePredicate.FromHardware((9,0,8), 64)
     f = HardwarePredicate.FromHardware((9,4,2))
-    g = HardwarePredicate.FromHardware((9,4,2), dmmAccessFromHost=0)
-    h = HardwarePredicate.FromHardware((9,4,2), dmmAccessFromHost=1)
+    g = HardwarePredicate.FromHardware((9,4,2), isAPU=0)
+    h = HardwarePredicate.FromHardware((9,4,2), isAPU=1)
 
     assert a < b
     assert a < c
@@ -94,8 +94,8 @@ def hardware_library_objects_order():
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,4,2))}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,0,8), 60)}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,0,8), 64)}]),
-            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,4,2), dmmAccessFromHost=0)}]),
-            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,4,2), dmmAccessFromHost=1)}]),
+            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,4,2), isAPU=0)}]),
+            PredicateLibrary('Hardware', [{'predicate': HardwarePredicate.FromHardware((9,4,2), isAPU=1)}]),
             PredicateLibrary('Hardware', [{'predicate': HardwarePredicate('TruePred')}])
     ]
 
@@ -110,8 +110,8 @@ def test_hardware_library_merge_order(libraries):
     assert lib.rows[-1]['predicate'] == HardwarePredicate('TruePred')
     # assert lib.rows[0]['predicate'] == HardwarePredicate.FromHardware((9,0,8), 64)
     # assert lib.rows[1]['predicate'] == HardwarePredicate.FromHardware((9,0,8), 60)
-    assert lib.rows[0]['predicate'] == HardwarePredicate.FromHardware((9,4,2), dmmAccessFromHost=1)
-    assert lib.rows[1]['predicate'] == HardwarePredicate.FromHardware((9,4,2), dmmAccessFromHost=0)
+    assert lib.rows[0]['predicate'] == HardwarePredicate.FromHardware((9,4,2), isAPU=1)
+    assert lib.rows[1]['predicate'] == HardwarePredicate.FromHardware((9,4,2), isAPU=0)
     assert lib.rows[2]['predicate'] == HardwarePredicate.FromHardware((9,0,8), 64)
     assert lib.rows[3]['predicate'] == HardwarePredicate.FromHardware((9,0,8), 60)
     assert lib.rows[4]['predicate'] == HardwarePredicate.FromHardware((9,4,2))

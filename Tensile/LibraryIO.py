@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -179,8 +179,8 @@ def parseLibraryLogicData(data, srcFile="?"):
     if "CUCount" not in data:
         data["CUCount"] = None
 
-    if "DMMAccessFromHost" not in data:
-        data["DMMAccessFromHost"] = None
+    if "IsAPU" not in data:
+        data["IsAPU"] = None
 
     if "Fp16AltImpl" not in data:
         data["Fp16AltImpl"] = False
@@ -236,12 +236,12 @@ def parseLibraryLogicList(data, srcFile="?"):
         rv["ArchitectureName"] = data[2]["Architecture"]
         if "CUCount" in data[2]:
             rv["CUCount"] = data[2]["CUCount"]
-        if "DMMAccessFromHost" in data[2]:
-            rv["DMMAccessFromHost"] = data[2]["DMMAccessFromHost"]
+        if "IsAPU" in data[2]:
+            rv["IsAPU"] = data[2]["IsAPU"]
     else:
         rv["ArchitectureName"] = data[2]
         rv["CUCount"] = None
-        rv["DMMAccessFromHost"] = None
+        rv["IsAPU"] = None
 
     rv["ExactLogic"] = data[7]
     # data[8] previously contained range logic, which has been retired
@@ -309,8 +309,8 @@ def createLibraryLogic(schedulePrefix, architectureName, deviceNames, logicTuple
         rv["ArchitectureName"] = architectureName["Architecture"]
         if "CUCount" in architectureName:
             rv["CUCount"] = architectureName["CUCount"]
-        if "DMMAccessFromHost" in architectureName:
-            rv["DMMAccessFromHost"] = architectureName["DMMAccessFromHost"]
+        if "IsAPU" in architectureName:
+            rv["IsAPU"] = architectureName["IsAPU"]
     else:
         rv["ArchitectureName"] = architectureName
 
