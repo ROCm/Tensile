@@ -77,7 +77,7 @@ class HardwarePredicate(Properties.Predicate):
         else:
             otherProcPred = other.value
             otherCUCount = 0
-            otherIsAPUAccessFromHost = -1
+            otherIsAPU = -1
 
         if myIsAPU == otherIsAPU:
             # If CU properties are empty, then compare processor predicates
