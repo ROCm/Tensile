@@ -285,8 +285,8 @@ std::vector<LibraryPerformanceTest::ParamType> GetLibraries(std::string const& e
 {
     std::vector<LibraryPerformanceTest::ParamType> rv;
 
-    std::vector<AMDGPU> gpus{AMDGPU(AMDGPU::Processor::gfx900, 64, "Vega 10"),
-                             AMDGPU(AMDGPU::Processor::gfx906, 64, "Vega 20")};
+    std::vector<AMDGPU> gpus{AMDGPU(AMDGPU::Processor::gfx900, 64, 0, "Vega 10"),
+                             AMDGPU(AMDGPU::Processor::gfx906, 64, 0, "Vega 20")};
 
     for(auto const& gpu : gpus)
     {
@@ -298,9 +298,9 @@ std::vector<LibraryPerformanceTest::ParamType> GetLibraries(std::string const& e
     }
 
     rv.push_back(std::make_tuple(
-        AMDGPU(AMDGPU::Processor::gfx908, 64, "Arcturus"), "rocBLAS_Full." + ext, false, true));
+        AMDGPU(AMDGPU::Processor::gfx908, 64, 0, "Arcturus"), "rocBLAS_Full." + ext, false, true));
     rv.push_back(std::make_tuple(
-        AMDGPU(AMDGPU::Processor::gfx1010, 40, "Navi"), "KernelsLiteNavi." + ext, true, false));
+        AMDGPU(AMDGPU::Processor::gfx1010, 40, 0, "Navi"), "KernelsLiteNavi." + ext, true, false));
 
     return rv;
 }

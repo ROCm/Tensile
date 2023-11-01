@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -93,6 +93,32 @@ namespace Tensile
                 virtual bool operator()(AMDGPU const& gpu) const
                 {
                     return gpu.computeUnitCount == value;
+                }
+            };
+
+            struct IsAPU : public Predicate_CRTP<IsAPU, AMDGPU>
+            {
+                enum
+                {
+                    HasIndex = false,
+                    HasValue = true
+                };
+                int value;
+
+                IsAPU() = default;
+                IsAPU(int val)
+                    : value(val)
+                {
+                }
+
+                static std::string Type()
+                {
+                    return "IsAPU";
+                }
+
+                virtual bool operator()(AMDGPU const& gpu) const
+                {
+                    return gpu.isAPU == value;
                 }
             };
 

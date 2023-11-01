@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -35,16 +35,19 @@ namespace Tensile
 
     TENSILE_API AMDGPU::AMDGPU() {}
 
-    TENSILE_API AMDGPU::AMDGPU(AMDGPU::Processor p, int cus, std::string const& name)
+    TENSILE_API AMDGPU::AMDGPU(AMDGPU::Processor p, int cus, int apu, std::string const& name)
         : processor(p)
         , computeUnitCount(cus)
+        , isAPU(apu)
         , deviceName(name)
     {
     }
 
-    TENSILE_API AMDGPU::AMDGPU(std::string const& archName, int cus, std::string const& name)
+    TENSILE_API
+    AMDGPU::AMDGPU(std::string const& archName, int cus, int apu, std::string const& name)
         : processor(toProcessorId(archName))
         , computeUnitCount(cus)
+        , isAPU(apu)
         , deviceName(name)
     {
     }

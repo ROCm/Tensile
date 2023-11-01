@@ -100,7 +100,7 @@ TEST(ContractionPerformance, Problem1)
     auto problem
         = ContractionProblem::GEMM(false, false, 1536, 1536, 64, 1536, 64, 1536, 1.5, false, 1.0);
 
-    AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, "gfx906");
+    AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, 0, "gfx906");
     double perf = solution->projectedPerformance(problem, hardware).speedGFlops;
 
     ASSERT_DOUBLE_EQ(perf, 3000.0);
@@ -128,7 +128,7 @@ TEST(ContractionPerformance, Problem2)
     auto problem
         = ContractionProblem::GEMM(false, false, 384, 192, 60, 384, 60, 384, 1.5, false, 1.0);
 
-    AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, "gfx906");
+    AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, 0, "gfx906");
     double perf = solution->projectedPerformance(problem, hardware).speedGFlops;
 
     ASSERT_DOUBLE_EQ(perf, 843.75);
@@ -156,7 +156,7 @@ TEST(ContractionPerformance, Problem3)
     auto problem
         = ContractionProblem::GEMM(false, false, 384, 192, 60, 384, 60, 384, 1.5, false, 1.0);
 
-    AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, "gfx906");
+    AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, 0, "gfx906");
     auto   model = solution->projectedPerformance(problem, hardware);
 
     // std::cout << model << "\n";
@@ -188,7 +188,7 @@ TEST(ContractionPerformance, Problem4)
     auto problem
         = ContractionProblem::GEMM(false, false, 1536, 1575, 64, 1536, 64, 1536, 1.5, false, 3.0);
 
-    AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, "gfx906");
+    AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, 0, "gfx906");
     auto   model = solution->projectedPerformance(problem, hardware);
 
     // std::cout << model << "\n";

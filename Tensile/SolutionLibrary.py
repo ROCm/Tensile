@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -276,17 +276,21 @@ class MasterSolutionLibrary:
         def hardware(d, problemType, solutions, library, placeholderName):
             devicePart = d["ArchitectureName"]
             cuCount = d["CUCount"]
+            isAPU = d["IsAPU"]
 
             newLib = PredicateLibrary(tag="Hardware")
             if devicePart == "fallback":
                 pred = Hardware.HardwarePredicate("TruePred")
             else:
-                pred = Hardware.HardwarePredicate.FromHardware(Common.gfxArch(devicePart), cuCount)
+                pred = Hardware.HardwarePredicate.FromHardware(Common.gfxArch(devicePart), cuCount, isAPU)
 
             newLib.rows.append({"predicate": pred, "library": library})
 
             if lazyLibrary:
-                if cuCount: placeholderName += "_CU" + str(cuCount)
+                if cuCount:
+                    placeholderName += "_CU" + str(cuCount)
+                if isAPU is not None:
+                    placeholderName += "_APU" if isAPU == 1 else "_XPU"
                 placeholderName += "_" + str(devicePart)
 
             return newLib, placeholderName
