@@ -202,7 +202,7 @@ namespace Tensile
         * Calculate required workspace size.
         */
         size_t       requiredWorkspaceSize(Problem const& problem, Hardware const& hardware) const;
-        size_t       partialTileSize(size_t cuCount) const;
+        size_t       partialTileSize(size_t skGrid) const;
         static float computeGranularity(float x);
 
         Granularities computeGranularities(

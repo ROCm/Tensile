@@ -38,6 +38,8 @@
 #include <iomanip>
 #include <regex>
 
+#define TENSILE_STREAMK_GRID 1
+
 namespace Tensile
 {
     PerfModel perf;
@@ -322,9 +324,11 @@ namespace Tensile
             cuCount = pAMDGPU->computeUnitCount;
         }
 
+        size_t skGrid = 0;
         if(sizeMapping.streamK != 0)
         {
-            rv.numWorkGroups.x = cuCount;
+            skGrid             = cuCount * TENSILE_STREAMK_GRID;
+            rv.numWorkGroups.x = skGrid;
             rv.numWorkGroups.y = 1;
             if(sizeMapping.persistentKernelAlongBatch)
                 rv.numWorkGroups.z = 1;
@@ -413,7 +417,7 @@ namespace Tensile
             // StreamK workspace + flags
             rv.args.append<void const*>("ws", inputs.ws);
             void*  ws          = inputs.ws;
-            size_t flagsOffset = partialTileSize(cuCount);
+            size_t flagsOffset = partialTileSize(skGrid);
             void*  flags       = (void*)(static_cast<char*>(ws) + flagsOffset);
             rv.args.append<void*>("Flags", flags);
         }
@@ -681,10 +685,11 @@ namespace Tensile
         AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
         assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
         size_t cuCount = pAMDGPU->computeUnitCount;
+        size_t skGrid  = cuCount * TENSILE_STREAMK_GRID;
         size_t wiZ     = 1;
         for(size_t i = 0; i < problem.batchIndices().size(); i++)
             wiZ *= problem.batchSize(i);
-        size_t flagCount = cuCount * wiZ;
+        size_t flagCount = skGrid * wiZ;
 
         rv.numWorkGroups.x = CeilDivide(flagCount, rv.workGroupSize.x);
         rv.numWorkGroups.y = 1;
@@ -695,7 +700,7 @@ namespace Tensile
         rv.numWorkItems.z = rv.workGroupSize.z * rv.numWorkGroups.z;
 
         void*  ws          = inputs.ws;
-        size_t flagsOffset = partialTileSize(cuCount);
+        size_t flagsOffset = partialTileSize(skGrid);
         void*  flags       = (void*)(static_cast<char*>(ws) + flagsOffset);
         rv.args.append<void*>("Flags", flags);
 
@@ -1447,12 +1452,12 @@ namespace Tensile
             AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
             assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
             size_t cuCount = pAMDGPU->computeUnitCount;
+            size_t skGrid  = cuCount * TENSILE_STREAMK_GRID;
             // Get space required for partial tiles
-            size += partialTileSize(cuCount);
+            size += partialTileSize(skGrid);
             // Add space for flags
-            size
-                += cuCount
-                   * 4; // Flags for partial tiles - dword per flag for fast addressing and comparisons
+            // Flags for partial tiles - dword per flag for fast addressing and comparisons
+            size += skGrid * 4;
             // size *= batches; // TODO need tile and flag per batch
         }
         else
@@ -1461,13 +1466,13 @@ namespace Tensile
         return size;
     }
 
-    size_t ContractionSolution::partialTileSize(size_t cuCount) const
+    size_t ContractionSolution::partialTileSize(size_t skGrid) const
     {
         size_t size = 0;
 
         size_t tileSize
             = sizeMapping.macroTile.x * sizeMapping.macroTile.y * sizeMapping.workspaceSizePerElemC;
-        size += tileSize * cuCount; // Partials tile per WG
+        size += tileSize * skGrid; // Partials tile per WG
         // TODO batches
         // TODO round up for alignment?
 
