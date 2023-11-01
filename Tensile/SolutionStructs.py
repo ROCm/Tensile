@@ -2722,6 +2722,164 @@ class Solution(collections.abc.Mapping):
     return divisorName
 
   ########################################
+  # get number of elements in LDS for each tc (A or B)
+  @staticmethod
+  def getLdsNumElements(state, tc):
+    bpeAB = int(4*state["ProblemType"]["DataType"].numRegisters())
+    if state["LdsBlockSizePerPad%s"%tc]:
+      padInterval = state["LdsBlockSizePerPad%s"%tc] // bpeAB
+    else:
+      if state["UnrollMajorLDS%s"%tc]:
+        padInterval = state["_DepthULds"] 
+      else:
+        padInterval = state["MacroTile%s"%tc]
+    numElements = state["MacroTile%s"%tc] * state["_DepthULds"]
+    ldsNumElements = numElements + (numElements // padInterval) * (state["LdsPad%s"%tc])
+    if state["DirectToVgpr%s"%tc]:
+      # DirectToVgpr does not use LDS. Set to 0.
+      ldsNumElements = 0
+    return ldsNumElements
+
+  ########################################
+  # get number of aligned elements in LDS for each tc (A or B)
+  @staticmethod
+  def getLdsNumElementsAligned(state, tc):
+    ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
+    ldsNumElements = Solution.getLdsNumElements(state, tc)
+    ldsNumElementsAligned = roundUpToNearestMultiple(ldsNumElements, ldsAlign)
+    return ldsNumElementsAligned
+
+
+  ########################################
+  # determine auto LdsPad and LdsBlockSizePerPad
+  @staticmethod
+  def ldsPaddingAuto(state, isa):
+    # LDS padding
+    # Resolve -1 before isDirectToLdsDoable check
+    numBytes = state["ProblemType"]["DataType"].numBytes()
+    optPad = state["LocalReadVectorWidth"]
+    readRegs = state["LocalReadVectorWidth"]*numBytes//4
+    if (not globalParameters["AsmCaps"][isa]['HasWMMA']) and readRegs > 4:
+      reject(state, "LocalReadVectorWidth=%u results in attemping to read LDS larger than b128, reject")
+
+    autoAdjusted = {"LdsPadA": False, "LdsPadB": False, "LdsBlockSizePerPadA": False, "LdsBlockSizePerPadB": False}
+    for tc in ('A','B'):
+      # set pad as readRegs to avoid unaligned read
+      idx01 = 0 if tc == 'A' else 1
+      charMN = 'M' if tc == 'A' else 'N'
+      numBank = 32
+
+      # LdsBlockSizePerPad and LdsPad setting
+      autoCalcLBSPP = False
+      if state["LdsBlockSizePerPad%s"%tc] == -1:
+        state["LdsBlockSizePerPad%s"%tc] = 0
+        autoCalcLBSPP = True
+      autoAdjusted["LdsBlockSizePerPad%s"%tc] = autoCalcLBSPP
+      autoCalcLP = False
+      if state["LdsPad%s"%tc] == -1:
+        autoCalcLP = True
+        if state["ProblemType"]["TLU%s"%tc] and (not state["UnrollMajorLDS%s"%tc]):
+          state["LdsPad%s"%tc] = 0
+        else:
+          state["LdsPad%s"%tc] = state["VectorWidth"]
+      autoAdjusted["LdsPad%s"%tc] = autoCalcLBSPP
+
+      if state["EnableMatrixInstruction"]:
+        # MI case
+        LRstrideLine = 0 # for LBSPP value check
+        LRstride = 0
+        comment = ""
+        depthU = state["_DepthULds"]
+        vw = state["VectorWidth"] if tc=='A' else state["VectorWidthB"]
+        if not state["SourceSwap"]:
+          vw = 1  # TODO: support non-SourceSwap + vw
+        if state["UnrollMajorLDS%s"%tc]:
+          LRstrideLine = state["_DepthULds"]
+          comment = "DepthULds"
+          # if depthU is not power of 2, adjust ldsPad at each line (keep LRstride = 0)
+          if not (depthU > 0 and (depthU & (depthU - 1)) != 0):
+            LRstride = LRstrideLine * vw
+        else:
+          LRstrideLine = state["MacroTile%d"%idx01]
+          comment = "MT0"
+          if state["MIInputPerThread"] > 1:
+            # MIInputPerThread > 1 case, we still need padding to mitigate bank conflict even for non-UnrollMajorLDS case
+            LRstride = LRstrideLine * state["LocalReadVectorWidth"]
+        # auto calc for LBSPP
+        if autoCalcLBSPP and LRstride > 0:
+          state["LdsBlockSizePerPad%s"%tc] = max(int(2**(math.ceil(math.log(LRstride * numBytes, 2)))), 128)
+        # value check
+        if state["LdsBlockSizePerPad%s"%tc]:
+          if state["LdsBlockSizePerPad%s"%tc] < LRstrideLine:
+            reject(state, "reject: %s %u x bpe > LdsBlockSizePerPad%s %u" % (comment, LRstrideLine, tc, state["LdsBlockSizePerPad%s"%tc]))
+        # auto calc for LdsPad
+        if autoCalcLP:
+          miWidth = state["MatrixInst%s"%charMN] * state["MatrixInstB%s"%charMN]
+          if tc == 'B' and state["MatrixInstBM"] > 1:
+            # B and state["MatrixInstBM"] > 1 case, BN is not continuous. Use MatrixInstN only
+            miWidth = state["MatrixInstN"]
+          if (not state["UnrollMajorLDS%s"%tc]):
+            extra = 0
+            if miWidth < numBank and miWidth * vw < 128 // numBytes:
+              extra = (miWidth * vw) % (128 // numBytes)
+            if extra:
+              divisor = 128//numBytes
+              mod = LRstride % divisor
+              state["LdsPad%s"%tc] = (divisor + extra - mod) % divisor
+          else:
+            optPadMN = optPad
+            # for readRegs = 1 or 4, we need to double pad for MI16x16xNx1 to avoid bank conflict.
+            if miWidth < numBank and (readRegs == 4 or readRegs == 1):
+              # UnrollMajorLds and miWidth < 32 case, same M or N location (with K+1(,2,...) is accessed
+              # We need to offset (32//miWidth) times for the next M or N
+              #  ex.) MI16x16, miWidth=16. To avoid Bank conflict, we need to double padding for M1.
+              #        [M0,K0]. [M0,K1]
+              #        offset K0 and K1 -> [M1,K0]. [M1,K1]
+              #                         offset K0 and K1 -> [M2,K0]. [M2,K1]
+              #                                           offset K0 and K1 -> [M3,K0]. [M3,K1]
+              optPadMN = optPad * (numBank//miWidth)
+            optPadMN = max(state["GlobalLoadVectorWidth%s"%tc], optPadMN)
+            # if depthU is not power of 2, adjust ldsPad to make depthU part multiple of 128/numBytes
+            if depthU > 0 and (depthU & (depthU - 1)) != 0:
+              divisor = 128//numBytes
+              ratio = roundupRatio(128//numBytes, depthU)
+              extraPadDU = (ratio * depthU) % (128//numBytes)
+              optPadMN_Plus = (extraPadDU + optPadMN) % (128//numBytes)
+              optPadMN_Minus = (extraPadDU - optPadMN) % (128//numBytes)
+              optPadMN = min(optPadMN_Plus, optPadMN_Minus)
+            state["LdsPad%s"%tc] = optPadMN
+        ## turn-off padding for directToLds
+        if state["DirectToLds%s"%tc]:
+          state["LdsPad%s"%tc] = 0
+
+      else:
+        # non MI case
+        if state["UnrollMajorLDS%s"%tc]:
+          reject(state, "didn't support UnrollMajorLDS in VALU mode yet")
+        if state["LdsBlockSizePerPad%s"%tc] != 0:
+          reject(state, "didn't support LdsBlockSizePerPad in VALU mode yet")
+
+      assert(state["LdsPad%s"%tc] >= 0)
+
+      # set LdsBlockSizePerPad = 0 if LdsPad is 0
+      if state["LdsPad%s"%tc] == 0:
+        state["LdsBlockSizePerPad%s"%tc] = 0
+
+    # LDS size check for auto adjustment
+    # if LDS size is over the limit, change LdsPad to 0
+    # check UnrollMajorLDS=False for A, B first, then true
+    for umlds in [False, True]:
+      for tc in ('A','B'):
+        ldsNumElementsAlignedAB = Solution.getLdsNumElementsAligned(state, 'A') + \
+                                  Solution.getLdsNumElementsAligned(state, 'B')
+        if autoAdjusted["LdsPad%s"%tc] and ldsNumElementsAlignedAB > globalParameters["MaxLDS"]:
+          # auto adjusted LdsPad and LDS overflow
+          if state["UnrollMajorLDS%s"%tc] == umlds:
+            # change LdsPad and LdsBlockSizePerPad to 0
+            state["LdsPad%s"%tc] = 0
+            state["LdsBlockSizePerPad%s"%tc] = 0
+
+  ########################################
   # assign all derived parameters
   @staticmethod
   def assignDerivedParameters(state):
@@ -3664,160 +3822,7 @@ class Solution(collections.abc.Mapping):
 
     # LDS padding
     # Resolve -1 before isDirectToLdsDoable check
-    numBytes = state["ProblemType"]["DataType"].numBytes()
-    optPad = state["LocalReadVectorWidth"]
-    readRegs = state["LocalReadVectorWidth"]*numBytes//4
-    if (not globalParameters["AsmCaps"][isa]['HasWMMA']) and readRegs > 4:
-      reject(state, "LocalReadVectorWidth=%u results in attemping to read LDS larger than b128, reject")
-
-    autoAdjusted = {"LdsPadA": False, "LdsPadB": False, "LdsBlockSizePerPadA": False, "LdsBlockSizePerPadA": False}
-    for tc in ('A','B'):
-      # set pad as readRegs to avoid unaligned read
-      idx01 = 0 if tc == 'A' else 1
-      charMN = 'M' if tc == 'A' else 'N'
-      numBank = 32
-
-      # LdsBlockSizePerPad and LdsPad setting
-      autoCalcLBSPP = False
-      if state["LdsBlockSizePerPad%s"%tc] == -1:
-        state["LdsBlockSizePerPad%s"%tc] = 0
-        autoCalcLBSPP = True
-      autoAdjusted["LdsBlockSizePerPad%s"%tc] = autoCalcLBSPP
-      autoCalcLP = False
-      if state["LdsPad%s"%tc] == -1:
-        autoCalcLP = True
-        if state["ProblemType"]["TLU%s"%tc] and (not state["UnrollMajorLDS%s"%tc]):
-          state["LdsPad%s"%tc] = 0
-        else:
-          state["LdsPad%s"%tc] = state["VectorWidth"]
-      autoAdjusted["LdsPad%s"%tc] = autoCalcLBSPP
-
-      if state["EnableMatrixInstruction"]:
-        # MI case
-        LRstrideLine = 0 # for LBSPP value check
-        LRstride = 0
-        comment = ""
-        depthU = state["_DepthULds"]
-        vw = state["VectorWidth"] if tc=='A' else state["VectorWidthB"]
-        if not state["SourceSwap"]:
-          vw = 1  # TODO: support non-SourceSwap + vw
-        if state["UnrollMajorLDS%s"%tc]:
-          LRstrideLine = state["_DepthULds"]
-          comment = "DepthULds"
-          # if depthU is not power of 2, adjust ldsPad at each line (keep LRstride = 0)
-          if not (depthU > 0 and (depthU & (depthU - 1)) != 0):
-            LRstride = LRstrideLine * vw
-        else:
-          LRstrideLine = state["MacroTile%d"%idx01]
-          comment = "MT0"
-          if state["MIInputPerThread"] > 1:
-            # MIInputPerThread > 1 case, we still need padding to mitigate bank conflict even for non-UnrollMajorLDS case
-            LRstride = LRstrideLine * state["LocalReadVectorWidth"]
-        # auto calc for LBSPP
-        if autoCalcLBSPP and LRstride > 0:
-          state["LdsBlockSizePerPad%s"%tc] = max(int(2**(math.ceil(math.log(LRstride * numBytes, 2)))), 128)
-        # value check
-        if state["LdsBlockSizePerPad%s"%tc]:
-          if state["LdsBlockSizePerPad%s"%tc] < LRstrideLine:
-            reject(state, "reject: %s %u x bpe > LdsBlockSizePerPad%s %u" % (comment, LRstrideLine, tc, state["LdsBlockSizePerPad%s"%tc]))
-        # auto calc for LdsPad
-        if autoCalcLP:
-          miWidth = state["MatrixInst%s"%charMN] * state["MatrixInstB%s"%charMN]
-          if tc == 'B' and state["MatrixInstBM"] > 1:
-            # B and state["MatrixInstBM"] > 1 case, BN is not continuous. Use MatrixInstN only
-            miWidth = state["MatrixInstN"]
-          if (not state["UnrollMajorLDS%s"%tc]):
-            extra = 0
-            if miWidth < numBank and miWidth * vw < 128 // numBytes:
-              extra = (miWidth * vw) % (128 // numBytes)
-            if extra:
-              divisor = 128//numBytes
-              mod = LRstride % divisor
-              state["LdsPad%s"%tc] = (divisor + extra - mod) % divisor
-          else:
-            optPadMN = optPad
-            # for readRegs = 1 or 4, we need to double pad for MI16x16xNx1 to avoid bank conflict.
-            if miWidth < numBank and (readRegs == 4 or readRegs == 1):
-              # UnrollMajorLds and miWidth < 32 case, same M or N location (with K+1(,2,...) is accessed
-              # We need to offset (32//miWidth) times for the next M or N
-              #  ex.) MI16x16, miWidth=16. To avoid Bank conflict, we need to double padding for M1.
-              #        [M0,K0]. [M0,K1]
-              #        offset K0 and K1 -> [M1,K0]. [M1,K1]
-              #                         offset K0 and K1 -> [M2,K0]. [M2,K1]
-              #                                           offset K0 and K1 -> [M3,K0]. [M3,K1]
-              optPadMN = optPad * (numBank//miWidth)
-            optPadMN = max(state["GlobalLoadVectorWidth%s"%tc], optPadMN)
-            # if depthU is not power of 2, adjust ldsPad to make depthU part multiple of 128/numBytes
-            if depthU > 0 and (depthU & (depthU - 1)) != 0:
-              divisor = 128//numBytes
-              ratio = roundupRatio(128//numBytes, depthU)
-              extraPadDU = (ratio * depthU) % (128//numBytes)
-              optPadMN_Plus = (extraPadDU + optPadMN) % (128//numBytes)
-              optPadMN_Minus = (extraPadDU - optPadMN) % (128//numBytes)
-              optPadMN = min(optPadMN_Plus, optPadMN_Minus)
-            state["LdsPad%s"%tc] = optPadMN
-        ## turn-off padding for directToLds
-        if state["DirectToLds%s"%tc]:
-          state["LdsPad%s"%tc] = 0
-
-      else:
-        # non MI case
-        if state["UnrollMajorLDS%s"%tc]:
-          reject(state, "didn't support UnrollMajorLDS in VALU mode yet")
-        if state["LdsBlockSizePerPad%s"%tc] != 0:
-          reject(state, "didn't support LdsBlockSizePerPad in VALU mode yet")
-
-      assert(state["LdsPad%s"%tc] >= 0)
-
-      # set LdsBlockSizePerPad = 0 if LdsPad is 0
-      if state["LdsPad%s"%tc] == 0:
-        state["LdsBlockSizePerPad%s"%tc] = 0
-
-    # get number of elements in LDS for each tc (A or B)
-    def getLdsNumElements(tc):
-      bpeAB = int(4*state["ProblemType"]["DataType"].numRegisters())
-      if state["LdsBlockSizePerPad%s"%tc]:
-        padInterval = state["LdsBlockSizePerPad%s"%tc] // bpeAB
-      else:
-        if state["UnrollMajorLDS%s"%tc]:
-          padInterval = state["_DepthULds"] 
-        else:
-          padInterval = state["MacroTile%s"%tc]
-      numElements = state["MacroTile%s"%tc] * state["_DepthULds"]
-      ldsNumElements = numElements + (numElements // padInterval) * (state["LdsPad%s"%tc])
-      if state["DirectToVgpr%s"%tc]:
-        # DirectToVgpr does not use LDS. Set to 0.
-        ldsNumElements = 0
-      return ldsNumElements
-
-    # get number of aligned elements in LDS for each tc (A or B)
-    def getLdsNumElementsAligned(tc):
-      ldsAlign = int(64 / state["ProblemType"]["DataType"].numRegisters())
-      ldsNumElements = getLdsNumElements(tc)
-      ldsNumElementsAligned = roundUpToNearestMultiple(ldsNumElements, ldsAlign)
-      return ldsNumElementsAligned
-
-    # LDS size check for auto adjustment
-    # if LDS size is over the limit, change LdsPad to 0
-    # 1. check UnrollMajorLDS=False first
-    for tc in ('A','B'):
-      ldsNumElementsAlignedAB = getLdsNumElementsAligned('A') + getLdsNumElementsAligned('B')
-      if autoAdjusted["LdsPad%s"%tc] and ldsNumElementsAlignedAB > globalParameters["MaxLDS"]:
-        # auto adjusted LdsPad and LDS overflow
-        if (not state["UnrollMajorLDS%s"%tc]):
-          # change LdsPad and LdsBlockSizePerPad to 0
-          state["LdsPad%s"%tc] = 0
-          state["LdsBlockSizePerPad%s"%tc] = 0
-    # 2. check UnrollMajorLDS=True
-    for tc in ('A','B'):
-      ldsNumElementsAlignedAB = getLdsNumElementsAligned('A') + getLdsNumElementsAligned('B')
-      if autoAdjusted["LdsPad%s"%tc] and ldsNumElementsAlignedAB > globalParameters["MaxLDS"]:
-        # auto adjusted LdsPad and LDS overflow
-        if state["UnrollMajorLDS%s"%tc]:
-          # change LdsPad to 0
-          # change LdsPad and LdsBlockSizePerPad to 0
-          state["LdsPad%s"%tc] = 0
-          state["LdsBlockSizePerPad%s"%tc] = 0
+    Solution.ldsPaddingAuto(state, isa)
 
     # Determine if we can load directly-to-LDS.
     # Transpose requires a trip through registers to perform the transpose so can't use DirectToLdsA
@@ -3906,10 +3911,10 @@ class Solution(collections.abc.Mapping):
         reject(state, "PAPM + PGR=2 does not work if AssertSizeGreaterThan for K is not greater than DepthU * 2 - 1")
         return
 
-    #ldsNumElementsA        = getLdsNumElements('A') # not used
-    ldsNumElementsB        = getLdsNumElements('B')
-    ldsNumElementsAlignedA = getLdsNumElementsAligned('A')
-    ldsNumElementsAlignedB = getLdsNumElementsAligned('B')
+    #ldsNumElementsA        = Solution.getLdsNumElements(state, 'A') # not used
+    ldsNumElementsB        = Solution.getLdsNumElements(state, 'B')
+    ldsNumElementsAlignedA = Solution.getLdsNumElementsAligned(state, 'A')
+    ldsNumElementsAlignedB = Solution.getLdsNumElementsAligned(state, 'B')
 
     # todo, can the alignment be a power of 2?
     state["LdsOffsetA"] = 0

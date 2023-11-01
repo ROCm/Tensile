@@ -377,7 +377,7 @@ BenchmarkProblems:
         - ScheduleIterAlg: [3]
         - InnerUnroll: [1,2]
         - TransposeLDS: [0,1]
-        - LdsBlockSizePerPadA: [-1]
+        - LdsBlockSizePerPadA: [0]
         - LdsBlockSizePerPadB: [128]
         - LdsPadA: [-1]
         - LdsPadB: [-1]
