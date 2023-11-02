@@ -6663,19 +6663,28 @@ class KernelWriterAssembly(KernelWriter):
       # in this case, odd or/and even code is generated and use odd/even exit to avoid skipping odd/even code
       # (end label is generated after odd/even code)
       jumpLabel = loopLabelEndOddExit if oddLabel else loopLabelEndEvenExit
+
+    # tail + SplitLds branch code
+    kStrSLDS = ""
+    if tailLoop and kernel.enabledSplitLDS:
+      tailLoopLabelEnd = self.getNamedLabel(
+        "TailLoopEnd%s%s"%(loopChar, "_G2L%s"%(kernel["DepthULdsDivisor"]-1) if kernel.enabledSplitLDS else "") )
+      kStrSLDS += inst("s_cbranch_scc1", tailLoopLabelEnd, "break Loop%s"%loopChar)
+      thresForNextSubLoop = (uDu+1)*(kernel["_DepthULds"])
+      kStrSLDS += inst("s_cmp_ge_u32", sgpr("OrigLoopCounter"), thresForNextSubLoop,
+        "OrigLoopCounter >= %u (G2L buffer %u/%u)"%(thresForNextSubLoop, uDu, kernel["DepthULdsDivisor"]) )
+
     if not finalLoop:
-      if jumpNeeded:
+      if kStrSLDS != "":
+        # tail + SplitLds branch case
+        kStr += kStrSLDS
+      elif jumpNeeded:
         # just an exit check, else fall through to the next loop copy
         kStr += inst("s_cbranch_scc1 %s"%(jumpLabel), "exit Loop%s"%loopChar )
     else: #finalLoop:
 
-      if tailLoop and kernel.enabledSplitLDS:
-        tailLoopLabelEnd = self.getNamedLabel(
-          "TailLoopEnd%s%s"%(loopChar, "_G2L%s"%(kernel["DepthULdsDivisor"]-1) if kernel.enabledSplitLDS else "") )
-        kStr += inst("s_cbranch_scc1", tailLoopLabelEnd, "break Loop%s"%loopChar)
-        thresForNextSubLoop = (uDu+1)*(kernel["_DepthULds"])
-        kStr += inst("s_cmp_ge_u32", sgpr("OrigLoopCounter"), thresForNextSubLoop,
-          "OrigLoopCounter >= %u (G2L buffer %u/%u)"%(thresForNextSubLoop, uDu, kernel["DepthULdsDivisor"]) )
+      # add tail + SplitLds branch case code (if exists)
+      kStr += kStrSLDS
 
       if jumpNeeded:
         kStr += inst("%s %s"%(finalJump, loopLabelBegin), \
@@ -6872,9 +6881,8 @@ class KernelWriterAssembly(KernelWriter):
   ##############################################################################
   # src A,B str for MFMA
   ##############################################################################
-  def generateSrcStrForMFMA(self, kernel, tP, innerUnroll, vregSetIdx, vgprPerInput, u, iui, idxAB, bk=None):
+  def generateSrcStrForMFMA(self, kernel, tP, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, idxAB, bk=None):
     tc = tP["tensorChar"]
-    m = (u) % (self.numVgprBuffer+1) # local to use for MACs
 
     numVgprValuPerBlock = kernel["MIWaveTile%c"%tc] * kernel["MIInputPerThread"] * tP["bpe"] // self.bpr
     numIterPerCoalescedRead = self.numIterPerCoalescedReadA if tP["isA"] else self.numIterPerCoalescedReadB
@@ -6906,7 +6914,7 @@ class KernelWriterAssembly(KernelWriter):
   def mfmaIter(self, kernel, u, innerUnroll, vregSetIdx, lastKinloop=False, tail=False, firstIter=False):
     imod = Code.Module("mi")
     shiftK = Code.Module("shiftK")
-    m = (u) % (self.numVgprBuffer+1) # local to use for MACs
+    m = ((u) % (self.numVgprBuffer+1)) % kernel["LoopIters"] # local to use for MACs
 
     miInputType      =  kernel["ProblemType"]["F32XdlMathOp"] if kernel["EnableF32XdlMathOp"] else kernel["ProblemType"]["DataType"]
 
@@ -6989,13 +6997,13 @@ class KernelWriterAssembly(KernelWriter):
             if needKMaskForA:
               for a in range(0, kernel["MIWaveTileA"]):
                 for iui in range(0, innerUnroll):
-                  aStr_base = self.generateSrcStrForMFMA(kernel, self.tPA, innerUnroll, vregSetIdx, vgprPerInput, u, iui, a, bk)
+                  aStr_base = self.generateSrcStrForMFMA(kernel, self.tPA, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, a, bk)
                   aStr = vgpr(aStr_base, 1)
                   shiftK.addCode(inst("v_cndmask_b32", aStr, aStr, hex(0), sgpr(tmpSgpr, 2), "set 0 if K_idx >= sizeL"))
             if needKMaskForB:
               for b in range(0, kernel["MIWaveTileB"]):
                 for iui in range(0, innerUnroll):
-                  bStr_base = self.generateSrcStrForMFMA(kernel, self.tPB, innerUnroll, vregSetIdx, vgprPerInput, u, iui, b, bk)
+                  bStr_base = self.generateSrcStrForMFMA(kernel, self.tPB, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, b, bk)
                   bStr = vgpr(bStr_base, 1)
                   shiftK.addCode(inst("v_cndmask_b32", bStr, bStr, hex(0), sgpr(tmpSgpr, 2), "set 0 if K_idx >= sizeL"))
 
@@ -7036,14 +7044,14 @@ class KernelWriterAssembly(KernelWriter):
               for a in range(0, kernel["MIWaveTileA"]):
                 for iui in range(0, innerUnroll):
                   for bk in range(0, vgprPerInput):
-                    aStr_base = self.generateSrcStrForMFMA(kernel, self.tPA, innerUnroll, vregSetIdx, vgprPerInput, u, iui, a, bk)
+                    aStr_base = self.generateSrcStrForMFMA(kernel, self.tPA, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, a, bk)
                     aStr = vgpr(aStr_base, 1)
                     shiftK.addCode(inst("v_and_b32", aStr, aStr, vgpr(abReg+bk), ""))
             if needKMaskForB:
               for b in range(0, kernel["MIWaveTileB"]):
                 for iui in range(0, innerUnroll):
                   for bk in range(0, vgprPerInput):
-                    bStr_base = self.generateSrcStrForMFMA(kernel, self.tPB, innerUnroll, vregSetIdx, vgprPerInput, u, iui, b, bk)
+                    bStr_base = self.generateSrcStrForMFMA(kernel, self.tPB, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, b, bk)
                     bStr = vgpr(bStr_base, 1)
                     shiftK.addCode(inst("v_and_b32", bStr, bStr, vgpr(abReg+bk), ""))
           # release register
@@ -7128,8 +7136,8 @@ class KernelWriterAssembly(KernelWriter):
           accEnd   = accStart + accs_per_wave - 1
           idxA     = idx0 if self.tPB["tile01Idx"] else idx1
           idxB     = idx1 if self.tPB["tile01Idx"] else idx0
-          aStr_base = self.generateSrcStrForMFMA(kernel, self.tPA, innerUnroll, vregSetIdx, vgprPerInput, u, iui, idxA)
-          bStr_base = self.generateSrcStrForMFMA(kernel, self.tPB, innerUnroll, vregSetIdx, vgprPerInput, u, iui, idxB)
+          aStr_base = self.generateSrcStrForMFMA(kernel, self.tPA, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, idxA)
+          bStr_base = self.generateSrcStrForMFMA(kernel, self.tPB, innerUnroll, vregSetIdx, vgprPerInput, m, u, iui, idxB)
           aStr     = vgpr(aStr_base, vgprPerInput)
           bStr     = vgpr(bStr_base, vgprPerInput)
           Str0     = aStr if self.tPB["tile01Idx"] else bStr
@@ -8952,13 +8960,15 @@ class KernelWriterAssembly(KernelWriter):
       # however, we need to update related variables below and regenerate local read instruction based on new numReadsIterCoalesced
       numReadsIterCoalescedA = self.numReadsIterCoalescedA
       numReadsIterCoalescedB = self.numReadsIterCoalescedB
-      if kernel.enabledSplitLDS or (numReadsIterCoalescedA > 1 or numReadsIterCoalescedB > 1): #and tP["isB"]:
-        self.numReadsIterCoalescedA = 1
-        self.numReadsIterCoalescedB = 1
-        self.lrvwA = kernel["MIInputPerThread"]
-        self.lrvwB = kernel["MIInputPerThread"]
-        kStr = ""
 
+      kStr = ""
+
+      needRecalc = kernel.enabledSplitLDS or (numReadsIterCoalescedA > 1 or numReadsIterCoalescedB > 1) #and tP["isB"]:
+      # backup LocalReadAddr
+      # LdsPad + LBSPP case, need to backup LocalReadAddr even if recalc is not done
+      needBackupLRAddr = needRecalc or (kernel["LdsPadA"] and kernel["LdsBlockSizePerPadA"] or kernel["LdsPadB"] and kernel["LdsBlockSizePerPadB"])
+
+      if needBackupLRAddr:
         # need to back-up the LRA before reCalculation for wider local read (when no wlr, no need to do this)
         if kernel["PersistentKernel"] or kernel["StreamK"]:
           if self.oriLraA is None and not kernel["DirectToVgprA"]: # no local read code if DirectToVgpr is enabled
@@ -8968,14 +8978,23 @@ class KernelWriterAssembly(KernelWriter):
             self.oriLraB = self.vgprPool.checkOut(1, "OriLocalReadAddrB")
             kStr += inst("v_mov_b32", vgpr(self.oriLraB), vgpr("LocalReadAddrB"), "back up LRA for persistent kernel + wider local read")
 
-        kStr += (self.lraTileAssignment(kernel, self.tPA, self.tPB))
-        kStr += (self.lraFinalOffset(kernel, self.tPA))
-        kStr += (self.lraDeclareAddresses(kernel, self.tPA))
-        kStr += (self.lraFinalOffset(kernel, self.tPB))
-        kStr += (self.lraDeclareAddresses(kernel, self.tPB))
+      if needRecalc:
+        self.numReadsIterCoalescedA = 1
+        self.numReadsIterCoalescedB = 1
+        self.numIterPerCoalescedReadA = max(1,self.numReadsIterCoalescedA//kernel["InnerUnroll"])
+        self.numIterPerCoalescedReadB = max(1,self.numReadsIterCoalescedB//kernel["InnerUnroll"])
+        self.lrvwA = kernel["MIInputPerThread"]
+        self.lrvwB = kernel["MIInputPerThread"]
+
+        kStrRecalc = ""
+        kStrRecalc += (self.lraTileAssignment(kernel, self.tPA, self.tPB))
+        kStrRecalc += (self.lraFinalOffset(kernel, self.tPA))
+        kStrRecalc += (self.lraDeclareAddresses(kernel, self.tPA))
+        kStrRecalc += (self.lraFinalOffset(kernel, self.tPB))
+        kStrRecalc += (self.lraDeclareAddresses(kernel, self.tPB))
         if kernel["MatrixInstB"] == 1:
           # recalc code is necessary only for MatrixInstB=1
-          imod.addCode(kStr)
+          kStr += kStrRecalc
         localRead2Perpendicular = False
         instructions = self.memoryInstructions
 
@@ -8999,6 +9018,10 @@ class KernelWriterAssembly(KernelWriter):
           self.localReadInstructionB = instructions["LocalRead"][ \
             self.localReadInstructionIdxB]
           self.tPB["localReadInstruction"] = self.localReadInstructionB
+
+      if kStr != "":
+        imod.addCode(kStr)
+
     return str(imod)
 
   ##############################################################################
@@ -9493,16 +9516,10 @@ class KernelWriterAssembly(KernelWriter):
     return offset_val
 
   ##############################################################################
-  # Local Read: Increment A/B
+  # Local Read: Increment A/B sub function
   ##############################################################################
-  def localReadInc(self, kernel, iui, tP):
+  def localReadIncSub(self, kernel, iui, tP, LdsPad):
     tc = tP["tensorChar"]
-    if not self.do["LocalRead%s" % tc] or kernel["DirectToVgpr%s"%tc]: # no local read code if DirectToVgpr is enabled
-      return ""
-
-    kStr = ""
-
-    LdsPad = kernel["LdsPad%s"%tc] if kernel["LdsBlockSizePerPad%s"%tc] == 0 else 0
 
     # offset increment calculation for both tail loop and not tail loop cases
     inc_base = (kernel["MacroTile%s" % tP["tensorChar"]] + LdsPad)
@@ -9534,6 +9551,23 @@ class KernelWriterAssembly(KernelWriter):
     else:
       inc = inc_base_lsu
 
+    return inc
+
+  ##############################################################################
+  # Local Read: Increment A/B
+  ##############################################################################
+  def localReadInc(self, kernel, iui, tP):
+    tc = tP["tensorChar"]
+    if not self.do["LocalRead%s" % tc] or kernel["DirectToVgpr%s"%tc]: # no local read code if DirectToVgpr is enabled
+      return ""
+
+    kStr = ""
+
+    LdsPad = kernel["LdsPad%s"%tc] if kernel["LdsBlockSizePerPad%s"%tc] == 0 else 0
+
+    # offset increment calculation for both tail loop and not tail loop cases
+    inc = self.localReadIncSub(kernel, iui, tP, LdsPad)
+
     if self.inTailLoop:
       comment = " (LSU*(MT+PAD)*bpe)"
       bpe = tP["bpe"]
@@ -9554,6 +9588,15 @@ class KernelWriterAssembly(KernelWriter):
           else:
             comment = " (LSU*bpe)"
       inc *= bpe
+      # adjust inc for LBSPP in TailLoop case
+      if (kernel["LdsBlockSizePerPad%s"%tc] != 0) and (kernel["LdsPad%s"%tc] != 0):
+        incTotalPrev = 0
+        # acculmulate total inc from 0 to iui-1
+        for i in range(iui):
+          incTotalPrev += self.localReadIncSub(kernel, i, tP, LdsPad) * bpe
+        extraIncPrev = ((incTotalPrev) // kernel["LdsBlockSizePerPad%s"%tc]) * kernel["LdsPad%s"%tc] * bpe
+        extraIncCurr = ((inc+incTotalPrev) // kernel["LdsBlockSizePerPad%s"%tc]) * kernel["LdsPad%s"%tc] * bpe
+        inc += extraIncCurr - extraIncPrev
       tmpSgpr = self.getTmpSgpr(1).idx()
       kStr += inst("s_mov_b32", sgpr(tmpSgpr), hex(inc), "inc")
       kStr += inst("_v_add_co_u32", \

@@ -42,7 +42,6 @@ BenchmarkProblems:
         #  - [ 8, 8, 1 ]
         - DepthU: [16,32]
         - ExpandPointerSwap: [1] # 1 for DirectToVgpr
-        - LdsBlockSizePerPad: [-1]
         - LdsPadB: [4]
         - PrefetchGlobalRead: [1,2]
         - GlobalReadPerMfma: [1]

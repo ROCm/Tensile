@@ -45,6 +45,10 @@ BenchmarkProblems:
          - VectorAtomicWidth: [1]
          - VectorWidth: [2]
          - WorkGroupMapping: [4]
+         - LdsPadA: [0]
+         - LdsPadB: [0]
+         - LdsBlockSizePerPadA: [0]
+         - LdsBlockSizePerPadB: [0]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
          - ProblemSizes:

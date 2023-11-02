@@ -48,7 +48,6 @@ BenchmarkProblems:
         - GlobalSplitUWorkGroupMappingRoundRobin: [False]
         - GlobalSplitUSummationAssignmentRoundRobin:  [True]
         - 1LDSBuffer: [0]
-        - LdsBlockSizePerPad: [128]
         #- AssertFree0ElementMultiple : [8]
         - AssertFree1ElementMultiple : [1,4]
         - ExpandPointerSwap: [1] # 1 for DirectToVgpr
@@ -280,7 +279,8 @@ BenchmarkProblems:
         - GlobalSplitUWorkGroupMappingRoundRobin: [False]
         - GlobalSplitUSummationAssignmentRoundRobin:  [True]
         - 1LDSBuffer: [0]
-        - LdsBlockSizePerPad: [128]
+        - LdsBlockSizePerPadA: [-1]
+        - LdsBlockSizePerPadB: [-1]
         #- AssertFree0ElementMultiple : [8]
         - AssertFree1ElementMultiple : [1,4]
         - ExpandPointerSwap: [1] # 1 for DirectToVgpr
