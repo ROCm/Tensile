@@ -165,8 +165,9 @@ def getSizeParams(size, transA, transB):
 def createYaml(args, problem, sizeMappings, verify):
     bench = []
     benchStrided = []
+    benchGeneralBatched = []
 
-    # get GEMM fucnt and matrix orientation - Fixed for each library
+    # get GEMM function and matrix orientation - Fixed for each library
     problemParams = getProblemType(problem)
     transA = problem["TransposeA"]
     transB = problem["TransposeB"]
@@ -190,7 +191,7 @@ def createYaml(args, problem, sizeMappings, verify):
       print(f"Initialization {args.initialization} is not allowed for int8 datatype. Initialization changed to rand_int.")
       init = {"initialization": "rand_int"}
 
-    # check if General Batched from the library name
+    # check if the library is General Batched based on the library name
     generalBatched = False
     if "_GB.yaml" in os.path.split(args.libLogic)[-1]:
         generalBatched = True
@@ -207,6 +208,8 @@ def createYaml(args, problem, sizeMappings, verify):
             params["rocblas_function"] = "rocblas_gemm_ex3"
         elif (generalBatched and not f8gemm):  # non-f8, general batched gemm (serves both HPA and non-HPA) currently there is no f8 general batched
             params["rocblas_function"] = "rocblas_gemm_batched_ex"
+        else:
+            raise RuntimeError(" F8 GEMM is not supporting General Batched.")
 
         sizeParams = getSizeParams(size, transA, transB)
 
@@ -215,8 +218,10 @@ def createYaml(args, problem, sizeMappings, verify):
         params.update(otherParams)
         params.update(init)
 
-        if (size[2] == 1 or generalBatched):
+        if (size[2] == 1 and not generalBatched):
             bench.append(params)
+        elif (generalBatched):
+            benchGeneralBatched.append(params)
         else:
             benchStrided.append(params)
 
@@ -226,7 +231,8 @@ def createYaml(args, problem, sizeMappings, verify):
 
     benchPath = os.path.join(args.outDir, prefix + "_bench.yaml") 
     benchStridedPath = os.path.join(args.outDir, prefix +"_bench-strided.yaml") 
-    
+    benchGeneralBatchedPath = os.path.join(args.outDir, prefix +"_bench-general-batched.yaml")
+
     # write output
     if len(bench) > 0:
         with open(benchPath, "w") as f:
@@ -234,6 +240,9 @@ def createYaml(args, problem, sizeMappings, verify):
     if len(benchStrided) > 0:
         with open(benchStridedPath, "w") as f:
             yaml.safe_dump(benchStrided, f, default_flow_style=None, sort_keys=False, width=5000)
+    if len(benchGeneralBatched) > 0:
+        with open(benchGeneralBatchedPath, "w") as f:
+            yaml.safe_dump(benchGeneralBatched, f, default_flow_style=None, sort_keys=False, width=5000)
 
 def main():
     args = parseArgs()
