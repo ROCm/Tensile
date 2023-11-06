@@ -31,7 +31,7 @@
 
 #include <Tensile/MasterSolutionLibrary.hpp>
 #include <Tensile/PlaceholderLibrary.hpp>
-#include <regex>
+#include <fnmatch.h>
 
 namespace Tensile
 {
@@ -68,7 +68,7 @@ namespace Tensile
                     for(auto condition : ctx->preloaded)
                     {
                         std::string pattern = RegexPattern(condition);
-                        if(std::regex_search(lib.filePrefix, std::regex(pattern)))
+                        if(fnmatch(pattern.c_str(), lib.filePrefix.c_str(), 0) == 0)
                         {
                             lib.loadPlaceholderLibrary();
                             break;
