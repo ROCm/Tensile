@@ -75,7 +75,7 @@ namespace Tensile
                     {
                         std::string pattern = RegexPattern(condition);
 #ifdef WIN32
-                        if(PathMatchSpec(lib.filePrefix.c_str(), pattern.c_str()))
+                        if(PathMatchSpecA(lib.filePrefix.c_str(), pattern.c_str()))
 #else
                         if(fnmatch(pattern.c_str(), lib.filePrefix.c_str(), 0) == 0)
 #endif
