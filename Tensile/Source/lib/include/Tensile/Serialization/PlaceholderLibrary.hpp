@@ -31,7 +31,12 @@
 
 #include <Tensile/MasterSolutionLibrary.hpp>
 #include <Tensile/PlaceholderLibrary.hpp>
+#ifdef WIN32
+#include "shlwapi.h"
+#include "windows.h"
+#else
 #include <fnmatch.h>
+#endif
 
 namespace Tensile
 {
@@ -68,7 +73,11 @@ namespace Tensile
                     for(auto condition : ctx->preloaded)
                     {
                         std::string pattern = RegexPattern(condition);
+#ifdef WIN32
+                        if(PathMatchSpec(lib.filePrefix.c_str(), pattern.c_str()))
+#else
                         if(fnmatch(pattern.c_str(), lib.filePrefix.c_str(), 0) == 0)
+#endif
                         {
                             lib.loadPlaceholderLibrary();
                             break;
