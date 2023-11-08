@@ -2870,9 +2870,13 @@ class Solution(collections.abc.Mapping):
     # check UnrollMajorLDS=False for A, B first, then true
     for umlds in [False, True]:
       for tc in ('A','B'):
-        ldsNumElementsAlignedAB = Solution.getLdsNumElementsAligned(state, 'A') + \
-                                  Solution.getLdsNumElementsAligned(state, 'B')
-        if autoAdjusted["LdsPad%s"%tc] and ldsNumElementsAlignedAB > globalParameters["MaxLDS"]:
+        # A side (aligned) + B side (not aligned)
+        ldsNumElementsAB = Solution.getLdsNumElementsAligned(state, 'A') + \
+                           Solution.getLdsNumElements(state, 'B')
+        if state["1LDSBuffer"] != 1:
+          # not 1LDSBuffer case, double num element
+          ldsNumElementsAB *= 2
+        if autoAdjusted["LdsPad%s"%tc] and (ldsNumElementsAB * numBytes) > globalParameters["MaxLDS"]:
           # auto adjusted LdsPad and LDS overflow
           if state["UnrollMajorLDS%s"%tc] == umlds:
             # change LdsPad and LdsBlockSizePerPad to 0
