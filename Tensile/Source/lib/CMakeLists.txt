@@ -143,6 +143,7 @@ if(TENSILE_USE_HIP)
 
     if(WIN32)
         target_compile_options( TensileHost PUBLIC -Wno-deprecated-declarations -Wno-ignored-attributes -Wdll-attribute-on-redeclaration -fdelayed-template-parsing )
+        target_link_libraries( TensileHost PUBLIC Shlwapi )
     endif()
 endif()
 
