@@ -1110,7 +1110,7 @@ validParameters = {
     # 0: Standard data-parallel kernel
     # 1: Basic StreamK atomic (uses atomics to accumulate partial tiles)
     # 2: Basic StreamK non-atomic (uses workspace to store partial tiles, accumulate in deterministic fix-up step)
-    "StreamK": [0, 1, 2],
+    "StreamK": [0, 1, 2, 3],
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit

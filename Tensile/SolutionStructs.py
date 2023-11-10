@@ -1791,7 +1791,7 @@ class Solution(collections.abc.Mapping):
   # create StreamKInit Kernels
   def initStreamKInitKernelObjects(self):
     self.streamKInitKernelObjects = []
-    if self["StreamK"] == 2:
+    if self["StreamK"] == 2 or self["StreamK"] == 3:
       state = {}
       state["ProblemType"] = deepcopy(self["ProblemType"])
       state["KernelLanguage"] = "Source"
@@ -2909,8 +2909,8 @@ class Solution(collections.abc.Mapping):
       state["_GlobalAccumulation"] = None
       state["_WorkspaceSizePerElemC"] = 0
 
-      if state["StreamK"] == 2:
-        # print("SK8 - Workspace size")
+      if state["StreamK"] == 2 or state["StreamK"] == 3:
+        # StreamK Workspace size
         computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
         state["_GlobalAccumulation"] = 'PartialsBuffer'
         state["_WorkspaceSizePerElemC"] = computeBytes
