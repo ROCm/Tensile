@@ -13435,7 +13435,7 @@ class KernelWriterAssembly(KernelWriter):
         self.sgprPool.checkIn(sIterCount)
       kStr += inst("s_add_u32", sgpr(sCtaIdx), sgpr(sCtaIdx), 1, "next partial tile index")
       if kernel["StreamK"] == 2:
-        kStr += inst("s_add_u32", sgpr(sFixupEnd), sgpr(sFixupEnd), sgpr("ItersPerWG"), "next partial tile iteration")
+        kStr += inst("s_add_u32", sgpr(sFixupEnd), sgpr(sFixupEnd), sgpr("SKItersPerWG"), "next partial tile iteration")
       kStr += inst("s_cmp_lt_u32", sgpr(sFixupEnd), sgpr("ItersPerTile"), "done loading partial tiles?")
       kStr += inst("s_cbranch_scc1 %s" % skFixupLabel, "Branch to continue fixup loop")
       kStr += "%s:\n" % (skStoreLabel)
