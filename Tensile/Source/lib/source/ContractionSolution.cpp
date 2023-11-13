@@ -628,8 +628,9 @@ namespace Tensile
                 else if(sizeMapping.streamK == 3) // Two-tile SK
                 {
                     uint32_t numOutputTiles = tiles;
-                    bool bigEnough = numOutputTiles > skGrid;
-                    uint32_t skTiles = bigEnough ? skGrid + numOutputTiles % skGrid : numOutputTiles;
+                    bool     bigEnough      = numOutputTiles > skGrid;
+                    uint32_t skTiles
+                        = bigEnough ? skGrid + numOutputTiles % skGrid : numOutputTiles;
                     uint32_t dpTilesPerWG = bigEnough ? (numOutputTiles - skTiles) / skGrid : 0;
 
                     uint32_t skItersPerWG = skTiles * itersPerTile / skGrid;

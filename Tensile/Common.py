@@ -1110,6 +1110,7 @@ validParameters = {
     # 0: Standard data-parallel kernel
     # 1: Basic StreamK atomic (uses atomics to accumulate partial tiles)
     # 2: Basic StreamK non-atomic (uses workspace to store partial tiles, accumulate in deterministic fix-up step)
+    # 3: Two-Tile StreamK (non-atomic, each WG completes an even number of sk iterations, followed by an even number of dp tiles)
     "StreamK": [0, 1, 2, 3],
 
     # 0  : standard launch
