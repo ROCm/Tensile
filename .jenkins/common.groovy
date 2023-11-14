@@ -63,8 +63,8 @@ def runCompileCommand(platform, project, jobName, boolean debug=false)
 
             export PATH=/opt/rocm/bin:\$PATH
             cmake -DCMAKE_BUILD_TYPE=${buildType} -DCMAKE_CXX_COMPILER=${compiler} -DTensile_ROOT=\$(pwd)/../Tensile ../HostLibraryTests
-            NPROC_BUILD=8
-            if [ `nproc` -lt 8 ]
+            NPROC_BUILD=16
+            if [ `nproc` -lt 16 ]
             then
               NPROC_BUILD=`nproc`
             fi
