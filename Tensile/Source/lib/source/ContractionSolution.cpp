@@ -629,9 +629,13 @@ namespace Tensile
                 {
                     uint32_t numOutputTiles = tiles;
                     bool     bigEnough      = numOutputTiles > skGrid;
+                    // skTiles is number of Stream-K tiles to complete
+                    // Two-tile algorithm causes each WG to run an even number of Stream-K iterations,
+                    // followed by an even number of data-parllel tiles
                     uint32_t skTiles
                         = bigEnough ? skGrid + numOutputTiles % skGrid : numOutputTiles;
-                    uint32_t dpTilesPerWG = bigEnough ? (numOutputTiles - skTiles) / skGrid : 0;
+                    // Number of data-parallel tiles on each workgroup would be:
+                    // dpTilesPerWG = bigEnough ? (numOutputTiles - skTiles) / skGrid : 0;
 
                     uint32_t skItersPerWG = skTiles * itersPerTile / skGrid;
                     uint32_t skExtraIters = skTiles * itersPerTile % (skGrid);
