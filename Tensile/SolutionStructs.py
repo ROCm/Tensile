@@ -2932,6 +2932,8 @@ class Solution(collections.abc.Mapping):
           state["_WorkspaceSizePerElemC"] = computeBytes * state["GlobalSplitU"]
 
     if state["StreamK"] != 0:
+      if state["MIWaveGroup"][0] * state["MIWaveGroup"][1] != 4:
+        reject(state, "Stream-K requries MIWaveGroup0*MIWaveGroup1=4")
       if state["EnableMatrixInstruction"] and globalParameters["AsmCaps"][isa]["HasWMMA"]:
         reject(state, "Stream-K untested with WMMA")
       if state["GlobalSplitU"] > 1:
