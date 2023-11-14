@@ -1,6 +1,45 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.39.0
+## (Unreleased) Tensile 4.40.0
+### Additions
+- new DisableKernelPieces values to invalidate local read, local write, and global read
+- stream-K kernel generation, including two-tile stream-k algorithm by setting StreamK=3
+- feature to allow testing stream-k grid multipliers
+- debug output to check occupancy for Stream-K
+- reject condition for FractionalLoad + DepthU!=power of 2
+- new TENSILE_DB debugging value to dump the common kernel parameters
+- predicate for APU libs
+- new parameter (ClusterLocalRead) to turn on/off wider local read opt for TileMajorLDS
+- new parameter (ExtraLatencyForLR) to add extra interval between local read and wait
+- new logic to check LDS size with auto LdsPad(=1) and change LdsPad to 0 if LDS overflows
+- initialization type and general batched options to the rocblas-bench input creator script
+
+### Optimizations
+- enabled MFMA + LocalSplitU=4 for MT16x16
+- enabled (DirectToVgpr + MI4x4) and supported skinny MacroTile
+- optimized postGSU kernel: separate postGSU kernels for different GSU values, loop unroll for GSU loop, wider global load depending on array size, and parallel reduction depending on array size
+- auto LdsPad calculation for TileMajorLds + MI16x16
+- auto LdsPad calculation for UnrollMajorLds + MI16x16 + VectorWidth
+
+### Changes
+- cleared hipErrorNotFound error since it is an expected part of the search
+- modified hipcc search path for Linux
+- changed PCI ID from 32bit to 64bit for ROCm SMI HW monitor
+- changed LdsBlockSizePerPad to LdsBlockSizePerPadA, B to specify LBSPP separately
+- changed the default value of LdsPadA, B, LdsBlockSizePerPadA, B from 0 to -1
+- updated test cases according to parameter changes for LdsPad, LBSPP and ClusterLocalRead
+- Replaced std::regex with fnmatch()/PathMatchSpec as a workaround to std::regex stack overflow known bug (#1812)
+
+### Fixes
+- lint warnings
+- hipcc compile append flag parallel-jobs=4
+- race condition in Stream-K that appeared with large grids and small sizes
+- mismatch issue with LdsPad + LdsBlockSizePerPad!=0 and TailLoop
+- mismatch issue with LdsPad + LdsBlockSizePerPad!=0 and SplitLds
+- incorrect reject condition check for DirectToLds + LdsBlockSizePerPad=-1 case
+- small fix for LdsPad optimization (LdsElement calculation)
+
+## Tensile 4.39.0 for ROCm 6.0
 ### Added
 - Added aquavanjaram support: gfx940/gfx941/gfx942, fp8/bf8 datatype, xf32 datatype, and stochastic rounding for various datatypes
 - Added/updated tuning scripts
