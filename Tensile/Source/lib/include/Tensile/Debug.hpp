@@ -66,6 +66,8 @@ namespace Tensile
 
         bool printWinningKernelName() const;
 
+        bool printKernelCommonParams() const;
+
         bool printSolutionSelectionTime() const;
 
         bool printLibraryLogicIndex() const;

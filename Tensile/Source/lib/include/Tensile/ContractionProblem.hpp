@@ -810,12 +810,22 @@ namespace Tensile
             return m_workspaceSize;
         }
 
+        size_t getNumTiles(SizeMapping const& sizeMapping) const;
+        size_t getItersPerTile(SizeMapping const& sizeMapping) const;
+
         void checkPersistentKernelEligibility(ContractionSolution const& solution,
                                               Hardware const&            hardware);
+        void checkRequiredWorkspaceSize(ContractionSolution const& solution,
+                                        Hardware const&            hardware);
 
         bool getPersistentKernelEligibility() const
         {
             return m_eligibleForPK;
+        }
+
+        size_t getRequiredWorkspaceSize() const
+        {
+            return m_requiredWorkspaceSize;
         }
 
     private:
@@ -845,6 +855,7 @@ namespace Tensile
         bool              m_fp16AltImpl             = false;
         bool              m_fp16AltImplRound        = false;
         bool              m_stochasticRounding      = false;
+        size_t            m_requiredWorkspaceSize   = 0;
         DataType          m_f32XdlMathOp            = DataType::Float;
         ArithmeticUnit    m_arithmeticUnit          = ArithmeticUnit::Any;
         KernelLanguage    m_kernelLanguage          = KernelLanguage::Any;

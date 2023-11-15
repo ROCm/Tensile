@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -34,6 +34,11 @@
 #include <cstddef>
 #include <cstdlib>
 #include <random>
+
+#include <iomanip>
+#include <regex>
+
+#define TENSILE_STREAMK_GRID 1
 
 namespace Tensile
 {
@@ -304,6 +309,8 @@ namespace Tensile
         rv.numWorkGroups.x = CeilDivide(rv.numWorkGroups.x, sizeMapping.macroTile.x);
         rv.numWorkGroups.y = CeilDivide(rv.numWorkGroups.y, sizeMapping.macroTile.y);
 
+        auto numTiles = rv.numWorkGroups;
+
         uint32_t problemNumGroupTiles0 = rv.numWorkGroups.x;
         uint32_t problemNumGroupTiles1 = rv.numWorkGroups.y;
         // used only when persistent kernel along batch
@@ -311,12 +318,26 @@ namespace Tensile
 
         rv.numWorkGroups.y *= sizeMapping.globalSplitU;
 
-        if(sizeMapping.persistentKernel != 0)
+        size_t cuCount = 0;
+        if(sizeMapping.streamK != 0 || sizeMapping.persistentKernel != 0)
         {
             AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
             assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
+            cuCount = pAMDGPU->computeUnitCount;
+        }
 
-            size_t cuCount       = pAMDGPU->computeUnitCount;
+        size_t skGrid = 0;
+        if(sizeMapping.streamK != 0)
+        {
+            skGrid             = cuCount * TENSILE_STREAMK_GRID;
+            rv.numWorkGroups.x = skGrid;
+            rv.numWorkGroups.y = 1;
+            if(sizeMapping.persistentKernelAlongBatch)
+                rv.numWorkGroups.z = 1;
+        }
+
+        if(sizeMapping.persistentKernel != 0)
+        {
             size_t finalPKValue  = sizeMapping.persistentKernel;
             size_t problemGroups = rv.numWorkGroups.x * rv.numWorkGroups.y;
             if(sizeMapping.persistentKernelAlongBatch)
@@ -366,7 +387,7 @@ namespace Tensile
             rv.args.append<uint64_t>("tensor2dSizeB", tensor2dSizeB);
         }
 
-        if(sizeMapping.globalAccumulation)
+        if(sizeMapping.globalAccumulation && sizeMapping.streamK < 2)
         {
             rv.args.append<void const*>("ws_d", inputs.ws);
             rv.args.append<void const*>("ws_c", inputs.ws);
@@ -393,6 +414,16 @@ namespace Tensile
             rv.args.append<typename TypedInputs::BType const* const*>("batchB", inputs.batchB);
         }
 
+        if(sizeMapping.streamK >= 2)
+        {
+            // StreamK workspace + flags
+            rv.args.append<void const*>("ws", inputs.ws);
+            void*  ws          = inputs.ws;
+            size_t flagsOffset = partialTileSize(skGrid);
+            void*  flags       = (void*)(static_cast<char*>(ws) + flagsOffset);
+            rv.args.append<void*>("Flags", flags);
+        }
+
         rv.args.append<uint64_t>("offsetD", d.offset());
         rv.args.append<uint64_t>("offsetC", c.offset());
         rv.args.append<uint64_t>("offsetA", a.offset());
@@ -412,7 +443,7 @@ namespace Tensile
         size_t startStrideCD = problemType.useInitialStridesCD ? 0 : 1;
         size_t startStrideAB = problemType.useInitialStridesAB ? 0 : 1;
 
-        if(sizeMapping.globalAccumulation)
+        if(sizeMapping.globalAccumulation && sizeMapping.streamK < 2)
         {
             size_t wsStride = startStrideCD ? d.sizes()[0] : 1;
             for(size_t i = startStrideCD; i < d.dimensions(); i++)
@@ -551,15 +582,20 @@ namespace Tensile
             uint32_t magicNumberWgmRemainder1 = 0;
 
             // conditional args, aligned with KernelWriterAssembly.py
-            if(sizeMapping.persistentKernel != 0)
+            if(sizeMapping.persistentKernel != 0 || sizeMapping.streamK != 0)
             {
                 uint32_t magicShift;
                 rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0",
                                          magicNumber(2, problemNumGroupTiles0, &magicShift));
                 rv.args.append<uint32_t>("magicShiftProblemNumGroupTiles0", magicShift);
+            }
+
+            if(sizeMapping.persistentKernel != 0)
+            {
                 rv.args.append<uint32_t>("gridNumWorkGroups0", rv.numWorkGroups.x);
             }
 
+            // if(sizeMapping.persistentKernelAlongBatch || sizeMapping.streamK != 0)
             if(sizeMapping.persistentKernelAlongBatch)
             {
                 uint32_t numGroupTiles0x1 = problemNumGroupTiles0 * problemNumGroupTiles1;
@@ -569,6 +605,46 @@ namespace Tensile
                 rv.args.append<uint32_t>("magicNumberProblemNumGroupTiles0By1",
                                          magicNumber(2, numGroupTiles0x1, &magicShift));
                 rv.args.append<uint32_t>("magicShiftProblemNumGroupTiles0By1", magicShift);
+            }
+
+            if(sizeMapping.streamK != 0)
+            {
+                auto     itersPerTile = problem.getItersPerTile(sizeMapping);
+                auto     tiles        = problem.getNumTiles(sizeMapping);
+                auto     totalIters   = tiles * itersPerTile;
+                uint32_t magicNumberItersPerTile;
+                uint32_t magicShiftItersPerTile;
+                magicNumberItersPerTile = magicNumber(2, itersPerTile, &magicShiftItersPerTile);
+
+                rv.args.append<uint32_t>("itersPerTile", itersPerTile);
+                rv.args.append<uint32_t>("magicNumberItersPerTile", magicNumberItersPerTile);
+                rv.args.append<uint32_t>("magicShiftItersPerTile", magicShiftItersPerTile);
+                rv.args.append<uint32_t>("totalIters", totalIters);
+                if(sizeMapping.streamK < 3) // Basic SK
+                {
+                    uint32_t itersPerWave = CeilDivide(totalIters, rv.numWorkGroups.x);
+                    rv.args.append<uint32_t>("SKItersPerWG", itersPerWave);
+                }
+                else if(sizeMapping.streamK == 3) // Two-tile SK
+                {
+                    uint32_t numOutputTiles = tiles;
+                    bool     bigEnough      = numOutputTiles > skGrid;
+                    // skTiles is number of Stream-K tiles to complete
+                    // Two-tile algorithm causes each WG to run an even number of Stream-K iterations,
+                    // followed by an even number of data-parllel tiles
+                    uint32_t skTiles
+                        = bigEnough ? skGrid + numOutputTiles % skGrid : numOutputTiles;
+                    // Number of data-parallel tiles on each workgroup would be:
+                    // dpTilesPerWG = bigEnough ? (numOutputTiles - skTiles) / skGrid : 0;
+
+                    uint32_t skItersPerWG = skTiles * itersPerTile / skGrid;
+                    uint32_t skExtraIters = skTiles * itersPerTile % (skGrid);
+
+                    rv.args.append<uint32_t>("SKItersPerWG", skItersPerWG);
+                    rv.args.append<uint32_t>("skGrid", skGrid);
+                    rv.args.append<uint32_t>("skTiles", skTiles);
+                    rv.args.append<uint32_t>("skExtraIters", skExtraIters);
+                }
             }
 
             if(sizeMapping.workGroupMapping != 0)
@@ -609,6 +685,66 @@ namespace Tensile
     bool ContractionSolution::isSourceKernel() const
     {
         return sizeMapping.sourceKernel;
+    }
+
+    template <typename TypedInputs, bool T_Debug>
+    KernelInvocation ContractionSolution::generateStreamKInitCall(Problem const&     problem,
+                                                                  TypedInputs const& inputs,
+                                                                  Hardware const&    hardware) const
+    {
+        TensorDescriptor const& c = problem.c();
+        TensorDescriptor const& d = problem.d();
+
+        KernelInvocation rv;
+
+        rv.args = KernelArguments(T_Debug);
+
+        rv.args.reserve(512, 64);
+
+        rv.kernelName = streamKInitKernelName(problem, inputs, hardware);
+
+        rv.workGroupSize.x = 256;
+        rv.workGroupSize.y = 1;
+        rv.workGroupSize.z = 1;
+
+        AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
+        assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
+        size_t cuCount = pAMDGPU->computeUnitCount;
+        size_t skGrid  = cuCount * TENSILE_STREAMK_GRID;
+        size_t wiZ     = 1;
+        for(size_t i = 0; i < problem.batchIndices().size(); i++)
+            wiZ *= problem.batchSize(i);
+        size_t flagCount = skGrid * wiZ;
+
+        rv.numWorkGroups.x = CeilDivide(flagCount, rv.workGroupSize.x);
+        rv.numWorkGroups.y = 1;
+        rv.numWorkGroups.z = 1;
+
+        rv.numWorkItems.x = rv.workGroupSize.x * rv.numWorkGroups.x;
+        rv.numWorkItems.y = rv.workGroupSize.y * rv.numWorkGroups.y;
+        rv.numWorkItems.z = rv.workGroupSize.z * rv.numWorkGroups.z;
+
+        void*  ws          = inputs.ws;
+        size_t flagsOffset = partialTileSize(skGrid);
+        void*  flags       = (void*)(static_cast<char*>(ws) + flagsOffset);
+        rv.args.append<void*>("Flags", flags);
+
+        rv.args.append<uint32_t>("flagCount", flagCount);
+
+        //Pass along code object dependency
+        // TODO check this
+        rv.codeObjectFile = codeObjectFilename.load();
+
+        return rv;
+    }
+
+    template <typename TypedInputs>
+    std::string ContractionSolution::streamKInitKernelName(Problem const&     problem,
+                                                           TypedInputs const& inputs,
+                                                           Hardware const&    hardware) const
+    {
+        std::string name = "WSFlags";
+        return name;
     }
 
     template <typename TypedInputs, bool T_Debug>
@@ -725,6 +861,10 @@ namespace Tensile
     KernelInvocation ContractionSolution::generateOutputConversionCall(
         Problem const& problem, TypedInputs const& inputs, Hardware const& hardware) const
     {
+        AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
+        assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
+        size_t cuCount = pAMDGPU->computeUnitCount;
+
         TensorDescriptor const& c = problem.c();
         TensorDescriptor const& d = problem.d();
 
@@ -733,8 +873,6 @@ namespace Tensile
         rv.args = KernelArguments(T_Debug);
 
         rv.args.reserve(512, 64);
-
-        rv.kernelName = outputConversionKernelName(problem, inputs, hardware);
 
         rv.workGroupSize.x = 256;
         rv.workGroupSize.y = 1;
@@ -750,7 +888,64 @@ namespace Tensile
         for(size_t i = 0; i < problem.batchIndices().size(); i++)
             wiZ *= problem.batchSize(i);
 
-        rv.numWorkGroups.x = CeilDivide(wiX * wiY * wiZ, rv.workGroupSize.x);
+        const unsigned int numThreadsPerCU = 256;
+        unsigned int       gsu             = static_cast<int>(sizeMapping.globalSplitU);
+        if(sizeMapping.globalAccumulation == 1)
+            // globalAccumulation = 1 case, ignore globalSplitU and use 1
+            gsu = 1;
+        // wider global load for postGSU
+        // only for compute type = Float
+        bool supportedTypeForVWopt
+            = problem.alphaType() == DataType::Float || problem.alphaType() == DataType::Double;
+        size_t total = wiX * wiY * wiZ;
+        int    vw    = 1;
+        size_t threshVW2
+            = cuCount * numThreadsPerCU * 2; // should be more than number of physical threads * vw
+        if(supportedTypeForVWopt && total > threshVW2 && problem.freeSizeA(0) % 2 == 0)
+            vw = 2;
+
+        // parallel reduction width calculation
+        // only for compute type = Float
+        bool supportedTypeForReductionOpt
+            = problem.alphaType() == DataType::Float || problem.alphaType() == DataType::Double;
+        size_t threshReduction
+            = cuCount
+              * numThreadsPerCU; // should be less than number of physical threads / reduction
+        const unsigned int maxReductionConst = 4;
+        const unsigned int minGSUperReduction
+            = 32; // Minimum GSU=128 for Reduction=4, GSU=64 for Reduction2
+        unsigned int maxReduction = std::min(maxReductionConst, gsu / minGSUperReduction);
+        unsigned int reduction    = 1;
+        if(supportedTypeForReductionOpt && (gsu & (gsu - 1)) == 0 && maxReduction > 1)
+        {
+            // apply reduction only if float compute type and gsu is power of 2 (for small array only)
+            reduction = maxReduction;
+            while(reduction > 1)
+            {
+                size_t totalThread = total * reduction / vw;
+                if(gsu % reduction == 0 && totalThread <= threshReduction)
+                    // found an applicable reduction
+                    break;
+                // for next loop
+                reduction /= 2;
+            }
+            if(reduction == 2 && problem.alphaType() == DataType::Float)
+                // so far, reduction=2 does not perform well
+                reduction = 1;
+        }
+
+        // GSU loop unroll opt
+        // only for compute type = Float, Double
+        bool supportedTypeForUnrollOpt
+            = problem.alphaType() == DataType::Float || problem.alphaType() == DataType::Double;
+        int gsuUnrollUnit = 16 * reduction; // must match Tensile generator code
+        if(supportedTypeForUnrollOpt == false || sizeMapping.globalAccumulation == 1)
+            gsuUnrollUnit = 1;
+
+        rv.kernelName = outputConversionKernelName(
+            problem, inputs, gsu, vw, reduction, gsuUnrollUnit, hardware);
+
+        rv.numWorkGroups.x = CeilDivide(wiX * wiY * wiZ * reduction, rv.workGroupSize.x * vw);
         rv.numWorkGroups.y = 1;
         rv.numWorkGroups.z = 1;
 
@@ -803,10 +998,7 @@ namespace Tensile
             idx++;
         }
 
-        if(sizeMapping.globalAccumulation == 1)
-            rv.args.append<uint32_t>("gsu", 1);
-        else
-            rv.args.append<uint32_t>("gsu", sizeMapping.globalSplitU);
+        rv.args.append<uint32_t>("gsu", gsu);
 
         if(problemType.stochasticRounding)
         {
@@ -849,6 +1041,10 @@ namespace Tensile
     template <typename TypedInputs>
     std::string ContractionSolution::outputConversionKernelName(Problem const&     problem,
                                                                 TypedInputs const& inputs,
+                                                                int                gsu,
+                                                                int                vw,
+                                                                int                reduction,
+                                                                int                gsuUnrollUnit,
                                                                 Hardware const&    hardware) const
     {
         std::string name = concatenate(
@@ -860,6 +1056,27 @@ namespace Tensile
         }
 
         name += "_PostGSU";
+
+        // add extra string for gsu
+        // This part must match tensile code generation (in KernelWriterConversion.py)
+        // add mod related str (only for gsuUnrollUnit > 1)
+        if(gsuUnrollUnit > 1)
+        {
+            size_t gsuMod = gsu % gsuUnrollUnit;
+            if(gsuMod == 0)
+                gsuMod = gsuUnrollUnit;
+            std::string modStr = "";
+            if(gsu > gsuUnrollUnit)
+            {
+                modStr = "_mod" + std::to_string(gsuUnrollUnit);
+            }
+            name += std::to_string(gsuMod) + modStr;
+        }
+        if(vw >= 2)
+            name += "_VW" + std::to_string(vw);
+
+        if(reduction >= 2)
+            name += "_R" + std::to_string(reduction);
 
         return name;
     }
@@ -917,7 +1134,17 @@ namespace Tensile
 
         std::vector<KernelInvocation> rv;
 
-        if(sizeMapping.globalSplitU > 1 && sizeMapping.globalAccumulation != 2)
+        if(sizeMapping.streamK >= 2)
+        {
+            if(debug)
+                rv.push_back(generateStreamKInitCall<TypedInputs, true>(problem, inputs, hardware));
+            else
+                rv.push_back(
+                    generateStreamKInitCall<TypedInputs, false>(problem, inputs, hardware));
+        }
+
+        if(sizeMapping.streamK == 1
+           || (sizeMapping.globalSplitU > 1 && sizeMapping.globalAccumulation != 2))
         {
             if(debug)
                 rv.push_back(generateBetaOnlyCall<TypedInputs, true>(problem, inputs, hardware));
@@ -930,8 +1157,9 @@ namespace Tensile
         else
             rv.push_back(generateSingleCall<TypedInputs, false>(problem, inputs, hardware));
 
-        if(sizeMapping.globalAccumulation)
+        if(sizeMapping.globalAccumulation && !sizeMapping.streamK)
         {
+            // TODO Streamk May need conversion call for HPA??
             if(debug)
                 rv.push_back(
                     generateOutputConversionCall<TypedInputs, true>(problem, inputs, hardware));
@@ -943,6 +1171,55 @@ namespace Tensile
         return rv;
     }
 
+    bool ContractionSolution::getMatrixInstructionFromKernelName(
+        vector4<std::uint32_t>& matrixInst) const
+    {
+
+        std::string regexp_string("_MI(\\d+)x(\\d+)x(\\d+)x(\\d+)_");
+        std::regex  miRegex(regexp_string);
+        std::smatch matches;
+
+        std::string kName = this->KernelName();
+
+        bool matched
+            = std::regex_search(kName, matches, miRegex)
+              && (matches.size()
+                  == 5 /* 1 (index 0) for entire match and 4 for the sub-experssion matches */);
+
+        if(matched)
+        {
+            // the first sub_match element (index 0) corresponds to the entire match
+            matrixInst.x = atoi(matches[1].str().c_str());
+            matrixInst.y = atoi(matches[2].str().c_str());
+            matrixInst.z = atoi(matches[3].str().c_str());
+            matrixInst.w = atoi(matches[4].str().c_str());
+        }
+
+        return matched;
+    }
+
+    bool ContractionSolution::getGSUAlgorithmFromKernelName(std::string& gsuAlg) const
+    {
+        std::string regexp_string("_GSUA([S|M])B_");
+        std::regex  miRegex(regexp_string);
+        std::smatch matches;
+
+        std::string kName = this->KernelName();
+
+        bool matched
+            = std::regex_search(kName, matches, miRegex)
+              && (matches.size()
+                  == 2 /* 1 (index 0) for entire match and 1 for the sub-experssion matches */);
+
+        if(matched)
+        {
+            // the first sub_match element (index 0) corresponds to the entire match
+            gsuAlg = (matches[1].compare("S") == 0) ? "SingleBuffer" : "MultipleBuffer";
+        }
+
+        return matched;
+    }
+
     std::vector<KernelInvocation>
         ContractionSolution::solve(ContractionSolution::Problem const& problem,
                                    ContractionSolution::Inputs const&  inputs,
@@ -951,6 +1228,22 @@ namespace Tensile
         if(Debug::Instance().printWinningKernelName())
             std::cout << "Running kernel: " << this->KernelName() << std::endl;
 
+        if(Debug::Instance().printKernelCommonParams())
+        {
+            std::cout << "Kernel name: " << this->KernelName() << std::endl;
+            std::cout << "Kernel parameters: " << std::endl;
+
+            vector4<std::uint32_t> matrixInst;
+            if(this->getMatrixInstructionFromKernelName(matrixInst))
+                std::cout << std::right << std::setw(30) << "MatrixInstruction: " << matrixInst
+                          << std::endl;
+
+            std::string GSUAlg;
+            if(this->getGSUAlgorithmFromKernelName(GSUAlg))
+                std::cout << std::right << std::setw(30) << "GSUAlgorithm: " << GSUAlg << std::endl;
+
+            std::cout << this->sizeMapping << std::endl;
+        }
         // retreive alpha/beta type set via setAlpha/BetaType()
         auto alphaType = problem.alphaType();
         auto betaType  = problem.betaType();
@@ -1174,11 +1467,39 @@ namespace Tensile
         return spm;
     }
 
-    size_t ContractionSolution::requiredWorkspaceSize(Problem const& problem) const
+    size_t ContractionSolution::requiredWorkspaceSize(Problem const&  problem,
+                                                      Hardware const& hardware) const
     {
         size_t size = 0;
 
-        size += problem.d().totalLogicalElements() * sizeMapping.workspaceSizePerElemC;
+        if(sizeMapping.streamK >= 2)
+        {
+            AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
+            assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
+            size_t cuCount = pAMDGPU->computeUnitCount;
+            size_t skGrid  = cuCount * TENSILE_STREAMK_GRID;
+            // Get space required for partial tiles
+            size += partialTileSize(skGrid);
+            // Add space for flags
+            // Flags for partial tiles - dword per flag for fast addressing and comparisons
+            size += skGrid * 4;
+            // size *= batches; // TODO need tile and flag per batch
+        }
+        else
+            size += problem.d().totalLogicalElements() * sizeMapping.workspaceSizePerElemC;
+
+        return size;
+    }
+
+    size_t ContractionSolution::partialTileSize(size_t skGrid) const
+    {
+        size_t size = 0;
+
+        size_t tileSize
+            = sizeMapping.macroTile.x * sizeMapping.macroTile.y * sizeMapping.workspaceSizePerElemC;
+        size += tileSize * skGrid; // Partials tile per WG
+        // TODO batches
+        // TODO round up for alignment?
 
         return size;
     }
@@ -1467,5 +1788,42 @@ namespace Tensile
         return stream << " shiftPtrElemA=" << st.shiftPtrElemA
                       << " shiftPtrElemB=" << st.shiftPtrElemB << " depthUorMT0=" << st.depthUorMT0
                       << " depthUorMT1=" << st.depthUorMT1;
+    }
+
+    std::ostream& operator<<(std::ostream& stream, const SizeMapping& sizeMapping)
+    {
+        std::ios_base::fmtflags flags(stream.flags());
+
+        stream << std::right << std::setw(30) << "workGroupSize: " << sizeMapping.workGroupSize
+               << std::endl
+               << std::setw(30) << "threadTile: " << sizeMapping.threadTile << std::endl
+               << std::setw(30) << "macroTile: " << sizeMapping.macroTile << std::endl
+
+               << std::setw(30) << "staggerU: " << sizeMapping.staggerU << std::endl
+               << std::setw(30) << "depthU: " << sizeMapping.depthU << std::endl
+               << std::setw(30) << "globalSplitU: " << sizeMapping.globalSplitU << std::endl
+               << std::setw(30) << "staggerStrideShift: " << sizeMapping.staggerStrideShift
+               << std::endl
+               << std::setw(30) << "workGroupMapping: " << sizeMapping.workGroupMapping << std::endl
+
+               << std::setw(30) << "packBatchDims: " << sizeMapping.packBatchDims << std::endl
+               << std::setw(30) << "packSummationDims: " << sizeMapping.packSummationDims
+               << std::endl
+               << std::setw(30) << "magicDivAlg: " << sizeMapping.magicDivAlg << std::endl
+               << std::setw(30) << "streamK: " << sizeMapping.streamK << std::endl
+               << std::setw(30) << "persistentKernel: " << sizeMapping.persistentKernel << std::endl
+               << std::setw(30)
+               << "persistentKernelAlongBatch: " << sizeMapping.persistentKernelAlongBatch
+               << std::endl
+
+               << std::setw(30) << "sourceKernel: " << sizeMapping.sourceKernel << std::endl
+               << std::setw(30) << "globalAccumulation: " << sizeMapping.globalAccumulation
+               << std::endl
+               << std::setw(30) << "workspaceSizePerElemC: " << sizeMapping.workspaceSizePerElemC
+               << std::endl;
+
+        stream.flags(flags);
+
+        return stream;
     }
 } // namespace Tensile

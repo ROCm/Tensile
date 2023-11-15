@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -190,8 +190,11 @@ namespace Tensile
         }
 
         AMDGPU();
-        AMDGPU(Processor p, int computeUnitCount, std::string const& deviceName);
-        AMDGPU(std::string const& archName, int computeUnitCount, std::string const& deviceName);
+        AMDGPU(Processor p, int computeUnitCount, int isAPU, std::string const& deviceName);
+        AMDGPU(std::string const& archName,
+               int                computeUnitCount,
+               int                isAPU,
+               std::string const& deviceName);
 
         ~AMDGPU();
 
@@ -199,6 +202,7 @@ namespace Tensile
         int         wavefrontSize    = 64;
         int         simdPerCu        = 4;
         int         computeUnitCount = 0;
+        int         isAPU            = 0;
         std::string deviceName;
 
         virtual bool   runsKernelTargeting(Processor p) const;

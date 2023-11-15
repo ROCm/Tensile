@@ -33,8 +33,10 @@ namespace Tensile
     namespace hip
     {
         HipAMDGPU::HipAMDGPU(hipDeviceProp_t const& prop)
-            : AMDGPU(
-                std::string(prop.gcnArchName), prop.multiProcessorCount, std::string(prop.name))
+            : AMDGPU(std::string(prop.gcnArchName),
+                     prop.multiProcessorCount,
+                     prop.directManagedMemAccessFromHost,
+                     std::string(prop.name))
             , properties(prop)
         {
         }
@@ -63,6 +65,10 @@ namespace Tensile
                 HIP_CHECK_EXC(hipDeviceGetAttribute(&prop.multiProcessorCount,
                                                     hipDeviceAttributePhysicalMultiProcessorCount,
                                                     deviceId));
+                HIP_CHECK_EXC(
+                    hipDeviceGetAttribute(&prop.directManagedMemAccessFromHost,
+                                          hipDeviceAttributeDirectManagedMemAccessFromHost,
+                                          deviceId));
             }
 #endif
 

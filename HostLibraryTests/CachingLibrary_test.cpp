@@ -255,8 +255,8 @@ TEST(Hashing, AMDGPU)
             for(int c1 : counts)
                 for(int c2 : counts)
                 {
-                    AMDGPU g1(p1, c1, "g1");
-                    AMDGPU g2(p2, c2, "g2");
+                    AMDGPU g1(p1, c1, 0, "g1");
+                    AMDGPU g2(p2, c2, 0, "g2");
 
                     if(p1 != p2 || c1 != c2)
                     {

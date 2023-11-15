@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -65,6 +65,32 @@ namespace Tensile
         size_t depthUorMT1;
     };
 
+    struct SizeMapping
+    {
+        dim3 workGroupSize;
+        dim3 threadTile;
+        dim3 macroTile;
+
+        size_t staggerU           = 0;
+        size_t depthU             = 0;
+        size_t globalSplitU       = 0;
+        size_t staggerStrideShift = 0;
+        int    workGroupMapping   = 0;
+
+        size_t packBatchDims              = 0;
+        int    packSummationDims          = 0;
+        int    magicDivAlg                = 1;
+        int    streamK                    = 0;
+        int    persistentKernel           = 0;
+        bool   persistentKernelAlongBatch = false;
+
+        bool   sourceKernel          = false;
+        int    globalAccumulation    = 0;
+        size_t workspaceSizePerElemC = 0;
+    };
+
+    std::ostream& operator<<(std::ostream& stream, const SizeMapping& sizeMapping);
+
     /**
  * Represents a single kernel or set of kernels that can perform a single
  * tensor contraction.
@@ -91,6 +117,7 @@ namespace Tensile
         {
             return kernelName;
         }
+
         virtual std::string name() const
         {
             return kernelName;
@@ -99,6 +126,9 @@ namespace Tensile
         {
             return kernelName;
         }
+
+        bool getMatrixInstructionFromKernelName(vector4<std::uint32_t>& miInst) const;
+        bool getGSUAlgorithmFromKernelName(std::string& gsuAlg) const;
 
         bool isSourceKernel() const;
 
@@ -169,9 +199,10 @@ namespace Tensile
         };
 
         /**
-   * Calculate required workspace size.
-   */
-        size_t       requiredWorkspaceSize(Problem const& problem) const;
+        * Calculate required workspace size.
+        */
+        size_t       requiredWorkspaceSize(Problem const& problem, Hardware const& hardware) const;
+        size_t       partialTileSize(size_t skGrid) const;
         static float computeGranularity(float x);
 
         Granularities computeGranularities(
@@ -223,6 +254,16 @@ namespace Tensile
                                             Hardware const&    hardware) const;
 
         template <typename TypedInputs, bool T_Debug>
+        KernelInvocation generateStreamKInitCall(Problem const&     problem,
+                                                 TypedInputs const& inputs,
+                                                 Hardware const&    hardware) const;
+
+        template <typename TypedInputs>
+        std::string streamKInitKernelName(Problem const&     problem,
+                                          TypedInputs const& inputs,
+                                          Hardware const&    hardware) const;
+
+        template <typename TypedInputs, bool T_Debug>
         KernelInvocation generateBetaOnlyCall(Problem const&     problem,
                                               TypedInputs const& inputs,
                                               Hardware const&    hardware) const;
@@ -240,34 +281,15 @@ namespace Tensile
         template <typename TypedInputs>
         std::string outputConversionKernelName(Problem const&     problem,
                                                TypedInputs const& inputs,
+                                               int                gsu,
+                                               int                vw,
+                                               int                reduction,
+                                               int                gsuUnrollUnit,
                                                Hardware const&    hardware) const;
 
         bool canSolve(Problem const& problem, Hardware const& hardware) const;
 
         bool matchesProblemType(Problem const& problem, Hardware const& hardware) const;
-
-        struct SizeMapping
-        {
-            dim3 workGroupSize;
-            dim3 threadTile;
-            dim3 macroTile;
-
-            size_t staggerU           = 0;
-            size_t depthU             = 0;
-            size_t globalSplitU       = 0;
-            size_t staggerStrideShift = 0;
-            int    workGroupMapping   = 0;
-
-            size_t packBatchDims              = 0;
-            int    packSummationDims          = 0;
-            int    magicDivAlg                = 1;
-            int    persistentKernel           = 0;
-            bool   persistentKernelAlongBatch = false;
-
-            bool   sourceKernel          = false;
-            int    globalAccumulation    = 0;
-            size_t workspaceSizePerElemC = 0;
-        };
 
         struct ProblemType
         {

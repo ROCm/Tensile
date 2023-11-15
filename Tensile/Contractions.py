@@ -383,6 +383,10 @@ class ProblemPredicate(Properties.Predicate):
             if ('_GlobalAccumulation' not in state) or (state['_GlobalAccumulation'] != 'MultipleBuffer'):
                 rv += [cls("DeterministicMode", value = False)]
 
+        if ('StreamK' in state) and (state['StreamK'] == 1):
+            # StreamK = 1 uses atomic for partial tiles
+            rv += [cls("DeterministicMode", value = False)]
+
         # debugging: mark this set to allow the problem always runnable with PK
         if 'PersistentKernel' in state and state['PersistentKernel']:
             rv += [cls("PersistentKernelCheck")]
@@ -421,7 +425,7 @@ class ProblemPredicate(Properties.Predicate):
                 val = min(val, state["AssertSizeLessThan"][1] - 1)
             rv += [cls('BufferStoreOffsetLimitCheck', value=val)]
 
-        if '_GlobalAccumulation' in state and state['_GlobalAccumulation'] != None:
+        if '_GlobalAccumulation' in state and state['_GlobalAccumulation'] != None and not state["StreamK"]:
             value = state['MinKForGSU'] * state['GlobalSplitU']
             rv += [cls('GlobalSplitUCheckMinK', value=value)]
 
@@ -448,6 +452,7 @@ class SizeMapping:
                  'packSummationDims',
                  'packBatchDims',
                  'magicDivAlg',
+                 'streamK',
                  'persistentKernel',
                  'persistentKernelAlongBatch',
                  'sourceKernel',
@@ -462,6 +467,8 @@ class SizeMapping:
             globalAccum = 1
         if d['_GlobalAccumulation'] == 'MultipleBuffer':
             globalAccum = 2
+        if d['_GlobalAccumulation'] == 'PartialsBuffer':
+            globalAccum = 3
         return cls(workGroup             = d['WorkGroup'],
                    macroTile             = cls.ReadOriginalMacroTile(d),
                    threadTile            = d['ThreadTile'],
@@ -472,6 +479,7 @@ class SizeMapping:
                    staggerStrideShift    = d['_staggerStrideShift'] if '_staggerStrideShift' in d else 0,
                    packSummationDims     = d['PackSummationDims'] if 'PackSummationDims' in d else 0,
                    packBatchDims         = d['PackBatchDims'] if 'PackBatchDims' in d else 0,
+                   streamK               = d['StreamK'] if 'StreamK' in d else 0,
                    persistentKernel      = d['PersistentKernel'] if 'PersistentKernel' in d else 0,
                    persistentKernelAlongBatch   = d['PersistentKernelAlongBatch'] if 'PersistentKernelAlongBatch' in d else False,
                    magicDivAlg           = d.get('MagicDivAlg', 1),
