@@ -28,10 +28,9 @@
 - changed LdsBlockSizePerPad to LdsBlockSizePerPadA, B to specify LBSPP separately
 - changed the default value of LdsPadA, B, LdsBlockSizePerPadA, B from 0 to -1
 - updated test cases according to parameter changes for LdsPad, LBSPP and ClusterLocalRead
-- Replaced std::regex with fnmatch()/PathMatchSpec as a workaround to std::regex stack overflow known bug (#1812)
+- Replaced std::regex with fnmatch()/PathMatchSpec as a workaround to std::regex stack overflow known bug
 
 ### Fixes
-- lint warnings
 - hipcc compile append flag parallel-jobs=4
 - race condition in Stream-K that appeared with large grids and small sizes
 - mismatch issue with LdsPad + LdsBlockSizePerPad!=0 and TailLoop
