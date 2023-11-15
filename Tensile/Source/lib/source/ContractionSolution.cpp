@@ -309,6 +309,8 @@ namespace Tensile
         rv.numWorkGroups.x = CeilDivide(rv.numWorkGroups.x, sizeMapping.macroTile.x);
         rv.numWorkGroups.y = CeilDivide(rv.numWorkGroups.y, sizeMapping.macroTile.y);
 
+        auto numTiles = rv.numWorkGroups;
+
         uint32_t problemNumGroupTiles0 = rv.numWorkGroups.x;
         uint32_t problemNumGroupTiles1 = rv.numWorkGroups.y;
         // used only when persistent kernel along batch
@@ -385,7 +387,7 @@ namespace Tensile
             rv.args.append<uint64_t>("tensor2dSizeB", tensor2dSizeB);
         }
 
-        if(sizeMapping.globalAccumulation && sizeMapping.streamK != 2)
+        if(sizeMapping.globalAccumulation && sizeMapping.streamK < 2)
         {
             rv.args.append<void const*>("ws_d", inputs.ws);
             rv.args.append<void const*>("ws_c", inputs.ws);
@@ -412,7 +414,7 @@ namespace Tensile
             rv.args.append<typename TypedInputs::BType const* const*>("batchB", inputs.batchB);
         }
 
-        if(sizeMapping.streamK == 2)
+        if(sizeMapping.streamK >= 2)
         {
             // StreamK workspace + flags
             rv.args.append<void const*>("ws", inputs.ws);
@@ -441,7 +443,7 @@ namespace Tensile
         size_t startStrideCD = problemType.useInitialStridesCD ? 0 : 1;
         size_t startStrideAB = problemType.useInitialStridesAB ? 0 : 1;
 
-        if(sizeMapping.globalAccumulation && sizeMapping.streamK != 2)
+        if(sizeMapping.globalAccumulation && sizeMapping.streamK < 2)
         {
             size_t wsStride = startStrideCD ? d.sizes()[0] : 1;
             for(size_t i = startStrideCD; i < d.dimensions(); i++)
@@ -610,16 +612,39 @@ namespace Tensile
                 auto     itersPerTile = problem.getItersPerTile(sizeMapping);
                 auto     tiles        = problem.getNumTiles(sizeMapping);
                 auto     totalIters   = tiles * itersPerTile;
-                uint32_t itersPerWave = CeilDivide(totalIters, rv.numWorkGroups.x);
                 uint32_t magicNumberItersPerTile;
                 uint32_t magicShiftItersPerTile;
                 magicNumberItersPerTile = magicNumber(2, itersPerTile, &magicShiftItersPerTile);
 
                 rv.args.append<uint32_t>("itersPerTile", itersPerTile);
-                rv.args.append<uint32_t>("totalIters", totalIters);
-                rv.args.append<uint32_t>("itersPerWave", itersPerWave);
                 rv.args.append<uint32_t>("magicNumberItersPerTile", magicNumberItersPerTile);
                 rv.args.append<uint32_t>("magicShiftItersPerTile", magicShiftItersPerTile);
+                rv.args.append<uint32_t>("totalIters", totalIters);
+                if(sizeMapping.streamK < 3) // Basic SK
+                {
+                    uint32_t itersPerWave = CeilDivide(totalIters, rv.numWorkGroups.x);
+                    rv.args.append<uint32_t>("SKItersPerWG", itersPerWave);
+                }
+                else if(sizeMapping.streamK == 3) // Two-tile SK
+                {
+                    uint32_t numOutputTiles = tiles;
+                    bool     bigEnough      = numOutputTiles > skGrid;
+                    // skTiles is number of Stream-K tiles to complete
+                    // Two-tile algorithm causes each WG to run an even number of Stream-K iterations,
+                    // followed by an even number of data-parllel tiles
+                    uint32_t skTiles
+                        = bigEnough ? skGrid + numOutputTiles % skGrid : numOutputTiles;
+                    // Number of data-parallel tiles on each workgroup would be:
+                    // dpTilesPerWG = bigEnough ? (numOutputTiles - skTiles) / skGrid : 0;
+
+                    uint32_t skItersPerWG = skTiles * itersPerTile / skGrid;
+                    uint32_t skExtraIters = skTiles * itersPerTile % (skGrid);
+
+                    rv.args.append<uint32_t>("SKItersPerWG", skItersPerWG);
+                    rv.args.append<uint32_t>("skGrid", skGrid);
+                    rv.args.append<uint32_t>("skTiles", skTiles);
+                    rv.args.append<uint32_t>("skExtraIters", skExtraIters);
+                }
             }
 
             if(sizeMapping.workGroupMapping != 0)
@@ -1109,7 +1134,7 @@ namespace Tensile
 
         std::vector<KernelInvocation> rv;
 
-        if(sizeMapping.streamK == 2)
+        if(sizeMapping.streamK >= 2)
         {
             if(debug)
                 rv.push_back(generateStreamKInitCall<TypedInputs, true>(problem, inputs, hardware));
@@ -1447,7 +1472,7 @@ namespace Tensile
     {
         size_t size = 0;
 
-        if(sizeMapping.streamK == 2)
+        if(sizeMapping.streamK >= 2)
         {
             AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
             assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);

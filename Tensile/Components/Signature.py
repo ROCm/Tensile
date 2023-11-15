@@ -207,7 +207,7 @@ class SignatureDefault(Signature):
         kStr += self.addArgument(                               'C',     '8', offset, "global_buffer", dstValueType, "generic"); offset += 8
         kStr += self.addArgument(                               'A',     '8', offset, "global_buffer", srcValueTypeA, "generic"); offset += 8
         kStr += self.addArgument(                               'B',     '8', offset, "global_buffer", srcValueTypeB, "generic"); offset += 8
-        if kernel["StreamK"] == 2:
+        if kernel["StreamK"] == 2 or kernel["StreamK"] == 3:
             kStr += self.addArgument(                          'WS',     '8', offset, "global_buffer", dstValueType, "generic"); offset += 8
             kStr += self.addArgument(                       'Flags',     '8', offset, "global_buffer", dstValueType, "generic"); offset += 8
 
@@ -282,10 +282,15 @@ class SignatureDefault(Signature):
 
         if kernel["StreamK"]:
             kStr += self.addArgument("ItersPerTile",            '4', offset,"by_value", "u32"); offset += 4
-            kStr += self.addArgument("TotalIters",              '4', offset,"by_value", "u32"); offset += 4
-            kStr += self.addArgument("ItersPerWG",              '4', offset,"by_value", "u32"); offset += 4
             kStr += self.addArgument("MagicNumberItersPerTile", '4', offset,"by_value", "u32"); offset += 4
             kStr += self.addArgument("MagicShiftItersPerTile",  '4', offset,"by_value", "u32"); offset += 4
+            kStr += self.addArgument("TotalIters",              '4', offset,"by_value", "u32"); offset += 4
+            kStr += self.addArgument("SKItersPerWG",              '4', offset,"by_value", "u32"); offset += 4
+            if kernel["StreamK"] == 3: # Two-tile SK
+                kStr += self.addArgument("skGrid",              '4', offset,"by_value", "u32"); offset += 4
+                kStr += self.addArgument("skTiles",             '4', offset,"by_value", "u32"); offset += 4
+                kStr += self.addArgument("skExtraIters",        '4', offset,"by_value", "u32"); offset += 4
+                # kStr += self.addArgument("dpTilesPerWG",        '4', offset,"by_value", "u32"); offset += 4
 
         kStr += self.addArgument(                   "NumFullBlocks",     '4', offset,      "by_value",        "u32"); offset += 4
         kStr += self.addArgument(                   "WgmRemainder1",     '4', offset,      "by_value",        "u32"); offset += 4

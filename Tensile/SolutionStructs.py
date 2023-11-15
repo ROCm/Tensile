@@ -1791,7 +1791,7 @@ class Solution(collections.abc.Mapping):
   # create StreamKInit Kernels
   def initStreamKInitKernelObjects(self):
     self.streamKInitKernelObjects = []
-    if self["StreamK"] == 2:
+    if self["StreamK"] == 2 or self["StreamK"] == 3:
       state = {}
       state["ProblemType"] = deepcopy(self["ProblemType"])
       state["KernelLanguage"] = "Source"
@@ -2913,8 +2913,8 @@ class Solution(collections.abc.Mapping):
       state["_GlobalAccumulation"] = None
       state["_WorkspaceSizePerElemC"] = 0
 
-      if state["StreamK"] == 2:
-        # print("SK8 - Workspace size")
+      if state["StreamK"] == 2 or state["StreamK"] == 3:
+        # StreamK Workspace size
         computeBytes = state["ProblemType"]["ComputeDataType"].numBytes()
         state["_GlobalAccumulation"] = 'PartialsBuffer'
         state["_WorkspaceSizePerElemC"] = computeBytes
@@ -2936,6 +2936,8 @@ class Solution(collections.abc.Mapping):
           state["_WorkspaceSizePerElemC"] = computeBytes * state["GlobalSplitU"]
 
     if state["StreamK"] != 0:
+      if state["MIWaveGroup"][0] * state["MIWaveGroup"][1] != 4:
+        reject(state, "Stream-K requries MIWaveGroup0*MIWaveGroup1=4")
       if state["EnableMatrixInstruction"] and globalParameters["AsmCaps"][isa]["HasWMMA"]:
         reject(state, "Stream-K untested with WMMA")
       if state["GlobalSplitU"] > 1:
