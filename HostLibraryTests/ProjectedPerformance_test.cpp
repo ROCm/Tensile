@@ -52,12 +52,12 @@ std::map<int, double> makeIdeals()
     return ideals;
 }
 
-ContractionSolution::SizeMapping makeSizeMapping(Tensile::dim3 workGroupSize,
-                                                 Tensile::dim3 threadTile,
-                                                 Tensile::dim3 macroTile,
-                                                 size_t        globalSplitU)
+SizeMapping makeSizeMapping(Tensile::dim3 workGroupSize,
+                            Tensile::dim3 threadTile,
+                            Tensile::dim3 macroTile,
+                            size_t        globalSplitU)
 {
-    ContractionSolution::SizeMapping sizeMapping;
+    SizeMapping sizeMapping;
 
     sizeMapping.workGroupSize = workGroupSize;
     sizeMapping.threadTile    = threadTile;
@@ -93,15 +93,14 @@ TEST(ContractionPerformance, Problem1)
     Tensile::dim3 macroTile     = Tensile::dim3(64, 64, 16);
     size_t        globalSplitU  = 1;
 
-    ContractionSolution::SizeMapping sizeMapping
-        = makeSizeMapping(workgroupSize, threadTile, macroTile, globalSplitU);
+    SizeMapping sizeMapping = makeSizeMapping(workgroupSize, threadTile, macroTile, globalSplitU);
 
     solution->sizeMapping = sizeMapping;
 
     auto problem
         = ContractionProblem::GEMM(false, false, 1536, 1536, 64, 1536, 64, 1536, 1.5, false, 1.0);
 
-    AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, "gfx906");
+    AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, 0, "gfx906");
     double perf = solution->projectedPerformance(problem, hardware).speedGFlops;
 
     ASSERT_DOUBLE_EQ(perf, 3000.0);
@@ -122,15 +121,14 @@ TEST(ContractionPerformance, Problem2)
     Tensile::dim3 macroTile     = Tensile::dim3(64, 64, 16);
     size_t        globalSplitU  = 1;
 
-    ContractionSolution::SizeMapping sizeMapping
-        = makeSizeMapping(workgroupSize, threadTile, macroTile, globalSplitU);
+    SizeMapping sizeMapping = makeSizeMapping(workgroupSize, threadTile, macroTile, globalSplitU);
 
     solution->sizeMapping = sizeMapping;
 
     auto problem
         = ContractionProblem::GEMM(false, false, 384, 192, 60, 384, 60, 384, 1.5, false, 1.0);
 
-    AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, "gfx906");
+    AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, 0, "gfx906");
     double perf = solution->projectedPerformance(problem, hardware).speedGFlops;
 
     ASSERT_DOUBLE_EQ(perf, 843.75);
@@ -151,15 +149,14 @@ TEST(ContractionPerformance, Problem3)
     Tensile::dim3 macroTile     = Tensile::dim3(128, 128, 16);
     size_t        globalSplitU  = 1;
 
-    ContractionSolution::SizeMapping sizeMapping
-        = makeSizeMapping(workgroupSize, threadTile, macroTile, globalSplitU);
+    SizeMapping sizeMapping = makeSizeMapping(workgroupSize, threadTile, macroTile, globalSplitU);
 
     solution->sizeMapping = sizeMapping;
 
     auto problem
         = ContractionProblem::GEMM(false, false, 384, 192, 60, 384, 60, 384, 1.5, false, 1.0);
 
-    AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, "gfx906");
+    AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, 0, "gfx906");
     auto   model = solution->projectedPerformance(problem, hardware);
 
     // std::cout << model << "\n";
@@ -184,15 +181,14 @@ TEST(ContractionPerformance, Problem4)
     Tensile::dim3 macroTile     = Tensile::dim3(128, 64, 16);
     size_t        globalSplitU  = 4;
 
-    ContractionSolution::SizeMapping sizeMapping
-        = makeSizeMapping(workgroupSize, threadTile, macroTile, globalSplitU);
+    SizeMapping sizeMapping = makeSizeMapping(workgroupSize, threadTile, macroTile, globalSplitU);
 
     solution->sizeMapping = sizeMapping;
 
     auto problem
         = ContractionProblem::GEMM(false, false, 1536, 1575, 64, 1536, 64, 1536, 1.5, false, 3.0);
 
-    AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, "gfx906");
+    AMDGPU hardware(Tensile::AMDGPU::Processor::gfx906, 64, 0, "gfx906");
     auto   model = solution->projectedPerformance(problem, hardware);
 
     // std::cout << model << "\n";

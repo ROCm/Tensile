@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (C) 2019-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2019-2023 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -165,6 +165,7 @@ namespace Tensile
             {
                 SubclassMap rv({Base::template Pair<Predicates::GPU::ProcessorEqual>(),
                                 Base::template Pair<Predicates::GPU::CUCountEqual>(),
+                                Base::template Pair<Predicates::GPU::IsAPU>(),
                                 Base::template Pair<Predicates::GPU::RunsKernelTargeting>()});
 
                 auto gmap = Generic::GetSubclasses();
@@ -190,6 +191,12 @@ namespace Tensile
         template <typename IO>
         struct MappingTraits<Predicates::GPU::CUCountEqual, IO>
             : public AutoMappingTraits<Predicates::GPU::CUCountEqual, IO>
+        {
+        };
+
+        template <typename IO>
+        struct MappingTraits<Predicates::GPU::IsAPU, IO>
+            : public AutoMappingTraits<Predicates::GPU::IsAPU, IO>
         {
         };
 

@@ -39,7 +39,7 @@ using namespace Tensile;
 TEST(ContractionSelectionLibraryTest, Single)
 {
     std::shared_ptr<Hardware> hardware = std::make_shared<AMDGPU>(
-        AMDGPU::Processor::gfx900, 64, "AMD Radeon Vega Frontier Edition");
+        AMDGPU::Processor::gfx900, 64, 0, "AMD Radeon Vega Frontier Edition");
 
     SingleContractionLibrary lib;
 
@@ -53,11 +53,11 @@ TEST(ContractionSelectionLibraryTest, Single)
 TEST(ContractionSelectionLibraryTest, GPUSelection)
 {
     std::shared_ptr<Hardware> v10 = std::make_shared<AMDGPU>(
-        AMDGPU::Processor::gfx900, 64, "AMD Radeon Vega Frontier Edition");
+        AMDGPU::Processor::gfx900, 64, 0, "AMD Radeon Vega Frontier Edition");
     std::shared_ptr<Hardware> v20
-        = std::make_shared<AMDGPU>(AMDGPU::Processor::gfx906, 60, "AMD Radeon Vega 7");
+        = std::make_shared<AMDGPU>(AMDGPU::Processor::gfx906, 60, 0, "AMD Radeon Vega 7");
     std::shared_ptr<Hardware> v20_64CU
-        = std::make_shared<AMDGPU>(AMDGPU::Processor::gfx906, 64, "AMD Radeon Vega 7");
+        = std::make_shared<AMDGPU>(AMDGPU::Processor::gfx906, 64, 0, "AMD Radeon Vega 7");
 
     // Create solutions
     auto v20Solution      = std::make_shared<ContractionSolution>();

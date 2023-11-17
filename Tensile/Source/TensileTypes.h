@@ -1,6 +1,6 @@
 /*******************************************************************************
  *
- * Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -172,6 +172,13 @@ constexpr __host__ __device__ bool operator==(tensile_complex<T> const& a,
                                               tensile_complex<T> const& b)
 {
     return (a.x == b.x) && (a.y == b.y);
+}
+
+template <typename T>
+constexpr __host__ __device__ bool operator!=(tensile_complex<T> const& a,
+                                              tensile_complex<T> const& b)
+{
+    return (a.x != b.x) || (a.y != b.y);
 }
 
 using tensile_float_complex  = tensile_complex<float>;

@@ -1183,7 +1183,7 @@ namespace Tensile
 
                 virtual bool operator()(ContractionProblem const& problem) const override
                 {
-                    return problem.d().totalLogicalElements() * value <= problem.workspaceSize();
+                    return problem.getRequiredWorkspaceSize() <= problem.workspaceSize();
                 }
 
                 virtual bool debugEval(ContractionProblem const& problem,
@@ -1191,7 +1191,7 @@ namespace Tensile
                 {
                     bool rv = (*this)(problem);
 
-                    stream << *this << ": (" << problem.d().totalLogicalElements() << " * " << value
+                    stream << *this << ": (" << problem.getRequiredWorkspaceSize()
                            << " <= " << problem.workspaceSize() << ") == " << rv;
 
                     return rv;

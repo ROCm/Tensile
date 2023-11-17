@@ -361,7 +361,7 @@ validMFMA["I8_908"] = [[32,32,4,2], [32,32,8,1], [16,16,4,4], [16,16,16,1], [4,4
 validMFMA["I8_940"] = [[32,32,4,2], [32,32,16,1], [16,16,4,4], [16,16,32,1], [4,4,4,16]]
 validMFMA["I8"] = validMFMA["H"] + validMFMA["F8"]
 validWMMA = [[16,16,16,1], ]
-validTT = 16
+validTT = 64
 validMFMA["_format9"] = []
 
 for MFMA in [validMFMA["H"], validMFMA["S"], validMFMA["B"], validMFMA["D"], validMFMA["X"], validMFMA["F8"], validWMMA]:
@@ -796,6 +796,9 @@ validParameters = {
     #  - Can vectorize stores in edge tiles.  Vector width can be up to AF0EM.
     #   (since C matrix is always coalesced in Free0 index direction and this assertion guarantees the index element multiple)
     #
+    # TailLoop Optimizations:
+    #  - enable wider global load with AF0EM > 1 for A + TLU, AF1EM > 1 for B + TLU
+    #
     # 1 indicates no assertion (since all sizes are multiples of 1)
     "AssertFree0ElementMultiple" : [1,2,4,8,16],
 
@@ -1080,9 +1083,18 @@ validParameters = {
     # 6= +NoMAC
     # 7= +NoPreLoop+ NoGlobalReadInc
     # 9= NullKernel
+    # 10= +invalid LocalReadA (use invalid vgpr offset(LdsOOB)). Negative only.
+    # 11= +invalid LocalReadB (use invalid vgpr offset(LdsOOB)). Negative only.
+    # 12= +invalid LocalReadA+B (use invalid vgpr offset(LdsOOB)). Negative only.
+    # 13= +invalid LocalWriteA (use invalid vgpr offset(LdsOOB)). Negative only.
+    # 14= +invalid LocalWriteB (use invalid vgpr offset(LdsOOB)). Negative only.
+    # 15= +invalid LocalWriteA+B (use invalid vgpr offset(LdsOOB)). Negative only.
+    # 16= +invalid GlobalReadA (use srdA[2]=0, BufferLoad only). Negative only.
+    # 17= +invalid GlobalReadB (use srdB[2]=0, BufferLoad only). Negative only.
+    # 18= +invalid GlobalReadA+B (use srdB[2]=0, BufferLoad only). Negative only.
     # For example set DisableKernelPieces: [0,1,2,3,4,5,6,7,9]
     #   this will create a set of kernels with progressively more pieces of the kernel disabled
-    "DisableKernelPieces":        list(range(-9,10)),         # disable pieces of the kernel, for performance isolation
+    "DisableKernelPieces":        list(range(-18,10)),         # disable pieces of the kernel, for performance isolation
 
     # assume atomics always work correctly.
     "DisableAtomicFail": [False, True],
@@ -1091,6 +1103,15 @@ validParameters = {
     "Fp16AltImpl": [False, True],
     # fp16 alternate implementation round mode: false for truncate, true for round near zero
     "Fp16AltImplRound": [False, True],
+
+    # StreamK kernels divide work evenly among CUs by splitting along MT and K dimensions
+    # Total work units are calculated as (#MTs x #LoopIters) and divided among workgroups
+    # In most cases each workgroup will calculate a partial tile that are accumulated in a fixup step in the same kernel
+    # 0: Standard data-parallel kernel
+    # 1: Basic StreamK atomic (uses atomics to accumulate partial tiles)
+    # 2: Basic StreamK non-atomic (uses workspace to store partial tiles, accumulate in deterministic fix-up step)
+    # 3: Two-Tile StreamK (non-atomic, each WG completes an even number of sk iterations, followed by an even number of dp tiles)
+    "StreamK": [0, 1, 2, 3],
 
     # 0  : standard launch
     # N>0 : launch persistent kernel with N workgroups per compute unit
@@ -1195,8 +1216,8 @@ validParameters = {
 
     # place upper and lower limits on the skinny-ness of macro tiles; shape=1 means square tile, like 64x64. shape=4 means 4x64 or 64x4 or 128x8...
     # these will just mark some kernels as invalid so that fewer kernels will be checked
-    "MacroTileShapeMin":          list(range(1, 256+1)),
-    "MacroTileShapeMax":          list(range(1, 256+1)),
+    "MacroTileShapeMin":          list(range(1, 512+1)),
+    "MacroTileShapeMax":          list(range(1, 512+1)),
 
     # when loading all the data from global into lds requires multiple load instructions, these parameters govern which
     # loads will pull which rectangle of data from global into lds
@@ -1243,15 +1264,19 @@ validParameters = {
     # performance so this has been deprecated and probably doesn't work
     # -1 means use same padding as the VectorWidth if TLU=0 else 0.  (Padding only helps when transpose is required)
     # With MatrixInstruction: -1 means max(GRVW,MIInput) if TLU=0
-    "LdsPadA":                     [ -1, 0, 1, 2, 3, 4, 8, 16, 32],
-    "LdsPadB":                     [ -1, 0, 1, 2, 3, 4, 8, 16, 32],
+    # SourceKernel case, convert -1 to 0. Please manually set LdsPad for SourceKernel
+    # SourceKernel requires LdsPadA==LdsPadB
+    "LdsPadA":                     list(range(-1, 128)),
+    "LdsPadB":                     list(range(-1, 128)),
 
     # Padding boundary for LDS. defines block-size for pad insertion. for every 'LdsBlockSizePerPad' bytes, LDS padding (pad value from LdsPad parameter)
     # is added (readOffset aware of the pad and adjusts offset value based on this parameter value).
     # Only support LdsBlockSizePerPad >= unrollDepth * BPE
     # 0 means disable LdsBlockSizePerPad,
     # -1 means round up to nearest power of 2 begin with 128
-    "LdsBlockSizePerPad":          [-1, 0, 64, 128, 256, 512, 1024],
+    # SourceKernel case, convert -1 to 0. Please manually set LdsBlockSizePerPad for SourceKernel
+    "LdsBlockSizePerPadA":          [-1, 0, 64, 128, 256, 512, 1024, 2048, 4096],
+    "LdsBlockSizePerPadB":          [-1, 0, 64, 128, 256, 512, 1024, 2048, 4096],
 
     # Transpose LDS format. Local store in Coalesced dimension , same as optimized global fetch dimension . applicable only in TLU=0 case for miSIMD(s)
     # TODO: No code for -1 ?
@@ -1269,6 +1294,9 @@ validParameters = {
     # No need to increase miLatencyLeft in that case.
     "ExtraMiLatencyLeft":         list(range(0,9,2)),
 
+    # Add extra latency to calculate number of MFMA to insert between local read and wait
+    "ExtraLatencyForLR":          list(range(0,17,2)),
+
     # Allocate dedicated vgpr for local read with packing
     #   False: use tmp vgpr. Less vgpr usage, but not best for local read scheduling
     #   True: use dedicated vgpr for local read with packing. Best for local read scheduling, but need more vgpr
@@ -1276,6 +1304,10 @@ validParameters = {
     # Apply this to HasEccHalf case only.
     # Not effective for PrefetchLocalRead <= 1
     "VgprForLocalReadPacking":     [False, True],
+
+    # ClusterLocalRead enables wider local read and packing with v_perm_b32 for 8bit or 16bit data
+    # Works with VgprForLocalReadPacking=True
+    "ClusterLocalRead":            [False, True],
 
     # tinkered with adding extra syncs or waits in the assembly kernels to see if it would improve the sequencing between workgroups, "fully synchronous scheduling" is WAY more promising; this can be deprecated
     "PerformanceSyncLocation":    list(range(-1, 16*16+1)),
@@ -1364,14 +1396,17 @@ defaultBenchmarkCommonParameters = [
     {"LocalDotLayout":            [ 1 ] },
     {"AggressivePerfMode":        [ 1 ] },
     {"KernelLanguage":            [ "Source" ] },
-    {"LdsPadA":                   [ 0 ] },
-    {"LdsPadB":                   [ 0 ] },
-    {"LdsBlockSizePerPad":        [ 0 ] },
+    {"LdsPadA":                   [ -1 ] },
+    {"LdsPadB":                   [ -1 ] },
+    {"LdsBlockSizePerPadA":       [ -1 ] },
+    {"LdsBlockSizePerPadB":       [ -1 ] },
     {"TransposeLDS":              [ 0 ] },
     {"UnrollMajorLDSA":           [ False ] },
     {"UnrollMajorLDSB":           [ False ] },
     {"ExtraMiLatencyLeft":        [ 0 ] },
+    {"ExtraLatencyForLR":         [ 0 ] },
     {"VgprForLocalReadPacking":   [ False ] },
+    {"ClusterLocalRead":          [ False ] },
     {"MaxOccupancy":              [ 40 ] },
     {"VectorWidth":               [ -1 ] },
     {"VectorStore":               [ -1 ] },
@@ -1448,6 +1483,7 @@ defaultBenchmarkCommonParameters = [
     {"GlobalSplitUAtomicAdd":     [ False ] },
     {"MacroTileShapeMin":         [ 1 ] },
     {"MacroTileShapeMax":         [ 64 ] },
+    {"StreamK":                   [ 0 ] },
     {"PersistentKernel":          [ 0 ] },
     {"PersistentKernelAlongBatch":[ False ] },    # May be default True is better ?
     {"PackBatchDims":             [ 0 ] },
@@ -1722,8 +1758,8 @@ defaultProblemType = {
     "Fp32toFp8SWClip" :         True,
 
     # only in-device SR for now
-    "StochasticRounding" :      False  # By default, IEEE RNE rounding    
-    
+    "StochasticRounding" :      False,  # By default, IEEE RNE rounding
+
     # Rounding mode for f32 to f8 down conversion
     # TODO in Future:
     # There are two different rounding modes for f32 to f8 down conversion: [0]: IEEE RNE mode and [1/2]: stochastic mode. 
@@ -2186,6 +2222,10 @@ def assignGlobalParameters( config ):
     if os.name == "nt":
       globalParameters["CurrentISA"] = (9,0,6)
       printWarning("Failed to detect ISA so forcing (gfx906) on windows")
+  if globalParameters["CurrentISA"] == (9,4,2) or globalParameters["CurrentISA"] == (11,0,0) or \
+     globalParameters["CurrentISA"] == (11,0,1) or globalParameters["CurrentISA"] == (11,0,2):
+    printWarning("HardwareMonitor currently disabled for gfx942 or gfx1100/gfx1101/gfx1102")
+    globalParameters["HardwareMonitor"] = False
 
   # For ubuntu platforms, call dpkg to grep the version of hip-clang.  This check is platform specific, and in the future
   # additional support for yum, dnf zypper may need to be added.  On these other platforms, the default version of

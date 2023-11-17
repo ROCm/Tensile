@@ -96,11 +96,13 @@ namespace Tensile
                                                     hipDeviceIndex));
             }
 #endif
-
+            // PCIID format changes from 32bit to 64bit, Below is the new PCI format ID from ROCm 4.0.
+            // Note:FUNCTION[0:2]bits is only used by aquanjaram TPX mode. This is not supported in HIP API yet, will need modification in future.
+            // BDFID = ((DOMAIN & 0xffffffff) << 32) | ((BUS & 0xff) << 8) | ((DEVICE & 0x1f) <<3 ) | (FUNCTION & 0x7)
             uint64_t hipPCIID = 0;
-            hipPCIID |= props.pciDeviceID & 0xFF;
-            hipPCIID |= ((props.pciBusID & 0xFF) << 8);
-            hipPCIID |= (props.pciDomainID) << 16;
+            hipPCIID |= (((uint64_t)props.pciDomainID & 0xffffffff) << 32);
+            hipPCIID |= ((props.pciBusID & 0xff) << 8);
+            hipPCIID |= ((props.pciDeviceID & 0x1f) << 3);
 
             uint32_t smiCount = 0;
 

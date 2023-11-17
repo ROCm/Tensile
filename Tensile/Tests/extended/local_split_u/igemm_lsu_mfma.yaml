@@ -74,6 +74,7 @@ BenchmarkProblems:
         - BufferLoad: [0,1]
         - BufferStore: [0,1]
         - VgprForLocalReadPacking: [0,1]
+        - ClusterLocalRead: [0,1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:
@@ -256,6 +257,7 @@ BenchmarkProblems:
         - LocalReadVectorWidth: [-1,8]
         - DirectToVgprB: [0,1]
         - VgprForLocalReadPacking: [0,1]
+        - ClusterLocalRead: [0,1]
       BenchmarkJoinParameters:
       BenchmarkFinalParameters:
         - ProblemSizes:

@@ -67,45 +67,45 @@ namespace Tensile
         switch(condition)
         {
         case LazyLoadingInit::All:
-            return "TensileLibrary_.*";
+            return "TensileLibrary_*";
         case LazyLoadingInit::gfx803:
-            return "TensileLibrary_*_gfx803.*";
+            return "TensileLibrary_*_gfx803";
         case LazyLoadingInit::gfx900:
-            return "TensileLibrary_*_gfx900.*";
+            return "TensileLibrary_*_gfx900";
         case LazyLoadingInit::gfx906:
-            return "TensileLibrary_*_gfx906.*";
+            return "TensileLibrary_*_gfx906";
         case LazyLoadingInit::gfx908:
-            return "TensileLibrary_*_gfx908.*";
+            return "TensileLibrary_*_gfx908";
         case LazyLoadingInit::gfx90a:
-            return "TensileLibrary_*_gfx90a.*";
+            return "TensileLibrary_*_gfx90a";
         case LazyLoadingInit::gfx940:
-            return "TensileLibrary_*_gfx940.*";
+            return "TensileLibrary_*_gfx940";
         case LazyLoadingInit::gfx941:
-            return "TensileLibrary_*_gfx941.*";
+            return "TensileLibrary_*_gfx941";
         case LazyLoadingInit::gfx942:
-            return "TensileLibrary_*_gfx942.*";
+            return "TensileLibrary_*_gfx942";
         case LazyLoadingInit::gfx1010:
-            return "TensileLibrary_*_gfx1010.*";
+            return "TensileLibrary_*_gfx1010";
         case LazyLoadingInit::gfx1011:
-            return "TensileLibrary_*_gfx1011.*";
+            return "TensileLibrary_*_gfx1011";
         case LazyLoadingInit::gfx1012:
-            return "TensileLibrary_*_gfx1012.*";
+            return "TensileLibrary_*_gfx1012";
         case LazyLoadingInit::gfx1030:
-            return "TensileLibrary_*_gfx1030.*";
+            return "TensileLibrary_*_gfx1030";
         case LazyLoadingInit::gfx1031:
-            return "TensileLibrary_*_gfx1031.*";
+            return "TensileLibrary_*_gfx1031";
         case LazyLoadingInit::gfx1032:
-            return "TensileLibrary_*_gfx1032.*";
+            return "TensileLibrary_*_gfx1032";
         case LazyLoadingInit::gfx1034:
-            return "TensileLibrary_*_gfx1034.*";
+            return "TensileLibrary_*_gfx1034";
         case LazyLoadingInit::gfx1035:
-            return "TensileLibrary_*_gfx1035.*";
+            return "TensileLibrary_*_gfx1035";
         case LazyLoadingInit::gfx1100:
-            return "TensileLibrary_*_gfx1100.*";
+            return "TensileLibrary_*_gfx1100";
         case LazyLoadingInit::gfx1101:
-            return "TensileLibrary_*_gfx1101.*";
+            return "TensileLibrary_*_gfx1101";
         case LazyLoadingInit::gfx1102:
-            return "TensileLibrary_*_gfx1102.*";
+            return "TensileLibrary_*_gfx1102";
         case LazyLoadingInit::None:
             return "";
         }

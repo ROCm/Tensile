@@ -191,7 +191,7 @@ class SolutionWriter:
       s += "%s}\n" % (t)
 
       if gsu > 1:
-        for ko in solution.getKernelBetaOlnyObjects():
+        for ko in solution.getKernelBetaOnlyObjects():
           kernelName = ko.getKernelName(ko)
           s += "%scl_kernel kernel_%s;\n" % (t, kernelName)
           s += "%s  tensileGetCompiledOpenCLKernel(\n" % (t)
@@ -469,7 +469,7 @@ class SolutionWriter:
     ########################################
     if gsu > 1 and kernel["_GlobalAccumulation"] != 'MultipleBuffer':
       kernelNamesBetaOnly = []
-      for ko in solution.getKernelBetaOlnyObjects():
+      for ko in solution.getKernelBetaOnlyObjects():
         kernelName = ko.getKernelName()
         kernelNamesBetaOnly.append(kernelName)
       s += "%s// enqueue Beta-Only kernel\n" % (t)
