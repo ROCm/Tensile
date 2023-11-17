@@ -1,6 +1,6 @@
 # Change Log for Tensile
 
-## (Unreleased) Tensile 4.40.0
+## Tensile 4.40.0 for ROCm 6.1.0
 ### Additions
 - new DisableKernelPieces values to invalidate local read, local write, and global read
 - stream-K kernel generation, including two-tile stream-k algorithm by setting StreamK=3
