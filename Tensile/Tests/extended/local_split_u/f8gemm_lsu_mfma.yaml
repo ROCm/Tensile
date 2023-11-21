@@ -372,4 +372,55 @@ BenchmarkProblems:
         - ProblemSizes:
           - Exact: [ 252, 252, 1, 2052]
 
+  ########################################
+  # B8B8S NN - LSU + large DepthU
+  ########################################
+    -
+      InitialSolutionParameters:
+      BenchmarkCommonParameters:
+        - EdgeType: ["ShiftPtr"]
+        - LoopTail: [True]
+        - KernelLanguage: ["Assembly"]
+      ForkParameters:
+        - MatrixInstruction:
+            - [16, 16, 32, 1, 1, 1, 1, 1,1]  # 16x16
+        #- ThreadTile:
+        #  - [ 2, 2 ]
+        - WorkGroup:
+          #- [ 64, 1, 1 ] # only WG2 is effective for 9 parameter MI
+          - [ 64, 1, 2 ] # only WG2 is effective for 9 parameter MI
+          - [ 64, 1, 4 ] # only WG2 is effective for 9 parameter MI
+        - AssertFree0ElementMultiple : [4]
+        - AssertFree1ElementMultiple : [4]
+        - AssertSummationElementMultiple: [4]
+        - DepthU: [512,1024]#[8,16,32]
+        - GlobalSplitU: [1,4]
+        - GlobalSplitUAlgorithm: ["SingleBuffer","MultipleBuffer"]
+        - 1LDSBuffer: [0]
+        - LoopTail: [True]
+        - OptNoLoadLoop: [1]
+        - PrefetchGlobalRead: [2]
+        - PrefetchLocalRead: [1,9,17,33]
+        - ScheduleIterAlg: [3]
+        - StaggerU: [0]
+        - SourceSwap: [0,1]
+        #- TransposeLDS: [0,1]
+        - GlobalReadVectorWidth: [4]#[4,8]
+        - VectorWidth: [1]#[2,4]
+        - VectorAtomicWidth: [-1]
+        #- WaveSeparateGlobalReadB: [1]
+        #- MIArchVgpr: [True, False]
+        - NumElementsPerBatchStore: [0]
+        - UseSgprForGRO: [0]
+        #- BufferLoad: [0,1]
+        #- BufferStore: [0,1]
+        - TransposeLDS: [1]
+        - LocalReadVectorWidth: [-1]
+        #- VgprForLocalReadPacking: [0,1]
+        #- ClusterLocalRead: [0,1]
+      BenchmarkJoinParameters:
+      BenchmarkFinalParameters:
+        - ProblemSizes:
+          - Exact: [ 252, 252, 1, 2052]
+
 
