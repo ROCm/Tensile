@@ -7175,6 +7175,18 @@ class KernelWriterAssembly(KernelWriter):
     # release register
     if abReg is not None: self.vgprPool.checkIn(abReg)
 
+    # conditions to reverse idxInner if idxOuter is odd (for better HW efficiency)
+    # disable reverse idxInner if one of the following condition is true
+    # - PGR=2 and u == LoopIters - 1 and DTV
+    # - wmma
+    # - complex type
+    enableReverseInner = True
+    if (kernel["PrefetchGlobalRead"] == 2 and u == kernel["LoopIters"] - 1 and \
+        (kernel["DirectToVgprA"] or kernel["DirectToVgprB"])) or \
+       (not is_mfma) or \
+       (kernel["ProblemType"]["DataType"].isComplex()):
+      enableReverseInner = False
+
     prevAccIdx = -1
     for iui in range(0, innerUnroll):
       zgemmVaddSrcCheck = [[], [], []] # to avoid generating redundant v_add
@@ -7185,6 +7197,10 @@ class KernelWriterAssembly(KernelWriter):
       inner = 1 - outer # inner is the opposite of outer
       for idxOuter in range(0, kernel["MIWaveTile"][outer]):
         for idxInner in range(0, kernel["MIWaveTile"][inner]):
+          # reverse idxInner if idxOuter is odd (for better HW efficiency)
+          reverseInner = idxOuter & 1
+          if enableReverseInner and reverseInner:
+            idxInner = kernel["MIWaveTile"][inner] - 1 - idxInner
           idx0 = idxInner
           idx1 = idxOuter
           if self.swapMfmaInnerLoop:
