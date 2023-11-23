@@ -3572,6 +3572,10 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
     # function signature last since it needs to know how many gprs were actually used
     kStr = beforeFunctionSignature + self.functionSignature(kernel) + afterFunctionSignature
+
+    if globalParameters["PrintRegisterDebug"]:
+      self.printDefinedSgprs()
+
     return (error,kStr)
 
 
@@ -5781,3 +5785,10 @@ for codeObjectFileName in codeObjectFileNames:
             for item in (postProcessList[postProcessListIndex:] + finalAddrIncList):
               kStr += item
             self.StoreCUnrollCode.addCode(kStr)
+
+  ##############################################################################
+  # printDefinedSgprs: Debug info
+  ##############################################################################
+  @abc.abstractmethod
+  def printDefinedSgprs(self):
+    return

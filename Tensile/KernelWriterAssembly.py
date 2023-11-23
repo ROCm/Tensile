@@ -534,23 +534,57 @@ class KernelWriterAssembly(KernelWriter):
         assert(t.idx()+num <= self.maxSgprs)
     return t
 
-  def defineSgpr(self, name, numSgprs, align=1):
+  def defineSgpr(self, name: str, numSgprs: int, align: str = 1) -> None:
+    """ Sets an SGPR ID to a name """
     if numSgprs == 0: return
+
+    assert name not in self.sgprs, f"Can not define already defined {name}. Please use `defineLocalSgpr`."
+    assert name not in self.sgprsLocal, f"Can not define already defined {name}. Was already defined locally with `defineLocalSgpr`."
 
     sgprIdx = self.sgprPool.checkOutAligned(numSgprs, align, tag=name, preventOverflow=0)
     #self.sgprIdx = roundUpToNearestMultiple(self.sgprIdx,align)
     #print (name, "->", self.sgprIdx, "+", numSgprs)
     self.sgprs[name] = sgprIdx
 
-    return sgprIdx
+  def defineLocalSgpr(self, name: str, numSgprs: int, align: str = 1) -> str:
+    """ Sets an SGPR ID to a name. Returns assembly. """
+    if numSgprs == 0: return ""
 
-  def undefineSgpr(self, name):
-    self.sgprPool.checkIn(self.sgprs[name])
+    assert name not in self.sgprs, f"Can not define already defined {name}. Was already defined globally with `defineSgpr`."
+    assert name not in self.sgprsLocal, f"Can not define already defined {name}. Was already defined with `defineLocalSgpr` and not undefined."
+
+    sgprIdx = self.sgprPool.checkOutAligned(numSgprs, align, tag=name, preventOverflow=0)
+    self.sgprsLocal[name] = sgprIdx
+
+    return self.macroRegister("sgpr" + name, sgprIdx)
+  
+  def undefineSgpr(self, name: str) -> str:
+    """ Releases a named SGPR. Returns assembly to undefine the name. """
+    
+    if name in self.sgprs:
+      self.sgprPool.checkIn(self.sgprs[name])
+
+    if name in self.sgprsLocal:
+      self.sgprPool.checkIn(self.sgprsLocal[name])
+      del self.sgprsLocal[name]
+
     # later references will result in compile-time error (with odd 'error: expected relocatable expression')
     # and 'Kernel ... not found in any loaded module'
     # TODO: temporarily disable undef as it seems to have issues
-    # return ".set sgpr%s, UNDEF\n" % name
-    return ".set %s, UNDEF\n" % name
+    return ".set sgpr%s, UNDEF\n" % name
+
+  def printDefinedSgprs(self) -> None:
+    """ Prints SGPRs that have not been explicitly undefined """
+
+    definedSgprs = self.sgprsLocal.keys()
+
+    state = self.sgprPool.state()
+    for name, idx in self.sgprs:
+      if len(state) > idx and state[idx] == "#":
+        # If SGPR is still checked out
+        definedSgprs.append(name)
+    if len(definedSgprs) > 0:
+      printWarning(f"Potential optimization - The following SGPRs have not been explicitly undefined: {definedSgprs}")
 
   def defineVariableSgprs(self, kernel):
     #------------------------
@@ -717,6 +751,7 @@ class KernelWriterAssembly(KernelWriter):
     tPB["localReadOffset"] = 0
 
     self.sgprs=collections.OrderedDict()
+    self.sgprsLocal=collections.OrderedDict()
 
     self.LdsOOB = 0xF00000
 
