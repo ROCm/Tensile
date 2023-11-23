@@ -5789,6 +5789,5 @@ for codeObjectFileName in codeObjectFileNames:
   ##############################################################################
   # printDefinedSgprs: Debug info
   ##############################################################################
-  @abc.abstractmethod
   def printDefinedSgprs(self):
     return
