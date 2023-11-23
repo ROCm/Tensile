@@ -211,10 +211,11 @@ class SignatureDefault(Signature):
             kStr += self.addArgument(                          'WS',     '8', offset, "global_buffer", dstValueType, "generic"); offset += 8
             kStr += self.addArgument(                       'Flags',     '8', offset, "global_buffer", dstValueType, "generic"); offset += 8
 
-        kStr += self.addArgument("OffsetD", '8', offset, "by_value", "u64"); offset += 8
-        kStr += self.addArgument("OffsetC", '8', offset, "by_value", "u64"); offset += 8
-        kStr += self.addArgument("OffsetA", '8', offset, "by_value", "u64"); offset += 8
-        kStr += self.addArgument("OffsetB", '8', offset, "by_value", "u64"); offset += 8
+        if not kernel["ProblemType"]["StridedBatched"]:
+            kStr += self.addArgument("OffsetD", '8', offset, "by_value", "u64"); offset += 8
+            kStr += self.addArgument("OffsetC", '8', offset, "by_value", "u64"); offset += 8
+            kStr += self.addArgument("OffsetA", '8', offset, "by_value", "u64"); offset += 8
+            kStr += self.addArgument("OffsetB", '8', offset, "by_value", "u64"); offset += 8
 
         useSize = max(4, cptByte)
         kStr += self.addArgument(                             "alpha", useSize, offset,      "by_value", cptValueType); offset += useSize
