@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -29,17 +29,6 @@ from .Common import print1, print2, hasParam, printExit, \
         defaultBatchedBenchmarkFinalProblemSizes, defaultBenchmarkFinalProblemSizes
 from .CustomKernels import getAllCustomKernelNames
 from .SolutionStructs import ProblemType, ProblemSizes
-
-
-def getDefaultsForMissingParameters(paramList, defaultParams):
-    """Returns all parameters (with values) in defaultParams not present in paramList"""
-    benchmarkParams = {}
-    for paramDict in defaultParams:
-        for name, value in paramDict.items():
-            if not hasParam(name, paramList) \
-                    or name == "ProblemSizes":
-                benchmarkParams[name] = value
-    return benchmarkParams
 
 
 def checkParametersAreValid(param, validParams):
