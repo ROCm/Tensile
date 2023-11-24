@@ -1975,9 +1975,9 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
 
   ##############################################################################
-  # get conditions to skip local write wait
+  # get conditions to skip local read write wait
   ##############################################################################
-  def getConditionToSkipLocalWriteWait( self, kernel , isPap, u, lastU):
+  def getConditionToSkipLocalReadWriteWait( self, kernel , isPap, u, lastU):
     # not generate wait code here if u == 0 u != lastU and DirectToVgpr + DirectToLds is enabled
     # (to remove redundant wait. isPap case only)
     # exception is PGR=2. wait is necessary for u = 0 in PGR=2 case
@@ -1990,6 +1990,13 @@ class KernelWriter(metaclass=abc.ABCMeta):
     condSkip = (u%self.numReadsIterCoalescedB != 0) and kernel["EnableMatrixInstruction"] and \
               ((kernel["DirectToVgprA"] and (not kernel["ProblemType"]["TLUB"])) or \
                (kernel["DirectToVgprB"] and (not kernel["ProblemType"]["TLUA"])))
+    # another skip condition
+    # skip wait for SIA=3 and 1LDSBuffer and PLR > LoopIters and u > localWriteStartIter
+    # in this case, all local read is executed before 1LDSBuffer sync and no need to wait for local read
+    if (kernel["ScheduleIterAlg"] == 3 and kernel["1LDSBuffer"] and kernel["PrefetchLocalRead"] > kernel["LoopIters"]):
+      localWriteStartIter = self.lwStartMfmaIndex//self.numMfmaPerIter
+      if u > localWriteStartIter:
+        condSkip = True
     # no local write wait is necessary in DirectToVgprA + DirectToVgprB case
     cond2 = not (kernel["DirectToVgprA"] and kernel["DirectToVgprB"])
     return cond1 and (not condSkip) and cond2
@@ -2170,7 +2177,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       # we initiate lgkmcnt to 0, then assigning it correct value in makeSubIterSchedule()
       if self.enable["Wait"]:
-        if self.getConditionToSkipLocalWriteWait(kernel, isPap, u, kernel["LoopIters"] - 1):
+        if self.getConditionToSkipLocalReadWriteWait(kernel, isPap, u, kernel["LoopIters"] - 1):
           waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, \
               -1, 0, 0, \
               "wait for prior local read local write")
@@ -2743,7 +2750,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
 
       # we initiate lgkmcnt to 0, then assigning it correct value in makeSubIterSchedule()
       if self.enable["Wait"]:
-        if self.getConditionToSkipLocalWriteWait(kernel, True, u, kernel["LoopIters"] - 1):
+        if self.getConditionToSkipLocalReadWriteWait(kernel, True, u, kernel["LoopIters"] - 1):
           waitCode = self.wait(kernel, tensorParametersA, tensorParametersB, \
               -1, 0, 0, \
               "wait for prior local read local write")
