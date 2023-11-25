@@ -862,7 +862,7 @@ class KernelWriterSource(KernelWriter):
     s += "  " + globalStr + ptrStr + " const * " + batchStr + "B"
 
     # offset
-    if not isStridedBuffer:
+    if not kernel["ProblemType"]["StridedBatched"]:
       s += "," + self.endLine + "  uint64_t offsetD"
       s += "," + self.endLine + "  uint64_t offsetC"
       s += "," + self.endLine + "  uint64_t offsetA"
