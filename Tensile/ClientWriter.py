@@ -25,7 +25,7 @@
 from . import ClientExecutable
 from . import Common
 from . import LibraryIO
-from .Common import globalParameters, pushWorkingPath, popWorkingPath, print1, printExit, CHeader, printWarning, listToInitializer, ClientExecutionLock
+from .Common import globalParameters, pushWorkingPath, popWorkingPath, print1, printExit, printWarning, ClientExecutionLock
 from .SolutionStructs import ProblemType, ProblemSizesMock
 from .TensileCreateLibrary import copyStaticFiles
 

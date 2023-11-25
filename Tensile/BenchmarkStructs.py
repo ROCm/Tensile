@@ -24,7 +24,7 @@
 
 from copy import deepcopy
 import itertools
-from .Common import print1, print2, hasParam, printExit, \
+from .Common import print1, print2, printExit, \
         defaultBenchmarkCommonParameters, validParameters, globalParameters, \
         defaultBatchedBenchmarkFinalProblemSizes, defaultBenchmarkFinalProblemSizes
 from .CustomKernels import getAllCustomKernelNames
