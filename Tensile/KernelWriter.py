@@ -3748,6 +3748,29 @@ class KernelWriter(metaclass=abc.ABCMeta):
     self.tailLoopInNLL = noTailLoop >= 2
     self.noEarlyExitForTailLoopInNLL = noTailLoop == 3
 
+    # no ShadowLimit code in loop optimization
+    # we do not need ShadowLimit check in loop under certain conditions
+    #  noTailLoop=1 (TODO: support TailLoop)
+    #  BufferLoad
+    #  FractionalLoad==0
+    #  no packBatchDims
+    #  EdgeType == Shift
+    #  CheckDimOverflow < 2
+    #  MT0, MT1, DepthU are power of 2
+    #  TLU case only
+    def isPowerOf2(val):
+      return val > 0 and (val & (val - 1)) == 0
+    self.noShadowLimitCodeInLoopA = False
+    self.noShadowLimitCodeInLoopB = False
+    if noTailLoop == 1 and kernel["BufferLoad"] and kernel["FractionalLoad"] == 0 and \
+       kernel["PackBatchDims"] == 0 and kernel["EdgeType"] == "ShiftPtr" and \
+       kernel["CheckDimOverflow"] <= 1 and \
+       isPowerOf2(kernel["MacroTileA"]) and isPowerOf2(kernel["MacroTileB"]) and isPowerOf2(kernel["DepthU"]):
+      if tluA:
+        self.noShadowLimitCodeInLoopA = True
+      if tluB:
+        self.noShadowLimitCodeInLoopB = True
+
     self.actualSummationLoops = 1 if kernel["PackSummationDims"] else kernel["ProblemType"]["NumIndicesSummation"]
     self.otherSummationLoops  = self.actualSummationLoops-1
     self.otherSummations      = kernel["ProblemType"]["NumIndicesSummation"]-1 # not loops but summations vars
