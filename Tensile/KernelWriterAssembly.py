@@ -1715,10 +1715,10 @@ class KernelWriterAssembly(KernelWriter):
       self.numSgprStridesB -= 1
     self.numSgprSizesSum = kernel["ProblemType"]["NumIndicesSummation"]
     self.numSgprSizesFree = kernel["ProblemType"]["NumIndicesC"]
-    self.numSgprOffsetD = 2
-    self.numSgprOffsetC = 2
-    self.numSgprOffsetA = 2
-    self.numSgprOffsetB = 2
+    self.numSgprOffsetD = 0
+    self.numSgprOffsetC = 0
+    self.numSgprOffsetA = 0
+    self.numSgprOffsetB = 0
     self.numSgprAddressDbg = self.rpga if globalParameters["DebugKernel"] else 0
 
     ####################################
@@ -1846,10 +1846,15 @@ class KernelWriterAssembly(KernelWriter):
       self.defineSgpr("AddressFlags", numSgprAddressFlags)
       self.argOffsetOffset += (numSgprAddressWS + numSgprAddressFlags) * 4
 
-    self.defineSgpr("OffsetD", self.numSgprOffsetD)
-    self.defineSgpr("OffsetC", self.numSgprOffsetC)
-    self.defineSgpr("OffsetA", self.numSgprOffsetA)
-    self.defineSgpr("OffsetB", self.numSgprOffsetB)
+    if not kernel["ProblemType"]["StridedBatched"]:
+      self.numSgprOffsetD = 2
+      self.numSgprOffsetC = 2
+      self.numSgprOffsetA = 2
+      self.numSgprOffsetB = 2
+      self.defineSgpr("OffsetD", self.numSgprOffsetD)
+      self.defineSgpr("OffsetC", self.numSgprOffsetC)
+      self.defineSgpr("OffsetA", self.numSgprOffsetA)
+      self.defineSgpr("OffsetB", self.numSgprOffsetB)
 
     self.defineSgpr("Alpha", numSgprAlpha, numSgprAlpha)
     if kernel["ProblemType"]["UseBeta"]:
@@ -3374,7 +3379,7 @@ class KernelWriterAssembly(KernelWriter):
         self.sgprAddressStrCD = "Srd"
 
     # add offset to buffer
-    if not kernel["_GlobalAccumulation"] or kernel["_GlobalAccumulation"] == 'PartialsBuffer':
+    if not kernel["ProblemType"]["StridedBatched"] and (not kernel["_GlobalAccumulation"] or kernel["_GlobalAccumulation"] == 'PartialsBuffer'):
       kStr += inst("s_lshl_b64", sgpr("OffsetD", 2), sgpr("OffsetD", 2), hex(log2(self.bpeCexternal)), "elements offset to bytes offset")
       kStr += inst("s_add_u32",  sgpr("%sD+0"%self.sgprAddressStrCD), sgpr("AddressD+0"), sgpr("OffsetD"), "add offset to buffer address")
       kStr += inst("s_addc_u32", sgpr("%sD+1"%self.sgprAddressStrCD), sgpr("AddressD+1"), sgpr("OffsetD+1"), "add offset to buffer address")
@@ -3393,13 +3398,20 @@ class KernelWriterAssembly(KernelWriter):
     dstAddressA1Str = sgpr("%sA+1"%self.sgprAddressStrAB)
     dstAddressB0Str = sgpr("%sB+0"%self.sgprAddressStrAB)
     dstAddressB1Str = sgpr("%sB+1"%self.sgprAddressStrAB)
-    kStr += inst("s_lshl_b64", sgpr("OffsetA", 2), sgpr("OffsetA", 2), hex(log2(self.bpeAB)), "elements offset to bytes offset")
-    kStr += inst("s_add_u32",  dstAddressA0Str, sgpr("AddressA+0"), sgpr("OffsetA"), "add offset to buffer address")
-    kStr += inst("s_addc_u32", dstAddressA1Str, sgpr("AddressA+1"), sgpr("OffsetA+1"), "add offset to buffer address")
+    if not kernel["ProblemType"]["StridedBatched"]:
+      kStr += inst("s_lshl_b64", sgpr("OffsetA", 2), sgpr("OffsetA", 2), hex(log2(self.bpeAB)), "elements offset to bytes offset")
+      kStr += inst("s_add_u32",  dstAddressA0Str, sgpr("AddressA+0"), sgpr("OffsetA"), "add offset to buffer address")
+      kStr += inst("s_addc_u32", dstAddressA1Str, sgpr("AddressA+1"), sgpr("OffsetA+1"), "add offset to buffer address")
 
-    kStr += inst("s_lshl_b64", sgpr("OffsetB", 2), sgpr("OffsetB", 2), hex(log2(self.bpeAB)), "elements offset to bytes offset")
-    kStr += inst("s_add_u32",  dstAddressB0Str, sgpr("AddressB+0"), sgpr("OffsetB"), "add offset to buffer address")
-    kStr += inst("s_addc_u32", dstAddressB1Str, sgpr("AddressB+1"), sgpr("OffsetB+1"), "add offset to buffer address")
+      kStr += inst("s_lshl_b64", sgpr("OffsetB", 2), sgpr("OffsetB", 2), hex(log2(self.bpeAB)), "elements offset to bytes offset")
+      kStr += inst("s_add_u32",  dstAddressB0Str, sgpr("AddressB+0"), sgpr("OffsetB"), "add offset to buffer address")
+      kStr += inst("s_addc_u32", dstAddressB1Str, sgpr("AddressB+1"), sgpr("OffsetB+1"), "add offset to buffer address")
+    elif self.releaseSgprAdressAB:
+      # copy AddressA,B to srdA,B to undefine AddressA,B
+      kStr += inst("s_mov_b32", sgpr("%sA+0"%self.sgprAddressStrAB), sgpr("AddressA+0"), "copy addressA")
+      kStr += inst("s_mov_b32", sgpr("%sA+1"%self.sgprAddressStrAB), sgpr("AddressA+1"), "copy addressA")
+      kStr += inst("s_mov_b32", sgpr("%sB+0"%self.sgprAddressStrAB), sgpr("AddressB+0"), "copy addressB")
+      kStr += inst("s_mov_b32", sgpr("%sB+1"%self.sgprAddressStrAB), sgpr("AddressB+1"), "copy addressB")
 
     # self.groOffsetInMacroTile == 1 case, subtract pre-pad here
     if self.groOffsetInMacroTile:
@@ -3412,12 +3424,13 @@ class KernelWriterAssembly(KernelWriter):
       kStr += inst("s_sub_u32",  dstAddressB0Str, dstAddressB0Str, prePad, "pre-pad to make room for possible pointer shift")
       kStr += inst("s_subb_u32",  dstAddressB1Str, dstAddressB1Str, 0, "pre-pad to make room for possible pointer shift")
 
-    # undefine Offset sgpr
+    # undefine Offset sgpr (only for general batch)
     kStr += self.endLine
-    kStr += self.undefineSgpr("OffsetD")
-    kStr += self.undefineSgpr("OffsetC")
-    kStr += self.undefineSgpr("OffsetA")
-    kStr += self.undefineSgpr("OffsetB")
+    if not kernel["ProblemType"]["StridedBatched"]:
+      kStr += self.undefineSgpr("OffsetD")
+      kStr += self.undefineSgpr("OffsetC")
+      kStr += self.undefineSgpr("OffsetA")
+      kStr += self.undefineSgpr("OffsetB")
     # undefine Address sgpr
     if self.releaseSgprAdressCD:
       kStr += self.undefineSgpr("AddressD")

@@ -394,8 +394,12 @@ namespace Tensile
         }
         else if(problemType.stridedBatched)
         {
-            rv.args.append<typename TypedInputs::DType const*>("d", inputs.d);
-            rv.args.append<typename TypedInputs::CType const*>("c", inputs.c);
+            auto dptr = inputs.d;
+            dptr += d.offset();
+            auto cptr = inputs.c;
+            cptr += c.offset();
+            rv.args.append<typename TypedInputs::DType const*>("d", dptr);
+            rv.args.append<typename TypedInputs::CType const*>("c", cptr);
         }
         else
         {
@@ -405,8 +409,12 @@ namespace Tensile
 
         if(problemType.stridedBatched)
         {
-            rv.args.append<typename TypedInputs::AType const*>("a", inputs.a);
-            rv.args.append<typename TypedInputs::BType const*>("b", inputs.b);
+            auto aptr = inputs.a;
+            aptr += a.offset();
+            auto bptr = inputs.b;
+            bptr += b.offset();
+            rv.args.append<typename TypedInputs::AType const*>("a", aptr);
+            rv.args.append<typename TypedInputs::BType const*>("b", bptr);
         }
         else
         {
@@ -424,10 +432,13 @@ namespace Tensile
             rv.args.append<void*>("Flags", flags);
         }
 
-        rv.args.append<uint64_t>("offsetD", d.offset());
-        rv.args.append<uint64_t>("offsetC", c.offset());
-        rv.args.append<uint64_t>("offsetA", a.offset());
-        rv.args.append<uint64_t>("offsetB", b.offset());
+        if(!problemType.stridedBatched)
+        {
+            rv.args.append<uint64_t>("offsetD", d.offset());
+            rv.args.append<uint64_t>("offsetC", c.offset());
+            rv.args.append<uint64_t>("offsetA", a.offset());
+            rv.args.append<uint64_t>("offsetB", b.offset());
+        }
 
         rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
         if(std::is_same<typename TypedInputs::AlphaType, Half>::value && !isSourceKernel())
@@ -788,17 +799,28 @@ namespace Tensile
         if(sizeMapping.globalAccumulation)
             rv.args.append<void*>("WS", inputs.ws);
         else if(problemType.stridedBatched)
-            rv.args.append<typename TypedInputs::DType*>("D", inputs.d);
+        {
+            auto dptr = inputs.d;
+            dptr += d.offset();
+            rv.args.append<typename TypedInputs::DType*>("D", dptr);
+        }
         else
             rv.args.append<typename TypedInputs::DType const* const*>("batchD", inputs.batchD);
 
         if(problemType.stridedBatched)
-            rv.args.append<typename TypedInputs::CType const*>("C", inputs.c);
+        {
+            auto cptr = inputs.c;
+            cptr += c.offset();
+            rv.args.append<typename TypedInputs::CType const*>("C", cptr);
+        }
         else
             rv.args.append<typename TypedInputs::CType const* const*>("batchC", inputs.batchC);
 
-        rv.args.append<uint64_t>("offsetD", d.offset());
-        rv.args.append<uint64_t>("offsetC", c.offset());
+        if(!problemType.stridedBatched)
+        {
+            rv.args.append<uint64_t>("offsetD", d.offset());
+            rv.args.append<uint64_t>("offsetC", c.offset());
+        }
 
         if(sizeMapping.globalAccumulation)
         {
@@ -954,19 +976,30 @@ namespace Tensile
         rv.numWorkItems.z = rv.workGroupSize.z * rv.numWorkGroups.z;
 
         if(problemType.stridedBatched)
-            rv.args.append<typename TypedInputs::DType*>("D", inputs.d);
+        {
+            auto dptr = inputs.d;
+            dptr += d.offset();
+            rv.args.append<typename TypedInputs::DType*>("D", dptr);
+        }
         else
             rv.args.append<typename TypedInputs::DType const* const*>("batchD", inputs.batchD);
 
         rv.args.append<void*>("WS", inputs.ws);
 
         if(problemType.stridedBatched)
-            rv.args.append<typename TypedInputs::CType const*>("C", inputs.c);
+        {
+            auto cptr = inputs.c;
+            cptr += c.offset();
+            rv.args.append<typename TypedInputs::CType const*>("C", cptr);
+        }
         else
             rv.args.append<typename TypedInputs::CType const* const*>("batchC", inputs.batchC);
 
-        rv.args.append<uint64_t>("offsetD", d.offset());
-        rv.args.append<uint64_t>("offsetC", c.offset());
+        if(!problemType.stridedBatched)
+        {
+            rv.args.append<uint64_t>("offsetD", d.offset());
+            rv.args.append<uint64_t>("offsetC", c.offset());
+        }
 
         if(sizeMapping.globalAccumulation == 2)
             rv.args.append<typename TypedInputs::AlphaType>("alpha", inputs.alpha);
