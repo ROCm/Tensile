@@ -1138,9 +1138,9 @@ validParameters = {
     # The byte address of the last element in the packed array must fit in 2^32.
     # 0x0 = each workgroup works on a single batch dim.
     # 0x1 = pack Batch dimensions into wg0/A - works if all batch strides for B==0.
-    #       Also must set AssertFree0ElementMultiple to >= GlobalReadVectorWidth
+    #       Also must set AssertFree0ElementMultiple to >= GlobalLoadVectorWidthA
     # 0x2 = pack Batch dimensions into wg1/B - works if all batch strides for A==0
-    #       Also must set AssertFree1ElementMultiple to >= GlobalReadVectorWidth
+    #       Also must set AssertFree1ElementMultiple to >= GlobalLoadVectorWidthB
     # 0x3 = pack batch dims into both A and B. Could support any stride for A and B. (Not supported yet)
     "PackBatchDims":             [0,1,2],
 
@@ -1172,14 +1172,22 @@ validParameters = {
 
     # Controls desired width (#elements) for loads from global memory -> LDS.
     # and eliminates the pointer unshift logic
-    # -1 : Set GlobalReadVectorWidth =  VectorWidth
+    # Setting different GlobalLoadVectorWidth for A,B is now supported (old GlobalReadVectorWidth is retired)
+    # -1 : Set GlobalLoadVectorWidthA/B = VectorWidth
     # NOTE: for input bpe=32, max GRVW is 4  (to fit dwordX4) (FP32), min GRVW is 1 (dword)
     #                 bpe=16, max GRVW is 8  (to fit dwordX4) (FP16), min GRVW is 2 (dword)
     #                 bpe=8,  max GRVW is 16 (to fit dwordX4) (INT8), min GRVW is 4 (dword)
+    # NOTE: GlobalLoadVectorWidthA/B can be auto-adjusted in SolutionStruct.py
+    "GlobalLoadVectorWidthA":     [ -1, 1, 2, 3, 4, 6, 8, 16 ],
+    "GlobalLoadVectorWidthB":     [ -1, 1, 2, 3, 4, 6, 8, 16 ],
+
+    # legacy setting for global load width
+    #   -1 : use GlobalLoadVectorWidthA, GlobalLoadVectorWidthB
+    #  > 0 : GlobalLoadVectorWidthA=GlobalLoadVectorWidthB=GlobalReadVectorWidth
     "GlobalReadVectorWidth":      [ -1, 1, 2, 3, 4, 6, 8, 16 ],
 
     # Controls desired width (#elements) for loads from LDS -> VGPR.
-    # -1 : Set LocalReadVectorWidth =  VectorWidth
+    # -1 : Set LocalReadVectorWidth =  MIInputPerThread if MatrixInstruction else VectorWidth
     #  1 cannot be used for half type.
     # used in combination with TransposeLDS=True
     # in TransposeLDS=1 case, use wider load to fetch elements in summation dimension from LDS
@@ -1195,7 +1203,7 @@ validParameters = {
     # If the ThreadTile is > VectorWidth then thread0 will next operate on the 4 elements in C at (4*NumThreads)
     # Typically the load vector width and store vector width are directly related to the VW.
     # The global load width is closely related to the width of local stores so
-    # GlobalReadVectorWidth also controls local write width.
+    # GlobalLoadVectorWidthA/B also controls local write width.
     # Local read width also matches since VectorWidth consecutive elements must be read
     # Typically matching 16 bytes is good choice since the stores will be optimally coalesced with 16 bytes/WI.
     # -1 means use the largest vector width up to 128 bits.
@@ -1411,6 +1419,8 @@ defaultBenchmarkCommonParameters = [
     {"VectorWidth":               [ -1 ] },
     {"VectorStore":               [ -1 ] },
     {"StoreVectorWidth":          [ -1 ] },
+    {"GlobalLoadVectorWidthA":    [ -1 ] },
+    {"GlobalLoadVectorWidthB":    [ -1 ] },
     {"GlobalReadVectorWidth":     [ -1 ] },
     {"LocalReadVectorWidth":      [ -1 ] },
     {"GlobalReadCoalesceVectorA": [ True ] },
