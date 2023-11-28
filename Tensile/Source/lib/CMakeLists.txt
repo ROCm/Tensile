@@ -98,7 +98,7 @@ if(TENSILE_USE_LLVM OR TENSILE_USE_MSGPACK)
 endif()
 
 if(TENSILE_USE_MSGPACK)
-    find_package(msgpack REQUIRED)
+    find_package(msgpack REQUIRED NAMES msgpack msgpack-c)
     target_compile_definitions(TensileHost PUBLIC -DTENSILE_MSGPACK=1)
 
     if(TARGET msgpackc-cxx)
