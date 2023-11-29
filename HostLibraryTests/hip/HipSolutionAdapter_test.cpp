@@ -74,8 +74,6 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Zero)
 
     k.args.append<float*>("D", d_d);
     k.args.append<float const*>("C", c_d);
-    k.args.append<uint64_t>("offsetD", desc.offset());
-    k.args.append<uint64_t>("offsetC", desc.offset());
     k.args.append<unsigned int>("strideD1", desc.strides()[1]);
     k.args.append<unsigned int>("strideD2", desc.strides()[2]);
     k.args.append<unsigned int>("strideC1", desc.strides()[1]);
@@ -149,8 +147,6 @@ TEST(HipSolutionAdapterTest, BetaOnlyKernel_Nonzero)
 
     k.args.append<float*>("D", d_d);
     k.args.append<float const*>("C", c_d);
-    k.args.append<uint64_t>("offsetD", desc.offset());
-    k.args.append<uint64_t>("offsetC", desc.offset());
     k.args.append<unsigned int>("strideD1", desc.strides()[1]);
     k.args.append<unsigned int>("strideD2", desc.strides()[2]);
     k.args.append<unsigned int>("strideC1", desc.strides()[1]);
