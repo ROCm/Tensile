@@ -1350,6 +1350,8 @@ validParameters = {
     # 0=none, 1=add setprio, 2=add setprio and modify LDS to allow only 2 waves/simd
     "AggressivePerfMode":       [0,1,2],
 
+    "PreloadKernelArguments": [False, True],
+
     # Kernels should be written in assembly or source
     # if assembly, ISA will determine architecture
     # if source, Runtime will determine language
@@ -1539,7 +1541,8 @@ defaultBenchmarkCommonParameters = [
     {"Fp16AltImplRound":          [ False ] },
     {"ThreadSeparateGlobalReadA": [ 0 ] },
     {"ThreadSeparateGlobalReadB": [ 0 ] },
-    {"MinKForGSU":                [256]}
+    {"MinKForGSU":                [256]},
+    {"PreloadKernelArguments":    [ True ]},
     ]
 
 # dictionary of defaults comprised of default option for each parameter
@@ -1952,6 +1955,20 @@ def GetAsmCaps(isaVersion):
 
     # TODO- Need to query the max cap, just like vmcnt as well?
     derivedAsmCaps["MaxLgkmcnt"] = 15
+
+    derivedAsmCaps["KernargPreloading"] = tryAssembler(isaVersion, """
+      TestKernel:
+      s_endpgm
+      .amdhsa_kernel TestKernel
+      .amdhsa_next_free_vgpr 8
+      .amdhsa_next_free_sgpr 4
+      .amdhsa_group_segment_fixed_size 0 // lds bytes
+      .amdhsa_user_sgpr_kernarg_segment_ptr 1
+      .amdhsa_user_sgpr_kernarg_preload_length 3
+      .amdhsa_user_sgpr_kernarg_preload_offset 0
+      .amdhsa_accum_offset 4
+      .end_amdhsa_kernel
+      """)
 
     derivedAsmCaps["SupportedSource"] = True
 

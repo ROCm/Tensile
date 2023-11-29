@@ -219,6 +219,21 @@ class KernelWriterAssembly(KernelWriter):
     else:
       return 1
 
+  @property
+  def rpga(self) -> int:
+    """ (2) registers per global address (64-bit) """
+    return 2
+
+  @property
+  def rpla(self):
+    """ (1) registers per local address (32-bit) """
+    return 1
+  
+  @property
+  def rpgo(self):
+    """ (1) registers per global 32-bit offset (some intructions only support 32-bit offset) """
+    return 1
+
   def getCompileArgs(self, sourceFileName, objectFileName, *moreArgs, isa=None, wavefrontSize=None):
     if isa is None:
       isa = self.version
@@ -534,10 +549,27 @@ class KernelWriterAssembly(KernelWriter):
         assert(t.idx()+num <= self.maxSgprs)
     return t
 
-  def defineSgpr(self, name, numSgprs, align=1):
-    if numSgprs == 0: return
+  def definePreloadedSgprPool(self, numSgprs):
+    sgprIdx = self.defineSgpr("PreloadedKernargs", numSgprs)
+    assert sgprIdx == 2
+    self.preloadedArgPool = RegisterPool(sgprIdx, 's', defaultPreventOverflow=True, printRP=1)
 
-    sgprIdx = self.sgprPool.checkOutAligned(numSgprs, align, tag=name, preventOverflow=0)
+  def defineSgpr(self, name, numSgprs, align=1, kernarg=None, preloaded=False):
+    if numSgprs == 0: return
+    if kernarg is None:
+      kernarg = preloaded
+
+    if preloaded and self.kernel["PreloadKernelArguments"]:
+      sgprIdx = self.preloadedArgPool.checkOutAligned(numSgprs, align, tag=name)
+      self.preloadedKernargs[0] = min(sgprIdx, self.preloadedKernargs[0])
+      self.preloadedKernargs[1] = max(sgprIdx+numSgprs, self.preloadedKernargs[1])
+    else:
+      sgprIdx = self.sgprPool.checkOutAligned(numSgprs, align, tag=name, preventOverflow=0)
+
+      if kernarg:
+        self.loadedKernargs[0] = min(sgprIdx, self.loadedKernargs[0])
+        self.loadedKernargs[1] = max(sgprIdx+numSgprs, self.loadedKernargs[1])
+      
     #self.sgprIdx = roundUpToNearestMultiple(self.sgprIdx,align)
     #print (name, "->", self.sgprIdx, "+", numSgprs)
     self.sgprs[name] = sgprIdx
@@ -717,6 +749,9 @@ class KernelWriterAssembly(KernelWriter):
     tPB["localReadOffset"] = 0
 
     self.sgprs=collections.OrderedDict()
+    self.preloadedSgprs = collections.OrderedDict()
+    self.loadedKernargs = [1000000, -1]
+    self.preloadedKernargs = [1000000, -1]
 
     self.LdsOOB = 0xF00000
 
@@ -1064,12 +1099,6 @@ class KernelWriterAssembly(KernelWriter):
 
     assert self.bpeAB == tPA["bpe"]
     assert self.bpeAB == tPB["bpe"]
-    # registers per global address
-    self.rpga = 2 # 64-bit
-    # registers per local address
-    self.rpla = 1 # 32-bit
-    # registers per global 32-bit offset (some intructions only support 32-bit offset)
-    self.rpgo = 1 # 32-bit
 
     ####################################
     # choose memory instructions
@@ -1735,6 +1764,8 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     self.defineSgpr("KernArgAddress", self.rpga)
     assert(self.sgprs["KernArgAddress"] ==  0) # kernarg is passed to kernel as SGPR0
+    if self.kernel["PreloadKernelArguments"]:
+      self.definePreloadedSgprPool(14)
 
     if kernel["WorkGroupMapping"]>=0 :
       self.defineSgpr("WorkGroup0", 1)
@@ -1822,17 +1853,17 @@ class KernelWriterAssembly(KernelWriter):
 
     ###################################
     # Get kernel argument start here
-    self.defineSgpr("Tensor2dSizeA", 2,4)
+    self.defineSgpr("Tensor2dSizeA", 2,4, preloaded=True)
     # fill empty Sgpr slot caused by Sgpr alignment,
     # because we need following defineSgpr use continuous sgpr
-    SgprSlot = []
-    currentSize = self.sgprPool.size()
-    while (1):
-      tempSgpr = self.sgprPool.checkOut(1,"fill empty slot temporarily",preventOverflow=0)
-      if tempSgpr >= currentSize:
-        self.sgprPool.checkIn(tempSgpr)
-        break
-      SgprSlot.append(tempSgpr)
+    # SgprSlot = []
+    # currentSize = self.sgprPool.size()
+    # while (1):
+    #   tempSgpr = self.sgprPool.checkOut(1,"fill empty slot temporarily",preventOverflow=0)
+    #   if tempSgpr >= currentSize:
+    #     self.sgprPool.checkIn(tempSgpr)
+    #     break
+    #   SgprSlot.append(tempSgpr)
     self.defineSgpr("Tensor2dSizeB", 2, 2)
     self.argAddressOffset = 6 * 4 # 8 bytes C, A, B
 
@@ -1938,6 +1969,8 @@ class KernelWriterAssembly(KernelWriter):
     if kernel["ProblemType"]["DataType"].is8bitFloat():
       if kernel["ProblemType"]["StochasticRounding"]: # in-device, only RNDSeed
         self.defineSgpr("RNDSeed", 1)  # seed for random number generation
+
+    #----
 
     if self.isInitCodeOptLW:
       # init code optimization: define PerpOverhangVccA, B just after kernel args (need this before undef OFFSET)
