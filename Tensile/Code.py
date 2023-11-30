@@ -1,6 +1,6 @@
 ################################################################################
 #
-# Copyright (C) 2016-2022 Advanced Micro Devices, Inc. All rights reserved.
+# Copyright (C) 2016-2023 Advanced Micro Devices, Inc. All rights reserved.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,18 +27,6 @@ from .Common import globalParameters, printExit
 import ctypes
 # Global to print module names around strings
 printModuleNames = 0
-
-def printItemList(listOfItems, tag="__unnamed__"):
-  header = "="*40
-  print("%s\nbegin list %s\n%s"%(header, tag, header))
-  for i, item in enumerate(listOfItems):
-    item = list(item) if isinstance(item, tuple) else [item]
-    print("list[%s] %s"%(i, "-"*30))
-    for j, t in enumerate(item):
-      ostream = t.prettyPrint()
-      ostream = ostream[:-1] if len(ostream)>0 and ostream[-1:] == '\n' else ostream
-      print(ostream)
-  print("%s\nend list %s\n%s"%(header, tag, header))
 
 class Item:
   """
@@ -169,16 +157,6 @@ class Module(Item):
       | | | |--bogusTextBlock3
       | | |--GlobalReadInst bogusGlobalReadInst                                // comments
     """
-
-  def countTypeList(self, ttypeList):
-    count = 0
-    # add "Module" type to type list filter, where we want to count recursively
-    # the types under "Module"
-    if Module not in ttypeList:
-      ttypeList.append(Module)
-    for ttype in ttypeList:
-      count += self.countType(ttype)
-    return count
 
   def countType(self,ttype):
     """
