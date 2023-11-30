@@ -40,6 +40,9 @@ namespace Tensile
         , computeUnitCount(cus)
         , isAPU(apu)
         , deviceName(name)
+        , skDynamicGrid(getSKDynamicGrid())
+        , skMaxCUs(getSKMaxCUs())
+        , skGridMultiplier(getSKGridMultiplier())
     {
     }
 
@@ -49,6 +52,9 @@ namespace Tensile
         , computeUnitCount(cus)
         , isAPU(apu)
         , deviceName(name)
+        , skDynamicGrid(getSKDynamicGrid())
+        , skMaxCUs(getSKMaxCUs())
+        , skGridMultiplier(getSKGridMultiplier())
     {
     }
 
