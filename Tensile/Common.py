@@ -1111,6 +1111,18 @@ validParameters = {
     # 1: Basic StreamK atomic (uses atomics to accumulate partial tiles)
     # 2: Basic StreamK non-atomic (uses workspace to store partial tiles, accumulate in deterministic fix-up step)
     # 3: Two-Tile StreamK (non-atomic, each WG completes an even number of sk iterations, followed by an even number of dp tiles)
+    # StreamK kernels can adjust the number of CUs being used.
+    # Using fewer sometimes increases overall throughput by allowing other kernels to run in parallel.
+    # StreamK grid is controlled by setting these enviornment variables:
+    # TENSILE_STREAMK_DYNAMIC_GRID enables dynamic grid mode, which automatically limits the number of CUs used for small
+    #   problems to a subset based on the number of output tiles.
+    #   0 = off (default)
+    #   1 = on
+    # TENSILE_STREAMK_MAX_CUS allows the user to manually set maximum number of CUs used, which could free up some CUs for
+    #   other operations to run in parallel with gemm.
+    #   0 = use all CUs (default)
+    # TENSILE_STREAMK_GRID_MULTIPLIER lets you set how many workgroups are created per CU being used.
+    #   1 = 1 WG per CU (default)
     "StreamK": [0, 1, 2, 3],
 
     # 0  : standard launch
