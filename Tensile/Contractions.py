@@ -458,6 +458,7 @@ class SizeMapping:
                  'sourceKernel',
                  'globalAccumulation',
                  'workspaceSizePerElemC',
+                 'preloadKernargs'
                  ]
 
     @classmethod
@@ -486,6 +487,7 @@ class SizeMapping:
                    sourceKernel          = d['KernelLanguage'] == 'Source',
                    globalAccumulation    = globalAccum,
                    workspaceSizePerElemC = d['_WorkspaceSizePerElemC'],
+                   preloadKernargs       = d["PreloadKernelArguments"]
                    )
 
     @classmethod

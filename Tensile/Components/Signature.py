@@ -93,6 +93,13 @@ class SignatureDefault(Signature):
         tWord = ".amdhsa_user_sgpr_kernarg_segment_ptr"
         kStr += "  %s 1%s" % (tWord, writer.endLine)
 
+        if kernel["PreloadKernelArguments"]:
+            numPreloaded = writer.sgprPool.numPreloadSGPRs
+            numUserSgprs = numPreloaded + 2
+            kStr += f"  .amdhsa_user_sgpr_kernarg_preload_offset 0{writer.endLine}"
+            kStr += f"  .amdhsa_user_sgpr_kernarg_preload_length {numPreloaded}{writer.endLine}"
+            kStr += f"  .amdhsa_user_sgpr_count {numUserSgprs}{writer.endLine}"
+
         # kern arg size
         kernArgReg = 0
         kernArgReg += 3*writer.rpga

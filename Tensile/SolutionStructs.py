@@ -1915,6 +1915,9 @@ class Solution(collections.abc.Mapping):
     if state["PreloadKernelArguments"] and not globalParameters["AsmCaps"][tuple(state["ISA"])]["KernargPreloading"]:
       reject(state, "Kernel argument preloading not supported for ISA {}".format(state["ISA"]))
 
+    if state["PreloadKernelArguments"] and not state["ProblemType"]["StridedBatched"]:
+      reject(state, "Kernel argument preloading only supported for strided batched.")
+
     if (not state["ProblemType"]["StridedBatched"]) and (not state["ProblemType"]['Batched']):
       reject(state, "General Batched GEMM only support Batched Problem")
 

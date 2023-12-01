@@ -550,25 +550,24 @@ class KernelWriterAssembly(KernelWriter):
     return t
 
   def definePreloadedSgprPool(self, numSgprs):
-    sgprIdx = self.defineSgpr("PreloadedKernargs", numSgprs)
-    assert sgprIdx == 2
-    self.preloadedArgPool = RegisterPool(sgprIdx, 's', defaultPreventOverflow=True, printRP=1)
+    self.sgprPool.add(self.sgprPool.size(), numSgprs, newStatus = RegisterPool.Status.AvailableForPreload)
 
-  def defineSgpr(self, name, numSgprs, align=1, kernarg=None, preloaded=False):
+  def defineSgpr(self, name, numSgprs, align=1, kernarg=None, preload=False):
     if numSgprs == 0: return
     if kernarg is None:
-      kernarg = preloaded
+      kernarg = preload
 
-    if preloaded and self.kernel["PreloadKernelArguments"]:
-      sgprIdx = self.preloadedArgPool.checkOutAligned(numSgprs, align, tag=name)
+    if not self.kernel["PreloadKernelArguments"]:
+      preload = False
+
+    sgprIdx = self.sgprPool.checkOutAligned(numSgprs, align, tag=name, preventOverflow=False, kernarg=kernarg, preload=preload)
+
+    if preload:
       self.preloadedKernargs[0] = min(sgprIdx, self.preloadedKernargs[0])
       self.preloadedKernargs[1] = max(sgprIdx+numSgprs, self.preloadedKernargs[1])
-    else:
-      sgprIdx = self.sgprPool.checkOutAligned(numSgprs, align, tag=name, preventOverflow=0)
-
-      if kernarg:
-        self.loadedKernargs[0] = min(sgprIdx, self.loadedKernargs[0])
-        self.loadedKernargs[1] = max(sgprIdx+numSgprs, self.loadedKernargs[1])
+    elif kernarg:
+      self.loadedKernargs[0] = min(sgprIdx, self.loadedKernargs[0])
+      self.loadedKernargs[1] = max(sgprIdx+numSgprs, self.loadedKernargs[1])
       
     #self.sgprIdx = roundUpToNearestMultiple(self.sgprIdx,align)
     #print (name, "->", self.sgprIdx, "+", numSgprs)
@@ -1855,7 +1854,7 @@ class KernelWriterAssembly(KernelWriter):
 
     ###################################
     # Get kernel argument start here
-    self.defineSgpr("Tensor2dSizeA", 2,4, preloaded=True)
+    self.defineSgpr("Tensor2dSizeA", 2, (2 if kernel["PreloadKernelArguments"] else 4), preload=True)
     # fill empty Sgpr slot caused by Sgpr alignment,
     # because we need following defineSgpr use continuous sgpr
     # SgprSlot = []
@@ -1866,38 +1865,36 @@ class KernelWriterAssembly(KernelWriter):
     #     self.sgprPool.checkIn(tempSgpr)
     #     break
     #   SgprSlot.append(tempSgpr)
-    self.defineSgpr("Tensor2dSizeB", 2, 2)
+    self.defineSgpr("Tensor2dSizeB", 2, 2, preload=True)
     self.argAddressOffset = 6 * 4 # 8 bytes C, A, B
 
-    self.defineSgpr("AddressD", numSgprAddressD)
-    self.defineSgpr("AddressC", numSgprAddressC)
-    self.defineSgpr("AddressA", numSgprAddressA)
-    self.defineSgpr("AddressB", numSgprAddressB)
-    self.argOffsetOffset = self.argAddressOffset + (numSgprAddressD + numSgprAddressC + numSgprAddressA + numSgprAddressB) * 4
+    self.defineSgpr("AddressD", numSgprAddressD, kernarg=True)
+    self.defineSgpr("AddressC", numSgprAddressC, kernarg=True)
+    self.defineSgpr("AddressA", numSgprAddressA, preload=True)
+    self.defineSgpr("AddressB", numSgprAddressB, preload=True)
     if kernel["StreamK"] == 2 or kernel["StreamK"] == 3:
-      self.defineSgpr("AddressWS", numSgprAddressWS)
-      self.defineSgpr("AddressFlags", numSgprAddressFlags)
-      self.argOffsetOffset += (numSgprAddressWS + numSgprAddressFlags) * 4
+      self.defineSgpr("AddressWS", numSgprAddressWS, kernarg=True)
+      self.defineSgpr("AddressFlags", numSgprAddressFlags, kernarg=True)
 
     if not kernel["ProblemType"]["StridedBatched"]:
       self.numSgprOffsetD = 2
       self.numSgprOffsetC = 2
       self.numSgprOffsetA = 2
       self.numSgprOffsetB = 2
-      self.defineSgpr("OffsetD", self.numSgprOffsetD)
-      self.defineSgpr("OffsetC", self.numSgprOffsetC)
-      self.defineSgpr("OffsetA", self.numSgprOffsetA)
-      self.defineSgpr("OffsetB", self.numSgprOffsetB)
+      self.defineSgpr("OffsetD", self.numSgprOffsetD, kernarg=True)
+      self.defineSgpr("OffsetC", self.numSgprOffsetC, kernarg=True)
+      self.defineSgpr("OffsetA", self.numSgprOffsetA, kernarg=True)
+      self.defineSgpr("OffsetB", self.numSgprOffsetB, kernarg=True)
 
-    self.defineSgpr("Alpha", numSgprAlpha, numSgprAlpha)
+    self.defineSgpr("Alpha", numSgprAlpha, numSgprAlpha, preload=True)
     if kernel["ProblemType"]["UseBeta"]:
-      self.defineSgpr("Beta", numSgprBeta, numSgprBeta)
-    self.defineSgpr("StridesD", self.numSgprStridesD)
-    self.defineSgpr("StridesC", self.numSgprStridesC)
-    self.defineSgpr("StridesA", self.numSgprStridesA)
-    self.defineSgpr("StridesB", self.numSgprStridesB)
-    self.defineSgpr("SizesFree", self.numSgprSizesFree)
-    self.defineSgpr("SizesSum", self.numSgprSizesSum)
+      self.defineSgpr("Beta", numSgprBeta, numSgprBeta, preload=True)
+    self.defineSgpr("StridesD", self.numSgprStridesD, kernarg=True)
+    self.defineSgpr("StridesC", self.numSgprStridesC, kernarg=True)
+    self.defineSgpr("StridesA", self.numSgprStridesA, preload=True)
+    self.defineSgpr("StridesB", self.numSgprStridesB, preload=True)
+    self.defineSgpr("SizesFree", self.numSgprSizesFree, kernarg=True)
+    self.defineSgpr("SizesSum", self.numSgprSizesSum, kernarg=True)
 
     self.sumMagicParms = []
     if kernel["PackSummationDims"]:
@@ -1906,17 +1903,17 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["PackSummationDims"] and kernel["GlobalSplitU"] > 1 and self.sumMagicParms:
           self.sumMagicParms.append("%s_GsuRemainder"%self.unrollChar)
       for magicName in self.sumMagicParms:
-        self.defineSgpr("MagicNumberSize%s"%magicName, 1)
-        self.defineSgpr("MagicShiftSize%s"%magicName, 1)
+        self.defineSgpr("MagicNumberSize%s"%magicName, 1, kernarg=True)
+        self.defineSgpr("MagicShiftSize%s"%magicName, 1, kernarg=True)
     # for packed batches without stride restrictions need to do something different here
     assert sorted(kernel["PackedC0IdxChars"]+kernel["PackedC1IdxChars"]) == \
            sorted(set(kernel["PackedC0IdxChars"]+kernel["PackedC1IdxChars"]))
     for idxChar in kernel["PackedC0IdxChars"][:-1]:
-      self.defineSgpr("MagicNumberSize%s"%idxChar, 1)
-      self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
+      self.defineSgpr("MagicNumberSize%s"%idxChar, 1, kernarg=True)
+      self.defineSgpr("MagicShiftSize%s"%idxChar, 1, kernarg=True)
     for idxChar in kernel["PackedC1IdxChars"][:-1]:
-      self.defineSgpr("MagicNumberSize%s"%idxChar, 1)
-      self.defineSgpr("MagicShiftSize%s"%idxChar, 1)
+      self.defineSgpr("MagicNumberSize%s"%idxChar, 1, kernarg=True)
+      self.defineSgpr("MagicShiftSize%s"%idxChar, 1, kernarg=True)
     for idx in kernel["ProblemType"]["IndicesSummation"]:
       for tc in ('A','B'):
         for zp in kernel["ProblemType"]["ZeroPad%s"%tc]:
@@ -1925,39 +1922,39 @@ class KernelWriterAssembly(KernelWriter):
             freeDimChar = globalParameters["IndexChars"][freeDim]
             sumDimChar  = globalParameters["IndexChars"][sumDim]
             # These will eventually be read as kernel args:
-            self.defineSgpr("PadStart%s%s%s"%(tc, freeDimChar, sumDimChar),1)
-            self.defineSgpr("PadEnd%s%s%s"%(tc, freeDimChar, sumDimChar),1)
-    self.defineSgpr("OrigStaggerUIter", 1)  # Original stagger register.  Only needed for Persistent
-    self.defineSgpr("NumWorkGroups0", 1)
-    self.defineSgpr("NumWorkGroups1", 1)
+            self.defineSgpr("PadStart%s%s%s"%(tc, freeDimChar, sumDimChar),1, kernarg=True)
+            self.defineSgpr("PadEnd%s%s%s"%(tc, freeDimChar, sumDimChar),1, kernarg=True)
+    self.defineSgpr("OrigStaggerUIter", 1, kernarg=True)  # Original stagger register.  Only needed for Persistent
+    self.defineSgpr("NumWorkGroups0", 1, kernarg=True)
+    self.defineSgpr("NumWorkGroups1", 1, kernarg=True)
 
     pkArgumentToLoad = 0
     if kernel["PersistentKernel"]:
-      self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1) # Magic number to use for division
-      self.defineSgpr("MagicShiftProblemNumGroupTiles0", 1) # Magic shift/abit to use for division alg 2
-      self.defineSgpr("GridNumWorkGroups0", 1) # Magic number to use for division, persistent kernel - flattened wg0 (=all WGs)
+      self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1, kernarg=True) # Magic number to use for division
+      self.defineSgpr("MagicShiftProblemNumGroupTiles0", 1, kernarg=True) # Magic shift/abit to use for division alg 2
+      self.defineSgpr("GridNumWorkGroups0", 1, kernarg=True) # Magic number to use for division, persistent kernel - flattened wg0 (=all WGs)
       pkArgumentToLoad += 3
       if kernel["PersistentKernelAlongBatch"]:
-        self.defineSgpr("NumWorkGroups2", 1)  # for persistent kernel along batch
-        self.defineSgpr("MagicNumProblemNumGroupTiles0By1", 1)  # for PKAB, use for Magic Div Alg 2 by (nwg0*nwg1)
-        self.defineSgpr("MagicShiftProblemNumGroupTiles0By1", 1)  # for PKAB, use for Magic Div Alg 2 by (nwg0*nwg1)
+        self.defineSgpr("NumWorkGroups2", 1, kernarg=True)  # for persistent kernel along batch
+        self.defineSgpr("MagicNumProblemNumGroupTiles0By1", 1, kernarg=True)  # for PKAB, use for Magic Div Alg 2 by (nwg0*nwg1)
+        self.defineSgpr("MagicShiftProblemNumGroupTiles0By1", 1, kernarg=True)  # for PKAB, use for Magic Div Alg 2 by (nwg0*nwg1)
         pkArgumentToLoad += 3
     skArgumentToLoad = 0
     if kernel["StreamK"]:
       # StreamK args
-      self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1) # Magic number to use for division
-      self.defineSgpr("MagicShiftProblemNumGroupTiles0", 1) # Magic shift/abit to use for division alg 2
-      self.defineSgpr("ItersPerTile", 1)
-      self.defineSgpr("MagicNumberItersPerTile", 1)
-      self.defineSgpr("MagicShiftItersPerTile", 1)
-      self.defineSgpr("TotalIters", 1)
-      self.defineSgpr("SKItersPerWG", 1)
+      self.defineSgpr("MagicNumberProblemNumGroupTiles0", 1, kernarg=True) # Magic number to use for division
+      self.defineSgpr("MagicShiftProblemNumGroupTiles0", 1, kernarg=True) # Magic shift/abit to use for division alg 2
+      self.defineSgpr("ItersPerTile", 1, kernarg=True)
+      self.defineSgpr("MagicNumberItersPerTile", 1, kernarg=True)
+      self.defineSgpr("MagicShiftItersPerTile", 1, kernarg=True)
+      self.defineSgpr("TotalIters", 1, kernarg=True)
+      self.defineSgpr("SKItersPerWG", 1, kernarg=True)
       skArgumentToLoad += 7
       if kernel["StreamK"] == 3: # Two-tile SK
-        self.defineSgpr("skGrid", 1)
-        self.defineSgpr("skTiles", 1)
-        self.defineSgpr("skExtraIters", 1)
-        # self.defineSgpr("dpTilesPerWG", 1)
+        self.defineSgpr("skGrid", 1, kernarg=True)
+        self.defineSgpr("skTiles", 1, kernarg=True)
+        self.defineSgpr("skExtraIters", 1, kernarg=True)
+        # self.defineSgpr("dpTilesPerWG", 1, kernarg=True)
         skArgumentToLoad += 3
 
 
@@ -1968,14 +1965,14 @@ class KernelWriterAssembly(KernelWriter):
     # Mostly impacts flat kernels and GSU edge since these need SGPR
     # for conditionals
     self.lastPostLoopSgpr = self.sgprPool.size()
-    self.defineSgpr("NumFullBlocks", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
-    self.defineSgpr("WgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
-    self.defineSgpr("MagicNumberWgmRemainder1", 1) # Magic number to use for div by (NumWorkGroups1 % WGM)
+    self.defineSgpr("NumFullBlocks", 1, kernarg=True) # Magic number to use for div by (NumWorkGroups1 % WGM)
+    self.defineSgpr("WgmRemainder1", 1, kernarg=True) # Magic number to use for div by (NumWorkGroups1 % WGM)
+    self.defineSgpr("MagicNumberWgmRemainder1", 1, kernarg=True) # Magic number to use for div by (NumWorkGroups1 % WGM)
 
     # SR only for F8 type
     if kernel["ProblemType"]["DataType"].is8bitFloat():
       if kernel["ProblemType"]["StochasticRounding"]: # in-device, only RNDSeed
-        self.defineSgpr("RNDSeed", 1)  # seed for random number generation
+        self.defineSgpr("RNDSeed", 1, kernarg=True)  # seed for random number generation
 
     #----
 
@@ -1992,34 +1989,23 @@ class KernelWriterAssembly(KernelWriter):
       if kernel["LocalWriteUseSgprB"]:
           self.defineSgpr("LocalWriteAddrB", 1)
 
-    self.numSgprToLoad = 2 + 2 + numSgprAddressD + numSgprAddressC + numSgprAddressA + numSgprAddressB + \
-      ((numSgprAddressWS + numSgprAddressFlags) if kernel["StreamK"] >= 2 else 0) + \
-      numSgprAlpha + \
-      (numSgprBeta if kernel["ProblemType"]["UseBeta"] else 0) + self.numSgprStridesD + self.numSgprStridesC + self.numSgprStridesA + \
-      self.numSgprStridesB + self.numSgprSizesFree + self.numSgprSizesSum + \
-      len(self.sumMagicParms)*2 + len(kernel["PackedC0IdxChars"][:-1])*2 + \
-      len(kernel["PackedC1IdxChars"][:-1])*2 + len(kernel["ProblemType"]["ZeroPadA"])*2 + len(kernel["ProblemType"]["ZeroPadB"])*2 + \
-      1 + \
-      2 + \
-      pkArgumentToLoad + \
-      skArgumentToLoad + \
-      3 + \
-      self.numSgprOffsetD + self.numSgprOffsetC + self.numSgprOffsetA + self.numSgprOffsetB
+    self.numSgprToLoad = self.sgprPool.numKernargSGPRs
+    if not kernel["ProblemType"]["StridedBatched"]:
+      offsetD = self.sgprs["OffsetD"]
+      self.argOffsetOffset = (offsetD - self.sgprPool.kernargStart) * 4
+      assert self.sgprs["OffsetC"] == offsetD + 2
+      assert self.sgprs["OffsetA"] == offsetD + 4
+      assert self.sgprs["OffsetB"] == offsetD + 6
 
-    # SR only for F8 type
-    if kernel["ProblemType"]["DataType"].is8bitFloat():
-      if kernel["ProblemType"]["StochasticRounding"]: # in-device, only RNDSeed
-        self.numSgprToLoad += 1
-
-    self.argOffsetOffset = (self.numSgprToLoad + 2 - (self.numSgprOffsetD + self.numSgprOffsetC + self.numSgprOffsetA + self.numSgprOffsetB)) * 4
+      assert self.argOffsetOffset == (self.numSgprToLoad + 2 - (self.numSgprOffsetD + self.numSgprOffsetC + self.numSgprOffsetA + self.numSgprOffsetB)) * 4
 
     # Get kernel argument end here
     ###################################
 
     # put unused Sgpr back to SgprPool
-    while SgprSlot:
-      tempSgpr = SgprSlot.pop(0)
-      self.sgprPool.checkIn(tempSgpr)
+    # while SgprSlot:
+    #   tempSgpr = SgprSlot.pop(0)
+    #   self.sgprPool.checkIn(tempSgpr)
     if not self.staggerU:
       self.undefineSgpr("OrigStaggerUIter")  # Original stagger register.  Only needed for Persistent
 
@@ -3290,6 +3276,15 @@ class KernelWriterAssembly(KernelWriter):
   def allocateResources(self, kernel, lraCode=None):
     kStr = ""
 
+    if kernel["PreloadKernelArguments"]:
+      kStr += self.comment("256 bytes of s_nop")
+      for i in range(64):
+        kStr += inst("s_nop 0", "preload")
+      
+      kStr += self.comment("256 bytes of s_nop")
+      kStr += "\n"
+
+
     if kernel["StorePriorityOpt"]:
       kStr += inst("s_setprio 3", "optimization store")
 
@@ -3324,15 +3319,15 @@ class KernelWriterAssembly(KernelWriter):
       # load kernel args
       kStr += self.comment("Load Kernel Args")
       self.kernArgOffset = 0
+      if self.kernel["PreloadKernelArguments"]:
+        self.kernArgOffset = self.sgprPool.numPreloadSGPRs * 4
+
       if globalParameters["DebugKernel"]:
         kStr += self.getKernArg("AddressDbg")
         kStr += self.getKernArg("AddressDbg+1")
 
-      kStr += self.getKernArg("Tensor2dSizeC+0",0)
-      kStr += self.getKernArg("Tensor2dSizeC+1",0)
-
       load = self.numSgprToLoad
-      sgprStart = self.sgprs["Tensor2dSizeA"]
+      sgprStart = self.sgprPool.kernargStart
       while load > 0:
         if load >= 16:
           load -= 16
@@ -3380,7 +3375,9 @@ class KernelWriterAssembly(KernelWriter):
       if lraCode != None :
         kStr += lraCode
 
-      kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for %u bytes of kern args" % self.kernArgOffset )
+      if not kernel["PreloadKernelArguments"]:
+        kernArgBytes = self.sgprPool.numKernargSGPRs * 4
+        kStr += inst("s_waitcnt", "lgkmcnt(0)", "wait for %u bytes of kern args" % kernArgBytes )
 
       if not kernel["ProblemType"]["StridedBatched"]:
         tmpSgpr = self.getTmpSgpr(self.laneSGPRCount).idx()
