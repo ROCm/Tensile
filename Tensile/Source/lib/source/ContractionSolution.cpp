@@ -315,8 +315,8 @@ namespace Tensile
         rv.numWorkGroups.y *= sizeMapping.globalSplitU;
 
         size_t cuCount = 0;
-        size_t skGrid = 0;
-        auto tiles    = problem.getNumTiles(sizeMapping);
+        size_t skGrid  = 0;
+        auto   tiles   = problem.getNumTiles(sizeMapping);
         if(sizeMapping.streamK != 0 || sizeMapping.persistentKernel != 0)
         {
             AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
@@ -324,7 +324,7 @@ namespace Tensile
             cuCount = pAMDGPU->computeUnitCount;
             if(sizeMapping.streamK != 0)
             {
-                skGrid = getSKGrid(hardware, tiles);
+                skGrid             = getSKGrid(hardware, tiles);
                 rv.numWorkGroups.x = skGrid;
                 rv.numWorkGroups.y = 1;
                 if(sizeMapping.persistentKernelAlongBatch)
@@ -640,7 +640,7 @@ namespace Tensile
                     // If total tiles is evenly divisble by grid size,
                     // then no Stream-K tiles are needed, all data-parallel
                     uint32_t skTiles = skGrid;
-                    if (tiles % skGrid != 0)
+                    if(tiles % skGrid != 0)
                     {
                         // Number of data-parallel tiles on each workgroup would be:
                         // dpTilesPerWG = bigEnough ? (tiles - skTiles) / skGrid : 0;
@@ -717,9 +717,9 @@ namespace Tensile
         rv.workGroupSize.y = 1;
         rv.workGroupSize.z = 1;
 
-        auto tiles     = problem.getNumTiles(sizeMapping);
-        size_t skGrid  = getSKGrid(hardware, tiles);
-        size_t wiZ     = 1;
+        auto   tiles  = problem.getNumTiles(sizeMapping);
+        size_t skGrid = getSKGrid(hardware, tiles);
+        size_t wiZ    = 1;
         for(size_t i = 0; i < problem.batchIndices().size(); i++)
             wiZ *= problem.batchSize(i);
         size_t flagCount = skGrid * wiZ;
@@ -1504,8 +1504,8 @@ namespace Tensile
 
         if(sizeMapping.streamK >= 2)
         {
-            auto tiles     = problem.getNumTiles(sizeMapping);
-            size_t skGrid  = getSKGrid(hardware, tiles);
+            auto   tiles  = problem.getNumTiles(sizeMapping);
+            size_t skGrid = getSKGrid(hardware, tiles);
             // Get space required for partial tiles
             size += partialTileSize(skGrid);
             // Add space for flags
@@ -1524,7 +1524,7 @@ namespace Tensile
         AMDGPU const* pAMDGPU = dynamic_cast<AMDGPU const*>(&hardware);
         assert(pAMDGPU != nullptr && pAMDGPU->computeUnitCount != 0);
         size_t cuCount = pAMDGPU->computeUnitCount;
-        size_t skGrid = cuCount;
+        size_t skGrid  = cuCount;
         if(pAMDGPU->skMaxCUs > 0)
             skGrid = min(skGrid, pAMDGPU->skMaxCUs);
         if(pAMDGPU->skDynamicGrid)
