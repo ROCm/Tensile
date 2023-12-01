@@ -105,6 +105,8 @@ if(TENSILE_USE_MSGPACK)
         get_target_property(msgpack_inc msgpackc-cxx INTERFACE_INCLUDE_DIRECTORIES)
     elseif(TARGET msgpackc)
         get_target_property(msgpack_inc msgpackc INTERFACE_INCLUDE_DIRECTORIES)
+    elseif(TARGET msgpack-cxx)
+        get_target_property(msgpack_inc msgpack-cxx INTERFACE_INCLUDE_DIRECTORIES)
     endif()
 
     if(DEFINED msgpack_inc)
