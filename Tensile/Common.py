@@ -69,6 +69,12 @@ globalParameters["NumWarmups"] = 0                # how many warmup runs to perf
 globalParameters["SyncsPerBenchmark"] = 1         # how iterations of the stream synchronization for-loop to do per benchmark data point
 globalParameters["EnqueuesPerSync"] = 1           # how many solution enqueues to perform per synchronization
 globalParameters["SleepPercent"] = 300            # how long to sleep after every data point: 25 means 25% of solution time. Sleeping lets gpu cool down more.
+globalParameters["FlushCount"] = 1                # Number of copies of arrays to allocate for cache flushing in timing code.
+                                                  # To evict data from FIFO cache before reuse,
+                                                  # calculate the total footprint of the useful data in bytes, problem_footprint. 
+                                                  # Note that any padding from leading dimensions is not loaded to cache and not included in the problem_footprint.
+                                                  # Then calculate:
+                                                  # flush_batch_count >= 1 + cache_size / problem_footprint)
 # validation
 globalParameters["NumElementsToValidate"] = 128   # number of elements to validate, 128 will be evenly spaced out (with prime number stride) across C tensor
 globalParameters["BoundsCheck"] = 0   # Bounds check

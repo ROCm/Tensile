@@ -166,6 +166,12 @@ namespace Tensile
                 ("use-gpu-timer",            po::value<bool>()->default_value(true), "Use GPU timer")
                 ("sleep-percent",            po::value<int>()->default_value(0), "Sleep percentage")
                 ("hardware-monitor",         po::value<bool>()->default_value(true), "Use hardware monitor.")
+                ("flush-count",              po::value<size_t>()->default_value(1), "Number of copies of arrays to allocate for cache flushing in timing code."
+                                                                                    "To evict data from FIFO cache before reuse,"
+                                                                                    "calculate the total footprint of the useful data in bytes, problem_footprint. "
+                                                                                    "Note that any padding from leading dimensions is not loaded to cache and not included in the problem_footprint."
+                                                                                    "Then calculate:"
+                                                                                    "flush_batch_count >= 1 + cache_size / problem_footprint")
 
                 ("perf-l2-read-hits",        po::value<double>()->default_value(0.0), "L2 read hits")
                 ("perf-l2-write-hits",       po::value<double>()->default_value(0.5), "L2 write hits")
@@ -523,19 +529,29 @@ int main(int argc, const char* argv[])
     size_t maxWorkspaceSize
         = getMaxWorkspace(library, hardware, args, problems, firstProblemIdx, lastProblemIdx);
     maxWorkspaceSize = std::min(maxWorkspaceSize, maxWorkspaceSizeLimit);
+    size_t flush_count = args["flush-count"].as<size_t>();
 
-    auto dataInit = DataInitialization::Get(args, problemFactory, maxWorkspaceSize);
-
+    std::vector<std::shared_ptr<DataInitialization>> dataInit;
     auto solutionIterator = SolutionIterator::Default(library, hardware, args);
 
     MetaRunListener listeners;
 
-    listeners.addListener(dataInit);
+    for(size_t i = 0; i<flush_count; i++)
+    {
+        dataInit.push_back(DataInitialization::Get(args, problemFactory, maxWorkspaceSize));
+        listeners.addListener(dataInit[i]);
+        // if(i==0)
+        // {
+        // if(runKernels)
+        //     listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit[i]));
+        // }
+    }
+
     listeners.addListener(solutionIterator);
     listeners.addListener(std::make_shared<ProgressListener>(args));
     if(runKernels)
     {
-        listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit));
+        listeners.addListener(std::make_shared<ReferenceValidator>(args, dataInit[0])); //TODO check this
         listeners.addListener(std::make_shared<BenchmarkTimer>(args, *hardware));
         listeners.addListener(std::make_shared<HardwareMonitorListener>(args));
     }
@@ -565,6 +581,11 @@ int main(int argc, const char* argv[])
 
     reporters->report(ResultKey::ProblemCount, problemFactory.problems().size());
 
+    std::cout<<"Before Loop:**********test*********"<<std::endl;
+    std::cout<<"Before Loop: flush-count size "<<flush_count<<std::endl;
+    std::cout<<"Before Loop: max-workspace-size size "<<maxWorkspaceSize<<std::endl;
+    std::cout<<"Before Loop: maxProblemSize size "<<maxWorkspaceSize<<std::endl;
+
     while(listeners.needMoreBenchmarkRuns())
     {
         listeners.preBenchmarkRun();
@@ -572,7 +593,8 @@ int main(int argc, const char* argv[])
         for(int problemIdx = firstProblemIdx; problemIdx <= lastProblemIdx; problemIdx++)
         {
             auto& problem = problems[problemIdx];
-            problem.setWorkspaceSize(dataInit->workspaceSize());
+            problem.setWorkspaceSize(dataInit[0]->workspaceSize());
+            std::cout<<"Before Loop: problem workspace size "<<dataInit[0]->workspaceSize()<<std::endl;
 
             reporters->report(ResultKey::ProblemIndex, problemIdx);
             reporters->report(ResultKey::ProblemProgress,
@@ -599,12 +621,16 @@ int main(int argc, const char* argv[])
                     {
                         while(listeners.needMoreRunsInSolution())
                         {
-                            auto inputs = dataInit->prepareGPUInputs(problem);
-
-                            auto kernels = solution->solve(problem, *inputs, *hardware);
+                            std::vector<std::shared_ptr<ContractionInputs>> inputs;
+                            std::vector<std::vector<KernelInvocation>> kernels;
+                            for(size_t i = 0; i<flush_count; i++)
+                            {
+                                inputs.push_back(dataInit[i]->prepareGPUInputs(problem));
+                                kernels.push_back(solution->solve(problem, *(inputs[i]), *hardware));
+                            }
 
                             size_t       warmupInvocations = listeners.numWarmupRuns();
-                            size_t       eventCount        = gpuTimer ? kernels.size() : 0;
+                            size_t       eventCount        = gpuTimer ? kernels[0].size() : 0;
                             TimingEvents warmupStartEvents(warmupInvocations, eventCount);
                             TimingEvents warmupStopEvents(warmupInvocations, eventCount);
 
@@ -612,18 +638,18 @@ int main(int argc, const char* argv[])
                             {
                                 listeners.preWarmup();
                                 if(gpuTimer)
-                                    HIP_CHECK_EXC(adapter.launchKernels(kernels,
+                                    HIP_CHECK_EXC(adapter.launchKernels(kernels[0],
                                                                         stream,
                                                                         warmupStartEvents[i],
                                                                         warmupStopEvents[i]));
                                 else
                                     HIP_CHECK_EXC(
-                                        adapter.launchKernels(kernels, stream, nullptr, nullptr));
+                                        adapter.launchKernels(kernels[0], stream, nullptr, nullptr));
                                 listeners.postWarmup();
                                 // Do validation after first warmup
                                 if(i == 0)
                                     listeners.validateWarmups(
-                                        inputs, warmupStartEvents, warmupStopEvents);
+                                        inputs[0], warmupStartEvents, warmupStopEvents); //TODO check this
                             }
 
                             size_t syncs = listeners.numSyncs();
@@ -640,16 +666,17 @@ int main(int argc, const char* argv[])
 
                                 for(int j = 0; j < enq; j++)
                                 {
+                                    int flush_index = (j + i + 1) % flush_count;
                                     if(gpuTimer)
                                         HIP_CHECK_EXC(adapter.launchKernels(
-                                            kernels, stream, startEvents[j], stopEvents[j]));
+                                            kernels[flush_index], stream, startEvents[j], stopEvents[j]));
                                     else
                                         HIP_CHECK_EXC(adapter.launchKernels(
-                                            kernels, stream, nullptr, nullptr));
+                                            kernels[flush_index], stream, nullptr, nullptr));
                                 }
 
                                 listeners.postEnqueues(startEvents, stopEvents);
-                                listeners.validateEnqueues(inputs, startEvents, stopEvents);
+                                listeners.validateEnqueues(inputs[0], startEvents, stopEvents); //TODO check this
                             }
 
                             listeners.postSyncs();
