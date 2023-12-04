@@ -2013,7 +2013,6 @@ class Solution(collections.abc.Mapping):
   def setGlobalLoadVectorWidth(state, tc, totalElements, grvw):
     validDepthU = True
     numThreadGrvw = int(state["NumThreads"] * grvw)
-    #print(f"DEBU:KOJI:numThreadGrvw={numThreadGrvw}, totalElements={totalElements}, grvw={grvw}")
     if totalElements < numThreadGrvw:
       # Try to reduce size of vector so every thread has a load to do
       pv = numThreadGrvw //totalElements
@@ -2040,7 +2039,6 @@ class Solution(collections.abc.Mapping):
               % (totalElements, numThreadGrvw))
           validDepthU = False
 
-    #print(f"DEBU:KOJI2:grvw={grvw}")
     state["GlobalLoadVectorWidth%s"%tc] = grvw
 
     # NumLoads is NOT used on the fractional path
