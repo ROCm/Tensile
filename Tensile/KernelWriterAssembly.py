@@ -5059,7 +5059,7 @@ class KernelWriterAssembly(KernelWriter):
     # invalid global read for performance evaluation only
     if self.enable["InvalidGlobalRead%s"%tc]:
       kStr += inst("s_mov_b32", sgpr("Srd%s+2"%tc), hex(0), "set out-of-bound addr for performance evaluation only")
-      if noShadowLimitCodeInLoop == False:
+      if noShadowLimitCodeInLoop == False and self.use64bShadowLimit:
         kStr += inst("s_mov_b32", sgpr("ShadowLimit%s+1"%tc), hex(0xffffffff), "set out-of-bound addr for performance evaluation only")
 
     return kStr
