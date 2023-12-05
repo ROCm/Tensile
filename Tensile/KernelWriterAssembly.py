@@ -1738,12 +1738,14 @@ class KernelWriterAssembly(KernelWriter):
     self.defineSgpr("KernArgAddress", self.rpga)
     assert(self.sgprs["KernArgAddress"] ==  0) # kernarg is passed to kernel as SGPR0
 
-    if kernel["WorkGroupMapping"]>=0 :
-      self.defineSgpr("WorkGroup0", 1)
-      self.defineSgpr("WorkGroup1", 1)
-    else:
-      self.defineSgpr("WorkGroup1", 1)
-      self.defineSgpr("WorkGroup0", 1)
+    #if kernel["WorkGroupMapping"]>=0 :
+    #  self.defineSgpr("WorkGroup0", 1)
+    #  self.defineSgpr("WorkGroup1", 1)
+    #else:
+    #  self.defineSgpr("WorkGroup1", 1)
+    #  self.defineSgpr("WorkGroup0", 1)
+    self.defineSgpr("WorkGroup0", 1)
+    self.defineSgpr("WorkGroup1", 1)
 
     wg=2
 
@@ -3932,7 +3934,7 @@ class KernelWriterAssembly(KernelWriter):
     ########################################
     # Blocked rows or columns
     absWgm = abs(kernel["WorkGroupMapping"])
-    if kernel["WorkGroupMappingType"] == "B" and abs(kernel["WorkGroupMapping"]) > 1:
+    if kernel["WorkGroupMappingType"] == "B" and kernel["WorkGroupMapping"] > 1:
       smallNumMagicShift = 31
       magicNumberWgm = ((1<<smallNumMagicShift) // absWgm + 1)
 
@@ -3947,41 +3949,42 @@ class KernelWriterAssembly(KernelWriter):
           "magic number for WGM==%u"%absWgm)
       # blockId and serial within block
 
+      if kernel["WorkGroupMapping"]>=0 :
+        firstNum = "0"
+        secondNum = "1"
+      else:
+        firstNum = "1"
+        secondNum = "0"
+      firstWg = "WorkGroup%s"%firstNum
+      secondWg = "WorkGroup%s"%secondNum
+
       # note this overwrites blockId2+1
-      kStr += self.sMagicDiv(kernel, dest=blockId2, dividend=sgpr("WorkGroup1"), \
+      kStr += self.sMagicDiv(kernel, dest=blockId2, dividend=sgpr(secondWg), \
           magicNumber=sgpr(wgmDivisorMagicNumber), magicShift=smallNumMagicShift)
       kStr += inst("s_mul_i32", sgpr(wgSerial2), sgpr(blockId2), absWgm, "quotient * non-magic divisor")
-      kStr += inst("s_sub_u32", sgpr(wgSerial2), sgpr("WorkGroup1"), sgpr(wgSerial2), "WorkGroup1=remainder")
-      kStr += inst("s_mul_i32", sgpr(wgSerial2), sgpr(wgSerial2), sgpr("NumWorkGroups0"), "(wg1 % WGM)*nwg0")
-      kStr += inst("s_add_u32", sgpr(wgSerial2), sgpr(wgSerial2), sgpr("WorkGroup0"), "wgSerial = wg0 + (wg1 % WGM)*nwg0")
+      kStr += inst("s_sub_u32", sgpr(wgSerial2), sgpr(secondWg), sgpr(wgSerial2), "%s=remainder"%secondWg)
+      kStr += inst("s_mul_i32", sgpr(wgSerial2), sgpr(wgSerial2), sgpr("NumWorkGroups%s"%firstNum), "(wg%s %% WGM)*nwg%s"%(secondNum, firstNum))
+      kStr += inst("s_add_u32", sgpr(wgSerial2), sgpr(wgSerial2), sgpr(firstWg), "wgSerial = wg%s + (wg1 %% WGM)*nwg%s"%(firstNum, secondNum))
 
       kStr += inst("s_cmp_ge_u32", sgpr(blockId2), sgpr("NumFullBlocks"), "blockId >= numFullBlocks ?")
       # reuse wgmDivisorMagicNumber - may override with remainder here:
       kStr += inst("s_cmov_b32", sgpr(wgmDivisorMagicNumber), sgpr("MagicNumberWgmRemainder1"),  "")
       kStr += inst("s_cselect_b32", sgpr(wgmDivisor), sgpr("WgmRemainder1"), absWgm,  "")
 
-      if kernel["WorkGroupMapping"]>=0 :
-        firstWg = "WorkGroup0"
-        secondWg = "WorkGroup1"
-      else:
-        firstWg = "WorkGroup1"
-        secondWg = "WorkGroup0"
-
-      assert(self.sgprs[firstWg] & 0x1 == 0) # must be even and ...
-      assert(self.sgprs[firstWg]+1 == self.sgprs[secondWg] ) # must be consecutive (for magic div below)
-      kStr += self.sMagicDiv(kernel, dest=self.sgprs[firstWg], dividend=sgpr(wgSerial2), \
+      #assert(self.sgprs[firstWg] & 0x1 == 0) # must be even and ...
+      #assert(self.sgprs[firstWg]+1 == self.sgprs[secondWg] ) # must be consecutive (for magic div below)
+      kStr += self.sMagicDiv(kernel, dest=self.sgprs["WorkGroup0"], dividend=sgpr(wgSerial2), \
           magicNumber=sgpr(wgmDivisorMagicNumber), magicShift=smallNumMagicShift)
       if kernel["WorkGroupMapping"]<0 :
-        kStr += inst("s_mov_b32", sgpr("WorkGroup0"), sgpr(firstWg), "")
-      kStr += inst("s_mul_i32", sgpr("WorkGroup1"), sgpr("WorkGroup0"), sgpr(wgmDivisor), "quotient * non-magic divisor")
-      kStr += inst("s_sub_u32", sgpr("WorkGroup1"), sgpr(wgSerial2), sgpr("WorkGroup1"), "WorkGroup1=remainder")
+        kStr += inst("s_mov_b32", sgpr(firstWg), sgpr("WorkGroup0"), "mov for WGM<0")
+      kStr += inst("s_mul_i32", sgpr(secondWg), sgpr(firstWg), sgpr(wgmDivisor), "quotient * non-magic divisor")
+      kStr += inst("s_sub_u32", sgpr(secondWg), sgpr(wgSerial2), sgpr(secondWg), "%s=remainder"%secondWg)
 
-      kStr += inst("s_mul_i32", sgpr(blockId2), sgpr(blockId2), \
-          abs(kernel["WorkGroupMapping"]), "blockId * WGM")
+      kStr += inst("s_mul_i32", sgpr(blockId2), sgpr(blockId2), absWgm, "blockId * WGM")
 
       kStr += inst("s_add_u32", sgpr(secondWg), sgpr(secondWg), \
-          sgpr(blockId2), "wg1 += blockId * WGM")
-      
+          sgpr(blockId2), "wg%s += blockId * WGM"%secondNum)
+
       self.sgprPool.checkIn(tmpSgpr)
 
     return kStr

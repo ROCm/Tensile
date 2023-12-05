@@ -3077,7 +3077,13 @@ class Solution(collections.abc.Mapping):
     state["LocalWriteUseSgprA"] = False
     state["LocalWriteUseSgprB"] = False
 
-    state["WorkGroupMapping" ] = abs(state["WorkGroupMapping"])
+    if state["KernelLanguage"] != "Assembly" or state["WorkGroupMappingType"] == "Z":
+      # WGM < 0 is only for Asm + WorkGroupMappingType==B
+      # convert to > 0
+      state["WorkGroupMapping" ] = abs(state["WorkGroupMapping"])
+    if state["WorkGroupMapping" ] == -1:
+      # -1 code is same as 1. Convert to 1.
+      state["WorkGroupMapping" ] = 1
 
     # avoid bug somehow related to GlobalSplitU + Persistent
     # avoid bug related to WGM<0
