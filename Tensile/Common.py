@@ -1172,7 +1172,8 @@ validParameters = {
 
     # Controls desired width (#elements) for loads from global memory -> LDS.
     # and eliminates the pointer unshift logic
-    # Setting different GlobalLoadVectorWidth for A,B is now supported (old GlobalReadVectorWidth is retired)
+    # Setting different GlobalLoadVectorWidth for A,B is now supported
+    # (GlobalReadVectorWidth is still valid to set the same value to both A and B)
     # -1 : Set GlobalLoadVectorWidthA/B = VectorWidth
     # NOTE: for input bpe=32, max GRVW is 4  (to fit dwordX4) (FP32), min GRVW is 1 (dword)
     #                 bpe=16, max GRVW is 8  (to fit dwordX4) (FP16), min GRVW is 2 (dword)
