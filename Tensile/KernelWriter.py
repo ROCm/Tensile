@@ -3681,7 +3681,7 @@ class KernelWriter(metaclass=abc.ABCMeta):
     #   - BufferLoad = True
     #   - SuppressNoLoadLoop = False
     #   - MatrixInstruction + MatrixInstK > 1
-    #   - global read width for TailLoop decided by assert is multiple of GlobalReadVectorWidth
+    #   - global read width for TailLoop decided by assert is multiple of GlobalLoadVectorWidthA/B
     #     (this is necessary to use prefetch global read fot tail loop without out of range access at the edge)
     #   - GlobalSplitU = 1
     #     GSU>1 case, remaining K is distributed unevenly and does not work with tailLoop in noLoadLoop
@@ -4009,25 +4009,25 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if kernel["GlobalReadCoalesceVectorA"]: # read vectors, write vectors
         self.writeUnrollDimComponentsA = False # Scalar
         if kernel["LocalDotLayout"]>1:
-          self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
+          self.writeTileDimComponentsA = kernel["GlobalLoadVectorWidthA"] > 1 # Components
           writeCoal = False
         else:
           self.writeTileDimComponentsA = False # Vector
           writeCoal = True
       else: # read components, write components
         self.writeTileDimComponentsA = False # Scalar
-        self.writeUnrollDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
+        self.writeUnrollDimComponentsA = kernel["GlobalLoadVectorWidthA"] > 1 # Components
         writeCoal = False
     else: # TN yes transpose
       self.numWritesCoalA = kernel["NumLoadsPerpendicularA"]
       if kernel["GlobalReadCoalesceVectorA"]: # read vector, write components
         self.writeUnrollDimComponentsA = False # Scalar
         if kernel["LocalDotLayout"]>1:
-          self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
+          self.writeTileDimComponentsA = kernel["GlobalLoadVectorWidthA"] > 1 # Components
           # LDS writes with LDL>1 will never be coalesced
           writeCoal = False
         else:
-          self.writeTileDimComponentsA = kernel["GlobalReadVectorWidth"] > 1 # Components
+          self.writeTileDimComponentsA = kernel["GlobalLoadVectorWidthA"] > 1 # Components
           writeCoal = False
       else: # read components, write vectors
         self.writeTileDimComponentsA = False # Vector
@@ -4118,14 +4118,14 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if kernel["GlobalReadCoalesceVectorB"]:
         self.writeUnrollDimComponentsB = False # Vector
         if kernel["LocalDotLayout"]>1:
-          self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
+          self.writeTileDimComponentsB = kernel["GlobalLoadVectorWidthB"] > 1 # Components
           writeCoal = False
         else:
           self.writeTileDimComponentsB = False # Vector
           writeCoal = True
       else:
         self.writeTileDimComponentsB = False # Scalar
-        self.writeUnrollDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
+        self.writeUnrollDimComponentsB = kernel["GlobalLoadVectorWidthB"] > 1 # Components
         # NEW
         self.numWritesCoalVecCompB = 1
         self.numWritesPerpVecCompB = vwb
@@ -4134,11 +4134,11 @@ class KernelWriter(metaclass=abc.ABCMeta):
       if kernel["GlobalReadCoalesceVectorB"]:
         self.writeUnrollDimComponentsB = False
         if kernel["LocalDotLayout"]>1:
-          self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
+          self.writeTileDimComponentsB = kernel["GlobalLoadVectorWidthB"] > 1 # Components
           # LDS writes with LDL>1 will never be coalesced
           writeCoal = False
         else:
-          self.writeTileDimComponentsB = kernel["GlobalReadVectorWidth"] > 1 # Components
+          self.writeTileDimComponentsB = kernel["GlobalLoadVectorWidthB"] > 1 # Components
           writeCoal = False
       else:
         self.writeTileDimComponentsB = False # Vector

@@ -2026,8 +2026,8 @@ class Solution(collections.abc.Mapping):
               % (pv, totalElements, numThreadGrvw))
           validDepthU = False
         if grvw < 1 or grvw % pv != 0:
-          reject(None, "GlobalReadVectorWidth %u %% pv %u != 0" \
-              % (grvw, pv))
+          reject(None, "GlobalLoadVectorWidth%s %u %% pv %u != 0" \
+              % (tc, grvw, pv))
           validDepthU = False
         grvw = grvw//pv
         numThreadGrvw = numThreadGrvw//pv
@@ -2148,7 +2148,7 @@ class Solution(collections.abc.Mapping):
   #   state[NumLoadsPerpendicular*]
   #   state[LSC*]
   #   state[LSP*]
-  #   state[GlobalReadVectorWidth]
+  #   state[GlobalLoadVectorWidthA/B]
   #
   # LSC and LSP define the shape of the PerLoadTile, measured in elements.
   #   LSC*LSP is the elements loaded by a single instruction across all
@@ -2187,7 +2187,7 @@ class Solution(collections.abc.Mapping):
   #       The KernelWriterAssembly will modify the LWO for the last load.  This allows
   #       flexibility in the unroll factors for example.
   @staticmethod
-  def setGlobalLoadTileDimFractional(state, tc, depthU):
+  def setGlobalLoadTileDimFractional(state, tc, depthU, glvwOrig):
 
     assert(depthU > 0)
     dbFract = 0
@@ -2205,13 +2205,13 @@ class Solution(collections.abc.Mapping):
           % (tc, state["MacroTile0"], state["MacroTile1"], depthU, \
             parDim, perpDim, \
             state["WorkGroup"][0], state["WorkGroup"][1], state["LocalSplitU"], \
-            state["NumThreads"], state["GlobalReadVectorWidth"]))
+            state["NumThreads"], glvwOrig))
 
     # Try to find a GRVW which is smaller than the LSC and also does not force
     # the LSC to wrap - both of these conditions can be tested with lsc % grvw ==0.
     # Each iteration divides GRWV by 2 which provides finer granularity
     # and a possible opportunity to handle the lsc
-    grvw = state["GlobalReadVectorWidth"]
+    grvw = glvwOrig
     minGrvw = 2 if state["ProblemType"]["DataType"].isHalf() and \
                 globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"] else 1
     # TODO- check this for int8 and fractional load
@@ -2268,15 +2268,15 @@ class Solution(collections.abc.Mapping):
 
     if bestVw == -1:
       if dbFract:
-        print ("reject fractional - no acceptable tile dim? GlobalReadVectorWidth", \
-         state["GlobalReadVectorWidth"])
+        print ("reject fractional - no acceptable tile dim? GlobalLoadVectorWidthA/B", \
+         glvwOrig)
       return False  # could not find a solution, perhaps only possible for half ?
 
     state["GlobalLoadVectorWidth%s"%tc] = bestVw
-    if bestVw != state["GlobalReadVectorWidth"]:
+    if bestVw != glvwOrig:
       if dbFract:
         print("  reducing GlobalLoadVectorWidth%s from %u to %u" \
-            % (tc, state["GlobalReadVectorWidth"], bestVw))
+            % (tc, glvwOrig, bestVw))
 
     # How many loads per threads in each dimension.
     # threads which are outside the global read tile bounds will be clipped
@@ -2507,9 +2507,9 @@ class Solution(collections.abc.Mapping):
       reject(state, "DirectToVgpr%c does not supports ExpandPointerSwap = False"%(tc))
       return False
 
-    # Does not work with TLU + VectorWidth != GlobalReadVectorWidth (VW = 2 + GRVW = 1 or VW = 1 + GRVW = 2 does not work)
+    # Does not work with TLU + VectorWidth != GlobalLoadVectorWidth (VW = 2 + GRVW = 1 or VW = 1 + GRVW = 2 does not work)
     if state["ProblemType"]["TLU%c"%tc] and state["VectorWidth"] != state["GlobalLoadVectorWidth%c"%tc]:
-      reject(state, "DirectToVgpr%c does not supports TLU + VectorWidth(=%u) != GlobalReadVectorWidth%c(%u)"%(tc, state["VectorWidth"], tc, state["GlobalLoadVectorWidth%c"%tc]))
+      reject(state, "DirectToVgpr%c does not supports TLU + VectorWidth(=%u) != GlobalLoadVectorWidth%c(%u)"%(tc, state["VectorWidth"], tc, state["GlobalLoadVectorWidth%c"%tc]))
       return False
 
     # Does not work with FractionalLoad and (not TLU)
@@ -2520,7 +2520,7 @@ class Solution(collections.abc.Mapping):
     # Does not work with TLU=False and NumLoadsCoalesced != DepthU//(MatrixInstK*GRVW*LSU//MIInputPerThread)
     if (not state["ProblemType"]["TLU%c"%tc]) and \
         state["NumLoadsCoalesced%c"%tc] != state["DepthU"] // (state["MatrixInstK"] * state["GlobalLoadVectorWidth%c"%tc] * state["LocalSplitU"] // state["MIInputPerThread"]):
-      reject(state, "DirectToVgpr%c does not supports TLU=False and NumLoadsCoalesced%c != DepthU//(MatrixInstK*GlobalReadVectorWidth*LocalSplitU//MIInputPerThread(=%u))"%(tc, tc, state["MIInputPerThread"]))
+      reject(state, "DirectToVgpr%c does not supports TLU=False and NumLoadsCoalesced%c != DepthU//(MatrixInstK*GlobalLoadVectorWidth*LocalSplitU//MIInputPerThread(=%u))"%(tc, tc, state["MIInputPerThread"]))
       return False
 
     # TLU=False case, need GlobalLoadVectorWidth == LocalReadVectorWidth
@@ -3285,9 +3285,19 @@ class Solution(collections.abc.Mapping):
     #if state["KernelLanguage"] == "Assembly" and state["PackSummationDims"]:
     #    reject(state, "PackSummationDims does not yet support assembly")
 
-    # Default GlobalReadVectorWidth
-    if state["GlobalReadVectorWidth"] == -1:
-      state["GlobalReadVectorWidth"] = state["VectorWidth"]
+    # Use GlobalReadVectorWidth if it is not -1
+    if state["GlobalReadVectorWidth"] != -1:
+      state["GlobalLoadVectorWidthA"] = state["GlobalReadVectorWidth"]
+      state["GlobalLoadVectorWidthB"] = state["GlobalReadVectorWidth"]
+
+    # Default GlobalLoadVectorWidthA, B
+    for tc in ('A','B'):
+      if state["GlobalLoadVectorWidth%s"%tc] == -1:
+        state["GlobalLoadVectorWidth%s"%tc] = state["VectorWidth"]
+      # reject - GLVWA/B too big
+      if (state["GlobalLoadVectorWidth%s"%tc] * state["ProblemType"]["DataType"].numBytes()) > 16:
+        reject(state, "GlobalLoadVectorWidth%s * DataType.numBytes() > 16"%tc)
+        return
 
     # Default GlobalStoreVectorWidth
     if state["StoreVectorWidth"] == -1:
@@ -3314,11 +3324,6 @@ class Solution(collections.abc.Mapping):
     # reject - VW too big
     if (state["VectorWidth"] * state["ProblemType"]["DataType"].numBytes()) > 16:
       reject(state, "VW * DataType.numBytes() > 16")
-      return
-
-    # reject - GRVW too big
-    if (state["GlobalReadVectorWidth"] * state["ProblemType"]["DataType"].numBytes()) > 16:
-      reject(state, "GRVW * DataType.numBytes() > 16")
       return
 
     # LocalSplitU too large?
@@ -3491,11 +3496,13 @@ class Solution(collections.abc.Mapping):
     ########################################
     # Search DepthU
     # Inputs:
-    #  - depthU, userDepthU, state["LocalSplitU"], state["InnerUnroll"], state["MacroTile0/1"], state["GlobalReadVectorWidth"]
+    #  - depthU, userDepthU, state["LocalSplitU"], state["InnerUnroll"], state["MacroTile0/1"], state["GlobalLoadVectorWidthA/B"]
     #  - state["MatrixInstK"], ...
     # Outputs:
     #  - totalVectorsCoalescedA, totalVectorsCoalescedB, totalElementsPerpA, totalElementsPerpB, state["DepthU"]
     #######################################
+    GlobalLoadVectorWidthAorig = state["GlobalLoadVectorWidthA"] # keep original value
+    GlobalLoadVectorWidthBorig = state["GlobalLoadVectorWidthB"] # keep original value
     while True: # exit criteria at end
       validDepthU = True
       # peek LoopIters
@@ -3536,38 +3543,38 @@ class Solution(collections.abc.Mapping):
       totalElementsB = totalElementsCoalescedB * totalElementsPerpB
 
       if state["FractionalLoad"]:
-        if not Solution.setGlobalLoadTileDimFractional(state, "A", depthU):
+        if not Solution.setGlobalLoadTileDimFractional(state, "A", depthU, GlobalLoadVectorWidthAorig):
           validDepthU = False
-        if not Solution.setGlobalLoadTileDimFractional(state, "B", depthU):
+        if not Solution.setGlobalLoadTileDimFractional(state, "B", depthU, GlobalLoadVectorWidthBorig):
           validDepthU = False
       else:
-        GlobalReadVectorWidth = state["GlobalReadVectorWidth"]
+        GlobalLoadVectorWidthA = GlobalLoadVectorWidthAorig
         if state["DirectToVgprA"]:
           if not state["SourceSwap"]:
-            GlobalReadVectorWidth = 1 # adjust GlobalReadVectorWidth to 1 in DirectToVgpr case (except for DirectToVgprA + SourceSwap)
-        elif state["DirectToLdsA"] and (bpeAB * GlobalReadVectorWidth) > 4:
+            GlobalLoadVectorWidthA = 1 # adjust GlobalLoadVectorWidth to 1 in DirectToVgpr case (except for DirectToVgprA + SourceSwap)
+        elif state["DirectToLdsA"] and (bpeAB * GlobalLoadVectorWidthA) > 4:
           # bpe * grvw must be <= 4 for DirectToLds (lds flag only for <= 32bit load)
-          GlobalReadVectorWidth = 4 / bpeAB
+          GlobalLoadVectorWidthA = 4 / bpeAB
           # use float only for <1. Otherwise, convert to int
-          if GlobalReadVectorWidth >= 1:
-            GlobalReadVectorWidth = int(GlobalReadVectorWidth)
-        if not Solution.setGlobalLoadVectorWidth(state, "A", totalElementsA, GlobalReadVectorWidth):
+          if GlobalLoadVectorWidthA >= 1:
+            GlobalLoadVectorWidthA = int(GlobalLoadVectorWidthA)
+        if not Solution.setGlobalLoadVectorWidth(state, "A", totalElementsA, GlobalLoadVectorWidthA):
           validDepthU = False
-        GlobalReadVectorWidth = state["GlobalReadVectorWidth"]
-        if (not state["DirectToVgprB"]) and state["DirectToLdsB"] and (bpeAB * GlobalReadVectorWidth) > 4:
+        GlobalLoadVectorWidthB = GlobalLoadVectorWidthBorig
+        if (not state["DirectToVgprB"]) and state["DirectToLdsB"] and (bpeAB * GlobalLoadVectorWidthB) > 4:
           # bpe * grvw must be <= 4 for DirectToLds
-          GlobalReadVectorWidth = 4 / bpeAB
+          GlobalLoadVectorWidthB = 4 / bpeAB
           # use float only for <1. Otherwise, convert to int
-          if GlobalReadVectorWidth >= 1:
-            GlobalReadVectorWidth = int(GlobalReadVectorWidth)
-        if not Solution.setGlobalLoadVectorWidth(state, "B", totalElementsB, GlobalReadVectorWidth):
+          if GlobalLoadVectorWidthB >= 1:
+            GlobalLoadVectorWidthB = int(GlobalLoadVectorWidthB)
+        if not Solution.setGlobalLoadVectorWidth(state, "B", totalElementsB, GlobalLoadVectorWidthB):
           validDepthU = False
 
       if validDepthU and state["KernelLanguage"] == "Assembly" \
         and (state["ProblemType"]["DataType"].isHalf() \
               or state["ProblemType"]["DataType"].isBFloat16()):
         if globalParameters["ArchCaps"][globalParameters["CurrentISA"]]["HasEccHalf"]:
-          if state["GlobalLoadVectorWidthA"] == 1 or state["GlobalLoadVectorWidthB"] == 1:
+          if state["GlobalLoadVectorWidthA"] <= 1 or state["GlobalLoadVectorWidthB"] <= 1:
             reject(state, "HalfEcc requires GLVWA > 1")
 
       # TODO- Need this restrict ?
@@ -3579,17 +3586,13 @@ class Solution(collections.abc.Mapping):
           reject(state, "Int8 requires GLVWB >= 4, current is %u"%state["GlobalLoadVectorWidthB"])
 
 
-      # Now convert elements to vectors based on GlobalReadVectorWidth
-      GlobalLoadVectorWidthA = state["GlobalLoadVectorWidthA"]
-      GlobalLoadVectorWidthB = state["GlobalLoadVectorWidthB"]
-      if GlobalLoadVectorWidthA == 0:
-        GlobalLoadVectorWidthA = GlobalReadVectorWidth
-      if GlobalLoadVectorWidthB == 0:
-        GlobalLoadVectorWidthB = GlobalReadVectorWidth
-      totalVectorsCoalescedA = totalElementsCoalescedA // GlobalLoadVectorWidthA
-      totalVectorsCoalescedB = totalElementsCoalescedB // GlobalLoadVectorWidthB
-      totalVectorsA = totalElementsA // GlobalLoadVectorWidthA
-      totalVectorsB = totalElementsB // GlobalLoadVectorWidthB
+      # Now convert elements to vectors based on GlobalLoadVectorWidth
+      GlobalLoadVectorWidthA = GlobalLoadVectorWidthAorig if state["GlobalLoadVectorWidthA"] == 0 else state["GlobalLoadVectorWidthA"]
+      GlobalLoadVectorWidthB = GlobalLoadVectorWidthBorig if state["GlobalLoadVectorWidthB"] == 0 else state["GlobalLoadVectorWidthB"]
+      totalVectorsCoalescedA = int(totalElementsCoalescedA / GlobalLoadVectorWidthA)
+      totalVectorsCoalescedB = int(totalElementsCoalescedB / GlobalLoadVectorWidthB)
+      totalVectorsA = int(totalElementsA / GlobalLoadVectorWidthA)
+      totalVectorsB = int(totalElementsB / GlobalLoadVectorWidthB)
 
       if 0:
         print("info:", pvar(state, "NumThreads"), pvar(state, "DepthU"), pvar(state, "DepthULdsDivisor"),
@@ -3614,14 +3617,12 @@ class Solution(collections.abc.Mapping):
               or state["GlobalLoadVectorWidthB"] != 1:
             validDepthU = False
         elif userDepthU == -2:
-          if max( state["GlobalLoadVectorWidthA"], \
-              state["GlobalLoadVectorWidthB"]) \
-              < state["GlobalReadVectorWidth"]:
+          if state["GlobalLoadVectorWidthA"] < GlobalLoadVectorWidthAorig and \
+            state["GlobalLoadVectorWidthB"] < GlobalLoadVectorWidthBorig:
             validDepthU = False
         elif userDepthU <= -3:
-          if min( state["GlobalLoadVectorWidthA"], \
-              state["GlobalLoadVectorWidthB"]) \
-              < state["GlobalReadVectorWidth"]:
+          if state["GlobalLoadVectorWidthA"] < GlobalLoadVectorWidthAorig or \
+            state["GlobalLoadVectorWidthB"] < GlobalLoadVectorWidthBorig:
             validDepthU = False
 
       if validDepthU:
@@ -3906,7 +3907,7 @@ class Solution(collections.abc.Mapping):
       rejectMessage += "\n" + "To enable NoTailLoop, "
       rejectMessage += "\n" + " - AssertSummationElementMultiple/GlobalSplitU) is multiple of DepthU or"
       rejectMessage += "\n" + " - BufferLoad and MatrixInstruction + MatrixInstK > 1 and"
-      rejectMessage += "\n" + "   (global read width for TailLoop decided by assert is multiple of GlobalReadVectorWidth) and"
+      rejectMessage += "\n" + "   (global read width for TailLoop decided by assert is multiple of GlobalLoadVectorWidth) and"
       rejectMessage += "\n" + "   (StaggerU = 0 or NT(+BufferLoad))"
       reject(state, rejectMessage)
       return
@@ -4384,9 +4385,10 @@ class Solution(collections.abc.Mapping):
         reject(state, "DepthULdsDivisor > 1: Only works with TN problem layout and UnrollMajorLDS")
       if state["PrefetchGlobalRead"]==1 and state["PrefetchLocalRead"]==0:
         reject(state, "PGR1 + PLR0 in SplitLDS requires double G2L buffer which is yet to be implemented")
-      if state["ProblemType"]["DataType"].numRegisters()*state["GlobalReadVectorWidth"] < state["DepthULdsDivisor"]:
-        reject(state, "SplitLDS requires wider GlobalReadVectorWidth; needs RegisterPerElem (%f) * GRVW (%u) >= DepthULdsDivisor (%u)"%
-          (state["ProblemType"]["DataType"].numRegisters(),state["GlobalReadVectorWidth"],state["DepthULdsDivisor"]))
+      for tc in ('A', 'B'):
+        if state["ProblemType"]["DataType"].numRegisters()*state["GlobalLoadVectorWidth%s"%tc] < state["DepthULdsDivisor"]:
+          reject(state, "SplitLDS requires wider GlobalLoadVectorWidth%s; needs RegisterPerElem (%f) * GLVW%s (%u) >= DepthULdsDivisor (%u)"%
+            (tc, state["ProblemType"]["DataType"].numRegisters(),tc,state["GlobalLoadVectorWidth%s"%tc],state["DepthULdsDivisor"]))
 
     if state["GlobalReadPerMfma"] > 1 and state["PrefetchGlobalRead"] == 2:
       reject(state, "GlobalReadPerMfma need to be 1 if PGR2")
